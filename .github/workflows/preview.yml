@@ -1,0 +1,137 @@
+name: Previsualización
+
+# Levanta la imagen real de producción con datos de demostración en el runner.
+#
+# · En cada PR: saca capturas (escritorio y móvil) y las deja como artefacto.
+# · A mano (Actions → Previsualización → Run workflow): además abre un túnel
+#   temporal de Cloudflare y publica un link en línea durante los minutos que
+#   elijas, con el sitio, la tienda, /socios y el backend de Odoo.
+#
+# Es una base de prueba que se destruye al terminar: nada de esto toca producción.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      minutos:
+        description: "Minutos que el link queda en línea (máximo 330)"
+        required: true
+        default: "60"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Previsualizar el sitio
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dcasa
+          POSTGRES_PASSWORD: dcasa
+          POSTGRES_DB: dcasa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      EN_LINEA: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: docker/setup-buildx-action@v3
+      - name: Construir la imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          tags: dcasa-odoo:preview
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Abrir el túnel de Cloudflare
+        id: tunel
+        if: env.EN_LINEA == 'true'
+        run: |
+          curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x cloudflared
+          nohup ./cloudflared tunnel --no-autoupdate --url http://localhost:8069 > tunel.log 2>&1 &
+          for i in $(seq 1 60); do
+            URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunel.log | head -1)
+            [ -n "$URL" ] && break
+            sleep 2
+          done
+          if [ -z "$URL" ]; then cat tunel.log; echo "::error::No se pudo abrir el túnel."; exit 1; fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Arrancar Odoo con una base nueva
+        id: odoo
+        run: |
+          CLAVE=$(openssl rand -hex 6)
+          echo "clave=$CLAVE" >> "$GITHUB_OUTPUT"
+          docker run -d --name odoo --network host \
+            -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa -e DB_SSLMODE=disable \
+            -e ADMIN_PASSWORD="$CLAVE" -e ADMIN_USER_PASSWORD="$CLAVE" -e APP_VERSION=${{ github.sha }} \
+            -e DCASA_PIN_PEPPER=preview \
+            dcasa-odoo:preview
+          for i in $(seq 1 120); do
+            curl -fsS -o /dev/null http://localhost:8069/web/health 2>/dev/null && { echo "Odoo arriba"; break; }
+            sleep 5
+          done
+          curl -fsS -o /dev/null http://localhost:8069/web/health
+
+      - name: Cargar datos de demostración
+        run: |
+          docker exec -i -e PREVIEW_URL="${{ steps.tunel.outputs.url }}" odoo \
+            python3 /opt/odoo/odoo-bin shell -c /var/lib/odoo/odoo.conf -d dcasa --log-level=warn \
+            < scripts/demo_data.py
+
+      - name: Capturas
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python scripts/preview_shots.py http://localhost:8069 capturas
+      - uses: actions/upload-artifact@v4
+        with:
+          name: capturas-del-sitio
+          path: capturas/
+
+      - name: Resumen
+        run: |
+          {
+            echo "## Previsualización de D'CASA"
+            if [ "$EN_LINEA" = "true" ]; then
+              echo ""
+              echo "**Link en línea (${{ inputs.minutos }} min):** ${{ steps.tunel.outputs.url }}"
+              echo ""
+              echo "| Qué | Dónde | Acceso |"
+              echo "|---|---|---|"
+              echo "| Sitio y tienda | ${{ steps.tunel.outputs.url }}/ | — |"
+              echo "| App del socio | ${{ steps.tunel.outputs.url }}/socios | celular \`6555-1234\` · PIN \`482915\` |"
+              echo "| Backend de Odoo | ${{ steps.tunel.outputs.url }}/web/login | usuario \`admin\` · clave \`${{ steps.odoo.outputs.clave }}\` |"
+              echo ""
+              echo "La base es de prueba y se borra cuando termina este job."
+            fi
+            echo ""
+            echo "Capturas de escritorio y móvil: artefacto **capturas-del-sitio** de esta ejecución."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mantener en línea
+        if: env.EN_LINEA == 'true'
+        run: |
+          MIN=${{ inputs.minutos }}
+          [ "$MIN" -gt 330 ] && MIN=330
+          echo "En línea en ${{ steps.tunel.outputs.url }} durante $MIN minutos."
+          sleep $((MIN * 60))
+
+      - if: failure()
+        run: docker logs odoo 2>&1 | tail -200
