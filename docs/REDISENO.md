@@ -156,3 +156,20 @@ Lighthouse (local, sin CDN):
 - **Sin «Con la tecnología de Odoo»**, ni en el pie ni en el portal.
 - **Favicon de D'CASA** (`static/src/img/favicon.png`).
 - **Bases existentes:** la migración `19.0.1.2.0` pone el favicon y la cabecera fija.
+
+## v2.2
+
+- **Navbar 100 % vidrio líquido:**
+  - Casi transparente, con desenfoque y saturación fuertes y dos filos de luz.
+  - Un reflejo cruza la píldora al pasar el puntero.
+  - Sobre la foto del hero el vidrio casi no tiñe y el texto pasa a blanco
+    (`o_dcasa_nav_sobre_foto`); sobre fondo claro, texto oscuro.
+- **Menú corto: Catálogo · Socios D'CASA · Visítanos.**
+  - Las categorías viven dentro del catálogo (/shop) y en «Compra por espacio».
+  - Se arma con `website._dcasa_armar_menu_principal()` al instalar (y en la migración
+    19.0.1.3.0); después se edita desde Sitio web → Menú.
+- **Auditoría:**
+  - Precios con formato de Panamá ($1,070.50): lo configura `dcasa_base`, con su migración
+    19.0.1.1.0.
+  - El botón flotante de WhatsApp espera mientras se ve el hero, que ya trae el suyo.
+  - Lighthouse en la portada: accesibilidad 100, SEO 100.

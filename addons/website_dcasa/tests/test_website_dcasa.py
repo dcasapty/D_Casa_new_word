@@ -269,3 +269,11 @@ class TestSitioV21(HttpCase):
         self.assertTrue(scripts)
         js = ''.join(self.url_open(src).text for src in scripts)
         self.assertIn('o_dcasa_anim', js)
+
+    def test_menu_corto_con_catalogo(self):
+        website = self.env.ref('website.default_website')
+        nombres = website.menu_id.child_id.sorted('sequence').mapped('name')
+        self.assertEqual(nombres, ['Catálogo', "Socios D'CASA", 'Visítanos'])
+        self.assertEqual(website.menu_id.child_id[0].url, '/shop')
+        html = self.url_open('/').text
+        self.assertIn('id="visitanos"', html, 'El enlace «Visítanos» tiene a dónde ir')

@@ -274,22 +274,45 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
         padding: .45rem .75rem .45rem 1.25rem;
         transition: padding .28s ease;
 
+        // Vidrio líquido: casi transparente, mucho desenfoque y saturación, y dos filos de
+        // luz (arriba y abajo) que dan el volumen de una gota. Sin degradados.
         &::before {
             content: '';
             position: absolute;
             inset: 0;
             z-index: -1;
             border-radius: inherit;
-            background: rgba(#FFFFFF, .7);
-            -webkit-backdrop-filter: blur(18px) saturate(180%);
-            backdrop-filter: blur(18px) saturate(180%);
-            border: 1px solid rgba(#FFFFFF, .65);
-            // Brillo de «vidrio líquido»: filo claro arriba, filo azul muy tenue abajo.
+            background: rgba(#FFFFFF, .58);
+            -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
+            backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
+            border: 1px solid rgba(#FFFFFF, .7);
             box-shadow:
-                inset 0 1px 0 rgba(#FFFFFF, .9),
-                inset 0 -1px 0 rgba($dcasa-azul, .1),
-                0 12px 32px -22px rgba($dcasa-navy, .55);
+                inset 0 1.5px 0 rgba(#FFFFFF, .95),
+                inset 0 -1px 0 rgba(#FFFFFF, .35),
+                inset 0 0 0 1px rgba(#FFFFFF, .12),
+                0 16px 40px -24px rgba($dcasa-navy, .55);
+            transition: background-color .35s ease, border-color .35s ease, box-shadow .35s ease;
             pointer-events: none;
+        }
+
+        // Reflejo: una franja de luz que cruza la píldora al pasar el puntero.
+        &::after {
+            content: '';
+            position: absolute;
+            inset: 1px;
+            z-index: -1;
+            border-radius: inherit;
+            background: rgba(#FFFFFF, .18);
+            clip-path: polygon(0 0, 22% 0, 12% 100%, 0 100%);
+            transform: translateX(-30%);
+            opacity: 0;
+            transition: transform .9s cubic-bezier(.22, 1, .36, 1), opacity .4s ease;
+            pointer-events: none;
+        }
+
+        &:hover::after {
+            transform: translateX(460%);
+            opacity: 1;
         }
     }
 
@@ -318,6 +341,63 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
 
     .btn_cta {
         border-radius: 999px;
+    }
+
+    // «Visítanos» apunta a un ancla de la portada: Odoo lo marcaría como activo en «/».
+    .nav-link[href='/#visitanos'].active:not(:hover) {
+        background: transparent;
+    }
+}
+
+// Sobre la foto oscura del hero: el vidrio casi no tiñe y el texto pasa a blanco.
+html.o_dcasa_nav_sobre_foto #wrapwrap > header#top {
+    .o_main_nav::before {
+        background: rgba(#FFFFFF, .12);
+        border-color: rgba(#FFFFFF, .38);
+        box-shadow:
+            inset 0 1.5px 0 rgba(#FFFFFF, .55),
+            inset 0 -1px 0 rgba(#FFFFFF, .18),
+            0 16px 40px -24px rgba(#000000, .6);
+    }
+
+    .navbar-nav .nav-link,
+    .o_navlink_background,
+    .o_header_mobile .navbar-toggler,
+    .btn-outline-secondary,
+    a.btn.btn-outline-secondary,
+    .o_nav_link_btn {
+        color: #FFFFFF;
+    }
+
+    .navbar-nav .nav-link:hover,
+    .navbar-nav .nav-link:focus-visible,
+    .navbar-nav .nav-link.active {
+        color: #FFFFFF;
+        background: rgba(#FFFFFF, .16);
+    }
+
+    .o_navlink_background {
+        background: rgba(#FFFFFF, .14) !important;
+
+        &,
+        * {
+            color: #FFFFFF !important;
+        }
+    }
+
+    .btn-outline-secondary {
+        border-color: rgba(#FFFFFF, .5);
+        background: rgba(#FFFFFF, .08);
+    }
+
+    .navbar-toggler-icon {
+        filter: invert(1);
+    }
+
+    // El menú desplegado del celular vuelve a fondo claro: ahí el texto va oscuro.
+    .offcanvas .nav-link,
+    .offcanvas .btn-outline-secondary {
+        color: $dcasa-tinta;
     }
 }
 
@@ -1005,6 +1085,18 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 #wrapwrap .o_footer_copyright a:not(.btn) {
     color: #FFFFFF;
     text-decoration: underline;
+}
+
+// Mientras se ve el hero (que ya trae su botón de WhatsApp) el flotante espera fuera:
+// en el celular taparía los botones del hero.
+.o_dcasa_wa_float {
+    transition: opacity .3s ease, transform .3s ease;
+}
+
+html.o_dcasa_nav_sobre_foto .o_dcasa_wa_float {
+    opacity: 0;
+    transform: scale(.8);
+    pointer-events: none;
 }
 
 // Con el menú móvil abierto, el botón flotante taparía sus botones.

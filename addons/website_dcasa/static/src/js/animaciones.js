@@ -93,8 +93,19 @@ function cabecera() {
     };
     medir();
     window.addEventListener("resize", medir, { passive: true });
+    // ¿La píldora está encima de la foto oscura del hero? Entonces vidrio claro y texto blanco.
+    const hero = document.querySelector(".o_dcasa_hero");
+    const sobreFoto = () => {
+        if (!hero) {
+            return false;
+        }
+        const piso = header.getBoundingClientRect().bottom;
+        const foto = hero.getBoundingClientRect();
+        return foto.top < piso && foto.bottom > piso;
+    };
     let compacta = false;
     const revisar = () => {
+        raiz.classList.toggle("o_dcasa_nav_sobre_foto", sobreFoto());
         const y = window.scrollY;
         if (!compacta && y > 40) {
             compacta = true;

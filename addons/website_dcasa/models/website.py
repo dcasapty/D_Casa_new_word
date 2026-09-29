@@ -5,7 +5,7 @@ from urllib.parse import quote
 
 from markupsafe import Markup
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.fields import Domain
 from odoo.http import request
@@ -53,6 +53,34 @@ class Website(models.Model):
     def _dcasa_whatsapp_producto(self, product):
         """Mensaje de WhatsApp con el nombre del mueble ya escrito."""
         return self._dcasa_whatsapp_url(f"Hola D'CASA, me interesa: {product.display_name}")
+
+    # ------------------------------------------------------------------
+    # Menú
+    # ------------------------------------------------------------------
+
+    MENU_PRINCIPAL = [
+        ('Catálogo', '/shop'),
+        ("Socios D'CASA", '/socios'),
+        ('Visítanos', '/#visitanos'),
+    ]
+
+    @api.model
+    def _dcasa_armar_menu_principal(self):
+        """Deja el menú de cada sitio con tres opciones (en vez de una por categoría).
+
+        Las categorías siguen a mano en el catálogo (/shop) y en «Compra por espacio».
+        """
+        Menu = self.env['website.menu']
+        for website in self.search([]):
+            raiz = website.menu_id
+            if not raiz:
+                continue
+            raiz.child_id.unlink()
+            for orden, (nombre, url) in enumerate(self.MENU_PRINCIPAL, start=1):
+                Menu.create({
+                    'name': nombre, 'url': url, 'parent_id': raiz.id,
+                    'website_id': website.id, 'sequence': orden * 10,
+                })
 
     # ------------------------------------------------------------------
     # Portada

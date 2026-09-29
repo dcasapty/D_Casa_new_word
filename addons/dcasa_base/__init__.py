@@ -28,6 +28,16 @@ def _setup_panama_accounting(env):
         ]).currency_id = usd
 
 
+def _formato_panama(env):
+    """Números como en Panamá: $1,070.50 (punto decimal, coma de miles).
+
+    El es_419 de Odoo trae coma decimal («$ 1.070,50»), que en Panamá se lee mal.
+    """
+    lang = env['res.lang'].with_context(active_test=False)._lang_get(DCASA_LANG)
+    if lang:
+        lang.write({'decimal_point': '.', 'thousands_sep': ','})
+
+
 def _dcasa_base_post_init(env):
     """Deja la empresa lista para facturar en Panamá."""
     # Al instalar ``account`` en una base nueva, Odoo difiere la carga del plan
@@ -49,3 +59,4 @@ def _dcasa_base_post_init(env):
     if env['res.lang']._activate_lang(DCASA_LANG):
         env.ref('base.main_company').partner_id.lang = DCASA_LANG
         env['ir.default'].set('res.partner', 'lang', DCASA_LANG)
+    _formato_panama(env)

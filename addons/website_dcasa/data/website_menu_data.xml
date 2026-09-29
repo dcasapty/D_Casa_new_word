@@ -1,36 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Menú: se compra por espacio (como se busca un mueble), luego tienda y socios. -->
+    <!-- Menú corto: Catálogo (la tienda con todos los productos y sus categorías),
+         Socios D'CASA y Visítanos. Se arma una vez al instalar; después se edita desde
+         Sitio web > Menú, sin programador. -->
     <data noupdate="1">
-        <record id="menu_salas" model="website.menu">
-            <field name="name">Salas</field>
-            <field name="url" eval="'/shop/category/%s' % ref('website_dcasa.public_category_salas')"/>
-            <field name="parent_id" ref="website.main_menu"/>
-            <field name="sequence" type="int">12</field>
-        </record>
-        <record id="menu_recamaras" model="website.menu">
-            <field name="name">Recámaras</field>
-            <field name="url" eval="'/shop/category/%s' % ref('website_dcasa.public_category_recamaras')"/>
-            <field name="parent_id" ref="website.main_menu"/>
-            <field name="sequence" type="int">14</field>
-        </record>
-        <record id="menu_colchones" model="website.menu">
-            <field name="name">Colchones</field>
-            <field name="url" eval="'/shop/category/%s' % ref('website_dcasa.public_category_colchones')"/>
-            <field name="parent_id" ref="website.main_menu"/>
-            <field name="sequence" type="int">16</field>
-        </record>
-        <record id="menu_comedores" model="website.menu">
-            <field name="name">Comedores</field>
-            <field name="url" eval="'/shop/category/%s' % ref('website_dcasa.public_category_comedores')"/>
-            <field name="parent_id" ref="website.main_menu"/>
-            <field name="sequence" type="int">18</field>
-        </record>
-        <record id="menu_socios" model="website.menu">
-            <field name="name">Socios D'CASA</field>
-            <field name="url">/socios</field>
-            <field name="parent_id" ref="website.main_menu"/>
-            <field name="sequence" type="int">40</field>
-        </record>
+        <function model="website" name="_dcasa_armar_menu_principal"/>
     </data>
 </odoo>

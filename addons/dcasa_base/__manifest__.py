@@ -11,7 +11,7 @@ Módulo raíz del ERP de D'CASA Panamá.
 * Guarda los adjuntos en la base de datos: el contenedor en Cloudflare es
   efímero y no tiene disco persistente.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

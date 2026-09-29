@@ -78,7 +78,7 @@
                                 <p class="o_dcasa_hero_sub">Salas, recámaras, colchones y comedores con precios claros.
                                     Muchos vienen en caja: te los llevas hoy mismo.</p>
                                 <div class="o_dcasa_ctas">
-                                    <a href="/shop" class="btn btn-lg o_dcasa_btn_amarillo">Ver la tienda</a>
+                                    <a href="/shop" class="btn btn-lg o_dcasa_btn_amarillo">Ver el catálogo</a>
                                     <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener nofollow">
                                         <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
                                     </a>
@@ -122,7 +122,7 @@
                                 <p class="o_dcasa_kicker">Compra por espacio</p>
                                 <h2 id="dcasa-cat-titulo" class="o_dcasa_h2" data-titular="">¿Qué le hace falta a tu casa?</h2>
                             </div>
-                            <a href="/shop" class="o_dcasa_link">Ver toda la tienda <span aria-hidden="true">→</span></a>
+                            <a href="/shop" class="o_dcasa_link">Ver todo el catálogo <span aria-hidden="true">→</span></a>
                         </div>
                         <div class="o_dcasa_cat_grid" data-anim-cascada="">
                             <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
@@ -269,7 +269,7 @@
                         </div>
                     </section>
 
-                    <section class="o_dcasa_visita" data-snippet="s_text_block" data-name="Visítanos">
+                    <section id="visitanos" class="o_dcasa_visita" data-snippet="s_text_block" data-name="Visítanos">
                         <div class="o_dcasa_container o_dcasa_visita_inner">
                             <div data-anim-cascada="izquierda">
                                 <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>

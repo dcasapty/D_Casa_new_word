@@ -50,3 +50,7 @@ class TestDcasaBase(TransactionCase):
         })
         contact = self.env['res.partner'].create({'name': 'Compras', 'parent_id': company.id})
         self.assertEqual(contact.l10n_pa_dv, '45')
+
+    def test_numbers_use_panama_format(self):
+        lang = self.env['res.lang']._lang_get('es_419')
+        self.assertEqual((lang.decimal_point, lang.thousands_sep), ('.', ','))
