@@ -80,6 +80,35 @@
         </xpath>
     </template>
 
+    <!-- Fuera «Con la tecnología de Odoo»: el sitio es de D'CASA. Se quita el bloque del pie
+         y se vacía la plantilla, así tampoco aparece en el portal ni en otras páginas. -->
+    <template id="sin_credito_odoo" inherit_id="web.brand_promotion" name="D'CASA: sin crédito de Odoo">
+        <xpath expr="//div[hasclass('o_brand_promotion')]" position="replace"/>
+    </template>
+
+    <template id="sin_credito_odoo_pie" inherit_id="website.layout" name="D'CASA: pie sin crédito de Odoo">
+        <xpath expr="//t[@t-call='web.brand_promotion']/.." position="replace"/>
+    </template>
+
+    <!-- Páginas del programa de socios: cabecera con foto oscurecida y texto blanco,
+         igual que el hero de la portada (sin la banda azul). -->
+    <template id="socios_cabecera_dcasa" inherit_id="dcasa_socios.socios_layout" name="D'CASA: cabecera de socios">
+        <xpath expr="//div[hasclass('o_dcasa_socios_head')]" position="replace">
+            <section class="o_dcasa_hero o_dcasa_hero_compacto o_dcasa_socios_head">
+                <div class="o_dcasa_hero_media">
+                    <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600" alt=""/>
+                </div>
+                <div class="o_dcasa_container o_dcasa_hero_inner">
+                    <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Programa de socios</p>
+                        <h1 class="o_dcasa_display mb-0" t-out="titulo or 'Socios D’CASA'"/>
+                    </div>
+                </div>
+            </section>
+        </xpath>
+        <xpath expr="//div[hasclass('o_dcasa_band')]" position="replace"/>
+    </template>
+
     <template id="footer_copyright_dcasa" inherit_id="website.footer_copyright_company_name" name="D'CASA: copyright">
         <xpath expr="//span[hasclass('o_footer_copyright_name')]" position="replace">
             <span class="o_footer_copyright_name me-2 small">© D'CASA Panamá · Todos los derechos reservados</span>

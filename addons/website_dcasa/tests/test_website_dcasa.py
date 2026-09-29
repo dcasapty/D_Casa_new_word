@@ -1,7 +1,9 @@
+import base64
 import json
 import re
 
 from odoo.tests import HttpCase, TransactionCase, tagged
+from odoo.tools.misc import file_open
 
 
 @tagged('post_install', '-at_install')
@@ -61,7 +63,7 @@ class TestWebsitePages(HttpCase):
         self.assertTrue(css_links, 'La página debe enlazar el bundle CSS del sitio')
         css = self.url_open(css_links[0]).text
         self.assertIn('o_dcasa_pcard', css)
-        self.assertIn('o_dcasa_placa', css)
+        self.assertIn('o_dcasa_hero_texto', css)
         self.assertIn('o_dcasa_wa_float', css)
         self.assertRegex(css.lower(), r'#1340b1|rgb\(19,\s*64,\s*177\)')
 
@@ -219,3 +221,51 @@ class TestPortadaDinamica(HttpCase):
         self.assertNotIn('<', texto)
         self.assertEqual(json.loads(texto)['name'], self.website.company_id.name)
         self.assertNotIn('priceRange', texto, 'Sin cifras inventadas')
+
+
+@tagged('post_install', '-at_install')
+class TestSitioV21(HttpCase):
+    """Sin marca de Odoo, hero sin placa, reseñas reales y animaciones."""
+
+    def test_sin_credito_de_odoo(self):
+        for ruta in ('/', '/shop', '/socios'):
+            html = self.url_open(ruta).text
+            self.assertNotIn('o_brand_promotion', html, ruta)
+            self.assertNotIn('utm_source=db', html, ruta)
+            self.assertNotIn('Con la tecnología de', html, ruta)
+
+    def test_favicon_de_dcasa(self):
+        website = self.env.ref('website.default_website')
+        # Odoo lo guarda convertido a .ico: basta con que ya no sea el de Odoo.
+        with file_open('web/static/img/favicon.ico', 'rb') as archivo:
+            self.assertNotEqual(base64.b64decode(website.favicon), archivo.read())
+        self.assertTrue(website.favicon)
+
+    def test_hero_sin_placa_con_texto_blanco(self):
+        html = self.url_open('/').text
+        self.assertIn('o_dcasa_hero_texto', html)
+        self.assertNotIn('o_dcasa_placa', html)
+        socios = self.url_open('/socios').text
+        self.assertIn('o_dcasa_hero_compacto', socios, 'Las páginas interiores usan el mismo hero')
+
+    def test_resenas_reales_de_google(self):
+        with file_open('website_dcasa/data/resenas.json') as archivo:
+            datos = json.load(archivo)
+        html = self.url_open('/').text
+        self.assertIn(datos['ficha'], html)
+        self.assertIn('Déjanos tu opinión en Google', html)
+        for opinion in datos['opiniones']:
+            self.assertIn(opinion['autor'], html)
+        resenas = self.env.ref('website.default_website')._dcasa_resenas()
+        self.assertTrue(resenas['en_movimiento'])
+        self.assertEqual(resenas['copias'] % 2, 0, 'El bucle sin salto necesita un número par de copias')
+        self.assertGreaterEqual(len(resenas['opiniones']) * resenas['copias'] / 2, 8)
+
+    def test_animaciones_cargan(self):
+        html = self.url_open('/').text
+        self.assertIn('data-anim-entrada', html)
+        self.assertIn('data-titular', html)
+        scripts = re.findall(r'src="([^"]*web\.assets_frontend[^"]*\.js)"', html)
+        self.assertTrue(scripts)
+        js = ''.join(self.url_open(src).text for src in scripts)
+        self.assertIn('o_dcasa_anim', js)

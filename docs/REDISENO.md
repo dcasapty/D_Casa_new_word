@@ -132,3 +132,27 @@ Lighthouse (local, sin CDN):
 - SEO 100 en la portada.
 - El rendimiento en móvil depende del JavaScript de Odoo (≈1,5 MB sin usar en la portada); en
   producción lo compensan la caché del Worker y la compresión de Cloudflare.
+
+## v2.1 (pedido de la dueña)
+
+- **Hero sin placa azul** en todas las páginas: foto a sangre sobre negro, con la opacidad
+  bajada (45 %) y el texto en blanco. El azul de marca queda en la cabecera y los botones.
+  Las páginas de socios usan la misma cabecera, más baja (`.o_dcasa_hero_compacto`).
+- **Cabecera de vidrio** (inspirada en BYS y Safetory):
+  - Es una píldora flotante con desenfoque y un filo de luz, siempre visible (efecto «fijo»
+    de Odoo), que se compacta al bajar.
+  - El vidrio va en un `::before`: puesto en el propio nav, encerraría el menú móvil de Odoo.
+- **Animaciones** (mismo sistema que BYS: `static/src/js/animaciones.js`):
+  - El hero entra en cascada y la foto hace un zoom lento.
+  - Las secciones aparecen al hacer scroll (`data-anim`, `data-anim-cascada`).
+  - Los titulares suben palabra a palabra (`data-titular`).
+  - No se anima nada dentro del editor ni con `prefers-reduced-motion`, y sin JavaScript todo
+    se ve.
+- **Opiniones de Google** en una cinta en movimiento (como BYS):
+  - Son copia literal de la ficha de Google, en `data/resenas.json`. Cada tarjeta enlaza a la
+    ficha, y el botón «Déjanos tu opinión en Google» lleva a dejar una nueva.
+  - La cinta se para con el puntero o el foco.
+  - **Cómo se añade una reseña:** se copia tal cual de Google al JSON y se actualiza el `total`.
+- **Sin «Con la tecnología de Odoo»**, ni en el pie ni en el portal.
+- **Favicon de D'CASA** (`static/src/img/favicon.png`).
+- **Bases existentes:** la migración `19.0.1.2.0` pone el favicon y la cabecera fija.

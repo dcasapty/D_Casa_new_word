@@ -1,0 +1,15 @@
+{
+  "$comentario": "COPIA LITERAL de las reseñas publicadas en la ficha de Google de D'CASA. No se redacta, no se corrige ni se recorta nada: se copia y se pega. Si una reseña se borra en Google, se borra aquí. Las reseñas sin texto no se muestran (no hay nada que leer), pero cuentan en el total que muestra Google.",
+  "ficha": "https://share.google/jzPOPycx8h2CwdbXE",
+  "$ficha": "Enlace de la ficha de Google: ahí se leen todas y se deja una nueva.",
+  "puntuacion": 5.0,
+  "total": 5,
+  "$total": "Número de opiniones que muestra Google en la ficha. Se actualiza a mano junto con la lista.",
+  "revisado": "2026-09-29",
+  "opiniones": [
+    {"autor": "David Castillo", "estrellas": 5, "cuando": "Hace un año", "texto": "Hasta ahora todo a satisfacción."},
+    {"autor": "Zuley Garcia", "estrellas": 5, "cuando": "Hace un año", "texto": "Me encanto mi puerta corrediza. Tal cual la solicite, excelente trabajo"},
+    {"autor": "Jessica Herrera", "estrellas": 5, "cuando": "Hace un año", "texto": "Muy buena atención por parte de Catalina y muy buen trabajo por parte de los instaladores, Muchas gracias"},
+    {"autor": "Soy Bardie", "estrellas": 5, "cuando": "Hace un año", "texto": "Muy amable la chica del kiosko de allbrook"}
+  ]
+}

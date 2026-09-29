@@ -11,7 +11,9 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
   productos con precio y «Agregar» en un clic, socios, guía y preguntas frecuentes.
 * Ficha de producto con WhatsApp del mueble, sellos de confianza y botón fijo en el
   celular; tienda a 4 columnas; datos estructurados y SEO local.
-* Pie de página con los datos reales y botón flotante de WhatsApp.
+* Pie de página con los datos reales y botón flotante de WhatsApp, sin el crédito de Odoo.
+* Cabecera de vidrio flotante, animaciones de entrada (secciones y titulares) y
+  opiniones reales de Google en una cinta en movimiento (data/resenas.json).
 * Categorías de la tienda (Salas, Comedores, Recámaras, Colchones,
   Electrodomésticos, Decoración, Exteriores).
 * Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
@@ -19,7 +21,7 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -30,6 +32,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
         'views/layout_templates.xml',
+        'views/resenas_templates.xml',
         'views/homepage_templates.xml',
         'data/website_menu_data.xml',
     ],
@@ -39,6 +42,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         ],
         'web.assets_frontend': [
             'website_dcasa/static/src/scss/dcasa.scss',
+            'website_dcasa/static/src/js/animaciones.js',
         ],
     },
     'installable': True,

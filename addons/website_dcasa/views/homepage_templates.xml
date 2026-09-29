@@ -43,13 +43,13 @@
         <section t-if="items" class="o_dcasa_section o_dcasa_rail" t-att-aria-label="titulo">
             <div class="o_dcasa_container">
                 <div class="o_dcasa_section_head">
-                    <div>
+                    <div data-anim-cascada="izquierda">
                         <p class="o_dcasa_kicker" t-out="antetitulo"/>
-                        <h2 class="o_dcasa_h2" t-out="titulo"/>
+                        <h2 class="o_dcasa_h2" data-titular="" t-out="titulo"/>
                     </div>
                     <a t-att-href="enlace" class="o_dcasa_link">Ver todo <span aria-hidden="true">→</span></a>
                 </div>
-                <div class="o_dcasa_rail_track" role="list">
+                <div class="o_dcasa_rail_track" role="list" data-anim-cascada="">
                     <div t-foreach="items" t-as="item" class="o_dcasa_rail_item" role="listitem">
                         <t t-call="website_dcasa.tarjeta_producto"/>
                     </div>
@@ -62,7 +62,7 @@
         <xpath expr="//div[@id='wrap']" position="replace">
             <div id="wrap" class="o_dcasa_home">
 
-                <!-- 1. Hero: la foto manda, la placa firma -->
+                <!-- 1. Hero: la foto a sangre, oscurecida, con el texto en blanco encima -->
                 <div class="oe_structure" id="oe_structure_dcasa_hero">
                     <section class="o_dcasa_hero" data-snippet="s_text_block" data-name="Portada">
                         <div class="o_dcasa_hero_media">
@@ -72,7 +72,7 @@
                                  alt="Sala amplia con sofá de cuero, cojines y plantas"/>
                         </div>
                         <div class="o_dcasa_container o_dcasa_hero_inner">
-                            <div class="o_dcasa_placa">
+                            <div class="o_dcasa_hero_texto" data-anim-entrada="">
                                 <p class="o_dcasa_kicker o_dcasa_kicker_light">Mueblería en La Chorrera · Entrega a todo Panamá</p>
                                 <h1 class="o_dcasa_display">Tu casa, bien amueblada.</h1>
                                 <p class="o_dcasa_hero_sub">Salas, recámaras, colchones y comedores con precios claros.
@@ -92,7 +92,7 @@
                 <div class="oe_structure" id="oe_structure_dcasa_beneficios">
                     <section class="o_dcasa_beneficios" data-snippet="s_text_block" data-name="Beneficios">
                         <div class="o_dcasa_container">
-                            <ul class="o_dcasa_beneficios_list" role="list">
+                            <ul class="o_dcasa_beneficios_list" role="list" data-anim-cascada="">
                                 <li>
                                     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9h16v13H3zM19 13h6l4 5v4h-10z"/><circle cx="8" cy="24" r="2.5"/><circle cx="23" cy="24" r="2.5"/></svg>
                                     <div><strong>Entrega a todo Panamá</strong><span>Te decimos costo y fecha por WhatsApp.</span></div>
@@ -118,13 +118,13 @@
                 <section class="o_dcasa_section o_dcasa_categorias" aria-labelledby="dcasa-cat-titulo">
                     <div class="o_dcasa_container">
                         <div class="o_dcasa_section_head">
-                            <div>
+                            <div data-anim-cascada="izquierda">
                                 <p class="o_dcasa_kicker">Compra por espacio</p>
-                                <h2 id="dcasa-cat-titulo" class="o_dcasa_h2">¿Qué le hace falta a tu casa?</h2>
+                                <h2 id="dcasa-cat-titulo" class="o_dcasa_h2" data-titular="">¿Qué le hace falta a tu casa?</h2>
                             </div>
                             <a href="/shop" class="o_dcasa_link">Ver toda la tienda <span aria-hidden="true">→</span></a>
                         </div>
-                        <div class="o_dcasa_cat_grid">
+                        <div class="o_dcasa_cat_grid" data-anim-cascada="">
                             <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
                                 <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
                                      loading="lazy" decoding="async"/>
@@ -146,13 +146,13 @@
                 <div class="oe_structure" id="oe_structure_dcasa_hoy">
                     <section class="o_dcasa_section o_dcasa_split" data-snippet="s_text_block" data-name="Te lo llevas hoy">
                         <div class="o_dcasa_container o_dcasa_split_grid">
-                            <div class="o_dcasa_split_media">
+                            <div class="o_dcasa_split_media" data-anim="izquierda">
                                 <img src="/website_dcasa/static/src/img/split-hoy.webp" width="793" height="595"
                                      loading="lazy" decoding="async" alt="Sofá amarillo en una sala luminosa"/>
                             </div>
-                            <div class="o_dcasa_split_text">
+                            <div class="o_dcasa_split_text" data-anim-cascada="derecha">
                                 <p class="o_dcasa_kicker">Sin esperar semanas</p>
-                                <h2 class="o_dcasa_h2">Te lo llevas hoy mismo</h2>
+                                <h2 class="o_dcasa_h2" data-titular="">Te lo llevas hoy mismo</h2>
                                 <p class="o_dcasa_lead">Muchos de nuestros muebles y camas vienen en caja y caben en tu
                                     carro. Pasas por la tienda, pagas y te lo llevas. ¿No te cabe? Te lo llevamos a todo
                                     el país.</p>
@@ -178,9 +178,9 @@
                 <t t-set="reglas" t-value="website._dcasa_reglas_socios()"/>
                 <section class="o_dcasa_socios_band" aria-labelledby="dcasa-socios-titulo">
                     <div class="o_dcasa_container o_dcasa_split_grid">
-                        <div class="o_dcasa_socios_band_text">
+                        <div class="o_dcasa_socios_band_text" data-anim-cascada="izquierda">
                             <p class="o_dcasa_kicker o_dcasa_kicker_light">Socios D'CASA</p>
-                            <h2 id="dcasa-socios-titulo" class="o_dcasa_h2">Suma puntos y gana invitando</h2>
+                            <h2 id="dcasa-socios-titulo" class="o_dcasa_h2" data-titular="">Suma puntos y gana invitando</h2>
                             <ul class="o_dcasa_socios_facts" role="list">
                                 <t t-set="por_dolar" t-value="reglas['acumulacion'].get('puntosPorDolar')"/>
                                 <t t-set="al_padrino" t-value="reglas['referido'].get('puntosAlPadrino')"/>
@@ -195,26 +195,29 @@
                                 <a href="/socios/terminos" class="btn btn-lg o_dcasa_btn_linea">Cómo funciona</a>
                             </div>
                         </div>
-                        <div class="o_dcasa_socios_band_media">
+                        <div class="o_dcasa_socios_band_media" data-anim="escala">
                             <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600"
                                  loading="lazy" decoding="async" alt="Silla de ratán junto a una ventana con plantas"/>
                         </div>
                     </div>
                 </section>
 
+                <!-- 7b. Opiniones reales de Google (dinámico: data/resenas.json) -->
+                <t t-call="website_dcasa.resenas_google"/>
+
                 <!-- 8. Inspírate + guía + preguntas + visítanos (editable) -->
                 <div class="oe_structure" id="oe_structure_dcasa_inspira">
                     <section class="o_dcasa_section" data-snippet="s_text_block" data-name="Inspírate">
                         <div class="o_dcasa_container">
                             <div class="o_dcasa_section_head">
-                                <div>
+                                <div data-anim-cascada="izquierda">
                                     <p class="o_dcasa_kicker">Ideas para tu espacio</p>
-                                    <h2 class="o_dcasa_h2">Inspírate</h2>
+                                    <h2 class="o_dcasa_h2" data-titular="">Inspírate</h2>
                                 </div>
                                 <a href="https://www.instagram.com/dcasapty" class="o_dcasa_link" target="_blank" rel="noopener">
                                     Síguenos en Instagram <span aria-hidden="true">→</span></a>
                             </div>
-                            <div class="o_dcasa_galeria">
+                            <div class="o_dcasa_galeria" data-anim-cascada="">
                                 <img src="/website_dcasa/static/src/img/insp-1.webp" width="768" height="768" loading="lazy" decoding="async" alt="Sala gris con mesa de centro de madera"/>
                                 <img src="/website_dcasa/static/src/img/insp-2.webp" width="460" height="460" loading="lazy" decoding="async" alt="Butaca amarilla con mesa de noche"/>
                                 <img src="/website_dcasa/static/src/img/insp-3.webp" width="640" height="640" loading="lazy" decoding="async" alt="Sala con sofá de cuero y plantas"/>
@@ -229,8 +232,8 @@
                         <div class="o_dcasa_container o_dcasa_split_grid o_dcasa_split_top">
                             <div>
                                 <p class="o_dcasa_kicker">Guía útil · guárdala</p>
-                                <h2 class="o_dcasa_h2">¿Te cabe? Mídelo en 3 pasos</h2>
-                                <ol class="o_dcasa_steps">
+                                <h2 class="o_dcasa_h2" data-titular="">¿Te cabe? Mídelo en 3 pasos</h2>
+                                <ol class="o_dcasa_steps" data-anim-cascada="">
                                     <li><strong>Mide el espacio.</strong> Largo y ancho de la pared o el rincón donde va el mueble.</li>
                                     <li><strong>Deja paso.</strong> Calcula al menos 60 cm libres para caminar alrededor.</li>
                                     <li><strong>Revisa la entrada.</strong> Mide puertas, pasillos y escaleras por donde tiene que pasar.</li>
@@ -239,8 +242,8 @@
                             </div>
                             <div>
                                 <p class="o_dcasa_kicker">Preguntas frecuentes</p>
-                                <h2 class="o_dcasa_h2">Lo que más nos preguntan</h2>
-                                <div class="o_dcasa_faq">
+                                <h2 class="o_dcasa_h2" data-titular="">Lo que más nos preguntan</h2>
+                                <div class="o_dcasa_faq" data-anim-cascada="">
                                     <details>
                                         <summary>¿Hacen entregas a todo Panamá?</summary>
                                         <p>Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha de entrega.</p>
@@ -268,9 +271,9 @@
 
                     <section class="o_dcasa_visita" data-snippet="s_text_block" data-name="Visítanos">
                         <div class="o_dcasa_container o_dcasa_visita_inner">
-                            <div>
+                            <div data-anim-cascada="izquierda">
                                 <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
-                                <h2 class="o_dcasa_h2">Te esperamos en La Chorrera</h2>
+                                <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
                                 <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
                             </div>
                             <div class="o_dcasa_ctas">

@@ -1,4 +1,5 @@
 import json
+import math
 import re
 from urllib.parse import quote
 
@@ -8,6 +9,7 @@ from odoo import fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.fields import Domain
 from odoo.http import request
+from odoo.tools.misc import file_open
 
 DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
 
@@ -115,6 +117,28 @@ class Website(models.Model):
             and producto.type != 'combo'
             and producto.product_variant_id._is_add_to_cart_allowed()
         )
+
+    def _dcasa_resenas(self):
+        """Opiniones reales de la ficha de Google (copia literal en data/resenas.json).
+
+        La cinta necesita repetir la lista para cerrar el bucle sin salto: ``copias`` dice
+        cuántas veces se imprime (par, y cada mitad con al menos 8 tarjetas para cubrir
+        pantallas anchas). Solo la primera copia la leen los lectores de pantalla.
+        """
+        with file_open('website_dcasa/data/resenas.json') as archivo:
+            datos = json.load(archivo)
+        opiniones = [o for o in datos.get('opiniones', []) if (o.get('texto') or '').strip()]
+        en_movimiento = len(opiniones) >= 3
+        copias = 2 * max(1, math.ceil(8 / len(opiniones))) if en_movimiento else 1
+        return {
+            'ficha': datos['ficha'],
+            'puntuacion': datos.get('puntuacion'),
+            'total': datos.get('total'),
+            'opiniones': opiniones,
+            'en_movimiento': en_movimiento,
+            'copias': copias,
+            'duracion': f'{max(30, round(len(opiniones) * copias * 5.5))}s',
+        }
 
     def _dcasa_reglas_socios(self):
         """Cifras del programa de socios, leídas de puntos.json (nunca escritas a mano)."""

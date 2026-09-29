@@ -5,6 +5,8 @@
             <field name="name">D'CASA Panamá</field>
             <field name="dcasa_whatsapp_number">+507 6026-1919</field>
             <field name="logo" type="base64" file="dcasa_base/static/img/logo.png"/>
+            <!-- Ícono de la pestaña: el de D'CASA, no el de Odoo. -->
+            <field name="favicon" type="base64" file="website_dcasa/static/src/img/favicon.png"/>
             <field name="social_instagram">https://www.instagram.com/dcasapty</field>
             <field name="social_tiktok">https://www.tiktok.com/@dcasapty</field>
             <!-- Tienda: 4 columnas, foto sobre fondo neutro, botón de compra siempre visible
@@ -18,6 +20,14 @@
              así el menú por espacios cabe entero. Se puede reactivar desde el editor. -->
         <record id="website.header_text_element" model="ir.ui.view">
             <field name="active" eval="False"/>
+        </record>
+
+        <!-- Cabecera siempre visible (efecto «fijo»): la píldora de vidrio acompaña el scroll. -->
+        <record id="website.header_visibility_standard" model="ir.ui.view">
+            <field name="active" eval="False"/>
+        </record>
+        <record id="website.header_visibility_fixed" model="ir.ui.view">
+            <field name="active" eval="True"/>
         </record>
 
         <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona). -->
