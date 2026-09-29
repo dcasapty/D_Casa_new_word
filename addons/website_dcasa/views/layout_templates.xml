@@ -4,23 +4,37 @@
     <template id="layout_whatsapp_float" inherit_id="website.layout" name="D'CASA: botón de WhatsApp"
               customize_show="True">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
-            <a t-if="website and not editable" t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
-               class="o_dcasa_wa_float" aria-label="Escríbenos por WhatsApp" title="Escríbenos por WhatsApp">
-                <i class="fa fa-whatsapp" aria-hidden="true"/>
-            </a>
+            <aside t-if="website" aria-label="WhatsApp">
+                <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
+                   class="o_dcasa_wa_float" title="Escríbenos por WhatsApp">
+                    <i class="fa fa-whatsapp" aria-hidden="true"/>
+                    <span class="visually-hidden">Escríbenos por WhatsApp (se abre en una pestaña nueva)</span>
+                </a>
+            </aside>
         </xpath>
     </template>
 
-    <!-- Barra de anuncios: resuelve las tres objeciones de compra antes del scroll. -->
-    <template id="layout_anuncios" inherit_id="website.layout" name="D'CASA: barra de anuncios" customize_show="True">
-        <xpath expr="//header" position="before">
-            <div t-if="website" class="o_dcasa_anuncios" role="region" aria-label="Avisos de D'CASA">
+    <!-- Barra de anuncios: resuelve las tres objeciones de compra antes del scroll.
+         Va DENTRO de la cabecera con o_header_hide_on_scroll: Odoo la pliega sola cuando la
+         cabecera queda fija, y el hero puede meterse debajo de las dos (header_overlay). -->
+    <template id="layout_anuncios" inherit_id="website.layout" name="D'CASA: barra de anuncios">
+        <xpath expr="//header/*[1]" position="before">
+            <div t-if="website" class="o_dcasa_anuncios o_header_hide_on_scroll" role="region" aria-label="Avisos de D'CASA">
                 <div class="o_dcasa_container o_dcasa_anuncios_inner">
                     <span><i class="fa fa-truck me-2" aria-hidden="true"/>Entrega a todo Panamá</span>
                     <span class="d-none d-md-inline"><i class="fa fa-credit-card me-2" aria-hidden="true"/>Financiamiento flexible</span>
-                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
+                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
                 </div>
             </div>
+        </xpath>
+    </template>
+
+    <!-- Cabecera sobre el hero: la portada (pageName) y las plantillas que piden
+         `dcasa_header_overlay` (contacto, socios) llevan la misma clase que la opción de Odoo
+         «Cabecera sobre el contenido». -->
+    <template id="layout_cabecera_sobre_hero" inherit_id="website.layout" name="D'CASA: cabecera sobre el hero">
+        <xpath expr="//div[@id='wrapwrap']" position="attributes">
+            <attribute name="t-attf-class" add="#{'o_header_overlay' if dcasa_header_overlay or pageName == 'homepage' else ''}" separator=" "/>
         </xpath>
     </template>
 
@@ -55,39 +69,19 @@
         </xpath>
     </template>
 
-    <!-- Filtro de refracción del navbar de vidrio líquido (lo usa dcasa.scss con
-         backdrop-filter: url(#dcasa-liquido), solo en navegadores que lo soportan).
-         El ruido se mueve lento: el vidrio «fluye». Sin movimiento si el sistema lo pide. -->
+    <!-- Filtro de refracción del navbar de vidrio líquido. animaciones.js lo aplica (en línea,
+         con una variable CSS) solo donde backdrop-filter: url() funciona, y le agrega el
+         movimiento lento solo mientras la píldora está sobre la foto. -->
     <template id="layout_filtro_liquido" inherit_id="website.layout" name="D'CASA: filtro de vidrio líquido">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
             <svg class="o_dcasa_filtros" width="0" height="0" aria-hidden="true" focusable="false">
                 <filter id="dcasa-liquido" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.009 0.022" numOctaves="2" seed="7" result="ruido">
-                        <animate attributeName="baseFrequency" dur="18s" repeatCount="indefinite"
-                                 values="0.009 0.022;0.012 0.018;0.009 0.022"/>
-                    </feTurbulence>
+                    <feTurbulence type="fractalNoise" baseFrequency="0.009 0.022" numOctaves="2" seed="7" result="ruido"/>
                     <feGaussianBlur in="ruido" stdDeviation="1.5" result="ruido_suave"/>
                     <feDisplacementMap in="SourceGraphic" in2="ruido_suave" scale="38"
                                        xChannelSelector="R" yChannelSelector="G"/>
                 </filter>
             </svg>
-        </xpath>
-    </template>
-
-    <!-- Texto de la cabecera: WhatsApp real en lugar del teléfono de ejemplo de Odoo. -->
-    <template id="header_text_element_dcasa" inherit_id="website.header_text_element" name="D'CASA: WhatsApp en la cabecera">
-        <xpath expr="//li" position="replace">
-            <li t-attf-class="#{_item_class}">
-                <div t-attf-class="s_text_block #{_div_class}" data-name="Text">
-                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
-                       class="nav-link o_nav-link_secondary p-2">
-                        <small>
-                            <i class="fa fa-1x fa-fw fa-whatsapp me-1"/>
-                            <span class="o_force_ltr" t-out="website.dcasa_whatsapp_number or website.company_id.phone"/>
-                        </small>
-                    </a>
-                </div>
-            </li>
         </xpath>
     </template>
 
@@ -106,12 +100,19 @@
     </template>
 
     <template id="sin_credito_odoo_pie" inherit_id="website.layout" name="D'CASA: pie sin crédito de Odoo">
-        <xpath expr="//t[@t-call='web.brand_promotion']/.." position="replace"/>
+        <xpath expr="//t[@t-call='web.brand_promotion']/.." position="attributes">
+            <attribute name="t-if">False</attribute>
+        </xpath>
     </template>
 
     <!-- Páginas del programa de socios: cabecera con foto oscurecida y texto blanco,
          igual que el hero de la portada (sin la banda azul). -->
     <template id="socios_cabecera_dcasa" inherit_id="dcasa_socios.socios_layout" name="D'CASA: cabecera de socios">
+        <!-- Título de pestaña distinto por página y cabecera sobre la foto. -->
+        <xpath expr="//t[@t-set='additional_title']" position="replace">
+            <t t-set="additional_title" t-value="('%s · ' % titulo if titulo else '') + 'Socios D’CASA'"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+        </xpath>
         <xpath expr="//div[hasclass('o_dcasa_socios_head')]" position="replace">
             <section class="o_dcasa_hero o_dcasa_hero_compacto o_dcasa_socios_head">
                 <div class="o_dcasa_hero_media">
@@ -162,7 +163,7 @@
                             <div class="col-lg-3 pb24">
                                 <h2 class="o_dcasa_kicker">Escríbenos</h2>
                                 <ul class="list-unstyled">
-                                    <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/><a href="/whatsapp" target="_blank" rel="noopener nofollow">+507 6026-1919</a></li>
+                                    <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/><a href="/whatsapp" target="_blank" rel="noopener nofollow">Escríbenos por WhatsApp</a></li>
                                     <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
                                     <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
                                     <li><i class="fa fa-music fa-fw me-2" aria-hidden="true"/><a href="https://www.tiktok.com/@dcasapty" target="_blank" rel="noopener">TikTok @dcasapty</a></li>

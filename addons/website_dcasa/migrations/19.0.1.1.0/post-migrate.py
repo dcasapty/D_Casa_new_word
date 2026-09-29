@@ -25,7 +25,7 @@ def migrate(cr, version):
             'website_meta_title': "Mueblería en La Chorrera | D'CASA Panamá",
             'website_meta_description': (
                 'Salas, recámaras, colchones y comedores con precios claros en La Chorrera. '
-                'Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp: +507 6026-1919.'
+                'Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.'
             ),
         })
     texto_cabecera = env.ref('website.header_text_element', raise_if_not_found=False)

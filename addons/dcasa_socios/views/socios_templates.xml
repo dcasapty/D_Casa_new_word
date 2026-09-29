@@ -37,7 +37,7 @@
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <label for="celular">Tu celular</label>
                             <input id="celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel"
-                                   class="form-control" placeholder="6026-1919" required="required" t-att-value="celular"/>
+                                   class="form-control" placeholder="6000-0000" required="required" t-att-value="celular"/>
                             <label for="pin">Tu PIN (6 números)</label>
                             <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="6"
                                    autocomplete="current-password" class="form-control" required="required"/>
@@ -88,8 +88,8 @@
                         </div>
                     </div>
                     <label for="celular">Celular (con él entras)</label>
-                    <input id="celular" name="celular" type="tel" inputmode="numeric" class="form-control"
-                           placeholder="6026-1919" required="required" t-att-value="datos.get('celular')"/>
+                    <input id="celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel-national" class="form-control"
+                           placeholder="6000-0000" required="required" t-att-value="datos.get('celular')"/>
                     <div class="row g-2">
                         <div class="col-6">
                             <label for="pin">Elige un PIN (6 números)</label>

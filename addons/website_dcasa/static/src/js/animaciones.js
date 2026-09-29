@@ -1,179 +1,226 @@
 /**
- * Animaciones del sitio D'CASA (mismo sistema que BYS y Safetory).
+ * Movimiento del sitio D'CASA, como Interactions de Odoo 19.
  *
- * El CSS (bloque «Animaciones» de dcasa.scss) define el estado inicial y las
- * variantes; aquí solo se decide CUÁNDO se revela cada cosa:
- *   · [data-anim]           un bloque que entra al verse (izquierda, derecha, escala);
- *   · [data-anim-cascada]   un contenedor cuyos hijos entran escalonados;
- *   · [data-titular]        un titular que entra palabra a palabra.
- * Lo que está sobre el pliegue (el hero) usa [data-anim-entrada], que es CSS
- * puro y no espera a este archivo.
+ * El framework las arranca en el sitio público y las DETIENE en el editor (no están
+ * registradas en `public.interactions.edit`): ahí nada se esconde, los titulares no se
+ * trocean y la gota del menú no se inserta, así el editor nunca guarda ese marcado.
+ * Todo lo que agregan lo quitan al destruirse (`registerCleanup`, `insert`, `addListener`).
  *
- * NO SE ANIMA DENTRO DEL EDITOR. El constructor de Odoo carga la página en un
- * iframe: ahí no se añade la clase `o_dcasa_anim`, así que nada se esconde y
- * el titular no se trocea (el editor guardaría los trozos). Tampoco con
- * `prefers-reduced-motion`.
+ *   · DcasaRevelar     secciones y titulares que entran al hacer scroll (data-anim…).
+ *   · DcasaCabecera    ¿la píldora está sobre la foto del hero? + refracción del vidrio.
+ *   · DcasaGotaMenu    la gota de vidrio que sigue al puntero y al foco en el menú.
+ *   · DcasaResenas     botón para pausar la cinta de opiniones (WCAG 2.2.2).
  *
- * Cada elemento se revela una vez y se deja de mirar. Con IntersectionObserver,
- * no escuchando el scroll: el navegador ya sabe qué está a la vista.
+ * Lo que está sobre el pliegue (el hero) usa [data-anim-entrada]: CSS puro, sin esperar a nadie.
  */
-const raiz = document.documentElement;
-const enEditor = window.self !== window.top || document.body?.classList.contains("editor_enable");
-const reducido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+import { Interaction } from "@web/public/interaction";
+import { registry } from "@web/core/registry";
 
-function trocearTitular(titular) {
-    if (titular.dataset.troceado) {
-        return;
-    }
-    titular.dataset.troceado = "1";
-    // El texto entero sigue disponible para lectores de pantalla.
-    titular.setAttribute("aria-label", titular.textContent.trim().replace(/\s+/g, " "));
-    const palabras = titular.textContent.trim().split(/\s+/);
-    titular.textContent = "";
-    palabras.forEach((palabra, i) => {
-        const caja = document.createElement("span");
-        caja.className = "o_dcasa_palabra";
-        caja.setAttribute("aria-hidden", "true");
-        const dentro = document.createElement("span");
-        dentro.textContent = palabra;
-        dentro.style.setProperty("--i", i);
-        caja.appendChild(dentro);
-        titular.appendChild(caja);
-        if (i < palabras.length - 1) {
-            titular.appendChild(document.createTextNode(" "));
-        }
-    });
-}
+const reducido = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-function iniciar() {
-    if (enEditor || reducido || !("IntersectionObserver" in window)) {
-        return;
-    }
-    const elementos = document.querySelectorAll("[data-anim], [data-anim-cascada], [data-titular]");
-    if (!elementos.length) {
-        return;
-    }
-    // Lo que ya está a la vista al cargar no se esconde para volver a enseñarlo.
-    const alto = window.innerHeight;
-    const observador = new IntersectionObserver(
-        (entradas) => {
-            for (const entrada of entradas) {
-                if (entrada.isIntersecting) {
-                    entrada.target.classList.add("anim-dentro");
-                    observador.unobserve(entrada.target);
-                }
-            }
-        },
-        { rootMargin: "0px 0px -10% 0px", threshold: 0 }
-    );
-    for (const el of elementos) {
-        if (el.getBoundingClientRect().top < alto * 0.9) {
-            el.classList.add("anim-dentro");
-            continue;
-        }
-        if (el.hasAttribute("data-titular")) {
-            trocearTitular(el);
-        }
-        observador.observe(el);
-    }
-    raiz.classList.add("o_dcasa_anim");
-}
+export class DcasaRevelar extends Interaction {
+    static selector = "#wrapwrap";
 
-// Cabecera de vidrio: se compacta al bajar (con histéresis para no parpadear en el umbral).
-function cabecera() {
-    const header = document.querySelector("header#top");
-    if (!header) {
-        return;
-    }
-    // El hero se mete debajo de la cabecera (el vidrio flota sobre la foto): necesita su alto.
-    const medir = () => {
-        if (!header.classList.contains("o_header_affixed")) {
-            raiz.style.setProperty("--dcasa-header-h", `${header.offsetHeight}px`);
-        }
-    };
-    medir();
-    window.addEventListener("resize", medir, { passive: true });
-    // ¿La píldora está encima de la foto oscura del hero? Entonces vidrio claro y texto blanco.
-    const hero = document.querySelector(".o_dcasa_hero");
-    const sobreFoto = () => {
-        if (!hero) {
-            return false;
-        }
-        const piso = header.getBoundingClientRect().bottom;
-        const foto = hero.getBoundingClientRect();
-        return foto.top < piso && foto.bottom > piso;
-    };
-    let compacta = false;
-    const revisar = () => {
-        raiz.classList.toggle("o_dcasa_nav_sobre_foto", sobreFoto());
-        const y = window.scrollY;
-        if (!compacta && y > 40) {
-            compacta = true;
-            raiz.classList.add("o_dcasa_scrolled");
-        } else if (compacta && y < 12) {
-            compacta = false;
-            raiz.classList.remove("o_dcasa_scrolled");
-        }
-    };
-    window.addEventListener("scroll", revisar, { passive: true });
-    revisar();
-}
-
-// Vidrio líquido: refracción donde el navegador la soporta y la gota que sigue al puntero.
-function vidrioLiquido() {
-    const chromium = navigator.userAgentData?.brands?.some((b) => b.brand === "Chromium");
-    if (chromium && window.CSS?.supports?.("backdrop-filter", "url(#a)")) {
-        raiz.classList.add("o_dcasa_refraccion");
-    }
-    if (reducido) {
-        document.querySelectorAll(".o_dcasa_filtros animate").forEach((a) => a.remove());
-    }
-    const menu = document.querySelector("header#top #top_menu");
-    if (!menu) {
-        return;
-    }
-    const gota = document.createElement("span");
-    gota.className = "o_dcasa_gota";
-    gota.setAttribute("aria-hidden", "true");
-    menu.prepend(gota);
-    const moverA = (enlace) => {
-        if (!enlace) {
-            gota.classList.remove("is-visible");
+    start() {
+        if (reducido() || !("IntersectionObserver" in window)) {
             return;
         }
-        const caja = menu.getBoundingClientRect();
-        const r = enlace.getBoundingClientRect();
-        gota.style.setProperty("--gota-x", `${r.left - caja.left}px`);
-        gota.style.setProperty("--gota-ancho", `${r.width}px`);
-        // Un pellizco al arrancar: la gota se estira y vuelve, como un líquido.
-        gota.style.setProperty("--gota-estirar", "0.82");
-        setTimeout(() => gota.style.setProperty("--gota-estirar", "1"), 180);
-        gota.classList.add("is-visible");
-    };
-    // «Visítanos» es un ancla de la portada: Odoo lo marca activo en «/», pero no es una página.
-    menu.querySelectorAll(".nav-link[href='/#visitanos']").forEach((a) => {
-        a.classList.remove("active");
-        a.removeAttribute("aria-current");
-    });
-    const activo = () => menu.querySelector(".nav-link.active");
-    menu.querySelectorAll(".nav-link").forEach((enlace) => {
-        enlace.addEventListener("mouseenter", () => moverA(enlace));
-        enlace.addEventListener("focus", () => moverA(enlace));
-    });
-    menu.addEventListener("mouseleave", () => moverA(activo()));
-    window.addEventListener("resize", () => moverA(activo()), { passive: true });
-    // Tras las fuentes (el ancho de los enlaces cambia al cargar Oswald).
-    (document.fonts?.ready || Promise.resolve()).then(() => moverA(activo()));
+        const elementos = [...this.el.querySelectorAll("[data-anim], [data-anim-cascada], [data-titular]")];
+        if (!elementos.length) {
+            return;
+        }
+        // Primero todas las lecturas, después todas las escrituras: un solo cálculo de layout.
+        const alto = window.innerHeight;
+        const arriba = elementos.map((el) => el.getBoundingClientRect().top < alto * 0.9);
+
+        this.observador = new IntersectionObserver(
+            (entradas) => {
+                for (const entrada of entradas) {
+                    if (entrada.isIntersecting) {
+                        entrada.target.classList.add("anim-dentro");
+                        this.observador.unobserve(entrada.target);
+                    }
+                }
+            },
+            { rootMargin: "0px 0px -10% 0px", threshold: 0 }
+        );
+        elementos.forEach((el, i) => {
+            // Lo que ya se ve al cargar no se esconde para volver a enseñarlo.
+            if (arriba[i]) {
+                el.classList.add("anim-dentro");
+            } else {
+                if (el.hasAttribute("data-titular")) {
+                    this.trocear(el);
+                }
+                this.observador.observe(el);
+            }
+        });
+        document.documentElement.classList.add("o_dcasa_anim");
+        this.registerCleanup(() => {
+            this.observador.disconnect();
+            document.documentElement.classList.remove("o_dcasa_anim");
+            elementos.forEach((el) => el.classList.remove("anim-dentro"));
+        });
+    }
+
+    /** Titular palabra a palabra. Solo si es texto plano: no rompe el marcado del editor. */
+    trocear(titular) {
+        if (titular.children.length) {
+            return;
+        }
+        const original = titular.textContent;
+        // Espacios normales: el espacio duro (&nbsp;) mantiene juntas las palabras que deben ir juntas.
+        const palabras = original.trim().split(/[ \t\n\r]+/);
+        titular.setAttribute("aria-label", palabras.join(" "));
+        titular.textContent = "";
+        palabras.forEach((palabra, i) => {
+            const caja = document.createElement("span");
+            caja.className = "o_dcasa_palabra";
+            caja.setAttribute("aria-hidden", "true");
+            const dentro = document.createElement("span");
+            dentro.textContent = palabra;
+            dentro.style.setProperty("--i", i);
+            caja.appendChild(dentro);
+            titular.append(caja, i < palabras.length - 1 ? " " : "");
+        });
+        this.registerCleanup(() => {
+            titular.textContent = original;
+            titular.removeAttribute("aria-label");
+        });
+    }
 }
 
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        iniciar();
-        cabecera();
-        vidrioLiquido();
-    });
-} else {
-    iniciar();
-    cabecera();
-    vidrioLiquido();
+export class DcasaCabecera extends Interaction {
+    static selector = "header#top";
+
+    start() {
+        const raiz = document.documentElement;
+        const filtro = document.querySelector(".o_dcasa_filtros");
+        const conRefraccion =
+            navigator.userAgentData?.brands?.some((b) => b.brand === "Chromium") &&
+            window.CSS?.supports?.("backdrop-filter", "url(#a)");
+        // La referencia va inline: dentro del CSS, el empaquetador de Odoo reescribiría
+        // url(#dcasa-liquido) como una ruta de archivo y el filtro no se aplicaría.
+        if (conRefraccion && filtro) {
+            raiz.style.setProperty(
+                "--dcasa-refraccion",
+                "url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08)"
+            );
+            raiz.classList.add("o_dcasa_refraccion");
+            if (!reducido()) {
+                this.animarVidrio(filtro);
+            }
+        }
+        this.registerCleanup(() => {
+            raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto");
+            raiz.style.removeProperty("--dcasa-refraccion");
+        });
+
+        // Las transiciones internas (menú, gota) no deben contar para el cálculo de altura
+        // que Odoo hace en cada `transitionend` de la cabecera.
+        this.addListener(this.el.querySelectorAll(".o_main_nav"), "transitionend", (ev) => ev.stopPropagation());
+
+        const hero = document.querySelector(".o_dcasa_hero");
+        if (!hero || !("IntersectionObserver" in window)) {
+            return;
+        }
+        // Sobre la foto = el hero sigue asomando por debajo del borde inferior de la píldora.
+        const piso = Math.round(this.el.getBoundingClientRect().bottom);
+        const observador = new IntersectionObserver(
+            ([entrada]) => {
+                raiz.classList.toggle("o_dcasa_nav_sobre_foto", entrada.isIntersecting);
+                if (this.svg) {
+                    entrada.isIntersecting ? this.svg.unpauseAnimations() : this.svg.pauseAnimations();
+                }
+            },
+            { rootMargin: `-${piso}px 0px 0px 0px`, threshold: 0 }
+        );
+        observador.observe(hero);
+        this.registerCleanup(() => observador.disconnect());
+    }
+
+    /** El ruido del filtro se mueve lento (el vidrio «fluye»); en pausa si no se ve. */
+    animarVidrio(filtro) {
+        const ruido = filtro.querySelector("feTurbulence");
+        const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        anim.setAttribute("attributeName", "baseFrequency");
+        anim.setAttribute("dur", "18s");
+        anim.setAttribute("repeatCount", "indefinite");
+        anim.setAttribute("values", "0.009 0.022;0.012 0.018;0.009 0.022");
+        ruido.appendChild(anim);
+        this.svg = filtro;
+        this.addListener(document, "visibilitychange", () =>
+            document.hidden ? filtro.pauseAnimations() : filtro.unpauseAnimations()
+        );
+        this.registerCleanup(() => {
+            anim.remove();
+            this.svg = null;
+        });
+    }
 }
+
+export class DcasaGotaMenu extends Interaction {
+    static selector = "header#top #top_menu";
+
+    start() {
+        const contenedor = this.el.parentElement;
+        this.gota = document.createElement("span");
+        this.gota.className = "o_dcasa_gota";
+        this.gota.setAttribute("aria-hidden", "true");
+        // Fuera del <ul> (solo admite <li>), en la píldora que lo contiene.
+        this.insert(this.gota, contenedor, "afterbegin");
+        const enlaces = this.el.querySelectorAll(".nav-link");
+        const activo = () => this.el.querySelector(".nav-link.active");
+        this.addListener(enlaces, "mouseenter", (ev) => this.moverA(ev.currentTarget));
+        this.addListener(enlaces, "focus", (ev) => this.moverA(ev.currentTarget));
+        this.addListener(this.el, "mouseleave", () => this.moverA(activo()));
+        this.addListener(this.el, "focusout", (ev) => {
+            if (!this.el.contains(ev.relatedTarget)) {
+                this.moverA(activo());
+            }
+        });
+        this.addListener(window, "resize", this.debounced(() => this.moverA(activo()), 150));
+        // Tras las fuentes: el ancho de los enlaces cambia al cargar Oswald.
+        this.waitFor(document.fonts?.ready || Promise.resolve()).then(() => this.moverA(activo()));
+    }
+
+    moverA(enlace) {
+        if (!enlace) {
+            this.gota.classList.remove("is-visible");
+            return;
+        }
+        const caja = this.gota.parentElement.getBoundingClientRect();
+        const r = enlace.getBoundingClientRect();
+        this.gota.style.setProperty("--gota-x", `${r.left - caja.left}px`);
+        this.gota.style.setProperty("--gota-y", `${r.top - caja.top + r.height / 2}px`);
+        this.gota.style.setProperty("--gota-ancho", `${r.width}px`);
+        this.gota.classList.add("is-visible");
+    }
+}
+
+export class DcasaResenas extends Interaction {
+    static selector = ".o_dcasa_resenas";
+    dynamicContent = {
+        ".o_dcasa_resenas_pausa": {
+            "t-on-click": this.alternar,
+            "t-att-aria-pressed": () => String(this.pausada),
+        },
+        ".o_dcasa_resenas_cinta": {
+            "t-att-class": () => ({ "is-pausada": this.pausada }),
+        },
+    };
+
+    setup() {
+        this.pausada = reducido();
+    }
+
+    alternar() {
+        this.pausada = !this.pausada;
+    }
+}
+
+const interacciones = registry.category("public.interactions");
+interacciones.add("website_dcasa.revelar", DcasaRevelar);
+interacciones.add("website_dcasa.cabecera", DcasaCabecera);
+interacciones.add("website_dcasa.gota_menu", DcasaGotaMenu);
+interacciones.add("website_dcasa.resenas", DcasaResenas);

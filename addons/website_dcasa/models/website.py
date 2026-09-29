@@ -1,30 +1,56 @@
 import json
 import math
-import re
+import os
 from urllib.parse import quote
-
-from markupsafe import Markup
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.fields import Domain
 from odoo.http import request
-from odoo.tools.misc import file_open
+from odoo.tools.json import scriptsafe as json_scriptsafe
+from odoo.tools.misc import file_path
 
 # La tienda en Google Maps (ficha «D'CASA», La Chorrera): la usan el mapa de «Visítanos» y el JSON-LD.
-UBICACION = (8.8765881, -79.7867962)
+LATITUD, LONGITUD = 8.8765881, -79.7867962
 
 DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
 
-# Categorías de la portada: (xmlid, nombre, imagen, texto alternativo de la foto).
+# Categorías de la portada: (xmlid, nombre, texto alternativo). La foto es static/src/img/cat-<xmlid>.webp.
 CATEGORIAS_PORTADA = [
-    ('salas', 'Salas', 'cat-salas', 'Sala con sofá turquesa y mesa de centro de madera'),
-    ('comedores', 'Comedores', 'cat-comedores', 'Mesa de comedor redonda de madera con silla'),
-    ('recamaras', 'Recámaras', 'cat-recamaras', 'Recámara con cama de madera y ropa de cama terracota'),
-    ('colchones', 'Colchones', 'cat-colchones', 'Recámara luminosa con cama y colchón'),
-    ('decoracion', 'Decoración', 'cat-decoracion', 'Lámparas colgantes y sillas junto a una cortina'),
-    ('exteriores', 'Exteriores', 'cat-exteriores', 'Terraza con muebles de exterior y plantas'),
+    ('salas', 'Salas', 'Sala con sofá turquesa y mesa de centro de madera'),
+    ('comedores', 'Comedores', 'Mesa de comedor redonda de madera con silla'),
+    ('recamaras', 'Recámaras', 'Recámara con cama de madera y ropa de cama terracota'),
+    ('colchones', 'Colchones', 'Recámara luminosa con cama y colchón'),
+    ('decoracion', 'Decoración', 'Lámparas colgantes y sillas junto a una cortina'),
+    ('exteriores', 'Exteriores', 'Terraza con muebles de exterior y plantas'),
 ]
+
+# Menú principal: tres opciones. Las categorías viven dentro del catálogo (/shop).
+MENU_PRINCIPAL = [
+    ('Catálogo', '/shop'),
+    ("Socios D'CASA", '/socios'),
+    ('Visítanos', '/#visitanos'),
+]
+
+
+def _es_menu_viejo(url):
+    """Menús que el menú corto reemplaza: los de Odoo por defecto y los de una categoría."""
+    url = url or ''
+    return url in ('/', '/shop', '/contactus', '/socios') or url.startswith('/shop/category/')
+
+
+_RESENAS = {'mtime': None, 'datos': None}
+
+
+def _leer_resenas():
+    """data/resenas.json, leído una vez y releído solo si el archivo cambia."""
+    ruta = file_path('website_dcasa/data/resenas.json')
+    mtime = os.path.getmtime(ruta)
+    if _RESENAS['mtime'] != mtime:
+        with open(ruta, encoding='utf-8') as archivo:
+            _RESENAS['datos'] = json.load(archivo)
+        _RESENAS['mtime'] = mtime
+    return _RESENAS['datos']
 
 
 class Website(models.Model):
@@ -40,15 +66,10 @@ class Website(models.Model):
     # WhatsApp
     # ------------------------------------------------------------------
 
-    def _dcasa_whatsapp_digits(self):
-        self.ensure_one()
-        number = self.dcasa_whatsapp_number or self.company_id.phone or ''
-        return re.sub(r'\D', '', number)
-
     def _dcasa_whatsapp_url(self, message=None):
         """Link wa.me con mensaje precargado; '/contactus' si no hay número."""
         self.ensure_one()
-        digits = self._dcasa_whatsapp_digits()
+        digits = reglas_socios.solo_digitos(self.dcasa_whatsapp_number or self.company_id.phone)
         if not digits:
             return '/contactus'
         return f'https://wa.me/{digits}?text={quote(message or DEFAULT_WHATSAPP_MESSAGE)}'
@@ -61,54 +82,63 @@ class Website(models.Model):
     # Menú
     # ------------------------------------------------------------------
 
-    MENU_PRINCIPAL = [
-        ('Catálogo', '/shop'),
-        ("Socios D'CASA", '/socios'),
-        ('Visítanos', '/#visitanos'),
-    ]
-
     @api.model
     def _dcasa_armar_menu_principal(self):
-        """Deja el menú de cada sitio con tres opciones (en vez de una por categoría).
+        """Deja el menú de cada sitio en Catálogo · Socios D'CASA · Visítanos.
 
-        Las categorías siguen a mano en el catálogo (/shop) y en «Compra por espacio».
+        Solo quita los menús que reemplaza (Inicio, Tienda, Contáctanos, uno por categoría) y
+        no duplica: se puede volver a correr sin perder lo que la dueña agregó desde el editor.
         """
         Menu = self.env['website.menu']
+        idiomas = [codigo for codigo, _nombre in self.env['res.lang'].get_installed()]
+        nuestros = {url for _nombre, url in MENU_PRINCIPAL}
         for website in self.search([]):
             raiz = website.menu_id
             if not raiz:
                 continue
-            raiz.child_id.unlink()
-            for orden, (nombre, url) in enumerate(self.MENU_PRINCIPAL, start=1):
-                Menu.create({
-                    'name': nombre, 'url': url, 'parent_id': raiz.id,
-                    'website_id': website.id, 'sequence': orden * 10,
-                })
+            raiz.child_id.filtered(lambda m: _es_menu_viejo(m.url) and m.url not in nuestros).unlink()
+            for orden, (nombre, url) in enumerate(MENU_PRINCIPAL, start=1):
+                valores = {'name': nombre, 'sequence': orden * 10}
+                menu = raiz.child_id.filtered(lambda m, url=url: m.url == url)[:1]
+                if menu:
+                    menu.write(valores)  # p. ej. «Shop» de Odoo pasa a «Catálogo»
+                else:
+                    menu = Menu.create(dict(valores, url=url, parent_id=raiz.id, website_id=website.id))
+                # El nombre es traducible: el mismo en todos los idiomas (si no, en español
+                # seguiría la traducción de Odoo, «Tienda»).
+                menu.update_field_translations('name', dict.fromkeys(idiomas, nombre))
 
     # ------------------------------------------------------------------
     # Portada
     # ------------------------------------------------------------------
+
+    def _dcasa_categoria(self, clave):
+        return self.env.ref(f'website_dcasa.public_category_{clave}', raise_if_not_found=False)
 
     def _dcasa_categoria_url(self, clave):
         """URL canónica (con slug) de una categoría de la tienda; '/shop' si ya no existe.
 
         En sudo: el visitante no puede leer una categoría aún sin productos, y el enlace igual sirve.
         """
-        categoria = self.env.ref(f'website_dcasa.public_category_{clave}', raise_if_not_found=False)
+        categoria = self._dcasa_categoria(clave)
         return f"/shop/category/{self.env['ir.http']._slug(categoria.sudo())}" if categoria else '/shop'
 
     def _dcasa_categorias(self):
         """Tarjetas de «Compra por espacio»: la URL sale de la categoría real de la tienda."""
         self.ensure_one()
-        tarjetas = []
-        for clave, nombre, imagen, alt in CATEGORIAS_PORTADA:
-            tarjetas.append({
-                'nombre': nombre,
-                'url': self._dcasa_categoria_url(clave),
-                'imagen': f'/website_dcasa/static/src/img/{imagen}.webp',
-                'alt': alt,
-            })
-        return tarjetas
+        return [{
+            'nombre': nombre,
+            'url': self._dcasa_categoria_url(clave),
+            'imagen': f'/website_dcasa/static/src/img/cat-{clave}.webp',
+            'alt': alt,
+        } for clave, nombre, alt in CATEGORIAS_PORTADA]
+
+    def _dcasa_dominio_publicado(self):
+        """Lo que un visitante puede comprar: se vende en este sitio y está publicado.
+
+        Lo usan los carruseles y el «Agregar» de un clic: los dos tienen que coincidir.
+        """
+        return Domain.AND([self.sale_product_domain(), [('is_published', '=', True)]])
 
     def _dcasa_productos(self, limit=8, categorias=None):
         """Productos publicados para los carruseles de la portada, con el mismo precio que la tienda.
@@ -116,37 +146,42 @@ class Website(models.Model):
         :param categorias: claves de categoría pública (p. ej. ``['colchones', 'recamaras']``).
         """
         self.ensure_one()
-        # Solo publicados, también para quien edita: la portada muestra lo que ve el cliente.
-        dominio = [self.sale_product_domain(), [('is_published', '=', True)]]
+        dominio = self._dcasa_dominio_publicado()
         if categorias:
-            ids = [
-                categoria.id for clave in categorias
-                if (categoria := self.env.ref(f'website_dcasa.public_category_{clave}', raise_if_not_found=False))
-            ]
-            dominio.append([('public_categ_ids', 'child_of', ids)])
-        productos = self.env['product.template'].search(Domain.AND(dominio), limit=limit,
-                                                       order='website_sequence asc, id desc')
-        # El precio de la tarifa del visitante necesita la petición web; sin ella, el de lista.
-        con_tarifa = productos and request and hasattr(request, 'pricelist')
+            ids = [c.id for clave in categorias if (c := self._dcasa_categoria(clave))]
+            dominio = Domain.AND([dominio, [('public_categ_ids', 'child_of', ids)]])
+        productos = self.env['product.template'].search(dominio, limit=limit, order='website_sequence asc, id desc')
+        # El precio y la moneda de la tarifa del visitante necesitan la petición web; sin ella, los de lista.
+        con_tarifa = bool(productos) and bool(request) and hasattr(request, 'pricelist')
         precios = productos._get_sales_prices(self) if con_tarifa else {}
-        return [{
-            'producto': p,
-            'precio': precios.get(p.id, {}).get('price_reduce', p.list_price),
-            'directo': bool(con_tarifa) and self._dcasa_compra_directa(p),
-        } for p in productos]
+        moneda = (request.pricelist.currency_id if con_tarifa else None) or self.currency_id
+        # Sin petición no hay visitante ni carrito: nada se compra en un clic.
+        acceso = con_tarifa and self.has_ecommerce_access()
+        items = []
+        for p in productos:
+            precio = precios.get(p.id, {}).get('price_reduce', p.list_price)
+            items.append({
+                'producto': p,
+                'precio': precio,
+                'moneda': moneda,
+                'directo': acceso and self._dcasa_compra_directa(p, precio),
+            })
+        return items
 
-    def _dcasa_compra_directa(self, producto):
+    def _dcasa_compra_directa(self, producto, precio=None):
         """¿Se puede agregar al carrito sin pasar por la ficha?
 
-        No, si hay que elegir algo (variantes, atributos configurables, combos) o si la tienda
-        no permite comprarlo (precio cero bloqueado, tienda solo para usuarios registrados...).
-        Mismas reglas que el botón «Agregar al carrito» de Odoo.
+        No, si hay que elegir algo (variantes, atributos configurables, combos, opcionales) o si
+        la tienda no deja comprarlo así (precio cero bloqueado). Son las reglas del botón de Odoo.
+        Los carruseles pasan el ``precio`` ya calculado para no volver a pasar por la tarifa
+        producto por producto; sin precio, esa regla la revisa quien llama.
         """
         return bool(
             producto.product_variant_count == 1
             and not producto.has_configurable_attributes
             and producto.type != 'combo'
-            and producto.product_variant_id._is_add_to_cart_allowed()
+            and not producto.optional_product_ids
+            and (precio is None or precio or not self.prevent_zero_price_sale)
         )
 
     def _dcasa_resenas(self):
@@ -155,18 +190,24 @@ class Website(models.Model):
         La cinta necesita repetir la lista para cerrar el bucle sin salto: ``copias`` dice
         cuántas veces se imprime (par, y cada mitad con al menos 8 tarjetas para cubrir
         pantallas anchas). Solo la primera copia la leen los lectores de pantalla.
+        Un archivo incompleto no tumba la portada: la sección simplemente no sale.
         """
-        with file_open('website_dcasa/data/resenas.json') as archivo:
-            datos = json.load(archivo)
-        opiniones = [o for o in datos.get('opiniones', []) if (o.get('texto') or '').strip()]
-        en_movimiento = len(opiniones) >= 3
-        copias = 2 * max(1, math.ceil(8 / len(opiniones))) if en_movimiento else 1
+        try:
+            datos = _leer_resenas()
+        except (OSError, ValueError):
+            return {'opiniones': []}
+        opiniones = [
+            o for o in datos.get('opiniones', [])
+            if (o.get('texto') or '').strip() and o.get('autor') and o.get('estrellas')
+        ]
+        if not opiniones or not datos.get('ficha'):
+            return {'opiniones': []}
+        copias = 2 * math.ceil(8 / len(opiniones)) if len(opiniones) >= 3 else 1
         return {
             'ficha': datos['ficha'],
             'puntuacion': datos.get('puntuacion'),
             'total': datos.get('total'),
             'opiniones': opiniones,
-            'en_movimiento': en_movimiento,
             'copias': copias,
             'duracion': f'{max(30, round(len(opiniones) * copias * 5.5))}s',
         }
@@ -180,7 +221,10 @@ class Website(models.Model):
     # ------------------------------------------------------------------
 
     def _dcasa_json_ld(self):
-        """Datos estructurados FurnitureStore para Google (tienda local)."""
+        """Datos estructurados FurnitureStore para Google (tienda local).
+
+        JSON seguro dentro de <script> (escapa <, >, & y U+2028/9) con el helper de Odoo.
+        """
         self.ensure_one()
         company = self.company_id
         base = self.get_base_url()
@@ -190,7 +234,7 @@ class Website(models.Model):
             '@id': f'{base}/#tienda',
             'name': company.name,
             'url': base,
-            'logo': f'{base}/web/image/website/{self.id}/logo',
+            'logo': base + self.image_url(self, 'logo'),
             'image': f'{base}/website_dcasa/static/src/img/hero.webp',
             'telephone': company.phone,
             'email': company.email,
@@ -202,14 +246,11 @@ class Website(models.Model):
                 'addressRegion': company.state_id.name or 'Panamá Oeste',  # La Chorrera
                 'addressCountry': company.country_id.code or 'PA',
             },
-            'geo': {'@type': 'GeoCoordinates', 'latitude': UBICACION[0], 'longitude': UBICACION[1]},
-            'hasMap': f'https://www.google.com/maps/search/?api=1&query={UBICACION[0]}%2C{UBICACION[1]}',
+            'geo': {'@type': 'GeoCoordinates', 'latitude': LATITUD, 'longitude': LONGITUD},
+            'hasMap': f'https://www.google.com/maps/search/?api=1&query={LATITUD}%2C{LONGITUD}',
             'sameAs': [url for url in (self.social_instagram, self.social_tiktok, self.social_facebook) if url],
         }
         # Sin campos vacíos (Google los marca como error). Nada de cifras inventadas (rango de precios).
         datos = {k: v for k, v in datos.items() if v}
         datos['address'] = {k: v for k, v in datos['address'].items() if v}
-        # Dentro de <script>: «<», «>» y «&» como escapes JSON, así ningún texto cierra la etiqueta.
-        texto = json.dumps(datos, ensure_ascii=False)
-        texto = texto.replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
-        return Markup(texto)
+        return json_scriptsafe.dumps(datos, ensure_ascii=False)

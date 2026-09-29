@@ -33,12 +33,13 @@
         <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona). -->
         <record id="website.homepage_page" model="website.page">
             <field name="website_meta_title">Mueblería en La Chorrera | D'CASA Panamá</field>
-            <field name="website_meta_description">Salas, recámaras, colchones y comedores con precios claros en La Chorrera. Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp: +507 6026-1919.</field>
+            <field name="website_meta_description">Salas, recámaras, colchones y comedores con precios claros en La Chorrera. Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.</field>
         </record>
     </data>
 
-    <!-- Se reafirman en cada actualización (noupdate=0): una actualización de website_sale
-         volvería a encender las promesas inventadas de la ficha. -->
+    <!-- Se reafirman en cada despliegue (noupdate=0), aunque alguien las cambie en el backend:
+         la ficha nunca debe mostrar promesas que D'CASA no hizo, y el menú de tres opciones
+         nunca debe esconderse en el «+». -->
     <data noupdate="0">
         <!-- Menú centrado y de tres opciones: el auto-ocultado de Odoo las mandaría al «+»
              al compactarse la cabecera. -->

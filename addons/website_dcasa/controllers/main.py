@@ -18,13 +18,16 @@ class DcasaTienda(http.Controller):
             producto_id = int(product_template_id or 0)
         except ValueError:
             return request.redirect('/shop')
+        if not 0 < producto_id < 2**31:  # fuera del rango de un id de PostgreSQL
+            return request.redirect('/shop')
         # Buscar (no leer) respeta las reglas de acceso: un visitante solo encuentra lo publicado.
         producto = request.env['product.template'].search(Domain.AND([
-            website.sale_product_domain(), [('id', '=', producto_id), ('is_published', '=', True)],
+            website._dcasa_dominio_publicado(), [('id', '=', producto_id)],
         ]), limit=1)
         if not producto:
             return request.redirect('/shop')
-        if not website._dcasa_compra_directa(producto):
+        permitido = producto.product_variant_id._is_add_to_cart_allowed()  # precio cero, acceso a la tienda
+        if not (permitido and website._dcasa_compra_directa(producto)):
             # Hay que elegir algo (variante, combo...) o la tienda no lo deja comprar así: a la ficha.
             return request.redirect(producto.website_url)
         carrito = request.cart or website._create_cart()
@@ -39,5 +42,5 @@ class DcasaTienda(http.Controller):
         congelado. ``/whatsapp`` usa siempre el número configurado en el sitio. Solo redirige a
         wa.me (o a /contactus si no hay número): no es una redirección abierta.
         """
-        url = request.website._dcasa_whatsapp_url((texto or '')[:300] or None)
+        url = request.website._dcasa_whatsapp_url((texto or '')[:300])
         return request.redirect(url, code=302, local=url.startswith('/'))

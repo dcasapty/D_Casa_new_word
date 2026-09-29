@@ -20,7 +20,7 @@
             <div class="o_dcasa_pcard_body">
                 <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto.name"/></h3>
                 <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price" t-out="item['precio']"
-                   t-options="{'widget': 'monetary', 'display_currency': website.currency_id}"/>
+                   t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
                 <div class="o_dcasa_pcard_actions">
                     <form t-if="item['directo']" action="/dcasa/carrito/agregar" method="post">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
@@ -30,7 +30,7 @@
                     </form>
                     <a t-else="" t-att-href="producto.website_url" class="btn btn-primary o_dcasa_pcard_add">Elegir</a>
                     <a t-att-href="website._dcasa_whatsapp_producto(producto)" target="_blank" rel="noopener"
-                       class="btn o_dcasa_pcard_wa" t-attf-aria-label="Preguntar por {{ producto.name }} por WhatsApp">
+                       class="btn o_dcasa_pcard_wa" t-attf-aria-label="Preguntar por {{ producto.name }} por WhatsApp (se abre en una pestaña nueva)">
                         <i class="fa fa-whatsapp" aria-hidden="true"/>
                     </a>
                 </div>
@@ -47,12 +47,90 @@
                         <p class="o_dcasa_kicker" t-out="antetitulo"/>
                         <h2 class="o_dcasa_h2" data-titular="" t-out="titulo"/>
                     </div>
-                    <a t-att-href="enlace" class="o_dcasa_link">Ver todo <span aria-hidden="true">→</span></a>
+                    <a t-att-href="enlace" class="o_dcasa_link">Ver todo<span class="visually-hidden">: <t t-out="titulo"/></span> <span aria-hidden="true">→</span></a>
                 </div>
                 <div class="o_dcasa_rail_track" role="list" data-anim-cascada="">
                     <div t-foreach="items" t-as="item" class="o_dcasa_rail_item" role="listitem">
                         <t t-call="website_dcasa.tarjeta_producto"/>
                     </div>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <!-- Secciones dinámicas de la portada: plantillas propias (t-call) y no en línea, para que
+         una actualización del módulo llegue aunque la portada ya se haya editado en el constructor. -->
+    <template id="seccion_categorias" name="D'CASA: compra por espacio">
+        <section class="o_dcasa_section o_dcasa_categorias" aria-labelledby="dcasa-cat-titulo">
+            <div class="o_dcasa_container">
+                <div class="o_dcasa_section_head">
+                    <div data-anim-cascada="izquierda">
+                        <p class="o_dcasa_kicker">Compra por espacio</p>
+                        <h2 id="dcasa-cat-titulo" class="o_dcasa_h2" data-titular="">¿Qué le hace falta a tu casa?</h2>
+                    </div>
+                    <a href="/shop" class="o_dcasa_link">Ver todo el catálogo <span aria-hidden="true">→</span></a>
+                </div>
+                <div class="o_dcasa_cat_grid" data-anim-cascada="">
+                    <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
+                        <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
+                             loading="lazy" decoding="async"/>
+                        <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/> <span aria-hidden="true">→</span></span>
+                    </a>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <template id="seccion_socios" name="D'CASA: banda de socios">
+        <t t-set="reglas" t-value="website._dcasa_reglas_socios()"/>
+        <section class="o_dcasa_socios_band" aria-labelledby="dcasa-socios-titulo">
+            <div class="o_dcasa_container o_dcasa_split_grid">
+                <div class="o_dcasa_socios_band_text" data-anim-cascada="izquierda">
+                    <p class="o_dcasa_kicker o_dcasa_kicker_light">Socios D'CASA</p>
+                    <h2 id="dcasa-socios-titulo" class="o_dcasa_h2" data-titular="">Suma puntos y gana invitando</h2>
+                    <ul class="o_dcasa_socios_facts" role="list">
+                        <t t-set="por_dolar" t-value="reglas['acumulacion'].get('puntosPorDolar')"/>
+                        <t t-set="al_padrino" t-value="reglas['referido'].get('puntosAlPadrino')"/>
+                        <t t-set="al_ahijado" t-value="reglas['referido'].get('puntosAlAhijado')"/>
+                        <li t-if="por_dolar"><strong t-out="por_dolar"/> <t t-if="por_dolar == 1">punto</t><t t-else="">puntos</t> por cada dólar que pagas.</li>
+                        <li t-if="al_padrino and al_ahijado"><strong t-out="'{:,}'.format(al_padrino)"/> puntos por cada amigo que
+                            invitas y compra; tu amigo gana <strong t-out="'{:,}'.format(al_ahijado)"/>.</li>
+                        <li>Cámbialos por descuentos y premios en la tienda.</li>
+                    </ul>
+                    <div class="o_dcasa_ctas">
+                        <a href="/socios" class="btn btn-lg o_dcasa_btn_amarillo">Ver mis puntos</a>
+                        <a href="/socios/terminos" class="btn btn-lg o_dcasa_btn_linea">Cómo funciona</a>
+                    </div>
+                </div>
+                <div class="o_dcasa_socios_band_media" data-anim="escala">
+                    <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600"
+                         loading="lazy" decoding="async" alt="Silla de ratán junto a una ventana con plantas"/>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <template id="seccion_visitanos" name="D'CASA: visítanos">
+        <section id="visitanos" class="o_dcasa_visita">
+            <div class="o_dcasa_container o_dcasa_visita_inner">
+                <div class="o_dcasa_visita_texto">
+                    <div data-anim-cascada="izquierda">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
+                        <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
+                        <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
+                    </div>
+                    <div class="o_dcasa_ctas">
+                        <a t-att-href="website._dcasa_whatsapp_url()" class="btn btn-lg o_dcasa_btn_amarillo"
+                           target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                        <a href="https://www.google.com/maps/dir/?api=1&amp;destination=8.8765881%2C-79.7867962"
+                           class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener">
+                            <i class="fa fa-location-arrow me-2" aria-hidden="true"/>Cómo llegar <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                    </div>
+                </div>
+                <div class="o_dcasa_mapa" data-anim="escala">
+                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
+                            title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
+                            allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
                 </div>
             </div>
         </section>
@@ -80,7 +158,7 @@
                                 <div class="o_dcasa_ctas">
                                     <a href="/shop" class="btn btn-lg o_dcasa_btn_amarillo">Ver el catálogo</a>
                                     <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener nofollow">
-                                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp <span class="visually-hidden">(se abre en una pestaña nueva)</span>
                                     </a>
                                 </div>
                             </div>
@@ -115,28 +193,11 @@
                 </div>
 
                 <!-- 3. Compra por espacio (dinámico: enlaza a las categorías reales) -->
-                <section class="o_dcasa_section o_dcasa_categorias" aria-labelledby="dcasa-cat-titulo">
-                    <div class="o_dcasa_container">
-                        <div class="o_dcasa_section_head">
-                            <div data-anim-cascada="izquierda">
-                                <p class="o_dcasa_kicker">Compra por espacio</p>
-                                <h2 id="dcasa-cat-titulo" class="o_dcasa_h2" data-titular="">¿Qué le hace falta a tu casa?</h2>
-                            </div>
-                            <a href="/shop" class="o_dcasa_link">Ver todo el catálogo <span aria-hidden="true">→</span></a>
-                        </div>
-                        <div class="o_dcasa_cat_grid" data-anim-cascada="">
-                            <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
-                                <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
-                                     loading="lazy" decoding="async"/>
-                                <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/> <span aria-hidden="true">→</span></span>
-                            </a>
-                        </div>
-                    </div>
-                </section>
+                <t t-call="website_dcasa.seccion_categorias"/>
 
                 <!-- 4. Lo más buscado (dinámico, con precio y «Agregar») -->
                 <t t-call="website_dcasa.carrusel_productos">
-                    <t t-set="items" t-value="website._dcasa_productos(limit=8)"/>
+                    <t t-set="items" t-value="website._dcasa_productos()"/>
                     <t t-set="antetitulo">Precios claros, listos para llevar</t>
                     <t t-set="titulo">Lo más buscado</t>
                     <t t-set="enlace" t-value="'/shop'"/>
@@ -159,7 +220,7 @@
                                 <div class="o_dcasa_ctas">
                                     <a href="/shop" class="btn btn-lg btn-primary">Ver lo disponible</a>
                                     <a href="/whatsapp?texto=Hola%20D%27CASA%2C%20%C2%BFqu%C3%A9%20tienen%20para%20llevar%20hoy%3F"
-                                       class="btn btn-lg o_dcasa_btn_texto" target="_blank" rel="noopener nofollow">Pregunta qué hay hoy</a>
+                                       class="btn btn-lg o_dcasa_btn_texto" target="_blank" rel="noopener nofollow">Pregunta qué hay hoy <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
                                 </div>
                             </div>
                         </div>
@@ -168,39 +229,14 @@
 
                 <!-- 6. Segundo carrusel: descanso (dinámico) -->
                 <t t-call="website_dcasa.carrusel_productos">
-                    <t t-set="items" t-value="website._dcasa_productos(limit=8, categorias=['recamaras', 'colchones'])"/>
+                    <t t-set="items" t-value="website._dcasa_productos(categorias=['recamaras', 'colchones'])"/>
                     <t t-set="antetitulo">Recámaras y colchones</t>
                     <t t-set="titulo">Para dormir mejor</t>
                     <t t-set="enlace" t-value="website._dcasa_categoria_url('recamaras')"/>
                 </t>
 
                 <!-- 7. Socios D'CASA (dinámico: cifras de puntos.json) -->
-                <t t-set="reglas" t-value="website._dcasa_reglas_socios()"/>
-                <section class="o_dcasa_socios_band" aria-labelledby="dcasa-socios-titulo">
-                    <div class="o_dcasa_container o_dcasa_split_grid">
-                        <div class="o_dcasa_socios_band_text" data-anim-cascada="izquierda">
-                            <p class="o_dcasa_kicker o_dcasa_kicker_light">Socios D'CASA</p>
-                            <h2 id="dcasa-socios-titulo" class="o_dcasa_h2" data-titular="">Suma puntos y gana invitando</h2>
-                            <ul class="o_dcasa_socios_facts" role="list">
-                                <t t-set="por_dolar" t-value="reglas['acumulacion'].get('puntosPorDolar')"/>
-                                <t t-set="al_padrino" t-value="reglas['referido'].get('puntosAlPadrino')"/>
-                                <t t-set="al_ahijado" t-value="reglas['referido'].get('puntosAlAhijado')"/>
-                                <li t-if="por_dolar"><strong t-out="por_dolar"/> <t t-out="'punto' if por_dolar == 1 else 'puntos'"/> por cada dólar que pagas.</li>
-                                <li t-if="al_padrino and al_ahijado"><strong t-out="'{:,}'.format(al_padrino)"/> puntos por cada amigo que
-                                    invitas y compra; tu amigo gana <strong t-out="'{:,}'.format(al_ahijado)"/>.</li>
-                                <li>Cámbialos por descuentos y premios en la tienda.</li>
-                            </ul>
-                            <div class="o_dcasa_ctas">
-                                <a href="/socios" class="btn btn-lg o_dcasa_btn_amarillo">Ver mis puntos</a>
-                                <a href="/socios/terminos" class="btn btn-lg o_dcasa_btn_linea">Cómo funciona</a>
-                            </div>
-                        </div>
-                        <div class="o_dcasa_socios_band_media" data-anim="escala">
-                            <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600"
-                                 loading="lazy" decoding="async" alt="Silla de ratán junto a una ventana con plantas"/>
-                        </div>
-                    </div>
-                </section>
+                <t t-call="website_dcasa.seccion_socios"/>
 
                 <!-- 7b. Opiniones reales de Google (dinámico: data/resenas.json) -->
                 <t t-call="website_dcasa.resenas_google"/>
@@ -215,7 +251,7 @@
                                     <h2 class="o_dcasa_h2" data-titular="">Inspírate</h2>
                                 </div>
                                 <a href="https://www.instagram.com/dcasapty" class="o_dcasa_link" target="_blank" rel="noopener">
-                                    Síguenos en Instagram <span aria-hidden="true">→</span></a>
+                                    Síguenos en Instagram <span aria-hidden="true">→</span> <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
                             </div>
                             <div class="o_dcasa_galeria" data-anim-cascada="">
                                 <img src="/website_dcasa/static/src/img/insp-1.webp" width="768" height="768" loading="lazy" decoding="async" alt="Sala gris con mesa de centro de madera"/>
@@ -269,30 +305,11 @@
                         </div>
                     </section>
 
-                    <section id="visitanos" class="o_dcasa_visita" data-snippet="s_text_block" data-name="Visítanos">
-                        <div class="o_dcasa_container o_dcasa_visita_inner">
-                            <div class="o_dcasa_visita_texto">
-                                <div data-anim-cascada="izquierda">
-                                    <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
-                                    <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
-                                    <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
-                                </div>
-                                <div class="o_dcasa_ctas">
-                                    <a href="https://www.google.com/maps/dir/?api=1&amp;destination=8.8765881%2C-79.7867962"
-                                       class="btn btn-lg o_dcasa_btn_amarillo" target="_blank" rel="noopener">
-                                        <i class="fa fa-location-arrow me-2" aria-hidden="true"/>Cómo llegar</a>
-                                    <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea"
-                                       target="_blank" rel="noopener nofollow"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
-                                </div>
-                            </div>
-                            <div class="o_dcasa_mapa" data-anim="escala">
-                                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
-                                        title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
-                                        allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
-                            </div>
-                        </div>
-                    </section>
                 </div>
+
+                <!-- 9. Visítanos con el mapa (fuera del bloque editable: el iframe y el ancla
+                     #visitanos del menú no deben perderse al guardar desde el editor) -->
+                <t t-call="website_dcasa.seccion_visitanos"/>
             </div>
         </xpath>
     </template>

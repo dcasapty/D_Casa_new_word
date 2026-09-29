@@ -33,7 +33,7 @@ def _formato_panama(env):
 
     El es_419 de Odoo trae coma decimal («$ 1.070,50»), que en Panamá se lee mal.
     """
-    lang = env['res.lang'].with_context(active_test=False)._lang_get(DCASA_LANG)
+    lang = env['res.lang'].with_context(active_test=False).search([('code', '=', DCASA_LANG)], limit=1)
     if lang:
         lang.write({'decimal_point': '.', 'thousands_sep': ','})
 

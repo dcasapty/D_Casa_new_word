@@ -33,9 +33,9 @@
                         <p class="o_dcasa_kicker">Lo que dicen nuestros clientes</p>
                         <h2 id="dcasa-resenas-titulo" class="o_dcasa_h2" data-titular="">Opiniones reales</h2>
                     </div>
-                    <div class="o_dcasa_resenas_nota" data-anim="derecha">
-                        <div class="text-center">
-                            <p class="o_dcasa_resenas_puntuacion" t-out="('%.1f' % resenas['puntuacion']).replace('.', ',')"/>
+                    <div class="o_dcasa_resenas_nota" data-anim="">
+                        <div t-if="resenas['puntuacion']" class="text-center">
+                            <p class="o_dcasa_resenas_puntuacion" t-out="'%.1f' % resenas['puntuacion']"/>
                             <t t-call="website_dcasa.estrellas">
                                 <t t-set="cuantas" t-value="int(round(resenas['puntuacion']))"/>
                             </t>
@@ -52,7 +52,13 @@
                 </div>
             </div>
 
-            <div t-attf-class="o_dcasa_resenas_cinta {{ 'is-viva' if resenas['en_movimiento'] else '' }}"
+            <!-- WCAG 2.2.2: lo que se mueve solo más de 5 s tiene que poder pausarse. -->
+            <div t-if="resenas['copias'] &gt; 1" class="o_dcasa_container o_dcasa_resenas_control">
+                <button type="button" class="o_dcasa_resenas_pausa" aria-pressed="false">
+                    <i class="fa fa-pause" aria-hidden="true"/><span>Pausar opiniones</span>
+                </button>
+            </div>
+            <div t-attf-class="o_dcasa_resenas_cinta {{ 'is-viva' if resenas['copias'] &gt; 1 else '' }}"
                  data-anim="" t-attf-style="--vuelta: {{ resenas['duracion'] }}">
                 <div class="o_dcasa_resenas_pista">
                     <ul class="o_dcasa_resenas_tren" role="list">
@@ -75,7 +81,7 @@
                                         <t t-call="website_dcasa.icono_google"/>
                                     </div>
                                     <p class="o_dcasa_resena_texto" t-out="opinion['texto']"/>
-                                    <span class="o_dcasa_resena_pie">Ver esta reseña en Google <span aria-hidden="true">↗</span></span>
+                                    <span class="o_dcasa_resena_pie">Ver esta reseña en Google <span aria-hidden="true">↗</span><span class="visually-hidden"> (se abre en una pestaña nueva)</span></span>
                                 </a>
                             </li>
                         </t>
@@ -86,9 +92,10 @@
             <div class="o_dcasa_container o_dcasa_resenas_ctas" data-anim-cascada="">
                 <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-primary">
                     <i class="fa fa-star me-2" aria-hidden="true"/>Déjanos tu opinión en Google
+                    <span class="visually-hidden">(se abre en una pestaña nueva)</span>
                 </a>
-                <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="btn btn-lg o_dcasa_btn_contorno">
-                    Leer todas las reseñas
+                <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="o_dcasa_link">
+                    Leer todas las reseñas <span class="visually-hidden">(se abre en una pestaña nueva)</span>
                 </a>
             </div>
         </section>

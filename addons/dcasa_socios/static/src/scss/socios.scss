@@ -5,6 +5,15 @@ $dcasa-amarillo: #FED00F;
 .o_dcasa_socios {
     .o_dcasa_socios_body {
         max-width: 72rem;
+        padding-block: clamp(2.5rem, 6vw, 5rem) !important;
+    }
+
+    // Enlaces dentro del texto: subrayados (el azul solo no basta, WCAG 1.4.1).
+    p a:not(.btn),
+    li a:not(.btn),
+    label a:not(.btn) {
+        text-decoration: underline;
+        text-underline-offset: .15em;
     }
 }
 
@@ -47,7 +56,8 @@ $dcasa-amarillo: #FED00F;
 }
 
 .o_dcasa_socios_codigo {
-    font-family: 'Oswald', monospace;
+    font-family: 'Oswald', sans-serif;
+    font-variant-numeric: tabular-nums;
     letter-spacing: .12em;
     color: $dcasa-azul;
 }

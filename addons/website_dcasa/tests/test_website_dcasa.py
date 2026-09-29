@@ -217,14 +217,14 @@ class TestPortadaDinamica(HttpCase):
 
     def test_json_ld_no_cierra_el_script(self):
         self.website.company_id.name = 'D\'CASA </script><script>alert(1)</script>'
-        texto = str(self.website._dcasa_json_ld())
+        texto = str(self.website._dcasa_json_ld().__html__())  # lo que QWeb imprime en <script>
         self.assertNotIn('<', texto)
         self.assertEqual(json.loads(texto)['name'], self.website.company_id.name)
         self.assertNotIn('priceRange', texto, 'Sin cifras inventadas')
 
 
 @tagged('post_install', '-at_install')
-class TestSitioV21(HttpCase):
+class TestMarcaYMovimiento(HttpCase):
     """Sin marca de Odoo, hero sin placa, reseñas reales y animaciones."""
 
     def test_sin_credito_de_odoo(self):
@@ -249,15 +249,14 @@ class TestSitioV21(HttpCase):
         self.assertIn('o_dcasa_hero_compacto', socios, 'Las páginas interiores usan el mismo hero')
 
     def test_resenas_reales_de_google(self):
-        with file_open('website_dcasa/data/resenas.json') as archivo:
-            datos = json.load(archivo)
-        html = self.url_open('/').text
-        self.assertIn(datos['ficha'], html)
-        self.assertIn('Déjanos tu opinión en Google', html)
-        for opinion in datos['opiniones']:
-            self.assertIn(opinion['autor'], html)
         resenas = self.env.ref('website.default_website')._dcasa_resenas()
-        self.assertTrue(resenas['en_movimiento'])
+        html = self.url_open('/').text
+        self.assertIn(resenas['ficha'], html)
+        self.assertIn('Déjanos tu opinión en Google', html)
+        self.assertIn('o_dcasa_resenas_pausa', html, 'La cinta se puede pausar (WCAG 2.2.2)')
+        for opinion in resenas['opiniones']:
+            self.assertIn(opinion['autor'], html)
+        self.assertGreater(resenas['copias'], 1)
         self.assertEqual(resenas['copias'] % 2, 0, 'El bucle sin salto necesita un número par de copias')
         self.assertGreaterEqual(len(resenas['opiniones']) * resenas['copias'] / 2, 8)
 
@@ -268,13 +267,15 @@ class TestSitioV21(HttpCase):
         scripts = re.findall(r'src="([^"]*web\.assets_frontend[^"]*\.js)"', html)
         self.assertTrue(scripts)
         js = ''.join(self.url_open(src).text for src in scripts)
-        self.assertIn('o_dcasa_anim', js)
+        self.assertIn('website_dcasa.revelar', js, 'Las animaciones son Interactions de Odoo')
 
     def test_menu_corto_con_catalogo(self):
         website = self.env.ref('website.default_website')
         nombres = website.menu_id.child_id.sorted('sequence').mapped('name')
         self.assertEqual(nombres, ['Catálogo', "Socios D'CASA", 'Visítanos'])
         self.assertEqual(website.menu_id.child_id[0].url, '/shop')
+        catalogo = website.menu_id.child_id.filtered(lambda m: m.url == '/shop')
+        self.assertEqual(catalogo.with_context(lang='es_419').name, 'Catálogo', 'No «Tienda» en español')
         html = self.url_open('/').text
         self.assertIn('id="visitanos"', html, 'El enlace «Visítanos» tiene a dónde ir')
 
@@ -283,6 +284,98 @@ class TestSitioV21(HttpCase):
         self.assertIn('o_no_autohide_menu', html, 'Las tres opciones del menú nunca se esconden en el «+»')
         self.assertIn('id="dcasa-liquido"', html)
         self.assertIn('https://www.google.com/maps/embed?pb=', html)
-        self.assertIn('title="Mapa: D&#39;CASA en La Chorrera"', html.replace("D'CASA en", 'D&#39;CASA en'))
-        datos = json.loads(str(self.env.ref('website.default_website')._dcasa_json_ld()))
+        self.assertRegex(html, r'title="Mapa: D(&#39;|\')CASA en La Chorrera"')
+        datos = json.loads(self.env.ref('website.default_website')._dcasa_json_ld())
         self.assertEqual(datos['geo']['latitude'], 8.8765881)
+
+    def test_menu_ancla_no_marca_activo(self):
+        website = self.env.ref('website.default_website')
+        visitanos = website.menu_id.child_id.filtered(lambda m: m.url == '/#visitanos')
+        html = self.url_open('/').text
+        enlace = re.search(r'<a[^>]*href="/#visitanos"[^>]*>', html).group(0)
+        self.assertNotIn('active', enlace, 'Un ancla de la portada no es «la página actual»')
+        self.assertTrue(visitanos)
+
+    def test_armar_menu_respeta_lo_agregado(self):
+        website = self.env.ref('website.default_website')
+        propio = self.env['website.menu'].create({
+            'name': 'Ofertas', 'url': '/ofertas', 'parent_id': website.menu_id.id, 'website_id': website.id,
+        })
+        self.env['website']._dcasa_armar_menu_principal()
+        self.env['website']._dcasa_armar_menu_principal()
+        urls = website.menu_id.child_id.mapped('url')
+        self.assertIn('/ofertas', urls, 'El menú que agregó la dueña se queda')
+        self.assertEqual(urls.count('/shop'), 1, 'Sin duplicados al volver a correr')
+        self.assertTrue(propio.exists())
+
+    def test_cabecera_sobre_el_hero(self):
+        self.assertIn('o_header_overlay', self.url_open('/').text)
+        self.assertIn('o_header_overlay', self.url_open('/socios').text)
+        self.assertIn('o_header_overlay', self.url_open('/contactus').text)
+        self.assertNotIn('o_header_overlay', self.url_open('/shop').text)
+
+    def test_contacto_con_datos_reales(self):
+        html = self.url_open('/contactus').text
+        self.assertNotIn('Fake Buena Vista', html)
+        self.assertNotIn('555-555-5556', html)
+        self.assertIn('info@dcasapty.com', html)
+        self.assertIn('href="/whatsapp"', html)
+
+    def test_cta_de_la_cabecera_es_whatsapp(self):
+        html = self.url_open('/shop').text
+        self.assertRegex(html, r'class="[^"]*btn_cta[^"]*"|btn_cta')
+        cta = re.search(r'<a[^>]*btn_cta[^>]*>', html).group(0)
+        self.assertIn('href="/whatsapp"', cta)
+
+    def test_cache_de_pagina_separa_tarifas(self):
+        pagina = self.env.ref('website.homepage_page')
+        pedido = type('Pedido', (), {})()
+        pedido.website = self.env.ref('website.default_website')
+        pedido.lang = self.env['res.lang']._lang_get('en_US')
+        pedido.httprequest = type('H', (), {'path': '/'})()
+        pedido.session = type('S', (), {'debug': ''})()
+        tarifas = self.env['product.pricelist'].create([{'name': 'A'}, {'name': 'B'}])
+        claves = []
+        for tarifa in tarifas:
+            pedido.pricelist = tarifa
+            pedido.fiscal_position = self.env['account.fiscal.position']
+            claves.append(pagina._get_cache_key(pedido))
+        self.assertNotEqual(*claves)
+
+
+@tagged('post_install', '-at_install')
+class TestCarritoReglas(HttpCase):
+    """«Agregar» de un clic con la tienda solo para usuarios registrados."""
+
+    def test_tienda_solo_registrados_no_agrega(self):
+        website = self.env.ref('website.default_website')
+        website.ecommerce_access = 'logged_in'
+        producto = self.env['product.template'].create({
+            'name': 'Mesa de prueba', 'list_price': 50.0, 'is_published': True,
+        })
+        self.authenticate(None, None)
+        # Sin acceso a la tienda la portada no ofrece «Agregar»: el token sale de otro formulario.
+        self.assertNotIn('action="/dcasa/carrito/agregar"', self.url_open('/').text)
+        socios = self.url_open('/socios').text
+        token = re.search(r'name="csrf_token" value=[\'"]([^\'"]+)', socios).group(1)
+        respuesta = self.url_open('/dcasa/carrito/agregar', data={
+            'csrf_token': token, 'product_template_id': producto.id,
+        }, allow_redirects=False)
+        self.assertNotIn('/shop/cart', respuesta.headers.get('Location', ''))
+
+
+@tagged('post_install', '-at_install')
+class TestResenasRobustas(TransactionCase):
+
+    def test_json_incompleto_no_tumba_la_portada(self):
+        from odoo.addons.website_dcasa.models import website as modulo
+        website = self.env.ref('website.default_website')
+        original = modulo._leer_resenas
+        try:
+            modulo._leer_resenas = lambda: {'ficha': 'https://x', 'puntuacion': None,
+                                            'opiniones': [{'autor': 'A', 'texto': 'Bien', 'estrellas': 5}]}
+            self.assertEqual(website._dcasa_resenas()['copias'], 1)
+            modulo._leer_resenas = lambda: {'opiniones': [{'texto': 'sin autor'}]}
+            self.assertEqual(website._dcasa_resenas()['opiniones'], [])
+        finally:
+            modulo._leer_resenas = original

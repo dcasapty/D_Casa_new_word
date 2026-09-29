@@ -13,16 +13,31 @@ $dcasa-tinta: #1B2233;
 $dcasa-gris: #4A5163;   // 7.9:1 sobre blanco, 7.1:1 sobre hueso
 $dcasa-radius: 1rem;
 $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escritorio
+$dcasa-gutter: clamp(1rem, 4vw, 3rem);
+$dcasa-banda: 14px;
+$dcasa-curva: cubic-bezier(.22, 1, .36, 1);
+$dcasa-t-rapida: .25s;
+$dcasa-t-media: .45s;
+$dcasa-t-lenta: .8s;
+$dcasa-z-flotante: 1032;   // sobre el contenido fijo de Odoo (1030), bajo offcanvas (1045) y modales
+$dcasa-z-cta-movil: 1031;
 
 // ---------------------------------------------------------------------------
 // Base
 // ---------------------------------------------------------------------------
 
+// Nada ensancha la página: ni lo que espera su animación de entrada desplazado a un lado
+// ni el menú móvil al abrirse (sin esto el panel se abría fuera de la pantalla).
+html {
+    overflow-x: clip;
+    scroll-padding-top: 6rem;   // lo enfocado nunca queda bajo la cabecera fija
+}
+
 .o_dcasa_container {
     width: 100%;
     max-width: 1440px;
     margin-inline: auto;
-    padding-inline: clamp(1rem, 4vw, 3rem);
+    padding-inline: $dcasa-gutter;
 }
 
 .o_dcasa_home {
@@ -36,9 +51,7 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
 
 // Titulares de impacto: caja alta, 2-5 palabras (Anton).
 .o_dcasa_display,
-.o_dcasa_h2,
-.o_dcasa_socios h1,
-.o_dcasa_socios_head h1 {
+.o_dcasa_h2 {
     font-family: 'Anton', 'Oswald', sans-serif;
     font-weight: 400;
     text-transform: uppercase;
@@ -69,7 +82,7 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
 }
 
 .o_dcasa_kicker_light {
-    color: rgba(#FFFFFF, .85);
+    color: #FFFFFF;
 }
 
 .o_dcasa_lead {
@@ -137,9 +150,8 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
     text-transform: uppercase;
 }
 
-// Amarillo con texto azul (5.9:1). SOLO sobre azul.
-.o_dcasa_btn_amarillo,
-.o_dcasa_btn_wa {
+// Amarillo con texto navy. SOLO sobre azul, navy o la foto oscurecida del hero.
+.o_dcasa_btn_amarillo {
     background-color: $dcasa-amarillo;
     border: 2px solid $dcasa-amarillo;
     color: $dcasa-navy;
@@ -239,31 +251,26 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
 }
 
 // ---------------------------------------------------------------------------
-// Cabecera: píldora de vidrio flotante (como BYS / Safetory, con la marca D'CASA).
+// Cabecera: píldora de vidrio líquido (como BYS / Safetory, con la marca D'CASA).
 //
-// El vidrio va en un ::before y NO en el propio nav: `backdrop-filter` convierte al
-// elemento en el contenedor de sus hijos `position: fixed`, y el menú móvil de Odoo
-// (offcanvas) quedaría encerrado dentro de la píldora.
-// Lo único que cambia al bajar es el TAMAÑO (clase o_dcasa_scrolled, ver animaciones.js).
+// · El vidrio va en un ::before y NO en el propio nav: `backdrop-filter` convierte al
+//   elemento en el contenedor de sus hijos `position: fixed`, y el menú móvil de Odoo
+//   (offcanvas) quedaría encerrado dentro de la píldora.
+// · Sobre el hero la cabecera usa el mecanismo de Odoo «cabecera sobre el contenido»
+//   (#wrapwrap.o_header_overlay): sin medir alturas en JavaScript ni saltos de layout.
+// · Al bajar, Odoo fija la cabecera (o_header_affixed), pliega la barra de anuncios
+//   (o_header_hide_on_scroll) y marca o_header_is_scrolled: la píldora solo se escala,
+//   nunca cambia de alto, así Odoo no tiene que recalcular el relleno de la página.
 // ---------------------------------------------------------------------------
 
 #wrapwrap > header#top {
-    z-index: 1030;
-
-    // En su sitio, por encima del hero; fijo (o_header_affixed) lo maneja Odoo.
-    &:not(.o_header_affixed) {
-        position: relative;
-    }
-
     background: transparent !important;
     box-shadow: none !important;
-    padding: .75rem clamp(.5rem, 2vw, 1.5rem) 0;
-    transition: padding .28s ease;
 
     > .navbar {
         background: transparent !important;
         box-shadow: none !important;
-        padding: 0;
+        padding: .75rem clamp(.5rem, 2vw, 1.5rem) 0;
     }
 
     .o_main_nav {
@@ -272,8 +279,8 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
         max-width: 1320px;
         border-radius: 2rem;
         padding: .45rem .75rem .45rem 1.25rem;
-        // Al compactarse la píldora rebota un poco, como una gota que se asienta.
-        transition: padding .6s cubic-bezier(.34, 1.56, .64, 1);
+        transform-origin: top center;
+        transition: transform $dcasa-t-media $dcasa-curva;
 
         // Vidrio líquido: casi transparente, mucho desenfoque y saturación, y dos filos de
         // luz (arriba y abajo) que dan el volumen de una gota. Sin degradados.
@@ -283,7 +290,7 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
             inset: 0;
             z-index: -1;
             border-radius: inherit;
-            background: rgba(#FFFFFF, .5);
+            background: rgba(#FFFFFF, .62);
             -webkit-backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
             backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
             border: 1px solid rgba(#FFFFFF, .7);
@@ -292,33 +299,34 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
                 inset 0 -1px 0 rgba(#FFFFFF, .35),
                 inset 0 0 0 1px rgba(#FFFFFF, .12),
                 0 16px 40px -24px rgba($dcasa-navy, .55);
-            transition: background-color .35s ease, border-color .35s ease, box-shadow .35s ease;
+            transition: background-color $dcasa-t-media ease, border-color $dcasa-t-media ease;
             pointer-events: none;
         }
 
-        // Reflejo: una franja de luz que cruza la píldora al pasar el puntero.
+        // Reflejo: una franja de luz que cruza la píldora al pasar el puntero. Se mueve con
+        // clip-path (no con transform): una caja desplazada agranda el ancho de la página.
         &::after {
             content: '';
             position: absolute;
             inset: 1px;
             z-index: -1;
             border-radius: inherit;
-            background: rgba(#FFFFFF, .18);
-            clip-path: polygon(0 0, 22% 0, 12% 100%, 0 100%);
-            transform: translateX(-30%);
+            background: rgba(#FFFFFF, .2);
+            clip-path: polygon(-22% 0, 0 0, -10% 100%, -32% 100%);
             opacity: 0;
-            transition: transform .9s cubic-bezier(.22, 1, .36, 1), opacity .4s ease;
+            transition: clip-path .9s $dcasa-curva, opacity .4s ease;
             pointer-events: none;
         }
 
         &:hover::after {
-            transform: translateX(460%);
+            clip-path: polygon(100% 0, 122% 0, 112% 100%, 90% 100%);
             opacity: 1;
         }
     }
 
-    .navbar-brand img {
-        transition: height .28s ease, max-height .28s ease;
+    .navbar-brand {
+        transform-origin: left center;
+        transition: transform $dcasa-t-media $dcasa-curva;
     }
 
     .navbar-nav .nav-link {
@@ -330,8 +338,11 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
         color: $dcasa-tinta;
         border-radius: 999px;
         padding-inline: .7rem;
-        transition: background-color .25s ease, color .25s ease;
+        transition: color $dcasa-t-rapida ease;
+    }
 
+    // En el menú móvil (sin gota) el estado se marca con fondo.
+    .offcanvas .nav-link {
         &:hover,
         &:focus-visible,
         &.active {
@@ -340,21 +351,45 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
         }
     }
 
+    #top_menu .nav-link.active {
+        color: $dcasa-azul;
+    }
+
     .btn_cta {
         border-radius: 999px;
     }
 
-    // «Visítanos» apunta a un ancla de la portada: Odoo lo marcaría como activo en «/».
-    .nav-link[href='/#visitanos'].active:not(:hover) {
-        background: transparent;
+    // Foco visible en toda la cabecera (WCAG 2.4.7): azul sobre el vidrio claro.
+    a:focus-visible,
+    button:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 2px;
+        box-shadow: none;
+    }
+
+    // Anuncios: los plegó Odoo al fijarse la cabecera.
+    .o_dcasa_anuncios.hidden {
+        visibility: hidden;
     }
 }
 
-// Refracción real (Chromium): lo que pasa detrás de la píldora se ondula como a través
-// de agua. animaciones.js pone la clase solo donde `backdrop-filter: url()` funciona.
+// Compacta al bajar: solo escala (transform), el alto de la caja no cambia.
+#wrapwrap > header#top.o_header_is_scrolled {
+    .o_main_nav {
+        transform: scale(.97);
+    }
+
+    .navbar-brand {
+        transform: scale(.85);
+    }
+}
+
+// Refracción real (Chromium): lo que pasa detrás se ondula como a través de agua.
+// El valor llega por una variable que pone animaciones.js: escrito aquí, el empaquetador de
+// Odoo reescribiría url(#dcasa-liquido) como una ruta de archivo y no se aplicaría.
 html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
-    -webkit-backdrop-filter: url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08);
-    backdrop-filter: url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08);
+    -webkit-backdrop-filter: var(--dcasa-refraccion);
+    backdrop-filter: var(--dcasa-refraccion);
 }
 
 .o_dcasa_filtros {
@@ -364,23 +399,20 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
     overflow: hidden;
 }
 
-// La gota: una burbuja de vidrio que se desliza con rebote hasta el enlace bajo el puntero.
+// La gota: una burbuja de vidrio que se desliza con rebote hasta el enlace bajo el puntero
+// o con el foco. Vive en la píldora (no dentro del <ul>) y el menú queda por encima.
 #wrapwrap > header#top #top_menu {
     position: relative;
-
-    > .nav-item {
-        position: relative;
-        z-index: 1;
-    }
+    z-index: 1;
 }
 
 .o_dcasa_gota {
     position: absolute;
-    top: 50%;
+    top: 0;
     left: 0;
     height: 2.4rem;
     width: var(--gota-ancho, 0px);
-    transform: translate3d(var(--gota-x, 0px), -50%, 0) scaleY(var(--gota-estirar, 1));
+    transform: translate3d(var(--gota-x, 0px), calc(var(--gota-y, 0px) - 50%), 0);
     border-radius: 999px;
     background: rgba($dcasa-azul, .1);
     border: 1px solid rgba(#FFFFFF, .7);
@@ -388,30 +420,19 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
         inset 0 1px 0 rgba(#FFFFFF, .9),
         inset 0 -1px 0 rgba(#FFFFFF, .3);
     opacity: 0;
-    z-index: 0;
     pointer-events: none;
     transition:
-        transform .55s cubic-bezier(.34, 1.56, .64, 1),
-        width .55s cubic-bezier(.34, 1.56, .64, 1),
-        opacity .25s ease;
+        transform .5s cubic-bezier(.34, 1.56, .64, 1),
+        width .5s cubic-bezier(.34, 1.56, .64, 1),
+        opacity $dcasa-t-rapida ease;
 
     &.is-visible {
         opacity: 1;
     }
 }
 
-html.o_dcasa_nav_sobre_foto .o_dcasa_gota {
-    background: rgba(#FFFFFF, .2);
-    border-color: rgba(#FFFFFF, .45);
-}
-
-// La gota ya marca dónde está el puntero: el fondo propio del enlace sobra.
-#wrapwrap > header#top #top_menu .nav-link {
-    background: transparent !important;
-}
-
-// Menú centrado en la píldora (escritorio).
-@media (min-width: 992px) {
+// Menú centrado en la píldora desde 1200 px; más angosto, en su lugar (no pisa los iconos).
+@media (min-width: 1200px) {
     #wrapwrap > header#top #top_menu {
         position: absolute;
         left: 50%;
@@ -421,10 +442,17 @@ html.o_dcasa_nav_sobre_foto .o_dcasa_gota {
     }
 }
 
-// Sobre la foto oscura del hero: el vidrio casi no tiñe y el texto pasa a blanco.
-html.o_dcasa_nav_sobre_foto #wrapwrap > header#top {
+@media (min-width: 992px) and (max-width: 1199.98px) {
+    #wrapwrap > header#top #top_menu {
+        margin-inline: auto !important;
+    }
+}
+
+// Sobre la foto oscura del hero: vidrio ahumado (texto blanco con contraste AA sobre
+// cualquier parte de la foto) y foco blanco.
+html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     .o_main_nav::before {
-        background: rgba(#FFFFFF, .12);
+        background: rgba(#000000, .26);
         border-color: rgba(#FFFFFF, .38);
         box-shadow:
             inset 0 1.5px 0 rgba(#FFFFFF, .55),
@@ -433,27 +461,22 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top {
     }
 
     .navbar-nav .nav-link,
+    #top_menu .nav-link.active,
     .o_navlink_background,
+    .o_navlink_background_hover,
     .o_header_mobile .navbar-toggler,
-    .btn-outline-secondary,
-    a.btn.btn-outline-secondary,
-    .o_nav_link_btn {
+    .btn-outline-secondary {
         color: #FFFFFF;
     }
 
-    .navbar-nav .nav-link:hover,
-    .navbar-nav .nav-link:focus-visible,
-    .navbar-nav .nav-link.active {
-        color: #FFFFFF;
-        background: rgba(#FFFFFF, .16);
-    }
-
-    .o_navlink_background {
+    .o_navlink_background,
+    .o_navlink_background_hover {
         background: rgba(#FFFFFF, .14) !important;
 
-        &,
-        * {
-            color: #FFFFFF !important;
+        i,
+        .fa,
+        .oi {
+            color: #FFFFFF;
         }
     }
 
@@ -466,32 +489,45 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top {
         filter: invert(1);
     }
 
-    // El menú desplegado del celular vuelve a fondo claro: ahí el texto va oscuro.
-    .offcanvas .nav-link,
-    .offcanvas .btn-outline-secondary {
-        color: $dcasa-tinta;
-    }
-}
-
-html.o_dcasa_scrolled #wrapwrap > header#top {
-    padding-top: .4rem;
-
-    .o_main_nav {
-        padding-block: .25rem;
+    .o_dcasa_gota {
+        background: rgba(#FFFFFF, .2);
+        border-color: rgba(#FFFFFF, .45);
     }
 
-    .navbar-brand img {
-        max-height: 2.5rem;
+    a:focus-visible,
+    button:focus-visible {
+        outline-color: #FFFFFF;
+    }
+
+    // El menú desplegado del celular es claro: ahí el texto va oscuro, también el activo.
+    .offcanvas {
+        .nav-link,
+        .btn-outline-secondary {
+            color: $dcasa-tinta;
+        }
+
+        .nav-link:hover,
+        .nav-link:focus-visible,
+        .nav-link.active {
+            color: $dcasa-azul;
+        }
+
+        a:focus-visible,
+        button:focus-visible {
+            outline-color: $dcasa-azul;
+        }
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    #wrapwrap > header#top,
     #wrapwrap > header#top .o_main_nav,
-    #wrapwrap > header#top .navbar-brand img,
-    .o_dcasa_gota,
-    #wrapwrap > header#top .o_main_nav::after {
+    #wrapwrap > header#top .navbar-brand,
+    .o_dcasa_gota {
         transition: none;
+    }
+
+    #wrapwrap > header#top .o_main_nav::after {
+        display: none;
     }
 }
 
@@ -506,13 +542,13 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
     isolation: isolate;
     display: flex;
     align-items: flex-end;
+    min-height: 88vh;
     min-height: 88svh;
     background: #000000;
     color: #FFFFFF;
     overflow: hidden;
-    // La cabecera de vidrio flota encima de la foto.
-    margin-top: calc(-1 * var(--dcasa-header-h, 0px));
-    padding-top: var(--dcasa-header-h, 0px);
+    // La cabecera flota encima (o_header_overlay): el texto empieza por debajo de ella.
+    padding-top: 7.5rem;
 
     @media (min-width: 992px) {
         min-height: unquote('min(92vh, 900px)');
@@ -550,7 +586,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 .o_dcasa_hero_sub {
     font-size: clamp(1.05rem, 1.4vw, 1.3rem);
     line-height: 1.55;
-    color: rgba(#FFFFFF, .92);
+    color: #FFFFFF;
     max-width: 36rem;
     margin-bottom: 0;
 }
@@ -558,6 +594,13 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 @media (max-width: 575.98px) {
     .o_dcasa_hero .o_dcasa_ctas .btn {
         width: 100%;
+    }
+
+    // Botones de una línea en el celular (el icono no se separa del texto).
+    .o_dcasa_ctas .btn {
+        white-space: nowrap;
+        letter-spacing: .03em;
+        font-size: 1rem;
     }
 }
 
@@ -867,7 +910,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 .o_dcasa_socios_band {
     background: $dcasa-azul;
     color: #FFFFFF;
-    padding-block: $dcasa-sec calc(#{$dcasa-sec} + 14px + 1.5rem);
+    padding-block: $dcasa-sec calc(#{$dcasa-sec} + #{$dcasa-banda} + 1.5rem);
     position: relative;
 
     // Banda amarilla rodeada de azul (el amarillo nunca toca el fondo claro de la sección siguiente).
@@ -877,7 +920,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
         left: 0;
         right: 0;
         bottom: 1.5rem;
-        height: 14px;
+        height: $dcasa-banda;
         background: $dcasa-amarillo;
     }
 
@@ -1017,7 +1060,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 .o_dcasa_visita {
     background: $dcasa-navy;
     color: #FFFFFF;
-    padding-block: clamp(3rem, 6vw, 5rem);
+    padding-block: $dcasa-sec;
 
     .o_dcasa_h2 {
         color: #FFFFFF;
@@ -1025,11 +1068,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 
     .o_dcasa_lead {
         margin: 1rem 0 0;
-        color: rgba(#FFFFFF, .9);
-    }
-
-    .o_dcasa_ctas {
-        margin-top: 0;
+        color: #FFFFFF;
     }
 }
 
@@ -1062,28 +1101,95 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 }
 
 // ---------------------------------------------------------------------------
-// Tienda y ficha de producto
+// Páginas de Odoo con la marca: tienda, ficha, carrito, contacto (auditoría UX)
 // ---------------------------------------------------------------------------
+
+// Mismo borde izquierdo que la portada en las páginas de Odoo y en el pie.
+@media (min-width: 1200px) {
+    #wrapwrap .oe_website_sale > .container,
+    #wrapwrap .oe_website_sale .o_wsale_products_main_row,
+    #wrapwrap .o_dcasa_footer .container {
+        max-width: 1440px;
+        padding-inline: $dcasa-gutter;
+    }
+}
 
 #wrapwrap .oe_website_sale {
     .o_wsale_products_main_row {
         padding-bottom: 3rem;
     }
 
-    h1[itemprop="name"],
-    .o_wsale_product_details_content h1 {
-        font-family: 'Oswald', sans-serif;
-        font-weight: 600;
-        text-transform: none;
-        letter-spacing: 0;
+    // Títulos de la tienda y de la ficha: la voz de la marca.
+    .o_wsale_products_main_row h1,
+    #product_details h1 {
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: .005em;
+        line-height: 1.05;
+        color: $dcasa-azul;
     }
 
     .product_price .oe_price,
-    .oe_price_h4 .oe_price {
+    .oe_currency_value {
         color: $dcasa-azul;
         font-family: 'Oswald', sans-serif;
         font-weight: 600;
     }
+
+    // Tarjetas del catálogo como las de la portada: botón de compra sólido y grande.
+    .oe_product_cart {
+        .o_wsale_product_btn .btn,
+        .a-submit {
+            min-height: 2.75rem;
+            background: $dcasa-azul;
+            border-color: $dcasa-azul;
+            color: #FFFFFF;
+            font-family: 'Oswald', sans-serif;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+
+            &:hover,
+            &:focus-visible {
+                background: $dcasa-navy;
+                border-color: $dcasa-navy;
+                color: #FFFFFF;
+            }
+        }
+
+        .oe_currency_value {
+            font-size: 1.1rem;
+        }
+    }
+
+    // Ficha: «Agregar al carrito» manda (48 px, caja alta), el WhatsApp acompaña.
+    #add_to_cart {
+        min-height: 3rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Oswald', sans-serif;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+    }
+}
+
+// Carrito: «Reordenar» no tiene sentido para un visitante; resumen sobre hueso, plano.
+.o_public_user .o_wsale_reorder_button,
+#wrapwrap .o_wsale_reorder_button:empty {
+    display: none !important;
+}
+
+#wrapwrap .oe_website_sale .o_total_card {
+    background: $dcasa-hueso;
+    border: 0;
+    border-radius: $dcasa-radius;
+}
+
+// Pasos del checkout apagados legibles (el gris de Odoo no llega a 4.5:1).
+#wrapwrap .o_wizard .o_disabled .text-muted,
+#wrapwrap .o_wizard .text-muted {
+    color: $dcasa-gris !important;
 }
 
 .o_dcasa_sellos {
@@ -1116,6 +1222,11 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
     }
 }
 
+.o_dcasa_wa_producto {
+    min-height: 3rem;
+    font-size: .95rem;
+}
+
 // Móvil: el botón de compra queda fijo abajo mientras se ve la ficha.
 @media (max-width: 767.98px) {
     #product_detail #o_wsale_cta_wrapper {
@@ -1123,7 +1234,7 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
         left: 0;
         right: 0;
         bottom: 0;
-        z-index: 1040;
+        z-index: $dcasa-z-cta-movil;
         margin: 0 !important;
         padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
         background: #FFFFFF;
@@ -1139,14 +1250,14 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
         }
     }
 
-    body:has(#o_wsale_cta_wrapper) {
-        #wrapwrap {
-            padding-bottom: 5rem;
-        }
+    body:has(#o_wsale_cta_wrapper) #wrapwrap {
+        padding-bottom: 5.5rem;
+    }
 
-        .o_dcasa_wa_float {
-            bottom: 5.75rem;
-        }
+    // En la ficha ya hay «Pregunta por este mueble por WhatsApp»: dos botones de WhatsApp
+    // chocarían con la barra fija.
+    body:has(#product_detail) .o_dcasa_wa_float {
+        display: none;
     }
 }
 
@@ -1159,9 +1270,16 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
         color: $dcasa-amarillo;
     }
 
-    li {
-        padding-block: .2rem;
+    // Objetivos táctiles de 44 px (WCAG 2.5.8).
+    li a {
+        display: inline-block;
+        padding-block: .6rem;
     }
+}
+
+.o_dcasa_anuncios a {
+    display: inline-block;
+    padding-block: .5rem;
 }
 
 // Pie sobre azul: enlaces en blanco (contraste AAA), amarillo al pasar.
@@ -1175,35 +1293,22 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
     }
 }
 
-// Crédito de Odoo sobre navy: blanco subrayado (el azul por defecto no llega a 4.5:1).
-#wrapwrap .o_footer_copyright a:not(.btn) {
-    color: #FFFFFF;
-    text-decoration: underline;
+@media (max-width: 767.98px) {
+    // El botón flotante no tapa el copyright al final de la página.
+    #wrapwrap .o_footer_copyright {
+        padding-bottom: 5rem;
+    }
 }
 
-// Mientras se ve el hero (que ya trae su botón de WhatsApp) el flotante espera fuera:
-// en el celular taparía los botones del hero.
-.o_dcasa_wa_float {
-    transition: opacity .3s ease, transform .3s ease;
-}
+// ---------------------------------------------------------------------------
+// Botón flotante de WhatsApp
+// ---------------------------------------------------------------------------
 
-html.o_dcasa_nav_sobre_foto .o_dcasa_wa_float {
-    opacity: 0;
-    transform: scale(.8);
-    pointer-events: none;
-}
-
-// Con el menú móvil abierto, el botón flotante taparía sus botones.
-body:has(.offcanvas.show) .o_dcasa_wa_float {
-    display: none;
-}
-
-// Botón flotante de WhatsApp.
 .o_dcasa_wa_float {
     position: fixed;
     right: 1.25rem;
     bottom: 1.25rem;
-    z-index: 1050;
+    z-index: $dcasa-z-flotante;
     width: 3.5rem;
     height: 3.5rem;
     border-radius: 50%;
@@ -1215,11 +1320,32 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
     justify-content: center;
     font-size: 1.75rem;
     text-decoration: none;
+    transition: opacity .3s ease, transform .3s ease;
 
-    &:hover,
-    &:focus-visible {
+    &:hover {
         color: $dcasa-amarillo;
     }
+
+    // Visible sobre blanco, azul y navy: blanco por dentro, navy por fuera.
+    &:focus-visible {
+        color: $dcasa-amarillo;
+        outline: 3px solid #FFFFFF;
+        outline-offset: 2px;
+        box-shadow: 0 0 0 6px $dcasa-navy;
+    }
+}
+
+// Mientras se ve el hero (que ya trae su botón de WhatsApp) el flotante espera fuera:
+// en el celular taparía los botones del hero.
+html.o_dcasa_nav_sobre_foto .o_dcasa_wa_float {
+    opacity: 0;
+    transform: scale(.8);
+    pointer-events: none;
+}
+
+// En el editor tampoco estorba.
+body.editor_enable .o_dcasa_wa_float {
+    display: none;
 }
 
 // ---------------------------------------------------------------------------
@@ -1260,14 +1386,42 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
     gap: .1rem;
 }
 
+// El ámbar de Google (no el amarillo de marca): una estrella azul no se lee como
+// calificación. Excepción acordada a la regla del amarillo.
 .o_dcasa_estrella {
     width: 1rem;
     height: 1rem;
     fill: #D5D0C4;
 
-    // El ámbar de Google: una estrella azul no se lee como calificación.
     &.is-llena {
         fill: #F5B300;
+    }
+}
+
+.o_dcasa_resenas_control {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.o_dcasa_resenas_pausa {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 1px solid $dcasa-hueso-2;
+    border-radius: 999px;
+    background: #FFFFFF;
+    color: $dcasa-tinta;
+    font-size: .875rem;
+
+    &[aria-pressed='true'] .fa::before {
+        content: '\f04b';   // play
+    }
+
+    &:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 2px;
     }
 }
 
@@ -1277,33 +1431,51 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
 
 .o_dcasa_resenas_pista {
     overflow: hidden;
+    padding-inline-start: 1.25rem;
 }
 
+// Sin gap ni relleno lateral en el tren: la mitad exacta del ancho es una vuelta (sin salto).
 .o_dcasa_resenas_tren {
     display: flex;
     width: max-content;
-    gap: 1.25rem;
     list-style: none;
     margin: 0;
-    padding: .75rem 1.25rem 1.5rem;
+    padding: .75rem 0 1.5rem;
 }
 
-.o_dcasa_resenas_cinta:not(.is-viva) {
-    .o_dcasa_resenas_tren {
-        width: auto;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
+.o_dcasa_resena {
+    flex: none;
+    width: unquote('min(22rem, 82vw)');
+    margin-inline-end: 1.25rem;
+}
+
+.o_dcasa_resenas_cinta:not(.is-viva) .o_dcasa_resenas_tren {
+    width: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 1.25rem;
 }
 
 .o_dcasa_resenas_cinta.is-viva .o_dcasa_resenas_tren {
     animation: dcasa-correr var(--vuelta, 40s) linear infinite;
 }
 
-// Una reseña hay que poder leerla: con el puntero encima o el foco dentro, se para.
+// Una reseña hay que poder leerla: se para con el puntero encima o con el botón.
 .o_dcasa_resenas_cinta.is-viva:hover .o_dcasa_resenas_tren,
-.o_dcasa_resenas_cinta.is-viva:focus-within .o_dcasa_resenas_tren {
+.o_dcasa_resenas_cinta.is-pausada .o_dcasa_resenas_tren {
     animation-play-state: paused;
+}
+
+// Con el teclado, la cinta se detiene y se vuelve desplazable: la tarjeta enfocada nunca
+// queda escondida fuera del borde (WCAG 2.4.11).
+.o_dcasa_resenas_cinta.is-viva:focus-within {
+    .o_dcasa_resenas_tren {
+        animation: none;
+    }
+
+    .o_dcasa_resenas_pista {
+        overflow-x: auto;
+    }
 }
 
 // La lista va impresa varias veces: al avanzar la mitad, está donde empezó.
@@ -1314,11 +1486,6 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
     to {
         transform: translate3d(-50%, 0, 0);
     }
-}
-
-.o_dcasa_resena {
-    flex: none;
-    width: unquote('min(22rem, 82vw)');
 }
 
 .o_dcasa_resena_enlace {
@@ -1332,7 +1499,7 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
     background: #FFFFFF;
     color: $dcasa-tinta;
     text-decoration: none;
-    transition: transform .3s cubic-bezier(.22, 1, .36, 1), border-color .3s;
+    transition: transform .3s $dcasa-curva, border-color .3s;
 
     &:hover,
     &:focus-visible {
@@ -1402,12 +1569,18 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
 .o_dcasa_resenas_ctas {
     display: flex;
     flex-wrap: wrap;
-    gap: .75rem;
+    align-items: center;
+    gap: 1.5rem;
     margin-top: 1.5rem;
 
     .btn {
         border-radius: 999px;
     }
+}
+
+// Dos secciones seguidas sobre el mismo hueso: sin sumar los dos rellenos.
+.o_dcasa_categorias + .o_dcasa_rail {
+    padding-top: 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -1416,11 +1589,9 @@ body:has(.offcanvas.show) .o_dcasa_wa_float {
 // · [data-anim-entrada]: lo que está sobre el pliegue. CSS puro, arranca en el primer
 //   fotograma y no depende de JavaScript: nunca puede quedarse invisible.
 // · [data-anim], [data-anim-cascada], [data-titular]: al entrar en pantalla. Solo se
-//   esconden bajo html.o_dcasa_anim, que pone animaciones.js fuera del editor y sin
-//   prefers-reduced-motion. Sin JavaScript todo se ve.
+//   esconden bajo html.o_dcasa_anim, que pone la interacción DcasaRevelar fuera del
+//   editor y sin prefers-reduced-motion. Sin JavaScript todo se ve.
 // ---------------------------------------------------------------------------
-
-$dcasa-curva: cubic-bezier(.22, 1, .36, 1);
 
 @keyframes dcasa-entrada {
     from {
@@ -1433,9 +1604,24 @@ $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
     }
 }
 
+// El titular del hero es el elemento más grande de la pantalla (LCP): sube, pero se ve
+// desde el primer fotograma.
+@keyframes dcasa-entrada-sin-fundido {
+    from {
+        transform: translate3d(0, 1.75rem, 0);
+    }
+    to {
+        transform: none;
+    }
+}
+
 [data-anim-entrada] > * {
-    animation: dcasa-entrada .8s $dcasa-curva both;
+    animation: dcasa-entrada $dcasa-t-lenta $dcasa-curva both;
     animation-delay: var(--anim-retraso, 0ms);
+}
+
+[data-anim-entrada] > h1 {
+    animation-name: dcasa-entrada-sin-fundido;
 }
 
 @for $i from 2 through 5 {
@@ -1465,11 +1651,24 @@ $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
         transform: var(--anim-desde, translate3d(0, 1.75rem, 0));
     }
 
-    [data-anim],
-    [data-anim-cascada] > * {
+    // La transición solo mientras entra: después, cada elemento (p. ej. un .btn) recupera
+    // la suya propia sin retrasos heredados.
+    [data-anim]:not(.anim-dentro),
+    [data-anim-cascada]:not(.anim-dentro) > *,
+    .anim-entrando {
         transition:
             opacity .7s $dcasa-curva var(--anim-retraso, 0ms),
             transform .7s $dcasa-curva var(--anim-retraso, 0ms);
+    }
+
+    [data-anim].anim-dentro,
+    [data-anim-cascada].anim-dentro > * {
+        transition:
+            opacity .7s $dcasa-curva var(--anim-retraso, 0ms),
+            transform .7s $dcasa-curva var(--anim-retraso, 0ms),
+            color $dcasa-t-rapida ease,
+            background-color $dcasa-t-rapida ease,
+            border-color $dcasa-t-rapida ease;
     }
 
     [data-anim='izquierda'],
@@ -1492,12 +1691,14 @@ $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
         }
     }
 
-    // Titular palabra a palabra: cada palabra sube desde detrás de su propia máscara.
+    // Titular palabra a palabra: cada palabra sube desde detrás de su propia máscara. El
+    // margen negativo compensa el relleno de la máscara: mismo alto de línea que sin trocear.
     [data-titular] .o_dcasa_palabra {
         display: inline-block;
         overflow: hidden;
-        vertical-align: top;
+        vertical-align: bottom;
         padding-bottom: .08em;
+        margin-bottom: -.08em;
 
         > span {
             display: inline-block;
@@ -1512,24 +1713,37 @@ $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
     }
 }
 
+// En el celular las entradas son solo verticales (nada se asoma por los lados).
+@media (max-width: 767.98px) {
+    .o_dcasa_anim {
+        [data-anim='izquierda'],
+        [data-anim='derecha'],
+        [data-anim-cascada='izquierda'] > *,
+        [data-anim-cascada='derecha'] > * {
+            --anim-desde: translate3d(0, 1.75rem, 0);
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Movimiento reducido
 // ---------------------------------------------------------------------------
 
 @media (prefers-reduced-motion: reduce) {
     .o_dcasa_cat img,
-    .o_dcasa_pcard_media img {
+    .o_dcasa_pcard_media img,
+    .o_dcasa_wa_float,
+    .o_dcasa_resena_enlace {
         transition: none;
     }
 
     .o_dcasa_cat:hover img,
     .o_dcasa_cat:focus-visible img,
-    .o_dcasa_pcard_media:hover img {
+    .o_dcasa_pcard_media:hover img,
+    .o_dcasa_resena_enlace:hover,
+    .o_dcasa_resena_enlace:focus-visible,
+    html.o_dcasa_nav_sobre_foto .o_dcasa_wa_float {
         transform: none;
-    }
-
-    .o_dcasa_rail_track {
-        scroll-behavior: auto;
     }
 
     [data-anim-entrada] > *,
@@ -1548,5 +1762,28 @@ $dcasa-curva: cubic-bezier(.22, 1, .36, 1);
 
     .o_dcasa_resenas_pista {
         overflow-x: auto;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Impresión: todo visible y sin lo que solo sirve en pantalla
+// ---------------------------------------------------------------------------
+
+@media print {
+    .o_dcasa_anim [data-anim],
+    .o_dcasa_anim [data-anim-cascada] > *,
+    .o_dcasa_anim [data-titular] .o_dcasa_palabra > span,
+    [data-anim-entrada] > * {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .o_dcasa_wa_float,
+    .o_dcasa_anuncios,
+    .o_dcasa_filtros,
+    .o_dcasa_resenas_control {
+        display: none !important;
     }
 }

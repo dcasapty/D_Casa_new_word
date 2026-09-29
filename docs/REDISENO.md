@@ -188,3 +188,88 @@ Lighthouse (local, sin CDN):
 - **Visítanos con mapa de Google** (ficha «D'CASA», La Chorrera):
   - «Cómo llegar» abre la ruta.
   - Las coordenadas también van en los datos estructurados (`geo`, `hasMap`).
+
+## v2.4: auditoría con 8 agentes en paralelo
+
+Cuatro auditorías especializadas (UX/UI visual, CSS y animación medidos en el navegador,
+sintaxis y estructura de Odoo 19, accesibilidad WCAG 2.2 con axe y Lighthouse) y cuatro
+revisiones de la skill `simplify` (reutilización, simplificación, eficiencia y altitud).
+Unos 90 hallazgos. Lo corregido:
+
+**Graves**
+- **Menú del celular:** se abría fuera de la pantalla porque la página se ensanchaba. Ahora
+  `html { overflow-x: clip }`, y el ítem activo ya no queda blanco sobre blanco.
+- **Refracción:** no funcionaba, porque el empaquetador de Odoo reescribía `url(#…)`. Ahora
+  la aplica el JavaScript con una variable.
+- **Hover en la píldora:** ensanchaba la página a 7 400 px. El reflejo usa `clip-path`.
+- **CLS (saltos de layout):** pasó de ~0.19 en móvil a 0.
+  - Se usa la cabecera «sobre el contenido» de Odoo en lugar de medir alturas.
+  - La barra de anuncios va dentro de la cabecera y Odoo la pliega sola.
+  - La píldora se compacta con `transform`.
+- **Batería:** el `<animate>` del filtro repintaba 60 veces por segundo. Ahora solo corre
+  sobre la foto y con la pestaña visible.
+- **Impresión:** el contenido que esperaba su animación salía en blanco.
+- **Editor:** el JavaScript ahora son *Interactions* de Odoo 19. No corren en el editor (que
+  ya no guarda titulares troceados ni la gota) y limpian lo que agregan.
+- **Secciones dinámicas:** van en plantillas propias (`t-call`), así llegan las
+  actualizaciones aunque la portada se haya editado. El mapa y el ancla de Visítanos
+  salieron del bloque editable.
+
+**Accesibilidad**
+- **Cinta de opiniones:** tiene botón de pausa (2.2.2). Con el teclado se detiene y se vuelve
+  desplazable, así la tarjeta enfocada no queda escondida (2.4.11).
+- **Foco:** es visible en toda la cabecera, sobre la foto y en el botón flotante. La gota
+  sigue al foco y lo suelta al salir.
+- **Contraste:**
+  - Vidrio ahumado sobre la foto.
+  - Antetítulo y subtítulo del hero en blanco sólido.
+  - Iconos de carrito y búsqueda en blanco.
+- **Pestañas nuevas:** se avisa en los enlaces que abren una.
+- **Enlaces:** los «Ver todo» dicen a qué sección llevan y los de /socios van subrayados.
+- **Botón flotante:** el de WhatsApp vive en un landmark.
+- **Formularios:** `autocomplete` en contacto y registro.
+- **Objetivos táctiles:** de 44 px en el pie y la barra de anuncios.
+
+**UX**
+- **Contacto:** muestra los datos reales (Odoo traía «Mi Empresa / 3575 Fake Buena Vista»),
+  en tuteo y con WhatsApp primero. Se quitó el campo «Empresa».
+- **404:** ya no tiene el dibujo amarillo sobre blanco.
+- **Menú:**
+  - «Catálogo» en todos los idiomas (la traducción de Odoo decía «Tienda»).
+  - No pisa los iconos entre 992 y 1200 px.
+  - «Visítanos» no se marca activo: corregido en el servidor, en `website.menu._is_active`.
+- **Ficha y catálogo:** títulos con la marca y botón de compra sólido. En móvil la ficha no
+  duplica el botón de WhatsApp.
+- **Botones:** en una línea en el celular; en Visítanos, WhatsApp es el principal y «Cómo
+  llegar» el secundario.
+
+**Código y eficiencia**
+- **Reseñas:** se leen una vez (se releen solo si cambia el archivo) y un JSON incompleto
+  ya no tumba la portada.
+- **«Compra directa»:**
+  - Reglas de Odoo sin volver a pasar por la tarifa producto por producto.
+  - Respeta los productos opcionales.
+  - Mismo dominio en los carruseles y en el «Agregar».
+- **JSON-LD:** con `json_scriptsafe` de Odoo y el logo con `image_url` (caché).
+- **Menú:** su armado es idempotente y respeta lo que la dueña agregue.
+- **Idioma:** el formato de Panamá busca el idioma aunque esté inactivo.
+- **Robustez:**
+  - id fuera de rango → /shop.
+  - Plantilla muerta eliminada.
+  - El pie ya no escribe el número a mano.
+  - El crédito de Odoo se oculta sin borrar el nodo.
+
+**Pendiente, a propósito**
+- **Placa azul en el hero:** la dueña pidió sin placa.
+- **«Agregar» sin salir de la portada (toast):** cambia el flujo de compra; mejor decidirlo
+  aparte.
+- **Plantillas del carrito, del filtro de precio y del estado vacío de Odoo:** más overrides
+  sobre el núcleo.
+- **Traducción de las constantes de Python:** el sitio es solo en español.
+- **Caché de `puntos.json`:** regla de Socios. Solo se lee en páginas de socios y en la
+  portada.
+
+**Resultado:**
+- 119 tests.
+- Lighthouse en la portada: accesibilidad 100, SEO 100 y CLS 0.
+- El rendimiento en móvil sigue limitado por el JavaScript de Odoo.
