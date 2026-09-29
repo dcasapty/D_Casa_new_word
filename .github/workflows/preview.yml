@@ -3,7 +3,8 @@ name: Previsualización
 # Levanta la imagen real de producción con datos de demostración en el runner.
 #
 # · En cada PR: saca capturas (escritorio y móvil) y las deja como artefacto.
-# · A mano (Actions → Previsualización → Run workflow): además abre un túnel
+# · PR con la etiqueta `preview`, o a mano (Actions → Previsualización → Run
+#   workflow): además abre un túnel
 #   temporal de Cloudflare y publica un link en línea durante los minutos que
 #   elijas, con el sitio, la tienda, /socios y el backend de Odoo.
 #
@@ -11,6 +12,7 @@ name: Previsualización
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       minutos:
@@ -41,7 +43,8 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      EN_LINEA: ${{ github.event_name == 'workflow_dispatch' }}
+      EN_LINEA: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'preview') }}
+      MINUTOS: ${{ inputs.minutos || '60' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +75,7 @@ jobs:
           done
           if [ -z "$URL" ]; then cat tunel.log; echo "::error::No se pudo abrir el túnel."; exit 1; fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "LINK DE PREVISUALIZACIÓN: $URL (listo en unos minutos, cuando arranque Odoo)"
 
       - name: Arrancar Odoo con una base nueva
         id: odoo
@@ -111,7 +115,7 @@ jobs:
             echo "## Previsualización de D'CASA"
             if [ "$EN_LINEA" = "true" ]; then
               echo ""
-              echo "**Link en línea (${{ inputs.minutos }} min):** ${{ steps.tunel.outputs.url }}"
+              echo "**Link en línea ($MINUTOS min):** ${{ steps.tunel.outputs.url }}"
               echo ""
               echo "| Qué | Dónde | Acceso |"
               echo "|---|---|---|"
@@ -128,7 +132,7 @@ jobs:
       - name: Mantener en línea
         if: env.EN_LINEA == 'true'
         run: |
-          MIN=${{ inputs.minutos }}
+          MIN=$MINUTOS
           [ "$MIN" -gt 330 ] && MIN=330
           echo "En línea en ${{ steps.tunel.outputs.url }} durante $MIN minutos."
           sleep $((MIN * 60))
