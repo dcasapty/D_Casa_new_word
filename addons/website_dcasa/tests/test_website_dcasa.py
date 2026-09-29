@@ -43,11 +43,13 @@ class TestWebsitePages(HttpCase):
         self.assertNotIn('555-555-5556', html, 'No debe quedar el teléfono de ejemplo de Odoo')
         self.assertNotIn('Company name', html, 'No debe quedar el copyright de ejemplo de Odoo')
 
-    def test_referral_page(self):
-        response = self.url_open('/referidos')
+    def test_socios_linked_from_site(self):
+        home = self.url_open('/').text
+        self.assertIn('href="/socios"', home)
+        self.assertIn('Suma puntos y gana invitando', home)
+        response = self.url_open('/socios')
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Refiere y gana', response.text)
-        self.assertIn('/my/referidos', response.text)
+        self.assertIn('https://wa.me/50760261919', response.text, 'La app del socio usa el mismo sitio y pie')
 
     def test_shop(self):
         self.assertEqual(self.url_open('/shop').status_code, 200)

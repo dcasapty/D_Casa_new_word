@@ -103,3 +103,13 @@ $dcasa-grafito: #3A3A3A;
         }
     }
 }
+
+// Bloque del programa de socios (lo añade dcasa_socios).
+.o_dcasa_socios_factura {
+    margin: 8px 0 12px;
+    padding: 8px 12px;
+    border-left: 6px solid $dcasa-azul;
+    background-color: rgba($dcasa-azul, .06);
+    color: $dcasa-grafito;
+    font-size: .85rem;
+}

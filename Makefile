@@ -2,7 +2,7 @@
 PYTHON ?= .venv/bin/python
 ODOO := $(PYTHON) vendor/odoo/odoo-bin --addons-path=vendor/odoo/addons,vendor/odoo/odoo/addons,addons
 DB ?= dcasa
-MODULES ?= dcasa_base,dcasa_invoice,dcasa_referral,website_dcasa
+MODULES ?= dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa
 
 .PHONY: help setup test lint run init update up down edge-test
 

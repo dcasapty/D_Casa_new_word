@@ -10,6 +10,8 @@ ignore = [
     "PLR0913",  # Odoo usa firmas con muchos argumentos
     "PLR2004",  # números mágicos en tests (montos de la factura real)
     "PLC0415",  # imports locales (patrón habitual en Odoo)
+    "PLR0911",  # cláusulas de guarda: cada return es un motivo con nombre (p. ej. por qué no se pagó un referido)
+    "PLR0917",  # firmas posicionales de los servicios del programa de socios
 ]
 
 [tool.ruff.lint.isort]

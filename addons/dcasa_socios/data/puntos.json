@@ -1,0 +1,72 @@
+{
+  "$comentario": "FUENTE ÚNICA DE LA ECONOMÍA DEL PROGRAMA. Ninguna cifra de puntos vive en el código: si el código necesita un valor que no está aquí, ese valor no existe todavía. Es la misma disciplina de datos/precios.json en PanaClaw-WorkSpace, y existe por lo mismo: una cifra inventada en un programa de puntos es dinero real regalado o negado.",
+  "version": 2,
+  "$version": "La versión se guarda con CADA compra (compras.reglas_version). Si estas cifras cambian, las compras viejas siguen explicando los puntos que dieron. Súbela cuando cambies cualquier valor de acumulación o de referido.",
+  "moneda": "USD",
+
+  "$decidido": {
+    "fecha": "2026-09-22",
+    "quien": "Propuesta analizada contra el inventario de D'CASA (costo nacionalizado, precio y stock) y aprobada por el equipo.",
+    "resumen": "1 punto por dólar pagado, ITBMS incluido. 100 puntos = $1 al canjear, o sea el programa devuelve el 1 % de lo que el cliente paga. Sobre el subtotal antes de impuesto sale un 1.07 %, que con un margen bruto medio del 44.6 % consume alrededor del 1.7 % del margen — y solo cuando los puntos se canjean, no cuando se acumulan."
+  },
+
+  "acumulacion": {
+    "puntosPorDolar": 1,
+
+    "baseDeCalculo": "total",
+    "$baseDeCalculo": "Sobre el TOTAL que paga el cliente, ITBMS incluido. Una venta de $1,070 da 1,070 puntos, no 1,000. Es la decisión comercial: el cliente pagó $1,070 y no tiene por qué entender cómo funciona el impuesto para saber cuántos puntos ganó. Internamente el costo se mide contra la venta sin ITBMS, donde el 1 % se convierte en 1.07 %.",
+
+    "itbmsPorcentaje": 7,
+
+    "redondeo": "abajo",
+    "$redondeo": "Siempre abajo, y no se cambia. Redondear arriba regala una fracción de punto en cada venta, y a mil ventas eso es dinero. Abajo es predecible y el socio nunca ve menos de lo que calculó en la cabeza.",
+
+    "compraMinimaCentavos": 2000,
+    "$compraMinimaCentavos": "$20. Por debajo, la compra se registra igual y da cero puntos: es una venta que no llega al umbral, no un error, y borrarla del historial dejaría a la vendedora sin saber si la anotó.",
+
+    "puntosMaximosPorCompra": 50000,
+    "$puntosMaximosPorCompra": "PENDIENTE DE CONFIRMAR POR MARCIAL. Equivale a una compra de $50,000, muy por encima de cualquier venta real de la tienda. No es una regla comercial: es el freno para que un error de tecleo —$4,999.00 escrito como 499900— no acredite una fortuna antes de que nadie lo vea. Si alguna vez hay una venta legítima mayor, este tope la recortaría en silencio; súbelo antes de que eso pase."
+  },
+
+  "bienvenida": {
+    "puntos": 0,
+    "$puntos": "Cero, y es deliberado. El programa premia actividad económica, no creación de cuentas: regalar puntos por registrarse convierte el alta en la forma más rentable de usar el sistema sin comprar nada."
+  },
+
+  "referido": {
+    "niveles": 1,
+    "$niveles": "UNO. Juan refiere a Ana y gana por la primera compra de Ana; si Ana refiere a Luis, Juan no gana nada por Luis. El esquema está hecho para poder añadir un segundo nivel sin migrar datos, pero hoy es uno.",
+
+    "vestaCon": "primera-compra-verificada",
+    "$vestaCon": "NO SE TOCA. Los puntos del padrino se acreditan cuando su referido hace su primera compra real registrada por una vendedora, jamás al registrarse.",
+
+    "puntosAlPadrino": 500,
+    "puntosAlAhijado": 250,
+    "$costeDeAdquisicion": "500 + 250 = 750 puntos = $7.50 nominales por cliente nuevo que además ya compró. No se paga nada por abrir una cuenta.",
+
+    "topeDeAhijadosPorPadrino": 50,
+    "$topeDeAhijadosPorPadrino": "OJO: este tope es de POR VIDA, no de los últimos 12 meses. La propuesta hablaba de 50 en una ventana móvil de 12 meses; implementar la ventana exige consultar por fecha en cada compra y se dejó para cuando haya datos reales que digan si hace falta. De por vida es más estricto, nunca más laxo, así que no puede costar dinero de más.",
+
+    "topeDePuntosPorPadrinoAlMes": 5000,
+    "$topeDePuntosPorPadrinoAlMes": "10 referidos al mes × 500 puntos. Es la barrera antifraude: acota a $50 mensuales lo máximo que una sola persona puede cobrar en bonos. Un tope alcanzado NUNCA hace fallar una venta: la compra se registra igual y el panel deja constancia de por qué no hubo referido."
+  },
+
+  "canje": {
+    "vigenciaDelCodigoHoras": 72,
+    "$vigenciaDelCodigoHoras": "Cuánto dura el código antes de vencer y devolver los puntos. 72 horas dan un fin de semana completo para pasar por la tienda.",
+
+    "saldoMinimoParaCanjear": 500,
+    "$saldoMinimoParaCanjear": "500 puntos = $5. Evita que el programa se convierta en una molestia administrativa por descuentos de $0.37."
+  },
+
+  "vencimiento": {
+    "meses": null,
+    "$meses": "No vencen, y así arranca. Primero hay que saber cuántos puntos se generan, cuántos se canjean y cuánto tiempo quedan quietos. A los 6-12 meses se decide con datos. Si algún día se activa, hay que avisar al socio 30 días antes y declararlo en los términos: vencer puntos en silencio es la forma más rápida de que el programa se vuelva en contra de la marca."
+  },
+
+  "cumpleanos": {
+    "puntos": 500,
+    "$puntos": "500 puntos = $5, una vez al año. Los acredita el reloj del servidor cada madrugada, no una pantalla: nadie tiene que acordarse.",
+    "$exigeCompraPrevia": "Exige al menos una compra que haya dado puntos y que no esté anulada, y se entrega una sola vez por año natural. Sin ese candado se abren cuentas solo para cobrar el regalo."
+  }
+}

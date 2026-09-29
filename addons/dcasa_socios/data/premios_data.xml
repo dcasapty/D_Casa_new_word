@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La escalera de descuentos de arranque (100 puntos = $1). Marcial los edita,
+         desactiva o añade productos desde Socios > Premios: es un punto de partida. -->
+    <data noupdate="1">
+        <record id="premio_desc_5" model="dcasa.premio">
+            <field name="name">$5 de descuento</field>
+            <field name="descripcion">Se aplica en tu próxima compra.</field>
+            <field name="puntos">500</field><field name="valor">5</field><field name="costo">5</field>
+            <field name="sequence">1</field>
+        </record>
+        <record id="premio_desc_10" model="dcasa.premio">
+            <field name="name">$10 de descuento</field>
+            <field name="descripcion">Se aplica en tu próxima compra.</field>
+            <field name="puntos">1000</field><field name="valor">10</field><field name="costo">10</field>
+            <field name="sequence">2</field>
+        </record>
+        <record id="premio_desc_25" model="dcasa.premio">
+            <field name="name">$25 de descuento</field>
+            <field name="descripcion">Se aplica en tu próxima compra.</field>
+            <field name="puntos">2500</field><field name="valor">25</field><field name="costo">25</field>
+            <field name="sequence">3</field>
+        </record>
+        <record id="premio_desc_50" model="dcasa.premio">
+            <field name="name">$50 de descuento</field>
+            <field name="descripcion">Se aplica en tu próxima compra.</field>
+            <field name="puntos">5000</field><field name="valor">50</field><field name="costo">50</field>
+            <field name="sequence">4</field>
+        </record>
+        <record id="premio_desc_100" model="dcasa.premio">
+            <field name="name">$100 de descuento</field>
+            <field name="descripcion">Se aplica en tu próxima compra.</field>
+            <field name="puntos">10000</field><field name="valor">100</field><field name="costo">100</field>
+            <field name="sequence">5</field>
+        </record>
+    </data>
+</odoo>

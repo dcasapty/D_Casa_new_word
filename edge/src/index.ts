@@ -15,6 +15,8 @@ export interface Env {
   // Secretos (wrangler secret put …)
   DB_PASSWORD: string;
   ADMIN_PASSWORD: string;
+  /** Pimienta del PIN de los socios. Se genera una vez y NUNCA se cambia (ver docs/DESPLIEGUE.md). */
+  DCASA_PIN_PEPPER: string;
 }
 
 /** Una sola instancia de Odoo: toda la tienda comparte el mismo contenedor. */
@@ -38,6 +40,7 @@ export class OdooContainer extends Container<Env> {
       DB_SSLMODE: env.DB_SSLMODE ?? "require",
       ADMIN_PASSWORD: env.ADMIN_PASSWORD,
       APP_VERSION: env.APP_VERSION ?? "dev",
+      DCASA_PIN_PEPPER: env.DCASA_PIN_PEPPER,
     };
   }
 

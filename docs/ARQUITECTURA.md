@@ -33,7 +33,7 @@ expone el contenedor). Una sola instancia (`max_instances: 1`).
 
 **Arranque** (`docker/entrypoint.sh`):
 - genera `odoo.conf` desde variables de entorno (sin secretos en la imagen);
-- base vacía → instala `dcasa_base, dcasa_invoice, dcasa_referral, website_dcasa` en español;
+- base vacía → instala `dcasa_base, dcasa_invoice, dcasa_socios, website_dcasa` en español;
 - base existente y versión de imagen distinta (`APP_VERSION` = commit) → actualiza
   esos módulos una sola vez; reinicios normales no actualizan (arranque ~10 s).
 
@@ -45,6 +45,8 @@ expone el contenedor). Una sola instancia (`max_instances: 1`).
 - El disco del contenedor es **efímero** → los adjuntos (imágenes de productos,
   PDF) se guardan en la base (`ir_attachment.location = db`, lo fija `dcasa_base`).
   Efecto secundario aceptable: al reiniciarse el contenedor se cierran las sesiones.
+- La **pimienta del PIN** de los socios (`DCASA_PIN_PEPPER`) es un secreto del Worker que
+  se pasa al contenedor; vive fuera de la base, así un volcado robado no permite atacar los PIN.
 - El contenedor **duerme** tras 30 min sin tráfico; el cron del Worker lo despierta
   cada 10 min para que corran las acciones planificadas de Odoo.
 - Nada de datos de negocio vive en Cloudflare fuera de la base: se puede mover a
@@ -54,14 +56,12 @@ expone el contenedor). Una sola instancia (`max_instances: 1`).
 ## Módulos
 
 ```
-dcasa_base ──► dcasa_invoice
-    │
-    └────────► dcasa_referral ──► website_dcasa
+dcasa_base ──► dcasa_invoice ──► dcasa_socios ──► website_dcasa
 ```
 
 | Módulo | Depende de (Odoo) | Tests |
 |---|---|---|
 | `dcasa_base` | contacts, crm, sale_management, sale_stock, purchase, stock, account, l10n_pa | 10 |
 | `dcasa_invoice` | account, sale | 7 |
-| `dcasa_referral` | sale_management, account, portal, website_sale | 26 |
+| `dcasa_socios` | sale_management, account, website_sale | 79 |
 | `website_dcasa` | website_sale | 11 |

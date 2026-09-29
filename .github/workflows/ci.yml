@@ -129,6 +129,7 @@ jobs:
           docker run -d --name odoo --network host \
             -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa \
             -e DB_SSLMODE=disable -e ADMIN_PASSWORD=ci-admin -e APP_VERSION=${{ github.sha }} \
+            -e DCASA_PIN_PEPPER=ci \
             dcasa-odoo:ci
           for i in $(seq 1 120); do
             if curl -fsS http://localhost:8069/web/health >/dev/null 2>&1; then echo "Odoo arriba"; break; fi
@@ -139,7 +140,7 @@ jobs:
         run: |
           curl -fsS http://localhost:8069/ | grep -q "Tu casa, bien amueblada"
           curl -fsS -o /dev/null http://localhost:8069/shop
-          curl -fsS -o /dev/null http://localhost:8069/referidos
+          curl -fsS http://localhost:8069/socios | grep -q "Tus puntos"
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
@@ -198,3 +199,14 @@ jobs:
         run: |
           node -e 'process.stdout.write(JSON.stringify({DB_PASSWORD: process.env.DB_PASSWORD, ADMIN_PASSWORD: process.env.ADMIN_PASSWORD}))' \
             | npx wrangler secret bulk
+      - name: Pimienta del PIN de socios (se crea una vez, nunca se sobrescribe)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        run: |
+          # Cambiarla rompe el PIN de TODOS los socios a la vez y no tiene vuelta atrás.
+          if npx wrangler secret list --format json | grep -q '"DCASA_PIN_PEPPER"'; then
+            echo "La pimienta ya existe: no se toca."
+          else
+            openssl rand -hex 32 | npx wrangler secret put DCASA_PIN_PEPPER
+            echo "Pimienta creada. Nadie la ve ni la tiene que recordar."
+          fi

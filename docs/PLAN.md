@@ -7,7 +7,7 @@
 | Odoo actual en dcasapty.com | Facturas (INV/2026/…), órdenes (S00…), productos, clientes | Abandonado a medias, sin código fuente |
 | `juanarrietabusiness-pixel/D-Casa` | Sitio Next.js: textos, categorías, FAQ, estructura | Contenido migrado a `website_dcasa` |
 | `juanarrietabusiness-pixel/Agencia_Workspace` (Dcasa/) | ADN de marca: colores, fuentes, voz, logo | Aplicado en sitio y factura |
-| `abrinay1997-stack/DCasa-Referidos` | Sistema de referidos de Abrinay | **Sin acceso** (repo privado) — ver Fase 2 |
+| `abrinay1997-stack/DCasa-Referidos` | Programa de puntos y referidos de Abrinay (6 fases, reglas aprobadas) | Reglas llevadas a `dcasa_socios` — ver [SOCIOS.md](SOCIOS.md) |
 | Factura INV/2026/00821 | Formato, ITBMS 7 %, combos, monto en letras | Reproducida en tests |
 
 ## Decisiones
@@ -35,16 +35,16 @@
       Compras, CRM, Contactos), categorías de producto, español por defecto.
 - [x] `dcasa_invoice`: factura con marca, RUC+DV del cliente, sello PAGADO digital
       con fecha, monto en letras en español, pie que no se corta.
-- [x] `dcasa_referral`: programa de referidos completo (ver [REFERIDOS.md](REFERIDOS.md)).
+- [x] `dcasa_socios`: programa de puntos y referidos de Abrinay dentro de Odoo, con puntos automáticos al
+      pagarse la factura, canjes cobrados en la venta y app del socio en `/socios` (ver [SOCIOS.md](SOCIOS.md)).
 - [x] `website_dcasa`: paleta y fuentes de la marca, inicio, pie, WhatsApp flotante,
       categorías de la tienda, página «Refiere y gana».
 - [x] Imagen Docker + Worker/Container de Cloudflare + CI/CD con 4 etapas de pruebas.
 
-### Fase 2 — Datos y referidos definitivos
+### Fase 2 — Datos
 
-- [ ] **Acceso a `DCasa-Referidos`** para alinear reglas (porcentaje, a quién se
-      premia, beneficio para el referido, forma de pago) con lo que diseñó Abrinay.
-      El módulo actual es configurable, así que es ajustar, no rehacer.
+- [ ] **Migrar los socios de DCasa-Referidos** si ya hay socios reales en su D1
+      (fichas, saldos como asiento de migración; los PIN se reinician). Ver SOCIOS.md.
 - [ ] **Migrar datos del Odoo actual**: clientes, productos (con códigos como
       `DSRSOQ`, `1062010735N`), combos, stock inicial y numeración de facturas
       (continuar desde la última INV/2026/…). Si el Odoo actual es *Odoo Online*
@@ -59,7 +59,7 @@
 - [ ] Correo saliente (SMTP) para enviar facturas y cotizaciones.
 - [ ] Pasarela de pago para la tienda (Yappy / tarjeta) y métodos de entrega.
 - [ ] Respaldos: PITR de Neon + copia diaria a R2.
-- [ ] Capacitación: vendedoras (ventas, referidos), bodega (inventario), dueño (reportes).
+- [ ] Capacitación: vendedoras (ventas, socios y canjes), bodega (inventario), dueño (reportes).
 
 ### Fase 4 — Mejoras
 
@@ -75,4 +75,5 @@
 
 - Color oficial: el logo mide `#1648C0`/`#FFD000` y el formulario dice `#1340B1`/`#FED00F` (se usó el formulario).
 - ¿Los precios publicados en la web incluyen ITBMS? Hoy se muestran sin ITBMS, como en la factura.
-- Reglas finales de referidos (Fase 2).
+- Pendientes que Abrinay dejó para Marcial: tope de puntos por compra (hoy 50.000), qué
+  productos entran como premio y adónde apuntan los QR impresos (usar `dcasapty.com/socios`).

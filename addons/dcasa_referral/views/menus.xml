@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <menuitem id="menu_dcasa_referral_root" name="Referidos" parent="sale.sale_menu_root" sequence="25"
-              groups="sales_team.group_sale_salesman"/>
-    <menuitem id="menu_dcasa_referral_reward" name="Recompensas" parent="menu_dcasa_referral_root"
-              action="action_dcasa_referral_reward" sequence="10"/>
-    <menuitem id="menu_dcasa_referrers" name="Referidores" parent="menu_dcasa_referral_root"
-              action="action_dcasa_referrers" sequence="20"/>
-</odoo>

@@ -11,7 +11,7 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
   con los datos reales y botón flotante de WhatsApp.
 * Categorías de la tienda (Salas, Comedores, Recámaras, Colchones,
   Electrodomésticos, Decoración, Exteriores).
-* Página pública «Refiere y gana» conectada al programa de referidos.
+* Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
 
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
@@ -21,14 +21,13 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_referral', 'website_sale'],
+    'depends': ['dcasa_base', 'dcasa_socios', 'website_sale'],
     'data': [
         'data/website_data.xml',
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
         'views/layout_templates.xml',
         'views/homepage_templates.xml',
-        'views/referral_page_templates.xml',
         'data/website_menu_data.xml',
     ],
     'assets': {

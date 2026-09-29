@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_compra_list" model="ir.ui.view">
+        <field name="name">dcasa.compra.list</field>
+        <field name="model">dcasa.compra</field>
+        <field name="arch" type="xml">
+            <list string="Compras con puntos" create="false" decoration-muted="estado == 'anulada'">
+                <field name="registrada_en"/>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="monto" sum="Total"/>
+                <field name="puntos" sum="Puntos"/>
+                <field name="referido" optional="show"/>
+                <field name="vendedor_id" optional="show"/>
+                <field name="estado" widget="badge" decoration-muted="estado == 'anulada'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_compra_form" model="ir.ui.view">
+        <field name="name">dcasa.compra.form</field>
+        <field name="model">dcasa.compra</field>
+        <field name="arch" type="xml">
+            <form string="Compra con puntos" create="false" edit="false">
+                <header>
+                    <button name="action_anular" type="object" string="Anular" invisible="estado == 'anulada'"
+                            groups="sales_team.group_sale_manager"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="move_id"/>
+                            <field name="vendedor_id"/>
+                            <field name="registrada_en"/>
+                            <field name="notas" invisible="not notas"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="monto"/>
+                            <field name="puntos"/>
+                            <field name="reglas_version"/>
+                            <field name="referido"/>
+                        </group>
+                    </group>
+                    <group string="Anulación" invisible="estado != 'anulada'">
+                        <field name="anulada_en"/>
+                        <field name="anulada_por"/>
+                        <field name="anulada_motivo"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_compra_search" model="ir.ui.view">
+        <field name="name">dcasa.compra.search</field>
+        <field name="model">dcasa.compra</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="vendedor_id"/>
+                <filter name="activas" string="Activas" domain="[('estado', '=', 'activa')]"/>
+                <filter name="anuladas" string="Anuladas" domain="[('estado', '=', 'anulada')]"/>
+                <filter name="con_referido" string="Pagaron referido" domain="[('referido', '=', 'pagado')]"/>
+                <separator/>
+                <filter name="registrada_en" string="Fecha" date="registrada_en"/>
+                <group>
+                    <filter name="g_vendedor" string="Vendedora" context="{'group_by': 'vendedor_id'}"/>
+                    <filter name="g_semana" string="Semana" context="{'group_by': 'registrada_en:week'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_dcasa_compra_pivot" model="ir.ui.view">
+        <field name="name">dcasa.compra.pivot</field>
+        <field name="model">dcasa.compra</field>
+        <field name="arch" type="xml">
+            <pivot string="Puntos emitidos por vendedora">
+                <field name="vendedor_id" type="row"/>
+                <field name="registrada_en" interval="week" type="col"/>
+                <field name="puntos" type="measure"/>
+                <field name="monto" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="view_dcasa_compra_graph" model="ir.ui.view">
+        <field name="name">dcasa.compra.graph</field>
+        <field name="model">dcasa.compra</field>
+        <field name="arch" type="xml">
+            <graph string="Puntos emitidos" type="bar">
+                <field name="vendedor_id"/>
+                <field name="puntos" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_dcasa_compras" model="ir.actions.act_window">
+        <field name="name">Compras con puntos</field>
+        <field name="res_model">dcasa.compra</field>
+        <field name="view_mode">list,form,pivot,graph</field>
+        <field name="context">{'search_default_activas': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay compras con puntos</p>
+            <p>Cada factura de cliente que queda pagada suma puntos sola.</p>
+        </field>
+    </record>
+
+    <record id="action_dcasa_reporte_vendedoras" model="ir.actions.act_window">
+        <field name="name">Puntos por vendedora</field>
+        <field name="res_model">dcasa.compra</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="context">{'search_default_activas': 1}</field>
+        <field name="help" type="html"><p>El control antifraude: si una vendedora emite el triple que las demás, aquí se ve.</p></field>
+    </record>
+</odoo>

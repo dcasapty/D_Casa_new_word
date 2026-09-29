@@ -108,16 +108,17 @@
                     </div>
                 </section>
 
-                <section class="s_text_block o_cc o_cc4 pt64 pb64" data-snippet="s_text_block" data-name="Refiere y gana">
+                <section class="s_text_block o_cc o_cc4 pt64 pb64" data-snippet="s_text_block" data-name="Socios D'CASA">
                     <div class="container">
                         <div class="row align-items-center g-4">
                             <div class="col-lg-8">
-                                <p class="o_dcasa_kicker">Refiere y gana</p>
-                                <h2>Recomienda D'CASA y gana</h2>
-                                <p class="lead mb-0">Comparte tu código con amigos y familia. Cuando paguen su compra, tú ganas una recompensa.</p>
+                                <p class="o_dcasa_kicker">Socios D'CASA</p>
+                                <h2>Suma puntos y gana invitando</h2>
+                                <p class="lead mb-0">Cada dólar que pagas suma un punto. Invita a alguien y, con su primera
+                                    compra, ganan los dos. Cambia tus puntos por descuentos en la tienda.</p>
                             </div>
                             <div class="col-lg-4 text-lg-end">
-                                <a href="/referidos" class="btn btn-lg o_dcasa_btn_wa">Quiero mi código</a>
+                                <a href="/socios" class="btn btn-lg o_dcasa_btn_wa">Ver mis puntos</a>
                             </div>
                         </div>
                     </div>

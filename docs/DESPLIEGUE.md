@@ -35,6 +35,10 @@ Crear el *environment* `production` y cargar:
 | Variable | `DB_NAME` | `dcasa` |
 | Variable | `CANONICAL_HOST` | `dcasapty.com` |
 
+La **pimienta del PIN** de los socios (`DCASA_PIN_PEPPER`) no se carga a mano: el
+primer despliegue la genera al azar y la guarda en el Worker, y los siguientes
+**nunca la sobrescriben**. Cambiarla rompería el PIN de todos los socios a la vez.
+
 Sin los secretos de Cloudflare, el job de despliegue se salta con un aviso (los
 tests igual corren).
 
@@ -57,6 +61,10 @@ base nueva; se puede usar otra con la variable `ADMIN_USER_PASSWORD`). Después,
 crear un usuario por persona y no compartir el de administrador.
 
 ## 5. Dominio `dcasapty.com`
+
+> Los QR impresos del programa de socios deben apuntar a `https://dcasapty.com/socios`
+> (o `/r/CÓDIGO`), nunca a `*.workers.dev`: un QR impreso es permanente.
+
 
 1. Agregar el dominio a Cloudflare y cambiar los *nameservers* en el registrador.
 2. En `edge/wrangler.jsonc` descomentar `routes` (dcasapty.com y www) y hacer push.

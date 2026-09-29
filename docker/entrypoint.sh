@@ -15,10 +15,13 @@ set -euo pipefail
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-dcasa}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_referral,website_dcasa}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
+if [[ -z "${DCASA_PIN_PEPPER:-}" ]]; then
+  echo "⚠ Falta DCASA_PIN_PEPPER: la app de socios (/socios) no dejará registrarse ni entrar." >&2
+fi
 
 cat > "$CONF" <<CONF
 [options]

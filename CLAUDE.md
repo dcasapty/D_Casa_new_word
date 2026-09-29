@@ -40,6 +40,16 @@ ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
 5. CTA único: **Escríbenos por WhatsApp** (+507 6026-1919, configurable en el sitio).
 6. Voz: el pana que sabe de casas; tuteo; nada de "remate" ni "¡¡CORRE!!".
 
+## Programa Socios D'CASA (`dcasa_socios`)
+
+Reglas de DCasa-Referidos (Abrinay), no negociables:
+1. Ninguna cifra fuera de `addons/dcasa_socios/data/puntos.json`; `null`/`PENDIENTE` no se rellena a ojo.
+2. No existe columna de saldo: el saldo es la suma de `dcasa.movimiento`.
+3. El libro no se edita ni se borra: se corrige con asientos contrarios con motivo.
+4. El referido se paga con la primera compra que da puntos; el padrino se escribe una vez.
+5. Un cliente y un socio son la misma ficha (`res.partner`), llave = celular.
+6. `DCASA_PIN_PEPPER` jamás se rota.
+
 ## Datos reales de la empresa
 
 D'CASA Panamá · RUC 155779346-2-2026 DV7 · Avenida Las Américas, Urbanización

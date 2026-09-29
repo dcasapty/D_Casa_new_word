@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los puntos van impresos en la factura: es la única vez que el cliente tiene el
+         programa delante sin abrir nada, y el código es lo que le permite reclamarlos. -->
+    <template id="report_invoice_document_dcasa_socios" inherit_id="account.report_invoice_document">
+        <xpath expr="//div[@id='payment_term']" position="before">
+            <t t-if="o.move_type == 'out_invoice' and o.state == 'posted'">
+                <t t-set="dcasa_ficha" t-value="o.sudo().commercial_partner_id"/>
+                <t t-set="dcasa_compra" t-value="o.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)[:1]"/>
+                <t t-set="dcasa_por_ganar" t-value="o._dcasa_puntos_por_ganar()"/>
+                <div t-if="dcasa_compra or dcasa_por_ganar" class="o_dcasa_socios_factura avoid-page-break-inside" name="dcasa_socios">
+                    <strong>Socios D'CASA</strong>
+                    <t t-if="dcasa_compra">
+                        · Esta compra te dio <strong t-out="dcasa_compra.puntos"/> puntos.
+                        Tienes <strong t-out="dcasa_ficha.dcasa_saldo"/> en total.
+                    </t>
+                    <t t-else="">· Al pagar esta factura ganas <strong t-out="dcasa_por_ganar"/> puntos.</t>
+                    <t t-if="dcasa_ficha.dcasa_socio_codigo">
+                        Tu código de socio: <strong t-out="dcasa_ficha.dcasa_socio_codigo"/>.
+                    </t>
+                    Revísalos y canjéalos en <span t-out="o.get_base_url()"/>/socios
+                </div>
+            </t>
+        </xpath>
+    </template>
+</odoo>

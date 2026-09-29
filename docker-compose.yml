@@ -32,6 +32,7 @@ services:
       DB_SSLMODE: disable
       ADMIN_PASSWORD: admin
       APP_VERSION: local
+      DCASA_PIN_PEPPER: solo-para-desarrollo-local
     ports:
       - "8069:8069"
     volumes:

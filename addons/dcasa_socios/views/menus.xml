@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_dcasa_socios_root" name="Socios" sequence="15"
+              web_icon="dcasa_socios,static/description/icon.png"
+              groups="sales_team.group_sale_salesman"/>
+    <menuitem id="menu_dcasa_socios" name="Socios" parent="menu_dcasa_socios_root" sequence="10"
+              action="action_dcasa_socios"/>
+    <menuitem id="menu_dcasa_canjes" name="Canjes" parent="menu_dcasa_socios_root" sequence="20"
+              action="action_dcasa_canjes"/>
+    <menuitem id="menu_dcasa_compras" name="Compras" parent="menu_dcasa_socios_root" sequence="30"
+              action="action_dcasa_compras"/>
+    <menuitem id="menu_dcasa_movimientos" name="Libro de puntos" parent="menu_dcasa_socios_root" sequence="40"
+              action="action_dcasa_movimientos"/>
+    <menuitem id="menu_dcasa_reportes" name="Reportes" parent="menu_dcasa_socios_root" sequence="50"/>
+    <menuitem id="menu_dcasa_reporte_vendedoras" name="Puntos por vendedora" parent="menu_dcasa_reportes"
+              sequence="10" action="action_dcasa_reporte_vendedoras"/>
+    <menuitem id="menu_dcasa_pasivo" name="Pasivo del programa" parent="menu_dcasa_reportes" sequence="20"
+              action="action_dcasa_pasivo"/>
+    <menuitem id="menu_dcasa_config" name="Configuración" parent="menu_dcasa_socios_root" sequence="90"
+              groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_premios" name="Premios" parent="menu_dcasa_config" sequence="10"
+              action="action_dcasa_premios"/>
+    <menuitem id="menu_dcasa_compra_manual" name="Registrar compra a mano" parent="menu_dcasa_config"
+              sequence="20" action="action_dcasa_compra_manual"/>
+</odoo>

@@ -2,7 +2,7 @@
 
 Plataforma única de **D'CASA Panamá** (mueblería en La Chorrera): facturación,
 inventario, ventas, compras, CRM, clientes, **sitio web con tienda** y **programa
-de referidos**, todo sobre el código abierto de **Odoo 19 Community**, con el
+de puntos y referidos (Socios D'CASA)**, todo sobre el código abierto de **Odoo 19 Community**, con el
 código fuente en este repositorio y desplegado en **Cloudflare**.
 
 > Por qué: la tienda dependía de un programador externo y no tenía el código
@@ -17,12 +17,12 @@ código fuente en este repositorio y desplegado en **Cloudflare**.
 | `vendor/odoo` | Código fuente de Odoo 19.0 (submódulo git, fijado a un commit). |
 | `addons/dcasa_base` | Empresa, Panamá (ITBMS 7 %, plan contable), RUC con DV, USD, apps del ERP. |
 | `addons/dcasa_invoice` | Formato de factura D'CASA: marca, RUC+DV, sello **PAGADO**, monto en letras. |
-| `addons/dcasa_referral` | Programa de referidos: códigos, link `/r/CÓDIGO`, recompensas al pagarse la factura, portal. |
+| `addons/dcasa_socios` | Socios D'CASA: puntos automáticos al pagarse la factura, referidos, premios, canjes, cumpleaños y app del socio (celular + PIN) en `/socios`. Reglas de [DCasa-Referidos](https://github.com/abrinay1997-stack/DCasa-Referidos). |
 | `addons/website_dcasa` | Sitio web y tienda con la marca, editable desde el constructor de Odoo. |
 | `edge/` | Cloudflare Worker + Container que sirve Odoo (caché, seguridad, cron). |
 | `docker/` | Imagen de producción (Odoo + módulos) y su arranque. |
 | `scripts/test.sh` | Instala los módulos en una base limpia y corre todos los tests. |
-| `docs/` | [Plan](docs/PLAN.md) · [Arquitectura](docs/ARQUITECTURA.md) · [Despliegue](docs/DESPLIEGUE.md) · [Referidos](docs/REFERIDOS.md) |
+| `docs/` | [Plan](docs/PLAN.md) · [Arquitectura](docs/ARQUITECTURA.md) · [Despliegue](docs/DESPLIEGUE.md) · [Socios D'CASA](docs/SOCIOS.md) |
 
 ## Empezar (desarrollo local)
 
@@ -50,7 +50,7 @@ make edge-test                     # tests del Worker de Cloudflare
 Cada push corre en GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 1. **Lint** (ruff + XML).
-2. **Tests de Odoo**: instala los 4 módulos en PostgreSQL limpio y corre sus tests
+2. **Tests de Odoo**: instala los 4 módulos (87 tests) en PostgreSQL limpio y corre sus tests
    (la factura de prueba reproduce la factura real INV/2026/00821: $329,99 + ITBMS $23,10 = $353,09).
 3. **Tests del borde**: typecheck + vitest del Worker.
 4. **Prueba de humo de la imagen**: construye la imagen Docker, la arranca contra una
@@ -68,9 +68,9 @@ WhatsApp de todos los botones está en **Sitio web → Configuración → Ajuste
 
 ## Capturas (base de demostración)
 
-| Inicio | Factura | Refiere y gana (móvil) |
+| Inicio | Factura con puntos | App del socio (móvil) |
 |---|---|---|
-| ![Inicio](docs/img/sitio-inicio.jpg) | ![Factura](docs/img/factura.jpg) | ![Referidos](docs/img/sitio-referidos-movil.jpg) |
+| ![Inicio](docs/img/sitio-inicio.jpg) | ![Factura](docs/img/factura.jpg) | ![Socios](docs/img/socios-cuenta-movil.jpg) |
 
 > Las fuentes de marca (Anton/Oswald) se cargan desde Google Fonts en producción;
 > en las capturas se ve la tipografía de respaldo.

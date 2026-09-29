@@ -1,0 +1,83 @@
+// App del socio. Sistema plano D'CASA: placa blanca, azul arriba, amarillo abajo.
+$dcasa-azul: #1340B1;
+$dcasa-amarillo: #FED00F;
+
+.o_dcasa_socios {
+    .o_dcasa_socios_body {
+        max-width: 72rem;
+    }
+}
+
+.o_dcasa_socios_card {
+    background: #FFFFFF;
+    border: 2px solid rgba($dcasa-azul, .12);
+    border-radius: 1rem;
+    padding: 1.5rem;
+}
+
+.o_dcasa_socios_form {
+    label {
+        display: block;
+        font-weight: 600;
+        margin: .85rem 0 .3rem;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 3rem;
+        font-size: 1.1rem;
+    }
+}
+
+// El saldo: amarillo sobre azul, dentro de su placa (nunca amarillo sobre blanco).
+.o_dcasa_socios_saldo {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    border-radius: 1rem;
+    padding: 1.75rem;
+    border-bottom: 12px solid $dcasa-amarillo;
+
+    .o_dcasa_socios_saldo_n {
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-size: clamp(3rem, 12vw, 4.5rem);
+        line-height: 1;
+        color: $dcasa-amarillo;
+        margin: .25rem 0 .5rem;
+    }
+}
+
+.o_dcasa_socios_codigo {
+    font-family: 'Oswald', monospace;
+    letter-spacing: .12em;
+    color: $dcasa-azul;
+}
+
+.o_dcasa_socios_premio,
+.o_dcasa_socios_canje {
+    border: 1px solid rgba($dcasa-azul, .15);
+    border-radius: .75rem;
+    padding: 1rem;
+}
+
+.o_dcasa_socios_canje {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+
+    & + & {
+        margin-top: .75rem;
+    }
+}
+
+.o_dcasa_socios_lista li {
+    padding: .6rem 0;
+    border-bottom: 1px solid rgba($dcasa-azul, .1);
+}
+
+.o_dcasa_socios_terminos h2 {
+    font-size: 1.2rem;
+    color: $dcasa-azul;
+    margin-top: 1.5rem;
+    text-transform: uppercase;
+}

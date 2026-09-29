@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ir_cron_programa_socios" model="ir.cron">
+        <field name="name">Socios D'CASA: vencer canjes y regalos de cumpleaños</field>
+        <field name="model_id" ref="model_dcasa_canje"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_programa()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
