@@ -271,16 +271,24 @@
 
                     <section id="visitanos" class="o_dcasa_visita" data-snippet="s_text_block" data-name="Visítanos">
                         <div class="o_dcasa_container o_dcasa_visita_inner">
-                            <div data-anim-cascada="izquierda">
-                                <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
-                                <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
-                                <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
+                            <div class="o_dcasa_visita_texto">
+                                <div data-anim-cascada="izquierda">
+                                    <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
+                                    <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
+                                    <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
+                                </div>
+                                <div class="o_dcasa_ctas">
+                                    <a href="https://www.google.com/maps/dir/?api=1&amp;destination=8.8765881%2C-79.7867962"
+                                       class="btn btn-lg o_dcasa_btn_amarillo" target="_blank" rel="noopener">
+                                        <i class="fa fa-location-arrow me-2" aria-hidden="true"/>Cómo llegar</a>
+                                    <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea"
+                                       target="_blank" rel="noopener nofollow"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
+                                </div>
                             </div>
-                            <div class="o_dcasa_ctas">
-                                <a href="https://www.google.com/maps/search/?api=1&amp;query=D%27CASA+Panam%C3%A1+La+Chorrera"
-                                   class="btn btn-lg o_dcasa_btn_amarillo" target="_blank" rel="noopener">Cómo llegar</a>
-                                <a href="/whatsapp" class="btn btn-lg o_dcasa_btn_linea"
-                                   target="_blank" rel="noopener nofollow"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
+                            <div class="o_dcasa_mapa" data-anim="escala">
+                                <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
+                                        title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
+                                        allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
                             </div>
                         </div>
                     </section>

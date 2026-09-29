@@ -277,3 +277,12 @@ class TestSitioV21(HttpCase):
         self.assertEqual(website.menu_id.child_id[0].url, '/shop')
         html = self.url_open('/').text
         self.assertIn('id="visitanos"', html, 'El enlace «Visítanos» tiene a dónde ir')
+
+    def test_navbar_liquido_y_mapa(self):
+        html = self.url_open('/').text
+        self.assertIn('o_no_autohide_menu', html, 'Las tres opciones del menú nunca se esconden en el «+»')
+        self.assertIn('id="dcasa-liquido"', html)
+        self.assertIn('https://www.google.com/maps/embed?pb=', html)
+        self.assertIn('title="Mapa: D&#39;CASA en La Chorrera"', html.replace("D'CASA en", 'D&#39;CASA en'))
+        datos = json.loads(str(self.env.ref('website.default_website')._dcasa_json_ld()))
+        self.assertEqual(datos['geo']['latitude'], 8.8765881)

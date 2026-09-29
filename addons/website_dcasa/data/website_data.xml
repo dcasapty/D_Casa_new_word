@@ -40,6 +40,12 @@
     <!-- Se reafirman en cada actualización (noupdate=0): una actualización de website_sale
          volvería a encender las promesas inventadas de la ficha. -->
     <data noupdate="0">
+        <!-- Menú centrado y de tres opciones: el auto-ocultado de Odoo las mandaría al «+»
+             al compactarse la cabecera. -->
+        <record id="website.no_autohide_menu" model="ir.ui.view">
+            <field name="active" eval="True"/>
+        </record>
+
         <!-- La ficha de producto de Odoo trae «Garantía de devolución de 30 días / Envío: 2-3 días»:
              son promesas que D'CASA no ha hecho (regla: no inventar). Se apaga. -->
         <record id="website_sale.product_terms_and_conditions" model="ir.ui.view">

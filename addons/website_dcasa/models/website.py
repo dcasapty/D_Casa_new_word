@@ -11,6 +11,9 @@ from odoo.fields import Domain
 from odoo.http import request
 from odoo.tools.misc import file_open
 
+# La tienda en Google Maps (ficha «D'CASA», La Chorrera): la usan el mapa de «Visítanos» y el JSON-LD.
+UBICACION = (8.8765881, -79.7867962)
+
 DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
 
 # Categorías de la portada: (xmlid, nombre, imagen, texto alternativo de la foto).
@@ -199,6 +202,8 @@ class Website(models.Model):
                 'addressRegion': company.state_id.name or 'Panamá Oeste',  # La Chorrera
                 'addressCountry': company.country_id.code or 'PA',
             },
+            'geo': {'@type': 'GeoCoordinates', 'latitude': UBICACION[0], 'longitude': UBICACION[1]},
+            'hasMap': f'https://www.google.com/maps/search/?api=1&query={UBICACION[0]}%2C{UBICACION[1]}',
             'sameAs': [url for url in (self.social_instagram, self.social_tiktok, self.social_facebook) if url],
         }
         # Sin campos vacíos (Google los marca como error). Nada de cifras inventadas (rango de precios).

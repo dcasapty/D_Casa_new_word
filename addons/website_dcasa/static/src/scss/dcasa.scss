@@ -272,7 +272,8 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
         max-width: 1320px;
         border-radius: 2rem;
         padding: .45rem .75rem .45rem 1.25rem;
-        transition: padding .28s ease;
+        // Al compactarse la píldora rebota un poco, como una gota que se asienta.
+        transition: padding .6s cubic-bezier(.34, 1.56, .64, 1);
 
         // Vidrio líquido: casi transparente, mucho desenfoque y saturación, y dos filos de
         // luz (arriba y abajo) que dan el volumen de una gota. Sin degradados.
@@ -282,9 +283,9 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
             inset: 0;
             z-index: -1;
             border-radius: inherit;
-            background: rgba(#FFFFFF, .58);
-            -webkit-backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
-            backdrop-filter: blur(22px) saturate(190%) brightness(1.06);
+            background: rgba(#FFFFFF, .5);
+            -webkit-backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
+            backdrop-filter: blur(16px) saturate(210%) brightness(1.08);
             border: 1px solid rgba(#FFFFFF, .7);
             box-shadow:
                 inset 0 1.5px 0 rgba(#FFFFFF, .95),
@@ -346,6 +347,77 @@ $dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escri
     // «Visítanos» apunta a un ancla de la portada: Odoo lo marcaría como activo en «/».
     .nav-link[href='/#visitanos'].active:not(:hover) {
         background: transparent;
+    }
+}
+
+// Refracción real (Chromium): lo que pasa detrás de la píldora se ondula como a través
+// de agua. animaciones.js pone la clase solo donde `backdrop-filter: url()` funciona.
+html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
+    -webkit-backdrop-filter: url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08);
+    backdrop-filter: url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08);
+}
+
+.o_dcasa_filtros {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+// La gota: una burbuja de vidrio que se desliza con rebote hasta el enlace bajo el puntero.
+#wrapwrap > header#top #top_menu {
+    position: relative;
+
+    > .nav-item {
+        position: relative;
+        z-index: 1;
+    }
+}
+
+.o_dcasa_gota {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    height: 2.4rem;
+    width: var(--gota-ancho, 0px);
+    transform: translate3d(var(--gota-x, 0px), -50%, 0) scaleY(var(--gota-estirar, 1));
+    border-radius: 999px;
+    background: rgba($dcasa-azul, .1);
+    border: 1px solid rgba(#FFFFFF, .7);
+    box-shadow:
+        inset 0 1px 0 rgba(#FFFFFF, .9),
+        inset 0 -1px 0 rgba(#FFFFFF, .3);
+    opacity: 0;
+    z-index: 0;
+    pointer-events: none;
+    transition:
+        transform .55s cubic-bezier(.34, 1.56, .64, 1),
+        width .55s cubic-bezier(.34, 1.56, .64, 1),
+        opacity .25s ease;
+
+    &.is-visible {
+        opacity: 1;
+    }
+}
+
+html.o_dcasa_nav_sobre_foto .o_dcasa_gota {
+    background: rgba(#FFFFFF, .2);
+    border-color: rgba(#FFFFFF, .45);
+}
+
+// La gota ya marca dónde está el puntero: el fondo propio del enlace sobra.
+#wrapwrap > header#top #top_menu .nav-link {
+    background: transparent !important;
+}
+
+// Menú centrado en la píldora (escritorio).
+@media (min-width: 992px) {
+    #wrapwrap > header#top #top_menu {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        margin: 0 !important;
     }
 }
 
@@ -416,7 +488,9 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 @media (prefers-reduced-motion: reduce) {
     #wrapwrap > header#top,
     #wrapwrap > header#top .o_main_nav,
-    #wrapwrap > header#top .navbar-brand img {
+    #wrapwrap > header#top .navbar-brand img,
+    .o_dcasa_gota,
+    #wrapwrap > header#top .o_main_nav::after {
         transition: none;
     }
 }
@@ -960,11 +1034,31 @@ html.o_dcasa_scrolled #wrapwrap > header#top {
 }
 
 .o_dcasa_visita_inner {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    gap: clamp(2rem, 5vw, 4rem);
     align-items: center;
-    justify-content: space-between;
-    gap: 2rem;
+
+    @media (min-width: 992px) {
+        grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    }
+
+    .o_dcasa_ctas {
+        margin-top: 2rem;
+    }
+}
+
+.o_dcasa_mapa {
+    border-radius: $dcasa-radius * 1.5;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    background: rgba(#FFFFFF, .08);
+
+    iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+    }
 }
 
 // ---------------------------------------------------------------------------

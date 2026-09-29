@@ -119,12 +119,61 @@ function cabecera() {
     revisar();
 }
 
+// Vidrio líquido: refracción donde el navegador la soporta y la gota que sigue al puntero.
+function vidrioLiquido() {
+    const chromium = navigator.userAgentData?.brands?.some((b) => b.brand === "Chromium");
+    if (chromium && window.CSS?.supports?.("backdrop-filter", "url(#a)")) {
+        raiz.classList.add("o_dcasa_refraccion");
+    }
+    if (reducido) {
+        document.querySelectorAll(".o_dcasa_filtros animate").forEach((a) => a.remove());
+    }
+    const menu = document.querySelector("header#top #top_menu");
+    if (!menu) {
+        return;
+    }
+    const gota = document.createElement("span");
+    gota.className = "o_dcasa_gota";
+    gota.setAttribute("aria-hidden", "true");
+    menu.prepend(gota);
+    const moverA = (enlace) => {
+        if (!enlace) {
+            gota.classList.remove("is-visible");
+            return;
+        }
+        const caja = menu.getBoundingClientRect();
+        const r = enlace.getBoundingClientRect();
+        gota.style.setProperty("--gota-x", `${r.left - caja.left}px`);
+        gota.style.setProperty("--gota-ancho", `${r.width}px`);
+        // Un pellizco al arrancar: la gota se estira y vuelve, como un líquido.
+        gota.style.setProperty("--gota-estirar", "0.82");
+        setTimeout(() => gota.style.setProperty("--gota-estirar", "1"), 180);
+        gota.classList.add("is-visible");
+    };
+    // «Visítanos» es un ancla de la portada: Odoo lo marca activo en «/», pero no es una página.
+    menu.querySelectorAll(".nav-link[href='/#visitanos']").forEach((a) => {
+        a.classList.remove("active");
+        a.removeAttribute("aria-current");
+    });
+    const activo = () => menu.querySelector(".nav-link.active");
+    menu.querySelectorAll(".nav-link").forEach((enlace) => {
+        enlace.addEventListener("mouseenter", () => moverA(enlace));
+        enlace.addEventListener("focus", () => moverA(enlace));
+    });
+    menu.addEventListener("mouseleave", () => moverA(activo()));
+    window.addEventListener("resize", () => moverA(activo()), { passive: true });
+    // Tras las fuentes (el ancho de los enlaces cambia al cargar Oswald).
+    (document.fonts?.ready || Promise.resolve()).then(() => moverA(activo()));
+}
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         iniciar();
         cabecera();
+        vidrioLiquido();
     });
 } else {
     iniciar();
     cabecera();
+    vidrioLiquido();
 }

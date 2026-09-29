@@ -50,7 +50,7 @@ make edge-test                     # tests del Worker de Cloudflare
 Cada push corre en GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 1. **Lint** (ruff + XML).
-2. **Tests de Odoo**: instala los 4 módulos (110 tests) en PostgreSQL limpio y corre sus tests
+2. **Tests de Odoo**: instala los 4 módulos (111 tests) en PostgreSQL limpio y corre sus tests
    (la factura de prueba reproduce la factura real INV/2026/00821: $329,99 + ITBMS $23,10 = $353,09).
 3. **Tests del borde**: typecheck + vitest del Worker.
 4. **Prueba de humo de la imagen**: construye la imagen Docker, la arranca contra una

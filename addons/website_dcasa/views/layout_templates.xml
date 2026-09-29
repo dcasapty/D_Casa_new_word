@@ -55,6 +55,25 @@
         </xpath>
     </template>
 
+    <!-- Filtro de refracción del navbar de vidrio líquido (lo usa dcasa.scss con
+         backdrop-filter: url(#dcasa-liquido), solo en navegadores que lo soportan).
+         El ruido se mueve lento: el vidrio «fluye». Sin movimiento si el sistema lo pide. -->
+    <template id="layout_filtro_liquido" inherit_id="website.layout" name="D'CASA: filtro de vidrio líquido">
+        <xpath expr="//div[@id='wrapwrap']" position="inside">
+            <svg class="o_dcasa_filtros" width="0" height="0" aria-hidden="true" focusable="false">
+                <filter id="dcasa-liquido" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.009 0.022" numOctaves="2" seed="7" result="ruido">
+                        <animate attributeName="baseFrequency" dur="18s" repeatCount="indefinite"
+                                 values="0.009 0.022;0.012 0.018;0.009 0.022"/>
+                    </feTurbulence>
+                    <feGaussianBlur in="ruido" stdDeviation="1.5" result="ruido_suave"/>
+                    <feDisplacementMap in="SourceGraphic" in2="ruido_suave" scale="38"
+                                       xChannelSelector="R" yChannelSelector="G"/>
+                </filter>
+            </svg>
+        </xpath>
+    </template>
+
     <!-- Texto de la cabecera: WhatsApp real en lugar del teléfono de ejemplo de Odoo. -->
     <template id="header_text_element_dcasa" inherit_id="website.header_text_element" name="D'CASA: WhatsApp en la cabecera">
         <xpath expr="//li" position="replace">

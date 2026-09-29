@@ -173,3 +173,18 @@ Lighthouse (local, sin CDN):
     19.0.1.1.0.
   - El botón flotante de WhatsApp espera mientras se ve el hero, que ya trae el suyo.
   - Lighthouse en la portada: accesibilidad 100, SEO 100.
+
+## v2.3
+
+- **Menú centrado** en la píldora. Se apagó el auto-ocultado de Odoo
+  (`website.no_autohide_menu`), así las tres opciones nunca se van al «+».
+- **Navbar «demasiado líquido»:**
+  - *Refracción real* (Chrome/Edge): con `backdrop-filter: url(#dcasa-liquido)`, lo que pasa
+    detrás de la píldora se ondula y el ruido del filtro se mueve lento, así el vidrio fluye.
+    En otros navegadores queda el vidrio esmerilado.
+  - *La gota:* una burbuja de vidrio que se desliza con rebote hasta el enlace bajo el puntero
+    y se estira al arrancar.
+  - La píldora rebota al compactarse. Todo se apaga con `prefers-reduced-motion`.
+- **Visítanos con mapa de Google** (ficha «D'CASA», La Chorrera):
+  - «Cómo llegar» abre la ruta.
+  - Las coordenadas también van en los datos estructurados (`geo`, `hasMap`).
