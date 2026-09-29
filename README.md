@@ -59,6 +59,20 @@ Cada push corre en GitHub Actions ([`.github/workflows/ci.yml`](.github/workflow
 
 Pasos para dejar Cloudflare listo: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 
+## Previsualizar la página (link en línea desde GitHub Actions)
+
+- **En un PR:** ponle la etiqueta **`preview`**. El workflow *Previsualización* construye
+  la imagen real, carga datos de demostración y abre un túnel de Cloudflare por
+  60 minutos. El link aparece en el **resumen de la ejecución** y en el log del paso
+  «Abrir el túnel».
+- **A mano (cuando el workflow ya esté en `main`):** *Actions → Previsualización → Run
+  workflow*, eligiendo los minutos.
+
+Accesos de la demo: `/socios` con celular `6555-1234` y PIN `482915`; backend
+`/web/login` con usuario `admin` y la clave aleatoria que muestra el resumen. La base de
+prueba se borra al terminar. Sin la etiqueta, en cada PR solo se guardan capturas
+(artefacto **capturas-del-sitio**).
+
 ## Cómo se edita el sitio (sin programador)
 
 En Odoo: **Sitio web → Editar**. Textos, imágenes, secciones, colores y fuentes se
