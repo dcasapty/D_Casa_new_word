@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="report_invoice_document_dcasa" inherit_id="account.report_invoice_document">
+        <!-- RUC del cliente con su DV (p. ej. "155779346-2-2026 DV7"). -->
+        <xpath expr="//div[@id='partner_vat_address_not_same_as_shipping']/span[@t-field='o.partner_id.vat']" position="replace">
+            <span t-out="o.partner_id.dcasa_ruc_display"/>
+        </xpath>
+        <xpath expr="//div[@id='partner_vat_address_same_as_shipping']/span[@t-field='o.partner_id.vat']" position="replace">
+            <span t-out="o.partner_id.dcasa_ruc_display"/>
+        </xpath>
+        <xpath expr="//div[@id='partner_vat_no_shipping']/span[@t-field='o.partner_id.vat']" position="replace">
+            <span t-out="o.partner_id.dcasa_ruc_display"/>
+        </xpath>
+
+        <!-- Sello digital de PAGADO con la fecha del último pago. Reemplaza el
+             sello de goma que hoy se pone a mano sobre la factura impresa. -->
+        <xpath expr="//div[@id='payment_term']" position="before">
+            <div t-if="o._dcasa_is_paid()" class="o_dcasa_paid_stamp avoid-page-break-inside" name="dcasa_paid_stamp">
+                <div class="o_dcasa_paid_stamp_title">PAGADO</div>
+                <div t-if="o._dcasa_last_payment_date()" class="o_dcasa_paid_stamp_date"
+                     t-out="o._dcasa_last_payment_date()" t-options="{'widget': 'date'}"/>
+            </div>
+        </xpath>
+    </template>
+</odoo>

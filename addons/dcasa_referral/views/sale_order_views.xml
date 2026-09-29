@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_dcasa_referral" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.referral</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="after">
+                <field name="dcasa_referrer_id" placeholder="Código o nombre de quien lo refirió"
+                       options="{'no_create': True}" readonly="state in ['cancel', 'sale']"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_order_search_dcasa_referral" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.referral</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <xpath expr="//search" position="inside">
+                <field name="dcasa_referrer_id"/>
+                <filter name="dcasa_referred" string="Referidos" domain="[('dcasa_referrer_id', '!=', False)]"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

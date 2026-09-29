@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_referral_reward_salesman,dcasa.referral.reward vendedor,model_dcasa_referral_reward,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_referral_reward_manager,dcasa.referral.reward gerente,model_dcasa_referral_reward,sales_team.group_sale_manager,1,1,0,0
+access_dcasa_referral_reward_account,dcasa.referral.reward contabilidad,model_dcasa_referral_reward,account.group_account_invoice,1,0,0,0

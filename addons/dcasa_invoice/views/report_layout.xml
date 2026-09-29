@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Formato de documentos D'CASA.
+         Cabecera: logo (la placa) a la izquierda, datos de la empresa a la derecha.
+         Pie: una sola línea de contacto + el tagline, con altura fija para que no
+         se corte (el formato anterior cortaba el texto largo del pie). -->
+    <template id="external_layout_dcasa" name="D'CASA">
+        <div t-attf-class="header o_company_#{company.id}_layout o_dcasa_header">
+            <div class="d-flex justify-content-between align-items-start">
+                <img t-if="company.logo" class="o_dcasa_logo" t-att-src="image_data_uri(company.logo)" alt="Logo"/>
+                <ul class="list-unstyled text-end mb-0 o_dcasa_company" name="company_address_list">
+                    <li class="fw-bold" t-out="company.name"/>
+                    <li t-if="company.street" t-out="company.street"/>
+                    <li t-if="company.street2" t-out="company.street2"/>
+                    <li t-if="company.city or company.country_id">
+                        <t t-out="company.city"/><t t-if="company.city and company.country_id">, </t><t t-out="company.country_id.name"/>
+                    </li>
+                    <li t-if="forced_vat">
+                        <t t-out="company.country_id.vat_label or 'RUC'"/>: <span t-out="forced_vat"/>
+                    </li>
+                    <li t-elif="company.vat">
+                        <t t-out="company.country_id.vat_label or 'RUC'"/>: <span t-out="company.partner_id.dcasa_ruc_display"/>
+                    </li>
+                </ul>
+            </div>
+            <div class="o_dcasa_band"/>
+        </div>
+
+        <div t-attf-class="article o_report_layout_standard o_report_layout_dcasa o_table_standard o_company_#{company.id}_layout"
+             t-att-data-oe-model="o and o._name"
+             t-att-data-oe-id="o and o.id"
+             t-att-data-oe-lang="o and o.env.context.get('lang')">
+            <t t-call="web.address_layout"/>
+            <h2 class="o_dcasa_title" t-out="layout_document_title"/>
+            <t t-out="0"/>
+        </div>
+
+        <div t-attf-class="footer o_company_#{company.id}_layout o_dcasa_footer {{report_type != 'pdf' and 'mt-auto'}}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="o_dcasa_contact">
+                    <span t-if="company.phone" t-out="company.phone"/>
+                    <span t-if="company.email"> · <t t-out="company.email"/></span>
+                    <span t-if="company.website"> · <t t-out="company.website"/></span>
+                    <div t-if="company.vat"><t t-out="company.country_id.vat_label or 'RUC'"/>: <t t-out="company.partner_id.dcasa_ruc_display"/></div>
+                </div>
+                <div class="text-end">
+                    <div t-if="company.report_header" class="o_dcasa_tagline" t-field="company.report_header"/>
+                    <div t-if="report_type == 'pdf'" class="text-muted text-nowrap">
+                        <t t-if="display_name_in_footer" t-out="o.name"/> Página <span class="page"/> / <span class="topage"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+</odoo>

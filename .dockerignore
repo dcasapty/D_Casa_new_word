@@ -1,0 +1,11 @@
+# Solo entran a la imagen: vendor/odoo, addons/ y docker/entrypoint.sh
+**/.git
+**/node_modules
+**/__pycache__
+**/*.pyc
+.github
+edge
+docs
+scripts
+*.log
+.test.log

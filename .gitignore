@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+
+# Odoo
+.test.log
+*.log
+filestore/
+
+# Node / Cloudflare
+node_modules/
+.wrangler/
+.dev.vars
+
+# Secretos locales
+.env
+*.pem
+.ccr-ca.crt
+
+# Editor / SO
+.DS_Store
+.idea/
+.vscode/

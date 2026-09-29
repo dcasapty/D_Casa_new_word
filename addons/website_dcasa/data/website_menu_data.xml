@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="menu_referidos" model="website.menu">
+            <field name="name">Refiere y gana</field>
+            <field name="url">/referidos</field>
+            <field name="page_id" ref="referidos_page"/>
+            <field name="parent_id" ref="website.main_menu"/>
+            <field name="sequence" type="int">40</field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Página de inicio. Contenido tomado del sitio Next.js y del ADN de marca
+         (sin precios, cifras ni testimonios inventados). Todo el bloque #wrap es
+         editable desde Sitio web > Editar. -->
+    <template id="homepage_dcasa" inherit_id="website.homepage" name="D'CASA: inicio">
+        <xpath expr="//div[@id='wrap']" position="replace">
+            <div id="wrap" class="oe_structure o_dcasa_home">
+
+                <section class="s_text_block o_cc o_cc4 o_dcasa_hero pt96 pb80" data-snippet="s_text_block" data-name="Portada">
+                    <div class="container">
+                        <div class="row align-items-center">
+                            <div class="col-lg-7">
+                                <p class="o_dcasa_kicker">Muebles y todo para tu casa · La Chorrera, Panamá</p>
+                                <h1 class="o_dcasa_display">Tu casa, bien amueblada.</h1>
+                                <p class="lead">El pana que sabe de casas. Precios claros, entrega a todo el país
+                                    y un mueble que de verdad te cabe.</p>
+                                <p class="o_dcasa_ctas">
+                                    <a t-att-href="website._dcasa_whatsapp_url()" class="btn btn-lg o_dcasa_btn_wa" target="_blank" rel="noopener">
+                                        <i class="fa fa-whatsapp me-2"/>Escríbenos por WhatsApp
+                                    </a>
+                                    <a href="/shop" class="btn btn-lg btn-outline-light">Ver catálogo</a>
+                                </p>
+                            </div>
+                            <div class="col-lg-5 d-none d-lg-block">
+                                <div class="o_dcasa_placa">
+                                    <img src="/dcasa_base/static/img/logo.png" alt="D'CASA Panamá" class="img-fluid" loading="lazy" width="892" height="405"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                <div class="o_dcasa_band" aria-hidden="true"/>
+
+                <section class="s_text_block o_cc o_cc1 pt64 pb48" data-snippet="s_text_block" data-name="Categorías">
+                    <div class="container">
+                        <p class="o_dcasa_kicker">Catálogo</p>
+                        <h2>¿Qué le hace falta a tu casa?</h2>
+                        <div class="row g-3 mt-3">
+                            <t t-foreach="[
+                                ('salas', 'Salas', 'Sofás, seccionales y mesas de centro que aprovechan cada centímetro.'),
+                                ('comedores', 'Comedores', 'Mesas y sillas para 4, 6 u 8 puestos. Del diario al día especial.'),
+                                ('recamaras', 'Recámaras', 'Camas, cómodas y clósets que ordenan sin quitarte espacio.'),
+                                ('colchones', 'Colchones', 'Del firme al suave. Te ayudamos a elegir el que te va a durar.'),
+                                ('electro', 'Electrodomésticos', 'Lo que necesitas para equipar tu cocina y tu casa.'),
+                                ('decoracion', 'Decoración', 'El detalle que termina el ambiente: textiles, luz y accesorios.'),
+                                ('exteriores', 'Exteriores', 'Balcón, terraza o patio: muebles que aguantan el clima de aquí.'),
+                            ]" t-as="cat">
+                                <t t-set="public_categ" t-value="request.env.ref('website_dcasa.public_category_' + cat[0], raise_if_not_found=False)"/>
+                                <div class="col-sm-6 col-lg-3">
+                                    <a class="o_dcasa_card h-100" t-att-href="public_categ and '/shop/category/%s' % public_categ.id or '/shop'">
+                                        <span class="o_dcasa_card_n" t-out="'%02d' % (cat_index + 1)"/>
+                                        <h3 t-out="cat[1]"/>
+                                        <p t-out="cat[2]"/>
+                                    </a>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="s_text_block o_cc o_cc2 pt64 pb64" data-snippet="s_text_block" data-name="Por qué D'CASA">
+                    <div class="container">
+                        <p class="o_dcasa_kicker">Por qué D'CASA</p>
+                        <h2>Ordenado, cálido y panameño</h2>
+                        <div class="row g-4 mt-2">
+                            <div class="col-lg-4">
+                                <div class="o_dcasa_value">
+                                    <i class="fa fa-tag fa-2x"/>
+                                    <h3>Precios claros</h3>
+                                    <p>Te decimos el precio y lo que incluye, sin letra pequeña. Pregunta sin pena: para eso estamos.</p>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="o_dcasa_value">
+                                    <i class="fa fa-car fa-2x"/>
+                                    <h3>Te lo llevas hoy</h3>
+                                    <p>Muchos muebles y camas vienen en caja y caben en tu carro. Y si no, te lo llevamos a todo el país.</p>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="o_dcasa_value">
+                                    <i class="fa fa-credit-card fa-2x"/>
+                                    <h3>Financiamiento</h3>
+                                    <p>Crédito flexible para que amueblar tu casa no te apriete. Escríbenos y te explicamos cómo.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="s_text_block o_cc o_cc1 pt64 pb64" data-snippet="s_text_block" data-name="Cómo medir">
+                    <div class="container">
+                        <div class="row align-items-center g-4">
+                            <div class="col-lg-5">
+                                <p class="o_dcasa_kicker">Guía útil · guárdala</p>
+                                <h2>¿Te cabe? Mídelo en 3 pasos</h2>
+                                <p>Antes de elegir, mide. Nos pasas las medidas por WhatsApp y te decimos si te queda perfecto o cuál te conviene más.</p>
+                            </div>
+                            <div class="col-lg-7">
+                                <ol class="o_dcasa_steps">
+                                    <li><strong>Mide el espacio.</strong> Largo y ancho de la pared o del rincón donde va el mueble.</li>
+                                    <li><strong>Deja paso.</strong> Calcula al menos 60 cm libres para caminar alrededor.</li>
+                                    <li><strong>Revisa la entrada.</strong> Mide puertas, pasillos y escaleras por donde tiene que pasar.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="s_text_block o_cc o_cc4 pt64 pb64" data-snippet="s_text_block" data-name="Refiere y gana">
+                    <div class="container">
+                        <div class="row align-items-center g-4">
+                            <div class="col-lg-8">
+                                <p class="o_dcasa_kicker">Refiere y gana</p>
+                                <h2>Recomienda D'CASA y gana</h2>
+                                <p class="lead mb-0">Comparte tu código con amigos y familia. Cuando paguen su compra, tú ganas una recompensa.</p>
+                            </div>
+                            <div class="col-lg-4 text-lg-end">
+                                <a href="/referidos" class="btn btn-lg o_dcasa_btn_wa">Quiero mi código</a>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="s_text_block o_cc o_cc1 pt64 pb64" data-snippet="s_text_block" data-name="Preguntas frecuentes">
+                    <div class="container">
+                        <p class="o_dcasa_kicker">Preguntas frecuentes</p>
+                        <h2>Lo que más nos preguntan</h2>
+                        <div class="o_dcasa_faq mt-3">
+                            <details>
+                                <summary>¿Hacen entregas a todo Panamá?</summary>
+                                <p>Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha de entrega.</p>
+                            </details>
+                            <details>
+                                <summary>¿Cómo sé el precio de un mueble?</summary>
+                                <p>Míralo en el catálogo o escríbenos por WhatsApp con el mueble que te gustó y te pasamos el precio y la disponibilidad al momento.</p>
+                            </details>
+                            <details>
+                                <summary>¿Qué formas de pago manejan?</summary>
+                                <p>Manejamos varias formas de pago y financiamiento para que te acomodes. Escríbenos y te explicamos la que mejor te sirve.</p>
+                            </details>
+                            <details>
+                                <summary>¿Me ayudan a saber si el mueble me cabe?</summary>
+                                <p>Claro. Si nos pasas las medidas de tu espacio por WhatsApp, te decimos si te queda perfecto o cuál te conviene más.</p>
+                            </details>
+                            <details>
+                                <summary>¿Puedo ver los muebles antes de comprar?</summary>
+                                <p>Sí. Visítanos en La Chorrera o escríbenos por WhatsApp y te confirmamos existencias y colores disponibles hoy mismo.</p>
+                            </details>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="s_text_block o_cc o_cc2 pt64 pb64" data-snippet="s_text_block" data-name="Cierre">
+                    <div class="container text-center">
+                        <h2>¿Listo para amueblar tu casa?</h2>
+                        <p class="lead">Te respondemos por WhatsApp con precio, disponibilidad y entrega.</p>
+                        <a t-att-href="website._dcasa_whatsapp_url()" class="btn btn-lg btn-primary" target="_blank" rel="noopener">
+                            <i class="fa fa-whatsapp me-2"/>Escríbenos por WhatsApp
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+    </template>
+</odoo>

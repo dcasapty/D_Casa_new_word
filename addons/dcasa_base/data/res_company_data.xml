@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Datos reales de la empresa tomados de la factura INV/2026/00821.
+         noupdate: una vez instalados, se editan desde Ajustes > Empresas. -->
+    <data noupdate="1">
+        <record id="base.main_company" model="res.company">
+            <field name="name">D'CASA Panamá</field>
+            <field name="street">Avenida Las Américas, Urbanización Santa Clara</field>
+            <field name="street2">Local 4550 PB-1</field>
+            <field name="city">La Chorrera</field>
+            <field name="country_id" ref="base.pa"/>
+            <field name="vat">155779346-2-2026</field>
+            <field name="l10n_pa_dv">7</field>
+            <field name="phone">+507 6026-1919</field>
+            <field name="email">info@dcasapty.com</field>
+            <field name="website">https://dcasapty.com</field>
+            <field name="logo" type="base64" file="dcasa_base/static/img/logo.png"/>
+            <field name="primary_color">#1340B1</field>
+            <!-- Secundario navy, no amarillo: Odoo lo usa para texto sobre blanco
+                 en los documentos y el amarillo nunca toca el blanco. -->
+            <field name="secondary_color">#0E2A6B</field>
+            <field name="report_header">Tu casa, bien amueblada.</field>
+        </record>
+    </data>
+</odoo>

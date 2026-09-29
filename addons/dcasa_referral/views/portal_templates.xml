@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="portal_my_home_dcasa_referral" name="Portal: Mis referidos"
+              inherit_id="portal.portal_my_home" priority="40" customize_show="True">
+        <div id="portal_common_category" position="before">
+            <div class="o_portal_category row g-2 mt-3" id="portal_dcasa_referral_category">
+                <t t-call="portal.portal_docs_entry">
+                    <t t-set="title">Refiere y gana</t>
+                    <t t-set="text">Comparte tu código con amigos y familia y gana por cada compra que paguen.</t>
+                    <t t-set="url" t-value="'/my/referidos'"/>
+                    <t t-set="config_card" t-value="True"/>
+                </t>
+            </div>
+        </div>
+    </template>
+
+    <template id="portal_breadcrumbs_dcasa_referral" inherit_id="portal.portal_breadcrumbs" priority="40">
+        <xpath expr="//ol[hasclass('o_portal_submenu')]" position="inside">
+            <li t-if="page_name == 'dcasa_referrals'" class="breadcrumb-item active">Mis referidos</li>
+        </xpath>
+    </template>
+
+    <template id="portal_my_referrals" name="Mis referidos">
+        <t t-call="portal.portal_layout">
+            <t t-set="breadcrumbs_searchbar" t-value="True"/>
+            <div class="o_dcasa_referrals my-3">
+                <h2 class="mb-3">Refiere y gana</h2>
+
+                <div t-if="not partner.dcasa_referral_code" class="card mb-4">
+                    <div class="card-body">
+                        <p class="mb-3">
+                            Genera tu código, compártelo por WhatsApp y cuando tu referido pague su compra
+                            en D'CASA, ganas una recompensa.
+                        </p>
+                        <form action="/my/referidos/generar" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-primary">Generar mi código</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div t-else="" class="card mb-4">
+                    <div class="card-body">
+                        <div class="text-muted small">Tu código</div>
+                        <div class="fs-2 fw-bold mb-2 o_dcasa_referral_code" t-out="partner.dcasa_referral_code"/>
+                        <label for="dcasa_referral_url" class="text-muted small">Tu link para compartir</label>
+                        <input id="dcasa_referral_url" type="text" class="form-control mb-3" readonly="readonly"
+                               t-att-value="partner.dcasa_referral_url" onclick="this.select()"/>
+                        <a t-att-href="whatsapp_share_url" target="_blank" rel="noopener" class="btn btn-primary">
+                            <i class="fa fa-whatsapp me-1"/> Compartir por WhatsApp
+                        </a>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-4" t-if="partner.dcasa_referral_code">
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Esperando pago del referido</div>
+                            <div class="fs-4 fw-bold" t-out="totals['pending']" t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Ganado, por cobrar</div>
+                            <div class="fs-4 fw-bold" t-out="totals['earned']" t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="border rounded p-3 h-100">
+                            <div class="text-muted small">Ya cobrado</div>
+                            <div class="fs-4 fw-bold" t-out="totals['paid']" t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+                        </div>
+                    </div>
+                </div>
+
+                <t t-if="rewards" t-call="portal.portal_table">
+                    <thead>
+                        <tr>
+                            <th>Referido</th>
+                            <th>Fecha</th>
+                            <th class="text-end">Recompensa</th>
+                            <th class="text-end">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="rewards" t-as="reward">
+                            <td t-out="reward.referred_partner_id.name"/>
+                            <td><span t-field="reward.invoice_date"/></td>
+                            <td class="text-end"><span t-field="reward.amount"/></td>
+                            <td class="text-end"><span class="badge text-bg-light" t-field="reward.state"/></td>
+                        </tr>
+                    </tbody>
+                </t>
+                <p t-elif="partner.dcasa_referral_code" class="text-muted">
+                    Todavía no tienes referidos. ¡Comparte tu link!
+                </p>
+            </div>
+        </t>
+    </template>
+</odoo>

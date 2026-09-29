@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_dcasa_referral" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.referral</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <div name="button_box" position="inside">
+                <button name="action_dcasa_view_referral_rewards" type="object" class="oe_stat_button"
+                        icon="fa-handshake-o" invisible="not dcasa_referral_code"
+                        groups="sales_team.group_sale_salesman">
+                    <div class="o_stat_info">
+                        <span class="o_stat_value"><field name="dcasa_referral_balance" widget="monetary"/></span>
+                        <span class="o_stat_text">Por pagar</span>
+                    </div>
+                </button>
+            </div>
+            <notebook position="inside">
+                <page string="Referidos" name="dcasa_referrals" groups="sales_team.group_sale_salesman">
+                    <group>
+                        <group string="Su código">
+                            <field name="dcasa_referral_code" invisible="not dcasa_referral_code"/>
+                            <field name="dcasa_referral_url" widget="CopyClipboardChar" invisible="not dcasa_referral_code"/>
+                            <button name="action_dcasa_generate_referral_code" type="object" string="Generar código"
+                                    class="btn-secondary" colspan="2" invisible="dcasa_referral_code"/>
+                            <field name="dcasa_referred_count" invisible="not dcasa_referral_code"/>
+                        </group>
+                        <group string="Quién lo refirió">
+                            <field name="dcasa_referrer_id" readonly="parent_id"/>
+                        </group>
+                    </group>
+                    <field name="dcasa_referred_ids" readonly="1" invisible="not dcasa_referred_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="phone"/>
+                            <field name="email"/>
+                        </list>
+                    </field>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+    <record id="view_partner_list_dcasa_referrers" model="ir.ui.view">
+        <field name="name">res.partner.list.dcasa.referrers</field>
+        <field name="model">res.partner</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Referidores">
+                <field name="complete_name" string="Cliente"/>
+                <field name="phone"/>
+                <field name="dcasa_referral_code"/>
+                <field name="dcasa_referred_count"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="dcasa_referral_balance"/>
+            </list>
+        </field>
+    </record>
+</odoo>

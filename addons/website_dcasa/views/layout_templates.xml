@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Botón flotante de WhatsApp en todo el sitio (CTA único del ADN). -->
+    <template id="layout_whatsapp_float" inherit_id="website.layout" name="D'CASA: botón de WhatsApp"
+              customize_show="True">
+        <xpath expr="//div[@id='wrapwrap']" position="inside">
+            <a t-if="website and not editable" t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
+               class="o_dcasa_wa_float" aria-label="Escríbenos por WhatsApp" title="Escríbenos por WhatsApp">
+                <i class="fa fa-whatsapp" role="img"/>
+            </a>
+        </xpath>
+    </template>
+
+    <!-- Texto de la cabecera: WhatsApp real en lugar del teléfono de ejemplo de Odoo. -->
+    <template id="header_text_element_dcasa" inherit_id="website.header_text_element" name="D'CASA: WhatsApp en la cabecera">
+        <xpath expr="//li" position="replace">
+            <li t-attf-class="#{_item_class}">
+                <div t-attf-class="s_text_block #{_div_class}" data-name="Text">
+                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
+                       class="nav-link o_nav-link_secondary p-2">
+                        <small>
+                            <i class="fa fa-1x fa-fw fa-whatsapp me-1"/>
+                            <span class="o_force_ltr" t-out="website.dcasa_whatsapp_number or website.company_id.phone"/>
+                        </small>
+                    </a>
+                </div>
+            </li>
+        </xpath>
+    </template>
+
+    <template id="footer_copyright_dcasa" inherit_id="website.footer_copyright_company_name" name="D'CASA: copyright">
+        <xpath expr="//span[hasclass('o_footer_copyright_name')]" position="replace">
+            <span class="o_footer_copyright_name me-2 small">© D'CASA Panamá · Todos los derechos reservados</span>
+        </xpath>
+    </template>
+
+    <!-- Pie de página con los datos reales de D'CASA (editable en el constructor). -->
+    <template id="footer_dcasa" inherit_id="website.footer_custom" name="D'CASA: pie de página">
+        <xpath expr="//div[@id='footer']" position="replace">
+            <div id="footer" class="oe_structure oe_structure_solo o_dcasa_footer" t-ignore="true" t-if="not no_footer">
+                <section class="s_text_block pt48 pb24" data-snippet="s_text_block" data-name="Pie D'CASA">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-4 pb24">
+                                <h5 class="o_dcasa_kicker">D'CASA Panamá</h5>
+                                <p>Tu casa, bien amueblada. Camas, colchones, box, sofás, comedores, hamacas,
+                                    electrodomésticos y decoración, con la mejor atención y precios pensados para ti.</p>
+                            </div>
+                            <div class="col-lg-2 pb24">
+                                <h5 class="o_dcasa_kicker">Tienda</h5>
+                                <ul class="list-unstyled">
+                                    <li><a href="/shop">Catálogo</a></li>
+                                    <li><a href="/referidos">Refiere y gana</a></li>
+                                    <li><a href="/my">Mi cuenta</a></li>
+                                    <li><a href="/contactus">Contacto</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-lg-3 pb24">
+                                <h5 class="o_dcasa_kicker">Visítanos</h5>
+                                <p>Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1<br/>La Chorrera, Panamá Oeste</p>
+                            </div>
+                            <div class="col-lg-3 pb24">
+                                <h5 class="o_dcasa_kicker">Escríbenos</h5>
+                                <ul class="list-unstyled">
+                                    <li><i class="fa fa-whatsapp fa-fw me-2"/><a href="https://wa.me/50760261919">+507 6026-1919</a></li>
+                                    <li><i class="fa fa-envelope fa-fw me-2"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+                                    <li><i class="fa fa-instagram fa-fw me-2"/><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
+                                    <li><i class="fa fa-music fa-fw me-2"/><a href="https://www.tiktok.com/@dcasapty" target="_blank" rel="noopener">TikTok @dcasapty</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+    </template>
+</odoo>

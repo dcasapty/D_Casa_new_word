@@ -1,0 +1,220 @@
+// D'CASA — componentes del sitio. Sistema plano: sin degradados ni sombras
+// dramáticas; la "placa" (marco blanco redondeado) y la banda amarilla son los
+// dispositivos recurrentes.
+
+$dcasa-azul: #1340B1;
+$dcasa-amarillo: #FED00F;
+$dcasa-navy: #0E2A6B;
+$dcasa-hueso: #F4F1EA;
+$dcasa-radius: 1rem;
+
+// Titulares de impacto: caja alta, 2-5 palabras (Anton).
+.o_dcasa_display,
+.o_dcasa_home h1,
+.o_dcasa_home h2,
+.o_dcasa_referidos h1,
+.o_dcasa_referidos h2 {
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    line-height: 1.05;
+}
+
+.o_dcasa_display {
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+}
+
+// Antetítulo (Oswald, caja alta, pequeño).
+.o_dcasa_kicker {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    font-size: .9rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    margin-bottom: .5rem;
+    opacity: .85;
+}
+
+// "Azul arriba, amarillo abajo": banda que sostiene la sección azul.
+.o_dcasa_band {
+    height: 14px;
+    background-color: $dcasa-amarillo;
+}
+
+// CTA de WhatsApp: azul sobre amarillo (5.9:1 AA). Solo sobre fondos azules.
+.o_dcasa_btn_wa {
+    background-color: $dcasa-amarillo;
+    border-color: $dcasa-amarillo;
+    color: $dcasa-azul;
+    font-weight: 700;
+
+    &:hover,
+    &:focus-visible {
+        background-color: darken($dcasa-amarillo, 6%);
+        border-color: darken($dcasa-amarillo, 6%);
+        color: $dcasa-navy;
+    }
+}
+
+.o_dcasa_ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .75rem;
+    margin-top: 1.5rem;
+}
+
+// La placa: marco blanco redondeado.
+.o_dcasa_placa {
+    background: #FFFFFF;
+    border-radius: $dcasa-radius * 1.5;
+    padding: 1.5rem;
+    border: 4px solid #FFFFFF;
+}
+
+// Tarjetas de categoría (placa sobre blanco con borde azul fino).
+.o_dcasa_card {
+    display: block;
+    padding: 1.5rem;
+    border: 2px solid rgba($dcasa-azul, .15);
+    border-radius: $dcasa-radius;
+    color: inherit;
+    text-decoration: none;
+    transition: transform .2s ease, border-color .2s ease;
+
+    h3 {
+        color: $dcasa-azul;
+        text-transform: uppercase;
+        margin: .25rem 0 .5rem;
+        // "Electrodomésticos" no cabe entero en 4 columnas: se ajusta y parte.
+        font-size: clamp(1.15rem, 1.7vw, 1.5rem);
+        overflow-wrap: anywhere;
+        hyphens: auto;
+    }
+
+    p {
+        margin: 0;
+        opacity: .8;
+    }
+
+    &:hover,
+    &:focus-visible {
+        transform: translateY(-3px);
+        border-color: $dcasa-azul;
+        color: inherit;
+    }
+}
+
+.o_dcasa_card_n {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    color: $dcasa-azul;
+    opacity: .6;
+}
+
+.o_dcasa_value {
+    background: #FFFFFF;
+    border-radius: $dcasa-radius;
+    padding: 1.75rem;
+    height: 100%;
+
+    .fa {
+        color: $dcasa-azul;
+        margin-bottom: .75rem;
+    }
+
+    h3 {
+        text-transform: uppercase;
+    }
+}
+
+.o_dcasa_steps {
+    counter-reset: dcasa-step;
+    list-style: none;
+    padding: 0;
+
+    li {
+        counter-increment: dcasa-step;
+        position: relative;
+        padding: .75rem 0 .75rem 3.5rem;
+        border-bottom: 1px solid rgba($dcasa-azul, .12);
+
+        &::before {
+            content: counter(dcasa-step);
+            position: absolute;
+            left: 0;
+            top: .6rem;
+            width: 2.4rem;
+            height: 2.4rem;
+            border-radius: .6rem;
+            background: $dcasa-azul;
+            color: #FFFFFF;
+            font-family: 'Oswald', sans-serif;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    }
+}
+
+.o_dcasa_faq {
+    details {
+        border-bottom: 1px solid rgba($dcasa-azul, .15);
+        padding: 1rem 0;
+    }
+
+    summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: $dcasa-azul;
+    }
+
+    p {
+        margin: .75rem 0 0;
+    }
+}
+
+// Pie sobre azul: enlaces en blanco (contraste AAA), amarillo al pasar.
+// #wrapwrap sube la especificidad por encima de las reglas de o_cc de Odoo.
+#wrapwrap .o_dcasa_footer a:not(.btn) {
+    color: #FFFFFF;
+
+    &:hover,
+    &:focus-visible {
+        color: $dcasa-amarillo;
+    }
+}
+
+// Botón flotante de WhatsApp.
+.o_dcasa_wa_float {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 1.25rem;
+    z-index: 1050;
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background-color: $dcasa-azul;
+    border: 3px solid $dcasa-amarillo;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+        color: $dcasa-amarillo;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_card {
+        transition: none;
+
+        &:hover,
+        &:focus-visible {
+            transform: none;
+        }
+    }
+}

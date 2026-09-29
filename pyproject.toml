@@ -1,0 +1,22 @@
+# Configuración de herramientas (no es un paquete instalable).
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "PL"]
+ignore = [
+    "PLR0913",  # Odoo usa firmas con muchos argumentos
+    "PLR2004",  # números mágicos en tests (montos de la factura real)
+    "PLC0415",  # imports locales (patrón habitual en Odoo)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["odoo"]
+section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]
+
+[tool.ruff.lint.per-file-ignores]
+# En Odoo los __init__.py importan submódulos para registrarlos y el orden importa.
+"__init__.py" = ["F401", "I001"]
+"__manifest__.py" = ["B018"]
