@@ -50,7 +50,7 @@ make edge-test                     # tests del Worker de Cloudflare
 Cada push corre en GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 1. **Lint** (ruff + XML).
-2. **Tests de Odoo**: instala los 4 módulos (87 tests) en PostgreSQL limpio y corre sus tests
+2. **Tests de Odoo**: instala los 4 módulos (103 tests) en PostgreSQL limpio y corre sus tests
    (la factura de prueba reproduce la factura real INV/2026/00821: $329,99 + ITBMS $23,10 = $353,09).
 3. **Tests del borde**: typecheck + vitest del Worker.
 4. **Prueba de humo de la imagen**: construye la imagen Docker, la arranca contra una
@@ -82,9 +82,17 @@ WhatsApp de todos los botones está en **Sitio web → Configuración → Ajuste
 
 ## Capturas (base de demostración)
 
-| Inicio | Factura con puntos | App del socio (móvil) |
+| Inicio | Inicio (móvil) | Ficha de producto |
 |---|---|---|
-| ![Inicio](docs/img/sitio-inicio.jpg) | ![Factura](docs/img/factura.jpg) | ![Socios](docs/img/socios-cuenta-movil.jpg) |
+| ![Inicio](docs/img/sitio-inicio.jpg) | ![Inicio móvil](docs/img/sitio-inicio-movil.jpg) | ![Producto](docs/img/sitio-producto.jpg) |
+
+| Factura con puntos | App del socio (móvil) |
+|---|---|
+| ![Factura](docs/img/factura.jpg) | ![Socios](docs/img/socios-cuenta-movil.jpg) |
+
+Diseño del sitio, mapa de calor, accesibilidad y SEO: [docs/REDISENO.md](docs/REDISENO.md).
+Las fotos de ambiente son del tema Loftspace de Odoo (LGPL-3) hasta tener la sesión de fotos
+propia; los productos «(demo)» solo existen en la base de previsualización.
 
 > Las fuentes de marca (Anton/Oswald) se cargan desde Google Fonts en producción;
 > en las capturas se ve la tipografía de respaldo.

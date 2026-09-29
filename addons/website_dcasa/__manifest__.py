@@ -7,8 +7,11 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Paleta y tipografías de la marca (azul #1340B1, amarillo #FED00F, Anton,
   Oswald, Inter) cargadas como paleta del sitio: se pueden ajustar desde el
   editor sin tocar código.
-* Página de inicio con el contenido del sitio anterior (Next.js), pie de página
-  con los datos reales y botón flotante de WhatsApp.
+* Portada v2 (docs/REDISENO.md): hero con placa, compra por espacio, carriles de
+  productos con precio y «Agregar» en un clic, socios, guía y preguntas frecuentes.
+* Ficha de producto con WhatsApp del mueble, sellos de confianza y botón fijo en el
+  celular; tienda a 4 columnas; datos estructurados y SEO local.
+* Pie de página con los datos reales y botón flotante de WhatsApp.
 * Categorías de la tienda (Salas, Comedores, Recámaras, Colchones,
   Electrodomésticos, Decoración, Exteriores).
 * Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
@@ -16,7 +19,7 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

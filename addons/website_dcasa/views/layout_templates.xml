@@ -6,8 +6,52 @@
         <xpath expr="//div[@id='wrapwrap']" position="inside">
             <a t-if="website and not editable" t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
                class="o_dcasa_wa_float" aria-label="Escríbenos por WhatsApp" title="Escríbenos por WhatsApp">
-                <i class="fa fa-whatsapp" role="img"/>
+                <i class="fa fa-whatsapp" aria-hidden="true"/>
             </a>
+        </xpath>
+    </template>
+
+    <!-- Barra de anuncios: resuelve las tres objeciones de compra antes del scroll. -->
+    <template id="layout_anuncios" inherit_id="website.layout" name="D'CASA: barra de anuncios" customize_show="True">
+        <xpath expr="//header" position="before">
+            <div t-if="website" class="o_dcasa_anuncios" role="region" aria-label="Avisos de D'CASA">
+                <div class="o_dcasa_container o_dcasa_anuncios_inner">
+                    <span><i class="fa fa-truck me-2" aria-hidden="true"/>Entrega a todo Panamá</span>
+                    <span class="d-none d-md-inline"><i class="fa fa-credit-card me-2" aria-hidden="true"/>Financiamiento flexible</span>
+                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Datos estructurados de la tienda (Google: ficha local y resultados enriquecidos). -->
+    <template id="layout_json_ld" inherit_id="website.layout" name="D'CASA: datos estructurados">
+        <xpath expr="//head" position="inside">
+            <script t-if="website and request and request.httprequest.path in ('/', website.homepage_url or '/')" type="application/ld+json"
+                    t-out="website._dcasa_json_ld()"/>
+        </xpath>
+    </template>
+
+    <!-- Descripción para Google de la tienda (las categorías pueden tener la suya propia). -->
+    <template id="products_meta_dcasa" inherit_id="website_sale.products" name="D'CASA: descripción de la tienda">
+        <xpath expr="//t[@t-call='website.layout']" position="inside">
+            <t t-set="website_meta_description">Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, comedores y decoración con precios claros. Entrega a todo Panamá desde La Chorrera.</t>
+        </xpath>
+    </template>
+
+    <!-- Ficha de producto: WhatsApp con el nombre del mueble y sellos de confianza junto al botón de compra. -->
+    <template id="product_cta_dcasa" inherit_id="website_sale.cta_wrapper" name="D'CASA: confianza en la ficha">
+        <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
+            <a t-if="website and product" t-att-href="website._dcasa_whatsapp_producto(product)" target="_blank" rel="noopener"
+               class="btn o_dcasa_btn_contorno w-100 mb-4 o_dcasa_wa_producto">
+                <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Pregunta por este mueble por WhatsApp
+            </a>
+            <ul class="o_dcasa_sellos" role="list">
+                <li><i class="fa fa-truck" aria-hidden="true"/><span><strong>Entrega a todo Panamá.</strong> Costo y fecha por WhatsApp.</span></li>
+                <li><i class="fa fa-cube" aria-hidden="true"/><span><strong>Te lo llevas hoy.</strong> Muchos vienen en caja y caben en tu carro.</span></li>
+                <li><i class="fa fa-credit-card" aria-hidden="true"/><span><strong>Financiamiento.</strong> Crédito flexible, te explicamos cómo.</span></li>
+                <li><i class="fa fa-map-marker" aria-hidden="true"/><span><strong>Míralo en tienda.</strong> Av. Las Américas, La Chorrera.</span></li>
+            </ul>
         </xpath>
     </template>
 
@@ -28,6 +72,14 @@
         </xpath>
     </template>
 
+    <!-- Botón de la cabecera: el CTA único del ADN en lugar de «Contáctanos». -->
+    <template id="header_cta_dcasa" inherit_id="website.header_call_to_action" name="D'CASA: WhatsApp en la cabecera">
+        <xpath expr="//a[hasclass('btn_cta')]" position="replace">
+            <a href="/whatsapp" target="_blank" rel="noopener nofollow" class="oe_unremovable btn btn-primary btn_cta"
+               aria-label="Escríbenos por WhatsApp"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos</a>
+        </xpath>
+    </template>
+
     <template id="footer_copyright_dcasa" inherit_id="website.footer_copyright_company_name" name="D'CASA: copyright">
         <xpath expr="//span[hasclass('o_footer_copyright_name')]" position="replace">
             <span class="o_footer_copyright_name me-2 small">© D'CASA Panamá · Todos los derechos reservados</span>
@@ -42,12 +94,12 @@
                     <div class="container">
                         <div class="row">
                             <div class="col-lg-4 pb24">
-                                <h5 class="o_dcasa_kicker">D'CASA Panamá</h5>
+                                <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
                                 <p>Tu casa, bien amueblada. Camas, colchones, box, sofás, comedores, hamacas,
                                     electrodomésticos y decoración, con la mejor atención y precios pensados para ti.</p>
                             </div>
                             <div class="col-lg-2 pb24">
-                                <h5 class="o_dcasa_kicker">Tienda</h5>
+                                <h2 class="o_dcasa_kicker">Tienda</h2>
                                 <ul class="list-unstyled">
                                     <li><a href="/shop">Catálogo</a></li>
                                     <li><a href="/socios">Socios: mis puntos</a></li>
@@ -56,16 +108,16 @@
                                 </ul>
                             </div>
                             <div class="col-lg-3 pb24">
-                                <h5 class="o_dcasa_kicker">Visítanos</h5>
+                                <h2 class="o_dcasa_kicker">Visítanos</h2>
                                 <p>Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1<br/>La Chorrera, Panamá Oeste</p>
                             </div>
                             <div class="col-lg-3 pb24">
-                                <h5 class="o_dcasa_kicker">Escríbenos</h5>
+                                <h2 class="o_dcasa_kicker">Escríbenos</h2>
                                 <ul class="list-unstyled">
-                                    <li><i class="fa fa-whatsapp fa-fw me-2"/><a href="https://wa.me/50760261919">+507 6026-1919</a></li>
-                                    <li><i class="fa fa-envelope fa-fw me-2"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
-                                    <li><i class="fa fa-instagram fa-fw me-2"/><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
-                                    <li><i class="fa fa-music fa-fw me-2"/><a href="https://www.tiktok.com/@dcasapty" target="_blank" rel="noopener">TikTok @dcasapty</a></li>
+                                    <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/><a href="/whatsapp" target="_blank" rel="noopener nofollow">+507 6026-1919</a></li>
+                                    <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+                                    <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
+                                    <li><i class="fa fa-music fa-fw me-2" aria-hidden="true"/><a href="https://www.tiktok.com/@dcasapty" target="_blank" rel="noopener">TikTok @dcasapty</a></li>
                                 </ul>
                             </div>
                         </div>

@@ -7,6 +7,33 @@
             <field name="logo" type="base64" file="dcasa_base/static/img/logo.png"/>
             <field name="social_instagram">https://www.instagram.com/dcasapty</field>
             <field name="social_tiktok">https://www.tiktok.com/@dcasapty</field>
+            <!-- Tienda: 4 columnas, foto sobre fondo neutro, botón de compra siempre visible
+                 (en el celular no hay «hover»: el botón oculto no se ve nunca). -->
+            <field name="shop_ppr" type="int">4</field>
+            <field name="shop_ppg" type="int">24</field>
+            <field name="shop_opt_products_design_classes">o_wsale_products_opt_layout_catalog o_wsale_products_opt_design_thumbs o_wsale_products_opt_name_color_regular o_wsale_products_opt_rounded_2 o_wsale_products_opt_img_secondary_show o_wsale_products_opt_img_hover_zoom_in_light o_wsale_products_opt_has_cta o_wsale_products_opt_actions_inline o_wsale_products_opt_actions_subtle o_wsale_products_opt_cc1</field>
+        </record>
+
+        <!-- Cabecera limpia: el WhatsApp ya está en la barra de anuncios y en el botón flotante,
+             así el menú por espacios cabe entero. Se puede reactivar desde el editor. -->
+        <record id="website.header_text_element" model="ir.ui.view">
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona). -->
+        <record id="website.homepage_page" model="website.page">
+            <field name="website_meta_title">Mueblería en La Chorrera | D'CASA Panamá</field>
+            <field name="website_meta_description">Salas, recámaras, colchones y comedores con precios claros en La Chorrera. Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp: +507 6026-1919.</field>
+        </record>
+    </data>
+
+    <!-- Se reafirman en cada actualización (noupdate=0): una actualización de website_sale
+         volvería a encender las promesas inventadas de la ficha. -->
+    <data noupdate="0">
+        <!-- La ficha de producto de Odoo trae «Garantía de devolución de 30 días / Envío: 2-3 días»:
+             son promesas que D'CASA no ha hecho (regla: no inventar). Se apaga. -->
+        <record id="website_sale.product_terms_and_conditions" model="ir.ui.view">
+            <field name="active" eval="False"/>
         </record>
     </data>
 </odoo>

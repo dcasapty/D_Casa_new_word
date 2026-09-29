@@ -1,37 +1,111 @@
-// D'CASA — componentes del sitio. Sistema plano: sin degradados ni sombras
-// dramáticas; la "placa" (marco blanco redondeado) y la banda amarilla son los
-// dispositivos recurrentes.
+// D'CASA — sitio v2 (docs/REDISENO.md).
+// Sistema plano: sin degradados ni sombras dramáticas. La fotografía manda y la
+// marca firma: el azul y el amarillo viven en la placa, la banda y los CTA.
+// Regla dura del ADN: el amarillo nunca toca el blanco.
 
 $dcasa-azul: #1340B1;
+$dcasa-azul-osc: #0F3591;
 $dcasa-amarillo: #FED00F;
 $dcasa-navy: #0E2A6B;
 $dcasa-hueso: #F4F1EA;
+$dcasa-hueso-2: #EAE5DA;
+$dcasa-tinta: #1B2233;
+$dcasa-gris: #4A5163;   // 7.9:1 sobre blanco, 7.1:1 sobre hueso
 $dcasa-radius: 1rem;
+$dcasa-sec: clamp(3.5rem, 8vw, 7.5rem);   // 56 px en móvil → 120 px en escritorio
+
+// ---------------------------------------------------------------------------
+// Base
+// ---------------------------------------------------------------------------
+
+.o_dcasa_container {
+    width: 100%;
+    max-width: 1440px;
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 4vw, 3rem);
+}
+
+.o_dcasa_home {
+    background: $dcasa-hueso;
+    color: $dcasa-tinta;
+}
+
+.o_dcasa_section {
+    padding-block: $dcasa-sec;
+}
 
 // Titulares de impacto: caja alta, 2-5 palabras (Anton).
 .o_dcasa_display,
-.o_dcasa_home h1,
-.o_dcasa_home h2,
+.o_dcasa_h2,
 .o_dcasa_socios h1,
 .o_dcasa_socios_head h1 {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
     text-transform: uppercase;
-    letter-spacing: .01em;
-    line-height: 1.05;
+    letter-spacing: .005em;
+    line-height: 1.02;
 }
 
 .o_dcasa_display {
-    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-size: clamp(2.75rem, 6.2vw, 5.5rem);
+    margin-bottom: 1rem;
+}
+
+.o_dcasa_h2 {
+    font-size: clamp(2rem, 4.2vw, 3.5rem);
+    color: $dcasa-azul;
+    margin-bottom: 0;
 }
 
 // Antetítulo (Oswald, caja alta, pequeño).
 .o_dcasa_kicker {
     font-family: 'Oswald', sans-serif;
     font-weight: 500;
-    font-size: .9rem;
-    letter-spacing: .12em;
+    font-size: .875rem;
+    letter-spacing: .14em;
     text-transform: uppercase;
-    margin-bottom: .5rem;
-    opacity: .85;
+    margin-bottom: .6rem;
+    color: $dcasa-gris;
+}
+
+.o_dcasa_kicker_light {
+    color: rgba(#FFFFFF, .85);
+}
+
+.o_dcasa_lead {
+    font-size: clamp(1.05rem, 1.4vw, 1.25rem);
+    line-height: 1.6;
+    max-width: 38rem;
+}
+
+.o_dcasa_muted {
+    color: $dcasa-gris;
+}
+
+.o_dcasa_link {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: $dcasa-azul;
+    text-decoration: none;
+    white-space: nowrap;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: .15rem;
+
+    &:hover,
+    &:focus-visible {
+        color: $dcasa-navy;
+    }
+}
+
+.o_dcasa_section_head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    margin-bottom: clamp(1.75rem, 3.5vw, 3rem);
 }
 
 // "Azul arriba, amarillo abajo": banda que sostiene la sección azul.
@@ -40,89 +114,585 @@ $dcasa-radius: 1rem;
     background-color: $dcasa-amarillo;
 }
 
-// CTA de WhatsApp: azul sobre amarillo (5.9:1 AA). Solo sobre fondos azules.
-.o_dcasa_btn_wa {
-    background-color: $dcasa-amarillo;
-    border-color: $dcasa-amarillo;
-    color: $dcasa-azul;
-    font-weight: 700;
-
-    &:hover,
-    &:focus-visible {
-        background-color: darken($dcasa-amarillo, 6%);
-        border-color: darken($dcasa-amarillo, 6%);
-        color: $dcasa-navy;
-    }
-}
+// ---------------------------------------------------------------------------
+// Botones (48 px de alto mínimo: dedo, no cursor)
+// ---------------------------------------------------------------------------
 
 .o_dcasa_ctas {
     display: flex;
     flex-wrap: wrap;
     gap: .75rem;
-    margin-top: 1.5rem;
+    margin-top: 2rem;
 }
 
-// La placa: marco blanco redondeado.
-.o_dcasa_placa {
-    background: #FFFFFF;
-    border-radius: $dcasa-radius * 1.5;
-    padding: 1.5rem;
-    border: 4px solid #FFFFFF;
+.o_dcasa_home .btn,
+.o_dcasa_btn_contorno {
+    min-height: 3rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
 }
 
-// Tarjetas de categoría (placa sobre blanco con borde azul fino).
-.o_dcasa_card {
-    display: block;
-    padding: 1.5rem;
-    border: 2px solid rgba($dcasa-azul, .15);
-    border-radius: $dcasa-radius;
-    color: inherit;
-    text-decoration: none;
-    transition: transform .2s ease, border-color .2s ease;
-
-    h3 {
-        color: $dcasa-azul;
-        text-transform: uppercase;
-        margin: .25rem 0 .5rem;
-        // "Electrodomésticos" no cabe entero en 4 columnas: se ajusta y parte.
-        font-size: clamp(1.15rem, 1.7vw, 1.5rem);
-        overflow-wrap: anywhere;
-        hyphens: auto;
-    }
-
-    p {
-        margin: 0;
-        opacity: .8;
-    }
+// Amarillo con texto azul (5.9:1). SOLO sobre azul.
+.o_dcasa_btn_amarillo,
+.o_dcasa_btn_wa {
+    background-color: $dcasa-amarillo;
+    border: 2px solid $dcasa-amarillo;
+    color: $dcasa-navy;
 
     &:hover,
     &:focus-visible {
-        transform: translateY(-3px);
-        border-color: $dcasa-azul;
-        color: inherit;
+        background-color: #FFFFFF;
+        border-color: #FFFFFF;
+        color: $dcasa-azul;
     }
 }
 
-.o_dcasa_card_n {
+// Contorno blanco, sobre azul.
+.o_dcasa_btn_linea {
+    background: transparent;
+    border: 2px solid rgba(#FFFFFF, .9);
+    color: #FFFFFF;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+    }
+}
+
+// Contorno azul, sobre fondo claro.
+.o_dcasa_btn_contorno,
+.o_dcasa_btn_texto {
+    background: transparent;
+    border: 2px solid $dcasa-azul;
+    color: $dcasa-azul;
+
+    &:hover,
+    &:focus-visible {
+        background: $dcasa-azul;
+        color: #FFFFFF;
+    }
+}
+
+// Foco visible y consistente (WCAG 2.4.7 / 2.4.11). Azul sobre fondos claros;
+// sobre azul o navy, amarillo (el amarillo nunca toca el blanco).
+.o_dcasa_home,
+.o_dcasa_sellos,
+.o_dcasa_wa_producto,
+.o_dcasa_wa_float {
+    a:focus-visible,
+    button:focus-visible,
+    summary:focus-visible,
+    &:focus-visible {
+        outline: 3px solid $dcasa-azul;
+        outline-offset: 3px;
+    }
+}
+
+.o_dcasa_placa,
+.o_dcasa_socios_band,
+.o_dcasa_visita,
+.o_dcasa_anuncios,
+.o_dcasa_footer {
+    a:focus-visible,
+    button:focus-visible {
+        outline: 3px solid $dcasa-amarillo;
+        outline-offset: 3px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Barra de anuncios
+// ---------------------------------------------------------------------------
+
+.o_dcasa_anuncios {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    font-family: 'Oswald', sans-serif;
+    font-size: .8125rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+
+    a {
+        color: $dcasa-amarillo;
+        text-decoration: none;
+
+        &:hover {
+            color: #FFFFFF;
+        }
+    }
+}
+
+.o_dcasa_anuncios_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: .25rem 2.5rem;
+    min-height: 2.5rem;
+    padding-block: .35rem;
+}
+
+// Cabecera: navegación en Oswald, caja alta, con aire.
+#wrapwrap header#top {
+    .navbar-nav .nav-link {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 500;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        font-size: .95rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 1. Hero: foto a sangre + placa azul
+// ---------------------------------------------------------------------------
+
+.o_dcasa_hero {
+    position: relative;
+    background: $dcasa-navy;
+    overflow: hidden;
+}
+
+.o_dcasa_hero_media img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.o_dcasa_hero_inner {
+    position: relative;
+}
+
+.o_dcasa_placa {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    border-radius: $dcasa-radius * 1.5;
+    padding: clamp(1.75rem, 4vw, 3.25rem);
+    border-bottom: 12px solid $dcasa-amarillo;
+
+    .o_dcasa_display {
+        color: #FFFFFF;
+    }
+}
+
+.o_dcasa_hero_sub {
+    font-size: clamp(1.05rem, 1.3vw, 1.2rem);
+    line-height: 1.55;
+    color: rgba(#FFFFFF, .92);
+    margin-bottom: 0;
+}
+
+// Móvil: primero la foto y debajo la placa (el texto nunca tapa el mueble).
+@media (max-width: 575.98px) {
+    .o_dcasa_placa .o_dcasa_ctas .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .o_dcasa_hero_media {
+        aspect-ratio: 4 / 3;
+    }
+
+    .o_dcasa_hero_inner {
+        margin-top: -2.5rem;
+        padding-bottom: 1.25rem;
+    }
+
+    // Navy bajo la placa: su borde amarillo nunca toca el fondo claro.
+    .o_dcasa_hero {
+        background: $dcasa-navy;
+    }
+}
+
+// Escritorio: la foto ocupa la pantalla y la placa se apoya abajo a la izquierda.
+@media (min-width: 992px) {
+    .o_dcasa_hero {
+        min-height: unquote('min(88vh, 860px)');
+        display: flex;
+        align-items: flex-end;
+    }
+
+    .o_dcasa_hero_media {
+        position: absolute;
+        inset: 0;
+    }
+
+    .o_dcasa_hero_inner {
+        padding-block: 4rem;
+    }
+
+    .o_dcasa_placa {
+        max-width: 40rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Beneficios
+// ---------------------------------------------------------------------------
+
+.o_dcasa_beneficios {
+    background: #FFFFFF;
+    border-bottom: 1px solid $dcasa-hueso-2;
+}
+
+.o_dcasa_beneficios_list {
+    list-style: none;
+    margin: 0;
+    padding: 1.5rem 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.1rem;
+
+    @media (min-width: 576px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.5rem 1.25rem;
+    }
+
+    @media (min-width: 992px) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        padding-block: 2.25rem;
+    }
+
+    li {
+        display: flex;
+        gap: .85rem;
+        align-items: flex-start;
+    }
+
+    svg {
+        flex: 0 0 2.25rem;
+        width: 2.25rem;
+        height: 2.25rem;
+        fill: none;
+        stroke: $dcasa-azul;
+        stroke-width: 1.6;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+    }
+
+    strong {
+        display: block;
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: $dcasa-azul;
+        font-size: .95rem;
+    }
+
+    span {
+        display: block;
+        color: $dcasa-gris;
+        font-size: .9rem;
+        line-height: 1.45;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 3. Compra por espacio
+// ---------------------------------------------------------------------------
+
+.o_dcasa_cat_grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.25rem;
+    }
+}
+
+.o_dcasa_cat {
+    position: relative;
+    display: block;
+    border-radius: $dcasa-radius;
+    overflow: hidden;
+    aspect-ratio: 4 / 5;
+    background: $dcasa-hueso-2;
+    text-decoration: none;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform .5s ease;
+    }
+
+    &:hover img,
+    &:focus-visible img {
+        transform: scale(1.04);
+    }
+}
+
+// Etiqueta sólida (no texto sobre foto): contraste garantizado.
+.o_dcasa_cat_label {
+    position: absolute;
+    left: .75rem;
+    bottom: .75rem;
+    background: #FFFFFF;
+    color: $dcasa-azul;
+    border-radius: .6rem;
+    padding: .5rem .85rem;
     font-family: 'Oswald', sans-serif;
     font-weight: 600;
-    color: $dcasa-azul;
-    opacity: .6;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: clamp(.85rem, 1.4vw, 1.1rem);
 }
 
-.o_dcasa_value {
-    background: #FFFFFF;
-    border-radius: $dcasa-radius;
-    padding: 1.75rem;
-    height: 100%;
+// ---------------------------------------------------------------------------
+// 4 y 6. Carriles de producto
+// ---------------------------------------------------------------------------
 
-    .fa {
-        color: $dcasa-azul;
-        margin-bottom: .75rem;
+.o_dcasa_rail_track {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 72%;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: clamp(1rem, 4vw, 3rem);
+    padding-bottom: .75rem;
+    // La siguiente tarjeta asoma: se entiende que se desliza.
+    margin-inline: calc(-1 * clamp(1rem, 4vw, 3rem));
+    padding-inline: clamp(1rem, 4vw, 3rem);
+
+    @media (min-width: 576px) {
+        grid-auto-columns: 42%;
     }
 
-    h3 {
-        text-transform: uppercase;
+    @media (min-width: 992px) {
+        grid-auto-flow: row;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-columns: auto;
+        overflow: visible;
+        margin-inline: 0;
+        padding-inline: 0;
+        gap: 2.5rem 1.5rem;
+    }
+}
+
+.o_dcasa_rail_item {
+    scroll-snap-align: start;
+    min-width: 0;
+}
+
+.o_dcasa_pcard {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.o_dcasa_pcard_media {
+    display: block;
+    aspect-ratio: 1;
+    border-radius: $dcasa-radius;
+    overflow: hidden;
+    background: #FFFFFF;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        padding: 8%;
+        // Las fotos de catálogo traen fondo casi blanco: se funde con la tarjeta.
+        mix-blend-mode: multiply;
+        transition: transform .4s ease;
+    }
+
+    &:hover img {
+        transform: scale(1.04);
+    }
+}
+
+.o_dcasa_pcard_body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding-top: 1rem;
+}
+
+.o_dcasa_pcard_name {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-transform: none;
+    margin-bottom: .35rem;
+
+    a {
+        color: $dcasa-tinta;
+        text-decoration: none;
+
+        &:hover {
+            color: $dcasa-azul;
+        }
+    }
+}
+
+.o_dcasa_pcard_price {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: $dcasa-azul;
+    margin-bottom: .85rem;
+}
+
+.o_dcasa_pcard_actions {
+    margin-top: auto;
+    display: flex;
+    gap: .5rem;
+
+    form,
+    > .o_dcasa_pcard_add {
+        flex: 1;
+    }
+
+    .btn {
+        min-height: 3rem;
+    }
+}
+
+.o_dcasa_pcard_add {
+    width: 100%;
+}
+
+.o_dcasa_pcard_wa {
+    width: 3rem;
+    padding: 0;
+    border: 2px solid $dcasa-azul;
+    color: $dcasa-azul;
+    font-size: 1.35rem;
+
+    &:hover,
+    &:focus-visible {
+        background: $dcasa-azul;
+        color: #FFFFFF;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 5. Split editorial
+// ---------------------------------------------------------------------------
+
+.o_dcasa_split {
+    background: #FFFFFF;
+}
+
+.o_dcasa_split_grid {
+    display: grid;
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: center;
+
+    @media (min-width: 992px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.o_dcasa_split_top {
+    align-items: start;
+}
+
+.o_dcasa_split_media img,
+.o_dcasa_socios_band_media img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: $dcasa-radius * 1.5;
+}
+
+.o_dcasa_split_text .o_dcasa_lead {
+    margin-top: 1.25rem;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Banda de socios (azul + banda amarilla)
+// ---------------------------------------------------------------------------
+
+.o_dcasa_socios_band {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    padding-block: $dcasa-sec calc(#{$dcasa-sec} + 14px + 1.5rem);
+    position: relative;
+
+    // Banda amarilla rodeada de azul (el amarillo nunca toca el fondo claro de la sección siguiente).
+    &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 1.5rem;
+        height: 14px;
+        background: $dcasa-amarillo;
+    }
+
+    .o_dcasa_h2 {
+        color: #FFFFFF;
+    }
+}
+
+.o_dcasa_socios_facts {
+    list-style: none;
+    padding: 0;
+    margin: 1.75rem 0 0;
+
+    li {
+        padding: .9rem 0;
+        border-bottom: 1px solid rgba(#FFFFFF, .2);
+        font-size: 1.1rem;
+    }
+
+    strong {
+        font-family: 'Oswald', sans-serif;
+        font-size: 1.5rem;
+        color: $dcasa-amarillo;
+        margin-right: .15rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 8. Inspírate
+// ---------------------------------------------------------------------------
+
+.o_dcasa_galeria {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .75rem;
+
+    @media (min-width: 768px) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1.25rem;
+    }
+
+    img {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1;
+        object-fit: cover;
+        border-radius: $dcasa-radius;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 9. Guía y preguntas
+// ---------------------------------------------------------------------------
+
+.o_dcasa_ayuda {
+    background: #FFFFFF;
+
+    .o_dcasa_h2 {
+        margin-bottom: 1.5rem;
     }
 }
 
@@ -134,16 +704,17 @@ $dcasa-radius: 1rem;
     li {
         counter-increment: dcasa-step;
         position: relative;
-        padding: .75rem 0 .75rem 3.5rem;
+        padding: 1rem 0 1rem 3.75rem;
         border-bottom: 1px solid rgba($dcasa-azul, .12);
+        min-height: 3.5rem;
 
         &::before {
             content: counter(dcasa-step);
             position: absolute;
             left: 0;
-            top: .6rem;
-            width: 2.4rem;
-            height: 2.4rem;
+            top: .85rem;
+            width: 2.5rem;
+            height: 2.5rem;
             border-radius: .6rem;
             background: $dcasa-azul;
             color: #FFFFFF;
@@ -159,17 +730,173 @@ $dcasa-radius: 1rem;
 .o_dcasa_faq {
     details {
         border-bottom: 1px solid rgba($dcasa-azul, .15);
-        padding: 1rem 0;
     }
 
     summary {
         cursor: pointer;
         font-weight: 600;
         color: $dcasa-azul;
+        padding: 1.1rem 2.5rem 1.1rem 0;
+        list-style: none;
+        position: relative;
+        min-height: 3rem;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        &::after {
+            content: '+';
+            position: absolute;
+            right: .25rem;
+            top: .75rem;
+            font-family: 'Oswald', sans-serif;
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+    }
+
+    details[open] summary::after {
+        content: '–';
     }
 
     p {
-        margin: .75rem 0 0;
+        margin: 0 0 1.1rem;
+        color: $dcasa-gris;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 10. Visítanos
+// ---------------------------------------------------------------------------
+
+.o_dcasa_visita {
+    background: $dcasa-navy;
+    color: #FFFFFF;
+    padding-block: clamp(3rem, 6vw, 5rem);
+
+    .o_dcasa_h2 {
+        color: #FFFFFF;
+    }
+
+    .o_dcasa_lead {
+        margin: 1rem 0 0;
+        color: rgba(#FFFFFF, .9);
+    }
+
+    .o_dcasa_ctas {
+        margin-top: 0;
+    }
+}
+
+.o_dcasa_visita_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+}
+
+// ---------------------------------------------------------------------------
+// Tienda y ficha de producto
+// ---------------------------------------------------------------------------
+
+#wrapwrap .oe_website_sale {
+    .o_wsale_products_main_row {
+        padding-bottom: 3rem;
+    }
+
+    h1[itemprop="name"],
+    .o_wsale_product_details_content h1 {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+
+    .product_price .oe_price,
+    .oe_price_h4 .oe_price {
+        color: $dcasa-azul;
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+    }
+}
+
+.o_dcasa_sellos {
+    list-style: none;
+    padding: 1.25rem;
+    margin: 0 0 1rem;
+    background: $dcasa-hueso;
+    border-radius: $dcasa-radius;
+    display: grid;
+    gap: .9rem;
+
+    li {
+        display: flex;
+        gap: .85rem;
+        align-items: flex-start;
+        font-size: .95rem;
+        line-height: 1.45;
+    }
+
+    .fa {
+        color: $dcasa-azul;
+        font-size: 1.2rem;
+        width: 1.4rem;
+        text-align: center;
+        margin-top: .1rem;
+    }
+
+    strong {
+        color: $dcasa-azul;
+    }
+}
+
+// Móvil: el botón de compra queda fijo abajo mientras se ve la ficha.
+@media (max-width: 767.98px) {
+    #product_detail #o_wsale_cta_wrapper {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 1040;
+        margin: 0 !important;
+        padding: .75rem 1rem calc(.75rem + env(safe-area-inset-bottom));
+        background: #FFFFFF;
+        border-top: 1px solid $dcasa-hueso-2;
+
+        #add_to_cart {
+            min-height: 3rem;
+        }
+
+        // En la barra fija solo cantidad y «Agregar»; la lista de deseos no cabe.
+        #product_option_block {
+            display: none !important;
+        }
+    }
+
+    body:has(#o_wsale_cta_wrapper) {
+        #wrapwrap {
+            padding-bottom: 5rem;
+        }
+
+        .o_dcasa_wa_float {
+            bottom: 5.75rem;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pie de página
+// ---------------------------------------------------------------------------
+
+.o_dcasa_footer {
+    .o_dcasa_kicker {
+        color: $dcasa-amarillo;
+    }
+
+    li {
+        padding-block: .2rem;
     }
 }
 
@@ -184,6 +911,12 @@ $dcasa-radius: 1rem;
     }
 }
 
+// Crédito de Odoo sobre navy: blanco subrayado (el azul por defecto no llega a 4.5:1).
+#wrapwrap .o_footer_copyright a:not(.btn) {
+    color: #FFFFFF;
+    text-decoration: underline;
+}
+
 // Botón flotante de WhatsApp.
 .o_dcasa_wa_float {
     position: fixed;
@@ -194,7 +927,7 @@ $dcasa-radius: 1rem;
     height: 3.5rem;
     border-radius: 50%;
     background-color: $dcasa-azul;
-    border: 3px solid $dcasa-amarillo;
+    border: 3px solid #FFFFFF;
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -208,13 +941,23 @@ $dcasa-radius: 1rem;
     }
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .o_dcasa_card {
-        transition: none;
+// ---------------------------------------------------------------------------
+// Movimiento reducido
+// ---------------------------------------------------------------------------
 
-        &:hover,
-        &:focus-visible {
-            transform: none;
-        }
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_cat img,
+    .o_dcasa_pcard_media img {
+        transition: none;
+    }
+
+    .o_dcasa_cat:hover img,
+    .o_dcasa_cat:focus-visible img,
+    .o_dcasa_pcard_media:hover img {
+        transform: none;
+    }
+
+    .o_dcasa_rail_track {
+        scroll-behavior: auto;
     }
 }
