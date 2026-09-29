@@ -18,11 +18,11 @@ DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
 # Categorías de la portada: (xmlid, nombre, texto alternativo). La foto es static/src/img/cat-<xmlid>.webp.
 CATEGORIAS_PORTADA = [
     ('salas', 'Salas', 'Sala con sofá turquesa y mesa de centro de madera'),
-    ('comedores', 'Comedores', 'Mesa de comedor redonda de madera con silla'),
-    ('recamaras', 'Recámaras', 'Recámara con cama de madera y ropa de cama terracota'),
+    ('recamaras', 'Recámaras', 'Cama king con cabecero tapizado'),
     ('colchones', 'Colchones', 'Recámara luminosa con cama y colchón'),
-    ('decoracion', 'Decoración', 'Lámparas colgantes y sillas junto a una cortina'),
-    ('exteriores', 'Exteriores', 'Terraza con muebles de exterior y plantas'),
+    ('zapateras', 'Zapateras', 'Mueble zapatera con puertas abatibles'),
+    ('organizacion', 'Estantes', 'Estante de cocina con repisas de madera'),
+    ('oficina', 'Oficina', 'Escritorio negro con repisa superior'),
 ]
 
 # Menú principal: tres opciones. Las categorías viven dentro del catálogo (/shop).

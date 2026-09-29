@@ -9,3 +9,5 @@ docs
 scripts
 *.log
 .test.log
+# Originales de fotos (≈1 GB): la imagen usa las versiones optimizadas de addons/dcasa_catalogo
+up media

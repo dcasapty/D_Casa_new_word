@@ -18,6 +18,18 @@
             <field name="name">Colchones</field>
             <field name="sequence">40</field>
         </record>
+        <record id="public_category_zapateras" model="product.public.category">
+            <field name="name">Zapateras</field>
+            <field name="sequence">42</field>
+        </record>
+        <record id="public_category_organizacion" model="product.public.category">
+            <field name="name">Estantes y organización</field>
+            <field name="sequence">44</field>
+        </record>
+        <record id="public_category_oficina" model="product.public.category">
+            <field name="name">Oficina</field>
+            <field name="sequence">46</field>
+        </record>
         <record id="public_category_electro" model="product.public.category">
             <field name="name">Electrodomésticos</field>
             <field name="sequence">50</field>

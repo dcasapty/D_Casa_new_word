@@ -80,6 +80,7 @@ class TestPortadaDinamica(HttpCase):
         Product = self.env['product.template']
         self.sofa = Product.create({
             'name': 'Sofá de prueba', 'list_price': 123.45, 'is_published': True,
+            'taxes_id': [(5, 0, 0)],  # sin impuesto: la cifra mostrada es la del precio
             'website_sequence': -100, 'public_categ_ids': [(6, 0, self.salas.ids)],
         })
         self.colchon = Product.create({

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Categorías internas que trae el catálogo real (las demás están en dcasa_base). -->
+    <data noupdate="1">
+        <record id="product_category_zapateras" model="product.category">
+            <field name="name">Zapateras</field>
+            <field name="parent_id" ref="dcasa_base.product_category_muebles"/>
+        </record>
+        <record id="product_category_organizacion" model="product.category">
+            <field name="name">Estantes y organización</field>
+            <field name="parent_id" ref="dcasa_base.product_category_muebles"/>
+        </record>
+        <record id="product_category_oficina" model="product.category">
+            <field name="name">Oficina</field>
+            <field name="parent_id" ref="dcasa_base.product_category_muebles"/>
+        </record>
+    </data>
+</odoo>

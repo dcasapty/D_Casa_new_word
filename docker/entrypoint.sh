@@ -15,7 +15,7 @@ set -euo pipefail
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-dcasa}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
@@ -72,7 +72,9 @@ else
   deployed="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.deployed_version'")"
   if [[ "$deployed" != "$APP_VERSION" ]]; then
     echo "▶ Nueva versión ($deployed → $APP_VERSION): actualizando $ODOO_MODULES"
-    odoo -d "$DB_NAME" -u "$ODOO_MODULES" --stop-after-init
+    # -i instala los módulos nuevos de la lista (p. ej. dcasa_catalogo); en los ya
+    # instalados no hace nada. -u actualiza los instalados.
+    odoo -d "$DB_NAME" -i "$ODOO_MODULES" -u "$ODOO_MODULES" --stop-after-init
     sql "INSERT INTO ir_config_parameter (key, value, create_date, write_date)
          VALUES ('dcasa.deployed_version', '$APP_VERSION', now(), now())
          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, write_date = now()" >/dev/null

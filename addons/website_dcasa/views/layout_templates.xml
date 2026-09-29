@@ -49,7 +49,7 @@
     <!-- Descripción para Google de la tienda (las categorías pueden tener la suya propia). -->
     <template id="products_meta_dcasa" inherit_id="website_sale.products" name="D'CASA: descripción de la tienda">
         <xpath expr="//t[@t-call='website.layout']" position="inside">
-            <t t-set="website_meta_description">Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, comedores y decoración con precios claros. Entrega a todo Panamá desde La Chorrera.</t>
+            <t t-set="website_meta_description">Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, zapateras, estantes y escritorios con precios claros. Entrega a todo Panamá desde La Chorrera.</t>
         </xpath>
     </template>
 

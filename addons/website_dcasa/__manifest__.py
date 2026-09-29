@@ -14,14 +14,14 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Pie de página con los datos reales y botón flotante de WhatsApp, sin el crédito de Odoo.
 * Cabecera de vidrio flotante, animaciones de entrada (secciones y titulares) y
   opiniones reales de Google en una cinta en movimiento (data/resenas.json).
-* Categorías de la tienda (Salas, Comedores, Recámaras, Colchones,
-  Electrodomésticos, Decoración, Exteriores).
+* Categorías de la tienda (Salas, Recámaras, Colchones, Zapateras, Estantes y
+  organización, Oficina, y otras que la tienda oculta mientras no tengan productos).
 * Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
 
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.4.0',
+    'version': '19.0.1.5.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
