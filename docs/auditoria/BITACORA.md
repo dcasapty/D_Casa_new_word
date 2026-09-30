@@ -66,3 +66,19 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### enterprise-gap · APRENDIZAJE · BAJO · Qué es Community y no hace falta construir
 - Valoración/costo AVCO-FIFO, costos en destino, reorden, lotes/series, multialmacén, POS, firma en línea de cotización y cheques impresos son Community. Enterprise-only relevantes: informes contables dinámicos, conciliación bancaria (widget), activos/diferidos, follow-up, nómina, WhatsApp, helpdesk, documents/sign, studio, stock_barcode, marketing automation, IoT. `dcasa_contabilidad` ya cubre lo principal de contabilidad. Detalle y orden de construcción en `docs/auditoria/enterprise-gap.md`.
+
+### navbar · HALLAZGO · ALTO · Barra lateral en modo «auto» por defecto: hover + autocierre + secciones solo al expandir
+- Evidencia: `addons/dcasa_interfaz/static/src/js/barra_lateral.js:25-31,63-82,167-183`; `xml/barra_lateral.xml:40` (`!colapsada` para renderizar secciones).
+- Qué pasa: franja de 68 px, se expande tras 120 ms de hover, la lista se reordena bajo el puntero, y al elegir algo se recoge sola (las secciones desaparecen del DOM y se pierde el foco de teclado). Navegar dos niveles cuesta dos ciclos de hover.
+- Recomendación: fija ≥1200 px, riel por clic (sin hover), sin autocierre. Detalle y código en `docs/auditoria/navbar.md`.
+
+### navbar · HALLAZGO · ALTO · Foco visible: `--dc-foco` tiene 1,51:1 y se recorta en la barra
+- Evidencia: `addons/dcasa_interfaz/static/src/scss/tokens.scss:43` (`0 0 0 3px azul-200` sobre blanco = 1,51:1, exigido 3:1); `barra_lateral.scss:147,207` (`outline:none`, box-shadow recortado por `overflow-y:auto` de la lista, invisible en forced-colors). El mismo token se usa en `global.scss:58` (botones) y `:41-45` (buscador).
+- Recomendación: `--dc-foco: 0 0 0 2px #fff, 0 0 0 4px var(--dc-azul-600)` y `outline` transparente/forced-colors.
+
+### navbar · PREGUNTA a @ui-backend · ¿Tocas `--dc-foco` o los estilos globales de foco?
+- Evidencia: `tokens.scss:43`, `global.scss:58,379-383` (botones y `.o_searchview` dependen del mismo token; 1,51:1).
+- Pregunta: ¿tu informe ya cubre el contraste de foco de botones/buscador/formularios? Para no duplicar: yo propongo el cambio del token en `tokens.scss` (2 sombras, azul-600) y tú decides si aplica al resto del panel. Además: ¿has visto si `.o_navbar` (barra lateral SCSS:15,20) vs `.o_main_navbar` (`global.scss:12`, `dcasa_base/backend.scss:24`) coexisten en Odoo 19? Uno podría ser código muerto.
+
+### navbar · APRENDIZAJE · BAJO · Convención de sitios afectados por cambios en la barra
+- Cualquier cambio de ancho de la barra afecta `body.o_web_client` (grid, `barra_lateral.scss:9-17`) y oculta `.o_dcasa_apps` del Inicio en ≥lg (`:37`): quien audite el Inicio debe saber que en desktop las apps solo están en la barra; si la barra falla, el Inicio no ofrece las apps.
