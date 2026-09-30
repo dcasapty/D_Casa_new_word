@@ -2,23 +2,21 @@ name: Previsualización
 
 # Levanta la imagen real de producción con datos de demostración en el runner.
 #
-# · En cada PR: saca capturas (escritorio y móvil) y las deja como artefacto.
-# · PR con la etiqueta `preview`, o a mano (Actions → Previsualización → Run
-#   workflow): además abre un túnel
-#   temporal de Cloudflare y publica un link en línea durante los minutos que
-#   elijas, con el sitio, la tienda, /socios y el backend de Odoo.
+# Solo a mano (Actions → Previsualización → Run workflow): saca capturas y abre un
+# túnel temporal de Cloudflare con un link en línea durante los minutos que elijas
+# (máximo 60), con el sitio, la tienda, /socios y el backend de Odoo.
+# No corre en cada push: los minutos de GitHub Actions se reservan para los tests.
+# El sitio de verdad vive en Cloudflare (docs/DESPLIEGUE.md).
 #
 # Es una base de prueba que se destruye al terminar: nada de esto toca producción.
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
     inputs:
       minutos:
-        description: "Minutos que el link queda en línea (máximo 330)"
+        description: "Minutos que el link queda en línea (máximo 60)"
         required: true
-        default: "60"
+        default: "30"
 
 permissions:
   contents: read
@@ -32,7 +30,7 @@ jobs:
   preview:
     name: Previsualizar el sitio
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 90
     services:
       postgres:
         image: postgres:16
@@ -44,8 +42,8 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      EN_LINEA: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'preview') }}
-      MINUTOS: ${{ inputs.minutos || '330' }}
+      EN_LINEA: 'true'
+      MINUTOS: ${{ inputs.minutos || '30' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -158,7 +156,7 @@ jobs:
         if: env.EN_LINEA == 'true'
         run: |
           MIN=$MINUTOS
-          [ "$MIN" -gt 330 ] && MIN=330
+          [ "$MIN" -gt 60 ] && MIN=60
           echo "En línea en ${{ steps.tunel.outputs.url }} durante $MIN minutos."
           sleep $((MIN * 60))
 

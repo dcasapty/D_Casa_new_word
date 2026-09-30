@@ -45,7 +45,7 @@ pasa al contenedor de Odoo solo si existen (`OPTIONAL_CONTAINER_VARS` en `edge/s
 | Tipo | Nombre | Valor |
 |---|---|---|
 | Variable | `BRIAN_PROVEEDOR` | `anthropic`, `openai`, `xai`, `groq`, `openrouter` u `ollama` |
-| Variable | `BRIAN_MODELO` | p. ej. `claude-haiku-4-5-20251001` |
+| Variable | `BRIAN_MODELO` | opcional con Anthropic (por defecto `claude-haiku-4-5`) |
 | Variable | `BRIAN_BASE_URL` | solo para proveedores OpenAI-compatibles propios |
 | Secret | `BRIAN_API_KEY` | clave del proveedor de IA |
 | Secret | `TELEGRAM_BOT_TOKEN` | token del bot (@BotFather) |
