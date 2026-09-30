@@ -23,3 +23,5 @@ node_modules/
 .DS_Store
 .idea/
 .vscode/
+# Copias de trabajo de los agentes de Claude Code
+.claude/worktrees/
