@@ -1,0 +1,63 @@
+{
+ "archivo": "DCASA_listado_productos.xlsx",
+ "sha256": "731580f9aab961e37eeacab6ce375d5aef1656438d3854c07ce50f6e63acb846",
+ "hojas": [
+  {
+   "hoja": "Productos",
+   "estado": "visible",
+   "dimension": "A1:G220",
+   "celdas_con_dato": 1000,
+   "combinadas": 0,
+   "formulas": 0,
+   "formulas_sin_valor_cache": 0,
+   "imagenes": {},
+   "filas_ocultas": 0,
+   "columnas_ocultas": 0,
+   "comentarios": 0,
+   "sospecha_instruccion": 0
+  },
+  {
+   "hoja": "Imágenes (proyecto)",
+   "estado": "visible",
+   "dimension": "A1:D332",
+   "celdas_con_dato": 1328,
+   "combinadas": 0,
+   "formulas": 0,
+   "formulas_sin_valor_cache": 0,
+   "imagenes": {},
+   "filas_ocultas": 0,
+   "columnas_ocultas": 0,
+   "comentarios": 0,
+   "sospecha_instruccion": 0
+  },
+  {
+   "hoja": "Todas las fichas",
+   "estado": "visible",
+   "dimension": "A1:G253",
+   "celdas_con_dato": 1338,
+   "combinadas": 0,
+   "formulas": 0,
+   "formulas_sin_valor_cache": 0,
+   "imagenes": {},
+   "filas_ocultas": 0,
+   "columnas_ocultas": 0,
+   "comentarios": 0,
+   "sospecha_instruccion": 0
+  },
+  {
+   "hoja": "Notas",
+   "estado": "visible",
+   "dimension": "A1:B9",
+   "celdas_con_dato": 18,
+   "combinadas": 0,
+   "formulas": 0,
+   "formulas_sin_valor_cache": 0,
+   "imagenes": {},
+   "filas_ocultas": 0,
+   "columnas_ocultas": 0,
+   "comentarios": 0,
+   "sospecha_instruccion": 0
+  }
+ ],
+ "riesgos": []
+}

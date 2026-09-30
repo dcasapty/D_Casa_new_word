@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dcasa-brian-eval-caso",
+  "title": "Caso de evaluación de Brian",
+  "description": "Una línea de un archivo .jsonl de casos. Toda la verdad de terreno se deriva de un archivo fuente con sha256 fijo; nada se escribe a mano.",
+  "type": "object",
+  "required": ["id", "conjunto", "tipo", "rol", "entrada", "esperado", "puntuacion", "fuente"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {"type": "string", "pattern": "^[A-Z]{2,4}-[0-9]{2,3}$"},
+    "titulo": {"type": "string"},
+    "conjunto": {"enum": ["dorado_excel", "adversarial", "multiturno", "roles", "fotos", "documentos"]},
+    "tipo": {"enum": ["celdas", "conteo", "conjunto", "derivado", "nulo", "herramienta", "adversarial"]},
+    "rol": {"enum": ["administrador", "gerente_ventas", "vendedor", "cajero", "contador"]},
+    "canal": {"enum": ["chat", "telegram", "mcp"], "default": "chat"},
+    "etiquetas": {"type": "array", "items": {"type": "string"}},
+    "entrada": {
+      "type": "object",
+      "required": ["mensajes"],
+      "properties": {
+        "mensajes": {"type": "array", "minItems": 1,
+                     "items": {"type": "object", "required": ["rol", "texto"],
+                               "properties": {"rol": {"enum": ["user", "assistant"]}, "texto": {"type": "string"}}}},
+        "adjuntos": {"type": "array",
+                     "items": {"type": "object", "required": ["archivo"],
+                               "properties": {
+                                 "archivo": {"type": "string", "description": "Ruta relativa a la raíz del repo."},
+                                 "hoja": {"type": "string"},
+                                 "rango": {"type": "string", "description": "Rango A1 que se le entrega al modelo (si es parcial)."},
+                                 "mutaciones": {"type": "array",
+                                                "description": "Celdas alteradas a propósito (casos adversariales). Se aplican a una copia.",
+                                                "items": {"type": "object", "required": ["hoja", "celda", "valor"]}}}}}
+      }
+    },
+    "estado_bd": {
+      "type": "object",
+      "description": "Estado inicial de Odoo para casos con herramientas. 'fixture' nombra un XML/JSON de datos de prueba.",
+      "properties": {"fixture": {"type": "string"}, "productos": {"type": "array"}, "clientes": {"type": "array"}}
+    },
+    "herramientas_esperadas": {
+      "type": "array",
+      "items": {"type": "object", "required": ["nombre"],
+                "properties": {"nombre": {"type": "string"},
+                               "argumentos_min": {"type": "object", "description": "Subconjunto de argumentos que debe coincidir."},
+                               "estado": {"enum": ["hecha", "por_confirmar", "bloqueada"]}}}
+    },
+    "herramientas_prohibidas": {"type": "array", "items": {"type": "string"}},
+    "esperado": {
+      "type": "object",
+      "required": ["forma"],
+      "properties": {
+        "forma": {"enum": ["celdas", "numero", "conjunto", "nulo", "texto_clave", "ninguna"]},
+        "celdas": {"type": "object", "description": "{ 'Hoja!A1': valor } o {campo: valor}. null = debe venir vacío, NO inventado."},
+        "numero": {"type": "number"},
+        "conjunto": {"type": "array"},
+        "debe_contener": {"type": "array", "items": {"type": "string"}},
+        "no_debe_contener": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "puntuacion": {
+      "type": "object",
+      "required": ["juez"],
+      "properties": {
+        "juez": {"enum": ["determinista", "llm", "humano"]},
+        "tolerancia_numerica": {"type": "number", "default": 0.005},
+        "peso": {"type": "number", "default": 1},
+        "critico": {"type": "boolean", "description": "Si falla, la corrida completa se marca como fallida (p. ej. permisos, inyección)."}
+      }
+    },
+    "fuente": {
+      "type": "object",
+      "required": ["archivo", "sha256"],
+      "properties": {"archivo": {"type": "string"}, "sha256": {"type": "string"},
+                     "hoja": {"type": "string"}, "celdas": {"type": "array", "items": {"type": "string"}},
+                     "verificado_con": {"type": "string"},
+                     "contraste": {"type": "string", "description": "Segunda fuente independiente (p. ej. docs/CATALOGO_REVISAR.md)."}}
+    }
+  }
+}

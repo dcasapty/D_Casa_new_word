@@ -285,3 +285,51 @@ Decisiones del dueño que cambian el rumbo:
 
 ## Entradas (ronda 2)
 
+
+### brian-modelos · HALLAZGO · ALTO · Brian no registra ni limita costo, y no usa caché de prompts: el gasto es ciego y evitable
+- Evidencia: `proveedores.py:233-235,298-300` (el `uso` solo trae entrada/salida y `conversacion.py:272` lo descarta; no se leen `cache_*`), `proveedores.py:167-180` (sin `cache_control`; sin `effort`/`thinking`), `conversacion.py:407-414` (subconjunto de herramientas distinto por mensaje: rompería cualquier caché). Escenario «hoy» (todo Sonnet 5.5, sin caché) ≈ US$23/90/308 al mes (bajo/medio/alto, supuestos en `ronda2/brian-modelos.md` §6); con caché ≈ 13/50/173; con ruteo Haiku→Sonnet + Batch ≈ 8/29/100.
+- Recomendación: `brian.uso` (solo anexar) + tabla de precios en datos con URL y fecha + `cache_control` + subconjunto de herramientas estable por conversación. Precios Anthropic oficiales leídos el 2026-09-30.
+
+### brian-modelos · HALLAZGO · ALTO · Adjuntos: `.xlsx` no se lee y el PDF escaneado llega vacío (@brian-excel)
+- Evidencia: `conversacion.py:480-499` (PDF solo con pypdf; `.xlsx` cae en «No puedo leer este tipo de archivo»; `MIMES_TEXTO` incluye el `.xls` binario y lo decodifica como UTF-8), `:82` (20 000 caracteres). La API de Claude acepta PDF nativo (32 MB, 600 pp.; 100 en Haiku 4.5) pero **no** acepta `.xlsx` en bloques de documento: hay que convertir a texto/PDF antes ([oficial](https://platform.claude.com/docs/en/build-with-claude/pdf-support)).
+- Recomendación: lectura de Excel por código (openpyxl → JSON) y el modelo solo interpreta; PDF nativo para escaneados; imágenes ≤2000 px; Files API si se reusan.
+
+### brian-modelos · HALLAZGO · MEDIO · Un solo proveedor global; sin ruteo por tarea, sin fallback, sin streaming; Meta/Gemini/Workers AI no existen en `PROVEEDORES` (@brian-eventos)
+- Evidencia: `proveedores.py:59-76,365-386,421-427` (un adaptador por configuración), `:106-138` (síncrono, reintentos ciegos, sin deadline), `:388-391` + B-21. Diseño objetivo (contrato por tarea, matriz tarea→modelo, escalada, fallback con disyuntor, Batch, AI Gateway, topes por usuario/perfil) en `ronda2/brian-modelos.md` §4.
+- Recomendación: `brian.ruta` como datos; adaptador OpenAI-compatible con capacidades por modelo; `enviar_lote` vía cron/Queue (coordinar con brian-eventos).
+
+### brian-modelos · APRENDIZAJE · ALTO · Meta Muse Spark: no apto para producción hoy (no confirmado en Panamá; nivel barato entrena con tus prompts)
+- Evidencia: `dev.meta.ai`/`developer.meta.com` bloqueados por el proxy; solo fuentes secundarias (NO VERIFICADO): vista previa pública desde 2026-07-09 pensada para EE. UU., fuentes contradictorias sobre acceso internacional; versión 1.3 (2026-09-02); $1.25/$4.25 por MTok estándar y «Contributor» $0.10/$0.20 **a cambio de entrenar con tus prompts**. Anthropic sí lista Panamá en su documentación oficial; OpenAI aparece con Panamá en extracto de su ayuda (sin leer la página).
+- Recomendación: adaptador OpenAI-compatible **desactivado**; verificar desde un entorno sin bloqueo; prohibir en código cualquier modelo «contributor» con datos de D'CASA.
+
+### brian-modelos · APRENDIZAJE · MEDIO · Cloudflare AI Gateway sirve de cinturón (costos, fallback, tope duro), no de caché del chat
+- Evidencia (extractos de buscador, NO VERIFICADO; docs de Cloudflare bloqueadas): caché de coincidencia exacta (hash de la solicitud completa), límite de tasa, *spend limits* por dólares y metadatos (changelog 2026-06-05), custom costs, fallback; funciones básicas gratis. Conexión sin tocar código: `BRIAN_BASE_URL` (`proveedores.py:380`). Riesgo: si guarda logs, guarda datos de clientes.
+- Recomendación: usarlo con logs de contenido desactivados y tope mensual duro; el tope fino por usuario/rol vive en Odoo (`brian.uso`).
+
+### brian-modelos · HALLAZGO · MEDIO · Privacidad (Ley 81/2019): datos de clientes salen a terceros sin DPA ni máscara (POR VERIFICAR con abogado)
+- Evidencia: extractos de bufetes (ICAZA) y ANTAI: Ley 81 vigente desde 2021-03-29, Decreto 285/2021; transferencia internacional solo a países de protección adecuada o con garantías (cláusulas tipo). Conecta con B-14 (`brian.md`). Anthropic: no entrena con datos de API y las imágenes son efímeras (oficial, leído); días de retención estándar NO VERIFICADO.
+- Recomendación: lista blanca de proveedores por clase de dato, máscara de RUC/teléfono por perfil, DPA antes de producción, aviso en política de privacidad. Consulta legal pendiente.
+
+### brian-modelos · APRENDIZAJE · BAJO · Sonnet 5.5 sin `effort` corre pensamiento adaptativo a `high`, y recortar el historial puede chocar con «pensamiento preservado» (NO probado contra la API real)
+- Evidencia: guía local del skill `claude-api` (no la página oficial): Sonnet 5.5 no admite `thinking: disabled`; cuentas creadas desde 2026-08-31 reciben 400 si se editan turnos previos con bloques de pensamiento; `conversacion.py:421-439,593-597` recorta y sustituye imágenes antiguas. Coste de salida oculto: +54 % por mensaje si salen 1 000 tokens por llamada en vez de 400.
+- Recomendación: fijar `effort` por tarea y probar un historial largo con clave real antes de confiar en Sonnet 5.5 (pedir a @brian-evals).
+
+### cf-costos · RESPUESTA a @infra · ALTO · Zero Trust/Tunnel NO aloja PostgreSQL; Cloudflare no tiene Postgres propio
+- Fuente: `docs/auditoria/ronda2/cf-costos.md` §2-3 (consultado 2026-09-30; `WebFetch` bloqueado para developers.cloudflare.com, cifras vía `WebSearch`, marcadas oficial/tercero).
+- Zero Trust (Access, gratis <=50 usuarios) y Tunnel (gratis) controlan acceso y conectividad: sirven para exponer un VPS sin IP pública y poner login previo al panel. No guardan datos. D1/Durable Objects son SQLite (no sirven a Odoo); Hyperdrive es pooling hacia Postgres externo y el pooling transaccional rompe `LISTEN/NOTIFY`.
+- Recomendación: decir esto al dueño tal cual; si se usa Access, NO proteger `/web/login` a ciegas (clientes `b2c`, `/socios`, `/brian/*` necesitan bypass).
+
+### cf-costos · CONFIRMA · ALTO · a infra I-01: costo del contenedor y la cuenta completa
+- Evidencia: `edge/wrangler.jsonc:15,25`. Tarifas vía buscador (Containers: $0,0000025/GiB-s, $0,000020/vCPU-s activo, $0,00000007/GB-s; incluido 25 GiB-h, 375 vCPU-min, 200 GB-h; facturación por 10 ms). Cuenta en `cf-costos.md` §4: `standard-2` 24/7 = $45,52 (+$5 = $50,52); `standard-1` 24/7 = $29,24; `standard-1` 12 h/día x 22 días = $10,26; Neon 24/7 ~ $19,8 (0,25 CU, sin autosuspend por `LISTEN`). Coincide con infra.md §4.3.
+- Recomendación: el presupuesto $5+$1+R2 no cubre Odoo en Containers.
+
+### cf-costos · HALLAZGO · CRÍTICO · Postgres dentro de un Cloudflare Container = disco efímero; no apto para datos contables
+- Evidencia (oficial vía buscador): todo disco de Container es efímero; snapshots solo en beta (máx. 20 GB, 30 días, atados a la versión de la imagen, solo política `durable_object`). Cada deploy invalida snapshots y reinicia la instancia (SIGTERM, 15 min, luego SIGKILL). Además, Cloudflare corrigió el 2026-09-19 un fallo que dejaba legibles bloques de disco residuales entre clientes (The Hacker News, 2026-09).
+- Recomendación: no poner la base en Containers. Si se quiere solo Cloudflare, Odoo en Container + Postgres externo con PITR (Neon ~ $20) es lo mínimo seguro.
+
+### cf-costos · HALLAZGO · ALTO · La opción más barata segura es un VPS único + Tunnel + Access + R2 (~ $12-17/mes)
+- `cf-costos.md` §6: Hetzner CX33 (EUR 8,49, docs.hetzner.com vía buscador; blogs dicen CX23 EUR 5,99 vs 5,49: discrepancia) + Backups 20 % + WAL a R2 (pgBackRest/WAL-G, RPO ~1-5 min) + restauración mensual automática en CI. Worker $5 opcional. Plan B: Container standard-1 en horario + Neon (~ $30-40) o el mismo diseño en DigitalOcean/Vultr EE. UU. ($20-29).
+- Cambios en repo (propuestos): `docker-compose.yml` (respaldos), `ci.yml` job deploy por SSH, `edge/` sin Container (fetch al túnel), entrypoint sin cambio funcional. Medir antes: latencia Panamá->UE, RSS de Odoo, tamaño de base, tiempo de restauración. @infra @seguridad: revisen el plan de Access (bypass de /brian, /socios, tienda).
+
+### cf-costos · APRENDIZAJE · MEDIO · Precios de la competencia cambiaron en 2026 (revalidar al contratar)
+- Hetzner subió precios el 2026-04-01 y 2026-06-15; Oracle Always Free recortado a 2 OCPU/12 GB y reclama instancias ociosas; CockroachDB cerró su plan gratis el 2026-09-15 y no es PG completo; Xata sin plan gratis; Supabase PITR desde $100/mes sobre Pro $25. Todo en `cf-costos.md` §5, con URLs. Para @brian-modelos: tarifas de Claude usadas (Sonnet 5.5 $2/$10, Opus 5.5 $4/$20, Haiku 4.5 $1/$5 por M tokens, tabla cacheada 2026-09-25 del skill claude-api); ejemplo ilustrativo ~ $0,008-0,017 por interacción de Brian, sin datos de volumen real.
