@@ -126,3 +126,24 @@ class TestCatalogo(TransactionCase):
         self.producto(item['codigo']).unlink()
         self.assertEqual(cargar_catalogo(self.env), 1)
         self.assertEqual(self.producto(item['codigo']).name, item['nombre_web'])
+
+
+@tagged('post_install', '-at_install')
+class TestBuscarProductos(TransactionCase):
+
+    def test_filtros_rapidos_y_categorias(self):
+        vista = self.env['product.template'].get_view(
+            self.env.ref('product.product_template_search_view').id, 'search')
+        arch = vista['arch']
+        for nombre in ('dcasa_disponibles', 'dcasa_agotados', 'dcasa_precio_1', 'dcasa_precio_4', 'dcasa_en_web'):
+            self.assertIn(f'name="{nombre}"', arch)
+        self.assertIn('<searchpanel', arch)
+        self.assertIn('public_categ_ids', arch)
+        # Los dominios funcionan de verdad (campos buscables).
+        Producto = self.env['product.template']
+        barato = Producto.create({'name': 'Banco de prueba', 'list_price': 50, 'is_storable': True})
+        caro = Producto.create({'name': 'Sofá de prueba', 'list_price': 900, 'is_storable': True})
+        self.assertIn(barato, Producto.search([('list_price', '<=', 100)]))
+        self.assertNotIn(caro, Producto.search([('list_price', '<=', 100)]))
+        self.assertIn(caro, Producto.search([('is_storable', '=', True), ('qty_available', '<=', 0)]))
+

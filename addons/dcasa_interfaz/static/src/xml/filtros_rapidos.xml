@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="web.ControlPanel" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_control_panel_main')]" position="after">
+            <DcasaFiltrosRapidos/>
+        </xpath>
+    </t>
+
+    <t t-name="dcasa_interfaz.FiltrosRapidos">
+        <div t-if="visible" class="o_dcasa_filtros_rapidos d-print-none" role="group" aria-label="Filtros rápidos">
+            <span class="o_dcasa_filtros_titulo"><i class="fa fa-filter me-1" aria-hidden="true"/>Filtrar:</span>
+            <t t-foreach="filtros" t-as="filtro" t-key="filtro.id">
+                <span t-if="nuevoGrupo(filtro, filtro_index)" class="o_dcasa_filtros_sep" aria-hidden="true"/>
+                <button type="button" class="o_dcasa_chip"
+                        t-att-class="{'o_activo': filtro.isActive}"
+                        t-att-aria-pressed="filtro.isActive ? 'true' : 'false'"
+                        t-on-click="() => this.alternar(filtro)">
+                    <i t-if="filtro.isActive" class="fa fa-check me-1" aria-hidden="true"/>
+                    <t t-out="filtro.description"/>
+                </button>
+            </t>
+            <button t-if="hayActivos" type="button" class="o_dcasa_chip o_dcasa_chip_limpiar" t-on-click="limpiar">
+                <i class="fa fa-times me-1" aria-hidden="true"/>Quitar filtros
+            </button>
+        </div>
+    </t>
+</templates>

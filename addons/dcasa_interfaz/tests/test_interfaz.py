@@ -133,3 +133,28 @@ class TestInterfazWeb(HttpCase):
             console.log('test successful');
         })();""".replace('__APP__', json.dumps(self.env.ref('account.menu_finance').with_context(lang=admin.lang).name))
         self.browser_js('/odoo', codigo, login='admin')
+
+    def test_filtros_rapidos_en_productos(self):
+        """Productos: botones de filtro de un clic y categorías a la izquierda."""
+        codigo = """(async () => {
+            const esperar = async (fn, que) => {
+                for (let i = 0; i < 100; i++) {
+                    const r = fn();
+                    if (r) { return r; }
+                    await new Promise((ok) => setTimeout(ok, 100));
+                }
+                throw new Error('No apareció: ' + que);
+            };
+            await esperar(() => document.querySelector('.o_search_panel'), 'el panel de categorías');
+            const chip = await esperar(() => [...document.querySelectorAll('.o_dcasa_chip')]
+                .find((b) => b.textContent.trim() === 'Disponibles'), 'el filtro Disponibles');
+            chip.click();
+            const activo = () => [...document.querySelectorAll('.o_dcasa_chip.o_activo')]
+                .some((b) => b.textContent.includes('Disponibles'));
+            await esperar(activo, 'el filtro activo');
+            await esperar(() => document.querySelector('.o_searchview_facet'), 'la faceta en el buscador');
+            (await esperar(() => document.querySelector('.o_dcasa_chip_limpiar'), 'quitar filtros')).click();
+            await esperar(() => !document.querySelector('.o_dcasa_chip.o_activo'), 'sin filtros');
+            console.log('test successful');
+        })();"""
+        self.browser_js('/odoo/action-sale.product_template_action', codigo, login='admin')
