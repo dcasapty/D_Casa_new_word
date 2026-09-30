@@ -13,8 +13,10 @@ Módulo raíz del ERP de D'CASA Panamá.
 * Odoo al grano para la tienda: en español y hora de Panamá, precios con ITBMS
   incluido, descuentos y tamaños visibles, cobros en Efectivo, Yappy y Tarjeta,
   menú «Hoy» (ventas y cobros del día) y sin menús que no se usan.
+* Interfaz con la marca: azul D'CASA en vez del morado de Odoo, letra Inter y
+  cantidades enteras (se venden camas, no cuartos de cama).
 """,
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -35,6 +37,14 @@ Módulo raíz del ERP de D'CASA Panamá.
         'views/res_partner_views.xml',
         'views/hoy_views.xml',
     ],
+    'assets': {
+        'web._assets_primary_variables': [
+            ('prepend', 'dcasa_base/static/src/scss/primary_variables.scss'),
+        ],
+        'web.assets_backend': [
+            'dcasa_base/static/src/scss/backend.scss',
+        ],
+    },
     'post_init_hook': '_dcasa_base_post_init',
     'installable': True,
     'application': False,

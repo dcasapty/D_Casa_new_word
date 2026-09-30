@@ -74,3 +74,13 @@ class TestConfiguracionTienda(TransactionCase):
         accion = self.env.ref('dcasa_base.action_dcasa_cobros_hoy')
         self.assertEqual(accion.res_model, 'account.payment')
         self.assertIn('journal_id', accion.context)
+
+    def test_cantidades_enteras(self):
+        """Se venden camas, no cuartos de cama."""
+        self.assertEqual(self.env.ref('uom.decimal_product_uom').digits, 0)
+        self.assertEqual(self.env['res.lang']._lang_get(DCASA_LANG).decimal_point, '.')
+
+    def test_interfaz_con_la_marca(self):
+        from odoo.tools.misc import file_open
+        with file_open('dcasa_base/static/src/scss/primary_variables.scss') as variables:
+            self.assertIn('#1340B1', variables.read())

@@ -119,6 +119,12 @@ def _configurar_interfaz(env):
         if menu:
             menu.group_ids = [(6, 0, desarrollador.ids)]
 
+    # Se venden camas, no cuartos de cama: cantidades enteras en ventas, compras e inventario.
+    unidades = env.ref('uom.decimal_product_uom', raise_if_not_found=False)
+    if unidades:
+        unidades.digits = 0
+    _formato_panama(env)
+
     company = env.ref('base.main_company')
     almacen = env['stock.warehouse'].search([('company_id', '=', company.id)], limit=1)
     if almacen and almacen.name in ('My Company', 'YourCompany', company.name):
