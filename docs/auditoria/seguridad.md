@@ -27,7 +27,7 @@ Matriz (severidad estricta):
 | S-05 | MEDIO | socios | Registro sin verificar el celular: suplantación de fichas y oráculo de clientes; sin límite de intentos |
 | S-06 | MEDIO | borde | Sin limitación de tasa en `/web/login`, `/socios/*`, `/brian/mcp`; usuario `admin` predecible |
 | S-07 | MEDIO | borde | `/jsonrpc` (servicio `db`) no está bloqueado; el bloqueo de `/web/database` no normaliza la ruta |
-| S-08 | MEDIO | borde | Caché del Worker indexa solo por URL (no mira la cookie): riesgo de servir a anónimos contenido generado para un usuario (*por verificar*) |
+| S-08 | BAJO | borde | Caché del Worker indexa solo por URL: hoy seguro porque Odoo marca `private` todo lo no público (verificado en `vendor/odoo/odoo/http.py:690`); conviene no cachear con cookie |
 | S-09 | MEDIO | Brian | Modelos abstractos `brian.herramientas` / `brian.proveedores` invocables por RPC por cualquier usuario (incluido portal); `probar()` gasta la clave de IA |
 | S-10 | MEDIO | Brian | Inyección indirecta de instrucciones: herramientas de `construccion` (precio, datos de cliente) se ejecutan sin confirmación; datos personales salen al proveedor de IA |
 | S-11 | MEDIO | CI | Vista previa pública con clave de admin visible y `--network host` (decisión documentada, riesgo residual) |
@@ -48,8 +48,7 @@ Matriz (severidad estricta):
   (`_dcasa_guardar_pin` en `:304-312`, `desbloquear` en `:374`). El único control es la vista: el botón
   (`views/res_partner_views.xml:48`) no lleva `groups=`, y aunque lo llevara, la vista no es un control de acceso.
 - Explotación: Odoo permite llamar cualquier método público por `/web/dataset/call_kw` (o `/json/2`) con la sesión o una
-  clave de API. Un usuario interno sin relación con ventas (p. ej. bodega) —o un usuario portal, si existe registro
-  abierto (*por verificar*: depende de `auth_signup.invitation_scope`)— llama
+  clave de API; verificado: `vendor/odoo/odoo/service/model.py:74` (`call_kw` solo excluye métodos privados, no comprueba ACL) y `addons/web/controllers/dataset.py:28` (`auth="user"`). Un usuario interno sin relación con ventas (p. ej. bodega) —— llama
   `res.partner.action_dcasa_reiniciar_pin([id])`. La respuesta **contiene el PIN temporal** (`'title': 'PIN temporal: 123456'`),
   y con el celular del socio entra a `/socios/cuenta`, ve su saldo y movimientos y pide canjes. Además no queda rastro de
   quién lo hizo (no hay chatter ni asiento).
@@ -62,7 +61,7 @@ Matriz (severidad estricta):
 - Evidencia: `addons/dcasa_socios/models/dcasa_canje.py:159-162` (`action_entregar`) y `:173-176` (`action_cancelar`) → `_entregar`
   (`:142`) y `_cerrar` (`:164`) iteran `self.sudo()`. El CSV (`security/ir.model.access.csv`) solo da **lectura** de
   `dcasa.canje` a la vendedora y nada a nadie más; el método, sin embargo, escribe con `sudo()` y nunca comprueba.
-- Explotación: Odoo no comprueba ACL al despachar un método; solo las operaciones ORM sin `sudo`. Un usuario autenticado
+- Explotación: Odoo no comprueba ACL al despachar un método; solo las operaciones ORM sin `sudo`. **El registro libre está activo por defecto** (`vendor/odoo/addons/auth_signup/data/ir_config_parameter_data.xml:5`: `invitation_scope = b2c`), así que cualquier persona puede crearse un usuario portal en `/web/signup` y hacer esto sin ser empleado (salvo que se cambie a `b2b` en Ajustes; recomendado de todos modos). En S-01 el portal no llega porque `self.commercial_partner_id` se lee sin `sudo` y las reglas de partner lo frenan; los usuarios internos sí. Un usuario autenticado
   recorre ids consecutivos: `dcasa.canje.action_cancelar([n])` devuelve los puntos al libro y libera stock;
   `action_entregar([n])` marca «entregado» el premio de otro socio (lo quema: en el mostrador ya no se puede cobrar).
   También `_cerrar` repone `stock`.
@@ -124,17 +123,18 @@ Matriz (severidad estricta):
 
 - Evidencia: `edge/src/routing.ts:11` bloquea `/web/database`, `/xmlrpc/db`, `/xmlrpc/2/db` por prefijo exacto; **no** cubre `/jsonrpc`
   (servicio `db`: `drop`, `dump`, `restore`, `change_admin_password`…), y compara `url.pathname` sin decodificar ni colapsar `//`.
-- Mitigación real: `list_db=False` y la contraseña maestra larga (`entrypoint.sh`), y Werkzeug redirige `//` (por verificar). Por eso MEDIO y no ALTO: es defensa en profundidad,
+- Verificado en `vendor/odoo/addons/rpc/controllers/jsonrpc.py:11` (`/jsonrpc`, `auth="none"`, despacha `service=db` → `odoo/service/db.py`: `exp_drop`, `exp_dump`, `exp_restore`, `exp_change_admin_password`… protegidos solo por `check_super`; `exp_db_exist`/`exp_server_version` sin contraseña). Las rutas `/web/database/*` (`addons/web/controllers/database.py:65-170`) son `auth="none"` y `csrf=False`, y dependen igualmente de la contraseña maestra.
+- Mitigación real: `list_db=False` y la contraseña maestra larga (`entrypoint.sh`). Por eso MEDIO y no ALTO: es defensa en profundidad,
   pero la contraseña maestra queda expuesta a fuerza bruta (S-06) por una ruta que el Worker dice bloquear.
 - Arreglo: bloquear también `/jsonrpc` (Odoo 19 usa `/json/2` para integraciones), normalizar (`decodeURIComponent`, colapsar `/+`,
   minúsculas) antes de comparar, y añadir tests en `edge/test/routing.test.ts` con `//web/database/manager` y `/web/%64atabase`.
 
-### S-08 · MEDIO (por verificar) · Caché del borde y contenido por usuario
+### S-08 · BAJO · Caché del borde y contenido por usuario (verificado: hoy no es explotable)
 
 - Evidencia: `edge/src/handler.ts:28-39` y `routing.ts:30-47`. La clave es solo la URL; `isCacheableResponse` exige `Cache-Control: public` y
   sin `Set-Cookie`, pero la petición puede traer la cookie de sesión. Si Odoo responde `public` a un usuario autenticado por un
   `/web/image/…` o adjunto al que solo él accede, el Worker lo guarda y lo sirve a anónimos.
-- Por verificar en Odoo 19 (`ir.binary`/`Stream.get_response`): si usa `private` para usuarios no públicos, el riesgo no existe.
+- Verificado en `vendor/odoo/odoo/http.py:690-696`: `Stream.get_response` solo pone `public` si el adjunto es público (`ir.attachment.public`) o se pidió con `access_token`; todo lo demás sale `private`, que `isCacheableResponse` rechaza. Por eso es BAJO (defensa en profundidad), no un fallo actual.
 - Arreglo sencillo y sin coste: no leer ni escribir caché cuando la petición trae cookie `session_id` (solo cachear tráfico anónimo).
 - Relacionado (BAJO): las respuestas cacheables no pasan por `withSecurityHeaders` (`handler.ts:41`), así que los estáticos salen sin HSTS/nosniff.
 

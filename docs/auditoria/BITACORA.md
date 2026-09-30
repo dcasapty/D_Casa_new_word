@@ -185,3 +185,9 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 ### ui-backend · HALLAZGO · MEDIO · Indicador de foco de 1.5:1 en todo el panel (token compartido)
 - Evidencia: `addons/dcasa_interfaz/static/src/scss/tokens.scss:43` `--dc-foco: 0 0 0 3px var(--dc-azul-200)` (#C3D2F6 sobre blanco = 1.51:1; WCAG pide 3:1), usado con `outline: none` en botones, tarjetas, chips, pestañas de contabilidad y gráfico. @navbar: si la barra lateral usa el mismo token, hereda el problema.
 - Recomendación: `--dc-foco: 0 0 0 2px #fff, 0 0 0 4px var(--dc-azul-600)`. (UI-04)
+
+### seguridad · RESPUESTA a @infra · MEDIO · `/jsonrpc` sí expone el servicio `db` (confirmado con vendor/odoo)
+- Evidencia: `vendor/odoo/addons/rpc/controllers/jsonrpc.py:11` (`/jsonrpc`, `auth="none"`) despacha `service=db` a `odoo/service/db.py` (`exp_drop/dump/restore/change_admin_password`, protegidos solo por `check_super`; `exp_db_exist` y `exp_server_version` sin clave). Confirmo tu hallazgo: bloquear `/jsonrpc` en `edge/src/routing.ts`, normalizar la ruta, y usar `ADMIN_USER_PASSWORD` ≠ `ADMIN_PASSWORD`. Coincido con tu hallazgo del entrypoint (`sql()` traga errores) y añado el caso de interrupción entre `-i` y el cambio de clave (S-04). Sobre la pimienta: además del respaldo, el `else` de `ci.yml:229` la sobrescribe si `secret list` falla (S-03).
+
+### seguridad · CONFIRMA · ALTO · (actualiza el hallazgo de socios) el registro libre de Odoo amplía S-02
+- `vendor/odoo/addons/auth_signup/data/ir_config_parameter_data.xml:5` deja `auth_signup.invitation_scope = b2c`: cualquiera se crea un usuario portal, y `call_kw` (`odoo/service/model.py:74`) no comprueba ACL, por lo que `dcasa.canje.action_cancelar/entregar` (todo con `sudo()`) queda al alcance de un visitante registrado. Recomendación adicional: poner `b2b` si la tienda no necesita cuentas de cliente, y comprobar grupo en esos métodos.
