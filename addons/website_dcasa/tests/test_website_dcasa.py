@@ -277,25 +277,39 @@ class TestMarcaYMovimiento(HttpCase):
         self.assertEqual(website.menu_id.child_id[0].url, '/shop')
         catalogo = website.menu_id.child_id.filtered(lambda m: m.url == '/shop')
         self.assertEqual(catalogo.with_context(lang='es_419').name, 'Catálogo', 'No «Tienda» en español')
-        html = self.url_open('/').text
-        self.assertIn('id="visitanos"', html, 'El enlace «Visítanos» tiene a dónde ir')
+        visitanos = website.menu_id.child_id.filtered(lambda m: m.name == 'Visítanos')
+        self.assertEqual(visitanos.url, '/visitanos', 'Visítanos tiene su propia página')
 
-    def test_navbar_liquido_y_mapa(self):
+    def test_navbar_liquido_y_franja_visitanos(self):
         html = self.url_open('/').text
         self.assertIn('o_no_autohide_menu', html, 'Las tres opciones del menú nunca se esconden en el «+»')
         self.assertIn('id="dcasa-liquido"', html)
+        # En la portada solo una franja corta, sin mapa, que lleva a la página.
+        self.assertIn('id="visitanos"', html)
+        self.assertIn('href="/visitanos"', html)
+        self.assertNotIn('https://www.google.com/maps/embed?pb=', html)
+
+    def test_pagina_visitanos(self):
+        respuesta = self.url_open('/visitanos')
+        self.assertEqual(respuesta.status_code, 200)
+        html = respuesta.text
+        self.assertIn('Local 4550 PB-1', html)
         self.assertIn('https://www.google.com/maps/embed?pb=', html)
         self.assertRegex(html, r'title="Mapa: D(&#39;|\')CASA en La Chorrera"')
+        self.assertIn('destination=8.8765881%2C-79.7867962', html)
+        self.assertIn('Escríbenos por WhatsApp', html)
+        self.assertNotIn('horario de', html.lower(), 'No se inventa un horario')
         datos = json.loads(self.env.ref('website.default_website')._dcasa_json_ld())
         self.assertEqual(datos['geo']['latitude'], 8.8765881)
 
-    def test_menu_ancla_no_marca_activo(self):
+    def test_menu_visitanos_viejo_se_actualiza(self):
+        """Un sitio con el menú viejo (ancla /#visitanos) queda con uno solo, a la página."""
         website = self.env.ref('website.default_website')
-        visitanos = website.menu_id.child_id.filtered(lambda m: m.url == '/#visitanos')
-        html = self.url_open('/').text
-        enlace = re.search(r'<a[^>]*href="/#visitanos"[^>]*>', html).group(0)
-        self.assertNotIn('active', enlace, 'Un ancla de la portada no es «la página actual»')
-        self.assertTrue(visitanos)
+        website.menu_id.child_id.filtered(lambda m: m.url == '/visitanos').url = '/#visitanos'
+        self.env['website']._dcasa_armar_menu_principal()
+        urls = website.menu_id.child_id.mapped('url')
+        self.assertIn('/visitanos', urls)
+        self.assertNotIn('/#visitanos', urls)
 
     def test_armar_menu_respeta_lo_agregado(self):
         website = self.env.ref('website.default_website')

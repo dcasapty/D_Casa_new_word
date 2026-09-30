@@ -110,30 +110,81 @@
         </section>
     </template>
 
-    <template id="seccion_visitanos" name="D'CASA: visítanos">
-        <section id="visitanos" class="o_dcasa_visita">
-            <div class="o_dcasa_container o_dcasa_visita_inner">
-                <div class="o_dcasa_visita_texto">
-                    <div data-anim-cascada="izquierda">
-                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
-                        <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
-                        <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
-                    </div>
-                    <div class="o_dcasa_ctas">
-                        <a t-att-href="website._dcasa_whatsapp_url()" class="btn btn-lg o_dcasa_btn_amarillo"
-                           target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
-                        <a href="https://www.google.com/maps/dir/?api=1&amp;destination=8.8765881%2C-79.7867962"
-                           class="btn btn-lg o_dcasa_btn_linea" target="_blank" rel="noopener">
-                            <i class="fa fa-location-arrow me-2" aria-hidden="true"/>Cómo llegar <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
-                    </div>
+    <!-- Portada: una franja corta que lleva a la página «Visítanos» (el mapa vive allá). -->
+    <template id="seccion_visitanos" name="D'CASA: visítanos (franja)">
+        <section id="visitanos" class="o_dcasa_visita o_dcasa_visita_franja">
+            <div class="o_dcasa_container o_dcasa_visita_franja_inner">
+                <div>
+                    <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
+                    <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
+                    <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
                 </div>
-                <div class="o_dcasa_mapa" data-anim="escala">
-                    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
-                            title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
-                            allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
-                </div>
+                <a href="/visitanos" class="btn btn-lg o_dcasa_btn_amarillo">
+                    <i class="fa fa-map-marker me-2" aria-hidden="true"/>Cómo llegar y más información</a>
             </div>
         </section>
+    </template>
+
+    <!-- Página exclusiva /visitanos: dirección, mapa, cómo llegar y contacto. -->
+    <template id="pagina_visitanos" name="D'CASA: página Visítanos">
+        <t t-call="website.layout">
+            <t t-set="pageName" t-value="'visitanos'"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+            <t t-set="additional_title">Visítanos</t>
+            <t t-set="meta_description">D'CASA Panamá en La Chorrera: Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1. Cómo llegar y cómo escribirnos.</t>
+            <div id="wrap" class="o_dcasa_pagina_visita">
+                <section class="o_dcasa_hero o_dcasa_hero_compacto">
+                    <div class="o_dcasa_hero_media">
+                        <img src="/website_dcasa/static/src/img/insp-3.webp" width="640" height="640" alt=""/>
+                    </div>
+                    <div class="o_dcasa_container o_dcasa_hero_inner">
+                        <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                            <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
+                            <h1 class="o_dcasa_display mb-0">Te esperamos en La Chorrera</h1>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="o_dcasa_visita_detalle">
+                    <div class="o_dcasa_container o_dcasa_visita_detalle_inner">
+                        <div class="o_dcasa_visita_datos">
+                            <h2 class="o_dcasa_kicker">La tienda</h2>
+                            <address class="o_dcasa_visita_direccion">
+                                <strong>D'CASA Panamá</strong><br/>
+                                Avenida Las Américas, Urbanización Santa Clara,<br/>
+                                Local 4550 PB-1, La Chorrera, Panamá Oeste
+                            </address>
+                            <ul class="list-unstyled o_dcasa_visita_lista">
+                                <li><i class="fa fa-location-arrow fa-fw me-2" aria-hidden="true"/>
+                                    <a t-attf-href="https://www.google.com/maps/dir/?api=1&amp;destination={{latitud}}%2C{{longitud}}"
+                                       target="_blank" rel="noopener">Abrir la ruta en Google Maps
+                                        <span class="visually-hidden">(se abre en una pestaña nueva)</span></a></li>
+                                <li><i class="fa fa-phone fa-fw me-2" aria-hidden="true"/>
+                                    <a href="tel:+50760261919">+507 6026-1919</a></li>
+                                <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/>
+                                    <a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+                                <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/>
+                                    <a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
+                            </ul>
+                            <div class="o_dcasa_visita_aviso">
+                                <h2 class="o_dcasa_kicker">Antes de venir</h2>
+                                <p>Escríbenos y te confirmamos el horario, las existencias y los colores disponibles
+                                    del mueble que te gusta. Muchos vienen en caja: te los llevas hoy mismo.</p>
+                                <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero visitarlos en la tienda')"
+                                   class="btn btn-lg btn-primary" target="_blank" rel="noopener">
+                                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                                    <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                            </div>
+                        </div>
+                        <div class="o_dcasa_mapa o_dcasa_mapa_grande">
+                            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3942.0322672536827!2d-79.7867962!3d8.876588100000001!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8fac99005edffcdf%3A0x6c9c01465bb08b38!2sD'CASA!5e0!3m2!1ses-419!2spa!4v1790675155871!5m2!1ses-419!2spa"
+                                    title="Mapa: D'CASA en La Chorrera" width="600" height="450" loading="lazy"
+                                    allowfullscreen="" referrerpolicy="strict-origin-when-cross-origin"/>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
     </template>
 
     <template id="homepage_dcasa" inherit_id="website.homepage" name="D'CASA: inicio">

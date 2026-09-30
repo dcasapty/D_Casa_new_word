@@ -11,7 +11,7 @@ from odoo.http import request
 from odoo.tools.json import scriptsafe as json_scriptsafe
 from odoo.tools.misc import file_path
 
-# La tienda en Google Maps (ficha «D'CASA», La Chorrera): la usan el mapa de «Visítanos» y el JSON-LD.
+# La tienda en Google Maps (ficha «D'CASA», La Chorrera): la usan la página «Visítanos» y el JSON-LD.
 LATITUD, LONGITUD = 8.8765881, -79.7867962
 
 DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
@@ -30,14 +30,14 @@ CATEGORIAS_PORTADA = [
 MENU_PRINCIPAL = [
     ('Catálogo', '/shop'),
     ("Socios D'CASA", '/socios'),
-    ('Visítanos', '/#visitanos'),
+    ('Visítanos', '/visitanos'),
 ]
 
 
 def _es_menu_viejo(url):
     """Menús que el menú corto reemplaza: los de Odoo por defecto y los de una categoría."""
     url = url or ''
-    return url in ('/', '/shop', '/contactus', '/socios') or url.startswith('/shop/category/')
+    return url in ('/', '/shop', '/contactus', '/socios', '/#visitanos') or url.startswith('/shop/category/')
 
 
 _RESENAS = {'mtime': None, 'datos': None}

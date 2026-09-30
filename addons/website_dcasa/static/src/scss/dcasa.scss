@@ -1100,6 +1100,60 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     }
 }
 
+// Portada: franja corta que lleva a /visitanos (sin mapa).
+.o_dcasa_visita_franja {
+    padding-block: clamp(2.5rem, 6vw, 4rem);
+}
+
+.o_dcasa_visita_franja_inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem 3rem;
+}
+
+// Página /visitanos
+.o_dcasa_visita_detalle {
+    padding-block: $dcasa-sec;
+}
+
+.o_dcasa_visita_detalle_inner {
+    display: grid;
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: start;
+
+    @media (min-width: 992px) {
+        grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    }
+}
+
+.o_dcasa_visita_direccion {
+    font-size: 1.15rem;
+    line-height: 1.6;
+    color: $dcasa-navy;
+    margin: .75rem 0 1.5rem;
+}
+
+.o_dcasa_visita_lista li {
+    padding: .5rem 0;
+    border-bottom: 1px solid rgba($dcasa-navy, .1);
+}
+
+.o_dcasa_visita_aviso {
+    margin-top: 2rem;
+
+    p {
+        color: $dcasa-gris;
+        margin: .75rem 0 1.25rem;
+    }
+}
+
+.o_dcasa_mapa_grande {
+    aspect-ratio: 4 / 3;
+    background: rgba($dcasa-navy, .05);
+}
+
 // ---------------------------------------------------------------------------
 // Páginas de Odoo con la marca: tienda, ficha, carrito, contacto (auditoría UX)
 // ---------------------------------------------------------------------------

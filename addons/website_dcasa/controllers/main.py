@@ -1,4 +1,5 @@
 from odoo import http
+from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.addons.website_sale.controllers.main import WebsiteSale
 from odoo.fields import Domain
 from odoo.http import request
@@ -47,6 +48,11 @@ class DcasaTienda(http.Controller):
         carrito = request.cart or website._create_cart()
         carrito._cart_add(product_id=producto.product_variant_id.id, quantity=1)
         return request.redirect('/shop/cart')
+
+    @http.route('/visitanos', type='http', auth='public', website=True, sitemap=True)
+    def visitanos(self, **kwargs):
+        """Página exclusiva de la tienda: dirección, mapa, cómo llegar y contacto."""
+        return request.render('website_dcasa.pagina_visitanos', {'latitud': LATITUD, 'longitud': LONGITUD})
 
     @http.route('/whatsapp', type='http', auth='public', website=True, sitemap=False)
     def whatsapp(self, texto=None, **kwargs):
