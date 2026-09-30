@@ -404,3 +404,57 @@ Decisiones del dueño que cambian el rumbo:
 ### brian-evals · CONFIRMA · CRÍTICO · a enterprise-gap/brian-excel: «+ITBMS» sin decidir; se dejó como caso `XL-21` (juez LLM) que exige preguntar, no suponer
 - Evidencia: `Productos!C1` «Precio (+ITBMS)», `Notas!B5`; `herramientas_catalogo.py:182` dice «ITBMS incluido» y `scripts/importar_catalogo.py:11` lo aplica. Mientras la dueña no decida, cualquier eval de importación que fije una respuesta estaría inventando la verdad de terreno.
 - Recomendación: decidir y luego fijar la respuesta esperada en `XL-19/20/21`.
+
+---
+
+## RONDA 3 — Costo casi nulo, refactorizar o reconstruir, y Brian como mejor herramienta (2026-09-30)
+
+Mandato del dueño: agotar TODAS las vías para desplegar al menor costo posible con el mejor
+rendimiento; antes de descartar Cloudflare, investigarlo a fondo por dentro (MCP conectado);
+evaluar refactorizar o reconstruir a nuestra medida; Brian con la API de Meta (el dueño ya
+la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celdas, PDF, fotos).
+
+### Herramientas nuevas de esta ronda
+- **MCP de Cloudflare** (conector conectado): `mcp__Cloudflare_Developer_Platform__*`. Cárgalas con
+  ToolSearch (p. ej. `select:mcp__Cloudflare_Developer_Platform__search_cloudflare_documentation`).
+  **`search_cloudflare_documentation` devuelve la documentación OFICIAL vigente**: úsala para todo
+  precio y límite de Cloudflare (ya no dependemos del buscador; `developers.cloudflare.com` sigue
+  bloqueado para WebFetch). Cita URL + «Last updated» de la página.
+- **Solo lectura sobre la cuenta**: listar/leer sí; NO crear, borrar ni modificar recursos de
+  Cloudflare (costaría dinero y necesita aprobación del dueño).
+- **Skills oficiales de Cloudflare** clonadas como referencia en
+  `/tmp/claude-0/-home-user-D-Casa-new-word/df109763-bd03-5083-be8c-fbf5e389a556/scratchpad/cf-skills/skills/`
+  (agents-sdk, durable-objects, wrangler, workers-best-practices, web-perf, cloudflare, sandbox…).
+  Léelas (SKILL.md y sus referencias) antes de diseñar en tu área.
+- Skills de Claude disponibles con la herramienta Skill: `xlsx`, `pdf`, `docx`, `claude-api`.
+- `WebSearch`/`WebFetch` para lo que no sea Cloudflare (muchos dominios oficiales siguen bloqueados:
+  dilo y usa otra fuente; marca NO VERIFICADO).
+- Odoo 19 corre de verdad aquí (`vendor/odoo` inicializado, PostgreSQL 16 local, base `dcasa_test`):
+  **mide en vez de suponer**.
+
+### Inventario real de la cuenta de Cloudflare (leído por el coordinador vía MCP)
+- Workers: **0**. D1: **0**. KV: **0**. Hyperdrive: **0**. R2: **no activado** (error 10042
+  «Please enable R2 through the Cloudflare Dashboard»). Cuenta nueva: nunca se desplegó nada.
+
+### Hechos OFICIALES ya verificados (docs vía MCP)
+- **Containers** (https://developers.cloudflare.com/containers/platform/pricing/, Last updated
+  2026-08-28): cobro cada 10 ms activo. Workers Paid ($5) incluye 25 GiB-h de memoria, 375
+  vCPU-min, 200 GB-h de disco al mes. Excedente: memoria $0,0000025/GiB-s, CPU $0,000020/vCPU-s,
+  disco $0,00000007/GB-s. **Memoria y disco se cobran por lo APROVISIONADO; la CPU solo por USO
+  ACTIVO** (changelog 2025-11-21). ⇒ **Las cuentas de la ronda 2 (infra, cf-costos) cobraban la
+  CPU aprovisionada: hay que rehacerlas.**
+- **Tipos de instancia vigentes**: lite 1/16 vCPU·256 MiB·2 GB · basic 1/4·1 GiB·4 GB ·
+  standard-1 1/2·4 GiB·8 GB · standard-2 1·6 GiB·12 GB · standard-3 2·8 GiB·16 GB ·
+  standard-4 4·12 GiB·20 GB. Tipos personalizados: disco hasta 20 GB sin límite por memoria
+  (changelog 2026-09-29).
+- **Disco efímero** por defecto; **Snapshots en beta pública desde 2026-09-30** (solo con
+  scheduling policy `durable_object`; TTL implícito de 30 días, renovado en cada restauración;
+  atados a la versión de la imagen; no guardan memoria ni procesos). **FUSE a R2** posible, sin
+  rendimiento de SSD. Arranque en frío típico 1–3 s. Sin swap: OOM ⇒ reinicio.
+- **Workflows**: 10 M invocaciones, 30 M ms de CPU, 1 GB-mes y 500 000 pasos incluidos al mes en
+  Paid; pasos y almacenamiento se cobran desde no antes del 2026-08-10.
+
+---
+
+## Entradas (ronda 3)
+
