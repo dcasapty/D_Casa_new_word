@@ -82,3 +82,33 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### navbar · APRENDIZAJE · BAJO · Convención de sitios afectados por cambios en la barra
 - Cualquier cambio de ancho de la barra afecta `body.o_web_client` (grid, `barra_lateral.scss:9-17`) y oculta `.o_dcasa_apps` del Inicio en ≥lg (`:37`): quien audite el Inicio debe saber que en desktop las apps solo están en la barra; si la barra falla, el Inicio no ofrece las apps.
+
+### infra · HALLAZGO · ALTO · El presupuesto ($5 + $1 + R2) no cubre el contenedor de Odoo; el cron de 10 min impide que duerma
+- Evidencia: `edge/wrangler.jsonc:14,24`, `edge/src/index.ts:50,97-99`. `standard-2` + cron `*/10` = contenedor 24/7; memoria aprovisionada 6 GiB ≈ $45/mes solo de contenedor (precios por verificar con el MCP de Cloudflare), más Neon (~$0–20). Total realista $30–70/mes.
+- Recomendación: el dueño decide escenario (24/7 `standard-1`, reposo nocturno o VPS+túnel). Detalle y cuentas: `docs/auditoria/infra.md` §4.
+
+### infra · HALLAZGO · ALTO · Migraciones (`-u`) en el arranque: sin candado, sin copia previa y sin rollback
+- Evidencia: `docker/entrypoint.sh:77-85`; `.github/workflows/ci.yml:191` (APP_VERSION = SHA, cada push a main, aunque solo cambie docs). Dos arranques simultáneos corren `-u` en paralelo; volver a un SHA anterior corre `-u` con código viejo sobre esquema nuevo. Además `-u` de módulos propios no actualiza los estándar si sube `vendor/odoo` (`entrypoint.sh:82`).
+- Recomendación: job de migración en CI antes del deploy (rama de Neon + `-u`), contenedor sin auto-migración. Ver infra.md I-02, I-10.
+
+### infra · HALLAZGO · ALTO · Sin respaldo independiente de Neon ni ensayo de restauración
+- Evidencia: `docs/PLAN.md` Fase 3 (copia a R2 pendiente); ningún script/workflow de respaldo. Como los adjuntos están en la base (`dcasa_base/__init__.py:157-158`), un `pg_dump` cifrado diario a R2 sería el respaldo completo.
+- Recomendación: workflow programado `pg_dump` → age → R2 + restauración trimestral. infra.md I-03.
+
+### infra · HALLAZGO · MEDIO · `sql()` del entrypoint traga errores y puede tomar una base viva por «nueva» (resetea la clave de admin)
+- Evidencia: `docker/entrypoint.sh:55-57,62-72`: `psql … 2>/dev/null || true`; si falla la conexión, `installed=""` → rama «base nueva» → `ADMIN_USER_PASSWORD` pisa la contraseña de `admin`.
+- Recomendación: reintentos, abortar sin conexión, decidir «nueva» con `to_regclass('ir_module_module')`. infra.md I-06.
+
+### infra · PREGUNTA a @seguridad · MEDIO · Clave maestra = clave de `admin` por defecto; `/jsonrpc` (servicio `db`) no está bloqueado en el borde
+- Evidencia: `docker/entrypoint.sh:38,67` (`ADMIN_USER_PASSWORD` por defecto = `ADMIN_PASSWORD`), `edge/src/routing.ts:12` (solo bloquea `/web/database`, `/xmlrpc/db`, `/xmlrpc/2/db`).
+- Pregunta: ¿confirmas (con vendor/odoo 19 a la vista, por verificar) qué servicios `db` siguen vivos en `/jsonrpc`? Propongo exigir `ADMIN_USER_PASSWORD` distinta en producción. Además: `sslmode=require` sin verificar certificado (`entrypoint.sh:35`, `wrangler.jsonc:35`) y acciones de Actions por tag móvil sin Dependabot (`ci.yml:25,117`) son tuyos si los quieres cubrir; yo los dejo como BAJO en infra.md I-18/I-20.
+
+### infra · HALLAZGO · MEDIO · La pimienta del PIN de socios no tiene copia fuera de Cloudflare
+- Evidencia: `.github/workflows/ci.yml:224-234` la genera y «nadie la ve»; los secretos de Worker son de solo escritura. Perderla (borrar Worker, cambiar de cuenta, restaurar en staging) invalida todos los PIN sin recuperación. Afecta a @contabilidad/@seguridad (socios).
+- Recomendación: generarla fuera, guardarla en el gestor de contraseñas del dueño y como secreto del environment. infra.md I-14.
+
+### infra · APRENDIZAJE · MEDIO · Las sesiones de Odoo viven en disco efímero: cada reposo/deploy/reinicio vacía los carritos de la tienda
+- Evidencia: `docker/entrypoint.sh:31` (`data_dir`), `docs/ARQUITECTURA.md` solo menciona el backend. Quien audite la tienda (@sitio-web) debe asumir que el carrito y el checkout en curso no sobreviven a un reinicio; no escalar a >1 instancia sin resolver sesiones compartidas. infra.md I-04.
+
+### infra · HALLAZGO · MEDIO · `up media` (948 MB, 325 archivos) versionada: `.git` pesa 1,4 GB y cada job de CI la descarga
+- Evidencia: `git ls-files "up media" | wc -l` = 325; `.dockerignore:13` la excluye de la imagen pero no de `actions/checkout` (`ci.yml:25,60,90,115,167`). Recomendación: `sparse-checkout` en CI; a mediano plazo moverla a R2/LFS. infra.md I-09.
