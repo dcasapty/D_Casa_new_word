@@ -258,3 +258,30 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 - Verificado por el coordinador: ITBMS (Excel «+ITBMS» vs `catalogo.py` «incluido») y que `procesar_update` es invocable por RPC (impacto pendiente de PoC).
 - Causa común de seguridad: métodos públicos + `sudo()` sin control de grupo (S-01, S-02, B-01..B-04, S-09, C-07).
 - Siguiente ronda sugerida: PoC de B-01/B-03/S-01/S-02 por RPC, y arreglos P0 con test.
+
+---
+
+## RONDA 2 — Presupuesto Cloudflare-only y Brian como núcleo (fecha: 2026-09-30)
+
+Decisiones del dueño que cambian el rumbo:
+- **Neón/Neon descartado** (demasiado caro). Quiere sobrevivir con lo que ofrece **Cloudflare**, o con alternativas claramente más baratas que haya probado.
+- **Brian es el producto principal**: agente que se dispara por eventos, muy bien estructurado, multi-modelo (Claude, Meta Muse Spark, ChatGPT/OpenAI). El negocio vive de **Excel** (imágenes incrustadas en celdas, tablas, fórmulas, constantes), fotos y documentos: ese es el punto fuerte a construir.
+- Esta ronda exige **investigación en internet con fuentes citadas**. Reglas extra:
+  1. Cada precio/límite lleva **URL de la fuente y fecha de consulta**. Nada de memoria: si no lo puedes confirmar en una fuente vigente, márcalo `(NO VERIFICADO)`.
+  2. Distingue fuente oficial (docs/pricing del proveedor) de blogs/opiniones.
+  3. Informes en `docs/auditoria/ronda2/<agente>.md`; entradas en esta bitácora con el mismo formato.
+  4. Sigue siendo solo lectura sobre `addons/`, `edge/`, `docker/`, `.github/`.
+  5. Herramientas web: cargar `WebSearch` y `WebFetch` con ToolSearch (`select:WebSearch,WebFetch`). Si un host está bloqueado por el proxy, dilo y busca otra fuente.
+
+| Agente | Alcance |
+|---|---|
+| `cf-costos` | Qué puede hospedar Cloudflare de verdad (Odoo + PostgreSQL), costos reales, Zero Trust/Tunnel, alternativas baratas de base de datos |
+| `brian-modelos` | Multi-modelo (Claude, Muse Spark, OpenAI): capacidades, precios, ruteo, caché, batch, AI Gateway |
+| `brian-excel` | Lectura de Excel con imágenes, tablas, fórmulas, fotos y documentos: estado actual y diseño objetivo |
+| `brian-eventos` | Arquitectura por eventos (Workers, Queues, Workflows, Durable Objects), memoria y costo por invocación |
+| `brian-evals` | Evaluación, benchmarks, optimización de prompts y tokens, pruebas de extracción |
+
+---
+
+## Entradas (ronda 2)
+
