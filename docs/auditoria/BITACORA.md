@@ -47,3 +47,22 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ## Entradas
 
+
+### enterprise-gap · HALLAZGO · CRÍTICO · Precios del Excel son «+ITBMS» pero se cargan como «ITBMS incluido» (por confirmar)
+- Evidencia: Excel `up media/DCASA_listado_productos.xlsx` hoja Notas: «Todos los precios son +ITBMS»; encabezado «Precio (+ITBMS)». Prueba: combo Queen `1062010734/5/6N` = $329.99 en el Excel = base imponible de la factura real 00821 (`addons/dcasa_invoice/tests/test_dcasa_invoice.py:54-56`: 329.99 + 23.10 = 353.09). Código que lo trata como incluido: `addons/dcasa_catalogo/catalogo.py:50-65,114`, `addons/dcasa_base/__init__.py:65-76`; `docs/CATALOGO.md:20` afirma lo contrario del Excel.
+- Efecto: si se confirma, todo el catálogo (199) se vende 7 % bajo y el ITBMS por pagar sale menor.
+- Recomendación: confirmar con la dueña con la factura 00821; si es «más ITBMS», usar el impuesto «se suma al precio» con `list_price` = cifra del Excel (la web puede seguir mostrando con impuesto). @contabilidad: confirma o refuta desde el lado fiscal.
+
+### enterprise-gap · PREGUNTA a @contabilidad · ALTO · Costo de ventas e inventario valorizado
+- Evidencia: no hay `standard_price`, método de costo ni cuentas de inventario en `addons/` (grep `standard_price|property_valuation|stock_account|landed` = 0); `dcasa_contabilidad/models/reportes.py:185` (`_resultado`) y la Rentabilidad analítica mostrarán margen 100 % sin COGS.
+- Pregunta: ¿el plan `l10n_pa` define cuentas de valoración de inventario/entrada-salida? ¿Qué método de costo aprueba el contador (AVCO recomendado) y cómo se tratan fletes/aduana (`stock_landed_costs`, Community)? Propuesta completa en `docs/auditoria/enterprise-gap.md` (E-02, E-03).
+
+### enterprise-gap · HALLAZGO · MEDIO · «Cama con estantes» (las del combo de la factura 00821) quedan en la categoría Estantes
+- Evidencia: `scripts/importar_catalogo.py:55-56` (la regla `estante` va antes que `cama`) y `addons/dcasa_catalogo/data/catalogo.json` (`1062010734/5/6N`, `1062010751/2/3/4N` con `"categoria": "organizacion"`); comodín `return 'organizacion'` en `importar_catalogo.py:88`.
+- Recomendación: reordenar reglas o categoría explícita en `fichas.json`; el comodín debe avisar, no asignar.
+
+### enterprise-gap · PREGUNTA a @brian · MEDIO · Herramientas de margen, valorización y cobranza
+- Contexto: la hoja de ruta (`docs/auditoria/enterprise-gap.md` §6-7) propone `margen_por_producto`, `inventario_valorizado`, `antiguedad_de_saldos`, `sugerir_reposicion`, `recordatorio_de_cobro`, y carga de costos por lotes vía `actualizar_producto` (`dcasa_brian/models/herramientas_catalogo.py`). ¿Encajan en los niveles de permiso (costo = «sensible»)? ¿Brian hoy puede leer `standard_price` sin exponerlo a rol de ventas? (por verificar en `politica.py`).
+
+### enterprise-gap · APRENDIZAJE · BAJO · Qué es Community y no hace falta construir
+- Valoración/costo AVCO-FIFO, costos en destino, reorden, lotes/series, multialmacén, POS, firma en línea de cotización y cheques impresos son Community. Enterprise-only relevantes: informes contables dinámicos, conciliación bancaria (widget), activos/diferidos, follow-up, nómina, WhatsApp, helpdesk, documents/sign, studio, stock_barcode, marketing automation, IoT. `dcasa_contabilidad` ya cubre lo principal de contabilidad. Detalle y orden de construcción en `docs/auditoria/enterprise-gap.md`.
