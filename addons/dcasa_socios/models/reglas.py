@@ -163,6 +163,11 @@ def celular_normal(valor):
     return digitos[-8:] if len(digitos) > 8 else digitos
 
 
+def celular_fmt(normal):
+    """'61234567' → '6123-4567', como se escribe en Panamá."""
+    return f'{normal[:4]}-{normal[4:]}' if normal and len(normal) == 8 else (normal or '')
+
+
 def celular_valido(normal):
     return bool(re.fullmatch(r'[234567]\d{7}', normal or ''))
 

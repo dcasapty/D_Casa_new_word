@@ -5,7 +5,8 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
-            <div name="button_box" position="inside">
+            <!-- «Puntos» primero: en una laptop de 1366 px los últimos botones se esconden en «Más». -->
+            <xpath expr="//div[@name='button_box']/*[1]" position="before">
                 <button name="action_dcasa_ver_movimientos" type="object" class="oe_stat_button" icon="fa-star"
                         invisible="not dcasa_socio_codigo" groups="sales_team.group_sale_salesman">
                     <div class="o_stat_info">
@@ -13,7 +14,7 @@
                         <span class="o_stat_text">Puntos</span>
                     </div>
                 </button>
-            </div>
+            </xpath>
             <notebook position="inside">
                 <page string="Socio D'CASA" name="dcasa_socio" groups="sales_team.group_sale_salesman"
                       invisible="parent_id">

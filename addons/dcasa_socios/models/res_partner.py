@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.fields import Domain
 
 from . import reglas as R
 
@@ -21,6 +22,40 @@ class ResPartner(models.Model):
     # El código de socio también encuentra a la persona en cualquier campo de contacto.
     _rec_names_search = ['complete_name', 'email', 'ref', 'vat', 'company_registry', 'dcasa_socio_codigo']
 
+    @api.depends('phone')
+    def _compute_dcasa_telefono_digitos(self):
+        for partner in self:
+            partner.dcasa_telefono_digitos = R.celular_normal(partner.phone) or False
+
+    @api.model
+    def _search_display_name(self, operator, value):
+        """«6123», «61234567» o «6123-4567» encuentran al cliente por su teléfono o celular."""
+        dominio = super()._search_display_name(operator, value)
+        digitos = R.solo_digitos(value) if isinstance(value, str) else ''
+        if operator == 'ilike' and len(digitos) >= 4 and len(digitos) >= len(value.replace(' ', '')) - 2:
+            dominio = Domain.OR([dominio, [('dcasa_telefono_digitos', 'ilike', digitos)],
+                                 [('dcasa_celular', 'ilike', digitos)]])
+        return dominio
+
+    @api.onchange('phone')
+    def _onchange_dcasa_phone_duplicado(self):
+        """Avisa ANTES de guardar si ese celular ya es de otro cliente (y de quién)."""
+        celular = R.celular_normal(self.phone)
+        if not R.celular_valido(celular):
+            return None
+        otro = self.sudo().with_context(active_test=False).search([
+            ('id', 'not in', self.ids + ([self._origin.id] if self._origin.id else [])),
+            '|', ('dcasa_telefono_digitos', '=', celular), ('dcasa_celular', '=', celular),
+        ], limit=1)
+        if otro:
+            return {'warning': {
+                'title': self.env._('Ese celular ya está registrado'),
+                'message': self.env._(
+                    'El %(celular)s ya es de %(nombre)s. Busca esa ficha en vez de crear otra: '
+                    'un celular, un cliente.', celular=R.celular_fmt(celular), nombre=otro.display_name),
+            }}
+        return None
+
     # --- La ficha ------------------------------------------------------------
     # Un cliente y un socio son LA MISMA FICHA: el contacto de Odoo. Estar en el
     # programa es un estado suyo: con PIN es un socio; sin PIN es un cliente que
@@ -31,6 +66,9 @@ class ResPartner(models.Model):
     dcasa_celular = fields.Char(
         string='Celular del programa', copy=False, index='btree_not_null',
         help='Ocho dígitos nacionales. Es la llave del socio: un celular, una ficha.')
+    dcasa_telefono_digitos = fields.Char(
+        string='Teléfono (solo números)', compute='_compute_dcasa_telefono_digitos', store=True,
+        index='btree_not_null', help='Para encontrar al cliente escribiendo su celular con o sin guion.')
     dcasa_socio_estado = fields.Selection(ESTADOS_SOCIO, string='Estado en el programa', default='activo',
                                           copy=False)
     dcasa_cumple = fields.Char(string='Cumpleaños (MM-DD)', copy=False,

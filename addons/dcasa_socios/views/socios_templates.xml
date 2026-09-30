@@ -183,9 +183,11 @@
                                 <div class="small text-muted">Enséñalo en la tienda antes del
                                     <span t-field="canje.expira_en" t-options="{'widget': 'datetime', 'tz_name': 'America/Panama', 'format': 'dd/MM/yyyy h:mm a'}"/></div>
                             </div>
-                            <form t-attf-action="/socios/canjes/#{canje.codigo}/cancelar" method="post">
+                            <form t-attf-action="/socios/canjes/#{canje.codigo}/cancelar" method="post"
+                                  data-confirmar="¿Cancelar este premio? Los puntos vuelven a tu saldo."
+                                  onsubmit="return confirm(this.dataset.confirmar)">
                                 <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                <button type="submit" class="btn btn-link btn-sm">Cancelar</button>
+                                <button type="submit" class="btn btn-link o_dcasa_socios_btn_toque">Cancelar</button>
                             </form>
                         </div>
                     </div>
@@ -198,10 +200,12 @@
                                     <div class="fw-bold" t-out="premio.name"/>
                                     <div class="small text-muted" t-out="premio.descripcion"/>
                                     <div class="my-2"><strong t-out="fmt_puntos(premio.puntos)"/> puntos</div>
-                                    <form action="/socios/canjear" method="post">
+                                    <form action="/socios/canjear" method="post"
+                                          t-att-data-confirmar="'¿Pedir «%s»? Se descuentan %s puntos de tu saldo.' % (premio.name, fmt_puntos(premio.puntos))"
+                                          onsubmit="return confirm(this.dataset.confirmar)">
                                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                                         <input type="hidden" name="premio_id" t-att-value="premio.id"/>
-                                        <button t-if="saldo &gt;= premio.puntos" type="submit" class="btn btn-sm btn-primary w-100">Pedir</button>
+                                        <button t-if="saldo &gt;= premio.puntos" type="submit" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Pedir</button>
                                         <span t-else="" class="small">Te faltan <t t-out="fmt_puntos(premio.puntos - saldo)"/></span>
                                     </form>
                                 </div>

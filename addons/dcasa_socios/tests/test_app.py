@@ -2,7 +2,7 @@ import os
 import re
 from unittest.mock import patch
 
-from odoo.tests import HttpCase, tagged
+from odoo.tests import HttpCase, TransactionCase, tagged
 
 
 @tagged('post_install', '-at_install')
@@ -101,3 +101,28 @@ class TestAppSocio(HttpCase):
         self.assertIn(socio.dcasa_socio_codigo, self.url_open('/socios/cuenta').text)
         socio.action_dcasa_reiniciar_pin()
         self.assertNotIn(socio.dcasa_socio_codigo, self.url_open('/socios/cuenta').text)
+
+
+@tagged('post_install', '-at_install')
+class TestAuditoriaSocios(TransactionCase):
+    """Auditoría de UX: la vendedora encuentra al cliente por su celular y no duplica fichas."""
+
+    def setUp(self):
+        super().setUp()
+        self.ana = self.env['res.partner'].create({'name': 'Ana Auditoría', 'phone': '6123-4567'})
+
+    def test_buscar_por_celular_como_sea(self):
+        for texto in ('6123', '61234567', '6123-4567'):
+            encontrados = self.env['res.partner'].name_search(texto)
+            self.assertIn(self.ana.id, [i for i, _n in encontrados], texto)
+
+    def test_aviso_de_celular_repetido_antes_de_guardar(self):
+        nueva = self.env['res.partner'].new({'name': 'Otra', 'phone': '61234567'})
+        aviso = nueva._onchange_dcasa_phone_duplicado()
+        self.assertIn('Ana Auditoría', aviso['warning']['message'])
+        self.assertIn('6123-4567', aviso['warning']['message'])
+
+    def test_socio_confirma_antes_de_pedir(self):
+        vista = self.env.ref('dcasa_socios.socios_cuenta', raise_if_not_found=False)
+        arch = (vista or self.env['ir.ui.view'].search([('key', 'ilike', 'dcasa_socios.%cuenta%')], limit=1)).arch_db
+        self.assertIn('confirm(this.dataset.confirmar)', arch)

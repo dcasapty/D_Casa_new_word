@@ -44,7 +44,11 @@ $dcasa-amarillo: #FED00F;
     color: #FFFFFF;
     border-radius: 1rem;
     padding: 1.75rem;
-    border-bottom: 12px solid $dcasa-amarillo;
+    // Sin franja amarilla abajo: tocaba el fondo blanco (regla de marca).
+
+    .o_dcasa_kicker {
+        color: rgba(255, 255, 255, .88);  // «Tus puntos» legible sobre el azul (contraste AA)
+    }
 
     .o_dcasa_socios_saldo_n {
         font-family: 'Anton', 'Oswald', sans-serif;
@@ -90,4 +94,10 @@ $dcasa-amarillo: #FED00F;
     color: $dcasa-azul;
     margin-top: 1.5rem;
     text-transform: uppercase;
+}
+
+// Botones de la app del socio: al menos 44 px para el dedo.
+.o_dcasa_socios_btn_toque {
+    min-height: 44px;
+    min-width: 44px;
 }
