@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Monograma de Brian: una «B» en el azul de la marca. -->
+    <t t-name="dcasa_brian.Monograma">
+        <span t-attf-class="o_brian_monograma {{ tamano ? 'o_brian_monograma_' + tamano : '' }}" aria-hidden="true">B</span>
+    </t>
+
+    <t t-name="dcasa_brian.Brian">
+        <!-- Botón flotante, en todas las pantallas. -->
+        <button type="button" class="o_brian_lanzador d-print-none" t-ref="lanzador"
+                t-att-class="{'o_brian_oculto': abierto.abierto}"
+                t-att-tabindex="abierto.abierto ? -1 : undefined"
+                t-att-aria-expanded="abierto.abierto ? 'true' : 'false'" aria-controls="o_brian_panel"
+                aria-label="Hablar con Brian, el asistente (Ctrl + J)" title="Brian · Ctrl + J"
+                t-on-click="() => brian.abrir()">
+            <t t-call="dcasa_brian.Monograma"/>
+            <span class="o_brian_lanzador_texto">Brian</span>
+        </button>
+
+        <aside id="o_brian_panel" class="o_brian_panel d-print-none" t-ref="panel"
+               t-att-class="{'o_brian_visible': abierto.abierto, 'o_brian_arrastrando': state.arrastrando}"
+               t-att-aria-hidden="abierto.abierto ? 'false' : 'true'"
+               aria-label="Brian, el asistente de D'CASA"
+               t-on-keydown="alTeclaPanel"
+               t-on-dragenter="alArrastrar" t-on-dragover="alArrastrar"
+               t-on-dragleave="alSalirArrastre" t-on-drop="alSoltar">
+
+            <!-- Encabezado -->
+            <header class="o_brian_encabezado">
+                <button t-if="state.vista === 'historial'" type="button" class="o_brian_icono_btn"
+                        aria-label="Volver a la conversación" title="Volver" t-on-click="volverAlChat">
+                    <i class="fa fa-arrow-left" aria-hidden="true"/>
+                </button>
+                <t t-call="dcasa_brian.Monograma"/>
+                <div class="o_brian_identidad">
+                    <h2 class="o_brian_nombre">Brian</h2>
+                    <p class="o_brian_estado" t-att-class="{'o_brian_estado_aviso': sinClave}">
+                        <span class="o_brian_punto" aria-hidden="true"/>
+                        <t t-esc="estadoTexto"/>
+                    </p>
+                </div>
+                <button t-if="state.vista === 'chat'" type="button" class="o_brian_icono_btn"
+                        aria-label="Conversaciones anteriores" title="Conversaciones anteriores" t-on-click="verHistorial">
+                    <i class="fa fa-history" aria-hidden="true"/>
+                </button>
+                <button type="button" class="o_brian_icono_btn" aria-label="Nueva conversación"
+                        title="Nueva conversación" t-on-click="nuevaConversacion">
+                    <i class="fa fa-pencil-square-o" aria-hidden="true"/>
+                </button>
+                <button type="button" class="o_brian_icono_btn o_brian_cerrar" aria-label="Cerrar a Brian (Esc)"
+                        title="Cerrar (Esc)" t-on-click="() => brian.cerrar()">
+                    <i class="fa fa-times" aria-hidden="true"/>
+                </button>
+            </header>
+
+            <div t-if="sinClave" class="o_brian_aviso" role="status">
+                <i class="fa fa-key" aria-hidden="true"/>
+                <span t-esc="avisoSinClave"/>
+            </div>
+
+            <!-- Historial de conversaciones -->
+            <section t-if="state.vista === 'historial'" class="o_brian_historial" aria-label="Conversaciones anteriores">
+                <h3 class="o_brian_subtitulo">Conversaciones</h3>
+                <p t-if="state.cargandoLista" class="o_brian_vacio_lista">Cargando…</p>
+                <p t-elif="!state.conversaciones.length" class="o_brian_vacio_lista">Todavía no hay conversaciones.</p>
+                <ul t-else="" class="o_brian_lista">
+                    <li t-foreach="state.conversaciones" t-as="conv" t-key="conv.id">
+                        <button type="button" class="o_brian_conv"
+                                t-att-class="{'o_activa': conv.id === state.conversacionId}"
+                                t-att-aria-current="conv.id === state.conversacionId ? 'true' : undefined"
+                                t-on-click="() => this.abrirConversacion(conv)">
+                            <i t-attf-class="fa {{ conv.canal === 'telegram' ? 'fa-paper-plane' : 'fa-comment-o' }}" aria-hidden="true"/>
+                            <span class="o_brian_conv_titulo" t-esc="conv.titulo || 'Conversación'"/>
+                            <span class="o_brian_conv_fecha" t-esc="fecha(conv.fecha)"/>
+                        </button>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- Conversación -->
+            <t t-else="">
+                <div class="o_brian_mensajes" t-ref="mensajes" role="log" aria-live="polite" aria-label="Conversación con Brian">
+                    <div t-if="!state.mensajes.length" class="o_brian_bienvenida">
+                        <t t-call="dcasa_brian.Monograma"><t t-set="tamano" t-value="'grande'"/></t>
+                        <h3>Hola, soy Brian</h3>
+                        <p>Te ayudo con ventas, inventario, clientes, facturas y socios. Veo la pantalla donde estás, así que puedes preguntarme por lo que tienes delante.</p>
+                        <p t-if="lugar" class="o_brian_lugar"><i class="fa fa-map-marker" aria-hidden="true"/> Estás en <strong t-esc="lugar"/></p>
+                    </div>
+
+                    <t t-foreach="state.mensajes" t-as="m" t-key="m.id">
+                        <t t-call="dcasa_brian.Mensaje"/>
+                    </t>
+
+                    <div t-if="state.pensando" class="o_brian_fila o_brian_fila_brian" role="status">
+                        <div class="o_brian_pensando">
+                            <span class="o_brian_puntos" aria-hidden="true"><i/><i/><i/></span>
+                            Brian está pensando…
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pie: sugerencias, adjuntos y entrada -->
+                <footer class="o_brian_pie">
+                    <div t-if="!state.mensajes.length and !state.pensando" class="o_brian_chips" role="group" aria-label="Sugerencias">
+                        <button t-foreach="sugerencias" t-as="chip" t-key="chip" type="button" class="o_brian_chip"
+                                t-on-click="() => this.usarSugerencia(chip)" t-esc="chip"/>
+                    </div>
+
+                    <ul t-if="state.adjuntos.length" class="o_brian_adjuntos" aria-label="Archivos adjuntos">
+                        <li t-foreach="state.adjuntos" t-as="a" t-key="a.clave" class="o_brian_adjunto"
+                            t-att-class="{'o_subiendo': a.subiendo}">
+                            <img t-if="a.vista" t-att-src="a.vista" alt=""/>
+                            <i t-else="" class="fa fa-file-o" aria-hidden="true"/>
+                            <span class="o_brian_adjunto_nombre" t-esc="a.nombre"/>
+                            <i t-if="a.subiendo" class="fa fa-circle-o-notch fa-spin" aria-label="Subiendo"/>
+                            <button t-else="" type="button" class="o_brian_adjunto_quitar"
+                                    t-att-aria-label="'Quitar ' + a.nombre" t-on-click="() => this.quitarAdjunto(a)">
+                                <i class="fa fa-times" aria-hidden="true"/>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <form class="o_brian_entrada" t-on-submit.prevent="() => this.enviar()">
+                        <button type="button" class="o_brian_icono_btn o_brian_clip" aria-label="Adjuntar archivos o fotos"
+                                title="Adjuntar archivos o fotos" t-on-click="elegirArchivo">
+                            <i class="fa fa-paperclip" aria-hidden="true"/>
+                        </button>
+                        <input type="file" multiple="multiple" class="d-none" t-ref="archivo" t-on-change="alElegirArchivo"
+                               tabindex="-1" aria-hidden="true"/>
+                        <label for="o_brian_texto" class="visually-hidden">Escríbele a Brian</label>
+                        <textarea id="o_brian_texto" class="o_brian_texto" rows="1" t-ref="entrada"
+                                  placeholder="Escríbele a Brian…" t-model="state.texto"
+                                  t-on-keydown="alTeclear" t-on-input="alEscribir" t-on-paste="alPegar"
+                                  aria-describedby="o_brian_ayuda"/>
+                        <button type="submit" class="o_brian_enviar" aria-label="Enviar" title="Enviar (Enter)"
+                                t-att-disabled="state.pensando or (!state.texto.trim() and !state.adjuntos.length)">
+                            <i class="fa fa-arrow-up" aria-hidden="true"/>
+                        </button>
+                    </form>
+                    <p id="o_brian_ayuda" class="o_brian_ayuda">Enter envía · Shift + Enter, nueva línea · Ctrl + J abre y cierra</p>
+                </footer>
+            </t>
+
+            <div t-if="state.arrastrando" class="o_brian_soltar" aria-hidden="true">
+                <i class="fa fa-cloud-upload" aria-hidden="true"/>
+                Suelta aquí para adjuntar
+            </div>
+        </aside>
+    </t>
+
+    <!-- Un mensaje -->
+    <t t-name="dcasa_brian.Mensaje">
+        <div t-if="m.rol === 'tool'" class="o_brian_fila o_brian_fila_brian">
+            <t t-call="dcasa_brian.Herramientas"><t t-set="herramientas" t-value="m.herramientas"/></t>
+            <div t-if="m.texto and !(m.herramientas and m.herramientas.length)" class="o_brian_herramienta">
+                <i class="fa fa-wrench" aria-hidden="true"/> <span t-esc="m.texto"/>
+            </div>
+        </div>
+        <div t-elif="m.error" class="o_brian_fila o_brian_fila_brian">
+            <div class="o_brian_burbuja o_brian_burbuja_error" role="alert">
+                <i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="m.texto"/>
+            </div>
+        </div>
+        <div t-else="" t-attf-class="o_brian_fila {{ m.rol === 'user' ? 'o_brian_fila_usuario' : 'o_brian_fila_brian' }}">
+            <span class="visually-hidden" t-esc="m.rol === 'user' ? 'Tú dijiste:' : 'Brian dijo:'"/>
+            <t t-if="m.rol !== 'user'">
+                <t t-call="dcasa_brian.Herramientas"><t t-set="herramientas" t-value="m.herramientas"/></t>
+            </t>
+            <div t-if="m.texto" t-attf-class="o_brian_burbuja {{ m.rol === 'user' ? 'o_brian_burbuja_usuario' : 'o_brian_burbuja_brian' }}">
+                <t t-if="m.rol === 'user'"><t t-esc="m.texto"/></t>
+                <t t-else="" t-call="dcasa_brian.Markdown"><t t-set="bloques" t-value="markdown(m.texto)"/></t>
+            </div>
+            <ul t-if="m.adjuntos and m.adjuntos.length" class="o_brian_adjuntos o_brian_adjuntos_msg">
+                <li t-foreach="m.adjuntos" t-as="a" t-key="a.id" class="o_brian_adjunto">
+                    <i t-attf-class="fa {{ a.mimetype and a.mimetype.startsWith('image/') ? 'fa-picture-o' : 'fa-file-o' }}" aria-hidden="true"/>
+                    <span class="o_brian_adjunto_nombre" t-esc="a.nombre"/>
+                </li>
+            </ul>
+
+            <!-- Acción sensible: Brian propone, la persona confirma. -->
+            <div t-if="m.confirmacion" class="o_brian_tarjeta"
+                 t-attf-class="o_brian_tarjeta_{{ m.confirmacion.estado }}" role="group"
+                 t-att-aria-label="'Acción: ' + (m.confirmacion.resumen or '')">
+                <div class="o_brian_tarjeta_estado">
+                    <i t-attf-class="fa {{ estadoAccion(m.confirmacion).icono }}" aria-hidden="true"/>
+                    <t t-esc="estadoAccion(m.confirmacion).texto"/>
+                </div>
+                <p class="o_brian_tarjeta_resumen" t-esc="m.confirmacion.resumen"/>
+                <p t-if="m.confirmacion.herramienta" class="o_brian_tarjeta_herramienta" t-esc="nombreHerramienta(m.confirmacion.herramienta)"/>
+                <div t-if="m.confirmacion.estado === 'por_confirmar'" class="o_brian_tarjeta_botones">
+                    <button type="button" class="o_brian_btn o_brian_btn_primario" t-on-click="() => this.confirmar(m)">
+                        <i class="fa fa-check" aria-hidden="true"/> Confirmar
+                    </button>
+                    <button type="button" class="o_brian_btn o_brian_btn_secundario" t-on-click="() => this.rechazar(m)">Cancelar</button>
+                </div>
+            </div>
+
+            <div t-if="enlacesAbrir(m).length" class="o_brian_abrir_grupo">
+                <button t-foreach="enlacesAbrir(m)" t-as="destino" t-key="destino_index" type="button"
+                        class="o_brian_abrir" t-on-click="() => this.abrirRegistro(destino)">
+                    <span t-esc="destino.titulo || 'Abrir'"/>
+                    <i class="fa fa-arrow-right" aria-hidden="true"/>
+                </button>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="dcasa_brian.Herramientas">
+        <details t-if="herramientas and herramientas.length" class="o_brian_herramientas">
+            <summary>
+                <i class="fa fa-wrench" aria-hidden="true"/>
+                <t t-if="herramientas.length === 1">Usó <t t-esc="nombreHerramienta(herramientas[0].nombre)"/></t>
+                <t t-else="">Usó <t t-esc="herramientas.length"/> herramientas</t>
+            </summary>
+            <ul>
+                <li t-foreach="herramientas" t-as="h" t-key="h_index">
+                    <i t-attf-class="fa {{ h.ok === false ? 'fa-times text-danger' : (h.ok === null ? 'fa-hand-paper-o' : 'fa-check') }}" aria-hidden="true"/>
+                    <strong t-esc="nombreHerramienta(h.nombre)"/>
+                    <span t-if="h.error or h.resumen"> — <t t-esc="h.error or h.resumen"/></span>
+                </li>
+            </ul>
+        </details>
+    </t>
+
+    <!-- Markdown seguro: solo estructura, todo texto escapado por OWL. -->
+    <t t-name="dcasa_brian.Markdown">
+        <t t-foreach="bloques" t-as="b" t-key="b_index">
+            <p t-if="b.tipo === 'p'">
+                <t t-foreach="b.lineas" t-as="linea" t-key="linea_index">
+                    <br t-if="linea_index"/>
+                    <t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="linea"/></t>
+                </t>
+            </p>
+            <h4 t-elif="b.tipo === 'h'"><t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="b.inline"/></t></h4>
+            <ul t-elif="b.tipo === 'ul'">
+                <li t-foreach="b.items" t-as="item" t-key="item_index"><t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="item"/></t></li>
+            </ul>
+            <ol t-elif="b.tipo === 'ol'">
+                <li t-foreach="b.items" t-as="item" t-key="item_index"><t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="item"/></t></li>
+            </ol>
+            <div t-elif="b.tipo === 'tabla'" class="o_brian_tabla">
+                <table>
+                    <thead><tr>
+                        <th t-foreach="b.encabezado" t-as="celda" t-key="celda_index"><t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="celda"/></t></th>
+                    </tr></thead>
+                    <tbody>
+                        <tr t-foreach="b.filas" t-as="fila" t-key="fila_index">
+                            <td t-foreach="fila" t-as="celda" t-key="celda_index"><t t-call="dcasa_brian.Inline"><t t-set="partes" t-value="celda"/></t></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <pre t-elif="b.tipo === 'codigo'"><code t-esc="b.texto"/></pre>
+        </t>
+    </t>
+
+    <t t-name="dcasa_brian.Inline">
+        <t t-foreach="partes" t-as="p" t-key="p_index">
+            <strong t-if="p.t === 'negrita'" t-esc="p.v"/>
+            <em t-elif="p.t === 'cursiva'" t-esc="p.v"/>
+            <code t-elif="p.t === 'codigo'" t-esc="p.v"/>
+            <a t-elif="p.t === 'enlace'" t-att-href="p.href" t-att-target="p.href.startsWith('/') ? undefined : '_blank'" rel="noopener noreferrer" t-esc="p.v"/>
+            <t t-else="" t-esc="p.v"/>
+        </t>
+    </t>
+
+    <!-- Barra superior -->
+    <t t-name="dcasa_brian.Systray">
+        <div class="o_brian_systray d-flex align-items-center">
+            <button type="button" class="o_brian_systray_btn" t-on-click="() => brian.alternar()"
+                    t-att-aria-expanded="abierto.abierto ? 'true' : 'false'" aria-controls="o_brian_panel"
+                    aria-label="Brian, el asistente (Ctrl + J)" title="Brian · Ctrl + J">
+                <t t-call="dcasa_brian.Monograma"><t t-set="tamano" t-value="'mini'"/></t>
+            </button>
+        </div>
+    </t>
+</templates>

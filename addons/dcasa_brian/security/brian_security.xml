@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Núcleo de Brian: cada quien ve solo lo suyo. -->
+    <record id="regla_brian_conversacion_propia" model="ir.rule">
+        <field name="name">Brian: cada usuario ve solo sus conversaciones</field>
+        <field name="model_id" ref="model_brian_conversacion"/>
+        <field name="domain_force">[('usuario_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="regla_brian_mensaje_propio" model="ir.rule">
+        <field name="name">Brian: cada usuario ve solo los mensajes de sus conversaciones</field>
+        <field name="model_id" ref="model_brian_mensaje"/>
+        <field name="domain_force">[('conversacion_id.usuario_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="regla_brian_accion_propia" model="ir.rule">
+        <field name="name">Brian: cada usuario ve sus propias acciones</field>
+        <field name="model_id" ref="model_brian_accion"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="regla_brian_accion_admin" model="ir.rule">
+        <field name="name">Brian: los administradores ven todo el registro de acciones</field>
+        <field name="model_id" ref="model_brian_accion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
+    </record>
+</odoo>

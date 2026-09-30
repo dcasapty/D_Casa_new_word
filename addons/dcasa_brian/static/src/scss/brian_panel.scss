@@ -1,0 +1,709 @@
+// Brian: botón flotante y panel lateral con el sistema de diseño D'CASA (tokens --dc-*).
+// Plano: superficies blancas, bordes finos, azul de la marca para acciones y para lo que
+// escribe el usuario. Sin amarillo: en este panel todo es blanco y azul.
+
+$brian-ancho: 400px;
+
+.o_brian_monograma {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--dc-azul-600, #1340B1);
+    color: var(--dc-blanco, #fff);
+    font-family: "Anton", "Inter", sans-serif;
+    font-size: 1.05rem;
+    line-height: 1;
+    letter-spacing: .02em;
+    user-select: none;
+}
+.o_brian_monograma_mini {
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    font-size: .85rem;
+}
+.o_brian_monograma_grande {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    font-size: 1.8rem;
+}
+
+// --- Botón flotante ---------------------------------------------------------------
+.o_brian_lanzador {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px 6px 6px;
+    border: 1px solid var(--dc-azul-700);
+    border-radius: 999px;
+    background: var(--dc-azul-600);
+    color: var(--dc-blanco);
+    font-family: "Inter", sans-serif;
+    font-weight: 600;
+    font-size: .95rem;
+    box-shadow: var(--dc-sombra-2);
+    transition: transform var(--dc-transicion), background-color var(--dc-transicion), opacity var(--dc-transicion);
+
+    .o_brian_monograma {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        background: var(--dc-blanco);
+        color: var(--dc-azul-600);
+    }
+
+    &:hover { background: var(--dc-azul-700); transform: translateY(-1px); }
+    &:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300); }
+
+    &.o_brian_oculto {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+    }
+}
+
+// --- Panel ------------------------------------------------------------------------
+.o_brian_panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1045;
+    width: $brian-ancho;
+    max-width: 100vw;
+    display: flex;
+    flex-direction: column;
+    background: var(--dc-blanco);
+    border-left: 1px solid var(--dc-linea);
+    box-shadow: -8px 0 24px rgba(14, 26, 51, .05);
+    color: var(--dc-tinta);
+    font-family: "Inter", sans-serif;
+    font-size: .92rem;
+    transform: translateX(100%);
+    visibility: hidden;
+    transition: transform var(--dc-transicion), visibility 0s linear 200ms;
+
+    &.o_brian_visible {
+        transform: none;
+        visibility: visible;
+        transition: transform var(--dc-transicion), visibility 0s;
+    }
+}
+
+// En pantallas anchas el panel hace espacio en lugar de tapar el trabajo.
+@include media-breakpoint-up(xl) {
+    body.o_web_client.o_brian_abierto {
+        padding-right: $brian-ancho;
+    }
+}
+
+@include media-breakpoint-down(md) {
+    .o_brian_panel {
+        width: 100vw;
+        border-left: 0;
+        box-shadow: none;
+    }
+    // En el celular Brian vive en la barra superior: el botón flotante taparía
+    // los botones de los formularios y las filas de las listas.
+    .o_brian_lanzador { display: none; }
+}
+
+// --- Encabezado ---------------------------------------------------------------------
+.o_brian_encabezado {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 12px 12px 16px;
+    border-bottom: 1px solid var(--dc-linea);
+    background: var(--dc-blanco);
+}
+
+.o_brian_identidad {
+    flex: 1;
+    min-width: 0;
+}
+
+.o_brian_nombre {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    color: var(--dc-tinta);
+    line-height: 1.2;
+}
+
+.o_brian_estado {
+    margin: 2px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .78rem;
+    color: var(--dc-tinta-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    .o_brian_punto {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #1F9D55;
+        flex: none;
+    }
+    &.o_brian_estado_aviso .o_brian_punto { background: var(--dc-tinta-3); }
+}
+
+.o_brian_icono_btn {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    background: transparent;
+    color: var(--dc-tinta-2);
+    font-size: 1rem;
+    transition: background-color var(--dc-transicion), color var(--dc-transicion);
+
+    &:hover { background: var(--dc-niebla); color: var(--dc-azul-600); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_brian_aviso {
+    flex: none;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin: 12px 16px 0;
+    padding: 10px 12px;
+    border: 1px solid var(--dc-azul-100);
+    border-radius: var(--dc-r-md);
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-800);
+    font-size: .84rem;
+    line-height: 1.45;
+
+    .fa { margin-top: 3px; color: var(--dc-azul-600); }
+}
+
+// --- Historial ------------------------------------------------------------------------
+.o_brian_historial {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.o_brian_subtitulo {
+    font-size: .74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--dc-tinta-3);
+    margin: 0 0 8px 4px;
+}
+
+.o_brian_vacio_lista {
+    color: var(--dc-tinta-3);
+    padding: 8px 4px;
+}
+
+.o_brian_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.o_brian_conv {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 10px;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    background: transparent;
+    color: var(--dc-tinta);
+    text-align: left;
+
+    .fa { color: var(--dc-tinta-3); width: 16px; text-align: center; }
+    &:hover { background: var(--dc-niebla); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_activa { background: var(--dc-azul-50); color: var(--dc-azul-700); font-weight: 600; }
+}
+
+.o_brian_conv_titulo {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_brian_conv_fecha {
+    flex: none;
+    font-size: .76rem;
+    color: var(--dc-tinta-3);
+    font-variant-numeric: tabular-nums;
+}
+
+// --- Mensajes ---------------------------------------------------------------------------
+.o_brian_mensajes {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: var(--dc-nieve);
+}
+
+.o_brian_bienvenida {
+    margin: auto 0;
+    padding: 24px 8px;
+    text-align: center;
+    color: var(--dc-tinta-2);
+
+    h3 {
+        margin: 14px 0 6px;
+        font-size: 1.15rem;
+        font-weight: 700;
+        letter-spacing: -.01em;
+        color: var(--dc-tinta);
+    }
+    p { margin: 0 auto 8px; max-width: 30ch; line-height: 1.5; }
+}
+
+.o_brian_lugar {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    font-size: .8rem;
+    max-width: 100% !important;
+    strong { color: var(--dc-tinta); font-weight: 600; }
+}
+
+.o_brian_fila {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-width: 100%;
+}
+.o_brian_fila_usuario { align-items: flex-end; }
+.o_brian_fila_brian { align-items: flex-start; }
+
+.o_brian_burbuja {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: var(--dc-r-lg);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.o_brian_burbuja_usuario {
+    background: var(--dc-azul-600);
+    color: var(--dc-blanco);
+    border-bottom-right-radius: 6px;
+    white-space: pre-wrap;
+}
+
+.o_brian_burbuja_brian {
+    background: var(--dc-blanco);
+    color: var(--dc-tinta);
+    border: 1px solid var(--dc-linea);
+    border-bottom-left-radius: 6px;
+
+    > :last-child { margin-bottom: 0; }
+    p { margin: 0 0 8px; }
+    h4 { font-size: .95rem; font-weight: 700; margin: 4px 0 6px; }
+    ul, ol { margin: 0 0 8px; padding-left: 20px; }
+    li + li { margin-top: 2px; }
+    strong { font-weight: 700; }
+    code {
+        padding: 1px 5px;
+        border-radius: 4px;
+        background: var(--dc-niebla);
+        color: var(--dc-azul-800);
+        font-size: .85em;
+    }
+    pre {
+        margin: 0 0 8px;
+        padding: 10px;
+        border-radius: var(--dc-r-sm);
+        background: var(--dc-niebla);
+        white-space: pre-wrap;
+        code { padding: 0; background: none; }
+    }
+    a { color: var(--dc-azul-600); text-decoration: underline; }
+}
+
+.o_brian_tabla {
+    margin: 0 0 8px;
+    overflow-x: auto;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; font-variant-numeric: tabular-nums; }
+    th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--dc-linea); white-space: nowrap; }
+    th { background: var(--dc-niebla); font-weight: 600; color: var(--dc-tinta-2); }
+    tr:last-child td { border-bottom: 0; }
+}
+
+.o_brian_burbuja_error {
+    background: #FDF1F1;
+    color: #8A1C1C;
+    border: 1px solid #F4D4D4;
+}
+
+.o_brian_herramientas {
+    max-width: 88%;
+    font-size: .8rem;
+    color: var(--dc-tinta-3);
+
+    summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        cursor: pointer;
+        list-style: none;
+        &::-webkit-details-marker { display: none; }
+        &:hover { background: var(--dc-perla); color: var(--dc-tinta-2); }
+        &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    }
+    ul { margin: 6px 0 0; padding: 8px 12px; list-style: none; background: var(--dc-blanco); border: 1px solid var(--dc-linea); border-radius: var(--dc-r-sm); }
+    li { display: flex; gap: 6px; align-items: baseline; }
+    li + li { margin-top: 4px; }
+    .fa-check { color: #1F9D55; }
+}
+
+.o_brian_herramienta {
+    font-size: .8rem;
+    color: var(--dc-tinta-3);
+}
+
+.o_brian_pensando {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-lg);
+    border-bottom-left-radius: 6px;
+    background: var(--dc-blanco);
+    color: var(--dc-tinta-3);
+    font-size: .86rem;
+}
+
+.o_brian_puntos {
+    display: inline-flex;
+    gap: 3px;
+    i {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--dc-azul-400);
+        animation: o_brian_rebote 1.1s infinite ease-in-out;
+        &:nth-child(2) { animation-delay: .15s; }
+        &:nth-child(3) { animation-delay: .3s; }
+    }
+}
+
+@keyframes o_brian_rebote {
+    0%, 80%, 100% { opacity: .3; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-3px); }
+}
+
+// --- Tarjeta de confirmación -------------------------------------------------------------
+.o_brian_tarjeta {
+    width: 88%;
+    padding: 12px 14px;
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-md);
+    background: var(--dc-blanco);
+
+    &.o_brian_tarjeta_hecha { border-color: #CDE9D8; }
+    &.o_brian_tarjeta_error, &.o_brian_tarjeta_bloqueada { border-color: #F4D4D4; }
+    &.o_brian_tarjeta_rechazada { border-color: var(--dc-linea); }
+}
+
+.o_brian_tarjeta_estado {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--dc-azul-600);
+
+    .o_brian_tarjeta_hecha & { color: #1F7A45; }
+    .o_brian_tarjeta_error &, .o_brian_tarjeta_bloqueada & { color: #A12626; }
+    .o_brian_tarjeta_rechazada & { color: var(--dc-tinta-3); }
+}
+
+.o_brian_tarjeta_resumen {
+    margin: 6px 0 0;
+    color: var(--dc-tinta);
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+
+.o_brian_tarjeta_herramienta {
+    margin: 4px 0 0;
+    font-size: .78rem;
+    color: var(--dc-tinta-3);
+}
+
+.o_brian_tarjeta_botones {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.o_brian_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    border-radius: var(--dc-r-sm);
+    font-weight: 600;
+    font-size: .86rem;
+    border: 1px solid transparent;
+    transition: background-color var(--dc-transicion), border-color var(--dc-transicion);
+
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+.o_brian_btn_primario {
+    background: var(--dc-azul-600);
+    color: var(--dc-blanco);
+    &:hover { background: var(--dc-azul-700); }
+}
+.o_brian_btn_secundario {
+    background: var(--dc-blanco);
+    color: var(--dc-azul-700);
+    border-color: var(--dc-linea-fuerte);
+    &:hover { background: var(--dc-niebla); }
+}
+
+.o_brian_abrir_grupo {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    max-width: 88%;
+}
+
+.o_brian_abrir {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border: 1px solid var(--dc-azul-200);
+    border-radius: 999px;
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-700);
+    font-weight: 600;
+    font-size: .84rem;
+
+    &:hover { background: var(--dc-azul-100); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+// --- Pie: sugerencias, adjuntos y entrada ---------------------------------------------------
+.o_brian_pie {
+    flex: none;
+    padding: 10px 12px 10px;
+    border-top: 1px solid var(--dc-linea);
+    background: var(--dc-blanco);
+}
+
+.o_brian_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.o_brian_chip {
+    padding: 6px 12px;
+    border: 1px solid var(--dc-linea);
+    border-radius: 999px;
+    background: var(--dc-blanco);
+    color: var(--dc-azul-700);
+    font-size: .82rem;
+    font-weight: 500;
+    text-align: left;
+    transition: background-color var(--dc-transicion), border-color var(--dc-transicion);
+
+    &:hover { background: var(--dc-azul-50); border-color: var(--dc-azul-200); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_brian_adjuntos {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.o_brian_adjuntos_msg { max-width: 88%; justify-content: flex-end; margin: 0; }
+.o_brian_fila_brian .o_brian_adjuntos_msg { justify-content: flex-start; }
+
+.o_brian_adjunto {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 220px;
+    padding: 4px 6px 4px 8px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-niebla);
+    font-size: .8rem;
+    color: var(--dc-tinta-2);
+
+    img { width: 24px; height: 24px; object-fit: cover; border-radius: 4px; }
+    &.o_subiendo { opacity: .7; }
+}
+.o_brian_adjunto_nombre {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.o_brian_adjunto_quitar {
+    border: 0;
+    background: transparent;
+    color: var(--dc-tinta-3);
+    padding: 0 4px;
+    border-radius: 4px;
+    &:hover { color: var(--dc-tinta); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_brian_entrada {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding: 6px;
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-md);
+    background: var(--dc-blanco);
+    transition: border-color var(--dc-transicion), box-shadow var(--dc-transicion);
+
+    &:focus-within {
+        border-color: var(--dc-azul-500);
+        box-shadow: var(--dc-foco);
+    }
+}
+
+.o_brian_texto {
+    flex: 1;
+    min-width: 0;
+    min-height: 34px;
+    max-height: 160px;
+    padding: 7px 4px;
+    border: 0;
+    outline: none;
+    resize: none;
+    background: transparent;
+    color: var(--dc-tinta);
+    font: inherit;
+    line-height: 1.4;
+
+    &::placeholder { color: var(--dc-tinta-3); }
+}
+
+.o_brian_enviar {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-azul-600);
+    color: var(--dc-blanco);
+    transition: background-color var(--dc-transicion);
+
+    &:hover:not(:disabled) { background: var(--dc-azul-700); }
+    &:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300); }
+    &:disabled { background: var(--dc-perla); color: var(--dc-tinta-3); }
+}
+
+.o_brian_ayuda {
+    margin: 6px 2px 0;
+    font-size: .72rem;
+    color: var(--dc-tinta-3);
+    text-align: center;
+}
+
+@include media-breakpoint-down(md) {
+    .o_brian_ayuda { display: none; }
+}
+
+// Arrastrar y soltar
+.o_brian_soltar {
+    position: absolute;
+    inset: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px dashed var(--dc-azul-400);
+    border-radius: var(--dc-r-lg);
+    background: rgba(242, 246, 254, .94);
+    color: var(--dc-azul-700);
+    font-weight: 600;
+    pointer-events: none;
+
+    .fa { font-size: 1.8rem; }
+}
+
+.o_brian_systray_btn {
+    display: inline-grid;
+    place-items: center;
+    padding: 4px 6px;
+    border: 0;
+    background: transparent;
+    border-radius: var(--dc-r-sm);
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+// En escritorio ya está el botón flotante: la barra superior no lo repite (en el celular sí).
+@include media-breakpoint-up(lg) {
+    .o_brian_systray { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_brian_panel,
+    .o_brian_panel.o_brian_visible,
+    .o_brian_lanzador,
+    .o_brian_chip,
+    .o_brian_entrada {
+        transition: none;
+    }
+    .o_brian_lanzador:hover { transform: none; }
+    .o_brian_puntos i { animation: none; opacity: .6; }
+}
