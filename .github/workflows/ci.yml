@@ -1,0 +1,234 @@
+name: CI/CD
+
+# Cada push y PR corre: lint, tests de Odoo, tests del borde (Worker) y una
+# prueba de humo de la imagen Docker. Solo si TODO pasa y el push es a main,
+# se despliega a Cloudflare.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (Python + XML)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check addons --output-format=github
+      - name: XML bien formado
+        run: |
+          python - <<'PY'
+          import pathlib, sys
+          from xml.etree import ElementTree
+          bad = []
+          for path in pathlib.Path("addons").rglob("*.xml"):
+              try:
+                  ElementTree.parse(path)
+              except ElementTree.ParseError as exc:
+                  bad.append(f"{path}: {exc}")
+          print("\n".join(bad) or "OK")
+          sys.exit(1 if bad else 0)
+          PY
+
+  odoo-tests:
+    name: Tests de Odoo
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: vendor/odoo/requirements.txt
+      - name: Dependencias del sistema
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libldap2-dev libsasl2-dev libpq-dev postgresql-client
+      - name: Dependencias de Odoo
+        run: pip install -r vendor/odoo/requirements.txt
+      - name: Instalar módulos y correr tests
+        run: scripts/test.sh
+        env:
+          DB_HOST: localhost
+          PYTHON: python
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: odoo-test-log
+          path: .test.log
+
+  edge:
+    name: Tests del borde (Cloudflare Worker)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: edge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: edge/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  docker:
+    name: Imagen Docker (prueba de humo)
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: dcasa
+          POSTGRES_PASSWORD: dcasa
+          POSTGRES_DB: dcasa
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: docker/setup-buildx-action@v3
+      - name: Construir imagen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          tags: dcasa-odoo:ci
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Arrancar la imagen contra una base vacía
+        run: |
+          docker run -d --name odoo --network host \
+            -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa \
+            -e DB_SSLMODE=disable -e ADMIN_PASSWORD=ci-admin -e APP_VERSION=${{ github.sha }} \
+            -e DCASA_PIN_PEPPER=ci \
+            dcasa-odoo:ci
+          for i in $(seq 1 120); do
+            if curl -fsS http://localhost:8069/web/health >/dev/null 2>&1; then echo "Odoo arriba"; break; fi
+            sleep 5
+          done
+          curl -fsS http://localhost:8069/web/health
+      - name: El sitio responde con la marca D'CASA
+        run: |
+          curl -fsS http://localhost:8069/ | grep -q "Tu casa, bien amueblada"
+          curl -fsS -o /dev/null http://localhost:8069/shop
+          curl -fsS http://localhost:8069/socios | grep -q "Tus puntos"
+      - if: always()
+        run: docker logs odoo 2>&1 | tail -200
+
+  deploy:
+    name: Desplegar a Cloudflare
+    needs: [lint, odoo-tests, edge, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: ¿Está configurado Cloudflare?
+        id: guard
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::Faltan los secretos de Cloudflare: se omite el despliegue (ver docs/DESPLIEGUE.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.guard.outputs.ready == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+      - if: steps.guard.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: edge/package-lock.json
+      - if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        run: npm ci
+      - name: wrangler deploy (Worker + contenedor de Odoo)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        env:
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_USER: ${{ vars.DB_USER }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+          BRIAN_PROVEEDOR: ${{ vars.BRIAN_PROVEEDOR }}
+          BRIAN_MODELO: ${{ vars.BRIAN_MODELO }}
+          BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
+        run: |
+          args=(--var "APP_VERSION:${GITHUB_SHA}")
+          for name in DB_HOST DB_USER DB_NAME CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
+            if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
+          done
+          npx wrangler deploy "${args[@]}"
+      - name: Secretos del Worker (contraseñas de la base y de Odoo)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
+        run: |
+          node -e 'process.stdout.write(JSON.stringify({DB_PASSWORD: process.env.DB_PASSWORD, ADMIN_PASSWORD: process.env.ADMIN_PASSWORD}))' \
+            | npx wrangler secret bulk
+      - name: Secretos de Brian (IA y Telegram; opcionales, solo si están cargados)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        env:
+          BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
+        run: |
+          node -e '
+            const names = ["BRIAN_API_KEY", "TELEGRAM_BOT_TOKEN", "BRIAN_TELEGRAM_SECRETO"];
+            const out = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+            process.stdout.write(JSON.stringify(out));
+          ' > "$RUNNER_TEMP/brian.json"
+          if [ "$(cat "$RUNNER_TEMP/brian.json")" != "{}" ]; then
+            npx wrangler secret bulk "$RUNNER_TEMP/brian.json"
+          else
+            echo "Sin secretos de Brian: el asistente queda sin configurar (ver docs/BRIAN.md)."
+          fi
+          rm -f "$RUNNER_TEMP/brian.json"
+      - name: Pimienta del PIN de socios (se crea una vez, nunca se sobrescribe)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        run: |
+          # Cambiarla rompe el PIN de TODOS los socios a la vez y no tiene vuelta atrás.
+          if npx wrangler secret list --format json | grep -q '"DCASA_PIN_PEPPER"'; then
+            echo "La pimienta ya existe: no se toca."
+          else
+            openssl rand -hex 32 | npx wrangler secret put DCASA_PIN_PEPPER
+            echo "Pimienta creada. Nadie la ve ni la tiene que recordar."
+          fi

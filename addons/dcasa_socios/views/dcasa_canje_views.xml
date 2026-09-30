@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_canje_list" model="ir.ui.view">
+        <field name="name">dcasa.canje.list</field>
+        <field name="model">dcasa.canje</field>
+        <field name="arch" type="xml">
+            <list string="Canjes" create="false" decoration-info="estado == 'solicitado'"
+                  decoration-muted="estado in ('vencido', 'cancelado')">
+                <field name="codigo"/>
+                <field name="partner_id"/>
+                <field name="premio_nombre"/>
+                <field name="puntos" sum="Puntos"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="valor" optional="show"/>
+                <field name="costo" optional="hide" sum="Costo"/>
+                <field name="solicitado_en"/>
+                <field name="expira_en"/>
+                <field name="estado" widget="badge" decoration-info="estado == 'solicitado'"
+                       decoration-success="estado == 'entregado'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_canje_form" model="ir.ui.view">
+        <field name="name">dcasa.canje.form</field>
+        <field name="model">dcasa.canje</field>
+        <field name="arch" type="xml">
+            <form string="Canje" create="false" edit="false">
+                <header>
+                    <button name="action_entregar" type="object" string="Entregar" class="btn-primary"
+                            invisible="estado != 'solicitado' or premio_tipo != 'producto'"/>
+                    <button name="action_cancelar" type="object" string="Cancelar y devolver puntos"
+                            invisible="estado != 'solicitado'" groups="sales_team.group_sale_manager"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="solicitado,entregado"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="codigo"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="premio_id"/>
+                            <field name="premio_nombre"/>
+                            <field name="premio_tipo"/>
+                            <field name="puntos"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="valor"/>
+                            <field name="costo"/>
+                        </group>
+                        <group>
+                            <field name="solicitado_en"/>
+                            <field name="expira_en"/>
+                            <field name="entregado_en" invisible="not entregado_en"/>
+                            <field name="entregado_por" invisible="not entregado_por"/>
+                            <field name="sale_order_id" invisible="not sale_order_id"/>
+                            <field name="cerrado_motivo" invisible="not cerrado_motivo"/>
+                        </group>
+                    </group>
+                    <p class="text-muted" invisible="premio_tipo != 'descuento' or estado != 'solicitado'">
+                        Los descuentos se cobran en la venta: botón «Cobrar premio» de la cotización.
+                    </p>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_canje_search" model="ir.ui.view">
+        <field name="name">dcasa.canje.search</field>
+        <field name="model">dcasa.canje</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="codigo"/>
+                <field name="partner_id"/>
+                <field name="premio_id"/>
+                <filter name="pendientes" string="Pendientes" domain="[('estado', '=', 'solicitado')]"/>
+                <filter name="entregados" string="Entregados" domain="[('estado', '=', 'entregado')]"/>
+                <group>
+                    <filter name="g_premio" string="Premio" context="{'group_by': 'premio_id'}"/>
+                    <filter name="g_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_canjes" model="ir.actions.act_window">
+        <field name="name">Canjes</field>
+        <field name="res_model">dcasa.canje</field>
+        <field name="view_mode">list,form,pivot</field>
+        <field name="context">{'search_default_pendientes': 1}</field>
+    </record>
+
+    <record id="view_dcasa_premio_list" model="ir.ui.view">
+        <field name="name">dcasa.premio.list</field>
+        <field name="model">dcasa.premio</field>
+        <field name="arch" type="xml">
+            <list string="Premios">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="tipo"/>
+                <field name="puntos"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="valor"/>
+                <field name="costo"/>
+                <field name="stock_limitado" optional="show"/>
+                <field name="stock" optional="show"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_premio_form" model="ir.ui.view">
+        <field name="name">dcasa.premio.form</field>
+        <field name="model">dcasa.premio</field>
+        <field name="arch" type="xml">
+            <form string="Premio">
+                <sheet>
+                    <field name="image_512" widget="image" class="oe_avatar"/>
+                    <div class="oe_title"><h1><field name="name" placeholder="Ej.: $10 de descuento"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="descripcion"/>
+                            <field name="tipo"/>
+                            <field name="puntos"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="valor"/>
+                            <field name="costo"/>
+                            <field name="stock_limitado"/>
+                            <field name="stock" invisible="not stock_limitado"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_premios" model="ir.actions.act_window">
+        <field name="name">Premios</field>
+        <field name="res_model">dcasa.premio</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

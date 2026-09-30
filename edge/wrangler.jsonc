@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dcasa",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+
+  // Odoo 19 + módulos de D'CASA. La imagen se construye desde docker/Dockerfile.
+  "containers": [
+    {
+      "class_name": "OdooContainer",
+      "image": "../docker/Dockerfile",
+      "image_build_context": "..",
+      // 1 vCPU, 6 GiB RAM: Odoo con website + eCommerce necesita memoria.
+      "instance_type": "standard-2",
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "ODOO", "class_name": "OdooContainer" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
+
+  // Mantiene vivos los procesos programados de Odoo (ver scheduled() en src/index.ts).
+  "triggers": { "crons": ["*/10 * * * *"] },
+
+  // Valores no secretos. Los secretos (DB_PASSWORD, ADMIN_PASSWORD) se cargan con
+  // `wrangler secret put` o desde GitHub Actions (ver docs/DESPLIEGUE.md).
+  "vars": {
+    "CANONICAL_HOST": "dcasapty.com",
+    "DB_HOST": "CAMBIAR.neon.tech",
+    "DB_PORT": "5432",
+    "DB_NAME": "dcasa",
+    "DB_USER": "dcasa",
+    "DB_SSLMODE": "require"
+  },
+
+  // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
+  // "routes": [
+  //   { "pattern": "dcasapty.com", "custom_domain": true },
+  //   { "pattern": "www.dcasapty.com", "custom_domain": true }
+  // ]
+}

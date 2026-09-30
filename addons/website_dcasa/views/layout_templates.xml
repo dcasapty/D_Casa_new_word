@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Botón flotante de WhatsApp en todo el sitio (CTA único del ADN). -->
+    <template id="layout_whatsapp_float" inherit_id="website.layout" name="D'CASA: botón de WhatsApp"
+              customize_show="True">
+        <xpath expr="//div[@id='wrapwrap']" position="inside">
+            <!-- En carrito y checkout no: taparía el botón de confirmar (la página ya ofrece WhatsApp). -->
+            <aside t-if="website and not request.httprequest.path.startswith(('/shop/cart', '/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info'))"
+                   aria-label="WhatsApp">
+                <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
+                   class="o_dcasa_wa_float" title="Escríbenos por WhatsApp">
+                    <i class="fa fa-whatsapp" aria-hidden="true"/>
+                    <span class="visually-hidden">Escríbenos por WhatsApp (se abre en una pestaña nueva)</span>
+                </a>
+            </aside>
+        </xpath>
+    </template>
+
+    <!-- Barra de anuncios: resuelve las tres objeciones de compra antes del scroll.
+         Va DENTRO de la cabecera con o_header_hide_on_scroll: Odoo la pliega sola cuando la
+         cabecera queda fija, y el hero puede meterse debajo de las dos (header_overlay). -->
+    <template id="layout_anuncios" inherit_id="website.layout" name="D'CASA: barra de anuncios">
+        <xpath expr="//header/*[1]" position="before">
+            <div t-if="website" class="o_dcasa_anuncios o_header_hide_on_scroll" role="region" aria-label="Avisos de D'CASA">
+                <div class="o_dcasa_container o_dcasa_anuncios_inner">
+                    <span><i class="fa fa-truck me-2" aria-hidden="true"/>Entrega a todo Panamá</span>
+                    <span class="d-none d-md-inline"><i class="fa fa-credit-card me-2" aria-hidden="true"/>Financiamiento flexible</span>
+                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                </div>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Cabecera sobre el hero: la portada (pageName) y las plantillas que piden
+         `dcasa_header_overlay` (contacto, socios) llevan la misma clase que la opción de Odoo
+         «Cabecera sobre el contenido». -->
+    <template id="layout_cabecera_sobre_hero" inherit_id="website.layout" name="D'CASA: cabecera sobre el hero">
+        <xpath expr="//div[@id='wrapwrap']" position="attributes">
+            <attribute name="t-attf-class" add="#{'o_header_overlay' if dcasa_header_overlay or pageName == 'homepage' else ''}" separator=" "/>
+        </xpath>
+    </template>
+
+    <!-- Datos estructurados de la tienda (Google: ficha local y resultados enriquecidos). -->
+    <template id="layout_json_ld" inherit_id="website.layout" name="D'CASA: datos estructurados">
+        <xpath expr="//head" position="inside">
+            <script t-if="website and request and request.httprequest.path in ('/', website.homepage_url or '/')" type="application/ld+json"
+                    t-out="website._dcasa_json_ld()"/>
+        </xpath>
+    </template>
+
+    <!-- Descripción para Google de la tienda (las categorías pueden tener la suya propia). -->
+    <template id="products_meta_dcasa" inherit_id="website_sale.products" name="D'CASA: descripción de la tienda">
+        <xpath expr="//t[@t-call='website.layout']" position="inside">
+            <t t-set="website_meta_description">Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, zapateras, estantes y escritorios con precios claros. Entrega a todo Panamá desde La Chorrera.</t>
+        </xpath>
+    </template>
+
+    <!-- Ficha de producto: WhatsApp con el nombre del mueble y sellos de confianza junto al botón de compra. -->
+    <template id="product_cta_dcasa" inherit_id="website_sale.cta_wrapper" name="D'CASA: confianza en la ficha">
+        <!-- WhatsApp es el CTA de la marca: botón principal y antes de «Agregar al carrito». -->
+        <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="before">
+            <a t-if="website and product" t-att-href="website._dcasa_whatsapp_producto(product)" target="_blank" rel="noopener"
+               class="btn btn-primary btn-lg w-100 mb-3 o_dcasa_wa_producto">
+                <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Pregunta por este mueble por WhatsApp
+            </a>
+            <ul class="o_dcasa_sellos" role="list">
+                <li><i class="fa fa-truck" aria-hidden="true"/><span><strong>Entrega a todo Panamá.</strong> Costo y fecha por WhatsApp.</span></li>
+                <li><i class="fa fa-cube" aria-hidden="true"/><span><strong>Te lo llevas hoy.</strong> Muchos vienen en caja y caben en tu carro.</span></li>
+                <li><i class="fa fa-credit-card" aria-hidden="true"/><span><strong>Financiamiento.</strong> Crédito flexible, te explicamos cómo.</span></li>
+                <li><i class="fa fa-map-marker" aria-hidden="true"/><span><strong>Míralo en tienda.</strong> Av. Las Américas, La Chorrera.</span></li>
+            </ul>
+        </xpath>
+    </template>
+
+    <!-- Filtro de refracción del navbar de vidrio líquido. animaciones.js lo aplica (en línea,
+         con una variable CSS) solo donde backdrop-filter: url() funciona, y le agrega el
+         movimiento lento solo mientras la píldora está sobre la foto. -->
+    <template id="layout_filtro_liquido" inherit_id="website.layout" name="D'CASA: filtro de vidrio líquido">
+        <xpath expr="//div[@id='wrapwrap']" position="inside">
+            <svg class="o_dcasa_filtros" width="0" height="0" aria-hidden="true" focusable="false">
+                <filter id="dcasa-liquido" x="-10%" y="-40%" width="120%" height="180%" color-interpolation-filters="sRGB">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.009 0.022" numOctaves="2" seed="7" result="ruido"/>
+                    <feGaussianBlur in="ruido" stdDeviation="1.5" result="ruido_suave"/>
+                    <feDisplacementMap in="SourceGraphic" in2="ruido_suave" scale="38"
+                                       xChannelSelector="R" yChannelSelector="G"/>
+                </filter>
+            </svg>
+        </xpath>
+    </template>
+
+    <!-- Botón de la cabecera: el CTA único del ADN en lugar de «Contáctanos». -->
+    <template id="header_cta_dcasa" inherit_id="website.header_call_to_action" name="D'CASA: WhatsApp en la cabecera">
+        <xpath expr="//a[hasclass('btn_cta')]" position="replace">
+            <a href="/whatsapp" target="_blank" rel="noopener nofollow" class="oe_unremovable btn btn-primary btn_cta"
+               aria-label="Escríbenos por WhatsApp"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos</a>
+        </xpath>
+    </template>
+
+    <!-- Fuera «Con la tecnología de Odoo»: el sitio es de D'CASA. Se quita el bloque del pie
+         y se vacía la plantilla, así tampoco aparece en el portal ni en otras páginas. -->
+    <template id="sin_credito_odoo" inherit_id="web.brand_promotion" name="D'CASA: sin crédito de Odoo">
+        <xpath expr="//div[hasclass('o_brand_promotion')]" position="replace"/>
+    </template>
+
+    <template id="sin_credito_odoo_pie" inherit_id="website.layout" name="D'CASA: pie sin crédito de Odoo">
+        <xpath expr="//t[@t-call='web.brand_promotion']/.." position="attributes">
+            <attribute name="t-if">False</attribute>
+        </xpath>
+    </template>
+
+    <!-- Páginas del programa de socios: cabecera con foto oscurecida y texto blanco,
+         igual que el hero de la portada (sin la banda azul). -->
+    <template id="socios_cabecera_dcasa" inherit_id="dcasa_socios.socios_layout" name="D'CASA: cabecera de socios">
+        <!-- Título de pestaña distinto por página y cabecera sobre la foto. -->
+        <xpath expr="//t[@t-set='additional_title']" position="replace">
+            <t t-set="additional_title" t-value="('%s · ' % titulo if titulo else '') + 'Socios D’CASA'"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+        </xpath>
+        <xpath expr="//div[hasclass('o_dcasa_socios_head')]" position="replace">
+            <section class="o_dcasa_hero o_dcasa_hero_compacto o_dcasa_socios_head">
+                <div class="o_dcasa_hero_media">
+                    <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600" alt=""/>
+                </div>
+                <div class="o_dcasa_container o_dcasa_hero_inner">
+                    <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Programa de socios</p>
+                        <h1 class="o_dcasa_display mb-0" t-out="titulo or 'Socios D’CASA'"/>
+                    </div>
+                </div>
+            </section>
+        </xpath>
+        <xpath expr="//div[hasclass('o_dcasa_band')]" position="replace"/>
+    </template>
+
+    <template id="footer_copyright_dcasa" inherit_id="website.footer_copyright_company_name" name="D'CASA: copyright">
+        <xpath expr="//span[hasclass('o_footer_copyright_name')]" position="replace">
+            <span class="o_footer_copyright_name me-2 small">© D'CASA Panamá · Todos los derechos reservados</span>
+        </xpath>
+    </template>
+
+    <!-- Pie de página con los datos reales de D'CASA (editable en el constructor). -->
+    <template id="footer_dcasa" inherit_id="website.footer_custom" name="D'CASA: pie de página">
+        <xpath expr="//div[@id='footer']" position="replace">
+            <div id="footer" class="oe_structure oe_structure_solo o_dcasa_footer" t-ignore="true" t-if="not no_footer">
+                <section class="s_text_block pt48 pb24" data-snippet="s_text_block" data-name="Pie D'CASA">
+                    <div class="container">
+                        <div class="row">
+                            <div class="col-lg-4 pb24">
+                                <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
+                                <p>Tu casa, bien amueblada. Camas, colchones, salas, muebles de TV,
+                                    zapateras, estantes y escritorios, con la mejor atención y precios pensados para ti.</p>
+                            </div>
+                            <div class="col-lg-2 pb24">
+                                <h2 class="o_dcasa_kicker">Tienda</h2>
+                                <ul class="list-unstyled">
+                                    <li><a href="/shop">Catálogo</a></li>
+                                    <li><a href="/socios">Socios: mis puntos</a></li>
+                                    <li><a href="/my">Mi cuenta</a></li>
+                                    <li><a href="/contactus">Contacto</a></li>
+                                </ul>
+                            </div>
+                            <div class="col-lg-3 pb24">
+                                <h2 class="o_dcasa_kicker">Visítanos</h2>
+                                <p>Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1<br/>La Chorrera, Panamá Oeste</p>
+                                <p><a href="/visitanos">Cómo llegar</a></p>
+                            </div>
+                            <div class="col-lg-3 pb24">
+                                <h2 class="o_dcasa_kicker">Escríbenos</h2>
+                                <ul class="list-unstyled">
+                                    <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/><a href="/whatsapp" target="_blank" rel="noopener nofollow">Escríbenos por WhatsApp</a></li>
+                                    <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+                                    <li><i class="fa fa-instagram fa-fw me-2" aria-hidden="true"/><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty</a></li>
+                                    <li><i class="fa fa-music fa-fw me-2" aria-hidden="true"/><a href="https://www.tiktok.com/@dcasapty" target="_blank" rel="noopener">TikTok @dcasapty</a></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </xpath>
+    </template>
+</odoo>

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cotización: enviarla por WhatsApp, el canal donde de verdad se vende. -->
+    <record id="view_order_form_whatsapp" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.whatsapp</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//button[@id='quotation_send_primary']" position="before">
+                <button name="action_dcasa_whatsapp" type="object" string="Enviar por WhatsApp"
+                        class="btn-primary" icon="fa-whatsapp" data-hotkey="w"
+                        invisible="state not in ('draft', 'sent', 'sale')"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Producto: medidas y precio en combo a la vista, junto a la categoría. -->
+    <record id="product_template_form_dcasa" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.catalogo</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="categ_id" position="after">
+                <field name="dcasa_medidas" placeholder="Ancho × Fondo × Alto: 80 × 40 × 120 cm"/>
+                <field name="dcasa_combo" placeholder="Combo con colchón $349.99"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Lista de productos: con foto, referencia, categoría de la tienda y si está publicado. -->
+    <record id="product_template_list_dcasa" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.catalogo</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <field name="is_favorite" position="after">
+                <field name="image_128" widget="image" options="{'size': [40, 40]}" string="Foto" optional="show"/>
+            </field>
+            <field name="default_code" position="attributes">
+                <attribute name="optional">show</attribute>
+            </field>
+            <field name="name" position="after">
+                <field name="public_categ_ids" widget="many2many_tags" string="En la tienda" optional="show"/>
+                <field name="is_published" widget="boolean_toggle" string="Publicado" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Productos: buscar sin saber «filtros». Categorías a la izquierda (con cantidad), y
+         arriba los filtros que más se usan como botones de un clic (dcasa_interfaz). -->
+    <record id="producto_buscar_dcasa" model="ir.ui.view">
+        <field name="name">product.template.search.dcasa</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <field name="name" position="attributes">
+                <attribute name="string">Nombre o código</attribute>
+            </field>
+            <filter name="goods" position="before">
+                <filter string="Disponibles" name="dcasa_disponibles" domain="[('qty_available', '&gt;', 0)]"/>
+                <filter string="Agotados" name="dcasa_agotados"
+                        domain="[('is_storable', '=', True), ('qty_available', '&lt;=', 0)]"/>
+                <separator/>
+                <filter string="Hasta $100" name="dcasa_precio_1" domain="[('list_price', '&lt;=', 100)]"/>
+                <filter string="$100 a $300" name="dcasa_precio_2"
+                        domain="[('list_price', '&gt;', 100), ('list_price', '&lt;=', 300)]"/>
+                <filter string="$300 a $600" name="dcasa_precio_3"
+                        domain="[('list_price', '&gt;', 300), ('list_price', '&lt;=', 600)]"/>
+                <filter string="Más de $600" name="dcasa_precio_4" domain="[('list_price', '&gt;', 600)]"/>
+                <separator/>
+                <filter string="En la tienda en línea" name="dcasa_en_web" domain="[('is_published', '=', True)]"/>
+                <filter string="Sin foto" name="dcasa_sin_foto" domain="[('image_1920', '=', False)]"/>
+                <separator/>
+            </filter>
+            <!-- Lo técnico de Odoo queda en el menú de filtros, no en los botones rápidos. -->
+            <filter name="goods" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="services" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="combo" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="is_storable" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="filter_to_sell" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="published" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <filter name="activities_exception" position="attributes"><attribute name="invisible">1</attribute></filter>
+            <xpath expr="//search" position="inside">
+                <searchpanel>
+                    <field name="public_categ_ids" string="Categorías" select="multi" icon="fa-th-large"
+                           enable_counters="1"/>
+                </searchpanel>
+            </xpath>
+        </field>
+    </record>
+</odoo>

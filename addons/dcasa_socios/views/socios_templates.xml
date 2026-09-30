@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La app del socio. Móvil primero: se usa de pie en el mostrador. -->
+
+    <template id="socios_aviso" name="Socios: aviso">
+        <div t-if="aviso" t-attf-class="alert alert-#{aviso.get('tipo', 'info')} mb-3" role="status" t-out="aviso['texto']"/>
+        <div t-if="error" class="alert alert-danger mb-3" role="alert" t-out="error"/>
+    </template>
+
+    <template id="socios_layout" name="Socios: marco">
+        <t t-call="website.layout">
+            <t t-set="additional_title">Socios D'CASA</t>
+            <div id="wrap" class="o_dcasa_socios">
+                <div class="o_dcasa_socios_head o_cc o_cc4">
+                    <div class="container py-4">
+                        <p class="o_dcasa_kicker mb-1">Programa de socios</p>
+                        <h1 class="o_dcasa_display mb-0" t-out="titulo or 'Socios D’CASA'"/>
+                    </div>
+                </div>
+                <div class="o_dcasa_band" aria-hidden="true"/>
+                <div class="container py-4 o_dcasa_socios_body">
+                    <t t-call="dcasa_socios.socios_aviso"/>
+                    <t t-out="0"/>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="socios_inicio" name="Socios: entrar">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Tus puntos D'CASA</t>
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="o_dcasa_socios_card">
+                        <h2 class="h4">Entra</h2>
+                        <form action="/socios/entrar" method="post" class="o_dcasa_socios_form">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <label for="celular">Tu celular</label>
+                            <input id="celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel"
+                                   class="form-control" placeholder="6000-0000" required="required" t-att-value="celular"/>
+                            <label for="pin">Tu PIN (6 números)</label>
+                            <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="6"
+                                   autocomplete="current-password" class="form-control" required="required"/>
+                            <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Entrar</button>
+                        </form>
+                        <p class="mt-3 mb-0">¿Primera vez? <a href="/socios/registro">Regístrate con tu celular</a>.
+                            Si ya compraste en D'CASA, tus puntos te están esperando.</p>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="o_dcasa_socios_card o_dcasa_socios_como">
+                        <h2 class="h4">Así funciona</h2>
+                        <ol class="o_dcasa_steps">
+                            <li><strong>Compras y sumas.</strong>
+                                <t t-out="reglas['acumulacion']['puntosPorDolar']"/> punto por cada dólar que pagas.</li>
+                            <li><strong>Invitas y ganas.</strong> Cuando alguien que invitaste hace su primera compra,
+                                tú ganas <t t-out="fmt_puntos(reglas['referido']['puntosAlPadrino'])"/> puntos y esa persona
+                                <t t-out="fmt_puntos(reglas['referido']['puntosAlAhijado'])"/>.</li>
+                            <li><strong>Cambias por premios.</strong> 100 puntos = $1 en descuentos en la tienda.</li>
+                        </ol>
+                        <a href="/socios/terminos">Ver todas las reglas</a>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="socios_registro" name="Socios: registro">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Hazte socio</t>
+            <div class="o_dcasa_socios_card mx-auto" style="max-width: 36rem;">
+                <p t-if="padrino" class="alert alert-info">
+                    Te invitó <strong t-out="padrino._dcasa_nombre_publico()"/>. Con tu primera compra ganan los dos.
+                </p>
+                <form action="/socios/registro" method="post" class="o_dcasa_socios_form">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="padrino" t-att-value="padrino.dcasa_socio_codigo if padrino else ''"/>
+                    <div class="row g-2">
+                        <div class="col-sm-6">
+                            <label for="nombre">Nombre</label>
+                            <input id="nombre" name="nombre" class="form-control" required="required" autocomplete="given-name"
+                                   t-att-value="datos.get('nombre')"/>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="apellido">Apellido</label>
+                            <input id="apellido" name="apellido" class="form-control" autocomplete="family-name"
+                                   t-att-value="datos.get('apellido')"/>
+                        </div>
+                    </div>
+                    <label for="celular">Celular (con él entras)</label>
+                    <input id="celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel-national" class="form-control"
+                           placeholder="6000-0000" required="required" t-att-value="datos.get('celular')"/>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label for="pin">Elige un PIN (6 números)</label>
+                            <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="6"
+                                   autocomplete="new-password" class="form-control" required="required"/>
+                        </div>
+                        <div class="col-6">
+                            <label for="pin2">Repítelo</label>
+                            <input id="pin2" name="pin2" type="password" inputmode="numeric" maxlength="6"
+                                   autocomplete="new-password" class="form-control" required="required"/>
+                        </div>
+                    </div>
+                    <label>Tu cumpleaños (opcional: te regalamos puntos)</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select name="cumple_dia" class="form-select" aria-label="Día">
+                                <option value="">Día</option>
+                                <t t-foreach="range(1, 32)" t-as="dia">
+                                    <option t-att-value="dia" t-att-selected="str(dia) == datos.get('cumple_dia')" t-out="dia"/>
+                                </t>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select name="cumple_mes" class="form-select" aria-label="Mes">
+                                <option value="">Mes</option>
+                                <t t-foreach="meses" t-as="mes">
+                                    <option t-att-value="mes_index + 1" t-att-selected="str(mes_index + 1) == datos.get('cumple_mes')" t-out="mes"/>
+                                </t>
+                            </select>
+                        </div>
+                    </div>
+                    <label for="correo">Correo (opcional)</label>
+                    <input id="correo" name="correo" type="email" class="form-control" autocomplete="email"
+                           t-att-value="datos.get('correo')"/>
+                    <label for="codigo">¿Ya compraste? Código de socio de tu factura (opcional)</label>
+                    <input id="codigo" name="codigo" class="form-control" placeholder="DCA…" t-att-value="datos.get('codigo')"/>
+                    <div class="form-check mt-3">
+                        <input id="acepta" name="acepta" type="checkbox" class="form-check-input" required="required"/>
+                        <label for="acepta" class="form-check-label">Acepto los
+                            <a href="/socios/terminos" target="_blank">términos del programa</a> y el uso de mis datos
+                            para administrar mis puntos (Ley 81 de 2019).</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Crear mi cuenta</button>
+                </form>
+                <p class="mt-3 mb-0">¿Ya tienes cuenta? <a href="/socios">Entra aquí</a>.</p>
+            </div>
+        </t>
+    </template>
+
+    <template id="socios_cuenta" name="Socios: mi cuenta">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo" t-value="'Hola, %s' % (socio.name or '').split(' ')[0]"/>
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="o_dcasa_socios_saldo">
+                        <div class="o_dcasa_kicker">Tus puntos</div>
+                        <div class="o_dcasa_socios_saldo_n" t-out="fmt_puntos(saldo)"/>
+                        <div>equivalen a <strong t-out="fmt_dolares(saldo)"/> en premios</div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Invita y gana</h2>
+                        <p class="mb-2">Tu código: <strong class="o_dcasa_socios_codigo" t-out="socio.dcasa_socio_codigo"/></p>
+                        <p class="small text-muted">Cuando alguien se registra con tu link y hace su primera compra,
+                            tú ganas <t t-out="fmt_puntos(reglas['referido']['puntosAlPadrino'])"/> puntos.</p>
+                        <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-primary w-100">
+                            <i class="fa fa-whatsapp me-1"/> Invitar por WhatsApp
+                        </a>
+                        <div class="text-center mt-3">
+                            <img t-att-src="qr" width="180" height="180" alt="QR con tu link de invitación" loading="lazy"/>
+                            <input type="text" class="form-control form-control-sm mt-2" readonly="readonly"
+                                   t-att-value="link" onclick="this.select()" aria-label="Tu link"/>
+                        </div>
+                        <ul t-if="ahijados" class="list-unstyled mt-3 mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="ahijados" t-as="ahijado" class="d-flex justify-content-between">
+                                <span t-out="ahijado._dcasa_nombre_publico()"/>
+                                <span t-if="ahijado.dcasa_referido_pagado_en" class="badge text-bg-success">Ya compró</span>
+                                <span t-else="" class="badge text-bg-light">Aún no compra</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-lg-7">
+                    <div t-if="canjes" class="o_dcasa_socios_card mb-4">
+                        <h2 class="h5">Premios por recoger</h2>
+                        <div t-foreach="canjes" t-as="canje" class="o_dcasa_socios_canje">
+                            <div>
+                                <div class="o_dcasa_socios_codigo fs-3" t-out="canje.codigo"/>
+                                <div t-out="canje.premio_nombre"/>
+                                <div class="small text-muted">Enséñalo en la tienda antes del
+                                    <span t-field="canje.expira_en" t-options="{'widget': 'datetime', 'tz_name': 'America/Panama', 'format': 'dd/MM/yyyy h:mm a'}"/></div>
+                            </div>
+                            <form t-attf-action="/socios/canjes/#{canje.codigo}/cancelar" method="post"
+                                  data-confirmar="¿Cancelar este premio? Los puntos vuelven a tu saldo."
+                                  onsubmit="return confirm(this.dataset.confirmar)">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <button type="submit" class="btn btn-link o_dcasa_socios_btn_toque">Cancelar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mb-4">
+                        <h2 class="h5">Premios</h2>
+                        <div class="row g-2">
+                            <div t-foreach="premios" t-as="premio" class="col-sm-6">
+                                <div class="o_dcasa_socios_premio h-100">
+                                    <div class="fw-bold" t-out="premio.name"/>
+                                    <div class="small text-muted" t-out="premio.descripcion"/>
+                                    <div class="my-2"><strong t-out="fmt_puntos(premio.puntos)"/> puntos</div>
+                                    <form action="/socios/canjear" method="post"
+                                          t-att-data-confirmar="'¿Pedir «%s»? Se descuentan %s puntos de tu saldo.' % (premio.name, fmt_puntos(premio.puntos))"
+                                          onsubmit="return confirm(this.dataset.confirmar)">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <input type="hidden" name="premio_id" t-att-value="premio.id"/>
+                                        <button t-if="saldo &gt;= premio.puntos" type="submit" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Pedir</button>
+                                        <span t-else="" class="small">Te faltan <t t-out="fmt_puntos(premio.puntos - saldo)"/></span>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card">
+                        <h2 class="h5">Tu actividad</h2>
+                        <p t-if="not movimientos" class="text-muted mb-0">Todavía no hay movimientos. Tu primera compra suma puntos.</p>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="movimientos" t-as="m" class="d-flex justify-content-between gap-3">
+                                <span>
+                                    <span t-out="m.motivo or dict(m._fields['tipo'].selection).get(m.tipo)"/>
+                                    <br/><small class="text-muted" t-field="m.ocurrido_en" t-options="{'widget': 'date', 'tz_name': 'America/Panama'}"/>
+                                </span>
+                                <strong t-attf-class="#{'text-success' if m.puntos &gt; 0 else 'text-danger'}"
+                                        t-out="('+' if m.puntos &gt; 0 else '') + fmt_puntos(m.puntos)"/>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-3">
+                        <a href="/socios/pin">Cambiar mi PIN</a>
+                        <a href="/socios/terminos">Reglas del programa</a>
+                        <form action="/socios/salir" method="post" class="ms-auto">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-link p-0">Salir</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="socios_pin" name="Socios: cambiar PIN">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Tu PIN</t>
+            <div class="o_dcasa_socios_card mx-auto" style="max-width: 28rem;">
+                <form action="/socios/pin" method="post" class="o_dcasa_socios_form">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <t t-if="not socio.dcasa_pin_temporal">
+                        <label for="actual">PIN actual</label>
+                        <input id="actual" name="actual" type="password" inputmode="numeric" maxlength="6" class="form-control" required="required"/>
+                    </t>
+                    <label for="nuevo">PIN nuevo (6 números)</label>
+                    <input id="nuevo" name="nuevo" type="password" inputmode="numeric" maxlength="6" class="form-control" required="required"/>
+                    <label for="nuevo2">Repítelo</label>
+                    <input id="nuevo2" name="nuevo2" type="password" inputmode="numeric" maxlength="6" class="form-control" required="required"/>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Guardar</button>
+                </form>
+            </div>
+        </t>
+    </template>
+
+    <!-- Los términos leen las reglas reales: no pueden contradecir al sistema. -->
+    <template id="socios_terminos" name="Socios: términos">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Cómo funciona</t>
+            <t t-set="a" t-value="reglas['acumulacion']"/>
+            <t t-set="ref" t-value="reglas['referido']"/>
+            <div class="o_dcasa_socios_card o_dcasa_socios_terminos mx-auto" style="max-width: 48rem;">
+                <h2>Tus puntos no son dinero</h2>
+                <p>No se cambian por efectivo, no se transfieren a otra persona y no se heredan. Sirven para lo que
+                    dice el catálogo de premios y para nada más.</p>
+                <h2>Cómo los ganas</h2>
+                <p>Ganas <t t-out="a['puntosPorDolar']"/> punto por cada dólar que pagas, calculado sobre el total
+                    de tu factura con el ITBMS incluido, cuando la factura queda pagada.</p>
+                <p t-if="a.get('compraMinimaCentavos')">Las compras de menos de
+                    <t t-out="fmt_dolares(a['compraMinimaCentavos'])"/> no suman puntos.</p>
+                <h2>Cómo ganas invitando</h2>
+                <p>Cuando alguien se registra con tu código y hace su primera compra, tú ganas
+                    <t t-out="fmt_puntos(ref['puntosAlPadrino'])"/> puntos<t t-if="ref.get('puntosAlAhijado')"> y esa
+                    persona gana <t t-out="fmt_puntos(ref['puntosAlAhijado'])"/></t>. Se paga una sola vez por
+                    persona, y solo cuando compra de verdad: registrarse no paga nada.</p>
+                <p t-if="ref.get('topeDePuntosPorPadrinoAlMes') and ref.get('puntosAlPadrino')">Hay un tope de
+                    <t t-out="ref['topeDePuntosPorPadrinoAlMes'] // ref['puntosAlPadrino']"/> invitaciones cobrables al
+                    mes<t t-if="ref.get('topeDeAhijadosPorPadrino')"> y de
+                    <t t-out="fmt_puntos(ref['topeDeAhijadosPorPadrino'])"/> personas en total</t>.</p>
+                <t t-if="reglas['cumpleanos'].get('puntos')">
+                    <h2>Tu cumpleaños</h2>
+                    <p>El día de tu cumpleaños te regalamos <t t-out="fmt_puntos(reglas['cumpleanos']['puntos'])"/>
+                        puntos, una vez al año. Para eso hay que haber comprado alguna vez.</p>
+                </t>
+                <h2>Cómo los cambias</h2>
+                <p>Pides el premio desde tu cuenta, te sale un código y lo enseñas en la tienda. Los puntos salen de
+                    tu cuenta al pedirlo. Tienes <t t-out="reglas['canje']['vigenciaDelCodigoHoras']"/> horas para
+                    pasar; si no, el código vence y te devolvemos los puntos enteros.</p>
+                <h2>¿Vencen?</h2>
+                <p t-if="reglas['vencimiento'].get('meses')">Sí, a los <t t-out="reglas['vencimiento']['meses']"/>
+                    meses. Te avisamos 30 días antes.</p>
+                <p t-else="">No. Si algún día eso cambiara, te avisaríamos con 30 días de antelación.</p>
+                <h2>Si se anula una compra</h2>
+                <p>Si una compra se anula —una devolución, un error— los puntos que dio salen de tu cuenta, y lo ves
+                    escrito en tu actividad con el motivo.</p>
+                <h2>Tus datos</h2>
+                <p>Usamos tu nombre, celular y (si nos los das) tu correo y cumpleaños solo para administrar tus
+                    puntos, según la Ley 81 de 2019 de Protección de Datos Personales. Puedes pedirnos por WhatsApp
+                    que los corrijamos o que retiremos tu cuenta.</p>
+            </div>
+        </t>
+    </template>
+</odoo>

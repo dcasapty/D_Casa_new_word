@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="report_layout_dcasa" model="report.layout">
+        <field name="name">D'CASA</field>
+        <field name="sequence">1</field>
+        <field name="view_id" ref="dcasa_invoice.external_layout_dcasa"/>
+    </record>
+</odoo>

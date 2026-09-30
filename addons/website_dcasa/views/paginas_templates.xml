@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Contacto: los datos reales de D'CASA (Odoo trae «Mi Empresa / 3575 Fake Buena Vista…»),
+         tuteo, y WhatsApp primero; el formulario queda como segunda opción. -->
+    <template id="contactus_dcasa" inherit_id="website.contactus" name="D'CASA: contacto">
+        <xpath expr="//div[@id='wrap']" position="before">
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+        </xpath>
+        <xpath expr="//div[@id='wrap']" position="attributes">
+            <attribute name="class" add="o_dcasa_contacto" separator=" "/>
+        </xpath>
+        <xpath expr="//section[hasclass('s_title')]" position="replace">
+            <section class="o_dcasa_hero o_dcasa_hero_compacto" data-snippet="s_text_block" data-name="Portada de contacto">
+                <div class="o_dcasa_hero_media">
+                    <img src="/website_dcasa/static/src/img/insp-3.webp" width="640" height="640" alt=""/>
+                </div>
+                <div class="o_dcasa_container o_dcasa_hero_inner">
+                    <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">Contacto</p>
+                        <h1 class="o_dcasa_display mb-0">Hablemos de tu casa</h1>
+                    </div>
+                </div>
+            </section>
+        </xpath>
+        <xpath expr="//p[hasclass('lead')]" position="replace">
+            <p class="lead">Lo más rápido es WhatsApp: te respondemos con precio, medidas y disponibilidad.
+                Si prefieres, déjanos tu mensaje aquí y te escribimos.</p>
+            <p class="mb-4">
+                <a href="/whatsapp" class="btn btn-lg btn-primary" target="_blank" rel="noopener nofollow">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                    <span class="visually-hidden">(se abre en una pestaña nueva)</span>
+                </a>
+            </p>
+        </xpath>
+        <!-- Una casa no tiene «empresa»: el campo sobra. -->
+        <xpath expr="//input[@id='contact4']/.." position="replace"/>
+        <xpath expr="//input[@id='contact1']" position="attributes">
+            <attribute name="autocomplete">name</attribute>
+        </xpath>
+        <xpath expr="//input[@id='contact2']" position="attributes">
+            <attribute name="autocomplete">tel</attribute>
+        </xpath>
+        <xpath expr="//input[@id='contact3']" position="attributes">
+            <attribute name="autocomplete">email</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('offset-lg-1')]" position="replace">
+            <div class="col-lg-4 offset-lg-1 mt-4 mt-lg-0">
+                <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
+                <ul class="list-unstyled mb-0 o_dcasa_contacto_datos">
+                    <li><i class="fa fa-map-marker fa-fw me-2" aria-hidden="true"/>Avenida Las Américas, Urbanización Santa Clara,
+                        Local 4550 PB-1, La Chorrera</li>
+                    <li><i class="fa fa-whatsapp fa-fw me-2" aria-hidden="true"/><a href="/whatsapp" target="_blank" rel="noopener nofollow">Escríbenos por WhatsApp</a></li>
+                    <li><i class="fa fa-envelope fa-fw me-2" aria-hidden="true"/><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+                </ul>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- 404: el dibujo de Odoo usa el color 2 del tema (nuestro amarillo) sobre blanco. -->
+    <template id="pagina_404_dcasa" inherit_id="http_routing.404" name="D'CASA: 404 sin amarillo sobre blanco">
+        <xpath expr="//img[contains(@src, '404.svg')]" position="attributes">
+            <attribute name="src">/html_editor/shape/http_routing/404.svg?c2=o-color-1</attribute>
+        </xpath>
+    </template>
+</odoo>

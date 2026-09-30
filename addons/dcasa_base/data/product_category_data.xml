@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Categorías internas (inventario/contabilidad). Las categorías de la
+         tienda web viven en website_dcasa. -->
+    <data noupdate="1">
+        <record id="product_category_muebles" model="product.category">
+            <field name="name">Muebles</field>
+        </record>
+        <record id="product_category_salas" model="product.category">
+            <field name="name">Salas</field>
+            <field name="parent_id" ref="product_category_muebles"/>
+        </record>
+        <record id="product_category_comedores" model="product.category">
+            <field name="name">Comedores</field>
+            <field name="parent_id" ref="product_category_muebles"/>
+        </record>
+        <record id="product_category_recamaras" model="product.category">
+            <field name="name">Recámaras y camas</field>
+            <field name="parent_id" ref="product_category_muebles"/>
+        </record>
+        <record id="product_category_exteriores" model="product.category">
+            <field name="name">Exteriores y hamacas</field>
+            <field name="parent_id" ref="product_category_muebles"/>
+        </record>
+        <record id="product_category_colchones" model="product.category">
+            <field name="name">Colchones y box</field>
+        </record>
+        <record id="product_category_electro" model="product.category">
+            <field name="name">Electrodomésticos</field>
+        </record>
+        <record id="product_category_decoracion" model="product.category">
+            <field name="name">Decoración</field>
+        </record>
+    </data>
+</odoo>

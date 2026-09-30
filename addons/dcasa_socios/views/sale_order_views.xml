@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_dcasa_socios" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.socios</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_dcasa_cobrar_premio" type="object" string="Cobrar premio"
+                        invisible="state not in ('draft', 'sent')"/>
+            </xpath>
+            <field name="payment_term_id" position="after">
+                <field name="dcasa_socio_codigo" invisible="not dcasa_socio_codigo"/>
+                <field name="dcasa_socio_saldo" invisible="not dcasa_socio_codigo"/>
+                <field name="dcasa_padrino_fijo" invisible="1"/>
+                <field name="dcasa_referido_por_id" placeholder="Código DCA… o nombre de quien lo invitó"
+                       options="{'no_create': True}" readonly="dcasa_padrino_fijo or state in ('sale', 'cancel')"/>
+            </field>
+        </field>
+    </record>
+</odoo>

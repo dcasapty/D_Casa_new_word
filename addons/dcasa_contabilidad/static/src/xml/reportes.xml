@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_contabilidad.Reportes">
+        <div class="o_dc_conta o_action">
+            <header class="o_dc_conta_cabecera">
+                <div>
+                    <span class="o_dc_conta_eyebrow">Contabilidad</span>
+                    <h1 t-out="titulo"/>
+                    <p t-if="state.datos">
+                        <t t-if="state.reporte === 'balance_general'">Al <t t-out="fecha(state.datos.hasta)"/></t>
+                        <t t-else="">Del <t t-out="fecha(state.datos.desde)"/> al <t t-out="fecha(state.datos.hasta)"/></t>
+                        · <t t-out="state.datos.empresa"/>
+                    </p>
+                </div>
+                <div class="o_dc_conta_acciones">
+                    <button class="btn btn-secondary" t-on-click="excel"><i class="fa fa-file-excel-o me-2"/>Excel</button>
+                    <button class="btn btn-secondary" t-on-click="pdf"><i class="fa fa-print me-2"/>PDF</button>
+                </div>
+            </header>
+
+            <nav class="o_dc_conta_pestanas" role="tablist">
+                <button t-foreach="reportes" t-as="r" t-key="r.clave" role="tab"
+                        t-att-aria-selected="r.clave === state.reporte ? 'true' : 'false'"
+                        t-attf-class="o_dc_conta_pestana #{r.clave === state.reporte ? 'o_activa' : ''}"
+                        t-on-click="() => this.cambiarReporte(r.clave)">
+                    <i t-attf-class="fa #{r.icono}"/><span t-out="r.nombre"/>
+                </button>
+            </nav>
+
+            <div class="o_dc_conta_filtros">
+                <div class="o_dc_conta_chips">
+                    <button t-foreach="periodos" t-as="p" t-key="p.clave"
+                            t-attf-class="o_dc_chip #{p.clave === state.periodo ? 'o_activa' : ''}"
+                            t-on-click="() => this.usarPeriodo(p)" t-out="p.nombre"/>
+                </div>
+                <div class="o_dc_conta_fechas">
+                    <label t-if="state.reporte !== 'balance_general'">Desde
+                        <input type="date" class="o_input" t-att-value="state.desde" t-on-change="(ev) => this.cambiarFecha('desde', ev)"/>
+                    </label>
+                    <label><t t-if="state.reporte === 'balance_general'">Al</t><t t-else="">Hasta</t>
+                        <input type="date" class="o_input" t-att-value="state.hasta" t-on-change="(ev) => this.cambiarFecha('hasta', ev)"/>
+                    </label>
+                    <label class="o_dc_conta_check">
+                        <input type="checkbox" t-att-checked="state.borradores" t-on-change="alternarBorradores"/>
+                        Incluir borradores
+                    </label>
+                </div>
+            </div>
+
+            <main t-attf-class="o_dc_conta_cuerpo #{state.cargando ? 'o_cargando' : ''}">
+                <t t-if="state.datos">
+                    <t t-if="state.reporte === 'estado_resultados'" t-call="dcasa_contabilidad.Reportes.resultados"/>
+                    <t t-elif="state.reporte === 'balance_general'" t-call="dcasa_contabilidad.Reportes.balance"/>
+                    <t t-elif="state.reporte === 'balance_comprobacion'" t-call="dcasa_contabilidad.Reportes.comprobacion"/>
+                    <t t-elif="state.reporte === 'libro_mayor'" t-call="dcasa_contabilidad.Reportes.mayor"/>
+                    <t t-elif="state.reporte === 'itbms'" t-call="dcasa_contabilidad.Reportes.itbms"/>
+                    <t t-elif="state.reporte === 'analitica'" t-call="dcasa_contabilidad.Reportes.analitica"/>
+                </t>
+            </main>
+        </div>
+    </t>
+
+    <!-- Estado de resultados -->
+    <t t-name="dcasa_contabilidad.Reportes.resultados">
+        <t t-set="r" t-value="state.datos.resumen"/>
+        <section class="o_dc_kpis">
+            <div class="o_dc_kpi"><span>Ventas</span><strong t-out="dinero(state.datos.secciones[0].total)"/></div>
+            <div class="o_dc_kpi"><span>Utilidad bruta</span><strong t-out="dinero(r.utilidad_bruta)"/>
+                <small t-if="r.margen_bruto !== null">Margen <t t-out="r.margen_bruto"/>%</small></div>
+            <div class="o_dc_kpi"><span>Utilidad operativa</span><strong t-out="dinero(r.utilidad_operativa)"/></div>
+            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Utilidad neta</span><strong t-out="dinero(r.utilidad_neta)"/></div>
+        </section>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <t t-foreach="state.datos.secciones" t-as="s" t-key="s.clave">
+                    <tr class="o_dc_seccion"><th colspan="2" t-out="s.titulo"/><th class="o_dc_num" t-out="dinero(s.total)"/></tr>
+                    <tr t-foreach="s.filas" t-as="f" t-key="f.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirApuntes(f)">
+                        <td class="o_dc_codigo" t-out="f.codigo"/><td t-out="f.nombre"/><td class="o_dc_num" t-out="dinero(f.monto)"/>
+                    </tr>
+                    <tr t-if="s.clave === 'costo'" class="o_dc_total"><td/><td>Utilidad bruta</td><td class="o_dc_num" t-out="dinero(r.utilidad_bruta)"/></tr>
+                    <tr t-if="s.clave === 'depreciacion'" class="o_dc_total"><td/><td>Utilidad operativa</td><td class="o_dc_num" t-out="dinero(r.utilidad_operativa)"/></tr>
+                </t>
+                <tr class="o_dc_total o_dc_total_final"><td/><td>Utilidad neta</td><td t-attf-class="o_dc_num #{claseMonto(r.utilidad_neta)}" t-out="dinero(r.utilidad_neta)"/></tr>
+            </table>
+        </div>
+    </t>
+
+    <!-- Balance general -->
+    <t t-name="dcasa_contabilidad.Reportes.balance">
+        <t t-set="t" t-value="state.datos.totales"/>
+        <section class="o_dc_kpis">
+            <div class="o_dc_kpi"><span>Activo</span><strong t-out="dinero(t.activo)"/></div>
+            <div class="o_dc_kpi"><span>Pasivo</span><strong t-out="dinero(t.pasivo)"/></div>
+            <div class="o_dc_kpi"><span>Patrimonio</span><strong t-out="dinero(t.patrimonio)"/></div>
+            <div t-attf-class="o_dc_kpi #{state.datos.cuadra ? 'o_dc_kpi_ok' : 'o_dc_kpi_alerta'}">
+                <span>Ecuación contable</span>
+                <strong t-if="state.datos.cuadra"><i class="fa fa-check me-1"/>Cuadra</strong>
+                <strong t-else=""><i class="fa fa-exclamation-triangle me-1"/>No cuadra</strong>
+            </div>
+        </section>
+        <div class="o_dc_columnas">
+            <t t-foreach="['activo', 'pasivo_patrimonio']" t-as="lado" t-key="lado">
+                <div class="o_dc_tarjeta">
+                    <table class="o_dc_tabla">
+                        <t t-foreach="state.datos.secciones.filter((s) => lado === 'activo' ? s.grupo === 'activo' : s.grupo !== 'activo')" t-as="s" t-key="s.clave">
+                            <tr class="o_dc_seccion"><th colspan="2" t-out="s.titulo"/><th class="o_dc_num" t-out="dinero(s.total)"/></tr>
+                            <tr t-foreach="s.filas" t-as="f" t-key="f.id or f.nombre" t-attf-class="o_dc_fila #{f.id ? 'o_dc_clic' : ''}" t-on-click="() => this.abrirApuntes(f)">
+                                <td class="o_dc_codigo" t-out="f.codigo"/><td t-out="f.nombre"/><td t-attf-class="o_dc_num #{claseMonto(f.monto)}" t-out="dinero(f.monto)"/>
+                            </tr>
+                        </t>
+                        <tr class="o_dc_total o_dc_total_final">
+                            <td/><td t-out="lado === 'activo' ? 'Total activo' : 'Total pasivo y patrimonio'"/>
+                            <td class="o_dc_num" t-out="dinero(lado === 'activo' ? t.activo : t.pasivo_y_patrimonio)"/>
+                        </tr>
+                    </table>
+                </div>
+            </t>
+        </div>
+    </t>
+
+    <!-- Balance de comprobación -->
+    <t t-name="dcasa_contabilidad.Reportes.comprobacion">
+        <div t-if="!state.datos.cuadra" class="o_dc_aviso"><i class="fa fa-exclamation-triangle me-2"/>El debe y el haber no cuadran. Revisa los asientos en borrador.</div>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr><th>Código</th><th>Cuenta</th><th class="o_dc_num">Saldo inicial</th><th class="o_dc_num">Debe</th><th class="o_dc_num">Haber</th><th class="o_dc_num">Saldo final</th></tr></thead>
+                <tbody>
+                    <tr t-foreach="state.datos.filas" t-as="f" t-key="f.id or f.nombre" t-attf-class="o_dc_fila #{f.id ? 'o_dc_clic' : ''}" t-on-click="() => this.abrirApuntes(f)">
+                        <td class="o_dc_codigo" t-out="f.codigo"/><td t-out="f.nombre"/>
+                        <td class="o_dc_num" t-out="dinero(f.inicial)"/>
+                        <td class="o_dc_num" t-out="dinero(f.debe)"/><td class="o_dc_num" t-out="dinero(f.haber)"/>
+                        <td class="o_dc_num" t-out="dinero(f.final)"/>
+                    </tr>
+                    <tr t-if="!state.datos.filas.length" class="o_dc_fila o_dc_vacia"><td colspan="6">No hay movimientos en este periodo.</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr class="o_dc_total o_dc_total_final"><td/><td>Totales</td>
+                        <td class="o_dc_num" t-out="dinero(state.datos.totales.inicial)"/><td class="o_dc_num" t-out="dinero(state.datos.totales.debe)"/>
+                        <td class="o_dc_num" t-out="dinero(state.datos.totales.haber)"/><td class="o_dc_num" t-out="dinero(state.datos.totales.final)"/>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </t>
+
+    <!-- Libro mayor -->
+    <t t-name="dcasa_contabilidad.Reportes.mayor">
+        <div class="o_dc_buscar">
+            <i class="fa fa-search"/>
+            <input type="search" class="o_input" placeholder="Buscar cuenta por código o nombre…" t-model="state.busqueda"/>
+        </div>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla o_dc_mayor">
+                <thead><tr><th>Fecha</th><th>Asiento</th><th>Tercero</th><th>Concepto</th><th class="o_dc_num">Debe</th><th class="o_dc_num">Haber</th><th class="o_dc_num">Saldo</th></tr></thead>
+                <tbody>
+                    <t t-foreach="cuentasMayor" t-as="c" t-key="c.id">
+                        <tr class="o_dc_seccion o_dc_clic" t-on-click="() => this.alternarCuenta(c.id)" t-att-aria-expanded="state.abiertas[c.id] ? 'true' : 'false'">
+                            <th colspan="4"><i t-attf-class="fa fa-fw #{state.abiertas[c.id] ? 'fa-angle-down' : 'fa-angle-right'} me-1"/><span class="o_dc_codigo" t-out="c.codigo"/> <t t-out="c.nombre"/></th>
+                            <th class="o_dc_num" t-out="dinero(c.debe)"/><th class="o_dc_num" t-out="dinero(c.haber)"/>
+                            <th class="o_dc_num" t-out="dinero(c.final)"/>
+                        </tr>
+                        <t t-if="state.abiertas[c.id]">
+                            <tr class="o_dc_fila o_dc_inicial"><td colspan="6">Saldo inicial</td><td class="o_dc_num" t-out="dinero(c.inicial)"/></tr>
+                            <tr t-foreach="c.lineas" t-as="l" t-key="l.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirAsiento(l)">
+                                <td t-out="fecha(l.fecha)"/><td class="o_dc_codigo" t-out="l.asiento"/><td t-out="l.tercero"/><td class="o_dc_concepto" t-out="l.concepto"/>
+                                <td class="o_dc_num" t-out="l.debe ? dinero(l.debe) : ''"/><td class="o_dc_num" t-out="l.haber ? dinero(l.haber) : ''"/>
+                                <td class="o_dc_num" t-out="dinero(l.saldo)"/>
+                            </tr>
+                            <tr t-if="c.truncado" class="o_dc_fila o_dc_vacia"><td colspan="7">
+                                Hay más movimientos: <a href="#" t-on-click.prevent="() => this.abrirApuntes(c)">ver todos</a> o exporta a Excel.
+                            </td></tr>
+                        </t>
+                    </t>
+                    <tr t-if="!cuentasMayor.length" class="o_dc_fila o_dc_vacia"><td colspan="7">No hay movimientos en este periodo.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </t>
+
+    <!-- ITBMS -->
+    <t t-name="dcasa_contabilidad.Reportes.itbms">
+        <t t-set="r" t-value="state.datos.resumen"/>
+        <section class="o_dc_kpis">
+            <div class="o_dc_kpi"><span>Débito fiscal (ventas)</span><strong t-out="dinero(r.debito_fiscal)"/></div>
+            <div class="o_dc_kpi"><span>Crédito fiscal (compras)</span><strong t-out="dinero(r.credito_fiscal)"/></div>
+            <div class="o_dc_kpi o_dc_kpi_fuerte">
+                <span t-out="r.a_pagar >= 0 ? 'ITBMS a pagar' : 'Saldo a favor'"/>
+                <strong t-out="dinero(Math.abs(r.a_pagar))"/>
+            </div>
+        </section>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr><th>Impuesto</th><th>Tipo</th><th class="o_dc_num">Base imponible</th><th class="o_dc_num">ITBMS</th></tr></thead>
+                <tbody>
+                    <tr t-foreach="state.datos.filas" t-as="f" t-key="f.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirImpuesto(f)">
+                        <td t-out="f.nombre"/><td><span t-attf-class="o_dc_etiqueta o_dc_etiqueta_#{f.tipo}" t-out="f.tipo === 'venta' ? 'Ventas' : 'Compras'"/></td>
+                        <td class="o_dc_num" t-out="dinero(f.base)"/><td class="o_dc_num" t-out="dinero(f.impuesto)"/>
+                    </tr>
+                    <tr t-if="!state.datos.filas.length" class="o_dc_fila o_dc_vacia"><td colspan="4">No hay ITBMS en este periodo.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="o_dc_nota">Resumen para preparar la declaración mensual de ITBMS. Confírmalo con tu contador antes de presentarla.</p>
+    </t>
+
+    <!-- Analítica -->
+    <t t-name="dcasa_contabilidad.Reportes.analitica">
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr><th>Plan</th><th>Cuenta analítica</th><th class="o_dc_num">Ingresos</th><th class="o_dc_num">Costos y gastos</th><th class="o_dc_num">Margen</th></tr></thead>
+                <tbody>
+                    <tr t-foreach="state.datos.filas" t-as="f" t-key="f.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirAnalitica(f)">
+                        <td class="o_dc_codigo" t-out="f.plan"/><td t-out="f.nombre"/>
+                        <td class="o_dc_num" t-out="dinero(f.ingresos)"/><td class="o_dc_num" t-out="dinero(f.costos)"/>
+                        <td t-attf-class="o_dc_num #{claseMonto(f.margen)}" t-out="dinero(f.margen)"/>
+                    </tr>
+                    <tr t-if="!state.datos.filas.length" class="o_dc_fila o_dc_vacia"><td colspan="5">
+                        Aún no hay movimientos analíticos. Al facturar, elige el canal (Tienda física o Tienda en línea) en la columna «Analítica» de cada línea.
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </t>
+</templates>

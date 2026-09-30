@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================================
+         Registro de acciones (auditoría, solo lectura)
+         ============================================================ -->
+    <record id="brian_accion_view_list" model="ir.ui.view">
+        <field name="name">brian.accion.list</field>
+        <field name="model">brian.accion</field>
+        <field name="arch" type="xml">
+            <list string="Registro de acciones" create="0" edit="0" delete="0"
+                  decoration-danger="estado in ('error', 'bloqueada')"
+                  decoration-warning="estado == 'por_confirmar'"
+                  decoration-muted="estado == 'rechazada'">
+                <field name="create_date" string="Fecha"/>
+                <field name="usuario_id"/>
+                <field name="canal"/>
+                <field name="herramienta"/>
+                <field name="nivel"/>
+                <field name="categoria" optional="hide"/>
+                <field name="estado" widget="badge"
+                       decoration-success="estado == 'hecha'"
+                       decoration-danger="estado in ('error', 'bloqueada')"
+                       decoration-warning="estado == 'por_confirmar'"/>
+                <field name="resumen" optional="show"/>
+                <field name="error" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="brian_accion_view_form" model="ir.ui.view">
+        <field name="name">brian.accion.form</field>
+        <field name="model">brian.accion</field>
+        <field name="arch" type="xml">
+            <form string="Acción de Brian" create="0" edit="0" delete="0">
+                <header>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="herramienta"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="usuario_id"/>
+                            <field name="canal"/>
+                            <field name="conversacion_id"/>
+                        </group>
+                        <group>
+                            <field name="create_date" string="Fecha"/>
+                            <field name="fecha_cierre"/>
+                            <field name="nivel"/>
+                            <field name="categoria"/>
+                        </group>
+                    </group>
+                    <group string="Resumen para confirmar" invisible="not resumen">
+                        <field name="resumen" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Argumentos">
+                        <field name="argumentos" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Resultado" invisible="not resultado">
+                        <field name="resultado" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Error" invisible="not error">
+                        <field name="error" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="brian_accion_view_search" model="ir.ui.view">
+        <field name="name">brian.accion.search</field>
+        <field name="model">brian.accion</field>
+        <field name="arch" type="xml">
+            <search string="Buscar acciones">
+                <field name="herramienta"/>
+                <field name="usuario_id"/>
+                <filter name="hechas" string="Hechas" domain="[('estado', '=', 'hecha')]"/>
+                <filter name="por_confirmar" string="Por confirmar" domain="[('estado', '=', 'por_confirmar')]"/>
+                <filter name="problemas" string="Errores y bloqueos"
+                        domain="[('estado', 'in', ('error', 'bloqueada'))]"/>
+                <separator/>
+                <filter name="construccion" string="Cambios (construcción y sensibles)"
+                        domain="[('nivel', 'in', ('construccion', 'sensible'))]"/>
+                <group>
+                    <filter name="por_usuario" string="Usuario" context="{'group_by': 'usuario_id'}"/>
+                    <filter name="por_herramienta" string="Herramienta" context="{'group_by': 'herramienta'}"/>
+                    <filter name="por_canal" string="Canal" context="{'group_by': 'canal'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="brian_accion_action" model="ir.actions.act_window">
+        <field name="name">Registro de acciones de Brian</field>
+        <field name="res_model">brian.accion</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aquí queda todo lo que Brian hace</p>
+            <p>Cada herramienta ejecutada, con quién la pidió, por qué canal y cómo terminó. No se edita ni se borra.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Conversaciones (cada usuario ve solo las suyas)
+         ============================================================ -->
+    <record id="brian_conversacion_view_list" model="ir.ui.view">
+        <field name="name">brian.conversacion.list</field>
+        <field name="model">brian.conversacion</field>
+        <field name="arch" type="xml">
+            <list string="Conversaciones" create="0">
+                <field name="titulo"/>
+                <field name="canal"/>
+                <field name="ultima_actividad" string="Última actividad"/>
+                <field name="activo" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="brian_conversacion_view_form" model="ir.ui.view">
+        <field name="name">brian.conversacion.form</field>
+        <field name="model">brian.conversacion</field>
+        <field name="arch" type="xml">
+            <form string="Conversación" create="0">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="titulo"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="canal" readonly="1"/>
+                            <field name="usuario_id"/>
+                        </group>
+                        <group>
+                            <field name="ultima_actividad" readonly="1"/>
+                            <field name="activo"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mensajes" name="mensajes">
+                            <field name="mensaje_visible_ids" readonly="1">
+                                <list>
+                                    <field name="create_date" string="Fecha"/>
+                                    <field name="rol"/>
+                                    <field name="contenido"/>
+                                    <field name="adjunto_ids" widget="many2many_tags"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Acciones" name="acciones">
+                            <field name="accion_ids" readonly="1">
+                                <list>
+                                    <field name="create_date" string="Fecha"/>
+                                    <field name="herramienta"/>
+                                    <field name="estado"/>
+                                    <field name="resumen"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="brian_conversacion_action" model="ir.actions.act_window">
+        <field name="name">Mis conversaciones con Brian</field>
+        <field name="res_model">brian.conversacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('usuario_id', '=', uid)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no has conversado con Brian</p>
+            <p>Ábrelo con el botón flotante o con Ctrl + J desde cualquier pantalla.</p>
+        </field>
+    </record>
+
+    <!-- ============================================================
+         Ajustes › Brian
+         ============================================================ -->
+    <record id="res_config_settings_view_form_brian" model="ir.ui.view">
+        <field name="name">res.config.settings.form.brian</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Brian" string="Brian" name="dcasa_brian" groups="base.group_system">
+                    <block title="Proveedor de IA" name="brian_proveedor">
+                        <setting id="brian_estado" string="Estado"
+                                 help="Lo que dejes vacío se toma de las variables de entorno del servidor (BRIAN_PROVEEDOR, BRIAN_MODELO, BRIAN_API_KEY, BRIAN_BASE_URL).">
+                            <field name="dcasa_brian_estado" readonly="1"/>
+                            <div class="mt8">
+                                <button name="action_dcasa_brian_probar" type="object" string="Probar conexión"
+                                        class="btn-secondary" icon="fa-plug"/>
+                            </div>
+                        </setting>
+                        <setting id="brian_proveedor" string="Proveedor"
+                                 help="Claude (Anthropic) o uno compatible con OpenAI: ChatGPT, Grok, Llama vía Groq/Together/OpenRouter, u Ollama local.">
+                            <field name="dcasa_brian_proveedor" placeholder="Anthropic (Claude)"/>
+                        </setting>
+                        <setting id="brian_modelo" string="Modelo"
+                                 help="Ejemplos: claude-haiku-4-5 (económico), claude-sonnet-5-5 (más capaz), gpt-4o-mini, grok-3-mini, llama-3.3-70b-versatile.">
+                            <field name="dcasa_brian_modelo" placeholder="claude-haiku-4-5"/>
+                        </setting>
+                        <setting id="brian_clave" string="Clave de API"
+                                 help="Se guarda en los parámetros del sistema (solo administradores) y nunca se muestra completa. Si el servidor define BRIAN_API_KEY, esa tiene prioridad.">
+                            <div>
+                                <span class="text-muted">Actual: </span>
+                                <field name="dcasa_brian_clave_actual" readonly="1" class="oe_inline"/>
+                            </div>
+                            <field name="dcasa_brian_clave_nueva" password="True" placeholder="Pega aquí una clave nueva"/>
+                        </setting>
+                        <setting id="brian_base_url" string="Dirección del API"
+                                 help="Solo para cambiar la dirección por defecto del proveedor (p. ej. tu propio Ollama).">
+                            <field name="dcasa_brian_base_url" placeholder="https://…"/>
+                        </setting>
+                        <setting id="brian_herramientas_max" string="Herramientas por mensaje"
+                                 help="Con modelos pequeños conviene ofrecer pocas herramientas a la vez. 0 = automático (todas con modelos grandes, 12 con pequeños).">
+                            <field name="dcasa_brian_herramientas_max"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="brian_ajustes_action" model="ir.actions.act_window">
+        <field name="name">Ajustes de Brian</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="context">{'module': 'dcasa_brian', 'bin_size': False}</field>
+    </record>
+
+    <!-- ============================================================
+         Menú
+         ============================================================ -->
+    <menuitem id="menu_brian_raiz" name="Brian" sequence="90" groups="base.group_user"
+              web_icon="dcasa_brian,static/description/icon.svg"/>
+    <menuitem id="menu_brian_conversaciones" name="Conversaciones" parent="menu_brian_raiz"
+              action="brian_conversacion_action" sequence="10"/>
+    <menuitem id="menu_brian_acciones" name="Registro de acciones" parent="menu_brian_raiz"
+              action="brian_accion_action" sequence="20" groups="base.group_system"/>
+    <menuitem id="menu_brian_ajustes" name="Ajustes" parent="menu_brian_raiz"
+              action="brian_ajustes_action" sequence="90" groups="base.group_system"/>
+</odoo>

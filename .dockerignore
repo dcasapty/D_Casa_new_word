@@ -1,0 +1,13 @@
+# Solo entran a la imagen: vendor/odoo, addons/ y docker/entrypoint.sh
+**/.git
+**/node_modules
+**/__pycache__
+**/*.pyc
+.github
+edge
+docs
+scripts
+*.log
+.test.log
+# Originales de fotos (≈1 GB): la imagen usa las versiones optimizadas de addons/dcasa_catalogo
+up media

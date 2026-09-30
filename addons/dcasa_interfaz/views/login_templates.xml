@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inicio de sesión con la marca: sin «Powered by Odoo». -->
+    <template id="login_sin_odoo" inherit_id="web.login_layout" name="D'CASA: inicio de sesión">
+        <xpath expr="//a[@href='https://www.odoo.com?utm_source=db&amp;utm_medium=auth']" position="replace">
+            <span class="text-muted">D'CASA Panamá · Tu casa, bien amueblada.</span>
+        </xpath>
+    </template>
+</odoo>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Línea de descuento con la que se cobra un premio dentro de una venta. -->
+        <record id="product_premio_canje" model="product.product">
+            <field name="name">Premio del programa Socios D'CASA</field>
+            <field name="type">service</field>
+            <field name="invoice_policy">order</field>
+            <field name="sale_ok" eval="True"/>
+            <field name="purchase_ok" eval="False"/>
+            <field name="list_price">0</field>
+            <field name="default_code">SOCIOS-PREMIO</field>
+        </record>
+    </data>
+</odoo>

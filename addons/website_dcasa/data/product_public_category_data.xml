@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Categorías de la tienda web (las que ve el cliente). -->
+    <data noupdate="1">
+        <record id="public_category_salas" model="product.public.category">
+            <field name="name">Salas</field>
+            <field name="sequence">10</field>
+        </record>
+        <record id="public_category_comedores" model="product.public.category">
+            <field name="name">Comedores</field>
+            <field name="sequence">20</field>
+        </record>
+        <record id="public_category_recamaras" model="product.public.category">
+            <field name="name">Recámaras</field>
+            <field name="sequence">30</field>
+        </record>
+        <record id="public_category_colchones" model="product.public.category">
+            <field name="name">Colchones</field>
+            <field name="sequence">40</field>
+        </record>
+        <record id="public_category_zapateras" model="product.public.category">
+            <field name="name">Zapateras</field>
+            <field name="sequence">42</field>
+        </record>
+        <record id="public_category_organizacion" model="product.public.category">
+            <field name="name">Estantes y organización</field>
+            <field name="sequence">44</field>
+        </record>
+        <record id="public_category_oficina" model="product.public.category">
+            <field name="name">Oficina</field>
+            <field name="sequence">46</field>
+        </record>
+        <record id="public_category_electro" model="product.public.category">
+            <field name="name">Electrodomésticos</field>
+            <field name="sequence">50</field>
+        </record>
+        <record id="public_category_decoracion" model="product.public.category">
+            <field name="name">Decoración</field>
+            <field name="sequence">60</field>
+        </record>
+        <record id="public_category_exteriores" model="product.public.category">
+            <field name="name">Exteriores</field>
+            <field name="sequence">70</field>
+        </record>
+    </data>
+</odoo>

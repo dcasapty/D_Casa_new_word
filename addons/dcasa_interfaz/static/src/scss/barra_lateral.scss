@@ -1,0 +1,289 @@
+// Barra lateral de navegación (escritorio). En el celular se usa el menú de Odoo.
+
+.o_dcasa_barra {
+    display: none;
+}
+
+@include media-breakpoint-up(lg) {
+    body.o_dcasa_con_barra.o_web_client {
+        display: grid;
+        grid-template-columns: var(--dc-barra-w) minmax(0, 1fr);
+        grid-template-rows: auto minmax(0, 1fr);
+        transition: grid-template-columns var(--dc-transicion);
+
+        > .o_dcasa_barra { grid-column: 1; grid-row: 1 / span 2; }
+        > .o_navbar { grid-column: 2; grid-row: 1; }
+        > .o_action_manager { grid-column: 2; grid-row: 2; min-width: 0; }
+        > .o-main-components-container { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; }
+
+        // La barra superior ya no repite lo que está en la lateral.
+        .o_navbar .o_menu_toggle,
+        .o_navbar .o_navbar_apps_menu,
+        .o_navbar .o_menu_sections {
+            display: none !important;
+        }
+
+        // El nombre de la app abierta queda como título de la barra superior.
+        .o_navbar .o_menu_brand {
+            padding-left: 24px !important;
+            font-size: 1rem !important;
+            font-weight: 600;
+            color: var(--dc-tinta) !important;
+            letter-spacing: -.01em;
+            pointer-events: none;
+        }
+
+        // Las apps ya están en la barra lateral: en el Inicio no se repiten.
+        .o_dcasa_apps { display: none; }
+    }
+
+    body.o_dcasa_con_barra.o_dcasa_barra_colapsada.o_web_client {
+        // Modo automático: el contenido solo reserva la franja de íconos.
+        grid-template-columns: var(--dc-barra-w-colapsada) minmax(0, 1fr);
+    }
+
+    .o_dcasa_barra {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        height: 100%;
+        overflow: hidden;
+        background: var(--dc-blanco);
+        border-right: 1px solid var(--dc-linea);
+        padding: 14px 12px 12px;
+        gap: 6px;
+        color: var(--dc-tinta-2);
+        font-size: .9rem;
+        text-align: left;
+
+        > * { align-self: stretch; }
+    }
+}
+
+// --- Marca -----------------------------------------------------------------
+.o_dcasa_barra_marca {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 6px 12px;
+    color: var(--dc-tinta);
+    text-decoration: none;
+    border-radius: var(--dc-r-sm);
+
+    &:hover { color: var(--dc-tinta); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_barra_logo {
+    display: block;
+    height: 40px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    transition: height var(--dc-transicion);
+}
+
+// --- Buscar ----------------------------------------------------------------
+.o_dcasa_barra_buscar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 38px;
+    padding: 0 10px;
+    margin-bottom: 8px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-niebla);
+    color: var(--dc-tinta-3);
+    text-align: left;
+    transition: border-color var(--dc-transicion), background var(--dc-transicion);
+
+    .fa { width: 20px; text-align: center; }
+    span { flex: 1; }
+    kbd {
+        font: 500 .68rem/1 "Inter", sans-serif;
+        color: var(--dc-tinta-3);
+        background: var(--dc-blanco);
+        border: 1px solid var(--dc-linea);
+        border-radius: 5px;
+        padding: 3px 5px;
+        box-shadow: none;
+    }
+
+    &:hover { border-color: var(--dc-linea-fuerte); background: var(--dc-blanco); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+// --- Lista -----------------------------------------------------------------
+.o_dcasa_barra_lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--dc-linea) transparent;
+}
+
+.o_dcasa_barra_item + .o_dcasa_barra_item { margin-top: 2px; }
+
+.o_dcasa_barra_app {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 6px 8px;
+    border-radius: var(--dc-r-sm);
+    color: var(--dc-tinta-2);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background var(--dc-transicion), color var(--dc-transicion);
+
+    &:hover { background: var(--dc-niebla); color: var(--dc-tinta); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_barra_icono {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+}
+
+.o_dcasa_barra_item.o_activa > .o_dcasa_barra_app {
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-700);
+    font-weight: 600;
+}
+
+// Secciones de la app abierta
+.o_dcasa_barra_secciones,
+.o_dcasa_barra_hijos {
+    list-style: none;
+    margin: 2px 0 8px;
+    padding: 0 0 0 20px;
+    position: relative;
+
+    &::before {
+        content: "";
+        position: absolute;
+        left: 19px;
+        top: 4px;
+        bottom: 4px;
+        width: 1px;
+        background: var(--dc-linea);
+    }
+}
+
+.o_dcasa_barra_hijos {
+    margin: 0 0 4px;
+    padding-left: 12px;
+    &::before { left: 11px; }
+}
+
+.o_dcasa_barra_seccion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 34px;
+    padding: 4px 10px 4px 14px;
+    margin-left: 0;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    background: none;
+    color: var(--dc-tinta-3);
+    text-align: left;
+    text-decoration: none;
+    font-weight: 500;
+    position: relative;
+    transition: background var(--dc-transicion), color var(--dc-transicion);
+
+    &:hover { background: var(--dc-niebla); color: var(--dc-tinta); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+
+    &.o_activa {
+        color: var(--dc-azul-700);
+        background: var(--dc-azul-50);
+        font-weight: 600;
+
+        &::before {
+            content: "";
+            position: absolute;
+            left: -1px;
+            top: 8px;
+            bottom: 8px;
+            width: 2px;
+            border-radius: 2px;
+            background: var(--dc-azul-600);
+        }
+    }
+
+    .fa-angle-down { transition: transform var(--dc-transicion); }
+    &[aria-expanded="true"] .fa-angle-down { transform: rotate(180deg); }
+}
+
+// --- Colapsar --------------------------------------------------------------
+.o_dcasa_barra_colapsar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-top: 1px solid var(--dc-linea);
+    border-radius: 0;
+    margin: 4px -12px -12px;
+    background: none;
+    color: var(--dc-tinta-3);
+    font-weight: 500;
+
+    .fa { width: 20px; text-align: center; }
+    &:hover { color: var(--dc-tinta); background: var(--dc-niebla); }
+    &:focus-visible { outline: none; box-shadow: inset var(--dc-foco); }
+}
+
+// --- Colapsada: solo íconos --------------------------------------------------
+nav.o_dcasa_barra.o_dcasa_barra_colapsada {
+    padding-left: 10px;
+    padding-right: 10px;
+
+    .o_dcasa_barra_texto { display: none; }
+    .o_dcasa_barra_marca,
+    .o_dcasa_barra_app,
+    .o_dcasa_barra_buscar,
+    .o_dcasa_barra_colapsar { justify-content: center; }
+    .o_dcasa_barra_marca { padding: 6px 0 12px; }
+    .o_dcasa_barra_logo { height: 22px; }
+    .o_dcasa_barra_buscar { padding: 0; }
+    .o_dcasa_barra_app { padding: 6px 0; }
+    .o_dcasa_barra_colapsar { margin-left: -10px; margin-right: -10px; padding: 0; }
+
+    // Al acercar el mouse, el ícono crece un poco: se ve a qué se va a entrar.
+    .o_dcasa_barra_icono {
+        transition: transform var(--dc-transicion);
+    }
+    .o_dcasa_barra_app:hover .o_dcasa_barra_icono,
+    .o_dcasa_barra_app:focus-visible .o_dcasa_barra_icono {
+        transform: scale(1.18);
+    }
+}
+
+// --- Automática: la barra abierta por el mouse flota sobre el contenido ----------
+@include media-breakpoint-up(lg) {
+    nav.o_dcasa_barra.o_dcasa_barra_flotante {
+        width: var(--dc-barra-w);
+        justify-self: start;
+        position: relative;
+        z-index: 30;
+        box-shadow: var(--dc-sombra-2);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_web_client, .o_dcasa_barra * { transition: none !important; }
+}

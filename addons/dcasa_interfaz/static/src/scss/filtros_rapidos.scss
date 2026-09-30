@@ -1,0 +1,61 @@
+// Filtros rápidos: chips de un clic bajo el buscador (lista y kanban).
+
+.o_dcasa_filtros_rapidos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: -4px;
+}
+
+.o_dcasa_filtros_titulo {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--dc-tinta-3);
+    margin-right: 2px;
+}
+
+.o_dcasa_filtros_sep {
+    width: 1px;
+    height: 18px;
+    background: var(--dc-linea);
+    margin: 0 4px;
+}
+
+.o_dcasa_chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 3px 12px;
+    border: 1px solid var(--dc-linea);
+    border-radius: 999px;
+    background: var(--dc-blanco);
+    color: var(--dc-tinta-2);
+    font-size: .82rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: background var(--dc-transicion), border-color var(--dc-transicion), color var(--dc-transicion);
+
+    &:hover { border-color: var(--dc-azul-300); color: var(--dc-tinta); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+
+    &.o_activo {
+        background: var(--dc-azul-600);
+        border-color: var(--dc-azul-600);
+        color: var(--dc-blanco);
+    }
+}
+
+.o_dcasa_chip_limpiar {
+    border-style: dashed;
+    color: var(--dc-tinta-3);
+}
+
+@media (max-width: 767.98px) {
+    .o_dcasa_filtros_rapidos {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+    }
+}

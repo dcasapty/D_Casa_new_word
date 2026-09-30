@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_movimiento_vendedora,movimiento vendedora,model_dcasa_movimiento,sales_team.group_sale_salesman,1,0,0,0
+access_movimiento_contabilidad,movimiento contabilidad,model_dcasa_movimiento,account.group_account_invoice,1,0,0,0
+access_compra_vendedora,compra vendedora,model_dcasa_compra,sales_team.group_sale_salesman,1,0,0,0
+access_compra_contabilidad,compra contabilidad,model_dcasa_compra,account.group_account_invoice,1,0,0,0
+access_premio_vendedora,premio vendedora,model_dcasa_premio,sales_team.group_sale_salesman,1,0,0,0
+access_premio_gerente,premio gerente,model_dcasa_premio,sales_team.group_sale_manager,1,1,1,1
+access_canje_vendedora,canje vendedora,model_dcasa_canje,sales_team.group_sale_salesman,1,0,0,0
+access_ajuste_wizard_gerente,ajuste gerente,model_dcasa_ajuste_wizard,sales_team.group_sale_manager,1,1,1,0
+access_anular_compra_wizard_gerente,anular compra gerente,model_dcasa_anular_compra_wizard,sales_team.group_sale_manager,1,1,1,0
+access_cobrar_premio_wizard_vendedora,cobrar premio vendedora,model_dcasa_cobrar_premio_wizard,sales_team.group_sale_salesman,1,1,1,0
+access_compra_manual_wizard_gerente,compra manual gerente,model_dcasa_compra_manual_wizard,sales_team.group_sale_manager,1,1,1,0

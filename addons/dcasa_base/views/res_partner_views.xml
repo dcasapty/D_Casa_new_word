@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_dcasa" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="attributes">
+                <attribute name="placeholder">p. ej. 8-123-4567 o 155779346-2-2026</attribute>
+            </field>
+            <field name="vat" position="after">
+                <field name="l10n_pa_dv" placeholder="p. ej. 7" readonly="parent_id"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_company_form_dcasa" model="ir.ui.view">
+        <field name="name">res.company.form.dcasa</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <field name="vat" position="after">
+                <field name="l10n_pa_dv"/>
+            </field>
+        </field>
+    </record>
+</odoo>

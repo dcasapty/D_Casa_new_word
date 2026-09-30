@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los muebles de TV eran 16 de los 19 productos de «Salas»: van en su propia categoría. -->
+    <data noupdate="1">
+        <record id="public_category_muebles_tv" model="product.public.category">
+            <field name="name">Muebles de TV</field>
+            <field name="sequence">15</field>
+        </record>
+    </data>
+</odoo>

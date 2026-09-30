@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los datos del cliente, igual en la factura y en la cotización:
+         nombre, dirección completa, teléfono y «Cédula» o «RUC» (con su DV). -->
+    <template id="dcasa_bloque_cliente" name="D'CASA: datos del cliente">
+        <div class="o_dcasa_cliente" name="dcasa_cliente">
+            <div class="o_dcasa_cliente_nombre" t-out="partner.display_name"/>
+            <t t-foreach="partner._dcasa_lineas_direccion()" t-as="linea">
+                <div t-out="linea"/>
+            </t>
+            <div t-if="partner.phone" name="dcasa_cliente_telefono">Tel.: <span t-out="partner._dcasa_telefono_fmt()"/></div>
+            <div t-if="partner.commercial_partner_id.vat" name="dcasa_cliente_identificacion">
+                <t t-out="partner._dcasa_etiqueta_identificacion()"/>:
+                <span t-out="partner.commercial_partner_id.dcasa_ruc_display"/>
+            </div>
+        </div>
+    </template>
+
+    <!-- La factura se imprime en español aunque el contacto tenga otro idioma. -->
+    <template id="report_invoice_dcasa_idioma" inherit_id="account.report_invoice">
+        <xpath expr="//t[@t-set='lang']" position="attributes">
+            <attribute name="t-value">o._dcasa_idioma_factura()</attribute>
+        </xpath>
+    </template>
+
+    <template id="report_invoice_document_dcasa" inherit_id="account.report_invoice_document">
+        <!-- Cliente -->
+        <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']" position="replace">
+            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
+        </xpath>
+        <xpath expr="//div[@name='address_same_as_shipping']/t[@t-set='address']" position="replace">
+            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
+        </xpath>
+        <xpath expr="//div[@name='no_shipping']/t[@t-set='address']" position="replace">
+            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
+        </xpath>
+        <xpath expr="//div[@name='shipping_address_block']/strong" position="replace">
+            <strong class="d-block mt-3">Dirección de entrega</strong>
+        </xpath>
+
+        <!-- Títulos -->
+        <xpath expr="//t[@name='invoice_title']" position="replace"><t name="invoice_title">Factura</t></xpath>
+        <xpath expr="//t[@name='draft_invoice_title']" position="replace"><t name="draft_invoice_title">Factura en borrador</t></xpath>
+        <xpath expr="//t[@name='cancelled_invoice_title']" position="replace"><t name="cancelled_invoice_title">Factura anulada</t></xpath>
+        <xpath expr="//t[@name='credit_note_title']" position="replace"><t name="credit_note_title">Nota de crédito</t></xpath>
+        <xpath expr="//t[@name='draft_credit_note_title']" position="replace"><t name="draft_credit_note_title">Nota de crédito en borrador</t></xpath>
+        <xpath expr="//t[@name='cancelled_credit_note_title']" position="replace"><t name="cancelled_credit_note_title">Nota de crédito anulada</t></xpath>
+        <xpath expr="//t[@name='proforma_invoice_title']" position="replace"><t name="proforma_invoice_title">Factura proforma</t></xpath>
+
+        <!-- Fechas y referencias -->
+        <xpath expr="//div[@name='invoice_date']" position="replace">
+            <div class="col" t-if="o.invoice_date" name="invoice_date">
+                <strong t-if="o.move_type == 'out_refund'">Fecha de la nota</strong>
+                <strong t-else="">Fecha de factura</strong>
+                <div t-out="o._dcasa_fecha(o.invoice_date)"/>
+            </div>
+        </xpath>
+        <xpath expr="//div[@name='due_date']" position="replace">
+            <div class="col" t-if="o.invoice_date_due and o.move_type == 'out_invoice' and o.state == 'posted' and not o._dcasa_is_paid()" name="due_date">
+                <strong>Vence</strong>
+                <div t-out="o._dcasa_fecha(o.invoice_date_due)"/>
+            </div>
+        </xpath>
+        <xpath expr="//div[@name='delivery_date']/strong" position="replace"><strong>Fecha de entrega</strong></xpath>
+        <xpath expr="//div[@name='origin']/strong" position="replace"><strong>Pedido</strong></xpath>
+        <xpath expr="//div[@name='customer_code']/strong" position="replace"><strong>Código de cliente</strong></xpath>
+        <xpath expr="//div[@name='reference']/strong" position="replace"><strong>Referencia</strong></xpath>
+
+        <!-- Líneas: precio unitario e importe con el mismo criterio de ITBMS, y con $ -->
+        <xpath expr="//table[@name='invoice_line_table']" position="before">
+            <t t-set="dcasa_con_itbms" t-value="o._dcasa_precios_con_itbms()"/>
+            <t t-set="dcasa_nota_itbms" t-value="o._dcasa_nota_de_impuesto()"/>
+        </xpath>
+        <xpath expr="//th[@name='th_description']/span" position="replace"><span>Descripción</span></xpath>
+        <xpath expr="//th[@name='th_quantity']/span" position="replace"><span>Cantidad</span></xpath>
+        <xpath expr="//th[@name='th_priceunit']/span" position="replace">
+            <span>Precio unitario</span><div t-if="dcasa_nota_itbms" class="o_dcasa_th_nota" t-out="dcasa_nota_itbms"/>
+        </xpath>
+        <xpath expr="//th[@name='th_discount']/span" position="replace"><span>Desc. %</span></xpath>
+        <xpath expr="//th[@name='th_taxes']/span" position="replace"><span>Impuesto</span></xpath>
+        <xpath expr="//th[@name='th_subtotal']/span" position="replace">
+            <span>Importe</span><div t-if="dcasa_nota_itbms" class="o_dcasa_th_nota" t-out="dcasa_nota_itbms"/>
+        </xpath>
+        <xpath expr="//td[@name='td_price_unit']/span" position="replace">
+            <span t-if="not hide_prices" class="text-nowrap" t-out="line.price_unit"
+                  t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_subtotal']" position="replace">
+            <td name="td_subtotal" class="text-end o_price_total">
+                <span t-if="not hide_prices" class="text-nowrap"
+                      t-out="line.price_total if dcasa_con_itbms else line.price_subtotal"
+                      t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+            </td>
+        </xpath>
+
+        <!-- Pagos impresos (factura «con pagos») -->
+        <xpath expr="//i[hasclass('oe_payment_label')]" position="replace">
+            <i class="oe_form_field text-end oe_payment_label">
+                <t t-if="payment_vals['is_refund']">Revertido el </t>
+                <t t-else="">Pagado el </t>
+                <t t-out="o._dcasa_fecha(payment_vals['date'])"/>
+            </i>
+        </xpath>
+        <xpath expr="//t[@t-if='len(payments_vals) &gt; 0']/tr/td[1]" position="replace">
+            <td>Saldo pendiente</td>
+        </xpath>
+
+        <!-- Monto en letras, en español -->
+        <xpath expr="//p[@t-if='o.company_id.display_invoice_amount_total_words']" position="replace">
+            <p class="text-end lh-sm o_dcasa_en_letras" t-if="o.company_id.display_invoice_amount_total_words">
+                Son: <br/>
+                <small class="text-muted lh-sm"><span t-out="o._dcasa_monto_en_letras()"/></small>
+            </p>
+        </xpath>
+
+        <!-- Cómo se pagó. Reemplaza al sello de «PAGADO» que imitaba el de goma:
+             aquí va lo que de verdad pasó (fecha, forma de pago y saldo). -->
+        <xpath expr="//div[@id='payment_term']" position="before">
+            <div t-if="o.is_invoice(include_receipts=True) and o.state == 'posted' and o.payment_state in ('paid', 'in_payment', 'partial')"
+                 class="o_dcasa_pago avoid-page-break-inside" name="dcasa_pago">
+                <t t-set="dcasa_formas" t-value="o._dcasa_formas_de_pago()"/>
+                <t t-set="dcasa_fecha_pago" t-value="o._dcasa_last_payment_date()"/>
+                <t t-if="o._dcasa_is_paid()">
+                    <strong>Pagada<t t-if="dcasa_fecha_pago"> el <t t-out="o._dcasa_fecha(dcasa_fecha_pago)"/></t></strong>
+                    <t t-if="dcasa_formas"> · <t t-out="dcasa_formas"/></t>
+                    · Saldo <span class="text-nowrap" t-out="o.amount_residual" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                </t>
+                <t t-else="">
+                    <strong>Pago parcial</strong>
+                    · Pagado <span class="text-nowrap" t-out="o._dcasa_pagado()" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                    <t t-if="dcasa_fecha_pago"> (último pago el <t t-out="o._dcasa_fecha(dcasa_fecha_pago)"/><t t-if="dcasa_formas">, <t t-out="dcasa_formas"/></t>)</t>
+                    · Saldo pendiente <span class="text-nowrap" t-out="o.amount_residual" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                </t>
+            </div>
+        </xpath>
+
+        <!-- La referencia para pagar sobra en una factura pagada -->
+        <xpath expr="//p[@name='payment_communication']/.." position="replace">
+            <div class="mb-3" t-if="o._dcasa_mostrar_referencia_pago()">
+                <p name="payment_communication">
+                    Referencia de pago: <span class="fw-bold" t-field="o.payment_reference"/>
+                    <t t-if="o.partner_bank_id">
+                        <br/> a la cuenta: <span t-field="o.partner_bank_id" class="fw-bold"/>
+                    </t>
+                </p>
+            </div>
+        </xpath>
+
+        <!-- Términos: enlaces al sitio público, nunca a localhost -->
+        <xpath expr="//div[@name='comment']/span" position="replace">
+            <span t-out="o._dcasa_narracion()"/>
+        </xpath>
+    </template>
+
+    <!-- Totales (factura y cotización): subtotal y redondeo en español -->
+    <template id="document_tax_totals_dcasa" inherit_id="account.document_tax_totals_template">
+        <xpath expr="//tr[hasclass('o_subtotal')]/td[1]/span" position="replace">
+            <span t-out="{'Untaxed Amount': 'Subtotal sin ITBMS'}.get(subtotal['name'], subtotal['name'])"/>
+        </xpath>
+        <xpath expr="//tr[@t-if=&quot;'cash_rounding_base_amount_currency' in tax_totals&quot;]/td[1]" position="replace">
+            <td>Redondeo</td>
+        </xpath>
+    </template>
+
+    <!-- Cotización: el mismo bloque de cliente (Cédula/RUC con DV) y términos sin localhost -->
+    <template id="report_saleorder_document_dcasa" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//t[@t-set='address']" position="replace">
+            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="doc.partner_id"/></t></t>
+        </xpath>
+        <xpath expr="//span[@name='order_note']" position="attributes">
+            <attribute name="t-field"/>
+            <attribute name="t-out">doc._dcasa_nota()</attribute>
+        </xpath>
+    </template>
+</odoo>

@@ -1,0 +1,60 @@
+// D'CASA — paleta y tipografías del sitio (ADN: 01_brand_guidelines.md §3-4).
+// Se cargan como la paleta por defecto del sitio: desde el editor
+// (Sitio web > Editar > Tema) se pueden ajustar sin tocar este archivo.
+//
+// Combinaciones de color de Odoo con esta paleta:
+//   o_cc1 fondo blanco · o_cc2 fondo hueso · o_cc3 fondo amarillo
+//   o_cc4 fondo azul   · o_cc5 fondo navy
+// Regla dura del ADN: el amarillo nunca toca el blanco. Por eso los botones
+// amarillos solo se usan sobre azul (o_cc4) y el botón principal es azul.
+
+$o-color-palettes: map-merge($o-color-palettes, (
+    'dcasa': (
+        'o-color-1': #1340B1, // Azul D'CASA — color madre
+        'o-color-2': #FED00F, // Amarillo D'CASA — acción y banda
+        'o-color-3': #F4F1EA, // Hueso claro — fondos alternos
+        'o-color-4': #FFFFFF, // Blanco — aire
+        'o-color-5': #0E2A6B, // Navy — texto largo y pie
+        'menu': 1,
+        'footer': 4,
+        'copyright': 5,
+    ),
+));
+
+$o-theme-font-configs: map-merge($o-theme-font-configs, (
+    'Anton': (
+        'family': ('Anton', 'Oswald', sans-serif),
+        'url': 'Anton',
+    ),
+    'Oswald': (
+        'family': ('Oswald', sans-serif),
+        'url': 'Oswald:400,500,600,700',
+    ),
+));
+
+$o-website-values-palettes: (
+    (
+        'color-palettes-name': 'dcasa',
+        'font': 'Inter',
+        'headings-font': 'Anton',
+        'h3-font': 'Oswald',
+        'h4-font': 'Oswald',
+        'h5-font': 'Oswald',
+        'h6-font': 'Oswald',
+        'navbar-font': 'Oswald',
+        'buttons-font': 'Oswald',
+
+        'btn-padding-x': 1.25rem,
+        'btn-padding-y-lg': .85rem,
+        'btn-padding-x-lg': 2rem,
+        'btn-border-radius': .75rem,
+        'btn-border-radius-lg': .9rem,
+        'input-border-radius': .5rem,
+
+        'header-template': 'default',
+        'header-links-style': 'default',
+        'logo-height': 3.25rem,
+        'footer-template': 'default',
+        'footer-scrolltop': true,
+    ),
+);

@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_presupuesto_lectura,presupuesto lectura,model_dcasa_presupuesto,account.group_account_readonly,1,0,0,0
+access_presupuesto_contador,presupuesto contador,model_dcasa_presupuesto,account.group_account_user,1,1,1,1
+access_presupuesto_linea_lectura,presupuesto linea lectura,model_dcasa_presupuesto_linea,account.group_account_readonly,1,0,0,0
+access_presupuesto_linea_contador,presupuesto linea contador,model_dcasa_presupuesto_linea,account.group_account_user,1,1,1,1
+access_importar_extracto,importar extracto,model_dcasa_importar_extracto,account.group_account_user,1,1,1,1

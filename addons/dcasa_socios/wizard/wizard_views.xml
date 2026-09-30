@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_ajuste_wizard" model="ir.ui.view">
+        <field name="name">dcasa.ajuste.wizard.form</field>
+        <field name="model">dcasa.ajuste.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Ajustar puntos">
+                <group>
+                    <field name="partner_id"/>
+                    <field name="saldo"/>
+                    <field name="puntos"/>
+                    <field name="motivo" placeholder="Ej.: Compra de julio que no se registró"/>
+                </group>
+                <p class="text-muted">El socio ve este motivo en su cuenta. No se puede dejar el saldo en negativo.</p>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Ajustar" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_anular_compra_wizard" model="ir.ui.view">
+        <field name="name">dcasa.anular.compra.wizard.form</field>
+        <field name="model">dcasa.anular.compra.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Anular compra">
+                <group>
+                    <field name="compra_id"/>
+                    <field name="motivo" placeholder="Ej.: Se registró en la ficha equivocada"/>
+                </group>
+                <p class="text-muted">Se devuelven sus puntos y, si fue su primera compra, se deshace el referido.</p>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Anular" class="btn-danger"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_cobrar_premio_wizard" model="ir.ui.view">
+        <field name="name">dcasa.cobrar.premio.wizard.form</field>
+        <field name="model">dcasa.cobrar.premio.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Cobrar premio">
+                <group>
+                    <field name="order_id" readonly="1"/>
+                    <field name="codigo" placeholder="Código que enseña el cliente"/>
+                    <field name="canje_id" invisible="not canje_id" readonly="1"/>
+                </group>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Aplicar a la venta" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_compra_manual_wizard" model="ir.ui.view">
+        <field name="name">dcasa.compra.manual.wizard.form</field>
+        <field name="model">dcasa.compra.manual.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Registrar compra a mano">
+                <p class="text-muted">Solo para facturas que no salieron de Odoo (sistema anterior).
+                    Las facturas de Odoo suman puntos solas cuando se pagan.</p>
+                <group>
+                    <field name="partner_id"/>
+                    <field name="factura"/>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="monto"/>
+                    <field name="notas"/>
+                </group>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Registrar" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_dcasa_compra_manual" model="ir.actions.act_window">
+        <field name="name">Registrar compra a mano</field>
+        <field name="res_model">dcasa.compra.manual.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

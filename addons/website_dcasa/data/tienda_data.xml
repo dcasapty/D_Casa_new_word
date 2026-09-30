@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Al instalar: sitio en español, pagos (Yappy, transferencia, al recibir), entregas
+         (retiro en tienda, domicilio por cotizar) y dirección para Panamá. En bases ya
+         instaladas lo aplica la migración 19.0.1.6.0; después, lo que la dueña cambie se respeta. -->
+    <data noupdate="1">
+        <function model="website" name="_dcasa_configurar_tienda"/>
+    </data>
+</odoo>

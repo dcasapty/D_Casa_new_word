@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Opiniones reales de Google, en movimiento (mismo sistema que BYS).
+
+         Cada tarjeta ENLAZA a la ficha: la autenticidad no se afirma, se comprueba.
+         Con 3 o más reseñas, una cinta que corre sola y se para con el puntero o el foco;
+         con menos, quietas y centradas. Sin movimiento con prefers-reduced-motion. -->
+    <template id="estrellas" name="D'CASA: estrellas">
+        <span class="o_dcasa_estrellas" role="img" t-attf-aria-label="{{ cuantas }} de 5 estrellas">
+            <t t-foreach="range(5)" t-as="i">
+                <svg t-attf-class="o_dcasa_estrella {{ 'is-llena' if i &lt; cuantas else '' }}" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2.5l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.3l-5.8 3.1 1.1-6.5L2.6 9.3l6.5-.9L12 2.5Z"/>
+                </svg>
+            </t>
+        </span>
+    </template>
+
+    <template id="icono_google" name="D'CASA: isotipo de Google">
+        <svg class="o_dcasa_resena_google" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M23 12.27c0-.82-.07-1.6-.21-2.36H12v4.47h6.17a5.28 5.28 0 0 1-2.29 3.46v2.88h3.7C21.74 18.75 23 15.8 23 12.27Z"/>
+            <path fill="#34A853" d="M12 23.5c3.1 0 5.7-1.03 7.6-2.78l-3.71-2.88c-1.03.69-2.35 1.1-3.89 1.1-2.99 0-5.52-2.02-6.43-4.73H1.74v2.97A11.49 11.49 0 0 0 12 23.5Z"/>
+            <path fill="#FBBC05" d="M5.57 14.21a6.9 6.9 0 0 1 0-4.41V6.83H1.74a11.5 11.5 0 0 0 0 10.34l3.83-2.96Z"/>
+            <path fill="#EA4335" d="M12 5.07c1.69 0 3.2.58 4.4 1.72l3.28-3.28C17.7 1.63 15.1.5 12 .5 7.54.5 3.68 3.06 1.74 6.83L5.57 9.8c.91-2.71 3.44-4.73 6.43-4.73Z"/>
+        </svg>
+    </template>
+
+    <template id="resenas_google" name="D'CASA: opiniones de Google">
+        <t t-set="resenas" t-value="website._dcasa_resenas()"/>
+        <section t-if="resenas['opiniones']" class="o_dcasa_section o_dcasa_resenas" aria-labelledby="dcasa-resenas-titulo">
+            <div class="o_dcasa_container">
+                <div class="o_dcasa_section_head">
+                    <div data-anim-cascada="izquierda">
+                        <p class="o_dcasa_kicker">Lo que dicen nuestros clientes</p>
+                        <h2 id="dcasa-resenas-titulo" class="o_dcasa_h2" data-titular="">Opiniones reales</h2>
+                    </div>
+                    <div class="o_dcasa_resenas_nota" data-anim="">
+                        <div t-if="resenas['puntuacion']" class="text-center">
+                            <p class="o_dcasa_resenas_puntuacion" t-out="'%.1f' % resenas['puntuacion']"/>
+                            <t t-call="website_dcasa.estrellas">
+                                <t t-set="cuantas" t-value="int(round(resenas['puntuacion']))"/>
+                            </t>
+                        </div>
+                        <div>
+                            <p class="o_dcasa_resenas_total">
+                                <t t-if="resenas['total']"><t t-out="resenas['total']"/> opiniones en Google</t>
+                                <t t-else="">Opiniones en Google</t>
+                            </p>
+                            <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="o_dcasa_link">
+                                Verlas en Google <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- WCAG 2.2.2: lo que se mueve solo más de 5 s tiene que poder pausarse. -->
+            <div t-if="resenas['copias'] &gt; 1" class="o_dcasa_container o_dcasa_resenas_control">
+                <button type="button" class="o_dcasa_resenas_pausa" aria-pressed="false">
+                    <i class="fa fa-pause" aria-hidden="true"/><span>Pausar opiniones</span>
+                </button>
+            </div>
+            <div t-attf-class="o_dcasa_resenas_cinta {{ 'is-viva' if resenas['copias'] &gt; 1 else '' }}"
+                 data-anim="" t-attf-style="--vuelta: {{ resenas['duracion'] }}">
+                <div class="o_dcasa_resenas_pista">
+                    <ul class="o_dcasa_resenas_tren" role="list">
+                        <t t-foreach="range(resenas['copias'])" t-as="copia">
+                            <li t-foreach="resenas['opiniones']" t-as="opinion" class="o_dcasa_resena"
+                                t-att-aria-hidden="'true' if copia else None">
+                                <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer"
+                                   class="o_dcasa_resena_enlace" t-att-tabindex="-1 if copia else None">
+                                    <div class="o_dcasa_resena_cabecera">
+                                        <span class="o_dcasa_resena_avatar" aria-hidden="true" t-out="opinion['autor'].strip()[:1]"/>
+                                        <div class="min-w-0">
+                                            <p class="o_dcasa_resena_autor" t-out="opinion['autor']"/>
+                                            <div class="o_dcasa_resena_meta">
+                                                <t t-call="website_dcasa.estrellas">
+                                                    <t t-set="cuantas" t-value="opinion['estrellas']"/>
+                                                </t>
+                                                <span t-if="opinion.get('cuando')" t-out="opinion['cuando']"/>
+                                            </div>
+                                        </div>
+                                        <t t-call="website_dcasa.icono_google"/>
+                                    </div>
+                                    <p class="o_dcasa_resena_texto" t-out="opinion['texto']"/>
+                                    <span class="o_dcasa_resena_pie">Ver esta reseña en Google <span aria-hidden="true">↗</span><span class="visually-hidden"> (se abre en una pestaña nueva)</span></span>
+                                </a>
+                            </li>
+                        </t>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="o_dcasa_container o_dcasa_resenas_ctas" data-anim-cascada="">
+                <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="btn btn-lg btn-primary">
+                    <i class="fa fa-star me-2" aria-hidden="true"/>Déjanos tu opinión en Google
+                    <span class="visually-hidden">(se abre en una pestaña nueva)</span>
+                </a>
+                <a t-att-href="resenas['ficha']" target="_blank" rel="noopener noreferrer" class="o_dcasa_link">
+                    Leer todas las reseñas <span class="visually-hidden">(se abre en una pestaña nueva)</span>
+                </a>
+            </div>
+        </section>
+    </template>
+</odoo>

@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_brian_telegram_enlace_usuario,brian.telegram.enlace usuario,model_brian_telegram_enlace,base.group_user,1,0,0,0
+access_brian_telegram_enlace_admin,brian.telegram.enlace admin,model_brian_telegram_enlace,base.group_system,1,1,0,1
+access_brian_telegram_codigo_admin,brian.telegram.codigo admin,model_brian_telegram_codigo,base.group_system,1,0,0,0
+access_brian_conversacion_usuario,brian.conversacion usuario,model_brian_conversacion,base.group_user,1,1,1,1
+access_brian_mensaje_usuario,brian.mensaje usuario,model_brian_mensaje,base.group_user,1,1,1,0
+access_brian_accion_usuario,brian.accion usuario,model_brian_accion,base.group_user,1,0,0,0

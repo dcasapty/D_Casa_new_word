@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_contabilidad.Conciliacion">
+        <div class="o_dc_conta o_dc_conc o_action">
+            <header class="o_dc_conta_cabecera">
+                <div>
+                    <span class="o_dc_conta_eyebrow">Bancos</span>
+                    <h1>Conciliación bancaria</h1>
+                    <p>Explica cada movimiento del banco con su factura, pago o cuenta.</p>
+                </div>
+                <div class="o_dc_conta_acciones">
+                    <button class="btn btn-secondary" t-on-click="importar"><i class="fa fa-upload me-2"/>Importar extracto</button>
+                    <button class="btn btn-secondary" t-on-click="nuevoMovimiento"><i class="fa fa-plus me-2"/>Movimiento</button>
+                    <button class="btn btn-primary" t-att-disabled="state.trabajando or !state.lineas.length" t-on-click="automatico">
+                        <i class="fa fa-magic me-2"/>Conciliar automático
+                    </button>
+                </div>
+            </header>
+
+            <nav class="o_dc_conta_pestanas" role="tablist">
+                <button t-foreach="state.diarios" t-as="d" t-key="d.id" role="tab"
+                        t-att-aria-selected="d.id === state.diario ? 'true' : 'false'"
+                        t-attf-class="o_dc_conta_pestana #{d.id === state.diario ? 'o_activa' : ''}"
+                        t-on-click="() => this.elegirDiario(d.id)">
+                    <i t-attf-class="fa #{d.tipo === 'cash' ? 'fa-money' : 'fa-university'}"/>
+                    <span t-out="d.nombre"/>
+                    <span t-if="d.pendientes" class="o_dc_contador" t-out="d.pendientes"/>
+                </button>
+            </nav>
+
+            <main class="o_dc_conc_cuerpo">
+                <section class="o_dc_conc_lista">
+                    <div class="o_dc_conc_lista_titulo">
+                        <span>Por conciliar</span>
+                        <a href="#" t-on-click.prevent="verConciliados">Ver conciliados</a>
+                    </div>
+                    <div t-if="!state.cargando and !state.lineas.length" class="o_dc_conc_vacio">
+                        <i class="fa fa-check-circle"/>
+                        <strong>Todo conciliado</strong>
+                        <span>Importa el extracto del banco para seguir.</span>
+                    </div>
+                    <button t-foreach="state.lineas" t-as="l" t-key="l.id"
+                            t-attf-class="o_dc_mov #{state.linea and state.linea.id === l.id ? 'o_activa' : ''}"
+                            t-on-click="() => this.elegirLinea(l)">
+                        <span class="o_dc_mov_fecha" t-out="fecha(l.fecha)"/>
+                        <span class="o_dc_mov_concepto" t-out="l.concepto or 'Sin descripción'"/>
+                        <span t-if="l.tercero" class="o_dc_mov_tercero" t-out="l.tercero"/>
+                        <strong t-attf-class="o_dc_mov_monto #{l.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(l.monto)"/>
+                    </button>
+                </section>
+
+                <section class="o_dc_conc_detalle" t-if="state.linea">
+                    <div class="o_dc_tarjeta o_dc_conc_resumen">
+                        <div>
+                            <span class="o_dc_conta_eyebrow" t-out="state.linea.monto &lt; 0 ? 'Salió del banco' : 'Entró al banco'"/>
+                            <h2 t-out="state.linea.concepto or 'Sin descripción'"/>
+                            <span class="text-muted"><t t-out="fecha(state.linea.fecha)"/><t t-if="state.linea.tercero"> · <t t-out="state.linea.tercero"/></t></span>
+                            <div t-if="state.linea.pendiente !== state.linea.monto" class="o_dc_dif">Falta por conciliar <strong t-out="dinero(state.linea.pendiente)"/></div>
+                        </div>
+                        <strong t-attf-class="o_dc_conc_monto #{state.linea.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(state.linea.monto)"/>
+                    </div>
+
+                    <div class="o_dc_segmento" role="tablist">
+                        <button t-attf-class="#{state.modo === 'facturas' ? 'o_activa' : ''}" t-on-click="() => this.cambiarModo('facturas')">
+                            <t t-out="state.linea.monto &lt; 0 ? 'Facturas y pagos a proveedores' : 'Facturas y cobros de clientes'"/>
+                        </button>
+                        <button t-attf-class="#{state.modo === 'cuenta' ? 'o_activa' : ''}" t-on-click="() => this.cambiarModo('cuenta')">
+                            Sin factura (comisión, cargo, otro)
+                        </button>
+                    </div>
+
+                    <t t-if="state.modo === 'facturas'">
+                        <div class="o_dc_buscar">
+                            <i class="fa fa-search"/>
+                            <input type="search" class="o_input" placeholder="Buscar por cliente, número de factura o referencia…"
+                                   t-att-value="state.busqueda" t-on-input="buscar"/>
+                        </div>
+                        <div class="o_dc_tarjeta">
+                            <table class="o_dc_tabla o_dc_candidatos">
+                                <thead><tr><th/><th>Documento</th><th>Tercero</th><th>Vence</th><th class="o_dc_num">Pendiente</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="state.candidatos" t-as="c" t-key="c.id"
+                                        t-attf-class="o_dc_fila o_dc_clic #{state.elegidos[c.id] ? 'o_elegido' : ''}" t-on-click="() => this.alternar(c)">
+                                        <td><input type="checkbox" class="form-check-input" t-att-checked="state.elegidos[c.id]" t-att-aria-label="c.asiento"/></td>
+                                        <td><span class="o_dc_codigo" t-out="c.asiento"/>
+                                            <span t-if="c.tipo === 'pago'" class="o_dc_etiqueta">Pago registrado</span>
+                                            <span t-if="c.sugerido" class="o_dc_etiqueta o_dc_etiqueta_sugerido">Sugerido</span>
+                                            <div t-if="c.referencia" class="o_dc_sub" t-out="c.referencia"/></td>
+                                        <td t-out="c.tercero"/>
+                                        <td t-out="fecha(c.vence)"/>
+                                        <td class="o_dc_num" t-out="dinero(c.pendiente)"/>
+                                    </tr>
+                                    <tr t-if="!state.candidatos.length" class="o_dc_fila o_dc_vacia"><td colspan="5">
+                                        No hay facturas ni pagos abiertos que coincidan. Busca por otro dato o regístralo «Sin factura».
+                                    </td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="o_dc_conc_pie">
+                            <div>
+                                <span>Seleccionado <strong t-out="dinero(sumaElegidos)"/></span>
+                                <span t-if="idsElegidos.length and diferencia" class="o_dc_dif">
+                                    · Diferencia <strong t-out="dinero(diferencia)"/>
+                                    <small>(queda pendiente o regístrala sin factura)</small>
+                                </span>
+                            </div>
+                            <button class="btn btn-primary" t-att-disabled="state.trabajando or !idsElegidos.length" t-on-click="conciliar">
+                                <i class="fa fa-check me-2"/>Conciliar
+                            </button>
+                        </div>
+                    </t>
+
+                    <t t-else="">
+                        <div class="o_dc_tarjeta o_dc_form">
+                            <label>Cuenta
+                                <select class="o_input" t-model="state.cuenta">
+                                    <option value="">Elige la cuenta…</option>
+                                    <optgroup t-foreach="state.cuentas" t-as="g" t-key="g.grupo" t-att-label="g.grupo">
+                                        <option t-foreach="g.cuentas" t-as="cu" t-key="cu.id" t-att-value="cu.id" t-out="cu.nombre"/>
+                                    </optgroup>
+                                </select>
+                            </label>
+                            <label>Descripción
+                                <input type="text" class="o_input" t-model="state.etiqueta"/>
+                            </label>
+                            <p class="o_dc_nota">Úsalo para comisiones bancarias, cargos de Yappy o tarjeta, intereses y movimientos sin factura.</p>
+                        </div>
+                        <div class="o_dc_conc_pie">
+                            <div>Se registra <strong t-out="dinero(state.linea.pendiente)"/> en la cuenta elegida.</div>
+                            <button class="btn btn-primary" t-att-disabled="state.trabajando or !state.cuenta" t-on-click="conciliar">
+                                <i class="fa fa-check me-2"/>Registrar y conciliar
+                            </button>
+                        </div>
+                    </t>
+                </section>
+            </main>
+        </div>
+    </t>
+
+    <t t-name="dcasa_contabilidad.EnDesarrollo">
+        <div class="o_dc_conta o_dc_desarrollo o_action">
+            <div class="o_dc_desarrollo_caja">
+                <span class="o_dc_desarrollo_icono"><i t-attf-class="fa #{plan.icono}"/></span>
+                <span class="badge o_dcasa_en_desarrollo">En desarrollo</span>
+                <h1 t-out="plan.titulo"/>
+                <p class="o_dc_desarrollo_resumen" t-out="plan.resumen"/>
+                <ol>
+                    <li t-foreach="plan.pasos" t-as="paso" t-key="paso_index" t-out="paso"/>
+                </ol>
+                <p class="o_dc_nota"><strong>Qué se necesita: </strong><t t-out="plan.necesita"/></p>
+            </div>
+        </div>
+    </t>
+</templates>

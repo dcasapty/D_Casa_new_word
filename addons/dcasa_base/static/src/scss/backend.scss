@@ -1,0 +1,35 @@
+// Interfaz de Odoo con la marca D'CASA.
+
+@font-face {
+    font-family: "Inter";
+    src: url("/dcasa_base/static/src/fonts/Inter-Regular.ttf") format("truetype");
+    font-weight: 400;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Inter";
+    src: url("/dcasa_base/static/src/fonts/Inter-SemiBold.ttf") format("truetype");
+    font-weight: 500 600;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Inter";
+    src: url("/dcasa_base/static/src/fonts/Inter-Bold.ttf") format("truetype");
+    font-weight: 700;
+    font-display: swap;
+}
+
+// Menús: tocar una opción en el celular no debe seleccionar el texto (salía la
+// «gota» de selección del teléfono encima del menú de aplicaciones).
+.o_main_navbar,
+.o_main_navbar .dropdown-menu,
+.o_navbar_apps_menu .dropdown-item {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+}
+
+::selection {
+    background: rgba(19, 64, 177, .18);
+}

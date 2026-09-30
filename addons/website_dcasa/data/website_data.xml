@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="website.default_website" model="website">
+            <field name="name">D'CASA Panamá</field>
+            <field name="dcasa_whatsapp_number">+507 6026-1919</field>
+            <field name="logo" type="base64" file="dcasa_base/static/img/logo.png"/>
+            <!-- Ícono de la pestaña: el de D'CASA, no el de Odoo. -->
+            <field name="favicon" type="base64" file="website_dcasa/static/src/img/favicon.png"/>
+            <field name="social_instagram">https://www.instagram.com/dcasapty</field>
+            <field name="social_tiktok">https://www.tiktok.com/@dcasapty</field>
+            <!-- Tienda: 4 columnas, foto sobre fondo neutro, botón de compra siempre visible
+                 (en el celular no hay «hover»: el botón oculto no se ve nunca). -->
+            <field name="shop_ppr" type="int">4</field>
+            <field name="shop_ppg" type="int">24</field>
+            <field name="shop_opt_products_design_classes">o_wsale_products_opt_layout_catalog o_wsale_products_opt_design_thumbs o_wsale_products_opt_name_color_regular o_wsale_products_opt_rounded_2 o_wsale_products_opt_img_secondary_show o_wsale_products_opt_img_hover_zoom_in_light o_wsale_products_opt_has_cta o_wsale_products_opt_actions_inline o_wsale_products_opt_actions_subtle o_wsale_products_opt_cc1</field>
+        </record>
+
+        <!-- Cabecera limpia: el WhatsApp ya está en la barra de anuncios y en el botón flotante,
+             así el menú por espacios cabe entero. Se puede reactivar desde el editor. -->
+        <record id="website.header_text_element" model="ir.ui.view">
+            <field name="active" eval="False"/>
+        </record>
+
+        <!-- Cabecera siempre visible (efecto «fijo»): la píldora de vidrio acompaña el scroll. -->
+        <record id="website.header_visibility_standard" model="ir.ui.view">
+            <field name="active" eval="False"/>
+        </record>
+        <record id="website.header_visibility_fixed" model="ir.ui.view">
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona). -->
+        <record id="website.homepage_page" model="website.page">
+            <field name="website_meta_title">Mueblería en La Chorrera | D'CASA Panamá</field>
+            <field name="website_meta_description">Salas, recámaras, colchones y comedores con precios claros en La Chorrera. Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.</field>
+        </record>
+    </data>
+
+    <!-- Se reafirman en cada despliegue (noupdate=0), aunque alguien las cambie en el backend:
+         la ficha nunca debe mostrar promesas que D'CASA no hizo, y el menú de tres opciones
+         nunca debe esconderse en el «+». -->
+    <data noupdate="0">
+        <!-- Menú centrado y de tres opciones: el auto-ocultado de Odoo las mandaría al «+»
+             al compactarse la cabecera. -->
+        <record id="website.no_autohide_menu" model="ir.ui.view">
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- La ficha de producto de Odoo trae «Garantía de devolución de 30 días / Envío: 2-3 días»:
+             son promesas que D'CASA no ha hecho (regla: no inventar). Se apaga. -->
+        <record id="website_sale.product_terms_and_conditions" model="ir.ui.view">
+            <field name="active" eval="False"/>
+        </record>
+    </data>
+</odoo>

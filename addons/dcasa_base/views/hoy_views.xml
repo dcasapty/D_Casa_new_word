@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Hoy»: lo vendido y lo cobrado en el día, por forma de pago, para cuadrar la caja. -->
+    <record id="action_dcasa_ventas_hoy" model="ir.actions.act_window">
+        <field name="name">Ventas de hoy</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('state', '=', 'sale'), ('date_order', '&gt;=', context_today().strftime('%Y-%m-%d'))]</field>
+        <field name="context">{'search_default_salesperson': 0}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay ventas confirmadas hoy.</p>
+        </field>
+    </record>
+
+    <record id="action_dcasa_cobros_hoy" model="ir.actions.act_window">
+        <field name="name">Cobros de hoy</field>
+        <field name="res_model">account.payment</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('payment_type', '=', 'inbound'), ('state', '!=', 'canceled'), ('date', '=', context_today().strftime('%Y-%m-%d'))]</field>
+        <field name="context">{'group_by': 'journal_id', 'default_payment_type': 'inbound'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay cobros registrados hoy.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_hoy" name="Hoy" parent="sale.sale_menu_root" sequence="1"/>
+    <menuitem id="menu_dcasa_ventas_hoy" name="Ventas de hoy" parent="menu_dcasa_hoy"
+              action="action_dcasa_ventas_hoy" sequence="10"/>
+    <menuitem id="menu_dcasa_cobros_hoy" name="Cobros de hoy (caja)" parent="menu_dcasa_hoy"
+              action="action_dcasa_cobros_hoy" sequence="20" groups="account.group_account_invoice"/>
+</odoo>

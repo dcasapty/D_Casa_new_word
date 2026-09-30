@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pantallas propias (acciones de cliente OWL) -->
+    <record id="accion_reportes" model="ir.actions.client">
+        <field name="name">Reportes contables</field>
+        <field name="tag">dcasa_reportes_contables</field>
+    </record>
+    <record id="accion_libro_mayor" model="ir.actions.client">
+        <field name="name">Libro mayor</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'libro_mayor'}"/>
+    </record>
+    <record id="accion_balance_comprobacion" model="ir.actions.client">
+        <field name="name">Balance de comprobación</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'balance_comprobacion'}"/>
+    </record>
+    <record id="accion_estado_resultados" model="ir.actions.client">
+        <field name="name">Estado de resultados</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'estado_resultados'}"/>
+    </record>
+    <record id="accion_balance_general" model="ir.actions.client">
+        <field name="name">Balance general</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'balance_general'}"/>
+    </record>
+    <record id="accion_itbms" model="ir.actions.client">
+        <field name="name">Resumen de ITBMS</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'itbms'}"/>
+    </record>
+    <record id="accion_analitica" model="ir.actions.client">
+        <field name="name">Rentabilidad analítica</field>
+        <field name="tag">dcasa_reportes_contables</field>
+        <field name="params" eval="{'reporte': 'analitica'}"/>
+    </record>
+    <record id="accion_conciliacion" model="ir.actions.client">
+        <field name="name">Conciliación bancaria</field>
+        <field name="tag">dcasa_conciliacion</field>
+    </record>
+
+    <!-- «En desarrollo»: lo que viene, dicho con claridad y sin letreros de Enterprise. -->
+    <record id="accion_nomina" model="ir.actions.client">
+        <field name="name">Nómina</field>
+        <field name="tag">dcasa_en_desarrollo</field>
+        <field name="params" eval="{'clave': 'nomina'}"/>
+    </record>
+    <record id="accion_reembolsos" model="ir.actions.client">
+        <field name="name">Reembolsos en nómina</field>
+        <field name="tag">dcasa_en_desarrollo</field>
+        <field name="params" eval="{'clave': 'reembolsos'}"/>
+    </record>
+    <record id="accion_fe" model="ir.actions.client">
+        <field name="name">Facturación electrónica DGI</field>
+        <field name="tag">dcasa_en_desarrollo</field>
+        <field name="params" eval="{'clave': 'fe'}"/>
+    </record>
+    <record id="accion_consolidacion" model="ir.actions.client">
+        <field name="name">Consolidación</field>
+        <field name="tag">dcasa_en_desarrollo</field>
+        <field name="params" eval="{'clave': 'consolidacion'}"/>
+    </record>
+
+    <!-- Menús dentro de Facturación / Contabilidad -->
+    <menuitem id="menu_bancos" name="Bancos" parent="account.menu_finance" sequence="5"
+              groups="account.group_account_user"/>
+    <menuitem id="menu_conciliacion" name="Conciliación bancaria" parent="menu_bancos" action="accion_conciliacion"
+              sequence="1"/>
+    <menuitem id="menu_importar_extracto" name="Importar extracto" parent="menu_bancos"
+              action="accion_importar_extracto" sequence="2"/>
+
+    <menuitem id="menu_reportes" name="Reportes contables" parent="account.menu_finance" sequence="18"
+              groups="account.group_account_readonly"/>
+    <menuitem id="menu_estado_resultados" parent="menu_reportes" action="accion_estado_resultados" sequence="1"/>
+    <menuitem id="menu_balance_general" parent="menu_reportes" action="accion_balance_general" sequence="2"/>
+    <menuitem id="menu_balance_comprobacion" parent="menu_reportes" action="accion_balance_comprobacion" sequence="3"/>
+    <menuitem id="menu_libro_mayor" parent="menu_reportes" action="accion_libro_mayor" sequence="4"/>
+    <menuitem id="menu_itbms" parent="menu_reportes" action="accion_itbms" sequence="5"/>
+    <menuitem id="menu_analitica" parent="menu_reportes" action="accion_analitica" sequence="6"/>
+    <menuitem id="menu_presupuestos" name="Presupuestos" parent="menu_reportes" action="accion_presupuestos"
+              sequence="7"/>
+
+    <menuitem id="menu_en_desarrollo" name="En desarrollo" parent="account.menu_finance" sequence="30"
+              groups="account.group_account_manager"/>
+    <menuitem id="menu_nomina" parent="menu_en_desarrollo" action="accion_nomina" sequence="1"/>
+    <menuitem id="menu_reembolsos" parent="menu_en_desarrollo" action="accion_reembolsos" sequence="2"/>
+    <menuitem id="menu_fe" parent="menu_en_desarrollo" action="accion_fe" sequence="3"/>
+    <menuitem id="menu_consolidacion" parent="menu_en_desarrollo" action="accion_consolidacion" sequence="4"/>
+</odoo>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Contabilidad analítica: ¿qué deja cada canal? (se pueden agregar más planes y cuentas) -->
+    <record id="plan_canal" model="account.analytic.plan">
+        <field name="name">Canal de venta</field>
+        <field name="default_applicability">optional</field>
+    </record>
+    <record id="cuenta_tienda_fisica" model="account.analytic.account">
+        <field name="name">Tienda física (La Chorrera)</field>
+        <field name="code">TIENDA</field>
+        <field name="plan_id" ref="plan_canal"/>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="cuenta_tienda_linea" model="account.analytic.account">
+        <field name="name">Tienda en línea</field>
+        <field name="code">WEB</field>
+        <field name="plan_id" ref="plan_canal"/>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

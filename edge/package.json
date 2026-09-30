@@ -1,0 +1,21 @@
+{
+  "name": "dcasa-edge",
+  "private": true,
+  "description": "Borde de Cloudflare para D'CASA: Worker que sirve Odoo desde un Cloudflare Container",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260929.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.143.0"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  }
+}

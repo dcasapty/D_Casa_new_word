@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="web.WebClient" t-inherit-mode="extension">
+        <xpath expr="//t[@t-if='!state.fullscreen']" position="before">
+            <DcasaBarraLateral t-if="!state.fullscreen"/>
+        </xpath>
+    </t>
+
+    <t t-name="dcasa_interfaz.BarraLateral">
+        <nav class="o_dcasa_barra d-print-none" aria-label="Navegación principal"
+             t-att-class="{
+                 'o_dcasa_barra_colapsada': colapsada,
+                 'o_dcasa_barra_flotante': state.modo === 'auto' and state.encima,
+                 'o_dcasa_barra_auto': state.modo === 'auto',
+             }"
+             t-on-mouseenter="entrar" t-on-mouseleave="salir"
+             t-on-focusin="entrar" t-on-focusout="salir">
+            <a class="o_dcasa_barra_marca" href="/odoo" t-on-click="(ev) => this.abrir(apps[0], ev)"
+               aria-label="D'CASA Panamá, ir al inicio">
+                <img class="o_dcasa_barra_logo" src="/dcasa_base/static/img/logo.png" alt="D'CASA Panamá"/>
+            </a>
+
+            <button type="button" class="o_dcasa_barra_buscar" t-on-click="buscar"
+                    aria-label="Buscar en todo (Ctrl + K)" title="Buscar (Ctrl + K)">
+                <i class="fa fa-search" aria-hidden="true"/>
+                <span class="o_dcasa_barra_texto">Buscar</span>
+                <kbd class="o_dcasa_barra_texto">Ctrl K</kbd>
+            </button>
+
+            <ul class="o_dcasa_barra_lista">
+                <li t-foreach="apps" t-as="app" t-key="app.id" class="o_dcasa_barra_item"
+                    t-att-class="{'o_activa': esAppActual(app)}">
+                    <a class="o_dcasa_barra_app" t-att-href="enlace(app)"
+                       t-on-click="(ev) => this.abrirApp(app, ev)"
+                       t-att-aria-current="esAppActual(app) ? 'true' : undefined"
+                       t-att-title="colapsada ? app.name : undefined">
+                        <img t-if="icono(app)" class="o_dcasa_barra_icono" t-att-src="icono(app)" alt=""/>
+                        <span class="o_dcasa_barra_texto" t-out="app.name"/>
+                    </a>
+                    <ul t-if="!colapsada and esAppActual(app) and secciones(app).length"
+                        class="o_dcasa_barra_secciones" t-att-aria-label="'Secciones de ' + app.name">
+                        <t t-call="dcasa_interfaz.BarraLateral.nodos">
+                            <t t-set="nodos" t-value="secciones(app)"/>
+                        </t>
+                    </ul>
+                </li>
+            </ul>
+
+            <button type="button" class="o_dcasa_barra_colapsar" t-on-click="alternarBarra"
+                    t-att-aria-pressed="state.modo === 'fija' ? 'true' : 'false'"
+                    t-att-title="state.modo === 'fija' ? 'Recoger el menú automáticamente' : 'Dejar el menú siempre abierto'">
+                <i t-attf-class="fa {{ state.modo === 'fija' ? 'fa-angle-double-left' : 'fa-thumb-tack' }}" aria-hidden="true"/>
+                <span class="o_dcasa_barra_texto" t-out="state.modo === 'fija' ? 'Recoger automáticamente' : 'Dejar abierto'"/>
+            </button>
+        </nav>
+    </t>
+
+    <!-- Secciones a cualquier profundidad: lo que tiene hijos se despliega en su lugar (acordeón). -->
+    <t t-name="dcasa_interfaz.BarraLateral.nodos">
+        <t t-foreach="nodos" t-as="seccion" t-key="seccion.id">
+            <li t-if="!(seccion.childrenTree and seccion.childrenTree.length)">
+                <a class="o_dcasa_barra_seccion" t-att-href="enlace(seccion)"
+                   t-att-class="{'o_activa': esActiva(seccion)}"
+                   t-att-aria-current="esActiva(seccion) ? 'page' : undefined"
+                   t-on-click="(ev) => this.abrir(seccion, ev)" t-out="seccion.name"/>
+            </li>
+            <li t-else="" class="o_dcasa_barra_grupo">
+                <button type="button" class="o_dcasa_barra_seccion o_dcasa_barra_grupo_btn"
+                        t-att-aria-expanded="abierto(seccion) ? 'true' : 'false'"
+                        t-on-click="() => this.alternar(seccion, nodos)">
+                    <span t-out="seccion.name"/>
+                    <i class="fa fa-angle-down" aria-hidden="true"/>
+                </button>
+                <ul t-if="abierto(seccion)" class="o_dcasa_barra_hijos">
+                    <t t-call="dcasa_interfaz.BarraLateral.nodos">
+                        <t t-set="nodos" t-value="seccion.childrenTree"/>
+                    </t>
+                </ul>
+            </li>
+        </t>
+    </t>
+</templates>
