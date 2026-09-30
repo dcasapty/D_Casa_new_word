@@ -76,8 +76,27 @@ class Website(models.Model):
                     'name': nombre, 'payment_method_ids': [(6, 0, transferencia.payment_method_ids.ids)]})
             proveedor.write({'state': 'enabled', 'is_published': True})
             _nombrar(proveedor, nombre)
+            # La tienda muestra MÉTODOS (no proveedores): Yappy necesita el suyo, si no se
+            # juntaría con la transferencia en una sola opción.
+            metodo = self._dcasa_metodo_de_pago(proveedor, nombre, modo)
+            if metodo:
+                proveedor.payment_method_ids = [(6, 0, metodo.ids)]
+                _nombrar(metodo, nombre)
             for idioma in idiomas:
                 proveedor.with_context(lang=idioma).pending_msg = Markup('<p>%s</p>') % mensaje
+
+    @api.model
+    def _dcasa_metodo_de_pago(self, proveedor, nombre, modo):
+        Method = self.env['payment.method'].sudo().with_context(active_test=False)
+        if modo == 'cash_on_delivery':
+            return self.env.ref('delivery.payment_method_cash_on_delivery', raise_if_not_found=False)
+        transferencia = self.env.ref('payment_custom.payment_method_wire_transfer')
+        if nombre != 'Yappy':
+            return transferencia
+        yappy = Method.search([('code', '=', 'yappy')], limit=1) or transferencia.copy({
+            'name': 'Yappy', 'code': 'yappy', 'sequence': transferencia.sequence - 1, 'provider_ids': [(5, 0, 0)]})
+        yappy.active = True
+        return yappy
 
     @api.model
     def _dcasa_entregas(self):

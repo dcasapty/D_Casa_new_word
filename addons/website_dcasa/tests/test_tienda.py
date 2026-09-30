@@ -20,6 +20,10 @@ class TestTiendaConfigurada(TransactionCase):
         self.assertEqual(set(pagos.mapped('name')), {'Transferencia bancaria', 'Yappy', 'Pago al recibir o en tienda'})
         for pago in pagos:
             self.assertIn('WhatsApp', str(pago.with_context(lang='es_419').pending_msg))
+        # Cada uno con su propio método: si no, la tienda juntaría Yappy y transferencia en una opción.
+        self.assertEqual(len(pagos.payment_method_ids), 3)
+        self.assertEqual(set(pagos.payment_method_ids.mapped('name')),
+                         {'Transferencia bancaria', 'Yappy', 'Pago al recibir o en tienda'})
 
     def test_entregas_sin_envio_gratis_inventado(self):
         entregas = self.env['delivery.carrier'].search([('is_published', '=', True)])
