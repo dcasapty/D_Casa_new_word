@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Inicio»: la pantalla con la que abre Odoo. -->
+    <record id="action_dcasa_inicio" model="ir.actions.client">
+        <field name="name">Inicio</field>
+        <field name="tag">dcasa_inicio</field>
+    </record>
+
+    <menuitem id="menu_dcasa_inicio" name="Inicio" action="action_dcasa_inicio" sequence="0"
+              web_icon="dcasa_interfaz,static/src/img/iconos/inicio.svg"/>
+</odoo>

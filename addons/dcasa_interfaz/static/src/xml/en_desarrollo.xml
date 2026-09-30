@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Donde Odoo ponía «Enterprise», D'CASA pone «En desarrollo». -->
+    <t t-inherit="web.FormLabelHighlightText" t-inherit-mode="extension">
+        <xpath expr="//span[hasclass('o_enterprise_label')]" position="replace">
+            <span class="badge oe_inline o_dcasa_en_desarrollo">En desarrollo</span>
+        </xpath>
+    </t>
+</templates>

@@ -19,6 +19,7 @@ código fuente en este repositorio y desplegado en **Cloudflare**.
 | `addons/dcasa_invoice` | Formato de factura D'CASA: marca, RUC+DV, sello **PAGADO**, monto en letras. |
 | `addons/dcasa_socios` | Socios D'CASA: puntos automáticos al pagarse la factura, referidos, premios, canjes, cumpleaños y app del socio (celular + PIN) en `/socios`. Reglas de [DCasa-Referidos](https://github.com/abrinay1997-stack/DCasa-Referidos). |
 | `addons/website_dcasa` | Sitio web y tienda con la marca, editable desde el constructor de Odoo. |
+| `addons/dcasa_interfaz` | La cara de Odoo por dentro: «Inicio» con el tablero del día, íconos propios, sin avisos de Enterprise (salen como «En desarrollo»), sin recorrido guiado, OdooBot ni datos de ejemplo. |
 | `addons/dcasa_catalogo` | Catálogo real (199 productos, 323 fotos) del Excel y la carpeta `up media`: el mismo producto en inventario, ventas y tienda web. Ver [docs/CATALOGO.md](docs/CATALOGO.md). |
 | `edge/` | Cloudflare Worker + Container que sirve Odoo (caché, seguridad, cron). |
 | `docker/` | Imagen de producción (Odoo + módulos) y su arranque. |
@@ -51,7 +52,7 @@ make edge-test                     # tests del Worker de Cloudflare
 Cada push corre en GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
 1. **Lint** (ruff + XML).
-2. **Tests de Odoo**: instala los 5 módulos (126 tests) en PostgreSQL limpio y corre sus tests
+2. **Tests de Odoo**: instala los 6 módulos (164 tests) en PostgreSQL limpio y corre sus tests
    (la factura de prueba reproduce la factura real INV/2026/00821: $329,99 + ITBMS $23,10 = $353,09).
 3. **Tests del borde**: typecheck + vitest del Worker.
 4. **Prueba de humo de la imagen**: construye la imagen Docker, la arranca contra una

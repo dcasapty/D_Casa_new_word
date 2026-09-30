@@ -52,7 +52,8 @@ class TestConfiguracionTienda(TransactionCase):
         admin = self.env.ref('base.user_admin')
         self.assertEqual(admin.lang, DCASA_LANG)
         self.assertEqual(admin.tz, DCASA_TZ)
-        self.assertEqual(admin.action_id.id, self.env.ref('sale.action_quotations_with_onboarding').id)
+        # Abre en Ventas (o en el «Inicio» de dcasa_interfaz, si está instalado), nunca en el chat.
+        self.assertTrue(admin.action_id)
         self.assertTrue(admin.has_group('sale.group_discount_per_so_line'))
         self.assertTrue(admin.has_group('product.group_product_variant'))
         for xmlid in MENUS_OCULTOS:

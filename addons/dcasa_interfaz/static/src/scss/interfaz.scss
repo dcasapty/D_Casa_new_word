@@ -1,0 +1,353 @@
+// Interfaz D'CASA: el «Inicio» y los detalles que hacen que Odoo se sienta de la casa.
+// Sistema plano (sin degradados ni sombras dramáticas); el amarillo nunca toca el blanco.
+
+$dc-azul: #1340B1;
+$dc-azul-osc: #0F3591;
+$dc-navy: #0E2A6B;
+$dc-amarillo: #FED00F;
+$dc-hueso: #F4F1EA;
+$dc-linea: rgba(14, 42, 107, .10);
+
+@font-face {
+    font-family: "Anton";
+    src: url("/dcasa_interfaz/static/src/fonts/Anton-Regular.ttf") format("truetype");
+    font-display: swap;
+}
+
+// «Enterprise» → «En desarrollo»
+.o_dcasa_en_desarrollo {
+    background: $dc-hueso;
+    color: $dc-navy;
+    border: 1px solid $dc-linea;
+    font-weight: 500;
+}
+
+// ---------------------------------------------------------------------------
+// Inicio
+// ---------------------------------------------------------------------------
+.o_dcasa_inicio {
+    height: 100%;
+    overflow-y: auto;
+    background: $dc-hueso;
+    color: $dc-navy;
+
+    h2 {
+        font-size: .8rem;
+        font-weight: 600;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: rgba($dc-navy, .7);
+        margin: 0 0 1rem;
+    }
+}
+
+.o_dcasa_inicio_hero {
+    background: $dc-azul;
+    color: #fff;
+    padding: 2.25rem clamp(1rem, 4vw, 3rem) 4.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+
+    h1 {
+        font-family: "Anton", "Inter", sans-serif;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: .01em;
+        font-size: clamp(2rem, 4vw, 3rem);
+        line-height: 1;
+        margin: .35rem 0 .5rem;
+        color: #fff;
+    }
+    p {
+        margin: 0;
+        color: rgba(#fff, .8);
+    }
+}
+
+.o_dcasa_inicio_fecha {
+    &::first-letter { text-transform: uppercase; }
+    font-size: .9rem;
+    color: $dc-amarillo;
+    font-weight: 600;
+}
+
+.o_dcasa_inicio_accesos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+
+    // En el celular: una fila que se desliza, sin ocupar media pantalla.
+    @media (max-width: 575.98px) {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        scrollbar-width: none;
+        margin: 0 calc(-1 * clamp(1rem, 4vw, 3rem));
+        padding: 0 clamp(1rem, 4vw, 3rem) .25rem;
+        .btn { white-space: nowrap; flex: none; }
+    }
+
+    .btn {
+        border-radius: 999px;
+        padding: .55rem 1.1rem;
+        font-weight: 600;
+        min-height: 44px;
+    }
+}
+
+// Amarillo solo sobre el azul del saludo.
+.o_dcasa_btn_amarillo {
+    background: $dc-amarillo;
+    color: $dc-navy;
+    border: 0;
+    &:hover, &:focus-visible { background: darken($dc-amarillo, 6%); color: $dc-navy; }
+}
+
+.o_dcasa_btn_vidrio {
+    background: rgba(#fff, .12);
+    color: #fff;
+    border: 1px solid rgba(#fff, .28);
+    &:hover, &:focus-visible { background: rgba(#fff, .22); color: #fff; }
+}
+
+.o_dcasa_inicio_cuerpo {
+    padding: 0 clamp(1rem, 4vw, 3rem) 3rem;
+    margin-top: -3rem;
+}
+
+// Cifras del día: tarjetas blancas que se tocan para ver el detalle.
+.o_dcasa_cifras {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+
+    @media (max-width: 575.98px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: .6rem;
+    }
+}
+
+.o_dcasa_cifra {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+        "icono titulo"
+        "valor valor"
+        "detalle detalle";
+    gap: .35rem .75rem;
+    align-items: center;
+    text-align: left;
+    background: #fff;
+    border: 1px solid $dc-linea;
+    border-radius: 16px;
+    padding: 1.1rem 1.2rem;
+    color: $dc-navy;
+    transition: transform .15s ease, border-color .15s ease;
+
+    &:hover, &:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba($dc-azul, .45);
+        outline: none;
+    }
+
+    @media (max-width: 575.98px) {
+        padding: .85rem .9rem;
+        .o_dcasa_cifra_valor { font-size: 1.35rem; }
+    }
+}
+
+.o_dcasa_cifra_icono {
+    grid-area: icono;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: grid;
+    place-items: center;
+    background: rgba($dc-azul, .08);
+    color: $dc-azul;
+}
+
+.o_dcasa_cifra_titulo {
+    grid-area: titulo;
+    font-size: .85rem;
+    font-weight: 600;
+    color: rgba($dc-navy, .75);
+}
+
+.o_dcasa_cifra_valor {
+    grid-area: valor;
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -.01em;
+    font-variant-numeric: tabular-nums;
+    color: $dc-azul;
+}
+
+.o_dcasa_cifra_detalle {
+    grid-area: detalle;
+    font-size: .8rem;
+    color: rgba($dc-navy, .6);
+}
+
+.o_dcasa_inicio_fila {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+
+    @media (max-width: 991.98px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.o_dcasa_panel {
+    background: #fff;
+    border: 1px solid $dc-linea;
+    border-radius: 16px;
+    padding: 1.2rem 1.3rem;
+}
+
+.o_dcasa_vacio {
+    color: rgba($dc-navy, .55);
+    margin: 0;
+}
+
+// Barras de la semana
+.o_dcasa_barras {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: .6rem;
+    height: 170px;
+    align-items: end;
+}
+
+.o_dcasa_barra {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: .35rem;
+}
+
+.o_dcasa_barra_relleno {
+    width: 100%;
+    max-width: 38px;
+    border-radius: 8px 8px 4px 4px;
+    background: rgba($dc-azul, .18);
+}
+
+.o_dcasa_barra_hoy .o_dcasa_barra_relleno {
+    background: $dc-azul;
+}
+
+.o_dcasa_barra_monto {
+    font-size: .68rem;
+    color: rgba($dc-navy, .6);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.o_dcasa_barra_dia {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+    color: rgba($dc-navy, .7);
+}
+
+// Caja de hoy
+.o_dcasa_caja li {
+    display: flex;
+    justify-content: space-between;
+    padding: .6rem 0;
+    border-bottom: 1px solid $dc-linea;
+    font-variant-numeric: tabular-nums;
+    &:last-child { border-bottom: 0; }
+    strong { color: $dc-azul; }
+}
+
+// Lo más vendido
+.o_dcasa_top li {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .45rem 0;
+    cursor: pointer;
+    border-bottom: 1px solid $dc-linea;
+    &:last-child { border-bottom: 0; }
+    &:hover .o_dcasa_top_nombre { color: $dc-azul; }
+
+    img {
+        width: 40px;
+        height: 40px;
+        object-fit: cover;
+        border-radius: 8px;
+        background: $dc-hueso;
+    }
+}
+
+.o_dcasa_top_nombre {
+    flex: 1;
+    font-size: .85rem;
+    line-height: 1.25;
+}
+
+.o_dcasa_top_cantidad {
+    font-weight: 700;
+    color: $dc-azul;
+    font-variant-numeric: tabular-nums;
+}
+
+// Apps
+.o_dcasa_apps_grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: .75rem;
+}
+
+.o_dcasa_app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .55rem;
+    padding: 1rem .5rem;
+    background: #fff;
+    border: 1px solid $dc-linea;
+    border-radius: 16px;
+    color: $dc-navy;
+    transition: transform .15s ease, border-color .15s ease;
+
+    &:hover, &:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba($dc-azul, .45);
+        outline: none;
+    }
+
+    img, .o_dcasa_app_letra {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+    }
+}
+
+.o_dcasa_app_letra {
+    display: grid;
+    place-items: center;
+    background: $dc-azul;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.4rem;
+}
+
+.o_dcasa_app_nombre {
+    font-size: .85rem;
+    font-weight: 600;
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_cifra, .o_dcasa_app { transition: none; &:hover { transform: none; } }
+}
