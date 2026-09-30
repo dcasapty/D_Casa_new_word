@@ -10,13 +10,14 @@ Uso:  python3 generar_dorado.py            # reescribe casos/dorado_excel.jsonl
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 
 import openpyxl
 
 RAIZ = Path(__file__).resolve().parents[4]
 XLSX = RAIZ / 'up media' / 'DCASA_listado_productos.xlsx'
-SALIDA = Path(__file__).resolve().parent / 'casos' / 'dorado_excel.jsonl'
+SALIDA = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).resolve().parent / 'casos' / 'dorado_excel.jsonl'
 REL = 'up media/DCASA_listado_productos.xlsx'
 VERIF = f'openpyxl {openpyxl.__version__}'
 
@@ -78,7 +79,7 @@ add(caso('XL-01', 'Fila completa de la primera ficha (con vacíos)', 'celdas', c
     'stock': r[5], 'observaciones': r[6]}),
     pregunta='Lee la fila 2 de la hoja Productos y devuélvela como JSON con las claves codigo, producto, '
              'precio, precios_por_tamano, combo, stock, observaciones. Lo que esté vacío va como null.',
-    celdas=[f'Productos!A2:G2'], etiquetas=['celdas', 'vacios']))
+    celdas=['Productos!A2:G2'], etiquetas=['celdas', 'vacios']))
 
 # XL-02 búsqueda por código
 f = fila('ALJ021439')
@@ -269,4 +270,4 @@ add(caso('MT-01', 'Multi-turno: consulta y luego corrección del mismo producto'
 with SALIDA.open('w', encoding='utf-8') as fh:
     for c in CASOS:
         fh.write(json.dumps(c, ensure_ascii=False) + '\n')
-print(f'{len(CASOS)} casos -> {SALIDA.relative_to(RAIZ)}  (sha256 {SHA[:12]}…)')
+print(f'{len(CASOS)} casos -> {SALIDA}  (sha256 {SHA[:12]}…)')
