@@ -40,3 +40,8 @@ Nada de esto se adivinó: donde el Excel duda, se tomó la primera ficha y se an
 - `up001` (cama tapizada (no se ve estructura de metal))
 
 Nombres web y medidas: `addons/dcasa_catalogo/data/fichas.json` (revisadas foto por foto; las medidas solo cuando están impresas en la foto).
+## Decisiones de la dueña (30/09/2026)
+
+- Precios dudosos (dos precios por código): quedan como están (se usa el primero).
+- Fotos idénticas en códigos distintos (CHCH070202/203, HYI360702/726, YH1003Fb/FDG, ZQ063605/606): quedan como están.
+- Reseñas de Google: quedan como están.
