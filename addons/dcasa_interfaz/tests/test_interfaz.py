@@ -1,3 +1,4 @@
+import json
 import re
 
 from odoo.tests import HttpCase, TransactionCase, tagged
@@ -79,3 +80,37 @@ class TestInterfazWeb(HttpCase):
         self.assertTrue(js, 'El backend enlaza su JavaScript')
         self.assertIn('DcasaBarraLateral', self.url_open(js[0]).text)
         self.assertNotIn('css error', contenido.lower())
+
+    def test_barra_lateral_tercer_nivel(self):
+        """Facturación › Contabilidad › Transacciones › Asientos: los grupos se despliegan a cualquier nivel."""
+        admin = self.env.ref('base.user_admin')
+        admin.group_ids = [(4, self.env.ref('account.group_account_manager').id)]
+        codigo = """(async () => {
+            const esperar = async (fn, que) => {
+                for (let i = 0; i < 100; i++) {
+                    const r = fn();
+                    if (r) { return r; }
+                    await new Promise((ok) => setTimeout(ok, 100));
+                }
+                throw new Error('No apareció: ' + que);
+            };
+            (await esperar(() => [...document.querySelectorAll('.o_dcasa_barra_app')]
+                .find((a) => a.textContent.trim() === __APP__), 'la app')).click();
+            await esperar(() => document.querySelector('.o_dcasa_barra_secciones'), 'las secciones');
+            for (const b of document.querySelectorAll('.o_dcasa_barra_secciones > li > .o_dcasa_barra_grupo_btn')) {
+                if (b.getAttribute('aria-expanded') !== 'true') { b.click(); }
+            }
+            (await esperar(() => document.querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_grupo_btn'),
+                           'un grupo de tercer nivel')).click();
+            const enlace = await esperar(
+                () => document.querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_hijos a'), 'el tercer nivel');
+            enlace.click();
+            await esperar(() => document.querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_hijos a.o_activa'),
+                          'el enlace activo');
+            // Ninguna sección queda como enlace muerto (sin acción ni subsecciones).
+            const muertos = [...document.querySelectorAll('a.o_dcasa_barra_seccion')]
+                .filter((a) => a.getAttribute('href') === '/odoo').map((a) => a.textContent.trim());
+            if (muertos.length) { throw new Error('Secciones sin destino: ' + muertos.join(', ')); }
+            console.log('test successful');
+        })();""".replace('__APP__', json.dumps(self.env.ref('account.menu_finance').with_context(lang=admin.lang).name))
+        self.browser_js('/odoo', codigo, login='admin')

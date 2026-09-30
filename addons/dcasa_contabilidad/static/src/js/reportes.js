@@ -139,7 +139,9 @@ export class DcasaReportesContables extends Component {
             name: fila.nombre,
             res_model: "account.move.line",
             domain: [
+                "|",
                 ["tax_line_id", "=", fila.id],
+                ["tax_ids", "in", [fila.id]],
                 ["parent_state", "=", "posted"],
                 ["date", ">=", this.state.datos.desde],
                 ["date", "<=", this.state.datos.hasta],

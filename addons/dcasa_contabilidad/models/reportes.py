@@ -255,18 +255,19 @@ class ReporteContable(models.AbstractModel):
         desde, hasta = self._periodo(desde, hasta)
         base = Domain.AND([self._dominio(borradores), [('date', '>=', desde), ('date', '<=', hasta)]])
         Linea = self.env['account.move.line']
-        impuestos = Linea._read_group(Domain.AND([base, [('tax_line_id', '!=', False)]]),
-                                      ['tax_line_id'], ['balance:sum'])
+        cuotas = dict(Linea._read_group(Domain.AND([base, [('tax_line_id', '!=', False)]]),
+                                        ['tax_line_id'], ['balance:sum']))
+        # Base imponible por impuesto, también de los que no generan cuota (ITBMS 0 % / exento).
+        bases = dict(Linea._read_group(Domain.AND([base, [('tax_ids', '!=', False)]]),
+                                       ['tax_ids'], ['balance:sum']))
         filas = []
-        for impuesto, saldo in impuestos:
+        for impuesto in sorted(set(cuotas) | set(bases), key=lambda t: (t.type_tax_use, t.sequence, t.name)):
             venta = impuesto.type_tax_use == 'sale'
-            [[base_imponible]] = Linea._read_group(Domain.AND([base, [('tax_ids', 'in', impuesto.ids)]]), [],
-                                                   ['balance:sum'])
-            base_imponible = base_imponible or 0.0
+            signo = -1 if venta else 1
             filas.append({
                 'id': impuesto.id, 'nombre': impuesto.name, 'tipo': 'venta' if venta else 'compra',
-                'base': self._r(-base_imponible if venta else base_imponible),
-                'impuesto': self._r(-saldo if venta else saldo),
+                'base': self._r(signo * bases.get(impuesto, 0.0)),
+                'impuesto': self._r(signo * cuotas.get(impuesto, 0.0)),
             })
         debito = self._r(sum(f['impuesto'] for f in filas if f['tipo'] == 'venta'))
         credito = self._r(sum(f['impuesto'] for f in filas if f['tipo'] == 'compra'))

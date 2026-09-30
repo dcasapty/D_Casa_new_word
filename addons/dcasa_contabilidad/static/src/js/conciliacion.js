@@ -121,7 +121,7 @@ export class DcasaConciliacion extends Component {
     }
 
     get diferencia() {
-        return this.state.linea ? Math.round((this.state.linea.monto - this.sumaElegidos) * 100) / 100 : 0;
+        return this.state.linea ? Math.round((this.state.linea.pendiente - this.sumaElegidos) * 100) / 100 : 0;
     }
 
     get diarioActual() {

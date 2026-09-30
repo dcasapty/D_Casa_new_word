@@ -81,6 +81,19 @@ class TestContabilidad(TransactionCase):
         venta = next(f for f in itbms['filas'] if f['tipo'] == 'venta')
         self.assertAlmostEqual(venta['base'], 100.0)
 
+    def test_itbms_incluye_ventas_exentas(self):
+        exento = self.env['account.tax'].create({
+            'name': 'ITBMS 0% exento (prueba)', 'amount': 0, 'type_tax_use': 'sale', 'company_id': self.company.id})
+        factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': '2030-03-10',
+            'invoice_line_ids': [(0, 0, {'name': 'Exento', 'quantity': 1, 'price_unit': 60.0,
+                                         'tax_ids': [(6, 0, exento.ids)]})],
+        })
+        factura.action_post()
+        fila = next(f for f in self.reportes.itbms(DESDE, HASTA)['filas'] if f['id'] == exento.id)
+        self.assertAlmostEqual(fila['base'], 60.0)
+        self.assertAlmostEqual(fila['impuesto'], 0.0)
+
     def test_libro_mayor_saldo_corrido(self):
         factura = self._factura(100.0)
         cxc = factura.line_ids.filtered(lambda ln: ln.account_id.account_type == 'asset_receivable').account_id
@@ -158,6 +171,27 @@ class TestContabilidad(TransactionCase):
         self.assertFalse(movimiento.is_reconciled)
         self.assertEqual(factura.payment_state, 'not_paid')
 
+    def test_conciliar_pago_ya_registrado(self):
+        """El pago registrado en la factura (Recibos pendientes) se cruza con el depósito del banco."""
+        factura = self._factura(100.0)
+        self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=factura.ids,
+        ).create({'payment_date': '2030-03-11', 'journal_id': self.banco.id})._create_payments()
+        movimiento = self._movimiento(107.0, 'DEPOSITO', partner=self.cliente)
+        candidatos = self.env['dcasa.conciliacion'].candidatos(movimiento.id)
+        pago = next(c for c in candidatos if c['tipo'] == 'pago')
+        self.assertTrue(pago['sugerido'])
+        self.env['dcasa.conciliacion'].conciliar(movimiento.id, apunte_ids=[pago['id']])
+        self.assertTrue(movimiento.is_reconciled)
+        self.assertEqual(factura.payment_state, 'paid')
+
+    def test_transacciones_del_tablero_abren_la_conciliacion(self):
+        accion = self.banco.open_action()
+        self.assertEqual(accion['tag'], 'dcasa_conciliacion')
+        self.assertEqual(accion['params']['journal_id'], self.banco.id)
+        ventas = self.env['account.journal'].search([('type', '=', 'sale')], limit=1)
+        self.assertEqual(ventas.open_action()['type'], 'ir.actions.act_window')
+
     def test_conciliacion_parcial(self):
         factura = self._factura(100.0)
         movimiento = self._movimiento(50.0, 'ABONO', partner=self.cliente)
@@ -165,6 +199,21 @@ class TestContabilidad(TransactionCase):
         self.env['dcasa.conciliacion'].conciliar(movimiento.id, apunte_ids=apunte.ids)
         self.assertTrue(movimiento.is_reconciled)
         self.assertAlmostEqual(factura.amount_residual, 57.0)
+
+    def test_completar_una_conciliacion_parcial(self):
+        """Depósito mayor que la factura: primero la factura, luego el resto a otra cuenta; nada se pierde."""
+        factura = self._factura(100.0)
+        movimiento = self._movimiento(150.0, f'DEPOSITO {factura.name}', partner=self.cliente)
+        apunte = factura.line_ids.filtered(lambda ln: ln.account_id.account_type == 'asset_receivable')
+        movimiento.dcasa_conciliar(apunte.ids)
+        self.assertFalse(movimiento.is_reconciled)
+        self.assertAlmostEqual(self.env['dcasa.conciliacion'].pendientes(self.banco.id)[0]['pendiente'], 43.0)
+        self.assertEqual(factura.payment_state, 'paid')
+        otros = self.env['account.account'].search([('account_type', '=', 'income_other'),
+                                                    ('company_ids', 'in', self.company.ids)], limit=1)
+        movimiento.dcasa_conciliar(cuenta_id=otros.id, etiqueta='Anticipo')
+        self.assertTrue(movimiento.is_reconciled)
+        self.assertEqual(factura.payment_state, 'paid')  # la primera parte sigue conciliada
 
     def test_conciliar_comision_sin_factura(self):
         gasto = self.env['account.account'].search([('account_type', '=', 'expense'),
