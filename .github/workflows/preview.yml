@@ -77,14 +77,14 @@ jobs:
           echo "LINK DE PREVISUALIZACIÓN: $URL (listo en unos minutos, cuando arranque Odoo)"
 
       # El repositorio es público: sus logs también. Con el secreto PREVIEW_ADMIN_PASSWORD la
-      # clave del admin es esa (GitHub la tapa con ***) y Brian usa BRIAN_API_KEY_PRUEBAS (una
-      # clave aparte, con límite de gasto). Sin ese secreto: clave al azar visible y Brian sin IA,
+      # clave del admin es esa (GitHub la tapa con ***) y Brian usa BRIAN_API_KEY_PRUEBAS (o, si
+      # no existe, BRIAN_API_KEY). Sin ese secreto: clave al azar visible y Brian sin IA,
       # para que nadie gaste la clave de IA con una contraseña publicada.
       - name: Arrancar Odoo con una base nueva
         id: odoo
         env:
           CLAVE_PRIVADA: ${{ secrets.PREVIEW_ADMIN_PASSWORD }}
-          BRIAN_CLAVE: ${{ secrets.BRIAN_API_KEY_PRUEBAS }}
+          BRIAN_CLAVE: ${{ secrets.BRIAN_API_KEY_PRUEBAS || secrets.BRIAN_API_KEY }}
         run: |
           if [ -n "$CLAVE_PRIVADA" ]; then
             CLAVE="$CLAVE_PRIVADA"
