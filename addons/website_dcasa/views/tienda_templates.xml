@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Entrega a domicilio: el costo se cotiza por WhatsApp. El precio lo escribe el JavaScript
+         de Odoo («Gratis» si es 0); la clase lo reemplaza por «Por cotizar» (ver dcasa.scss). -->
+    <template id="entrega_por_cotizar" inherit_id="website_sale.delivery_method" name="D'CASA: entrega por cotizar">
+        <xpath expr="//span[hasclass('o_wsale_delivery_price_badge')]" position="attributes">
+            <attribute name="t-attf-class">o_wsale_delivery_price_badge text-muted fw-bold text-end {{'o_dcasa_por_cotizar' if dm.dcasa_por_cotizar else ''}}</attribute>
+        </xpath>
+    </template>
+
+    <template id="resumen_entrega_por_cotizar" inherit_id="website_sale.total" name="D'CASA: resumen con entrega por cotizar">
+        <xpath expr="//tr[@name='o_order_delivery']/td[2]" position="inside">
+            <small t-if="website_sale_order.carrier_id.dcasa_por_cotizar" class="d-block text-muted fw-normal">por cotizar</small>
+        </xpath>
+    </template>
+</odoo>

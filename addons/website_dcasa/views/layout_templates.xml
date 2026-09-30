@@ -4,7 +4,9 @@
     <template id="layout_whatsapp_float" inherit_id="website.layout" name="D'CASA: botón de WhatsApp"
               customize_show="True">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
-            <aside t-if="website" aria-label="WhatsApp">
+            <!-- En carrito y checkout no: taparía el botón de confirmar (la página ya ofrece WhatsApp). -->
+            <aside t-if="website and not request.httprequest.path.startswith(('/shop/cart', '/shop/checkout', '/shop/address', '/shop/payment', '/shop/confirm', '/shop/extra_info'))"
+                   aria-label="WhatsApp">
                 <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
                    class="o_dcasa_wa_float" title="Escríbenos por WhatsApp">
                     <i class="fa fa-whatsapp" aria-hidden="true"/>
@@ -55,9 +57,10 @@
 
     <!-- Ficha de producto: WhatsApp con el nombre del mueble y sellos de confianza junto al botón de compra. -->
     <template id="product_cta_dcasa" inherit_id="website_sale.cta_wrapper" name="D'CASA: confianza en la ficha">
-        <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="after">
+        <!-- WhatsApp es el CTA de la marca: botón principal y antes de «Agregar al carrito». -->
+        <xpath expr="//div[@id='o_wsale_cta_wrapper']" position="before">
             <a t-if="website and product" t-att-href="website._dcasa_whatsapp_producto(product)" target="_blank" rel="noopener"
-               class="btn o_dcasa_btn_contorno w-100 mb-4 o_dcasa_wa_producto">
+               class="btn btn-primary btn-lg w-100 mb-3 o_dcasa_wa_producto">
                 <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Pregunta por este mueble por WhatsApp
             </a>
             <ul class="o_dcasa_sellos" role="list">
@@ -144,8 +147,8 @@
                         <div class="row">
                             <div class="col-lg-4 pb24">
                                 <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
-                                <p>Tu casa, bien amueblada. Camas, colchones, box, sofás, comedores, hamacas,
-                                    electrodomésticos y decoración, con la mejor atención y precios pensados para ti.</p>
+                                <p>Tu casa, bien amueblada. Camas, colchones, salas, muebles de TV,
+                                    zapateras, estantes y escritorios, con la mejor atención y precios pensados para ti.</p>
                             </div>
                             <div class="col-lg-2 pb24">
                                 <h2 class="o_dcasa_kicker">Tienda</h2>

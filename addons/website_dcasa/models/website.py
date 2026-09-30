@@ -5,6 +5,7 @@ from urllib.parse import quote
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
+from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 from odoo.tools.json import scriptsafe as json_scriptsafe
@@ -66,12 +67,23 @@ class Website(models.Model):
     # WhatsApp
     # ------------------------------------------------------------------
 
+    @api.constrains('dcasa_whatsapp_number')
+    def _check_dcasa_whatsapp_number(self):
+        """Un número inválido borraría en silencio todos los botones de WhatsApp del sitio."""
+        for website in self.filtered('dcasa_whatsapp_number'):
+            digitos = reglas_socios.solo_digitos(website.dcasa_whatsapp_number)
+            if not (len(digitos) == 8 or 10 <= len(digitos) <= 15):
+                raise ValidationError(self.env._(
+                    'El WhatsApp de ventas debe ser un número, como +507 6026-1919 o 6026-1919.'))
+
     def _dcasa_whatsapp_url(self, message=None):
         """Link wa.me con mensaje precargado; '/contactus' si no hay número."""
         self.ensure_one()
         digits = reglas_socios.solo_digitos(self.dcasa_whatsapp_number or self.company_id.phone)
         if not digits:
             return '/contactus'
+        if len(digits) == 8:  # número de Panamá sin el código de país
+            digits = f'507{digits}'
         return f'https://wa.me/{digits}?text={quote(message or DEFAULT_WHATSAPP_MESSAGE)}'
 
     def _dcasa_whatsapp_producto(self, product):

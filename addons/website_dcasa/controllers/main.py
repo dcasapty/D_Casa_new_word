@@ -1,6 +1,20 @@
 from odoo import http
+from odoo.addons.website_sale.controllers.main import WebsiteSale
 from odoo.fields import Domain
 from odoo.http import request
+
+
+class DcasaCheckout(WebsiteSale):
+    """Dirección para un cliente de Panamá: sin empresa ni VAT, y Panamá ya elegido."""
+
+    def _prepare_address_form_values(self, *args, **kwargs):
+        valores = super()._prepare_address_form_values(*args, **kwargs)
+        valores['display_b2b_fields'] = False
+        return valores
+
+    def _get_default_country(self, order_sudo=False, **kwargs):
+        pais = super()._get_default_country(order_sudo=order_sudo, **kwargs)
+        return pais or request.website.company_id.country_id
 
 
 class DcasaTienda(http.Controller):

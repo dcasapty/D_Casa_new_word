@@ -1787,3 +1787,23 @@ body.editor_enable .o_dcasa_wa_float {
         display: none !important;
     }
 }
+
+// Checkout: la entrega a domicilio se cotiza por WhatsApp; nunca decir «Gratis».
+.o_wsale_delivery_price_badge.o_dcasa_por_cotizar {
+    font-size: 0;
+    &::after {
+        content: 'Por cotizar';
+        font-size: .875rem;
+    }
+}
+
+// Ficha: «Agregar al carrito» es la opción secundaria; WhatsApp va primero y lleno.
+#product_detail #add_to_cart {
+    background-color: transparent;
+    color: $dcasa-azul;
+    border: 2px solid $dcasa-azul;
+    &:hover, &:focus-visible {
+        background-color: $dcasa-azul;
+        color: #fff;
+    }
+}
