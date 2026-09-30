@@ -206,7 +206,7 @@ class TestConversacion(BrianCase):
         parametros.set_param('dcasa_brian.api_key', 'sk-ant-muy-secreta-1234')
         estado = self.env['brian.proveedores'].estado()
         self.assertTrue(estado['configurado'])
-        self.assertEqual(estado['modelo'], proveedores.MODELO_ANTHROPIC_PEQUENO)
+        self.assertEqual(estado['modelo'], 'claude-sonnet-5-5', 'Sonnet 5.5 por defecto')
         self.assertEqual(estado['clave'], '…1234')
         self.assertNotIn('secreta', json.dumps(estado))
 

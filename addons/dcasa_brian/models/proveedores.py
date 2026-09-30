@@ -26,7 +26,7 @@ Entorno               Parámetro                  Ejemplos
 ====================  =========================  ==========================================
 BRIAN_PROVEEDOR       dcasa_brian.proveedor      anthropic, openai, xai, groq, openrouter,
                                                  together, ollama, prueba
-BRIAN_MODELO          dcasa_brian.modelo         claude-haiku-4-5, claude-sonnet-5-5,
+BRIAN_MODELO          dcasa_brian.modelo         claude-sonnet-5-5 (defecto), claude-haiku-4-5,
                                                  gpt-4o-mini, grok-3-mini,
                                                  llama-3.3-70b-versatile
 BRIAN_API_KEY         dcasa_brian.api_key        (secreto; nunca se muestra completa)
@@ -52,12 +52,13 @@ REINTENTOS = 2
 ESPERA_BASE = 1.5            # segundos; los tests la ponen en 0
 MAX_TOKENS = 8000
 
+# Por defecto Sonnet 5.5 (decisión de D'CASA); Haiku queda como opción económica.
 MODELO_ANTHROPIC_PEQUENO = 'claude-haiku-4-5'
 MODELO_ANTHROPIC_GRANDE = 'claude-sonnet-5-5'
 
 PROVEEDORES = {
     'anthropic': {'tipo': 'anthropic', 'nombre': 'Anthropic (Claude)', 'base_url': 'https://api.anthropic.com',
-                  'modelo': MODELO_ANTHROPIC_PEQUENO, 'vision': True, 'clave': True},
+                  'modelo': MODELO_ANTHROPIC_GRANDE, 'vision': True, 'clave': True},
     'openai': {'tipo': 'openai', 'nombre': 'OpenAI (ChatGPT)', 'base_url': 'https://api.openai.com/v1',
                'vision': True, 'clave': True},
     'xai': {'tipo': 'openai', 'nombre': 'xAI (Grok)', 'base_url': 'https://api.x.ai/v1',

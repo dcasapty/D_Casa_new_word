@@ -13,7 +13,7 @@ class ResConfigSettings(models.TransientModel):
         help='Vacío: usa la variable BRIAN_PROVEEDOR (por defecto Anthropic).')
     dcasa_brian_modelo = fields.Char(
         'Modelo', config_parameter='dcasa_brian.modelo',
-        help='Ej.: claude-haiku-4-5, claude-sonnet-5-5, gpt-4o-mini, grok-3-mini, llama-3.3-70b-versatile. '
+        help='Ej.: claude-sonnet-5-5 (por defecto), claude-haiku-4-5, gpt-4o-mini, llama-3.3-70b-versatile. '
              'Vacío: BRIAN_MODELO o el modelo por defecto del proveedor.')
     dcasa_brian_base_url = fields.Char(
         'Dirección del API', config_parameter='dcasa_brian.base_url',

@@ -76,15 +76,30 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "LINK DE PREVISUALIZACIÓN: $URL (listo en unos minutos, cuando arranque Odoo)"
 
+      # El repositorio es público: sus logs también. Con el secreto PREVIEW_ADMIN_PASSWORD la
+      # clave del admin es esa (GitHub la tapa con ***) y Brian usa BRIAN_API_KEY_PRUEBAS (una
+      # clave aparte, con límite de gasto). Sin ese secreto: clave al azar visible y Brian sin IA,
+      # para que nadie gaste la clave de IA con una contraseña publicada.
       - name: Arrancar Odoo con una base nueva
         id: odoo
+        env:
+          CLAVE_PRIVADA: ${{ secrets.PREVIEW_ADMIN_PASSWORD }}
+          BRIAN_CLAVE: ${{ secrets.BRIAN_API_KEY_PRUEBAS }}
         run: |
-          CLAVE=$(openssl rand -hex 6)
-          echo "clave=$CLAVE" >> "$GITHUB_OUTPUT"
+          if [ -n "$CLAVE_PRIVADA" ]; then
+            CLAVE="$CLAVE_PRIVADA"
+            echo "clave=la del secreto PREVIEW_ADMIN_PASSWORD" >> "$GITHUB_OUTPUT"
+            BRIAN=(-e BRIAN_PROVEEDOR=anthropic -e BRIAN_API_KEY="$BRIAN_CLAVE")
+            [ -z "$BRIAN_CLAVE" ] && BRIAN=()
+          else
+            CLAVE=$(openssl rand -hex 6)
+            echo "clave=$CLAVE" >> "$GITHUB_OUTPUT"
+            BRIAN=()
+          fi
           docker run -d --name odoo --network host \
             -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa -e DB_SSLMODE=disable \
             -e ADMIN_PASSWORD="$CLAVE" -e ADMIN_USER_PASSWORD="$CLAVE" -e APP_VERSION=${{ github.sha }} \
-            -e DCASA_PIN_PEPPER=preview \
+            -e DCASA_PIN_PEPPER=preview "${BRIAN[@]}" \
             dcasa-odoo:preview
           for i in $(seq 1 120); do
             curl -fsS -o /dev/null http://localhost:8069/web/health 2>/dev/null && { echo "Odoo arriba"; break; }

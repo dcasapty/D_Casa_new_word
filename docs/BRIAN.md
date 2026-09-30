@@ -83,7 +83,7 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
 | Variable | Ejemplo |
 |---|---|
 | `BRIAN_PROVEEDOR` | `anthropic` · `openai` · `xai` · `groq` · `openrouter` · `ollama` |
-| `BRIAN_MODELO` | Anthropic por defecto `claude-haiku-4-5` (grande: `claude-sonnet-5-5`); en los demás proveedores es obligatorio, p. ej. `gpt-4o-mini`, `llama-3.3-70b-versatile` |
+| `BRIAN_MODELO` | Anthropic por defecto `claude-sonnet-5-5` (económico: `claude-haiku-4-5`); en los demás proveedores es obligatorio, p. ej. `gpt-4o-mini`, `llama-3.3-70b-versatile` |
 | `BRIAN_HERRAMIENTAS_MAX` | opcional: cuántas herramientas ofrecer por mensaje (0 = automático) |
 | `BRIAN_API_KEY` | secreto |
 | `BRIAN_BASE_URL` | opcional (OpenAI-compatible) |
