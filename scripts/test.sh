@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Instala los módulos de D'CASA en una base limpia y corre sus tests.
 # Uso: scripts/test.sh [modulo1,modulo2]   (por defecto: todos los de addons/)
-# Variables: DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME PYTHON
+# Variables: DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME HTTP_PORT PYTHON
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -11,6 +11,7 @@ DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-odoo}"
 DB_PASSWORD="${DB_PASSWORD:-odoo}"
+HTTP_PORT="${HTTP_PORT:-8169}"
 LOG="${LOG:-$ROOT/.test.log}"
 
 if [[ $# -gt 0 ]]; then
@@ -30,7 +31,7 @@ set +e
   --db_host="$DB_HOST" --db_port="$DB_PORT" --db_user="$DB_USER" --db_password="$DB_PASSWORD" \
   -d "$DB_NAME" -i "$MODULES" \
   --test-enable --test-tags="$TEST_TAGS" \
-  --stop-after-init --log-level=test --http-port=8169 \
+  --stop-after-init --log-level=test --http-port="$HTTP_PORT" \
   2>&1 | tee "$LOG"
 rc=${PIPESTATUS[0]}
 set -e

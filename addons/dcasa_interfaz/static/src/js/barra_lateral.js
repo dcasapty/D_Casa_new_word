@@ -9,20 +9,24 @@
  *    se despliega, foco visible y enlaces reales (Ctrl/⌘ + clic abre en otra pestaña).
  *  · Búsqueda global a un clic (la paleta de comandos, Ctrl+K).
  */
-import { Component, useState } from "@odoo/owl";
+import { Component, onWillUnmount, useState } from "@odoo/owl";
 import { browser } from "@web/core/browser/browser";
+import { registry } from "@web/core/registry";
 import { router } from "@web/core/browser/router";
 import { useBus, useService } from "@web/core/utils/hooks";
 import { patch } from "@web/core/utils/patch";
 import { WebClient } from "@web/webclient/webclient";
 
-const CLAVE = "dcasa.barra_lateral.colapsada";
+const CLAVE = "dcasa.barra_lateral.modo";
+// Espera antes de recoger la barra al salir el mouse (evita que se cierre por un roce).
+const ESPERA_RECOGER = 350;
+const ESPERA_ABRIR = 120;
 
-function leerPreferencia() {
+function leerModo() {
     try {
-        return browser.localStorage.getItem(CLAVE) === "1";
+        return browser.localStorage.getItem(CLAVE) === "fija" ? "fija" : "auto";
     } catch {
-        return false;
+        return "auto";
     }
 }
 
@@ -34,11 +38,47 @@ export class DcasaBarraLateral extends Component {
         this.menu = useService("menu");
         this.action = useService("action");
         this.command = useService("command");
-        this.state = useState({ colapsada: leerPreferencia(), abiertos: {}, version: 0 });
+        // Menús especiales del sitio web (propiedades, SEO, editor HTML…): se abren como ventanas.
+        this.menusSitio = this.env.services.website_custom_menus || null;
+        this.state = useState({ modo: leerModo(), encima: false, abiertos: {}, version: 0, elegido: null });
         this.aplicarAncho();
         const refrescar = () => this.state.version++;
         useBus(this.env.bus, "MENUS:APP-CHANGED", refrescar);
         useBus(this.env.bus, "ACTION_MANAGER:UI-UPDATED", refrescar);
+        const sistemaSitio = registry.category("website_systray");
+        useBus(sistemaSitio, "CONTENT-UPDATED", refrescar);
+        useBus(sistemaSitio, "EDIT-WEBSITE", refrescar);
+        onWillUnmount(() => clearTimeout(this.temporizador));
+    }
+
+    /** En modo automático la barra es una franja de íconos que se abre sola al acercar el mouse. */
+    get expandida() {
+        return this.state.modo === "fija" || this.state.encima;
+    }
+
+    get colapsada() {
+        return !this.expandida;
+    }
+
+    entrar() {
+        if (this.state.modo !== "auto") {
+            return;
+        }
+        clearTimeout(this.temporizador);
+        this.temporizador = setTimeout(() => (this.state.encima = true), ESPERA_ABRIR);
+    }
+
+    salir() {
+        if (this.state.modo !== "auto") {
+            return;
+        }
+        clearTimeout(this.temporizador);
+        this.temporizador = setTimeout(() => (this.state.encima = false), ESPERA_RECOGER);
+    }
+
+    recoger() {
+        clearTimeout(this.temporizador);
+        this.state.encima = false;
     }
 
     get apps() {
@@ -68,11 +108,26 @@ export class DcasaBarraLateral extends Component {
     }
 
     secciones(app) {
-        return this.menu.getMenuAsTree(app.id).childrenTree || [];
+        this.state.version;
+        const arbol = this.menu.getMenuAsTree(app.id).childrenTree || [];
+        if (this.menusSitio && app.xmlid === "website.menu_website_configuration") {
+            // Igual que la barra de Odoo: solo los menús del sitio que aplican a la página abierta.
+            return this.menusSitio.addCustomMenus(arbol).filter((s) => s.childrenTree.length || s.actionID);
+        }
+        return arbol;
+    }
+
+    esEspecial(item) {
+        return Boolean(this.menusSitio && item.xmlid && this.menusSitio.get(item.xmlid));
     }
 
     esActiva(item) {
-        return Boolean(item.actionID) && item.actionID === this.accionActual;
+        if (!item.actionID || item.actionID !== this.accionActual || this.esEspecial(item)) {
+            return false;
+        }
+        // Varios menús pueden compartir la acción: se marca el que el usuario eligió.
+        const elegido = this.state.elegido;
+        return !elegido || elegido.actionID !== item.actionID || elegido.id === item.id;
     }
 
     contieneActiva(seccion) {
@@ -84,8 +139,17 @@ export class DcasaBarraLateral extends Component {
         return elegido === undefined ? this.contieneActiva(seccion) : elegido;
     }
 
-    alternar(seccion) {
-        this.state.abiertos[seccion.id] = !this.abierto(seccion);
+    alternar(seccion, hermanos = []) {
+        const abrir = !this.abierto(seccion);
+        if (abrir) {
+            // Acordeón: al abrir un grupo se recogen sus hermanos.
+            for (const otro of hermanos) {
+                if (otro.id !== seccion.id) {
+                    this.state.abiertos[otro.id] = false;
+                }
+            }
+        }
+        this.state.abiertos[seccion.id] = abrir;
     }
 
     enlace(item) {
@@ -106,7 +170,28 @@ export class DcasaBarraLateral extends Component {
             return;
         }
         ev?.preventDefault();
-        this.menu.selectMenu(item);
+        if (this.esEspecial(item)) {
+            this.menusSitio.open(item);
+        } else {
+            this.state.elegido = { id: item.id, actionID: item.actionID };
+            this.menu.selectMenu(item);
+        }
+        // En modo automático, elegir una pantalla recoge la barra.
+        if (this.state.modo === "auto" && !(item.childrenTree && item.childrenTree.length) && item.actionID) {
+            this.recoger();
+        }
+    }
+
+    abrirApp(app, ev) {
+        // Sin mouse (pantalla táctil) o con la barra recogida: tocar la app la despliega.
+        if (this.state.modo === "auto" && !this.state.encima && ev && ev.pointerType === "touch") {
+            ev.preventDefault();
+            this.state.encima = true;
+            return;
+        }
+        this.abrir(app, ev);
+        // Entrar a una app no elige una sección: se marca la que corresponda a su acción.
+        this.state.elegido = null;
     }
 
     buscar() {
@@ -114,9 +199,10 @@ export class DcasaBarraLateral extends Component {
     }
 
     alternarBarra() {
-        this.state.colapsada = !this.state.colapsada;
+        this.state.modo = this.state.modo === "fija" ? "auto" : "fija";
+        this.state.encima = false;
         try {
-            browser.localStorage.setItem(CLAVE, this.state.colapsada ? "1" : "0");
+            browser.localStorage.setItem(CLAVE, this.state.modo);
         } catch {
             // Sin almacenamiento (modo privado): la preferencia dura la sesión.
         }
@@ -124,7 +210,9 @@ export class DcasaBarraLateral extends Component {
     }
 
     aplicarAncho() {
-        document.body.classList.toggle("o_dcasa_barra_colapsada", this.state.colapsada);
+        // En modo automático el contenido deja solo el espacio de la franja de íconos;
+        // la barra abierta por el mouse flota encima sin mover la pantalla.
+        document.body.classList.toggle("o_dcasa_barra_colapsada", this.state.modo === "auto");
     }
 }
 

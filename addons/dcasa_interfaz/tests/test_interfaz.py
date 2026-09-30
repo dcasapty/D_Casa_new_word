@@ -94,14 +94,33 @@ class TestInterfazWeb(HttpCase):
                 }
                 throw new Error('No apareció: ' + que);
             };
+            // Por defecto la barra es automática: franja de íconos que no empuja el contenido.
+            await esperar(() => document.body.classList.contains('o_dcasa_barra_colapsada'), 'el modo automático');
+            await esperar(() => document.querySelector('nav.o_dcasa_barra.o_dcasa_barra_colapsada'), 'la franja');
+            // Fijarla abierta.
+            document.querySelector('.o_dcasa_barra_colapsar').click();
+            await esperar(() => !document.body.classList.contains('o_dcasa_barra_colapsada'), 'la barra fija');
             (await esperar(() => [...document.querySelectorAll('.o_dcasa_barra_app')]
                 .find((a) => a.textContent.trim() === __APP__), 'la app')).click();
             await esperar(() => document.querySelector('.o_dcasa_barra_secciones'), 'las secciones');
-            for (const b of document.querySelectorAll('.o_dcasa_barra_secciones > li > .o_dcasa_barra_grupo_btn')) {
-                if (b.getAttribute('aria-expanded') !== 'true') { b.click(); }
+            // Acordeón: abrir un grupo recoge a sus hermanos.
+            const grupos = [...document.querySelectorAll('.o_dcasa_barra_secciones > li > .o_dcasa_barra_grupo_btn')];
+            grupos[0].click();
+            await esperar(() => grupos[0].getAttribute('aria-expanded') === 'true', 'el primer grupo');
+            grupos[1].click();
+            await esperar(() => grupos[1].getAttribute('aria-expanded') === 'true'
+                && grupos[0].getAttribute('aria-expanded') === 'false', 'el acordeón');
+            // Buscar un grupo con tercer nivel.
+            let anidado = null;
+            for (const g of grupos) {
+                if (g.getAttribute('aria-expanded') !== 'true') { g.click(); }
+                anidado = await esperar(() => g.closest('li').querySelector('.o_dcasa_barra_hijos')
+                    && (g.closest('li').querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_grupo_btn') || 'no'),
+                    'los hijos');
+                if (anidado !== 'no') { break; }
             }
-            (await esperar(() => document.querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_grupo_btn'),
-                           'un grupo de tercer nivel')).click();
+            if (anidado === 'no') { throw new Error('No apareció: un grupo de tercer nivel'); }
+            anidado.click();
             const enlace = await esperar(
                 () => document.querySelector('.o_dcasa_barra_hijos .o_dcasa_barra_hijos a'), 'el tercer nivel');
             enlace.click();

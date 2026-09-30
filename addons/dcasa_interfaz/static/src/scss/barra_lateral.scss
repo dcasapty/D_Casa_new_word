@@ -38,6 +38,7 @@
     }
 
     body.o_dcasa_con_barra.o_dcasa_barra_colapsada.o_web_client {
+        // Modo automático: el contenido solo reserva la franja de íconos.
         grid-template-columns: var(--dc-barra-w-colapsada) minmax(0, 1fr);
     }
 
@@ -74,37 +75,12 @@
 }
 
 .o_dcasa_barra_logo {
-    flex: none;
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    display: grid;
-    place-items: center;
-    background: var(--dc-azul-600);
-    color: var(--dc-blanco);
-    font-family: "Anton", "Inter", sans-serif;
-    font-size: 1.05rem;
-    letter-spacing: .02em;
-    // Un hilo amarillo: el acento de la marca, mínimo.
-    box-shadow: inset 0 -3px 0 var(--dc-amarillo);
-}
-
-.o_dcasa_barra_nombre {
-    font-family: "Anton", "Inter", sans-serif;
-    font-size: 1.15rem;
-    letter-spacing: .02em;
-    line-height: 1;
-    white-space: nowrap;
-
-    small {
-        display: block;
-        font-family: "Inter", sans-serif;
-        font-size: .68rem;
-        letter-spacing: .14em;
-        text-transform: uppercase;
-        color: var(--dc-tinta-3);
-        margin-top: 3px;
-    }
+    display: block;
+    height: 40px;
+    width: auto;
+    max-width: 100%;
+    object-fit: contain;
+    transition: height var(--dc-transicion);
 }
 
 // --- Buscar ----------------------------------------------------------------
@@ -272,7 +248,7 @@
 }
 
 // --- Colapsada: solo íconos --------------------------------------------------
-.o_dcasa_barra_colapsada {
+nav.o_dcasa_barra.o_dcasa_barra_colapsada {
     padding-left: 10px;
     padding-right: 10px;
 
@@ -281,10 +257,31 @@
     .o_dcasa_barra_app,
     .o_dcasa_barra_buscar,
     .o_dcasa_barra_colapsar { justify-content: center; }
-    .o_dcasa_barra_marca { padding-left: 0; padding-right: 0; }
+    .o_dcasa_barra_marca { padding: 6px 0 12px; }
+    .o_dcasa_barra_logo { height: 22px; }
     .o_dcasa_barra_buscar { padding: 0; }
     .o_dcasa_barra_app { padding: 6px 0; }
     .o_dcasa_barra_colapsar { margin-left: -10px; margin-right: -10px; padding: 0; }
+
+    // Al acercar el mouse, el ícono crece un poco: se ve a qué se va a entrar.
+    .o_dcasa_barra_icono {
+        transition: transform var(--dc-transicion);
+    }
+    .o_dcasa_barra_app:hover .o_dcasa_barra_icono,
+    .o_dcasa_barra_app:focus-visible .o_dcasa_barra_icono {
+        transform: scale(1.18);
+    }
+}
+
+// --- Automática: la barra abierta por el mouse flota sobre el contenido ----------
+@include media-breakpoint-up(lg) {
+    nav.o_dcasa_barra.o_dcasa_barra_flotante {
+        width: var(--dc-barra-w);
+        justify-self: start;
+        position: relative;
+        z-index: 30;
+        box-shadow: var(--dc-sombra-2);
+    }
 }
 
 @media (prefers-reduced-motion: reduce) {
