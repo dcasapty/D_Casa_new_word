@@ -3,6 +3,7 @@
     <t t-name="dcasa_interfaz.Inicio">
         <div class="o_action o_dcasa_inicio">
             <t t-set="d" t-value="state.datos"/>
+            <h2 class="visually-hidden">Resumen del día</h2>
 
             <!-- Saludo -->
             <header class="o_dcasa_inicio_hero">
@@ -12,20 +13,20 @@
                     <p>Así va el día en D'CASA.</p>
                 </div>
                 <div class="o_dcasa_inicio_accesos">
-                    <button class="btn o_dcasa_btn_amarillo" t-on-click="() => this.nuevo('sale.order')">
+                    <button class="btn btn-primary" t-on-click="() => this.nuevo('sale.order')">
                         <i class="fa fa-plus me-2"/>Nueva cotización
                     </button>
-                    <button class="btn o_dcasa_btn_vidrio" t-on-click="() => this.nuevo('res.partner')">
+                    <button class="btn btn-secondary" t-on-click="() => this.nuevo('res.partner')">
                         <i class="fa fa-user-plus me-2"/>Nuevo cliente
                     </button>
-                    <button class="btn o_dcasa_btn_vidrio"
+                    <button class="btn btn-secondary"
                             t-on-click="() => this.nuevo('account.payment', {default_payment_type: 'inbound', default_partner_type: 'customer'})">
                         <i class="fa fa-money me-2"/>Registrar cobro
                     </button>
-                    <button class="btn o_dcasa_btn_vidrio" t-on-click="catalogo">
+                    <button class="btn btn-secondary" t-on-click="catalogo">
                         <i class="fa fa-th-large me-2"/>Catálogo
                     </button>
-                    <button class="btn o_dcasa_btn_vidrio" t-on-click="verTienda">
+                    <button class="btn btn-secondary" t-on-click="verTienda">
                         <i class="fa fa-external-link me-2"/>Ver la tienda
                     </button>
                 </div>
@@ -50,15 +51,19 @@
                     <!-- Semana -->
                     <section t-if="d.semana.length" class="o_dcasa_panel o_dcasa_semana">
                         <h2>Ventas de la semana</h2>
-                        <div class="o_dcasa_barras">
-                            <div t-foreach="d.semana" t-as="dia" t-key="dia_index"
-                                 t-attf-class="o_dcasa_barra {{dia.hoy ? 'o_dcasa_barra_hoy' : ''}}"
-                                 t-att-title="dinero(dia.monto)">
-                                <span class="o_dcasa_barra_monto" t-out="dia.monto ? dinero(dia.monto) : ''"/>
-                                <span class="o_dcasa_barra_relleno"
-                                      t-attf-style="height: {{ Math.max(4, dia.monto / maxSemana * 100) }}%"/>
-                                <span class="o_dcasa_barra_dia" t-out="dia.dia"/>
+                        <div class="o_dcasa_grafico">
+                            <div t-foreach="d.semana" t-as="dia" t-key="dia_index" role="img" tabindex="0"
+                                 t-attf-class="o_dcasa_grafico_barra {{dia.hoy ? 'o_dcasa_grafico_hoy' : ''}}"
+                                 t-att-aria-label="dia.dia + ': ' + dinero(dia.monto)"
+                                 t-attf-style="--alto: {{ Math.max(3, dia.monto / maxSemana * 82) }}%">
+                                <span class="o_dcasa_grafico_monto" aria-hidden="true" t-out="dinero(dia.monto)"/>
+                                <span class="o_dcasa_grafico_relleno"
+                                      t-attf-style="height: {{ Math.max(3, dia.monto / maxSemana * 82) }}%"/>
                             </div>
+                        </div>
+                        <div class="o_dcasa_grafico_dias" aria-hidden="true">
+                            <span t-foreach="d.semana" t-as="dia" t-key="dia_index" t-att-class="{'o_hoy': dia.hoy}"
+                                  t-out="dia.hoy ? 'Hoy' : dia.dia"/>
                         </div>
                     </section>
 
@@ -78,7 +83,7 @@
                     <section class="o_dcasa_panel o_dcasa_top">
                         <h2>Lo más vendido del mes</h2>
                         <ol t-if="d.top.length" class="list-unstyled mb-0">
-                            <li t-foreach="d.top" t-as="p" t-key="p.id" t-on-click="() => this.abrirProducto(p)">
+                            <li t-foreach="d.top" t-as="p" t-key="p.id" tabindex="0" role="button" t-on-click="() => this.abrirProducto(p)" t-on-keydown="(ev) => ev.key === 'Enter' and this.abrirProducto(p)">
                                 <img t-att-src="p.imagen" alt="" loading="lazy"/>
                                 <span class="o_dcasa_top_nombre" t-out="p.nombre"/>
                                 <span class="o_dcasa_top_cantidad"><t t-out="p.cantidad"/> u.</span>

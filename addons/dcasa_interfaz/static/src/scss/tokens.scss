@@ -1,0 +1,49 @@
+// Sistema de diseño D'CASA para Odoo por dentro.
+//
+// Escala de azules a partir del azul de la marca (#1340B1 = azul-600) y blancos
+// fríos para superficies. El amarillo es un acento mínimo (nunca sobre blanco en
+// texto o botones). Plano: bordes finos y sombras casi imperceptibles.
+
+:root {
+    // Azules
+    --dc-azul-950: #081640;
+    --dc-azul-900: #0B1F52;
+    --dc-azul-800: #0E2A6B;
+    --dc-azul-700: #0F3591;
+    --dc-azul-600: #1340B1;
+    --dc-azul-500: #2F5BD3;
+    --dc-azul-400: #5C82E3;
+    --dc-azul-300: #93AEEE;
+    --dc-azul-200: #C3D2F6;
+    --dc-azul-100: #E4ECFD;
+    --dc-azul-50: #F2F6FE;
+
+    // Blancos fríos y líneas
+    --dc-blanco: #FFFFFF;
+    --dc-nieve: #FAFBFD;
+    --dc-niebla: #F4F6FA;
+    --dc-perla: #ECF0F6;
+    --dc-linea: #E2E7F0;
+    --dc-linea-fuerte: #CBD3E1;
+
+    // Tinta (texto)
+    --dc-tinta: #0E1A33;
+    --dc-tinta-2: #44506A;
+    --dc-tinta-3: #6B7690;
+
+    // Acento
+    --dc-amarillo: #FED00F;
+
+    // Forma
+    --dc-r-sm: 8px;
+    --dc-r-md: 12px;
+    --dc-r-lg: 16px;
+    --dc-sombra-1: 0 1px 2px rgba(14, 26, 51, .05);
+    --dc-sombra-2: 0 8px 24px rgba(14, 26, 51, .06);
+    --dc-foco: 0 0 0 3px var(--dc-azul-200);
+
+    // Barra lateral
+    --dc-barra-w: 256px;
+    --dc-barra-w-colapsada: 68px;
+    --dc-transicion: 200ms cubic-bezier(.2, .8, .2, 1);
+}

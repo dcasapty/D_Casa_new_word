@@ -7,6 +7,8 @@ La interfaz de trabajo de D'CASA, hecha a medida:
 * «Inicio»: tablero del día (ventas, cobros por forma de pago, pedidos web,
   entregas, por cobrar, socios), accesos rápidos y las apps con íconos propios.
 * Íconos D'CASA para cada aplicación del menú.
+* Barra lateral de navegación (apps y secciones, colapsable, accesible) y un
+  sistema de diseño propio: escala de azules, blancos fríos, bordes finos.
 * Sin avisos de «Enterprise» ni ventanas de compra: lo que Odoo reserva para su
   versión de pago aparece como «En desarrollo» (lo construimos nosotros).
 * Sin el recorrido guiado ni los mensajes de OdooBot; listas vacías sin datos de
@@ -27,7 +29,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
     ],
     'assets': {
         'web.assets_backend': [
-            'dcasa_interfaz/static/src/scss/interfaz.scss',
+            'dcasa_interfaz/static/src/scss/*.scss',
             'dcasa_interfaz/static/src/js/*.js',
             'dcasa_interfaz/static/src/xml/*.xml',
         ],

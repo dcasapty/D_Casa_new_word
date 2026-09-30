@@ -1,0 +1,219 @@
+// Pulido global de Odoo con el sistema de diseño D'CASA: superficies blancas sobre
+// blanco frío, bordes finos, radios suaves, foco visible y números tabulares.
+
+.o_web_client {
+    background-color: var(--dc-niebla);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv11", "ss01";
+}
+
+// --- Barra superior -------------------------------------------------------------
+.o_main_navbar {
+    backdrop-filter: saturate(180%) blur(8px);
+    border-bottom: 0 !important;
+    box-shadow: inset 0 -1px 0 var(--dc-linea);
+    > *, .o_menu_systray > * { background-color: transparent !important; }
+    .o_menu_systray { gap: 2px; }
+}
+
+// --- Panel de control (título, botones, búsqueda) -----------------------------------
+.o_control_panel {
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+
+    .breadcrumb-item,
+    .o_last_breadcrumb_item {
+        font-weight: 600;
+        color: var(--dc-tinta);
+    }
+    .breadcrumb-item a { color: var(--dc-tinta-3); font-weight: 500; }
+}
+
+.o_searchview {
+    border-radius: var(--dc-r-sm) !important;
+    border-color: var(--dc-linea) !important;
+    background: var(--dc-niebla);
+    transition: border-color var(--dc-transicion), background var(--dc-transicion), box-shadow var(--dc-transicion);
+
+    &:focus-within {
+        background: var(--dc-blanco);
+        border-color: var(--dc-azul-400) !important;
+        box-shadow: var(--dc-foco);
+    }
+}
+
+.o_searchview_facet {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+// --- Botones ------------------------------------------------------------------------
+.o_web_client .btn {
+    border-radius: var(--dc-r-sm);
+    font-weight: 500;
+
+    &:focus-visible { box-shadow: var(--dc-foco); }
+}
+
+.o_web_client .btn-primary {
+    background-color: var(--dc-azul-600);
+    border-color: var(--dc-azul-600);
+    &:hover, &:active { background-color: var(--dc-azul-700); border-color: var(--dc-azul-700); }
+}
+
+.o_web_client .btn-secondary {
+    background-color: var(--dc-blanco);
+    border-color: var(--dc-linea-fuerte);
+    color: var(--dc-tinta);
+    &:hover, &:active { background-color: var(--dc-niebla); border-color: var(--dc-linea-fuerte); color: var(--dc-tinta); }
+}
+
+.o_cp_switch_buttons .btn,
+.o_switch_view {
+    border-radius: 6px !important;
+}
+
+// --- Listas ---------------------------------------------------------------------------
+.o_list_renderer {
+    background: var(--dc-blanco);
+
+    .o_list_table {
+        font-variant-numeric: tabular-nums;
+
+        thead th {
+            background: var(--dc-blanco);
+            color: var(--dc-tinta-3);
+            font-weight: 600;
+            font-size: .8rem;
+            text-transform: none;
+            border-bottom: 1px solid var(--dc-linea) !important;
+        }
+
+        .o_data_row {
+            > td { border-color: var(--dc-perla); }
+            &:hover > td { background-color: var(--dc-azul-50); }
+            &.o_data_row_selected > td { background-color: var(--dc-azul-100); }
+        }
+
+        tfoot td { background: var(--dc-nieve); }
+    }
+}
+
+.o_list_renderer .o_group_header > th,
+.o_list_renderer .o_group_header > td {
+    background-color: var(--dc-nieve);
+    color: var(--dc-tinta);
+    font-weight: 600;
+}
+
+// --- Formularios --------------------------------------------------------------------
+.o_form_view .o_form_sheet_bg {
+    background: var(--dc-niebla);
+}
+
+.o_form_view .o_form_sheet {
+    border: 1px solid var(--dc-linea) !important;
+    border-radius: var(--dc-r-lg);
+    box-shadow: var(--dc-sombra-1) !important;
+}
+
+.o_form_view .oe_title h1,
+.o_form_view .oe_title .o_field_char input {
+    letter-spacing: -.01em;
+    font-weight: 700;
+    color: var(--dc-tinta);
+}
+
+.o_form_label {
+    color: var(--dc-tinta-2);
+    font-weight: 500;
+}
+
+.o_input:focus,
+.o_field_widget input:focus,
+.o_field_widget textarea:focus {
+    border-color: var(--dc-azul-500) !important;
+}
+
+// Pestañas del formulario
+.o_notebook .nav-tabs {
+    border-bottom-color: var(--dc-linea);
+
+    .nav-link {
+        color: var(--dc-tinta-3);
+        font-weight: 500;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        &:hover { color: var(--dc-tinta); }
+        &.active {
+            color: var(--dc-azul-700);
+            background: transparent;
+            border-bottom-color: var(--dc-azul-600);
+        }
+    }
+}
+
+// Botones inteligentes (Puntos, Facturas…)
+.o_form_view .oe_button_box .oe_stat_button {
+    border-radius: var(--dc-r-sm);
+    &:hover { background: var(--dc-azul-50); }
+    .o_stat_value { color: var(--dc-azul-700); font-variant-numeric: tabular-nums; }
+}
+
+// Barra de estado (Cotización → Orden de venta)
+.o_statusbar_status .o_arrow_button.o_arrow_button_current {
+    color: var(--dc-azul-700) !important;
+    background-color: var(--dc-azul-50) !important;
+}
+
+// --- Kanban ---------------------------------------------------------------------------
+.o_kanban_renderer .o_kanban_record {
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-md);
+    box-shadow: none;
+    transition: border-color var(--dc-transicion), box-shadow var(--dc-transicion);
+
+    &:hover { border-color: var(--dc-azul-300); box-shadow: var(--dc-sombra-2); }
+}
+
+// --- Ajustes -------------------------------------------------------------------------
+.o_settings_container .o_setting_box,
+.o_setting_container .o_setting_box {
+    border-radius: var(--dc-r-sm);
+}
+
+// --- Menús desplegables y ventanas ----------------------------------------------------
+.o_web_client .dropdown-menu,
+.o-dropdown--menu {
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-md);
+    box-shadow: var(--dc-sombra-2);
+    padding: 6px;
+
+    .dropdown-item {
+        border-radius: 6px;
+        &:hover, &:focus { background: var(--dc-niebla); }
+        &.active, &:active { background: var(--dc-azul-50); color: var(--dc-azul-700); }
+    }
+}
+
+.modal-content {
+    border: 0;
+    border-radius: var(--dc-r-lg);
+    box-shadow: var(--dc-sombra-2), 0 0 0 1px var(--dc-linea);
+}
+
+// --- Etiquetas y estados ---------------------------------------------------------------
+.o_web_client .badge.rounded-pill,
+.o_field_badge .badge {
+    font-weight: 600;
+}
+
+// --- Barras de desplazamiento finas --------------------------------------------------
+.o_web_client * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--dc-linea-fuerte) transparent;
+}

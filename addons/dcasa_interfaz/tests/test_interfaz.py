@@ -71,4 +71,11 @@ class TestInterfazWeb(HttpCase):
         contenido = self.url_open(css[0]).text
         self.assertIn('o_dcasa_inicio', contenido)
         self.assertIn('o_dcasa_en_desarrollo', contenido)
+        # Barra lateral y sistema de diseño (escala de azules, blancos fríos).
+        self.assertIn('o_dcasa_barra_marca', contenido)
+        self.assertIn('--dc-azul-600', contenido)
+        self.assertIn('o_dcasa_grafico_barra', contenido)
+        js = re.findall(r'src="([^"]*web\.assets_web[^"]*\.js)"', html)
+        self.assertTrue(js, 'El backend enlaza su JavaScript')
+        self.assertIn('DcasaBarraLateral', self.url_open(js[0]).text)
         self.assertNotIn('css error', contenido.lower())

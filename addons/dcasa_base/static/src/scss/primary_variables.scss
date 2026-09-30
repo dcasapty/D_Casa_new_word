@@ -1,8 +1,23 @@
-// Odoo por dentro con la marca D'CASA: azul #1340B1 en vez del morado de Odoo,
-// e Inter como letra de la interfaz (embebida en el módulo, sin Google).
+// Odoo por dentro con la marca D'CASA.
+// Paleta: escala de azules D'CASA (navy → celeste muy claro) y blancos fríos; el
+// amarillo queda para detalles mínimos. Letra Inter (embebida, sin Google).
 $o-community-color: #1340B1;
 $o-enterprise-color: #1340B1;
 $o-brand-odoo: #1340B1;
 $o-brand-primary: #1340B1;
 $o-system-fonts: ("Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif,
                   "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji");
+
+// Fondo general blanco frío; barra superior blanca y liviana (la marca vive en la barra lateral).
+$o-webclient-background-color: #F4F6FA;
+$o-navbar-height: 56px;
+$o-navbar-background: #FFFFFF;
+$o-navbar-border-bottom: 1px solid #E2E7F0;
+$o-navbar-entry-color: #44506A;
+$o-navbar-entry-color--hover: #0E1A33;
+$o-navbar-entry-bg--hover: rgba(19, 64, 177, .06);
+$o-navbar-entry-color--active: #1340B1;
+$o-navbar-entry-bg--active: rgba(19, 64, 177, .08);
+$o-navbar-brand-color: #0E1A33;
+$o-navbar-badge-bg: #1340B1;
+$o-navbar-badge-text-shadow: none;
