@@ -34,7 +34,7 @@ modelos de estructura (`ir.model`, `ir.model.fields`, `ir.ui.view`, `base.automa
 (bloqueados por diseño). La hoja de ruta (sección 7) propone cómo abrirlos por fases, con
 vista previa, reversibilidad y Git como fuente de verdad.
 
-Conteo de hallazgos: 1 crítico, 3 altos, 10 medios, 9 bajos.
+Conteo de hallazgos: 1 crítico, 3 altos, 11 medios, 9 bajos.
 
 ## 2. Lo que está bien hecho (se debe conservar)
 
@@ -154,7 +154,7 @@ Los resultados de herramientas (nombres de clientes, descripciones de productos,
 adjuntos) van como `tool_result` sin marcar como no confiables (solo los adjuntos llevan
 `<<DATOS…>>`, y sus delimitadores son fijos y falsificables desde el propio archivo:
 `conversacion.py:474-476`; el nombre del archivo tampoco se sanea). El daño está acotado
-porque lo sensible pide clic y no hay exfiltración pasiva, **pero** las 26 herramientas de
+porque lo sensible pide clic y no hay exfiltración pasiva, **pero** las 34 herramientas de
 nivel `construccion`/lectura corren sin confirmar, y varias son valiosas para un atacante:
 `actualizar_cliente` (cambiar el correo de un cliente), `actualizar_producto` (precio a $0.01,
 texto público), `crear_factura`/`editar_factura` (cambiar el tercero de un borrador),
@@ -179,7 +179,7 @@ Ninguna herramienta define `_resumir_<nombre>` (grep: 0). La tarjeta lista solo 
 argumentos que mandó el modelo. Ejemplo `registrar_pago` sin `monto`/`forma_pago`: la persona
 ve "Factura: INV/2026/00012" y **no** el monto ni el diario que se usarán. Lo mismo con
 `ajustar_existencias` (almacén por defecto) o `confirmar_venta` (sin total).
-Arreglo: `_resumir_*` para las 10 sensibles, con los valores ya resueltos (nombre completo,
+Arreglo: `_resumir_*` para las 11 sensibles, con los valores ya resueltos (nombre completo,
 monto, total, cantidad de líneas, destinatario) y advertencias (p. ej. "esto envía correo",
 "deja la venta fija"). Test: el texto de la tarjeta contiene el monto efectivo.
 

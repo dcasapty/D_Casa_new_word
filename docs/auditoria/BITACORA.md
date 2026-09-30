@@ -215,3 +215,20 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### contabilidad · APRENDIZAJE · BAJO · Verificado en vendor: `price_include_override` no tiene valor 'default'
 - `vendor/odoo/addons/account/models/account_tax.py:142-147`: solo `tax_included`/`tax_excluded` (vacío por defecto), así que `dcasa_base/__init__.py:63` funciona. Y Odoo usa `force_delete`+`skip_readonly_check` en su propia conciliación (`account_bank_statement_line.py:471`), por lo que `dcasa_conciliar` no salta las fechas de bloqueo (se siguen comprobando en `account_move_line.py:1854`).
+
+### brian · HALLAZGO · CRÍTICO · Métodos públicos de modelos Brian invocables por RPC por cualquier usuario interno (suplantación, fuga de clave, auditoría falsificable)
+- Evidencia (todos `@api.model`/recordset sin guion bajo y sin `@api.private`; `grep api.private addons` = 0): `addons/dcasa_brian/models/telegram.py:304` `procesar_update` (actúa como el dueño de cualquier `chat_id` vinculado; ignora el secreto del webhook), `telegram.py:291` `notificar_confirmacion` (manda tarjetas Confirmar/Cancelar a cualquier usuario), `models/proveedores.py:366-381` `configuracion()` (devuelve `api_key`/`BRIAN_API_KEY`), `models/accion.py:62-91` `registrar`/`marcar` (escriben con sudo: reescriben o crean registros de auditoría), `models/registro.py:166,224` `ejecutar(confirmado=True)`/`confirmar`.
+- Efecto: un vendedor puede suplantar a un admin vinculado a Telegram (con su `chat_id`), leer la clave del proveedor de IA, alterar la auditoría "inmutable" y saltarse la confirmación humana. (Por verificar con PoC: `vendor/odoo` está vacío; `call_kw` expone métodos públicos.)
+- Recomendación: prefijar con `_` (el controlador corre como SUPERUSER) o `@api.private`; test que recorra `env['brian.*']` y falle con métodos públicos fuera de lista blanca. Detalle B-01…B-05 en `docs/auditoria/brian.md`.
+
+### brian · PREGUNTA a @seguridad · ALTO · ¿El mismo patrón (`@api.model` público que usa sudo o actúa como otro usuario) aparece en otros `dcasa_*`?
+- Contexto: `call_kw` no aplica ACL a métodos de modelos abstractos ni a métodos públicos de recordset con `sudo()` interno. Pido: (1) confirmar B-01/B-03 con PoC si hay Odoo disponible; (2) barrer `addons/` buscando métodos públicos con `sudo()` en `dcasa_socios` (`DCASA_PIN_PEPPER`, libro de puntos), `dcasa_contabilidad` y `dcasa_invoice`; (3) opinión sobre exigir `base.group_system` para vincular Telegram y sobre claves de API globales aceptadas en `/brian/mcp` (`controllers/mcp.py:196`).
+
+### brian · RESPUESTA a @enterprise-gap · MEDIO · Herramientas de margen/valorización/cobranza
+- Hoy ninguna herramienta lee `standard_price` (grep `standard_price` en `dcasa_brian` = 0). `reporte_contable` (`herramientas_contabilidad.py:119`) exige `account.group_account_readonly`. Las nuevas de margen/costo: `lectura` en área `contabilidad` (y con el diseño de perfiles de `docs/auditoria/brian.md` §6, invisibles para vendedores). Carga de costos por lote: `sensible` con resumen de cuántos cambian; no usar `actualizar_producto` (`herramientas_catalogo.py:233`, sin tope ni deshacer).
+
+### brian · APRENDIZAJE · MEDIO · El permiso de Brian = grupos de Odoo declarados en código; no soporta "nivel de ayuda por rol"
+- Evidencia: `registro.py:111-113` (`_disponible`), `registro.py:193` (solo `sensible` pide confirmar). Diseño propuesto (perfil × área × nivel 0-5, Odoo ∩ Perfil, aplicado en `catalogo`/`ejecutar`, MCP y prompt) en `docs/auditoria/brian.md` §6. Afecta a @ui-backend (pantalla de Ajustes › Brian › Perfiles) y @calidad-codigo (tests `test_perfiles.py`).
+
+### brian · HALLAZGO · MEDIO · Tarjetas de confirmación genéricas omiten valores por defecto (monto, diario, total)
+- Evidencia: `politica.py:86-100` (`resumir` lista solo los argumentos del modelo; ninguna herramienta define `_resumir_*`). `registrar_pago` sin `monto` muestra solo la factura. Recomendación: `_resumir_*` con valores ya resueltos en las 11 sensibles (`docs/auditoria/brian.md` B-09).
