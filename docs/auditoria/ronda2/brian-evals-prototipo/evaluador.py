@@ -286,10 +286,22 @@ def verificar(ruta_casos):
         subprocess.run([sys.executable, str(AQUI / 'generar_dorado.py'), str(tmp)], check=True, capture_output=True)
         regen = {c['id']: c for c in cargar_casos(tmp)}
     difieren = [c['id'] for c in casos if regen.get(c['id']) != c]
+    invalidos = []
+    try:
+        import jsonschema
+        esquema = json.loads((AQUI / 'esquema_caso.json').read_text(encoding='utf-8'))
+        for c in casos:
+            try:
+                jsonschema.validate(c, esquema)
+            except jsonschema.ValidationError:
+                invalidos.append(c['id'])
+        print('casos que no cumplen esquema_caso.json:', invalidos or 'ninguno')
+    except ImportError:
+        print('(jsonschema no instalado: se omite la validación del esquema)')
     print(f'Excel sha256 {sha[:12]}…  casos {len(casos)}')
     print('sha256 desactualizado en:', malos or 'ninguno')
     print('casos que ya no coinciden con el Excel:', difieren or 'ninguno')
-    return 0 if not malos and not difieren else 1
+    return 0 if not malos and not difieren and not invalidos else 1
 
 
 def cmd_puntuar(args):

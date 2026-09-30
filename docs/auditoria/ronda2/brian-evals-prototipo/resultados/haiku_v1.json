@@ -6,7 +6,9 @@
     "simulado": true
   },
   "casos_evaluados": 25,
-  "pendientes_juez_llm": [],
+  "pendientes_juez_llm": [
+    "XL-21"
+  ],
   "exactitud": 0.83,
   "caso_exacto": 0.76,
   "herramienta_correcta": 0.3333,
@@ -165,6 +167,11 @@
     "XL-20": {
       "estado": "ok",
       "puntaje": 1.0,
+      "notas": []
+    },
+    "XL-21": {
+      "estado": "pendiente_juez",
+      "puntaje": 0,
       "notas": []
     },
     "AD-01": {

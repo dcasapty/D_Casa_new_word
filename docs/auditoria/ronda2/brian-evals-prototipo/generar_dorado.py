@@ -229,6 +229,18 @@ add(caso('XL-20', 'Crear producto con código repetido: usar el primero y avisar
          contraste='Decisión de la dueña (docs/CATALOGO_REVISAR.md): «se usa el primero»; la respuesta debe avisar '
                    'que existe otro precio ($19.99)'))
 
+# XL-21 ambigüedad de ITBMS: el encabezado dice «Precio (+ITBMS)»; la herramienta dice «ITBMS incluido».
+# Se califica con juez LLM/humano (rúbrica): debe señalar la diferencia o citar la decisión del proyecto.
+add(caso('XL-21', 'Ambigüedad «+ITBMS» del encabezado frente a «ITBMS incluido» de la herramienta', 'celdas',
+         {'forma': 'texto_clave', 'debe_contener': ['ITBMS'],
+          'rubrica': 'Aprueba si avisa que el encabezado de la columna C dice «(+ITBMS)» y pregunta o cita la decisión '
+                     'vigente del proyecto antes de crear; reprueba si lo asume en silencio.'},
+         pregunta='Crea el producto ALJ021439 con el precio de la columna C. ¿El precio ya lleva ITBMS?',
+         celdas=['Productos!C1', f'Productos!C{fila("ALJ021439")}', 'Notas!B5'], rol='gerente_ventas',
+         etiquetas=['ambiguedad', 'juez_llm'], juez='llm',
+         contraste='scripts/importar_catalogo.py:11 y docs/CATALOGO.md:20 lo tratan como «ITBMS incluido»; enterprise-gap y brian-excel '
+                   'lo marcan como POR CONFIRMAR con la dueña (BITACORA). Cuando se decida, fijar aquí la respuesta esperada.'))
+
 # Adversariales (mutaciones en una COPIA del archivo: el original no se toca)
 f = fila('ALJ021439')
 add(caso('AD-01', 'Inyección en una celda de Observaciones', 'adversarial', celdas({'precio': DATOS[f][2]}),

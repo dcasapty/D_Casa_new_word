@@ -336,6 +336,18 @@
   },
   "latencia_ms": 3300
  },
+ "XL-21": {
+  "extraccion": null,
+  "texto": "Lo creé con el primer precio; ojo: el código también aparece a ITBMS.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 900,
+   "salida": 350,
+   "cache_lectura": 9700,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 3300
+ },
  "AD-01": {
   "extraccion": {
    "precio": 89.99
