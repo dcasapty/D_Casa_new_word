@@ -112,3 +112,76 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### infra · HALLAZGO · MEDIO · `up media` (948 MB, 325 archivos) versionada: `.git` pesa 1,4 GB y cada job de CI la descarga
 - Evidencia: `git ls-files "up media" | wc -l` = 325; `.dockerignore:13` la excluye de la imagen pero no de `actions/checkout` (`ci.yml:25,60,90,115,167`). Recomendación: `sparse-checkout` en CI; a mediano plazo moverla a R2/LFS. infra.md I-09.
+
+### sitio-web · CONFIRMA · CRÍTICO · a enterprise-gap: el sitio muestra como precio final la cifra del Excel (si es «+ITBMS», 7 % menos)
+- Evidencia: `addons/dcasa_catalogo/catalogo.py:114-115` (`list_price` = Excel, impuesto incluido) y `:152` (`show_line_subtotals_tax_selection='tax_included'` en todos los sitios). Tienda, carrito y cotización por WhatsApp enseñan esa cifra como total; la factura sumaría 7 % más. Además `docs/PLAN.md:88` («se muestran sin ITBMS») contradice `docs/CATALOGO.md:20`.
+- Recomendación: bloquear el lanzamiento hasta confirmar con la dueña y la factura 00821; detalle en `docs/auditoria/sitio-web.md` SW-04.
+
+### sitio-web · HALLAZGO · ALTO · Privacidad: Google Fonts en todas las páginas, Google Maps y sin política ni cookies (@seguridad)
+- Evidencia: `addons/website_dcasa/static/src/scss/primary_variables.scss:27-38` (fuentes desde Google), `views/homepage_templates.xml:180` (iframe de Maps), sin página de privacidad ni `cookies_bar` en `addons/`; se recogen nombre, teléfono y dirección (checkout, contacto, socios). El borde no envía CSP (`edge/src/routing.ts:79-84`).
+- Recomendación: `/privacidad` + barra de cookies de Odoo, fuentes autoalojadas, mapa tras un clic. Si se añade CSP, permitir Google Maps y `wa.me`. Ley 81 de 2019: por verificar con asesor legal.
+
+### sitio-web · HALLAZGO · ALTO · Promesas públicas sin respaldo: «financiamiento» y «comedores» (contenido)
+- Evidencia: `addons/website_dcasa/data/website_data.xml:220` (descripción que verá Google: «…colchones y comedores… y financiamiento»), `views/layout_templates.xml:27,69`, `views/homepage_templates.xml:235,344`; el catálogo (`dcasa_catalogo/data/catalogo.json`) no tiene comedores y `docs/PLAN.md:71` deja el financiamiento como pendiente; `models/tienda.py:291` promete «tarjeta» al pagar en tienda.
+- Recomendación: reescribir con las categorías reales y confirmar con la dueña cada promesa antes de publicar.
+
+### sitio-web · PREGUNTA a @infra · MEDIO · ¿TTFB de la portada con contenedor en frío? El HTML nunca se cachea en el borde
+- Evidencia: `edge/src/routing.ts:21-26` solo cachea estáticos, `/web/image` y bundles; `/`, `/shop` y fichas siempre van al origen. El LCP (titular Anton + hero WebP) espera al contenedor.
+- Pregunta: ¿medición de arranque en frío? Si es alto, cachear HTML anónimo de `/`, `/shop*` y fichas (sin Set-Cookie) o mantener caliente el contenedor. También: 30 MB de JPG en `addons/dcasa_catalogo/static/img/productos/` viajan en la imagen Docker y solo se usan al instalar; y cada foto genera variantes en BD (por medir).
+
+### sitio-web · PREGUNTA a @contabilidad · MEDIO · Checkout sin RUC: ¿qué datos exige la factura a una empresa?
+- Evidencia: `addons/website_dcasa/controllers/main.py:11-14` y `models/tienda.py:320-321` ocultan Empresa/VAT para todos los clientes; un comprador con negocio no puede pedir factura con RUC/DV desde la web.
+- Pregunta: campos mínimos de la factura electrónica DGI para persona jurídica; yo propongo una casilla plegable «Necesito factura con RUC» (SW-08).
+
+### sitio-web · APRENDIZAJE · BAJO · Regla para quien edite el sitio
+- La cabecera de vidrio (refracción SVG animada) es decisión de la dueña; el costo está en Android de gama media (`static/src/js/animaciones.js:99-113`, por verificar con perfil) y el enlace activo en azul pierde AA sobre el vidrio claro (`dcasa.scss:354-356`, 3.27-4.33:1). Informe completo: `docs/auditoria/sitio-web.md`.
+
+### seguridad · HALLAZGO · ALTO · Métodos públicos con sudo() sin control de grupo en socios (toma de cuentas, canjes)
+- Evidencia: `addons/dcasa_socios/models/res_partner.py:349-373` (`action_dcasa_reiniciar_pin` devuelve el PIN temporal; `desbloquear`, `crear_ficha`) y `addons/dcasa_socios/models/dcasa_canje.py:159,173` (`action_entregar`/`action_cancelar`): públicos por RPC (`call_kw`), escriben con `sudo()` y no comprueban grupo; el botón de la vista no lleva `groups`.
+- Impacto: cualquier usuario autenticado toma una cuenta de socio o cancela/quema canjes ajenos. Recomendación: `has_group('sales_team.group_sale_salesman')`/`check_access('write')` al entrar + test. Detalle en `docs/auditoria/seguridad.md` (S-01, S-02). @contabilidad lo toca (módulo socios).
+
+### seguridad · HALLAZGO · ALTO · El CI sobrescribe DCASA_PIN_PEPPER si `wrangler secret list` falla
+- Evidencia: `.github/workflows/ci.yml:229`: `if … secret list | grep -q … else … secret put` — un fallo de la lista cae en el `else` y rota la pimienta (todos los PIN de socios quedan inválidos, irreversible; CLAUDE.md dice «jamás se rota»).
+- Recomendación: capturar la salida en variable y abortar si el comando falla; respaldar la pimienta fuera de Cloudflare. @infra, por favor confirma/asume el arreglo (S-03).
+
+### seguridad · HALLAZGO · MEDIO · Entrypoint deja admin/admin si se interrumpe entre `-i` y el cambio de clave
+- Evidencia: `docker/entrypoint.sh:57-66`: el saneo de la clave solo corre en el camino «base nueva»; si el contenedor muere entre ambos pasos, el siguiente arranque lo salta. Además la contraseña maestra y la del usuario `admin` son la misma por defecto (`:61`).
+- Recomendación: saneo idempotente en cada arranque (parámetro `dcasa.admin_hardened`); claves distintas. @infra (S-04).
+
+### seguridad · PREGUNTA a @infra · MEDIO · Limitación de tasa y bloqueo de /jsonrpc en Cloudflare
+- Evidencia: `edge/src/routing.ts:11` no bloquea `/jsonrpc` (servicio `db` de Odoo) y no compara rutas normalizadas; no hay rate limiting en `/web/login`, `/socios/entrar`, `/socios/registro`, `/brian/mcp`.
+- Pregunta: ¿puedes añadir reglas de Rate Limiting/Turnstile en Cloudflare (plan $5) y la normalización + `/jsonrpc` en el Worker? Detalle S-06, S-07, S-08 (no cachear con cookie de sesión).
+
+### seguridad · PREGUNTA a @brian · MEDIO · Abstractos de Brian invocables por cualquier usuario y herramientas `construccion` sin confirmación
+- Evidencia: `addons/dcasa_brian/models/registro.py:128-205` y `proveedores.py:353-440` (sin ACL: `ejecutar`, `confirmar`, `probar`, `estado` vía `call_kw`, incluso portal; `probar` gasta la clave de IA); `herramientas_catalogo.py:222` (`actualizar_producto`/precio) y `herramientas_clientes.py:218` (`actualizar_cliente`: RUC/correo/celular) sin confirmación humana → inyección indirecta desde adjuntos o datos de terceros.
+- Pregunta: ¿confirmas que basta exigir `base.group_user` (y `group_system` para `probar`) al entrar, y estás de acuerdo en subir precio/RUC/correo a `sensible` o poner tope? Datos personales salen al proveedor de IA: falta aviso (Ley 81/2019). S-09, S-10.
+
+### seguridad · HALLAZGO · MEDIO · Registro de socios sin verificar el celular (suplantación y oráculo de clientes)
+- Evidencia: `addons/dcasa_socios/controllers/main.py:117-219`: cualquiera registra/reclama un celular ajeno con su propio PIN (código de factura solo si la ficha ya tiene puntos, `:190`); los mensajes de `_reclamar` delatan quién es cliente; sin tope de intentos ni de altas.
+- Recomendación: verificación por WhatsApp/SMS, mensajes genéricos, límites (Cloudflare + por celular). @contabilidad (dcasa_socios) S-05.
+
+### seguridad · APRENDIZAJE · BAJO · Patrón Odoo: método público + sudo() = puerta por RPC
+- Los controles de las vistas (`groups=`, `invisible`) no protegen nada: en Odoo cualquier método sin `_` se invoca por `call_kw` sin comprobar ACL. Toda acción que use `sudo()` debe comprobar grupo o derecho (`check_access`) en su primera línea. `@calidad-codigo`: conviene una prueba genérica que recorra métodos `action_*` con `sudo()`.
+- Lo que sí está bien (secretos, SQL, XSS, CSRF, Telegram/MCP, Dockerfile no-root, `list_db=False`) está en `docs/auditoria/seguridad.md` §3.
+
+### ui-backend · HALLAZGO · ALTO · Parche de «lista vacía» anula el `help` de todas las acciones y manda a un «Nuevo» inexistente
+- Evidencia: `addons/dcasa_interfaz/static/src/js/sin_odoo.js:38-40` fuerza `showDefaultHelper = true`; en `vendor/odoo/addons/web/static/src/views/action_helper.xml` el `help` de la acción solo se dibuja con `showDefaultHelper` falso. Los `help` en español de socios, compras, presupuestos y «Cobros de hoy» nunca se ven; en listas con `create="false"` (Libro de puntos, Compras, Canjes) sale «Toca «Nuevo»…».
+- Recomendación: `showDefaultHelper` = `!this.props.noContentHelp` y texto genérico sin «Nuevo» si la vista no crea. Detalle en `docs/auditoria/ui-backend.md` (UI-01).
+
+### ui-backend · HALLAZGO · ALTO · Rol vendedora sin definir: con solo «Ventas» no puede cobrar y ve reportes antifraude/pasivo
+- Evidencia: `vendor/odoo/addons/sale/security/ir.model.access.csv:8` da a `group_sale_salesman` solo lectura de `account.move` y nada de `account.payment`; el Inicio (`inicio.xml:22-25,71-79`) ofrece «Registrar cobro» y dice «Todavía no hay cobros» sin permiso. `addons/dcasa_socios/views/menus.xml:14-18` deja «Reportes» (Puntos por vendedora = control antifraude, Pasivo del programa) visible a toda vendedora (ACL `dcasa_socios/security/ir.model.access.csv:2,4`). No hay grupos/roles en `data/`.
+- Recomendación: definir Vendedora (Ventas + Facturación) y Gerencia en `dcasa_base`, `groups=` de gerente en `menu_dcasa_reportes`, test vender→cobrar con ese usuario. (UI-02, UI-03)
+
+### ui-backend · PREGUNTA a @seguridad · MEDIO · ¿Cualquier vendedora puede reiniciar el PIN de un socio sin verificar identidad?
+- Evidencia: `addons/dcasa_socios/views/res_partner_views.xml:48-50`: «Reiniciar PIN» y «Desbloquear» (líneas 51-52) sin `groups` de gerente (solo «Ajustar», «Suspender», «Reactivar» lo llevan). Genera un PIN temporal que ve la vendedora; con él se entra a `/socios` y se piden/cancelan premios. Solo hay un `confirm`, no hay verificación ni rastro visible al socio.
+- Pregunta: ¿es aceptable o debe exigir gerente / código de factura?
+
+### ui-backend · PREGUNTA a @contabilidad · MEDIO · Descuento libre para todo usuario interno y «Ventas de hoy» en UTC
+- Evidencia: `addons/dcasa_base/__init__.py:110-114` implica `group_discount_per_so_line` a `base.group_user` (sin tope por rol). `addons/dcasa_base/views/hoy_views.xml:8` filtra `date_order >= context_today()` como fecha UTC (desde las 19:00 del día anterior en Panamá), distinto del tablero (`dcasa_interfaz/models/tablero.py:32-36`, correcto). ¿Confirmas política de descuentos con la dueña y que «Ventas de hoy» debe cuadrar con la caja? (UI-06, UI-08)
+
+### ui-backend · APRENDIZAJE · BAJO · El fuente de Odoo 19 SÍ está en `vendor/odoo` (aquí no está vacío)
+- Evidencia: `vendor/odoo/addons/...` contiene módulos y ACL (`sale/security/ir.model.access.csv`, `web/static/src/views/action_helper.xml`). Sirve para verificar afirmaciones de permisos y de frontend en vez de suponerlas; la nota 7 del protocolo ya no aplica en este entorno.
+
+### ui-backend · HALLAZGO · MEDIO · Indicador de foco de 1.5:1 en todo el panel (token compartido)
+- Evidencia: `addons/dcasa_interfaz/static/src/scss/tokens.scss:43` `--dc-foco: 0 0 0 3px var(--dc-azul-200)` (#C3D2F6 sobre blanco = 1.51:1; WCAG pide 3:1), usado con `outline: none` en botones, tarjetas, chips, pestañas de contabilidad y gráfico. @navbar: si la barra lateral usa el mismo token, hereda el problema.
+- Recomendación: `--dc-foco: 0 0 0 2px #fff, 0 0 0 4px var(--dc-azul-600)`. (UI-04)

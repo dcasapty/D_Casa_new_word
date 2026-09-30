@@ -24,19 +24,19 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 
 **UI-01 · ALTO · El parche de «lista vacía» borra el `help` de todas las acciones y manda a un botón que no existe**
 - `addons/dcasa_interfaz/static/src/js/sin_odoo.js:38-40` fuerza `get showDefaultHelper() { return true; }`. En `vendor/odoo/addons/web/static/src/views/action_helper.xml` la rama `t-else` (`props.noContentHelp`, o sea el `help` de la acción) solo se dibuja si `showDefaultHelper` es falso. Resultado: nunca.
-- Consecuencia: los textos escritos a medida quedan muertos: «Aún no hay socios…» (`dcasa_socios/views/res_partner_views.xml:116-117`), «Todavía no hay compras con puntos» (`dcasa_compra_views.xml:110-111`), «Crea tu primer presupuesto» (`presupuesto_views.xml:99-100`), «Todavía no hay cobros registrados hoy» (`dcasa_base/views/hoy_views.xml:21`), etc.
-- Peor: el texto genérico (`sin_odoo.js:45`) dice «Toca «Nuevo» para crear el primero» también en listas sin botón Nuevo (`create="false"`): Libro de puntos (`dcasa_movimiento_views.xml:7`), Compras (`dcasa_compra_views.xml:7`), Canjes (`dcasa_canje_views.xml:129`), Cobros de hoy. Y «Toca» es vocabulario táctil en una herramienta de escritorio.
+- Consecuencia: los textos escritos a medida quedan muertos: «Aún no hay socios…» (`dcasa_socios/views/res_partner_views.xml:116-117`), «Todavía no hay compras con puntos» (`dcasa_compra_views.xml:110-111`), «Crea tu primer presupuesto» (`presupuesto_views.xml:99-100`), «Todavía no hay cobros registrados hoy» (`dcasa_base/views/hoy_views.xml:22`), etc.
+- Peor: el texto genérico (`sin_odoo.js:45`) dice «Toca «Nuevo» para crear el primero» también en listas sin botón Nuevo (`create="false"`): Libro de puntos (`dcasa_movimiento_views.xml:7`), Compras (`dcasa_compra_views.xml:7`), Canjes (`dcasa_canje_views.xml:7`), Cobros de hoy. Y «Toca» es vocabulario táctil en una herramienta de escritorio.
 - Arreglo: que `showDefaultHelper` devuelva `!this.props.noContentHelp` (conserva el `help` propio cuando existe) y que el texto genérico diga «Pulsa «Nuevo»…» solo si la vista permite crear (o texto neutro: «No hay registros con estos filtros»).
 
 **UI-02 · ALTO · Rol «vendedora» sin definir: con solo Ventas no puede cobrar, y el tablero lo disimula**
 - El fuente de Odoo (`vendor/odoo/addons/sale/security/ir.model.access.csv:8`) da al `sales_team.group_sale_salesman` solo **lectura** de `account.move` y **ningún** acceso a `account.payment`. Registrar un cobro exige `account.group_account_invoice` (Facturación), que además abre vendor bills y el menú de Facturación completo.
-- En `dcasa_interfaz/models/tablero.py:62-63` el tablero solo omite «Cobrado hoy» si no hay `read` en `account.payment`; pero `dcasa_interfaz/static/src/xml/inicio.xml:68` (botón «Registrar cobro», sin condición) y `inicio.xml:68-78` (panel «Caja de hoy» con `d.cobros.length` vacío) siguen visibles: la vendedora ve «Todavía no hay cobros registrados hoy» (`inicio.xml:79`) aunque se cobró todo el día, y el botón falla con «Access Error».
+- En `dcasa_interfaz/models/tablero.py:61-62` el tablero solo omite «Cobrado hoy» si no hay `read` en `account.payment`; pero `dcasa_interfaz/static/src/xml/inicio.xml:22-25` (botón «Registrar cobro», sin condición) y `inicio.xml:71-79` (panel «Caja de hoy» con `d.cobros.length` vacío) siguen visibles: la vendedora ve «Todavía no hay cobros registrados hoy» (`inicio.xml:79`) aunque se cobró todo el día, y el botón falla con «Access Error».
 - El test `dcasa_interfaz/tests/test_interfaz.py:33-39` ratifica justo ese estado (vendedora solo con Ventas ve «su tablero») sin afirmar que pueda cobrar.
 - No hay grupos ni usuarios de rol en ningún `data/` (`grep group_account_invoice|group_sale` en `addons/*.xml`: solo 4 usos en `hoy_views.xml`, `menus.xml`). `AUDITORIA_UX.md` #14/#83 sigue sin resolverse en código.
 - Arreglo: definir en `dcasa_base` dos roles documentados (Vendedora = Ventas usuario + Facturación «Invoicing»; Gerencia = Ventas administrador + Contabilidad) y probar con un test el flujo vender→cobrar con ese usuario. En el Inicio, ocultar «Registrar cobro» y «Caja de hoy» cuando no hay permiso (enviar `puede_cobrar` desde `obtener_datos`) o decir «No tienes acceso a cobros».
 
 **UI-03 · ALTO · La vendedora ve el control antifraude (todas las vendedoras) y el pasivo del programa**
-- `dcasa_socios/views/menus.xml:5` (raíz «Socios» para `group_sale_salesman`) y `menus.xml:14-17`: el submenú «Reportes» (Puntos por vendedora, Pasivo del programa) no lleva `groups`. El ACL `dcasa_socios/security/ir.model.access.csv:3,5,1` da lectura de `dcasa.compra` y `dcasa.movimiento` a toda vendedora.
+- `dcasa_socios/views/menus.xml:5` (raíz «Socios» para `group_sale_salesman`) y `menus.xml:14-18`: el submenú «Reportes» (Puntos por vendedora, Pasivo del programa) no lleva `groups`. El ACL `dcasa_socios/security/ir.model.access.csv:2,4` da lectura de `dcasa.compra` y `dcasa.movimiento` a toda vendedora.
 - `dcasa_socios/views/dcasa_compra_views.xml:120` lo describe como «el control antifraude: si una vendedora emite el triple que las demás, aquí se ve»: justamente lo que la vendedora no debe ver. El «Pasivo del programa» (deuda en puntos de la empresa) tampoco es de su nivel. También ve «Compras» y «Libro de puntos» de todos los socios con `autor`.
 - Arreglo: `groups="sales_team.group_sale_manager"` en `menu_dcasa_reportes` (y regla de registro o ACL solo-gerente para el pivot por vendedora). Decisión de negocio por confirmar: si la vendedora debe ver el libro completo o solo el de la ficha que consulta.
 
@@ -53,17 +53,17 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 - Arreglo: poner un botón (o `tabindex="0" role="button"` + Enter/Espacio) en la celda del nombre; `aria-pressed` en chips y segmento; quitar `role=tablist` o completar el patrón.
 
 **UI-06 · MEDIO · «Ventas de hoy» (menú) y «Vendido hoy» (tablero) no coinciden: el menú usa UTC**
-- `dcasa_base/views/hoy_views.xml:8`: `date_order >= context_today().strftime('%Y-%m-%d')`. Para un campo Datetime, esa cadena se interpreta a las 00:00 **UTC**, que en Panamá son las 19:00 del día anterior (y no hay cota superior). El tablero sí usa los límites correctos en hora de Panamá (`tablero.py:38-42`, `_limites_del_dia`).
+- `dcasa_base/views/hoy_views.xml:8`: `date_order >= context_today().strftime('%Y-%m-%d')`. Para un campo Datetime, esa cadena se interpreta a las 00:00 **UTC**, que en Panamá son las 19:00 del día anterior (y no hay cota superior). El tablero sí usa los límites correctos en hora de Panamá (`tablero.py:32-36`, `_limites_del_dia`).
 - Efecto: el pedido web confirmado a las 9 p. m. de ayer aparece en «Ventas de hoy» y la lista no suma la cifra de la tarjeta. `(por verificar en pantalla)`; la lógica de dominio es de Odoo estándar.
-- Arreglo: en vez de dominio XML, que la acción del menú sea `ir.actions.server` o reutilizar la acción del tablero (`tablero.py:70`) con los límites calculados; o `ir.actions.client` a `dcasa.tablero`. El `context` `{'search_default_salesperson': 0}` (línea 9) no hace nada.
+- Arreglo: en vez de dominio XML, que la acción del menú sea `ir.actions.server` o reutilizar la acción del tablero (`tablero.py:73,78`) con los límites calculados; o `ir.actions.client` a `dcasa.tablero`. El `context` `{'search_default_salesperson': 0}` (línea 9) no hace nada.
 
 **UI-07 · MEDIO · «Pedidos web por atender» no cuenta los pedidos web pendientes de pago**
-- `dcasa_interfaz/models/tablero.py:75`: dominio `website_id != False AND state = 'sale' AND delivery_status != 'full'`. «Cotizaciones abiertas» (línea 69) excluye los del sitio (`website_id = False`). Un pedido web con transferencia/Yappy sin verificar queda en borrador o «enviado» y **no está en ninguna tarjeta**. `(por verificar: estado en que deja `sale` un pago pendiente)`.
-- Además el detalle «Confírmalos por WhatsApp» (línea 76) contradice el filtro: lo que se cuenta ya está confirmado.
+- `dcasa_interfaz/models/tablero.py:87`: dominio `website_id != False AND state = 'sale' AND delivery_status != 'full'`. «Cotizaciones abiertas» (línea 80) excluye los del sitio (`website_id = False`). Un pedido web con transferencia/Yappy sin verificar queda en borrador o «enviado» y **no está en ninguna tarjeta**. `(por verificar: estado en que deja `sale` un pago pendiente)`.
+- Además el detalle «Confírmalos por WhatsApp» (línea 90) contradice el filtro: lo que se cuenta ya está confirmado.
 - Arreglo: contar aparte «Pedidos web por confirmar» (`state in draft/sent`, `website_id != False`, con transacción pendiente) y dejar «por atender» para entrega.
 
 **UI-08 · MEDIO · Descuento libre para todo usuario interno**
-- `dcasa_base/__init__.py:110-114`: `sale.group_discount_per_so_line` se implica en `base.group_user`; ninguna vista ni regla limita el %. Cualquier vendedora puede bajar un precio a 100 % o editar `price_unit`, y «Cobrar premio» (`dcasa_cobrar_premio_wizard.py`) ya inserta una línea negativa. Es UX y control a la vez: el flujo está a un clic de error.
+- `dcasa_base/__init__.py:110-114`: `sale.group_discount_per_so_line` se implica en `base.group_user`; ninguna vista ni regla limita el %. Cualquier vendedora puede bajar un precio a 100 % o editar `price_unit`, y «Cobrar premio» (`dcasa_cobrar_premio_wizard.py`) ya inserta una línea negativa (`dcasa_cobrar_premio_wizard.py:49`). Es UX y control a la vez: el flujo está a un clic de error.
 - Arreglo: limitar descuento por rol (campo «Desc. máx.» o aprobación sobre X %) o restringir `discount` y `price_unit` al grupo gerente; decidirlo con la dueña.
 
 **UI-09 · MEDIO · Dos celulares en la ficha (sigue #31 a medias) y placeholder con el número de la tienda (sigue #96)**
@@ -76,13 +76,13 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 - Arreglo: form propio con saldo + código + celular + botones de acción arriba; kanban `mobile` para la acción Socios.
 
 **UI-11 · MEDIO · Premio de descuento: la vendedora no puede canjear en mostrador para un cliente sin PIN (sigue #36)**
-- `dcasa_socios/wizard/wizard_views.xml:40` pide el «Código que enseña el cliente», que solo nace si el socio lo generó en `/socios` con su PIN; `dcasa_canje_views.xml:129` no permite crear. Si el cliente aún no reclamó su ficha no hay camino desde el mostrador. Es coherente con `CLAUDE.md` (regla 4 y 6) y `docs/SOCIOS.md`, así que puede ser decisión de diseño; lo dejo como **pregunta de negocio**: ¿se quiere un «Canjear premio» asistido (con PIN o código de factura)?
+- `dcasa_socios/wizard/wizard_views.xml:48` pide el «Código que enseña el cliente», que solo nace si el socio lo generó en `/socios` con su PIN; `dcasa_canje_views.xml:7` no permite crear. Si el cliente aún no reclamó su ficha no hay camino desde el mostrador. Es coherente con `CLAUDE.md` (regla 4 y 6) y `docs/SOCIOS.md`, así que puede ser decisión de diseño; lo dejo como **pregunta de negocio**: ¿se quiere un «Canjear premio» asistido (con PIN o código de factura)?
 
 ### BAJO
 
-**UI-12 · BAJO · Menú «Socios → Compras» choca con la app «Compras»**: `dcasa_socios/views/menus.xml:12` llama «Compras» a lo que la acción titula «Compras con puntos». Junto al app «Compras» (proveedores, `iconos_data.xml:14-16`) confunde a la vendedora. Renombrar el menú a «Compras con puntos».
+**UI-12 · BAJO · Menú «Socios → Compras» choca con la app «Compras»**: `dcasa_socios/views/menus.xml:10` llama «Compras» a lo que la acción titula «Compras con puntos». Junto al app «Compras» (proveedores, `iconos_data.xml:14-16`) confunde a la vendedora. Renombrar el menú a «Compras con puntos».
 
-**UI-13 · BAJO · Tokens de texto con contraste justo**: `--dc-tinta-3` (#6B7690) da 4.55:1 sobre blanco (pasa), pero 4.2:1 sobre `--dc-niebla` (#F4F6FA) y 3.97:1 sobre `--dc-perla`, que es el fondo de `.o_dcasa_inicio` y `.o_dc_conta` (`interfaz.scss:16`, `contabilidad.scss:6`) con textos de 11-13 px (`.o_dcasa_cifra_detalle` .78rem, `.o_dc_nota`, `.o_dc_mov_fecha` .75rem). Oscurecer `--dc-tinta-3` a ~#5B6680 (≥4.6:1 sobre niebla).
+**UI-13 · BAJO · Tokens de texto con contraste justo**: `--dc-tinta-3` (#6B7690) da 4.55:1 sobre blanco (pasa), pero 4.2:1 sobre `--dc-niebla` (#F4F6FA) y 3.97:1 sobre `--dc-perla`, que es el fondo de `.o_dcasa_inicio` y `.o_dc_conta` (`interfaz.scss:18-25`, `contabilidad.scss:3-9`) con textos de 11-13 px (`.o_dcasa_cifra_detalle` .78rem, `.o_dc_nota`, `.o_dc_mov_fecha` .75rem). Oscurecer `--dc-tinta-3` a ~#5B6680 (≥4.6:1 sobre niebla).
 
 **UI-14 · BAJO · Se quitó «Atajos de teclado» del menú de usuario**: `sin_odoo.js:58` elimina `documentation`, `support`, `shortcuts` y `odoo_account`; los tres primeros apuntan a odoo.com pero `shortcuts` abre la paleta con los atajos (Ctrl+K) y no sale del sistema. Quitarlo de la lista resta descubribilidad de teclado.
 
@@ -94,9 +94,9 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 
 **UI-18 · BAJO · Barra superior translúcida (`backdrop-filter`)**: `global.scss:13`. La auditoría del sitio (#69) ya quejó el efecto «vidrio» por dejar ver texto debajo; además contradice «sistema plano» (regla 3). Fondo sólido `--dc-blanco`.
 
-**UI-19 · BAJO · `@font-face` de Anton sin uso en el panel**: `interfaz.scss:5-8` declara Anton (y el TTF viaja en el módulo) pero ningún selector del backend la usa (el panel usa Inter por decisión). Quitar o usarla en el título del Inicio si se quiere la marca.
+**UI-19 · BAJO · `@font-face` de Anton sin uso en el panel**: `interfaz.scss:4-8` declara Anton (y el TTF viaja en el módulo) pero ningún selector del backend la usa (el panel usa Inter por decisión). Quitar o usarla en el título del Inicio si se quiere la marca.
 
-**UI-20 · BAJO · Tablero: 7 consultas para la gráfica semanal**: `tablero.py:92-100` hace un `search` + `mapped` por día; un `read_group` por `date_order:day` lo resuelve en una. No es UX pero la pantalla de entrada carga con eso.
+**UI-20 · BAJO · Tablero: 7 consultas para la gráfica semanal**: `tablero.py:94-100` hace un `search` + `mapped` por día; un `read_group` por `date_order:day` lo resuelve en una. No es UX pero la pantalla de entrada carga con eso.
 
 **UI-21 · BAJO · `/socios`: detalles de pulido**
 - `socios_templates.xml:209` «Te faltan 250» sin la palabra «puntos».
@@ -105,7 +105,7 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 - `:161-165` el QR va antes del enlace y no hay botón «Copiar» (sigue #93).
 - Los errores de registro (`socios_aviso`, línea 7) llevan `role="alert"` pero no se enlazan al campo (`aria-describedby`/`aria-invalid`).
 
-**UI-22 · BAJO · Conciliación/reportes**: sin estado de error ni `aria-busy` (`reportes.js:312-320`, `conciliacion.js:56-64`: si la llamada falla queda `cargando = true` para siempre); el buscador del libro mayor (`reportes.xml:150`) y el de conciliación (`conciliacion.xml:75`) solo tienen `placeholder`, sin `aria-label`.
+**UI-22 · BAJO · Conciliación/reportes**: sin estado de error ni `aria-busy` (`reportes.js:88-96`, `conciliacion.js:56-64`: si la llamada falla queda `cargando = true` para siempre); el buscador del libro mayor (`reportes.xml:150`) y el de conciliación (`conciliacion.xml:75`) solo tienen `placeholder`, sin `aria-label`.
 
 ---
 
@@ -120,7 +120,7 @@ Conteo: 0 críticos · 3 altos · 8 medios · 11 bajos.
 | 13 | Aviso de celular duplicado antes de guardar | `res_partner.py:40-58` |
 | 16, 22, 41 | ITBMS incluido y nombres claros | `dcasa_base/__init__.py:52-76` |
 | 35 | Botón «Puntos» primero | `res_partner_views.xml:8-17` |
-| 37 | Cotización por WhatsApp | `dcasa_catalogo/views/backend_views.xml:10-12`, `models/sale_order.py:47-66` (valida celular, mensaje con tuteo) |
+| 37 | Cotización por WhatsApp | `dcasa_catalogo/views/backend_views.xml:10-12`, `models/sale_order.py:11-30` (valida celular, mensaje con tuteo) |
 | 38, 39 | «Ventas de hoy» e Inicio al entrar | `hoy_views.xml`, `dcasa_interfaz` (con la salvedad UI-06) |
 | 43, 60, 74, 84, 100 | Factura: ITBMS coherente, pago real en vez de sello, RUC/cédula, fuentes de marca | `dcasa_invoice/views/report_invoice.xml`, `report_dcasa.scss:9-32` |
 | 46, 47, 49, 50 | App del socio: etiqueta legible, fechas dd/MM/yyyy, confirmar y tocar ≥44 px, sin franja amarilla | `socios.scss:47-51,99-103`; `socios_templates.xml:184,186-191,203-208` |
