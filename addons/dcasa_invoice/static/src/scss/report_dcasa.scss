@@ -4,6 +4,44 @@ $dcasa-azul: #1340B1;
 $dcasa-amarillo: #FED00F;
 $dcasa-grafito: #3A3A3A;
 
+// Tipografía de marca, alojada en el módulo (sin Google): wkhtmltopdf no sale a internet.
+// Inter en el cuerpo; Anton en el título; Oswald (la trae Odoo) en subtítulos y columnas.
+@font-face {
+    font-family: 'DCASA Inter';
+    font-weight: 400;
+    src: url('/dcasa_invoice/static/src/fonts/Inter-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'DCASA Inter';
+    font-weight: 600;
+    src: url('/dcasa_invoice/static/src/fonts/Inter-SemiBold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'DCASA Inter';
+    font-weight: 700;
+    src: url('/dcasa_invoice/static/src/fonts/Inter-Bold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'DCASA Anton';
+    font-weight: 400;
+    src: url('/dcasa_invoice/static/src/fonts/Anton-Regular.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'DCASA Oswald';
+    font-weight: 600;
+    src: url('/web/static/fonts/google/Oswald/Oswald-SemiBold.ttf') format('truetype');
+}
+
+$dcasa-cuerpo: 'DCASA Inter', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+$dcasa-titular: 'DCASA Anton', 'Anton', 'Oswald', Impact, sans-serif;
+$dcasa-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
+
+.o_dcasa_header.header,
+.o_report_layout_dcasa.article,
+.o_dcasa_footer.footer {
+    font-family: $dcasa-cuerpo;
+}
+
 .o_dcasa_header {
     .o_dcasa_logo {
         max-height: 80px;
@@ -21,8 +59,9 @@ $dcasa-grafito: #3A3A3A;
     // "Azul arriba, amarillo abajo": la banda de la placa como separador.
     .o_dcasa_band {
         margin-top: 8px;
-        height: 6px;
+        height: 12px;
         border-top: 4px solid $dcasa-azul;
+        border-bottom: 2px solid $dcasa-azul;  // el amarillo, siempre entre azul
         background-color: $dcasa-amarillo;
     }
 }
@@ -33,12 +72,19 @@ $dcasa-grafito: #3A3A3A;
     .o_dcasa_title,
     h2 {
         color: $dcasa-azul;
-        font-weight: 700;
+        font-family: $dcasa-titular;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: .02em;
     }
 
     table.o_main_table thead th,
     table thead th {
         color: $dcasa-azul;
+        font-family: $dcasa-subtitulo;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .03em;
         border-bottom: 2px solid $dcasa-azul;
     }
 
@@ -67,25 +113,36 @@ $dcasa-grafito: #3A3A3A;
     }
 }
 
-.o_dcasa_paid_stamp {
-    display: inline-block;
+// Cómo se pagó: una línea sobria bajo los totales (sin sello de goma de imitación).
+.o_dcasa_pago {
+    clear: both;
     margin: 12px 0;
-    padding: 6px 18px;
-    border: 3px solid $dcasa-azul;
-    border-radius: 10px;
-    color: $dcasa-azul;
-    text-align: center;
-    transform: rotate(-4deg);
+    padding: 6px 12px;
+    border-left: 4px solid $dcasa-azul;
+    color: $dcasa-grafito;
+    font-size: .9rem;
 
-    .o_dcasa_paid_stamp_title {
-        font-size: 1.5rem;
+    strong {
+        color: $dcasa-azul;
+    }
+}
+
+// Datos del cliente
+.o_dcasa_cliente {
+    line-height: 1.35;
+
+    .o_dcasa_cliente_nombre {
         font-weight: 700;
-        letter-spacing: 2px;
+        color: $dcasa-azul;
     }
-    .o_dcasa_paid_stamp_date {
-        font-size: 0.9rem;
-        font-weight: 600;
-    }
+}
+
+// «con ITBMS» / «sin ITBMS» bajo el título de la columna
+.o_dcasa_th_nota {
+    font-size: .7rem;
+    font-weight: 400;
+    text-transform: none;
+    color: $dcasa-grafito;
 }
 
 .o_dcasa_footer {

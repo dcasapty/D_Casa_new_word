@@ -64,7 +64,7 @@ class TestDcasaInvoice(TransactionCase):
     def test_unpaid_invoice_has_no_stamp(self):
         invoice = self._create_invoice()
         self.assertFalse(invoice._dcasa_is_paid())
-        self.assertNotIn('o_dcasa_paid_stamp', self._render(invoice))
+        self.assertNotIn('o_dcasa_pago', self._render(invoice))
 
     def test_paid_invoice_shows_stamp_and_ruc(self):
         invoice = self._create_invoice()
@@ -73,11 +73,26 @@ class TestDcasaInvoice(TransactionCase):
         self.assertEqual(invoice._dcasa_last_payment_date(), invoice.invoice_date)
 
         html = self._render(invoice)
-        self.assertIn('o_dcasa_paid_stamp', html)
-        self.assertIn('PAGADO', html)
+        # Sin sello que imite el de goma: lo que pasó, con fecha, forma de pago y saldo.
+        self.assertNotIn('o_dcasa_paid_stamp', html)
+        self.assertNotIn('PAGADO', html)
+        self.assertIn('o_dcasa_pago', html)
+        self.assertIn('Pagada el', html)
+        self.assertIn('Saldo', html)
         self.assertIn('2-723-510', html)
         self.assertIn('155779346-2-2026 DV7', html)
         self.assertIn('Tu casa, bien amueblada.', html)
+
+    def test_factura_en_espanol_y_con_formato_de_panama(self):
+        invoice = self._create_invoice()
+        html = self._render(invoice.with_context(lang='en_US'))
+        for etiqueta in ('Factura', 'Descripción', 'Cantidad', 'Precio unitario', 'Importe'):
+            self.assertIn(etiqueta, html)
+        self.assertNotIn('Unit Price', html)
+        self.assertIn('Dólares', html)
+        self.assertNotIn('Dollars', html)
+        self.assertNotIn('$\N{NO-BREAK SPACE}', html)
+        self.assertNotIn('localhost', html.split('<body', 1)[1].replace('web-base-url', ''))
 
     def test_customer_dv_printed_with_ruc(self):
         self.customer.l10n_pa_dv = '12'

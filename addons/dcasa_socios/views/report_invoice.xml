@@ -18,7 +18,8 @@
                     <t t-if="dcasa_ficha.dcasa_socio_codigo">
                         Tu código de socio: <strong t-out="dcasa_ficha.dcasa_socio_codigo"/>.
                     </t>
-                    Revísalos y canjéalos en <span t-out="o.get_base_url()"/>/socios
+                    <t t-set="dcasa_web" t-value="o.company_id._dcasa_url_publica_corta()"/>
+                    Revísalos y canjéalos en <t t-if="dcasa_web"><span t-out="dcasa_web"/>/socios</t><t t-else="">la sección Socios D'CASA de nuestra web</t>
                 </div>
             </t>
         </xpath>
