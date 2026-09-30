@@ -319,6 +319,8 @@ def cmd_puntuar(args):
 
 def imprimir(inf, detalle=False):
     m = inf['meta']
+    if m.get('simulado'):
+        print('*** SALIDAS SIMULADAS (demo del evaluador; NO son de ningún modelo real) ***')
     print(f"== {m.get('modelo', '?')} · prompt {m.get('prompt', '?')} · herramientas {m.get('herramientas', '?')} ==")
     print(f"casos evaluados {inf['casos_evaluados']} (pendientes de juez LLM: {len(inf['pendientes_juez_llm'])})")
     print(f"exactitud {inf['exactitud']:.3f} · casos 100% correctos {inf['caso_exacto']:.3f} · herramienta correcta {inf['herramienta_correcta']}")

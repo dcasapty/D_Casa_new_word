@@ -333,3 +333,46 @@ Decisiones del dueño que cambian el rumbo:
 
 ### cf-costos · APRENDIZAJE · MEDIO · Precios de la competencia cambiaron en 2026 (revalidar al contratar)
 - Hetzner subió precios el 2026-04-01 y 2026-06-15; Oracle Always Free recortado a 2 OCPU/12 GB y reclama instancias ociosas; CockroachDB cerró su plan gratis el 2026-09-15 y no es PG completo; Xata sin plan gratis; Supabase PITR desde $100/mes sobre Pro $25. Todo en `cf-costos.md` §5, con URLs. Para @brian-modelos: tarifas de Claude usadas (Sonnet 5.5 $2/$10, Opus 5.5 $4/$20, Haiku 4.5 $1/$5 por M tokens, tabla cacheada 2026-09-25 del skill claude-api); ejemplo ilustrativo ~ $0,008-0,017 por interacción de Brian, sin datos de volumen real.
+
+### brian-excel · HALLAZGO · ALTO · Brian no lee `.xlsx` ni `.docx`; `.xls` se decodifica como texto (basura)
+- `conversacion.py:88-89,487-491`: `MIMES_TEXTO` incluye `application/vnd.ms-excel` (xls binario) y lo pasa por `decode('utf-8', errors='replace')`; el `.xlsx` cae en «No puedo leer este tipo de archivo». PDF solo con texto nativo (sin OCR). Imágenes >5 MB se rechazan en vez de redimensionarse (`:83,598`): 54 de los 323 PNG de `up media/` pasan de 5 MB.
+- Diseño y prototipo: `docs/auditoria/ronda2/brian-excel.md` y `brian-excel-prototipo/` (extractor determinista, 8 pruebas verdes). Herramientas propuestas: `leer_archivo`, `proponer_importacion_catalogo` (lectura), `aplicar_importacion` y `deshacer_importacion` (sensibles). (@brian-evals usar las salidas como verdad de oro; @brian-modelos ver pregunta abajo.)
+
+### brian-excel · APRENDIZAJE · MEDIO · El Excel real no tiene imágenes, combinadas ni fórmulas: la dificultad es semántica
+- Medido: 4 hojas visibles, 0 combinadas, 0 fórmulas, 0 imágenes incrustadas, 0 comentarios; archivo generado por script desde Canva. Fotos = 323 PNG externos (páginas Canva de 1536 px, 993 MB). `Productos`: 219 filas, 199 códigos; 6 códigos con precios contradictorios, 11 sin foto, 2 precios por tamaño no crecientes, 12 códigos en minúsculas, 3 con `/`. `Imágenes (proyecto)` lista 331 archivos y en disco hay 323 (8 faltan).
+- `importar_catalogo.py:155` desempaqueta columnas por posición sin validar encabezados (si agregan una columna, lee mal sin avisar) y descarta tamaños fuera de Twin/Full/Queen/King.
+
+### brian-excel · CONFIRMA · CRÍTICO · a enterprise-gap/sitio-web: el encabezado del Excel dice «+ITBMS» (y `Notas!B5` también)
+- Medido en la celda `Productos!C1` «Precio (+ITBMS)», `D1` «Precios por tamaño (+ITBMS)», `Notas!B5` «Todos los precios son +ITBMS». El diseño de importación exige un parámetro `modo_itbms` explícito (nunca suponerlo); Brian no debe importar precios hasta que el dueño responda.
+
+### brian-excel · PREGUNTA a @brian-modelos · MEDIO · Límites de imagen/PDF de OpenAI y Meta, y modelo barato para fichas
+- No pude abrir `platform.openai.com`, `developers.openai.com` ni `dev.meta.ai` (proxy). Anthropic verificado: 10 MB/imagen base64 (5 MB en Bedrock/Google), 8000 px, >20 imágenes → 2000 px, 32 MB y 600 págs/PDF. OpenAI: cifras contradictorias en buscador (NO VERIFICADO). Meta: 50 imágenes (incidencia de tercero, NO VERIFICADO). ¿Pueden confirmarlas y decir qué modelo barato lee bien fichas en español? Yo normalizo al mínimo común (JPEG, ≤1.568 px, ≤4 MB, ≤20 por mensaje).
+
+### brian-excel · PREGUNTA a @seguridad · MEDIO · S-10/B-07/B-13 aplicados a archivos subidos
+- Celdas y PDF son el vector de inyección indirecta más probable. Propuesto: delimitador `<<DATOS>>` con nonce (hoy fijo, A-04), marca `sospecha_instruccion` por celda, `aplicar_importacion` siempre con confirmación (nunca por MCP), rechazo de zip bomb/XML bomb (`defusedxml`), sin macros ni vínculos externos, retención del adjunto original (B-13) y aviso de privacidad si el archivo trae clientes/RUC hacia el proveedor de IA. ¿Conformes con el umbral de filas (500 por aplicación) y con que `aplicar_importacion` sea `sensible`?
+
+### brian-excel · APRENDIZAJE · BAJO · Reglas para leer Excel con IA (reutilizables)
+- Extraer con código (valores, fórmulas, anclas de imágenes, combinadas) y dar al modelo solo un esquema intermedio comprimido; el modelo interpreta lo ambiguo y cita `celda_origen`; un valor que no está en esa celda se descarta. `openpyxl` no ve imágenes «en celda» (cadena `vm`→richData, formato no documentado en ECMA-376); se leen del XML. Un encabezado «Precio por tamaño» casa también con «precio»: el orden de las reglas de mapeo importa (bug real corregido en el prototipo).
+
+### brian-eventos · HALLAZGO · ALTO · El bucle de Brian es una petición síncrona de Odoo con la transacción abierta y el webhook de Telegram espera al modelo
+- Evidencia: `conversacion.py:255-300` (hasta 8 pasos en serie), `proveedores.py:50-52,106-138` (timeout (10,120) s x 3 intentos x 8 pasos ≈ 52 min teóricos, `time.sleep` en el hilo; `workers = 0` en `docker/entrypoint.sh:42`), `controllers/telegram.py:31-51` (200 solo tras el modelo), `models/telegram.py:325-327` (dedupe `update_id` guardado en la misma transacción sin commit: carrera entre reintentos). Diagnóstico completo de 13 puntos en `ronda2/brian-eventos.md` §1.
+- Recomendación: borde (Worker + Durable Object por conversación) que responde 200 al instante, hace dedupe atómico y llama a Odoo por JSON-2; Odoo guarda `idem_key` único en `brian.accion`.
+
+### brian-eventos · APRENDIZAJE · ALTO · La capa de eventos en Cloudflare cabe en los $5 de Workers Paid; los tokens son lo que cuesta
+- Fuentes oficiales (páginas fuente de developers.cloudflare.com leídas en `cloudflare/cloudflare-docs`, rama `production`, 2026-09-30; el sitio público está bloqueado): Workers, Durable Objects, Queues, Workflows, R2, KV, D1, Vectorize, AI Search, Workers AI, AI Gateway; URLs y límites en `ronda2/brian-eventos.md` §2. Con 50/300/1.500 interacciones/día el excedente es $0/$0/≈$0,12 (R2); el primer límite en agotarse es la duración de DO (≈2.700 interacciones/día con 5 GB-s por interacción). Tokens (ejemplo Workers AI, tarifa oficial): llama-3.1-8b ≈ $0/4,7/36,7 al mes; gpt-oss-120b ≈ $4/41/216 al mes.
+- Recomendación: pasar Brian al borde cuesta ≈ $0 marginal; invertir esfuerzo en preselección de herramientas, caché, ruteo y topes (coordinado con @brian-modelos).
+
+### brian-eventos · RESPUESTA a @brian-modelos · MEDIO · `enviar_lote`, fallback con disyuntor y subconjunto estable de herramientas
+- Batch = paso de Workflow (crear lote, `step.sleep`, consultar; sin CPU mientras duerme); fallback: AI Gateway lo soporta (oficial: `configuration/fallbacks`, dispara por error o por timeout) más disyuntor con estado en el DO; subconjunto de herramientas fijado en el SQLite del DO al iniciar la conversación (no rompe la caché de prompt); `brian.uso` recibe `uso.turno` por Queue en lotes. Detalle en `ronda2/brian-eventos.md` §3.9-3.10 y §8b.
+- Recomendación: que `brian.uso` y la tabla de precios por modelo sean datos de Odoo; el DO calcula `costo_est` y aplica el tope.
+
+### brian-eventos · RESPUESTA a @cf-costos · MEDIO · Si Odoo se muda a VPS + Tunnel, el diseño de Brian no cambia
+- Solo cambia el transporte al ejecutor (service binding → hostname del túnel con Access/HMAC). Sin contenedor que duerma desaparece el cold start como causa de degradación. Nota: ninguno de los dos puede confirmar aún el precio oficial de Containers (página no legible en el repo de docs ni por el proxy): ambas cifras vienen de buscador.
+- Recomendación: decidir la plataforma de Odoo sin condicionar a Brian; el borde (≈ $0 marginal) es independiente.
+
+### brian-eventos · HALLAZGO · ALTO · El puente Worker↔Odoo necesita identidad por persona: `/json/2` hoy no está bloqueado en el borde y no existe un «token de servicio» seguro
+- Evidencia: `edge/src/routing.ts:12` (solo bloquea rutas de BD) y `:18` (`/brian/` no se cachea pero sí se sirve); Odoo 19 `/json/2` exige `Authorization: bearer <clave>` y valida permisos del dueño de la clave, cada llamada en su propia transacción (documentación oficial Odoo 19, `external_api.rst`). Un token de servicio que «actúa como cualquiera» equivale a sudo.
+- Recomendación: clave de API de la persona (alcance `brian`, vencimiento, cifrada AES-GCM en el DO), JWT corto para el WebSocket del panel, HMAC + marca de tiempo para Odoo→Worker, `ejecutar_externo` sin parámetro `confirmado`, bloquear rutas internas en el Worker público. Pedir a @seguridad que revise `ronda2/brian-eventos.md` §6.
+
+### brian-eventos · PREGUNTA a @brian-excel · MEDIO · Contrato del pipeline de archivos
+- El diseño asume: subida a R2, mensaje de Queue con solo la referencia (128 KB máx. por mensaje), Workflow de extracción con paso <= 30 s de CPU (configurable a 5 min) y resultado por paso <= 1 MiB; los Excel grandes deben devolver referencia a R2, no datos. ¿Tu extractor (openpyxl → JSON) corre en Python dentro de Odoo o lo piensas en el borde (TS)? Si es Python hace falta que Odoo lo exponga por JSON-2 y el Workflow lo llame con `idem_key`.
