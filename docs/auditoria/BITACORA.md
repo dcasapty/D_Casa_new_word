@@ -232,3 +232,29 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### brian · HALLAZGO · MEDIO · Tarjetas de confirmación genéricas omiten valores por defecto (monto, diario, total)
 - Evidencia: `politica.py:86-100` (`resumir` lista solo los argumentos del modelo; ninguna herramienta define `_resumir_*`). `registrar_pago` sin `monto` muestra solo la factura. Recomendación: `_resumir_*` con valores ya resueltos en las 11 sensibles (`docs/auditoria/brian.md` B-09).
+
+### calidad-codigo · APRENDIZAJE · MEDIO · Se puede correr Odoo 19 real aquí: 264 tests de D'CASA pasan, 0 fallos (4 de navegador saltados)
+- Evidencia: `git submodule update --init --depth 1 vendor/odoo` + `apt-get install postgresql` + pip con binarios; `scripts/test.sh` → `0 failed, 0 error(s) of 264 tests`; ruff limpio, 132 .py compilan, 54 XML bien formados, manifiestos completos, bundles SCSS compilan sin errores, edge 20/20 tests + tsc + 0 vulnerabilidades. Detalle en `docs/auditoria/calidad-codigo.md`.
+- Recomendación: los demás agentes pueden verificar sus hallazgos contra Odoo real (base `dcasa_test` de PostgreSQL local, usuario odoo/odoo, si sigue en pie el entorno); los 4 tests de navegador no corrieron aquí ni en CI.
+
+### calidad-codigo · HALLAZGO · MEDIO · El CI salta en silencio los tests de navegador (JS/OWL sin cobertura efectiva)
+- Evidencia: `.github/workflows/ci.yml:62-76` instala solo `vendor/odoo/requirements.txt` (sin `websocket-client`); Odoo salta `browser_js` y `scripts/test.sh` solo falla con ERROR/CRITICAL. Reproducido: `skipped TestInterfazBrian.test_chat_en_el_navegador … websocket-client module is not installed` (idem `test_sin_clave_muestra_aviso_y_sigue_usable`, `TestInterfazWeb.test_barra_lateral_tercer_nivel`, `test_filtros_rapidos_en_productos`). @navbar @ui-backend @brian: los arreglos de JS/SCSS del panel no están protegidos por CI.
+- Recomendación: `pip install websocket-client` en el job `odoo-tests` y hacer fallar `test.sh` si hay `skipped` de navegador.
+
+### calidad-codigo · HALLAZGO · MEDIO · `read_group` deprecado en Odoo 19 en el tablero de inicio
+- Evidencia: `addons/dcasa_interfaz/models/tablero.py:102,121` (DeprecationWarning en el log de tests; `vendor/odoo/odoo/orm/models.py:2754`). Además `tablero.py:94-99` hace 7 `search` por carga (uno por día).
+- Recomendación: `_read_group(...)` (y uno solo por `date_order:day` para la semana).
+
+### calidad-codigo · HALLAZGO · BAJO · El borde no pone cabeceras de seguridad a las respuestas de caché (@seguridad @infra)
+- Evidencia: `edge/src/handler.ts:31` (`return hit`) y `:38` (`return response`) no pasan por `withSecurityHeaders` (solo `:41`); sin HSTS/nosniff en `/web/assets`, `/static`, `/web/image`. Sin test.
+- Recomendación: aplicar `withSecurityHeaders` en ambas ramas y testear.
+
+### calidad-codigo · CONFIRMA · BAJO · a ui-backend: el fuente de Odoo 19 está en `vendor/odoo` y el patrón de `sin_odoo.js` es frágil
+- Evidencia: `addons/dcasa_interfaz/static/src/js/sin_odoo.js:44-47` parchea `showDefaultHelper`/`title`/`description` en `ActionHelper.prototype` y en Sale/StockActionHelper con `return true` fijo (confirma tu hallazgo del `help` anulado); las rutas de import existen hoy, pero son internas de Odoo.
+- Recomendación: ver Q-06 en `docs/auditoria/calidad-codigo.md` (lista de control al actualizar Odoo).
+
+### coordinador · APRENDIZAJE · — · cierre de la ronda 1
+- Los nueve agentes entregaron. Síntesis en `INFORME_FINAL.md`.
+- Verificado por el coordinador: ITBMS (Excel «+ITBMS» vs `catalogo.py` «incluido») y que `procesar_update` es invocable por RPC (impacto pendiente de PoC).
+- Causa común de seguridad: métodos públicos + `sudo()` sin control de grupo (S-01, S-02, B-01..B-04, S-09, C-07).
+- Siguiente ronda sugerida: PoC de B-01/B-03/S-01/S-02 por RPC, y arreglos P0 con test.
