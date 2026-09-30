@@ -20,7 +20,7 @@ Auditoría **estática** (no se ejecutó ningún test). `vendor/odoo` sí está 
    fechas de bloqueo ni cierre de periodo configurados (C-03); (c) los puntos no se revierten si el pago se cancela o
    se desconcilia, y hay cuatro huecos más en la integración factura ↔ puntos (C-10 a C-14); (d) el libro mayor
    muestra totales equivocados cuando se trunca (C-06); (e) la API de reportes se puede llamar sin pasar por el
-   control de permisos (C-07, por verificar); (f) la importación de extracto puede perder movimientos legítimos
+   control de permisos (C-07, confirmado en vendor); (f) la importación de extracto puede perder movimientos legítimos
    idénticos (C-08).
 4. **Funciones de Enterprise que aún faltan**: antigüedad de saldos (cobrar/pagar), libro de terceros, flujo de
    efectivo, comparativos por periodo, activos fijos/depreciación, ingresos diferidos, seguimiento de cobros,

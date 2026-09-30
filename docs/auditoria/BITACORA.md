@@ -191,3 +191,27 @@ entradas ajenas; se agrega al final con `cat >> docs/auditoria/BITACORA.md <<'EO
 
 ### seguridad · CONFIRMA · ALTO · (actualiza el hallazgo de socios) el registro libre de Odoo amplía S-02
 - `vendor/odoo/addons/auth_signup/data/ir_config_parameter_data.xml:5` deja `auth_signup.invitation_scope = b2c`: cualquiera se crea un usuario portal, y `call_kw` (`odoo/service/model.py:74`) no comprueba ACL, por lo que `dcasa.canje.action_cancelar/entregar` (todo con `sudo()`) queda al alcance de un visitante registrado. Recomendación adicional: poner `b2b` si la tienda no necesita cuentas de cliente, y comprobar grupo en esos métodos.
+
+### contabilidad · CONFIRMA · CRÍTICO · E-01 (precio «+ITBMS») también afecta al test de la factura 00821 y a todos los tests de puntos
+- Evidencia: `addons/dcasa_invoice/tests/test_dcasa_invoice.py:334-336,374-378` y `addons/dcasa_socios/tests/common.py:15-19` buscan a propósito el impuesto «se suma» (`price_include=False`); el impuesto por defecto de la empresa es «ITBMS 7% incluido» (`addons/dcasa_base/__init__.py:65-76`). Cifras del test verificadas a mano: 171,97+158,02=329,99; ITBMS 12,04+11,06=23,10 (global 23,0993→23,10); total 353,09. Con el impuesto por defecto las mismas líneas dan total 329,99.
+- Recomendación: tras la respuesta de la dueña, test con el impuesto por defecto que reproduzca 353,09. Informe: `docs/auditoria/contabilidad.md` C-01 y §2. @enterprise-gap
+
+### contabilidad · HALLAZGO · MEDIO · Los puntos no se revierten si el pago se cancela/desconcilia; y NC parcial reposteada descuenta dos veces
+- Evidencia: Odoo solo llama `_invoice_paid_hook` al conciliar (`vendor/odoo/addons/account/models/account_move_line.py:2785-2794`); `addons/dcasa_socios/models/account_move.py:15-56` no engancha la desconciliación; la NC parcial (`:41-56`, `dcasa_compra.py:220`) corre en cada `_post` y `button_draft` solo se intercepta para `out_invoice` (`:31`). Factura $107 pagada con cheque que rebota: 107 puntos + 750 de referido se quedan.
+- Recomendación: anular la compra si la factura deja de estar paid/in_payment; NC idempotente (guardar la NC en el movimiento) y acumulada. C-10, C-11, C-12 en `contabilidad.md`.
+
+### contabilidad · HALLAZGO · MEDIO · Reportes contables y API de conciliación callables por RPC sin el control de grupo
+- Evidencia: `addons/dcasa_contabilidad/models/reportes.py:313-317` (solo `obtener()` comprueba grupo; `balance_general()`… son públicos) y `vendor/odoo/addons/sale/security/ir.model.access.csv:9` (vendedora con lectura de `account.move.line`). `addons/dcasa_contabilidad/models/conciliacion.py:123-200` sin `has_group`.
+- Recomendación: motores privados (`_balance_general`…) o `has_group` común; `group_account_user` en `conciliar/automatico/deshacer`. Mismo patrón que tu APRENDIZAJE de método público+sudo. @seguridad (C-07, C-17)
+
+### contabilidad · RESPUESTA a @ui-backend · MEDIO · Descuento libre por línea y «Ventas de hoy» en UTC
+- El descuento por línea (`dcasa_base/__init__.py:110-114`) no se contabiliza aparte: va como menor ingreso en la cuenta de ventas y el ITBMS se calcula sobre el neto (correcto fiscalmente). El riesgo es de control interno (sin tope por rol), no de cuadre; recomiendo un tope/aprobación para no-gerentes. La hora UTC de «Ventas de hoy» es un error de presentación (Panamá = UTC−5: entre 7 p. m. y medianoche las ventas caen en «mañana»), ya cubierto en `hoy_views.xml`; la corrección es filtrar con la zona del usuario.
+
+### contabilidad · RESPUESTA a @seguridad · BAJO · Reiniciar PIN por la vendedora es decisión documentada
+- `res_partner.py:349-371` (docstring «La vendedora le dicta un PIN temporal») y solo aplica a fichas ya reclamadas. Lo que sí no está protegido en servidor son `action_dcasa_suspender/activar` y `dcasa.canje.action_cancelar/entregar` (solo `groups=` en la vista): C-17.
+
+### contabilidad · PREGUNTA a @enterprise-gap · MEDIO · Brecha contable Enterprise y orden
+- Falta (ver tabla en `contabilidad.md` §5): antigüedad de saldos y libro de terceros, flujo de efectivo, comparativos, seguimiento de cobros, activos fijos/diferidos, retenciones, fechas de bloqueo configuradas, FE-DGI. Coincido con tu P1/P0; añado retenciones ITBMS/ISR (validar con el contador) y configurar las fechas de bloqueo (son Community y hoy nada las fija). ¿Confirmas que el plan de costos (E-02) entra antes que la antigüedad de saldos? Sin costo el margen del ER sale al 100 %.
+
+### contabilidad · APRENDIZAJE · BAJO · Verificado en vendor: `price_include_override` no tiene valor 'default'
+- `vendor/odoo/addons/account/models/account_tax.py:142-147`: solo `tax_included`/`tax_excluded` (vacío por defecto), así que `dcasa_base/__init__.py:63` funciona. Y Odoo usa `force_delete`+`skip_readonly_check` en su propia conciliación (`account_bank_statement_line.py:471`), por lo que `dcasa_conciliar` no salta las fechas de bloqueo (se siguen comprobando en `account_move_line.py:1854`).
