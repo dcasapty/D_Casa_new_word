@@ -19,7 +19,24 @@ describe("route", () => {
     expect(route(u("/shop?x=1", "www.dcasapty.com"), "GET", "dcasapty.com")).toEqual({
       kind: "redirect",
       location: "https://dcasapty.com/shop?x=1",
+      status: 301,
     });
+  });
+
+  it("redirige los POST de www con 308 (conserva método y cuerpo)", () => {
+    expect(route(u("/brian/mcp", "www.dcasapty.com"), "POST", "dcasapty.com")).toEqual({
+      kind: "redirect",
+      location: "https://dcasapty.com/brian/mcp",
+      status: 308,
+    });
+  });
+
+  it("deja pasar a Brian (MCP y Telegram) sin caché ni bloqueo", () => {
+    for (const path of ["/brian/mcp", "/brian/telegram/secreto-largo"]) {
+      for (const method of ["GET", "POST"]) {
+        expect(route(u(path), method)).toEqual({ kind: "origin", cacheable: false });
+      }
+    }
   });
 
   it("no redirige otros hosts (p. ej. *.workers.dev)", () => {

@@ -35,6 +35,29 @@ Crear el *environment* `production` y cargar:
 | Variable | `DB_NAME` | `dcasa` |
 | Variable | `CANONICAL_HOST` | `dcasapty.com` |
 
+### Brian, el asistente (opcional)
+
+Sin estas variables Brian queda instalado pero sin IA ni Telegram (el chat lo avisa). Todas
+se cargan en el environment `production` de GitHub; **nunca en el repositorio** ni en
+`wrangler.jsonc`. El despliegue sube los secretos con `wrangler secret bulk` y el Worker los
+pasa al contenedor de Odoo solo si existen (`OPTIONAL_CONTAINER_VARS` en `edge/src/index.ts`).
+
+| Tipo | Nombre | Valor |
+|---|---|---|
+| Variable | `BRIAN_PROVEEDOR` | `anthropic`, `openai`, `xai`, `groq`, `openrouter` u `ollama` |
+| Variable | `BRIAN_MODELO` | p. ej. `claude-haiku-4-5-20251001` |
+| Variable | `BRIAN_BASE_URL` | solo para proveedores OpenAI-compatibles propios |
+| Secret | `BRIAN_API_KEY` | clave del proveedor de IA |
+| Secret | `TELEGRAM_BOT_TOKEN` | token del bot (@BotFather) |
+| Secret | `BRIAN_TELEGRAM_SECRETO` | `openssl rand -hex 32`: ruta y encabezado del webhook de Telegram |
+
+A mano, sin GitHub: `cd edge && npx wrangler secret put TELEGRAM_BOT_TOKEN` (y así cada uno).
+Si se cambia `BRIAN_TELEGRAM_SECRETO`, hay que volver a registrar el webhook (Brian →
+Telegram → *Registrar webhook*). Las rutas `/brian/mcp` y `/brian/telegram/*` pasan por el
+Worker sin caché; un POST a `www.` se redirige con 308 (conserva el cuerpo), pero conviene
+usar siempre el dominio canónico. Cómo conectar clientes MCP y el bot: `docs/BRIAN.md` →
+*Conectarse*.
+
 La **pimienta del PIN** de los socios (`DCASA_PIN_PEPPER`) no se carga a mano: el
 primer despliegue la genera al azar y la guarda en el Worker, y los siguientes
 **nunca la sobrescriben**. Cambiarla rompería el PIN de todos los socios a la vez.

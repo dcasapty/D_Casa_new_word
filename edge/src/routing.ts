@@ -5,11 +5,17 @@
 export type Route =
   | { kind: "health" }
   | { kind: "blocked" }
-  | { kind: "redirect"; location: string }
+  | { kind: "redirect"; location: string; status: 301 | 308 }
   | { kind: "origin"; cacheable: boolean };
 
 /** Rutas de administración de bases de datos: nunca se exponen a internet. */
 const BLOCKED_PREFIXES = ["/web/database", "/xmlrpc/db", "/xmlrpc/2/db"];
+
+/**
+ * Endpoints de Brian (servidor MCP y webhook de Telegram): llevan credenciales
+ * (Authorization / secreto) y respuestas por usuario. Nunca se guardan en caché.
+ */
+const NEVER_CACHE_PREFIXES = ["/brian/"];
 
 /** Recursos estáticos o versionados que se pueden guardar en la caché del borde. */
 const CACHEABLE_PATTERNS = [
@@ -30,7 +36,12 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
     const target = new URL(url.toString());
     target.hostname = canonicalHost;
     target.protocol = "https:";
-    return { kind: "redirect", location: target.toString() };
+    // 308 conserva el método y el cuerpo (un POST a /brian/mcp sigue siendo POST).
+    const status = method === "GET" || method === "HEAD" ? 301 : 308;
+    return { kind: "redirect", location: target.toString(), status };
+  }
+  if (NEVER_CACHE_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
+    return { kind: "origin", cacheable: false };
   }
   const isRead = method === "GET" || method === "HEAD";
   const pathAndQuery = url.pathname + url.search;

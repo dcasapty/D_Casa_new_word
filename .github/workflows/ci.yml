@@ -184,9 +184,12 @@ jobs:
           DB_USER: ${{ vars.DB_USER }}
           DB_NAME: ${{ vars.DB_NAME }}
           CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+          BRIAN_PROVEEDOR: ${{ vars.BRIAN_PROVEEDOR }}
+          BRIAN_MODELO: ${{ vars.BRIAN_MODELO }}
+          BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
         run: |
           args=(--var "APP_VERSION:${GITHUB_SHA}")
-          for name in DB_HOST DB_USER DB_NAME CANONICAL_HOST; do
+          for name in DB_HOST DB_USER DB_NAME CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
             if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
           done
           npx wrangler deploy "${args[@]}"
@@ -199,6 +202,25 @@ jobs:
         run: |
           node -e 'process.stdout.write(JSON.stringify({DB_PASSWORD: process.env.DB_PASSWORD, ADMIN_PASSWORD: process.env.ADMIN_PASSWORD}))' \
             | npx wrangler secret bulk
+      - name: Secretos de Brian (IA y Telegram; opcionales, solo si están cargados)
+        if: steps.guard.outputs.ready == 'true'
+        working-directory: edge
+        env:
+          BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
+        run: |
+          node -e '
+            const names = ["BRIAN_API_KEY", "TELEGRAM_BOT_TOKEN", "BRIAN_TELEGRAM_SECRETO"];
+            const out = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+            process.stdout.write(JSON.stringify(out));
+          ' > "$RUNNER_TEMP/brian.json"
+          if [ "$(cat "$RUNNER_TEMP/brian.json")" != "{}" ]; then
+            npx wrangler secret bulk "$RUNNER_TEMP/brian.json"
+          else
+            echo "Sin secretos de Brian: el asistente queda sin configurar (ver docs/BRIAN.md)."
+          fi
+          rm -f "$RUNNER_TEMP/brian.json"
       - name: Pimienta del PIN de socios (se crea una vez, nunca se sobrescribe)
         if: steps.guard.outputs.ready == 'true'
         working-directory: edge

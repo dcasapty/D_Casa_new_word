@@ -20,7 +20,7 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
     case "blocked":
       return new Response("Not Found", { status: 404 });
     case "redirect":
-      return Response.redirect(decision.location, 301);
+      return Response.redirect(decision.location, decision.status);
   }
 
   const upstream = new Request(request, { headers: forwardedHeaders(request) });

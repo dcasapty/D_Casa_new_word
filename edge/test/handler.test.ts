@@ -44,6 +44,39 @@ describe("handleRequest", () => {
     expect(cache.put).not.toHaveBeenCalled();
   });
 
+  it("reenvía el POST de MCP a Odoo con su cuerpo y su Authorization, sin caché", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async (req: Request) =>
+      Response.json({ auth: req.headers.get("Authorization"), body: await req.text(), method: req.method }),
+    );
+    const body = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+    const res = await handleRequest(
+      new Request("https://dcasapty.com/brian/mcp", {
+        method: "POST",
+        body,
+        headers: { Authorization: "Bearer clave", "Content-Type": "application/json" },
+      }),
+      { forward, cache },
+    );
+    expect(await res.json()).toEqual({ auth: "Bearer clave", body, method: "POST" });
+    expect(cache.match).not.toHaveBeenCalled();
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it("deja pasar el webhook de Telegram con su encabezado secreto", async () => {
+    const forward = vi.fn(async (req: Request) => new Response(req.headers.get("X-Telegram-Bot-Api-Secret-Token")));
+    const res = await handleRequest(
+      new Request("https://dcasapty.com/brian/telegram/s3cr3t", {
+        method: "POST",
+        body: "{}",
+        headers: { "X-Telegram-Bot-Api-Secret-Token": "s3cr3t" },
+      }),
+      { forward },
+    );
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe("s3cr3t");
+  });
+
   it("redirige www a dominio canónico", async () => {
     const res = await handleRequest(new Request("https://www.dcasapty.com/shop"), {
       forward: vi.fn(),

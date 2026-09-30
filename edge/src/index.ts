@@ -17,7 +17,29 @@ export interface Env {
   ADMIN_PASSWORD: string;
   /** Pimienta del PIN de los socios. Se genera una vez y NUNCA se cambia (ver docs/DESPLIEGUE.md). */
   DCASA_PIN_PEPPER: string;
+  // Brian, el asistente (opcionales; ver docs/BRIAN.md y docs/DESPLIEGUE.md).
+  BRIAN_PROVEEDOR?: string;
+  BRIAN_MODELO?: string;
+  BRIAN_BASE_URL?: string;
+  BRIAN_HERRAMIENTAS_MAX?: string;
+  /** Secreto: clave del proveedor de IA. */
+  BRIAN_API_KEY?: string;
+  /** Secreto: token del bot de Telegram (@BotFather). */
+  TELEGRAM_BOT_TOKEN?: string;
+  /** Secreto: ruta y encabezado del webhook de Telegram. */
+  BRIAN_TELEGRAM_SECRETO?: string;
 }
+
+/** Variables opcionales que se pasan tal cual al contenedor solo si están definidas. */
+export const OPTIONAL_CONTAINER_VARS = [
+  "BRIAN_PROVEEDOR",
+  "BRIAN_MODELO",
+  "BRIAN_BASE_URL",
+  "BRIAN_HERRAMIENTAS_MAX",
+  "BRIAN_API_KEY",
+  "TELEGRAM_BOT_TOKEN",
+  "BRIAN_TELEGRAM_SECRETO",
+] as const;
 
 /** Una sola instancia de Odoo: toda la tienda comparte el mismo contenedor. */
 const INSTANCE = "odoo-main";
@@ -42,6 +64,10 @@ export class OdooContainer extends Container<Env> {
       APP_VERSION: env.APP_VERSION ?? "dev",
       DCASA_PIN_PEPPER: env.DCASA_PIN_PEPPER,
     };
+    for (const name of OPTIONAL_CONTAINER_VARS) {
+      const value = env[name];
+      if (value) this.envVars[name] = value;
+    }
   }
 
   override onError(error: unknown): unknown {
