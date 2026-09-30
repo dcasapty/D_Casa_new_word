@@ -20,6 +20,7 @@ código fuente en este repositorio y desplegado en **Cloudflare**.
 | `addons/dcasa_socios` | Socios D'CASA: puntos automáticos al pagarse la factura, referidos, premios, canjes, cumpleaños y app del socio (celular + PIN) en `/socios`. Reglas de [DCasa-Referidos](https://github.com/abrinay1997-stack/DCasa-Referidos). |
 | `addons/website_dcasa` | Sitio web y tienda con la marca, editable desde el constructor de Odoo. |
 | `addons/dcasa_interfaz` | La cara de Odoo por dentro: «Inicio» con el tablero del día, íconos propios, sin avisos de Enterprise (salen como «En desarrollo»), sin recorrido guiado, OdooBot ni datos de ejemplo. |
+| `addons/dcasa_contabilidad` | Contabilidad a medida: estado de resultados, balance general, balance de comprobación, libro mayor, ITBMS y analítica (Excel y PDF); conciliación bancaria con importación de extractos CSV; presupuestos; cheques. Ver [docs/CONTABILIDAD.md](docs/CONTABILIDAD.md). |
 | `addons/dcasa_catalogo` | Catálogo real (199 productos, 323 fotos) del Excel y la carpeta `up media`: el mismo producto en inventario, ventas y tienda web. Ver [docs/CATALOGO.md](docs/CATALOGO.md). |
 | `edge/` | Cloudflare Worker + Container que sirve Odoo (caché, seguridad, cron). |
 | `docker/` | Imagen de producción (Odoo + módulos) y su arranque. |

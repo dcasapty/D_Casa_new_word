@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="importar_extracto_form" model="ir.ui.view">
+        <field name="name">dcasa.importar.extracto.form</field>
+        <field name="model">dcasa.importar.extracto</field>
+        <field name="arch" type="xml">
+            <form string="Importar extracto bancario">
+                <p class="text-muted">
+                    Descarga el movimiento de tu banca en línea (Banco General, BAC, Banistmo, Caja de Ahorros o
+                    Yappy) en formato CSV y súbelo aquí. Necesita las columnas <strong>Fecha</strong> y
+                    <strong>Monto</strong> (o <strong>Débito</strong> y <strong>Crédito</strong>); la
+                    <strong>Descripción</strong> y la <strong>Referencia</strong> ayudan a conciliar solo.
+                    Lo que ya estaba importado no se repite.
+                </p>
+                <group>
+                    <field name="journal_id" options="{'no_create': True}"/>
+                    <field name="archivo" filename="nombre_archivo"/>
+                    <field name="nombre_archivo" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="action_importar" type="object" string="Importar y conciliar" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_importar_extracto" model="ir.actions.act_window">
+        <field name="name">Importar extracto bancario</field>
+        <field name="res_model">dcasa.importar.extracto</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

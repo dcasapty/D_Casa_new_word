@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="accion_reporte_contable" model="ir.actions.report">
+        <field name="name">Reporte contable</field>
+        <field name="model">res.company</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_contabilidad.reporte_contable</field>
+        <field name="report_file">dcasa_contabilidad.reporte_contable</field>
+        <field name="print_report_name">'Reporte contable'</field>
+    </record>
+
+    <template id="reporte_contable">
+        <t t-call="web.html_container">
+            <t t-set="o" t-value="docs[:1]"/>
+            <t t-call="web.external_layout">
+                <div class="page o_dcasa_reporte_pdf">
+                    <style>
+                        .o_dcasa_reporte_pdf { font-size: 10px; }
+                        .o_dcasa_reporte_pdf h2 { color: #1340B1; font-weight: 700; margin-bottom: 2px; }
+                        .o_dcasa_reporte_pdf .periodo { color: #5B6478; margin-bottom: 14px; }
+                        .o_dcasa_reporte_pdf table { width: 100%; border-collapse: collapse; }
+                        .o_dcasa_reporte_pdf th { background: #1340B1; color: #fff; padding: 5px 6px; text-align: left; }
+                        .o_dcasa_reporte_pdf td { padding: 4px 6px; border-bottom: 1px solid #E6EAF2; }
+                        .o_dcasa_reporte_pdf .num { text-align: right; white-space: nowrap; }
+                        .o_dcasa_reporte_pdf .sub td { font-weight: 700; background: #F4F6FA; }
+                        .o_dcasa_reporte_pdf .tot td { font-weight: 700; border-top: 2px solid #0B1F5C; }
+                        .o_dcasa_reporte_pdf .aviso { color: #9A3412; font-weight: 700; margin-top: 10px; }
+                    </style>
+                    <h2 t-out="datos['titulo']"/>
+                    <div class="periodo">
+                        <t t-if="datos['reporte'] == 'balance_general'">Al <t t-out="datos['hasta']"/></t>
+                        <t t-else="">Del <t t-out="datos['desde']"/> al <t t-out="datos['hasta']"/></t>
+                    </div>
+
+                    <t t-if="datos['reporte'] == 'balance_comprobacion'">
+                        <table>
+                            <thead><tr><th>Código</th><th>Cuenta</th><th class="num">Saldo inicial</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo final</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="datos['filas']" t-as="f">
+                                    <td t-out="f['codigo']"/><td t-out="f['nombre']"/>
+                                    <td class="num" t-out="m(f['inicial'])"/><td class="num" t-out="m(f['debe'])"/>
+                                    <td class="num" t-out="m(f['haber'])"/><td class="num" t-out="m(f['final'])"/>
+                                </tr>
+                                <tr class="tot"><td/><td>Totales</td>
+                                    <td class="num" t-out="m(datos['totales']['inicial'])"/><td class="num" t-out="m(datos['totales']['debe'])"/>
+                                    <td class="num" t-out="m(datos['totales']['haber'])"/><td class="num" t-out="m(datos['totales']['final'])"/>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p t-if="not datos['cuadra']" class="aviso">El debe y el haber no cuadran: revisa los asientos en borrador o sin cuadrar.</p>
+                    </t>
+
+                    <t t-if="datos['reporte'] == 'libro_mayor'">
+                        <table>
+                            <thead><tr><th>Fecha</th><th>Asiento</th><th>Tercero</th><th>Concepto</th><th class="num">Debe</th><th class="num">Haber</th><th class="num">Saldo</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="datos['cuentas']" t-as="c">
+                                    <tr class="sub"><td colspan="6"><t t-out="c['codigo']"/> <t t-out="c['nombre']"/> · saldo inicial</td><td class="num" t-out="m(c['inicial'])"/></tr>
+                                    <tr t-foreach="c['lineas']" t-as="l">
+                                        <td t-out="l['fecha']"/><td t-out="l['asiento']"/><td t-out="l['tercero']"/><td t-out="l['concepto']"/>
+                                        <td class="num" t-out="m(l['debe'])"/><td class="num" t-out="m(l['haber'])"/><td class="num" t-out="m(l['saldo'])"/>
+                                    </tr>
+                                    <tr class="tot"><td colspan="4">Total <t t-out="c['codigo']"/></td>
+                                        <td class="num" t-out="m(c['debe'])"/><td class="num" t-out="m(c['haber'])"/><td class="num" t-out="m(c['final'])"/>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </t>
+
+                    <t t-if="datos['reporte'] in ('estado_resultados', 'balance_general')">
+                        <table>
+                            <thead><tr><th>Código</th><th>Cuenta</th><th class="num">Monto</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="datos['secciones']" t-as="s">
+                                    <tr class="sub"><td colspan="3" t-out="s['titulo']"/></tr>
+                                    <tr t-foreach="s['filas']" t-as="f"><td t-out="f['codigo']"/><td t-out="f['nombre']"/><td class="num" t-out="m(f['monto'])"/></tr>
+                                    <tr class="tot"><td/><td>Total <t t-out="s['titulo'].lower()"/></td><td class="num" t-out="m(s['total'])"/></tr>
+                                </t>
+                                <t t-if="datos['reporte'] == 'estado_resultados'">
+                                    <tr class="tot"><td/><td>Utilidad bruta</td><td class="num" t-out="m(datos['resumen']['utilidad_bruta'])"/></tr>
+                                    <tr class="tot"><td/><td>Utilidad operativa</td><td class="num" t-out="m(datos['resumen']['utilidad_operativa'])"/></tr>
+                                    <tr class="tot"><td/><td>Utilidad neta</td><td class="num" t-out="m(datos['resumen']['utilidad_neta'])"/></tr>
+                                </t>
+                                <t t-else="">
+                                    <tr class="tot"><td/><td>Total activo</td><td class="num" t-out="m(datos['totales']['activo'])"/></tr>
+                                    <tr class="tot"><td/><td>Total pasivo y patrimonio</td><td class="num" t-out="m(datos['totales']['pasivo_y_patrimonio'])"/></tr>
+                                </t>
+                            </tbody>
+                        </table>
+                    </t>
+
+                    <t t-if="datos['reporte'] == 'itbms'">
+                        <table>
+                            <thead><tr><th>Impuesto</th><th>Tipo</th><th class="num">Base imponible</th><th class="num">ITBMS</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="datos['filas']" t-as="f">
+                                    <td t-out="f['nombre']"/><td t-out="'Ventas' if f['tipo'] == 'venta' else 'Compras'"/>
+                                    <td class="num" t-out="m(f['base'])"/><td class="num" t-out="m(f['impuesto'])"/>
+                                </tr>
+                                <tr class="tot"><td colspan="3">Débito fiscal (ventas)</td><td class="num" t-out="m(datos['resumen']['debito_fiscal'])"/></tr>
+                                <tr class="tot"><td colspan="3">Crédito fiscal (compras)</td><td class="num" t-out="m(datos['resumen']['credito_fiscal'])"/></tr>
+                                <tr class="tot"><td colspan="3">ITBMS a pagar</td><td class="num" t-out="m(datos['resumen']['a_pagar'])"/></tr>
+                            </tbody>
+                        </table>
+                    </t>
+
+                    <t t-if="datos['reporte'] == 'analitica'">
+                        <table>
+                            <thead><tr><th>Plan</th><th>Cuenta analítica</th><th class="num">Ingresos</th><th class="num">Costos y gastos</th><th class="num">Margen</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="datos['filas']" t-as="f">
+                                    <td t-out="f['plan']"/><td t-out="f['nombre']"/>
+                                    <td class="num" t-out="m(f['ingresos'])"/><td class="num" t-out="m(f['costos'])"/><td class="num" t-out="m(f['margen'])"/>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </t>
+                </div>
+            </t>
+        </t>
+    </template>
+</odoo>
