@@ -1,0 +1,20 @@
+// Ficha de producto: medidas y precio en combo, con etiqueta propia (no compiten con el precio).
+.o_dcasa_ficha_datos {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: .35rem 1rem;
+    margin: 0;
+    padding: .85rem 1rem;
+    border-left: 3px solid #1340B1;
+    background: rgba(19, 64, 177, .05);
+    dt {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        font-size: .8rem;
+        color: #1340B1;
+        align-self: center;
+    }
+    dd { margin: 0; }
+}

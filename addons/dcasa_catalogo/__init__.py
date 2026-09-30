@@ -1,3 +1,4 @@
+from . import models
 from .catalogo import cargar_catalogo
 
 

@@ -11,8 +11,8 @@ if env['res.partner'].search_count([('name', '=like', 'Demo %')]):
 else:
     company = env.ref('base.main_company')
     # Dos productos reales del catálogo, sin tamaños (una sola variante), para la factura demo.
-    creados = env['product.template'].search(
-        [('is_published', '=', True)], order='id').filtered(lambda t: t.product_variant_count == 1)[:2].product_variant_id
+    publicados = env['product.template'].search([('is_published', '=', True)], order='id')
+    creados = publicados.filtered(lambda t: t.product_variant_count == 1)[:2].product_variant_id
 
     Partner = env['res.partner']
     padrino = Partner.create({'name': 'Demo Ana', 'phone': '6555-1234'})

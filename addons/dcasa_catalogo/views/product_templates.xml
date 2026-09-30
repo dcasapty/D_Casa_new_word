@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ficha: medidas (impresas en la foto del proveedor) y precio en combo, cada uno con su
+         etiqueta y separado del precio para que nadie los confunda. -->
+    <template id="producto_medidas_y_combo" inherit_id="website_sale.product" name="D'CASA: medidas y combo">
+        <xpath expr="//div[hasclass('o_wsale_product_details_content_section_price')]" position="after">
+            <dl t-if="product.dcasa_medidas or product.dcasa_combo" class="o_dcasa_ficha_datos mb-4">
+                <t t-if="product.dcasa_medidas">
+                    <dt>Medidas</dt>
+                    <dd t-out="product.dcasa_medidas"/>
+                </t>
+                <t t-if="product.dcasa_combo">
+                    <dt>También en combo</dt>
+                    <dd><span t-out="product.dcasa_combo"/>. Pídelo por WhatsApp.</dd>
+                </t>
+            </dl>
+        </xpath>
+    </template>
+</odoo>

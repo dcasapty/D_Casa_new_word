@@ -35,6 +35,9 @@ MODULO = RAIZ / 'addons' / 'dcasa_catalogo'
 DESTINO_IMG = MODULO / 'static' / 'img' / 'productos'
 DESTINO_JSON = MODULO / 'data' / 'catalogo.json'
 REPORTE = RAIZ / 'docs' / 'CATALOGO_REVISAR.md'
+# Fichas revisadas foto por foto (descriptor visible, medidas impresas en la foto, portada,
+# fotos con problemas). Se editan a mano; el importador solo las aplica.
+FICHAS = MODULO / 'data' / 'fichas.json'
 
 LADO_MAXIMO = 1600   # px del lado largo: nítido en pantalla y liviano (Odoo guarda hasta 1920)
 CALIDAD = 82
@@ -45,7 +48,8 @@ FOTOS_AL_FINAL = {'clb0119018_1.png'}
 # Categoría de la tienda según el nombre del producto (primera regla que coincide).
 CATEGORIAS = [
     (r'colch', 'colchones'),
-    (r'sof[aá]|mueble de tv', 'salas'),
+    (r'mueble de tv', 'muebles_tv'),
+    (r'sof[aá]', 'salas'),
     (r'zapatera', 'zapateras'),
     (r'escritorio|mesa ajustable', 'oficina'),
     (r'estante|librero|organizador|mueble de cocina|mueble type', 'organizacion'),
@@ -96,6 +100,40 @@ def fotos_de(codigo, archivos):
     return [f for _n, f in sorted(propias, key=lambda nf: (nf[1] in FOTOS_AL_FINAL, nf[0]))]
 
 
+def ordenar_fotos(fotos, ficha):
+    """La portada elegida primero; las fotos con texto del proveedor o de otro producto, al final."""
+    problema = set(ficha.get('fotos_problema') or [])
+    portada = ficha.get('portada')
+    return sorted(fotos, key=lambda f: (f in problema, f != portada))
+
+
+def nombre_web(nombre, precios, ficha):
+    """«Mesa de noche» + «blanca con 2 gavetas». Con tamaños, el tamaño va en la variante."""
+    if len(precios) > 1:
+        nombre = re.sub(r'\s*\b(twin|full|queen|king)\b', '', nombre, flags=re.I).strip()
+    descriptor = (ficha.get('descriptor') or '').strip()
+    return f'{nombre} {descriptor}'.strip() if descriptor else nombre
+
+
+def ancho(medidas):
+    m = re.search(r'Alto:\s*([\d.,]+)', medidas or '')
+    return f'{m.group(1)} cm de ancho' if m else None
+
+
+def desempatar(catalogo):
+    """Dos productos que se ven iguales no pueden llamarse igual: se les suma el ancho o la referencia."""
+    grupos = {}
+    for item in catalogo:
+        grupos.setdefault(item['nombre_web'].lower(), []).append(item)
+    for items in grupos.values():
+        if len(items) < 2:
+            continue
+        anchos = [ancho(i['medidas']) for i in items]
+        distintos = None not in anchos and len(set(anchos)) == len(anchos)
+        for item, a in zip(items, anchos, strict=True):
+            item['nombre_web'] += f', {a}' if distintos else f' (ref. {item["codigo"]})'
+
+
 def optimizar(archivo):
     destino = DESTINO_IMG / (Path(archivo).stem + '.jpg')
     if not destino.exists():
@@ -142,18 +180,22 @@ def main():
             'combo': combo,
         }
 
+    fichas = json.loads(FICHAS.read_text(encoding='utf-8')) if FICHAS.exists() else {}
     catalogo = []
     sin_foto = []
     for orden, p in enumerate(productos.values(), start=1):
         if not p['precios_ficha']:
             revisar.append(f'`{p["codigo"]}` ({p["nombre"]}): sin precio en el Excel; no se importó.')
             continue
-        fotos = [optimizar(f) for f in fotos_de(p['codigo'], archivos)]
+        ficha = fichas.get(p['codigo'], {})
+        fotos = ordenar_fotos([optimizar(f) for f in fotos_de(p['codigo'], archivos)], ficha)
         if not fotos:
             sin_foto.append(f'`{p["codigo"]}` ({p["nombre"]})')
         catalogo.append({
             'codigo': p['codigo'],
             'nombre': p['nombre'],
+            'nombre_web': nombre_web(p['nombre'], p['precios_ficha'], ficha),
+            'medidas': ficha.get('medidas'),
             'categoria': p['categoria'],
             'orden': orden,
             'precios': p['precios_ficha'],
@@ -161,6 +203,8 @@ def main():
             'fotos': fotos,
         })
 
+    desempatar(catalogo)
+    otro_tipo = [f'`{c}` ({f["tipo_real"]})' for c, f in fichas.items() if f.get('tipo_real')]
     DESTINO_JSON.parent.mkdir(parents=True, exist_ok=True)
     DESTINO_JSON.write_text(json.dumps(catalogo, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
 
@@ -183,6 +227,13 @@ def main():
         '## Sin foto (en inventario, no publicados en la web)',
         '',
         *[f'- {s}' for s in sin_foto],
+        '',
+        '## Las fotos muestran otro tipo de mueble que el nombre del Excel',
+        '',
+        *[f'- {t}' for t in otro_tipo],
+        '',
+        f'Nombres web y medidas: `{FICHAS.relative_to(RAIZ)}` (revisadas foto por foto; las medidas solo '
+        'cuando están impresas en la foto).',
         '',
     ]
     REPORTE.write_text('\n'.join(lineas), encoding='utf-8')

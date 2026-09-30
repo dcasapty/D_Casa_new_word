@@ -31,3 +31,12 @@ Nada de esto se adivinó: donde el Excel duda, se tomó la primera ficha y se an
 - `QH221813` (Estante de cocina)
 - `YOYU060107` (Gavetero)
 - `XLB271206` (Librero)
+
+## Las fotos muestran otro tipo de mueble que el nombre del Excel
+
+- `A1721G52006041` (cama alta (loft) con escritorio debajo, no camarote de dos camas)
+- `JW017509` (escritorio con librero)
+- `butterfly-bed-up-bed` (diván (daybed) de metal)
+- `up001` (cama tapizada (no se ve estructura de metal))
+
+Nombres web y medidas: `addons/dcasa_catalogo/data/fichas.json` (revisadas foto por foto; las medidas solo cuando están impresas en la foto).

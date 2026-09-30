@@ -8,8 +8,6 @@ import json
 import logging
 import re
 
-from markupsafe import Markup, escape
-
 from odoo.tools.misc import file_open
 
 _logger = logging.getLogger(__name__)
@@ -26,6 +24,11 @@ CATEGORIA_INTERNA = {
     'zapateras': 'dcasa_catalogo.product_category_zapateras',
     'organizacion': 'dcasa_catalogo.product_category_organizacion',
     'oficina': 'dcasa_catalogo.product_category_oficina',
+    'muebles_tv': 'dcasa_base.product_category_salas',
+}
+# Categoría del JSON → categoría de la tienda web (las demás son website_dcasa.public_category_<clave>).
+CATEGORIA_WEB = {
+    'muebles_tv': 'dcasa_catalogo.public_category_muebles_tv',
 }
 
 
@@ -76,6 +79,16 @@ def atributo_tamano(env):
     return atributo, valores
 
 
+def categoria_web(env, clave):
+    return env.ref(CATEGORIA_WEB.get(clave, f'website_dcasa.public_category_{clave}'))
+
+
+def tamano_del_nombre(nombre):
+    """«Cama king» es de un solo tamaño, King: así aparece al filtrar la tienda por tamaño."""
+    m = re.search(r'\b(twin|full|queen|king)\b', nombre, re.I)
+    return m.group(1).capitalize() if m else None
+
+
 def cargar_catalogo(env):
     """Crea los productos que falten. Lo que ya existe (por su xmlid) no se toca."""
     company = env.ref('base.main_company')
@@ -90,34 +103,37 @@ def cargar_catalogo(env):
             continue
         precios = item['precios']
         tamanos = [t for t in TAMANOS if t in precios]
+        unico = None if tamanos else tamano_del_nombre(item['nombre'])
         base = min(precios.values())
         fotos = item['fotos']
         vals = {
-            'name': item['nombre'],
+            'name': item.get('nombre_web') or item['nombre'],
             'type': 'consu',
             'is_storable': True,
             'allow_out_of_stock_order': True,  # existencias sin confirmar: se confirma por WhatsApp
             'list_price': base,
             'taxes_id': [(6, 0, impuesto.ids)],
             'categ_id': env.ref(CATEGORIA_INTERNA[item['categoria']]).id,
-            'public_categ_ids': [(6, 0, env.ref(f"website_dcasa.public_category_{item['categoria']}").ids)],
+            'public_categ_ids': [(6, 0, categoria_web(env, item['categoria']).ids)],
             'website_sequence': item['orden'] * 10,
             'is_published': bool(fotos),
         }
         if not tamanos:
             vals['default_code'] = item['codigo']
         if item.get('combo'):
-            vals['description_ecommerce'] = Markup('<p>%s</p>') % escape(item['combo'])
+            vals['dcasa_combo'] = item['combo']
+        if item.get('medidas'):
+            vals['dcasa_medidas'] = item['medidas']
         if fotos:
             vals['image_1920'] = foto_b64(fotos[0])
             vals['product_template_image_ids'] = [
                 (0, 0, {'name': f"{item['nombre']} ({i})", 'image_1920': foto_b64(foto)})
                 for i, foto in enumerate(fotos[1:], start=2)
             ]
-        if tamanos:
+        if tamanos or unico:
             vals['attribute_line_ids'] = [(0, 0, {
                 'attribute_id': atributo.id,
-                'value_ids': [(6, 0, [valores[t].id for t in tamanos])],
+                'value_ids': [(6, 0, [valores[t].id for t in (tamanos or [unico])])],
             })]
         producto = Template.create(vals)
         if tamanos:
@@ -136,3 +152,34 @@ def cargar_catalogo(env):
     env['website'].search([]).show_line_subtotals_tax_selection = 'tax_included'
     _logger.info('Catálogo D\'CASA: %s productos nuevos.', creados)
     return creados
+
+
+def actualizar_catalogo(env):
+    """Lleva los productos ya cargados a las fichas nuevas sin pisar lo que la dueña cambió.
+
+    Solo toca un dato si sigue como lo dejó la carga anterior: el nombre si es el del Excel,
+    las medidas y el combo si están vacíos, la categoría si sigue la original.
+    """
+    atributo, valores = atributo_tamano(env)
+    salas = env.ref('website_dcasa.public_category_salas')
+    for item in leer_catalogo():
+        producto = env.ref(f'{MODULO}.{xmlid_de(item["codigo"])}', raise_if_not_found=False)
+        if not producto:
+            continue
+        cambios = {}
+        if producto.name == item['nombre'] and item.get('nombre_web'):
+            cambios['name'] = item['nombre_web']
+        if item.get('medidas') and not producto.dcasa_medidas:
+            cambios['dcasa_medidas'] = item['medidas']
+        if item.get('combo') and not producto.dcasa_combo:
+            cambios['dcasa_combo'] = item['combo']
+            if str(producto.description_ecommerce or '') == f'<p>{item["combo"]}</p>':
+                cambios['description_ecommerce'] = False
+        if item['categoria'] in CATEGORIA_WEB and producto.public_categ_ids == salas:
+            cambios['public_categ_ids'] = [(6, 0, categoria_web(env, item['categoria']).ids)]
+        unico = tamano_del_nombre(item['nombre'])
+        if unico and len(item['precios']) == 1 and not producto.attribute_line_ids:
+            cambios['attribute_line_ids'] = [(0, 0, {
+                'attribute_id': atributo.id, 'value_ids': [(6, 0, valores[unico].ids)]})]
+        if cambios:
+            producto.write(cambios)

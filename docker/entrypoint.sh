@@ -44,6 +44,8 @@ max_cron_threads = ${ODOO_CRON_THREADS:-1}
 db_maxconn = ${ODOO_DB_MAXCONN:-16}
 limit_time_real = ${ODOO_LIMIT_TIME_REAL:-300}
 log_level = ${ODOO_LOG_LEVEL:-info}
+# Búsquedas sin importar tildes: «sofa» encuentra «Sofá», «colchon» encuentra «Colchón».
+unaccent = True
 CONF
 chmod 600 "$CONF"
 
@@ -53,6 +55,9 @@ export PGPASSWORD="$DB_PASSWORD" PGSSLMODE="$DB_SSLMODE"
 sql() {
   psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAq -v ON_ERROR_STOP=1 -c "$1" 2>/dev/null || true
 }
+
+# Extensión para buscar sin tildes (unaccent = True). Neon la permite; si no, Odoo busca con tildes.
+sql "CREATE EXTENSION IF NOT EXISTS unaccent" >/dev/null
 
 installed="$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_base'")"
 if [[ "$installed" != "installed" ]]; then

@@ -10,8 +10,11 @@ Módulo raíz del ERP de D'CASA Panamá.
 * Añade el Dígito Verificador (DV) al contacto y lo muestra junto al RUC.
 * Guarda los adjuntos en la base de datos: el contenedor en Cloudflare es
   efímero y no tiene disco persistente.
+* Odoo al grano para la tienda: en español y hora de Panamá, precios con ITBMS
+  incluido, descuentos y tamaños visibles, cobros en Efectivo, Yappy y Tarjeta,
+  menú «Hoy» (ventas y cobros del día) y sin menús que no se usan.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -30,6 +33,7 @@ Módulo raíz del ERP de D'CASA Panamá.
         'data/res_company_data.xml',
         'data/product_category_data.xml',
         'views/res_partner_views.xml',
+        'views/hoy_views.xml',
     ],
     'post_init_hook': '_dcasa_base_post_init',
     'installable': True,

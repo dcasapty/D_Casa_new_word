@@ -10,7 +10,10 @@ class TestDcasaInvoice(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.ref('base.main_company')
-        cls.itbms = cls.company.account_sale_tax_id
+        # ITBMS que se suma al precio (como en la factura real): el de la tienda ya lo incluye.
+        cls.itbms = cls.env['account.tax'].search([
+            ('company_id', '=', cls.company.id), ('type_tax_use', '=', 'sale'),
+            ('amount', '=', 7), ('price_include', '=', False)], limit=1)
         cls.customer = cls.env['res.partner'].create({
             'name': 'ERIC GOMEZ G.',
             'street': 'P. Oeste, La Chorrera, Corregimiento Herrera',

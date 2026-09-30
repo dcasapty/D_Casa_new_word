@@ -11,10 +11,14 @@ las ventas y la tienda web.
 * Camas y colchones con tamaños (Twin, Full, Queen, King) como variantes.
 * Varias fotos por código: la primera es la principal, el resto va a la galería.
 * Productos sin foto quedan en inventario sin publicar en la web.
+* Nombres que distinguen cada mueble (color y rasgos que se ven en la foto) y medidas
+  cuando vienen impresas en la foto (data/fichas.json), con su lugar en la ficha.
+* En Odoo: buscar por varias palabras («colchón queen»), lista de productos con foto y
+  cotización por WhatsApp en un clic.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -22,7 +26,15 @@ las ventas y la tienda web.
     'depends': ['dcasa_base', 'website_dcasa', 'website_sale_stock'],
     'data': [
         'data/product_category_data.xml',
+        'data/product_public_category_data.xml',
+        'views/backend_views.xml',
+        'views/product_templates.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            'dcasa_catalogo/static/src/scss/catalogo.scss',
+        ],
+    },
     'post_init_hook': '_dcasa_catalogo_post_init',
     'installable': True,
 }

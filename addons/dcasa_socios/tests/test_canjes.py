@@ -67,8 +67,9 @@ class TestCanjes(SociosCommon):
         })
         self.env['dcasa.cobrar.premio.wizard'].create({'order_id': orden.id, 'codigo': canje.codigo.lower()}) \
             .action_confirmar()
-        self.assertAlmostEqual(orden.amount_untaxed, 90.0, msg='El premio rebaja la base, como un descuento')
-        self.assertAlmostEqual(orden.amount_total, 96.30)
+        # El premio lleva el ITBMS incluido, como los precios de la tienda: $10 menos a pagar.
+        self.assertAlmostEqual(orden.amount_total, 107.0 - 10.0)
+        self.assertAlmostEqual(orden.amount_untaxed, 100.0 - 9.35, msg='El premio rebaja la base, como un descuento')
         orden.action_confirm()
         self.assertEqual(canje.estado, 'entregado')
         self.assertEqual(canje.sale_order_id, orden)
