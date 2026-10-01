@@ -71,9 +71,14 @@
 - [ ] Financiamiento/crédito: plan de pagos por cliente.
 - [ ] Integración WhatsApp Business (catálogo y avisos de entrega).
 
+## Resuelto con D'CASA
+
+- ITBMS (2026-10-01, la dueña): los precios del Excel y del catálogo son **sin ITBMS** y el
+  7 % se suma encima (factura INV/2026/00821: 329.99 + 23.10 = 353.09). La web muestra
+  «$39.99 + ITBMS»; carrito, cotización y factura muestran subtotal, ITBMS y total.
+
 ## Pendiente de confirmar con D'CASA
 
 - Color oficial: el logo mide `#1648C0`/`#FFD000` y el formulario dice `#1340B1`/`#FED00F` (se usó el formulario).
-- ¿Los precios publicados en la web incluyen ITBMS? Hoy se muestran sin ITBMS, como en la factura.
 - Pendientes que Abrinay dejó para Marcial: tope de puntos por compra (hoy 50.000), qué
   productos entran como premio y adónde apuntan los QR impresos (usar `dcasapty.com/socios`).

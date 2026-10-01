@@ -9,7 +9,7 @@ PARAM_VENTA = {'type': 'string', 'description': 'Número de la cotización o ven
 PARAM_PRODUCTO = {'type': 'string', 'description': 'Nombre o código del producto, p. ej. «SOF-001» o «colchón queen».'}
 PARAM_CANTIDAD = {'type': 'number', 'description': 'Cantidad. Por defecto 1.'}
 PARAM_PRECIO = {'type': 'number',
-                'description': 'Precio unitario con ITBMS incluido. Si no lo das, se usa el precio de lista.'}
+                'description': 'Precio unitario sin ITBMS (se suma el 7 %). Si no lo das, se usa el precio de lista.'}
 ESTADOS = {'cotizacion': ['draft', 'sent'], 'confirmada': ['sale'], 'cancelada': ['cancel']}
 
 

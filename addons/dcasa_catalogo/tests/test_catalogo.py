@@ -21,21 +21,61 @@ class TestCatalogo(TransactionCase):
             self.assertTrue(producto.is_storable, 'Va al inventario')
             self.assertTrue(producto.allow_out_of_stock_order, 'Existencias sin confirmar: se vende igual')
 
-    def test_precio_con_itbms_igual_al_excel(self):
-        """El precio del Excel es el precio final: el impuesto va incluido, la cifra no cambia."""
+    def test_precio_del_excel_sin_itbms(self):
+        """El precio del Excel es SIN ITBMS («+ITBMS»): list_price = la cifra, y el 7 % se suma."""
         item = next(i for i in self.catalogo if len(i['precios']) == 1)
         producto = self.producto(item['codigo'])
         precio = item['precios']['']
         self.assertEqual(producto.list_price, precio)
         self.assertEqual(producto.default_code, item['codigo'])
         impuesto = producto.taxes_id
-        self.assertTrue(impuesto.price_include)
+        self.assertEqual(impuesto, self.env.ref('base.main_company').account_sale_tax_id, 'El impuesto por defecto')
+        self.assertFalse(impuesto.price_include)
         self.assertEqual(impuesto.amount, 7)
         total = impuesto.compute_all(precio, product=producto.product_variant_id)
-        self.assertAlmostEqual(total['total_included'], precio, places=2)
-        self.assertAlmostEqual(total['total_excluded'], round(precio / 1.07, 2), places=2)
+        self.assertAlmostEqual(total['total_excluded'], precio, places=2)
+        self.assertAlmostEqual(total['total_included'], round(precio * 1.07, 2), places=2)
         website = self.env['website'].get_current_website()
-        self.assertEqual(website.show_line_subtotals_tax_selection, 'tax_included')
+        self.assertEqual(website.show_line_subtotals_tax_selection, 'tax_excluded')
+
+    def test_venta_de_39_99_suma_el_itbms(self):
+        """Producto del catálogo a $39.99 → subtotal 39.99, ITBMS 2.80, total 42.79."""
+        item = next(i for i in self.catalogo if i['precios'] == {'': 39.99})
+        orden = self.env['sale.order'].create({
+            'partner_id': self.env['res.partner'].create({'name': 'Cliente'}).id,
+            'order_line': [(0, 0, {'product_id': self.producto(item['codigo']).product_variant_id.id})],
+        })
+        linea = orden.order_line
+        self.assertAlmostEqual(linea.price_unit, 39.99, places=2)
+        self.assertAlmostEqual(linea.price_subtotal, 39.99, places=2)
+        self.assertAlmostEqual(linea.price_tax, 2.80, places=2)
+        self.assertAlmostEqual(linea.price_total, 42.79, places=2)
+        self.assertAlmostEqual(orden.amount_total, 42.79, places=2)
+
+    def test_migracion_pasa_del_incluido_al_que_se_suma(self):
+        """Bases cargadas con «ITBMS 7% incluido»: cambia el impuesto, no el precio."""
+        from odoo.addons.dcasa_catalogo.catalogo import pasar_a_itbms_que_se_suma
+        company = self.env.ref('base.main_company')
+        venta = company.account_sale_tax_id
+        incluido = venta.copy({'name': 'ITBMS 7% incluido', 'price_include_override': 'tax_included'})
+        con_variantes = next(i for i in self.catalogo if len(i['precios']) > 1)
+        viejo = self.producto(self.catalogo[0]['codigo']) | self.producto(con_variantes['codigo'])
+        a_mano = self.producto(self.catalogo[1]['codigo'])
+        exento = self.env['account.tax'].create({'name': 'Exento prueba', 'amount': 0, 'type_tax_use': 'sale'})
+        viejo.taxes_id = incluido
+        a_mano.taxes_id = exento  # la dueña le puso otro impuesto: no se toca
+        precios = {p: (p.list_price, p.product_variant_ids.mapped('lst_price')) for p in viejo | a_mano}
+        self.env['website'].search([]).show_line_subtotals_tax_selection = 'tax_included'
+
+        self.assertEqual(pasar_a_itbms_que_se_suma(self.env), 2)
+        self.assertEqual(viejo.taxes_id, venta)
+        self.assertEqual(a_mano.taxes_id, exento)
+        for producto, (lista, variantes) in precios.items():
+            self.assertEqual(producto.list_price, lista, 'El precio del Excel no cambia')
+            self.assertEqual(producto.product_variant_ids.mapped('lst_price'), variantes)
+        self.assertFalse(incluido.active, 'Sin uso: archivado')
+        self.assertEqual(self.env['website'].get_current_website().show_line_subtotals_tax_selection, 'tax_excluded')
+        self.assertEqual(pasar_a_itbms_que_se_suma(self.env), 0, 'Se puede repetir')
 
     def test_tamanos_como_variantes(self):
         item = next(i for i in self.catalogo if len(i['precios']) > 1)

@@ -22,8 +22,7 @@ class ContabilidadCommon(TransactionCase):
         super().setUpClass()
         cls.company = cls.env.ref('base.main_company')
         Tax = cls.env['account.tax']
-        cls.itbms_venta = Tax.search([('company_id', '=', cls.company.id), ('type_tax_use', '=', 'sale'),
-                                      ('amount', '=', 7), ('price_include', '=', False)], limit=1)
+        cls.itbms_venta = cls.company.account_sale_tax_id  # el de por defecto: se suma al precio
         cls.itbms_compra = Tax.search([('company_id', '=', cls.company.id), ('type_tax_use', '=', 'purchase'),
                                        ('amount', '=', 7), ('price_include', '=', False)], limit=1)
         cls.cliente = cls.env['res.partner'].create({'name': 'Cliente Prueba Contable'})

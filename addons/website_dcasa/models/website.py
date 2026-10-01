@@ -142,6 +142,16 @@ class Website(models.Model):
         """Mensaje de WhatsApp con el nombre del mueble ya escrito."""
         return self._dcasa_whatsapp_url(f"Hola D'CASA, me interesa: {product.display_name}")
 
+    def _dcasa_mas_itbms(self, producto):
+        """¿Va «+ ITBMS» junto al precio? Sí, si la tienda muestra el precio sin impuesto y el
+        producto lleva ITBMS: los precios de D'CASA son sin ITBMS y el 7 % se suma en el carrito."""
+        self.ensure_one()
+        return bool(
+            self.show_line_subtotals_tax_selection == 'tax_excluded'
+            # sudo: el visitante no lee impuestos; solo se pregunta si el producto lleva alguno.
+            and producto.sudo().taxes_id._filter_taxes_by_company(self.company_id)
+        )
+
     # ------------------------------------------------------------------
     # Menú
     # ------------------------------------------------------------------

@@ -1,5 +1,6 @@
 """Herramientas del catálogo: productos, precios, medidas, web y existencias."""
 from odoo import api, models
+from odoo.addons.dcasa_base import itbms_de_venta
 
 from . import herramientas_comun as c
 from .registro import BrianError, herramienta
@@ -26,20 +27,13 @@ class BrianHerramientasCatalogo(models.AbstractModel):
                                 buscar=[('complete_name', 'ilike', texto)])
 
     @api.model
-    def _b_itbms_incluido(self):
-        """El mismo ITBMS «incluido» que usa el catálogo de D'CASA (sin crear impuestos nuevos)."""
-        base = self.env.company.account_sale_tax_id
-        if not base or base.price_include:
-            return base
-        return self.env['account.tax'].search([
-            ('company_id', '=', self.env.company.id), ('type_tax_use', '=', 'sale'),
-            ('amount_type', '=', base.amount_type), ('amount', '=', base.amount),
-            ('price_include_override', '=', 'tax_included'),
-        ], limit=1) or base
+    def _b_itbms_venta(self):
+        """El mismo ITBMS que usa el catálogo de D'CASA: el 7 % que se suma al precio."""
+        return itbms_de_venta(self.env, self.env.company)
 
     @api.model
     def _b_precios(self, plantilla, precio=None):
-        """Precio con y sin ITBMS según los impuestos del producto (en D'CASA, ITBMS incluido)."""
+        """Precio con y sin ITBMS según los impuestos del producto (en D'CASA el precio es sin ITBMS)."""
         precio = plantilla.list_price if precio is None else precio
         impuestos = plantilla.taxes_id.filtered(lambda t: t.company_id in self.env.companies or not t.company_id)
         if not impuestos:
@@ -99,8 +93,8 @@ class BrianHerramientasCatalogo(models.AbstractModel):
             'texto': {'type': 'string',
                       'description': 'Palabras del nombre o el código, p. ej. «sofá gris». Opcional.'},
             'categoria': PARAM_CATEGORIA,
-            'precio_min': {'type': 'number', 'description': 'Precio mínimo (con ITBMS), p. ej. 100.'},
-            'precio_max': {'type': 'number', 'description': 'Precio máximo (con ITBMS), p. ej. 500.'},
+            'precio_min': {'type': 'number', 'description': 'Precio mínimo (sin ITBMS), p. ej. 100.'},
+            'precio_max': {'type': 'number', 'description': 'Precio máximo (sin ITBMS), p. ej. 500.'},
             'disponibilidad': {'type': 'string', 'enum': ['todos', 'disponibles', 'agotados'],
                                'description': 'Solo con existencias o solo agotados. Por defecto «todos».'},
         },
@@ -179,12 +173,12 @@ class BrianHerramientasCatalogo(models.AbstractModel):
 
     @herramienta(
         nombre='crear_producto',
-        descripcion='Crea un producto inventariable con precio final (ITBMS incluido). Queda sin publicar en la '
-                    'web; para publicarlo usa publicar_producto_web.',
+        descripcion='Crea un producto inventariable con precio sin ITBMS (se suma el 7 %). Queda sin publicar '
+                    'en la web; para publicarlo usa publicar_producto_web.',
         parametros={
             'nombre': {'type': 'string',
                        'description': 'Nombre que distingue el mueble, p. ej. «Sofá 3 puestos gris».'},
-            'precio': {'type': 'number', 'description': 'Precio de venta con ITBMS incluido, p. ej. 499.99.'},
+            'precio': {'type': 'number', 'description': 'Precio de venta sin ITBMS (se suma el 7 %), p. ej. 499.99.'},
             'categoria': PARAM_CATEGORIA,
             'codigo': {'type': 'string', 'description': 'Código interno o del proveedor, p. ej. «SOF-120». Opcional.'},
             'medidas': {'type': 'string', 'description': 'Medidas, p. ej. «Ancho × Fondo × Alto: 200 × 90 × 85 cm».'},
@@ -205,7 +199,7 @@ class BrianHerramientasCatalogo(models.AbstractModel):
             raise BrianError(f'Ya existe un producto llamado «{nombre}». Revísalo con ver_producto o usa otro nombre.')
         valores = {'name': nombre, 'type': 'consu', 'is_storable': True, 'list_price': precio,
                    'is_published': False}
-        impuesto = self._b_itbms_incluido()
+        impuesto = self._b_itbms_venta()
         if impuesto:
             valores['taxes_id'] = [(6, 0, impuesto.ids)]
         if categoria:
@@ -220,7 +214,7 @@ class BrianHerramientasCatalogo(models.AbstractModel):
 
     @herramienta(
         nombre='actualizar_producto',
-        descripcion='Cambia el precio (con ITBMS), el nombre, la descripción, las medidas o el código de un producto.',
+        descripcion='Cambia el precio (sin ITBMS), el nombre, la descripción, las medidas o el código de un producto.',
         parametros={
             'producto': PARAM_PRODUCTO,
             'campo': {'type': 'string', 'enum': list(CAMPOS_EDITABLES), 'description': 'Qué cambiar.'},

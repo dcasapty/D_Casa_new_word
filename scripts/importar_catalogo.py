@@ -8,9 +8,9 @@ foto es el código del producto, con _1, _2… cuando hay varias) y genera:
   · docs/CATALOGO_REVISAR.md                      lo que el Excel deja en duda
 
 Reglas (no se inventa nada):
-  · Precio: el del Excel, tal cual, con ITBMS incluido. En Odoo esos productos llevan el
-    impuesto «ITBMS 7 % incluido», así la web, la cotización y la factura dan exactamente
-    el precio de la ficha (sin centavos de diferencia por redondeo).
+  · Precio: el del Excel, tal cual, SIN ITBMS («+ITBMS»). En Odoo esos productos llevan el
+    impuesto «ITBMS 7%», que se suma al precio: la web muestra «$39.99 + ITBMS» y la
+    cotización y la factura suman el 7 % (factura INV/2026/00821: 329.99 + 23.10 = 353.09).
   · Códigos repetidos: un solo producto; manda la primera fila del Excel. Si las fichas
     tienen precios distintos, queda anotado para revisar.
   · «Precios por tamaño» → variantes (Twin/Full/Queen/King). Un tamaño sin precio no se crea.
