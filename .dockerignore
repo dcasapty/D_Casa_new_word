@@ -1,4 +1,4 @@
-# Solo entran a la imagen: vendor/odoo, addons/ y docker/entrypoint.sh
+# Solo entran a la imagen: vendor/odoo, addons/, docker/ y scripts/respaldo.sh
 **/.git
 **/node_modules
 **/__pycache__
@@ -6,7 +6,8 @@
 .github
 edge
 docs
-scripts
+scripts/*
+!scripts/respaldo.sh
 *.log
 .test.log
 # Originales de fotos (≈1 GB): la imagen usa las versiones optimizadas de addons/dcasa_catalogo
