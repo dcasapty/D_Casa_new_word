@@ -25,6 +25,8 @@ export interface Env {
   R2_BUCKET?: string;
   /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */
   ODOO_DORMIR_TRAS?: string;
+  /** Dónde guarda Odoo los adjuntos nuevos: "r2" (por defecto, prefijo adjuntos/ de R2_BUCKET) o "db". */
+  DCASA_ADJUNTOS?: string;
   // Secretos (wrangler secret put …; ver edge/CONTRATO_CONTENEDOR.md)
   /** Clave del usuario `admin` de Odoo (se fija al crear la base; ver docs/DESPLIEGUE.md). */
   ADMIN_PASSWORD?: string;

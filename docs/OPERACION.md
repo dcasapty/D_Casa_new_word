@@ -28,7 +28,7 @@ Según `docs/auditoria/ronda3/cf-plataforma.md` (precios oficiales de Cloudflare
 | Concepto | Costo al mes |
 |---|---|
 | Producción: plan Workers Paid ($5) + contenedor `basic` encendido 24/7 | **≈ $12** ($11,93 a $12,78 según cuánto trabaje el procesador) |
-| Respaldos en R2 | $0 mientras todo quepa en los 10 GB gratis (hoy la base pesa unos cientos de MB) |
+| Respaldos y adjuntos en R2 | $0 mientras todo quepa en los 10 GB gratis (hoy la base pesa unos cientos de MB; las fotos y PDF van aparte, en `adjuntos/`, sin copias repetidas en cada respaldo) |
 | Staging (entorno de prueba) | solo las horas que está despierto; se duerme solo tras 1 h sin visitas |
 | Brian (inteligencia artificial) | aparte: lo que consuma el proveedor de IA |
 
@@ -52,6 +52,10 @@ Un bucket es una «carpeta» de almacenamiento. Se usan dos, uno por entorno, **
    Crear.
 3. Repetir con `dcasa-respaldos-staging`.
 4. No activar acceso público en ninguno.
+5. **No** crear reglas de ciclo de vida (*Object lifecycle rules*) que borren o expiren el prefijo
+   `adjuntos/`: ahí están las fotos y PDF del sistema y los borra solo Odoo, con su propio plazo
+   (ver «Adjuntos en R2» más abajo). Si alguna vez se agrega una regla, que sea solo para
+   `pgbackrest/` o `pg_dump/`.
 
 ### 3. Crear los tokens de R2 (las llaves de los buckets)
 
@@ -191,6 +195,62 @@ reiniciar el contenedor (desplegar de nuevo). Al arrancar restaura con pgBackRes
 esa hora y promueve la base. Se aplica **una sola vez**: queda una marca en R2 (`dcasa-control/`) y un
 reinicio posterior con la variable aún puesta no vuelve a restaurar. Después de comprobar que todo
 está bien, quitar la variable. Ensayado en el simulacro (`scripts/simulacro_restauracion.sh`).
+
+Los archivos (fotos, PDF) no viajan con la base: siguen en `adjuntos/` del bucket y la base
+restaurada los encuentra ahí, porque nada que use una base de los últimos 45 días se borra de R2
+(ver «Adjuntos en R2»).
+
+## Adjuntos en R2 (fotos, PDF y archivos del sistema)
+
+**Qué es.** Los archivos que se suben a Odoo (fotos de productos, PDF de facturas, adjuntos de
+correos, los archivos de estilo del sitio) ya no se guardan dentro de la base: van a R2, al mismo
+bucket de los respaldos, en la carpeta `adjuntos/`. La base solo guarda dónde está cada uno
+(`r2://adjuntos/ab/abcd…`, el nombre es la huella sha1 del contenido: dos archivos iguales se
+guardan una sola vez). Así la base pesa mucho menos, los respaldos son más rápidos y restaurar
+tarda menos. Lo hace el módulo `dcasa_adjuntos_r2`.
+
+**Cómo se activa.** Solo: al arrancar, el contenedor fija `ir_attachment.location = r2` si tiene
+las credenciales de R2 (siempre en producción y staging) y `db` si no (CI, desarrollo). Los archivos
+que ya estaban en la base los sube un cron cada 30 min, por lotes («Adjuntos en R2: mover según
+ir_attachment.location»).
+
+**Si R2 falla.** Al subir un archivo, el error se muestra y **no se guarda nada** (se puede
+reintentar). Al leer, la página de la foto da error en vez de mostrar un archivo vacío. En los logs
+del contenedor aparecen como `Adjuntos en R2: …`.
+
+**Por qué nunca se borra en R2 al borrar en Odoo.** La base se puede restaurar a un momento
+anterior (pgBackRest guarda 7 días; los volcados diarios, 30). Esa base vieja apunta a los archivos
+que tenía entonces: si se hubieran borrado de R2 al borrarlos en Odoo, la restauración quedaría con
+fotos y PDF rotos. Por eso los borra un cron diario («Adjuntos en R2: recolectar objetos sin uso»)
+y solo si se cumplen las tres cosas:
+
+1. ninguna fila de la base actual lo usa;
+2. el cron lo viene viendo sin uso desde hace más de **45 días** (más que los 30 de los volcados);
+3. nadie lo volvió a subir en esos 45 días (cada vez que se guarda el mismo contenido se sube de
+   nuevo y su fecha en R2 se renueva).
+
+El plazo se cambia con el parámetro de sistema `dcasa_adjuntos_r2.dias_retencion` (mínimo 31). Si
+algún día se alarga la retención de los respaldos (`RESPALDO_DUMP_DIAS`), **subir este plazo
+primero**. Si el cron estuvo parado más de 3 días, la cuenta empieza de cero (no borra a ciegas).
+
+**Restaurar implica las dos cosas.** Una restauración necesita el respaldo de PostgreSQL **y** la
+carpeta `adjuntos/` del bucket. Restaurar en el mismo bucket (lo normal) no requiere nada más. Para
+restaurar en **otro** bucket o cuenta, copiar también `adjuntos/` completo. Nunca vaciar ni expirar
+`adjuntos/` (ver «Crear los buckets»). Una base restaurada que no encuentra un archivo lo deja en
+el log como `Adjuntos en R2: falta el objeto …` y lo muestra vacío.
+
+**Emergencia: traer todo de vuelta a la base** (p. ej. para dejar de depender de R2). En el Worker,
+variable `DCASA_ADJUNTOS=db` y desplegar de nuevo. Desde ese arranque los archivos nuevos van a la
+base y el mismo cron de cada 30 min trae, por lotes, los que están en R2 (mientras tanto se siguen
+leyendo de R2, así que no hay que esperar a que termine). Si un archivo no se puede leer de R2, no se
+toca (nunca se escribe vacío encima) y queda en el log. Para volver a R2: quitar la variable y
+desplegar. Los objetos de R2 no se borran con esto: los recogerá el cron pasados los 45 días. La base
+crece de nuevo (hoy ~120 MB de adjuntos); revisar que quepa en el disco del contenedor.
+
+**Seguridad.** Odoo usa la misma llave de R2 que los respaldos (el bucket es uno por entorno y un
+token de R2 no se puede limitar a una carpeta). No es una frontera nueva: Odoo y PostgreSQL ya
+corren con el mismo usuario dentro del contenedor. La clave de cifrado de los respaldos
+(`PGBACKREST_CIPHER_PASS`) nunca llega a Odoo.
 
 ## Dónde ver los logs
 

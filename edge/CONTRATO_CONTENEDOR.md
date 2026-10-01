@@ -72,11 +72,17 @@ propio valor por defecto (`dcasa`).
 | `PGBACKREST_CIPHER_PASS` | secreto | sí | cifrado del repositorio; perderla = perder los respaldos |
 | `R2_BUCKET` | var | sí | `dcasa-respaldos` · staging `dcasa-respaldos-staging` |
 | `DCASA_ENTORNO` | var | — | `produccion` · `staging` (por defecto `produccion`) |
+| `DCASA_ADJUNTOS` | var | — | `r2` (por defecto) · `db`. Dónde guarda Odoo los adjuntos **nuevos** (`addons/dcasa_adjuntos_r2`). Con `r2` usa las mismas `R2_*`, prefijo `adjuntos/` del bucket; con `db` sigue leyendo los que ya están en R2 y un cron los trae de vuelta a la base (emergencia) |
 | `CANONICAL_HOST` | var | — | `dcasapty.com` · `staging.dcasapty.com` |
 | `APP_VERSION` | var | — | por defecto `dev` |
 | `DCASA_PIN_PEPPER` | secreto | — | nunca se rota |
 | `ODOO_MASTER_PASSWORD` | secreto | — | opcional |
 | `BRIAN_*`, `TELEGRAM_BOT_TOKEN` | var/secreto | — | opcionales |
+
+Adjuntos en R2: el entrypoint copia `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
+`R2_SECRET_ACCESS_KEY` (y `R2_REGION`, `R2_VERIFY_TLS`) a `DCASA_ADJUNTOS_R2_*` para el proceso de
+Odoo, que guarda el contenido de `ir.attachment` en `adjuntos/<sha1[:2]>/<sha1>` del mismo bucket.
+Un respaldo de la base **sin** ese prefijo no restaura los archivos (`docs/OPERACION.md`).
 
 Solo del Worker (no entran al contenedor): `RESPALDO_TOKEN` (≥ 32 caracteres, p. ej.
 `openssl rand -hex 32`), `ODOO_DORMIR_TRAS`.
