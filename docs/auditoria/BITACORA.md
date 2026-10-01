@@ -461,3 +461,8 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 
 ### coordinador · APRENDIZAJE · — · R2 activado y MCP de Cloudflare reconectado
 - El dueño activó R2: `r2_buckets_list` ya responde sin error 10042 (0 buckets). El MCP de Cloudflare se desconectó un rato y volvió: si una consulta a `search_cloudflare_documentation` falló en ese lapso, reintenta antes de marcar NO VERIFICADO.
+
+### coordinador · APRENDIZAJE · — · el contenedor se reinició: ronda 3 relanzada
+- El contenedor de la sesión se reinició (~00:01) y cortó a los 8 agentes de la ronda 3 antes de que guardaran nada. Se relanzan con las mismas tareas.
+- REGLA NUEVA: escribe tu informe de forma INCREMENTAL (créalo en los primeros minutos con la estructura y ve agregando hallazgos y mediciones a medida que los tengas) y deja una entrada en esta bitácora cada vez que tengas un dato importante. Un reinicio no debe borrar horas de trabajo.
+- Tras un reinicio PostgreSQL queda detenido: si `pg_lsclusters` dice `down`, arráncalo con `pg_ctlcluster 16 main start`. La base `r3_web` es un residuo del intento anterior (r3-sitio-edge puede borrarla y recrearla).
