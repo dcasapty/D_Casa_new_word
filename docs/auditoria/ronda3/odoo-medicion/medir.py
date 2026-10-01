@@ -198,6 +198,19 @@ async def _carga(base, conc, n, rutas, con_backend):
             k = claves[i % len(claves)]
             async with sem:
                 t = time.perf_counter()
+                try:
+                    r, ok = await pedir(k)
+                except httpx.HTTPError as e:  # conexión rechazada/cortada: cuenta como error
+                    r, ok = type('R', (), {'status_code': type(e).__name__})(), False
+                dt = time.perf_counter() - t
+            if ok:
+                lat[k].append(dt)
+            else:
+                errores[k] = errores.get(k, 0) + 1
+                cod[r.status_code] = cod.get(r.status_code, 0) + 1
+
+        async def pedir(k):
+            if True:
                 if k.startswith('rpc'):
                     m, meth, kw = BACKEND[k]
                     r = await c.post(f'/web/dataset/call_kw/{m}/{meth}', json=call_kw(m, meth, [], kw))
@@ -206,12 +219,7 @@ async def _carga(base, conc, n, rutas, con_backend):
                     anon = httpx.AsyncClient(base_url=base, timeout=120, follow_redirects=True, transport=tr)
                     r = await anon.get(rutas[k])  # sin cookies: visitante anónimo
                     ok = r.status_code == 200
-                dt = time.perf_counter() - t
-            if ok:
-                lat[k].append(dt)
-            else:
-                errores[k] = errores.get(k, 0) + 1
-                cod[r.status_code] = cod.get(r.status_code, 0) + 1
+                return r, ok
 
         t0 = time.perf_counter()
         await asyncio.gather(*(una(i) for i in range(n)))

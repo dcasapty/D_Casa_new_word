@@ -84,3 +84,19 @@ Razones con fuente:
 3. **s3fs (otro adaptador citado por Cloudflare) documenta**: «random writes or appends to files require rewriting the entire object», «no atomic renames of files or directories», «no coordination between multiple clients mounting the same bucket» (README de `s3fs-fuse/s3fs-fuse`, rama master, 2026-10-01). PostgreSQL escribe páginas de 8 KB al azar dentro de archivos de 1 GB y depende de `rename()` atómico (p. ej. `pg_control`, archivos de estado del WAL): cada página escrita reescribe el objeto entero, y un corte a mitad deja estado sin garantía.
 4. Medición propia: ver §4.1 (prototipo `05_fuse.sh`).
 
+## 8. (A) Diseño «PostgreSQL dentro del Container + WAL a R2», si se elige pese a todo
+
+Piezas (todas probadas en el prototipo salvo las marcadas):
+1. **Imagen**: añadir `postgresql-16` y `pgbackrest` (Ubuntu 24.04 trae pgBackRest 2.50, el probado) al `docker/Dockerfile`; `tini` ya es PID 1 (`docker/Dockerfile:61`), así que el SIGTERM llega al entrypoint.
+2. **`docker/entrypoint.sh`** (hoy solo genera `odoo.conf` y migra): nuevo bloque previo:
+   - `pgbackrest.conf` desde secretos (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `PGBR_CIPHER_PASS`), `repo1-s3-endpoint=<cuenta>.r2.cloudflarestorage.com`, `repo1-s3-region=auto`, `repo1-s3-uri-style=path`, cifrado `aes-256-cbc`, `compress-type=zst`, `repo1-bundle=y`.
+   - **Candado de instancia única** (NO probado): antes de restaurar, escribir en R2 un objeto `lease` con `If-Match` del ETag anterior (R2 admite PUT condicional: https://developers.cloudflare.com/r2/api/s3/extensions/) con el número de generación que pasa el DO; el `archive_command` envuelto comprueba la generación y aborta si otra instancia la superó. pgBackRest además rechaza un segmento que ya existe con otro contenido (red de seguridad, no candado).
+   - `pgbackrest restore` (o `initdb` + `stanza-create` si el repositorio está vacío **y** el DO dice «base nueva»: nunca decidir «nueva» solo porque falló la conexión, cf. infra I-06), arrancar PostgreSQL, esperar `pg_is_in_recovery() = f`, **`CHECKPOINT`** (hallazgo §2.3) y lanzar el vigilante `pg_switch_wal()` cada 60 s.
+   - `trap` de SIGTERM: parar Odoo → `CHECKPOINT` → `pg_switch_wal()` → esperar `pg_stat_archiver.last_archived_wal` → `pg_ctl stop -m fast` (§2.4) → salir.
+   - Respaldo base: semanal (y tras cada restauración, para acortar el replay), lanzado por el cron del Worker vía una ruta interna o por `pg_cron`/hilo propio. NO VERIFICADO en Container.
+   - `DB_HOST=127.0.0.1`, `db_sslmode=disable`; quitar `CREATE EXTENSION` por `sql()` que traga errores.
+3. **`edge/`**: migrar a `scheduling_policy: "durable_object"` exige **app y clase DO nuevas** (no convertible; oficial) y reescribir `OdooContainer` sobre `ctx.container.start({image, instance})`; `max_instances` desaparece (la unicidad la da el ID del DO, con la salvedad oficial de que en partición/actualización puede existir otra instancia: de ahí el candado en R2). Mantener `setInactivityTimeout` alto, recordando que no sobrevive a un reinicio del DO (oficial). Sin snapshots al principio (§3).
+4. **Respaldo independiente**: `pg_dump -Fc` diario cifrado a otro prefijo/bucket de R2 + restauración de prueba automática (§9).
+
+Modos de fallo: (a) host apagado sin gracia u OOM (sin swap: OOM ⇒ reinicio) → se pierde lo no archivado (RPO medido ≤ 60 s en régimen, hasta 5 min sin la mitigación); (b) dos instancias (partición/actualización del DO) → dos líneas de tiempo escribiendo al mismo repositorio = *split-brain* contable; solo el candado lo evita; (c) actualización de imagen → SIGTERM y apagado ordenado (medido §2.4), luego restauración completa; (d) R2 caído al arrancar → la tienda no arranca (RTO = lo que dure R2); (e) corrupción silenciosa → `--data-checksums` + `pgbackrest verify` + restauración de prueba diaria; (f) disco del Container (8-12 GB) lleno por WAL si R2 no responde → PostgreSQL se detiene: alerta sobre `failed_count`.
+

@@ -21,13 +21,16 @@ T1=$(date +%s.%N)
 asp "$PGBIN/pg_ctl -D $PGDATA_P -l $R3/log/pg5440.log -w -t 600 start" >/dev/null
 until [[ "$(psqlp 'select pg_is_in_recovery()' 2>/dev/null)" == "f" ]]; do sleep 0.2; done
 T2=$(date +%s.%N)
+# MITIGAR=1: CHECKPOINT tras la promoción. Sin esto se observó que el checkpointer duerme
+# checkpoint_timeout (5 min) antes de volver a aplicar archive_timeout (ver datos.md §2.3).
+[[ "${MITIGAR:-0}" == 1 ]] && psqlp "CHECKPOINT" >/dev/null
 ops2=$(wc -l < $R3/moto.log)
 V=$(asp "$PGBIN/psql -X -h 127.0.0.1 -p $PGPORT_P -U postgres -d dcasa -tA -F'|' -f $D/verificar.sql")
 MAXR=$(echo "$V" | awk -F'|' '$1=="asientos_max_id"{print $2}')
 LAST=$(tail -1 $LOG); LAST_ID=${LAST%%,*}; LAST_TS=${LAST##*,}
 TS_R=$(awk -F, -v m=$MAXR '$1==m{print $2}' $LOG); TS_R=${TS_R:-$(head -1 $LOG | cut -d, -f2)}
 {
-echo "ensayo=$RUN carga_s=$N intervalo_s=$INT"
+echo "ensayo=$RUN carga_s=$N intervalo_s=$INT mitigar=${MITIGAR:-0}"
 echo "commits_confirmados=$LAST_ID restaurados=$MAXR perdidos=$((LAST_ID-MAXR))"
 printf "RPO_s=%.1f (ultimo commit confirmado - ultimo commit restaurado)\n" "$(echo "$LAST_TS - $TS_R" | bc)"
 printf "kill_a_ultimo_commit_s=%.1f\n" "$(echo "$T_KILL - $LAST_TS" | bc)"
