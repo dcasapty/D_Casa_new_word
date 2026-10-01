@@ -1,0 +1,12 @@
+carga_s=150 mitigar=0 perdidos=28 RPO_s=28.1 t_restore_pgbackrest_s=46.0 t_replay_y_promocion_s=2.1 RTO_total_s=48.2
+carga_s=95 mitigar=0 perdidos=44 RPO_s=44.2 t_restore_pgbackrest_s=47.3 t_replay_y_promocion_s=3.5 RTO_total_s=50.7
+carga_s=170 mitigar=0 perdidos=169 RPO_s=169.0 t_restore_pgbackrest_s=52.7 t_replay_y_promocion_s=4.9 RTO_total_s=57.6
+carga_s=125 mitigar=0 perdidos=125 RPO_s=124.5 t_restore_pgbackrest_s=62.0 t_replay_y_promocion_s=3.1 RTO_total_s=65.1
+carga_s=200 mitigar=0 perdidos=200 RPO_s=199.8 t_restore_pgbackrest_s=61.0 t_replay_y_promocion_s=3.3 RTO_total_s=64.3
+carga_s=5 mitigar=0 perdidos=5 RPO_s=4.0 t_restore_pgbackrest_s=37.8 t_replay_y_promocion_s=3.3 RTO_total_s=41.1
+carga_s=20 mitigar=1 perdidos=7 RPO_s=7.2 t_restore_pgbackrest_s=40.8 t_replay_y_promocion_s=3.8 RTO_total_s=44.6
+carga_s=95 mitigar=1 perdidos=38 RPO_s=38.1 t_restore_pgbackrest_s=38.5 t_replay_y_promocion_s=3.6 RTO_total_s=42.1
+carga_s=170 mitigar=1 perdidos=52 RPO_s=52.2 t_restore_pgbackrest_s=40.0 t_replay_y_promocion_s=4.1 RTO_total_s=44.1
+carga_s=125 mitigar=1 perdidos=8 RPO_s=8.1 t_restore_pgbackrest_s=39.8 t_replay_y_promocion_s=4.7 RTO_total_s=44.6
+carga_s=200 mitigar=1 perdidos=23 RPO_s=23.0 t_restore_pgbackrest_s=38.8 t_replay_y_promocion_s=5.9 RTO_total_s=44.7
+carga_s=150 mitigar=1 perdidos=33 RPO_s=33.1 t_restore_pgbackrest_s=43.9 t_replay_y_promocion_s=6.7 RTO_total_s=50.6

@@ -100,6 +100,39 @@ JS/CSS están comprimidos en TOAST. Casi todo el tamaño del dump son adjuntos (
 `pg_dump` 16 trae zstd/lz4 integrados (no hace falta el binario `zstd`, que no está instalado).
 
 
+### 2.4 Deploy: `-u` de los 8 módulos y regeneración de bundles
+
+| Medida | Valor | Script / crudo |
+|---|---|---|
+| `odoo-bin -i MODS -u MODS --stop-after-init` (lo que hace `docker/entrypoint.sh:79` en cada versión nueva), 8 módulos, copia de la base | **14,5 s [14,1-15,5]**, CPU 10,4-10,9 s, pico RSS 197 MiB, 0 errores | `actualizar.sh` → `res_actualizar.txt` (verificado a nivel info que recarga los 8 módulos) |
+| Primera visita tras invalidar los bundles (`/` + backend + 3 bundles: JS 6,9 MB, 2 CSS 1,2 MB) | 11,4-11,5 s y **9,7-10 s de CPU** (40 s / 28 s CPU la primera vez con disco frío) | `assets_frio.sh` → `res_assets_frio.txt` |
+| RSS de Odoo después de regenerar bundles (compilación SCSS/JS en el proceso) | **373 MiB** (frente a 216 sin regenerar) | ídem |
+
+Consecuencia: tras cada deploy el primer usuario del backend espera ~11 s con 4 núcleos; con 1/4 o 1/2 vCPU
+(basic/standard-1) serán varias decenas de segundos (ver §2.6), y el proceso queda ~150 MiB más grande.
+
+### 2.5 Adelgazar: módulos instalados (`adelgazar.sh` → `res_adelgazar.txt`)
+
+- `state='installed'`: **108 módulos**. El cierre de dependencias que declaran los 8 `__manifest__.py` son 57; los
+  otros **51 son auto-instalados** (`auto_install=True`) por combinación de dependencias (SMS, IAP, EDI UBL,
+  passkeys, spreadsheet dashboards, wishlist/comparador, snailmail, Gmail/Outlook, `base_import_module`…).
+- Ninguno de esos 51 se referencia en `addons/` (grep). Se desinstalaron 39 en una copia (se mantuvieron
+  `auth_totp*`, `base_import`, `purchase_stock`, `sale_purchase*`, `sale_crm`, `rpc`, `resource_mail`, `iap*`):
+  22 s, la base queda con **69 módulos** y los 8 de D'CASA siguen instalados; todas las rutas responden 200.
+
+| Medida (3 rep., 5432) | 108 módulos | 69 módulos |
+|---|---|---|
+| Arranque → primer 200 | 3,2 s [3,1-4,6] | 2,8 s [2,5-2,8] |
+| RSS / PSS en reposo | 173 / 153 | **160 / 141** (−13 MiB, −8 %) |
+| RSS caliente | 221 | 247 (rep. 2-3; la 1.ª, 349, incluye regenerar bundles) — no lo pude explicar: no hay ahorro en caliente |
+| CPU por petición `/shop` / ficha / `/` | 186 / 119 / 36 ms | 168 / 115 / 33 ms (dentro del ruido) |
+
+Conclusión: quitar módulos auto-instalados **no cambia el dimensionamiento** (−8 % en reposo, nada en
+caliente ni en CPU). Sí vale por seguridad/superficie: `base_import_module` (subir módulos como datos),
+`partner_autocomplete`/`crm_iap_*`/`snailmail` (envían datos a servicios de Odoo S.A.), `api_doc`. Hacerlo
+declarativo (no a mano): un módulo `dcasa_*` no puede «des-auto-instalar»; habría que desinstalarlos en
+la base de producción tras crearla y cuidar que `-i` no los reinstale.
+
 ## 3. Dimensionamiento recomendado
 (pendiente)
 

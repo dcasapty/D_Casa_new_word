@@ -254,6 +254,15 @@ describe('detección por firma y ruteo', () => {
   });
 });
 
+const GRANDES = existsSync(`${FIX}/datos_50mb_sst.xlsx`) && existsSync(`${FIX}/fotos_50mb.xlsx`);
+describe.skipIf(!GRANDES)('ruteo con archivos grandes (fixtures --grandes)', () => {
+  it('50 MB con 40 fotos → Worker; 50 MB con sharedStrings de 67 MB → Container', async () => {
+    expect((await decidir(fuente(`${FIX}/fotos_50mb.xlsx`))).destino).toEqual({ donde: 'worker', lector: 'xlsx' });
+    expect((await decidir(fuente(`${FIX}/datos_50mb_sst.xlsx`))).destino.donde).toBe('container');
+    expect((await decidir(fuente(`${FIX}/datos_10mb_sst.xlsx`))).destino.donde).toBe('worker');
+  });
+});
+
 describe('precios en texto', () => {
   it.each([
     ['Twin $139.99 · Full $170.99 · Queen $216.99 · King $341.99', [139.99, 170.99, 216.99, 341.99]],

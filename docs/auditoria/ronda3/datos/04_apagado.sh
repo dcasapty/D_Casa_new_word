@@ -25,6 +25,7 @@ asp "pgbackrest --config=$PGBR_CONF --stanza=$STANZA --log-level-console=warn re
 asp "$PGBIN/pg_ctl -D $PGDATA_P -l $R3/log/pg5440.log -w -t 600 start" >/dev/null
 until [[ "$(psqlp 'select pg_is_in_recovery()' 2>/dev/null)" == "f" ]]; do sleep 0.2; done
 T4=$(date +%s.%N)
+psqlp "CHECKPOINT" >/dev/null   # mitigación del archivado mudo tras promoción (datos.md §2.3)
 MAXR=$(psqlp "SELECT coalesce(max(id),0) FROM r3_asiento"); LAST_ID=$(tail -1 $LOG | cut -d, -f1)
 {
 echo "apagado=$MODO ensayo=$RUN carga_s=$N"

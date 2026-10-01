@@ -4,8 +4,9 @@
  * El plan lo aplica después el servidor (Odoo o D1) en lotes con savepoint; aquí se calcula
  * qué se haría, con trazabilidad celda→campo y la llave de idempotencia
  * `sha256(archivo):hoja:fila`. Reglas de CLAUDE.md: no inventar precios (sin precio → se omite
- * el campo y se alerta), `modo_itbms` OBLIGATORIO (el Excel real dice «+ITBMS» y el código lo
- * trata como incluido: decisión pendiente del dueño, bitácora ronda 1-2).
+ * el campo y se alerta), `modo_itbms` OBLIGATORIO y explícito. Para D'CASA el dueño ya decidió
+ * (bitácora, 2026-10-01): los precios del Excel son SIN ITBMS → `mas_itbms`; el parámetro se
+ * mantiene porque un proveedor puede mandar listas con impuesto incluido.
  */
 import type { Hoja, Intermedio } from './xlsx.ts';
 import type { Tabla } from './tablas.ts';

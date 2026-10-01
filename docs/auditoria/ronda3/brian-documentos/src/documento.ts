@@ -1,10 +1,12 @@
 /**
  * Punto de entrada: detectar por firma → decidir DÓNDE se procesa → extraer.
  *
- * Umbrales medidos en Node 22 (informe §4.4): el lector de este prototipo procesa el peor
- * caso (solo celdas) de 10 MB con pico de memoria muy por debajo de los 128 MB del isolate,
- * pero 50 MB de solo celdas no cabe con margen (sharedStrings + tiempo de CPU). Se fija el
- * umbral conservador abajo; por encima → Container (Python/openpyxl o calamine).
+ * Umbrales medidos en Node 22 (informe §4.4, mediana de 3): lo que llena la memoria es
+ * sharedStrings (se guarda entero como arreglo de textos); el XML de las hojas va en streaming
+ * y las imágenes no cuentan (solo se hashean de a una). 10 MB con sharedStrings de 14 MB: pico
+ * de heap 38 MB con tope de 120 MB; 50 MB con sharedStrings de 67 MB: OOM con el tope. 50 MB de
+ * celdas sin sharedStrings (340 MB de XML): 43 MB de heap pero ~19 s de CPU. Por eso el ruteo
+ * mira los tamaños DESCOMPRIMIDOS, no el tamaño del archivo (40 fotos = 50 MB y 0,3 s).
  */
 import type { Fuente } from './fuente.ts';
 import { detectar, type Deteccion } from './firma.ts';
@@ -17,8 +19,8 @@ export type Destino =
   | { donde: 'rechazar'; motivo: string };
 
 export const UMBRALES = {
-  xlsxWorkerBytes: 15 * 1024 * 1024,         // archivo xlsx
-  partesXmlWorkerBytes: 160 * 1024 * 1024,   // suma de sheet*.xml + sharedStrings descomprimidos
+  xlsxWorkerBytes: 100 * 1024 * 1024,        // = cuerpo máximo de petición (plan Free/Pro de la zona)
+  partesXmlWorkerBytes: 160 * 1024 * 1024,   // XML de hojas + sharedStrings descomprimidos (CPU ≲ 10 s)
   sharedStringsWorkerBytes: 24 * 1024 * 1024,
   pdfWorkerBytes: 20 * 1024 * 1024,
   imagenModeloBytes: 4 * 1024 * 1024,        // por encima: redimensionar (Images binding) antes

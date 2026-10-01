@@ -1,0 +1,44 @@
+NOTICE:  database "r3_med_slim" does not exist, skipping
+2026-10-01 01:03:17,550 17461 WARNING ? odoo.tools.config: missing --http-interface/http_interface, using 0.0.0.0 by default, will change to 127.0.0.1 in 20.0 
+2026-10-01 01:03:17,763 17461 WARNING ? py.warnings: /usr/local/lib/python3.11/dist-packages/PyPDF2/__init__.py:21: DeprecationWarning: PyPDF2 is deprecated. Please move to the pypdf library instead.
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo-bin", line 6, in <module>
+    odoo.cli.main()
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/cli/command.py", line 133, in main
+    command().run(args)
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/cli/shell.py", line 154, in run
+    self.init(args)
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/cli/shell.py", line 76, in init
+    server.start(preload=[], stop=True)
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/service/server.py", line 1627, in start
+    load_server_wide_modules()
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/service/server.py", line 1522, in load_server_wide_modules
+    load_openerp_module(m)
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/modules/module.py", line 506, in load_openerp_module
+    __import__(qualname)
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/addons/base/__init__.py", line 4, in <module>
+    from . import models
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/addons/base/models/__init__.py", line 12, in <module>
+    from . import ir_actions_report
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/addons/base/models/ir_actions_report.py", line 33, in <module>
+    from odoo.tools.pdf import PdfFileReader, PdfFileWriter, PdfReadError
+  File "/home/user/D_Casa_new_word/vendor/odoo/odoo/tools/pdf/__init__.py", line 33, in <module>
+    import PyPDF2.filters  # needed after PyPDF2 2.0.0 and before 2.11.0
+  File "/usr/local/lib/python3.11/dist-packages/PyPDF2/__init__.py", line 21, in <module>
+    warnings.warn(
+ 
+desinstalando 39
+desinstalacion_s=22
+69
+dcasa_brian dcasa_socios dcasa_catalogo dcasa_interfaz website_dcasa dcasa_base dcasa_invoice dcasa_contabilidad
+db=r3_med_base rep=1 arranque_s=4.605704503 reposo={"rss_MiB": 173.4, "pss_MiB": 153.4, "procesos": 1} caliente={"rss_MiB": 220.6, "pss_MiB": 200.4, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 62, "p95_ms": 86, "cpu_ms": 36.0}, "/shop": {"n": 20, "p50_ms": 255, "p95_ms": 302, "cpu_ms": 193.0}, "ficha": {"n": 20, "p50_ms": 160, "p95_ms": 199, "cpu_ms": 119.0}, "/visitanos": {"n": 20, "p50_ms": 52, "p95_ms": 59, "cpu_ms": 35.0}, "/web/login": {"n": 20, "p50_ms": 50, "p95_ms": 65, "cpu_ms": 38.0}, "/socios": {"n": 20, "p50_ms": 51, "p95_ms": 65, "cpu_ms": 36.0}, "rpc productos": {"n": 20, "p50_ms": 45, "p95_ms": 60, "cpu_ms": 31.5}, "rpc facturas": {"n": 20, "p50_ms": 9, "p95_ms": 13, "cpu_ms": 5.5}}
+db=r3_med_base rep=2 arranque_s=3.087802541 reposo={"rss_MiB": 173.5, "pss_MiB": 153.7, "procesos": 1} caliente={"rss_MiB": 220.8, "pss_MiB": 200.7, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 52, "p95_ms": 64, "cpu_ms": 33.0}, "/shop": {"n": 20, "p50_ms": 229, "p95_ms": 277, "cpu_ms": 186.0}, "ficha": {"n": 20, "p50_ms": 181, "p95_ms": 205, "cpu_ms": 126.5}, "/visitanos": {"n": 20, "p50_ms": 53, "p95_ms": 60, "cpu_ms": 36.5}, "/web/login": {"n": 20, "p50_ms": 48, "p95_ms": 61, "cpu_ms": 35.5}, "/socios": {"n": 20, "p50_ms": 51, "p95_ms": 64, "cpu_ms": 36.5}, "rpc productos": {"n": 20, "p50_ms": 47, "p95_ms": 56, "cpu_ms": 31.5}, "rpc facturas": {"n": 20, "p50_ms": 8, "p95_ms": 9, "cpu_ms": 5.0}}
+db=r3_med_base rep=3 arranque_s=3.176108027 reposo={"rss_MiB": 173.2, "pss_MiB": 153.2, "procesos": 1} caliente={"rss_MiB": 220.8, "pss_MiB": 200.6, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 60, "p95_ms": 77, "cpu_ms": 38.0}, "/shop": {"n": 20, "p50_ms": 230, "p95_ms": 285, "cpu_ms": 185.5}, "ficha": {"n": 20, "p50_ms": 160, "p95_ms": 182, "cpu_ms": 117.0}, "/visitanos": {"n": 20, "p50_ms": 50, "p95_ms": 57, "cpu_ms": 35.5}, "/web/login": {"n": 20, "p50_ms": 50, "p95_ms": 60, "cpu_ms": 35.5}, "/socios": {"n": 20, "p50_ms": 50, "p95_ms": 55, "cpu_ms": 34.5}, "rpc productos": {"n": 20, "p50_ms": 41, "p95_ms": 51, "cpu_ms": 29.5}, "rpc facturas": {"n": 20, "p50_ms": 8, "p95_ms": 9, "cpu_ms": 5.0}}
+db=r3_med_slim rep=1 arranque_s=2.794523663 reposo={"rss_MiB": 160.1, "pss_MiB": 140.6, "procesos": 1} caliente={"rss_MiB": 349.0, "pss_MiB": 328.2, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 52, "p95_ms": 67, "cpu_ms": 33.5}, "/shop": {"n": 20, "p50_ms": 227, "p95_ms": 243, "cpu_ms": 172.5}, "ficha": {"n": 20, "p50_ms": 180, "p95_ms": 209, "cpu_ms": 130.0}, "/visitanos": {"n": 20, "p50_ms": 51, "p95_ms": 65, "cpu_ms": 35.0}, "/web/login": {"n": 20, "p50_ms": 51, "p95_ms": 61, "cpu_ms": 35.5}, "/socios": {"n": 20, "p50_ms": 48, "p95_ms": 63, "cpu_ms": 36.5}, "rpc productos": {"n": 20, "p50_ms": 41, "p95_ms": 53, "cpu_ms": 30.0}, "rpc facturas": {"n": 20, "p50_ms": 8, "p95_ms": 10, "cpu_ms": 5.5}}
+db=r3_med_slim rep=2 arranque_s=2.774637745 reposo={"rss_MiB": 160.1, "pss_MiB": 140.6, "procesos": 1} caliente={"rss_MiB": 247.3, "pss_MiB": 227.7, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 55, "p95_ms": 68, "cpu_ms": 33.5}, "/shop": {"n": 20, "p50_ms": 208, "p95_ms": 256, "cpu_ms": 168.5}, "ficha": {"n": 20, "p50_ms": 154, "p95_ms": 187, "cpu_ms": 113.0}, "/visitanos": {"n": 20, "p50_ms": 46, "p95_ms": 55, "cpu_ms": 32.5}, "/web/login": {"n": 20, "p50_ms": 48, "p95_ms": 63, "cpu_ms": 34.5}, "/socios": {"n": 20, "p50_ms": 45, "p95_ms": 51, "cpu_ms": 31.5}, "rpc productos": {"n": 20, "p50_ms": 42, "p95_ms": 50, "cpu_ms": 30.0}, "rpc facturas": {"n": 20, "p50_ms": 8, "p95_ms": 10, "cpu_ms": 5.5}}
+db=r3_med_slim rep=3 arranque_s=2.546143730 reposo={"rss_MiB": 160.1, "pss_MiB": 140.6, "procesos": 1} caliente={"rss_MiB": 247.3, "pss_MiB": 227.6, "procesos": 1}
+   lat={"/": {"n": 20, "p50_ms": 51, "p95_ms": 63, "cpu_ms": 31.5}, "/shop": {"n": 20, "p50_ms": 202, "p95_ms": 240, "cpu_ms": 166.0}, "ficha": {"n": 20, "p50_ms": 161, "p95_ms": 186, "cpu_ms": 115.0}, "/visitanos": {"n": 20, "p50_ms": 50, "p95_ms": 60, "cpu_ms": 33.0}, "/web/login": {"n": 20, "p50_ms": 51, "p95_ms": 58, "cpu_ms": 35.0}, "/socios": {"n": 20, "p50_ms": 54, "p95_ms": 66, "cpu_ms": 35.5}, "rpc productos": {"n": 20, "p50_ms": 38, "p95_ms": 54, "cpu_ms": 30.0}, "rpc facturas": {"n": 20, "p50_ms": 7, "p95_ms": 8, "cpu_ms": 4.5}}

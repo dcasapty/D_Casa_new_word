@@ -23,16 +23,18 @@ interpretar tablas, campos, celdas, variables, constantes. Este debe ser nuestro
    comentarios, enlaces, **imágenes flotantes con su celda ancla** e **imágenes en celda (richData)**
    resueltas, cuadros de texto, detección de **varias tablas y encabezados en varias filas**,
    roles de columna, **precios en texto normalizados** sin inventar, y señales de inyección.
-   **48 pruebas en verde** (incluye el Excel real y 2 libros REALES de Excel 365 con imágenes en celda).
+   **49 pruebas en verde** (incluye el Excel real y 2 libros REALES de Excel 365 con imágenes en celda).
 3. **Hallazgo de corrección**: el lector de imágenes en celda de la ronda 2 asigna la imagen
    **equivocada** cuando la celda tiene varios `<rc>` (caso real de Excel 365 con matrices
    dinámicas). Corregido y probado aquí (bitácora).
 4. **Mediciones** (mediana de 3, máquina compartida): el Excel real se lee en ~0,1 s; 10 MB de
-   solo celdas (1,24 M celdas) en ~4 s de CPU con **pico de heap ~30-40 MB** (cabe en los 128 MB
-   del isolate con margen); 50 MB con sharedStrings **también cabe con heap topado a 120 MB**, pero
-   gasta ~1 min de CPU. exceljs y SheetJS necesitan 450-700 MB de RSS ya con 10 MB: **no caben**.
-   Umbral propuesto: **Worker hasta 15 MB** de xlsx (y sharedStrings ≤ 24 MB); por encima,
-   **el mismo código TS en el Container** (Node), y LibreOffice solo para `.xls/.xlsb/.ods`.
+   solo celdas (1,24 M celdas) en ~4-5 s de CPU con **pico de heap 30-38 MB** (cabe en los 128 MB
+   del isolate con margen); 50 MB sin sharedStrings cabe (42 MB, ~19 s de CPU); 48,6 MB con
+   sharedStrings de 67 MB **no cabe** (OOM con el heap topado a ~120 MB). exceljs y SheetJS necesitan
+   450-700 MB de RSS ya con 10 MB y 2,4-3,4 GB con 50 MB: **no caben**.
+   Umbral propuesto (medido): **Worker** si `sharedStrings` ≤ 24 MB y el XML ≤ 160 MB descomprimidos
+   (un xlsx de 49 MB con 40 fotos se lee en 0,3 s; uno de 48,6 MB con sharedStrings de 67 MB da OOM);
+   por encima, **el mismo código TS en el Container** (Node), y LibreOffice solo para `.xls/.xlsb/.ods`.
 5. **El modelo solo interviene donde hace falta**: columnas sin rol, texto libre, fotos y páginas
    escaneadas. Ve una **vista compacta** (el Excel real: ~1 400 caracteres ≈ 420 tokens, frente a
    ~20 700 si se mandara la hoja entera), envuelta como dato con **delimitador con nonce**, y todo lo
@@ -127,13 +129,93 @@ Sin cambios desde la ronda 2 (verificado hoy):
 
 ### 4.4 Mediciones de tiempo y memoria (mediana de 3 corridas)
 
-<!--MEDICIONES-->
+Node v22.22.0, Python 3.11, 4 vCPU compartidas con otros 7 agentes; 3 corridas por combinación en procesos aparte y **mediana** (exceljs/SheetJS/openpyxl completo con > 40 MB: 1 corrida). `heap pico` = máximo de `heapUsed + arrayBuffers` muestreado en cada lectura de la fuente (solo el prototipo por rangos); `RSS Δ` = aumento del máximo de memoria residente del proceso (incluye código, memoria libre no devuelta y basura no recolectada: cota superior). Datos crudos: `brian-documentos/medicion/salida/mediciones.json` (generado 2026-10-01T01:08Z). Comando: `npm run medir` (o `node --experimental-strip-types medicion/medir.ts 3`).
+
+| Archivo | Lector | Tiempo (ms) | CPU (ms) | Heap pico (MB) | RSS Δ (MB) | Resultado |
+|---|---|---:|---:|---:|---:|---|
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | prototipo (R2 por rangos) | 87 | 169 | 2.3 | 7.2 | Productos:220f/1000c/0img,Imágenes (proyecto):332f/1328c/0im |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | prototipo, heap topado ~120 MB | 68 | 156 | 2.2 | 7.2 | Productos:220f/1000c/0img,Imágenes (proyecto):332f/1328c/0im |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | prototipo (archivo en memoria) | 106 | 161 | — | 8 | Productos:220f/1000c/0img,Imágenes (proyecto):332f/1328c/0im |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | exceljs 4.4.0 | 168 | 296 | 10.5 | 14 | Productos:220f/0img,Imágenes (proyecto):332f/0img,Todas las  |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | SheetJS CE 0.18.5 | 113 | 147 | 2.2 | 7.5 | Productos:A1:G220,Imágenes (proyecto):A1:D332,Todas las fich |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | openpyxl 3.0.9 read_only | 39 | 39 | — | 1.4 | 814 filas, 0 img |
+| Excel real (40 KB, 4 hojas, 2 637 celdas) | openpyxl 3.0.9 completo | 53 | 53 | — | 2.4 | 814 filas, 0 img |
+| sintético (12 KB, 4 imágenes) | prototipo (R2 por rangos) | 54 | 83 | 1.7 | 11.4 | Lista Proveedor:15f/55c/4img,Costos (oculta):2f/4c/0img |
+| sintético (12 KB, 4 imágenes) | prototipo, heap topado ~120 MB | 49 | 45 | 1.8 | 4.2 | Lista Proveedor:15f/55c/4img,Costos (oculta):2f/4c/0img |
+| sintético (12 KB, 4 imágenes) | prototipo (archivo en memoria) | 46 | 48 | — | 4.7 | Lista Proveedor:15f/55c/4img,Costos (oculta):2f/4c/0img |
+| sintético (12 KB, 4 imágenes) | exceljs 4.4.0 | — | — | — | — | **falla**: Cannot read properties of undefined (reading 'anchors') |
+| sintético (12 KB, 4 imágenes) | SheetJS CE 0.18.5 | 37 | 43 | 1.5 | 0 | Lista Proveedor:A1:H18,Costos (oculta):A1:B2 |
+| sintético (12 KB, 4 imágenes) | openpyxl 3.0.9 read_only | 8 | 8 | — | 0.4 | 20 filas, 0 img |
+| sintético (12 KB, 4 imágenes) | openpyxl 3.0.9 completo | 21 | 21 | — | 1.7 | 20 filas, 2 img |
+| 1 MB (124 mil celdas) | prototipo (R2 por rangos) | 866 | 810 | 11.9 | 48.1 | Datos:16913f/124030c/0img |
+| 1 MB (124 mil celdas) | prototipo, heap topado ~120 MB | 888 | 956 | 11 | 43.2 | Datos:16913f/124030c/0img |
+| 1 MB (124 mil celdas) | prototipo (archivo en memoria) | 693 | 832 | — | 49 | Datos:16913f/124030c/0img |
+| 1 MB (124 mil celdas) | exceljs 4.4.0 | 1385 | 1491 | 58.6 | 103.7 | Datos:16913f/0img |
+| 1 MB (124 mil celdas) | SheetJS CE 0.18.5 | 1146 | 1157 | 42.4 | 71.2 | Datos:A1:H16913 |
+| 1 MB (124 mil celdas) | openpyxl 3.0.9 read_only | 1708 | 1698 | — | 2.4 | 16913 filas, 0 img |
+| 1 MB (124 mil celdas) | openpyxl 3.0.9 completo | 2373 | 2286 | — | 55.6 | 16913 filas, 0 img |
+| 10 MB (1,24 M celdas, inlineStr) | prototipo (R2 por rangos) | 4138 | 4359 | 39.3 | 103.1 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, inlineStr) | prototipo, heap topado ~120 MB | 4500 | 4548 | 30.3 | 83.8 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, inlineStr) | prototipo (archivo en memoria) | 3979 | 4391 | — | 108.7 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, inlineStr) | exceljs 4.4.0 | 7609 | 10330 | 615.8 | 696.2 | Datos:169126f/0img |
+| 10 MB (1,24 M celdas, inlineStr) | SheetJS CE 0.18.5 | 10703 | 12773 | 294.9 | 448.4 | Datos:A1:H169126 |
+| 10 MB (1,24 M celdas, inlineStr) | openpyxl 3.0.9 read_only | 18222 | 18031 | — | 16.1 | 169126 filas, 0 img |
+| 10 MB (1,24 M celdas, inlineStr) | openpyxl 3.0.9 completo | 25455 | 25214 | — | 549.4 | 169126 filas, 0 img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | prototipo (R2 por rangos) | 4280 | 5406 | 71.7 | 170.9 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | prototipo, heap topado ~120 MB | 4410 | 6410 | 38.2 | 116.8 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | prototipo (archivo en memoria) | 4191 | 5257 | — | 182.9 | Datos:169126f/1240258c/0img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | exceljs 4.4.0 | 7842 | 10555 | 624.9 | 706.4 | Datos:169126f/0img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | SheetJS CE 0.18.5 | 9585 | 10776 | 401.3 | 500.1 | Datos:A1:H169126 |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | openpyxl 3.0.9 read_only | 15755 | 15608 | — | 69.4 | 169126 filas, 0 img |
+| 10 MB (1,24 M celdas, sharedStrings 14 MB) | openpyxl 3.0.9 completo | 22405 | 22160 | — | 530.1 | 169126 filas, 0 img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | prototipo (R2 por rangos) | 18133 | 18952 | 43.5 | 126.4 | Datos:845626f/6201258c/0img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | prototipo, heap topado ~120 MB | 18898 | 20104 | 42.3 | 98.2 | Datos:845626f/6201258c/0img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | prototipo (archivo en memoria) | 18661 | 19054 | — | 174.9 | Datos:845626f/6201258c/0img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | exceljs 4.4.0 | 61420 | 65964 | 3122 | 3404.3 | Datos:845626f/0img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | SheetJS CE 0.18.5 | 86600 | 93040 | 1583.6 | 2481.3 | Datos:A1:H845626 |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | openpyxl 3.0.9 read_only | 95204 | 93560 | — | 73 | 845626 filas, 0 img |
+| 50 MB (6,2 M celdas, inlineStr, XML 340 MB) | openpyxl 3.0.9 completo | 127228 | 125423 | — | 2822.7 | 845626 filas, 0 img |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | prototipo (R2 por rangos) | 21338 | 26165 | 146.7 | 390.9 | Datos:845626f/6201258c/0img |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | prototipo, heap topado ~120 MB | — | — | — | — | **OOM** con el tope (no cabe) |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | prototipo (archivo en memoria) | 20463 | 28795 | — | 429.4 | Datos:845626f/6201258c/0img |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | exceljs 4.4.0 | 45824 | 58261 | 2382.8 | 2663.4 | Datos:845626f/0img |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | SheetJS CE 0.18.5 | 82695 | 110192 | 1730.6 | 2379.9 | Datos:A1:H845626 |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | openpyxl 3.0.9 read_only | 84689 | 83509 | — | 324.8 | 845626 filas, 0 img |
+| 48,6 MB (6,2 M celdas, sharedStrings 67 MB) | openpyxl 3.0.9 completo | 118659 | 117356 | — | 2718.4 | 845626 filas, 0 img |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | prototipo (R2 por rangos) | 300 | 441 | 36.3 | 44.4 | Datos:301f/2208c/40img |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | prototipo, heap topado ~120 MB | 309 | 503 | 35.2 | 43.2 | Datos:301f/2208c/40img |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | prototipo (archivo en memoria) | 407 | 561 | — | 94.1 | Datos:301f/2208c/40img |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | exceljs 4.4.0 | — | — | — | — | **falla**: Cannot read properties of undefined (reading 'anchors') |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | SheetJS CE 0.18.5 | 321 | 347 | 53.3 | 47.4 | Datos:A1:H301 |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | openpyxl 3.0.9 read_only | 28 | 28 | — | 1.2 | 301 filas, 0 img |
+| 49 MB (300 filas + 40 imágenes de 1,2 MB) | openpyxl 3.0.9 completo | 128 | 128 | — | 53.2 | 301 filas, 40 img |
+
+Lectura de la tabla:
+
+* **Cabe en el isolate (128 MB)**: con el heap de V8 topado a ~120 MB el prototipo lee el Excel real,
+  1 MB, 10 MB (inlineStr y con sharedStrings de 14 MB: pico 30-38 MB), 50 MB sin sharedStrings (pico
+  ~42 MB: el XML de 340 MB pasa en streaming) y 49 MB con 40 fotos (0,3 s). **No cabe** 48,6 MB con
+  sharedStrings de 67 MB (OOM con el tope; sin tope llega a ~147 MB de heap). Una corrida previa, antes
+  de optimizar el tokenizador, pasó con 87 MB: está en el borde, no es apto. ⇒ lo que manda es el
+  tamaño **descomprimido** de `sharedStrings.xml`, no el del archivo.
+* **CPU**: ~4-5 s para 1,24 M celdas; ~19-26 s para 6,2 M celdas (bajo los 30 s por defecto, con poco
+  margen; configurable hasta 5 min). El perfil (`--cpu-prof`, 10 MB) muestra 34 % tokenizador, 16 %
+  inflate (fflate), 14 % atributos: hay margen de optimización (§9, P2).
+* **exceljs / SheetJS**: 450-700 MB de RSS ya con 10 MB y 2,4-3,4 GB con 50 MB: no caben en un Worker;
+  exceljs además se cae con los libros de openpyxl. **openpyxl read_only** es frugal en memoria
+  (16-73 MB con inlineStr; 325 MB con sharedStrings de 67 MB) pero 4-5× más lento que el prototipo y no
+  ve imágenes en celda (`openpyxl-full` en el sintético reporta 2 imágenes de 4).
+* **Lecturas de R2** (`medicion/r2_peticiones.ts`, bloques de 256 KB): Excel real y sintético = 1
+  petición; 10 MB = 41 peticiones (operaciones clase B: costo despreciable).
+* **Umbral para el Container**: `sharedStrings.xml` > 24 MB **o** XML de hojas + sharedStrings > 160 MB
+  descomprimidos (≈ 10 s de CPU) — se decide leyendo solo el directorio central del zip (1 petición),
+  antes de descomprimir nada (`src/documento.ts`, probado con los fixtures grandes).
 
 ### 4.5 Qué va dónde (decisión)
 
 | Entrada | Dónde | Por qué |
 |---|---|---|
-| xlsx/xlsm ≤ 15 MB y sharedStrings ≤ 24 MB descomprimidos | **Worker** (lector TS) | Medido: pico de heap ≤ ~45 MB, CPU ≤ ~7 s |
+| xlsx/xlsm con sharedStrings ≤ 24 MB y XML ≤ 160 MB descomprimidos (sin importar cuántas fotos traiga) | **Worker** (lector TS) | Medido: pico de heap ≤ ~45 MB, CPU ≤ ~10 s |
 | xlsx/xlsm mayor | **Container**, el MISMO lector TS en Node (sin tope de 128 MB) | Una sola base de código; openpyxl es 4× más lento y no ve imágenes en celda |
 | `.xls`, `.xlsb`, `.ods`, `.numbers` | Container: LibreOffice → xlsx → lector | Formatos binarios/ODF; `toMarkdown` como vista previa rápida |
 | CSV/TSV, docx | Worker | Ligeros |
@@ -163,7 +245,7 @@ docs/auditoria/ronda3/brian-documentos/
   fixtures/           generar_fixtures.py (pequeños versionados; grandes con --grandes, en .gitignore)
   casos/              generar_casos.ts → dorado_documentos.jsonl (33 casos nuevos)
   medicion/           uno.ts, uno_openpyxl.py, medir.ts, tokens.ts, salida/mediciones.json
-  test/lector.test.ts 48 pruebas (vitest)
+  test/lector.test.ts 49 pruebas (vitest)
 ```
 
 Reproducir: `cd docs/auditoria/ronda3/brian-documentos && npm install && python3 fixtures/generar_fixtures.py --grandes && ./fixtures/descargar_externos.sh && npm test && npx tsc --noEmit && npm run medir`.
@@ -206,18 +288,22 @@ por hoja `resumen` completo (aunque la ventana sea parcial), `ventana` (paginaci
 ### 5.4 Pruebas (comando y salida)
 
 ```
-$ cd docs/auditoria/ronda3/brian-documentos && npx tsc --noEmit && npx vitest run
- ✓ test/lector.test.ts (48 tests) …
+$ cd docs/auditoria/ronda3/brian-documentos && npx tsc --noEmit && echo "tsc OK" && npx vitest run
+tsc OK
+ ✓ test/lector.test.ts (49 tests) 3757ms
  Test Files  1 passed (1)
-      Tests  48 passed (48)
+      Tests  49 passed (49)
+   Duration  4.70s (transform 358ms, setup 0ms, collect 561ms, tests 3.76s, environment 0ms, prepare 83ms)
 ```
+
+(Con los fixtures grandes y los externos presentes; sin ellos, 2 bloques se saltan solos.)
 
 Cubren: sintético (hojas ocultas, combinadas, fórmulas con/sin caché, moneda y fecha, fila oculta,
 comentario, enlace, flotantes oneCell/twoCell, en celda con multi-`rc` y alt, precios en texto, inyección,
 2 tablas + encabezado de 2 filas, registros con imágenes, ventana por rango, lectura desde R2 simulado
 por rangos); Excel real (sha `731580f9…`, 219 filas, 199 códigos únicos, roles de columna, alertas
 D142/D171/D182 = mismas 2 no crecientes + tamaño sin precio de la ronda 2); 2 libros reales de Excel 365;
-defensas (zip bomb de 200 MB, encabezado que miente, entradas solapadas, DOCTYPE/«billion laughs»,
+ruteo con los fixtures grandes; defensas (zip bomb de 200 MB, encabezado que miente, entradas solapadas, DOCTYPE/«billion laughs»,
 entidad desconocida, XML partido en cualquier punto, rutas `..`, cifrado, macros y vínculos externos);
 firma y ruteo; precios; CSV cp1252; Word; PDF nativo vs escaneado; vista para el modelo con nonce,
 validación anti-alucinación y de mapeo; plan de importación, aplicación idempotente por lotes y reversión.
@@ -251,7 +337,7 @@ Telegram y MCP): `leer_archivo(adjunto, hoja?, rango?, max_filas?)` (lectura; de
 `ver_imagen(adjunto, celda|pagina|indice)` (lectura; miniatura normalizada), `extraer_de_imagen(adjunto,
 esquema)` (lectura; modelo con visión y validación), `proponer_importacion_catalogo(adjunto, hoja, tabla,
 modo_itbms, mapa_columnas?)` (escribe solo el borrador), `aplicar_importacion(importacion_id, lotes?)`
-(**sensible**, nunca desde MCP), `deshacer_importacion(importacion_id, motivo)` (**sensible**).
+(**sensible**, nunca desde MCP; `modo_itbms` explícito, para D'CASA `mas_itbms`), `deshacer_importacion(importacion_id, motivo)` (**sensible**).
 
 ## 7. Política ante inyección (celdas, imágenes, PDF)
 
@@ -309,7 +395,7 @@ sabe detectarlo de forma determinista (columnas con rol `celular`/`ruc`/`cliente
 | **P0** | Normalizar imágenes antes del modelo (Images binding: ≤ 1568 px, JPEG/WebP, HEIC→JPEG) y dejar de rechazar > 5 MB | S | Arregla FOT-06 y las 54 PNG grandes |
 | **P0** | Delimitador con nonce y `sospecha_instruccion` en la vista previa | S | Ya implementado en `src/modelo.ts` |
 | **P0** | Correr los 33 casos nuevos + 26 de la ronda 2 con el arnés de evals (Claude y Meta) | S | `casos/dorado_documentos.jsonl` valida contra `esquema_caso.json` |
-| P1 | `proponer/aplicar/deshacer_importacion` con `brian.importacion(.linea)` (llave, `antes`, origen celda) y `modo_itbms` obligatorio | M | Lógica pura ya en `src/importacion.ts` |
+| P1 | `proponer/aplicar/deshacer_importacion` con `brian.importacion(.linea)` (llave, `antes`, origen celda) y `modo_itbms` obligatorio (D'CASA: `mas_itbms`, decisión del dueño 2026-10-01) | M | Lógica pura ya en `src/importacion.ts` |
 | P1 | Clasificar el documento por sensibilidad (columnas celular/RUC/cédula/cliente/correo, facturas de clientes) para decidir el proveedor (Meta `-contributor` solo sin datos personales) y enmascarar antes de enviar | S | Regla por tarea del coordinador |
 | P1 | Mapeo de columnas con modelo (`ESQUEMA_MAPEO` + `validarMapeo`) para encabezados raros | S | Solo columnas con rol null |
 | P1 | `extraer_de_imagen` con esquema (medidas, precios de lista de proveedor, factura) y validación: foto → siempre confirmación | M | Casos FOT-01…05, ADV-05 |
@@ -329,7 +415,7 @@ segunda tabla, balboas con coma, precio por tamaño, «$—» → null (crítico
 tablas, fecha serial), **CSV-01**, **DOC-01/02**, **PDF-01/02** (nativo y escaneado), **FOT-01…06** (fotos
 reales de `up media/`: medidas en cm, W/D/H en inglés, variantes sin unidad, cinco cotas, «precio según la
 foto» → null (crítico), foto de 9 MB), **ADV-04/05** (inyección en celda y en foto), **IMP-01** (importar
-sin decidir ITBMS → preguntar).
+con `modo_itbms=mas_itbms` — decisión del dueño 2026-10-01 — y vista previa antes de aplicar).
 
 Fotos revisadas (para la REFUTA de la bitácora): ALJ021439_1, ALJ021439_4, QMW020205_5, CZX100308_7,
 1062010734-5-6N, LXI090407_2, DS090201_8, QMW020205_6, ALJ021439_2, CHCH010906, XXI070509_1,
