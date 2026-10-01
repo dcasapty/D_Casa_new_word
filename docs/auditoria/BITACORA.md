@@ -634,3 +634,17 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 
 ### coordinador · APRENDIZAJE · — · decisión del dueño: Meta `-contributor` aceptado
 - El dueño conoce que `-contributor` entrena con los prompts y lo acepta (2026-10-01). Brian puede usarlo como proveedor principal; el veto por código del prototipo se reemplaza por una opción configurable (por defecto: permitido). Recomendación que queda en el informe, no bloqueante: aviso de privacidad a clientes (Ley 81/2019) y opción de enmascarar datos personales.
+
+### r3-sitio-edge · HALLAZGO · ALTO · Prototipo estático del catálogo medido: 99-100 pts y LCP 1,6-2,2 s contra 39-55 pts y LCP 8-11 s de Odoo
+- Evidencia: `docs/auditoria/ronda3/sitio-edge/prototipo/generar.mjs` (datos reales de `catalogo.json`, `puntos.json` y textos de `website_dcasa/views`; precios sin tocar; sin «Financiamiento» ni iframe de Maps) servido como Static Assets simulado; Lighthouse 12.8 móvil, mediana de 3, misma máquina que la línea base. Portada 41→100, `/shop` 39→99 (CLS 0,126→0), fichas 39→99/100, `/visitanos` 55→100; peso 1,05-1,93 MB → 138-251 KB; 0 KB de JS; 1 origen. Resultados en `sitio-edge/lighthouse/`.
+- Imágenes: foto de tarjeta 640 px AVIF 3,3 KB contra `image_1024` JPEG de 59 KB que hoy pide `/shop` (−94 %); 890 variantes = 8,97 MB.
+- Costo oficial: Static Assets gratis e ilimitados (https://developers.cloudflare.com/workers/platform/pricing/, 2026-08-28) ⇒ el sitio público cuesta $0 y Odoo puede dormir. @r3-reconstruccion @r3-cf-plataforma: esto apoya «el sitio público sale de Odoo; Odoo queda como ERP + /socios».
+
+### r3-brian-documentos · REFUTA · BAJO · a brian-excel (ronda 2): las 323 PNG de `up media/` NO son «páginas Canva con texto y precio impresos»
+- Evidencia: revisé visualmente 17 PNG (muestra aleatoria con semilla 7 + 5 elegidas; lista en `ronda3/brian-documentos.md` §9): **0 traen precio impreso**; ~8 traen **medidas** impresas (p. ej. `QMW020205_6.png`: «W: 160 cm · D: 40 cm · H: 90 cm · Internal Open Shelf W: 110 cm»; `XLB0118616.png`: «120/140/160/180 × 80/100/120 · 75 · 60 · 45» sin unidad); el resto son renders de ambiente. Lo que dice `docs/auditoria/ronda2/brian-excel.md` §3 («Cada PNG es una página Canva entera (con texto y precio impresos)») no se sostiene en la muestra.
+- Efecto: la visión aporta MEDIDAS y tipo de mueble, no precios: un caso dorado «precio según la foto» debe esperar «la foto no trae precio» (anti-alucinación). Casos `FOT-01…06` en `ronda3/brian-documentos/casos/`.
+
+### r3-sitio-edge · APRENDIZAJE · — · cierre: informe y prototipo entregados
+- Informe: `docs/auditoria/ronda3/sitio-edge.md` (línea base, estrategias A/B/C con doc oficial, prototipo, imágenes, recomendación C mixta, riesgos SEO/duplicado/precios). Prototipo regenerable en `ronda3/sitio-edge/prototipo/` (`dist/` y `node_modules/` fuera de git); resúmenes de Lighthouse en `ronda3/sitio-edge/lighthouse/`.
+- Gracias @r3-reconstruccion: el prototipo cumple tus criterios de salida de Fase 1 en lo medible (LCP 1,6-2,2 s, 99-100 pts); «0 pedidos perdidos» y «Odoo sin tráfico anónimo» quedan para el Worker real. @r3-cf-plataforma: uso tus costos de contenedor tal cual.
+- Bases y procesos míos borrados/detenidos (`r3_web`, puertos 8180/8190/8191).

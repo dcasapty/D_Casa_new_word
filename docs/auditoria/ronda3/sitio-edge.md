@@ -2,12 +2,21 @@
 
 Agente `r3-sitio-edge` · 2026-10-01 · Informe INCREMENTAL (se completa a medida que hay mediciones).
 
-## Estado
-- [ ] 1. Línea base medida (Odoo local + Lighthouse móvil, mediana de 3)
-- [ ] 2. Estrategias A/B/C con documentación oficial de Cloudflare
-- [ ] 3. Prototipo estático medido
-- [ ] 4. Pipeline de imágenes
-- [ ] 5. Recomendación
+## Resumen ejecutivo
+
+- **Medido, no supuesto.** Odoo 19 real con los 8 módulos, Lighthouse 12.8 móvil, mediana de 3 corridas: el sitio
+  actual da **39-55 puntos**, LCP **8,2-10,8 s**, TBT 0,3-1,4 s y pesa **1,05-1,93 MB** (536 KB son JS de Odoo).
+- **Prototipo estático** con los mismos datos (catálogo, precios, fotos y textos reales): **99-100 puntos**, LCP
+  **1,6-2,2 s**, TBT ≤ 45 ms, CLS 0, **138-251 KB**, 0 JS, 1 solo origen.
+- **El HTML de Odoo no se puede cachear tal cual**: manda `Set-Cookie` de sesión a cada anónimo y el CSRF va atado a
+  la sesión (probado: el «Agregar» de la portada da 400 con un token de otra sesión). Cachearlo exige cambios y aun
+  así no arregla el peso ni el TBT, ni deja dormir a Odoo.
+- **Recomendación: C (mixto)**: catálogo público en Workers Static Assets (**$0**, peticiones gratis e ilimitadas
+  según la doc oficial), pedido por WhatsApp; Odoo como ERP + `/socios` detrás del Worker, ya **a demanda**. Es lo
+  que más rinde y lo que más ahorra (permite bajar el contenedor de 24/7 a demanda).
+- Arreglos inmediatos aunque no se cambie nada: hero con `loading="eager"` (Odoo lo vuelve `lazy`), quitar el cron que
+  impide dormir, autoalojar fuentes. Bloqueante de contenido: el ITBMS.
+- Sin usuarios reales no hay Core Web Vitals de campo: todo es laboratorio.
 
 ## 1. Línea base medida (Odoo 19 real, 2026-10-01)
 
@@ -169,6 +178,51 @@ y además una vez al día. Odoo sigue siendo la única fuente de precios y fotos
 | Riesgo principal | Fuga de HTML con sesión; CSRF | Precio desfasado si falla el build | Igual que B + dos sistemas de URL |
 | Esfuerzo | 1-2 días | 3-5 días | 4-6 días |
 
+## 3. Prototipo estático medido
+
+**Qué es.** `sitio-edge/prototipo/generar.mjs` (Node + sharp + fuentes @fontsource OFL) genera `dist/` desde los
+datos reales del repo: 188 productos publicables de `catalogo.json` (los 11 sin foto se omiten, igual que Odoo),
+precios copiados tal cual, fotos de `static/img/productos`, cifras de socios leídas de `puntos.json`, textos copiados
+de `homepage_templates.xml`/`layout_templates.xml`. Páginas: portada, `/shop/` y `/shop/<categoría>/` paginadas
+de 24 (los filtros por categoría son enlaces, **0 JavaScript**), fichas (con `SOLO=` se generan solo las 2 medidas)
+con JSON-LD `Product` + `BreadcrumbList`, `/visitanos`, `robots.txt`, `sitemap.xml`, `404.html` y `_headers`.
+CSS en línea (~8 KB), 4 fuentes woff2 autoalojadas (Anton 18,6 KB precargada con `swap`; Inter 400/700 y Oswald 500
+con `optional`), `<picture>` AVIF + WebP con `srcset`, `sizes`, `width/height`, hero y primeras tarjetas sin `lazy`
+y con `fetchpriority`. Se sirve con `herramientas/servir.js static` (Brotli + `Cache-Control` como Static Assets).
+
+**Decisiones de contenido (reglas de marca y «no inventar»):**
+- Azul `#1340B1` / amarillo `#FED00F` / navy; el amarillo solo sobre azul, navy o el hero oscurecido (igual que hoy);
+  Anton/Oswald/Inter; sin degradados ni sombras. CTA único «Escríbenos por WhatsApp» (+507 6026-1919) y, por
+  producto, «Pídelo por WhatsApp» con el nombre del mueble (mismo texto que el botón de la ficha actual).
+- **Precio**: se muestra la cifra del catálogo sin leyenda de impuesto, **igual que hoy el sitio** (`$104.99`). La duda
+  ITBMS (E-01/SW-04: el Excel dice «+ITBMS») sigue abierta y aplica igual al prototipo. En productos con varios
+  tamaños la tarjeta dice «desde» el menor y la ficha lista cada tamaño.
+- Se quitó «Financiamiento» (SW-03, sin respaldo) y el iframe de Google Maps (SW-01: queda el enlace «Abrir la ruta»).
+  Hero y fotos de categorías son las del sitio actual (fotos de stock, SW-05 sigue pendiente) para comparar a igualdad.
+- JSON-LD `Product` **sin `availability`**: el inventario está «sin confirmar»; no se inventa. Faltan las reseñas, la
+  galería «Inspírate» y la guía (no medidas; las reseñas suman texto, no peso relevante).
+
+**Resultado (mismo método que §1: Lighthouse 12.8 móvil, mediana de 3, misma máquina):**
+
+| Página | Perf. Odoo → prototipo | LCP | FCP | TBT | CLS | Peso | Peticiones | Orígenes |
+|---|---|---|---|---|---|---|---|---|
+| Portada | 41 → **100** | 8,96 → **1,59 s** | 3,93 → 0,91 s | 939 → 29 ms | 0 → 0 | 1 354 → **251 KB** | 25 → 14 | 4 → 1 |
+| `/shop` | 39 → **99** | 10,77 → **1,88 s** | 4,09 → 0,91 s | 812 → 45 ms | 0,126 → **0** | 1 929 → **199 KB** | 29 → 17 | 4 → 1 |
+| Ficha cama twin | 39 → **100** | 8,33 → **1,73 s** | 3,86 → 0,93 s | 1 398 → 0 ms | 0 → 0 | 1 420 → **138 KB** | 24 → 9 | 4 → 1 |
+| Ficha zapatera ALJ021439 | 39 → **99** | 8,84 → **2,15 s** | 3,99 → 0,95 s | 1 050 → 3 ms | 0 → 0 | 1 503 → **188 KB** | 24 → 9 | 4 → 1 |
+| `/visitanos` | 55 → **100** | 8,17 → **1,66 s** | 4,23 → 0,91 s | 329 → 0 ms | 0 → 0 | 1 053 → **146 KB** | 23 → 8 | 5 → 1 |
+
+Accesibilidad / buenas prácticas / SEO de Lighthouse en el prototipo: 100/100/100 en las 5 páginas.
+Peso de la portada: HTML 6 KB, fuentes 78 KB, imágenes 136 KB, 0 KB de JS (Odoo: 536 KB de JS).
+Primera versión del prototipo (guardada en `lighthouse/prototipo-v1-cls.json`): CLS 0,16 por el cambio de fuente
+(Inter/Oswald con `swap` movían la cabecera) y 92-93 pts; se corrigió con `font-display: optional` + `preload`.
+Avisos que quedan: Lighthouse sugiere ~30 KB de ahorro con `sizes` más finos en la grilla.
+
+**Límites de la comparación.** Ambos servidores son locales (TTFB de laboratorio 2-250 ms; en producción el
+estático sale del borde de Cloudflare más cercano a Panamá y Odoo del contenedor en la región que toque). El
+prototipo no tiene carrito, cuentas, buscador ni editor: es lo que se gana **si** el sitio público se limita a
+catálogo + WhatsApp. Sin usuarios reales no hay datos de campo (CrUX/INP): son mediciones de laboratorio.
+
 ## 4. Imágenes: pipeline recomendado y pesos medidos
 
 **Hoy (medido en Odoo):** la grilla de `/shop` pide `image_1024` JPEG para una tarjeta que en el móvil mide ~180 px
@@ -202,3 +256,80 @@ immutable` para `/img/*` y `/fonts/*` (ya lo genera el prototipo). Pasar a la 2 
 fotos. Los JPEG de `addons/dcasa_catalogo/static/img/productos` (30 MB) pueden salir del repo/imagen Docker a R2
 (SW-20) y el build leerlos de ahí. Las variantes generadas **no** van a git (`prototipo/.gitignore`).
 
+## 5. Recomendación
+
+**Arquitectura: C (mixto).** El sitio público —portada, catálogo, fichas, Visítanos— se genera desde los datos de
+Odoo y se sirve como **Workers Static Assets** con CTA único por WhatsApp. Odoo queda como ERP y sigue atendiendo,
+detrás del mismo Worker (`run_worker_first`), `/socios*`, `/web*`, `/my*`, `/brian/*`, `/json/*` y, si la dueña
+quiere conservarlos, `/shop/cart*` y `/shop/checkout*`. Es lo único medido que da a la vez:
+- **el mejor rendimiento**: 99-100 pts y LCP 1,6-2,2 s en móvil, contra 39-55 pts y LCP 8-11 s (§3);
+- **el menor costo**: el sitio público cuesta **$0** a cualquier volumen razonable, y además **deja dormir a Odoo**,
+  que es lo que realmente cuesta (`ronda3/cf-plataforma.md`: standard-1 24/7 ≈ $32-38/mes contra ≈ $10,6-18,9 a
+  demanda/horario; menos en `basic` si la memoria medida alcanza).
+
+Costo mensual del **sitio público** según tráfico (vistas/mes = **supuestos**, no hay datos reales de D'CASA):
+
+| Vistas/mes (supuesto) | A. HTML de Odoo cacheado (~25 pet./vista por el Worker) | C. Estático (10-17 pet./vista, todas assets) |
+|---|---|---|
+| 10 000 | Workers Free ($0) + contenedor 24/7 | $0 |
+| 100 000 | ~2,5 M pet. ≈ 83 000/día: al borde del Free ⇒ Paid $5 + contenedor 24/7 | $0 |
+| 1 000 000 | 25 M pet. ⇒ $5 + 15 M × $0,30 = **$9,50** + contenedor 24/7 | $0 |
+
+(Precios: https://developers.cloudflare.com/workers/platform/pricing/, 2026-08-28. El contenedor de Odoo necesita
+Workers Paid de todas formas; los $5 ya están dentro de las cifras de `cf-plataforma`.)
+
+**Orden de trabajo:**
+1. **Ya, sin decidir arquitectura** (sirve también si el sitio sigue en Odoo un tiempo):
+   `loading="eager"` en el hero de la portada y de Visítanos (Odoo les pone `lazy`, §1); quitar o espaciar el cron
+   `*/10` que impide dormir (`edge/wrangler.jsonc:25`, hallazgo de `r3-cf-plataforma`); autoalojar fuentes (SW-10);
+   fijar `web.base.url` y corregir el `D&#39;CASA` del JSON-LD `Organization`.
+2. **Bloqueante de contenido**: decidir el ITBMS (E-01/SW-04) antes de publicar precios en cualquier arquitectura.
+3. **Generador en el repo** (fuera de `docs/`; p. ej. `sitio/` o dentro de `edge/`): partir de `prototipo/generar.mjs`;
+   fuente = exportación de Odoo (nombre, precio por variante, combo, medidas, fotos, **`website_url` de Odoo**,
+   publicado) con una clave de API de solo lectura; variantes de imagen cacheadas por hash en CI.
+4. **Worker**: `assets` + `run_worker_first` para las rutas de Odoo (lista de §2.C), `not_found_handling: "404-page"`,
+   cabeceras de seguridad también en los assets (`_headers`), tests en `edge/test` como los actuales.
+5. **Sincronización**: acción automática de Odoo al cambiar precio/nombre/foto/publicado de un producto →
+   `repository_dispatch` (o Workers Builds) → build + `wrangler deploy` (~minutos); más un build diario de respaldo y
+   alerta si falla. Con Static Assets cada despliegue publica una versión nueva de los archivos; no hay purga manual que mantener (comportamiento de caché de assets por verificar al desplegar).
+6. **Odoo a demanda** (`sleepAfter` corto, sin cron que lo despierte); medir arranque en frío con `r3-odoo-medicion`.
+7. Opcional, después: «lista de pedido» en el navegador que arma un solo mensaje de WhatsApp; crear el pedido en
+   Odoo por Queue solo si la dueña lo pide.
+
+**Riesgos y cómo cerrarlos:**
+
+| Riesgo | Mitigación |
+|---|---|
+| **SEO: cambio de URL** (Odoo usa `/shop/<slug>-<id>` y `/shop/category/<slug>-<id>`; el prototipo usa otras) | El generador usa **exactamente** `website_url` de Odoo; si alguna cambia, `_redirects` (hasta 2 000 estáticas) con 301. Hoy el sitio no está publicado: es el momento barato de fijar URLs. |
+| **Contenido duplicado** (catálogo estático y `/shop` de Odoo vivos a la vez) | El Worker no deja pasar `/shop` ni fichas a Odoo (solo carrito/checkout si se conservan); `canonical` y `sitemap.xml` solo del estático; `noindex` en lo que quede de Odoo público. |
+| **Precio desfasado** (Odoo cambió y el build falló) | Build disparado por la acción de Odoo + diario + alerta; la venta se confirma por WhatsApp, y el precio de la factura sale de Odoo. Nunca calcular precios en el build: solo copiarlos (regla del catálogo). |
+| **Stock** | El inventario está «sin confirmar»: no mostrar existencias ni `availability` hasta que haya conteo; cuando lo haya, exportarlo en el mismo build. |
+| **La dueña pierde el constructor de Odoo** para el sitio | Textos en un archivo de contenido versionado (editable con Brian o un formulario simple); fotos y precios siguen saliendo de Odoo. Es el costo real de esta opción: decirlo al dueño. |
+| **Checkout/cuentas de Odoo** | Hoy los tres pagos terminan en WhatsApp/tienda; si se quieren conservar, siguen en Odoo detrás de `run_worker_first` (despiertan el contenedor solo cuando alguien compra). |
+| **Privacidad** (SW-01) | El prototipo ya no carga terceros (0 orígenes externos: sin Google Fonts ni iframe de Maps). |
+
+**Si el dueño prefiere quedarse con el sitio en Odoo (A):** se puede, pero hay que (1) quitar `Set-Cookie` a anónimos
+en rutas cacheables, (2) cambiar el «Agregar» sin JS por el de JSON-RPC (el de formulario rompe con CSRF), (3)
+migrar de `caches.default` a Workers Cache con `stale-while-revalidate` y `Cache-Tag`, (4) purgar por etiqueta desde
+Odoo. Gana TTFB, no gana el peso de 1-2 MB ni el TBT de 0,8-1,4 s, y Odoo sigue despierto. No lo recomiendo.
+
+## 6. Archivos entregados
+
+- `docs/auditoria/ronda3/sitio-edge/prototipo/` — `generar.mjs`, `package.json`, `.gitignore` (excluye
+  `node_modules/` y `dist/`). Regenerar: `cd prototipo && npm i && SOLO=XHT022-T-W,ALJ021439 node generar.mjs`
+  (sin `SOLO`, todas las fichas con galería) y `npm run serve` (puerto 8191).
+- `docs/auditoria/ronda3/sitio-edge/herramientas/` — `servir.js` (proxy con Brotli para Odoo / servidor estático),
+  `run.sh` (Lighthouse ×N), `resumen.js` (medianas), `base.sh` y `proto.sh` (las corridas de este informe).
+- `docs/auditoria/ronda3/sitio-edge/lighthouse/` — `linea-base-odoo.{json,md}`, `prototipo.{json,md}`,
+  `prototipo-v1-cls.json` (resúmenes; los JSON completos de Lighthouse, ~700 KB c/u, no se versionan).
+- `docs/auditoria/ronda3/sitio-edge/variantes-imagenes.json` — pesos de las variantes generadas.
+
+## 7. Coordinación
+
+- `r3-reconstruccion` adoptó este trabajo como **Fase 1** de su híbrido con criterios de salida LCP < 2,5 s y
+  Lighthouse ≥ 90: el prototipo los cumple en las 5 páginas medidas (LCP 1,6-2,2 s, 99-100 pts); falta «0 pedidos
+  perdidos» y «Odoo sin tráfico anónimo», que dependen del Worker real.
+- `r3-cf-plataforma` confirmó que, sin sacar el sitio de Odoo, el contenedor converge a 24/7; sus costos de
+  contenedor son los que uso en §2 y §5.
+- La compresión al cliente la hace Cloudflare sola en las respuestas de un Worker (gzip/brotli según el cliente;
+  https://developers.cloudflare.com/workers/runtime-apis/fetch/): por eso la línea base se midió con Brotli delante.
