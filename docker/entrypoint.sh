@@ -11,6 +11,8 @@
 # 1. Genera odoo.conf a partir de variables de entorno (sin secretos en la imagen).
 # 2. Base nueva  -> instala los módulos de D'CASA con español (+ respaldo completo).
 #    Base existente con otra versión de la imagen -> actualiza los módulos de D'CASA.
+#    Luego fija dónde van los adjuntos: ir_attachment.location = r2 si hay credenciales
+#    de R2 (addons/dcasa_adjuntos_r2), db si no.
 # 3. Saneo del usuario admin (idempotente, en CADA arranque hasta que quede hecho):
 #    si admin sigue con la clave «admin», se cambia antes de abrir el puerto.
 # 4. web.base.url = https://CANONICAL_HOST, congelada.
@@ -28,6 +30,12 @@
 #   R2_ENDPOINT, R2_BUCKET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, PGBACKREST_CIPHER_PASS
 #                         repositorio de respaldos en R2 (obligatorias en modo local; las
 #                         opcionales R2_* / RESPALDO_* / PG_* están en docker/pg.sh).
+#                         Odoo recibe copia de las cuatro R2_* (y R2_REGION/R2_VERIFY_TLS)
+#                         como DCASA_ADJUNTOS_R2_* para guardar los adjuntos en R2
+#                         (prefijo adjuntos/ del mismo bucket). Nunca la clave de cifrado.
+#   DCASA_ADJUNTOS        «r2» (por defecto) o «db»: dónde se guardan los adjuntos NUEVOS.
+#                         Con «db» Odoo sigue leyendo los que están en R2 y un cron los
+#                         trae de vuelta a la base por lotes (emergencia).
 #   CANONICAL_HOST        dominio público (dcasapty.com): fija web.base.url.
 #   DB_NAME               nombre de la base (por defecto dcasa).
 #   DB_MODO               «local» (por defecto si no hay DB_HOST) o «externo»: PostgreSQL
@@ -53,6 +61,16 @@ fi
 ENTRYPOINT_T0=$SECONDS
 ODOO_PID=""
 VIG_PID=""
+
+# Adjuntos en R2 (addons/dcasa_adjuntos_r2): variables propias para el proceso de Odoo.
+adjuntos_r2_exportar() {
+  [[ -n "${R2_ENDPOINT:-}" && -n "${R2_BUCKET:-}" && -n "${R2_ACCESS_KEY_ID:-}" && -n "${R2_SECRET_ACCESS_KEY:-}" ]] \
+    || return 0
+  export DCASA_ADJUNTOS_R2_ENDPOINT="$R2_ENDPOINT" DCASA_ADJUNTOS_R2_BUCKET="$R2_BUCKET" \
+    DCASA_ADJUNTOS_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" DCASA_ADJUNTOS_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" \
+    DCASA_ADJUNTOS_R2_REGION="${R2_REGION:-auto}" \
+    DCASA_ADJUNTOS_R2_VERIFY_TLS="${R2_VERIFY_TLS:-${PGBACKREST_REPO1_STORAGE_VERIFY_TLS:-y}}"
+}
 APAGANDO=0
 INSTALADA=0
 
@@ -104,7 +122,10 @@ if [[ "$DB_MODO" == "local" ]]; then
   fi
   pg_preparar_base "$DB_NAME"
   echo "✔ PostgreSQL listo ($PG_ORIGEN) en $((SECONDS - ENTRYPOINT_T0)) s"
-  # Odoo no hereda nada de R2: las credenciales quedan solo en archivos 600 de PG_BASE.
+  # Odoo no hereda las variables de respaldo (ni la clave de cifrado): solo la copia
+  # DCASA_ADJUNTOS_R2_* para los adjuntos. Corre con el mismo usuario que lee r2.env, así
+  # que esto no es una frontera de seguridad: ver docs/OPERACION.md «Adjuntos en R2».
+  adjuntos_r2_exportar
   unset R2_ENDPOINT R2_BUCKET R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY PGBACKREST_CIPHER_PASS RESPALDO_DUMP_PASS
   DB_HOST="$PG_SOCKET_DIR"
   DB_PORT="$PG_PORT"
@@ -115,12 +136,13 @@ else
   : "${DB_HOST:?Falta DB_HOST}"
   : "${DB_USER:?Falta DB_USER}"
   : "${DB_PASSWORD:?Falta DB_PASSWORD}"
+  adjuntos_r2_exportar
 fi
 
 DB_PORT="${DB_PORT:-5432}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
@@ -283,6 +305,30 @@ else
     # instalados no hace nada. -u actualiza los instalados.
     odoo -d "$DB_NAME" -i "$ODOO_MODULES" -u "$ODOO_MODULES" --stop-after-init
     set_param dcasa.deployed_version "$APP_VERSION"
+  fi
+fi
+
+# --- 2b. Dónde van los adjuntos ------------------------------------------------
+# r2 solo con credenciales y con dcasa_adjuntos_r2 instalado (sin el módulo, Odoo no
+# conoce «r2» y fallaría). Los que siguen en la base los sube el cron del módulo por lotes.
+# Nunca se borra nada de R2 al cambiar: ver docs/OPERACION.md «Adjuntos en R2».
+adjuntos_ubicacion="db"
+case "${DCASA_ADJUNTOS:-r2}" in
+  r2) [[ -n "${DCASA_ADJUNTOS_R2_BUCKET:-}" ]] && adjuntos_ubicacion="r2" ;;
+  db) echo "▶ DCASA_ADJUNTOS=db: adjuntos nuevos en la base; el cron trae de vuelta los de R2" ;;
+  *) echo "⚠ DCASA_ADJUNTOS inválido («$DCASA_ADJUNTOS»): se usa «db»." >&2 ;;
+esac
+if [[ "$adjuntos_ubicacion" == "r2" \
+  && "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_adjuntos_r2'")" != "installed" ]]; then
+  echo "⚠ dcasa_adjuntos_r2 no está instalado: los adjuntos se quedan en la base." >&2
+  adjuntos_ubicacion="db"
+fi
+set_param ir_attachment.location "$adjuntos_ubicacion"
+echo "▶ Adjuntos: ir_attachment.location = $adjuntos_ubicacion"
+if [[ -z "${DCASA_ADJUNTOS_R2_BUCKET:-}" ]]; then
+  en_r2="$(sql "SELECT count(*) FROM ir_attachment WHERE store_fname LIKE 'r2://%'")"
+  if ((en_r2 > 0)); then
+    echo "⚠ Hay $en_r2 adjuntos en R2 y no hay credenciales de R2: esos archivos no se podrán leer." >&2
   fi
 fi
 

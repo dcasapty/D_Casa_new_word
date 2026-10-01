@@ -210,8 +210,9 @@ jobs:
         run: |
           # archive_timeout = 60 s: en ≤ 3 min tiene que haber objetos subidos al bucket.
           for _ in $(seq 1 36); do
-            if grep -qE '"PUT /dcasa-ci/' "$RUNNER_TEMP/s3/moto.log"; then
-              echo "pgBackRest sube al bucket: $(grep -cE '"PUT /dcasa-ci/' "$RUNNER_TEMP/s3/moto.log") PUT."
+            # Solo el repositorio de pgBackRest: los adjuntos (adjuntos/) también suben al bucket.
+            if grep -qE '"PUT /dcasa-ci/pgbackrest/' "$RUNNER_TEMP/s3/moto.log"; then
+              echo "pgBackRest sube al bucket: $(grep -cE '"PUT /dcasa-ci/pgbackrest/' "$RUNNER_TEMP/s3/moto.log") PUT."
               exit 0
             fi
             sleep 5
@@ -219,6 +220,25 @@ jobs:
           echo "::error::En 3 minutos no llegó nada al bucket de respaldos (¿archivado de WAL roto?)."
           tail -50 "$RUNNER_TEMP/s3/moto.log" || true
           exit 1
+      - name: Los adjuntos van a R2 (prefijo adjuntos/) y se leen de vuelta
+        run: |
+          jar="$RUNNER_TEMP/cookies"
+          curl -fsS -c "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/session/authenticate \
+            -d '{"jsonrpc":"2.0","params":{"db":"dcasa","login":"admin","password":"ci-admin"}}' >/dev/null
+          texto="adjunto de prueba $GITHUB_SHA"
+          cuerpo="$(TEXTO="$texto" python3 -c 'import base64, json, os
+          datos = base64.b64encode(os.environ["TEXTO"].encode()).decode()
+          print(json.dumps({"jsonrpc": "2.0", "params": {"model": "ir.attachment", "method": "create",
+                            "args": [{"name": "ci-r2.txt", "datas": datos}], "kwargs": {}}}))')"
+          id="$(curl -fsS -b "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/dataset/call_kw \
+            -d "$cuerpo" | python3 -c 'import json, sys; print(json.load(sys.stdin)["result"])')"
+          curl -fsS -b "$jar" "http://localhost:8069/web/content/$id" | grep -qF "$texto"
+          if ! grep -qE '"PUT /dcasa-ci/adjuntos/' "$RUNNER_TEMP/s3/moto.log"; then
+            echo "::error::El adjunto no llegó a R2 (adjuntos/): ¿ir_attachment.location quedó en db?"
+            docker logs odoo 2>&1 | grep -iE 'adjunto|r2' | tail -20 || true
+            exit 1
+          fi
+          echo "Adjunto $id en R2: $(grep -cE '"PUT /dcasa-ci/adjuntos/' "$RUNNER_TEMP/s3/moto.log") PUT en adjuntos/."
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 

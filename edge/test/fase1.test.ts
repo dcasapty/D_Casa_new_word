@@ -291,6 +291,8 @@ describe("contenedor único con PostgreSQL local", () => {
       expect(vars).not.toHaveProperty(nombre);
     }
     expect(variablesDelContenedor({ DCASA_ENTORNO: "staging" }).DCASA_ENTORNO).toBe("staging");
+    expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
+    expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
   });
 
   it("detecta los secretos que faltan para arrancar", () => {

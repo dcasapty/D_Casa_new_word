@@ -15,9 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev libldap2-dev libsasl2-dev libjpeg-dev zlib1g-dev libxml2-dev libxslt1-dev \
     && rm -rf /var/lib/apt/lists/*
 COPY vendor/odoo/requirements.txt /tmp/requirements.txt
+COPY docker/requirements-dcasa.txt /tmp/requirements-dcasa.txt
 RUN python3 -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir --upgrade pip wheel \
-    && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt
+    && /opt/venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt -r /tmp/requirements-dcasa.txt
 
 # --- 2. Código de Odoo, sin traducciones que no usamos ----------------------
 FROM ubuntu:${UBUNTU_VERSION} AS source
@@ -75,6 +76,7 @@ RUN chmod 755 /usr/local/bin/dcasa-entrypoint /usr/local/bin/dcasa-respaldo \
 #   PostgreSQL 16 + pgBackRest + openssl (NUEVA: servidor 43 MB,
 #     libllvm17 118 MB que exige el paquete por JIT, locales 17 MB) ~0,18 GB
 #   /opt/venv (requirements de Odoo 19; medido con Python 3.12) .. ~0,22 GB
+#     + boto3/botocore (adjuntos en R2, docker/requirements-dcasa.txt) ~0,035 GB
 #   /opt/odoo sin .po salvo es/es_419 (1,24 GB − 0,78 GB) ......... ~0,45 GB
 #   addons/ + scripts ............................................. ~0,03 GB
 #   Total ............................................ ~1,3 GB (≈ 1/3 del disco)
