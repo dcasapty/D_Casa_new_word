@@ -56,7 +56,7 @@ def ws_abierto(base, parar):
 if __name__ == '__main__':
     etiqueta, workers, cron, minutos = sys.argv[1:5]
     con_ws = '--ws' in sys.argv
-    campana.pg_reinicia('128MB', '-c log_min_duration_statement=0 -c log_line_prefix=%m|%a|%p|_ '
+    campana.pg_reinicia('128MB', '-c log_min_duration_statement=0 -c log_line_prefix=%m:%a:%p: '
                                  '-c log_connections=on -c log_disconnections=on')
     log = '/tmp/r3_med_pgdata/server.log'
     port = 8172
