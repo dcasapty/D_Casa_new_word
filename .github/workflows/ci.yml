@@ -59,6 +59,14 @@ jobs:
           PY
       - name: Shellcheck (arranque, scripts y scripts de CI)
         run: shellcheck docker/*.sh scripts/*.sh .github/scripts/*.sh
+      - name: La imagen no reabre /dev/stderr ni /dev/stdout por ruta
+        # En Cloudflare Containers stderr/stdout son sockets: abrirlos por ruta da ENXIO
+        # (así no arrancó PostgreSQL en el primer despliegue a staging). Se hereda el descriptor.
+        run: |
+          if grep -nE '/dev/std(err|out)|/proc/self/fd/[12]' docker/*.sh scripts/respaldo.sh docker/Dockerfile; then
+            echo "::error::Usa >&2 / >&1 (heredar el descriptor) en lugar de abrir /dev/stderr o /dev/stdout por ruta."
+            exit 1
+          fi
       - name: actionlint (workflows, con shellcheck de los run:)
         run: actionlint -color
 
