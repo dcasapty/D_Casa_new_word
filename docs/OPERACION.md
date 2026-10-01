@@ -29,10 +29,12 @@ Según `docs/auditoria/ronda3/cf-plataforma.md` (precios oficiales de Cloudflare
 |---|---|
 | Producción: plan Workers Paid ($5) + contenedor `basic` encendido 24/7 | **≈ $12** ($11,93 a $12,78 según cuánto trabaje el procesador) |
 | Respaldos en R2 | $0 mientras todo quepa en los 10 GB gratis (hoy la base pesa unos cientos de MB) |
-| Staging (entorno de prueba) | solo las horas que está despierto; se duerme solo tras 1 h sin visitas |
+| Staging (entorno de prueba) | solo las horas que está despierto; se duerme solo tras 1 h sin visitas y el cron horario **no** lo despierta (antes lo tenía encendido ~50 % del tiempo: ≈ +$4/mes) |
 | Brian (inteligencia artificial) | aparte: lo que consuma el proveedor de IA |
 
 Revisar la factura real el primer mes (panel de Cloudflare → *Billing*) y compararla con esta tabla.
+Para que nada crezca sin avisar, ver «Barandas de costo» más abajo (alertas de presupuesto, reglas de
+R2, depuración y reporte mensual). Detalle de qué crece y cuándo: `docs/auditoria/ronda4/costos-y-limpieza.md`.
 
 ---
 
@@ -117,6 +119,8 @@ tocar nada y dice qué falta.
 
 Staging se duerme tras 1 hora sin visitas; la siguiente visita lo despierta (muestra «estamos
 arrancando» unos segundos) y **restaura la base desde R2**: cada despertar es un pequeño simulacro.
+Mientras duerme **no corre nada**: ni el cron horario del Worker lo despierta ni se hace el respaldo
+diario (no hay cambios que respaldar). Producción, en cambio, sigue encendida 24/7.
 
 ## Desplegar a producción
 
@@ -152,7 +156,8 @@ quien mantiene el sistema: es la regla de salida de la Fase 1.
    - `"odoo": "sin_configurar"` (con `faltan`) → falta un secreto en Cloudflare: revisar el
      environment de GitHub y volver a desplegar.
    - `"odoo": "detenido"` o `"error"` → ver los logs (abajo). El sistema intenta rearrancar solo a los
-     30 s (como mucho una vez cada 10 min) y además cada hora.
+     30 s (como mucho una vez cada 10 min) y además cada hora (solo producción; staging espera a la
+     próxima visita).
 2. ¿Se cayó justo después de un despliegue? → **Volver atrás un despliegue** (abajo).
 3. ¿Sigue caído y no hubo despliegue? → revisar en los logs si falla la restauración desde R2
    (`arranque_fallido`) y avisar a quien mantiene el sistema. **No borrar nada en R2.**
@@ -192,12 +197,94 @@ esa hora y promueve la base. Se aplica **una sola vez**: queda una marca en R2 (
 reinicio posterior con la variable aún puesta no vuelve a restaurar. Después de comprobar que todo
 está bien, quitar la variable. Ensayado en el simulacro (`scripts/simulacro_restauracion.sh`).
 
+## Barandas de costo (hacer una vez, en el panel de Cloudflare)
+
+Nada de esto se configura desde el código: lo hace el dueño en el panel, una sola vez.
+
+### Alertas de presupuesto ($10 y $20)
+
+Avisan por correo cuando el gasto **por uso** proyectado del mes (aparte de los $5 fijos del plan)
+pasa de un monto. **No cortan el servicio**, solo avisan; se calculan una vez al día.
+
+1. Panel de Cloudflare → **Manage Account** → **Billing** → **Billable Usage**.
+2. **Set Budget Alert** → monto `10` → **Create**.
+3. Repetir con `20`.
+4. (Otra vía: **Notifications** → **Add** → **Budget Alert**.)
+
+Ruta verificada en la documentación oficial (changelog «Billable Usage dashboard and Budget alerts»,
+2026-04-13). Desde 2026-06-15 Cloudflare crea una de $10 por defecto: si ya existe, crear solo la de $20.
+En la misma página **Billable Usage** se ve el gasto día a día por producto.
+
+### Reglas de ciclo de vida de R2
+
+Red de seguridad por si la poda del script falla, y la copia anual a almacenamiento barato. En el
+bucket `dcasa-respaldos` (y, con 7 días en `pg_dump/`, en `dcasa-respaldos-staging`):
+
+| Regla | Prefijo | Acción |
+|---|---|---|
+| `volcados-35-dias` | `pg_dump/` | borrar a los **35 días** (el script ya poda a los 30) |
+| `anual-ia` | `anual/` | pasar a **Infrequent Access** a los **30 días** (nunca borrar) |
+| `multipart-1-dia` | *(todo el bucket)* | abortar subidas por partes incompletas a **1 día** |
+
+**No** poner ninguna regla sobre `pgbackrest/`: pgBackRest borra lo suyo, y borrar por fuera rompe la
+cadena de respaldos.
+
+Desde una terminal con `wrangler` (comandos verificados en la documentación de Wrangler):
+
+```bash
+cd edge
+npx wrangler r2 bucket lifecycle add dcasa-respaldos volcados-35-dias pg_dump/ --expire-days 35
+npx wrangler r2 bucket lifecycle add dcasa-respaldos anual-ia anual/ --ia-transition-days 30
+npx wrangler r2 bucket lifecycle add dcasa-respaldos multipart-1-dia --abort-multipart-days 1
+npx wrangler r2 bucket lifecycle add dcasa-respaldos-staging volcados-7-dias pg_dump/ --expire-days 7
+npx wrangler r2 bucket lifecycle list dcasa-respaldos     # comprobar
+```
+
+Desde el panel: **R2 Object Storage** → el bucket → **Settings** → *Object lifecycle rules* → **Add
+rule** (nombre, prefijo y acción como en la tabla). *Ruta del panel NO VERIFICADA en la documentación;
+los comandos de arriba sí.*
+
+### Copia anual de cierre
+
+El **primer volcado diario de cada año** (el de la madrugada del 1 de enero = la base al cierre del año
+anterior) se copia solo a `anual/dcasa-AAAAMMDDTHHMMSSZ.dump.enc` y **no se borra nunca** (la poda de 30
+días solo mira `pg_dump/`). Ocupa ~1 volcado por año; con la regla `anual-ia` cuesta centavos. El año
+en que se estrena el sistema, la copia anual es el primer volcado que se haga. Plazo legal de
+conservación en Panamá: **confirmarlo con el contador** (se cita 5 años, NO VERIFICADO). Para
+restaurarla: igual que un volcado diario (`openssl … | pg_restore`, ver `docker/pg.sh`). Se listan con
+`dcasa-respaldo info`.
+
+El volcado diario ya no se escribe entero en el disco del contenedor: sube a R2 por partes de 64 MB
+(`RESPALDO_DUMP_PARTE_MB`), así el disco de 4 GB alcanza para una base más grande.
+
+### Depuración y reporte mensual (automáticos, día 1 de cada mes)
+
+Dos acciones planificadas de Odoo (Ajustes → Técnico → Acciones planificadas, «D'CASA: …»):
+
+- **Depuración** (03:30 Panamá): borra archivos adjuntos huérfanos (de registros que ya no existen, con
+  más de 7 días) y correos que fallaron hace más de 90 días. **Nunca** toca facturas, contabilidad, el
+  libro de Socios ni el registro de Brian, ni archivos que algo todavía usa. Deja una línea
+  `DCASA_LIMPIEZA adjuntos_huerfanos=… bytes_liberados=… correos_fallidos=…`.
+- **Reporte de tamaños** (03:45 Panamá): tamaño de la base, las 10 tablas más grandes, bytes de
+  adjuntos por tipo de registro y memoria real del contenedor, en una línea `DCASA_METRICA {…}`.
+  Si la base pasa de **0,7 GB** (o hubo un corte por falta de memoria) deja `DCASA_ALERTA`: es la señal
+  para sacar los archivos a R2 o subir el contenedor de tamaño **antes** de llegar a ~1 GB.
+
+Las dos quedan también en Odoo: Ajustes → Técnico → **Registros** (`dcasa.limpieza`,
+`dcasa.reporte_tamanos`). Umbrales (Ajustes → Técnico → Parámetros del sistema):
+`dcasa.limpieza.adjuntos_dias` (7), `dcasa.limpieza.correos_fallidos_dias` (90),
+`dcasa.limpieza.modelos_protegidos` (vacío: modelos extra que no se tocan, separados por coma),
+`dcasa.reporte.alerta_gb` (0.7). Lo que Odoo ya limpia solo (visitantes del sitio a los 60 días,
+sesiones a los 7, notificaciones, bus) no se repite.
+
 ## Dónde ver los logs
 
 | Qué | Dónde |
 |---|---|
 | Lo que pasa en el sitio (arranques, caídas, respaldos) | Panel de Cloudflare → *Workers & Pages* → `dcasa` (o `dcasa-staging`) → **Logs**. Buscar eventos `arranque_listo`, `arranque_fallido`, `contenedor_detenido`, `respaldo` |
-| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs |
+| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs. Para no gastar eventos de log, Odoo no escribe una línea por visita (`werkzeug:WARNING`; los errores sí salen) y PostgreSQL no anota los *checkpoints*. Para depurar: variable `ODOO_LOG_HANDLER=werkzeug:INFO` |
+| Memoria real del contenedor | Buscar `"evento": "memoria"` en los logs del contenedor: una línea ~3 min después de cada arranque (`momento: arranque`) y otra cada vez que Odoo se cae (`odoo_caido`). `cgroup.anon` = memoria que de verdad usan los procesos; `cgroup.file` = caché de disco (el kernel la libera sola; el gráfico del panel puede incluirla); `procesos.odoo` / `procesos.postgres` = RSS y PSS (la PSS de PostgreSQL es la buena: la RSS cuenta `shared_buffers` en cada proceso); `cgroup.eventos.oom_kill` > 0 = el kernel mató un proceso por falta de memoria. También va dentro del reporte mensual (`DCASA_METRICA`) |
+| Depuración y tamaños del mes | Logs del contenedor: `DCASA_LIMPIEZA`, `DCASA_METRICA`, `DCASA_ALERTA`; o en Odoo: Ajustes → Técnico → **Registros** |
 | En vivo desde una terminal | `cd edge && npx wrangler tail --env=""` (staging: `--env=staging`) |
 | Despliegues y pruebas | GitHub → **Actions** → la ejecución → cada paso; el *Summary* trae la versión desplegada y el respaldo previo |
 
@@ -207,5 +294,6 @@ está bien, quitar la variable. Ensayado en el simulacro (`scripts/simulacro_res
 |---|---|
 | lunes | revisar los PR de Dependabot (actualizaciones): si el CI está en verde, aprobar. Los que suban PostgreSQL de versión mayor se cierran |
 | despliegue | aprobarlo fuera del horario de venta y mirar el sitio al terminar |
-| mes | simulacro de restauración en staging; revisar la factura de Cloudflare |
+| mes | simulacro de restauración en staging; revisar la factura de Cloudflare (*Billable Usage*) y el reporte `DCASA_METRICA` del día 1 (¿la base se acerca a 0,7 GB?) |
+| enero | comprobar con `dcasa-respaldo info` que existe la copia anual del año que cerró |
 | siempre | las claves `PGBACKREST_CIPHER_PASS` y `DCASA_PIN_PEPPER` guardadas en el gestor de contraseñas, nunca cambiadas |

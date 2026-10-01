@@ -21,6 +21,10 @@
 #   R2_REGION              «auto» (R2)            R2_VERIFY_TLS   y | n (n solo en pruebas)
 #   R2_RUTA_PG             /pgbackrest            ruta del repositorio pgBackRest en el bucket
 #   R2_RUTA_DUMP           pg_dump                ruta de los volcados lógicos (red de seguridad)
+#   R2_RUTA_ANUAL          anual                  copia de cierre: el primer volcado de cada año
+#                          se copia aquí y NO se poda (docs/OPERACION.md «Copia anual»)
+#   RESPALDO_DUMP_PARTE_MB 64                     el volcado sube por partes de este tamaño
+#                          (multipart S3): en disco solo hay una parte, no el volcado entero
 #   RESPALDO_DUMP_PASS     clave del cifrado de los volcados (por defecto PGBACKREST_CIPHER_PASS)
 #   PG_BASE                /var/lib/odoo/pg       todo lo de PostgreSQL vive aquí (disco efímero)
 #   PG_PORT                5432 (solo socket unix: no hay TCP)
@@ -84,6 +88,9 @@ R2_VERIFY_TLS="${R2_VERIFY_TLS:-${PGBACKREST_REPO1_STORAGE_VERIFY_TLS:-y}}"
 R2_RUTA_PG="${R2_RUTA_PG:-/pgbackrest}"
 R2_RUTA_DUMP="${R2_RUTA_DUMP:-pg_dump}"
 R2_RUTA_CONTROL="${R2_RUTA_CONTROL:-dcasa-control}"
+R2_RUTA_ANUAL="${R2_RUTA_ANUAL:-anual}"
+# Mínimo de S3/R2 para las partes (salvo la última): 5 MiB.
+RESPALDO_DUMP_PARTE_MB="${RESPALDO_DUMP_PARTE_MB:-64}"
 # Restauración a un punto en el tiempo (ver pg_arrancar). Vacía = lo último.
 PG_RESTAURAR_HASTA="${DCASA_RESTAURAR_HASTA:-}"
 
@@ -181,7 +188,7 @@ CONF
     printf 'export %s=%q\n' R2_ENDPOINT "$R2_ENDPOINT" R2_BUCKET "$R2_BUCKET" \
       R2_ACCESS_KEY_ID "$R2_ACCESS_KEY_ID" R2_SECRET_ACCESS_KEY "$R2_SECRET_ACCESS_KEY" \
       R2_REGION "$R2_REGION" R2_VERIFY_TLS "$R2_VERIFY_TLS" R2_RUTA_PG "$R2_RUTA_PG" \
-      R2_RUTA_DUMP "$R2_RUTA_DUMP" \
+      R2_RUTA_DUMP "$R2_RUTA_DUMP" R2_RUTA_ANUAL "$R2_RUTA_ANUAL" \
       RESPALDO_DUMP_PASS "${RESPALDO_DUMP_PASS:-$PGBACKREST_CIPHER_PASS}"
   } > "$PG_ENV_ARCHIVO"
   umask 022
@@ -241,7 +248,9 @@ hot_standby = on
 logging_collector = off
 log_destination = 'stderr'
 log_line_prefix = '%m [%p] pg: '
-log_checkpoints = on
+# Checkpoints en silencio (~2 líneas cada 5 min = eventos de log que nadie lee); los
+# errores, avisos y consultas lentas (> 5 s) siguen saliendo.
+log_checkpoints = off
 log_min_duration_statement = 5000
 CONF
   grep -qx "include 'dcasa.conf'" "$PG_DATA/postgresql.conf" \
@@ -567,34 +576,107 @@ else:
 }
 
 # Volcado lógico independiente de pgBackRest: pg_dump -Fc con zstd, cifrado con openssl
-# y subido por HTTPS firmado (SigV4) a R2_RUTA_DUMP. Borra los de más de RESPALDO_DUMP_DIAS.
+# y subido por HTTPS firmado (SigV4) a R2_RUTA_DUMP SIN archivo temporal completo: el flujo
+# sube por partes (r2_subir_flujo), así el disco efímero no necesita sitio para el volcado
+# entero (ronda4/costos-y-limpieza §3.3 a). Borra los de más de RESPALDO_DUMP_DIAS y deja
+# la copia anual de cierre (respaldo_anual).
 # Restaurar:  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:RESPALDO_DUMP_PASS \
 #               -in X.dump.enc | pg_restore -d <base> --no-owner
 respaldo_dump() {
-  local base="$1" sello archivo clave t0=$SECONDS
+  local base="$1" sello clave bytes t0=$SECONDS
   sello="$(date -u +%Y%m%dT%H%M%SZ)"
-  archivo="$PG_BASE/tmp/$base-$sello.dump.enc"
   clave="${R2_RUTA_DUMP#/}/$base-$sello.dump.enc"
   mkdir -p "$PG_BASE/tmp"
   pg_msg "▶ Volcado lógico de $base"
-  if ! (
+  if ! bytes="$(
     set -o pipefail
     "$PG_BIN/pg_dump" -h "$PG_SOCKET_DIR" -p "$PG_PORT" -U "$PG_SUPERUSER" -Fc -Z zstd:3 "$base" \
-      | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:RESPALDO_DUMP_PASS -out "$archivo"
-  ); then
-    rm -f "$archivo"
-    pg_alerta "pg_dump de $base falló"
+      | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:RESPALDO_DUMP_PASS \
+      | r2_subir_flujo "$clave"
+  )"; then
+    # Si pg_dump u openssl fallaron a mitad, la subida pudo completarse con un volcado
+    # truncado: se borra para que nadie lo tome por bueno.
+    r2_curl DELETE "$clave" >/dev/null 2>&1 || true
+    pg_alerta "volcado lógico de $base falló (pg_dump, cifrado o subida a R2)"
     return 1
   fi
-  if ! r2_curl PUT "$clave" -T "$archivo" >/dev/null; then
-    rm -f "$archivo"
-    pg_alerta "no pude subir el volcado $clave a R2"
-    return 1
-  fi
-  RESPALDO_DUMP_ULTIMO="${clave##*/} ($(du -k "$archivo" | cut -f1) KiB)"
+  RESPALDO_DUMP_ULTIMO="${clave##*/} ($((bytes / 1024)) KiB)"
   pg_msg "✔ Volcado $RESPALDO_DUMP_ULTIMO en $((SECONDS - t0)) s"
-  rm -f "$archivo"
+  respaldo_anual "$base" "$clave"
   respaldo_dump_podar "$base"
+}
+
+# Sube la entrada estándar a R2 como CLAVE e imprime los bytes subidos. Si cabe en una
+# parte, un PUT simple; si no, subida multipart (CreateMultipartUpload → UploadPart de
+# RESPALDO_DUMP_PARTE_MB cada una → CompleteMultipartUpload). En disco solo vive la parte
+# en curso. Ante cualquier fallo aborta la subida (R2 no guarda partes sueltas) y da error.
+r2_subir_flujo() (
+  set -o pipefail
+  local clave="$1" tam_parte=$((RESPALDO_DUMP_PARTE_MB * 1024 * 1024)) dir n=0 total=0 tam
+  local id="" etag respuesta partes=""
+  dir="$(mktemp -d "$PG_BASE/tmp/subida.XXXXXX")" || exit 1
+  # shellcheck disable=SC2317,SC2329  # se invoca desde trap EXIT
+  abortar() { [[ -n "$id" ]] && r2_curl DELETE "$clave?uploadId=$id" >/dev/null 2>&1; rm -rf "$dir"; }
+  trap 'abortar' EXIT
+  while :; do
+    head -c "$tam_parte" >"$dir/parte" || exit 1
+    tam="$(stat -c %s "$dir/parte")"
+    if ((n == 0 && tam < tam_parte)); then
+      r2_curl PUT "$clave" -T "$dir/parte" >/dev/null || exit 1
+      rm -rf "$dir"
+      trap - EXIT
+      echo "$tam"
+      exit 0
+    fi
+    ((tam > 0)) || break
+    if [[ -z "$id" ]]; then
+      respuesta="$(r2_curl POST "$clave?uploads")" || exit 1
+      id="$(sed -n 's:.*<UploadId>\([^<]*\)</UploadId>.*:\1:p' <<<"$respuesta")"
+      [[ -n "$id" ]] || { pg_msg "✖ R2 no devolvió UploadId: $respuesta"; exit 1; }
+      # El UploadId va en la URL: codificado (puede traer + / =).
+      id="$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$id")"
+    fi
+    n=$((n + 1))
+    etag="$(r2_curl PUT "$clave?partNumber=$n&uploadId=$id" -T "$dir/parte" -D - -o /dev/null \
+      | tr -d '\r' | sed -n 's/^[Ee][Tt][Aa][Gg]: *//p')" || exit 1
+    [[ -n "$etag" ]] || { pg_msg "✖ R2 no devolvió ETag de la parte $n"; exit 1; }
+    partes+="<Part><PartNumber>$n</PartNumber><ETag>$etag</ETag></Part>"
+    total=$((total + tam))
+    ((tam == tam_parte)) || break
+  done
+  printf '<CompleteMultipartUpload>%s</CompleteMultipartUpload>' "$partes" >"$dir/fin.xml"
+  respuesta="$(r2_curl POST "$clave?uploadId=$id" -H "Content-Type: application/xml" \
+    --data-binary "@$dir/fin.xml")" || exit 1
+  # S3 puede responder 200 con un <Error> en el cuerpo.
+  if [[ "$respuesta" == *"<Error>"* || "$respuesta" != *"CompleteMultipartUploadResult"* ]]; then
+    pg_msg "✖ R2 no completó la subida multipart: $respuesta"
+    exit 1
+  fi
+  rm -rf "$dir"
+  trap - EXIT
+  echo "$total"
+)
+
+# Copia anual de cierre: el PRIMER volcado de cada año (en la práctica, el del 1 de enero
+# = la base al cierre del año anterior) se copia en R2 (CopyObject, sin volver a subirlo)
+# a R2_RUTA_ANUAL/, que respaldo_dump_podar no toca (solo lista R2_RUTA_DUMP). La regla de
+# ciclo de vida de R2 lo pasa a Infrequent Access (docs/OPERACION.md). Si falla, avisa y no
+# hace fallar el respaldo diario: se reintenta en el próximo volcado.
+respaldo_anual() {
+  local base="$1" origen="$2" anio existentes destino respuesta
+  anio="$(date -u +%Y)"
+  existentes="$(pgbr_raiz --io-timeout=20 repo-ls "${R2_RUTA_ANUAL#/}" --filter="^$base-${anio}[0-9]{4}T.*\.dump\.enc\$")" || {
+    pg_alerta "no pude listar la copia anual en /${R2_RUTA_ANUAL#/}"
+    return 0
+  }
+  [[ -z "$existentes" ]] || return 0
+  destino="${R2_RUTA_ANUAL#/}/${origen##*/}"
+  if ! respuesta="$(r2_curl PUT "$destino" -H "x-amz-copy-source: /$R2_BUCKET/$origen" -H "Content-Length: 0")" \
+    || [[ "$respuesta" == *"<Error>"* ]]; then
+    pg_alerta "no pude copiar el volcado $origen a $destino (copia anual): $respuesta"
+    return 0
+  fi
+  pg_msg "✔ Copia anual de cierre $anio: $destino (no se poda)"
 }
 
 # Lista los volcados (nombre por línea, ascendente) usando el cliente S3 de pgBackRest.

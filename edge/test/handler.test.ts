@@ -125,6 +125,22 @@ describe("runScheduled (cron horario)", () => {
     }
   });
 
+  it("staging (puede dormir): si está apagado lo deja dormido", async () => {
+    for (const status of ["stopped", "stopped_with_code"]) {
+      const wake = vi.fn(async () => new Response("ok"));
+      expect(await runScheduled({ status: async () => status, wake, siempreEncendido: false })).toBe("dormido");
+      expect(wake).not.toHaveBeenCalled();
+    }
+    const wake = vi.fn();
+    expect(await runScheduled({ status: async () => "healthy", wake, siempreEncendido: false })).toBe("encendido");
+  });
+
+  it("producción 24/7: lo despierta aunque se pase la política explícita", async () => {
+    const wake = vi.fn(async () => new Response("ok"));
+    expect(await runScheduled({ status: async () => "stopped", wake, siempreEncendido: true })).toBe("despertado");
+    expect(wake).toHaveBeenCalledOnce();
+  });
+
   it("despierta a Odoo una vez si está apagado", async () => {
     for (const status of ["stopped", "stopped_with_code"]) {
       const wake = vi.fn(async () => new Response("ok"));

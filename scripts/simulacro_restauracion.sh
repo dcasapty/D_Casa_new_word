@@ -314,6 +314,22 @@ DUMPS="$(respaldo_dump_listar "$BASE_SIM" | wc -l)"
 if [[ "$ULTIMO_TIPO" == "incr" && "$DUMPS" -ge 1 ]]; then E=OK; else E=FALLA; fi
 anotar "ciclo=3 respaldo_auto: último=$ULTIMO_TIPO volcados=$DUMPS" "$E"
 
+echo "▶ Ciclo 3b: copia anual de cierre (una por año, fuera de la poda) y subida por partes"
+sleep 1   # otro sello de tiempo para el segundo volcado
+"$ROOT/scripts/respaldo.sh" dump
+anuales() { pgbr_raiz repo-ls "${R2_RUTA_ANUAL#/}" --filter="^$BASE_SIM-.*\\.dump\\.enc\$" | wc -l; }
+ANUALES="$(anuales)"
+DUMPS_3B="$(respaldo_dump_listar "$BASE_SIM" | wc -l)"
+exportar_r2
+head -c $((12 * 1024 * 1024 + 123)) /dev/urandom >"$SIM_DIR/flujo.bin"
+BYTES_FLUJO="$(RESPALDO_DUMP_PARTE_MB=5 r2_subir_flujo "simulacro/flujo.bin" <"$SIM_DIR/flujo.bin")"
+r2_curl GET "simulacro/flujo.bin" -o "$SIM_DIR/flujo.r2"
+if cmp -s "$SIM_DIR/flujo.bin" "$SIM_DIR/flujo.r2"; then FLUJO=igual; else FLUJO=DISTINTO; fi
+rm -f "$SIM_DIR/flujo.bin" "$SIM_DIR/flujo.r2"
+r2_curl DELETE "simulacro/flujo.bin" >/dev/null
+if [[ "$ANUALES" == 1 && "$DUMPS_3B" -ge 2 && "$FLUJO" == igual ]]; then E=OK; else E=FALLA; fi
+anotar "ciclo=3b copias_anuales=$ANUALES (esperada 1) volcados=$DUMPS_3B multipart=${BYTES_FLUJO}B $FLUJO" "$E"
+
 ciclo 4 ordenado "${CARGAS[2]}"
 
 echo "▶ Ciclo 5: el volcado lógico de R2 se restaura en otra base"

@@ -248,7 +248,8 @@ export default {
 
   /**
    * Crons (wrangler.jsonc, ver CRON_HORARIO y CRON_RESPALDO en src/handler.ts):
-   * - horario: si Odoo está apagado lo despierta; si está encendido no hace nada;
+   * - horario: si Odoo está apagado lo despierta (solo en 24/7; staging sigue dormido);
+   *   si está encendido no hace nada;
    * - diario de madrugada (Panamá): respaldo lógico dentro del contenedor.
    */
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -261,6 +262,8 @@ export default {
       runScheduled({
         status: async () => (await container.getState()).status,
         wake: () => container.fetch(new Request("http://odoo/web/health")),
+        // Staging (ODOO_DORMIR_TRAS con duración) no se despierta por el cron: duerme.
+        siempreEncendido: politicaDeSueno(env.ODOO_DORMIR_TRAS).siempreEncendido,
       }).then((resultado) => console.log(`cron: Odoo ${resultado}`)),
     );
   },

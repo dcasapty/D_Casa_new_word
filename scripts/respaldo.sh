@@ -15,11 +15,14 @@
 #                           docker/entrypoint.sh cada hora (RESPALDO_REVISAR_S).
 #   respaldo.sh full|diff|incr   respaldo físico pgBackRest de ese tipo, ya.
 #   respaldo.sh dump        volcado lógico (pg_dump -Fc zstd, cifrado) a R2_RUTA_DUMP, ya.
+#                           Sube en flujo (multipart), sin escribir el volcado entero en disco.
 #   respaldo.sh info        estado del repositorio y de los volcados.
 #
 # Retención: pgBackRest guarda los completos de los últimos RESPALDO_RETENCION_DIAS (7)
 # días (con uno diario son ~8 completos) y su WAL ⇒ se puede volver a cualquier minuto de
-# esa semana. Los volcados lógicos se borran a los RESPALDO_DUMP_DIAS (30).
+# esa semana. Los volcados lógicos se borran a los RESPALDO_DUMP_DIAS (30), salvo el
+# primero de cada año, que se copia a R2_RUTA_ANUAL (anual/) y no se poda nunca: copia
+# de cierre (ver docs/OPERACION.md «Copia anual» y las reglas de ciclo de vida de R2).
 # Toda la lógica está en docker/pg.sh; este script solo la expone.
 set -euo pipefail
 
@@ -96,9 +99,11 @@ case "${1:-diario}" in
     pgbr info
     echo "Volcados lógicos en /${R2_RUTA_DUMP#/}:"
     respaldo_dump_listar "$DB_NAME"
+    echo "Copias anuales de cierre en /${R2_RUTA_ANUAL#/}:"
+    pgbr_raiz repo-ls "${R2_RUTA_ANUAL#/}" --filter="^$DB_NAME-.*\\.dump\\.enc\$"
     ;;
   *)
-    sed -n '2,22p' "$0"
+    sed -n '2,26p' "$0"
     exit 2
     ;;
 esac

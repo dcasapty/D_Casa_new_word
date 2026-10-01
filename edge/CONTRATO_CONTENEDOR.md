@@ -51,7 +51,7 @@ producción, que restaura la base desde R2 al arrancar. Fuente de verdad del có
 | Cron `7 * * * *` (cada hora) | Si el contenedor está apagado, lo enciende; si está encendido no hace nada. |
 | Cron `17 8 * * *` (03:17 Panamá) | Respaldo diario (§1). |
 | Inactividad (`ODOO_DORMIR_TRAS`) | Vacío = **24/7**: el temporizador se revisa pero nunca apaga. En staging `1h`: SIGTERM tras 1 h sin visitas. |
-| Parada (rollout, reinicio de host, salida del proceso) | `onStop` registra `exitCode` y motivo; en 24/7 programa un rearranque a los 30 s, como mucho uno cada 10 min (evita restaurar desde R2 en bucle). El cron horario es la red de seguridad. |
+| Parada (rollout, reinicio de host, salida del proceso) | `onStop` registra `exitCode` y motivo; en 24/7 programa un rearranque a los 30 s, como mucho uno cada 10 min (evita restaurar desde R2 en bucle). El cron horario es la red de seguridad (solo en 24/7: con `ODOO_DORMIR_TRAS` de duración, staging, no despierta al contenedor). |
 
 Eventos en Workers Logs (JSON): `arranque_iniciado`, `arranque_listo`, `arranque_fallido`,
 `arranque_bloqueado`, `contenedor_detenido`, `contenedor_error`, `respaldo`,
