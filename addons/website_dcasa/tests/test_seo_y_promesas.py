@@ -8,7 +8,7 @@ from odoo.addons.website_dcasa.controllers.main import _sin_disponibilidad
 from odoo.addons.website_dcasa.models.website import SEO_PORTADA
 from odoo.tests import HttpCase, TransactionCase, tagged
 
-PAGINAS_PUBLICAS = ('/', '/shop', '/visitanos', '/socios', '/contactus')
+PAGINAS_PUBLICAS = ('/', '/shop', '/visitanos', '/socios', '/contactus', '/privacidad', '/terminos')
 
 
 def _json_ld(html):

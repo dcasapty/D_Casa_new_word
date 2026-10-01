@@ -3,3 +3,4 @@ from . import test_tienda
 from . import test_seo_y_promesas
 from . import test_roles
 from . import test_itbms
+from . import test_legal

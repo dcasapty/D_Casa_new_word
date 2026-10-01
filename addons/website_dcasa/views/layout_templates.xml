@@ -169,6 +169,7 @@
                                 <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
                                 <p>Tu casa, bien amueblada. Camas, colchones, salas, muebles de TV,
                                     zapateras, estantes y escritorios, con la mejor atención y precios pensados para ti.</p>
+                                <p class="small mb-0">RUC 155779346-2-2026 DV7</p>
                             </div>
                             <div class="col-lg-2 pb24">
                                 <h2 class="o_dcasa_kicker">Tienda</h2>
@@ -177,6 +178,8 @@
                                     <li><a href="/socios">Socios: mis puntos</a></li>
                                     <li><a href="/my">Mi cuenta</a></li>
                                     <li><a href="/contactus">Contacto</a></li>
+                                    <li><a href="/privacidad">Privacidad</a></li>
+                                    <li><a href="/terminos">Términos y condiciones</a></li>
                                 </ul>
                             </div>
                             <div class="col-lg-3 pb24">

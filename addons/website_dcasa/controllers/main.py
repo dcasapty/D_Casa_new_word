@@ -93,6 +93,15 @@ class DcasaTienda(http.Controller):
         """Página exclusiva de la tienda: dirección, mapa, cómo llegar y contacto."""
         return request.render('website_dcasa.pagina_visitanos', {'latitud': LATITUD, 'longitud': LONGITUD})
 
+    @http.route('/privacidad', type='http', auth='public', website=True, sitemap=True)
+    def privacidad(self, **kwargs):
+        """Política de privacidad (Ley 81 de 2019), con el uso de inteligencia artificial."""
+        return request.render('website_dcasa.pagina_privacidad')
+
+    @http.route('/terminos', type='http', auth='public', website=True, sitemap=True)
+    def terminos(self, **kwargs):
+        return request.render('website_dcasa.pagina_terminos')
+
     @http.route('/whatsapp', type='http', auth='public', website=True, sitemap=False)
     def whatsapp(self, texto=None, **kwargs):
         """Enlace estable a WhatsApp para los bloques editables del sitio.
