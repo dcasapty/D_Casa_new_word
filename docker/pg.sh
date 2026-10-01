@@ -44,7 +44,10 @@ PG_APP_USER="${PG_APP_USER:-dcasa}"
 PGBR_CONF="${PGBR_CONF:-$PG_BASE/pgbackrest.conf}"
 PG_ENV_ARCHIVO="${PG_ENV_ARCHIVO:-$PG_BASE/r2.env}"
 PG_ALERTA_ARCHIVO="${PG_ALERTA_ARCHIVO:-$PG_BASE/ALERTA_ARCHIVADO}"
-PG_LOG="${PG_LOG:-/dev/stderr}"
+# Archivo de log de PostgreSQL. Vacío (por defecto) = la salida estándar de error del contenedor.
+# Nunca la ruta del dispositivo stderr: pg_ctl la reabre y en Cloudflare Containers stderr es
+# un socket, que no se puede reabrir (ENXIO) y PostgreSQL no arranca. Lo vigila el CI (lint).
+PG_LOG="${PG_LOG:-}"
 # Lo fija pg_arrancar y lo leen el entrypoint y el simulacro: local | restaurado | nuevo.
 PG_ORIGEN=""
 export PG_ORIGEN
@@ -253,7 +256,13 @@ pg_iniciar() {
   mkdir -p "$PG_SOCKET_DIR"
   chmod 700 "$PG_SOCKET_DIR"
   pg_escribir_conf
-  "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_LOG" -w -t "$PG_RESTAURAR_MAX_S" start >/dev/null
+  if [[ -n "$PG_LOG" ]]; then
+    "$PG_BIN/pg_ctl" -D "$PG_DATA" -l "$PG_LOG" -w -t "$PG_RESTAURAR_MAX_S" start >/dev/null
+  else
+    # Sin -l, pg_ctl lanza postgres con "2>&1" sobre su propia salida estándar: se manda a
+    # stderr (heredando el descriptor, sin reabrir ninguna ruta).
+    "$PG_BIN/pg_ctl" -D "$PG_DATA" -w -t "$PG_RESTAURAR_MAX_S" start >&2
+  fi
 }
 
 pg_esperar_promocion() {
