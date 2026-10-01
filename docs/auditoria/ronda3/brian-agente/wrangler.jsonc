@@ -11,6 +11,7 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BrianConversacion", "LibroUso"] }],
+  // BRIAN_TOPES: cifras de EJEMPLO (microdólares) para que el prototipo arranque; las decide el dueño.
   "vars": {
     "AIG_BASE": "https://gateway.ai.cloudflare.com/v1/CUENTA/brian",
     "ODOO_URL": "https://odoo.interno.example",

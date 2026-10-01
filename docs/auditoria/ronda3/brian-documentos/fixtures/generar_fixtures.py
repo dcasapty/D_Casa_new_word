@@ -16,6 +16,7 @@ Pequeños (se versionan):
   ficha.docx          Word con tabla e imagen en línea (WordprocessingML mínimo hecho a mano).
 
 Grandes (--grandes; .gitignore, > 5 MB): datos_1mb.xlsx, datos_10mb.xlsx, datos_50mb.xlsx
+  (inlineStr, como escribe openpyxl) y datos_10mb_sst.xlsx, datos_50mb_sst.xlsx (sharedStrings, como Excel)
   (solo celdas: el peor caso de memoria) y fotos_50mb.xlsx (300 filas + 40 imágenes ~1,2 MB).
 
 Estructura richData: copiada de libros guardados por Excel 365 (Application «Microsoft Excel»,
@@ -258,8 +259,8 @@ def grande(destino: Path, objetivo_mb: float, fotos: int = 0):
     if fotos:
         ws.title = 'Datos'
     ws.append(['Código', 'Descripción', 'Categoría', 'Precio', 'Precio crédito', 'Stock', 'Medidas', 'Observaciones'])
-    # ~ 105 bytes comprimidos por fila (medido): filas = objetivo / 105
-    filas = 300 if fotos else int(objetivo_mb * 1024 * 1024 / 105)
+    # ~ 62 bytes comprimidos por fila (medido con 1 y 10 MB): filas = objetivo / 62
+    filas = 300 if fotos else int(objetivo_mb * 1024 * 1024 / 62)
     cats = ['Camas', 'Sofás', 'Colchones', 'Comedores', 'Closets']
     for i in range(filas):
         ws.append([f'P{i:07d}', f'Producto {random.randint(1, 10**9):x} modelo {i % 977}', cats[i % 5],
@@ -274,6 +275,28 @@ def grande(destino: Path, objetivo_mb: float, fotos: int = 0):
     wb.save(destino)
 
 
+def a_shared_strings(origen: Path, destino: Path):
+    """Reescribe un xlsx de openpyxl (inlineStr) con sharedStrings, como lo guarda Excel."""
+    with zipfile.ZipFile(origen) as zin, zipfile.ZipFile(destino, 'w', zipfile.ZIP_DEFLATED) as zout:
+        tabla, indices = [], {}
+        def sst(m):
+            t = m.group(2)
+            if t not in indices:
+                indices[t] = len(tabla); tabla.append(t)
+            return f'<c r="{m.group(1)}" t="s"><v>{indices[t]}</v></c>'
+        for item in zin.infolist():
+            datos = zin.read(item.filename)
+            if item.filename.startswith('xl/worksheets/sheet'):
+                datos = re.sub(r'<c r="([A-Z]+\d+)" t="inlineStr"><is><t>([^<]*)</t></is></c>', sst, datos.decode()).encode()
+            elif item.filename == '[Content_Types].xml':
+                datos = datos.replace(b'</Types>', b'<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/></Types>')
+            elif item.filename == 'xl/_rels/workbook.xml.rels':
+                datos = datos.replace(b'</Relationships>', b'<Relationship Id="rIdSST" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/></Relationships>')
+            zout.writestr(item, datos)
+        zout.writestr('xl/sharedStrings.xml', f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="{len(tabla)}" uniqueCount="{len(tabla)}">'
+                      + ''.join(f'<si><t>{t}</t></si>' for t in tabla) + '</sst>')
+
+
 def main():
     sintetico(AQUI / 'sintetico.xlsx')
     csv_cp1252(AQUI / 'proveedor.csv')
@@ -283,6 +306,9 @@ def main():
         for mb in (1, 10, 50):
             grande(AQUI / f'datos_{mb}mb.xlsx', mb)
         grande(AQUI / 'fotos_50mb.xlsx', 50, fotos=40)
+    if '--grandes' in sys.argv or '--sst' in sys.argv:
+        for mb in (10, 50):   # variante con sharedStrings (como guarda Excel): peor caso de memoria
+            a_shared_strings(AQUI / f'datos_{mb}mb.xlsx', AQUI / f'datos_{mb}mb_sst.xlsx')
     for p in sorted(AQUI.glob('*.*')):
         if p.suffix != '.py':
             print(f'{p.name:22s} {p.stat().st_size:>12,d} bytes')

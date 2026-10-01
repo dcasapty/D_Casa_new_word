@@ -1,4 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 /**
@@ -13,7 +16,8 @@ const omitir = process.env.BRIAN_SIN_WORKERD === "1";
 
 beforeAll(async () => {
   if (omitir) return;
-  proc = spawn("npx", ["wrangler", "dev", "--config", "test/workerd/wrangler.jsonc", "--port", String(PUERTO), "--ip", "127.0.0.1", "--show-interactive-dev-session=false"], {
+  proc = spawn("npx", ["wrangler", "dev", "--config", "test/workerd/wrangler.jsonc", "--port", String(PUERTO), "--ip", "127.0.0.1", "--show-interactive-dev-session=false",
+    "--persist-to", mkdtempSync(join(tmpdir(), "brian-workerd-"))], {
     stdio: "pipe", detached: true,
   });
   for (let i = 0; i < 90; i++) {
@@ -32,12 +36,21 @@ afterAll(() => {
 
 describe.skipIf(omitir)("núcleo de Brian dentro de un Durable Object (workerd)", () => {
   it("turno con herramienta + confirmación idempotente + libro en el SQLite del DO", async () => {
-    const r = (await (await fetch(`http://127.0.0.1:${PUERTO}/`)).json()) as Record<string, any>;
+    const r = (await (await fetch(`http://127.0.0.1:${PUERTO}/?conv=${crypto.randomUUID()}`)).json()) as Record<string, any>;
     expect(r.pendientes).toBe(1);
     expect(r.c1).toBe("ejecutada");
     expect(r.c2).toMatchObject({ estado: "ejecutada", repetida: true });
     expect(r.pagos).toBe(1);
     expect(r.uso).toEqual({ n: 2, costo: 4200 });
     expect(r.mensajes.n).toBe(6);
+  });
+
+  it("el estado del DO persiste: repetir el mismo guion en la MISMA conversación no vuelve a cobrar", async () => {
+    const conv = crypto.randomUUID();
+    await (await fetch(`http://127.0.0.1:${PUERTO}/?conv=${conv}`)).text();
+    const r = (await (await fetch(`http://127.0.0.1:${PUERTO}/?conv=${conv}`)).json()) as Record<string, any>;
+    // El segundo turno reutiliza el resultado guardado por id de llamada: ni pendiente nueva ni segundo pago.
+    expect(r.pendientes).toBe(0);
+    expect(r.pagos).toBe(1);
   });
 });

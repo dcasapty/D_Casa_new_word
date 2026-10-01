@@ -90,12 +90,14 @@ if __name__ == '__main__':
     db = opt('--db', 'r3_med_base')
     port = int(opt('--port', '8170'))
     pgextra = opt('--pgextra', '')
+    maxconn = opt('--maxconn', '16')
     etiqueta, workers, cron, sb, *r = args
     reps = int(r[0]) if r else 3
     pg_reinicia(sb, pgextra)
     with open(f'{AQUI}/res_campana.jsonl', 'a') as f:
         for rep in range(1, reps + 1):
-            res = una(etiqueta, workers, cron, sb, port, db, rep)
+            res = una(etiqueta, workers, cron, sb, port, db, rep, maxconn)
+            res['db_maxconn'] = maxconn
             f.write(json.dumps(res) + '\n')
             f.flush()
             print(json.dumps({k: res[k] for k in ('etiqueta', 'rep', 'arranque_s', 'mem_reposo', 'mem_caliente',

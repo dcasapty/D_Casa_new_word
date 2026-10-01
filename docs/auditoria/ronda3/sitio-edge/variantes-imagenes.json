@@ -1,0 +1,96 @@
+{
+ "archivos": 890,
+ "totalMB": 8.97,
+ "porFormatoYAncho": {
+  "avif-320": {
+   "n": 188,
+   "bytes": 617864,
+   "mediaKB": 3.2
+  },
+  "webp-320": {
+   "n": 188,
+   "bytes": 875664,
+   "mediaKB": 4.5
+  },
+  "avif-640": {
+   "n": 190,
+   "bytes": 1518532,
+   "mediaKB": 7.8
+  },
+  "webp-640": {
+   "n": 190,
+   "bytes": 2520860,
+   "mediaKB": 13
+  },
+  "avif-960": {
+   "n": 1,
+   "bytes": 25706,
+   "mediaKB": 25.1
+  },
+  "webp-960": {
+   "n": 1,
+   "bytes": 42428,
+   "mediaKB": 41.4
+  },
+  "avif-1400+": {
+   "n": 1,
+   "bytes": 42879,
+   "mediaKB": 41.9
+  },
+  "webp-1400+": {
+   "n": 1,
+   "bytes": 74848,
+   "mediaKB": 73.1
+  },
+  "avif-300": {
+   "n": 6,
+   "bytes": 46623,
+   "mediaKB": 7.6
+  },
+  "webp-300": {
+   "n": 6,
+   "bytes": 62704,
+   "mediaKB": 10.2
+  },
+  "avif-600": {
+   "n": 6,
+   "bytes": 107461,
+   "mediaKB": 17.5
+  },
+  "webp-600": {
+   "n": 6,
+   "bytes": 156344,
+   "mediaKB": 25.4
+  },
+  "avif-480": {
+   "n": 27,
+   "bytes": 381774,
+   "mediaKB": 13.8
+  },
+  "webp-480": {
+   "n": 27,
+   "bytes": 584948,
+   "mediaKB": 21.2
+  },
+  "avif-890": {
+   "n": 24,
+   "bytes": 864850,
+   "mediaKB": 35.2
+  },
+  "webp-890": {
+   "n": 24,
+   "bytes": 1386208,
+   "mediaKB": 56.4
+  },
+  "avif-893": {
+   "n": 2,
+   "bytes": 35007,
+   "mediaKB": 17.1
+  },
+  "webp-893": {
+   "n": 2,
+   "bytes": 58780,
+   "mediaKB": 28.7
+  }
+ }
+}

@@ -71,7 +71,7 @@ const CSS = `
 @font-face{font-family:Inter;src:url(/fonts/inter-400.woff2) format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:Inter;src:url(/fonts/inter-700.woff2) format("woff2");font-weight:700;font-display:swap}
 :root{--azul:#1340B1;--amarillo:#FED00F;--navy:#0E2A6B;--hueso:#F4F1EA;--tinta:#1B2233;--gris:#4A5163}
-*{box-sizing:border-box}html{scroll-padding-top:80px}
+*{box-sizing:border-box}html,body{overflow-x:clip}h1,h2,p{overflow-wrap:anywhere}html{scroll-padding-top:80px}
 body{margin:0;font:400 16px/1.55 Inter,system-ui,sans-serif;color:var(--tinta);background:#fff}
 a{color:var(--azul)}img{max-width:100%;height:auto;display:block}
 h1,h2,.display{font-family:Anton,Oswald,Impact,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em;line-height:1.05;margin:0 0 .5rem}
@@ -79,11 +79,11 @@ h3,.kicker,.btn,nav a{font-family:Oswald,Inter,sans-serif;font-weight:500}
 .c{max-width:1200px;margin:0 auto;padding:0 16px}
 .skip{position:absolute;left:-999px}.skip:focus{left:16px;top:8px;background:#fff;padding:8px;z-index:9}
 :focus-visible{outline:3px solid var(--navy);outline-offset:2px}
-.anuncios{background:var(--azul);color:#fff;font-size:.85rem}.anuncios .c{display:flex;gap:1rem;justify-content:space-between;padding:.4rem 16px}
+.anuncios{background:var(--azul);color:#fff;font-size:.85rem}.anuncios .c{display:flex;flex-wrap:wrap;gap:.25rem 1rem;justify-content:space-between;padding:.4rem 16px}
 .anuncios a{color:var(--amarillo);text-decoration:none;font-weight:700}
 header.top{background:#fff;border-bottom:1px solid #e6e3dc;position:sticky;top:0;z-index:5}
-header.top .c{display:flex;align-items:center;justify-content:space-between;min-height:64px;gap:1rem}
-header.top nav{display:flex;gap:1.1rem;flex-wrap:wrap}header.top nav a{color:var(--navy);text-decoration:none;text-transform:uppercase;font-size:.95rem;padding:.6rem 0}
+header.top .c{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;min-height:64px;gap:.25rem 1rem}
+header.top nav{display:flex;gap:.9rem;flex-wrap:wrap}header.top nav a{color:var(--navy);text-decoration:none;text-transform:uppercase;font-size:.95rem;padding:.6rem 0}
 .logo img{height:44px;width:auto}
 .btn{display:inline-flex;align-items:center;gap:.5rem;padding:.85rem 1.4rem;border-radius:.9rem;text-decoration:none;text-transform:uppercase;letter-spacing:.02em;border:2px solid transparent;min-height:48px}
 .btn-azul{background:var(--azul);color:#fff}.btn-amarillo{background:var(--amarillo);color:var(--navy)}.btn-linea{border-color:#fff;color:#fff}
@@ -274,6 +274,17 @@ ${p.combo ? `<p>También en combo ${esc(p.combo)}. Pídelo por WhatsApp.</p>` : 
       { '@type': 'ListItem', position: 3, name: p.nombre_web }] };
     escribir(urlProducto(p).slice(1) + 'index.html', layout({ titulo: `${p.nombre_web} | D'CASA Panamá`, descripcion: `${p.nombre_web}. ${dinero(precioMin(p))}. Pregunta por WhatsApp o visítanos en La Chorrera.`, canonica: urlProducto(p), cuerpo, jsonld: [ld, migas] }));
   }
+  // ---------------- /visitanos (textos de la página actual; mapa como enlace, sin iframe de Google: SW-01)
+  const vis = await variantes(path.join(IMG_WEB, 'insp-3.webp'), 'insp-3', [480, 640]);
+  escribir('visitanos/index.html', layout({ titulo: "Visítanos | D'CASA Panamá", descripcion: "D'CASA Panamá en La Chorrera: Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1. Cómo llegar y cómo escribirnos.", canonica: '/visitanos', jsonld: [tienda], cuerpo: `
+<section class="hero" style="padding:0">${picture(vis, { alt: '', sizes: '100vw', lazy: false, prioridad: true })}
+<div class="t"><p class="kicker">Visítanos</p><h1 class="display">Te esperamos en La Chorrera</h1></div></section>
+<section><div class="c"><h2 class="kicker">La tienda</h2><address style="font-style:normal"><strong>D'CASA Panamá</strong><br>Avenida Las Américas, Urbanización Santa Clara,<br>Local 4550 PB-1, La Chorrera, Panamá Oeste</address>
+<ul class="sellos" role="list"><li><a href="https://www.google.com/maps/dir/?api=1&amp;destination=8.8765881%2C-79.7867962" target="_blank" rel="noopener">Abrir la ruta en Google Maps${NUEVA}</a></li>
+<li><a href="tel:+50760261919">+507 6026-1919</a></li><li><a href="mailto:info@dcasapty.com">info@dcasapty.com</a></li>
+<li><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty${NUEVA}</a></li></ul>
+<h2 class="kicker">Antes de venir</h2><p>Escríbenos y te confirmamos el horario, las existencias y los colores disponibles del mueble que te gusta. Muchos vienen en caja: te los llevas hoy mismo.</p>
+<a class="btn btn-azul" href="${wa("Hola D'CASA, quiero visitarlos en la tienda")}" target="_blank" rel="noopener">Escríbenos por WhatsApp${NUEVA}</a></div></section>` }));
   escribir('404.html', layout({ titulo: "Página no encontrada | D'CASA Panamá", descripcion: '', canonica: '/404', cuerpo: '<section><div class="c"><h1>Esta página no existe</h1><p><a class="btn btn-azul" href="/shop/">Ver el catálogo</a></p></div></section>' }));
   escribir('_headers', '/img/*\n  Cache-Control: public, max-age=31536000, immutable\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n');
   fs.writeFileSync(path.join(AQUI, '..', 'variantes-imagenes.json'), JSON.stringify(resumenImagenes(), null, 1));

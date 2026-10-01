@@ -29,7 +29,8 @@ export class ConvPrueba extends DurableObject {
       reloj: () => Date.now(), nuevoId: () => crypto.randomUUID(), conversacion: "c1",
     });
     const t = await brian.turno(DUENA, "busca camas y cobra 50 a F-1");
-    const id = t.pendientes[0]!.id;
+    const id = t.pendientes[0]?.id;
+    if (!id) return { pendientes: 0, pagos: this.odoo.pagos.length, texto: t.texto };
     const c1 = await brian.confirmar(DUENA, id, true);
     const c2 = await brian.confirmar(DUENA, id, true);
     const uso = sql.ejecutar("SELECT COUNT(*) AS n, SUM(costo_micro) AS costo FROM uso")[0];
@@ -39,7 +40,9 @@ export class ConvPrueba extends DurableObject {
 }
 
 export default {
-  async fetch(_req: Request, env: { CONV: DurableObjectNamespace<ConvPrueba> }): Promise<Response> {
-    return Response.json(await env.CONV.getByName("prueba").escenario());
+  async fetch(req: Request, env: { CONV: DurableObjectNamespace<ConvPrueba> }): Promise<Response> {
+    // Un DO nuevo por corrida (el estado de un DO persiste: la idempotencia se mantiene entre reinicios).
+    const nombre = new URL(req.url).searchParams.get("conv") ?? crypto.randomUUID();
+    return Response.json(await env.CONV.getByName(nombre).escenario());
   },
 };

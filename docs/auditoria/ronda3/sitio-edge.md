@@ -169,3 +169,36 @@ y además una vez al día. Odoo sigue siendo la única fuente de precios y fotos
 | Riesgo principal | Fuga de HTML con sesión; CSRF | Precio desfasado si falla el build | Igual que B + dos sistemas de URL |
 | Esfuerzo | 1-2 días | 3-5 días | 4-6 días |
 
+## 4. Imágenes: pipeline recomendado y pesos medidos
+
+**Hoy (medido en Odoo):** la grilla de `/shop` pide `image_1024` JPEG para una tarjeta que en el móvil mide ~180 px
+de ancho. Ejemplo XHT022-T-W: `image_1024` = **59 092 B**, `image_512` = 17 398 B, `image_1920` = 48 040 B (¡el
+1024 pesa más que el original de 48 KB!). Con `?unique=` Odoo responde `Cache-Control: public, max-age=31536000,
+immutable` (cacheable en el borde); sin `unique`, `no-cache`. Odoo guarda además 5 tamaños por foto en la base
+(`r3-reconstruccion`: 75 MB de imágenes de producto en `dcasa_test` para 30,5 MB de originales).
+
+**Variantes del prototipo** (sharp 0.34, AVIF q50 esfuerzo 4 y WebP q72; `herramientas`/`prototipo/generar.mjs`;
+resumen en `sitio-edge/variantes-imagenes.json`). Medias por archivo:
+
+| Uso | Ancho | AVIF | WebP | Lo que Odoo manda hoy para lo mismo |
+|---|---|---|---|---|
+| Tarjeta (móvil 1x-2x) | 320 / 640 | **3,2 KB / 7,7 KB** | 4,5 KB / 12,8 KB | `image_512` 17 KB o `image_1024` 59 KB (JPEG) |
+| Ficha | 480 / ~890 (original) | 13,7 KB / 35,2 KB | 21,1 KB / 56,4 KB | `image_1024` ~59 KB |
+| Hero portada | 640 / 960 / 1400 | 25-42 KB | 41-73 KB | `hero-800.webp` 35 KB / `hero.webp` (1400) |
+
+Para la foto XHT022-T-W_6: 640 px AVIF **3 344 B** contra 59 092 B de `image_1024` (−94 %). Todo el lote
+generado (188 fotos principales × 2 anchos × 2 formatos + 2 fichas completas + hero + categorías) = 890 archivos,
+**8,97 MB**. El catálogo completo con galería (323 fotos × 3 anchos × 2 formatos + tarjetas) se estima en
+~2 600 archivos y ~50 MB: cabe en Static Assets (20 000 archivos, 25 MiB por archivo en Free).
+
+| Opción | Costo oficial | Pros | Contras |
+|---|---|---|---|
+| **1. Pregenerar en el build y servir como Static Assets** (recomendada) | **$0** (peticiones a assets gratis e ilimitadas) | Sin dependencias en tiempo de visita; AVIF/WebP con calidad controlada; `width/height` exactos en el HTML; caché `immutable` con nombre versionado | El build tarda (6 min 45 s para 890 archivos en esta máquina cargada; en CI solo se regeneran fotos nuevas si se cachea la carpeta por hash) |
+| 2. Originales en R2 + transformaciones de Images por URL | R2: 30 MB ≪ 10 GB gratis; Images Free: 5 000 transformaciones únicas/mes, `format=auto` cuenta una; 323 fotos × 4 anchos ≈ 1 300/mes ⇒ **$0** | Sin build de imágenes; cambia tamaños sin redeploy | Si se pasa de 5 000 (más anchos, más fotos, parámetros sueltos) las nuevas fallan con error 9422 en Free; primera petición de cada variante más lenta; otra pieza que configurar |
+| 3. Seguir con `/web/image` de Odoo detrás del borde | $0 en Workers, pero despierta el contenedor en cada miss | Nada que construir | JPEG sobredimensionado; Odoo tiene que estar despierto; base de datos más pesada |
+
+Recomendación: **opción 1** ahora (el volumen es chico), con `_headers` `Cache-Control: public, max-age=31536000,
+immutable` para `/img/*` y `/fonts/*` (ya lo genera el prototipo). Pasar a la 2 solo si el catálogo crece a miles de
+fotos. Los JPEG de `addons/dcasa_catalogo/static/img/productos` (30 MB) pueden salir del repo/imagen Docker a R2
+(SW-20) y el build leerlos de ahí. Las variantes generadas **no** van a git (`prototipo/.gitignore`).
+

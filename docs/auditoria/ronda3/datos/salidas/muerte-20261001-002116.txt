@@ -1,0 +1,22 @@
+ensayo=20261001-002116 carga_s=170 intervalo_s=1
+commits_confirmados=342 restaurados=173 perdidos=169
+RPO_s=169.0 (ultimo commit confirmado - ultimo commit restaurado)
+kill_a_ultimo_commit_s=0.9
+t_restore_pgbackrest_s=52.7 t_replay_y_promocion_s=4.9 RTO_total_s=57.6
+ops_s3_durante_carga=5 ops_s3_restauracion=3613
+      5 "GET  
+--- verificacion
+asientos_total|173
+asientos_max_id|173
+asientos_huecos|0
+asientos_corruptos|0
+asiento_ultimo_ts|2026-10-01 00:19:37.023739+00
+md5_res_partner|64097b0886bbd66e29ed895eb17bb175
+md5_product_template|314d837c1bff17cc3428d9dac40dd598
+md5_ir_attachment|d7528c87ec70b9f37dd25586534b1f9d
+md5_account_account|30c19f1231580070af5d3f41b8f3c33c
+--- referencia (5432)
+md5_res_partner|64097b0886bbd66e29ed895eb17bb175
+md5_product_template|314d837c1bff17cc3428d9dac40dd598
+md5_ir_attachment|d7528c87ec70b9f37dd25586534b1f9d
+md5_account_account|30c19f1231580070af5d3f41b8f3c33c

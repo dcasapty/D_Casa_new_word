@@ -184,9 +184,10 @@ def pct(xs, p):
 async def _carga(base, conc, n, rutas, con_backend):
     lat = {k: [] for k in rutas}
     errores = {}
+    cod = {}
     sem = asyncio.Semaphore(conc)
-    async with httpx.AsyncClient(base_url=base, timeout=120, follow_redirects=True,
-                                 limits=httpx.Limits(max_connections=conc)) as c:
+    tr = httpx.AsyncHTTPTransport(limits=httpx.Limits(max_connections=conc))
+    async with httpx.AsyncClient(base_url=base, timeout=120, follow_redirects=True, transport=tr) as c:
         if con_backend:
             r = await c.post('/web/session/authenticate', json={'jsonrpc': '2.0', 'method': 'call', 'params': {
                 'db': DB, 'login': ADMIN_LOGIN, 'password': ADMIN_PASSWORD}})
@@ -202,18 +203,20 @@ async def _carga(base, conc, n, rutas, con_backend):
                     r = await c.post(f'/web/dataset/call_kw/{m}/{meth}', json=call_kw(m, meth, [], kw))
                     ok = r.status_code == 200 and 'result' in r.json()
                 else:
-                    r = await c.get(rutas[k])
+                    anon = httpx.AsyncClient(base_url=base, timeout=120, follow_redirects=True, transport=tr)
+                    r = await anon.get(rutas[k])  # sin cookies: visitante anónimo
                     ok = r.status_code == 200
                 dt = time.perf_counter() - t
             if ok:
                 lat[k].append(dt)
             else:
                 errores[k] = errores.get(k, 0) + 1
+                cod[r.status_code] = cod.get(r.status_code, 0) + 1
 
         t0 = time.perf_counter()
         await asyncio.gather(*(una(i) for i in range(n)))
         total = time.perf_counter() - t0
-    return lat, errores, total
+    return lat, dict(errores, codigos=cod) if errores else errores, total
 
 
 def carga(base, pid, conc, n, datadir=None, rutas=None, con_backend=True):
@@ -246,7 +249,8 @@ def lat_secuencial(base, pid, n):
     """Latencia con base caliente y una petición a la vez; CPU por petición y por ruta."""
     rutas = rutas_publicas(base)
     out = {}
-    with httpx.Client(base_url=base, timeout=120, follow_redirects=True) as c:
+    with httpx.Client(base_url=base, timeout=120, follow_redirects=True) as c, \
+            httpx.Client(base_url=base, timeout=120, follow_redirects=True) as anon:
         sesion(c)
         for k in list(rutas) + list(BACKEND):
             ts = []
@@ -257,7 +261,8 @@ def lat_secuencial(base, pid, n):
                     m, meth, kw = BACKEND[k]
                     r = c.post(f'/web/dataset/call_kw/{m}/{meth}', json=call_kw(m, meth, [], kw))
                 else:
-                    r = c.get(rutas[k])
+                    anon.cookies.clear()  # visitante anónimo nuevo en cada petición
+                    r = anon.get(rutas[k])
                 assert r.status_code == 200, (k, r.status_code)
                 ts.append(time.perf_counter() - t)
             c1 = cpu(hijos(pid))
