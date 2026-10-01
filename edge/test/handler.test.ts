@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { handleRequest } from "../src/handler";
+import { handleRequest, runScheduled } from "../src/handler";
 
 function memoryCache() {
   const store = new Map<string, Response>();
@@ -35,6 +35,30 @@ describe("handleRequest", () => {
     expect(await (await handleRequest(new Request(url), { forward, cache })).text()).toBe("css");
     expect(await (await handleRequest(new Request(url), { forward, cache })).text()).toBe("css");
     expect(forward).toHaveBeenCalledOnce();
+  });
+
+  it("pone cabeceras de seguridad también en lo cacheable y en lo servido desde la caché", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async () => new Response("css", { headers: { "Cache-Control": "public, max-age=31536000" } }));
+    const url = "https://dcasapty.com/web/assets/abc/web.assets_frontend.min.css";
+
+    const primera = await handleRequest(new Request(url), { forward, cache });
+    const segunda = await handleRequest(new Request(url), { forward, cache });
+    expect(forward).toHaveBeenCalledOnce();
+    for (const res of [primera, segunda]) {
+      expect(res.headers.get("X-Content-Type-Options")).toBe("nosniff");
+      expect(res.headers.get("Strict-Transport-Security")).toContain("max-age=");
+      expect(res.headers.get("Cache-Control")).toBe("public, max-age=31536000");
+    }
+  });
+
+  it("bloquea /jsonrpc y sus variantes codificadas sin llegar a Odoo", async () => {
+    const forward = vi.fn();
+    for (const path of ["/jsonrpc", "//jsonrpc", "/%6Asonrpc", "/es/jsonrpc", "/web/%64atabase/manager", "/json/2/res.users/write"]) {
+      const res = await handleRequest(new Request(`https://dcasapty.com${path}`, { method: "POST", body: "{}" }), { forward });
+      expect(res.status, path).toBe(404);
+    }
+    expect(forward).not.toHaveBeenCalled();
   });
 
   it("no guarda en caché respuestas privadas", async () => {
@@ -89,5 +113,23 @@ describe("handleRequest", () => {
   it("expone un health check propio del borde", async () => {
     const res = await handleRequest(new Request("https://dcasapty.com/__edge/health"), { forward: vi.fn() });
     expect(await res.text()).toBe("ok");
+  });
+});
+
+describe("runScheduled (cron horario)", () => {
+  it("no toca a Odoo si ya está encendido (su propio cron corre las tareas)", async () => {
+    for (const status of ["running", "healthy"]) {
+      const wake = vi.fn();
+      expect(await runScheduled({ status: async () => status, wake })).toBe("encendido");
+      expect(wake).not.toHaveBeenCalled();
+    }
+  });
+
+  it("despierta a Odoo una vez si está apagado", async () => {
+    for (const status of ["stopped", "stopped_with_code"]) {
+      const wake = vi.fn(async () => new Response("ok"));
+      expect(await runScheduled({ status: async () => status, wake })).toBe("despertado");
+      expect(wake).toHaveBeenCalledOnce();
+    }
   });
 });

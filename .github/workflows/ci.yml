@@ -42,6 +42,8 @@ jobs:
           print("\n".join(bad) or "OK")
           sys.exit(1 if bad else 0)
           PY
+      - name: Shellcheck del arranque del contenedor
+        run: shellcheck docker/entrypoint.sh scripts/*.sh
 
   odoo-tests:
     name: Tests de Odoo
@@ -141,6 +143,14 @@ jobs:
           curl -fsS http://localhost:8069/ | grep -q "Tu casa, bien amueblada"
           curl -fsS -o /dev/null http://localhost:8069/shop
           curl -fsS http://localhost:8069/socios | grep -q "Tus puntos"
+      - name: Nunca queda admin/admin (S-04)
+        run: |
+          entrar() {
+            curl -fsS -H 'Content-Type: application/json' http://localhost:8069/web/session/authenticate \
+              -d "{\"jsonrpc\":\"2.0\",\"params\":{\"db\":\"dcasa\",\"login\":\"admin\",\"password\":\"$1\"}}"
+          }
+          if entrar admin | grep -q '"uid"'; then echo "::error::admin/admin entra"; exit 1; fi
+          entrar ci-admin | grep -q '"uid": 2'
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
@@ -198,10 +208,17 @@ jobs:
         working-directory: edge
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          # Clave del usuario admin de Odoo.
           ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
+          # Contraseña maestra (admin_passwd), distinta; opcional (si falta, el contenedor
+          # genera una aleatoria en cada arranque).
+          ODOO_MASTER_PASSWORD: ${{ secrets.ODOO_MASTER_PASSWORD }}
         run: |
-          node -e 'process.stdout.write(JSON.stringify({DB_PASSWORD: process.env.DB_PASSWORD, ADMIN_PASSWORD: process.env.ADMIN_PASSWORD}))' \
-            | npx wrangler secret bulk
+          node -e '
+            const names = ["DB_PASSWORD", "ADMIN_PASSWORD", "ODOO_MASTER_PASSWORD"];
+            const out = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
+            process.stdout.write(JSON.stringify(out));
+          ' | npx wrangler secret bulk
       - name: Secretos de Brian (IA y Telegram; opcionales, solo si están cargados)
         if: steps.guard.outputs.ready == 'true'
         working-directory: edge
@@ -224,11 +241,41 @@ jobs:
       - name: Pimienta del PIN de socios (se crea una vez, nunca se sobrescribe)
         if: steps.guard.outputs.ready == 'true'
         working-directory: edge
+        env:
+          # Opcional: la pimienta generada y respaldada por el dueño. Solo se usa si el
+          # Worker todavía no tiene una; nunca reemplaza la existente.
+          PEPPER_RESPALDADA: ${{ secrets.DCASA_PIN_PEPPER }}
         run: |
           # Cambiarla rompe el PIN de TODOS los socios a la vez y no tiene vuelta atrás.
-          if npx wrangler secret list --format json | grep -q '"DCASA_PIN_PEPPER"'; then
+          # Si el listado falla (token, red, 5xx) NO se puede concluir que no existe:
+          # se aborta el job sin tocarla (S-03). Solo se crea tras un listado exitoso,
+          # con JSON válido, que no la contiene.
+          set -euo pipefail
+          lista="$RUNNER_TEMP/secretos.json"
+          if ! npx wrangler secret list --format json > "$lista"; then
+            echo "::error::No pude listar los secretos del Worker: no toco DCASA_PIN_PEPPER. Reintenta el job."
+            rm -f "$lista"
+            exit 1
+          fi
+          if ! estado="$(node -e '
+            // Tolera texto de wrangler alrededor del JSON, pero exige un arreglo válido.
+            const texto = require("fs").readFileSync(process.argv[1], "utf8");
+            const lista = JSON.parse(texto.slice(texto.indexOf("["), texto.lastIndexOf("]") + 1));
+            if (!Array.isArray(lista)) throw new Error("respuesta inesperada");
+            process.stdout.write(lista.some((s) => s && s.name === "DCASA_PIN_PEPPER") ? "existe" : "falta");
+          ' "$lista")"; then
+            echo "::error::El listado de secretos no es el JSON esperado: no toco DCASA_PIN_PEPPER."
+            rm -f "$lista"
+            exit 1
+          fi
+          rm -f "$lista"
+          if [ "$estado" = "existe" ]; then
             echo "La pimienta ya existe: no se toca."
+          elif [ -n "${PEPPER_RESPALDADA:-}" ]; then
+            # La generó el dueño y la guarda en su gestor de contraseñas (respaldo fuera de Cloudflare).
+            printf '%s' "$PEPPER_RESPALDADA" | npx wrangler secret put DCASA_PIN_PEPPER
+            echo "Pimienta cargada desde el secreto de GitHub DCASA_PIN_PEPPER (respaldada por el dueño)."
           else
             openssl rand -hex 32 | npx wrangler secret put DCASA_PIN_PEPPER
-            echo "Pimienta creada. Nadie la ve ni la tiene que recordar."
+            echo "::warning::Pimienta creada al azar SIN copia fuera de Cloudflare: si se pierde la cuenta, se pierden todos los PIN. Ver docs/DESPLIEGUE.md → Pimienta del PIN."
           fi

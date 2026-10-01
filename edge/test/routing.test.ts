@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { forwardedHeaders, isCacheableResponse, route, withSecurityHeaders } from "../src/routing";
+import {
+  forwardedHeaders,
+  isBlockedPath,
+  isCacheableResponse,
+  normalizePath,
+  route,
+  withSecurityHeaders,
+} from "../src/routing";
 
 const u = (path: string, host = "dcasapty.com") => new URL(`https://${host}${path}`);
 
@@ -12,6 +19,68 @@ describe("route", () => {
   it("bloquea el gestor de bases de datos", () => {
     for (const path of ["/web/database/manager", "/web/database/backup", "/xmlrpc/2/db"]) {
       expect(route(u(path), "POST")).toEqual({ kind: "blocked" });
+    }
+  });
+
+  it("bloquea las API RPC de Odoo (/jsonrpc con servicio db, XML-RPC, /json/2)", () => {
+    for (const path of [
+      "/jsonrpc",
+      "/jsonrpc/",
+      "/xmlrpc/db",
+      "/xmlrpc/common",
+      "/xmlrpc/2/object",
+      "/json/2",
+      "/json/2/res.partner/search_read",
+      "/doc-bearer/index.json",
+    ]) {
+      for (const method of ["GET", "POST"]) {
+        expect(route(u(path), method), `${method} ${path}`).toEqual({ kind: "blocked" });
+      }
+    }
+  });
+
+  it("bloquea también las variantes codificadas, con // , mayúsculas o prefijo de idioma", () => {
+    for (const path of [
+      "//web/database/manager",
+      "/web//database/manager",
+      "///jsonrpc",
+      "/web/%64atabase/manager",
+      "/web/%2564atabase/manager", // doble codificación
+      "/web%2Fdatabase%2Fmanager",
+      "/%6Asonrpc",
+      "/%4A%53%4F%4ERPC",
+      "/JsonRpc",
+      "/WEB/Database/Manager",
+      "/json%2F2/res.partner/read",
+      "/web/./database/manager",
+      "/shop/../jsonrpc",
+      "/shop/%2e%2e/jsonrpc",
+      "/web\\database\\manager",
+      "/es/jsonrpc",
+      "/es_419/web/database/manager",
+      "/en/xmlrpc/2/db",
+      "/es-419/json/2/res.users/write",
+    ]) {
+      expect(isBlockedPath(path), path).toBe(true);
+      expect(route(new URL(`https://dcasapty.com${path}`), "POST"), path).toEqual({ kind: "blocked" });
+    }
+  });
+
+  it("no bloquea las rutas normales del sitio, del backend ni de Brian", () => {
+    for (const path of [
+      "/",
+      "/shop",
+      "/es/shop",
+      "/socios",
+      "/web/login",
+      "/web/dataset/call_kw/res.partner/read",
+      "/web/session/get_session_info",
+      "/json/version",
+      "/brian/mcp",
+      "/doc",
+      "/r/ABC123",
+    ]) {
+      expect(isBlockedPath(path), path).toBe(false);
     }
   });
 
@@ -58,6 +127,15 @@ describe("route", () => {
     expect(route(u("/"), "GET")).toEqual({ kind: "origin", cacheable: false });
     expect(route(u("/shop/cart"), "GET")).toEqual({ kind: "origin", cacheable: false });
     expect(route(u("/web/assets/x.css"), "POST")).toEqual({ kind: "origin", cacheable: false });
+  });
+});
+
+describe("normalizePath", () => {
+  it("decodifica, colapsa barras, resuelve puntos y pasa a minúsculas", () => {
+    expect(normalizePath("//Web//%64atabase/./x/../Manager/")).toBe("/web/database/manager");
+    expect(normalizePath("/%252e%252e/jsonrpc")).toBe("/jsonrpc");
+    expect(normalizePath("/a/%ZZ/b")).toBe("/a/%zz/b"); // secuencia inválida: no lanza
+    expect(normalizePath("/")).toBe("/");
   });
 });
 
