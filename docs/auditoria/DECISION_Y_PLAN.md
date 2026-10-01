@@ -97,8 +97,8 @@ Costos y valoración AVCO, conteo inicial, reglas de reorden, antigüedad de sal
 bloqueo de periodos, y lo que siga del orden de `enterprise-gap.md`.
 
 ## Qué necesito del dueño para arrancar
-1. Elegir **A, B o C** y aceptar el RPO de la opción (A: hasta ~1 min).
-2. Visto bueno para empezar la **Fase 0** en esta rama (cambia código de `addons/`, `edge/`, `docker/`, `.github/`).
+1. ~~Elegir A, B o C~~ → **Elegida A** (2026-10-01): Odoo + PostgreSQL en Container basic con WAL a R2; RPO aceptado ≈ 1 min.
+2. ~~Visto bueno Fase 0~~ → **Aprobada** (2026-10-01); en curso con 5 agentes en paralelo (worktrees).
 3. Contador o asesor para el PAC de la DGI y los textos legales.
 
 ## Pendientes conocidos
