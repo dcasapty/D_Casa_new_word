@@ -26,7 +26,8 @@ export const LIMITES_DEFECTO: Limites = {
 };
 
 export class ErrorZip extends Error {
-  constructor(msg: string, public codigo: string) { super(msg); }
+  codigo: string;
+  constructor(msg: string, codigo: string) { super(msg); this.codigo = codigo; }
 }
 
 export interface Entrada {
@@ -46,7 +47,9 @@ const dec = new TextDecoder('utf-8');
 export class Zip {
   readonly entradas = new Map<string, Entrada>();
   readonly avisos: string[] = [];
-  constructor(private f: Fuente, private lim: Limites) {}
+  private f: Fuente;
+  private lim: Limites;
+  constructor(f: Fuente, lim: Limites) { this.f = f; this.lim = lim; }
 
   static async abrir(f: Fuente, lim: Limites = LIMITES_DEFECTO): Promise<Zip> {
     const z = new Zip(f, lim);

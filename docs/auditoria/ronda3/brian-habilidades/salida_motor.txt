@@ -1,0 +1,103 @@
+====================================================================================================
+MOTOR DE HABILIDADES DE BRIAN — prototipo r3-brian-habilidades
+====================================================================================================
+Herramientas reales extraídas del código: 45 · paquetes: 16 · herramientas en el catálogo objetivo: 92 ({'cambiar': 11, 'nuevo': 47, 'existe': 34})
+
+Diferencias código → catálogo propuesto:
+  - pantalla_actual: grupos reales (ninguno) → propuestos ['base.group_user']
+  - ayuda: grupos reales (ninguno) → propuestos ['base.group_user']
+  - buscar_en_todo: grupos reales (ninguno) → propuestos ['base.group_user']
+  - abrir: grupos reales (ninguno) → propuestos ['base.group_user']
+
+(a) QUÉ VE CADA PERSONA (canal chat)
+usuario            perfil          paquetes visibles  herram.  paquetes
+ana_vendedora      vendedora                      12       50  aprendizaje, catalogo_precios, clientes_socios, cobros_facturas, constructor, entregas, inventario, nucleo, promociones, reportes, ventas, whatsapp
+gaby_gerencia      gerencia                       15       79  aprendizaje, catalogo_precios, clientes_socios, cobros_facturas, compras, constructor, contabilidad, entregas, inventario, nucleo, promociones, reportes, sitio_web, ventas, whatsapp
+carlos_contador    contador                        7       33  catalogo_precios, clientes_socios, cobros_facturas, contabilidad, inventario, nucleo, reportes
+dueno_admin        administrador                  16       92  aprendizaje, catalogo_precios, clientes_socios, cobros_facturas, compras, constructor, contabilidad, entregas, equipo, inventario, nucleo, promociones, reportes, sitio_web, ventas, whatsapp
+pedro_sin_perfil   predeterminado                  5       17  catalogo_precios, clientes_socios, nucleo, reportes, ventas
+
+  Detalle ana_vendedora (vendedora):
+    nucleo            nivel 1: abrir, ayuda, buscar_en_todo, cargar_habilidad, pantalla_actual
+    clientes_socios   nivel 2: actualizar_cliente, buscar_clientes, crear_cliente, saldo_puntos, ver_cliente
+    ventas            nivel 3: agregar_linea_cotizacion, aplicar_descuento, buscar_ventas, cancelar_cotizacion, confirmar_venta, crear_cotizacion, quitar_linea_cotizacion, ver_venta
+    cobros_facturas   nivel 3: agregar_linea_factura, antiguedad_de_saldos, clientes_que_deben, crear_factura, editar_factura, facturas_pendientes, publicar_factura, quitar_linea_factura, recordatorio_de_cobro, registrar_pago, ver_factura
+    catalogo_precios  nivel 1: buscar_productos, listar_categorias, ver_producto
+    reportes          nivel 1: comparar_periodos, exportar_excel, reporte_del_dia, resumen_ventas
+    constructor       nivel 2: crear_filtro_guardado, deshacer_accion
+    entregas          nivel 2: entregas_pendientes, hoja_de_ruta_del_dia, programar_entrega
+    whatsapp          nivel 2: enviar_cotizacion_whatsapp, preparar_mensaje_whatsapp
+    inventario        nivel 1: existencias_bajas, movimientos_de_producto, sugerir_reposicion
+    promociones       nivel 1: listar_promociones
+    aprendizaje       nivel 2: olvidar, proponer_recuerdo, ver_memoria
+
+  Detalle dueno_admin (administrador):
+    nucleo            nivel 1: abrir, ayuda, buscar_en_todo, cargar_habilidad, pantalla_actual
+    clientes_socios   nivel 4: actualizar_cliente, actualizar_datos_fiscales, ajustar_puntos, buscar_clientes, crear_cliente, saldo_puntos, ver_cliente
+    catalogo_precios  nivel 4: actualizar_producto, buscar_productos, cambiar_precio, cambiar_precios_lote, crear_producto, listar_categorias, margen_por_producto, ver_producto
+    constructor       nivel 5: agregar_campo_a_vista, crear_automatizacion, crear_campo, crear_filtro_guardado, crear_informe, describir_modelo, deshacer_accion, exportar_personalizacion
+    ventas            nivel 4: agregar_linea_cotizacion, aplicar_descuento, buscar_ventas, cancelar_cotizacion, confirmar_venta, crear_cotizacion, quitar_linea_cotizacion, ver_venta
+    cobros_facturas   nivel 4: agregar_linea_factura, antiguedad_de_saldos, clientes_que_deben, crear_factura, editar_factura, facturas_pendientes, publicar_factura, quitar_linea_factura, recordatorio_de_cobro, registrar_pago, ver_factura
+    inventario        nivel 4: ajustar_existencias, existencias_bajas, iniciar_conteo, inventario_valorizado, movimientos_de_producto, registrar_conteo, sugerir_reposicion
+    aprendizaje       nivel 4: aprobar_aprendizaje, olvidar, proponer_recuerdo, ver_memoria
+    equipo            nivel 3: cambiar_rol_usuario, crear_usuario, desactivar_usuario, listar_usuarios, proponer_nivel_brian, ver_nivel_brian
+    reportes          nivel 1: comparar_periodos, exportar_excel, reporte_del_dia, resumen_ventas, ventas_por_vendedora
+    contabilidad      nivel 4: conciliar_movimiento, guia_cierre_mes, movimientos_por_conciliar, reporte_contable
+    compras           nivel 4: confirmar_orden_compra, crear_orden_compra, importar_lista_proveedor, leer_archivo, recibir_mercancia, ver_compras
+    promociones       nivel 4: crear_promocion, listar_promociones, terminar_promocion
+    sitio_web         nivel 4: editar_texto_pagina, publicar_cambios_sitio, publicar_producto_web, revisar_marca
+    entregas          nivel 4: entregas_pendientes, hoja_de_ruta_del_dia, marcar_entregado, programar_entrega
+    whatsapp          nivel 4: enviar_cotizacion_whatsapp, preparar_mensaje_whatsapp
+
+(b) CASOS DE PERMISOS
+id   usuario          canal    herramienta              esperado                   obtenido                   res
+P01  ana_vendedora    chat     crear_cotizacion         permitir                   permitir/directo           APROBADO
+P02  ana_vendedora    chat     crear_cotizacion         escalar/tope_descuento     escalar/tope_descuento     APROBADO
+P03  ana_vendedora    chat     confirmar_venta          confirmar                  confirmar/nivel_3          APROBADO
+P04  ana_vendedora    chat     reporte_contable         bloquear/odoo              bloquear/odoo              APROBADO
+P05  ana_vendedora    chat     ventas_por_vendedora     bloquear/odoo              bloquear/odoo              APROBADO
+P06  ana_vendedora    chat     crear_factura            bloquear/restriccion       bloquear/restriccion       APROBADO
+P07  ana_vendedora    chat     crear_factura            permitir                   permitir/directo           APROBADO
+P08  ana_vendedora    telegram registrar_pago           confirmar                  confirmar/nivel_3          APROBADO
+P09  ana_vendedora    mcp      buscar_productos         bloquear/canal             bloquear/canal             APROBADO
+P10  ana_vendedora    chat     crear_cliente            confirmar/contaminado      confirmar/contaminado      APROBADO
+P11  ana_vendedora    chat     crear_filtro_guardado    permitir                   permitir/directo           APROBADO
+P12  ana_vendedora    chat     buscar_en_todo           bloquear/politica          bloquear/politica          APROBADO
+P13  gaby_gerencia    chat     cambiar_precio           confirmar                  confirmar/nivel_3          APROBADO
+P14  gaby_gerencia    chat     confirmar_venta          permitir                   permitir/autonomo          APROBADO
+P15  gaby_gerencia    chat     confirmar_venta          confirmar/sobre_tope       confirmar/sobre_tope       APROBADO
+P16  gaby_gerencia    telegram confirmar_venta          confirmar/autonomia_canal  confirmar/autonomia_canal  APROBADO
+P17  gaby_gerencia    chat     crear_campo              bloquear/odoo              bloquear/odoo              APROBADO
+P18  gaby_gerencia    chat     cambiar_rol_usuario      bloquear/odoo              bloquear/odoo              APROBADO
+P19  dueno_admin      chat     crear_campo              confirmar                  confirmar/siempre          APROBADO
+P20  dueno_admin      chat     publicar_factura         confirmar                  confirmar/siempre          APROBADO
+P21  dueno_admin      chat     registrar_pago           permitir                   permitir/autonomo          APROBADO
+P22  dueno_admin      mcp      registrar_pago           confirmar_fuera_de_banda   confirmar_fuera_de_banda/autonomia_canal APROBADO
+P23  dueno_admin      chat     registrar_pago           confirmar/contaminado      confirmar/contaminado      APROBADO
+P24  carlos_contador  chat     conciliar_movimiento     confirmar                  confirmar/nivel_3          APROBADO
+P25  pedro_sin_perfil chat     confirmar_venta          bloquear/nivel             bloquear/nivel             APROBADO
+Resultado: 25/25 aprobados
+
+(c) TOKENS DE DEFINICIONES DE HERRAMIENTAS POR LLAMADA (caracteres reales → tokens)
+Catálogo actual completo: 25270 car. (45 esquemas reales, JSON compacto); media 562 car./herramienta; cargar_habilidad: 375 car.
+Las herramientas NUEVAS no tienen esquema todavía: se cuentan aparte a la media real.
+
+  Factor base (car/3.3)  ·  costo de entrada Sonnet 5.5 US$ 2.0/M sin caché
+  escenario                                         hoy 45  hoy rol  demanda  ahorro  +nuevas  turno hoy turno dem.
+  vendedora: «cotízale un sofá gris a Juan»           7658     5257     2474     53%      170      11254       7288
+  vendedora: «¿quién me debe?»                        7658     5257     2926     44%      340      11254       8191
+  gerencia: «sube 5 % los colchones Queen»            7658     7038     2397     66%      511      14817       7279
+  admin: «hagamos el cierre de septiembre»            7658     7658     3923     49%      340      16056      10376
+  admin: «crea el usuario de la nueva vendedora»      7658     7658     2094     73%      340      16056       6719
+  admin: peor caso, carga TODOS sus paquetes          7658     7658     9613    -26%     7828      16056      21757
+  US$ por llamada, solo definiciones (fila 1): hoy-45 0.0153 · bajo demanda 0.0049
+
+  Factor tokenizador nuevo (car/2.5)  ·  costo de entrada Sonnet 5.5 US$ 2.0/M sin caché
+  escenario                                         hoy 45  hoy rol  demanda  ahorro  +nuevas  turno hoy turno dem.
+  vendedora: «cotízale un sofá gris a Juan»          10108     6939     3266     53%      225      14855       9620
+  vendedora: «¿quién me debe?»                       10108     6939     3862     44%      449      14855      10812
+  gerencia: «sube 5 % los colchones Queen»           10108     9290     3164     66%      674      19558       9608
+  admin: «hagamos el cierre de septiembre»           10108    10108     5178     49%      449      21194      13696
+  admin: «crea el usuario de la nueva vendedora»     10108    10108     2764     73%      449      21194       8869
+  admin: peor caso, carga TODOS sus paquetes         10108    10108    12689    -26%    10333      21194      28719
+  US$ por llamada, solo definiciones (fila 1): hoy-45 0.0202 · bajo demanda 0.0065

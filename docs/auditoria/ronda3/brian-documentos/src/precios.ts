@@ -73,6 +73,7 @@ export function preciosEnTexto(texto: string): PreciosTexto {
     precios.push(p);
     marcas.push([m.index, m.index + m[0].length]);
     if (valor === null) alertas.push(`precio vacío para «${etiqueta || '?'}» (${m[0]})`);
+    else if (valor === 0) alertas.push(`precio cero (¿vacío?) para «${etiqueta || '?'}» (${m[0]})`);
   }
   for (const [a, b] of marcas.slice().reverse()) resto = resto.slice(0, a) + ' ' + resto.slice(b);
   // quitar etiquetas usadas

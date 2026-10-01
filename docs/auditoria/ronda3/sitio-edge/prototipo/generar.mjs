@@ -4,7 +4,7 @@
 //   - addons/dcasa_socios/data/puntos.json                                    (cifras de socios)
 //   - addons/website_dcasa/static/src/img/*.webp                              (hero y categorías actuales)
 //   - textos copiados de addons/website_dcasa/views/*.xml
-// Uso: npm i && node generar.mjs   (SOLO=XHT022-T-W,ALJ021439 limita las fichas con galería completa)
+// Uso: npm i && node generar.mjs   (SOLO=XHT022-T-W,ALJ021439 genera solo esas fichas: build de medición rápido)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -240,8 +240,9 @@ ${padrino && ahijado ? `<li><strong>${padrino.toLocaleString('en-US')}</strong> 
   }
 
   // ---------------- Fichas (todas; galería completa solo en SOLO o en todas si no se indica)
-  for (const p of productos) {
-    const fotos = !solo || solo.includes(p.codigo) ? p.fotos : p.fotos.slice(0, 1);
+  // Con SOLO=cod1,cod2 solo se generan esas fichas (medición rápida); sin SOLO, todas con su galería.
+  for (const p of productos.filter((x) => !solo || solo.includes(x.codigo))) {
+    const fotos = p.fotos;
     const vs = [];
     for (const f of fotos) vs.push(await variantes(path.join(FOTOS, f), slug(f.replace(/\.jpg$/i, '')), [480, 960, 1440]));
     const varios = Object.keys(p.precios).length > 1;

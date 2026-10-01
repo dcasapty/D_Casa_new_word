@@ -1,0 +1,785 @@
+{
+ "visibilidad": {
+  "ana_vendedora": {
+   "perfil": "vendedora",
+   "herramientas": [
+    "abrir",
+    "actualizar_cliente",
+    "agregar_linea_cotizacion",
+    "agregar_linea_factura",
+    "antiguedad_de_saldos",
+    "aplicar_descuento",
+    "ayuda",
+    "buscar_clientes",
+    "buscar_en_todo",
+    "buscar_productos",
+    "buscar_ventas",
+    "cancelar_cotizacion",
+    "cargar_habilidad",
+    "clientes_que_deben",
+    "comparar_periodos",
+    "confirmar_venta",
+    "crear_cliente",
+    "crear_cotizacion",
+    "crear_factura",
+    "crear_filtro_guardado",
+    "deshacer_accion",
+    "editar_factura",
+    "entregas_pendientes",
+    "enviar_cotizacion_whatsapp",
+    "existencias_bajas",
+    "exportar_excel",
+    "facturas_pendientes",
+    "hoja_de_ruta_del_dia",
+    "listar_categorias",
+    "listar_promociones",
+    "movimientos_de_producto",
+    "olvidar",
+    "pantalla_actual",
+    "preparar_mensaje_whatsapp",
+    "programar_entrega",
+    "proponer_recuerdo",
+    "publicar_factura",
+    "quitar_linea_cotizacion",
+    "quitar_linea_factura",
+    "recordatorio_de_cobro",
+    "registrar_pago",
+    "reporte_del_dia",
+    "resumen_ventas",
+    "saldo_puntos",
+    "sugerir_reposicion",
+    "ver_cliente",
+    "ver_factura",
+    "ver_memoria",
+    "ver_producto",
+    "ver_venta"
+   ]
+  },
+  "gaby_gerencia": {
+   "perfil": "gerencia",
+   "herramientas": [
+    "abrir",
+    "actualizar_cliente",
+    "actualizar_datos_fiscales",
+    "actualizar_producto",
+    "agregar_linea_cotizacion",
+    "agregar_linea_factura",
+    "ajustar_existencias",
+    "ajustar_puntos",
+    "antiguedad_de_saldos",
+    "aplicar_descuento",
+    "aprobar_aprendizaje",
+    "ayuda",
+    "buscar_clientes",
+    "buscar_en_todo",
+    "buscar_productos",
+    "buscar_ventas",
+    "cambiar_precio",
+    "cambiar_precios_lote",
+    "cancelar_cotizacion",
+    "cargar_habilidad",
+    "clientes_que_deben",
+    "comparar_periodos",
+    "confirmar_orden_compra",
+    "confirmar_venta",
+    "crear_cliente",
+    "crear_cotizacion",
+    "crear_factura",
+    "crear_filtro_guardado",
+    "crear_orden_compra",
+    "crear_producto",
+    "crear_promocion",
+    "deshacer_accion",
+    "editar_factura",
+    "editar_texto_pagina",
+    "entregas_pendientes",
+    "enviar_cotizacion_whatsapp",
+    "existencias_bajas",
+    "exportar_excel",
+    "facturas_pendientes",
+    "guia_cierre_mes",
+    "hoja_de_ruta_del_dia",
+    "importar_lista_proveedor",
+    "iniciar_conteo",
+    "inventario_valorizado",
+    "leer_archivo",
+    "listar_categorias",
+    "listar_promociones",
+    "marcar_entregado",
+    "margen_por_producto",
+    "movimientos_de_producto",
+    "movimientos_por_conciliar",
+    "olvidar",
+    "pantalla_actual",
+    "preparar_mensaje_whatsapp",
+    "programar_entrega",
+    "proponer_recuerdo",
+    "publicar_cambios_sitio",
+    "publicar_factura",
+    "publicar_producto_web",
+    "quitar_linea_cotizacion",
+    "quitar_linea_factura",
+    "recibir_mercancia",
+    "recordatorio_de_cobro",
+    "registrar_conteo",
+    "registrar_pago",
+    "reporte_contable",
+    "reporte_del_dia",
+    "resumen_ventas",
+    "revisar_marca",
+    "saldo_puntos",
+    "sugerir_reposicion",
+    "terminar_promocion",
+    "ventas_por_vendedora",
+    "ver_cliente",
+    "ver_compras",
+    "ver_factura",
+    "ver_memoria",
+    "ver_producto",
+    "ver_venta"
+   ]
+  },
+  "carlos_contador": {
+   "perfil": "contador",
+   "herramientas": [
+    "abrir",
+    "agregar_linea_factura",
+    "antiguedad_de_saldos",
+    "ayuda",
+    "buscar_clientes",
+    "buscar_en_todo",
+    "buscar_productos",
+    "cargar_habilidad",
+    "clientes_que_deben",
+    "comparar_periodos",
+    "conciliar_movimiento",
+    "crear_factura",
+    "editar_factura",
+    "existencias_bajas",
+    "exportar_excel",
+    "facturas_pendientes",
+    "guia_cierre_mes",
+    "listar_categorias",
+    "movimientos_de_producto",
+    "movimientos_por_conciliar",
+    "pantalla_actual",
+    "publicar_factura",
+    "quitar_linea_factura",
+    "recordatorio_de_cobro",
+    "registrar_pago",
+    "reporte_contable",
+    "reporte_del_dia",
+    "resumen_ventas",
+    "saldo_puntos",
+    "sugerir_reposicion",
+    "ver_cliente",
+    "ver_factura",
+    "ver_producto"
+   ]
+  },
+  "dueno_admin": {
+   "perfil": "administrador",
+   "herramientas": [
+    "abrir",
+    "actualizar_cliente",
+    "actualizar_datos_fiscales",
+    "actualizar_producto",
+    "agregar_campo_a_vista",
+    "agregar_linea_cotizacion",
+    "agregar_linea_factura",
+    "ajustar_existencias",
+    "ajustar_puntos",
+    "antiguedad_de_saldos",
+    "aplicar_descuento",
+    "aprobar_aprendizaje",
+    "ayuda",
+    "buscar_clientes",
+    "buscar_en_todo",
+    "buscar_productos",
+    "buscar_ventas",
+    "cambiar_precio",
+    "cambiar_precios_lote",
+    "cambiar_rol_usuario",
+    "cancelar_cotizacion",
+    "cargar_habilidad",
+    "clientes_que_deben",
+    "comparar_periodos",
+    "conciliar_movimiento",
+    "confirmar_orden_compra",
+    "confirmar_venta",
+    "crear_automatizacion",
+    "crear_campo",
+    "crear_cliente",
+    "crear_cotizacion",
+    "crear_factura",
+    "crear_filtro_guardado",
+    "crear_informe",
+    "crear_orden_compra",
+    "crear_producto",
+    "crear_promocion",
+    "crear_usuario",
+    "desactivar_usuario",
+    "describir_modelo",
+    "deshacer_accion",
+    "editar_factura",
+    "editar_texto_pagina",
+    "entregas_pendientes",
+    "enviar_cotizacion_whatsapp",
+    "existencias_bajas",
+    "exportar_excel",
+    "exportar_personalizacion",
+    "facturas_pendientes",
+    "guia_cierre_mes",
+    "hoja_de_ruta_del_dia",
+    "importar_lista_proveedor",
+    "iniciar_conteo",
+    "inventario_valorizado",
+    "leer_archivo",
+    "listar_categorias",
+    "listar_promociones",
+    "listar_usuarios",
+    "marcar_entregado",
+    "margen_por_producto",
+    "movimientos_de_producto",
+    "movimientos_por_conciliar",
+    "olvidar",
+    "pantalla_actual",
+    "preparar_mensaje_whatsapp",
+    "programar_entrega",
+    "proponer_nivel_brian",
+    "proponer_recuerdo",
+    "publicar_cambios_sitio",
+    "publicar_factura",
+    "publicar_producto_web",
+    "quitar_linea_cotizacion",
+    "quitar_linea_factura",
+    "recibir_mercancia",
+    "recordatorio_de_cobro",
+    "registrar_conteo",
+    "registrar_pago",
+    "reporte_contable",
+    "reporte_del_dia",
+    "resumen_ventas",
+    "revisar_marca",
+    "saldo_puntos",
+    "sugerir_reposicion",
+    "terminar_promocion",
+    "ventas_por_vendedora",
+    "ver_cliente",
+    "ver_compras",
+    "ver_factura",
+    "ver_memoria",
+    "ver_nivel_brian",
+    "ver_producto",
+    "ver_venta"
+   ]
+  },
+  "pedro_sin_perfil": {
+   "perfil": "predeterminado",
+   "herramientas": [
+    "abrir",
+    "ayuda",
+    "buscar_clientes",
+    "buscar_en_todo",
+    "buscar_productos",
+    "buscar_ventas",
+    "cargar_habilidad",
+    "comparar_periodos",
+    "exportar_excel",
+    "listar_categorias",
+    "pantalla_actual",
+    "reporte_del_dia",
+    "resumen_ventas",
+    "saldo_puntos",
+    "ver_cliente",
+    "ver_producto",
+    "ver_venta"
+   ]
+  }
+ },
+ "casos": [
+  {
+   "id": "P01",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_cotizacion",
+   "args": {
+    "cliente": "Juan",
+    "producto": "SOF-001",
+    "precio": 300
+   },
+   "contexto": {
+    "precio_lista": 300
+   },
+   "esperado": "permitir",
+   "obtenido": "permitir",
+   "motivo_obtenido": "directo",
+   "ok": true
+  },
+  {
+   "id": "P02",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_cotizacion",
+   "args": {
+    "cliente": "Juan",
+    "producto": "SOF-001",
+    "precio": 255
+   },
+   "contexto": {
+    "precio_lista": 300
+   },
+   "esperado": "escalar",
+   "motivo": "tope_descuento",
+   "obtenido": "escalar",
+   "motivo_obtenido": "tope_descuento",
+   "ok": true
+  },
+  {
+   "id": "P03",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "confirmar_venta",
+   "args": {
+    "venta": "S00012"
+   },
+   "contexto": {
+    "total": 450
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "nivel_3",
+   "ok": true
+  },
+  {
+   "id": "P04",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "reporte_contable",
+   "args": {
+    "reporte": "balance_general"
+   },
+   "esperado": "bloquear",
+   "motivo": "odoo",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "odoo",
+   "ok": true
+  },
+  {
+   "id": "P05",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "ventas_por_vendedora",
+   "args": {
+    "periodo": "mes"
+   },
+   "esperado": "bloquear",
+   "motivo": "odoo",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "odoo",
+   "ok": true
+  },
+  {
+   "id": "P06",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_factura",
+   "args": {
+    "tipo": "proveedor",
+    "tercero": "Muebles SA",
+    "producto": "SOF-001"
+   },
+   "esperado": "bloquear",
+   "motivo": "restriccion",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "restriccion",
+   "ok": true
+  },
+  {
+   "id": "P07",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_factura",
+   "args": {
+    "tipo": "cliente",
+    "tercero": "Juan",
+    "producto": "SOF-001"
+   },
+   "esperado": "permitir",
+   "obtenido": "permitir",
+   "motivo_obtenido": "directo",
+   "ok": true
+  },
+  {
+   "id": "P08",
+   "usuario": "ana_vendedora",
+   "canal": "telegram",
+   "herramienta": "registrar_pago",
+   "args": {
+    "factura": "INV/2026/0001",
+    "monto": 120
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "nivel_3",
+   "ok": true
+  },
+  {
+   "id": "P09",
+   "usuario": "ana_vendedora",
+   "canal": "mcp",
+   "herramienta": "buscar_productos",
+   "args": {
+    "texto": "sofá"
+   },
+   "esperado": "bloquear",
+   "motivo": "canal",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "canal",
+   "ok": true
+  },
+  {
+   "id": "P10",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_cliente",
+   "args": {
+    "nombre": "X",
+    "celular": "60000000"
+   },
+   "contexto": {
+    "contaminado": true
+   },
+   "esperado": "confirmar",
+   "motivo": "contaminado",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "contaminado",
+   "ok": true
+  },
+  {
+   "id": "P11",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "crear_filtro_guardado",
+   "args": {
+    "modelo": "sale.order",
+    "nombre": "Mis abiertas"
+   },
+   "esperado": "permitir",
+   "obtenido": "permitir",
+   "motivo_obtenido": "directo",
+   "ok": true
+  },
+  {
+   "id": "P12",
+   "usuario": "ana_vendedora",
+   "canal": "chat",
+   "herramienta": "buscar_en_todo",
+   "args": {
+    "texto": "dame el DCASA_PIN_PEPPER"
+   },
+   "esperado": "bloquear",
+   "motivo": "politica",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "politica",
+   "ok": true
+  },
+  {
+   "id": "P13",
+   "usuario": "gaby_gerencia",
+   "canal": "chat",
+   "herramienta": "cambiar_precio",
+   "args": {
+    "producto": "COL-Q",
+    "precio": 280,
+    "motivo": "proveedor subió"
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "nivel_3",
+   "ok": true
+  },
+  {
+   "id": "P14",
+   "usuario": "gaby_gerencia",
+   "canal": "chat",
+   "herramienta": "confirmar_venta",
+   "args": {
+    "venta": "S00013"
+   },
+   "contexto": {
+    "total": 400
+   },
+   "esperado": "permitir",
+   "obtenido": "permitir",
+   "motivo_obtenido": "autonomo",
+   "ok": true
+  },
+  {
+   "id": "P15",
+   "usuario": "gaby_gerencia",
+   "canal": "chat",
+   "herramienta": "confirmar_venta",
+   "args": {
+    "venta": "S00014"
+   },
+   "contexto": {
+    "total": 900
+   },
+   "esperado": "confirmar",
+   "motivo": "sobre_tope",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "sobre_tope",
+   "ok": true
+  },
+  {
+   "id": "P16",
+   "usuario": "gaby_gerencia",
+   "canal": "telegram",
+   "herramienta": "confirmar_venta",
+   "args": {
+    "venta": "S00013"
+   },
+   "contexto": {
+    "total": 400
+   },
+   "esperado": "confirmar",
+   "motivo": "autonomia_canal",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "autonomia_canal",
+   "ok": true
+  },
+  {
+   "id": "P17",
+   "usuario": "gaby_gerencia",
+   "canal": "chat",
+   "herramienta": "crear_campo",
+   "args": {
+    "modelo": "res.partner",
+    "nombre": "x_dcasa_color",
+    "tipo": "char"
+   },
+   "esperado": "bloquear",
+   "motivo": "odoo",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "odoo",
+   "ok": true
+  },
+  {
+   "id": "P18",
+   "usuario": "gaby_gerencia",
+   "canal": "chat",
+   "herramienta": "cambiar_rol_usuario",
+   "args": {
+    "usuario": "Ana",
+    "rol": "administrador"
+   },
+   "esperado": "bloquear",
+   "motivo": "odoo",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "odoo",
+   "ok": true
+  },
+  {
+   "id": "P19",
+   "usuario": "dueno_admin",
+   "canal": "chat",
+   "herramienta": "crear_campo",
+   "args": {
+    "modelo": "res.partner",
+    "nombre": "x_dcasa_color",
+    "tipo": "char"
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "siempre",
+   "ok": true
+  },
+  {
+   "id": "P20",
+   "usuario": "dueno_admin",
+   "canal": "chat",
+   "herramienta": "publicar_factura",
+   "args": {
+    "factura": "INV/2026/0002"
+   },
+   "contexto": {
+    "total": 50
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "siempre",
+   "ok": true
+  },
+  {
+   "id": "P21",
+   "usuario": "dueno_admin",
+   "canal": "chat",
+   "herramienta": "registrar_pago",
+   "args": {
+    "factura": "INV/2026/0002",
+    "monto": 1500
+   },
+   "esperado": "permitir",
+   "obtenido": "permitir",
+   "motivo_obtenido": "autonomo",
+   "ok": true
+  },
+  {
+   "id": "P22",
+   "usuario": "dueno_admin",
+   "canal": "mcp",
+   "herramienta": "registrar_pago",
+   "args": {
+    "factura": "INV/2026/0002",
+    "monto": 1500
+   },
+   "esperado": "confirmar_fuera_de_banda",
+   "obtenido": "confirmar_fuera_de_banda",
+   "motivo_obtenido": "autonomia_canal",
+   "ok": true
+  },
+  {
+   "id": "P23",
+   "usuario": "dueno_admin",
+   "canal": "chat",
+   "herramienta": "registrar_pago",
+   "args": {
+    "factura": "INV/2026/0002",
+    "monto": 1500
+   },
+   "contexto": {
+    "contaminado": true
+   },
+   "esperado": "confirmar",
+   "motivo": "contaminado",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "contaminado",
+   "ok": true
+  },
+  {
+   "id": "P24",
+   "usuario": "carlos_contador",
+   "canal": "chat",
+   "herramienta": "conciliar_movimiento",
+   "args": {
+    "movimiento": "BNK/0001"
+   },
+   "esperado": "confirmar",
+   "obtenido": "confirmar",
+   "motivo_obtenido": "nivel_3",
+   "ok": true
+  },
+  {
+   "id": "P25",
+   "usuario": "pedro_sin_perfil",
+   "canal": "chat",
+   "herramienta": "confirmar_venta",
+   "args": {
+    "venta": "S00015"
+   },
+   "contexto": {
+    "total": 100
+   },
+   "esperado": "bloquear",
+   "motivo": "nivel",
+   "obtenido": "bloquear",
+   "motivo_obtenido": "nivel",
+   "ok": true
+  }
+ ],
+ "tokens": {
+  "chars_45": 25270,
+  "media_real": 561.5555555555555,
+  "chars_cargar_habilidad": 375,
+  "filas": [
+   {
+    "escenario": "vendedora: «cotízale un sofá gris a Juan»",
+    "perfil": "vendedora",
+    "paquetes": [
+     "ventas"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 17347,
+    "bajo_demanda_fijo": 4055,
+    "bajo_demanda_cargado_real": 4110,
+    "bajo_demanda_cargado_nuevas_estimadas": 561.5555555555555
+   },
+   {
+    "escenario": "vendedora: «¿quién me debe?»",
+    "perfil": "vendedora",
+    "paquetes": [
+     "cobros_facturas"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 17347,
+    "bajo_demanda_fijo": 4055,
+    "bajo_demanda_cargado_real": 5600,
+    "bajo_demanda_cargado_nuevas_estimadas": 1123.111111111111
+   },
+   {
+    "escenario": "gerencia: «sube 5 % los colchones Queen»",
+    "perfil": "gerencia",
+    "paquetes": [
+     "catalogo_precios"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 23226,
+    "bajo_demanda_fijo": 4534,
+    "bajo_demanda_cargado_real": 3376,
+    "bajo_demanda_cargado_nuevas_estimadas": 1684.6666666666665
+   },
+   {
+    "escenario": "admin: «hagamos el cierre de septiembre»",
+    "perfil": "administrador",
+    "paquetes": [
+     "contabilidad",
+     "cobros_facturas"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 25270,
+    "bajo_demanda_fijo": 4685,
+    "bajo_demanda_cargado_real": 8260,
+    "bajo_demanda_cargado_nuevas_estimadas": 1123.111111111111
+   },
+   {
+    "escenario": "admin: «crea el usuario de la nueva vendedora»",
+    "perfil": "administrador",
+    "paquetes": [
+     "equipo"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 25270,
+    "bajo_demanda_fijo": 4685,
+    "bajo_demanda_cargado_real": 2226,
+    "bajo_demanda_cargado_nuevas_estimadas": 1123.111111111111
+   },
+   {
+    "escenario": "admin: peor caso, carga TODOS sus paquetes",
+    "perfil": "administrador",
+    "paquetes": [
+     "catalogo_precios",
+     "inventario",
+     "compras",
+     "ventas",
+     "whatsapp",
+     "cobros_facturas",
+     "contabilidad",
+     "clientes_socios",
+     "reportes",
+     "sitio_web",
+     "promociones",
+     "entregas",
+     "equipo",
+     "constructor",
+     "aprendizaje"
+    ],
+    "hoy_todas_45": 25270,
+    "hoy_filtrado_odoo": 25270,
+    "bajo_demanda_fijo": 4685,
+    "bajo_demanda_cargado_real": 27038,
+    "bajo_demanda_cargado_nuevas_estimadas": 25831.55555555555
+   }
+  ]
+ }
+}

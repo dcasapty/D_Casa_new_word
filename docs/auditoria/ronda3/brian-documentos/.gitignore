@@ -1,0 +1,5 @@
+node_modules/
+# fixtures grandes (> 5 MB): se regeneran con `python3 fixtures/generar_fixtures.py --grandes`
+fixtures/datos_*mb.xlsx
+fixtures/fotos_*mb.xlsx
+medicion/salida/*.tmp

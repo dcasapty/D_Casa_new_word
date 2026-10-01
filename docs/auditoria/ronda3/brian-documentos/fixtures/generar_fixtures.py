@@ -172,8 +172,8 @@ def parchear(origen: Path, destino: Path):
                 # valor en caché para las fórmulas de la columna G (como si Excel las hubiera calculado)
                 def cache(m):
                     fila = int(m.group(1)); base = {6: 149.99, 8: 329.99, 11: 10}.get(fila)
-                    return m.group(0).replace('</f>', f'</f><v>{round(base * 1.07, 2)}</v>') if base else m.group(0)
-                s = re.sub(r'<c r="G(\d+)"[^>]*><f>[^<]*</f>', cache, s)
+                    return re.sub(r'</f>(<v></v>|<v/>)?', f'</f><v>{round(base * 1.07, 2)}</v>', m.group(0)) if base else m.group(0)
+                s = re.sub(r'<c r="G(\d+)"[^>]*><f>[^<]*</f>(<v></v>|<v/>)?', cache, s)
                 # imágenes en celda F9 (vm=1) y F10 (vm=2, con dos <rc>)
                 for fila, vm in ((9, 1), (10, 2)):
                     celda = f'<c r="F{fila}" t="e" vm="{vm}"><v>#VALUE!</v></c>'

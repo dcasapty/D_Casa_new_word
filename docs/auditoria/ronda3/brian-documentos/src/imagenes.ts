@@ -40,7 +40,7 @@ export function infoImagen(b: Uint8Array): InfoImagen {
 }
 
 export async function sha256(b: Uint8Array): Promise<string> {
-  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', b));
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', b as Uint8Array<ArrayBuffer>));
   return Array.from(h, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 

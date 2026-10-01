@@ -1,0 +1,22 @@
+{
+  // Prototipo: NO se despliega (regla de la auditoría). Sirve para `wrangler deploy --dry-run` y tipos.
+  "name": "brian-agente-prototipo",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [
+      { "name": "BrianConversacion", "class_name": "BrianConversacion" },
+      { "name": "LIBRO", "class_name": "LibroUso" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["BrianConversacion", "LibroUso"] }],
+  "vars": {
+    "AIG_BASE": "https://gateway.ai.cloudflare.com/v1/CUENTA/brian",
+    "ODOO_URL": "https://odoo.interno.example",
+    "ODOO_DB": "dcasa",
+    "BRIAN_TOPES": "{\"porRolMes\":{\"duena\":20000000,\"gerencia\":10000000,\"vendedora\":3000000},\"globalMes\":40000000,\"aviso\":0.8}"
+  },
+  // Secretos (wrangler secret put): META_API_KEY, ANTHROPIC_API_KEY, BRIAN_FIRMA
+  "observability": { "enabled": true, "head_sampling_rate": 1, "traces": { "enabled": true } }
+}

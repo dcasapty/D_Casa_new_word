@@ -60,7 +60,8 @@ function atributos(s: string): Atributos {
 export class TokenizadorXml {
   private buf = '';
   private textoPend = '';
-  constructor(private m: Manejador) {}
+  private m: Manejador;
+  constructor(m: Manejador) { this.m = m; }
 
   alimentar(trozo: string): void {
     this.buf += trozo;
