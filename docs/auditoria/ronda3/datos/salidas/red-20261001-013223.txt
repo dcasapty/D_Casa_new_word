@@ -1,0 +1,5 @@
+pg_dump zstd: 105 MB en 4.964307002 s; subida 1.935393296 s
+initdb: warning: enabling "trust" authentication for local connections
+initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or --auth-local and --auth-host, the next time you run initdb.
+descarga + pg_restore: 14.236990607 s
+PRUEBA DE RESTAURACION: OK (checksums iguales)

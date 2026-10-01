@@ -123,3 +123,13 @@ Tabla completa en `salidas/resumen_muerte.txt` (salida por ensayo en `salidas/mu
 ### 2.3 HALLAZGO: tras cada restauración el archivado queda mudo hasta `checkpoint_timeout`
 En 4 de 6 promociones (líneas de tiempo 3, 4, 5 y 7) PostgreSQL 16 **no forzó el cambio de segmento a los 60 s** pese a la carga continua: el primer `pushed WAL file` apareció justo con `checkpoint starting: time`, 5 min después del `end-of-recovery checkpoint` (reproducido a mano en TL7: promoción 00:38:50, primer push 00:43:50, `pg_stat_archiver.archived_count` congelado en 1). En TL2 y TL6 sí archivó a los 60 s; el patrón observado es que la carga empezó 1-3 s después de promover (en TL2/TL6, 9-12 s). Causa exacta en el código de PostgreSQL: no verificada (hipótesis: el checkpointer calcula su espera mientras aún se considera «en recuperación» y duerme `checkpoint_timeout`). **Mitigación medida**: un `CHECKPOINT` explícito tras la promoción (5/5 ensayos archivaron a los 60 s). Defensa adicional recomendada: vigilante que llame `pg_switch_wal()` cada 60 s si el LSN avanzó, y alerta si `last_archived_time` > 2 min.
 
+### 4.1 Medición propia: PostgreSQL sobre s3fs-fuse contra el S3 local (`05_fuse.sh`, `salidas/fuse-*.txt`)
+| | Disco local (5443) | FUSE → S3 en la MISMA máquina (5442) |
+|---|---|---|
+| `initdb` + arranque | 0,13 s de arranque | 11,5 s de arranque |
+| `pgbench -N -c 2 -T 30` (escala 2) | **1 997 tps, 1,0 ms** | **5,7 tps, 352 ms** (≈ 350 veces más lento) |
+| Peticiones S3 | 0 | **25 327** para un `initdb` + `pgbench -i` + 30 s de carga |
+| Tras `kill -9` + desmontaje sin vaciar caché | — | arrancó y la tabla tenía sus 200 000 filas en las 2 corridas (1 sola prueba de choque por corrida: **no demuestra seguridad**) |
+
+Lectura: incluso sin latencia de red, cada página escrita se convierte en reescrituras de objetos; con R2 real (decenas de ms por petición) sería peor, y el volumen de operaciones Clase A (≈ 25 000 en un minuto de actividad) saldría del nivel gratis de R2 (1 M/mes) en menos de un día de uso. **Descartado** para el directorio de datos. FUSE sí sirve para leer archivos estáticos o dejar volcados.
+

@@ -1,0 +1,20 @@
+CPU por petición = 70.0 ms · CPU en reposo = 1.0 s por hora activa
+tipo        horario                          volumen         GiB-h vCPU-min   mem$   cpu$ disco$ +plan $5  %CPU
+basic       24/7                             bajo 1 000/d      730       47   6.35   0.00   0.69    12.03   0.4
+basic       24/7                             medio 5 000/d     730      187   6.35   0.00   0.69    12.03   1.7
+basic       24/7                             alto 20 000/d     730      712   6.35   0.40   0.69    12.44   6.5
+basic       horario comercial 12 h x 26 d    bajo 1 000/d      312       40   2.58   0.00   0.26     7.85   0.9
+basic       horario comercial 12 h x 26 d    medio 5 000/d     312      180   2.58   0.00   0.26     7.85   3.9
+basic       horario comercial 12 h x 26 d    alto 20 000/d     312      705   2.58   0.40   0.26     8.24  15.1
+basic       a demanda ~4 h/dia x 30 d        bajo 1 000/d      120       37   0.86   0.00   0.07     5.93   2.1
+basic       a demanda ~4 h/dia x 30 d        medio 5 000/d     120      177   0.86   0.00   0.07     5.93   9.8
+basic       a demanda ~4 h/dia x 30 d        alto 20 000/d     120      702   0.86   0.39   0.07     6.32  39.0
+standard-1  24/7                             bajo 1 000/d     2920       47  26.06   0.00   1.42    32.48   0.2
+standard-1  24/7                             medio 5 000/d    2920      187  26.06   0.00   1.42    32.48   0.9
+standard-1  24/7                             alto 20 000/d    2920      712  26.06   0.40   1.42    32.88   3.3
+standard-1  horario comercial 12 h x 26 d    bajo 1 000/d     1248       40  11.01   0.00   0.58    16.59   0.4
+standard-1  horario comercial 12 h x 26 d    medio 5 000/d    1248      180  11.01   0.00   0.58    16.59   1.9
+standard-1  horario comercial 12 h x 26 d    alto 20 000/d    1248      705  11.01   0.40   0.58    16.98   7.5
+standard-1  a demanda ~4 h/dia x 30 d        bajo 1 000/d      480       37   4.10   0.00   0.19     9.29   1.0
+standard-1  a demanda ~4 h/dia x 30 d        medio 5 000/d     480      177   4.10   0.00   0.19     9.29   4.9
+standard-1  a demanda ~4 h/dia x 30 d        alto 20 000/d     480      702   4.10   0.39   0.19     9.68  19.5

@@ -686,3 +686,7 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 - **Prefork w2**: 2 501 sentencias en 6 min (~400-500/min: `SELECT max(id) FROM orm_signaling_*` en transacción, ~2,3/s), CPU Odoo 41 s/h y PG 19 s/h.
 - Para una base serverless que se duerme por inactividad: con hilos + `max_cron_threads=0` la base no recibe consultas, pero Odoo mantiene una conexión abierta (y el bus un `LISTEN` si hay un backend abierto); con cron 1 hay una consulta por minuto (no dormiría nunca con ventanas de ≥1 min); con prefork, jamás.
 - Con cron 0 hay que disparar los 27 cron activos desde fuera: los que importan son horarios (cola de correo, «Socios D'CASA: vencer canjes y regalos de cumpleaños»), pagos cada 10 min y diarios (auto-post, limpieza). Un Cron Trigger del Worker cada hora que despierte el contenedor bastaría (por verificar el mecanismo: Odoo 19 no expone un endpoint HTTP para correr cron).
+
+### coordinador · APRENDIZAJE · — · decisión del dueño: el CRM se queda (y se mejorará)
+- D'CASA usará el CRM de Odoo y lo construirá o mejorará encima (módulo propio `dcasa_*`). Se mantienen `crm`, `sale_crm` y `calendar` (el CRM de Odoo 19 depende de `calendar`: `vendor/odoo/addons/crm/__manifest__.py`).
+- Siguen siendo candidatos a desinstalar: enriquecimiento IAP del CRM (`crm_iap_*`, `iap_crm`, `partner_autocomplete`), SMS, snailmail, UBL europeo, tableros de hoja de cálculo, lista de deseos, comparador, `base_import_module`.
