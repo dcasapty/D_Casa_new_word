@@ -1,0 +1,4 @@
+NOTICE:  database "r3_med_upd" does not exist, skipping
+update rep=1 secs=15.542307941 cpu_s=10.88 max_rss_kB=196968 errores=0
+update rep=2 secs=14.458749442 cpu_s=10.55 max_rss_kB=197024 errores=0
+update rep=3 secs=14.061071417 cpu_s=10.41 max_rss_kB=197044 errores=0
