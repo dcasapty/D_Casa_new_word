@@ -63,3 +63,7 @@ class SaleOrderLine(models.Model):
     dcasa_canje_id = fields.Many2one('dcasa.canje', string='Premio cobrado', readonly=True, copy=False,
                                      index='btree_not_null', ondelete='restrict')
 
+    def _dcasa_exenta_tope_descuento(self):
+        # La línea de premio es negativa por diseño: la pagan los puntos, no la vendedora.
+        return super()._dcasa_exenta_tope_descuento() or bool(self.dcasa_canje_id)
+

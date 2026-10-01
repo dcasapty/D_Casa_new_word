@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Gerencia también edita y diseña el sitio (dcasa_base no depende de website). -->
+    <record id="dcasa_base.group_gerencia" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('website.group_website_designer'))]"/>
+    </record>
+</odoo>

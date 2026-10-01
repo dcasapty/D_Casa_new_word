@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_dcasa_descuento" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.dcasa.descuento</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='discount_sale_order_lines']" position="after">
+                <setting id="dcasa_descuento_max_vendedora" string="Descuento máximo de la vendedora"
+                         help="Rebaja máxima por línea (por % o bajando el precio) para quien no es Gerencia.">
+                    <div class="d-flex align-items-center gap-2">
+                        <field name="dcasa_descuento_max_vendedora" class="o_light_label" style="width: 6rem;"/>
+                        <span>%</span>
+                    </div>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>

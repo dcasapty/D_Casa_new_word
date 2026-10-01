@@ -2,6 +2,8 @@
 
 Cada cifra respeta los permisos de quien mira: si una vendedora no ve contabilidad,
 su tablero simplemente no trae «Por cobrar». Nada se inventa: todo sale de la base.
+Los accesos («Registrar cobro», «Nueva cotización»…) también: ``permisos`` dice cuáles
+puede usar quien mira, y el Inicio solo muestra esos (UI-02).
 """
 from datetime import datetime, time, timedelta
 
@@ -35,8 +37,19 @@ class DcasaTablero(models.AbstractModel):
         inicio = zona.localize(datetime.combine(dia, time.min)).astimezone(pytz.utc).replace(tzinfo=None)
         return inicio, inicio + timedelta(days=1)
 
-    def _puede(self, modelo):
-        return self.env[modelo].has_access('read')
+    def _puede(self, modelo, operacion='read'):
+        return self.env[modelo].has_access(operacion)
+
+    def _permisos(self):
+        """Qué accesos y paneles del Inicio puede usar quien mira."""
+        return {
+            'cotizar': self._puede('sale.order', 'create'),
+            'crear_cliente': self._puede('res.partner', 'create'),
+            # Registrar un cobro exige Facturación (ACL de account.payment).
+            'cobrar': self._puede('account.payment', 'create'),
+            'ver_cobros': self._puede('account.payment'),
+            'catalogo': self._puede('product.template'),
+        }
 
     # ------------------------------------------------------------------
     # Datos
@@ -55,13 +68,16 @@ class DcasaTablero(models.AbstractModel):
             'cobros': [],
             'semana': [],
             'top': [],
+            'permisos': self._permisos(),
         }
         if self._puede('sale.order'):
             self._cifras_de_ventas(datos, hoy, inicio, fin)
-        if self._puede('account.payment'):
+        if datos['permisos']['ver_cobros']:
             self._cobros_de_hoy(datos, hoy)
-        if self._puede('account.move'):
-            self._por_cobrar(datos)
+            # Sin acceso a cobros, «Por cobrar» saldría de las pocas facturas que deja ver Ventas
+            # (las propias): una cifra parcial que parece total. Mejor no mostrarla.
+            if self._puede('account.move'):
+                self._por_cobrar(datos)
         if self._puede('stock.picking'):
             self._entregas(datos)
         if self._puede('res.partner'):
