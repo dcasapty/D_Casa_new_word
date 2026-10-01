@@ -34,6 +34,10 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
     ('dcasa_base', 'sale.order.line', 'write'):
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
+    ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
+        OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
+    ('website_dcasa', 'ir.qweb.field.image_url', 'record_to_html'):
+        OVERRIDE + ' Hereda la anterior (image_url extiende image); sin sudo().',
     # --- dcasa_catalogo -----------------------------------------------------------------
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     # --- dcasa_contabilidad --------------------------------------------------------------
