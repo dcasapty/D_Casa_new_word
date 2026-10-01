@@ -43,9 +43,13 @@ def stat():
 def preparar(mem_mib, vcpu):
     os.makedirs(MEM, exist_ok=True)
     os.makedirs(CPU, exist_ok=True)
+    try:  # memsw >= limit siempre: primero se abre memsw, luego limit, luego se iguala (sin swap)
+        escribir(f'{MEM}/memory.memsw.limit_in_bytes', 64 * 2**30)
+    except OSError:
+        pass
     escribir(f'{MEM}/memory.limit_in_bytes', mem_mib * 1024 * 1024)
     try:
-        escribir(f'{MEM}/memory.memsw.limit_in_bytes', mem_mib * 1024 * 1024)  # sin swap, como Containers
+        escribir(f'{MEM}/memory.memsw.limit_in_bytes', mem_mib * 1024 * 1024)
     except OSError:
         pass
     escribir(f'{CPU}/cpu.cfs_period_us', 100000)
@@ -103,8 +107,9 @@ if __name__ == '__main__':
         pico = Pico()
         pico.start()
         t0 = time.time()
-        env = dict(os.environ, TAG=f'sim_{etiqueta}_{rep}',
-                   LIMSOFT=str(int(mem_mib * 1024 * 1024 * 0.45)), LIMHARD=str(int(mem_mib * 1024 * 1024 * 0.6)))
+        # limit_memory_soft/hard se dejan en los valores de odoo_run.sh (2 / 2,5 GiB): Odoo los compara con
+        # la memoria VIRTUAL (VMS, odoo/tools/osutil.py:79-87); con 45 % de 1 GiB se reiniciaba en bucle (v1).
+        env = dict(os.environ, TAG=f'sim_{etiqueta}_{rep}')
         r = en_cgroup(f'{AQUI}/odoo_run.sh {port} {workers} {cron} {maxconn}', env=env)
         pid = int(r.stdout.strip())
         try:
@@ -129,6 +134,10 @@ if __name__ == '__main__':
             for conc, n in ((20, 200), (50, 300)):
                 c = medir.carga(base, pid, conc, n)
                 res[f'carga_{conc}'] = {k: c[k] for k in ('ok', 'errores', 'rps', 'cpu_ms_por_peticion', 'lat_ms')}
+            with open(f'/proc/{pid}/status') as st:
+                for line in st:
+                    if line.startswith(('VmSize', 'VmHWM', 'Threads')):
+                        res[line.split(':')[0]] = line.split(':')[1].strip()
             time.sleep(3)
             res['cg_tras_carga_MiB'] = round(int(leer(f'{MEM}/memory.usage_in_bytes')) / 2**20)
         except Exception as e:  # noqa: BLE001 - se registra (p. ej. OOM a mitad)

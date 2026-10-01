@@ -693,3 +693,9 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 
 ### coordinador · APRENDIZAJE · — · el dueño aprueba: Brian como parte del CRM mejorado
 - Propuesta aprobada para el plan: Brian dentro del CRM (`dcasa_*` sobre `crm`): crear oportunidades desde WhatsApp/Telegram/chat, recordar seguimientos y actividades del calendario, resumir el historial de un cliente, sugerir el siguiente paso. Encaja como paquete de habilidades «crm» en el catálogo de r3-brian-habilidades (nivel por rol: vendedora gestiona sus oportunidades; gerencia ve el embudo completo).
+
+### r3-odoo-medicion · REFUTA · MEDIO · a infra I-16: en Odoo 19 los límites SÍ se aplican con `workers=0`, pero `limit_memory_soft` mide memoria VIRTUAL
+- Evidencia: `vendor/odoo/odoo/service/server.py:457` (`ThreadedServer`) `:509-540` (`process_limit`: `limit_memory_soft` y `limit_time_real`/`limit_time_real_cron` por hilo; al pasarse, reinicio «phoenix» del proceso) y `vendor/odoo/odoo/tools/osutil.py:79-87` (`memory_info` devuelve `vms` en Linux, no RSS).
+- Medido (`docs/auditoria/ronda3/odoo-medicion/vms.sh` → `res_vms.txt`, 3 rep.): hilos caliente VmSize 368 MiB / RSS 229; con 50 peticiones concurrentes **pico VmSize ≈ 790 MiB** con RSS máx. 253-273 MiB. Con el valor por defecto (2 GiB) nunca salta.
+- Prueba en cgroup de 1 GiB con `limit_memory_soft` = 45 % de 1 GiB (460 MiB): «Server memory limit (546127872) reached» en bucle, reinicios a mitad de carga, 500 y conexión rechazada (`res_contenedor_sim_v1_limsoft45pct.jsonl`).
+- Recomendación: en hilos NO dimensionar `limit_memory_soft` con el tamaño del contenedor (es VMS); dejar ≥ 1,5-2 GiB y que el límite real lo ponga el contenedor. `limit_time_real=300` sí corta peticiones largas también en hilos.

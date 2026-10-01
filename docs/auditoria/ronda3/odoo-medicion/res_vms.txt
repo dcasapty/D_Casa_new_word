@@ -1,0 +1,6 @@
+rep=1 caliente: VmSize: 369868 kB VmRSS: 230236 kB Threads: 3
+rep=1 tras 50 conc: VmSize: 412916 kB VmHWM: 261948 kB Threads: 3 pico_VmSize_kB=798928 errores={}
+rep=2 caliente: VmSize: 370008 kB VmRSS: 231296 kB Threads: 3
+rep=2 tras 50 conc: VmSize: 418756 kB VmHWM: 280036 kB Threads: 3 pico_VmSize_kB=808868 errores={}
+rep=3 caliente: VmSize: 367724 kB VmRSS: 228836 kB Threads: 3
+rep=3 tras 50 conc: VmSize: 423120 kB VmHWM: 259024 kB Threads: 3 pico_VmSize_kB=806732 errores={}
