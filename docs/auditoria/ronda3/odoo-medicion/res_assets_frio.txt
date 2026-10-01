@@ -1,0 +1,19 @@
+NOTICE:  database "r3_med_assets" does not exist, skipping
+rep=1 calentar_con_bundles_en_frio_s=40.146611622 cpu_s=27.98 {"rss_MiB": 373.3, "pss_MiB": 362.2, "procesos": 1}
+    /            /                                        200 0.33s
+    /odoo                                              200 0.45s
+    asset /web/assets/5a5fc0c/web.assets_web_print.min.css             200 1183460B 5.33s
+    asset /web/assets/76fd9ad/web.assets_web.min.js                    200 6919417B 4.37s
+    asset /web/assets/e3a06e0/web.assets_web.min.css                   200 1178150B 1.99s
+rep=2 calentar_con_bundles_en_frio_s=11.403103734 cpu_s=9.73 {"rss_MiB": 373.1, "pss_MiB": 362.0, "procesos": 1}
+    /            /                                        200 0.31s
+    /odoo                                              200 0.48s
+    asset /web/assets/5a5fc0c/web.assets_web_print.min.css             200 1183460B 2.43s
+    asset /web/assets/76fd9ad/web.assets_web.min.js                    200 6919417B 2.96s
+    asset /web/assets/e3a06e0/web.assets_web.min.css                   200 1178150B 1.97s
+rep=3 calentar_con_bundles_en_frio_s=11.507886625 cpu_s=9.95 {"rss_MiB": 373.2, "pss_MiB": 359.7, "procesos": 1}
+    /            /                                        200 0.26s
+    /odoo                                              200 0.52s
+    asset /web/assets/5a5fc0c/web.assets_web_print.min.css             200 1183460B 2.35s
+    asset /web/assets/76fd9ad/web.assets_web.min.js                    200 6919417B 3.11s
+    asset /web/assets/e3a06e0/web.assets_web.min.css                   200 1178150B 2.10s

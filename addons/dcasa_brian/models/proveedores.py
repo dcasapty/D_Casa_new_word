@@ -44,6 +44,7 @@ import time
 import requests
 
 from odoo import api, models
+from odoo.exceptions import AccessError
 
 _logger = logging.getLogger(__name__)
 
@@ -351,6 +352,9 @@ def enmascarar(clave):
 # ----------------------------------------------------------------------
 
 class BrianProveedores(models.AbstractModel):
+    """Configuración y fábrica de adaptadores. Es un AbstractModel (sin ACL): NINGÚN método
+    se puede llamar por RPC (privados con ``_`` o ``@api.private``). La interfaz pide el estado
+    por ``brian.conversacion.estado_proveedor`` y el botón «Probar conexión» por Ajustes."""
     _name = 'brian.proveedores'
     _description = 'Proveedores de IA de Brian'
 
@@ -363,8 +367,8 @@ class BrianProveedores(models.AbstractModel):
         return (parametro or variable).strip()
 
     @api.model
-    def configuracion(self):
-        """Configuración efectiva (incluye la clave: NO devolver al navegador)."""
+    def _configuracion(self):
+        """Configuración efectiva (incluye la clave: NO devolver al navegador; privado)."""
         proveedor = (self._valor('proveedor', 'BRIAN_PROVEEDOR') or 'anthropic').lower()
         base = PROVEEDORES.get(proveedor, {})
         modelo = self._valor('modelo', 'BRIAN_MODELO') or base.get('modelo') or ''
@@ -385,15 +389,17 @@ class BrianProveedores(models.AbstractModel):
             'grande': self.es_grande(modelo),
         }
 
+    @api.private
     @api.model
     def es_grande(self, modelo):
         modelo = (modelo or '').lower()
         return bool(modelo) and not any(p in modelo for p in PEQUENOS)
 
+    @api.private
     @api.model
     def estado(self):
         """Para la interfaz: nunca incluye la clave completa."""
-        config = self.configuracion()
+        config = self._configuracion()
         faltan = []
         if not config['tipo']:
             faltan.append(self.env._('un proveedor válido'))
@@ -417,18 +423,22 @@ class BrianProveedores(models.AbstractModel):
             'mensaje': mensaje,
         }
 
+    @api.private
     @api.model
     def obtener(self):
         """Devuelve el adaptador listo, o lanza ProveedorError si falta configuración."""
         estado = self.estado()
         if not estado['configurado']:
             raise ProveedorError(estado['mensaje'])
-        config = self.configuracion()
+        config = self._configuracion()
         return ADAPTADORES[config['tipo']](config)
 
+    @api.private
     @api.model
     def probar(self):
-        """Llamada mínima para el botón «Probar conexión»."""
+        """Llamada mínima para el botón «Probar conexión». Gasta la clave: solo administradores."""
+        if not self.env.su and not self.env.user.has_group('base.group_system'):
+            raise AccessError(self.env._('Solo un administrador puede probar la conexión de Brian.'))
         try:
             proveedor = self.obtener()
             respuesta = proveedor.chatear('Responde solo con la palabra: listo',

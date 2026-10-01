@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 import pytz
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from . import reglas as R
 from .dcasa_compra import TZ_PANAMA
@@ -156,8 +156,15 @@ class DcasaCanje(models.Model):
             })
         return True
 
+    def _exigir_vendedora(self):
+        """Los botones de canje escriben con ``sudo()``: el grupo se comprueba antes, en el servidor
+        (Odoo expone por RPC todo método público, y el CSV solo da lectura a la vendedora)."""
+        if not self.env.su and not self.env.user.has_group('sales_team.group_sale_salesman'):
+            raise AccessError(self.env._('Solo el equipo de ventas entrega o cancela premios.'))
+
     def action_entregar(self):
         """Entrega en el mostrador (premios de producto)."""
+        self._exigir_vendedora()
         return self._entregar(self.env.user.login)
 
     def _cerrar(self, estado, motivo, autor):
@@ -171,6 +178,7 @@ class DcasaCanje(models.Model):
                 canje.premio_id.stock += 1
 
     def action_cancelar(self):
+        self._exigir_vendedora()
         self._cerrar('cancelado', self.env._('Lo canceló la tienda. Te devolvimos los puntos.'), self.env.user.login)
         return True
 

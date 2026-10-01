@@ -1,0 +1,300 @@
+name: Desplegar
+
+# Despliega el Worker + el contenedor de Odoo a un entorno de Cloudflare.
+#
+# Dos formas de llamarlo:
+#   1. Desde CI/CD (ci.yml), después de que todo pasó: sube al registro de Cloudflare la
+#      imagen YA PROBADA (artefacto de esa ejecución, se verifica su ID) y despliega por
+#      referencia de registro, sin reconstruir nada (I-08).
+#   2. A mano (Actions → Desplegar → Run workflow) para VOLVER ATRÁS: se indica el digest de
+#      una imagen ya subida (sale en el resumen de cada despliegue) y el SHA de su commit.
+#      Antes, restaurar la base al punto previo (docs/OPERACION.md → «Volver atrás»).
+#
+# Orden (todo ANTES de tocar el Worker):
+#   validar secretos y variables (I-11) → subir/ubicar la imagen → generar la configuración
+#   con la imagen fijada → preparar secretos → dry-run → respaldo previo (I-02) →
+#   `wrangler deploy --secrets-file` (código, imagen y secretos en una sola operación) →
+#   esperar /web/health.
+
+on:
+  workflow_call:
+    inputs:
+      entorno:
+        description: "staging o production"
+        type: string
+        required: true
+      artefacto:
+        description: "Artefacto de esta ejecución con la imagen probada (docker save | zstd)"
+        type: string
+        required: true
+      imagen_id:
+        description: "ID (sha256) de la imagen que pasó la prueba de humo"
+        type: string
+        required: true
+      app_version:
+        description: "SHA del commit desplegado"
+        type: string
+        required: true
+      respaldo_previo:
+        description: "Respaldo completo de la base antes de desplegar"
+        type: boolean
+        default: true
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: "Entorno"
+        type: choice
+        options: [staging, production]
+        required: true
+      imagen_digest:
+        description: "Digest de la imagen a desplegar (sha256:...), del resumen de un despliegue anterior"
+        type: string
+        required: true
+      app_version:
+        description: "SHA completo (40) del commit de esa imagen"
+        type: string
+        required: true
+      respaldo_previo:
+        description: "Respaldo completo de la base antes de desplegar (desmarcar solo si el sitio está caído)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  desplegar:
+    name: Desplegar a ${{ inputs.entorno }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    # Con «Required reviewers» en el environment `production`, el job espera la aprobación
+    # del dueño antes de empezar (docs/DESPLIEGUE.md §3).
+    environment:
+      name: ${{ inputs.entorno }}
+      url: ${{ vars.URL_SITIO }}
+    concurrency:
+      group: desplegar-${{ inputs.entorno }}
+      cancel-in-progress: false
+    env:
+      ENTORNO: ${{ inputs.entorno }}
+      APP_VERSION: ${{ inputs.app_version }}
+      ARTEFACTO: ${{ inputs.artefacto }}
+      IMAGEN_ID: ${{ inputs.imagen_id }}
+      IMAGEN_DIGEST: ${{ inputs.imagen_digest }}
+      RESPALDO_PREVIO: ${{ inputs.respaldo_previo }}
+      REPO_IMAGEN: dcasa-odoo
+      WRANGLER_SEND_METRICS: "false"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      URL_SITIO: ${{ vars.URL_SITIO }}
+    steps:
+      - name: ¿Está configurado este entorno?
+        id: guard
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          ODOO_ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
+        run: |
+          # Sin NINGÚN secreto de despliegue, el entorno no está configurado todavía: se omite
+          # con un aviso (los tests igual pasaron). Si hay alguno, se exige todo (paso siguiente).
+          if [ -z "$CLOUDFLARE_API_TOKEN$CLOUDFLARE_ACCOUNT_ID$R2_ACCESS_KEY_ID$ODOO_ADMIN_PASSWORD" ]; then
+            echo "::warning::El environment «$ENTORNO» no tiene secretos: se omite el despliegue (ver docs/DESPLIEGUE.md)."
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Entradas válidas
+        if: steps.guard.outputs.listo == 'true'
+        run: |
+          if ! [[ "$APP_VERSION" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::app_version debe ser el SHA completo (40 caracteres hex): «$APP_VERSION»"; exit 1
+          fi
+          if [ -z "$ARTEFACTO" ] && ! [[ "$IMAGEN_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::imagen_digest debe ser sha256:<64 hex>: «$IMAGEN_DIGEST»"; exit 1
+          fi
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        if: steps.guard.outputs.listo == 'true'
+        with:
+          # El Worker del mismo commit que la imagen (también al volver atrás).
+          ref: ${{ inputs.app_version }}
+          sparse-checkout: |
+            edge
+            .github
+
+      - name: Secretos y variables completos, sin marcadores (I-11)
+        if: steps.guard.outputs.listo == 'true'
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
+          RESPALDO_TOKEN: ${{ secrets.RESPALDO_TOKEN }}
+          ODOO_ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
+          ODOO_MASTER_PASSWORD: ${{ secrets.ODOO_MASTER_PASSWORD }}
+          DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
+          BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
+        run: |
+          # R2_ENDPOINT sale de CLOUDFLARE_ACCOUNT_ID; R2_BUCKET, CANONICAL_HOST y DCASA_ENTORNO
+          # vienen de edge/wrangler.jsonc (por entorno). Contrato: edge/CONTRATO_CONTENEDOR.md §3.
+          .github/scripts/validar_entorno.sh \
+            CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID URL_SITIO \
+            R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY PGBACKREST_CIPHER_PASS RESPALDO_TOKEN \
+            ODOO_ADMIN_PASSWORD ODOO_MASTER_PASSWORD DCASA_PIN_PEPPER BRIAN_API_KEY
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        if: steps.guard.outputs.listo == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: edge/package-lock.json
+      - if: steps.guard.outputs.listo == 'true'
+        working-directory: edge
+        run: npm ci
+
+      - name: Descargar la imagen probada
+        if: steps.guard.outputs.listo == 'true' && inputs.artefacto != ''
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4.3.0
+        with:
+          name: ${{ inputs.artefacto }}
+          path: ${{ runner.temp }}/imagen
+
+      - name: Subir la imagen probada al registro de Cloudflare
+        id: imagen
+        if: steps.guard.outputs.listo == 'true'
+        working-directory: edge
+        run: |
+          set -euo pipefail
+          etiqueta="${REPO_IMAGEN}:${APP_VERSION}"
+          registro="registry.cloudflare.com/${CLOUDFLARE_ACCOUNT_ID}/${REPO_IMAGEN}"
+          if [ -n "$ARTEFACTO" ]; then
+            zstd -dc "$RUNNER_TEMP/imagen/imagen.tar.zst" | docker load
+            rm -rf "$RUNNER_TEMP/imagen"
+            cargada="$(docker image inspect dcasa-odoo:ci --format '{{.Id}}')"
+            if [ "$cargada" != "$IMAGEN_ID" ]; then
+              echo "::error::La imagen del artefacto ($cargada) no es la que pasó la prueba de humo ($IMAGEN_ID)."
+              exit 1
+            fi
+            docker tag dcasa-odoo:ci "$etiqueta"
+            # https://developers.cloudflare.com/containers/guides/image-management/#push-images-with-ci
+            npx wrangler containers push "$etiqueta"
+            # VERIFICAR en el primer despliegue real: el digest que deja `containers push`
+            # (la doc lo obtiene con docker image inspect ... RepoDigests).
+            digest="$(docker image inspect --format '{{join .RepoDigests "\n"}}' \
+                        "$registro:${APP_VERSION}" "$etiqueta" 2>/dev/null \
+                      | grep "^${registro}@sha256:" | head -1 | sed 's/.*@//' || true)"
+            if ! [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::No pude obtener el digest de la imagen subida (${registro}:${APP_VERSION})."
+              exit 1
+            fi
+          else
+            digest="$IMAGEN_DIGEST"
+            echo "Volver atrás: se usa la imagen ya subida ${etiqueta} (${digest}); no se construye ni se sube nada."
+            # Con la política "default" (edge/CONTRATO_CONTENEDOR.md §4) se despliega por la
+            # etiqueta = SHA, que solo se sube desde el CI de ese commit. Comprobación de que
+            # sigue en el registro (formato del listado por verificar: solo avisa).
+            if ! npx wrangler containers images list 2>/dev/null | grep -q "${APP_VERSION}"; then
+              echo "::warning::No veo la etiqueta ${etiqueta} en «wrangler containers images list»: si el despliegue falla al bajar la imagen, ya no está en el registro."
+            fi
+          fi
+          {
+            echo "digest=$digest"
+            echo "ref_digest=${registro}@${digest}"
+            echo "ref_tag=${registro}:${APP_VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configuración del despliegue con la imagen fijada
+        id: config
+        if: steps.guard.outputs.listo == 'true'
+        env:
+          REF_DIGEST: ${{ steps.imagen.outputs.ref_digest }}
+          REF_TAG: ${{ steps.imagen.outputs.ref_tag }}
+        run: |
+          node .github/scripts/preparar_config.mjs edge/wrangler.jsonc edge/wrangler.desplegar.json \
+            "$ENTORNO" "$REF_DIGEST" "$REF_TAG"
+
+      - name: Secretos que viajan con el despliegue
+        id: secretos
+        if: steps.guard.outputs.listo == 'true'
+        env:
+          WORKER: ${{ steps.config.outputs.worker }}
+          SALIDA: ${{ runner.temp }}/secretos.json
+          # Opcional: solo si el bucket está en una jurisdicción distinta (p. ej. .eu.).
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
+          ODOO_ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
+          ODOO_MASTER_PASSWORD: ${{ secrets.ODOO_MASTER_PASSWORD }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          RESPALDO_TOKEN: ${{ secrets.RESPALDO_TOKEN }}
+          BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
+          DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
+          PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
+        run: .github/scripts/secretos_despliegue.sh
+
+      - name: Validar la configuración sin desplegar (dry-run)
+        if: steps.guard.outputs.listo == 'true'
+        working-directory: edge
+        run: |
+          if [ "$ENTORNO" = "production" ]; then destino=""; else destino="$ENTORNO"; fi
+          npx wrangler deploy --config wrangler.desplegar.json --env="$destino" \
+            --dry-run --containers-rollout=none --outdir "$RUNNER_TEMP/dry-run"
+
+      - name: Respaldo previo (I-02)
+        if: steps.guard.outputs.listo == 'true' && steps.secretos.outputs.worker_existe == 'true'
+        env:
+          RESPALDO_TOKEN: ${{ secrets.RESPALDO_TOKEN }}
+        run: |
+          if [ "$RESPALDO_PREVIO" != "true" ]; then
+            echo "::warning::Despliegue SIN respaldo previo (pedido a mano). La vuelta atrás dependerá del último respaldo diario + WAL."
+            exit 0
+          fi
+          .github/scripts/respaldo_previo.sh
+
+      - name: wrangler deploy (Worker + contenedor + secretos, en una operación)
+        if: steps.guard.outputs.listo == 'true'
+        working-directory: edge
+        env:
+          # Opcional: pisa el CANONICAL_HOST de edge/wrangler.jsonc (p. ej. staging en workers.dev).
+          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
+          BRIAN_PROVEEDOR: ${{ vars.BRIAN_PROVEEDOR }}
+          BRIAN_MODELO: ${{ vars.BRIAN_MODELO }}
+          BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
+        run: |
+          set -euo pipefail
+          args=(--config wrangler.desplegar.json --secrets-file "$RUNNER_TEMP/secretos.json"
+                --var "APP_VERSION:${APP_VERSION}")
+          # Producción es la raíz del archivo: --env="" (wrangler.jsonc define env.staging).
+          if [ "$ENTORNO" = "production" ]; then args+=(--env=""); else args+=(--env="$ENTORNO"); fi
+          for name in CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
+            if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
+          done
+          npx wrangler deploy "${args[@]}"
+
+      - name: Borrar el archivo de secretos
+        if: always()
+        run: rm -f "$RUNNER_TEMP/secretos.json"
+
+      - name: Esperar a que el sitio esté sano con la versión nueva
+        if: steps.guard.outputs.listo == 'true'
+        env:
+          WORKER_EXISTE: ${{ steps.secretos.outputs.worker_existe }}
+        run: .github/scripts/esperar_salud.sh
+
+      - name: Resumen (para volver atrás)
+        if: always() && steps.imagen.outputs.ref_tag != ''
+        env:
+          DIGEST: ${{ steps.imagen.outputs.digest }}
+        run: |
+          {
+            echo "## Despliegue a ${ENTORNO}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit (\`app_version\`) | \`${APP_VERSION}\` |"
+            echo "| Imagen (\`imagen_digest\`) | \`${DIGEST}\` |"
+            echo "| Sitio | ${URL_SITIO} |"
+            echo ""
+            echo "Para volver a ESTA versión más adelante: Actions → **Desplegar** → Run workflow con"
+            echo "esos dos valores (antes, restaura la base: docs/OPERACION.md → «Volver atrás un despliegue»)."
+          } >> "$GITHUB_STEP_SUMMARY"

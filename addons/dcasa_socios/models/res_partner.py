@@ -4,7 +4,7 @@ import secrets
 from passlib.context import CryptContext
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 
 from . import reglas as R
@@ -15,6 +15,11 @@ from . import reglas as R
 # seis dígitos se rompen en segundos sin ella.
 PIN_CRYPT = CryptContext(schemes=['pbkdf2_sha256'], pbkdf2_sha256__default_rounds=120_000)
 ESTADOS_SOCIO = [('activo', 'Activo'), ('suspendido', 'Suspendido')]
+# Quién puede tocar la cuenta de un socio desde el backend. Odoo expone por RPC
+# (/web/dataset/call_kw, /json/2) todo método público: el grupo se exige en el
+# servidor, no solo en el botón.
+GRUPO_VENDEDORA = 'sales_team.group_sale_salesman'
+GRUPO_GERENTE = 'sales_team.group_sale_manager'
 
 
 class ResPartner(models.Model):
@@ -320,7 +325,13 @@ class ResPartner(models.Model):
     # Acciones del equipo
     # ------------------------------------------------------------------------
 
+    def _dcasa_exigir_grupo(self, grupo):
+        """Corta antes de cualquier ``sudo()`` si quien llama no tiene el grupo (el superusuario pasa)."""
+        if not self.env.su and not self.env.user.has_group(grupo):
+            raise AccessError(self.env._('No tienes permiso para esta acción del programa de socios.'))
+
     def action_dcasa_crear_ficha(self):
+        self._dcasa_exigir_grupo(GRUPO_VENDEDORA)
         for partner in self:
             partner._dcasa_asegurar_ficha()
         return True
@@ -336,6 +347,7 @@ class ResPartner(models.Model):
         }
 
     def action_dcasa_ajustar(self):
+        self._dcasa_exigir_grupo(GRUPO_GERENTE)
         self.ensure_one()
         return {
             'type': 'ir.actions.act_window',
@@ -347,7 +359,12 @@ class ResPartner(models.Model):
         }
 
     def action_dcasa_reiniciar_pin(self):
-        """La vendedora le dicta un PIN temporal; el socio elige uno nuevo al entrar."""
+        """Gerencia le dicta un PIN temporal; el socio elige uno nuevo al entrar.
+
+        Solo gerencia: el PIN temporal sale en la respuesta, y con él y el celular
+        cualquiera entra a la cuenta del socio y canjea sus puntos.
+        """
+        self._dcasa_exigir_grupo(GRUPO_GERENTE)
         self.ensure_one()
         ficha = self.commercial_partner_id
         if not ficha.dcasa_reclamada:
@@ -359,6 +376,9 @@ class ResPartner(models.Model):
             if not R.problema_del_pin(temporal, ficha.dcasa_celular or ''):
                 break
         ficha._dcasa_guardar_pin(temporal, temporal=True)
+        # Rastro de quién lo hizo (nunca el PIN).
+        ficha._dcasa_dejar_rastro(self.env._('PIN reiniciado por %s: el socio elige uno nuevo al entrar.',
+                                             self.env.user.name))
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -371,16 +391,31 @@ class ResPartner(models.Model):
         }
 
     def action_dcasa_desbloquear(self):
-        self.commercial_partner_id.sudo().write({'dcasa_intentos_fallidos': 0, 'dcasa_bloqueado_hasta': False})
+        """Botón de gerencia: quita el candado de intentos fallidos."""
+        self._dcasa_exigir_grupo(GRUPO_GERENTE)
+        self._dcasa_desbloquear()
+        for ficha in self.commercial_partner_id:
+            ficha._dcasa_dejar_rastro(self.env._('Cuenta de socio desbloqueada por %s.', self.env.user.name))
         return True
 
+    def _dcasa_desbloquear(self):
+        """Pone a cero el candado. Privado: lo usa el login de /socios tras un PIN correcto."""
+        self.commercial_partner_id.sudo().write({'dcasa_intentos_fallidos': 0, 'dcasa_bloqueado_hasta': False})
+
     def action_dcasa_suspender(self):
+        self._dcasa_exigir_grupo(GRUPO_GERENTE)
         self.commercial_partner_id.write({'dcasa_socio_estado': 'suspendido'})
         return True
 
     def action_dcasa_activar(self):
+        self._dcasa_exigir_grupo(GRUPO_GERENTE)
         self.commercial_partner_id.write({'dcasa_socio_estado': 'activo'})
         return True
+
+    def _dcasa_dejar_rastro(self, texto):
+        """Nota interna en el chatter de la ficha, a nombre de quien hizo la acción."""
+        self.ensure_one()
+        self.message_post(body=texto, message_type='comment', subtype_xmlid='mail.mt_note')
 
     # ------------------------------------------------------------------------
     # Candado

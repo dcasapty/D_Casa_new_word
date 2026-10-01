@@ -351,8 +351,10 @@ html {
         }
     }
 
+    // Enlace activo en navy (SW-07): el azul sobre el vidrio claro queda bajo AA cuando pasa
+    // por encima de la banda azul (4.33:1) o de una foto (3.27:1); el navy da ≥ 5.2:1.
     #top_menu .nav-link.active {
-        color: $dcasa-azul;
+        color: $dcasa-navy;
     }
 
     .btn_cta {
@@ -832,6 +834,16 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     font-weight: 600;
     color: $dcasa-azul;
     margin-bottom: .85rem;
+}
+
+// «$39.99 + ITBMS»: los precios son sin ITBMS; la leyenda va al lado, discreta y en navy.
+.o_dcasa_mas_itbms {
+    font-family: 'Inter', sans-serif;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: $dcasa-navy;
+    white-space: nowrap;
+    margin-left: .25rem;
 }
 
 .o_dcasa_pcard_actions {

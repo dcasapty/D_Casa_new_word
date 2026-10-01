@@ -41,14 +41,19 @@ class DcasaCobrarPremioWizard(models.TransientModel):
         if canje.premio_tipo == 'producto':
             raise UserError(self.env._('Los premios de producto se entregan desde Socios > Canjes.'))
         producto = self.env.ref('dcasa_socios.product_premio_canje')
+        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
+        impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
+        # El premio vale lo que dice de lo que el cliente paga (ITBMS incluido). Con el ITBMS que se
+        # suma al precio, la línea lleva la base sin impuesto: rebaja la base como un descuento y
+        # base + ITBMS = el valor del premio.
+        base = canje.valor if all(impuestos.mapped('price_include')) else \
+            impuestos._get_tax_details(canje.valor, 1.0, special_mode='total_included')['total_excluded']
         order.write({'order_line': [(0, 0, {
             'product_id': producto.id,
             'name': self.env._('Premio %(codigo)s: %(premio)s', codigo=canje.codigo, premio=canje.premio_nombre),
             'product_uom_qty': 1,
-            # Lo pagado con puntos rebaja la base, igual que un descuento (el ITBMS se calcula después).
-            'price_unit': -canje.valor,
-            # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
-            'tax_ids': [(6, 0, (producto.taxes_id or order.company_id.account_sale_tax_id).ids)],
+            'price_unit': -order.currency_id.round(base),
+            'tax_ids': [(6, 0, impuestos.ids)],
             'dcasa_canje_id': canje.id,
         })]})
         return {'type': 'ir.actions.act_window_close'}

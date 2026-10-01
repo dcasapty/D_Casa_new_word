@@ -5,15 +5,28 @@
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
 
-  // Odoo 19 + módulos de D'CASA. La imagen se construye desde docker/Dockerfile.
+  // Fase 1 (opción A, docs/auditoria/DECISION_Y_PLAN.md): Odoo + PostgreSQL en UN
+  // contenedor que restaura la base desde R2 al arrancar y archiva el WAL en R2.
+  // La imagen se construye desde docker/Dockerfile. Contrato Worker ↔ imagen:
+  // edge/CONTRATO_CONTENEDOR.md.
   "containers": [
     {
       "class_name": "OdooContainer",
       "image": "../docker/Dockerfile",
       "image_build_context": "..",
-      // 1 vCPU, 6 GiB RAM: Odoo con website + eCommerce necesita memoria.
-      "instance_type": "standard-2",
-      "max_instances": 1
+      // Política "default", decidida a propósito (es INMUTABLE: cambiarla después exige
+      // otra app y otra clase de Durable Object). "durable_object" (beta) es la única
+      // que admite snapshots, pero rechaza instance_type, max_instances y constraints, y
+      // no sirve con la clase Container. Ver CONTRATO_CONTENEDOR.md → «Política».
+      "scheduling_policy": "default",
+      // basic = 1/4 vCPU, 1 GiB, 4 GB de disco. Medido: Odoo + PostgreSQL ≈ 400 MiB de
+      // pico (ronda3/odoo-medicion.md). La imagen debe pesar ≤ 4 GB.
+      "instance_type": "basic",
+      // Singleton: nunca dos PostgreSQL escribiendo al mismo repositorio de R2.
+      "max_instances": 1,
+      // Este de Norteamérica: lo más cercano a Panamá (y al bucket de R2, que debe crearse
+      // con la pista de ubicación ENAM).
+      "constraints": { "regions": ["ENAM"] }
     }
   ],
   "durable_objects": {
@@ -21,23 +34,65 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
-  // Mantiene vivos los procesos programados de Odoo (ver scheduled() en src/index.ts).
-  "triggers": { "crons": ["*/10 * * * *"] },
+  // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled).
+  // "17 8 * * *": 03:17 en Panamá (UTC-5), respaldo lógico diario dentro del contenedor.
+  // Deben coincidir con CRON_HORARIO y CRON_RESPALDO de src/handler.ts (hay test).
+  "triggers": { "crons": ["7 * * * *", "17 8 * * *"] },
 
-  // Valores no secretos. Los secretos (DB_PASSWORD, ADMIN_PASSWORD) se cargan con
-  // `wrangler secret put` o desde GitHub Actions (ver docs/DESPLIEGUE.md).
+  // Valores no secretos. Los secretos se cargan con `wrangler secret put` o desde
+  // GitHub Actions (ver docs/DESPLIEGUE.md y edge/CONTRATO_CONTENEDOR.md):
+  //   obligatorios para arrancar: ADMIN_PASSWORD, R2_ENDPOINT, R2_ACCESS_KEY_ID,
+  //     R2_SECRET_ACCESS_KEY, PGBACKREST_CIPHER_PASS (si falta uno, el Worker no
+  //     enciende el contenedor y /__edge/health lo dice);
+  //   recomendados: DCASA_PIN_PEPPER, ODOO_MASTER_PASSWORD, RESPALDO_TOKEN.
+  // No se usa `secrets.required`: el CI despliega antes de cargar secretos y fallaría.
   "vars": {
     "CANONICAL_HOST": "dcasapty.com",
-    "DB_HOST": "CAMBIAR.neon.tech",
-    "DB_PORT": "5432",
-    "DB_NAME": "dcasa",
-    "DB_USER": "dcasa",
-    "DB_SSLMODE": "require"
+    "DCASA_ENTORNO": "produccion",
+    "R2_BUCKET": "dcasa-respaldos",
+    // Vacío = 24/7 (el contenedor no se duerme nunca).
+    "ODOO_DORMIR_TRAS": ""
   },
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
   // "routes": [
   //   { "pattern": "dcasapty.com", "custom_domain": true },
   //   { "pattern": "www.dcasapty.com", "custom_domain": true }
-  // ]
+  // ],
+
+  "env": {
+    // Entorno de prueba para los simulacros de caída y restauración (Fase 1, punto 3).
+    // `wrangler deploy --env staging`: otro Worker (dcasa-staging), por tanto otro
+    // Durable Object, otra app de contenedor y otra instancia; otro bucket de R2 y sus
+    // propios secretos (`wrangler secret put … --env staging`). Nunca comparte R2 con
+    // producción: dos PostgreSQL en el mismo repositorio = contabilidad corrupta.
+    "staging": {
+      "name": "dcasa-staging",
+      "containers": [
+        {
+          "class_name": "OdooContainer",
+          "image": "../docker/Dockerfile",
+          "image_build_context": "..",
+          "scheduling_policy": "default",
+          "instance_type": "basic",
+          "max_instances": 1,
+          "constraints": { "regions": ["ENAM"] }
+        }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "ODOO", "class_name": "OdooContainer" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
+      "triggers": { "crons": ["7 * * * *", "17 8 * * *"] },
+      "vars": {
+        "CANONICAL_HOST": "staging.dcasapty.com",
+        "DCASA_ENTORNO": "staging",
+        "R2_BUCKET": "dcasa-respaldos-staging",
+        // Duerme tras 1 h sin visitas: abarata la prueba y ensaya la restauración desde R2
+        // en cada despertar. Para ensayar el 24/7 de producción, dejar "".
+        "ODOO_DORMIR_TRAS": "1h"
+      }
+      // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
+    }
+  }
 }

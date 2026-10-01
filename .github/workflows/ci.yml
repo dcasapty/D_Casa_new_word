@@ -1,32 +1,47 @@
 name: CI/CD
 
-# Cada push y PR corre: lint, tests de Odoo, tests del borde (Worker) y una
-# prueba de humo de la imagen Docker. Solo si TODO pasa y el push es a main,
-# se despliega a Cloudflare.
+# Cada push y PR corre: lint, tests de Odoo, tests del borde (Worker), la imagen Docker
+# (se construye UNA vez y se prueba) y el simulacro de restauración de la base desde S3.
+# Solo si TODO pasa:
+#   - push a main            → despliega a producción (environment `production`, con aprobación).
+#   - Run workflow (a mano)  → despliega a staging (environment `staging`), si se elige.
+# Se despliega la MISMA imagen que se probó (I-08): viaja como artefacto de esta ejecución
+# y el job de despliegue comprueba su ID antes de subirla al registro de Cloudflare.
+# Detalle: docs/DESPLIEGUE.md. Operación diaria: docs/OPERACION.md.
+#
+# Las acciones van fijadas por SHA (comentario con la versión); Dependabot las actualiza.
 
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      desplegar_en:
+        description: "Después de los tests, ¿desplegar esta rama?"
+        type: choice
+        options: [staging, ninguno]
+        default: staging
 
+# Un PR nuevo cancela la ejecución anterior del mismo PR. Nunca se cancela un push a main
+# ni una ejecución manual: podrían estar a mitad de un despliegue.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
 
 jobs:
   lint:
-    name: Lint (Python + XML)
+    name: Lint (Python, XML, shell y workflows)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
-      - run: pip install ruff
+      - run: pip install ruff actionlint-py==1.7.12.25
       - run: ruff check addons --output-format=github
       - name: XML bien formado
         run: |
@@ -42,6 +57,10 @@ jobs:
           print("\n".join(bad) or "OK")
           sys.exit(1 if bad else 0)
           PY
+      - name: Shellcheck (arranque, scripts y scripts de CI)
+        run: shellcheck docker/*.sh scripts/*.sh .github/scripts/*.sh
+      - name: actionlint (workflows, con shellcheck de los run:)
+        run: actionlint -color
 
   odoo-tests:
     name: Tests de Odoo
@@ -57,10 +76,10 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           submodules: true
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
           cache: pip
@@ -69,13 +88,20 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libldap2-dev libsasl2-dev libpq-dev postgresql-client
       - name: Dependencias de Odoo
         run: pip install -r vendor/odoo/requirements.txt
+      # Como en producción, dcasa_sesiones se carga como módulo de todo el servidor
+      # (equivale a --load=base,web,dcasa_sesiones): sesiones HTTP en la base desde la
+      # primera petición. scripts/test.sh no recibe --load; Odoo lee la opción del archivo
+      # de configuración que indica ODOO_RC (los argumentos de test.sh mandan sobre él).
       - name: Instalar módulos y correr tests
-        run: scripts/test.sh
+        run: |
+          printf '[options]\nserver_wide_modules = base,web,dcasa_sesiones\n' > "$ODOO_RC"
+          scripts/test.sh
         env:
           DB_HOST: localhost
           PYTHON: python
+          ODOO_RC: ${{ runner.temp }}/odoo-ci.conf
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: odoo-test-log
           path: .test.log
@@ -87,8 +113,8 @@ jobs:
       run:
         working-directory: edge
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -96,42 +122,65 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - name: La configuración se puede desplegar con la imagen ya construida (dry-run)
+        working-directory: .
+        run: .github/scripts/probar_config_despliegue.sh
 
   docker:
-    name: Imagen Docker (prueba de humo)
+    name: Imagen Docker (se construye una vez y se prueba)
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: dcasa
-          POSTGRES_PASSWORD: dcasa
-          POSTGRES_DB: dcasa
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    outputs:
+      imagen_id: ${{ steps.imagen.outputs.id }}
+    env:
+      # ¿Esta ejecución termina en un despliegue? Entonces la imagen probada se guarda como
+      # artefacto para que el despliegue suba EXACTAMENTE esta (I-08).
+      SE_DESPLIEGA: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           submodules: true
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
       - name: Construir imagen
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
         with:
           context: .
           file: docker/Dockerfile
           tags: dcasa-odoo:ci
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Arrancar la imagen contra una base vacía
+          cache-from: type=gha,scope=imagen
+          cache-to: type=gha,mode=max,scope=imagen
+      - name: ID de la imagen probada
+        id: imagen
+        run: |
+          id="$(docker image inspect dcasa-odoo:ci --format '{{.Id}}')"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "Imagen probada: $id"
+
+      # La imagen trae PostgreSQL + pgBackRest (Fase 1). En CI, R2 se reemplaza por un S3
+      # local (moto + stunnel, TLS autofirmado).
+      # Variables según edge/CONTRATO_CONTENEDOR.md §3. VERIFICAR AL INTEGRAR (f1-imagen): que la
+      # imagen acepte un R2_ENDPOINT con puerto y que pgBackRest lea del entorno
+      # PGBACKREST_REPO1_STORAGE_VERIFY_TLS=n (certificado autofirmado del S3 local).
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: S3 local en lugar de R2
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends stunnel4
+          pip install "moto[server]>=5,<6" boto3
+          .github/scripts/s3_local.sh "$RUNNER_TEMP/s3" 9100 dcasa-ci
+      - name: Arrancar la imagen con su base interna vacía
         run: |
           docker run -d --name odoo --network host \
-            -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa \
-            -e DB_SSLMODE=disable -e ADMIN_PASSWORD=ci-admin -e APP_VERSION=${{ github.sha }} \
-            -e DCASA_PIN_PEPPER=ci \
+            -e ADMIN_PASSWORD=ci-admin -e ODOO_MASTER_PASSWORD=ci-maestra-distinta \
+            -e APP_VERSION=${{ github.sha }} -e DCASA_PIN_PEPPER=ci \
+            -e R2_ENDPOINT=https://127.0.0.1:9100 -e R2_BUCKET=dcasa-ci \
+            -e R2_ACCESS_KEY_ID=ci -e R2_SECRET_ACCESS_KEY=ci \
+            -e PGBACKREST_CIPHER_PASS=ci-cifrado-de-prueba-no-real \
+            -e PGBACKREST_REPO1_STORAGE_VERIFY_TLS=n \
+            -e RESPALDO_TOKEN=ci-token-de-respaldo -e CANONICAL_HOST=localhost \
             dcasa-odoo:ci
-          for i in $(seq 1 120); do
+          for _ in $(seq 1 120); do
             if curl -fsS http://localhost:8069/web/health >/dev/null 2>&1; then echo "Odoo arriba"; break; fi
             sleep 5
           done
@@ -141,94 +190,106 @@ jobs:
           curl -fsS http://localhost:8069/ | grep -q "Tu casa, bien amueblada"
           curl -fsS -o /dev/null http://localhost:8069/shop
           curl -fsS http://localhost:8069/socios | grep -q "Tus puntos"
+      - name: Nunca queda admin/admin (S-04)
+        run: |
+          entrar() {
+            curl -fsS -H 'Content-Type: application/json' http://localhost:8069/web/session/authenticate \
+              -d "{\"jsonrpc\":\"2.0\",\"params\":{\"db\":\"dcasa\",\"login\":\"admin\",\"password\":\"$1\"}}"
+          }
+          if entrar admin | grep -q '"uid"'; then echo "::error::admin/admin entra"; exit 1; fi
+          entrar ci-admin | grep -q '"uid": 2'
+      - name: El WAL llega al almacenamiento de respaldos
+        run: |
+          # archive_timeout = 60 s: en ≤ 3 min tiene que haber objetos subidos al bucket.
+          for _ in $(seq 1 36); do
+            if grep -qE '"PUT /dcasa-ci/' "$RUNNER_TEMP/s3/moto.log"; then
+              echo "pgBackRest sube al bucket: $(grep -cE '"PUT /dcasa-ci/' "$RUNNER_TEMP/s3/moto.log") PUT."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::En 3 minutos no llegó nada al bucket de respaldos (¿archivado de WAL roto?)."
+          tail -50 "$RUNNER_TEMP/s3/moto.log" || true
+          exit 1
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
-  deploy:
-    name: Desplegar a Cloudflare
-    needs: [lint, odoo-tests, edge, docker]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      - name: Guardar la imagen probada para el despliegue
+        if: env.SE_DESPLIEGA == 'true'
+        run: |
+          docker rm -f odoo >/dev/null 2>&1 || true
+          docker save dcasa-odoo:ci | zstd -T0 -3 -q -o "$RUNNER_TEMP/imagen.tar.zst"
+          ls -lh "$RUNNER_TEMP/imagen.tar.zst"
+      - if: env.SE_DESPLIEGA == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: imagen-odoo-${{ github.sha }}
+          path: ${{ runner.temp }}/imagen.tar.zst
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
+
+  simulacro-restauracion:
+    name: Simulacro de restauración (RPO ≤ 90 s, sin corrupción)
     runs-on: ubuntu-24.04
-    environment: production
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    timeout-minutes: 30
     steps:
-      - name: ¿Está configurado Cloudflare?
-        id: guard
-        run: |
-          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
-            echo "::notice::Faltan los secretos de Cloudflare: se omite el despliegue (ver docs/DESPLIEGUE.md)."
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "ready=true" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.guard.outputs.ready == 'true'
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
-          submodules: true
-      - if: steps.guard.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+          sparse-checkout: |
+            scripts
+            docker
+            .github
+      - name: PostgreSQL 16, pgBackRest y stunnel
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-16 postgresql-client-16 pgbackrest stunnel4
+          # El clúster que instala apt no se usa: el simulacro levanta los suyos.
+          sudo systemctl stop postgresql || true
+          echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: edge/package-lock.json
-      - if: steps.guard.outputs.ready == 'true'
-        working-directory: edge
-        run: npm ci
-      - name: wrangler deploy (Worker + contenedor de Odoo)
-        if: steps.guard.outputs.ready == 'true'
-        working-directory: edge
+          python-version: "3.12"
+      - name: S3 local (moto)
+        run: pip install "moto[server]>=5,<6" boto3
+      # Contrato con f1-imagen (VERIFICAR AL INTEGRAR): sale ≠ 0 si el RPO medido pasa de
+      # SIMULACRO_RPO_MAX_S o si hay filas corruptas/diferentes tras restaurar; deja sus
+      # registros en SIMULACRO_DIR.
+      - name: Simulacro (matar PostgreSQL, borrar el disco, restaurar desde S3 y comparar)
+        run: scripts/simulacro_restauracion.sh
         env:
-          DB_HOST: ${{ vars.DB_HOST }}
-          DB_USER: ${{ vars.DB_USER }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          CANONICAL_HOST: ${{ vars.CANONICAL_HOST }}
-          BRIAN_PROVEEDOR: ${{ vars.BRIAN_PROVEEDOR }}
-          BRIAN_MODELO: ${{ vars.BRIAN_MODELO }}
-          BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
-        run: |
-          args=(--var "APP_VERSION:${GITHUB_SHA}")
-          for name in DB_HOST DB_USER DB_NAME CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
-            if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
-          done
-          npx wrangler deploy "${args[@]}"
-      - name: Secretos del Worker (contraseñas de la base y de Odoo)
-        if: steps.guard.outputs.ready == 'true'
-        working-directory: edge
-        env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          ADMIN_PASSWORD: ${{ secrets.ODOO_ADMIN_PASSWORD }}
-        run: |
-          node -e 'process.stdout.write(JSON.stringify({DB_PASSWORD: process.env.DB_PASSWORD, ADMIN_PASSWORD: process.env.ADMIN_PASSWORD}))' \
-            | npx wrangler secret bulk
-      - name: Secretos de Brian (IA y Telegram; opcionales, solo si están cargados)
-        if: steps.guard.outputs.ready == 'true'
-        working-directory: edge
-        env:
-          BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
-        run: |
-          node -e '
-            const names = ["BRIAN_API_KEY", "TELEGRAM_BOT_TOKEN", "BRIAN_TELEGRAM_SECRETO"];
-            const out = Object.fromEntries(names.filter((n) => process.env[n]).map((n) => [n, process.env[n]]));
-            process.stdout.write(JSON.stringify(out));
-          ' > "$RUNNER_TEMP/brian.json"
-          if [ "$(cat "$RUNNER_TEMP/brian.json")" != "{}" ]; then
-            npx wrangler secret bulk "$RUNNER_TEMP/brian.json"
-          else
-            echo "Sin secretos de Brian: el asistente queda sin configurar (ver docs/BRIAN.md)."
-          fi
-          rm -f "$RUNNER_TEMP/brian.json"
-      - name: Pimienta del PIN de socios (se crea una vez, nunca se sobrescribe)
-        if: steps.guard.outputs.ready == 'true'
-        working-directory: edge
-        run: |
-          # Cambiarla rompe el PIN de TODOS los socios a la vez y no tiene vuelta atrás.
-          if npx wrangler secret list --format json | grep -q '"DCASA_PIN_PEPPER"'; then
-            echo "La pimienta ya existe: no se toca."
-          else
-            openssl rand -hex 32 | npx wrangler secret put DCASA_PIN_PEPPER
-            echo "Pimienta creada. Nadie la ve ni la tiene que recordar."
-          fi
+          SIMULACRO_RPO_MAX_S: "90"
+          SIMULACRO_DIR: ${{ runner.temp }}/simulacro
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        with:
+          name: simulacro-restauracion
+          path: ${{ runner.temp }}/simulacro
+          if-no-files-found: ignore
+          retention-days: 14
+
+  desplegar-staging:
+    name: Desplegar a staging
+    needs: [lint, odoo-tests, edge, docker, simulacro-restauracion]
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
+    uses: ./.github/workflows/desplegar.yml
+    with:
+      entorno: staging
+      artefacto: imagen-odoo-${{ github.sha }}
+      imagen_id: ${{ needs.docker.outputs.imagen_id }}
+      app_version: ${{ github.sha }}
+      respaldo_previo: true
+    secrets: inherit
+
+  desplegar-produccion:
+    name: Desplegar a producción
+    needs: [lint, odoo-tests, edge, docker, simulacro-restauracion]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/desplegar.yml
+    with:
+      entorno: production
+      artefacto: imagen-odoo-${{ github.sha }}
+      imagen_id: ${{ needs.docker.outputs.imagen_id }}
+      app_version: ${{ github.sha }}
+      respaldo_previo: true
+    secrets: inherit

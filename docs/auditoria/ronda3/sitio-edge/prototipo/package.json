@@ -1,0 +1,7 @@
+{
+  "name": "dcasa-prototipo-estatico",
+  "private": true,
+  "description": "Prototipo de medición (ronda 3, r3-sitio-edge): sitio estático generado desde addons/dcasa_catalogo/data/catalogo.json",
+  "scripts": { "build": "node generar.mjs", "serve": "node ../herramientas/servir.js static 8191 dist" },
+  "dependencies": { "sharp": "^0.34.0", "@fontsource/anton": "^5.0.0", "@fontsource/oswald": "^5.0.0", "@fontsource/inter": "^5.0.0" }
+}

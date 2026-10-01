@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # Imagen de producción de D'CASA: Odoo 19 (desde el submódulo vendor/odoo)
-# + los módulos propios de addons/. Contexto de build: la raíz del repo.
+# + los módulos propios de addons/ + PostgreSQL 16 con pgBackRest (respaldos en R2).
+# Contexto de build: la raíz del repo.
 #
 #   docker build -f docker/Dockerfile -t dcasa-odoo .
 
@@ -46,16 +47,44 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y --no-install-recommends /tmp/wkhtmltox.deb \
     && rm -rf /tmp/wkhtmltox.deb /var/lib/apt/lists/*
 
+# PostgreSQL 16 (servidor) + pgBackRest 2.50 (Fase 1, opción A: la base vive en este
+# contenedor y se respalda continuamente en R2; docker/pg.sh). Sin el clúster «main» del
+# paquete: el entrypoint crea o restaura el suyo en /var/lib/odoo/pg como usuario odoo.
+RUN mkdir -p /etc/postgresql-common/createcluster.d \
+    && echo "create_main_cluster = false" > /etc/postgresql-common/createcluster.d/dcasa.conf \
+    && apt-get update && apt-get install -y --no-install-recommends postgresql-16 pgbackrest openssl \
+    && rm -rf /var/lib/postgresql/16/main /etc/postgresql/16/main /var/lib/apt/lists/* \
+    && /usr/lib/postgresql/16/bin/postgres --version && pgbackrest version
+
 RUN useradd --system --create-home --home-dir /var/lib/odoo --shell /usr/sbin/nologin odoo
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=source /opt/odoo /opt/odoo
 COPY addons /opt/dcasa/addons
+COPY docker/pg.sh /usr/local/lib/dcasa/pg.sh
 COPY docker/entrypoint.sh /usr/local/bin/dcasa-entrypoint
-RUN chmod +x /usr/local/bin/dcasa-entrypoint
+# El Worker lo ejecuta con ctx.container.exec() (edge/CONTRATO_CONTENEDOR.md).
+COPY scripts/respaldo.sh /usr/local/bin/dcasa-respaldo
+RUN chmod 755 /usr/local/bin/dcasa-entrypoint /usr/local/bin/dcasa-respaldo \
+    && chmod 644 /usr/local/lib/dcasa/pg.sh
+
+# Tamaño estimado por capas (sin daemon de Docker para medirlo; tamaños instalados de
+# apt-cache y du sobre el mismo contenido, 2026-10-01). Límite: disco de basic = 4 GB,
+# que además debe alojar la base (~0,2 GB), el WAL (max_wal_size 256 MB) y los volcados.
+#   ubuntu:24.04 base ............................................. ~0,08 GB
+#   apt de Odoo (python3, libs, fuentes: ~0,18 GB) + wkhtmltopdf (0,14 GB) ~0,32 GB
+#   PostgreSQL 16 + pgBackRest + openssl (NUEVA: servidor 43 MB,
+#     libllvm17 118 MB que exige el paquete por JIT, locales 17 MB) ~0,18 GB
+#   /opt/venv (requirements de Odoo 19; medido con Python 3.12) .. ~0,22 GB
+#   /opt/odoo sin .po salvo es/es_419 (1,24 GB − 0,78 GB) ......... ~0,45 GB
+#   addons/ + scripts ............................................. ~0,03 GB
+#   Total ............................................ ~1,3 GB (≈ 1/3 del disco)
 
 USER odoo
 WORKDIR /var/lib/odoo
 EXPOSE 8069
-HEALTHCHECK --interval=30s --timeout=5s --start-period=120s \
+# start-period: restaurar desde R2 + arrancar Odoo (contrato del borde: ≤ 180 s).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=300s \
     CMD curl -fsS http://127.0.0.1:8069/web/health || exit 1
+# tini es PID 1 y entrega el SIGTERM al entrypoint, que apaga Odoo y luego PostgreSQL
+# con el último WAL en R2 (Cloudflare da hasta 15 min antes del SIGKILL).
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/dcasa-entrypoint"]

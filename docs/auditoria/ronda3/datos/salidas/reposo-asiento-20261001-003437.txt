@@ -1,0 +1,6 @@
+modo=asiento minutos=3 intervalo_s=1 wal_recycle=off wal_init_zero=on
+segmentos_archivados=3 por_hora=58
+peticiones_s3=9 por_hora=175
+      3 GET_LIST       3 GET_obj       3 PUT_obj 
+bucket: 4582 objetos, 218.2 MB (respaldos base 109.7 MB)
+segmentos WAL en ventana: 3; mediana 5.6 KiB; media 7.5 KiB; max 15.2 KiB; total 0.02 MB

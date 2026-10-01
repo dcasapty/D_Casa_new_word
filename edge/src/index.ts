@@ -1,22 +1,49 @@
-import { Container, getContainer } from "@cloudflare/containers";
+import { Container, getContainer, type StopParams } from "@cloudflare/containers";
 
-import { handleRequest } from "./handler";
+import {
+  colaDeSalida,
+  debeRearrancar,
+  handleRequest,
+  politicaDeSueno,
+  runScheduled,
+  secretosFaltantes,
+  servirConArranque,
+  tareaDelCron,
+  variablesDelContenedor,
+  type ResultadoRespaldo,
+  type SaludContenedor,
+} from "./handler";
 
 export interface Env {
   ODOO: DurableObjectNamespace<OdooContainer>;
-  // Variables (wrangler.jsonc > vars)
+  // Variables (wrangler.jsonc > vars; distintas en env.staging)
   CANONICAL_HOST?: string;
   APP_VERSION?: string;
-  DB_HOST: string;
-  DB_PORT?: string;
-  DB_NAME?: string;
-  DB_USER: string;
-  DB_SSLMODE?: string;
-  // Secretos (wrangler secret put …)
-  DB_PASSWORD: string;
-  ADMIN_PASSWORD: string;
+  /** "produccion" o "staging": el contenedor lo usa para no mezclar respaldos. */
+  DCASA_ENTORNO?: string;
+  /** Bucket de R2 de los respaldos (uno por entorno). */
+  R2_BUCKET?: string;
+  /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */
+  ODOO_DORMIR_TRAS?: string;
+  // Secretos (wrangler secret put …; ver edge/CONTRATO_CONTENEDOR.md)
+  /** Clave del usuario `admin` de Odoo (se fija al crear la base; ver docs/DESPLIEGUE.md). */
+  ADMIN_PASSWORD?: string;
+  /**
+   * Contraseña maestra de Odoo (`admin_passwd`), distinta de la de `admin`. Opcional:
+   * si falta, el contenedor genera una aleatoria en cada arranque y no la muestra.
+   */
+  ODOO_MASTER_PASSWORD?: string;
   /** Pimienta del PIN de los socios. Se genera una vez y NUNCA se cambia (ver docs/DESPLIEGUE.md). */
-  DCASA_PIN_PEPPER: string;
+  DCASA_PIN_PEPPER?: string;
+  /** `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` (endpoint S3 de R2). */
+  R2_ENDPOINT?: string;
+  /** Token de API de R2 (S3) con lectura y escritura SOLO sobre R2_BUCKET. */
+  R2_ACCESS_KEY_ID?: string;
+  R2_SECRET_ACCESS_KEY?: string;
+  /** Clave de cifrado del repositorio de pgBackRest. Perderla = perder los respaldos. */
+  PGBACKREST_CIPHER_PASS?: string;
+  /** Opcional: habilita `POST /__edge/respaldo` (≥ 32 caracteres). */
+  RESPALDO_TOKEN?: string;
   // Brian, el asistente (opcionales; ver docs/BRIAN.md y docs/DESPLIEGUE.md).
   BRIAN_PROVEEDOR?: string;
   BRIAN_MODELO?: string;
@@ -30,54 +57,178 @@ export interface Env {
   BRIAN_TELEGRAM_SECRETO?: string;
 }
 
-/** Variables opcionales que se pasan tal cual al contenedor solo si están definidas. */
-export const OPTIONAL_CONTAINER_VARS = [
-  "BRIAN_PROVEEDOR",
-  "BRIAN_MODELO",
-  "BRIAN_BASE_URL",
-  "BRIAN_HERRAMIENTAS_MAX",
-  "BRIAN_API_KEY",
-  "TELEGRAM_BOT_TOKEN",
-  "BRIAN_TELEGRAM_SECRETO",
-] as const;
-
-/** Una sola instancia de Odoo: toda la tienda comparte el mismo contenedor. */
+/**
+ * Una sola instancia de Odoo + PostgreSQL (singleton): toda la tienda usa el mismo
+ * Durable Object y por tanto el mismo contenedor. `max_instances: 1` en wrangler.jsonc
+ * impide que Cloudflare encienda un segundo contenedor (dos PostgreSQL escribiendo al
+ * mismo repositorio de R2 serían dos contabilidades distintas).
+ */
 const INSTANCE = "odoo-main";
 
+/** Puerto de Odoo. El contrato con la imagen: no escucha hasta que la base está lista. */
+const PUERTO = 8069;
+/** Tope para que Odoo abra el puerto: restauración (~10 s medido) + `-u` (~25 s) y, solo en el primer arranque, la instalación completa (263 s medido). */
+const TOPE_ARRANQUE_MS = 420_000;
+/** Si un arranque falla, no se reintenta antes de esto (evita restaurar desde R2 en bucle). */
+const PAUSA_TRAS_FALLO_MS = 30_000;
+/** Tiempo máximo de `/dcasa/salud`. */
+const TIMEOUT_SALUD_MS = 5_000;
+/**
+ * Respaldo diario: el script de la imagen, con tope de 14 min (el evento del cron
+ * tiene 15 min de CPU/espera; `timeout` mata también a sus hijos).
+ */
+const COMANDO_RESPALDO = ["timeout", "--kill-after=30", "840", "/usr/local/bin/dcasa-respaldo"];
+
 export class OdooContainer extends Container<Env> {
-  defaultPort = 8069;
-  // Odoo tarda en arrancar: mejor mantenerlo despierto un buen rato.
-  sleepAfter = "30m";
-  enableInternet = true; // correo saliente, pasarelas de pago, WhatsApp, etc.
-  pingEndpoint = "web/health";
+  defaultPort = PUERTO;
+  enableInternet = true; // R2, correo saliente, pasarelas de pago, WhatsApp, IA de Brian.
+  // waitForPort hace fetch a `http://<pingEndpoint>`: cualquier respuesta HTTP = puerto listo.
+  pingEndpoint = "localhost/web/health";
+
+  private readonly siempreEncendido: boolean;
+  private arranque?: Promise<void>;
+  private ultimoFalloArranque = 0;
+  private respaldoEnCurso = false;
 
   constructor(ctx: ConstructorParameters<typeof Container<Env>>[0], env: Env) {
-    super(ctx, env);
-    this.envVars = {
-      DB_HOST: env.DB_HOST,
-      DB_PORT: env.DB_PORT ?? "5432",
-      DB_NAME: env.DB_NAME ?? "dcasa",
-      DB_USER: env.DB_USER,
-      DB_PASSWORD: env.DB_PASSWORD,
-      DB_SSLMODE: env.DB_SSLMODE ?? "require",
-      ADMIN_PASSWORD: env.ADMIN_PASSWORD,
-      APP_VERSION: env.APP_VERSION ?? "dev",
-      DCASA_PIN_PEPPER: env.DCASA_PIN_PEPPER,
-    };
-    for (const name of OPTIONAL_CONTAINER_VARS) {
-      const value = env[name];
-      if (value) this.envVars[name] = value;
+    const politica = politicaDeSueno(env.ODOO_DORMIR_TRAS);
+    // sleepAfter va por opciones: un inicializador de campo lo pisaría después.
+    super(ctx, env, { sleepAfter: politica.sleepAfter });
+    this.siempreEncendido = politica.siempreEncendido;
+    this.envVars = variablesDelContenedor(env);
+  }
+
+  /** Visitas: si Odoo no está listo, arranca y responde 503 amable mientras restaura. */
+  override async fetch(request: Request): Promise<Response> {
+    return servirConArranque(request, {
+      listo: () => this.estaListo(),
+      arrancar: () => this.iniciarArranque(),
+      reenviar: (upstream) => this.containerFetch(upstream),
+      faltantes: () => secretosFaltantes(this.env),
+    });
+  }
+
+  private async estaListo(): Promise<boolean> {
+    if (!this.ctx.container?.running) return false;
+    return (await this.getState()).status === "healthy";
+  }
+
+  /** Un solo arranque a la vez; las peticiones que llegan mientras tanto lo comparten. */
+  private iniciarArranque(): Promise<void> {
+    if (this.arranque) return this.arranque;
+    if (Date.now() - this.ultimoFalloArranque < PAUSA_TRAS_FALLO_MS) {
+      return Promise.reject(new Error("arranque en pausa tras un fallo reciente"));
+    }
+    console.log(JSON.stringify({ evento: "arranque_iniciado" }));
+    const inicio = Date.now();
+    this.arranque = this.startAndWaitForPorts({
+      ports: PUERTO,
+      cancellationOptions: { portReadyTimeoutMS: TOPE_ARRANQUE_MS, instanceGetTimeoutMS: 30_000 },
+    })
+      .then(() => console.log(JSON.stringify({ evento: "arranque_listo", duracionMs: Date.now() - inicio })))
+      .catch((error: unknown) => {
+        this.ultimoFalloArranque = Date.now();
+        console.error(JSON.stringify({ evento: "arranque_fallido", duracionMs: Date.now() - inicio, error: String(error) }));
+        throw error;
+      })
+      .finally(() => {
+        this.arranque = undefined;
+      });
+    return this.arranque;
+  }
+
+  /** 24/7: el temporizador de inactividad se revisa, pero nunca apaga el contenedor. */
+  override async onActivityExpired(): Promise<void> {
+    if (this.siempreEncendido) return;
+    console.log(JSON.stringify({ evento: "contenedor_inactivo", accion: "apagar" }));
+    await this.stop(); // SIGTERM: la imagen archiva el WAL antes de salir.
+  }
+
+  override async onStop(params: StopParams): Promise<void> {
+    // reason "runtime_signal" = lo paró Cloudflare (rollout, reinicio de host, sueño);
+    // "exit" = el proceso terminó solo (fallo de restauración, OOM, error de Odoo).
+    const ahora = Date.now();
+    const ultimo = await this.ctx.storage.get<number>("ultimoRearranque");
+    const rearrancar = debeRearrancar(this.siempreEncendido, ahora, ultimo);
+    const registro = { evento: "contenedor_detenido", exitCode: params.exitCode, motivo: params.reason, rearrancar };
+    if (params.exitCode === 0) console.log(JSON.stringify(registro));
+    else console.error(JSON.stringify(registro));
+    if (rearrancar) {
+      await this.ctx.storage.put("ultimoRearranque", ahora);
+      await this.schedule(30, "rearrancar");
     }
   }
 
   override onError(error: unknown): unknown {
-    console.error("Odoo container error", error);
+    console.error(JSON.stringify({ evento: "contenedor_error", error: String(error) }));
     throw error;
+  }
+
+  /** Callback de `schedule()` tras una parada en 24/7. */
+  async rearrancar(): Promise<void> {
+    if ((await this.estaListo()) || secretosFaltantes(this.env).length) return;
+    await this.iniciarArranque().catch(() => undefined); // ya quedó registrado
+  }
+
+  /** Para `/__edge/health`: estado real sin encender nada. */
+  async salud(): Promise<SaludContenedor> {
+    const faltan = secretosFaltantes(this.env);
+    const estado = await this.getState();
+    const contenedor = this.ctx.container?.running ? estado.status : "stopped";
+    if (contenedor !== "healthy") return { contenedor, faltan };
+    try {
+      const respuesta = await this.containerFetch(
+        new Request("http://localhost/dcasa/salud", { signal: AbortSignal.timeout(TIMEOUT_SALUD_MS) }),
+      );
+      const cuerpo = (await respuesta.text()).slice(0, 500);
+      return { contenedor, faltan, odoo: { status: respuesta.status, cuerpo } };
+    } catch (error) {
+      return { contenedor, faltan, odoo: { error: String(error) } };
+    }
+  }
+
+  /**
+   * Respaldo lógico diario dentro del contenedor (contrato en edge/CONTRATO_CONTENEDOR.md).
+   * No enciende el contenedor: si está apagado no hay nada nuevo que respaldar (todo
+   * lo confirmado ya está en el WAL archivado en R2).
+   */
+  async respaldar(origen: "cron" | "manual"): Promise<ResultadoRespaldo> {
+    if (this.respaldoEnCurso) return { estado: "en_curso" };
+    if (!(await this.estaListo())) return { estado: "omitido", motivo: "Odoo no está encendido" };
+    this.respaldoEnCurso = true;
+    const inicio = Date.now();
+    try {
+      this.renewActivityTimeout();
+      const proceso = await this.ctx.container!.exec(COMANDO_RESPALDO, {
+        env: { ...this.envVars, DCASA_RESPALDO_ORIGEN: origen },
+        stdout: "pipe",
+        stderr: "combined",
+      });
+      const salida = await proceso.output();
+      const resultado: ResultadoRespaldo = {
+        estado: salida.exitCode === 0 ? "ok" : "fallo",
+        codigo: salida.exitCode,
+        duracionMs: Date.now() - inicio,
+        salida: colaDeSalida(new TextDecoder().decode(salida.stdout)),
+      };
+      return resultado;
+    } catch (error) {
+      return { estado: "fallo", duracionMs: Date.now() - inicio, motivo: String(error) };
+    } finally {
+      this.respaldoEnCurso = false;
+    }
   }
 }
 
 function odoo(env: Env) {
   return getContainer(env.ODOO, INSTANCE);
+}
+
+function registrarRespaldo(resultado: ResultadoRespaldo, origen: string): ResultadoRespaldo {
+  const linea = JSON.stringify({ evento: "respaldo", origen, ...resultado });
+  if (resultado.estado === "ok") console.log(linea);
+  else console.error(linea);
+  return resultado;
 }
 
 export default {
@@ -87,14 +238,30 @@ export default {
       cache: caches.default,
       waitUntil: (promise) => ctx.waitUntil(promise),
       canonicalHost: env.CANONICAL_HOST,
+      salud: () => odoo(env).salud(),
+      respaldo: {
+        token: env.RESPALDO_TOKEN,
+        respaldar: async () => registrarRespaldo(await odoo(env).respaldar("manual"), "manual"),
+      },
     });
   },
 
   /**
-   * Cron: despierta Odoo cada pocos minutos para que corran sus acciones
-   * planificadas (correos, recordatorios, conciliaciones) aunque no haya visitas.
+   * Crons (wrangler.jsonc, ver CRON_HORARIO y CRON_RESPALDO en src/handler.ts):
+   * - horario: si Odoo está apagado lo despierta; si está encendido no hace nada;
+   * - diario de madrugada (Panamá): respaldo lógico dentro del contenedor.
    */
-  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(odoo(env).fetch(new Request("http://odoo/web/health")));
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    const container = odoo(env);
+    if (tareaDelCron(controller.cron) === "respaldo") {
+      ctx.waitUntil(container.respaldar("cron").then((resultado) => registrarRespaldo(resultado, "cron")));
+      return;
+    }
+    ctx.waitUntil(
+      runScheduled({
+        status: async () => (await container.getState()).status,
+        wake: () => container.fetch(new Request("http://odoo/web/health")),
+      }).then((resultado) => console.log(`cron: Odoo ${resultado}`)),
+    );
   },
 } satisfies ExportedHandler<Env>;

@@ -8,6 +8,26 @@
         </xpath>
     </template>
 
+    <!-- Precio público: la cifra del catálogo es SIN ITBMS y se dice al lado: «$39.99 + ITBMS».
+         El carrito, la cotización y la factura muestran subtotal, ITBMS y total. -->
+    <template id="mas_itbms" name="D'CASA: + ITBMS junto al precio">
+        <small t-if="website._dcasa_mas_itbms(producto_itbms)" class="o_dcasa_mas_itbms">+ ITBMS</small>
+    </template>
+
+    <template id="ficha_precio_mas_itbms" inherit_id="website_sale.product_price" name="D'CASA: precio de la ficha + ITBMS">
+        <xpath expr="//div[@name='product_price_container']/span[hasclass('oe_price')]" position="after">
+            <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="product"/></t>
+        </xpath>
+    </template>
+
+    <template id="tienda_precio_mas_itbms" inherit_id="website_sale.products_item" name="D'CASA: precio de la tienda + ITBMS">
+        <xpath expr="//div[hasclass('product_price')]/span[1]" position="after">
+            <t t-if="template_price_vals['price_reduce'] or not website.prevent_zero_price_sale" t-call="website_dcasa.mas_itbms">
+                <t t-set="producto_itbms" t-value="product"/>
+            </t>
+        </xpath>
+    </template>
+
     <template id="resumen_entrega_por_cotizar" inherit_id="website_sale.total" name="D'CASA: resumen con entrega por cotizar">
         <xpath expr="//tr[@name='o_order_delivery']/td[2]" position="inside">
             <small t-if="website_sale_order.carrier_id.dcasa_por_cotizar" class="d-block text-muted fw-normal">por cotizar</small>

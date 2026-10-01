@@ -1,0 +1,158 @@
+# Perfiles de ayuda de Brian por rol (prototipo, ronda 3).
+#
+# Principio: Brian = Odoo ∩ Perfil. El perfil solo RESTRINGE lo que Odoo ya permite; nunca amplía.
+# La política dura (catalogo_habilidades.yaml › nunca, politica.py) está por encima de todo perfil.
+#
+# AVISO: los topes numéricos de abajo (descuento, monto autónomo, tokens) son VALORES DE EJEMPLO para
+# probar el motor; NO son cifras de D'CASA. Los fija el administrador en la pantalla de perfiles.
+valores_de_ejemplo: true
+
+# Implicaciones de grupos de Odoo MEDIDAS en la base dcasa_test (res_groups_implied_rel, cierre
+# transitivo, 2026-10-01). Solo los grupos que usa el catálogo. Incluye lo que agrega D'CASA:
+# dcasa_contabilidad hace que account.group_account_manager implique account.group_account_user
+# (addons/dcasa_contabilidad/models/reportes.py:347-352).
+implicaciones_odoo:
+  base.group_system: [base.group_erp_manager, base.group_user, website.group_website_designer, website.group_website_restricted_editor]
+  base.group_erp_manager: [base.group_user]
+  sales_team.group_sale_manager: [sales_team.group_sale_salesman_all_leads, sales_team.group_sale_salesman, base.group_user, website.group_website_restricted_editor]
+  sales_team.group_sale_salesman_all_leads: [sales_team.group_sale_salesman, base.group_user]
+  sales_team.group_sale_salesman: [base.group_user]
+  account.group_account_manager: [account.group_account_user, account.group_account_basic, account.group_account_invoice, account.group_account_readonly, base.group_user]
+  account.group_account_user: [account.group_account_basic, account.group_account_invoice, account.group_account_readonly, base.group_user]
+  account.group_account_invoice: [base.group_user]
+  account.group_account_readonly: [base.group_user]
+  stock.group_stock_manager: [stock.group_stock_user, base.group_user]
+  stock.group_stock_user: [base.group_user]
+  purchase.group_purchase_manager: [purchase.group_purchase_user, base.group_user]
+  purchase.group_purchase_user: [base.group_user]
+  website.group_website_designer: [website.group_website_restricted_editor]
+
+# Prerrequisito (ronda 1 UI-02/UI-03): roles de Odoo que hoy NO existen. Propuesta para dcasa_base.
+roles_odoo_propuestos:
+  vendedora:
+    xmlid: dcasa_base.group_vendedora
+    implica: [sales_team.group_sale_salesman, account.group_account_invoice, stock.group_stock_user]
+    por_que: "Vender y COBRAR (UI-02: sin Facturación no puede registrar pagos). Solo sus clientes/ventas (salesman, no all_leads)."
+    ajustes_odoo: "Ocultar menú Reportes de Socios (UI-03) y facturas de proveedor (regla o menú) aunque Facturación lo permita."
+  gerencia:
+    xmlid: dcasa_base.group_gerencia
+    implica: [sales_team.group_sale_manager, account.group_account_user, stock.group_stock_manager, purchase.group_purchase_manager, website.group_website_designer]
+    por_que: "Ve antifraude, márgenes, compras y sitio; sin Ajustes técnicos ni usuarios (no group_erp_manager)."
+  contador:
+    xmlid: (existente en herramientas_usuarios.py ROLES)
+    implica: [account.group_account_manager, sales_team.group_sale_salesman_all_leads, stock.group_stock_user]
+  administrador:
+    xmlid: (existente en herramientas_usuarios.py ROLES)
+    implica: [base.group_system, sales_team.group_sale_manager, account.group_account_manager, stock.group_stock_manager, purchase.group_purchase_manager]
+
+# Perfiles de ayuda (modelo brian.perfil + brian.perfil.regla). Resolución: usuario directo > grupo
+# con mayor `prioridad` > `predeterminado` (fallo seguro = menos ayuda).
+perfiles:
+  - id: predeterminado
+    nombre: Predeterminado (sin perfil asignado)
+    prioridad: 0
+    grupos: []
+    canales: [chat]
+    autonomia_en: []
+    niveles: {nucleo: 1, catalogo_precios: 1, ventas: 1, clientes_socios: 1, reportes: 1}
+    topes: {descuento_max_pct: 0, monto_autonomo_max: 0, tokens_dia: 50000, acciones_hora: 30}
+    memoria: {leer: [negocio], proponer: false}
+
+  - id: vendedora
+    nombre: Vendedora
+    prioridad: 10
+    grupos: [dcasa_base.group_vendedora]
+    canales: [chat, telegram]
+    autonomia_en: []
+    niveles:
+      nucleo: 1
+      catalogo_precios: 1
+      inventario: 1
+      ventas: 3
+      whatsapp: 2
+      cobros_facturas: 3
+      clientes_socios: 2
+      reportes: 1
+      promociones: 1
+      entregas: 2
+      aprendizaje: 2
+      constructor: 2          # solo crear_filtro_guardado (personal) y deshacer lo propio llegan a 2
+    excluir: [cambiar_precios_lote, ajustar_puntos]
+    restricciones_argumentos:
+      crear_factura: {tipo: [cliente]}
+      facturas_pendientes: {tipo: [por_cobrar]}
+    topes: {descuento_max_pct: 10, monto_autonomo_max: 0, tokens_dia: 150000, acciones_hora: 60}
+    memoria: {leer: [negocio, propia], proponer: true}
+    modelo_ia: rapido
+
+  - id: gerencia
+    nombre: Gerencia
+    prioridad: 20
+    grupos: [dcasa_base.group_gerencia]
+    canales: [chat, telegram, mcp]
+    autonomia_en: [chat]
+    niveles:
+      nucleo: 1
+      catalogo_precios: 3
+      inventario: 3
+      compras: 3
+      ventas: 4
+      whatsapp: 2
+      cobros_facturas: 3
+      contabilidad: 1
+      clientes_socios: 3
+      reportes: 1
+      sitio_web: 3
+      promociones: 3
+      entregas: 3
+      equipo: 1
+      constructor: 2
+      aprendizaje: 3
+    topes: {descuento_max_pct: 25, monto_autonomo_max: 500, tokens_dia: 400000, acciones_hora: 120}
+    memoria: {leer: [negocio, propia], proponer: true, aprobar: true}
+    modelo_ia: estandar
+
+  - id: contador
+    nombre: Contador/a
+    prioridad: 15
+    grupos: [account.group_account_manager]
+    canales: [chat, mcp]
+    autonomia_en: []
+    niveles: {nucleo: 1, contabilidad: 3, cobros_facturas: 3, reportes: 1, clientes_socios: 1, catalogo_precios: 1, inventario: 1}
+    topes: {descuento_max_pct: 0, monto_autonomo_max: 0, tokens_dia: 200000, acciones_hora: 60}
+    memoria: {leer: [negocio, propia], proponer: true}
+    modelo_ia: estandar
+
+  - id: administrador
+    nombre: Administrador (máximo sin intervención)
+    prioridad: 100
+    grupos: [base.group_system]
+    canales: [chat, telegram, mcp]
+    autonomia_en: [chat, telegram]
+    modo_constructor: true
+    niveles:
+      nucleo: 1
+      catalogo_precios: 4
+      inventario: 4
+      compras: 4
+      ventas: 4
+      whatsapp: 4
+      cobros_facturas: 4
+      contabilidad: 4
+      clientes_socios: 4
+      reportes: 1
+      sitio_web: 4
+      promociones: 4
+      entregas: 4
+      equipo: 3
+      constructor: 5
+      aprendizaje: 4
+    topes: {descuento_max_pct: 100, monto_autonomo_max: 2000, tokens_dia: 1000000, acciones_hora: 300}
+    memoria: {leer: [negocio, propia], proponer: true, aprobar: true}
+    modelo_ia: estandar
+
+# Reglas de canal (fijas, no configurables por perfil):
+reglas_canal:
+  mcp: "Nunca ejecuta lo que pide confirmación: la tarjeta va al panel/Telegram del mismo usuario (B-04, docs/BRIAN.md)."
+  telegram: "La autonomía (nivel 4) solo si el perfil la habilita para telegram; la vinculación exige 2FA en Odoo (propuesta)."
+  chat: "Canal de referencia."

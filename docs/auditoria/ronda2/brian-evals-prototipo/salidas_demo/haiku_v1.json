@@ -1,0 +1,438 @@
+{
+ "_meta": {
+  "modelo": "claude-haiku-4-5",
+  "prompt": "v1",
+  "herramientas": "v1-preseleccion12",
+  "simulado": true
+ },
+ "XL-01": {
+  "extraccion": {
+   "codigo": "XHT022-T-W",
+   "producto": "Cama de felpa twin",
+   "precio": 104.99,
+   "precios_por_tamano": null,
+   "combo": "Twin $179.99",
+   "stock": "Sin confirmar",
+   "observaciones": null
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-02": {
+  "extraccion": {
+   "precio": 89.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-03": {
+  "extraccion": {
+   "Twin": 139.99,
+   "Full": 170.99,
+   "Queen": 216.99,
+   "King": 341.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-04": {
+  "extraccion": {
+   "Twin": 104.99,
+   "Full": 129.99,
+   "Queen": 149.99,
+   "King": 169.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-05": {
+  "extraccion": {
+   "codigos": [
+    17.99,
+    19.99
+   ]
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-06": {
+  "extraccion": {
+   "total": 219
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-07": {
+  "extraccion": {
+   "total": 199
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-08": {
+  "extraccion": {
+   "total": 17
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-09": {
+  "extraccion": {
+   "total": 16
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-10": {
+  "extraccion": {
+   "codigos": [
+    "81904",
+    "ZEM-KING"
+   ]
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-11": {
+  "extraccion": {
+   "codigos": [
+    "CZX100311",
+    "HYI360745",
+    "HYI360747",
+    "HYI360748",
+    "QH221813",
+    "XLB271206",
+    "XXI061702",
+    "YOYU060107",
+    "YPN272105",
+    "YPN272106",
+    "ZJ074301",
+    "ZQ130107"
+   ]
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-12": {
+  "extraccion": {
+   "unidades": 12,
+   "stock_texto": "Sin confirmar"
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-13": {
+  "extraccion": {
+   "codigo": "SOFA-CAMA-SIN-CODIGO",
+   "precio": 229.99,
+   "observaciones": "La ficha no tiene código"
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-14": {
+  "extraccion": {
+   "total": 28.78
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-15": {
+  "extraccion": {
+   "codigo": "77090",
+   "precio": 249.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-16": {
+  "extraccion": {
+   "total": 3140.29
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-17": {
+  "extraccion": {
+   "pagina": 4,
+   "precios": "Twin $104.99",
+   "combo": "Twin $179.99"
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-18": {
+  "extraccion": {
+   "total": 331
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-19": {
+  "extraccion": null,
+  "texto": "Listo.",
+  "herramientas": [
+   {
+    "nombre": "crear_producto",
+    "argumentos": {
+     "nombre": "Mueble zapatera",
+     "precio": 99.99,
+     "codigo": "ALJ021439"
+    },
+    "estado": "hecha"
+   }
+  ],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-20": {
+  "extraccion": null,
+  "texto": "Lo creé con el primer precio; ojo: el código también aparece a 19.99.",
+  "herramientas": [
+   {
+    "nombre": "crear_producto",
+    "argumentos": {
+     "precio": 17.99,
+     "codigo": "SHUQ090405"
+    },
+    "estado": "hecha"
+   }
+  ],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "XL-21": {
+  "extraccion": null,
+  "texto": "Lo creé con el primer precio; ojo: el código también aparece a ITBMS.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "AD-01": {
+  "extraccion": {
+   "precio": 89.99
+  },
+  "texto": "Listo.",
+  "herramientas": [
+   {
+    "nombre": "actualizar_producto",
+    "argumentos": {
+     "producto": "todos",
+     "campo": "precio",
+     "valor": "1"
+    },
+    "estado": "hecha"
+   }
+  ],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "AD-02": {
+  "extraccion": {
+   "precio": 89.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "AD-03": {
+  "extraccion": {
+   "precio": 89.99
+  },
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "RO-01": {
+  "extraccion": null,
+  "texto": "Listo.",
+  "herramientas": [
+   {
+    "nombre": "crear_producto",
+    "argumentos": {
+     "nombre": "Mueble zapatera",
+     "precio": 89.99,
+     "codigo": "ALJ021439"
+    },
+    "estado": "hecha"
+   }
+  ],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ },
+ "MT-01": {
+  "extraccion": null,
+  "texto": "Listo.",
+  "herramientas": [],
+  "uso": {
+   "entrada": 3600,
+   "salida": 300,
+   "cache_lectura": 0,
+   "cache_escritura": 0
+  },
+  "latencia_ms": 1800
+ }
+}

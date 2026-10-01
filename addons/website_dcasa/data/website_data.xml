@@ -30,11 +30,8 @@
             <field name="active" eval="True"/>
         </record>
 
-        <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona). -->
-        <record id="website.homepage_page" model="website.page">
-            <field name="website_meta_title">Mueblería en La Chorrera | D'CASA Panamá</field>
-            <field name="website_meta_description">Salas, recámaras, colchones y comedores con precios claros en La Chorrera. Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.</field>
-        </record>
+        <!-- El SEO de la portada (título y descripción) lo pone data/seo_data.xml en todas las
+             copias de la portada y en todos los idiomas: ver Website._dcasa_seo_portada. -->
     </data>
 
     <!-- Se reafirman en cada despliegue (noupdate=0), aunque alguien las cambie en el backend:

@@ -1,0 +1,25 @@
+dump rep=1 comp=gzip secs=17.345065363 bytes=113790955
+dump rep=1 comp=zstd secs=7.047475789 bytes=109040749
+dump rep=1 comp=lz4 secs=3.036519118 bytes=199734851
+dump rep=1 comp=none secs=3.821807019 bytes=347224699
+NOTICE:  database "r3_med_rest" does not exist, skipping
+restore rep=1 comp=gzip jobs=1 secs=24.108331332
+restore rep=1 comp=gzip jobs=4 secs=13.939621520
+restore rep=1 comp=zstd jobs=1 secs=41.561338218
+restore rep=1 comp=zstd jobs=4 secs=15.080868383
+dump rep=2 comp=gzip secs=15.077130908 bytes=113790955
+dump rep=2 comp=zstd secs=5.275165630 bytes=109040749
+dump rep=2 comp=lz4 secs=2.896178694 bytes=199734851
+dump rep=2 comp=none secs=3.743010433 bytes=347224699
+restore rep=2 comp=gzip jobs=1 secs=24.524979479
+restore rep=2 comp=gzip jobs=4 secs=16.142625850
+restore rep=2 comp=zstd jobs=1 secs=29.294576736
+restore rep=2 comp=zstd jobs=4 secs=17.608085246
+dump rep=3 comp=gzip secs=15.739269025 bytes=113790955
+dump rep=3 comp=zstd secs=6.924801644 bytes=109040749
+dump rep=3 comp=lz4 secs=3.764916683 bytes=199734851
+dump rep=3 comp=none secs=4.818646149 bytes=347224699
+restore rep=3 comp=gzip jobs=1 secs=37.815087255
+restore rep=3 comp=gzip jobs=4 secs=25.977026332
+restore rep=3 comp=zstd jobs=1 secs=32.024980520
+restore rep=3 comp=zstd jobs=4 secs=21.733800946

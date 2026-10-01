@@ -1,0 +1,4 @@
+apagado=ordenado ensayo=20261001-010804 carga_s=90
+t_checkpoint_switch_push_s=0.24 t_pg_ctl_stop_s=0.21 t_apagado_total_s=0.45
+commits_confirmados=101288 restaurados=101288 perdidos=0
+RTO_total_s=44.9

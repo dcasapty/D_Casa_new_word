@@ -1,0 +1,162 @@
+# Ronda 3 · r3-odoo-medicion — Odoo 19 medido de verdad
+
+Fecha: 2026-10-01 · Agente: `r3-odoo-medicion` · Estado: **EN CURSO (informe incremental)**
+
+Máquina de medición: 4 vCPU, 16 GB, Linux 6.18, Python 3.11.15, PostgreSQL 16 (paquete Ubuntu).
+Otros agentes corren en paralelo: CPU y latencia tienen ruido (se repite ≥3 veces y se da mediana
+y rango). La memoria (RSS/PSS de `/proc/<pid>/smaps_rollup`) es fiable.
+
+Scripts reproducibles: `docs/auditoria/ronda3/odoo-medicion/` (cada cifra cita el script/comando).
+
+## 0. Base medida
+- `r3_med_base` = copia de `dcasa_test` (`createdb -T dcasa_test r3_med_base`, 8,3 s).
+- 8 módulos `dcasa_*`/`website_dcasa` instalados, 108 módulos en total `state='installed'`.
+- Catálogo real cargado: 199 `product.template` con xmlid de `dcasa_catalogo` (=199 entradas de
+  `catalogo.json`), 202 plantillas en total, 230 variantes; 188 plantillas con `image_1920`.
+- `ir_attachment.location = db`.
+
+## 1. Resumen ejecutivo
+(pendiente)
+
+## 2. Mediciones
+
+Convenciones: «mediana [mín-máx]» de 3 repeticiones salvo que se diga. Memoria en MiB. **PSS** reparte
+las páginas compartidas entre procesos (es lo que suma de verdad en un contenedor con varios procesos);
+el RSS de PostgreSQL sumado cuenta `shared_buffers` una vez por proceso y exagera. Odoo arrancado con
+`odoo_run.sh` (misma config que `docker/entrypoint.sh`: `proxy_mode`, `unaccent`, `list_db=False`,
+`limit_time_real=300`) contra el clúster propio 5441 (`pg_propio.sh`: `shared_buffers` indicado,
+`work_mem=4MB`, `max_connections=40`). Público = visitante anónimo sin cookies; backend = sesión admin.
+
+### 2.1 Memoria, arranque, latencia y CPU (script `campana.py`, crudos `res_campana.jsonl`, tabla `res_resumen_campana.txt` de `resumen.py`)
+
+| Medida | Hilos `workers=0`, cron 1, `db_maxconn=64` (como entrypoint salvo maxconn) | Prefork `workers=2`, cron 1 |
+|---|---|---|
+| Arranque en frío → primer 200 en `/` (s) | 3,07 [2,96-3,21] | 3,05 [2,95-3,48] |
+| Odoo en reposo (10 s tras arrancar) RSS / PSS | 169 / 150 | 601 / 228 (5 procesos) |
+| Odoo caliente (sitio + backend admin + bundles) RSS / PSS | 216 / 197 | 667 / 405 |
+| Odoo pico bajo carga 50 conc. PSS | 308 [300-325] | 428 [410-456] |
+| PostgreSQL reposo / caliente PSS (shared_buffers 128MB) | 49 / 66 | 46 / 78 |
+| PostgreSQL pico bajo carga 50 conc. PSS | 434 [422-450] (≈ 50 backends) | 89 [86-91] (≤ 6 backends) |
+| **Pico total Odoo+PG PSS, 20 conc.** | **401 [401-451]** | **491 [483-517]** |
+| **Pico total Odoo+PG PSS, 50 conc.** | **733 [729-773]** | **516 [494-546]** |
+| Rendimiento 20 conc. (pet./s) | 12,9 [11,2-13,8] | 27,0 [26,9-27,2] |
+| Errores 50 conc. (de 1000) | 0 | 9-18 (conexión cortada: `listen(8*workers)` = cola de 16, `vendor/odoo/odoo/service/server.py:1109`) |
+| CPU media por petición bajo carga (mezcla 8 rutas) | 68 ms [64-80] | 49-50 ms [48-53] |
+
+Con `db_maxconn=16` (valor de `docker/entrypoint.sh:43`): con 20 conc. 100/400 respuestas 500 y con 50 conc.
+734/1000 respuestas 500, todas `psycopg2.pool.PoolError: The Connection Pool Is Full` (log `hilos_mc16_1.log`;
+corrida previa con sesión compartida: 1 175 PoolError). Ver hallazgo H-1.
+
+**Latencia secuencial con base caliente (una petición a la vez, 30 por ruta) y CPU por petición**
+(`medir.py lat`, dentro de `campana.py`; hilos `db_maxconn=64`):
+
+| Ruta | p50 ms | p95 ms | CPU ms/pet. (utime+stime de Odoo) | Prefork: p50 / CPU |
+|---|---|---|---|---|
+| `/` (anónimo) | 43 [41-64] | 70 [53-206] | 24,7 [23,7-38] | 38 / 25,7 |
+| `/shop` | 238 [217-263] | 289 [245-370] | **174 [170-177]** | 203 / 160 |
+| ficha de producto | 155 [143-191] | 177 [165-263] | 110 [101-114] | 145 / 113 |
+| `/visitanos` | 39 [37-52] | 59 [53-89] | 27,7 [26-35] | 39 / 30 |
+| `/web/login` | 43 [38-60] | 53 [48-134] | 26,7 [26-34] | 39 / 25 |
+| `/socios` | 36 [35-56] | 48 [46-126] | 26,3 [26-37] | 38 / 26 |
+| RPC lista de productos (80 filas, `web_search_read`) | 45 [43-49] | 59 [55-96] | 33 [31-47] | 40 / 32 |
+| RPC lista de facturas (0 facturas en la base) | 9 [8-12] | 16 [10-453] | 6 [5-27] | 8 / 4,7 |
+
+La misma `/` con sesión de admin cuesta ~114 ms de CPU y 128 ms p50 (corrida v1,
+`res_campana_v1_maxconn16_sesion_compartida.jsonl`): el visitante logueado es 4-5× más caro que el anónimo.
+`/shop` es la página cara (≈170 ms de CPU por visita: 20 productos con imágenes, filtros y precios).
+
+**Bajo carga** (latencias de la mezcla, hilos): 20 conc. → p50 1,2-2,6 s; 50 conc. → p50 3-9 s y p95 hasta
+18 s en `/shop`. Prefork w2, 20 conc. → p50 0,6-0,8 s, p95 0,7-0,9 s. Un solo proceso Python con hilos no
+pasa de ~13 pet./s en esta máquina (GIL): el límite es la CPU de un núcleo, no la memoria.
+
+### 2.2 Tamaño de la base (`tamano_base.sh`, crudo `res_tamano_base.txt`)
+
+| Medida | Valor |
+|---|---|
+| Base `dcasa_test`/`r3_med_base` en el clúster principal | 211 MB (221 150 231 B) |
+| Misma base recién restaurada (sin hinchazón) | 170 MB |
+| `ir_attachment` (tabla + TOAST) | 120 MB; 2 425 adjuntos, 148 MB sin comprimir |
+| · bundles JS/CSS (`ir.ui.view`, regenerables por Odoo) | 62 MB JS + 9,8 MB CSS |
+| · fotos de productos (`product.template` 940 + `product.image` 675, JPEG) | 42 MB + 33 MB = 75 MB |
+| Resto de la base sin `ir_attachment` | **≈ 91 MB** (la mayoría metadatos de Odoo: `ir_model_fields` 12 MB, `ir_ui_view` 9,9 MB, `ir_model_data` 7,8 MB) |
+| Top 10 tablas | ir_attachment 120 MB · ir_model_fields 12 · ir_ui_view 9,9 · ir_model_data 7,8 · ir_module_module 3,6 · product_template 2,1 · ir_model_fields_selection 1,2 · ir_model_constraint 1,1 · ir_act_window 0,8 · ir_model 0,8 |
+
+Con los adjuntos en almacenamiento de objetos (R2 vía `ir_attachment.location=file` + FUSE o un módulo
+de almacenamiento S3), la base quedaría en ≈ 91 MB y R2 guardaría ≈ 75 MB de fotos (los bundles se
+regeneran). Ojo: la base no tiene transacciones reales (0 facturas); el crecimiento real dependerá de
+ventas, `mail_message` y PDF de facturas adjuntos.
+
+### 2.3 Copia y restauración (`dump_restore.sh`, crudo `res_dump_restore.txt`; 5432 → 5441)
+
+| Formato `pg_dump -Fc` | Tamaño | Dump (s) | Restore `-j1` (s) | Restore `-j4` (s) |
+|---|---|---|---|---|
+| gzip (por defecto) | 113,8 MB | 15,7 [15,1-17,3] | 24,5 [24,1-37,8] | 16,1 [13,9-26,0] |
+| **zstd** | **109,0 MB** | **6,9 [5,3-7,0]** | 32,0 [29,3-41,6] | 17,6 [15,1-21,7] |
+| lz4 | 199,7 MB | 3,0 [2,9-3,8] | – | – |
+| sin compresión | 347,2 MB | 3,8 [3,7-4,8] | – | – |
+
+El dump sin comprimir (347 MB) es mayor que la base (211 MB) porque `bytea` sale en hexadecimal y los
+JS/CSS están comprimidos en TOAST. Casi todo el tamaño del dump son adjuntos (las fotos JPEG no comprimen).
+`pg_dump` 16 trae zstd/lz4 integrados (no hace falta el binario `zstd`, que no está instalado).
+
+
+### 2.4 Deploy: `-u` de los 8 módulos y regeneración de bundles
+
+| Medida | Valor | Script / crudo |
+|---|---|---|
+| `odoo-bin -i MODS -u MODS --stop-after-init` (lo que hace `docker/entrypoint.sh:79` en cada versión nueva), 8 módulos, copia de la base | **14,5 s [14,1-15,5]**, CPU 10,4-10,9 s, pico RSS 197 MiB, 0 errores | `actualizar.sh` → `res_actualizar.txt` (verificado a nivel info que recarga los 8 módulos) |
+| Primera visita tras invalidar los bundles (`/` + backend + 3 bundles: JS 6,9 MB, 2 CSS 1,2 MB) | 11,4-11,5 s y **9,7-10 s de CPU** (40 s / 28 s CPU la primera vez con disco frío) | `assets_frio.sh` → `res_assets_frio.txt` |
+| RSS de Odoo después de regenerar bundles (compilación SCSS/JS en el proceso) | **373 MiB** (frente a 216 sin regenerar) | ídem |
+
+Consecuencia: tras cada deploy el primer usuario del backend espera ~11 s con 4 núcleos; con 1/4 o 1/2 vCPU
+(basic/standard-1) serán varias decenas de segundos (ver §2.6), y el proceso queda ~150 MiB más grande.
+
+### 2.5 Adelgazar: módulos instalados (`adelgazar.sh` → `res_adelgazar.txt`)
+
+- `state='installed'`: **108 módulos**. El cierre de dependencias que declaran los 8 `__manifest__.py` son 57; los
+  otros **51 son auto-instalados** (`auto_install=True`) por combinación de dependencias (SMS, IAP, EDI UBL,
+  passkeys, spreadsheet dashboards, wishlist/comparador, snailmail, Gmail/Outlook, `base_import_module`…).
+- Ninguno de esos 51 se referencia en `addons/` (grep). Se desinstalaron 39 en una copia (se mantuvieron
+  `auth_totp*`, `base_import`, `purchase_stock`, `sale_purchase*`, `sale_crm`, `rpc`, `resource_mail`, `iap*`):
+  22 s, la base queda con **69 módulos** y los 8 de D'CASA siguen instalados; todas las rutas responden 200.
+
+| Medida (3 rep., 5432) | 108 módulos | 69 módulos |
+|---|---|---|
+| Arranque → primer 200 | 3,2 s [3,1-4,6] | 2,8 s [2,5-2,8] |
+| RSS / PSS en reposo | 173 / 153 | **160 / 141** (−13 MiB, −8 %) |
+| RSS caliente | 221 | 247 (rep. 2-3; la 1.ª, 349, incluye regenerar bundles) — no lo pude explicar: no hay ahorro en caliente |
+| CPU por petición `/shop` / ficha / `/` | 186 / 119 / 36 ms | 168 / 115 / 33 ms (dentro del ruido) |
+
+Conclusión: quitar módulos auto-instalados **no cambia el dimensionamiento** (−8 % en reposo, nada en
+caliente ni en CPU). Sí vale por seguridad/superficie: `base_import_module` (subir módulos como datos),
+`partner_autocomplete`/`crm_iap_*`/`snailmail` (envían datos a servicios de Odoo S.A.), `api_doc`. Hacerlo
+declarativo (no a mano): un módulo `dcasa_*` no puede «des-auto-instalar»; habría que desinstalarlos en
+la base de producción tras crearla y cuidar que `-i` no los reinstale.
+
+### 2.6 Actividad en reposo contra la base (`reposo.py` → `res_reposo.jsonl`; 6 min sin tráfico, 1 corrida por config)
+
+| Config | Sentencias en 6 min | Patrón | Conexiones abiertas | CPU Odoo / PG (s por hora) |
+|---|---|---|---|---|
+| Hilos, cron 1 (= entrypoint) | 76 (30-40 del primer minuto + 6/min) | `SELECT * FROM ir_cron …` + `now()` + `latest_version` cada 60 s | 2-3 `idle` | 0,9 / 1,5 |
+| **Hilos, cron 0** | **0** | nada | 1 `idle` (pool) | 0,7 / 1,1 |
+| Hilos, cron 1 + websocket del bus abierto | 115 | igual + reconexión del bus | 3 | 1,1 / 4,5 |
+| Prefork w2, cron 1 | **2 501** | `SELECT max(id) FROM orm_signaling_*` en transacción, ~2,3/s | 3 | **40,9 / 19,0** |
+
+Crons activos en la base: 27 (`ir_cron`): 1 cada 10 min (pagos), 5 cada hora (cola de correo, avisos,
+«Socios D'CASA: vencer canjes y regalos de cumpleaños», carrito abandonado, disponibilidad), 14 diarios
+(auto-post, autovacuum, limpieza de visitantes…), y algunos de módulos sin uso que llaman a servidores de
+Odoo S.A. (`CRM: enrich leads (IAP)`, `Snailmail`, `Publisher: Update Notification`).
+
+¿Podría dormir una base serverless? Solo con hilos + `max_cron_threads=0` y sin backend abierto, y aun
+así Odoo deja una conexión abierta en el pool (una base que mide «conexiones activas» no se dormiría; una
+que mide consultas, sí). Con prefork, nunca. Si el contenedor duerme, el cron de Odoo tampoco corre: hay
+que despertarlo desde fuera (Cron Trigger del Worker) para los trabajos horarios.
+
+## 3. Dimensionamiento recomendado
+(pendiente)
+
+## 4. Costos en Containers
+(pendiente)
+
+## 5. Lo que no pude medir
+(pendiente)

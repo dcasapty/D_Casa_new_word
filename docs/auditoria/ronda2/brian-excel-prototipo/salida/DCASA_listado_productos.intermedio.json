@@ -1,0 +1,11324 @@
+{
+ "esquema": "dcasa.xlsx/1",
+ "archivo": "DCASA_listado_productos.xlsx",
+ "sha256": "731580f9aab961e37eeacab6ce375d5aef1656438d3854c07ce50f6e63acb846",
+ "bytes": 40224,
+ "avisos_contenedor": [],
+ "nombres_definidos": {},
+ "hojas": {
+  "Productos": {
+   "estado": "visible",
+   "dimension": "A1:G220",
+   "filas": 220,
+   "columnas": 7,
+   "congelado": "A2",
+   "filtro": "A1:G220",
+   "combinadas": [],
+   "filas_ocultas": [],
+   "columnas_ocultas": [],
+   "validaciones": [],
+   "imagenes": [],
+   "celdas": {
+    "A1": {
+     "valor": "Código"
+    },
+    "B1": {
+     "valor": "Producto"
+    },
+    "C1": {
+     "valor": "Precio (+ITBMS)"
+    },
+    "D1": {
+     "valor": "Precios por tamaño (+ITBMS)"
+    },
+    "E1": {
+     "valor": "Combo con colchón / El par"
+    },
+    "F1": {
+     "valor": "Stock"
+    },
+    "G1": {
+     "valor": "Observaciones"
+    },
+    "A2": {
+     "valor": "XHT022-T-W"
+    },
+    "B2": {
+     "valor": "Cama de felpa twin"
+    },
+    "C2": {
+     "valor": 104.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E2": {
+     "valor": "Twin $179.99"
+    },
+    "F2": {
+     "valor": "Sin confirmar"
+    },
+    "A3": {
+     "valor": "N-F12002-K-BR"
+    },
+    "B3": {
+     "valor": "Cama king"
+    },
+    "C3": {
+     "valor": 139.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E3": {
+     "valor": "Combo con colchón $349.99"
+    },
+    "F3": {
+     "valor": "Sin confirmar"
+    },
+    "A4": {
+     "valor": "ALJ021439"
+    },
+    "B4": {
+     "valor": "Mueble zapatera"
+    },
+    "C4": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F4": {
+     "valor": "Sin confirmar"
+    },
+    "A5": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "B5": {
+     "valor": "Cama king"
+    },
+    "C5": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E5": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F5": {
+     "valor": "Sin confirmar"
+    },
+    "A6": {
+     "valor": "QMW020205"
+    },
+    "B6": {
+     "valor": "Mueble zapatera"
+    },
+    "C6": {
+     "valor": 149.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F6": {
+     "valor": "Sin confirmar"
+    },
+    "A7": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "B7": {
+     "valor": "Cama king"
+    },
+    "C7": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E7": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F7": {
+     "valor": "Sin confirmar"
+    },
+    "A8": {
+     "valor": "DS090201"
+    },
+    "B8": {
+     "valor": "Mesa de noche"
+    },
+    "C8": {
+     "valor": 15.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F8": {
+     "valor": "Sin confirmar"
+    },
+    "G8": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A9": {
+     "valor": "XHT022-T-bg"
+    },
+    "B9": {
+     "valor": "Cama de felpa twin"
+    },
+    "C9": {
+     "valor": 104.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E9": {
+     "valor": "Twin $179.99"
+    },
+    "F9": {
+     "valor": "Sin confirmar"
+    },
+    "A10": {
+     "valor": "CZX100308"
+    },
+    "B10": {
+     "valor": "Mueble de cocina"
+    },
+    "C10": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F10": {
+     "valor": "Sin confirmar"
+    },
+    "A11": {
+     "valor": "LXI090206"
+    },
+    "B11": {
+     "valor": "Mesa de noche"
+    },
+    "C11": {
+     "valor": 46.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F11": {
+     "valor": "Sin confirmar"
+    },
+    "G11": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A12": {
+     "valor": "DS090208"
+    },
+    "B12": {
+     "valor": "Mesa de noche"
+    },
+    "C12": {
+     "valor": 15.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F12": {
+     "valor": "Sin confirmar"
+    },
+    "A13": {
+     "valor": "DS090201"
+    },
+    "B13": {
+     "valor": "Mesa de noche"
+    },
+    "C13": {
+     "valor": 15.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E13": {
+     "valor": "El par (-10%) $28.78"
+    },
+    "F13": {
+     "valor": "Sin confirmar"
+    },
+    "G13": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A14": {
+     "valor": "DS090203"
+    },
+    "B14": {
+     "valor": "Mesa de noche"
+    },
+    "C14": {
+     "valor": 15.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E14": {
+     "valor": "El par (-10%) $28.78"
+    },
+    "F14": {
+     "valor": "Sin confirmar"
+    },
+    "G14": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A15": {
+     "valor": "SHUQ090405"
+    },
+    "B15": {
+     "valor": "Mesa de noche"
+    },
+    "C15": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E15": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "F15": {
+     "valor": "Sin confirmar"
+    },
+    "G15": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A16": {
+     "valor": "SHUQ090403"
+    },
+    "B16": {
+     "valor": "Mesa de noche"
+    },
+    "C16": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E16": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "F16": {
+     "valor": "Sin confirmar"
+    },
+    "G16": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A17": {
+     "valor": "SHUQ090401"
+    },
+    "B17": {
+     "valor": "Mesa de noche"
+    },
+    "C17": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E17": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "F17": {
+     "valor": "Sin confirmar"
+    },
+    "G17": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A18": {
+     "valor": "SHUQ090407"
+    },
+    "B18": {
+     "valor": "Mesa de noche"
+    },
+    "C18": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E18": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "F18": {
+     "valor": "Sin confirmar"
+    },
+    "G18": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A19": {
+     "valor": "DS090226"
+    },
+    "B19": {
+     "valor": "Mesa de noche"
+    },
+    "C19": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E19": {
+     "valor": "El par (-10%) $35.98"
+    },
+    "F19": {
+     "valor": "Sin confirmar"
+    },
+    "G19": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A20": {
+     "valor": "LXI090408"
+    },
+    "B20": {
+     "valor": "Mesa de noche"
+    },
+    "C20": {
+     "valor": 21.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E20": {
+     "valor": "El par (-10%) $39.58"
+    },
+    "F20": {
+     "valor": "Sin confirmar"
+    },
+    "G20": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A21": {
+     "valor": "ZQ093403"
+    },
+    "B21": {
+     "valor": "Mesa de noche"
+    },
+    "C21": {
+     "valor": 24.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E21": {
+     "valor": "El par (-10%) $44.98"
+    },
+    "F21": {
+     "valor": "Sin confirmar"
+    },
+    "G21": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A22": {
+     "valor": "LXI063101"
+    },
+    "B22": {
+     "valor": "Peinadora"
+    },
+    "C22": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F22": {
+     "valor": "Sin confirmar"
+    },
+    "A23": {
+     "valor": "LXI063102"
+    },
+    "B23": {
+     "valor": "Peinadora"
+    },
+    "C23": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F23": {
+     "valor": "Sin confirmar"
+    },
+    "A24": {
+     "valor": "LXI063103"
+    },
+    "B24": {
+     "valor": "Peinadora + LED"
+    },
+    "C24": {
+     "valor": 55.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F24": {
+     "valor": "Sin confirmar"
+    },
+    "A25": {
+     "valor": "LXI063104"
+    },
+    "B25": {
+     "valor": "Peinadora"
+    },
+    "C25": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F25": {
+     "valor": "Sin confirmar"
+    },
+    "A26": {
+     "valor": "QYA016603"
+    },
+    "B26": {
+     "valor": "Peinadora"
+    },
+    "C26": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F26": {
+     "valor": "Sin confirmar"
+    },
+    "A27": {
+     "valor": "QYA016601"
+    },
+    "B27": {
+     "valor": "Peinadora"
+    },
+    "C27": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F27": {
+     "valor": "Sin confirmar"
+    },
+    "A28": {
+     "valor": "LXI063105"
+    },
+    "B28": {
+     "valor": "Peinadora + LED"
+    },
+    "C28": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F28": {
+     "valor": "Sin confirmar"
+    },
+    "A29": {
+     "valor": "QYA016604"
+    },
+    "B29": {
+     "valor": "Peinadora + LED"
+    },
+    "C29": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F29": {
+     "valor": "Sin confirmar"
+    },
+    "A30": {
+     "valor": "LXI062903"
+    },
+    "B30": {
+     "valor": "Mueble tocador"
+    },
+    "C30": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F30": {
+     "valor": "Sin confirmar"
+    },
+    "A31": {
+     "valor": "LXI062901"
+    },
+    "B31": {
+     "valor": "Mueble tocador"
+    },
+    "C31": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F31": {
+     "valor": "Sin confirmar"
+    },
+    "A32": {
+     "valor": "ZQ063601"
+    },
+    "B32": {
+     "valor": "Mueble tocador"
+    },
+    "C32": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F32": {
+     "valor": "Sin confirmar"
+    },
+    "A33": {
+     "valor": "LXI062902"
+    },
+    "B33": {
+     "valor": "Mueble tocador"
+    },
+    "C33": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F33": {
+     "valor": "Sin confirmar"
+    },
+    "A34": {
+     "valor": "ZQ063602"
+    },
+    "B34": {
+     "valor": "Mueble tocador"
+    },
+    "C34": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F34": {
+     "valor": "Sin confirmar"
+    },
+    "A35": {
+     "valor": "ZQ063603"
+    },
+    "B35": {
+     "valor": "Mueble tocador"
+    },
+    "C35": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F35": {
+     "valor": "Sin confirmar"
+    },
+    "A36": {
+     "valor": "LXI090402"
+    },
+    "B36": {
+     "valor": "Mesa de noche"
+    },
+    "C36": {
+     "valor": 21.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E36": {
+     "valor": "El par (-10%) $39.58"
+    },
+    "F36": {
+     "valor": "Sin confirmar"
+    },
+    "G36": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A37": {
+     "valor": "LXI090412"
+    },
+    "B37": {
+     "valor": "Mesa de noche"
+    },
+    "C37": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E37": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "F37": {
+     "valor": "Sin confirmar"
+    },
+    "G37": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A38": {
+     "valor": "LXI090411"
+    },
+    "B38": {
+     "valor": "Mesa de noche"
+    },
+    "C38": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E38": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "F38": {
+     "valor": "Sin confirmar"
+    },
+    "G38": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A39": {
+     "valor": "LXI090410"
+    },
+    "B39": {
+     "valor": "Mesa de noche"
+    },
+    "C39": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E39": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "F39": {
+     "valor": "Sin confirmar"
+    },
+    "G39": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A40": {
+     "valor": "LXI090201"
+    },
+    "B40": {
+     "valor": "Mesa de noche"
+    },
+    "C40": {
+     "valor": 42.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E40": {
+     "valor": "El par (-10%) $77.38"
+    },
+    "F40": {
+     "valor": "Sin confirmar"
+    },
+    "G40": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A41": {
+     "valor": "LXI090205"
+    },
+    "B41": {
+     "valor": "Mesa de noche"
+    },
+    "C41": {
+     "valor": 42.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E41": {
+     "valor": "El par (-10%) $77.38"
+    },
+    "F41": {
+     "valor": "Sin confirmar"
+    },
+    "G41": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A42": {
+     "valor": "LXI090206"
+    },
+    "B42": {
+     "valor": "Mesa de noche"
+    },
+    "C42": {
+     "valor": 46.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E42": {
+     "valor": "El par (-10%) $84.58"
+    },
+    "F42": {
+     "valor": "Sin confirmar"
+    },
+    "G42": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A43": {
+     "valor": "LXI090203"
+    },
+    "B43": {
+     "valor": "Mesa de noche"
+    },
+    "C43": {
+     "valor": 46.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E43": {
+     "valor": "El par (-10%) $84.58"
+    },
+    "F43": {
+     "valor": "Sin confirmar"
+    },
+    "G43": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A44": {
+     "valor": "CHCH010906"
+    },
+    "B44": {
+     "valor": "Mueble tocador"
+    },
+    "C44": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F44": {
+     "valor": "Sin confirmar"
+    },
+    "A45": {
+     "valor": "QYA014910"
+    },
+    "B45": {
+     "valor": "Mueble tocador"
+    },
+    "C45": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F45": {
+     "valor": "Sin confirmar"
+    },
+    "A46": {
+     "valor": "QYA014901"
+    },
+    "B46": {
+     "valor": "Tocador + LED"
+    },
+    "C46": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F46": {
+     "valor": "Sin confirmar"
+    },
+    "A47": {
+     "valor": "CHCH010905"
+    },
+    "B47": {
+     "valor": "Tocador + LED"
+    },
+    "C47": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F47": {
+     "valor": "Sin confirmar"
+    },
+    "A48": {
+     "valor": "QYA014903"
+    },
+    "B48": {
+     "valor": "Tocador + LED"
+    },
+    "C48": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F48": {
+     "valor": "Sin confirmar"
+    },
+    "A49": {
+     "valor": "QYA014907"
+    },
+    "B49": {
+     "valor": "Tocador + LED"
+    },
+    "C49": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F49": {
+     "valor": "Sin confirmar"
+    },
+    "A50": {
+     "valor": "CHCH010907"
+    },
+    "B50": {
+     "valor": "Tocador + LED"
+    },
+    "C50": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F50": {
+     "valor": "Sin confirmar"
+    },
+    "A51": {
+     "valor": "LXI063107"
+    },
+    "B51": {
+     "valor": "Tocador + LED"
+    },
+    "C51": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F51": {
+     "valor": "Sin confirmar"
+    },
+    "A52": {
+     "valor": "XXI070507"
+    },
+    "B52": {
+     "valor": "Mueble de TV"
+    },
+    "C52": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F52": {
+     "valor": "Sin confirmar"
+    },
+    "A53": {
+     "valor": "ZQ063607"
+    },
+    "B53": {
+     "valor": "Tocador"
+    },
+    "C53": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F53": {
+     "valor": "Sin confirmar"
+    },
+    "A54": {
+     "valor": "XXI070509"
+    },
+    "B54": {
+     "valor": "Mueble de TV"
+    },
+    "C54": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F54": {
+     "valor": "Sin confirmar"
+    },
+    "A55": {
+     "valor": "ZQ063608"
+    },
+    "B55": {
+     "valor": "Tocador"
+    },
+    "C55": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F55": {
+     "valor": "Sin confirmar"
+    },
+    "A56": {
+     "valor": "XXI070508"
+    },
+    "B56": {
+     "valor": "Mueble de TV"
+    },
+    "C56": {
+     "valor": 115.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F56": {
+     "valor": "Sin confirmar"
+    },
+    "A57": {
+     "valor": "COLCHON-DULCES-SUENOS-SPRING"
+    },
+    "B57": {
+     "valor": "Colchón Dulces Sueños spring"
+    },
+    "D57": {
+     "valor": "Full $135.99 · Queen $184.99"
+    },
+    "F57": {
+     "valor": "Sin confirmar"
+    },
+    "A58": {
+     "valor": "COLCHON-FLEX-SEMIORTOPEDICO"
+    },
+    "B58": {
+     "valor": "Colchón Flex semiortopédico"
+    },
+    "D58": {
+     "valor": "Twin $139.99 · Full $170.99 · Queen $216.99 · King $341.99"
+    },
+    "F58": {
+     "valor": "Sin confirmar"
+    },
+    "A59": {
+     "valor": "COLCHON-FIRST-CLASS-SEMIORTOPEDICO"
+    },
+    "B59": {
+     "valor": "Colchón First Class semiortopédico"
+    },
+    "D59": {
+     "valor": "Full $157.99 · Queen $209.99 · King $243.99"
+    },
+    "F59": {
+     "valor": "Sin confirmar"
+    },
+    "A60": {
+     "valor": "COLCHON-DR-DREAM-SEMIORTOPEDICO"
+    },
+    "B60": {
+     "valor": "Colchón Dr. Dream semiortopédico"
+    },
+    "D60": {
+     "valor": "Full $160.99 · Queen $210.99 · King $224.99"
+    },
+    "F60": {
+     "valor": "Sin confirmar"
+    },
+    "A61": {
+     "valor": "COLCHON-DR-DREAM-ORTOPEDICO"
+    },
+    "B61": {
+     "valor": "Colchón Dr. Dream ortopédico"
+    },
+    "D61": {
+     "valor": "Full $238.99 · Queen $278.99 · King $385.99"
+    },
+    "F61": {
+     "valor": "Sin confirmar"
+    },
+    "A62": {
+     "valor": "DS090203"
+    },
+    "B62": {
+     "valor": "Mesa de noche"
+    },
+    "C62": {
+     "valor": 15.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F62": {
+     "valor": "Sin confirmar"
+    },
+    "G62": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A63": {
+     "valor": "DS090226"
+    },
+    "B63": {
+     "valor": "Mesa de noche"
+    },
+    "C63": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F63": {
+     "valor": "Sin confirmar"
+    },
+    "G63": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A64": {
+     "valor": "DS090214"
+    },
+    "B64": {
+     "valor": "Mesa de noche"
+    },
+    "C64": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F64": {
+     "valor": "Sin confirmar"
+    },
+    "A65": {
+     "valor": "SHUQ090405"
+    },
+    "B65": {
+     "valor": "Mesa de noche"
+    },
+    "C65": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F65": {
+     "valor": "Sin confirmar"
+    },
+    "G65": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A66": {
+     "valor": "SHUQ090403"
+    },
+    "B66": {
+     "valor": "Mesa de noche"
+    },
+    "C66": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F66": {
+     "valor": "Sin confirmar"
+    },
+    "G66": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A67": {
+     "valor": "SHUQ090401"
+    },
+    "B67": {
+     "valor": "Mesa de noche"
+    },
+    "C67": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F67": {
+     "valor": "Sin confirmar"
+    },
+    "G67": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A68": {
+     "valor": "SHUQ090407"
+    },
+    "B68": {
+     "valor": "Mesa de noche"
+    },
+    "C68": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F68": {
+     "valor": "Sin confirmar"
+    },
+    "G68": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A69": {
+     "valor": "ZQ093403"
+    },
+    "B69": {
+     "valor": "Mesa de noche"
+    },
+    "C69": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F69": {
+     "valor": "Sin confirmar"
+    },
+    "G69": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A70": {
+     "valor": "ZQ093405"
+    },
+    "B70": {
+     "valor": "Mesa de noche"
+    },
+    "C70": {
+     "valor": 17.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F70": {
+     "valor": "Sin confirmar"
+    },
+    "A71": {
+     "valor": "ZQ093406"
+    },
+    "B71": {
+     "valor": "Mesa de noche"
+    },
+    "C71": {
+     "valor": 24.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F71": {
+     "valor": "Sin confirmar"
+    },
+    "A72": {
+     "valor": "LXI090408"
+    },
+    "B72": {
+     "valor": "Mesa de noche"
+    },
+    "C72": {
+     "valor": 21.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F72": {
+     "valor": "Sin confirmar"
+    },
+    "G72": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A73": {
+     "valor": "LXI090410"
+    },
+    "B73": {
+     "valor": "Mesa de noche"
+    },
+    "C73": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F73": {
+     "valor": "Sin confirmar"
+    },
+    "G73": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A74": {
+     "valor": "LXI090402"
+    },
+    "B74": {
+     "valor": "Mesa de noche"
+    },
+    "C74": {
+     "valor": 21.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F74": {
+     "valor": "Sin confirmar"
+    },
+    "G74": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A75": {
+     "valor": "LXI090407"
+    },
+    "B75": {
+     "valor": "Mesa de noche"
+    },
+    "C75": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F75": {
+     "valor": "Sin confirmar"
+    },
+    "G75": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A76": {
+     "valor": "LXI090407"
+    },
+    "B76": {
+     "valor": "Mesa de noche"
+    },
+    "C76": {
+     "valor": 24.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F76": {
+     "valor": "Sin confirmar"
+    },
+    "G76": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A77": {
+     "valor": "LXI090411"
+    },
+    "B77": {
+     "valor": "Mesa de noche"
+    },
+    "C77": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F77": {
+     "valor": "Sin confirmar"
+    },
+    "G77": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A78": {
+     "valor": "LXI090405"
+    },
+    "B78": {
+     "valor": "Mesa de noche"
+    },
+    "C78": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F78": {
+     "valor": "Sin confirmar"
+    },
+    "A79": {
+     "valor": "LXI090412"
+    },
+    "B79": {
+     "valor": "Mesa de noche"
+    },
+    "C79": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F79": {
+     "valor": "Sin confirmar"
+    },
+    "G79": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A80": {
+     "valor": "LXI090406"
+    },
+    "B80": {
+     "valor": "Mesa de noche"
+    },
+    "C80": {
+     "valor": 26.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F80": {
+     "valor": "Sin confirmar"
+    },
+    "A81": {
+     "valor": "LXI090205"
+    },
+    "B81": {
+     "valor": "Mesa de noche"
+    },
+    "C81": {
+     "valor": 42.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F81": {
+     "valor": "Sin confirmar"
+    },
+    "G81": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A82": {
+     "valor": "LXI090201"
+    },
+    "B82": {
+     "valor": "Mesa de noche"
+    },
+    "C82": {
+     "valor": 42.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F82": {
+     "valor": "Sin confirmar"
+    },
+    "G82": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A83": {
+     "valor": "LXI090203"
+    },
+    "B83": {
+     "valor": "Mesa de noche"
+    },
+    "C83": {
+     "valor": 46.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F83": {
+     "valor": "Sin confirmar"
+    },
+    "G83": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A84": {
+     "valor": "XXI061702"
+    },
+    "B84": {
+     "valor": "Gavetero"
+    },
+    "C84": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F84": {
+     "valor": "Sin confirmar"
+    },
+    "G84": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A85": {
+     "valor": "XXI061702"
+    },
+    "B85": {
+     "valor": "Gavetero"
+    },
+    "F85": {
+     "valor": "Sin confirmar"
+    },
+    "G85": {
+     "valor": "Ficha sin precio; Ficha sin precio ($--) y sin imagen; Mismo código aparece con otro precio/versión"
+    },
+    "A86": {
+     "valor": "XXI061703"
+    },
+    "B86": {
+     "valor": "Gavetero"
+    },
+    "C86": {
+     "valor": 139.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F86": {
+     "valor": "Sin confirmar"
+    },
+    "A87": {
+     "valor": "XXI061701"
+    },
+    "B87": {
+     "valor": "Gavetero"
+    },
+    "C87": {
+     "valor": 85.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F87": {
+     "valor": "Sin confirmar"
+    },
+    "A88": {
+     "valor": "LXI062904"
+    },
+    "B88": {
+     "valor": "Peinadora"
+    },
+    "C88": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F88": {
+     "valor": "Sin confirmar"
+    },
+    "A89": {
+     "valor": "LXI062905"
+    },
+    "B89": {
+     "valor": "Peinadora"
+    },
+    "C89": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F89": {
+     "valor": "Sin confirmar"
+    },
+    "A90": {
+     "valor": "LXI062906"
+    },
+    "B90": {
+     "valor": "Peinadora"
+    },
+    "C90": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F90": {
+     "valor": "Sin confirmar"
+    },
+    "A91": {
+     "valor": "ZQ063605"
+    },
+    "B91": {
+     "valor": "Peinadora"
+    },
+    "C91": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F91": {
+     "valor": "Sin confirmar"
+    },
+    "A92": {
+     "valor": "ZQ063606"
+    },
+    "B92": {
+     "valor": "Peinadora"
+    },
+    "C92": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F92": {
+     "valor": "Sin confirmar"
+    },
+    "A93": {
+     "valor": "ZQ063609"
+    },
+    "B93": {
+     "valor": "Peinadora"
+    },
+    "C93": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F93": {
+     "valor": "Sin confirmar"
+    },
+    "A94": {
+     "valor": "ZJ075102"
+    },
+    "B94": {
+     "valor": "Mueble de TV"
+    },
+    "C94": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F94": {
+     "valor": "Sin confirmar"
+    },
+    "A95": {
+     "valor": "ZJ074903"
+    },
+    "B95": {
+     "valor": "Mueble de TV"
+    },
+    "C95": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F95": {
+     "valor": "Sin confirmar"
+    },
+    "A96": {
+     "valor": "ZJ074901"
+    },
+    "B96": {
+     "valor": "Mueble de TV"
+    },
+    "C96": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F96": {
+     "valor": "Sin confirmar"
+    },
+    "A97": {
+     "valor": "ZJ074301"
+    },
+    "B97": {
+     "valor": "Mueble de TV"
+    },
+    "C97": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F97": {
+     "valor": "Sin confirmar"
+    },
+    "G97": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A98": {
+     "valor": "ZJ074902"
+    },
+    "B98": {
+     "valor": "Mueble de TV"
+    },
+    "C98": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F98": {
+     "valor": "Sin confirmar"
+    },
+    "A99": {
+     "valor": "LXI071005"
+    },
+    "B99": {
+     "valor": "Mueble de TV"
+    },
+    "C99": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F99": {
+     "valor": "Sin confirmar"
+    },
+    "A100": {
+     "valor": "LXI071006"
+    },
+    "B100": {
+     "valor": "Mueble de TV"
+    },
+    "C100": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F100": {
+     "valor": "Sin confirmar"
+    },
+    "A101": {
+     "valor": "LXI071003"
+    },
+    "B101": {
+     "valor": "Mueble de TV"
+    },
+    "C101": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F101": {
+     "valor": "Sin confirmar"
+    },
+    "A102": {
+     "valor": "LXI071004"
+    },
+    "B102": {
+     "valor": "Mueble de TV"
+    },
+    "C102": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F102": {
+     "valor": "Sin confirmar"
+    },
+    "A103": {
+     "valor": "CHCH070201"
+    },
+    "B103": {
+     "valor": "Mueble de TV"
+    },
+    "C103": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F103": {
+     "valor": "Sin confirmar"
+    },
+    "A104": {
+     "valor": "CHCH070202"
+    },
+    "B104": {
+     "valor": "Mueble de TV"
+    },
+    "C104": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F104": {
+     "valor": "Sin confirmar"
+    },
+    "A105": {
+     "valor": "CHCH070203"
+    },
+    "B105": {
+     "valor": "Mueble de TV"
+    },
+    "C105": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F105": {
+     "valor": "Sin confirmar"
+    },
+    "A106": {
+     "valor": "CHCH070205"
+    },
+    "B106": {
+     "valor": "Mueble de TV"
+    },
+    "C106": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F106": {
+     "valor": "Sin confirmar"
+    },
+    "A107": {
+     "valor": "XXI070506"
+    },
+    "B107": {
+     "valor": "Mueble de TV"
+    },
+    "C107": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F107": {
+     "valor": "Sin confirmar"
+    },
+    "A108": {
+     "valor": "JW017509"
+    },
+    "B108": {
+     "valor": "Tocador"
+    },
+    "C108": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F108": {
+     "valor": "Sin confirmar"
+    },
+    "A109": {
+     "valor": "SHUA010102"
+    },
+    "B109": {
+     "valor": "Mesa ajustable"
+    },
+    "C109": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F109": {
+     "valor": "Sin confirmar"
+    },
+    "A110": {
+     "valor": "XS0114206"
+    },
+    "B110": {
+     "valor": "Escritorio"
+    },
+    "C110": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F110": {
+     "valor": "Sin confirmar"
+    },
+    "A111": {
+     "valor": "clb0119018"
+    },
+    "B111": {
+     "valor": "Escritorio 140cm"
+    },
+    "C111": {
+     "valor": 149.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F111": {
+     "valor": "Sin confirmar"
+    },
+    "A112": {
+     "valor": "XLB0118616"
+    },
+    "B112": {
+     "valor": "Escritorio en L"
+    },
+    "C112": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F112": {
+     "valor": "Sin confirmar"
+    },
+    "A113": {
+     "valor": "YPN272105"
+    },
+    "B113": {
+     "valor": "Estante"
+    },
+    "C113": {
+     "valor": 31.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F113": {
+     "valor": "Sin confirmar"
+    },
+    "G113": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A114": {
+     "valor": "YPN272106"
+    },
+    "B114": {
+     "valor": "Estante"
+    },
+    "C114": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F114": {
+     "valor": "Sin confirmar"
+    },
+    "G114": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A115": {
+     "valor": "YPN272107"
+    },
+    "B115": {
+     "valor": "Estante Walnut"
+    },
+    "C115": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F115": {
+     "valor": "Sin confirmar"
+    },
+    "A116": {
+     "valor": "HYI360701"
+    },
+    "B116": {
+     "valor": "Estante Pine"
+    },
+    "C116": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F116": {
+     "valor": "Sin confirmar"
+    },
+    "A117": {
+     "valor": "HYI360702"
+    },
+    "B117": {
+     "valor": "Estante Pine"
+    },
+    "C117": {
+     "valor": 25.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F117": {
+     "valor": "Sin confirmar"
+    },
+    "A118": {
+     "valor": "HYI360726"
+    },
+    "B118": {
+     "valor": "Estante Pine"
+    },
+    "C118": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F118": {
+     "valor": "Sin confirmar"
+    },
+    "A119": {
+     "valor": "HYI360743"
+    },
+    "B119": {
+     "valor": "Estante Pine"
+    },
+    "C119": {
+     "valor": 35.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F119": {
+     "valor": "Sin confirmar"
+    },
+    "A120": {
+     "valor": "HYI360745"
+    },
+    "B120": {
+     "valor": "Estante Pine"
+    },
+    "C120": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F120": {
+     "valor": "Sin confirmar"
+    },
+    "G120": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A121": {
+     "valor": "HYI360747"
+    },
+    "B121": {
+     "valor": "Estante Pine"
+    },
+    "C121": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F121": {
+     "valor": "Sin confirmar"
+    },
+    "G121": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A122": {
+     "valor": "HYI360748"
+    },
+    "B122": {
+     "valor": "Estante Pine"
+    },
+    "C122": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F122": {
+     "valor": "Sin confirmar"
+    },
+    "G122": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A123": {
+     "valor": "XLB271201"
+    },
+    "B123": {
+     "valor": "Librero"
+    },
+    "C123": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F123": {
+     "valor": "Sin confirmar"
+    },
+    "A124": {
+     "valor": "ZQ130107"
+    },
+    "B124": {
+     "valor": "Organizador"
+    },
+    "C124": {
+     "valor": 19.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F124": {
+     "valor": "Sin confirmar"
+    },
+    "G124": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A125": {
+     "valor": "CZX100304"
+    },
+    "B125": {
+     "valor": "Estante type madera"
+    },
+    "C125": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F125": {
+     "valor": "Sin confirmar"
+    },
+    "A126": {
+     "valor": "CZX100309"
+    },
+    "B126": {
+     "valor": "Estante type madera"
+    },
+    "C126": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F126": {
+     "valor": "Sin confirmar"
+    },
+    "A127": {
+     "valor": "CZX100310"
+    },
+    "B127": {
+     "valor": "Estante type madera"
+    },
+    "C127": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F127": {
+     "valor": "Sin confirmar"
+    },
+    "A128": {
+     "valor": "CZX100311"
+    },
+    "B128": {
+     "valor": "Estante type madera"
+    },
+    "C128": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F128": {
+     "valor": "Sin confirmar"
+    },
+    "G128": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A129": {
+     "valor": "HYI220725"
+    },
+    "B129": {
+     "valor": "Estante de cocina"
+    },
+    "C129": {
+     "valor": 39.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F129": {
+     "valor": "Sin confirmar"
+    },
+    "G129": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A130": {
+     "valor": "HYI220725"
+    },
+    "B130": {
+     "valor": "Estante de cocina"
+    },
+    "C130": {
+     "valor": 45.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F130": {
+     "valor": "Sin confirmar"
+    },
+    "G130": {
+     "valor": "Mismo código aparece con otro precio/versión"
+    },
+    "A131": {
+     "valor": "QH221813"
+    },
+    "B131": {
+     "valor": "Estante de cocina"
+    },
+    "C131": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F131": {
+     "valor": "Sin confirmar"
+    },
+    "G131": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A132": {
+     "valor": "YOYU060107"
+    },
+    "B132": {
+     "valor": "Gavetero"
+    },
+    "C132": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F132": {
+     "valor": "Sin confirmar"
+    },
+    "G132": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A133": {
+     "valor": "YPN272102"
+    },
+    "B133": {
+     "valor": "Estante librero"
+    },
+    "C133": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F133": {
+     "valor": "Sin confirmar"
+    },
+    "A134": {
+     "valor": "ZJ261301"
+    },
+    "B134": {
+     "valor": "Estante librero"
+    },
+    "C134": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F134": {
+     "valor": "Sin confirmar"
+    },
+    "A135": {
+     "valor": "DOG300118"
+    },
+    "B135": {
+     "valor": "Mueble type madera"
+    },
+    "C135": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F135": {
+     "valor": "Sin confirmar"
+    },
+    "A136": {
+     "valor": "XS0115607"
+    },
+    "B136": {
+     "valor": "Escritorio estante"
+    },
+    "C136": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F136": {
+     "valor": "Sin confirmar"
+    },
+    "A137": {
+     "valor": "XS0115608"
+    },
+    "B137": {
+     "valor": "Escritorio estante"
+    },
+    "C137": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F137": {
+     "valor": "Sin confirmar"
+    },
+    "A138": {
+     "valor": "HYI221013"
+    },
+    "B138": {
+     "valor": "Estante type madera"
+    },
+    "C138": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F138": {
+     "valor": "Sin confirmar"
+    },
+    "A139": {
+     "valor": "XLB271206"
+    },
+    "B139": {
+     "valor": "Librero"
+    },
+    "C139": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F139": {
+     "valor": "Sin confirmar"
+    },
+    "G139": {
+     "valor": "Ficha sin imagen de producto en Canva"
+    },
+    "A140": {
+     "valor": "XXI270320"
+    },
+    "B140": {
+     "valor": "Librero"
+    },
+    "C140": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F140": {
+     "valor": "Sin confirmar"
+    },
+    "A141": {
+     "valor": "up001"
+    },
+    "B141": {
+     "valor": "Cama king de metal"
+    },
+    "C141": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E141": {
+     "valor": "Combo con colchón $363.99"
+    },
+    "F141": {
+     "valor": "Sin confirmar"
+    },
+    "A142": {
+     "valor": "ZEM-KING"
+    },
+    "B142": {
+     "valor": "Cama con baúl"
+    },
+    "D142": {
+     "valor": "Queen $229.99 · King $199.99"
+    },
+    "E142": {
+     "valor": "Queen $374.99 · King $449.99"
+    },
+    "F142": {
+     "valor": "Sin confirmar"
+    },
+    "G142": {
+     "valor": "Precio queen mayor que king: revisar"
+    },
+    "A143": {
+     "valor": "butterfly-bed"
+    },
+    "B143": {
+     "valor": "Cama king de metal"
+    },
+    "C143": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E143": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F143": {
+     "valor": "Sin confirmar"
+    },
+    "A144": {
+     "valor": "YH1002FLG"
+    },
+    "B144": {
+     "valor": "Cama full"
+    },
+    "C144": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E144": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "F144": {
+     "valor": "Sin confirmar"
+    },
+    "A145": {
+     "valor": "1233f"
+    },
+    "B145": {
+     "valor": "Cama full"
+    },
+    "C145": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E145": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "F145": {
+     "valor": "Sin confirmar"
+    },
+    "A146": {
+     "valor": "I870000703A1"
+    },
+    "B146": {
+     "valor": "Cama de metal twin"
+    },
+    "C146": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E146": {
+     "valor": "Combo con colchón $139.99"
+    },
+    "F146": {
+     "valor": "Sin confirmar"
+    },
+    "A147": {
+     "valor": "N-F10018-F-BK"
+    },
+    "B147": {
+     "valor": "Cama box de metal"
+    },
+    "D147": {
+     "valor": "Twin $39.99 · Full $59.99 · Queen $79.99 · King $89.99"
+    },
+    "E147": {
+     "valor": "Twin $121.99 · Full $156.99 · Queen $264.99 · King $323.99"
+    },
+    "F147": {
+     "valor": "Sin confirmar"
+    },
+    "A148": {
+     "valor": "LD-01153LG"
+    },
+    "B148": {
+     "valor": "Cama queen con baúl"
+    },
+    "C148": {
+     "valor": 199.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E148": {
+     "valor": "Combo con colchón $379.99"
+    },
+    "F148": {
+     "valor": "Sin confirmar"
+    },
+    "A149": {
+     "valor": "77087"
+    },
+    "B149": {
+     "valor": "Sofá color gris"
+    },
+    "C149": {
+     "valor": 189.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F149": {
+     "valor": "Sin confirmar"
+    },
+    "A150": {
+     "valor": "77090"
+    },
+    "B150": {
+     "valor": "Juego de sofás"
+    },
+    "C150": {
+     "valor": 249.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F150": {
+     "valor": "Sin confirmar"
+    },
+    "A151": {
+     "valor": "YMO-001/03"
+    },
+    "B151": {
+     "valor": "Cama de metal"
+    },
+    "D151": {
+     "valor": "Twin $39.99 · Full $69.99"
+    },
+    "E151": {
+     "valor": "Twin $121.99 · Full $166.99"
+    },
+    "F151": {
+     "valor": "Sin confirmar"
+    },
+    "A152": {
+     "valor": "orlando"
+    },
+    "B152": {
+     "valor": "Cama full con baúl"
+    },
+    "C152": {
+     "valor": 99.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E152": {
+     "valor": "Combo con colchón $189.99"
+    },
+    "F152": {
+     "valor": "Sin confirmar"
+    },
+    "A153": {
+     "valor": "RUY230702"
+    },
+    "B153": {
+     "valor": "Zapatera 6 niveles"
+    },
+    "C153": {
+     "valor": 29.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F153": {
+     "valor": "Sin confirmar"
+    },
+    "A154": {
+     "valor": "RUY230612"
+    },
+    "B154": {
+     "valor": "Zapatera 8 niveles"
+    },
+    "C154": {
+     "valor": 35.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F154": {
+     "valor": "Sin confirmar"
+    },
+    "A155": {
+     "valor": "hd"
+    },
+    "B155": {
+     "valor": "Cama de metal"
+    },
+    "D155": {
+     "valor": "Twin $79.99 · King $109.99"
+    },
+    "E155": {
+     "valor": "Twin $152.99 · King $339.99"
+    },
+    "F155": {
+     "valor": "Sin confirmar"
+    },
+    "A156": {
+     "valor": "PB-14TB"
+    },
+    "B156": {
+     "valor": "Cama box de metal twin"
+    },
+    "C156": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E156": {
+     "valor": "Combo con colchón $121.99"
+    },
+    "F156": {
+     "valor": "Sin confirmar"
+    },
+    "A157": {
+     "valor": "1901t"
+    },
+    "B157": {
+     "valor": "Cama de metal twin"
+    },
+    "C157": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E157": {
+     "valor": "Combo con colchón $151.99"
+    },
+    "F157": {
+     "valor": "Sin confirmar"
+    },
+    "A158": {
+     "valor": "1573"
+    },
+    "B158": {
+     "valor": "Cama queen"
+    },
+    "C158": {
+     "valor": 99.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E158": {
+     "valor": "Combo con colchón $269.99"
+    },
+    "F158": {
+     "valor": "Sin confirmar"
+    },
+    "A159": {
+     "valor": "BED36701"
+    },
+    "B159": {
+     "valor": "Cama twin"
+    },
+    "C159": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E159": {
+     "valor": "Combo con colchón $181.99"
+    },
+    "F159": {
+     "valor": "Sin confirmar"
+    },
+    "A160": {
+     "valor": "2201"
+    },
+    "B160": {
+     "valor": "Cama queen"
+    },
+    "C160": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E160": {
+     "valor": "Combo con colchón $294.99"
+    },
+    "F160": {
+     "valor": "Sin confirmar"
+    },
+    "A161": {
+     "valor": "YH1003Fb"
+    },
+    "B161": {
+     "valor": "Cama full"
+    },
+    "C161": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E161": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "F161": {
+     "valor": "Sin confirmar"
+    },
+    "A162": {
+     "valor": "2903KBE"
+    },
+    "B162": {
+     "valor": "Cama king"
+    },
+    "C162": {
+     "valor": 139.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E162": {
+     "valor": "Combo con colchón $373.99"
+    },
+    "F162": {
+     "valor": "Sin confirmar"
+    },
+    "A163": {
+     "valor": "A1721G52006041"
+    },
+    "B163": {
+     "valor": "Camarote full"
+    },
+    "C163": {
+     "valor": 159.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E163": {
+     "valor": "Combo con colchón $246.99"
+    },
+    "F163": {
+     "valor": "Sin confirmar"
+    },
+    "A164": {
+     "valor": "lt-148"
+    },
+    "B164": {
+     "valor": "Cama full con baúl"
+    },
+    "C164": {
+     "valor": 189.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E164": {
+     "valor": "Combo con colchón $276.99"
+    },
+    "F164": {
+     "valor": "Sin confirmar"
+    },
+    "A165": {
+     "valor": "SOFA-CAMA-SIN-CODIGO"
+    },
+    "B165": {
+     "valor": "Sofá cama"
+    },
+    "C165": {
+     "valor": 229.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F165": {
+     "valor": "Sin confirmar"
+    },
+    "G165": {
+     "valor": "La ficha no tiene código"
+    },
+    "A166": {
+     "valor": "2806t"
+    },
+    "B166": {
+     "valor": "Cama twin"
+    },
+    "C166": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E166": {
+     "valor": "Combo con colchón $181.99"
+    },
+    "F166": {
+     "valor": "Sin confirmar"
+    },
+    "A167": {
+     "valor": "BF039-T-WH"
+    },
+    "B167": {
+     "valor": "Cama twin"
+    },
+    "C167": {
+     "valor": 99.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E167": {
+     "valor": "Combo con colchón $189.99"
+    },
+    "F167": {
+     "valor": "Sin confirmar"
+    },
+    "A168": {
+     "valor": "butterfly-bed-up-bed"
+    },
+    "B168": {
+     "valor": "Cama twin"
+    },
+    "C168": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E168": {
+     "valor": "Combo con colchón $159.99"
+    },
+    "F168": {
+     "valor": "Sin confirmar"
+    },
+    "A169": {
+     "valor": "W160969417"
+    },
+    "B169": {
+     "valor": "Cama full"
+    },
+    "C169": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E169": {
+     "valor": "Combo con colchón $269.99"
+    },
+    "F169": {
+     "valor": "Sin confirmar"
+    },
+    "A170": {
+     "valor": "HY013-F-WH"
+    },
+    "B170": {
+     "valor": "Cama full"
+    },
+    "C170": {
+     "valor": 159.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E170": {
+     "valor": "Combo con colchón $239.99"
+    },
+    "F170": {
+     "valor": "Sin confirmar"
+    },
+    "A171": {
+     "valor": "XHT022-F-W"
+    },
+    "B171": {
+     "valor": "Cama de felpa"
+    },
+    "D171": {
+     "valor": "Twin $104.99 · Full $129.99 · Queen $— · King $169.99"
+    },
+    "E171": {
+     "valor": "Twin $179.99 · Full $219.99 · Queen $— · King $399.99"
+    },
+    "F171": {
+     "valor": "Sin confirmar"
+    },
+    "G171": {
+     "valor": "Precio queen en blanco ($00)"
+    },
+    "A172": {
+     "valor": "1062010734/5/6N"
+    },
+    "B172": {
+     "valor": "Cama con estantes"
+    },
+    "D172": {
+     "valor": "Full $149.99 · Queen $169.99 · King $179.99"
+    },
+    "E172": {
+     "valor": "Full $229.99 · Queen $329.99 · King $399.99"
+    },
+    "F172": {
+     "valor": "Sin confirmar"
+    },
+    "A173": {
+     "valor": "1062010751/2/3/4N"
+    },
+    "B173": {
+     "valor": "Cama con estantes"
+    },
+    "D173": {
+     "valor": "Full $149.99 · Queen $169.99 · King $179.99"
+    },
+    "E173": {
+     "valor": "Full $229.99 · Queen $329.99 · King $399.99"
+    },
+    "F173": {
+     "valor": "Sin confirmar"
+    },
+    "A174": {
+     "valor": "8017-1002-Q"
+    },
+    "B174": {
+     "valor": "Cama queen"
+    },
+    "C174": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E174": {
+     "valor": "Combo con colchón $289.99"
+    },
+    "F174": {
+     "valor": "Sin confirmar"
+    },
+    "A175": {
+     "valor": "Y0300300"
+    },
+    "B175": {
+     "valor": "Cama queen"
+    },
+    "C175": {
+     "valor": 159.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E175": {
+     "valor": "Combo con colchón $319.99"
+    },
+    "F175": {
+     "valor": "Sin confirmar"
+    },
+    "A176": {
+     "valor": "YMA01"
+    },
+    "B176": {
+     "valor": "Cama king"
+    },
+    "C176": {
+     "valor": 149.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E176": {
+     "valor": "Combo con colchón $383.99"
+    },
+    "F176": {
+     "valor": "Sin confirmar"
+    },
+    "A177": {
+     "valor": "8010-1001-K"
+    },
+    "B177": {
+     "valor": "Cama king"
+    },
+    "C177": {
+     "valor": 139.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E177": {
+     "valor": "Combo con colchón $369.99"
+    },
+    "F177": {
+     "valor": "Sin confirmar"
+    },
+    "A178": {
+     "valor": "8017-1003-K"
+    },
+    "B178": {
+     "valor": "Cama king"
+    },
+    "C178": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E178": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F178": {
+     "valor": "Sin confirmar"
+    },
+    "A179": {
+     "valor": "YH1003FDG"
+    },
+    "B179": {
+     "valor": "Cama full"
+    },
+    "C179": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E179": {
+     "valor": "Combo con colchón $209.99"
+    },
+    "F179": {
+     "valor": "Sin confirmar"
+    },
+    "A180": {
+     "valor": "1062010732N"
+    },
+    "B180": {
+     "valor": "Cama king"
+    },
+    "C180": {
+     "valor": 179.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E180": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F180": {
+     "valor": "Sin confirmar"
+    },
+    "A181": {
+     "valor": "1030934"
+    },
+    "B181": {
+     "valor": "Cama queen"
+    },
+    "D181": {
+     "valor": "Queen $99.99 · King $105.99"
+    },
+    "E181": {
+     "valor": "Queen $258.99 · King $315.99"
+    },
+    "F181": {
+     "valor": "Sin confirmar"
+    },
+    "A182": {
+     "valor": "81904"
+    },
+    "B182": {
+     "valor": "Cama queen"
+    },
+    "D182": {
+     "valor": "Queen $109.99 · King $105.99"
+    },
+    "E182": {
+     "valor": "Queen $268.99 · King $339.99"
+    },
+    "F182": {
+     "valor": "Sin confirmar"
+    },
+    "G182": {
+     "valor": "Precio king menor que queen: revisar"
+    },
+    "A183": {
+     "valor": "BBCA-156219"
+    },
+    "B183": {
+     "valor": "Cama queen"
+    },
+    "D183": {
+     "valor": "Full $89.99 · Queen $99.99 · King $119.99"
+    },
+    "E183": {
+     "valor": "Full $175.99 · Queen $258.99 · King $329.99"
+    },
+    "F183": {
+     "valor": "Sin confirmar"
+    },
+    "A184": {
+     "valor": "BBCA-15621906"
+    },
+    "B184": {
+     "valor": "Cama queen"
+    },
+    "D184": {
+     "valor": "Full $89.99 · Queen $109.99 · King $139.99"
+    },
+    "E184": {
+     "valor": "Full $175.99 · Queen $268.99 · King $349.99"
+    },
+    "F184": {
+     "valor": "Sin confirmar"
+    },
+    "A185": {
+     "valor": "LTSC-2806"
+    },
+    "B185": {
+     "valor": "Cama king"
+    },
+    "C185": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E185": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F185": {
+     "valor": "Sin confirmar"
+    },
+    "A186": {
+     "valor": "LTSC-6877"
+    },
+    "B186": {
+     "valor": "Cama king"
+    },
+    "C186": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "E186": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "F186": {
+     "valor": "Sin confirmar"
+    },
+    "A187": {
+     "valor": "XXI021502"
+    },
+    "B187": {
+     "valor": "Mueble zapatera"
+    },
+    "C187": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F187": {
+     "valor": "Sin confirmar"
+    },
+    "A188": {
+     "valor": "XXI021504"
+    },
+    "B188": {
+     "valor": "Mueble zapatera"
+    },
+    "C188": {
+     "valor": 94.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F188": {
+     "valor": "Sin confirmar"
+    },
+    "A189": {
+     "valor": "DOG020202"
+    },
+    "B189": {
+     "valor": "Mueble zapatera"
+    },
+    "C189": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F189": {
+     "valor": "Sin confirmar"
+    },
+    "A190": {
+     "valor": "DOG020204"
+    },
+    "B190": {
+     "valor": "Mueble zapatera"
+    },
+    "C190": {
+     "valor": 94.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F190": {
+     "valor": "Sin confirmar"
+    },
+    "A191": {
+     "valor": "DOG020201"
+    },
+    "B191": {
+     "valor": "Mueble zapatera"
+    },
+    "C191": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F191": {
+     "valor": "Sin confirmar"
+    },
+    "A192": {
+     "valor": "XU023701"
+    },
+    "B192": {
+     "valor": "Mueble zapatera"
+    },
+    "C192": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F192": {
+     "valor": "Sin confirmar"
+    },
+    "A193": {
+     "valor": "XU023703"
+    },
+    "B193": {
+     "valor": "Mueble zapatera"
+    },
+    "C193": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F193": {
+     "valor": "Sin confirmar"
+    },
+    "A194": {
+     "valor": "YOYU020804"
+    },
+    "B194": {
+     "valor": "Mueble zapatera"
+    },
+    "C194": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F194": {
+     "valor": "Sin confirmar"
+    },
+    "A195": {
+     "valor": "XD025301"
+    },
+    "B195": {
+     "valor": "Mueble zapatera"
+    },
+    "C195": {
+     "valor": 80.64,
+     "formato": "\\$#,##0.00"
+    },
+    "F195": {
+     "valor": "Sin confirmar"
+    },
+    "A196": {
+     "valor": "XD025303"
+    },
+    "B196": {
+     "valor": "Mueble zapatera"
+    },
+    "C196": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F196": {
+     "valor": "Sin confirmar"
+    },
+    "A197": {
+     "valor": "DOG020206"
+    },
+    "B197": {
+     "valor": "Mueble zapatera"
+    },
+    "C197": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F197": {
+     "valor": "Sin confirmar"
+    },
+    "A198": {
+     "valor": "DOG020208"
+    },
+    "B198": {
+     "valor": "Mueble zapatera"
+    },
+    "C198": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F198": {
+     "valor": "Sin confirmar"
+    },
+    "A199": {
+     "valor": "DOG020205"
+    },
+    "B199": {
+     "valor": "Mueble zapatera"
+    },
+    "C199": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F199": {
+     "valor": "Sin confirmar"
+    },
+    "A200": {
+     "valor": "YOYU020801"
+    },
+    "B200": {
+     "valor": "Mueble zapatera"
+    },
+    "C200": {
+     "valor": 49.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F200": {
+     "valor": "Sin confirmar"
+    },
+    "A201": {
+     "valor": "YOYU020802"
+    },
+    "B201": {
+     "valor": "Mueble zapatera"
+    },
+    "C201": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F201": {
+     "valor": "Sin confirmar"
+    },
+    "A202": {
+     "valor": "XD025607"
+    },
+    "B202": {
+     "valor": "Mueble zapatera"
+    },
+    "C202": {
+     "valor": 149.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F202": {
+     "valor": "Sin confirmar"
+    },
+    "A203": {
+     "valor": "YUSE020108"
+    },
+    "B203": {
+     "valor": "Mueble zapatera"
+    },
+    "C203": {
+     "valor": 149.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F203": {
+     "valor": "Sin confirmar"
+    },
+    "A204": {
+     "valor": "QYA021102"
+    },
+    "B204": {
+     "valor": "Mueble zapatera"
+    },
+    "C204": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F204": {
+     "valor": "Sin confirmar"
+    },
+    "A205": {
+     "valor": "MIK020717"
+    },
+    "B205": {
+     "valor": "Mueble zapatera"
+    },
+    "C205": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F205": {
+     "valor": "Sin confirmar"
+    },
+    "A206": {
+     "valor": "MIK020711"
+    },
+    "B206": {
+     "valor": "Mueble zapatera"
+    },
+    "C206": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F206": {
+     "valor": "Sin confirmar"
+    },
+    "A207": {
+     "valor": "ALJ021435"
+    },
+    "B207": {
+     "valor": "Mueble zapatera"
+    },
+    "C207": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F207": {
+     "valor": "Sin confirmar"
+    },
+    "A208": {
+     "valor": "ALJ021429"
+    },
+    "B208": {
+     "valor": "Mueble zapatera"
+    },
+    "C208": {
+     "valor": 59.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F208": {
+     "valor": "Sin confirmar"
+    },
+    "A209": {
+     "valor": "ALJ021437"
+    },
+    "B209": {
+     "valor": "Mueble zapatera"
+    },
+    "C209": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F209": {
+     "valor": "Sin confirmar"
+    },
+    "A210": {
+     "valor": "MIK020714"
+    },
+    "B210": {
+     "valor": "Mueble zapatera"
+    },
+    "C210": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F210": {
+     "valor": "Sin confirmar"
+    },
+    "A211": {
+     "valor": "ALJ021438"
+    },
+    "B211": {
+     "valor": "Mueble zapatera"
+    },
+    "C211": {
+     "valor": 79.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F211": {
+     "valor": "Sin confirmar"
+    },
+    "A212": {
+     "valor": "MIK020715"
+    },
+    "B212": {
+     "valor": "Mueble zapatera"
+    },
+    "C212": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F212": {
+     "valor": "Sin confirmar"
+    },
+    "A213": {
+     "valor": "MIK020716"
+    },
+    "B213": {
+     "valor": "Mueble zapatera"
+    },
+    "C213": {
+     "valor": 119.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F213": {
+     "valor": "Sin confirmar"
+    },
+    "A214": {
+     "valor": "MIK020724"
+    },
+    "B214": {
+     "valor": "Mueble zapatera"
+    },
+    "C214": {
+     "valor": 119.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F214": {
+     "valor": "Sin confirmar"
+    },
+    "A215": {
+     "valor": "QMW020203"
+    },
+    "B215": {
+     "valor": "Mueble zapatera"
+    },
+    "C215": {
+     "valor": 109.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F215": {
+     "valor": "Sin confirmar"
+    },
+    "A216": {
+     "valor": "QMW020207"
+    },
+    "B216": {
+     "valor": "Mueble zapatera"
+    },
+    "C216": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F216": {
+     "valor": "Sin confirmar"
+    },
+    "A217": {
+     "valor": "QMW020209"
+    },
+    "B217": {
+     "valor": "Mueble zapatera"
+    },
+    "C217": {
+     "valor": 129.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F217": {
+     "valor": "Sin confirmar"
+    },
+    "A218": {
+     "valor": "ALJ021419"
+    },
+    "B218": {
+     "valor": "Mueble zapatera"
+    },
+    "C218": {
+     "valor": 69.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F218": {
+     "valor": "Sin confirmar"
+    },
+    "A219": {
+     "valor": "MIK020708"
+    },
+    "B219": {
+     "valor": "Mueble zapatera"
+    },
+    "C219": {
+     "valor": 99.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F219": {
+     "valor": "Sin confirmar"
+    },
+    "A220": {
+     "valor": "YOYU020427"
+    },
+    "B220": {
+     "valor": "Mueble zapatera"
+    },
+    "C220": {
+     "valor": 89.99,
+     "formato": "\\$#,##0.00"
+    },
+    "F220": {
+     "valor": "Sin confirmar"
+    }
+   }
+  },
+  "Imágenes (proyecto)": {
+   "estado": "visible",
+   "dimension": "A1:D332",
+   "filas": 332,
+   "columnas": 4,
+   "congelado": "A2",
+   "filtro": "A1:D332",
+   "combinadas": [],
+   "filas_ocultas": [],
+   "columnas_ocultas": [],
+   "validaciones": [],
+   "imagenes": [],
+   "celdas": {
+    "A1": {
+     "valor": "Proyecto Canva"
+    },
+    "B1": {
+     "valor": "Página"
+    },
+    "C1": {
+     "valor": "Nombre de archivo"
+    },
+    "D1": {
+     "valor": "Código"
+    },
+    "A2": {
+     "valor": "Parte 1 de 4"
+    },
+    "B2": {
+     "valor": 1
+    },
+    "C2": {
+     "valor": "XHT022-T-W_1"
+    },
+    "D2": {
+     "valor": "XHT022-T-W"
+    },
+    "A3": {
+     "valor": "Parte 1 de 4"
+    },
+    "B3": {
+     "valor": 2
+    },
+    "C3": {
+     "valor": "XHT022-T-W_2"
+    },
+    "D3": {
+     "valor": "XHT022-T-W"
+    },
+    "A4": {
+     "valor": "Parte 1 de 4"
+    },
+    "B4": {
+     "valor": 3
+    },
+    "C4": {
+     "valor": "XHT022-T-W_3"
+    },
+    "D4": {
+     "valor": "XHT022-T-W"
+    },
+    "A5": {
+     "valor": "Parte 1 de 4"
+    },
+    "B5": {
+     "valor": 4
+    },
+    "C5": {
+     "valor": "XHT022-T-W_4"
+    },
+    "D5": {
+     "valor": "XHT022-T-W"
+    },
+    "A6": {
+     "valor": "Parte 1 de 4"
+    },
+    "B6": {
+     "valor": 5
+    },
+    "C6": {
+     "valor": "XHT022-T-W_5"
+    },
+    "D6": {
+     "valor": "XHT022-T-W"
+    },
+    "A7": {
+     "valor": "Parte 1 de 4"
+    },
+    "B7": {
+     "valor": 6
+    },
+    "C7": {
+     "valor": "XHT022-T-W_6"
+    },
+    "D7": {
+     "valor": "XHT022-T-W"
+    },
+    "A8": {
+     "valor": "Parte 1 de 4"
+    },
+    "B8": {
+     "valor": 7
+    },
+    "C8": {
+     "valor": "XHT022-T-W_7"
+    },
+    "D8": {
+     "valor": "XHT022-T-W"
+    },
+    "A9": {
+     "valor": "Parte 1 de 4"
+    },
+    "B9": {
+     "valor": 8
+    },
+    "C9": {
+     "valor": "XHT022-T-W_8"
+    },
+    "D9": {
+     "valor": "XHT022-T-W"
+    },
+    "A10": {
+     "valor": "Parte 1 de 4"
+    },
+    "B10": {
+     "valor": 9
+    },
+    "C10": {
+     "valor": "XHT022-T-W_9"
+    },
+    "D10": {
+     "valor": "XHT022-T-W"
+    },
+    "A11": {
+     "valor": "Parte 1 de 4"
+    },
+    "B11": {
+     "valor": 10
+    },
+    "C11": {
+     "valor": "XHT022-T-W_10"
+    },
+    "D11": {
+     "valor": "XHT022-T-W"
+    },
+    "A12": {
+     "valor": "Parte 1 de 4"
+    },
+    "B12": {
+     "valor": 11
+    },
+    "C12": {
+     "valor": "XHT022-T-W_11"
+    },
+    "D12": {
+     "valor": "XHT022-T-W"
+    },
+    "A13": {
+     "valor": "Parte 1 de 4"
+    },
+    "B13": {
+     "valor": 12
+    },
+    "C13": {
+     "valor": "XHT022-T-W_12"
+    },
+    "D13": {
+     "valor": "XHT022-T-W"
+    },
+    "A14": {
+     "valor": "Parte 1 de 4"
+    },
+    "B14": {
+     "valor": 13
+    },
+    "C14": {
+     "valor": "XHT022-T-W_13"
+    },
+    "D14": {
+     "valor": "XHT022-T-W"
+    },
+    "A15": {
+     "valor": "Parte 1 de 4"
+    },
+    "B15": {
+     "valor": 14
+    },
+    "C15": {
+     "valor": "XHT022-T-W_14"
+    },
+    "D15": {
+     "valor": "XHT022-T-W"
+    },
+    "A16": {
+     "valor": "Parte 1 de 4"
+    },
+    "B16": {
+     "valor": 15
+    },
+    "C16": {
+     "valor": "XHT022-T-W_15"
+    },
+    "D16": {
+     "valor": "XHT022-T-W"
+    },
+    "A17": {
+     "valor": "Parte 1 de 4"
+    },
+    "B17": {
+     "valor": 16
+    },
+    "C17": {
+     "valor": "XHT022-T-W_16"
+    },
+    "D17": {
+     "valor": "XHT022-T-W"
+    },
+    "A18": {
+     "valor": "Parte 1 de 4"
+    },
+    "B18": {
+     "valor": 17
+    },
+    "C18": {
+     "valor": "N-F12002-K-BR_1"
+    },
+    "D18": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A19": {
+     "valor": "Parte 1 de 4"
+    },
+    "B19": {
+     "valor": 18
+    },
+    "C19": {
+     "valor": "N-F12002-K-BR_2"
+    },
+    "D19": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A20": {
+     "valor": "Parte 1 de 4"
+    },
+    "B20": {
+     "valor": 19
+    },
+    "C20": {
+     "valor": "N-F12002-K-BR_3"
+    },
+    "D20": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A21": {
+     "valor": "Parte 1 de 4"
+    },
+    "B21": {
+     "valor": 20
+    },
+    "C21": {
+     "valor": "N-F12002-K-BR_4"
+    },
+    "D21": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A22": {
+     "valor": "Parte 1 de 4"
+    },
+    "B22": {
+     "valor": 21
+    },
+    "C22": {
+     "valor": "N-F12002-K-BR_5"
+    },
+    "D22": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A23": {
+     "valor": "Parte 1 de 4"
+    },
+    "B23": {
+     "valor": 22
+    },
+    "C23": {
+     "valor": "N-F12002-K-BR_6"
+    },
+    "D23": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A24": {
+     "valor": "Parte 1 de 4"
+    },
+    "B24": {
+     "valor": 23
+    },
+    "C24": {
+     "valor": "N-F12002-K-BR_7"
+    },
+    "D24": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A25": {
+     "valor": "Parte 1 de 4"
+    },
+    "B25": {
+     "valor": 24
+    },
+    "C25": {
+     "valor": "N-F12002-K-BR_8"
+    },
+    "D25": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A26": {
+     "valor": "Parte 1 de 4"
+    },
+    "B26": {
+     "valor": 25
+    },
+    "C26": {
+     "valor": "N-F12002-K-BR_9"
+    },
+    "D26": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A27": {
+     "valor": "Parte 1 de 4"
+    },
+    "B27": {
+     "valor": 26
+    },
+    "C27": {
+     "valor": "N-F12002-K-BR_10"
+    },
+    "D27": {
+     "valor": "N-F12002-K-BR"
+    },
+    "A28": {
+     "valor": "Parte 1 de 4"
+    },
+    "B28": {
+     "valor": 27
+    },
+    "C28": {
+     "valor": "ALJ021439_1"
+    },
+    "D28": {
+     "valor": "ALJ021439"
+    },
+    "A29": {
+     "valor": "Parte 1 de 4"
+    },
+    "B29": {
+     "valor": 28
+    },
+    "C29": {
+     "valor": "ALJ021439_2"
+    },
+    "D29": {
+     "valor": "ALJ021439"
+    },
+    "A30": {
+     "valor": "Parte 1 de 4"
+    },
+    "B30": {
+     "valor": 29
+    },
+    "C30": {
+     "valor": "ALJ021439_3"
+    },
+    "D30": {
+     "valor": "ALJ021439"
+    },
+    "A31": {
+     "valor": "Parte 1 de 4"
+    },
+    "B31": {
+     "valor": 30
+    },
+    "C31": {
+     "valor": "ALJ021439_4"
+    },
+    "D31": {
+     "valor": "ALJ021439"
+    },
+    "A32": {
+     "valor": "Parte 1 de 4"
+    },
+    "B32": {
+     "valor": 31
+    },
+    "C32": {
+     "valor": "ALJ021439_5"
+    },
+    "D32": {
+     "valor": "ALJ021439"
+    },
+    "A33": {
+     "valor": "Parte 1 de 4"
+    },
+    "B33": {
+     "valor": 32
+    },
+    "C33": {
+     "valor": "ALJ021439_6"
+    },
+    "D33": {
+     "valor": "ALJ021439"
+    },
+    "A34": {
+     "valor": "Parte 1 de 4"
+    },
+    "B34": {
+     "valor": 33
+    },
+    "C34": {
+     "valor": "ALJ021439_7"
+    },
+    "D34": {
+     "valor": "ALJ021439"
+    },
+    "A35": {
+     "valor": "Parte 1 de 4"
+    },
+    "B35": {
+     "valor": 34
+    },
+    "C35": {
+     "valor": "ALJ021439_8"
+    },
+    "D35": {
+     "valor": "ALJ021439"
+    },
+    "A36": {
+     "valor": "Parte 1 de 4"
+    },
+    "B36": {
+     "valor": 35
+    },
+    "C36": {
+     "valor": "ALJ021439_9"
+    },
+    "D36": {
+     "valor": "ALJ021439"
+    },
+    "A37": {
+     "valor": "Parte 1 de 4"
+    },
+    "B37": {
+     "valor": 36
+    },
+    "C37": {
+     "valor": "ALJ021439_10"
+    },
+    "D37": {
+     "valor": "ALJ021439"
+    },
+    "A38": {
+     "valor": "Parte 1 de 4"
+    },
+    "B38": {
+     "valor": 37
+    },
+    "C38": {
+     "valor": "LTSC-01-2806-K-BL_1"
+    },
+    "D38": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A39": {
+     "valor": "Parte 1 de 4"
+    },
+    "B39": {
+     "valor": 38
+    },
+    "C39": {
+     "valor": "LTSC-01-2806-K-BL_2"
+    },
+    "D39": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A40": {
+     "valor": "Parte 1 de 4"
+    },
+    "B40": {
+     "valor": 39
+    },
+    "C40": {
+     "valor": "LTSC-01-2806-K-BL_3"
+    },
+    "D40": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A41": {
+     "valor": "Parte 1 de 4"
+    },
+    "B41": {
+     "valor": 40
+    },
+    "C41": {
+     "valor": "LTSC-01-2806-K-BL_4"
+    },
+    "D41": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A42": {
+     "valor": "Parte 1 de 4"
+    },
+    "B42": {
+     "valor": 41
+    },
+    "C42": {
+     "valor": "LTSC-01-2806-K-BL_5"
+    },
+    "D42": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A43": {
+     "valor": "Parte 1 de 4"
+    },
+    "B43": {
+     "valor": 42
+    },
+    "C43": {
+     "valor": "LTSC-01-2806-K-BL_6"
+    },
+    "D43": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A44": {
+     "valor": "Parte 1 de 4"
+    },
+    "B44": {
+     "valor": 43
+    },
+    "C44": {
+     "valor": "LTSC-01-2806-K-BL_7"
+    },
+    "D44": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A45": {
+     "valor": "Parte 1 de 4"
+    },
+    "B45": {
+     "valor": 44
+    },
+    "C45": {
+     "valor": "LTSC-01-2806-K-BL_8"
+    },
+    "D45": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A46": {
+     "valor": "Parte 1 de 4"
+    },
+    "B46": {
+     "valor": 45
+    },
+    "C46": {
+     "valor": "LTSC-01-2806-K-BL_9"
+    },
+    "D46": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "A47": {
+     "valor": "Parte 1 de 4"
+    },
+    "B47": {
+     "valor": 46
+    },
+    "C47": {
+     "valor": "QMW020205_1"
+    },
+    "D47": {
+     "valor": "QMW020205"
+    },
+    "A48": {
+     "valor": "Parte 1 de 4"
+    },
+    "B48": {
+     "valor": 47
+    },
+    "C48": {
+     "valor": "QMW020205_2"
+    },
+    "D48": {
+     "valor": "QMW020205"
+    },
+    "A49": {
+     "valor": "Parte 1 de 4"
+    },
+    "B49": {
+     "valor": 48
+    },
+    "C49": {
+     "valor": "QMW020205_3"
+    },
+    "D49": {
+     "valor": "QMW020205"
+    },
+    "A50": {
+     "valor": "Parte 1 de 4"
+    },
+    "B50": {
+     "valor": 49
+    },
+    "C50": {
+     "valor": "QMW020205_4"
+    },
+    "D50": {
+     "valor": "QMW020205"
+    },
+    "A51": {
+     "valor": "Parte 1 de 4"
+    },
+    "B51": {
+     "valor": 50
+    },
+    "C51": {
+     "valor": "QMW020205_5"
+    },
+    "D51": {
+     "valor": "QMW020205"
+    },
+    "A52": {
+     "valor": "Parte 1 de 4"
+    },
+    "B52": {
+     "valor": 51
+    },
+    "C52": {
+     "valor": "QMW020205_6"
+    },
+    "D52": {
+     "valor": "QMW020205"
+    },
+    "A53": {
+     "valor": "Parte 1 de 4"
+    },
+    "B53": {
+     "valor": 52
+    },
+    "C53": {
+     "valor": "QMW020205_7"
+    },
+    "D53": {
+     "valor": "QMW020205"
+    },
+    "A54": {
+     "valor": "Parte 1 de 4"
+    },
+    "B54": {
+     "valor": 53
+    },
+    "C54": {
+     "valor": "QMW020205_8"
+    },
+    "D54": {
+     "valor": "QMW020205"
+    },
+    "A55": {
+     "valor": "Parte 1 de 4"
+    },
+    "B55": {
+     "valor": 54
+    },
+    "C55": {
+     "valor": "QMW020205_9"
+    },
+    "D55": {
+     "valor": "QMW020205"
+    },
+    "A56": {
+     "valor": "Parte 1 de 4"
+    },
+    "B56": {
+     "valor": 55
+    },
+    "C56": {
+     "valor": "QMW020205_10"
+    },
+    "D56": {
+     "valor": "QMW020205"
+    },
+    "A57": {
+     "valor": "Parte 1 de 4"
+    },
+    "B57": {
+     "valor": 56
+    },
+    "C57": {
+     "valor": "LTSC-01-6877-K-BE_1"
+    },
+    "D57": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A58": {
+     "valor": "Parte 1 de 4"
+    },
+    "B58": {
+     "valor": 57
+    },
+    "C58": {
+     "valor": "LTSC-01-6877-K-BE_2"
+    },
+    "D58": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A59": {
+     "valor": "Parte 1 de 4"
+    },
+    "B59": {
+     "valor": 58
+    },
+    "C59": {
+     "valor": "LTSC-01-6877-K-BE_3"
+    },
+    "D59": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A60": {
+     "valor": "Parte 1 de 4"
+    },
+    "B60": {
+     "valor": 59
+    },
+    "C60": {
+     "valor": "LTSC-01-6877-K-BE_4"
+    },
+    "D60": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A61": {
+     "valor": "Parte 1 de 4"
+    },
+    "B61": {
+     "valor": 60
+    },
+    "C61": {
+     "valor": "LTSC-01-6877-K-BE_5"
+    },
+    "D61": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A62": {
+     "valor": "Parte 1 de 4"
+    },
+    "B62": {
+     "valor": 61
+    },
+    "C62": {
+     "valor": "LTSC-01-6877-K-BE_6"
+    },
+    "D62": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A63": {
+     "valor": "Parte 1 de 4"
+    },
+    "B63": {
+     "valor": 62
+    },
+    "C63": {
+     "valor": "LTSC-01-6877-K-BE_7"
+    },
+    "D63": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A64": {
+     "valor": "Parte 1 de 4"
+    },
+    "B64": {
+     "valor": 63
+    },
+    "C64": {
+     "valor": "LTSC-01-6877-K-BE_8"
+    },
+    "D64": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A65": {
+     "valor": "Parte 1 de 4"
+    },
+    "B65": {
+     "valor": 64
+    },
+    "C65": {
+     "valor": "LTSC-01-6877-K-BE_9"
+    },
+    "D65": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "A66": {
+     "valor": "Parte 1 de 4"
+    },
+    "B66": {
+     "valor": 65
+    },
+    "C66": {
+     "valor": "DS090201_1"
+    },
+    "D66": {
+     "valor": "DS090201"
+    },
+    "A67": {
+     "valor": "Parte 1 de 4"
+    },
+    "B67": {
+     "valor": 66
+    },
+    "C67": {
+     "valor": "DS090201_2"
+    },
+    "D67": {
+     "valor": "DS090201"
+    },
+    "A68": {
+     "valor": "Parte 1 de 4"
+    },
+    "B68": {
+     "valor": 67
+    },
+    "C68": {
+     "valor": "DS090201_3"
+    },
+    "D68": {
+     "valor": "DS090201"
+    },
+    "A69": {
+     "valor": "Parte 1 de 4"
+    },
+    "B69": {
+     "valor": 68
+    },
+    "C69": {
+     "valor": "DS090201_4"
+    },
+    "D69": {
+     "valor": "DS090201"
+    },
+    "A70": {
+     "valor": "Parte 1 de 4"
+    },
+    "B70": {
+     "valor": 69
+    },
+    "C70": {
+     "valor": "DS090201_5"
+    },
+    "D70": {
+     "valor": "DS090201"
+    },
+    "A71": {
+     "valor": "Parte 1 de 4"
+    },
+    "B71": {
+     "valor": 70
+    },
+    "C71": {
+     "valor": "DS090201_6"
+    },
+    "D71": {
+     "valor": "DS090201"
+    },
+    "A72": {
+     "valor": "Parte 1 de 4"
+    },
+    "B72": {
+     "valor": 71
+    },
+    "C72": {
+     "valor": "DS090201_7"
+    },
+    "D72": {
+     "valor": "DS090201"
+    },
+    "A73": {
+     "valor": "Parte 1 de 4"
+    },
+    "B73": {
+     "valor": 72
+    },
+    "C73": {
+     "valor": "DS090201_8"
+    },
+    "D73": {
+     "valor": "DS090201"
+    },
+    "A74": {
+     "valor": "Parte 1 de 4"
+    },
+    "B74": {
+     "valor": 73
+    },
+    "C74": {
+     "valor": "DS090201_9"
+    },
+    "D74": {
+     "valor": "DS090201"
+    },
+    "A75": {
+     "valor": "Parte 1 de 4"
+    },
+    "B75": {
+     "valor": 74
+    },
+    "C75": {
+     "valor": "DS090201_10"
+    },
+    "D75": {
+     "valor": "DS090201"
+    },
+    "A76": {
+     "valor": "Parte 1 de 4"
+    },
+    "B76": {
+     "valor": 75
+    },
+    "C76": {
+     "valor": "XHT022-T-bg_1"
+    },
+    "D76": {
+     "valor": "XHT022-T-bg"
+    },
+    "A77": {
+     "valor": "Parte 1 de 4"
+    },
+    "B77": {
+     "valor": 76
+    },
+    "C77": {
+     "valor": "XHT022-T-bg_2"
+    },
+    "D77": {
+     "valor": "XHT022-T-bg"
+    },
+    "A78": {
+     "valor": "Parte 1 de 4"
+    },
+    "B78": {
+     "valor": 77
+    },
+    "C78": {
+     "valor": "XHT022-T-bg_3"
+    },
+    "D78": {
+     "valor": "XHT022-T-bg"
+    },
+    "A79": {
+     "valor": "Parte 1 de 4"
+    },
+    "B79": {
+     "valor": 78
+    },
+    "C79": {
+     "valor": "XHT022-T-bg_4"
+    },
+    "D79": {
+     "valor": "XHT022-T-bg"
+    },
+    "A80": {
+     "valor": "Parte 1 de 4"
+    },
+    "B80": {
+     "valor": 79
+    },
+    "C80": {
+     "valor": "XHT022-T-bg_5"
+    },
+    "D80": {
+     "valor": "XHT022-T-bg"
+    },
+    "A81": {
+     "valor": "Parte 1 de 4"
+    },
+    "B81": {
+     "valor": 80
+    },
+    "C81": {
+     "valor": "XHT022-T-bg_6"
+    },
+    "D81": {
+     "valor": "XHT022-T-bg"
+    },
+    "A82": {
+     "valor": "Parte 1 de 4"
+    },
+    "B82": {
+     "valor": 81
+    },
+    "C82": {
+     "valor": "XHT022-T-bg_7"
+    },
+    "D82": {
+     "valor": "XHT022-T-bg"
+    },
+    "A83": {
+     "valor": "Parte 1 de 4"
+    },
+    "B83": {
+     "valor": 82
+    },
+    "C83": {
+     "valor": "XHT022-T-bg_8"
+    },
+    "D83": {
+     "valor": "XHT022-T-bg"
+    },
+    "A84": {
+     "valor": "Parte 1 de 4"
+    },
+    "B84": {
+     "valor": 83
+    },
+    "C84": {
+     "valor": "CZX100308_1"
+    },
+    "D84": {
+     "valor": "CZX100308"
+    },
+    "A85": {
+     "valor": "Parte 1 de 4"
+    },
+    "B85": {
+     "valor": 84
+    },
+    "C85": {
+     "valor": "CZX100308_2"
+    },
+    "D85": {
+     "valor": "CZX100308"
+    },
+    "A86": {
+     "valor": "Parte 1 de 4"
+    },
+    "B86": {
+     "valor": 85
+    },
+    "C86": {
+     "valor": "CZX100308_3"
+    },
+    "D86": {
+     "valor": "CZX100308"
+    },
+    "A87": {
+     "valor": "Parte 1 de 4"
+    },
+    "B87": {
+     "valor": 86
+    },
+    "C87": {
+     "valor": "CZX100308_4"
+    },
+    "D87": {
+     "valor": "CZX100308"
+    },
+    "A88": {
+     "valor": "Parte 1 de 4"
+    },
+    "B88": {
+     "valor": 87
+    },
+    "C88": {
+     "valor": "CZX100308_5"
+    },
+    "D88": {
+     "valor": "CZX100308"
+    },
+    "A89": {
+     "valor": "Parte 1 de 4"
+    },
+    "B89": {
+     "valor": 88
+    },
+    "C89": {
+     "valor": "CZX100308_6"
+    },
+    "D89": {
+     "valor": "CZX100308"
+    },
+    "A90": {
+     "valor": "Parte 1 de 4"
+    },
+    "B90": {
+     "valor": 89
+    },
+    "C90": {
+     "valor": "CZX100308_7"
+    },
+    "D90": {
+     "valor": "CZX100308"
+    },
+    "A91": {
+     "valor": "Parte 1 de 4"
+    },
+    "B91": {
+     "valor": 90
+    },
+    "C91": {
+     "valor": "CZX100308_8"
+    },
+    "D91": {
+     "valor": "CZX100308"
+    },
+    "A92": {
+     "valor": "Parte 1 de 4"
+    },
+    "B92": {
+     "valor": 91
+    },
+    "C92": {
+     "valor": "CZX100308_9"
+    },
+    "D92": {
+     "valor": "CZX100308"
+    },
+    "A93": {
+     "valor": "Parte 1 de 4"
+    },
+    "B93": {
+     "valor": 92
+    },
+    "C93": {
+     "valor": "CZX100308_10"
+    },
+    "D93": {
+     "valor": "CZX100308"
+    },
+    "A94": {
+     "valor": "Parte 2 de 4"
+    },
+    "B94": {
+     "valor": 1
+    },
+    "C94": {
+     "valor": "LXI090206_1"
+    },
+    "D94": {
+     "valor": "LXI090206"
+    },
+    "A95": {
+     "valor": "Parte 2 de 4"
+    },
+    "B95": {
+     "valor": 2
+    },
+    "C95": {
+     "valor": "LXI090206_2"
+    },
+    "D95": {
+     "valor": "LXI090206"
+    },
+    "A96": {
+     "valor": "Parte 2 de 4"
+    },
+    "B96": {
+     "valor": 3
+    },
+    "C96": {
+     "valor": "LXI090206_3"
+    },
+    "D96": {
+     "valor": "LXI090206"
+    },
+    "A97": {
+     "valor": "Parte 2 de 4"
+    },
+    "B97": {
+     "valor": 4
+    },
+    "C97": {
+     "valor": "LXI090206_4"
+    },
+    "D97": {
+     "valor": "LXI090206"
+    },
+    "A98": {
+     "valor": "Parte 2 de 4"
+    },
+    "B98": {
+     "valor": 5
+    },
+    "C98": {
+     "valor": "LXI090206_5"
+    },
+    "D98": {
+     "valor": "LXI090206"
+    },
+    "A99": {
+     "valor": "Parte 2 de 4"
+    },
+    "B99": {
+     "valor": 6
+    },
+    "C99": {
+     "valor": "LXI090206_6"
+    },
+    "D99": {
+     "valor": "LXI090206"
+    },
+    "A100": {
+     "valor": "Parte 2 de 4"
+    },
+    "B100": {
+     "valor": 7
+    },
+    "C100": {
+     "valor": "LXI090206_7"
+    },
+    "D100": {
+     "valor": "LXI090206"
+    },
+    "A101": {
+     "valor": "Parte 2 de 4"
+    },
+    "B101": {
+     "valor": 8
+    },
+    "C101": {
+     "valor": "LXI090206_8"
+    },
+    "D101": {
+     "valor": "LXI090206"
+    },
+    "A102": {
+     "valor": "Parte 2 de 4"
+    },
+    "B102": {
+     "valor": 9
+    },
+    "C102": {
+     "valor": "LXI090206_9"
+    },
+    "D102": {
+     "valor": "LXI090206"
+    },
+    "A103": {
+     "valor": "Parte 2 de 4"
+    },
+    "B103": {
+     "valor": 10
+    },
+    "C103": {
+     "valor": "LXI090206_10"
+    },
+    "D103": {
+     "valor": "LXI090206"
+    },
+    "A104": {
+     "valor": "Parte 2 de 4"
+    },
+    "B104": {
+     "valor": 11
+    },
+    "C104": {
+     "valor": "DS090208_1"
+    },
+    "D104": {
+     "valor": "DS090208"
+    },
+    "A105": {
+     "valor": "Parte 2 de 4"
+    },
+    "B105": {
+     "valor": 12
+    },
+    "C105": {
+     "valor": "DS090208_2"
+    },
+    "D105": {
+     "valor": "DS090208"
+    },
+    "A106": {
+     "valor": "Parte 2 de 4"
+    },
+    "B106": {
+     "valor": 13
+    },
+    "C106": {
+     "valor": "DS090208_3"
+    },
+    "D106": {
+     "valor": "DS090208"
+    },
+    "A107": {
+     "valor": "Parte 2 de 4"
+    },
+    "B107": {
+     "valor": 14
+    },
+    "C107": {
+     "valor": "DS090208_4"
+    },
+    "D107": {
+     "valor": "DS090208"
+    },
+    "A108": {
+     "valor": "Parte 2 de 4"
+    },
+    "B108": {
+     "valor": 15
+    },
+    "C108": {
+     "valor": "DS090208_5"
+    },
+    "D108": {
+     "valor": "DS090208"
+    },
+    "A109": {
+     "valor": "Parte 2 de 4"
+    },
+    "B109": {
+     "valor": 16
+    },
+    "C109": {
+     "valor": "DS090208_6"
+    },
+    "D109": {
+     "valor": "DS090208"
+    },
+    "A110": {
+     "valor": "Parte 2 de 4"
+    },
+    "B110": {
+     "valor": 17
+    },
+    "C110": {
+     "valor": "DS090208_7"
+    },
+    "D110": {
+     "valor": "DS090208"
+    },
+    "A111": {
+     "valor": "Parte 2 de 4"
+    },
+    "B111": {
+     "valor": 18
+    },
+    "C111": {
+     "valor": "DS090208_8"
+    },
+    "D111": {
+     "valor": "DS090208"
+    },
+    "A112": {
+     "valor": "Parte 2 de 4"
+    },
+    "B112": {
+     "valor": 19
+    },
+    "C112": {
+     "valor": "DS090208_9"
+    },
+    "D112": {
+     "valor": "DS090208"
+    },
+    "A113": {
+     "valor": "Parte 2 de 4"
+    },
+    "B113": {
+     "valor": 20
+    },
+    "C113": {
+     "valor": "DS090203_1"
+    },
+    "D113": {
+     "valor": "DS090203"
+    },
+    "A114": {
+     "valor": "Parte 2 de 4"
+    },
+    "B114": {
+     "valor": 21
+    },
+    "C114": {
+     "valor": "DS090203_2"
+    },
+    "D114": {
+     "valor": "DS090203"
+    },
+    "A115": {
+     "valor": "Parte 2 de 4"
+    },
+    "B115": {
+     "valor": 22
+    },
+    "C115": {
+     "valor": "SHUQ090405_1"
+    },
+    "D115": {
+     "valor": "SHUQ090405"
+    },
+    "A116": {
+     "valor": "Parte 2 de 4"
+    },
+    "B116": {
+     "valor": 23
+    },
+    "C116": {
+     "valor": "SHUQ090405_2"
+    },
+    "D116": {
+     "valor": "SHUQ090405"
+    },
+    "A117": {
+     "valor": "Parte 2 de 4"
+    },
+    "B117": {
+     "valor": 24
+    },
+    "C117": {
+     "valor": "SHUQ090405_3"
+    },
+    "D117": {
+     "valor": "SHUQ090405"
+    },
+    "A118": {
+     "valor": "Parte 2 de 4"
+    },
+    "B118": {
+     "valor": 25
+    },
+    "C118": {
+     "valor": "SHUQ090403_1"
+    },
+    "D118": {
+     "valor": "SHUQ090403"
+    },
+    "A119": {
+     "valor": "Parte 2 de 4"
+    },
+    "B119": {
+     "valor": 26
+    },
+    "C119": {
+     "valor": "SHUQ090403_2"
+    },
+    "D119": {
+     "valor": "SHUQ090403"
+    },
+    "A120": {
+     "valor": "Parte 2 de 4"
+    },
+    "B120": {
+     "valor": 27
+    },
+    "C120": {
+     "valor": "SHUQ090401_1"
+    },
+    "D120": {
+     "valor": "SHUQ090401"
+    },
+    "A121": {
+     "valor": "Parte 2 de 4"
+    },
+    "B121": {
+     "valor": 28
+    },
+    "C121": {
+     "valor": "SHUQ090401_2"
+    },
+    "D121": {
+     "valor": "SHUQ090401"
+    },
+    "A122": {
+     "valor": "Parte 2 de 4"
+    },
+    "B122": {
+     "valor": 29
+    },
+    "C122": {
+     "valor": "SHUQ090407_1"
+    },
+    "D122": {
+     "valor": "SHUQ090407"
+    },
+    "A123": {
+     "valor": "Parte 2 de 4"
+    },
+    "B123": {
+     "valor": 30
+    },
+    "C123": {
+     "valor": "SHUQ090407_2"
+    },
+    "D123": {
+     "valor": "SHUQ090407"
+    },
+    "A124": {
+     "valor": "Parte 2 de 4"
+    },
+    "B124": {
+     "valor": 31
+    },
+    "C124": {
+     "valor": "DS090226_1"
+    },
+    "D124": {
+     "valor": "DS090226"
+    },
+    "A125": {
+     "valor": "Parte 2 de 4"
+    },
+    "B125": {
+     "valor": 32
+    },
+    "C125": {
+     "valor": "DS090226_2"
+    },
+    "D125": {
+     "valor": "DS090226"
+    },
+    "A126": {
+     "valor": "Parte 2 de 4"
+    },
+    "B126": {
+     "valor": 33
+    },
+    "C126": {
+     "valor": "LXI090408_1"
+    },
+    "D126": {
+     "valor": "LXI090408"
+    },
+    "A127": {
+     "valor": "Parte 2 de 4"
+    },
+    "B127": {
+     "valor": 34
+    },
+    "C127": {
+     "valor": "LXI090408_2"
+    },
+    "D127": {
+     "valor": "LXI090408"
+    },
+    "A128": {
+     "valor": "Parte 2 de 4"
+    },
+    "B128": {
+     "valor": 35
+    },
+    "C128": {
+     "valor": "ZQ093403_1"
+    },
+    "D128": {
+     "valor": "ZQ093403"
+    },
+    "A129": {
+     "valor": "Parte 2 de 4"
+    },
+    "B129": {
+     "valor": 36
+    },
+    "C129": {
+     "valor": "ZQ093403_2"
+    },
+    "D129": {
+     "valor": "ZQ093403"
+    },
+    "A130": {
+     "valor": "Parte 2 de 4"
+    },
+    "B130": {
+     "valor": 37
+    },
+    "C130": {
+     "valor": "LXI063101"
+    },
+    "D130": {
+     "valor": "LXI063101"
+    },
+    "A131": {
+     "valor": "Parte 2 de 4"
+    },
+    "B131": {
+     "valor": 38
+    },
+    "C131": {
+     "valor": "LXI063102"
+    },
+    "D131": {
+     "valor": "LXI063102"
+    },
+    "A132": {
+     "valor": "Parte 2 de 4"
+    },
+    "B132": {
+     "valor": 39
+    },
+    "C132": {
+     "valor": "LXI063103"
+    },
+    "D132": {
+     "valor": "LXI063103"
+    },
+    "A133": {
+     "valor": "Parte 2 de 4"
+    },
+    "B133": {
+     "valor": 40
+    },
+    "C133": {
+     "valor": "LXI063104"
+    },
+    "D133": {
+     "valor": "LXI063104"
+    },
+    "A134": {
+     "valor": "Parte 2 de 4"
+    },
+    "B134": {
+     "valor": 41
+    },
+    "C134": {
+     "valor": "QYA016603"
+    },
+    "D134": {
+     "valor": "QYA016603"
+    },
+    "A135": {
+     "valor": "Parte 2 de 4"
+    },
+    "B135": {
+     "valor": 42
+    },
+    "C135": {
+     "valor": "QYA016601"
+    },
+    "D135": {
+     "valor": "QYA016601"
+    },
+    "A136": {
+     "valor": "Parte 2 de 4"
+    },
+    "B136": {
+     "valor": 43
+    },
+    "C136": {
+     "valor": "LXI063105"
+    },
+    "D136": {
+     "valor": "LXI063105"
+    },
+    "A137": {
+     "valor": "Parte 2 de 4"
+    },
+    "B137": {
+     "valor": 44
+    },
+    "C137": {
+     "valor": "QYA016604"
+    },
+    "D137": {
+     "valor": "QYA016604"
+    },
+    "A138": {
+     "valor": "Parte 2 de 4"
+    },
+    "B138": {
+     "valor": 45
+    },
+    "C138": {
+     "valor": "LXI062903_1"
+    },
+    "D138": {
+     "valor": "LXI062903"
+    },
+    "A139": {
+     "valor": "Parte 2 de 4"
+    },
+    "B139": {
+     "valor": 46
+    },
+    "C139": {
+     "valor": "LXI062903_2"
+    },
+    "D139": {
+     "valor": "LXI062903"
+    },
+    "A140": {
+     "valor": "Parte 2 de 4"
+    },
+    "B140": {
+     "valor": 47
+    },
+    "C140": {
+     "valor": "LXI062903_3"
+    },
+    "D140": {
+     "valor": "LXI062903"
+    },
+    "A141": {
+     "valor": "Parte 2 de 4"
+    },
+    "B141": {
+     "valor": 48
+    },
+    "C141": {
+     "valor": "LXI062901_1"
+    },
+    "D141": {
+     "valor": "LXI062901"
+    },
+    "A142": {
+     "valor": "Parte 2 de 4"
+    },
+    "B142": {
+     "valor": 49
+    },
+    "C142": {
+     "valor": "LXI062901_2"
+    },
+    "D142": {
+     "valor": "LXI062901"
+    },
+    "A143": {
+     "valor": "Parte 2 de 4"
+    },
+    "B143": {
+     "valor": 50
+    },
+    "C143": {
+     "valor": "ZQ063601_1"
+    },
+    "D143": {
+     "valor": "ZQ063601"
+    },
+    "A144": {
+     "valor": "Parte 2 de 4"
+    },
+    "B144": {
+     "valor": 51
+    },
+    "C144": {
+     "valor": "ZQ063601_2"
+    },
+    "D144": {
+     "valor": "ZQ063601"
+    },
+    "A145": {
+     "valor": "Parte 2 de 4"
+    },
+    "B145": {
+     "valor": 52
+    },
+    "C145": {
+     "valor": "LXI062902_1"
+    },
+    "D145": {
+     "valor": "LXI062902"
+    },
+    "A146": {
+     "valor": "Parte 2 de 4"
+    },
+    "B146": {
+     "valor": 53
+    },
+    "C146": {
+     "valor": "LXI062902_2"
+    },
+    "D146": {
+     "valor": "LXI062902"
+    },
+    "A147": {
+     "valor": "Parte 2 de 4"
+    },
+    "B147": {
+     "valor": 54
+    },
+    "C147": {
+     "valor": "ZQ063602_1"
+    },
+    "D147": {
+     "valor": "ZQ063602"
+    },
+    "A148": {
+     "valor": "Parte 2 de 4"
+    },
+    "B148": {
+     "valor": 55
+    },
+    "C148": {
+     "valor": "ZQ063602_2"
+    },
+    "D148": {
+     "valor": "ZQ063602"
+    },
+    "A149": {
+     "valor": "Parte 2 de 4"
+    },
+    "B149": {
+     "valor": 56
+    },
+    "C149": {
+     "valor": "ZQ063603_1"
+    },
+    "D149": {
+     "valor": "ZQ063603"
+    },
+    "A150": {
+     "valor": "Parte 2 de 4"
+    },
+    "B150": {
+     "valor": 57
+    },
+    "C150": {
+     "valor": "ZQ063603_2"
+    },
+    "D150": {
+     "valor": "ZQ063603"
+    },
+    "A151": {
+     "valor": "Parte 2 de 4"
+    },
+    "B151": {
+     "valor": 58
+    },
+    "C151": {
+     "valor": "LXI090402_1"
+    },
+    "D151": {
+     "valor": "LXI090402"
+    },
+    "A152": {
+     "valor": "Parte 2 de 4"
+    },
+    "B152": {
+     "valor": 59
+    },
+    "C152": {
+     "valor": "LXI090402_2"
+    },
+    "D152": {
+     "valor": "LXI090402"
+    },
+    "A153": {
+     "valor": "Parte 2 de 4"
+    },
+    "B153": {
+     "valor": 60
+    },
+    "C153": {
+     "valor": "LXI090412_1"
+    },
+    "D153": {
+     "valor": "LXI090412"
+    },
+    "A154": {
+     "valor": "Parte 2 de 4"
+    },
+    "B154": {
+     "valor": 61
+    },
+    "C154": {
+     "valor": "LXI090412_2"
+    },
+    "D154": {
+     "valor": "LXI090412"
+    },
+    "A155": {
+     "valor": "Parte 2 de 4"
+    },
+    "B155": {
+     "valor": 62
+    },
+    "C155": {
+     "valor": "LXI090411_1"
+    },
+    "D155": {
+     "valor": "LXI090411"
+    },
+    "A156": {
+     "valor": "Parte 2 de 4"
+    },
+    "B156": {
+     "valor": 63
+    },
+    "C156": {
+     "valor": "LXI090411_2"
+    },
+    "D156": {
+     "valor": "LXI090411"
+    },
+    "A157": {
+     "valor": "Parte 2 de 4"
+    },
+    "B157": {
+     "valor": 64
+    },
+    "C157": {
+     "valor": "LXI090410_1"
+    },
+    "D157": {
+     "valor": "LXI090410"
+    },
+    "A158": {
+     "valor": "Parte 2 de 4"
+    },
+    "B158": {
+     "valor": 65
+    },
+    "C158": {
+     "valor": "LXI090410_2"
+    },
+    "D158": {
+     "valor": "LXI090410"
+    },
+    "A159": {
+     "valor": "Parte 2 de 4"
+    },
+    "B159": {
+     "valor": 66
+    },
+    "C159": {
+     "valor": "LXI090201_1"
+    },
+    "D159": {
+     "valor": "LXI090201"
+    },
+    "A160": {
+     "valor": "Parte 2 de 4"
+    },
+    "B160": {
+     "valor": 67
+    },
+    "C160": {
+     "valor": "LXI090201_2"
+    },
+    "D160": {
+     "valor": "LXI090201"
+    },
+    "A161": {
+     "valor": "Parte 2 de 4"
+    },
+    "B161": {
+     "valor": 68
+    },
+    "C161": {
+     "valor": "LXI090205_1"
+    },
+    "D161": {
+     "valor": "LXI090205"
+    },
+    "A162": {
+     "valor": "Parte 2 de 4"
+    },
+    "B162": {
+     "valor": 69
+    },
+    "C162": {
+     "valor": "LXI090205_2"
+    },
+    "D162": {
+     "valor": "LXI090205"
+    },
+    "A163": {
+     "valor": "Parte 2 de 4"
+    },
+    "B163": {
+     "valor": 70
+    },
+    "C163": {
+     "valor": "LXI090203_1"
+    },
+    "D163": {
+     "valor": "LXI090203"
+    },
+    "A164": {
+     "valor": "Parte 2 de 4"
+    },
+    "B164": {
+     "valor": 71
+    },
+    "C164": {
+     "valor": "LXI090203_2"
+    },
+    "D164": {
+     "valor": "LXI090203"
+    },
+    "A165": {
+     "valor": "Parte 2 de 4"
+    },
+    "B165": {
+     "valor": 72
+    },
+    "C165": {
+     "valor": "CHCH010906"
+    },
+    "D165": {
+     "valor": "CHCH010906"
+    },
+    "A166": {
+     "valor": "Parte 2 de 4"
+    },
+    "B166": {
+     "valor": 73
+    },
+    "C166": {
+     "valor": "QYA014910"
+    },
+    "D166": {
+     "valor": "QYA014910"
+    },
+    "A167": {
+     "valor": "Parte 2 de 4"
+    },
+    "B167": {
+     "valor": 74
+    },
+    "C167": {
+     "valor": "QYA014901"
+    },
+    "D167": {
+     "valor": "QYA014901"
+    },
+    "A168": {
+     "valor": "Parte 2 de 4"
+    },
+    "B168": {
+     "valor": 75
+    },
+    "C168": {
+     "valor": "CHCH010905"
+    },
+    "D168": {
+     "valor": "CHCH010905"
+    },
+    "A169": {
+     "valor": "Parte 2 de 4"
+    },
+    "B169": {
+     "valor": 76
+    },
+    "C169": {
+     "valor": "QYA014903"
+    },
+    "D169": {
+     "valor": "QYA014903"
+    },
+    "A170": {
+     "valor": "Parte 2 de 4"
+    },
+    "B170": {
+     "valor": 77
+    },
+    "C170": {
+     "valor": "QYA014907"
+    },
+    "D170": {
+     "valor": "QYA014907"
+    },
+    "A171": {
+     "valor": "Parte 2 de 4"
+    },
+    "B171": {
+     "valor": 78
+    },
+    "C171": {
+     "valor": "CHCH010907"
+    },
+    "D171": {
+     "valor": "CHCH010907"
+    },
+    "A172": {
+     "valor": "Parte 2 de 4"
+    },
+    "B172": {
+     "valor": 79
+    },
+    "C172": {
+     "valor": "LXI063107"
+    },
+    "D172": {
+     "valor": "LXI063107"
+    },
+    "A173": {
+     "valor": "Parte 2 de 4"
+    },
+    "B173": {
+     "valor": 80
+    },
+    "C173": {
+     "valor": "XXI070507"
+    },
+    "D173": {
+     "valor": "XXI070507"
+    },
+    "A174": {
+     "valor": "Parte 2 de 4"
+    },
+    "B174": {
+     "valor": 81
+    },
+    "C174": {
+     "valor": "ZQ063607_1"
+    },
+    "D174": {
+     "valor": "ZQ063607"
+    },
+    "A175": {
+     "valor": "Parte 2 de 4"
+    },
+    "B175": {
+     "valor": 82
+    },
+    "C175": {
+     "valor": "ZQ063607_2"
+    },
+    "D175": {
+     "valor": "ZQ063607"
+    },
+    "A176": {
+     "valor": "Parte 2 de 4"
+    },
+    "B176": {
+     "valor": 83
+    },
+    "C176": {
+     "valor": "XXI070509_1"
+    },
+    "D176": {
+     "valor": "XXI070509"
+    },
+    "A177": {
+     "valor": "Parte 2 de 4"
+    },
+    "B177": {
+     "valor": 84
+    },
+    "C177": {
+     "valor": "XXI070509_2"
+    },
+    "D177": {
+     "valor": "XXI070509"
+    },
+    "A178": {
+     "valor": "Parte 2 de 4"
+    },
+    "B178": {
+     "valor": 85
+    },
+    "C178": {
+     "valor": "ZQ063608_1"
+    },
+    "D178": {
+     "valor": "ZQ063608"
+    },
+    "A179": {
+     "valor": "Parte 2 de 4"
+    },
+    "B179": {
+     "valor": 86
+    },
+    "C179": {
+     "valor": "ZQ063608_2"
+    },
+    "D179": {
+     "valor": "ZQ063608"
+    },
+    "A180": {
+     "valor": "Parte 3 de 4"
+    },
+    "B180": {
+     "valor": 1
+    },
+    "C180": {
+     "valor": "XXI070508"
+    },
+    "D180": {
+     "valor": "XXI070508"
+    },
+    "A181": {
+     "valor": "Parte 3 de 4"
+    },
+    "B181": {
+     "valor": 2
+    },
+    "C181": {
+     "valor": "COLCHON-DULCES-SUENOS-SPRING"
+    },
+    "D181": {
+     "valor": "COLCHON-DULCES-SUENOS-SPRING"
+    },
+    "A182": {
+     "valor": "Parte 3 de 4"
+    },
+    "B182": {
+     "valor": 3
+    },
+    "C182": {
+     "valor": "COLCHON-FLEX-SEMIORTOPEDICO"
+    },
+    "D182": {
+     "valor": "COLCHON-FLEX-SEMIORTOPEDICO"
+    },
+    "A183": {
+     "valor": "Parte 3 de 4"
+    },
+    "B183": {
+     "valor": 4
+    },
+    "C183": {
+     "valor": "COLCHON-FIRST-CLASS-SEMIORTOPEDICO"
+    },
+    "D183": {
+     "valor": "COLCHON-FIRST-CLASS-SEMIORTOPEDICO"
+    },
+    "A184": {
+     "valor": "Parte 3 de 4"
+    },
+    "B184": {
+     "valor": 5
+    },
+    "C184": {
+     "valor": "COLCHON-DR-DREAM-SEMIORTOPEDICO"
+    },
+    "D184": {
+     "valor": "COLCHON-DR-DREAM-SEMIORTOPEDICO"
+    },
+    "A185": {
+     "valor": "Parte 3 de 4"
+    },
+    "B185": {
+     "valor": 6
+    },
+    "C185": {
+     "valor": "COLCHON-DR-DREAM-ORTOPEDICO"
+    },
+    "D185": {
+     "valor": "COLCHON-DR-DREAM-ORTOPEDICO"
+    },
+    "A186": {
+     "valor": "Parte 3 de 4"
+    },
+    "B186": {
+     "valor": 7
+    },
+    "C186": {
+     "valor": "DS090214_1"
+    },
+    "D186": {
+     "valor": "DS090214"
+    },
+    "A187": {
+     "valor": "Parte 3 de 4"
+    },
+    "B187": {
+     "valor": 8
+    },
+    "C187": {
+     "valor": "DS090214_2"
+    },
+    "D187": {
+     "valor": "DS090214"
+    },
+    "A188": {
+     "valor": "Parte 3 de 4"
+    },
+    "B188": {
+     "valor": 9
+    },
+    "C188": {
+     "valor": "ZQ093405"
+    },
+    "D188": {
+     "valor": "ZQ093405"
+    },
+    "A189": {
+     "valor": "Parte 3 de 4"
+    },
+    "B189": {
+     "valor": 10
+    },
+    "C189": {
+     "valor": "ZQ093406"
+    },
+    "D189": {
+     "valor": "ZQ093406"
+    },
+    "A190": {
+     "valor": "Parte 3 de 4"
+    },
+    "B190": {
+     "valor": 11
+    },
+    "C190": {
+     "valor": "LXI090407_1"
+    },
+    "D190": {
+     "valor": "LXI090407"
+    },
+    "A191": {
+     "valor": "Parte 3 de 4"
+    },
+    "B191": {
+     "valor": 12
+    },
+    "C191": {
+     "valor": "LXI090407_2"
+    },
+    "D191": {
+     "valor": "LXI090407"
+    },
+    "A192": {
+     "valor": "Parte 3 de 4"
+    },
+    "B192": {
+     "valor": 13
+    },
+    "C192": {
+     "valor": "LXI090407_3"
+    },
+    "D192": {
+     "valor": "LXI090407"
+    },
+    "A193": {
+     "valor": "Parte 3 de 4"
+    },
+    "B193": {
+     "valor": 14
+    },
+    "C193": {
+     "valor": "LXI090407_4"
+    },
+    "D193": {
+     "valor": "LXI090407"
+    },
+    "A194": {
+     "valor": "Parte 3 de 4"
+    },
+    "B194": {
+     "valor": 15
+    },
+    "C194": {
+     "valor": "LXI090405"
+    },
+    "D194": {
+     "valor": "LXI090405"
+    },
+    "A195": {
+     "valor": "Parte 3 de 4"
+    },
+    "B195": {
+     "valor": 16
+    },
+    "C195": {
+     "valor": "LXI090406"
+    },
+    "D195": {
+     "valor": "LXI090406"
+    },
+    "A196": {
+     "valor": "Parte 3 de 4"
+    },
+    "B196": {
+     "valor": 17
+    },
+    "C196": {
+     "valor": "XXI061702"
+    },
+    "D196": {
+     "valor": "XXI061702"
+    },
+    "A197": {
+     "valor": "Parte 3 de 4"
+    },
+    "B197": {
+     "valor": 18
+    },
+    "C197": {
+     "valor": "XXI061703"
+    },
+    "D197": {
+     "valor": "XXI061703"
+    },
+    "A198": {
+     "valor": "Parte 3 de 4"
+    },
+    "B198": {
+     "valor": 19
+    },
+    "C198": {
+     "valor": "XXI061701_1"
+    },
+    "D198": {
+     "valor": "XXI061701"
+    },
+    "A199": {
+     "valor": "Parte 3 de 4"
+    },
+    "B199": {
+     "valor": 20
+    },
+    "C199": {
+     "valor": "XXI061701_2"
+    },
+    "D199": {
+     "valor": "XXI061701"
+    },
+    "A200": {
+     "valor": "Parte 3 de 4"
+    },
+    "B200": {
+     "valor": 21
+    },
+    "C200": {
+     "valor": "LXI062904"
+    },
+    "D200": {
+     "valor": "LXI062904"
+    },
+    "A201": {
+     "valor": "Parte 3 de 4"
+    },
+    "B201": {
+     "valor": 22
+    },
+    "C201": {
+     "valor": "LXI062905"
+    },
+    "D201": {
+     "valor": "LXI062905"
+    },
+    "A202": {
+     "valor": "Parte 3 de 4"
+    },
+    "B202": {
+     "valor": 23
+    },
+    "C202": {
+     "valor": "LXI062906"
+    },
+    "D202": {
+     "valor": "LXI062906"
+    },
+    "A203": {
+     "valor": "Parte 3 de 4"
+    },
+    "B203": {
+     "valor": 24
+    },
+    "C203": {
+     "valor": "ZQ063605_1"
+    },
+    "D203": {
+     "valor": "ZQ063605"
+    },
+    "A204": {
+     "valor": "Parte 3 de 4"
+    },
+    "B204": {
+     "valor": 25
+    },
+    "C204": {
+     "valor": "ZQ063605_2"
+    },
+    "D204": {
+     "valor": "ZQ063605"
+    },
+    "A205": {
+     "valor": "Parte 3 de 4"
+    },
+    "B205": {
+     "valor": 26
+    },
+    "C205": {
+     "valor": "ZQ063606_1"
+    },
+    "D205": {
+     "valor": "ZQ063606"
+    },
+    "A206": {
+     "valor": "Parte 3 de 4"
+    },
+    "B206": {
+     "valor": 27
+    },
+    "C206": {
+     "valor": "ZQ063606_2"
+    },
+    "D206": {
+     "valor": "ZQ063606"
+    },
+    "A207": {
+     "valor": "Parte 3 de 4"
+    },
+    "B207": {
+     "valor": 28
+    },
+    "C207": {
+     "valor": "ZQ063609_1"
+    },
+    "D207": {
+     "valor": "ZQ063609"
+    },
+    "A208": {
+     "valor": "Parte 3 de 4"
+    },
+    "B208": {
+     "valor": 29
+    },
+    "C208": {
+     "valor": "ZQ063609_2"
+    },
+    "D208": {
+     "valor": "ZQ063609"
+    },
+    "A209": {
+     "valor": "Parte 3 de 4"
+    },
+    "B209": {
+     "valor": 30
+    },
+    "C209": {
+     "valor": "ZJ075102"
+    },
+    "D209": {
+     "valor": "ZJ075102"
+    },
+    "A210": {
+     "valor": "Parte 3 de 4"
+    },
+    "B210": {
+     "valor": 31
+    },
+    "C210": {
+     "valor": "ZJ074903"
+    },
+    "D210": {
+     "valor": "ZJ074903"
+    },
+    "A211": {
+     "valor": "Parte 3 de 4"
+    },
+    "B211": {
+     "valor": 32
+    },
+    "C211": {
+     "valor": "ZJ074901_1"
+    },
+    "D211": {
+     "valor": "ZJ074901"
+    },
+    "A212": {
+     "valor": "Parte 3 de 4"
+    },
+    "B212": {
+     "valor": 33
+    },
+    "C212": {
+     "valor": "ZJ074901_2"
+    },
+    "D212": {
+     "valor": "ZJ074901"
+    },
+    "A213": {
+     "valor": "Parte 3 de 4"
+    },
+    "B213": {
+     "valor": 34
+    },
+    "C213": {
+     "valor": "ZJ074902"
+    },
+    "D213": {
+     "valor": "ZJ074902"
+    },
+    "A214": {
+     "valor": "Parte 3 de 4"
+    },
+    "B214": {
+     "valor": 35
+    },
+    "C214": {
+     "valor": "LXI071005"
+    },
+    "D214": {
+     "valor": "LXI071005"
+    },
+    "A215": {
+     "valor": "Parte 3 de 4"
+    },
+    "B215": {
+     "valor": 36
+    },
+    "C215": {
+     "valor": "LXI071006_1"
+    },
+    "D215": {
+     "valor": "LXI071006"
+    },
+    "A216": {
+     "valor": "Parte 3 de 4"
+    },
+    "B216": {
+     "valor": 37
+    },
+    "C216": {
+     "valor": "LXI071006_2"
+    },
+    "D216": {
+     "valor": "LXI071006"
+    },
+    "A217": {
+     "valor": "Parte 3 de 4"
+    },
+    "B217": {
+     "valor": 38
+    },
+    "C217": {
+     "valor": "LXI071003"
+    },
+    "D217": {
+     "valor": "LXI071003"
+    },
+    "A218": {
+     "valor": "Parte 3 de 4"
+    },
+    "B218": {
+     "valor": 39
+    },
+    "C218": {
+     "valor": "LXI071004"
+    },
+    "D218": {
+     "valor": "LXI071004"
+    },
+    "A219": {
+     "valor": "Parte 3 de 4"
+    },
+    "B219": {
+     "valor": 40
+    },
+    "C219": {
+     "valor": "CHCH070201_1"
+    },
+    "D219": {
+     "valor": "CHCH070201"
+    },
+    "A220": {
+     "valor": "Parte 3 de 4"
+    },
+    "B220": {
+     "valor": 41
+    },
+    "C220": {
+     "valor": "CHCH070201_2"
+    },
+    "D220": {
+     "valor": "CHCH070201"
+    },
+    "A221": {
+     "valor": "Parte 3 de 4"
+    },
+    "B221": {
+     "valor": 42
+    },
+    "C221": {
+     "valor": "CHCH070202"
+    },
+    "D221": {
+     "valor": "CHCH070202"
+    },
+    "A222": {
+     "valor": "Parte 3 de 4"
+    },
+    "B222": {
+     "valor": 43
+    },
+    "C222": {
+     "valor": "CHCH070203"
+    },
+    "D222": {
+     "valor": "CHCH070203"
+    },
+    "A223": {
+     "valor": "Parte 3 de 4"
+    },
+    "B223": {
+     "valor": 44
+    },
+    "C223": {
+     "valor": "CHCH070205"
+    },
+    "D223": {
+     "valor": "CHCH070205"
+    },
+    "A224": {
+     "valor": "Parte 3 de 4"
+    },
+    "B224": {
+     "valor": 45
+    },
+    "C224": {
+     "valor": "XXI070506"
+    },
+    "D224": {
+     "valor": "XXI070506"
+    },
+    "A225": {
+     "valor": "Parte 3 de 4"
+    },
+    "B225": {
+     "valor": 46
+    },
+    "C225": {
+     "valor": "JW017509"
+    },
+    "D225": {
+     "valor": "JW017509"
+    },
+    "A226": {
+     "valor": "Parte 3 de 4"
+    },
+    "B226": {
+     "valor": 47
+    },
+    "C226": {
+     "valor": "SHUA010102"
+    },
+    "D226": {
+     "valor": "SHUA010102"
+    },
+    "A227": {
+     "valor": "Parte 3 de 4"
+    },
+    "B227": {
+     "valor": 48
+    },
+    "C227": {
+     "valor": "XS0114206"
+    },
+    "D227": {
+     "valor": "XS0114206"
+    },
+    "A228": {
+     "valor": "Parte 3 de 4"
+    },
+    "B228": {
+     "valor": 49
+    },
+    "C228": {
+     "valor": "clb0119018_1"
+    },
+    "D228": {
+     "valor": "clb0119018"
+    },
+    "A229": {
+     "valor": "Parte 3 de 4"
+    },
+    "B229": {
+     "valor": 50
+    },
+    "C229": {
+     "valor": "clb0119018_2"
+    },
+    "D229": {
+     "valor": "clb0119018"
+    },
+    "A230": {
+     "valor": "Parte 3 de 4"
+    },
+    "B230": {
+     "valor": 51
+    },
+    "C230": {
+     "valor": "XLB0118616"
+    },
+    "D230": {
+     "valor": "XLB0118616"
+    },
+    "A231": {
+     "valor": "Parte 3 de 4"
+    },
+    "B231": {
+     "valor": 52
+    },
+    "C231": {
+     "valor": "YPN272107"
+    },
+    "D231": {
+     "valor": "YPN272107"
+    },
+    "A232": {
+     "valor": "Parte 3 de 4"
+    },
+    "B232": {
+     "valor": 53
+    },
+    "C232": {
+     "valor": "HYI360701"
+    },
+    "D232": {
+     "valor": "HYI360701"
+    },
+    "A233": {
+     "valor": "Parte 3 de 4"
+    },
+    "B233": {
+     "valor": 54
+    },
+    "C233": {
+     "valor": "HYI360702"
+    },
+    "D233": {
+     "valor": "HYI360702"
+    },
+    "A234": {
+     "valor": "Parte 3 de 4"
+    },
+    "B234": {
+     "valor": 55
+    },
+    "C234": {
+     "valor": "HYI360726"
+    },
+    "D234": {
+     "valor": "HYI360726"
+    },
+    "A235": {
+     "valor": "Parte 3 de 4"
+    },
+    "B235": {
+     "valor": 56
+    },
+    "C235": {
+     "valor": "HYI360743"
+    },
+    "D235": {
+     "valor": "HYI360743"
+    },
+    "A236": {
+     "valor": "Parte 3 de 4"
+    },
+    "B236": {
+     "valor": 57
+    },
+    "C236": {
+     "valor": "XLB271201"
+    },
+    "D236": {
+     "valor": "XLB271201"
+    },
+    "A237": {
+     "valor": "Parte 3 de 4"
+    },
+    "B237": {
+     "valor": 58
+    },
+    "C237": {
+     "valor": "CZX100304"
+    },
+    "D237": {
+     "valor": "CZX100304"
+    },
+    "A238": {
+     "valor": "Parte 3 de 4"
+    },
+    "B238": {
+     "valor": 59
+    },
+    "C238": {
+     "valor": "CZX100309"
+    },
+    "D238": {
+     "valor": "CZX100309"
+    },
+    "A239": {
+     "valor": "Parte 3 de 4"
+    },
+    "B239": {
+     "valor": 60
+    },
+    "C239": {
+     "valor": "CZX100310"
+    },
+    "D239": {
+     "valor": "CZX100310"
+    },
+    "A240": {
+     "valor": "Parte 3 de 4"
+    },
+    "B240": {
+     "valor": 61
+    },
+    "C240": {
+     "valor": "HYI220725_1"
+    },
+    "D240": {
+     "valor": "HYI220725"
+    },
+    "A241": {
+     "valor": "Parte 3 de 4"
+    },
+    "B241": {
+     "valor": 62
+    },
+    "C241": {
+     "valor": "HYI220725_2"
+    },
+    "D241": {
+     "valor": "HYI220725"
+    },
+    "A242": {
+     "valor": "Parte 3 de 4"
+    },
+    "B242": {
+     "valor": 63
+    },
+    "C242": {
+     "valor": "HYI220725_3"
+    },
+    "D242": {
+     "valor": "HYI220725"
+    },
+    "A243": {
+     "valor": "Parte 3 de 4"
+    },
+    "B243": {
+     "valor": 64
+    },
+    "C243": {
+     "valor": "HYI220725_4"
+    },
+    "D243": {
+     "valor": "HYI220725"
+    },
+    "A244": {
+     "valor": "Parte 3 de 4"
+    },
+    "B244": {
+     "valor": 65
+    },
+    "C244": {
+     "valor": "YPN272102"
+    },
+    "D244": {
+     "valor": "YPN272102"
+    },
+    "A245": {
+     "valor": "Parte 3 de 4"
+    },
+    "B245": {
+     "valor": 66
+    },
+    "C245": {
+     "valor": "ZJ261301"
+    },
+    "D245": {
+     "valor": "ZJ261301"
+    },
+    "A246": {
+     "valor": "Parte 3 de 4"
+    },
+    "B246": {
+     "valor": 67
+    },
+    "C246": {
+     "valor": "DOG300118"
+    },
+    "D246": {
+     "valor": "DOG300118"
+    },
+    "A247": {
+     "valor": "Parte 3 de 4"
+    },
+    "B247": {
+     "valor": 68
+    },
+    "C247": {
+     "valor": "XS0115607"
+    },
+    "D247": {
+     "valor": "XS0115607"
+    },
+    "A248": {
+     "valor": "Parte 3 de 4"
+    },
+    "B248": {
+     "valor": 69
+    },
+    "C248": {
+     "valor": "XS0115608"
+    },
+    "D248": {
+     "valor": "XS0115608"
+    },
+    "A249": {
+     "valor": "Parte 3 de 4"
+    },
+    "B249": {
+     "valor": 70
+    },
+    "C249": {
+     "valor": "HYI221013"
+    },
+    "D249": {
+     "valor": "HYI221013"
+    },
+    "A250": {
+     "valor": "Parte 3 de 4"
+    },
+    "B250": {
+     "valor": 71
+    },
+    "C250": {
+     "valor": "XXI270320"
+    },
+    "D250": {
+     "valor": "XXI270320"
+    },
+    "A251": {
+     "valor": "Parte 3 de 4"
+    },
+    "B251": {
+     "valor": 72
+    },
+    "C251": {
+     "valor": "up001"
+    },
+    "D251": {
+     "valor": "up001"
+    },
+    "A252": {
+     "valor": "Parte 3 de 4"
+    },
+    "B252": {
+     "valor": 73
+    },
+    "C252": {
+     "valor": "ZEM-KING"
+    },
+    "D252": {
+     "valor": "ZEM-KING"
+    },
+    "A253": {
+     "valor": "Parte 3 de 4"
+    },
+    "B253": {
+     "valor": 74
+    },
+    "C253": {
+     "valor": "butterfly-bed"
+    },
+    "D253": {
+     "valor": "butterfly-bed"
+    },
+    "A254": {
+     "valor": "Parte 3 de 4"
+    },
+    "B254": {
+     "valor": 75
+    },
+    "C254": {
+     "valor": "YH1002FLG"
+    },
+    "D254": {
+     "valor": "YH1002FLG"
+    },
+    "A255": {
+     "valor": "Parte 3 de 4"
+    },
+    "B255": {
+     "valor": 76
+    },
+    "C255": {
+     "valor": "1233f"
+    },
+    "D255": {
+     "valor": "1233f"
+    },
+    "A256": {
+     "valor": "Parte 3 de 4"
+    },
+    "B256": {
+     "valor": 77
+    },
+    "C256": {
+     "valor": "I870000703A1"
+    },
+    "D256": {
+     "valor": "I870000703A1"
+    },
+    "A257": {
+     "valor": "Parte 3 de 4"
+    },
+    "B257": {
+     "valor": 78
+    },
+    "C257": {
+     "valor": "N-F10018-F-BK"
+    },
+    "D257": {
+     "valor": "N-F10018-F-BK"
+    },
+    "A258": {
+     "valor": "Parte 3 de 4"
+    },
+    "B258": {
+     "valor": 79
+    },
+    "C258": {
+     "valor": "LD-01153LG"
+    },
+    "D258": {
+     "valor": "LD-01153LG"
+    },
+    "A259": {
+     "valor": "Parte 3 de 4"
+    },
+    "B259": {
+     "valor": 80
+    },
+    "C259": {
+     "valor": "77087"
+    },
+    "D259": {
+     "valor": "77087"
+    },
+    "A260": {
+     "valor": "Parte 3 de 4"
+    },
+    "B260": {
+     "valor": 81
+    },
+    "C260": {
+     "valor": "77090"
+    },
+    "D260": {
+     "valor": "77090"
+    },
+    "A261": {
+     "valor": "Parte 3 de 4"
+    },
+    "B261": {
+     "valor": 82
+    },
+    "C261": {
+     "valor": "YMO-001-03"
+    },
+    "D261": {
+     "valor": "YMO-001/03"
+    },
+    "A262": {
+     "valor": "Parte 3 de 4"
+    },
+    "B262": {
+     "valor": 83
+    },
+    "C262": {
+     "valor": "orlando"
+    },
+    "D262": {
+     "valor": "orlando"
+    },
+    "A263": {
+     "valor": "Parte 3 de 4"
+    },
+    "B263": {
+     "valor": 84
+    },
+    "C263": {
+     "valor": "RUY230702"
+    },
+    "D263": {
+     "valor": "RUY230702"
+    },
+    "A264": {
+     "valor": "Parte 3 de 4"
+    },
+    "B264": {
+     "valor": 85
+    },
+    "C264": {
+     "valor": "RUY230612"
+    },
+    "D264": {
+     "valor": "RUY230612"
+    },
+    "A265": {
+     "valor": "Parte 4 de 4"
+    },
+    "B265": {
+     "valor": 1
+    },
+    "C265": {
+     "valor": "hd"
+    },
+    "D265": {
+     "valor": "hd"
+    },
+    "A266": {
+     "valor": "Parte 4 de 4"
+    },
+    "B266": {
+     "valor": 2
+    },
+    "C266": {
+     "valor": "PB-14TB"
+    },
+    "D266": {
+     "valor": "PB-14TB"
+    },
+    "A267": {
+     "valor": "Parte 4 de 4"
+    },
+    "B267": {
+     "valor": 3
+    },
+    "C267": {
+     "valor": "1901t"
+    },
+    "D267": {
+     "valor": "1901t"
+    },
+    "A268": {
+     "valor": "Parte 4 de 4"
+    },
+    "B268": {
+     "valor": 4
+    },
+    "C268": {
+     "valor": "1573"
+    },
+    "D268": {
+     "valor": "1573"
+    },
+    "A269": {
+     "valor": "Parte 4 de 4"
+    },
+    "B269": {
+     "valor": 5
+    },
+    "C269": {
+     "valor": "BED36701"
+    },
+    "D269": {
+     "valor": "BED36701"
+    },
+    "A270": {
+     "valor": "Parte 4 de 4"
+    },
+    "B270": {
+     "valor": 6
+    },
+    "C270": {
+     "valor": "2201"
+    },
+    "D270": {
+     "valor": "2201"
+    },
+    "A271": {
+     "valor": "Parte 4 de 4"
+    },
+    "B271": {
+     "valor": 7
+    },
+    "C271": {
+     "valor": "YH1003Fb"
+    },
+    "D271": {
+     "valor": "YH1003Fb"
+    },
+    "A272": {
+     "valor": "Parte 4 de 4"
+    },
+    "B272": {
+     "valor": 8
+    },
+    "C272": {
+     "valor": "2903KBE"
+    },
+    "D272": {
+     "valor": "2903KBE"
+    },
+    "A273": {
+     "valor": "Parte 4 de 4"
+    },
+    "B273": {
+     "valor": 9
+    },
+    "C273": {
+     "valor": "A1721G52006041"
+    },
+    "D273": {
+     "valor": "A1721G52006041"
+    },
+    "A274": {
+     "valor": "Parte 4 de 4"
+    },
+    "B274": {
+     "valor": 10
+    },
+    "C274": {
+     "valor": "lt-148"
+    },
+    "D274": {
+     "valor": "lt-148"
+    },
+    "A275": {
+     "valor": "Parte 4 de 4"
+    },
+    "B275": {
+     "valor": 11
+    },
+    "C275": {
+     "valor": "SOFA-CAMA-SIN-CODIGO"
+    },
+    "D275": {
+     "valor": "SOFA-CAMA-SIN-CODIGO"
+    },
+    "A276": {
+     "valor": "Parte 4 de 4"
+    },
+    "B276": {
+     "valor": 12
+    },
+    "C276": {
+     "valor": "2806t"
+    },
+    "D276": {
+     "valor": "2806t"
+    },
+    "A277": {
+     "valor": "Parte 4 de 4"
+    },
+    "B277": {
+     "valor": 13
+    },
+    "C277": {
+     "valor": "BF039-T-WH"
+    },
+    "D277": {
+     "valor": "BF039-T-WH"
+    },
+    "A278": {
+     "valor": "Parte 4 de 4"
+    },
+    "B278": {
+     "valor": 14
+    },
+    "C278": {
+     "valor": "butterfly-bed-up-bed"
+    },
+    "D278": {
+     "valor": "butterfly-bed-up-bed"
+    },
+    "A279": {
+     "valor": "Parte 4 de 4"
+    },
+    "B279": {
+     "valor": 15
+    },
+    "C279": {
+     "valor": "W160969417"
+    },
+    "D279": {
+     "valor": "W160969417"
+    },
+    "A280": {
+     "valor": "Parte 4 de 4"
+    },
+    "B280": {
+     "valor": 16
+    },
+    "C280": {
+     "valor": "HY013-F-WH"
+    },
+    "D280": {
+     "valor": "HY013-F-WH"
+    },
+    "A281": {
+     "valor": "Parte 4 de 4"
+    },
+    "B281": {
+     "valor": 17
+    },
+    "C281": {
+     "valor": "XHT022-F-W"
+    },
+    "D281": {
+     "valor": "XHT022-F-W"
+    },
+    "A282": {
+     "valor": "Parte 4 de 4"
+    },
+    "B282": {
+     "valor": 18
+    },
+    "C282": {
+     "valor": "1062010734-5-6N"
+    },
+    "D282": {
+     "valor": "1062010734/5/6N"
+    },
+    "A283": {
+     "valor": "Parte 4 de 4"
+    },
+    "B283": {
+     "valor": 19
+    },
+    "C283": {
+     "valor": "1062010751-2-3-4N"
+    },
+    "D283": {
+     "valor": "1062010751/2/3/4N"
+    },
+    "A284": {
+     "valor": "Parte 4 de 4"
+    },
+    "B284": {
+     "valor": 20
+    },
+    "C284": {
+     "valor": "8017-1002-Q"
+    },
+    "D284": {
+     "valor": "8017-1002-Q"
+    },
+    "A285": {
+     "valor": "Parte 4 de 4"
+    },
+    "B285": {
+     "valor": 21
+    },
+    "C285": {
+     "valor": "Y0300300"
+    },
+    "D285": {
+     "valor": "Y0300300"
+    },
+    "A286": {
+     "valor": "Parte 4 de 4"
+    },
+    "B286": {
+     "valor": 22
+    },
+    "C286": {
+     "valor": "YMA01"
+    },
+    "D286": {
+     "valor": "YMA01"
+    },
+    "A287": {
+     "valor": "Parte 4 de 4"
+    },
+    "B287": {
+     "valor": 23
+    },
+    "C287": {
+     "valor": "8010-1001-K"
+    },
+    "D287": {
+     "valor": "8010-1001-K"
+    },
+    "A288": {
+     "valor": "Parte 4 de 4"
+    },
+    "B288": {
+     "valor": 24
+    },
+    "C288": {
+     "valor": "8017-1003-K"
+    },
+    "D288": {
+     "valor": "8017-1003-K"
+    },
+    "A289": {
+     "valor": "Parte 4 de 4"
+    },
+    "B289": {
+     "valor": 25
+    },
+    "C289": {
+     "valor": "YH1003FDG"
+    },
+    "D289": {
+     "valor": "YH1003FDG"
+    },
+    "A290": {
+     "valor": "Parte 4 de 4"
+    },
+    "B290": {
+     "valor": 26
+    },
+    "C290": {
+     "valor": "1062010732N"
+    },
+    "D290": {
+     "valor": "1062010732N"
+    },
+    "A291": {
+     "valor": "Parte 4 de 4"
+    },
+    "B291": {
+     "valor": 27
+    },
+    "C291": {
+     "valor": "1030934"
+    },
+    "D291": {
+     "valor": "1030934"
+    },
+    "A292": {
+     "valor": "Parte 4 de 4"
+    },
+    "B292": {
+     "valor": 28
+    },
+    "C292": {
+     "valor": "81904"
+    },
+    "D292": {
+     "valor": "81904"
+    },
+    "A293": {
+     "valor": "Parte 4 de 4"
+    },
+    "B293": {
+     "valor": 29
+    },
+    "C293": {
+     "valor": "BBCA-156219"
+    },
+    "D293": {
+     "valor": "BBCA-156219"
+    },
+    "A294": {
+     "valor": "Parte 4 de 4"
+    },
+    "B294": {
+     "valor": 30
+    },
+    "C294": {
+     "valor": "BBCA-15621906"
+    },
+    "D294": {
+     "valor": "BBCA-15621906"
+    },
+    "A295": {
+     "valor": "Parte 4 de 4"
+    },
+    "B295": {
+     "valor": 31
+    },
+    "C295": {
+     "valor": "LTSC-2806"
+    },
+    "D295": {
+     "valor": "LTSC-2806"
+    },
+    "A296": {
+     "valor": "Parte 4 de 4"
+    },
+    "B296": {
+     "valor": 32
+    },
+    "C296": {
+     "valor": "LTSC-6877"
+    },
+    "D296": {
+     "valor": "LTSC-6877"
+    },
+    "A297": {
+     "valor": "Parte 4 de 4"
+    },
+    "B297": {
+     "valor": 33
+    },
+    "C297": {
+     "valor": "XXI021502"
+    },
+    "D297": {
+     "valor": "XXI021502"
+    },
+    "A298": {
+     "valor": "Parte 4 de 4"
+    },
+    "B298": {
+     "valor": 34
+    },
+    "C298": {
+     "valor": "XXI021504"
+    },
+    "D298": {
+     "valor": "XXI021504"
+    },
+    "A299": {
+     "valor": "Parte 4 de 4"
+    },
+    "B299": {
+     "valor": 35
+    },
+    "C299": {
+     "valor": "DOG020202"
+    },
+    "D299": {
+     "valor": "DOG020202"
+    },
+    "A300": {
+     "valor": "Parte 4 de 4"
+    },
+    "B300": {
+     "valor": 36
+    },
+    "C300": {
+     "valor": "DOG020204"
+    },
+    "D300": {
+     "valor": "DOG020204"
+    },
+    "A301": {
+     "valor": "Parte 4 de 4"
+    },
+    "B301": {
+     "valor": 37
+    },
+    "C301": {
+     "valor": "DOG020201"
+    },
+    "D301": {
+     "valor": "DOG020201"
+    },
+    "A302": {
+     "valor": "Parte 4 de 4"
+    },
+    "B302": {
+     "valor": 38
+    },
+    "C302": {
+     "valor": "XU023701"
+    },
+    "D302": {
+     "valor": "XU023701"
+    },
+    "A303": {
+     "valor": "Parte 4 de 4"
+    },
+    "B303": {
+     "valor": 39
+    },
+    "C303": {
+     "valor": "XU023703"
+    },
+    "D303": {
+     "valor": "XU023703"
+    },
+    "A304": {
+     "valor": "Parte 4 de 4"
+    },
+    "B304": {
+     "valor": 40
+    },
+    "C304": {
+     "valor": "YOYU020804"
+    },
+    "D304": {
+     "valor": "YOYU020804"
+    },
+    "A305": {
+     "valor": "Parte 4 de 4"
+    },
+    "B305": {
+     "valor": 41
+    },
+    "C305": {
+     "valor": "XD025301"
+    },
+    "D305": {
+     "valor": "XD025301"
+    },
+    "A306": {
+     "valor": "Parte 4 de 4"
+    },
+    "B306": {
+     "valor": 42
+    },
+    "C306": {
+     "valor": "XD025303"
+    },
+    "D306": {
+     "valor": "XD025303"
+    },
+    "A307": {
+     "valor": "Parte 4 de 4"
+    },
+    "B307": {
+     "valor": 43
+    },
+    "C307": {
+     "valor": "DOG020206"
+    },
+    "D307": {
+     "valor": "DOG020206"
+    },
+    "A308": {
+     "valor": "Parte 4 de 4"
+    },
+    "B308": {
+     "valor": 44
+    },
+    "C308": {
+     "valor": "DOG020208"
+    },
+    "D308": {
+     "valor": "DOG020208"
+    },
+    "A309": {
+     "valor": "Parte 4 de 4"
+    },
+    "B309": {
+     "valor": 45
+    },
+    "C309": {
+     "valor": "DOG020205"
+    },
+    "D309": {
+     "valor": "DOG020205"
+    },
+    "A310": {
+     "valor": "Parte 4 de 4"
+    },
+    "B310": {
+     "valor": 46
+    },
+    "C310": {
+     "valor": "YOYU020801"
+    },
+    "D310": {
+     "valor": "YOYU020801"
+    },
+    "A311": {
+     "valor": "Parte 4 de 4"
+    },
+    "B311": {
+     "valor": 47
+    },
+    "C311": {
+     "valor": "YOYU020802_1"
+    },
+    "D311": {
+     "valor": "YOYU020802"
+    },
+    "A312": {
+     "valor": "Parte 4 de 4"
+    },
+    "B312": {
+     "valor": 48
+    },
+    "C312": {
+     "valor": "YOYU020802_2"
+    },
+    "D312": {
+     "valor": "YOYU020802"
+    },
+    "A313": {
+     "valor": "Parte 4 de 4"
+    },
+    "B313": {
+     "valor": 49
+    },
+    "C313": {
+     "valor": "XD025607"
+    },
+    "D313": {
+     "valor": "XD025607"
+    },
+    "A314": {
+     "valor": "Parte 4 de 4"
+    },
+    "B314": {
+     "valor": 50
+    },
+    "C314": {
+     "valor": "YUSE020108"
+    },
+    "D314": {
+     "valor": "YUSE020108"
+    },
+    "A315": {
+     "valor": "Parte 4 de 4"
+    },
+    "B315": {
+     "valor": 51
+    },
+    "C315": {
+     "valor": "QYA021102"
+    },
+    "D315": {
+     "valor": "QYA021102"
+    },
+    "A316": {
+     "valor": "Parte 4 de 4"
+    },
+    "B316": {
+     "valor": 52
+    },
+    "C316": {
+     "valor": "MIK020717"
+    },
+    "D316": {
+     "valor": "MIK020717"
+    },
+    "A317": {
+     "valor": "Parte 4 de 4"
+    },
+    "B317": {
+     "valor": 53
+    },
+    "C317": {
+     "valor": "MIK020711"
+    },
+    "D317": {
+     "valor": "MIK020711"
+    },
+    "A318": {
+     "valor": "Parte 4 de 4"
+    },
+    "B318": {
+     "valor": 54
+    },
+    "C318": {
+     "valor": "ALJ021435"
+    },
+    "D318": {
+     "valor": "ALJ021435"
+    },
+    "A319": {
+     "valor": "Parte 4 de 4"
+    },
+    "B319": {
+     "valor": 55
+    },
+    "C319": {
+     "valor": "ALJ021429"
+    },
+    "D319": {
+     "valor": "ALJ021429"
+    },
+    "A320": {
+     "valor": "Parte 4 de 4"
+    },
+    "B320": {
+     "valor": 56
+    },
+    "C320": {
+     "valor": "ALJ021437"
+    },
+    "D320": {
+     "valor": "ALJ021437"
+    },
+    "A321": {
+     "valor": "Parte 4 de 4"
+    },
+    "B321": {
+     "valor": 57
+    },
+    "C321": {
+     "valor": "MIK020714"
+    },
+    "D321": {
+     "valor": "MIK020714"
+    },
+    "A322": {
+     "valor": "Parte 4 de 4"
+    },
+    "B322": {
+     "valor": 58
+    },
+    "C322": {
+     "valor": "ALJ021438"
+    },
+    "D322": {
+     "valor": "ALJ021438"
+    },
+    "A323": {
+     "valor": "Parte 4 de 4"
+    },
+    "B323": {
+     "valor": 59
+    },
+    "C323": {
+     "valor": "MIK020715"
+    },
+    "D323": {
+     "valor": "MIK020715"
+    },
+    "A324": {
+     "valor": "Parte 4 de 4"
+    },
+    "B324": {
+     "valor": 60
+    },
+    "C324": {
+     "valor": "MIK020716"
+    },
+    "D324": {
+     "valor": "MIK020716"
+    },
+    "A325": {
+     "valor": "Parte 4 de 4"
+    },
+    "B325": {
+     "valor": 61
+    },
+    "C325": {
+     "valor": "MIK020724"
+    },
+    "D325": {
+     "valor": "MIK020724"
+    },
+    "A326": {
+     "valor": "Parte 4 de 4"
+    },
+    "B326": {
+     "valor": 62
+    },
+    "C326": {
+     "valor": "QMW020203"
+    },
+    "D326": {
+     "valor": "QMW020203"
+    },
+    "A327": {
+     "valor": "Parte 4 de 4"
+    },
+    "B327": {
+     "valor": 63
+    },
+    "C327": {
+     "valor": "QMW020207"
+    },
+    "D327": {
+     "valor": "QMW020207"
+    },
+    "A328": {
+     "valor": "Parte 4 de 4"
+    },
+    "B328": {
+     "valor": 64
+    },
+    "C328": {
+     "valor": "QMW020209_1"
+    },
+    "D328": {
+     "valor": "QMW020209"
+    },
+    "A329": {
+     "valor": "Parte 4 de 4"
+    },
+    "B329": {
+     "valor": 65
+    },
+    "C329": {
+     "valor": "QMW020209_2"
+    },
+    "D329": {
+     "valor": "QMW020209"
+    },
+    "A330": {
+     "valor": "Parte 4 de 4"
+    },
+    "B330": {
+     "valor": 66
+    },
+    "C330": {
+     "valor": "ALJ021419"
+    },
+    "D330": {
+     "valor": "ALJ021419"
+    },
+    "A331": {
+     "valor": "Parte 4 de 4"
+    },
+    "B331": {
+     "valor": 67
+    },
+    "C331": {
+     "valor": "MIK020708"
+    },
+    "D331": {
+     "valor": "MIK020708"
+    },
+    "A332": {
+     "valor": "Parte 4 de 4"
+    },
+    "B332": {
+     "valor": 68
+    },
+    "C332": {
+     "valor": "YOYU020427"
+    },
+    "D332": {
+     "valor": "YOYU020427"
+    }
+   }
+  },
+  "Todas las fichas": {
+   "estado": "visible",
+   "dimension": "A1:G253",
+   "filas": 253,
+   "columnas": 7,
+   "congelado": "A2",
+   "filtro": "A1:G253",
+   "combinadas": [],
+   "filas_ocultas": [],
+   "columnas_ocultas": [],
+   "validaciones": [],
+   "imagenes": [],
+   "celdas": {
+    "A1": {
+     "valor": "Diseño original"
+    },
+    "B1": {
+     "valor": "Página"
+    },
+    "C1": {
+     "valor": "Código"
+    },
+    "D1": {
+     "valor": "Producto"
+    },
+    "E1": {
+     "valor": "Precios (+ITBMS)"
+    },
+    "F1": {
+     "valor": "Combo / par"
+    },
+    "G1": {
+     "valor": "Nota"
+    },
+    "A2": {
+     "valor": "NEW FORMAT"
+    },
+    "B2": {
+     "valor": 4
+    },
+    "C2": {
+     "valor": "XHT022-T-W"
+    },
+    "D2": {
+     "valor": "Cama de felpa twin"
+    },
+    "E2": {
+     "valor": "Twin $104.99"
+    },
+    "F2": {
+     "valor": "Twin $179.99"
+    },
+    "A3": {
+     "valor": "NEW FORMAT"
+    },
+    "B3": {
+     "valor": 8
+    },
+    "C3": {
+     "valor": "N-F12002-K-BR"
+    },
+    "D3": {
+     "valor": "Cama king"
+    },
+    "E3": {
+     "valor": "$139.99"
+    },
+    "F3": {
+     "valor": "Combo con colchón $349.99"
+    },
+    "A4": {
+     "valor": "NEW FORMAT"
+    },
+    "B4": {
+     "valor": 12
+    },
+    "C4": {
+     "valor": "ALJ021439"
+    },
+    "D4": {
+     "valor": "Mueble zapatera"
+    },
+    "E4": {
+     "valor": "$89.99"
+    },
+    "A5": {
+     "valor": "NEW FORMAT"
+    },
+    "B5": {
+     "valor": 16
+    },
+    "C5": {
+     "valor": "LTSC-01-2806-K-BL"
+    },
+    "D5": {
+     "valor": "Cama king"
+    },
+    "E5": {
+     "valor": "$129.99"
+    },
+    "F5": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A6": {
+     "valor": "NEW FORMAT"
+    },
+    "B6": {
+     "valor": 20
+    },
+    "C6": {
+     "valor": "QMW020205"
+    },
+    "D6": {
+     "valor": "Mueble zapatera"
+    },
+    "E6": {
+     "valor": "$149.99"
+    },
+    "A7": {
+     "valor": "NEW FORMAT"
+    },
+    "B7": {
+     "valor": 24
+    },
+    "C7": {
+     "valor": "LTSC-01-6877-K-BE"
+    },
+    "D7": {
+     "valor": "Cama king"
+    },
+    "E7": {
+     "valor": "$129.99"
+    },
+    "F7": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A8": {
+     "valor": "NEW FORMAT"
+    },
+    "B8": {
+     "valor": 28
+    },
+    "C8": {
+     "valor": "DS090201"
+    },
+    "D8": {
+     "valor": "Mesa de noche"
+    },
+    "E8": {
+     "valor": "$15.99"
+    },
+    "A9": {
+     "valor": "NEW FORMAT"
+    },
+    "B9": {
+     "valor": 32
+    },
+    "C9": {
+     "valor": "DS090201"
+    },
+    "D9": {
+     "valor": "Mesa de noche"
+    },
+    "E9": {
+     "valor": "$15.99"
+    },
+    "A10": {
+     "valor": "NEW FORMAT"
+    },
+    "B10": {
+     "valor": 36
+    },
+    "C10": {
+     "valor": "XHT022-T-W"
+    },
+    "D10": {
+     "valor": "Cama de felpa twin"
+    },
+    "E10": {
+     "valor": "Twin $104.99"
+    },
+    "F10": {
+     "valor": "Twin $179.99"
+    },
+    "A11": {
+     "valor": "NEW FORMAT"
+    },
+    "B11": {
+     "valor": 40
+    },
+    "C11": {
+     "valor": "XHT022-T-bg"
+    },
+    "D11": {
+     "valor": "Cama de felpa twin"
+    },
+    "E11": {
+     "valor": "Twin $104.99"
+    },
+    "F11": {
+     "valor": "Twin $179.99"
+    },
+    "A12": {
+     "valor": "NEW FORMAT"
+    },
+    "B12": {
+     "valor": 44
+    },
+    "C12": {
+     "valor": "CZX100308"
+    },
+    "D12": {
+     "valor": "Mueble de cocina"
+    },
+    "E12": {
+     "valor": "$45.99"
+    },
+    "A13": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B13": {
+     "valor": 3
+    },
+    "C13": {
+     "valor": "LXI090206"
+    },
+    "D13": {
+     "valor": "Mesa de noche"
+    },
+    "E13": {
+     "valor": "$46.99"
+    },
+    "A14": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B14": {
+     "valor": 7
+    },
+    "C14": {
+     "valor": "DS090208"
+    },
+    "D14": {
+     "valor": "Mesa de noche"
+    },
+    "E14": {
+     "valor": "$15.99"
+    },
+    "A15": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B15": {
+     "valor": 11
+    },
+    "C15": {
+     "valor": "DS090201"
+    },
+    "D15": {
+     "valor": "Mesa de noche"
+    },
+    "E15": {
+     "valor": "$15.99"
+    },
+    "A16": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B16": {
+     "valor": 13
+    },
+    "C16": {
+     "valor": "DS090201"
+    },
+    "D16": {
+     "valor": "Mesa de noche"
+    },
+    "E16": {
+     "valor": "$15.99"
+    },
+    "F16": {
+     "valor": "El par (-10%) $28.78"
+    },
+    "A17": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B17": {
+     "valor": 14
+    },
+    "C17": {
+     "valor": "DS090203"
+    },
+    "D17": {
+     "valor": "Mesa de noche"
+    },
+    "E17": {
+     "valor": "$15.99"
+    },
+    "F17": {
+     "valor": "El par (-10%) $28.78"
+    },
+    "A18": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B18": {
+     "valor": 15
+    },
+    "C18": {
+     "valor": "SHUQ090405"
+    },
+    "D18": {
+     "valor": "Mesa de noche"
+    },
+    "E18": {
+     "valor": "$17.99"
+    },
+    "F18": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "A19": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B19": {
+     "valor": 16
+    },
+    "C19": {
+     "valor": "SHUQ090403"
+    },
+    "D19": {
+     "valor": "Mesa de noche"
+    },
+    "E19": {
+     "valor": "$17.99"
+    },
+    "F19": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "A20": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B20": {
+     "valor": 17
+    },
+    "C20": {
+     "valor": "SHUQ090401"
+    },
+    "D20": {
+     "valor": "Mesa de noche"
+    },
+    "E20": {
+     "valor": "$17.99"
+    },
+    "F20": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "A21": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B21": {
+     "valor": 18
+    },
+    "C21": {
+     "valor": "SHUQ090407"
+    },
+    "D21": {
+     "valor": "Mesa de noche"
+    },
+    "E21": {
+     "valor": "$17.99"
+    },
+    "F21": {
+     "valor": "El par (-10%) $32.38"
+    },
+    "A22": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B22": {
+     "valor": 19
+    },
+    "C22": {
+     "valor": "DS090226"
+    },
+    "D22": {
+     "valor": "Mesa de noche"
+    },
+    "E22": {
+     "valor": "$19.99"
+    },
+    "F22": {
+     "valor": "El par (-10%) $35.98"
+    },
+    "A23": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B23": {
+     "valor": 20
+    },
+    "C23": {
+     "valor": "LXI090408"
+    },
+    "D23": {
+     "valor": "Mesa de noche"
+    },
+    "E23": {
+     "valor": "$21.99"
+    },
+    "F23": {
+     "valor": "El par (-10%) $39.58"
+    },
+    "A24": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B24": {
+     "valor": 21
+    },
+    "C24": {
+     "valor": "ZQ093403"
+    },
+    "D24": {
+     "valor": "Mesa de noche"
+    },
+    "E24": {
+     "valor": "$24.99"
+    },
+    "F24": {
+     "valor": "El par (-10%) $44.98"
+    },
+    "A25": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B25": {
+     "valor": 23
+    },
+    "C25": {
+     "valor": "LXI063101"
+    },
+    "D25": {
+     "valor": "Peinadora"
+    },
+    "E25": {
+     "valor": "$39.99"
+    },
+    "A26": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B26": {
+     "valor": 24
+    },
+    "C26": {
+     "valor": "LXI063102"
+    },
+    "D26": {
+     "valor": "Peinadora"
+    },
+    "E26": {
+     "valor": "$45.99"
+    },
+    "A27": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B27": {
+     "valor": 25
+    },
+    "C27": {
+     "valor": "LXI063103"
+    },
+    "D27": {
+     "valor": "Peinadora + LED"
+    },
+    "E27": {
+     "valor": "$55.99"
+    },
+    "A28": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B28": {
+     "valor": 26
+    },
+    "C28": {
+     "valor": "LXI063104"
+    },
+    "D28": {
+     "valor": "Peinadora"
+    },
+    "E28": {
+     "valor": "$69.99"
+    },
+    "A29": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B29": {
+     "valor": 27
+    },
+    "C29": {
+     "valor": "QYA016603"
+    },
+    "D29": {
+     "valor": "Peinadora"
+    },
+    "E29": {
+     "valor": "$69.99"
+    },
+    "A30": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B30": {
+     "valor": 28
+    },
+    "C30": {
+     "valor": "QYA016601"
+    },
+    "D30": {
+     "valor": "Peinadora"
+    },
+    "E30": {
+     "valor": "$69.99"
+    },
+    "A31": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B31": {
+     "valor": 29
+    },
+    "C31": {
+     "valor": "LXI063105"
+    },
+    "D31": {
+     "valor": "Peinadora + LED"
+    },
+    "E31": {
+     "valor": "$79.99"
+    },
+    "A32": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B32": {
+     "valor": 30
+    },
+    "C32": {
+     "valor": "QYA016604"
+    },
+    "D32": {
+     "valor": "Peinadora + LED"
+    },
+    "E32": {
+     "valor": "$79.99"
+    },
+    "A33": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B33": {
+     "valor": 32
+    },
+    "C33": {
+     "valor": "LXI062903"
+    },
+    "D33": {
+     "valor": "Mueble tocador"
+    },
+    "E33": {
+     "valor": "$69.99"
+    },
+    "A34": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B34": {
+     "valor": 33
+    },
+    "C34": {
+     "valor": "LXI062901"
+    },
+    "D34": {
+     "valor": "Mueble tocador"
+    },
+    "E34": {
+     "valor": "$69.99"
+    },
+    "A35": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B35": {
+     "valor": 34
+    },
+    "C35": {
+     "valor": "ZQ063601"
+    },
+    "D35": {
+     "valor": "Mueble tocador"
+    },
+    "E35": {
+     "valor": "$69.99"
+    },
+    "A36": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B36": {
+     "valor": 35
+    },
+    "C36": {
+     "valor": "LXI062902"
+    },
+    "D36": {
+     "valor": "Mueble tocador"
+    },
+    "E36": {
+     "valor": "$79.99"
+    },
+    "A37": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B37": {
+     "valor": 36
+    },
+    "C37": {
+     "valor": "ZQ063602"
+    },
+    "D37": {
+     "valor": "Mueble tocador"
+    },
+    "E37": {
+     "valor": "$79.99"
+    },
+    "A38": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B38": {
+     "valor": 37
+    },
+    "C38": {
+     "valor": "ZQ063603"
+    },
+    "D38": {
+     "valor": "Mueble tocador"
+    },
+    "E38": {
+     "valor": "$79.99"
+    },
+    "A39": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B39": {
+     "valor": 39
+    },
+    "C39": {
+     "valor": "LXI090402"
+    },
+    "D39": {
+     "valor": "Mesa de noche"
+    },
+    "E39": {
+     "valor": "$21.99"
+    },
+    "F39": {
+     "valor": "El par (-10%) $39.58"
+    },
+    "A40": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B40": {
+     "valor": 40
+    },
+    "C40": {
+     "valor": "LXI090412"
+    },
+    "D40": {
+     "valor": "Mesa de noche"
+    },
+    "E40": {
+     "valor": "$26.99"
+    },
+    "F40": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "A41": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B41": {
+     "valor": 41
+    },
+    "C41": {
+     "valor": "LXI090411"
+    },
+    "D41": {
+     "valor": "Mesa de noche"
+    },
+    "E41": {
+     "valor": "$26.99"
+    },
+    "F41": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "A42": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B42": {
+     "valor": 42
+    },
+    "C42": {
+     "valor": "LXI090410"
+    },
+    "D42": {
+     "valor": "Mesa de noche"
+    },
+    "E42": {
+     "valor": "$26.99"
+    },
+    "F42": {
+     "valor": "El par (-10%) $48.58"
+    },
+    "A43": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B43": {
+     "valor": 43
+    },
+    "C43": {
+     "valor": "LXI090201"
+    },
+    "D43": {
+     "valor": "Mesa de noche"
+    },
+    "E43": {
+     "valor": "$42.99"
+    },
+    "F43": {
+     "valor": "El par (-10%) $77.38"
+    },
+    "A44": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B44": {
+     "valor": 44
+    },
+    "C44": {
+     "valor": "LXI090205"
+    },
+    "D44": {
+     "valor": "Mesa de noche"
+    },
+    "E44": {
+     "valor": "$42.99"
+    },
+    "F44": {
+     "valor": "El par (-10%) $77.38"
+    },
+    "A45": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B45": {
+     "valor": 45
+    },
+    "C45": {
+     "valor": "LXI090206"
+    },
+    "D45": {
+     "valor": "Mesa de noche"
+    },
+    "E45": {
+     "valor": "$46.99"
+    },
+    "F45": {
+     "valor": "El par (-10%) $84.58"
+    },
+    "A46": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B46": {
+     "valor": 46
+    },
+    "C46": {
+     "valor": "LXI090203"
+    },
+    "D46": {
+     "valor": "Mesa de noche"
+    },
+    "E46": {
+     "valor": "$46.99"
+    },
+    "F46": {
+     "valor": "El par (-10%) $84.58"
+    },
+    "A47": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B47": {
+     "valor": 48
+    },
+    "C47": {
+     "valor": "CHCH010906"
+    },
+    "D47": {
+     "valor": "Mueble tocador"
+    },
+    "E47": {
+     "valor": "$69.99"
+    },
+    "A48": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B48": {
+     "valor": 49
+    },
+    "C48": {
+     "valor": "QYA014910"
+    },
+    "D48": {
+     "valor": "Mueble tocador"
+    },
+    "E48": {
+     "valor": "$69.99"
+    },
+    "A49": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B49": {
+     "valor": 50
+    },
+    "C49": {
+     "valor": "QYA014901"
+    },
+    "D49": {
+     "valor": "Tocador + LED"
+    },
+    "E49": {
+     "valor": "$79.99"
+    },
+    "A50": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B50": {
+     "valor": 51
+    },
+    "C50": {
+     "valor": "CHCH010905"
+    },
+    "D50": {
+     "valor": "Tocador + LED"
+    },
+    "E50": {
+     "valor": "$79.99"
+    },
+    "A51": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B51": {
+     "valor": 52
+    },
+    "C51": {
+     "valor": "QYA014903"
+    },
+    "D51": {
+     "valor": "Tocador + LED"
+    },
+    "E51": {
+     "valor": "$79.99"
+    },
+    "A52": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B52": {
+     "valor": 53
+    },
+    "C52": {
+     "valor": "QYA014907"
+    },
+    "D52": {
+     "valor": "Tocador + LED"
+    },
+    "E52": {
+     "valor": "$89.99"
+    },
+    "A53": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B53": {
+     "valor": 54
+    },
+    "C53": {
+     "valor": "CHCH010907"
+    },
+    "D53": {
+     "valor": "Tocador + LED"
+    },
+    "E53": {
+     "valor": "$89.99"
+    },
+    "A54": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B54": {
+     "valor": 55
+    },
+    "C54": {
+     "valor": "LXI063107"
+    },
+    "D54": {
+     "valor": "Tocador + LED"
+    },
+    "E54": {
+     "valor": "$89.99"
+    },
+    "A55": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B55": {
+     "valor": 57
+    },
+    "C55": {
+     "valor": "XXI070507"
+    },
+    "D55": {
+     "valor": "Mueble de TV"
+    },
+    "E55": {
+     "valor": "$79.99"
+    },
+    "A56": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B56": {
+     "valor": 58
+    },
+    "C56": {
+     "valor": "ZQ063607"
+    },
+    "D56": {
+     "valor": "Tocador"
+    },
+    "E56": {
+     "valor": "$79.99"
+    },
+    "A57": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B57": {
+     "valor": 59
+    },
+    "C57": {
+     "valor": "XXI070509"
+    },
+    "D57": {
+     "valor": "Mueble de TV"
+    },
+    "E57": {
+     "valor": "$79.99"
+    },
+    "A58": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B58": {
+     "valor": 60
+    },
+    "C58": {
+     "valor": "ZQ063608"
+    },
+    "D58": {
+     "valor": "Tocador"
+    },
+    "E58": {
+     "valor": "$89.99"
+    },
+    "A59": {
+     "valor": "PRODUCTOS NUEVOS"
+    },
+    "B59": {
+     "valor": 61
+    },
+    "C59": {
+     "valor": "XXI070508"
+    },
+    "D59": {
+     "valor": "Mueble de TV"
+    },
+    "E59": {
+     "valor": "$115.99"
+    },
+    "A60": {
+     "valor": "COLCHONES"
+    },
+    "B60": {
+     "valor": 3
+    },
+    "C60": {
+     "valor": "COLCHON-DULCES-SUENOS-SPRING"
+    },
+    "D60": {
+     "valor": "Colchón Dulces Sueños spring"
+    },
+    "E60": {
+     "valor": "Full $135.99 · Queen $184.99"
+    },
+    "A61": {
+     "valor": "COLCHONES"
+    },
+    "B61": {
+     "valor": 4
+    },
+    "C61": {
+     "valor": "COLCHON-FLEX-SEMIORTOPEDICO"
+    },
+    "D61": {
+     "valor": "Colchón Flex semiortopédico"
+    },
+    "E61": {
+     "valor": "Twin $139.99 · Full $170.99 · Queen $216.99 · King $341.99"
+    },
+    "A62": {
+     "valor": "COLCHONES"
+    },
+    "B62": {
+     "valor": 5
+    },
+    "C62": {
+     "valor": "COLCHON-FIRST-CLASS-SEMIORTOPEDICO"
+    },
+    "D62": {
+     "valor": "Colchón First Class semiortopédico"
+    },
+    "E62": {
+     "valor": "Full $157.99 · Queen $209.99 · King $243.99"
+    },
+    "A63": {
+     "valor": "COLCHONES"
+    },
+    "B63": {
+     "valor": 6
+    },
+    "C63": {
+     "valor": "COLCHON-DR-DREAM-SEMIORTOPEDICO"
+    },
+    "D63": {
+     "valor": "Colchón Dr. Dream semiortopédico"
+    },
+    "E63": {
+     "valor": "Full $160.99 · Queen $210.99 · King $224.99"
+    },
+    "A64": {
+     "valor": "COLCHONES"
+    },
+    "B64": {
+     "valor": 7
+    },
+    "C64": {
+     "valor": "COLCHON-DR-DREAM-ORTOPEDICO"
+    },
+    "D64": {
+     "valor": "Colchón Dr. Dream ortopédico"
+    },
+    "E64": {
+     "valor": "Full $238.99 · Queen $278.99 · King $385.99"
+    },
+    "A65": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B65": {
+     "valor": 6
+    },
+    "C65": {
+     "valor": "LXI090206"
+    },
+    "D65": {
+     "valor": "Mesa de noche"
+    },
+    "E65": {
+     "valor": "$46.99"
+    },
+    "A66": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B66": {
+     "valor": 7
+    },
+    "C66": {
+     "valor": "DS090208"
+    },
+    "D66": {
+     "valor": "Mesa de noche"
+    },
+    "E66": {
+     "valor": "$15.99"
+    },
+    "A67": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B67": {
+     "valor": 8
+    },
+    "C67": {
+     "valor": "DS090201"
+    },
+    "D67": {
+     "valor": "Mesa de noche"
+    },
+    "E67": {
+     "valor": "$15.99"
+    },
+    "A68": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B68": {
+     "valor": 9
+    },
+    "C68": {
+     "valor": "DS090203"
+    },
+    "D68": {
+     "valor": "Mesa de noche"
+    },
+    "E68": {
+     "valor": "$15.99"
+    },
+    "A69": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B69": {
+     "valor": 10
+    },
+    "C69": {
+     "valor": "DS090226"
+    },
+    "D69": {
+     "valor": "Mesa de noche"
+    },
+    "E69": {
+     "valor": "$19.99"
+    },
+    "A70": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B70": {
+     "valor": 11
+    },
+    "C70": {
+     "valor": "DS090214"
+    },
+    "D70": {
+     "valor": "Mesa de noche"
+    },
+    "E70": {
+     "valor": "$19.99"
+    },
+    "A71": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B71": {
+     "valor": 12
+    },
+    "C71": {
+     "valor": "DS090214"
+    },
+    "D71": {
+     "valor": "Mesa de noche"
+    },
+    "E71": {
+     "valor": "$19.99"
+    },
+    "A72": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B72": {
+     "valor": 13
+    },
+    "C72": {
+     "valor": "SHUQ090405"
+    },
+    "D72": {
+     "valor": "Mesa de noche"
+    },
+    "E72": {
+     "valor": "$19.99"
+    },
+    "A73": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B73": {
+     "valor": 14
+    },
+    "C73": {
+     "valor": "SHUQ090403"
+    },
+    "D73": {
+     "valor": "Mesa de noche"
+    },
+    "E73": {
+     "valor": "$19.99"
+    },
+    "A74": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B74": {
+     "valor": 15
+    },
+    "C74": {
+     "valor": "SHUQ090401"
+    },
+    "D74": {
+     "valor": "Mesa de noche"
+    },
+    "E74": {
+     "valor": "$17.99"
+    },
+    "A75": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B75": {
+     "valor": 16
+    },
+    "C75": {
+     "valor": "SHUQ090407"
+    },
+    "D75": {
+     "valor": "Mesa de noche"
+    },
+    "E75": {
+     "valor": "$17.99"
+    },
+    "A76": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B76": {
+     "valor": 17
+    },
+    "C76": {
+     "valor": "ZQ093403"
+    },
+    "D76": {
+     "valor": "Mesa de noche"
+    },
+    "E76": {
+     "valor": "$29.99"
+    },
+    "A77": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B77": {
+     "valor": 18
+    },
+    "C77": {
+     "valor": "ZQ093405"
+    },
+    "D77": {
+     "valor": "Mesa de noche"
+    },
+    "E77": {
+     "valor": "$17.99"
+    },
+    "A78": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B78": {
+     "valor": 19
+    },
+    "C78": {
+     "valor": "ZQ093406"
+    },
+    "D78": {
+     "valor": "Mesa de noche"
+    },
+    "E78": {
+     "valor": "$24.99"
+    },
+    "A79": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B79": {
+     "valor": 20
+    },
+    "C79": {
+     "valor": "LXI090408"
+    },
+    "D79": {
+     "valor": "Mesa de noche"
+    },
+    "E79": {
+     "valor": "$21.99"
+    },
+    "A80": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B80": {
+     "valor": 21
+    },
+    "C80": {
+     "valor": "LXI090410"
+    },
+    "D80": {
+     "valor": "Mesa de noche"
+    },
+    "E80": {
+     "valor": "$26.99"
+    },
+    "A81": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B81": {
+     "valor": 22
+    },
+    "C81": {
+     "valor": "LXI090402"
+    },
+    "D81": {
+     "valor": "Mesa de noche"
+    },
+    "E81": {
+     "valor": "$21.99"
+    },
+    "A82": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B82": {
+     "valor": 23
+    },
+    "C82": {
+     "valor": "LXI090407"
+    },
+    "D82": {
+     "valor": "Mesa de noche"
+    },
+    "E82": {
+     "valor": "$19.99"
+    },
+    "A83": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B83": {
+     "valor": 24
+    },
+    "C83": {
+     "valor": "LXI090407"
+    },
+    "D83": {
+     "valor": "Mesa de noche"
+    },
+    "E83": {
+     "valor": "$19.99"
+    },
+    "A84": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B84": {
+     "valor": 25
+    },
+    "C84": {
+     "valor": "LXI090407"
+    },
+    "D84": {
+     "valor": "Mesa de noche"
+    },
+    "E84": {
+     "valor": "$24.99"
+    },
+    "A85": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B85": {
+     "valor": 26
+    },
+    "C85": {
+     "valor": "LXI090407"
+    },
+    "D85": {
+     "valor": "Mesa de noche"
+    },
+    "E85": {
+     "valor": "$24.99"
+    },
+    "A86": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B86": {
+     "valor": 27
+    },
+    "C86": {
+     "valor": "LXI090411"
+    },
+    "D86": {
+     "valor": "Mesa de noche"
+    },
+    "E86": {
+     "valor": "$26.99"
+    },
+    "A87": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B87": {
+     "valor": 28
+    },
+    "C87": {
+     "valor": "LXI090405"
+    },
+    "D87": {
+     "valor": "Mesa de noche"
+    },
+    "E87": {
+     "valor": "$26.99"
+    },
+    "A88": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B88": {
+     "valor": 29
+    },
+    "C88": {
+     "valor": "LXI090412"
+    },
+    "D88": {
+     "valor": "Mesa de noche"
+    },
+    "E88": {
+     "valor": "$26.99"
+    },
+    "A89": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B89": {
+     "valor": 30
+    },
+    "C89": {
+     "valor": "LXI090406"
+    },
+    "D89": {
+     "valor": "Mesa de noche"
+    },
+    "E89": {
+     "valor": "$26.99"
+    },
+    "A90": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B90": {
+     "valor": 31
+    },
+    "C90": {
+     "valor": "LXI090205"
+    },
+    "D90": {
+     "valor": "Mesa de noche"
+    },
+    "E90": {
+     "valor": "$42.99"
+    },
+    "A91": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B91": {
+     "valor": 32
+    },
+    "C91": {
+     "valor": "LXI090201"
+    },
+    "D91": {
+     "valor": "Mesa de noche"
+    },
+    "E91": {
+     "valor": "$42.99"
+    },
+    "A92": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B92": {
+     "valor": 33
+    },
+    "C92": {
+     "valor": "LXI090203"
+    },
+    "D92": {
+     "valor": "Mesa de noche"
+    },
+    "E92": {
+     "valor": "$46.99"
+    },
+    "A93": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B93": {
+     "valor": 36
+    },
+    "C93": {
+     "valor": "XXI061702"
+    },
+    "D93": {
+     "valor": "Gavetero"
+    },
+    "E93": {
+     "valor": "$129.99"
+    },
+    "A94": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B94": {
+     "valor": 37
+    },
+    "C94": {
+     "valor": "XXI061702"
+    },
+    "D94": {
+     "valor": "Gavetero"
+    },
+    "G94": {
+     "valor": "Ficha sin precio ($--) y sin imagen"
+    },
+    "A95": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B95": {
+     "valor": 38
+    },
+    "C95": {
+     "valor": "XXI061703"
+    },
+    "D95": {
+     "valor": "Gavetero"
+    },
+    "E95": {
+     "valor": "$139.99"
+    },
+    "A96": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B96": {
+     "valor": 39
+    },
+    "C96": {
+     "valor": "XXI061702"
+    },
+    "D96": {
+     "valor": "Gavetero"
+    },
+    "G96": {
+     "valor": "Ficha sin precio ($--) y sin imagen"
+    },
+    "A97": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B97": {
+     "valor": 40
+    },
+    "C97": {
+     "valor": "XXI061701"
+    },
+    "D97": {
+     "valor": "Gavetero"
+    },
+    "E97": {
+     "valor": "$85.99"
+    },
+    "A98": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B98": {
+     "valor": 41
+    },
+    "C98": {
+     "valor": "XXI061702"
+    },
+    "D98": {
+     "valor": "Gavetero"
+    },
+    "G98": {
+     "valor": "Ficha sin precio ($--) y sin imagen"
+    },
+    "A99": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B99": {
+     "valor": 43
+    },
+    "C99": {
+     "valor": "LXI062903"
+    },
+    "D99": {
+     "valor": "Tocador"
+    },
+    "E99": {
+     "valor": "$69.99"
+    },
+    "A100": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B100": {
+     "valor": 44
+    },
+    "C100": {
+     "valor": "LXI062901"
+    },
+    "D100": {
+     "valor": "Tocador"
+    },
+    "E100": {
+     "valor": "$69.99"
+    },
+    "A101": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B101": {
+     "valor": 45
+    },
+    "C101": {
+     "valor": "LXI062902"
+    },
+    "D101": {
+     "valor": "Tocador"
+    },
+    "E101": {
+     "valor": "$79.99"
+    },
+    "A102": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B102": {
+     "valor": 46
+    },
+    "C102": {
+     "valor": "LXI062904"
+    },
+    "D102": {
+     "valor": "Peinadora"
+    },
+    "E102": {
+     "valor": "$79.99"
+    },
+    "A103": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B103": {
+     "valor": 47
+    },
+    "C103": {
+     "valor": "LXI062905"
+    },
+    "D103": {
+     "valor": "Peinadora"
+    },
+    "E103": {
+     "valor": "$69.99"
+    },
+    "A104": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B104": {
+     "valor": 48
+    },
+    "C104": {
+     "valor": "LXI062906"
+    },
+    "D104": {
+     "valor": "Peinadora"
+    },
+    "E104": {
+     "valor": "$79.99"
+    },
+    "A105": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B105": {
+     "valor": 49
+    },
+    "C105": {
+     "valor": "ZQ063601"
+    },
+    "D105": {
+     "valor": "Peinadora"
+    },
+    "E105": {
+     "valor": "$69.99"
+    },
+    "A106": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B106": {
+     "valor": 50
+    },
+    "C106": {
+     "valor": "ZQ063602"
+    },
+    "D106": {
+     "valor": "Peinadora"
+    },
+    "E106": {
+     "valor": "$79.99"
+    },
+    "A107": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B107": {
+     "valor": 51
+    },
+    "C107": {
+     "valor": "ZQ063603"
+    },
+    "D107": {
+     "valor": "Peinadora"
+    },
+    "E107": {
+     "valor": "$79.99"
+    },
+    "A108": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B108": {
+     "valor": 52
+    },
+    "C108": {
+     "valor": "ZQ063605"
+    },
+    "D108": {
+     "valor": "Peinadora"
+    },
+    "E108": {
+     "valor": "$69.99"
+    },
+    "A109": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B109": {
+     "valor": 53
+    },
+    "C109": {
+     "valor": "ZQ063606"
+    },
+    "D109": {
+     "valor": "Peinadora"
+    },
+    "E109": {
+     "valor": "$45.99"
+    },
+    "A110": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B110": {
+     "valor": 54
+    },
+    "C110": {
+     "valor": "ZQ063607"
+    },
+    "D110": {
+     "valor": "Peinadora"
+    },
+    "E110": {
+     "valor": "$79.99"
+    },
+    "A111": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B111": {
+     "valor": 55
+    },
+    "C111": {
+     "valor": "ZQ063608"
+    },
+    "D111": {
+     "valor": "Peinadora"
+    },
+    "E111": {
+     "valor": "$89.99"
+    },
+    "A112": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B112": {
+     "valor": 56
+    },
+    "C112": {
+     "valor": "ZQ063609"
+    },
+    "D112": {
+     "valor": "Peinadora"
+    },
+    "E112": {
+     "valor": "$89.99"
+    },
+    "A113": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B113": {
+     "valor": 58
+    },
+    "C113": {
+     "valor": "ZJ075102"
+    },
+    "D113": {
+     "valor": "Mueble de TV"
+    },
+    "E113": {
+     "valor": "$39.99"
+    },
+    "A114": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B114": {
+     "valor": 59
+    },
+    "C114": {
+     "valor": "ZJ074903"
+    },
+    "D114": {
+     "valor": "Mueble de TV"
+    },
+    "E114": {
+     "valor": "$39.99"
+    },
+    "A115": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B115": {
+     "valor": 60
+    },
+    "C115": {
+     "valor": "ZJ074901"
+    },
+    "D115": {
+     "valor": "Mueble de TV"
+    },
+    "E115": {
+     "valor": "$39.99"
+    },
+    "A116": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B116": {
+     "valor": 61
+    },
+    "C116": {
+     "valor": "ZJ074901"
+    },
+    "D116": {
+     "valor": "Mueble de TV"
+    },
+    "E116": {
+     "valor": "$39.99"
+    },
+    "A117": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B117": {
+     "valor": 62
+    },
+    "C117": {
+     "valor": "ZJ074301"
+    },
+    "D117": {
+     "valor": "Mueble de TV"
+    },
+    "E117": {
+     "valor": "$39.99"
+    },
+    "A118": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B118": {
+     "valor": 63
+    },
+    "C118": {
+     "valor": "ZJ074902"
+    },
+    "D118": {
+     "valor": "Mueble de TV"
+    },
+    "E118": {
+     "valor": "$39.99"
+    },
+    "A119": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B119": {
+     "valor": 64
+    },
+    "C119": {
+     "valor": "LXI071005"
+    },
+    "D119": {
+     "valor": "Mueble de TV"
+    },
+    "E119": {
+     "valor": "$49.99"
+    },
+    "A120": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B120": {
+     "valor": 65
+    },
+    "C120": {
+     "valor": "LXI071006"
+    },
+    "D120": {
+     "valor": "Mueble de TV"
+    },
+    "E120": {
+     "valor": "$59.99"
+    },
+    "A121": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B121": {
+     "valor": 66
+    },
+    "C121": {
+     "valor": "LXI071003"
+    },
+    "D121": {
+     "valor": "Mueble de TV"
+    },
+    "E121": {
+     "valor": "$49.99"
+    },
+    "A122": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B122": {
+     "valor": 67
+    },
+    "C122": {
+     "valor": "LXI071004"
+    },
+    "D122": {
+     "valor": "Mueble de TV"
+    },
+    "E122": {
+     "valor": "$59.99"
+    },
+    "A123": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B123": {
+     "valor": 69
+    },
+    "C123": {
+     "valor": "CHCH070201"
+    },
+    "D123": {
+     "valor": "Mueble de TV"
+    },
+    "E123": {
+     "valor": "$29.99"
+    },
+    "A124": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B124": {
+     "valor": 70
+    },
+    "C124": {
+     "valor": "CHCH070202"
+    },
+    "D124": {
+     "valor": "Mueble de TV"
+    },
+    "E124": {
+     "valor": "$29.99"
+    },
+    "A125": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B125": {
+     "valor": 71
+    },
+    "C125": {
+     "valor": "CHCH070203"
+    },
+    "D125": {
+     "valor": "Mueble de TV"
+    },
+    "E125": {
+     "valor": "$39.99"
+    },
+    "A126": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B126": {
+     "valor": 72
+    },
+    "C126": {
+     "valor": "CHCH070205"
+    },
+    "D126": {
+     "valor": "Mueble de TV"
+    },
+    "E126": {
+     "valor": "$39.99"
+    },
+    "A127": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B127": {
+     "valor": 74
+    },
+    "C127": {
+     "valor": "XXI070506"
+    },
+    "D127": {
+     "valor": "Mueble de TV"
+    },
+    "E127": {
+     "valor": "$109.99"
+    },
+    "A128": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B128": {
+     "valor": 75
+    },
+    "C128": {
+     "valor": "XXI070507"
+    },
+    "D128": {
+     "valor": "Mueble de TV"
+    },
+    "E128": {
+     "valor": "$79.99"
+    },
+    "A129": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B129": {
+     "valor": 76
+    },
+    "C129": {
+     "valor": "XXI070508"
+    },
+    "D129": {
+     "valor": "Mueble de TV"
+    },
+    "E129": {
+     "valor": "$115.99"
+    },
+    "A130": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B130": {
+     "valor": 77
+    },
+    "C130": {
+     "valor": "XXI070509"
+    },
+    "D130": {
+     "valor": "Mueble de TV"
+    },
+    "E130": {
+     "valor": "$79.99"
+    },
+    "A131": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B131": {
+     "valor": 80
+    },
+    "C131": {
+     "valor": "JW017509"
+    },
+    "D131": {
+     "valor": "Tocador"
+    },
+    "E131": {
+     "valor": "$59.99"
+    },
+    "A132": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B132": {
+     "valor": 81
+    },
+    "C132": {
+     "valor": "SHUA010102"
+    },
+    "D132": {
+     "valor": "Mesa ajustable"
+    },
+    "E132": {
+     "valor": "$39.99"
+    },
+    "A133": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B133": {
+     "valor": 82
+    },
+    "C133": {
+     "valor": "XS0114206"
+    },
+    "D133": {
+     "valor": "Escritorio"
+    },
+    "E133": {
+     "valor": "$79.99"
+    },
+    "A134": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B134": {
+     "valor": 83
+    },
+    "C134": {
+     "valor": "clb0119018"
+    },
+    "D134": {
+     "valor": "Escritorio 140cm"
+    },
+    "E134": {
+     "valor": "$149.99"
+    },
+    "A135": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B135": {
+     "valor": 84
+    },
+    "C135": {
+     "valor": "XLB0118616"
+    },
+    "D135": {
+     "valor": "Escritorio en L"
+    },
+    "E135": {
+     "valor": "$59.99"
+    },
+    "A136": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B136": {
+     "valor": 85
+    },
+    "C136": {
+     "valor": "YPN272105"
+    },
+    "D136": {
+     "valor": "Estante"
+    },
+    "E136": {
+     "valor": "$31.99"
+    },
+    "A137": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B137": {
+     "valor": 86
+    },
+    "C137": {
+     "valor": "YPN272106"
+    },
+    "D137": {
+     "valor": "Estante"
+    },
+    "E137": {
+     "valor": "$29.99"
+    },
+    "A138": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B138": {
+     "valor": 87
+    },
+    "C138": {
+     "valor": "YPN272107"
+    },
+    "D138": {
+     "valor": "Estante Walnut"
+    },
+    "E138": {
+     "valor": "$39.99"
+    },
+    "A139": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B139": {
+     "valor": 88
+    },
+    "C139": {
+     "valor": "HYI360701"
+    },
+    "D139": {
+     "valor": "Estante Pine"
+    },
+    "E139": {
+     "valor": "$19.99"
+    },
+    "A140": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B140": {
+     "valor": 89
+    },
+    "C140": {
+     "valor": "HYI360702"
+    },
+    "D140": {
+     "valor": "Estante Pine"
+    },
+    "E140": {
+     "valor": "$25.99"
+    },
+    "A141": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B141": {
+     "valor": 90
+    },
+    "C141": {
+     "valor": "HYI360726"
+    },
+    "D141": {
+     "valor": "Estante Pine"
+    },
+    "E141": {
+     "valor": "$29.99"
+    },
+    "A142": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B142": {
+     "valor": 91
+    },
+    "C142": {
+     "valor": "HYI360743"
+    },
+    "D142": {
+     "valor": "Estante Pine"
+    },
+    "E142": {
+     "valor": "$35.99"
+    },
+    "A143": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B143": {
+     "valor": 92
+    },
+    "C143": {
+     "valor": "HYI360745"
+    },
+    "D143": {
+     "valor": "Estante Pine"
+    },
+    "E143": {
+     "valor": "$29.99"
+    },
+    "A144": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B144": {
+     "valor": 93
+    },
+    "C144": {
+     "valor": "HYI360747"
+    },
+    "D144": {
+     "valor": "Estante Pine"
+    },
+    "E144": {
+     "valor": "$39.99"
+    },
+    "A145": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B145": {
+     "valor": 94
+    },
+    "C145": {
+     "valor": "HYI360748"
+    },
+    "D145": {
+     "valor": "Estante Pine"
+    },
+    "E145": {
+     "valor": "$45.99"
+    },
+    "A146": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B146": {
+     "valor": 95
+    },
+    "C146": {
+     "valor": "XLB271201"
+    },
+    "D146": {
+     "valor": "Librero"
+    },
+    "E146": {
+     "valor": "$19.99"
+    },
+    "A147": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B147": {
+     "valor": 96
+    },
+    "C147": {
+     "valor": "ZQ130107"
+    },
+    "D147": {
+     "valor": "Organizador"
+    },
+    "E147": {
+     "valor": "$19.99"
+    },
+    "A148": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B148": {
+     "valor": 97
+    },
+    "C148": {
+     "valor": "CZX100304"
+    },
+    "D148": {
+     "valor": "Estante type madera"
+    },
+    "E148": {
+     "valor": "$45.99"
+    },
+    "A149": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B149": {
+     "valor": 98
+    },
+    "C149": {
+     "valor": "CZX100308"
+    },
+    "D149": {
+     "valor": "Estante type madera"
+    },
+    "E149": {
+     "valor": "$45.99"
+    },
+    "A150": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B150": {
+     "valor": 99
+    },
+    "C150": {
+     "valor": "CZX100309"
+    },
+    "D150": {
+     "valor": "Estante type madera"
+    },
+    "E150": {
+     "valor": "$49.99"
+    },
+    "A151": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B151": {
+     "valor": 100
+    },
+    "C151": {
+     "valor": "CZX100310"
+    },
+    "D151": {
+     "valor": "Estante type madera"
+    },
+    "E151": {
+     "valor": "$59.99"
+    },
+    "A152": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B152": {
+     "valor": 101
+    },
+    "C152": {
+     "valor": "CZX100311"
+    },
+    "D152": {
+     "valor": "Estante type madera"
+    },
+    "E152": {
+     "valor": "$39.99"
+    },
+    "A153": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B153": {
+     "valor": 102
+    },
+    "C153": {
+     "valor": "HYI220725"
+    },
+    "D153": {
+     "valor": "Estante de cocina"
+    },
+    "E153": {
+     "valor": "$39.99"
+    },
+    "A154": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B154": {
+     "valor": 103
+    },
+    "C154": {
+     "valor": "HYI220725"
+    },
+    "D154": {
+     "valor": "Estante de cocina"
+    },
+    "E154": {
+     "valor": "$45.99"
+    },
+    "A155": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B155": {
+     "valor": 104
+    },
+    "C155": {
+     "valor": "QH221813"
+    },
+    "D155": {
+     "valor": "Estante de cocina"
+    },
+    "E155": {
+     "valor": "$59.99"
+    },
+    "A156": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B156": {
+     "valor": 105
+    },
+    "C156": {
+     "valor": "YOYU060107"
+    },
+    "D156": {
+     "valor": "Gavetero"
+    },
+    "E156": {
+     "valor": "$79.99"
+    },
+    "A157": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B157": {
+     "valor": 106
+    },
+    "C157": {
+     "valor": "YPN272102"
+    },
+    "D157": {
+     "valor": "Estante librero"
+    },
+    "E157": {
+     "valor": "$69.99"
+    },
+    "A158": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B158": {
+     "valor": 107
+    },
+    "C158": {
+     "valor": "ZJ261301"
+    },
+    "D158": {
+     "valor": "Estante librero"
+    },
+    "E158": {
+     "valor": "$59.99"
+    },
+    "A159": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B159": {
+     "valor": 108
+    },
+    "C159": {
+     "valor": "DOG300118"
+    },
+    "D159": {
+     "valor": "Mueble type madera"
+    },
+    "E159": {
+     "valor": "$59.99"
+    },
+    "A160": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B160": {
+     "valor": 109
+    },
+    "C160": {
+     "valor": "XS0115607"
+    },
+    "D160": {
+     "valor": "Escritorio estante"
+    },
+    "E160": {
+     "valor": "$89.99"
+    },
+    "A161": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B161": {
+     "valor": 110
+    },
+    "C161": {
+     "valor": "XS0115608"
+    },
+    "D161": {
+     "valor": "Escritorio estante"
+    },
+    "E161": {
+     "valor": "$89.99"
+    },
+    "A162": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B162": {
+     "valor": 111
+    },
+    "C162": {
+     "valor": "HYI221013"
+    },
+    "D162": {
+     "valor": "Estante type madera"
+    },
+    "E162": {
+     "valor": "$59.99"
+    },
+    "A163": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B163": {
+     "valor": 112
+    },
+    "C163": {
+     "valor": "XLB271206"
+    },
+    "D163": {
+     "valor": "Librero"
+    },
+    "E163": {
+     "valor": "$49.99"
+    },
+    "A164": {
+     "valor": "NUEVOS PRODUCTOS"
+    },
+    "B164": {
+     "valor": 113
+    },
+    "C164": {
+     "valor": "XXI270320"
+    },
+    "D164": {
+     "valor": "Librero"
+    },
+    "E164": {
+     "valor": "$69.99"
+    },
+    "A165": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B165": {
+     "valor": 2
+    },
+    "C165": {
+     "valor": "up001"
+    },
+    "D165": {
+     "valor": "Cama king de metal"
+    },
+    "E165": {
+     "valor": "$109.99"
+    },
+    "F165": {
+     "valor": "Combo con colchón $363.99"
+    },
+    "A166": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B166": {
+     "valor": 3
+    },
+    "C166": {
+     "valor": "ZEM-KING"
+    },
+    "D166": {
+     "valor": "Cama con baúl"
+    },
+    "E166": {
+     "valor": "Queen $229.99 · King $199.99"
+    },
+    "F166": {
+     "valor": "Queen $374.99 · King $449.99"
+    },
+    "G166": {
+     "valor": "Precio queen mayor que king: revisar"
+    },
+    "A167": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B167": {
+     "valor": 4
+    },
+    "C167": {
+     "valor": "butterfly-bed"
+    },
+    "D167": {
+     "valor": "Cama king de metal"
+    },
+    "E167": {
+     "valor": "$109.99"
+    },
+    "F167": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A168": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B168": {
+     "valor": 5
+    },
+    "C168": {
+     "valor": "YH1002FLG"
+    },
+    "D168": {
+     "valor": "Cama full"
+    },
+    "E168": {
+     "valor": "$129.99"
+    },
+    "F168": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "A169": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B169": {
+     "valor": 6
+    },
+    "C169": {
+     "valor": "1233f"
+    },
+    "D169": {
+     "valor": "Cama full"
+    },
+    "E169": {
+     "valor": "$129.99"
+    },
+    "F169": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "A170": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B170": {
+     "valor": 7
+    },
+    "C170": {
+     "valor": "I870000703A1"
+    },
+    "D170": {
+     "valor": "Cama de metal twin"
+    },
+    "E170": {
+     "valor": "$59.99"
+    },
+    "F170": {
+     "valor": "Combo con colchón $139.99"
+    },
+    "A171": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B171": {
+     "valor": 8
+    },
+    "C171": {
+     "valor": "N-F10018-F-BK"
+    },
+    "D171": {
+     "valor": "Cama box de metal"
+    },
+    "E171": {
+     "valor": "Twin $39.99 · Full $59.99 · Queen $79.99 · King $89.99"
+    },
+    "F171": {
+     "valor": "Twin $121.99 · Full $156.99 · Queen $264.99 · King $323.99"
+    },
+    "A172": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B172": {
+     "valor": 9
+    },
+    "C172": {
+     "valor": "LD-01153LG"
+    },
+    "D172": {
+     "valor": "Cama queen con baúl"
+    },
+    "E172": {
+     "valor": "$199.99"
+    },
+    "F172": {
+     "valor": "Combo con colchón $379.99"
+    },
+    "A173": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B173": {
+     "valor": 10
+    },
+    "C173": {
+     "valor": "77087"
+    },
+    "D173": {
+     "valor": "Sofá color gris"
+    },
+    "E173": {
+     "valor": "$189.99"
+    },
+    "A174": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B174": {
+     "valor": 11
+    },
+    "C174": {
+     "valor": "77090"
+    },
+    "D174": {
+     "valor": "Juego de sofás"
+    },
+    "E174": {
+     "valor": "$249.99"
+    },
+    "A175": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B175": {
+     "valor": 19
+    },
+    "C175": {
+     "valor": "YMO-001/03"
+    },
+    "D175": {
+     "valor": "Cama de metal"
+    },
+    "E175": {
+     "valor": "Twin $39.99 · Full $69.99"
+    },
+    "F175": {
+     "valor": "Twin $121.99 · Full $166.99"
+    },
+    "A176": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B176": {
+     "valor": 20
+    },
+    "C176": {
+     "valor": "orlando"
+    },
+    "D176": {
+     "valor": "Cama full con baúl"
+    },
+    "E176": {
+     "valor": "$99.99"
+    },
+    "F176": {
+     "valor": "Combo con colchón $189.99"
+    },
+    "A177": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B177": {
+     "valor": 22
+    },
+    "C177": {
+     "valor": "RUY230702"
+    },
+    "D177": {
+     "valor": "Zapatera 6 niveles"
+    },
+    "E177": {
+     "valor": "$29.99"
+    },
+    "A178": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B178": {
+     "valor": 23
+    },
+    "C178": {
+     "valor": "RUY230612"
+    },
+    "D178": {
+     "valor": "Zapatera 8 niveles"
+    },
+    "E178": {
+     "valor": "$35.99"
+    },
+    "A179": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B179": {
+     "valor": 25
+    },
+    "C179": {
+     "valor": "hd"
+    },
+    "D179": {
+     "valor": "Cama de metal"
+    },
+    "E179": {
+     "valor": "Twin $79.99 · King $109.99"
+    },
+    "F179": {
+     "valor": "Twin $152.99 · King $339.99"
+    },
+    "A180": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B180": {
+     "valor": 27
+    },
+    "C180": {
+     "valor": "PB-14TB"
+    },
+    "D180": {
+     "valor": "Cama box de metal twin"
+    },
+    "E180": {
+     "valor": "$49.99"
+    },
+    "F180": {
+     "valor": "Combo con colchón $121.99"
+    },
+    "A181": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B181": {
+     "valor": 28
+    },
+    "C181": {
+     "valor": "1901t"
+    },
+    "D181": {
+     "valor": "Cama de metal twin"
+    },
+    "E181": {
+     "valor": "$79.99"
+    },
+    "F181": {
+     "valor": "Combo con colchón $151.99"
+    },
+    "A182": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B182": {
+     "valor": 29
+    },
+    "C182": {
+     "valor": "1573"
+    },
+    "D182": {
+     "valor": "Cama queen"
+    },
+    "E182": {
+     "valor": "$99.99"
+    },
+    "F182": {
+     "valor": "Combo con colchón $269.99"
+    },
+    "A183": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B183": {
+     "valor": 30
+    },
+    "C183": {
+     "valor": "BED36701"
+    },
+    "D183": {
+     "valor": "Cama twin"
+    },
+    "E183": {
+     "valor": "$109.99"
+    },
+    "F183": {
+     "valor": "Combo con colchón $181.99"
+    },
+    "A184": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B184": {
+     "valor": 31
+    },
+    "C184": {
+     "valor": "2201"
+    },
+    "D184": {
+     "valor": "Cama queen"
+    },
+    "E184": {
+     "valor": "$109.99"
+    },
+    "F184": {
+     "valor": "Combo con colchón $294.99"
+    },
+    "A185": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B185": {
+     "valor": 32
+    },
+    "C185": {
+     "valor": "YH1003Fb"
+    },
+    "D185": {
+     "valor": "Cama full"
+    },
+    "E185": {
+     "valor": "$129.99"
+    },
+    "F185": {
+     "valor": "Combo con colchón $216.99"
+    },
+    "A186": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B186": {
+     "valor": 33
+    },
+    "C186": {
+     "valor": "2903KBE"
+    },
+    "D186": {
+     "valor": "Cama king"
+    },
+    "E186": {
+     "valor": "$139.99"
+    },
+    "F186": {
+     "valor": "Combo con colchón $373.99"
+    },
+    "A187": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B187": {
+     "valor": 34
+    },
+    "C187": {
+     "valor": "A1721G52006041"
+    },
+    "D187": {
+     "valor": "Camarote full"
+    },
+    "E187": {
+     "valor": "$159.99"
+    },
+    "F187": {
+     "valor": "Combo con colchón $246.99"
+    },
+    "A188": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B188": {
+     "valor": 35
+    },
+    "C188": {
+     "valor": "lt-148"
+    },
+    "D188": {
+     "valor": "Cama full con baúl"
+    },
+    "E188": {
+     "valor": "$189.99"
+    },
+    "F188": {
+     "valor": "Combo con colchón $276.99"
+    },
+    "A189": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B189": {
+     "valor": 36
+    },
+    "C189": {
+     "valor": "SOFA-CAMA-SIN-CODIGO"
+    },
+    "D189": {
+     "valor": "Sofá cama"
+    },
+    "E189": {
+     "valor": "$229.99"
+    },
+    "G189": {
+     "valor": "La ficha no tiene código"
+    },
+    "A190": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B190": {
+     "valor": 37
+    },
+    "C190": {
+     "valor": "2806t"
+    },
+    "D190": {
+     "valor": "Cama twin"
+    },
+    "E190": {
+     "valor": "$109.99"
+    },
+    "F190": {
+     "valor": "Combo con colchón $181.99"
+    },
+    "A191": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B191": {
+     "valor": 40
+    },
+    "C191": {
+     "valor": "BF039-T-WH"
+    },
+    "D191": {
+     "valor": "Cama twin"
+    },
+    "E191": {
+     "valor": "$99.99"
+    },
+    "F191": {
+     "valor": "Combo con colchón $189.99"
+    },
+    "A192": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B192": {
+     "valor": 41
+    },
+    "C192": {
+     "valor": "butterfly-bed-up-bed"
+    },
+    "D192": {
+     "valor": "Cama twin"
+    },
+    "E192": {
+     "valor": "$79.99"
+    },
+    "F192": {
+     "valor": "Combo con colchón $159.99"
+    },
+    "A193": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B193": {
+     "valor": 42
+    },
+    "C193": {
+     "valor": "W160969417"
+    },
+    "D193": {
+     "valor": "Cama full"
+    },
+    "E193": {
+     "valor": "$89.99"
+    },
+    "F193": {
+     "valor": "Combo con colchón $269.99"
+    },
+    "A194": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B194": {
+     "valor": 43
+    },
+    "C194": {
+     "valor": "HY013-F-WH"
+    },
+    "D194": {
+     "valor": "Cama full"
+    },
+    "E194": {
+     "valor": "$159.99"
+    },
+    "F194": {
+     "valor": "Combo con colchón $239.99"
+    },
+    "A195": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B195": {
+     "valor": 44
+    },
+    "C195": {
+     "valor": "XHT022-F-W"
+    },
+    "D195": {
+     "valor": "Cama de felpa"
+    },
+    "E195": {
+     "valor": "Twin $104.99 · Full $129.99 · Queen $— · King $169.99"
+    },
+    "F195": {
+     "valor": "Twin $179.99 · Full $219.99 · Queen $— · King $399.99"
+    },
+    "G195": {
+     "valor": "Precio queen en blanco ($00)"
+    },
+    "A196": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B196": {
+     "valor": 45
+    },
+    "C196": {
+     "valor": "1062010734/5/6N"
+    },
+    "D196": {
+     "valor": "Cama con estantes"
+    },
+    "E196": {
+     "valor": "Full $149.99 · Queen $169.99 · King $179.99"
+    },
+    "F196": {
+     "valor": "Full $229.99 · Queen $329.99 · King $399.99"
+    },
+    "A197": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B197": {
+     "valor": 46
+    },
+    "C197": {
+     "valor": "1062010751/2/3/4N"
+    },
+    "D197": {
+     "valor": "Cama con estantes"
+    },
+    "E197": {
+     "valor": "Full $149.99 · Queen $169.99 · King $179.99"
+    },
+    "F197": {
+     "valor": "Full $229.99 · Queen $329.99 · King $399.99"
+    },
+    "A198": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B198": {
+     "valor": 47
+    },
+    "C198": {
+     "valor": "8017-1002-Q"
+    },
+    "D198": {
+     "valor": "Cama queen"
+    },
+    "E198": {
+     "valor": "$109.99"
+    },
+    "F198": {
+     "valor": "Combo con colchón $289.99"
+    },
+    "A199": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B199": {
+     "valor": 48
+    },
+    "C199": {
+     "valor": "Y0300300"
+    },
+    "D199": {
+     "valor": "Cama queen"
+    },
+    "E199": {
+     "valor": "$159.99"
+    },
+    "F199": {
+     "valor": "Combo con colchón $319.99"
+    },
+    "A200": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B200": {
+     "valor": 49
+    },
+    "C200": {
+     "valor": "YMA01"
+    },
+    "D200": {
+     "valor": "Cama king"
+    },
+    "E200": {
+     "valor": "$149.99"
+    },
+    "F200": {
+     "valor": "Combo con colchón $383.99"
+    },
+    "A201": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B201": {
+     "valor": 50
+    },
+    "C201": {
+     "valor": "8010-1001-K"
+    },
+    "D201": {
+     "valor": "Cama king"
+    },
+    "E201": {
+     "valor": "$139.99"
+    },
+    "F201": {
+     "valor": "Combo con colchón $369.99"
+    },
+    "A202": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B202": {
+     "valor": 51
+    },
+    "C202": {
+     "valor": "8017-1003-K"
+    },
+    "D202": {
+     "valor": "Cama king"
+    },
+    "E202": {
+     "valor": "$129.99"
+    },
+    "F202": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A203": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B203": {
+     "valor": 52
+    },
+    "C203": {
+     "valor": "YH1003FDG"
+    },
+    "D203": {
+     "valor": "Cama full"
+    },
+    "E203": {
+     "valor": "$129.99"
+    },
+    "F203": {
+     "valor": "Combo con colchón $209.99"
+    },
+    "A204": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B204": {
+     "valor": 53
+    },
+    "C204": {
+     "valor": "butterfly-bed"
+    },
+    "D204": {
+     "valor": "Cama king"
+    },
+    "E204": {
+     "valor": "$109.99"
+    },
+    "F204": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A205": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B205": {
+     "valor": 54
+    },
+    "C205": {
+     "valor": "1062010732N"
+    },
+    "D205": {
+     "valor": "Cama king"
+    },
+    "E205": {
+     "valor": "$179.99"
+    },
+    "F205": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A206": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B206": {
+     "valor": 55
+    },
+    "C206": {
+     "valor": "1030934"
+    },
+    "D206": {
+     "valor": "Cama queen"
+    },
+    "E206": {
+     "valor": "Queen $99.99 · King $105.99"
+    },
+    "F206": {
+     "valor": "Queen $258.99 · King $315.99"
+    },
+    "A207": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B207": {
+     "valor": 56
+    },
+    "C207": {
+     "valor": "81904"
+    },
+    "D207": {
+     "valor": "Cama queen"
+    },
+    "E207": {
+     "valor": "Queen $109.99 · King $105.99"
+    },
+    "F207": {
+     "valor": "Queen $268.99 · King $339.99"
+    },
+    "G207": {
+     "valor": "Precio king menor que queen: revisar"
+    },
+    "A208": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B208": {
+     "valor": 57
+    },
+    "C208": {
+     "valor": "BBCA-156219"
+    },
+    "D208": {
+     "valor": "Cama queen"
+    },
+    "E208": {
+     "valor": "Full $89.99 · Queen $99.99 · King $119.99"
+    },
+    "F208": {
+     "valor": "Full $175.99 · Queen $258.99 · King $329.99"
+    },
+    "A209": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B209": {
+     "valor": 58
+    },
+    "C209": {
+     "valor": "BBCA-15621906"
+    },
+    "D209": {
+     "valor": "Cama queen"
+    },
+    "E209": {
+     "valor": "Full $89.99 · Queen $109.99 · King $139.99"
+    },
+    "F209": {
+     "valor": "Full $175.99 · Queen $268.99 · King $349.99"
+    },
+    "A210": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B210": {
+     "valor": 59
+    },
+    "C210": {
+     "valor": "N-F12002-K-BR"
+    },
+    "D210": {
+     "valor": "Cama king"
+    },
+    "E210": {
+     "valor": "$139.99"
+    },
+    "F210": {
+     "valor": "Combo con colchón $349.99"
+    },
+    "A211": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B211": {
+     "valor": 60
+    },
+    "C211": {
+     "valor": "LTSC-2806"
+    },
+    "D211": {
+     "valor": "Cama king"
+    },
+    "E211": {
+     "valor": "$129.99"
+    },
+    "F211": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A212": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B212": {
+     "valor": 61
+    },
+    "C212": {
+     "valor": "LTSC-6877"
+    },
+    "D212": {
+     "valor": "Cama king"
+    },
+    "E212": {
+     "valor": "$129.99"
+    },
+    "F212": {
+     "valor": "Combo con colchón $339.99"
+    },
+    "A213": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B213": {
+     "valor": 63
+    },
+    "C213": {
+     "valor": "XXI021502"
+    },
+    "D213": {
+     "valor": "Mueble zapatera"
+    },
+    "E213": {
+     "valor": "$69.99"
+    },
+    "A214": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B214": {
+     "valor": 64
+    },
+    "C214": {
+     "valor": "XXI021504"
+    },
+    "D214": {
+     "valor": "Mueble zapatera"
+    },
+    "E214": {
+     "valor": "$94.99"
+    },
+    "A215": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B215": {
+     "valor": 65
+    },
+    "C215": {
+     "valor": "DOG020202"
+    },
+    "D215": {
+     "valor": "Mueble zapatera"
+    },
+    "E215": {
+     "valor": "$69.99"
+    },
+    "A216": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B216": {
+     "valor": 66
+    },
+    "C216": {
+     "valor": "DOG020204"
+    },
+    "D216": {
+     "valor": "Mueble zapatera"
+    },
+    "E216": {
+     "valor": "$94.99"
+    },
+    "A217": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B217": {
+     "valor": 67
+    },
+    "C217": {
+     "valor": "DOG020201"
+    },
+    "D217": {
+     "valor": "Mueble zapatera"
+    },
+    "E217": {
+     "valor": "$59.99"
+    },
+    "A218": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B218": {
+     "valor": 68
+    },
+    "C218": {
+     "valor": "XU023701"
+    },
+    "D218": {
+     "valor": "Mueble zapatera"
+    },
+    "E218": {
+     "valor": "$59.99"
+    },
+    "A219": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B219": {
+     "valor": 69
+    },
+    "C219": {
+     "valor": "XU023703"
+    },
+    "D219": {
+     "valor": "Mueble zapatera"
+    },
+    "E219": {
+     "valor": "$79.99"
+    },
+    "A220": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B220": {
+     "valor": 70
+    },
+    "C220": {
+     "valor": "YOYU020804"
+    },
+    "D220": {
+     "valor": "Mueble zapatera"
+    },
+    "E220": {
+     "valor": "$89.99"
+    },
+    "A221": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B221": {
+     "valor": 71
+    },
+    "C221": {
+     "valor": "XD025301"
+    },
+    "D221": {
+     "valor": "Mueble zapatera"
+    },
+    "E221": {
+     "valor": "$80.64"
+    },
+    "A222": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B222": {
+     "valor": 72
+    },
+    "C222": {
+     "valor": "XD025303"
+    },
+    "D222": {
+     "valor": "Mueble zapatera"
+    },
+    "E222": {
+     "valor": "$109.99"
+    },
+    "A223": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B223": {
+     "valor": 73
+    },
+    "C223": {
+     "valor": "DOG020206"
+    },
+    "D223": {
+     "valor": "Mueble zapatera"
+    },
+    "E223": {
+     "valor": "$59.99"
+    },
+    "A224": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B224": {
+     "valor": 74
+    },
+    "C224": {
+     "valor": "DOG020208"
+    },
+    "D224": {
+     "valor": "Mueble zapatera"
+    },
+    "E224": {
+     "valor": "$89.99"
+    },
+    "A225": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B225": {
+     "valor": 75
+    },
+    "C225": {
+     "valor": "DOG020205"
+    },
+    "D225": {
+     "valor": "Mueble zapatera"
+    },
+    "E225": {
+     "valor": "$49.99"
+    },
+    "A226": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B226": {
+     "valor": 76
+    },
+    "C226": {
+     "valor": "YOYU020801"
+    },
+    "D226": {
+     "valor": "Mueble zapatera"
+    },
+    "E226": {
+     "valor": "$49.99"
+    },
+    "A227": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B227": {
+     "valor": 77
+    },
+    "C227": {
+     "valor": "YOYU020802"
+    },
+    "D227": {
+     "valor": "Mueble zapatera"
+    },
+    "E227": {
+     "valor": "$59.99"
+    },
+    "A228": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B228": {
+     "valor": 78
+    },
+    "C228": {
+     "valor": "YOYU020802"
+    },
+    "D228": {
+     "valor": "Mueble zapatera"
+    },
+    "E228": {
+     "valor": "$59.99"
+    },
+    "A229": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B229": {
+     "valor": 79
+    },
+    "C229": {
+     "valor": "XD025607"
+    },
+    "D229": {
+     "valor": "Mueble zapatera"
+    },
+    "E229": {
+     "valor": "$149.99"
+    },
+    "A230": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B230": {
+     "valor": 80
+    },
+    "C230": {
+     "valor": "YUSE020108"
+    },
+    "D230": {
+     "valor": "Mueble zapatera"
+    },
+    "E230": {
+     "valor": "$149.99"
+    },
+    "A231": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B231": {
+     "valor": 81
+    },
+    "C231": {
+     "valor": "QYA021102"
+    },
+    "D231": {
+     "valor": "Mueble zapatera"
+    },
+    "E231": {
+     "valor": "$69.99"
+    },
+    "A232": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B232": {
+     "valor": 82
+    },
+    "C232": {
+     "valor": "MIK020717"
+    },
+    "D232": {
+     "valor": "Mueble zapatera"
+    },
+    "E232": {
+     "valor": "$59.99"
+    },
+    "A233": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B233": {
+     "valor": 83
+    },
+    "C233": {
+     "valor": "MIK020711"
+    },
+    "D233": {
+     "valor": "Mueble zapatera"
+    },
+    "E233": {
+     "valor": "$69.99"
+    },
+    "A234": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B234": {
+     "valor": 84
+    },
+    "C234": {
+     "valor": "ALJ021435"
+    },
+    "D234": {
+     "valor": "Mueble zapatera"
+    },
+    "E234": {
+     "valor": "$69.99"
+    },
+    "A235": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B235": {
+     "valor": 85
+    },
+    "C235": {
+     "valor": "ALJ021429"
+    },
+    "D235": {
+     "valor": "Mueble zapatera"
+    },
+    "E235": {
+     "valor": "$59.99"
+    },
+    "A236": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B236": {
+     "valor": 86
+    },
+    "C236": {
+     "valor": "ALJ021437"
+    },
+    "D236": {
+     "valor": "Mueble zapatera"
+    },
+    "E236": {
+     "valor": "$69.99"
+    },
+    "A237": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B237": {
+     "valor": 87
+    },
+    "C237": {
+     "valor": "MIK020714"
+    },
+    "D237": {
+     "valor": "Mueble zapatera"
+    },
+    "E237": {
+     "valor": "$79.99"
+    },
+    "A238": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B238": {
+     "valor": 88
+    },
+    "C238": {
+     "valor": "ALJ021438"
+    },
+    "D238": {
+     "valor": "Mueble zapatera"
+    },
+    "E238": {
+     "valor": "$79.99"
+    },
+    "A239": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B239": {
+     "valor": 89
+    },
+    "C239": {
+     "valor": "MIK020715"
+    },
+    "D239": {
+     "valor": "Mueble zapatera"
+    },
+    "E239": {
+     "valor": "$89.99"
+    },
+    "A240": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B240": {
+     "valor": 90
+    },
+    "C240": {
+     "valor": "ALJ021439"
+    },
+    "D240": {
+     "valor": "Mueble zapatera"
+    },
+    "E240": {
+     "valor": "$89.99"
+    },
+    "A241": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B241": {
+     "valor": 91
+    },
+    "C241": {
+     "valor": "MIK020716"
+    },
+    "D241": {
+     "valor": "Mueble zapatera"
+    },
+    "E241": {
+     "valor": "$119.99"
+    },
+    "A242": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B242": {
+     "valor": 92
+    },
+    "C242": {
+     "valor": "MIK020724"
+    },
+    "D242": {
+     "valor": "Mueble zapatera"
+    },
+    "E242": {
+     "valor": "$119.99"
+    },
+    "A243": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B243": {
+     "valor": 93
+    },
+    "C243": {
+     "valor": "QMW020203"
+    },
+    "D243": {
+     "valor": "Mueble zapatera"
+    },
+    "E243": {
+     "valor": "$109.99"
+    },
+    "A244": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B244": {
+     "valor": 94
+    },
+    "C244": {
+     "valor": "QMW020205"
+    },
+    "D244": {
+     "valor": "Mueble zapatera"
+    },
+    "E244": {
+     "valor": "$149.99"
+    },
+    "A245": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B245": {
+     "valor": 95
+    },
+    "C245": {
+     "valor": "QMW020207"
+    },
+    "D245": {
+     "valor": "Mueble zapatera"
+    },
+    "E245": {
+     "valor": "$89.99"
+    },
+    "A246": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B246": {
+     "valor": 96
+    },
+    "C246": {
+     "valor": "QMW020209"
+    },
+    "D246": {
+     "valor": "Mueble zapatera"
+    },
+    "E246": {
+     "valor": "$129.99"
+    },
+    "A247": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B247": {
+     "valor": 97
+    },
+    "C247": {
+     "valor": "ALJ021419"
+    },
+    "D247": {
+     "valor": "Mueble zapatera"
+    },
+    "E247": {
+     "valor": "$69.99"
+    },
+    "A248": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B248": {
+     "valor": 98
+    },
+    "C248": {
+     "valor": "MIK020708"
+    },
+    "D248": {
+     "valor": "Mueble zapatera"
+    },
+    "E248": {
+     "valor": "$99.99"
+    },
+    "A249": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B249": {
+     "valor": 99
+    },
+    "C249": {
+     "valor": "YOYU020427"
+    },
+    "D249": {
+     "valor": "Mueble zapatera"
+    },
+    "E249": {
+     "valor": "$89.99"
+    },
+    "A250": {
+     "valor": "INVENT. D´CASA"
+    },
+    "B250": {
+     "valor": 100
+    },
+    "C250": {
+     "valor": "QMW020209"
+    },
+    "D250": {
+     "valor": "Mueble zapatera"
+    },
+    "E250": {
+     "valor": "$129.99"
+    },
+    "A251": {
+     "valor": "SOFÁS"
+    },
+    "B251": {
+     "valor": 1
+    },
+    "C251": {
+     "valor": "77087"
+    },
+    "D251": {
+     "valor": "Sofá color gris"
+    },
+    "E251": {
+     "valor": "$189.99"
+    },
+    "A252": {
+     "valor": "SOFÁS"
+    },
+    "B252": {
+     "valor": 2
+    },
+    "C252": {
+     "valor": "77090"
+    },
+    "D252": {
+     "valor": "Juego de sofás"
+    },
+    "E252": {
+     "valor": "$249.99"
+    },
+    "A253": {
+     "valor": "SOFÁS"
+    },
+    "B253": {
+     "valor": 3
+    },
+    "C253": {
+     "valor": "SOFA-CAMA-SIN-CODIGO"
+    },
+    "D253": {
+     "valor": "Sofá cama"
+    },
+    "E253": {
+     "valor": "$229.99"
+    },
+    "G253": {
+     "valor": "La ficha no tiene código"
+    }
+   }
+  },
+  "Notas": {
+   "estado": "visible",
+   "dimension": "A1:B9",
+   "filas": 9,
+   "columnas": 2,
+   "congelado": "A2",
+   "filtro": "A1:B9",
+   "combinadas": [],
+   "filas_ocultas": [],
+   "columnas_ocultas": [],
+   "validaciones": [],
+   "imagenes": [],
+   "celdas": {
+    "A1": {
+     "valor": "Tema"
+    },
+    "B1": {
+     "valor": "Detalle"
+    },
+    "A2": {
+     "valor": "Cómo se armó"
+    },
+    "B2": {
+     "valor": "Se leyeron los 6 diseños de D'CASA (copias de trabajo; los originales no se modificaron). Cada ficha de precio = una fila en 'Todas las fichas'. 'Productos' agrupa fichas repetidas del mismo código y precio."
+    },
+    "A3": {
+     "valor": "Stock"
+    },
+    "B3": {
+     "valor": "Canva no informa por API qué páginas están ocultas, así que la columna Stock queda 'Sin confirmar'. Marca las ocultas y se puede completar."
+    },
+    "A4": {
+     "valor": "Imágenes"
+    },
+    "B4": {
+     "valor": "331 imágenes, una por página, en 4 proyectos Canva (Canva limita a 100 páginas por diseño). El título de cada página es el nombre de archivo. Descarga cada parte como PNG/JPG y usa el script renombrar para ponerles el nombre por código."
+    },
+    "A5": {
+     "valor": "Precios"
+    },
+    "B5": {
+     "valor": "Todos los precios son +ITBMS, tal como aparecen en las fichas."
+    },
+    "A6": {
+     "valor": "Parte 1"
+    },
+    "B6": {
+     "valor": "https://www.canva.com/d/ZEAqjHcqfbooH6r"
+    },
+    "A7": {
+     "valor": "Parte 2"
+    },
+    "B7": {
+     "valor": "https://www.canva.com/d/DX0ZUq91_FZQR5c"
+    },
+    "A8": {
+     "valor": "Parte 3"
+    },
+    "B8": {
+     "valor": "https://www.canva.com/d/8INj7YaSqXQ5wOa"
+    },
+    "A9": {
+     "valor": "Parte 4"
+    },
+    "B9": {
+     "valor": "https://www.canva.com/d/R8HXa4J5kHXcvuw"
+    }
+   }
+  }
+ }
+}

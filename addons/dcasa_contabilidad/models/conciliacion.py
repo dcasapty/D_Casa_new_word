@@ -11,8 +11,17 @@ Se asume la moneda de la empresa (USD), que es la de todos los bancos de D'CASA.
 import re
 
 from odoo import Command, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.fields import Domain
+
+GRUPO_CONCILIAR = 'account.group_account_user'  # el del menú Contabilidad › Bancos
+
+
+def _exigir_contador(env):
+    """La conciliación lee y reescribe apuntes: el grupo se exige en el servidor (Odoo expone por
+    RPC todo método público; el ACL de account.bank.statement.line es más ancho que el menú)."""
+    if not env.su and not env.user.has_group(GRUPO_CONCILIAR):
+        raise AccessError(env._('La conciliación bancaria es solo para quien lleva la contabilidad.'))
 
 
 def _apunte_vals(cuenta, partner, nombre, saldo, moneda, move):
@@ -31,8 +40,10 @@ def _apunte_vals(cuenta, partner, nombre, saldo, moneda, move):
 class AccountBankStatementLine(models.Model):
     _inherit = 'account.bank.statement.line'
 
+    @api.private
     def dcasa_candidatos(self, busqueda=None, limite=30):
         """Apuntes abiertos que pueden explicar este movimiento, los más probables primero."""
+        _exigir_contador(self.env)
         self.ensure_one()
         entra = self.amount > 0
         # Facturas abiertas (por cobrar / por pagar) y pagos ya registrados que esperan el banco
@@ -64,12 +75,14 @@ class AccountBankStatementLine(models.Model):
 
         return sorted(apuntes, key=lambda a: (-puntaje(a), -a.date.toordinal()))[:limite], puntaje
 
+    @api.private
     def dcasa_conciliar(self, apunte_ids=(), cuenta_id=None, etiqueta=None, partner_id=None):
         """Explica lo que falta del movimiento con apuntes abiertos y, si sobra, con una cuenta.
 
         Solo se reemplaza la línea transitoria (lo pendiente): lo ya conciliado antes, en una
         conciliación parcial, se conserva tal cual.
         """
+        _exigir_contador(self.env)
         self.ensure_one()
         moneda = self.company_id.currency_id
         move = self.move_id
@@ -117,8 +130,10 @@ class AccountBankStatementLine(models.Model):
             (contrapartida | apunte).reconcile()
         return True
 
+    @api.private
     def dcasa_conciliar_automatico(self):
         """Concilia solo lo inequívoco: un único candidato con el mismo monto y referencia o cliente."""
+        _exigir_contador(self.env)
         hechos = self.browse()
         for linea in self.filtered(lambda ln: not ln.is_reconciled):
             candidatos, puntaje = linea.dcasa_candidatos(limite=5)
@@ -147,7 +162,8 @@ class AccountJournal(models.Model):
 
 
 class DcasaConciliacion(models.AbstractModel):
-    """API de la pantalla «Conciliación bancaria»."""
+    """API de la pantalla «Conciliación bancaria». Pública (la llama el JS), pero cada método
+    exige ``account.group_account_user`` en el servidor: es un AbstractModel sin ACL."""
     _name = 'dcasa.conciliacion'
     _description = "Conciliación bancaria de D'CASA"
 
@@ -164,6 +180,7 @@ class DcasaConciliacion(models.AbstractModel):
 
     @api.model
     def diarios(self):
+        _exigir_contador(self.env)
         diarios = self.env['account.journal'].search([('type', 'in', ('bank', 'cash')),
                                                       ('company_id', 'in', self.env.companies.ids)])
         Linea = self.env['account.bank.statement.line']
@@ -173,6 +190,7 @@ class DcasaConciliacion(models.AbstractModel):
 
     @api.model
     def pendientes(self, journal_id):
+        _exigir_contador(self.env)
         lineas = self.env['account.bank.statement.line'].search(
             [('journal_id', '=', journal_id), ('is_reconciled', '=', False)], order='date desc, id desc', limit=300)
         return [{'id': ln.id, 'fecha': str(ln.date), 'concepto': ln.payment_ref or '', 'monto': ln.amount,
@@ -181,6 +199,7 @@ class DcasaConciliacion(models.AbstractModel):
 
     @api.model
     def candidatos(self, linea_id, busqueda=None):
+        _exigir_contador(self.env)
         linea = self.env['account.bank.statement.line'].browse(linea_id)
         apuntes, puntaje = linea.dcasa_candidatos(busqueda=busqueda)
         return [{**self._apunte(a), 'sugerido': puntaje(a) >= 7} for a in apuntes]
@@ -188,6 +207,7 @@ class DcasaConciliacion(models.AbstractModel):
     @api.model
     def cuentas_rapidas(self):
         """Cuentas para registrar un movimiento sin factura (comisiones, cargos, intereses, otros)."""
+        _exigir_contador(self.env)
         cuentas = self.env['account.account'].search([
             ('company_ids', 'in', self.env.company.ids),
             ('account_type', 'in', ('expense', 'expense_other', 'income_other', 'liability_current',
@@ -202,18 +222,21 @@ class DcasaConciliacion(models.AbstractModel):
 
     @api.model
     def conciliar(self, linea_id, apunte_ids=(), cuenta_id=None, etiqueta=None):
+        _exigir_contador(self.env)
         linea = self.env['account.bank.statement.line'].browse(linea_id)
         linea.dcasa_conciliar(apunte_ids=apunte_ids, cuenta_id=cuenta_id, etiqueta=etiqueta)
         return {'conciliado': linea.is_reconciled}
 
     @api.model
     def automatico(self, journal_id):
+        _exigir_contador(self.env)
         lineas = self.env['account.bank.statement.line'].search(
             [('journal_id', '=', journal_id), ('is_reconciled', '=', False)])
         return len(lineas.dcasa_conciliar_automatico())
 
     @api.model
     def deshacer(self, linea_id):
+        _exigir_contador(self.env)
         self.env['account.bank.statement.line'].browse(linea_id).action_undo_reconciliation()
         return True
 

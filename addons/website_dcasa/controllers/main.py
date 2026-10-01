@@ -1,12 +1,51 @@
+import json
+
 from odoo import http
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.addons.website_sale.controllers.main import WebsiteSale
 from odoo.fields import Domain
 from odoo.http import request
+from odoo.tools.json import scriptsafe as json_scriptsafe
+
+# Nombre de la tienda en las migas de los datos estructurados (Odoo escribe «All Products»
+# en duro, sin traducir). Igual que la miga visible de la ficha.
+MIGA_TIENDA = 'Todos los productos'
+
+# Las existencias arrancan «sin confirmar» (dcasa_catalogo vende sin stock y confirma por
+# WhatsApp): decirle a Google «InStock» u «OutOfStock» sería inventarlo. Cuando haya conteo
+# real de inventario, poner True y la ficha vuelve a publicar la disponibilidad de Odoo.
+PUBLICAR_DISPONIBILIDAD = False
+
+
+def _sin_disponibilidad(datos):
+    """Quita ``availability`` de cualquier oferta del JSON-LD (también en ``hasVariant``)."""
+    if isinstance(datos, list):
+        return [_sin_disponibilidad(d) for d in datos]
+    if isinstance(datos, dict):
+        return {k: _sin_disponibilidad(v) for k, v in datos.items() if k != 'availability'}
+    return datos
 
 
 class DcasaCheckout(WebsiteSale):
-    """Dirección para un cliente de Panamá: sin empresa ni VAT, y Panamá ya elegido."""
+    """Tienda para un cliente de Panamá.
+
+    Dirección sin empresa ni VAT y con Panamá ya elegido; datos estructurados de la ficha sin
+    disponibilidad inventada y con las migas en español.
+    """
+
+    def _prepare_product_values(self, product, category, **kwargs):
+        valores = super()._prepare_product_values(product, category, **kwargs)
+        if not PUBLICAR_DISPONIBILIDAD and valores.get('product_markup_data'):
+            datos = json.loads(valores['product_markup_data'])
+            valores['product_markup_data'] = json_scriptsafe.dumps(_sin_disponibilidad(datos), indent=2)
+        return valores
+
+    def _prepare_breadcrumb_markup_data(self, base_url, category, product_name):
+        datos = super()._prepare_breadcrumb_markup_data(base_url, category, product_name)
+        for miga in datos.get('itemListElement', []):
+            if miga.get('position') == 1:
+                miga['name'] = MIGA_TIENDA
+        return datos
 
     def _prepare_address_form_values(self, *args, **kwargs):
         valores = super()._prepare_address_form_values(*args, **kwargs)

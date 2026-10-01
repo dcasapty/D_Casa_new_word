@@ -1,0 +1,55 @@
+# Actualizaciones automáticas de dependencias (I-17, I-18). Cada PR de Dependabot pasa
+# por el CI completo (tests + imagen + simulacro) antes de que alguien lo apruebe.
+version: 2
+updates:
+  # Acciones de GitHub: van fijadas por SHA en los workflows; Dependabot sube el SHA
+  # y el comentario con la versión.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "CI"
+    labels: [dependencias]
+    groups:
+      acciones:
+        patterns: ["*"]
+
+  # Worker de Cloudflare (wrangler, @cloudflare/containers, tipos, vitest).
+  - package-ecosystem: npm
+    directory: /edge
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "Borde"
+    labels: [dependencias]
+    open-pull-requests-limit: 5
+    groups:
+      cloudflare:
+        patterns: ["wrangler", "@cloudflare/*"]
+      desarrollo:
+        dependency-type: development
+        exclude-patterns: ["wrangler", "@cloudflare/*"]
+
+  # Imagen base de docker/Dockerfile (ubuntu). Ojo: subir de PostgreSQL 16 a otra versión
+  # mayor NO es una actualización normal (requiere pg_upgrade y un respaldo nuevo):
+  # esos PR se cierran, no se aprueban (docs/OPERACION.md).
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Panama
+    commit-message:
+      prefix: "Imagen"
+    labels: [dependencias]
+    ignore:
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]

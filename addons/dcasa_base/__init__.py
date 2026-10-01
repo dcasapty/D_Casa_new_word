@@ -1,8 +1,12 @@
+import logging
+
 from . import models
+
+_logger = logging.getLogger(__name__)
 
 DCASA_LANG = 'es_419'
 DCASA_TZ = 'America/Panama'
-IMPUESTO_INCLUIDO = 'ITBMS 7% incluido'
+IMPUESTO_VENTA = 'ITBMS 7%'
 
 # Formas de cobro de la tienda: (código, nombre, tipo de diario).
 DIARIOS_COBRO = [
@@ -50,35 +54,79 @@ def _setup_panama_accounting(env):
 
 
 def _configurar_ventas_panama(env):
-    """Precios con ITBMS incluido y las formas de cobro de la tienda. Se puede repetir.
+    """ITBMS que se suma al precio y las formas de cobro de la tienda. Se puede repetir.
 
-    En la tienda el precio de la etiqueta ya trae el ITBMS: con la empresa en «impuesto
-    incluido» las cotizaciones y facturas muestran el importe con ITBMS (el mismo número
-    de la etiqueta) y un producto nuevo nace con el ITBMS incluido. Los impuestos que ya
-    existían (compras, exentos) conservan su comportamiento: se fija de forma explícita.
+    Decisión de la dueña (2026-10-01): los precios de D'CASA son SIN ITBMS (el Excel dice
+    «+ITBMS») y el 7 % se suma encima, como en la factura real INV/2026/00821
+    (329.99 + 23.10 = 353.09). El impuesto de venta por defecto es el ITBMS 7 % de
+    ``l10n_pa``, que se suma al precio: un producto nuevo nace con él, y la cotización, el
+    carrito y la factura muestran subtotal, ITBMS y total. Cada impuesto deja fijado su
+    comportamiento de forma explícita.
     """
     company = env.ref('base.main_company')
     Tax = env['account.tax'].with_context(active_test=False)
     impuestos = Tax.search([('company_id', '=', company.id)])
     impuestos.filtered(lambda t: not t.price_include_override).price_include_override = 'tax_excluded'
+    company.account_price_include = 'tax_excluded'
 
-    base = company.account_sale_tax_id
-    if base and not base.price_include:
-        incluido = Tax.search([
-            ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),
-            ('amount_type', '=', base.amount_type), ('amount', '=', base.amount),
-            ('price_include_override', '=', 'tax_included'),
-        ], limit=1) or base.copy({'name': IMPUESTO_INCLUIDO, 'price_include_override': 'tax_included'})
-        _nombrar(base, 'ITBMS 7% (se suma al precio)')
-        _nombrar(incluido, IMPUESTO_INCLUIDO)
-        (base | incluido).invoice_label = 'ITBMS 7%'
-        company.account_sale_tax_id = incluido
-    company.account_price_include = 'tax_included'
+    venta = itbms_de_venta(env, company)
+    if venta:
+        _nombrar(venta, IMPUESTO_VENTA)
+        venta.invoice_label = 'ITBMS 7%'
+        company.account_sale_tax_id = venta
 
     Journal = env['account.journal'].with_context(active_test=False)
     for codigo, nombre, tipo in DIARIOS_COBRO:
         if not Journal.search_count([('company_id', '=', company.id), ('code', '=', codigo)]):
             Journal.create({'name': nombre, 'code': codigo, 'type': tipo, 'company_id': company.id})
+
+
+def itbms_de_venta(env, company):
+    """El ITBMS de venta que se suma al precio (los precios de D'CASA son sin ITBMS).
+
+    Es el impuesto de venta por defecto de la empresa; si una base anterior aún tiene por
+    defecto el «ITBMS 7% incluido», devuelve su gemelo que se suma (el de ``l10n_pa``).
+    """
+    base = company.account_sale_tax_id
+    if not base or not base.price_include:
+        return base
+    return env['account.tax'].search([
+        ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),
+        ('amount_type', '=', base.amount_type), ('amount', '=', base.amount),
+        ('price_include', '=', False),
+    ], order='id', limit=1) or base.copy({'name': IMPUESTO_VENTA, 'price_include_override': 'tax_excluded'})
+
+
+def archivar_itbms_incluido(env, company):
+    """Archiva el «ITBMS 7% incluido» de versiones anteriores si ya nadie lo usa.
+
+    Sigue en uso si es el de la empresa por defecto, si lo tiene algún producto (también
+    archivado) o si está en una cotización o factura en borrador. Las facturas publicadas
+    lo conservan: archivarlo no cambia su historia. Devuelve los que siguen en uso.
+    """
+    Tax = env['account.tax']
+    incluidos = Tax.search([
+        ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),
+        ('price_include_override', '=', 'tax_included'),
+    ])
+    en_uso = Tax
+    for impuesto in incluidos:
+        usado = (
+            impuesto == company.account_sale_tax_id
+            or env['product.template'].with_context(active_test=False).search_count(
+                [('taxes_id', 'in', impuesto.ids)], limit=1)
+            or env['sale.order.line'].search_count(
+                [('tax_ids', 'in', impuesto.ids), ('state', 'in', ('draft', 'sent'))], limit=1)
+            or env['account.move.line'].search_count(
+                [('tax_ids', 'in', impuesto.ids), ('parent_state', '=', 'draft')], limit=1)
+        )
+        if usado:
+            en_uso |= impuesto
+        else:
+            impuesto.active = False
+    if en_uso:
+        _logger.warning('ITBMS incluido aún en uso, no se archiva: %s', ', '.join(en_uso.mapped('name')))
+    return en_uso
 
 
 def _nombrar(registro, nombre):

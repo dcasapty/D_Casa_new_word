@@ -14,16 +14,15 @@ from odoo.tools import mute_logger
 DESDE, HASTA = '2030-03-01', '2030-03-31'
 
 
-@tagged('post_install', '-at_install')
-class TestContabilidad(TransactionCase):
+class ContabilidadCommon(TransactionCase):
+    """Datos y ayudas comunes de los tests contables."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.ref('base.main_company')
         Tax = cls.env['account.tax']
-        cls.itbms_venta = Tax.search([('company_id', '=', cls.company.id), ('type_tax_use', '=', 'sale'),
-                                      ('amount', '=', 7), ('price_include', '=', False)], limit=1)
+        cls.itbms_venta = cls.company.account_sale_tax_id  # el de por defecto: se suma al precio
         cls.itbms_compra = Tax.search([('company_id', '=', cls.company.id), ('type_tax_use', '=', 'purchase'),
                                        ('amount', '=', 7), ('price_include', '=', False)], limit=1)
         cls.cliente = cls.env['res.partner'].create({'name': 'Cliente Prueba Contable'})
@@ -51,6 +50,10 @@ class TestContabilidad(TransactionCase):
             'journal_id': self.banco.id, 'date': fecha, 'amount': monto, 'payment_ref': concepto,
             'partner_id': partner.id if partner else False,
         })
+
+
+@tagged('post_install', '-at_install')
+class TestContabilidad(ContabilidadCommon):
 
     # ------------------------------------------------------------------
     # Reportes

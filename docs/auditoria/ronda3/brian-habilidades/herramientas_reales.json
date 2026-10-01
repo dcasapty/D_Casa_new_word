@@ -1,0 +1,1057 @@
+[
+ {
+  "nombre": "actualizar_producto",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_actualizar_producto",
+  "nivel": "construccion",
+  "categoria": "catalogo",
+  "grupos": [
+   "sales_team.group_sale_manager"
+  ],
+  "parametros": [
+   "campo",
+   "producto",
+   "valor"
+  ],
+  "requeridos": [
+   "producto",
+   "campo",
+   "valor"
+  ],
+  "descripcion": "Cambia el precio (con ITBMS), el nombre, la descripción, las medidas o el código de un producto.",
+  "ejemplos": [
+   "sube el SOF-001 a $529.99 → campo=precio, valor=529.99"
+  ],
+  "chars_descripcion": 161,
+  "chars_esquema_json": 641
+ },
+ {
+  "nombre": "ajustar_existencias",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_ajustar_existencias",
+  "nivel": "sensible",
+  "categoria": "catalogo",
+  "grupos": [
+   "stock.group_stock_manager"
+  ],
+  "parametros": [
+   "almacen",
+   "cantidad",
+   "producto"
+  ],
+  "requeridos": [
+   "producto",
+   "cantidad"
+  ],
+  "descripcion": "Ajuste de inventario: deja la cantidad contada de un producto en un almacén.",
+  "ejemplos": [
+   "conté 4 SOF-001 en la tienda → cantidad=4"
+  ],
+  "chars_descripcion": 128,
+  "chars_esquema_json": 587
+ },
+ {
+  "nombre": "buscar_productos",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_buscar_productos",
+  "nivel": "lectura",
+  "categoria": "catalogo",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "categoria",
+   "disponibilidad",
+   "precio_max",
+   "precio_min",
+   "texto"
+  ],
+  "requeridos": [],
+  "descripcion": "Busca productos por nombre o código, categoría, rango de precio y disponibilidad.",
+  "ejemplos": [
+   "colchones de menos de $300 → categoria=Colchones, precio_max=300",
+   "¿qué sofás están agotados?"
+  ],
+  "chars_descripcion": 184,
+  "chars_esquema_json": 835
+ },
+ {
+  "nombre": "crear_producto",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_crear_producto",
+  "nivel": "construccion",
+  "categoria": "catalogo",
+  "grupos": [
+   "sales_team.group_sale_manager"
+  ],
+  "parametros": [
+   "categoria",
+   "codigo",
+   "medidas",
+   "nombre",
+   "precio"
+  ],
+  "requeridos": [
+   "nombre",
+   "precio"
+  ],
+  "descripcion": "Crea un producto inventariable con precio final (ITBMS incluido). Queda sin publicar en la web; para publicarlo usa publicar_producto_web.",
+  "ejemplos": [
+   "crea el producto «Mesa de centro roble» a $149.99 en Salas"
+  ],
+  "chars_descripcion": 207,
+  "chars_esquema_json": 848
+ },
+ {
+  "nombre": "existencias_bajas",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_existencias_bajas",
+  "nivel": "lectura",
+  "categoria": "catalogo",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "limite",
+   "umbral"
+  ],
+  "requeridos": [],
+  "descripcion": "Productos inventariables con pocas unidades (o agotados), para reponer.",
+  "ejemplos": [
+   "¿qué hay que reponer?",
+   "productos con 5 o menos → umbral=5"
+  ],
+  "chars_descripcion": 139,
+  "chars_esquema_json": 476
+ },
+ {
+  "nombre": "listar_categorias",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_listar_categorias",
+  "nivel": "lectura",
+  "categoria": "catalogo",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [],
+  "requeridos": [],
+  "descripcion": "Las categorías de productos con cuántos productos tiene cada una.",
+  "ejemplos": [
+   "¿qué categorías hay?"
+  ],
+  "chars_descripcion": 96,
+  "chars_esquema_json": 233
+ },
+ {
+  "nombre": "publicar_producto_web",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_publicar_producto_web",
+  "nivel": "sensible",
+  "categoria": "catalogo",
+  "grupos": [
+   "sales_team.group_sale_manager"
+  ],
+  "parametros": [
+   "producto",
+   "publicar"
+  ],
+  "requeridos": [
+   "producto",
+   "publicar"
+  ],
+  "descripcion": "Publica o despublica un producto en la tienda web de D'CASA.",
+  "ejemplos": [
+   "publica el SOF-120 en la web → publicar=true",
+   "quita de la web la mesa roble → publicar=false"
+  ],
+  "chars_descripcion": 163,
+  "chars_esquema_json": 533
+ },
+ {
+  "nombre": "ver_producto",
+  "archivo": "herramientas_catalogo.py",
+  "metodo": "_h_ver_producto",
+  "nivel": "lectura",
+  "categoria": "catalogo",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "producto"
+  ],
+  "requeridos": [
+   "producto"
+  ],
+  "descripcion": "Ficha de un producto: precio con y sin ITBMS, medidas, variantes, si está en la web y existencias por almacén.",
+  "ejemplos": [
+   "¿cuánto mide el sofá SOF-001?",
+   "¿cuántos colchones queen hay?"
+  ],
+  "chars_descripcion": 181,
+  "chars_esquema_json": 433
+ },
+ {
+  "nombre": "actualizar_cliente",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_actualizar_cliente",
+  "nivel": "construccion",
+  "categoria": "clientes",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "campo",
+   "cliente",
+   "valor"
+  ],
+  "requeridos": [
+   "cliente",
+   "campo",
+   "valor"
+  ],
+  "descripcion": "Cambia un dato de contacto de un cliente o proveedor: nombre, celular, correo, dirección, RUC o DV.",
+  "ejemplos": [
+   "el correo de Ana Gómez es ana@correo.com → campo=correo"
+  ],
+  "chars_descripcion": 165,
+  "chars_esquema_json": 654
+ },
+ {
+  "nombre": "ajustar_puntos",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_ajustar_puntos",
+  "nivel": "sensible",
+  "categoria": "clientes",
+  "grupos": [
+   "sales_team.group_sale_manager"
+  ],
+  "parametros": [
+   "cliente",
+   "motivo",
+   "puntos"
+  ],
+  "requeridos": [
+   "cliente",
+   "puntos",
+   "motivo"
+  ],
+  "descripcion": "Ajuste manual de puntos de un socio (suma o resta) con motivo que el socio verá. Pasa por el ajuste del programa Socios: queda como asiento en su libro, nunca se edita el saldo.",
+  "ejemplos": [
+   "súmale 300 puntos a Ana por la compra que no se registró"
+  ],
+  "chars_descripcion": 244,
+  "chars_esquema_json": 733
+ },
+ {
+  "nombre": "buscar_clientes",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_buscar_clientes",
+  "nivel": "lectura",
+  "categoria": "clientes",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "limite",
+   "texto",
+   "tipo"
+  ],
+  "requeridos": [
+   "texto"
+  ],
+  "descripcion": "Busca clientes o proveedores por nombre, celular, RUC/cédula o correo.",
+  "ejemplos": [
+   "busca al cliente con celular 6123-4567",
+   "proveedores de colchones"
+  ],
+  "chars_descripcion": 145,
+  "chars_esquema_json": 575
+ },
+ {
+  "nombre": "clientes_que_deben",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_clientes_que_deben",
+  "nivel": "lectura",
+  "categoria": "clientes",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "limite",
+   "solo_vencido"
+  ],
+  "requeridos": [],
+  "descripcion": "Clientes con facturas por cobrar: cuánto deben y cuánto está vencido, de mayor a menor.",
+  "ejemplos": [
+   "¿quién nos debe?",
+   "clientes morosos"
+  ],
+  "chars_descripcion": 132,
+  "chars_esquema_json": 480
+ },
+ {
+  "nombre": "crear_cliente",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_crear_cliente",
+  "nivel": "construccion",
+  "categoria": "clientes",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "celular",
+   "correo",
+   "es_empresa",
+   "nombre",
+   "ruc"
+  ],
+  "requeridos": [
+   "nombre",
+   "celular"
+  ],
+  "descripcion": "Crea un cliente. El celular es la llave: si ya existe una ficha con ese celular, no se duplica y te digo de quién es.",
+  "ejemplos": [
+   "crea a Ana Gómez, 6123-4567"
+  ],
+  "chars_descripcion": 155,
+  "chars_esquema_json": 731
+ },
+ {
+  "nombre": "saldo_puntos",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_saldo_puntos",
+  "nivel": "lectura",
+  "categoria": "clientes",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "cliente"
+  ],
+  "requeridos": [
+   "cliente"
+  ],
+  "descripcion": "Puntos de un socio D'CASA (la suma de su libro de puntos) y sus últimos movimientos.",
+  "ejemplos": [
+   "¿cuántos puntos tiene Ana?",
+   "puntos del socio DCA7K2M9P"
+  ],
+  "chars_descripcion": 149,
+  "chars_esquema_json": 414
+ },
+ {
+  "nombre": "ver_cliente",
+  "archivo": "herramientas_clientes.py",
+  "metodo": "_h_ver_cliente",
+  "nivel": "lectura",
+  "categoria": "clientes",
+  "grupos": [
+   "base.group_user"
+  ],
+  "parametros": [
+   "cliente"
+  ],
+  "requeridos": [
+   "cliente"
+  ],
+  "descripcion": "Ficha de un cliente o proveedor: contacto, lo que debe, últimas compras y puntos de socio.",
+  "ejemplos": [
+   "¿cuánto debe Ana Gómez?",
+   "ficha del 6123-4567"
+  ],
+  "chars_descripcion": 145,
+  "chars_esquema_json": 409
+ },
+ {
+  "nombre": "agregar_linea_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_agregar_linea_factura",
+  "nivel": "construccion",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "cantidad",
+   "factura",
+   "precio",
+   "producto"
+  ],
+  "requeridos": [
+   "factura",
+   "producto"
+  ],
+  "descripcion": "Agrega una línea a una factura que está en borrador.",
+  "ejemplos": [
+   "agrega 2 SIL-010 a la factura #45"
+  ],
+  "chars_descripcion": 96,
+  "chars_esquema_json": 683
+ },
+ {
+  "nombre": "conciliar_movimiento",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_conciliar_movimiento",
+  "nivel": "sensible",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_user"
+  ],
+  "parametros": [
+   "con",
+   "movimiento"
+  ],
+  "requeridos": [
+   "movimiento"
+  ],
+  "descripcion": "Concilia un movimiento del banco con una factura o pago abierto. Sin «con», usa la sugerencia si hay una sola clara.",
+  "ejemplos": [
+   "concilia BNK1/2026/00012 con INV/2026/00012"
+  ],
+  "chars_descripcion": 170,
+  "chars_esquema_json": 531
+ },
+ {
+  "nombre": "crear_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_crear_factura",
+  "nivel": "construccion",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "cantidad",
+   "precio",
+   "producto",
+   "tercero",
+   "tipo"
+  ],
+  "requeridos": [
+   "tipo",
+   "tercero",
+   "producto"
+  ],
+  "descripcion": "Crea una factura EN BORRADOR, de cliente o de proveedor, con una primera línea. Más líneas con agregar_linea_factura; publicarla es aparte.",
+  "ejemplos": [
+   "factura de proveedor de Colchones S.A. por «Flete» $80"
+  ],
+  "chars_descripcion": 204,
+  "chars_esquema_json": 869
+ },
+ {
+  "nombre": "editar_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_editar_factura",
+  "nivel": "construccion",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "campo",
+   "factura",
+   "valor"
+  ],
+  "requeridos": [
+   "factura",
+   "campo",
+   "valor"
+  ],
+  "descripcion": "Cambia la fecha, el vencimiento, la referencia o el cliente/proveedor de una factura EN BORRADOR. Una factura publicada o pagada no se edita.",
+  "ejemplos": [
+   "la factura #45 vence el 15/10/2026 → campo=vencimiento"
+  ],
+  "chars_descripcion": 206,
+  "chars_esquema_json": 683
+ },
+ {
+  "nombre": "facturas_pendientes",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_facturas_pendientes",
+  "nivel": "lectura",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "limite",
+   "solo_vencidas",
+   "tercero",
+   "tipo"
+  ],
+  "requeridos": [],
+  "descripcion": "Facturas por cobrar (de clientes) o por pagar (a proveedores) que siguen abiertas.",
+  "ejemplos": [
+   "¿qué facturas debemos a proveedores? → por_pagar",
+   "facturas vencidas de clientes"
+  ],
+  "chars_descripcion": 172,
+  "chars_esquema_json": 688
+ },
+ {
+  "nombre": "guia_cierre_mes",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_guia_cierre_mes",
+  "nivel": "lectura",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_user"
+  ],
+  "parametros": [
+   "mes"
+  ],
+  "requeridos": [],
+  "descripcion": "Lista de chequeo del cierre de mes con datos reales: conciliación bancaria, borradores, ventas por facturar, cobros vencidos, ITBMS del mes y si el balance cuadra.",
+  "ejemplos": [
+   "¿qué me falta para cerrar septiembre? → mes=09/2026"
+  ],
+  "chars_descripcion": 225,
+  "chars_esquema_json": 468
+ },
+ {
+  "nombre": "movimientos_por_conciliar",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_movimientos_por_conciliar",
+  "nivel": "lectura",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_user"
+  ],
+  "parametros": [
+   "banco",
+   "limite"
+  ],
+  "requeridos": [],
+  "descripcion": "Movimientos del banco (o Yappy, caja) que faltan por conciliar, con la sugerencia de factura o pago cuando hay una clara.",
+  "ejemplos": [
+   "¿qué falta conciliar en el banco?"
+  ],
+  "chars_descripcion": 165,
+  "chars_esquema_json": 491
+ },
+ {
+  "nombre": "publicar_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_publicar_factura",
+  "nivel": "sensible",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "factura"
+  ],
+  "requeridos": [
+   "factura"
+  ],
+  "descripcion": "Publica (valida) una factura en borrador: le da número y la registra en la contabilidad.",
+  "ejemplos": [
+   "publica la factura #45"
+  ],
+  "chars_descripcion": 121,
+  "chars_esquema_json": 374
+ },
+ {
+  "nombre": "quitar_linea_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_quitar_linea_factura",
+  "nivel": "construccion",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "factura",
+   "producto"
+  ],
+  "requeridos": [
+   "factura",
+   "producto"
+  ],
+  "descripcion": "Quita una línea (por producto o concepto) de una factura en borrador.",
+  "ejemplos": [
+   "quita el flete de la factura #45"
+  ],
+  "chars_descripcion": 112,
+  "chars_esquema_json": 537
+ },
+ {
+  "nombre": "registrar_pago",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_registrar_pago",
+  "nivel": "sensible",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "factura",
+   "fecha",
+   "forma_pago",
+   "monto"
+  ],
+  "requeridos": [
+   "factura"
+  ],
+  "descripcion": "Registra un cobro o pago de una factura publicada (total o parcial) con su forma de pago.",
+  "ejemplos": [
+   "Ana pagó INV/2026/00012 por Yappy"
+  ],
+  "chars_descripcion": 133,
+  "chars_esquema_json": 663
+ },
+ {
+  "nombre": "reporte_contable",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_reporte_contable",
+  "nivel": "lectura",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_readonly"
+  ],
+  "parametros": [
+   "cuenta",
+   "desde",
+   "hasta",
+   "periodo",
+   "reporte"
+  ],
+  "requeridos": [
+   "reporte"
+  ],
+  "descripcion": "Reportes contables: estado de resultados, balance general, balance de comprobación, libro mayor de una cuenta, resumen de ITBMS o rentabilidad analítica.",
+  "ejemplos": [
+   "utilidad del mes pasado → estado_resultados, mes_pasado",
+   "ITBMS a pagar este mes → itbms"
+  ],
+  "chars_descripcion": 251,
+  "chars_esquema_json": 1047
+ },
+ {
+  "nombre": "ver_factura",
+  "archivo": "herramientas_contabilidad.py",
+  "metodo": "_h_ver_factura",
+  "nivel": "lectura",
+  "categoria": "contabilidad",
+  "grupos": [
+   "account.group_account_invoice"
+  ],
+  "parametros": [
+   "factura"
+  ],
+  "requeridos": [
+   "factura"
+  ],
+  "descripcion": "Detalle de una factura de cliente o proveedor: estado, líneas, ITBMS, total y lo pendiente.",
+  "ejemplos": [
+   "ver INV/2026/00012"
+  ],
+  "chars_descripcion": 120,
+  "chars_esquema_json": 368
+ },
+ {
+  "nombre": "abrir",
+  "archivo": "herramientas_generales.py",
+  "metodo": "_h_abrir",
+  "nivel": "lectura",
+  "categoria": "general",
+  "grupos": [],
+  "parametros": [
+   "que",
+   "referencia"
+  ],
+  "requeridos": [
+   "que"
+  ],
+  "descripcion": "Abre en pantalla un registro (producto, cliente, venta, factura, usuario) o una lista (cotizaciones abiertas, facturas por cobrar…).",
+  "ejemplos": [
+   "abre la factura INV/2026/00012",
+   "llévame a las cotizaciones abiertas"
+  ],
+  "chars_descripcion": 210,
+  "chars_esquema_json": 747
+ },
+ {
+  "nombre": "ayuda",
+  "archivo": "herramientas_generales.py",
+  "metodo": "_h_ayuda",
+  "nivel": "lectura",
+  "categoria": "general",
+  "grupos": [],
+  "parametros": [
+   "area"
+  ],
+  "requeridos": [],
+  "descripcion": "Lista lo que Brian puede hacer para ti, por área.",
+  "ejemplos": [
+   "¿qué puedes hacer?",
+   "ayuda con contabilidad"
+  ],
+  "chars_descripcion": 102,
+  "chars_esquema_json": 415
+ },
+ {
+  "nombre": "buscar_en_todo",
+  "archivo": "herramientas_generales.py",
+  "metodo": "_h_buscar_en_todo",
+  "nivel": "lectura",
+  "categoria": "general",
+  "grupos": [],
+  "parametros": [
+   "texto"
+  ],
+  "requeridos": [
+   "texto"
+  ],
+  "descripcion": "Busca un texto a la vez en productos, clientes/proveedores, ventas y facturas. Úsala cuando no sepas de qué tipo es lo que te piden.",
+  "ejemplos": [
+   "busca «roble»",
+   "¿qué es INV/2026/00012?"
+  ],
+  "chars_descripcion": 181,
+  "chars_esquema_json": 435
+ },
+ {
+  "nombre": "pantalla_actual",
+  "archivo": "herramientas_generales.py",
+  "metodo": "_h_pantalla_actual",
+  "nivel": "lectura",
+  "categoria": "general",
+  "grupos": [],
+  "parametros": [],
+  "requeridos": [],
+  "descripcion": "Dice en qué pantalla está el usuario y qué registro tiene abierto.",
+  "ejemplos": [
+   "¿qué estoy viendo?",
+   "explícame esta pantalla",
+   "esta factura"
+  ],
+  "chars_descripcion": 134,
+  "chars_esquema_json": 269
+ },
+ {
+  "nombre": "cambiar_rol_usuario",
+  "archivo": "herramientas_usuarios.py",
+  "metodo": "_h_cambiar_rol_usuario",
+  "nivel": "sensible",
+  "categoria": "usuarios",
+  "grupos": [
+   "base.group_erp_manager"
+  ],
+  "parametros": [
+   "rol",
+   "usuario"
+  ],
+  "requeridos": [
+   "usuario",
+   "rol"
+  ],
+  "descripcion": "Cambia el rol de un usuario: vendedor, cajero, contador o administrador.",
+  "ejemplos": [
+   "María ahora es cajera → rol=cajero"
+  ],
+  "chars_descripcion": 117,
+  "chars_esquema_json": 580
+ },
+ {
+  "nombre": "crear_usuario",
+  "archivo": "herramientas_usuarios.py",
+  "metodo": "_h_crear_usuario",
+  "nivel": "sensible",
+  "categoria": "usuarios",
+  "grupos": [
+   "base.group_erp_manager"
+  ],
+  "parametros": [
+   "correo",
+   "nombre",
+   "rol"
+  ],
+  "requeridos": [
+   "nombre",
+   "correo",
+   "rol"
+  ],
+  "descripcion": "Crea un usuario interno con un rol. Recibe la invitación por correo para poner su propia contraseña (Brian nunca maneja contraseñas).",
+  "ejemplos": [
+   "crea a María Rodríguez, maria@dcasapty.com, vendedora"
+  ],
+  "chars_descripcion": 197,
+  "chars_esquema_json": 737
+ },
+ {
+  "nombre": "desactivar_usuario",
+  "archivo": "herramientas_usuarios.py",
+  "metodo": "_h_desactivar_usuario",
+  "nivel": "sensible",
+  "categoria": "usuarios",
+  "grupos": [
+   "base.group_erp_manager"
+  ],
+  "parametros": [
+   "usuario"
+  ],
+  "requeridos": [
+   "usuario"
+  ],
+  "descripcion": "Desactiva un usuario (ya no puede entrar). No se borra: su historial queda.",
+  "ejemplos": [
+   "quítale el acceso a Pedro"
+  ],
+  "chars_descripcion": 111,
+  "chars_esquema_json": 367
+ },
+ {
+  "nombre": "listar_usuarios",
+  "archivo": "herramientas_usuarios.py",
+  "metodo": "_h_listar_usuarios",
+  "nivel": "lectura",
+  "categoria": "usuarios",
+  "grupos": [
+   "base.group_erp_manager"
+  ],
+  "parametros": [
+   "incluir_inactivos"
+  ],
+  "requeridos": [],
+  "descripcion": "Usuarios internos con su rol (vendedor, cajero, contador, administrador) y último acceso.",
+  "ejemplos": [
+   "¿quién tiene acceso al sistema?"
+  ],
+  "chars_descripcion": 131,
+  "chars_esquema_json": 360
+ },
+ {
+  "nombre": "agregar_linea_cotizacion",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_agregar_linea_cotizacion",
+  "nivel": "construccion",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "cantidad",
+   "precio",
+   "producto",
+   "venta"
+  ],
+  "requeridos": [
+   "venta",
+   "producto"
+  ],
+  "descripcion": "Agrega un producto a una cotización que no se ha confirmado.",
+  "ejemplos": [
+   "agrega una mesa de noche a S00012"
+  ],
+  "chars_descripcion": 104,
+  "chars_esquema_json": 673
+ },
+ {
+  "nombre": "buscar_ventas",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_buscar_ventas",
+  "nivel": "lectura",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "estado",
+   "limite",
+   "periodo",
+   "texto"
+  ],
+  "requeridos": [],
+  "descripcion": "Busca ventas y cotizaciones por cliente o número, estado y periodo.",
+  "ejemplos": [
+   "cotizaciones abiertas → estado=cotizacion",
+   "ventas de María este mes"
+  ],
+  "chars_descripcion": 145,
+  "chars_esquema_json": 809
+ },
+ {
+  "nombre": "cancelar_cotizacion",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_cancelar_cotizacion",
+  "nivel": "sensible",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "venta"
+  ],
+  "requeridos": [
+   "venta"
+  ],
+  "descripcion": "Cancela una cotización que no se ha confirmado. Las ventas confirmadas las cancela una persona.",
+  "ejemplos": [
+   "cancela la cotización S00012"
+  ],
+  "chars_descripcion": 134,
+  "chars_esquema_json": 386
+ },
+ {
+  "nombre": "confirmar_venta",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_confirmar_venta",
+  "nivel": "sensible",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "venta"
+  ],
+  "requeridos": [
+   "venta"
+  ],
+  "descripcion": "Confirma una cotización y la convierte en venta (reserva y crea la entrega).",
+  "ejemplos": [
+   "confirma la cotización S00012"
+  ],
+  "chars_descripcion": 116,
+  "chars_esquema_json": 364
+ },
+ {
+  "nombre": "crear_cotizacion",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_crear_cotizacion",
+  "nivel": "construccion",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "cantidad",
+   "cliente",
+   "precio",
+   "producto"
+  ],
+  "requeridos": [
+   "cliente",
+   "producto"
+  ],
+  "descripcion": "Crea una cotización en borrador para un cliente con un primer producto. Para más productos usa agregar_linea_cotizacion.",
+  "ejemplos": [
+   "cotiza 2 sillas SIL-010 para Ana Gómez"
+  ],
+  "chars_descripcion": 169,
+  "chars_esquema_json": 724
+ },
+ {
+  "nombre": "enviar_cotizacion_whatsapp",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_enviar_cotizacion_whatsapp",
+  "nivel": "construccion",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "venta"
+  ],
+  "requeridos": [
+   "venta"
+  ],
+  "descripcion": "Prepara el mensaje de WhatsApp con la cotización (total y enlace) para el celular del cliente y devuelve el enlace para abrirlo. La marca como enviada.",
+  "ejemplos": [
+   "mándale la cotización S00012 por WhatsApp"
+  ],
+  "chars_descripcion": 203,
+  "chars_esquema_json": 462
+ },
+ {
+  "nombre": "quitar_linea_cotizacion",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_quitar_linea_cotizacion",
+  "nivel": "construccion",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "producto",
+   "venta"
+  ],
+  "requeridos": [
+   "venta",
+   "producto"
+  ],
+  "descripcion": "Quita un producto de una cotización que no se ha confirmado.",
+  "ejemplos": [
+   "quita el sofá de la cotización S00012"
+  ],
+  "chars_descripcion": 108,
+  "chars_esquema_json": 486
+ },
+ {
+  "nombre": "reporte_del_dia",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_reporte_del_dia",
+  "nivel": "lectura",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [],
+  "requeridos": [],
+  "descripcion": "Cómo va el día: vendido y cobrado hoy (por forma de pago), cotizaciones abiertas, pedidos web, por cobrar, entregas y lo más vendido del mes. Las mismas cifras del tablero Inicio.",
+  "ejemplos": [
+   "¿cómo vamos hoy?",
+   "reporte del día",
+   "¿cuánto se ha vendido hoy?"
+  ],
+  "chars_descripcion": 251,
+  "chars_esquema_json": 386
+ },
+ {
+  "nombre": "resumen_ventas",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_resumen_ventas",
+  "nivel": "lectura",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "desde",
+   "hasta",
+   "periodo"
+  ],
+  "requeridos": [],
+  "descripcion": "Total vendido en un periodo (ventas confirmadas): cantidad, ticket promedio, por vendedor y productos más vendidos.",
+  "ejemplos": [
+   "ventas de este mes → periodo=este_mes",
+   "ventas del 01/09/2026 al 15/09/2026"
+  ],
+  "chars_descripcion": 200,
+  "chars_esquema_json": 704
+ },
+ {
+  "nombre": "ver_venta",
+  "archivo": "herramientas_ventas.py",
+  "metodo": "_h_ver_venta",
+  "nivel": "lectura",
+  "categoria": "ventas",
+  "grupos": [
+   "sales_team.group_sale_salesman"
+  ],
+  "parametros": [
+   "venta"
+  ],
+  "requeridos": [
+   "venta"
+  ],
+  "descripcion": "Detalle de una venta o cotización: cliente, productos, total, facturación y entrega.",
+  "ejemplos": [
+   "ver S00012",
+   "¿qué lleva la cotización de Juan?"
+  ],
+  "chars_descripcion": 140,
+  "chars_esquema_json": 382
+ }
+]

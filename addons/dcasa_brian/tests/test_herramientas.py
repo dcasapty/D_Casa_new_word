@@ -23,7 +23,7 @@ class TestHerramientas(TransactionCase):
                                                     'sales_team.group_sale_salesman_all_leads'))
         cls.gerente = usuario('brian_h_gerente', ('base.group_system', 'sales_team.group_sale_manager',
                                                   'account.group_account_manager', 'stock.group_stock_manager'))
-        impuesto = cls.env['brian.herramientas']._b_itbms_incluido()
+        impuesto = cls.env['brian.herramientas']._b_itbms_venta()
         Template = cls.env['product.template']
         base = {'type': 'consu', 'is_storable': True, 'taxes_id': [Command.set(impuesto.ids)]}
         cls.sofa = Template.create({**base, 'name': 'Brianzeta Sofá Prueba', 'default_code': 'BRN-SOF',
@@ -97,10 +97,10 @@ class TestHerramientas(TransactionCase):
             'cliente': '6123 4501', 'producto': 'BRN-SOF', 'cantidad': 2}))
         numero = datos['numero']
         self.assertEqual(datos['cliente'], 'Brianzeta Cliente Uno')
-        self.assertEqual(datos['total'], '$214.00')
+        self.assertEqual(datos['total'], '$228.98')  # 2 × $107 + ITBMS 7 % que se suma
         datos = self.ok(self.ejecutar(self.vendedor, 'agregar_linea_cotizacion', {
             'venta': numero, 'producto': 'Brianzeta Mesa Roble', 'precio': 45}))
-        self.assertEqual(datos['total'], '$259.00')
+        self.assertEqual(datos['total'], '$277.13')  # (214 + 45) + 18.13 de ITBMS
         datos = self.ok(self.ejecutar(self.vendedor, 'quitar_linea_cotizacion', {'venta': numero, 'producto': 'mesa'}))
         self.assertEqual(len(datos['lineas']), 1)
         # Confirmar es sensible: primero propone, luego el humano confirma.
@@ -118,6 +118,28 @@ class TestHerramientas(TransactionCase):
         self.assertIn('una persona', respuesta['error'])
         datos = self.ok(self.ejecutar(self.vendedor, 'buscar_ventas', {'texto': 'Brianzeta', 'estado': 'confirmada'}))
         self.assertIn(numero, [v['numero'] for v in datos['ventas']])
+
+    def test_precio_libre_respeta_el_tope_de_descuento(self):
+        """H-02: Brian actúa como la vendedora; el tope del modelo (10 %) también lo frena a él."""
+        self.env['ir.config_parameter'].sudo().set_param('dcasa.descuento_max_vendedora', '10')
+        Order = self.env['sale.order']
+        antes = Order.search_count([])
+        respuesta = self.ejecutar(self.vendedor, 'crear_cotizacion', {
+            'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF', 'precio': 53.5})  # 50 % de 107
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('Gerencia', respuesta['error'])
+        self.assertEqual(Order.search_count([]), antes, 'La cotización a medias se deshace')
+        numero = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
+            'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF', 'precio': 96.3}))['numero']  # 10 %: vale
+        respuesta = self.ejecutar(self.vendedor, 'agregar_linea_cotizacion', {
+            'venta': numero, 'producto': 'Brianzeta Mesa Roble', 'precio': 44.99})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('Gerencia', respuesta['error'])
+        self.assertEqual(len(Order.search([('name', '=', numero)]).order_line), 1)
+        # Gerencia (admin de Ventas) sí puede dar más.
+        datos = self.ok(self.ejecutar(self.gerente, 'agregar_linea_cotizacion', {
+            'venta': numero, 'producto': 'Brianzeta Mesa Roble', 'precio': 25}))
+        self.assertEqual(datos['lineas'][-1]['precio'], '$25.00')
 
     def test_whatsapp_devuelve_enlace(self):
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
@@ -141,9 +163,10 @@ class TestHerramientas(TransactionCase):
     def test_ver_y_buscar_productos(self):
         datos = self.ok(self.ejecutar(self.vendedor, 'ver_producto', {'producto': 'brn-sof'}))
         self.assertEqual(datos['medidas'], '200 × 90 × 85 cm')
-        if self.sofa.taxes_id.price_include:
-            self.assertEqual(datos['precio_con_itbms'], '$107.00')
-            self.assertEqual(datos['precio_sin_itbms'], '$100.00')
+        # El precio de lista es sin ITBMS: el 7 % se suma encima.
+        self.assertFalse(self.sofa.taxes_id.price_include)
+        self.assertEqual(datos['precio_sin_itbms'], '$107.00')
+        self.assertEqual(datos['precio_con_itbms'], '$114.49')
         datos = self.ok(self.ejecutar(self.vendedor, 'buscar_productos', {
             'texto': 'Brianzeta', 'precio_max': 60, 'disponibilidad': 'agotados'}))
         self.assertEqual({p['producto'] for p in datos['productos']}, {'Brianzeta Mesa Roble', 'Brianzeta Mesa Pino'})
@@ -153,6 +176,11 @@ class TestHerramientas(TransactionCase):
         datos = self.ok(self.ejecutar(self.gerente, 'crear_producto', {
             'nombre': 'Brianzeta Silla Nueva', 'precio': 25.5, 'codigo': 'BRN-SIL'}))
         self.assertFalse(datos['publicado_en_web'])
+        # El precio que dicta la dueña es sin ITBMS: el producto lleva el ITBMS por defecto, que se suma.
+        self.assertEqual((datos['precio_sin_itbms'], datos['precio_con_itbms']), ('$25.50', '$27.29'))
+        nueva = self.env['product.template'].search([('default_code', '=', 'BRN-SIL')])
+        self.assertEqual(nueva.taxes_id, self.env.company.account_sale_tax_id)
+        self.assertFalse(nueva.taxes_id.price_include)
         respuesta = self.ejecutar(self.gerente, 'crear_producto', {'nombre': 'Otra', 'precio': 1, 'codigo': 'brn-sil'})
         self.assertIn('Ya existe', respuesta['error'])
         self.ok(self.ejecutar(self.gerente, 'actualizar_producto', {
@@ -215,7 +243,7 @@ class TestHerramientas(TransactionCase):
             'factura': referencia, 'campo': 'vencimiento', 'valor': '31/12/2026'}))
         respuesta = self.ejecutar(self.contador, 'publicar_factura', {'factura': referencia})
         publicada = self.ok(self.confirmar(self.contador, respuesta))
-        self.assertEqual(publicada['total'], '$187.00')
+        self.assertEqual(publicada['total'], '$200.09')  # 107 + 2 × 40 + 13.09 de ITBMS
         numero = publicada['factura']
         for nombre, argumentos in (('editar_factura', {'campo': 'referencia', 'valor': 'X'}),
                                    ('agregar_linea_factura', {'producto': 'BRN-SOF'}),
@@ -225,7 +253,7 @@ class TestHerramientas(TransactionCase):
             self.assertIn('nota de crédito', respuesta['error'])
         # Pago parcial y luego el resto.
         self.ok(self.confirmar(self.contador, self.ejecutar(self.contador, 'registrar_pago', {
-            'factura': numero, 'monto': 87, 'forma_pago': 'Efectivo'})))
+            'factura': numero, 'monto': 100.09, 'forma_pago': 'Efectivo'})))
         factura = self.env['account.move'].search([('name', '=', numero)])
         self.assertEqual(factura.amount_residual, 100.0)
         pagada = self.ok(self.confirmar(self.contador, self.ejecutar(self.contador, 'registrar_pago', {

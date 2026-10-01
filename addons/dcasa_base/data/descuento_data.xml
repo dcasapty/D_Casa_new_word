@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Tope de descuento por línea para quien no es Gerencia (UI-08). Se cambia en Ajustes de Ventas. -->
+    <record id="param_descuento_max_vendedora" model="ir.config_parameter">
+        <field name="key">dcasa.descuento_max_vendedora</field>
+        <field name="value">10</field>
+    </record>
+</odoo>

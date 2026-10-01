@@ -1,0 +1,26 @@
+{
+  "_regla": "Ninguna cifra fuera de este archivo. null = PENDIENTE: el modelo no se usa mientras haya tope de gasto (no se puede medir). USD por millón de tokens.",
+  "version": "2026-10-01",
+  "modelos": {
+    "anthropic/claude-haiku-4-5": {
+      "entrada": 1.0, "cache_escritura": 1.25, "cache_lectura": 0.1, "salida": 5.0,
+      "estado": "OFICIAL", "fuente": "https://platform.claude.com/docs/en/about-claude/pricing", "consultado": "2026-10-01"
+    },
+    "anthropic/claude-sonnet-5-5": {
+      "entrada": 2.0, "cache_escritura": 2.5, "cache_lectura": 0.2, "salida": 10.0,
+      "estado": "OFICIAL", "fuente": "https://platform.claude.com/docs/en/about-claude/pricing", "consultado": "2026-10-01"
+    },
+    "anthropic/claude-opus-5-5": {
+      "entrada": 4.0, "cache_escritura": 5.0, "cache_lectura": 0.2, "salida": 20.0,
+      "estado": "OFICIAL", "fuente": "https://platform.claude.com/docs/en/about-claude/pricing", "consultado": "2026-10-01"
+    },
+    "meta/muse-spark-1.3": {
+      "entrada": 1.25, "cache_escritura": 1.25, "cache_lectura": 0.15, "salida": 4.25,
+      "estado": "NO_VERIFICADO", "fuente": "https://dev.meta.ai/docs/pricing-rate-limits (bloqueada; cifra de terceros y de @nativepi/meta 1.0.2)", "consultado": "2026-10-01"
+    },
+    "openai/gpt-5.4-mini": {
+      "entrada": null, "cache_escritura": null, "cache_lectura": null, "salida": null,
+      "estado": "PENDIENTE", "fuente": "https://platform.openai.com/docs/pricing (bloqueada)", "consultado": "2026-10-01"
+    }
+  }
+}

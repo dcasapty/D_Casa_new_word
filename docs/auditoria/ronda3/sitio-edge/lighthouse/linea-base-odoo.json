@@ -1,0 +1,175 @@
+{
+ "odoo-ficha": {
+  "runs": 3,
+  "perf": 39,
+  "a11y": 95,
+  "bp": 100,
+  "seo": 85,
+  "fcp": 3860.9932000000003,
+  "lcp": 8324.6968,
+  "tbt": 1397.999999999999,
+  "cls": 0,
+  "si": 6410.614926096785,
+  "ttfb": 248.261,
+  "kb": 1420,
+  "req": 24,
+  "origins": 4,
+  "unusedJsKb": 304,
+  "perfRuns": [
+   37,
+   39,
+   49
+  ],
+  "lcpRuns": [
+   8612,
+   8325,
+   5085
+  ],
+  "kbType": {
+   "Document": 9,
+   "Font": 168,
+   "Stylesheet": 120,
+   "Script": 536,
+   "Image": 462,
+   "Other": 37,
+   "Fetch": 88,
+   "XHR": 1
+  },
+  "lcpEl": "<img src=\"/web/image/product.product/4/image_1024/%5BXHT022-T-W%5D%20Cama%20de%20fel…\" class=\"img img-fluid oe_unmovable",
+  "renderBlocking": [
+   "https://fonts.googleapis.com/css?family=Oswald:400,500,600,700&display=swap",
+   "https://fonts.googleapis.com/css?family=Anton&display=swap",
+   "https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i&display=swap",
+   "http://localhost:8190/web/assets/1/04991c9/web.assets_frontend.min.css"
+  ]
+ },
+ "odoo-home": {
+  "runs": 3,
+  "perf": 41,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 3927.2547999999997,
+  "lcp": 8962.2469,
+  "tbt": 938.8275000000003,
+  "cls": 0,
+  "si": 6200.814058932674,
+  "ttfb": 82.729,
+  "kb": 1354,
+  "req": 25,
+  "origins": 4,
+  "unusedJsKb": 313,
+  "perfRuns": [
+   41,
+   37,
+   45
+  ],
+  "lcpRuns": [
+   8962,
+   8876,
+   9171
+  ],
+  "kbType": {
+   "Document": 11,
+   "Font": 168,
+   "Stylesheet": 120,
+   "Script": 536,
+   "Image": 396,
+   "Other": 37,
+   "Fetch": 88
+  },
+  "lcpEl": "<img src=\"http://localhost:8190/website_dcasa/static/src/img/hero-800.webp\" srcset=\"/website_dcasa/static/src/img/hero-8",
+  "renderBlocking": [
+   "https://fonts.googleapis.com/css?family=Oswald:400,500,600,700&display=swap",
+   "https://fonts.googleapis.com/css?family=Anton&display=swap",
+   "https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i&display=swap",
+   "http://localhost:8190/web/assets/1/04991c9/web.assets_frontend.min.css"
+  ]
+ },
+ "odoo-shop": {
+  "runs": 3,
+  "perf": 39,
+  "a11y": 96,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 4088.8437000000004,
+  "lcp": 10768.29365,
+  "tbt": 811.5,
+  "cls": 0.12617820193702886,
+  "si": 6404.39851907232,
+  "ttfb": 254.67600000000002,
+  "kb": 1929,
+  "req": 29,
+  "origins": 4,
+  "unusedJsKb": 309,
+  "perfRuns": [
+   41,
+   39,
+   38
+  ],
+  "lcpRuns": [
+   10768,
+   7222,
+   10820
+  ],
+  "kbType": {
+   "Document": 11,
+   "Font": 168,
+   "Stylesheet": 120,
+   "Script": 536,
+   "Image": 970,
+   "Other": 37,
+   "Fetch": 88
+  },
+  "lcpEl": "<img src=\"/web/image/product.product/5/image_1024/%5BN-F12002-K-BR%5D%20Cama%20king%…\" class=\"img img-fluid oe_product_i",
+  "renderBlocking": [
+   "https://fonts.googleapis.com/css?family=Oswald:400,500,600,700&display=swap",
+   "https://fonts.googleapis.com/css?family=Anton&display=swap",
+   "https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i&display=swap",
+   "http://localhost:8190/web/assets/1/04991c9/web.assets_frontend.min.css"
+  ]
+ },
+ "odoo-visitanos": {
+  "runs": 3,
+  "perf": 55,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 4229.5196,
+  "lcp": 8164.734850000001,
+  "tbt": 329.00000000000045,
+  "cls": 0,
+  "si": 6046.437358717427,
+  "ttfb": 61.71600000000001,
+  "kb": 1053,
+  "req": 23,
+  "origins": 5,
+  "unusedJsKb": 313,
+  "perfRuns": [
+   59,
+   55,
+   38
+  ],
+  "lcpRuns": [
+   7828,
+   8165,
+   8557
+  ],
+  "kbType": {
+   "Document": 6,
+   "Font": 168,
+   "Stylesheet": 120,
+   "Script": 536,
+   "Image": 100,
+   "Other": 37,
+   "Fetch": 88
+  },
+  "lcpEl": "<img src=\"/website_dcasa/static/src/img/insp-3.webp\" width=\"640\" height=\"640\" alt=\"\" loading=\"lazy\" style=\"\">",
+  "renderBlocking": [
+   "https://fonts.googleapis.com/css?family=Oswald:400,500,600,700&display=swap",
+   "https://fonts.googleapis.com/css?family=Anton&display=swap",
+   "https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i&display=swap",
+   "http://localhost:8190/web/assets/1/04991c9/web.assets_frontend.min.css"
+  ]
+ }
+}

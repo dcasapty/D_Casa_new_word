@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Roles de la tienda: 4 vendedoras y 2 administradores (UI-02, UI-03, ronda 3 §4.1).
+        En la ficha del usuario aparecen como un solo selector «D'CASA»: Vendedora o Gerencia.
+        Cada rol se arma con grupos estándar de Odoo; aquí no se crean permisos nuevos.
+    -->
+    <record id="module_category_dcasa" model="ir.module.category">
+        <field name="name">D'CASA</field>
+        <field name="description">Roles de la tienda D'CASA Panamá.</field>
+        <field name="sequence">1</field>
+    </record>
+
+    <record id="res_groups_privilege_dcasa" model="res.groups.privilege">
+        <field name="name">D'CASA</field>
+        <field name="description">Rol en la tienda: Vendedora (vende y cobra) o Gerencia (además controla).</field>
+        <field name="placeholder">Sin rol</field>
+        <field name="sequence">1</field>
+        <field name="category_id" ref="module_category_dcasa"/>
+    </record>
+
+    <!--
+        Vendedora: vende, cobra y despacha.
+        * Ventas «todos los documentos» (no «solo los suyos»): en una sola tienda el cliente vuelve
+          y lo atiende la que esté; la que cobra o entrega tiene que encontrar la cotización de otra.
+          Además, con Facturación ve todas las facturas y cobros: limitar solo las cotizaciones no
+          aísla nada y estorba. El control antifraude (puntos por vendedora) queda en Gerencia.
+        * Facturación (account.group_account_invoice): la única forma de registrar cobros
+          (ACL de account.payment). No da asientos, conciliación ni reportes contables.
+        * Inventario usuario: entregas y existencias. CRM y Socios cuelgan de los grupos de Ventas.
+    -->
+    <record id="group_vendedora" model="res.groups">
+        <field name="name">Vendedora</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
+        <field name="comment">Vende, cobra y despacha. Descuentos hasta el tope configurado en Ajustes de Ventas.</field>
+        <field name="implied_ids" eval="[
+            (4, ref('sales_team.group_sale_salesman_all_leads')),
+            (4, ref('account.group_account_invoice')),
+            (4, ref('stock.group_stock_user')),
+        ]"/>
+    </record>
+
+    <!--
+        Gerencia: todo lo de Vendedora más el control de la tienda: Ventas administrador
+        (reportes antifraude, descuentos sin tope, ajustes de puntos), contabilidad completa
+        (sin la configuración avanzada de account.group_account_manager), Inventario y Compras
+        administrador. El sitio web (diseñador/editor) lo añade website_dcasa.
+        No incluye Ajustes técnicos ni gestión de usuarios (base.group_system / group_erp_manager).
+    -->
+    <record id="group_gerencia" model="res.groups">
+        <field name="name">Gerencia</field>
+        <field name="sequence">20</field>
+        <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
+        <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario.</field>
+        <field name="implied_ids" eval="[
+            (4, ref('group_vendedora')),
+            (4, ref('sales_team.group_sale_manager')),
+            (4, ref('account.group_account_user')),
+            (4, ref('stock.group_stock_manager')),
+            (4, ref('purchase.group_purchase_manager')),
+        ]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+</odoo>

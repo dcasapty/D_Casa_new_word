@@ -1,5 +1,6 @@
 """Ajustes de Brian (Ajustes › Brian). Lo que se deja vacío toma las variables de entorno."""
 from odoo import api, fields, models
+from odoo.exceptions import AccessError
 
 from .proveedores import PROVEEDORES
 
@@ -42,8 +43,15 @@ class ResConfigSettings(models.TransientModel):
                 self.env['ir.config_parameter'].sudo().set_param(
                     'dcasa_brian.api_key', ajustes.dcasa_brian_clave_nueva.strip())
 
+    def _dcasa_brian_exigir_admin(self):
+        """Los botones de Ajustes › Brian se pueden llamar por RPC aun sin registro (``ids=[]``):
+        el grupo se comprueba en el servidor antes de tocar la clave con ``sudo()``."""
+        if not self.env.su and not self.env.user.has_group('base.group_system'):
+            raise AccessError(self.env._('Solo un administrador cambia la configuración de Brian.'))
+
     def action_dcasa_brian_probar(self):
         """Guarda los ajustes y hace una llamada mínima al proveedor."""
+        self._dcasa_brian_exigir_admin()
         self.ensure_one()
         self.set_values()
         resultado = self.env['brian.proveedores'].sudo().probar()
@@ -59,5 +67,6 @@ class ResConfigSettings(models.TransientModel):
         }
 
     def action_dcasa_brian_borrar_clave(self):
+        self._dcasa_brian_exigir_admin()
         self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.api_key', False)
         return True
