@@ -15,9 +15,8 @@ import statistics
 import sys
 from pathlib import Path
 
-import yaml
-
 import extraer_herramientas as ex
+import yaml
 
 AQUI = Path(__file__).resolve().parent
 
@@ -197,11 +196,10 @@ def decidir(h, args, ctx, grupos, perfil, canal, perfiles):
             decision, motivo = 'confirmar', 'sobre_tope'
         else:
             decision, motivo = 'permitir', 'autonomo'
+    elif h.get('escribe') and contaminado:
+        decision, motivo = 'confirmar', 'contaminado'
     else:
-        if h.get('escribe') and contaminado:
-            decision, motivo = 'confirmar', 'contaminado'
-        else:
-            decision, motivo = 'permitir', 'directo'
+        decision, motivo = 'permitir', 'directo'
     if decision == 'confirmar' and canal == 'mcp':
         return 'confirmar_fuera_de_banda', motivo
     return decision, motivo

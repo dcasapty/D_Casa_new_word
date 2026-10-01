@@ -3,3 +3,4 @@ node_modules/
 fixtures/datos_*mb.xlsx
 fixtures/fotos_*mb.xlsx
 medicion/salida/*.tmp
+fixtures/externos/
