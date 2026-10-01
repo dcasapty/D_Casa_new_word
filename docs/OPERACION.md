@@ -164,9 +164,8 @@ quien mantiene el sistema: es la regla de salida de la Fase 1.
 Se hace en dos pasos, siempre en este orden:
 
 1. **Restaurar la base al momento anterior al despliegue.** El resumen del despliegue malo (Actions →
-   la ejecución → *Summary*) dice la hora del «Respaldo previo». *Pendiente de la imagen de la Fase 1
-   (`f1-imagen`)*: el procedimiento exacto para arrancar restaurando a una hora dada (ver «Restaurar a
-   un punto en el tiempo»). Hasta que esté, pedirlo a quien mantiene el sistema.
+   la ejecución → *Summary*) dice la hora del «Respaldo previo». Para arrancar restaurando a esa hora,
+   ver «Restaurar a un punto en el tiempo».
 2. **Desplegar la versión anterior:** abrir el resumen del último despliegue **bueno** y copiar
    `app_version` e `imagen_digest`. Actions → **Desplegar** → *Run workflow* → entorno, esos dos
    valores, y desmarcar *respaldo_previo* si el sitio está caído. No se reconstruye nada: se usa la
@@ -186,8 +185,12 @@ cubierto por los respaldos.
   que se hizo después.
 - **Volver producción entera a esa hora**: se pierde todo lo posterior. Solo con decisión del dueño.
 
-*Pendiente de `f1-imagen`*: la orden o variable concreta para pedir «arranca restaurando hasta tal
-hora» (pgBackRest `--type=time`). Cuando exista se documenta aquí con un ejemplo.
+**Cómo se pide:** poner en el Worker la variable `DCASA_RESTAURAR_HASTA` con la hora **y la zona
+horaria** (obligatoria), p. ej. `DCASA_RESTAURAR_HASTA="2026-10-01 10:42:00-05"` (hora de Panamá), y
+reiniciar el contenedor (desplegar de nuevo). Al arrancar restaura con pgBackRest `--type=time` hasta
+esa hora y promueve la base. Se aplica **una sola vez**: queda una marca en R2 (`dcasa-control/`) y un
+reinicio posterior con la variable aún puesta no vuelve a restaurar. Después de comprobar que todo
+está bien, quitar la variable. Ensayado en el simulacro (`scripts/simulacro_restauracion.sh`).
 
 ## Dónde ver los logs
 

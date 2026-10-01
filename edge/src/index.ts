@@ -67,8 +67,8 @@ const INSTANCE = "odoo-main";
 
 /** Puerto de Odoo. El contrato con la imagen: no escucha hasta que la base está lista. */
 const PUERTO = 8069;
-/** Tope para que Odoo abra el puerto: restauración desde R2 (~1 min medido) + arranque. */
-const TOPE_ARRANQUE_MS = 180_000;
+/** Tope para que Odoo abra el puerto: restauración (~10 s medido) + `-u` (~25 s) y, solo en el primer arranque, la instalación completa (263 s medido). */
+const TOPE_ARRANQUE_MS = 420_000;
 /** Si un arranque falla, no se reintenta antes de esto (evita restaurar desde R2 en bucle). */
 const PAUSA_TRAS_FALLO_MS = 30_000;
 /** Tiempo máximo de `/dcasa/salud`. */
