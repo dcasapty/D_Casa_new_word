@@ -29,6 +29,11 @@ CONTADOR = 'API de la pantalla de conciliación: exige account.group_account_use
 
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
+    # --- dcasa_base -------------------------------------------------------------------------
+    ('dcasa_base', 'sale.order.line', 'create'):
+        OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
+    ('dcasa_base', 'sale.order.line', 'write'):
+        OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
     # --- dcasa_catalogo -----------------------------------------------------------------
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     # --- dcasa_contabilidad --------------------------------------------------------------
