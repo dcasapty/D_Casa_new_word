@@ -690,3 +690,6 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 ### coordinador · APRENDIZAJE · — · decisión del dueño: el CRM se queda (y se mejorará)
 - D'CASA usará el CRM de Odoo y lo construirá o mejorará encima (módulo propio `dcasa_*`). Se mantienen `crm`, `sale_crm` y `calendar` (el CRM de Odoo 19 depende de `calendar`: `vendor/odoo/addons/crm/__manifest__.py`).
 - Siguen siendo candidatos a desinstalar: enriquecimiento IAP del CRM (`crm_iap_*`, `iap_crm`, `partner_autocomplete`), SMS, snailmail, UBL europeo, tableros de hoja de cálculo, lista de deseos, comparador, `base_import_module`.
+
+### coordinador · APRENDIZAJE · — · el dueño aprueba: Brian como parte del CRM mejorado
+- Propuesta aprobada para el plan: Brian dentro del CRM (`dcasa_*` sobre `crm`): crear oportunidades desde WhatsApp/Telegram/chat, recordar seguimientos y actividades del calendario, resumir el historial de un cliente, sugerir el siguiente paso. Encaja como paquete de habilidades «crm» en el catálogo de r3-brian-habilidades (nivel por rol: vendedora gestiona sus oportunidades; gerencia ve el embudo completo).
