@@ -19,8 +19,10 @@
             </a>
             <div class="o_dcasa_pcard_body">
                 <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto.name"/></h3>
-                <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price" t-out="item['precio']"
-                   t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
+                <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price">
+                    <span t-out="item['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
+                    <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
+                </p>
                 <div class="o_dcasa_pcard_actions">
                     <form t-if="item['directo']" action="/dcasa/carrito/agregar" method="post">
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>

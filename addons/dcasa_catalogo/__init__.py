@@ -3,7 +3,7 @@ from .catalogo import cargar_catalogo
 
 
 def _dcasa_catalogo_post_init(env):
-    """Carga el catálogo cuando el plan contable de Panamá ya está (el ITBMS sale de ahí).
+    """Carga el catálogo cuando el plan contable de Panamá ya está (el ITBMS que se suma sale de ahí).
 
     En una base nueva, dcasa_base difiere el plan contable al final de la carga del
     registro; el catálogo se engancha detrás para usar el ITBMS de Panamá.

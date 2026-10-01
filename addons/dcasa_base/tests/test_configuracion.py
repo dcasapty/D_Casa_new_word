@@ -5,38 +5,67 @@ from odoo.addons.dcasa_base import (
     MENUS_OCULTOS,
     _configurar_interfaz,
     _configurar_ventas_panama,
+    archivar_itbms_incluido,
 )
 from odoo.tests import TransactionCase, tagged
 
 
 @tagged('post_install', '-at_install')
 class TestConfiguracionTienda(TransactionCase):
-    """Auditoría de UX: Odoo por dentro en español, con ITBMS incluido y al grano."""
+    """Auditoría de UX: Odoo por dentro en español, con el ITBMS que se suma y al grano."""
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.ref('base.main_company')
 
-    def test_producto_nuevo_nace_con_itbms_incluido(self):
-        producto = self.env['product.template'].create({'name': 'Mueble nuevo', 'list_price': 104.99})
-        self.assertTrue(producto.taxes_id)
-        self.assertTrue(all(producto.taxes_id.mapped('price_include')))
-        total = producto.taxes_id.compute_all(104.99)
-        self.assertAlmostEqual(total['total_included'], 104.99, places=2)
+    def test_producto_nuevo_nace_con_itbms_que_se_suma(self):
+        """Los precios de D'CASA son sin ITBMS: el 7 % se suma encima (decisión de la dueña)."""
+        producto = self.env['product.template'].create({'name': 'Mueble nuevo', 'list_price': 39.99})
+        self.assertEqual(producto.taxes_id, self.company.account_sale_tax_id)
+        self.assertEqual(producto.taxes_id.amount, 7)
+        self.assertFalse(producto.taxes_id.price_include)
+        self.assertEqual(producto.taxes_id.name, 'ITBMS 7%')
+        total = producto.taxes_id.compute_all(39.99)
+        self.assertAlmostEqual(total['total_excluded'], 39.99, places=2)
+        self.assertAlmostEqual(total['total_included'], 42.79, places=2)
 
-    def test_linea_muestra_el_importe_con_itbms(self):
-        """La columna Importe de la cotización es la del precio con ITBMS (no el neto)."""
-        self.assertEqual(self.company.account_price_include, 'tax_included')
+    def test_linea_de_venta_suma_el_itbms(self):
+        """$39.99 de lista → subtotal 39.99, ITBMS 2.80, total 42.79."""
+        self.assertEqual(self.company.account_price_include, 'tax_excluded')
         orden = self.env['sale.order'].create({
             'partner_id': self.env['res.partner'].create({'name': 'Cliente'}).id,
             'order_line': [(0, 0, {'product_id': self.env['product.product'].create(
-                {'name': 'Mesa', 'list_price': 104.99}).id})],
+                {'name': 'Mesa', 'list_price': 39.99}).id})],
         })
-        self.assertAlmostEqual(orden.order_line.price_total, 104.99, places=2)
-        self.assertAlmostEqual(orden.amount_total, 104.99, places=2)
+        self.assertAlmostEqual(orden.order_line.price_subtotal, 39.99, places=2)
+        self.assertAlmostEqual(orden.order_line.price_total, 42.79, places=2)
+        self.assertAlmostEqual(orden.amount_untaxed, 39.99, places=2)
+        self.assertAlmostEqual(orden.amount_tax, 2.80, places=2)
+        self.assertAlmostEqual(orden.amount_total, 42.79, places=2)
 
-    def test_compras_siguen_sin_itbms_incluido(self):
+    def test_reconfigurar_corrige_base_con_itbms_incluido(self):
+        """Una base anterior (impuesto incluido por defecto) vuelve al ITBMS que se suma."""
+        venta = self.company.account_sale_tax_id
+        incluido = venta.copy({'name': 'ITBMS 7% incluido', 'price_include_override': 'tax_included'})
+        self.company.write({'account_sale_tax_id': incluido.id, 'account_price_include': 'tax_included'})
+        _configurar_ventas_panama(self.env)
+        self.assertEqual(self.company.account_sale_tax_id, venta)
+        self.assertEqual(self.company.account_price_include, 'tax_excluded')
+        self.assertTrue(incluido.price_include, 'El incluido no cambia: lo archiva la migración del catálogo')
+
+    def test_archiva_el_incluido_sin_uso(self):
+        venta = self.company.account_sale_tax_id
+        incluido = venta.copy({'name': 'ITBMS 7% incluido', 'price_include_override': 'tax_included'})
+        producto = self.env['product.template'].create({'name': 'Viejo', 'taxes_id': [(6, 0, incluido.ids)]})
+        self.assertEqual(archivar_itbms_incluido(self.env, self.company), incluido, 'Lo usa un producto')
+        self.assertTrue(incluido.active)
+        producto.taxes_id = venta
+        self.assertFalse(archivar_itbms_incluido(self.env, self.company))
+        self.assertFalse(incluido.active)
+        self.assertTrue(venta.active)
+
+    def test_compras_sin_itbms_incluido(self):
         compras = self.env['account.tax'].search([
             ('company_id', '=', self.company.id), ('type_tax_use', '=', 'purchase')])
         self.assertTrue(compras)

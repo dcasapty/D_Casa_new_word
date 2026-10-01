@@ -14,10 +14,8 @@ class SociosCommon(TransactionCase):
         super().setUpClass()
         cls.env = cls.env(context=dict(cls.env.context, tracking_disable=True))
         cls.company = cls.env.ref('base.main_company')
-        # ITBMS que se suma al precio (como en la factura real): el de la tienda ya lo incluye.
-        cls.itbms = cls.env['account.tax'].search([
-            ('company_id', '=', cls.company.id), ('type_tax_use', '=', 'sale'),
-            ('amount', '=', 7), ('price_include', '=', False)], limit=1)
+        # El ITBMS de venta por defecto de la empresa: se suma al precio, como en la factura real.
+        cls.itbms = cls.company.account_sale_tax_id
         cls.producto = cls.env['product.product'].create({
             'name': 'CAMA QUEEN GREY CON ESTANTES', 'type': 'consu', 'invoice_policy': 'order',
             'list_price': 100.0, 'taxes_id': [(6, 0, cls.itbms.ids)],

@@ -7,7 +7,8 @@ las ventas y la tienda web.
 
 * data/catalogo.json y static/img/productos/ los genera scripts/importar_catalogo.py
   a partir de «up media/DCASA_listado_productos.xlsx» y de las fotos (nombre = código).
-* Precios del Excel tal cual, con ITBMS incluido (impuesto «ITBMS 7% incluido»).
+* Precios del Excel tal cual, SIN ITBMS: el ITBMS 7 % se suma al precio (en la web,
+  «$39.99 + ITBMS»; el total con impuesto sale en carrito, cotización y factura).
 * Camas y colchones con tamaños (Twin, Full, Queen, King) como variantes.
 * Varias fotos por código: la primera es la principal, el resto va a la galería.
 * Productos sin foto quedan en inventario sin publicar en la web.
@@ -18,7 +19,7 @@ las ventas y la tienda web.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

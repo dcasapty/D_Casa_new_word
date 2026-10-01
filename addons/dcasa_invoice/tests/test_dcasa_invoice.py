@@ -10,10 +10,6 @@ class TestDcasaInvoice(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.company = cls.env.ref('base.main_company')
-        # ITBMS que se suma al precio (como en la factura real): el de la tienda ya lo incluye.
-        cls.itbms = cls.env['account.tax'].search([
-            ('company_id', '=', cls.company.id), ('type_tax_use', '=', 'sale'),
-            ('amount', '=', 7), ('price_include', '=', False)], limit=1)
         cls.customer = cls.env['res.partner'].create({
             'name': 'ERIC GOMEZ G.',
             'street': 'P. Oeste, La Chorrera, Corregimiento Herrera',
@@ -21,7 +17,8 @@ class TestDcasaInvoice(TransactionCase):
             'country_id': cls.env.ref('base.pa').id,
             'vat': '2-723-510',
         })
-        product_vals = {'type': 'consu', 'taxes_id': [(6, 0, cls.itbms.ids)]}
+        # Sin impuesto explícito: los productos nacen con el ITBMS de venta por defecto de la empresa.
+        product_vals = {'type': 'consu'}
         cls.colchon = cls.env['product.product'].create({
             **product_vals, 'name': 'COLCHON DULCESUENOS SEMI RESORTE Q (A)', 'default_code': 'DSRSOQ',
         })
@@ -52,7 +49,14 @@ class TestDcasaInvoice(TransactionCase):
         return html.decode()
 
     def test_totals_match_real_invoice(self):
+        """Con el impuesto por defecto (el ITBMS se suma): 329.99 + 23.10 = 353.09, como la real."""
+        itbms = self.company.account_sale_tax_id
+        self.assertEqual((itbms.amount, itbms.type_tax_use), (7.0, 'sale'))
+        self.assertFalse(itbms.price_include, 'Los precios de D\'CASA son sin ITBMS')
+        self.assertEqual(self.colchon.taxes_id, itbms)
         invoice = self._create_invoice()
+        self.assertEqual(invoice.invoice_line_ids.tax_ids, itbms)
+        self.assertEqual(invoice._dcasa_nota_de_impuesto(), 'sin ITBMS')
         self.assertAlmostEqual(invoice.amount_untaxed, 329.99)
         self.assertAlmostEqual(invoice.amount_tax, 23.10)
         self.assertAlmostEqual(invoice.amount_total, 353.09)

@@ -1,4 +1,4 @@
-"""Auditoría de UX: ITBMS incluido, formas de cobro e interfaz en español en bases ya instaladas."""
+"""Auditoría de UX: impuesto de venta, formas de cobro e interfaz en español en bases ya instaladas."""
 from odoo import SUPERUSER_ID, api
 from odoo.addons.dcasa_base import _configurar_interfaz, _configurar_ventas_panama
 

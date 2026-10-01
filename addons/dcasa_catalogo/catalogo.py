@@ -1,19 +1,20 @@
 """Carga del catálogo real (data/catalogo.json) en productos de Odoo.
 
 El JSON y las fotos los genera ``scripts/importar_catalogo.py`` desde el Excel de la
-empresa: aquí no se escribe ni se calcula ningún precio, solo se copian.
+empresa: aquí no se escribe ni se calcula ningún precio, solo se copian. Los precios del
+Excel son SIN ITBMS («+ITBMS»): el producto lleva el ITBMS 7 % que se suma al precio.
 """
 import base64
 import json
 import logging
 import re
 
+from odoo.addons.dcasa_base import archivar_itbms_incluido, itbms_de_venta
 from odoo.tools.misc import file_open
 
 _logger = logging.getLogger(__name__)
 
 MODULO = 'dcasa_catalogo'
-IMPUESTO_INCLUIDO = 'ITBMS 7% incluido'
 TAMANOS = ['Twin', 'Full', 'Queen', 'King']
 
 # Categoría del JSON → categoría interna (inventario/contabilidad).
@@ -47,22 +48,27 @@ def foto_b64(nombre):
         return base64.b64encode(archivo.read())
 
 
-def impuesto_incluido(env, company):
-    """El ITBMS de venta de la empresa, pero con el precio que ya lo incluye.
+def pasar_a_itbms_que_se_suma(env):
+    """Bases cargadas antes del 2026-10-01: el catálogo pasa del «ITBMS incluido» al que se suma.
 
-    Los precios del Excel son precio final (con ITBMS): con este impuesto la tienda, la
-    cotización y la factura muestran exactamente esa cifra.
+    Los precios del Excel son sin ITBMS (decisión de la dueña): el ``list_price`` ya es la
+    cifra correcta y no se toca; solo cambia el impuesto. Un producto cuyo impuesto la
+    dueña cambió a mano (ya no es solo el «incluido» de la carga) se deja como está.
+    La tienda pasa a mostrar el precio sin ITBMS («+ ITBMS») y, si el impuesto incluido
+    queda sin uso, se archiva. Devuelve cuántos productos se corrigieron.
     """
-    base = company.account_sale_tax_id
-    if not base or base.price_include:
-        return base
-    Tax = env['account.tax'].with_company(company)
-    existente = Tax.search([
-        ('company_id', '=', company.id), ('type_tax_use', '=', 'sale'),
-        ('amount_type', '=', base.amount_type), ('amount', '=', base.amount),
-        ('price_include_override', '=', 'tax_included'),
-    ], limit=1)
-    return existente or base.copy({'name': IMPUESTO_INCLUIDO, 'price_include_override': 'tax_included'})
+    company = env.ref('base.main_company')
+    venta = itbms_de_venta(env, company)
+    ids = env['ir.model.data'].search([('module', '=', MODULO), ('model', '=', 'product.template')]).mapped('res_id')
+    productos = env['product.template'].with_context(active_test=False).browse(ids).exists()
+    corregidos = productos.filtered(lambda p: p.taxes_id and all(
+        t.price_include and t.type_tax_use == 'sale' and t.amount == venta.amount for t in p.taxes_id))
+    if venta and corregidos:
+        corregidos.taxes_id = [(6, 0, venta.ids)]
+    env['website'].search([]).show_line_subtotals_tax_selection = 'tax_excluded'
+    archivar_itbms_incluido(env, company)
+    _logger.info('Catálogo D\'CASA: %s productos pasan al ITBMS que se suma al precio.', len(corregidos))
+    return len(corregidos)
 
 
 def atributo_tamano(env):
@@ -93,7 +99,7 @@ def cargar_catalogo(env):
     """Crea los productos que falten. Lo que ya existe (por su xmlid) no se toca."""
     company = env.ref('base.main_company')
     env = env(context=dict(env.context, allowed_company_ids=company.ids, lang='es_419'))
-    impuesto = impuesto_incluido(env, company)
+    impuesto = itbms_de_venta(env, company)
     atributo, valores = atributo_tamano(env)
     Template = env['product.template']
     creados = 0
@@ -148,8 +154,8 @@ def cargar_catalogo(env):
         })
         creados += 1
 
-    # La tienda muestra el precio con ITBMS, igual que el Excel y la etiqueta en la tienda física.
-    env['website'].search([]).show_line_subtotals_tax_selection = 'tax_included'
+    # La tienda muestra la cifra del Excel (sin ITBMS) con «+ ITBMS»; el carrito suma el impuesto.
+    env['website'].search([]).show_line_subtotals_tax_selection = 'tax_excluded'
     _logger.info('Catálogo D\'CASA: %s productos nuevos.', creados)
     return creados
 
