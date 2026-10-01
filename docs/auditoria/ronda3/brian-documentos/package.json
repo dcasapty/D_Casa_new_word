@@ -1,0 +1,23 @@
+{
+  "name": "dcasa-brian-documentos-prototipo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "fixtures": "python3 fixtures/generar_fixtures.py",
+    "medir": "node --expose-gc --experimental-strip-types medicion/medir.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "exceljs": "^4.4.0",
+    "mammoth": "^1.13.0",
+    "typescript": "^7.0.2",
+    "unpdf": "^1.8.1",
+    "vitest": "^3.2.7",
+    "xlsx": "^0.18.5"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  }
+}

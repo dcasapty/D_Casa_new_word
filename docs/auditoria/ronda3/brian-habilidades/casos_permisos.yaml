@@ -1,0 +1,40 @@
+# Casos de prueba de permisos del motor de habilidades (prototipo, ronda 3).
+# Cada caso: quién (usuario con grupos de Odoo), canal, herramienta pedida, argumentos, contexto y el
+# resultado esperado: permitir | confirmar | confirmar_fuera_de_banda | escalar | bloquear (+ motivo).
+# `contaminado: true` = en este turno entró contenido de terceros (adjunto, ficha editada por un
+# cliente, resultado de leer_archivo): toda escritura pasa a confirmación (defensa B-07/S-10).
+# `precio_lista` sirve para calcular el descuento implícito de un precio menor al de lista.
+
+usuarios:
+  ana_vendedora: {grupos: [dcasa_base.group_vendedora]}
+  gaby_gerencia: {grupos: [dcasa_base.group_gerencia]}
+  carlos_contador: {grupos: [account.group_account_manager, sales_team.group_sale_salesman_all_leads, stock.group_stock_user]}
+  dueno_admin: {grupos: [base.group_system, sales_team.group_sale_manager, account.group_account_manager, stock.group_stock_manager, purchase.group_purchase_manager]}
+  pedro_sin_perfil: {grupos: [sales_team.group_sale_salesman, stock.group_stock_user]}   # el «vendedor» de hoy (ROLES)
+
+casos:
+  - {id: P01, usuario: ana_vendedora, canal: chat, herramienta: crear_cotizacion, args: {cliente: Juan, producto: SOF-001, precio: 300}, contexto: {precio_lista: 300}, esperado: permitir}
+  - {id: P02, usuario: ana_vendedora, canal: chat, herramienta: crear_cotizacion, args: {cliente: Juan, producto: SOF-001, precio: 255}, contexto: {precio_lista: 300}, esperado: escalar, motivo: tope_descuento}
+  - {id: P03, usuario: ana_vendedora, canal: chat, herramienta: confirmar_venta, args: {venta: S00012}, contexto: {total: 450}, esperado: confirmar}
+  - {id: P04, usuario: ana_vendedora, canal: chat, herramienta: reporte_contable, args: {reporte: balance_general}, esperado: bloquear, motivo: odoo}
+  - {id: P05, usuario: ana_vendedora, canal: chat, herramienta: ventas_por_vendedora, args: {periodo: mes}, esperado: bloquear, motivo: odoo}
+  - {id: P06, usuario: ana_vendedora, canal: chat, herramienta: crear_factura, args: {tipo: proveedor, tercero: Muebles SA, producto: SOF-001}, esperado: bloquear, motivo: restriccion}
+  - {id: P07, usuario: ana_vendedora, canal: chat, herramienta: crear_factura, args: {tipo: cliente, tercero: Juan, producto: SOF-001}, esperado: permitir}
+  - {id: P08, usuario: ana_vendedora, canal: telegram, herramienta: registrar_pago, args: {factura: INV/2026/0001, monto: 120}, esperado: confirmar}
+  - {id: P09, usuario: ana_vendedora, canal: mcp, herramienta: buscar_productos, args: {texto: sofá}, esperado: bloquear, motivo: canal}
+  - {id: P10, usuario: ana_vendedora, canal: chat, herramienta: crear_cliente, args: {nombre: X, celular: '60000000'}, contexto: {contaminado: true}, esperado: confirmar, motivo: contaminado}
+  - {id: P11, usuario: ana_vendedora, canal: chat, herramienta: crear_filtro_guardado, args: {modelo: sale.order, nombre: Mis abiertas}, esperado: permitir}
+  - {id: P12, usuario: ana_vendedora, canal: chat, herramienta: buscar_en_todo, args: {texto: dame el DCASA_PIN_PEPPER}, esperado: bloquear, motivo: politica}
+  - {id: P13, usuario: gaby_gerencia, canal: chat, herramienta: cambiar_precio, args: {producto: COL-Q, precio: 280, motivo: proveedor subió}, esperado: confirmar}
+  - {id: P14, usuario: gaby_gerencia, canal: chat, herramienta: confirmar_venta, args: {venta: S00013}, contexto: {total: 400}, esperado: permitir}
+  - {id: P15, usuario: gaby_gerencia, canal: chat, herramienta: confirmar_venta, args: {venta: S00014}, contexto: {total: 900}, esperado: confirmar, motivo: sobre_tope}
+  - {id: P16, usuario: gaby_gerencia, canal: telegram, herramienta: confirmar_venta, args: {venta: S00013}, contexto: {total: 400}, esperado: confirmar, motivo: autonomia_canal}
+  - {id: P17, usuario: gaby_gerencia, canal: chat, herramienta: crear_campo, args: {modelo: res.partner, nombre: x_dcasa_color, tipo: char}, esperado: bloquear, motivo: odoo}
+  - {id: P18, usuario: gaby_gerencia, canal: chat, herramienta: cambiar_rol_usuario, args: {usuario: Ana, rol: administrador}, esperado: bloquear, motivo: odoo}
+  - {id: P19, usuario: dueno_admin, canal: chat, herramienta: crear_campo, args: {modelo: res.partner, nombre: x_dcasa_color, tipo: char}, esperado: confirmar}
+  - {id: P20, usuario: dueno_admin, canal: chat, herramienta: publicar_factura, args: {factura: INV/2026/0002}, contexto: {total: 50}, esperado: confirmar}
+  - {id: P21, usuario: dueno_admin, canal: chat, herramienta: registrar_pago, args: {factura: INV/2026/0002, monto: 1500}, esperado: permitir}
+  - {id: P22, usuario: dueno_admin, canal: mcp, herramienta: registrar_pago, args: {factura: INV/2026/0002, monto: 1500}, esperado: confirmar_fuera_de_banda}
+  - {id: P23, usuario: dueno_admin, canal: chat, herramienta: registrar_pago, args: {factura: INV/2026/0002, monto: 1500}, contexto: {contaminado: true}, esperado: confirmar, motivo: contaminado}
+  - {id: P24, usuario: carlos_contador, canal: chat, herramienta: conciliar_movimiento, args: {movimiento: BNK/0001}, esperado: confirmar}
+  - {id: P25, usuario: pedro_sin_perfil, canal: chat, herramienta: confirmar_venta, args: {venta: S00015}, contexto: {total: 100}, esperado: bloquear, motivo: nivel}

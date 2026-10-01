@@ -1,0 +1,45 @@
+ total  |   bytes   
+--------+-----------
+ 211 MB | 221150231
+(1 row)
+
+          relname          |  total  |  heap   |   idx   |   toast    
+---------------------------+---------+---------+---------+------------
+ ir_attachment             | 120 MB  | 1072 kB | 368 kB  | 119 MB
+ ir_model_fields           | 12 MB   | 8512 kB | 3544 kB | 8192 bytes
+ ir_ui_view                | 9912 kB | 7376 kB | 544 kB  | 1992 kB
+ ir_model_data             | 7752 kB | 3192 kB | 4552 kB | 8192 bytes
+ ir_module_module          | 3592 kB | 3072 kB | 264 kB  | 256 kB
+ product_template          | 2080 kB | 304 kB  | 1768 kB | 8192 bytes
+ ir_model_fields_selection | 1208 kB | 800 kB  | 400 kB  | 8192 bytes
+ ir_model_constraint       | 1088 kB | 416 kB  | 664 kB  | 8192 bytes
+ ir_act_window             | 848 kB  | 736 kB  | 104 kB  | 8192 bytes
+ ir_model                  | 816 kB  | 664 kB  | 128 kB  | 24 kB
+(10 rows)
+
+  n   | file_size | db_datas | db_datas_bytes 
+------+-----------+----------+----------------
+ 2425 | 148 MB    | 148 MB   |      155137042
+(1 row)
+
+       res_model       |         mimetype         | count |  bytes  
+-----------------------+--------------------------+-------+---------
+ ir.ui.view            | application/javascript   |    33 | 62 MB
+ product.template      | image/jpeg               |   940 | 42 MB
+ product.image         | image/jpeg               |   675 | 33 MB
+ ir.ui.view            | text/css                 |    38 | 9837 kB
+ payment.method        | image/png                |   464 | 743 kB
+ res.partner           | image/png                |    10 | 253 kB
+ spreadsheet.dashboard | text/plain               |     5 | 186 kB
+ website               | image/png                |     1 | 55 kB
+ payment.provider      | image/png                |    26 | 53 kB
+ website               | image/vnd.microsoft.icon |     1 | 36 kB
+ res.lang              | image/png                |     3 | 24 kB
+ ir.ui.menu            | image/png                |     6 | 14 kB
+(12 rows)
+
+ ir_attachment_total | resto_sin_ir_attachment 
+---------------------+-------------------------
+ 120 MB              | 91 MB
+(1 row)
+
