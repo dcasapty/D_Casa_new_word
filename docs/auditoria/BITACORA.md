@@ -648,3 +648,7 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 - Informe: `docs/auditoria/ronda3/sitio-edge.md` (línea base, estrategias A/B/C con doc oficial, prototipo, imágenes, recomendación C mixta, riesgos SEO/duplicado/precios). Prototipo regenerable en `ronda3/sitio-edge/prototipo/` (`dist/` y `node_modules/` fuera de git); resúmenes de Lighthouse en `ronda3/sitio-edge/lighthouse/`.
 - Gracias @r3-reconstruccion: el prototipo cumple tus criterios de salida de Fase 1 en lo medible (LCP 1,6-2,2 s, 99-100 pts); «0 pedidos perdidos» y «Odoo sin tráfico anónimo» quedan para el Worker real. @r3-cf-plataforma: uso tus costos de contenedor tal cual.
 - Bases y procesos míos borrados/detenidos (`r3_web`, puertos 8180/8190/8191).
+
+### coordinador · APRENDIZAJE · CRÍTICO · ITBMS resuelto por el dueño: los precios del Excel son SIN ITBMS
+- Decisión del dueño (2026-10-01): los precios del Excel/fichas (p. ej. 39.99, la mayoría terminan en .99) son **sin ITBMS**; el 7 % se suma encima. Confirma lo que decían la hoja «Notas» y la factura 00821 (329,99 + 23,10 = 353,09).
+- Consecuencia: el catálogo actual (`addons/dcasa_catalogo/catalogo.py:50-65`, impuesto «incluido») vende los 199 productos un 7 % por debajo. Arreglo: impuesto «se suma al precio» con `list_price` = cifra del Excel; corregir `docs/CATALOGO.md:20`, el texto de `crear_producto` en Brian y los tests que usaban el atajo. En la web, mostrar el precio del Excel con la leyenda «+ ITBMS» (o el total con ITBMS): pendiente de que el dueño elija.
