@@ -67,9 +67,9 @@ function picture(v, { alt = '', sizes, lazy = true, prioridad = false, clase = '
 // ---------------------------------------------------------------- CSS (en línea: 0 peticiones que bloqueen)
 const CSS = `
 @font-face{font-family:Anton;src:url(/fonts/anton-400.woff2) format("woff2");font-display:swap}
-@font-face{font-family:Oswald;src:url(/fonts/oswald-500.woff2) format("woff2");font-weight:500;font-display:swap}
-@font-face{font-family:Inter;src:url(/fonts/inter-400.woff2) format("woff2");font-weight:400;font-display:swap}
-@font-face{font-family:Inter;src:url(/fonts/inter-700.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:Oswald;src:url(/fonts/oswald-500.woff2) format("woff2");font-weight:500;font-display:optional}
+@font-face{font-family:Inter;src:url(/fonts/inter-400.woff2) format("woff2");font-weight:400;font-display:optional}
+@font-face{font-family:Inter;src:url(/fonts/inter-700.woff2) format("woff2");font-weight:700;font-display:optional}
 :root{--azul:#1340B1;--amarillo:#FED00F;--navy:#0E2A6B;--hueso:#F4F1EA;--tinta:#1B2233;--gris:#4A5163}
 *{box-sizing:border-box}html,body{overflow-x:clip}h1,h2,p{overflow-wrap:anywhere}html{scroll-padding-top:80px}
 body{margin:0;font:400 16px/1.55 Inter,system-ui,sans-serif;color:var(--tinta);background:#fff}
@@ -137,6 +137,8 @@ function layout({ titulo, descripcion, canonica, cuerpo, jsonld = [], precarga =
 <link rel="canonical" href="${BASE}${canonica}"><meta name="theme-color" content="#1340B1">
 <link rel="icon" href="/img/favicon.png">
 <link rel="preload" href="/fonts/anton-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/oswald-500.woff2" as="font" type="font/woff2" crossorigin>
 ${precarga}<style>${CSS}</style>
 ${jsonld.map((j) => `<script type="application/ld+json">${JSON.stringify(j).replace(/</g, '\\u003c')}</script>`).join('')}
 </head><body><a class="skip" href="#contenido">Ir al contenido</a>
@@ -153,9 +155,9 @@ ${jsonld.map((j) => `<script type="application/ld+json">${JSON.stringify(j).repl
 </body></html>`;
 }
 
-function tarjeta(p, v) {
+function tarjeta(p, v, i = 99) {
   const varios = Object.keys(p.precios).length > 1;
-  return `<li><article class="card"><a class="m" href="${urlProducto(p)}" tabindex="-1" aria-hidden="true">${picture(v, { sizes: '(min-width:1200px) 285px, (min-width:768px) 24vw, 48vw' })}</a>
+  return `<li><article class="card"><a class="m" href="${urlProducto(p)}" tabindex="-1" aria-hidden="true">${picture(v, { sizes: '(min-width:1200px) 285px, (min-width:768px) 24vw, 48vw', lazy: i > 1, prioridad: i === 0 })}</a>
 <div class="b"><h3><a href="${urlProducto(p)}">${esc(p.nombre_web)}</a></h3>
 <p class="precio">${varios ? '<span class="desde">desde </span>' : ''}${dinero(precioMin(p))}</p>
 <a class="btn btn-azul" href="${wa(`Hola D'CASA, me interesa: ${p.nombre_web}`)}" target="_blank" rel="noopener">Pídelo por WhatsApp<span class="vh">: ${esc(p.nombre_web)} (se abre en una pestaña nueva)</span></a></div></article></li>`;
@@ -234,7 +236,7 @@ ${padrino && ahijado ? `<li><strong>${padrino.toLocaleString('en-US')}</strong> 
       const pag = paginas > 1 ? `<nav class="pag" aria-label="Páginas">${Array.from({ length: paginas }, (_, j) => `<a href="${base}${j ? `pagina/${j + 1}/` : ''}"${j === i ? ' aria-current="page"' : ''}>${j + 1}</a>`).join('')}</nav>` : '';
       const cuerpo = `<section><div class="c"><h1>${k ? esc(nombre) : 'Catálogo'}</h1><p class="desde">${lista.length} productos</p>
 <ul class="filtros" role="list" aria-label="Categorías">${filtros}</ul>
-<ul class="grid" role="list">${lista.slice(i * POR_PAGINA, (i + 1) * POR_PAGINA).map((p) => tarjeta(p, vt[p.codigo])).join('')}</ul>${pag}</div></section>`;
+<h2 class="vh">Productos</h2><ul class="grid" role="list">${lista.slice(i * POR_PAGINA, (i + 1) * POR_PAGINA).map((p, j) => tarjeta(p, vt[p.codigo], j)).join('')}</ul>${pag}</div></section>`;
       escribir(ruta.slice(1) + 'index.html', layout({ titulo: `${k ? nombre + ' · ' : ''}Catálogo | D'CASA Panamá`, descripcion: "Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, zapateras, estantes y escritorios con precios claros. Entrega a todo Panamá desde La Chorrera.", canonica: ruta, cuerpo }));
     }
   }
@@ -285,6 +287,9 @@ ${p.combo ? `<p>También en combo ${esc(p.combo)}. Pídelo por WhatsApp.</p>` : 
 <li><a href="https://www.instagram.com/dcasapty" target="_blank" rel="noopener">@dcasapty${NUEVA}</a></li></ul>
 <h2 class="kicker">Antes de venir</h2><p>Escríbenos y te confirmamos el horario, las existencias y los colores disponibles del mueble que te gusta. Muchos vienen en caja: te los llevas hoy mismo.</p>
 <a class="btn btn-azul" href="${wa("Hola D'CASA, quiero visitarlos en la tienda")}" target="_blank" rel="noopener">Escríbenos por WhatsApp${NUEVA}</a></div></section>` }));
+  escribir('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${BASE}/sitemap.xml\n`);
+  const urls = ['/', '/shop/', '/visitanos', ...listas.filter(([k]) => k).map(([k]) => `/shop/${slug(k)}/`), ...productos.filter((x) => !solo || solo.includes(x.codigo)).map(urlProducto)];
+  escribir('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map((u) => `<url><loc>${BASE}${u}</loc></url>`).join('')}</urlset>`);
   escribir('404.html', layout({ titulo: "Página no encontrada | D'CASA Panamá", descripcion: '', canonica: '/404', cuerpo: '<section><div class="c"><h1>Esta página no existe</h1><p><a class="btn btn-azul" href="/shop/">Ver el catálogo</a></p></div></section>' }));
   escribir('_headers', '/img/*\n  Cache-Control: public, max-age=31536000, immutable\n/fonts/*\n  Cache-Control: public, max-age=31536000, immutable\n');
   fs.writeFileSync(path.join(AQUI, '..', 'variantes-imagenes.json'), JSON.stringify(resumenImagenes(), null, 1));

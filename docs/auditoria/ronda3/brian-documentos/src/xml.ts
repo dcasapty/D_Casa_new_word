@@ -57,12 +57,15 @@ function atributos(s: string): Atributos {
   return out;
 }
 
+/** ¿El '>' en `hasta` queda fuera de comillas? (recorre solo el tramo de la etiqueta) */
 function comillasBalanceadas(b: string, desde: number, hasta: number): boolean {
-  let q = 0, a = 0;
-  for (let k = b.indexOf('"', desde); k >= 0 && k < hasta; k = b.indexOf('"', k + 1)) q++;
-  if (q % 2) return false;
-  for (let k = b.indexOf("'", desde); k >= 0 && k < hasta; k = b.indexOf("'", k + 1)) a++;
-  return a % 2 === 0 || q > 0;
+  let comilla = 0;
+  for (let k = desde; k < hasta; k++) {
+    const c = b.charCodeAt(k);
+    if (comilla) { if (c === comilla) comilla = 0; }
+    else if (c === 34 || c === 39) comilla = c;
+  }
+  return comilla === 0;
 }
 
 export class TokenizadorXml {
