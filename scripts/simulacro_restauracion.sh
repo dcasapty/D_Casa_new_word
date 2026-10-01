@@ -99,7 +99,7 @@ command -v pgbackrest >/dev/null || { echo "✖ Falta pgbackrest" >&2; exit 1; }
 
 PIDS_AUX=()
 VIG_PID=""
-# shellcheck disable=SC2329  # se invoca desde trap EXIT
+# shellcheck disable=SC2317,SC2329  # se invoca desde trap EXIT (SC2317 en shellcheck < 0.10)
 limpiar() {
   local rc=$?
   set +e
