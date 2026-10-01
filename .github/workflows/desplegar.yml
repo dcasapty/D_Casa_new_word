@@ -118,8 +118,11 @@ jobs:
         with:
           # El Worker del mismo commit que la imagen (también al volver atrás).
           ref: ${{ inputs.app_version }}
+          # docker/ también: wrangler valida edge/wrangler.jsonc (image: ../docker/Dockerfile)
+          # en cada comando, incluso en `containers push`, y falla si no existe.
           sparse-checkout: |
             edge
+            docker
             .github
 
       - name: Secretos y variables completos, sin marcadores (I-11)
