@@ -40,6 +40,16 @@
         </xpath>
     </template>
 
+    <!-- Fuentes autoalojadas (static/src/scss/fuentes.scss): fuera el preconnect a
+         fonts.gstatic.com y precarga de las dos que pintan lo primero que se ve
+         (Anton en el titular del hero, Inter en el texto). Oswald llega con el CSS. -->
+    <template id="layout_fuentes_locales" inherit_id="website.layout" name="D'CASA: fuentes locales">
+        <xpath expr="//link[@rel='preconnect'][@href='https://fonts.gstatic.com/']" position="replace">
+            <link rel="preload" href="/website_dcasa/static/src/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin=""/>
+            <link rel="preload" href="/website_dcasa/static/src/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin=""/>
+        </xpath>
+    </template>
+
     <!-- Datos estructurados de la tienda (Google: ficha local y resultados enriquecidos). -->
     <template id="layout_json_ld" inherit_id="website.layout" name="D'CASA: datos estructurados">
         <xpath expr="//head" position="inside">

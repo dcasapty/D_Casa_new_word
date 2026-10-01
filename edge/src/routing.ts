@@ -78,12 +78,23 @@ export function isBlockedPath(pathname: string): boolean {
  */
 const NEVER_CACHE_PREFIXES = ["/brian/"];
 
-/** Recursos estáticos o versionados que se pueden guardar en la caché del borde. */
+/**
+ * Recursos estáticos o versionados que se pueden guardar en la caché del borde. Que la
+ * ruta esté aquí no basta: además Odoo tiene que responder "public" (isCacheableResponse),
+ * y Odoo solo marca "public" lo servido a un visitante anónimo (`Stream.public`, http.py).
+ *
+ * No entran (a propósito):
+ * - El HTML (`/`, `/shop`, fichas): Odoo manda `Set-Cookie` de sesión a todo anónimo y el
+ *   CSRF va atado a esa sesión. Cachearlo exige quitar la cookie a anónimos, bypass por
+ *   `session_id`, purga por etiqueta y pasar el «Agregar» a JSON-RPC (ronda3/sitio-edge.md §2.A).
+ * - `/web/webclient/translations`: Odoo responde `public, max-age=1 año` pero el JS lo pide
+ *   con `cache: "no-store"` y compara el hash para enterarse de traducciones nuevas.
+ */
 const CACHEABLE_PATTERNS = [
   /^\/web\/assets\//, // bundles JS/CSS con hash en la URL
-  /^\/[a-z0-9_]+\/static\//, // archivos estáticos de los módulos
+  /^\/[a-z0-9_]+\/static\//, // archivos estáticos de los módulos (fuentes, fotos del tema)
   /^\/web\/image\//, // imágenes de productos (solo si Odoo responde "public")
-  /^\/web\/content\/[^/]*\?.*unique=/, // adjuntos versionados
+  /^\/web\/content\/[^?]*\?(?:.*&)?unique=/, // adjuntos versionados (/web/content/12-abc/x.css?unique=…)
 ];
 
 export function route(url: URL, method: string, canonicalHost?: string): Route {
@@ -120,9 +131,70 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
 export function isCacheableResponse(response: Response): boolean {
   if (response.status !== 200) return false;
   if (response.headers.has("Set-Cookie")) return false;
+  // Una respuesta que varía según la cookie o según todo depende de quién la pide.
+  const vary = (response.headers.get("Vary") || "").toLowerCase();
+  if (/(^|,)\s*(\*|cookie|authorization)\s*(,|$)/.test(vary)) return false;
   const cacheControl = (response.headers.get("Cache-Control") || "").toLowerCase();
   if (!cacheControl.includes("public")) return false;
   return !/(private|no-store|no-cache)/.test(cacheControl);
+}
+
+/**
+ * ¿Esta petición puede leer o llenar la caché del borde? Solo lecturas y nunca con
+ * credenciales explícitas (`Authorization`): esas respuestas son de quien las pide.
+ * La cookie de sesión no cuenta: Odoo se la pone a todo anónimo, y lo que sirve a un
+ * usuario con sesión lo marca "private", que isCacheableResponse ya rechaza.
+ */
+export function isCacheableRequest(request: Request): boolean {
+  if (request.method !== "GET" && request.method !== "HEAD") return false;
+  return !request.headers.has("Authorization");
+}
+
+/** Cabeceras de validación condicional que el borde quita al llenar su caché. */
+export const CONDITIONAL_HEADERS = ["If-None-Match", "If-Modified-Since", "If-Match", "If-Unmodified-Since", "If-Range"];
+
+function etagsIguales(a: string, b: string): boolean {
+  const limpia = (etag: string) => etag.trim().replace(/^W\//, "");
+  return limpia(a) === limpia(b);
+}
+
+/**
+ * ¿El navegador ya tiene esta versión? (If-None-Match manda sobre If-Modified-Since,
+ * RFC 9110 §13.1.3). Permite responder 304 desde el borde aunque la copia en caché sea
+ * un 200 completo.
+ */
+export function notModified(request: Request, response: Response): boolean {
+  if (response.status !== 200) return false;
+  const ifNoneMatch = request.headers.get("If-None-Match");
+  const etag = response.headers.get("ETag");
+  if (ifNoneMatch !== null) {
+    if (!etag) return false;
+    return ifNoneMatch.trim() === "*" || ifNoneMatch.split(",").some((candidato) => etagsIguales(candidato, etag));
+  }
+  const ifModifiedSince = Date.parse(request.headers.get("If-Modified-Since") ?? "");
+  const lastModified = Date.parse(response.headers.get("Last-Modified") ?? "");
+  return !Number.isNaN(ifModifiedSince) && !Number.isNaN(lastModified) && lastModified <= ifModifiedSince;
+}
+
+/** 304 con las cabeceras que el navegador necesita para refrescar su copia (RFC 9110 §15.4.5). */
+export function notModifiedResponse(response: Response): Response {
+  const headers = new Headers();
+  for (const name of ["Cache-Control", "ETag", "Expires", "Last-Modified", "Vary", "Content-Location", "Date"]) {
+    const value = response.headers.get(name);
+    if (value !== null) headers.set(name, value);
+  }
+  return new Response(null, { status: 304, headers });
+}
+
+/** Cabecera de diagnóstico: permite medir si la caché del borde de verdad acierta. */
+export const CACHE_STATUS_HEADER = "X-Dcasa-Cache";
+export type CacheStatus = "HIT" | "MISS" | "BYPASS";
+
+export function withCacheStatus(response: Response, status: CacheStatus): Response {
+  if (response.status === 101 || (response as Response & { webSocket?: unknown }).webSocket) return response;
+  const marked = new Response(response.body, response);
+  marked.headers.set(CACHE_STATUS_HEADER, status);
+  return marked;
 }
 
 /** Cabeceras para que Odoo (proxy_mode) conozca el host, el esquema y la IP reales. */

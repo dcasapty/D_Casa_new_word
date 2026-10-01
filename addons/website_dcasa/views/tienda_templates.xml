@@ -33,4 +33,37 @@
             <small t-if="website_sale_order.carrier_id.dcasa_por_cotizar" class="d-block text-muted fw-normal">por cotizar</small>
         </xpath>
     </template>
+
+    <!-- Rendimiento de /shop (auditoría ronda 4): la tarjeta pedía image_1024 (~59 KB) para una
+         foto de ~180 px. Ahora el navegador elige entre 256/512/1024 según `sizes`, la foto lleva
+         width/height y solo las dos primeras (la fila visible en el celular, donde está la LCP)
+         van «eager» con prioridad alta. -->
+    <template id="tarjeta_tienda_imagen" inherit_id="website_sale.products_item" name="D'CASA: foto de la tarjeta a su tamaño">
+        <xpath expr="//span[hasclass('oe_product_image_img_wrapper_primary')]" position="attributes">
+            <attribute name="t-options">{
+                'widget': 'image', 'preview_image': 'image_512',
+                'class': 'oe_product_image_img h-100 w-100', 'width': 512, 'height': 512,
+                'dcasa_srcset': ('image_256', 'image_512', 'image_1024'),
+                'dcasa_sizes': dcasa_img_sizes or '(min-width: 1200px) 300px, (min-width: 992px) 25vw, (min-width: 768px) 33vw, 46vw',
+                'dcasa_prioridad': dcasa_img_prioridad or False,
+            }</attribute>
+        </xpath>
+        <xpath expr="//span[hasclass('oe_product_image_img_wrapper_secondary')]" position="attributes">
+            <attribute name="t-options">{
+                'widget': 'image', 'preview_image': 'image_512',
+                'class': 'oe_product_image_img_secondary h-100 w-100', 'width': 512, 'height': 512,
+                'dcasa_srcset': ('image_256', 'image_512', 'image_1024'),
+                'dcasa_sizes': dcasa_img_sizes or '(min-width: 1200px) 300px, (min-width: 992px) 25vw, (min-width: 768px) 33vw, 46vw',
+                'dcasa_prioridad': False,
+            }</attribute>
+        </xpath>
+    </template>
+
+    <!-- La imagen LCP de /shop está en la primera fila del celular (2 columnas): cuál de las
+         dos gana depende de la foto (área pintada), así que las dos van con prioridad. -->
+    <template id="tienda_primera_imagen_prioritaria" inherit_id="website_sale.products" name="D'CASA: imagen LCP de la tienda">
+        <xpath expr="//t[@t-call='website_sale.products_item']" position="inside">
+            <t t-set="dcasa_img_prioridad" t-value="tr_product_first and td_product_index &lt; 2"/>
+        </xpath>
+    </template>
 </odoo>

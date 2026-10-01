@@ -21,14 +21,17 @@ $o-color-palettes: map-merge($o-color-palettes, (
     ),
 ));
 
+// Fuentes autoalojadas (static/src/scss/fuentes.scss): sin 'url', website.scss de Odoo no
+// hace @import de fonts.googleapis.com. Inter se redefine igual: la de Odoo sí lo pedía.
 $o-theme-font-configs: map-merge($o-theme-font-configs, (
     'Anton': (
         'family': ('Anton', 'Oswald', sans-serif),
-        'url': 'Anton',
     ),
     'Oswald': (
         'family': ('Oswald', sans-serif),
-        'url': 'Oswald:400,500,600,700',
+    ),
+    'Inter': (
+        'family': ('Inter', sans-serif),
     ),
 ));
 

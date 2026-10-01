@@ -1,4 +1,14 @@
-import { forwardedHeaders, isCacheableResponse, route, withSecurityHeaders } from "./routing";
+import {
+  CONDITIONAL_HEADERS,
+  forwardedHeaders,
+  isCacheableRequest,
+  isCacheableResponse,
+  notModified,
+  notModifiedResponse,
+  route,
+  withCacheStatus,
+  withSecurityHeaders,
+} from "./routing";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -42,13 +52,32 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
   const upstream = new Request(request, { headers: forwardedHeaders(request) });
 
   if (decision.cacheable && deps.cache) {
+    if (!isCacheableRequest(request)) {
+      return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
+    }
     const cacheKey = new Request(url.toString(), { method: "GET" });
     const hit = await deps.cache.match(cacheKey);
-    // Lo servido desde la caché también lleva HSTS, nosniff, etc. (Q-03).
-    if (hit) return withSecurityHeaders(hit);
+    if (hit) {
+      // Lo servido desde la caché también lleva HSTS, nosniff, etc. (Q-03).
+      const servida = notModified(request, hit) ? notModifiedResponse(hit) : hit;
+      return withSecurityHeaders(withCacheStatus(servida, "HIT"));
+    }
 
-    const response = await reenviar(request, upstream, deps);
-    if (request.method === "GET" && isCacheableResponse(response)) {
+    // Al llenar la caché se pide la versión completa: si el navegador mandó If-None-Match,
+    // Odoo contestaría 304 y no habría nada que guardar (con poco tráfico, casi todo serían
+    // fallos). El 304 para ese navegador lo arma el borde con la copia ya guardada.
+    // Las imágenes sin `unique` Odoo las sirve "no-cache" (no se guardan): ahí el 304 de Odoo
+    // sigue siendo lo mejor para el navegador (avatares y fotos del panel).
+    const llenar = request.method === "GET";
+    const sinVersion = url.pathname.startsWith("/web/image") && !url.searchParams.has("unique");
+    let pedido = upstream;
+    if (llenar && !sinVersion) {
+      const headers = new Headers(upstream.headers);
+      for (const name of CONDITIONAL_HEADERS) headers.delete(name);
+      pedido = new Request(upstream, { headers });
+    }
+    const response = await reenviar(request, pedido, deps);
+    if (llenar && isCacheableResponse(response)) {
       // Se guarda la copia tal como la dio Odoo; las cabeceras se agregan al servir.
       const put = deps.cache.put(cacheKey, response.clone());
       if (deps.waitUntil) {
@@ -56,8 +85,10 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
       } else {
         await put;
       }
+      const servida = notModified(request, response) ? notModifiedResponse(response) : response;
+      return withSecurityHeaders(withCacheStatus(servida, "MISS"));
     }
-    return withSecurityHeaders(response);
+    return withSecurityHeaders(withCacheStatus(response, "BYPASS"));
   }
 
   return withSecurityHeaders(await reenviar(request, upstream, deps));
