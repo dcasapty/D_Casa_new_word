@@ -1,0 +1,177 @@
+{
+ "proto-ficha": {
+  "runs": 3,
+  "perf": 93,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 1228.0606,
+  "lcp": 1753.0606000000002,
+  "tbt": 0,
+  "cls": 0.15892458260378176,
+  "si": 2151.0605239999604,
+  "ttfb": 1.6130000000000004,
+  "kb": 138,
+  "req": 9,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   100,
+   93,
+   93
+  ],
+  "lcpRuns": [
+   1753,
+   1651,
+   1855
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 25,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/xht022-t-w-6-890.avif\" srcset=\"/img/xht022-t-w-6-480.webp 480w, /img/xht022-t-w-6-89",
+  "renderBlocking": []
+ },
+ "proto-ficha2": {
+  "runs": 3,
+  "perf": 92,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 923.0388,
+  "lcp": 1890,
+  "tbt": 33,
+  "cls": 0.15900845583144138,
+  "si": 923.0388,
+  "ttfb": 3.54,
+  "kb": 188,
+  "req": 9,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   91,
+   92,
+   93
+  ],
+  "lcpRuns": [
+   1835,
+   2110,
+   1890
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 75,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/alj021439-1-890.avif\" srcset=\"/img/alj021439-1-480.webp 480w, /img/alj021439-1-890.w",
+  "renderBlocking": []
+ },
+ "proto-home": {
+  "runs": 3,
+  "perf": 92,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 1230.6519,
+  "lcp": 1995.9778500000002,
+  "tbt": 9,
+  "cls": 0.1597262573775114,
+  "si": 1230.6519,
+  "ttfb": 3.3510000000000004,
+  "kb": 251,
+  "req": 14,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   92,
+   93,
+   91
+  ],
+  "lcpRuns": [
+   1996,
+   1285,
+   2040
+  ],
+  "kbType": {
+   "Document": 6,
+   "Font": 78,
+   "Image": 136,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/hero-960.avif\" srcset=\"/img/hero-640.webp 640w, /img/hero-960.webp 960w, /img/hero-1",
+  "renderBlocking": []
+ },
+ "proto-shop": {
+  "runs": 3,
+  "perf": 93,
+  "a11y": 98,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 1202.9632,
+  "lcp": 1652.9631999999997,
+  "tbt": 0,
+  "cls": 0.1597262573775114,
+  "si": 1202.9632,
+  "ttfb": 1.9159999999999995,
+  "kb": 199,
+  "req": 17,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   93,
+   92,
+   93
+  ],
+  "lcpRuns": [
+   1652,
+   1957,
+   1653
+  ],
+  "kbType": {
+   "Document": 6,
+   "Font": 78,
+   "Image": 85,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/n-f12002-k-br-6-640.avif\" srcset=\"/img/n-f12002-k-br-6-320.webp 320w, /img/n-f12002-",
+  "renderBlocking": []
+ },
+ "proto-visitanos": {
+  "runs": 3,
+  "perf": 93,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 92,
+  "fcp": 1205.7051,
+  "lcp": 1805.7051000000001,
+  "tbt": 0,
+  "cls": 0.1597262573775114,
+  "si": 1205.7051,
+  "ttfb": 1.4619999999999997,
+  "kb": 146,
+  "req": 8,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   93,
+   93,
+   93
+  ],
+  "lcpRuns": [
+   1806,
+   1860,
+   1653
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 34,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/insp-3-640.avif\" srcset=\"/img/insp-3-480.webp 480w, /img/insp-3-640.webp 640w\" sizes",
+  "renderBlocking": []
+ }
+}

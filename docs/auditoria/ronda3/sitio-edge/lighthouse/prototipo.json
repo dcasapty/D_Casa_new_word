@@ -1,0 +1,221 @@
+{
+ "odoo-ficha2": {
+  "runs": 3,
+  "perf": 39,
+  "a11y": 97,
+  "bp": 100,
+  "seo": 85,
+  "fcp": 3992.5795000000003,
+  "lcp": 8841.991,
+  "tbt": 1050,
+  "cls": 0,
+  "si": 6409.259670624158,
+  "ttfb": 229.605,
+  "kb": 1503,
+  "req": 24,
+  "origins": 4,
+  "unusedJsKb": 304,
+  "perfRuns": [
+   38,
+   39,
+   54
+  ],
+  "lcpRuns": [
+   9065,
+   8842,
+   5029
+  ],
+  "kbType": {
+   "Document": 8,
+   "Font": 168,
+   "Stylesheet": 120,
+   "Script": 536,
+   "Image": 546,
+   "Other": 37,
+   "Fetch": 88,
+   "XHR": 1
+  },
+  "lcpEl": "<img src=\"/web/image/product.product/6/image_1024/%5BALJ021439%5D%20Mueble%20zapater…\" class=\"img img-fluid oe_unmovable",
+  "renderBlocking": [
+   "https://fonts.googleapis.com/css?family=Oswald:400,500,600,700&display=swap",
+   "https://fonts.googleapis.com/css?family=Anton&display=swap",
+   "https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i&display=swap",
+   "http://localhost:8190/web/assets/1/04991c9/web.assets_frontend.min.css"
+  ]
+ },
+ "proto-ficha": {
+  "runs": 3,
+  "perf": 100,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 930.6994,
+  "lcp": 1731.0766,
+  "tbt": 0,
+  "cls": 0,
+  "si": 2068.116405999974,
+  "ttfb": 2.0440000000000005,
+  "kb": 138,
+  "req": 9,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   99,
+   100,
+   100
+  ],
+  "lcpRuns": [
+   1846,
+   1556,
+   1731
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 25,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/xht022-t-w-6-890.avif\" srcset=\"/img/xht022-t-w-6-480.webp 480w, /img/xht022-t-w-6-89",
+  "renderBlocking": []
+ },
+ "proto-ficha2": {
+  "runs": 3,
+  "perf": 99,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 945.2983999999999,
+  "lcp": 2145.2984,
+  "tbt": 3,
+  "cls": 0,
+  "si": 945.2983999999999,
+  "ttfb": 1.8110000000000002,
+  "kb": 188,
+  "req": 9,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   99,
+   100,
+   99
+  ],
+  "lcpRuns": [
+   2145,
+   1367,
+   2160
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 75,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/alj021439-1-890.avif\" srcset=\"/img/alj021439-1-480.webp 480w, /img/alj021439-1-890.w",
+  "renderBlocking": []
+ },
+ "proto-home": {
+  "runs": 3,
+  "perf": 100,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 910.9694,
+  "lcp": 1585.9694,
+  "tbt": 29,
+  "cls": 0,
+  "si": 910.9694,
+  "ttfb": 2.0489999999999995,
+  "kb": 251,
+  "req": 14,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   100,
+   99,
+   100
+  ],
+  "lcpRuns": [
+   1586,
+   1983,
+   1581
+  ],
+  "kbType": {
+   "Document": 6,
+   "Font": 78,
+   "Image": 136,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/hero-960.avif\" srcset=\"/img/hero-640.webp 640w, /img/hero-960.webp 960w, /img/hero-1",
+  "renderBlocking": []
+ },
+ "proto-shop": {
+  "runs": 3,
+  "perf": 99,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 907.8364999999999,
+  "lcp": 1882.8365,
+  "tbt": 44.56700000000001,
+  "cls": 0,
+  "si": 2084.4409303815764,
+  "ttfb": 2.752,
+  "kb": 199,
+  "req": 17,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   94,
+   99,
+   100
+  ],
+  "lcpRuns": [
+   1883,
+   1892,
+   1580
+  ],
+  "kbType": {
+   "Document": 6,
+   "Font": 78,
+   "Image": 85,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/n-f12002-k-br-6-640.avif\" srcset=\"/img/n-f12002-k-br-6-320.webp 320w, /img/n-f12002-",
+  "renderBlocking": []
+ },
+ "proto-visitanos": {
+  "runs": 3,
+  "perf": 100,
+  "a11y": 100,
+  "bp": 100,
+  "seo": 100,
+  "fcp": 910.549,
+  "lcp": 1660.549,
+  "tbt": 0,
+  "cls": 0,
+  "si": 910.549,
+  "ttfb": 2.379,
+  "kb": 146,
+  "req": 8,
+  "origins": 1,
+  "unusedJsKb": 0,
+  "perfRuns": [
+   100,
+   100,
+   100
+  ],
+  "lcpRuns": [
+   1501,
+   1819,
+   1661
+  ],
+  "kbType": {
+   "Document": 4,
+   "Font": 78,
+   "Image": 34,
+   "Other": 30
+  },
+  "lcpEl": "<img src=\"http://localhost:8191/img/insp-3-640.avif\" srcset=\"/img/insp-3-480.webp 480w, /img/insp-3-640.webp 640w\" sizes",
+  "renderBlocking": []
+ }
+}

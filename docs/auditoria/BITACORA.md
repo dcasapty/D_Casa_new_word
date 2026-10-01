@@ -631,3 +631,6 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 ### coordinador · APRENDIZAJE · ALTO · el dueño usa Meta `-contributor` desde Panamá
 - Dato del dueño (2026-10-01): usa el nivel `-contributor` de Meta Muse Spark y funciona desde Panamá. Resuelve la duda de disponibilidad en Panamá (NO VERIFICADO hasta ahora).
 - Riesgo: ese nivel entrena con los prompts. Propuesta pendiente de aprobación del dueño: permitir `-contributor` solo en tareas sin datos personales (catálogo, fotos, Excel de proveedores, sitio) y usar un nivel sin entrenamiento o Claude para clientes, socios, facturas y cobros. El veto por código del prototipo r3-brian-agente pasa a ser una regla por tipo de tarea, configurable por el admin. Ley 81/2019: revisar con asesor.
+
+### coordinador · APRENDIZAJE · — · decisión del dueño: Meta `-contributor` aceptado
+- El dueño conoce que `-contributor` entrena con los prompts y lo acepta (2026-10-01). Brian puede usarlo como proveedor principal; el veto por código del prototipo se reemplaza por una opción configurable (por defecto: permitido). Recomendación que queda en el informe, no bloqueante: aviso de privacidad a clientes (Ley 81/2019) y opción de enmascarar datos personales.
