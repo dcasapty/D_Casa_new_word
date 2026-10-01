@@ -458,3 +458,6 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 
 ## Entradas (ronda 3)
 
+
+### coordinador · APRENDIZAJE · — · R2 activado y MCP de Cloudflare reconectado
+- El dueño activó R2: `r2_buckets_list` ya responde sin error 10042 (0 buckets). El MCP de Cloudflare se desconectó un rato y volvió: si una consulta a `search_cloudflare_documentation` falló en ese lapso, reintenta antes de marcar NO VERIFICADO.
