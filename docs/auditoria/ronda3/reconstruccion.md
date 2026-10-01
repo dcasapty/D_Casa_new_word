@@ -97,3 +97,67 @@ Lecturas clave:
 | Brian | Sí (producto estrella según el dueño) | `dcasa_brian` | ORM, permisos (grupos), `mail` | Todo el agente |
 | Factura electrónica DGI | **Obligatoria y no existe** | — | Nada en Community para Panamá | Pendiente (`l10n_pa_edi`) |
 
+## 4. Esquema D1 mínimo (diseño, sin app) — `reconstruccion/esquema_d1.sql`
+
+Archivos:
+- `docs/auditoria/ronda3/reconstruccion/esquema_d1.sql` — 38 tablas, 19 triggers, 7 vistas, índices.
+- `docs/auditoria/ronda3/reconstruccion/validar_esquema.py` — lo carga en SQLite en memoria y ejercita las
+  invariantes con la factura real INV/2026/00821.
+
+### 4.1 Validación (ejecutada 2026-10-01)
+
+| Prueba | Resultado |
+|---|---|
+| `python3 validar_esquema.py` (SQLite 3.45.1, `:memory:`) | **38 tablas · 40 comprobaciones OK · 0 fallos** (exit 0) |
+| Mismo esquema aplicado en **D1 local** (`wrangler 4.143.0 d1 execute --local`, motor workerd/miniflare del propio `edge/node_modules`, en el scratchpad, sin cuenta) | Aplica completo (39 objetos tabla incl. interna de D1, 19 triggers). Triggers `RAISE(ABORT)` → `SQLITE_CONSTRAINT_TRIGGER`; FK → `SQLITE_CONSTRAINT_FOREIGNKEY` (**D1 local hace cumplir FKs y triggers**). No se tocó la cuenta de Cloudflare. |
+
+Lo que prueba el script (todo con centavos enteros):
+- Factura 00821: 171,97 + 158,02 = **329,99**; ITBMS por línea 12,04 + 11,06 = **23,10**; total **353,09**; el
+  balance de comprobación suma 0 y `v_itbms` devuelve 23,10 sobre base 329,99.
+- No se publica un asiento descuadrado, sin número, con < 2 líneas o con fecha ≤ `fecha_bloqueo` (bloqueo de periodo).
+- Lo publicado no se edita ni se borra (líneas, asiento, documento); la reversa exige motivo; la NC exige factura de origen y motivo.
+- Conciliación parcial (cobro de 200,00 → quedan 153,09 abiertos), y rechazo de sobre-conciliar o conciliar cuentas distintas.
+- Extracto bancario: huella única por diario (evita el duplicado y, con el ordinal del archivo, el problema C-08).
+- Inventario: movimientos inmutables, existencia derivada (10 − 1 = 9), AVCO (5 × 90 + 5 × 110) / 10 = 100,00 en historial solo-anexar.
+- Socios: libro solo-anexar sin columna de saldo (saldo = `SUM`), contrario exacto y único, referido pagado una sola vez
+  por compra, padrino escrito una vez, un canje pendiente por premio. **Las cifras de puntos del script son de prueba**:
+  las reales siguen viviendo solo en `puntos.json` (regla 1).
+- Auditoría y `outbox` (cola de salida a PAC/Odoo/WhatsApp) con idempotencia por `clave_idem`.
+
+### 4.2 Decisiones de diseño y por qué
+
+1. **Dinero en centavos enteros** y cantidades en milésimas: SQLite no tiene `NUMERIC` exacto; `REAL` no sirve para dinero.
+2. **Triggers como última defensa**, no como lógica de negocio: el cálculo (ITBMS por línea, AVCO, puntos) vive en
+   TypeScript con pruebas; la base solo garantiza invariantes que nunca deben romperse.
+3. **D1 no tiene transacciones interactivas.** `batch()` es atómico («Batched statements are SQL transactions… If a
+   statement in the sequence fails… it aborts or rolls back the entire sequence», https://developers.cloudflare.com/d1/worker-api/d1-database/,
+   dateModified 2026-06-22), pero no se puede *leer y decidir* dentro de la transacción. Para numeración correlativa
+   de facturas, AVCO y saldo de puntos al canjear (leer → calcular → escribir) hay dos caminos:
+   - **Durable Object «Libro» único** (SQLite dentro del DO): un solo hilo, escritura coalescida atómica y
+     `transaction()`; «Output gates hold outgoing network messages… until pending storage writes complete»
+     (https://developers.cloudflare.com/durable-objects/best-practices/rules-of-durable-objects/). Con el volumen de D'CASA
+     (decenas de facturas al día) un solo DO sobra (≈200 req/s aun bloqueando 5 ms por petición, misma página).
+     PITR de 30 días (https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/, 2026-09-21 según r3-cf-plataforma).
+   - **D1 + `batch()` con escrituras condicionales** (`INSERT … SELECT … WHERE` + `UNIQUE`) y reintento: más simple de
+     consultar desde fuera (HTTP API, export), pero más fácil de equivocarse.
+   - Recomendación técnica si se reconstruye: **libro contable, stock y puntos dentro de un DO** (serialización
+     garantizada); **catálogo, sitio y lecturas en D1** (réplicas de lectura, export). Idempotencia con `clave_idem`
+     en ambos.
+4. **Imágenes en R2**, nunca en la base (hoy 75 MB de imágenes y 71 MB de assets viven en PostgreSQL).
+5. **Campos de FE DGI ya previstos** (`fe_estado`, `fe_cufe`, `fe_qr`, XML/PDF en R2) y `outbox` para el PAC.
+
+### 4.3 Límites oficiales de D1 / DO relevantes
+
+| Dato | Valor | Fuente |
+|---|---|---|
+| Precio D1 (Paid) | 25 000 M filas leídas/mes y 50 M escritas incluidas; 5 GB incluidos, +$0,75/GB-mes; sin egress | https://developers.cloudflare.com/workers/platform/pricing/ (Last updated 2026-08-28) |
+| Réplicas de lectura | Sin costo extra; consistencia secuencial con Sessions API | https://developers.cloudflare.com/d1/best-practices/read-replication/ |
+| Tamaño máx. por base | 10 GB (Paid) / 500 MB (Free); 1 TB por cuenta | repo oficial `cloudflare-docs` `d1/platform/limits.mdx` (leído por r3-cf-plataforma; el buscador del MCP no devuelve esa página) |
+| Time Travel (PITR) | 30 días (Paid) / 7 (Free) | repo oficial `d1/reference/time-travel.mdx` (ídem) |
+| DO SQLite | hasta 10 GB por objeto; PITR 30 días con bookmarks | https://developers.cloudflare.com/durable-objects/concepts/what-are-durable-objects/ ; …/api/sqlite-storage-api/ |
+| DO precio (Paid) | 1 M req/mes incl. (+$0,15/M); 400 000 GB-s incl. (+$12,50/M GB-s); SQL igual que D1 pero almacenamiento $0,20/GB-mes | https://developers.cloudflare.com/durable-objects/platform/pricing/ |
+
+Dimensionamiento: 211 MB de `dcasa_test` son casi todo metadatos de Odoo y binarios. Los datos de negocio de D'CASA
+(estimación propia: 200 productos, ~10 000 facturas/año × ~3 líneas, ~5 asientos-línea por factura) caben en
+**decenas de MB por año** en D1/DO: el límite de 10 GB no es una restricción realista en 10 años.
+
