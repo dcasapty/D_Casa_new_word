@@ -135,7 +135,10 @@
             <div id="wrap" class="o_dcasa_pagina_visita">
                 <section class="o_dcasa_hero o_dcasa_hero_compacto">
                     <div class="o_dcasa_hero_media">
-                        <img src="/website_dcasa/static/src/img/insp-3.webp" width="640" height="640" alt=""/>
+                        <!-- Imagen LCP: «eager» explícito, si no el post-proceso de Odoo
+                             (website/models/ir_qweb.py) le pone loading="lazy" y retrasa el LCP. -->
+                        <img src="/website_dcasa/static/src/img/insp-3.webp" width="640" height="640" alt=""
+                             loading="eager" fetchpriority="high"/>
                     </div>
                     <div class="o_dcasa_container o_dcasa_hero_inner">
                         <div class="o_dcasa_hero_texto" data-anim-entrada="">
@@ -195,9 +198,10 @@
                 <div class="oe_structure" id="oe_structure_dcasa_hero">
                     <section class="o_dcasa_hero" data-snippet="s_text_block" data-name="Portada">
                         <div class="o_dcasa_hero_media">
+                            <!-- Imagen LCP: «eager» explícito, si no Odoo le pone loading="lazy". -->
                             <img src="/website_dcasa/static/src/img/hero.webp"
                                  srcset="/website_dcasa/static/src/img/hero-800.webp 800w, /website_dcasa/static/src/img/hero.webp 1400w"
-                                 sizes="100vw" width="1400" height="787" fetchpriority="high"
+                                 sizes="100vw" width="1400" height="787" loading="eager" fetchpriority="high"
                                  alt="Sala amplia con sofá de cuero, cojines y plantas"/>
                         </div>
                         <div class="o_dcasa_container o_dcasa_hero_inner">
@@ -231,8 +235,8 @@
                                     <div><strong>Te lo llevas hoy</strong><span>Muchos muebles vienen en caja y caben en tu carro.</span></div>
                                 </li>
                                 <li>
-                                    <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3"/><path d="M3 13h26M8 20h6"/></svg>
-                                    <div><strong>Financiamiento</strong><span>Crédito flexible para que amueblar no te apriete.</span></div>
+                                    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29s-9-8.5-9-15a9 9 0 0 1 18 0c0 6.5-9 15-9 15z"/><circle cx="16" cy="14" r="3.2"/></svg>
+                                    <div><strong>Míralo en tienda</strong><span>Visítanos en La Chorrera y pruébalo antes de llevártelo.</span></div>
                                 </li>
                                 <li>
                                     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M17 4h9v9L14 25l-9-9z"/><circle cx="21.5" cy="8.5" r="1.8"/></svg>
@@ -341,7 +345,7 @@
                                     </details>
                                     <details>
                                         <summary>¿Qué formas de pago manejan?</summary>
-                                        <p>Varias, y también financiamiento flexible. Escríbenos y te explicamos la que mejor te sirve.</p>
+                                        <p>Transferencia bancaria, Yappy, o pagas al recibir o en la tienda. Escríbenos y te explicamos la que mejor te sirve.</p>
                                     </details>
                                     <details>
                                         <summary>¿Me ayudan a saber si el mueble me cabe?</summary>

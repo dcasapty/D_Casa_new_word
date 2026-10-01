@@ -20,7 +20,7 @@ PAGOS = [
      'Te escribimos por WhatsApp con el número de Yappy para que pagues. '
      'Apenas veamos el pago, confirmamos tu pedido y coordinamos la entrega.'),
     ('delivery.payment_provider_cod', 'Pago al recibir o en tienda', 'cash_on_delivery',
-     'Pagas al recibir o en la tienda: efectivo, Yappy o tarjeta. '
+     'Pagas al recibir o en la tienda: efectivo o Yappy. '
      'Te escribimos por WhatsApp para confirmar la fecha.'),
 ]
 

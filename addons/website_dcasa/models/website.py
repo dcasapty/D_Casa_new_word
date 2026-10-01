@@ -1,7 +1,9 @@
 import json
 import math
 import os
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
+
+from markupsafe import Markup
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
@@ -15,6 +17,56 @@ from odoo.tools.misc import file_path
 LATITUD, LONGITUD = 8.8765881, -79.7867962
 
 DEFAULT_WHATSAPP_MESSAGE = "Hola D'CASA, quiero información"
+
+# Hosts que nunca deben salir en los datos estructurados: son de la máquina, no del sitio.
+HOSTS_LOCALES = ('localhost', '0.0.0.0', '::1')
+
+# Título y descripción de la portada para Google. Solo categorías que el catálogo tiene de
+# verdad (dcasa_catalogo/data/catalogo.json: no hay comedores) y nada de financiamiento
+# mientras no exista (regla 4: no inventar).
+SEO_PORTADA = {
+    'website_meta_title': "Mueblería en La Chorrera | D'CASA Panamá",
+    'website_meta_description': (
+        'Recámaras, colchones, zapateras, muebles de TV, estantes y escritorios con precios claros '
+        'en La Chorrera. Entrega a todo Panamá. Escríbenos por WhatsApp.'),
+}
+# Valores que se pueden pisar: vacíos, los de ejemplo de Odoo y los anteriores de D'CASA.
+# Lo que la dueña escriba desde el editor (Sitio web > SEO) no se toca.
+SEO_PORTADA_REEMPLAZABLES = {
+    'website_meta_title': {'', "Mueblería en La Chorrera | D'CASA Panamá"},
+    'website_meta_description': {
+        '',
+        'This is the homepage of the website',
+        'Esta es la página principal del sitio web',
+        'Esta es la página de inicio del sitio web',
+        'Salas, recámaras, colchones y comedores con precios claros en La Chorrera. '
+        'Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.',
+    },
+}
+
+# Promesas sin respaldo que versiones anteriores publicaron (SW-03): si quedaron copiadas en
+# una vista del sitio (bloque guardado desde el editor, copia por sitio), se reemplazan por el
+# texto nuevo. Solo coincidencias exactas: lo que la dueña haya reescrito se respeta.
+PROMESAS_RETIRADAS = [
+    ('<span class="d-none d-md-inline"><i class="fa fa-credit-card me-2" aria-hidden="true"/>'
+     'Financiamiento flexible</span>',
+     '<span class="d-none d-md-inline"><i class="fa fa-map-marker me-2" aria-hidden="true"/>'
+     'Tienda en La Chorrera</span>'),
+    ('<li><i class="fa fa-credit-card" aria-hidden="true"/><span><strong>Financiamiento.</strong> '
+     'Crédito flexible, te explicamos cómo.</span></li>',
+     ''),
+    ('<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="26" height="18" rx="3"/>'
+     '<path d="M3 13h26M8 20h6"/></svg>',
+     '<svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 29s-9-8.5-9-15a9 9 0 0 1 18 0c0 6.5-9 15-9 15z"/>'
+     '<circle cx="16" cy="14" r="3.2"/></svg>'),
+    ('<strong>Financiamiento</strong><span>Crédito flexible para que amueblar no te apriete.</span>',
+     '<strong>Míralo en tienda</strong><span>Visítanos en La Chorrera y pruébalo antes de llevártelo.</span>'),
+    ('Varias, y también financiamiento flexible. Escríbenos y te explicamos la que mejor te sirve.',
+     'Transferencia bancaria, Yappy, o pagas al recibir o en la tienda. Escríbenos y te explicamos '
+     'la que mejor te sirve.'),
+    ('Pagas al recibir o en la tienda: efectivo, Yappy o tarjeta.',
+     'Pagas al recibir o en la tienda: efectivo o Yappy.'),
+]
 
 # Categorías de la portada: (xmlid, nombre, texto alternativo). La foto es static/src/img/cat-<xmlid>.webp.
 CATEGORIAS_PORTADA = [
@@ -232,6 +284,43 @@ class Website(models.Model):
     # SEO
     # ------------------------------------------------------------------
 
+    def _dcasa_url_publica(self):
+        """URL pública del sitio para los datos estructurados; '' si solo hay una local.
+
+        Sale de ``website.domain`` o, si está vacío, del parámetro ``web.base.url``
+        (``get_base_url``). En el despliegue hay que fijar ``web.base.url`` con el dominio
+        real (https://…) y ``web.base.url.freeze = True``: sin el «freeze», Odoo lo reescribe
+        con la URL desde la que entra el administrador. Si aun así quedara una URL local
+        (localhost, 127.x…), los JSON-LD salen sin URLs absolutas antes que mandarle a Google
+        una dirección de la máquina.
+        """
+        self.ensure_one()
+        base = (self.get_base_url() or '').rstrip('/')
+        host = (urlsplit(base).hostname or '').lower()
+        if not host or host in HOSTS_LOCALES or host.startswith('127.') or host.endswith('.localhost'):
+            return ''
+        return base
+
+    def _dcasa_json_ld_organizacion(self, company=None):
+        """JSON-LD ``Organization`` de todas las páginas (reemplaza el de website_sale).
+
+        El de Odoo arma el JSON a mano con ``t-out``, que escapa para HTML: «D'CASA» salía como
+        ``D&#39;CASA`` dentro del JSON y Google lee el texto literal. Aquí va como JSON seguro
+        para <script> (json_scriptsafe), y la URL nunca es la de una máquina local.
+        """
+        self.ensure_one()
+        company = company or self.company_id
+        base = self._dcasa_url_publica()
+        datos = {
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            'name': company.name,
+        }
+        if base:
+            datos['url'] = base
+            datos['logo'] = f'{base}/logo.png?company={company.id}'
+        return json_scriptsafe.dumps(datos, ensure_ascii=False)
+
     def _dcasa_json_ld(self):
         """Datos estructurados FurnitureStore para Google (tienda local).
 
@@ -239,15 +328,15 @@ class Website(models.Model):
         """
         self.ensure_one()
         company = self.company_id
-        base = self.get_base_url()
+        base = self._dcasa_url_publica()  # '' si solo hay una URL local: sin URLs absolutas
         datos = {
             '@context': 'https://schema.org',
             '@type': 'FurnitureStore',
-            '@id': f'{base}/#tienda',
+            '@id': base and f'{base}/#tienda',
             'name': company.name,
             'url': base,
-            'logo': base + self.image_url(self, 'logo'),
-            'image': f'{base}/website_dcasa/static/src/img/hero.webp',
+            'logo': base and base + self.image_url(self, 'logo'),
+            'image': base and f'{base}/website_dcasa/static/src/img/hero.webp',
             'telephone': company.phone,
             'email': company.email,
             'currenciesAccepted': company.currency_id.name,
@@ -266,3 +355,61 @@ class Website(models.Model):
         datos = {k: v for k, v in datos.items() if v}
         datos['address'] = {k: v for k, v in datos['address'].items() if v}
         return json_scriptsafe.dumps(datos, ensure_ascii=False)
+
+    @api.model
+    def _dcasa_seo_portada(self):
+        """Título y descripción de la portada en todos los idiomas y en todas sus copias.
+
+        Odoo crea una copia de la portada por sitio (``_bootstrap_homepage``) con su descripción
+        de ejemplo, y la carga de traducciones pone la suya en español: un registro de datos sobre
+        ``website.homepage_page`` no llegaba a lo que ve Google. Se corre en cada actualización y
+        solo pisa valores vacíos, de ejemplo o anteriores de D'CASA.
+        """
+        idiomas = list(dict.fromkeys(['en_US', *(c for c, _n in self.env['res.lang'].get_installed())]))
+        paginas = self.env['website.page'].sudo().with_context(active_test=False).search([('url', '=', '/')])
+        for pagina in paginas:
+            for idioma in idiomas:
+                en_idioma = pagina.with_context(lang=idioma)
+                valores = {
+                    campo: valor for campo, valor in SEO_PORTADA.items()
+                    if (en_idioma[campo] or '').strip() in SEO_PORTADA_REEMPLAZABLES[campo]
+                    and en_idioma[campo] != valor
+                }
+                if valores:
+                    en_idioma.write(valores)
+
+    @api.model
+    def _dcasa_retirar_promesas(self):
+        """Quita las promesas sin respaldo (SW-03) de lo que quedó copiado fuera de las plantillas.
+
+        Vistas por sitio (copias y bloques guardados desde el editor) y el mensaje del pago al
+        recibir. Las plantillas del módulo ya traen el texto nuevo. Devuelve cuántos registros
+        cambió.
+        """
+        idiomas = list(dict.fromkeys(['en_US', *(c for c, _n in self.env['res.lang'].get_installed())]))
+        # Todas las promesas viejas de las vistas dicen «financiamiento»; se busca en todos los
+        # idiomas a la vez (el texto traducido vive en el jsonb de arch_db).
+        self.env['ir.ui.view'].flush_model(['arch_db', 'website_id', 'type'])
+        self.env.cr.execute("""
+            SELECT id FROM ir_ui_view
+             WHERE website_id IS NOT NULL AND type = 'qweb' AND arch_db::text ILIKE '%%financiamiento%%'
+        """)
+        View = self.env['ir.ui.view'].sudo().with_context(active_test=False, no_cow=True)
+        registros = [(vista, 'arch_db') for vista in View.browse(r[0] for r in self.env.cr.fetchall())]
+        cod = self.env.ref('delivery.payment_provider_cod', raise_if_not_found=False)
+        if cod:
+            registros.append((cod.sudo(), 'pending_msg'))
+        cambiados = 0
+        for registro, campo in registros:
+            tocado = False
+            for idioma in idiomas:
+                texto = registro.with_context(lang=idioma)[campo] or ''
+                nuevo = str(texto)
+                for viejo, reemplazo in PROMESAS_RETIRADAS:
+                    nuevo = nuevo.replace(viejo, reemplazo)
+                if nuevo != str(texto):
+                    registro.with_context(lang=idioma).write(
+                        {campo: Markup(nuevo) if isinstance(texto, Markup) else nuevo})
+                    tocado = True
+            cambiados += tocado
+        return cambiados

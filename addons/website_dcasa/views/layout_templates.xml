@@ -24,7 +24,7 @@
             <div t-if="website" class="o_dcasa_anuncios o_header_hide_on_scroll" role="region" aria-label="Avisos de D'CASA">
                 <div class="o_dcasa_container o_dcasa_anuncios_inner">
                     <span><i class="fa fa-truck me-2" aria-hidden="true"/>Entrega a todo Panamá</span>
-                    <span class="d-none d-md-inline"><i class="fa fa-credit-card me-2" aria-hidden="true"/>Financiamiento flexible</span>
+                    <span class="d-none d-md-inline"><i class="fa fa-map-marker me-2" aria-hidden="true"/>Tienda en La Chorrera</span>
                     <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
                 </div>
             </div>
@@ -48,10 +48,29 @@
         </xpath>
     </template>
 
+    <!-- JSON-LD «Organization» de website_sale (todas las páginas): el de Odoo escapa el nombre
+         para HTML dentro del JSON («D&#39;CASA») y publica la URL local si no hay dominio. -->
+    <template id="organizacion_json_ld" inherit_id="website_sale.website_sale_layout" name="D'CASA: organización (JSON-LD)">
+        <xpath expr="//script[@t-if='res_company and website']" position="replace">
+            <script t-if="res_company and website" type="application/ld+json"
+                    t-out="website._dcasa_json_ld_organizacion(res_company)"/>
+        </xpath>
+    </template>
+
     <!-- Descripción para Google de la tienda (las categorías pueden tener la suya propia). -->
     <template id="products_meta_dcasa" inherit_id="website_sale.products" name="D'CASA: descripción de la tienda">
         <xpath expr="//t[@t-call='website.layout']" position="inside">
             <t t-set="website_meta_description">Tienda en línea de D'CASA Panamá: salas, recámaras, colchones, zapateras, estantes y escritorios con precios claros. Entrega a todo Panamá desde La Chorrera.</t>
+            <!-- Sin categoría, Odoo titula la pestaña con el nombre de la vista («Products»). -->
+            <t t-if="not category" t-set="additional_title">Catálogo</t>
+        </xpath>
+    </template>
+
+    <!-- Nombre accesible de la barra de navegación: el de Odoo es «Main» / «Mobile», en inglés
+         y sin traducción para el lector de pantalla. -->
+    <template id="navbar_nombre_dcasa" inherit_id="website.navbar" name="D'CASA: nombre del menú en español">
+        <xpath expr="//nav[@data-name='Navbar']" position="attributes">
+            <attribute name="t-attf-aria-label">#{'Menú del celular' if _navbar_name == 'Mobile' else (_navbar_name or 'Menú principal')}</attribute>
         </xpath>
     </template>
 
@@ -66,7 +85,6 @@
             <ul class="o_dcasa_sellos" role="list">
                 <li><i class="fa fa-truck" aria-hidden="true"/><span><strong>Entrega a todo Panamá.</strong> Costo y fecha por WhatsApp.</span></li>
                 <li><i class="fa fa-cube" aria-hidden="true"/><span><strong>Te lo llevas hoy.</strong> Muchos vienen en caja y caben en tu carro.</span></li>
-                <li><i class="fa fa-credit-card" aria-hidden="true"/><span><strong>Financiamiento.</strong> Crédito flexible, te explicamos cómo.</span></li>
                 <li><i class="fa fa-map-marker" aria-hidden="true"/><span><strong>Míralo en tienda.</strong> Av. Las Américas, La Chorrera.</span></li>
             </ul>
         </xpath>
@@ -119,7 +137,9 @@
         <xpath expr="//div[hasclass('o_dcasa_socios_head')]" position="replace">
             <section class="o_dcasa_hero o_dcasa_hero_compacto o_dcasa_socios_head">
                 <div class="o_dcasa_hero_media">
-                    <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600" alt=""/>
+                    <!-- Imagen LCP: «eager» explícito, si no Odoo le pone loading="lazy". -->
+                    <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600" alt=""
+                         loading="eager" fetchpriority="high"/>
                 </div>
                 <div class="o_dcasa_container o_dcasa_hero_inner">
                     <div class="o_dcasa_hero_texto" data-anim-entrada="">
