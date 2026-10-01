@@ -79,7 +79,10 @@ export class TokenizadorXml {
   }
 
   private vaciarTexto() {
-    if (this.textoPend && this.m.texto) this.m.texto(decodificarEntidades(this.textoPend));
+    if (this.textoPend) {
+      const t = decodificarEntidades(this.textoPend);   // siempre: una entidad no permitida aborta aunque nadie lea el texto
+      this.m.texto?.(t);
+    }
     this.textoPend = '';
   }
 

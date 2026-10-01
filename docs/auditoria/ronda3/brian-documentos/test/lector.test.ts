@@ -191,9 +191,7 @@ describe('defensas', () => {
     const dv = new DataView(z.buffer);
     let k = 0;
     for (let i = 0; i < z.length - 4; i++) if (dv.getUint32(i, true) === 0x02014b50) { if (k++ === 1) dv.setUint32(i + 42, 0, true); }
-    await expect(Zip.abrir(fuenteDeBytes(z))).rejects.toMatchObject({ codigo: 'corrupto' }).catch(async () => {
-      await expect(Zip.abrir(fuenteDeBytes(z))).rejects.toMatchObject({ codigo: 'bomba' });
-    });
+    await expect(Zip.abrir(fuenteDeBytes(z))).rejects.toMatchObject({ codigo: 'bomba' });
   });
 
   it('XML con DOCTYPE/ENTITY («billion laughs», XXE) → rechazo', async () => {
