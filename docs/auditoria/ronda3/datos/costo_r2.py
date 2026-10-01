@@ -10,9 +10,9 @@ import argparse, math
 
 p = argparse.ArgumentParser()
 p.add_argument("--wal-por-hora", type=float, default=60)       # archive_timeout=60 y cron por minuto
-p.add_argument("--a-por-wal", type=float, default=1)           # PUT por segmento (medido)
-p.add_argument("--b-por-wal", type=float, default=2)           # GET/HEAD por segmento (medido)
-p.add_argument("--kib-por-wal", type=float, default=60)        # tamaño comprimido+cifrado medido
+p.add_argument("--a-por-wal", type=float, default=2)           # PUT + LIST por segmento (medido: LIST es Clase A en R2)
+p.add_argument("--b-por-wal", type=float, default=1)           # GET de archive.info por segmento (medido)
+p.add_argument("--kib-por-wal", type=float, default=8)         # media medida en reposo con wal_init_zero=on (7,9 KiB)
 p.add_argument("--base-mb", type=float, default=103)           # respaldo base medido (pgBackRest)
 p.add_argument("--a-por-base", type=float, default=4600)       # PUT por respaldo base sin bundle
 p.add_argument("--bases-por-mes", type=float, default=4.3)     # semanal
