@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- SEO de la portada (Google Search Console: título y descripción propios, con la zona).
+         Va de último: la carga de traducciones de tienda_data.xml pondría la descripción de
+         ejemplo de Odoo en español. Se corre en cada actualización, pero solo pisa valores
+         vacíos, de ejemplo o anteriores de D'CASA (lo que la dueña escriba se respeta). -->
+    <data noupdate="0">
+        <function model="website" name="_dcasa_seo_portada"/>
+    </data>
+</odoo>

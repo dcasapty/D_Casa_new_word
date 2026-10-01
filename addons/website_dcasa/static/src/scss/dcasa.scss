@@ -351,8 +351,10 @@ html {
         }
     }
 
+    // Enlace activo en navy (SW-07): el azul sobre el vidrio claro queda bajo AA cuando pasa
+    // por encima de la banda azul (4.33:1) o de una foto (3.27:1); el navy da ≥ 5.2:1.
     #top_menu .nav-link.active {
-        color: $dcasa-azul;
+        color: $dcasa-navy;
     }
 
     .btn_cta {
