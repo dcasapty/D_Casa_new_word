@@ -119,6 +119,28 @@ class TestHerramientas(TransactionCase):
         datos = self.ok(self.ejecutar(self.vendedor, 'buscar_ventas', {'texto': 'Brianzeta', 'estado': 'confirmada'}))
         self.assertIn(numero, [v['numero'] for v in datos['ventas']])
 
+    def test_precio_libre_respeta_el_tope_de_descuento(self):
+        """H-02: Brian actúa como la vendedora; el tope del modelo (10 %) también lo frena a él."""
+        self.env['ir.config_parameter'].sudo().set_param('dcasa.descuento_max_vendedora', '10')
+        Order = self.env['sale.order']
+        antes = Order.search_count([])
+        respuesta = self.ejecutar(self.vendedor, 'crear_cotizacion', {
+            'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF', 'precio': 53.5})  # 50 % de 107
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('Gerencia', respuesta['error'])
+        self.assertEqual(Order.search_count([]), antes, 'La cotización a medias se deshace')
+        numero = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
+            'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF', 'precio': 96.3}))['numero']  # 10 %: vale
+        respuesta = self.ejecutar(self.vendedor, 'agregar_linea_cotizacion', {
+            'venta': numero, 'producto': 'Brianzeta Mesa Roble', 'precio': 44.99})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('Gerencia', respuesta['error'])
+        self.assertEqual(len(Order.search([('name', '=', numero)]).order_line), 1)
+        # Gerencia (admin de Ventas) sí puede dar más.
+        datos = self.ok(self.ejecutar(self.gerente, 'agregar_linea_cotizacion', {
+            'venta': numero, 'producto': 'Brianzeta Mesa Roble', 'precio': 25}))
+        self.assertEqual(datos['lineas'][-1]['precio'], '$25.00')
+
     def test_whatsapp_devuelve_enlace(self):
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
             'cliente': 'Brianzeta Cliente Uno', 'producto': 'BRN-SOF'}))

@@ -28,6 +28,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
     'license': 'LGPL-3',
     'depends': ['dcasa_base', 'dcasa_socios', 'website_sale'],
     'data': [
+        'security/dcasa_roles_website.xml',
         'data/website_data.xml',
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',

@@ -2,6 +2,7 @@ import json
 import re
 
 from odoo.tests import HttpCase, TransactionCase, tagged
+from odoo.tools.misc import file_path
 
 
 @tagged('post_install', '-at_install')
@@ -37,6 +38,30 @@ class TestTablero(TransactionCase):
         })
         datos = self.env['dcasa.tablero'].with_user(vendedora).obtener_datos()
         self.assertTrue(datos['cifras'])
+        # UI-02: sin Facturación no cobra; el Inicio no le ofrece «Registrar cobro» ni cifras de cobros.
+        self.assertFalse(datos['permisos']['cobrar'])
+        self.assertFalse(datos['permisos']['ver_cobros'])
+        self.assertTrue(datos['permisos']['cotizar'])
+        claves = {c['clave'] for c in datos['cifras']}
+        self.assertNotIn('cobrado_hoy', claves)
+        self.assertNotIn('por_cobrar', claves)
+        self.assertFalse(datos['cobros'])
+
+    def test_rol_vendedora_cobra_desde_el_inicio(self):
+        vendedora = self.env['res.users'].create({
+            'name': 'Vendedora con rol', 'login': 'vendedora_rol_tablero',
+            'group_ids': [(6, 0, [self.env.ref('dcasa_base.group_vendedora').id])],
+        })
+        datos = self.env['dcasa.tablero'].with_user(vendedora).obtener_datos()
+        self.assertTrue(all(datos['permisos'].values()), datos['permisos'])
+        self.assertIn('cobrado_hoy', {c['clave'] for c in datos['cifras']})
+
+    def test_inicio_condiciona_accesos_y_caja(self):
+        """La plantilla solo dibuja «Registrar cobro» y «Caja de hoy» con permiso."""
+        with open(file_path('dcasa_interfaz/static/src/xml/inicio.xml'), encoding='utf-8') as plantilla:
+            xml = plantilla.read()
+        self.assertRegex(xml, r't-if="d\.permisos\.cobrar"[^\n]*\n[^\n]*this\.nuevo\(\'account\.payment\'')
+        self.assertIn('t-if="d.permisos.ver_cobros" class="o_dcasa_panel o_dcasa_caja"', xml)
 
     def test_inicio_sin_recorrido_ni_odoobot(self):
         admin = self.env.ref('base.user_admin')
