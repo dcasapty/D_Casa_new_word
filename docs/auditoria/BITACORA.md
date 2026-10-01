@@ -699,3 +699,8 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 - Medido (`docs/auditoria/ronda3/odoo-medicion/vms.sh` → `res_vms.txt`, 3 rep.): hilos caliente VmSize 368 MiB / RSS 229; con 50 peticiones concurrentes **pico VmSize ≈ 790 MiB** con RSS máx. 253-273 MiB. Con el valor por defecto (2 GiB) nunca salta.
 - Prueba en cgroup de 1 GiB con `limit_memory_soft` = 45 % de 1 GiB (460 MiB): «Server memory limit (546127872) reached» en bucle, reinicios a mitad de carga, 500 y conexión rechazada (`res_contenedor_sim_v1_limsoft45pct.jsonl`).
 - Recomendación: en hilos NO dimensionar `limit_memory_soft` con el tamaño del contenedor (es VMS); dejar ≥ 1,5-2 GiB y que el límite real lo ponga el contenedor. `limit_time_real=300` sí corta peticiones largas también en hilos.
+
+### coordinador · APRENDIZAJE · — · Fase 0 integrada y en verde
+- 5 agentes en worktrees (seguridad RPC, ITBMS, infra/borde, roles, sitio) integrados en `claude/merge-rama-to-main-ty3koz`. Suite completa de los 8 módulos: **326 tests, 0 fallos, 0 errores**; borde 28/28; ruff limpio. El test anti-regresión de la superficie RPC atrapó en la integración dos métodos nuevos (`sale.order.line.create/write` del tope de descuento): añadidos a la lista blanca con motivo.
+- Para la Fase 1: r3-odoo-medicion dejó medido que en un cgroup de 1 GiB `limit_memory_soft` al 45 % reinicia Odoo en bucle (VmSize pico ≈ 790 MiB aunque RSS ≈ 270): hay que fijar los límites de memoria de Odoo por RSS/VmSize reales, no por porcentaje.
+- Pendiente fuera de código: Fase 0b (PAC de la DGI, textos legales) y asignar los roles a los 6 usuarios.
