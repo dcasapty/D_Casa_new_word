@@ -31,34 +31,24 @@ jobs:
     name: Previsualizar el sitio
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: dcasa
-          POSTGRES_PASSWORD: dcasa
-          POSTGRES_DB: dcasa
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       EN_LINEA: 'true'
       MINUTOS: ${{ inputs.minutos || '30' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
           submodules: true
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
       - name: Construir la imagen
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
         with:
           context: .
           file: docker/Dockerfile
           tags: dcasa-odoo:preview
           load: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=imagen
+          cache-to: type=gha,mode=max,scope=imagen
 
       - name: Abrir el túnel de Cloudflare
         id: tunel
@@ -67,7 +57,7 @@ jobs:
           curl -fsSL -o cloudflared https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
           chmod +x cloudflared
           nohup ./cloudflared tunnel --no-autoupdate --url http://localhost:8069 > tunel.log 2>&1 &
-          for i in $(seq 1 60); do
+          for _ in $(seq 1 60); do
             URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' tunel.log | head -1)
             [ -n "$URL" ] && break
             sleep 2
@@ -80,6 +70,15 @@ jobs:
       # clave del admin es esa (GitHub la tapa con ***) y Brian usa BRIAN_API_KEY_PRUEBAS (o, si
       # no existe, BRIAN_API_KEY). Sin ese secreto: clave al azar visible y Brian sin IA,
       # para que nadie gaste la clave de IA con una contraseña publicada.
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+      - name: S3 local en lugar de R2
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends stunnel4
+          pip install "moto[server]>=5,<6" boto3
+          .github/scripts/s3_local.sh "$RUNNER_TEMP/s3" 9100 dcasa-preview
+
       - name: Arrancar Odoo con una base nueva
         id: odoo
         env:
@@ -96,12 +95,18 @@ jobs:
             echo "clave=$CLAVE" >> "$GITHUB_OUTPUT"
             BRIAN=()
           fi
+          # La imagen trae su propio PostgreSQL (Fase 1); los respaldos van a un S3 local
+          # desechable, igual que la prueba de humo de ci.yml (VERIFICAR AL INTEGRAR con f1-imagen).
           docker run -d --name odoo --network host \
-            -e DB_HOST=localhost -e DB_USER=dcasa -e DB_PASSWORD=dcasa -e DB_NAME=dcasa -e DB_SSLMODE=disable \
             -e ADMIN_PASSWORD="$CLAVE" -e ADMIN_USER_PASSWORD="$CLAVE" -e APP_VERSION=${{ github.sha }} \
-            -e DCASA_PIN_PEPPER=preview "${BRIAN[@]}" \
+            -e ODOO_MASTER_PASSWORD="$(openssl rand -hex 16)" -e DCASA_PIN_PEPPER=preview \
+            -e R2_ENDPOINT=https://127.0.0.1:9100 -e R2_BUCKET=dcasa-preview \
+            -e R2_ACCESS_KEY_ID=preview -e R2_SECRET_ACCESS_KEY=preview \
+            -e PGBACKREST_CIPHER_PASS="$(openssl rand -hex 32)" \
+            -e PGBACKREST_REPO1_STORAGE_VERIFY_TLS=n \
+            -e RESPALDO_TOKEN="$(openssl rand -hex 32)" "${BRIAN[@]}" \
             dcasa-odoo:preview
-          for i in $(seq 1 120); do
+          for _ in $(seq 1 120); do
             curl -fsS -o /dev/null http://localhost:8069/web/health 2>/dev/null && { echo "Odoo arriba"; break; }
             sleep 5
           done
@@ -142,7 +147,7 @@ jobs:
           pip install playwright
           python -m playwright install --with-deps chromium
           python scripts/preview_shots.py http://localhost:8069 capturas
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: capturas-del-sitio
           path: capturas/
@@ -170,8 +175,10 @@ jobs:
       - name: Mantener en línea
         if: env.EN_LINEA == 'true'
         run: |
+          # Solo un número entero de 1 a 60 (I-19); cualquier otra cosa → 30.
           MIN=$MINUTOS
-          [ "$MIN" -gt 60 ] && MIN=60
+          if ! [[ "$MIN" =~ ^[0-9]{1,3}$ ]] || [ "$MIN" -lt 1 ]; then MIN=30; fi
+          if [ "$MIN" -gt 60 ]; then MIN=60; fi
           echo "En línea en ${{ steps.tunel.outputs.url }} durante $MIN minutos."
           sleep $((MIN * 60))
 
