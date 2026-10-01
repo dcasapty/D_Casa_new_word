@@ -90,6 +90,14 @@ def normalizar(texto):
 
 
 class BrianHerramientas(models.AbstractModel):
+    """Catálogo y ejecución de herramientas. AbstractModel sin ACL: NADA se llama por RPC.
+
+    Todo es ``_`` o ``@api.private``: si ``ejecutar(..., confirmado=True)`` o ``confirmar``
+    fueran públicos, cualquiera se saltaría la confirmación de las acciones sensibles. Los
+    únicos caminos son ``brian.conversacion.enviar/confirmar_accion/rechazar_accion`` (que
+    validan dueño de la conversación y de la acción), el webhook de Telegram y el servidor
+    MCP (controladores que llaman en Python, como el usuario autenticado).
+    """
     _name = 'brian.herramientas'
     _description = 'Herramientas de Brian'
 
@@ -112,6 +120,7 @@ class BrianHerramientas(models.AbstractModel):
     def _disponible(self, spec):
         return all(self.env.user.has_group(grupo) for grupo in spec['grupos'])
 
+    @api.private
     @api.model
     def esquema(self, spec):
         """La herramienta en el formato neutro que traducen los proveedores y MCP."""
@@ -129,6 +138,7 @@ class BrianHerramientas(models.AbstractModel):
             'categoria': spec['categoria'],
         }
 
+    @api.private
     @api.model
     def catalogo(self, consulta=None, maximo=None):
         """Herramientas que este usuario puede usar; con ``consulta``, solo las relevantes."""
@@ -137,6 +147,7 @@ class BrianHerramientas(models.AbstractModel):
             specs = self.seleccionar(specs, consulta, maximo)
         return [self.esquema(s) for s in sorted(specs, key=lambda s: (s['categoria'], s['nombre']))]
 
+    @api.private
     @api.model
     def seleccionar(self, specs, consulta, maximo):
         """Preselección barata por palabras (para modelos pequeños con pocas herramientas a la vez).
@@ -162,6 +173,7 @@ class BrianHerramientas(models.AbstractModel):
     # Ejecución
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def ejecutar(self, nombre, argumentos=None, canal='chat', conversacion=None, confirmado=False):
         """Ejecuta una herramienta como el usuario actual, con política y registro de auditoría.
@@ -220,6 +232,7 @@ class BrianHerramientas(models.AbstractModel):
         accion.marcar('hecha', resultado=datos)
         return {'ok': True, 'datos': datos}
 
+    @api.private
     @api.model
     def confirmar(self, accion_id):
         """El humano aprueba una acción sensible propuesta por Brian."""
@@ -238,6 +251,7 @@ class BrianHerramientas(models.AbstractModel):
             return {'ok': False, 'error': str(error)}
         return self._correr(spec, argumentos, accion)
 
+    @api.private
     @api.model
     def rechazar(self, accion_id):
         accion = self.env['brian.accion'].browse(accion_id).exists()

@@ -41,6 +41,11 @@ SECCIONES_BALANCE = [
 
 
 class ReporteContable(models.AbstractModel):
+    """Motores de los reportes. Los motores (``balance_general``…) son ``@api.private``: leen
+    ``account.move.line``, que el ACL de ventas deja leer a la vendedora, así que por RPC
+    entregarían el balance completo. El único punto de entrada remoto es ``obtener()``, que
+    exige ``account.group_account_readonly`` (el grupo del menú «Reportes contables»).
+    """
     _name = 'dcasa.reporte.contable'
     _description = "Reportes contables de D'CASA"
 
@@ -115,6 +120,7 @@ class ReporteContable(models.AbstractModel):
     # Balance de comprobación
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def balance_comprobacion(self, desde=None, hasta=None, borradores=False):
         desde, hasta = self._periodo(desde, hasta)
@@ -142,6 +148,7 @@ class ReporteContable(models.AbstractModel):
     # Libro mayor
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def libro_mayor(self, desde=None, hasta=None, cuenta_ids=None, borradores=False, limite=2000):
         desde, hasta = self._periodo(desde, hasta)
@@ -199,6 +206,7 @@ class ReporteContable(models.AbstractModel):
         return secciones, {'utilidad_bruta': utilidad_bruta, 'utilidad_operativa': utilidad_operativa,
                            'utilidad_neta': utilidad_neta}
 
+    @api.private
     @api.model
     def estado_resultados(self, desde=None, hasta=None, borradores=False):
         desde, hasta = self._periodo(desde, hasta)
@@ -213,6 +221,7 @@ class ReporteContable(models.AbstractModel):
     # Balance general
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def balance_general(self, hasta=None, borradores=False, desde=None):
         _desde, hasta = self._periodo(None, hasta)
@@ -249,6 +258,7 @@ class ReporteContable(models.AbstractModel):
     # ITBMS
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def itbms(self, desde=None, hasta=None, borradores=False):
         """Resumen para la declaración de ITBMS: débito fiscal (ventas) y crédito fiscal (compras)."""
@@ -280,6 +290,7 @@ class ReporteContable(models.AbstractModel):
     # Analítica
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def analitica(self, desde=None, hasta=None, borradores=False):
         """Rentabilidad por cuenta analítica (canal de venta u otro plan)."""

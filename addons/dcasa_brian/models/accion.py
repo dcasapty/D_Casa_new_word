@@ -56,9 +56,11 @@ class BrianAccion(models.Model):
     fecha_cierre = fields.Datetime('Terminó', readonly=True)
 
     # ------------------------------------------------------------------
-    # API del sistema (usada por registro.py)
+    # API del sistema (usada por registro.py). Privada: escribe con sudo, así que por RPC
+    # cualquiera falsificaría la auditoría.
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def registrar(self, spec, argumentos, canal='chat', conversacion=None):
         """Crea el registro (estado «pendiente») a nombre del usuario actual."""
@@ -76,6 +78,7 @@ class BrianAccion(models.Model):
         # sudo conserva el uid: create_uid queda como el usuario que conversa.
         return self.sudo().with_context(**{_CLAVE_SISTEMA: True}).create(valores).sudo(False)
 
+    @api.private
     def marcar(self, estado, error=None, resultado=None, resumen=None):
         """Cambia el estado de la acción (solo el sistema)."""
         valores = {'estado': estado}

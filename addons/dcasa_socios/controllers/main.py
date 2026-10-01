@@ -90,7 +90,7 @@ class SociosDcasa(http.Controller):
         if socio.dcasa_socio_estado != 'activo':
             return self._render('dcasa_socios.socios_inicio', {
                 'error': 'Tu cuenta está suspendida. Escríbenos por WhatsApp y lo revisamos.'})
-        socio.action_dcasa_desbloquear()
+        socio._dcasa_desbloquear()
         self._iniciar_sesion(socio)
         if socio.dcasa_pin_temporal:
             self._avisar('Elige un PIN nuevo: el que te dimos en la tienda era temporal.')

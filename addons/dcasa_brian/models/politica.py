@@ -58,6 +58,8 @@ ESTADOS_PAGO_BLOQUEADOS = {
 
 
 class BrianPolitica(models.AbstractModel):
+    """Política dura de Brian. AbstractModel sin ACL: todos sus métodos son privados
+    (``_`` o ``@api.private``); por RPC no se llama ninguno."""
     _name = 'brian.politica'
     _description = 'Política de Brian'
 
@@ -65,6 +67,7 @@ class BrianPolitica(models.AbstractModel):
     # Entrada principal
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def verificar(self, spec, argumentos):
         """Lanza ``BrianError`` si la acción no se puede hacer. No devuelve nada útil."""
@@ -82,6 +85,7 @@ class BrianPolitica(models.AbstractModel):
             propia(argumentos)
         return True
 
+    @api.private
     @api.model
     def resumir(self, spec, argumentos):
         """Texto humano para la tarjeta «¿Lo hago?» de una acción sensible."""
@@ -103,6 +107,7 @@ class BrianPolitica(models.AbstractModel):
     # Ayudantes reutilizables por las herramientas
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def es_administrador(self, usuario):
         usuario = usuario.sudo()
@@ -110,6 +115,7 @@ class BrianPolitica(models.AbstractModel):
         return bool(usuario._is_superuser() or (admin and usuario == admin)
                     or usuario.has_group('base.group_system'))
 
+    @api.private
     @api.model
     def proteger_usuario(self, usuario, operacion='modificar'):
         """Nadie borra, archiva ni le quita permisos al administrador ni a sí mismo."""
@@ -123,6 +129,7 @@ class BrianPolitica(models.AbstractModel):
                     op=operacion, nombre=u.name))
         return True
 
+    @api.private
     @api.model
     def puede_editar_factura(self, move):
         """Solo se editan facturas/asientos en borrador y sin pagos."""
@@ -140,10 +147,12 @@ class BrianPolitica(models.AbstractModel):
                                             n=nombre, e=ESTADOS_PAGO_BLOQUEADOS[estado_pago]))
         return True
 
+    @api.private
     @api.model
     def proteger_conciliacion(self):
         raise BrianError(self.env._('Las conciliaciones no las toco: las revisa una persona en Contabilidad.'))
 
+    @api.private
     @api.model
     def proteger_borrado(self, modelo):
         if modelo in MODELOS_NO_BORRABLES:
@@ -152,6 +161,7 @@ class BrianPolitica(models.AbstractModel):
                 'acciones se corrigen con asientos contrarios, nunca borrando.'))
         return True
 
+    @api.private
     @api.model
     def proteger_libro_puntos(self, operacion='write'):
         """El libro de puntos (dcasa.movimiento) solo acepta asientos nuevos."""
@@ -160,6 +170,7 @@ class BrianPolitica(models.AbstractModel):
                 'El libro de puntos no se edita ni se borra: se corrige con un asiento contrario con motivo.'))
         return True
 
+    @api.private
     @api.model
     def proteger_campos(self, modelo, campos):
         """Bloquea modelos técnicos y campos secretos (contraseñas, claves, tokens)."""
@@ -177,6 +188,7 @@ class BrianPolitica(models.AbstractModel):
                     'roles (pide confirmación), no editando el usuario directamente.'))
         return True
 
+    @api.private
     @api.model
     def limite_por_minuto(self):
         """Frena ráfagas: máximo N acciones por minuto por usuario (parámetro configurable)."""

@@ -71,6 +71,22 @@ class TestAppSocio(HttpCase):
         bien = self.post('/socios/entrar', celular='6123-4567', pin='482915')
         self.assertIn(socio.dcasa_socio_codigo, bien.text)
 
+    def test_entrar_bien_pone_el_candado_a_cero_sin_ruido(self):
+        """El login usa el desbloqueo privado: sin permiso de gerente y sin notas en el chatter."""
+        self.registrar()
+        self.post('/socios/salir')
+        socio = self.Partner.search([('dcasa_celular', '=', '61234567')])
+        for _i in range(2):
+            self.post('/socios/entrar', celular='61234567', pin='111222')
+        socio.invalidate_recordset()
+        self.assertEqual(socio.dcasa_intentos_fallidos, 2)
+        notas = len(socio.message_ids)
+        bien = self.post('/socios/entrar', celular='61234567', pin='482915')
+        self.assertIn(socio.dcasa_socio_codigo, bien.text)
+        socio.invalidate_recordset()
+        self.assertEqual(socio.dcasa_intentos_fallidos, 0)
+        self.assertEqual(len(socio.message_ids), notas)
+
     def test_reclamar_una_ficha_con_puntos_pide_el_codigo(self):
         cliente = self.Partner.create({'name': 'Eric Gómez', 'phone': '6123-4567'})
         ficha = cliente._dcasa_asegurar_ficha()
