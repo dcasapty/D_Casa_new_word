@@ -4,6 +4,7 @@
 
 export type Route =
   | { kind: "health" }
+  | { kind: "respaldo" }
   | { kind: "blocked" }
   | { kind: "redirect"; location: string; status: 301 | 308 }
   | { kind: "origin"; cacheable: boolean };
@@ -89,7 +90,11 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
   if (url.pathname === "/__edge/health") {
     return { kind: "health" };
   }
-  if (isBlockedPath(url.pathname)) {
+  if (url.pathname === "/__edge/respaldo") {
+    return { kind: "respaldo" };
+  }
+  // `/__edge/*` es del borde: lo que no existe aquí no se reenvía a Odoo.
+  if (isBlockedPath(url.pathname) || normalizePath(url.pathname).startsWith("/__edge/")) {
     return { kind: "blocked" };
   }
   if (canonicalHost && url.hostname !== canonicalHost && url.hostname === `www.${canonicalHost}`) {
