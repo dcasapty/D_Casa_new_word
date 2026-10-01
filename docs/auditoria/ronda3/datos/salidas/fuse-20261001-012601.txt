@@ -1,0 +1,3 @@
+LOCAL: initdb+arranque OK (.128715530 s de arranque)
+LOCAL: latency average = 1.002 ms
+LOCAL: tps = 1996.753305 (without initial connection time)

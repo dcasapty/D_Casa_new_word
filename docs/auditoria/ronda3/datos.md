@@ -100,3 +100,26 @@ Piezas (todas probadas en el prototipo salvo las marcadas):
 
 Modos de fallo: (a) host apagado sin gracia u OOM (sin swap: OOM ⇒ reinicio) → se pierde lo no archivado (RPO medido ≤ 60 s en régimen, hasta 5 min sin la mitigación); (b) dos instancias (partición/actualización del DO) → dos líneas de tiempo escribiendo al mismo repositorio = *split-brain* contable; solo el candado lo evita; (c) actualización de imagen → SIGTERM y apagado ordenado (medido §2.4), luego restauración completa; (d) R2 caído al arrancar → la tienda no arranca (RTO = lo que dure R2); (e) corrupción silenciosa → `--data-checksums` + `pgbackrest verify` + restauración de prueba diaria; (f) disco del Container (8-12 GB) lleno por WAL si R2 no responde → PostgreSQL se detiene: alerta sobre `failed_count`.
 
+## 2. (A) Prototipo medido: PostgreSQL efímero + archivado continuo de WAL a S3 + restauración
+
+### 2.1 Montaje (reproducible)
+- `docs/auditoria/ronda3/datos/env.sh` (variables), `01_s3_local.sh` (S3 local: **moto 5.x detrás de stunnel** en 9100/9101, porque MinIO (`dl.min.io`) está bloqueado por el proxy y el TLS de werkzeug corta sin `close_notify`, que pgBackRest/OpenSSL 3 rechaza), `02_cluster.sh` (PostgreSQL 16 en 5440, `initdb --data-checksums`, `archive_mode=on`, `archive_timeout=60`, `wal_recycle=off` + `wal_init_zero=on`; restaura el `pg_dump` de `dcasa_test`; `stanza-create`; respaldo base completo), `carga.py` (simula asientos: 1 INSERT+COMMIT/s con filas deterministas y registro de cada COMMIT confirmado), `verificar.sql` (conteos, huecos, filas corruptas, md5 por tabla), `03_ensayo_muerte.sh` (carga N s → `kill -9` del postmaster y todos sus hijos, incluido el archivador → `rm -rf` del directorio de datos → `pgbackrest restore` → arranque → espera promoción → verificación), `04_apagado.sh` (apagado ordenado vs ingenuo), `06_reposo.sh` (peticiones S3 y bytes por hora), `s3_inventario.py`, `costo_r2.py`, `05_fuse.sh` (§4.1).
+- pgBackRest **2.50** (paquete de Ubuntu 24.04), repositorio cifrado `aes-256-cbc`, `compress-type=zst` nivel 3, `process-max=2`.
+- Base: `pg_dump -Fc` de `dcasa_test` = 114 MB (18 s); `pg_restore -j2` = 23 s; en el clúster 191,8 MB; **respaldo base pgBackRest: 102,8 MB en el repositorio, 4 546 archivos, 98 s** (moto es lento por objeto: 1 PUT por archivo).
+
+### 2.2 Muerte del contenedor sin gracia (kill -9 + disco borrado): 12 ensayos
+Tabla completa en `salidas/resumen_muerte.txt` (salida por ensayo en `salidas/muerte-*.txt`).
+
+| Ensayos | RPO (s) | RTO total (s) | Integridad |
+|---|---|---|---|
+| 1-2 (primer arranque y primera restauración, sin mitigación) | 28,1 · 44,2 | 48,2 · 50,7 | 0 corruptas, md5 iguales |
+| 3-5 (tras restauración, sin mitigación) | **169 · 125 · 200 (toda la carga)** | 57,6 · 65,1 · 64,3 | 0 corruptas, md5 iguales; se perdió todo lo posterior a la restauración |
+| 7-12 (con `CHECKPOINT` tras promover; carga 95-200 s) | **38,1 · 52,2 · 8,1 · 23,0 · 33,1** (mediana **33 s**, máx. 52 s) | 42,1 · 44,1 · 44,6 · 44,7 · 50,6 | 0 corruptas, md5 iguales |
+
+- RPO = segundos entre el último COMMIT confirmado al cliente y el último COMMIT restaurado. En régimen está acotado por `archive_timeout` (60 s) + subida.
+- RTO = desde directorio vacío hasta PostgreSQL promovido y aceptando escrituras; **mediana 46 s en 12 ensayos** (pgBackRest 38-62 s; replay+promoción 2-7 s). Es optimista: S3 en la misma máquina. Con R2 real se suma la red (≈ 103 MB y ~4 500 GET sin `repo1-bundle`). Arrancar Odoo después: 3,0-3,7 s (r3-odoo-medicion).
+- El campo `asientos_huecos = 99826` de los ensayos 6-12 es una fila de diagnóstico manual (id 100000), no un hueco real: los ids posteriores son contiguos.
+
+### 2.3 HALLAZGO: tras cada restauración el archivado queda mudo hasta `checkpoint_timeout`
+En 4 de 6 promociones (líneas de tiempo 3, 4, 5 y 7) PostgreSQL 16 **no forzó el cambio de segmento a los 60 s** pese a la carga continua: el primer `pushed WAL file` apareció justo con `checkpoint starting: time`, 5 min después del `end-of-recovery checkpoint` (reproducido a mano en TL7: promoción 00:38:50, primer push 00:43:50, `pg_stat_archiver.archived_count` congelado en 1). En TL2 y TL6 sí archivó a los 60 s; el patrón observado es que la carga empezó 1-3 s después de promover (en TL2/TL6, 9-12 s). Causa exacta en el código de PostgreSQL: no verificada (hipótesis: el checkpointer calcula su espera mientras aún se considera «en recuperación» y duerme `checkpoint_timeout`). **Mitigación medida**: un `CHECKPOINT` explícito tras la promoción (5/5 ensayos archivaron a los 60 s). Defensa adicional recomendada: vigilante que llame `pg_switch_wal()` cada 60 s si el LSN avanzó, y alerta si `last_archived_time` > 2 min.
+

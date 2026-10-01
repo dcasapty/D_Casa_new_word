@@ -1,0 +1,9 @@
+LOCAL: initdb FALLA
+pg_ctl: directory "/tmp/r3_datos/pg5443-local" does not exist
+FUSE: initdb+arranque OK (11.660366081 s de arranque)
+FUSE: latency average = 363.316 ms
+FUSE: tps = 5.504852 (without initial connection time)
+FUSE tras muerte: arranca
+200000
+6231
+peticiones S3 al bucket FUSE: 25305

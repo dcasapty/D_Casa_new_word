@@ -3,17 +3,18 @@
 # s3fs-fuse contra el S3 local; pgbench en FUSE (puerto 5442) frente a disco local (5443);
 # después "muerte" (kill -9 + desmontar sin vaciar caché) y arranque desde el bucket.
 set -uo pipefail; source "$(dirname "$0")/env.sh"; D="$(cd "$(dirname "$0")" && pwd)"
-OUT=$D/salidas/fuse-$(date +%Y%m%d-%H%M%S).txt; MNT=$R3/fuse; CACHE=$R3/fuse-cache
+RUN=$(date +%Y%m%d-%H%M%S); OUT=$D/salidas/fuse-$RUN.txt; BK=dcasa-fuse-$RUN; MNT=$R3/fuse; CACHE=$R3/fuse-cache
 exec > >(tee $OUT) 2>&1
 AWS_ACCESS_KEY_ID=x AWS_SECRET_ACCESS_KEY=x $R3/venv/bin/python -W ignore -c "
 import boto3; s=boto3.client('s3',endpoint_url='https://127.0.0.1:$S3_PORT',verify=False,region_name='us-east-1')
-s.create_bucket(Bucket='dcasa-fuse')" 2>/dev/null
+s.create_bucket(Bucket='$BK')" 2>/dev/null
 echo "x:x" > $R3/s3fs.passwd; chmod 600 $R3/s3fs.passwd
 mkdir -p $MNT $CACHE
 PGUID=$(id -u postgres); PGGID=$(id -g postgres)
-montar() { s3fs dcasa-fuse $MNT -o url=https://127.0.0.1:$S3_PORT,use_path_request_style,no_check_certificate,ssl_verify_hostname=0,passwd_file=$R3/s3fs.passwd,allow_other,uid=$PGUID,gid=$PGGID,mp_umask=077,use_cache=$CACHE,endpoint=us-east-1; sleep 2; }
+montar() { s3fs $BK $MNT -o url=https://127.0.0.1:$S3_PORT,use_path_request_style,no_check_certificate,ssl_verify_hostname=0,passwd_file=$R3/s3fs.passwd,allow_other,uid=$PGUID,gid=$PGGID,mp_umask=077,use_cache=$CACHE,endpoint=us-east-1; sleep 2; }
 montar; mkdir -p $MNT/pg; chown postgres: $MNT/pg; chmod 700 $MNT/pg
 banco() { # $1=datadir $2=puerto $3=etiqueta
+  mkdir -p $1; chown postgres: $1; chmod 700 $1
   asp "$PGBIN/initdb -D $1 -U postgres >/dev/null 2>&1" || { echo "$3: initdb FALLA"; return 1; }
   printf "port = $2\nlisten_addresses='127.0.0.1'\nunix_socket_directories='$R3/sock'\n" >> $1/postgresql.conf
   t0=$(date +%s.%N)
@@ -31,7 +32,7 @@ fusermount -uz $MNT; pkill -9 -x s3fs; rm -rf $CACHE; mkdir -p $CACHE; sleep 2
 montar
 rm -f $MNT/pg/data/postmaster.pid
 timeout 300 su postgres -s /bin/bash -c "$PGBIN/pg_ctl -D $MNT/pg/data -l $R3/log/pg5442b.log -w -t 240 start" >/dev/null && {
-  echo "FUSE tras muerte: arranca"; asp "$PGBIN/psql -X -h 127.0.0.1 -p 5442 -U postgres -tAc 'select count(*) from pgbench_accounts; select sum(abalance) from pgbench_accounts'"
+  echo "FUSE tras muerte: arranca (esperado tras el ultimo pgbench: count=200000)"; asp "$PGBIN/psql -X -h 127.0.0.1 -p 5442 -U postgres -tAc 'select count(*) from pgbench_accounts; select sum(abalance) from pgbench_accounts'"
   asp "$PGBIN/pg_ctl -D $MNT/pg/data -m immediate stop" >/dev/null; } || { echo "FUSE tras muerte: NO arranca"; tail -8 $R3/log/pg5442b.log; }
 fusermount -uz $MNT; pkill -x s3fs
-grep -c "dcasa-fuse" $R3/moto.log | sed 's/^/peticiones S3 al bucket FUSE: /'
+grep -c "/$BK" $R3/moto.log | sed 's/^/peticiones S3 al bucket FUSE: /'

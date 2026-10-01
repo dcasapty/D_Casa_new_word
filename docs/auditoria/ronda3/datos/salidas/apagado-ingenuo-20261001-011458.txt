@@ -1,0 +1,4 @@
+apagado=ingenuo ensayo=20261001-011458 carga_s=90
+t_checkpoint_switch_push_s=0.21 t_pg_ctl_stop_s=0.00 t_apagado_total_s=0.21
+commits_confirmados=101558 restaurados=101558 perdidos=0
+RTO_total_s=47.8
