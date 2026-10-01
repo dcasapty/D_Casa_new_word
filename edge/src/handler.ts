@@ -81,6 +81,11 @@ export interface ScheduledDeps {
   status: () => Promise<string>;
   /** Petición que despierta a Odoo (enciende el contenedor si está apagado). */
   wake: () => Promise<Response>;
+  /**
+   * Política de sueño del entorno (`politicaDeSueno`). `false` = puede dormir (staging):
+   * el cron no lo despierta. Ausente = 24/7 (se despierta, como antes).
+   */
+  siempreEncendido?: boolean;
 }
 
 /**
@@ -88,13 +93,18 @@ export interface ScheduledDeps {
  *
  * - Si Odoo ya está encendido, no hace nada: su propio hilo de cron
  *   (`max_cron_threads`) corre las acciones planificadas.
- * - Si está apagado (reinicio de host sin visitas, o durmió por `sleepAfter` en
- *   staging), lo despierta una vez para que Odoo corra lo pendiente (cola de correo,
- *   cron horario de socios…).
+ * - Si está apagado y el entorno es 24/7 (producción: reinicio de host sin visitas),
+ *   lo despierta una vez para que Odoo corra lo pendiente (cola de correo, cron
+ *   horario de socios…).
+ * - Si está apagado y el entorno puede dormir (`ODOO_DORMIR_TRAS` con duración:
+ *   staging), lo deja dormido: despertarlo cada hora lo tenía encendido ~50 % del
+ *   tiempo y restaurando desde R2 cada ~2 h (ronda4/costos-y-limpieza §2.6). Lo
+ *   enciende la próxima visita.
  */
-export async function runScheduled(deps: ScheduledDeps): Promise<"encendido" | "despertado"> {
+export async function runScheduled(deps: ScheduledDeps): Promise<"encendido" | "despertado" | "dormido"> {
   const status = await deps.status();
   if (status === "running" || status === "healthy") return "encendido";
+  if (deps.siempreEncendido === false) return "dormido";
   const response = await deps.wake();
   // El cuerpo no interesa; se descarta para liberar la conexión.
   await response.body?.cancel();

@@ -213,6 +213,11 @@ limit_time_real = ${ODOO_LIMIT_TIME_REAL:-300}
 limit_memory_soft = ${ODOO_LIMIT_MEMORY_SOFT:-1610612736}
 limit_memory_hard = ${ODOO_LIMIT_MEMORY_HARD:-2147483648}
 log_level = ${ODOO_LOG_LEVEL:-info}
+# Sin una línea por petición (werkzeug a WARNING): cada línea es un evento de Workers Logs
+# (20 M/mes incluidos) y el Worker ya registra cada invocación con su estado. Los errores
+# de Odoo (500, excepciones) salen por odoo.http a ERROR con su traza: no se pierden.
+# Para depurar: ODOO_LOG_HANDLER=werkzeug:INFO.
+log_handler = ${ODOO_LOG_HANDLER:-werkzeug:WARNING}
 # Búsquedas sin importar tildes: «sofa» encuentra «Sofá», «colchon» encuentra «Colchón».
 unaccent = True
 CONF
@@ -468,12 +473,26 @@ iniciar_odoo() {
   ODOO_PID=$!
 }
 
+# Memoria real (cgroup: anónima vs caché; RSS/PSS de Odoo y PostgreSQL; contadores de OOM)
+# en UNA línea JSON {"evento":"memoria",...}: una vez con Odoo ya caliente tras arrancar
+# y cada vez que Odoo se cae (¿fue un OOM?). El panel de Cloudflare no separa la caché.
+DCASA_MEMORIA="${DCASA_MEMORIA:-/opt/dcasa/addons/dcasa_base/memoria.py}"
+MEMORIA_TRAS_S="${MEMORIA_TRAS_S:-180}"
+registrar_memoria() {
+  [[ -r "$DCASA_MEMORIA" ]] && python3 "$DCASA_MEMORIA" "$1" 2>/dev/null || true
+}
+
 echo "▶ Iniciando Odoo ($APP_VERSION) tras $((SECONDS - ENTRYPOINT_T0)) s de arranque"
 iniciar_odoo "$@"
 caidas=()
+memoria_en=$((SECONDS + MEMORIA_TRAS_S))
 while true; do
   sleep 5 &
   wait $! || true
+  if ((memoria_en > 0 && SECONDS >= memoria_en)); then
+    registrar_memoria arranque
+    memoria_en=0
+  fi
   if ! pg_vivo; then
     pg_alerta "PostgreSQL se detuvo: recuperación local"
     if ! { pg_iniciar && pg_esperar_promocion && pg_tras_promover; }; then
@@ -495,6 +514,7 @@ while true; do
       exit 1
     fi
     pg_alerta "Odoo terminó (código $rc): se relanza (${#caidas[@]} en 10 min)"
+    registrar_memoria odoo_caido
     iniciar_odoo "$@"
   fi
 done

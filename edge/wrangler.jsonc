@@ -34,7 +34,8 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
-  // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled).
+  // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled), solo
+  // en 24/7: con ODOO_DORMIR_TRAS de duración (staging) lo deja dormido.
   // "17 8 * * *": 03:17 en Panamá (UTC-5), respaldo lógico diario dentro del contenedor.
   // Deben coincidir con CRON_HORARIO y CRON_RESPALDO de src/handler.ts (hay test).
   "triggers": { "crons": ["7 * * * *", "17 8 * * *"] },
@@ -88,8 +89,9 @@
         "CANONICAL_HOST": "staging.dcasapty.com",
         "DCASA_ENTORNO": "staging",
         "R2_BUCKET": "dcasa-respaldos-staging",
-        // Duerme tras 1 h sin visitas: abarata la prueba y ensaya la restauración desde R2
-        // en cada despertar. Para ensayar el 24/7 de producción, dejar "".
+        // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
+        // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
+        // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
         "ODOO_DORMIR_TRAS": "1h"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]

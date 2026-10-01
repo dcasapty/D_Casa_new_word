@@ -124,7 +124,7 @@ LISTA_BLANCA = {
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
-SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica')
+SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento')
 
 
 def es_publico(modelo, nombre):

@@ -366,4 +366,8 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.migrations).toEqual(config.migrations);
     expect(staging).not.toHaveProperty("routes");
   });
+
+  it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {
+    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(false);
+  });
 });
