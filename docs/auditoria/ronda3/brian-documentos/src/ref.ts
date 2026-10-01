@@ -13,6 +13,17 @@ export function letraACol(s: string): number {
 }
 
 export function parsearRef(ref: string): { fila: number; col: number } {
+  // camino rápido «AB123» (sin $ ni espacios): sin expresiones regulares
+  let col = 0, i = 0;
+  for (; i < ref.length; i++) {
+    const c = ref.charCodeAt(i);
+    if (c >= 65 && c <= 90) col = col * 26 + (c - 64); else break;
+  }
+  if (i > 0 && i < ref.length && i <= 3) {
+    let fila = 0, k = i;
+    for (; k < ref.length; k++) { const c = ref.charCodeAt(k); if (c < 48 || c > 57) break; fila = fila * 10 + (c - 48); }
+    if (k === ref.length && fila > 0) return { fila, col };
+  }
   const m = /^\$?([A-Za-z]{1,3})\$?(\d+)$/.exec(ref.trim());
   if (!m) throw new Error(`referencia inválida: ${ref}`);
   return { col: letraACol(m[1]), fila: Number(m[2]) };

@@ -57,6 +57,14 @@ function atributos(s: string): Atributos {
   return out;
 }
 
+function comillasBalanceadas(b: string, desde: number, hasta: number): boolean {
+  let q = 0, a = 0;
+  for (let k = b.indexOf('"', desde); k >= 0 && k < hasta; k = b.indexOf('"', k + 1)) q++;
+  if (q % 2) return false;
+  for (let k = b.indexOf("'", desde); k >= 0 && k < hasta; k = b.indexOf("'", k + 1)) a++;
+  return a % 2 === 0 || q > 0;
+}
+
 export class TokenizadorXml {
   private buf = '';
   private textoPend = '';
@@ -125,16 +133,10 @@ export class TokenizadorXml {
         i = f + 2;
         continue;
       }
-      // etiqueta normal: buscar '>' fuera de comillas
-      let j = lt + 1;
-      let comilla = '';
-      for (; j < n; j++) {
-        const c = b[j];
-        if (comilla) { if (c === comilla) comilla = ''; }
-        else if (c === '"' || c === "'") comilla = c;
-        else if (c === '>') break;
-      }
-      if (j >= n) {
+      // etiqueta normal: buscar '>' fuera de comillas (camino rápido con indexOf)
+      let j = b.indexOf('>', lt + 1);
+      while (j >= 0 && !comillasBalanceadas(b, lt + 1, j)) j = b.indexOf('>', j + 1);
+      if (j < 0) {
         if (n - lt > MAX_ETIQUETA) throw new ErrorXml('etiqueta demasiado larga');
         i = lt;
         break;
