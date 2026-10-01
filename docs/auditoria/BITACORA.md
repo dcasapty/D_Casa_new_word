@@ -704,3 +704,9 @@ la tiene y la probó), experto en documentos (Excel con imágenes, tablas, celda
 - 5 agentes en worktrees (seguridad RPC, ITBMS, infra/borde, roles, sitio) integrados en `claude/merge-rama-to-main-ty3koz`. Suite completa de los 8 módulos: **326 tests, 0 fallos, 0 errores**; borde 28/28; ruff limpio. El test anti-regresión de la superficie RPC atrapó en la integración dos métodos nuevos (`sale.order.line.create/write` del tope de descuento): añadidos a la lista blanca con motivo.
 - Para la Fase 1: r3-odoo-medicion dejó medido que en un cgroup de 1 GiB `limit_memory_soft` al 45 % reinicia Odoo en bucle (VmSize pico ≈ 790 MiB aunque RSS ≈ 270): hay que fijar los límites de memoria de Odoo por RSS/VmSize reales, no por porcentaje.
 - Pendiente fuera de código: Fase 0b (PAC de la DGI, textos legales) y asignar los roles a los 6 usuarios.
+
+### coordinador · APRENDIZAJE · — · Fase 1 integrada y verificada (sin desplegar)
+- 4 agentes en worktrees (imagen con PostgreSQL + pgBackRest → R2, borde con contenedor único `basic` y staging, sesiones de Odoo en PostgreSQL + `/dcasa/salud`, CI/CD con imagen única y simulacro) integrados en `claude/merge-rama-to-main-ty3koz`.
+- Verificación del coordinador sobre lo integrado: Odoo **345 tests, 0 fallos** (9 módulos, con `server_wide_modules=base,web,dcasa_sesiones`); borde 59/59; `bash -n` y ruff limpios; **simulacro de restauración OK**: kill -9 RPO 36,6 s y 45,8 s (tras una restauración), apagado ordenado 0 pérdidas, RTO 2,9–4,4 s, volcado lógico restaurable, vuelta a una hora exacta y no reaplicada; 0 corrupción (md5 + `pg_amcheck`).
+- Corrección del coordinador al integrar: el borde cortaba el arranque a 180 s y la instalación inicial mide 263 s ⇒ `TOPE_ARRANQUE_MS` = 420 s.
+- Sin probar aquí: `docker build`, R2 real (firma SigV4, latencia), cuota de CPU de `basic` y límite de 1 GiB con todo junto (PSS medido ≈ 660 MiB con 40 peticiones simultáneas: poco margen), candado de instancia única en R2.
