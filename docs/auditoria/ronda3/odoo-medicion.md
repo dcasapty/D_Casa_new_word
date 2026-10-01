@@ -133,6 +133,25 @@ caliente ni en CPU). Sí vale por seguridad/superficie: `base_import_module` (su
 declarativo (no a mano): un módulo `dcasa_*` no puede «des-auto-instalar»; habría que desinstalarlos en
 la base de producción tras crearla y cuidar que `-i` no los reinstale.
 
+### 2.6 Actividad en reposo contra la base (`reposo.py` → `res_reposo.jsonl`; 6 min sin tráfico, 1 corrida por config)
+
+| Config | Sentencias en 6 min | Patrón | Conexiones abiertas | CPU Odoo / PG (s por hora) |
+|---|---|---|---|---|
+| Hilos, cron 1 (= entrypoint) | 76 (30-40 del primer minuto + 6/min) | `SELECT * FROM ir_cron …` + `now()` + `latest_version` cada 60 s | 2-3 `idle` | 0,9 / 1,5 |
+| **Hilos, cron 0** | **0** | nada | 1 `idle` (pool) | 0,7 / 1,1 |
+| Hilos, cron 1 + websocket del bus abierto | 115 | igual + reconexión del bus | 3 | 1,1 / 4,5 |
+| Prefork w2, cron 1 | **2 501** | `SELECT max(id) FROM orm_signaling_*` en transacción, ~2,3/s | 3 | **40,9 / 19,0** |
+
+Crons activos en la base: 27 (`ir_cron`): 1 cada 10 min (pagos), 5 cada hora (cola de correo, avisos,
+«Socios D'CASA: vencer canjes y regalos de cumpleaños», carrito abandonado, disponibilidad), 14 diarios
+(auto-post, autovacuum, limpieza de visitantes…), y algunos de módulos sin uso que llaman a servidores de
+Odoo S.A. (`CRM: enrich leads (IAP)`, `Snailmail`, `Publisher: Update Notification`).
+
+¿Podría dormir una base serverless? Solo con hilos + `max_cron_threads=0` y sin backend abierto, y aun
+así Odoo deja una conexión abierta en el pool (una base que mide «conexiones activas» no se dormiría; una
+que mide consultas, sí). Con prefork, nunca. Si el contenedor duerme, el cron de Odoo tampoco corre: hay
+que despertarlo desde fuera (Cron Trigger del Worker) para los trabajos horarios.
+
 ## 3. Dimensionamiento recomendado
 (pendiente)
 

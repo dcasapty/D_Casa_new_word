@@ -126,7 +126,7 @@ if __name__ == '__main__':
             res['calentar_s'] = round(time.time() - t, 1)
             res['bundles_regenerados'] = rep == 1
             res['lat_secuencial'] = medir.lat_secuencial(base, pid, 10)
-            for conc, n in ((20, 400), (50, 600)):
+            for conc, n in ((20, 200), (50, 300)):
                 c = medir.carga(base, pid, conc, n)
                 res[f'carga_{conc}'] = {k: c[k] for k in ('ok', 'errores', 'rps', 'cpu_ms_por_peticion', 'lat_ms')}
             time.sleep(3)

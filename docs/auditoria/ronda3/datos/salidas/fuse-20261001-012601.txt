@@ -1,3 +1,10 @@
 LOCAL: initdb+arranque OK (.128715530 s de arranque)
 LOCAL: latency average = 1.002 ms
 LOCAL: tps = 1996.753305 (without initial connection time)
+FUSE: initdb+arranque OK (11.534889765 s de arranque)
+FUSE: latency average = 351.918 ms
+FUSE: tps = 5.683141 (without initial connection time)
+FUSE tras muerte: arranca (esperado tras el ultimo pgbench: count=200000)
+200000
+-8016
+peticiones S3 al bucket FUSE: 25327
