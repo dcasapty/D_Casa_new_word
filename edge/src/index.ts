@@ -1,6 +1,6 @@
 import { Container, getContainer } from "@cloudflare/containers";
 
-import { handleRequest } from "./handler";
+import { handleRequest, runScheduled } from "./handler";
 
 export interface Env {
   ODOO: DurableObjectNamespace<OdooContainer>;
@@ -14,7 +14,13 @@ export interface Env {
   DB_SSLMODE?: string;
   // Secretos (wrangler secret put …)
   DB_PASSWORD: string;
+  /** Clave del usuario `admin` de Odoo (se fija al crear la base; ver docs/DESPLIEGUE.md). */
   ADMIN_PASSWORD: string;
+  /**
+   * Contraseña maestra de Odoo (`admin_passwd`), distinta de la de `admin`. Opcional:
+   * si falta, el contenedor genera una aleatoria en cada arranque y no la muestra.
+   */
+  ODOO_MASTER_PASSWORD?: string;
   /** Pimienta del PIN de los socios. Se genera una vez y NUNCA se cambia (ver docs/DESPLIEGUE.md). */
   DCASA_PIN_PEPPER: string;
   // Brian, el asistente (opcionales; ver docs/BRIAN.md y docs/DESPLIEGUE.md).
@@ -32,6 +38,7 @@ export interface Env {
 
 /** Variables opcionales que se pasan tal cual al contenedor solo si están definidas. */
 export const OPTIONAL_CONTAINER_VARS = [
+  "ODOO_MASTER_PASSWORD",
   "BRIAN_PROVEEDOR",
   "BRIAN_MODELO",
   "BRIAN_BASE_URL",
@@ -91,10 +98,17 @@ export default {
   },
 
   /**
-   * Cron: despierta Odoo cada pocos minutos para que corran sus acciones
-   * planificadas (correos, recordatorios, conciliaciones) aunque no haya visitas.
+   * Cron horario (wrangler.jsonc): si Odoo duerme, lo despierta una vez para que
+   * corran sus acciones planificadas; si ya está encendido no hace nada. Ver
+   * runScheduled() en src/handler.ts y docs/DESPLIEGUE.md → «Cron del Worker».
    */
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(odoo(env).fetch(new Request("http://odoo/web/health")));
+    const container = odoo(env);
+    ctx.waitUntil(
+      runScheduled({
+        status: async () => (await container.getState()).status,
+        wake: () => container.fetch(new Request("http://odoo/web/health")),
+      }).then((resultado) => console.log(`cron: Odoo ${resultado}`)),
+    );
   },
 } satisfies ExportedHandler<Env>;

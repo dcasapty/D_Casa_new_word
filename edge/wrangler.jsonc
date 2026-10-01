@@ -21,10 +21,13 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
-  // Mantiene vivos los procesos programados de Odoo (ver scheduled() en src/index.ts).
-  "triggers": { "crons": ["*/10 * * * *"] },
+  // Cada hora (minuto 7): si Odoo duerme, lo despierta para que corran sus acciones
+  // planificadas; si está encendido, no hace nada (no lo mantiene despierto a la
+  // fuerza). Antes era */10, que impedía que el contenedor durmiera nunca.
+  // Ver runScheduled() en src/handler.ts y docs/DESPLIEGUE.md → «Cron del Worker».
+  "triggers": { "crons": ["7 * * * *"] },
 
-  // Valores no secretos. Los secretos (DB_PASSWORD, ADMIN_PASSWORD) se cargan con
+  // Valores no secretos. Los secretos (DB_PASSWORD, ADMIN_PASSWORD, ODOO_MASTER_PASSWORD) se cargan con
   // `wrangler secret put` o desde GitHub Actions (ver docs/DESPLIEGUE.md).
   "vars": {
     "CANONICAL_HOST": "dcasapty.com",
