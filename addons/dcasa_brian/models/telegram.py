@@ -468,6 +468,12 @@ class BrianTelegramEnlace(models.Model):
             return True
         # Acción sin conversación (por ejemplo, propuesta desde MCP).
         Herramientas = yo.env['brian.herramientas']
+        if accion.estado != 'por_confirmar':
+            return self._enviar(chat_id, 'Esa acción ya no está pendiente de confirmación.')
+        if accion.canal != 'mcp':
+            # Nació en una conversación que ya se borró: no se ejecuta, se cierra.
+            Herramientas.rechazar(accion_id)
+            return self._enviar(chat_id, 'Esa conversación se borró, así que la acción quedó cancelada.')
         if not confirmar:
             Herramientas.rechazar(accion_id)
             return self._enviar(chat_id, 'Cancelado: no se hizo nada.')

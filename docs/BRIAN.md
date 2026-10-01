@@ -78,6 +78,54 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /
   GitHub Actions; **nunca en el repositorio**.
 
+## Historial: renombrar, borrar y retención
+
+En el panel, cada fila de «Conversaciones anteriores» trae **Renombrar** (en línea: Enter
+guarda, Esc cancela) y **Borrar** (pide confirmación). También se borra desde Menú › Brian ›
+Conversaciones. Cada quien renombra y borra **solo las suyas** (ni el administrador toca las
+ajenas desde la interfaz).
+
+Borrar es **borrado real** (decisión del dueño):
+
+| Dato | Qué pasa |
+|---|---|
+| Conversación, mensajes y sus adjuntos (`ir.attachment` de la conversación) | Se borran. |
+| Registro de acciones `brian.accion` | **Se conserva** (auditoría inmutable) con la conversación en blanco. |
+| Acciones «por confirmar» de esa conversación | Pasan a «rechazada»: un botón viejo de Telegram ya no las ejecuta. |
+| Adjuntos de otros registros citados en el chat | Se quedan en su registro. |
+| Telegram con esa conversación activa | El siguiente mensaje abre una nueva. |
+
+El servidor avisa al navegador del dueño por el bus (`dcasa_brian/conversacion_borrada`,
+`dcasa_brian/conversacion_cambiada`): el panel quita la fila al momento, y si la conversación
+abierta se borró, sigue en una nueva conservando lo escrito. Si el bus no conecta, el panel
+vuelve a comprobar al regresar a la pestaña.
+
+El dueño y el canal de una conversación no se cambian después de crearla, y un mensaje no se
+muda de conversación (cierra la puerta a «regalarle» un historial fabricado a otra persona).
+
+**Retención** (cron mensual «Brian: borrar conversaciones viejas y adjuntos huérfanos»):
+
+* Borra, por el mismo camino que el botón, las conversaciones sin actividad hace más de
+  `dcasa_brian.retencion_dias` días (Ajustes › Técnico › Parámetros del sistema; por defecto
+  **180**; **0 = nunca**).
+* Borra los adjuntos subidos a Brian cuya conversación/mensaje ya no existe, y los que llevan
+  más de un día sin enviarse en ningún mensaje (subidos y quitados antes de enviar).
+
+## Adjuntos que Brian lee
+
+El tipo se decide por la **firma del archivo**, no por la etiqueta del navegador (que manda
+`application/vnd.ms-excel` tanto para un CSV como para un .xls binario):
+
+* **Excel** `.xlsx`/`.xlsm` (openpyxl) y `.xls` (xlrd): por hoja, nombre y tamaño, las filas de
+  título como contexto, el encabezado (la fila más llena entre las primeras 10) y la tabla;
+  números redondeados a 2 decimales; fórmulas sin valor guardado se marcan; recorte con
+  «… N filas más». Avisa cuántas imágenes incrustadas trae cada hoja (Brian aún no las ve).
+* **Word** `.docx` (texto de párrafos y tablas), **PDF** (texto), texto/CSV/JSON/Markdown.
+* Protegidos con contraseña o dañados: mensaje amable, la conversación sigue.
+* **Fotos**: se ajustan para el modelo (lado mayor ≤ 1568 px, JPEG calidad 85 o PNG si tiene
+  transparencia, ≤ 5 MB) sin tocar el adjunto original. Formatos que PIL no abre (p. ej. HEIC)
+  reciben un aviso: mándala como JPG o PNG.
+
 ## Configuración
 
 | Variable | Ejemplo |
