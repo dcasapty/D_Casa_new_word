@@ -102,3 +102,73 @@ class TestInterfazBrian(HttpCase):
 })().catch((e) => console.error(e.message || e));
 """
         self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=90)
+
+    def test_historial_renombrar_y_borrar(self):
+        """Renombrar en línea, borrar con confirmación y enterarse de un borrado hecho en otra parte."""
+        admin = self.env.ref('base.user_admin')
+        Conversacion = self.env['brian.conversacion'].with_user(admin)
+        uno = Conversacion.create({'titulo': 'Charla uno'})
+        dos = Conversacion.create({'titulo': 'Charla dos'})
+        tres = Conversacion.create({'titulo': 'Charla tres'})
+        codigo = ESPERAR + """
+const fila = (panel, titulo) => [...panel.querySelectorAll(".o_brian_conv_fila")]
+    .find((li) => li.querySelector(".o_brian_conv_titulo")?.textContent === titulo);
+const borrarPorRpc = (id) => fetch("/web/dataset/call_kw/brian.conversacion/unlink", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", method: "call", params: {
+        model: "brian.conversacion", method: "unlink", args: [[id]], kwargs: {} } }),
+}).then((r) => r.json());
+(async () => {
+    (await esperar(() => document.querySelector(".o_brian_lanzador"), "el botón flotante")).click();
+    const panel = await esperar(() => document.querySelector(".o_brian_panel.o_brian_visible"), "el panel");
+    panel.querySelector("[aria-label='Conversaciones anteriores']").click();
+    await esperar(() => fila(panel, "Charla uno"), "la fila «Charla uno»");
+
+    // Renombrar: el botón tiene nombre accesible y la caja recibe el foco.
+    const renombrar = fila(panel, "Charla uno").querySelector(".o_brian_conv_renombrar");
+    if (renombrar.getAttribute("aria-label") !== "Renombrar «Charla uno»") {
+        throw new Error("Brian: el botón Renombrar no tiene aria-label");
+    }
+    renombrar.click();
+    const caja = await esperar(() => document.activeElement?.classList.contains("o_brian_renombrar_caja")
+        && document.activeElement, "el foco en la caja del nombre");
+    caja.value = "Charla renombrada";
+    caja.dispatchEvent(new Event("input", { bubbles: true }));
+    await new Promise((ok) => setTimeout(ok, 50));
+    caja.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await esperar(() => fila(panel, "Charla renombrada"), "el nombre nuevo");
+
+    // Borrar con confirmación: la fila desaparece al momento.
+    fila(panel, "Charla renombrada").querySelector(".o_brian_conv_borrar").click();
+    const confirmar = await esperar(() => document.querySelector(".modal .o_brian_confirmar_borrar"),
+        "la confirmación");
+    if (!document.querySelector(".modal").textContent.includes("registro de acciones")) {
+        throw new Error("Brian: la confirmación debe decir que la auditoría se conserva");
+    }
+    confirmar.click();
+    await esperar(() => !fila(panel, "Charla renombrada") && fila(panel, "Charla dos"), "la fila borrada fuera");
+
+    // Borrada en otra parte con el historial abierto: llega por el bus o al volver a la pestaña.
+    await borrarPorRpc(__DOS__);
+    await new Promise((ok) => setTimeout(ok, 2100));  // pasa el freno de resincronización
+    window.dispatchEvent(new Event("focus"));
+    await esperar(() => !fila(panel, "Charla dos"), "la fila borrada en otra parte fuera");
+
+    // La conversación abierta se borra en otra parte: al enviar, sigue en una nueva con el texto.
+    fila(panel, "Charla tres").querySelector(".o_brian_conv").click();
+    await esperar(() => panel.querySelector(".o_brian_texto"), "la caja de texto");
+    await borrarPorRpc(__TRES__);
+    const texto = panel.querySelector(".o_brian_texto");
+    texto.value = "Mensaje que no se pierde";
+    texto.dispatchEvent(new Event("input", { bubbles: true }));
+    await new Promise((ok) => setTimeout(ok, 50));
+    texto.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    await esperar(() => panel.querySelector(".o_brian_aviso_borrada"), "el aviso de conversación borrada");
+    if (panel.querySelector(".o_brian_texto").value !== "Mensaje que no se pierde") {
+        throw new Error("Brian: se perdió el texto sin enviar");
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""".replace("__DOS__", str(dos.id)).replace("__TRES__", str(tres.id))
+        self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=120)
+        self.assertFalse((uno | dos | tres).exists())
