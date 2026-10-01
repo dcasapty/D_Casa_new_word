@@ -41,7 +41,10 @@ código `DCA…` o el nombre del padrino.
 **Gerencia:**
 - Hace ajustes con motivo.
 - Anula compras.
-- Suspende socios.
+- Suspende y reactiva socios.
+- Reinicia el PIN (le dicta al socio uno temporal) y desbloquea cuentas tras
+  muchos intentos fallidos; queda una nota en el chatter con quién lo hizo.
+  Estos botones exigen el grupo de gerente de ventas en el servidor, no solo en la vista.
 - Edita premios (*Socios → Configuración → Premios*).
 - Registra a mano facturas del sistema anterior.
 
@@ -59,5 +62,5 @@ Si el Worker de Abrinay ya tiene socios reales en D1:
 - **Fichas:** se exportan a partir del celular, el nombre, el padrino y el cumpleaños.
 - **Saldos:** se importan como un asiento «Saldo migrado de la app anterior».
 - **PIN:** se derivó con la pimienta de ese Worker, así que no se puede verificar
-  aquí. Cada socio elige un PIN nuevo con «Reiniciar PIN» en la tienda, o se
+  aquí. Cada socio elige un PIN nuevo con «Reiniciar PIN» (gerencia) en la tienda, o se
   añade una verificación compatible si se comparte esa pimienta.

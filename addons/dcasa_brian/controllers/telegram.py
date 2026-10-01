@@ -45,7 +45,7 @@ class BrianTelegram(http.Controller):
             return request.make_response('Bad Request', status=400)
         try:
             with env.cr.savepoint():
-                Enlace.procesar_update(update)
+                Enlace._procesar_update(update)
         except Exception:  # noqa: BLE001 — Telegram no debe reintentar en bucle
             _logger.exception('Brian/Telegram: error procesando el update %s', update.get('update_id'))
         return request.make_json_response({'ok': True})

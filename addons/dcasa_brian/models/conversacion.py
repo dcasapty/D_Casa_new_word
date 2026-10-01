@@ -162,6 +162,9 @@ class BrianConversacion(models.Model):
 
     @api.model
     def estado_proveedor(self):
+        """Estado del proveedor de IA (sin la clave). Solo usuarios internos: el portal no usa Brian."""
+        if not self.env.su and not self.env.user.has_group('base.group_user'):
+            raise AccessError(self.env._('Brian es solo para el equipo de D’CASA.'))
         return self.env['brian.proveedores'].estado()
 
     @api.model
@@ -405,7 +408,7 @@ class BrianConversacion(models.Model):
         return texto
 
     def _herramientas(self, consulta):
-        config = self.env['brian.proveedores'].configuracion()
+        config = self.env['brian.proveedores']._configuracion()
         Herramientas = self.env['brian.herramientas']
         maximo = config.get('herramientas_max') or 0
         if not maximo and not config.get('grande'):

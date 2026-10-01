@@ -14,8 +14,8 @@ from odoo.tools import mute_logger
 DESDE, HASTA = '2030-03-01', '2030-03-31'
 
 
-@tagged('post_install', '-at_install')
-class TestContabilidad(TransactionCase):
+class ContabilidadCommon(TransactionCase):
+    """Datos y ayudas comunes de los tests contables."""
 
     @classmethod
     def setUpClass(cls):
@@ -51,6 +51,10 @@ class TestContabilidad(TransactionCase):
             'journal_id': self.banco.id, 'date': fecha, 'amount': monto, 'payment_ref': concepto,
             'partner_id': partner.id if partner else False,
         })
+
+
+@tagged('post_install', '-at_install')
+class TestContabilidad(ContabilidadCommon):
 
     # ------------------------------------------------------------------
     # Reportes

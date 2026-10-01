@@ -211,6 +211,7 @@ class BrianTelegramEnlace(models.Model):
     # Vincular (panel)
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def generar_codigo(self):
         """Código de un solo uso para el usuario actual. Invalida los anteriores."""
@@ -287,6 +288,7 @@ class BrianTelegramEnlace(models.Model):
     # Aviso fuera de banda (MCP → Telegram)
     # ------------------------------------------------------------------
 
+    @api.private
     @api.model
     def notificar_confirmacion(self, usuario, accion_id, resumen, origen='MCP'):
         """Si el usuario tiene Telegram vinculado, le manda la acción sensible con botones."""
@@ -302,8 +304,11 @@ class BrianTelegramEnlace(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def procesar_update(self, update):
-        """Punto de entrada del webhook (se llama con superusuario; cada acción baja al usuario)."""
+    def _procesar_update(self, update):
+        """Punto de entrada del webhook (se llama con superusuario; cada acción baja al usuario).
+
+        Privado: por RPC cualquiera podría inventar un update y hablar como otro usuario vinculado.
+        """
         if update.get('callback_query'):
             return self._procesar_callback(update['callback_query'], update.get('update_id'))
         mensaje = update.get('message')

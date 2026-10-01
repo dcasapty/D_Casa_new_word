@@ -46,10 +46,10 @@
                         <button name="action_dcasa_ajustar" type="object" string="Ajustar puntos"
                                 groups="sales_team.group_sale_manager"/>
                         <button name="action_dcasa_reiniciar_pin" type="object" string="Reiniciar PIN"
-                                invisible="not dcasa_reclamada"
+                                invisible="not dcasa_reclamada" groups="sales_team.group_sale_manager"
                                 confirm="Se genera un PIN temporal que le dictas al socio. ¿Seguir?"/>
                         <button name="action_dcasa_desbloquear" type="object" string="Desbloquear"
-                                invisible="not dcasa_bloqueado_hasta"/>
+                                invisible="not dcasa_bloqueado_hasta" groups="sales_team.group_sale_manager"/>
                         <button name="action_dcasa_suspender" type="object" string="Suspender"
                                 invisible="dcasa_socio_estado != 'activo'" groups="sales_team.group_sale_manager"
                                 confirm="Un socio suspendido no suma ni canjea puntos. ¿Seguir?"/>

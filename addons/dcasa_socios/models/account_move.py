@@ -29,11 +29,13 @@ class AccountMove(models.Model):
             compras._anular(motivo, self.env.user.login)
 
     def button_draft(self):
+        self.check_access('write')  # antes de anular puntos con sudo (método público por RPC)
         for move in self.filtered(lambda m: m.move_type == 'out_invoice'):
             move._dcasa_anular_compras(self.env._('La factura %s volvió a borrador.', move.name))
         return super().button_draft()
 
     def button_cancel(self):
+        self.check_access('write')  # antes de anular puntos con sudo (método público por RPC)
         for move in self.filtered(lambda m: m.move_type == 'out_invoice'):
             move._dcasa_anular_compras(self.env._('Se canceló la factura %s.', move.name))
         return super().button_cancel()

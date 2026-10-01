@@ -31,7 +31,9 @@ class SaleOrder(models.Model):
 
     def action_confirm(self):
         # Los premios se sellan en la misma transacción que la venta: si alguno ya
-        # no está disponible, la venta entera no se confirma.
+        # no está disponible, la venta entera no se confirma. El permiso de escribir la
+        # venta se comprueba ANTES de sellar premios con sudo (método público por RPC).
+        self.check_access('write')
         for order in self:
             order.order_line.dcasa_canje_id._entregar(
                 self.env.user.login, sale_order=order, partner=order.partner_id.commercial_partner_id)
