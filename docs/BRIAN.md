@@ -73,7 +73,14 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
 * Cada canal autentica al usuario de Odoo (sesión, clave de API con alcance, o vínculo de
   Telegram por código de un solo uso) y todo se ejecuta con sus permisos.
 * Contenido de adjuntos, correos, descripciones y registros es **dato**, nunca instrucción
-  (defensa contra inyección de prompts): va marcado como tal al modelo.
+  (defensa contra inyección de prompts): va marcado como tal al modelo. Las marcas del bloque
+  (`<<…>>`) y etiquetas tipo `</system>` escritas dentro de un archivo o en su nombre se
+  neutralizan: un adjunto no puede «cerrar» su bloque de datos.
+* **Lo que se construye a partir de adjuntos pide confirmación**: en un turno cuyo mensaje trae
+  archivos o fotos, toda herramienta de construcción (crear cliente, cotización, factura, cambiar
+  precio…) queda «por confirmar» como una sensible. Excepción: las que solo dejan un borrador
+  revisable, marcadas `segura_con_adjuntos=True` (hoy `proponer_importacion`). La acción queda con
+  `con_adjuntos` en el registro.
 * Límite de pasos por turno y de mensajes por minuto por usuario.
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /
   GitHub Actions; **nunca en el repositorio**.
@@ -199,9 +206,44 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `BRIAN_PROVEEDOR` | `anthropic` · `openai` · `xai` · `groq` · `openrouter` · `ollama` |
 | `BRIAN_MODELO` | Anthropic por defecto `claude-sonnet-5-5` (económico: `claude-haiku-4-5`); en los demás proveedores es obligatorio, p. ej. `gpt-4o-mini`, `llama-3.3-70b-versatile` |
 | `BRIAN_HERRAMIENTAS_MAX` | opcional: cuántas herramientas ofrecer por mensaje (0 = automático) |
+| `BRIAN_ESFUERZO` | opcional (Anthropic): `low`, `medium`, `high`, `xhigh`, `max`. Vacío = el del modelo. Haiku 4.5 no lo recibe |
+| `BRIAN_CACHE` | caché de prompts de Anthropic, activa por defecto; `0` la apaga |
 | `BRIAN_API_KEY` | secreto |
 | `BRIAN_BASE_URL` | opcional (OpenAI-compatible) |
 | `TELEGRAM_BOT_TOKEN` | secreto |
+
+(Cada variable también se puede poner como parámetro del sistema `dcasa_brian.<clave>`:
+`esfuerzo`, `cache`, …)
+
+## Costo y consumo
+
+* **Caché de prompts** (Anthropic): marca de caché en la última herramienta, en la parte fija
+  del sistema (`brian.conversacion._sistema_fijo`: sin fecha, persona ni pantalla) y en el último
+  mensaje. En el bucle, cada paso relee lo anterior a ~10 % del precio.
+* **`brian.uso`**: una fila por llamada al modelo (persona, canal, modelo, tokens de entrada,
+  salida, leídos y escritos en caché). Solo lectura para administradores (Brian › Consumo de IA);
+  la escribe el sistema; sobrevive al borrado de la conversación.
+* `consumo_de_brian(periodo)` (administradores): llamadas y tokens por modelo y persona, % leído
+  de caché y costo estimado con la tarifa pública (`models/uso.py`, `PRECIOS`); un modelo sin
+  tarifa se reporta «sin tarifa registrada».
+* Un turno no pasa de 150 s (`MAX_SEGUNDOS_TURNO`): Brian se detiene y lo dice. Si el proveedor
+  corta la respuesta por largo, Brian lo avisa.
+
+## Herramientas del día a día (ronda 6)
+
+| Herramienta | Nivel | Quién |
+|---|---|---|
+| `sugerir_reabastecimiento` — vendido en N días, hay, en camino, comprometido, cuánto pedir para cubrir N días, proveedor y costo | lectura | Inventario |
+| `crear_pedido_compra(proveedor, lineas)` — solicitud de compra en borrador | construcción | Compras |
+| `buscar_compras` — borradores, confirmadas, por recibir | lectura | Compras |
+| `pendientes_de_hoy` — entregas, cotizaciones dormidas, compras por recibir, vencidas, publicados agotados, acciones por confirmar | lectura | Interno |
+| `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
+| `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |
+| `consumo_de_brian` | lectura | Administrador |
+
+`crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;
+máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
+(`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
 ## Para cada función nueva
 

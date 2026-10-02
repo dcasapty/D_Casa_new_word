@@ -60,6 +60,7 @@ class BrianHerramientasCatalogo(models.AbstractModel):
             **self._b_precios(plantilla),
             'medidas': plantilla.dcasa_medidas or '',
             'publicado_en_web': bool(plantilla.is_published),
+            'tiene_foto': bool(plantilla.image_1920),
         }
         if plantilla.dcasa_combo:
             ficha['combo'] = plantilla.dcasa_combo

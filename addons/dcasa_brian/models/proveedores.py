@@ -32,6 +32,10 @@ BRIAN_MODELO          dcasa_brian.modelo         claude-sonnet-5-5 (defecto), cl
 BRIAN_API_KEY         dcasa_brian.api_key        (secreto; nunca se muestra completa)
 BRIAN_BASE_URL        dcasa_brian.base_url       https://api.groq.com/openai/v1
 BRIAN_HERRAMIENTAS_MAX dcasa_brian.herramientas_max  12 (0 = todas si el modelo es grande)
+BRIAN_ESFUERZO        dcasa_brian.esfuerzo       low, medium, high… (Anthropic; vacío = el
+                                                 del modelo; Haiku 4.5 lo ignora)
+BRIAN_CACHE           dcasa_brian.cache          caché de prompts de Anthropic: activa por
+                                                 defecto; «0» la apaga
 ====================  =========================  ==========================================
 
 Solo Anthropic trae modelo por defecto; para los demás proveedores el modelo se configura.
@@ -52,6 +56,8 @@ TIMEOUT = (10, 120)          # conexión, lectura (segundos)
 REINTENTOS = 2
 ESPERA_BASE = 1.5            # segundos; los tests la ponen en 0
 MAX_TOKENS = 8000
+# «effort» de Anthropic (output_config.effort). Vacío = el valor por defecto del modelo.
+ESFUERZOS = ('low', 'medium', 'high', 'xhigh', 'max')
 
 # Por defecto Sonnet 5.5 (decisión de D'CASA); Haiku queda como opción económica.
 MODELO_ANTHROPIC_PEQUENO = 'claude-haiku-4-5'
@@ -100,7 +106,14 @@ class Proveedor:
         self.max_tokens = config.get('max_tokens') or MAX_TOKENS
 
     def chatear(self, sistema, mensajes, herramientas=None):
+        """``sistema`` es un texto o una lista ``[parte fija, parte variable]`` (la fija se cachea)."""
         raise NotImplementedError
+
+    @staticmethod
+    def texto_sistema(sistema):
+        if isinstance(sistema, (list, tuple)):
+            return '\n'.join(p for p in sistema if p)
+        return sistema or ''
 
     # -- HTTP ---------------------------------------------------------------
 
@@ -164,17 +177,37 @@ class ProveedorAnthropic(Proveedor):
     tipo = 'anthropic'
     VERSION = '2023-06-01'
 
+    CACHE = {'type': 'ephemeral'}
+
     def chatear(self, sistema, mensajes, herramientas=None):
+        """Con caché de prompts (por defecto): marca de caché en la última herramienta, en la parte
+        fija del sistema y en el último bloque del último mensaje. Orden de la caché: herramientas →
+        sistema → mensajes; la fecha/hora y la pantalla van DESPUÉS de la marca del sistema.
+        En el bucle (hasta 8 pasos por turno) cada paso relee de caché lo anterior al ~10 % del precio."""
+        cachear = self.config.get('cache', True)
         cuerpo = {
             'model': self.modelo,
             'max_tokens': self.max_tokens,
             'messages': self.mensajes(mensajes),
         }
-        if sistema:
-            cuerpo['system'] = sistema
+        if isinstance(sistema, (list, tuple)) and cachear:
+            bloques = [{'type': 'text', 'text': p} for p in sistema if p]
+            if bloques:
+                bloques[0]['cache_control'] = dict(self.CACHE)
+                cuerpo['system'] = bloques
+        elif sistema:
+            cuerpo['system'] = self.texto_sistema(sistema)
         if herramientas:
             cuerpo['tools'] = [{'name': h['name'], 'description': h['description'],
                                 'input_schema': h['input_schema']} for h in herramientas]
+            if cachear:
+                cuerpo['tools'][-1]['cache_control'] = dict(self.CACHE)
+        if cachear and cuerpo['messages']:
+            ultimo = cuerpo['messages'][-1]
+            if ultimo['role'] == 'user' and ultimo['content']:
+                ultimo['content'][-1] = {**ultimo['content'][-1], 'cache_control': dict(self.CACHE)}
+        if self.config.get('esfuerzo'):
+            cuerpo['output_config'] = {'effort': self.config['esfuerzo']}
         headers = {'x-api-key': self.api_key, 'anthropic-version': self.VERSION,
                    'content-type': 'application/json'}
         datos = self._post(f'{self.base_url}/v1/messages', headers, cuerpo)
@@ -233,7 +266,9 @@ class ProveedorAnthropic(Proveedor):
             texto = 'No puedo ayudarte con eso.'
         uso = datos.get('usage') or {}
         return {'texto': texto, 'tool_calls': llamadas, 'fin': fin,
-                'uso': {'entrada': uso.get('input_tokens', 0), 'salida': uso.get('output_tokens', 0)},
+                'uso': {'entrada': uso.get('input_tokens') or 0, 'salida': uso.get('output_tokens') or 0,
+                        'cache_lectura': uso.get('cache_read_input_tokens') or 0,
+                        'cache_escritura': uso.get('cache_creation_input_tokens') or 0},
                 'crudo': {'anthropic': bloques}}
 
 
@@ -256,6 +291,7 @@ class ProveedorOpenAI(Proveedor):
         return self.respuesta(datos)
 
     def mensajes(self, sistema, mensajes):
+        sistema = self.texto_sistema(sistema)
         salida = [{'role': 'system', 'content': sistema}] if sistema else []
         for m in mensajes:
             rol = m.get('rol')
@@ -297,8 +333,12 @@ class ProveedorOpenAI(Proveedor):
         razon = opciones[0].get('finish_reason')
         fin = 'herramientas' if llamadas else {'length': 'limite', 'content_filter': 'rechazo'}.get(razon, 'fin')
         uso = datos.get('usage') or {}
+        # OpenAI cachea solo el prefijo; prompt_tokens incluye lo leído de caché.
+        cacheados = ((uso.get('prompt_tokens_details') or {}).get('cached_tokens')) or 0
         return {'texto': (mensaje.get('content') or '').strip(), 'tool_calls': llamadas, 'fin': fin,
-                'uso': {'entrada': uso.get('prompt_tokens', 0), 'salida': uso.get('completion_tokens', 0)},
+                'uso': {'entrada': max((uso.get('prompt_tokens') or 0) - cacheados, 0),
+                        'salida': uso.get('completion_tokens') or 0,
+                        'cache_lectura': cacheados, 'cache_escritura': 0},
                 'crudo': {}}
 
 
@@ -322,7 +362,8 @@ class ProveedorPrueba(Proveedor):
     tipo = 'prueba'
 
     def chatear(self, sistema, mensajes, herramientas=None):
-        LLAMADAS.append({'sistema': sistema, 'mensajes': json.loads(json.dumps(mensajes, default=str)),
+        LLAMADAS.append({'sistema': self.texto_sistema(sistema),
+                         'mensajes': json.loads(json.dumps(mensajes, default=str)),
                          'herramientas': [h['name'] for h in herramientas or ()]})
         if not GUION:
             return {'texto': 'Listo.', 'tool_calls': [], 'fin': 'fin', 'uso': {'entrada': 0, 'salida': 0},
@@ -376,7 +417,12 @@ class BrianProveedores(models.AbstractModel):
             maximo = int(self._valor('herramientas_max', 'BRIAN_HERRAMIENTAS_MAX') or 0)
         except ValueError:
             maximo = 0
+        esfuerzo = self._valor('esfuerzo', 'BRIAN_ESFUERZO').lower()
+        if esfuerzo not in ESFUERZOS or 'haiku' in modelo.lower():
+            esfuerzo = ''   # vacío = el del modelo (Haiku 4.5 no acepta «effort»)
         return {
+            'cache': self._valor('cache', 'BRIAN_CACHE').lower() not in ('0', 'false', 'no'),
+            'esfuerzo': esfuerzo,
             'proveedor': proveedor,
             'tipo': base.get('tipo'),
             'nombre': base.get('nombre', proveedor),

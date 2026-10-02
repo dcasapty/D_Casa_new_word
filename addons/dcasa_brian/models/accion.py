@@ -54,6 +54,10 @@ class BrianAccion(models.Model):
     conversacion_id = fields.Many2one('brian.conversacion', readonly=True, index=True, ondelete='set null')
     usuario_id = fields.Many2one('res.users', related='create_uid', string='Usuario', store=True, index=True)
     fecha_cierre = fields.Datetime('Terminó', readonly=True)
+    duracion_ms = fields.Integer('Duración (ms)', readonly=True, help='Lo que tardó la herramienta en correr.')
+    con_adjuntos = fields.Boolean(
+        'Turno con adjuntos', readonly=True,
+        help='Se pidió en un mensaje que traía archivos o fotos (contenido de terceros).')
 
     # ------------------------------------------------------------------
     # API del sistema (usada por registro.py). Privada: escribe con sudo, así que por RPC
@@ -74,14 +78,17 @@ class BrianAccion(models.Model):
             'argumentos': _json(argumentos or {}),
             'estado': 'pendiente',
             'conversacion_id': conversacion or False,
+            'con_adjuntos': bool(self.env.context.get('brian_turno_con_adjuntos')),
         }
         # sudo conserva el uid: create_uid queda como el usuario que conversa.
         return self.sudo().with_context(**{_CLAVE_SISTEMA: True}).create(valores).sudo(False)
 
     @api.private
-    def marcar(self, estado, error=None, resultado=None, resumen=None):
+    def marcar(self, estado, error=None, resultado=None, resumen=None, duracion_ms=None):
         """Cambia el estado de la acción (solo el sistema)."""
         valores = {'estado': estado}
+        if duracion_ms is not None:
+            valores['duracion_ms'] = duracion_ms
         if error is not None:
             valores['error'] = str(error)[:MAX_RESULTADO]
         if resultado is not None:

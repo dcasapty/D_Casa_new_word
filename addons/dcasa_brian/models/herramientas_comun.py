@@ -25,6 +25,9 @@ PARAM_PERIODO = {
 PARAM_DESDE = {'type': 'string', 'description': 'Fecha inicial dd/mm/aaaa, p. ej. «01/09/2026».'}
 PARAM_HASTA = {'type': 'string', 'description': 'Fecha final dd/mm/aaaa, p. ej. «30/09/2026».'}
 PARAM_LIMITE = {'type': 'integer', 'description': f'Cuántas filas como máximo (1 a {MAX_FILAS}). Por defecto 10.'}
+PARAM_LINEAS = {'type': 'string',
+                'description': 'Varios productos, separados por «;»: código o nombre, «x» cantidad y opcional '
+                               '«@» precio, p. ej. «SOF-001 x 2; MES-003 x 1 @ 99».'}
 
 
 def moneda(monto):
@@ -71,6 +74,40 @@ def leer_fecha(texto, nombre='fecha'):
         except ValueError:
             continue
     raise BrianError(f'No entendí la {nombre} «{texto}». Escríbela como dd/mm/aaaa, p. ej. 30/09/2026.')
+
+
+MAX_LINEAS = 30
+_LINEA = re.compile(
+    r'^(?P<ref>.+?)'
+    r'(?:(?:\s+(?:x|cant(?:idad)?\.?:?)|\s*[×*])\s*(?P<cant>\d+(?:[.,]\d+)?))?'
+    r'(?:\s*(?:@|a\s+\$|\$|precio:?|costo:?)\s*\$?\s*(?P<precio>\d[\d,]*(?:\.\d+)?))?\s*$',
+    re.IGNORECASE)
+
+
+def leer_lineas(texto):
+    """«SOF-001 x 2 @ 150; colchón queen x 1» → [('SOF-001', 2.0, 150.0), ('colchón queen', 1.0, None)].
+
+    Una línea por «;» o salto de línea. Cantidad con «x», «×» o «*» (por defecto 1); precio
+    opcional con «@», «$» o «precio». Lo que no se entiende da ``BrianError`` con la línea.
+    """
+    partes = [p.strip(' -•\t') for p in re.split(r'[;\n]+', str(texto or '')) if p.strip(' -•\t')]
+    if not partes:
+        raise BrianError('No entendí los productos. Escríbelos así: «SOF-001 x 2; MES-003 x 1».')
+    if len(partes) > MAX_LINEAS:
+        raise BrianError(f'Son {len(partes)} líneas: el máximo por vez es {MAX_LINEAS}. Pártelo en dos.')
+    lineas = []
+    for parte in partes:
+        encontrado = _LINEA.match(parte)
+        if not encontrado or not encontrado.group('ref').strip():
+            raise BrianError(f'No entendí la línea «{parte}». Escríbela como «código x cantidad», '
+                             'p. ej. «SOF-001 x 2».')
+        cant = float(encontrado.group('cant').replace(',', '.')) if encontrado.group('cant') else 1.0
+        precio = encontrado.group('precio')
+        precio = float(precio.replace(',', '')) if precio else None
+        if cant <= 0:
+            raise BrianError(f'La cantidad de «{parte}» tiene que ser mayor que cero.')
+        lineas.append((encontrado.group('ref').strip(), cant, precio))
+    return lineas
 
 
 def normalizar_texto(texto):
@@ -178,6 +215,20 @@ class BrianHerramientasComun(models.AbstractModel):
     def _b_producto(self, texto):
         """La variante vendible (product.product): «SOF-001», «colchón ortopédico queen»."""
         return self._b_resolver('product.product', texto, 'producto', exactos=('default_code', 'barcode'))
+
+    @api.model
+    def _b_lineas_productos(self, texto):
+        """[(variante, cantidad, precio|None)] de «SOF-001 x 2; MES-003 x 1 @ 99». Si alguna línea no
+        se resuelve, un solo BrianError con TODAS las que fallaron (para corregir de una vez)."""
+        resultado, errores = [], []
+        for referencia, cant, precio in leer_lineas(texto):
+            try:
+                resultado.append((self._b_producto(referencia), cant, precio))
+            except BrianError as error:
+                errores.append(f'«{referencia}»: {error}')
+        if errores:
+            raise BrianError('No pude resolver estas líneas (no hice nada): ' + ' | '.join(errores))
+        return resultado
 
     @api.model
     def _b_plantilla(self, texto):
