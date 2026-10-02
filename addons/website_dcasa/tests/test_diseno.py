@@ -2,9 +2,11 @@
 
 * La píldora de /socios (logo, Catálogo · Socios D'CASA · Visítanos, carrito, búsqueda, cuenta y
   «Escríbenos») está igual en todas las páginas, también en la tienda, la ficha, el carrito, las
-  legales, la cuenta y Black Weekend.
+  legales, la cuenta y Black Weekend, y es el vidrio líquido original (desenfoque, saturación,
+  filos de luz y refracción): claro sobre fondo claro, ahumado sobre una foto.
 * El pie no lleva fotos ni velos (la «foto azulosa» venía de la tienda estática del borde).
-* La foto de la portada se ve con sus colores reales: sin opacidad ni filtro.
+* Portada (corrección de la dueña): el texto va directamente sobre la foto, sin placa ni tarjeta,
+  con la foto un poco oscurecida (velo negro plano del 35-45 %), también en el celular.
 """
 import re
 
@@ -111,22 +113,91 @@ class TestDisenoUniforme(HttpCase):
         self.assertIn('/web/image/website/', cabecera)
 
     def test_estilos_en_el_navegador(self):
-        """Medido en Chrome: foto del hero sin velo, píldora oscura en la tienda, pie sin filtros."""
+        """Medido en Chrome: portada sin placa y con velo moderado; píldora líquida en todas partes."""
         codigo_portada = """
+            (async () => {
             const fallar = (m) => console.error('Diseño: ' + m);
+            const solapa = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+            const lin = (c) => { c /= 255; return c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; };
+            // Contraste del blanco contra la foto velada que queda detrás de una caja de texto
+            // (mediana de los píxeles; «cover» centrado, como object-fit).
+            const contraste = (img, opacidad, caja) => {
+                const marco = img.getBoundingClientRect();
+                const escala = Math.max(marco.width / img.naturalWidth, marco.height / img.naturalHeight);
+                const dx = (img.naturalWidth * escala - marco.width) / 2;
+                const dy = (img.naturalHeight * escala - marco.height) / 2;
+                const lienzo = document.createElement('canvas');
+                lienzo.width = Math.max(1, Math.round(caja.width / 4));
+                lienzo.height = Math.max(1, Math.round(caja.height / 4));
+                const ctx = lienzo.getContext('2d');
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, lienzo.width, lienzo.height);
+                ctx.globalAlpha = opacidad;
+                ctx.drawImage(img, (caja.left - marco.left + dx) / escala, (caja.top - marco.top + dy) / escala,
+                              caja.width / escala, caja.height / escala, 0, 0, lienzo.width, lienzo.height);
+                const d = ctx.getImageData(0, 0, lienzo.width, lienzo.height).data;
+                const lums = [];
+                for (let i = 0; i < d.length; i += 4) {
+                    lums.push(.2126 * lin(d[i]) + .7152 * lin(d[i + 1]) + .0722 * lin(d[i + 2]));
+                }
+                lums.sort((a, b) => a - b);
+                return 1.05 / (lums[Math.floor(lums.length / 2)] + .05);
+            };
+            const revisar = (doc, win, donde) => {
+                const hero = doc.querySelector('.o_dcasa_hero:not(.o_dcasa_hero_compacto)');
+                const foto = hero.querySelector('.o_dcasa_hero_media img');
+                const cs = win.getComputedStyle(foto);
+                const velo = 1 - parseFloat(cs.opacity);
+                if (velo < .35 - 1e-6 || velo > .45 + 1e-6) fallar(donde + ': velo fuera de 35-45 %: ' + cs.opacity);
+                if (cs.filter !== 'none' || cs.mixBlendMode !== 'normal') fallar(donde + ': la foto tiene filtro');
+                if (win.getComputedStyle(hero).backgroundColor !== 'rgb(0, 0, 0)') {
+                    fallar(donde + ': el velo no es negro plano');
+                }
+                const media = win.getComputedStyle(foto.parentElement);
+                if (media.backgroundImage !== 'none') fallar(donde + ': degradado o imagen sobre la foto');
+                if (media.position !== 'absolute') {
+                    fallar(donde + ': la foto no va detrás del texto (' + media.position + ')');
+                }
+                for (const capa of ['::before', '::after']) {
+                    const v = win.getComputedStyle(foto.parentElement, capa);
+                    if (v.content !== 'none' && v.content !== 'normal') {
+                        fallar(donde + ': capa encima de la foto ' + capa);
+                    }
+                }
+                // Sin placa: el bloque de texto es transparente y se superpone a la foto.
+                const texto = hero.querySelector('.o_dcasa_hero_texto');
+                const fondo = win.getComputedStyle(texto);
+                if (fondo.backgroundColor !== 'rgba(0, 0, 0, 0)' || fondo.backgroundImage !== 'none') {
+                    fallar(donde + ': placa detrás del texto: ' + fondo.backgroundColor);
+                }
+                if (!solapa(texto.getBoundingClientRect(), foto.getBoundingClientRect())) {
+                    fallar(donde + ': el texto no está sobre la foto');
+                }
+                const titulo = hero.querySelector('.o_dcasa_display');
+                const sub = hero.querySelector('.o_dcasa_hero_sub');
+                for (const el of [titulo, sub]) {
+                    const e = win.getComputedStyle(el);
+                    if (e.color !== 'rgb(255, 255, 255)') fallar(donde + ': texto no blanco: ' + e.color);
+                    if (e.textShadow === 'none') fallar(donde + ': texto sin halo de contraste');
+                }
+                // AA: 4.5:1 para el subtítulo y 3:1 para el titular (texto grande), contra la foto velada.
+                const cSub = contraste(foto, 1 - velo, sub.getBoundingClientRect());
+                const cTit = contraste(foto, 1 - velo, titulo.getBoundingClientRect());
+                if (cSub < 4.5) fallar(donde + ': subtítulo bajo AA sobre la foto: ' + cSub.toFixed(2) + ':1');
+                if (cTit < 3) fallar(donde + ': titular bajo AA sobre la foto: ' + cTit.toFixed(2) + ':1');
+                console.log(donde + ': velo ' + Math.round(velo * 100) + ' %, subtítulo ' + cSub.toFixed(2)
+                    + ':1, titular ' + cTit.toFixed(2) + ':1');
+            };
             const foto = document.querySelector('.o_dcasa_hero:not(.o_dcasa_hero_compacto) .o_dcasa_hero_media img');
-            const cs = getComputedStyle(foto);
-            if (cs.opacity !== '1') fallar('la foto del hero tiene opacidad ' + cs.opacity);
-            if (cs.filter !== 'none' || cs.mixBlendMode !== 'normal') fallar('la foto del hero tiene filtro');
-            const media = getComputedStyle(foto.parentElement);
-            if (media.backgroundImage !== 'none') fallar('velo sobre la foto del hero');
-            for (const capa of ['::before', '::after']) {
-                const v = getComputedStyle(foto.parentElement, capa);
-                if (v.content !== 'none' && v.content !== 'normal') fallar('capa encima de la foto ' + capa);
-            }
-            const placa = getComputedStyle(document.querySelector('.o_dcasa_hero_texto'));
-            if (placa.backgroundColor !== 'rgb(14, 42, 107)') {
-                fallar('el texto del hero no va en la placa navy: ' + placa.backgroundColor);
+            if (!foto.complete) await new Promise((ok) => { foto.onload = ok; foto.onerror = ok; });
+            revisar(document, window, 'escritorio');
+            // El vidrio «fluye» donde hay refracción (Chromium): ruido animado, 18 s.
+            if (document.documentElement.classList.contains('o_dcasa_refraccion')
+                    && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                const anim = document.querySelector('#dcasa-liquido feTurbulence animate');
+                if (!anim || anim.getAttribute('dur') !== '18s') {
+                    fallar('el vidrio no fluye (sin animación del ruido)');
+                }
             }
             const pie = document.querySelector('footer#bottom');
             for (const el of [pie, ...pie.querySelectorAll('*')]) {
@@ -136,17 +207,37 @@ class TestDisenoUniforme(HttpCase):
                     break;
                 }
             }
+            // Celular: la misma portada en un marco de 390 px; el texto también va sobre la foto.
+            const marco = document.createElement('iframe');
+            marco.style.cssText = 'position:fixed;left:0;top:0;width:390px;height:844px;border:0;';
+            document.body.appendChild(marco);
+            await new Promise((ok) => { marco.onload = ok; marco.src = '/'; });
+            const fotoM = marco.contentDocument.querySelector(
+                '.o_dcasa_hero:not(.o_dcasa_hero_compacto) .o_dcasa_hero_media img');
+            if (!fotoM.complete) await new Promise((ok) => { fotoM.onload = ok; fotoM.onerror = ok; });
+            revisar(marco.contentDocument, marco.contentWindow, 'celular');
             console.log('test successful');
+            })();
         """
         self.browser_js('/', codigo_portada, timeout=120)
-        codigo_tienda = """
-            const pildora = document.querySelector('header#top .o_main_nav');
-            const fondo = getComputedStyle(pildora, '::before').backgroundColor;
-            if (!/^rgba\\(27, 34, 51, 0\\.9/.test(fondo)) {
-                console.error('Diseño: la píldora de la tienda no es la de /socios: ' + fondo);
+
+        # La misma píldora líquida en todas partes: clara con texto en tinta sobre fondo claro
+        # (tienda), ahumada con texto blanco sobre una foto (/socios, al cargar).
+        codigo_pildora = """
+            const fallar = (m) => console.error('Diseño: ' + m);
+            const vidrio = getComputedStyle(document.querySelector('header#top .o_main_nav'), '::before');
+            const filtro = vidrio.backdropFilter || vidrio.webkitBackdropFilter || 'none';
+            // Blur + saturación + brillo del vidrio líquido, o la refracción (url(#dcasa-liquido)) en Chromium.
+            if (!/^blur\\(16px\\) saturate\\(2\\.1\\) brightness\\(1\\.08\\)$|^url\\(/.test(filtro)) {
+                fallar('la píldora no es de vidrio líquido: ' + filtro);
             }
-            const enlace = getComputedStyle(document.querySelector('#top_menu .nav-link')).color;
-            if (enlace !== 'rgb(255, 255, 255)') console.error('Diseño: menú sin texto blanco: ' + enlace);
+            if ((vidrio.boxShadow.match(/inset/g) || []).length < 2) fallar('la píldora no tiene los filos de luz');
+            if (vidrio.backgroundColor !== '%(fondo)s') fallar('tinte del vidrio: ' + vidrio.backgroundColor);
+            const enlace = getComputedStyle(document.querySelector('#top_menu .nav-link:not(.active)')).color;
+            if (enlace !== '%(texto)s') fallar('color del menú: ' + enlace);
             console.log('test successful');
         """
-        self.browser_js('/shop', codigo_tienda, timeout=120)
+        self.browser_js('/shop', codigo_pildora % {
+            'fondo': 'rgba(255, 255, 255, 0.62)', 'texto': 'rgb(27, 34, 51)'}, timeout=120)
+        self.browser_js('/socios', codigo_pildora % {
+            'fondo': 'rgba(0, 0, 0, 0.26)', 'texto': 'rgb(255, 255, 255)'}, timeout=120)

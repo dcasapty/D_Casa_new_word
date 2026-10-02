@@ -108,6 +108,9 @@ export class DcasaCabecera extends Interaction {
                 "url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08)"
             );
             raiz.classList.add("o_dcasa_refraccion");
+            if (!reducido()) {
+                this.animarVidrio(filtro);
+            }
         }
         this.registerCleanup(() => {
             raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto", "o_dcasa_nav_medida");
@@ -118,8 +121,8 @@ export class DcasaCabecera extends Interaction {
         // que Odoo hace en cada `transitionend` de la cabecera.
         this.addListener(this.el.querySelectorAll(".o_main_nav"), "transitionend", (ev) => ev.stopPropagation());
 
-        // La píldora oscura de /socios va sobre cualquier foto o fondo oscuro que abra la página
-        // (hero, cabecera de página, Black Weekend).
+        // El vidrio ahumado de /socios va sobre cualquier foto o fondo oscuro que abra la página
+        // (hero, cabecera de página, Black Weekend); el vidrio claro, sobre el resto.
         const hero = document.querySelector(".o_dcasa_hero, .o_dcasa_fondo_oscuro");
         if (!hero || !("IntersectionObserver" in window)) {
             return;
@@ -130,11 +133,45 @@ export class DcasaCabecera extends Interaction {
             ([entrada]) => {
                 raiz.classList.toggle("o_dcasa_nav_sobre_foto", entrada.isIntersecting);
                 raiz.classList.add("o_dcasa_nav_medida");
+                if (this.svg) {
+                    entrada.isIntersecting ? this.svg.unpauseAnimations() : this.svg.pauseAnimations();
+                }
             },
             { rootMargin: `-${piso}px 0px 0px 0px`, threshold: 0 }
         );
         observador.observe(hero);
         this.registerCleanup(() => observador.disconnect());
+    }
+
+    /**
+     * El ruido del filtro se mueve lento: el vidrio «fluye» (el look líquido de la v2.3).
+     * Mover el ruido repinta la píldora en cada cuadro, así que solo corre mientras la píldora
+     * está sobre la foto (donde se ve): nace en pausa, el observador la despierta sobre la foto
+     * y la vuelve a pausar al bajar; en pausa también con la pestaña oculta y nunca con
+     * prefers-reduced-motion. Sobre un fondo liso la refracción no se nota: no gasta nada ahí.
+     */
+    animarVidrio(filtro) {
+        const ruido = filtro.querySelector("feTurbulence");
+        const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
+        anim.setAttribute("attributeName", "baseFrequency");
+        anim.setAttribute("dur", "18s");
+        anim.setAttribute("repeatCount", "indefinite");
+        anim.setAttribute("values", "0.009 0.022;0.012 0.018;0.009 0.022");
+        ruido.appendChild(anim);
+        filtro.pauseAnimations();
+        this.svg = filtro;
+        this.addListener(document, "visibilitychange", () => {
+            if (document.hidden) {
+                filtro.pauseAnimations();
+            } else if (document.documentElement.classList.contains("o_dcasa_nav_sobre_foto")) {
+                filtro.unpauseAnimations();
+            }
+        });
+        this.registerCleanup(() => {
+            anim.remove();
+            filtro.unpauseAnimations();
+            this.svg = null;
+        });
     }
 }
 

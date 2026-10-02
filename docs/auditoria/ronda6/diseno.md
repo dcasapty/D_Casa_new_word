@@ -3,6 +3,11 @@
 Fecha: 2026-10-02. Alcance: `addons/website_dcasa` (Odoo 19). No se tocó `edge/` ni
 `addons/dcasa_tienda_borde`.
 
+> **Nota (v3, corrección de la dueña).** La placa navy de la portada y el «vidrio en tinta» de la
+> píldora que describen §2, §5 y §6 **se revirtieron**: la dueña ya había decidido en la v2.1 que
+> el texto va sobre la foto sin placa, y la píldora vuelve a ser el vidrio líquido original. Lo
+> vigente está en **§8**; lo demás de esta ronda se conserva.
+
 Pedido de la dueña: el sitio «se dañó mucho». Le gusta el estilo de **/socios** y la **píldora de
 Odoo** (logo, CATÁLOGO · SOCIOS D'CASA · VISÍTANOS, carrito, búsqueda, cuenta y el botón azul
 «Escríbenos») y lo quiere en todo el sitio. Se quejó de la foto del pie «azulosa», del velo que
@@ -35,17 +40,19 @@ Odoo **no tiene ninguna foto**: es azul sólido. La «foto azulosa» venía de l
 
 ## 2. Qué se corrigió
 
-- **La píldora de /socios en todas las páginas** (R3). Siempre vidrio ahumado en tinta con texto y
-  foco blancos, mismo logo, mismos enlaces, carrito, búsqueda, cuenta y «Escríbenos»:
+- **La píldora de /socios en todas las páginas** (R3) → *revertido el tinte en v3 (§8): la píldora es
+  una sola en todo el sitio, pero con el vidrio líquido original.* Lo que se hizo aquí: siempre
+  vidrio ahumado en tinta con texto y foco blancos, mismo logo, mismos enlaces, carrito, búsqueda,
+  cuenta y «Escríbenos»:
   - sobre fondo claro casi opaca (tinta al 92 %: blanco ≈ 14:1);
   - sobre una foto o fondo oscuro, al 66 % (blanco ≥ 4,6:1 aun sobre blanco puro), sin el brillo
     extra del vidrio claro;
   - las páginas con «cabecera encima» nacen ya con la variante oscura (sin destello al cargar);
   - hamburguesa blanca en el celular.
-- **Portada sin velo** (R2): la foto con sus colores reales (`opacity: 1`, sin filtro ni capa
-  encima). El contraste lo da una **placa navy plana** (blanco 13,6:1; el CTA amarillo queda sobre
-  navy, como manda la regla del amarillo). En el celular, primero la foto y debajo la placa: el
-  texto nunca tapa la foto. Ver la decisión pendiente en §5.
+- **Portada sin velo** (R2) → *revertido en v3 (§8): texto sobre la foto, sin placa, velo del 45 %.*
+  Lo que se hizo aquí: la foto con sus colores reales (`opacity: 1`, sin filtro ni capa encima) y el
+  contraste en una **placa navy plana** (blanco 13,6:1); en el celular, primero la foto y debajo la
+  placa.
 - **Cabeceras como la de /socios** para las páginas que no tenían (R4, R6, R7): plantilla
   `website_dcasa.cabecera_pagina` en privacidad, términos y cuenta; /black-weekend sube su banda
   negra bajo la píldora.
@@ -59,7 +66,9 @@ Odoo **no tiene ninguna foto**: es azul sólido. La «foto azulosa» venía de l
 - **Logo en WebP** (R8) mientras sea el de fábrica (se compara el `checksum` del adjunto con
   `dcasa_base/static/img/logo.png`); si la dueña sube otro desde el editor, se muestra el suyo.
 - **Avisos en una línea** en el celular (R9).
-- **Sin animación del filtro** (R10); la refracción queda solo en el vidrio.
+- **Sin animación del filtro** (R10); la refracción queda solo en el vidrio. → *En v3 vuelve el flujo
+  del vidrio (era parte del look): solo mientras la píldora está sobre la foto y nunca con
+  `prefers-reduced-motion` (§8).*
 
 ## 3. Mejoras («a la excelencia», sin perder la identidad)
 
@@ -117,11 +126,8 @@ CSS de Odoo; ver §5.
 
 ## 5. Decisiones para la dueña
 
-- **Placa navy en la portada.** En la v2.1 pidió «sin placa azul»; ahora pidió «sin velo». Las dos
-  cosas a la vez no dan contraste AA para el texto blanco sobre una foto clara. Se eligió una placa
-  **navy** (no el azul de marca), plana, más chica que la de la v2 y que en el celular va debajo de
-  la foto. Si prefiere otra cosa, se cambia en un solo lugar (`.o_dcasa_hero:not(.o_dcasa_hero_compacto)`
-  en `dcasa.scss`).
+- **Placa navy en la portada.** → **Decidido por la dueña (v3): sin placa.** El texto va sobre la foto
+  «un poco opaca»; ver §8 (velo del 45 % y halo en las letras para el AA).
 - **Fotos de producto recortadas a 3:4.** Solo se recorta fondo de estudio; las fotos anchas van
   enteras. Si algún producto pierde algo importante, la foto se puede reemplazar por una 3:4.
 - **Precarga de la foto de la portada**: si se cambia esa foto desde el editor, hay que apagar la
@@ -142,8 +148,11 @@ CSS de Odoo; ver §5.
 - con otro logo, se respeta el de la dueña;
 - la foto de la portada se precarga (solo en la portada), sin precarga de FontAwesome, «Compra por
   espacio» con versión de 400 px y la foto de la ficha «eager», con prioridad alta y srcset;
-- en Chrome: la foto de la portada sin opacidad, filtro ni capa encima; el texto en la placa navy;
-  la píldora de /shop es la de /socios y el pie no tiene imágenes ni filtros.
+- en Chrome (v3): la portada sin placa (bloque de texto transparente y superpuesto a la foto, también
+  en un marco de 390 px), velo negro plano entre 35 y 45 %, sin filtro ni capa, texto blanco con halo
+  y contraste medido sobre los píxeles reales (subtítulo ≥ 4,5:1, titular ≥ 3:1); el vidrio «fluye»
+  donde hay refracción; la píldora es la líquida en /shop (clara, texto en tinta) y en /socios
+  (ahumada, texto blanco); el pie sin imágenes ni filtros.
 
 `test_seo_y_promesas.test_precarga_de_las_fuentes_del_primer_pantallazo` se actualizó: ahora
 exige la precarga de Anton y que Inter y FontAwesome **no** se precarguen.
@@ -165,3 +174,82 @@ En `capturas/` (WebP, ancho 1080 en escritorio). «Antes» es `bf28cbd`; «despu
 | Privacidad, celular | ![](capturas/privacidad-390-antes.webp) | ![](capturas/privacidad-390-despues.webp) |
 | Cuenta | ![](capturas/cuenta-1440-antes.webp) | ![](capturas/cuenta-1440-despues.webp) |
 | Pie (sin cambios: azul sólido, sin foto) | ![](capturas/pie-1440-antes.webp) | ![](capturas/pie-1440-despues.webp) |
+
+## 8. Corrección de la dueña (v3)
+
+La dueña vio la ronda 6 y señaló dos cosas que **ya había decidido antes** y que `38bb580` deshizo:
+
+1. **El héroe de la portada no lleva placa.** En la v2.1 (`40d435d`) pidió «sin placa azul»: el texto
+   va directamente **encima de la foto**, con la foto un poco oscurecida para que se lea. La placa navy
+   (y, en el celular, la placa debajo de la foto) se quitó.
+2. **La píldora perdió su efecto líquido.** El «vidrio en tinta» al 66 %/92 % con `saturate(140%)` y sin
+   el movimiento del filtro no es la píldora que ella aprobó (v2.2/v2.3).
+
+### Qué cambió
+
+- **Portada**: vuelve el hero original (`.o_dcasa_hero`: foto a sangre sobre negro, texto blanco abajo a
+  la izquierda, también en el celular). El velo es **negro plano del 45 %** (`$dcasa-hero-velo: .45` →
+  `opacity: .55` en la foto): el tope del rango acordado (35-45 %), un poco menos que el 55 % de la
+  v2.1 (que lavaba la sala blanca a gris) y lo más cerca de lo que ella ya vio bien. Las cabeceras de
+  página (/socios, /visitanos, legales, cuenta) no cambian: siguen con su foto al 45 %, el estilo que
+  le gusta.
+- **Contraste AA sin placa**: la foto es una sala blanca y detrás del texto el percentil 90 de
+  luminancia es 0,92: con un velo plano del 35-45 % (y también con el 55 % de la v2.1) el blanco no
+  llega a AA sobre los puntos más claros (≈ 1,6-2,3:1). Sin placa, sin degradado y sin oscurecer más
+  la foto, lo que garantiza el borde de contraste es un **halo oscuro y ajustado en las letras**
+  (`text-shadow: 0 1px 2px rgba(0,0,0,.5), 0 0 1px rgba(0,0,0,.6)`, solo en kicker, titular y
+  subtítulo de la portada): no es una sombra dramática y se quita en una línea si la dueña no lo
+  quiere. Medido en Chrome (contraste del blanco contra la foto velada, píxeles reales detrás de cada
+  texto, con la foto a 1400 px):
+
+  | Texto | 1440 px: mediana · p90 · p99 | 390 px: mediana · p90 · p99 |
+  |---|---|---|
+  | Titular (Anton 104 px → AA grande 3:1) | 4,84 · 3,50 · 3,44 | 4,82 · 4,54 · 4,48 |
+  | Subtítulo (Inter ≈ 20 px → 4,5:1) | 7,06 · 4,58 · 3,52 | 5,20 · 4,97 · 4,68 |
+  | Kicker (Oswald 14 px → 4,5:1) | 4,98 · 4,01 · 3,49 | 4,91 · 4,74 · 4,67 |
+
+  El titular pasa 3:1 hasta en el p99; el subtítulo y el kicker pasan 4,5:1 en la mediana y el p90
+  (en el celular también en el p99) y el halo cubre el 1-10 % más claro.
+- **Píldora**: restaurado el vidrio líquido de la v2.3 tal cual (`rgba(#FFF,.62)`,
+  `blur(16px) saturate(210%) brightness(1.08)`, filos de luz, reflejo al pasar el puntero,
+  `--dcasa-refraccion` con `url(#dcasa-liquido)` en Chromium) y su variante **ahumada** sobre la foto
+  (`rgba(#000,.26)`, texto y foco blancos). Se conservan de la ronda 6: la misma píldora en todas las
+  páginas (también legales, cuenta y Black Weekend, que ahora abren con foto o fondo oscuro y nacen
+  ahumadas sin destello), la hamburguesa blanca sobre la foto, y en la tienda, la ficha y el carrito
+  (fondo claro) el mismo vidrio va claro con el texto en tinta, como en la v2.3.
+- **El vidrio «fluye»** (R10): el ruido del filtro vuelve a moverse (18 s). Era parte del look, pero el
+  informe tenía razón en el costo: repintaba la píldora sin parar, incluso en páginas sin foto, donde
+  sobre fondo liso no se ve. Ahora nace en pausa y solo corre mientras la píldora está sobre la foto;
+  se pausa al bajar, con la pestaña oculta y nunca con `prefers-reduced-motion`.
+
+### Qué se conserva de la ronda 6
+
+La cabecera uniforme en legales y cuenta, /black-weekend con la banda bajo la píldora, fotos de
+producto 3:4, el pie sin filtros, el logo WebP, las mejoras de accesibilidad y CLS, los avisos en una
+línea y la hamburguesa visible.
+
+### Tests
+
+`test_diseno.py` fija lo nuevo (ver §6, último punto). Corrida: `website_dcasa,dcasa_catalogo` en base
+limpia (`dcasa_t_hero`), 145 tests, y `ruff check addons` limpio. El test de navegador imprime las
+medidas de velo y contraste en el log.
+
+### Capturas v3
+
+| Página | v3 |
+|---|---|
+| Portada, escritorio | ![](capturas/portada-1440-v3.webp) |
+| Portada, celular | ![](capturas/portada-390-v3.webp) |
+| Tienda, escritorio (píldora líquida clara) | ![](capturas/tienda-1440-v3.webp) |
+| Ficha, celular | ![](capturas/ficha-390-v3.webp) |
+| Socios, celular (píldora ahumada) | ![](capturas/socios-390-v3.webp) |
+| Black Weekend, escritorio | ![](capturas/black-weekend-1440-v3.webp) |
+
+### Si la dueña quiere ajustar
+
+- Más o menos velo: `$dcasa-hero-velo` en `dcasa.scss` (0,35-0,45; el test lo fija en ese rango).
+- Sin halo en las letras: quitar el `text-shadow` de `.o_dcasa_hero:not(.o_dcasa_hero_compacto)`; el
+  test de contraste (mediana) seguiría pasando, pero el 1-10 % más claro de la foto quedaría bajo AA.
+- Píldora ahumada también en la tienda: hoy el vidrio claro de la v2.3 sobre fondo claro es lo que da
+  AA al texto en tinta; una píldora oscura sobre blanco exigiría otro tinte (lo que se probó en
+  `38bb580` y ella rechazó).
