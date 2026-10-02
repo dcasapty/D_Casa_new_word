@@ -123,7 +123,7 @@ class DcasaTablero(models.AbstractModel):
                 'formato': 'numero', 'detalle_moneda': sum(c['amount_total'] for c in propias),
                 'accion': _accion('Mis cotizaciones abiertas', 'sale.order', mias),
             })
-        web =[('website_id', '!=', False), ('state', '=', 'sale'), ('delivery_status', '!=', 'full')]
+        web = [('website_id', '!=', False), ('state', '=', 'sale'), ('delivery_status', '!=', 'full')]
         datos['cifras'].append({
             'clave': 'web', 'titulo': 'Pedidos web por atender', 'valor': Order.search_count(web),
             'formato': 'numero', 'detalle': 'Confírmalos por WhatsApp',

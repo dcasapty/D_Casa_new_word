@@ -17,6 +17,7 @@ import csv
 import io
 import re
 import unicodedata
+from collections import Counter
 
 from lxml import etree
 from markupsafe import Markup
@@ -325,6 +326,13 @@ class DcasaImportarExtracto(models.TransientModel):
         if repetidas:
             aviso += f' · {len(repetidas)} ya estaban'
         tipo = 'success'
+        # Un movimiento con fecha en un mes cerrado (fecha de bloqueo) Odoo lo registra con otra fecha
+        # (la primera abierta / hoy) sin avisar: el contador tiene que saberlo.
+        movidos = sum((Counter(f['fecha'] for f in nuevas) - Counter(extracto.line_ids.mapped('date'))).values())
+        if movidos:
+            tipo = 'warning'
+            aviso += (f' · OJO: {movidos} con fecha de un mes ya cerrado quedaron registrados con otra fecha '
+                      '(la fecha de bloqueo manda). Si eran de ese mes, la gerencia tiene que reabrirlo con motivo.')
         saldo_banco = leido['saldo_final']
         if saldo_banco is not None and not repetidas:
             extracto.balance_end_real = saldo_banco

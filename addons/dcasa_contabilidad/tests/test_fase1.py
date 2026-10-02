@@ -213,6 +213,19 @@ class TestFase1(ContabilidadCommon):
         self.assertAlmostEqual(fila['tramos']['d1_30'], 53.5, msg=fila)
         self.assertTrue(libro_excel(datos).startswith(b'PK'))
 
+    def test_excel_sin_formulas_inyectadas(self):
+        """Un nombre de tercero que empieza con «=» queda como texto en el Excel, nunca como fórmula."""
+        import io  # noqa: PLC0415
+        import zipfile  # noqa: PLC0415
+        self.proveedor.name = '=HYPERLINK("http://ejemplo.invalid","clic")'
+        self._factura(50.0, fecha='2030-03-01', tipo='in_invoice')
+        datos = self.reportes.obtener('por_pagar', hasta=HASTA)
+        with zipfile.ZipFile(io.BytesIO(libro_excel(datos))) as archivo:
+            hoja = archivo.read('xl/worksheets/sheet1.xml').decode()
+            textos = archivo.read('xl/sharedStrings.xml').decode()
+        self.assertNotIn('<f>', hoja)
+        self.assertIn('=HYPERLINK', textos)
+
     # ------------------------------------------------------------------
     # Resumen de la dueña
     # ------------------------------------------------------------------
@@ -414,6 +427,19 @@ class TestFase1(ContabilidadCommon):
         lineas = self.env['account.bank.statement.line'].search([('dcasa_id_importacion', 'in', ('C-1', 'C-2'))])
         self.assertEqual(sorted(lineas.mapped('amount')), [-40.0, 15.5])
 
+    def test_importar_en_mes_cerrado_avisa(self):
+        """Odoo registra con otra fecha el movimiento de un mes bloqueado: el importador lo dice."""
+        self._limpiar_hasta(HASTA)
+        self.company.sudo().fiscalyear_lock_date = HASTA
+        csv = b'Fecha,Descripcion,Monto,Referencia\n20/03/2030,DEPOSITO MARZO,55.00,MZ-1\n'
+        asistente = self.env['dcasa.importar.extracto'].create({
+            'journal_id': self.banco.id, 'archivo': base64.b64encode(csv), 'nombre_archivo': 'marzo.csv'})
+        params = asistente.action_importar()['params']
+        linea = self.env['account.bank.statement.line'].search([('payment_ref', '=', 'DEPOSITO MARZO')])
+        self.assertGreater(linea.date, date(2030, 3, 31), 'La fecha de bloqueo se respeta')
+        self.assertEqual(params['aviso_tipo'], 'warning')
+        self.assertIn('mes ya cerrado', params['aviso'])
+
     # ------------------------------------------------------------------
     # Seguridad
     # ------------------------------------------------------------------
@@ -429,3 +455,19 @@ class TestFase1(ContabilidadCommon):
                 getattr(self.env['dcasa.conciliacion'].with_user(vendedora), metodo)(*args)
         with self.assertRaises(AccessError):
             self.env['dcasa.cierre.mes'].with_user(vendedora).create({'mes': '2030-03-01'})
+
+    def test_contador_no_marca_cerrado_por_rpc(self):
+        """El contador escribe en el cierre (notas, motivo, revisar), pero el estado solo cambia con los
+        botones de la gerencia: si no, un mes figuraría «cerrado» sin fecha de bloqueo (o al revés)."""
+        contador = new_test_user(self.env, login='contador_fase1',
+                                 groups='base.group_user,account.group_account_user')
+        cierre = self.env['dcasa.cierre.mes'].create({'mes': '2030-03-01'})
+        como_contador = cierre.with_user(contador)
+        como_contador.write({'notas': '<p>Revisado</p>', 'motivo_reapertura': 'x'})
+        como_contador.action_revisar()
+        for valores in ({'estado': 'cerrado'}, {'cerrado_por': contador.id}, {'cerrado_el': '2030-04-01'}):
+            with self.subTest(valores=valores), self.assertRaises(AccessError):
+                como_contador.write(valores)
+        self.assertEqual(cierre.estado, 'abierto')
+        with self.assertRaises(AccessError):
+            como_contador.action_cerrar()

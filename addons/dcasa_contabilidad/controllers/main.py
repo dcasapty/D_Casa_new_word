@@ -151,20 +151,25 @@ def libro_excel(datos):
     monto_b = libro.add_format({'num_format': '#,##0.00;[Red]-#,##0.00', 'bold': True, 'top': 1})
     texto_b = libro.add_format({'bold': True, 'top': 1})
 
-    hoja.write(0, 0, f"{datos.get('empresa', '')} · {datos['titulo']}", titulo)
+    hoja.write_string(0, 0, f"{datos.get('empresa', '')} · {datos['titulo']}", titulo)
     periodo = (f"Al {datos['hasta']}" if datos['desde'] == datos['hasta'] or datos['reporte'] == 'balance_general'
                else f"Del {datos['desde']} al {datos['hasta']}")
     if datos.get('comparado'):
         periodo += f" · comparado con {datos['comparado']['desde']} a {datos['comparado']['hasta']}"
-    hoja.write(1, 0, f"{periodo} · montos en {datos['moneda']['simbolo']}", sub)
+    hoja.write_string(1, 0, f"{periodo} · montos en {datos['moneda']['simbolo']}", sub)
     encabezados, filas = _filas_planas(datos)
     for col, nombre in enumerate(encabezados):
-        hoja.write(3, col, nombre, enc_f)
+        hoja.write_string(3, col, str(nombre), enc_f)
     for i, (valores, estilo) in enumerate(filas, start=4):
         for col, valor in enumerate(valores):
             numero = isinstance(valor, (int, float)) and not isinstance(valor, bool)
             formato = (monto_b if numero else texto_b) if estilo == 'b' else (monto if numero else None)
-            hoja.write(i, col, valor, formato)
+            if numero:
+                hoja.write_number(i, col, valor, formato)
+            else:
+                # write_string y no write: un nombre de cliente o un concepto del banco que empiece con
+                # «=» (o «+», «-», «@») sería una fórmula al abrir el archivo (inyección en hojas de cálculo).
+                hoja.write_string(i, col, '' if valor is None else str(valor), formato)
     anchos = [max(len(str(encabezados[c])), *(len(str(v[c])) for v, _e in filas)) if filas else 12
               for c in range(len(encabezados))]
     for col, ancho in enumerate(anchos):

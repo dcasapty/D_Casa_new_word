@@ -17,6 +17,11 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 GERENCIA = 'account.group_account_manager'
+# Solo los cambian «Cerrar» y «Reabrir» (gerencia): el contador tiene permiso de escritura en el
+# cierre (revisar, notas, motivo), pero no puede marcar un mes cerrado/abierto por RPC sin que la
+# fecha de bloqueo cambie con él.
+CAMPOS_DEL_CIERRE = frozenset({'estado', 'cerrado_por', 'cerrado_el'})
+CONTEXTO_CIERRE = 'dcasa_cierre_mes_accion'
 MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre',
          'noviembre', 'diciembre')
 
@@ -76,6 +81,9 @@ class DcasaCierreMes(models.Model):
         return cierres
 
     def write(self, vals):
+        if CAMPOS_DEL_CIERRE.intersection(vals) and not self.env.context.get(CONTEXTO_CIERRE) and not self.env.su:
+            raise AccessError(self.env._('El estado de un cierre solo cambia con los botones «Cerrar mes» y '
+                                         '«Reabrir» (gerencia contable).'))
         if 'mes' in vals:
             if self.filtered(lambda c: c.estado == 'cerrado'):
                 raise UserError(self.env._('Un mes cerrado no cambia de fecha: reábrelo primero.'))
@@ -206,8 +214,9 @@ class DcasaCierreMes(models.Model):
                 # La fecha de bloqueo vive en la empresa (ACL de administración): se escribe con sudo
                 # DESPUÉS de comprobar el grupo de gerencia contable. Odoo valida de nuevo (conciliación).
                 company.sudo().write(valores)
-            cierre.write({'estado': 'cerrado', 'cerrado_por': self.env.user.id, 'cerrado_el': fields.Datetime.now(),
-                          'motivo_reapertura': False})
+            cierre.with_context(**{CONTEXTO_CIERRE: True}).write({
+                'estado': 'cerrado', 'cerrado_por': self.env.user.id, 'cerrado_el': fields.Datetime.now(),
+                'motivo_reapertura': False})
             cierre.message_post(body=self.env._('Mes cerrado: bloqueado hasta el %s.',
                                                 cierre.fecha_fin.strftime('%d/%m/%Y')))
         return True
@@ -242,7 +251,8 @@ class DcasaCierreMes(models.Model):
                                        ('estado', '=', 'cerrado')])
             motivo = cierre.motivo_reapertura
             for reabierto in posteriores:
-                reabierto.write({'estado': 'abierto', 'cerrado_por': False, 'cerrado_el': False})
+                reabierto.with_context(**{CONTEXTO_CIERRE: True}).write(
+                    {'estado': 'abierto', 'cerrado_por': False, 'cerrado_el': False})
                 reabierto.message_post(body=self.env._('Mes reabierto. Motivo: %s', motivo))
         return True
 

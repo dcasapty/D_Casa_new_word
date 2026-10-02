@@ -43,7 +43,7 @@
                         <h1><field name="name" readonly="1"/></h1>
                     </div>
                     <div class="alert alert-warning" role="alert" invisible="pendientes == 0 or estado == 'cerrado'">
-                        Faltan <field name="pendientes" class="oe_inline" readonly="1"/> pasos para poder cerrar
+                        Pasos que faltan para poder cerrar: <field name="pendientes" class="oe_inline" readonly="1"/>
                         (los marcados «Impide cerrar»). Ábrelos con «Ver».
                     </div>
                     <div class="alert alert-success" role="alert" invisible="pendientes != 0 or estado == 'cerrado'">
