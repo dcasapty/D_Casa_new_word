@@ -63,6 +63,8 @@ class IrHttp(models.AbstractModel):
             if not sesion_personal(request.session) and request.env.user._is_public():
                 response.headers[CABECERA_BORDE] = MARCA_ANONIMO
             return
+        if not request.session.can_save:
+            return  # ruta sin sesión (save_session=False, p. ej. /dcasa/salud): no se toca ninguna cookie
         personal = sesion_personal(request.session)
         tiene = bool(request.httprequest.cookies.get(COOKIE_PERSONAL))
         if personal != tiene:
