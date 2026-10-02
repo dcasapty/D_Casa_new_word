@@ -121,6 +121,8 @@
         // Caché de páginas encendida: el borde sirve a los anónimos el MISMO HTML que dibuja Odoo
         // (navbar píldora, héroe, footer; probado idéntico byte a byte salvo el token CSRF, que el
         // JS refresca). La plantilla propia de antes (apagada el 2026-10-02) ya no existe.
+        // staging.dcasapty.com aún no apunta al Worker: el aviso de invalidación va a workers.dev.
+        "TIENDA_AVISO_URL": "https://dcasa-staging.dcasapty.workers.dev/__edge/tienda/regenerar",
         "TIENDA_ESTATICA": "on"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
