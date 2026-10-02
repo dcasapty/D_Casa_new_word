@@ -11,16 +11,24 @@ import {
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
+import { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
+import { type DepsAssets, servirAsset } from "./tienda/assets";
 import {
   type AlmacenTienda,
   type DepsPaginas,
   esPersonal,
+  estadoTienda,
+  type EstadoTienda,
   invalidar,
   precalentar,
   rutasAPrecalentar,
   servirPagina,
 } from "./tienda/paginas";
+
+// La página 503 «arrancando» vive en ./arranque.ts (la usa también la caché de páginas); se
+// re-exporta porque siempre fue parte de este módulo.
+export { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -49,6 +57,12 @@ export interface EdgeDeps {
     almacen?: AlmacenTienda;
     token?: string;
   };
+  /**
+   * ¿Odoo está listo? (estado del contenedor según el Durable Object, sin despertarlo ni hacerle
+   * HTTP). La caché de páginas lo consulta solo cuando una página guardada tiene estilos o JS que no
+   * están en el borde: con Odoo caído responde el 503 amable en vez de una página sin estilos.
+   */
+  odooListo?: () => Promise<boolean>;
   /** DCASA_ENTORNO: en "staging" toda respuesta lleva `X-Robots-Tag: noindex`. */
   entorno?: string;
   /**
@@ -68,14 +82,17 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   const decision = route(url, request.method, deps.canonicalHost);
 
   switch (decision.kind) {
-    case "health":
+    case "health": {
       if (!deps.salud) return new Response("ok", { headers: { "Content-Type": "text/plain" } });
-      return respuestaSalud(
-        await deps.salud().catch((error: unknown) => ({
+      const [salud, tienda] = await Promise.all([
+        deps.salud().catch((error: unknown) => ({
           contenedor: "stopped" as const,
           odoo: { error: `sin respuesta del Durable Object: ${String(error)}` },
         })),
-      );
+        estadoTiendaParaSalud(url, deps),
+      ]);
+      return respuestaSalud(salud, tienda);
+    }
     case "respaldo":
       if (!deps.respaldo) return new Response("Not Found", { status: 404 });
       return manejarRespaldo(request, deps.respaldo);
@@ -105,6 +122,17 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
     // Almacén caído: la sirve Odoo, como si la caché no existiera.
   }
 
+  // Assets (estilos, JS, fuentes, fotos): con la caché de páginas encendida se guardan en el mismo
+  // almacén (KV, global) que las páginas, para que una página guardada se vea entera aunque Odoo
+  // esté reiniciando. `null` = no aplica (Range, Authorization) o el almacén falló: sigue abajo.
+  const assets = decision.cacheable ? depsAssets(deps) : null;
+  if (assets) {
+    const servido = await servirAsset(request, upstream, assets, (pedido) => reenviar(request, pedido, deps));
+    if (servido) return withSecurityHeaders(servido);
+  }
+
+  // Caché de assets anterior (Cache API, por centro de datos; en workers.dev no guarda): queda como
+  // camino con la caché de páginas apagada.
   if (decision.cacheable && deps.cache) {
     if (!isCacheableRequest(request)) {
       return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
@@ -158,7 +186,33 @@ function depsPaginas(deps: EdgeDeps): DepsPaginas | null {
     // Mismo camino que una visita: si Odoo está apagado, el 503 amable (no se guarda).
     forward: (pedido) => reenviar(pedido, pedido, deps),
     waitUntil: deps.waitUntil,
+    odooListo: deps.odooListo,
   };
+}
+
+/**
+ * Dependencias de la caché de assets, o `null` si la caché de páginas está apagada o no hay almacén.
+ * El token es opcional: sin él, igual se guarda lo que Odoo mande `public` y sin cookies.
+ */
+function depsAssets(deps: EdgeDeps): DepsAssets | null {
+  if (!deps.tienda?.activa || !deps.tienda.almacen) return null;
+  const token = deps.tienda.token;
+  return {
+    almacen: deps.tienda.almacen,
+    token: token && token.length >= LARGO_MINIMO_TOKEN ? token : undefined,
+    forward: (pedido) => reenviar(pedido, pedido, deps),
+    waitUntil: deps.waitUntil,
+  };
+}
+
+/** Estado de la caché de páginas para `/__edge/health` (solo si hay almacén; nunca despierta a Odoo). */
+async function estadoTiendaParaSalud(url: URL, deps: EdgeDeps): Promise<EstadoTienda | { error: string } | undefined> {
+  if (!deps.tienda?.almacen) return undefined;
+  try {
+    return await estadoTienda(url, deps.tienda.almacen);
+  } catch (error) {
+    return { error: String(error).slice(0, 200) };
+  }
 }
 
 /**
@@ -228,62 +282,6 @@ export type TareaCron = "despertar" | "respaldo";
 /** Qué hace cada disparo del cron. Cualquier expresión desconocida solo despierta. */
 export function tareaDelCron(cron: string): TareaCron {
   return cron.trim() === CRON_RESPALDO ? "respaldo" : "despertar";
-}
-
-/** Segundos que se le piden al navegador/cliente antes de reintentar. */
-export const REINTENTO_SEGUNDOS = 15;
-
-/**
- * Respuesta 503 amable mientras Odoo arranca o restaura la base desde R2 (I-07): en
- * vez de un error pelado, una página corta que se recarga sola. Nunca se guarda en
- * caché. A quien no pide HTML (Brian, Telegram, JSON-RPC, POST) se le da texto.
- */
-export function respuestaArrancando(request: Request, reintento = REINTENTO_SEGUNDOS): Response {
-  const headers = new Headers({
-    "Retry-After": String(reintento),
-    "Cache-Control": "no-store",
-    "X-Dcasa-Estado": "arrancando",
-  });
-  const aceptaHtml = (request.headers.get("Accept") || "").includes("text/html");
-  if (!aceptaHtml || request.method !== "GET") {
-    headers.set("Content-Type", "text/plain; charset=utf-8");
-    return withSecurityHeaders(
-      new Response(`D'CASA está arrancando. Vuelve a intentar en ${reintento} segundos.\n`, { status: 503, headers }),
-    );
-  }
-  headers.set("Content-Type", "text/html; charset=utf-8");
-  return withSecurityHeaders(new Response(paginaArrancando(reintento), { status: 503, headers }));
-}
-
-function paginaArrancando(reintento: number): string {
-  // Marca: fondo blanco, texto navy/azul, sin amarillo sobre blanco, sin degradados.
-  return `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="${reintento}">
-<meta name="robots" content="noindex">
-<title>D'CASA · Un momento</title>
-<style>
-  body{margin:0;background:#fff;color:#0B1F4D;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
-  main{max-width:420px;text-align:center}
-  h1{font-family:Anton,Impact,"Arial Narrow",sans-serif;text-transform:uppercase;color:#1340B1;font-weight:400;
-    font-size:2rem;letter-spacing:.02em;margin:0 0 12px}
-  p{line-height:1.5;margin:0 0 12px}
-  a{color:#1340B1;font-weight:600}
-</style>
-</head>
-<body>
-<main>
-  <h1>Estamos abriendo la tienda</h1>
-  <p>Dame un momento: la página se recarga sola en ${reintento} segundos.</p>
-  <p>¿Tienes prisa? <a href="https://wa.me/50760261919">Escríbenos por WhatsApp</a></p>
-</main>
-</body>
-</html>
-`;
 }
 
 export interface ArranqueDeps {
@@ -472,8 +470,10 @@ export interface SaludContenedor {
  * `/__edge/health`: 200 solo si Odoo responde 2xx en `/dcasa/salud` (que comprueba la
  * base). Si el contenedor está apagado o arrancando NO se despierta: se informa y se
  * responde 503 con Retry-After, para que un monitor externo vea la caída real.
+ * `tienda` (si hay caché de páginas): qué páginas principales saldrían enteras del borde
+ * durante un reinicio (`sobrevive_reinicio`). No cambia el código HTTP: informa.
  */
-export function respuestaSalud(salud: SaludContenedor): Response {
+export function respuestaSalud(salud: SaludContenedor, tienda?: EstadoTienda | { error: string }): Response {
   let odoo: "ok" | "arrancando" | "detenido" | "error" | "sin_configurar";
   if (salud.faltan?.length) odoo = "sin_configurar";
   else if (salud.odoo && "status" in salud.odoo)
@@ -489,6 +489,7 @@ export function respuestaSalud(salud: SaludContenedor): Response {
     if (salud.odoo.cuerpo) cuerpo.detalle = salud.odoo.cuerpo.slice(0, 500);
   }
   if (salud.odoo && "error" in salud.odoo) cuerpo.detalle = salud.odoo.error.slice(0, 200);
+  if (tienda) cuerpo.tienda = tienda;
 
   const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   if (odoo !== "ok") headers.set("Retry-After", String(REINTENTO_SEGUNDOS));
@@ -591,8 +592,8 @@ export async function manejarRegenerarTienda(request: Request, paginas: DepsPagi
     const invalidado = await invalidar(paginas.almacen);
     const origen = new URL(request.url);
     const rutas = rutasAPrecalentar(rutasDeOdoo, (r) => rutaEstatica(new URL(r, origen), "GET") === r);
-    const tarea = precalentar(origen, rutas, paginas).then((guardadas) =>
-      console.log(JSON.stringify({ evento: "paginas_precalentadas", rutas: rutas.length, guardadas })),
+    const tarea = precalentar(origen, rutas, paginas).then(({ paginas: guardadas, assets }) =>
+      console.log(JSON.stringify({ evento: "paginas_precalentadas", rutas: rutas.length, guardadas, assets })),
     );
     // Después de responder: Odoo espera este 200 con su cron ocupado.
     if (paginas.waitUntil) paginas.waitUntil(tarea);
