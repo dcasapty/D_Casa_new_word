@@ -11,6 +11,16 @@ se da por buena si no sale de una página oficial con URL. Leyenda:
 
 ---
 
+## Decisiones de la dueña (2026-10-02)
+
+- **Botón «Apartar» en la ficha del producto: sí.** Para apartar hay que entrar con la cuenta y
+  **ser Socio D'CASA** (misma ficha `res.partner`, llave = celular): el apartado necesita saber de
+  quién son los abonos y sirve de incentivo para unirse al programa. Comprar de contado no exige
+  ser socio. Sigue pendiente: % mínimo, plazo y qué pasa con los abonos si vence (abogado).
+- **Puntos Socios: solo al completar la compra** (apartado liquidado o compra de contado). Los
+  abonos no dan puntos y el referido se paga con esa compra completa (regla 4 de Socios).
+- Pendiente: banco (Banco General o Banistmo) y Yappy.
+
 ## 1. Pasarelas para un comercio panameño (2026)
 
 D'CASA factura en USD, con RUC panameño y cuenta en banco local. Eso descarta de entrada a
