@@ -1,14 +1,17 @@
 import {
   CONDITIONAL_HEADERS,
+  conNoindex,
   forwardedHeaders,
   isCacheableRequest,
   isCacheableResponse,
   notModified,
   notModifiedResponse,
   route,
+  rutaEstatica,
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
+import { type AlmacenTienda, type ResultadoRegeneracion, servirPaginaEstatica } from "./tienda/servir";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -25,9 +28,28 @@ export interface EdgeDeps {
   salud?: () => Promise<SaludContenedor>;
   /** Respaldo a mano: `POST /__edge/respaldo` con el token compartido. */
   respaldo?: { token?: string; respaldar: () => Promise<ResultadoRespaldo> };
+  /**
+   * Tienda estática (Fase 2). `activa` = TIENDA_ESTATICA=on: las páginas públicas salen del
+   * almacén (KV) y, si no están, de Odoo como siempre. La regeneración (`POST
+   * /__edge/tienda/regenerar` con `Bearer TIENDA_FEED_TOKEN`) funciona aunque no esté activa,
+   * para dejar las páginas listas antes de encenderla.
+   */
+  tienda?: {
+    activa: boolean;
+    almacen?: AlmacenTienda;
+    token?: string;
+    regenerar?: () => Promise<ResultadoRegeneracion>;
+  };
+  /** DCASA_ENTORNO: en "staging" toda respuesta lleva `X-Robots-Tag: noindex`. */
+  entorno?: string;
 }
 
 export async function handleRequest(request: Request, deps: EdgeDeps): Promise<Response> {
+  const respuesta = await atender(request, deps);
+  return deps.entorno === "staging" ? conNoindex(respuesta) : respuesta;
+}
+
+async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   const url = new URL(request.url);
   const decision = route(url, request.method, deps.canonicalHost);
 
@@ -43,10 +65,23 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
     case "respaldo":
       if (!deps.respaldo) return new Response("Not Found", { status: 404 });
       return manejarRespaldo(request, deps.respaldo);
+    case "tienda_regenerar":
+      return manejarRegenerarTienda(request, deps.tienda);
     case "blocked":
       return new Response("Not Found", { status: 404 });
     case "redirect":
       return Response.redirect(decision.location, decision.status);
+  }
+
+  const estatica = deps.tienda?.activa && deps.tienda.almacen ? rutaEstatica(url, request.method) : null;
+  if (estatica && deps.tienda?.almacen) {
+    try {
+      const pagina = await servirPaginaEstatica(request, estatica, deps.tienda.almacen);
+      if (pagina) return withSecurityHeaders(pagina);
+    } catch (error) {
+      // KV caído o lento: la página la sirve Odoo, como antes de la Fase 2.
+      console.error(JSON.stringify({ evento: "tienda_lectura_fallida", ruta: estatica, error: String(error) }));
+    }
   }
 
   const upstream = new Request(request, { headers: forwardedHeaders(request) });
@@ -298,6 +333,12 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "APP_VERSION",
   "CANONICAL_HOST",
   "DCASA_ENTORNO",
+  // Existencias de prueba (solo staging; en producción el entrypoint fuerza 0)
+  "DCASA_STOCK_PRUEBA",
+  // Black Weekend: "1" = visible sin mirar fechas (staging); ventana AAAA-MM-DD en hora de Panamá
+  "DCASA_BLACK_WEEKEND",
+  "DCASA_BLACK_WEEKEND_INICIO",
+  "DCASA_BLACK_WEEKEND_FIN",
   // Adjuntos: «r2» (por defecto, con las credenciales R2_*) o «db» (emergencia; addons/dcasa_adjuntos_r2)
   "DCASA_ADJUNTOS",
   // Respaldo continuo (pgBackRest) y diario (pg_dump) en R2
@@ -314,6 +355,10 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BRIAN_TELEGRAM_SECRETO",
+  // Tienda estática del borde (addons/dcasa_tienda_borde): el mismo secreto protege el feed y
+  // el aviso de regeneración; TIENDA_AVISO_URL es opcional (por defecto https://CANONICAL_HOST/…).
+  "TIENDA_FEED_TOKEN",
+  "TIENDA_AVISO_URL",
 ] as const;
 
 /**
@@ -466,4 +511,46 @@ export async function manejarRespaldo(
     status: ESTADO_HTTP_RESPALDO[resultado.estado],
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
+}
+
+// ------------------------------- Tienda estática ---------------------------
+
+/**
+ * `POST /__edge/tienda/regenerar` con `Authorization: Bearer <TIENDA_FEED_TOKEN>`: Odoo avisa que
+ * algo cambió (addons/dcasa_tienda_borde) y el Worker relee el feed y reescribe las páginas
+ * que cambiaron. Sin token válido configurado (≥ 32 caracteres) o sin almacén, la ruta no existe.
+ * Responde cuando terminó: Odoo reintenta si no fue 2xx.
+ */
+export async function manejarRegenerarTienda(
+  request: Request,
+  tienda?: { token?: string; almacen?: AlmacenTienda; regenerar?: () => Promise<ResultadoRegeneracion> },
+): Promise<Response> {
+  if (!tienda?.regenerar || !tienda.almacen || !tienda.token || tienda.token.length < LARGO_MINIMO_TOKEN) {
+    return new Response("Not Found", { status: 404 });
+  }
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
+  }
+  if (!autorizado(request.headers.get("Authorization"), tienda.token)) {
+    return new Response("Unauthorized", { status: 401, headers: { "WWW-Authenticate": "Bearer" } });
+  }
+  // El cuerpo (productos y motivos) solo se registra: se regenera todo y se escribe lo que cambió.
+  const aviso = await request.text().catch(() => "");
+  const resultado = await tienda.regenerar();
+  const linea = JSON.stringify({ evento: "tienda_regenerada", aviso: aviso.slice(0, 500), ...resultado });
+  if (resultado.estado === "ok") console.log(linea);
+  else console.error(linea);
+  return new Response(JSON.stringify(resultado), {
+    status: resultado.estado === "ok" ? 200 : 503,
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
+/** ¿El cron horario regenera la tienda? Solo con almacén y token, y con Odoo ya encendido. */
+export function debeRegenerarEnCron(
+  odoo: "encendido" | "despertado" | "dormido",
+  hayAlmacen: boolean,
+  token?: string,
+): boolean {
+  return odoo === "encendido" && hayAlmacen && !!token && token.length >= LARGO_MINIMO_TOKEN;
 }

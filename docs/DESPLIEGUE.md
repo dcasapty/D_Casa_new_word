@@ -92,13 +92,14 @@ clave de cifrado con producción):
 | Secret | `DCASA_PIN_PEPPER` | sí | pimienta del PIN de socios (ver abajo); **jamás se rota** |
 | Secret | `BRIAN_API_KEY` | sí | clave del proveedor de IA de Brian (en staging, una clave de pruebas con tope de gasto) |
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
+| Secret | `TIENDA_FEED_TOKEN` | no (sí para la tienda estática) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: protege el feed del catálogo y el aviso de regeneración. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
 | Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: `https://dcasa.<subdominio>.workers.dev` hasta activar el dominio, luego `https://dcasapty.com`; staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com`) |
 | Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`); útil mientras se usa `workers.dev` |
 | Variable | `R2_ENDPOINT` | no | solo si el bucket está en otra jurisdicción; por defecto `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | Variable | `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | ver «Brian» |
 
 En el Worker, `ODOO_ADMIN_PASSWORD` se carga con el nombre `ADMIN_PASSWORD`, y `R2_ENDPOINT` como
-secreto (lleva el Account ID). `R2_BUCKET`, `CANONICAL_HOST`, `DCASA_ENTORNO` y `ODOO_DORMIR_TRAS` son
+secreto (lleva el Account ID). `R2_BUCKET`, `CANONICAL_HOST`, `DCASA_ENTORNO`, `DCASA_STOCK_PRUEBA` (`0` en producción, `10` en staging) y `ODOO_DORMIR_TRAS` son
 `vars` de `edge/wrangler.jsonc`, una sección por entorno. Ya no hay `DB_HOST`/`DB_USER`/`DB_NAME`/
 `DB_PASSWORD` ni Neon: PostgreSQL vive dentro del contenedor y su configuración la decide la imagen.
 

@@ -34,6 +34,12 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
+  // Tienda estática (Fase 2): páginas generadas desde el feed de Odoo. Sin "id": Wrangler crea
+  // el namespace en el primer deploy («automatic provisioning», wrangler ≥ 4.45) y lo deja
+  // enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por entorno.
+  // Por qué KV y no R2 ni Static Assets: edge/CONTRATO_CONTENEDOR.md → «Tienda estática».
+  "kv_namespaces": [{ "binding": "TIENDA" }],
+
   // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled), solo
   // en 24/7: con ODOO_DORMIR_TRAS de duración (staging) lo deja dormido.
   // "17 8 * * *": 03:17 en Panamá (UTC-5), respaldo lógico diario dentro del contenedor.
@@ -50,9 +56,19 @@
   "vars": {
     "CANONICAL_HOST": "dcasapty.com",
     "DCASA_ENTORNO": "produccion",
+    // Existencias de prueba: en producción SIEMPRE 0 (el entrypoint lo fuerza igual).
+    "DCASA_STOCK_PRUEBA": "0",
+    // Black Weekend (addons/website_dcasa/models/black_weekend.py): en producción solo dentro de la
+    // ventana que fijó la dueña (lunes 5 a domingo 11 de octubre de 2026, hora de Panamá,
+    // inclusive); pasada la fecha se apaga sola. "1" la mostraría sin mirar fechas.
+    "DCASA_BLACK_WEEKEND": "0",
+    "DCASA_BLACK_WEEKEND_INICIO": "2026-10-02",
+    "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
-    "ODOO_DORMIR_TRAS": ""
+    "ODOO_DORMIR_TRAS": "",
+    // Tienda estática: "off" hasta que el dueño la apruebe en staging (todo lo sirve Odoo).
+    "TIENDA_ESTATICA": "off"
   },
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
@@ -84,15 +100,25 @@
         "bindings": [{ "name": "ODOO", "class_name": "OdooContainer" }]
       },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
+      "kv_namespaces": [{ "binding": "TIENDA" }],
       "triggers": { "crons": ["7 * * * *", "17 8 * * *"] },
       "vars": {
         "CANONICAL_HOST": "staging.dcasapty.com",
         "DCASA_ENTORNO": "staging",
+        // 10 unidades a cada producto sin existencias ni movimientos, para probar ventas
+        // (addons/dcasa_catalogo: aplicar_stock_prueba; nunca pisa un conteo real).
+        "DCASA_STOCK_PRUEBA": "10",
+        // Black Weekend visible ya (vista previa para la dueña), sin mirar la ventana.
+        "DCASA_BLACK_WEEKEND": "1",
+        "DCASA_BLACK_WEEKEND_INICIO": "2026-10-02",
+        "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
         "R2_BUCKET": "dcasa-respaldos-staging",
         // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
         // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
-        "ODOO_DORMIR_TRAS": "1h"
+        "ODOO_DORMIR_TRAS": "1h",
+        // Staging ya prueba la tienda estática (y manda X-Robots-Tag: noindex en todo).
+        "TIENDA_ESTATICA": "on"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Importaciones de productos desde Excel (las prepara y aplica Brian; aquí solo se revisan). -->
+    <record id="brian_importacion_view_list" model="ir.ui.view">
+        <field name="name">brian.importacion.list</field>
+        <field name="model">brian.importacion</field>
+        <field name="arch" type="xml">
+            <list string="Importaciones de productos" create="0" edit="0" delete="0"
+                  decoration-muted="estado == 'deshecha'">
+                <field name="create_date" string="Fecha"/>
+                <field name="name"/>
+                <field name="hoja" optional="show"/>
+                <field name="usuario_id"/>
+                <field name="modo_itbms" optional="hide"/>
+                <field name="n_crear"/>
+                <field name="n_actualizar"/>
+                <field name="n_omitir"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'aplicada'"
+                       decoration-info="estado == 'borrador'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="brian_importacion_view_form" model="ir.ui.view">
+        <field name="name">brian.importacion.form</field>
+        <field name="model">brian.importacion</field>
+        <field name="arch" type="xml">
+            <form string="Importación de productos" create="0" edit="0" delete="0">
+                <header>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="archivo"/>
+                            <field name="hoja"/>
+                            <field name="fila_encabezado"/>
+                            <field name="modo_itbms"/>
+                            <field name="fotos_en_hoja"/>
+                        </group>
+                        <group>
+                            <field name="usuario_id"/>
+                            <field name="aplicada_por" invisible="not aplicada_por"/>
+                            <field name="fecha_aplicada" invisible="not fecha_aplicada"/>
+                            <field name="deshecha_por" invisible="not deshecha_por"/>
+                            <field name="fecha_deshecha" invisible="not fecha_deshecha"/>
+                            <field name="motivo_deshacer" invisible="not motivo_deshacer"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Líneas" name="lineas">
+                            <field name="linea_ids">
+                                <list decoration-muted="accion == 'omitir'"
+                                      decoration-danger="estado == 'error'">
+                                    <field name="fila"/>
+                                    <field name="imagen" widget="image" options="{'size': [48, 48]}"/>
+                                    <field name="codigo"/>
+                                    <field name="nombre"/>
+                                    <field name="precio_excel"/>
+                                    <field name="precio"/>
+                                    <field name="medidas" optional="hide"/>
+                                    <field name="accion" widget="badge"/>
+                                    <field name="product_tmpl_id" optional="show"/>
+                                    <field name="motivo"/>
+                                    <field name="avisos" optional="show"/>
+                                    <field name="estado" optional="show"/>
+                                    <field name="error" optional="hide"/>
+                                    <field name="antes" optional="hide"/>
+                                    <field name="despues" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Avisos y columnas" name="avisos">
+                            <group>
+                                <field name="avisos"/>
+                                <field name="mapeo"/>
+                                <field name="sha256"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="brian_importacion_action" model="ir.actions.act_window">
+        <field name="name">Importaciones de productos</field>
+        <field name="res_model">brian.importacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Mándale a Brian el Excel del proveedor</p>
+            <p>Brian prepara la vista previa (qué se crea, qué cambia de precio, qué se omite) y Gerencia la
+               aplica con un clic. Aquí queda el historial, con lo que había antes, para poder deshacer.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_brian_importaciones" name="Importaciones de productos" parent="menu_brian_raiz"
+              action="brian_importacion_action" sequence="15" groups="sales_team.group_sale_salesman"/>
+</odoo>

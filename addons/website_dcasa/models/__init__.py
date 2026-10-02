@@ -4,3 +4,5 @@ from . import website_page
 from . import website_menu
 from . import tienda
 from . import ir_qweb
+from . import imagen
+from . import black_weekend

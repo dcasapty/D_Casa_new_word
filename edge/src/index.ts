@@ -3,6 +3,7 @@ import { Container, getContainer, type StopParams } from "@cloudflare/containers
 import {
   colaDeSalida,
   debeRearrancar,
+  debeRegenerarEnCron,
   handleRequest,
   politicaDeSueno,
   runScheduled,
@@ -13,6 +14,13 @@ import {
   type ResultadoRespaldo,
   type SaludContenedor,
 } from "./handler";
+import {
+  type AlmacenTienda,
+  CABECERA_TOKEN_FEED,
+  regenerarTienda,
+  RUTA_FEED,
+  tiendaActiva,
+} from "./tienda/servir";
 
 export interface Env {
   ODOO: DurableObjectNamespace<OdooContainer>;
@@ -21,6 +29,13 @@ export interface Env {
   APP_VERSION?: string;
   /** "produccion" o "staging": el contenedor lo usa para no mezclar respaldos. */
   DCASA_ENTORNO?: string;
+  /** Unidades de prueba por producto sin existencias: "10" en staging, "0" en producción. */
+  DCASA_STOCK_PRUEBA?: string;
+  /** Black Weekend: "1" visible sin mirar fechas (staging), "0" solo dentro de la ventana. */
+  DCASA_BLACK_WEEKEND?: string;
+  /** Ventana de Black Weekend (AAAA-MM-DD, hora de Panamá, inclusive). */
+  DCASA_BLACK_WEEKEND_INICIO?: string;
+  DCASA_BLACK_WEEKEND_FIN?: string;
   /** Bucket de R2 de los respaldos (uno por entorno). */
   R2_BUCKET?: string;
   /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */
@@ -57,6 +72,15 @@ export interface Env {
   TELEGRAM_BOT_TOKEN?: string;
   /** Secreto: ruta y encabezado del webhook de Telegram. */
   BRIAN_TELEGRAM_SECRETO?: string;
+  // Tienda estática (Fase 2; addons/dcasa_tienda_borde, edge/src/tienda/)
+  /** Páginas generadas (Workers KV). Sin binding: la tienda estática no existe. */
+  TIENDA?: KVNamespace;
+  /** "on" sirve las páginas públicas desde TIENDA; "off" (producción hasta aprobarla) todo a Odoo. */
+  TIENDA_ESTATICA?: string;
+  /** Secreto compartido con Odoo (≥ 32): protege el feed y el aviso de regeneración. */
+  TIENDA_FEED_TOKEN?: string;
+  /** Opcional: URL a la que Odoo avisa (por defecto https://CANONICAL_HOST/__edge/tienda/regenerar). */
+  TIENDA_AVISO_URL?: string;
 }
 
 /**
@@ -226,6 +250,42 @@ function odoo(env: Env) {
   return getContainer(env.ODOO, INSTANCE);
 }
 
+/** Segundos que la página queda en la caché de KV del centro de datos (mínimo de KV: 30). */
+const TTL_KV_PAGINAS = 60;
+
+function almacenKv(kv: KVNamespace): AlmacenTienda {
+  return {
+    async leer(clave, opciones) {
+      const { value, metadata } = await kv.getWithMetadata<Record<string, string>>(clave, {
+        type: "text",
+        ...(opciones?.fresco ? {} : { cacheTtl: TTL_KV_PAGINAS }),
+      });
+      return value === null ? null : { texto: value, meta: metadata };
+    },
+    escribir: (clave, texto, meta) => kv.put(clave, texto, meta ? { metadata: meta } : undefined),
+    borrar: (clave) => kv.delete(clave),
+  };
+}
+
+/** Feed del catálogo, pedido directo al contenedor (el borde bloquea esa ruta desde internet). */
+function leerFeed(env: Env): Promise<Response> {
+  const host = env.CANONICAL_HOST || "localhost";
+  return odoo(env).fetch(
+    new Request(`https://${host}${RUTA_FEED}`, {
+      headers: {
+        [CABECERA_TOKEN_FEED]: env.TIENDA_FEED_TOKEN ?? "",
+        "X-Forwarded-Host": host,
+        "X-Forwarded-Proto": "https",
+        Accept: "application/json",
+      },
+    }),
+  );
+}
+
+function regenerar(env: Env) {
+  return regenerarTienda({ almacen: almacenKv(env.TIENDA!), leerFeed: () => leerFeed(env), canonicalHost: env.CANONICAL_HOST });
+}
+
 function registrarRespaldo(resultado: ResultadoRespaldo, origen: string): ResultadoRespaldo {
   const linea = JSON.stringify({ evento: "respaldo", origen, ...resultado });
   if (resultado.estado === "ok") console.log(linea);
@@ -245,6 +305,13 @@ export default {
         token: env.RESPALDO_TOKEN,
         respaldar: async () => registrarRespaldo(await odoo(env).respaldar("manual"), "manual"),
       },
+      tienda: {
+        activa: tiendaActiva(env.TIENDA_ESTATICA),
+        almacen: env.TIENDA ? almacenKv(env.TIENDA) : undefined,
+        token: env.TIENDA_FEED_TOKEN,
+        regenerar: env.TIENDA ? () => regenerar(env) : undefined,
+      },
+      entorno: env.DCASA_ENTORNO,
     });
   },
 
@@ -266,7 +333,15 @@ export default {
         wake: () => container.fetch(new Request("http://odoo/web/health")),
         // Staging (ODOO_DORMIR_TRAS con duración) no se despierta por el cron: duerme.
         siempreEncendido: politicaDeSueno(env.ODOO_DORMIR_TRAS).siempreEncendido,
-      }).then((resultado) => console.log(`cron: Odoo ${resultado}`)),
+      })
+        .then((resultado) => {
+          console.log(`cron: Odoo ${resultado}`);
+          // Red de seguridad de la tienda estática: si un aviso de Odoo se perdió, en una hora
+          // como mucho las páginas se ponen al día (solo con Odoo encendido: no lo despierta).
+          if (debeRegenerarEnCron(resultado, !!env.TIENDA, env.TIENDA_FEED_TOKEN)) {
+            return regenerar(env).then((r) => console.log(JSON.stringify({ evento: "tienda_regenerada", origen: "cron", ...r })));
+          }
+        }),
     );
   },
 } satisfies ExportedHandler<Env>;

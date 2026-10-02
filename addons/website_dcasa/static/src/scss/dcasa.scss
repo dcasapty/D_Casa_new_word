@@ -781,6 +781,12 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     flex-direction: column;
 }
 
+// <picture> (WebP con respaldo) no debe crear una caja: la <img> sigue siendo la hija que se mide.
+.o_dcasa_pcard_media > picture,
+.oe_product_image_img_wrapper > picture {
+    display: contents;
+}
+
 .o_dcasa_pcard_media {
     display: block;
     aspect-ratio: 1;
@@ -1881,4 +1887,130 @@ body.editor_enable .o_dcasa_wa_float {
         background-color: $dcasa-azul;
         color: #fff;
     }
+}
+
+// ---------------------------------------------------------------------------
+// Black Weekend (views/black_weekend_templates.xml)
+// Banda negra con el titular en amarillo (Anton): el amarillo solo toca el negro. Las
+// tarjetas son blancas, con texto navy y botones azules. Plano: sin degradados ni sombras.
+// ---------------------------------------------------------------------------
+
+$dcasa-negro: #000000;
+
+.o_dcasa_bw {
+    background: $dcasa-negro;
+    color: #FFFFFF;
+    padding-block: clamp(2.5rem, 6vw, 5rem);
+
+    .o_dcasa_section_head {
+        align-items: center;
+    }
+
+    a:focus-visible,
+    button:focus-visible {
+        outline: 3px solid $dcasa-amarillo;
+        outline-offset: 3px;
+    }
+
+    // Dentro de la tarjeta blanca el foco vuelve a ser azul (el amarillo no toca el blanco).
+    .o_dcasa_bw_card a:focus-visible,
+    .o_dcasa_bw_card button:focus-visible {
+        outline-color: $dcasa-azul;
+    }
+}
+
+.o_dcasa_bw_titulo {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: .01em;
+    line-height: 1;
+    color: $dcasa-amarillo;
+    font-size: clamp(2.5rem, 7vw, 5rem);
+    margin-bottom: .5rem;
+}
+
+.o_dcasa_bw_titulo_grande {
+    font-size: clamp(3rem, 10vw, 7rem);
+}
+
+.o_dcasa_bw_sub {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(1rem, 1.6vw, 1.25rem);
+    color: #FFFFFF;
+    max-width: 44rem;
+    margin-bottom: 0;
+}
+
+.o_dcasa_bw_card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #FFFFFF;
+    color: $dcasa-tinta;
+    border-radius: $dcasa-radius;
+    padding: .75rem .75rem 1rem;
+}
+
+.o_dcasa_pcard_media {
+    position: relative;
+}
+
+.o_dcasa_bw_codigo {
+    font-size: .8125rem;
+    color: $dcasa-gris;
+    margin-bottom: .35rem;
+}
+
+.o_dcasa_bw_precio {
+    margin-bottom: .25rem;
+}
+
+.o_dcasa_bw_combo {
+    font-size: .9375rem;
+    color: $dcasa-navy;
+    margin-bottom: .85rem;
+
+    strong {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+    }
+}
+
+.o_dcasa_bw_acciones {
+    margin-top: auto;
+    display: grid;
+    gap: .5rem;
+
+    .btn {
+        min-height: 3rem;
+    }
+}
+
+// Etiqueta «Black Weekend»: negra con letras amarillas, sobre la foto de la tarjeta.
+.o_dcasa_bw_etiqueta {
+    position: absolute;
+    top: .6rem;
+    left: .6rem;
+    z-index: 2;
+    background: $dcasa-negro;
+    color: $dcasa-amarillo;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 600;
+    font-size: .75rem;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    line-height: 1;
+    padding: .4rem .6rem;
+    border-radius: .4rem;
+    pointer-events: none;
+}
+
+.o_dcasa_bw_grid {
+    list-style: none;
+    padding: 0;
+    margin: clamp(1.5rem, 4vw, 3rem) 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 1.25rem;
 }

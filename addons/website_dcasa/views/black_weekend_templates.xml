@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ===================================================================
+         Black Weekend (models/black_weekend.py). Solo sale mientras la campaña está activa
+         (parámetros dcasa_black_weekend.*, hora de Panamá) y con productos marcados.
+
+         Marca: banda NEGRA con el titular en amarillo (Anton). El amarillo solo toca el negro:
+         las tarjetas son blancas, con texto navy y botones azules. Sin cuenta regresiva, sin
+         «tiempo limitado», sin financiamiento ni cuotas, sin «remate». Precios de la tienda
+         (nunca escritos aquí) y el combo, del texto guardado del catálogo.
+         =================================================================== -->
+
+    <!-- Etiqueta de las tarjetas del catálogo y de la portada (negra con letras amarillas). -->
+    <template id="etiqueta_black_weekend" name="D'CASA: etiqueta Black Weekend">
+        <span t-if="website._dcasa_bw_marcado(producto_bw)" class="o_dcasa_bw_etiqueta">Black Weekend</span>
+    </template>
+
+    <!-- Tarjeta de la banda y de /black-weekend: foto limpia, nombre, código, precio, combo y CTA. -->
+    <template id="tarjeta_black_weekend" name="D'CASA: tarjeta Black Weekend">
+        <t t-set="producto" t-value="item['producto']"/>
+        <t t-set="variante" t-value="item['variante']"/>
+        <article class="o_dcasa_bw_card">
+            <a t-att-href="variante.website_url" class="o_dcasa_pcard_media o_dcasa_bw_media" tabindex="-1" aria-hidden="true">
+                <picture>
+                    <t t-set="dcasa_webp" t-value="website._dcasa_img_srcset(variante, (256, 512, 1024))"/>
+                    <source t-if="dcasa_webp" type="image/webp" t-att-srcset="dcasa_webp"
+                            sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 80vw"/>
+                    <img t-att-src="website.image_url(variante, 'image_512')" t-att-alt="item['alt']"
+                         t-attf-srcset="#{website.image_url(variante, 'image_256')} 256w, #{website.image_url(variante, 'image_512')} 512w, #{website.image_url(variante, 'image_1024')} 1024w"
+                         sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 80vw"
+                         width="512" height="512" loading="lazy" decoding="async"/>
+                </picture>
+                <span class="o_dcasa_bw_etiqueta">Black Weekend</span>
+            </a>
+            <div class="o_dcasa_pcard_body">
+                <h3 class="o_dcasa_pcard_name"><a t-att-href="variante.website_url" t-out="producto.name"/></h3>
+                <p t-if="item['codigo']" class="o_dcasa_bw_codigo">Código <t t-out="item['codigo']"/></p>
+                <p t-if="item['precio_visible']" class="o_dcasa_pcard_price o_dcasa_bw_precio">
+                    <span t-out="item['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
+                    <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
+                </p>
+                <p t-if="item['combo']" class="o_dcasa_bw_combo">
+                    <t t-out="item['combo']['texto']"/>
+                    <strong t-out="item['combo']['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
+                    <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
+                </p>
+                <div class="o_dcasa_bw_acciones">
+                    <form t-if="item['directo']" action="/dcasa/carrito/agregar" method="post">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <input type="hidden" name="product_template_id" t-att-value="producto.id"/>
+                        <input t-if="producto.product_variant_count &gt; 1" type="hidden" name="product_id" t-att-value="variante.id"/>
+                        <button type="submit" class="btn btn-primary w-100"
+                                t-attf-aria-label="Agregar {{ producto.name }} al carrito">Agregar al carrito</button>
+                    </form>
+                    <a t-else="" t-att-href="variante.website_url" class="btn btn-primary w-100">Ver opciones<span class="visually-hidden">: <t t-out="producto.name"/></span></a>
+                    <a t-att-href="item['whatsapp']" target="_blank" rel="noopener" class="btn o_dcasa_btn_contorno w-100">
+                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> sobre <t t-out="producto.name"/> (se abre en una pestaña nueva)</span>
+                    </a>
+                </div>
+            </div>
+        </article>
+    </template>
+
+    <!-- Banda de la portada: antes de los carruseles. -->
+    <template id="seccion_black_weekend" name="D'CASA: banda Black Weekend">
+        <t t-if="website._dcasa_black_weekend_activo()">
+            <t t-set="bw_items" t-value="website._dcasa_bw_productos(limit=8)"/>
+            <section t-if="bw_items" class="o_dcasa_bw" aria-labelledby="dcasa-bw-titulo">
+                <div class="o_dcasa_container">
+                    <div class="o_dcasa_section_head">
+                        <div data-anim-cascada="izquierda">
+                            <h2 id="dcasa-bw-titulo" class="o_dcasa_bw_titulo" data-titular="">Black Weekend</h2>
+                            <p class="o_dcasa_bw_sub">Camas seleccionadas con su precio de cama sola y en combo con colchón<t t-set="bw_fechas" t-value="website._dcasa_bw_fechas()"/><t t-if="bw_fechas">, <t t-out="bw_fechas"/></t>.</p>
+                        </div>
+                        <a href="/black-weekend" class="btn btn-lg o_dcasa_btn_amarillo">Ver todo el Black Weekend</a>
+                    </div>
+                    <div class="o_dcasa_rail_track o_dcasa_bw_track" role="list" data-anim-cascada="">
+                        <div t-foreach="bw_items" t-as="item" class="o_dcasa_rail_item" role="listitem">
+                            <t t-call="website_dcasa.tarjeta_black_weekend"/>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </t>
+    </template>
+
+    <!-- Página /black-weekend (controllers/main.py). -->
+    <template id="pagina_black_weekend" name="D'CASA: página Black Weekend">
+        <t t-call="website.layout">
+            <t t-set="additional_title">Black Weekend</t>
+            <t t-set="meta_description" t-value="bw_descripcion"/>
+            <t t-set="website_meta_description" t-value="bw_descripcion"/>
+            <t t-set="dcasa_og_black_weekend" t-value="True"/>
+            <div id="wrap" class="o_dcasa_pagina_bw">
+                <section class="o_dcasa_bw o_dcasa_bw_pagina" aria-labelledby="dcasa-bw-h1">
+                    <div class="o_dcasa_container">
+                        <p class="o_dcasa_kicker o_dcasa_kicker_light">D'CASA Panamá · La Chorrera</p>
+                        <h1 id="dcasa-bw-h1" class="o_dcasa_bw_titulo o_dcasa_bw_titulo_grande">Black Weekend</h1>
+                        <p class="o_dcasa_bw_sub">Camas tapizadas y bases seleccionadas<t t-if="fechas">, <t t-out="fechas"/></t>.
+                            Cada una con su precio de cama sola y en combo con colchón. Precios sin ITBMS: el 7 % se suma en el carrito.</p>
+                        <ul class="o_dcasa_bw_grid" role="list">
+                            <li t-foreach="items" t-as="item">
+                                <t t-call="website_dcasa.tarjeta_black_weekend"/>
+                            </li>
+                        </ul>
+                        <p class="o_dcasa_bw_sub mt-4">¿Dudas con medidas, colores o la entrega? Escríbenos y te ayudamos a escoger.</p>
+                        <a t-att-href="website._dcasa_whatsapp_url('Hola D\'CASA, quiero información del Black Weekend')"
+                           target="_blank" rel="noopener" class="btn btn-lg o_dcasa_btn_amarillo">
+                            <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp
+                            <span class="visually-hidden">(se abre en una pestaña nueva)</span></a>
+                    </div>
+                </section>
+            </div>
+            <script type="application/ld+json" t-out="bw_json_ld"/>
+        </t>
+    </template>
+
+    <!-- Imagen para compartir de /black-weekend: la de la campaña en lugar del logo. -->
+    <template id="layout_og_black_weekend" inherit_id="website.layout" name="D'CASA: imagen para compartir de Black Weekend">
+        <xpath expr="//t[@t-set='opengraph_meta']" position="after">
+            <t t-if="dcasa_og_black_weekend and opengraph_meta" t-set="opengraph_meta"
+               t-value="website._dcasa_bw_og(opengraph_meta, 'og:image')"/>
+        </xpath>
+        <xpath expr="//t[@t-set='twitter_meta']" position="after">
+            <t t-if="dcasa_og_black_weekend and twitter_meta" t-set="twitter_meta"
+               t-value="website._dcasa_bw_og(twitter_meta, 'twitter:image')"/>
+        </xpath>
+    </template>
+
+    <!-- En Odoo: marcar el producto, su orden y la variante destacada, junto a la categoría. -->
+    <record id="product_template_form_black_weekend" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.black_weekend</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="categ_id" position="after">
+                <field name="dcasa_black_weekend"/>
+                <field name="dcasa_bw_orden" invisible="not dcasa_black_weekend"/>
+                <field name="dcasa_bw_variante_id" invisible="not dcasa_black_weekend"
+                       options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Etiqueta en las tarjetas de /shop. -->
+    <template id="tienda_etiqueta_black_weekend" inherit_id="website_sale.products_item" name="D'CASA: etiqueta Black Weekend en la tienda">
+        <xpath expr="//span[hasclass('oe_product_image_img_wrapper_primary')]" position="after">
+            <t t-call="website_dcasa.etiqueta_black_weekend"><t t-set="producto_bw" t-value="product"/></t>
+        </xpath>
+    </template>
+</odoo>

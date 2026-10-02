@@ -92,6 +92,25 @@ LISTA_BLANCA = {
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
     ('dcasa_socios', 'sale.order', 'action_dcasa_cobrar_premio'): ACCION_VENTANA,
+    # --- dcasa_tienda_borde ----------------------------------------------------------------
+    # Solo anotan «página pendiente» (dcasa.tienda.pendiente, tabla interna sin ACL de escritura)
+    # en el precommit; el registro del usuario se escribe sin sudo, con su propio ACL.
+    ('dcasa_tienda_borde', 'product.template', 'create'): OVERRIDE + ' Anota la marca de la tienda del borde.',
+    ('dcasa_tienda_borde', 'product.template', 'write'): OVERRIDE + ' Anota la marca de la tienda del borde.',
+    ('dcasa_tienda_borde', 'product.template', 'unlink'): OVERRIDE + ' Anota la marca de la tienda del borde.',
+    ('dcasa_tienda_borde', 'product.product', 'write'): OVERRIDE + ' Anota la marca de la tienda del borde.',
+    ('dcasa_tienda_borde', 'product.template.attribute.value', 'write'):
+        OVERRIDE + ' Anota la marca de la tienda del borde.',
+    ('dcasa_tienda_borde', 'product.public.category', 'create'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'product.public.category', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'product.public.category', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'create'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'write'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'unlink'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
     # --- dcasa_brian ----------------------------------------------------------------------
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).

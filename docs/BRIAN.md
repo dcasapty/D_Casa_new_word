@@ -119,12 +119,78 @@ El tipo se decide por la **firma del archivo**, no por la etiqueta del navegador
 * **Excel** `.xlsx`/`.xlsm` (openpyxl) y `.xls` (xlrd): por hoja, nombre y tamaño, las filas de
   título como contexto, el encabezado (la fila más llena entre las primeras 10) y la tabla;
   números redondeados a 2 decimales; fórmulas sin valor guardado se marcan; recorte con
-  «… N filas más». Avisa cuántas imágenes incrustadas trae cada hoja (Brian aún no las ve).
+  «… N filas más». Avisa cuántas imágenes incrustadas trae cada hoja (el modelo no las ve;
+  `proponer_importacion` las usa como foto de su fila). El encabezado del bloque lleva el número
+  del adjunto («adjunto 42») para que Brian se lo pase a las herramientas.
 * **Word** `.docx` (texto de párrafos y tablas), **PDF** (texto), texto/CSV/JSON/Markdown.
 * Protegidos con contraseña o dañados: mensaje amable, la conversación sigue.
 * **Fotos**: se ajustan para el modelo (lado mayor ≤ 1568 px, JPEG calidad 85 o PNG si tiene
   transparencia, ≤ 5 MB) sin tocar el adjunto original. Formatos que PIL no abre (p. ej. HEIC)
   reciben un aviso: mándala como JPG o PNG.
+
+## Importar productos desde el Excel de un proveedor
+
+Para el inventario nuevo: se le manda a Brian el Excel del proveedor (chat o Telegram) y se le
+pide «carga estos productos». Tres herramientas, mismo catálogo en los tres canales:
+
+| Herramienta | Nivel | Quién | Qué hace |
+|---|---|---|---|
+| `proponer_importacion(adjunto, hoja?, columna_precio?, modo_itbms?)` | construcción | Vendedora y Gerencia | Lee el Excel y deja un **borrador** `brian.importacion` con la vista previa. No toca productos. |
+| `aplicar_importacion(importacion_id)` | **sensible** | Solo Gerencia | Crea y actualiza los productos (la persona confirma con un clic; desde MCP nunca). |
+| `deshacer_importacion(importacion_id, motivo)` | **sensible** | Solo Gerencia | Revierte una importación aplicada. |
+
+**Lectura** (`models/lector_importacion.py`, funciones puras):
+
+* Encabezado: la fila (entre las 10 primeras) con más columnas reconocidas; título, proveedor y
+  buscador de arriba se ignoran. Roles por el texto del encabezado: Código/SKU/Referencia →
+  `default_code`, Descripción/Nombre → `name`, Medidas → `dcasa_medidas` (con la etiqueta del
+  encabezado, p. ej. «L × A × Alto: 228 × 223 × 120 cm»; un «Queen» sin números no son medidas),
+  Tamaño (o el nombre) → atributo Tamaño, Categoría (o el nombre) → categoría con las reglas de
+  `dcasa_catalogo/reglas.py`.
+* Precio: la primera columna que dice «precio» (nunca «costo»), o la que se pida con
+  `columna_precio` (letra o encabezado). Si hay otras, la vista previa las nombra. Los números
+  se redondean a 2 decimales (`259.98999999999998` → 259.99); «$—», texto o vacío = sin precio
+  (no se importa); una fórmula sin valor guardado se avisa, no se calcula.
+* Filas de totales al pie («TOTAL») no son productos.
+* **Fotos incrustadas**: cada imagen flotante (`ws._images`) se asigna a la fila que cubre la
+  mayor parte de su alto, calculado con el alto real de cada fila (en el catálogo LTSC-07 dos
+  fotos empiezan al final de la fila anterior y se corrigen solas). Una foto que cruza dos filas
+  por igual, que cae fuera de la tabla o que comparte fila con otra **no se asigna**: se avisa.
+  Se guarda normalizada (lado mayor ≤ 1920 px; JPEG calidad 85, o PNG si tiene transparencia).
+  Las imágenes *dentro* de celdas de Excel 365 todavía no se leen (se avisa).
+
+**Decisión por fila** (crear / actualizar / omitir):
+
+* Se empareja por `default_code` exacto, sin espacios y sin distinguir mayúsculas (también
+  contra archivados).
+* Omite (con motivo): sin código, **código repetido en el archivo** (todas sus filas, hasta que
+  se corrija), sin precio o precio ≤ 0, varios productos con ese código en Odoo, producto
+  archivado, código de una variante de un producto con varios tamaños, o sin cambios.
+* Crear: con las reglas del catálogo (`valores_producto_nuevo` de `dcasa_catalogo`):
+  inventariable, existencias sin confirmar, ITBMS 7 % que se suma, categoría interna y de la
+  tienda, tamaño único como atributo, foto y medidas. **Nace sin publicar** (se publica con
+  `publicar_producto_web`, como `crear_producto`).
+* Actualizar: **solo el precio**; medidas y foto se llenan si el producto no tenía. Nombre,
+  categoría, publicación y lo demás no se tocan. Cada línea guarda el *antes* y el *después*.
+* `modo_itbms` es obligatorio en el borrador: `mas_itbms` (D'CASA, por defecto: `list_price` =
+  precio del Excel tal cual, la web muestra «+ ITBMS») o `incluido` (se divide entre 1 + tasa).
+* Avisos de la vista previa: códigos repetidos, sin precio, cambios de precio de más del 30 %
+  (también en la tarjeta de confirmación), productos nuevos sin foto, fotos sin asignar, otras
+  columnas de precio, encabezado de precio que menciona el ITBMS.
+
+**Aplicar** corre como el usuario (sin sudo), línea por línea con savepoint: una línea con error
+queda marcada y las demás siguen. Si un código apareció entre la vista previa y la confirmación,
+esa línea da error (no duplica). Una importación se aplica una sola vez.
+
+**Deshacer**: lo creado se **borra** si nadie lo usó (ni ventas, ni inventario, ni facturas, ni
+compras, ni está publicado); si no, se **archiva**. Lo actualizado vuelve a su valor anterior
+**solo si sigue como lo dejó la importación** (un precio cambiado a mano después se respeta y se
+reporta).
+
+**Registro**: `brian.importacion` y `brian.importacion.linea` (Brian › Importaciones de
+productos). ACL de solo lectura: nadie los escribe por RPC; los escribe el sistema después de
+comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan métodos públicos
+(superficie RPC sin cambios).
 
 ## Configuración
 

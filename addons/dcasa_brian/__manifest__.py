@@ -21,6 +21,7 @@ incluso con modelos pequeños. Ver docs/BRIAN.md.
         'views/brian_views.xml',
         'security/telegram_security.xml',
         'views/telegram_views.xml',
+        'views/importacion_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

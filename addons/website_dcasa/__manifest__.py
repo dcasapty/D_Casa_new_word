@@ -16,12 +16,16 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
   opiniones reales de Google en una cinta en movimiento (data/resenas.json).
 * Categorías de la tienda (Salas, Recámaras, Colchones, Zapateras, Estantes y
   organización, Oficina, y otras que la tienda oculta mientras no tengan productos).
+* Fotos de producto en WebP (y JPEG de respaldo) al ancho justo: ``/dcasa/img/...``,
+  generadas una vez y cacheadas un año en el borde (models/imagen.py).
 * Enlaces al programa Socios D'CASA (/socios): puntos, referidos y premios.
+* Black Weekend: banda en la portada, página /black-weekend y etiqueta en las tarjetas de los
+  productos marcados, solo dentro de la ventana de la campaña (models/black_weekend.py).
 
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.8.0',
+    'version': '19.0.1.10.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -29,11 +33,13 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
     'depends': ['dcasa_base', 'dcasa_socios', 'website_sale'],
     'data': [
         'security/dcasa_roles_website.xml',
+        'security/ir.model.access.csv',
         'data/website_data.xml',
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
         'views/layout_templates.xml',
         'views/resenas_templates.xml',
+        'views/black_weekend_templates.xml',
         'views/homepage_templates.xml',
         'views/paginas_templates.xml',
         'views/legal_templates.xml',
@@ -41,6 +47,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/tienda_data.xml',
         'views/tienda_templates.xml',
         'data/seo_data.xml',
+        'data/black_weekend_data.xml',
     ],
     'assets': {
         'web._assets_primary_variables': [

@@ -50,6 +50,12 @@
 #   ODOO_LIMIT_MEMORY_SOFT / ODOO_LIMIT_MEMORY_HARD  bytes de memoria VIRTUAL (ver odoo.conf).
 #   DB_REINTENTOS         intentos de conexión a PostgreSQL al arrancar (por defecto 20, cada 3 s).
 #   ODOO_DESINSTALAR_SOBRANTES  0 para no desinstalar los módulos sobrantes.
+#   DCASA_STOCK_PRUEBA    unidades de prueba por producto sin existencias ni movimientos
+#                         (solo con DCASA_ENTORNO=staging; por defecto 10). En producción
+#                         siempre 0: ver «2c. Existencias de prueba».
+#   DCASA_BLACK_WEEKEND   1 = Black Weekend visible sin mirar fechas (por defecto 1 en staging,
+#                         0 en producción); DCASA_BLACK_WEEKEND_INICIO / _FIN = ventana
+#                         AAAA-MM-DD en hora de Panamá. Ver «2d. Black Weekend».
 set -euo pipefail
 
 : "${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD (clave del usuario admin de Odoo)}"
@@ -142,7 +148,7 @@ fi
 DB_PORT="${DB_PORT:-5432}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
@@ -335,6 +341,67 @@ if [[ -z "${DCASA_ADJUNTOS_R2_BUCKET:-}" ]]; then
   if ((en_r2 > 0)); then
     echo "⚠ Hay $en_r2 adjuntos en R2 y no hay credenciales de R2: esos archivos no se podrán leer." >&2
   fi
+fi
+
+# --- 2c. Existencias de prueba (solo staging) ----------------------------------
+# dcasa_catalogo.stock_prueba = unidades que recibe cada producto inventariable que nunca
+# tuvo existencias ni movimientos (addons/dcasa_catalogo: aplicar_stock_prueba). Staging:
+# DCASA_STOCK_PRUEBA o 10. Producción: SIEMPRE 0 (no hay existencias inventadas), aunque
+# alguien defina la variable. Se aplica una vez por versión; nunca pisa un conteo real.
+entorno="${DCASA_ENTORNO:-produccion}"
+stock_prueba=0
+if [[ "$entorno" == "staging" ]]; then
+  stock_prueba="${DCASA_STOCK_PRUEBA:-10}"
+elif [[ -n "${DCASA_STOCK_PRUEBA:-}" && "${DCASA_STOCK_PRUEBA}" != "0" ]]; then
+  echo "⚠ DCASA_STOCK_PRUEBA solo vale en staging: en $entorno se ignora (queda en 0)." >&2
+fi
+if [[ ! "$stock_prueba" =~ ^[0-9]+$ ]]; then
+  echo "⚠ DCASA_STOCK_PRUEBA inválido («$stock_prueba»): queda en 0." >&2
+  stock_prueba=0
+fi
+set_param dcasa_catalogo.stock_prueba "$stock_prueba"
+if ((stock_prueba > 0)) \
+  && [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_catalogo'")" == "installed" ]] \
+  && [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_catalogo.stock_prueba_version'")" != "$APP_VERSION" ]]; then
+  echo "▶ Existencias de prueba ($entorno): $stock_prueba unidades a los productos sin existencias ni movimientos"
+  if odoo_shell DCASA_STOCK_OK <<'PY'; then
+from odoo.addons.dcasa_catalogo.catalogo import aplicar_stock_prueba
+print(f'· {aplicar_stock_prueba(env)} productos con existencias de prueba')
+env.cr.commit()
+print('DCASA_STOCK_OK')
+PY
+    set_param dcasa_catalogo.stock_prueba_version "$APP_VERSION"
+  else
+    echo "⚠ No se pudieron poner las existencias de prueba: Odoo arranca igual y se reintenta." >&2
+  fi
+fi
+
+# --- 2d. Black Weekend (addons/website_dcasa/models/black_weekend.py) --------
+# dcasa_black_weekend.activo = 1 muestra la campaña sin mirar fechas (vista previa): staging
+# DCASA_BLACK_WEEKEND o 1; producción DCASA_BLACK_WEEKEND o 0 (se ve solo dentro de la ventana).
+# dcasa_black_weekend.inicio / .fin (AAAA-MM-DD, hora de Panamá, inclusivas) solo se fijan si
+# DCASA_BLACK_WEEKEND_INICIO / _FIN vienen definidas: vacías, se respeta lo que haya en Odoo.
+# El cron horario de dcasa_tienda_borde nota el cambio y regenera la tienda del borde.
+if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'website_dcasa'")" == "installed" ]]; then
+  bw_activo=0
+  [[ "$entorno" == "staging" ]] && bw_activo=1
+  bw_activo="${DCASA_BLACK_WEEKEND:-$bw_activo}"
+  if [[ "$bw_activo" != "0" && "$bw_activo" != "1" ]]; then
+    echo "⚠ DCASA_BLACK_WEEKEND inválido («$bw_activo»): queda en 0." >&2
+    bw_activo=0
+  fi
+  set_param dcasa_black_weekend.activo "$bw_activo"
+  for bw_lado in INICIO FIN; do
+    bw_variable="DCASA_BLACK_WEEKEND_$bw_lado"
+    bw_fecha="${!bw_variable:-}"
+    [[ -z "$bw_fecha" ]] && continue
+    if [[ "$bw_fecha" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && date -d "$bw_fecha" +%F >/dev/null 2>&1; then
+      set_param "dcasa_black_weekend.${bw_lado,,}" "$bw_fecha"
+    else
+      echo "⚠ $bw_variable inválida («$bw_fecha», se espera AAAA-MM-DD): no se cambia." >&2
+    fi
+  done
+  echo "▶ Black Weekend ($entorno): activo=$bw_activo, inicio=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.inicio'"), fin=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.fin'") (hora de Panamá)"
 fi
 
 # --- 3. Saneo del usuario admin (S-04) ----------------------------------------

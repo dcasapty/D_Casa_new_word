@@ -35,7 +35,8 @@
     </template>
 
     <!-- Rendimiento de /shop (auditoría ronda 4): la tarjeta pedía image_1024 (~59 KB) para una
-         foto de ~180 px. Ahora el navegador elige entre 256/512/1024 según `sizes`, la foto lleva
+         foto de ~180 px. Ahora el navegador elige entre 256/512/1024 según `sizes` (en WebP desde
+         /dcasa/img si lo acepta; si no, el JPEG/PNG de Odoo), la foto lleva
          width/height y solo las dos primeras (la fila visible en el celular, donde está la LCP)
          van «eager» con prioridad alta. -->
     <template id="tarjeta_tienda_imagen" inherit_id="website_sale.products_item" name="D'CASA: foto de la tarjeta a su tamaño">
@@ -44,6 +45,7 @@
                 'widget': 'image', 'preview_image': 'image_512',
                 'class': 'oe_product_image_img h-100 w-100', 'width': 512, 'height': 512,
                 'dcasa_srcset': ('image_256', 'image_512', 'image_1024'),
+                'dcasa_webp': True,
                 'dcasa_sizes': dcasa_img_sizes or '(min-width: 1200px) 300px, (min-width: 992px) 25vw, (min-width: 768px) 33vw, 46vw',
                 'dcasa_prioridad': dcasa_img_prioridad or False,
             }</attribute>
@@ -53,6 +55,7 @@
                 'widget': 'image', 'preview_image': 'image_512',
                 'class': 'oe_product_image_img_secondary h-100 w-100', 'width': 512, 'height': 512,
                 'dcasa_srcset': ('image_256', 'image_512', 'image_1024'),
+                'dcasa_webp': True,
                 'dcasa_sizes': dcasa_img_sizes or '(min-width: 1200px) 300px, (min-width: 992px) 25vw, (min-width: 768px) 33vw, 46vw',
                 'dcasa_prioridad': False,
             }</attribute>

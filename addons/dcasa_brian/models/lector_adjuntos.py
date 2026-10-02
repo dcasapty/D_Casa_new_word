@@ -112,8 +112,8 @@ def _hoja(nombre, filas, total_filas, total_columnas, presupuesto, imagenes=0):
     """
     lineas = [f'### Hoja «{nombre}» ({total_filas} filas × {total_columnas} columnas)']
     if imagenes:
-        lineas.append('(1 imagen incrustada: Brian aún no la ve.)' if imagenes == 1 else
-                      f'({imagenes} imágenes incrustadas: Brian aún no las ve.)')
+        lineas.append(('(1 imagen incrustada' if imagenes == 1 else f'({imagenes} imágenes incrustadas')
+                      + ': no las ves, pero proponer_importacion pone cada una como foto del producto de su fila.)')
     filas = iter(filas)
     primeras = []
     for fila in filas:

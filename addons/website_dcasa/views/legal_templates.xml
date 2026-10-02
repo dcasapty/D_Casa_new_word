@@ -14,8 +14,8 @@
                         <div class="col-lg-8 offset-lg-2">
                             <p class="o_dcasa_kicker">D'CASA Panamá</p>
                             <h1 class="o_dcasa_display" t-out="titulo"/>
-                            <p class="text-muted">Última actualización: 1 de octubre de 2026</p>
-                            <t t-out="0"/>
+                            <p class="text-muted">Última actualización: <t t-out="actualizado"/></p>
+                            <t t-call="{{ cuerpo }}"/>
                         </div>
                     </div>
                 </section>
@@ -23,10 +23,10 @@
         </t>
     </template>
 
-    <template id="pagina_privacidad" name="D'CASA: política de privacidad">
-        <t t-call="website_dcasa.pagina_legal">
-            <t t-set="titulo">Política de privacidad</t>
-            <t t-set="descripcion">Qué datos guarda D'CASA Panamá, para qué los usa, con quién los comparte (incluida la inteligencia artificial) y cómo ejercer tus derechos.</t>
+    <!-- Cuerpos sin el marco: los usa la página de Odoo (pagina_legal) y la tienda estática del
+         borde (dcasa_tienda_borde los exporta ya renderizados). Título y descripción: PAGINAS_LEGALES
+         en controllers/main.py. -->
+    <template id="privacidad_cuerpo" name="D'CASA: política de privacidad (cuerpo)">
 
             <h2>Quiénes somos</h2>
             <p>D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa Clara,
@@ -94,13 +94,9 @@
 
             <h2>Cambios</h2>
             <p>Si cambiamos esta política, publicamos aquí la versión nueva con su fecha.</p>
-        </t>
     </template>
 
-    <template id="pagina_terminos" name="D'CASA: términos y condiciones">
-        <t t-call="website_dcasa.pagina_legal">
-            <t t-set="titulo">Términos y condiciones</t>
-            <t t-set="descripcion">Cómo funcionan los precios, los pedidos y la atención de D'CASA Panamá en este sitio.</t>
+    <template id="terminos_cuerpo" name="D'CASA: términos y condiciones (cuerpo)">
 
             <h2>Quiénes somos</h2>
             <p>Este sitio es de D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa
@@ -134,6 +130,5 @@
 
             <h2>Ley aplicable</h2>
             <p>Estos términos se rigen por las leyes de la República de Panamá.</p>
-        </t>
     </template>
 </odoo>

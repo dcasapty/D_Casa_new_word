@@ -7,6 +7,7 @@ import {
   autorizado,
   colaDeSalida,
   debeRearrancar,
+  debeRegenerarEnCron,
   handleRequest,
   mismoSecreto,
   politicaDeSueno,
@@ -293,6 +294,11 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(variablesDelContenedor({ DCASA_ENTORNO: "staging" }).DCASA_ENTORNO).toBe("staging");
     expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
     expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
+    expect(variablesDelContenedor({ DCASA_STOCK_PRUEBA: "10" }).DCASA_STOCK_PRUEBA).toBe("10");
+    expect(
+      variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
+    ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });
+    expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
   });
 
   it("detecta los secretos que faltan para arrancar", () => {
@@ -351,6 +357,11 @@ describe("wrangler.jsonc (producción y staging)", () => {
   it("producción 24/7", () => {
     expect(politicaDeSueno(config.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(true);
     expect(config.vars.DCASA_ENTORNO).toBe("produccion");
+    expect(config.vars.DCASA_STOCK_PRUEBA).toBe("0");
+    // Black Weekend en producción: solo dentro de la ventana de la dueña (hora de Panamá).
+    expect(config.vars.DCASA_BLACK_WEEKEND).toBe("0");
+    expect(config.vars.DCASA_BLACK_WEEKEND_INICIO).toBe("2026-10-02");
+    expect(config.vars.DCASA_BLACK_WEEKEND_FIN).toBe("2026-10-11");
   });
 
   it("staging: otro Worker, otra instancia y otro bucket de R2", () => {
@@ -358,6 +369,8 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.name).not.toBe(config.name);
     expect(staging.vars.R2_BUCKET).not.toBe(config.vars.R2_BUCKET);
     expect(staging.vars.DCASA_ENTORNO).toBe("staging");
+    expect(staging.vars.DCASA_STOCK_PRUEBA).toBe("10");
+    expect(staging.vars.DCASA_BLACK_WEEKEND).toBe("1");
     expect(staging.vars.CANONICAL_HOST).not.toBe(config.vars.CANONICAL_HOST);
     const c = contenedor(staging);
     expect(c.instance_type).toBe("basic");
@@ -365,6 +378,27 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.durable_objects.bindings[0].name).toBe("ODOO");
     expect(staging.migrations).toEqual(config.migrations);
     expect(staging).not.toHaveProperty("routes");
+  });
+
+  it("tienda estática: KV por entorno; apagada en producción y encendida en staging", () => {
+    expect(config.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
+    expect(config.env.staging.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
+    expect(config.vars.TIENDA_ESTATICA).toBe("off");
+    expect(config.env.staging.vars.TIENDA_ESTATICA).toBe("on");
+  });
+
+  it("el secreto de la tienda llega al contenedor (Odoo lo usa para el feed y el aviso)", () => {
+    const vars = variablesDelContenedor({ TIENDA_FEED_TOKEN: TOKEN, TIENDA_AVISO_URL: "https://x/__edge/tienda/regenerar" });
+    expect(vars.TIENDA_FEED_TOKEN).toBe(TOKEN);
+    expect(vars.TIENDA_AVISO_URL).toBe("https://x/__edge/tienda/regenerar");
+  });
+
+  it("el cron horario regenera la tienda solo con Odoo ya encendido", () => {
+    expect(debeRegenerarEnCron("encendido", true, TOKEN)).toBe(true);
+    expect(debeRegenerarEnCron("dormido", true, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("despertado", true, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("encendido", false, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("encendido", true, "corto")).toBe(false);
   });
 
   it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {
