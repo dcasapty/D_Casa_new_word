@@ -1,41 +1,43 @@
 /**
  * Caché en el borde del HTML que dibuja Odoo (sin Cloudflare: el almacén es una interfaz; en
- * producción es un namespace de Workers KV, ver src/index.ts).
+ * producción es un namespace de Workers KV, ver src/index.ts y ./almacen.ts).
  *
  * Una sola fuente de diseño: el borde NO dibuja nada. Guarda, byte a byte, la página que Odoo
  * renderiza para un visitante anónimo y se la sirve a los visitantes anónimos. Quien tiene sesión
  * de usuario, carrito, lista de deseos o sesión de socio (cookie `dcasa_personal`, que pone Odoo:
  * addons/dcasa_tienda_borde/models/ir_http.py) pasa directo a Odoo.
  *
+ * Una página guardada nunca debe verse rota: al guardarla se precalientan también sus assets
+ * (./assets.ts: estilos y JS primero; luego fuentes, logo y foto LCP) y se anota en sus metadatos si
+ * los críticos quedaron en el borde (`assets: ok`). Si no quedaron y Odoo no está listo para darlos,
+ * se responde la página de «estamos abriendo» (503) en vez de un HTML sin estilos.
+ *
  * Claves del almacén:
- * - `html:<host><ruta>` → HTML tal como lo dio Odoo, con metadatos `{ t, etag, ct }` (`t` = cuándo
- *   se empezó a pedir a Odoo, ms).
+ * - `html:<host><ruta>` → HTML tal como lo dio Odoo, con metadatos `{ t, etag, ct, assets }` (`t` =
+ *   cuándo se empezó a pedir a Odoo, ms).
  * - `invalidado` → ms de la última invalidación (aviso de Odoo). Una página vale si `t ≥ invalidado`
  *   (el cambio en Odoo se confirmó ≥ 20 s antes del aviso: PAUSA_AVISO de pendiente.py).
  *   Así una invalidación es UNA escritura, sin listar ni borrar claves.
  */
-import { withCacheStatus, type CacheStatus } from "../routing";
+import { respuestaArrancando } from "../arranque";
+import { type CacheStatus, withCacheStatus } from "../routing";
+import {
+  type AlmacenTienda,
+  CABECERA_BORDE,
+  CLAVE_INVALIDADO,
+  type EntradaAlmacen,
+  enSegundoPlano,
+  leerInvalidado,
+  TTL_PAGINA_S,
+  USER_AGENT_RELLENO,
+} from "./almacen";
+import { assetsDe, assetsPresentes, type ContextoAssets, precalentarAssets } from "./assets";
 
-export interface EntradaAlmacen {
-  texto: string;
-  meta?: Record<string, string> | null;
-}
+export type { AlmacenTienda, EntradaAlmacen, EntradaBinaria } from "./almacen";
+export { CABECERA_BORDE, CLAVE_INVALIDADO, TTL_PAGINA_S } from "./almacen";
 
-export interface AlmacenTienda {
-  leer(clave: string): Promise<EntradaAlmacen | null>;
-  /** `ttlSegundos`: KV borra la clave solo pasado ese tiempo (páginas que nadie vuelve a pedir). */
-  escribir(clave: string, texto: string, meta?: Record<string, string>, ttlSegundos?: number): Promise<void>;
-}
-
-export const CLAVE_INVALIDADO = "invalidado";
 export const clavePagina = (host: string, ruta: string) => `html:${host}${ruta}`;
 
-/**
- * Petición: el secreto `TIENDA_FEED_TOKEN` (solo lo manda el Worker al pedir la página para
- * guardarla). Respuesta: `anonimo` si Odoo certifica que la dibujó para un visitante anónimo, sin
- * guardar sesión ni poner cookies. Sin esa marca, no se guarda.
- */
-export const CABECERA_BORDE = "X-Dcasa-Borde";
 /** Cookie que Odoo pone a quien tiene algo propio en la sesión (usuario, carrito, deseos, socio). */
 export const COOKIE_PERSONAL = "dcasa_personal";
 /** El JS de addons/dcasa_tienda_borde lo lee (Navigation Timing) para refrescar el CSRF. */
@@ -43,14 +45,12 @@ export const SERVER_TIMING = "dcasa-borde";
 
 /** Una página guardada se sirve sin preguntar a Odoo durante este tiempo; luego, vieja + refresco. */
 export const FRESCA_MS = 60 * 60 * 1000;
-/** KV borra la página si nadie la pidió en este tiempo (no hace falta borrar nada a mano). */
-export const TTL_PAGINA_S = 7 * 24 * 60 * 60;
 /** Páginas que se piden a Odoo apenas llega una invalidación (las más visitadas). */
 export const RUTAS_PRINCIPALES = ["/", "/shop", "/black-weekend"];
+/** Las que /__edge/health mira para decir si el sitio sobrevive un reinicio (/black-weekend puede no existir). */
+export const RUTAS_VITALES = ["/", "/shop"];
 /** Tope de páginas precalentadas por aviso (el resto se llena con la primera visita). */
 export const MAX_PRECALENTAR = 40;
-
-const USER_AGENT_RELLENO = "dcasa-borde/1 (+cache de paginas)";
 
 export interface DepsPaginas {
   almacen: AlmacenTienda;
@@ -60,6 +60,12 @@ export interface DepsPaginas {
   forward: (request: Request) => Promise<Response>;
   waitUntil?: (promise: Promise<unknown>) => void;
   ahora?: () => number;
+  /**
+   * ¿Odoo está listo para responder? (estado del contenedor, sin despertarlo ni hablarle). Solo se
+   * consulta cuando una página guardada tiene assets críticos que no están en el borde: si Odoo no
+   * está, mejor el 503 amable que una página sin estilos. Sin esta dependencia se sirve siempre.
+   */
+  odooListo?: () => Promise<boolean>;
 }
 
 /** ¿La petición es de alguien con algo propio (o con credenciales)? Entonces va directo a Odoo. */
@@ -115,6 +121,9 @@ interface Pagina {
   ct: string;
 }
 
+/** Metadato `assets` de una página guardada: ¿sus estilos y JS quedaron en el borde al guardarla? */
+export type EstadoAssets = "ok" | "falta";
+
 /** Respuesta al visitante: el HTML de Odoo intacto + validación (ETag) + diagnóstico. */
 function responder(request: Request, pagina: Pagina, estado: CacheStatus): Response {
   const headers = new Headers({
@@ -136,11 +145,16 @@ function responder(request: Request, pagina: Pagina, estado: CacheStatus): Respo
 /**
  * Pide la página a Odoo como anónimo y, si Odoo la certifica, la guarda. Devuelve la página o la
  * respuesta de Odoo tal cual (404, redirección, 503 mientras arranca…), que no se guarda.
+ *
+ * `escritura` termina cuando la página Y sus assets están en el almacén: primero los críticos
+ * (estilos y JS, que deciden `assets: ok|falta`), luego la página, luego fuentes, logo y foto LCP.
+ * Al visitante no se le hace esperar nada de eso (el llamador la deja en segundo plano).
  */
 export async function rellenar(
   url: URL,
   ruta: string,
   deps: DepsPaginas,
+  contexto?: ContextoAssets,
 ): Promise<{ pagina: Pagina; escritura: Promise<void> } | { respuesta: Response }> {
   const inicio = (deps.ahora ?? Date.now)();
   const respuesta = await deps.forward(peticionDeRelleno(url, ruta, deps.token));
@@ -151,27 +165,54 @@ export async function rellenar(
     etag: await etagDe(html),
     ct: respuesta.headers.get("Content-Type") ?? "text/html; charset=utf-8",
   };
-  const escritura = deps.almacen.escribir(
+  return { pagina, escritura: guardarPagina(url, ruta, pagina, inicio, deps, contexto ?? new Map()) };
+}
+
+async function guardarPagina(
+  url: URL,
+  ruta: string,
+  pagina: Pagina,
+  t: number,
+  deps: DepsPaginas,
+  contexto: ContextoAssets,
+): Promise<void> {
+  const assets = assetsDe(pagina.html, url);
+  const criticos = await precalentarAssets(url, assets.criticos, deps, contexto);
+  const estado: EstadoAssets = criticos === assets.criticos.length ? "ok" : "falta";
+  await deps.almacen.escribir(
     clavePagina(url.host, ruta),
-    html,
-    { t: String(inicio), etag: pagina.etag, ct: pagina.ct },
+    pagina.html,
+    { t: String(t), etag: pagina.etag, ct: pagina.ct, assets: estado },
     TTL_PAGINA_S,
   );
-  return { pagina, escritura };
+  await precalentarAssets(url, assets.otros, deps, contexto);
 }
 
-function enSegundoPlano(deps: DepsPaginas, tarea: Promise<unknown>, evento: string, ruta: string): Promise<unknown> {
-  const segura = tarea.catch((error: unknown) =>
-    console.error(JSON.stringify({ evento, ruta, error: String(error) })),
-  );
-  if (deps.waitUntil) deps.waitUntil(segura);
-  return segura;
-}
-
-async function leerInvalidado(almacen: AlmacenTienda): Promise<number> {
-  const entrada = await almacen.leer(CLAVE_INVALIDADO);
-  const valor = Number(entrada?.texto ?? 0);
-  return Number.isFinite(valor) ? valor : 0;
+/**
+ * Una página guardada se sirve solo si el navegador va a poder pintarla: sus estilos y JS deben
+ * estar en el borde o, si no, Odoo debe estar listo para darlos. Con Odoo arrancando (reinicio,
+ * despliegue, caída) y assets que faltan, mejor la página de «estamos abriendo» que una sin estilos.
+ * Barato: si la página se guardó con `assets: ok` no se lee nada más.
+ */
+async function retenerSinAssets(
+  request: Request,
+  url: URL,
+  ruta: string,
+  entrada: EntradaAlmacen,
+  deps: DepsPaginas,
+): Promise<Response | null> {
+  if (entrada.meta?.assets === "ok" || !deps.odooListo) return null;
+  const criticos = assetsDe(entrada.texto, url).criticos;
+  if (criticos.length === 0) return null;
+  try {
+    if (await assetsPresentes(criticos, deps.almacen)) return null;
+  } catch (error) {
+    console.error(JSON.stringify({ evento: "pagina_lectura_fallida", ruta, error: String(error) }));
+    return null;
+  }
+  if (await deps.odooListo().catch(() => false)) return null;
+  console.warn(JSON.stringify({ evento: "pagina_retenida", ruta, motivo: "assets críticos sin guardar y Odoo no listo" }));
+  return withCacheStatus(respuestaArrancando(request), "BYPASS");
 }
 
 /**
@@ -204,6 +245,8 @@ export async function servirPagina(
 
   const t = Number(entrada?.meta?.t ?? NaN);
   if (entrada && Number.isFinite(t) && t >= invalidado) {
+    const retenida = await retenerSinAssets(request, url, ruta, entrada, deps);
+    if (retenida) return retenida;
     const pagina: Pagina = {
       html: entrada.texto,
       etag: entrada.meta?.etag ?? (await etagDe(entrada.texto)),
@@ -211,7 +254,7 @@ export async function servirPagina(
     };
     if ((deps.ahora ?? Date.now)() - t < FRESCA_MS) return responder(request, pagina, "HIT");
     enSegundoPlano(
-      deps,
+      deps.waitUntil,
       rellenar(url, ruta, deps).then(async (r) => {
         if ("pagina" in r) await r.escritura;
         else await r.respuesta.body?.cancel();
@@ -224,7 +267,7 @@ export async function servirPagina(
 
   const resultado = await rellenar(url, ruta, deps);
   if ("pagina" in resultado) {
-    enSegundoPlano(deps, resultado.escritura, "pagina_escritura_fallida", ruta);
+    enSegundoPlano(deps.waitUntil, resultado.escritura, "pagina_escritura_fallida", ruta);
     return responder(request, resultado.pagina, "MISS");
   }
   // Odoo arrancando o con error: esa respuesta (503 amable) vale para el visitante tal cual.
@@ -245,30 +288,80 @@ export function rutasAPrecalentar(rutasDeOdoo: unknown, esRutaGuardable: (ruta: 
   return [...new Set([...RUTAS_PRINCIPALES, ...extra])].filter(esRutaGuardable).slice(0, MAX_PRECALENTAR);
 }
 
-/** Pide a Odoo y guarda las rutas dadas (de a pocas: el contenedor es chico). */
-export async function precalentar(origen: URL, rutas: string[], deps: DepsPaginas, paralelo = 3): Promise<number> {
-  let guardadas = 0;
-  for (let i = 0; i < rutas.length; i += paralelo) {
-    await Promise.all(
-      rutas.slice(i, i + paralelo).map(async (ruta) => {
-        try {
-          const r = await rellenar(origen, ruta, deps);
-          if ("pagina" in r) {
-            await r.escritura;
-            guardadas++;
-          } else {
-            await r.respuesta.body?.cancel();
-          }
-        } catch (error) {
-          console.error(JSON.stringify({ evento: "pagina_precalentar_fallido", ruta, error: String(error) }));
-        }
-      }),
-    );
+/**
+ * Pide a Odoo y guarda las rutas dadas con sus assets (de a pocas: el contenedor es chico). La
+ * primera va sola: sus bundles (los mismos en todo el sitio) quedan en el borde una vez y las demás
+ * los encuentran. Devuelve cuántas páginas se guardaron y cuántos assets distintos se revisaron.
+ */
+export async function precalentar(
+  origen: URL,
+  rutas: string[],
+  deps: DepsPaginas,
+  paralelo = 3,
+): Promise<{ paginas: number; assets: number }> {
+  const contexto: ContextoAssets = new Map();
+  let paginas = 0;
+  const una = async (ruta: string) => {
+    try {
+      const r = await rellenar(origen, ruta, deps, contexto);
+      if ("pagina" in r) {
+        await r.escritura;
+        paginas++;
+      } else {
+        await r.respuesta.body?.cancel();
+      }
+    } catch (error) {
+      console.error(JSON.stringify({ evento: "pagina_precalentar_fallido", ruta, error: String(error) }));
+    }
+  };
+  if (rutas.length) await una(rutas[0]);
+  for (let i = 1; i < rutas.length; i += paralelo) {
+    await Promise.all(rutas.slice(i, i + paralelo).map(una));
   }
-  return guardadas;
+  return { paginas, assets: contexto.size };
 }
 
 /** `TIENDA_ESTATICA`: "on" (también "1", "true", "si") enciende la caché de páginas. */
 export function tiendaActiva(valor?: string): boolean {
   return ["on", "1", "true", "si", "sí"].includes((valor ?? "").trim().toLowerCase());
+}
+
+// ------------------------------------------------------------------ estado (para /__edge/health)
+
+/**
+ * - `completa`: la página está, vale y sus estilos y JS también están → saldría entera del borde
+ *   aunque Odoo estuviera reiniciando;
+ * - `sin_assets`: la página está pero le faltan assets críticos (con Odoo caído daría el 503 amable);
+ * - `vieja`: anterior a la última invalidación (la próxima visita la pide a Odoo);
+ * - `falta`: nadie la ha pedido ni precalentado (o no existe, p. ej. /black-weekend fuera de campaña).
+ */
+export type EstadoPagina = "completa" | "sin_assets" | "vieja" | "falta";
+
+export interface EstadoTienda {
+  rutas: Record<string, EstadoPagina>;
+  /** Las páginas vitales (portada y catálogo) saldrían enteras del borde si Odoo se reiniciara ahora. */
+  sobrevive_reinicio: boolean;
+}
+
+export async function estadoTienda(
+  origen: URL,
+  almacen: AlmacenTienda,
+  rutas = RUTAS_PRINCIPALES,
+  vitales = RUTAS_VITALES,
+): Promise<EstadoTienda> {
+  const invalidado = await leerInvalidado(almacen);
+  const estados = await Promise.all(
+    rutas.map(async (ruta): Promise<[string, EstadoPagina]> => {
+      const entrada = await almacen.leer(clavePagina(origen.host, ruta));
+      if (!entrada) return [ruta, "falta"];
+      const t = Number(entrada.meta?.t ?? NaN);
+      if (!Number.isFinite(t) || t < invalidado) return [ruta, "vieja"];
+      if (entrada.meta?.assets === "ok") return [ruta, "completa"];
+      const criticos = assetsDe(entrada.texto, origen).criticos;
+      const completa = criticos.length === 0 || (await assetsPresentes(criticos, almacen));
+      return [ruta, completa ? "completa" : "sin_assets"];
+    }),
+  );
+  const porRuta = Object.fromEntries(estados);
+  return { rutas: porRuta, sobrevive_reinicio: vitales.every((ruta) => porRuta[ruta] === "completa") };
 }

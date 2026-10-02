@@ -355,6 +355,19 @@ Worker, que da por viejas todas las páginas guardadas y vuelve a pedir la porta
 de Cloudflare pueden tardar ~1-2 min más. Además, ninguna página se sirve sin pedirla de nuevo a
 Odoo pasada una hora.
 
+**Qué pasa si Odoo se reinicia (despliegue, caída, reinicio del host).** El borde guarda, junto con
+cada página, lo que esa página necesita para verse bien: los estilos, el JS, las fuentes, el logo y la
+foto principal. Mientras el contenedor arranca (~1 min), la portada, el catálogo y las fichas que ya
+estaban guardadas salen **enteras** del borde y nadie nota nada; lo que no estaba guardado (una ficha
+que nadie visitó, el carrito, pagar) recibe la página de «Estamos abriendo la tienda», que se recarga
+sola. Si a una página guardada le faltaran los estilos en el borde (p. ej. Odoo no los pudo dar cuando
+se guardó), el borde prefiere mostrar esa misma página de espera antes que una página sin estilos:
+**nunca** debe verse rota. En `https://<sitio>/__edge/health`, el campo `tienda.sobrevive_reinicio`
+dice si en este momento la portada y el catálogo saldrían enteros del borde (`rutas` detalla cada una:
+`completa`, `sin_assets`, `vieja`, `falta`). Tras un despliegue, Odoo avisa al abrir y el borde vuelve
+a guardar las páginas con los estilos nuevos; los viejos se borran solos a los 30 días. Costo: dentro
+de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.md` §5).
+
 **Encenderla:**
 
 1. Cargar el secreto `TIENDA_FEED_TOKEN` (§5: `openssl rand -hex 32`, uno distinto por entorno) en
@@ -363,16 +376,20 @@ Odoo pasada una hora.
    (el primer despliegue crea solo el almacén «TIENDA» de cada entorno).
 3. Desplegar. Staging viene con `TIENDA_ESTATICA = "on"`: abrir `https://<staging>/`, `/shop` y una
    ficha en una ventana privada; la cabecera `X-Dcasa-Cache: HIT` (o `MISS` la primera vez) confirma
-   que salió del borde. Con sesión iniciada debe decir `BYPASS`. Staging nunca se indexa en Google
-   (`X-Robots-Tag: noindex` en todas sus respuestas).
+   que salió del borde, también en el CSS (`/web/assets/…`) y las fuentes de la pestaña Red. Con
+   sesión iniciada la página debe decir `BYPASS`. Staging nunca se indexa en Google (`X-Robots-Tag:
+   noindex` en todas sus respuestas). Prueba de fuego: reiniciar el contenedor (o desplegar) y abrir
+   la portada en el celular mientras arranca: debe verse igual que siempre.
 4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
 **Si algo se ve viejo:** forzar la invalidación
 `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.
 Si el Worker no puede leer el almacén, la página la da Odoo (nunca una página en blanco). Logs:
-eventos `paginas_invalidadas`, `paginas_precalentadas`, `pagina_lectura_fallida`,
-`pagina_escritura_fallida`.
+eventos `paginas_invalidadas`, `paginas_precalentadas` (con cuántas páginas y assets), `pagina_retenida`
+(se dio la página de espera porque faltaban estilos y Odoo no estaba), `pagina_lectura_fallida`,
+`pagina_escritura_fallida`, `asset_lectura_fallida`, `asset_escritura_fallida`,
+`asset_precalentar_fallido`.
 
 ## El sitio se edita por código
 

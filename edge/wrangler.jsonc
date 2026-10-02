@@ -19,9 +19,10 @@
       // que admite snapshots, pero rechaza instance_type, max_instances y constraints, y
       // no sirve con la clase Container. Ver CONTRATO_CONTENEDOR.md → «Política».
       "scheduling_policy": "default",
-      // basic = 1/4 vCPU, 1 GiB, 4 GB de disco. Medido: Odoo + PostgreSQL ≈ 400 MiB de
-      // pico (ronda3/odoo-medicion.md). La imagen debe pesar ≤ 4 GB.
-      "instance_type": "basic",
+      // standard-1 = 1/2 vCPU, 4 GiB, 8 GB de disco (decisión de la dueña, 2026-10-02: ≈ $31/mes
+      // encendido 24/7; la memoria se cobra reservada, la CPU por uso). Odoo + PostgreSQL en
+      // basic (1 GiB) iban justos y 1/4 vCPU hacía lento el panel. Staging sigue en basic.
+      "instance_type": "standard-1",
       // Singleton: nunca dos PostgreSQL escribiendo al mismo repositorio de R2.
       "max_instances": 1,
       // Este de Norteamérica: lo más cercano a Panamá (y al bucket de R2, que debe crearse

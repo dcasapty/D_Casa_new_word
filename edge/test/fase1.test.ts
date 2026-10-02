@@ -337,9 +337,9 @@ describe("wrangler.jsonc (producción y staging)", () => {
   const config = leerWrangler();
   const contenedor = (c: Record<string, any>) => c.containers[0];
 
-  it("producción: basic, singleton, cerca de Panamá, política default", () => {
+  it("producción: standard-1 (decisión de la dueña), singleton, cerca de Panamá, política default", () => {
     const c = contenedor(config);
-    expect(c.instance_type).toBe("basic");
+    expect(c.instance_type).toBe("standard-1");
     expect(c.max_instances).toBe(1);
     expect(c.constraints.regions).toEqual(["ENAM"]);
     expect(c.scheduling_policy).toBe("default");

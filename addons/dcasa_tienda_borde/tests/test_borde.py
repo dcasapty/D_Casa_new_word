@@ -161,3 +161,34 @@ class TestCacheDelBorde(HttpCase):
     def test_el_js_del_csrf_esta_en_el_sitio(self):
         rutas = [r[0] for r in self.env['ir.asset']._get_asset_paths('web.assets_frontend', {})]
         self.assertIn('/dcasa_tienda_borde/static/src/js/borde_csrf.js', rutas)
+
+    def test_assets_para_el_borde_publicos_y_sin_cookies(self):
+        """El Worker guarda también los estilos, el JS y las fuentes que la página referencia
+        (edge/src/tienda/assets.ts), para que una página guardada se vea entera aunque Odoo esté
+        reiniciando. Contrato: pedidos con el secreto y sin cookies, Odoo los da con 200,
+        ``Cache-Control: public`` (los bundles además ``immutable`` un año) y SIN ``Set-Cookie``.
+        """
+        html = self._relleno('/').text
+        # website antepone el id del sitio: /web/assets/<website_id>/<hash>/<bundle>
+        bundles = sorted(set(re.findall(r'/web/assets/(?:\d+/)?[0-9a-f]+/[\w.-]+\.(?:css|js)', html)))
+        self.assertTrue(any(b.endswith('.css') for b in bundles), bundles)
+        self.assertTrue(any(b.endswith('.js') for b in bundles), bundles)
+        fuente = '/website_dcasa/static/src/fonts/anton-latin.woff2'
+        self.assertIn(fuente, html, 'La portada precarga la fuente del titular')
+        for ruta in [*bundles, fuente]:
+            with self.subTest(ruta=ruta):
+                respuesta = self._relleno(ruta)
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertNotIn('Set-Cookie', respuesta.headers, 'Con el secreto, Odoo no guarda sesión')
+                cache = respuesta.headers.get('Cache-Control', '')
+                self.assertIn('public', cache)
+                self.assertNotIn('private', cache)
+                if ruta.startswith('/web/assets/'):
+                    self.assertIn('immutable', cache)
+                    self.assertIn('max-age=31536000', cache)
+        # Sin el secreto y sin cookie de sesión, Odoo pone session_id al bundle: por eso el borde
+        # manda el secreto al precalentar (y, al llenar con la visita, el navegador ya trae su cookie).
+        self.assertIn('session_id', self._relleno(bundles[0], token='').headers.get('Set-Cookie', ''))
+        navegador = requests.Session()
+        self._otro('GET', '/', navegador)
+        self.assertNotIn('Set-Cookie', self._otro('GET', bundles[0], navegador).headers)

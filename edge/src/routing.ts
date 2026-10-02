@@ -99,6 +99,30 @@ const CACHEABLE_PATTERNS = [
   /^\/dcasa\/img\/[^?]*\?(?:.*&)?v=/, // fotos WebP/JPEG al ancho justo, versionadas (website_dcasa/models/imagen.py)
 ];
 
+/** ¿Esta ruta (con query) es un asset que el borde puede guardar? (Además Odoo debe responder "public".) */
+export function esAssetCacheable(rutaYQuery: string): boolean {
+  return CACHEABLE_PATTERNS.some((re) => re.test(rutaYQuery));
+}
+
+/**
+ * Assets cuya URL lleva la versión del contenido: si cambia el archivo, cambia la URL. Son
+ * inmutables (Odoo los manda `max-age=1 año, immutable`): el borde los guarda sin mirar la marca de
+ * invalidación. Los estáticos de los módulos (`/<módulo>/static/…`: fuentes, logo, foto del hero)
+ * NO llevan versión: se guardan igual, pero caducan con cada invalidación.
+ *
+ * - `/web/assets/[<website_id>/]<versión>/<bundle>` (Odoo 19; el módulo website antepone el id del
+ *   sitio; `debug`, `any` y `%` no son versiones).
+ * - `/web/image/<id>-<versión>/…` o `/web/image/…?unique=…`, `/web/content/…?unique=…`.
+ * - `/dcasa/img/…?v=<checksum>` (website_dcasa/models/imagen.py).
+ */
+export function esAssetVersionado(rutaYQuery: string): boolean {
+  const bundle = /^\/web\/assets\/(?:\d+\/)?([^/?]+)\/[^/?]+/.exec(rutaYQuery);
+  if (bundle) return !["debug", "any", "%", "%25"].includes(bundle[1]);
+  if (/^\/web\/image\/\d+-[^/?]+(?:\/|$|\?)/.test(rutaYQuery)) return true;
+  if (/^\/web\/(?:image|content)\/[^?]*\?(?:.*&)?unique=[^&]+/.test(rutaYQuery)) return true;
+  return /^\/dcasa\/img\/[^?]*\?(?:.*&)?v=[^&]+/.test(rutaYQuery);
+}
+
 export function route(url: URL, method: string, canonicalHost?: string): Route {
   if (url.pathname === "/__edge/health") {
     return { kind: "health" };
@@ -126,7 +150,7 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
   }
   const isRead = method === "GET" || method === "HEAD";
   const pathAndQuery = url.pathname + url.search;
-  return { kind: "origin", cacheable: isRead && CACHEABLE_PATTERNS.some((re) => re.test(pathAndQuery)) };
+  return { kind: "origin", cacheable: isRead && esAssetCacheable(pathAndQuery) };
 }
 
 /**

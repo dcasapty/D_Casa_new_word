@@ -1,7 +1,7 @@
 # Contrato Worker ↔ contenedor de Odoo (Fase 1)
 
 Qué espera el borde (`edge/`) de la imagen (`docker/`, `scripts/`) y qué le da. Fase 1,
-opción A: Odoo + PostgreSQL en **un** contenedor `basic`, instancia única, 24/7 en
+opción A: Odoo + PostgreSQL en **un** contenedor (`standard-1` en producción: ½ vCPU, 4 GiB; `basic` en staging), instancia única, 24/7 en
 producción, que restaura la base desde R2 al arrancar. Fuente de verdad del código:
 `src/index.ts` (Durable Object `OdooContainer`) y `src/handler.ts` (lógica con tests).
 
@@ -43,9 +43,9 @@ producción, que restaura la base desde R2 al arrancar. Fuente de verdad del có
 | Cuándo | Qué |
 |---|---|
 | Visita y Odoo listo | Reenvía (con las cabeceras de proxy y seguridad de la Fase 0). |
-| Visita y Odoo apagado/arrancando | Dispara (o reutiliza) un único arranque, espera hasta 8 s y, si no está, responde **503** con `Retry-After: 15`, `Cache-Control: no-store` y una página que se recarga sola (texto plano para POST/Brian/Telegram). |
+| Visita y Odoo apagado/arrancando | Dispara (o reutiliza) un único arranque, espera hasta 8 s y, si no está, responde **503** con `Retry-After: 15`, `Cache-Control: no-store` y una página que se recarga sola (texto plano para POST/Brian/Telegram). Excepción: las páginas públicas guardadas en el borde (§5) salen **enteras** de KV, con sus estilos, JS, fuentes y fotos, sin tocar el contenedor; si a una le faltan los estilos o el JS en KV, también recibe el 503 (nunca una página sin estilos). |
 | Faltan secretos para arrancar | **No** enciende el contenedor; 503 con `Retry-After: 60` y error en el log (`arranque_bloqueado`). |
-| `GET /__edge/health` | JSON `{borde, odoo, contenedor, salud_http?, detalle?, faltan?}`. **200** solo si `/dcasa/salud` dio 2xx; si no, **503** (`odoo`: `arrancando`, `detenido`, `error`, `sin_configurar`). No despierta el contenedor. |
+| `GET /__edge/health` | JSON `{borde, odoo, contenedor, salud_http?, detalle?, faltan?, tienda?}`. **200** solo si `/dcasa/salud` dio 2xx; si no, **503** (`odoo`: `arrancando`, `detenido`, `error`, `sin_configurar`). No despierta el contenedor. `tienda` (si hay KV): `{rutas: {"/": completa·sin_assets·vieja·falta, "/shop": …, "/black-weekend": …}, sobrevive_reinicio}` = si la portada y el catálogo saldrían enteros del borde durante un reinicio (§5); informa, no cambia el código HTTP. |
 | `POST /__edge/respaldo` + `Authorization: Bearer <RESPALDO_TOKEN>` | Respaldo a mano (simulacros). 200 ok · 500 fallo · 409 en curso · 503 Odoo apagado · 401 token malo · 404 si `RESPALDO_TOKEN` no está o tiene < 32 caracteres. Responde al terminar (hasta 14 min). |
 | Otras `/__edge/*` | 404; nunca llegan a Odoo. |
 | Cron `7 * * * *` (cada hora) | Si el contenedor está apagado, lo enciende; si está encendido no hace nada. |
@@ -124,28 +124,64 @@ Rollouts con `max_instances: 1`: un solo paso al 100 %; la instancia vieja recib
 sale, y recién entonces arranca la nueva (https://developers.cloudflare.com/containers/configuration/rollouts/).
 Durante ese hueco las visitas ven el 503 amable.
 
-## 5. Caché de páginas (HTML de Odoo en el borde)
+## 5. Caché de páginas (HTML de Odoo en el borde) y de sus assets
 
 Una sola fuente de diseño: el borde **no dibuja nada**. Guarda, byte a byte, la página que Odoo
 dibuja para un visitante anónimo y se la sirve a los anónimos; quien tiene sesión propia pasa directo
 a Odoo. Reemplaza a la «tienda estática» (plantilla propia del Worker alimentada por un feed), que se
 borró el 2026-10-02 porque no tenía el navbar, el héroe ni el footer del sitio. Código:
-`edge/src/tienda/paginas.ts`, `edge/src/routing.ts` (`rutaEstatica`), `addons/dcasa_tienda_borde`.
+`edge/src/tienda/paginas.ts` (páginas), `edge/src/tienda/assets.ts` (estilos, JS, fuentes, fotos),
+`edge/src/tienda/almacen.ts` (KV), `edge/src/routing.ts` (`rutaEstatica`, `esAssetCacheable`,
+`esAssetVersionado`), `addons/dcasa_tienda_borde`.
+
+**Una página servida desde el borde nunca se ve rota.** El 2026-10-02 la dueña vio la portada sin
+estilos en el celular: el HTML salía al instante de KV, pero los estilos, el JS, las fuentes y las
+fotos los servía Odoo, y el contenedor estaba arrancando (~1 min restaurando desde R2), así que esas
+peticiones recibían el 503 «arrancando». Volverá a pasar en cada despliegue, reinicio de host o caída
+aunque el contenedor sea 24/7. Por eso el borde guarda también los assets, los precalienta junto con
+cada página y, si a una página guardada le faltan los críticos y Odoo no está listo, responde el 503
+amable en vez del HTML sin estilos.
 
 ```
 Visitante GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<slug>, /visitanos,
           /privacidad, /terminos, /black-weekend (sin parámetros salvo utm_*, gclid, fbclid…)
   ├─ con cookie dcasa_personal o Authorization ──────────────▶ Odoo (X-Dcasa-Cache: BYPASS)
   └─ anónimo ─▶ KV html:<host><ruta>
-        ├─ válida (t ≥ invalidado) y < 1 h ──────────────────▶ HIT (Odoo ni se entera)
-        ├─ válida y ≥ 1 h ─▶ STALE: se sirve y se pide otra a Odoo en segundo plano
+        ├─ válida (t ≥ invalidado) ─▶ ¿se puede pintar? (metadato assets=ok: sí, sin leer nada más;
+        │     si no: ¿sus <link rel=stylesheet> y <script> están en KV? sí ─▶ sigue; no ─▶ ¿Odoo listo
+        │     (estado del contenedor, sin HTTP)? sí ─▶ sigue; no ─▶ 503 «arrancando», evento pagina_retenida)
+        │     ├─ < 1 h ───────────────────────────────────────▶ HIT (Odoo ni se entera)
+        │     └─ ≥ 1 h ─▶ STALE: se sirve y se pide otra a Odoo en segundo plano
         └─ no está o es anterior a la invalidación ─▶ MISS: Odoo (sin cookies, X-Dcasa-Borde: <token>)
-              └─ 200 + «X-Dcasa-Borde: anonimo» + sin Set-Cookie ─▶ se guarda y se sirve; si no, Odoo
-Odoo (precio, stock, venta, factura, categoría, ajustes, plantilla, menú, página, tarifa, Black Weekend)
+              └─ 200 + «X-Dcasa-Borde: anonimo» + sin Set-Cookie ─▶ se sirve ya y, en segundo plano:
+                 se leen sus assets del HTML → se precalientan los críticos (estilos, JS) → se escribe la
+                 página con assets=ok|falta → se precalientan fuentes, logo, favicon y foto LCP
+Visitante GET /web/assets/<v>/…, /<módulo>/static/…, /dcasa/img/…?v=, /web/image/…?unique=, /web/content/…?unique=
+  ├─ Range o Authorization ─────────────────────────────────────▶ Odoo (sin caché)
+  └─ KV asset:<ruta?query>
+        ├─ está y vale (con versión en la URL: siempre; sin versión: t ≥ invalidado) ─▶ HIT (304 si el navegador lo tiene)
+        ├─ no está o caducó ─▶ MISS: Odoo (completa, sin If-None-Match)
+        │     ├─ 200 + Cache-Control public (sin private/no-store/no-cache) + sin Set-Cookie ─▶ se guarda 30 d y se sirve
+        │     ├─ 5xx y había copia caducada ─▶ STALE: se sirve la vieja (mejor vieja que rota)
+        │     └─ lo demás (302 a la versión vigente, 404, private, con cookie) ─▶ tal cual (BYPASS), no se guarda
+Odoo (precio, stock, venta, factura, categoría, ajustes, plantilla, menú, página, tarifa, Black Weekend,
+      versión nueva desplegada)
   ──marca──▶ dcasa.tienda.pendiente ──cron (+20 s)──POST /__edge/tienda/regenerar (Bearer)──▶ Worker
 Worker: KV invalidado = ahora (1 escritura) y, ya respondido, pide a Odoo /, /shop, /black-weekend y
-        las fichas que cambiaron (`rutas`, ≤ 30)
+        las fichas que cambiaron (`rutas`, ≤ 30), cada una con sus assets (la primera sola, para que
+        los bundles —iguales en todo el sitio— se pidan una vez; las demás en grupos de 3)
 ```
+
+| Assets | Contrato |
+|---|---|
+| Qué se guarda | Solo rutas de `esAssetCacheable` (`/web/assets/*`, `/<módulo>/static/*`, `/web/image/*`, `/web/content/*?unique=`, `/dcasa/img/*?v=`) y solo si Odoo responde **200**, `Cache-Control: public` sin `private`/`no-store`/`no-cache`, sin `Set-Cookie`, sin `Vary: Cookie`/`*`, sin `Content-Range`, ≤ 24 MiB. Las cabeceras de Odoo (`Content-Type`, `Cache-Control`, `ETag`, `Last-Modified`, `Content-Disposition`, CSP) se guardan en los metadatos y se devuelven tal cual: el navegador cachea lo que Odoo dijo. |
+| Con versión en la URL (`esAssetVersionado`) | `/web/assets/[<website_id>/]<hash7>/<bundle>` (el módulo website antepone el id del sitio; no `debug`/`any`), `/web/image/<id>-<v>/…`, `?unique=`, `?v=`: el contenido de esa URL no cambia nunca → se sirven sin mirar `invalidado`; TTL 30 días desde la última escritura; los bundles de versiones anteriores quedan en KV hasta caducar (nadie los referencia; no estorban). |
+| Sin versión | `/<módulo>/static/…` (fuentes, logo, hero; Odoo: `public, max-age=604800`): válidos si `t ≥ invalidado`. Cambian solo con un despliegue, que invalida (`_dcasa_revisar_version`); se vuelven a pedir con la primera visita o con el precalentado (la fuente y el hero van precargados en la portada). Si caducaron y Odoo da 5xx: se sirve la copia vieja (`STALE`). |
+| Relleno al guardar una página | `assetsDe(html)`: **críticos** = `<link rel="stylesheet" href>` y `<script src|data-src>` (el cargador perezoso de Odoo usa `data-src`); **otros** = `<link rel="preload|icon…" href|imagesrcset>`, `<img loading="eager"|fetchpriority="high" src|srcset>` y los `<source srcset>` de su `<picture>` (≤ 12 por página). Solo mismo origen. Petición: sin cookies, `User-Agent` fijo, `X-Disable-Tracking: 1` y `X-Dcasa-Borde: <token>` (con el secreto Odoo no guarda sesión ni manda `session_id`; sin él, un bundle pedido sin cookie traería `Set-Cookie` y no se guardaría). Un asset ya guardado solo se vuelve a pedir si tiene > 22 días (`RETOCAR_TRAS_MS`): así siempre caduca **después** que cualquier página de 7 días que lo referencie. |
+| Metadato `assets` de la página | `ok` = todos los críticos quedaron en KV al guardarla → una visita HIT no lee nada más. `falta` (Odoo no los dio: 5xx, 302, cookies) → la visita comprueba los críticos en KV (N lecturas, N ≈ 3) y, si faltan, pregunta al Durable Object si Odoo está listo (`listo()`: `container.running && status === healthy`, sin HTTP). |
+| Relleno con la visita | Un asset que el borde no tiene lo trae la petición del navegador (que ya lleva su `session_id`, así que Odoo no pone cookie): se pide completo (sin `If-None-Match`) y el 304 lo arma el borde. Odoo marca `public` solo lo que sirve al usuario público (`Stream.public`); los bundles son `public` para todos (adjuntos públicos). |
+| Nunca | `/web/webclient/translations` (el JS la pide `no-store`), imágenes sin `unique` (`no-cache`), avatares (`private`), peticiones con `Range` o `Authorization`, respuestas con `Set-Cookie`. |
+| Si la caché de páginas está apagada | `TIENDA_ESTATICA=off`: los assets tampoco pasan por KV; queda el camino anterior (Cache API `caches.default`, por centro de datos; en `workers.dev` no guarda). Nada cambia en producción hasta encenderla. |
 
 | Pieza | Contrato |
 |---|---|
@@ -155,22 +191,59 @@ Worker: KV invalidado = ahora (1 escritura) y, ya respondido, pide a Odoo /, /sh
 | Respuesta al visitante | HTML tal cual + `Content-Type` de Odoo, `Cache-Control: no-cache`, `ETag` (304 desde el borde), `Server-Timing: dcasa-borde;desc="HIT"`, `X-Dcasa-Cache: HIT/MISS/STALE/BYPASS`, cabeceras de seguridad y, en staging, `X-Robots-Tag: noindex, nofollow`. Nunca `Set-Cookie`. |
 | Nunca se guarda | `/web*`, `/my*`, `/shop/cart*`, `/shop/checkout`, pago, `/socios`, `/brian`, `/dcasa/*`, búsqueda/filtros/orden (`?search`, `?order`, `?attribute_values`…), POST y todo lo que no esté en la lista de rutas. |
 | `POST /__edge/tienda/regenerar` | `Authorization: Bearer <TIENDA_FEED_TOKEN>`. 200 `{estado, invalidado, precalentar}`; 503 si KV no escribe (Odoo reintenta cada 15 min); 404 sin token (≥ 32) o sin KV. Funciona con la caché apagada. |
-| Claves de KV | `html:<host><ruta>` (valor = HTML; metadatos `{t, etag, ct}`; `expirationTtl` 7 días) e `invalidado` (ms). Una página vale si `t ≥ invalidado`: invalidar es UNA escritura, sin listar ni borrar. `<host>` en la clave: workers.dev y el dominio no se mezclan (canonical, og:url). |
+| Claves de KV | `html:<host><ruta>` (valor = HTML; metadatos `{t, etag, ct, assets}`; `expirationTtl` 7 días), `asset:<ruta?query>` (valor = bytes; metadatos `{t, ct, cc, et, lm, cd?, csp?}`; `expirationTtl` 30 días; sin host: los bytes no dependen de él) e `invalidado` (ms). Una página, o un estático sin versión, vale si `t ≥ invalidado`: invalidar es UNA escritura, sin listar ni borrar. `<host>` en la clave de página: workers.dev y el dominio no se mezclan (canonical, og:url). |
 | `TIENDA_ESTATICA` | `on` = caché de páginas encendida (staging); `off` = todo a Odoo (producción hasta que la dueña lo apruebe). Sin `TIENDA_FEED_TOKEN` válido la caché no existe aunque diga `on`. |
-| KV caído | Lectura que falla → la página la sirve Odoo, como si la caché no existiera. Escritura que falla → solo se registra (`pagina_escritura_fallida`). |
+| KV caído | Lectura que falla → la página (o el asset) la sirve Odoo, como si la caché no existiera. Escritura que falla → solo se registra (`pagina_escritura_fallida`, `asset_escritura_fallida`; KV admite 1 escritura/s por clave: dos visitantes que llenan el mismo bundle a la vez producen un 429 registrado, inofensivo). |
 
-**Almacén: Workers KV, no Cache API (decidido).** Cache API (`caches.default`) es gratis y ~1 ms, pero
-es por centro de datos (cada uno llena su copia pidiéndosela a Odoo), purgar en todos exige la API de
-purga de la zona y en `workers.dev` (staging hoy, sin dominio propio) no guarda nada. KV es global: un
-solo relleno sirve a todos los centros de datos, la invalidación es una escritura y funciona en
-`workers.dev`. Costo (Workers Paid: 10 M lecturas y 1 M escrituras/mes incluidas; luego $0,50/M y
-$5/M, https://developers.cloudflare.com/workers/platform/pricing/, consultado 2026-10-02): cada vista
-anónima = 2 lecturas (`invalidado` + página; con `cacheTtl` 30 s en el centro de datos); cada página
-se escribe como mucho una vez por hora de tráfico (STALE) y una vez por invalidación (~35 precalentadas
-+ las que se visiten). Con ~200 páginas y unas decenas de cambios al día queda dentro de lo incluido
-(≈ $0). Consistencia: una invalidación tarda ≤ ~1-2 min en verse en otros centros de datos (KV
-eventual + `cacheTtl`); en el que la escribió (y precalentó), al instante. Medido local: precio
-cambiado en Odoo → el borde sirve el nuevo a los 24 s (20 s de `PAUSA_AVISO` + cron).
+**Almacén: Workers KV, no Cache API (decidido; también para los assets).** Cache API (`caches.default`)
+es gratis y ~1 ms, pero es por centro de datos (cada uno llena su copia pidiéndosela a Odoo), no
+colapsa peticiones, purgar en todos exige la API de purga de la zona y en `workers.dev` (staging hoy,
+sin dominio propio) no guarda nada (Cloudflare la documenta operativa solo en dominios propios,
+https://developers.cloudflare.com/workers/runtime-apis/cache/, consultado 2026-10-02). KV es global:
+un solo relleno (o precalentado) sirve a todos los centros de datos, la invalidación es una escritura,
+funciona en `workers.dev`, admite valores de 25 MiB (los bundles de Odoo pesan 1-3 MB) y los assets
+comparten la marca `invalidado` y el mismo binding `TIENDA`. Para los assets era la única opción que
+cumple el objetivo: con Odoo caído, lo que no esté en un almacén global simplemente no está. El
+«Workers Caching» nuevo (`[cache] enabled`, caché de lectura por Worker, sí en `workers.dev`) sería un
+frente barato encima de KV para los HIT más calientes, pero no resuelve el problema (un fallo con Odoo
+caído sigue siendo 503) y cambia la facturación de todas las peticiones del Worker: queda para
+después, con medición.
+
+Costo (Workers Paid: 10 M lecturas y 1 M escrituras/mes incluidas, 1 GB; luego $0,50/M lecturas,
+$5/M escrituras y $0,50/GB-mes; cada operación cuenta aunque la sirva la caché de `cacheTtl`;
+https://developers.cloudflare.com/workers/platform/pricing/, consultado 2026-10-02):
+
+- Página: cada vista anónima = 2 lecturas (`invalidado` + página; con `cacheTtl` 30 s en el centro de
+  datos) si la página tiene `assets: ok` (lo normal); si no, +N (≈ 3) lecturas de metadatos.
+- Assets: 1 lectura por asset que el navegador pide y no tiene en su propia caché (+1 de `invalidado`
+  para los estáticos sin versión). Primera visita de un desconocido ≈ 30-40 peticiones (bundles,
+  fuentes, logo, favicon, fotos de la página); visitas siguientes ≈ 0 (Odoo manda `max-age` de 1 año
+  en lo versionado y 7 días en lo estático). Estimación: 5 000 primeras visitas/mes × 40 + 20 000
+  vistas × 2 ≈ 250 000 lecturas/mes (2,5 % de lo incluido).
+- Escrituras: cada asset se escribe una vez por 30 días (o al pasar 22 días si una página nueva lo
+  referencia), los estáticos sin versión además una vez por invalidación (~10 archivos) y cada página
+  como mucho una vez por hora de tráfico (STALE) y una vez por invalidación (~35 precalentadas + las
+  visitadas). Con un despliegue al día (bundles nuevos: 3-4 archivos) y decenas de cambios de precio:
+  < 50 000 escrituras/mes (5 % de lo incluido).
+- Almacenamiento: bundles vivos (≤ 30 versiones × ~3 MB ≈ 90 MB) + ~1 500 variantes de fotos × ~20 KB
+  (≈ 30 MB) + páginas (~200 × ~150 KB ≈ 30 MB) + fuentes/logo ≈ 150 MB < 1 GB.
+- `/__edge/health`: 4-5 lecturas por consulta (con `assets: ok`); un monitor cada minuto ≈ 200 000/mes.
+
+Total estimado ≈ **$0** adicionales (dentro de lo incluido en Workers Paid). Consistencia: una
+invalidación tarda ≤ ~1-2 min en verse en otros centros de datos (KV eventual + `cacheTtl`, que
+también guarda los «no existe»); en el que la escribió (y precalentó), al instante. Medido local:
+precio cambiado en Odoo → el borde sirve el nuevo a los 24 s (20 s de `PAUSA_AVISO` + cron).
+
+**Despliegue y versión (`APP_VERSION`).** Un despliegue cambia los hashes de los bundles. Mientras el
+contenedor nuevo arranca, el borde sigue sirviendo las páginas guardadas con sus bundles **viejos**
+(ambos en KV: el sitio viejo, entero). Al abrir Odoo, `docker/entrypoint.sh` adelanta el cron y
+`_dcasa_revisar_version` (pendiente.py) marca «todo» con motivo `despliegue`: el Worker invalida y
+precalienta `/`, `/shop` y `/black-weekend` con el HTML nuevo, que referencia los bundles nuevos, y
+estos se guardan en la misma corrida (la primera página los pide; Odoo los compila ahí si aún no
+existen, por eso va sola). Los bundles viejos caducan solos a los 30 días. Riesgo: el precalentado
+corre en `waitUntil` (≤ 30 s tras responder): si la compilación de los bundles en el contenedor
+`basic` tarda más, las páginas que no alcanzaron a escribirse se llenan con la primera visita (MISS a
+Odoo, ya arriba) y sus assets detrás; nada se sirve roto.
 
 **Imágenes.** Las fotos de producto salen de `GET /dcasa/img/<modelo>/<id>/<campo>/<ancho>.<webp|jpg>?v=<v>`
 (`addons/website_dcasa/models/imagen.py` y `controllers/imagen.py`), no de `/web/image`: Odoo 19 sirve
@@ -217,4 +290,7 @@ contenedor `basic` de 1/4 vCPU): en producción la ganancia de TTFB debería ser
 **Pendiente:** contador del carrito y menú de usuario en páginas guardadas no hacen falta (quien los
 tiene pasa a Odoo); las visitas servidas desde la caché no llegan a «Visitantes» de Odoo (el
 rastreo de productos vistos sigue por JS); un usuario que ya estaba logueado antes de desplegar esto
-ve UNA página anónima hasta su primera respuesta de Odoo (que le pone la cookie).
+ve UNA página anónima hasta su primera respuesta de Odoo (que le pone la cookie). Con Odoo caído, lo
+que una página guardada pida por JS después de pintarse (`/dcasa/borde/csrf`, JSON-RPC del carrito,
+fotos perezosas de tarjetas que nadie precalentó) sigue recibiendo el 503: la página se ve entera y
+navega entre páginas guardadas, pero no se puede comprar hasta que Odoo vuelva.
