@@ -65,3 +65,16 @@ class TestLibroMayor(SociosCommon):
             self.cliente.dcasa_referido_por_id = otro
         with self.assertRaises(UserError):
             self.cliente.dcasa_referido_por_id = False
+
+
+@tagged('post_install', '-at_install')
+class TestIndicesDeListas(SociosCommon):
+    """Las listas de Socios se ordenan por fecha: sin índice, cada página ordena la tabla entera."""
+
+    def test_fechas_de_orden_con_indice(self):
+        for tabla, columna in (('dcasa_movimiento', 'ocurrido_en'), ('dcasa_compra', 'registrada_en'),
+                               ('dcasa_canje', 'solicitado_en')):
+            self.env.cr.execute(
+                "SELECT 1 FROM pg_indexes WHERE tablename = %s AND indexdef LIKE %s",
+                [tabla, f'%({columna})%'])
+            self.assertTrue(self.env.cr.fetchone(), f'{tabla}.{columna} sin índice')

@@ -12,6 +12,7 @@ const ICONOS = {
     ventas_hoy: "fa-shopping-bag",
     cobrado_hoy: "fa-money",
     cotizaciones: "fa-file-text-o",
+    mis_cotizaciones: "fa-user-o",
     web: "fa-globe",
     por_cobrar: "fa-clock-o",
     entregas: "fa-truck",

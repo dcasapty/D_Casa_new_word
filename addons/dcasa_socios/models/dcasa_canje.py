@@ -71,7 +71,8 @@ class DcasaCanje(models.Model):
     valor = fields.Monetary(readonly=True)
     costo = fields.Monetary(readonly=True)
     estado = fields.Selection(ESTADOS_CANJE, required=True, readonly=True, default='solicitado', index=True)
-    solicitado_en = fields.Datetime(required=True, readonly=True, default=fields.Datetime.now)
+    # index: la lista de canjes se ordena por aquí (_order); sin índice, cada página ordena la tabla entera.
+    solicitado_en = fields.Datetime(required=True, readonly=True, default=fields.Datetime.now, index=True)
     expira_en = fields.Datetime(string='Vence', required=True, readonly=True)
     entregado_en = fields.Datetime(readonly=True)
     entregado_por = fields.Char(readonly=True)

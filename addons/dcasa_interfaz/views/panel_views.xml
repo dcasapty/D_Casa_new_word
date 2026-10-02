@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Panel más rápido y más claro (auditoría ronda 6, docs/auditoria/ronda6/panel.md).
+        Solo vistas, acciones y menús: no cambia permisos (ACL) ni reglas de negocio.
+    -->
+
+    <!-- Transferencias / Entregas: la columna «Transportista» (oculta por defecto) arrastraba
+         allowed_carrier_ids, que se calcula registro por registro (~3 consultas por fila:
+         245 consultas por página). La lista no se edita: sin dominio, ese campo no se pide. -->
+    <record id="vpicktree_sin_transportistas_dcasa" model="ir.ui.view">
+        <field name="name">stock.picking.list.dcasa.panel</field>
+        <field name="model">stock.picking</field>
+        <field name="inherit_id" ref="stock_delivery.vpicktree_view_tree"/>
+        <field name="arch" type="xml">
+            <field name="carrier_id" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Cotizaciones y pedidos: la columna «Actividades» no la usa la tienda (sigue en las
+         columnas opcionales). Queda más ancho para cliente y total. -->
+    <record id="sale_order_list_dcasa_panel" model="ir.ui.view">
+        <field name="name">sale.order.list.dcasa.panel</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <field name="activity_ids" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Clientes: sin «Actividades» ni «País» (todos son de Panamá) por defecto, y sin la columna
+         de avatar: casi ningún cliente tiene foto y cada avatar de letra era una petición al
+         servidor (~50 por página, unos 4 s de servidor la primera vez). Siguen en las opcionales. -->
+    <record id="res_partner_list_dcasa_panel" model="ir.ui.view">
+        <field name="name">res.partner.list.dcasa.panel</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="mail.res_partner_view_tree_inherit_mail"/>
+        <field name="arch" type="xml">
+            <field name="activity_ids" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+            <field name="avatar_128" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+            <field name="country_id" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Productos (Inventario): el costo no sale por defecto en la lista que usa el mostrador;
+         quien lo necesite lo activa en las columnas opcionales. Precio y existencias, sí. -->
+    <record id="product_template_list_dcasa_panel" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.panel</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <field name="standard_price" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Ventas › Cotizaciones abre las cotizaciones abiertas de toda la tienda, no «Mis cotizaciones»:
+         la dueña no cotiza (veía la lista vacía) y en una sola tienda la que atiende retoma la
+         cotización de otra. «Mis cotizaciones» sigue a un clic en los filtros. -->
+    <record id="sale.action_quotations_with_onboarding" model="ir.actions.act_window">
+        <field name="context">{'search_default_draft': 1}</field>
+    </record>
+
+    <!-- Ventas › Clientes: todos los clientes, no solo los que ya tienen factura (el filtro estándar
+         «Facturas de cliente» escondía a quien solo pidió cotización), y «Nuevo» crea una persona,
+         no una empresa: la tienda le vende a personas. Facturación › Clientes queda como Odoo. -->
+    <record id="action_dcasa_clientes" model="ir.actions.act_window">
+        <field name="name">Clientes</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="context">{'res_partner_search_mode': 'customer', 'default_is_company': False}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay clientes</p>
+            <p>Se crean al hacer una cotización o con «Nuevo cliente» en el Inicio.</p>
+        </field>
+    </record>
+    <record id="sale.res_partner_menu" model="ir.ui.menu">
+        <field name="action" ref="action_dcasa_clientes"/>
+    </record>
+
+    <!--
+        Menús que la vendedora no usa: se limitan a quien sí (Gerencia los conserva).
+        Solo cambia lo que se ve en la barra; los permisos de cada modelo siguen iguales.
+    -->
+    <!-- «Sitio web» (editor, SEO, HTML/CSS): solo quien edita el sitio. Ver la tienda sigue en el Inicio. -->
+    <record id="website.menu_website_configuration" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_restricted_editor')])]"/>
+    </record>
+    <!-- Facturación › Proveedores (facturas y pagos a proveedores): contabilidad (Gerencia). -->
+    <record id="account.menu_finance_payables" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('account.group_account_user')])]"/>
+    </record>
+    <!-- Facturación › Reportes (análisis de facturas de toda la tienda): Gerencia. -->
+    <record id="account.menu_finance_reports" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('account.group_account_readonly')])]"/>
+    </record>
+    <!-- Variantes sueltas y listas de precios: se trabajan desde el producto; las ajusta Gerencia. -->
+    <record id="sale.menu_products" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('sales_team.group_sale_manager')])]"/>
+    </record>
+    <record id="sale.menu_product_pricelist_main" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('sales_team.group_sale_manager')])]"/>
+    </record>
+    <record id="stock.product_product_menu" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('stock.group_stock_manager')])]"/>
+    </record>
+
+    <!-- Se repite en cada actualización: ajustes del panel que no son vistas ni menús. -->
+    <function model="dcasa.tablero" name="_dcasa_configurar_panel"/>
+</odoo>

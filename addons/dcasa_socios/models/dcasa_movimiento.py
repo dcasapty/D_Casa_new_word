@@ -30,7 +30,9 @@ class DcasaMovimiento(models.Model):
 
     partner_id = fields.Many2one('res.partner', string='Socio', required=True, readonly=True,
                                  index=True, ondelete='restrict')
-    ocurrido_en = fields.Datetime(string='Fecha', required=True, readonly=True, default=fields.Datetime.now)
+    # index: el libro se lista y se filtra por fecha (_order, cumpleaños del año); es la tabla que más crece.
+    ocurrido_en = fields.Datetime(string='Fecha', required=True, readonly=True, default=fields.Datetime.now,
+                                  index=True)
     tipo = fields.Selection(TIPOS, required=True, readonly=True, index=True)
     puntos = fields.Integer(required=True, readonly=True)
     compra_id = fields.Many2one('dcasa.compra', string='Compra', readonly=True, index='btree_not_null',
