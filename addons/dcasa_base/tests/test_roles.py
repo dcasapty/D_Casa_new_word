@@ -32,7 +32,7 @@ class TestRoles(TransactionCase):
         implicados = gerencia.all_implied_ids
         for xmlid in ('dcasa_base.group_vendedora', 'sales_team.group_sale_manager', 'account.group_account_user',
                       'account.group_account_invoice', 'stock.group_stock_manager',
-                      'purchase.group_purchase_manager'):
+                      'purchase.group_purchase_manager', 'product.group_product_manager'):
             self.assertIn(self.env.ref(xmlid), implicados, xmlid)
         for xmlid in ('base.group_system', 'base.group_erp_manager', 'account.group_account_manager'):
             self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)

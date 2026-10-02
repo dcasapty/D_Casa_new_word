@@ -31,3 +31,25 @@ Con un Excel o fotos nuevas: `python scripts/importar_catalogo.py` (necesita `op
 `Pillow`), commit, y en la base `odoo-bin shell` →
 `from odoo.addons.dcasa_catalogo.catalogo import cargar_catalogo; cargar_catalogo(env); env.cr.commit()`.
 Solo crea los códigos que falten: lo que se cambió en Odoo (precios, fotos, textos) no se pisa.
+
+## Inventario nuevo desde el Excel de un proveedor (Brian)
+
+Para los pedidos nuevos no hace falta el script ni un commit: se le manda a Brian el Excel del
+proveedor (p. ej. «Catálogo LTSC-07»: título arriba, encabezado en la fila 4 y una foto por
+producto en la columna «Imagen») y se le pide cargarlo.
+
+1. `proponer_importacion` arma la vista previa: qué se crea, qué cambia de precio (antes →
+   después), qué se omite y por qué, y con qué foto. No toca nada.
+2. Gerencia revisa los avisos (códigos repetidos, sin precio, cambios de más del 30 %) y aplica
+   con `aplicar_importacion` (confirmación con un clic).
+3. Los productos nuevos siguen las mismas reglas de esta carga (`valores_producto_nuevo` y
+   `reglas.py`, compartidas con `scripts/importar_catalogo.py`): precio del Excel tal cual,
+   **sin ITBMS** (`modo_itbms = mas_itbms`), ITBMS 7 % que se suma, categoría y tamaño según el
+   nombre, foto del Excel. Nacen **sin publicar**: se publican uno a uno con Brian
+   (`publicar_producto_web`) o desde el producto, después de revisar nombre y fotos.
+4. Si algo salió mal: `deshacer_importacion` (borra lo creado que nadie usó, archiva lo demás y
+   devuelve los precios anteriores que nadie haya cambiado a mano).
+
+Detalle técnico: `docs/BRIAN.md` › «Importar productos desde el Excel de un proveedor».
+Los precios de combo (cama + colchón) de esos Excel son fórmulas sobre la tabla de colchones y
+no se importan: el combo se escribe a mano en «Precio en combo o el par» si se quiere mostrar.

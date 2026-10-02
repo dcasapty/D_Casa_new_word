@@ -45,7 +45,8 @@
         Gerencia: todo lo de Vendedora más el control de la tienda: Ventas administrador
         (reportes antifraude, descuentos sin tope, ajustes de puntos), contabilidad completa
         (sin la configuración avanzada de account.group_account_manager), Inventario y Compras
-        administrador. El sitio web (diseñador/editor) lo añade website_dcasa.
+        administrador, y crear productos (product.group_product_manager: el catálogo y la
+        importación de Excel de proveedores con Brian). El sitio web (diseñador/editor) lo añade website_dcasa.
         No incluye Ajustes técnicos ni gestión de usuarios (base.group_system / group_erp_manager).
     -->
     <record id="group_gerencia" model="res.groups">
@@ -59,6 +60,7 @@
             (4, ref('account.group_account_user')),
             (4, ref('stock.group_stock_manager')),
             (4, ref('purchase.group_purchase_manager')),
+            (4, ref('product.group_product_manager')),
         ]"/>
         <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
     </record>

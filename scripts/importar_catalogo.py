@@ -39,22 +39,15 @@ REPORTE = RAIZ / 'docs' / 'CATALOGO_REVISAR.md'
 # fotos con problemas). Se editan a mano; el importador solo las aplica.
 FICHAS = MODULO / 'data' / 'fichas.json'
 
+# Categorías y tamaños: las mismas reglas que usan Odoo y la importación de Brian.
+sys.path.insert(0, str(MODULO))
+from reglas import categoria_de_nombre  # noqa: E402
+
 LADO_MAXIMO = 1600   # px del lado largo: nítido en pantalla y liviano (Odoo guarda hasta 1920)
 CALIDAD = 82
-TAMANOS = ['Twin', 'Full', 'Queen', 'King']
 # Fotos que no sirven de portada (borrosas o casi en blanco): van al final de la galería.
 FOTOS_AL_FINAL = {'clb0119018_1.png'}
 
-# Categoría de la tienda según el nombre del producto (primera regla que coincide).
-CATEGORIAS = [
-    (r'colch', 'colchones'),
-    (r'mueble de tv', 'muebles_tv'),
-    (r'sof[aá]', 'salas'),
-    (r'zapatera', 'zapateras'),
-    (r'escritorio|mesa ajustable', 'oficina'),
-    (r'estante|librero|organizador|mueble de cocina|mueble type', 'organizacion'),
-    (r'cama|camarote|mesa de noche|peinadora|tocador|gavetero', 'recamaras'),
-]
 
 
 def codigo_archivo(codigo):
@@ -82,10 +75,7 @@ def texto_precios(precios):
 
 
 def categoria(nombre):
-    for patron, clave in CATEGORIAS:
-        if re.search(patron, nombre, re.I):
-            return clave
-    return 'organizacion'
+    return categoria_de_nombre(nombre, 'organizacion')
 
 
 def fotos_de(codigo, archivos):
