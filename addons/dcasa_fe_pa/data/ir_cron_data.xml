@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Cola de la factura electrónica: envía lo pendiente y consulta lo que está en proceso.
+         Sin empresas con la FE activa y PAC configurado no hace nada. -->
+    <record id="ir_cron_fe_cola" model="ir.cron">
+        <field name="name">D'CASA: cola de factura electrónica (DGI)</field>
+        <field name="model_id" ref="model_dcasa_fe_documento"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_procesar()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
