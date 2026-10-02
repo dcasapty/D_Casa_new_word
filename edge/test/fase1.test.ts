@@ -298,6 +298,11 @@ describe("contenedor único con PostgreSQL local", () => {
       variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
     ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });
     expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
+    // Las opciones de Brian documentadas como variables (docs/BRIAN.md) llegan al contenedor.
+    expect(variablesDelContenedor({ BRIAN_ESFUERZO: "medium", BRIAN_CACHE: "0" })).toMatchObject({
+      BRIAN_ESFUERZO: "medium",
+      BRIAN_CACHE: "0",
+    });
   });
 
   it("detecta los secretos que faltan para arrancar", () => {

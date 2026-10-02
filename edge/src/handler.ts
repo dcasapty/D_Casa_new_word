@@ -384,6 +384,9 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_MODELO",
   "BRIAN_BASE_URL",
   "BRIAN_HERRAMIENTAS_MAX",
+  // Esfuerzo y caché de prompts de Anthropic (docs/BRIAN.md): sin estas líneas no llegaban a Odoo.
+  "BRIAN_ESFUERZO",
+  "BRIAN_CACHE",
   "BRIAN_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BRIAN_TELEGRAM_SECRETO",

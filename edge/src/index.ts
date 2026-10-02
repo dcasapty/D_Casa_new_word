@@ -59,6 +59,9 @@ export interface Env {
   BRIAN_MODELO?: string;
   BRIAN_BASE_URL?: string;
   BRIAN_HERRAMIENTAS_MAX?: string;
+  /** Anthropic: «effort» (low…max; vacío = el del modelo) y caché de prompts ("0" la apaga). */
+  BRIAN_ESFUERZO?: string;
+  BRIAN_CACHE?: string;
   /** Secreto: clave del proveedor de IA. */
   BRIAN_API_KEY?: string;
   /** Secreto: token del bot de Telegram (@BotFather). */
