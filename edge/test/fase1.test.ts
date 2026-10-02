@@ -384,7 +384,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(config.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
     expect(config.env.staging.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
     expect(config.vars.TIENDA_ESTATICA).toBe("off");
-    expect(config.env.staging.vars.TIENDA_ESTATICA).toBe("on");
+    expect(config.env.staging.vars.TIENDA_ESTATICA).toBe("off");
   });
 
   it("el secreto de la tienda llega al contenedor (Odoo lo usa para el feed y el aviso)", () => {

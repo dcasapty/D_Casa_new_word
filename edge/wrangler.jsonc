@@ -117,8 +117,9 @@
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
         // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
         "ODOO_DORMIR_TRAS": "1h",
-        // Staging ya prueba la tienda estática (y manda X-Robots-Tag: noindex en todo).
-        "TIENDA_ESTATICA": "on"
+        // Apagada el 2026-10-02: su plantilla propia no tenía el diseño del sitio (navbar, héroe,
+        // footer). Vuelve cuando el borde sirva el HTML que dibuja Odoo (mismo diseño, una fuente).
+        "TIENDA_ESTATICA": "off"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }
