@@ -50,6 +50,9 @@
 #   ODOO_LIMIT_MEMORY_SOFT / ODOO_LIMIT_MEMORY_HARD  bytes de memoria VIRTUAL (ver odoo.conf).
 #   DB_REINTENTOS         intentos de conexión a PostgreSQL al arrancar (por defecto 20, cada 3 s).
 #   ODOO_DESINSTALAR_SOBRANTES  0 para no desinstalar los módulos sobrantes.
+#   DCASA_STOCK_PRUEBA    unidades de prueba por producto sin existencias ni movimientos
+#                         (solo con DCASA_ENTORNO=staging; por defecto 10). En producción
+#                         siempre 0: ver «2c. Existencias de prueba».
 set -euo pipefail
 
 : "${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD (clave del usuario admin de Odoo)}"
@@ -334,6 +337,39 @@ if [[ -z "${DCASA_ADJUNTOS_R2_BUCKET:-}" ]]; then
   en_r2="$(sql "SELECT count(*) FROM ir_attachment WHERE store_fname LIKE 'r2://%'")"
   if ((en_r2 > 0)); then
     echo "⚠ Hay $en_r2 adjuntos en R2 y no hay credenciales de R2: esos archivos no se podrán leer." >&2
+  fi
+fi
+
+# --- 2c. Existencias de prueba (solo staging) ----------------------------------
+# dcasa_catalogo.stock_prueba = unidades que recibe cada producto inventariable que nunca
+# tuvo existencias ni movimientos (addons/dcasa_catalogo: aplicar_stock_prueba). Staging:
+# DCASA_STOCK_PRUEBA o 10. Producción: SIEMPRE 0 (no hay existencias inventadas), aunque
+# alguien defina la variable. Se aplica una vez por versión; nunca pisa un conteo real.
+entorno="${DCASA_ENTORNO:-produccion}"
+stock_prueba=0
+if [[ "$entorno" == "staging" ]]; then
+  stock_prueba="${DCASA_STOCK_PRUEBA:-10}"
+elif [[ -n "${DCASA_STOCK_PRUEBA:-}" && "${DCASA_STOCK_PRUEBA}" != "0" ]]; then
+  echo "⚠ DCASA_STOCK_PRUEBA solo vale en staging: en $entorno se ignora (queda en 0)." >&2
+fi
+if [[ ! "$stock_prueba" =~ ^[0-9]+$ ]]; then
+  echo "⚠ DCASA_STOCK_PRUEBA inválido («$stock_prueba»): queda en 0." >&2
+  stock_prueba=0
+fi
+set_param dcasa_catalogo.stock_prueba "$stock_prueba"
+if ((stock_prueba > 0)) \
+  && [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_catalogo'")" == "installed" ]] \
+  && [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_catalogo.stock_prueba_version'")" != "$APP_VERSION" ]]; then
+  echo "▶ Existencias de prueba ($entorno): $stock_prueba unidades a los productos sin existencias ni movimientos"
+  if odoo_shell DCASA_STOCK_OK <<'PY'; then
+from odoo.addons.dcasa_catalogo.catalogo import aplicar_stock_prueba
+print(f'· {aplicar_stock_prueba(env)} productos con existencias de prueba')
+env.cr.commit()
+print('DCASA_STOCK_OK')
+PY
+    set_param dcasa_catalogo.stock_prueba_version "$APP_VERSION"
+  else
+    echo "⚠ No se pudieron poner las existencias de prueba: Odoo arranca igual y se reintenta." >&2
   fi
 fi
 

@@ -29,6 +29,8 @@ export interface Env {
   APP_VERSION?: string;
   /** "produccion" o "staging": el contenedor lo usa para no mezclar respaldos. */
   DCASA_ENTORNO?: string;
+  /** Unidades de prueba por producto sin existencias: "10" en staging, "0" en producción. */
+  DCASA_STOCK_PRUEBA?: string;
   /** Bucket de R2 de los respaldos (uno por entorno). */
   R2_BUCKET?: string;
   /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */

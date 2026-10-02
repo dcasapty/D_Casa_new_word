@@ -99,7 +99,7 @@ clave de cifrado con producción):
 | Variable | `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | ver «Brian» |
 
 En el Worker, `ODOO_ADMIN_PASSWORD` se carga con el nombre `ADMIN_PASSWORD`, y `R2_ENDPOINT` como
-secreto (lleva el Account ID). `R2_BUCKET`, `CANONICAL_HOST`, `DCASA_ENTORNO` y `ODOO_DORMIR_TRAS` son
+secreto (lleva el Account ID). `R2_BUCKET`, `CANONICAL_HOST`, `DCASA_ENTORNO`, `DCASA_STOCK_PRUEBA` (`0` en producción, `10` en staging) y `ODOO_DORMIR_TRAS` son
 `vars` de `edge/wrangler.jsonc`, una sección por entorno. Ya no hay `DB_HOST`/`DB_USER`/`DB_NAME`/
 `DB_PASSWORD` ni Neon: PostgreSQL vive dentro del contenedor y su configuración la decide la imagen.
 

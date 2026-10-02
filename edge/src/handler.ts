@@ -333,6 +333,8 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "APP_VERSION",
   "CANONICAL_HOST",
   "DCASA_ENTORNO",
+  // Existencias de prueba (solo staging; en producción el entrypoint fuerza 0)
+  "DCASA_STOCK_PRUEBA",
   // Adjuntos: «r2» (por defecto, con las credenciales R2_*) o «db» (emergencia; addons/dcasa_adjuntos_r2)
   "DCASA_ADJUNTOS",
   // Respaldo continuo (pgBackRest) y diario (pg_dump) en R2
