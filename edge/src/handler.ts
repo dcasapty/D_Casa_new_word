@@ -379,6 +379,8 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "TURNSTILE_SITE_KEY",
   "TURNSTILE_SECRET",
   "DCASA_TURNSTILE",
+  // Rescate: login al que se le quita el doble factor una vez (docs/SEGURIDAD_ACCESO.md)
+  "DCASA_2FA_RESCATE",
 ] as const;
 
 /**

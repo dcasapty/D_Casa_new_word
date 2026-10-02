@@ -22,6 +22,7 @@ RESULTADOS = [
     ('fallo', 'Clave incorrecta'),
     ('fallo_2fa', 'Código incorrecto'),
     ('enrolado', 'Activó el doble factor'),
+    ('rescate', 'Rescate: doble factor quitado al desplegar'),
 ]
 
 

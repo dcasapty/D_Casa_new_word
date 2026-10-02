@@ -68,6 +68,10 @@
 #   DCASA_ROBOTS_IA       abierta | equilibrada (por defecto) | cerrada: robots.txt para IA.
 #   TURNSTILE_SITE_KEY + TURNSTILE_SECRET  Cloudflare Turnstile en el login y los formularios
 #                         (las dos o ninguna). DCASA_TURNSTILE=off lo apaga (rescate).
+#   DCASA_2FA_RESCATE     RESCATE («break-glass»): login de un usuario que perdió el teléfono.
+#                         Le quita el doble factor UNA vez por versión desplegada (marcador en
+#                         dcasa_seguridad.rescate_hecho). Exige poder desplegar (GitHub/Cloudflare,
+#                         cada uno con su propio 2FA): no abre ninguna puerta nueva. Quitarla después.
 set -euo pipefail
 
 : "${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD (clave del usuario admin de Odoo)}"
@@ -494,6 +498,30 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_seguridad'"
     echo "⚠ Turnstile necesita TURNSTILE_SITE_KEY y TURNSTILE_SECRET juntas: no se cambia nada." >&2
   fi
   unset TURNSTILE_SECRET
+  # Rescate: quitar el doble factor a un usuario que perdió el teléfono (docs/SEGURIDAD_ACCESO.md).
+  if [[ -n "${DCASA_2FA_RESCATE:-}" ]]; then
+    if [[ ! "$DCASA_2FA_RESCATE" =~ ^[A-Za-z0-9@._+-]{1,128}$ ]]; then
+      echo "⚠ DCASA_2FA_RESCATE inválido: no se toca nada." >&2
+    elif [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_seguridad.rescate_hecho'")" \
+      == "$DCASA_2FA_RESCATE:$APP_VERSION" ]]; then
+      echo "⚠ DCASA_2FA_RESCATE sigue puesta («$DCASA_2FA_RESCATE»), ya se usó en esta versión: QUÍTALA." >&2
+    else
+      rescatado="$(sql "UPDATE res_users SET totp_secret = NULL, totp_last_counter = NULL
+        WHERE login = '$DCASA_2FA_RESCATE' AND active RETURNING id")"
+      if [[ -n "$rescatado" ]]; then
+        sql "DELETE FROM auth_totp_device WHERE user_id = $rescatado" >/dev/null
+        sql "INSERT INTO dcasa_seguridad_acceso (login, user_id, resultado, metodo, ip, agente, es_admin,
+               create_date, write_date)
+             VALUES ('$DCASA_2FA_RESCATE', $rescatado, 'rescate', 'despliegue', '', 'DCASA_2FA_RESCATE',
+               false, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC')" >/dev/null
+        echo "⚠ RESCATE: se quitó el doble factor a «$DCASA_2FA_RESCATE». Entra, actívalo de nuevo y" \
+          "QUITA DCASA_2FA_RESCATE del despliegue." >&2
+      else
+        echo "⚠ DCASA_2FA_RESCATE: no hay un usuario activo «$DCASA_2FA_RESCATE»." >&2
+      fi
+      set_param dcasa_seguridad.rescate_hecho "$DCASA_2FA_RESCATE:$APP_VERSION"
+    fi
+  fi
   echo "▶ Seguridad: 2FA obligatorio=$seg_2fa (alcance $seg_alcance), aviso Telegram=$seg_aviso"
 fi
 

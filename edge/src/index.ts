@@ -97,6 +97,8 @@ export interface Env {
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
   DCASA_TURNSTILE?: string;
+  /** Rescate: login que perdió el teléfono; se le quita el 2FA una vez por versión. Quitar después. */
+  DCASA_2FA_RESCATE?: string;
   /** Rate Limiting de Workers (wrangler.jsonc → ratelimits, hoy comentado). Sin ellos: contador en memoria. */
   LIMITE_ACCESO?: RateLimit;
   LIMITE_FORMULARIOS?: RateLimit;
