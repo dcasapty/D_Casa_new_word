@@ -241,3 +241,59 @@ class TestDisenoUniforme(HttpCase):
             'fondo': 'rgba(255, 255, 255, 0.62)', 'texto': 'rgb(27, 34, 51)'}, timeout=120)
         self.browser_js('/socios', codigo_pildora % {
             'fondo': 'rgba(0, 0, 0, 0.26)', 'texto': 'rgb(255, 255, 255)'}, timeout=120)
+
+    def test_cabecera_con_la_pagina_abierta_desplazada(self):
+        """Bug de producción (staging, /visitanos): con la página abierta ya desplazada el borde inferior de
+        la cabecera es negativo y el rootMargin del observador salía "--85px": SyntaxError al construir
+        el IntersectionObserver y el diálogo «¡Vaya! Ocurrió un error» al visitante."""
+        codigo = """
+            (async () => {
+            const fallar = (m) => console.error('Cabecera: ' + m);
+            // El JavaScript del sitio llega en el paquete diferido de Odoo, después del «load».
+            const modulo = '@website_dcasa/js/animaciones';
+            for (let i = 0; i < 400 && !(odoo.loader?.modules?.has(modulo)
+                    && document.body.getAttribute('is-ready') === 'true'); i++) {
+                await new Promise((ok) => setTimeout(ok, 50));
+            }
+            if (!odoo.loader.modules.has(modulo)) {
+                fallar('no cargó ' + modulo);
+                return;
+            }
+            const { margenBajoCabecera } = odoo.loader.modules.get(modulo);
+            const casos = [[-85, '0px 0px 0px 0px'], [-0.4, '0px 0px 0px 0px'], [0, '0px 0px 0px 0px'],
+                           [85.4, '-85px 0px 0px 0px'], [NaN, '0px 0px 0px 0px'], [undefined, '0px 0px 0px 0px']];
+            for (const [piso, esperado] of casos) {
+                const margen = margenBajoCabecera(piso);
+                if (margen !== esperado) fallar(piso + ' da ' + margen + ' (se esperaba ' + esperado + ')');
+                try {
+                    new IntersectionObserver(() => {}, { rootMargin: margen });
+                } catch (e) {
+                    fallar('rootMargin inválido para ' + piso + ': ' + margen + ' (' + e.message + ')');
+                }
+            }
+            // La página real, desplazada hasta el pie y con la cabecera por encima de la pantalla (como
+            // una cabecera aún no fijada tras restaurar el scroll): las interacciones arrancan así.
+            const servicio = odoo.__WOWL_DEBUG__.root.env.services['public.interactions'];
+            const cabecera = document.querySelector('header#top');
+            servicio.stopInteractions(cabecera);
+            document.documentElement.classList.remove('o_dcasa_nav_medida', 'o_dcasa_nav_sobre_foto');
+            cabecera.style.transform = 'translateY(-400px)';
+            window.scrollTo(0, document.body.scrollHeight);
+            const piso = cabecera.getBoundingClientRect().bottom;
+            if (!(piso < 0)) fallar('la prueba no deja la cabecera fuera de pantalla: ' + piso);
+            try {
+                await servicio.startInteractions(cabecera);
+            } catch (e) {
+                fallar('las interacciones de la cabecera no arrancan con la página desplazada: ' + e.message);
+            }
+            await new Promise((ok) => setTimeout(ok, 400));
+            const clases = document.documentElement.classList;
+            if (!clases.contains('o_dcasa_nav_medida')) fallar('el observador de la cabecera no midió');
+            if (clases.contains('o_dcasa_nav_sobre_foto')) {
+                fallar('al pie de la página la píldora no está sobre la foto');
+            }
+            cabecera.style.transform = '';
+            console.log('test successful');
+            })();
+        """
+        self.browser_js('/visitanos', codigo, timeout=120)
