@@ -479,7 +479,9 @@ iniciar_odoo() {
 DCASA_MEMORIA="${DCASA_MEMORIA:-/opt/dcasa/addons/dcasa_base/memoria.py}"
 MEMORIA_TRAS_S="${MEMORIA_TRAS_S:-180}"
 registrar_memoria() {
-  [[ -r "$DCASA_MEMORIA" ]] && python3 "$DCASA_MEMORIA" "$1" 2>/dev/null || true
+  if [[ -r "$DCASA_MEMORIA" ]]; then
+    python3 "$DCASA_MEMORIA" "$1" 2>/dev/null || true
+  fi
 }
 
 echo "▶ Iniciando Odoo ($APP_VERSION) tras $((SECONDS - ENTRYPOINT_T0)) s de arranque"
