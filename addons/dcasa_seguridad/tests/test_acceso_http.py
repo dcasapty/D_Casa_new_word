@@ -6,6 +6,8 @@ from unittest.mock import MagicMock, patch
 from odoo import http
 from odoo.addons.auth_totp.models.totp import hotp
 from odoo.addons.dcasa_seguridad.controllers.enrolar import CLAVE_SESION
+from odoo.addons.dcasa_seguridad.models.ir_http import INICIO
+from odoo.addons.dcasa_seguridad.models.parametros import aplicar_sesiones_admin
 from odoo.addons.dcasa_seguridad.models.res_users import RUTA_ENROLAR, ResUsers
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tests.common import HOST, Opener, get_db_name
@@ -111,6 +113,25 @@ class TestAccesoHttp(HttpCase):
         self.ICP.set_param('cf.turnstile_secret_key', '')
         self.ICP.set_param('cf.turnstile_site_key', '')
         self.assertEqual(self._entrar('http_vendedora', 'http_vendedora').request.path_url, '/odoo')
+
+    def test_sesion_de_admin_vence_desde_el_inicio_aunque_rote(self):
+        self.ICP.set_param('dcasa_seguridad.2fa_obligatorio', '0')
+        aplicar_sesiones_admin(self.env, horas=12, minutos=60)
+        self.assertEqual(self._entrar('http_admin', 'http_admin').request.path_url, '/odoo')
+        sid = self.opener.cookies['session_id']
+        sesion = http.root.session_store.get(sid)
+        self.assertTrue(sesion.get(INICIO))
+        # 11 h después de entrar, recién rotada (Odoo pone create_time en cero): sigue dentro.
+        sesion[INICIO] = time.time() - 11 * 3600
+        sesion['create_time'] = time.time()
+        http.root.session_store.save(sesion)
+        self.assertEqual(self.url_open('/odoo').request.path_url, '/odoo')
+        # 13 h después de entrar, aunque haya rotado hace un minuto: a iniciar sesión otra vez.
+        sesion = http.root.session_store.get(self.opener.cookies['session_id'])
+        sesion[INICIO] = time.time() - 13 * 3600
+        sesion['create_time'] = time.time() - 60
+        http.root.session_store.save(sesion)
+        self.assertTrue(self.url_open('/odoo').request.path_url.startswith('/web/login'))
 
     def test_robots_txt_con_politica_de_ia(self):
         self.ICP.set_param('dcasa_seguridad.robots_ia', 'equilibrada')

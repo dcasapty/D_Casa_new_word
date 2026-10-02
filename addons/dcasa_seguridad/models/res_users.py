@@ -9,6 +9,7 @@ factor. Con la app enrolada, Odoo deja de aceptar la CLAVE del usuario por RPC
 """
 import logging
 import threading
+import time
 from datetime import datetime, timedelta
 
 import pytz
@@ -19,6 +20,7 @@ from odoo.http import request
 from odoo.modules.registry import Registry
 
 from .acceso import en_pruebas
+from .ir_http import INICIO as INICIO_SESION
 from .parametros import ALCANCES, BLOQUEO_TOPE_S, activo, entero, param
 
 _logger = logging.getLogger(__name__)
@@ -166,6 +168,9 @@ class ResUsers(models.Model):
     @api.model
     def _dcasa_tras_exito(self, auth_info, tipo):
         usuario = self.browse(auth_info['uid']).sudo()
+        if request:
+            # Inicio real de la sesión (la rotación de Odoo lo conserva): models/ir_http.py.
+            request.session[INICIO_SESION] = time.time()
         es_admin = usuario._is_system()
         self.env['dcasa.seguridad.acceso']._registrar({
             'login': usuario.login, 'user_id': usuario.id, 'resultado': 'ok',

@@ -146,7 +146,9 @@ de Cloudflare › Zero Trust › Access › Applications, deshabilita la aplicac
 - **Sesiones de administrador** (`auth_timeout`, grupo Administración/Ajustes): cierre a las 12 h
   (`DCASA_SESION_ADMIN_HORAS`), bloqueo de pantalla tras 60 min sin uso
   (`DCASA_INACTIVIDAD_ADMIN_MIN`). Se ajusta también en Ajustes › Usuarios › Grupos ›
-  Administración / Ajustes. Vendedoras, portal y socios no cambian.
+  Administración / Ajustes. Vendedoras, portal y socios no cambian. Las 12 h se cuentan desde que
+  entraste (`models/ir_http.py`): el `auth_timeout` de Odoo solo las contaría desde la última
+  rotación de la sesión (cada 3 h), y quien usa el panel sin parar nunca saldría.
 - **Borde** (`edge/src/routing.ts`): HSTS, `X-Content-Type-Options`, `Referrer-Policy`,
   `X-Frame-Options: SAMEORIGIN` y `Content-Security-Policy: frame-ancestors 'self'` (sin pisar la
   CSP que mande Odoo). `/web/database/*`, `/jsonrpc`, `/xmlrpc`, `/json/2` y `/doc-bearer`
