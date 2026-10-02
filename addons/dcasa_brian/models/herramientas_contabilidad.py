@@ -711,7 +711,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         cierre.action_cerrar()
         return {'mensaje': f'{cierre.name} cerrado: nadie puede publicar ni cambiar asientos hasta el '
                            f'{c.fecha(cierre.fecha_fin)}' + (' (ITBMS incluido)' if cierre.bloquear_itbms else '')
-                           + '. Para reabrirlo: Contabilidad › Cierre de mes, con el motivo.',
+                           + '. Para reabrirlo: Facturación › Cierre de mes, con el motivo.',
                 'avisos': [f'{p.name}: {p.detalle}' for p in cierre.paso_ids if p.estado == 'aviso'],
                 'abrir': {'modelo': 'dcasa.cierre.mes', 'res_id': cierre.id, 'titulo': cierre.name}}
 
