@@ -1,6 +1,6 @@
 # Despliegue en Cloudflare
 
-Arquitectura elegida (opción A, `docs/auditoria/DECISION_Y_PLAN.md`): **un Container `basic` de
+Arquitectura elegida (opción A, `docs/auditoria/DECISION_Y_PLAN.md`): **un Container (`standard-1` en producción, `basic` en staging) de
 Cloudflare con Odoo y PostgreSQL 16 adentro**. El disco del contenedor es efímero, así que la base
 vive protegida por **pgBackRest**, que manda el WAL (cada cambio) a un bucket de **R2** de forma
 continua (RPO aceptado ≈ 1 min), más un respaldo lógico diario (`pg_dump` cifrado, 03:17 de Panamá)

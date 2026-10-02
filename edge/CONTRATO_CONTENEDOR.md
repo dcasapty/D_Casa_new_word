@@ -1,7 +1,7 @@
 # Contrato Worker ↔ contenedor de Odoo (Fase 1)
 
 Qué espera el borde (`edge/`) de la imagen (`docker/`, `scripts/`) y qué le da. Fase 1,
-opción A: Odoo + PostgreSQL en **un** contenedor `basic`, instancia única, 24/7 en
+opción A: Odoo + PostgreSQL en **un** contenedor (`standard-1` en producción: ½ vCPU, 4 GiB; `basic` en staging), instancia única, 24/7 en
 producción, que restaura la base desde R2 al arrancar. Fuente de verdad del código:
 `src/index.ts` (Durable Object `OdooContainer`) y `src/handler.ts` (lógica con tests).
 
