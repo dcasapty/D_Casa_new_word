@@ -117,8 +117,9 @@
     </template>
 
     <!-- Filtro de refracción del navbar de vidrio líquido. animaciones.js lo aplica (en línea,
-         con una variable CSS) solo donde backdrop-filter: url() funciona, sobre el vidrio claro.
-         Ronda 6: sin el movimiento del ruido (repintaba sin parar) y sin refracción sobre fotos. -->
+         con una variable CSS) solo donde backdrop-filter: url() funciona, y le agrega el
+         movimiento lento del ruido solo mientras la píldora está sobre la foto (en pausa fuera
+         de ella, con la pestaña oculta y con prefers-reduced-motion). -->
     <template id="layout_filtro_liquido" inherit_id="website.layout" name="D'CASA: filtro de vidrio líquido">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
             <svg class="o_dcasa_filtros" width="0" height="0" aria-hidden="true" focusable="false">

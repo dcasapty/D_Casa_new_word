@@ -465,27 +465,20 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
     }
 }
 
-// Ronda 6: la píldora de /socios en TODAS las páginas. Antes era clara en la tienda, la ficha,
-// el carrito, las legales y la cuenta, y oscura solo sobre una foto: la dueña la veía «distinta
-// en algunas páginas». Ahora es siempre vidrio ahumado en tinta con texto y foco blancos:
-// · sobre fondo claro, casi opaca (tinta al 92 %: blanco sobre ella ≈ 14:1);
-// · sobre una foto o fondo oscuro (hero, cabeceras, Black Weekend), más transparente (66 %),
-//   lo justo para que el texto blanco pase AA aun sobre la parte más clara de la foto
-//   (≥ 4.6:1 sobre blanco puro) y sin el brillo extra del vidrio claro, que lavaba la foto.
-// Antes de que animaciones.js mida (o sin JavaScript), las páginas con la cabecera sobre el
-// contenido ya nacen con la variante sobre foto: sin destello al cargar.
-html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) .o_main_nav::before,
-html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_header_affixed) .o_main_nav::before {
-    background: rgba($dcasa-tinta, .66);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    backdrop-filter: blur(16px) saturate(140%);
-}
-
-#wrapwrap > header#top {
+// Sobre una foto o un fondo oscuro (hero de la portada, cabeceras de página, Black Weekend):
+// vidrio ahumado (texto blanco con contraste AA sobre cualquier parte de la foto), foco blanco
+// y hamburguesa blanca. Es la MISMA píldora líquida (desenfoque, saturación, refracción y filos
+// de luz): solo cambia el tinte del vidrio y el color del texto.
+// · html.o_dcasa_nav_sobre_foto la pone animaciones.js mientras la foto asoma bajo la píldora.
+// · Antes de que animaciones.js mida (o sin JavaScript), las páginas con la cabecera encima del
+//   contenido (o_header_overlay) ya nacen ahumadas: sin destello al cargar (ronda 6).
+// Ronda 6, corrección de la dueña: la píldora es una sola en todo el sitio (logo, menú, carrito,
+// búsqueda, cuenta, «Escríbenos» y este vidrio líquido). La tienda, la ficha y el carrito abren
+// sobre fondo claro: ahí el mismo vidrio va claro, con el texto en tinta.
+html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed),
+html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_header_affixed) {
     .o_main_nav::before {
-        background: rgba($dcasa-tinta, .92);
-        -webkit-backdrop-filter: blur(16px) saturate(140%);
-        backdrop-filter: blur(16px) saturate(140%);
+        background: rgba(#000000, .26);
         border-color: rgba(#FFFFFF, .38);
         box-shadow:
             inset 0 1.5px 0 rgba(#FFFFFF, .55),
@@ -565,12 +558,16 @@ html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_hea
 }
 
 // ---------------------------------------------------------------------------
-// 1. Hero. Dos tratamientos:
-// · Cabeceras de página (.o_dcasa_hero_compacto: socios, visítanos, contacto, legales, cuenta):
-//   foto a sangre sobre negro con la opacidad baja y el título en blanco (el estilo de /socios).
-// · Portada: la foto con sus colores reales, SIN velo (ronda 6: el velo la lavaba), y el texto
-//   en una placa navy plana (ver «Portada» más abajo).
+// 1. Hero: foto a sangre sobre negro, un poco oscurecida, y el texto en blanco ENCIMA de la
+// foto: sin placa ni tarjeta (decisión de la dueña, v2.1 y ronda 6). El azul de marca ya está
+// en la cabecera y los botones: el hero no lo repite.
+// Lo usan la portada y las cabeceras de las páginas interiores (.o_dcasa_hero_compacto).
 // ---------------------------------------------------------------------------
+
+// Velo de la portada: cuánto se oscurece la foto (negro plano detrás; sin degradado ni placa).
+// La dueña la quiere «un poco opaca»: 45 % es el tope del rango acordado (35-45 %). Las
+// cabeceras de página (/socios…) siguen con su foto al 45 % (velo del 55 %), el estilo que le gusta.
+$dcasa-hero-velo: .45;
 
 .o_dcasa_hero {
     position: relative;
@@ -656,66 +653,21 @@ html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_hea
     }
 }
 
-// Portada (ronda 6). La foto se ve con sus colores reales: ni opacidad ni velo. El contraste
-// del texto lo da una placa navy sólida (plana, sin degradado ni sombra): blanco sobre navy
-// 13.6:1 y el CTA amarillo sobre navy, como manda la regla del amarillo.
-// · Escritorio: la placa flota abajo a la izquierda, sobre la foto a sangre.
-// · Celular: primero la foto (bajo la cabecera) y debajo la placa; el texto nunca tapa la foto.
-// El selector no depende de clases nuevas: también sirve a una portada ya editada en el constructor.
+// Portada: velo moderado y texto directamente sobre la foto, también en el celular (la foto
+// va detrás, a sangre; el texto abajo a la izquierda). Un solo selector: sirve igual a una
+// portada ya editada en el constructor.
 .o_dcasa_hero:not(.o_dcasa_hero_compacto) {
-    background: $dcasa-navy;
-
     .o_dcasa_hero_media img {
-        opacity: 1;
+        opacity: 1 - $dcasa-hero-velo;
     }
 
-    .o_dcasa_hero_texto {
-        background: $dcasa-navy;
-        border-radius: $dcasa-radius * 1.5;
-        padding: clamp(1.75rem, 3vw, 2.75rem);
-        max-width: 44rem;
-
-        .o_dcasa_display {
-            font-size: clamp(2.75rem, 5vw, 4.75rem);
-            margin-bottom: 1.25rem;
-        }
-
-        .o_dcasa_ctas {
-            margin-top: 1.75rem;
-        }
-    }
-
-    @media (min-width: 992px) {
-        .o_dcasa_hero_inner {
-            padding-block: clamp(2.5rem, 5vw, 4rem);
-        }
-    }
-
-    @media (max-width: 991.98px) {
-        display: block;
-        min-height: 0;
-        padding-top: 0;
-
-        .o_dcasa_hero_media {
-            position: relative;
-            inset: auto;
-            z-index: auto;
-            height: clamp(21rem, 58svh, 34rem);
-
-            img {
-                object-position: 38% center;
-            }
-        }
-
-        .o_dcasa_hero_inner {
-            padding: 0;
-        }
-
-        .o_dcasa_hero_texto {
-            max-width: none;
-            border-radius: 0;
-            padding: 2rem $dcasa-gutter 2.5rem;
-        }
+    // La foto es clara (sala blanca): con un velo plano moderado el blanco no llega a AA sobre
+    // los puntos más claros. Un halo oscuro y ajustado en las letras (no una sombra dramática)
+    // asegura ese borde de contraste sin placa y sin oscurecer más la foto.
+    .o_dcasa_kicker,
+    .o_dcasa_display,
+    .o_dcasa_hero_sub {
+        text-shadow: 0 1px 2px rgba(#000000, .5), 0 0 1px rgba(#000000, .6);
     }
 }
 
