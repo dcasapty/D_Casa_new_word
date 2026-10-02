@@ -81,6 +81,26 @@ export interface Env {
   TIENDA_FEED_TOKEN?: string;
   /** Opcional: URL a la que Odoo avisa (por defecto https://CANONICAL_HOST/__edge/tienda/regenerar). */
   TIENDA_AVISO_URL?: string;
+  // Seguridad de acceso (addons/dcasa_seguridad, docs/SEGURIDAD_ACCESO.md)
+  /** "1" = el alcance enrola la app de códigos al entrar; "0" (por defecto) = opcional. */
+  DCASA_2FA_OBLIGATORIO?: string;
+  /** "admins" (por defecto) o "internos". */
+  DCASA_2FA_ALCANCE?: string;
+  /** Cierre de sesión (horas) y bloqueo por inactividad (minutos) de los administradores. */
+  DCASA_SESION_ADMIN_HORAS?: string;
+  DCASA_INACTIVIDAD_ADMIN_MIN?: string;
+  /** "0" apaga el aviso por Telegram de inicios de sesión de administrador. */
+  DCASA_AVISO_LOGIN_TELEGRAM?: string;
+  /** robots.txt para IA: "abierta", "equilibrada" (por defecto) o "cerrada". */
+  DCASA_ROBOTS_IA?: string;
+  /** Cloudflare Turnstile: clave pública (variable) y secreto (wrangler secret). "off" en DCASA_TURNSTILE lo apaga. */
+  TURNSTILE_SITE_KEY?: string;
+  TURNSTILE_SECRET?: string;
+  DCASA_TURNSTILE?: string;
+  /** Rate Limiting de Workers (wrangler.jsonc → ratelimits, hoy comentado). Sin ellos: contador en memoria. */
+  LIMITE_ACCESO?: RateLimit;
+  LIMITE_FORMULARIOS?: RateLimit;
+  LIMITE_CARRITO?: RateLimit;
 }
 
 /**
@@ -312,6 +332,7 @@ export default {
         regenerar: env.TIENDA ? () => regenerar(env) : undefined,
       },
       entorno: env.DCASA_ENTORNO,
+      limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO },
     });
   },
 

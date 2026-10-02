@@ -11,6 +11,7 @@ import {
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
+import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
 import { type AlmacenTienda, type ResultadoRegeneracion, servirPaginaEstatica } from "./tienda/servir";
 
 export interface EdgeDeps {
@@ -42,6 +43,11 @@ export interface EdgeDeps {
   };
   /** DCASA_ENTORNO: en "staging" toda respuesta lleva `X-Robots-Tag: noindex`. */
   entorno?: string;
+  /**
+   * Bindings de Rate Limiting de Workers por cubeta (src/bots.ts). Los que falten usan un
+   * contador en memoria del isolate.
+   */
+  limitadores?: Partial<Record<Cubeta, Limitador>>;
 }
 
 export async function handleRequest(request: Request, deps: EdgeDeps): Promise<Response> {
@@ -72,6 +78,10 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
     case "redirect":
       return Response.redirect(decision.location, decision.status);
   }
+
+  // Sondeos, escáneres y ráfagas de POST sensibles: se cortan antes de despertar a Odoo.
+  const rechazo = await filtrarAutomatizados(request, url, deps.limitadores);
+  if (rechazo) return withSecurityHeaders(rechazo);
 
   const estatica = deps.tienda?.activa && deps.tienda.almacen ? rutaEstatica(url, request.method) : null;
   if (estatica && deps.tienda?.almacen) {
@@ -359,6 +369,16 @@ export const VARIABLES_DEL_CONTENEDOR = [
   // el aviso de regeneración; TIENDA_AVISO_URL es opcional (por defecto https://CANONICAL_HOST/…).
   "TIENDA_FEED_TOKEN",
   "TIENDA_AVISO_URL",
+  // Seguridad de acceso (addons/dcasa_seguridad; docker/entrypoint.sh «2e»)
+  "DCASA_2FA_OBLIGATORIO",
+  "DCASA_2FA_ALCANCE",
+  "DCASA_SESION_ADMIN_HORAS",
+  "DCASA_INACTIVIDAD_ADMIN_MIN",
+  "DCASA_AVISO_LOGIN_TELEGRAM",
+  "DCASA_ROBOTS_IA",
+  "TURNSTILE_SITE_KEY",
+  "TURNSTILE_SECRET",
+  "DCASA_TURNSTILE",
 ] as const;
 
 /**

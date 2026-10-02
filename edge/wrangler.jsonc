@@ -68,8 +68,24 @@
     // Vacío = 24/7 (el contenedor no se duerme nunca).
     "ODOO_DORMIR_TRAS": "",
     // Tienda estática: "off" hasta que el dueño la apruebe en staging (todo lo sirve Odoo).
-    "TIENDA_ESTATICA": "off"
+    "TIENDA_ESTATICA": "off",
+    // Doble factor obligatorio (addons/dcasa_seguridad): "0" hasta que la dueña enrole su app
+    // (docs/SEGURIDAD_ACCESO.md, paso 2). Luego "1" y desplegar.
+    "DCASA_2FA_OBLIGATORIO": "0",
+    "DCASA_2FA_ALCANCE": "admins"
+    // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
+    // secreto. Sin las dos, Turnstile queda apagado (docs/SEGURIDAD_ACCESO.md → Turnstile).
   },
+
+  // Límite de intentos por IP en los POST sensibles (edge/src/bots.ts). Rate Limiting de Workers:
+  // no es un recurso que se cree aparte (namespace_id es un número que elegimos, único en la
+  // cuenta) y no tiene costo propio; se activa al desplegar con estas líneas. Mientras sigan
+  // comentadas, el Worker usa un contador en memoria (aproximado). period solo admite 10 o 60.
+  // "ratelimits": [
+  //   { "name": "LIMITE_ACCESO", "namespace_id": "1101", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_FORMULARIOS", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
+  // ],
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
   // "routes": [
@@ -118,7 +134,9 @@
         // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
         "ODOO_DORMIR_TRAS": "1h",
         // Staging ya prueba la tienda estática (y manda X-Robots-Tag: noindex en todo).
-        "TIENDA_ESTATICA": "on"
+        "TIENDA_ESTATICA": "on",
+        "DCASA_2FA_OBLIGATORIO": "0",
+        "DCASA_2FA_ALCANCE": "admins"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

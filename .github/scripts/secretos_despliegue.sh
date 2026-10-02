@@ -10,6 +10,7 @@
 #   R2_ENDPOINT   opcional; por defecto https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 #   TELEGRAM_BOT_TOKEN, BRIAN_TELEGRAM_SECRETO            opcionales: solo si existen
 #   TIENDA_FEED_TOKEN   opcional: tienda estática (feed de Odoo + aviso de regeneración, ≥ 32)
+#   TURNSTILE_SECRET    opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md)
 #   DCASA_PIN_PEPPER, PGBACKREST_CIPHER_PASS              se suben UNA vez (ver abajo)
 #
 # Nombres y obligatoriedad: edge/CONTRATO_CONTENEDOR.md §3.
@@ -88,7 +89,8 @@ UNA_VEZ="${una_vez[*]:-}" jq -n '
       BRIAN_API_KEY: $e.BRIAN_API_KEY,
       TELEGRAM_BOT_TOKEN: $e.TELEGRAM_BOT_TOKEN,
       BRIAN_TELEGRAM_SECRETO: $e.BRIAN_TELEGRAM_SECRETO,
-      TIENDA_FEED_TOKEN: $e.TIENDA_FEED_TOKEN
+      TIENDA_FEED_TOKEN: $e.TIENDA_FEED_TOKEN,
+      TURNSTILE_SECRET: $e.TURNSTILE_SECRET
     }
   + ( ($e.UNA_VEZ | split(" ") | map(select(. != "")))
       | map({key: ., value: $e[.]}) | from_entries )
