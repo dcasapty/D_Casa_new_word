@@ -136,13 +136,19 @@ class TestSitioFase0(HttpCase):
         self.assertRegex(css, r'#o_wsale_products_grid \.oe_product_cart\s*\{\s*contain-intrinsic-size:\s*auto \d+px')
 
     def test_carril_de_la_portada_con_srcset(self):
-        self.env['product.template'].create({
+        mesa = self.env['product.template'].create({
             'name': 'Mesa de prueba', 'list_price': 59.0, 'is_published': True, 'image_1920': self._foto('red'),
             'public_categ_ids': [(6, 0, self.recamaras.ids)],
         })
         html = self.url_open('/').text
-        fotos = re.findall(r'<a[^>]*class="o_dcasa_pcard_media"[^>]*>\s*<img[^>]*>', html)
+        fotos = re.findall(r'<a[^>]*class="o_dcasa_pcard_media"[^>]*>\s*<picture>.*?<img[^>]*>', html, re.S)
         self.assertTrue(fotos)
+        # Con foto: WebP desde /dcasa/img; sin foto, solo la <img> de Odoo (su marcador).
+        con_foto = [f for f in fotos if f'href="{mesa.website_url}"' in f]
+        self.assertTrue(con_foto)
+        self.assertIn('<source type="image/webp"', con_foto[0])
+        self.assertRegex(con_foto[0], r'srcset="/dcasa/img/product\.template/\d+/image_1920/'
+                                      r'256\.webp\?v=\w{12} 256w, [^"]*/512\.webp\?v=\w{12} 512w"')
         for foto in fotos:
             self.assertRegex(foto, r'srcset="[^"]*image_256[^"]* 256w, [^"]*image_512[^"]* 512w"')
             self.assertIn('sizes="', foto)

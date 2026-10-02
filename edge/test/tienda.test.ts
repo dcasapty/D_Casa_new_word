@@ -213,6 +213,43 @@ describe("generador de páginas", () => {
     expect(html).toContain("Mesa &quot;&lt;b&gt;grande&lt;/b&gt;&quot;");
   });
 
+  it("fotos: <picture> con WebP al ancho justo y JPEG de respaldo; solo la LCP sin espera", () => {
+    const feed = feedEjemplo([producto(1), producto(2), producto(3), producto(4)]);
+    const tienda = paginas(feed).get("/shop")!;
+    const fotos = [...tienda.matchAll(/<picture>(.*?)<\/picture>/gs)].map((m) => m[1]);
+    expect(fotos.length).toBeGreaterThanOrEqual(4);
+    for (const foto of fotos) {
+      expect(foto).toMatch(
+        /^<source type="image\/webp" srcset="\/dcasa\/img\/product\.template\/\d+\/image_1920\/256\.webp\?v=0123456789ab 256w, [^"]*\/512\.webp\?v=\w+ 512w, [^"]*\/1024\.webp\?v=\w+ 1024w" sizes="[^"]+">/,
+      );
+      expect(foto).toMatch(/<img src="[^"]*\/512\.jpg\?v=\w+" srcset="[^"]*256\.jpg[^"]* 256w, [^"]*512\.jpg[^"]* 512w, [^"]*1024\.jpg[^"]* 1024w"/);
+      expect(foto).toContain('width="512" height="512"');
+    }
+    expect(fotos.slice(0, 2).every((f) => f.includes('loading="eager" fetchpriority="high"'))).toBe(true);
+    expect(fotos.slice(2).every((f) => f.includes('loading="lazy"') && !f.includes("fetchpriority"))).toBe(true);
+
+    const ficha = paginas(feed).get("/shop/mueble-1-1")!;
+    const lcp = /<div class="galeria"[^>]*><picture>(.*?)<\/picture>/s.exec(ficha)![1];
+    expect(lcp).toContain("/1600.webp?v=0123456789ab 1600w");
+    expect(lcp).toContain('src="/dcasa/img/product.template/1/image_1920/1024.jpg?v=0123456789ab"');
+    expect(lcp).toContain('loading="eager" fetchpriority="high"');
+    expect(ficha).toMatch(/<link rel="preload" as="image" type="image\/webp" imagesrcset="[^"]*512\.webp[^"]*1600\.webp\?v=\w+ 1600w"/);
+  });
+
+  it("galería en WebP y, con un feed de un Odoo anterior, las URL de /web/image", () => {
+    const galeria = { base: "/dcasa/img/product.image/9/image_1920", v: "abcdefabcdef" };
+    const conGaleria = producto(1, { galeria: ["/web/image/product.image/9/image_1024"], galeria_fotos: [galeria] });
+    const ficha = paginas(feedEjemplo([conGaleria])).get("/shop/mueble-1-1")!;
+    expect(ficha).toContain("/dcasa/img/product.image/9/image_1920/1024.webp?v=abcdefabcdef 1024w");
+    expect(ficha.match(/fetchpriority="high"/g)?.length).toBe(2); // la foto LCP y su precarga
+
+    const viejo = producto(2);
+    delete viejo.imagen!.foto;
+    const html = paginas(feedEjemplo([viejo])).get("/shop/mueble-2-2")!;
+    expect(html).not.toContain("<picture>");
+    expect(html).toContain("/web/image/product.template/2/image_1024?unique=abc1234");
+  });
+
   it("legales con el texto de Odoo", () => {
     expect(paginas().get("/privacidad")).toContain("Ley 81 de 2019");
     expect(paginas().get("/terminos")).toContain("no incluyen el ITBMS");

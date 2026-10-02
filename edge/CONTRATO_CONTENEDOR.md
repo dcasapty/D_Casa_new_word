@@ -158,12 +158,39 @@ datos sin agregar Cache API; útil si algún día hay miles de páginas o archiv
 Consistencia: KV es eventual (hasta ~60 s en otros centros de datos) + `cacheTtl` 60 s ⇒ un cambio
 se ve en ≤ ~2 min en el peor caso.
 
-**Imágenes.** Las fotos de producto se piden a `/web/image/product.template/<id>/image_{256,512,1024}?unique=<hash>`
-(las mismas URL que usa Odoo, con `srcset`): Odoo las marca `public, immutable` y el Worker ya las
-guarda en la caché del borde (`CACHEABLE_PATTERNS`); un cambio de foto cambia `unique`. Fuentes y
-fotos del tema salen de `/website_dcasa/static/…` (también cacheadas). Costo: $0. No se usa Cloudflare
-Images (transformaciones: 5 000 únicas/mes gratis, luego $0,50/1 000 — **sin verificar** para este
-volumen) ni variantes AVIF pregeneradas en R2: quedan como mejora si el LCP de la ficha lo pide.
+**Imágenes.** Las fotos de producto salen de `GET /dcasa/img/<modelo>/<id>/<campo>/<ancho>.<webp|jpg>?v=<v>`
+(`addons/website_dcasa/models/imagen.py` y `controllers/imagen.py`), no de `/web/image`: Odoo 19 sirve
+cada foto en el formato en que se subió (sin WebP para quien lo acepta) y, si el original es WebP, no
+lo achica. Contrato:
+
+| Pieza | Regla |
+|---|---|
+| Modelos | `product.template`/`image_1920`, `product.product`/`image_variant_1920` (solo si la variante tiene foto propia; si no, la URL es la de la plantilla), `product.image`/`image_1920`. Otro par: 404. |
+| Ancho y formato | `256`, `512`, `1024`, `1600` × `webp` (calidad 80) o `jpg` (progresivo, 82). Se parte de la foto más grande guardada y **nunca se agranda**; sin metadatos. |
+| Versión `v` | `checksum[:12]` del adjunto de la foto: cambia solo si cambia la foto. Sin `v` o con una vieja: `302` a la vigente (`no-cache`). |
+| Respuesta | `200`, `Cache-Control: public, max-age=31536000, immutable`, `ETag` (304 si coincide), sin `Set-Cookie` (`save_session=False`). El borde la guarda (`CACHEABLE_PATTERNS`, exige `?v=`). |
+| Visibilidad | Solo si la plantilla está publicada en el sitio (`_dcasa_dominio_publicado`) y la variante activa; si no, `404 no-store`. |
+| Generación | Una vez por (foto, ancho, formato): queda en `dcasa.imagen.variante` (adjunto ⇒ R2 con `dcasa_adjuntos_r2`). Al cambiar la foto se borran las de la versión vieja (el objeto de R2 lo recoge el cron de 45 días). Si Pillow no puede (SVG), `302` a `/web/image`. |
+| Feed | `imagen.foto = {base, v}` y `galeria_fotos[]` (además de las URL de `/web/image`, de respaldo), `sitio.imagen_anchos`. |
+| Páginas | Estáticas (`edge/src/tienda/render.ts`) y tarjetas de Odoo (`/shop`, carriles de la portada): `<picture>` con `<source type="image/webp" srcset=…>` + `<img>` JPEG/Odoo con `width/height`, `sizes`; perezosas salvo la LCP (`eager` + `fetchpriority="high"`, y `preload` WebP en la ficha). |
+
+Por qué en Odoo y no en Cloudflare: el **Images binding** del Worker trabaja con bytes, no con URL de zona (en
+`workers.dev`: NO VERIFICADO) y daría AVIF, pero cobra por transformación única (5 000/mes gratis en el plan Free de
+Images; luego hay que pasar a Images Paid, $0,50/1 000 —https://developers.cloudflare.com/images/pricing/,
+consultado 2026-10-02) y en `workers.dev` la caché del Worker no está garantizada (ronda4/rendimiento.md):
+cada visita volvería a bajar la foto de 1920 px del contenedor. Las transformaciones por URL
+(`/cdn-cgi/image`) exigen una zona propia con transformaciones activas: hoy no la hay. Con ~250 productos
+× 3 anchos × 2 formatos (~1 500 variantes) generar en Odoo una sola vez y guardarlas en R2 cuesta $0 y
+no depende del dominio. La imagen de producción (Ubuntu 24.04, Python 3.12 ⇒ Pillow 10.2.0 en rueda)
+tiene WebP pero no AVIF (llega con Pillow 11.2+): AVIF queda para cuando haya dominio (binding o
+transformaciones de zona) si el LCP lo pide.
+
+Medido (2026-10-02, 120 fotos reales de `dcasa_catalogo`, mismo `image_1920`): mediana por foto Odoo
+JPEG → WebP: 256 px 10,0 → 4,4 KB; 512 px 33,6 → 13,4 KB; 1024 px 108,4 → 35,5 KB (total −39 %, −45 %,
+−60 %). El JPEG de respaldo pesa como el de Odoo (±8 %). Lighthouse móvil sobre `/shop` de Odoo con 24
+productos de fotos reales (local, sin Brotli; 3 corridas): imágenes 440 → 197 KB (11 peticiones, el logo
+de 57 KB incluido); el LCP de laboratorio no cambia (~24 s: lo marca el JS/CSS de Odoo sin comprimir).
+Generar una variante: ~0,2 s de un núcleo la primera vez; luego se sirve guardada (~30 ms).
 
 **Medición de laboratorio (2026-10-02).** Feed real de una base con `dcasa_catalogo` (188 productos:
 172 de compra directa, 16 con variantes; feed 352 KB, 0,59 s en Odoo local), 212 páginas generadas

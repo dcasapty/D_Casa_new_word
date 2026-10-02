@@ -123,6 +123,7 @@ describe("route", () => {
       "/web/content/12?unique=abc",
       "/web/content/12-abc/google-font-anton.css?unique=abc",
       "/web/content/12?download=true&unique=abc",
+      "/dcasa/img/product.template/5/image_1920/512.webp?v=0123456789ab",
       "/website_dcasa/static/src/fonts/anton-latin.woff2",
     ]) {
       expect(route(u(path), "GET")).toEqual({ kind: "origin", cacheable: true });
@@ -136,7 +137,12 @@ describe("route", () => {
   });
 
   it("no cachea adjuntos sin versión ni las traducciones del JS", () => {
-    for (const path of ["/web/content/12", "/web/content/12/factura.pdf", "/web/webclient/translations?lang=es_419"]) {
+    for (const path of [
+      "/web/content/12",
+      "/web/content/12/factura.pdf",
+      "/web/webclient/translations?lang=es_419",
+      "/dcasa/img/product.template/5/image_1920/512.webp", // sin versión: Odoo redirige, no se guarda
+    ]) {
       expect(route(u(path), "GET"), path).toEqual({ kind: "origin", cacheable: false });
     }
   });

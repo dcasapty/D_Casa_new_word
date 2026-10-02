@@ -781,6 +781,12 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     flex-direction: column;
 }
 
+// <picture> (WebP con respaldo) no debe crear una caja: la <img> sigue siendo la hija que se mide.
+.o_dcasa_pcard_media > picture,
+.oe_product_image_img_wrapper > picture {
+    display: contents;
+}
+
 .o_dcasa_pcard_media {
     display: block;
     aspect-ratio: 1;

@@ -13,7 +13,7 @@
  * - Fichas con `compra: "ficha"` (atributos a configurar, combos…) no se generan: las sirve Odoo.
  */
 import { CSS, FUENTES } from "./estilo";
-import type { CategoriaFeed, Feed, ProductoFeed } from "./tipos";
+import type { CategoriaFeed, Feed, FotoFeed, ProductoFeed } from "./tipos";
 
 export interface PaginaGenerada {
   ruta: string;
@@ -174,18 +174,65 @@ ${jsonld.map((j) => `<script type="application/ld+json">${jsonSeguro(j)}</script
 </body></html>`;
 }
 
+/** Anchos que acepta `/dcasa/img` (ANCHOS de addons/website_dcasa/models/imagen.py). */
+export const ANCHOS_IMAGEN = [256, 512, 1024, 1600] as const;
+const ANCHOS_TARJETA = [256, 512, 1024];
+const ANCHOS_FICHA = [512, 1024, 1600];
+
+function urlFoto(f: FotoFeed, ancho: number, formato: "webp" | "jpg"): string {
+  return `${f.base}/${ancho}.${formato}?v=${f.v}`;
+}
+
+function srcsetFoto(f: FotoFeed, anchos: number[], formato: "webp" | "jpg"): string {
+  return anchos.map((a) => `${urlFoto(f, a, formato)} ${a}w`).join(", ");
+}
+
+/**
+ * `<picture>`: WebP al ancho justo (`/dcasa/img`) y, de respaldo, JPEG progresivo de los mismos
+ * anchos. La LCP va `eager` + `fetchpriority="high"`; el resto, perezosa.
+ */
+function picture(
+  f: FotoFeed,
+  anchos: number[],
+  opciones: { sizes: string; prioridad?: boolean; alt?: string; src: number },
+): string {
+  const carga = opciones.prioridad ? ' loading="eager" fetchpriority="high"' : ' loading="lazy" decoding="async"';
+  return (
+    `<picture><source type="image/webp" srcset="${esc(srcsetFoto(f, anchos, "webp"))}" sizes="${opciones.sizes}">` +
+    `<img src="${esc(urlFoto(f, opciones.src, "jpg"))}" srcset="${esc(srcsetFoto(f, anchos, "jpg"))}" sizes="${opciones.sizes}" width="512" height="512" alt="${esc(opciones.alt ?? "")}"${carga}></picture>`
+  );
+}
+
 function imagenProducto(
   p: ProductoFeed,
   opciones: { sizes: string; prioridad?: boolean; grande?: boolean; alt?: string },
 ): string {
   if (!p.imagen) return `<div style="aspect-ratio:1/1" aria-hidden="true"></div>`;
   const i = p.imagen;
+  if (i.foto) {
+    return picture(i.foto, opciones.grande ? ANCHOS_FICHA : ANCHOS_TARJETA, {
+      ...opciones,
+      src: opciones.grande ? 1024 : 512,
+    });
+  }
+  // Feed de un Odoo sin /dcasa/img: las URL de Odoo, como antes.
   const srcset = opciones.grande
     ? `${i.image_512} 512w, ${i.image_1024} 1024w, ${i.image_1920} 1920w`
     : `${i.image_256} 256w, ${i.image_512} 512w, ${i.image_1024} 1024w`;
   const src = opciones.grande ? i.image_1024 : i.image_512;
   const carga = opciones.prioridad ? ' loading="eager" fetchpriority="high"' : ' loading="lazy" decoding="async"';
   return `<img src="${esc(src)}" srcset="${esc(srcset)}" sizes="${opciones.sizes}" width="512" height="512" alt="${esc(opciones.alt ?? "")}"${carga}>`;
+}
+
+/** Precarga de la foto LCP de la ficha (WebP si hay `/dcasa/img`; el navegador sin WebP la ignora). */
+function precargaFicha(p: ProductoFeed): string {
+  if (!p.imagen) return "";
+  const sizes = "(min-width:900px) 640px, 100vw";
+  if (p.imagen.foto) {
+    return `<link rel="preload" as="image" type="image/webp" imagesrcset="${esc(srcsetFoto(p.imagen.foto, ANCHOS_FICHA, "webp"))}" imagesizes="${sizes}" fetchpriority="high">\n`;
+  }
+  const i = p.imagen;
+  return `<link rel="preload" as="image" imagesrcset="${esc(`${i.image_512} 512w, ${i.image_1024} 1024w, ${i.image_1920} 1920w`)}" imagesizes="${sizes}" fetchpriority="high">\n`;
 }
 
 function formularioAgregar(p: ProductoFeed, texto = "Agregar"): string {
@@ -317,7 +364,12 @@ function ficha(s: Sitio, p: ProductoFeed): PaginaGenerada {
   const categoria = s.categorias.find((c) => c.id === p.categorias[0]);
   const fotos = [
     imagenProducto(p, { sizes: "(min-width:900px) 640px, 100vw", prioridad: true, grande: true, alt: p.nombre }),
-    ...p.galeria.map((url) => `<img src="${esc(url)}" width="512" height="512" alt="" loading="lazy" decoding="async">`),
+    ...p.galeria.map((url, n) => {
+      const foto = p.galeria_fotos?.[n];
+      return foto
+        ? picture(foto, ANCHOS_FICHA, { sizes: "(min-width:900px) 640px, 100vw", src: 1024 })
+        : `<img src="${esc(url)}" width="512" height="512" alt="" loading="lazy" decoding="async">`;
+    }),
   ].join("");
   const estado =
     p.disponible === null ? "" : `<p class="estado">${p.disponible ? "Disponible" : "Agotado por ahora: pregúntanos por WhatsApp"}</p>`;
@@ -355,9 +407,7 @@ ${p.codigo ? `<p class="desde">Código ${esc(p.codigo)}</p>` : ""}</div></div></
       ruta: p.url,
       cuerpo,
       jsonld: p.json_ld,
-      precarga: p.imagen
-        ? `<link rel="preload" as="image" imagesrcset="${esc(`${p.imagen.image_512} 512w, ${p.imagen.image_1024} 1024w, ${p.imagen.image_1920} 1920w`)}" imagesizes="(min-width:900px) 640px, 100vw" fetchpriority="high">\n`
-        : "",
+      precarga: precargaFicha(p),
     }),
   };
 }

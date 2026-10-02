@@ -1,5 +1,9 @@
+import base64
+import io
 import os
 from unittest.mock import patch
+
+from PIL import Image
 
 from odoo.tests import HttpCase, tagged
 
@@ -123,3 +127,22 @@ class TestFeedTienda(HttpCase):
         self.assertIn('no incluyen el ITBMS', datos['paginas']['/terminos']['html'])
         self.assertIn('puntos_al_padrino', datos['socios'])
         self.assertTrue(datos['portada']['categorias'])
+
+    def test_fotos_versionadas_en_webp(self):
+        salida = io.BytesIO()
+        Image.new('RGB', (800, 800), 'blue').save(salida, format='JPEG')
+        self.mesa.image_1920 = base64.b64encode(salida.getvalue())
+        self.env['product.image'].create({'name': 'Detalle', 'product_tmpl_id': self.mesa.id,
+                                          'image_1920': base64.b64encode(salida.getvalue())})
+        datos = self._feed().json()
+        self.assertEqual(datos['sitio']['imagen_anchos'], [256, 512, 1024, 1600])
+        mesa = self._producto(datos, self.mesa)
+        foto = mesa['imagen']['foto']
+        self.assertEqual(foto['base'], f'/dcasa/img/product.template/{self.mesa.id}/image_1920')
+        self.assertRegex(foto['v'], r'^[0-9a-f]{12}$')
+        self.assertIn('/web/image/', mesa['imagen']['image_512'], 'las URL de Odoo siguen (respaldo)')
+        self.assertEqual(len(mesa['galeria_fotos']), 1)
+        self.assertTrue(mesa['galeria_fotos'][0]['base'].startswith('/dcasa/img/product.image/'))
+        respuesta = self.url_open(f"{foto['base']}/512.webp?v={foto['v']}", allow_redirects=False)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.headers['Content-Type'], 'image/webp')

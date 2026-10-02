@@ -2,7 +2,13 @@ import type { Feed, ProductoFeed } from "../src/tienda/tipos";
 
 const imagen = (id: number) => {
   const u = (t: string) => `/web/image/product.template/${id}/${t}?unique=abc1234`;
-  return { image_256: u("image_256"), image_512: u("image_512"), image_1024: u("image_1024"), image_1920: u("image_1920") };
+  return {
+    image_256: u("image_256"),
+    image_512: u("image_512"),
+    image_1024: u("image_1024"),
+    image_1920: u("image_1920"),
+    foto: { base: `/dcasa/img/product.template/${id}/image_1920`, v: "0123456789ab" },
+  };
 };
 
 export function producto(id: number, extra: Partial<ProductoFeed> = {}): ProductoFeed {
