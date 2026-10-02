@@ -187,37 +187,55 @@ class BrianHerramientasVentas(models.AbstractModel):
     # Construcción
     # ------------------------------------------------------------------
 
+    @api.model
+    def _b_productos_de(self, producto, cantidad, precio, lineas):
+        """Un producto (con cantidad y precio) y/o varias líneas «SOF-001 x 2; MES-003 x 1»."""
+        items = []
+        if producto:
+            items.append((self._b_producto(producto), cantidad, precio))
+        if lineas:
+            items += self._b_lineas_productos(lineas)
+        if not items:
+            raise BrianError('Dime qué productos: «producto» para uno, o «lineas» para varios '
+                             '(p. ej. «SOF-001 x 2; MES-003 x 1»).')
+        return items
+
     @herramienta(
         nombre='crear_cotizacion',
-        descripcion='Crea una cotización en borrador para un cliente con un primer producto. '
-                    'Para más productos usa agregar_linea_cotizacion.',
+        descripcion='Crea una cotización en borrador para un cliente con uno o varios productos '
+                    '(«lineas»: «SOF-001 x 2; MES-003 x 1»).',
         parametros={
             'cliente': {'type': 'string', 'description': 'Nombre, celular o RUC del cliente, p. ej. «6123-4567».'},
             'producto': PARAM_PRODUCTO, 'cantidad': PARAM_CANTIDAD, 'precio': PARAM_PRECIO,
+            'lineas': c.PARAM_LINEAS,
         },
-        requeridos=['cliente', 'producto'],
+        requeridos=['cliente'],
         nivel='construccion', categoria='ventas', grupos=VENDEDOR,
-        ejemplos=['cotiza 2 sillas SIL-010 para Ana Gómez'],
+        ejemplos=['cotiza 2 sillas SIL-010 para Ana Gómez',
+                  'cotiza a 6123-4567 el SOF-001 y 2 MES-003 → lineas=«SOF-001 x 1; MES-003 x 2»'],
     )
-    def _h_crear_cotizacion(self, cliente, producto, cantidad=1, precio=None):
+    def _h_crear_cotizacion(self, cliente, producto=None, cantidad=1, precio=None, lineas=None):
         partner = self._b_contacto(cliente)
-        variante = self._b_producto(producto)
+        items = self._b_productos_de(producto, cantidad, precio, lineas)
         orden = self.env['sale.order'].create({'partner_id': partner.id})
-        self._b_linea_venta(orden, variante, cantidad, precio)
-        return {'mensaje': f'Cotización {orden.name} creada en borrador.', **self._b_resumen_orden(orden)}
+        for variante, cant, prec in items:
+            self._b_linea_venta(orden, variante, cant, prec)
+        return {'mensaje': f'Cotización {orden.name} creada en borrador.', **self._b_resumen_orden(orden),
+                'abrir': {'modelo': 'sale.order', 'res_id': orden.id, 'titulo': orden.name}}
 
     @herramienta(
         nombre='agregar_linea_cotizacion',
-        descripcion='Agrega un producto a una cotización que no se ha confirmado.',
+        descripcion='Agrega uno o varios productos a una cotización que no se ha confirmado.',
         parametros={'venta': PARAM_VENTA, 'producto': PARAM_PRODUCTO, 'cantidad': PARAM_CANTIDAD,
-                    'precio': PARAM_PRECIO},
-        requeridos=['venta', 'producto'],
+                    'precio': PARAM_PRECIO, 'lineas': c.PARAM_LINEAS},
+        requeridos=['venta'],
         nivel='construccion', categoria='ventas', grupos=VENDEDOR,
-        ejemplos=['agrega una mesa de noche a S00012'],
+        ejemplos=['agrega una mesa de noche a S00012', 'agrega a S00012 → lineas=«SIL-010 x 4; MES-003 x 1»'],
     )
-    def _h_agregar_linea_cotizacion(self, venta, producto, cantidad=1, precio=None):
+    def _h_agregar_linea_cotizacion(self, venta, producto=None, cantidad=1, precio=None, lineas=None):
         orden = self._b_cotizacion_editable(venta)
-        self._b_linea_venta(orden, self._b_producto(producto), cantidad, precio)
+        for variante, cant, prec in self._b_productos_de(producto, cantidad, precio, lineas):
+            self._b_linea_venta(orden, variante, cant, prec)
         return {'mensaje': f'Agregado a {orden.name}.', **self._b_resumen_orden(orden)}
 
     @herramienta(

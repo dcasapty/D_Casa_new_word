@@ -37,6 +37,7 @@ solo las herramientas relevantes para el mensaje (ver ``seleccionar``).
 """
 import json
 import logging
+import time
 import unicodedata
 
 from odoo import api, models
@@ -49,7 +50,7 @@ NIVELES = ('lectura', 'construccion', 'sensible')
 CATEGORIAS = {
     'general': 'Pantalla actual, búsqueda en todo, ayuda',
     'ventas': 'Ventas, cotizaciones, pedidos, reporte del día',
-    'catalogo': 'Productos, precios, inventario, existencias',
+    'catalogo': 'Productos, precios, inventario, existencias, reabastecer y compras a proveedores',
     'clientes': 'Clientes, proveedores, contactos, socios y puntos',
     'contabilidad': 'Facturas, pagos, bancos, reportes contables, ITBMS',
     'usuarios': 'Usuarios, roles y permisos',
@@ -61,8 +62,13 @@ class BrianError(Exception):
 
 
 def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lectura', categoria='general',
-                grupos=(), ejemplos=()):
-    """Marca un método de ``brian.herramientas`` como herramienta de Brian."""
+                grupos=(), ejemplos=(), segura_con_adjuntos=False):
+    """Marca un método de ``brian.herramientas`` como herramienta de Brian.
+
+    ``segura_con_adjuntos``: solo para herramientas de construcción que únicamente dejan un
+    borrador revisable (p. ej. ``proponer_importacion``). Las demás, pedidas en un turno que
+    trae adjuntos, piden confirmación (ver ``_pide_confirmacion``).
+    """
     if nivel not in NIVELES:
         raise ValueError(f'Nivel desconocido: {nivel}')
     if categoria not in CATEGORIAS:
@@ -78,6 +84,7 @@ def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lect
             'categoria': categoria,
             'grupos': tuple(grupos),
             'ejemplos': list(ejemplos),
+            'segura_con_adjuntos': bool(segura_con_adjuntos),
             'metodo': metodo.__name__,
         }
         return metodo
@@ -87,6 +94,53 @@ def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lect
 def normalizar(texto):
     texto = unicodedata.normalize('NFKD', (texto or '').lower())
     return ''.join(c for c in texto if not unicodedata.combining(c))
+
+
+VERDADEROS = {'true', 'si', 'yes', '1', 'verdadero'}
+FALSOS = {'false', 'no', '0', 'falso'}
+
+
+def coercer(parametros, argumentos):
+    """Tipos simples que los modelos pequeños mandan como texto: «2» → 2, «$1,299.50» → 1299.5,
+    «true»/«sí» → True. ``None`` en un parámetro se quita (vale el valor por defecto). Lo que no
+    se entiende se deja igual: la herramienta da el error en español."""
+    salida = {}
+    for clave, valor in argumentos.items():
+        if valor is None:
+            continue
+        salida[clave] = _coercer_valor((parametros.get(clave) or {}).get('type'), valor)
+    return salida
+
+
+def _coercer_valor(tipo, valor):
+    if isinstance(valor, str) and tipo in ('number', 'integer'):
+        try:
+            numero = float(valor.replace('B/.', '').replace('$', '').replace(',', '').strip())
+        except ValueError:
+            return valor
+        if tipo == 'number':
+            return numero
+        return int(numero) if numero.is_integer() else valor
+    if tipo == 'integer' and isinstance(valor, float) and valor.is_integer():
+        return int(valor)
+    if tipo == 'boolean' and isinstance(valor, str):
+        texto = normalizar(valor.strip())
+        if texto in VERDADEROS:
+            return True
+        if texto in FALSOS:
+            return False
+    return valor
+
+
+def describir_parametros(spec):
+    """«texto (texto, obligatorio), limite (entero)»: para que el modelo corrija una llamada."""
+    tipos = {'string': 'texto', 'number': 'número', 'integer': 'entero', 'boolean': 'true/false'}
+    partes = []
+    for clave, esquema in spec['parametros'].items():
+        etiqueta = tipos.get(esquema.get('type'), esquema.get('type') or '?')
+        obligatorio = ', obligatorio' if clave in spec['requeridos'] else ''
+        partes.append(f'{clave} ({etiqueta}{obligatorio})')
+    return ', '.join(partes) or 'ninguno'
 
 
 class BrianHerramientas(models.AbstractModel):
@@ -188,12 +242,14 @@ class BrianHerramientas(models.AbstractModel):
         Accion = self.env['brian.accion']
         if not spec or not self._disponible(spec):
             return {'ok': False, 'error': f'No existe la herramienta «{nombre}» o no tienes permiso para usarla.'}
+        argumentos = coercer(spec['parametros'], argumentos)
         faltan = [r for r in spec['requeridos'] if argumentos.get(r) in (None, '')]
         if faltan:
             return {'ok': False, 'error': f'Faltan datos: {", ".join(faltan)}.'}
         desconocidos = set(argumentos) - set(spec['parametros'])
         if desconocidos:
-            return {'ok': False, 'error': f'Parámetros que no existen: {", ".join(sorted(desconocidos))}.'}
+            return {'ok': False, 'error': f'Parámetros que no existen: {", ".join(sorted(desconocidos))}. '
+                                          f'Los de «{nombre}» son: {describir_parametros(spec)}.'}
 
         accion = Accion.registrar(spec, argumentos, canal=canal, conversacion=conversacion)
         politica = self.env['brian.politica']
@@ -202,34 +258,54 @@ class BrianHerramientas(models.AbstractModel):
         except BrianError as error:
             accion.marcar('bloqueada', error=str(error))
             return {'ok': False, 'error': str(error)}
-        if spec['nivel'] == 'sensible' and not confirmado:
+        if not confirmado and self._pide_confirmacion(spec):
             resumen = politica.resumir(spec, argumentos)
+            if spec['nivel'] != 'sensible':
+                resumen += ('\n(Te lo pregunto porque en este mensaje hay un archivo o una foto: lo que '
+                            'sale de un adjunto no se aplica sin tu visto bueno.)')
             accion.marcar('por_confirmar', resumen=resumen)
             return {'ok': False, 'requiere_confirmacion': True, 'accion_id': accion.id, 'resumen': resumen}
         return self._correr(spec, argumentos, accion)
 
     @api.model
+    def _pide_confirmacion(self, spec):
+        """Sensibles, siempre. Construcción, también cuando el turno trae adjuntos (contenido de
+        terceros: una factura, un Excel, una foto): defensa contra instrucciones escondidas en el
+        archivo. Las que solo dejan un borrador revisable van marcadas ``segura_con_adjuntos``."""
+        if spec['nivel'] == 'sensible':
+            return True
+        return (spec['nivel'] == 'construccion' and bool(self.env.context.get('brian_turno_con_adjuntos'))
+                and not spec.get('segura_con_adjuntos'))
+
+    @api.model
     def _correr(self, spec, argumentos, accion):
         metodo = getattr(self, spec['metodo'])
+        inicio = time.monotonic()
+
+        def ms():
+            return int((time.monotonic() - inicio) * 1000)
+
         try:
             with self.env.cr.savepoint():
                 datos = metodo(**argumentos)
             json.dumps(datos, default=str)
         except BrianError as error:
-            accion.marcar('error', error=str(error))
+            accion.marcar('error', error=str(error), duracion_ms=ms())
             return {'ok': False, 'error': str(error)}
         except (AccessError, UserError, ValidationError) as error:
             mensaje = error.args[0] if error.args else str(error)
-            accion.marcar('error', error=mensaje)
+            accion.marcar('error', error=mensaje, duracion_ms=ms())
             return {'ok': False, 'error': mensaje}
         except TypeError as error:
-            accion.marcar('error', error=str(error))
-            return {'ok': False, 'error': 'Parámetros inválidos para esta herramienta.'}
+            accion.marcar('error', error=str(error), duracion_ms=ms())
+            return {'ok': False, 'error': f'Parámetros inválidos para «{spec["nombre"]}». '
+                                          f'Sus parámetros son: {describir_parametros(spec)}.'}
         except Exception as error:  # noqa: BLE001 — nunca se cae la conversación
             _logger.exception('Brian: fallo en la herramienta %s', spec['nombre'])
-            accion.marcar('error', error=repr(error))
-            return {'ok': False, 'error': 'Ocurrió un error inesperado; quedó registrado para revisarlo.'}
-        accion.marcar('hecha', resultado=datos)
+            accion.marcar('error', error=repr(error), duracion_ms=ms())
+            return {'ok': False, 'error': 'Ocurrió un error inesperado; quedó registrado para revisarlo. '
+                                          'Cuéntale a la persona qué intentabas; no lo repitas igual.'}
+        accion.marcar('hecha', resultado=datos, duracion_ms=ms())
         return {'ok': True, 'datos': datos}
 
     @api.private

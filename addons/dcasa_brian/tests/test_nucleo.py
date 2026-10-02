@@ -290,8 +290,11 @@ class TestProveedores(BrianCase):
         self.assertEqual(headers['anthropic-version'], '2023-06-01')
         self.assertEqual(cuerpo['model'], 'claude-sonnet-5-5')
         self.assertEqual(cuerpo['system'], 'Sistema')
+        # La última herramienta lleva la marca de caché de prompts.
         self.assertEqual(cuerpo['tools'][0], {'name': 'prueba_leer', 'description': 'Eco',
-                                              'input_schema': self.HERRAMIENTAS[0]['input_schema']})
+                                              'input_schema': self.HERRAMIENTAS[0]['input_schema'],
+                                              'cache_control': {'type': 'ephemeral'}})
+        self.assertNotIn('output_config', cuerpo)
         mensajes = cuerpo['messages']
         self.assertEqual([m['role'] for m in mensajes], ['user', 'assistant', 'user'])
         self.assertEqual(mensajes[0]['content'][0]['type'], 'image')
@@ -304,7 +307,7 @@ class TestProveedores(BrianCase):
         self.assertEqual(respuesta['fin'], 'herramientas')
         self.assertEqual(respuesta['tool_calls'], [{'id': 'tu_1', 'nombre': 'prueba_leer',
                                                     'argumentos': {'texto': 'z'}}])
-        self.assertEqual(respuesta['uso'], {'entrada': 10, 'salida': 5})
+        self.assertEqual(respuesta['uso'], {'entrada': 10, 'salida': 5, 'cache_lectura': 0, 'cache_escritura': 0})
         self.assertEqual(respuesta['crudo']['anthropic'], datos['content'])
 
     def test_anthropic_reenvia_bloques_crudos(self):
