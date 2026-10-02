@@ -1,15 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- «Hoy»: lo vendido y lo cobrado en el día, por forma de pago, para cuadrar la caja. -->
+    <!-- Base de la lista; el dominio (el día de Panamá, no el de UTC) lo pone
+         sale.order._dcasa_accion_ventas_de_hoy al abrir el menú (UI-06). -->
     <record id="action_dcasa_ventas_hoy" model="ir.actions.act_window">
         <field name="name">Ventas de hoy</field>
         <field name="res_model">sale.order</field>
         <field name="view_mode">list,form</field>
-        <field name="domain">[('state', '=', 'sale'), ('date_order', '&gt;=', context_today().strftime('%Y-%m-%d'))]</field>
-        <field name="context">{'search_default_salesperson': 0}</field>
+        <field name="domain">[('state', '=', 'sale')]</field>
+        <field name="context">{}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Todavía no hay ventas confirmadas hoy.</p>
         </field>
+    </record>
+
+    <!-- Con «path» la dirección (/odoo/ventas-de-hoy) vuelve a pasar por aquí al recargar la página. -->
+    <record id="action_dcasa_ventas_hoy_abrir" model="ir.actions.server">
+        <field name="name">Ventas de hoy</field>
+        <field name="path">ventas-de-hoy</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="state">code</field>
+        <field name="code">action = model._dcasa_accion_ventas_de_hoy()</field>
     </record>
 
     <record id="action_dcasa_cobros_hoy" model="ir.actions.act_window">
@@ -25,7 +36,7 @@
 
     <menuitem id="menu_dcasa_hoy" name="Hoy" parent="sale.sale_menu_root" sequence="1"/>
     <menuitem id="menu_dcasa_ventas_hoy" name="Ventas de hoy" parent="menu_dcasa_hoy"
-              action="action_dcasa_ventas_hoy" sequence="10"/>
+              action="action_dcasa_ventas_hoy_abrir" sequence="10"/>
     <menuitem id="menu_dcasa_cobros_hoy" name="Cobros de hoy (caja)" parent="menu_dcasa_hoy"
               action="action_dcasa_cobros_hoy" sequence="20" groups="account.group_account_invoice"/>
 </odoo>

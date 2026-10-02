@@ -1,3 +1,8 @@
+from datetime import datetime, time, timedelta
+
+import pytz
+
+from odoo import Command, fields
 from odoo.addons.dcasa_base import (
     DCASA_LANG,
     DCASA_TZ,
@@ -104,6 +109,39 @@ class TestConfiguracionTienda(TransactionCase):
         accion = self.env.ref('dcasa_base.action_dcasa_cobros_hoy')
         self.assertEqual(accion.res_model, 'account.payment')
         self.assertIn('journal_id', accion.context)
+
+    def test_ventas_de_hoy_con_el_dia_de_panama(self):
+        """UI-06: la venta de anoche a las 8 p. m. (1 a. m. UTC de hoy) no es de hoy."""
+        menu = self.env.ref('dcasa_base.menu_dcasa_ventas_hoy')
+        self.assertEqual(menu.action, self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir'))
+        usuario = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Vendedora hoy', 'login': 'vendedora_hoy', 'tz': 'America/Panama',
+            'group_ids': [Command.set([self.env.ref('dcasa_base.group_vendedora').id])],
+        })
+        accion = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir').with_user(usuario).run()
+        self.assertEqual(accion['res_model'], 'sale.order')
+        inicio, fin = self.env['sale.order'].with_user(usuario)._dcasa_limites_de_hoy()
+        zona = pytz.timezone('America/Panama')
+        hoy = fields.Date.context_today(self.env['sale.order'].with_context(tz='America/Panama'))
+        self.assertEqual(pytz.utc.localize(inicio).astimezone(zona).replace(tzinfo=None),
+                         datetime.combine(hoy, time.min))
+        self.assertEqual(fin - inicio, timedelta(days=1))
+        # Medianoche de Panamá = 5 a. m. UTC: el día no empieza a la medianoche UTC.
+        self.assertEqual(inicio.hour, 5)
+        self.assertIn(('date_order', '>=', fields.Datetime.to_string(inicio)), accion['domain'])
+        self.assertIn(('date_order', '<', fields.Datetime.to_string(fin)), accion['domain'])
+
+        cliente = self.env['res.partner'].create({'name': 'Cliente de anoche'})
+        producto = self.env['product.product'].create({'name': 'Mesa de anoche', 'list_price': 10})
+        anoche, hoy_temprano = self.env['sale.order'].create([{
+            'partner_id': cliente.id, 'order_line': [Command.create({'product_id': producto.id})],
+        } for _ in range(2)])
+        (anoche | hoy_temprano).action_confirm()
+        anoche.date_order = inicio - timedelta(hours=4)        # 8 p. m. de ayer en Panamá
+        hoy_temprano.date_order = inicio + timedelta(hours=4)  # 4 a. m. de hoy en Panamá
+        encontradas = self.env['sale.order'].search(accion['domain'])
+        self.assertIn(hoy_temprano, encontradas)
+        self.assertNotIn(anoche, encontradas)
 
     def test_cantidades_enteras(self):
         """Se venden camas, no cuartos de cama."""
