@@ -87,20 +87,21 @@ REVISION_GRAFICAS_BLACK_WEEKEND = [
     '',
     '39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden '
     'con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para '
-    'la carga, Google y lectores de pantalla); `115.png`, recortada sin la franja de abajo, es la imagen '
+    'la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen '
     'para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las '
     'originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).',
     '',
     '### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)',
     '',
     '- `146.png` y `147.png` dicen «Y0400300-Q», pero la cama es MARRÓN: es `Y0400400-Q` (tela marrón). '
-    '`Y0400300-Q` es la de tela negra.',
+    '`Y0400300-Q` es la de tela negra. **Confirmado por la dueña el 2026-10-02.**',
     '- `147.png` es la misma gráfica que `146.png` (duplicada).',
     '- `150.png` dice «Y0400101-F», pero la cama es gris CLARO: es `Y0400201-F` (lino gris claro). '
-    '`Y0400101-F` es la de gris oscuro.',
+    '`Y0400101-F` es la de gris oscuro. **Confirmado por la dueña el 2026-10-02.**',
     '- `152.png` dice «BASE QUEEN HK-BF-022-N-K-1-W $109.99», pero $109.99 y 193 cm son de '
     '`HK-BF-022-N-F-1-W` (Full).',
-    '- `153.png` dice «BASE QUEEN», pero `HK-BF-022-N-K-1-W` es una cama King ($159.99).',
+    '- `153.png` dice «BASE QUEEN» y `HK-BF-022-N-K-1-W` ($159.99): el Excel la llamaba King, pero la '
+    'dueña confirmó el 2026-10-02 que es Queen. Se publica como «Cama tapizada Queen – blanco».',
     '- Todas traen «Promoción de apertura por ¡tiempo limitado!» y el sello de cuotas: la web no los '
     'repite (sin urgencia inventada ni financiamiento: descartado por la dueña el 2026-10-02).',
     '',
@@ -119,8 +120,8 @@ REVISION_GRAFICAS_BLACK_WEEKEND = [
     '- 888K (115) · 908K negro (118) · 803K (122) · 809Q (123) · 822F (126) · 825K (129) · 6220Q (133) · '
     '6877F (132) · Y0200100 (134) · Y0300300-LTSC07 (141; no el Y0300300 de $159.99) · HK-BF-022-N-K-1-W '
     '(153) · N-F10018-Q-BK (151).',
-    '- Ventana: lunes 5 a domingo 11 de octubre de 2026, hora de Panamá (decisión de la dueña). Staging '
-    'la muestra ya (vista previa).',
+    '- Ventana: viernes 2 (adelantada desde el lunes 5) a domingo 11 de octubre de 2026, hora de Panamá '
+    '(decisión de la dueña). Staging la muestra ya (vista previa).',
 ]
 
 # Pedidos nuevos del proveedor: mismo formato («Catálogo LTSC-07»: encabezado en la fila 4).
@@ -158,6 +159,13 @@ PEDIDOS = [{
             '811K', None,
             'el nombre dice Queen, pero 213 × 199 × 125 cm son las medidas de 811K (King – beige) y '
             'ninguna Queen del Excel las tiene; es casi la misma imagen que la de 811Q'),
+    },
+    # Nombres del Excel que la dueña corrigió (código: (nombre, motivo)).
+    'nombres': {
+        'HK-BF-022-N-K-1-W': (
+            'Cama tapizada Queen – blanco',
+            'el Excel dice «King – blanco»; la dueña confirmó el 2026-10-02 que es la Base Queen de su '
+            'gráfica 153.png (las medidas del Excel, 205 × 193 × 110 cm, quedan como están)'),
     },
     # Medidas del Excel que no se publican (se ven copiadas de otra fila).
     'medidas_dudosas': {
@@ -421,6 +429,7 @@ class Pedido:
         nombre = primera['descripcion']
         if con_colores:
             nombre = re.split(r'\s+[–-]\s+', nombre)[0].strip()
+        nombre = self.pedido.get('nombres', {}).get(codigo_excel, (nombre,))[0]
         combo = ' · '.join(f'Combo con colchón {marca} ${precio_terminado_en_99(valor):.2f}'
                            for marca, valor in primera['combos'].items()) or None
         base = codigo_archivo(codigo)

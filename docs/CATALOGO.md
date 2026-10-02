@@ -145,5 +145,6 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
     termina sola.
 - **Lo que no lleva:** cuenta regresiva, «tiempo limitado», «remate», cuotas ni financiamiento
   (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña (`up media/115.png` …
-  `153.png`) no son fotos de producto: solo `115.png`, recortada sin la franja de cuotas y
-  urgencia, es la imagen para compartir. Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.
+  `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
+  compartir (la dueña aceptó, el 2026-10-02, que ahí salgan tafi y «tiempo limitado»; la página no
+  los repite). Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.

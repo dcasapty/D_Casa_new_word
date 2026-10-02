@@ -166,9 +166,12 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `811Q` y `811K` quedan con casi la misma imagen (los nombres de archivo dicen 213 × 158 y 213 × 199): confirmar que 811K es esa cama.
 - La foto incrustada en el Excel de `822F` muestra una cama de color tostado, no blanca: la foto de la carpeta («Full – blanco») sí es blanca. Confirmar el color con la mercancía.
 
+Fotos de «up media» que no son de ningún producto (ni de la carga inicial ni de LTSC-07): `115.png`, `116.png`, `117.png`, `118.png`, `119.png`, `120.png`, `121.png`, `122.png`, `123.png`, `124.png`, `125.png`, `126.png`, `127.png`, `128.png`, `129.png`, `130.png`, `131.png`, `132.png`, `133.png`, `134.png`, `135.png`, `136.png`, `137.png`, `138.png`, `139.png`, `140.png`, `141.png`, `142.png`, `143.png`, `144.png`, `145.png`, `146.png`, `147.png`, `148.png`, `149.png`, `150.png`, `151.png`, `152.png`, `153.png`.
+
+
 ## Gráficas de Black Weekend (`up media/115.png` … `153.png`, revisión del 2026-10-02)
 
-39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para la carga, Google y lectores de pantalla); `115.png`, recortada sin la franja de abajo, es la imagen para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).
+39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).
 
 ### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)
 
@@ -176,10 +179,7 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `147.png` es la misma gráfica que `146.png` (duplicada).
 - `150.png` dice «Y0400101-F», pero la cama es gris CLARO: es `Y0400201-F` (lino gris claro). `Y0400101-F` es la de gris oscuro. **Confirmado por la dueña el 2026-10-02.**
 - `152.png` dice «BASE QUEEN HK-BF-022-N-K-1-W $109.99», pero $109.99 y 193 cm son de `HK-BF-022-N-F-1-W` (Full).
-- `153.png` dice «BASE QUEEN», pero `HK-BF-022-N-K-1-W` es una cama King ($159.99).
-  - La dueña dice (2026-10-02) que la «Base Queen» de la gráfica es correcta. Pendiente: el Excel LTSC-07
-    la llama «Cama tapizada King – blanco» con 205 × 193 cm (193 de ancho es medida King). En el
-    catálogo sigue como King hasta que la dueña diga cuál de los dos se corrige.
+- `153.png` dice «BASE QUEEN» y `HK-BF-022-N-K-1-W` ($159.99): el Excel la llamaba King, pero la dueña confirmó el 2026-10-02 que es Queen. Se publica como «Cama tapizada Queen – blanco».
 - Todas traen «Promoción de apertura por ¡tiempo limitado!» y el sello de cuotas: la web no los repite (sin urgencia inventada ni financiamiento: descartado por la dueña el 2026-10-02).
 
 ### Dudas que las gráficas resuelven (el catálogo ya las tenía bien)
@@ -192,4 +192,4 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 ### Selección para la web (`addons/dcasa_catalogo/catalogo.py`: `BLACK_WEEKEND`)
 
 - 888K (115) · 908K negro (118) · 803K (122) · 809Q (123) · 822F (126) · 825K (129) · 6220Q (133) · 6877F (132) · Y0200100 (134) · Y0300300-LTSC07 (141; no el Y0300300 de $159.99) · HK-BF-022-N-K-1-W (153) · N-F10018-Q-BK (151).
-- Ventana: lunes 5 a domingo 11 de octubre de 2026, hora de Panamá (decisión de la dueña). Staging la muestra ya (vista previa).
+- Ventana: viernes 2 (adelantada desde el lunes 5) a domingo 11 de octubre de 2026, hora de Panamá (decisión de la dueña). Staging la muestra ya (vista previa).

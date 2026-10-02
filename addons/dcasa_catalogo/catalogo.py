@@ -324,6 +324,43 @@ def marcar_black_weekend(env):
 PARAM_STOCK_PRUEBA = 'dcasa_catalogo.stock_prueba'
 
 
+# Nombres del Excel que la dueña corrigió después de cargarlos: (código, nombre anterior, tamaño
+# anterior, nombre nuevo, tamaño nuevo). El código y las medidas no cambian.
+CORRECCIONES_DE_NOMBRE = [
+    # 2026-10-02: es la Base Queen de su gráfica 153.png; el Excel LTSC-07 decía «King – blanco».
+    ('HK-BF-022-N-K-1-W', 'Cama tapizada King – blanco', 'King', 'Cama tapizada Queen – blanco', 'Queen'),
+]
+
+
+def corregir_nombres(env):
+    """Aplica ``CORRECCIONES_DE_NOMBRE`` a los productos ya cargados (idempotente).
+
+    El nombre solo se cambia si sigue como lo dejó la carga (si la dueña lo editó, se respeta). El
+    tamaño de la línea de atributo se cambia si sigue con el anterior: Odoo crea la variante nueva
+    y archiva la vieja, así que el código pasa a la nueva (las ventas viejas siguen apuntando a la
+    archivada).
+    """
+    _atributo, valores = atributo_tamano(env)
+    corregidos = 0
+    for codigo, nombre_viejo, tamano_viejo, nombre_nuevo, tamano_nuevo in CORRECCIONES_DE_NOMBRE:
+        producto = env.ref(f'{MODULO}.{xmlid_de(codigo)}', raise_if_not_found=False)
+        if not producto:
+            continue
+        if producto.name == nombre_viejo:
+            producto.name = nombre_nuevo
+            corregidos += 1
+        linea = producto.attribute_line_ids.filtered(
+            lambda lin, v=valores[tamano_viejo]: lin.attribute_id.name == 'Tamaño' and lin.value_ids == v)
+        if linea:
+            vieja = producto.product_variant_ids[:1]
+            linea.value_ids = [(6, 0, valores[tamano_nuevo].ids)]
+            nueva = producto.product_variant_ids[:1]
+            if vieja != nueva and vieja.default_code == codigo:
+                vieja.default_code = False
+                nueva.default_code = codigo
+    return corregidos
+
+
 def stock_de_prueba(env):
     """Unidades de prueba por producto (``dcasa_catalogo.stock_prueba``); vacío, 0 o inválido = apagado.
 

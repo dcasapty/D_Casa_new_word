@@ -36,9 +36,9 @@ PARAMS = (PARAM_ACTIVO, PARAM_INICIO, PARAM_FIN)
 VENTANA_POR_DEFECTO = {PARAM_ACTIVO: '0', PARAM_INICIO: '2026-10-02', PARAM_FIN: '2026-10-11'}
 ZONA = pytz.timezone('America/Panama')
 RUTA = '/black-weekend'
-# Imagen para compartir (redes): la gráfica 115.png de la dueña, recortada sin la franja de abajo.
+# Imagen para compartir (redes): la gráfica 115.png de la dueña completa (decisión suya del 2026-10-02).
 OG_IMAGEN = '/website_dcasa/static/src/img/black_weekend/og.jpg'
-OG_ANCHO, OG_ALTO = 1080, 1140
+OG_ANCHO, OG_ALTO = 1080, 1350
 _COMBO = re.compile(r'^\s*(Combo con colchón)\s*(.*?)\s*\$\s*([\d,]+(?:\.\d+)?)\s*$', re.I)
 _MESES = ('enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre',
           'octubre', 'noviembre', 'diciembre')

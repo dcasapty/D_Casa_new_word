@@ -132,7 +132,7 @@ export function feedBlackWeekend(activo = true): Feed {
     descripcion: "Black Weekend en D'CASA Panamá del 5 al 11 de octubre de 2026: 2 camas y bases seleccionadas.",
     og_imagen: "https://dcasapty.com/website_dcasa/static/src/img/black_weekend/og.jpg",
     og_imagen_ancho: 1080,
-    og_imagen_alto: 1140,
+    og_imagen_alto: 1350,
     json_ld: {
       "@context": "https://schema.org",
       "@type": "ItemList",

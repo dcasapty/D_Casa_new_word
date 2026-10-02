@@ -1,7 +1,13 @@
 import json
 import re
 
-from odoo.addons.dcasa_catalogo.catalogo import BLACK_WEEKEND, leer_catalogo, marcar_black_weekend
+from odoo.addons.dcasa_catalogo.catalogo import (
+    BLACK_WEEKEND,
+    atributo_tamano,
+    corregir_nombres,
+    leer_catalogo,
+    marcar_black_weekend,
+)
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tools.misc import file_open
 
@@ -36,6 +42,39 @@ class TestBlackWeekendCatalogo(TransactionCase):
         self.assertTrue(self._producto('Y0300300-LTSC07').product_tmpl_id.dcasa_black_weekend)
         self.assertFalse(self._producto('Y0300300').product_tmpl_id.dcasa_black_weekend,
                          'El Y0300300 de $159.99 no es el de la promoción')
+
+    def test_hk_bf_022_k_es_queen(self):
+        """La dueña (2026-10-02): la «Base Queen» de 153.png es Queen aunque el Excel dijera King."""
+        variante = self._producto('HK-BF-022-N-K-1-W')
+        producto = variante.product_tmpl_id
+        self.assertEqual(producto.name, 'Cama tapizada Queen – blanco')
+        self.assertEqual(variante.product_template_attribute_value_ids.name, 'Queen')
+        self.assertTrue(variante.active)
+
+    def test_corregir_nombres_lleva_lo_cargado_como_king_a_queen(self):
+        _atributo, valores = atributo_tamano(self.env)
+        producto = self._producto('HK-BF-022-N-K-1-W').product_tmpl_id
+        # Como lo dejó la carga anterior (19.0.1.3.0): King.
+        producto.name = 'Cama tapizada King – blanco'
+        linea = producto.attribute_line_ids.filtered(lambda lin: lin.attribute_id.name == 'Tamaño')
+        linea.value_ids = [(6, 0, valores['King'].ids)]
+        producto.product_variant_ids.default_code = 'HK-BF-022-N-K-1-W'
+        precio = producto.list_price
+
+        self.assertEqual(corregir_nombres(self.env), 1)
+        self.assertEqual(corregir_nombres(self.env), 0, 'Idempotente')
+        self.assertEqual(producto.name, 'Cama tapizada Queen – blanco')
+        activa = producto.product_variant_ids
+        self.assertEqual(len(activa), 1)
+        self.assertEqual(activa.product_template_attribute_value_ids.name, 'Queen')
+        self.assertEqual(activa.default_code, 'HK-BF-022-N-K-1-W')
+        self.assertEqual(producto.list_price, precio)
+
+    def test_corregir_nombres_respeta_lo_que_edito_la_duena(self):
+        producto = self._producto('HK-BF-022-N-K-1-W').product_tmpl_id
+        producto.name = 'Base Queen blanca'
+        corregir_nombres(self.env)
+        self.assertEqual(producto.name, 'Base Queen blanca')
 
     def test_idempotente_y_sin_tocar_precios(self):
         marcar_black_weekend(self.env)
