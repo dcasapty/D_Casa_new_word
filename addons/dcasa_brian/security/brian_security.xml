@@ -28,4 +28,34 @@
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('base.group_system'))]"/>
     </record>
+
+    <!-- Importaciones de productos: cada quien ve las que propuso; Gerencia, todas.
+         Nadie las escribe por RPC (ACL solo lectura): las escribe el sistema. -->
+    <record id="regla_brian_importacion_propia" model="ir.rule">
+        <field name="name">Brian: cada quien ve sus importaciones</field>
+        <field name="model_id" ref="model_brian_importacion"/>
+        <field name="domain_force">[('create_uid', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+
+    <record id="regla_brian_importacion_gerencia" model="ir.rule">
+        <field name="name">Brian: Gerencia ve todas las importaciones</field>
+        <field name="model_id" ref="model_brian_importacion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('dcasa_base.group_gerencia'))]"/>
+    </record>
+
+    <record id="regla_brian_importacion_linea_propia" model="ir.rule">
+        <field name="name">Brian: cada quien ve las líneas de sus importaciones</field>
+        <field name="model_id" ref="model_brian_importacion_linea"/>
+        <field name="domain_force">[('importacion_id.create_uid', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+
+    <record id="regla_brian_importacion_linea_gerencia" model="ir.rule">
+        <field name="name">Brian: Gerencia ve todas las líneas de importación</field>
+        <field name="model_id" ref="model_brian_importacion_linea"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('dcasa_base.group_gerencia'))]"/>
+    </record>
 </odoo>

@@ -12,10 +12,11 @@ import re
 from odoo.addons.dcasa_base import archivar_itbms_incluido, itbms_de_venta
 from odoo.tools.misc import file_open
 
+from .reglas import TAMANOS, categoria_de_nombre, tamano_del_nombre  # noqa: F401 (API del módulo)
+
 _logger = logging.getLogger(__name__)
 
 MODULO = 'dcasa_catalogo'
-TAMANOS = ['Twin', 'Full', 'Queen', 'King']
 
 # Categoría del JSON → categoría interna (inventario/contabilidad).
 CATEGORIA_INTERNA = {
@@ -89,10 +90,30 @@ def categoria_web(env, clave):
     return env.ref(CATEGORIA_WEB.get(clave, f'website_dcasa.public_category_{clave}'))
 
 
-def tamano_del_nombre(nombre):
-    """«Cama king» es de un solo tamaño, King: así aparece al filtrar la tienda por tamaño."""
-    m = re.search(r'\b(twin|full|queen|king)\b', nombre, re.I)
-    return m.group(1).capitalize() if m else None
+def valores_producto_nuevo(env, nombre, precio, impuesto, clave_categoria=None, tamano=None):
+    """Lo que lleva un producto nuevo de D'CASA (lo usan esta carga y la importación de Brian).
+
+    Inventariable, existencias sin confirmar (la web deja comprar igual), ``list_price`` SIN
+    ITBMS con el «ITBMS 7%» que se suma, categoría interna y de la tienda según la clave de
+    ``reglas.CATEGORIAS`` y, si es de un solo tamaño, la línea de atributo «Tamaño» (para el
+    filtro de la tienda). La publicación la decide quien llama.
+    """
+    vals = {
+        'name': nombre,
+        'type': 'consu',
+        'is_storable': True,
+        'allow_out_of_stock_order': True,  # existencias sin confirmar: se confirma por WhatsApp
+        'list_price': precio,
+        'taxes_id': [(6, 0, impuesto.ids)],
+    }
+    if clave_categoria in CATEGORIA_INTERNA:
+        vals['categ_id'] = env.ref(CATEGORIA_INTERNA[clave_categoria]).id
+        vals['public_categ_ids'] = [(6, 0, categoria_web(env, clave_categoria).ids)]
+    if tamano in TAMANOS:
+        atributo, valores = atributo_tamano(env)
+        vals['attribute_line_ids'] = [(0, 0, {
+            'attribute_id': atributo.id, 'value_ids': [(6, 0, valores[tamano].ids)]})]
+    return vals
 
 
 def cargar_catalogo(env):
@@ -112,18 +133,12 @@ def cargar_catalogo(env):
         unico = None if tamanos else tamano_del_nombre(item['nombre'])
         base = min(precios.values())
         fotos = item['fotos']
-        vals = {
-            'name': item.get('nombre_web') or item['nombre'],
-            'type': 'consu',
-            'is_storable': True,
-            'allow_out_of_stock_order': True,  # existencias sin confirmar: se confirma por WhatsApp
-            'list_price': base,
-            'taxes_id': [(6, 0, impuesto.ids)],
-            'categ_id': env.ref(CATEGORIA_INTERNA[item['categoria']]).id,
-            'public_categ_ids': [(6, 0, categoria_web(env, item['categoria']).ids)],
+        vals = valores_producto_nuevo(env, item.get('nombre_web') or item['nombre'], base, impuesto,
+                                      item['categoria'], unico)
+        vals.update({
             'website_sequence': item['orden'] * 10,
             'is_published': bool(fotos),
-        }
+        })
         if not tamanos:
             vals['default_code'] = item['codigo']
         if item.get('combo'):
@@ -136,10 +151,10 @@ def cargar_catalogo(env):
                 (0, 0, {'name': f"{item['nombre']} ({i})", 'image_1920': foto_b64(foto)})
                 for i, foto in enumerate(fotos[1:], start=2)
             ]
-        if tamanos or unico:
+        if tamanos:
             vals['attribute_line_ids'] = [(0, 0, {
                 'attribute_id': atributo.id,
-                'value_ids': [(6, 0, [valores[t].id for t in (tamanos or [unico])])],
+                'value_ids': [(6, 0, [valores[t].id for t in tamanos])],
             })]
         producto = Template.create(vals)
         if tamanos:
