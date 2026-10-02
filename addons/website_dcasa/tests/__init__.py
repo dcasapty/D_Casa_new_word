@@ -6,3 +6,4 @@ from . import test_itbms
 from . import test_legal
 from . import test_imagen
 from . import test_black_weekend
+from . import test_diseno

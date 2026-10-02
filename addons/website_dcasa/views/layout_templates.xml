@@ -46,7 +46,23 @@
     <template id="layout_fuentes_locales" inherit_id="website.layout" name="D'CASA: fuentes locales">
         <xpath expr="//link[@rel='preconnect'][@href='https://fonts.gstatic.com/']" position="replace">
             <link rel="preload" href="/website_dcasa/static/src/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin=""/>
-            <link rel="preload" href="/website_dcasa/static/src/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin=""/>
+        </xpath>
+        <!-- Ronda 6: fuera la precarga de FontAwesome que pone Odoo (76 KB). En 4G lenta compartía
+             la red con el CSS que bloquea el primer pintado y retrasaba la foto principal; los
+             iconos llegan igual con el CSS, un instante después. -->
+        <xpath expr="//link[@rel='preload'][contains(@href, 'fontawesome-webfont')]" position="replace"/>
+    </template>
+
+    <!-- Foto de la portada (LCP) pedida desde el <head>, antes de que el CSS de Odoo (136 KB)
+         termine de bajar: en 4G lenta llegaba ~0,6 s tarde. Si se cambia la foto del hero desde el
+         editor, hay que quitar esta vista (Sitio web > Personalizar) o actualizar las rutas. -->
+    <template id="layout_precarga_hero" inherit_id="website.layout" name="D'CASA: precarga de la foto de la portada">
+        <xpath expr="//head" position="inside">
+            <link t-if="website and request and request.httprequest.path in ('/', website.homepage_url or '/')"
+                  rel="preload" as="image" fetchpriority="high"
+                  href="/website_dcasa/static/src/img/hero.webp"
+                  imagesrcset="/website_dcasa/static/src/img/hero-800.webp 800w, /website_dcasa/static/src/img/hero.webp 1400w"
+                  imagesizes="100vw"/>
         </xpath>
     </template>
 
@@ -101,8 +117,8 @@
     </template>
 
     <!-- Filtro de refracción del navbar de vidrio líquido. animaciones.js lo aplica (en línea,
-         con una variable CSS) solo donde backdrop-filter: url() funciona, y le agrega el
-         movimiento lento solo mientras la píldora está sobre la foto. -->
+         con una variable CSS) solo donde backdrop-filter: url() funciona, sobre el vidrio claro.
+         Ronda 6: sin el movimiento del ruido (repintaba sin parar) y sin refracción sobre fotos. -->
     <template id="layout_filtro_liquido" inherit_id="website.layout" name="D'CASA: filtro de vidrio líquido">
         <xpath expr="//div[@id='wrapwrap']" position="inside">
             <svg class="o_dcasa_filtros" width="0" height="0" aria-hidden="true" focusable="false">
@@ -113,6 +129,20 @@
                                        xChannelSelector="R" yChannelSelector="G"/>
                 </filter>
             </svg>
+        </xpath>
+    </template>
+
+    <!-- Logo de la píldora en WebP (3-7 KB en vez del PNG de 56 KB) mientras sea el de D'CASA
+         del módulo; en el editor, o si la dueña sube otro, el campo de Odoo de siempre. -->
+    <template id="logo_webp_dcasa" inherit_id="website.option_header_brand_logo" name="D'CASA: logo en WebP">
+        <xpath expr="//span[@t-field='website.logo']" position="attributes">
+            <attribute name="t-if">editable or not website._dcasa_logo_de_fabrica()</attribute>
+            <attribute name="t-att-aria-label">website.name</attribute>
+        </xpath>
+        <xpath expr="//span[@t-field='website.logo']" position="after">
+            <img t-else="" src="/website_dcasa/static/src/img/logo-200.webp"
+                 srcset="/website_dcasa/static/src/img/logo-200.webp 1x, /website_dcasa/static/src/img/logo-400.webp 2x"
+                 width="200" height="91" class="img img-fluid" loading="eager" t-att-alt="website.name"/>
         </xpath>
     </template>
 
@@ -149,7 +179,8 @@
                 <div class="o_dcasa_hero_media">
                     <!-- Imagen LCP: «eager» explícito, si no Odoo le pone loading="lazy". -->
                     <img src="/website_dcasa/static/src/img/split-socios.webp" width="800" height="600" alt=""
-                         loading="eager" fetchpriority="high"/>
+                         srcset="/website_dcasa/static/src/img/split-socios-480.webp 480w, /website_dcasa/static/src/img/split-socios.webp 800w"
+                         sizes="100vw" loading="eager" fetchpriority="high"/>
                 </div>
                 <div class="o_dcasa_container o_dcasa_hero_inner">
                     <div class="o_dcasa_hero_texto" data-anim-entrada="">
@@ -160,6 +191,70 @@
             </section>
         </xpath>
         <xpath expr="//div[hasclass('o_dcasa_band')]" position="replace"/>
+    </template>
+
+    <!-- Cabecera de página como la de /socios (ronda 6), para las páginas que no traen la suya:
+         legales y cuenta. Quien la llama pone `dcasa_header_overlay` (la píldora va encima) y
+         cabecera_kicker, cabecera_titulo, cabecera_imagen (una foto apaisada del módulo) y, si
+         la foto tiene versión chica, cabecera_srcset. -->
+    <template id="cabecera_pagina" name="D'CASA: cabecera de página">
+        <section class="o_dcasa_hero o_dcasa_hero_compacto o_dcasa_cabecera_pagina">
+            <div class="o_dcasa_hero_media">
+                <!-- Imagen LCP: «eager» explícito, si no Odoo le pone loading="lazy". -->
+                <img t-att-src="cabecera_imagen" t-att-srcset="cabecera_srcset" t-att-sizes="cabecera_srcset and '100vw'"
+                     t-att-width="cabecera_ancho or 800" t-att-height="cabecera_alto or 600" alt=""
+                     loading="eager" fetchpriority="high"/>
+            </div>
+            <div class="o_dcasa_container o_dcasa_hero_inner">
+                <div class="o_dcasa_hero_texto" data-anim-entrada="">
+                    <p class="o_dcasa_kicker o_dcasa_kicker_light" t-out="cabecera_kicker"/>
+                    <h1 class="o_dcasa_display mb-0" t-out="cabecera_titulo"/>
+                </div>
+            </div>
+        </section>
+    </template>
+
+    <!-- Entrar, crear cuenta y recuperar la clave: la misma cabecera que el resto del sitio y el
+         formulario en una tarjeta como la de /socios (antes: formulario suelto bajo la píldora clara). -->
+    <template id="login_cabecera_dcasa" inherit_id="website.login_layout" name="D'CASA: cabecera de la cuenta">
+        <xpath expr="//div[hasclass('oe_website_login_container')]" position="before">
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+            <t t-call="website_dcasa.cabecera_pagina">
+                <t t-set="cabecera_kicker">Tu cuenta D'CASA</t>
+                <t t-set="cabecera_titulo">Mi cuenta</t>
+                <t t-set="cabecera_imagen" t-value="'/website_dcasa/static/src/img/split-hoy.webp'"/>
+                <t t-set="cabecera_ancho" t-value="793"/>
+                <t t-set="cabecera_alto" t-value="595"/>
+            </t>
+        </xpath>
+        <xpath expr="//div[hasclass('oe_website_login_container')]" position="attributes">
+            <attribute name="class" add="o_dcasa_login" separator=" "/>
+            <!-- Destino del enlace «Saltar al contenido» (#wrap): en la cuenta no existía. -->
+            <attribute name="id">wrap</attribute>
+        </xpath>
+    </template>
+
+    <!-- Accesibilidad del formulario de entrar de Odoo (Lighthouse): el botón del ojo no tenía
+         nombre y «Restablecer contraseña» llevaba tabindex="1" (rompe el orden del teclado). -->
+    <template id="login_accesible_dcasa" inherit_id="web.login" name="D'CASA: entrar accesible">
+        <xpath expr="//button[hasclass('o_show_password')]" position="attributes">
+            <attribute name="aria-label">Mostrar u ocultar la contraseña</attribute>
+            <attribute name="title">Mostrar u ocultar la contraseña</attribute>
+        </xpath>
+    </template>
+
+    <!-- Ficha: la cantidad no tenía nombre para el lector de pantalla (Lighthouse «label»). -->
+    <template id="ficha_cantidad_accesible_dcasa" inherit_id="website_sale.product_quantity" name="D'CASA: cantidad con nombre">
+        <xpath expr="//input[@name='add_qty']" position="attributes">
+            <attribute name="aria-label">Cantidad</attribute>
+            <attribute name="inputmode">numeric</attribute>
+        </xpath>
+    </template>
+
+    <template id="login_orden_teclado_dcasa" inherit_id="auth_signup.login" name="D'CASA: orden del teclado al entrar">
+        <xpath expr="//a[@tabindex='1']" position="attributes">
+            <attribute name="tabindex"/>
+        </xpath>
     </template>
 
     <template id="footer_copyright_dcasa" inherit_id="website.footer_copyright_company_name" name="D'CASA: copyright">
