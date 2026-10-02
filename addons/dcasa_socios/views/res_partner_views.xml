@@ -27,7 +27,7 @@
                     <group invisible="not dcasa_socio_codigo">
                         <group string="Ficha">
                             <field name="dcasa_socio_codigo"/>
-                            <field name="dcasa_celular" placeholder="6026-1919"/>
+                            <field name="dcasa_celular" placeholder="p. ej. 6123-4567"/>
                             <field name="dcasa_cumple" placeholder="MM-DD"/>
                             <field name="dcasa_socio_estado"/>
                             <field name="dcasa_reclamada"/>
