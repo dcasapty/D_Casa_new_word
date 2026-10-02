@@ -7,6 +7,7 @@ import {
   autorizado,
   colaDeSalida,
   debeRearrancar,
+  debeRegenerarEnCron,
   handleRequest,
   mismoSecreto,
   politicaDeSueno,
@@ -365,6 +366,27 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.durable_objects.bindings[0].name).toBe("ODOO");
     expect(staging.migrations).toEqual(config.migrations);
     expect(staging).not.toHaveProperty("routes");
+  });
+
+  it("tienda estática: KV por entorno; apagada en producción y encendida en staging", () => {
+    expect(config.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
+    expect(config.env.staging.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
+    expect(config.vars.TIENDA_ESTATICA).toBe("off");
+    expect(config.env.staging.vars.TIENDA_ESTATICA).toBe("on");
+  });
+
+  it("el secreto de la tienda llega al contenedor (Odoo lo usa para el feed y el aviso)", () => {
+    const vars = variablesDelContenedor({ TIENDA_FEED_TOKEN: TOKEN, TIENDA_AVISO_URL: "https://x/__edge/tienda/regenerar" });
+    expect(vars.TIENDA_FEED_TOKEN).toBe(TOKEN);
+    expect(vars.TIENDA_AVISO_URL).toBe("https://x/__edge/tienda/regenerar");
+  });
+
+  it("el cron horario regenera la tienda solo con Odoo ya encendido", () => {
+    expect(debeRegenerarEnCron("encendido", true, TOKEN)).toBe(true);
+    expect(debeRegenerarEnCron("dormido", true, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("despertado", true, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("encendido", false, TOKEN)).toBe(false);
+    expect(debeRegenerarEnCron("encendido", true, "corto")).toBe(false);
   });
 
   it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {

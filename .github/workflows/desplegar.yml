@@ -231,6 +231,8 @@ jobs:
           BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
+          # Opcional: tienda estática (edge/CONTRATO_CONTENEDOR.md → «Tienda estática»).
+          TIENDA_FEED_TOKEN: ${{ secrets.TIENDA_FEED_TOKEN }}
           DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
           PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
         run: .github/scripts/secretos_despliegue.sh

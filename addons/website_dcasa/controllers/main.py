@@ -16,6 +16,24 @@ MIGA_TIENDA = 'Todos los productos'
 # real de inventario, poner True y la ficha vuelve a publicar la disponibilidad de Odoo.
 PUBLICAR_DISPONIBILIDAD = False
 
+# Páginas legales: el cuerpo es una plantilla propia (views/legal_templates.xml) para que la tienda
+# estática del borde (dcasa_tienda_borde) publique exactamente el mismo texto.
+PAGINAS_LEGALES = {
+    '/privacidad': {
+        'titulo': 'Política de privacidad',
+        'descripcion': "Qué datos guarda D'CASA Panamá, para qué los usa, con quién los comparte "
+                       '(incluida la inteligencia artificial) y cómo ejercer tus derechos.',
+        'actualizado': '1 de octubre de 2026',
+        'cuerpo': 'website_dcasa.privacidad_cuerpo',
+    },
+    '/terminos': {
+        'titulo': 'Términos y condiciones',
+        'descripcion': "Cómo funcionan los precios, los pedidos y la atención de D'CASA Panamá en este sitio.",
+        'actualizado': '1 de octubre de 2026',
+        'cuerpo': 'website_dcasa.terminos_cuerpo',
+    },
+}
+
 
 def _sin_disponibilidad(datos):
     """Quita ``availability`` de cualquier oferta del JSON-LD (también en ``hasVariant``)."""
@@ -96,11 +114,11 @@ class DcasaTienda(http.Controller):
     @http.route('/privacidad', type='http', auth='public', website=True, sitemap=True)
     def privacidad(self, **kwargs):
         """Política de privacidad (Ley 81 de 2019), con el uso de inteligencia artificial."""
-        return request.render('website_dcasa.pagina_privacidad')
+        return request.render('website_dcasa.pagina_legal', dict(PAGINAS_LEGALES['/privacidad']))
 
     @http.route('/terminos', type='http', auth='public', website=True, sitemap=True)
     def terminos(self, **kwargs):
-        return request.render('website_dcasa.pagina_terminos')
+        return request.render('website_dcasa.pagina_legal', dict(PAGINAS_LEGALES['/terminos']))
 
     @http.route('/whatsapp', type='http', auth='public', website=True, sitemap=False)
     def whatsapp(self, texto=None, **kwargs):

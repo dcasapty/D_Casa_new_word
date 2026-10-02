@@ -78,6 +78,8 @@ propio valor por defecto (`dcasa`).
 | `DCASA_PIN_PEPPER` | secreto | — | nunca se rota |
 | `ODOO_MASTER_PASSWORD` | secreto | — | opcional |
 | `BRIAN_*`, `TELEGRAM_BOT_TOKEN` | var/secreto | — | opcionales |
+| `TIENDA_FEED_TOKEN` | secreto | — | ≥ 32 caracteres. Odoo lo exige en `GET /dcasa/tienda/feed` (cabecera `X-Dcasa-Tienda-Token`) y lo manda como `Bearer` al avisar `POST /__edge/tienda/regenerar` (§5) |
+| `TIENDA_AVISO_URL` | var | — | opcional; por defecto `https://<CANONICAL_HOST>/__edge/tienda/regenerar` |
 
 Adjuntos en R2: el entrypoint copia `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
 `R2_SECRET_ACCESS_KEY` (y `R2_REGION`, `R2_VERIFY_TLS`) a `DCASA_ADJUNTOS_R2_*` para el proceso de
@@ -85,7 +87,7 @@ Odoo, que guarda el contenido de `ir.attachment` en `adjuntos/<sha1[:2]>/<sha1>`
 Un respaldo de la base **sin** ese prefijo no restaura los archivos (`docs/OPERACION.md`).
 
 Solo del Worker (no entran al contenedor): `RESPALDO_TOKEN` (≥ 32 caracteres, p. ej.
-`openssl rand -hex 32`), `ODOO_DORMIR_TRAS`.
+`openssl rand -hex 32`), `ODOO_DORMIR_TRAS`, `TIENDA_ESTATICA` y el binding KV `TIENDA` (§5).
 
 ## 4. Política de scheduling: `default` (decidido ahora)
 
@@ -112,3 +114,67 @@ nueva nunca escriban a la vez en el mismo repositorio.
 Rollouts con `max_instances: 1`: un solo paso al 100 %; la instancia vieja recibe SIGTERM,
 sale, y recién entonces arranca la nueva (https://developers.cloudflare.com/containers/configuration/rollouts/).
 Durante ese hueco las visitas ven el 503 amable.
+
+## 5. Tienda estática (Fase 2 v1)
+
+Sitio público rápido generado desde los datos de Odoo; la tienda real (carrito, pago, apartado y
+abonos cuando haya pasarela, portal `/my`) sigue en Odoo. Código: `edge/src/tienda/` (generador y
+almacén), `edge/src/routing.ts` (`rutaEstatica`), `addons/dcasa_tienda_borde` (feed, marcas, «Agregar»).
+
+```
+Odoo (cambio de precio/stock/venta/factura) ──marca──▶ dcasa.tienda.pendiente
+   └─ ir.cron (disparado al confirmar, +20 s) ──POST /__edge/tienda/regenerar (Bearer)──▶ Worker
+Worker ──GET /dcasa/tienda/feed (X-Dcasa-Tienda-Token, directo al contenedor)──▶ Odoo
+Worker: renderizarSitio(feed) → escribe en KV solo las páginas cuyo ETag cambió (manifiesto)
+Visitante: GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<slug>, /visitanos,
+           /privacidad, /terminos ──▶ KV (si TIENDA_ESTATICA=on); si no está ──▶ Odoo, como antes
+```
+
+| Pieza | Contrato |
+|---|---|
+| `GET /dcasa/tienda/feed` | Solo con `TIENDA_FEED_TOKEN` (si falta o no coincide: 404). Bloqueada en el borde desde internet; el Worker la pide al contenedor. Usuario público del sitio: solo lo publicado. JSON `version: 1` (`edge/src/tienda/tipos.ts`). |
+| `POST /__edge/tienda/regenerar` | `Authorization: Bearer <TIENDA_FEED_TOKEN>`. 200 con el resumen; 503 si el feed falla (Odoo reintenta); 404 sin token/KV. Un feed vacío no borra un sitio publicado. |
+| `POST /dcasa/carrito/agregar-borde` | Formulario sin JS (`product_template_id`, o `product_id` de la variante). `csrf=False` + **mismo origen** (`Origin` = sitio; si no hay, `Sec-Fetch-Site: same-origin`; si no, `Referer`). La cookie de sesión de Odoo es `SameSite=Lax`. Redirige a `/shop/cart`. |
+| Cron horario del Worker | Si Odoo ya está encendido, regenera todo (red de seguridad). No lo despierta. |
+| `TIENDA_ESTATICA` | `on` sirve desde KV; `off` (producción por ahora) todo a Odoo. La regeneración funciona igual, para tener KV listo antes de encender. |
+| `DCASA_ENTORNO=staging` | `X-Robots-Tag: noindex, nofollow` en **todas** las respuestas del Worker. |
+
+**Qué se sirve estático y qué no.** Solo `GET/HEAD` de esas rutas y sin parámetros (salvo `utm_*`,
+`gclid`, `fbclid`…): búsqueda, filtros y orden van a Odoo. Fichas cuyo modo de compra es `ficha`
+(atributos dinámicos o sin variante, valores a medida, combos, opcionales) no se generan: las sirve
+Odoo con su configurador. Las variantes simples (hasta 30) se eligen con botones de radio sin JS.
+Las páginas estáticas son iguales para todos (sin contador de carrito ni nombre del cliente); un
+cliente con sesión las ve igual y su carrito, `/my` y el pago siguen en Odoo.
+
+**Almacén: Workers KV (decidido).** KV está hecho para lecturas globales de valores chicos con caché
+en cada centro de datos (`cacheTtl` 60 s), sin servidor en medio; las páginas pesan 15-60 KB. Costo
+en Workers Paid: 10 M lecturas y 1 M escrituras/mes incluidas (luego $0,50/M y $5/M;
+https://developers.cloudflare.com/workers/platform/pricing/, consultado 2026-10-02): una
+regeneración completa son ~210 escrituras y las incrementales solo las páginas que cambiaron
+(manifiesto con ETag), así que el uso esperado cabe en lo incluido (≈ $0). Se descartó **Workers
+Static Assets** (gratis, pero cada cambio exigiría un `wrangler deploy` desde CI: minutos y una
+versión nueva por cambio de stock) y **R2** (lecturas desde una sola región, sin caché por centro de
+datos sin agregar Cache API; útil si algún día hay miles de páginas o archivos grandes).
+Consistencia: KV es eventual (hasta ~60 s en otros centros de datos) + `cacheTtl` 60 s ⇒ un cambio
+se ve en ≤ ~2 min en el peor caso.
+
+**Imágenes.** Las fotos de producto se piden a `/web/image/product.template/<id>/image_{256,512,1024}?unique=<hash>`
+(las mismas URL que usa Odoo, con `srcset`): Odoo las marca `public, immutable` y el Worker ya las
+guarda en la caché del borde (`CACHEABLE_PATTERNS`); un cambio de foto cambia `unique`. Fuentes y
+fotos del tema salen de `/website_dcasa/static/…` (también cacheadas). Costo: $0. No se usa Cloudflare
+Images (transformaciones: 5 000 únicas/mes gratis, luego $0,50/1 000 — **sin verificar** para este
+volumen) ni variantes AVIF pregeneradas en R2: quedan como mejora si el LCP de la ficha lo pide.
+
+**Medición de laboratorio (2026-10-02).** Feed real de una base con `dcasa_catalogo` (188 productos:
+172 de compra directa, 16 con variantes; feed 352 KB, 0,59 s en Odoo local), 212 páginas generadas
+(HTML mediana 14,8 KB, máx. 59,7 KB sin comprimir); servidor local con Brotli y fotos/fuentes por
+proxy a Odoo. Lighthouse 12 móvil, 3 corridas, mediana: portada **100** (LCP 1,81 s, 458 KB, 13
+peticiones), `/shop` **99** (LCP 1,85 s), ficha **100** (LCP 1,91 s, 240 KB), Visítanos **99** (LCP
+1,87 s); TBT 0 ms y CLS ≤ 0,001 en todas; accesibilidad, buenas prácticas y SEO 100. Solo laboratorio:
+sin red Panamá↔borde ni datos de campo.
+
+**Fuera de esta v1:** reseñas e «Inspírate» de la portada, buscador estático, contador del carrito
+en la cabecera estática, JSON de existencias por producto con caché corta (hoy la disponibilidad
+solo se publica si `PUBLICAR_DISPONIBILIDAD` de `website_dcasa` es verdadero, y se refresca por
+regeneración), `sitemap.xml` propio (sigue el de Odoo: mismas URL), y redirigir/`noindex` el `/shop`
+de Odoo cuando el estático esté encendido.
