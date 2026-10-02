@@ -214,6 +214,14 @@ export class OdooContainer extends Container<Env> {
     await this.iniciarArranque().catch(() => undefined); // ya quedó registrado
   }
 
+  /**
+   * Para la caché de páginas: ¿Odoo responde ya? Solo mira el estado del contenedor (ni lo despierta
+   * ni le habla por HTTP): se consulta en el camino de una visita.
+   */
+  async listo(): Promise<boolean> {
+    return this.estaListo();
+  }
+
   /** Para `/__edge/health`: estado real sin encender nada. */
   async salud(): Promise<SaludContenedor> {
     const faltan = secretosFaltantes(this.env);
@@ -276,6 +284,10 @@ function odoo(env: Env) {
 const TTL_KV_LECTURA = 30;
 
 function almacenKv(kv: KVNamespace): AlmacenTienda {
+  const opciones = (meta?: Record<string, string>, ttlSegundos?: number): KVNamespacePutOptions => ({
+    ...(meta ? { metadata: meta } : {}),
+    ...(ttlSegundos ? { expirationTtl: ttlSegundos } : {}),
+  });
   return {
     async leer(clave) {
       const { value, metadata } = await kv.getWithMetadata<Record<string, string>>(clave, {
@@ -284,11 +296,25 @@ function almacenKv(kv: KVNamespace): AlmacenTienda {
       });
       return value === null ? null : { texto: value, meta: metadata };
     },
-    escribir: (clave, texto, meta, ttlSegundos) =>
-      kv.put(clave, texto, {
-        ...(meta ? { metadata: meta } : {}),
-        ...(ttlSegundos ? { expirationTtl: ttlSegundos } : {}),
-      }),
+    escribir: (clave, texto, meta, ttlSegundos) => kv.put(clave, texto, opciones(meta, ttlSegundos)),
+    async leerBinario(clave) {
+      const { value, metadata } = await kv.getWithMetadata<Record<string, string>>(clave, {
+        type: "arrayBuffer",
+        cacheTtl: TTL_KV_LECTURA,
+      });
+      return value === null ? null : { bytes: value, meta: metadata };
+    },
+    escribirBinario: (clave, bytes, meta, ttlSegundos) => kv.put(clave, bytes, opciones(meta, ttlSegundos)),
+    async meta(clave) {
+      // Solo interesa si existe y de cuándo es: el valor se descarta sin leerlo.
+      const { value, metadata } = await kv.getWithMetadata<Record<string, string>>(clave, {
+        type: "stream",
+        cacheTtl: TTL_KV_LECTURA,
+      });
+      if (value === null) return null;
+      await value.cancel();
+      return metadata ?? {};
+    },
   };
 }
 
@@ -316,6 +342,8 @@ export default {
         almacen: env.TIENDA ? almacenKv(env.TIENDA) : undefined,
         token: env.TIENDA_FEED_TOKEN,
       },
+      // Si el Durable Object no responde, tampoco respondería Odoo: se trata como «no listo».
+      odooListo: () => odoo(env).listo().catch(() => false),
       entorno: env.DCASA_ENTORNO,
       limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO },
     });
