@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Avisa al Worker que hay páginas que regenerar. No espera a su intervalo: cada cambio lo
+         dispara (ir.cron._trigger) al confirmar la transacción, con una pausa corta para juntar
+         los cambios de una misma operación. El intervalo es la red de seguridad para reintentar
+         si el Worker no respondió. -->
+    <record id="cron_avisar_borde" model="ir.cron">
+        <field name="name">D'CASA: avisar a la tienda del borde</field>
+        <field name="model_id" ref="model_dcasa_tienda_pendiente"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_avisar_borde()</field>
+        <field name="interval_number">15</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

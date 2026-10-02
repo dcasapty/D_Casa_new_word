@@ -34,6 +34,12 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
+  // Tienda estática (Fase 2): páginas generadas desde el feed de Odoo. Sin "id": Wrangler crea
+  // el namespace en el primer deploy («automatic provisioning», wrangler ≥ 4.45) y lo deja
+  // enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por entorno.
+  // Por qué KV y no R2 ni Static Assets: edge/CONTRATO_CONTENEDOR.md → «Tienda estática».
+  "kv_namespaces": [{ "binding": "TIENDA" }],
+
   // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled), solo
   // en 24/7: con ODOO_DORMIR_TRAS de duración (staging) lo deja dormido.
   // "17 8 * * *": 03:17 en Panamá (UTC-5), respaldo lógico diario dentro del contenedor.
@@ -52,7 +58,9 @@
     "DCASA_ENTORNO": "produccion",
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
-    "ODOO_DORMIR_TRAS": ""
+    "ODOO_DORMIR_TRAS": "",
+    // Tienda estática: "off" hasta que el dueño la apruebe en staging (todo lo sirve Odoo).
+    "TIENDA_ESTATICA": "off"
   },
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
@@ -84,6 +92,7 @@
         "bindings": [{ "name": "ODOO", "class_name": "OdooContainer" }]
       },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
+      "kv_namespaces": [{ "binding": "TIENDA" }],
       "triggers": { "crons": ["7 * * * *", "17 8 * * *"] },
       "vars": {
         "CANONICAL_HOST": "staging.dcasapty.com",
@@ -92,7 +101,9 @@
         // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
         // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
-        "ODOO_DORMIR_TRAS": "1h"
+        "ODOO_DORMIR_TRAS": "1h",
+        // Staging ya prueba la tienda estática (y manda X-Robots-Tag: noindex en todo).
+        "TIENDA_ESTATICA": "on"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

@@ -142,7 +142,7 @@ fi
 DB_PORT="${DB_PORT:-5432}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"

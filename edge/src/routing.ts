@@ -5,6 +5,7 @@
 export type Route =
   | { kind: "health" }
   | { kind: "respaldo" }
+  | { kind: "tienda_regenerar" }
   | { kind: "blocked" }
   | { kind: "redirect"; location: string; status: 301 | 308 }
   | { kind: "origin"; cacheable: boolean };
@@ -22,10 +23,13 @@ export type Route =
  *   D'CASA la usa hoy; cuando Brian en el borde la necesite (fase posterior) se
  *   abrirá con su propia protección, no desde internet abierto.
  *
+ * - `/dcasa/tienda/feed`: catálogo para el generador de la tienda estática. Lleva su propio
+ *   secreto, pero solo lo pide el Worker, directo al contenedor (sin pasar por estas reglas).
+ *
  * Ningún módulo de `addons/` ni el Worker usan estas rutas (Brian habla por
  * `/brian/mcp` y el sitio por `/web/dataset/*` y rutas `http`).
  */
-const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer"];
+const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer", "/dcasa/tienda/feed"];
 
 /**
  * Odoo (http_routing) quita un prefijo de idioma (`/es/…`, `/es_419/…`) y vuelve a
@@ -103,6 +107,9 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
   }
   if (url.pathname === "/__edge/respaldo") {
     return { kind: "respaldo" };
+  }
+  if (url.pathname === "/__edge/tienda/regenerar") {
+    return { kind: "tienda_regenerar" };
   }
   // `/__edge/*` es del borde: lo que no existe aquí no se reenvía a Odoo.
   if (isBlockedPath(url.pathname) || normalizePath(url.pathname).startsWith("/__edge/")) {
@@ -229,4 +236,43 @@ export function withSecurityHeaders(response: Response): Response {
     if (!secured.headers.has(name)) secured.headers.set(name, value);
   }
   return secured;
+}
+
+// ------------------------------------------------------------------ tienda estática
+
+/**
+ * Rutas que la tienda estática puede servir (las mismas URL de Odoo). Todo lo demás (carrito,
+ * checkout, pago, /my, /odoo, /web, /socios, /brian, /dcasa/*, buscador, filtros) va a Odoo.
+ * Las fichas y categorías llevan el `-<id>` final del slug de Odoo: así `/shop/cart`,
+ * `/shop/checkout`, `/shop/payment`… nunca se confunden con un producto.
+ */
+const RUTAS_ESTATICAS = [
+  /^\/$/,
+  /^\/shop(?:\/page\/[1-9]\d{0,4})?$/,
+  /^\/shop\/category\/[a-z0-9-]+-\d{1,10}(?:\/page\/[1-9]\d{0,4})?$/,
+  /^\/shop\/[a-z0-9-]+-\d{1,10}$/,
+  /^\/(?:visitanos|privacidad|terminos)$/,
+];
+
+/** Parámetros que no cambian la página (campañas): con ellos se sigue sirviendo la estática. */
+const PARAMETROS_IGNORABLES = /^(?:utm_[a-z_]+|gclid|fbclid|msclkid|gbraid|wbraid)$/;
+
+/**
+ * Ruta de la página estática que corresponde a esta petición, o `null` si va a Odoo: solo
+ * GET/HEAD, sin parámetros de búsqueda/filtro/orden y con una ruta de la lista.
+ */
+export function rutaEstatica(url: URL, method: string): string | null {
+  if (method !== "GET" && method !== "HEAD") return null;
+  for (const nombre of url.searchParams.keys()) {
+    if (!PARAMETROS_IGNORABLES.test(nombre)) return null;
+  }
+  return RUTAS_ESTATICAS.some((re) => re.test(url.pathname)) ? url.pathname : null;
+}
+
+/** Staging no se indexa: `X-Robots-Tag` en TODA respuesta (también redirecciones y 503). */
+export function conNoindex(response: Response): Response {
+  if (response.status === 101 || (response as Response & { webSocket?: unknown }).webSocket) return response;
+  const marcada = new Response(response.body, response);
+  marcada.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return marcada;
 }
