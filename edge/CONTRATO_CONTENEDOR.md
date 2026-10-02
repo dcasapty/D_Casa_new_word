@@ -72,6 +72,7 @@ propio valor por defecto (`dcasa`).
 | `PGBACKREST_CIPHER_PASS` | secreto | sí | cifrado del repositorio; perderla = perder los respaldos |
 | `R2_BUCKET` | var | sí | `dcasa-respaldos` · staging `dcasa-respaldos-staging` |
 | `DCASA_ENTORNO` | var | — | `produccion` · `staging` (por defecto `produccion`) |
+| `DCASA_STOCK_PRUEBA` | var | — | `0` · staging `10`. Unidades de prueba para cada producto inventariable sin existencias **ni movimientos** (`dcasa_catalogo.stock_prueba`, `aplicar_stock_prueba`; nunca pisa un conteo real). Solo vale con `DCASA_ENTORNO=staging`: en producción el entrypoint la deja **siempre en 0** |
 | `DCASA_ADJUNTOS` | var | — | `r2` (por defecto) · `db`. Dónde guarda Odoo los adjuntos **nuevos** (`addons/dcasa_adjuntos_r2`). Con `r2` usa las mismas `R2_*`, prefijo `adjuntos/` del bucket; con `db` sigue leyendo los que ya están en R2 y un cron los trae de vuelta a la base (emergencia) |
 | `CANONICAL_HOST` | var | — | `dcasapty.com` · `staging.dcasapty.com` |
 | `APP_VERSION` | var | — | por defecto `dev` |

@@ -12,7 +12,12 @@ import re
 from odoo.addons.dcasa_base import archivar_itbms_incluido, itbms_de_venta
 from odoo.tools.misc import file_open
 
-from .reglas import TAMANOS, categoria_de_nombre, tamano_del_nombre  # noqa: F401 (API del módulo)
+from .reglas import (  # noqa: F401 (API del módulo)
+    TAMANOS,
+    categoria_de_nombre,
+    precio_terminado_en_99,
+    tamano_del_nombre,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -86,6 +91,37 @@ def atributo_tamano(env):
     return atributo, valores
 
 
+def atributo_color(env, nombres):
+    """Atributo «Color» (crea variantes) con los valores pedidos: {nombre: valor}."""
+    Atributo = env['product.attribute']
+    atributo = Atributo.search([('name', '=', 'Color'), ('create_variant', '=', 'always')], limit=1)
+    atributo = atributo or Atributo.create({'name': 'Color', 'create_variant': 'always', 'display_type': 'radio'})
+    valores = {}
+    for nombre in nombres:
+        valor = atributo.value_ids.filtered(lambda v, n=nombre: v.name.lower() == n.lower())[:1]
+        valores[nombre] = valor or env['product.attribute.value'].create({
+            'name': nombre, 'attribute_id': atributo.id,
+        })
+    return atributo, valores
+
+
+def _poner_fotos_de_color(producto, item, atributo):
+    """Cada variante de color con su foto (la primera) y su galería (las demás), y su referencia."""
+    por_color = {nombre.lower(): fotos for nombre, fotos in item['colores'].items()}
+    for variante in producto.product_variant_ids:
+        color = variante.product_template_attribute_value_ids.filtered(
+            lambda v: v.attribute_id == atributo).product_attribute_value_id.name
+        fotos = por_color.get(color.lower()) or []
+        vals = {'default_code': f"{item['codigo']}-{re.sub(r'[^A-Z0-9]+', '-', color.upper()).strip('-')}"}
+        if fotos:
+            vals['image_variant_1920'] = foto_b64(fotos[0])
+            vals['product_variant_image_ids'] = [
+                (0, 0, {'name': f"{item['nombre']} {color} ({i})", 'image_1920': foto_b64(foto)})
+                for i, foto in enumerate(fotos[1:], start=2)
+            ]
+        variante.write(vals)
+
+
 def categoria_web(env, clave):
     return env.ref(CATEGORIA_WEB.get(clave, f'website_dcasa.public_category_{clave}'))
 
@@ -116,17 +152,46 @@ def valores_producto_nuevo(env, nombre, precio, impuesto, clave_categoria=None, 
     return vals
 
 
+def _ficha_y_fotos(item):
+    """Combo, medidas y fotos de la plantilla: la primera es la principal, el resto va a la galería."""
+    vals = {}
+    if item.get('combo'):
+        vals['dcasa_combo'] = item['combo']
+    if item.get('medidas'):
+        vals['dcasa_medidas'] = item['medidas']
+    fotos = item['fotos']
+    if fotos:
+        vals['image_1920'] = foto_b64(fotos[0])
+        vals['product_template_image_ids'] = [
+            (0, 0, {'name': f"{item['nombre']} ({i})", 'image_1920': foto_b64(foto)})
+            for i, foto in enumerate(fotos[1:], start=2)
+        ]
+    return vals
+
+
 def cargar_catalogo(env):
-    """Crea los productos que falten. Lo que ya existe (por su xmlid) no se toca."""
+    """Crea los productos que falten. Lo que ya existe (por su xmlid) no se toca.
+
+    Tampoco se crea un código que ya está en Odoo sin ser de esta carga (p. ej. lo cargó Brian
+    desde el Excel del proveedor): no se duplica ni se pisa; queda en el registro.
+    Los pedidos nuevos (``item['pedido']``) entran igual que la carga inicial; un código con
+    varios colores (``item['colores']``) es un producto con variantes de «Color», cada una con
+    su foto y el mismo precio.
+    """
     company = env.ref('base.main_company')
     env = env(context=dict(env.context, allowed_company_ids=company.ids, lang='es_419'))
     impuesto = itbms_de_venta(env, company)
     atributo, valores = atributo_tamano(env)
     Template = env['product.template']
+    Variante = env['product.product'].with_context(active_test=False)
     creados = 0
     for item in leer_catalogo():
         xmlid = xmlid_de(item['codigo'])
         if env.ref(f'{MODULO}.{xmlid}', raise_if_not_found=False):
+            continue
+        if Variante.search_count([('default_code', '=', item['codigo'])], limit=1):
+            _logger.warning('Catálogo D\'CASA: %s ya existe en Odoo (no es de esta carga): no se crea.',
+                            item['codigo'])
             continue
         precios = item['precios']
         tamanos = [t for t in TAMANOS if t in precios]
@@ -139,24 +204,24 @@ def cargar_catalogo(env):
             'website_sequence': item['orden'] * 10,
             'is_published': bool(fotos),
         })
-        if not tamanos:
+        colores = item.get('colores') or {}
+        if not tamanos and not colores:
             vals['default_code'] = item['codigo']
-        if item.get('combo'):
-            vals['dcasa_combo'] = item['combo']
-        if item.get('medidas'):
-            vals['dcasa_medidas'] = item['medidas']
-        if fotos:
-            vals['image_1920'] = foto_b64(fotos[0])
-            vals['product_template_image_ids'] = [
-                (0, 0, {'name': f"{item['nombre']} ({i})", 'image_1920': foto_b64(foto)})
-                for i, foto in enumerate(fotos[1:], start=2)
-            ]
+        vals.update(_ficha_y_fotos(item))
         if tamanos:
             vals['attribute_line_ids'] = [(0, 0, {
                 'attribute_id': atributo.id,
                 'value_ids': [(6, 0, [valores[t].id for t in tamanos])],
             })]
+        if colores:
+            color, valores_color = atributo_color(env, list(colores))
+            vals.setdefault('attribute_line_ids', []).append((0, 0, {
+                'attribute_id': color.id,
+                'value_ids': [(6, 0, [valores_color[c].id for c in colores])],
+            }))
         producto = Template.create(vals)
+        if colores:
+            _poner_fotos_de_color(producto, item, color)
         if tamanos:
             for ptav in producto.attribute_line_ids.product_template_value_ids:
                 ptav.price_extra = precios[ptav.name] - base
@@ -204,3 +269,62 @@ def actualizar_catalogo(env):
                 'attribute_id': atributo.id, 'value_ids': [(6, 0, valores[unico].ids)]})]
         if cambios:
             producto.write(cambios)
+
+
+# --- Existencias de prueba (solo staging) ------------------------------------------------------
+
+PARAM_STOCK_PRUEBA = 'dcasa_catalogo.stock_prueba'
+
+
+def stock_de_prueba(env):
+    """Unidades de prueba por producto (``dcasa_catalogo.stock_prueba``); vacío, 0 o inválido = apagado.
+
+    Lo fija docker/entrypoint.sh desde DCASA_STOCK_PRUEBA: 10 en staging, siempre 0 en producción.
+    """
+    valor = env['ir.config_parameter'].sudo().get_param(PARAM_STOCK_PRUEBA) or '0'
+    try:
+        return max(int(float(valor)), 0)
+    except ValueError:
+        return 0
+
+
+def aplicar_stock_prueba(env):
+    """Pone las unidades de prueba en el almacén principal a los productos que nunca tuvieron stock.
+
+    Solo productos inventariables, sin lote/serie, con existencias 0 y SIN ningún movimiento de
+    inventario: un conteo real (o una venta) nunca se pisa. Usa el ajuste de inventario de Odoo
+    (``stock.quant._apply_inventory``), que deja su movimiento: por eso es idempotente (la
+    segunda vez ya tienen movimiento). Devuelve cuántos productos recibieron existencias.
+    """
+    cantidad = stock_de_prueba(env)
+    if cantidad <= 0:
+        return 0
+    company = env.ref('base.main_company')
+    env = env(context=dict(env.context, allowed_company_ids=company.ids))
+    almacen = env['stock.warehouse'].search([('company_id', '=', company.id)], limit=1)
+    if not almacen:
+        return 0
+    productos = env['product.product'].search([
+        ('is_storable', '=', True), ('tracking', '=', 'none'),
+        ('company_id', 'in', [False, company.id]),
+    ])
+    con_movimientos = {
+        producto.id for [producto] in env['stock.move'].sudo().with_context(active_test=False)._read_group(
+            [('product_id', 'in', productos.ids)], ['product_id'])
+    }
+    sin_stock = productos.filtered(
+        lambda p: p.id not in con_movimientos and p.with_company(company).qty_available == 0)
+    if not sin_stock:
+        return 0
+    Quant = env['stock.quant'].with_context(inventory_mode=True)
+    quants = Quant.browse()
+    for producto in sin_stock:
+        quants |= Quant.create({
+            'product_id': producto.id,
+            'location_id': almacen.lot_stock_id.id,
+            'inventory_quantity': cantidad,
+        })
+    quants._apply_inventory()
+    _logger.info('Existencias de prueba: %s productos con %s unidades en %s.',
+                 len(sin_stock), cantidad, almacen.lot_stock_id.complete_name)
+    return len(sin_stock)

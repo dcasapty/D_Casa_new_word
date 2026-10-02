@@ -294,6 +294,7 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(variablesDelContenedor({ DCASA_ENTORNO: "staging" }).DCASA_ENTORNO).toBe("staging");
     expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
     expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
+    expect(variablesDelContenedor({ DCASA_STOCK_PRUEBA: "10" }).DCASA_STOCK_PRUEBA).toBe("10");
   });
 
   it("detecta los secretos que faltan para arrancar", () => {
@@ -352,6 +353,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
   it("producción 24/7", () => {
     expect(politicaDeSueno(config.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(true);
     expect(config.vars.DCASA_ENTORNO).toBe("produccion");
+    expect(config.vars.DCASA_STOCK_PRUEBA).toBe("0");
   });
 
   it("staging: otro Worker, otra instancia y otro bucket de R2", () => {
@@ -359,6 +361,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.name).not.toBe(config.name);
     expect(staging.vars.R2_BUCKET).not.toBe(config.vars.R2_BUCKET);
     expect(staging.vars.DCASA_ENTORNO).toBe("staging");
+    expect(staging.vars.DCASA_STOCK_PRUEBA).toBe("10");
     expect(staging.vars.CANONICAL_HOST).not.toBe(config.vars.CANONICAL_HOST);
     const c = contenedor(staging);
     expect(c.instance_type).toBe("basic");

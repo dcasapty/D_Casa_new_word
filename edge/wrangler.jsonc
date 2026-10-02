@@ -56,6 +56,8 @@
   "vars": {
     "CANONICAL_HOST": "dcasapty.com",
     "DCASA_ENTORNO": "produccion",
+    // Existencias de prueba: en producción SIEMPRE 0 (el entrypoint lo fuerza igual).
+    "DCASA_STOCK_PRUEBA": "0",
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
     "ODOO_DORMIR_TRAS": "",
@@ -97,6 +99,9 @@
       "vars": {
         "CANONICAL_HOST": "staging.dcasapty.com",
         "DCASA_ENTORNO": "staging",
+        // 10 unidades a cada producto sin existencias ni movimientos, para probar ventas
+        // (addons/dcasa_catalogo: aplicar_stock_prueba; nunca pisa un conteo real).
+        "DCASA_STOCK_PRUEBA": "10",
         "R2_BUCKET": "dcasa-respaldos-staging",
         // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
