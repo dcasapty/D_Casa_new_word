@@ -273,3 +273,10 @@ Unos 90 hallazgos. Lo corregido:
 - 119 tests.
 - Lighthouse en la portada: accesibilidad 100, SEO 100 y CLS 0.
 - El rendimiento en móvil sigue limitado por el JavaScript de Odoo.
+
+## Ronda 6 (pedido de la dueña: «se dañó mucho»)
+
+- La píldora de /socios en **todas** las páginas; portada **sin velo** (foto con sus colores y
+  texto en placa navy); cabeceras como /socios en legales y cuenta; fotos de producto en 3:4.
+- Detalle, regresiones con su commit de origen, métricas y capturas:
+  [`docs/auditoria/ronda6/diseno.md`](auditoria/ronda6/diseno.md).
