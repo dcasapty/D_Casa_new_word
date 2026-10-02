@@ -33,7 +33,7 @@
                 <div class="col-lg-5">
                     <div class="o_dcasa_socios_card">
                         <h2 class="h4">Entra</h2>
-                        <form action="/socios/entrar" method="post" class="o_dcasa_socios_form">
+                        <form action="/socios/entrar" method="post" class="o_dcasa_socios_form" data-captcha="socios_entrar">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <label for="celular">Tu celular</label>
                             <input id="celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel"
@@ -72,7 +72,7 @@
                 <p t-if="padrino" class="alert alert-info">
                     Te invitó <strong t-out="padrino._dcasa_nombre_publico()"/>. Con tu primera compra ganan los dos.
                 </p>
-                <form action="/socios/registro" method="post" class="o_dcasa_socios_form">
+                <form action="/socios/registro" method="post" class="o_dcasa_socios_form" data-captcha="socios_registro">
                     <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                     <input type="hidden" name="padrino" t-att-value="padrino.dcasa_socio_codigo if padrino else ''"/>
                     <div class="row g-2">
