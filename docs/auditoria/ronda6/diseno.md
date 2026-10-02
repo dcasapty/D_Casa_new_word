@@ -222,6 +222,15 @@ La dueña vio la ronda 6 y señaló dos cosas que **ya había decidido antes** y
   sobre fondo liso no se ve. Ahora nace en pausa y solo corre mientras la píldora está sobre la foto;
   se pausa al bajar, con la pestaña oculta y nunca con `prefers-reduced-motion`.
 
+- **Bug de producción en la misma cabecera** (visto por la dueña en /visitanos en staging): el
+  observador de la píldora construía `rootMargin: \`-${piso}px …\`` con el borde inferior de la
+  cabecera; si la página se abre ya desplazada (el navegador restaura el scroll) o la cabecera aún
+  no está fijada, ese borde es negativo y salía `"--85px"`: `SyntaxError` al construir el
+  `IntersectionObserver` y el diálogo «¡Vaya! Ocurrió un error» al visitante. Ahora la cadena la
+  arma una función pura (`margenBajoCabecera`: nunca negativa ni `NaN`) y un test la prueba con la
+  página real desplazada y la cabecera fuera de pantalla. El otro observador del archivo (entradas
+  al hacer scroll) usa un margen constante y no corre ese riesgo.
+
 ### Qué se conserva de la ronda 6
 
 La cabecera uniforme en legales y cuenta, /black-weekend con la banda bajo la píldora, fotos de
