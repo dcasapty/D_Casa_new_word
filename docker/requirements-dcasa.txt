@@ -1,3 +1,7 @@
 # Dependencias Python propias de D'CASA (además de vendor/odoo/requirements.txt).
 # boto3: adjuntos en R2 (addons/dcasa_adjuntos_r2). Sin él, los adjuntos se quedan en la base.
 boto3==1.43.107
+# rl-renderPM: con Python 3.12 Odoo usa reportlab 4.1, que no trae el dibujante de PNG (en Ubuntu lo
+# pone el paquete del sistema; en el venv no). Sin él falla todo código de barras/QR en PNG
+# (el QR de la factura electrónica, etiquetas de producto).
+rl-renderPM==4.0.3
