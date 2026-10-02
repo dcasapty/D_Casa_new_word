@@ -90,7 +90,7 @@ openssl rand -hex 32
 | `PGBACKREST_CIPHER_PASS` | cifra los respaldos en R2 | **Nunca.** Sin ella, los respaldos no se pueden abrir |
 | `DCASA_PIN_PEPPER` | protege el PIN de los socios | **Nunca.** Cambiarla invalida el PIN de todos los socios |
 | `RESPALDO_TOKEN` | autoriza pedir un respaldo a mano | sí |
-| `TIENDA_FEED_TOKEN` | la tienda rápida (páginas estáticas): Odoo y el Worker se reconocen con ella | sí (se sube en cada despliegue) |
+| `TIENDA_FEED_TOKEN` | la tienda rápida (caché de páginas en el borde): Odoo y el Worker se reconocen con ella | sí (se sube en cada despliegue) |
 | `ODOO_ADMIN_PASSWORD` | clave del usuario `admin` de Odoo | sí (desde Odoo) |
 | `ODOO_MASTER_PASSWORD` | contraseña maestra de Odoo, distinta de la anterior | sí |
 
@@ -338,18 +338,22 @@ Las dos quedan también en Odoo: Ajustes → Técnico → **Registros** (`dcasa.
 `dcasa.reporte.alerta_gb` (0.7). Lo que Odoo ya limpia solo (visitantes del sitio a los 60 días,
 sesiones a los 7, notificaciones, bus) no se repite.
 
-## Tienda rápida (páginas estáticas del Worker)
+## Tienda rápida (caché de páginas en el borde)
 
-La portada, el catálogo (`/shop`, categorías y páginas), las fichas, Visítanos, Privacidad y Términos
-se pueden servir **desde el borde de Cloudflare** en vez de pedírselas a Odoo cada vez: cargan en
-1-2 s en un celular y no gastan la CPU del contenedor. Las URL son **las mismas** de Odoo. El carrito,
-el pago, `/my` (portal del cliente), `/socios`, el panel y todo lo demás siguen en Odoo.
+La portada, el catálogo (`/shop`, categorías y páginas), las fichas, Black Weekend, Visítanos,
+Privacidad y Términos se pueden servir **desde el borde de Cloudflare** a los visitantes anónimos en
+vez de pedírselas a Odoo cada vez. Es **la misma página que dibuja Odoo**, guardada tal cual: mismo
+navbar píldora, héroe, footer y diseño (no hay una segunda plantilla que mantener). Quien entró con
+usuario, tiene carrito o lista de deseos, o es socio con sesión, recibe siempre la página de Odoo
+(con su carrito y su menú). El carrito, el pago, `/my`, `/socios` y el panel siempre son de Odoo.
 
 **Cómo se mantiene al día.** Cada cambio que se ve en el sitio (precio, nombre, publicar/despublicar,
-fotos, categorías, existencias, una venta confirmada o cancelada, una factura publicada) deja una
-marca en Odoo; a los ~20 segundos Odoo avisa al Worker y el Worker regenera las páginas que cambiaron
-(normalmente en menos de un minuto; Cloudflare tarda hasta ~60 s más en propagarlas). Además, cada
-hora el Worker revisa todo por si un aviso se perdió.
+fotos, categorías, existencias, una venta o factura, ajustes del sitio, ediciones con el constructor
+de sitios, menú, tarifas, Black Weekend) deja una marca en Odoo; a los ~20 segundos Odoo avisa al
+Worker, que da por viejas todas las páginas guardadas y vuelve a pedir la portada, `/shop`,
+`/black-weekend` y las fichas que cambiaron (las demás, con la primera visita). Otros centros de datos
+de Cloudflare pueden tardar ~1-2 min más. Además, ninguna página se sirve sin pedirla de nuevo a
+Odoo pasada una hora.
 
 **Encenderla:**
 
@@ -357,17 +361,18 @@ hora el Worker revisa todo por si un aviso se perdió.
    GitHub → Environments → `staging` (y luego `production`).
 2. El token de despliegue de Cloudflare necesita además el permiso **Workers KV Storage: Edit**
    (el primer despliegue crea solo el almacén «TIENDA» de cada entorno).
-3. Desplegar. Staging ya viene con `TIENDA_ESTATICA = "on"`: revisar `https://<staging>/`, `/shop` y una
-   ficha (la cabecera `X-Dcasa-Tienda: estatica` confirma que salió del borde). Staging nunca se
-   indexa en Google (`X-Robots-Tag: noindex` en todas sus respuestas).
-4. Si Odoo todavía no avisó nada, forzar la primera generación:
-   `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`
-   (responde con cuántas páginas escribió).
-5. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
+3. Desplegar. Staging viene con `TIENDA_ESTATICA = "on"`: abrir `https://<staging>/`, `/shop` y una
+   ficha en una ventana privada; la cabecera `X-Dcasa-Cache: HIT` (o `MISS` la primera vez) confirma
+   que salió del borde. Con sesión iniciada debe decir `BYPASS`. Staging nunca se indexa en Google
+   (`X-Robots-Tag: noindex` en todas sus respuestas).
+4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
-**Si algo se ve viejo:** repetir el paso 4. Si el Worker no puede leer una página, la pide a Odoo
-(nunca una página en blanco). Logs: eventos `tienda_regenerada` y `tienda_lectura_fallida`.
+**Si algo se ve viejo:** forzar la invalidación
+`curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.
+Si el Worker no puede leer el almacén, la página la da Odoo (nunca una página en blanco). Logs:
+eventos `paginas_invalidadas`, `paginas_precalentadas`, `pagina_lectura_fallida`,
+`pagina_escritura_fallida`.
 
 ## Dónde ver los logs
 

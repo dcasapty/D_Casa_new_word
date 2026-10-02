@@ -17,8 +17,8 @@ MIGA_TIENDA = 'Todos los productos'
 # real de inventario, poner True y la ficha vuelve a publicar la disponibilidad de Odoo.
 PUBLICAR_DISPONIBILIDAD = False
 
-# Páginas legales: el cuerpo es una plantilla propia (views/legal_templates.xml) para que la tienda
-# estática del borde (dcasa_tienda_borde) publique exactamente el mismo texto.
+# Páginas legales: el cuerpo es una plantilla propia (views/legal_templates.xml); título y
+# descripción, aquí.
 PAGINAS_LEGALES = {
     '/privacidad': {
         'titulo': 'Política de privacidad',

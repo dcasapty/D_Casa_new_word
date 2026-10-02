@@ -122,7 +122,7 @@ no se importan: el combo se escribe a mano en «Precio en combo o el par» si se
 ## Black Weekend
 
 Banda negra con titular amarillo en la portada (antes de los carriles), página `/black-weekend`
-(Odoo y tienda estática, con sitemap, canónica, `ItemList` y la imagen para compartir) y etiqueta
+(con sitemap, canónica, `ItemList` y la imagen para compartir; la caché del borde guarda la misma página) y etiqueta
 «Black Weekend» en las tarjetas de los productos marcados.
 
 - **Qué productos:** los marcados en el producto (casilla «Black Weekend» junto a la categoría, con su orden y,
@@ -140,8 +140,8 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
     staging `1`) y `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` (`edge/wrangler.jsonc`). Para otra fecha:
     cambiar esas variables (o el parámetro en Ajustes › Técnico › Parámetros del sistema si la
     variable queda vacía).
-  - La tienda estática se regenera al cambiar la marca o un parámetro, y el cron horario
-    «D'CASA: Black Weekend» la regenera (y borra el sitemap guardado) cuando la campaña empieza o
+  - La caché de páginas del borde se invalida al cambiar la marca o un parámetro, y el cron horario
+    «D'CASA: Black Weekend» la invalida (y borra el sitemap guardado) cuando la campaña empieza o
     termina sola.
 - **Lo que no lleva:** cuenta regresiva, «tiempo limitado», «remate», cuotas ni financiamiento
   (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña (`up media/115.png` …

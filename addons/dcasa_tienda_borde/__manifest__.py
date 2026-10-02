@@ -1,25 +1,27 @@
 {
     'name': "D'CASA Panamá — Tienda en el borde",
-    'summary': 'Catálogo publicado como JSON para la tienda estática del Worker y aviso de cambios',
+    'summary': 'Caché en el borde del HTML de Odoo para visitantes anónimos y aviso de cambios',
     'description': """
-Fase 2 v1: el sitio público (portada, catálogo, fichas, Visítanos, privacidad y términos) se
-genera en el Worker de Cloudflare desde los datos de Odoo; el carrito, el pago, /my y el resto
-siguen en Odoo.
+Caché en el borde (Worker de Cloudflare) del HTML que dibuja Odoo: una sola fuente de diseño.
+El Worker guarda la página que Odoo dibuja para un visitante anónimo y la sirve a los anónimos;
+quien tiene sesión propia (usuario, carrito, deseos, socio) pasa directo a Odoo.
 
-* ``GET /dcasa/tienda/feed``: catálogo publicado (solo lectura) protegido con el secreto
-  ``TIENDA_FEED_TOKEN`` (cabecera ``X-Dcasa-Tienda-Token``). Mismas URL, precios, «+ ITBMS»,
-  categorías, fotos y JSON-LD que las páginas de Odoo.
-* Aviso de cambios: precio, nombre, publicación, fotos, existencias, ventas confirmadas y facturas
-  dejan una marca «pendiente»; un cron (disparado al confirmar la transacción) avisa al Worker
-  (``POST /__edge/tienda/regenerar``) para que regenere las páginas.
-* Black Weekend: el feed trae la campaña (ventana ya evaluada en hora de Panamá, productos con su
-  precio y combo) y un cron horario regenera la tienda cuando la campaña empieza o termina.
-* ``POST /dcasa/carrito/agregar-borde``: «Agregar al carrito» desde las páginas estáticas, sin
-  token CSRF pero solo desde el mismo origen (cabeceras Origin / Sec-Fetch-Site / Referer).
+* Cookie ``dcasa_personal``: Odoo la pone a quien tiene algo propio en la sesión y la quita cuando
+  ya no (``models/ir_http.py``). Con ella el borde no sirve nada guardado.
+* Cabecera ``X-Dcasa-Borde: <TIENDA_FEED_TOKEN>``: el borde pide así la página a guardar (sin
+  cookies). Odoo no guarda sesión ni pone cookies y responde ``X-Dcasa-Borde: anonimo`` si la
+  dibujó para el usuario público; sin esa marca el borde no la guarda.
+* ``GET /dcasa/borde/csrf`` + ``static/src/js/borde_csrf.js``: el token CSRF de una página guardada
+  es de otra sesión; antes de enviar un formulario se pide uno de la sesión de quien la ve.
+* Aviso de cambios: precio, nombre, publicación, fotos, existencias, ventas confirmadas, facturas,
+  categorías, ajustes del sitio, plantillas, menú, páginas, tarifas y Black Weekend dejan una marca
+  «pendiente»; un cron (disparado al confirmar la transacción) avisa al Worker
+  (``POST /__edge/tienda/regenerar``), que da por viejas las páginas guardadas y vuelve a pedir
+  las principales.
 
-Contrato con el Worker: edge/CONTRATO_CONTENEDOR.md, sección «Tienda estática».
+Contrato con el Worker: edge/CONTRATO_CONTENEDOR.md, sección «Caché de páginas».
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.2.0.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -29,5 +31,10 @@ Contrato con el Worker: edge/CONTRATO_CONTENEDOR.md, sección «Tienda estática
         'security/ir.model.access.csv',
         'data/ir_cron.xml',
     ],
+    'assets': {
+        'web.assets_frontend': [
+            'dcasa_tienda_borde/static/src/js/borde_csrf.js',
+        ],
+    },
     'installable': True,
 }

@@ -53,6 +53,34 @@ class TestMarcasDeCambio(TransactionCase):
         self.env['product.public.category'].create({'name': 'Categoría marcas'})
         self.assertIn(0, self._marcados())
 
+    def test_plantilla_menu_pagina_y_tarifa_regeneran_todo(self):
+        """El borde guarda el HTML entero (cabecera, pie, menú): editar el sitio lo invalida."""
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Vista marcas prueba', 'type': 'qweb', 'key': 'dcasa_tienda_borde.vista_marcas_prueba',
+            'arch': '<t t-name="dcasa_tienda_borde.vista_marcas_prueba"><p>uno</p></t>'})
+        self.assertIn(0, self._marcados())
+        self.Pendiente.search([]).unlink()
+        vista.arch = '<t t-name="dcasa_tienda_borde.vista_marcas_prueba"><p>dos</p></t>'
+        self.assertIn(0, self._marcados())
+        self.Pendiente.search([]).unlink()
+        sitio = self.env['website'].search([], limit=1)
+        self.env['website.menu'].create({'name': 'Menú marcas', 'url': '/shop', 'website_id': sitio.id})
+        self.assertIn(0, self._marcados())
+        self.Pendiente.search([]).unlink()
+        tarifa = self.env['product.pricelist'].create({'name': 'Tarifa marcas'})
+        self.env['product.pricelist.item'].create({
+            'pricelist_id': tarifa.id, 'compute_price': 'percentage', 'percent_price': 10})
+        self.assertIn(0, self._marcados())
+
+    def test_vista_que_no_es_del_sitio_no_marca(self):
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Vista formulario marcas', 'type': 'form', 'model': 'res.partner',
+            'arch': '<form><field name="name"/></form>'})
+        self._marcados()
+        self.Pendiente.search([]).unlink()
+        vista.arch = '<form><field name="name"/><field name="email"/></form>'
+        self.assertNotIn(0, self._marcados())
+
     def test_existencias(self):
         bodega = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
         self.env['stock.quant']._update_available_quantity(self.variante, bodega.lot_stock_id, 5)
@@ -91,6 +119,8 @@ class TestMarcasDeCambio(TransactionCase):
         self.assertEqual(url, 'https://staging.dcasapty.com/__edge/tienda/regenerar')
         self.assertEqual(post.call_args.kwargs['headers']['Authorization'], f'Bearer {TOKEN}')
         self.assertIn(self.producto.id, post.call_args.kwargs['json']['productos'])
+        # La ficha del producto va en «rutas»: el borde la vuelve a pedir enseguida.
+        self.assertIn(self.producto.website_url, post.call_args.kwargs['json']['rutas'])
         self.assertFalse(self.Pendiente.search_count([]), 'Entregado: se borran las marcas')
 
     def test_worker_caido_reintenta(self):

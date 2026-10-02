@@ -92,7 +92,7 @@ clave de cifrado con producción):
 | Secret | `DCASA_PIN_PEPPER` | sí | pimienta del PIN de socios (ver abajo); **jamás se rota** |
 | Secret | `BRIAN_API_KEY` | sí | clave del proveedor de IA de Brian (en staging, una clave de pruebas con tope de gasto) |
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
-| Secret | `TIENDA_FEED_TOKEN` | no (sí para la tienda estática) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: protege el feed del catálogo y el aviso de regeneración. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
+| Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché de páginas) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: con él Odoo certifica las páginas anónimas que el borde guarda y protege el aviso de invalidación. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
 | Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: `https://dcasa.<subdominio>.workers.dev` hasta activar el dominio, luego `https://dcasapty.com`; staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com`) |
 | Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`); útil mientras se usa `workers.dev` |
 | Variable | `R2_ENDPOINT` | no | solo si el bucket está en otra jurisdicción; por defecto `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |

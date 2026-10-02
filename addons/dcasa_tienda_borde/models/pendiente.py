@@ -1,10 +1,12 @@
 """Marcas de «página pendiente de regenerar» y aviso al Worker.
 
 Cualquier cambio que se vea en el sitio público (precio, nombre, publicación, fotos, existencias,
-una venta confirmada, una factura) llama a ``_dcasa_marcar`` con los productos afectados. Las
-marcas se juntan en la transacción (``cr.precommit``) y se escriben de una vez al confirmarla, y
-el cron ``cron_avisar_borde`` se dispara a los pocos segundos: le manda al Worker la lista de
-productos y el Worker vuelve a leer el catálogo (``/dcasa/tienda/feed``) y regenera lo que cambió.
+una venta confirmada, una factura, categorías, ajustes, plantillas, menú, tarifas, Black Weekend)
+llama a ``_dcasa_marcar`` con los productos afectados. Las marcas se juntan en la transacción
+(``cr.precommit``) y se escriben de una vez al confirmarla, y el cron ``cron_avisar_borde`` se
+dispara a los pocos segundos: le avisa al Worker, que da por viejas TODAS las páginas que guardó
+del HTML de Odoo (edge/src/tienda/paginas.ts) y vuelve a pedirle a Odoo las principales y las
+fichas de los productos que cambiaron (``rutas``); el resto, con la primera visita.
 
 Si el Worker no responde, las marcas se quedan y el cron reintenta en su intervalo. Sin secreto
 configurado (TIENDA_FEED_TOKEN) no hay a quién avisar: las marcas se descartan.
@@ -30,6 +32,8 @@ TODO = 0
 PAUSA_AVISO = timedelta(seconds=20)
 # Máximo de marcas por aviso (el resto va en la siguiente corrida).
 LOTE = 2000
+# Fichas que el Worker vuelve a pedir enseguida (las demás, con la primera visita).
+MAX_RUTAS = 30
 TIEMPO_ESPERA = 60
 LARGO_MINIMO_TOKEN = 32
 
@@ -120,6 +124,12 @@ class DcasaTiendaPendiente(models.Model):
         return True
 
     @api.model
+    def _dcasa_rutas_de(self, plantilla_ids):
+        """URL públicas (``website_url``) de los productos publicados, para precalentar en el borde."""
+        productos = self.env['product.template'].sudo().browse(plantilla_ids).exists()
+        return sorted({p.website_url for p in productos if p.is_published and p.website_url})
+
+    @api.model
     def _dcasa_avisar_borde(self):
         """Cron: manda al Worker los productos pendientes; si responde 2xx, borra esas marcas."""
         marcas = self.sudo().search([], limit=LOTE)
@@ -132,10 +142,12 @@ class DcasaTiendaPendiente(models.Model):
             marcas.unlink()
             return False
         productos = sorted(set(marcas.mapped('producto_id')))
+        ids = [p for p in productos if p != TODO]
         cuerpo = {
             'todo': TODO in productos,
-            'productos': [p for p in productos if p != TODO],
+            'productos': ids,
             'motivos': sorted(set(filter(None, marcas.mapped('motivo')))),
+            'rutas': self._dcasa_rutas_de(ids[:MAX_RUTAS]),
         }
         try:
             respuesta = requests.post(url, json=cuerpo, timeout=TIEMPO_ESPERA, headers={

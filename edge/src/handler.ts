@@ -11,7 +11,15 @@ import {
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
-import { type AlmacenTienda, type ResultadoRegeneracion, servirPaginaEstatica } from "./tienda/servir";
+import {
+  type AlmacenTienda,
+  type DepsPaginas,
+  esPersonal,
+  invalidar,
+  precalentar,
+  rutasAPrecalentar,
+  servirPagina,
+} from "./tienda/paginas";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -29,16 +37,16 @@ export interface EdgeDeps {
   /** Respaldo a mano: `POST /__edge/respaldo` con el token compartido. */
   respaldo?: { token?: string; respaldar: () => Promise<ResultadoRespaldo> };
   /**
-   * Tienda estática (Fase 2). `activa` = TIENDA_ESTATICA=on: las páginas públicas salen del
-   * almacén (KV) y, si no están, de Odoo como siempre. La regeneración (`POST
-   * /__edge/tienda/regenerar` con `Bearer TIENDA_FEED_TOKEN`) funciona aunque no esté activa,
-   * para dejar las páginas listas antes de encenderla.
+   * Caché de páginas (src/tienda/paginas.ts). `activa` = TIENDA_ESTATICA=on: las páginas públicas
+   * se sirven a visitantes anónimos con el HTML de Odoo guardado en el almacén (KV). Necesita el
+   * almacén y el token (≥ 32): Odoo solo certifica una página como anónima si se la pide el borde
+   * con ese secreto. La invalidación (`POST /__edge/tienda/regenerar` con `Bearer
+   * TIENDA_FEED_TOKEN`) funciona aunque no esté activa.
    */
   tienda?: {
     activa: boolean;
     almacen?: AlmacenTienda;
     token?: string;
-    regenerar?: () => Promise<ResultadoRegeneracion>;
   };
   /** DCASA_ENTORNO: en "staging" toda respuesta lleva `X-Robots-Tag: noindex`. */
   entorno?: string;
@@ -66,25 +74,26 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
       if (!deps.respaldo) return new Response("Not Found", { status: 404 });
       return manejarRespaldo(request, deps.respaldo);
     case "tienda_regenerar":
-      return manejarRegenerarTienda(request, deps.tienda);
+      return manejarRegenerarTienda(request, depsPaginas(deps));
     case "blocked":
       return new Response("Not Found", { status: 404 });
     case "redirect":
       return Response.redirect(decision.location, decision.status);
   }
 
-  const estatica = deps.tienda?.activa && deps.tienda.almacen ? rutaEstatica(url, request.method) : null;
-  if (estatica && deps.tienda?.almacen) {
-    try {
-      const pagina = await servirPaginaEstatica(request, estatica, deps.tienda.almacen);
-      if (pagina) return withSecurityHeaders(pagina);
-    } catch (error) {
-      // KV caído o lento: la página la sirve Odoo, como antes de la Fase 2.
-      console.error(JSON.stringify({ evento: "tienda_lectura_fallida", ruta: estatica, error: String(error) }));
-    }
-  }
-
   const upstream = new Request(request, { headers: forwardedHeaders(request) });
+
+  const paginas = deps.tienda?.activa ? depsPaginas(deps) : null;
+  const ruta = paginas ? rutaEstatica(url, request.method) : null;
+  if (paginas && ruta) {
+    // Con sesión propia (usuario, carrito, socio) o credenciales: la página es suya, la da Odoo.
+    if (esPersonal(request)) {
+      return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
+    }
+    const pagina = await servirPagina(request, ruta, paginas, () => reenviar(request, upstream, deps));
+    if (pagina) return withSecurityHeaders(pagina);
+    // Almacén caído: la sirve Odoo, como si la caché no existiera.
+  }
 
   if (decision.cacheable && deps.cache) {
     if (!isCacheableRequest(request)) {
@@ -127,6 +136,19 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   }
 
   return withSecurityHeaders(await reenviar(request, upstream, deps));
+}
+
+/** Dependencias de la caché de páginas, o `null` si falta el almacén o el token (≥ 32). */
+function depsPaginas(deps: EdgeDeps): DepsPaginas | null {
+  const token = deps.tienda?.token;
+  if (!deps.tienda?.almacen || !token || token.length < LARGO_MINIMO_TOKEN) return null;
+  return {
+    almacen: deps.tienda.almacen,
+    token,
+    // Mismo camino que una visita: si Odoo está apagado, el 503 amable (no se guarda).
+    forward: (pedido) => reenviar(pedido, pedido, deps),
+    waitUntil: deps.waitUntil,
+  };
 }
 
 /**
@@ -355,8 +377,9 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BRIAN_TELEGRAM_SECRETO",
-  // Tienda estática del borde (addons/dcasa_tienda_borde): el mismo secreto protege el feed y
-  // el aviso de regeneración; TIENDA_AVISO_URL es opcional (por defecto https://CANONICAL_HOST/…).
+  // Caché de páginas del borde (addons/dcasa_tienda_borde): el mismo secreto certifica las páginas
+  // anónimas y protege el aviso de invalidación; TIENDA_AVISO_URL es opcional (por defecto
+  // https://CANONICAL_HOST/__edge/tienda/regenerar).
   "TIENDA_FEED_TOKEN",
   "TIENDA_AVISO_URL",
 ] as const;
@@ -513,44 +536,51 @@ export async function manejarRespaldo(
   });
 }
 
-// ------------------------------- Tienda estática ---------------------------
+// ------------------------------- Caché de páginas --------------------------
 
 /**
  * `POST /__edge/tienda/regenerar` con `Authorization: Bearer <TIENDA_FEED_TOKEN>`: Odoo avisa que
- * algo cambió (addons/dcasa_tienda_borde) y el Worker relee el feed y reescribe las páginas
- * que cambiaron. Sin token válido configurado (≥ 32 caracteres) o sin almacén, la ruta no existe.
- * Responde cuando terminó: Odoo reintenta si no fue 2xx.
+ * algo visible cambió (addons/dcasa_tienda_borde: precio, stock, categoría, ajustes, Black
+ * Weekend, vistas…). El Worker marca TODAS las páginas guardadas como viejas (una escritura en KV)
+ * y, ya respondido, pide a Odoo las principales y las que vengan en `rutas` para que la próxima
+ * visita no espere. Sin token válido (≥ 32) o sin almacén, la ruta no existe. Si no se pudo
+ * invalidar, 503: Odoo reintenta.
  */
-export async function manejarRegenerarTienda(
-  request: Request,
-  tienda?: { token?: string; almacen?: AlmacenTienda; regenerar?: () => Promise<ResultadoRegeneracion> },
-): Promise<Response> {
-  if (!tienda?.regenerar || !tienda.almacen || !tienda.token || tienda.token.length < LARGO_MINIMO_TOKEN) {
-    return new Response("Not Found", { status: 404 });
-  }
+export async function manejarRegenerarTienda(request: Request, paginas: DepsPaginas | null): Promise<Response> {
+  if (!paginas) return new Response("Not Found", { status: 404 });
   if (request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
   }
-  if (!autorizado(request.headers.get("Authorization"), tienda.token)) {
+  if (!autorizado(request.headers.get("Authorization"), paginas.token)) {
     return new Response("Unauthorized", { status: 401, headers: { "WWW-Authenticate": "Bearer" } });
   }
-  // El cuerpo (productos y motivos) solo se registra: se regenera todo y se escribe lo que cambió.
   const aviso = await request.text().catch(() => "");
-  const resultado = await tienda.regenerar();
-  const linea = JSON.stringify({ evento: "tienda_regenerada", aviso: aviso.slice(0, 500), ...resultado });
+  let rutasDeOdoo: unknown;
+  try {
+    rutasDeOdoo = (JSON.parse(aviso) as { rutas?: unknown }).rutas;
+  } catch {
+    rutasDeOdoo = undefined;
+  }
+  let resultado: { estado: "ok" | "fallo"; invalidado?: number; precalentar?: number; motivo?: string };
+  try {
+    const invalidado = await invalidar(paginas.almacen);
+    const origen = new URL(request.url);
+    const rutas = rutasAPrecalentar(rutasDeOdoo, (r) => rutaEstatica(new URL(r, origen), "GET") === r);
+    const tarea = precalentar(origen, rutas, paginas).then((guardadas) =>
+      console.log(JSON.stringify({ evento: "paginas_precalentadas", rutas: rutas.length, guardadas })),
+    );
+    // Después de responder: Odoo espera este 200 con su cron ocupado.
+    if (paginas.waitUntil) paginas.waitUntil(tarea);
+    else await tarea;
+    resultado = { estado: "ok", invalidado, precalentar: rutas.length };
+  } catch (error) {
+    resultado = { estado: "fallo", motivo: String(error) };
+  }
+  const linea = JSON.stringify({ evento: "paginas_invalidadas", aviso: aviso.slice(0, 500), ...resultado });
   if (resultado.estado === "ok") console.log(linea);
   else console.error(linea);
   return new Response(JSON.stringify(resultado), {
     status: resultado.estado === "ok" ? 200 : 503,
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
-}
-
-/** ¿El cron horario regenera la tienda? Solo con almacén y token, y con Odoo ya encendido. */
-export function debeRegenerarEnCron(
-  odoo: "encendido" | "despertado" | "dormido",
-  hayAlmacen: boolean,
-  token?: string,
-): boolean {
-  return odoo === "encendido" && hayAlmacen && !!token && token.length >= LARGO_MINIMO_TOKEN;
 }

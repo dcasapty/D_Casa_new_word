@@ -111,6 +111,18 @@ LISTA_BLANCA = {
         OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
     ('dcasa_tienda_borde', 'ir.config_parameter', 'unlink'):
         OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
+    ('dcasa_tienda_borde', 'ir.ui.view', 'create'): OVERRIDE + ' Marca «regenerar todo» si es QWeb.',
+    ('dcasa_tienda_borde', 'ir.ui.view', 'write'): OVERRIDE + ' Marca «regenerar todo» si es QWeb.',
+    ('dcasa_tienda_borde', 'ir.ui.view', 'unlink'): OVERRIDE + ' Marca «regenerar todo» si es QWeb.',
+    ('dcasa_tienda_borde', 'website.menu', 'create'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website.menu', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website.menu', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website.page', 'create'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website.page', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'website.page', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'product.pricelist.item', 'create'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'product.pricelist.item', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'product.pricelist.item', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
     # --- dcasa_brian ----------------------------------------------------------------------
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).

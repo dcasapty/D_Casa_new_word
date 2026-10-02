@@ -1,10 +1,5 @@
-import os
-from unittest.mock import patch
-
 from odoo.addons.dcasa_tienda_borde.models.pendiente import PARAM_BW_PUBLICADO, TODO
-from odoo.tests import HttpCase, TransactionCase, tagged
-
-TOKEN = 'z' * 40
+from odoo.tests import TransactionCase, tagged
 
 
 def _ventana(env, activo='0', inicio='', fin=''):
@@ -62,41 +57,3 @@ class TestBlackWeekendAviso(TransactionCase):
         self.assertTrue(cron.active)
         self.assertEqual((cron.interval_number, cron.interval_type), (1, 'hours'))
 
-
-@tagged('post_install', '-at_install')
-class TestBlackWeekendFeed(HttpCase):
-
-    def setUp(self):
-        super().setUp()
-        recamaras = self.env.ref('website_dcasa.public_category_recamaras')
-        self.cama = self.env['product.template'].create({
-            'name': 'Cama BW feed prueba', 'list_price': 143.99, 'is_published': True, 'default_code': 'BW-FEED-1',
-            'public_categ_ids': [(6, 0, recamaras.ids)], 'dcasa_black_weekend': True, 'dcasa_bw_orden': -1000,
-        })
-
-    def _feed(self):
-        with patch.dict(os.environ, {'TIENDA_FEED_TOKEN': TOKEN}):
-            respuesta = self.url_open('/dcasa/tienda/feed', headers={'X-Dcasa-Tienda-Token': TOKEN})
-        self.assertEqual(respuesta.status_code, 200)
-        return respuesta.json()
-
-    def test_feed_con_la_campana_activa(self):
-        _ventana(self.env, '1', '2026-10-05', '2026-10-11')
-        feed = self._feed()
-        bw = feed['black_weekend']
-        self.assertTrue(bw['activo'])
-        self.assertEqual((bw['inicio'], bw['fin'], bw['zona']), ('2026-10-05', '2026-10-11', 'America/Panama'))
-        self.assertEqual(bw['ruta'], '/black-weekend')
-        self.assertTrue(bw['og_imagen'].endswith('/website_dcasa/static/src/img/black_weekend/og.jpg'))
-        item = next(p for p in bw['productos'] if p['id'] == self.cama.id)
-        self.assertEqual(item['precio'], 143.99)
-        self.assertEqual(item['codigo'], 'BW-FEED-1')
-        self.assertIn('BW-FEED-1', item['whatsapp'])
-        self.assertEqual(item['compra'], 'directa')
-        self.assertEqual(bw['json_ld']['@type'], 'ItemList')
-        producto = next(p for p in feed['productos'] if p['id'] == self.cama.id)
-        self.assertTrue(producto['black_weekend'])
-
-    def test_feed_con_la_campana_apagada(self):
-        _ventana(self.env, '0', '2020-01-01', '2020-01-02')
-        self.assertFalse(self._feed()['black_weekend']['activo'])

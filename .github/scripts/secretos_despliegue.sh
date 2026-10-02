@@ -9,7 +9,7 @@
 #   R2_SECRET_ACCESS_KEY, RESPALDO_TOKEN, BRIAN_API_KEY   se suben en cada despliegue
 #   R2_ENDPOINT   opcional; por defecto https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 #   TELEGRAM_BOT_TOKEN, BRIAN_TELEGRAM_SECRETO            opcionales: solo si existen
-#   TIENDA_FEED_TOKEN   opcional: tienda estática (feed de Odoo + aviso de regeneración, ≥ 32)
+#   TIENDA_FEED_TOKEN   opcional: caché de páginas (Odoo certifica las anónimas + aviso, ≥ 32)
 #   DCASA_PIN_PEPPER, PGBACKREST_CIPHER_PASS              se suben UNA vez (ver abajo)
 #
 # Nombres y obligatoriedad: edge/CONTRATO_CONTENEDOR.md §3.

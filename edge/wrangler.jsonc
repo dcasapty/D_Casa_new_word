@@ -34,10 +34,10 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
-  // Tienda estática (Fase 2): páginas generadas desde el feed de Odoo. Sin "id": Wrangler crea
-  // el namespace en el primer deploy («automatic provisioning», wrangler ≥ 4.45) y lo deja
-  // enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por entorno.
-  // Por qué KV y no R2 ni Static Assets: edge/CONTRATO_CONTENEDOR.md → «Tienda estática».
+  // Caché de páginas: el HTML que dibuja Odoo para anónimos, guardado tal cual (src/tienda/paginas.ts).
+  // Sin "id": Wrangler crea el namespace en el primer deploy («automatic provisioning», wrangler
+  // ≥ 4.45) y lo deja enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por
+  // entorno. Por qué KV y no Cache API: edge/CONTRATO_CONTENEDOR.md → «Caché de páginas».
   "kv_namespaces": [{ "binding": "TIENDA" }],
 
   // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled), solo
@@ -67,7 +67,8 @@
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
     "ODOO_DORMIR_TRAS": "",
-    // Tienda estática: "off" hasta que el dueño la apruebe en staging (todo lo sirve Odoo).
+    // Caché de páginas: "off" en producción hasta que la dueña la apruebe en staging (todo lo
+    // sirve Odoo).
     "TIENDA_ESTATICA": "off"
   },
 
@@ -117,9 +118,10 @@
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
         // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
         "ODOO_DORMIR_TRAS": "1h",
-        // Apagada el 2026-10-02: su plantilla propia no tenía el diseño del sitio (navbar, héroe,
-        // footer). Vuelve cuando el borde sirva el HTML que dibuja Odoo (mismo diseño, una fuente).
-        "TIENDA_ESTATICA": "off"
+        // Caché de páginas encendida: el borde sirve a los anónimos el MISMO HTML que dibuja Odoo
+        // (navbar píldora, héroe, footer; probado idéntico byte a byte salvo el token CSRF, que el
+        // JS refresca). La plantilla propia de antes (apagada el 2026-10-02) ya no existe.
+        "TIENDA_ESTATICA": "on"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

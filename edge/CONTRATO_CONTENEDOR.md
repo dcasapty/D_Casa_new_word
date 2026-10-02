@@ -118,49 +118,53 @@ Rollouts con `max_instances: 1`: un solo paso al 100 %; la instancia vieja recib
 sale, y recién entonces arranca la nueva (https://developers.cloudflare.com/containers/configuration/rollouts/).
 Durante ese hueco las visitas ven el 503 amable.
 
-## 5. Tienda estática (Fase 2 v1)
+## 5. Caché de páginas (HTML de Odoo en el borde)
 
-Sitio público rápido generado desde los datos de Odoo; la tienda real (carrito, pago, apartado y
-abonos cuando haya pasarela, portal `/my`) sigue en Odoo. Código: `edge/src/tienda/` (generador y
-almacén), `edge/src/routing.ts` (`rutaEstatica`), `addons/dcasa_tienda_borde` (feed, marcas, «Agregar»).
+Una sola fuente de diseño: el borde **no dibuja nada**. Guarda, byte a byte, la página que Odoo
+dibuja para un visitante anónimo y se la sirve a los anónimos; quien tiene sesión propia pasa directo
+a Odoo. Reemplaza a la «tienda estática» (plantilla propia del Worker alimentada por un feed), que se
+borró el 2026-10-02 porque no tenía el navbar, el héroe ni el footer del sitio. Código:
+`edge/src/tienda/paginas.ts`, `edge/src/routing.ts` (`rutaEstatica`), `addons/dcasa_tienda_borde`.
 
 ```
-Odoo (cambio de precio/stock/venta/factura) ──marca──▶ dcasa.tienda.pendiente
-   └─ ir.cron (disparado al confirmar, +20 s) ──POST /__edge/tienda/regenerar (Bearer)──▶ Worker
-Worker ──GET /dcasa/tienda/feed (X-Dcasa-Tienda-Token, directo al contenedor)──▶ Odoo
-Worker: renderizarSitio(feed) → escribe en KV solo las páginas cuyo ETag cambió (manifiesto)
-Visitante: GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<slug>, /visitanos,
-           /privacidad, /terminos, /black-weekend ──▶ KV (si TIENDA_ESTATICA=on); si no está ──▶ Odoo, como antes
+Visitante GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<slug>, /visitanos,
+          /privacidad, /terminos, /black-weekend (sin parámetros salvo utm_*, gclid, fbclid…)
+  ├─ con cookie dcasa_personal o Authorization ──────────────▶ Odoo (X-Dcasa-Cache: BYPASS)
+  └─ anónimo ─▶ KV html:<host><ruta>
+        ├─ válida (t ≥ invalidado) y < 1 h ──────────────────▶ HIT (Odoo ni se entera)
+        ├─ válida y ≥ 1 h ─▶ STALE: se sirve y se pide otra a Odoo en segundo plano
+        └─ no está o es anterior a la invalidación ─▶ MISS: Odoo (sin cookies, X-Dcasa-Borde: <token>)
+              └─ 200 + «X-Dcasa-Borde: anonimo» + sin Set-Cookie ─▶ se guarda y se sirve; si no, Odoo
+Odoo (precio, stock, venta, factura, categoría, ajustes, plantilla, menú, página, tarifa, Black Weekend)
+  ──marca──▶ dcasa.tienda.pendiente ──cron (+20 s)──POST /__edge/tienda/regenerar (Bearer)──▶ Worker
+Worker: KV invalidado = ahora (1 escritura) y, ya respondido, pide a Odoo /, /shop, /black-weekend y
+        las fichas que cambiaron (`rutas`, ≤ 30)
 ```
 
 | Pieza | Contrato |
 |---|---|
-| `GET /dcasa/tienda/feed` | Solo con `TIENDA_FEED_TOKEN` (si falta o no coincide: 404). Bloqueada en el borde desde internet; el Worker la pide al contenedor. Usuario público del sitio: solo lo publicado. JSON `version: 1` (`edge/src/tienda/tipos.ts`). |
-| `POST /__edge/tienda/regenerar` | `Authorization: Bearer <TIENDA_FEED_TOKEN>`. 200 con el resumen; 503 si el feed falla (Odoo reintenta); 404 sin token/KV. Un feed vacío no borra un sitio publicado. |
-| `POST /dcasa/carrito/agregar-borde` | Formulario sin JS (`product_template_id`, o `product_id` de la variante). `csrf=False` + **mismo origen** (`Origin` = sitio; si no hay, `Sec-Fetch-Site: same-origin`; si no, `Referer`). La cookie de sesión de Odoo es `SameSite=Lax`. Redirige a `/shop/cart`. |
-| Black Weekend | El feed trae `black_weekend` (opcional; `activo` ya evaluado en hora de Panamá, productos con precio de la tienda y combo). Sin `activo` (o sin productos) no hay banda, ni etiqueta, ni `/black-weekend` (la página se borra de KV y Odoo responde 404). El cron horario de Odoo (`cron_vigilar_black_weekend`) avisa al Worker cuando la campaña empieza o termina. |
-| Cron horario del Worker | Si Odoo ya está encendido, regenera todo (red de seguridad). No lo despierta. |
-| `TIENDA_ESTATICA` | `on` sirve desde KV; `off` (producción por ahora) todo a Odoo. La regeneración funciona igual, para tener KV listo antes de encender. |
-| `DCASA_ENTORNO=staging` | `X-Robots-Tag: noindex, nofollow` en **todas** las respuestas del Worker. |
+| Cookie `dcasa_personal` | La pone Odoo (`models/ir_http.py`, `_post_dispatch`) a quien tiene en la sesión usuario (`uid`, `pre_uid`) o cualquier dato fuera de `CLAVES_NEUTRAS` (carrito, `website_sale_cart_quantity`, `wishlist_ids`, socio, tarifa elegida, modo lista…). La quita cuando ya no (cerró sesión, pagó, expiró). `session_id` NO sirve: Odoo se la pone a todo anónimo. HttpOnly, SameSite=Lax. |
+| Relleno | El Worker pide la página SIN cookies, sin IP del visitante, con `User-Agent` fijo, `X-Disable-Tracking: 1` y `X-Dcasa-Borde: <TIENDA_FEED_TOKEN>`. Con ese secreto Odoo no guarda sesión ni manda `Set-Cookie` y, si la dibujó para el usuario público sin nada propio, responde `X-Dcasa-Borde: anonimo`. Sin esa marca, con `Set-Cookie`, no-200 o no-HTML: no se guarda (al visitante le llega la respuesta de Odoo a SU petición). El visitante no puede mandar `X-Dcasa-Borde` (el borde la quita). |
+| CSRF | Lo único que cambia entre dos dibujos anónimos. La página guardada lleva el de la sesión del relleno; `static/src/js/borde_csrf.js` (en `web.assets_frontend`) pide `GET /dcasa/borde/csrf` (no-store, guarda la sesión) al tocar un formulario y detiene el envío POST hasta tenerlo. Solo actúa si la navegación trae `Server-Timing: dcasa-borde`. JSON-RPC (carrito de la ficha) no usa CSRF. |
+| Respuesta al visitante | HTML tal cual + `Content-Type` de Odoo, `Cache-Control: no-cache`, `ETag` (304 desde el borde), `Server-Timing: dcasa-borde;desc="HIT"`, `X-Dcasa-Cache: HIT/MISS/STALE/BYPASS`, cabeceras de seguridad y, en staging, `X-Robots-Tag: noindex, nofollow`. Nunca `Set-Cookie`. |
+| Nunca se guarda | `/web*`, `/my*`, `/shop/cart*`, `/shop/checkout`, pago, `/socios`, `/brian`, `/dcasa/*`, búsqueda/filtros/orden (`?search`, `?order`, `?attribute_values`…), POST y todo lo que no esté en la lista de rutas. |
+| `POST /__edge/tienda/regenerar` | `Authorization: Bearer <TIENDA_FEED_TOKEN>`. 200 `{estado, invalidado, precalentar}`; 503 si KV no escribe (Odoo reintenta cada 15 min); 404 sin token (≥ 32) o sin KV. Funciona con la caché apagada. |
+| Claves de KV | `html:<host><ruta>` (valor = HTML; metadatos `{t, etag, ct}`; `expirationTtl` 7 días) e `invalidado` (ms). Una página vale si `t ≥ invalidado`: invalidar es UNA escritura, sin listar ni borrar. `<host>` en la clave: workers.dev y el dominio no se mezclan (canonical, og:url). |
+| `TIENDA_ESTATICA` | `on` = caché de páginas encendida (staging); `off` = todo a Odoo (producción hasta que la dueña lo apruebe). Sin `TIENDA_FEED_TOKEN` válido la caché no existe aunque diga `on`. |
+| KV caído | Lectura que falla → la página la sirve Odoo, como si la caché no existiera. Escritura que falla → solo se registra (`pagina_escritura_fallida`). |
 
-**Qué se sirve estático y qué no.** Solo `GET/HEAD` de esas rutas y sin parámetros (salvo `utm_*`,
-`gclid`, `fbclid`…): búsqueda, filtros y orden van a Odoo. Fichas cuyo modo de compra es `ficha`
-(atributos dinámicos o sin variante, valores a medida, combos, opcionales) no se generan: las sirve
-Odoo con su configurador. Las variantes simples (hasta 30) se eligen con botones de radio sin JS.
-Las páginas estáticas son iguales para todos (sin contador de carrito ni nombre del cliente); un
-cliente con sesión las ve igual y su carrito, `/my` y el pago siguen en Odoo.
-
-**Almacén: Workers KV (decidido).** KV está hecho para lecturas globales de valores chicos con caché
-en cada centro de datos (`cacheTtl` 60 s), sin servidor en medio; las páginas pesan 15-60 KB. Costo
-en Workers Paid: 10 M lecturas y 1 M escrituras/mes incluidas (luego $0,50/M y $5/M;
-https://developers.cloudflare.com/workers/platform/pricing/, consultado 2026-10-02): una
-regeneración completa son ~210 escrituras y las incrementales solo las páginas que cambiaron
-(manifiesto con ETag), así que el uso esperado cabe en lo incluido (≈ $0). Se descartó **Workers
-Static Assets** (gratis, pero cada cambio exigiría un `wrangler deploy` desde CI: minutos y una
-versión nueva por cambio de stock) y **R2** (lecturas desde una sola región, sin caché por centro de
-datos sin agregar Cache API; útil si algún día hay miles de páginas o archivos grandes).
-Consistencia: KV es eventual (hasta ~60 s en otros centros de datos) + `cacheTtl` 60 s ⇒ un cambio
-se ve en ≤ ~2 min en el peor caso.
+**Almacén: Workers KV, no Cache API (decidido).** Cache API (`caches.default`) es gratis y ~1 ms, pero
+es por centro de datos (cada uno llena su copia pidiéndosela a Odoo), purgar en todos exige la API de
+purga de la zona y en `workers.dev` (staging hoy, sin dominio propio) no guarda nada. KV es global: un
+solo relleno sirve a todos los centros de datos, la invalidación es una escritura y funciona en
+`workers.dev`. Costo (Workers Paid: 10 M lecturas y 1 M escrituras/mes incluidas; luego $0,50/M y
+$5/M, https://developers.cloudflare.com/workers/platform/pricing/, consultado 2026-10-02): cada vista
+anónima = 2 lecturas (`invalidado` + página; con `cacheTtl` 30 s en el centro de datos); cada página
+se escribe como mucho una vez por hora de tráfico (STALE) y una vez por invalidación (~35 precalentadas
++ las que se visiten). Con ~200 páginas y unas decenas de cambios al día queda dentro de lo incluido
+(≈ $0). Consistencia: una invalidación tarda ≤ ~1-2 min en verse en otros centros de datos (KV
+eventual + `cacheTtl`); en el que la escribió (y precalentó), al instante. Medido local: precio
+cambiado en Odoo → el borde sirve el nuevo a los 24 s (20 s de `PAUSA_AVISO` + cron).
 
 **Imágenes.** Las fotos de producto salen de `GET /dcasa/img/<modelo>/<id>/<campo>/<ancho>.<webp|jpg>?v=<v>`
 (`addons/website_dcasa/models/imagen.py` y `controllers/imagen.py`), no de `/web/image`: Odoo 19 sirve
@@ -175,8 +179,7 @@ lo achica. Contrato:
 | Respuesta | `200`, `Cache-Control: public, max-age=31536000, immutable`, `ETag` (304 si coincide), sin `Set-Cookie` (`save_session=False`). El borde la guarda (`CACHEABLE_PATTERNS`, exige `?v=`). |
 | Visibilidad | Solo si la plantilla está publicada en el sitio (`_dcasa_dominio_publicado`) y la variante activa; si no, `404 no-store`. |
 | Generación | Una vez por (foto, ancho, formato): queda en `dcasa.imagen.variante` (adjunto ⇒ R2 con `dcasa_adjuntos_r2`). Al cambiar la foto se borran las de la versión vieja (el objeto de R2 lo recoge el cron de 45 días). Si Pillow no puede (SVG), `302` a `/web/image`. |
-| Feed | `imagen.foto = {base, v}` y `galeria_fotos[]` (además de las URL de `/web/image`, de respaldo), `sitio.imagen_anchos`. |
-| Páginas | Estáticas (`edge/src/tienda/render.ts`) y tarjetas de Odoo (`/shop`, carriles de la portada): `<picture>` con `<source type="image/webp" srcset=…>` + `<img>` JPEG/Odoo con `width/height`, `sizes`; perezosas salvo la LCP (`eager` + `fetchpriority="high"`, y `preload` WebP en la ficha). |
+| Páginas | Tarjetas de Odoo (`/shop`, carriles de la portada; las mismas que guarda la caché de páginas): `<picture>` con `<source type="image/webp" srcset=…>` + `<img>` JPEG/Odoo con `width/height`, `sizes`; perezosas salvo la LCP (`eager` + `fetchpriority="high"`, y `preload` WebP en la ficha). |
 
 Por qué en Odoo y no en Cloudflare: el **Images binding** del Worker trabaja con bytes, no con URL de zona (en
 `workers.dev`: NO VERIFICADO) y daría AVIF, pero cobra por transformación única (5 000/mes gratis en el plan Free de
@@ -196,16 +199,16 @@ productos de fotos reales (local, sin Brotli; 3 corridas): imágenes 440 → 197
 de 57 KB incluido); el LCP de laboratorio no cambia (~24 s: lo marca el JS/CSS de Odoo sin comprimir).
 Generar una variante: ~0,2 s de un núcleo la primera vez; luego se sirve guardada (~30 ms).
 
-**Medición de laboratorio (2026-10-02).** Feed real de una base con `dcasa_catalogo` (188 productos:
-172 de compra directa, 16 con variantes; feed 352 KB, 0,59 s en Odoo local), 212 páginas generadas
-(HTML mediana 14,8 KB, máx. 59,7 KB sin comprimir); servidor local con Brotli y fotos/fuentes por
-proxy a Odoo. Lighthouse 12 móvil, 3 corridas, mediana: portada **100** (LCP 1,81 s, 458 KB, 13
-peticiones), `/shop` **99** (LCP 1,85 s), ficha **100** (LCP 1,91 s, 240 KB), Visítanos **99** (LCP
-1,87 s); TBT 0 ms y CLS ≤ 0,001 en todas; accesibilidad, buenas prácticas y SEO 100. Solo laboratorio:
-sin red Panamá↔borde ni datos de campo.
+**Medición (2026-10-02, local).** Base con `dcasa_catalogo`, Odoo local (`workers=0`) detrás del
+mismo `handleRequest` en `wrangler dev` (KV de miniflare). HTML del borde = HTML de Odoo byte a byte
+salvo el token CSRF en `/`, `/shop`, una ficha y `/black-weekend`; capturas (escritorio 1280 y móvil
+390) iguales (las de escritorio de `/` y `/shop` solo con antialiasing distinto: ningún píxel difiere
+más de 40/255). Chromium móvil, mediana de 5: TTFB Odoo → borde (HIT): `/` 37 → 17 ms (la portada ya
+la cachea Odoo), `/shop` 187 → 13 ms, ficha 131 → 12 ms, `/black-weekend` 127 → 15 ms; LCP 328 → 304,
+480 → 340, 424 → 360, 388 → 340 ms. Solo laboratorio (sin red, CPU local mucho más rápida que el
+contenedor `basic` de 1/4 vCPU): en producción la ganancia de TTFB debería ser mayor.
 
-**Fuera de esta v1:** reseñas e «Inspírate» de la portada, buscador estático, contador del carrito
-en la cabecera estática, JSON de existencias por producto con caché corta (hoy la disponibilidad
-solo se publica si `PUBLICAR_DISPONIBILIDAD` de `website_dcasa` es verdadero, y se refresca por
-regeneración), `sitemap.xml` propio (sigue el de Odoo: mismas URL), y redirigir/`noindex` el `/shop`
-de Odoo cuando el estático esté encendido.
+**Pendiente:** contador del carrito y menú de usuario en páginas guardadas no hacen falta (quien los
+tiene pasa a Odoo); las visitas servidas desde la caché no llegan a «Visitantes» de Odoo (el
+rastreo de productos vistos sigue por JS); un usuario que ya estaba logueado antes de desplegar esto
+ve UNA página anónima hasta su primera respuesta de Odoo (que le pone la cookie).

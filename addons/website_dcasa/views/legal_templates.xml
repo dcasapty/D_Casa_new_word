@@ -23,9 +23,8 @@
         </t>
     </template>
 
-    <!-- Cuerpos sin el marco: los usa la página de Odoo (pagina_legal) y la tienda estática del
-         borde (dcasa_tienda_borde los exporta ya renderizados). Título y descripción: PAGINAS_LEGALES
-         en controllers/main.py. -->
+    <!-- Cuerpos sin el marco: los usa la página de Odoo (pagina_legal). Título y descripción:
+         PAGINAS_LEGALES en controllers/main.py. -->
     <template id="privacidad_cuerpo" name="D'CASA: política de privacidad (cuerpo)">
 
             <h2>Quiénes somos</h2>
