@@ -397,7 +397,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(vars.TIENDA_AVISO_URL).toBe("https://x/__edge/tienda/regenerar");
   });
 
-  it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {
-    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(false);
+  it("staging también 24/7 (decisión de la dueña, 2026-10-02): no se duerme", () => {
+    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(true);
   });
 });

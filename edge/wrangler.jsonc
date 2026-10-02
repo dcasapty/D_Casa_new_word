@@ -130,10 +130,10 @@
         "DCASA_BLACK_WEEKEND_INICIO": "2026-10-02",
         "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
         "R2_BUCKET": "dcasa-respaldos-staging",
-        // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
-        // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
-        // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
-        "ODOO_DORMIR_TRAS": "1h",
+        // 24/7 como producción (decisión de la dueña, 2026-10-02): dormido, la página cacheada
+        // en el borde salía sin estilos (los assets los sirve Odoo) y /socios tardaba ~1 min en
+        // despertar y restaurar desde R2. Para abaratar una pausa larga, poner "1h".
+        "ODOO_DORMIR_TRAS": "",
         // Caché de páginas encendida: el borde sirve a los anónimos el MISMO HTML que dibuja Odoo
         // (navbar píldora, héroe, footer; probado idéntico byte a byte salvo el token CSRF, que el
         // JS refresca). La plantilla propia de antes (apagada el 2026-10-02) ya no existe.
