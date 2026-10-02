@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="dcasa_fe_documento_list" model="ir.ui.view">
+        <field name="name">dcasa.fe.documento.list</field>
+        <field name="model">dcasa.fe.documento</field>
+        <field name="arch" type="xml">
+            <list create="0" delete="0" edit="0" decoration-danger="estado == 'rechazado' or contingencia_vencida"
+                  decoration-warning="estado == 'contingencia'" decoration-success="estado == 'autorizado'"
+                  decoration-muted="estado == 'anulado'">
+                <field name="create_date" string="Creado"/>
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="tipo_documento"/>
+                <field name="punto"/>
+                <field name="numero"/>
+                <field name="estado"/>
+                <field name="intentos" optional="hide"/>
+                <field name="proximo_intento" optional="hide"/>
+                <field name="contingencia_vencida" column_invisible="True"/>
+                <field name="fecha_autorizacion" optional="show"/>
+                <field name="cufe" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_fe_documento_form" model="ir.ui.view">
+        <field name="name">dcasa.fe.documento.form</field>
+        <field name="model">dcasa.fe.documento</field>
+        <field name="arch" type="xml">
+            <form create="0" delete="0" edit="0">
+                <header>
+                    <button name="action_procesar" type="object" string="Enviar / consultar ahora" class="btn-primary"
+                            invisible="estado not in ('por_enviar', 'contingencia', 'enviado')"
+                            groups="account.group_account_invoice"/>
+                    <button name="action_reintentar" type="object" string="Regenerar con los datos corregidos"
+                            invisible="estado not in ('rechazado', 'borrador')" groups="account.group_account_invoice"/>
+                    <button name="action_anular" type="object" string="Anular ante la DGI"
+                            invisible="estado != 'autorizado'" groups="account.group_account_invoice"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="por_enviar,enviado,autorizado"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-danger" role="alert" invisible="not error">
+                        <field name="error" readonly="1"/>
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not contingencia_vencida">
+                        Lleva más de 72 horas en contingencia sin autorizarse: revisa la conexión con el PAC.
+                    </div>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Documento">
+                            <field name="move_id" readonly="1"/>
+                            <field name="partner_id"/>
+                            <field name="tipo_documento" readonly="1"/>
+                            <field name="tipo_emision" readonly="1"/>
+                            <field name="punto" readonly="1"/>
+                            <field name="numero" readonly="1"/>
+                            <field name="fecha_emision" readonly="1"/>
+                            <field name="referencia_id" readonly="1" invisible="not referencia_id"/>
+                            <field name="contingencia_vencida" invisible="1"/>
+                        </group>
+                        <group string="DGI">
+                            <field name="ambiente" readonly="1"/>
+                            <field name="adaptador" readonly="1"/>
+                            <field name="cufe" readonly="1"/>
+                            <field name="protocolo" readonly="1"/>
+                            <field name="fecha_autorizacion" readonly="1"/>
+                            <field name="qr" readonly="1" widget="url" invisible="not qr"/>
+                            <field name="validacion_xsd" readonly="1"/>
+                            <field name="intentos" readonly="1"/>
+                            <field name="proximo_intento" readonly="1"/>
+                            <field name="contingencia_inicio" readonly="1" invisible="not contingencia_inicio"/>
+                            <field name="contingencia_motivo" readonly="1" invisible="not contingencia_motivo"/>
+                            <field name="fecha_anulacion" readonly="1" invisible="estado != 'anulado'"/>
+                            <field name="motivo_anulacion" readonly="1" invisible="estado != 'anulado'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Historial de intentos" name="intentos">
+                            <field name="intento_ids" readonly="1">
+                                <list>
+                                    <field name="fecha"/>
+                                    <field name="operacion"/>
+                                    <field name="resultado"/>
+                                    <field name="estado"/>
+                                    <field name="mensaje"/>
+                                    <field name="usuario_id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="XML enviado" name="payload">
+                            <field name="payload" readonly="1" widget="code" options="{'mode': 'xml'}"/>
+                        </page>
+                        <page string="Respuesta del PAC" name="respuesta">
+                            <field name="respuesta" readonly="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dcasa_fe_documento_search" model="ir.ui.view">
+        <field name="name">dcasa.fe.documento.search</field>
+        <field name="model">dcasa.fe.documento</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="move_id"/>
+                <field name="partner_id"/>
+                <field name="numero"/>
+                <field name="cufe"/>
+                <filter name="atencion" string="Piden atención" domain="[('estado', 'in', ('rechazado', 'contingencia'))]"/>
+                <filter name="pendientes" string="Pendientes" domain="[('estado', 'in', ('por_enviar', 'enviado', 'contingencia'))]"/>
+                <filter name="autorizados" string="Autorizados" domain="[('estado', '=', 'autorizado')]"/>
+                <group>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_fe_documento" model="ir.actions.act_window">
+        <field name="name">Factura electrónica (DGI)</field>
+        <field name="res_model">dcasa.fe.documento</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aún no hay documentos electrónicos</p>
+            <p>Nacen solos al publicar una factura cuando la factura electrónica está activa
+               (Ajustes → Facturación → Factura electrónica DGI) y hay un PAC configurado.</p>
+        </field>
+    </record>
+
+    <record id="dcasa_fe_anular_wizard_form" model="ir.ui.view">
+        <field name="name">dcasa.fe.anular.wizard.form</field>
+        <field name="model">dcasa.fe.anular.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Anular factura electrónica">
+                <p class="text-muted">
+                    Anula solo si la venta NO ocurrió. Si ocurrió y hay que corregirla, haz una nota de crédito.
+                    Una anulación no se puede deshacer.
+                </p>
+                <group>
+                    <field name="documento_id" force_save="1"/>
+                    <field name="motivo" placeholder="p. ej. Factura emitida por error, el cliente no compró"/>
+                </group>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Anular ante la DGI" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_fe_documento" name="Factura electrónica (DGI)" parent="account.menu_finance_receivables"
+              action="action_dcasa_fe_documento" sequence="90" groups="account.group_account_invoice"/>
+</odoo>

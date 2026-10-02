@@ -58,6 +58,25 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'conciliar'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'automatico'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'deshacer'): CONTADOR,
+    # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
+    ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
+        'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
+    ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_reintentar'):
+        'Botón: exige account.group_account_invoice antes del sudo (regenera un rechazado).',
+    ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_anular'): ACCION_VENTANA + ' El asistente exige Facturación.',
+    ('dcasa_fe_pa', 'dcasa.fe.documento', 'write'):
+        'Bloquea: número, punto, tipo y factura no cambian; un autorizado solo pasa a anulado (ACL solo lectura).',
+    ('dcasa_fe_pa', 'dcasa.fe.documento', 'unlink'): 'Bloquea: los documentos electrónicos no se borran.',
+    ('dcasa_fe_pa', 'dcasa.fe.intento', 'write'): 'Bloquea: el histórico de intentos no se edita.',
+    ('dcasa_fe_pa', 'dcasa.fe.intento', 'unlink'): 'Bloquea: el histórico de intentos no se borra.',
+    ('dcasa_fe_pa', 'dcasa.fe.anular.wizard', 'action_confirmar'):
+        ASISTENTE + ' (Facturación); además exige account.group_account_invoice antes del sudo.',
+    ('dcasa_fe_pa', 'account.move', 'button_draft'):
+        OVERRIDE + ' Solo agrega el bloqueo si la factura ya existe ante la DGI; lee con sudo, no escribe.',
+    ('dcasa_fe_pa', 'account.move', 'button_cancel'):
+        OVERRIDE + ' Solo agrega el bloqueo si la factura ya existe ante la DGI; lee con sudo, no escribe.',
+    ('dcasa_fe_pa', 'account.move', 'action_l10n_pa_fe_procesar'):
+        'Delega en dcasa.fe.documento.action_procesar, que exige account.group_account_invoice.',
     # --- dcasa_interfaz -----------------------------------------------------------------
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
@@ -147,7 +166,8 @@ LISTA_BLANCA = {
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
-SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento')
+SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento',
+                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado')
 
 
 def es_publico(modelo, nombre):
