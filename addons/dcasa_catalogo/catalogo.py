@@ -271,6 +271,54 @@ def actualizar_catalogo(env):
             producto.write(cambios)
 
 
+# --- Black Weekend ------------------------------------------------------------------------------
+
+# Selección de la dueña (2026-10-02) entre sus 39 gráficas de «up media/115.png … 153.png»:
+# (código del producto o de la variante destacada, gráfica de la que salió). El orden es el de la
+# lista. Los precios NO están aquí: la web muestra los del catálogo (website_dcasa/models/black_weekend.py).
+BLACK_WEEKEND = [
+    ('888K', '115.png'),
+    ('908K-NEGRO', '118.png'),
+    ('803K', '122.png'),
+    ('809Q', '123.png'),
+    ('822F', '126.png'),
+    ('825K', '129.png'),
+    ('6220Q', '133.png'),
+    ('6877F', '132.png'),
+    ('Y0200100', '134.png'),
+    ('Y0300300-LTSC07', '141.png'),  # el producto aparte del pedido ($129.99), no el Y0300300 anterior
+    ('HK-BF-022-N-K-1-W', '153.png'),
+    ('N-F10018-Q-BK', '151.png'),
+]
+
+
+def marcar_black_weekend(env):
+    """Marca los productos de Black Weekend por su código (``default_code`` de la variante).
+
+    Idempotente: deja la marca, el orden (10, 20, …) y, si el código es de una variante de color
+    (908K-NEGRO), esa variante como la destacada. No quita la marca a otros productos (la dueña
+    puede sumar más desde Odoo). Un código que no está se anota en el registro y se sigue.
+    Devuelve cuántos productos quedaron marcados.
+    """
+    Variante = env['product.product'].with_context(active_test=False)
+    marcados = 0
+    for orden, (codigo, _grafica) in enumerate(BLACK_WEEKEND, start=1):
+        variante = Variante.search([('default_code', '=', codigo)], limit=1)
+        if not variante:
+            _logger.warning('Black Weekend: el código %s no está en el catálogo: no se marca.', codigo)
+            continue
+        producto = variante.product_tmpl_id
+        vals = {'dcasa_black_weekend': True, 'dcasa_bw_orden': orden * 10}
+        vals['dcasa_bw_variante_id'] = variante.id if producto.product_variant_count > 1 else False
+        cambios = {k: v for k, v in vals.items()
+                   if (producto[k].id if k == 'dcasa_bw_variante_id' else producto[k]) != v}
+        if cambios:
+            producto.write(cambios)
+        marcados += 1
+    _logger.info('Black Weekend: %s productos marcados.', marcados)
+    return marcados
+
+
 # --- Existencias de prueba (solo staging) ------------------------------------------------------
 
 PARAM_STOCK_PRUEBA = 'dcasa_catalogo.stock_prueba'

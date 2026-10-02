@@ -73,6 +73,8 @@ propio valor por defecto (`dcasa`).
 | `R2_BUCKET` | var | sí | `dcasa-respaldos` · staging `dcasa-respaldos-staging` |
 | `DCASA_ENTORNO` | var | — | `produccion` · `staging` (por defecto `produccion`) |
 | `DCASA_STOCK_PRUEBA` | var | — | `0` · staging `10`. Unidades de prueba para cada producto inventariable sin existencias **ni movimientos** (`dcasa_catalogo.stock_prueba`, `aplicar_stock_prueba`; nunca pisa un conteo real). Solo vale con `DCASA_ENTORNO=staging`: en producción el entrypoint la deja **siempre en 0** |
+| `DCASA_BLACK_WEEKEND` | var | — | `0` · staging `1`. `1` = Black Weekend visible sin mirar fechas (vista previa); `0` = solo dentro de la ventana (`dcasa_black_weekend.activo`, addons/website_dcasa/models/black_weekend.py) |
+| `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` | var | — | `2026-10-05` / `2026-10-11` (AAAA-MM-DD, hora de Panamá, inclusivas). Vacías: el entrypoint no toca lo que haya en Odoo. El cron horario de `dcasa_tienda_borde` regenera la tienda cuando la campaña empieza o termina |
 | `DCASA_ADJUNTOS` | var | — | `r2` (por defecto) · `db`. Dónde guarda Odoo los adjuntos **nuevos** (`addons/dcasa_adjuntos_r2`). Con `r2` usa las mismas `R2_*`, prefijo `adjuntos/` del bucket; con `db` sigue leyendo los que ya están en R2 y un cron los trae de vuelta a la base (emergencia) |
 | `CANONICAL_HOST` | var | — | `dcasapty.com` · `staging.dcasapty.com` |
 | `APP_VERSION` | var | — | por defecto `dev` |
@@ -128,7 +130,7 @@ Odoo (cambio de precio/stock/venta/factura) ──marca──▶ dcasa.tienda.pe
 Worker ──GET /dcasa/tienda/feed (X-Dcasa-Tienda-Token, directo al contenedor)──▶ Odoo
 Worker: renderizarSitio(feed) → escribe en KV solo las páginas cuyo ETag cambió (manifiesto)
 Visitante: GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<slug>, /visitanos,
-           /privacidad, /terminos ──▶ KV (si TIENDA_ESTATICA=on); si no está ──▶ Odoo, como antes
+           /privacidad, /terminos, /black-weekend ──▶ KV (si TIENDA_ESTATICA=on); si no está ──▶ Odoo, como antes
 ```
 
 | Pieza | Contrato |
@@ -136,6 +138,7 @@ Visitante: GET /, /shop, /shop/page/N, /shop/category/<slug>[/page/N], /shop/<sl
 | `GET /dcasa/tienda/feed` | Solo con `TIENDA_FEED_TOKEN` (si falta o no coincide: 404). Bloqueada en el borde desde internet; el Worker la pide al contenedor. Usuario público del sitio: solo lo publicado. JSON `version: 1` (`edge/src/tienda/tipos.ts`). |
 | `POST /__edge/tienda/regenerar` | `Authorization: Bearer <TIENDA_FEED_TOKEN>`. 200 con el resumen; 503 si el feed falla (Odoo reintenta); 404 sin token/KV. Un feed vacío no borra un sitio publicado. |
 | `POST /dcasa/carrito/agregar-borde` | Formulario sin JS (`product_template_id`, o `product_id` de la variante). `csrf=False` + **mismo origen** (`Origin` = sitio; si no hay, `Sec-Fetch-Site: same-origin`; si no, `Referer`). La cookie de sesión de Odoo es `SameSite=Lax`. Redirige a `/shop/cart`. |
+| Black Weekend | El feed trae `black_weekend` (opcional; `activo` ya evaluado en hora de Panamá, productos con precio de la tienda y combo). Sin `activo` (o sin productos) no hay banda, ni etiqueta, ni `/black-weekend` (la página se borra de KV y Odoo responde 404). El cron horario de Odoo (`cron_vigilar_black_weekend`) avisa al Worker cuando la campaña empieza o termina. |
 | Cron horario del Worker | Si Odoo ya está encendido, regenera todo (red de seguridad). No lo despierta. |
 | `TIENDA_ESTATICA` | `on` sirve desde KV; `off` (producción por ahora) todo a Odoo. La regeneración funciona igual, para tener KV listo antes de encender. |
 | `DCASA_ENTORNO=staging` | `X-Robots-Tag: noindex, nofollow` en **todas** las respuestas del Worker. |

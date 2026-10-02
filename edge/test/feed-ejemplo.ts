@@ -1,4 +1,4 @@
-import type { Feed, ProductoFeed } from "../src/tienda/tipos";
+import type { Feed, ProductoBlackWeekend, ProductoFeed } from "../src/tienda/tipos";
 
 const imagen = (id: number) => {
   const u = (t: string) => `/web/image/product.template/${id}/${t}?unique=abc1234`;
@@ -94,6 +94,57 @@ export function feedEjemplo(productos: ProductoFeed[] = [producto(1), producto(2
       "/terminos": { titulo: "Términos y condiciones", descripcion: "Cómo…", actualizado: "1 de octubre de 2026", html: "<p>no incluyen el ITBMS</p>" },
     },
   };
+}
+
+/** Feed con la campaña Black Weekend (producto 1 marcado; 2 normal; 3 con color destacado). */
+export function feedBlackWeekend(activo = true): Feed {
+  const feed = feedEjemplo([producto(1, { black_weekend: true }), producto(2), producto(3, { black_weekend: true, compra: "variantes" })]);
+  const item = (id: number, extra: Partial<ProductoBlackWeekend> = {}): ProductoBlackWeekend => ({
+    id,
+    variante_id: id * 10,
+    nombre: `Cama BW ${id}`,
+    codigo: `BW-${id}`,
+    url: `/shop/mueble-${id}-${id}`,
+    precio: 259.99,
+    precio_visible: true,
+    mas_itbms: true,
+    moneda: "USD",
+    combo: { texto: "Combo con colchón First Class", precio: 469.99 },
+    compra: "directa",
+    whatsapp: `https://wa.me/50760261919?text=Hola%20D'CASA%2C%20me%20interesa%20del%20Black%20Weekend%3A%20Cama%20BW%20${id}%20(c%C3%B3digo%20BW-${id})`,
+    imagen: {
+      image_256: `/web/image/product.product/${id * 10}/image_256`,
+      image_512: `/web/image/product.product/${id * 10}/image_512`,
+      image_1024: `/web/image/product.product/${id * 10}/image_1024`,
+      image_1920: `/web/image/product.product/${id * 10}/image_1920`,
+      foto: { base: `/dcasa/img/product.product/${id * 10}/image_variant_1920`, v: "abcdefabcdef" },
+    },
+    ...extra,
+  });
+  feed.black_weekend = {
+    activo,
+    forzado: false,
+    inicio: "2026-10-05",
+    fin: "2026-10-11",
+    zona: "America/Panama",
+    fechas: "del 5 al 11 de octubre de 2026",
+    ruta: "/black-weekend",
+    descripcion: "Black Weekend en D'CASA Panamá del 5 al 11 de octubre de 2026: 2 camas y bases seleccionadas.",
+    og_imagen: "https://dcasapty.com/website_dcasa/static/src/img/black_weekend/og.jpg",
+    og_imagen_ancho: 1080,
+    og_imagen_alto: 1140,
+    json_ld: {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      numberOfItems: 2,
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Cama BW 1", url: "https://dcasapty.com/shop/mueble-1-1" },
+        { "@type": "ListItem", position: 2, name: "Cama BW 3", url: "https://dcasapty.com/shop/mueble-3-3" },
+      ],
+    },
+    productos: [item(1), item(3, { compra: "variantes", codigo: "BW-3-NEGRO", combo: null, precio: 229.99 })],
+  };
+  return feed;
 }
 
 /** Almacén en memoria con la misma interfaz que KV. */

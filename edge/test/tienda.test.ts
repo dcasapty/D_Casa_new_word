@@ -5,7 +5,7 @@ import { isBlockedPath, route, rutaEstatica } from "../src/routing";
 import { CLASES_AMARILLAS, FONDOS_OSCUROS } from "../src/tienda/estilo";
 import { dinero, renderizarSitio, RUTA_AGREGAR } from "../src/tienda/render";
 import { CLAVE_MANIFIESTO, clavePagina, regenerarTienda, tiendaActiva } from "../src/tienda/servir";
-import { almacenMemoria, feedEjemplo, producto } from "./feed-ejemplo";
+import { almacenMemoria, feedBlackWeekend, feedEjemplo, producto } from "./feed-ejemplo";
 
 const TOKEN = "t".repeat(40);
 const paginas = (feed = feedEjemplo()) => new Map(renderizarSitio(feed).map((p) => [p.ruta, p.html]));
@@ -256,6 +256,81 @@ describe("generador de páginas", () => {
   });
 });
 
+describe("Black Weekend", () => {
+  const PROHIBIDAS = /tafi|tiempo limitado|remate|cuotas|financiamiento|¡¡corre|cuenta regresiva/i;
+  const visible = (html: string) => html.replace(/<script.*?<\/script>|<style.*?<\/style>/gs, "");
+
+  it("activa: banda en la portada antes de los carriles, página /black-weekend y etiqueta", () => {
+    const sitio = paginas(feedBlackWeekend(true));
+    const portada = sitio.get("/")!;
+    expect(portada).toContain('<section class="bw"');
+    expect(portada.indexOf('class="bw"')).toBeLessThan(portada.indexOf("Compra por espacio"));
+    expect(portada.indexOf('class="bw"')).toBeLessThan(portada.indexOf("Lo más buscado"));
+    expect(portada).toContain('href="/black-weekend"');
+    expect(sitio.has("/black-weekend")).toBe(true);
+    // La etiqueta sale en la tarjeta del producto marcado, no en la del otro.
+    const tienda = sitio.get("/shop")!;
+    const tarjeta = (id: number) => tienda.slice(tienda.indexOf(`/shop/mueble-${id}-${id}`), tienda.indexOf("</article>", tienda.indexOf(`/shop/mueble-${id}-${id}`)));
+    expect(tarjeta(1)).toContain("bw-etiqueta");
+    expect(tarjeta(2)).not.toContain(`class="bw-etiqueta"`);
+  });
+
+  it("inactiva o sin productos: ni banda, ni página, ni etiqueta", () => {
+    for (const feed of [feedBlackWeekend(false), { ...feedBlackWeekend(true), black_weekend: { ...feedBlackWeekend(true).black_weekend!, productos: [] } }, feedEjemplo()]) {
+      const sitio = paginas(feed);
+      expect(sitio.has("/black-weekend")).toBe(false);
+      for (const html of sitio.values()) {
+        expect(html).not.toContain('class="bw"');
+        expect(html).not.toContain(`class="bw-etiqueta"`);
+      }
+    }
+  });
+
+  it("/black-weekend: precio y combo del feed, canónica, ItemList, imagen para compartir y CTA", () => {
+    const html = paginas(feedBlackWeekend(true)).get("/black-weekend")!;
+    expect(html).toContain('<link rel="canonical" href="https://dcasapty.com/black-weekend">');
+    expect(html).toContain("$259.99 <span class=\"itbms\">+ ITBMS</span>");
+    expect(html).toContain("Combo con colchón First Class <strong>$469.99</strong>");
+    expect(html).toContain("del 5 al 11 de octubre de 2026");
+    expect(html).toContain('<meta property="og:image" content="https://dcasapty.com/website_dcasa/static/src/img/black_weekend/og.jpg">');
+    expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
+    expect(html).toMatch(/<meta name="description" content="Black Weekend en D&#39;CASA Panamá/);
+    const lista = jsonLd(html).find((j) => j["@type"] === "ItemList");
+    expect(lista?.numberOfItems).toBe(2);
+    // Directa: el producto; con color destacado: la variante.
+    expect(html).toContain('name="product_template_id" value="1"');
+    expect(html).toContain('name="product_id" value="30"');
+    expect(html).toContain(`action="${RUTA_AGREGAR}"`);
+    expect(html).toContain("c%C3%B3digo%20BW-1");
+    expect(html).toContain("Código BW-3-NEGRO");
+    expect(html).toContain('type="image/webp"');
+    expect(html).not.toContain("/web/image/product.product/10/image_1920");
+  });
+
+  it("el precio sale del feed: si cambia en Odoo, cambia la página", () => {
+    const feed = feedBlackWeekend(true);
+    feed.black_weekend!.productos[0].precio = 249.5;
+    const html = paginas(feed).get("/black-weekend")!;
+    expect(html).toContain("$249.50");
+    expect(html).not.toContain("$259.99");
+  });
+
+  it("sin amarillo sobre blanco ni palabras prohibidas", () => {
+    for (const [ruta, html] of paginas(feedBlackWeekend(true))) {
+      expect(amarilloSobreBlanco(html), ruta).toEqual([]);
+      expect(visible(html), ruta).not.toMatch(PROHIBIDAS);
+      expect(html, ruta).not.toMatch(/gradient\(|box-shadow|text-shadow/);
+    }
+    expect(amarilloSobreBlanco('<section class="hueso"><h2 class="bw-titulo">x</h2></section>')).toHaveLength(1);
+  });
+
+  it("ruta estática /black-weekend", () => {
+    expect(rutaEstatica(new URL("https://dcasapty.com/black-weekend"), "GET")).toBe("/black-weekend");
+    expect(rutaEstatica(new URL("https://dcasapty.com/black-weekend?utm_source=ig"), "GET")).toBe("/black-weekend");
+    expect(rutaEstatica(new URL("https://dcasapty.com/black-weekend/x"), "GET")).toBeNull();
+  });
+});
+
 describe("servir desde el almacén (TIENDA_ESTATICA)", () => {
   async function conSitio() {
     const almacen = almacenMemoria();
@@ -404,6 +479,16 @@ describe("regeneración (aviso de Odoo)", () => {
     const vacio = await regenerarTienda({ almacen, leerFeed: async () => Response.json(feedEjemplo([])) });
     expect(vacio.estado).toBe("fallo");
     expect(almacen.datos.size).toBe(antes);
+  });
+
+  it("Black Weekend: aparece y desaparece con la campaña al regenerar", async () => {
+    const almacen = almacenMemoria();
+    await regenerarTienda({ almacen, leerFeed: async () => Response.json(feedBlackWeekend(true)) });
+    expect(almacen.datos.has(clavePagina("/black-weekend"))).toBe(true);
+    const terminada = await regenerarTienda({ almacen, leerFeed: async () => Response.json(feedBlackWeekend(false)) });
+    expect(terminada.borradas).toBe(1);
+    expect(almacen.datos.has(clavePagina("/black-weekend"))).toBe(false);
+    expect(almacen.datos.get(clavePagina("/"))!.texto).not.toContain('class="bw"');
   });
 
   it("si la regeneración falla, Odoo recibe 503 y reintenta", async () => {

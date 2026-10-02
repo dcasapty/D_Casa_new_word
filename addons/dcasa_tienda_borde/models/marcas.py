@@ -6,6 +6,9 @@ usuario: la marca se escribe aparte, en la tabla interna, al confirmar la transa
 """
 from odoo import api, models
 
+# Parámetros cuyo cambio se ve en el sitio: la ventana de Black Weekend (website_dcasa).
+PREFIJO_PARAMETROS_SITIO = 'dcasa_black_weekend.'
+
 # Campos de product.template que se ven en el sitio (ficha, tarjetas, JSON-LD, SEO).
 CAMPOS_PLANTILLA = frozenset({
     'name', 'list_price', 'compare_list_price', 'is_published', 'website_published', 'website_id',
@@ -14,6 +17,8 @@ CAMPOS_PLANTILLA = frozenset({
     'website_meta_title', 'website_meta_description', 'website_meta_keywords', 'seo_name',
     'taxes_id', 'default_code', 'product_template_image_ids', 'attribute_line_ids',
     'optional_product_ids', 'website_ribbon_id', 'combo_ids',
+    # Black Weekend (website_dcasa) y el combo del catálogo (dcasa_catalogo), que sale en su tarjeta.
+    'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_combo',
 })
 CAMPOS_VARIANTE = frozenset({
     'active', 'default_code', 'image_variant_1920', 'product_template_attribute_value_ids', 'lst_price',
@@ -101,6 +106,34 @@ class Website(models.Model):
         resultado = super().write(vals)
         if CAMPOS_SITIO.intersection(vals):
             _marcar(self.env, [0], 'ajustes del sitio')
+        return resultado
+
+
+class IrConfigParameter(models.Model):
+    _inherit = 'ir.config_parameter'
+
+    def _dcasa_toca_el_sitio(self, claves):
+        return any((clave or '').startswith(PREFIJO_PARAMETROS_SITIO) for clave in claves)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        parametros = super().create(vals_list)
+        if self._dcasa_toca_el_sitio(parametros.mapped('key')):
+            _marcar(self.env, [0], 'black weekend')
+        return parametros
+
+    def write(self, vals):
+        claves = self.mapped('key') + [vals.get('key')]
+        resultado = super().write(vals)
+        if self._dcasa_toca_el_sitio(claves):
+            _marcar(self.env, [0], 'black weekend')
+        return resultado
+
+    def unlink(self):
+        toca = self._dcasa_toca_el_sitio(self.mapped('key'))
+        resultado = super().unlink()
+        if toca:
+            _marcar(self.env, [0], 'black weekend')
         return resultado
 
 

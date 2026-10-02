@@ -21,6 +21,8 @@ import json
 from odoo import fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.addons.website_dcasa.controllers import main as website_dcasa_main
+from odoo.addons.website_dcasa.models.black_weekend import OG_ALTO, OG_ANCHO, OG_IMAGEN
+from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
 from odoo.addons.website_dcasa.models.imagen import ANCHOS as ANCHOS_IMAGEN
 
 VERSION_FEED = 1
@@ -70,6 +72,57 @@ class Website(models.Model):
     def _dcasa_tienda_foto(self, registro):
         base = self._dcasa_img_base(registro)
         return {'base': base[0], 'v': base[1]} if base else None
+
+    def _dcasa_tienda_black_weekend(self):
+        """Campaña Black Weekend para la tienda estática (website_dcasa/models/black_weekend.py).
+
+        ``activo`` ya trae la ventana evaluada en hora de Panamá al generar el feed; el Worker
+        solo publica la banda y /black-weekend si es verdadero. Los productos van siempre (son
+        datos del catálogo), con el precio de la tienda y el combo del texto guardado.
+        """
+        self.ensure_one()
+        ventana = self._dcasa_bw_ventana()
+        items = self._dcasa_bw_productos()
+        base = self._dcasa_url_publica()
+        productos = []
+        for item in items:
+            producto, variante = item['producto'], item['variante']
+            modo = self._dcasa_tienda_modo_compra(producto)
+            tiene_imagen = bool(variante.sudo().with_context(bin_size=True).image_1920)
+            productos.append({
+                'id': producto.id,
+                'variante_id': variante.id,
+                'nombre': producto.name,
+                'codigo': item['codigo'],
+                'url': variante.website_url,
+                'precio': item['precio'],
+                'precio_visible': item['precio_visible'],
+                'mas_itbms': self._dcasa_mas_itbms(producto),
+                'moneda': item['moneda'].name,
+                'combo': item['combo'] and {'texto': item['combo']['texto'], 'precio': item['combo']['precio']},
+                # «directa»: botón con el producto; «variantes»: botón con la variante destacada; «ficha»: enlace.
+                'compra': modo,
+                'whatsapp': item['whatsapp'],
+                'imagen': dict(
+                    {t: self.image_url(variante, t) for t in TAMANOS_IMAGEN},
+                    foto=self._dcasa_tienda_foto(variante),
+                ) if tiene_imagen else None,
+            })
+        return {
+            'activo': bool(self._dcasa_black_weekend_activo()),
+            'forzado': ventana['forzado'],
+            'inicio': ventana['inicio'].isoformat() if ventana['inicio'] else None,
+            'fin': ventana['fin'].isoformat() if ventana['fin'] else None,
+            'zona': 'America/Panama',
+            'fechas': self._dcasa_bw_fechas(),
+            'ruta': RUTA_BLACK_WEEKEND,
+            'descripcion': self._dcasa_bw_descripcion(items),
+            'og_imagen': (base or '') + OG_IMAGEN,
+            'og_imagen_ancho': OG_ANCHO,
+            'og_imagen_alto': OG_ALTO,
+            'json_ld': json.loads(self._dcasa_bw_json_ld(items)),
+            'productos': productos,
+        }
 
     def _dcasa_tienda_feed(self):
         """Datos de la tienda estática. Necesita una petición web del sitio (tarifa del visitante)."""
@@ -150,6 +203,7 @@ class Website(models.Model):
                 'existencias': existencias,
                 'whatsapp': self._dcasa_whatsapp_producto(producto),
                 'secuencia': producto.website_sequence,
+                'black_weekend': bool(producto.dcasa_black_weekend),
             })
 
         reglas = reglas_socios.cargar_reglas()
@@ -205,6 +259,7 @@ class Website(models.Model):
                 'para_dormir_url': self._dcasa_categoria_url('recamaras'),
             },
             'tienda': {'descripcion': DESCRIPCION_TIENDA},
+            'black_weekend': self._dcasa_tienda_black_weekend(),
             'categorias': datos_categorias,
             'productos': items,
             'paginas': paginas,

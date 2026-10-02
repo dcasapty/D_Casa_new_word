@@ -53,6 +53,9 @@
 #   DCASA_STOCK_PRUEBA    unidades de prueba por producto sin existencias ni movimientos
 #                         (solo con DCASA_ENTORNO=staging; por defecto 10). En producción
 #                         siempre 0: ver «2c. Existencias de prueba».
+#   DCASA_BLACK_WEEKEND   1 = Black Weekend visible sin mirar fechas (por defecto 1 en staging,
+#                         0 en producción); DCASA_BLACK_WEEKEND_INICIO / _FIN = ventana
+#                         AAAA-MM-DD en hora de Panamá. Ver «2d. Black Weekend».
 set -euo pipefail
 
 : "${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD (clave del usuario admin de Odoo)}"
@@ -371,6 +374,34 @@ PY
   else
     echo "⚠ No se pudieron poner las existencias de prueba: Odoo arranca igual y se reintenta." >&2
   fi
+fi
+
+# --- 2d. Black Weekend (addons/website_dcasa/models/black_weekend.py) --------
+# dcasa_black_weekend.activo = 1 muestra la campaña sin mirar fechas (vista previa): staging
+# DCASA_BLACK_WEEKEND o 1; producción DCASA_BLACK_WEEKEND o 0 (se ve solo dentro de la ventana).
+# dcasa_black_weekend.inicio / .fin (AAAA-MM-DD, hora de Panamá, inclusivas) solo se fijan si
+# DCASA_BLACK_WEEKEND_INICIO / _FIN vienen definidas: vacías, se respeta lo que haya en Odoo.
+# El cron horario de dcasa_tienda_borde nota el cambio y regenera la tienda del borde.
+if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'website_dcasa'")" == "installed" ]]; then
+  bw_activo=0
+  [[ "$entorno" == "staging" ]] && bw_activo=1
+  bw_activo="${DCASA_BLACK_WEEKEND:-$bw_activo}"
+  if [[ "$bw_activo" != "0" && "$bw_activo" != "1" ]]; then
+    echo "⚠ DCASA_BLACK_WEEKEND inválido («$bw_activo»): queda en 0." >&2
+    bw_activo=0
+  fi
+  set_param dcasa_black_weekend.activo "$bw_activo"
+  for bw_lado in INICIO FIN; do
+    bw_variable="DCASA_BLACK_WEEKEND_$bw_lado"
+    bw_fecha="${!bw_variable:-}"
+    [[ -z "$bw_fecha" ]] && continue
+    if [[ "$bw_fecha" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && date -d "$bw_fecha" +%F >/dev/null 2>&1; then
+      set_param "dcasa_black_weekend.${bw_lado,,}" "$bw_fecha"
+    else
+      echo "⚠ $bw_variable inválida («$bw_fecha», se espera AAAA-MM-DD): no se cambia." >&2
+    fi
+  done
+  echo "▶ Black Weekend ($entorno): activo=$bw_activo, inicio=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.inicio'"), fin=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.fin'") (hora de Panamá)"
 fi
 
 # --- 3. Saneo del usuario admin (S-04) ----------------------------------------

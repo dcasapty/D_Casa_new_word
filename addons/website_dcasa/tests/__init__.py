@@ -5,3 +5,4 @@ from . import test_roles
 from . import test_itbms
 from . import test_legal
 from . import test_imagen
+from . import test_black_weekend

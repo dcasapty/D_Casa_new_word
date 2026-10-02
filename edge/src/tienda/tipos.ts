@@ -61,6 +61,48 @@ export interface ProductoFeed {
   existencias: number | null;
   whatsapp: string;
   secuencia: number;
+  /** Marcado para Black Weekend (la etiqueta sale solo si `Feed.black_weekend.activo`). */
+  black_weekend?: boolean;
+}
+
+/** Producto de la campaña (addons/dcasa_tienda_borde: `_dcasa_tienda_black_weekend`). */
+export interface ProductoBlackWeekend {
+  id: number;
+  /** Variante que se muestra (p. ej. 908K negro) y que se agrega con `compra: "variantes"`. */
+  variante_id: number;
+  nombre: string;
+  codigo: string;
+  url: string;
+  precio: number;
+  precio_visible: boolean;
+  mas_itbms: boolean;
+  moneda: string;
+  /** Del texto del catálogo («Combo con colchón First Class $469.99»); null si no hay combo. */
+  combo: { texto: string; precio: number } | null;
+  compra: ModoCompra;
+  whatsapp: string;
+  imagen: ImagenesProducto | null;
+}
+
+/**
+ * Campaña Black Weekend. `activo` ya viene evaluado en hora de Panamá al generar el feed (Odoo
+ * avisa al empezar y al terminar la ventana): sin `activo`, ni banda ni /black-weekend.
+ */
+export interface BlackWeekendFeed {
+  activo: boolean;
+  forzado: boolean;
+  inicio: string | null;
+  fin: string | null;
+  zona: string;
+  /** «del 5 al 11 de octubre de 2026» o "". */
+  fechas: string;
+  ruta: string;
+  descripcion: string;
+  og_imagen: string;
+  og_imagen_ancho: number;
+  og_imagen_alto: number;
+  json_ld: Record<string, unknown>;
+  productos: ProductoBlackWeekend[];
 }
 
 export interface CategoriaFeed {
@@ -119,6 +161,8 @@ export interface Feed {
     para_dormir_url: string;
   };
   tienda: { descripcion: string };
+  /** Ausente en un feed de un Odoo anterior: sin campaña. */
+  black_weekend?: BlackWeekendFeed;
   categorias: CategoriaFeed[];
   productos: ProductoFeed[];
   paginas: Record<string, PaginaFeed>;

@@ -58,6 +58,12 @@
     "DCASA_ENTORNO": "produccion",
     // Existencias de prueba: en producción SIEMPRE 0 (el entrypoint lo fuerza igual).
     "DCASA_STOCK_PRUEBA": "0",
+    // Black Weekend (addons/website_dcasa/models/black_weekend.py): en producción solo dentro de la
+    // ventana que fijó la dueña (lunes 5 a domingo 11 de octubre de 2026, hora de Panamá,
+    // inclusive); pasada la fecha se apaga sola. "1" la mostraría sin mirar fechas.
+    "DCASA_BLACK_WEEKEND": "0",
+    "DCASA_BLACK_WEEKEND_INICIO": "2026-10-05",
+    "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
     "ODOO_DORMIR_TRAS": "",
@@ -102,6 +108,10 @@
         // 10 unidades a cada producto sin existencias ni movimientos, para probar ventas
         // (addons/dcasa_catalogo: aplicar_stock_prueba; nunca pisa un conteo real).
         "DCASA_STOCK_PRUEBA": "10",
+        // Black Weekend visible ya (vista previa para la dueña), sin mirar la ventana.
+        "DCASA_BLACK_WEEKEND": "1",
+        "DCASA_BLACK_WEEKEND_INICIO": "2026-10-05",
+        "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
         "R2_BUCKET": "dcasa-respaldos-staging",
         // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
         // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.

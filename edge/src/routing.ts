@@ -252,7 +252,7 @@ const RUTAS_ESTATICAS = [
   /^\/shop(?:\/page\/[1-9]\d{0,4})?$/,
   /^\/shop\/category\/[a-z0-9-]+-\d{1,10}(?:\/page\/[1-9]\d{0,4})?$/,
   /^\/shop\/[a-z0-9-]+-\d{1,10}$/,
-  /^\/(?:visitanos|privacidad|terminos)$/,
+  /^\/(?:visitanos|privacidad|terminos|black-weekend)$/,
 ];
 
 /** Parámetros que no cambian la página (campañas): con ellos se sigue sirviendo la estática. */

@@ -11,9 +11,10 @@
  * - CTA único de la marca: «Escríbenos por WhatsApp»; además «Agregar al carrito» (POST normal a
  *   `/dcasa/carrito/agregar-borde`, sin JavaScript).
  * - Fichas con `compra: "ficha"` (atributos a configurar, combos…) no se generan: las sirve Odoo.
+ * - Black Weekend (banda de la portada, etiqueta y /black-weekend) solo con `black_weekend.activo`.
  */
 import { CSS, FUENTES } from "./estilo";
-import type { CategoriaFeed, Feed, FotoFeed, ProductoFeed } from "./tipos";
+import type { BlackWeekendFeed, CategoriaFeed, Feed, FotoFeed, ProductoBlackWeekend, ProductoFeed } from "./tipos";
 
 export interface PaginaGenerada {
   ruta: string;
@@ -126,6 +127,12 @@ class Sitio {
     return this.feed.productos.filter((p) => p.categorias.some((c) => ids.has(c)));
   }
 
+  /** Black Weekend publicado: campaña activa (ventana ya evaluada por Odoo) y con productos. */
+  get bw(): BlackWeekendFeed | null {
+    const bw = this.feed.black_weekend;
+    return bw?.activo && bw.productos.length ? bw : null;
+  }
+
   /** ¿Se genera la ficha estática? (las de configurar las sigue sirviendo Odoo) */
   fichaEstatica(p: ProductoFeed): boolean {
     return p.compra !== "ficha";
@@ -141,6 +148,8 @@ function layout(
     cuerpo: string;
     jsonld?: unknown[];
     precarga?: string;
+    /** Imagen para compartir en redes (absoluta); sin ella, ninguna (como antes). */
+    og?: { imagen: string; ancho: number; alto: number; alt: string };
   },
 ): string {
   const jsonld = [s.feed.sitio.json_ld_organizacion, ...(pagina.jsonld ?? [])].filter(
@@ -153,7 +162,7 @@ function layout(
 <title>${esc(pagina.titulo)}</title>${pagina.descripcion ? `<meta name="description" content="${esc(pagina.descripcion)}">` : ""}
 ${canonica}<meta name="theme-color" content="#1340B1">
 <meta property="og:title" content="${esc(pagina.titulo)}"><meta property="og:type" content="website">${s.base ? `<meta property="og:url" content="${esc(s.base + pagina.ruta)}">` : ""}
-<link rel="icon" href="${IMG}/favicon.png">
+${metaOg(pagina.og, pagina.titulo, pagina.descripcion)}<link rel="icon" href="${IMG}/favicon.png">
 <link rel="preload" href="${FUENTES.anton}" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="${FUENTES.inter}" as="font" type="font/woff2" crossorigin>
 ${pagina.precarga ?? ""}<style>${CSS}</style>
@@ -172,6 +181,20 @@ ${jsonld.map((j) => `<script type="application/ld+json">${jsonSeguro(j)}</script
 </div></footer>
 <a class="wa-flotante" href="${esc(s.waGeneral)}" target="_blank" rel="noopener" aria-label="Escríbenos por WhatsApp (se abre en una pestaña nueva)">${ICONO_WA}</a>
 </body></html>`;
+}
+
+function metaOg(
+  og: { imagen: string; ancho: number; alto: number; alt: string } | undefined,
+  titulo: string,
+  descripcion: string,
+): string {
+  if (!og) return "";
+  return (
+    `<meta property="og:description" content="${esc(descripcion)}"><meta property="og:image" content="${esc(og.imagen)}">` +
+    `<meta property="og:image:width" content="${og.ancho}"><meta property="og:image:height" content="${og.alto}">` +
+    `<meta property="og:image:alt" content="${esc(og.alt)}"><meta name="twitter:card" content="summary_large_image">` +
+    `<meta name="twitter:title" content="${esc(titulo)}"><meta name="twitter:image" content="${esc(og.imagen)}">\n`
+  );
 }
 
 /** Anchos que acepta `/dcasa/img` (ANCHOS de addons/website_dcasa/models/imagen.py). */
@@ -245,13 +268,93 @@ function tarjeta(s: Sitio, p: ProductoFeed, indice = 99): string {
     p.compra === "directa" && p.precio_visible
       ? formularioAgregar(p)
       : `<a class="btn btn-azul" href="${esc(p.url)}">Elegir<span class="vh">: ${esc(p.nombre)}</span></a>`;
-  return `<li><article class="card"><a class="m" href="${esc(p.url)}" tabindex="-1" aria-hidden="true">${imagenProducto(p, { sizes: "(min-width:1200px) 285px, (min-width:768px) 24vw, 48vw", prioridad: indice < 2 })}</a>
+  const etiqueta = s.bw && p.black_weekend ? ETIQUETA_BW : "";
+  return `<li><article class="card"><a class="m" href="${esc(p.url)}" tabindex="-1" aria-hidden="true">${imagenProducto(p, { sizes: "(min-width:1200px) 285px, (min-width:768px) 24vw, 48vw", prioridad: indice < 2 })}${etiqueta}</a>
 <div class="b"><h3><a href="${esc(p.url)}">${esc(p.nombre)}</a></h3>${precioHtml(p, valor, desde)}
 <div class="acciones">${accion}<a class="btn btn-borde wa" href="${esc(p.whatsapp || s.wa(`Hola D'CASA, me interesa: ${p.nombre}`))}" target="_blank" rel="noopener" aria-label="Preguntar por ${esc(p.nombre)} por WhatsApp (se abre en una pestaña nueva)">${ICONO_WA}</a></div></div></article></li>`;
 }
 
 function rejilla(s: Sitio, productos: ProductoFeed[]): string {
   return `<ul class="grid" role="list">${productos.map((p, i) => tarjeta(s, p, i)).join("")}</ul>`;
+}
+
+// ------------------------------------------------------------------ Black Weekend
+
+/** Etiqueta negra con letras amarillas (el amarillo solo toca el negro). */
+const ETIQUETA_BW = '<span class="bw-etiqueta">Black Weekend</span>';
+
+function imagenBw(b: ProductoBlackWeekend): string {
+  const sizes = "(min-width:1200px) 285px, (min-width:768px) 24vw, 80vw";
+  if (!b.imagen) return `<div style="aspect-ratio:1/1" aria-hidden="true"></div>`;
+  if (b.imagen.foto) return picture(b.imagen.foto, ANCHOS_TARJETA, { sizes, alt: b.nombre, src: 512 });
+  const i = b.imagen;
+  return `<img src="${esc(i.image_512)}" srcset="${esc(`${i.image_256} 256w, ${i.image_512} 512w, ${i.image_1024} 1024w`)}" sizes="${sizes}" width="512" height="512" alt="${esc(b.nombre)}" loading="lazy" decoding="async">`;
+}
+
+/**
+ * Tarjeta de la campaña: foto limpia (nunca la gráfica con texto), nombre, código, precio de la
+ * tienda «+ ITBMS», el combo del catálogo, «Agregar al carrito» y WhatsApp con el código.
+ */
+function tarjetaBw(s: Sitio, b: ProductoBlackWeekend): string {
+  const itbms = b.mas_itbms ? ' <span class="itbms">+ ITBMS</span>' : "";
+  const precio = b.precio_visible ? `<p class="precio">${esc(dinero(b.precio, b.moneda))}${itbms}</p>` : "";
+  const combo = b.combo
+    ? `<p class="combo">${esc(b.combo.texto)} <strong>${esc(dinero(b.combo.precio, b.moneda))}</strong>${itbms}</p>`
+    : "";
+  const boton = `<button type="submit" class="btn btn-azul" aria-label="Agregar ${esc(b.nombre)} al carrito">Agregar al carrito</button>`;
+  let accion = `<a class="btn btn-azul" href="${esc(b.url)}">Ver opciones<span class="vh">: ${esc(b.nombre)}</span></a>`;
+  if (b.precio_visible && b.compra === "directa") {
+    accion = `<form action="${RUTA_AGREGAR}" method="post"><input type="hidden" name="product_template_id" value="${b.id}">${boton}</form>`;
+  } else if (b.precio_visible && b.compra === "variantes") {
+    accion = `<form action="${RUTA_AGREGAR}" method="post"><input type="hidden" name="product_id" value="${b.variante_id}">${boton}</form>`;
+  }
+  const wa = b.whatsapp || s.wa(`Hola D'CASA, me interesa del Black Weekend: ${b.nombre}`);
+  return `<li><article class="card bw-card"><a class="m" href="${esc(b.url)}" tabindex="-1" aria-hidden="true">${imagenBw(b)}${ETIQUETA_BW}</a>
+<div class="b"><h3><a href="${esc(b.url)}">${esc(b.nombre)}</a></h3>${b.codigo ? `<p class="desde">Código ${esc(b.codigo)}</p>` : ""}${precio}${combo}
+<div class="bw-acciones">${accion}<a class="btn btn-borde" href="${esc(wa)}" target="_blank" rel="noopener">Escríbenos por WhatsApp<span class="vh"> sobre ${esc(b.nombre)} (se abre en una pestaña nueva)</span></a></div></div></article></li>`;
+}
+
+/** Banda negra de la portada (antes de los carriles); "" si la campaña no está activa. */
+function bandaBw(s: Sitio): string {
+  const bw = s.bw;
+  if (!bw) return "";
+  const fechas = bw.fechas ? `, ${esc(bw.fechas)}` : "";
+  return `<section class="bw" aria-labelledby="bw-titulo"><div class="c"><div class="cab"><div><h2 id="bw-titulo" class="bw-titulo">Black Weekend</h2>
+<p>Camas seleccionadas con su precio de cama sola y en combo con colchón${fechas}.</p></div><a class="btn btn-amarillo" href="${esc(bw.ruta)}">Ver todo el Black Weekend</a></div>
+<ul class="grid" role="list">${bw.productos
+    .slice(0, 8)
+    .map((b) => tarjetaBw(s, b))
+    .join("")}</ul></div></section>`;
+}
+
+/** Página /black-weekend (solo con la campaña activa). */
+function paginaBw(s: Sitio): PaginaGenerada | null {
+  const bw = s.bw;
+  if (!bw) return null;
+  const fechas = bw.fechas ? `, ${esc(bw.fechas)}` : "";
+  const cuerpo = `<section class="bw"><div class="c"><p class="kicker kicker-claro">${esc(s.nombre)} · La Chorrera</p><h1 class="bw-titulo">Black Weekend</h1>
+<p>Camas tapizadas y bases seleccionadas${fechas}. Cada una con su precio de cama sola y en combo con colchón. Precios sin ITBMS: el 7 % se suma en el carrito.</p>
+<ul class="grid" role="list">${bw.productos.map((b) => tarjetaBw(s, b)).join("")}</ul>
+<p>¿Dudas con medidas, colores o la entrega? Escríbenos y te ayudamos a escoger.</p>
+<a class="btn btn-amarillo" href="${esc(s.wa("Hola D'CASA, quiero información del Black Weekend"))}" target="_blank" rel="noopener">Escríbenos por WhatsApp${NUEVA}</a></div></section>`;
+  return {
+    ruta: bw.ruta,
+    html: layout(s, {
+      titulo: `Black Weekend | ${s.nombre}`,
+      descripcion: bw.descripcion,
+      ruta: bw.ruta,
+      cuerpo,
+      jsonld: [bw.json_ld],
+      og: bw.og_imagen
+        ? {
+            imagen: bw.og_imagen,
+            ancho: bw.og_imagen_ancho,
+            alto: bw.og_imagen_alto,
+            alt: "Black Weekend en D'CASA Panamá: cama tapizada King beige (ref. 888K)",
+          }
+        : undefined,
+    }),
+  };
 }
 
 // ------------------------------------------------------------------ portada
@@ -277,6 +380,7 @@ function portada(s: Sitio): PaginaGenerada {
 <li><strong>Te lo llevas hoy</strong><span>Muchos muebles vienen en caja y caben en tu carro.</span></li>
 <li><strong>Míralo en tienda</strong><span>Visítanos en La Chorrera y pruébalo antes de llevártelo.</span></li>
 <li><strong>Precios claros</strong><span>Sin letra pequeña. Pregunta sin pena.</span></li></ul></div></section>
+${bandaBw(s)}
 <section class="hueso"><div class="c"><div class="cab"><div><p class="kicker">Compra por espacio</p><h2>¿Qué le hace falta a tu casa?</h2></div><a href="/shop">Ver todo el catálogo →</a></div>
 <div class="cats">${f.portada.categorias.map((c) => `<a class="cat" href="${esc(c.url)}"><img src="${esc(c.imagen)}" width="800" height="1000" alt="${esc(c.alt)}" loading="lazy" decoding="async"><span>${esc(c.nombre)}</span></a>`).join("")}</div></div></section>
 ${carril("Lo más buscado", "Precios claros, listos para llevar", "/shop", masBuscados)}
@@ -452,9 +556,12 @@ export function renderizarSitio(feed: Feed, opciones: OpcionesRender = {}): Pagi
     ...listados(s),
     ...feed.productos.filter((p) => s.fichaEstatica(p)).map((p) => ficha(s, p)),
     visitanos(s),
+    paginaBw(s),
     ...["/privacidad", "/terminos"].map((ruta) => legal(s, ruta)).filter((p): p is PaginaGenerada => !!p),
   ];
   // Una sola página por ruta (la primera gana): un slug repetido no pisa otra página.
   const vistas = new Set<string>();
-  return paginas.filter((p) => (vistas.has(p.ruta) ? false : (vistas.add(p.ruta), true)));
+  return paginas
+    .filter((p): p is PaginaGenerada => !!p)
+    .filter((p) => (vistas.has(p.ruta) ? false : (vistas.add(p.ruta), true)));
 }

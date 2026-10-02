@@ -13,4 +13,16 @@
         <field name="interval_type">minutes</field>
         <field name="active" eval="True"/>
     </record>
+
+    <!-- Black Weekend se enciende y se apaga solo según su ventana (hora de Panamá): cada hora se
+         compara con lo último avisado y, si cambió, se regenera la tienda y el sitemap. -->
+    <record id="cron_vigilar_black_weekend" model="ir.cron">
+        <field name="name">D'CASA: Black Weekend (encender/apagar en la tienda del borde)</field>
+        <field name="model_id" ref="model_dcasa_tienda_pendiente"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_vigilar_black_weekend()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

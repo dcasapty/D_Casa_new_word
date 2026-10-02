@@ -31,6 +31,11 @@ export interface Env {
   DCASA_ENTORNO?: string;
   /** Unidades de prueba por producto sin existencias: "10" en staging, "0" en producción. */
   DCASA_STOCK_PRUEBA?: string;
+  /** Black Weekend: "1" visible sin mirar fechas (staging), "0" solo dentro de la ventana. */
+  DCASA_BLACK_WEEKEND?: string;
+  /** Ventana de Black Weekend (AAAA-MM-DD, hora de Panamá, inclusive). */
+  DCASA_BLACK_WEEKEND_INICIO?: string;
+  DCASA_BLACK_WEEKEND_FIN?: string;
   /** Bucket de R2 de los respaldos (uno por entorno). */
   R2_BUCKET?: string;
   /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */

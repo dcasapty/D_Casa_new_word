@@ -335,6 +335,10 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "DCASA_ENTORNO",
   // Existencias de prueba (solo staging; en producción el entrypoint fuerza 0)
   "DCASA_STOCK_PRUEBA",
+  // Black Weekend: "1" = visible sin mirar fechas (staging); ventana AAAA-MM-DD en hora de Panamá
+  "DCASA_BLACK_WEEKEND",
+  "DCASA_BLACK_WEEKEND_INICIO",
+  "DCASA_BLACK_WEEKEND_FIN",
   // Adjuntos: «r2» (por defecto, con las credenciales R2_*) o «db» (emergencia; addons/dcasa_adjuntos_r2)
   "DCASA_ADJUNTOS",
   // Respaldo continuo (pgBackRest) y diario (pg_dump) en R2

@@ -19,11 +19,13 @@ las ventas y la tienda web.
 * Pedidos nuevos del proveedor (LTSC-07) por el mismo camino: precios terminados en .99,
   combo con el nombre del colchón, colores de un mismo código como variantes y código que
   ya existía como producto aparte (-LTSC07). Ver docs/CATALOGO.md.
+* Black Weekend: marca los 12 productos elegidos por la dueña (catalogo.BLACK_WEEKEND, por código;
+  908K con su variante negra destacada). La ventana de la campaña vive en website_dcasa.
 * Existencias de prueba solo en staging (dcasa_catalogo.stock_prueba; producción siempre 0).
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.3.0',
+    'version': '19.0.1.4.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

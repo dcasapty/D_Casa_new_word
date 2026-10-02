@@ -295,6 +295,10 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
     expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
     expect(variablesDelContenedor({ DCASA_STOCK_PRUEBA: "10" }).DCASA_STOCK_PRUEBA).toBe("10");
+    expect(
+      variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
+    ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });
+    expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
   });
 
   it("detecta los secretos que faltan para arrancar", () => {
@@ -354,6 +358,10 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(politicaDeSueno(config.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(true);
     expect(config.vars.DCASA_ENTORNO).toBe("produccion");
     expect(config.vars.DCASA_STOCK_PRUEBA).toBe("0");
+    // Black Weekend en producción: solo dentro de la ventana de la dueña (hora de Panamá).
+    expect(config.vars.DCASA_BLACK_WEEKEND).toBe("0");
+    expect(config.vars.DCASA_BLACK_WEEKEND_INICIO).toBe("2026-10-05");
+    expect(config.vars.DCASA_BLACK_WEEKEND_FIN).toBe("2026-10-11");
   });
 
   it("staging: otro Worker, otra instancia y otro bucket de R2", () => {
@@ -362,6 +370,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.vars.R2_BUCKET).not.toBe(config.vars.R2_BUCKET);
     expect(staging.vars.DCASA_ENTORNO).toBe("staging");
     expect(staging.vars.DCASA_STOCK_PRUEBA).toBe("10");
+    expect(staging.vars.DCASA_BLACK_WEEKEND).toBe("1");
     expect(staging.vars.CANONICAL_HOST).not.toBe(config.vars.CANONICAL_HOST);
     const c = contenedor(staging);
     expect(c.instance_type).toBe("basic");

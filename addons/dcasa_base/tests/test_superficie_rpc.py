@@ -105,6 +105,12 @@ LISTA_BLANCA = {
     ('dcasa_tienda_borde', 'product.public.category', 'write'): OVERRIDE + ' Marca «regenerar todo».',
     ('dcasa_tienda_borde', 'product.public.category', 'unlink'): OVERRIDE + ' Marca «regenerar todo».',
     ('dcasa_tienda_borde', 'website', 'write'): OVERRIDE + ' Marca «regenerar todo».',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'create'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'write'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
+    ('dcasa_tienda_borde', 'ir.config_parameter', 'unlink'):
+        OVERRIDE + ' Marca «regenerar todo» si es un parámetro de Black Weekend (ACL: solo group_system).',
     # --- dcasa_brian ----------------------------------------------------------------------
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).

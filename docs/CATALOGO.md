@@ -118,3 +118,32 @@ producto en la columna «Imagen») y se le pide cargarlo.
 Detalle técnico: `docs/BRIAN.md` › «Importar productos desde el Excel de un proveedor».
 Los precios de combo (cama + colchón) de esos Excel son fórmulas sobre la tabla de colchones y
 no se importan: el combo se escribe a mano en «Precio en combo o el par» si se quiere mostrar.
+
+## Black Weekend
+
+Banda negra con titular amarillo en la portada (antes de los carriles), página `/black-weekend`
+(Odoo y tienda estática, con sitemap, canónica, `ItemList` y la imagen para compartir) y etiqueta
+«Black Weekend» en las tarjetas de los productos marcados.
+
+- **Qué productos:** los marcados en el producto (casilla «Black Weekend» junto a la categoría, con su orden y,
+  si tiene colores, la variante destacada). La migración 19.0.1.4.0 de `dcasa_catalogo` marca los
+  12 que eligió la dueña (`catalogo.BLACK_WEEKEND`; 908K en negro). Se pueden marcar o desmarcar
+  más desde Odoo.
+- **Precios:** los de la tienda (la tarifa del visitante), nunca escritos en una plantilla: si
+  cambia el precio en Odoo, cambia la página. La línea «Combo con colchón <colchón> $X + ITBMS»
+  sale del campo «Precio en combo o el par» (texto del Excel LTSC-07).
+- **Cuándo se ve** (`ir.config_parameter`, hora de Panamá):
+  - `dcasa_black_weekend.inicio` / `.fin`: `2026-10-05` / `2026-10-11` (decisión de la dueña, del
+    lunes 5 a las 00:00 al domingo 11 a las 23:59:59, inclusive). Fuera de la ventana desaparece sola.
+  - `dcasa_black_weekend.activo = 1`: visible ya, sin mirar fechas (staging, vista previa).
+  - En el despliegue los fija `docker/entrypoint.sh` desde `DCASA_BLACK_WEEKEND` (producción `0`,
+    staging `1`) y `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` (`edge/wrangler.jsonc`). Para otra fecha:
+    cambiar esas variables (o el parámetro en Ajustes › Técnico › Parámetros del sistema si la
+    variable queda vacía).
+  - La tienda estática se regenera al cambiar la marca o un parámetro, y el cron horario
+    «D'CASA: Black Weekend» la regenera (y borra el sitemap guardado) cuando la campaña empieza o
+    termina sola.
+- **Lo que no lleva:** cuenta regresiva, «tiempo limitado», «remate», cuotas ni financiamiento
+  (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña (`up media/115.png` …
+  `153.png`) no son fotos de producto: solo `115.png`, recortada sin la franja de cuotas y
+  urgencia, es la imagen para compartir. Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.

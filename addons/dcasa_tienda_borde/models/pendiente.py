@@ -20,6 +20,8 @@ from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
+# Último estado de Black Weekend que se avisó al Worker (ver _dcasa_vigilar_black_weekend).
+PARAM_BW_PUBLICADO = 'dcasa_tienda_borde.black_weekend_publicado'
 # Clave del acumulador en cr.precommit.data.
 CLAVE_PRECOMMIT = 'dcasa_tienda_borde.pendientes'
 # Producto «0» = regenerar todo (categorías, ajustes del sitio).
@@ -97,6 +99,25 @@ class DcasaTiendaPendiente(models.Model):
             cron = self.env.ref('dcasa_tienda_borde.cron_avisar_borde', raise_if_not_found=False)
             if cron:
                 cron.sudo()._trigger(fields.Datetime.now() + PAUSA_AVISO)
+
+    @api.model
+    def _dcasa_vigilar_black_weekend(self):
+        """Cron horario: si la campaña Black Weekend se encendió o se apagó sola (empieza o termina
+        su ventana, en hora de Panamá) o porque el arranque del contenedor cambió sus parámetros
+        por SQL, marca «regenerar todo» y borra el sitemap guardado de Odoo (si no, /black-weekend
+        seguiría o faltaría en /sitemap.xml hasta 12 h). Devuelve True si hubo cambio.
+        """
+        param = self.env['ir.config_parameter'].sudo()
+        activo = '1' if self.env['website']._dcasa_black_weekend_activo() else '0'
+        if param.get_param(PARAM_BW_PUBLICADO) == activo:
+            return False
+        param.set_param(PARAM_BW_PUBLICADO, activo)
+        self.env['ir.attachment'].sudo().search([
+            ('type', '=', 'binary'), ('url', '=like', '/sitemap-%.xml')]).unlink()
+        self._dcasa_marcar([TODO], 'black weekend ' + ('empieza' if activo == '1' else 'termina'))
+        _logger.info('Black Weekend: la campaña pasa a %s; se regenera la tienda.',
+                     'activa' if activo == '1' else 'inactiva')
+        return True
 
     @api.model
     def _dcasa_avisar_borde(self):

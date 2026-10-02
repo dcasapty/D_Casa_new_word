@@ -165,3 +165,28 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `908K` beige: sus tres fotos son casi la misma imagen (una dice «con colchón»); quedan las tres en ese color, la de «con colchón» al final.
 - `811Q` y `811K` quedan con casi la misma imagen (los nombres de archivo dicen 213 × 158 y 213 × 199): confirmar que 811K es esa cama.
 - La foto incrustada en el Excel de `822F` muestra una cama de color tostado, no blanca: la foto de la carpeta («Full – blanco») sí es blanca. Confirmar el color con la mercancía.
+
+## Gráficas de Black Weekend (`up media/115.png` … `153.png`, revisión del 2026-10-02)
+
+39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para la carga, Google y lectores de pantalla); `115.png`, recortada sin la franja de abajo, es la imagen para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).
+
+### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)
+
+- `146.png` y `147.png` dicen «Y0400300-Q», pero la cama es MARRÓN: es `Y0400400-Q` (tela marrón). `Y0400300-Q` es la de tela negra.
+- `147.png` es la misma gráfica que `146.png` (duplicada).
+- `150.png` dice «Y0400101-F», pero la cama es gris CLARO: es `Y0400201-F` (lino gris claro). `Y0400101-F` es la de gris oscuro.
+- `152.png` dice «BASE QUEEN HK-BF-022-N-K-1-W $109.99», pero $109.99 y 193 cm son de `HK-BF-022-N-F-1-W` (Full).
+- `153.png` dice «BASE QUEEN», pero `HK-BF-022-N-K-1-W` es una cama King ($159.99).
+- Todas traen «Promoción de apertura por ¡tiempo limitado!» y el sello de cuotas: la web no los repite (sin urgencia inventada ni financiamiento: descartado por la dueña el 2026-10-02).
+
+### Dudas que las gráficas resuelven (el catálogo ya las tenía bien)
+
+- `809Q` = cabecero curvo con alas (`123.png`); `811Q` = canales verticales (`124.png`). Las fotos del catálogo (`809Q_1.jpg`, `811Q_1.jpg`) coinciden: no estaban invertidas.
+- `822F` es crema/blanca (`126.png`), como su foto «Full – blanco» (la foto del Excel se veía tostada).
+- `888Q` es crema/beige (`116.png`). El nombre sigue sin color: el Excel no lo dice.
+- `Y0400200-Q` es gris claro (`144.png`), como dice el Excel (el nombre del archivo decía «gris oscuro»).
+
+### Selección para la web (`addons/dcasa_catalogo/catalogo.py`: `BLACK_WEEKEND`)
+
+- 888K (115) · 908K negro (118) · 803K (122) · 809Q (123) · 822F (126) · 825K (129) · 6220Q (133) · 6877F (132) · Y0200100 (134) · Y0300300-LTSC07 (141; no el Y0300300 de $159.99) · HK-BF-022-N-K-1-W (153) · N-F10018-Q-BK (151).
+- Ventana: lunes 5 a domingo 11 de octubre de 2026, hora de Panamá (decisión de la dueña). Staging la muestra ya (vista previa).

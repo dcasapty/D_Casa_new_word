@@ -23,6 +23,7 @@
                          sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 72vw"
                          width="512" height="512" loading="lazy" decoding="async"/>
                 </picture>
+                <t t-call="website_dcasa.etiqueta_black_weekend"><t t-set="producto_bw" t-value="producto"/></t>
             </a>
             <div class="o_dcasa_pcard_body">
                 <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto.name"/></h3>
@@ -70,6 +71,10 @@
     <!-- Secciones dinámicas de la portada: plantillas propias (t-call) y no en línea, para que
          una actualización del módulo llegue aunque la portada ya se haya editado en el constructor. -->
     <template id="seccion_categorias" name="D'CASA: compra por espacio">
+        <!-- Black Weekend va justo antes (y antes de los carruseles). Se llama desde aquí y no
+             desde la portada: una portada ya editada en el constructor es una copia que no
+             recibiría un t-call nuevo; esta plantilla, sí. Solo sale con la campaña activa. -->
+        <t t-call="website_dcasa.seccion_black_weekend"/>
         <section class="o_dcasa_section o_dcasa_categorias" aria-labelledby="dcasa-cat-titulo">
             <div class="o_dcasa_container">
                 <div class="o_dcasa_section_head">

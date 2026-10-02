@@ -12,12 +12,14 @@ siguen en Odoo.
 * Aviso de cambios: precio, nombre, publicación, fotos, existencias, ventas confirmadas y facturas
   dejan una marca «pendiente»; un cron (disparado al confirmar la transacción) avisa al Worker
   (``POST /__edge/tienda/regenerar``) para que regenere las páginas.
+* Black Weekend: el feed trae la campaña (ventana ya evaluada en hora de Panamá, productos con su
+  precio y combo) y un cron horario regenera la tienda cuando la campaña empieza o termina.
 * ``POST /dcasa/carrito/agregar-borde``: «Agregar al carrito» desde las páginas estáticas, sin
   token CSRF pero solo desde el mismo origen (cabeceras Origin / Sec-Fetch-Site / Referer).
 
 Contrato con el Worker: edge/CONTRATO_CONTENEDOR.md, sección «Tienda estática».
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

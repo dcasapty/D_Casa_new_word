@@ -2,9 +2,9 @@
  * CSS de la tienda estática (en línea en cada página: 0 peticiones que bloqueen el render).
  * Parte del prototipo medido en docs/auditoria/ronda3/sitio-edge (99-100 en Lighthouse móvil).
  *
- * Marca (CLAUDE.md): azul #1340B1, amarillo #FED00F SOLO sobre azul o navy (.hero, .banda,
- * .anuncios, footer), texto sobre blanco en azul o navy; Anton/Oswald/Inter; plano: sin
- * degradados ni sombras.
+ * Marca (CLAUDE.md): azul #1340B1, amarillo #FED00F SOLO sobre azul, navy o negro (.hero, .banda,
+ * .anuncios, footer, .bw de Black Weekend), texto sobre blanco en azul o navy; Anton/Oswald/Inter;
+ * plano: sin degradados ni sombras.
  */
 export const FUENTES = {
   anton: "/website_dcasa/static/src/fonts/anton-latin.woff2",
@@ -13,9 +13,9 @@ export const FUENTES = {
 } as const;
 
 /** Clases que pintan amarillo: solo pueden vivir dentro de un contenedor azul o navy. */
-export const CLASES_AMARILLAS = ["btn-amarillo", "kicker-claro"] as const;
-/** Contenedores con fondo azul o navy (donde el amarillo sí puede ir). */
-export const FONDOS_OSCUROS = ["hero", "banda", "anuncios", "pie"] as const;
+export const CLASES_AMARILLAS = ["btn-amarillo", "kicker-claro", "bw-titulo"] as const;
+/** Contenedores con fondo azul, navy o negro (donde el amarillo sí puede ir). */
+export const FONDOS_OSCUROS = ["hero", "banda", "anuncios", "pie", "bw"] as const;
 
 export const CSS = `
 @font-face{font-family:Anton;src:url(${FUENTES.anton}) format("woff2");font-display:swap}
@@ -87,4 +87,9 @@ footer.pie .cols{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,min
 .wa-flotante svg,.wa svg{width:26px;height:26px;fill:currentColor}.wa-flotante{color:#fff}.wa{color:var(--azul)}
 .vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .migas{font-size:.9rem;margin:1rem 0}.migas a{color:var(--gris)}
+.bw{background:#000;color:#fff}.bw p{max-width:44rem}.bw .bw-titulo{color:var(--amarillo);font-size:clamp(2.5rem,8vw,5rem)}.bw h1.bw-titulo{font-size:clamp(3rem,11vw,7rem)}
+.bw a.btn-amarillo{color:var(--navy)}.bw :focus-visible{outline-color:var(--amarillo)}.bw .card :focus-visible{outline-color:var(--azul)}
+.bw-card{color:var(--tinta);padding:.6rem}.bw-card .b p{max-width:none}.combo{margin:0;color:var(--navy);font-size:.95rem}.combo strong{font-family:Oswald,Inter,sans-serif}
+.bw-acciones{margin-top:auto;display:grid;gap:.4rem}.bw-acciones form{margin:0}.bw-acciones .btn{width:100%;padding:.6rem .8rem;font-size:.9rem}
+.card .m{position:relative}.bw-etiqueta{position:absolute;top:.5rem;left:.5rem;background:#000;color:var(--amarillo);font:600 .75rem/1 Oswald,Inter,sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:.4rem .6rem;border-radius:.4rem}
 `.replace(/\n/g, "");
