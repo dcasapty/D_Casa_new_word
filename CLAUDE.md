@@ -28,7 +28,8 @@ ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
 - Constraints SQL con `models.Constraint(...)` (no `_sql_constraints`).
 - `res.users.group_ids` (no `groups_id`). `self.env._('...')` para textos traducibles.
 - Tests: `@tagged('post_install', '-at_install')`. Todo cambio lleva test.
-- Adjuntos en base de datos (`ir_attachment.location = db`): el contenedor no tiene disco persistente.
+- Adjuntos en R2 (`dcasa_adjuntos_r2`, `ir_attachment.location = r2`; `db` sin credenciales): el contenedor
+  no tiene disco persistente. Nunca se borran objetos de R2 al desvincular (lo hace un cron a los 45 días).
 
 ## Reglas de marca (ADN: Agencia_Workspace/Dcasa)
 

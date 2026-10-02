@@ -291,6 +291,8 @@ describe("contenedor único con PostgreSQL local", () => {
       expect(vars).not.toHaveProperty(nombre);
     }
     expect(variablesDelContenedor({ DCASA_ENTORNO: "staging" }).DCASA_ENTORNO).toBe("staging");
+    expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
+    expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
   });
 
   it("detecta los secretos que faltan para arrancar", () => {
@@ -363,5 +365,9 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging.durable_objects.bindings[0].name).toBe("ODOO");
     expect(staging.migrations).toEqual(config.migrations);
     expect(staging).not.toHaveProperty("routes");
+  });
+
+  it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {
+    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(false);
   });
 });

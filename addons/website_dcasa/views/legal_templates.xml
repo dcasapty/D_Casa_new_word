@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Páginas legales. Texto base redactado con los datos reales de D'CASA y lo que el sistema
+         hace de verdad; pendiente de revisión por abogado antes de producción (Fase 0b).
+         No prometen plazos, garantías ni condiciones que el dueño no haya fijado. -->
+
+    <template id="pagina_legal" name="D'CASA: marco de página legal">
+        <t t-call="website.layout">
+            <t t-set="additional_title" t-value="titulo"/>
+            <t t-set="meta_description" t-value="descripcion"/>
+            <div id="wrap" class="o_dcasa_legal">
+                <section class="container py-5">
+                    <div class="row">
+                        <div class="col-lg-8 offset-lg-2">
+                            <p class="o_dcasa_kicker">D'CASA Panamá</p>
+                            <h1 class="o_dcasa_display" t-out="titulo"/>
+                            <p class="text-muted">Última actualización: 1 de octubre de 2026</p>
+                            <t t-out="0"/>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <template id="pagina_privacidad" name="D'CASA: política de privacidad">
+        <t t-call="website_dcasa.pagina_legal">
+            <t t-set="titulo">Política de privacidad</t>
+            <t t-set="descripcion">Qué datos guarda D'CASA Panamá, para qué los usa, con quién los comparte (incluida la inteligencia artificial) y cómo ejercer tus derechos.</t>
+
+            <h2>Quiénes somos</h2>
+            <p>D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa Clara,
+                Local 4550 PB-1, La Chorrera. Correo: <a href="mailto:info@dcasapty.com">info@dcasapty.com</a>.
+                Tratamos tus datos conforme a la Ley 81 de 2019 de Protección de Datos Personales de Panamá.</p>
+
+            <h2>Qué datos guardamos</h2>
+            <ul>
+                <li><strong>Cuando nos escribes</strong> (WhatsApp o el formulario de contacto): tu nombre, celular,
+                    correo y lo que nos cuentas.</li>
+                <li><strong>Cuando compras</strong>: nombre, celular, dirección de entrega y, si pides factura,
+                    los datos fiscales (RUC o cédula).</li>
+                <li><strong>Si eres Socio D'CASA</strong>: tu celular (es tu usuario), tu nombre, tus compras y tus
+                    puntos. Tu PIN se guarda cifrado: nadie en D'CASA puede leerlo.</li>
+                <li><strong>Al navegar el sitio</strong>: solo las cookies técnicas descritas abajo.</li>
+            </ul>
+
+            <h2>Para qué los usamos</h2>
+            <ul>
+                <li>Responderte, cotizar, venderte y coordinar la entrega.</li>
+                <li>Emitir facturas y llevar la contabilidad, como exige la ley.</li>
+                <li>Llevar tus puntos del programa Socios D'CASA, si te inscribiste.</li>
+            </ul>
+            <p>No vendemos tus datos.</p>
+
+            <h2 id="inteligencia-artificial">Inteligencia artificial</h2>
+            <p>Nuestro equipo trabaja con Brian, un asistente de inteligencia artificial que ayuda a preparar
+                cotizaciones, buscar productos, ordenar el catálogo y leer documentos. Para eso, el contenido
+                que el equipo le pide revisar (por ejemplo, una conversación o una cotización con tu nombre)
+                se envía a un proveedor de inteligencia artificial.</p>
+            <ul>
+                <li>Nuestro proveedor principal es <strong>Meta</strong> (modelos Muse Spark), en una modalidad en la
+                    que <strong>Meta puede usar ese contenido para entrenar y mejorar sus modelos</strong>.</li>
+                <li>Como respaldo podemos usar <strong>Anthropic</strong> (modelos Claude).</li>
+            </ul>
+            <p>Si no quieres que tus datos pasen por inteligencia artificial, escríbenos y lo anotamos: te
+                atendemos sin usarla con tus datos. Tus derechos (más abajo) también aplican aquí.</p>
+
+            <h2>Con quién los compartimos</h2>
+            <ul>
+                <li><strong>Cloudflare</strong>: aloja el sitio, el sistema y sus respaldos.</li>
+                <li><strong>Meta</strong> y <strong>Anthropic</strong>: inteligencia artificial, como se explica arriba.</li>
+                <li><strong>WhatsApp</strong> (de Meta): cuando nos escribes por ahí.</li>
+                <li><strong>Autoridades</strong>: la Dirección General de Ingresos (facturación) y quien la ley indique.</li>
+            </ul>
+            <p>Algunos de estos proveedores guardan o procesan datos fuera de Panamá, por ejemplo en Estados Unidos.</p>
+
+            <h2>Cuánto tiempo los guardamos</h2>
+            <p>Las facturas, la contabilidad y los movimientos de puntos se guardan el tiempo que exige la ley y no se
+                borran (los errores se corrigen con un movimiento contrario). El resto, mientras sigas siendo cliente o
+                hasta que nos pidas borrarlos, si la ley lo permite.</p>
+
+            <h2>Tus derechos</h2>
+            <p>Puedes pedirnos <strong>acceso</strong> a tus datos, <strong>corregirlos</strong>,
+                <strong>borrarlos</strong> (cancelación), <strong>oponerte</strong> a un uso (por ejemplo, la
+                inteligencia artificial) y llevártelos (<strong>portabilidad</strong>). Escríbenos a
+                <a href="mailto:info@dcasapty.com">info@dcasapty.com</a> o por
+                <a href="/whatsapp" target="_blank" rel="noopener nofollow">WhatsApp</a>. Si no quedas conforme, puedes
+                acudir a la Autoridad Nacional de Transparencia y Acceso a la Información (ANTAI).</p>
+
+            <h2 id="cookies">Cookies</h2>
+            <p>Usamos solo cookies técnicas, necesarias para que el sitio funcione: tu sesión (si entras a tu cuenta
+                o a Socios), el carrito y el idioma. Cloudflare puede poner cookies de seguridad. No usamos cookies de
+                publicidad ni de analítica de terceros.</p>
+
+            <h2>Cambios</h2>
+            <p>Si cambiamos esta política, publicamos aquí la versión nueva con su fecha.</p>
+        </t>
+    </template>
+
+    <template id="pagina_terminos" name="D'CASA: términos y condiciones">
+        <t t-call="website_dcasa.pagina_legal">
+            <t t-set="titulo">Términos y condiciones</t>
+            <t t-set="descripcion">Cómo funcionan los precios, los pedidos y la atención de D'CASA Panamá en este sitio.</t>
+
+            <h2>Quiénes somos</h2>
+            <p>Este sitio es de D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa
+                Clara, Local 4550 PB-1, La Chorrera.</p>
+
+            <h2>Precios</h2>
+            <p>Los precios del sitio están en dólares y <strong>no incluyen el ITBMS</strong>: se muestran como
+                «+ ITBMS» y el impuesto vigente se suma al facturar.</p>
+
+            <h2>Pedidos y disponibilidad</h2>
+            <p>El catálogo es para que veas lo que tenemos. Antes de cerrar una venta te confirmamos por WhatsApp la
+                existencia, el precio final y la entrega. Un pedido hecho en el sitio es una solicitud: la venta queda
+                hecha cuando la confirmamos contigo. Las fotos y medidas son de referencia; si una medida es clave
+                para tu espacio, pregúntanos.</p>
+
+            <h2>Pagos, entregas, garantías y devoluciones</h2>
+            <p>Se acuerdan contigo al confirmar la compra y se rigen por la Ley 45 de 2007 de protección al
+                consumidor de Panamá.</p>
+
+            <h2>Programa Socios D'CASA</h2>
+            <p>Sus reglas están en <a href="/socios/terminos">términos del programa Socios</a>.</p>
+
+            <h2>Inteligencia artificial</h2>
+            <p>Nuestro equipo se apoya en un asistente de inteligencia artificial. Si un texto preparado con su ayuda
+                no coincide con lo que te confirmó una persona de D'CASA, vale lo que te confirmó la persona. Cómo
+                tratamos tus datos con inteligencia artificial está en la
+                <a href="/privacidad#inteligencia-artificial">política de privacidad</a>.</p>
+
+            <h2>Tus datos</h2>
+            <p>Ver la <a href="/privacidad">política de privacidad</a>.</p>
+
+            <h2>Ley aplicable</h2>
+            <p>Estos términos se rigen por las leyes de la República de Panamá.</p>
+        </t>
+    </template>
+</odoo>

@@ -5,3 +5,5 @@ from . import test_mcp
 from . import test_telegram
 from . import test_herramientas
 from . import test_seguridad_rpc
+from . import test_historial
+from . import test_adjuntos

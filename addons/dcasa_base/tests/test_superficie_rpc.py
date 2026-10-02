@@ -34,6 +34,10 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
     ('dcasa_base', 'sale.order.line', 'write'):
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
+    ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
+        OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
+    ('website_dcasa', 'ir.qweb.field.image_url', 'record_to_html'):
+        OVERRIDE + ' Hereda la anterior (image_url extiende image); sin sudo().',
     # --- dcasa_catalogo -----------------------------------------------------------------
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     # --- dcasa_contabilidad --------------------------------------------------------------
@@ -100,6 +104,15 @@ LISTA_BLANCA = {
         'Único camino público para confirmar: valida dueño de la conversación y de la acción (B-04).',
     ('dcasa_brian', 'brian.conversacion', 'rechazar_accion'): 'Valida dueño de la conversación y de la acción.',
     ('dcasa_brian', 'brian.conversacion', 'archivar'): 'Valida dueño de la conversación.',
+    ('dcasa_brian', 'brian.conversacion', 'renombrar'):
+        'Valida dueño de la conversación (_verificar_duenio); recorta a 60 caracteres; sin sudo.',
+    ('dcasa_brian', 'brian.conversacion', 'write'):
+        OVERRIDE + ' Impide cambiar dueño (usuario_id) y canal salvo superusuario; sin sudo.',
+    ('dcasa_brian', 'brian.conversacion', 'unlink'):
+        OVERRIDE + ' Valida dueño ANTES de cerrar con sudo SUS acciones por confirmar; el borrado '
+        'corre sin sudo (ACL + regla «cada quien sus conversaciones»).',
+    ('dcasa_brian', 'brian.mensaje', 'write'):
+        OVERRIDE + ' Impide mover un mensaje a otra conversación (historial falso); sin sudo.',
     ('dcasa_brian', 'brian.accion', 'create'): 'Bloquea: solo el sistema escribe la auditoría (ACL solo lectura).',
     ('dcasa_brian', 'brian.accion', 'write'): 'Bloquea: la auditoría no se edita.',
     ('dcasa_brian', 'brian.accion', 'unlink'): 'Bloquea: la auditoría no se borra.',
@@ -115,7 +128,7 @@ LISTA_BLANCA = {
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
-SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica')
+SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento')
 
 
 def es_publico(modelo, nombre):

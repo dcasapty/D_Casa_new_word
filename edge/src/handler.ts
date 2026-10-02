@@ -1,4 +1,14 @@
-import { forwardedHeaders, isCacheableResponse, route, withSecurityHeaders } from "./routing";
+import {
+  CONDITIONAL_HEADERS,
+  forwardedHeaders,
+  isCacheableRequest,
+  isCacheableResponse,
+  notModified,
+  notModifiedResponse,
+  route,
+  withCacheStatus,
+  withSecurityHeaders,
+} from "./routing";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -42,13 +52,32 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
   const upstream = new Request(request, { headers: forwardedHeaders(request) });
 
   if (decision.cacheable && deps.cache) {
+    if (!isCacheableRequest(request)) {
+      return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
+    }
     const cacheKey = new Request(url.toString(), { method: "GET" });
     const hit = await deps.cache.match(cacheKey);
-    // Lo servido desde la caché también lleva HSTS, nosniff, etc. (Q-03).
-    if (hit) return withSecurityHeaders(hit);
+    if (hit) {
+      // Lo servido desde la caché también lleva HSTS, nosniff, etc. (Q-03).
+      const servida = notModified(request, hit) ? notModifiedResponse(hit) : hit;
+      return withSecurityHeaders(withCacheStatus(servida, "HIT"));
+    }
 
-    const response = await reenviar(request, upstream, deps);
-    if (request.method === "GET" && isCacheableResponse(response)) {
+    // Al llenar la caché se pide la versión completa: si el navegador mandó If-None-Match,
+    // Odoo contestaría 304 y no habría nada que guardar (con poco tráfico, casi todo serían
+    // fallos). El 304 para ese navegador lo arma el borde con la copia ya guardada.
+    // Las imágenes sin `unique` Odoo las sirve "no-cache" (no se guardan): ahí el 304 de Odoo
+    // sigue siendo lo mejor para el navegador (avatares y fotos del panel).
+    const llenar = request.method === "GET";
+    const sinVersion = url.pathname.startsWith("/web/image") && !url.searchParams.has("unique");
+    let pedido = upstream;
+    if (llenar && !sinVersion) {
+      const headers = new Headers(upstream.headers);
+      for (const name of CONDITIONAL_HEADERS) headers.delete(name);
+      pedido = new Request(upstream, { headers });
+    }
+    const response = await reenviar(request, pedido, deps);
+    if (llenar && isCacheableResponse(response)) {
       // Se guarda la copia tal como la dio Odoo; las cabeceras se agregan al servir.
       const put = deps.cache.put(cacheKey, response.clone());
       if (deps.waitUntil) {
@@ -56,8 +85,10 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
       } else {
         await put;
       }
+      const servida = notModified(request, response) ? notModifiedResponse(response) : response;
+      return withSecurityHeaders(withCacheStatus(servida, "MISS"));
     }
-    return withSecurityHeaders(response);
+    return withSecurityHeaders(withCacheStatus(response, "BYPASS"));
   }
 
   return withSecurityHeaders(await reenviar(request, upstream, deps));
@@ -81,6 +112,11 @@ export interface ScheduledDeps {
   status: () => Promise<string>;
   /** Petición que despierta a Odoo (enciende el contenedor si está apagado). */
   wake: () => Promise<Response>;
+  /**
+   * Política de sueño del entorno (`politicaDeSueno`). `false` = puede dormir (staging):
+   * el cron no lo despierta. Ausente = 24/7 (se despierta, como antes).
+   */
+  siempreEncendido?: boolean;
 }
 
 /**
@@ -88,13 +124,18 @@ export interface ScheduledDeps {
  *
  * - Si Odoo ya está encendido, no hace nada: su propio hilo de cron
  *   (`max_cron_threads`) corre las acciones planificadas.
- * - Si está apagado (reinicio de host sin visitas, o durmió por `sleepAfter` en
- *   staging), lo despierta una vez para que Odoo corra lo pendiente (cola de correo,
- *   cron horario de socios…).
+ * - Si está apagado y el entorno es 24/7 (producción: reinicio de host sin visitas),
+ *   lo despierta una vez para que Odoo corra lo pendiente (cola de correo, cron
+ *   horario de socios…).
+ * - Si está apagado y el entorno puede dormir (`ODOO_DORMIR_TRAS` con duración:
+ *   staging), lo deja dormido: despertarlo cada hora lo tenía encendido ~50 % del
+ *   tiempo y restaurando desde R2 cada ~2 h (ronda4/costos-y-limpieza §2.6). Lo
+ *   enciende la próxima visita.
  */
-export async function runScheduled(deps: ScheduledDeps): Promise<"encendido" | "despertado"> {
+export async function runScheduled(deps: ScheduledDeps): Promise<"encendido" | "despertado" | "dormido"> {
   const status = await deps.status();
   if (status === "running" || status === "healthy") return "encendido";
+  if (deps.siempreEncendido === false) return "dormido";
   const response = await deps.wake();
   // El cuerpo no interesa; se descarta para liberar la conexión.
   await response.body?.cancel();
@@ -257,6 +298,8 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "APP_VERSION",
   "CANONICAL_HOST",
   "DCASA_ENTORNO",
+  // Adjuntos: «r2» (por defecto, con las credenciales R2_*) o «db» (emergencia; addons/dcasa_adjuntos_r2)
+  "DCASA_ADJUNTOS",
   // Respaldo continuo (pgBackRest) y diario (pg_dump) en R2
   "R2_ENDPOINT",
   "R2_BUCKET",

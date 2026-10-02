@@ -1,14 +1,17 @@
 """Fase 0 del sitio: LCP, datos estructurados, textos en español y promesas sin respaldo."""
+import base64
+import io
 import json
 import re
 
 from markupsafe import Markup
+from PIL import Image
 
 from odoo.addons.website_dcasa.controllers.main import _sin_disponibilidad
 from odoo.addons.website_dcasa.models.website import SEO_PORTADA
 from odoo.tests import HttpCase, TransactionCase, tagged
 
-PAGINAS_PUBLICAS = ('/', '/shop', '/visitanos', '/socios', '/contactus')
+PAGINAS_PUBLICAS = ('/', '/shop', '/visitanos', '/socios', '/contactus', '/privacidad', '/terminos')
 
 
 def _json_ld(html):
@@ -52,6 +55,99 @@ class TestSitioFase0(HttpCase):
             self.assertIn('loading="eager"', etiqueta, ruta)
             self.assertIn('fetchpriority="high"', etiqueta, ruta)
             self.assertNotIn('loading="lazy"', etiqueta, ruta)
+
+    # -- Rendimiento (auditoría ronda 4): fuentes locales y fotos de la tienda ----------------
+
+    def _css_del_sitio(self, html):
+        enlace = re.search(r'href="([^"]*web\.assets_frontend[^"]*\.css)"', html)
+        self.assertTrue(enlace, 'La página debe enlazar el bundle CSS del sitio')
+        return self.url_open(enlace.group(1)).text
+
+    def test_fuentes_autoalojadas_sin_google(self):
+        """Anton, Oswald e Inter salen del módulo: ni @import ni preconnect a Google Fonts."""
+        for ruta in ('/', '/shop'):
+            html = self.url_open(ruta).text
+            self.assertNotIn('fonts.googleapis.com', html, ruta)
+            self.assertNotIn('fonts.gstatic.com', html, ruta)
+        css = self._css_del_sitio(self.url_open('/').text)
+        self.assertNotIn('fonts.googleapis.com', css)
+        self.assertNotIn('fonts.gstatic.com', css)
+        fuentes = (('anton-latin', 'Anton'), ('oswald-latin-var', 'Oswald'), ('inter-latin-var', 'Inter'))
+        for archivo, familia in fuentes:
+            regla = re.search(r'@font-face\s*\{[^}]*font-family:\s*["\']?' + familia + r'["\']?;[^}]*\}', css)
+            self.assertTrue(regla, familia)
+            # La URL tiene que quedar absoluta: el empaquetador de Odoo vuelve relativa a la hoja
+            # (…/static/src/scss//website_dcasa/…) toda url() que no empiece por «/» en el fuente.
+            url = re.search(r'src:\s*url\(["\']?([^"\')]+)["\']?\)', regla.group(0))
+            self.assertTrue(url, familia)
+            self.assertEqual(url.group(1), f'/website_dcasa/static/src/fonts/{archivo}.woff2')
+            self.assertRegex(regla.group(0), r'font-display:\s*swap')
+            fuente = self.url_open(f'/website_dcasa/static/src/fonts/{archivo}.woff2')
+            self.assertEqual(fuente.status_code, 200, archivo)
+            self.assertEqual(fuente.content[:4], b'wOF2', archivo)
+        # La licencia viaja con las fuentes (SIL OFL 1.1).
+        for familia in ('Anton', 'Oswald', 'Inter'):
+            licencia = self.url_open(f'/website_dcasa/static/src/fonts/OFL-{familia}.txt')
+            self.assertEqual(licencia.status_code, 200, familia)
+            self.assertIn('SIL OPEN FONT LICENSE', licencia.text)
+
+    def test_precarga_de_las_fuentes_del_primer_pantallazo(self):
+        html = self.url_open('/').text
+        for archivo in ('anton-latin', 'inter-latin-var'):
+            enlace = re.search(r'<link[^>]*href="/website_dcasa/static/src/fonts/' + archivo + r'\.woff2"[^>]*>', html)
+            self.assertTrue(enlace, archivo)
+            for atributo in ('rel="preload"', 'as="font"', 'type="font/woff2"', 'crossorigin'):
+                self.assertIn(atributo, enlace.group(0), archivo)
+
+    def _foto(self, color):
+        salida = io.BytesIO()
+        Image.new('RGB', (1200, 1200), color).save(salida, format='JPEG')
+        return base64.b64encode(salida.getvalue())
+
+    def test_tarjetas_de_la_tienda_con_foto_a_su_tamano(self):
+        """/shop: srcset 256/512/1024 con `sizes`, width/height (CLS) y solo la 1.ª fila «eager»."""
+        for nombre, color in (('Colchón de prueba', 'blue'), ('Zapatera de prueba', 'yellow')):
+            self.env['product.template'].create({
+                'name': nombre, 'list_price': 99.0, 'is_published': True, 'image_1920': self._foto(color),
+                'public_categ_ids': [(6, 0, self.recamaras.ids)],
+            })
+        html = self.url_open('/shop').text
+        fotos = re.findall(r'<img[^>]*class="[^"]*\boe_product_image_img\b[^"]*"[^>]*>', html)
+        self.assertGreaterEqual(len(fotos), 3, 'una foto por producto publicado')
+        for foto in fotos:
+            self.assertIn('width="512"', foto)
+            self.assertIn('height="512"', foto)
+            self.assertRegex(foto, r'src="/web/image/product\.(?:template|product)/\d+/image_512/[^"]*\?unique=')
+            self.assertRegex(foto, r'srcset="[^"]*/image_256/[^" ]*\?unique=\w+ 256w, [^"]*/image_512/[^" ]* 512w, '
+                                   r'[^"]*/image_1024/[^" ]* 1024w"')
+            self.assertRegex(foto, r'sizes="[^"]*vw"')
+        # La primera fila del celular (dos tarjetas, ahí está la LCP) no espera; el resto sí.
+        for foto in fotos[:2]:
+            self.assertIn('loading="eager"', foto)
+            self.assertIn('fetchpriority="high"', foto)
+        for foto in fotos[2:]:
+            self.assertIn('loading="lazy"', foto)
+            self.assertNotIn('fetchpriority', foto)
+        self.assertEqual(html.count('fetchpriority="high"'), 2)
+
+    def test_tarjetas_de_la_tienda_sin_salto_del_paginador(self):
+        """CLS 0,126: las tarjetas fuera de pantalla nacían con alto 0 (content-visibility: auto)."""
+        css = self._css_del_sitio(self.url_open('/shop').text)
+        self.assertRegex(css, r'#o_wsale_products_grid \.oe_product_cart\s*\{\s*contain-intrinsic-size:\s*auto \d+px')
+
+    def test_carril_de_la_portada_con_srcset(self):
+        self.env['product.template'].create({
+            'name': 'Mesa de prueba', 'list_price': 59.0, 'is_published': True, 'image_1920': self._foto('red'),
+            'public_categ_ids': [(6, 0, self.recamaras.ids)],
+        })
+        html = self.url_open('/').text
+        fotos = re.findall(r'<a[^>]*class="o_dcasa_pcard_media"[^>]*>\s*<img[^>]*>', html)
+        self.assertTrue(fotos)
+        for foto in fotos:
+            self.assertRegex(foto, r'srcset="[^"]*image_256[^"]* 256w, [^"]*image_512[^"]* 512w"')
+            self.assertIn('sizes="', foto)
+            self.assertIn('width="512"', foto)
+            self.assertIn('loading="lazy"', foto)
 
     # -- JSON-LD ------------------------------------------------------------------------------
 

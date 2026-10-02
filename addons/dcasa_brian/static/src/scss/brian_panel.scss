@@ -242,8 +242,67 @@ $brian-ancho: 400px;
     .fa { color: var(--dc-tinta-3); width: 16px; text-align: center; }
     &:hover { background: var(--dc-niebla); }
     &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
-    &.o_activa { background: var(--dc-azul-50); color: var(--dc-azul-700); font-weight: 600; }
 }
+
+// Fila del historial: abrir + acciones (renombrar, borrar). Azul/tinta sobre blanco; sin amarillo.
+.o_brian_historial:focus { outline: none; }
+
+.o_brian_conv_fila {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-radius: var(--dc-r-sm);
+
+    &:hover { background: var(--dc-niebla); }
+    &.o_activa {
+        background: var(--dc-azul-50);
+        .o_brian_conv { color: var(--dc-azul-700); font-weight: 600; }
+    }
+    .o_brian_conv { flex: 1; min-width: 0; }
+    .o_brian_conv:hover { background: transparent; }
+}
+
+.o_brian_conv_acciones {
+    flex: none;
+    display: flex;
+    gap: 2px;
+    padding-right: 4px;
+    // En escritorio aparecen al pasar el ratón o al llegar con el teclado; en el celular, siempre.
+    opacity: 0;
+    transition: opacity var(--dc-transicion);
+
+    .o_brian_conv_fila:hover &,
+    .o_brian_conv_fila:focus-within &,
+    .o_brian_conv_fila.o_activa & { opacity: 1; }
+
+    @media (hover: none), (max-width: 767.98px) { opacity: 1; }
+
+    .o_brian_icono_btn { width: 30px; height: 30px; }
+    .o_brian_conv_borrar:hover { color: var(--dc-azul-800); background: var(--dc-azul-50); }
+}
+
+.o_brian_renombrar {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+}
+
+.o_brian_renombrar_caja {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    border: 1px solid var(--dc-azul-600);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-blanco);
+    color: var(--dc-tinta);
+    font: inherit;
+
+    &:focus { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_brian_aviso_borrada { margin-bottom: 0; }
 
 .o_brian_conv_titulo {
     flex: 1;

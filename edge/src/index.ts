@@ -25,6 +25,8 @@ export interface Env {
   R2_BUCKET?: string;
   /** Vacío/"nunca" = 24/7; una duración ("1h") = duerme sin visitas (ver politicaDeSueno). */
   ODOO_DORMIR_TRAS?: string;
+  /** Dónde guarda Odoo los adjuntos nuevos: "r2" (por defecto, prefijo adjuntos/ de R2_BUCKET) o "db". */
+  DCASA_ADJUNTOS?: string;
   // Secretos (wrangler secret put …; ver edge/CONTRATO_CONTENEDOR.md)
   /** Clave del usuario `admin` de Odoo (se fija al crear la base; ver docs/DESPLIEGUE.md). */
   ADMIN_PASSWORD?: string;
@@ -248,7 +250,8 @@ export default {
 
   /**
    * Crons (wrangler.jsonc, ver CRON_HORARIO y CRON_RESPALDO en src/handler.ts):
-   * - horario: si Odoo está apagado lo despierta; si está encendido no hace nada;
+   * - horario: si Odoo está apagado lo despierta (solo en 24/7; staging sigue dormido);
+   *   si está encendido no hace nada;
    * - diario de madrugada (Panamá): respaldo lógico dentro del contenedor.
    */
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
@@ -261,6 +264,8 @@ export default {
       runScheduled({
         status: async () => (await container.getState()).status,
         wake: () => container.fetch(new Request("http://odoo/web/health")),
+        // Staging (ODOO_DORMIR_TRAS con duración) no se despierta por el cron: duerme.
+        siempreEncendido: politicaDeSueno(env.ODOO_DORMIR_TRAS).siempreEncendido,
       }).then((resultado) => console.log(`cron: Odoo ${resultado}`)),
     );
   },

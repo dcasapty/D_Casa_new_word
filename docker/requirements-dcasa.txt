@@ -1,0 +1,3 @@
+# Dependencias Python propias de D'CASA (además de vendor/odoo/requirements.txt).
+# boto3: adjuntos en R2 (addons/dcasa_adjuntos_r2). Sin él, los adjuntos se quedan en la base.
+boto3==1.43.107

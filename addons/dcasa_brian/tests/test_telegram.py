@@ -187,6 +187,38 @@ class TestBrianTelegram(HttpCase):
         self.assertEqual(self.env['brian.accion'].browse(otra['accion_id']).estado, 'rechazada')
         self.assertFalse(self.env['res.partner'].search([('name', '=', 'No se crea')]))
 
+    def test_boton_viejo_de_una_conversacion_borrada_no_ejecuta(self):
+        enlace = self.vincular(1010)
+        conversacion = enlace._conversacion()
+        Herramientas = self.env['brian.herramientas'].with_user(self.usuario)
+        propuesta = Herramientas.ejecutar('prueba_canal_sensible', {'nombre': 'Contacto borrado'},
+                                          canal='telegram', conversacion=conversacion.id)
+        conversacion.unlink()
+        self.env.invalidate_all()
+        self.assertFalse(enlace.conversacion_id)
+
+        def pulsar(accion_id, update_id):
+            self.webhook({'update_id': update_id, 'callback_query': {
+                'id': 'cb', 'data': f'brian:c:{accion_id}', 'from': {'id': 1010},
+                'message': {'message_id': 5, 'chat': {'id': 1010, 'type': 'private'}}}})
+
+        pulsar(propuesta['accion_id'], 50)
+        self.env.invalidate_all()
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Contacto borrado')]))
+        self.assertEqual(self.env['brian.accion'].browse(propuesta['accion_id']).estado, 'rechazada')
+        self.assertIn('ya no está pendiente', self.textos()[-1])
+
+        # Acción de chat que quedó pendiente sin conversación (borrada antes de este arreglo).
+        huerfana = Herramientas.ejecutar('prueba_canal_sensible', {'nombre': 'Contacto huérfano'}, canal='telegram')
+        pulsar(huerfana['accion_id'], 51)
+        self.env.invalidate_all()
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Contacto huérfano')]))
+        self.assertEqual(self.env['brian.accion'].browse(huerfana['accion_id']).estado, 'rechazada')
+        self.assertIn('se borró', self.textos()[-1])
+
+        # El siguiente mensaje abre una conversación nueva, sin errores.
+        self.assertTrue(enlace._conversacion().exists())
+
     def test_confirmar_en_conversacion(self):
         enlace = self.vincular(1009)
         conversacion = enlace._conversacion()

@@ -1203,6 +1203,15 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
         font-weight: 600;
     }
 
+    // CLS 0,126 de /shop (auditoría ronda 3 y 4): website_sale pone `content-visibility: auto`
+    // sin `contain-intrinsic-size` en cada tarjeta; las que quedan fuera de pantalla nacían con
+    // alto 0 (el paginador aparecía dentro de la pantalla) y al medirse lo empujaban ~4 000 px.
+    // Con un alto estimado (medido: 332-357 px en celular, tableta y escritorio) el paginador
+    // nace fuera de pantalla y las tarjetas lejanas siguen sin pintarse ni bajar su foto.
+    #o_wsale_products_grid .oe_product_cart {
+        contain-intrinsic-size: auto 350px;
+    }
+
     // Tarjetas del catálogo como las de la portada: botón de compra sólido y grande.
     .oe_product_cart {
         .o_wsale_product_btn .btn,

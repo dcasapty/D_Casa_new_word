@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Barandas de costo (docs/OPERACION.md «Depuración y reporte mensual»).
+         Día 1 de cada mes, de madrugada en Panamá (UTC-5): 08:30 y 08:45 UTC. -->
+    <record id="ir_cron_dcasa_depurar" model="ir.cron">
+        <field name="name">D'CASA: depuración mensual (adjuntos huérfanos y correos fallidos)</field>
+        <field name="model_id" ref="model_dcasa_mantenimiento"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_depurar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">months</field>
+        <field name="nextcall" eval="(DateTime.now().replace(day=1, hour=8, minute=30, second=0) + relativedelta(months=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_dcasa_reporte_tamanos" model="ir.cron">
+        <field name="name">D'CASA: reporte mensual de tamaños de la base</field>
+        <field name="model_id" ref="model_dcasa_mantenimiento"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_reporte_tamanos()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">months</field>
+        <field name="nextcall" eval="(DateTime.now().replace(day=1, hour=8, minute=45, second=0) + relativedelta(months=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

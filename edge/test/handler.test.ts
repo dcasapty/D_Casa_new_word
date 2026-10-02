@@ -52,6 +52,79 @@ describe("handleRequest", () => {
     }
   });
 
+  it("marca HIT/MISS/BYPASS para poder medir la caché del borde", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async () => new Response("css", { headers: { "Cache-Control": "public, max-age=31536000" } }));
+    const url = "https://dcasapty.com/web/assets/abc/web.assets_frontend.min.css";
+
+    expect((await handleRequest(new Request(url), { forward, cache })).headers.get("X-Dcasa-Cache")).toBe("MISS");
+    expect((await handleRequest(new Request(url), { forward, cache })).headers.get("X-Dcasa-Cache")).toBe("HIT");
+    // Las páginas no llevan la marca: no pasan por la caché.
+    const pagina = await handleRequest(new Request("https://dcasapty.com/shop"), { forward, cache });
+    expect(pagina.headers.get("X-Dcasa-Cache")).toBeNull();
+  });
+
+  it("nunca guarda lo que Odoo sirve a un usuario con sesión (private) ni con cookie", async () => {
+    const cache = memoryCache();
+    const url = "https://dcasapty.com/web/image/res.users/2/avatar_128?unique=abc";
+    const casos: Record<string, string>[] = [
+      { "Cache-Control": "private, max-age=31536000, immutable" },
+      { "Cache-Control": "public, max-age=31536000", "Set-Cookie": "session_id=x; HttpOnly" },
+    ];
+    for (const headers of casos) {
+      const forward = vi.fn(async () => new Response("img", { headers }));
+      const res = await handleRequest(new Request(url, { headers: { Cookie: "session_id=abc" } }), { forward, cache });
+      expect(res.headers.get("X-Dcasa-Cache")).toBe("BYPASS");
+    }
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it("con Authorization ni lee ni llena la caché", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async () => new Response("css", { headers: { "Cache-Control": "public, max-age=31536000" } }));
+    const url = "https://dcasapty.com/web/assets/abc/web.assets_frontend.min.css";
+    await handleRequest(new Request(url), { forward, cache });
+    const res = await handleRequest(new Request(url, { headers: { Authorization: "Bearer x" } }), { forward, cache });
+    expect(res.headers.get("X-Dcasa-Cache")).toBe("BYPASS");
+    expect(forward).toHaveBeenCalledTimes(2);
+    expect(cache.match).toHaveBeenCalledOnce();
+  });
+
+  it("llena la caché aunque el navegador revalide y le responde 304 desde el borde", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async (req: Request) =>
+      req.headers.has("If-None-Match")
+        ? new Response(null, { status: 304, headers: { ETag: '"v1"' } })
+        : new Response("woff2", { headers: { "Cache-Control": "public, max-age=604800", ETag: '"v1"' } }),
+    );
+    const url = "https://dcasapty.com/website_dcasa/static/src/fonts/anton-latin.woff2";
+    const revalida = () => new Request(url, { headers: { "If-None-Match": '"v1"' } });
+
+    const primera = await handleRequest(revalida(), { forward, cache });
+    expect(primera.status).toBe(304);
+    expect(primera.headers.get("X-Dcasa-Cache")).toBe("MISS");
+    expect(forward.mock.calls[0][0].headers.has("If-None-Match")).toBe(false);
+    expect(cache.put).toHaveBeenCalledOnce();
+
+    const segunda = await handleRequest(revalida(), { forward, cache });
+    expect(segunda.status).toBe(304);
+    expect(segunda.headers.get("X-Dcasa-Cache")).toBe("HIT");
+    const completa = await handleRequest(new Request(url), { forward, cache });
+    expect(completa.status).toBe(200);
+    expect(await completa.text()).toBe("woff2");
+    expect(forward).toHaveBeenCalledOnce();
+  });
+
+  it("deja que Odoo conteste el 304 de las imágenes sin versión (no se guardan)", async () => {
+    const cache = memoryCache();
+    const forward = vi.fn(async (_req: Request) => new Response(null, { status: 304, headers: { ETag: '"a"' } }));
+    const url = "https://dcasapty.com/web/image/res.partner/3/avatar_128";
+    const res = await handleRequest(new Request(url, { headers: { "If-None-Match": '"a"' } }), { forward, cache });
+    expect(res.status).toBe(304);
+    expect(forward.mock.calls[0][0].headers.get("If-None-Match")).toBe('"a"');
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
   it("bloquea /jsonrpc y sus variantes codificadas sin llegar a Odoo", async () => {
     const forward = vi.fn();
     for (const path of ["/jsonrpc", "//jsonrpc", "/%6Asonrpc", "/es/jsonrpc", "/web/%64atabase/manager", "/json/2/res.users/write"]) {
@@ -123,6 +196,22 @@ describe("runScheduled (cron horario)", () => {
       expect(await runScheduled({ status: async () => status, wake })).toBe("encendido");
       expect(wake).not.toHaveBeenCalled();
     }
+  });
+
+  it("staging (puede dormir): si está apagado lo deja dormido", async () => {
+    for (const status of ["stopped", "stopped_with_code"]) {
+      const wake = vi.fn(async () => new Response("ok"));
+      expect(await runScheduled({ status: async () => status, wake, siempreEncendido: false })).toBe("dormido");
+      expect(wake).not.toHaveBeenCalled();
+    }
+    const wake = vi.fn();
+    expect(await runScheduled({ status: async () => "healthy", wake, siempreEncendido: false })).toBe("encendido");
+  });
+
+  it("producción 24/7: lo despierta aunque se pase la política explícita", async () => {
+    const wake = vi.fn(async () => new Response("ok"));
+    expect(await runScheduled({ status: async () => "stopped", wake, siempreEncendido: true })).toBe("despertado");
+    expect(wake).toHaveBeenCalledOnce();
   });
 
   it("despierta a Odoo una vez si está apagado", async () => {

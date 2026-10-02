@@ -40,6 +40,16 @@
         </xpath>
     </template>
 
+    <!-- Fuentes autoalojadas (static/src/scss/fuentes.scss): fuera el preconnect a
+         fonts.gstatic.com y precarga de las dos que pintan lo primero que se ve
+         (Anton en el titular del hero, Inter en el texto). Oswald llega con el CSS. -->
+    <template id="layout_fuentes_locales" inherit_id="website.layout" name="D'CASA: fuentes locales">
+        <xpath expr="//link[@rel='preconnect'][@href='https://fonts.gstatic.com/']" position="replace">
+            <link rel="preload" href="/website_dcasa/static/src/fonts/anton-latin.woff2" as="font" type="font/woff2" crossorigin=""/>
+            <link rel="preload" href="/website_dcasa/static/src/fonts/inter-latin-var.woff2" as="font" type="font/woff2" crossorigin=""/>
+        </xpath>
+    </template>
+
     <!-- Datos estructurados de la tienda (Google: ficha local y resultados enriquecidos). -->
     <template id="layout_json_ld" inherit_id="website.layout" name="D'CASA: datos estructurados">
         <xpath expr="//head" position="inside">
@@ -169,6 +179,7 @@
                                 <h2 class="o_dcasa_kicker">D'CASA Panamá</h2>
                                 <p>Tu casa, bien amueblada. Camas, colchones, salas, muebles de TV,
                                     zapateras, estantes y escritorios, con la mejor atención y precios pensados para ti.</p>
+                                <p class="small mb-0">RUC 155779346-2-2026 DV7</p>
                             </div>
                             <div class="col-lg-2 pb24">
                                 <h2 class="o_dcasa_kicker">Tienda</h2>
@@ -177,6 +188,8 @@
                                     <li><a href="/socios">Socios: mis puntos</a></li>
                                     <li><a href="/my">Mi cuenta</a></li>
                                     <li><a href="/contactus">Contacto</a></li>
+                                    <li><a href="/privacidad">Privacidad</a></li>
+                                    <li><a href="/terminos">Términos y condiciones</a></li>
                                 </ul>
                             </div>
                             <div class="col-lg-3 pb24">

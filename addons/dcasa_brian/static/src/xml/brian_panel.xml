@@ -60,26 +60,60 @@
             </div>
 
             <!-- Historial de conversaciones -->
-            <section t-if="state.vista === 'historial'" class="o_brian_historial" aria-label="Conversaciones anteriores">
+            <section t-if="state.vista === 'historial'" class="o_brian_historial" aria-label="Conversaciones anteriores"
+                     tabindex="-1">
                 <h3 class="o_brian_subtitulo">Conversaciones</h3>
                 <p t-if="state.cargandoLista" class="o_brian_vacio_lista">Cargando…</p>
                 <p t-elif="!state.conversaciones.length" class="o_brian_vacio_lista">Todavía no hay conversaciones.</p>
                 <ul t-else="" class="o_brian_lista">
-                    <li t-foreach="state.conversaciones" t-as="conv" t-key="conv.id">
-                        <button type="button" class="o_brian_conv"
-                                t-att-class="{'o_activa': conv.id === state.conversacionId}"
-                                t-att-aria-current="conv.id === state.conversacionId ? 'true' : undefined"
-                                t-on-click="() => this.abrirConversacion(conv)">
-                            <i t-attf-class="fa {{ conv.canal === 'telegram' ? 'fa-paper-plane' : 'fa-comment-o' }}" aria-hidden="true"/>
-                            <span class="o_brian_conv_titulo" t-esc="conv.titulo || 'Conversación'"/>
-                            <span class="o_brian_conv_fecha" t-esc="fecha(conv.fecha)"/>
-                        </button>
+                    <li t-foreach="state.conversaciones" t-as="conv" t-key="conv.id" class="o_brian_conv_fila"
+                        t-att-data-id="conv.id" t-att-class="{'o_activa': conv.id === state.conversacionId}">
+                        <!-- Renombrar en línea: Enter guarda, Esc cancela. -->
+                        <form t-if="state.renombrando === conv.id" class="o_brian_renombrar"
+                              t-on-submit.prevent="() => this.guardarNombre()">
+                            <label t-att-for="'o_brian_nombre_' + conv.id" class="visually-hidden">Nuevo nombre de la conversación</label>
+                            <input t-att-id="'o_brian_nombre_' + conv.id" type="text" class="o_brian_renombrar_caja"
+                                   maxlength="60" t-model="state.nombreNuevo" t-on-keydown="alTeclearNombre"
+                                   autocomplete="off"/>
+                            <button type="submit" class="o_brian_icono_btn" aria-label="Guardar nombre" title="Guardar (Enter)">
+                                <i class="fa fa-check" aria-hidden="true"/>
+                            </button>
+                            <button type="button" class="o_brian_icono_btn" aria-label="Cancelar" title="Cancelar (Esc)"
+                                    t-on-click="cancelarRenombrar">
+                                <i class="fa fa-times" aria-hidden="true"/>
+                            </button>
+                        </form>
+                        <t t-else="">
+                            <button type="button" class="o_brian_conv"
+                                    t-att-aria-current="conv.id === state.conversacionId ? 'true' : undefined"
+                                    t-on-click="() => this.abrirConversacion(conv)">
+                                <i t-attf-class="fa {{ conv.canal === 'telegram' ? 'fa-paper-plane' : 'fa-comment-o' }}" aria-hidden="true"/>
+                                <span class="o_brian_conv_titulo" t-esc="conv.titulo || 'Conversación'"/>
+                                <span class="o_brian_conv_fecha" t-esc="fecha(conv.fecha)"/>
+                            </button>
+                            <span class="o_brian_conv_acciones">
+                                <button type="button" class="o_brian_icono_btn o_brian_conv_renombrar"
+                                        t-att-aria-label="'Renombrar «' + (conv.titulo || 'Conversación') + '»'"
+                                        title="Renombrar" t-on-click="() => this.empezarRenombrar(conv)">
+                                    <i class="fa fa-pencil" aria-hidden="true"/>
+                                </button>
+                                <button type="button" class="o_brian_icono_btn o_brian_conv_borrar"
+                                        t-att-aria-label="'Borrar «' + (conv.titulo || 'Conversación') + '»'"
+                                        title="Borrar" t-on-click="() => this.pedirBorrar(conv)">
+                                    <i class="fa fa-trash-o" aria-hidden="true"/>
+                                </button>
+                            </span>
+                        </t>
                     </li>
                 </ul>
             </section>
 
             <!-- Conversación -->
             <t t-else="">
+                <div t-if="state.aviso" class="o_brian_aviso o_brian_aviso_borrada" role="status">
+                    <i class="fa fa-info-circle" aria-hidden="true"/>
+                    <span t-esc="state.aviso"/>
+                </div>
                 <div class="o_brian_mensajes" t-ref="mensajes" role="log" aria-live="polite" aria-label="Conversación con Brian">
                     <div t-if="!state.mensajes.length" class="o_brian_bienvenida">
                         <t t-call="dcasa_brian.Monograma"><t t-set="tamano" t-value="'grande'"/></t>
