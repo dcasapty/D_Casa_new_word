@@ -14,10 +14,15 @@
         <t t-set="producto" t-value="item['producto']"/>
         <article class="o_dcasa_pcard">
             <a t-att-href="producto.website_url" class="o_dcasa_pcard_media" tabindex="-1" aria-hidden="true">
-                <img t-att-src="website.image_url(producto, 'image_512')" alt=""
-                     t-attf-srcset="#{website.image_url(producto, 'image_256')} 256w, #{website.image_url(producto, 'image_512')} 512w"
-                     sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 72vw"
-                     width="512" height="512" loading="lazy" decoding="async"/>
+                <picture>
+                    <t t-set="dcasa_webp" t-value="website._dcasa_img_srcset(producto, (256, 512))"/>
+                    <source t-if="dcasa_webp" type="image/webp" t-att-srcset="dcasa_webp"
+                            sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 72vw"/>
+                    <img t-att-src="website.image_url(producto, 'image_512')" alt=""
+                         t-attf-srcset="#{website.image_url(producto, 'image_256')} 256w, #{website.image_url(producto, 'image_512')} 512w"
+                         sizes="(min-width: 992px) 25vw, (min-width: 576px) 42vw, 72vw"
+                         width="512" height="512" loading="lazy" decoding="async"/>
+                </picture>
             </a>
             <div class="o_dcasa_pcard_body">
                 <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto.name"/></h3>

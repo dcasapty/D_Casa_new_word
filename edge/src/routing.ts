@@ -99,6 +99,7 @@ const CACHEABLE_PATTERNS = [
   /^\/[a-z0-9_]+\/static\//, // archivos estáticos de los módulos (fuentes, fotos del tema)
   /^\/web\/image\//, // imágenes de productos (solo si Odoo responde "public")
   /^\/web\/content\/[^?]*\?(?:.*&)?unique=/, // adjuntos versionados (/web/content/12-abc/x.css?unique=…)
+  /^\/dcasa\/img\/[^?]*\?(?:.*&)?v=/, // fotos WebP/JPEG al ancho justo, versionadas (website_dcasa/models/imagen.py)
 ];
 
 export function route(url: URL, method: string, canonicalHost?: string): Route {

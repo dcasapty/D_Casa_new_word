@@ -6,11 +6,23 @@ export const VERSION_FEED = 1;
 
 export type ModoCompra = "directa" | "variantes" | "ficha";
 
+/**
+ * Foto servida por `/dcasa/img` (addons/website_dcasa/models/imagen.py): la URL es
+ * `${base}/${ancho}.${"webp" | "jpg"}?v=${v}`, con `ancho` en `ANCHOS_IMAGEN` (render.ts).
+ * Inmutable: `v` es el checksum de la foto.
+ */
+export interface FotoFeed {
+  base: string;
+  v: string;
+}
+
 export interface ImagenesProducto {
   image_256: string;
   image_512: string;
   image_1024: string;
   image_1920: string;
+  /** Ausente en un feed de un Odoo anterior: entonces se usan las URL de `/web/image`. */
+  foto?: FotoFeed | null;
 }
 
 export interface VarianteFeed {
@@ -38,6 +50,8 @@ export interface ProductoFeed {
   descripcion_corta: string;
   imagen: ImagenesProducto | null;
   galeria: string[];
+  /** Las mismas fotos de `galeria`, en `/dcasa/img` (null si Odoo no la tiene). */
+  galeria_fotos?: (FotoFeed | null)[];
   seo: { titulo: string; descripcion: string };
   json_ld: unknown[];
   compra: ModoCompra;
@@ -77,6 +91,8 @@ export interface Feed {
     whatsapp: string;
     publicar_disponibilidad: boolean;
     por_pagina: number;
+    /** Anchos que acepta `/dcasa/img` (los mismos que `ANCHOS_IMAGEN`). */
+    imagen_anchos?: number[];
     json_ld_tienda: Record<string, unknown>;
     json_ld_organizacion: Record<string, unknown>;
   };

@@ -9,6 +9,9 @@ digan lo mismo:
 * JSON-LD: el ``_to_markup_data`` de website_sale con las migas de website_dcasa y, mientras
   ``PUBLICAR_DISPONIBILIDAD`` sea falso, sin ``availability``.
 * Existencias: solo si ``PUBLICAR_DISPONIBILIDAD`` es verdadero (si no, ``null``: no se inventan).
+* Fotos: además de las URL de Odoo (``/web/image``), ``foto`` = ``{base, v}`` de ``/dcasa/img``
+  (website_dcasa/models/imagen.py): ``<base>/<ancho>.<webp|jpg>?v=<v>``, anchos en
+  ``sitio.imagen_anchos``. Inmutables: la versión es el checksum de la foto.
 
 Solo se lee lo que un visitante anónimo puede ver: el feed corre con el usuario público del
 sitio (las reglas de registro dejan fuera lo no publicado) y el dominio de la tienda.
@@ -18,6 +21,7 @@ import json
 from odoo import fields, models
 from odoo.addons.dcasa_socios.models import reglas as reglas_socios
 from odoo.addons.website_dcasa.controllers import main as website_dcasa_main
+from odoo.addons.website_dcasa.models.imagen import ANCHOS as ANCHOS_IMAGEN
 
 VERSION_FEED = 1
 # Más variantes que esto: la ficha sigue en Odoo (el selector de Odoo es mejor para listas largas).
@@ -62,6 +66,10 @@ class Website(models.Model):
             return True, None
         cantidad = max(0.0, self._get_product_available_qty(variante_sudo))
         return bool(cantidad > 0 or variante_sudo.allow_out_of_stock_order), int(cantidad)
+
+    def _dcasa_tienda_foto(self, registro):
+        base = self._dcasa_img_base(registro)
+        return {'base': base[0], 'v': base[1]} if base else None
 
     def _dcasa_tienda_feed(self):
         """Datos de la tienda estática. Necesita una petición web del sitio (tarifa del visitante)."""
@@ -125,8 +133,12 @@ class Website(models.Model):
                 'categorias': categorias_producto.ids,
                 'descripcion_html': str(producto.description_ecommerce or ''),
                 'descripcion_corta': producto.description_sale or '',
-                'imagen': {t: self.image_url(producto, t) for t in TAMANOS_IMAGEN} if tiene_imagen else None,
+                'imagen': dict(
+                    {t: self.image_url(producto, t) for t in TAMANOS_IMAGEN},
+                    foto=self._dcasa_tienda_foto(producto),
+                ) if tiene_imagen else None,
                 'galeria': [self.image_url(img, 'image_1024') for img in producto.product_template_image_ids],
+                'galeria_fotos': [self._dcasa_tienda_foto(img) for img in producto.product_template_image_ids],
                 'seo': {
                     'titulo': producto.website_meta_title or '',
                     'descripcion': producto.website_meta_description or '',
@@ -163,6 +175,7 @@ class Website(models.Model):
                 'whatsapp': self._dcasa_whatsapp_url(),
                 'publicar_disponibilidad': bool(website_dcasa_main.PUBLICAR_DISPONIBILIDAD),
                 'por_pagina': self.shop_ppg or 21,
+                'imagen_anchos': list(ANCHOS_IMAGEN),
                 'json_ld_tienda': json.loads(self._dcasa_json_ld()),
                 'json_ld_organizacion': json.loads(self._dcasa_json_ld_organizacion()),
             },
