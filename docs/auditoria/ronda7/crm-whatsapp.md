@@ -687,6 +687,23 @@ probablemente subir de `basic` a `standard-1` para aguantar bot + tienda + caja:
 
 ---
 
+## Decisiones de la dueña (2026-10-02, tras leer este informe)
+
+1. **Canal: WhatsApp por QR, sabiendo el riesgo.** La dueña conoce que Meta no lo aprueba y
+   decide mantenerlo (es como funciona su CRM de Baby Caleb). Mitigaciones obligatorias: ritmo de
+   envío conservador (el CRM ya lo trae), seguimientos limitados (abajo), copia diaria de la
+   sesión, y el adaptador de la API oficial listo como plan B si bloquean el número.
+   **Pendiente**: ¿el QR se vincula al número de ventas (+507 6026-1919) o a un segundo número?
+2. **Nombre público: «el equipo de D'CASA»**, no «Juan». («Juan» queda solo como nombre interno
+   del proyecto.)
+3. **Atiende 24/7.**
+4. **Seguimiento a quien preguntó y no volvió a escribir**: como máximo DOS mensajes:
+   - el primero **5 horas** después del último mensaje, **solo dentro del horario laboral** (si
+     cae fuera, espera al siguiente horario laboral);
+   - el segundo, si sigue sin responder, **5 días** después;
+   - **ninguno si ya compró**. Nada más: la dueña no quiere «tanto seguimiento».
+   **Pendiente**: el horario laboral de la tienda (días y horas, hora de Panamá).
+
 ## 6. Plan por fases y lo que necesito que la dueña decida o provea
 
 ### Fase 0 — Decisiones (1 semana, sin código)
