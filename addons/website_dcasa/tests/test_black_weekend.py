@@ -120,13 +120,13 @@ class TestVentanaBlackWeekend(_Base, TransactionCase):
 
     def test_ventana_de_la_duena_por_defecto(self):
         self.assertEqual(VENTANA_POR_DEFECTO, {
-            PARAM_ACTIVO: '0', PARAM_INICIO: '2026-10-05', PARAM_FIN: '2026-10-11'})
+            PARAM_ACTIVO: '0', PARAM_INICIO: '2026-10-02', PARAM_FIN: '2026-10-11'})
         param = self.env['ir.config_parameter'].sudo()
         param.search([('key', 'in', list(VENTANA_POR_DEFECTO))]).unlink()
         param.set_param(PARAM_ACTIVO, '1')  # lo que ya está (p. ej. staging) no se pisa
         self.website._dcasa_bw_parametros_por_defecto()
         self.assertEqual(param.get_param(PARAM_ACTIVO), '1')
-        self.assertEqual(param.get_param(PARAM_INICIO), '2026-10-05')
+        self.assertEqual(param.get_param(PARAM_INICIO), '2026-10-02')
         self.assertEqual(param.get_param(PARAM_FIN), '2026-10-11')
 
     def test_textos(self):

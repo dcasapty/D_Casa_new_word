@@ -172,11 +172,14 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 
 ### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)
 
-- `146.png` y `147.png` dicen «Y0400300-Q», pero la cama es MARRÓN: es `Y0400400-Q` (tela marrón). `Y0400300-Q` es la de tela negra.
+- `146.png` y `147.png` dicen «Y0400300-Q», pero la cama es MARRÓN: es `Y0400400-Q` (tela marrón). `Y0400300-Q` es la de tela negra. **Confirmado por la dueña el 2026-10-02.**
 - `147.png` es la misma gráfica que `146.png` (duplicada).
-- `150.png` dice «Y0400101-F», pero la cama es gris CLARO: es `Y0400201-F` (lino gris claro). `Y0400101-F` es la de gris oscuro.
+- `150.png` dice «Y0400101-F», pero la cama es gris CLARO: es `Y0400201-F` (lino gris claro). `Y0400101-F` es la de gris oscuro. **Confirmado por la dueña el 2026-10-02.**
 - `152.png` dice «BASE QUEEN HK-BF-022-N-K-1-W $109.99», pero $109.99 y 193 cm son de `HK-BF-022-N-F-1-W` (Full).
 - `153.png` dice «BASE QUEEN», pero `HK-BF-022-N-K-1-W` es una cama King ($159.99).
+  - La dueña dice (2026-10-02) que la «Base Queen» de la gráfica es correcta. Pendiente: el Excel LTSC-07
+    la llama «Cama tapizada King – blanco» con 205 × 193 cm (193 de ancho es medida King). En el
+    catálogo sigue como King hasta que la dueña diga cuál de los dos se corrige.
 - Todas traen «Promoción de apertura por ¡tiempo limitado!» y el sello de cuotas: la web no los repite (sin urgencia inventada ni financiamiento: descartado por la dueña el 2026-10-02).
 
 ### Dudas que las gráficas resuelven (el catálogo ya las tenía bien)

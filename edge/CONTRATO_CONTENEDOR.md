@@ -74,7 +74,7 @@ propio valor por defecto (`dcasa`).
 | `DCASA_ENTORNO` | var | — | `produccion` · `staging` (por defecto `produccion`) |
 | `DCASA_STOCK_PRUEBA` | var | — | `0` · staging `10`. Unidades de prueba para cada producto inventariable sin existencias **ni movimientos** (`dcasa_catalogo.stock_prueba`, `aplicar_stock_prueba`; nunca pisa un conteo real). Solo vale con `DCASA_ENTORNO=staging`: en producción el entrypoint la deja **siempre en 0** |
 | `DCASA_BLACK_WEEKEND` | var | — | `0` · staging `1`. `1` = Black Weekend visible sin mirar fechas (vista previa); `0` = solo dentro de la ventana (`dcasa_black_weekend.activo`, addons/website_dcasa/models/black_weekend.py) |
-| `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` | var | — | `2026-10-05` / `2026-10-11` (AAAA-MM-DD, hora de Panamá, inclusivas). Vacías: el entrypoint no toca lo que haya en Odoo. El cron horario de `dcasa_tienda_borde` regenera la tienda cuando la campaña empieza o termina |
+| `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` | var | — | `2026-10-02` / `2026-10-11` (AAAA-MM-DD, hora de Panamá, inclusivas). Vacías: el entrypoint no toca lo que haya en Odoo. El cron horario de `dcasa_tienda_borde` regenera la tienda cuando la campaña empieza o termina |
 | `DCASA_ADJUNTOS` | var | — | `r2` (por defecto) · `db`. Dónde guarda Odoo los adjuntos **nuevos** (`addons/dcasa_adjuntos_r2`). Con `r2` usa las mismas `R2_*`, prefijo `adjuntos/` del bucket; con `db` sigue leyendo los que ya están en R2 y un cron los trae de vuelta a la base (emergencia) |
 | `CANONICAL_HOST` | var | — | `dcasapty.com` · `staging.dcasapty.com` |
 | `APP_VERSION` | var | — | por defecto `dev` |

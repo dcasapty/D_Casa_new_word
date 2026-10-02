@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Ventana de Black Weekend (models/black_weekend.py), decisión de la dueña del 2026-10-02:
-         del lunes 5 al domingo 11 de octubre de 2026, hora de Panamá, inclusive. Fuera de esas
+         del viernes 2 (antes lunes 5) al domingo 11 de octubre de 2026, hora de Panamá, inclusive. Fuera de esas
          fechas la campaña desaparece sola. «activo» = 1 la muestra sin mirar fechas (staging).
          Solo se fijan los parámetros que no existen: docker/entrypoint.sh los fija por entorno
          (DCASA_BLACK_WEEKEND*) y lo que se cambie en Ajustes > Técnico > Parámetros del sistema

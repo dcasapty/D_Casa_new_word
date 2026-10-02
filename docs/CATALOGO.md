@@ -133,8 +133,8 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
   cambia el precio en Odoo, cambia la página. La línea «Combo con colchón <colchón> $X + ITBMS»
   sale del campo «Precio en combo o el par» (texto del Excel LTSC-07).
 - **Cuándo se ve** (`ir.config_parameter`, hora de Panamá):
-  - `dcasa_black_weekend.inicio` / `.fin`: `2026-10-05` / `2026-10-11` (decisión de la dueña, del
-    lunes 5 a las 00:00 al domingo 11 a las 23:59:59, inclusive). Fuera de la ventana desaparece sola.
+  - `dcasa_black_weekend.inicio` / `.fin`: `2026-10-02` / `2026-10-11` (decisión de la dueña, adelantada
+    el 2026-10-02 para presentar la página el lunes 5: del viernes 2 a las 00:00 al domingo 11 a las 23:59:59, inclusive). Fuera de la ventana desaparece sola.
   - `dcasa_black_weekend.activo = 1`: visible ya, sin mirar fechas (staging, vista previa).
   - En el despliegue los fija `docker/entrypoint.sh` desde `DCASA_BLACK_WEEKEND` (producción `0`,
     staging `1`) y `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` (`edge/wrangler.jsonc`). Para otra fecha:

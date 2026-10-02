@@ -31,8 +31,9 @@ PARAM_ACTIVO = 'dcasa_black_weekend.activo'
 PARAM_INICIO = 'dcasa_black_weekend.inicio'
 PARAM_FIN = 'dcasa_black_weekend.fin'
 PARAMS = (PARAM_ACTIVO, PARAM_INICIO, PARAM_FIN)
-# Decisión de la dueña (2026-10-02): lunes 5 a domingo 11 de octubre de 2026, hora de Panamá.
-VENTANA_POR_DEFECTO = {PARAM_ACTIVO: '0', PARAM_INICIO: '2026-10-05', PARAM_FIN: '2026-10-11'}
+# Decisión de la dueña (2026-10-02): desde ya (viernes 2) hasta el domingo 11 de octubre de 2026,
+# hora de Panamá. Antes era del lunes 5; la adelantó para presentar la página ese lunes.
+VENTANA_POR_DEFECTO = {PARAM_ACTIVO: '0', PARAM_INICIO: '2026-10-02', PARAM_FIN: '2026-10-11'}
 ZONA = pytz.timezone('America/Panama')
 RUTA = '/black-weekend'
 # Imagen para compartir (redes): la gráfica 115.png de la dueña, recortada sin la franja de abajo.

@@ -360,7 +360,7 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(config.vars.DCASA_STOCK_PRUEBA).toBe("0");
     // Black Weekend en producción: solo dentro de la ventana de la dueña (hora de Panamá).
     expect(config.vars.DCASA_BLACK_WEEKEND).toBe("0");
-    expect(config.vars.DCASA_BLACK_WEEKEND_INICIO).toBe("2026-10-05");
+    expect(config.vars.DCASA_BLACK_WEEKEND_INICIO).toBe("2026-10-02");
     expect(config.vars.DCASA_BLACK_WEEKEND_FIN).toBe("2026-10-11");
   });
 
