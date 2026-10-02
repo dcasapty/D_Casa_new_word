@@ -128,7 +128,11 @@ export class DcasaCabecera extends Interaction {
             return;
         }
         // Sobre la foto = el hero sigue asomando por debajo del borde inferior de la píldora.
-        const piso = Math.round(this.el.getBoundingClientRect().bottom);
+        // Nunca negativo ni NaN: si la página abre ya desplazada (el navegador restaura el
+        // scroll) el borde inferior de la cabecera queda por encima de la ventana y
+        // `-${-85}px` sería «--85px», que IntersectionObserver rechaza con SyntaxError
+        // (Odoo lo mostraba al visitante como «¡Vaya! Ocurrió un error»).
+        const piso = Math.max(0, Math.round(this.el.getBoundingClientRect().bottom) || 0);
         const observador = new IntersectionObserver(
             ([entrada]) => {
                 raiz.classList.toggle("o_dcasa_nav_sobre_foto", entrada.isIntersecting);
@@ -137,7 +141,7 @@ export class DcasaCabecera extends Interaction {
                     entrada.isIntersecting ? this.svg.unpauseAnimations() : this.svg.pauseAnimations();
                 }
             },
-            { rootMargin: `-${piso}px 0px 0px 0px`, threshold: 0 }
+            { rootMargin: `${-piso}px 0px 0px 0px`, threshold: 0 }
         );
         observador.observe(hero);
         this.registerCleanup(() => observador.disconnect());
