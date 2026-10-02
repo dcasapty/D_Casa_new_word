@@ -40,7 +40,7 @@ class ContabilidadCommon(TransactionCase):
             linea['analytic_distribution'] = {str(analitica.id): 100}
         factura = self.env['account.move'].create({
             'move_type': tipo, 'partner_id': (self.proveedor if compra else self.cliente).id,
-            'invoice_date': fecha, 'date': fecha, 'invoice_line_ids': [(0, 0, linea)],
+            'invoice_date': fecha, 'date': fecha, 'invoice_date_due': fecha, 'invoice_line_ids': [(0, 0, linea)],
         })
         factura.action_post()
         return factura

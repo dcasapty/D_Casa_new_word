@@ -58,6 +58,16 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'conciliar'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'automatico'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'deshacer'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'reglas'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'aplicar_regla'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.cierre.mes', 'create'): OVERRIDE + ' Normaliza el mes y arma la lista; sin sudo.',
+    ('dcasa_contabilidad', 'dcasa.cierre.mes', 'write'): OVERRIDE + ' Impide mover un mes cerrado; sin sudo.',
+    ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_revisar'): SIN_SUDO,
+    ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_cerrar'):
+        'Botón: exige account.group_account_manager ANTES de escribir la fecha de bloqueo de la empresa con sudo.',
+    ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_reabrir'):
+        'Botón: exige account.group_account_manager y motivo ANTES de bajar la fecha de bloqueo con sudo.',
+    ('dcasa_contabilidad', 'dcasa.cierre.mes.paso', 'action_ver'): ACCION_VENTANA,
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',

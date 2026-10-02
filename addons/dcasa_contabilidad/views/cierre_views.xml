@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="regla_cierre_mes_empresa" model="ir.rule">
+        <field name="name">Cierre de mes: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_cierre_mes"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="cierre_mes_list" model="ir.ui.view">
+        <field name="name">dcasa.cierre.mes.list</field>
+        <field name="model">dcasa.cierre.mes</field>
+        <field name="arch" type="xml">
+            <list string="Cierres de mes" decoration-muted="estado == 'cerrado'">
+                <field name="name" string="Mes"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'cerrado'"
+                       decoration-warning="estado == 'abierto'"/>
+                <field name="pendientes"/>
+                <field name="bloquear_itbms" optional="show"/>
+                <field name="cerrado_por" optional="show"/>
+                <field name="cerrado_el" optional="hide"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="cierre_mes_form" model="ir.ui.view">
+        <field name="name">dcasa.cierre.mes.form</field>
+        <field name="model">dcasa.cierre.mes</field>
+        <field name="arch" type="xml">
+            <form string="Cierre de mes">
+                <header>
+                    <button name="action_revisar" type="object" string="Revisar de nuevo" invisible="estado == 'cerrado'"/>
+                    <button name="action_cerrar" type="object" string="Cerrar mes" class="btn-primary"
+                            invisible="estado == 'cerrado'" groups="account.group_account_manager"
+                            confirm="Al cerrar el mes nadie podrá publicar ni cambiar asientos con fecha de ese mes o anterior. ¿Cerrar?"/>
+                    <button name="action_reabrir" type="object" string="Reabrir mes"
+                            invisible="estado != 'cerrado'" groups="account.group_account_manager"
+                            confirm="Se reabre este mes y los posteriores. ¿Seguro?"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="pendientes == 0 or estado == 'cerrado'">
+                        Faltan <field name="pendientes" class="oe_inline" readonly="1"/> pasos para poder cerrar
+                        (los marcados «Impide cerrar»). Ábrelos con «Ver».
+                    </div>
+                    <div class="alert alert-success" role="alert" invisible="pendientes != 0 or estado == 'cerrado'">
+                        Todo listo: la gerencia puede cerrar el mes.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="mes" readonly="estado == 'cerrado'"/>
+                            <field name="fecha_fin"/>
+                            <field name="bloquear_itbms" readonly="estado == 'cerrado'"/>
+                        </group>
+                        <group>
+                            <field name="bloqueado_hasta"/>
+                            <field name="itbms_bloqueado_hasta"/>
+                            <field name="revisado_el"/>
+                            <field name="cerrado_por" invisible="estado != 'cerrado'"/>
+                            <field name="cerrado_el" invisible="estado != 'cerrado'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Lista de chequeo" name="pasos">
+                            <field name="paso_ids">
+                                <list create="0" delete="0" decoration-success="estado == 'listo'"
+                                      decoration-danger="estado == 'pendiente'" decoration-warning="estado == 'aviso'"
+                                      decoration-info="estado == 'info'">
+                                    <field name="sequence" column_invisible="1"/>
+                                    <field name="name"/>
+                                    <field name="estado" widget="badge" decoration-success="estado == 'listo'"
+                                           decoration-danger="estado == 'pendiente'" decoration-warning="estado == 'aviso'"
+                                           decoration-info="estado == 'info'"/>
+                                    <field name="detalle"/>
+                                    <field name="bloquea"/>
+                                    <field name="modelo" column_invisible="1"/>
+                                    <button name="action_ver" type="object" string="Ver" icon="fa-external-link"
+                                            invisible="not modelo"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Reabrir" name="reabrir" invisible="estado != 'cerrado'"
+                              groups="account.group_account_manager">
+                            <p class="text-muted">Escribe por qué se reabre (queda en el historial) y pulsa «Reabrir mes».</p>
+                            <field name="motivo_reapertura" placeholder="Ej.: factura de proveedor de septiembre que llegó tarde"/>
+                        </page>
+                        <page string="Notas" name="notas">
+                            <field name="notas" placeholder="Notas para el contador…"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_cierre_mes" model="ir.actions.act_window">
+        <field name="name">Cierre de mes</field>
+        <field name="res_model">dcasa.cierre.mes</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Cierra tu primer mes</p>
+            <p>Elige el mes: D'CASA revisa bancos, borradores y balances. Cuando todo está listo,
+                la gerencia lo cierra y nadie puede cambiar ese mes por error.</p>
+        </field>
+    </record>
+</odoo>

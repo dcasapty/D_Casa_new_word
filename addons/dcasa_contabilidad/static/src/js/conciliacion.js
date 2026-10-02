@@ -24,6 +24,7 @@ export class DcasaConciliacion extends Component {
             lineas: [],
             linea: null,
             candidatos: [],
+            reglas: [],
             elegidos: {},
             busqueda: "",
             cuentas: [],
@@ -39,7 +40,7 @@ export class DcasaConciliacion extends Component {
             this.state.cuentas = await this.orm.call("dcasa.conciliacion", "cuentas_rapidas", []);
             await this.cargarDiarios();
             if (params.aviso) {
-                this.notification.add(params.aviso, { type: "success" });
+                this.notification.add(params.aviso, { type: params.aviso_tipo || "success", sticky: params.aviso_tipo === "warning" });
             }
         });
     }
@@ -76,7 +77,30 @@ export class DcasaConciliacion extends Component {
         this.state.cuenta = "";
         this.state.etiqueta = linea ? linea.concepto : "";
         this.state.modo = "facturas";
+        this.state.reglas = linea ? await this.orm.call("dcasa.conciliacion", "reglas", [linea.id]) : [];
         await this.cargarCandidatos();
+    }
+
+    async aplicarRegla(regla) {
+        this.state.trabajando = true;
+        try {
+            const r = await this.orm.call("dcasa.conciliacion", "aplicar_regla", [this.state.linea.id, regla.id]);
+            this.notification.add(
+                regla.tercero
+                    ? `Tercero asignado: ${regla.tercero}.`
+                    : r.conciliado
+                      ? `Conciliado con la regla «${regla.nombre}».`
+                      : "Regla aplicada: lo que falta sigue pendiente.",
+                { type: "success" }
+            );
+            await this.cargarDiarios();
+        } finally {
+            this.state.trabajando = false;
+        }
+    }
+
+    reglasDeConciliacion() {
+        this.action.doAction("account.action_account_reconcile_model");
     }
 
     async cargarCandidatos() {

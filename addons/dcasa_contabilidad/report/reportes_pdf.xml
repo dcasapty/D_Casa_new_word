@@ -28,7 +28,7 @@
                     </style>
                     <h2 t-out="datos['titulo']"/>
                     <div class="periodo">
-                        <t t-if="datos['reporte'] == 'balance_general'">Al <t t-out="datos['hasta']"/></t>
+                        <t t-if="datos['reporte'] in ('balance_general', 'por_cobrar', 'por_pagar')">Al <t t-out="datos['hasta']"/></t>
                         <t t-else="">Del <t t-out="datos['desde']"/> al <t t-out="datos['hasta']"/></t>
                     </div>
 
@@ -68,7 +68,7 @@
                         </table>
                     </t>
 
-                    <t t-if="datos['reporte'] in ('estado_resultados', 'balance_general')">
+                    <t t-if="not generico and datos['reporte'] in ('estado_resultados', 'balance_general')">
                         <table>
                             <thead><tr><th>Código</th><th>Cuenta</th><th class="num">Monto</th></tr></thead>
                             <tbody>
@@ -103,6 +103,26 @@
                                 <tr class="tot"><td colspan="3">ITBMS a pagar</td><td class="num" t-out="m(datos['resumen']['a_pagar'])"/></tr>
                             </tbody>
                         </table>
+                    </t>
+
+                    <t t-if="generico">
+                        <div t-if="datos.get('comparado')" class="periodo">
+                            Comparado con <t t-out="datos['comparado']['etiqueta'].lower()"/>:
+                            del <t t-out="datos['comparado']['desde']"/> al <t t-out="datos['comparado']['hasta']"/>
+                        </div>
+                        <table>
+                            <thead><tr>
+                                <th t-foreach="encabezados" t-as="e" t-att-class="'num' if e_index &gt;= 2 else ''" t-out="e"/>
+                            </tr></thead>
+                            <tbody>
+                                <tr t-foreach="filas_planas" t-as="fila" t-att-class="'sub' if fila[1] == 'b' else ''">
+                                    <td t-foreach="fila[0]" t-as="c" t-att-class="'num' if c[1] else ''" t-out="c[0]"/>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <p t-if="datos['reporte'] == 'flujo_efectivo' and not datos['cuadra']" class="aviso">
+                            La variación del efectivo no coincide con los bancos: revisa los asientos en borrador.
+                        </p>
                     </t>
 
                     <t t-if="datos['reporte'] == 'analitica'">

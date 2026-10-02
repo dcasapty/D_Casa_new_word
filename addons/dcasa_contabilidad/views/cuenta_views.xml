@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cuenta_form_flujo" model="ir.ui.view">
+        <field name="name">account.account.form.dcasa.flujo</field>
+        <field name="model">account.account</field>
+        <field name="inherit_id" ref="account.view_account_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="(//field[@name='account_type'])[1]" position="after">
+                <field name="dcasa_actividad_flujo" placeholder="Según el tipo de cuenta"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
