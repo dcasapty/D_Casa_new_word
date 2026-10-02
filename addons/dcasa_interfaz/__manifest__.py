@@ -19,16 +19,25 @@ La interfaz de trabajo de D'CASA, hecha a medida:
   columnas que no se usan, menús de contabilidad, sitio web y variantes solo para
   quien los usa, y la lista de entregas sin el cálculo de transportistas que la
   hacía lenta.
+* El sitio se edita por código: nadie tiene el constructor de páginas de Odoo
+  (grupos de editor/diseñador retirados en cada actualización), las plantillas de
+  D'CASA no admiten copias por sitio ni ediciones desde el panel, y «Sitio web»
+  queda con lo que sí se usa más una «Vista previa móvil» (390×844, tableta,
+  escritorio) del sitio público.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_catalogo', 'sale_management', 'stock', 'stock_delivery', 'account', 'web_tour', 'mail_bot'],
+    'depends': [
+        'dcasa_catalogo', 'website', 'sale_management', 'stock', 'stock_delivery', 'account', 'web_tour', 'mail_bot',
+    ],
     'data': [
+        'security/ir.model.access.csv',
         'views/inicio_views.xml',
         'views/panel_views.xml',
+        'views/sitio_views.xml',
         'views/login_templates.xml',
         'data/iconos_data.xml',
     ],
