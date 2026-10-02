@@ -10,7 +10,9 @@ quien tiene sesión propia (usuario, carrito, deseos, socio) pasa directo a Odoo
   ya no (``models/ir_http.py``). Con ella el borde no sirve nada guardado.
 * Cabecera ``X-Dcasa-Borde: <TIENDA_FEED_TOKEN>``: el borde pide así la página a guardar (sin
   cookies). Odoo no guarda sesión ni pone cookies y responde ``X-Dcasa-Borde: anonimo`` si la
-  dibujó para el usuario público; sin esa marca el borde no la guarda.
+  dibujó para el usuario público; sin esa marca el borde no la guarda. Con la misma cabecera pide
+  los estilos, el JS y las fuentes que la página referencia (sin ``Set-Cookie``, ``public``), que
+  guarda junto a ella para que se vea entera aunque Odoo esté reiniciando.
 * ``GET /dcasa/borde/csrf`` + ``static/src/js/borde_csrf.js``: el token CSRF de una página guardada
   es de otra sesión; antes de enviar un formulario se pide uno de la sesión de quien la ve.
 * Aviso de cambios: precio, nombre, publicación, fotos, existencias, ventas confirmadas, facturas,
