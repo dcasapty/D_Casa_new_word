@@ -405,7 +405,7 @@ que llegue por código ya no se ve en ella (las dos versiones chocan y gana la c
 | Entrada | Para qué |
 |---|---|
 | **Vista previa móvil** | el sitio tal como lo ve un visitante, en un marco de teléfono (390×844), tableta (768) o escritorio (1440). Atajos a Inicio, Tienda, Socios y Visítanos, cualquier dirección a mano, «Recargar» y «Abrir aparte». También desde el Inicio: botón **Ver en el celular**. Nunca abre el modo edición |
-| Sitio → Contenido → **Páginas** | ver las páginas y **publicarlas o despublicarlas** (y su título/descripción para Google). Nombre, dirección y contenido vienen del código |
+| Sitio → Contenido → **Páginas** | ver las páginas y **publicarlas o despublicarlas**; al pulsar una fila se abre en la vista previa móvil. Nombre, dirección y contenido vienen del código; el título y la descripción para Google solo los puede cambiar un administrador (Odoo los guarda en la vista) |
 | Sitio → Contenido → **Productos** y eCommerce → **Productos** | publicar/despublicar productos en la tienda, fotos, descripciones, categorías: esto sí es trabajo del día a día |
 | eCommerce → **Pedidos** | pedidos, carritos abandonados y clientes de la tienda en línea |
 | Reportes → **Ventas en línea** | lo vendido por la tienda |
@@ -424,10 +424,16 @@ Cloudflare, así que Odoo no ve a los visitantes anónimos: las visitas se miran
 2. **Guarda de seguridad.** Aunque alguien consiguiera el grupo, las plantillas de D'CASA
    (`website_dcasa.*`, `dcasa_*.*` y la portada `website.homepage`) no admiten copias por sitio ni
    ediciones desde el panel: Odoo responde «Esta página se mantiene desde el código y no se edita desde
-   aquí: pide el cambio a quien mantiene el sitio». Las copias que Odoo hace por su cuenta (opciones de
-   la tienda de `website_sale`, el tema) no se tocan, y nada de esto frena instalar o actualizar módulos.
+   aquí: pide el cambio a quien mantiene el sitio». Las copias que Odoo hace por su cuenta (al instalar:
+   `website.homepage` y la portada de D'CASA que hereda de ella; las opciones de la tienda de
+   `website_sale`) no se tocan, y nada de esto frena instalar o actualizar módulos (corren como
+   superusuario). Solo frena a una persona en el panel; `sudo()` y las funciones de datos pasan.
 3. Los menús del constructor se cuelgan del grupo «Editor y diseñador»: si algún día se le devuelve a
    alguien, vuelve todo junto.
+
+**Cómo comprobarlo:** Ajustes → Usuarios → cualquier usuario → pestaña de permisos: en «Sitio web» no debe
+haber nada marcado. Si alguien ve «Editar» o «Nuevo» en el panel, es que tiene el grupo: una
+actualización del módulo (`make update` o el despliegue) se lo quita.
 
 **Si algún día la dueña quiere el constructor (no recomendado mientras el sitio se mantenga por código):**
 

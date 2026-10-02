@@ -49,8 +49,9 @@ repositorio, no la cubren las pruebas ni el diseño de marca, no se regenera en 
 mismas reglas, y si un día se reconstruye la base desde el código, no existe. Es contenido fuera de control.
 
 **Hoy, en una instalación limpia con todos los módulos**, Odoo crea por su cuenta estas copias por sitio
-(ninguna del constructor): {{COPIAS}}. Son del propio Odoo (`website_sale`, el tema, la portada vacía
-`website.homepage` que `website_dcasa` llena por herencia) y la guarda nueva **no las bloquea**.
+(ninguna del constructor): `website.homepage` (la portada vacía que Odoo crea al instalar `website`) y `website_dcasa.homepage_dcasa` (la portada de D'CASA, que hereda de la anterior y por eso Odoo le hace su copia al instalar, `_create_all_specific_views`). Las dos nacen al instalar (ahí la guarda no actúa) y las actualizaciones del módulo las siguen
+refrescando como siempre (corren como superusuario). Lo que la guarda bloquea es que alguien, desde el
+panel, cree o edite una copia así de una plantilla de D'CASA.
 
 ## Qué carga y cuánto pesa (medido)
 
@@ -60,22 +61,25 @@ envía el servidor), `vendor/odoo/addons/website/__manifest__.py` y
 
 | Qué | Cuándo se carga | JS | CSS |
 |---|---|---|---|
-| Sitio público (`web.assets_frontend`) | cada visitante, siempre | {{FRONTEND_JS}} | {{FRONTEND_CSS}} |
-| Panel de Odoo (`web.assets_web`) | cada usuario interno, siempre (cacheado por el navegador) | {{WEB_JS}} | {{WEB_CSS}} |
-| · de eso, el editor del sitio (`website.assets_editor`: botones «Editar/Nuevo», editor HTML/CSS…) | va dentro del panel aunque nadie lo use | {{EDITOR_JS}} | {{EDITOR_CSS}} |
-| Constructor (`website.website_builder_assets`, incluye `html_builder.assets`) | **al abrir «Sitio web» en el panel** (Odoo lo precarga «para que Editar sea más rápido», línea 152), y en modo edición | {{BUILDER_JS}} | {{BUILDER_CSS}} |
-| Lo que el constructor inyecta en la página (`website.assets_inside_builder_iframe`) | solo en modo edición | {{IFRAME_JS}} | {{IFRAME_CSS}} |
+| Sitio público (`web.assets_frontend`) | cada visitante, siempre | 2,5 MB (579 KB comprimido) | 1,0 MB (134 KB) |
+| Panel de Odoo (`web.assets_web`) | cada usuario interno, siempre (cacheado por el navegador) | 6,7 MB (1,4 MB comprimido) | 1,1 MB (163 KB) |
+| · de eso, el editor del sitio (`website.assets_editor`: botones «Editar/Nuevo», editor HTML/CSS…) | va dentro del panel aunque nadie lo use | 189 KB (42 KB comprimido) | 29 KB (5 KB) |
+| Constructor (`website.website_builder_assets`, incluye `html_builder.assets`) | **al abrir «Sitio web» en el panel** (Odoo lo precarga «para que Editar sea más rápido», línea 152), y en modo edición | 1,6 MB (297 KB comprimido) | 224 KB (20 KB) |
+| Lo que el constructor inyecta en la página (`website.assets_inside_builder_iframe`) | solo en modo edición | 43 KB (9 KB comprimido) | 21 KB (4 KB) |
 
-Lo que importa de la tabla:
+(Medición: `ir.qweb._get_asset_bundle(...)` sobre la base de pruebas; comprimido = gzip, lo que viaja
+por la red.) Lo que importa de la tabla:
 
 - **El visitante no paga nada por el constructor.** La página pública solo carga `web.assets_frontend`;
   los bundles del constructor se piden aparte y solo desde el panel. No hay nada que apagar para
   mejorar la tienda.
-- **El panel sí lo pagaba**: cada vez que alguien abría «Sitio web» en Odoo (la vista previa de Odoo),
-  el navegador descargaba y ejecutaba el constructor completo ({{BUILDER_JS}} de JavaScript) y pedía al
-  servidor la lista de bloques (`website.snippets`), **aunque no fuera a editar**. La nueva «Vista previa
-  móvil» no usa esa pantalla: es un marco con el sitio y nada más.
-- La parte del editor que viaja dentro del bundle del panel ({{EDITOR_JS}}) no se puede quitar sin
+- **El panel sí lo pagaba**: cada vez que alguien abría «Sitio web» en Odoo (la vista previa de Odoo,
+  también al pulsar una fila de «Páginas»), el navegador descargaba y ejecutaba el constructor completo
+  (1,6 MB de JavaScript, 297 KB comprimido) y pedía al servidor la lista de bloques (`website.snippets`),
+  **aunque no fuera a editar y aunque no tuviera el grupo de editor** (la precarga no mira el grupo). La
+  nueva «Vista previa móvil» no usa esa pantalla: es un marco con el sitio y nada más, y la fila de
+  «Páginas» ahora abre esa misma pantalla en la página elegida.
+- La parte del editor que viaja dentro del bundle del panel (189 KB (42 KB comprimido)) no se puede quitar sin
   modificar los módulos de Odoo (regla del repositorio: `vendor/odoo` no se toca) y se cachea; su costo
   es una sola descarga.
 
@@ -109,7 +113,9 @@ Es decir: la dueña y cualquier gerente lo tenían.
    se edita desde aquí: pide el cambio a quien mantiene el sitio». De una página de D'CASA solo se puede
    publicar/despublicar y cambiar su título y descripción para Google. No frena instalar ni actualizar
    módulos, ni lo que Odoo hace por dentro (`sudo`), y un administrador puede apagarla con el parámetro
-   `dcasa_interfaz.sitio_editable` = 1 (ver `docs/OPERACION.md`).
+   `dcasa_interfaz.sitio_editable` = 1 (ver `docs/OPERACION.md`). Nota: el título y la descripción para
+   Google de una página los guarda Odoo en su vista, que solo los administradores pueden escribir; a la
+   Gerencia le queda publicar/despublicar.
 
 ## Qué se conservó
 
@@ -121,7 +127,7 @@ Es decir: la dueña y cualquier gerente lo tenían.
   otra dirección (p. ej. `workers.dev`), enmarca esa misma, porque el borde solo permite enmarcar al mismo
   origen (`frame-ancestors 'self'` y `X-Frame-Options: SAMEORIGIN`, `edge/src/routing.ts`). Nunca entra en
   modo edición y no carga el constructor.
-- **Páginas** (ver y publicar), **Productos** (publicar/despublicar, fotos, textos, categorías),
+- **Páginas** (ver y publicar; al pulsar una fila se abre en la vista previa móvil), **Productos** (publicar/despublicar, fotos, textos, categorías),
   **Pedidos** de la tienda, **Ventas en línea**, **Configuración** (WhatsApp del sitio, pagos, entregas).
 - «Sitio web» pasa a verse para **Gerencia** (antes solo quien tuviera el grupo de editor).
 
@@ -129,7 +135,7 @@ Es decir: la dueña y cualquier gerente lo tenían.
 
 - Para el visitante: igual que antes (el constructor nunca se cargaba en la página pública).
 - Para el panel: menos. La pantalla «Sitio web» de Odoo precargaba el constructor
-  ({{BUILDER_JS}} + {{BUILDER_CSS}}) y una consulta de bloques cada vez que se abría; la vista previa
+  (1,6 MB (297 KB comprimido) + 224 KB (20 KB)) y una consulta de bloques cada vez que se abría; la vista previa
   nueva no. El resto del panel pesa lo mismo.
 - Para el servidor: nada nuevo corre de fondo; la guarda son dos comprobaciones en memoria al guardar una
   vista o una página (algo que casi nunca ocurre fuera de un despliegue).
@@ -140,7 +146,8 @@ Es decir: la dueña y cualquier gerente lo tenían.
 actualización los vuelve a retirar si alguien los puso); los menús del constructor no salen para Gerencia
 y los útiles sí; la guarda bloquea la copia por sitio de una plantilla de `website_dcasa` con el mensaje,
 deja pasar las copias de Odoo (`website_sale`) y lo interno; la portada solo se publica y cambia su SEO; la
-vista previa existe, cuelga de «Sitio web», apunta a la URL canónica y no usa modo edición.
+vista previa existe, cuelga de «Sitio web», apunta a la URL canónica, es lo que abre una fila de
+«Páginas», y no usa modo edición.
 
 **Pendiente para quien mantiene `website_dcasa`** (fuera del alcance de esta ronda): su
 `security/dcasa_roles_website.xml` sigue dándole «Editor y diseñador» a Gerencia (lo retira

@@ -11,8 +11,11 @@ se despliega desde el repositorio, aquí se cierra ese camino:
 1. Nadie tiene los grupos de editor/diseñador del sitio (``_sitio_por_codigo``, idempotente,
    se repite en cada actualización del módulo). Sin ellos no aparecen «Editar» ni «Nuevo».
 2. Guarda de seguridad: ninguna copia por sitio ni edición desde el panel de las plantillas de
-   D'CASA. Las copias que Odoo hace por su cuenta (opciones de la tienda de ``website_sale``, el
-   tema, la portada vacía) no se tocan: solo se protegen las claves de nuestros módulos.
+   D'CASA. Las copias que Odoo hace por su cuenta no se tocan: las de instalación (en una base
+   limpia: ``website.homepage`` y ``website_dcasa.homepage_dcasa``, que hereda de ella) corren
+   como superusuario, y las de otras claves (opciones de la tienda de ``website_sale``, el tema)
+   no están protegidas. Solo el SEO de una página (título/descripción para Google) se deja
+   escribir en una vista protegida: no toca la plantilla.
 3. «Vista previa móvil»: el sitio público en un marco de 390×844 (teléfono), 768 o 1440, sin
    modo edición.
 
@@ -30,13 +33,16 @@ PREFIJO_PROPIO = 'dcasa_'
 # constructor rompe la herencia igual que editar una plantilla propia.
 CLAVES_PROTEGIDAS = frozenset({'website.homepage'})
 
-# Lo único que sí se cambia de una página desde el panel: publicarla y su SEO (Odoo respeta lo que
-# escribe la dueña: ``website._dcasa_seo_portada``).
-CAMPOS_PAGINA_PERMITIDOS = frozenset({
-    'is_published', 'website_published', 'website_indexed', 'date_publish',
+# Lo único que sí se cambia de una página desde el panel: publicarla (columnas de la página) y su SEO
+# (columnas de la vista: título y descripción para Google; solo administradores, que son quienes
+# pueden escribir ``ir.ui.view``). Odoo respeta lo que escriba la dueña (``website._dcasa_seo_portada``).
+CAMPOS_SEO = frozenset({
     'website_meta_title', 'website_meta_description', 'website_meta_keywords', 'website_meta_og_img',
     'seo_name',
 })
+CAMPOS_PAGINA_PERMITIDOS = frozenset({
+    'is_published', 'website_published', 'website_indexed', 'date_publish',
+}) | CAMPOS_SEO
 
 MENSAJE = ("Esta página se mantiene desde el código y no se edita desde aquí: pide el cambio a quien "
            "mantiene el sitio (docs/OPERACION.md, «El sitio se edita por código»). Si de verdad hace "
@@ -125,9 +131,13 @@ class DcasaSitio(models.AbstractModel):
 class IrUiView(models.Model):
     _inherit = 'ir.ui.view'
 
-    def _dcasa_comprobar_edicion(self):
-        """Lanza UserError si alguien intenta cambiar desde el panel una plantilla de D'CASA."""
-        if _edicion_permitida(self.env):
+    def _dcasa_comprobar_edicion(self, vals=None):
+        """Lanza UserError si alguien intenta cambiar desde el panel una plantilla de D'CASA.
+
+        Cambiar solo el SEO (``CAMPOS_SEO``, que la página escribe en su vista) sí se deja: no toca
+        la plantilla.
+        """
+        if _edicion_permitida(self.env) or (vals and set(vals) <= CAMPOS_SEO):
             return
         if any(v.type == 'qweb' and _clave_protegida(v.key or v.xml_id) for v in self):
             raise UserError(MENSAJE)
@@ -142,7 +152,7 @@ class IrUiView(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
-        self._dcasa_comprobar_edicion()
+        self._dcasa_comprobar_edicion(vals)
         return super().write(vals)
 
     def unlink(self):
@@ -153,9 +163,24 @@ class IrUiView(models.Model):
 class WebsitePage(models.Model):
     _inherit = 'website.page'
 
+    def open_website_url(self):
+        """La fila de «Sitio web → Páginas» abre la vista previa propia.
+
+        La de Odoo (``website.website_preview``) precarga el constructor completo y la lista de
+        bloques en cuanto se abre, tenga o no el usuario el grupo de editor.
+        """
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.client',
+            'tag': 'dcasa_vista_previa',
+            'name': self.env._('Vista previa móvil'),
+            'params': {'ruta': self.url or '/'},
+        }
+
     def write(self, vals):
         # Publicar y el SEO sí; nombre, URL, contenido o vista de una página de D'CASA, no.
         if not _edicion_permitida(self.env) and set(vals) - CAMPOS_PAGINA_PERMITIDOS:
-            if any(_clave_protegida(p.view_id.key) or p.url == '/' for p in self):
+            # sudo(): quien ve páginas (Gerencia) no lee ir.ui.view; aquí solo se mira la clave.
+            if any(_clave_protegida(p.view_id.key) or p.url == '/' for p in self.sudo()):
                 raise UserError(MENSAJE)
         return super().write(vals)

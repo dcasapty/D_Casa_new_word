@@ -28,7 +28,8 @@ export class DcasaVistaPrevia extends Component {
         this.state = useState({
             datos: { url: "", nombre: "", paginas: [] },
             dispositivo: "telefono",
-            ruta: "/",
+            // Desde «Páginas» llega la ruta de la fila; desde el menú o el Inicio, la portada.
+            ruta: this.props.action?.params?.ruta || "/",
             version: 1,
             escala: 1,
         });
@@ -67,7 +68,7 @@ export class DcasaVistaPrevia extends Component {
         return ruta.startsWith("/") ? ruta : `/${ruta}`;
     }
 
-    /** Dirección que se enmarca. Nunca lleva enable_editor: solo se mira. */
+    /** Dirección que se enmarca. Nunca pide el modo edición: solo se mira. */
     get direccion() {
         return `${this.origen}${this.rutaLimpia}`;
     }

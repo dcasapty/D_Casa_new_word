@@ -96,6 +96,8 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'ir.ui.view', 'create'): 'Bloquea: ninguna copia por sitio de una plantilla de D\'CASA.',
     ('dcasa_interfaz', 'ir.ui.view', 'write'): 'Bloquea: las plantillas de D\'CASA no se editan desde el panel.',
     ('dcasa_interfaz', 'ir.ui.view', 'unlink'): 'Bloquea: las plantillas de D\'CASA no se borran desde el panel.',
+    ('dcasa_interfaz', 'website.page', 'open_website_url'):
+        OVERRIDE + ' Devuelve la acción de la vista previa propia con la URL de la página; sin sudo().',
     ('dcasa_interfaz', 'website.page', 'write'):
         'Bloquea: de una página de D\'CASA solo se cambia publicar y SEO; el contenido viene del código.',
     # --- dcasa_invoice -------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """El sitio se edita por código (models/sitio.py; docs/auditoria/ronda7/constructor-web.md)."""
 from odoo import Command
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools.misc import file_path
 
@@ -137,11 +137,19 @@ class TestSitioPorCodigo(TransactionCase):
         como_gerencia = portada.with_user(self.gerencia)
         self.assertTrue(como_gerencia.can_publish)
         como_gerencia.write({'is_published': True})
-        como_gerencia.write({'website_meta_description': 'Muebles en La Chorrera.'})
+        como_gerencia.write({'website_indexed': False})
         with self.assertRaisesRegex(UserError, 'se mantiene desde el código'):
             como_gerencia.write({'name': 'Otra portada'})
+        # El SEO de la página vive en su vista (ir.ui.view): solo administradores lo escriben, y la
+        # guarda lo deja pasar porque no toca la plantilla.
+        with self.assertRaises(AccessError):
+            como_gerencia.write({'website_meta_description': 'Muebles en La Chorrera.'})
+        portada.with_user(self.admin).write({'website_meta_description': 'Muebles en La Chorrera.'})
+        self.assertEqual(portada.view_id.website_meta_description, 'Muebles en La Chorrera.')
         with self.assertRaises(UserError):
             portada.with_user(self.admin).write({'url': '/otra'})
+        with self.assertRaises(UserError):
+            portada.with_user(self.admin).write({'arch': portada.arch})
         # Gerencia no crea ni borra páginas (ACL): las páginas nacen en el código.
         self.assertFalse(self.env['website.page'].with_user(self.gerencia).has_access('create'))
         self.assertFalse(self.env['website.page'].with_user(self.gerencia).has_access('unlink'))
@@ -167,6 +175,12 @@ class TestSitioPorCodigo(TransactionCase):
         self.sitio.domain = 'https://staging.dcasapty.com/'
         self.assertEqual(self.env['dcasa.sitio'].with_user(self.vendedora).vista_previa()['url'],
                          'https://staging.dcasapty.com')
+        # La fila de «Páginas» abre esta misma pantalla en la página elegida, no la vista previa de Odoo
+        # (que precarga el constructor).
+        portada = self.env['website.page'].search([('url', '=', '/')], limit=1)
+        apertura = portada.with_user(self.gerencia).open_website_url()
+        self.assertEqual((apertura['type'], apertura['tag']), ('ir.actions.client', 'dcasa_vista_previa'))
+        self.assertEqual(apertura['params'], {'ruta': '/'})
         # Sin modo edición: la pantalla no manda enable_editor ni usa el constructor.
         with open(file_path('dcasa_interfaz/static/src/js/vista_previa.js'), encoding='utf-8') as archivo:
             codigo = archivo.read()
