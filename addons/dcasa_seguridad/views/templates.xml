@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <!-- Política para rastreadores de IA al final de /robots.txt (controllers/robots.py). -->
+    <template id="robots" inherit_id="website.robots">
+        <xpath expr="//t[@t-out='request.website.sudo().robots_txt']" position="after">
+<t t-out="dcasa_robots_ia or ''"/>
+        </xpath>
+    </template>
+
+    <!-- Enrolar la app de códigos al entrar (controllers/enrolar.py). -->
+    <template id="enrolar_2fa" name="D'CASA: activar el doble factor">
+        <t t-call="web.login_layout">
+            <t t-set="disable_footer">1</t>
+            <div class="oe_login_form o_dcasa_enrolar_2fa">
+                <h5 class="card-title">Activa tu doble factor</h5>
+                <p class="text-muted mb-2">
+                    Para entrar al panel de D’CASA necesitas, además de tu clave, un código de 6 números
+                    que cambia cada 30 segundos en tu teléfono.
+                </p>
+                <ol class="ps-3 mb-3">
+                    <li>Instala una app de códigos: <strong>Google Authenticator</strong>,
+                        <strong>Microsoft Authenticator</strong> o la que ya uses.</li>
+                    <li>En la app toca <strong>+</strong> y <strong>escanea este código</strong>:</li>
+                </ol>
+                <div class="text-center mb-2">
+                    <img t-att-src="'data:image/png;base64,%s' % qr" alt="Código QR para tu app de códigos"
+                         width="200" height="200"/>
+                </div>
+                <details class="mb-3">
+                    <summary>¿No puedes escanear? Escribe esta clave en la app</summary>
+                    <code class="d-block text-center fs-5 mt-2" t-out="secreto"/>
+                </details>
+                <form method="POST" t-att-action="'/web/login/dcasa-2fa'">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <input type="hidden" name="redirect" t-att-value="redirect"/>
+                    <div class="mb-3">
+                        <label class="fw-bold" for="codigo">3. Escribe el código que muestra la app</label>
+                        <input id="codigo" name="codigo" class="form-control" autocomplete="one-time-code"
+                               inputmode="numeric" autofocus="autofocus" required="required"
+                               placeholder="123456"/>
+                    </div>
+                    <p class="alert alert-danger" t-if="error" role="alert" t-out="error"/>
+                    <div class="d-grid mb-2">
+                        <button type="submit" class="btn btn-primary">Activar y entrar</button>
+                    </div>
+                </form>
+                <p class="small text-muted">
+                    Guarda el teléfono con cuidado: si lo pierdes, otro administrador puede quitarte el doble
+                    factor desde Ajustes › Usuarios para que lo actives de nuevo.
+                </p>
+                <form method="POST" action="/web/session/logout">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <div class="w-100 text-center">
+                        <button type="submit" class="btn btn-link btn-sm mb-2">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </t>
+    </template>
+
+</odoo>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="dcasa_seguridad_acceso_list" model="ir.ui.view">
+        <field name="name">dcasa.seguridad.acceso.list</field>
+        <field name="model">dcasa.seguridad.acceso</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false"
+                  decoration-danger="resultado in ('fallo', 'fallo_2fa')" decoration-success="resultado == 'enrolado'">
+                <field name="create_date" string="Fecha"/>
+                <field name="login"/>
+                <field name="user_id" optional="show"/>
+                <field name="resultado"/>
+                <field name="metodo" optional="show"/>
+                <field name="ip"/>
+                <field name="agente" optional="show"/>
+                <field name="es_admin" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_seguridad_acceso_search" model="ir.ui.view">
+        <field name="name">dcasa.seguridad.acceso.search</field>
+        <field name="model">dcasa.seguridad.acceso</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="login"/>
+                <field name="user_id"/>
+                <field name="ip"/>
+                <filter name="fallidos" string="Fallidos" domain="[('resultado', 'in', ('fallo', 'fallo_2fa'))]"/>
+                <filter name="correctos" string="Correctos" domain="[('resultado', '=', 'ok')]"/>
+                <filter name="admins" string="Administradores" domain="[('es_admin', '=', True)]"/>
+                <group>
+                    <filter name="por_ip" string="IP" context="{'group_by': 'ip'}"/>
+                    <filter name="por_usuario" string="Usuario" context="{'group_by': 'user_id'}"/>
+                    <filter name="por_dia" string="Día" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="dcasa_seguridad_acceso_action" model="ir.actions.act_window">
+        <field name="name">Accesos al panel</field>
+        <field name="res_model">dcasa.seguridad.acceso</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aquí aparece cada inicio de sesión al panel</p>
+            <p>Correctos, claves equivocadas y códigos del doble factor equivocados, con IP y navegador.
+                Se guardan 180 días.</p>
+        </field>
+    </record>
+
+    <menuitem id="dcasa_seguridad_acceso_menu"
+              name="Accesos al panel"
+              parent="base.menu_users"
+              action="dcasa_seguridad_acceso_action"
+              groups="base.group_system"
+              sequence="90"/>
+
+</odoo>

@@ -233,6 +233,8 @@ jobs:
           BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
           # Opcional: caché de páginas (edge/CONTRATO_CONTENEDOR.md → «Caché de páginas»).
           TIENDA_FEED_TOKEN: ${{ secrets.TIENDA_FEED_TOKEN }}
+          # Opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md). Sin él, Turnstile apagado.
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
           DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
           PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
         run: .github/scripts/secretos_despliegue.sh

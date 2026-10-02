@@ -225,6 +225,10 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   // El constructor de sitios de Odoo carga la página en un iframe del mismo origen.
   "X-Frame-Options": "SAMEORIGIN",
+  // Lo mismo en CSP (los navegadores nuevos priorizan frame-ancestors). Solo si Odoo no mandó
+  // su propia CSP: /web/login ya la trae igual.
+  "Content-Security-Policy": "frame-ancestors 'self'",
+  "X-Permitted-Cross-Domain-Policies": "none",
 };
 
 export function withSecurityHeaders(response: Response): Response {

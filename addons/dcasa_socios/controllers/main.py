@@ -65,7 +65,8 @@ class SociosDcasa(http.Controller):
             return request.redirect('/socios/cuenta')
         return self._render('dcasa_socios.socios_inicio')
 
-    @http.route('/socios/entrar', type='http', auth='public', website=True, methods=['POST'], sitemap=False)
+    @http.route('/socios/entrar', type='http', auth='public', website=True, methods=['POST'], sitemap=False,
+                captcha='socios_entrar')
     def entrar(self, celular='', pin='', **kwargs):
         Partner = request.env['res.partner'].sudo()
         socio = Partner._dcasa_por_celular(celular)
@@ -115,7 +116,7 @@ class SociosDcasa(http.Controller):
         return request.redirect('/socios/registro')
 
     @http.route('/socios/registro', type='http', auth='public', website=True, methods=['GET', 'POST'],
-                sitemap=False)
+                sitemap=False, captcha='socios_registro')
     def registro(self, **datos):
         padrino_codigo = datos.get('padrino') or request.session.get(SESSION_PADRINO) or ''
         padrino = request.env['res.partner']._dcasa_por_codigo(padrino_codigo)

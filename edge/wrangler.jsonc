@@ -69,8 +69,24 @@
     "ODOO_DORMIR_TRAS": "",
     // Caché de páginas: "off" en producción hasta que la dueña la apruebe en staging (todo lo
     // sirve Odoo).
-    "TIENDA_ESTATICA": "off"
+    "TIENDA_ESTATICA": "off",
+    // Doble factor obligatorio (addons/dcasa_seguridad): "0" hasta que la dueña enrole su app
+    // (docs/SEGURIDAD_ACCESO.md, paso 2). Luego "1" y desplegar.
+    "DCASA_2FA_OBLIGATORIO": "0",
+    "DCASA_2FA_ALCANCE": "admins"
+    // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
+    // secreto. Sin las dos, Turnstile queda apagado (docs/SEGURIDAD_ACCESO.md → Turnstile).
   },
+
+  // Límite de intentos por IP en los POST sensibles (edge/src/bots.ts). Rate Limiting de Workers:
+  // no es un recurso que se cree aparte (namespace_id es un número que elegimos, único en la
+  // cuenta) y no tiene costo propio; se activa al desplegar con estas líneas. Mientras sigan
+  // comentadas, el Worker usa un contador en memoria (aproximado). period solo admite 10 o 60.
+  // "ratelimits": [
+  //   { "name": "LIMITE_ACCESO", "namespace_id": "1101", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_FORMULARIOS", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
+  // ],
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
   // "routes": [
@@ -123,7 +139,9 @@
         // JS refresca). La plantilla propia de antes (apagada el 2026-10-02) ya no existe.
         // staging.dcasapty.com aún no apunta al Worker: el aviso de invalidación va a workers.dev.
         "TIENDA_AVISO_URL": "https://dcasa-staging.dcasapty.workers.dev/__edge/tienda/regenerar",
-        "TIENDA_ESTATICA": "on"
+        "TIENDA_ESTATICA": "on",
+        "DCASA_2FA_OBLIGATORIO": "0",
+        "DCASA_2FA_ALCANCE": "admins"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

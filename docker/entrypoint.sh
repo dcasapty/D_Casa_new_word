@@ -56,6 +56,22 @@
 #   DCASA_BLACK_WEEKEND   1 = Black Weekend visible sin mirar fechas (por defecto 1 en staging,
 #                         0 en producción); DCASA_BLACK_WEEKEND_INICIO / _FIN = ventana
 #                         AAAA-MM-DD en hora de Panamá. Ver «2d. Black Weekend».
+#   Seguridad de acceso (addons/dcasa_seguridad, docs/SEGURIDAD_ACCESO.md; ver «2e»):
+#   DCASA_2FA_OBLIGATORIO 1 = quien está en el alcance enrola la app de códigos al entrar;
+#                         0 (por defecto) = cada quien decide. Encender SOLO después de que la
+#                         dueña enroló su app.
+#   DCASA_2FA_ALCANCE     «admins» (por defecto) o «internos» (todo el personal).
+#   DCASA_SESION_ADMIN_HORAS / DCASA_INACTIVIDAD_ADMIN_MIN  cierre de sesión y bloqueo de
+#                         pantalla de los administradores (12 h / 60 min al instalar; 0 = sin).
+#                         Vacías: se respeta lo que haya en Odoo.
+#   DCASA_AVISO_LOGIN_TELEGRAM  0 apaga el aviso de inicios de sesión de admin por Telegram.
+#   DCASA_ROBOTS_IA       abierta | equilibrada (por defecto) | cerrada: robots.txt para IA.
+#   TURNSTILE_SITE_KEY + TURNSTILE_SECRET  Cloudflare Turnstile en el login y los formularios
+#                         (las dos o ninguna). DCASA_TURNSTILE=off lo apaga (rescate).
+#   DCASA_2FA_RESCATE     RESCATE («break-glass»): login de un usuario que perdió el teléfono.
+#                         Le quita el doble factor UNA vez por versión desplegada (marcador en
+#                         dcasa_seguridad.rescate_hecho). Exige poder desplegar (GitHub/Cloudflare,
+#                         cada uno con su propio 2FA): no abre ninguna puerta nueva. Quitarla después.
 set -euo pipefail
 
 : "${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD (clave del usuario admin de Odoo)}"
@@ -148,7 +164,7 @@ fi
 DB_PORT="${DB_PORT:-5432}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde,dcasa_seguridad}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 APP_VERSION="${APP_VERSION:-dev}"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
@@ -165,7 +181,7 @@ DCASA_SOBRANTES="sms *_sms snailmail* iap* crm_iap_* iap_crm partner_autocomplet
   account_edi_ubl_cii purchase_edi_ubl_bis3 sale_edi_ubl spreadsheet_dashboard*
   spreadsheet_account website_sale_wishlist website_sale_comparison* base_import_module"
 # Nunca se desinstalan, aunque coincidan con un patrón o dependan de un sobrante.
-DCASA_PROTEGIDOS="base web crm sale_crm calendar auth_totp* base_import dcasa_* website_dcasa ${ODOO_MODULES//,/ }"
+DCASA_PROTEGIDOS="base web crm sale_crm calendar auth_totp* auth_passkey* auth_timeout website_cf_turnstile base_import dcasa_* website_dcasa ${ODOO_MODULES//,/ }"
 
 if [[ -z "${DCASA_PIN_PEPPER:-}" ]]; then
   echo "⚠ Falta DCASA_PIN_PEPPER: la app de socios (/socios) no dejará registrarse ni entrar." >&2
@@ -402,6 +418,111 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'website_dcasa'")"
     fi
   done
   echo "▶ Black Weekend ($entorno): activo=$bw_activo, inicio=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.inicio'"), fin=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.fin'") (hora de Panamá)"
+fi
+
+# --- 2e. Seguridad de acceso (addons/dcasa_seguridad) ----------------------------
+# Doble factor obligatorio APAGADO por defecto: la dueña enrola su app primero y luego se
+# enciende (docs/SEGURIDAD_ACCESO.md). Nunca se usa auth_totp.policy de Odoo (código por
+# correo): sin servidor de correo saliente dejaría a todo el personal fuera.
+if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_seguridad'")" == "installed" ]]; then
+  seg_2fa="${DCASA_2FA_OBLIGATORIO:-0}"
+  if [[ "$seg_2fa" != "0" && "$seg_2fa" != "1" ]]; then
+    echo "⚠ DCASA_2FA_OBLIGATORIO inválido («$seg_2fa»): queda en 0 (apagado)." >&2
+    seg_2fa=0
+  fi
+  seg_alcance="${DCASA_2FA_ALCANCE:-admins}"
+  if [[ "$seg_alcance" != "admins" && "$seg_alcance" != "internos" ]]; then
+    echo "⚠ DCASA_2FA_ALCANCE inválido («$seg_alcance»): queda en «admins»." >&2
+    seg_alcance=admins
+  fi
+  set_param dcasa_seguridad.2fa_obligatorio "$seg_2fa"
+  set_param dcasa_seguridad.2fa_alcance "$seg_alcance"
+  if [[ "$seg_2fa" == "1" ]]; then
+    sin_app="$(sql "SELECT string_agg(u.login, ', ') FROM res_users u
+      JOIN res_groups_users_rel r ON r.uid = u.id
+      JOIN ir_model_data d ON d.res_id = r.gid AND d.model = 'res.groups' AND d.module = 'base' AND d.name = 'group_system'
+      WHERE u.active AND COALESCE(u.totp_secret, '') = ''")"
+    if [[ -n "$sin_app" ]]; then
+      echo "▶ 2FA obligatorio: estos administradores enrolarán la app al entrar: $sin_app"
+    fi
+  fi
+  if [[ -n "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'auth_totp.policy'")" ]] \
+    && [[ "$(sql "SELECT count(*) FROM ir_mail_server WHERE active")" == "0" ]]; then
+    echo "⚠ auth_totp.policy está puesto y no hay servidor de correo saliente: quien no tenga la app" \
+      "no podrá entrar (el código va por correo). Quítalo en Ajustes › Permisos." >&2
+  fi
+  seg_aviso="${DCASA_AVISO_LOGIN_TELEGRAM:-1}"
+  [[ "$seg_aviso" == "0" ]] || seg_aviso=1
+  set_param dcasa_seguridad.aviso_telegram "$seg_aviso"
+  if [[ -n "${DCASA_ROBOTS_IA:-}" ]]; then
+    case "$DCASA_ROBOTS_IA" in
+      abierta | equilibrada | cerrada) set_param dcasa_seguridad.robots_ia "$DCASA_ROBOTS_IA" ;;
+      *) echo "⚠ DCASA_ROBOTS_IA inválido («$DCASA_ROBOTS_IA»): no se cambia." >&2 ;;
+    esac
+  fi
+  # Sesiones de administrador (auth_timeout en el grupo base.group_system). Solo si vienen.
+  seg_horas="${DCASA_SESION_ADMIN_HORAS:-}"
+  seg_min="${DCASA_INACTIVIDAD_ADMIN_MIN:-}"
+  if [[ -n "$seg_horas" || -n "$seg_min" ]]; then
+    if [[ "${seg_horas:-0}" =~ ^[0-9]{1,4}$ && "${seg_min:-0}" =~ ^[0-9]{1,5}$ ]]; then
+      grupo_admin="(SELECT res_id FROM ir_model_data WHERE module = 'base' AND name = 'group_system')"
+      if [[ -n "$seg_horas" ]]; then
+        seg_mfa=false
+        if ((10#$seg_horas > 0)); then seg_mfa=true; fi
+        sql "UPDATE res_groups SET lock_timeout = $((10#$seg_horas * 60)), lock_timeout_mfa = $seg_mfa
+          WHERE id = $grupo_admin" >/dev/null
+      fi
+      if [[ -n "$seg_min" ]]; then
+        sql "UPDATE res_groups SET lock_timeout_inactivity = $((10#$seg_min)), lock_timeout_inactivity_mfa = false
+          WHERE id = $grupo_admin" >/dev/null
+      fi
+      echo "▶ Sesiones de administrador: ${seg_horas:-sin cambio} h / ${seg_min:-sin cambio} min"
+    else
+      echo "⚠ DCASA_SESION_ADMIN_HORAS / DCASA_INACTIVIDAD_ADMIN_MIN inválidas: no se cambian." >&2
+    fi
+  fi
+  # Turnstile (website_cf_turnstile de Odoo): las dos claves o ninguna. off = apagado (rescate).
+  if [[ "${DCASA_TURNSTILE:-}" == "off" ]]; then
+    set_param cf.turnstile_site_key ""
+    set_param cf.turnstile_secret_key ""
+    echo "▶ Turnstile apagado (DCASA_TURNSTILE=off)"
+  elif [[ -n "${TURNSTILE_SITE_KEY:-}" && -n "${TURNSTILE_SECRET:-}" ]]; then
+    if [[ "$TURNSTILE_SITE_KEY$TURNSTILE_SECRET" =~ ^[A-Za-z0-9_.-]+$ ]]; then
+      set_param cf.turnstile_site_key "$TURNSTILE_SITE_KEY"
+      set_param cf.turnstile_secret_key "$TURNSTILE_SECRET"
+      echo "▶ Turnstile activo en el login y los formularios"
+    else
+      echo "⚠ TURNSTILE_SITE_KEY / TURNSTILE_SECRET con caracteres raros: no se cambian." >&2
+    fi
+  elif [[ -n "${TURNSTILE_SITE_KEY:-}${TURNSTILE_SECRET:-}" ]]; then
+    echo "⚠ Turnstile necesita TURNSTILE_SITE_KEY y TURNSTILE_SECRET juntas: no se cambia nada." >&2
+  fi
+  unset TURNSTILE_SECRET
+  # Rescate: quitar el doble factor a un usuario que perdió el teléfono (docs/SEGURIDAD_ACCESO.md).
+  if [[ -n "${DCASA_2FA_RESCATE:-}" ]]; then
+    if [[ ! "$DCASA_2FA_RESCATE" =~ ^[A-Za-z0-9@._+-]{1,128}$ ]]; then
+      echo "⚠ DCASA_2FA_RESCATE inválido: no se toca nada." >&2
+    elif [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_seguridad.rescate_hecho'")" \
+      == "$DCASA_2FA_RESCATE:$APP_VERSION" ]]; then
+      echo "⚠ DCASA_2FA_RESCATE sigue puesta («$DCASA_2FA_RESCATE»), ya se usó en esta versión: QUÍTALA." >&2
+    else
+      rescatado="$(sql "UPDATE res_users SET totp_secret = NULL, totp_last_counter = NULL
+        WHERE login = '$DCASA_2FA_RESCATE' AND active RETURNING id")"
+      if [[ -n "$rescatado" ]]; then
+        sql "DELETE FROM auth_totp_device WHERE user_id = $rescatado" >/dev/null
+        sql "INSERT INTO dcasa_seguridad_acceso (login, user_id, resultado, metodo, ip, agente, es_admin,
+               create_date, write_date)
+             VALUES ('$DCASA_2FA_RESCATE', $rescatado, 'rescate', 'despliegue', '', 'DCASA_2FA_RESCATE',
+               false, now() AT TIME ZONE 'UTC', now() AT TIME ZONE 'UTC')" >/dev/null
+        echo "⚠ RESCATE: se quitó el doble factor a «$DCASA_2FA_RESCATE». Entra, actívalo de nuevo y" \
+          "QUITA DCASA_2FA_RESCATE del despliegue." >&2
+      else
+        echo "⚠ DCASA_2FA_RESCATE: no hay un usuario activo «$DCASA_2FA_RESCATE»." >&2
+      fi
+      set_param dcasa_seguridad.rescate_hecho "$DCASA_2FA_RESCATE:$APP_VERSION"
+    fi
+  fi
+  echo "▶ Seguridad: 2FA obligatorio=$seg_2fa (alcance $seg_alcance), aviso Telegram=$seg_aviso"
 fi
 
 # --- 3. Saneo del usuario admin (S-04) ----------------------------------------

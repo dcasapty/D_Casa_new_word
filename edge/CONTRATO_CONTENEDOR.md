@@ -83,6 +83,12 @@ propio valor por defecto (`dcasa`).
 | `BRIAN_*`, `TELEGRAM_BOT_TOKEN` | var/secreto | — | opcionales |
 | `TIENDA_FEED_TOKEN` | secreto | — | ≥ 32 caracteres. Odoo lo exige en `GET /dcasa/tienda/feed` (cabecera `X-Dcasa-Tienda-Token`) y lo manda como `Bearer` al avisar `POST /__edge/tienda/regenerar` (§5) |
 | `TIENDA_AVISO_URL` | var | — | opcional; por defecto `https://<CANONICAL_HOST>/__edge/tienda/regenerar` |
+| `DCASA_2FA_OBLIGATORIO` | var | — | `0` (por defecto). `1` = quien está en el alcance enrola la app de códigos al entrar (addons/dcasa_seguridad). Encender solo cuando la dueña ya enroló la suya (docs/SEGURIDAD_ACCESO.md) |
+| `DCASA_2FA_ALCANCE` | var | — | `admins` (por defecto) o `internos` |
+| `DCASA_SESION_ADMIN_HORAS` / `DCASA_INACTIVIDAD_ADMIN_MIN` | var | — | opcionales (al instalar: 12 h / 60 min; `0` = sin). Vacías: no se toca lo que haya en Odoo |
+| `DCASA_AVISO_LOGIN_TELEGRAM` | var | — | `0` apaga el aviso por Telegram de inicios de sesión de administrador |
+| `DCASA_ROBOTS_IA` | var | — | `abierta` · `equilibrada` (por defecto) · `cerrada`: política de robots.txt para rastreadores de IA |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | var / secreto | — | opcionales, las dos juntas: Cloudflare Turnstile en login, registro, cambio de clave, formularios y /socios. `DCASA_TURNSTILE=off` lo apaga (rescate) |
 
 Adjuntos en R2: el entrypoint copia `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
 `R2_SECRET_ACCESS_KEY` (y `R2_REGION`, `R2_VERIFY_TLS`) a `DCASA_ADJUNTOS_R2_*` para el proceso de
