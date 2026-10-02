@@ -24,6 +24,8 @@ _logger = logging.getLogger(__name__)
 
 # Último estado de Black Weekend que se avisó al Worker (ver _dcasa_vigilar_black_weekend).
 PARAM_BW_PUBLICADO = 'dcasa_tienda_borde.black_weekend_publicado'
+# Última versión desplegada (APP_VERSION) por la que se regeneró la tienda (ver _dcasa_revisar_version).
+PARAM_VERSION = 'dcasa_tienda_borde.version_avisada'
 # Clave del acumulador en cr.precommit.data.
 CLAVE_PRECOMMIT = 'dcasa_tienda_borde.pendientes'
 # Producto «0» = regenerar todo (categorías, ajustes del sitio).
@@ -130,8 +132,29 @@ class DcasaTiendaPendiente(models.Model):
         return sorted({p.website_url for p in productos if p.is_published and p.website_url})
 
     @api.model
+    def _dcasa_revisar_version(self):
+        """Versión nueva desplegada (``APP_VERSION``) → «regenerar todo».
+
+        Un despliegue cambia plantillas, estilos y código que ningún ``write`` del ORM anota: el
+        ``-u`` de website_dcasa corre ANTES de que este módulo se cargue, y el resto ni pasa por la
+        base. Sin esto, el borde seguiría sirviendo hasta una hora (y una vez más, vieja) el HTML de
+        la versión anterior, que además pide bundles de estilos y JS que ya no existen (Odoo los
+        redirige a los nuevos: diseño viejo con estilos nuevos). docker/entrypoint.sh adelanta el
+        cron al arrancar para que el aviso salga en cuanto Odoo abre. Devuelve True si marcó.
+        """
+        version = (os.environ.get('APP_VERSION') or '').strip()
+        param = self.env['ir.config_parameter'].sudo()
+        if not version or param.get_param(PARAM_VERSION) == version:
+            return False
+        param.set_param(PARAM_VERSION, version)
+        self.sudo().create({'producto_id': TODO, 'motivo': 'despliegue'})
+        _logger.info('Tienda del borde: versión nueva (%s); se regenera todo.', version)
+        return True
+
+    @api.model
     def _dcasa_avisar_borde(self):
         """Cron: manda al Worker los productos pendientes; si responde 2xx, borra esas marcas."""
+        self._dcasa_revisar_version()
         marcas = self.sudo().search([], limit=LOTE)
         if not marcas:
             return False

@@ -115,6 +115,8 @@ class TestCacheDelBorde(HttpCase):
         self.assertIn(COOKIE_PERSONAL, respuesta.headers.get('Set-Cookie', ''))
         self.assertEqual(self.opener.cookies.get(COOKIE_PERSONAL), '1')
         # Aunque al borde se le escapara la cookie de sesión, Odoo no certifica una página de alguien.
+        # Se renueva en cada respuesta mientras la sesión sea propia (no vence antes que la sesión).
+        self.assertIn(COOKIE_PERSONAL, self.url_open('/shop').headers.get('Set-Cookie', ''))
         relleno = self._relleno('/', cookies={'session_id': self.session.sid})
         self.assertNotIn(CABECERA_BORDE, relleno.headers)
         self.assertNotIn('Set-Cookie', relleno.headers)

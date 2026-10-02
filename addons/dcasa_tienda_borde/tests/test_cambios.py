@@ -145,6 +145,27 @@ class TestMarcasDeCambio(TransactionCase):
         post.assert_not_called()
         self.assertFalse(self.Pendiente.search_count([]))
 
+    def test_despliegue_nuevo_regenera_todo(self):
+        """Una versión nueva (APP_VERSION) cambia plantillas y estilos sin pasar por el ORM: se avisa
+        «todo» una sola vez por versión, aunque no haya ningún otro cambio pendiente."""
+        Pendiente = self.env['dcasa.tienda.pendiente']
+        respuesta = MagicMock(status_code=200)
+        ruta_post = 'odoo.addons.dcasa_tienda_borde.models.pendiente.requests.post'
+        with patch.dict(os.environ, dict(ENTORNO, APP_VERSION='v-auditoria-1')), \
+                patch(ruta_post, return_value=respuesta) as post:
+            self.assertTrue(Pendiente._dcasa_avisar_borde())
+            self.assertTrue(post.call_args.kwargs['json']['todo'])
+            self.assertIn('despliegue', post.call_args.kwargs['json']['motivos'])
+            post.reset_mock()
+            self.assertFalse(Pendiente._dcasa_avisar_borde(), 'Misma versión: nada que avisar')
+            post.assert_not_called()
+        with patch.dict(os.environ, dict(ENTORNO, APP_VERSION='v-auditoria-2')), \
+                patch(ruta_post, return_value=respuesta):
+            self.assertTrue(Pendiente._dcasa_avisar_borde())
+        with patch.dict(os.environ, dict(ENTORNO, APP_VERSION='')), patch(ruta_post) as post:
+            self.assertFalse(Pendiente._dcasa_avisar_borde(), 'Sin versión (desarrollo): no marca')
+            post.assert_not_called()
+
     def test_cambio_dispara_el_cron(self):
         cron = self.env.ref('dcasa_tienda_borde.cron_avisar_borde')
         antes = self.env['ir.cron.trigger'].search_count([('cron_id', '=', cron.id)])

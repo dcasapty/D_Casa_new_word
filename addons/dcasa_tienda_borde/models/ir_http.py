@@ -67,7 +67,10 @@ class IrHttp(models.AbstractModel):
             return  # ruta sin sesión (save_session=False, p. ej. /dcasa/salud): no se toca ninguna cookie
         personal = sesion_personal(request.session)
         tiene = bool(request.httprequest.cookies.get(COOKIE_PERSONAL))
-        if personal != tiene:
+        # Con sesión propia se renueva en cada respuesta (como la sesión, que Odoo rota cada 3 h):
+        # si solo se pusiera una vez, vencería a los 7 días con la sesión aún viva y el borde le
+        # serviría la página anónima a quien tiene carrito o usuario.
+        if personal or tiene:
             # Sin valor y max_age=0 la borra (delete_cookie de werkzeug no acepta la fachada de Odoo).
             response.set_cookie(
                 COOKIE_PERSONAL, '1' if personal else '',

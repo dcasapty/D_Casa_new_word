@@ -420,6 +420,18 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'website_dcasa'")"
   echo "▶ Black Weekend ($entorno): activo=$bw_activo, inicio=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.inicio'"), fin=$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_black_weekend.fin'") (hora de Panamá)"
 fi
 
+# --- 2d'. Caché de páginas del borde tras un despliegue ----------------------
+# Versión nueva = plantillas y estilos nuevos que ningún cambio del ORM anota: el cron de aviso
+# (dcasa.tienda.pendiente._dcasa_revisar_version) marca «regenerar todo» por APP_VERSION. Aquí
+# solo se adelanta para que corra apenas Odoo abra, y no a los 15 min.
+if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_tienda_borde'")" == "installed" ]] \
+  && [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_tienda_borde.version_avisada'")" != "$APP_VERSION" ]]; then
+  sql "UPDATE ir_cron SET nextcall = now() AT TIME ZONE 'UTC'
+       WHERE id = (SELECT res_id FROM ir_model_data
+                   WHERE module = 'dcasa_tienda_borde' AND name = 'cron_avisar_borde')" >/dev/null
+  echo "▶ Caché de páginas: versión nueva ($APP_VERSION), se regenera al abrir Odoo"
+fi
+
 # --- 2e. Seguridad de acceso (addons/dcasa_seguridad) ----------------------------
 # Doble factor obligatorio APAGADO por defecto: la dueña enrola su app primero y luego se
 # enciende (docs/SEGURIDAD_ACCESO.md). Nunca se usa auth_totp.policy de Odoo (código por
