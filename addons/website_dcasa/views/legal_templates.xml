@@ -8,13 +8,21 @@
         <t t-call="website.layout">
             <t t-set="additional_title" t-value="titulo"/>
             <t t-set="meta_description" t-value="descripcion"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
             <div id="wrap" class="o_dcasa_legal">
-                <section class="container py-5">
+                <!-- Cabecera como la de /socios (ronda 6): foto, antetítulo y título en blanco. -->
+                <t t-call="website_dcasa.cabecera_pagina">
+                    <t t-set="cabecera_kicker">D'CASA Panamá</t>
+                    <t t-set="cabecera_titulo" t-value="titulo"/>
+                    <t t-set="cabecera_imagen" t-value="'/website_dcasa/static/src/img/hero.webp'"/>
+                    <t t-set="cabecera_srcset" t-value="'/website_dcasa/static/src/img/hero-800.webp 800w, /website_dcasa/static/src/img/hero.webp 1400w'"/>
+                    <t t-set="cabecera_ancho" t-value="1400"/>
+                    <t t-set="cabecera_alto" t-value="787"/>
+                </t>
+                <section class="container o_dcasa_legal_cuerpo">
                     <div class="row">
                         <div class="col-lg-8 offset-lg-2">
-                            <p class="o_dcasa_kicker">D'CASA Panamá</p>
-                            <h1 class="o_dcasa_display" t-out="titulo"/>
-                            <p class="text-muted">Última actualización: <t t-out="actualizado"/></p>
+                            <p class="o_dcasa_muted">Última actualización: <t t-out="actualizado"/></p>
                             <t t-call="{{ cuerpo }}"/>
                         </div>
                     </div>

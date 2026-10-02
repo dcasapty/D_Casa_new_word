@@ -10,6 +10,7 @@
  *   · DcasaCabecera    ¿la píldora está sobre la foto del hero? + refracción del vidrio.
  *   · DcasaGotaMenu    la gota de vidrio que sigue al puntero y al foco en el menú.
  *   · DcasaResenas     botón para pausar la cinta de opiniones (WCAG 2.2.2).
+ *   · DcasaFotos       fotos de producto anchas: enteras («contain») en el cuadro 3:4.
  *
  * Lo que está sobre el pliegue (el hero) usa [data-anim-entrada]: CSS puro, sin esperar a nadie.
  */
@@ -107,12 +108,9 @@ export class DcasaCabecera extends Interaction {
                 "url(#dcasa-liquido) blur(3px) saturate(220%) brightness(1.08)"
             );
             raiz.classList.add("o_dcasa_refraccion");
-            if (!reducido()) {
-                this.animarVidrio(filtro);
-            }
         }
         this.registerCleanup(() => {
-            raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto");
+            raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto", "o_dcasa_nav_medida");
             raiz.style.removeProperty("--dcasa-refraccion");
         });
 
@@ -120,7 +118,9 @@ export class DcasaCabecera extends Interaction {
         // que Odoo hace en cada `transitionend` de la cabecera.
         this.addListener(this.el.querySelectorAll(".o_main_nav"), "transitionend", (ev) => ev.stopPropagation());
 
-        const hero = document.querySelector(".o_dcasa_hero");
+        // La píldora oscura de /socios va sobre cualquier foto o fondo oscuro que abra la página
+        // (hero, cabecera de página, Black Weekend).
+        const hero = document.querySelector(".o_dcasa_hero, .o_dcasa_fondo_oscuro");
         if (!hero || !("IntersectionObserver" in window)) {
             return;
         }
@@ -129,33 +129,12 @@ export class DcasaCabecera extends Interaction {
         const observador = new IntersectionObserver(
             ([entrada]) => {
                 raiz.classList.toggle("o_dcasa_nav_sobre_foto", entrada.isIntersecting);
-                if (this.svg) {
-                    entrada.isIntersecting ? this.svg.unpauseAnimations() : this.svg.pauseAnimations();
-                }
+                raiz.classList.add("o_dcasa_nav_medida");
             },
             { rootMargin: `-${piso}px 0px 0px 0px`, threshold: 0 }
         );
         observador.observe(hero);
         this.registerCleanup(() => observador.disconnect());
-    }
-
-    /** El ruido del filtro se mueve lento (el vidrio «fluye»); en pausa si no se ve. */
-    animarVidrio(filtro) {
-        const ruido = filtro.querySelector("feTurbulence");
-        const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
-        anim.setAttribute("attributeName", "baseFrequency");
-        anim.setAttribute("dur", "18s");
-        anim.setAttribute("repeatCount", "indefinite");
-        anim.setAttribute("values", "0.009 0.022;0.012 0.018;0.009 0.022");
-        ruido.appendChild(anim);
-        this.svg = filtro;
-        this.addListener(document, "visibilitychange", () =>
-            document.hidden ? filtro.pauseAnimations() : filtro.unpauseAnimations()
-        );
-        this.registerCleanup(() => {
-            anim.remove();
-            this.svg = null;
-        });
     }
 }
 
@@ -219,8 +198,36 @@ export class DcasaResenas extends Interaction {
     }
 }
 
+/**
+ * Fotos de producto en un cuadro 3:4 que llenan («cover»): casi todas son verticales. Las anchas
+ * (más de 4:5) perderían los lados del mueble, así que van enteras (.o_dcasa_foto_ancha).
+ * El cuadro no cambia de tamaño: no hay salto de diseño.
+ */
+export class DcasaFotos extends Interaction {
+    static selector = "#wrapwrap";
+
+    start() {
+        const fotos = this.el.querySelectorAll(
+            ".o_dcasa_pcard_media img, #o_wsale_products_grid .oe_product_image_link img"
+        );
+        for (const foto of fotos) {
+            if (foto.complete && foto.naturalWidth) {
+                this.clasificar(foto);
+            } else {
+                this.addListener(foto, "load", () => this.clasificar(foto));
+            }
+        }
+        this.registerCleanup(() => fotos.forEach((foto) => foto.classList.remove("o_dcasa_foto_ancha")));
+    }
+
+    clasificar(foto) {
+        foto.classList.toggle("o_dcasa_foto_ancha", foto.naturalWidth / foto.naturalHeight > 0.8);
+    }
+}
+
 const interacciones = registry.category("public.interactions");
 interacciones.add("website_dcasa.revelar", DcasaRevelar);
 interacciones.add("website_dcasa.cabecera", DcasaCabecera);
 interacciones.add("website_dcasa.gota_menu", DcasaGotaMenu);
 interacciones.add("website_dcasa.resenas", DcasaResenas);
+interacciones.add("website_dcasa.fotos", DcasaFotos);

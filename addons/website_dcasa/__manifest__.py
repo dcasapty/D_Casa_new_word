@@ -12,6 +12,9 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Ficha de producto con WhatsApp del mueble, sellos de confianza y botón fijo en el
   celular; tienda a 4 columnas; datos estructurados y SEO local.
 * Pie de página con los datos reales y botón flotante de WhatsApp, sin el crédito de Odoo.
+* La píldora de /socios en todas las páginas (logo, menú, carrito, búsqueda, cuenta y
+  «Escríbenos»), la foto de la portada con sus colores reales y el texto en placa navy,
+  cabeceras de página como la de /socios (legales, cuenta) y fotos de producto en 3:4.
 * Cabecera de vidrio flotante, animaciones de entrada (secciones y titulares) y
   opiniones reales de Google en una cinta en movimiento (data/resenas.json).
 * Categorías de la tienda (Salas, Recámaras, Colchones, Zapateras, Estantes y

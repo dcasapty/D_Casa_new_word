@@ -248,6 +248,21 @@ html {
     gap: .25rem 2.5rem;
     min-height: 2.5rem;
     padding-block: .35rem;
+
+    // Celular: los dos avisos en una sola línea (antes, dos líneas = 70 px menos de foto).
+    @media (max-width: 575.98px) {
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: .75rem;
+        padding-block: 0;
+        font-size: .75rem;
+        letter-spacing: .03em;
+        white-space: nowrap;
+
+        .fa {
+            margin-right: .35rem !important;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -450,11 +465,27 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
     }
 }
 
-// Sobre la foto oscura del hero: vidrio ahumado (texto blanco con contraste AA sobre
-// cualquier parte de la foto) y foco blanco.
-html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
+// Ronda 6: la píldora de /socios en TODAS las páginas. Antes era clara en la tienda, la ficha,
+// el carrito, las legales y la cuenta, y oscura solo sobre una foto: la dueña la veía «distinta
+// en algunas páginas». Ahora es siempre vidrio ahumado en tinta con texto y foco blancos:
+// · sobre fondo claro, casi opaca (tinta al 92 %: blanco sobre ella ≈ 14:1);
+// · sobre una foto o fondo oscuro (hero, cabeceras, Black Weekend), más transparente (66 %),
+//   lo justo para que el texto blanco pase AA aun sobre la parte más clara de la foto
+//   (≥ 4.6:1 sobre blanco puro) y sin el brillo extra del vidrio claro, que lavaba la foto.
+// Antes de que animaciones.js mida (o sin JavaScript), las páginas con la cabecera sobre el
+// contenido ya nacen con la variante sobre foto: sin destello al cargar.
+html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) .o_main_nav::before,
+html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_header_affixed) .o_main_nav::before {
+    background: rgba($dcasa-tinta, .66);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    backdrop-filter: blur(16px) saturate(140%);
+}
+
+#wrapwrap > header#top {
     .o_main_nav::before {
-        background: rgba(#000000, .26);
+        background: rgba($dcasa-tinta, .92);
+        -webkit-backdrop-filter: blur(16px) saturate(140%);
+        backdrop-filter: blur(16px) saturate(140%);
         border-color: rgba(#FFFFFF, .38);
         box-shadow:
             inset 0 1.5px 0 rgba(#FFFFFF, .55),
@@ -488,7 +519,7 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     }
 
     .navbar-toggler-icon {
-        filter: invert(1);
+        filter: invert(1) brightness(2);   // hamburguesa blanca, no gris
     }
 
     .o_dcasa_gota {
@@ -534,9 +565,11 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Hero: foto a sangre sobre negro, con la opacidad baja y el texto en blanco.
-// El azul de marca ya está en la cabecera y los botones: el hero no lo repite.
-// Lo usan la portada y las cabeceras de las páginas interiores (.o_dcasa_hero_compacto).
+// 1. Hero. Dos tratamientos:
+// · Cabeceras de página (.o_dcasa_hero_compacto: socios, visítanos, contacto, legales, cuenta):
+//   foto a sangre sobre negro con la opacidad baja y el título en blanco (el estilo de /socios).
+// · Portada: la foto con sus colores reales, SIN velo (ronda 6: el velo la lavaba), y el texto
+//   en una placa navy plana (ver «Portada» más abajo).
 // ---------------------------------------------------------------------------
 
 .o_dcasa_hero {
@@ -620,6 +653,69 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 
     .o_dcasa_display {
         font-size: clamp(2.25rem, 5vw, 4rem);
+    }
+}
+
+// Portada (ronda 6). La foto se ve con sus colores reales: ni opacidad ni velo. El contraste
+// del texto lo da una placa navy sólida (plana, sin degradado ni sombra): blanco sobre navy
+// 13.6:1 y el CTA amarillo sobre navy, como manda la regla del amarillo.
+// · Escritorio: la placa flota abajo a la izquierda, sobre la foto a sangre.
+// · Celular: primero la foto (bajo la cabecera) y debajo la placa; el texto nunca tapa la foto.
+// El selector no depende de clases nuevas: también sirve a una portada ya editada en el constructor.
+.o_dcasa_hero:not(.o_dcasa_hero_compacto) {
+    background: $dcasa-navy;
+
+    .o_dcasa_hero_media img {
+        opacity: 1;
+    }
+
+    .o_dcasa_hero_texto {
+        background: $dcasa-navy;
+        border-radius: $dcasa-radius * 1.5;
+        padding: clamp(1.75rem, 3vw, 2.75rem);
+        max-width: 44rem;
+
+        .o_dcasa_display {
+            font-size: clamp(2.75rem, 5vw, 4.75rem);
+            margin-bottom: 1.25rem;
+        }
+
+        .o_dcasa_ctas {
+            margin-top: 1.75rem;
+        }
+    }
+
+    @media (min-width: 992px) {
+        .o_dcasa_hero_inner {
+            padding-block: clamp(2.5rem, 5vw, 4rem);
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        display: block;
+        min-height: 0;
+        padding-top: 0;
+
+        .o_dcasa_hero_media {
+            position: relative;
+            inset: auto;
+            z-index: auto;
+            height: clamp(21rem, 58svh, 34rem);
+
+            img {
+                object-position: 38% center;
+            }
+        }
+
+        .o_dcasa_hero_inner {
+            padding: 0;
+        }
+
+        .o_dcasa_hero_texto {
+            max-width: none;
+            border-radius: 0;
+            padding: 2rem $dcasa-gutter 2.5rem;
+        }
     }
 }
 
@@ -783,25 +879,34 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 
 // <picture> (WebP con respaldo) no debe crear una caja: la <img> sigue siendo la hija que se mide.
 .o_dcasa_pcard_media > picture,
-.oe_product_image_img_wrapper > picture {
+.oe_product_image_img_wrapper > picture,
+.o_product_detail_img_wrapper > picture {
     display: contents;
 }
 
+// Fotos de producto (ronda 6): casi todas son verticales (9:16 y 3:4) con fondo de estudio.
+// En un cuadro 1:1 con «contain» quedaban como una tira angosta entre dos bandas (y el
+// «multiply» las agrisaba). Ahora: cuadro 3:4 que la foto llena («cover»; a una 9:16 solo
+// se le recorta aire de arriba y abajo). Las anchas (muebles de TV, estantes con medidas)
+// no se recortan: animaciones.js les pone .o_dcasa_foto_ancha y van enteras («contain»).
+$dcasa-foto-fondo: #EEEDEA;
+
 .o_dcasa_pcard_media {
     display: block;
-    aspect-ratio: 1;
+    aspect-ratio: 3 / 4;
     border-radius: $dcasa-radius;
     overflow: hidden;
-    background: #FFFFFF;
+    background: $dcasa-foto-fondo;
 
     img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
-        padding: 8%;
-        // Las fotos de catálogo traen fondo casi blanco: se funde con la tarjeta.
-        mix-blend-mode: multiply;
+        object-fit: cover;
         transition: transform .4s ease;
+    }
+
+    img.o_dcasa_foto_ancha {
+        object-fit: contain;
     }
 
     &:hover img {
@@ -1214,8 +1319,39 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     // alto 0 (el paginador aparecía dentro de la pantalla) y al medirse lo empujaban ~4 000 px.
     // Con un alto estimado (medido: 332-357 px en celular, tableta y escritorio) el paginador
     // nace fuera de pantalla y las tarjetas lejanas siguen sin pintarse ni bajar su foto.
+    // Ronda 6: con la foto 3:4 la tarjeta mide 430-520 px (celular a escritorio).
     #o_wsale_products_grid .oe_product_cart {
-        contain-intrinsic-size: auto 350px;
+        contain-intrinsic-size: auto 480px;
+    }
+
+    // Fotos de la tienda como las de la portada: cuadro 3:4 lleno, las anchas enteras.
+    #o_wsale_products_grid {
+        --o-wsale-card-thumb-aspect-ratio: 3 / 4;
+        --o-wsale-card-thumb-fill-mode: cover;
+        --o-wsale-card-thumb-background: #{$dcasa-foto-fondo};
+    }
+
+    #o_wsale_products_grid .oe_product_image_link img.o_dcasa_foto_ancha {
+        object-fit: contain !important;
+    }
+
+    // Nombre del producto en Inter, como en la portada: se lee mejor que la condensada.
+    .o_wsale_products_item_title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.35;
+        text-transform: none;
+        letter-spacing: 0;
+
+        a {
+            color: $dcasa-tinta;
+
+            &:hover,
+            &:focus-visible {
+                color: $dcasa-azul;
+            }
+        }
     }
 
     // Tarjetas del catálogo como las de la portada: botón de compra sólido y grande.
@@ -2013,4 +2149,73 @@ $dcasa-negro: #000000;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     gap: 1.25rem;
+}
+
+// Página /black-weekend: la banda negra empieza bajo la cabecera (que flota encima).
+.o_dcasa_bw_pagina {
+    padding-top: calc(7.5rem + #{clamp(2.5rem, 6vw, 4.5rem)});
+}
+
+// ---------------------------------------------------------------------------
+// Ronda 6: el estilo de /socios en el resto de páginas (legales y cuenta)
+// ---------------------------------------------------------------------------
+
+// Legales: cuerpo de lectura (≈70 caracteres por línea), subtítulos en Oswald azul en caja
+// alta como /socios/terminos (Anton es solo para titulares de 2-5 palabras).
+.o_dcasa_legal_cuerpo {
+    padding-block: clamp(2.5rem, 6vw, 5rem);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+
+    .col-lg-8 {
+        max-width: 46rem;
+    }
+
+    h2 {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        font-size: 1.3rem;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: $dcasa-azul;
+        margin: 2.5rem 0 .75rem;
+    }
+
+    li + li {
+        margin-top: .35rem;
+    }
+
+    // Enlaces dentro del texto: subrayados (el azul solo no basta, WCAG 1.4.1).
+    p a,
+    li a {
+        text-decoration: underline;
+        text-underline-offset: .15em;
+    }
+}
+
+// Cuenta: el formulario en la tarjeta de /socios.
+.o_dcasa_login {
+    padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2.5rem, 6vw, 4.5rem);
+    // Odoo 19 pinta el formulario de entrar oculto (d-none) y lo muestra con JavaScript: sin
+    // reservar su alto, el pie saltaba ~500 px al aparecer (CLS 0,18 en escritorio).
+    min-height: 41rem;
+
+    .oe_login_form,
+    .oe_signup_form,
+    .oe_reset_password_form {
+        background: #FFFFFF;
+        border: 2px solid rgba($dcasa-azul, .12);
+        border-radius: $dcasa-radius;
+        padding: clamp(1.25rem, 4vw, 2rem);
+        max-width: 26rem;
+        margin-inline: auto;
+    }
+
+    .form-control {
+        min-height: 3rem;
+    }
+
+    .btn-primary {
+        min-height: 3rem;
+    }
 }

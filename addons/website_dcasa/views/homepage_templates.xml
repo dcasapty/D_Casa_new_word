@@ -87,7 +87,8 @@
                 <div class="o_dcasa_cat_grid" data-anim-cascada="">
                     <a t-foreach="website._dcasa_categorias()" t-as="cat" t-att-href="cat['url']" class="o_dcasa_cat">
                         <img t-att-src="cat['imagen']" t-att-alt="cat['alt']" width="800" height="1000"
-                             loading="lazy" decoding="async"/>
+                             t-att-srcset="'%s 400w, %s 800w' % (cat['imagen_chica'], cat['imagen'])"
+                             sizes="(min-width: 768px) 30vw, 46vw" loading="lazy" decoding="async"/>
                         <span class="o_dcasa_cat_label"><t t-out="cat['nombre']"/> <span aria-hidden="true">→</span></span>
                     </a>
                 </div>
