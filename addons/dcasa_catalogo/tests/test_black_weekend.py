@@ -1,14 +1,20 @@
+import base64
+import io
 import json
 import re
+
+from PIL import Image
 
 from odoo.addons.dcasa_catalogo.catalogo import (
     BLACK_WEEKEND,
     atributo_tamano,
+    cambiar_fotos_del_excel,
     corregir_nombres,
     leer_catalogo,
     marcar_black_weekend,
 )
 from odoo.tests import HttpCase, TransactionCase, tagged
+from odoo.tools.image import base64_to_image
 from odoo.tools.misc import file_open
 
 
@@ -75,6 +81,26 @@ class TestBlackWeekendCatalogo(TransactionCase):
         producto.name = 'Base Queen blanca'
         corregir_nombres(self.env)
         self.assertEqual(producto.name, 'Base Queen blanca')
+
+    def test_888k_con_la_foto_real_y_no_la_miniatura_del_excel(self):
+        producto = self._producto('888K').product_tmpl_id
+        self.assertGreater(max(base64_to_image(producto.image_1920).size), 400)
+        # Como lo dejó la carga anterior: la miniatura del Excel (243 × 324).
+        miniatura = io.BytesIO()
+        Image.new('RGB', (243, 324), 'white').save(miniatura, 'JPEG')
+        producto.image_1920 = base64.b64encode(miniatura.getvalue())
+        self.assertEqual(cambiar_fotos_del_excel(self.env), 1)
+        self.assertEqual(cambiar_fotos_del_excel(self.env), 0, 'Idempotente')
+        self.assertGreater(max(base64_to_image(producto.image_1920).size), 400)
+
+    def test_cambiar_fotos_no_pisa_una_foto_subida_a_mano(self):
+        producto = self._producto('888K').product_tmpl_id
+        grande = io.BytesIO()
+        Image.new('RGB', (900, 900), 'blue').save(grande, 'JPEG')
+        producto.image_1920 = base64.b64encode(grande.getvalue())
+        antes = producto.image_1920
+        cambiar_fotos_del_excel(self.env)
+        self.assertEqual(producto.image_1920, antes)
 
     def test_idempotente_y_sin_tocar_precios(self):
         marcar_black_weekend(self.env)

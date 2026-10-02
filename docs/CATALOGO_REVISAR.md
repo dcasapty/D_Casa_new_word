@@ -104,6 +104,7 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `6220Q Cama tapizada Queen – rosado 205 × 151 × 110 cm.jpg` → **6220Q** (`6220Q_1.jpg`): por código — código 6220Q.
 - `803K - Cama tapizada King – gris - 213 × 163 × 125 cm.jpg` → **803K** (`803K_1.jpg`): por código — código 803K.
 - `823Q Cama tapizada Queen – marrón 215 × 152 × 120 cm.jpg` → **823Q** (`823Q_1.jpg`): por código — código 823Q.
+- `888K - Cama tapizada King – beige 228 × 223 × 120 cm.png` → **888K** (`888K_1.jpg`): por código — código 888K.
 - `903F Cama tapizada Full – gris 193 × 135 × 120 cm.jpg` → **903F** (`903F_1.jpg`): por código — código 903F.
 - `908K - Cama tapizada King – beige - 203 × 193 × 123 cm con colchon.jpg` → **908K** beige (`908K-beige_3.jpg`): por código — código 908K, color beige.
 - `908K - Cama tapizada King – beige - 203 × 193 × 123 cm.jpg` → **908K** beige (`908K-beige_1.jpg`): por código — código 908K, color beige.
@@ -147,7 +148,6 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 
 ### Productos con la foto del Excel (no había foto en la carpeta)
 
-- `888K` (fila 5)
 - `888Q` (fila 6)
 
 ### Otras dudas del Excel

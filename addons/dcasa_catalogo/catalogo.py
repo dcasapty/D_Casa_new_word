@@ -10,6 +10,7 @@ import logging
 import re
 
 from odoo.addons.dcasa_base import archivar_itbms_incluido, itbms_de_venta
+from odoo.tools.image import base64_to_image
 from odoo.tools.misc import file_open
 
 from .reglas import (  # noqa: F401 (API del módulo)
@@ -359,6 +360,32 @@ def corregir_nombres(env):
                 vieja.default_code = False
                 nueva.default_code = codigo
     return corregidos
+
+
+# Lado máximo (px) de una foto sacada del Excel del proveedor: son miniaturas (888K: 243 × 324).
+LADO_FOTO_DEL_EXCEL = 400
+
+
+def cambiar_fotos_del_excel(env):
+    """Cambia la foto principal sacada del Excel por la foto real cuando la dueña la sube (idempotente).
+
+    Solo toca productos cuya foto actual es una miniatura del Excel (lado ≤ ``LADO_FOTO_DEL_EXCEL``)
+    y cuya ficha ya trae una foto que no es del Excel: una foto que la dueña subió a mano en Odoo
+    (más grande) no se pisa.
+    """
+    cambiados = 0
+    for item in leer_catalogo():
+        fotos = item.get('fotos') or []
+        if not fotos or fotos[0].endswith('_excel.jpg'):
+            continue
+        producto = env.ref(f'{MODULO}.{xmlid_de(item["codigo"])}', raise_if_not_found=False)
+        if not producto or not producto.image_1920:
+            continue
+        if max(base64_to_image(producto.image_1920).size) > LADO_FOTO_DEL_EXCEL:
+            continue
+        producto.image_1920 = foto_b64(fotos[0])
+        cambiados += 1
+    return cambiados
 
 
 def stock_de_prueba(env):
