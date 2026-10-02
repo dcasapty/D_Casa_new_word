@@ -8,7 +8,10 @@ se guarda aparte ni se calcula a mano. Reglas de presentación (NIIF, práctica 
   ejercicios anteriores pasa al patrimonio como «resultados no asignados».
 * Ingresos, pasivos y patrimonio se presentan en positivo (haber − debe).
 """
+from collections import defaultdict
 from datetime import date, timedelta
+
+from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
@@ -37,6 +40,26 @@ SECCIONES_BALANCE = [
      ('liability_payable', 'liability_credit_card', 'liability_current')),
     ('pasivo_no_corriente', 'Pasivo no corriente', 'pasivo', ('liability_non_current',)),
     ('patrimonio', 'Patrimonio', 'patrimonio', ('equity', 'equity_unaffected')),
+]
+
+
+# Flujo de efectivo: (clave, título, tipos de cuenta de balance que aportan a la actividad)
+SECCIONES_FLUJO = [
+    ('operacion', 'Actividades de operación',
+     ('asset_receivable', 'asset_current', 'asset_prepayments', 'liability_payable', 'liability_credit_card',
+      'liability_current')),
+    ('inversion', 'Actividades de inversión', ('asset_non_current', 'asset_fixed')),
+    ('financiamiento', 'Actividades de financiamiento', ('liability_non_current', 'equity', 'equity_unaffected')),
+]
+
+# Antigüedad de saldos: (clave, nombre, hasta cuántos días vencido; None = sin tope)
+TRAMOS = [
+    ('por_vencer', 'Por vencer', 0),
+    ('d1_30', '1 a 30 días', 30),
+    ('d31_60', '31 a 60 días', 60),
+    ('d61_90', '61 a 90 días', 90),
+    ('d91_120', '91 a 120 días', 120),
+    ('mas_120', 'Más de 120 días', None),
 ]
 
 
@@ -318,10 +341,14 @@ class ReporteContable(models.AbstractModel):
     # Punto de entrada para la pantalla y las exportaciones
     # ------------------------------------------------------------------
 
-    REPORTES = ('balance_comprobacion', 'libro_mayor', 'estado_resultados', 'balance_general', 'itbms', 'analitica')
+    REPORTES = ('resumen', 'estado_resultados', 'balance_general', 'flujo_efectivo', 'por_cobrar', 'por_pagar',
+                'balance_comprobacion', 'libro_mayor', 'itbms', 'analitica')
+    # Reportes con columnas de comparación (otro periodo al lado, con la variación).
+    COMPARABLES = ('estado_resultados', 'balance_general', 'flujo_efectivo')
+    COMPARACIONES = ('periodo_anterior', 'anio_anterior')
 
     @api.model
-    def obtener(self, reporte, desde=None, hasta=None, borradores=False, cuenta_ids=None):
+    def obtener(self, reporte, desde=None, hasta=None, borradores=False, cuenta_ids=None, comparar=None):
         if reporte not in self.REPORTES:
             raise ValueError(reporte)
         if not self.env.user.has_group('account.group_account_readonly'):
@@ -330,8 +357,285 @@ class ReporteContable(models.AbstractModel):
         if reporte == 'libro_mayor' and cuenta_ids:
             argumentos['cuenta_ids'] = cuenta_ids
         datos = getattr(self, reporte)(**argumentos)
+        if comparar and reporte in self.COMPARABLES:
+            if comparar not in self.COMPARACIONES:
+                raise ValueError(comparar)
+            p_desde, p_hasta = self._periodo(desde, hasta)
+            c_desde, c_hasta = self._periodo_comparado(p_desde, p_hasta, comparar)
+            anterior = getattr(self, reporte)(desde=c_desde, hasta=c_hasta, borradores=borradores)
+            self._fusionar(datos, anterior, comparar)
         datos['empresa'] = self.env.company.name
         return datos
+
+    # ------------------------------------------------------------------
+    # Comparativos
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _periodo_comparado(self, desde, hasta, modo):
+        """El periodo con el que se compara: el inmediato anterior de igual largo o el mismo del año pasado.
+
+        Un periodo que empieza el día 1 se compara por meses (septiembre completo con agosto
+        completo; del 1 al 15 de octubre con del 1 al 15 de septiembre). Si termina a fin de mes,
+        el comparado también (febrero de 28 o 29 días).
+        """
+        def fin_de_mes(dia):
+            return dia + relativedelta(day=31)
+
+        if modo == 'anio_anterior':
+            meses = 12
+        elif desde.day == 1:
+            meses = (hasta.year - desde.year) * 12 + hasta.month - desde.month + 1
+        else:
+            dias = (hasta - desde).days + 1
+            return desde - timedelta(days=dias), desde - timedelta(days=1)
+        c_desde = desde - relativedelta(months=meses)
+        c_hasta = hasta - relativedelta(months=meses)
+        if hasta == fin_de_mes(hasta):
+            c_hasta = fin_de_mes(c_hasta)
+        return c_desde, c_hasta
+
+    @api.model
+    def _variacion(self, actual, anterior):
+        diferencia = self._r(actual - anterior)
+        porcentaje = round(diferencia / abs(anterior) * 100, 1) if self._r(anterior) else None
+        return diferencia, porcentaje
+
+    @api.model
+    def _fusionar(self, datos, anterior, modo):
+        """Pone el periodo comparado al lado: cada fila y cada total llevan «comparado» y la variación."""
+        por_clave = {s['clave']: s for s in anterior['secciones']}
+
+        def llave(fila):
+            return fila['id'] or fila['nombre']
+
+        for seccion in datos['secciones']:
+            vieja = por_clave.get(seccion['clave'], {'filas': [], 'total': 0.0})
+            filas_viejas = {llave(f): f for f in vieja['filas']}
+            presentes = set()
+            for fila in seccion['filas']:
+                presentes.add(llave(fila))
+                fila['comparado'] = filas_viejas.get(llave(fila), {}).get('monto', 0.0)
+            for clave, fila in filas_viejas.items():
+                if clave not in presentes:  # cuentas que solo se movieron en el otro periodo
+                    seccion['filas'].append({**fila, 'monto': 0.0, 'comparado': fila['monto']})
+            for fila in seccion['filas']:
+                fila['variacion'], fila['variacion_pct'] = self._variacion(fila['monto'], fila['comparado'])
+            seccion['comparado'] = vieja['total']
+            seccion['variacion'], seccion['variacion_pct'] = self._variacion(seccion['total'], vieja['total'])
+        cifras = 'resumen' if 'resumen' in datos else 'totales'
+        datos['comparado'] = {
+            'modo': modo, 'desde': anterior['desde'], 'hasta': anterior['hasta'],
+            'etiqueta': 'Mismo periodo del año anterior' if modo == 'anio_anterior' else 'Periodo anterior',
+            cifras: anterior.get(cifras, {}),
+        }
+        return datos
+
+    # ------------------------------------------------------------------
+    # Flujo de efectivo (método indirecto)
+    # ------------------------------------------------------------------
+
+    @api.private
+    @api.model
+    def flujo_efectivo(self, desde=None, hasta=None, borradores=False):
+        """De dónde vino y a dónde se fue el dinero, partiendo de la utilidad (método indirecto, NIC 7).
+
+        Cada cuenta de balance que no es efectivo aporta lo contrario de lo que se movió: si
+        subió lo que te deben, entró menos dinero; si subió lo que debes, salió menos. Por partida
+        doble, la suma de las tres actividades es exactamente la variación del efectivo, y el
+        reporte lo comprueba («cuadra»). La clasificación sale del tipo de cuenta, salvo que la
+        cuenta tenga su «Actividad en el flujo de efectivo» (``dcasa_actividad_flujo``): el plan
+        ``l10n_pa`` trae el activo fijo (161-165) y los préstamos (222) como corrientes, y es el
+        contador quien decide cómo presentarlos.
+        """
+        desde, hasta = self._periodo(desde, hasta)
+        base = Domain.AND([self._dominio(borradores), [('date', '>=', desde), ('date', '<=', hasta)]])
+        movimientos = self._sumas_por_cuenta(Domain.AND([base, [
+            ('account_id.account_type', 'not in', TIPOS_RESULTADOS + ('asset_cash',))]]))
+        resultados, resumen = self._resultado(desde, hasta, borradores)
+        depreciacion = next(s['total'] for s in resultados if s['clave'] == 'depreciacion')
+
+        def actividad(cuenta):
+            if cuenta.dcasa_actividad_flujo:  # la que eligió el contador para esa cuenta
+                return cuenta.dcasa_actividad_flujo
+            return next((c for c, _t, tipos in SECCIONES_FLUJO if cuenta.account_type in tipos), 'operacion')
+
+        secciones = []
+        for clave, titulo, _tipos in SECCIONES_FLUJO:
+            filas = []
+            if clave == 'operacion':
+                filas.append({'id': False, 'codigo': '', 'nombre': 'Utilidad neta del periodo', 'tipo': 'resultado',
+                              'monto': resumen['utilidad_neta']})
+                if depreciacion:
+                    filas.append({'id': False, 'codigo': '', 'tipo': 'ajuste', 'monto': depreciacion,
+                                  'nombre': 'Más: depreciación y amortización (no es salida de dinero)'})
+            filas += [{**self._cuenta(c), 'monto': self._r(-v[2])}
+                      for c, v in sorted(movimientos.items(), key=lambda cv: cv[0].code or '')
+                      if actividad(c) == clave and self._r(v[2])]
+            if clave == 'inversion' and depreciacion:
+                filas.append({'id': False, 'codigo': '', 'tipo': 'ajuste', 'monto': -depreciacion,
+                              'nombre': 'Menos: depreciación del periodo (ya sumada en la operación)'})
+            secciones.append({'clave': clave, 'titulo': titulo, 'filas': filas,
+                              'total': self._r(sum(f['monto'] for f in filas))})
+        efectivo = Domain.AND([self._dominio(borradores), [('account_id.account_type', '=', 'asset_cash')]])
+        inicial = sum(v[2] for v in self._sumas_por_cuenta(Domain.AND([efectivo, [('date', '<', desde)]])).values())
+        final = sum(v[2] for v in self._sumas_por_cuenta(Domain.AND([efectivo, [('date', '<=', hasta)]])).values())
+        variacion = self._r(sum(s['total'] for s in secciones))
+        return {'reporte': 'flujo_efectivo', 'titulo': 'Flujo de efectivo', 'desde': str(desde), 'hasta': str(hasta),
+                'moneda': self._moneda(), 'secciones': secciones,
+                'resumen': {'efectivo_inicial': self._r(inicial), 'variacion': variacion,
+                            'efectivo_final': self._r(final)},
+                'cuadra': not self._r(inicial + variacion - final)}
+
+    # ------------------------------------------------------------------
+    # Antigüedad de saldos: por cobrar y por pagar
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _tramo(self, dias):
+        for clave, _nombre, tope in TRAMOS:
+            if tope is None or dias <= tope:
+                return clave
+        return TRAMOS[-1][0]
+
+    @api.model
+    def _antiguedad(self, tipo, hasta=None, borradores=False):
+        """Lo pendiente de cada documento A LA FECHA DE CORTE, por tercero y por tramo de días vencidos.
+
+        Un pago posterior al corte no cuenta: se suma de nuevo lo que se cruzó después
+        (``account.partial.reconcile.max_date``), igual que el reporte de Enterprise.
+        """
+        _desde, corte = self._periodo(None, hasta)
+        tipo_cuenta = 'asset_receivable' if tipo == 'por_cobrar' else 'liability_payable'
+        signo = 1 if tipo == 'por_cobrar' else -1
+        lineas = self.env['account.move.line'].search(Domain.AND([self._dominio(borradores), [
+            ('account_id.account_type', '=', tipo_cuenta), ('date', '<=', corte),
+            '|', '|', ('reconciled', '=', False), ('matched_debit_ids.max_date', '>', corte),
+            ('matched_credit_ids.max_date', '>', corte)]]), order='date, id')
+        aplicado = defaultdict(float)
+        for parcial in self.env['account.partial.reconcile'].search([
+                '|', ('debit_move_id', 'in', lineas.ids), ('credit_move_id', 'in', lineas.ids),
+                ('max_date', '<=', corte)]):
+            aplicado[parcial.debit_move_id.id] += parcial.amount
+            aplicado[parcial.credit_move_id.id] -= parcial.amount
+        terceros = {}
+        claves = [t[0] for t in TRAMOS]
+        for linea in lineas:
+            pendiente = self._r(signo * (linea.balance - aplicado[linea.id]))
+            if not pendiente:
+                continue
+            vence = linea.date_maturity or linea.date
+            dias = (corte - vence).days
+            tramo = self._tramo(dias)
+            partner = linea.partner_id.commercial_partner_id
+            fila = terceros.setdefault(partner, {
+                'id': partner.id or False, 'nombre': partner.display_name or 'Sin tercero',
+                'telefono': partner.phone or '', 'tramos': dict.fromkeys(claves, 0.0), 'total': 0.0,
+                'vencido': 0.0, 'documentos': []})
+            fila['tramos'][tramo] += pendiente
+            fila['total'] += pendiente
+            if dias > 0:
+                fila['vencido'] += pendiente
+            fila['documentos'].append({
+                'id': linea.id, 'asiento_id': linea.move_id.id, 'documento': linea.move_id.name or '',
+                'referencia': linea.move_id.ref or '', 'fecha': str(linea.date), 'vence': str(vence),
+                'dias': max(dias, 0), 'tramo': tramo, 'monto': pendiente})
+        filas = sorted(terceros.values(), key=lambda f: -f['total'])
+        for fila in filas:
+            fila['tramos'] = {k: self._r(v) for k, v in fila['tramos'].items()}
+            fila['total'] = self._r(fila['total'])
+            fila['vencido'] = self._r(fila['vencido'])
+        totales = {k: self._r(sum(f['tramos'][k] for f in filas)) for k in claves}
+        totales['total'] = self._r(sum(f['total'] for f in filas))
+        totales['vencido'] = self._r(sum(f['vencido'] for f in filas))
+        cobrar = tipo == 'por_cobrar'
+        return {'reporte': tipo, 'titulo': 'Cuentas por cobrar' if cobrar else 'Cuentas por pagar',
+                'desde': str(corte), 'hasta': str(corte), 'moneda': self._moneda(),
+                'tramos': [{'clave': k, 'nombre': n} for k, n, _t in TRAMOS],
+                'filas': filas, 'totales': totales}
+
+    @api.private
+    @api.model
+    def por_cobrar(self, desde=None, hasta=None, borradores=False):
+        return self._antiguedad('por_cobrar', hasta, borradores)
+
+    @api.private
+    @api.model
+    def por_pagar(self, desde=None, hasta=None, borradores=False):
+        return self._antiguedad('por_pagar', hasta, borradores)
+
+    # ------------------------------------------------------------------
+    # Resumen (tablero de la dueña)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _saldos_bancos(self, hasta):
+        """Saldo contable de cada banco, Yappy, tarjeta y caja, con lo que falta por conciliar."""
+        diarios = self.env['account.journal'].search([('type', 'in', ('bank', 'cash')),
+                                                      ('company_id', 'in', self.env.companies.ids)])
+        sumas = self._sumas_por_cuenta(Domain.AND([self._dominio(), [
+            ('date', '<=', hasta), ('account_id', 'in', diarios.default_account_id.ids)]]))
+        Linea = self.env['account.bank.statement.line']
+        return [{'id': d.id, 'nombre': d.name, 'tipo': d.type, 'cuenta_id': d.default_account_id.id,
+                 'saldo': self._r(sumas.get(d.default_account_id, (0, 0, 0))[2]),
+                 'por_conciliar': Linea.search_count([('journal_id', '=', d.id), ('is_reconciled', '=', False),
+                                                      ('date', '<=', hasta)])}
+                for d in diarios]
+
+    @api.private
+    @api.model
+    def resumen(self, desde=None, hasta=None, borradores=False):
+        """Lo que la dueña mira cada semana. Cada cifra sale de los reportes de arriba (nada aparte)."""
+        desde, hasta = self._periodo(desde, hasta)
+        bancos = self._saldos_bancos(hasta)
+        cobrar = self._antiguedad('por_cobrar', hasta)
+        pagar = self._antiguedad('por_pagar', hasta)
+        itbms = self.itbms(desde, hasta)['resumen']
+        resultados = self.estado_resultados(desde, hasta)
+        c_desde, c_hasta = self._periodo_comparado(desde, hasta, 'periodo_anterior')
+        antes = self.estado_resultados(c_desde, c_hasta)
+        ventas = resultados['secciones'][0]['total']
+        ventas_antes = antes['secciones'][0]['total']
+        utilidad = resultados['resumen']['utilidad_neta']
+        utilidad_antes = antes['resumen']['utilidad_neta']
+        por_conciliar = sum(b['por_conciliar'] for b in bancos)
+        borradores_n = self.env['account.move'].search_count([
+            ('state', '=', 'draft'), ('date', '<=', hasta), ('company_id', 'in', self.env.companies.ids)])
+        alertas = []
+        if por_conciliar:
+            alertas.append({'nivel': 'aviso', 'destino': 'conciliacion',
+                            'texto': f'{por_conciliar} movimientos del banco sin conciliar.'})
+        if cobrar['totales']['vencido'] > 0:
+            alertas.append({'nivel': 'aviso', 'destino': 'por_cobrar',
+                            'texto': 'Hay cobros vencidos: mira quién te debe en «Por cobrar».'})
+        if borradores_n:
+            alertas.append({'nivel': 'info', 'destino': 'borradores',
+                            'texto': f'{borradores_n} facturas o asientos en borrador (no cuentan en los reportes).'})
+        bloqueo = self.env.company.fiscalyear_lock_date
+        tarjetas = [
+            {'clave': 'bancos', 'titulo': 'Dinero en bancos y caja', 'valor': self._r(sum(b['saldo'] for b in bancos)),
+             'nota': f'{por_conciliar} movimientos por conciliar' if por_conciliar else 'Todo conciliado'},
+            {'clave': 'por_cobrar', 'titulo': 'Te deben', 'valor': cobrar['totales']['total'],
+             'vencido': cobrar['totales']['vencido']},
+            {'clave': 'por_pagar', 'titulo': 'Debes a proveedores', 'valor': pagar['totales']['total'],
+             'vencido': pagar['totales']['vencido']},
+            {'clave': 'itbms', 'titulo': 'ITBMS por pagar' if itbms['a_pagar'] >= 0 else 'ITBMS a favor',
+             'valor': abs(itbms['a_pagar']), 'debito': itbms['debito_fiscal'], 'credito': itbms['credito_fiscal']},
+            {'clave': 'ventas', 'titulo': 'Ventas', 'valor': ventas, 'comparado': ventas_antes,
+             'variacion_pct': self._variacion(ventas, ventas_antes)[1]},
+            {'clave': 'utilidad', 'titulo': 'Utilidad', 'valor': utilidad, 'comparado': utilidad_antes,
+             'variacion_pct': self._variacion(utilidad, utilidad_antes)[1]},
+        ]
+        return {
+            'reporte': 'resumen', 'titulo': 'Resumen contable', 'desde': str(desde), 'hasta': str(hasta),
+            'moneda': self._moneda(), 'tarjetas': tarjetas, 'bancos': bancos,
+            'deudores': [{k: f[k] for k in ('id', 'nombre', 'telefono', 'total', 'vencido')}
+                         for f in cobrar['filas'][:5]],
+            'acreedores': [{k: f[k] for k in ('id', 'nombre', 'total', 'vencido')} for f in pagar['filas'][:5]],
+            'periodo_comparado': {'desde': str(c_desde), 'hasta': str(c_hasta)},
+            'bloqueado_hasta': str(bloqueo) if bloqueo else None,
+            'alertas': alertas,
+        }
 
     @api.model
     def periodos(self):

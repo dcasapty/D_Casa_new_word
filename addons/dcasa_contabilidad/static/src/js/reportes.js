@@ -9,13 +9,19 @@ import { useService } from "@web/core/utils/hooks";
 import { dinero, fecha } from "./formato";
 
 const REPORTES = [
+    { clave: "resumen", nombre: "Resumen", icono: "fa-tachometer" },
     { clave: "estado_resultados", nombre: "Estado de resultados", icono: "fa-line-chart" },
     { clave: "balance_general", nombre: "Balance general", icono: "fa-balance-scale" },
+    { clave: "flujo_efectivo", nombre: "Flujo de efectivo", icono: "fa-exchange" },
+    { clave: "por_cobrar", nombre: "Por cobrar", icono: "fa-hourglass-half" },
+    { clave: "por_pagar", nombre: "Por pagar", icono: "fa-truck" },
     { clave: "balance_comprobacion", nombre: "Balance de comprobación", icono: "fa-check-square-o" },
     { clave: "libro_mayor", nombre: "Libro mayor", icono: "fa-book" },
     { clave: "itbms", nombre: "ITBMS", icono: "fa-percent" },
     { clave: "analitica", nombre: "Analítica", icono: "fa-pie-chart" },
 ];
+const SOLO_CORTE = ["balance_general", "por_cobrar", "por_pagar"];
+const COMPARABLES = ["estado_resultados", "balance_general", "flujo_efectivo"];
 
 export class DcasaReportesContables extends Component {
     static template = "dcasa_contabilidad.Reportes";
@@ -27,11 +33,12 @@ export class DcasaReportesContables extends Component {
         this.reportes = REPORTES;
         const params = this.props.action?.params || {};
         this.state = useState({
-            reporte: params.reporte || "estado_resultados",
+            reporte: params.reporte || "resumen",
             periodo: "mes",
             desde: null,
             hasta: null,
             borradores: false,
+            comparar: "",
             datos: null,
             cargando: true,
             abiertas: {},
@@ -48,6 +55,101 @@ export class DcasaReportesContables extends Component {
 
     get titulo() {
         return REPORTES.find((r) => r.clave === this.state.reporte).nombre;
+    }
+
+    /** Reportes «a una fecha» (saldo al corte) en vez de «de un periodo». */
+    get alCorte() {
+        return SOLO_CORTE.includes(this.state.reporte);
+    }
+
+    get comparable() {
+        return COMPARABLES.includes(this.state.reporte);
+    }
+
+    get comparando() {
+        return Boolean(this.comparable && this.state.datos?.comparado);
+    }
+
+    pct(valor) {
+        if (valor === null || valor === undefined) {
+            return "—";
+        }
+        return `${valor > 0 ? "+" : ""}${valor.toLocaleString("en-US")} %`;
+    }
+
+    /** Totales finales del comparativo: [nombre, actual, anterior]. */
+    get totalesComparativo() {
+        const d = this.state.datos;
+        const claves = {
+            estado_resultados: [
+                ["Utilidad bruta", "utilidad_bruta"],
+                ["Utilidad operativa", "utilidad_operativa"],
+                ["Utilidad neta", "utilidad_neta"],
+            ],
+            balance_general: [
+                ["Total activo", "activo"],
+                ["Total pasivo y patrimonio", "pasivo_y_patrimonio"],
+            ],
+            flujo_efectivo: [
+                ["Efectivo al inicio", "efectivo_inicial"],
+                ["Variación del efectivo", "variacion"],
+                ["Efectivo al final", "efectivo_final"],
+            ],
+        }[d.reporte];
+        const actual = d.resumen || d.totales;
+        const anterior = d.comparado.resumen || d.comparado.totales || {};
+        return claves.map(([nombre, clave]) => {
+            const a = actual[clave] || 0;
+            const b = anterior[clave] || 0;
+            return { nombre, actual: a, anterior: b, variacion: a - b, pct: b ? Math.round(((a - b) / Math.abs(b)) * 1000) / 10 : null };
+        });
+    }
+
+    cambiarComparar(ev) {
+        this.state.comparar = ev.target.value;
+        this.cargar();
+    }
+
+    /** Del resumen al detalle: cada tarjeta lleva a su reporte o pantalla. */
+    irA(destino) {
+        if (destino === "bancos" || destino === "conciliacion") {
+            this.action.doAction("dcasa_contabilidad.accion_conciliacion");
+        } else if (destino === "borradores") {
+            this.action.doAction({
+                type: "ir.actions.act_window",
+                name: "Borradores",
+                res_model: "account.move",
+                domain: [["state", "=", "draft"]],
+                views: [
+                    [false, "list"],
+                    [false, "form"],
+                ],
+            });
+        } else {
+            const reporte = { ventas: "estado_resultados", utilidad: "estado_resultados" }[destino] || destino;
+            this.cambiarReporte(reporte);
+        }
+    }
+
+    abrirBanco(banco) {
+        this.action.doAction({
+            type: "ir.actions.client",
+            tag: "dcasa_conciliacion",
+            params: { journal_id: banco.id },
+        });
+    }
+
+    abrirDocumentos(fila) {
+        this.action.doAction({
+            type: "ir.actions.act_window",
+            name: fila.nombre,
+            res_model: "account.move.line",
+            domain: [["id", "in", fila.documentos.map((d) => d.id)]],
+            views: [
+                [false, "list"],
+                [false, "form"],
+            ],
+        });
     }
 
     get cuentasMayor() {
@@ -91,6 +193,7 @@ export class DcasaReportesContables extends Component {
             desde: this.state.desde,
             hasta: this.state.hasta,
             borradores: this.state.borradores,
+            comparar: this.comparable ? this.state.comparar || null : null,
         });
         this.state.cargando = false;
     }
@@ -109,7 +212,7 @@ export class DcasaReportesContables extends Component {
             ["date", "<=", this.state.datos.hasta],
             ...extra,
         ];
-        if (this.state.reporte !== "balance_general") {
+        if (!this.alCorte) {
             dominio.push(["date", ">=", this.state.datos.desde]);
         }
         this.action.doAction({
@@ -176,6 +279,7 @@ export class DcasaReportesContables extends Component {
             desde: this.state.desde || "",
             hasta: this.state.hasta || "",
             borradores: this.state.borradores ? "1" : "0",
+            comparar: this.comparable ? this.state.comparar : "",
         });
         window.location = `/dcasa/contabilidad/excel?${q}`;
     }
@@ -191,6 +295,7 @@ export class DcasaReportesContables extends Component {
                 desde: this.state.desde,
                 hasta: this.state.hasta,
                 borradores: this.state.borradores,
+                comparar: this.comparable ? this.state.comparar || null : null,
             },
         });
     }

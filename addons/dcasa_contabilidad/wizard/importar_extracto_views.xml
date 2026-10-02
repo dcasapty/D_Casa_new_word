@@ -7,16 +7,22 @@
             <form string="Importar extracto bancario">
                 <p class="text-muted">
                     Descarga el movimiento de tu banca en línea (Banco General, BAC, Banistmo, Caja de Ahorros o
-                    Yappy) en formato CSV y súbelo aquí. Necesita las columnas <strong>Fecha</strong> y
-                    <strong>Monto</strong> (o <strong>Débito</strong> y <strong>Crédito</strong>); la
-                    <strong>Descripción</strong> y la <strong>Referencia</strong> ayudan a conciliar solo.
-                    Lo que ya estaba importado no se repite.
+                    Yappy) en <strong>CSV</strong>, <strong>OFX/QFX</strong> o <strong>CAMT.053</strong> y súbelo
+                    aquí. El CSV necesita <strong>Fecha</strong> y <strong>Monto</strong> (o <strong>Débito</strong>
+                    y <strong>Crédito</strong>); la <strong>Descripción</strong> y la <strong>Referencia</strong>
+                    ayudan a conciliar solo. Lo que ya estaba importado no se repite.
                 </p>
                 <group>
                     <field name="journal_id" options="{'no_create': True}"/>
                     <field name="archivo" filename="nombre_archivo"/>
                     <field name="nombre_archivo" invisible="1"/>
+                    <field name="formato_id" options="{'no_create': True}"
+                           placeholder="Detectar las columnas (CSV) — OFX y CAMT no lo necesitan"/>
                 </group>
+                <div invisible="not archivo">
+                    <h5>Vista previa</h5>
+                    <field name="vista_previa" nolabel="1"/>
+                </div>
                 <footer>
                     <button name="action_importar" type="object" string="Importar y conciliar" class="btn-primary"/>
                     <button special="cancel" string="Cancelar"/>

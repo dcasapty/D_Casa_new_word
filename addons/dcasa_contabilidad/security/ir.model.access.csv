@@ -4,3 +4,10 @@ access_presupuesto_contador,presupuesto contador,model_dcasa_presupuesto,account
 access_presupuesto_linea_lectura,presupuesto linea lectura,model_dcasa_presupuesto_linea,account.group_account_readonly,1,0,0,0
 access_presupuesto_linea_contador,presupuesto linea contador,model_dcasa_presupuesto_linea,account.group_account_user,1,1,1,1
 access_importar_extracto,importar extracto,model_dcasa_importar_extracto,account.group_account_user,1,1,1,1
+access_formato_extracto_lectura,formato extracto lectura,model_dcasa_formato_extracto,account.group_account_readonly,1,0,0,0
+access_formato_extracto_contador,formato extracto contador,model_dcasa_formato_extracto,account.group_account_user,1,1,1,1
+access_cierre_mes_lectura,cierre mes lectura,model_dcasa_cierre_mes,account.group_account_readonly,1,0,0,0
+access_cierre_mes_contador,cierre mes contador,model_dcasa_cierre_mes,account.group_account_user,1,1,1,0
+access_cierre_mes_gerencia,cierre mes gerencia,model_dcasa_cierre_mes,account.group_account_manager,1,1,1,1
+access_cierre_mes_paso_lectura,cierre mes paso lectura,model_dcasa_cierre_mes_paso,account.group_account_readonly,1,0,0,0
+access_cierre_mes_paso_contador,cierre mes paso contador,model_dcasa_cierre_mes_paso,account.group_account_user,1,1,1,1

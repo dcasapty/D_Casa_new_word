@@ -19,7 +19,11 @@ PARAM_PRODUCTO = {'type': 'string', 'description': 'Producto (nombre o código).
                                                     'un concepto libre, p. ej. «Flete de septiembre».'}
 PARAM_CANTIDAD = {'type': 'number', 'description': 'Cantidad. Por defecto 1.'}
 PARAM_PRECIO = {'type': 'number', 'description': 'Precio unitario. Si no lo das, el del producto.'}
-REPORTES = ['estado_resultados', 'balance_general', 'balance_comprobacion', 'libro_mayor', 'itbms', 'analitica']
+REPORTES = ['estado_resultados', 'balance_general', 'flujo_efectivo', 'balance_comprobacion', 'libro_mayor', 'itbms',
+            'analitica']
+GERENCIA_CONTABLE = ('account.group_account_manager',)
+COMPARAR = ('periodo_anterior', 'anio_anterior')
+COMPARABLES = ('estado_resultados', 'balance_general', 'flujo_efectivo')
 CAMPOS_FACTURA = {'fecha': 'invoice_date', 'vencimiento': 'invoice_date_due', 'referencia': 'ref',
                   'tercero': 'partner_id'}
 
@@ -117,6 +121,32 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         ejemplos=['utilidad del mes pasado → estado_resultados, mes_pasado', 'ITBMS a pagar este mes → itbms'],
     )
     def _h_reporte_contable(self, reporte, periodo=None, desde=None, hasta=None, cuenta=None):
+        return self._b_reporte(reporte, periodo, desde, hasta, cuenta=cuenta)
+
+    @herramienta(
+        nombre='comparar_periodos',
+        descripcion='Estado de resultados, balance general o flujo de efectivo de un periodo al lado del periodo '
+                    'anterior o del mismo periodo del año pasado, con la variación.',
+        parametros={
+            'reporte': {'type': 'string', 'enum': list(COMPARABLES), 'description': 'Cuál reporte.'},
+            'contra': {'type': 'string', 'enum': list(COMPARAR),
+                       'description': 'periodo_anterior (por defecto) o anio_anterior.'},
+            'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
+        },
+        requeridos=['reporte'],
+        nivel='lectura', categoria='contabilidad', grupos=LECTOR_CONTABLE,
+        ejemplos=['¿vendí más que el mes pasado? → estado_resultados, este_mes',
+                  'septiembre contra septiembre del año pasado → anio_anterior'],
+    )
+    def _h_comparar_periodos(self, reporte, contra='periodo_anterior', periodo=None, desde=None, hasta=None):
+        if reporte not in COMPARABLES:
+            raise BrianError(f'Solo se comparan: {", ".join(COMPARABLES)}.')
+        if contra not in COMPARAR:
+            raise BrianError(f'Compara contra: {", ".join(COMPARAR)}.')
+        return self._b_reporte(reporte, periodo, desde, hasta, comparar=contra)
+
+    @api.model
+    def _b_reporte(self, reporte, periodo=None, desde=None, hasta=None, cuenta=None, comparar=None):
         if reporte not in REPORTES:
             raise BrianError(f'Reporte desconocido. Usa uno de: {", ".join(REPORTES)}.')
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
@@ -127,10 +157,109 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             cuenta_ids = self._b_resolver('account.account', cuenta, 'cuenta', exactos=('code',),
                                           dominio=[('company_ids', 'in', self.env.company.ids)]).ids
         datos = self.env['dcasa.reporte.contable'].obtener(reporte, desde=str(inicio), hasta=str(fin),
-                                                           cuenta_ids=cuenta_ids)
+                                                           cuenta_ids=cuenta_ids, comparar=comparar)
         salida = {'reporte': datos['titulo'], 'periodo': f'{etiqueta} ({c.fecha(datos["desde"])} al '
                                                          f'{c.fecha(datos["hasta"])})'}
-        return {**salida, **getattr(self, f'_b_compactar_{reporte}')(datos)}
+        salida.update(getattr(self, f'_b_compactar_{reporte}')(datos))
+        if datos.get('comparado'):
+            salida['comparado_con'] = (f'{datos["comparado"]["etiqueta"]} ({c.fecha(datos["comparado"]["desde"])} '
+                                       f'al {c.fecha(datos["comparado"]["hasta"])})')
+            salida['variaciones'] = [{
+                'seccion': s['titulo'], 'actual': c.moneda(s['total']), 'comparado': c.moneda(s['comparado']),
+                'variacion': c.moneda(s['variacion']),
+                'variacion_pct': f'{s["variacion_pct"]} %' if s['variacion_pct'] is not None else 'sin base',
+            } for s in datos['secciones']]
+        return salida
+
+    def _b_compactar_flujo_efectivo(self, datos):
+        r = datos['resumen']
+        return {
+            'actividades': [{'actividad': s['titulo'], 'total': c.moneda(s['total']),
+                             'principales': [{'concepto': self._b_cuenta_txt(f), 'monto': c.moneda(f['monto'])}
+                                             for f in sorted(s['filas'], key=lambda f: -abs(f['monto']))[:5]]}
+                            for s in datos['secciones']],
+            'efectivo_inicial': c.moneda(r['efectivo_inicial']), 'variacion': c.moneda(r['variacion']),
+            'efectivo_final': c.moneda(r['efectivo_final']),
+            'cuadra': 'sí' if datos['cuadra'] else 'NO: revisar borradores',
+        }
+
+    # ------------------------------------------------------------------
+    # Resumen para la dueña y antigüedad de saldos
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='resumen_contable',
+        descripcion='Resumen del negocio: cuánto ganaste (utilidad y ventas contra el periodo anterior), dinero en '
+                    'bancos y caja, cuánto te deben, cuánto debes e ITBMS por pagar.',
+        parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
+        nivel='lectura', categoria='contabilidad', grupos=LECTOR_CONTABLE,
+        ejemplos=['¿cuánto gané este mes? → este_mes', '¿cuánta plata hay en el banco?',
+                  '¿cuánto ITBMS tengo por pagar?'],
+    )
+    def _h_resumen_contable(self, periodo=None, desde=None, hasta=None):
+        inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
+        datos = self.env['dcasa.reporte.contable'].obtener('resumen', desde=str(inicio), hasta=str(fin))
+        tarjetas = {t['clave']: t for t in datos['tarjetas']}
+
+        def con_comparacion(clave):
+            t = tarjetas[clave]
+            pct = f'{t["variacion_pct"]:+} %' if t['variacion_pct'] is not None else 'sin base para comparar'
+            return {'monto': c.moneda(t['valor']), 'periodo_anterior': c.moneda(t['comparado']), 'cambio': pct}
+
+        return {
+            'periodo': f'{etiqueta} ({c.fecha(datos["desde"])} al {c.fecha(datos["hasta"])})',
+            'comparado_con': f'{c.fecha(datos["periodo_comparado"]["desde"])} al '
+                             f'{c.fecha(datos["periodo_comparado"]["hasta"])}',
+            'utilidad': con_comparacion('utilidad'),
+            'ventas': con_comparacion('ventas'),
+            'dinero_en_bancos_y_caja': c.moneda(tarjetas['bancos']['valor']),
+            'bancos': [{'banco': b['nombre'], 'saldo': c.moneda(b['saldo']), 'por_conciliar': b['por_conciliar']}
+                       for b in datos['bancos']],
+            'te_deben': c.moneda(tarjetas['por_cobrar']['valor']),
+            'te_deben_vencido': c.moneda(tarjetas['por_cobrar']['vencido']),
+            'debes_a_proveedores': c.moneda(tarjetas['por_pagar']['valor']),
+            'itbms': f'{tarjetas["itbms"]["titulo"]}: {c.moneda(tarjetas["itbms"]["valor"])} (ventas '
+                     f'{c.moneda(tarjetas["itbms"]["debito"])} − compras {c.moneda(tarjetas["itbms"]["credito"])})',
+            'quien_debe_mas': [{'cliente': d['nombre'], 'total': c.moneda(d['total']),
+                                'vencido': c.moneda(d['vencido'])} for d in datos['deudores']],
+            'alertas': [a['texto'] for a in datos['alertas']],
+            'cerrado_hasta': c.fecha(datos['bloqueado_hasta']) if datos['bloqueado_hasta'] else 'ningún mes cerrado',
+            'nota': 'Cifras de asientos publicados. El ITBMS es un resumen: confírmalo con el contador.',
+        }
+
+    @herramienta(
+        nombre='antiguedad_saldos',
+        descripcion='Quién te debe (o a quién debes) y desde hace cuánto: por cliente o proveedor, en tramos de '
+                    'días vencidos (por vencer, 1-30, 31-60, 61-90, 91-120, más de 120).',
+        parametros={
+            'tipo': {'type': 'string', 'enum': ['por_cobrar', 'por_pagar'], 'description': 'Por defecto por_cobrar.'},
+            'fecha': {'type': 'string', 'description': 'Fecha de corte dd/mm/aaaa. Por defecto hoy.'},
+            'limite': c.PARAM_LIMITE,
+        },
+        nivel='lectura', categoria='contabilidad', grupos=LECTOR_CONTABLE,
+        ejemplos=['¿quién me debe? → por_cobrar', '¿a qué proveedores les debo hace más de 60 días? → por_pagar'],
+    )
+    def _h_antiguedad_saldos(self, tipo='por_cobrar', fecha=None, limite=10):
+        if tipo not in ('por_cobrar', 'por_pagar'):
+            raise BrianError('El tipo es «por_cobrar» o «por_pagar».')
+        corte = c.leer_fecha(fecha, 'fecha de corte') or self._b_hoy()
+        datos = self.env['dcasa.reporte.contable'].obtener(tipo, hasta=str(corte))
+        nombres = {t['clave']: t['nombre'] for t in datos['tramos']}
+        t = datos['totales']
+        return {
+            'tipo': 'te deben (por cobrar)' if tipo == 'por_cobrar' else 'debes (por pagar)',
+            'al': c.fecha(corte),
+            'total': c.moneda(t['total']), 'vencido': c.moneda(t['vencido']),
+            'por_tramo': {nombres[k]: c.moneda(t[k]) for k in nombres if t[k]},
+            'terceros': len(datos['filas']),
+            'detalle': [{
+                'tercero': f['nombre'], 'telefono': f['telefono'], 'total': c.moneda(f['total']),
+                'vencido': c.moneda(f['vencido']),
+                'tramos': {nombres[k]: c.moneda(v) for k, v in f['tramos'].items() if v},
+                'documentos': [f'{d["documento"]} vence {c.fecha(d["vence"])} — {c.moneda(d["monto"])}'
+                               for d in f['documentos'][:5]],
+            } for f in datos['filas'][:c.limite(limite)]],
+        }
 
     @staticmethod
     def _b_cuenta_txt(fila):
@@ -537,6 +666,52 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         paso('Balance general cuadra', not balance['cuadra'],
              'Activo = pasivo + patrimonio' if balance['cuadra'] else 'El balance NO cuadra',
              'Revisa el balance de comprobación con tu contador.')
+        bloqueo = self.env.company.fiscalyear_lock_date
         return {'mes': f'{inicio.month:02d}/{inicio.year}', 'desde': c.fecha(inicio), 'hasta': c.fecha(fin),
-                'pendientes': sum(1 for p in pasos if p['estado'] == 'pendiente'), 'pasos': pasos}
+                'pendientes': sum(1 for p in pasos if p['estado'] == 'pendiente'), 'pasos': pasos,
+                'mes_cerrado': 'sí' if bloqueo and bloqueo >= fin else 'no',
+                'contabilidad_cerrada_hasta': c.fecha(bloqueo) if bloqueo else 'ningún mes cerrado'}
+
+    @api.model
+    def _b_mes(self, mes):
+        """«mm/aaaa» → primer día del mes; sin mes, el mes pasado."""
+        if not mes:
+            return (self._b_hoy().replace(day=1) - timedelta(days=1)).replace(day=1)
+        try:
+            numero, anio = (int(x) for x in mes.replace('-', '/').split('/'))
+            return self._b_hoy().replace(year=anio, month=numero, day=1)
+        except ValueError as error:
+            raise BrianError('Escribe el mes como mm/aaaa, p. ej. 09/2026.') from error
+
+    @herramienta(
+        nombre='cerrar_mes',
+        descripcion='Cierra un mes contable: revisa la lista de chequeo y, si todo está listo, fija la fecha de '
+                    'bloqueo para que nadie cambie ese mes. Opcionalmente bloquea también el ITBMS ya declarado.',
+        parametros={
+            'mes': {'type': 'string', 'description': 'Mes a cerrar «mm/aaaa». Por defecto el mes pasado.'},
+            'bloquear_itbms': {'type': 'boolean', 'description': 'true si la declaración de ITBMS del mes ya se '
+                                                                 'presentó. Por defecto false.'},
+        },
+        nivel='sensible', categoria='contabilidad', grupos=GERENCIA_CONTABLE,
+        ejemplos=['cierra septiembre → mes=09/2026'],
+    )
+    def _h_cerrar_mes(self, mes=None, bloquear_itbms=False):
+        inicio = self._b_mes(mes)
+        Cierre = self.env['dcasa.cierre.mes']
+        cierre = Cierre.search([('company_id', '=', self.env.company.id), ('mes', '=', inicio)], limit=1)
+        if cierre.estado == 'cerrado':
+            raise BrianError(f'{cierre.name} ya está cerrado.')
+        cierre = cierre or Cierre.create({'mes': inicio})
+        cierre.bloquear_itbms = bool(bloquear_itbms)
+        cierre.action_revisar()
+        faltan = cierre.paso_ids.filtered(lambda p: p.bloquea and p.estado == 'pendiente')
+        if faltan:
+            raise BrianError(f'No puedo cerrar {cierre.name} todavía. Falta: '
+                             + '; '.join(f'{p.name} ({p.detalle})' for p in faltan) + '.')
+        cierre.action_cerrar()
+        return {'mensaje': f'{cierre.name} cerrado: nadie puede publicar ni cambiar asientos hasta el '
+                           f'{c.fecha(cierre.fecha_fin)}' + (' (ITBMS incluido)' if cierre.bloquear_itbms else '')
+                           + '. Para reabrirlo: Contabilidad › Cierre de mes, con el motivo.',
+                'avisos': [f'{p.name}: {p.detalle}' for p in cierre.paso_ids if p.estado == 'aviso'],
+                'abrir': {'modelo': 'dcasa.cierre.mes', 'res_id': cierre.id, 'titulo': cierre.name}}
 
