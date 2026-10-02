@@ -139,6 +139,9 @@ class TestSitioFase0(HttpCase):
         mesa = self.env['product.template'].create({
             'name': 'Mesa de prueba', 'list_price': 59.0, 'is_published': True, 'image_1920': self._foto('red'),
             'public_categ_ids': [(6, 0, self.recamaras.ids)],
+            # El carril muestra los 8 primeros por website_sequence: con el catálogo real cargado,
+            # un producto nuevo (Odoo lo manda al final) no entraría.
+            'website_sequence': -1,
         })
         html = self.url_open('/').text
         fotos = re.findall(r'<a[^>]*class="o_dcasa_pcard_media"[^>]*>\s*<picture>.*?<img[^>]*>', html, re.S)
