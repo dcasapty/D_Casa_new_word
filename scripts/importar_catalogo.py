@@ -31,6 +31,12 @@ inicial (inventario + web), con estas reglas además:
     ya estaba no se toca.
   Todas las decisiones y dudas quedan en docs/CATALOGO_REVISAR.md.
 
+Dónde están los originales: «up media/» es la bandeja de entrada (solo lo pendiente) y
+«fuentes/<pedido-o-carga>/» guarda los originales ya cargados (los mueve
+scripts/procesar_up_media.py). Este script lee de las dos: un archivo se busca primero en
+«up media/» y después en «fuentes/**», así el catálogo se regenera completo aunque la bandeja
+esté vacía.
+
 Se corre cada vez que cambie el Excel o las fotos; después, actualizar el módulo.
 """
 import io
@@ -44,8 +50,12 @@ import openpyxl
 from PIL import Image
 
 RAIZ = Path(__file__).resolve().parent.parent
-ORIGEN = RAIZ / 'up media'
-EXCEL = ORIGEN / 'DCASA_listado_productos.xlsx'
+ORIGEN = RAIZ / 'up media'          # bandeja de entrada: solo lo pendiente
+FUENTES = RAIZ / 'fuentes'          # originales ya cargados, por pedido o carga
+EXCEL = 'DCASA_listado_productos.xlsx'
+# Las gráficas de Black Weekend de la dueña (115.png … 153.png) no son fotos de producto:
+# procesar_up_media.py las guarda aquí (y de aquí sale la imagen para compartir).
+CARPETA_GRAFICAS_BW = 'graficas-black-weekend'
 MODULO = RAIZ / 'addons' / 'dcasa_catalogo'
 DESTINO_IMG = MODULO / 'static' / 'img' / 'productos'
 DESTINO_JSON = MODULO / 'data' / 'catalogo.json'
@@ -83,13 +93,15 @@ DECISIONES_DUENA = [
 
 # Revisión de las gráficas de Black Weekend (se conserva al regenerar el reporte).
 REVISION_GRAFICAS_BLACK_WEEKEND = [
-    '## Gráficas de Black Weekend (`up media/115.png` … `153.png`, revisión del 2026-10-02)',
+    f'## Gráficas de Black Weekend (`fuentes/{CARPETA_GRAFICAS_BW}/115.png` … `153.png`, '
+    'revisión del 2026-10-02)',
     '',
     '39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden '
     'con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para '
-    'la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen '
-    'para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las '
-    'originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).',
+    'la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y '
+    '«tiempo limitado» en ella, 2026-10-02) es la imagen para compartir de /black-weekend '
+    '(`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se guardan en '
+    f'`fuentes/{CARPETA_GRAFICAS_BW}/` (no entran a la imagen de Docker: `.dockerignore`).',
     '',
     '### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)',
     '',
@@ -190,6 +202,34 @@ PEDIDOS = [{
 
 
 
+def fuentes_disponibles(origen=None, fuentes=None):
+    """Archivos de origen por nombre: los de «up media/» mandan; después, «fuentes/**».
+
+    Devuelve {nombre: ruta}. Solo archivos sueltos de la bandeja (las subcarpetas de «up media»
+    son de otros flujos, p. ej. `inventario-anterior/`); de «fuentes/» todo lo que no sea un LEEME.
+    """
+    origen = ORIGEN if origen is None else origen
+    fuentes = FUENTES if fuentes is None else fuentes
+    rutas = OrderedDict()
+    if origen.is_dir():
+        for f in sorted(origen.iterdir()):
+            if f.is_file() and f.suffix.lower() != '.md':
+                rutas[f.name] = f
+    if fuentes.is_dir():
+        for f in sorted(fuentes.rglob('*')):
+            if f.is_file() and f.suffix.lower() != '.md':
+                rutas.setdefault(f.name, f)
+    return rutas
+
+
+def ruta_fuente(nombre, rutas=None):
+    """Ruta de un original por su nombre (bandeja primero, luego fuentes/). Falla si no está."""
+    rutas = fuentes_disponibles() if rutas is None else rutas
+    if nombre not in rutas:
+        raise FileNotFoundError(f'No encuentro «{nombre}» ni en «{ORIGEN.name}/» ni en «{FUENTES.name}/».')
+    return rutas[nombre]
+
+
 def codigo_archivo(codigo):
     """Las fotos no pueden tener «/» en el nombre: 1062010734/5/6N → 1062010734-5-6N."""
     return codigo.replace('/', '-')
@@ -264,10 +304,10 @@ def desempatar(catalogo):
             item['nombre_web'] += f', {a}' if distintos else f' (ref. {item["codigo"]})'
 
 
-def optimizar(archivo):
+def optimizar(archivo, rutas=None):
     destino = DESTINO_IMG / (Path(archivo).stem + '.jpg')
     if not destino.exists():
-        with Image.open(ORIGEN / archivo) as original:
+        with Image.open(ruta_fuente(archivo, rutas)) as original:
             foto = original.convert('RGB')
         foto.thumbnail((LADO_MAXIMO, LADO_MAXIMO), Image.LANCZOS)
         foto.save(destino, 'JPEG', quality=CALIDAD, optimize=True, progressive=True)
@@ -295,7 +335,7 @@ def leer_pedido(pedido, avisos):
     La foto es de la fila donde TERMINA su ancla: en «Catálogo LTSC-07» dos fotos empiezan
     al pie de la fila anterior.
     """
-    wb = openpyxl.load_workbook(ORIGEN / pedido['excel'], data_only=True)
+    wb = openpyxl.load_workbook(ruta_fuente(pedido['excel']), data_only=True)
     hoja = wb[pedido['hoja']]
     enc = pedido['fila_encabezado']
     titulos = [str(c.value or '').strip() for c in hoja[enc]]
@@ -340,10 +380,11 @@ class Pedido:
 
     COMO = {'codigo': 'por código', 'descripcion': 'por descripción', 'decision': 'decisión revisada a mano'}
 
-    def __init__(self, pedido, catalogo, usadas):
+    def __init__(self, pedido, catalogo, usadas, rutas=None):
         self.pedido = pedido
         self.nombre = pedido['pedido']
         self.catalogo = catalogo
+        self.rutas = fuentes_disponibles() if rutas is None else rutas
         self.avisos = []
         self.filas = leer_pedido(pedido, self.avisos)
         self.existentes = {item['codigo'] for item in catalogo}
@@ -353,6 +394,7 @@ class Pedido:
             self.grupos.setdefault(f['codigo'], []).append(i)
         self.fotos_fila = {i: [] for i in range(len(self.filas))}
         self.asignadas, self.dudosas, self.ajenas = [], [], []
+        self.dudosas_detalle = []   # (archivo, nota) para procesar_up_media.py
         self.aparte, self.precios, self.foto_excel = [], [], []
         self.destino_de = {}
         self._asignar_fotos(usadas)
@@ -362,8 +404,8 @@ class Pedido:
 
     def _asignar_fotos(self, usadas):
         """Fotos de la carpeta que no son de la carga inicial → fila del Excel."""
-        archivos = sorted(f.name for f in ORIGEN.iterdir()
-                          if f.suffix.lower() in EXTENSIONES_PEDIDO and f.name not in usadas)
+        archivos = sorted(nombre for nombre in self.rutas
+                          if Path(nombre).suffix.lower() in EXTENSIONES_PEDIDO and nombre not in usadas)
         for archivo in archivos:
             r = asignar_foto(archivo, self.comparables, self.pedido['decisiones'])
             if r['fila'] is not None:
@@ -371,13 +413,15 @@ class Pedido:
                 self.asignadas.append((archivo, r))
             elif r['como'] == 'ambigua' or describe_una_cama(archivo):
                 self.dudosas.append(f'`{archivo}`: {r["nota"]}. **No se usó.**')
+                self.dudosas_detalle.append((archivo, r['nota']))
             else:
                 self.ajenas.append(archivo)
 
     def _fotos_de_fila(self, i, base, etiqueta):
         originales = sorted(self.fotos_fila[i], key=lambda a: ('colchon' in normalizar(a), a))
         if originales:
-            guardadas = [guardar_foto(ORIGEN / a, f'{base}_{n}') for n, a in enumerate(originales, start=1)]
+            guardadas = [guardar_foto(ruta_fuente(a, self.rutas), f'{base}_{n}')
+                         for n, a in enumerate(originales, start=1)]
             self.destino_de.update(zip(originales, guardadas, strict=True))
             return guardadas
         if self.filas[i]['imagen']:
@@ -478,15 +522,29 @@ class Pedido:
                     item['nombre_web'] += f' (ref. {item["codigo"]})'
         return nuevos
 
-    def reporte(self, nuevos):
-        por_fila = {
-            i: f'**{self.codigo(f["codigo"])}**'
-               + (f' {self.comparables[i]["color"]}' if len(self.grupos[f['codigo']]) > 1 else '')
-            for i, f in enumerate(self.filas)
+    def destino_por_fila(self, i):
+        """«908K negro»: código cargado (con sufijo si lo lleva) y color si el código tiene varios."""
+        f = self.filas[i]
+        color = f' {self.comparables[i]["color"]}' if len(self.grupos[f['codigo']]) > 1 else ''
+        return f'{self.codigo(f["codigo"])}{color}'
+
+    def resultado(self):
+        """Para procesar_up_media.py: qué archivo de la carpeta fue a qué producto, y cuál no."""
+        return {
+            'pedido': self.nombre,
+            'excel': self.pedido['excel'],
+            'asignadas': [(a, self.destino_por_fila(r['fila']), self.destino_de.get(a),
+                           self.COMO[r['como']], r['nota']) for a, r in self.asignadas],
+            'dudosas': list(self.dudosas_detalle),
+            'ajenas': list(self.ajenas),
         }
+
+    def reporte(self, nuevos):
+        por_fila = {i: f'**{self.destino_por_fila(i)}**' for i in range(len(self.filas))}
         variantes = [f'`{i["codigo"]}` ({", ".join(i["colores"])})' for i in nuevos if i.get('colores')]
+        excel = ruta_fuente(self.pedido['excel'], self.rutas).relative_to(RAIZ).as_posix()
         lineas = [
-            f'## Pedido {self.nombre} (`up media/{self.pedido["excel"]}`)',
+            f'## Pedido {self.nombre} (`{excel}`)',
             '',
             f'Generado por `scripts/importar_catalogo.py`. Productos nuevos: **{len(nuevos)}** '
             f'({len(self.filas)} filas del Excel). Con variantes de color (un producto por código, misma '
@@ -526,16 +584,16 @@ class Pedido:
             '',
         ]
         if self.ajenas:
-            lineas += [f'Fotos de «up media» que no son de ningún producto (ni de la carga inicial ni de '
+            lineas += [f'Fotos de la carpeta que no son de ningún producto (ni de la carga inicial ni de '
                        f'{self.nombre}): {", ".join(f"`{a}`" for a in self.ajenas)}.', '']
         return lineas
 
 
-def cargar_pedido(pedido, catalogo, usadas):
-    """Productos de un pedido nuevo para catalogo.json + las líneas del reporte."""
-    p = Pedido(pedido, catalogo, usadas)
+def cargar_pedido(pedido, catalogo, usadas, rutas=None):
+    """Productos de un pedido nuevo para catalogo.json + las líneas del reporte + el resultado."""
+    p = Pedido(pedido, catalogo, usadas, rutas)
     nuevos = p.productos()
-    return nuevos, p.reporte(nuevos)
+    return nuevos, p.reporte(nuevos), p.resultado()
 
 
 def describe_una_cama(archivo):
@@ -543,12 +601,8 @@ def describe_una_cama(archivo):
     return bool(re.search(r'\b(twin|full|queen|king)\b', normalizar(archivo)) or medidas_de(archivo))
 
 
-def main():
-    wb = openpyxl.load_workbook(EXCEL, data_only=True)
-    filas = list(wb['Productos'].iter_rows(min_row=2, values_only=True))
-    archivos = sorted(f.name for f in ORIGEN.iterdir() if f.suffix.lower() in ('.png', '.jpg', '.jpeg'))
-    DESTINO_IMG.mkdir(parents=True, exist_ok=True)
-
+def leer_productos(filas):
+    """Filas de la hoja «Productos» → {código: ficha} (manda la primera fila) + dudas para el reporte."""
     productos = OrderedDict()
     revisar = []
     for celda_codigo, nombre, unico, tamanos, combo, _stock, obs in filas:
@@ -578,6 +632,16 @@ def main():
             'precios_ficha': precios,
             'combo': combo,
         }
+    return productos, revisar
+
+
+def main():
+    """Genera catalogo.json, las fotos optimizadas y el reporte. Devuelve qué original se usó dónde."""
+    rutas = fuentes_disponibles()
+    wb = openpyxl.load_workbook(ruta_fuente(EXCEL, rutas), data_only=True)
+    productos, revisar = leer_productos(wb['Productos'].iter_rows(min_row=2, values_only=True))
+    archivos = sorted(n for n in rutas if Path(n).suffix.lower() in ('.png', '.jpg', '.jpeg'))
+    DESTINO_IMG.mkdir(parents=True, exist_ok=True)
 
     fichas = json.loads(FICHAS.read_text(encoding='utf-8')) if FICHAS.exists() else {}
     catalogo = []
@@ -587,7 +651,7 @@ def main():
             revisar.append(f'`{p["codigo"]}` ({p["nombre"]}): sin precio en el Excel; no se importó.')
             continue
         ficha = fichas.get(p['codigo'], {})
-        fotos = ordenar_fotos([optimizar(f) for f in fotos_de(p['codigo'], archivos)], ficha)
+        fotos = ordenar_fotos([optimizar(f, rutas) for f in fotos_de(p['codigo'], archivos)], ficha)
         if not fotos:
             sin_foto.append(f'`{p["codigo"]}` ({p["nombre"]})')
         catalogo.append({
@@ -604,22 +668,42 @@ def main():
 
     desempatar(catalogo)
     otro_tipo = [f'`{c}` ({f["tipo_real"]})' for c, f in fichas.items() if f.get('tipo_real')]
-    usadas = {f for p in productos.values() for f in fotos_de(p['codigo'], archivos)}
+    fotos_inicial = fotos_carga_inicial(productos, archivos)
+    usadas = set(fotos_inicial)
     inicial = list(catalogo)
     lineas_pedidos = []
+    resultado = {'excel_inicial': EXCEL, 'fotos_inicial': fotos_inicial, 'pedidos': []}
     for pedido in PEDIDOS:
-        nuevos, lineas_pedido = cargar_pedido(pedido, catalogo, usadas)
+        nuevos, lineas_pedido, res_pedido = cargar_pedido(pedido, catalogo, usadas, rutas)
         catalogo.extend(nuevos)
         lineas_pedidos += lineas_pedido
+        resultado['pedidos'].append(res_pedido)
         print(f'Pedido {pedido["pedido"]}: {len(nuevos)} productos nuevos.')
     DESTINO_JSON.parent.mkdir(parents=True, exist_ok=True)
     DESTINO_JSON.write_text(json.dumps(catalogo, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     catalogo = inicial
+    escribir_reporte(catalogo, revisar, sin_foto, otro_tipo, lineas_pedidos, rutas)
+    print(f'{len(catalogo)} productos, {sum(len(c["fotos"]) for c in catalogo)} fotos, '
+          f'{len(revisar)} para revisar, {len(sin_foto)} sin foto.')
+    return resultado
 
+
+def fotos_carga_inicial(productos, archivos):
+    """{archivo original: código} de las fotos que son de la carga inicial (nombre = código)."""
+    fotos = {}
+    for p in productos.values():
+        for f in fotos_de(p['codigo'], archivos):
+            fotos.setdefault(f, p['codigo'])
+    return fotos
+
+
+def escribir_reporte(catalogo, revisar, sin_foto, otro_tipo, lineas_pedidos, rutas):
+    """docs/CATALOGO_REVISAR.md: lo que el Excel deja en duda, más las decisiones ya tomadas."""
     lineas = [
         '# Catálogo: lo que hay que revisar',
         '',
-        'Generado por `scripts/importar_catalogo.py` a partir de `up media/DCASA_listado_productos.xlsx`.',
+        f'Generado por `scripts/importar_catalogo.py` a partir de '
+        f'`{ruta_fuente(EXCEL, rutas).relative_to(RAIZ).as_posix()}`.',
         'Nada de esto se adivinó: donde el Excel duda, se tomó la primera ficha y se anota aquí.',
         '',
         f'- Productos importados: **{len(catalogo)}** '
@@ -650,9 +734,7 @@ def main():
         *REVISION_GRAFICAS_BLACK_WEEKEND,
     ]
     REPORTE.write_text('\n'.join(lineas), encoding='utf-8')
-    print(f'{len(catalogo)} productos, {sum(len(c["fotos"]) for c in catalogo)} fotos, '
-          f'{len(revisar)} para revisar, {len(sin_foto)} sin foto.')
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
