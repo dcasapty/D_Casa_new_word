@@ -142,7 +142,8 @@ recortado a 600 caracteres).
   **completa** de pasos en cada cambio (idempotente: el panel la reemplaza), con `turno` = id del
   mensaje que lo disparó. Se emite con un **cursor aparte y commit inmediato**: `bus.bus` escribe en
   el *precommit* y notifica en el *postcommit*, así que dentro de la transacción del RPC nada
-  llegaría hasta el final. Solo canal `chat` (Telegram y MCP reciben la respuesta por su canal).
+  llegaría hasta el final (ese cursor aparte usa el superusuario solo para escribir la fila del bus;
+  el destino es siempre el partner del dueño de la conversación). Solo canal `chat` (Telegram y MCP reciben la respuesta por su canal).
   Si el bus falla, el turno sigue igual: la respuesta completa llega por el RPC.
 * Formato: ver el docstring de `models/conversacion.py` (`paso = {id, tipo: modelo|herramienta,
   nombre, titulo, estado: en_curso|ok|error|por_confirmar, resumen, detalle, duracion_ms}`).

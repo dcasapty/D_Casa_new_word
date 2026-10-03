@@ -162,9 +162,12 @@ class TestBrianEnVivo(BrianCase):
     def test_sin_bus_el_turno_sigue(self):
         """Si el bus falla, Brian responde igual por el RPC (los pasos son un extra)."""
         Bus = type(self.env['bus.bus'])
+        original = Bus._sendone
 
-        def roto(*_args, **_kwargs):
-            raise RuntimeError('bus caído')
+        def roto(bus, canal, tipo, mensaje):
+            if tipo == PASOS:
+                raise RuntimeError('bus caído')
+            return original(bus, canal, tipo, mensaje)
 
         proveedores.fijar_guion([{'herramientas': [('prueba_leer', {'texto': 'a'})]}, 'Todo bien.'])
         with patch.object(Bus, '_sendone', roto):

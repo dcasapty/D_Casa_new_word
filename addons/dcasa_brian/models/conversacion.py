@@ -98,7 +98,7 @@ import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from . import lector_adjuntos
@@ -274,7 +274,10 @@ class _PasosEnVivo:
         partner_id = conversacion.usuario_id.partner_id.id
         try:
             with conversacion.env.registry.cursor() as cr:
-                entorno = api.Environment(cr, conversacion.env.uid, {})
+                # Superusuario en el cursor aparte: solo escribe la fila del bus (bus.bus ya se
+                # crea con sudo) y no depende de que el usuario del turno sea visible desde
+                # otra transacción. El destino sigue siendo SOLO el partner del dueño.
+                entorno = api.Environment(cr, SUPERUSER_ID, {})
                 destino = entorno['res.partner'].browse(partner_id)
                 entorno['bus.bus']._sendone(destino, 'dcasa_brian/pasos', carga)
         except Exception:  # noqa: BLE001 — el bus nunca tumba el turno
