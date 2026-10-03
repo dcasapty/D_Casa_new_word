@@ -158,9 +158,13 @@ columna `dudas` con lo que se confirmó con zoom) y copiadas en `addons/dcasa_ca
 alta una base nueva, con las reglas de la dueña (LEEME del inventario):
 
 - Llave = código (`default_code`); sin código, el nombre exacto. Mismo código: existencias, costo y
-  precio si cambiaron (nombre y fotos no se tocan). Código nuevo: producto nuevo, categoría por las
-  palabras del nombre (`reglas.CATEGORIAS`), precio SIN ITBMS, publicado solo si tiene foto en
-  `static/img/productos` (archivo que empieza por el código).
+  precio si cambiaron (nombre y fotos no se tocan; el inventario manda sobre el precio, también en
+  los del pedido LTSC-07: el informe lista los 23 que cambian). Código nuevo: producto nuevo,
+  categoría por las palabras del nombre (`reglas.CATEGORIAS`), precio SIN ITBMS, publicado solo si
+  tiene foto en `static/img/productos` (archivo que empieza por el código).
+- Un código del inventario que en el catálogo tiene tamaños como variantes (`N-F10018-F-BK` →
+  `N-F10018-F-BK-FULL`, `XHT022-F-W` → `XHT022-F-W-FULL`) se aplica a la variante del tamaño que dice
+  el nombre, sin crear otro producto.
 - «A la mano» → ajuste de inventario en el almacén principal; negativo → 0 y a la lista de conteo.
 - «COMBO … + COLCHÓN» → producto sin publicar. «Descuento», «Propinas» y «X COLCHÓN … PARA COMBO»
   no se importan. Un código repetido en el CSV (XXI070507) solo entra la primera vez.

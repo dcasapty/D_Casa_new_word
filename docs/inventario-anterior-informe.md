@@ -35,6 +35,10 @@ cruzadas con `data/catalogo.json` y las fotos de `static/img/productos`.
 - `CHCH070201` MUEBLE DE TV NORDIC MAPLE CON PUERTA LATERAL 120cm CHCH070201 — a la mano -1
 - `YOYU020303` MUEBLE ZAPATERA 103X121.5X17 YOYU020303 — a la mano -7
 
+El LEEME hablaba de 8 negativos; en las dos lecturas salen 7 y las sumas por
+página cuadran con las capturas, así que el octavo seguramente era un conteo a ojo. Queda anotado
+como duda para la dueña.
+
 ## Combos «… + COLCHÓN» (productos sin publicar, costo 0 en el sistema anterior)
 
 - `(sin código)` COMBO BOX SPRING DE METAL SENCILLO TAMAÑO FULL / N-F10018-F-BK + COLCHON IMPERIAL
@@ -86,6 +90,36 @@ cruzadas con `data/catalogo.json` y las fotos de `static/img/productos`.
 - `C-W160969417` COMBO CAMA QUEEN W160969417 + COLCHÓN DULCES SUEÑOS
 - `(sin código)` COMBO CAMA TWIN WHITE BF039-T-WH + COLCHÓN IMPERIAL
 - `(sin código)` COMBO CAMAROTE TRIPLE 3 TWIN W160969418 + 3 COLCHONES IMPERIAL
+
+## Precios del catálogo actual que cambia el inventario (23)
+
+El inventario anterior manda sobre el precio de los códigos que trae (regla de la dueña). Estos
+productos ya estaban en el catálogo con otro precio; si alguno debe quedarse con el del catálogo
+(por ejemplo los del pedido LTSC-07, que se fijaron terminados en .99), la dueña lo cambia en Odoo.
+
+- `YPN272102` BIBLIOTECA 5 REPISAS YPN272102: catálogo $69.99 → inventario $77.99
+- `ZJ261301` BIBLIOTECA 80X24X179 ZJ261301: catálogo $59.99 → inventario $55.99
+- `Y0300200` CAMA QUEEN LIGHT GREY / Y0300200: catálogo $129.99 → inventario $159.99
+- `Y0300400` CAMA QUEEN SIZE LINEAS EN V CON LUCES LED Y ENCHUFE COLOR BROWN / Y0300400: catálogo $129.99 → inventario $160.64
+- `Y0200101` CAMA SIZE FULL FRAME WITH DRAWER WITH CHARGE AND LIG BROWN LEATHER / Y0200101: catálogo $119.99 → inventario $179.99
+- `A1721G52006041` CAMAROTE FULL 8071F: catálogo $159.99 → inventario $169.99
+- `XLB0118616` ESCRITORIO DE ESQUINA 140X80X75 XLB0118616: catálogo $59.99 → inventario $49.99
+- `LXI090402` MESA DE NOCHE PURE WARM WHITE, 2 GAVETAS 36X34 CM. LXI090402: catálogo $21.99 → inventario $19.99
+- `ZQ093405` MESA DE NOCHE YELLOW FIR + WARM WHITE, 1 GAVETA 40 CM. ZQ093405: catálogo $17.99 → inventario $24.99
+- `LXI090408` MESA DE NOCHE YELLOW FIR + WARM WHITE, 2 GAVETAS 36X34 CM. LXI090408: catálogo $21.99 → inventario $19.99
+- `CZX100310` MUEBLE ORGANIZADOR 100X60X110 CZX100310: catálogo $59.99 → inventario $54.99
+- `HYI220725` MUEBLE ORGANIZADOR 3 REPISAS 100X35X80 HYI220725: catálogo $39.99 → inventario $49.99
+- `CZX100304` MUEBLE ORGANIZADOR 68X50X195 BLACK CZX100304: catálogo $45.99 → inventario $44.99
+- `CZX100308` MUEBLE ORGANIZADOR 68X50X195 WHITE CZX100308: catálogo $45.99 → inventario $44.99
+- `HYI221013` MUEBLE ORGANIZADOR CON PUERTAS 60X40X80 HYI221013: catálogo $59.99 → inventario $55.99
+- `HYI360747` MUEBLE PARA JARDIN 100X40X100 HYI360747: catálogo $39.99 → inventario $35.99
+- `HYI360748` MUEBLE PARA JARDIN 140X40X100 HYI360748: catálogo $45.99 → inventario $39.99
+- `XD025301` MUEBLE ZAPATERA 100X180X32 XD025301: catálogo $80.64 → inventario $89.99
+- `DOG020205` MUEBLE ZAPATERA CURCUMA SANDALWOOD 80X102X34 DOG020205: catálogo $49.99 → inventario $65.99
+- `YOYU020801` MUEBLE ZAPATERA MORANDI PINE 80X102X34 YOYU020801: catálogo $49.99 → inventario $59.99
+- `LXI062906` PEINADORA CREAM WHITE SIN ESPEJO 100cm LXI062906: catálogo $79.99 → inventario $69.99
+- `LXI063101` PEINADORA WARM WHITE CON ESPEJO REDONDO 60cm LXI063101: catálogo $39.99 → inventario $45.99
+- `RUY230612` ZAPATERA 8 NIVELES SANDALWOOD 102X120X26 RUY230612: catálogo $35.99 → inventario $30.00
 
 ## No se importan
 

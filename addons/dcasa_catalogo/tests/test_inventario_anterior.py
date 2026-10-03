@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 from odoo.addons.dcasa_catalogo.inventario_anterior import (
@@ -13,6 +14,7 @@ from odoo.addons.dcasa_catalogo.reglas import (
     filas_inventario,
     foto_por_codigo,
     planificar_inventario,
+    tamano_del_nombre,
 )
 from odoo.tests import TransactionCase, tagged
 from odoo.tools.misc import file_open
@@ -102,7 +104,7 @@ class TestCargaInventario(TransactionCase):
         self.assertEqual(resumen['creados'], ['INV-PRUEBA-FOTO', 'INV-PRUEBA-SINFOTO',
                                               'COMBO CAMA DE PRUEBA KING + COLCHÓN IMPERIAL',
                                               'MESA DE PRUEBA SIN CODIGO 120X60'])
-        self.assertEqual(resumen['omitidos'], ['Descuento', 'Propinas', 'X COLCHON IMPERIAL TWIN 2/3 PARA COMBO'])
+        self.assertEqual(resumen['omitidos'], ['Descuento', 'TIPS', 'X COLCHON IMPERIAL TWIN 2/3 PARA COMBO'])
         self.assertEqual(resumen['repetidos'], ['INV-PRUEBA-FOTO'])
         self.assertEqual(resumen['negativos'], ['INV-PRUEBA-SINFOTO'])
         self.assertEqual(resumen['combos'], ['COMBO CAMA DE PRUEBA KING + COLCHÓN IMPERIAL'])
@@ -199,15 +201,22 @@ class TestInventarioCompleto(TransactionCase):
             self.assertEqual(suma, total, f'página {pagina}')
         copia = Path(__file__).parents[4] / 'up media' / 'inventario-anterior' / 'inventario_anterior.csv'
         if copia.exists():
-            with file_open('dcasa_catalogo/data/inventario_anterior.csv', 'r', encoding='utf-8') as archivo:
+            with file_open('dcasa_catalogo/data/inventario_anterior.csv', 'r') as archivo:
                 self.assertEqual(archivo.read(), copia.read_text(encoding='utf-8'),
                                  'data/inventario_anterior.csv es copia de la transcripción de «up media»')
 
     def test_cargado_al_instalar_segun_el_plan(self):
-        with file_open('dcasa_catalogo/data/catalogo.json', 'r', encoding='utf-8') as archivo:
+        with file_open('dcasa_catalogo/data/catalogo.json', 'r') as archivo:
             catalogo = json.load(archivo)
         Variante = self.env['product.product'].with_context(active_test=False)
-        existentes = set(Variante.search([('default_code', '!=', False)]).mapped('default_code'))
+        # «Existentes» son los códigos que ya estaban antes de esta carga: todo menos lo que ella creó.
+        creados_por_la_carga = self.env['ir.model.data'].search([
+            ('module', '=', 'dcasa_catalogo'), ('name', '=like', 'inventario_anterior_%'),
+            ('model', '=', 'product.template')]).mapped('res_id')
+        existentes = set(Variante.search([('default_code', '!=', False),
+                                          ('product_tmpl_id', 'not in', creados_por_la_carga)]).mapped('default_code'))
+        # Los tamaños del catálogo son variantes «CODIGO-FULL»: el código a secas también existe.
+        existentes |= {re.sub(r'-(TWIN|FULL|QUEEN|KING)$', '', codigo) for codigo in existentes}
         codigos_catalogo = {item['codigo'] for item in catalogo}
         fotos = foto_por_codigo({f['codigo'] for f in self.filas if f['codigo']}, fotos_del_modulo())
         plan = planificar_inventario(self.filas, existentes, fotos)
@@ -226,6 +235,9 @@ class TestInventarioCompleto(TransactionCase):
         for fila in plan['crear'] + plan['actualizar']:
             if fila['codigo']:
                 variante = Variante.search([('default_code', '=', fila['codigo'])], limit=1)
+                if not variante:  # tamaño como variante del catálogo
+                    codigo = f"{fila['codigo']}-{tamano_del_nombre(fila['nombre'])}".upper()
+                    variante = Variante.search([('default_code', '=ilike', codigo)], limit=1)
             else:
                 variante = self.env.ref(f'dcasa_catalogo.{xmlid_inventario(fila["llave"])}').product_variant_ids[:1]
             self.assertTrue(variante, fila['llave'])
@@ -241,3 +253,18 @@ class TestInventarioCompleto(TransactionCase):
                 self.assertNotIn(fila['codigo'], codigos_catalogo)
         for fila in plan['combos']:
             self.assertFalse(self.env.ref(f'dcasa_catalogo.{xmlid_inventario(fila["llave"])}').is_published)
+
+    def test_codigo_del_inventario_que_es_variante_de_tamano_del_catalogo(self):
+        """«N-F10018-F-BK … TAMAÑO FULL» es la variante Full del producto del catálogo N-F10018-F-BK:
+        no se crea otro producto, se actualiza esa variante."""
+        self.assertFalse(self.env.ref(f'dcasa_catalogo.{xmlid_inventario("N-F10018-F-BK")}',
+                                      raise_if_not_found=False))
+        fila = next(f for f in self.filas if f['codigo'] == 'N-F10018-F-BK')
+        variante = self.env['product.product'].search([('default_code', '=', 'N-F10018-F-BK-FULL')])
+        self.assertEqual(len(variante), 1)
+        self.assertAlmostEqual(variante.lst_price, fila['precio'], places=2)
+        self.assertAlmostEqual(variante.standard_price, fila['costo'], places=2)
+        self.assertEqual(variante.with_context(location=self.ubicacion.id).qty_available, max(fila['a_la_mano'], 0))
+        otras = variante.product_tmpl_id.product_variant_ids - variante
+        self.assertFalse(any(v.with_context(location=self.ubicacion.id).qty_available for v in otras),
+                         'Las otras tallas no reciben existencias')

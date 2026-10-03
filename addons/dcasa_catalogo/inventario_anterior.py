@@ -25,6 +25,7 @@ from odoo.tools.misc import file_open
 
 from .catalogo import MODULO, valores_producto_nuevo
 from .reglas import (
+    TAMANOS,
     categoria_de_inventario,
     filas_inventario,
     foto_por_codigo,
@@ -39,7 +40,7 @@ CARPETA_FOTOS = 'static/img/productos'
 
 def leer_inventario_anterior():
     """Filas del CSV que trae el módulo (ver ``reglas.filas_inventario``)."""
-    with file_open(CSV_INVENTARIO, 'r', encoding='utf-8') as archivo:
+    with file_open(CSV_INVENTARIO, 'r') as archivo:
         return filas_inventario(archivo.read())
 
 
@@ -67,10 +68,26 @@ def _buscar(env, fila):
     if plantilla:
         return plantilla.product_variant_ids[:1]
     if fila['codigo']:
-        return Variante.search([('default_code', '=', fila['codigo'])], limit=1)
+        variante = Variante.search([('default_code', '=', fila['codigo'])], limit=1)
+        return variante or _variante_por_tamano(Variante, fila)
     plantilla = env['product.template'].with_context(active_test=False).search(
         [('name', '=', fila['nombre'])], limit=1)
     return plantilla.product_variant_ids[:1]
+
+
+def _variante_por_tamano(Variante, fila):
+    """El catálogo guarda los tamaños como variantes con código ``CODIGO-FULL``; el inventario
+    anterior trae el código a secas y el tamaño en el nombre («… TAMAÑO FULL»). Si todas las
+    variantes ``CODIGO-<tamaño>`` son de un mismo producto y el nombre dice el tamaño, es esa."""
+    tamano = tamano_del_nombre(fila['nombre'])
+    if not tamano:
+        return Variante
+    tamanos = {t.upper() for t in TAMANOS}
+    candidatas = Variante.search([('default_code', '=like', f"{fila['codigo']}-%")]).filtered(
+        lambda v: v.default_code[len(fila['codigo']) + 1:].upper() in tamanos)
+    if not candidatas or len(candidatas.product_tmpl_id) != 1:
+        return Variante
+    return candidatas.filtered(lambda v: v.default_code.upper() == f"{fila['codigo']}-{tamano}".upper())[:1]
 
 
 def _actualizar(env, variante, fila):

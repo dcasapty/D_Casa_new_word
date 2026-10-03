@@ -83,7 +83,20 @@ def dudas(filas):
                      for f in filas) or '- (ninguna)'
 
 
-def escribir_md(filas, plan, fotos, ruta):
+def cambios_de_precio(plan, catalogo):
+    """Filas que actualizan un producto del catálogo actual con otro precio de venta (de un solo precio)."""
+    precios = {item['codigo']: item['precios'][''] for item in catalogo if list(item['precios']) == ['']}
+    return [(fila, precios[fila['codigo']]) for fila in plan['actualizar']
+            if fila['codigo'] in precios and fila['precio'] is not None
+            and round(fila['precio'] - precios[fila['codigo']], 2)]
+
+
+def lista_precios(cambios):
+    return '\n'.join(f"- `{fila['codigo']}` {fila['nombre']}: catálogo ${antes:.2f} → inventario ${fila['precio']:.2f}"
+                     for fila, antes in cambios) or '- (ninguno)'
+
+
+def escribir_md(filas, plan, fotos, ruta, cambios_precio=()):
     paginas = sorted({f['pagina'] for f in filas})
     sumas = [int(sum(f['a_la_mano'] or 0 for f in filas if f['pagina'] == p)) for p in paginas]
     unidades = int(sum(max(f['a_la_mano'], 0) for f in plan['crear'] + plan['actualizar']
@@ -119,9 +132,21 @@ cruzadas con `data/catalogo.json` y las fotos de `static/img/productos`.
 
 {lista(plan['negativos'], con_existencias=True)}
 
+El LEEME hablaba de 8 negativos; en las dos lecturas salen {len(plan['negativos'])} y las sumas por
+página cuadran con las capturas, así que el octavo seguramente era un conteo a ojo. Queda anotado
+como duda para la dueña.
+
 ## Combos «… + COLCHÓN» (productos sin publicar, costo 0 en el sistema anterior)
 
 {lista(plan['combos'])}
+
+## Precios del catálogo actual que cambia el inventario ({len(cambios_precio)})
+
+El inventario anterior manda sobre el precio de los códigos que trae (regla de la dueña). Estos
+productos ya estaban en el catálogo con otro precio; si alguno debe quedarse con el del catálogo
+(por ejemplo los del pedido LTSC-07, que se fijaron terminados en .99), la dueña lo cambia en Odoo.
+
+{lista_precios(cambios_precio)}
 
 ## No se importan
 
@@ -147,12 +172,15 @@ cruzadas con `data/catalogo.json` y las fotos de `static/img/productos`.
 
 def main():
     filas = reglas.filas_inventario(CSV.read_text(encoding='utf-8'))
-    existentes = codigos_del_catalogo(json.loads(CATALOGO.read_text(encoding='utf-8')))
+    catalogo = json.loads(CATALOGO.read_text(encoding='utf-8'))
+    existentes = codigos_del_catalogo(catalogo)
     fotos = reglas.foto_por_codigo({f['codigo'] for f in filas if f['codigo']},
                                    [p.name for p in FOTOS.iterdir()])
     plan = reglas.planificar_inventario(filas, existentes, fotos)
+    cambios_precio = cambios_de_precio(plan, catalogo)
     escribir_xlsx(plan['sin_foto'], XLSX)
-    escribir_md(filas, plan, fotos, MD)
+    escribir_md(filas, plan, fotos, MD, cambios_precio)
+    print(f'cambios de precio: {len(cambios_precio)}')
     for clave in ('crear', 'actualizar', 'combos', 'con_foto', 'sin_foto', 'negativos', 'omitidos', 'repetidos',
                   'dudas'):
         print(f'{clave}: {len(plan[clave])}')
