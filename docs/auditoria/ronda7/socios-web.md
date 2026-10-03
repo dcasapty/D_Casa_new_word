@@ -17,16 +17,10 @@ portal dentro del módulo, SCSS propio). No se tocaron `website_dcasa`, `dcasa_i
 
 ## Lo que tienes que decidir
 
-1. **El mínimo de 500 puntos y las almohadas de 400.** Hoy `saldoMinimoParaCanjear` se compara con
-   **los puntos del premio**, no con el saldo: ningún premio puede costar menos de 500. Resultado: las
-   almohadas salen en el catálogo con el botón «Pedir» (si el socio tiene 400 o más), pero al pedirlas
-   sale «El canje mínimo es de 500 puntos» y no se descuenta nada. Opciones:
-   - **a)** El mínimo es de **saldo** (como dice su nombre): hay que tener al menos 500 para canjear
-     cualquier cosa, y entonces las almohadas (400) se pueden pedir. Es un cambio de código pequeño.
-   - **b)** El mínimo es **por premio** (como hoy): subir las almohadas a 500 o más, o bajar el mínimo
-     en `puntos.json` (es una cifra del programa: la cambias tú).
-   No se cambió nada en `puntos.json`. Hasta que decidas, conviene **archivar** las almohadas o dejarlas
-   sabiendo que el botón da ese aviso.
+1. ~~El mínimo de 500 puntos y las almohadas de 400.~~ **Resuelto (2026-10-03):** el mínimo de
+   `puntos.json` aplica solo a los **descuentos en dólares** (evita descuentos de centavos). Los premios
+   de **producto** cuestan lo que Gerencia les ponga: las almohadas se piden con 400 puntos.
+   `puntos.json` no se tocó.
 2. **¿Se promueve la cuenta de la tienda a los socios del QR?** El socio del QR no tiene correo; para
    usar puntos en el carrito web necesita cuenta de la tienda. Opciones: pedir correo opcional en el
    registro de `/socios`, o dejar la web para «pedir premio + dictar el código por WhatsApp».

@@ -171,8 +171,12 @@ class DcasaCanje(models.Model):
             raise UserError(self.env._('Tu cuenta está suspendida. Escríbenos por WhatsApp y lo revisamos.'))
         if not premio._disponible():
             raise UserError(self.env._('Ese premio se agotó o ya no está disponible. Elige otro.'))
+        # El mínimo de puntos.json evita descuentos en dólares de centavos; los premios de producto
+        # los define Gerencia con su propio precio en puntos (decisión de la dueña, 2026-10-03:
+        # «el administrador decidirá qué premios… dos almohadas por 400 puntos»).
         minimo = reglas['canje'].get('saldoMinimoParaCanjear')
-        if minimo is not None and puntos_del_premio < minimo:
+        es_descuento = premio.libre or premio.tipo == 'descuento'
+        if es_descuento and minimo is not None and puntos_del_premio < minimo:
             raise UserError(self.env._('El canje mínimo es de %s puntos.', R.como_puntos(minimo)))
         pendiente = self.sudo().search([('partner_id', '=', ficha.id), ('premio_id', '=', premio.id),
                                         ('estado', '=', 'solicitado')], limit=1)

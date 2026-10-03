@@ -5,7 +5,6 @@ Las cifras viven en data/premios_data.xml (el catálogo es inventario, no econom
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
-from ..models import reglas as R
 from .test_socios_web import CarritoCommon
 
 
@@ -57,20 +56,15 @@ class TestPremioEjemploAlmohadas(CarritoCommon):
         self.assertEqual(self.env['dcasa.premio'].with_context(active_test=False).search_count(
             [('name', '=', 'Dos almohadas')]), 1)
 
-    def test_el_minimo_de_puntos_json_se_aplica_al_premio_no_al_saldo(self):
-        """COMPORTAMIENTO ACTUAL (pendiente de la dueña): saldoMinimoParaCanjear se compara contra los
-        puntos DEL PREMIO, no contra el saldo. Con el mínimo de puntos.json por encima de 400, nadie
-        puede pedir las almohadas aunque le sobre saldo."""
-        minimo = R.cargar_reglas()['canje']['saldoMinimoParaCanjear']
+    def test_el_minimo_no_frena_premios_de_producto(self):
+        """Las almohadas (400) se piden aunque el mínimo de puntos.json sea mayor: los premios de
+        producto los define Gerencia; el mínimo solo aplica a descuentos en dólares."""
         premio = self.ejemplo()
-        self.assertGreater(self.socia.dcasa_saldo, max(minimo, premio.puntos))
-        if premio.puntos < minimo:
-            with self.assertRaisesRegex(UserError, 'El canje mínimo es de'):
-                self.env['dcasa.canje']._pedir(self.socia, premio)
-            self.assertEqual(self.socia.dcasa_saldo, 1500, 'no se tocó el saldo')
-        else:
+        self.assertEqual(premio.tipo, 'producto')
+        with self.reglas_con(canje__saldoMinimoParaCanjear=premio.puntos + 100):
             canje = self.env['dcasa.canje']._pedir(self.socia, premio)
-            self.assertEqual(canje.puntos, premio.puntos)
+        self.assertEqual(canje.puntos, premio.puntos)
+        self.assertEqual(self.socia.dcasa_saldo, 1500 - premio.puntos)
 
     def test_premio_de_producto_no_entra_en_el_carrito(self):
         orden = self.carrito()
