@@ -132,7 +132,7 @@
                 <div>
                     <p class="o_dcasa_kicker o_dcasa_kicker_light">Visítanos</p>
                     <h2 class="o_dcasa_h2" data-titular="">Te esperamos en La Chorrera</h2>
-                    <p class="o_dcasa_lead">Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1.</p>
+                    <p class="o_dcasa_lead">Frente al Parque Libertadores, diagonal a la Discoteca Seven.</p>
                 </div>
                 <a href="/visitanos" class="btn btn-lg o_dcasa_btn_amarillo">
                     <i class="fa fa-map-marker me-2" aria-hidden="true"/>Cómo llegar y más información</a>
@@ -146,7 +146,7 @@
             <t t-set="pageName" t-value="'visitanos'"/>
             <t t-set="dcasa_header_overlay" t-value="True"/>
             <t t-set="additional_title">Visítanos</t>
-            <t t-set="meta_description">D'CASA Panamá en La Chorrera: Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1. Cómo llegar y cómo escribirnos.</t>
+            <t t-set="meta_description">D'CASA Panamá en La Chorrera, frente al Parque Libertadores, diagonal a la Discoteca Seven. Cómo llegar y cómo escribirnos.</t>
             <div id="wrap" class="o_dcasa_pagina_visita">
                 <section class="o_dcasa_hero o_dcasa_hero_compacto">
                     <div class="o_dcasa_hero_media">
@@ -169,8 +169,9 @@
                             <h2 class="o_dcasa_kicker">La tienda</h2>
                             <address class="o_dcasa_visita_direccion">
                                 <strong>D'CASA Panamá</strong><br/>
-                                Avenida Las Américas, Urbanización Santa Clara,<br/>
-                                Local 4550 PB-1, La Chorrera, Panamá Oeste
+                                Frente al Parque Libertadores,<br/>
+                                diagonal a la Discoteca Seven,<br/>
+                                La Chorrera, Panamá Oeste
                             </address>
                             <ul class="list-unstyled o_dcasa_visita_lista">
                                 <li><i class="fa fa-location-arrow fa-fw me-2" aria-hidden="true"/>

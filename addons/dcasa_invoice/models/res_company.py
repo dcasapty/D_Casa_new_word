@@ -79,7 +79,7 @@ class ResCompany(models.Model):
         return self.phone or ''
 
     def _dcasa_direccion_corta(self):
-        """«Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1, La Chorrera» para el pie."""
+        """«Frente al Parque Libertadores, Diagonal a la Discoteca Seven, La Chorrera» para el pie."""
         self.ensure_one()
         partes = [self.street, self.street2, self.city]
         return ', '.join(parte.strip() for parte in partes if parte and parte.strip())

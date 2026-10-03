@@ -23,7 +23,7 @@ Módulo raíz del ERP de D'CASA Panamá.
   Telegram (canal de Brian, vía dcasa_seguridad) y apagado de las acciones planificadas
   de Odoo que no aplican a la tienda.
 """,
-    'version': '19.0.1.6.0',
+    'version': '19.0.1.7.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

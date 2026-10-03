@@ -53,5 +53,5 @@ Reglas de DCasa-Referidos (Abrinay), no negociables:
 
 ## Datos reales de la empresa
 
-D'CASA Panamá · RUC 155779346-2-2026 DV7 · Avenida Las Américas, Urbanización
-Santa Clara, Local 4550 PB-1, La Chorrera · +507 6026-1919 · info@dcasapty.com.
+D'CASA Panamá · RUC 155779346-2-2026 DV7 · Frente al Parque Libertadores,
+diagonal a la Discoteca Seven, La Chorrera, Panamá Oeste · +507 6026-1919 · info@dcasapty.com.

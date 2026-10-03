@@ -111,7 +111,7 @@
             <ul class="o_dcasa_sellos" role="list">
                 <li><i class="fa fa-truck" aria-hidden="true"/><span><strong>Entrega a todo Panamá.</strong> Costo y fecha por WhatsApp.</span></li>
                 <li><i class="fa fa-cube" aria-hidden="true"/><span><strong>Te lo llevas hoy.</strong> Muchos vienen en caja y caben en tu carro.</span></li>
-                <li><i class="fa fa-map-marker" aria-hidden="true"/><span><strong>Míralo en tienda.</strong> Av. Las Américas, La Chorrera.</span></li>
+                <li><i class="fa fa-map-marker" aria-hidden="true"/><span><strong>Míralo en tienda.</strong> frente al Parque Libertadores, La Chorrera.</span></li>
             </ul>
         </xpath>
     </template>
@@ -290,7 +290,7 @@
                             </div>
                             <div class="col-lg-3 pb24">
                                 <h2 class="o_dcasa_kicker">Visítanos</h2>
-                                <p>Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1<br/>La Chorrera, Panamá Oeste</p>
+                                <p>Frente al Parque Libertadores, diagonal a la Discoteca Seven<br/>La Chorrera, Panamá Oeste</p>
                                 <p><a href="/visitanos">Cómo llegar</a></p>
                             </div>
                             <div class="col-lg-3 pb24">

@@ -711,7 +711,7 @@ probablemente subir de `basic` a `standard-1` para aguantar bot + tienda + caja:
 | # | Decisión / cosa que proveer | Por qué |
 |---|---|---|
 | 1 | **¿+507 6026-1919 está en la app WhatsApp Business o en WhatsApp normal?** Si es normal, migrarlo a Business (gratis, mismo número) **antes** de nada | La coexistencia solo funciona con la app Business |
-| 2 | **Cuenta de Meta Business** (business.facebook.com) a nombre de D'CASA Panamá, con **verificación de negocio**: RUC 155779346-2-2026 DV7, aviso de operación, dirección Avenida Las Américas, Urbanización Santa Clara, Local 4550 PB-1, La Chorrera, sitio dcasapty.com con esos datos visibles | Sin verificar: 250 conversaciones iniciadas/día y sin nombre público; la verificación tarda días |
+| 2 | **Cuenta de Meta Business** (business.facebook.com) a nombre de D'CASA Panamá, con **verificación de negocio**: RUC 155779346-2-2026 DV7, aviso de operación, dirección Frente al Parque Libertadores, diagonal a la Discoteca Seven, La Chorrera, Panamá Oeste, sitio dcasapty.com con esos datos visibles | Sin verificar: 250 conversaciones iniciadas/día y sin nombre público; la verificación tarda días |
 | 3 | **Quién es administrador** de ese Meta Business y de la app (correo de la dueña + uno técnico) | Los tokens salen de ahí; nunca se pegan en chats |
 | 4 | **Nombre público del bot** («Juan, asistente de D'CASA» o solo «D'CASA») y confirmación de que se presenta como automático | Obligación de honestidad; política de Meta |
 | 5 | **Modelo y presupuesto de IA**: arrancar con Haiku 4.5 (≈ $8/mes) y subir a Sonnet 5.5 si la calidad lo pide; **tope mensual** (p. ej. $30) | El tope evita sustos; el CRM baja de modelo solo, nunca se calla |

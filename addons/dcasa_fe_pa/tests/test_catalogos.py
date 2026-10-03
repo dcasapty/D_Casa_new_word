@@ -20,7 +20,7 @@ def datos_minimos(**cambios):
                 'iDest': '1', 'iFormCAFE': '3', 'iEntCAFE': '2', 'dEnvFE': '1', 'iProGen': '1',
                 'iTipoTranVenta': '1'},
         'emisor': {'tipo_ruc': '2', 'ruc': '155779346-2-2026', 'dv': '07', 'nombre': "D'CASA Panamá",
-                   'sucursal': '0000', 'direccion': 'Avenida Las Américas, La Chorrera',
+                   'sucursal': '0000', 'direccion': 'Frente al Parque Libertadores, La Chorrera',
                    'ubicacion': {'codigo': '8-8-8', 'corregimiento': 'X', 'distrito': 'Y', 'provincia': 'Z'},
                    'telefonos': ['6026-1919'], 'correos': ['info@dcasapty.com']},
         'receptor': {'tipo': '02', 'nombre': 'Ana Gómez', 'pais': 'PA', 'telefonos': [], 'correos': []},
