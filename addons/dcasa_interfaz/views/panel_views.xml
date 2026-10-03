@@ -93,10 +93,7 @@
         Menús que la vendedora no usa: se limitan a quien sí (Gerencia los conserva).
         Solo cambia lo que se ve en la barra; los permisos de cada modelo siguen iguales.
     -->
-    <!-- «Sitio web» (editor, SEO, HTML/CSS): solo quien edita el sitio. Ver la tienda sigue en el Inicio. -->
-    <record id="website.menu_website_configuration" model="ir.ui.menu">
-        <field name="group_ids" eval="[Command.set([ref('website.group_website_restricted_editor')])]"/>
-    </record>
+    <!-- «Sitio web»: Gerencia, y solo con lo que se usa (views/sitio_views.xml: el sitio se edita por código). -->
     <!-- Facturación › Proveedores (facturas y pagos a proveedores): contabilidad (Gerencia). -->
     <record id="account.menu_finance_payables" model="ir.ui.menu">
         <field name="group_ids" eval="[Command.set([ref('account.group_account_user')])]"/>

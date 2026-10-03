@@ -111,6 +111,11 @@ export class DcasaInicio extends Component {
     verTienda() {
         window.open("/shop", "_blank");
     }
+
+    /** El sitio público en un marco de teléfono (vista_previa.js); sin modo edición. */
+    vistaPrevia() {
+        this.action.doAction("dcasa_interfaz.action_dcasa_vista_previa");
+    }
 }
 
 registry.category("actions").add("dcasa_inicio", DcasaInicio);

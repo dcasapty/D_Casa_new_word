@@ -103,7 +103,10 @@ class TestInterfazWeb(HttpCase):
         self.assertIn('o_dcasa_grafico_barra', contenido)
         js = re.findall(r'src="([^"]*web\.assets_web[^"]*\.js)"', html)
         self.assertTrue(js, 'El backend enlaza su JavaScript')
-        self.assertIn('DcasaBarraLateral', self.url_open(js[0]).text)
+        codigo = self.url_open(js[0]).text
+        self.assertIn('DcasaBarraLateral', codigo)
+        self.assertIn('DcasaVistaPrevia', codigo)
+        self.assertIn('o_dcasa_vp_marco', contenido)
         self.assertNotIn('css error', contenido.lower())
 
     def test_barra_lateral_tercer_nivel(self):
