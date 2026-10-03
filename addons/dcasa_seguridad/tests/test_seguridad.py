@@ -175,6 +175,29 @@ class TestSeguridad(TransactionCase):
             self.env['res.users']._dcasa_avisar_admins(self.admin, 'hola')
             enviar.assert_not_called()
 
+    def test_aviso_operacion_por_el_mismo_canal(self):
+        """Disco/memoria/base (dcasa_base) avisan a los administradores vinculados por Telegram."""
+        Users = self.env['res.users']
+        with patch.object(ResUsers, '_dcasa_enviar_aviso', autospec=True) as enviar:
+            if 'brian.telegram.enlace' not in self.env:
+                # Sin dcasa_brian no hay canal: lo dice (False) y no intenta mandar nada.
+                self.assertFalse(Users._dcasa_avisar_operacion('disco al 85 %'))
+                enviar.assert_not_called()
+                return
+            self.assertFalse(Users._dcasa_avisar_operacion('nadie vinculado'))
+            self.env['brian.telegram.enlace'].sudo().create({'user_id': self.admin.id, 'chat_id': '777'})
+            self.env['brian.telegram.enlace'].sudo().create({'user_id': self.vendedora.id, 'chat_id': '888'})
+            self.assertTrue(Users._dcasa_avisar_operacion('disco al 85 %'))
+            enviar.assert_called_once()
+            self.assertEqual(enviar.call_args.args[1:], (['777'], 'disco al 85 %'))
+            enviar.reset_mock()
+            self.ICP.set_param('dcasa_seguridad.aviso_operacion', '0')
+            self.assertFalse(Users._dcasa_avisar_operacion('disco al 85 %'))
+            enviar.assert_not_called()
+            # El aviso de inicio de sesión tiene su propio interruptor: sigue saliendo.
+            Users._dcasa_avisar_admins(self.admin, 'entró admin')
+            enviar.assert_called_once()
+
     # --- robots.txt ---------------------------------------------------------------------
 
     def test_robots_ia(self):

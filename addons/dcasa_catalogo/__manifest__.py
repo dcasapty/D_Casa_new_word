@@ -22,10 +22,13 @@ las ventas y la tienda web.
 * Black Weekend: marca los 12 productos elegidos por la dueña (catalogo.BLACK_WEEKEND, por código;
   908K con su variante negra destacada). La ventana de la campaña vive en website_dcasa.
 * Existencias de prueba solo en staging (dcasa_catalogo.stock_prueba; producción siempre 0).
+* Inventario del sistema anterior (data/inventario_anterior.csv, transcrito de las capturas de
+  «up media/inventario-anterior»): existencias, costo y precio por código; los códigos nuevos
+  entran como productos (publicados solo con foto); combos con colchón sin publicar.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.6.0',
+    'version': '19.0.1.7.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
