@@ -1,6 +1,6 @@
 {
     'name': "D'CASA Panamá — Sitio web",
-    'summary': "Sitio web y tienda de D'CASA con su marca, editable desde el constructor de Odoo",
+    'summary': "Sitio web y tienda de D'CASA con su marca, mantenido desde el código (sin constructor)",
     'description': """
 Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 
