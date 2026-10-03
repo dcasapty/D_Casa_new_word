@@ -47,6 +47,7 @@ class TestPremioEjemploAlmohadas(CarritoCommon):
         premio = self.recrear()
         self.assertTrue(premio)
         self.assertFalse(premio.product_id)
+        self.assertFalse(premio.descripcion, 'el socio no ve notas internas en el catálogo')
         self.assertEqual((premio.valor, premio.costo, premio.puntos, premio.cantidad), (0, 0, 400, 2))
 
     def test_se_crea_una_sola_vez(self):

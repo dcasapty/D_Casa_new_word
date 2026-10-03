@@ -40,6 +40,11 @@ código `DCA…` o el nombre del padrino.
 - **Catálogo público** en `dcasapty.com/socios/premios`: foto, nombre y puntos de cada premio
   (lo que Gerencia edita en *Socios → Configuración → Premios*). «Pedir» crea el canje de siempre
   (código de 72 h, puntos reservados); la página enseña el estado y si se recoge o se enseña al pagar.
+- **Premio de ejemplo** (decisión de la dueña, 03/10/2026): «Dos almohadas» por 400 puntos, de
+  producto, ligado a `ALMOHADA001` × 2 si ese producto ya está en la base (si no, sin producto). Se crea
+  una sola vez desde `data/premios_data.xml`; Gerencia lo edita o lo archiva y no vuelve a aparecer.
+  **Ojo:** `saldoMinimoParaCanjear` (500) se compara hoy contra los puntos **del premio**, así que un
+  premio de 400 no se puede pedir hasta que la dueña decida (ver `docs/auditoria/ronda7/socios-web.md`).
 
 **En la tienda web (puntos en el carrito):**
 - Un socio **con cuenta de la tienda** (usuario del portal; la misma ficha `res.partner`, llave =
@@ -52,6 +57,8 @@ código `DCA…` o el nombre del padrino.
   `premios` (por defecto: solo los premios del catálogo) o `todo` (además, el socio elige cuántos puntos
   usar contra cualquier producto; el descuento sale de `canje.puntosPorDolar` en `puntos.json`,
   redondeado hacia abajo al centavo, respetando `saldoMinimoParaCanjear`). Los dos modos están probados.
+  **Decisión de la dueña (03/10/2026): el canje es SOLO por premios que define el administrador**, así
+  que se queda en `premios`; `todo` existe y está probado, pero no está activo.
 - La compra web suma puntos **solo cuando su factura queda pagada**, como cualquier otra, y sobre lo
   que de verdad pagó (ya con el premio descontado).
 

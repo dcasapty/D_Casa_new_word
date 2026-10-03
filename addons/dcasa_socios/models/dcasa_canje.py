@@ -68,7 +68,7 @@ class DcasaPremio(models.Model):
         producto = self.env['product.product'].sudo().search([('default_code', '=', codigo_producto)], limit=1)
         valores = {
             'name': nombre,
-            'descripcion': producto.name if producto else self.env._('Premio de ejemplo: edítalo o archívalo.'),
+            'descripcion': producto.name or False,  # lo lee el socio: nada de notas internas
             'tipo': 'producto',
             'puntos': puntos,
             'product_id': producto.id,
