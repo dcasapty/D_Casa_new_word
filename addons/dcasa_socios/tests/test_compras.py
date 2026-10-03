@@ -1,6 +1,7 @@
 from odoo.exceptions import UserError
 from odoo.tests import tagged
 
+from ..models import reglas as R
 from .common import SociosCommon
 
 
@@ -14,7 +15,7 @@ class TestCompras(SociosCommon):
         compra = factura.dcasa_compra_ids
         self.assertEqual(len(compra), 1)
         self.assertEqual((compra.monto_centavos, compra.puntos), (35309, 353))
-        self.assertEqual(compra.reglas_version, 2)
+        self.assertEqual(compra.reglas_version, R.cargar_reglas()['version'])
         self.assertTrue(self.cliente.dcasa_socio_codigo, 'La ficha se abre sola con la primera compra')
         self.assertEqual(self.cliente.dcasa_celular, '60000002')
         self.assertEqual(self.cliente.dcasa_saldo, 353)

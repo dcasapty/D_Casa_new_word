@@ -5,3 +5,4 @@ from . import test_canjes
 from . import test_app
 from . import test_seguridad_rpc
 from . import test_roles
+from . import test_socios_web

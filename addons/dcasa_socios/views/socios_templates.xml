@@ -19,6 +19,13 @@
                 </div>
                 <div class="o_dcasa_band" aria-hidden="true"/>
                 <div class="container py-4 o_dcasa_socios_body">
+                    <!-- Va en el cuerpo (no en la cabecera): website_dcasa reemplaza la cabecera por su foto. -->
+                    <nav class="o_dcasa_socios_nav mb-4" aria-label="Socios">
+                        <a href="/socios/cuenta">Mi cuenta</a>
+                        <a href="/socios/premios">Premios</a>
+                        <a href="/socios/terminos">Reglas</a>
+                        <a href="/shop">Tienda</a>
+                    </nav>
                     <t t-call="dcasa_socios.socios_aviso"/>
                     <t t-out="0"/>
                 </div>
@@ -29,6 +36,11 @@
     <template id="socios_inicio" name="Socios: entrar">
         <t t-call="dcasa_socios.socios_layout">
             <t t-set="titulo">Tus puntos D'CASA</t>
+            <div t-if="ficha_sin_celular" class="alert alert-info">
+                Tienes cuenta en la tienda, pero tu ficha no tiene un celular de Panamá o ese celular ya es de otra
+                cuenta de socio. Si ya eres socio, entra abajo con tu celular y tu PIN; si no, escríbenos por WhatsApp
+                y lo arreglamos.
+            </div>
             <div class="row g-4">
                 <div class="col-lg-5">
                     <div class="o_dcasa_socios_card">
@@ -56,7 +68,9 @@
                             <li><strong>Invitas y ganas.</strong> Cuando alguien que invitaste hace su primera compra,
                                 tú ganas <t t-out="fmt_puntos(reglas['referido']['puntosAlPadrino'])"/> puntos y esa persona
                                 <t t-out="fmt_puntos(reglas['referido']['puntosAlAhijado'])"/>.</li>
-                            <li><strong>Cambias por premios.</strong> 100 puntos = $1 en descuentos en la tienda.</li>
+                            <li><strong>Cambias por premios.</strong>
+                                <t t-if="reglas['canje'].get('puntosPorDolar')"><t t-out="fmt_puntos(reglas['canje']['puntosPorDolar'])"/> puntos = $1 en descuentos en la tienda.</t>
+                                <t t-else="">Mira el <a href="/socios/premios">catálogo de premios</a>.</t></li>
                         </ol>
                         <a href="/socios/terminos">Ver todas las reglas</a>
                     </div>
@@ -193,24 +207,23 @@
                     </div>
 
                     <div class="o_dcasa_socios_card mb-4">
-                        <h2 class="h5">Premios</h2>
-                        <div class="row g-2">
-                            <div t-foreach="premios" t-as="premio" class="col-sm-6">
-                                <div class="o_dcasa_socios_premio h-100">
-                                    <div class="fw-bold" t-out="premio.name"/>
-                                    <div class="small text-muted" t-out="premio.descripcion"/>
-                                    <div class="my-2"><strong t-out="fmt_puntos(premio.puntos)"/> puntos</div>
-                                    <form action="/socios/canjear" method="post"
-                                          t-att-data-confirmar="'¿Pedir «%s»? Se descuentan %s puntos de tu saldo.' % (premio.name, fmt_puntos(premio.puntos))"
-                                          onsubmit="return confirm(this.dataset.confirmar)">
-                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
-                                        <input type="hidden" name="premio_id" t-att-value="premio.id"/>
-                                        <button t-if="saldo &gt;= premio.puntos" type="submit" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Pedir</button>
-                                        <span t-else="" class="small">Te faltan <t t-out="fmt_puntos(premio.puntos - saldo)"/></span>
-                                    </form>
-                                </div>
+                        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                            <div>
+                                <h2 class="h5 mb-1">Premios</h2>
+                                <p class="small text-muted mb-0"><t t-out="len(premios)"/> premios en el catálogo.
+                                    Pídelos aquí y recógelos o úsalos en la tienda.</p>
                             </div>
+                            <a href="/socios/premios" class="btn btn-primary o_dcasa_socios_btn_toque">Ver el catálogo</a>
                         </div>
+                        <ul t-if="historial" class="list-unstyled mt-3 mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="historial" t-as="h" class="d-flex justify-content-between gap-3">
+                                <span><span t-out="h.premio_nombre"/>
+                                    <br/><small class="text-muted"><span class="o_dcasa_socios_codigo" t-out="h.codigo"/> ·
+                                    <span t-field="h.solicitado_en" t-options="{'widget': 'date', 'tz_name': 'America/Panama'}"/></small></span>
+                                <span t-attf-class="badge align-self-center #{'text-bg-success' if h.estado == 'entregado' else 'text-bg-light'}"
+                                      t-out="estados_canje[h.estado]"/>
+                            </li>
+                        </ul>
                     </div>
 
                     <div class="o_dcasa_socios_card">
@@ -231,10 +244,162 @@
                     <div class="d-flex gap-3 mt-3">
                         <a href="/socios/pin">Cambiar mi PIN</a>
                         <a href="/socios/terminos">Reglas del programa</a>
-                        <form action="/socios/salir" method="post" class="ms-auto">
+                        <a t-if="sesion_tienda" href="/my" class="ms-auto">Mi cuenta de la tienda</a>
+                        <form action="/socios/salir" method="post" t-att-class="'' if sesion_tienda else 'ms-auto'">
                             <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                             <button type="submit" class="btn btn-link p-0">Salir</button>
                         </form>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Cuenta unificada: el usuario de la tienda es la misma ficha; entra al programa eligiendo un PIN. -->
+    <template id="socios_activar" name="Socios: activar desde la tienda">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Activa tus puntos</t>
+            <div class="o_dcasa_socios_card mx-auto" style="max-width: 36rem;">
+                <p>Hola, <strong t-out="(ficha.name or '').split(' ')[0]"/>. Tu cuenta de la tienda y tu cuenta de
+                    socio son la misma: tus compras ya suman puntos a tu celular
+                    <strong t-out="celular[:4] + '-' + celular[4:]"/>. Elige un PIN para ver tu saldo, invitar y pedir premios,
+                    también de pie en la tienda.</p>
+                <form action="/socios/activar" method="post" class="o_dcasa_socios_form">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label for="pin">Elige un PIN (6 números)</label>
+                            <input id="pin" name="pin" type="password" inputmode="numeric" maxlength="6"
+                                   autocomplete="new-password" class="form-control" required="required"/>
+                        </div>
+                        <div class="col-6">
+                            <label for="pin2">Repítelo</label>
+                            <input id="pin2" name="pin2" type="password" inputmode="numeric" maxlength="6"
+                                   autocomplete="new-password" class="form-control" required="required"/>
+                        </div>
+                    </div>
+                    <t t-if="not ficha.dcasa_cumple">
+                        <label>Tu cumpleaños (opcional: te regalamos puntos)</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select name="cumple_dia" class="form-select" aria-label="Día">
+                                    <option value="">Día</option>
+                                    <t t-foreach="range(1, 32)" t-as="dia">
+                                        <option t-att-value="dia" t-att-selected="str(dia) == datos.get('cumple_dia')" t-out="dia"/>
+                                    </t>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select name="cumple_mes" class="form-select" aria-label="Mes">
+                                    <option value="">Mes</option>
+                                    <t t-foreach="meses" t-as="mes">
+                                        <option t-att-value="mes_index + 1" t-att-selected="str(mes_index + 1) == datos.get('cumple_mes')" t-out="mes"/>
+                                    </t>
+                                </select>
+                            </div>
+                        </div>
+                    </t>
+                    <div class="form-check mt-3">
+                        <input id="acepta" name="acepta" type="checkbox" class="form-check-input" required="required"/>
+                        <label for="acepta" class="form-check-label">Acepto los
+                            <a href="/socios/terminos" target="_blank">términos del programa</a> y el uso de mis datos
+                            para administrar mis puntos (Ley 81 de 2019).</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Activar mis puntos</button>
+                </form>
+                <p class="mt-3 mb-0 small text-muted">¿Ya tenías cuenta de socio con otro celular? Sal de la tienda y
+                    <a href="/socios">entra con tu celular y tu PIN</a>.</p>
+            </div>
+        </t>
+    </template>
+
+    <!-- El catálogo de premios: lo que Gerencia edita en Socios > Premios (foto, nombre, puntos). -->
+    <template id="socios_premios" name="Socios: catálogo de premios">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Premios</t>
+            <div class="row g-4">
+                <div class="col-lg-4" t-if="socio">
+                    <div class="o_dcasa_socios_saldo">
+                        <div class="o_dcasa_kicker">Tus puntos</div>
+                        <div class="o_dcasa_socios_saldo_n" t-out="fmt_puntos(saldo)"/>
+                        <div>Pides aquí, te sale un código y lo enseñas en la tienda.
+                            Tienes <t t-out="reglas['canje']['vigenciaDelCodigoHoras']"/> horas; si no, los puntos vuelven solos.</div>
+                    </div>
+                    <div t-if="canjes" class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Por recoger</h2>
+                        <div t-foreach="canjes" t-as="canje" class="o_dcasa_socios_canje">
+                            <div>
+                                <div class="o_dcasa_socios_codigo fs-3" t-out="canje.codigo"/>
+                                <div t-out="canje.premio_nombre"/>
+                                <div class="small text-muted">
+                                    <t t-if="canje.origen == 'web'">Aplicado en tu carrito de la tienda web.</t>
+                                    <t t-elif="canje.premio_tipo == 'producto'">Recógelo en la tienda antes del</t>
+                                    <t t-else="">Enséñalo al pagar antes del</t>
+                                    <span t-if="canje.origen != 'web'" t-field="canje.expira_en" t-options="{'widget': 'datetime', 'tz_name': 'America/Panama', 'format': 'dd/MM/yyyy h:mm a'}"/>
+                                </div>
+                            </div>
+                            <form t-if="canje.origen != 'web'" t-attf-action="/socios/canjes/#{canje.codigo}/cancelar" method="post"
+                                  data-confirmar="¿Cancelar este premio? Los puntos vuelven a tu saldo."
+                                  onsubmit="return confirm(this.dataset.confirmar)">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <input type="hidden" name="volver" value="premios"/>
+                                <button type="submit" class="btn btn-link o_dcasa_socios_btn_toque">Cancelar</button>
+                            </form>
+                        </div>
+                    </div>
+                    <div t-if="historial" class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Tus premios anteriores</h2>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="historial" t-as="h" class="d-flex justify-content-between gap-3">
+                                <span><span t-out="h.premio_nombre"/>
+                                    <br/><small class="text-muted" t-field="h.solicitado_en" t-options="{'widget': 'date', 'tz_name': 'America/Panama'}"/></span>
+                                <span t-attf-class="badge align-self-center #{'text-bg-success' if h.estado == 'entregado' else 'text-bg-light'}"
+                                      t-out="estados_canje[h.estado]"/>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-lg-4" t-else="">
+                    <div class="o_dcasa_socios_card">
+                        <h2 class="h5">¿Ya eres socio?</h2>
+                        <p>Entra con tu celular y tu PIN para pedir un premio. Si todavía no, regístrate: tus compras en
+                            D'CASA ya pueden estar sumando puntos.</p>
+                        <a href="/socios" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Entrar</a>
+                        <a href="/socios/registro" class="btn btn-outline-primary w-100 mt-2 o_dcasa_socios_btn_toque">Hazte socio</a>
+                    </div>
+                </div>
+                <div class="col-lg-8">
+                    <p t-if="not premios" class="text-muted">Pronto habrá premios en el catálogo.</p>
+                    <div class="row g-3 o_dcasa_premios_grid">
+                        <div t-foreach="premios" t-as="premio" class="col-6 col-md-4">
+                            <article class="o_dcasa_premio h-100">
+                                <div class="o_dcasa_premio_foto">
+                                    <img t-if="premio.image_512" t-att-src="image_data_uri(premio.image_512)" t-att-alt="premio.name"
+                                         loading="lazy" width="512" height="512"/>
+                                    <div t-else="" class="o_dcasa_premio_sin_foto" aria-hidden="true">
+                                        <span t-if="premio.tipo == 'descuento' and premio.valor" t-out="fmt_dolares(int(round(premio.valor * 100)))"/>
+                                        <i t-else="" class="fa fa-gift"/>
+                                    </div>
+                                </div>
+                                <div class="o_dcasa_premio_cuerpo">
+                                    <span class="o_dcasa_kicker" t-out="'Descuento en la tienda' if premio.tipo == 'descuento' else 'Recógelo en la tienda'"/>
+                                    <h2 class="h6 mb-1" t-out="premio.name"/>
+                                    <p t-if="premio.descripcion" class="small text-muted mb-2" t-out="premio.descripcion"/>
+                                    <div class="o_dcasa_premio_puntos"><strong t-out="fmt_puntos(premio.puntos)"/> puntos</div>
+                                    <div t-if="premio.stock_limitado" class="small text-muted">Quedan <t t-out="premio.stock"/></div>
+                                    <form t-if="socio" action="/socios/canjear" method="post" class="mt-2"
+                                          t-att-data-confirmar="'¿Pedir «%s»? Se descuentan %s puntos de tu saldo.' % (premio.name, fmt_puntos(premio.puntos))"
+                                          onsubmit="return confirm(this.dataset.confirmar)">
+                                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                        <input type="hidden" name="premio_id" t-att-value="premio.id"/>
+                                        <input type="hidden" name="volver" value="premios"/>
+                                        <button t-if="saldo &gt;= premio.puntos" type="submit" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Pedir</button>
+                                        <span t-else="" class="small d-block">Te faltan <t t-out="fmt_puntos(premio.puntos - saldo)"/></span>
+                                    </form>
+                                    <a t-else="" href="/socios" class="btn btn-outline-primary w-100 mt-2 o_dcasa_socios_btn_toque">Entra para pedirlo</a>
+                                </div>
+                            </article>
+                        </div>
                     </div>
                 </div>
             </div>

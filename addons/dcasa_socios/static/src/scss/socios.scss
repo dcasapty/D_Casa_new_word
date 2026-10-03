@@ -101,3 +101,224 @@ $dcasa-amarillo: #FED00F;
     min-height: 44px;
     min-width: 44px;
 }
+
+// ---------------------------------------------------------------------------
+// Socios en la web (ronda 7): nav de la app, catálogo de premios, carrito y /my.
+// Mismo sistema plano: placa azul con cifras amarillas; el amarillo solo sobre azul.
+// ---------------------------------------------------------------------------
+
+$dcasa-navy: #0B2A6F;
+
+.o_dcasa_socios_nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .25rem 1.25rem;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-size: .95rem;
+
+    a {
+        color: $dcasa-azul;  // sobre el fondo blanco del cuerpo: azul, nunca amarillo
+        text-decoration: underline;
+        text-underline-offset: .2em;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+    }
+}
+
+// Catálogo de premios: tarjeta con foto cuadrada (la que sube Gerencia) o placa azul con el valor.
+.o_dcasa_premio {
+    background: #FFFFFF;
+    border: 2px solid rgba($dcasa-azul, .12);
+    border-radius: 1rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.o_dcasa_premio_foto {
+    aspect-ratio: 1;
+    background: $dcasa-azul;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.o_dcasa_premio_sin_foto {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-size: clamp(2rem, 7vw, 3rem);
+    color: $dcasa-amarillo;
+
+    .fa {
+        font-size: 3rem;
+    }
+}
+
+.o_dcasa_premio_cuerpo {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+
+    .o_dcasa_kicker {
+        font-size: .7rem;
+    }
+
+    form,
+    > a {
+        margin-top: auto !important;
+    }
+}
+
+.o_dcasa_premio_puntos {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.15rem;
+    color: $dcasa-azul;
+}
+
+// Carrito: el paso «Usar mis puntos» va dentro de una placa azul; los premios son botones amarillos.
+.o_dcasa_carrito_puntos_placa {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    border-radius: 1rem;
+    padding: 1.5rem;
+
+    .o_dcasa_kicker {
+        color: rgba(255, 255, 255, .88);
+    }
+
+    a {
+        color: #FFFFFF;
+    }
+
+    .form-control {
+        min-height: 3rem;
+    }
+}
+
+.o_dcasa_carrito_puntos_saldo {
+    display: flex;
+    align-items: baseline;
+    gap: .35rem;
+    white-space: nowrap;
+}
+
+.o_dcasa_carrito_puntos_n {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-size: 2.25rem;
+    line-height: 1;
+    color: $dcasa-amarillo;
+}
+
+.o_dcasa_carrito_premios {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    gap: .75rem;
+
+    form {
+        display: contents;
+    }
+}
+
+.o_dcasa_carrito_premio {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .15rem;
+    padding: .75rem 1rem;
+    border: 0;
+    border-radius: .75rem;
+    background: $dcasa-amarillo;  // amarillo sobre azul: la única combinación permitida
+    color: $dcasa-navy;
+    text-align: left;
+    font-weight: 600;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+        outline: 3px solid #FFFFFF;
+    }
+
+    &.o_dcasa_carrito_premio_lejos,
+    &:disabled {
+        background: rgba(255, 255, 255, .12);
+        color: rgba(255, 255, 255, .8);
+    }
+}
+
+.o_dcasa_carrito_premio_valor {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+}
+
+.o_dcasa_carrito_puntos_nota {
+    border: 2px solid rgba($dcasa-azul, .12);
+    border-radius: 1rem;
+    padding: 1rem 1.25rem;
+
+    a {
+        text-decoration: underline;
+        text-underline-offset: .15em;
+    }
+}
+
+// /my: la tarjeta del programa, azul, delante de las de Odoo.
+.o_dcasa_portal_socio {
+    background: $dcasa-azul;
+    color: #FFFFFF;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+
+    .o_dcasa_kicker {
+        color: rgba(255, 255, 255, .88);
+    }
+}
+
+.o_dcasa_portal_socio_saldo {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-size: clamp(2.25rem, 8vw, 3rem);
+    line-height: 1;
+    color: $dcasa-amarillo;
+    margin: .25rem 0 .5rem;
+
+    small {
+        font-family: 'Oswald', sans-serif;
+        font-size: 1rem;
+        color: #FFFFFF;
+    }
+}
+
+.o_dcasa_portal_socio_btn {
+    background: $dcasa-amarillo;
+    color: $dcasa-navy;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    min-height: 44px;
+    padding-inline: 1.25rem;
+    border: 0;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $dcasa-azul;
+    }
+}

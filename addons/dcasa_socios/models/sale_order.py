@@ -94,6 +94,28 @@ class SaleOrder(models.Model):
             if premios:
                 order.cart_quantity -= int(sum(premios.mapped('product_uom_qty')))
 
+    def _cart_update_line_quantity(self, line_id, quantity, **kwargs):
+        """La línea del premio solo se quita (y eso devuelve los puntos): cambiarle la cantidad
+        multiplicaría el descuento. El botón de la tienda no lo permite; esta guarda cubre la RPC."""
+        linea = self.order_line.filtered(lambda sol: sol.id == line_id and sol.dcasa_canje_id)
+        if linea and quantity > 0:
+            return {
+                'added_qty': 0,
+                'line_id': linea.id,
+                'quantity': linea.product_uom_qty,
+                'warning': self.env._('El premio se usa una sola vez. Si no lo quieres, quítalo.'),
+            }
+        return super()._cart_update_line_quantity(line_id, quantity, **kwargs)
+
+    def _verify_cart_after_update(self):
+        res = super()._verify_cart_after_update()
+        # Si la bolsa se achicó por debajo del premio o el código venció, el premio sale solo
+        # y los puntos vuelven (se avisa en la página del carrito).
+        aviso = self._dcasa_limpiar_premios_web()
+        if aviso:
+            self.shop_warning = aviso
+        return res
+
     @api.model
     def _dcasa_modo_puntos_en_carrito(self):
         modo = self.env['ir.config_parameter'].sudo().get_param(PARAM_PUNTOS_EN_CARRITO, 'premios')
@@ -123,7 +145,7 @@ class SaleOrder(models.Model):
         (vencieron o se cancelaron) y, si el carrito se achicó por debajo del premio, se quita el
         premio y sus puntos vuelven. Devuelve el aviso para el socio, si lo hay."""
         self.ensure_one()
-        if self.state != 'draft':
+        if self.state != 'draft' or not self.website_id:
             return None
         aviso = None
         lineas = self._dcasa_lineas_premio().sudo()
@@ -133,7 +155,8 @@ class SaleOrder(models.Model):
             aviso = self.env._('El código de tu premio venció o se canceló: lo quitamos del carrito.')
         vivas = lineas - caducas
         if vivas and self._dcasa_total_sin_premios() < R.a_centavos(sum(vivas.dcasa_canje_id.mapped('valor'))):
-            self._dcasa_quitar_puntos_web(self.env._('Tu carrito quedó por debajo del premio: te devolvimos los puntos.'))
+            self._dcasa_quitar_puntos_web(
+                self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.'))
             aviso = self.env._('Tu carrito quedó por debajo del descuento del premio: te devolvimos los puntos.')
         return aviso
 
@@ -142,6 +165,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
         reglas = R.cargar_reglas()
         socio = self._dcasa_socio_del_carrito()
+        minimo = reglas['canje'].get('saldoMinimoParaCanjear') or 0
         valores = {
             'dcasa_socio': socio,
             'dcasa_modo_puntos': self._dcasa_modo_puntos_en_carrito(),
@@ -153,14 +177,15 @@ class SaleOrder(models.Model):
             'dcasa_premios': self.env['dcasa.premio'],
             'dcasa_puntos_libres_max': 0,
             'dcasa_saldo': 0,
+            'dcasa_minimo': minimo,
+            'dcasa_total_centavos': 0,
         }
         if not socio or self.state != 'draft':
             return valores
         saldo = socio.dcasa_saldo
         total = self._dcasa_total_sin_premios()
-        minimo = reglas['canje'].get('saldoMinimoParaCanjear') or 0
         valores['dcasa_saldo'] = saldo
-        valores['dcasa_minimo'] = minimo
+        valores['dcasa_total_centavos'] = total
         valores['dcasa_premios'] = self.env['dcasa.premio']._catalogo('descuento').filtered(
             lambda p: p.puntos >= minimo and R.a_centavos(p.valor) <= total)
         if valores['dcasa_modo_puntos'] == 'todo':
@@ -181,6 +206,7 @@ class SaleOrder(models.Model):
             raise UserError(self.env._('Para usar tus puntos entra a tu cuenta de socio.'))
         if self.state != 'draft':
             raise UserError(self.env._('Este pedido ya no es un carrito.'))
+        self._dcasa_limpiar_premios_web()
         if self._dcasa_lineas_premio().filtered(lambda line: line.dcasa_canje_id.estado == 'solicitado'):
             raise UserError(self.env._('Ya tienes un premio en este carrito. Quítalo para elegir otro.'))
         reglas = R.cargar_reglas()
@@ -188,13 +214,18 @@ class SaleOrder(models.Model):
         if total <= 0:
             raise UserError(self.env._('Tu carrito está vacío: agrega productos antes de usar tus puntos.'))
         Premio = self.env['dcasa.premio'].sudo()
-        if premio is None or not premio:
+        if not premio:
             if self._dcasa_modo_puntos_en_carrito() != 'todo':
                 raise UserError(self.env._('En la tienda web los puntos se usan con los premios del catálogo.'))
             premio = Premio.search([('libre', '=', True)], limit=1)
             if not premio:
                 raise UserError(self.env._('El canje libre no está configurado.'))
-            valor_centavos = R.centavos_de_puntos(puntos, reglas) if isinstance(puntos, int) and puntos > 0 else 0
+            if not isinstance(puntos, int) or isinstance(puntos, bool) or puntos <= 0:
+                raise UserError(self.env._('Escribe cuántos puntos quieres usar.'))
+            try:
+                valor_centavos = R.centavos_de_puntos(puntos, reglas)
+            except R.FaltaConfigurar as error:
+                raise UserError(self.env._('El canje libre no está configurado.')) from error
         else:
             premio = premio.sudo()
             if premio.libre or premio.tipo != 'descuento' or premio not in Premio._catalogo('descuento'):
@@ -226,6 +257,10 @@ class SaleOrderLine(models.Model):
     def _dcasa_exenta_tope_descuento(self):
         # La línea de premio es negativa por diseño: la pagan los puntos, no la vendedora.
         return super()._dcasa_exenta_tope_descuento() or bool(self.dcasa_canje_id)
+
+    def _is_sellable(self):
+        # En el carrito, la línea del premio no enlaza a ningún producto ni cambia de cantidad.
+        return super()._is_sellable() and not self.dcasa_canje_id
 
     def unlink(self):
         # En un carrito web, quitar la línea del premio (el botón «Quitar» de la tienda) devuelve los

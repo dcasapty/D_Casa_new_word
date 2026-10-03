@@ -5,5 +5,6 @@ from . import dcasa_compra
 from . import dcasa_canje
 from . import account_move
 from . import sale_order
+from . import res_config_settings
 from . import ir_http
 from . import website

@@ -120,6 +120,9 @@ LISTA_BLANCA = {
     ('dcasa_socios', 'dcasa.compra', 'action_anular'): ACCION_VENTANA + ' El asistente es solo de gerencia.',
     ('dcasa_socios', 'dcasa.movimiento', 'write'): 'Bloquea: el libro de puntos no se edita.',
     ('dcasa_socios', 'dcasa.movimiento', 'unlink'): 'Bloquea: el libro de puntos no se borra.',
+    ('dcasa_socios', 'sale.order.line', 'unlink'):
+        OVERRIDE + ' Al quitar la línea del premio de un carrito web devuelve los puntos (sudo solo sobre el '
+                   'canje de esa línea, ya autorizada por el ACL de la línea).',
     ('dcasa_socios', 'dcasa.ajuste.wizard', 'action_confirmar'): ASISTENTE + ' (gerencia)',
     ('dcasa_socios', 'dcasa.anular.compra.wizard', 'action_confirmar'): ASISTENTE + ' (gerencia)',
     ('dcasa_socios', 'dcasa.compra.manual.wizard', 'action_confirmar'): ASISTENTE + ' (gerencia)',
