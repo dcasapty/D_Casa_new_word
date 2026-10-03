@@ -110,6 +110,32 @@ def faltan_para(saldo_actual, puntos_del_premio):
     return max(0, puntos_del_premio - saldo_actual)
 
 
+# ---------------------------------------------------------------------------
+# Canje libre (puntos en el carrito web, modo 'todo')
+# ---------------------------------------------------------------------------
+
+def puntos_por_dolar_al_canjear(reglas):
+    """Cuántos puntos vale un dólar al canjear. Sin la cifra, el canje libre no existe."""
+    valor = reglas['canje'].get('puntosPorDolar')
+    if valor is None or not valor > 0:
+        raise FaltaConfigurar('canje.puntosPorDolar', 'Falta definir cuántos puntos vale un dólar al canjear.')
+    return valor
+
+
+def centavos_de_puntos(puntos, reglas):
+    """Cuánto descuento (en centavos) dan unos puntos. Redondea SIEMPRE hacia abajo."""
+    if not isinstance(puntos, int) or isinstance(puntos, bool) or puntos <= 0:
+        raise ValueError('Los puntos a canjear van en enteros mayores que cero.')
+    return puntos * 100 // puntos_por_dolar_al_canjear(reglas)
+
+
+def puntos_que_caben(centavos, reglas):
+    """Cuántos puntos, como máximo, se pueden gastar contra un importe sin pasarse de él."""
+    if centavos <= 0:
+        return 0
+    return centavos * puntos_por_dolar_al_canjear(reglas) // 100
+
+
 def como_dolares(centavos):
     signo = '-' if centavos < 0 else ''
     enteros, resto = divmod(abs(centavos), 100)

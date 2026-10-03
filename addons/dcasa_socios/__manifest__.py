@@ -21,6 +21,10 @@ a Odoo para que haya un solo sistema:
 * Regalo de cumpleaños automático (una vez al año, con compra previa).
 * App del socio en /socios: se entra con celular + PIN (candado 5→15 min,
   10→24 h). Link para invitar: /r/<código> o ?ref=<código> en cualquier página.
+* Socios en la web: catálogo público de premios en /socios/premios, puntos en el
+  carrito de la tienda (parámetro dcasa_socios.puntos_en_carrito: 'premios' | 'todo')
+  con reverso automático si el pedido se cancela, y cuenta unificada: el usuario de la
+  tienda ve sus puntos en /my y /socios reconoce su sesión (misma ficha, llave celular).
 """,
     'version': '19.0.1.0.0',
     'category': 'Sales/Sales',
@@ -41,6 +45,9 @@ a Odoo para que haya un solo sistema:
         'views/sale_order_views.xml',
         'views/report_invoice.xml',
         'views/socios_templates.xml',
+        'views/website_sale_templates.xml',
+        'views/portal_templates.xml',
+        'views/res_config_settings_views.xml',
         'views/menus.xml',
     ],
     'assets': {

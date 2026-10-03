@@ -9,6 +9,7 @@
                 <field name="codigo"/>
                 <field name="partner_id"/>
                 <field name="premio_nombre"/>
+                <field name="origen" optional="show"/>
                 <field name="puntos" sum="Puntos"/>
                 <field name="currency_id" column_invisible="1"/>
                 <field name="valor" optional="show"/>
@@ -41,6 +42,7 @@
                             <field name="premio_id"/>
                             <field name="premio_nombre"/>
                             <field name="premio_tipo"/>
+                            <field name="origen"/>
                             <field name="puntos"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="valor"/>
@@ -121,6 +123,7 @@
                             <field name="tipo"/>
                             <field name="puntos"/>
                             <field name="active"/>
+                            <field name="libre" invisible="not libre"/>
                         </group>
                         <group>
                             <field name="currency_id" invisible="1"/>
@@ -128,6 +131,8 @@
                             <field name="costo"/>
                             <field name="stock_limitado"/>
                             <field name="stock" invisible="not stock_limitado"/>
+                            <field name="product_id" invisible="tipo != 'producto'"/>
+                            <field name="cantidad" invisible="tipo != 'producto'"/>
                         </group>
                     </group>
                 </sheet>
@@ -139,5 +144,7 @@
         <field name="name">Premios</field>
         <field name="res_model">dcasa.premio</field>
         <field name="view_mode">list,form</field>
+        <!-- El premio técnico del canje libre no es inventario: no se edita desde aquí. -->
+        <field name="domain">[('libre', '=', False)]</field>
     </record>
 </odoo>

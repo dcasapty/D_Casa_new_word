@@ -295,6 +295,26 @@ class ResPartner(models.Model):
         partes = (self.name or '').split()
         return R.nombre_publico(partes[0] if partes else '', ' '.join(partes[1:]))
 
+    def _dcasa_resumen_portal(self):
+        """Lo que ve el usuario de la tienda en /my: su misma ficha es la del programa.
+
+        Valores planos (sin registros) para la plantilla del portal. ``es_socio`` es tener PIN;
+        sin PIN los puntos corren igual y se le invita a activar el programa.
+        """
+        self.ensure_one()
+        ficha = self.commercial_partner_id.sudo()
+        if not ficha or ficha._is_public():
+            return None
+        Canje = self.env['dcasa.canje'].sudo()
+        return {
+            'es_socio': bool(ficha.dcasa_reclamada and ficha.dcasa_socio_estado == 'activo'),
+            'codigo': ficha.dcasa_socio_codigo or '',
+            'saldo': ficha.dcasa_saldo,
+            'saldo_fmt': R.como_puntos(ficha.dcasa_saldo),
+            'premios_pendientes': Canje.search_count([('partner_id', '=', ficha.id), ('estado', '=', 'solicitado')]),
+            'invitados': len(ficha.dcasa_ahijado_ids.filtered('active')),
+        }
+
     # ------------------------------------------------------------------------
     # PIN
     # ------------------------------------------------------------------------

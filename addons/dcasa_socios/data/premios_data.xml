@@ -33,5 +33,24 @@
             <field name="puntos">10000</field><field name="valor">100</field><field name="costo">100</field>
             <field name="sequence">5</field>
         </record>
+        <!-- Premio TÉCNICO del modo «todo» de puntos en el carrito web: el socio elige cuántos puntos
+             usa y el descuento sale de puntos.json (canje.puntosPorDolar). No sale en el catálogo
+             (dcasa.premio._catalogo) y la cifra «puntos» es un marcador: la real la pone cada canje. -->
+        <record id="premio_libre_web" model="dcasa.premio">
+            <field name="name">Puntos en la tienda web</field>
+            <field name="descripcion">Descuento libre con puntos en el carrito de la tienda web.</field>
+            <field name="puntos">1</field><field name="valor">0</field><field name="costo">0</field>
+            <field name="sequence">999</field>
+            <field name="libre" eval="True"/>
+        </record>
     </data>
+    <!-- Premio de EJEMPLO de la dueña (03/10/2026): «Dos almohadas» por 400 puntos. Fuera del bloque
+         noupdate a propósito: así también se crea en una base que ya tenía el módulo. La función es
+         de una sola vez (bandera dcasa_socios.ejemplo_almohadas_creado) y Gerencia lo edita o archiva. -->
+    <function model="dcasa.premio" name="_crear_ejemplo_almohadas">
+        <value>Dos almohadas</value>
+        <value eval="400"/>
+        <value>ALMOHADA001</value>
+        <value eval="2"/>
+    </function>
 </odoo>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_dcasa_socios" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.dcasa.socios</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='discount_sale_order_lines']" position="after">
+                <setting id="dcasa_puntos_en_carrito" string="Socios: puntos en el carrito web"
+                         help="Cómo usa sus puntos un socio en la tienda web. La equivalencia puntos/dólar vive en puntos.json.">
+                    <field name="dcasa_puntos_en_carrito" class="o_light_label" widget="radio"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+</odoo>
