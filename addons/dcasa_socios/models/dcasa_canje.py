@@ -120,9 +120,14 @@ class DcasaCanje(models.Model):
         else:
             puntos_del_premio = premio.puntos
             valor = premio.valor
-        # Serializa los pedidos del mismo socio: dos toques seguidos en un móvil
-        # lento no pueden gastar dos veces el mismo saldo.
-        self.env.cr.execute('SELECT id FROM res_partner WHERE id = %s FOR UPDATE', [ficha.id])
+        # Serializa los pedidos del mismo socio: dos toques seguidos en un móvil lento (o la app y
+        # el carrito web a la vez) no pueden gastar dos veces el mismo saldo. Un SELECT ... FOR UPDATE
+        # no basta: en REPEATABLE READ la segunda transacción obtiene el candado cuando la primera
+        # confirma, pero sigue leyendo el saldo de su foto vieja. Escribir la fila (sin cambiar nada)
+        # hace que PostgreSQL rechace la segunda por actualización concurrente y Odoo la reintenta
+        # con el saldo ya descontado.
+        self.env.cr.execute('UPDATE res_partner SET write_date = write_date WHERE id = %s', [ficha.id])
+        ficha.invalidate_recordset(['dcasa_saldo'])  # el saldo se lee del libro DESPUÉS del candado
         if ficha.dcasa_socio_estado != 'activo':
             raise UserError(self.env._('Tu cuenta está suspendida. Escríbenos por WhatsApp y lo revisamos.'))
         if not premio._disponible():

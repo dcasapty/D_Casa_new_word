@@ -11,7 +11,9 @@ from unittest.mock import patch
 from odoo import Command
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
+from odoo.sql_db import Cursor
 from odoo.tests import HttpCase, new_test_user, tagged
+from odoo.tools import SQL
 
 from ..models import reglas as R
 from ..models.sale_order import PARAM_PUNTOS_EN_CARRITO
@@ -113,6 +115,30 @@ class TestPuntosEnCarrito(CarritoCommon):
         with self.assertRaisesRegex(UserError, 'Te faltan'):
             orden._dcasa_usar_puntos_web(premio=self.env.ref('dcasa_socios.premio_desc_25'))
         self.assertEqual(self.socia.dcasa_saldo, 1500)
+
+    def test_pedir_escribe_la_ficha_para_serializar_el_saldo(self):
+        """App y carrito a la vez: un SELECT ... FOR UPDATE deja a la segunda transacción con su foto
+        vieja del saldo (REPEATABLE READ). Hay que ESCRIBIR la fila de la ficha antes de leer el saldo,
+        para que PostgreSQL rechace la segunda y Odoo la reintente con el saldo ya descontado."""
+        orden = self.carrito()
+        consultas = []
+        ejecutar = Cursor.execute
+
+        def espia(cr, query, params=None, log_exceptions=True):
+            consultas.append(query.code if isinstance(query, SQL) else query)
+            return ejecutar(cr, query, params, log_exceptions)
+
+        self.env.invalidate_all()
+        with patch('odoo.sql_db.Cursor.execute', espia):
+            orden._dcasa_usar_puntos_web(premio=self.diez)
+        escritura = [i for i, q in enumerate(consultas)
+                     if re.match(r'\s*UPDATE\s+"?res_partner"?\s+SET', str(q), re.I) and 'WHERE id' in str(q)]
+        self.assertTrue(escritura, 'pedir un premio escribe la fila de la ficha')
+        lecturas_del_libro = [i for i, q in enumerate(consultas)
+                              if 'dcasa_movimiento' in str(q) and re.match(r'\s*SELECT', str(q), re.I)]
+        self.assertTrue(lecturas_del_libro, 'el saldo se lee del libro dentro de la transacción')
+        self.assertLess(escritura[0], min(lecturas_del_libro), 'la escritura va antes de leer el saldo')
+        self.assertEqual(self.socia.dcasa_saldo, 500)
 
     def test_respeta_el_minimo_para_canjear(self):
         orden = self.carrito()
