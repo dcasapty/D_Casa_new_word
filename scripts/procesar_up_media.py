@@ -86,11 +86,11 @@ def _conocido(nombre):
 def clasificar_uno(entrada, resultado, fecha):
     """Un archivo (o carpeta) de la bandeja → Movimiento, o None si no es asunto de este script."""
     nombre = entrada.name
+    if nombre.startswith('.') or entrada.suffix.lower() == '.md':
+        return None    # .gitkeep, LEEME.md, RESUMEN.md: son de la bandeja misma
     if entrada.is_dir():
         return Movimiento(nombre, 'pendiente', None, MOTIVOS['carpeta'], None)
     sufijo = entrada.suffix.lower()
-    if sufijo == '.md':
-        return None
     if sufijo in EXTENSIONES_EXCEL:
         if nombre == resultado['excel_inicial']:
             return Movimiento(nombre, 'cargado', f'{FUENTES.name}/{CARPETA_INICIAL}', 'Excel de la carga inicial',
@@ -188,7 +188,8 @@ def resumen(movimientos, fecha):
     lineas = [
         '# up media: qué pasó con lo que subiste',
         '',
-        f'Procesado el {fecha} por `scripts/procesar_up_media.py` (lo corre GitHub solo, con cada subida).',
+        f'Procesado el {fecha} por `scripts/procesar_up_media.py` (lo corre GitHub solo, con cada subida: '
+        '`.github/workflows/up-media.yml`; cómo leer esto: `docs/OPERACION.md` › «Cómo subir fotos»).',
         '',
         'Cómo funciona esta carpeta: aquí solo queda lo **pendiente**. Lo que ya se cargó al catálogo está en '
         '`fuentes/<pedido>/` y lo que no era de ningún producto, en `descartado/<fecha>/` (con el motivo en su '
@@ -243,15 +244,12 @@ def main(argv=None):
     if args.simular:
         print(resumen(movimientos, fecha))
         return 0
-    movidos = [m for m in movimientos if m.destino]
     finales = ejecutar(movimientos, RAIZ, ORIGEN, fecha)
-    if movidos or not (ORIGEN / RESUMEN).exists():
-        ORIGEN.mkdir(parents=True, exist_ok=True)
-        (ORIGEN / RESUMEN).write_text(resumen(finales, fecha), encoding='utf-8')
-        subprocess.run(['git', 'add', '--', str(ORIGEN / RESUMEN)], cwd=RAIZ,
-                       capture_output=True, text=True, check=False)
-    else:
-        print('Nada que mover: RESUMEN.md se deja como estaba.')
+    # El RESUMEN se reescribe siempre: lo pendiente también cambia aunque no se mueva nada.
+    ORIGEN.mkdir(parents=True, exist_ok=True)
+    (ORIGEN / RESUMEN).write_text(resumen(finales, fecha), encoding='utf-8')
+    subprocess.run(['git', 'add', '--', str(ORIGEN / RESUMEN)], cwd=RAIZ,
+                   capture_output=True, text=True, check=False)
     conteo = {e: sum(1 for m in finales if m.estado == e) for e in ('cargado', 'conservado', 'descartado', 'pendiente')}
     print(f'up media: {conteo["cargado"]} cargados, {conteo["conservado"]} conservados, '
           f'{conteo["descartado"]} descartados, {conteo["pendiente"]} pendientes.')

@@ -52,6 +52,9 @@ from PIL import Image
 RAIZ = Path(__file__).resolve().parent.parent
 ORIGEN = RAIZ / 'up media'          # bandeja de entrada: solo lo pendiente
 FUENTES = RAIZ / 'fuentes'          # originales ya cargados, por pedido o carga
+# Índice de los originales que scripts/archivar_fuentes.sh pasó a R2 (prefijo fuentes/) y quitó del
+# repositorio: ruta relativa a la raíz, sha256, bytes, fecha. Siguen contando como fuente (por nombre).
+ARCHIVADO = FUENTES / 'ARCHIVADO.tsv'
 EXCEL = 'DCASA_listado_productos.xlsx'
 # Las gráficas de Black Weekend de la dueña (115.png … 153.png) no son fotos de producto:
 # procesar_up_media.py las guarda aquí (y de aquí sale la imagen para compartir).
@@ -217,9 +220,23 @@ def fuentes_disponibles(origen=None, fuentes=None):
                 rutas[f.name] = f
     if fuentes.is_dir():
         for f in sorted(fuentes.rglob('*')):
-            if f.is_file() and f.suffix.lower() != '.md':
+            if f.is_file() and f.suffix.lower() not in ('.md', '.tsv'):
                 rutas.setdefault(f.name, f)
+    for nombre in archivados_en_r2(fuentes / ARCHIVADO.name):
+        rutas.setdefault(nombre, None)   # está en R2, no en disco: ruta_fuente() lo explica
     return rutas
+
+
+def archivados_en_r2(indice=None):
+    """Nombres de los originales que están en R2 según fuentes/ARCHIVADO.tsv (vacío si no hay índice)."""
+    indice = ARCHIVADO if indice is None else indice
+    if not indice.is_file():
+        return []
+    nombres = []
+    for linea in indice.read_text(encoding='utf-8').splitlines():
+        if linea and not linea.startswith('#'):
+            nombres.append(Path(linea.split('\t')[0]).name)
+    return nombres
 
 
 def ruta_fuente(nombre, rutas=None):
@@ -227,6 +244,9 @@ def ruta_fuente(nombre, rutas=None):
     rutas = fuentes_disponibles() if rutas is None else rutas
     if nombre not in rutas:
         raise FileNotFoundError(f'No encuentro «{nombre}» ni en «{ORIGEN.name}/» ni en «{FUENTES.name}/».')
+    if rutas[nombre] is None:
+        raise FileNotFoundError(f'«{nombre}» está archivado en R2 (fuentes/ARCHIVADO.tsv): '
+                                'tráelo con `scripts/archivar_fuentes.sh traer` antes de regenerar.')
     return rutas[nombre]
 
 
