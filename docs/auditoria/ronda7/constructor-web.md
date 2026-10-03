@@ -149,7 +149,17 @@ deja pasar las copias de Odoo (`website_sale`) y lo interno; la portada solo se 
 vista previa existe, cuelga de «Sitio web», apunta a la URL canónica, es lo que abre una fila de
 «Páginas», y no usa modo edición.
 
+`addons/website_dcasa/tests/test_roles.py` quedó al día con la política: la Vendedora nunca edita el sitio
+y, con `dcasa_interfaz` instalado, ni Gerencia ni nadie tiene el constructor.
+
 **Pendiente para quien mantiene `website_dcasa`** (fuera del alcance de esta ronda): su
-`security/dcasa_roles_website.xml` sigue dándole «Editor y diseñador» a Gerencia (lo retira
-`dcasa_interfaz` en cada actualización) y su `tests/test_roles.py` afirma lo contrario de esta política;
-conviene borrar el primero y voltear el segundo.
+`security/dcasa_roles_website.xml` sigue dándole «Editor y diseñador» a Gerencia. No hace daño
+(`dcasa_interfaz` depende de `website_dcasa`, así que carga después y lo retira en cada instalación y
+actualización), pero conviene borrarlo para que el código diga lo mismo que la política. También la
+descripción del módulo («editable desde el constructor de Odoo») habla de lo anterior.
+
+**Límite conocido de la guarda.** Si alguien con el grupo de editor guardara desde el constructor una
+plantilla de Odoo de la que cuelgan plantillas de D'CASA (p. ej. el esqueleto `website.layout` o la lista de
+la tienda `website_sale.products`), Odoo intentaría copiar también las de D'CASA y la guarda lo frenaría con
+el mismo mensaje. Es lo deseado: esa copia dejaría el sitio congelado igual. Lo que Odoo copia por su cuenta
+sin editor (p. ej. la página de cookies al activarla en Configuración) no tiene plantillas de D'CASA debajo.
