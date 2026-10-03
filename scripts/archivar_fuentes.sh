@@ -103,7 +103,11 @@ candidatos() {
 }
 
 # Filas del índice: ruta<TAB>sha256<TAB>bytes<TAB>fecha (sin cabecera ni comentarios).
-indice() { [[ -f "$INDICE" ]] && grep -v '^#' "$INDICE" | grep -v '^$' || true; }
+indice() {
+  if [[ -f "$INDICE" ]]; then
+    grep -v '^#' "$INDICE" | grep -v '^$' || true
+  fi
+}
 
 anotar() {   # ruta sha bytes
   if [[ ! -f "$INDICE" ]]; then
