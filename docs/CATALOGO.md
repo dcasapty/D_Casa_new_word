@@ -4,11 +4,20 @@ De dónde sale lo que se vende en Odoo (inventario, ventas y tienda web: es el m
 
 ## Fuentes
 
-- `up media/DCASA_listado_productos.xlsx`, hoja «Productos»: código, nombre, precio
+- `fuentes/carga-inicial/DCASA_listado_productos.xlsx`, hoja «Productos»: código, nombre, precio
   **sin ITBMS** («+ITBMS»), precios por tamaño, combo/el par, existencias y observaciones.
-- `up media/*.png`: fotos originales. **El nombre es el código**: `CODIGO.png` o
+- `fuentes/carga-inicial/*.png`: fotos originales. **El nombre es el código**: `CODIGO.png` o
   `CODIGO_1.png`, `CODIGO_2.png`… (varias fotos del mismo producto). Una `/` del código
   se escribe `-` en el archivo. No van en la imagen Docker (`.dockerignore`).
+- `up media/` es la **bandeja de entrada** de la dueña (sube desde GitHub, sin terminal): ahí solo
+  queda lo pendiente. Con cada subida, `.github/workflows/up-media.yml` corre
+  `scripts/procesar_up_media.py`, que regenera el catálogo, mueve con `git mv` lo ya cargado a
+  `fuentes/<pedido-o-carga>/` (y lo que no es de ningún producto a `descartado/<fecha>/`, con el
+  motivo en su `LEEME.md`) y escribe `up media/RESUMEN.md` (qué foto fue a qué producto, qué quedó
+  pendiente y por qué, qué Excel se cargó). El importador busca cada original primero en la
+  bandeja y después en `fuentes/**`, así el catálogo se regenera completo con la bandeja vacía.
+  Originales pesados: `scripts/archivar_fuentes.sh` (R2, prefijo `fuentes/`; ver
+  `docs/OPERACION.md` › «Cómo subir fotos»). Operación para la dueña: esa misma sección.
 
 ## Cómo se carga
 
@@ -27,7 +36,8 @@ De dónde sale lo que se vende en Odoo (inventario, ventas y tienda web: es el m
 
 ## Actualizar
 
-Con un Excel o fotos nuevas: `python scripts/importar_catalogo.py` (necesita `openpyxl` y
+Con un Excel o fotos nuevas en la bandeja: `python scripts/procesar_up_media.py` (o solo
+`python scripts/importar_catalogo.py` si no se quiere mover nada; los dos necesitan `openpyxl` y
 `Pillow`), commit, y en la base `odoo-bin shell` →
 `from odoo.addons.dcasa_catalogo.catalogo import cargar_catalogo; cargar_catalogo(env); env.cr.commit()`.
 Solo crea los códigos que falten: lo que se cambió en Odoo (precios, fotos, textos) no se pisa.
@@ -41,7 +51,7 @@ Código: `reglas.precio_terminado_en_99` (con tests en `tests/test_pedido_ltsc07
 
 ## Pedidos nuevos cargados como la mercancía inicial (LTSC-07)
 
-El pedido LTSC-07 (`up media/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`, hoja «Catálogo
+El pedido LTSC-07 (`fuentes/LTSC-07/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`, hoja «Catálogo
 LTSC-07», encabezado en la fila 4) entra por el mismo camino que la carga inicial —inventario
 **y** tienda web— y no por Brian. `scripts/importar_catalogo.py` (lista `PEDIDOS`) lo agrega a
 `catalogo.json`:
@@ -58,7 +68,7 @@ LTSC-07», encabezado en la fila 4) entra por el mismo camino que la carga inici
 - **Código que ya estaba en el catálogo** (Y0300300, $159.99): el que estaba **no se toca**
   (ni precio ni foto); las unidades del pedido son un producto aparte con sufijo:
   `Y0300300-LTSC07` a $129.99 (decisión de la dueña). Sin textos de promoción en el nombre.
-- **Fotos** (`up media/`, las que no son de la carga inicial; .jpg/.png/.webp), en este orden
+- **Fotos** (`up media/` y `fuentes/LTSC-07/`, las que no son de la carga inicial; .jpg/.png/.webp), en este orden
   (`reglas.asignar_foto`):
   1. decisiones revisadas a mano, con su motivo (`decisiones` del pedido en el script);
   2. código al inicio del nombre del archivo (`908K - Cama…`, `Y0200201 -Full…`); si el código
@@ -144,8 +154,8 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
     «D'CASA: Black Weekend» la invalida (y borra el sitemap guardado) cuando la campaña empieza o
     termina sola.
 - **Lo que no lleva:** cuenta regresiva, «tiempo limitado», «remate», cuotas ni financiamiento
-  (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña (`up media/115.png` …
-  `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
+  (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña
+  (`fuentes/graficas-black-weekend/115.png` … `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
   compartir (la dueña aceptó, el 2026-10-02, que ahí salgan tafi y «tiempo limitado»; la página no
   los repite). Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.
 

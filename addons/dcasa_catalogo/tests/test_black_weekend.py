@@ -129,7 +129,7 @@ class TestBlackWeekendCatalogo(TransactionCase):
             self.assertEqual(self._producto(codigo).lst_price, cama, codigo)
 
     def test_las_graficas_no_van_en_la_imagen(self):
-        """Las gráficas originales se quedan en «up media» (fuente): .dockerignore la excluye."""
+        """Las gráficas originales se guardan en fuentes/graficas-black-weekend/: .dockerignore la excluye."""
         with file_open('dcasa_catalogo/data/catalogo.json', 'rb') as archivo:
             fotos = {f for i in json.load(archivo) for f in i['fotos']}
         for _codigo, grafica in BLACK_WEEKEND:

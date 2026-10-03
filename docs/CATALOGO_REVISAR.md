@@ -1,6 +1,6 @@
 # Catálogo: lo que hay que revisar
 
-Generado por `scripts/importar_catalogo.py` a partir de `up media/DCASA_listado_productos.xlsx`.
+Generado por `scripts/importar_catalogo.py` a partir de `fuentes/carga-inicial/DCASA_listado_productos.xlsx`.
 Nada de esto se adivinó: donde el Excel duda, se tomó la primera ficha y se anota aquí.
 
 - Productos importados: **199** (16 con tamaños como variantes).
@@ -47,7 +47,7 @@ Nombres web y medidas: `addons/dcasa_catalogo/data/fichas.json` (revisadas foto 
 - Fotos idénticas en códigos distintos (CHCH070202/203, HYI360702/726, YH1003Fb/FDG, ZQ063605/606): quedan como están.
 - Reseñas de Google: quedan como están.
 
-## Pedido LTSC-07 (`up media/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`)
+## Pedido LTSC-07 (`fuentes/LTSC-07/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`)
 
 Generado por `scripts/importar_catalogo.py`. Productos nuevos: **35** (38 filas del Excel). Con variantes de color (un producto por código, misma cifra en cada color y su foto propia): `908K` (Beige, Negro, Gris), `908Q` (Beige, Negro).
 
@@ -106,14 +106,14 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `823Q Cama tapizada Queen – marrón 215 × 152 × 120 cm.jpg` → **823Q** (`823Q_1.jpg`): por código — código 823Q.
 - `888k.png` → **888K** (`888K_1.jpg`): por código — código 888K.
 - `903F Cama tapizada Full – gris 193 × 135 × 120 cm.jpg` → **903F** (`903F_1.jpg`): por código — código 903F.
-- `908K - Cama tapizada King – beige - 203 × 193 × 123 cm con colchon.jpg` → **908K** beige (`908K-beige_3.jpg`): por código — código 908K, color beige.
-- `908K - Cama tapizada King – beige - 203 × 193 × 123 cm.jpg` → **908K** beige (`908K-beige_1.jpg`): por código — código 908K, color beige.
-- `908K - Cama tapizada King – negro 203 × 193 × 123 cm.webp` → **908K** negro (`908K-negro_1.jpg`): por código — código 908K, color negro.
-- `908K Cama tapizada King – Gris 203 × 193 × 123 cm.jpg` → **908K** gris (`908K-gris_1.jpg`): por código — código 908K, color gris.
-- `908K Cama tapizada King – beige 203 × 193 × 123 cm.png` → **908K** beige (`908K-beige_2.jpg`): por código — código 908K, color beige.
-- `908K Cama tapizada King – negro 203 × 193 × 123 cm.jpg` → **908K** negro (`908K-negro_2.jpg`): por código — código 908K, color negro.
-- `908Q - Cama tapizada Queen – beige 203 × 152 × 123 cm.jpg` → **908Q** beige (`908Q-beige_1.jpg`): por código — código 908Q, color beige.
-- `908Q Cama tapizada Queen – negro 203 × 152 × 123 cm.jpg` → **908Q** negro (`908Q-negro_1.jpg`): por código — código 908Q, color negro.
+- `908K - Cama tapizada King – beige - 203 × 193 × 123 cm con colchon.jpg` → **908K beige** (`908K-beige_3.jpg`): por código — código 908K, color beige.
+- `908K - Cama tapizada King – beige - 203 × 193 × 123 cm.jpg` → **908K beige** (`908K-beige_1.jpg`): por código — código 908K, color beige.
+- `908K - Cama tapizada King – negro 203 × 193 × 123 cm.webp` → **908K negro** (`908K-negro_1.jpg`): por código — código 908K, color negro.
+- `908K Cama tapizada King – Gris 203 × 193 × 123 cm.jpg` → **908K gris** (`908K-gris_1.jpg`): por código — código 908K, color gris.
+- `908K Cama tapizada King – beige 203 × 193 × 123 cm.png` → **908K beige** (`908K-beige_2.jpg`): por código — código 908K, color beige.
+- `908K Cama tapizada King – negro 203 × 193 × 123 cm.jpg` → **908K negro** (`908K-negro_2.jpg`): por código — código 908K, color negro.
+- `908Q - Cama tapizada Queen – beige 203 × 152 × 123 cm.jpg` → **908Q beige** (`908Q-beige_1.jpg`): por código — código 908Q, color beige.
+- `908Q Cama tapizada Queen – negro 203 × 152 × 123 cm.jpg` → **908Q negro** (`908Q-negro_1.jpg`): por código — código 908Q, color negro.
 - `Cama tapizada Full – beige 193 × 135 × 110 cm.jpg` → **6877F** (`6877F_1.jpg`): por descripción — Full · beige · 193×135×110 → única fila del Excel: 6877F.
 - `Cama tapizada Full – blanco 193 × 135 × 110 cm.jpg` → **822F** (`822F_1.jpg`): por descripción — Full · blanco · 193×135×110 → única fila del Excel: 822F.
 - `Cama tapizada Full – gris 193 × 135 × 120 cm.jpg` → **823F** (`823F_1.jpg`): decisión revisada a mano — en el Excel 823F y 903F son «Full – gris 193 × 135 × 120 cm»; 903F ya tiene su foto con código (cabecero de botones con piecera) y esta muestra el cabecero de canales con alas de la foto del Excel de 823F.
@@ -166,12 +166,12 @@ Primera foto = principal; las demás, a la galería (fotos «con colchón» al f
 - `811Q` y `811K` quedan con casi la misma imagen (los nombres de archivo dicen 213 × 158 y 213 × 199): confirmar que 811K es esa cama.
 - La foto incrustada en el Excel de `822F` muestra una cama de color tostado, no blanca: la foto de la carpeta («Full – blanco») sí es blanca. Confirmar el color con la mercancía.
 
-Fotos de «up media» que no son de ningún producto (ni de la carga inicial ni de LTSC-07): `115.png`, `116.png`, `117.png`, `118.png`, `119.png`, `120.png`, `121.png`, `122.png`, `123.png`, `124.png`, `125.png`, `126.png`, `127.png`, `128.png`, `129.png`, `130.png`, `131.png`, `132.png`, `133.png`, `134.png`, `135.png`, `136.png`, `137.png`, `138.png`, `139.png`, `140.png`, `141.png`, `142.png`, `143.png`, `144.png`, `145.png`, `146.png`, `147.png`, `148.png`, `149.png`, `150.png`, `151.png`, `152.png`, `153.png`.
+Fotos de la carpeta que no son de ningún producto (ni de la carga inicial ni de LTSC-07): `115.png`, `116.png`, `117.png`, `118.png`, `119.png`, `120.png`, `121.png`, `122.png`, `123.png`, `124.png`, `125.png`, `126.png`, `127.png`, `128.png`, `129.png`, `130.png`, `131.png`, `132.png`, `133.png`, `134.png`, `135.png`, `136.png`, `137.png`, `138.png`, `139.png`, `140.png`, `141.png`, `142.png`, `143.png`, `144.png`, `145.png`, `146.png`, `147.png`, `148.png`, `149.png`, `150.png`, `151.png`, `152.png`, `153.png`.
 
 
-## Gráficas de Black Weekend (`up media/115.png` … `153.png`, revisión del 2026-10-02)
+## Gráficas de Black Weekend (`fuentes/graficas-black-weekend/115.png` … `153.png`, revisión del 2026-10-02)
 
-39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).
+39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las originales se guardan en `fuentes/graficas-black-weekend/` (no entran a la imagen de Docker: `.dockerignore`).
 
 ### Errores en las gráficas (los corrige la dueña en su arte; el catálogo queda como está)
 

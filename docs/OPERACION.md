@@ -54,9 +54,9 @@ Un bucket es una «carpeta» de almacenamiento. Se usan dos, uno por entorno, **
    Crear.
 3. Repetir con `dcasa-respaldos-staging`.
 4. No activar acceso público en ninguno.
-5. **No** crear reglas de ciclo de vida (*Object lifecycle rules*) que borren o expiren el prefijo
-   `adjuntos/`: ahí están las fotos y PDF del sistema y los borra solo Odoo, con su propio plazo
-   (ver «Adjuntos en R2» más abajo). Si alguna vez se agrega una regla, que sea solo para
+5. **No** crear reglas de ciclo de vida (*Object lifecycle rules*) que borren o expiren los prefijos
+   `adjuntos/` ni `fuentes/` (originales de fotos, ver «Cómo subir fotos»). En `adjuntos/` están las
+   fotos y PDF del sistema y los borra solo Odoo, con su propio plazo (ver «Adjuntos en R2» más abajo). Si alguna vez se agrega una regla, que sea solo para
    `pgbackrest/` o `pg_dump/`.
 
 ### 3. Crear los tokens de R2 (las llaves de los buckets)
@@ -257,6 +257,76 @@ crece de nuevo (hoy ~120 MB de adjuntos); revisar que quepa en el disco del cont
 token de R2 no se puede limitar a una carpeta). No es una frontera nueva: Odoo y PostgreSQL ya
 corren con el mismo usuario dentro del contenedor. La clave de cifrado de los respaldos
 (`PGBACKREST_CIPHER_PASS`) nunca llega a Odoo.
+
+## Cómo subir fotos (y Excel de pedidos)
+
+1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y poner la foto ahí. Se guarda
+   sola en R2 (`adjuntos/`) y sale en la web al momento. Es el camino normal del día a día.
+2. **Un pedido nuevo del proveedor**: mandarle a Brian (Telegram) el Excel del proveedor con el
+   **código** de cada producto; él arma la vista previa, gerencia confirma y los productos nacen sin
+   publicar, para publicarlos con Brian uno a uno (`docs/CATALOGO.md` › «Inventario nuevo…»).
+3. **Cargas grandes** (muchas fotos de una vez, un Excel completo): en GitHub, carpeta `up media`
+   → *Add file* → *Upload files* → *Commit changes*. GitHub las procesa solo (unos 15 minutos) y
+   deja el resultado en `up media/RESUMEN.md`. Nombre de cada foto = **código** del producto
+   (`CODIGO.jpg`, `CODIGO_2.jpg`…); para un pedido nuevo, el código al inicio del nombre.
+
+### Cómo leer `up media/RESUMEN.md`
+
+Se reescribe con cada subida (lo corre `.github/workflows/up-media.yml`). Tiene cuatro partes:
+
+- **Excel cargados**: qué Excel entró y a dónde se guardó (`fuentes/<pedido>/`).
+- **Fotos cargadas: a qué producto fue cada una**: una fila por foto con el producto, *cómo* se
+  asignó (por código, por descripción, o decisión revisada a mano) y dónde quedó el original.
+- **Lo que no se asignó y por qué**: lo **pendiente** sigue en `up media/` con su motivo (foto dudosa
+  entre dos productos, Excel que el programador aún no registró, PDF u otro tipo de archivo);
+  lo **conservado** son archivos de la dueña que no son fotos de producto pero sirven (las gráficas de
+  Black Weekend → `fuentes/graficas-black-weekend/`); lo **descartado** fue a `descartado/<fecha>/`
+  con el motivo en su `LEEME.md`. **Nada se borra**: si algo era de un producto, se vuelve a subir
+  con el código en el nombre.
+- **Cómo subir más**: las tres reglas de arriba.
+
+Las dudas del catálogo mismo (precios repetidos, medidas, fotos del Excel) están en
+`docs/CATALOGO_REVISAR.md`. Si la ejecución falla (Actions → *up media* en rojo), la bandeja queda
+tal cual se subió, no se publica nada y hay que avisar a quien mantiene el sistema: el RESUMEN que se
+habría escrito queda en el resumen de la ejecución.
+
+### Qué pasa por detrás (para quien mantiene el sistema)
+
+- `scripts/procesar_up_media.py` corre `scripts/importar_catalogo.py` (regenera `catalogo.json`, las
+  fotos optimizadas y `docs/CATALOGO_REVISAR.md`), mueve con `git mv` lo procesado y escribe el
+  RESUMEN y un `LEEME.md` histórico por carpeta destino. `--simular` imprime el RESUMEN sin mover nada.
+- El workflow prueba el resultado (tests del procesador: `python -m unittest discover -s scripts/tests`;
+  `scripts/test.sh dcasa_catalogo` instala el módulo con el catálogo nuevo) y **solo si pasa** hace el
+  commit con `GITHUB_TOKEN` y lo empuja a `main`; después construye la imagen de ese commit y la
+  despliega a **staging** con `desplegar.yml`. A producción se llega como siempre: CI/CD con aprobación.
+- Sin bucles: un push con `GITHUB_TOKEN` no dispara workflows, y el commit del bot lleva
+  `[skip up-media] [skip ci]`. Si `main` tuviera protección de rama que `GITHUB_TOKEN` no pueda
+  saltar, hace falta un PAT fino (*Contents: read and write* en este repositorio, con bypass) en el
+  secreto `UP_MEDIA_TOKEN`.
+- Una subida detrás de otra: las ejecuciones van en fila (`concurrency: up-media`) y cada una parte de
+  la punta de `main`, así no se pisan.
+- `up media/inventario-anterior/` es otra carga (capturas del sistema anterior) y el procesador no la
+  toca: las subcarpetas de la bandeja quedan «pendientes, de otro flujo».
+
+### Originales pesados: a R2 con `scripts/archivar_fuentes.sh`
+
+Los originales ya procesados viven en `fuentes/<pedido>/` (hoy ≈ 1 GB; la web usa las copias
+optimizadas de `addons/dcasa_catalogo/static/img/productos/`, y ni `up media/`, ni `fuentes/`, ni
+`descartado/` entran a la imagen Docker). Cuando el repositorio pese demasiado:
+
+1. `scripts/archivar_fuentes.sh listar [--minimo-mb 2]`: qué imágenes de `fuentes/` irían (sin red).
+2. `scripts/archivar_fuentes.sh subir`: las sube al bucket de producción (`R2_BUCKET`, las mismas
+   cuatro variables `R2_*` de los respaldos) con la **misma ruta** como clave (`fuentes/LTSC-07/…`),
+   verifica el tamaño y las anota en `fuentes/ARCHIVADO.tsv` (ruta, sha256, bytes, fecha).
+3. `scripts/archivar_fuentes.sh podar`: `git rm` de lo que ya está verificado en R2 y una nota en el
+   `LEEME.md` de cada carpeta. Revisar y hacer commit.
+4. Para volver a leerlos (regenerar una foto): `scripts/archivar_fuentes.sh traer` (verifica sha256).
+   El importador los sigue contando como fuente por el índice y avisa si tiene que leerlos.
+
+`--simular` muestra el plan sin tocar nada. **Nunca borra en R2**; el prefijo `fuentes/` no lleva
+reglas de ciclo de vida (como `adjuntos/`). Solo imágenes: los Excel y los LEEME se quedan en el
+repositorio. Lo que ya está en la historia de git no se achica con esto: la política vale para lo que
+entra desde ahora. Todavía no se ha ejecutado contra R2.
 
 ## Barandas de costo (hacer una vez, en el panel de Cloudflare)
 
