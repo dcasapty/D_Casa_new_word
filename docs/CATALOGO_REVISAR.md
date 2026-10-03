@@ -1,6 +1,6 @@
 # Catálogo: lo que hay que revisar
 
-Generado por `scripts/importar_catalogo.py` a partir de `up media/DCASA_listado_productos.xlsx`.
+Generado por `scripts/importar_catalogo.py` a partir de `fuentes/carga-inicial/DCASA_listado_productos.xlsx`.
 Nada de esto se adivinó: donde el Excel duda, se tomó la primera ficha y se anota aquí.
 
 - Productos importados: **199** (16 con tamaños como variantes).
@@ -47,7 +47,7 @@ Nombres web y medidas: `addons/dcasa_catalogo/data/fichas.json` (revisadas foto 
 - Fotos idénticas en códigos distintos (CHCH070202/203, HYI360702/726, YH1003Fb/FDG, ZQ063605/606): quedan como están.
 - Reseñas de Google: quedan como están.
 
-## Pedido LTSC-07 (`up media/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`)
+## Pedido LTSC-07 (`fuentes/LTSC-07/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`)
 
 Generado por `scripts/importar_catalogo.py`. Productos nuevos: **35** (38 filas del Excel). Con variantes de color (un producto por código, misma cifra en cada color y su foto propia): `908K` (Beige, Negro, Gris), `908Q` (Beige, Negro).
 
