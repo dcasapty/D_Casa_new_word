@@ -19,8 +19,11 @@ Módulo raíz del ERP de D'CASA Panamá.
   descuento por línea para quien no es Gerencia (Ajustes de Ventas).
 * Barandas de costo: depuración mensual (adjuntos huérfanos, correos fallidos)
   y reporte mensual de tamaños de la base con aviso al pasar 0,7 GB.
+* Operación: vigilancia horaria de disco, memoria y tamaño de la base con aviso por
+  Telegram (canal de Brian, vía dcasa_seguridad) y apagado de las acciones planificadas
+  de Odoo que no aplican a la tienda.
 """,
-    'version': '19.0.1.5.0',
+    'version': '19.0.1.6.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -41,6 +44,7 @@ Módulo raíz del ERP de D'CASA Panamá.
         'data/descuento_data.xml',
         'data/product_category_data.xml',
         'data/ir_cron_data.xml',
+        'data/crons_odoo.xml',
         'views/res_partner_views.xml',
         'views/hoy_views.xml',
         'views/res_config_settings_views.xml',

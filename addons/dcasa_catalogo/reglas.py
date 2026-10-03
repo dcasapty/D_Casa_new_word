@@ -13,12 +13,14 @@ TAMANOS = ['Twin', 'Full', 'Queen', 'King']
 # Categoría de la tienda según el nombre del producto (primera regla que coincide).
 CATEGORIAS = [
     (r'colch', 'colchones'),
-    (r'mueble de tv', 'muebles_tv'),
+    (r'mueble (de|para) tv|mueble tv', 'muebles_tv'),
     (r'sof[aá]', 'salas'),
     (r'zapatera', 'zapateras'),
     (r'escritorio|mesa ajustable', 'oficina'),
-    (r'estante|librero|organizador|mueble de cocina|mueble type', 'organizacion'),
-    (r'cama|camarote|mesa de noche|peinadora|tocador|gavetero', 'recamaras'),
+    (r'estante|librero|organizador|mueble de cocina|mueble type|biblioteca|despensa|mueble para jardin',
+     'organizacion'),
+    (r'cama|camarote|mesa de noche|peinadora|tocador|gavetero|c[oó]moda|box spring|box tapizado|cabecero|espejo'
+     r'|almohada', 'recamaras'),
 ]
 
 
@@ -184,3 +186,110 @@ def asignar_foto(nombre_archivo, filas, decisiones=None):
         return {'fila': None, 'como': 'ambigua', 'nota': f'{texto} coincide con varias filas: {codigos}'}
     return {'fila': None, 'como': 'sin_coincidencia',
             'nota': f'{texto}: ninguna fila del Excel tiene ese tamaño, color y medidas'}
+
+
+# --- Inventario del sistema anterior (capturas del 2026-10-02) --------------------------------
+
+# Filas que no son productos y no se importan (regla de la dueña, LEEME del inventario).
+NO_SE_IMPORTAN = (r'^descuento$', r'^propinas$', r'^x colch[oó]n .* para combo$')
+
+
+def clase_de_fila_inventario(nombre):
+    """'omitir' (Descuento, Propinas, «X COLCHÓN … PARA COMBO»), 'combo' («COMBO … + COLCHÓN», también
+    «+ 3 COLCHONES»; entra sin publicar) o 'producto'."""
+    limpio = normalizar(nombre)
+    if any(re.search(patron, limpio) for patron in NO_SE_IMPORTAN):
+        return 'omitir'
+    if limpio.startswith('combo') and re.search(r'\+.*colch', limpio):
+        return 'combo'
+    return 'producto'
+
+
+def _numero(texto):
+    if texto is None or str(texto).strip() == '':
+        return None
+    return float(Decimal(str(texto).strip()))
+
+
+def filas_inventario(texto_csv):
+    """Filas del CSV transcrito (pagina, fila, nombre, codigo, precio_venta, costo, a_la_mano,
+    pronosticado, dudas) → dicts listos para cargar: números como float (``None`` si la celda
+    está vacía), ``clase`` y ``llave`` (el código o, sin código, el nombre exacto)."""
+    import csv
+    import io
+    filas = []
+    for fila in csv.DictReader(io.StringIO(texto_csv)):
+        nombre = fila['nombre'].strip()
+        codigo = (fila.get('codigo') or '').strip()
+        filas.append({
+            'pagina': int(fila['pagina']) if fila.get('pagina') else None,
+            'fila': int(fila['fila']) if fila.get('fila') else None,
+            'nombre': nombre,
+            'codigo': codigo,
+            'llave': codigo or nombre,
+            'precio': _numero(fila.get('precio_venta')),
+            'costo': _numero(fila.get('costo')),
+            'a_la_mano': _numero(fila.get('a_la_mano')),
+            'dudas': (fila.get('dudas') or '').strip(),
+            'clase': clase_de_fila_inventario(nombre),
+        })
+    return filas
+
+
+def categoria_de_inventario(fila):
+    """Categoría de una fila del inventario: un combo se clasifica por la cama (lo que va antes
+    del «+»), no por el colchón."""
+    nombre = fila['nombre']
+    if fila['clase'] == 'combo':
+        nombre = nombre.split('+')[0]
+    return categoria_de_nombre(nombre)
+
+
+def foto_por_codigo(codigos, archivos):
+    """{código: archivo} para los códigos que tienen una foto cuyo nombre empieza por el código
+    (``codigo_al_inicio``); con varias, la primera en orden alfabético (``X_1.jpg`` antes que ``X_2.jpg``)."""
+    fotos = {}
+    for archivo in sorted(archivos):
+        if not re.search(r'\.(jpe?g|png|webp)$', archivo, re.I):
+            continue
+        codigo = codigo_al_inicio(archivo, codigos)
+        if codigo and codigo not in fotos:
+            fotos[codigo] = archivo
+    return fotos
+
+
+def planificar_inventario(filas, existentes, fotos):
+    """Qué haría la carga, sin Odoo: ``existentes`` son los códigos ya en el catálogo y ``fotos``
+    el {código: archivo} disponible. Lo usan el informe (docs/) y los tests para cuadrar con la carga real.
+
+    Devuelve {'crear', 'actualizar', 'omitidos', 'repetidos', 'negativos', 'combos', 'sin_foto',
+    'con_foto', 'dudas'} con las filas de cada grupo. Un código repetido en el CSV solo entra la
+    primera vez (el segundo se anota)."""
+    plan = {k: [] for k in ('crear', 'actualizar', 'omitidos', 'repetidos', 'negativos', 'combos',
+                            'sin_foto', 'con_foto', 'dudas')}
+    vistas = set()
+    for fila in filas:
+        if fila['dudas']:
+            plan['dudas'].append(fila)
+        if fila['clase'] == 'omitir':
+            plan['omitidos'].append(fila)
+            continue
+        if fila['llave'] in vistas:
+            plan['repetidos'].append(fila)
+            continue
+        vistas.add(fila['llave'])
+        if fila['a_la_mano'] is not None and fila['a_la_mano'] < 0:
+            plan['negativos'].append(fila)
+        if fila['clase'] == 'combo':
+            plan['combos'].append(fila)
+        if fila['llave'] in existentes:
+            plan['actualizar'].append(fila)
+            continue
+        plan['crear'].append(fila)
+        if fila['clase'] == 'combo':
+            continue
+        if fila['codigo'] and fila['codigo'] in fotos:
+            plan['con_foto'].append(fila)
+        else:
+            plan['sin_foto'].append(fila)
+    return plan

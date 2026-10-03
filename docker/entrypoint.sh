@@ -66,6 +66,15 @@
 #                         Vacías: se respeta lo que haya en Odoo.
 #   DCASA_AVISO_LOGIN_TELEGRAM  0 apaga el aviso de inicios de sesión de admin por Telegram.
 #   DCASA_ROBOTS_IA       abierta | equilibrada (por defecto) | cerrada: robots.txt para IA.
+#   Alertas de operación (addons/dcasa_base mantenimiento.py, docs/OPERACION.md «Alertas»; ver «2f»):
+#   DCASA_ALERTA_TELEGRAM 0 apaga el aviso por Telegram de disco/memoria/base (queda en el log).
+#   DCASA_ALERTA_DISCO_PCT / DCASA_ALERTA_MEMORIA_PCT  % de disco y de memoria real del contenedor
+#                         a partir del cual se avisa (sin variable: 80 y 90, en el módulo).
+#   DCASA_ALERTA_BASE_GB  GB de base a partir de los cuales se avisa (sin variable: 0.7).
+#   DCASA_ALERTA_SILENCIO_H  horas sin repetir el mismo aviso por Telegram (sin variable: 24).
+#   ODOO_LOG_LEVEL        nivel de log de Odoo; sin variable: «warn» en producción, «info» en staging.
+#   ODOO_LOG_HANDLER      «logger:NIVEL,…»; por defecto werkzeug a WARNING y las métricas de
+#                         D'CASA a INFO (DCASA_METRICA sale aunque el nivel general sea warn).
 #   TURNSTILE_SITE_KEY + TURNSTILE_SECRET  Cloudflare Turnstile en el login y los formularios
 #                         (las dos o ninguna). DCASA_TURNSTILE=off lo apaga (rescate).
 #   DCASA_2FA_RESCATE     RESCATE («break-glass»): login de un usuario que perdió el teléfono.
@@ -200,6 +209,10 @@ if [[ -z "$MASTER_PASSWORD" ]]; then
   MASTER_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 fi
 
+# Nivel de log de Odoo por entorno: producción «warn», lo demás «info» (ODOO_LOG_LEVEL lo pisa).
+LOG_LEVEL_DEFECTO=info
+[[ "${DCASA_ENTORNO:-produccion}" == "produccion" ]] && LOG_LEVEL_DEFECTO=warn
+
 cat > "$CONF" <<CONF
 [options]
 addons_path = ${ODOO_ADDONS_PATH}
@@ -234,12 +247,17 @@ limit_time_real = ${ODOO_LIMIT_TIME_REAL:-300}
 # además Odoo corre con oom_score_adj 500 para que el kernel lo elija a él primero.
 limit_memory_soft = ${ODOO_LIMIT_MEMORY_SOFT:-1610612736}
 limit_memory_hard = ${ODOO_LIMIT_MEMORY_HARD:-2147483648}
-log_level = ${ODOO_LOG_LEVEL:-info}
+# Producción a «warn» (solo avisos y errores; cada línea es un evento de Workers Logs);
+# staging y local a «info». ODOO_LOG_LEVEL lo pisa. Las métricas y alertas de D'CASA
+# (DCASA_METRICA, DCASA_LIMPIEZA, DCASA_ALERTA) y la línea {"evento":"memoria"} del
+# arranque siguen saliendo: ver log_handler y registrar_memoria más abajo.
+log_level = ${ODOO_LOG_LEVEL:-$LOG_LEVEL_DEFECTO}
 # Sin una línea por petición (werkzeug a WARNING): cada línea es un evento de Workers Logs
 # (20 M/mes incluidos) y el Worker ya registra cada invocación con su estado. Los errores
 # de Odoo (500, excepciones) salen por odoo.http a ERROR con su traza: no se pierden.
-# Para depurar: ODOO_LOG_HANDLER=werkzeug:INFO.
-log_handler = ${ODOO_LOG_HANDLER:-werkzeug:WARNING}
+# dcasa_base.models.mantenimiento a INFO: sus DCASA_METRICA / DCASA_LIMPIEZA salen aunque
+# el nivel general sea warn. Para depurar: ODOO_LOG_HANDLER=werkzeug:INFO.
+log_handler = ${ODOO_LOG_HANDLER:-werkzeug:WARNING,odoo.addons.dcasa_base.models.mantenimiento:INFO}
 # Búsquedas sin importar tildes: «sofa» encuentra «Sofá», «colchon» encuentra «Colchón».
 unaccent = True
 CONF
@@ -537,6 +555,29 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_seguridad'"
   echo "▶ Seguridad: 2FA obligatorio=$seg_2fa (alcance $seg_alcance), aviso Telegram=$seg_aviso"
 fi
 
+# --- 2f. Alertas de operación (addons/dcasa_base/models/mantenimiento.py) ---------
+# Umbrales del cron horario de vigilancia (disco, memoria real, tamaño de la base). Solo se
+# fijan si la variable viene; sin variable manda el valor por defecto del módulo (80 %, 90 %,
+# 0.7 GB, 24 h; docs/OPERACION.md «Alertas por Telegram»). El aviso sale por el Telegram de
+# Brian a los administradores vinculados (dcasa_seguridad); DCASA_ALERTA_TELEGRAM=0 lo apaga.
+alerta_param() {
+  local variable="$1" clave="$2" valor="${!1:-}"
+  [[ -z "$valor" ]] && return 0
+  if [[ "$valor" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    set_param "$clave" "$valor"
+    echo "▶ Alerta: $clave = $valor"
+  else
+    echo "⚠ $variable inválida («$valor», se espera un número): no se cambia." >&2
+  fi
+}
+alerta_param DCASA_ALERTA_DISCO_PCT dcasa.alerta.disco_pct
+alerta_param DCASA_ALERTA_MEMORIA_PCT dcasa.alerta.memoria_pct
+alerta_param DCASA_ALERTA_BASE_GB dcasa.reporte.alerta_gb
+alerta_param DCASA_ALERTA_SILENCIO_H dcasa.alerta.silencio_h
+alerta_telegram="${DCASA_ALERTA_TELEGRAM:-1}"
+[[ "$alerta_telegram" == "0" ]] || alerta_telegram=1
+set_param dcasa_seguridad.aviso_operacion "$alerta_telegram"
+
 # --- 3. Saneo del usuario admin (S-04) ----------------------------------------
 # Se comprueba en cada arranque hasta que el marcador exista: si el contenedor muere
 # entre la instalación y este paso, el siguiente arranque lo repite antes de abrir
@@ -641,6 +682,14 @@ if candidatos:
         raise
 else:
     print('· nada que desinstalar')
+# Con todo ya instalado (y lo sobrante fuera), apagar o espaciar las acciones planificadas
+# de Odoo que no aplican (dcasa.mantenimiento.CRONS_ODOO). También corre al actualizar
+# dcasa_base (data/crons_odoo.xml); aquí cubre la instalación nueva, donde algunos módulos
+# cargan después de dcasa_base.
+ajustes = env['dcasa.mantenimiento']._ajustar_crons_odoo()
+ajustados = sorted(x for x, r in ajustes.items() if r == 'ajustado')
+print(f"· crons de Odoo ajustados: {', '.join(ajustados) or 'ninguno (ya estaban)'}")
+env.cr.commit()
 print('DCASA_SOBRANTES_OK')
 PY
     set_param dcasa.sobrantes_version "$APP_VERSION"

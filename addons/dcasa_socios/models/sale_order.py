@@ -271,3 +271,15 @@ class SaleOrderLine(models.Model):
                                 and line.order_id.state == 'draft')
             web.sudo().dcasa_canje_id._cancelar_por_socio(self.env._('Quitaste el premio del carrito.'))
         return super().unlink()
+
+    def _dcasa_etiqueta(self):
+        """La línea con que se cobró un premio se imprime identificada como tal."""
+        if self.dcasa_canje_id:
+            return "Premio Socios D'CASA"
+        return super()._dcasa_etiqueta()
+
+    def _dcasa_va_aparte(self):
+        """El premio es un descuento, no un servicio que se cobra: se queda entre los muebles."""
+        if self.dcasa_canje_id:
+            return False
+        return super()._dcasa_va_aparte()

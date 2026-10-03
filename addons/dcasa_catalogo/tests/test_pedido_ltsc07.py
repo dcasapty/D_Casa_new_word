@@ -5,6 +5,7 @@ from odoo.addons.dcasa_catalogo.catalogo import (
     leer_catalogo,
     xmlid_de,
 )
+from odoo.addons.dcasa_catalogo.inventario_anterior import leer_inventario_anterior
 from odoo.addons.dcasa_catalogo.reglas import (
     asignar_foto,
     codigo_del_pedido,
@@ -91,6 +92,8 @@ class TestPedidoLTSC07(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.pedido = [i for i in leer_catalogo() if i.get('pedido') == 'LTSC-07']
+        # El inventario del sistema anterior manda sobre el precio de los códigos que trae (regla de la dueña).
+        cls.precio_inventario = {f['codigo']: f['precio'] for f in leer_inventario_anterior() if f['codigo']}
 
     def producto(self, codigo):
         return self.env.ref(f'dcasa_catalogo.{xmlid_de(codigo)}')
@@ -100,8 +103,8 @@ class TestPedidoLTSC07(TransactionCase):
         recamaras = self.env.ref('website_dcasa.public_category_recamaras')
         for item in self.pedido:
             producto = self.producto(item['codigo'])
-            self.assertEqual(producto.list_price, item['precios'][''])
-            self.assertEqual(round(producto.list_price * 100) % 100, 99, 'Todo precio termina en .99')
+            self.assertEqual(producto.list_price, self.precio_inventario.get(item['codigo'], item['precios']['']))
+            self.assertEqual(round(item['precios'][''] * 100) % 100, 99, 'Todo precio del pedido termina en .99')
             self.assertEqual(producto.is_published, bool(item['fotos']), 'Con foto se publica')
             self.assertTrue(producto.image_1920)
             self.assertEqual(producto.public_categ_ids, recamaras)
