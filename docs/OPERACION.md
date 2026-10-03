@@ -411,3 +411,42 @@ eventos `paginas_invalidadas`, `paginas_precalentadas` (con cuántas páginas y 
 | mes | simulacro de restauración en staging; revisar la factura de Cloudflare (*Billable Usage*) y el reporte `DCASA_METRICA` del día 1 (¿la base se acerca a 0,7 GB?) |
 | enero | comprobar con `dcasa-respaldo info` que existe la copia anual del año que cerró |
 | siempre | las claves `PGBACKREST_CIPHER_PASS` y `DCASA_PIN_PEPPER` guardadas en el gestor de contraseñas, nunca cambiadas |
+
+## Contrato visual de la cabecera y del hero (pedido de la dueña: «que este navbar nunca más se vuelva a dañar»)
+
+El diseño aprobado de la píldora de vidrio líquido y del hero de la portada está fijado en un test
+que abre el sitio en Chrome a 1440 y 390 px (`addons/website_dcasa/tests/test_contrato_visual.py`),
+en las cinco páginas tipo: `/`, `/shop`, una ficha, `/socios` y `/black-weekend`. Tiene dos niveles:
+
+| Nivel | Qué mide | Falla cuando… |
+|---|---|---|
+| **Estilos computados** (bloqueante, siempre) | `.o_main_nav::before`: `backdrop-filter` con `blur(` y `saturate(`, tinte `rgba(255,255,255,.62)` con texto tinta (vidrio claro: tienda, ficha) o `rgba(0,0,0,.26)` con texto blanco (ahumado: portada, socios, Black Weekend), radio de píldora `32px`, filos de luz, **los mismos valores en todas las páginas del mismo tipo**; hamburguesa visible en el celular. Hero de la portada: `.o_dcasa_hero_texto` sin fondo, texto blanco con halo, velo negro plano del 35-50 %, nada azul ni navy detrás del titular | cualquier valor se sale del contrato. No depende de la versión de Chrome ni de las fuentes del sistema: si falla, el navbar o el hero cambiaron de verdad |
+| **Píxeles contra las referencias** | capturas de la cabecera (todas las páginas) y del hero (portada, a media resolución) contra `addons/website_dcasa/tests/referencia/*.webp` (sin pérdida). Cuenta los píxeles con una diferencia > 40/255 en algún canal | superan la tolerancia: **1,5 %** en local, **6 %** en CI (`CI=true`); `DCASA_TOLERANCIA_VISUAL` manda sobre ambas |
+
+Las capturas son deterministas: viewport fijo, `prefers-reduced-motion: reduce`, animaciones y
+transiciones apagadas, `document.fonts.ready`, fotos de la cabecera y del hero cargadas, barra de
+desplazamiento oculta, cabecera ya medida por el observador del sitio.
+
+**Regla: cambiar la cabecera o el hero exige regenerar las referencias en el mismo commit.**
+
+```bash
+scripts/actualizar_referencias_visuales.sh          # usa scripts/test.sh con DCASA_REFERENCIAS_VISUALES=regenerar
+git add addons/website_dcasa/tests/referencia       # y se suben junto con el cambio de SCSS/plantilla
+```
+
+El script corre primero el contrato de estilos: si el navbar o el hero rompieron el contrato, falla y
+no reescribe nada. Antes de subir las capturas, míralas: son lo que verá la dueña.
+
+Cuando el test de píxeles falla, deja la captura actual y la máscara de diferencias en la carpeta de
+capturas de Odoo (`screenshots/…/contrato_visual/visual_*_actual.png` y `*_diff.png`; la ruta sale
+en el log) para ver qué se movió.
+
+Por qué los píxeles no son el nivel bloqueante: el rasterizado del texto, el antialiasing y el
+desenfoque del vidrio cambian entre versiones de Chrome y entre sistemas (el Chrome del runner de
+GitHub no es el Chromium local), y una diferencia de un píxel en el borde de cada letra ya mueve
+el 1-2 % de la cabecera sin que el diseño haya cambiado. Por eso el contrato de estilos computados
+es el que garantiza el diseño, y los píxeles son la red de seguridad contra lo que los estilos no
+ven (una foto distinta, un elemento que se coló encima, una placa dibujada por otra regla). En CI
+(`CI=true`) la tolerancia por defecto es del 6 %; en local y al regenerar, del 1,5 %. Si en CI la
+diferencia es consistentemente alta sin cambio de diseño, regenera las referencias desde el
+runner (`DCASA_TOLERANCIA_VISUAL` solo sube el umbral, nunca apaga la comparación).

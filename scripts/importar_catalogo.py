@@ -87,7 +87,8 @@ REVISION_GRAFICAS_BLACK_WEEKEND = [
     '',
     '39 gráficas de la dueña (1080 × 1350, texto incrustado). Los precios de cama sola y combo coinciden '
     'con el pedido LTSC-07 cargado. La web no las usa como foto de producto (texto incrustado: malo para '
-    'la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y «tiempo limitado» en ella, 2026-10-02) es la imagen '
+    'la carga, Google y lectores de pantalla); `115.png` completa (la dueña aceptó que salgan tafi y '
+    '«tiempo limitado» en ella, 2026-10-02) es la imagen '
     'para compartir de /black-weekend (`addons/website_dcasa/static/src/img/black_weekend/og.jpg`). Las '
     'originales se quedan en «up media» (no entran a la imagen de Docker: `.dockerignore`).',
     '',

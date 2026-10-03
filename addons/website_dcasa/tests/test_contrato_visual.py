@@ -37,8 +37,13 @@ _logger = logging.getLogger(__name__)
 
 REFERENCIAS = pathlib.Path(__file__).parent / 'referencia'
 VAR_REGENERAR = 'DCASA_REFERENCIAS_VISUALES'       # =regenerar → reescribe las referencias
-VAR_TOLERANCIA = 'DCASA_TOLERANCIA_VISUAL'         # % de píxeles distintos tolerado (1.5)
+VAR_TOLERANCIA = 'DCASA_TOLERANCIA_VISUAL'         # % de píxeles distintos tolerado (manda sobre los defectos)
 UMBRAL_PIXEL = 40                                  # diferencia por canal (0-255) que cuenta como distinto
+# Tolerancias por defecto: 1.5 % en local (mismo Chromium que generó las referencias). En CI (variable
+# CI=true, GitHub Actions) el Chrome del runner rasteriza texto y desenfoque distinto: el borde de cada
+# letra ya suma 1-2 % de la cabecera sin cambio de diseño, así que ahí se afloja y el contrato de
+# estilos computados (test_01/test_02, bloqueante) es el que garantiza el diseño.
+TOLERANCIA_LOCAL, TOLERANCIA_CI = 1.5, 6.0
 # Las referencias van SIN pérdida (la compresión con pérdida sola ya movía el 3 % de los píxeles de
 # los bordes del texto por encima del umbral). El hero (una foto grande) se guarda y compara a la
 # mitad de resolución: basta para ver una placa, un velo distinto o un texto movido, y pesa 4 veces menos.
@@ -420,7 +425,8 @@ class TestContratoVisual(HttpCase):
     def test_03_capturas_de_referencia(self):
         medido = self._medir_todo()
         regenerar = os.environ.get(VAR_REGENERAR, '').lower() == 'regenerar'
-        tolerancia = float(os.environ.get(VAR_TOLERANCIA) or 1.5)
+        tolerancia = float(os.environ.get(VAR_TOLERANCIA)
+                           or (TOLERANCIA_CI if os.environ.get('CI') else TOLERANCIA_LOCAL))
         if regenerar:
             REFERENCIAS.mkdir(exist_ok=True)
         for (nombre, ancho), datos in medido.items():
