@@ -44,7 +44,14 @@ class TestConversacion(BrianCase):
         roles = [m['rol'] for m in resultado['mensajes']]
         self.assertEqual(roles, ['user', 'assistant', 'assistant'])
         paso = resultado['mensajes'][1]
-        self.assertEqual(paso['herramientas'], [{'nombre': 'prueba_leer', 'ok': True, 'error': '', 'abrir': None}])
+        self.assertEqual(len(paso['herramientas']), 1)
+        herramienta = paso['herramientas'][0]
+        self.assertEqual({k: herramienta[k] for k in ('nombre', 'ok', 'error', 'abrir')},
+                         {'nombre': 'prueba_leer', 'ok': True, 'error': '', 'abrir': None})
+        # Lo que ve la persona: título humano, resumen corto y detalle expandible (pasos.py).
+        self.assertEqual(herramienta['titulo'], 'Usando prueba leer «sofá»')
+        self.assertEqual(herramienta['resumen'], 'Listo')
+        self.assertIn('sofá', herramienta['detalle'])
         self.assertEqual(resultado['mensajes'][-1]['texto'], 'Encontré lo que buscabas: sofá.')
         self.assertEqual(conv.titulo, 'Busca el sofá')
 

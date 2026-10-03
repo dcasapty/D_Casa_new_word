@@ -18,8 +18,9 @@
             <span class="o_brian_lanzador_texto">Brian</span>
         </button>
 
+        <!-- claseAvatar: o_brian_avatar_esperando | trabajando | te_necesito | termine (hoy sin dibujo; ver SCSS). -->
         <aside id="o_brian_panel" class="o_brian_panel d-print-none" t-ref="panel"
-               t-att-class="{'o_brian_visible': abierto.abierto, 'o_brian_arrastrando': state.arrastrando}"
+               t-att-class="clasesPanel" t-att-data-avatar="estadoAvatar"
                t-att-aria-hidden="abierto.abierto ? 'false' : 'true'"
                aria-label="Brian, el asistente de D'CASA"
                t-on-keydown="alTeclaPanel"
@@ -53,6 +54,16 @@
                     <i class="fa fa-times" aria-hidden="true"/>
                 </button>
             </header>
+
+            <!-- Pastillas de estado (las decide el servidor según el rol). -->
+            <div t-if="state.pastillas.length" class="o_brian_pastillas" role="list" aria-label="Estado de Brian">
+                <span t-foreach="state.pastillas" t-as="p" t-key="p.clave" role="listitem"
+                      t-attf-class="o_brian_pastilla o_brian_pastilla_{{ p.tono || 'neutro' }} o_brian_pastilla_{{ p.clave }}"
+                      t-att-title="p.titulo" t-att-aria-label="p.titulo ? p.texto + '. ' + p.titulo : p.texto">
+                    <i t-attf-class="fa {{ p.icono }}" aria-hidden="true"/>
+                    <t t-esc="p.texto"/>
+                </span>
+            </div>
 
             <div t-if="sinClave" class="o_brian_aviso" role="status">
                 <i class="fa fa-key" aria-hidden="true"/>
@@ -126,11 +137,27 @@
                         <t t-call="dcasa_brian.Mensaje"/>
                     </t>
 
-                    <div t-if="state.pensando" class="o_brian_fila o_brian_fila_brian" role="status">
-                        <div class="o_brian_pensando">
+                    <!-- Brian en vivo: sin pasos todavía, los tres puntos; con pasos, la lista del turno. -->
+                    <div t-if="state.pensando" class="o_brian_fila o_brian_fila_brian" role="status" aria-live="polite">
+                        <div t-if="!state.pasos.length" class="o_brian_pensando">
                             <span class="o_brian_puntos" aria-hidden="true"><i/><i/><i/></span>
                             Brian está pensando…
                         </div>
+                        <ol t-else="" class="o_brian_pasos" aria-label="Lo que Brian está haciendo">
+                            <li t-foreach="state.pasos" t-as="p" t-key="p.id"
+                                t-attf-class="o_brian_paso o_brian_paso_{{ p.estado }} o_brian_paso_tipo_{{ p.tipo }}">
+                                <i t-attf-class="fa {{ iconoPaso(p.estado) }}" aria-hidden="true"/>
+                                <span class="o_brian_paso_cuerpo">
+                                    <span class="o_brian_paso_titulo" t-esc="p.titulo"/>
+                                    <span t-if="p.resumen" class="o_brian_paso_resumen"> — <t t-esc="p.resumen"/></span>
+                                    <span t-if="p.duracion_ms" class="o_brian_paso_tiempo" t-esc="duracion(p.duracion_ms)"/>
+                                    <details t-if="p.detalle" class="o_brian_paso_detalle">
+                                        <summary>Ver resultado</summary>
+                                        <pre t-esc="p.detalle"/>
+                                    </details>
+                                </span>
+                            </li>
+                        </ol>
                     </div>
                 </div>
 
@@ -221,12 +248,22 @@
                     <t t-esc="estadoAccion(m.confirmacion).texto"/>
                 </div>
                 <p class="o_brian_tarjeta_resumen" t-esc="m.confirmacion.resumen"/>
+                <!-- Detalle exacto: los argumentos registrados, los mismos que se ejecutan al permitir. -->
+                <dl t-if="m.confirmacion.detalle and m.confirmacion.detalle.length" class="o_brian_tarjeta_detalle">
+                    <t t-foreach="m.confirmacion.detalle" t-as="d" t-key="d_index">
+                        <dt t-esc="d.etiqueta"/>
+                        <dd t-esc="d.valor"/>
+                    </t>
+                </dl>
                 <p t-if="m.confirmacion.herramienta" class="o_brian_tarjeta_herramienta" t-esc="nombreHerramienta(m.confirmacion.herramienta)"/>
                 <div t-if="m.confirmacion.estado === 'por_confirmar'" class="o_brian_tarjeta_botones">
-                    <button type="button" class="o_brian_btn o_brian_btn_primario" t-on-click="() => this.confirmar(m)">
-                        <i class="fa fa-check" aria-hidden="true"/> Confirmar
+                    <button type="button" class="o_brian_btn o_brian_btn_primario o_brian_permitir" t-on-click="() => this.permitir(m)">
+                        <i class="fa fa-check" aria-hidden="true"/> Permitir
                     </button>
-                    <button type="button" class="o_brian_btn o_brian_btn_secundario" t-on-click="() => this.rechazar(m)">Cancelar</button>
+                    <button type="button" class="o_brian_btn o_brian_btn_secundario o_brian_rechazar" t-on-click="() => this.rechazar(m)">
+                        <i class="fa fa-ban" aria-hidden="true"/> Rechazar
+                    </button>
+                    <span class="o_brian_tarjeta_nota">Solo esta vez: cada acción se aprueba por separado.</span>
                 </div>
             </div>
 
@@ -248,10 +285,18 @@
                 <t t-else="">Usó <t t-esc="herramientas.length"/> herramientas</t>
             </summary>
             <ul>
-                <li t-foreach="herramientas" t-as="h" t-key="h_index">
+                <li t-foreach="herramientas" t-as="h" t-key="h_index"
+                    t-attf-class="o_brian_paso o_brian_paso_{{ h.ok === false ? 'error' : (h.ok === null ? 'por_confirmar' : 'ok') }}">
                     <i t-attf-class="fa {{ h.ok === false ? 'fa-times text-danger' : (h.ok === null ? 'fa-hand-paper-o' : 'fa-check') }}" aria-hidden="true"/>
-                    <strong t-esc="nombreHerramienta(h.nombre)"/>
-                    <span t-if="h.error or h.resumen"> — <t t-esc="h.error or h.resumen"/></span>
+                    <span class="o_brian_paso_cuerpo">
+                        <strong t-esc="tituloHerramienta(h)"/>
+                        <span t-if="h.error or h.resumen"> — <t t-esc="h.error or h.resumen"/></span>
+                        <span t-if="h.duracion_ms" class="o_brian_paso_tiempo" t-esc="duracion(h.duracion_ms)"/>
+                        <details t-if="h.detalle" class="o_brian_paso_detalle">
+                            <summary>Ver resultado</summary>
+                            <pre t-esc="h.detalle"/>
+                        </details>
+                    </span>
                 </li>
             </ul>
         </details>

@@ -166,6 +166,9 @@ LISTA_BLANCA = {
     # El chat del panel: ACL de group_user + regla «cada quien sus conversaciones»; los
     # métodos validan dueño de la conversación y de la acción (B-04).
     ('dcasa_brian', 'brian.conversacion', 'estado_proveedor'): 'Exige base.group_user; nunca devuelve la clave.',
+    ('dcasa_brian', 'brian.conversacion', 'estado_panel'):
+        'Exige base.group_user; cada pastilla pregunta has_access y lee sin sudo (reglas de registro); '
+        'el único sudo cuenta las claves de API del PROPIO usuario.',
     ('dcasa_brian', 'brian.conversacion', 'mis_conversaciones'): SIN_SUDO,
     ('dcasa_brian', 'brian.conversacion', 'nueva'): SIN_SUDO,
     ('dcasa_brian', 'brian.conversacion', 'historial'): 'Solo conversaciones propias (_propia lanza AccessError).',

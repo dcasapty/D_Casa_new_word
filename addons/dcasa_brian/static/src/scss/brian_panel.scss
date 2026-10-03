@@ -766,3 +766,171 @@ $brian-ancho: 400px;
     .o_brian_lanzador:hover { transform: none; }
     .o_brian_puntos i { animation: none; opacity: .6; }
 }
+
+// --- Pastillas de estado (cabecera) ----------------------------------------------------------
+// Blanco, azul y tinta; sin amarillo. El tono lo decide el servidor: ok (verde discreto),
+// neutro (gris) y aviso (azul claro, algo espera a la persona).
+.o_brian_pastillas {
+    flex: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 16px 0;
+    background: var(--dc-blanco);
+}
+
+.o_brian_pastilla {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    padding: 3px 10px;
+    border: 1px solid var(--dc-linea);
+    border-radius: 999px;
+    background: var(--dc-blanco);
+    color: var(--dc-tinta-2);
+    font-size: .74rem;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: default;
+
+    .fa { flex: none; color: var(--dc-tinta-3); font-size: .78rem; }
+
+    &.o_brian_pastilla_ok {
+        border-color: #CDE9D8;
+        color: #1F7A45;
+        .fa { color: #1F9D55; }
+    }
+    &.o_brian_pastilla_aviso {
+        border-color: var(--dc-azul-200);
+        background: var(--dc-azul-50);
+        color: var(--dc-azul-800);
+        .fa { color: var(--dc-azul-600); }
+    }
+}
+
+// --- Pasos en vivo («Brian trabajando») ---------------------------------------------------------
+// Misma lista para el turno en curso (o_brian_pasos) y para «Usó N herramientas» (details).
+.o_brian_pasos {
+    max-width: 88%;
+    margin: 0;
+    padding: 10px 14px;
+    list-style: none;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-lg);
+    border-bottom-left-radius: 6px;
+    background: var(--dc-blanco);
+    font-size: .84rem;
+    color: var(--dc-tinta-2);
+}
+
+.o_brian_paso {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+
+    + .o_brian_paso { margin-top: 6px; }
+
+    > .fa { flex: none; width: 14px; text-align: center; color: var(--dc-tinta-3); }
+    &.o_brian_paso_en_curso > .fa { color: var(--dc-azul-600); }
+    &.o_brian_paso_ok > .fa { color: #1F9D55; }
+    &.o_brian_paso_error > .fa { color: #A12626; }
+    &.o_brian_paso_por_confirmar > .fa { color: var(--dc-azul-700); }
+
+    &.o_brian_paso_en_curso .o_brian_paso_titulo { color: var(--dc-tinta); font-weight: 600; }
+    &.o_brian_paso_tipo_modelo .o_brian_paso_titulo { font-style: italic; }
+}
+
+.o_brian_paso_cuerpo {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.o_brian_paso_resumen { color: var(--dc-tinta-3); }
+
+.o_brian_paso_tiempo {
+    margin-left: 6px;
+    font-size: .72rem;
+    color: var(--dc-tinta-3);
+    font-variant-numeric: tabular-nums;
+}
+
+// Resultado corto expandible: JSON compacto, ya recortado por el servidor.
+.o_brian_paso_detalle {
+    margin-top: 2px;
+    font-size: .76rem;
+
+    summary {
+        display: inline-block;
+        color: var(--dc-azul-700);
+        cursor: pointer;
+        list-style: none;
+        &::-webkit-details-marker { display: none; }
+        &::before { content: "▸ "; }
+        &:hover { text-decoration: underline; }
+        &:focus-visible { outline: none; box-shadow: var(--dc-foco); border-radius: 3px; }
+    }
+    &[open] summary::before { content: "▾ "; }
+
+    pre {
+        margin: 4px 0 0;
+        padding: 8px 10px;
+        max-height: 220px;
+        overflow: auto;
+        border: 1px solid var(--dc-linea);
+        border-radius: var(--dc-r-sm);
+        background: var(--dc-niebla);
+        color: var(--dc-tinta-2);
+        font-size: .72rem;
+        line-height: 1.4;
+        white-space: pre-wrap;
+    }
+}
+
+// --- Tarjeta Permitir / Rechazar: detalle exacto ----------------------------------------------------
+.o_brian_tarjeta_detalle {
+    display: grid;
+    grid-template-columns: minmax(80px, auto) 1fr;
+    gap: 4px 12px;
+    margin: 10px 0 0;
+    padding: 8px 10px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-nieve);
+    font-size: .82rem;
+
+    dt { margin: 0; color: var(--dc-tinta-3); font-weight: 500; }
+    dd { margin: 0; color: var(--dc-tinta); overflow-wrap: anywhere; white-space: pre-wrap; }
+}
+
+.o_brian_tarjeta_botones { flex-wrap: wrap; align-items: center; }
+
+.o_brian_tarjeta_nota {
+    flex-basis: 100%;
+    font-size: .72rem;
+    color: var(--dc-tinta-3);
+}
+
+// --- Estados del avatar (PREPARADO, SIN CONSTRUIR) -----------------------------------------------
+// El panel lleva SIEMPRE una de estas clases (y data-avatar="…"), puestas por brian_panel.js:
+//   .o_brian_avatar_esperando    nada en curso, sin pendientes.
+//   .o_brian_avatar_trabajando   hay un turno en marcha (pasos en vivo).
+//   .o_brian_avatar_te_necesito  hay una tarjeta Permitir / Rechazar sin responder, o un error que leer.
+//   .o_brian_avatar_termine      acaba de responder (8 s o hasta que la persona vuelve a escribir).
+// Cuando se dibuje el avatar, se cuelga de estas clases SIN tocar el JS, p. ej.:
+//   .o_brian_avatar_trabajando .o_brian_monograma { animation: … }
+// Hoy, a propósito, no cambian nada visible (ver docs/BRIAN.md § «Brian en vivo»).
+.o_brian_avatar_esperando,
+.o_brian_avatar_trabajando,
+.o_brian_avatar_te_necesito,
+.o_brian_avatar_termine {
+    // Reservado para el avatar; intencionalmente vacío.
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_brian_paso > .fa.fa-spin { animation: none; }
+}
