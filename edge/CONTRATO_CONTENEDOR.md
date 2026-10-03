@@ -87,6 +87,8 @@ propio valor por defecto (`dcasa`).
 | `DCASA_2FA_ALCANCE` | var | — | `admins` (por defecto) o `internos` |
 | `DCASA_SESION_ADMIN_HORAS` / `DCASA_INACTIVIDAD_ADMIN_MIN` | var | — | opcionales (al instalar: 12 h / 60 min; `0` = sin). Vacías: no se toca lo que haya en Odoo |
 | `DCASA_AVISO_LOGIN_TELEGRAM` | var | — | `0` apaga el aviso por Telegram de inicios de sesión de administrador |
+| `DCASA_ALERTA_TELEGRAM` | var | — | `0` apaga el aviso por Telegram de disco, memoria y tamaño de la base (cron horario de `dcasa_base`; queda en el log). Umbrales: `DCASA_ALERTA_DISCO_PCT` (sin variable: 80), `DCASA_ALERTA_MEMORIA_PCT` (90), `DCASA_ALERTA_BASE_GB` (0.7), `DCASA_ALERTA_SILENCIO_H` (24). Ver docs/OPERACION.md «Alertas por Telegram» |
+| `ODOO_LOG_LEVEL` / `ODOO_LOG_HANDLER` | var | — | nivel de log de Odoo; sin variable `warn` en producción e `info` en staging, con `werkzeug:WARNING` y las métricas de D'CASA a INFO |
 | `DCASA_ROBOTS_IA` | var | — | `abierta` · `equilibrada` (por defecto) · `cerrada`: política de robots.txt para rastreadores de IA |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | var / secreto | — | opcionales, las dos juntas: Cloudflare Turnstile en login, registro, cambio de clave, formularios y /socios. `DCASA_TURNSTILE=off` lo apaga (rescate) |
 
@@ -96,7 +98,10 @@ Odoo, que guarda el contenido de `ir.attachment` en `adjuntos/<sha1[:2]>/<sha1>`
 Un respaldo de la base **sin** ese prefijo no restaura los archivos (`docs/OPERACION.md`).
 
 Solo del Worker (no entran al contenedor): `RESPALDO_TOKEN` (≥ 32 caracteres, p. ej.
-`openssl rand -hex 32`), `ODOO_DORMIR_TRAS`, `TIENDA_ESTATICA` y el binding KV `TIENDA` (§5).
+`openssl rand -hex 32`), `ODOO_DORMIR_TRAS`, `TIENDA_ESTATICA`, el binding KV `TIENDA` (§5) y
+`DCASA_ALERTA_TELEGRAM_CHAT` (chat_id de Telegram al que el Worker avisa, con el bot de Brian
+`TELEGRAM_BOT_TOKEN`, cuando el contenedor se cae con código ≠ 0 o no arranca; vacío: el evento
+queda solo en los logs del Worker).
 
 ## 4. Política de scheduling: `default` (decidido ahora)
 

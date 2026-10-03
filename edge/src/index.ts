@@ -1,9 +1,14 @@
 import { Container, getContainer, type StopParams } from "@cloudflare/containers";
 
 import {
+  avisarTelegram,
+  canalTelegram,
   colaDeSalida,
+  debeAvisar,
   debeRearrancar,
   handleRequest,
+  mensajeDeArranqueFallido,
+  mensajeDeParada,
   politicaDeSueno,
   runScheduled,
   secretosFaltantes,
@@ -87,6 +92,23 @@ export interface Env {
   DCASA_INACTIVIDAD_ADMIN_MIN?: string;
   /** "0" apaga el aviso por Telegram de inicios de sesión de administrador. */
   DCASA_AVISO_LOGIN_TELEGRAM?: string;
+  // Alertas de operación (docs/OPERACION.md «Alertas por Telegram»)
+  /**
+   * Solo del Worker: chat_id de Telegram (el de la dueña, el que Brian muestra al vincularla) al que
+   * el Worker avisa con el bot de Brian (TELEGRAM_BOT_TOKEN) cuando el contenedor se cae o no arranca.
+   * Vacío: el evento queda solo en los logs del Worker.
+   */
+  DCASA_ALERTA_TELEGRAM_CHAT?: string;
+  /** "0" apaga el aviso por Telegram de disco/memoria/base que manda Odoo (cron horario de dcasa_base). */
+  DCASA_ALERTA_TELEGRAM?: string;
+  /** Umbrales del cron horario; vacíos: 80 %, 90 %, 0.7 GB y 24 h (valores del módulo). */
+  DCASA_ALERTA_DISCO_PCT?: string;
+  DCASA_ALERTA_MEMORIA_PCT?: string;
+  DCASA_ALERTA_BASE_GB?: string;
+  DCASA_ALERTA_SILENCIO_H?: string;
+  /** Nivel de log de Odoo; vacío: "warn" en producción, "info" en staging. */
+  ODOO_LOG_LEVEL?: string;
+  ODOO_LOG_HANDLER?: string;
   /** robots.txt para IA: "abierta", "equilibrada" (por defecto) o "cerrada". */
   DCASA_ROBOTS_IA?: string;
   /** Cloudflare Turnstile: clave pública (variable) y secreto (wrangler secret). "off" en DCASA_TURNSTILE lo apaga. */
@@ -170,9 +192,10 @@ export class OdooContainer extends Container<Env> {
       cancellationOptions: { portReadyTimeoutMS: TOPE_ARRANQUE_MS, instanceGetTimeoutMS: 30_000 },
     })
       .then(() => console.log(JSON.stringify({ evento: "arranque_listo", duracionMs: Date.now() - inicio })))
-      .catch((error: unknown) => {
+      .catch(async (error: unknown) => {
         this.ultimoFalloArranque = Date.now();
         console.error(JSON.stringify({ evento: "arranque_fallido", duracionMs: Date.now() - inicio, error: String(error) }));
+        await this.alertar(mensajeDeArranqueFallido(this.env.DCASA_ENTORNO, Date.now() - inicio, String(error)));
         throw error;
       })
       .finally(() => {
@@ -200,6 +223,32 @@ export class OdooContainer extends Container<Env> {
     if (rearrancar) {
       await this.ctx.storage.put("ultimoRearranque", ahora);
       await this.schedule(30, "rearrancar");
+    }
+    // Caída (código ≠ 0): aviso por Telegram desde aquí, porque Odoo ya no está para avisar.
+    const aviso = mensajeDeParada({ exitCode: params.exitCode, reason: params.reason }, this.env.DCASA_ENTORNO, rearrancar);
+    if (aviso) await this.alertar(aviso);
+  }
+
+  /**
+   * Aviso por Telegram con el bot de Brian al chat DCASA_ALERTA_TELEGRAM_CHAT; sin canal, solo
+   * queda el evento en los logs. Como mucho uno cada PAUSA_ALERTA_MS (un bucle de caídas no
+   * inunda el chat). Nunca lanza: un aviso que falla no debe frenar el rearranque.
+   */
+  private async alertar(texto: string): Promise<void> {
+    const canal = canalTelegram(this.env);
+    if (!canal) {
+      console.log(JSON.stringify({ evento: "alerta_sin_canal", detalle: "falta TELEGRAM_BOT_TOKEN o DCASA_ALERTA_TELEGRAM_CHAT" }));
+      return;
+    }
+    try {
+      const ahora = Date.now();
+      const ultima = await this.ctx.storage.get<number>("ultimaAlerta");
+      if (!debeAvisar(ahora, ultima)) return;
+      await this.ctx.storage.put("ultimaAlerta", ahora);
+      const enviada = await avisarTelegram(canal, texto);
+      console.log(JSON.stringify({ evento: "alerta_telegram", enviada }));
+    } catch (error) {
+      console.error(JSON.stringify({ evento: "alerta_telegram_fallida", error: String(error).slice(0, 200) }));
     }
   }
 

@@ -338,6 +338,57 @@ Las dos quedan también en Odoo: Ajustes → Técnico → **Registros** (`dcasa.
 `dcasa.reporte.alerta_gb` (0.7). Lo que Odoo ya limpia solo (visitantes del sitio a los 60 días,
 sesiones a los 7, notificaciones, bus) no se repite.
 
+### Alertas por Telegram (disco, memoria, base y caídas del contenedor)
+
+Todas llegan por **el mismo bot de Brian** (`TELEGRAM_BOT_TOKEN`), al chat de la dueña y de los demás
+administradores que lo tengan vinculado (Brian → Telegram → vincular; es el mismo canal del aviso de
+inicios de sesión de administrador). Nada nuevo que crear.
+
+| Aviso | Quién lo manda | Cuándo (por defecto) | Variable que lo ajusta |
+|---|---|---|---|
+| Disco del contenedor lleno | Odoo, acción planificada «D'CASA: vigilancia de disco, memoria y tamaño de la base» (cada hora) | uso ≥ **80 %** del disco donde viven PostgreSQL y los archivos de Odoo | `DCASA_ALERTA_DISCO_PCT` (parámetro `dcasa.alerta.disco_pct`) |
+| Memoria cerca del límite | ídem | memoria **en uso real** (sin contar la caché de disco, que el kernel libera sola) ≥ **90 %** del límite del contenedor | `DCASA_ALERTA_MEMORIA_PCT` (`dcasa.alerta.memoria_pct`) |
+| La base pesa demasiado | ídem (y el reporte mensual del día 1) | base > **0,7 GB** | `DCASA_ALERTA_BASE_GB` (`dcasa.reporte.alerta_gb`) |
+| El kernel mató un proceso por falta de memoria | ídem | cada vez que `oom_kill` sube desde la revisión anterior | — |
+| El contenedor se cayó | El Worker (`contenedor_detenido` con código ≠ 0), porque en ese momento Odoo no está para avisar | cualquier parada con código distinto de 0 (una parada limpia por despliegue no avisa) | `DCASA_ALERTA_TELEGRAM_CHAT`: el **chat_id** de la dueña (lo muestra Brian al vincular). Sin él, queda solo en los logs del Worker |
+| El contenedor no arrancó | El Worker (`arranque_fallido`: no abrió el puerto en 7 min) | cada arranque fallido | ídem |
+
+Reglas para no inundar el chat: Odoo no repite **el mismo** aviso antes de **24 h**
+(`DCASA_ALERTA_SILENCIO_H`, parámetro `dcasa.alerta.silencio_h`; en el log y en Ajustes → Técnico →
+Registros queda cada vez), y el Worker manda como mucho un aviso cada 10 min. `DCASA_ALERTA_TELEGRAM=0`
+apaga los avisos de Odoo (siguen saliendo en el log como `DCASA_ALERTA`). Los umbrales se pueden
+cambiar también en Ajustes → Técnico → Parámetros del sistema, sin desplegar.
+
+Qué hacer al recibir uno: disco o base → sacar adjuntos a R2 (`DCASA_ADJUNTOS=r2`, ya es lo normal) y
+revisar «Depuración y reporte mensual»; memoria u `oom_kill` → mirar `"evento": "memoria"` en los logs del
+contenedor y, si se repite, subir el tipo de instancia (`edge/wrangler.jsonc`); caída → «Si el sitio se
+cae» y revisar la última factura o pedido.
+
+### Acciones planificadas de Odoo que se apagan o espacian
+
+Odoo trae acciones planificadas (Ajustes → Técnico → Acciones planificadas) para funciones que D'CASA
+no usa. En cada instalación o actualización de `dcasa_base` (y tras quitar los módulos sobrantes en el
+arranque) se dejan así, de forma idempotente; si alguien las vuelve a encender, la siguiente
+actualización las apaga de nuevo. Si la tienda activa la función (p. ej. configura un correo entrante o
+enciende la asignación de iniciativas), Odoo vuelve a encender el cron por su cuenta.
+
+| Acción planificada de Odoo | Qué se hace | Por qué |
+|---|---|---|
+| Mail: Fetchmail Service (cada 5 min) | apagada | no hay servidor de correo entrante |
+| Publisher: Update Notification (semanal) | apagada | manda estadísticas anónimas de la instalación a Odoo S.A. |
+| CRM: Lead Assignment (diaria) | apagada | no se usan reglas de asignación por equipo |
+| Predictive Lead Scoring (diaria) | pasa a **semanal** | pocas iniciativas: basta recalcular una vez por semana |
+| CRM: enrich leads (IAP) | apagada | servicio de pago de Odoo que no se contrata |
+| Digest Emails (diaria) | apagada | correos de KPI que nadie pidió |
+| Users: Notify About Unregistered Users (diaria) | apagada | recordatorios por correo a usuarios invitados; no se invita por correo |
+| Calendar: Event Reminder (diaria) | apagada | el calendario está oculto |
+| SMS Queue Manager, Snailmail (diarias) | apagadas | SMS y correo postal de pago; además esos módulos se desinstalan |
+| eCommerce: abandoned cart email (cada hora) | pasa a **diaria** | el CTA es WhatsApp y la opción está apagada en Ajustes del sitio |
+
+Los crons propios (respaldos, caché del borde, factura electrónica, sesiones, recolección de adjuntos en
+R2, Socios, purga de accesos, depuración y vigilancia) **no se tocan**. La lista vive en
+`CRONS_ODOO` (`addons/dcasa_base/models/mantenimiento.py`), con test.
+
 ## Tienda rápida (caché de páginas en el borde)
 
 La portada, el catálogo (`/shop`, categorías y páginas), las fichas, Black Weekend, Visítanos,
@@ -396,9 +447,10 @@ eventos `paginas_invalidadas`, `paginas_precalentadas` (con cuántas páginas y 
 | Qué | Dónde |
 |---|---|
 | Lo que pasa en el sitio (arranques, caídas, respaldos) | Panel de Cloudflare → *Workers & Pages* → `dcasa` (o `dcasa-staging`) → **Logs**. Buscar eventos `arranque_listo`, `arranque_fallido`, `contenedor_detenido`, `respaldo` |
-| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs. Para no gastar eventos de log, Odoo no escribe una línea por visita (`werkzeug:WARNING`; los errores sí salen) y PostgreSQL no anota los *checkpoints*. Para depurar: variable `ODOO_LOG_HANDLER=werkzeug:INFO` |
+| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs. Para no gastar eventos de log, en producción Odoo escribe solo avisos y errores (`ODOO_LOG_LEVEL`, por defecto `warn`; staging `info`), no escribe una línea por visita (`werkzeug:WARNING`) y PostgreSQL no anota los *checkpoints*. Las métricas de D'CASA (`DCASA_METRICA`, `DCASA_LIMPIEZA`, `DCASA_ALERTA`) y la línea `"evento": "memoria"` salen igual. Para depurar: variables `ODOO_LOG_LEVEL=info` y `ODOO_LOG_HANDLER=werkzeug:INFO` |
+| Alertas por Telegram | En el chat del bot de Brian (ver «Alertas por Telegram»). En los logs: Odoo deja `DCASA_ALERTA …` y en Ajustes → Técnico → Registros (`dcasa.alerta`); el Worker deja `alerta_telegram` (enviada o no), `alerta_sin_canal` (falta `DCASA_ALERTA_TELEGRAM_CHAT`) o `alerta_telegram_fallida` |
 | Memoria real del contenedor | Buscar `"evento": "memoria"` en los logs del contenedor: una línea ~3 min después de cada arranque (`momento: arranque`) y otra cada vez que Odoo se cae (`odoo_caido`). `cgroup.anon` = memoria que de verdad usan los procesos; `cgroup.file` = caché de disco (el kernel la libera sola; el gráfico del panel puede incluirla); `procesos.odoo` / `procesos.postgres` = RSS y PSS (la PSS de PostgreSQL es la buena: la RSS cuenta `shared_buffers` en cada proceso); `cgroup.eventos.oom_kill` > 0 = el kernel mató un proceso por falta de memoria. También va dentro del reporte mensual (`DCASA_METRICA`) |
-| Depuración y tamaños del mes | Logs del contenedor: `DCASA_LIMPIEZA`, `DCASA_METRICA`, `DCASA_ALERTA`; o en Odoo: Ajustes → Técnico → **Registros** |
+| Depuración y tamaños del mes; disco y memoria cada hora | Logs del contenedor: `DCASA_LIMPIEZA`, `DCASA_METRICA`, `DCASA_ALERTA`; o en Odoo: Ajustes → Técnico → **Registros** |
 | En vivo desde una terminal | `cd edge && npx wrangler tail --env=""` (staging: `--env=staging`) |
 | Despliegues y pruebas | GitHub → **Actions** → la ejecución → cada paso; el *Summary* trae la versión desplegada y el respaldo previo |
 

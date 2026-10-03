@@ -405,6 +405,15 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "DCASA_TURNSTILE",
   // Rescate: login al que se le quita el doble factor una vez (docs/SEGURIDAD_ACCESO.md)
   "DCASA_2FA_RESCATE",
+  // Alertas de operación de Odoo (addons/dcasa_base mantenimiento.py; docker/entrypoint.sh «2f»)
+  "DCASA_ALERTA_TELEGRAM",
+  "DCASA_ALERTA_DISCO_PCT",
+  "DCASA_ALERTA_MEMORIA_PCT",
+  "DCASA_ALERTA_BASE_GB",
+  "DCASA_ALERTA_SILENCIO_H",
+  // Nivel de log de Odoo (por defecto warn en producción, info en staging)
+  "ODOO_LOG_LEVEL",
+  "ODOO_LOG_HANDLER",
 ] as const;
 
 /**
@@ -451,6 +460,90 @@ export const PAUSA_REARRANQUE_MS = 10 * 60 * 1000;
 export function debeRearrancar(siempreEncendido: boolean, ahora: number, ultimoRearranque?: number): boolean {
   if (!siempreEncendido) return false;
   return ultimoRearranque === undefined || ahora - ultimoRearranque >= PAUSA_REARRANQUE_MS;
+}
+
+// ------------------------- Alertas por Telegram desde el Worker -------------------------
+//
+// Cuando el contenedor se cae, Odoo (y con él el canal de avisos de dcasa_seguridad) está
+// apagado: el aviso lo manda el Worker directo a la API de Telegram con el MISMO bot de Brian
+// (`TELEGRAM_BOT_TOKEN`, ya secreto del Worker) al chat `DCASA_ALERTA_TELEGRAM_CHAT` (el chat_id
+// que Brian muestra al vincular a la dueña). Sin alguna de las dos, el evento queda solo en los
+// logs del Worker. Mismo aviso como mucho una vez cada PAUSA_ALERTA_MS (un bucle de caídas no
+// inunda el chat).
+
+export const PAUSA_ALERTA_MS = 10 * 60 * 1000;
+const API_TELEGRAM = "https://api.telegram.org";
+const TIMEOUT_TELEGRAM_MS = 10_000;
+
+export interface CanalTelegram {
+  token?: string;
+  chat?: string;
+}
+
+/** El canal está configurado si hay token y un chat_id de Telegram (entero, puede ser negativo en grupos). */
+export function canalTelegram(env: object): CanalTelegram | null {
+  const valores = env as Record<string, unknown>;
+  const token = typeof valores.TELEGRAM_BOT_TOKEN === "string" ? valores.TELEGRAM_BOT_TOKEN.trim() : "";
+  const chat = typeof valores.DCASA_ALERTA_TELEGRAM_CHAT === "string" ? valores.DCASA_ALERTA_TELEGRAM_CHAT.trim() : "";
+  if (!token || !/^-?\d{1,20}$/.test(chat)) return null;
+  return { token, chat };
+}
+
+/** ¿Toca avisar, o ya se avisó hace menos de PAUSA_ALERTA_MS? */
+export function debeAvisar(ahora: number, ultimaAlerta?: number): boolean {
+  return ultimaAlerta === undefined || ahora - ultimaAlerta >= PAUSA_ALERTA_MS;
+}
+
+export interface ParadaContenedor {
+  exitCode: number;
+  reason: string;
+}
+
+/**
+ * Texto del aviso tras una parada. `null` cuando no hay nada que avisar: salida limpia
+ * (código 0: SIGTERM de un despliegue o del sueño de staging).
+ */
+export function mensajeDeParada(parada: ParadaContenedor, entorno: string | undefined, rearrancar: boolean): string | null {
+  if (parada.exitCode === 0) return null;
+  const donde = entorno === "staging" ? "staging" : "producción";
+  const causa =
+    parada.reason === "exit"
+      ? "el proceso terminó solo (fallo de restauración, falta de memoria o error de Odoo)"
+      : `lo detuvo Cloudflare (${parada.reason})`;
+  const despues = rearrancar
+    ? "Se rearranca solo en 30 s desde el último respaldo en R2."
+    : "No se rearranca solo ahora: lo enciende el cron horario o la próxima visita.";
+  return `D'CASA · el contenedor de ${donde} se detuvo con código ${parada.exitCode}: ${causa}. ${despues} Revisar la última factura o pedido (docs/OPERACION.md «Si el sitio se cae»).`;
+}
+
+/** Texto del aviso cuando el contenedor no llegó a abrir el puerto (restauración o arranque fallidos). */
+export function mensajeDeArranqueFallido(entorno: string | undefined, duracionMs: number, error: string): string {
+  const donde = entorno === "staging" ? "staging" : "producción";
+  return `D'CASA · el contenedor de ${donde} no arrancó tras ${Math.round(duracionMs / 1000)} s: ${error.slice(0, 300)}. Se reintenta con la próxima visita o el cron horario; si sigue, docs/OPERACION.md «Si el sitio se cae».`;
+}
+
+/**
+ * Manda un texto al chat (sendMessage, texto plano, como `brian.telegram.enlace._enviar`). Nunca
+ * lanza: devuelve `true` si Telegram respondió `ok`. El token no se registra jamás.
+ */
+export async function avisarTelegram(canal: CanalTelegram, texto: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const respuesta = await fetchFn(`${API_TELEGRAM}/bot${canal.token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: canal.chat, text: texto.slice(0, 4096), disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(TIMEOUT_TELEGRAM_MS),
+    });
+    const cuerpo = (await respuesta.json().catch(() => ({}))) as { ok?: boolean; description?: string };
+    if (!cuerpo.ok) {
+      console.error(JSON.stringify({ evento: "alerta_telegram_fallida", status: respuesta.status, detalle: cuerpo.description ?? "" }));
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(JSON.stringify({ evento: "alerta_telegram_fallida", error: String(error).slice(0, 200) }));
+    return false;
+  }
 }
 
 // ------------------------------- Salud -------------------------------------
