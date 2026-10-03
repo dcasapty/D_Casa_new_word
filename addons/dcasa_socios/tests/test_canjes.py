@@ -33,9 +33,13 @@ class TestCanjes(SociosCommon):
             self.env['dcasa.canje']._pedir(self.padrino, self.env.ref('dcasa_socios.premio_desc_5'))
 
     def test_canje_minimo(self):
-        barato = self.env['dcasa.premio'].create({'name': 'Llavero', 'puntos': 100, 'tipo': 'producto'})
-        with self.assertRaises(UserError):
-            self.env['dcasa.canje']._pedir(self.padrino, barato)
+        # El mínimo frena descuentos en dólares de centavos...
+        descuento = self.env['dcasa.premio'].create({'name': '$1', 'puntos': 100, 'tipo': 'descuento', 'valor': 1})
+        with self.assertRaisesRegex(UserError, 'canje mínimo'):
+            self.env['dcasa.canje']._pedir(self.padrino, descuento)
+        # ...pero un premio de producto cuesta lo que fije Gerencia.
+        llavero = self.env['dcasa.premio'].create({'name': 'Llavero', 'puntos': 100, 'tipo': 'producto'})
+        self.assertEqual(self.env['dcasa.canje']._pedir(self.padrino, llavero).puntos, 100)
 
     def test_stock(self):
         cojin = self.env['dcasa.premio'].create({'name': 'Cojín', 'puntos': 600, 'tipo': 'producto',
