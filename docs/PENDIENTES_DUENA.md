@@ -9,5 +9,5 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
 3. **Bases N-F10018 King y Twin**: entraron como productos aparte (códigos distintos) aunque el
    catálogo las tenía como tallas de la misma base.
 4. **11 lecturas dudosas** de las capturas (columna `dudas` del CSV y el informe).
-5. **Textos de la factura**: se pusieron textos propuestos (garantía 30 días, cambios 7 días,
+5. **Textos de la factura** (aprobados por la dueña, editables cuando quiera): se pusieron textos propuestos (garantía 30 días, cambios 7 días,
    términos); revisarlos con un abogado y ajustarlos en Ajustes → Empresas → Documentos D'CASA.
