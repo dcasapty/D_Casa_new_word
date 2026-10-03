@@ -7,3 +7,4 @@ from . import test_legal
 from . import test_imagen
 from . import test_black_weekend
 from . import test_diseno
+from . import test_contrato_visual

@@ -10,6 +10,7 @@ defecto prudente: sin parámetro, nada queda más abierto ni nadie queda fuera.
 | dcasa_seguridad.2fa_alcance         | DCASA_2FA_ALCANCE            | admins       |
 | dcasa_seguridad.bloqueo_tope_s      | —                            | 1800 (30 min)|
 | dcasa_seguridad.aviso_telegram      | DCASA_AVISO_LOGIN_TELEGRAM   | 1            |
+| dcasa_seguridad.aviso_operacion     | DCASA_ALERTA_TELEGRAM        | 1            |
 | dcasa_seguridad.robots_ia           | DCASA_ROBOTS_IA              | equilibrada  |
 | grupo Administración/Ajustes        | DCASA_SESION_ADMIN_HORAS     | 12           |
 |   (auth_timeout)                    | DCASA_INACTIVIDAD_ADMIN_MIN  | 60           |

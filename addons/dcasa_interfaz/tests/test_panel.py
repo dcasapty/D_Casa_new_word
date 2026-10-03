@@ -117,7 +117,7 @@ class TestPanel(TransactionCase):
                       'stock.menu_stock_root', 'dcasa_base.menu_dcasa_ventas_hoy', 'dcasa_interfaz.menu_dcasa_inicio'):
             self.assertIn(xmlid, de_vendedora, xmlid)
         de_gerencia = self._menus(self.gerencia)
-        for xmlid in ocultos - {'website.menu_website_configuration'}:
+        for xmlid in ocultos:
             self.assertIn(xmlid, de_gerencia, xmlid)
 
     def test_columnas_que_no_se_usan_quedan_opcionales(self):

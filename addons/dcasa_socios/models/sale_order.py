@@ -67,3 +67,14 @@ class SaleOrderLine(models.Model):
         # La línea de premio es negativa por diseño: la pagan los puntos, no la vendedora.
         return super()._dcasa_exenta_tope_descuento() or bool(self.dcasa_canje_id)
 
+    def _dcasa_etiqueta(self):
+        """La línea con que se cobró un premio se imprime identificada como tal."""
+        if self.dcasa_canje_id:
+            return "Premio Socios D'CASA"
+        return super()._dcasa_etiqueta()
+
+    def _dcasa_va_aparte(self):
+        """El premio es un descuento, no un servicio que se cobra: se queda entre los muebles."""
+        if self.dcasa_canje_id:
+            return False
+        return super()._dcasa_va_aparte()

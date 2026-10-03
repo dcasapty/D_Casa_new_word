@@ -77,6 +77,10 @@
     "DCASA_2FA_ALCANCE": "admins"
     // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
     // secreto. Sin las dos, Turnstile queda apagado (docs/SEGURIDAD_ACCESO.md → Turnstile).
+    // Alertas del Worker por Telegram (docs/OPERACION.md «Alertas por Telegram»): el chat_id de la
+    // dueña, "DCASA_ALERTA_TELEGRAM_CHAT": "<chat_id>", con el bot de Brian (TELEGRAM_BOT_TOKEN).
+    // Sin él, las caídas del contenedor quedan solo en los logs. Umbrales de Odoo (opcionales):
+    // DCASA_ALERTA_DISCO_PCT (80), DCASA_ALERTA_MEMORIA_PCT (90), DCASA_ALERTA_BASE_GB (0.7).
   },
 
   // Límite de intentos por IP en los POST sensibles (edge/src/bots.ts). Rate Limiting de Workers:

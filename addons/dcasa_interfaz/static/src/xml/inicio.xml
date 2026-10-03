@@ -31,6 +31,9 @@
                     <button class="btn btn-secondary" t-on-click="verTienda">
                         <i class="fa fa-external-link me-2"/>Ver la tienda
                     </button>
+                    <button class="btn btn-secondary" t-on-click="vistaPrevia" title="El sitio como se ve en un teléfono">
+                        <i class="fa fa-mobile me-2"/>Ver en el celular
+                    </button>
                 </div>
             </header>
 

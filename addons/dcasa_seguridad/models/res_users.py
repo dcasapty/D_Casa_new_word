@@ -192,16 +192,36 @@ class ResUsers(models.Model):
         return ahora.strftime('%d/%m/%Y %H:%M') + ' (hora de Panamá)'
 
     @api.model
-    def _dcasa_avisar_admins(self, usuario, texto):
-        """Aviso por el Telegram de Brian al usuario y a los demás administradores vinculados."""
-        if not activo(self.env, 'aviso_telegram', True) or 'brian.telegram.enlace' not in self.env:
-            return
-        admins = self.env.ref('base.group_system').sudo().all_user_ids | usuario
+    def _dcasa_chats_admins(self, usuarios=None):
+        """Chats de Telegram (Brian) de los administradores vinculados, más los de ``usuarios``."""
+        if 'brian.telegram.enlace' not in self.env:
+            return []
+        admins = self.env.ref('base.group_system').sudo().all_user_ids | (usuarios or self.env['res.users'])
         enlaces = self.env['brian.telegram.enlace'].sudo().search([
             ('user_id', 'in', admins.ids), ('activo', '=', True)])
-        chats = sorted(set(enlaces.mapped('chat_id')))
+        return sorted(set(enlaces.mapped('chat_id')))
+
+    @api.model
+    def _dcasa_avisar_admins(self, usuario, texto):
+        """Aviso por el Telegram de Brian al usuario y a los demás administradores vinculados."""
+        if not activo(self.env, 'aviso_telegram', True):
+            return
+        chats = self._dcasa_chats_admins(usuario)
         if chats:
             self._dcasa_enviar_aviso(chats, texto)
+
+    @api.model
+    def _dcasa_avisar_operacion(self, texto):
+        """Aviso de operación (disco, memoria, tamaño de la base: ``dcasa.mantenimiento``) por el
+        mismo canal de Telegram a los administradores vinculados. ``dcasa_seguridad.aviso_operacion``
+        = 0 lo apaga. Devuelve ``True`` si había a quién mandarlo."""
+        if not activo(self.env, 'aviso_operacion', True):
+            return False
+        chats = self._dcasa_chats_admins()
+        if not chats:
+            return False
+        self._dcasa_enviar_aviso(chats, texto)
+        return True
 
     @api.model
     def _dcasa_enviar_aviso(self, chats, texto):

@@ -3,11 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CRON_HORARIO,
   CRON_RESPALDO,
+  PAUSA_ALERTA_MS,
   PAUSA_REARRANQUE_MS,
   autorizado,
+  avisarTelegram,
+  canalTelegram,
   colaDeSalida,
+  debeAvisar,
   debeRearrancar,
   handleRequest,
+  mensajeDeArranqueFallido,
+  mensajeDeParada,
   mismoSecreto,
   politicaDeSueno,
   respuestaArrancando,
@@ -330,6 +336,91 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(debeRearrancar(true, ahora, ahora - 60_000)).toBe(false);
     expect(debeRearrancar(true, ahora, ahora - PAUSA_REARRANQUE_MS)).toBe(true);
     expect(debeRearrancar(false, ahora)).toBe(false);
+  });
+
+  it("las variables de alertas y de nivel de log llegan al contenedor", () => {
+    const vars = variablesDelContenedor({
+      DCASA_ALERTA_TELEGRAM: "0",
+      DCASA_ALERTA_DISCO_PCT: "85",
+      DCASA_ALERTA_MEMORIA_PCT: "95",
+      DCASA_ALERTA_BASE_GB: "1.5",
+      DCASA_ALERTA_SILENCIO_H: "6",
+      ODOO_LOG_LEVEL: "info",
+      DCASA_ALERTA_TELEGRAM_CHAT: "12345",
+    });
+    expect(vars).toMatchObject({
+      DCASA_ALERTA_TELEGRAM: "0",
+      DCASA_ALERTA_DISCO_PCT: "85",
+      DCASA_ALERTA_MEMORIA_PCT: "95",
+      DCASA_ALERTA_BASE_GB: "1.5",
+      DCASA_ALERTA_SILENCIO_H: "6",
+      ODOO_LOG_LEVEL: "info",
+    });
+    // El chat del Worker no hace falta dentro del contenedor (Odoo avisa a los admins vinculados).
+    expect(vars).not.toHaveProperty("DCASA_ALERTA_TELEGRAM_CHAT");
+  });
+});
+
+describe("alertas por Telegram desde el Worker (caída o arranque fallido del contenedor)", () => {
+  it("el canal exige el token del bot de Brian y un chat_id entero", () => {
+    expect(canalTelegram({})).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc" })).toBeNull();
+    expect(canalTelegram({ DCASA_ALERTA_TELEGRAM_CHAT: "777" })).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc", DCASA_ALERTA_TELEGRAM_CHAT: "@dueña" })).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: " 123:abc ", DCASA_ALERTA_TELEGRAM_CHAT: " 777 " })).toEqual({
+      token: "123:abc",
+      chat: "777",
+    });
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc", DCASA_ALERTA_TELEGRAM_CHAT: "-100123" })?.chat).toBe("-100123");
+  });
+
+  it("una salida limpia (código 0) no avisa; una caída sí, con entorno, causa y qué pasa después", () => {
+    expect(mensajeDeParada({ exitCode: 0, reason: "runtime_signal" }, "produccion", true)).toBeNull();
+    const caida = mensajeDeParada({ exitCode: 137, reason: "exit" }, "produccion", true)!;
+    expect(caida).toContain("producción");
+    expect(caida).toContain("código 137");
+    expect(caida).toContain("el proceso terminó solo");
+    expect(caida).toContain("Se rearranca solo");
+    const staging = mensajeDeParada({ exitCode: 1, reason: "runtime_signal" }, "staging", false)!;
+    expect(staging).toContain("staging");
+    expect(staging).toContain("lo detuvo Cloudflare (runtime_signal)");
+    expect(staging).toContain("No se rearranca solo");
+    const sinArrancar = mensajeDeArranqueFallido(undefined, 420_500, "x".repeat(400));
+    expect(sinArrancar).toContain("producción");
+    expect(sinArrancar).toContain("421 s");
+    expect(sinArrancar.length).toBeLessThan(500);
+  });
+
+  it("como mucho un aviso cada PAUSA_ALERTA_MS", () => {
+    const ahora = 1_000_000_000;
+    expect(debeAvisar(ahora)).toBe(true);
+    expect(debeAvisar(ahora, ahora - 1000)).toBe(false);
+    expect(debeAvisar(ahora, ahora - PAUSA_ALERTA_MS)).toBe(true);
+  });
+
+  it("manda sendMessage al bot con el chat y el texto, sin registrar el token", async () => {
+    const fetchFn = vi.fn(async () => Response.json({ ok: true, result: {} }));
+    const canal = { token: "123:secreto", chat: "777" };
+    expect(await avisarTelegram(canal, "hola", fetchFn as unknown as typeof fetch)).toBe(true);
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.telegram.org/bot123:secreto/sendMessage");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ chat_id: "777", text: "hola", disable_web_page_preview: true });
+  });
+
+  it("si Telegram falla o no responde, devuelve false y no lanza (ni filtra el token)", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const canal = { token: "123:secreto", chat: "777" };
+    const rechazo = vi.fn(async () => Response.json({ ok: false, description: "chat not found" }, { status: 400 }));
+    expect(await avisarTelegram(canal, "hola", rechazo as unknown as typeof fetch)).toBe(false);
+    const caido = vi.fn(async () => {
+      throw new Error("red caída");
+    });
+    expect(await avisarTelegram(canal, "hola", caido as unknown as typeof fetch)).toBe(false);
+    const noJson = vi.fn(async () => new Response("<html>", { status: 502 }));
+    expect(await avisarTelegram(canal, "hola", noJson as unknown as typeof fetch)).toBe(false);
+    for (const llamada of error.mock.calls) expect(String(llamada[0])).not.toContain("secreto");
+    error.mockRestore();
   });
 });
 
