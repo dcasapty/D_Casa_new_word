@@ -103,8 +103,20 @@ class TestFacturaCompleta(TransactionCase):
         self.assertFalse(servicios)
         self.assertNotIn('o_dcasa_servicios', self._render(factura))
 
+    def test_columna_itbms_corta(self):
+        itbms = self.company.account_sale_tax_id
+        self.assertEqual(lineas.etiqueta_impuestos(itbms), '7%')
+        self.assertEqual(lineas.etiqueta_impuestos(itbms.browse()), '')
+        factura = self._factura_completa()
+        linea = factura.invoice_line_ids.filtered(lambda linea: linea.product_id == self.cama)
+        self.assertEqual(linea._dcasa_impuestos(), '7%')
+        html = self._render(factura)
+        self.assertIn('>7%<', html)
+        self.assertNotIn('ITBMS 7% Venta', html, 'El nombre interno del impuesto no va en la columna')
+
     def test_producto_flete_sin_precio_inventado(self):
         self.assertEqual(self.flete.list_price, 0)
+        self.assertFalse(self.flete.description_sale, 'Las condiciones de entrega las redacta la dueña')
         self.assertEqual(self.flete.default_code, 'DCASA-FLETE')
         self.assertEqual(self.flete.categ_id, self.env.ref('dcasa_invoice.categ_flete'))
 
@@ -122,6 +134,16 @@ class TestFacturaCompleta(TransactionCase):
         self.assertEqual(datos['Pedido'], 'S01004')
         self.assertEqual(datos['Vendedora'], 'Ana Vendedora')
         self.assertEqual(datos['Fecha de entrega'], factura._dcasa_fecha(fields.Date.today()))
+        # La entrega se imprime con su propio nombre y sin repetir la identificación del cliente.
+        self.assertIn('>Casa de Karen<', html)
+        self.assertEqual(html.count('8-797-2148'), 1)
+
+    def test_referencia_igual_al_pedido_no_se_repite(self):
+        factura = self._factura_completa()
+        factura.ref = 'S01004'  # Odoo copia el pedido en la referencia al facturar una venta
+        self.assertNotIn('Referencia', dict(factura._dcasa_datos()))
+        factura.ref = 'Pago en dos partes'
+        self.assertEqual(dict(factura._dcasa_datos())['Referencia'], 'Pago en dos partes')
 
     def test_sin_entrega_distinta_no_se_imprime(self):
         # Odoo elige sola la dirección de entrega hija del cliente; este cliente no tiene ninguna.
@@ -144,6 +166,7 @@ class TestFacturaCompleta(TransactionCase):
         self.assertEqual(len(abonos), 1)
         self.assertAlmostEqual(abonos[0]['monto'], 100.00)
         self.assertTrue(abonos[0]['medio'])
+        self.assertNotIn('Manual', abonos[0]['medio'], 'El método genérico de Odoo no le dice nada al cliente')
         self.assertEqual(abonos[0]['fecha'], factura._dcasa_fecha(factura.invoice_date))
         html = self._render(factura)
         # El widget monetario separa el símbolo del número: «$<span …>15.80</span>».

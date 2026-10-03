@@ -101,9 +101,19 @@ class AccountMove(models.Model):
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
 
+    def _dcasa_es_premio(self):
+        self.ensure_one()
+        premio = self.env.ref('dcasa_socios.product_premio_canje', raise_if_not_found=False)
+        return bool(self.sudo().sale_line_ids.dcasa_canje_id) or bool(premio and self.product_id == premio)
+
     def _dcasa_etiqueta(self):
         """La línea con que se cobró un premio se imprime identificada como tal."""
-        premio = self.env.ref('dcasa_socios.product_premio_canje', raise_if_not_found=False)
-        if self.sudo().sale_line_ids.dcasa_canje_id or (premio and self.product_id == premio):
+        if self._dcasa_es_premio():
             return "Premio Socios D'CASA"
         return super()._dcasa_etiqueta()
+
+    def _dcasa_va_aparte(self):
+        """El premio es un descuento, no un servicio que se cobra: se queda entre los muebles."""
+        if self._dcasa_es_premio():
+            return False
+        return super()._dcasa_va_aparte()

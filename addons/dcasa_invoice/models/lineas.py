@@ -13,7 +13,9 @@ Qué es «flete / envío» (en este orden; basta con una):
 3. Es el producto de un transportista (``delivery.carrier``), si el módulo está instalado.
 
 Qué es «servicio»: cualquier producto de tipo servicio (Odoo ``type == 'service'``). El
-flete es un servicio más; solo cambia el título del bloque.
+flete es un servicio más; solo cambia el título del bloque. Cada línea decide si va aparte
+con ``_dcasa_va_aparte()``; otros módulos lo cambian (el premio de Socios D'CASA es un
+servicio, pero se queda entre los muebles porque es un descuento, no algo que se cobra).
 """
 import re
 
@@ -65,13 +67,13 @@ def es_servicio(producto):
 
 
 def separar(lineas, es_producto):
-    """(principales, servicios): las de servicio van aparte solo si hay algo que no lo sea.
+    """(principales, servicios): las que van aparte se separan solo si hay algo que no lo haga.
 
     Las secciones y notas se quedan en la tabla principal. Si todo son servicios (una
     factura solo de flete, por ejemplo) no hay nada que separar.
     """
-    servicios = lineas.filtered(lambda linea: es_producto(linea) and es_servicio(linea.product_id))
-    bienes = lineas.filtered(lambda linea: es_producto(linea) and not es_servicio(linea.product_id))
+    servicios = lineas.filtered(lambda linea: es_producto(linea) and linea._dcasa_va_aparte())
+    bienes = lineas.filtered(lambda linea: es_producto(linea) and not linea._dcasa_va_aparte())
     if not servicios or not bienes:
         return lineas, lineas.browse()
     return lineas - servicios, servicios
@@ -84,6 +86,17 @@ def titulo_servicios(lineas):
     if not any(fletes):
         return 'Servicios'
     return 'Flete y servicios'
+
+
+def etiqueta_impuestos(impuestos):
+    """Lo que va en la columna ITBMS: «7%» para un porcentaje; para otro tipo, la etiqueta del impuesto."""
+    partes = []
+    for impuesto in impuestos:
+        if impuesto.amount_type == 'percent':
+            partes.append(f'{impuesto.amount:g}%')
+        else:
+            partes.append(impuesto.tax_label or impuesto.name)
+    return ', '.join(parte for parte in partes if parte)
 
 
 def total_descuento(lineas, moneda, campo_cantidad='quantity'):

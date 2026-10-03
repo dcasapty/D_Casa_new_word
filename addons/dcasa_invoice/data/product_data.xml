@@ -2,7 +2,8 @@
 <odoo>
     <data noupdate="1">
         <!-- Flete / envío: la línea que la factura imprime en su propio bloque (ver models/lineas.py).
-             Sin precio: el flete se cotiza en cada venta (la vendedora lo escribe en la línea).
+             Sin precio ni descripción de venta: el flete se cotiza en cada venta (la vendedora lo
+             escribe en la línea) y las condiciones de entrega las redacta la dueña en la empresa.
              El impuesto es el que Odoo pone por defecto a cualquier producto nuevo; la contadora
              decide si el transporte lleva ITBMS. La tienda web usa su propio producto «Entrega»
              (DCASA-ENTREGA), que este módulo también reconoce como flete. -->
@@ -18,7 +19,6 @@
             <field name="sale_ok" eval="True"/>
             <field name="purchase_ok" eval="False"/>
             <field name="list_price">0</field>
-            <field name="description_sale">Entrega a domicilio. El costo se cotiza según la zona.</field>
         </record>
     </data>
 </odoo>

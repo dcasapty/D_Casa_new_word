@@ -1,4 +1,6 @@
 """El bloque Socios D'CASA de la factura impresa: cifras del libro, nunca a ojo."""
+from html import unescape
+
 from odoo.tests import tagged
 
 from .common import SociosCommon
@@ -7,8 +9,9 @@ from .common import SociosCommon
 @tagged('post_install', '-at_install')
 class TestFacturaImpresa(SociosCommon):
 
-    def _render(self, factura):
-        return self.env['ir.actions.report']._render_qweb_html('account.report_invoice', factura.ids)[0].decode()
+    def _render(self, registros, reporte='account.report_invoice'):
+        # QWeb escapa el apóstrofo de «D'CASA» (&#39;); se deshace para leer el texto tal cual.
+        return unescape(self.env['ir.actions.report']._render_qweb_html(reporte, registros.ids)[0].decode())
 
     def test_socio_con_factura_pagada_ve_codigo_puntos_y_saldo(self):
         factura = self.factura()  # $100 + ITBMS = $107 → 107 puntos
@@ -65,9 +68,14 @@ class TestFacturaImpresa(SociosCommon):
         factura.action_post()
         html = self._render(factura)
         self.assertIn("Premio Socios D'CASA", html, 'La línea del premio lleva su distintivo')
+        self.assertNotIn('o_dcasa_servicios', html, 'El premio es un descuento: se queda entre los muebles')
+        linea_premio = factura.invoice_line_ids.filtered(lambda linea: linea.sale_line_ids.dcasa_canje_id)
+        self.assertTrue(linea_premio)
+        self.assertFalse(linea_premio._dcasa_va_aparte())
+        self.assertNotIn('$-', html, 'El signo va delante del símbolo: -$9.35')
+        self.assertIn('-$', html)
         self.assertIn('Premio cobrado en este pedido', html)
         self.assertIn(canje.premio_nombre, html)
         self.assertIn(canje.codigo, html)
         # El pedido impreso también lo identifica.
-        pedido_html = self.env['ir.actions.report']._render_qweb_html('sale.report_saleorder', orden.ids)[0].decode()
-        self.assertIn("Premio Socios D'CASA", pedido_html)
+        self.assertIn("Premio Socios D'CASA", self._render(orden, 'sale.report_saleorder'))

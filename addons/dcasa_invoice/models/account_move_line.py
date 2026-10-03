@@ -23,6 +23,15 @@ class AccountMoveLine(models.Model):
         self.ensure_one()
         return lineas.es_flete(self.product_id)
 
+    def _dcasa_va_aparte(self):
+        """True si la línea se imprime en el bloque de flete y servicios. Otros módulos lo afinan."""
+        self.ensure_one()
+        return lineas.es_servicio(self.product_id)
+
+    def _dcasa_impuestos(self):
+        self.ensure_one()
+        return lineas.etiqueta_impuestos(self.tax_ids)
+
     def _dcasa_etiqueta(self):
         """Un distintivo corto junto a la descripción («Premio Socios D'CASA»). Otros módulos lo llenan."""
         self.ensure_one()

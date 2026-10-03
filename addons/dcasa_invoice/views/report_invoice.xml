@@ -9,8 +9,8 @@
     <template id="dcasa_bloque_cliente" name="D'CASA: datos del cliente">
         <div class="o_dcasa_cliente" name="dcasa_cliente">
             <div t-if="titulo" class="o_dcasa_bloque_titulo" t-out="titulo"/>
-            <div class="o_dcasa_cliente_nombre" t-out="partner.display_name"/>
-            <div t-if="partner.commercial_partner_id.vat" name="dcasa_cliente_identificacion">
+            <div class="o_dcasa_cliente_nombre" t-out="partner.name if partner.parent_id and partner.type != 'contact' else partner.display_name"/>
+            <div t-if="partner == partner.commercial_partner_id and partner.vat" name="dcasa_cliente_identificacion">
                 <t t-out="partner._dcasa_etiqueta_identificacion()"/>:
                 <span t-out="partner.commercial_partner_id.dcasa_ruc_display"/>
             </div>
@@ -66,8 +66,8 @@
                 </td>
                 <td class="text-end"><span class="text-nowrap" t-out="servicio[campo_cantidad]" t-options="{'widget': 'float', 'decimal_precision': 'Product Unit'}"/></td>
                 <td class="text-end"><span class="text-nowrap" t-out="servicio.price_unit" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></td>
-                <td t-if="display_discount" class="text-end"><span t-if="servicio.discount" class="text-nowrap" t-out="servicio.discount"/></td>
-                <td t-if="display_taxes" class="text-end"><span t-out="', '.join(tax.tax_label for tax in servicio.tax_ids if tax.tax_label)"/></td>
+                <td t-if="display_discount" class="text-end"><span t-if="servicio.discount > 0" class="text-nowrap" t-out="servicio.discount" t-options="{'widget': 'float', 'precision': 2}"/></td>
+                <td t-if="display_taxes" class="text-end text-nowrap"><span t-out="servicio._dcasa_impuestos()"/></td>
                 <td class="text-end o_price_total"><span class="text-nowrap" t-out="servicio[campo_importe]" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></td>
             </tr>
         </tbody>
@@ -168,6 +168,14 @@
         <xpath expr="//td[@name='td_price_unit']/span" position="replace">
             <span t-if="not hide_prices" class="text-nowrap" t-out="line.price_unit"
                   t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_discount']/span" position="replace">
+            <span t-if="line.discount > 0" class="text-nowrap" t-field="line.discount"/>
+        </xpath>
+        <xpath expr="//td[@name='td_taxes']" position="replace">
+            <td name="td_taxes" t-if="display_taxes" class="text-end text-nowrap">
+                <span t-if="not hide_prices" t-out="line._dcasa_impuestos()" id="line_tax_ids"/>
+            </td>
         </xpath>
         <xpath expr="//td[@name='td_subtotal']" position="replace">
             <td name="td_subtotal" class="text-end o_price_total">
@@ -345,6 +353,9 @@
                 <t t-set="dcasa_etiqueta" t-value="line._dcasa_etiqueta()"/>
                 <span t-if="dcasa_etiqueta" class="o_dcasa_etiqueta" t-out="dcasa_etiqueta"/>
             </td>
+        </xpath>
+        <xpath expr="//td[@name='td_product_taxes']/span" position="replace">
+            <span t-out="line._dcasa_impuestos()"/>
         </xpath>
         <xpath expr="//tbody[hasclass('sale_tbody')]" position="after">
             <t t-call="dcasa_invoice.dcasa_lineas_servicios">

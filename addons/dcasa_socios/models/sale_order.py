@@ -73,3 +73,8 @@ class SaleOrderLine(models.Model):
             return "Premio Socios D'CASA"
         return super()._dcasa_etiqueta()
 
+    def _dcasa_va_aparte(self):
+        """El premio es un descuento, no un servicio que se cobra: se queda entre los muebles."""
+        if self.dcasa_canje_id:
+            return False
+        return super()._dcasa_va_aparte()

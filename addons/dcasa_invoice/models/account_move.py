@@ -31,7 +31,8 @@ class AccountMove(models.Model):
         for pago in sorted(self._dcasa_pagos(), key=orden):
             medio = pago.get('journal_name') or ''
             metodo = pago.get('payment_method_name') or ''
-            if metodo and metodo.lower() not in ('manual', medio.lower()):
+            # «Manual» / «Manual Payment» es el método genérico de Odoo: no le dice nada al cliente.
+            if metodo and not metodo.lower().startswith('manual') and metodo.lower() != medio.lower():
                 medio = f'{medio} · {metodo}' if medio else metodo
             abonos.append({
                 'fecha': self._dcasa_fecha(pago.get('date')),
@@ -100,7 +101,7 @@ class AccountMove(models.Model):
             ('Vence', self._dcasa_fecha(self.invoice_date_due) if self._dcasa_mostrar_vencimiento() else ''),
             ('Fecha de entrega', self._dcasa_fecha(self.delivery_date)),
             ('Pedido', self.invoice_origin),
-            ('Referencia', self.ref),
+            ('Referencia', self.ref if self.ref != self.invoice_origin else ''),
             ('Código de cliente', self.partner_id.ref),
             ('Vendedora', self.invoice_user_id.name if self.move_type in ('out_invoice', 'out_refund') else ''),
             ('Condiciones', self.invoice_payment_term_id.name),
