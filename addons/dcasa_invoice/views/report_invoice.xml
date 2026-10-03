@@ -1,20 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Los datos del cliente, igual en la factura y en la cotización:
-         nombre, dirección completa, teléfono y «Cédula» o «RUC» (con su DV). -->
+    <!-- ================================================================================
+         Piezas compartidas por la factura, la cotización y el pedido
+         ================================================================================ -->
+
+    <!-- Una ficha de contacto: nombre, identificación (Cédula/RUC con DV), teléfono,
+         correo y dirección, línea por línea. Lo que no existe no se imprime. -->
     <template id="dcasa_bloque_cliente" name="D'CASA: datos del cliente">
         <div class="o_dcasa_cliente" name="dcasa_cliente">
-            <div class="o_dcasa_cliente_nombre" t-out="partner.display_name"/>
-            <t t-foreach="partner._dcasa_lineas_direccion()" t-as="linea">
-                <div t-out="linea"/>
-            </t>
-            <div t-if="partner.phone" name="dcasa_cliente_telefono">Tel.: <span t-out="partner._dcasa_telefono_fmt()"/></div>
-            <div t-if="partner.commercial_partner_id.vat" name="dcasa_cliente_identificacion">
+            <div t-if="titulo" class="o_dcasa_bloque_titulo" t-out="titulo"/>
+            <div class="o_dcasa_cliente_nombre" t-out="partner.name if partner.parent_id and partner.type != 'contact' else partner.display_name"/>
+            <div t-if="partner == partner.commercial_partner_id and partner.vat" name="dcasa_cliente_identificacion">
                 <t t-out="partner._dcasa_etiqueta_identificacion()"/>:
                 <span t-out="partner.commercial_partner_id.dcasa_ruc_display"/>
             </div>
+            <t t-set="dcasa_telefonos" t-value="partner._dcasa_telefonos()"/>
+            <div t-if="dcasa_telefonos" name="dcasa_cliente_telefono">Tel.: <span t-out="dcasa_telefonos"/></div>
+            <div t-if="partner.email" name="dcasa_cliente_correo" t-out="partner.email"/>
+            <t t-foreach="partner._dcasa_lineas_direccion()" t-as="linea">
+                <div t-out="linea"/>
+            </t>
         </div>
     </template>
+
+    <!-- La rejilla bajo el título: Cliente | Entrega (si es otra dirección) | Datos del documento.
+         Variables: partner, entrega (res.partner o vacío), facturar_a (idem), datos [(etiqueta, valor)]. -->
+    <template id="dcasa_cabecera" name="D'CASA: cliente, entrega y datos">
+        <div class="row o_dcasa_rejilla" name="dcasa_rejilla">
+            <div class="col-4 o_dcasa_celda" name="dcasa_celda_cliente">
+                <t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="titulo">Cliente</t></t>
+            </div>
+            <div class="col-4 o_dcasa_celda" name="dcasa_celda_entrega">
+                <t t-if="entrega" t-call="dcasa_invoice.dcasa_bloque_cliente">
+                    <t t-set="partner" t-value="entrega"/><t t-set="titulo">Entrega</t>
+                </t>
+                <t t-if="facturar_a" t-call="dcasa_invoice.dcasa_bloque_cliente">
+                    <t t-set="partner" t-value="facturar_a"/><t t-set="titulo">Facturar a</t>
+                </t>
+            </div>
+            <div class="col-4 o_dcasa_celda o_dcasa_datos" name="dcasa_celda_datos">
+                <table class="o_dcasa_tabla_datos" t-if="datos">
+                    <tr t-foreach="datos" t-as="dato">
+                        <th t-out="dato[0]"/>
+                        <td t-out="dato[1]"/>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </template>
+
+    <!-- Flete y servicios: un cuerpo de tabla aparte, en la misma tabla para que las columnas
+         casen. Variables: servicios, titulo, display_discount, display_taxes, moneda,
+         campo_cantidad ('quantity' / 'product_uom_qty'), campo_importe ('price_subtotal' / 'price_total'). -->
+    <template id="dcasa_lineas_servicios" name="D'CASA: flete y servicios">
+        <tbody t-if="servicios" class="o_dcasa_servicios" name="dcasa_servicios">
+            <tr class="o_dcasa_servicios_titulo">
+                <td colspan="99" t-out="titulo"/>
+            </tr>
+            <tr t-foreach="servicios" t-as="servicio" class="o_dcasa_servicio">
+                <td class="o_dcasa_td_codigo" t-out="servicio._dcasa_codigo()"/>
+                <td>
+                    <span t-out="servicio._dcasa_descripcion()" t-options="{'widget': 'text'}"/>
+                    <t t-set="dcasa_etiqueta" t-value="servicio._dcasa_etiqueta()"/>
+                    <span t-if="dcasa_etiqueta" class="o_dcasa_etiqueta" t-out="dcasa_etiqueta"/>
+                </td>
+                <td class="text-end"><span class="text-nowrap" t-out="servicio[campo_cantidad]" t-options="{'widget': 'float', 'decimal_precision': 'Product Unit'}"/></td>
+                <td class="text-end"><span class="text-nowrap" t-out="servicio.price_unit" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></td>
+                <td t-if="display_discount" class="text-end"><span t-if="servicio.discount > 0" class="text-nowrap" t-out="servicio.discount" t-options="{'widget': 'float', 'precision': 2}"/></td>
+                <td t-if="display_taxes" class="text-end text-nowrap"><span t-out="servicio._dcasa_impuestos()"/></td>
+                <td class="text-end o_price_total"><span class="text-nowrap" t-out="servicio[campo_importe]" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></td>
+            </tr>
+        </tbody>
+    </template>
+
+    <!-- Garantía · Cambios y devoluciones · Términos: textos cortos que escribe la dueña en la
+         empresa (Ajustes → Empresas → pestaña Documentos D'CASA). Vacíos, no se imprimen. -->
+    <template id="dcasa_bloques_legales" name="D'CASA: garantía, cambios y términos">
+        <t t-set="dcasa_legales" t-value="empresa._dcasa_bloques_legales()"/>
+        <div t-if="dcasa_legales" class="o_dcasa_legales avoid-page-break-inside" name="dcasa_legales">
+            <div t-foreach="dcasa_legales" t-as="bloque" class="o_dcasa_legal">
+                <strong t-out="bloque[0]"/>
+                <span t-out="bloque[1]" t-options="{'widget': 'text'}"/>
+            </div>
+        </div>
+    </template>
+
+    <!-- ================================================================================
+         Factura
+         ================================================================================ -->
 
     <!-- La factura se imprime en español aunque el contacto tenga otro idioma. -->
     <template id="report_invoice_dcasa_idioma" inherit_id="account.report_invoice">
@@ -24,18 +97,21 @@
     </template>
 
     <template id="report_invoice_document_dcasa" inherit_id="account.report_invoice_document">
-        <!-- Cliente -->
-        <xpath expr="//div[@name='address_not_same_as_shipping']/t[@t-set='address']" position="replace">
-            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
+        <!-- Cliente | Entrega | Datos (el layout D'CASA la pinta bajo el título) -->
+        <xpath expr="//div[@name='no_shipping']/../.." position="replace">
+            <t t-set="address">
+                <t t-call="dcasa_invoice.dcasa_cabecera">
+                    <t t-set="partner" t-value="o.partner_id"/>
+                    <t t-set="entrega" t-value="o._dcasa_entrega()"/>
+                    <t t-set="facturar_a" t-value="None"/>
+                    <t t-set="datos" t-value="o._dcasa_datos()"/>
+                </t>
+            </t>
         </xpath>
-        <xpath expr="//div[@name='address_same_as_shipping']/t[@t-set='address']" position="replace">
-            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
-        </xpath>
-        <xpath expr="//div[@name='no_shipping']/t[@t-set='address']" position="replace">
-            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="o.partner_id"/></t></t>
-        </xpath>
-        <xpath expr="//div[@name='shipping_address_block']/strong" position="replace">
-            <strong class="d-block mt-3">Dirección de entrega</strong>
+        <!-- Las fechas y referencias ya van en la rejilla; la fila estándar se oculta (se conserva
+             para que otros módulos que la extienden sigan funcionando). -->
+        <xpath expr="//div[@id='informations']" position="attributes">
+            <attribute name="class" add="d-none" separator=" "/>
         </xpath>
 
         <!-- Títulos -->
@@ -47,29 +123,16 @@
         <xpath expr="//t[@name='cancelled_credit_note_title']" position="replace"><t name="cancelled_credit_note_title">Nota de crédito anulada</t></xpath>
         <xpath expr="//t[@name='proforma_invoice_title']" position="replace"><t name="proforma_invoice_title">Factura proforma</t></xpath>
 
-        <!-- Fechas y referencias -->
-        <xpath expr="//div[@name='invoice_date']" position="replace">
-            <div class="col" t-if="o.invoice_date" name="invoice_date">
-                <strong t-if="o.move_type == 'out_refund'">Fecha de la nota</strong>
-                <strong t-else="">Fecha de factura</strong>
-                <div t-out="o._dcasa_fecha(o.invoice_date)"/>
-            </div>
-        </xpath>
-        <xpath expr="//div[@name='due_date']" position="replace">
-            <div class="col" t-if="o.invoice_date_due and o.move_type == 'out_invoice' and o.state == 'posted' and not o._dcasa_is_paid()" name="due_date">
-                <strong>Vence</strong>
-                <div t-out="o._dcasa_fecha(o.invoice_date_due)"/>
-            </div>
-        </xpath>
-        <xpath expr="//div[@name='delivery_date']/strong" position="replace"><strong>Fecha de entrega</strong></xpath>
-        <xpath expr="//div[@name='origin']/strong" position="replace"><strong>Pedido</strong></xpath>
-        <xpath expr="//div[@name='customer_code']/strong" position="replace"><strong>Código de cliente</strong></xpath>
-        <xpath expr="//div[@name='reference']/strong" position="replace"><strong>Referencia</strong></xpath>
-
-        <!-- Líneas: precio unitario e importe con el mismo criterio de ITBMS, y con $ -->
+        <!-- Líneas: código en su columna; muebles arriba, flete y servicios en su bloque;
+             precio unitario e importe con el mismo criterio de ITBMS, y con $ -->
         <xpath expr="//table[@name='invoice_line_table']" position="before">
             <t t-set="dcasa_con_itbms" t-value="o._dcasa_precios_con_itbms()"/>
             <t t-set="dcasa_nota_itbms" t-value="o._dcasa_nota_de_impuesto()"/>
+            <t t-set="dcasa_partes" t-value="o._dcasa_lineas(lines_to_report)"/>
+            <t t-set="dcasa_descuento" t-value="o._dcasa_total_descuento()"/>
+        </xpath>
+        <xpath expr="//th[@name='th_description']" position="before">
+            <th name="th_codigo" class="text-start o_dcasa_th_codigo"><span>Código</span></th>
         </xpath>
         <xpath expr="//th[@name='th_description']/span" position="replace"><span>Descripción</span></xpath>
         <xpath expr="//th[@name='th_quantity']/span" position="replace"><span>Cantidad</span></xpath>
@@ -77,13 +140,42 @@
             <span>Precio unitario</span><div t-if="dcasa_nota_itbms" class="o_dcasa_th_nota" t-out="dcasa_nota_itbms"/>
         </xpath>
         <xpath expr="//th[@name='th_discount']/span" position="replace"><span>Desc. %</span></xpath>
-        <xpath expr="//th[@name='th_taxes']/span" position="replace"><span>Impuesto</span></xpath>
+        <xpath expr="//th[@name='th_taxes']/span" position="replace"><span>ITBMS</span></xpath>
         <xpath expr="//th[@name='th_subtotal']/span" position="replace">
             <span>Importe</span><div t-if="dcasa_nota_itbms" class="o_dcasa_th_nota" t-out="dcasa_nota_itbms"/>
+        </xpath>
+        <xpath expr="//tbody[hasclass('invoice_tbody')]/t[@t-foreach='lines_to_report']" position="attributes">
+            <attribute name="t-foreach">dcasa_partes[0]</attribute>
+        </xpath>
+        <!-- Las secciones y notas abarcan una columna más (la del código) -->
+        <xpath expr="(//t[@t-set='line_colspan'])[1]" position="attributes">
+            <attribute name="t-value">4 + (1 if display_discount else 0) + (1 if display_taxes and not line.tax_ids else 0)</attribute>
+        </xpath>
+        <xpath expr="(//t[@t-set='line_colspan'])[2]" position="attributes">
+            <attribute name="t-value">2</attribute>
+        </xpath>
+        <xpath expr="(//t[@t-set='line_colspan'])[3]" position="attributes">
+            <attribute name="t-value">4 + (1 if display_discount else 0) + (1 if display_taxes and not grouped_line.get('taxes') else 0)</attribute>
+        </xpath>
+        <xpath expr="//td[@name='account_invoice_line_name']" position="replace">
+            <td name="td_codigo" class="o_dcasa_td_codigo" t-out="line._dcasa_codigo()"/>
+            <td name="account_invoice_line_name" t-att-class="padding_class">
+                <span t-out="line._dcasa_descripcion()" t-options="{'widget': 'text'}" dir="auto"/>
+                <t t-set="dcasa_etiqueta" t-value="line._dcasa_etiqueta()"/>
+                <span t-if="dcasa_etiqueta" class="o_dcasa_etiqueta" t-out="dcasa_etiqueta"/>
+            </td>
         </xpath>
         <xpath expr="//td[@name='td_price_unit']/span" position="replace">
             <span t-if="not hide_prices" class="text-nowrap" t-out="line.price_unit"
                   t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_discount']/span" position="replace">
+            <span t-if="line.discount > 0" class="text-nowrap" t-field="line.discount"/>
+        </xpath>
+        <xpath expr="//td[@name='td_taxes']" position="replace">
+            <td name="td_taxes" t-if="display_taxes" class="text-end text-nowrap">
+                <span t-if="not hide_prices" t-out="line._dcasa_impuestos()" id="line_tax_ids"/>
+            </td>
         </xpath>
         <xpath expr="//td[@name='td_subtotal']" position="replace">
             <td name="td_subtotal" class="text-end o_price_total">
@@ -92,17 +184,34 @@
                       t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
             </td>
         </xpath>
-
-        <!-- Pagos impresos (factura «con pagos») -->
-        <xpath expr="//i[hasclass('oe_payment_label')]" position="replace">
-            <i class="oe_form_field text-end oe_payment_label">
-                <t t-if="payment_vals['is_refund']">Revertido el </t>
-                <t t-else="">Pagado el </t>
-                <t t-out="o._dcasa_fecha(payment_vals['date'])"/>
-            </i>
+        <xpath expr="//tbody[hasclass('invoice_tbody')]" position="after">
+            <t t-call="dcasa_invoice.dcasa_lineas_servicios">
+                <t t-set="servicios" t-value="dcasa_partes[1]"/>
+                <t t-set="titulo" t-value="o._dcasa_titulo_servicios(dcasa_partes[1])"/>
+                <t t-set="moneda" t-value="o.currency_id"/>
+                <t t-set="campo_cantidad" t-value="'quantity'"/>
+                <t t-set="campo_importe" t-value="'price_total' if dcasa_con_itbms else 'price_subtotal'"/>
+            </t>
         </xpath>
-        <xpath expr="//t[@t-if='len(payments_vals) &gt; 0']/tr/td[1]" position="replace">
-            <td>Saldo pendiente</td>
+
+        <!-- Abonos y saldo, debajo del total: siempre que haya pagos (no solo en «factura con pagos») -->
+        <xpath expr="//t[@t-if='print_with_payments']" position="replace">
+            <t t-if="o._dcasa_mostrar_pagos()">
+                <tr t-foreach="o._dcasa_abonos()" t-as="abono" class="o_dcasa_abono">
+                    <td><t t-if="abono['es_reverso']">Reverso</t><t t-else="">Abono</t><t t-if="abono['fecha']"> del <t t-out="abono['fecha']"/></t><t t-if="abono['medio']"> · <t t-out="abono['medio']"/></t></td>
+                    <td class="text-end">
+                        <span class="text-nowrap" t-out="abono['monto']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                    </td>
+                </tr>
+                <tr class="o_dcasa_pagado">
+                    <td>Pagado</td>
+                    <td class="text-end"><span class="text-nowrap" t-out="o._dcasa_pagado()" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                </tr>
+                <tr class="fw-bold o_dcasa_por_pagar">
+                    <td>Por pagar</td>
+                    <td class="text-end"><span class="text-nowrap" t-field="o.amount_residual"/></td>
+                </tr>
+            </t>
         </xpath>
 
         <!-- Monto en letras, en español -->
@@ -117,7 +226,7 @@
              aquí va lo que de verdad pasó (fecha, forma de pago y saldo). -->
         <xpath expr="//div[@id='payment_term']" position="before">
             <div t-if="o.is_invoice(include_receipts=True) and o.state == 'posted' and o.payment_state in ('paid', 'in_payment', 'partial')"
-                 class="o_dcasa_pago avoid-page-break-inside" name="dcasa_pago">
+                 class="o_dcasa_pago o_dcasa_izquierda avoid-page-break-inside" name="dcasa_pago">
                 <t t-set="dcasa_formas" t-value="o._dcasa_formas_de_pago()"/>
                 <t t-set="dcasa_fecha_pago" t-value="o._dcasa_last_payment_date()"/>
                 <t t-if="o._dcasa_is_paid()">
@@ -132,6 +241,9 @@
                     · Saldo pendiente <span class="text-nowrap" t-out="o.amount_residual" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
                 </t>
             </div>
+        </xpath>
+        <xpath expr="//div[@id='payment_term']" position="attributes">
+            <attribute name="class" add="o_dcasa_izquierda" separator=" "/>
         </xpath>
 
         <!-- La referencia para pagar sobra en una factura pagada -->
@@ -150,26 +262,116 @@
         <xpath expr="//div[@name='comment']/span" position="replace">
             <span t-out="o._dcasa_narracion()"/>
         </xpath>
+
+        <!-- Garantía · Cambios · Términos de la empresa, a todo lo ancho, al final -->
+        <xpath expr="//div[@id='payment_term']/.." position="after">
+            <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="o.company_id"/></t>
+        </xpath>
     </template>
 
-    <!-- Totales (factura y cotización): subtotal y redondeo en español -->
+    <!-- Totales (factura y cotización): subtotal, descuento y redondeo en español -->
     <template id="document_tax_totals_dcasa" inherit_id="account.document_tax_totals_template">
         <xpath expr="//tr[hasclass('o_subtotal')]/td[1]/span" position="replace">
             <span t-out="{'Untaxed Amount': 'Subtotal sin ITBMS'}.get(subtotal['name'], subtotal['name'])"/>
+        </xpath>
+        <xpath expr="//tr[hasclass('o_subtotal')]" position="after">
+            <tr t-if="dcasa_descuento" class="o_dcasa_descuento">
+                <td>Descuento <small>(ya restado)</small></td>
+                <td class="text-end">
+                    <span class="text-nowrap" t-out="dcasa_descuento" t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+                </td>
+            </tr>
         </xpath>
         <xpath expr="//tr[@t-if=&quot;'cash_rounding_base_amount_currency' in tax_totals&quot;]/td[1]" position="replace">
             <td>Redondeo</td>
         </xpath>
     </template>
 
-    <!-- Cotización: el mismo bloque de cliente (Cédula/RUC con DV) y términos sin localhost -->
+    <!-- ================================================================================
+         Cotización y pedido: la misma rejilla, el código en su columna, flete aparte
+         ================================================================================ -->
     <template id="report_saleorder_document_dcasa" inherit_id="sale.report_saleorder_document">
         <xpath expr="//t[@t-set='address']" position="replace">
-            <t t-set="address"><t t-call="dcasa_invoice.dcasa_bloque_cliente"><t t-set="partner" t-value="doc.partner_id"/></t></t>
+            <t t-set="address">
+                <t t-call="dcasa_invoice.dcasa_cabecera">
+                    <t t-set="partner" t-value="doc.partner_id"/>
+                    <t t-set="entrega" t-value="doc._dcasa_entrega()"/>
+                    <t t-set="facturar_a" t-value="doc._dcasa_facturar_a()"/>
+                    <t t-set="datos" t-value="doc._dcasa_datos(env.context.get('proforma', False) or is_pro_forma)"/>
+                </t>
+            </t>
+        </xpath>
+        <xpath expr="//t[@t-set='information_block']" position="replace">
+            <t t-set="information_block" t-value="None"/>
+        </xpath>
+        <xpath expr="//div[@id='informations']" position="attributes">
+            <attribute name="class" add="d-none" separator=" "/>
+        </xpath>
+        <xpath expr="//t[@t-set='layout_document_title']" position="replace">
+            <t t-set="layout_document_title">
+                <span t-out="doc._dcasa_titulo(is_proforma)"/>
+                <span t-field="doc.name"/>
+            </t>
+        </xpath>
+
+        <xpath expr="//table[hasclass('o_main_table')]" position="before">
+            <t t-set="dcasa_partes" t-value="doc._dcasa_lineas(lines_to_report)"/>
+            <t t-set="dcasa_descuento" t-value="doc._dcasa_total_descuento()"/>
+        </xpath>
+        <xpath expr="(//t[@t-set='colspan_count'])[1]" position="attributes">
+            <attribute name="t-value">1</attribute>
+        </xpath>
+        <xpath expr="//th[@name='th_description']" position="replace">
+            <th name="th_codigo" class="text-start o_dcasa_th_codigo">Código</th>
+            <th name="th_description" class="text-start">
+                <t t-set="colspan_count" t-value="colspan_count + 1"/>
+                Descripción
+            </th>
+        </xpath>
+        <xpath expr="//th[@name='th_quantity']" position="replace">
+            <th name="th_quantity" class="text-end text-nowrap">
+                <t t-set="colspan_count" t-value="colspan_count + 1"/>
+                Cantidad
+            </th>
+        </xpath>
+        <xpath expr="//th[@name='th_priceunit']" position="replace">
+            <th name="th_priceunit" class="text-end text-nowrap">
+                <t t-set="colspan_count" t-value="colspan_count + 1"/>
+                Precio unitario
+            </th>
+        </xpath>
+        <xpath expr="//th[@name='th_discount']/span" position="replace"><span>Desc. %</span></xpath>
+        <xpath expr="//th[@name='th_taxes']/span" position="replace"><span>ITBMS</span></xpath>
+        <xpath expr="//th[@name='th_subtotal']/span" position="replace"><span>Importe</span></xpath>
+        <xpath expr="//tbody[hasclass('sale_tbody')]/t[@t-foreach='lines_to_report']" position="attributes">
+            <attribute name="t-foreach">dcasa_partes[0]</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_product_name']" position="replace">
+            <td name="td_codigo" class="o_dcasa_td_codigo" t-out="line._dcasa_codigo()"/>
+            <td name="td_product_name" t-att-class="padding_class">
+                <span t-out="line._dcasa_descripcion()" t-options="{'widget': 'text'}"/>
+                <t t-set="dcasa_etiqueta" t-value="line._dcasa_etiqueta()"/>
+                <span t-if="dcasa_etiqueta" class="o_dcasa_etiqueta" t-out="dcasa_etiqueta"/>
+            </td>
+        </xpath>
+        <xpath expr="//td[@name='td_product_taxes']/span" position="replace">
+            <span t-out="line._dcasa_impuestos()"/>
+        </xpath>
+        <xpath expr="//tbody[hasclass('sale_tbody')]" position="after">
+            <t t-call="dcasa_invoice.dcasa_lineas_servicios">
+                <t t-set="servicios" t-value="dcasa_partes[1]"/>
+                <t t-set="titulo" t-value="doc._dcasa_titulo_servicios(dcasa_partes[1])"/>
+                <t t-set="moneda" t-value="doc.currency_id"/>
+                <t t-set="campo_cantidad" t-value="'product_uom_qty'"/>
+                <t t-set="campo_importe" t-value="price_field"/>
+            </t>
         </xpath>
         <xpath expr="//span[@name='order_note']" position="attributes">
             <attribute name="t-field"/>
             <attribute name="t-out">doc._dcasa_nota()</attribute>
+        </xpath>
+        <xpath expr="//div[@name='so_total_summary']" position="after">
+            <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="doc.company_id"/></t>
         </xpath>
     </template>
 </odoo>

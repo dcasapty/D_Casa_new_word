@@ -24,3 +24,14 @@ class ResPartner(models.Model):
     def _dcasa_telefono_fmt(self):
         self.ensure_one()
         return formato.telefono_fmt(self.phone)
+
+    def _dcasa_telefonos(self):
+        """Teléfono y celular, con guion y sin repetir."""
+        self.ensure_one()
+        numeros = []
+        for campo in ('phone', 'mobile'):
+            if campo in self._fields and self[campo]:
+                numero = formato.telefono_fmt(self[campo])
+                if numero and numero not in numeros:
+                    numeros.append(numero)
+        return ' · '.join(numeros)

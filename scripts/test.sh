@@ -2,6 +2,7 @@
 # Instala los módulos de D'CASA en una base limpia y corre sus tests.
 # Uso: scripts/test.sh [modulo1,modulo2]   (por defecto: todos los de addons/)
 # Variables: DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME HTTP_PORT PYTHON
+#            ODOO_DIR (Odoo a usar; por defecto vendor/odoo)  TEST_TAGS (p. ej. /website_dcasa:TestContratoVisual)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,21 +14,22 @@ DB_USER="${DB_USER:-odoo}"
 DB_PASSWORD="${DB_PASSWORD:-odoo}"
 HTTP_PORT="${HTTP_PORT:-8169}"
 LOG="${LOG:-$ROOT/.test.log}"
+ODOO_DIR="${ODOO_DIR:-$ROOT/vendor/odoo}"
 
 if [[ $# -gt 0 ]]; then
   MODULES="$1"
 else
   MODULES="$(find "$ROOT/addons" -mindepth 2 -maxdepth 2 -name __manifest__.py -printf '%h\n' | xargs -n1 basename | sort | paste -sd, -)"
 fi
-TEST_TAGS="$(tr ',' '\n' <<<"$MODULES" | sed 's#^#/#' | paste -sd, -)"
+TEST_TAGS="${TEST_TAGS:-$(tr ',' '\n' <<<"$MODULES" | sed 's#^#/#' | paste -sd, -)}"
 
 export PGPASSWORD="$DB_PASSWORD"
 dropdb --if-exists -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" "$DB_NAME"
 
 echo "▶ Instalando y probando: $MODULES"
 set +e
-"$PYTHON" "$ROOT/vendor/odoo/odoo-bin" \
-  --addons-path="$ROOT/vendor/odoo/addons,$ROOT/vendor/odoo/odoo/addons,$ROOT/addons" \
+"$PYTHON" "$ODOO_DIR/odoo-bin" \
+  --addons-path="$ODOO_DIR/addons,$ODOO_DIR/odoo/addons,$ROOT/addons" \
   --db_host="$DB_HOST" --db_port="$DB_PORT" --db_user="$DB_USER" --db_password="$DB_PASSWORD" \
   -d "$DB_NAME" -i "$MODULES" \
   --test-enable --test-tags="$TEST_TAGS" \

@@ -14,8 +14,15 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
 * Una factura pagada dice cuándo, con qué y que el saldo es $0.00 (sin sellos
   de imitación); una parcial, lo pagado y lo que queda.
 * Enlaces al sitio público, nunca a localhost.
+* Cabecera Cliente | Entrega | Datos: identificación, teléfono, correo, dirección de
+  entrega si es otra, fechas, pedido, vendedora, condiciones y medio de pago.
+* El código del producto en su columna; flete, envío y servicios en su propio bloque
+  (producto «Flete / envío a domicilio», sin precio: se cotiza en cada venta).
+* Abonos con fecha y medio, pagado y por pagar debajo del total; descuento aplicado.
+* Garantía, cambios y términos: textos cortos que la dueña escribe en la empresa.
+* Hoja carta con la placa, la banda y un pie de dos líneas que no se corta.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.2.0.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -24,7 +31,10 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
     'data': [
         'views/report_layout.xml',
         'views/report_invoice.xml',
+        'views/res_company_views.xml',
         'data/report_layout_data.xml',
+        'data/paperformat_data.xml',
+        'data/product_data.xml',
     ],
     'assets': {
         'web.report_assets_common': [
