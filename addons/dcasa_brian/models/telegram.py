@@ -204,8 +204,22 @@ class BrianTelegramEnlace(models.Model):
 
     @staticmethod
     def _botones(accion_id):
-        return [[{'text': 'Confirmar', 'callback_data': f'brian:c:{accion_id}'},
-                 {'text': 'Cancelar', 'callback_data': f'brian:r:{accion_id}'}]]
+        """Permitir / Rechazar, nada más: no existe «Siempre» (decisión de seguridad: cada acción
+        sensible se aprueba una por una, también en Telegram)."""
+        return [[{'text': 'Permitir', 'callback_data': f'brian:c:{accion_id}'},
+                 {'text': 'Rechazar', 'callback_data': f'brian:r:{accion_id}'}]]
+
+    @staticmethod
+    def _texto_detalle(detalle):
+        """«Detalle exacto» de la tarjeta, en texto plano para Telegram."""
+        lineas = [f'• {d.get("etiqueta")}: {d.get("valor")}' for d in detalle or () if d.get('valor')]
+        return ('\n\nDetalle exacto de lo que voy a hacer:\n' + '\n'.join(lineas)) if lineas else ''
+
+    @api.model
+    def _detalle_de_accion(self, accion_id):
+        from .conversacion import _detalle_accion
+        accion = self.env['brian.accion'].sudo().browse(int(accion_id)).exists()
+        return _detalle_accion(accion) if accion else []
 
     # ------------------------------------------------------------------
     # Vincular (panel)
@@ -293,9 +307,10 @@ class BrianTelegramEnlace(models.Model):
     def notificar_confirmacion(self, usuario, accion_id, resumen, origen='MCP'):
         """Si el usuario tiene Telegram vinculado, le manda la acción sensible con botones."""
         enlaces = self.sudo().search([('user_id', '=', usuario.id), ('activo', '=', True)])
+        detalle = self._texto_detalle(self._detalle_de_accion(accion_id)) if enlaces else ''
         for enlace in enlaces:
             self._enviar(enlace.chat_id,
-                         f'Brian ({origen}) quiere hacer algo que necesita tu confirmación:\n\n{resumen}',
+                         f'Brian ({origen}) quiere hacer algo que necesita tu permiso:\n\n{resumen}{detalle}',
                          botones=self._botones(accion_id))
         return bool(enlaces)
 
@@ -428,7 +443,9 @@ class BrianTelegramEnlace(models.Model):
             texto = (mensaje.get('texto') or '').strip() if mensaje.get('rol') == 'assistant' else ''
             if confirmacion and confirmacion.get('estado') == 'por_confirmar':
                 previo = f'{texto}\n\n' if texto else ''
-                self._enviar(self.chat_id, f'{previo}Necesito tu confirmación:\n\n{confirmacion.get("resumen") or ""}',
+                detalle = self._texto_detalle(confirmacion.get('detalle'))
+                self._enviar(self.chat_id,
+                             f'{previo}Necesito tu permiso:\n\n{confirmacion.get("resumen") or ""}{detalle}',
                              botones=self._botones(confirmacion['accion_id']))
                 enviados = True
             elif texto:

@@ -13,6 +13,10 @@ Todo corre como el usuario actual; cada usuario solo ve SUS conversaciones (ir.r
 * ``nueva(canal='chat')`` → ``conversacion``
 * ``historial(conversacion_id, limite=100)``
   → ``{'conversacion': conversacion, 'mensajes': [mensaje, …], 'estado': estado_proveedor()}``
+* ``estado_panel()`` → ``{'pastillas': [pastilla, …]}``: las pastillas de la cabecera del chat
+  (Telegram, MCP, importaciones en curso, consumo de IA del mes, última actividad). El
+  servidor decide cuáles van según el rol: cada bloque pregunta ``has_access`` antes de leer.
+  ``pastilla = {'clave', 'texto', 'icono', 'tono': 'ok'|'neutro'|'aviso', 'titulo'}``.
 
 Métodos de registro (``orm.call('brian.conversacion', m, [[conversacion_id], …])``):
 
@@ -50,11 +54,24 @@ Formatos::
                'fecha': 'AAAA-MM-DD HH:MM:SS' (UTC), 'error': bool,
                'adjuntos': [{'id', 'nombre', 'mimetype'}],
                'herramientas': [{'nombre': str, 'ok': bool|None, 'error': str,
+                                 'titulo': 'Buscando productos «888K»',   # paso humano (pasos.py)
+                                 'resumen': '3 productos', 'detalle': '{json corto}',
+                                 'duracion_ms': int|None,
                                  'abrir': None|{modelo, res_id|dominio, titulo}|{url, titulo}}],
                'confirmacion': None | {'accion_id': int, 'herramienta': str, 'resumen': str,
+                   'nivel': 'sensible'|'construccion',
+                   'detalle': [{'etiqueta': 'Nombre', 'valor': 'Cliente VIP'}, …],  # lo exacto
                    'estado': 'por_confirmar'|'hecha'|'rechazada'|'error'|'bloqueada',
                    'abrir': None|{…}},              # destino de la acción ya hecha
                'abrir': None | [{…}, …]}            # todos los destinos del mensaje
+
+Mientras ``enviar``/``confirmar_accion`` trabajan, el navegador del dueño recibe por el bus
+``dcasa_brian/pasos`` ``{'conversacion_id', 'turno': id del mensaje que lo disparó,
+'estado': 'trabajando'|'terminado', 'pasos': [paso, …]}`` con la lista COMPLETA de pasos hasta
+ese momento (idempotente: el panel reemplaza la lista). ``paso = {'id', 'tipo':
+'modelo'|'herramienta', 'nombre', 'titulo', 'estado': 'en_curso'|'ok'|'error'|'por_confirmar',
+'resumen', 'detalle', 'duracion_ms'}``. Se emite con un cursor aparte (``_emitir_pasos``):
+dentro de la transacción del RPC el bus no notifica hasta el commit.
 
     Los destinos «abrir» salen de ``datos['abrir']`` (dict o lista) o ``datos['abrir_url']``
     del resultado de una herramienta (ver ``_destino_abrir``).
@@ -85,7 +102,9 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from . import lector_adjuntos
+from . import pasos as modulo_pasos
 from .proveedores import ProveedorError
+from .uso import costo_estimado
 
 _logger = logging.getLogger(__name__)
 
@@ -167,6 +186,22 @@ def _destino_abrir(datos):
         return _abrir({'abrir_url': datos['abrir_url'], 'titulo': datos.get('titulo')})
     return None
 
+def _detalle_accion(accion):
+    """Lo EXACTO que va a hacer una acción, campo por campo, para la tarjeta Permitir / Rechazar.
+
+    Sale de los argumentos registrados en ``brian.accion`` (los mismos que se ejecutarán al
+    confirmar: ``brian.herramientas.confirmar`` los relee de ahí), humanizados como en la
+    política. Sirve igual para el panel y para Telegram.
+    """
+    humano = accion.env['brian.politica']._humano
+    detalle = []
+    for clave, valor in accion.argumentos_dict().items():
+        if valor in (None, ''):
+            continue
+        detalle.append({'etiqueta': clave.replace('_', ' ').capitalize(), 'valor': humano(valor)})
+    return detalle
+
+
 _CACHE_IMAGENES = {}
 
 
@@ -185,6 +220,65 @@ def _imagen_para_modelo(adjunto):
             _CACHE_IMAGENES.pop(next(iter(_CACHE_IMAGENES)))
         _CACHE_IMAGENES[clave] = (tipo, base64.b64encode(datos).decode() if tipo else datos)
     return _CACHE_IMAGENES[clave]
+
+
+class _PasosEnVivo:
+    """Los pasos de un turno, contados en vivo al navegador del dueño por el bus.
+
+    Cada ``empezar``/``terminar`` manda la lista completa (``dcasa_brian/pasos``) con un
+    cursor APARTE y commit inmediato: ``bus.bus`` crea sus filas en el precommit y notifica
+    en el postcommit, así que desde la transacción del RPC nada llegaría hasta terminar el
+    turno. Solo se emiten metadatos del turno (títulos, resúmenes cortos, duraciones): la
+    conversación en sí sigue en la transacción principal. Si el bus falla, el turno sigue:
+    la respuesta completa llega igual por el RPC.
+    """
+
+    def __init__(self, conversacion, turno, apagado=False):
+        self.conversacion = conversacion
+        self.turno = turno
+        self.pasos = []
+        self.apagado = apagado or not turno
+        self._inicios = {}
+
+    def empezar(self, tipo, nombre, titulo):
+        paso = {'id': len(self.pasos) + 1, 'tipo': tipo, 'nombre': nombre, 'titulo': titulo,
+                'estado': 'en_curso', 'resumen': '', 'detalle': '', 'duracion_ms': None}
+        self.pasos.append(paso)
+        self._inicios[paso['id']] = time.monotonic()
+        self._emitir('trabajando')
+        return paso
+
+    def terminar(self, paso, estado, resumen='', detalle=''):
+        paso['estado'] = estado
+        paso['resumen'] = resumen or ''
+        paso['detalle'] = detalle or ''
+        inicio = self._inicios.pop(paso['id'], None)
+        if inicio is not None:
+            paso['duracion_ms'] = int((time.monotonic() - inicio) * 1000)
+        self._emitir('trabajando')
+
+    def cerrar(self):
+        for paso in self.pasos:
+            if paso['estado'] == 'en_curso':
+                paso['estado'] = 'error'
+        self._emitir('terminado')
+
+    def _emitir(self, estado):
+        if self.apagado:
+            return
+        conversacion = self.conversacion
+        carga = {'conversacion_id': conversacion.id, 'turno': self.turno, 'estado': estado,
+                 'pasos': [dict(p) for p in self.pasos]}
+        partner_id = conversacion.usuario_id.partner_id.id
+        try:
+            with conversacion.env.registry.cursor() as cr:
+                entorno = api.Environment(cr, conversacion.env.uid, {})
+                destino = entorno['res.partner'].browse(partner_id)
+                entorno['bus.bus']._sendone(destino, 'dcasa_brian/pasos', carga)
+        except Exception:  # noqa: BLE001 — el bus nunca tumba el turno
+            _logger.info('Brian: no se pudo emitir el paso en vivo de la conversación %s', conversacion.id,
+                         exc_info=True)
+            self.apagado = True
 
 
 class BrianConversacion(models.Model):
@@ -234,6 +328,116 @@ class BrianConversacion(models.Model):
         return {'conversacion': conversacion._serializar(),
                 'mensajes': visibles._serializar(),
                 'estado': self.estado_proveedor()}
+
+    @api.model
+    def estado_panel(self):
+        """Pastillas de estado para la cabecera del chat, solo con lo que este usuario puede ver.
+
+        Cada bloque pregunta primero si el usuario tiene acceso (``has_access``) y lee sin
+        sudo, con sus reglas de registro; lo único con sudo es el conteo de SUS claves de API
+        (``res.users.apikeys`` filtrado por ``user_id``). Nada de cifras inventadas: lo que no
+        se puede calcular no sale.
+        """
+        if not self.env.su and not self.env.user.has_group('base.group_user'):
+            raise AccessError(self.env._('Brian es solo para el equipo de D’CASA.'))
+        usuario = self.env.user
+        pastillas = []
+
+        # Telegram: el chat vinculado del propio usuario (regla: cada quien ve el suyo).
+        Enlace = self.env['brian.telegram.enlace']
+        if Enlace.has_access('read'):
+            enlaces = Enlace.search([('user_id', '=', usuario.id), ('activo', '=', True)])
+            pastillas.append({
+                'clave': 'telegram', 'icono': 'fa-paper-plane',
+                'tono': 'ok' if enlaces else 'neutro',
+                'texto': self.env._('Telegram conectado') if enlaces else self.env._('Telegram sin vincular'),
+                'titulo': ', '.join(enlaces.mapped('nombre')) if enlaces else self.env._(
+                    'Vincúlalo desde Mis preferencias › Vincular Telegram.'),
+            })
+
+        # MCP: activo si el usuario tiene una clave de API vigente (global o con alcance brian).
+        ahora = fields.Datetime.now()
+        claves = self.env['res.users.apikeys'].sudo().search_count([
+            ('user_id', '=', usuario.id), '|', ('expiration_date', '=', False), ('expiration_date', '>', ahora),
+            '|', ('scope', '=', False), ('scope', '=', 'brian')])
+        pastillas.append({
+            'clave': 'mcp', 'icono': 'fa-plug', 'tono': 'ok' if claves else 'neutro',
+            'texto': self.env._('MCP activo') if claves else self.env._('MCP sin clave'),
+            'titulo': self.env._('%s clave(s) de API vigente(s) para conectar un cliente MCP.', claves)
+            if claves else self.env._('Crea una clave de API en Mis preferencias › Seguridad para usar MCP.'),
+        })
+
+        # Importaciones de productos en curso (borradores que esta persona puede ver).
+        Importacion = self.env['brian.importacion']
+        if Importacion.has_access('read'):
+            en_curso = Importacion.search_count([('estado', '=', 'borrador')])
+            if en_curso:
+                pastillas.append({
+                    'clave': 'importaciones', 'icono': 'fa-file-excel-o', 'tono': 'aviso',
+                    'texto': self.env._('%s importación(es) por aplicar', en_curso),
+                    'titulo': self.env._('Borradores de importación de productos esperando confirmación.'),
+                })
+
+        # Consumo de IA del mes (solo quien puede leer brian.uso: administradores).
+        Uso = self.env['brian.uso']
+        if Uso.has_access('read'):
+            pastillas.append(self._pastilla_consumo(Uso))
+
+        # Última actividad propia con Brian.
+        ultima = self.search([('usuario_id', '=', usuario.id)], order='ultima_actividad desc, id desc', limit=1)
+        fecha = ultima.ultima_actividad or ultima.create_date if ultima else False
+        pastillas.append({
+            'clave': 'actividad', 'icono': 'fa-clock-o', 'tono': 'neutro',
+            'texto': self.env._('Última actividad: %s', self._fecha_panama(fecha)) if fecha
+            else self.env._('Sin actividad todavía'),
+            'titulo': self.env._('Tu última conversación con Brian.'),
+            'fecha': _fecha(fecha),
+        })
+        return {'pastillas': pastillas}
+
+    @api.model
+    def _pastilla_consumo(self, Uso):
+        inicio_mes = datetime.now(ZONA).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        desde = fields.Datetime.to_string(inicio_mes.astimezone(ZoneInfo('UTC')).replace(tzinfo=None))
+        grupos = Uso._read_group(
+            [('create_date', '>=', desde)], ['modelo'],
+            ['__count', 'tokens_entrada:sum', 'tokens_salida:sum', 'tokens_cache_lectura:sum',
+             'tokens_cache_escritura:sum'])
+        llamadas, tokens, costo, sin_tarifa = 0, 0, 0.0, False
+        for modelo, cuantas, entrada, salida, cache_l, cache_e in grupos:
+            llamadas += cuantas
+            tokens += (entrada or 0) + (salida or 0) + (cache_l or 0) + (cache_e or 0)
+            estimado = costo_estimado(modelo, entrada or 0, salida or 0, cache_l or 0, cache_e or 0)
+            if estimado is None:
+                sin_tarifa = True
+            else:
+                costo += estimado
+        if not llamadas:
+            texto = self.env._('IA este mes: sin uso')
+        elif sin_tarifa and not costo:
+            texto = self.env._('IA este mes: %(n)s llamadas · %(t)s tokens', n=llamadas, t=f'{tokens:,}')
+        else:
+            texto = self.env._('IA este mes: %(n)s llamadas · $%(c).2f', n=llamadas, c=costo)
+            if sin_tarifa:
+                texto += self.env._(' (parcial)')
+        return {
+            'clave': 'consumo', 'icono': 'fa-bolt', 'tono': 'neutro', 'texto': texto,
+            'titulo': self.env._('Llamadas al modelo y costo estimado con la tarifa pública (Brian › Consumo '
+                                 'de IA). Un modelo sin tarifa registrada solo cuenta tokens.'),
+            'llamadas': llamadas, 'tokens': tokens, 'costo': round(costo, 4) if llamadas else 0.0,
+        }
+
+    @api.model
+    def _fecha_panama(self, valor):
+        if not valor:
+            return ''
+        local = valor.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZONA)
+        hoy = datetime.now(ZONA).date()
+        if local.date() == hoy:
+            return self.env._('hoy %s', local.strftime('%H:%M'))
+        if (hoy - local.date()).days == 1:
+            return self.env._('ayer %s', local.strftime('%H:%M'))
+        return local.strftime('%d/%m/%Y')
 
     def enviar(self, texto, adjunto_ids=None, contexto=None):
         self.ensure_one()
@@ -408,7 +612,11 @@ class BrianConversacion(models.Model):
     # ------------------------------------------------------------------
 
     def _bucle(self, inicial, extra=None):
-        """Pensar → herramienta → observar, hasta respuesta final, confirmación o límite de pasos."""
+        """Pensar → herramienta → observar, hasta respuesta final, confirmación o límite de pasos.
+
+        Cada paso (una llamada al modelo o una herramienta) se cuenta en vivo por el bus
+        (``dcasa_brian/pasos``) para que la persona vea a Brian trabajar.
+        """
         self.ensure_one()
         Mensaje = self.env['brian.mensaje']
         nuevos = inicial | (extra or Mensaje)
@@ -424,53 +632,73 @@ class BrianConversacion(models.Model):
         consulta = self._ultima_consulta()
         herramientas = self._herramientas(consulta)
         inicio = time.monotonic()
-        for paso in range(MAX_PASOS):
-            if paso and time.monotonic() - inicio > MAX_SEGUNDOS_TURNO:
+        vivo = _PasosEnVivo(self, inicial.id)
+        try:
+            for paso in range(MAX_PASOS):
+                if paso and time.monotonic() - inicio > MAX_SEGUNDOS_TURNO:
+                    nuevos |= Mensaje.create({
+                        'conversacion_id': self.id, 'rol': 'assistant',
+                        'contenido': self.env._('Esto se está tardando más de la cuenta, así que me detengo aquí. '
+                                                'Lo que alcancé a hacer quedó guardado. ¿Sigo con el resto?'),
+                    })
+                    break
+                pensando = vivo.empezar('modelo', 'pensar', self.env._('Pensando…'))
+                try:
+                    respuesta = proveedor.chatear(sistema, self._historial_neutro(proveedor), herramientas)
+                except ProveedorError as error:
+                    vivo.terminar(pensando, 'error', resumen=str(error))
+                    nuevos |= Mensaje.create({'conversacion_id': self.id, 'rol': 'assistant', 'error': True,
+                                              'contenido': str(error)})
+                    return self._resultado(nuevos, error=str(error))
+                vivo.terminar(pensando, 'ok', resumen=self.env._('Va a usar %s herramienta(s)', len(
+                    respuesta.get('tool_calls') or [])) if respuesta.get('tool_calls') else self.env._('Respondió'))
+                self.env['brian.uso'].anotar(proveedor, respuesta.get('uso'), conversacion=self)
+                nuevos, pendiente = self._paso_del_modelo(respuesta, herramientas_env, nuevos, vivo)
+                if pendiente is not None:
+                    break
+            else:
                 nuevos |= Mensaje.create({
                     'conversacion_id': self.id, 'rol': 'assistant',
-                    'contenido': self.env._('Esto se está tardando más de la cuenta, así que me detengo aquí. '
-                                            'Lo que alcancé a hacer quedó guardado. ¿Sigo con el resto?'),
+                    'contenido': self.env._('Me detuve porque esto pedía demasiados pasos seguidos. '
+                                            '¿Me dices cómo sigo o lo partimos en pedazos?'),
                 })
-                break
-            try:
-                respuesta = proveedor.chatear(sistema, self._historial_neutro(proveedor), herramientas)
-            except ProveedorError as error:
-                nuevos |= Mensaje.create({'conversacion_id': self.id, 'rol': 'assistant', 'error': True,
-                                          'contenido': str(error)})
-                return self._resultado(nuevos, error=str(error))
-            self.env['brian.uso'].anotar(proveedor, respuesta.get('uso'), conversacion=self)
-            asistente = Mensaje.create({
-                'conversacion_id': self.id,
-                'rol': 'assistant',
-                'contenido': respuesta.get('texto') or '',
-                'tool_calls': json.dumps(respuesta.get('tool_calls') or [], ensure_ascii=False, default=str),
-                'crudo': json.dumps(respuesta.get('crudo') or {}, ensure_ascii=False, default=str),
-            })
-            nuevos |= asistente
-            llamadas = respuesta.get('tool_calls') or []
-            if not llamadas:
-                if respuesta.get('fin') == 'limite':
-                    asistente.contenido = (asistente.contenido or '') + self.env._(
-                        '\n\n(La respuesta se cortó por largo. Pídeme «sigue» o una versión más corta.)')
-                if not asistente.contenido:
-                    asistente.contenido = self.env._('Listo.')
-                break
-            pendiente = self._ejecutar_llamadas(herramientas_env, llamadas, asistente)
-            if pendiente:
-                break
-        else:
-            nuevos |= Mensaje.create({
-                'conversacion_id': self.id, 'rol': 'assistant',
-                'contenido': self.env._('Me detuve porque esto pedía demasiados pasos seguidos. '
-                                        '¿Me dices cómo sigo o lo partimos en pedazos?'),
-            })
+        finally:
+            vivo.cerrar()
         self.ultima_actividad = fields.Datetime.now()
         return self._resultado(nuevos)
 
-    def _ejecutar_llamadas(self, herramientas_env, llamadas, asistente):
+    def _paso_del_modelo(self, respuesta, herramientas_env, nuevos, vivo):
+        """Guarda la respuesta del modelo y ejecuta sus herramientas.
+
+        Devuelve ``(nuevos, None)`` si el bucle sigue; ``(nuevos, True)`` si quedó una acción
+        por confirmar; ``(nuevos, False)`` si fue la respuesta final.
+        """
+        asistente = self.env['brian.mensaje'].create({
+            'conversacion_id': self.id,
+            'rol': 'assistant',
+            'contenido': respuesta.get('texto') or '',
+            'tool_calls': json.dumps(respuesta.get('tool_calls') or [], ensure_ascii=False, default=str),
+            'crudo': json.dumps(respuesta.get('crudo') or {}, ensure_ascii=False, default=str),
+        })
+        nuevos |= asistente
+        llamadas = respuesta.get('tool_calls') or []
+        if not llamadas:
+            if respuesta.get('fin') == 'limite':
+                asistente.contenido = (asistente.contenido or '') + self.env._(
+                    '\n\n(La respuesta se cortó por largo. Pídeme «sigue» o una versión más corta.)')
+            if not asistente.contenido:
+                asistente.contenido = self.env._('Listo.')
+            return nuevos, False
+        pendiente = self._ejecutar_llamadas(herramientas_env, llamadas, asistente, vivo)
+        return nuevos, (True if pendiente else None)
+
+    def _ejecutar_llamadas(self, herramientas_env, llamadas, asistente, vivo=None):
         """Ejecuta las tool calls de un paso. Devuelve True si alguna quedó por confirmar."""
+        vivo = vivo or _PasosEnVivo(self, None, apagado=True)
         pendiente = False
         for llamada in llamadas:
+            nombre, argumentos = llamada.get('nombre') or '', llamada.get('argumentos')
+            paso = vivo.empezar('herramienta', nombre, modulo_pasos.titulo_paso(nombre, argumentos))
             if pendiente:
                 resultado = {'ok': False, 'error': self.env._(
                     'No se ejecutó: primero la persona debe confirmar la acción anterior.')}
@@ -487,6 +715,10 @@ class BrianConversacion(models.Model):
                 asistente.accion_id = resultado['accion_id']
                 if not asistente.contenido:
                     asistente.contenido = self.env._('Esto necesita tu confirmación:')
+            vivo.terminar(paso, 'por_confirmar' if resultado.get('requiere_confirmacion')
+                          else ('ok' if resultado.get('ok') else 'error'),
+                          resumen=modulo_pasos.resumen_resultado(resultado),
+                          detalle=modulo_pasos.detalle_resultado(resultado))
         return pendiente
 
     def _ejecutar(self, herramientas_env, llamada):
@@ -841,6 +1073,8 @@ class BrianMensaje(models.Model):
         salida = []
         for mensaje in self:
             herramientas, abrir = [], []
+            # Las acciones del mensaje van en el mismo orden que sus tool calls: de ahí sale la duración.
+            acciones = list(mensaje.accion_ids.sudo().sorted('id'))
             for llamada in _cargar(mensaje.tool_calls, []):
                 resultado = resultados.get(llamada.get('id'))
                 datos = _cargar(resultado.contenido, {}) if resultado else {}
@@ -848,9 +1082,19 @@ class BrianMensaje(models.Model):
                 destino = _destino_abrir(datos.get('datos')) if ok else None
                 if destino:
                     abrir.append(destino)
-                herramientas.append({'nombre': llamada.get('nombre'), 'ok': ok,
-                                     'error': (datos.get('error') or '') if ok is False else '',
-                                     'abrir': destino})
+                nombre = llamada.get('nombre')
+                accion = next((a for a in acciones if a.herramienta == nombre), None)
+                if accion is not None:
+                    acciones.remove(accion)
+                herramientas.append({
+                    'nombre': nombre, 'ok': ok,
+                    'error': (datos.get('error') or '') if ok is False else '',
+                    'titulo': modulo_pasos.titulo_paso(nombre, llamada.get('argumentos')),
+                    'resumen': modulo_pasos.resumen_resultado(datos) if resultado else '',
+                    'detalle': modulo_pasos.detalle_resultado(datos) if resultado else '',
+                    'duracion_ms': accion.duracion_ms if accion is not None and accion.duracion_ms else None,
+                    'abrir': destino,
+                })
             confirmacion = None
             if mensaje.accion_id:
                 accion = mensaje.accion_id.sudo()
@@ -858,7 +1102,8 @@ class BrianMensaje(models.Model):
                 if destino:
                     abrir.append(destino)
                 confirmacion = {'accion_id': accion.id, 'herramienta': accion.herramienta,
-                                'resumen': accion.resumen or '', 'estado': accion.estado, 'abrir': destino}
+                                'resumen': accion.resumen or '', 'estado': accion.estado, 'abrir': destino,
+                                'nivel': accion.nivel, 'detalle': _detalle_accion(accion)}
             salida.append({
                 'id': mensaje.id,
                 'rol': mensaje.rol,

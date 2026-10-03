@@ -34,13 +34,32 @@ const AVISO_SIN_CLAVE =
     "Brian aún no tiene su clave de IA; pídele a quien administra el sistema que la configure en Ajustes\u00a0›\u00a0Brian.";
 
 const ESTADOS_ACCION = {
-    por_confirmar: { texto: "Necesita tu confirmación", icono: "fa-hand-paper-o" },
+    por_confirmar: { texto: "Necesita tu permiso", icono: "fa-hand-paper-o" },
     enviando: { texto: "Procesando…", icono: "fa-circle-o-notch fa-spin" },
     hecha: { texto: "Hecha", icono: "fa-check" },
-    rechazada: { texto: "Cancelada", icono: "fa-ban" },
+    rechazada: { texto: "Rechazada", icono: "fa-ban" },
     error: { texto: "No se pudo hacer", icono: "fa-exclamation-triangle" },
     bloqueada: { texto: "Bloqueada por las reglas", icono: "fa-lock" },
 };
+
+/** Icono de un paso «en vivo» o de una herramienta ya usada, según cómo terminó. */
+const ICONOS_PASO = {
+    en_curso: "fa-circle-o-notch fa-spin",
+    ok: "fa-check",
+    error: "fa-times",
+    por_confirmar: "fa-hand-paper-o",
+};
+
+/**
+ * Estados del avatar de Brian (preparado para una ronda posterior: hoy solo es una clase CSS
+ * en el contenedor del panel, `o_brian_avatar_<estado>`; ver docs/BRIAN.md):
+ *   esperando   — nada en curso, sin pendientes.
+ *   trabajando  — hay un turno en marcha (pasos en vivo).
+ *   te_necesito — hay una tarjeta Permitir / Rechazar sin responder, o un error que leer.
+ *   termine     — acaba de responder (hasta que la persona vuelve a escribir).
+ */
+const ESTADOS_AVATAR = ["esperando", "trabajando", "te_necesito", "termine"];
+const TERMINE_MS = 8000;
 
 /** Sugerencias rápidas según la pantalla (solo preguntas: nada de cifras inventadas). */
 const SUGERENCIAS = [
@@ -154,9 +173,14 @@ export class BrianPanel extends Component {
             renombrando: null,
             nombreNuevo: "",
             aviso: "",
+            pastillas: [],
+            pasos: [],
+            turno: null,
+            recienTermino: false,
         });
         this.abierto = useState(this.brian.estado);
         this.contadorLocal = 0;
+        this.temporizadorTermine = null;
         useBus(this.env.bus, "ACTION_MANAGER:UI-UPDATED", () => this.state.version++);
 
         // Foco: al abrir, a la caja de texto; al cerrar, de vuelta a donde estaba.
@@ -187,7 +211,7 @@ export class BrianPanel extends Component {
                     el.scrollTop = el.scrollHeight;
                 }
             },
-            () => [this.state.mensajes.length, this.state.pensando, this.state.vista]
+            () => [this.state.mensajes.length, this.state.pensando, this.state.vista, this.state.pasos.length]
         );
         onMounted(() => this.ajustarAltura());
 
@@ -206,14 +230,18 @@ export class BrianPanel extends Component {
         // Borrados y renombres hechos en otra parte (otra pestaña, la lista del backend).
         this.alBorrarRemoto = ({ ids }) => this.quitarConversaciones(ids || [], { remoto: true });
         this.alCambiarRemoto = ({ conversacion }) => this.actualizarConversacion(conversacion);
+        this.alPasosRemoto = (carga) => this.recibirPasos(carga);
         this.bus.subscribe("dcasa_brian/conversacion_borrada", this.alBorrarRemoto);
         this.bus.subscribe("dcasa_brian/conversacion_cambiada", this.alCambiarRemoto);
+        this.bus.subscribe("dcasa_brian/pasos", this.alPasosRemoto);
         if (!this.bus.isActive) {
             this.bus.start();
         }
         onWillUnmount(() => {
             this.bus.unsubscribe("dcasa_brian/conversacion_borrada", this.alBorrarRemoto);
             this.bus.unsubscribe("dcasa_brian/conversacion_cambiada", this.alCambiarRemoto);
+            this.bus.unsubscribe("dcasa_brian/pasos", this.alPasosRemoto);
+            browser.clearTimeout(this.temporizadorTermine);
         });
         // Red de seguridad si el bus no conecta: al volver a la pestaña, se comprueba.
         this.ultimaSincronia = 0;
