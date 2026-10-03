@@ -69,3 +69,41 @@ class AccountMove(models.Model):
             return R.puntos_de_compra(monto, R.cargar_reglas())
         except R.FaltaConfigurar:
             return 0
+
+    def _dcasa_socios_factura(self):
+        """Lo que la factura impresa dice del programa. Solo lectura del libro y de las reglas.
+
+        Devuelve un dict (o None si no hay nada que decir):
+        socio, codigo, compra (la compra activa que dio puntos), por_ganar (si aún no se
+        pagó), saldo (suma del libro), canjes (premios cobrados en el pedido), padrino_codigo
+        (para invitar a quien no es socio), web (dominio público).
+        """
+        self.ensure_one()
+        ficha = self.sudo().commercial_partner_id
+        if ficha._is_public():
+            return None
+        compra = self.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)[:1]
+        canjes = self.sudo().invoice_line_ids.sale_line_ids.dcasa_canje_id
+        pedidos = self.sudo().invoice_line_ids.sale_line_ids.order_id
+        padrino = ficha.dcasa_referido_por_id or pedidos.dcasa_referido_por_id[:1]
+        return {
+            'socio': bool(ficha.dcasa_socio_codigo),
+            'codigo': ficha.dcasa_socio_codigo or '',
+            'compra': compra,
+            'por_ganar': 0 if compra else self._dcasa_puntos_por_ganar(),
+            'saldo': ficha.dcasa_saldo,
+            'canjes': canjes,
+            'padrino_codigo': padrino.dcasa_socio_codigo or '',
+            'web': self.company_id._dcasa_url_publica_corta(),
+        }
+
+
+class AccountMoveLine(models.Model):
+    _inherit = 'account.move.line'
+
+    def _dcasa_etiqueta(self):
+        """La línea con que se cobró un premio se imprime identificada como tal."""
+        premio = self.env.ref('dcasa_socios.product_premio_canje', raise_if_not_found=False)
+        if self.sudo().sale_line_ids.dcasa_canje_id or (premio and self.product_id == premio):
+            return "Premio Socios D'CASA"
+        return super()._dcasa_etiqueta()
