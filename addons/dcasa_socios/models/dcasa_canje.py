@@ -39,6 +39,10 @@ class DcasaPremio(models.Model):
     active = fields.Boolean(default=True)
     sequence = fields.Integer(default=10)
     image_512 = fields.Image(max_width=512, max_height=512)
+    libre = fields.Boolean(
+        string='Descuento libre (tienda web)', readonly=True,
+        help='El premio técnico del modo «todo» de puntos en el carrito: el socio elige cuántos puntos usa y '
+             'el descuento sale de puntos.json (canje.puntosPorDolar). No aparece en el catálogo.')
 
     _puntos_positivos = models.Constraint('CHECK(puntos > 0)', 'Un premio cuesta más de cero puntos.')
     _importes = models.Constraint('CHECK(valor >= 0 AND costo >= 0 AND stock >= 0)',
@@ -47,6 +51,15 @@ class DcasaPremio(models.Model):
     def _disponible(self):
         self.ensure_one()
         return self.active and (not self.stock_limitado or self.stock > 0)
+
+    @api.model
+    def _catalogo(self, tipo=None):
+        """Los premios que se enseñan al socio (en /socios/premios y en el carrito): disponibles y del catálogo
+        que edita Gerencia. El premio técnico del canje libre nunca sale aquí."""
+        dominio = [('libre', '=', False)]
+        if tipo:
+            dominio.append(('tipo', '=', tipo))
+        return self.sudo().search(dominio).filtered(lambda p: p._disponible())
 
 
 class DcasaCanje(models.Model):
@@ -71,6 +84,8 @@ class DcasaCanje(models.Model):
     valor = fields.Monetary(readonly=True)
     costo = fields.Monetary(readonly=True)
     estado = fields.Selection(ESTADOS_CANJE, required=True, readonly=True, default='solicitado', index=True)
+    origen = fields.Selection([('app', 'App del socio'), ('web', 'Carrito de la tienda web')],
+                              required=True, readonly=True, default='app')
     # index: la lista de canjes se ordena por aquí (_order); sin índice, cada página ordena la tabla entera.
     solicitado_en = fields.Datetime(required=True, readonly=True, default=fields.Datetime.now, index=True)
     expira_en = fields.Datetime(string='Vence', required=True, readonly=True)
@@ -88,11 +103,23 @@ class DcasaCanje(models.Model):
     # ------------------------------------------------------------------------
 
     @api.model
-    def _pedir(self, partner, premio):
-        """El socio pide un premio: se reservan los puntos y sale un código."""
+    def _pedir(self, partner, premio, puntos=None, origen='app'):
+        """El socio pide un premio: se reservan los puntos y sale un código.
+
+        ``puntos`` solo se usa con el premio técnico del canje libre (``premio.libre``): es
+        cuántos puntos quiere gastar el socio, y el descuento sale de ``canje.puntosPorDolar``.
+        """
         reglas = R.cargar_reglas()
         ficha = partner.commercial_partner_id.sudo()
         premio = premio.sudo()
+        if premio.libre:
+            if not isinstance(puntos, int) or isinstance(puntos, bool) or puntos <= 0:
+                raise UserError(self.env._('Escribe cuántos puntos quieres usar.'))
+            puntos_del_premio = puntos
+            valor = R.centavos_de_puntos(puntos, reglas) / 100.0
+        else:
+            puntos_del_premio = premio.puntos
+            valor = premio.valor
         # Serializa los pedidos del mismo socio: dos toques seguidos en un móvil
         # lento no pueden gastar dos veces el mismo saldo.
         self.env.cr.execute('SELECT id FROM res_partner WHERE id = %s FOR UPDATE', [ficha.id])
@@ -101,7 +128,7 @@ class DcasaCanje(models.Model):
         if not premio._disponible():
             raise UserError(self.env._('Ese premio se agotó o ya no está disponible. Elige otro.'))
         minimo = reglas['canje'].get('saldoMinimoParaCanjear')
-        if minimo is not None and premio.puntos < minimo:
+        if minimo is not None and puntos_del_premio < minimo:
             raise UserError(self.env._('El canje mínimo es de %s puntos.', R.como_puntos(minimo)))
         pendiente = self.sudo().search([('partner_id', '=', ficha.id), ('premio_id', '=', premio.id),
                                         ('estado', '=', 'solicitado')], limit=1)
@@ -110,9 +137,9 @@ class DcasaCanje(models.Model):
                 'Ya tienes ese premio pedido (código %s). Enséñalo en la tienda antes de que venza.',
                 pendiente.codigo))
         saldo = ficha.dcasa_saldo
-        if saldo < premio.puntos:
+        if saldo < puntos_del_premio:
             raise UserError(self.env._('Te faltan %s puntos para ese premio.',
-                                       R.como_puntos(R.faltan_para(saldo, premio.puntos))))
+                                       R.como_puntos(R.faltan_para(saldo, puntos_del_premio))))
 
         ahora = fields.Datetime.now()
         for _intento in range(10):
@@ -123,15 +150,17 @@ class DcasaCanje(models.Model):
             'codigo': codigo,
             'partner_id': ficha.id,
             'premio_id': premio.id,
-            'premio_nombre': premio.name,
-            'puntos': premio.puntos,
-            'valor': premio.valor,
-            'costo': premio.costo,
+            'premio_nombre': premio.name if not premio.libre else
+            f'{R.como_puntos(puntos_del_premio)} puntos en la tienda web',
+            'puntos': puntos_del_premio,
+            'valor': valor,
+            'costo': valor if premio.libre else premio.costo,
+            'origen': origen,
             'solicitado_en': ahora,
             'expira_en': ahora + timedelta(hours=reglas['canje']['vigenciaDelCodigoHoras']),
         })
-        self.env['dcasa.movimiento']._asentar(ficha, 'canje', -premio.puntos, 'socio', canje_id=canje.id,
-                                             motivo=f'Pediste: {premio.name}')
+        self.env['dcasa.movimiento']._asentar(ficha, 'canje', -puntos_del_premio, 'socio', canje_id=canje.id,
+                                             motivo=f'Pediste: {canje.premio_nombre}')
         if premio.stock_limitado:
             premio.stock -= 1
         return canje
@@ -168,9 +197,41 @@ class DcasaCanje(models.Model):
         self._exigir_vendedora()
         return self._entregar(self.env.user.login)
 
-    def _cerrar(self, estado, motivo, autor):
+    def _aplicar_en_venta(self, order):
+        """Mete el premio de descuento en la venta como una línea negativa.
+
+        El importe lo pone el premio, no quien teclea. Con el ITBMS que se suma al precio, la línea
+        lleva la base sin impuesto: rebaja la base como un descuento y base + ITBMS = el valor del
+        premio (lo que el cliente deja de pagar). Devuelve la línea.
+        """
+        self.ensure_one()
+        canje = self.sudo()
+        if canje.estado != 'solicitado':
+            raise UserError(self.env._('El premio %s ya no está pendiente.', canje.codigo))
+        if canje.premio_tipo == 'producto':
+            raise UserError(self.env._('Los premios de producto se entregan desde Socios > Canjes.'))
+        if order.order_line.filtered(lambda line: line.dcasa_canje_id == canje):
+            raise UserError(self.env._('Ese premio ya está en esta venta.'))
+        producto = self.env.ref('dcasa_socios.product_premio_canje').sudo()
+        # ITBMS explícito: el producto puede haberse creado antes de cargar el plan contable.
+        impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
+        base = canje.valor if all(impuestos.mapped('price_include')) else \
+            impuestos._get_tax_details(canje.valor, 1.0, special_mode='total_included')['total_excluded']
+        order.write({'order_line': [(0, 0, {
+            'product_id': producto.id,
+            'name': self.env._('Premio %(codigo)s: %(premio)s', codigo=canje.codigo, premio=canje.premio_nombre),
+            'product_uom_qty': 1,
+            'price_unit': -order.currency_id.round(base),
+            'tax_ids': [(6, 0, impuestos.ids)],
+            'dcasa_canje_id': canje.id,
+        })]})
+        return order.order_line.filtered(lambda line: line.dcasa_canje_id == canje)
+
+    def _cerrar(self, estado, motivo, autor, desde=('solicitado',)):
+        """Cierra los canjes que están en alguno de los estados ``desde`` y devuelve sus puntos
+        con un asiento contrario. Repetible: un canje ya cerrado no se toca."""
         Movimiento = self.env['dcasa.movimiento'].sudo()
-        for canje in self.sudo().filtered(lambda c: c.estado == 'solicitado'):
+        for canje in self.sudo().filtered(lambda c: c.estado in desde):
             canje.write({'estado': estado, 'cerrado_en': fields.Datetime.now(), 'cerrado_motivo': motivo})
             asiento = Movimiento.search([('canje_id', '=', canje.id), ('tipo', '=', 'canje')], limit=1)
             if asiento:
@@ -183,8 +244,13 @@ class DcasaCanje(models.Model):
         self._cerrar('cancelado', self.env._('Lo canceló la tienda. Te devolvimos los puntos.'), self.env.user.login)
         return True
 
-    def _cancelar_por_socio(self):
-        self._cerrar('cancelado', 'Lo cancelaste tú.', 'socio')
+    def _cancelar_por_socio(self, motivo='Lo cancelaste tú.'):
+        self._cerrar('cancelado', motivo, 'socio')
+
+    def _devolver_por_pedido(self, motivo, autor):
+        """El pedido que cobraba estos premios se canceló: el descuento nunca se consumió, así que
+        los puntos vuelven (también si el premio ya se había sellado como entregado al confirmar)."""
+        self._cerrar('cancelado', motivo, autor, desde=('solicitado', 'entregado'))
 
     @api.model
     def _cron_programa(self):
