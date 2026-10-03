@@ -11,6 +11,14 @@
  * y renombres hechos en otra pestaña o en Menú › Brian › Conversaciones) y, por si el bus no
  * conecta, vuelve a comprobar al regresar a la pestaña (visibilitychange / focus).
  *
+ * En vivo: mientras `enviar`/`confirmar_accion` trabajan, el servidor manda por el bus
+ * `dcasa_brian/pasos` la lista completa de pasos del turno («Pensando…», «Buscando productos
+ * «888K»»…) y el panel la pinta en lugar de «Brian está pensando…». Si el bus no llega, no pasa
+ * nada: la respuesta completa viene igual por el RPC y los pasos quedan en «Usó N herramientas».
+ *
+ * Pastillas de la cabecera (`estado_panel`): Telegram, MCP, importaciones en curso, consumo de
+ * IA del mes y última actividad. El servidor decide cuáles van según el rol; aquí solo se pintan.
+ *
  * Los adjuntos se suben como ir.attachment (res_model='brian.conversacion', res_id=id)
  * y viajan por id. Todo error se muestra como notificación: si el núcleo falla, el resto
  * del backend sigue funcionando.
@@ -335,6 +343,95 @@ export class BrianPanel extends Component {
         } catch {
             this.state.cargado = false;
         }
+        this.cargarPastillas();
+    }
+
+    /** Pastillas de estado de la cabecera. Son un extra: si fallan, el chat sigue igual. */
+    async cargarPastillas() {
+        try {
+            const r = await this.orm.silent.call(MODELO, "estado_panel", []);
+            this.state.pastillas = r?.pastillas || [];
+        } catch {
+            // Sin red o sin permiso: se dejan las que había.
+        }
+    }
+
+    // --- Pasos en vivo y avatar -------------------------------------------------------------
+
+    /** Llega por el bus la lista COMPLETA de pasos del turno en curso: se reemplaza tal cual. */
+    recibirPasos(carga) {
+        if (!carga || carga.conversacion_id !== this.state.conversacionId) {
+            return;
+        }
+        this.state.turno = carga.turno || null;
+        this.state.pasos = Array.isArray(carga.pasos) ? carga.pasos : [];
+    }
+
+    /** El turno terminó (llegó la respuesta por el RPC): los pasos ya viven en el mensaje. */
+    cerrarTurno() {
+        this.state.pasos = [];
+        this.state.turno = null;
+        this.state.pensando = false;
+        this.state.recienTermino = true;
+        browser.clearTimeout(this.temporizadorTermine);
+        this.temporizadorTermine = browser.setTimeout(() => {
+            this.state.recienTermino = false;
+        }, TERMINE_MS);
+        this.cargarPastillas();
+    }
+
+    iconoPaso(estado) {
+        return ICONOS_PASO[estado] || ICONOS_PASO.ok;
+    }
+
+    /** «0,4 s» / «12 s»: lo que tardó un paso, para quien quiera saberlo. */
+    duracion(ms) {
+        if (!ms || ms < 0) {
+            return "";
+        }
+        const s = ms / 1000;
+        return s < 10 ? `${s.toFixed(1).replace(".", ",")} s` : `${Math.round(s)} s`;
+    }
+
+    /** Título humano de una herramienta ya usada (lo manda el servidor; si no, el nombre). */
+    tituloHerramienta(h) {
+        return h.titulo || nombreHerramienta(h.nombre);
+    }
+
+    /**
+     * Estado del avatar: esperando · trabajando · te_necesito · termine (ver ESTADOS_AVATAR).
+     * Hoy solo pone la clase `o_brian_avatar_<estado>` en el panel; el dibujo viene después.
+     */
+    get estadoAvatar() {
+        let estado = "esperando";
+        if (this.state.pensando) {
+            estado = "trabajando";
+        } else if (this.hayPendiente) {
+            estado = "te_necesito";
+        } else if (this.state.recienTermino) {
+            estado = "termine";
+        }
+        return ESTADOS_AVATAR.includes(estado) ? estado : "esperando";
+    }
+
+    /** Hay una tarjeta Permitir / Rechazar sin responder, o el último mensaje es un error. */
+    get hayPendiente() {
+        const mensajes = this.state.mensajes;
+        const ultimo = mensajes[mensajes.length - 1];
+        return mensajes.some((m) => m.confirmacion?.estado === "por_confirmar") || Boolean(ultimo?.error);
+    }
+
+    get claseAvatar() {
+        return `o_brian_avatar_${this.estadoAvatar}`;
+    }
+
+    /** Clases dinámicas del panel: visible, arrastrando y el estado del avatar. */
+    get clasesPanel() {
+        return {
+            o_brian_visible: this.abierto.abierto,
+            o_brian_arrastrando: this.state.arrastrando,
+            [this.claseAvatar]: true,
+        };
     }
 
     async asegurarConversacion() {
@@ -377,6 +474,7 @@ export class BrianPanel extends Component {
                     this.soltarConversacion(AVISO_BORRADA);
                 }
             }
+            await this.cargarPastillas();
         } catch {
             // Sin red o sin sesión: se intentará la próxima vez.
         }
@@ -417,6 +515,8 @@ export class BrianPanel extends Component {
         this.state.titulo = "";
         this.state.mensajes = [];
         this.state.adjuntos = [];
+        this.state.pasos = [];
+        this.state.turno = null;
         this.state.aviso = aviso;
     }
 
@@ -521,6 +621,8 @@ export class BrianPanel extends Component {
                 this.state.proveedor = r.estado;
             }
             this.state.adjuntos = [];
+            this.state.pasos = [];
+            this.state.turno = null;
             this.state.vista = "chat";
             this.enfocar();
         } catch {
@@ -536,6 +638,9 @@ export class BrianPanel extends Component {
         this.state.titulo = "";
         this.state.mensajes = [];
         this.state.adjuntos = [];
+        this.state.pasos = [];
+        this.state.turno = null;
+        this.state.recienTermino = false;
         this.state.texto = "";
         this.state.vista = "chat";
         this.ajustarAltura();
@@ -584,6 +689,8 @@ export class BrianPanel extends Component {
         this.state.mensajes.push(local);
         this.state.texto = "";
         this.state.adjuntos = [];
+        this.state.pasos = [];
+        this.state.recienTermino = false;
         this.state.pensando = true;
         this.ajustarAltura();
         try {
@@ -605,7 +712,7 @@ export class BrianPanel extends Component {
                 this.state.adjuntos = adjuntos;
             }
         } finally {
-            this.state.pensando = false;
+            this.cerrarTurno();
             this.ajustarAltura();
             this.enfocar();
         }
@@ -632,6 +739,7 @@ export class BrianPanel extends Component {
     }
 
     alEscribir() {
+        this.state.recienTermino = false;
         this.ajustarAltura();
     }
 
@@ -834,6 +942,8 @@ export class BrianPanel extends Component {
             return;
         }
         conf.estado = "enviando";
+        this.state.pasos = [];
+        this.state.recienTermino = false;
         this.state.pensando = metodo === "confirmar_accion";
         try {
             const r = await this.llamar(metodo, [[this.state.conversacionId], conf.accion_id]);
@@ -846,14 +956,16 @@ export class BrianPanel extends Component {
                 this.soltarConversacion(AVISO_BORRADA);
             }
         } finally {
-            this.state.pensando = false;
+            this.cerrarTurno();
         }
     }
 
-    confirmar(mensaje) {
+    /** «Permitir»: la persona aprueba ESTA acción, una sola vez (no existe «Siempre»). */
+    permitir(mensaje) {
         return this.resolverAccion(mensaje, "confirmar_accion");
     }
 
+    /** «Rechazar»: no se hace; Brian lo sabe y sigue la conversación. */
     rechazar(mensaje) {
         return this.resolverAccion(mensaje, "rechazar_accion");
     }

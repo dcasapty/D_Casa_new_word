@@ -8,7 +8,7 @@ Flujo
    y todo lo que Brian haga desde ese chat corre COMO ÉL (sus permisos, sus compañías).
 3. Mensajes (texto, fotos, documentos) → ``brian.conversacion.enviar`` en la conversación
    activa del chat (canal ``telegram``). Las acciones sensibles llegan con botones
-   Confirmar / Cancelar; solo el mismo usuario puede confirmarlas.
+   Permitir / Rechazar (con el detalle exacto); solo el mismo usuario puede pulsarlos.
 
 Seguridad
 ---------

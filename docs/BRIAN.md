@@ -32,7 +32,10 @@ MCP ────────┘         │                        │  tool cal
   Grok/xAI, Llama vía Groq/Together/OpenRouter, Ollama local) y `prueba` (guion fijo para
   tests). Configuración por variables de entorno (secretos de Cloudflare), nunca en Git.
 * **`conversacion.py`** — hilo, mensajes, adjuntos, bucle agente (pensar → herramienta →
-  observar) con límite de pasos y de tokens.
+  observar) con límite de pasos y de tokens; `_PasosEnVivo` cuenta cada paso al navegador por el
+  bus; `estado_panel()` arma las pastillas de la cabecera.
+* **`pasos.py`** — funciones puras: el título humano de un paso («Buscando productos «888K»»), el
+  resumen corto del resultado y el detalle expandible. Nunca inventa: texto, conteo o «Listo».
 * **`herramientas_*.py`** — las capacidades, por área.
 
 ## Niveles de permiso
@@ -41,7 +44,7 @@ MCP ────────┘         │                        │  tool cal
 |---|---|---|
 | lectura | reporte del día, buscar productos, balance, clientes que deben | Directo |
 | construcción | crear producto, cliente, cotización, factura en borrador; editar precio; mover stock | Directo, auditado |
-| sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano confirma con un clic |
+| sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
 | prohibido | ver abajo | No existe herramienta para eso |
 
 ### Lo que Brian nunca hace
@@ -117,6 +120,79 @@ muda de conversación (cierra la puerta a «regalarle» un historial fabricado a
   **180**; **0 = nunca**).
 * Borra los adjuntos subidos a Brian cuya conversación/mensaje ya no existe, y los que llevan
   más de un día sin enviarse en ningún mensaje (subidos y quitados antes de enviar).
+
+## Brian en vivo: pasos, permisos y pastillas
+
+### Ver a Brian trabajar (pasos en tiempo real)
+
+Mientras `enviar` / `confirmar_accion` corren, el panel ya no muestra solo «Brian está
+pensando…»: pinta la lista de pasos del turno a medida que ocurren («Pensando…», «Leyendo adjunto
+«42»», «Buscando productos «888K» — 3 productos», con lo que tardó cada uno) y, al terminar, los
+mismos pasos quedan en «Usó N herramientas», cada uno con **Ver resultado** (el JSON compacto,
+recortado a 600 caracteres).
+
+* **Por qué el bus de Odoo y no SSE**: el módulo ya usa el bus para avisar borrados y renombres
+  (`dcasa_brian/conversacion_borrada`, `…_cambiada`), el cliente web ya está suscrito al canal del
+  usuario y el Worker de Cloudflare ya pasa el websocket. SSE habría exigido una ruta HTTP nueva, un
+  segundo *stream* abierto por turno y configurar el borde para no cortarlo; además el bucle agente
+  sigue dentro de la petición RPC, que ya devuelve la respuesta completa. **No cambia el proveedor
+  de IA ni la política**: lo que viaja son metadatos del turno (títulos, resúmenes cortos,
+  duraciones), nunca el prompt ni la respuesta del modelo.
+* **Cómo**: `_PasosEnVivo` (en `conversacion.py`) manda por `dcasa_brian/pasos` la lista
+  **completa** de pasos en cada cambio (idempotente: el panel la reemplaza), con `turno` = id del
+  mensaje que lo disparó. Se emite con un **cursor aparte y commit inmediato**: `bus.bus` escribe en
+  el *precommit* y notifica en el *postcommit*, así que dentro de la transacción del RPC nada
+  llegaría hasta el final. Solo canal `chat` (Telegram y MCP reciben la respuesta por su canal).
+  Si el bus falla, el turno sigue igual: la respuesta completa llega por el RPC.
+* Formato: ver el docstring de `models/conversacion.py` (`paso = {id, tipo: modelo|herramienta,
+  nombre, titulo, estado: en_curso|ok|error|por_confirmar, resumen, detalle, duracion_ms}`).
+
+### Tarjeta Permitir / Rechazar (acciones sensibles)
+
+La tarjeta de una acción sensible (o de construcción en un turno con adjuntos) trae el resumen de
+la política **más el detalle exacto**, campo por campo, de los argumentos registrados en
+`brian.accion` (`_detalle_accion`): son los mismos que `brian.herramientas.confirmar` relee al
+ejecutar, así que lo que se ve es lo que se hace. Botones: **Permitir** y **Rechazar**, nada más.
+**No existe «Siempre»** (decisión de seguridad: cada acción se aprueba una por una, en el panel y
+en Telegram). Permitir vale una sola vez; volver a pulsar no repite la acción.
+
+En Telegram la misma tarjeta llega como texto («Necesito tu permiso: … Detalle exacto de lo que voy
+a hacer: • Nombre: …») con botones *inline* **Permitir / Rechazar**; solo el dueño del chat
+vinculado puede pulsarlos.
+
+### Pastillas de estado (cabecera del chat)
+
+`brian.conversacion.estado_panel()` devuelve las pastillas que **ese usuario** puede ver; el
+servidor decide según el rol (cada bloque pregunta `has_access` y lee sin sudo, con sus reglas de
+registro; el único sudo cuenta las claves de API del propio usuario):
+
+| Pastilla | Quién la ve | Qué dice |
+|---|---|---|
+| Telegram | todos | «Telegram conectado» (tono ok) o «Telegram sin vincular» |
+| MCP | todos | «MCP activo» si tiene una clave de API vigente (global o alcance `brian`); si no, «MCP sin clave» |
+| Importaciones | quien ve `brian.importacion` (vendedoras las suyas, Gerencia todas) | «N importación(es) por aplicar» (tono aviso; solo si hay borradores) |
+| Consumo de IA | administradores (quien lee `brian.uso`) | «IA este mes: N llamadas · $X.XX»; sin tarifa registrada, solo tokens (nunca un costo inventado) |
+| Última actividad | todos | «Última actividad: hoy 14:05» / «ayer…» / fecha, en hora de Panamá |
+
+El panel las carga al abrir, las refresca al terminar cada turno y al volver a la pestaña. Son un
+extra: si fallan, el chat sigue igual.
+
+### Estados del avatar (preparado, sin construir)
+
+El panel (`<aside id="o_brian_panel">`) lleva **siempre** una clase `o_brian_avatar_<estado>` y
+`data-avatar="<estado>"`, que pone `brian_panel.js` (`ESTADOS_AVATAR`, getter `estadoAvatar`):
+
+| Estado | Cuándo |
+|---|---|
+| `esperando` | nada en curso, sin pendientes |
+| `trabajando` | hay un turno en marcha (pasos en vivo) |
+| `te_necesito` | hay una tarjeta Permitir / Rechazar sin responder, o el último mensaje es un error |
+| `termine` | acaba de responder (8 s, `TERMINE_MS`, o hasta que la persona vuelve a escribir) |
+
+Las clases existen en `brian_panel.scss` **intencionalmente vacías**: cuando se dibuje el avatar
+(ronda posterior) se cuelga de ellas sin tocar el JS, p. ej. `.o_brian_avatar_trabajando
+.o_brian_monograma { … }`. Reglas de marca de siempre: plano, sin degradados, sin amarillo sobre
+blanco.
 
 ## Adjuntos que Brian lee
 
@@ -289,7 +365,8 @@ Reglas del canal MCP:
 * **Las herramientas sensibles nunca se ejecutan desde MCP**: la llamada responde
   `isError: true` con el resumen y el `accion_id`, y la acción queda «por confirmar». La
   confirma una persona en el panel o en Telegram (si el usuario tiene el chat vinculado, le
-  llegan al instante los botones Confirmar / Cancelar). `rechazar_accion` siempre existe.
+  llegan al instante el detalle exacto y los botones Permitir / Rechazar). `rechazar_accion`
+  siempre existe.
 * Solo si un administrador pone el parámetro del sistema `dcasa_brian.mcp_permite_confirmar`
   en `True` aparece la herramienta `confirmar_accion` (marcada `destructiveHint`), pensada para
   clientes que piden aprobación humana en cada llamada. Por defecto está apagado.
@@ -319,6 +396,6 @@ Reglas del canal MCP:
 
 Comandos del bot: `/ayuda`, `/nuevo` (conversación nueva), `/desvincular`, `/vincular CÓDIGO`.
 Se pueden mandar fotos y documentos (hasta 10 MB): se guardan como adjuntos de la conversación.
-Las acciones sensibles llegan con botones **Confirmar / Cancelar**; solo el dueño del chat
-vinculado puede pulsarlos. Un chat no vinculado solo recibe las instrucciones para vincularse.
+Las acciones sensibles llegan con el detalle exacto y botones **Permitir / Rechazar** (sin
+«Siempre»); solo el dueño del chat vinculado puede pulsarlos. Un chat no vinculado solo recibe las instrucciones para vincularse.
 Para cortar el acceso: `/desvincular` en el chat, o *Brian → Telegram* → *Desvincular*.

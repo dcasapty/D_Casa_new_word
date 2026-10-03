@@ -65,7 +65,7 @@ Formatos::
                    'abrir': None|{…}},              # destino de la acción ya hecha
                'abrir': None | [{…}, …]}            # todos los destinos del mensaje
 
-Mientras ``enviar``/``confirmar_accion`` trabajan, el navegador del dueño recibe por el bus
+Mientras ``enviar``/``confirmar_accion`` trabajan (solo canal ``chat``), el navegador del dueño recibe por el bus
 ``dcasa_brian/pasos`` ``{'conversacion_id', 'turno': id del mensaje que lo disparó,
 'estado': 'trabajando'|'terminado', 'pasos': [paso, …]}`` con la lista COMPLETA de pasos hasta
 ese momento (idempotente: el panel reemplaza la lista). ``paso = {'id', 'tipo':
@@ -237,7 +237,9 @@ class _PasosEnVivo:
         self.conversacion = conversacion
         self.turno = turno
         self.pasos = []
-        self.apagado = apagado or not turno
+        # Solo el chat del panel tiene a alguien mirando: Telegram y MCP reciben la respuesta
+        # completa por su propio canal y no gastan filas del bus.
+        self.apagado = apagado or not turno or conversacion.canal != 'chat'
         self._inicios = {}
 
     def empezar(self, tipo, nombre, titulo):
