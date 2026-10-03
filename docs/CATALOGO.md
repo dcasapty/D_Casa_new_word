@@ -148,3 +148,28 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
   `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
   compartir (la dueña aceptó, el 2026-10-02, que ahí salgan tafi y «tiempo limitado»; la página no
   los repite). Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.
+
+## Inventario del sistema anterior (capturas del 2026-10-02)
+
+Las 7 capturas de Inventario → Productos del Odoo anterior (`up media/inventario-anterior/`, 535
+productos) están transcritas en `inventario_anterior.csv` (doble lectura independiente por captura;
+columna `dudas` con lo que se confirmó con zoom) y copiadas en `addons/dcasa_catalogo/data/`.
+`inventario_anterior.cargar_inventario_anterior` las aplica en la migración 19.0.1.7.0 y al dar de
+alta una base nueva, con las reglas de la dueña (LEEME del inventario):
+
+- Llave = código (`default_code`); sin código, el nombre exacto. Mismo código: existencias, costo y
+  precio si cambiaron (nombre y fotos no se tocan; el inventario manda sobre el precio, también en
+  los del pedido LTSC-07: el informe lista los 23 que cambian). Código nuevo: producto nuevo,
+  categoría por las palabras del nombre (`reglas.CATEGORIAS`), precio SIN ITBMS, publicado solo si
+  tiene foto en `static/img/productos` (archivo que empieza por el código).
+- Un código del inventario que en el catálogo tiene tamaños como variantes (`N-F10018-F-BK` →
+  `N-F10018-F-BK-FULL`, `XHT022-F-W` → `XHT022-F-W-FULL`) se aplica a la variante del tamaño que dice
+  el nombre, sin crear otro producto.
+- «A la mano» → ajuste de inventario en el almacén principal; negativo → 0 y a la lista de conteo.
+- «COMBO … + COLCHÓN» → producto sin publicar. «Descuento», «Propinas» y «X COLCHÓN … PARA COMBO»
+  no se importan. Un código repetido en el CSV (XXI070507) solo entra la primera vez.
+- Idempotente: la segunda corrida no crea nada ni deja movimientos.
+
+Informe para la dueña: `scripts/inventario_anterior_informe.py` escribe
+`docs/inventario-anterior-informe.md` (resumen y listas) y `docs/inventario-anterior-fotos-faltantes.xlsx`
+(código, nombre, existencias de los productos nuevos sin foto).

@@ -40,7 +40,9 @@ class TestCatalogo(TransactionCase):
 
     def test_venta_de_39_99_suma_el_itbms(self):
         """Producto del catálogo a $39.99 → subtotal 39.99, ITBMS 2.80, total 42.79."""
-        item = next(i for i in self.catalogo if i['precios'] == {'': 39.99})
+        # El inventario del sistema anterior puede haber movido el precio de algunos: uno que siga a 39.99.
+        item = next(i for i in self.catalogo if i['precios'] == {'': 39.99}
+                    and self.producto(i['codigo']).list_price == 39.99)
         orden = self.env['sale.order'].create({
             'partner_id': self.env['res.partner'].create({'name': 'Cliente'}).id,
             'order_line': [(0, 0, {'product_id': self.producto(item['codigo']).product_variant_id.id})],
@@ -162,7 +164,9 @@ class TestCatalogo(TransactionCase):
         self.assertEqual(producto.list_price, 1)
 
     def test_vuelve_a_crear_lo_que_falta(self):
-        item = self.catalogo[0]
+        # Uno sin movimientos de inventario (el inventario anterior deja existencias en muchos).
+        item = next(i for i in self.catalogo if not self.env['stock.move'].search_count(
+            [('product_id.product_tmpl_id', '=', self.producto(i['codigo']).id)]))
         self.producto(item['codigo']).unlink()
         self.assertEqual(cargar_catalogo(self.env), 1)
         self.assertEqual(self.producto(item['codigo']).name, item['nombre_web'])
