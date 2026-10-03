@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Garantía, cambios y términos propuestos (una sola vez; el administrador los cambia en
+         Ajustes → Empresas → Documentos D'CASA y no se vuelven a pisar). -->
+    <function model="res.company" name="_dcasa_poner_textos_iniciales"/>
+</odoo>

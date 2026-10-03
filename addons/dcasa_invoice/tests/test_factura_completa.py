@@ -246,3 +246,25 @@ class TestFacturaCompleta(TransactionCase):
         self.assertNotIn('Quotation', html)
         orden.action_confirm()
         self.assertEqual(orden._dcasa_titulo(), 'Pedido')
+
+
+@tagged('post_install', '-at_install')
+class TestTextosIniciales(TransactionCase):
+
+    def test_textos_iniciales_una_vez_y_sin_pisar(self):
+        from odoo.addons.dcasa_invoice.models.res_company import TEXTOS_INICIALES, TEXTOS_PUESTOS
+        empresa = self.env.company
+        param = self.env['ir.config_parameter'].sudo()
+        # Tras instalar ya están puestos.
+        self.assertTrue(param.get_param(TEXTOS_PUESTOS))
+        self.assertEqual(empresa.dcasa_factura_garantia, TEXTOS_INICIALES['dcasa_factura_garantia'])
+        # Lo que cambie o borre el administrador no se vuelve a pisar.
+        empresa.write({'dcasa_factura_garantia': 'Garantía de la dueña.', 'dcasa_factura_cambios': False})
+        empresa._dcasa_poner_textos_iniciales()
+        self.assertEqual(empresa.dcasa_factura_garantia, 'Garantía de la dueña.')
+        self.assertFalse(empresa.dcasa_factura_cambios)
+        # Sin la marca, solo llena lo vacío.
+        param.set_param(TEXTOS_PUESTOS, '')
+        empresa._dcasa_poner_textos_iniciales()
+        self.assertEqual(empresa.dcasa_factura_garantia, 'Garantía de la dueña.')
+        self.assertEqual(empresa.dcasa_factura_cambios, TEXTOS_INICIALES['dcasa_factura_cambios'])

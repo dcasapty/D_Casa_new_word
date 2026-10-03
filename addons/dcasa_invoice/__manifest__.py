@@ -22,7 +22,7 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
 * Garantía, cambios y términos: textos cortos que la dueña escribe en la empresa.
 * Hoja carta con la placa, la banda y un pie de dos líneas que no se corta.
 """,
-    'version': '19.0.2.0.0',
+    'version': '19.0.2.1.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -35,6 +35,7 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
         'data/report_layout_data.xml',
         'data/paperformat_data.xml',
         'data/product_data.xml',
+        'data/textos_data.xml',
     ],
     'assets': {
         'web.report_assets_common': [
