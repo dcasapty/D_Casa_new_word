@@ -39,6 +39,10 @@ class DcasaPremio(models.Model):
     active = fields.Boolean(default=True)
     sequence = fields.Integer(default=10)
     image_512 = fields.Image(max_width=512, max_height=512)
+    product_id = fields.Many2one(
+        'product.product', string='Producto que se entrega', ondelete='set null',
+        help='Para un premio de producto: qué sale del inventario al entregarlo (informativo).')
+    cantidad = fields.Integer(default=1, help='Cuántas unidades del producto entrega el premio.')
     libre = fields.Boolean(
         string='Descuento libre (tienda web)', readonly=True,
         help='El premio técnico del modo «todo» de puntos en el carrito: el socio elige cuántos puntos usa y '
@@ -47,6 +51,41 @@ class DcasaPremio(models.Model):
     _puntos_positivos = models.Constraint('CHECK(puntos > 0)', 'Un premio cuesta más de cero puntos.')
     _importes = models.Constraint('CHECK(valor >= 0 AND costo >= 0 AND stock >= 0)',
                                   'Los importes y el stock no pueden ser negativos.')
+    _cantidad_positiva = models.Constraint('CHECK(cantidad > 0)', 'Un premio entrega al menos una unidad.')
+
+    @api.model
+    def _crear_ejemplo_almohadas(self, nombre, puntos, codigo_producto, cantidad):
+        """Premio de EJEMPLO pedido por la dueña (03/10/2026). Las cifras vienen de premios_data.xml
+        (el catálogo vive en datos, no en el código). Se liga al producto ``codigo_producto`` del
+        inventario anterior si ya está en la base; si no, el premio se crea sin producto. Gerencia lo
+        edita o lo archiva; se crea UNA sola vez (si lo borran, no vuelve en la siguiente actualización).
+
+        Valor y costo no se inventan: salen del precio y del costo del producto; sin producto, 0.
+        """
+        Param = self.env['ir.config_parameter'].sudo()
+        if Param.get_param('dcasa_socios.ejemplo_almohadas_creado'):
+            return self.browse()
+        producto = self.env['product.product'].sudo().search([('default_code', '=', codigo_producto)], limit=1)
+        valores = {
+            'name': nombre,
+            'descripcion': producto.name if producto else self.env._('Premio de ejemplo: edítalo o archívalo.'),
+            'tipo': 'producto',
+            'puntos': puntos,
+            'product_id': producto.id,
+            'cantidad': cantidad,
+            'valor': producto.lst_price * cantidad if producto else 0,
+            'costo': producto.standard_price * cantidad if producto else 0,
+            'sequence': 20,
+        }
+        if producto.image_512:
+            valores['image_512'] = producto.image_512
+        premio = self.sudo().create(valores)
+        self.env['ir.model.data'].sudo().create({
+            'module': 'dcasa_socios', 'name': 'premio_ejemplo_almohadas', 'model': self._name,
+            'res_id': premio.id, 'noupdate': True,
+        })
+        Param.set_param('dcasa_socios.ejemplo_almohadas_creado', '1')
+        return premio
 
     def _disponible(self):
         self.ensure_one()

@@ -131,6 +131,8 @@
                             <field name="costo"/>
                             <field name="stock_limitado"/>
                             <field name="stock" invisible="not stock_limitado"/>
+                            <field name="product_id" invisible="tipo != 'producto'"/>
+                            <field name="cantidad" invisible="tipo != 'producto'"/>
                         </group>
                     </group>
                 </sheet>

@@ -44,4 +44,13 @@
             <field name="libre" eval="True"/>
         </record>
     </data>
+    <!-- Premio de EJEMPLO de la dueña (03/10/2026): «Dos almohadas» por 400 puntos. Fuera del bloque
+         noupdate a propósito: así también se crea en una base que ya tenía el módulo. La función es
+         de una sola vez (bandera dcasa_socios.ejemplo_almohadas_creado) y Gerencia lo edita o archiva. -->
+    <function model="dcasa.premio" name="_crear_ejemplo_almohadas">
+        <value>Dos almohadas</value>
+        <value eval="400"/>
+        <value>ALMOHADA001</value>
+        <value eval="2"/>
+    </function>
 </odoo>

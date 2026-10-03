@@ -7,3 +7,4 @@ from . import test_seguridad_rpc
 from . import test_roles
 from . import test_socios_web
 from . import test_factura_impresa
+from . import test_premio_ejemplo
