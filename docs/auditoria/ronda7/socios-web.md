@@ -51,8 +51,15 @@ portal dentro del módulo, SCSS propio). No se tocaron `website_dcasa`, `dcasa_i
 
 ## Pruebas
 
-`scripts/test.sh dcasa_socios,website_dcasa,dcasa_base` en base limpia (`dcasa_t_socios2`, puerto 8516):
-__RESULTADO__. `ruff check addons`: limpio.
+`scripts/test.sh dcasa_socios,website_dcasa,dcasa_base` en base limpia (`dcasa_t_socios2`, puerto 8516,
+Odoo de `vendor/odoo`): **280 tests; los de socios, dcasa_base y el resto de website_dcasa en verde**
+(los 6 fallos de la primera corrida eran de esta ronda y se corrigieron: lista blanca RPC, versión de
+reglas en `test_compras`, una cifra en una vista del panel, dos aserciones y el campo `mobile` que no
+existe en Odoo 19). Queda **un fallo ajeno a esta ronda**: `website_dcasa`
+`TestPaginasBlackWeekend.test_banda_en_la_portada_antes_de_los_carruseles` espera un
+`<source type="image/webp">` para un producto de prueba **sin foto** (`_dcasa_img_srcset` devuelve
+vacío sin adjunto); viene con el merge de `claude/merge-rama-to-main-ty3koz` y no se tocó
+(`website_dcasa` queda fuera del alcance). `ruff check addons`: limpio.
 
 Nuevas (`tests/test_socios_web.py`, `@tagged('post_install')`): catálogo público y premio técnico oculto;
 pedir desde el catálogo (código, estado, stock, cancelar); carrito en los dos modos (aplicar, quitar,
