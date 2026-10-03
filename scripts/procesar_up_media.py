@@ -177,6 +177,8 @@ def escribir_leemes(movimientos, raiz, fecha):
                       for m in lista]
         texto = leeme.read_text(encoding='utf-8') if leeme.exists() else cabecera
         leeme.write_text(texto.rstrip('\n') + f'\n\n## {fecha}\n\n' + '\n'.join(lineas) + '\n', encoding='utf-8')
+        # Al índice, como los archivos movidos: un commit a mano (sin `git add -A`) no lo deja fuera.
+        subprocess.run(['git', 'add', '--', str(leeme)], cwd=raiz, capture_output=True, text=True, check=False)
 
 
 def resumen(movimientos, fecha):

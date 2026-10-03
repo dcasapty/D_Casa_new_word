@@ -35,14 +35,22 @@ concurrency:
   group: up-media
   cancel-in-progress: false
 
+# Permisos mínimos: lectura para todo; solo el job que hace el commit escribe en el repositorio.
 permissions:
-  contents: write
+  contents: read
+
+# bash con pipefail en todos los pasos: `procesar … | tee` no puede tapar un fallo del procesador.
+defaults:
+  run:
+    shell: bash
 
 jobs:
   procesar:
     name: Procesar la bandeja y probar el catálogo
     if: ${{ !contains(github.event.head_commit.message, '[skip up-media]') }}
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     timeout-minutes: 45
     outputs:
       commit: ${{ steps.commit.outputs.commit }}

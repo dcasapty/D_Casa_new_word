@@ -167,6 +167,7 @@ class TestEjecutar(unittest.TestCase):
         estado = git('status', '--porcelain')
         self.assertIn('R  "up media/ZQ063605_1.png" -> fuentes/carga-inicial/ZQ063605_1.png', estado)
         self.assertNotIn('?? fuentes/carga-inicial/ZQ063605_1.png', estado)
+        self.assertIn('A  fuentes/carga-inicial/LEEME.md', estado, 'el LEEME histórico también queda en el índice')
 
 
 class TestResumen(unittest.TestCase):
