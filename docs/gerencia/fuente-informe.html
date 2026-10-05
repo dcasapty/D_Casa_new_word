@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>D'CASA — Estado del sistema</title>
+<style>
+@font-face{font-family:Anton;src:url(anton-latin.woff2) format('woff2')}
+@font-face{font-family:Oswald;src:url(oswald-latin-var.woff2) format('woff2');font-weight:200 700}
+@font-face{font-family:Inter;src:url(inter-latin-var.woff2) format('woff2');font-weight:100 900}
+:root{--azul:#1340B1;--navy:#0E2A6B;--amarillo:#FED00F;--gris:#F2F4F8;--linea:#D9DEEA;--texto:#1B2233}
+@page{size:Letter;margin:0}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,sans-serif;color:var(--texto);font-size:10.5pt;line-height:1.45}
+.pagina{width:8.5in;height:11in;padding:0.55in 0.6in;position:relative;page-break-after:always;overflow:hidden}
+.pagina:last-child{page-break-after:auto}
+h1,h2{font-family:Anton,sans-serif;text-transform:uppercase;font-weight:400;letter-spacing:.5px;margin:0}
+h2{color:var(--azul);font-size:20pt;margin:0 0 10px}
+h3{font-family:Oswald,sans-serif;font-weight:600;color:var(--navy);font-size:12.5pt;margin:14px 0 6px;text-transform:uppercase;letter-spacing:.3px}
+p{margin:0 0 8px}
+.pie{position:absolute;bottom:0.35in;left:0.6in;right:0.6in;font-size:8pt;color:#5A6478;display:flex;justify-content:space-between;border-top:1px solid var(--linea);padding-top:6px}
+/* portada */
+.banda{background:var(--azul);color:#fff;margin:-0.55in -0.6in 22px;padding:0.5in 0.6in 0.4in}
+.banda img{height:58px;display:block;margin-bottom:22px}
+.banda h1{font-size:34pt;line-height:1.05}
+.banda .sub{font-family:Oswald,sans-serif;font-size:13pt;margin-top:8px;opacity:.95}
+.chip{display:inline-block;background:var(--amarillo);color:var(--navy);font-family:Oswald,sans-serif;font-weight:600;padding:3px 10px;border-radius:3px;font-size:10pt;margin-top:14px}
+.resumen{background:var(--gris);border-left:5px solid var(--azul);padding:12px 16px;margin-bottom:16px;font-size:11.5pt}
+.flujo{display:flex;gap:8px;align-items:stretch;margin:6px 0 10px}
+.paso{flex:1;border:1.5px solid var(--azul);border-radius:6px;padding:10px;background:#fff}
+.paso b{display:block;font-family:Oswald,sans-serif;color:var(--azul);font-size:11.5pt;text-transform:uppercase;margin-bottom:3px}
+.paso span{font-size:9.5pt}
+.flecha{align-self:center;color:var(--azul);font-weight:700;font-size:16pt}
+.dos{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px}
+ul{margin:0;padding-left:18px}
+li{margin-bottom:4px;break-inside:avoid}
+.lista li::marker{color:var(--azul)}
+.ok{list-style:none;padding:0}
+.ok li{padding-left:22px;position:relative}
+.ok li:before{content:"✓";position:absolute;left:0;color:#fff;background:var(--azul);width:15px;height:15px;border-radius:50%;font-size:9pt;line-height:15px;text-align:center;top:2px}
+.prox li:before{content:"→";background:var(--navy)}
+table{width:100%;border-collapse:collapse;font-size:10pt;margin:4px 0 8px}
+th{background:var(--navy);color:#fff;font-family:Oswald,sans-serif;font-weight:500;text-align:left;padding:6px 8px;text-transform:uppercase;font-size:9.5pt}
+td{padding:6px 8px;border-bottom:1px solid var(--linea);vertical-align:top}
+td.n{white-space:nowrap;font-weight:600;color:var(--navy)}
+tr.total td{background:var(--azul);color:#fff;font-weight:700;border:none}
+tr.total td.n{color:#fff}
+.nota{font-size:9pt;color:#4A5468}
+.caja{border:1.5px solid var(--linea);border-radius:6px;padding:10px 14px;margin-bottom:10px}
+.preg{counter-reset:p;list-style:none;padding:0}
+.preg li{counter-increment:p;padding:6px 0 6px 30px;position:relative;border-bottom:1px solid var(--linea);margin:0}
+.preg li:before{content:counter(p);position:absolute;left:0;top:6px;width:20px;height:20px;border-radius:50%;background:var(--azul);color:#fff;font-weight:700;font-size:9pt;text-align:center;line-height:20px}
+.quien{font-size:8.5pt;color:#fff;background:var(--navy);border-radius:3px;padding:1px 6px;margin-left:4px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- PÁGINA 1 -->
+<section class="pagina">
+  <div class="banda">
+    <img src="logo.png" alt="D'CASA">
+    <h1>El sistema de D'CASA,<br>explicado en simple</h1>
+    <div class="sub">Qué tenemos hoy · qué viene · cuánto cuesta · qué necesitamos decidir</div>
+    <span class="chip">Preparado para la gerencia · octubre 2026</span>
+  </div>
+
+  <div class="resumen">
+    <b>En una frase:</b> D'CASA ya tiene su propio sistema (tienda en línea + administración del negocio)
+    funcionando en una versión de prueba. Para abrirlo al público falta conectar el dominio
+    <b>dcasapty.com</b> y tomar unas pocas decisiones que están en la última página.
+  </div>
+
+  <h2>¿Cómo funciona?</h2>
+  <p>Piénselo como una tienda con vitrina, oficina y caja fuerte:</p>
+  <div class="flujo">
+    <div class="paso"><b>1. La vitrina</b><span>La página web. El cliente ve los muebles, precios y fotos, y nos escribe por WhatsApp o compra.</span></div>
+    <div class="flecha">›</div>
+    <div class="paso"><b>2. La oficina</b><span>El sistema de administración (Odoo). Inventario, ventas, facturas, clientes, contabilidad y Socios.</span></div>
+    <div class="flecha">›</div>
+    <div class="paso"><b>3. La caja fuerte</b><span>Copias de seguridad automáticas, minuto a minuto. Si algo falla, se recupera en ~1 minuto.</span></div>
+  </div>
+  <div class="dos" style="margin-top:12px">
+    <div class="caja"><h3 style="margin-top:0">¿Dónde vive?</h3>
+      En <b>Cloudflare</b>, una empresa grande de internet. No hay computadoras ni servidores en la tienda:
+      todo está en la nube y se abre desde el celular o la computadora.</div>
+    <div class="caja"><h3 style="margin-top:0">¿Quién lo usa?</h3>
+      <b>Clientes:</b> la página web.<br><b>Vendedoras:</b> ventas, cotizaciones, facturas.<br>
+      <b>Gerencia:</b> todo, incluidos reportes y precios.<br><b>Brian:</b> asistente de inteligencia artificial que ayuda a la gerencia.</div>
+  </div>
+  <div class="caja"><h3 style="margin-top:0">Dos versiones del sistema</h3>
+    <b>Prueba (staging):</b> donde se revisa todo antes; está encendida las 24 horas.
+    <b>Real (producción):</b> la que verán los clientes en dcasapty.com; se enciende al conectar el dominio.</div>
+
+  <div class="pie"><span>D'CASA Panamá · Frente al Parque Libertadores, diagonal a la Discoteca Seven, La Chorrera</span><span>1 / 4</span></div>
+</section>
+
+<!-- PÁGINA 2 -->
+<section class="pagina">
+  <h2>Lo que ya está listo</h2>
+  <p class="nota" style="margin-bottom:10px">Todo esto funciona hoy en la versión de prueba y se revisa con más de 700 pruebas automáticas cada vez que se cambia algo.</p>
+  <div class="dos">
+    <div>
+      <h3>Página web</h3>
+      <ul class="ok">
+        <li>Catálogo con fotos, precios (+ ITBMS) y botón <b>Escríbenos por WhatsApp</b>.</li>
+        <li>Carrito de compras y página <b>Visítanos</b> con mapa y dirección real.</li>
+        <li>Promoción <b>Black Weekend</b> lista para activarse por fechas.</li>
+        <li>Se ve bien en celular y carga rápido.</li>
+        <li>Protegida contra robots y ataques.</li>
+      </ul>
+      <h3>Inventario</h3>
+      <ul class="ok">
+        <li>Cargados los <b>535 productos</b> del sistema anterior (383 nuevos).</li>
+        <li>Los productos sin foto quedan guardados pero ocultos en la web hasta tener foto.</li>
+        <li>Carpeta <b>"up media"</b>: se suben fotos ahí y el sistema las procesa.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>Ventas y facturas</h3>
+      <ul class="ok">
+        <li>Cotizaciones, ventas y <b>factura nueva</b> con flete/envío, garantía, cambios y términos (editables).</li>
+        <li>Roles: vendedora y gerencia, con tope de descuento y reportes contra fraudes.</li>
+        <li>Contabilidad de Panamá en dólares, con ITBMS 7 %.</li>
+      </ul>
+      <h3>Programa Socios D'CASA</h3>
+      <ul class="ok">
+        <li>El cliente gana puntos <b>cuando paga</b> su compra.</li>
+        <li>Canjea por premios que define la gerencia (ejemplo: <b>dos almohadas por 400 puntos</b>).</li>
+        <li>Referidos: quien trae a un amigo gana puntos.</li>
+      </ul>
+      <h3>Brian, el asistente</h3>
+      <ul class="ok">
+        <li>Responde preguntas del negocio desde el panel o Telegram (ventas, inventario, clientes).</li>
+        <li>Tiene un límite de gasto para que nunca se dispare.</li>
+      </ul>
+      <h3>Seguridad</h3>
+      <ul class="ok">
+        <li>Copias de seguridad cada minuto, cifradas.</li>
+        <li>Verificación en dos pasos lista para activar.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pie"><span>D'CASA Panamá · Estado del sistema</span><span>2 / 4</span></div>
+</section>
+
+<!-- PÁGINA 3 -->
+<section class="pagina">
+  <h2>Próximos avances</h2>
+  <ul class="ok prox" style="columns:2;column-gap:24px">
+    <li><b>Abrir al público</b> en dcasapty.com (falta conectar el dominio).</li>
+    <li><b>WhatsApp con asistente</b> ("el equipo de D'CASA"): contesta 24/7 y hace seguimiento a clientes. Horario de personas: 8:00 a 5:00, todos los días.</li>
+    <li><b>Factura electrónica DGI</b>: el sistema está preparado; falta contratar un proveedor autorizado (PAC).</li>
+    <li><b>Fotos</b> de los 328 productos que aún no tienen.</li>
+    <li>Revisión del <b>contador</b> y del <b>abogado</b> (textos de la factura).</li>
+    <li>Activar la <b>verificación en dos pasos</b> para todos los usuarios.</li>
+  </ul>
+
+  <h2 style="margin-top:20px">Costos mensuales estimados</h2>
+  <p class="nota">Rangos en dólares. Dependen de cuánto se use. Son estimaciones con las tarifas oficiales de cada proveedor; la factura real se revisa el primer mes.</p>
+  <table>
+    <tr><th>Concepto</th><th>Qué es</th><th>Al mes</th></tr>
+    <tr><td><b>Servidores y web</b></td><td>Cloudflare: versión real (24 h) + versión de prueba (24 h) + copias de seguridad + fotos.</td><td class="n">$40 – $50</td></tr>
+    <tr><td><b>Dominio dcasapty.com</b></td><td>Renovación anual del nombre de la página (≈ $10–20 al año).</td><td class="n">≈ $1 – $2</td></tr>
+    <tr><td><b>Brian (inteligencia artificial)</b></td><td>Se paga por uso. Uso ligero (unas 10–20 consultas al día) a uso normal (≈ 50 al día). Tiene límite de gasto.</td><td class="n">$5 – $35</td></tr>
+    <tr><td><b>WhatsApp con asistente</b><br><span class="nota">(cuando se active)</span></td><td>Inteligencia artificial que conversa (≈ 400 conversaciones al mes) + mensajes de seguimiento de Meta.</td><td class="n">$10 – $45</td></tr>
+    <tr class="total"><td colspan="2">TOTAL MENSUAL ESTIMADO (todo funcionando)</td><td class="n">$56 – $132</td></tr>
+  </table>
+  <p class="nota">Hoy, mientras solo está la versión de prueba y no hay WhatsApp con asistente, el gasto es mucho menor (≈ $13 de servidores + lo que se use de Brian).
+  Si el uso crece mucho (por ejemplo, el doble de conversaciones de WhatsApp), ese renglón se duplica. Se pueden poner topes de gasto en cada servicio.</p>
+
+  <h3>Pagos únicos o por cotizar</h3>
+  <table>
+    <tr><th>Concepto</th><th>Detalle</th><th>Costo</th></tr>
+    <tr><td><b>Proveedor de factura electrónica (PAC)</b></td><td>Obligatorio para facturar electrónicamente ante la DGI. Cobran por factura o por plan mensual.</td><td class="n">Por cotizar (2–3 PAC)</td></tr>
+    <tr><td><b>Abogado</b></td><td>Revisar garantía, cambios y términos de la factura y de la web.</td><td class="n">Por cotizar</td></tr>
+    <tr><td><b>Contador</b></td><td>Revisar la configuración contable antes de arrancar.</td><td class="n">Por cotizar</td></tr>
+    <tr><td><b>Número de WhatsApp</b></td><td>Solo si se quiere una línea nueva para el asistente.</td><td class="n">Costo de la línea</td></tr>
+  </table>
+  <div class="pie"><span>D'CASA Panamá · Estado del sistema</span><span>3 / 4</span></div>
+</section>
+
+<!-- PÁGINA 4 -->
+<section class="pagina">
+  <h2>Lo que necesitamos decidir</h2>
+  <p class="nota" style="margin-bottom:6px">Con estas respuestas se puede abrir al público y seguir avanzando.</p>
+
+  <h3>Para abrir al público</h3>
+  <ol class="preg">
+    <li>¿Quién tiene acceso a la cuenta donde se compró el dominio <b>dcasapty.com</b>? Hay que conectarlo a Cloudflare.</li>
+    <li>¿Qué <b>fecha</b> queremos para abrir la página al público?</li>
+    <li>¿Aprobamos el <b>gasto mensual</b> estimado (página 3) y un <b>tope máximo</b> para la inteligencia artificial? ¿De cuánto?</li>
+    <li>¿Quién guarda las <b>dos claves maestras</b> de seguridad (copias de seguridad y Socios) fuera de la nube?</li>
+  </ol>
+
+  <h3>Inventario</h3>
+  <ol class="preg" start="5" style="counter-reset:p 4">
+    <li><b>23 precios</b> del sistema anterior son distintos a los del catálogo (ej. Y0300200: $129.99 → $159.99). ¿Cuál es el correcto?</li>
+    <li>El código <b>XXI070507</b> estaba repetido en dos productos distintos. ¿Cuál es cuál?</li>
+    <li>Las bases <b>N-F10018 King y Twin</b>: ¿son un solo producto con tallas o productos separados?</li>
+    <li>Hay <b>11 datos dudosos</b> leídos de las capturas y <b>7 productos</b> que tenían existencias negativas. ¿Quién hace el conteo físico?</li>
+    <li>¿Quién toma las <b>fotos</b> de los 328 productos que no tienen?</li>
+  </ol>
+
+  <h3>Socios D'CASA</h3>
+  <ol class="preg" start="10" style="counter-reset:p 9">
+    <li>¿Cuál es el <b>máximo de puntos</b> que se gana en una sola compra? (pendiente)</li>
+    <li>¿Se confirma la equivalencia de <b>100 puntos = $1</b> al canjear?</li>
+    <li>Los socios que se inscriben por el QR no dan correo. ¿Les pedimos un <b>correo opcional</b> para que usen puntos en la web?</li>
+    <li>¿Quién hace las <b>fotos de los premios</b>?</li>
+  </ol>
+
+  <h3>Otros</h3>
+  <ol class="preg" start="14" style="counter-reset:p 13">
+    <li>¿Qué <b>número de WhatsApp</b> usará el asistente: el actual (+507 6026-1919) o uno nuevo?</li>
+    <li>¿Qué <b>proveedor de factura electrónica</b> (PAC) contratamos?</li>
+    <li>¿Quiere recibir <b>alertas por Telegram</b> si el sistema se cae?</li>
+  </ol>
+  <div class="pie"><span>D'CASA Panamá · +507 6026-1919 · info@dcasapty.com</span><span>4 / 4</span></div>
+</section>
+</body>
+</html>
