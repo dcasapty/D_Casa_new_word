@@ -241,6 +241,28 @@ jobs:
             exit 1
           fi
           echo "Adjunto $id en R2: $(grep -cE '"PUT /dcasa-ci/adjuntos/' "$RUNNER_TEMP/s3/moto.log") PUT en adjuntos/."
+      - name: La factura en PDF sale con el diseño de D'CASA (estilos y fuentes cargados)
+        # web.base.url apunta a https://localhost (inalcanzable aquí, como Cloudflare desde el
+        # contenedor): si wkhtmltopdf pidiera los estilos ahí, el PDF saldría como texto suelto.
+        run: |
+          jar="$RUNNER_TEMP/cookies-pdf"
+          curl -fsS -c "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/session/authenticate \
+            -d '{"jsonrpc":"2.0","params":{"db":"dcasa","login":"admin","password":"ci-admin"}}' >/dev/null
+          rpc() {
+            curl -fsS -b "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/dataset/call_kw \
+              -d "{\"jsonrpc\":\"2.0\",\"params\":{\"model\":\"$1\",\"method\":\"create\",\"args\":[$2],\"kwargs\":{}}}" \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["result"])'
+          }
+          cliente="$(rpc res.partner '{"name":"Cliente PDF CI"}')"
+          producto="$(rpc product.product '{"name":"Mesa PDF CI","list_price":99}')"
+          orden="$(rpc sale.order "{\"partner_id\":$cliente,\"order_line\":[[0,0,{\"product_id\":$producto,\"product_uom_qty\":1}]]}")"
+          curl -fsS -b "$jar" -o "$RUNNER_TEMP/cotizacion.pdf" "http://localhost:8069/report/pdf/sale.report_saleorder/$orden"
+          head -c 4 "$RUNNER_TEMP/cotizacion.pdf" | grep -q '%PDF'
+          if ! grep -aq 'Anton' "$RUNNER_TEMP/cotizacion.pdf"; then
+            echo "::error::La cotización salió sin estilos: wkhtmltopdf no cargó el CSS (¿pide los estilos a la URL pública?)."
+            exit 1
+          fi
+          echo "PDF con fuentes de marca ($(wc -c < "$RUNNER_TEMP/cotizacion.pdf") bytes)."
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
