@@ -23,6 +23,7 @@
  */
 
 /** El cuerpo del error, recortado. El Worker explica ahí por qué rechazó. */
+/** @param {{ text(): Promise<string> }} r */
 async function porQue(r) {
   try {
     return (await r.text()).replace(/\s+/g, " ").slice(0, 300);

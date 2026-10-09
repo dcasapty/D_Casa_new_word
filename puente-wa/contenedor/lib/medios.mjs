@@ -62,12 +62,18 @@ const EXTENSION = {
   "video/3gpp": "3gp",
 };
 
-/** `image/jpeg; charset=…` → `image/jpeg` (minúsculas, sin parámetros). */
+/**
+ * `image/jpeg; charset=…` → `image/jpeg` (minúsculas, sin parámetros).
+ * @param {unknown} mime
+ */
 export function mimeLimpio(mime) {
   return String(mime ?? "").split(";")[0].trim().toLowerCase();
 }
 
-/** Extensión de archivo para un tipo, o "" si no se conoce. */
+/**
+ * Extensión de archivo para un tipo, o "" si no se conoce.
+ * @param {unknown} mime
+ */
 export function extensionDe(mime) {
   return EXTENSION[mimeLimpio(mime)] ?? "";
 }
@@ -128,7 +134,10 @@ export function sniffMime(bytes) {
   return null;
 }
 
-/** Texto plano: sin bytes nulos en los primeros 4 KB. */
+/**
+ * Texto plano: sin bytes nulos en los primeros 4 KB.
+ * @param {Uint8Array} bytes
+ */
 function pareceTexto(bytes) {
   const n = Math.min(bytes.length, 4096);
   for (let i = 0; i < n; i++) if (bytes[i] === 0) return false;

@@ -70,12 +70,18 @@ export function normalizarCelular(entrada) {
   return { ok: true, e164: digitos, esPanama: false };
 }
 
-/** ¿Es un móvil de Panamá (6xxx-xxxx)? Solo informativo: no se rechaza nada por esto. */
+/**
+ * ¿Es un móvil de Panamá (6xxx-xxxx)? Solo informativo: no se rechaza nada por esto.
+ * @param {unknown} e164
+ */
 export function esMovilPanama(e164) {
   return /^5076\d{7}$/.test(String(e164));
 }
 
-/** `50760261919` → `50760261919@s.whatsapp.net`. */
+/**
+ * `50760261919` → `50760261919@s.whatsapp.net`.
+ * @param {string} e164
+ */
 export function jidDeCelular(e164) {
   return `${e164}@s.whatsapp.net`;
 }

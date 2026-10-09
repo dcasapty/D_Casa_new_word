@@ -57,13 +57,20 @@ export const RESPUESTA_VIGENTE_MS = 15 * 60 * 1000;
 /** Un mensaje de un cliente más viejo que esto no se contesta (historial). */
 export const ENTRANTE_VIGENTE_MS = 24 * 60 * 60 * 1000;
 
-/** El contenido del mensaje, sin las envolturas de «temporal» o «ver una vez». */
+/**
+ * El contenido del mensaje, sin las envolturas de «temporal» o «ver una vez».
+ * @param {any} msg
+ * @returns {any}
+ */
 function interior(msg) {
   const m = msg?.message ?? {};
   return m.ephemeralMessage?.message ?? m.viewOnceMessage?.message ?? m.viewOnceMessageV2?.message ?? m;
 }
 
-/** El nombre del tipo de mensaje de Baileys (`conversation`, `imageMessage`…), o null. */
+/**
+ * El nombre del tipo de mensaje de Baileys (`conversation`, `imageMessage`…), o null.
+ * @param {any} msg
+ */
 export function tipoDe(msg) {
   return (
     Object.keys(interior(msg)).find(
@@ -72,7 +79,10 @@ export function tipoDe(msg) {
   );
 }
 
-/** Texto o leyenda del mensaje, sin envolturas. */
+/**
+ * Texto o leyenda del mensaje, sin envolturas.
+ * @param {any} msg
+ */
 export function textoDe(msg) {
   const m = interior(msg);
   return (
@@ -86,7 +96,10 @@ export function textoDe(msg) {
   );
 }
 
-/** Los `Long` de protobuf, números o textos → número (0 si no se puede). */
+/**
+ * Los `Long` de protobuf, números o textos → número (0 si no se puede).
+ * @param {any} x
+ */
 function aNumero(x) {
   if (x === null || x === undefined) return 0;
   if (typeof x === "object" && typeof x.toNumber === "function") return x.toNumber();
@@ -109,6 +122,7 @@ function aNumero(x) {
  * que no son archivos: sticker, ubicación y contacto). `clase: null` = no es
  * nada que atender (reacción, borrado, edición, aviso del protocolo…).
  *
+ * @param {any} msg
  * @returns {Contenido}
  */
 export function contenidoDe(msg) {

@@ -7,6 +7,7 @@
 // clientes no se convierte en una ráfaga de mensajes.
 
 export class ColaLlena extends Error {
+  /** @param {number} pendientes */
   constructor(pendientes) {
     super(`la cola de envío está llena (${pendientes} peticiones esperando)`);
     this.name = "ColaLlena";
@@ -15,6 +16,7 @@ export class ColaLlena extends Error {
 }
 
 export class EsperaAgotada extends Error {
+  /** @param {number} ms */
   constructor(ms) {
     super(`la petición esperó más de ${Math.round(ms / 1000)} s su turno y se descartó`);
     this.name = "EsperaAgotada";

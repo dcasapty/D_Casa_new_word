@@ -76,7 +76,9 @@ export function crearLookupSeguro(resolver) {
 export async function descargarSeguro(urlTexto, opciones) {
   const { tipo, mimesPermitidos, maxBytes, hostsPermitidos = [], mimeDeclarado, timeoutMs = TIMEOUT_DESCARGA_MS } = opciones;
   const request = opciones.deps?.request ?? https.request;
-  const resolver = opciones.deps?.resolver ?? ((host, o) => dns.promises.lookup(host, o));
+  const resolver =
+    opciones.deps?.resolver ??
+    ((/** @type {string} */ host, /** @type {any} */ o) => /** @type {Promise<any>} */ (dns.promises.lookup(host, { ...o, all: true })));
   const lookup = crearLookupSeguro(resolver);
   const limite = Date.now() + timeoutMs;
 

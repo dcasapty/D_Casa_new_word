@@ -8,10 +8,21 @@
 // Todo es puro: el reloj y el azar se inyectan, así que se prueba sin esperar.
 
 /**
+ * @typedef {{
+ *   entreBurbujasMs: number, entreBurbujasAzarMs: number,
+ *   pensarMinMs: number, pensarMaxMs: number,
+ *   escribirMsPorCaracter: number, escribirMinMs: number, escribirMaxMs: number, escribirVariacion: number,
+ *   prepararMedioMinMs: number, prepararMedioMaxMs: number,
+ *   porMinuto: number, porDia: number, porDestinatarioHora: number, friosPorDia: number,
+ *   esperaMaxPorMinutoS: number, colaMax: number, colaEsperaMaxMs: number,
+ * }} Ritmo
+ */
+
+/**
  * Valores por defecto. Se pueden bajar o subir por variables del Worker, pero
  * `entreBurbujasMs` nunca baja de 1000 (contrato: «1 s entre burbujas»).
  */
-export const RITMO_POR_DEFECTO = Object.freeze({
+export const RITMO_POR_DEFECTO = /** @type {Ritmo} */ (Object.freeze({
   /** Mínimo entre dos burbujas seguidas (contrato con Juan). */
   entreBurbujasMs: 1000,
   /** Se le suma una espera al azar de 0 a esto. */
@@ -39,9 +50,7 @@ export const RITMO_POR_DEFECTO = Object.freeze({
   /** Cuántas peticiones de envío pueden esperar turno, y cuánto. */
   colaMax: 20,
   colaEsperaMaxMs: 90_000,
-});
-
-/** @typedef {typeof RITMO_POR_DEFECTO} Ritmo */
+}));
 
 const MIN_MS = 60_000;
 const HORA_MS = 3_600_000;
@@ -79,7 +88,10 @@ export function leerRitmo(env = {}) {
   };
 }
 
-/** Número al azar en [min, max], con `azar()` ∈ [0, 1). */
+/**
+ * Número al azar en [min, max], con `azar()` ∈ [0, 1).
+ * @param {() => number} azar @param {number} min @param {number} max
+ */
 function entre(azar, min, max) {
   return Math.round(min + azar() * (max - min));
 }
@@ -107,7 +119,11 @@ export function tiempoEscribiendo(texto, azar, cfg = RITMO_POR_DEFECTO) {
   return Math.min(cfg.escribirMaxMs, Math.max(cfg.escribirMinMs, ms));
 }
 
-/** Pausa antes de mandar una imagen o un documento (subirlo «toma un momento»). */
+/**
+ * Pausa antes de mandar una imagen o un documento (subirlo «toma un momento»).
+ * @param {() => number} azar
+ * @param {Ritmo} [cfg]
+ */
 export function pausaMedio(azar, cfg = RITMO_POR_DEFECTO) {
   return entre(azar, cfg.prepararMedioMinMs, cfg.prepararMedioMaxMs);
 }
