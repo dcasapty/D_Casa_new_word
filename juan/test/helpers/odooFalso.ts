@@ -105,7 +105,7 @@ export class OdooFalso implements OdooApi {
   pedidosDeEstado = 0;
   caido = false;
   conversacionId = 12;
-  rawConfig: unknown = { nombre_publico: "D'CASA" };
+  rawConfig: unknown = { nombre_publico: "el equipo de D'CASA" };
   defs: DefHerramienta[] = HERRAMIENTAS_DE_PRUEBA;
   manejadores: Record<string, Manejador> = { ...MANEJADORES };
   /** Cuántas veces se pidió config (para probar la caché). */

@@ -41,9 +41,17 @@ const CANAL_LEGIBLE: Record<CanalId, string> = {
   instagram: "Instagram",
 };
 
+/**
+ * El nombre público del contrato es «el equipo de D'CASA»; «asistente automático de el equipo de D'CASA» no se lee bien,
+ * así que en las frases «asistente de ...» va solo la marca. Cualquier otro nombre que ponga la dueña se usa tal cual.
+ */
+export function marcaDe(nombrePublico: string): string {
+  return nombrePublico.replace(/^\s*el equipo de\s+/i, "").trim() || nombrePublico;
+}
+
 export function presentacionPorDefecto(nombrePublico: string): string {
   return (
-    `Hola, soy el asistente automático de ${nombrePublico}. ` +
+    `Hola, soy el asistente automático de ${marcaDe(nombrePublico)}. ` +
     "Te ayudo con muebles, precios y el programa Socios. " +
     "Si prefieres hablar con una persona, escríbeme *persona* y te atiende una vendedora."
   );
@@ -51,7 +59,7 @@ export function presentacionPorDefecto(nombrePublico: string): string {
 
 /** El bloque que se cachea. Depende SOLO de la configuración de Odoo. */
 export function promptEstable(cfg: Config): string {
-  const nombre = cfg.nombre_publico;
+  const nombre = marcaDe(cfg.nombre_publico);
   const lecciones = cfg.lecciones.length
     ? `<lecciones_aprendidas>
 Lo que las vendedoras han aprendido atendiendo casos reales. Síguelas, salvo que contradigan <fuentes_de_verdad> o <reglas>: esas mandan siempre.
@@ -222,7 +230,7 @@ export function promptSeguimiento(cfg: Config, d: DatosDeSeguimiento): string {
   const interes = (d.interes || "").replace(/[\r\n]+/g, " ").replace(/[<>]/g, "").slice(0, 300).trim();
   const nombre = nombreSeguro(d.nombreCliente);
   const saludo = d.numero === 1 ? "Retoma la conversación con calidez, unas horas después de la última vez." : "Es el ÚLTIMO mensaje: han pasado varios días. Deja la puerta abierta con tranquilidad.";
-  return `Eres el asistente automático de «${cfg.nombre_publico}» (D'CASA Panamá, mueblería en La Chorrera). Vas a redactar UN mensaje corto de seguimiento a una persona que preguntó por muebles y no volvió a escribir.
+  return `Eres el asistente automático de «${marcaDe(cfg.nombre_publico)}» (D'CASA Panamá, mueblería en La Chorrera). Vas a redactar UN mensaje corto de seguimiento a una persona que preguntó por muebles y no volvió a escribir.
 
 Reglas:
 - ${saludo}

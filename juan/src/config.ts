@@ -73,7 +73,7 @@ export interface Config {
 }
 
 export const CONFIG_POR_DEFECTO: Config = {
-  nombre_publico: "D'CASA",
+  nombre_publico: "el equipo de D'CASA",
   bot_activo_global: true,
   canales_activos: {},
   horario: { inicio: "08:00", fin: "17:00", dias: [0, 1, 2, 3, 4, 5, 6], zona: "America/Panama" },

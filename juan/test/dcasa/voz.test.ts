@@ -4,6 +4,7 @@
  * (Reescritura de las pruebas de «trato» del CRM de Baby Caleb, con la voz de D'CASA.)
  */
 import { describe, expect, it } from "vitest";
+import { marcaDe, presentacionPorDefecto } from "../../src/dcasa/prompt";
 import { crearMundo } from "../helpers/mundo";
 
 const EMOJI = /\p{Extended_Pictographic}/u;
@@ -123,6 +124,22 @@ describe("tuteo y presentación", () => {
 });
 
 describe("el nombre del negocio", () => {
+  it("«el equipo de D'CASA» (el nombre del contrato) se lee bien en «asistente automático de ...»", () => {
+    expect(marcaDe("el equipo de D'CASA")).toBe("D'CASA");
+    expect(marcaDe("  El equipo de D'CASA Panamá ")).toBe("D'CASA Panamá");
+    expect(marcaDe("Casa y Más")).toBe("Casa y Más");
+    expect(marcaDe("el equipo de")).toBe("el equipo de"); // nada que quitar sin dejarlo vacío
+    expect(presentacionPorDefecto("el equipo de D'CASA")).toMatch(/^Hola, soy el asistente automático de D'CASA\. /);
+    expect(presentacionPorDefecto("el equipo de D'CASA")).not.toContain("equipo");
+  });
+
+  it("el prompt con el nombre por defecto tampoco dice «de el equipo de»", async () => {
+    const m = crearMundo();
+    const g = m.guion([{ texto: "Dime qué buscas." }]);
+    await m.conversar("hola");
+    expect(g.prompts()[0]).not.toMatch(/de «?el equipo de/);
+  });
+
   it("usa el nombre público que fija Odoo en el prompt", async () => {
     const m = crearMundo({ config: { nombre_publico: "D'CASA Panamá" } });
     const g = m.guion([{ texto: "Dime qué buscas." }]);
