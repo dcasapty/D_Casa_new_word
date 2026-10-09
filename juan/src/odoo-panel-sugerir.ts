@@ -17,7 +17,7 @@
 
 import type { CanalId } from "./canales/tipos";
 import { TODOS_LOS_CANALES } from "./canales/tipos";
-import { mesDelNegocio, type Config } from "./config";
+import { diaDelNegocio, mesDelNegocio, type Config } from "./config";
 import { analizar, quitarGraves, type ContextoRevision, type TipoProblema } from "./dcasa/salvaguardas";
 import { marcaDe, contextoDelChat, promptParaFugas } from "./dcasa/prompt";
 import { nombreSeguro, textoParaElModelo } from "./dcasa/sensibles";
@@ -57,7 +57,7 @@ export interface PeticionSugerir {
 
 export interface GastoApi {
   gastoMes(mes: string): Promise<number>;
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean): Promise<void>;
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): Promise<void>;
   guardarSalud?(clave: string, json: string): Promise<void>;
 }
 
@@ -218,7 +218,7 @@ export async function sugerir(p: PeticionSugerir, d: DepsSugerir): Promise<{ sta
   if (!salida || !usado) return { status: 502, cuerpo: { ok: false, error: "La IA no pudo redactar el borrador ahora. Inténtalo otra vez o escríbelo tú." } };
 
   const costo = costoDe(usado.modelo, salida.uso, cfg.precios_ia);
-  await d.gasto.registrarGasto(mes, usado.modelo, salida.uso, costo.usd, costo.estimado).catch((e) => console.warn("[juan] sugerir: no se pudo anotar el gasto:", String(e)));
+  await d.gasto.registrarGasto(mes, usado.modelo, salida.uso, costo.usd, costo.estimado, diaDelNegocio(cfg.horario.zona, ahora)).catch((e) => console.warn("[juan] sugerir: no se pudo anotar el gasto:", String(e)));
 
   const cifrasDeLaConversacion = new Set<number>(registro.cifras);
   const ctx: ContextoRevision = {
@@ -253,7 +253,7 @@ export async function manejarSugerir(req: Request, env: Env, d: Pick<DepsRutas, 
         herramientas: () => obtenerHerramientas(env),
         gasto: {
           gastoMes: async (mes) => (await global().gastoMes(mes)).usd,
-          registrarGasto: async (mes, modelo, uso, usd, estimado) => global().registrarGasto(mes, modelo, uso, usd, estimado),
+          registrarGasto: async (mes, modelo, uso, usd, estimado, dia) => global().registrarGasto(mes, modelo, uso, usd, estimado, dia),
           guardarSalud: async (clave, texto) => global().guardarSalud(clave, texto),
         },
         sitio: env.URL_SITIO,

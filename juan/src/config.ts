@@ -282,6 +282,15 @@ export function dentroDeHorario(horario: Horario, ms: number): boolean {
 }
 
 /** "2026-10" según la zona del negocio: el mes del tope de IA. */
+/** El día del negocio («AAAA-MM-DD») en su zona horaria. */
+export function diaDelNegocio(zona: string, ms: number): string {
+  try {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: zona, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(ms));
+  } catch {
+    return new Date(ms).toISOString().slice(0, 10);
+  }
+}
+
 export function mesDelNegocio(zona: string, ms: number): string {
   try {
     const p = new Intl.DateTimeFormat("en-CA", { timeZone: zona, year: "numeric", month: "2-digit" }).format(new Date(ms));

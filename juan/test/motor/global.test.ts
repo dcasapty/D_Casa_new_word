@@ -23,6 +23,21 @@ describe("AlmacenGlobal: el gasto del mes", () => {
     expect(r.porModelo.map((m) => [m.modelo, m.turnos]).sort()).toEqual([["claude-haiku-4-5", 2], ["claude-sonnet-5-5", 1]]);
   });
 
+  it("también suma por día (de todos los modelos), solo del mes pedido y en orden", () => {
+    const g = new AlmacenGlobal(crearSqlNode());
+    g.registrarGasto("2026-10", "claude-haiku-4-5", uso(1, 1), 0.5, false, "2026-10-09");
+    g.registrarGasto("2026-10", "claude-sonnet-5-5", uso(1, 1), 1.25, false, "2026-10-09");
+    g.registrarGasto("2026-10", "claude-haiku-4-5", uso(1, 1), 0.1, false, "2026-10-08");
+    g.registrarGasto("2026-11", "claude-haiku-4-5", uso(1, 1), 9, false, "2026-11-01");
+    g.registrarGasto("2026-10", "claude-haiku-4-5", uso(1, 1), 2); // sin día: solo cuenta en el mes
+    expect(g.gastoPorDia("2026-10")).toEqual([
+      { dia: "2026-10-08", usd: 0.1, turnos: 1 },
+      { dia: "2026-10-09", usd: 1.75, turnos: 2 },
+    ]);
+    expect(g.gastoPorDia("2026-12")).toEqual([]);
+    expect(g.gastoMes("2026-10").usd).toBeCloseTo(3.85, 6);
+  });
+
   it("un mes nuevo arranca en cero (el tope se reinicia solo)", () => {
     const g = new AlmacenGlobal(crearSqlNode());
     g.registrarGasto("2026-10", "m", uso(1, 1), 5);

@@ -6,12 +6,13 @@ import { manejarCostos } from "../src/odoo-panel-costos";
 
 const AHORA = Date.UTC(2026, 9, 9, 15, 0);
 
-function montar(opciones: { gasto?: unknown; falla?: boolean; config?: Record<string, unknown> } = {}) {
+function montar(opciones: { gasto?: unknown; falla?: boolean; config?: Record<string, unknown>; porDia?: unknown[] } = {}) {
   const pedidos: string[] = [];
   const env = {
     GLOBAL: {
       idFromName: (n: string) => n,
       get: () => ({
+        gastoPorDia: async () => opciones.porDia ?? [{ dia: "2026-10-08", usd: 1.234, turnos: 10 }, { dia: "2026-10-09", usd: 0.5, turnos: 4 }],
         gastoMes: async (mes: string) => {
           pedidos.push(mes);
           if (opciones.falla) throw new Error("el almacén no responde: secreto-interno-123");
@@ -52,6 +53,10 @@ describe("GET /odoo/costos", () => {
         { modelo: "claude-sonnet-5-5", usd: 10, turnos: 21, estimado: false },
       ],
       modelos_sin_precio: [],
+      por_dia: [
+        { fecha: "2026-10-08", usd: 1.23 },
+        { fecha: "2026-10-09", usd: 0.5 },
+      ],
     });
     expect(m.pedidos).toEqual(["2026-10"]);
   });
@@ -63,6 +68,19 @@ describe("GET /odoo/costos", () => {
       ahora: () => Date.UTC(2026, 10, 1, 4, 30), // 1.º de noviembre 04:30 UTC = 31 de octubre 11:30 p. m. en Panamá
     });
     expect((await res.json<any>()).mes).toBe("2026-10");
+  });
+
+  it("si el detalle por día no se puede leer, el resto de la respuesta sigue igual", async () => {
+    const m = montar();
+    (m.env.GLOBAL.get as any) = () => ({
+      gastoMes: async (mes: string) => ({ mes, usd: 1, turnos: 1, porModelo: [], modelosSinPrecio: [] }),
+      gastoPorDia: async () => {
+        throw new Error("sin tabla");
+      },
+    });
+    const j = await (await m.pedir()).json<any>();
+    expect(j.ok).toBe(true);
+    expect(j.por_dia).toEqual([]);
   });
 
   it("avisa de los modelos que gastaron sin precio cargado", async () => {

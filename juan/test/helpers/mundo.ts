@@ -117,8 +117,8 @@ export function crearMundo(op: OpcionesMundo = {}) {
         if (mundo.fallosDeGlobal) throw new Error("global caído");
         return sqlGlobal.gastoMes(mes).usd;
       },
-      registrarGasto: async (mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean) => {
-        sqlGlobal.registrarGasto(mes, modelo, uso, usd, estimado);
+      registrarGasto: async (mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string) => {
+        sqlGlobal.registrarGasto(mes, modelo, uso, usd, estimado, dia);
       },
       guardarSalud: async (clave: string, json: string) => {
         sqlGlobal.guardarSalud(clave, JSON.parse(json), t);

@@ -264,7 +264,7 @@ class DcasaJuanPanel(models.AbstractModel):
         mes = ahora_local.strftime('%Y-%m')
         fotos = {f.fecha: f.acumulado_usd for f in self.env['dcasa.juan.costo.dia'].sudo().search(
             [('mes', '=', mes)])}
-        por_dia = [{'fecha': dia.isoformat(), 'usd': usd} for dia, usd in C.gasto_por_dia(fotos, mes)]
+        por_dia = C.unir_gasto_por_dia(C.gasto_por_dia(fotos, mes), cuerpo.get('por_dia'), mes)
         proyeccion = C.proyeccion_del_mes(gasto, ahora_local)
         estado = C.estado_del_tope(gasto, proyeccion, tope)
         ia = informe.get('ia') or {}

@@ -46,3 +46,16 @@ describe("«escribiendo» para las pantallas de Odoo", () => {
     expect(m.odoo.escribiendos).toEqual([]);
   });
 });
+
+describe("el gasto de IA también se anota por día", () => {
+  it("cada turno suma al día de hoy del negocio (la gráfica de Costos de IA no depende de que alguien abra la pantalla)", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "Hola, ¿en qué te ayudo?" }]);
+    await m.conversar("Hola");
+    const dias = m.gastoGlobal.gastoPorDia("2026-10");
+    expect(dias).toHaveLength(1);
+    expect(dias[0].turnos).toBe(1);
+    expect(dias[0].usd).toBeGreaterThan(0);
+    expect(dias[0].usd).toBeCloseTo(m.gastoGlobal.gastoMes("2026-10").usd, 8);
+  });
+});

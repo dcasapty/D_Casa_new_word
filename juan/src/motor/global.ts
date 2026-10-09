@@ -25,10 +25,19 @@ export class AlmacenGlobal {
       usd REAL NOT NULL DEFAULT 0, turnos INTEGER NOT NULL DEFAULT 0,
       estimado INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (mes, modelo))`);
+    // El gasto de cada día (en la hora del negocio), sumado de todos los modelos: para la gráfica de Costos de IA.
+    sql.correr("CREATE TABLE IF NOT EXISTS gasto_dia (dia TEXT PRIMARY KEY, usd REAL NOT NULL DEFAULT 0, turnos INTEGER NOT NULL DEFAULT 0)");
     sql.correr("CREATE TABLE IF NOT EXISTS salud (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
   }
 
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false): void {
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false, dia?: string): void {
+    if (dia) {
+      this.sql.correr(
+        "INSERT INTO gasto_dia (dia, usd, turnos) VALUES (?, ?, 1) ON CONFLICT(dia) DO UPDATE SET usd = usd + excluded.usd, turnos = turnos + 1",
+        dia,
+        usd,
+      );
+    }
     this.sql.correr(
       `INSERT INTO gasto (mes, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos, estimado)
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
@@ -56,6 +65,11 @@ export class AlmacenGlobal {
       porModelo: filas.map((f) => ({ ...f, estimado: f.estimado === 1 })),
       modelosSinPrecio: filas.filter((f) => f.estimado === 1).map((f) => f.modelo),
     };
+  }
+
+  /** Gasto de cada día del mes («AAAA-MM»), del más viejo al más nuevo. Solo existen los días desde que se guarda por día. */
+  gastoPorDia(mes: string): { dia: string; usd: number; turnos: number }[] {
+    return this.sql.todos<{ dia: string; usd: number; turnos: number }>("SELECT dia, usd, turnos FROM gasto_dia WHERE dia LIKE ? ORDER BY dia", `${mes}-%`);
   }
 
   guardarSalud(clave: string, valor: unknown, ahora: number): void {
@@ -86,12 +100,16 @@ export class Global extends DurableObject<Env> {
     this.almacen = new AlmacenGlobal(sqlDeDurableObject(ctx.storage.sql));
   }
 
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean): void {
-    this.almacen.registrarGasto(mes, modelo, uso, usd, estimado);
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): void {
+    this.almacen.registrarGasto(mes, modelo, uso, usd, estimado, dia);
   }
 
   gastoMes(mes: string): GastoDelMes {
     return this.almacen.gastoMes(mes);
+  }
+
+  gastoPorDia(mes: string): { dia: string; usd: number; turnos: number }[] {
+    return this.almacen.gastoPorDia(mes);
   }
 
   /** Los valores viajan como texto JSON: los tipos de RPC de Cloudflare no se llevan bien con `unknown` ni `any`. */

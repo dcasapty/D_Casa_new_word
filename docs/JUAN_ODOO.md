@@ -150,8 +150,9 @@ Tres pantallas hermanas, con la misma barra de arriba para pasar de una a otra.
   bien», «Vas a pasar el tope» o «Tope alcanzado» (con ícono y palabra). Debajo, la frase **«Si sigues a este ritmo, terminarás el mes
   en…»**, el gasto **por día** (un botón lo pasa a tabla) y **por modelo**. Al llegar al tope, el asistente baja al modelo económico;
   **nunca se queda sin contestar**. Si un modelo no tiene precio cargado en *Ajustes de Juan*, el gasto de ese modelo es una
-  estimación alta y la pantalla lo dice. El desglose por día se va armando desde que se abre esta pantalla por primera vez: Odoo
-  guarda una foto del gasto cada noche; un día sin foto sale como «sin dato» y no se adivina.
+  estimación alta y la pantalla lo dice. El **gasto por día** lo lleva el propio Worker, día a día (hora de Panamá), desde que se
+  desplegó esta versión: no depende de que alguien abra la pantalla. Los días anteriores se arman con la foto del gasto que Odoo
+  guarda cada noche; un día sin foto ni dato del Worker sale como «sin dato» y no se adivina.
 * **Conexiones** (**solo Gerencia**). El estado **en vivo** de cada canal (Conectado, Desconectado, Faltan claves, Apagado), con
   ícono y palabra. En **WhatsApp (QR)**:
   * **Mostrar el QR para vincular**: aparece el código para escanearlo desde el teléfono de la tienda (*WhatsApp › Ajustes ›
@@ -170,7 +171,7 @@ números que sí tiene Odoo.
 ### Lo que todavía no hace
 
 * **Fotos de perfil**: se muestran las iniciales de cada persona.
-* El gasto de IA **por día** solo existe desde que Odoo empezó a guardar las fotos diarias.
+* El gasto de IA **por día** de antes de esta versión solo existe donde Odoo guardó su foto diaria.
 
 ## Atender a un cliente (en la bandeja de siempre)
 

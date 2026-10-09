@@ -76,6 +76,23 @@ def gasto_por_dia(instantaneas, mes):
     return resultado
 
 
+def unir_gasto_por_dia(de_fotos, del_worker, mes):
+    """Junta el gasto por día armado con fotos (``gasto_por_dia``) con el que el Worker lleva día a día.
+
+    El del Worker manda donde existe (es exacto y no depende de que alguien abra la pantalla); las fotos llenan los
+    días anteriores a que el Worker empezara a llevarlo. Devuelve ``[{'fecha': 'AAAA-MM-DD', 'usd': gasto|None}]``,
+    en orden de fecha.
+    """
+    por_fecha = {dia.isoformat(): gasto for dia, gasto in de_fotos}
+    for x in del_worker or []:
+        fecha = x.get('fecha') if isinstance(x, dict) else None
+        usd = x.get('usd') if isinstance(x, dict) else None
+        if (isinstance(fecha, str) and fecha.startswith(f'{mes}-') and re.fullmatch(r'\d{4}-\d{2}-\d{2}', fecha)
+                and isinstance(usd, (int, float)) and not isinstance(usd, bool) and usd >= 0):
+            por_fecha[fecha] = round(float(usd), 2)
+    return [{'fecha': fecha, 'usd': por_fecha[fecha]} for fecha in sorted(por_fecha)]
+
+
 def mediana(valores):
     valores = sorted(v for v in valores if v is not None)
     if not valores:

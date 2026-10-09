@@ -18,8 +18,8 @@ export function globalDe(env: Env): GlobalApi {
   const stub = () => env.GLOBAL.get(env.GLOBAL.idFromName("juan"));
   return {
     gastoMes: async (mes) => (await stub().gastoMes(mes)).usd,
-    registrarGasto: async (mes, modelo, uso, usd, estimado) => {
-      await stub().registrarGasto(mes, modelo, uso, usd, estimado);
+    registrarGasto: async (mes, modelo, uso, usd, estimado, dia) => {
+      await stub().registrarGasto(mes, modelo, uso, usd, estimado, dia);
     },
     guardarSalud: async (clave, json) => {
       await stub().guardarSalud(clave, json);

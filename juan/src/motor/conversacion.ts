@@ -12,7 +12,7 @@
 // Eso es de Odoo (docs/JUAN.md → «Quién sabe qué»).
 
 import type { ModelMessage } from "ai";
-import { canalActivo, dentroDeHorario, mesDelNegocio, type Config } from "../config";
+import { canalActivo, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
 import { partirPorLargo } from "../canales/tipos";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
@@ -75,7 +75,7 @@ export function limpiarError(e: unknown): string {
 export interface GlobalApi {
   gastoMes(mes: string): Promise<number>;
   /** `estimado`: el modelo no tenía precio cargado y se usó la tarifa de reserva (se avisa en /salud). */
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean): Promise<void>;
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean, dia?: string): Promise<void>;
   /** Deja un dato para /salud (último fallo de la IA, uso del respaldo...). Valores como texto JSON, nunca secretos. */
   guardarSalud?(clave: string, json: string): Promise<void>;
 }
@@ -840,7 +840,7 @@ export class MotorConversacion {
     const costo = costoDe(modelo, uso, cfg.precios_ia);
     if (costo.estimado) this.log("warn", `el modelo ${modelo} no tiene precio cargado en Odoo (precios_ia): el gasto se estima con la tarifa de reserva`);
     try {
-      await this.deps.global.registrarGasto(mes, modelo, uso, costo.usd, costo.estimado);
+      await this.deps.global.registrarGasto(mes, modelo, uso, costo.usd, costo.estimado, diaDelNegocio(cfg.horario.zona, this.deps.ahora()));
     } catch (e) {
       this.log("warn", "no se pudo anotar el gasto de IA", String(e));
     }

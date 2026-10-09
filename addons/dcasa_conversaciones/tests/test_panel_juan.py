@@ -60,6 +60,17 @@ class TestCalculos(BaseCase):
         fotos = {date(2026, 10, 2): 5.0, date(2026, 10, 3): 4.0}
         self.assertEqual(C.gasto_por_dia(fotos, '2026-10')[1], (date(2026, 10, 3), 0.0))
 
+    def test_el_gasto_por_dia_del_worker_manda_y_las_fotos_llenan_lo_anterior(self):
+        de_fotos = [(date(2026, 10, 1), 1.0), (date(2026, 10, 2), None), (date(2026, 10, 3), 2.5)]
+        del_worker = [{'fecha': '2026-10-03', 'usd': 2.75}, {'fecha': '2026-10-04', 'usd': 0.3},
+                      {'fecha': '2026-09-30', 'usd': 9.0},        # de otro mes: no cuenta
+                      {'fecha': '2026-10-05', 'usd': -1},         # basura: no cuenta
+                      {'fecha': 'ayer', 'usd': 1}, {'fecha': '2026-10-06', 'usd': True}, 'x', None]
+        self.assertEqual(C.unir_gasto_por_dia(de_fotos, del_worker, '2026-10'), [
+            {'fecha': '2026-10-01', 'usd': 1.0}, {'fecha': '2026-10-02', 'usd': None},
+            {'fecha': '2026-10-03', 'usd': 2.75}, {'fecha': '2026-10-04', 'usd': 0.3}])
+        self.assertEqual(C.unir_gasto_por_dia([], None, '2026-10'), [])
+
     def test_mediana(self):
         self.assertIsNone(C.mediana([]))
         self.assertIsNone(C.mediana([None]))
@@ -307,6 +318,13 @@ class TestCostos(JuanCase):
             self.panel.costos()    # otra visita el mismo día no duplica
         self.assertEqual(Foto.sudo().search_count([('mes', '=', '2026-10')]), 2)
         self.assertEqual(r['por_dia'], [{'fecha': '2026-10-09', 'usd': None}, {'fecha': '2026-10-10', 'usd': 2.5}])
+
+    def test_la_pantalla_usa_el_gasto_por_dia_que_lleva_el_worker(self):
+        with freeze_time(panama(2026, 10, 10, 12, 0)):
+            self.worker.rutas[('GET', '/odoo/costos')] = {**COSTOS, 'por_dia': [
+                {'fecha': '2026-10-08', 'usd': 1.2}, {'fecha': '2026-10-09', 'usd': 3.4}]}
+            r = self.panel.costos()
+        self.assertEqual(r['por_dia'][:2], [{'fecha': '2026-10-08', 'usd': 1.2}, {'fecha': '2026-10-09', 'usd': 3.4}])
 
     def test_dentro_del_dia_la_foto_solo_sube(self):
         Foto = self.env['dcasa.juan.costo.dia'].sudo()
