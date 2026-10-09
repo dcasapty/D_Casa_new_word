@@ -156,7 +156,7 @@ describe("se presenta como asistente automático", () => {
     await m.conversar("hola");
     const primera = m.canal.textos[0];
     expect(primera).toMatch(/asistente automático/);
-    expect(primera).toContain("«el equipo de D'CASA»");
+    expect(primera).toContain("asistente automático de D'CASA.");
     expect(primera).toContain("escríbeme *persona* y te atiende una vendedora");
   });
 

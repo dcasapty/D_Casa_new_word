@@ -202,7 +202,7 @@ describe("la voz de la marca (CLAUDE.md)", () => {
   it("usa el nombre público que fija Odoo", () => {
     const otro = promptEstable(normalizarConfig({ nombre_publico: "Casa y Más" }));
     expect(otro).toContain("«Casa y Más»");
-    expect(otro).not.toContain("el equipo de D'CASA");
+    expect(otro).not.toContain("«D'CASA»");
   });
 
   it("agrega las palabras prohibidas que la dueña fije en Odoo", () => {

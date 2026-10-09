@@ -42,7 +42,7 @@ describe("la presentación y el registro en Odoo", () => {
     await m.conversar("hola");
     const textos = m.canal.textos.join("\n");
     expect(textos).toMatch(/asistente autom[aá]tico/i);
-    expect(textos).toContain("el equipo de D'CASA");
+    expect(textos).toContain("asistente automático de D'CASA.");
     expect(textos).toContain("*persona*");
     expect(textos).toContain("Claro, te cuento.");
   });

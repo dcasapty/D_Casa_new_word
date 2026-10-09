@@ -43,7 +43,7 @@ const CANAL_LEGIBLE: Record<CanalId, string> = {
 
 export function presentacionPorDefecto(nombrePublico: string): string {
   return (
-    `Hola, soy el asistente automático de «${nombrePublico}». ` +
+    `Hola, soy el asistente automático de ${nombrePublico}. ` +
     "Te ayudo con muebles, precios y el programa Socios. " +
     "Si prefieres hablar con una persona, escríbeme *persona* y te atiende una vendedora."
   );
