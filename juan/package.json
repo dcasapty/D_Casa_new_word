@@ -1,0 +1,24 @@
+{
+  "name": "dcasa-juan",
+  "private": true,
+  "description": "Juan: el bot multicanal de atención a clientes de D'CASA Panamá (Worker de Cloudflare + Durable Objects). Odoo es la única fuente de datos.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.126",
+    "@ai-sdk/openai-compatible": "^2.0.81",
+    "ai": "^6.0.300"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260929.1",
+    "@types/node": "^22.0.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "wrangler": "^4.143.0"
+  }
+}
