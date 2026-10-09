@@ -7,6 +7,7 @@ import {
   analizar,
   asegurarItbms,
   detectarExistencias,
+  detectarMandaALeer,
   detectarPromesas,
   extraerMontos,
   limpiarForma,
@@ -178,6 +179,45 @@ describe("regla 3 · entregas, flete, financiamiento, apartados y descuentos: no
   it("un porcentaje que salió de una herramienta no es una promesa del bot", () => {
     expect(detectarPromesas("El Black Weekend tiene 20% de descuento.", new Set([20]))).toEqual([]);
     expect(detectarPromesas("Tiene 20% de descuento.", new Set())).toEqual(["descuento"]);
+  });
+});
+
+describe("la dueña · el bot no manda a nadie a leer políticas", () => {
+  const mandan = [
+    "Puedes leer nuestras políticas de garantía en la página.",
+    "Revisa los términos y condiciones antes de comprar.",
+    "Te recomiendo consultar el aviso de privacidad.",
+    "Más en dcasapty.com/privacidad.",
+    "Visita dcasapty.com/terminos para ver todo.",
+    "Eso está en nuestras políticas.",
+    "Lee la política de privacidad, por favor.",
+    "Mira nuestros términos.",
+  ];
+  it.each(mandan)("lo detecta: %s", (texto) => {
+    expect(detectarMandaALeer(texto).length).toBeGreaterThan(0);
+    expect(analizar(texto, ctx()).graves.map((g) => g.tipo)).toContain("manda_a_leer");
+  });
+
+  const noMandan = [
+    "La garantía cubre defectos de fábrica; una vendedora te confirma los detalles.",
+    "Revisa las medidas del cuarto antes de elegir la cama.",
+    "Puedes pagar con Yappy o transferencia.",
+    "Si quieres, te cuento cómo funciona Socios.",
+    "Mira esta cama, es una de las más pedidas.",
+    "Tus datos se usan solo para atenderte.",
+  ];
+  it.each(noMandan)("no se confunde: %s", (texto) => {
+    expect(detectarMandaALeer(texto)).toEqual([]);
+    expect(analizar(texto, ctx()).graves.map((g) => g.tipo)).not.toContain("manda_a_leer");
+  });
+
+  it("quita solo la oración que manda a leer y deja el resto", () => {
+    const a = analizar("La garantía cubre defectos de fábrica. Lee nuestras políticas para más detalles. ¿Qué cama buscas?", ctx());
+    expect(quitarGraves(a.limpio, ctx())).toBe("La garantía cubre defectos de fábrica. ¿Qué cama buscas?");
+  });
+
+  it("la nota para reescribir lo explica", () => {
+    expect(notaDeCorreccion([{ tipo: "manda_a_leer", detalle: "mandar a leer políticas o términos" }])).toMatch(/políticas/);
   });
 });
 

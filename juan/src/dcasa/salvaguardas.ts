@@ -22,6 +22,7 @@ export type TipoProblema =
   | "promesa"
   | "fuga"
   | "secreto"
+  | "manda_a_leer"
   | "palabra_prohibida";
 
 export interface Problema {
@@ -187,6 +188,25 @@ export function detectarPromesas(texto: string, conocidas: ReadonlySet<number> =
   return que;
 }
 
+// ── Mandar a leer políticas ─────────────────────────────────────────────────
+
+/**
+ * La dueña no quiere que el bot mande a nadie a leer políticas, términos ni avisos de privacidad: se le responde con
+ * lo que dice la base de conocimiento, y si la persona quiere el documento, ella misma lo encuentra en la página.
+ * Se revisa sobre texto sin acentos y en minúsculas.
+ */
+const MANDA_A_LEER = [
+  /\b(?:lee|leer|leas|leerlas|leerlos|revisa|revisar|revises|consulta|consultar|consultes|visita|visitar|mira|checa|checar)\b[^.!?\n]{0,70}\b(?:politicas?|terminos|aviso de privacidad|aviso legal|privacidad)\b/,
+  /\b(?:mas|todo)\s+(?:en|sobre)\s+(?:nuestras?\s+)?(?:politicas?|terminos|aviso de privacidad|privacidad)\b/,
+  /\b(?:en|segun|ver|vea|ve)\s+(?:nuestras?|las|los|la|el)\s+(?:politicas?|terminos(?: y condiciones)?|aviso de privacidad|politica de privacidad)\b/,
+  /dcasapty\.com\/(?:privacidad|terminos|politica)/,
+];
+
+export function detectarMandaALeer(texto: string): string[] {
+  const t = sinAcentos(texto).toLowerCase();
+  return MANDA_A_LEER.filter((r) => r.test(t)).map(() => "mandar a leer políticas o términos");
+}
+
 // ── Voz de marca ────────────────────────────────────────────────────────────
 
 /** Siempre prohibidas (CLAUDE.md, regla 6). Las de Odoo se suman. */
@@ -306,6 +326,7 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
   for (const c of cifrasDePolitica(limpio)) if (!respaldada(ctx, c.valor)) graves.push({ tipo: "cifra_inventada", detalle: c.texto });
   for (const h of detectarExistencias(limpio)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(limpio, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
+  for (const p of detectarMandaALeer(limpio).slice(0, 1)) graves.push({ tipo: "manda_a_leer", detalle: p });
   const prohibida = palabraProhibida(limpio, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
 
@@ -333,6 +354,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
   for (const c of cifrasDePolitica(o)) if (!respaldada(ctx, c.valor)) graves.push({ tipo: "cifra_inventada", detalle: c.texto });
   for (const h of detectarExistencias(o)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(o, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
+  for (const p of detectarMandaALeer(o).slice(0, 1)) graves.push({ tipo: "manda_a_leer", detalle: p });
   const prohibida = palabraProhibida(o, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
   return { graves };
@@ -347,6 +369,7 @@ export function notaDeCorreccion(graves: readonly Problema[]): string {
     promesa: "una promesa de entrega, flete, financiamiento, apartado o descuento",
     fuga: "información interna",
     secreto: "un dato que el cliente dio en confianza (como su PIN): jamás se repite",
+    manda_a_leer: "mandar al cliente a leer políticas, términos o avisos (respóndele tú con lo que dice la herramienta)",
     palabra_prohibida: "una palabra que la marca no usa",
   };
   const lista = [...new Set(graves.map((g) => `${por[g.tipo]} («${g.detalle}»)`))].join("; ");

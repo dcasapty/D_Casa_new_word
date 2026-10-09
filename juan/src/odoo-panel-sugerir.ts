@@ -147,6 +147,7 @@ const QUE_SE_QUITO: Record<TipoProblema, string> = {
   promesa: "una promesa de entrega, flete, financiamiento, apartado o descuento",
   fuga: "información interna",
   secreto: "un dato que el cliente dio en confianza",
+  manda_a_leer: "una invitación a leer políticas o términos",
   palabra_prohibida: "una palabra que la marca no usa",
 };
 
