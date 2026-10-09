@@ -18,9 +18,9 @@ on:
   workflow_dispatch:
     inputs:
       desplegar_en:
-        description: "Después de los tests, ¿desplegar esta rama?"
+        description: "Después de los tests, ¿desplegar esta rama? («solo-juan-staging»: solo el bot Juan, sin repetir las pruebas de Odoo)"
         type: choice
-        options: [staging, ninguno]
+        options: [staging, solo-juan-staging, ninguno]
         default: staging
 
 # Un PR nuevo cancela la ejecución anterior del mismo PR. Nunca se cancela un push a main
@@ -36,6 +36,7 @@ jobs:
   lint:
     name: Lint (Python, XML, shell y workflows)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
@@ -75,6 +76,7 @@ jobs:
   odoo-tests:
     name: Tests de Odoo
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     services:
       postgres:
         image: postgres:16
@@ -119,6 +121,7 @@ jobs:
   edge:
     name: Tests del borde (Cloudflare Worker)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     defaults:
       run:
         working-directory: edge
@@ -139,6 +142,7 @@ jobs:
   juan:
     name: Tests del motor del bot (Worker juan)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     defaults:
       run:
         working-directory: juan
@@ -156,6 +160,7 @@ jobs:
   integracion-juan:
     name: Integración Odoo y Worker juan (reales, juntos)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     services:
       postgres:
         image: postgres:16
@@ -196,6 +201,7 @@ jobs:
   puente-wa:
     name: Tests del puente QR de WhatsApp (Juan)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     defaults:
       run:
         working-directory: puente-wa
@@ -213,6 +219,7 @@ jobs:
   docker:
     name: Imagen Docker (se construye una vez y se prueba)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     outputs:
       imagen_id: ${{ steps.imagen.outputs.id }}
     env:
@@ -358,6 +365,7 @@ jobs:
   simulacro-restauracion:
     name: Simulacro de restauración (RPO ≤ 90 s, sin corrupción)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -412,6 +420,16 @@ jobs:
     # Después de `dcasa`: el binding de Juan apunta a su entrada `JuanEntrada`, que tiene que existir ya.
     needs: [desplegar-staging, juan, integracion-juan]
     if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
+    uses: ./.github/workflows/desplegar-juan.yml
+    with:
+      entorno: staging
+      dry_run: false
+    secrets: inherit
+
+  desplegar-juan-solo:
+    name: Desplegar solo Juan (bot) a staging
+    # Sin repetir Odoo: el flujo de Juan trae sus propias pruebas. Requiere que dcasa-staging ya tenga el módulo y JuanEntrada.
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'solo-juan-staging'
     uses: ./.github/workflows/desplegar-juan.yml
     with:
       entorno: staging
