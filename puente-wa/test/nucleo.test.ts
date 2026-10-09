@@ -514,6 +514,68 @@ describe("entrega al Worker con reintentos", () => {
   });
 });
 
+describe("POST /foto-perfil", () => {
+  const URL_FOTO = "https://pps.whatsapp.net/v/t61.24694-24/abc.jpg";
+
+  it("pide la foto pequeña, la baja SOLO de los servidores de WhatsApp y la devuelve en base64", async () => {
+    const m = nuevo();
+    const sock = await conectado(m);
+    sock.fotos[CLIENTE] = URL_FOTO;
+    const r = await post(m, "/foto-perfil", { para: "6026-1919" });
+    expect(r.status).toBe(200);
+    expect(r.cuerpo).toEqual({ ok: true, mime: "image/jpeg", base64: Buffer.from("BYTES-DEL-ARCHIVO").toString("base64") });
+    expect(sock.pedidasFotos).toEqual([[CLIENTE, "preview"]]);
+    const [url, opciones] = m.descargar.mock.calls.at(-1)!;
+    expect(url).toBe(URL_FOTO);
+    expect(opciones.hostsPermitidos).toEqual(["pps.whatsapp.net", "mmg.whatsapp.net"]);
+    expect(opciones.maxBytes).toBe(300 * 1024);
+    expect(opciones.mimesPermitidos).toEqual(["image/jpeg", "image/png", "image/webp"]);
+  });
+
+  it("sin foto (o si la persona no deja verla) es un 404 tranquilo, no un error", async () => {
+    const m = nuevo();
+    await conectado(m);
+    const r = await post(m, "/foto-perfil", { para: "6026-1919" });
+    expect(r.status).toBe(404);
+    expect(r.cuerpo).toMatchObject({ ok: false });
+    expect(m.descargar).not.toHaveBeenCalled();
+  });
+
+  it("si la descarga falla (otro servidor, muy pesada) es un 502 con el motivo y sin lanzar", async () => {
+    const m = nuevo({}, async () => ({ ok: false, estado: 422, motivo: "el archivo pesa más de 1 MB" }));
+    const sock = await conectado(m);
+    sock.fotos[CLIENTE] = URL_FOTO;
+    const r = await post(m, "/foto-perfil", { para: "6026-1919" });
+    expect(r.status).toBe(502);
+    expect(r.cuerpo.error).toContain("pesa más de");
+  });
+
+  it("no escribe nada ni toca los topes de envío", async () => {
+    const m = nuevo();
+    const sock = await conectado(m);
+    sock.fotos[CLIENTE] = URL_FOTO;
+    await post(m, "/foto-perfil", { para: "6026-1919" });
+    expect(sock.enviados).toHaveLength(0);
+    expect(m.nucleo.estado.mensajesEnviados).toBe(0);
+  });
+
+  it("solo personas: un grupo, un estado o un cuerpo roto se rechazan antes de preguntarle nada a WhatsApp", async () => {
+    const m = nuevo();
+    const sock = await conectado(m);
+    for (const cuerpo of [{ para: "120363000000000000@g.us" }, { para: "status@broadcast" }, { para: "" }, {}, "no es json"]) {
+      const r = await post(m, "/foto-perfil", cuerpo);
+      expect(r.status).toBe(400);
+    }
+    expect(sock.pedidasFotos).toEqual([]);
+  });
+
+  it("sin conexión con WhatsApp responde 409", async () => {
+    const m = nuevo();
+    const r = await post(m, "/foto-perfil", { para: "6026-1919" });
+    expect(r.status).toBe(409);
+  });
+});
+
 describe("POST /enviar", () => {
   const cuerpo = { para: "6026-1919", chunks: ["Hola Karen.", "Sí, tenemos camas queen."] };
 

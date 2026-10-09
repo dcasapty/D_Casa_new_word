@@ -103,6 +103,13 @@
                             dólares. No pongas cifras de memoria.
                         </div>
                     </group>
+                    <group string="Privacidad de los clientes">
+                        <field name="guardar_foto_perfil"/>
+                        <div class="text-muted" colspan="2">
+                            La foto de perfil es un dato personal. Se guarda reducida, solo en la conversación, nunca llega a
+                            la IA y se borra con ella. La política de privacidad del sitio debe mencionarla.
+                        </div>
+                    </group>
                     <group string="Textos">
                         <field name="mensaje_bienvenida" placeholder="Lo primero que dice el asistente"/>
                         <field name="texto_privacidad_corto"/>

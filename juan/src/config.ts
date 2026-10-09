@@ -73,6 +73,8 @@ export interface Config {
   texto_privacidad_corto: string;
   palabras_prohibidas: string[];
   pausa_por_defecto_minutos: number;
+  /** Guardar en Odoo la foto de perfil de quien escribe (la dueña lo apaga en Ajustes de Juan). Nunca va a la IA. */
+  guardar_foto_perfil: boolean;
 }
 
 export const CONFIG_POR_DEFECTO: Config = {
@@ -94,6 +96,7 @@ export const CONFIG_POR_DEFECTO: Config = {
   texto_privacidad_corto: "",
   palabras_prohibidas: [],
   pausa_por_defecto_minutos: 120,
+  guardar_foto_perfil: true,
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -206,6 +209,7 @@ export function normalizarConfig(crudo: unknown): Config {
       ? c.palabras_prohibidas.filter((p): p is string => typeof p === "string" && p.trim().length > 0).map((p) => p.trim())
       : [],
     pausa_por_defecto_minutos: numero(c.pausa_por_defecto_minutos, d.pausa_por_defecto_minutos, 1, 60 * 24 * 14),
+    guardar_foto_perfil: typeof c.guardar_foto_perfil === "boolean" ? c.guardar_foto_perfil : d.guardar_foto_perfil,
   };
 }
 

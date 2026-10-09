@@ -226,6 +226,11 @@ async function rutasDeApi(request: Request, env: Env, s: PuenteStub, ruta: strin
     return json(r.status, r.cuerpo, r.status === 429 || r.status === 503 ? { "retry-after": String(retryAfter(r.cuerpo)) } : {});
   }
 
+  if (ruta === "/api/foto-perfil" && request.method === "POST") {
+    const r = await s.fotoPerfil(await request.text());
+    return json(r.status, r.cuerpo);
+  }
+
   if (ruta === "/api/desvincular" && request.method === "POST") {
     const r = await s.desvincular();
     return json(r.status, r.cuerpo);

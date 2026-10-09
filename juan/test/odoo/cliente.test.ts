@@ -163,6 +163,16 @@ describe("reintentos", () => {
     expect(llamadas[0].cabeceras.authorization).toBe(`Bearer ${TOKEN}`);
   });
 
+  it("foto-perfil manda la foto a su ruta, se puede repetir una vez y dice si Odoo la guardó", async () => {
+    const { cliente, llamadas } = dcasaFalso([falla(502), ok({ ok: true, guardada: true })]);
+    const r = await cliente.fotoPerfil({ canal: "telegram", id_externo: "77", mime: "image/jpeg", base64: "QUJD" });
+    expect(r).toEqual({ guardada: true });
+    expect(llamadas).toHaveLength(2);
+    expect(`${llamadas[0].metodo} ${llamadas[0].url.replace("https://dcasa/dcasa/juan/v1", "")}`).toBe("POST /foto-perfil");
+    expect(llamadas[0].cuerpo).toEqual({ canal: "telegram", id_externo: "77", mime: "image/jpeg", base64: "QUJD" });
+    expect(await dcasaFalso([ok({ ok: true, guardada: false })]).cliente.fotoPerfil({ canal: "telegram", id_externo: "77", mime: "image/jpeg", base64: "QUJD" })).toEqual({ guardada: false });
+  });
+
   it("la espera entre reintentos crece pero tiene techo", async () => {
     const { cliente, esperas } = dcasaFalso([falla(500), falla(500), falla(500)]);
     await cliente.seguimientoHecho({ conversacion_id: 1, numero: 1, resultado: "enviado" }).catch(() => {});

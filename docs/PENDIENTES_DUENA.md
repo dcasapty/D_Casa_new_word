@@ -11,3 +11,8 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
 4. **11 lecturas dudosas** de las capturas (columna `dudas` del CSV y el informe).
 5. **Textos de la factura** (aprobados por la dueña, editables cuando quiera): se pusieron textos propuestos (garantía 30 días, cambios 7 días,
    términos); revisarlos con un abogado y ajustarlos en Ajustes → Empresas → Documentos D'CASA.
+6. **Política de privacidad del sitio y el chat** (revisar con el abogado, Ley 81 de 2019): debe decir que el asistente guarda las
+   conversaciones y **la foto de perfil** del cliente (reducida, solo para atenderlo, sin mandarla a la IA, se borra con la
+   conversación), que lee las imágenes que manda (capturas de productos) con un servicio de IA de Cloudflare, que transcribe notas de
+   voz, y —si se eligen modelos «contributor»— que esa IA puede entrenar con las conversaciones. La foto de perfil se apaga en
+   Conversaciones › Configuración › Ajustes de Juan › Privacidad de los clientes.

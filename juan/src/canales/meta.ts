@@ -23,6 +23,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
 
@@ -47,6 +48,9 @@ export interface OpcionesMeta {
   fetch?: typeof fetch;
   dormir?: (ms: number) => Promise<void>;
 }
+
+/** De dónde sirve Meta las fotos de perfil: solo ahí se baja (la dirección viene de Meta, pero no se confía a ciegas). */
+const SERVIDORES_DE_FOTO = /(^|\.)(fbsbx\.com|fbcdn\.net|cdninstagram\.com)$/i;
 
 const TIPOS_ADJUNTO: Record<string, AdjuntoEntrante["tipo"]> = { image: "imagen", audio: "audio", video: "video", file: "documento" };
 
@@ -172,6 +176,27 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
         if (id) ids.push(id);
       }
       return { ids };
+    },
+
+    async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
+      const token = env.META_PAGE_TOKEN;
+      if (!token || !/^\d{5,30}$/.test(para)) return null;
+      const r = await f(urlGraph(env, `${para}?fields=profile_pic`), { headers: { authorization: `Bearer ${token}` } });
+      if (!r.ok) return null;
+      const j = (await r.json().catch(() => null)) as { profile_pic?: string } | null;
+      let url: URL;
+      try {
+        url = new URL(j?.profile_pic ?? "");
+      } catch {
+        return null;
+      }
+      if (url.protocol !== "https:" || !SERVIDORES_DE_FOTO.test(url.hostname)) return null;
+      const foto = await f(url.toString(), { redirect: "error" });
+      if (!foto.ok) return null;
+      const bytes = new Uint8Array(await foto.arrayBuffer());
+      if (bytes.length === 0 || bytes.length > MAX_FOTO_DE_PERFIL_BYTES) return null;
+      const mime = (foto.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim().toLowerCase();
+      return { bytes, mime: mime.startsWith("image/") ? mime : "image/jpeg" };
     },
 
     async escribiendo(_canal: CanalId, para: string, env: Env): Promise<void> {

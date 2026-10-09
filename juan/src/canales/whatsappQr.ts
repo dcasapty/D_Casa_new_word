@@ -26,6 +26,7 @@ import {
   type Saliente,
   type SaludCanal,
   type TipoAdjunto,
+  MAX_FOTO_DE_PERFIL_BYTES,
 } from "./tipos";
 
 interface EntranteDelPuente {
@@ -182,6 +183,24 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
       });
       if (!r.ok) throw new Error(`puente /api/enviar → ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
       return { ids: [] };
+    },
+
+    async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
+      if (!esChatDeUnaPersona(para)) return null;
+      const r = await llamarAlPuente(env, "/api/foto-perfil", { method: "POST", body: JSON.stringify({ para }) });
+      // 404 = sin foto o no la deja ver: lo normal. Cualquier otra cosa es un fallo que el motor anota.
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`puente /api/foto-perfil → ${r.status}`);
+      const j = (await r.json().catch(() => null)) as { ok?: boolean; mime?: string; base64?: string } | null;
+      if (!j?.ok || typeof j.base64 !== "string" || !j.base64 || j.base64.length > Math.ceil((MAX_FOTO_DE_PERFIL_BYTES * 4) / 3) + 8) return null;
+      let binario: string;
+      try {
+        binario = atob(j.base64);
+      } catch {
+        return null;
+      }
+      const bytes = Uint8Array.from(binario, (c) => c.charCodeAt(0));
+      return bytes.length > 0 && bytes.length <= MAX_FOTO_DE_PERFIL_BYTES ? { bytes, mime: typeof j.mime === "string" && j.mime ? j.mime : "image/jpeg" } : null;
     },
 
     async salud(_canal: CanalId, env: Env): Promise<SaludCanal> {

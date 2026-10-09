@@ -66,6 +66,7 @@ export interface PuenteStub {
   estadoPublico(): Promise<Record<string, unknown>>;
   qr(): Promise<{ status: number; cuerpo: unknown }>;
   enviar(cuerpoTexto: string): Promise<{ status: number; cuerpo: unknown }>;
+  fotoPerfil(cuerpoTexto: string): Promise<{ status: number; cuerpo: unknown }>;
   desvincular(): Promise<{ status: number; cuerpo: unknown }>;
   matar(): Promise<Diario>;
   copiarAhora(): Promise<{ copia: string; filas: number; r2: { subida: boolean; motivo: string } }>;

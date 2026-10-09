@@ -155,9 +155,10 @@ export function seccionAdjuntos(e: Escena) {
         expect(e.w.puente.envios.length).toBe(antes + 1);
         const envio = e.w.puente.envios.at(-1)!;
         expect(envio.para).toBe(celular);
-        expect(envio.chunks).toEqual(["Te mando la cotización."]);
+        // El texto de la vendedora viaja como pie del documento (un solo mensaje para el cliente), no como burbuja aparte.
+        expect(envio.chunks).toEqual([]);
         expect(envio.medios).toHaveLength(1);
-        expect(envio.medios[0]).toMatchObject({ tipo: "documento", nombre: "cotizacion.pdf" });
+        expect(envio.medios[0]).toMatchObject({ tipo: "documento", nombre: "cotizacion.pdf", pie: "Te mando la cotización." });
 
         // La URL: https, del dominio permitido del puente, con la ruta firmada de Odoo y vida de 15 minutos.
         const url = new URL(envio.medios[0].url);

@@ -202,6 +202,49 @@ describe("enviar por Telegram", () => {
     expect(f.llamadas[0].cuerpo).toEqual({ chat_id: "555", action: "typing" });
   });
 
+  describe("foto de perfil", () => {
+    const fotos = (tamanos: { file_id: string; width: number }[][]) => ({ getUserProfilePhotos: { ok: true, result: { total_count: tamanos.length, photos: tamanos } } });
+
+    it("pide la primera foto y baja el tamaño más grande que no pase de 400 px (alcanza para un avatar)", async () => {
+      const f = telegramFalso(fotos([[{ file_id: "chica", width: 160 }, { file_id: "mediana", width: 320 }, { file_id: "grande", width: 640 }]]));
+      const { adaptador } = tg(f);
+      const foto = await adaptador.fotoDePerfil!("telegram", "555", env);
+      expect(foto).toEqual({ bytes: new Uint8Array([9, 8, 7]), mime: "image/jpeg" });
+      expect(f.llamadas[0].url).toContain("getUserProfilePhotos?user_id=555&limit=1");
+      expect(f.llamadas[1].url).toContain("getFile?file_id=mediana");
+      expect(f.llamadas[2].url).toContain("/file/bot");
+    });
+
+    it("si todas las fotos son grandes, baja la más chica", async () => {
+      const f = telegramFalso(fotos([[{ file_id: "a", width: 500 }, { file_id: "b", width: 900 }]]));
+      await tg(f).adaptador.fotoDePerfil!("telegram", "555", env);
+      expect(f.llamadas[1].url).toContain("file_id=a");
+    });
+
+    it("sin foto, sin permiso o con una respuesta rara: null, sin lanzar", async () => {
+      expect(await tg(telegramFalso(fotos([]))).adaptador.fotoDePerfil!("telegram", "555", env)).toBeNull();
+      expect(await tg(telegramFalso({ getUserProfilePhotos: Response.json({ ok: false }, { status: 400 }) })).adaptador.fotoDePerfil!("telegram", "555", env)).toBeNull();
+      expect(await tg(telegramFalso({ ...fotos([[{ file_id: "x", width: 160 }]]), getFile: { ok: false } })).adaptador.fotoDePerfil!("telegram", "555", env)).toBeNull();
+    });
+
+    it("sin token o con un destino que no es un número de usuario no se llama a Telegram", async () => {
+      const f = telegramFalso();
+      const { adaptador } = tg(f);
+      expect(await adaptador.fotoDePerfil!("telegram", "555", {} as Env)).toBeNull();
+      expect(await adaptador.fotoDePerfil!("telegram", "555&otro=1", env)).toBeNull();
+      expect(await adaptador.fotoDePerfil!("telegram", "@alguien", env)).toBeNull();
+      expect(f.llamadas).toHaveLength(0);
+    });
+
+    it("una foto enorme no se acepta", async () => {
+      const f = telegramFalso(fotos([[{ file_id: "x", width: 160 }]]));
+      const fetchGrande: typeof fetch = async (recurso, init) =>
+        String(recurso).includes("/file/bot") ? new Response(new Uint8Array(400 * 1024)) : f.fetch(recurso, init);
+      const adaptador = crearTelegram({ fetch: fetchGrande, dormir: async () => {} });
+      expect(await adaptador.fotoDePerfil!("telegram", "555", env)).toBeNull();
+    });
+  });
+
   it("capacidades: imágenes y documentos, sin ventana de 24 h", () => {
     const { adaptador } = tg();
     expect(adaptador.capacidades("telegram")).toMatchObject({ imagenes: true, documentos: true, ventana24h: false });

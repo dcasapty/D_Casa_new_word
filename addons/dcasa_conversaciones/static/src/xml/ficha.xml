@@ -21,7 +21,10 @@
             <div t-else="" class="o_dcj_ficha_cuerpo">
                 <!-- Cliente -->
                 <section class="o_dcj_tarjeta o_dcj_cliente">
-                    <span class="o_dcj_avatar o_dcj_avatar_grande" aria-hidden="true"><span class="o_dcj_iniciales" t-out="iniciales(f.cliente.nombre)"/></span>
+                    <span class="o_dcj_avatar o_dcj_avatar_grande" aria-hidden="true">
+                        <span class="o_dcj_iniciales" t-out="iniciales(f.cliente.nombre)"/>
+                        <img t-if="almacen.conversacion and almacen.conversacion.foto_perfil" class="o_dcj_avatar_foto" t-att-src="almacen.conversacion.foto_perfil" alt="" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
+                    </span>
                     <div class="o_dcj_cliente_datos">
                         <h3 t-out="f.cliente.nombre"/>
                         <p t-if="f.cliente.celular" class="o_dcj_celular">

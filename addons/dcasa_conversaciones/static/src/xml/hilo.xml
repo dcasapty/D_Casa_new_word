@@ -82,6 +82,7 @@
                     </button>
                     <span class="o_dcj_avatar o_dcj_avatar_grande" aria-hidden="true">
                         <span class="o_dcj_iniciales" t-out="almacen.conversacion ? almacen.conversacion.iniciales : '?'"/>
+                        <img t-if="almacen.conversacion and almacen.conversacion.foto_perfil" class="o_dcj_avatar_foto" t-att-src="almacen.conversacion.foto_perfil" alt="" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
                     </span>
                     <div class="o_dcj_hilo_titulo">
                         <h2 t-out="nombreDelCliente"/>

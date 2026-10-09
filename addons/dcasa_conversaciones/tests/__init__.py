@@ -10,6 +10,7 @@ from . import (
     test_ejemplos,
     test_etiquetas,
     test_firma,
+    test_foto_perfil,
     test_herramientas,
     test_horario,
     test_panel,

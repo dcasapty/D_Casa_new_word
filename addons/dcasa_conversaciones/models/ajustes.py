@@ -169,6 +169,13 @@ class JuanAjustes(models.Model):
         'Avisar de fotos y archivos', default=True, tracking=True,
         help='Cuando un cliente manda cualquier otra foto o archivo (por ejemplo la captura de un producto), '
              'también se avisa por Telegram, a lo más una vez cada 10 minutos por conversación. Apágalo si son muchos.')
+    guardar_foto_perfil = fields.Boolean(
+        'Guardar la foto de perfil del cliente', default=True, tracking=True,
+        help='El asistente trae la foto de perfil de quien escribe (Telegram, WhatsApp, Messenger, Instagram) y la '
+             'guarda en la conversación para que se vea en la pantalla de Conversaciones. Es un dato personal: se '
+             'guarda reducida, solo la ven quienes atienden conversaciones, se renueva a lo más una vez por semana, '
+             'NUNCA se manda a la IA y se borra con la conversación. Apágalo para dejar de pedirla (las ya guardadas '
+             'se quedan).')
     usuarios_aviso_ids = fields.Many2many(
         'res.users', 'dcasa_juan_ajustes_aviso_rel', 'ajustes_id', 'user_id', string='Avisar por Telegram a',
         domain=[('share', '=', False)],
@@ -403,6 +410,7 @@ class JuanAjustes(models.Model):
             'texto_privacidad_corto': self.texto_privacidad_corto or '',
             'palabras_prohibidas': self.lista_palabras_prohibidas(),
             'pausa_por_defecto_minutos': self.pausa_por_defecto_minutos,
+            'guardar_foto_perfil': bool(self.guardar_foto_perfil),
         }
 
     # ------------------------------------------------------------------

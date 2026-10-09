@@ -108,6 +108,15 @@ export class SockFalso {
     this.anotar("readMessages", args);
   }
   updateMediaMessage = vi.fn();
+  /** Fotos de perfil por jid: una URL, o `null` = sin foto (Baileys lanza «item-not-found»). */
+  fotos: Record<string, string | null> = {};
+  pedidasFotos: [string, string][] = [];
+  async profilePictureUrl(jid: string, tipo: string) {
+    this.pedidasFotos.push([jid, tipo]);
+    const url = this.fotos[jid];
+    if (!url) throw new Error("item-not-found");
+    return url;
+  }
   end() {
     this.ended = true;
   }

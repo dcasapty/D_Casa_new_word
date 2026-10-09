@@ -104,6 +104,14 @@ class DcasaConversacionPanel(models.Model):
              WHERE c.ultimo_cliente_msg_id > COALESCE(l.ultimo_leido_id, 0)""", [self.env.uid])
         return [fila[0] for fila in self.env.cr.fetchall()]
 
+    def _url_foto_perfil(self):
+        """La dirección de la foto de perfil guardada (con su fecha, para que el navegador la renueve), o ``None``."""
+        self.ensure_one()
+        if not self.foto_perfil_en:
+            return None
+        version = int(fields.Datetime.to_datetime(self.foto_perfil_en).timestamp())
+        return f'/web/image/dcasa.conversacion/{self.id}/foto_perfil/128x128?unique={version}'
+
     def _resumen_panel(self, sin_leer=None):
         """Una fila de la bandeja."""
         self.ensure_one()
@@ -114,6 +122,7 @@ class DcasaConversacionPanel(models.Model):
             'id': self.id, 'nombre': nombre, 'iniciales': iniciales(nombre),
             'partner_id': partner.id or None,
             'foto': f'/web/image/res.partner/{partner.id}/avatar_128' if partner else None,
+            'foto_perfil': self._url_foto_perfil(),
             'canal': self.canal, 'canal_nombre': dict(CANALES).get(self.canal, self.canal),
             'estado': self.estado, 'estado_nombre': dict(ESTADOS).get(self.estado),
             'bot_atiende': self._controla_bot(ahora) and self.estado != 'cerrada',

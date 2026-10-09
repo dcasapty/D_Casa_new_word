@@ -583,6 +583,30 @@ export class PuenteWa extends Container<Env> {
     return { status: respuesta.status, cuerpo };
   }
 
+  /** La foto de perfil de quien escribe (la pide el Worker de Juan). No cuenta para los topes: no escribe nada. */
+  async fotoPerfil(cuerpoTexto: string): Promise<{ status: number; cuerpo: unknown }> {
+    if (!this.#activo()) {
+      return { status: 503, cuerpo: { error: "El puente está apagado (PUENTE_ACTIVO).", estado: "apagado" } };
+    }
+    if (cuerpoTexto.length > 2048) return { status: 400, cuerpo: { error: "Cuerpo demasiado grande." } };
+    try {
+      await this.#arrancar();
+      const respuesta = await this.containerFetch("http://contenedor/foto-perfil", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: cuerpoTexto,
+      });
+      const texto = await respuesta.text();
+      try {
+        return { status: respuesta.status, cuerpo: JSON.parse(texto) };
+      } catch {
+        return { status: 502, cuerpo: { error: texto.replace(/\s+/g, " ").slice(0, 300) } };
+      }
+    } catch (e) {
+      return { status: 502, cuerpo: { error: `El contenedor no contestó: ${enmascarar(e instanceof Error ? e.message : String(e))}` } };
+    }
+  }
+
   // ── Estado, QR y vinculación ─────────────────────────────────────────────
 
   async estadoPublico(): Promise<Record<string, unknown>> {

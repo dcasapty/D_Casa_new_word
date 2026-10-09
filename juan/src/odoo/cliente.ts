@@ -84,6 +84,13 @@ export interface CuerpoEscribiendo {
   activo: boolean;
 }
 
+export interface CuerpoFotoPerfil {
+  canal: CanalId;
+  id_externo: string;
+  mime: string;
+  base64: string;
+}
+
 /** Lo que el motor necesita de Odoo. En las pruebas se sustituye por un doble. */
 export interface OdooApi {
   mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje>;
@@ -94,6 +101,8 @@ export interface OdooApi {
   seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void>;
   /** Opcional: «el asistente está preparando una respuesta» para las pantallas de las vendedoras. Nunca es crítico. */
   escribiendo?(cuerpo: CuerpoEscribiendo): Promise<void>;
+  /** Opcional: la foto de perfil del cliente, para el avatar de la pantalla. Odoo la valida y la reduce. */
+  fotoPerfil?(cuerpo: CuerpoFotoPerfil): Promise<{ guardada: boolean }>;
 }
 
 export interface OpcionesCliente {
@@ -195,6 +204,12 @@ export class OdooCliente implements OdooApi {
 
   async seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void> {
     await this.llamar("POST", "/seguimiento/hecho", cuerpo, 2);
+  }
+
+  /** Idempotente (la misma foto no cambia nada): se puede repetir una vez. */
+  async fotoPerfil(cuerpo: CuerpoFotoPerfil): Promise<{ guardada: boolean }> {
+    const r = await this.llamar<{ guardada?: boolean }>("POST", "/foto-perfil", cuerpo, 1, 20_000);
+    return { guardada: r.guardada === true };
   }
 
   /** Sin reintentos y con plazo corto: un «escribiendo» tardío no sirve, y jamás debe frenar una respuesta. */

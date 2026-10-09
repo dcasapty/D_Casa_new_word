@@ -261,6 +261,43 @@ describe("el envío por la Send API", () => {
   });
 });
 
+describe("foto de perfil", () => {
+  const FOTO_URL = "https://scontent.xx.fbcdn.net/v/t1.30497-1/abc.jpg";
+  const responder = (c: { url: string }) =>
+    c.url.includes("graph.facebook.com") ? Response.json({ profile_pic: FOTO_URL, id: "123456" }) : new Response(new Uint8Array([5, 6, 7]), { headers: { "content-type": "image/jpeg" } });
+
+  it("pide profile_pic a Graph (con el token de la Página) y baja la imagen de los servidores de Meta", async () => {
+    const { llamadas, adaptador } = graphFalso(responder);
+    const foto = await adaptador.fotoDePerfil!("messenger", "1234567890", env);
+    expect(foto).toEqual({ bytes: new Uint8Array([5, 6, 7]), mime: "image/jpeg" });
+    expect(llamadas[0].url).toMatch(/graph\.facebook\.com\/v[\d.]+\/1234567890\?fields=profile_pic$/);
+    expect(llamadas[0].cabeceras.authorization).toBe(`Bearer ${env.META_PAGE_TOKEN}`);
+    expect(llamadas[1].url).toBe(FOTO_URL);
+  });
+
+  it("solo baja de servidores de Meta, por https: cualquier otra dirección se ignora", async () => {
+    for (const mala of ["https://evil.example.com/a.jpg", "http://scontent.xx.fbcdn.net/a.jpg", "https://fbcdn.net.evil.com/a.jpg", "no es una url", ""]) {
+      const { llamadas, adaptador } = graphFalso(() => Response.json({ profile_pic: mala }));
+      expect(await adaptador.fotoDePerfil!("instagram", "1234567890", env)).toBeNull();
+      expect(llamadas).toHaveLength(1);
+    }
+  });
+
+  it("sin foto, con error de Meta, sin token o con un id raro: null, sin lanzar", async () => {
+    expect(await graphFalso(() => Response.json({ id: "1" })).adaptador.fotoDePerfil!("messenger", "1234567890", env)).toBeNull();
+    expect(await graphFalso(() => Response.json({ error: { message: "x" } }, { status: 400 })).adaptador.fotoDePerfil!("messenger", "1234567890", env)).toBeNull();
+    const sinToken = graphFalso();
+    expect(await sinToken.adaptador.fotoDePerfil!("messenger", "1234567890", {} as Env)).toBeNull();
+    expect(await sinToken.adaptador.fotoDePerfil!("messenger", "../me?fields=x", env)).toBeNull();
+    expect(sinToken.llamadas).toHaveLength(0);
+  });
+
+  it("una imagen enorme no se acepta", async () => {
+    const { adaptador } = graphFalso((c) => (c.url.includes("graph.facebook.com") ? Response.json({ profile_pic: FOTO_URL }) : new Response(new Uint8Array(400 * 1024))));
+    expect(await adaptador.fotoDePerfil!("messenger", "1234567890", env)).toBeNull();
+  });
+});
+
 describe("lo que falta y el registro", () => {
   const { adaptador } = graphFalso();
 

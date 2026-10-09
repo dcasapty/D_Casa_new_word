@@ -22,7 +22,7 @@ import { validarEnviar } from "./lib/contrato.mjs";
 import { armarEntrante } from "./lib/entrante.mjs";
 import { enviarSecuencia } from "./lib/envio.mjs";
 import { LIMITE_SALIENTE, MIMES_SALIENTES, nombreSeguro } from "./lib/medios.mjs";
-import { enmascarar, sinDispositivo } from "./lib/numeros.mjs";
+import { enmascarar, resolverDestino, sinDispositivo } from "./lib/numeros.mjs";
 import { crearRegistroDeEnvios, decidirUpsert } from "./lib/propios.mjs";
 import { RITMO_POR_DEFECTO } from "./lib/ritmo.mjs";
 
@@ -606,6 +606,50 @@ export function crearNucleo(deps) {
     }
   }
 
+  // ── Foto de perfil ───────────────────────────────────────────────────────
+
+  /** De dónde sirve WhatsApp las fotos de perfil: solo ahí se baja (la descarga segura rechaza cualquier otro nombre). */
+  const HOSTS_FOTO_DE_PERFIL = ["pps.whatsapp.net", "mmg.whatsapp.net"];
+  const MAX_FOTO_DE_PERFIL = 300 * 1024;
+
+  /**
+   * `POST /foto-perfil`: { para } → { ok, mime, base64 } con la foto pequeña de quien escribe.
+   * 404 si no tiene foto o no deja verla (es lo normal, no un error). No pasa por la cola de envíos: no escribe nada.
+   * @param {string} cuerpoTexto
+   * @returns {Promise<{ status: number, cuerpo: any }>}
+   */
+  async function fotoDePerfil(cuerpoTexto) {
+    /** @type {any} */
+    let crudo;
+    try {
+      crudo = JSON.parse(cuerpoTexto);
+    } catch {
+      return { status: 400, cuerpo: { error: "El cuerpo no es JSON." } };
+    }
+    const destino = resolverDestino(crudo?.para);
+    if (!destino.ok) return { status: 400, cuerpo: { error: destino.motivo } };
+    if (estado.conexion !== "conectada" || !socket) {
+      return { status: 409, cuerpo: { error: "No hay conexión con WhatsApp.", estado: estado.conexion } };
+    }
+    /** @type {unknown} */
+    let url;
+    try {
+      url = await socket.profilePictureUrl(destino.jid, "preview");
+    } catch {
+      return { status: 404, cuerpo: { ok: false, error: "sin foto de perfil" } };
+    }
+    if (typeof url !== "string" || !url) return { status: 404, cuerpo: { ok: false, error: "sin foto de perfil" } };
+    const r = await descargar(url, {
+      tipo: "imagen",
+      mimesPermitidos: ["image/jpeg", "image/png", "image/webp"],
+      maxBytes: MAX_FOTO_DE_PERFIL,
+      hostsPermitidos: HOSTS_FOTO_DE_PERFIL,
+      mimeDeclarado: "image/jpeg",
+    });
+    if (!r.ok) return { status: 502, cuerpo: { ok: false, error: `no se pudo bajar la foto: ${r.motivo}` } };
+    return { status: 200, cuerpo: { ok: true, mime: r.mime, base64: Buffer.from(r.bytes).toString("base64") } };
+  }
+
   // ── HTTP interno: lo que el Worker consulta ──────────────────────────────
 
   /**
@@ -636,6 +680,7 @@ export function crearNucleo(deps) {
     }
 
     if (ruta === "/enviar" && metodo === "POST") return enviar(cuerpo);
+    if (ruta === "/foto-perfil" && metodo === "POST") return fotoDePerfil(cuerpo);
 
     // La empuja el latido del Durable Object cuando ve el contenedor prendido pero
     // WhatsApp desconectado. Es idempotente: si ya hay una reconexión en camino, no

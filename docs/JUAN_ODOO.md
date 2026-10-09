@@ -58,6 +58,8 @@ Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación
 
 * **Cada quien en su color**: el cliente a la izquierda; el asistente en azul claro; las vendedoras en azul fuerte. Las horas son de
   Panamá. Un renglón gris es un **aviso del sistema** («Ana tomó la conversación»).
+* **Foto de perfil** del cliente, en la lista, en la cabecera de la conversación y en la ficha (si no hay foto, o el cliente no la
+  deja ver, se ven sus iniciales). Ver «Privacidad» más abajo.
 * **Notas internas**: burbuja con borde punteado y la leyenda **«El cliente no la ve»**. Sirven para hablar entre vendedoras.
 * **Fotos**: salen como miniatura; un clic las **amplía** (flechas ← → para pasar de una a otra, **Esc** para cerrar). Los
   documentos (PDF, Word, Excel) se descargan. En un comprobante de pago o un documento de identidad que mandó el cliente puedes
@@ -170,7 +172,6 @@ números que sí tiene Odoo.
 
 ### Lo que todavía no hace
 
-* **Fotos de perfil**: se muestran las iniciales de cada persona.
 * El gasto de IA **por día** de antes de esta versión solo existe donde Odoo guardó su foto diaria.
 
 ## Atender a un cliente (en la bandeja de siempre)
@@ -305,6 +306,7 @@ Las de ejemplo no llevan cifras ni políticas.
 | Mensaje de bienvenida y aviso de privacidad | Bienvenida **corta** (una línea: es un asistente automático y cómo pedir una persona). El aviso de privacidad **no se manda por el chat** (queda vacío); el aviso completo va en la política del sitio y, para Telegram, en la descripción del bot (BotFather → `/setdescription`) |
 | Palabras prohibidas | remate, corre, ¡¡, !! |
 | Responsable por defecto / avisos por Telegram | Administrador / todas las vendedoras con Telegram vinculado |
+| Guardar la foto de perfil del cliente | **Encendido** (decisión de la dueña, 2026-10-09). Se apaga en *Privacidad de los clientes* |
 
 **Aviso importante sobre los modelos «contributor».** Si el nombre de un modelo lleva la palabra *contributor*, ese
 modelo **entrena con las conversaciones de tus clientes**. Odoo te lo avisa en rojo al elegirlo, y entonces la
@@ -348,6 +350,15 @@ Gerencia puede borrar la conversación (se van sus mensajes y adjuntos). El avis
 (`/privacidad`); por decisión de la dueña el chat no lo repite en el primer mensaje. Si se quisiera mandar uno corto, se
 escribe en *Ajustes de Juan › Aviso de privacidad (corto)* y debe coincidir con esa política.
 
+**Foto de perfil.** Es un dato personal. El Worker la pide al canal (Telegram, WhatsApp por QR a través del puente, Messenger e
+Instagram; WhatsApp oficial no la da) **a lo más una vez por semana por conversación** (una hora después si algo falló) y solo si
+*Ajustes de Juan › Guardar la foto de perfil del cliente* está encendido. Odoo la valida (solo JPEG, PNG o WebP de verdad, hasta 300
+KB y un número normal de píxeles), la reduce a 256 px en JPEG y la guarda **en la conversación, no en el contacto** (no pisa la foto
+que una persona del equipo haya puesto). La ve quien atiende conversaciones; un cliente del portal o alguien sin sesión recibe solo
+la imagen vacía de siempre. **Nunca viaja a la IA** y se borra con la conversación. Al apagar el ajuste se deja de pedir; las ya
+guardadas se quedan hasta que se elimine la conversación. **La política de privacidad del sitio debe mencionarla** (pendiente de
+revisión del abogado).
+
 ---
 
 ## Para quien instala (parte técnica)
@@ -387,6 +398,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 | `POST /dcasa/juan/v1/herramienta` | ejecutar una herramienta | `422` = error de uso (el texto sirve para corregir); `404` = no existe |
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
 | `POST /dcasa/juan/v1/escribiendo` | «el asistente está escribiendo» | `{canal, id_externo, activo}`; solo avisa a las pantallas por el bus |
+| `POST /dcasa/juan/v1/foto-perfil` | la foto de perfil de quien escribe | `{canal, id_externo, mime, base64}` → `{ok, guardada, motivo?}`; `guardada:false` si el ajuste está apagado o no es una foto válida; `404` si no existe la conversación |
 
 Las 12 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
 `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `saldo_puntos`, `horario_y_tienda`,

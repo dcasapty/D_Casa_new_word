@@ -443,6 +443,24 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.assertFalse(self.karen.mensaje_ids.filtered(lambda m: m.estado_envio == 'programado'))
         self.assertFalse(self.al_worker('/odoo/enviar'))
 
+    def test_la_foto_de_perfil_se_ve_en_la_lista_y_en_el_hilo_y_sin_foto_siguen_las_iniciales(self):
+        self.datos_de_ejemplo()
+        self.karen.sudo()._guardar_foto_de_perfil(png((200, 30, 30), (300, 300)))
+        self.navegador("""
+(async () => {
+    const fila = await esperar(() => aqui(".o_dcj_fila", "Karen"), "la fila de Karen");
+    const foto = await esperar(() => fila.querySelector("img.o_dcj_avatar_foto"), "la foto en la lista");
+    await esperar(() => foto.complete && foto.naturalWidth > 0, "que la foto cargue");
+    if (!foto.src.includes("/foto_perfil/")) { throw new Error("de dónde viene: " + foto.src); }
+    const otra = aqui(".o_dcj_fila", "Marta");
+    if (otra.querySelector("img.o_dcj_avatar_foto")) { throw new Error("quien no tiene foto no la muestra"); }
+    if (!otra.querySelector(".o_dcj_iniciales").textContent.trim()) { throw new Error("siguen las iniciales"); }
+    fila.click();
+    await esperar(() => document.querySelector(".o_dcj_hilo_cabecera img.o_dcj_avatar_foto"), "la foto en la cabecera del hilo");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
     def test_adjuntar_un_archivo_del_cliente_a_su_pedido(self):
         self.datos_de_ejemplo()
         producto = self.env['product.product'].create({

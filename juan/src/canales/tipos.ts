@@ -86,6 +86,9 @@ export interface Capacidades {
   pie?: boolean;
 }
 
+/** Una foto de perfil de más de esto no se guarda (las de los canales pesan ~10-60 KB). */
+export const MAX_FOTO_DE_PERFIL_BYTES = 300 * 1024;
+
 /** Lo que falta (secretos, bindings) para que un canal funcione, por nombre. */
 export function faltantesDe(requeridos: Record<string, boolean>): string[] {
   return Object.entries(requeridos).filter(([, ok]) => !ok).map(([nombre]) => nombre);
@@ -117,6 +120,11 @@ export interface AdaptadorCanal {
   /** Verifica el origen del webhook y lo traduce a mensajes del motor. */
   recibir(req: Request, env: Env): Promise<ResultadoWebhook>;
   enviar(canal: CanalId, salida: Saliente, env: Env): Promise<ResultadoEnvio>;
+  /**
+   * La foto de perfil de quien escribe, pequeña, si el canal la da y la persona la tiene (y deja verla). `null` = no hay.
+   * Mejor esfuerzo: puede lanzar; el motor lo registra y sigue. Los bytes solo van a Odoo, nunca a la IA.
+   */
+  fotoDePerfil?(canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null>;
   /** "Escribiendo…", si el canal lo tiene. Mejor esfuerzo. */
   escribiendo?(canal: CanalId, para: string, env: Env): Promise<void>;
   /** Salud de la conexión, si hay una que vigilar. */

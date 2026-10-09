@@ -43,6 +43,16 @@ const HISTORIAL_PARA_EL_MODELO = 20;
 const IMAGENES_POR_MENSAJE = 3;
 /** Un pie de foto largo no cabe en todos los canales (Telegram corta en 1024): hasta aquí viaja junto a la foto. */
 const MAX_PIE_DE_FOTO = 1000;
+/** La foto de perfil se vuelve a pedir cada semana (la gente la cambia); si algo falla, a la hora. Plazo máximo por intento. */
+const CADA_CUANTO_FOTO_DE_PERFIL_MS = 7 * 24 * 3600_000;
+const REINTENTO_FOTO_DE_PERFIL_MS = 3600_000;
+const PLAZO_FOTO_DE_PERFIL_MS = 8000;
+
+function bytesABase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
 const IMAGENES_POR_DIA = 10;
 
 /** Un adjunto como se guarda en la copia de trabajo: el de Odoo más lo que se leyó de la imagen (esto NO viaja a Odoo). */
@@ -518,6 +528,38 @@ export class MotorConversacion {
     }
   }
 
+  /**
+   * La foto de perfil de quien escribe, para el avatar de la pantalla de Odoo. A lo más una vez por semana por conversación (una
+   * hora después si algo falló) y con un plazo corto: jamás frena ni rompe la respuesta. Los bytes van solo a Odoo, nunca a la IA.
+   */
+  private async actualizarFotoDePerfil(cfg: Config): Promise<void> {
+    if (!cfg.guardar_foto_perfil || this.odooCaido) return;
+    const ahora = this.deps.ahora();
+    if (ahora < (this.kv.numero("foto_perfil_proximo") ?? 0)) return;
+    const canal = this.canalId();
+    const adaptador = this.deps.canal(canal);
+    const odoo = this.deps.odoo;
+    if (!adaptador?.fotoDePerfil || !odoo.fotoPerfil) return;
+    // Se agenda ANTES de intentar: pase lo que pase, no se repite en cada mensaje.
+    this.kv.poner("foto_perfil_proximo", ahora + REINTENTO_FOTO_DE_PERFIL_MS);
+    let reloj: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const plazo = new Promise<never>((_, rechazar) => {
+        reloj = setTimeout(() => rechazar(new Error("plazo vencido")), PLAZO_FOTO_DE_PERFIL_MS);
+      });
+      const hecho = (async () => {
+        const foto = await adaptador.fotoDePerfil!(canal, this.idExterno(), this.deps.env);
+        if (foto) await odoo.fotoPerfil!({ canal, id_externo: this.idExterno(), mime: foto.mime, base64: bytesABase64(foto.bytes) });
+      })();
+      await Promise.race([hecho, plazo]);
+      this.kv.poner("foto_perfil_proximo", ahora + CADA_CUANTO_FOTO_DE_PERFIL_MS);
+    } catch (e) {
+      this.log("warn", "no se pudo traer la foto de perfil", String(e));
+    } finally {
+      clearTimeout(reloj);
+    }
+  }
+
   private async procesarRafaga(): Promise<void> {
     const pend = this.mensajes.pendientes();
     if (pend.length === 0) return;
@@ -527,6 +569,7 @@ export class MotorConversacion {
     const epoca0 = this.epoca();
     const cfg = await this.deps.config();
     const ahora = this.deps.ahora();
+    await this.actualizarFotoDePerfil(cfg);
 
     if (!cfg.bot_activo_global || !canalActivo(cfg, this.canalId())) {
       this.log("info", "bot apagado en Odoo para este canal: se guarda el mensaje y no se contesta");

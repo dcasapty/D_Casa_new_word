@@ -102,6 +102,7 @@
                                 t-on-click="() => almacen.abrir(c.id)">
                             <span class="o_dcj_avatar" aria-hidden="true">
                                 <span class="o_dcj_iniciales" t-out="c.iniciales"/>
+                                <img t-if="c.foto_perfil" class="o_dcj_avatar_foto" t-att-src="c.foto_perfil" alt="" loading="lazy" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
                                 <span class="o_dcj_canal" t-att-title="c.canal_nombre"><i t-attf-class="fa #{iconoDeCanal(c.canal)}"/></span>
                             </span>
                             <span class="o_dcj_fila_cuerpo">

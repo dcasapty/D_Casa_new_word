@@ -107,6 +107,9 @@ export class OdooFalso implements OdooApi {
   hechos: CuerpoSeguimientoHecho[] = [];
   /** Las señales de «escribiendo» que el motor mandó a Odoo (true = empezó, false = terminó). */
   escribiendos: boolean[] = [];
+  /** Las fotos de perfil que el motor le mandó a Odoo (o el error que debe lanzar). */
+  fotosPerfil: { canal: string; id_externo: string; mime: string; base64: string }[] = [];
+  falloFotoPerfil: Error | null = null;
   estadoActual = { ...ESTADO_INICIAL };
   pedidosDeEstado = 0;
   caido = false;
@@ -171,6 +174,13 @@ export class OdooFalso implements OdooApi {
   async seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void> {
     this.revisar();
     this.hechos.push(cuerpo);
+  }
+
+  async fotoPerfil(cuerpo: { canal: string; id_externo: string; mime: string; base64: string }): Promise<{ guardada: boolean }> {
+    this.revisar();
+    if (this.falloFotoPerfil) throw this.falloFotoPerfil;
+    this.fotosPerfil.push(cuerpo);
+    return { guardada: true };
   }
 
   async escribiendo(cuerpo: { activo: boolean }): Promise<void> {

@@ -14,6 +14,7 @@ Defensas:
 """
 import base64
 import binascii
+import io
 import ipaddress
 import logging
 import re
@@ -21,6 +22,7 @@ import socket
 from urllib.parse import urlsplit
 
 import requests
+from PIL import Image, ImageOps
 
 _logger = logging.getLogger(__name__)
 
@@ -28,6 +30,10 @@ TIPOS = ('imagen', 'audio', 'documento', 'video')
 # Lo que entendió el lector de imágenes del Worker (opcional): sirve para avisar a la dueña.
 CLASES = ('producto', 'publicacion', 'comprobante', 'identidad', 'otra')
 MAX_ADJUNTOS = 5
+# La foto de perfil del cliente: pequeña (los canales la dan de ~10-60 KB) y de tipos de imagen reales.
+MAX_FOTO_DE_PERFIL = 300 * 1024
+LADO_FOTO_DE_PERFIL = 256
+MAX_PIXELES_FOTO_DE_PERFIL = 25_000_000   # una «bomba» de descompresión es pequeña en bytes y enorme en píxeles
 MAX_BYTES = 10 * 1024 * 1024
 TIMEOUT = (3.05, 15)
 PUERTOS = (None, 80, 443)
@@ -102,6 +108,47 @@ def validar_lista(adjuntos):
     if len(adjuntos) > MAX_ADJUNTOS:
         raise AdjuntoInvalido(f'Como máximo {MAX_ADJUNTOS} adjuntos por mensaje.')
     return [validar(a) for a in adjuntos]
+
+
+def tipo_de_imagen(datos):
+    """``jpeg``, ``png`` o ``webp`` según los primeros bytes (el nombre no cuenta); si no, ``None``."""
+    if datos[:3] == b'\xff\xd8\xff':
+        return 'jpeg'
+    if datos[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    if datos[:4] == b'RIFF' and datos[8:12] == b'WEBP':
+        return 'webp'
+    return None
+
+
+def imagen_de_perfil(datos):
+    """Una foto de perfil lista para guardar (JPEG de hasta 256 px) o ``None`` si no sirve.
+
+    Solo JPEG, PNG o WebP de verdad (nada de SVG, GIF ni documentos disfrazados), hasta ``MAX_FOTO_DE_PERFIL`` y con una
+    cantidad de píxeles normal. Se endereza según su orientación, se aplana sobre blanco (sin transparencias) y se
+    reduce siempre a JPEG: lo que se guarda no depende del formato en que llegó. Lo que no se puede leer se descarta
+    sin lanzar.
+    """
+    if not isinstance(datos, (bytes, bytearray)) or not 0 < len(datos) <= MAX_FOTO_DE_PERFIL:
+        return None
+    if tipo_de_imagen(bytes(datos[:16])) is None:
+        return None
+    try:
+        with Image.open(io.BytesIO(bytes(datos))) as original:
+            if original.format not in ('JPEG', 'PNG', 'WEBP'):
+                return None
+            if original.width * original.height > MAX_PIXELES_FOTO_DE_PERFIL:
+                return None
+            imagen = ImageOps.exif_transpose(original).convert('RGBA')
+        fondo = Image.new('RGB', imagen.size, (255, 255, 255))
+        fondo.paste(imagen, mask=imagen.getchannel('A'))
+        fondo.thumbnail((LADO_FOTO_DE_PERFIL, LADO_FOTO_DE_PERFIL))
+        salida = io.BytesIO()
+        fondo.save(salida, 'JPEG', quality=85, optimize=True)
+    except Exception:   # noqa: BLE001 — una imagen corrupta o demasiado grande simplemente no se guarda
+        _logger.info('Juan: una foto de perfil no se pudo leer y se descartó.')
+        return None
+    return salida.getvalue()
 
 
 # ---------------------------------------------------------------------------

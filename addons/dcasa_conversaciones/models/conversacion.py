@@ -13,6 +13,8 @@ Odoo es la verdad y decide el seguimiento (quién y cuándo): ver ``_programar_s
 Seguridad: los métodos que cambian algo con ``sudo()`` son privados (``_``) o exigen el grupo de
 ventas; los botones (``action_*``) lo comprueban en el servidor, no solo en la vista.
 """
+import base64
+import hashlib
 import logging
 from datetime import timedelta
 
@@ -22,6 +24,7 @@ from odoo import api, fields, models
 from odoo.exceptions import AccessError, ConcurrencyError, UserError
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
+from . import adjuntos as A
 from . import celulares, transaccion
 from . import horario as H
 from .ajustes import CANALES, CANALES_CON_CELULAR
@@ -75,6 +78,13 @@ class DcasaConversacion(models.Model):
     chat_html = fields.Html('Chat', compute='_compute_chat_html', sanitize=False)
     etiqueta_ids = fields.Many2many('dcasa.conversacion.etiqueta', 'dcasa_conversacion_etiqueta_rel',
                                     'conversacion_id', 'etiqueta_id', string='Etiquetas')
+    foto_perfil = fields.Image(
+        'Foto de perfil', max_width=256, max_height=256, attachment=True, copy=False, readonly=True,
+        help='La foto de perfil de quien escribe, reducida. La trae el asistente si Ajustes de Juan lo permite.')
+    foto_perfil_en = fields.Datetime('Foto de perfil guardada', readonly=True, copy=False)
+    foto_perfil_huella = fields.Char(
+        'Huella de la foto de perfil', readonly=True, copy=False, groups='base.group_system',
+        help='Para no volver a guardar la misma foto cada semana.')
     nota_para_el_bot = fields.Text(
         'Nota para el asistente', readonly=True,
         help='Lo que una vendedora le dejó dicho al devolverle la conversación (p. ej. «ya quedó la cita»). '
@@ -776,6 +786,25 @@ class DcasaConversacion(models.Model):
         if la_tomo:
             conv._aviso(self.env._('%s tomó la conversación al escribir. El asistente calla.', usuario.name))
         conv._notificar_panel('mensaje', mensaje)
+
+    def _guardar_foto_de_perfil(self, contenido):
+        """Valida y guarda la foto de perfil (bytes). Devuelve ``True`` si quedó guardada.
+
+        Solo JPEG, PNG o WebP de verdad (por sus primeros bytes, no por lo que diga el nombre), de hasta
+        ``A.MAX_FOTO_DE_PERFIL`` y de tamaño razonable; se reduce y se guarda en la conversación (no en el contacto).
+        """
+        self.ensure_one()
+        foto = A.imagen_de_perfil(contenido)
+        if not foto:
+            return False
+        huella = hashlib.sha256(foto).hexdigest()
+        conv = self.sudo()
+        if conv.foto_perfil_en and conv.foto_perfil_huella == huella:
+            conv.write({'foto_perfil_en': fields.Datetime.now()})   # la misma foto: no se guarda otro archivo
+            return True
+        conv.write({'foto_perfil': base64.b64encode(foto), 'foto_perfil_huella': huella,
+                    'foto_perfil_en': fields.Datetime.now()})
+        return True
 
     def _despachar_programado(self, mensaje):
         """Llegó la hora de un mensaje programado: sale como uno nuevo (queda al final del hilo) y toma la conversación.

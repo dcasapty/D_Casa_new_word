@@ -21,7 +21,7 @@ PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_soc
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
-         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'))
+         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'), ('POST', 'foto-perfil'))
 
 
 class ApiCase(HttpCase):
@@ -352,7 +352,7 @@ class TestEstadoYConfig(ApiCase):
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
             'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
-            'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos'})
+            'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil'})
         self.assertEqual(cuerpo['nombre_publico'], "el equipo de D'CASA")
         self.assertEqual(cuerpo['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                              'zona': 'America/Panama'})

@@ -35,6 +35,13 @@ describe("normalizarConfig: nunca lanza y siempre devuelve algo usable", () => {
     expect(d.pausa_por_defecto_minutos).toBe(120);
   });
 
+  it("la foto de perfil: encendida por defecto, se apaga solo con un «false» de verdad", () => {
+    expect(CONFIG_POR_DEFECTO.guardar_foto_perfil).toBe(true);
+    expect(normalizarConfig({}).guardar_foto_perfil).toBe(true);
+    expect(normalizarConfig({ guardar_foto_perfil: false }).guardar_foto_perfil).toBe(false);
+    for (const raro of ["no", 0, null]) expect(normalizarConfig({ guardar_foto_perfil: raro }).guardar_foto_perfil).toBe(true);
+  });
+
   it("lee lo que Odoo manda y deja lo demás por defecto", () => {
     const c = normalizarConfig({
       nombre_publico: "D'CASA Panamá",

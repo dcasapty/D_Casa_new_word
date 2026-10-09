@@ -65,6 +65,10 @@ function contenedor(d: Do, conexion: string | null = "conectada", extra: Record<
       const n = (c.chunks?.length ?? 0) + (c.medios?.length ?? 0);
       return jsonResp({ ok: true, ids: Array.from({ length: n }, (_, i) => `ID${i + 1}`), id_mensaje: `ID${n}`, enviados: { chunks: c.chunks?.length ?? 0, medios: c.medios?.length ?? 0 } });
     }
+    if (u.pathname === "/foto-perfil") {
+      const c = JSON.parse(String(init?.body));
+      return c.para === "sin-foto" ? jsonResp({ ok: false, error: "sin foto de perfil" }, 404) : jsonResp({ ok: true, mime: "image/jpeg", base64: "QUJD" });
+    }
     return jsonResp({ error: "no existe" }, 404);
   };
 }
@@ -602,6 +606,38 @@ describe("entrantes que Juan no pudo recibir", () => {
     await d.encolarPendiente("{}");
     await vigilarAvanzando(d);
     expect((await d.estadoPublico()).pendientes).toBe(0);
+  });
+});
+
+describe("fotoPerfil", () => {
+  it("le pasa la petición al contenedor y devuelve lo suyo, incluido el 404 de «sin foto»", async () => {
+    const m = await montar();
+    contenedor(m.d, "conectada");
+    await m.d.vigilar();
+    const r = await m.d.fotoPerfil(JSON.stringify({ para: "60261919" }));
+    expect(r).toEqual({ status: 200, cuerpo: { ok: true, mime: "image/jpeg", base64: "QUJD" } });
+    expect(m.d.llamadas.at(-1)).toMatchObject({ url: "http://contenedor/foto-perfil", metodo: "POST" });
+    expect((await m.d.fotoPerfil(JSON.stringify({ para: "sin-foto" }))).status).toBe(404);
+  });
+
+  it("apagado, demasiado grande o con el contenedor caído: respuestas claras, sin lanzar", async () => {
+    const apagado = await montar({ PUENTE_ACTIVO: "0" });
+    expect((await apagado.d.fotoPerfil("{}")).status).toBe(503);
+    const m = await montar();
+    contenedor(m.d, "conectada");
+    expect((await m.d.fotoPerfil("x".repeat(3000))).status).toBe(400);
+    m.d.manejador = () => {
+      throw new Error("no contesta");
+    };
+    expect((await m.d.fotoPerfil(JSON.stringify({ para: "60261919" }))).status).toBe(502);
+  });
+
+  it("no gasta los topes de envío (no escribe nada)", async () => {
+    const m = await montar();
+    contenedor(m.d, "conectada");
+    await m.d.vigilar();
+    await m.d.fotoPerfil(JSON.stringify({ para: "60261919" }));
+    expect(m.d.llamadas.filter((l: any) => l.url.endsWith("/enviar"))).toHaveLength(0);
   });
 });
 

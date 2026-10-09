@@ -255,3 +255,35 @@ describe("salud del puente", () => {
     expect(adaptador.faltantes({ WA_TOKEN } as Env, "whatsapp_qr")).toEqual(["PUENTE"]);
   });
 });
+
+describe("foto de perfil (vía el puente)", () => {
+  const BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 7, 7]);
+  const base64 = btoa(String.fromCharCode(...BYTES));
+
+  it("la pide con POST /api/foto-perfil (con el token) y devuelve los bytes", async () => {
+    const { env, peticiones } = puenteFalso(() => Response.json({ ok: true, mime: "image/jpeg", base64 }));
+    const foto = await adaptador.fotoDePerfil!("whatsapp_qr", "50760261919", env);
+    expect(foto).toEqual({ bytes: BYTES, mime: "image/jpeg" });
+    expect(peticiones[0]).toMatchObject({ metodo: "POST", url: "https://puente/api/foto-perfil", cuerpo: { para: "50760261919" } });
+    expect(peticiones[0].cabeceras["x-wa-token-b64"]).toBe(tokenParaCabecera(WA_TOKEN));
+  });
+
+  it("sin foto (404) es null; cualquier otro fallo del puente lanza para que el motor lo anote", async () => {
+    expect(await adaptador.fotoDePerfil!("whatsapp_qr", "50760261919", puenteFalso(() => Response.json({ ok: false }, { status: 404 })).env)).toBeNull();
+    await expect(adaptador.fotoDePerfil!("whatsapp_qr", "50760261919", puenteFalso(() => Response.json({}, { status: 502 })).env)).rejects.toThrow(/502/);
+  });
+
+  it("respuestas raras (sin base64, base64 inválido, demasiado grande): null", async () => {
+    for (const cuerpo of [{ ok: true }, { ok: true, base64: "%%%no-es-base64" }, { ok: false, base64 }, { ok: true, base64: "A".repeat(500_000) }]) {
+      expect(await adaptador.fotoDePerfil!("whatsapp_qr", "50760261919", puenteFalso(() => Response.json(cuerpo)).env)).toBeNull();
+    }
+  });
+
+  it("grupos, estados y canales no se consultan", async () => {
+    const { env, peticiones } = puenteFalso();
+    for (const jid of ["120363025246125486@g.us", "status@broadcast", "1203@newsletter"]) {
+      expect(await adaptador.fotoDePerfil!("whatsapp_qr", jid, env)).toBeNull();
+    }
+    expect(peticiones).toHaveLength(0);
+  });
+});

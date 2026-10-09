@@ -23,6 +23,7 @@ function stubFalso(sobre: Partial<Record<keyof PuenteStub, any>> = {}) {
     estadoPublico: f({ ok: true, estado: "conectado", conectado: true }),
     qr: f({ status: 200, cuerpo: { qr: "data:image/png;base64,QQQ" } }),
     enviar: f({ status: 200, cuerpo: { ok: true, ids: ["A"] } }),
+    fotoPerfil: f({ status: 200, cuerpo: { ok: true, mime: "image/jpeg", base64: "QUJD" } }),
     desvincular: f({ status: 200, cuerpo: { ok: true } }),
     matar: f({ reiniciosForzados: 2 }),
     copiarAhora: f({ copia: "2026-10-09T03-17-00Z", filas: 3, r2: { subida: false, motivo: "apagado" } }),
@@ -107,6 +108,7 @@ describe("autenticación de /api/* (WA_TOKEN, en tiempo constante)", () => {
     ["GET", "/api/estado"],
     ["GET", "/api/qr"],
     ["POST", "/api/enviar"],
+    ["POST", "/api/foto-perfil"],
     ["POST", "/api/desvincular"],
     ["POST", "/api/reiniciar"],
     ["GET", "/api/copias"],
@@ -190,6 +192,16 @@ describe("/api/*: lo que ve Juan", () => {
     expect(stub.enviar).toHaveBeenCalledWith(c);
     expect(r.status).toBe(200);
     expect(await cuerpo(r)).toEqual({ ok: true, ids: ["A"] });
+  });
+
+  it("POST /api/foto-perfil: pasa el cuerpo TAL CUAL y devuelve la respuesta (también el 404 de «sin foto»)", async () => {
+    const stub = stubFalso();
+    const c = JSON.stringify({ para: "60261919" });
+    const r = await api(envBase(), stub, "/api/foto-perfil", { method: "POST", body: c });
+    expect(stub.fotoPerfil).toHaveBeenCalledWith(c);
+    expect(await cuerpo(r)).toEqual({ ok: true, mime: "image/jpeg", base64: "QUJD" });
+    const sin = stubFalso({ fotoPerfil: vi.fn(async () => ({ status: 404, cuerpo: { ok: false, error: "sin foto de perfil" } })) });
+    expect((await api(envBase(), sin, "/api/foto-perfil", { method: "POST", body: c })).status).toBe(404);
   });
 
   it.each([

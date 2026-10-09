@@ -20,6 +20,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
 
@@ -174,6 +175,26 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
         if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
       }
       return { ids };
+    },
+
+    async fotoDePerfil(_canal: CanalId, para: string, env: Env): Promise<{ bytes: Uint8Array; mime: string } | null> {
+      const token = env.TELEGRAM_BOT_TOKEN_JUAN;
+      if (!token || !/^\d{1,20}$/.test(para)) return null;
+      const lista = await f(`${API}/bot${token}/getUserProfilePhotos?user_id=${para}&limit=1`);
+      const j = (await lista.json().catch(() => null)) as { ok?: boolean; result?: { photos?: { file_id: string; width: number; file_size?: number }[][] } } | null;
+      // La primera foto viene en varios tamaños, de menor a mayor: la más grande que no pase de 400 px (alcanza para un avatar).
+      const tamanos = j?.ok ? j.result?.photos?.[0] : undefined;
+      if (!tamanos?.length) return null;
+      const elegida = [...tamanos].reverse().find((t) => t.width <= 400) ?? tamanos[0];
+      const info = await f(`${API}/bot${token}/getFile?file_id=${encodeURIComponent(elegida.file_id)}`);
+      const ji = (await info.json().catch(() => null)) as { ok?: boolean; result?: { file_path?: string } } | null;
+      const ruta = ji?.ok ? ji.result?.file_path : undefined;
+      if (!ruta) return null;
+      const r = await f(`${API}/file/bot${token}/${ruta}`);
+      if (!r.ok) return null;
+      const bytes = new Uint8Array(await r.arrayBuffer());
+      if (bytes.length === 0 || bytes.length > MAX_FOTO_DE_PERFIL_BYTES) return null;
+      return { bytes, mime: "image/jpeg" };
     },
 
     async escribiendo(_canal: CanalId, para: string, env: Env): Promise<void> {

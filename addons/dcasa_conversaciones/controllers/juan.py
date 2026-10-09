@@ -7,6 +7,7 @@
 * ``POST /herramienta``        — ejecutar una herramienta como el usuario técnico ``juan``.
 * ``POST /seguimiento/hecho``  — el Worker confirma que envió (o descartó) un seguimiento.
 * ``POST /escribiendo``        — el asistente empezó (o terminó) de preparar una respuesta: la pantalla lo muestra.
+* ``POST /foto-perfil``        — la foto de perfil de quien escribe (base64), para el avatar de la pantalla.
 
 Seguridad
 ---------
@@ -42,6 +43,7 @@ _logger = logging.getLogger(__name__)
 RAIZ = '/dcasa/juan/v1'
 MAX_CUERPO = 256 * 1024
 MAX_CUERPO_MENSAJE = 14 * 1024 * 1024   # un mensaje con adjuntos en base64
+MAX_CUERPO_FOTO = 512 * 1024            # una foto de perfil (hasta 300 KB) en base64
 MAX_TEXTO = 10000
 MAX_FALLOS_POR_MINUTO = 30
 PREFIJO_HERRAMIENTA = 'juan_'
@@ -360,3 +362,31 @@ class JuanAPI(http.Controller):
         if conversacion:
             conversacion._notificar_panel('escribiendo', activo=activo)
         return _respuesta({'ok': True})
+
+    # ------------------------------------------------------------------
+    # POST /foto-perfil
+    # ------------------------------------------------------------------
+
+    @http.route(f'{RAIZ}/foto-perfil', type='http', auth='none', methods=['POST'], csrf=False, save_session=False,
+                readonly=False)
+    def foto_perfil(self, **_kw):
+        return self._servir(self._foto_perfil)
+
+    def _foto_perfil(self, entorno):
+        """Guarda la foto de perfil de quien escribe. Apagado en Ajustes de Juan: no guarda nada (y lo dice)."""
+        cuerpo = self._cuerpo(MAX_CUERPO_FOTO)
+        canal = _canal(cuerpo.get('canal'))
+        id_externo = _id_externo(cuerpo.get('id_externo'), canal)
+        contenido = cuerpo.get('base64')
+        if not isinstance(contenido, str) or not contenido:
+            raise _Error(400, '«base64» es obligatorio (la foto, en base64).')
+        if not entorno['dcasa.juan.ajustes'].obtener().guardar_foto_perfil:
+            return _respuesta({'ok': True, 'guardada': False, 'motivo': 'apagado'})
+        conversacion = entorno['dcasa.conversacion'].sudo().search(
+            [('canal', '=', canal), ('id_externo', '=', id_externo)], limit=1)
+        if not conversacion:
+            raise _Error(404, 'No existe esa conversación.')
+        datos = A.decodificar_base64(contenido, max_bytes=A.MAX_FOTO_DE_PERFIL)
+        if datos is None:
+            return _respuesta({'ok': True, 'guardada': False, 'motivo': 'no es una foto válida'})
+        return _respuesta({'ok': True, 'guardada': conversacion._guardar_foto_de_perfil(datos)})
