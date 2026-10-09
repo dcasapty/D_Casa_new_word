@@ -136,6 +136,23 @@ jobs:
         working-directory: .
         run: .github/scripts/probar_config_despliegue.sh
 
+  juan:
+    name: Tests del motor del bot (Worker juan)
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: juan
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: juan/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
   puente-wa:
     name: Tests del puente QR de WhatsApp (Juan)
     runs-on: ubuntu-24.04
@@ -339,7 +356,7 @@ jobs:
 
   desplegar-staging:
     name: Desplegar a staging
-    needs: [lint, odoo-tests, edge, puente-wa, docker, simulacro-restauracion]
+    needs: [lint, odoo-tests, edge, juan, puente-wa, docker, simulacro-restauracion]
     if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
     uses: ./.github/workflows/desplegar.yml
     with:
@@ -352,7 +369,7 @@ jobs:
 
   desplegar-produccion:
     name: Desplegar a producción
-    needs: [lint, odoo-tests, edge, puente-wa, docker, simulacro-restauracion]
+    needs: [lint, odoo-tests, edge, juan, puente-wa, docker, simulacro-restauracion]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/desplegar.yml
     with:
