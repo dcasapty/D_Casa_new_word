@@ -1,0 +1,21 @@
+{
+  "name": "dcasa-puente-wa",
+  "private": true,
+  "description": "Puente de WhatsApp por QR para Juan (D'CASA): Worker + Durable Object + Container con Baileys.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@cloudflare/containers": "0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260929.1",
+    "@types/node": "22.19.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.2",
+    "wrangler": "4.143.0"
+  }
+}
