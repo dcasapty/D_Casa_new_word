@@ -452,7 +452,11 @@ export function crearNucleo(deps) {
         if (ultimosEntrantes.size > 200) ultimosEntrantes.delete(ultimosEntrantes.keys().next().value);
       }
 
-      colaEntrantes.ejecutar(() => entregar(s, msg, propio)).catch((e) => anotarError("entregar", e));
+      colaEntrantes.ejecutar(() => entregar(s, msg, propio)).catch((e) => {
+        // Si no llegó a Juan, que una re-entrega de WhatsApp pueda volver a intentarlo.
+        vistos.delete(id);
+        anotarError("entregar", e);
+      });
     }
   }
 
@@ -471,6 +475,10 @@ export function crearNucleo(deps) {
     if (!armado) {
       ignorar("sin_contenido");
       return;
+    }
+    // Para marcar como leído al contestar: también bajo el número real si el chat llegó como @lid.
+    if (!propio && typeof armado.payload.jid === "string") {
+      ultimosEntrantes.set(armado.payload.jid, { key: msg.key, ts: Date.now() });
     }
     if (armado.payload.medio) estado.archivosRecibidos += 1;
     else if (armado.sinMedio) estado.ultimoError = `archivo no adjuntado (${JSON.stringify(armado.payload.medio_omitido)})`;

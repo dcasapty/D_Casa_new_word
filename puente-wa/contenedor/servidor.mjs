@@ -48,12 +48,15 @@ if (!/^[\x21-\x7E]+$/.test(TOKEN)) {
 /** Nivel de log de Baileys. Por defecto en silencio: sus logs traen números y datos de clientes. */
 const logger = pino({ level: process.env.BAILEYS_LOG || "silent" });
 
-/** Llamada al Worker: siempre con el token del contenedor y la época de este arranque. */
+/**
+ * Llamada al Worker: siempre con el token del contenedor y la época de este arranque. La entrega de un
+ * mensaje a Juan tiene más margen que guardar una llave (Juan puede tardar en acusar recibo).
+ */
 function puente(ruta, init = {}) {
   return fetch(`${PUENTE}${ruta}`, {
     ...init,
     headers: { ...(init.headers || {}), authorization: `Bearer ${TOKEN}`, "x-wa-epoca": EPOCA },
-    signal: AbortSignal.timeout(25_000),
+    signal: AbortSignal.timeout(ruta === "/puente/entrante" ? 60_000 : 25_000),
   });
 }
 

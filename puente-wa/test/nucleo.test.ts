@@ -438,6 +438,28 @@ describe("mensajes que llegan → JSON del contrato hacia el Worker", () => {
     expect(m.nucleo.estado.ignorados.duplicado).toBe(1);
   });
 
+  it("al contestar a un chat que llegó como @lid, marca como leído su último mensaje", async () => {
+    const m = nuevo();
+    const sock = await conectado(m);
+    sock.lids["987654321098765@lid"] = "50760261919@s.whatsapp.net";
+    sock.upsert([msgTexto("hola desde un lid", { id: "LID1", de: "987654321098765@lid" })]);
+    await asentar();
+    await post(m, "/enviar", { para: "60261919", chunks: ["Hola"] });
+    expect(sock.llamadas.find((l) => l.tipo === "readMessages")?.args[0][0]).toMatchObject({ id: "LID1" });
+  });
+
+  it("si un mensaje no llegó a Juan, una re-entrega de WhatsApp puede volver a intentarlo", async () => {
+    const m = nuevo();
+    const sock = await conectado(m);
+    m.puente.fallar(3, 503); // los tres intentos fallan
+    sock.upsert([msgTexto("hola", { id: "RE1" })]);
+    await asentar();
+    expect(m.puente.entrantes).toHaveLength(0);
+    sock.upsert([msgTexto("hola", { id: "RE1" })]); // WhatsApp lo vuelve a entregar
+    await asentar();
+    expect(m.puente.entrantes).toHaveLength(1);
+  });
+
   it("un chat @lid se resuelve a su número con el mapa de Baileys", async () => {
     const m = nuevo();
     const sock = await conectado(m);

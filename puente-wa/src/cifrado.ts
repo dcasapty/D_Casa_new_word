@@ -24,7 +24,7 @@ const codificar = new TextEncoder();
 const decodificar = new TextDecoder();
 
 export interface Cifrador {
-  /** Identificador de la clave actual (los primeros 8 caracteres de su huella). */
+  /** Identificador de la clave actual: sale de una derivación aparte y no revela nada de la clave. */
   readonly kid: string;
   cifrar(nombre: string, texto: string): Promise<string>;
   descifrar(nombre: string, cifrado: string): Promise<string>;

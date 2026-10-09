@@ -88,11 +88,19 @@ const avanzar = (ms: number) => vi.setSystemTime(Date.now() + ms);
 const asentar = async () => {
   for (let i = 0; i < 300; i++) await Promise.resolve();
 };
-/** Corre una vigilancia dejando avanzar los relojes falsos (las esperas de reintento usan setTimeout). */
+/**
+ * Corre una vigilancia dejando avanzar los relojes falsos (las esperas de reintento usan setTimeout). Avanza
+ * hasta que termine, cediendo turno a las operaciones reales de cifrado (WebCrypto trabaja fuera del hilo):
+ * contar vueltas fijas sería frágil con la máquina cargada.
+ */
 async function vigilarAvanzando(d: Do) {
-  const p = d.vigilar();
-  for (let i = 0; i < 6; i++) {
+  let terminada = false;
+  const p = d.vigilar().finally(() => {
+    terminada = true;
+  });
+  for (let vuelta = 0; !terminada && vuelta < 400; vuelta++) {
     await asentar();
+    await new Promise((r) => setImmediate(r)); // setImmediate no está entre los relojes falsos
     await vi.advanceTimersByTimeAsync(600);
   }
   await p;
@@ -446,6 +454,22 @@ describe("copia diaria de la sesión", () => {
     expect(await d.listarCopias()).toHaveLength(2);
   });
 
+  it("recién vinculado, espera a que el dispositivo termine de instalarse antes de la primera copia", async () => {
+    const m = await montar();
+    contenedor(m.d, "conectada");
+    await m.d.vigilar();
+    // Quedan llaves por subir (sinSubir ≠ siguiente): todavía instalándose.
+    await m.d.kvSet("creds", JSON.stringify({ nextPreKeyId: 813, firstUnuploadedPreKeyId: 645 }), "1");
+    avanzar(30_000);
+    await m.d.vigilar();
+    expect(await m.d.listarCopias()).toHaveLength(0);
+    // Termina de instalarse: ahora sí.
+    await m.d.kvSet("creds", JSON.stringify({ nextPreKeyId: 813, firstUnuploadedPreKeyId: 813 }), "1");
+    avanzar(30_000);
+    await m.d.vigilar();
+    expect(await m.d.listarCopias()).toHaveLength(1);
+  });
+
   it("no copia una sesión que no está conectada", async () => {
     const { d } = await conSesion();
     contenedor(d, "cerrada");
@@ -709,6 +733,21 @@ describe("estado público", () => {
     });
     const texto = JSON.stringify(e);
     for (const secreto of [TOKEN, CLAVE, "SECRETO", await derivarTokenContenedor(TOKEN)]) expect(texto).not.toContain(secreto);
+  });
+
+  it("muestra cuánto del ritmo permitido se está usando", async () => {
+    const { d } = await montar({ LIMITE_POR_MINUTO: "10", LIMITE_FRIOS_DIA: "5" });
+    contenedor(d, "conectada");
+    await d.vigilar();
+    await d.enviar(JSON.stringify({ para: "60261919", chunks: ["a", "b"] }));
+    await d.enviar(JSON.stringify({ para: "60262020", chunks: ["c"] }));
+    const e = await d.estadoPublico();
+    expect(e.cuotas).toEqual({
+      ultimo_minuto: 3,
+      ultimas_24h: 3,
+      personas_nuevas_24h: 2,
+      limites: { por_minuto: 10, por_dia: 400, por_destinatario_hora: 30, personas_nuevas_por_dia: 5 },
+    });
   });
 
   it("necesita QR", async () => {

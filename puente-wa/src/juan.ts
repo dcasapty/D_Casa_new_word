@@ -21,6 +21,9 @@ export type ResultadoEntrega =
 /** Espera entre reintentos rápidos antes de dejar el mensaje en la cola de pendientes. */
 export const ESPERAS_ENTREGA_MS = [0, 500];
 
+/** Cuánto se espera la respuesta de Juan en cada intento. */
+export const TOPE_JUAN_MS = 40_000;
+
 export async function entregarAJuan(
   env: EntornoJuan,
   cuerpo: string,
@@ -42,6 +45,8 @@ export async function entregarAJuan(
             authorization: `Bearer ${env.WA_TOKEN}`,
           },
           body: cuerpo,
+          // Un Juan que no contesta no cuelga al puente: se trata como fallo reintentable.
+          signal: AbortSignal.timeout(TOPE_JUAN_MS),
         }),
       );
       if (r.ok) return { ok: true, status: r.status };

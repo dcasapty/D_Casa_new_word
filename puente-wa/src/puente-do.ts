@@ -374,6 +374,9 @@ export class PuenteWa extends Container<Env> {
       const alm = await this.#alm();
       const hayCreds = alm.hayCreds();
       if (!debeCopiar({ ultimaCopiaEn: alm.ultimaCopiaEn(), hayCreds, conectado: true, ahora })) return;
+      // Recién vinculado, el dispositivo todavía puede estar subiendo sus llaves: una copia a medio
+      // instalar no sirve. Se espera a la siguiente vigilancia (solo se descifra cuando toca copiar).
+      if ((await alm.estadoSesion()).instalacionCompleta === false) return;
       const r = await this.copiarAhora();
       console.log(`copia de la sesión ${r.copia} (${r.filas} filas) · ${r.r2.motivo}`);
     } catch (e) {
@@ -649,9 +652,27 @@ export class PuenteWa extends Container<Env> {
         ultimoFallo: diario.ultimoFalloDeCopia,
       },
       pendientes: alm.contarPendientes(),
+      cuotas: this.#cuotasEnUso(alm, ahora),
       aviso_telegram: {
         configurado: Boolean(this.env.TELEGRAM_BOT_TOKEN_JUAN && this.env.ALERTA_TELEGRAM_CHAT),
         activo: diario.avisoActivo,
+      },
+    };
+  }
+
+  /** Cuánto del ritmo permitido se está usando (para que se vea antes de que Juan reciba un 429). */
+  #cuotasEnUso(alm: Almacen, ahora: number) {
+    const cfg = leerRitmo(this.env as unknown as Record<string, unknown>);
+    const envios = alm.enviosRecientes();
+    return {
+      ultimo_minuto: envios.filter((e) => ahora - e.ts < 60_000).length,
+      ultimas_24h: envios.length,
+      personas_nuevas_24h: new Set(envios.filter((e) => e.frio).map((e) => e.para)).size,
+      limites: {
+        por_minuto: cfg.porMinuto,
+        por_dia: cfg.porDia,
+        por_destinatario_hora: cfg.porDestinatarioHora,
+        personas_nuevas_por_dia: cfg.friosPorDia,
       },
     };
   }
