@@ -25,8 +25,13 @@ export function json(codigo: number, cuerpo: unknown, extra: Record<string, stri
   });
 }
 
-/** Una clave de Baileys: `creds`, `pre-key-12`, `session-507…@s.whatsapp.net.0`… */
-const CLAVE_VALIDA = /^[\w.:@\-/]{1,300}$/;
+/**
+ * Una clave de Baileys: `creds`, `pre-key-12`, `session-507…@s.whatsapp.net.0`, `app-state-sync-key-<base64>`…
+ * Cualquier ASCII imprimible sin espacios: los ids de las llaves de estado son base64 (con «+», «/» y «=»), y
+ * rechazar una clave legítima rompería el emparejamiento. La clave solo se usa como VALOR enlazado en SQL
+ * (nunca como ruta ni dentro de una consulta), así que no hay nada que escapar.
+ */
+const CLAVE_VALIDA = /^[\x21-\x7E]{1,300}$/;
 
 /** Más grande que esto, un entrante pendiente se guarda sin el archivo (límite de fila de SQLite: 2 MB). */
 export const PENDIENTE_MAX_CARACTERES = 1_000_000;
