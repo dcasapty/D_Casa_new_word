@@ -102,6 +102,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Credenciales de despliegue
+        # Corre antes del checkout: la carpeta juan/ todavía no existe, así que va en la raíz del espacio de trabajo.
+        working-directory: .
         run: |
           # Solo estos dos secretos de GitHub; ninguno de Juan.
           if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
