@@ -37,7 +37,10 @@ export interface Horario {
   /** "HH:MM" */
   inicio: string;
   fin: string;
-  /** 0 = lunes ... 6 = domingo (como el `weekday()` de Python/Odoo). */
+  /**
+   * 0 = domingo ... 6 = sábado: la convención de `Date.getDay()` y la que publica Odoo en `GET /config`
+   * (addons/dcasa_conversaciones/models/horario.py → `dia_js`). NO es el `weekday()` de Python (lunes = 0).
+   */
   dias: number[];
   zona: string;
 }
@@ -246,14 +249,15 @@ export class CargadorConfig {
 
 // ── Horario ────────────────────────────────────────────────────────────────
 
-const DIAS_CORTOS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+/** En el orden de `Horario.dias`: 0 = domingo. */
+const DIAS_CORTOS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function minutos(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
 }
 
-/** Hora, minuto y día de la semana (0 = lunes) en la zona del negocio. */
+/** Hora, minuto y día de la semana (0 = domingo) en la zona del negocio. */
 export function relojDelNegocio(zona: string, ms: number): { minutosDelDia: number; dia: number } {
   let partes: Intl.DateTimeFormatPart[];
   try {

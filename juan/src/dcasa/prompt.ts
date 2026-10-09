@@ -175,7 +175,8 @@ const FORMATO_FECHA = (zona: string) =>
     hour12: false,
   });
 
-const NOMBRES_DE_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+/** En el orden de `Horario.dias` (0 = domingo, como lo publica Odoo). */
+const NOMBRES_DE_DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
 
 function diasLegibles(dias: number[]): string {
   return dias.length >= 7 ? "todos los días" : [...dias].sort((a, b) => a - b).map((d) => NOMBRES_DE_DIAS[d]).join(", ");

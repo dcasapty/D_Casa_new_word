@@ -40,7 +40,7 @@ class TestAjustesPorDefecto(JuanCase):
         self.assertEqual(set(datos), {
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
-            'modelo_inteligente', 'modelos_por_defecto', 'precios', 'lecciones', 'mensaje_bienvenida',
+            'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
             'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos'})
         self.assertEqual(datos['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                             'zona': 'America/Panama'})
@@ -106,6 +106,27 @@ class TestAjustesEditables(JuanCase):
                         {'pausa_por_defecto_minutos': -1}):
             with self.subTest(valores=valores), self.assertRaises(ValidationError):
                 self.ajustes.write(valores)
+
+    def test_precios_por_modelo_para_el_worker(self):
+        """El Worker calcula el gasto por NOMBRE de modelo (``precios_ia``); Odoo los pide por nivel."""
+        self.assertEqual(self.ajustes.como_json()['precios_ia'], {}, 'Sin precios cargados no se inventa ninguno')
+        self.ajustes.write({
+            'precio_rapido_entrada_usd_mtok': 1.0, 'precio_rapido_salida_usd_mtok': 5.0,
+            'precio_rapido_cache_usd_mtok': 0.1,
+            'precio_inteligente_entrada_usd_mtok': 3.0, 'precio_inteligente_salida_usd_mtok': 15.0})
+        datos = self.ajustes.como_json()
+        self.assertEqual(datos['precios_ia'], {
+            'claude-haiku-4-5': {'entrada': 1.0, 'salida': 5.0, 'entrada_cache': 0.1},
+            'claude-sonnet-5-5': {'entrada': 3.0, 'salida': 15.0}})
+        self.assertEqual(datos['precios']['rapido'], {'entrada': 1.0, 'salida': 5.0, 'cache': 0.1})   # por nivel, como antes
+        # Un nivel a medias (sin precio de salida) no cuenta: nunca una cifra a medio inventar.
+        self.ajustes.precio_inteligente_salida_usd_mtok = 0
+        self.assertNotIn('claude-sonnet-5-5', self.ajustes.como_json()['precios_ia'])
+        # El mismo modelo en los dos niveles (p. ej. Meta): vale el más caro.
+        self.ajustes.write({'modelo_rapido': 'muse-spark-1.3', 'modelo_inteligente': 'muse-spark-1.3',
+                            'precio_inteligente_salida_usd_mtok': 15.0})
+        self.assertEqual(self.ajustes.como_json()['precios_ia'], {
+            'muse-spark-1.3': {'entrada': 3.0, 'salida': 15.0}})
 
     def test_palabras_prohibidas_una_por_linea(self):
         self.ajustes.palabras_prohibidas = 'remate\n  ofertón \n\ncorre'

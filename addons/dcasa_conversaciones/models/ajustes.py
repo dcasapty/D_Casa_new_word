@@ -340,6 +340,28 @@ class JuanAjustes(models.Model):
                 for nivel in NIVELES_IA}
 
     @api.private
+    def precios_por_modelo(self):
+        """Los mismos precios, por NOMBRE de modelo: ``{'claude-haiku-4-5': {'entrada', 'salida', 'entrada_cache'?}}``.
+
+        Es lo que lee el Worker (``precios_ia`` en ``/config``): calcula el gasto por modelo, no por nivel. Un modelo sin
+        precio de entrada y de salida no aparece (el Worker no lo cuenta como gratis: usa una tarifa de reserva y avisa).
+        Si el rápido y el inteligente son el mismo modelo, vale el más caro, para no subestimar el gasto.
+        """
+        self.ensure_one()
+        resultado = {}
+        for nivel, modelo in (('rapido', self.modelo_rapido), ('inteligente', self.modelo_inteligente)):
+            modelo, precios = (modelo or '').strip(), self.precios_ia()[nivel]
+            if not modelo or not precios['entrada'] or not precios['salida']:
+                continue
+            fila = {'entrada': precios['entrada'], 'salida': precios['salida']}
+            if precios['cache']:
+                fila['entrada_cache'] = precios['cache']
+            previo = resultado.get(modelo)
+            if not previo or fila['entrada'] + fila['salida'] > previo['entrada'] + previo['salida']:
+                resultado[modelo] = fila
+        return resultado
+
+    @api.private
     def lista_palabras_prohibidas(self):
         self.ensure_one()
         return [linea.strip() for linea in (self.palabras_prohibidas or '').splitlines() if linea.strip()]
@@ -367,6 +389,7 @@ class JuanAjustes(models.Model):
             'modelos_por_defecto': {proveedor: {'rapido': rapido, 'inteligente': inteligente}
                                     for proveedor, (rapido, inteligente) in MODELOS_POR_PROVEEDOR.items()},
             'precios': self.precios_ia(),
+            'precios_ia': self.precios_por_modelo(),
             'lecciones': self.lista_lecciones(),
             'mensaje_bienvenida': self.mensaje_bienvenida or '',
             'texto_privacidad_corto': self.texto_privacidad_corto or '',

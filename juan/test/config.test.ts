@@ -227,18 +227,20 @@ describe("CargadorConfig: caché de 60 s", () => {
 });
 
 describe("horario y mes del negocio (America/Panama = UTC-5)", () => {
-  const h: Horario = { inicio: "08:00", fin: "17:00", dias: [0, 1, 2, 3, 4], zona: "America/Panama" };
+  // Lunes a viernes (0 = domingo, como lo publica Odoo).
+  const h: Horario = { inicio: "08:00", fin: "17:00", dias: [1, 2, 3, 4, 5], zona: "America/Panama" };
   // 2026-10-09 es viernes.
   const panama = (dia: number, hh: number, mm = 0) => Date.UTC(2026, 9, dia, hh + 5, mm);
 
-  it("hora y día de la semana en la zona del negocio (0 = lunes)", () => {
-    expect(relojDelNegocio("America/Panama", panama(9, 10, 30))).toEqual({ minutosDelDia: 630, dia: 4 });
-    expect(relojDelNegocio("America/Panama", panama(11, 8))).toEqual({ minutosDelDia: 480, dia: 6 });
-    expect(relojDelNegocio("America/Panama", panama(12, 0)).dia).toBe(0);
+  it("hora y día de la semana en la zona del negocio (0 = domingo, igual que los días que publica Odoo)", () => {
+    expect(relojDelNegocio("America/Panama", panama(9, 10, 30))).toEqual({ minutosDelDia: 630, dia: 5 }); // viernes
+    expect(relojDelNegocio("America/Panama", panama(11, 8))).toEqual({ minutosDelDia: 480, dia: 0 }); // domingo
+    expect(relojDelNegocio("America/Panama", panama(12, 0)).dia).toBe(1); // lunes
+    expect(relojDelNegocio("America/Panama", panama(10, 12, 0)).dia).toBe(6); // sábado
   });
 
   it("a las 23:30 UTC del viernes en Panamá todavía son las 18:30 del viernes", () => {
-    expect(relojDelNegocio("America/Panama", Date.UTC(2026, 9, 9, 23, 30))).toEqual({ minutosDelDia: 18 * 60 + 30, dia: 4 });
+    expect(relojDelNegocio("America/Panama", Date.UTC(2026, 9, 9, 23, 30))).toEqual({ minutosDelDia: 18 * 60 + 30, dia: 5 });
   });
 
   it("dentro: de 8:00 (incluida) a 17:00 (excluida), solo en los días marcados", () => {
@@ -247,7 +249,12 @@ describe("horario y mes del negocio (America/Panama = UTC-5)", () => {
     expect(dentroDeHorario(h, panama(9, 17, 0))).toBe(false);
     expect(dentroDeHorario(h, panama(9, 7, 59))).toBe(false);
     expect(dentroDeHorario(h, panama(10, 10, 0))).toBe(false); // sábado
+    expect(dentroDeHorario(h, panama(11, 10, 0))).toBe(false); // domingo
+    expect(dentroDeHorario(h, panama(12, 10, 0))).toBe(true); // lunes
     expect(dentroDeHorario({ ...h, dias: [0, 1, 2, 3, 4, 5, 6] }, panama(10, 10, 0))).toBe(true);
+    // Solo domingos: el 0 de Odoo es el domingo, no el lunes.
+    expect(dentroDeHorario({ ...h, dias: [0] }, panama(11, 10, 0))).toBe(true);
+    expect(dentroDeHorario({ ...h, dias: [0] }, panama(12, 10, 0))).toBe(false);
   });
 
   it("una zona inválida no rompe: cae en Panamá", () => {

@@ -263,6 +263,13 @@ describe("el bloque dinámico (no se cachea)", () => {
     expect(c).toContain("todos los días, de 8:00 a. m. a 5:00 p. m.");
   });
 
+  it("nombra los días con la convención de Odoo (0 = domingo)", () => {
+    const lunesAViernes = { ...cfg, horario: { ...cfg.horario, dias: [1, 2, 3, 4, 5] } };
+    expect(contextoDelChat(lunesAViernes, base)).toContain("lunes, martes, miércoles, jueves, viernes, de 8:00 a. m.");
+    const finDeSemana = { ...cfg, horario: { ...cfg.horario, dias: [0, 6] } };
+    expect(contextoDelChat(finDeSemana, base)).toContain("domingo, sábado, de 8:00 a. m.");
+  });
+
   it("dice si es horario de atención de las vendedoras", () => {
     expect(contextoDelChat(cfg, base)).toContain("DENTRO del horario");
     expect(contextoDelChat(cfg, { ...base, ahora: Date.parse("2026-10-09T05:00:00Z") })).toContain("FUERA del horario");
