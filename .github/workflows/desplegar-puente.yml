@@ -1,0 +1,186 @@
+name: Desplegar puente de WhatsApp
+
+# Despliega el puente de WhatsApp por QR (puente-wa/): Worker + Durable Object + Container (Baileys).
+# Es de «Juan», el asistente de clientes (docs/JUAN.md, docs/JUAN_PUENTE.md).
+#
+# SOLO A MANO (Actions → «Desplegar puente de WhatsApp» → Run workflow). No corre en cada push y no lo
+# integra ci.yml. Por defecto hace un ENSAYO («dry-run»): pruebas, tipos, la configuración de Wrangler y la
+# construcción de la imagen, sin tocar Cloudflare. Desplegar de verdad es otra opción, y en producción espera
+# la aprobación del dueño (environment `production` con «Required reviewers», como desplegar.yml).
+#
+# SECRETOS: los del puente (WA_TOKEN, WA_SESION_CLAVE, TELEGRAM_BOT_TOKEN_JUAN…) NO pasan por GitHub. La dueña
+# los pega directamente en el panel de Cloudflare (Workers → dcasa-puente-wa → Settings → Variables and
+# Secrets). Por eso este workflow solo usa los dos secretos de GitHub que YA existen para desplegar
+# (CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID), no sube ningún secreto (nada de --secrets-file ni de
+# `secrets.required`) y el PRIMER despliegue sale bien sin ellos: el puente arranca «sin configurar»
+# (no enciende el contenedor ni conecta WhatsApp; GET /api/estado dice qué nombres faltan). Un despliegue
+# nunca borra los secretos puestos en el panel.
+#
+# Permisos del token de Cloudflare: además de los del despliegue del borde, «Cloudflare Images: Edit» para
+# subir la imagen del contenedor (sin él muere al subirla, con un error que no menciona Images).
+#
+# Orden: el Worker `juan` tiene que existir ANTES (el puente lo enlaza por service binding y Cloudflare no
+# despliega un binding a un Worker que no existe); el workflow lo comprueba y avisa.
+
+on:
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: "Entorno (staging = dcasa-puente-wa-staging; production = dcasa-puente-wa)"
+        type: choice
+        options: [staging, production]
+        required: true
+        default: staging
+      accion:
+        description: "dry-run = solo ensayo (no toca Cloudflare); desplegar = publica de verdad"
+        type: choice
+        options: [dry-run, desplegar]
+        required: true
+        default: dry-run
+
+permissions:
+  contents: read
+
+jobs:
+  ensayo:
+    name: Ensayo (pruebas, tipos, configuración e imagen)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          # El puente, el contrato (una prueba lo lee) y .github (el script de validación).
+          sparse-checkout: |
+            /puente-wa/
+            /docs/JUAN.md
+            /.github/
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: puente-wa/package-lock.json
+
+      - name: Instalar (exactamente lo del package-lock.json, con la versión de wrangler fijada)
+        working-directory: puente-wa
+        run: npm ci
+
+      - name: Tipos
+        working-directory: puente-wa
+        run: npm run typecheck
+
+      - name: Pruebas
+        working-directory: puente-wa
+        run: npm test
+
+      - name: Configuración de Wrangler (producción y staging) sin desplegar
+        working-directory: puente-wa
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          # Compila el Worker y valida wrangler.jsonc de los dos entornos. No toca Cloudflare ni construye
+          # la imagen (--containers-rollout=none). Producción es la raíz del archivo: --env="".
+          npx wrangler deploy --dry-run --containers-rollout=none --env="" --outdir "$RUNNER_TEMP/dry-prod"
+          npx wrangler deploy --dry-run --containers-rollout=none --env=staging --outdir "$RUNNER_TEMP/dry-staging"
+
+      - name: La imagen del contenedor construye
+        run: docker build --tag dcasa-puente-wa:ensayo puente-wa/contenedor
+
+  desplegar:
+    name: Desplegar a ${{ inputs.entorno }}
+    needs: ensayo
+    if: inputs.accion == 'desplegar'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # Con «Required reviewers» en el environment `production`, el job espera la aprobación del dueño.
+    environment:
+      name: ${{ inputs.entorno }}
+    concurrency:
+      group: desplegar-puente-${{ inputs.entorno }}
+      cancel-in-progress: false
+    env:
+      ENTORNO: ${{ inputs.entorno }}
+      WRANGLER_SEND_METRICS: "false"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          sparse-checkout: |
+            /puente-wa/
+            /.github/
+          sparse-checkout-cone-mode: false
+
+      - name: Credenciales de Cloudflare completas, sin marcadores
+        run: |
+          # Solo estos dos: son los únicos secretos de GitHub que usa el puente. No se imprime ningún valor.
+          .github/scripts/validar_entorno.sh CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: puente-wa/package-lock.json
+
+      - name: Instalar (versión de wrangler fijada por el package-lock.json)
+        working-directory: puente-wa
+        run: npm ci
+
+      - name: El Worker juan existe (el puente lo enlaza por service binding)
+        run: |
+          if [ "$ENTORNO" = "production" ]; then juan=dcasa-juan; else juan=dcasa-juan-staging; fi
+          codigo="$(curl -sS -o /dev/null -w '%{http_code}' --retry 3 --retry-all-errors \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${juan}" || echo 000)"
+          case "$codigo" in
+            200) echo "El Worker «${juan}» existe." ;;
+            404)
+              echo "::error::El Worker «${juan}» todavía no existe: despliégalo primero. Cloudflare no despliega un Worker que declara un service binding a otro que no existe."
+              exit 1 ;;
+            *)
+              echo "::error::No pude comprobar el Worker «${juan}» (HTTP ${codigo}). Reintenta el job."
+              exit 1 ;;
+          esac
+
+      - name: wrangler deploy (Worker + Durable Object + imagen del contenedor; sin secretos)
+        working-directory: puente-wa
+        run: |
+          # Producción es la raíz del archivo (--env=""); staging es `env.staging`.
+          # SIN --secrets-file y sin `secrets.required`: los secretos los pone la dueña en el panel de
+          # Cloudflare y un despliegue nunca los borra. Wrangler construye la imagen con el Docker del
+          # runner y la sube al registro de Cloudflare.
+          if [ "$ENTORNO" = "production" ]; then destino=""; else destino="$ENTORNO"; fi
+          npx wrangler deploy --env="$destino"
+
+      - name: Comprobar el puente desplegado
+        run: |
+          if [ "$ENTORNO" = "production" ]; then nombre=dcasa-puente-wa; else nombre=dcasa-puente-wa-staging; fi
+          url="https://${nombre}.dcasapty.workers.dev"
+          for intento in 1 2 3 4 5 6; do
+            salud="$(curl -sS --max-time 20 "$url/health" || true)"
+            [ "$salud" = "ok" ] && break
+            echo "Esperando al puente (intento $intento)…"; sleep 10
+          done
+          if [ "$salud" != "ok" ]; then
+            echo "::error::El puente no contestó «ok» en $url/health."
+            exit 1
+          fi
+          # /api/estado SIN token: mientras falten secretos responde 200 con SOLO los nombres que faltan; ya
+          # configurado, pide token (401) y eso también es buena señal. Nunca se imprime ningún secreto.
+          codigo="$(curl -sS --max-time 20 -o "$RUNNER_TEMP/estado.json" -w '%{http_code}' "$url/api/estado" || echo 000)"
+          {
+            echo "## Puente de WhatsApp desplegado a ${ENTORNO}"
+            echo ""
+            echo "- Worker: \`${nombre}\` (\`${GITHUB_SHA}\`)"
+            echo "- \`/health\`: ok"
+            if [ "$codigo" = "200" ]; then
+              echo "- \`/api/estado\` (sin token): \`$(jq -c '{estado, secretos_faltantes, opcionales_faltantes}' "$RUNNER_TEMP/estado.json")\`"
+              echo ""
+              echo "Siguiente paso: pegar los secretos en el panel de Cloudflare (Workers → \`${nombre}\` → Settings → Variables and Secrets). Nombres y pasos: docs/JUAN_PUENTE.md."
+            else
+              echo "- \`/api/estado\`: HTTP ${codigo} (ya está configurado y pide el token)"
+            fi
+            echo ""
+            echo "Si cambió la imagen del contenedor y el canal ya estaba vinculado, reinícialo con \`POST /api/reiniciar\` (no pide QR: la sesión vive en el Durable Object). Ver docs/JUAN_PUENTE.md."
+          } >> "$GITHUB_STEP_SUMMARY"
