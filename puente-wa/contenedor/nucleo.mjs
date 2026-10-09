@@ -154,6 +154,8 @@ export function crearNucleo(deps) {
   let intentosReconexion = 0;
   /** Verdadero mientras el arranque inicial siga reintentando por su cuenta. */
   let arrancando = true;
+  /** Cuándo se abrió el último socket: cada intento nuevo tiene `vigilanteMs` para conectar antes de que el vigilante lo recicle. */
+  let intentoDesde = 0;
 
   // Lo que mandó el bot contra lo que mandó una persona.
   const enviadosPorElBot = crearRegistroDeEnvios();
@@ -234,6 +236,7 @@ export function crearNucleo(deps) {
       getMessage: async (/** @type {any} */ key) => textosEnviados.get(key?.id),
     });
     socket = s;
+    intentoDesde = Date.now();
 
     /** Un socket viejo que todavía emite eventos no tiene voz. */
     const vigente = () => mia === generacion;
@@ -325,6 +328,9 @@ export function crearNucleo(deps) {
 
     setTimeout(() => {
       reconexionProgramada = false;
+      // Si mientras esperaba el socket ya se conectó (un intento lento que por fin abrió),
+      // reconectar ahora tumbaría una conexión sana.
+      if (estado.conexion === "conectada" && socketAbierto()) return;
       conectar().catch((e) => {
         anotarError("reconectar", e);
         // LA línea del arreglo. Sin ella la cadena termina aquí y el canal se queda
@@ -381,8 +387,9 @@ export function crearNucleo(deps) {
 
     // `cerrada` o `arrancando`. Si ya hay algo en camino, no se pisa.
     if (reconexionProgramada || arrancando) return;
-    // Y se le da al camino normal el tiempo de hacer su trabajo antes de meterse.
-    if (Date.now() - estado.conexionDesde < vigilanteMs) return;
+    // Y se le da al camino normal el tiempo de hacer su trabajo antes de meterse: desde que se
+    // cayó, y desde que se abrió el último intento de conexión.
+    if (Date.now() - Math.max(estado.conexionDesde, intentoDesde) < vigilanteMs) return;
 
     log.error(`Nadie está reconectando y lleva caída. Rescatando (${estado.conexion}).`);
     estado.rescatesDelVigilante += 1;
