@@ -10,6 +10,23 @@
                          help="Número al que llevan todos los botones «Escríbenos por WhatsApp».">
                     <field name="dcasa_whatsapp_number" placeholder="+507 6026-1919"/>
                 </setting>
+                <setting id="dcasa_apartado" string="Apartados de la tienda"
+                         help="Días que se guarda un pedido de la tienda sin cobrar. Pasado ese plazo sin que el cliente lo reclame, el pedido se anula solo y el inventario vuelve a quedar libre. 0 = nunca se anula solo.">
+                    <field name="dcasa_apartado_dias"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_order_form_dcasa_apartado" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.apartado</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='order_details']/field[@name='validity_date']" position="after">
+                <field name="dcasa_apartado_vence"
+                       invisible="not website_id or state not in ('sent', 'sale')"
+                       readonly="state == 'cancel'"/>
             </xpath>
         </field>
     </record>
