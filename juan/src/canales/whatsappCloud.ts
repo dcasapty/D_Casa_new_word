@@ -15,6 +15,7 @@ import { firmaMetaValida, tokensIguales } from "../seguridad";
 import { urlGraph } from "./graph";
 import {
   aMilisegundos,
+  faltantesDe,
   json,
   ok200,
   type AdaptadorCanal,
@@ -165,8 +166,17 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
       return CAPACIDADES;
     },
 
-    configurado(env: Env): boolean {
-      return !!env.WHATSAPP_CLOUD_TOKEN && !!env.WHATSAPP_PHONE_NUMBER_ID && !!env.META_APP_SECRET && !!env.META_VERIFY_TOKEN;
+    faltantes(env: Env): string[] {
+      return faltantesDe({
+        WHATSAPP_CLOUD_TOKEN: !!env.WHATSAPP_CLOUD_TOKEN,
+        WHATSAPP_PHONE_NUMBER_ID: !!env.WHATSAPP_PHONE_NUMBER_ID,
+        META_APP_SECRET: !!env.META_APP_SECRET,
+        META_VERIFY_TOKEN: !!env.META_VERIFY_TOKEN,
+      });
+    },
+
+    configurado(env: Env, canal: CanalId): boolean {
+      return this.faltantes(env, canal).length === 0;
     },
 
     async recibir(req: Request, env: Env): Promise<ResultadoWebhook> {
@@ -233,7 +243,7 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
     },
 
     async salud(canal: CanalId, env: Env): Promise<SaludCanal> {
-      return { configurado: this.configurado(env, canal), conectado: null };
+      return { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
     },
   };
 }

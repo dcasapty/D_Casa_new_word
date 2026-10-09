@@ -84,8 +84,15 @@ export interface Capacidades {
   maxTexto: number;
 }
 
+/** Lo que falta (secretos, bindings) para que un canal funcione, por nombre. */
+export function faltantesDe(requeridos: Record<string, boolean>): string[] {
+  return Object.entries(requeridos).filter(([, ok]) => !ok).map(([nombre]) => nombre);
+}
+
 export interface SaludCanal {
   configurado: boolean;
+  /** Nombres de lo que falta, si algo falta. */
+  faltan?: string[];
   /** null = este canal no puede saberlo (no hay una conexión que mirar). */
   conectado: boolean | null;
   detalle?: string;
@@ -98,7 +105,12 @@ export interface AdaptadorCanal {
   readonly ruta: string;
   /** Lo que puede llevar cada canal (Instagram no manda documentos; Telegram sí). */
   capacidades(canal: CanalId): Capacidades;
-  /** ¿Están cargadas sus credenciales? (Que el canal esté ENCENDIDO lo decide Odoo, no esto.) */
+  /**
+   * NOMBRES de lo que le falta a este canal para funcionar: secretos sin cargar o service bindings sin declarar.
+   * Vacío = listo. (Que el canal esté ENCENDIDO lo decide Odoo, no esto.) Nunca devuelve valores.
+   */
+  faltantes(env: Env, canal: CanalId): string[];
+  /** ¿Están cargadas sus credenciales? Es `faltantes(...)` vacío. */
   configurado(env: Env, canal: CanalId): boolean;
   /** Verifica el origen del webhook y lo traduce a mensajes del motor. */
   recibir(req: Request, env: Env): Promise<ResultadoWebhook>;

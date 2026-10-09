@@ -186,6 +186,10 @@ export class Cola {
   reintentar(id: number, proximo: number): void {
     this.sql.correr("UPDATE cola SET intentos = intentos + 1, proximo = ? WHERE id = ?", proximo, id);
   }
+  /** Aplaza sin gastar un intento (p. ej. mientras falta el token de Odoo). */
+  posponer(id: number, proximo: number): void {
+    this.sql.correr("UPDATE cola SET proximo = ? WHERE id = ?", proximo, id);
+  }
   purgar(antesDe: number): void {
     this.sql.correr("DELETE FROM cola WHERE creado < ?", antesDe);
   }

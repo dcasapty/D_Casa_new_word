@@ -39,6 +39,8 @@ export interface ContextoRevision {
   nombresHerramientas?: readonly string[];
   /** Texto del prompt estable: ninguna frase larga suya puede salir copiada. */
   textoDelPrompt?: string;
+  /** Datos que el cliente dio y no deben repetirse en la respuesta (p. ej. el PIN de Socios). */
+  secretos?: readonly string[];
 }
 
 // ── Textos de reemplazo ─────────────────────────────────────────────────────
@@ -141,6 +143,15 @@ const PROMESAS: { r: RegExp; que: string }[] = [
   { r: /\b(?:te|le)\s+(?:doy|damos|hago|hacemos|aplico|aplicamos|ofrezco|ofrecemos|dejo|dejamos|regalo|regalamos)\s+(?:un\s+|el\s+|una\s+)?(?:\d+\s*%\s*de\s+)?(?:descuento|rebaja|promocion|oferta)\b/, que: "descuento" },
   { r: /\b(?:financiamos|financiamiento\s+(?:disponible|aprobado|a\s+\d+)|a\s+(?:\d+\s+)?(?:cuotas|plazos|meses)\s+sin\s+interes|pagos?\s+(?:a\s+)?(?:cuotas|plazos)\s+(?:disponibles?|sin))\b/, que: "financiamiento" },
   { r: /\b(?:te|le)\s+(?:aprobamos|damos credito|fiamos)\b/, que: "crédito" },
+  // Un pago solo lo valida una persona (regla 5): el bot nunca lo da por recibido.
+  { r: /\b(?:pago|deposito|transferencia|yappy|comprobante)\s+(?:ya\s+)?(?:fue\s+|esta\s+|queda\s+)?(?:recibid[oa]|confirmad[oa]|aprobad[oa]|acreditad[oa]|verificad[oa]|valid[ao]d[oa])\b/, que: "pago confirmado" },
+  { r: /\b(?:recibimos|recibi|confirmamos|confirmo|verifique|verificamos|valide|validamos|vi|veo)\s+(?:ya\s+)?(?:tu|su|el)\s+(?:pago|deposito|transferencia|comprobante|yappy)\b/, que: "pago confirmado" },
+  { r: /\bya\s+(?:esta|quedo)\s+pagad[oa]\b/, que: "pago confirmado" },
+  // Los puntos nacen con la factura pagada (regla 4): el bot no acredita ni promete puntos de una compra sin facturar.
+  { r: /\bacredit(?:o|amos|aremos|are|ado|ada|ados|adas)\b/, que: "puntos acreditados" },
+  { r: /\b(?:te|le)\s+(?:sumo|sumamos|sumaremos|damos|daremos|doy|regalo|regalamos|abono|abonamos)\s+(?:\d+\s+)?puntos\b/, que: "puntos prometidos" },
+  { r: /\bcon\s+(?:esta|esa|tu|su)\s+compra\s+(?:ganas|ganaras|acumulas|acumularas|sumas|sumaras|recibes|recibiras|te llevas)\b/, que: "puntos prometidos" },
+  { r: /\b(?:ganaras|acumularas|sumaras|recibiras|ganaria|acumularia)\s+\d+\s+puntos\b/, que: "puntos prometidos" },
 ];
 
 /** «20% de descuento» solo es una promesa si el 20 NO salió de una herramienta (p. ej. el catálogo). */
@@ -222,6 +233,7 @@ function copiaDelPrompt(texto: string, prompt: string): string | null {
 
 function fuga(texto: string, ctx: ContextoRevision): string | null {
   const bajo = texto.toLowerCase();
+  for (const x of ctx.secretos ?? []) if (x.length >= 4 && texto.includes(x)) return "dato secreto del cliente";
   for (const e of ETIQUETAS_DEL_PROMPT) if (bajo.includes(e)) return e;
   for (const n of ctx.nombresHerramientas ?? []) {
     if (new RegExp(`(?<![a-z0-9_])${escaparRegex(n)}(?![a-z0-9_])`, "i").test(texto)) return n;

@@ -8,6 +8,7 @@
 import type { Env } from "../env";
 import { tokensIguales } from "../seguridad";
 import {
+  faltantesDe,
   ok200,
   type AdaptadorCanal,
   type AdjuntoEntrante,
@@ -96,8 +97,12 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       return { imagenes: true, documentos: true, ventana24h: false, maxTexto: MAX_TEXTO };
     },
 
+    faltantes(env: Env): string[] {
+      return faltantesDe({ TELEGRAM_BOT_TOKEN_JUAN: !!env.TELEGRAM_BOT_TOKEN_JUAN, TELEGRAM_WEBHOOK_SECRET_JUAN: !!env.TELEGRAM_WEBHOOK_SECRET_JUAN });
+    },
+
     configurado(env: Env): boolean {
-      return !!env.TELEGRAM_BOT_TOKEN_JUAN && !!env.TELEGRAM_WEBHOOK_SECRET_JUAN;
+      return this.faltantes(env, "telegram").length === 0;
     },
 
     async recibir(req: Request, env: Env): Promise<ResultadoWebhook> {
@@ -175,7 +180,7 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
     },
 
     async salud(canal: CanalId, env: Env): Promise<SaludCanal> {
-      return { configurado: this.configurado(env, canal), conectado: null };
+      return { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
     },
   };
 }

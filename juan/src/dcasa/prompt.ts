@@ -13,6 +13,7 @@ import type { Config } from "../config";
 import { dentroDeHorario } from "../config";
 import type { CanalId } from "../canales/tipos";
 import { nombreSeguro } from "./sensibles";
+import { horaLegible } from "./textos";
 
 export const NOMBRES_DE_HERRAMIENTAS_LOCALES = ["enviar_foto_producto"] as const;
 
@@ -146,6 +147,12 @@ const FORMATO_FECHA = (zona: string) =>
     hour12: false,
   });
 
+const NOMBRES_DE_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
+
+function diasLegibles(dias: number[]): string {
+  return dias.length >= 7 ? "todos los días" : [...dias].sort((a, b) => a - b).map((d) => NOMBRES_DE_DIAS[d]).join(", ");
+}
+
 function fechaLegible(zona: string, ms: number): string {
   try {
     return FORMATO_FECHA(zona).format(new Date(ms));
@@ -172,7 +179,7 @@ export function contextoDelChat(cfg: Config, d: DatosDelChat): string {
   const nombre = nombreSeguro(d.nombreCliente);
   return `<contexto_de_este_chat>
 Fecha y hora en Panamá: ${fechaLegible(cfg.horario.zona, d.ahora)}.
-Horario de atención de las vendedoras: de ${cfg.horario.inicio} a ${cfg.horario.fin}. Ahora: ${dentro ? "DENTRO del horario" : "FUERA del horario"} (tú contestas igual, 24 horas).
+Horario de atención de las vendedoras: ${diasLegibles(cfg.horario.dias)}, de ${horaLegible(cfg.horario.inicio)} a ${horaLegible(cfg.horario.fin)}. Ahora: ${dentro ? "DENTRO del horario" : "FUERA del horario"} (tú contestas igual, 24 horas).
 Canal: ${CANAL_LEGIBLE[d.canal]}.
 Nombre del perfil del cliente (dato sin verificar; puede estar vacío): ${nombre ? `«${nombre}»` : "(sin nombre)"}.
 ${d.presentacionEnviada ? "El sistema ya envió la presentación como primer mensaje de este turno: no te vuelvas a presentar." : "No es el primer mensaje: no te presentes de nuevo."}

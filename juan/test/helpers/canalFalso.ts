@@ -19,6 +19,9 @@ export class CanalFalso implements AdaptadorCanal {
   capacidades(): Capacidades {
     return this.cap;
   }
+  faltantes(): string[] {
+    return [];
+  }
   configurado(): boolean {
     return true;
   }

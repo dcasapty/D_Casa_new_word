@@ -8,8 +8,8 @@ export interface LlamadaGuionada {
 }
 
 export type PasoDelGuion =
-  | { texto: string; entrada?: number; salida?: number; cacheLectura?: number }
-  | { llamadas: LlamadaGuionada[]; texto?: string; entrada?: number; salida?: number }
+  | { texto: string; entrada?: number; salida?: number; cacheLectura?: number; alGenerar?: () => Promise<void> | void }
+  | { llamadas: LlamadaGuionada[]; texto?: string; entrada?: number; salida?: number; alGenerar?: () => Promise<void> | void }
   | { error: Error };
 
 let contador = 0;
@@ -33,6 +33,8 @@ export function modeloGuionado(pasos: PasoDelGuion[], id = "claude-haiku-4-5"): 
       const paso = pasos[Math.min(i, pasos.length - 1)];
       i++;
       if ("error" in paso) throw paso.error;
+      // Para simular que algo ocurre MIENTRAS el modelo piensa (una vendedora que escribe, por ejemplo).
+      await paso.alGenerar?.();
       const content: Array<{ type: "text"; text: string } | { type: "tool-call"; toolCallId: string; toolName: string; input: string }> = [];
       if ("texto" in paso && paso.texto !== undefined) content.push({ type: "text", text: paso.texto });
       if ("llamadas" in paso) {

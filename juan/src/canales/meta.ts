@@ -11,6 +11,7 @@ import { firmaMetaValida, tokensIguales } from "../seguridad";
 import { urlGraph } from "./graph";
 import {
   aMilisegundos,
+  faltantesDe,
   json,
   ok200,
   type AdaptadorCanal,
@@ -116,8 +117,12 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       return canal === "instagram" ? CAPACIDADES.instagram : CAPACIDADES.messenger;
     },
 
-    configurado(env: Env): boolean {
-      return !!env.META_PAGE_TOKEN && !!env.META_APP_SECRET && !!env.META_VERIFY_TOKEN;
+    faltantes(env: Env): string[] {
+      return faltantesDe({ META_PAGE_TOKEN: !!env.META_PAGE_TOKEN, META_APP_SECRET: !!env.META_APP_SECRET, META_VERIFY_TOKEN: !!env.META_VERIFY_TOKEN });
+    },
+
+    configurado(env: Env, canal: CanalId): boolean {
+      return this.faltantes(env, canal).length === 0;
     },
 
     async recibir(req: Request, env: Env): Promise<ResultadoWebhook> {
@@ -173,7 +178,7 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
     },
 
     async salud(canal: CanalId, env: Env): Promise<SaludCanal> {
-      return { configurado: this.configurado(env, canal), conectado: null };
+      return { configurado: this.configurado(env, canal), faltan: this.faltantes(env, canal), conectado: null };
     },
   };
 }

@@ -66,6 +66,8 @@ export interface DepsMotor {
   dormir(ms: number): Promise<void>;
   uuid(): string;
   bufferMs: number;
+  /** false = falta ANTHROPIC_API_KEY: no se intenta llamar a la IA (el cliente pasa a una vendedora). Por defecto true. */
+  iaConfigurada?: boolean;
   topeDiario?: number;
   urlPublica?: string;
   urlSitio?: string;
@@ -399,6 +401,12 @@ export class MotorConversacion {
           this.cola.borrar(fila.id);
         }
       } catch (err) {
+        // Sin el token de Odoo (primer despliegue, antes de pegar los secretos) lo pendiente espera: no se pierde ni gasta intentos.
+        if (err instanceof OdooError && err.sinCredenciales) {
+          this.cola.posponer(fila.id, ahora + 5 * 60_000);
+          this.odooCaido = true;
+          break;
+        }
         const max = fila.tipo === "mensaje" ? INTENTOS_COLA_MENSAJE : INTENTOS_COLA_HERRAMIENTA;
         if (fila.intentos + 1 >= max) {
           this.log("error", `se descarta ${fila.tipo} de la cola tras ${max} intentos`, String(err));
@@ -439,6 +447,11 @@ export class MotorConversacion {
       return;
     }
 
+    if (this.deps.iaConfigurada === false) {
+      // Primer despliegue sin la llave de IA: el cliente no se queda sin respuesta ni se insiste a ciegas.
+      await this.alFallarLaIA(cfg, ids, new Error("falta ANTHROPIC_API_KEY"), true);
+      return;
+    }
     await this.turnoDeIA(cfg, pend, ids, epoca0);
   }
 
@@ -585,26 +598,31 @@ export class MotorConversacion {
     this.kv.poner("fallos_ia", 0);
 
     // ── Guardia de salida ──
-    const conocidas = new Set<number>(registro.cifras);
-    for (const f of this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO)) for (const n of cifrasDeTexto(f.texto)) conocidas.add(n);
-    const ctx: ContextoRevision = {
+    const historicas = new Set<number>();
+    for (const f of this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO)) for (const n of cifrasDeTexto(f.texto)) historicas.add(n);
+    const nombresDeHerramientas = [...defs.map((d) => d.nombre), "enviar_foto_producto"];
+    const promptDeFugas = promptParaFugas(cfg);
+    // Se arma de nuevo en cada revisión: el segundo intento pudo consultar herramientas que el primero no.
+    const contextoDeRevision = (): ContextoRevision => ({
       preciosProducto: registro.preciosProducto,
-      cifrasConocidas: conocidas,
+      cifrasConocidas: new Set<number>([...historicas, ...registro.cifras]),
       palabrasProhibidas: cfg.palabras_prohibidas,
-      nombresHerramientas: [...defs.map((d) => d.nombre), "enviar_foto_producto"],
-      textoDelPrompt: promptParaFugas(cfg),
-    };
-    let analisis = analizar(salida.texto, ctx);
+      nombresHerramientas: nombresDeHerramientas,
+      textoDelPrompt: promptDeFugas,
+      secretos: registro.pines,
+    });
+    let analisis = analizar(salida.texto, contextoDeRevision());
     const reparables = analisis.graves.filter((g) => g.tipo !== "fuga");
     if (reparables.length > 0 && analisis.graves.every((g) => g.tipo !== "fuga")) {
       this.log("warn", "borrador rechazado por la guardia de salida; se le pide reescribirlo", analisis.graves);
       try {
         const segundo = await correr(`\n<correccion>${notaDeCorreccion(analisis.graves)}</correccion>`, true);
-        analisis = analizar(segundo.texto, ctx);
+        analisis = analizar(segundo.texto, contextoDeRevision());
       } catch {
         /* sigue con el primer borrador, que se repara abajo */
       }
     }
+    const ctx = contextoDeRevision();
 
     let texto = analisis.limpio;
     if (analisis.graves.some((g) => g.tipo === "fuga")) {
@@ -641,10 +659,10 @@ export class MotorConversacion {
   }
 
   /** La IA falló del todo: se reintenta con calma; si sigue fallando, no se deja al cliente sin respuesta. */
-  private async alFallarLaIA(cfg: Config, ids: number[], e: unknown): Promise<void> {
+  private async alFallarLaIA(cfg: Config, ids: number[], e: unknown, definitivo = false): Promise<void> {
     const fallos = this.kv.sumar("fallos_ia");
     this.log("error", `la IA falló (${fallos})`, e instanceof Error ? e.message : String(e));
-    if (fallos <= REINTENTOS_DE_IA.length) {
+    if (!definitivo && fallos <= REINTENTOS_DE_IA.length) {
       this.mensajes.marcarPendientes(ids, true);
       this.kv.poner("t_rafaga", this.deps.ahora() + REINTENTOS_DE_IA[fallos - 1]);
       return;

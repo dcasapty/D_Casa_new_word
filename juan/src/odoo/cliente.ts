@@ -10,6 +10,8 @@ export class OdooError extends Error {
     mensaje: string,
     readonly estado: number,
     readonly reintentable: boolean,
+    /** Falta el token de Odoo: no es un fallo de Odoo ni de este mensaje, y se arregla pegando el secreto. */
+    readonly sinCredenciales = false,
   ) {
     super(mensaje);
     this.name = "OdooError";
@@ -104,7 +106,7 @@ export class OdooCliente implements OdooApi {
 
   /** Una llamada, con `reintentos` extra SOLO si es seguro repetirla. */
   private async llamar<T>(metodo: "GET" | "POST", ruta: string, cuerpo: unknown, reintentos: number, plazoMs = this.plazoMs): Promise<T> {
-    if (!this.token) throw new OdooError("Falta JUAN_ODOO_TOKEN", 0, false);
+    if (!this.token) throw new OdooError("Falta JUAN_ODOO_TOKEN", 0, true, true);
     let ultimo: unknown = null;
     for (let intento = 0; intento <= reintentos; intento++) {
       if (intento > 0) await this.dormir(Math.min(8000, 700 * 2 ** (intento - 1)));

@@ -1,6 +1,7 @@
 // Las rutas del Worker, sin Cloudflare: reciben sus dependencias y se prueban con Request/Response de Node.
 //
 //   GET  /health                      → "ok" (sin datos)
+//   GET  /salud                       → público: qué NOMBRES de secretos faltan y el estado de cada canal (sin valores)
 //   *    /webhooks/<canal>            → cada adaptador de canales/ verifica su origen y traduce
 //   GET  /media/<conv>/<id>?exp&sig   → archivo temporal del cliente, firmado, para que Odoo lo descargue
 //   POST /odoo/enviar                 → una vendedora escribe desde Odoo
@@ -15,7 +16,7 @@ import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, js
 import type { Env } from "./env";
 import type { ResultadoIngest, ResultadoSeguimiento, SolicitudEnviar, SolicitudSeguimiento } from "./motor/conversacion";
 import { nombreDeConversacion, verificarUrlMedio } from "./motor/mediosUrl";
-import { informeDeSalud } from "./salud";
+import { informeDeSalud, informePublico, secretosGeneralesFaltantes } from "./salud";
 import { bearerValido } from "./seguridad";
 
 /** Lo que las rutas necesitan de una conversación (el stub del Durable Object o un doble en las pruebas). */
@@ -80,6 +81,11 @@ export async function manejar(req: Request, env: Env, d: DepsRutas): Promise<Res
 
   if (ruta === "/health") return new Response("ok", { status: 200 });
 
+  if (ruta === "/salud") {
+    if (req.method !== "GET") return error("método no permitido", 405);
+    return json(await informePublico({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, ahora: d.ahora }));
+  }
+
   const adaptador = adaptadorPorRuta(ruta, d.adaptadores);
   if (adaptador) return webhook(adaptador, req, env, d);
 
@@ -143,7 +149,16 @@ async function media(ruta: string, url: URL, req: Request, env: Env, d: DepsRuta
 
 async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise<Response> {
   // Sin token configurado ni siquiera se prueba el de la petición: falla cerrado.
-  if (!env.JUAN_WORKER_TOKEN) return error("JUAN_WORKER_TOKEN no está configurado", 503);
+  if (!env.JUAN_WORKER_TOKEN) {
+    return json(
+      {
+        ok: false,
+        error: "JUAN_WORKER_TOKEN no está configurado en este Worker: pégalo en Cloudflare (Settings → Variables and Secrets) con el mismo valor que en Odoo.",
+        secretos_faltantes: secretosGeneralesFaltantes(env),
+      },
+      503,
+    );
+  }
   if (!bearerValido(req, env.JUAN_WORKER_TOKEN)) return error("no autorizado", 401);
 
   if (ruta === "/odoo/salud") {

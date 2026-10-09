@@ -14,6 +14,7 @@ import type { Env } from "../env";
 import { tokenDelPuente, tokenParaCabecera, tokensIguales } from "../seguridad";
 import {
   aMilisegundos,
+  faltantesDe,
   json,
   type AdaptadorCanal,
   type AdjuntoEntrante,
@@ -130,8 +131,13 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
       return { imagenes: true, documentos: true, ventana24h: false, maxTexto: 3500 };
     },
 
+    faltantes(env: Env): string[] {
+      // PUENTE es un service binding (no un secreto): se declara en wrangler.jsonc cuando el puente ya existe.
+      return faltantesDe({ PUENTE: !!env.PUENTE, WA_TOKEN: !!env.WA_TOKEN });
+    },
+
     configurado(env: Env): boolean {
-      return !!env.PUENTE && !!env.WA_TOKEN;
+      return this.faltantes(env, "whatsapp_qr").length === 0;
     },
 
     async recibir(req: Request, env: Env): Promise<ResultadoWebhook> {
@@ -173,16 +179,17 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
     },
 
     async salud(_canal: CanalId, env: Env): Promise<SaludCanal> {
-      if (!this.configurado(env, "whatsapp_qr")) return { configurado: false, conectado: null, detalle: "faltan PUENTE o WA_TOKEN" };
+      const faltan = this.faltantes(env, "whatsapp_qr");
+      if (faltan.length > 0) return { configurado: false, faltan, conectado: null };
       try {
         const r = await llamarAlPuente(env, "/api/estado", { method: "GET" });
-        if (!r.ok) return { configurado: true, conectado: false, detalle: `el puente contestó ${r.status}` };
+        if (!r.ok) return { configurado: true, faltan: [], conectado: false, detalle: `el puente contestó ${r.status}` };
         const j = (await r.json().catch(() => ({}))) as Record<string, unknown>;
         const texto = String(j.conexion ?? j.estado ?? "");
         const conectado = typeof j.conectado === "boolean" ? j.conectado : /^(conectad[ao]|open|connected)$/i.test(texto);
-        return { configurado: true, conectado, detalle: texto || undefined };
+        return { configurado: true, faltan: [], conectado, detalle: texto || undefined };
       } catch (e) {
-        return { configurado: true, conectado: false, detalle: String(e instanceof Error ? e.message : e).slice(0, 120) };
+        return { configurado: true, faltan: [], conectado: false, detalle: String(e instanceof Error ? e.message : e).slice(0, 120) };
       }
     },
   };

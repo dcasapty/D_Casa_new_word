@@ -14,7 +14,7 @@ import { OdooFalso } from "./odooFalso";
 import { crearSqlNode } from "./sqlNode";
 import type { CanalId } from "../../src/canales/tipos";
 
-/** Jueves 9 de octubre de 2026, 10:00 en Panamá (UTC-5). */
+/** Viernes 9 de octubre de 2026, 10:00 en Panamá (UTC-5). */
 export const AHORA_INICIAL = Date.parse("2026-10-09T15:00:00Z");
 
 export interface OpcionesMundo {
