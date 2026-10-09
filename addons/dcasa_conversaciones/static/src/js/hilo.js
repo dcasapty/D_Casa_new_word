@@ -1,0 +1,255 @@
+/**
+ * El hilo de la conversación (columna central): burbujas por autor, fotos y documentos, notas internas, avisos del
+ * sistema, carga hacia atrás de 50 en 50, arrastrar y soltar archivos, y la caja de respuesta abajo.
+ */
+import { Component, onMounted, onPatched, onWillPatch, onWillUnmount, useRef, useState } from "@odoo/owl";
+import { CajaRespuesta } from "./caja";
+import {
+    colorDeEtiqueta,
+    cuando,
+    elementosDelHilo,
+    hora,
+    iconoDeArchivo,
+    iconoDeCanal,
+    iniciales,
+    tamano,
+} from "./utilidades";
+
+const CERCA_DEL_FONDO = 90;
+const CERCA_DEL_TOPE = 140;
+// Mientras el asistente prepara la respuesta (espera 15 s a que el cliente termine de escribir) se ve «escribiendo».
+const VENTANA_ESCRIBIENDO_MS = 90_000;
+
+export class Burbuja extends Component {
+    static template = "dcasa_conversaciones.Burbuja";
+    static props = { m: Object, almacen: Object, nombreCliente: String };
+
+    setup() {
+        this.almacen = useState(this.props.almacen);
+        this.hora = hora;
+        this.tamano = tamano;
+        this.iconoDeArchivo = iconoDeArchivo;
+    }
+
+    get autor() {
+        const m = this.props.m;
+        if (m.tipo === "nota") {
+            return `Nota interna · ${m.usuario?.nombre || "una vendedora"}`;
+        }
+        if (m.autor === "cliente") {
+            return this.props.nombreCliente;
+        }
+        if (m.autor === "bot") {
+            return "Asistente";
+        }
+        return m.usuario?.nombre || "Vendedora (desde el teléfono)";
+    }
+
+    get clase() {
+        const m = this.props.m;
+        return m.tipo === "nota" ? "nota" : m.autor;
+    }
+
+    get imagenes() {
+        return this.props.m.adjuntos.filter((a) => a.tipo === "imagen");
+    }
+
+    get documentos() {
+        return this.props.m.adjuntos.filter((a) => a.tipo !== "imagen");
+    }
+
+    get estadoDeEnvio() {
+        const m = this.props.m;
+        if (m.estado_envio === "por_enviar") {
+            return { clase: "pendiente", texto: "Por enviar: se reintenta solo", reintentar: true };
+        }
+        if (m.estado_envio === "fallido") {
+            return { clase: "fallido", texto: `No se pudo enviar${m.error ? `: ${m.error}` : ""}`, reintentar: true };
+        }
+        return null;
+    }
+
+    abrirImagen(adjunto) {
+        const todas = this.almacen.mensajes.flatMap((m) => m.adjuntos.filter((a) => a.tipo === "imagen"));
+        const indice = Math.max(0, todas.findIndex((a) => a.id === adjunto.id));
+        this.almacen.abrirVisor(
+            todas.map((a) => ({ id: a.id, url: a.url, miniatura: a.miniatura, nombre: a.nombre })),
+            indice
+        );
+    }
+}
+
+export class HiloConversacion extends Component {
+    static template = "dcasa_conversaciones.Hilo";
+    static components = { Burbuja, CajaRespuesta };
+    static props = { almacen: Object };
+
+    setup() {
+        this.almacen = useState(this.props.almacen);
+        this.local = useState({ arrastrando: false });
+        this.refCuerpo = useRef("cuerpo");
+        this.elementosDelHilo = (mensajes) => elementosDelHilo(mensajes, this.almacen.ahora);
+        this.iconoDeCanal = iconoDeCanal;
+        this.iniciales = iniciales;
+        this.colorDeEtiqueta = colorDeEtiqueta;
+        this.cuando = (iso) => cuando(iso, this.almacen.ahora);
+        this._conversacionVista = null;
+        this._primerId = null;
+        this._ultimoId = null;
+        this._arrastresAnidados = 0;
+
+        onWillPatch(() => {
+            const el = this.refCuerpo.el;
+            if (el) {
+                this._alturaAntes = el.scrollHeight;
+                this._cercaDelFondo = el.scrollHeight - el.scrollTop - el.clientHeight < CERCA_DEL_FONDO;
+            }
+        });
+        onPatched(() => this.acomodarElDesplazamiento());
+        onMounted(() => this.acomodarElDesplazamiento());
+        onWillUnmount(() => (this._arrastresAnidados = 0));
+    }
+
+    /** Al abrir una conversación, al fondo; al traer mensajes viejos, sin saltar; con uno nuevo, al fondo si ya estabas ahí. */
+    acomodarElDesplazamiento() {
+        const el = this.refCuerpo.el;
+        const mensajes = this.almacen.mensajes;
+        if (!el) {
+            return;
+        }
+        const primero = mensajes[0]?.id ?? null;
+        const ultimo = mensajes[mensajes.length - 1]?.id ?? null;
+        if (this._conversacionVista !== this.almacen.seleccionadaId && mensajes.length) {
+            this._conversacionVista = this.almacen.seleccionadaId;
+            el.scrollTop = el.scrollHeight;
+        } else if (this._primerId !== null && primero !== null && primero < this._primerId) {
+            el.scrollTop += el.scrollHeight - (this._alturaAntes || 0);
+        } else if (ultimo !== this._ultimoId && (this._cercaDelFondo || this.esMio(mensajes[mensajes.length - 1]))) {
+            el.scrollTop = el.scrollHeight;
+        }
+        if (el.scrollHeight - el.scrollTop - el.clientHeight < CERCA_DEL_FONDO && this.almacen.nuevosSinVer) {
+            this.almacen.nuevosSinVer = 0;
+        }
+        this._primerId = primero;
+        this._ultimoId = ultimo;
+    }
+
+    esMio(m) {
+        return !!m && m.autor === "vendedora" && m.usuario?.id === this.almacen.usuario.id;
+    }
+
+    alDesplazar() {
+        const el = this.refCuerpo.el;
+        if (!el) {
+            return;
+        }
+        if (el.scrollTop < CERCA_DEL_TOPE) {
+            this.almacen.cargarAntes();
+        }
+        if (this.almacen.nuevosSinVer && el.scrollHeight - el.scrollTop - el.clientHeight < CERCA_DEL_FONDO) {
+            this.almacen.nuevosSinVer = 0;
+        }
+    }
+
+    irAlFondo() {
+        const el = this.refCuerpo.el;
+        if (el) {
+            el.scrollTop = el.scrollHeight;
+        }
+        this.almacen.nuevosSinVer = 0;
+    }
+
+    get nombreDelCliente() {
+        return this.almacen.conversacion?.nombre || "Cliente";
+    }
+
+    /** «El asistente está escribiendo»: el cliente acaba de escribir y quien contesta es el asistente. */
+    get escribiendo() {
+        const c = this.almacen.conversacion;
+        if (!c || !c.bot_atiende || !this.almacen.bot.conectado || !this.almacen.bot.encendido) {
+            return false;
+        }
+        const ultimo = this.almacen.mensajes.filter((m) => m.tipo === "mensaje").at(-1);
+        return !!ultimo && ultimo.autor === "cliente" && this.almacen.ahora - new Date(ultimo.ts).getTime() < VENTANA_ESCRIBIENDO_MS;
+    }
+
+    get subtitulo() {
+        const c = this.almacen.conversacion;
+        const ficha = this.almacen.ficha;
+        const partes = [c?.canal_nombre];
+        if (ficha?.cliente?.celular) {
+            partes.push(ficha.cliente.celular);
+        }
+        return partes.filter(Boolean).join(" · ");
+    }
+
+    get estadoDelHeader() {
+        const c = this.almacen.conversacion;
+        if (!c) {
+            return null;
+        }
+        if (c.necesita_atencion) {
+            return { clase: "atencion", texto: "Necesita atención" };
+        }
+        if (c.estado === "cerrada") {
+            return { clase: "cerrada", texto: "Cerrada" };
+        }
+        if (c.estado === "humano") {
+            return { clase: "humano", texto: c.asignada_a ? `Atiende ${c.asignada_a.nombre}` : "Con una vendedora" };
+        }
+        return { clase: "bot", texto: "Atiende el asistente" };
+    }
+
+    volver() {
+        this.almacen.volverALaLista();
+    }
+
+    abrirFicha() {
+        this.almacen.fichaAbierta = !this.almacen.fichaAbierta;
+        this.almacen.columna = "ficha";
+    }
+
+    async cerrarConversacion() {
+        await this.almacen.cerrar();
+    }
+
+    // --- Arrastrar y soltar archivos ---------------------------------------------------------------
+
+    llevaArchivos(ev) {
+        return [...(ev.dataTransfer?.types || [])].includes("Files");
+    }
+
+    alEntrarConArchivos(ev) {
+        if (this.llevaArchivos(ev)) {
+            ev.preventDefault();
+            this._arrastresAnidados++;
+            this.local.arrastrando = true;
+        }
+    }
+
+    alPasarConArchivos(ev) {
+        if (this.llevaArchivos(ev)) {
+            ev.preventDefault();
+            ev.dataTransfer.dropEffect = "copy";
+        }
+    }
+
+    alSalirConArchivos(ev) {
+        if (this.llevaArchivos(ev)) {
+            this._arrastresAnidados = Math.max(0, this._arrastresAnidados - 1);
+            if (!this._arrastresAnidados) {
+                this.local.arrastrando = false;
+            }
+        }
+    }
+
+    alSoltarArchivos(ev) {
+        if (!this.llevaArchivos(ev)) {
+            return;
+        }
+        ev.preventDefault();
+        this._arrastresAnidados = 0;
+        this.local.arrastrando = false;
+        this.almacen.agregarArchivos([...ev.dataTransfer.files]);
+    }
+}

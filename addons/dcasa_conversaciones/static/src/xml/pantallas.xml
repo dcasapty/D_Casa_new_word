@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- La barra de arriba de Resumen, Costos y Conexiones -->
+    <t t-name="dcasa_conversaciones.Encabezado">
+        <header class="o_dcj_p_cabecera">
+            <div class="o_dcj_p_titulo">
+                <span class="o_dcj_p_eyebrow">Juan, el asistente de clientes</span>
+                <h1 t-out="props.titulo"/>
+                <p t-if="props.subtitulo" t-out="props.subtitulo"/>
+            </div>
+            <div class="o_dcj_p_extra"><t t-slot="default"/></div>
+            <nav class="o_dcj_p_nav" t-ref="nav" aria-label="Pantallas de Juan">
+                <button t-foreach="visibles" t-as="s" t-key="s.id" type="button" class="o_dcj_p_nav_boton"
+                        t-att-class="{ o_activa: s.id === props.actual }" t-att-aria-current="s.id === props.actual ? 'page' : null"
+                        t-on-click="() => this.ir(s)">
+                    <i t-attf-class="fa #{s.icono}" aria-hidden="true"/> <t t-out="s.nombre"/>
+                </button>
+            </nav>
+        </header>
+    </t>
+
+    <!-- Resumen -->
+    <t t-name="dcasa_conversaciones.Resumen">
+        <div class="o_dcj_p o_action">
+            <EncabezadoJuan titulo="'Resumen'" subtitulo="'Qué pasó con los clientes ' + nombreDelPeriodo + '. Todo sale de lo que Odoo ya guarda.'"
+                            actual="'resumen'" esGerencia="state.datos ? state.datos.es_gerencia : false">
+                <div class="o_dcj_p_segmento" role="group" aria-label="Periodo">
+                    <button t-foreach="periodos" t-as="p" t-key="p.id" type="button" t-att-class="{ o_activa: state.periodo === p.id }"
+                            t-att-aria-pressed="state.periodo === p.id ? 'true' : 'false'" t-on-click="() => this.elegir(p.id)" t-out="p.nombre"/>
+                </div>
+            </EncabezadoJuan>
+
+            <div class="o_dcj_p_cuerpo">
+                <p t-if="state.cargando and !state.datos" class="o_dcj_p_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Calculando…</p>
+                <div t-elif="state.error" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="alert"><i class="fa fa-exclamation-triangle" aria-hidden="true"/><p t-out="state.error"/></div>
+
+                <t t-elif="state.datos">
+                    <t t-set="d" t-value="state.datos"/>
+                    <div t-if="!d.bot_conectado" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="status">
+                        <i class="fa fa-plug" aria-hidden="true"/>
+                        <p><strong>Falta conectar el bot.</strong> Estos números son de lo que ya hay en Odoo; el asistente todavía no contesta.</p>
+                    </div>
+                    <div t-elif="!d.bot_encendido" class="o_dcj_p_aviso" role="status">
+                        <i class="fa fa-power-off" aria-hidden="true"/>
+                        <p><strong>El asistente está apagado.</strong> Nadie recibe respuestas automáticas.</p>
+                    </div>
+                    <div t-if="d.necesitan_atencion" class="o_dcj_p_aviso o_dcj_p_aviso_atencion" role="status">
+                        <i class="fa fa-bell" aria-hidden="true"/>
+                        <p><strong t-out="d.necesitan_atencion"/> <t t-out="d.necesitan_atencion === 1 ? 'conversación espera' : 'conversaciones esperan'"/> tu respuesta.</p>
+                        <button type="button" class="o_dcj_enlace" t-on-click="irAConversaciones">Ir a Conversaciones</button>
+                    </div>
+
+                    <section class="o_dcj_p_tarjetas" aria-label="Indicadores">
+                        <article class="o_dcj_p_dato">
+                            <h2>Mensajes</h2>
+                            <p class="o_dcj_p_valor" t-out="numero(d.mensajes.total)"/>
+                            <p class="o_dcj_p_detalle"><t t-out="numero(d.mensajes.entrantes)"/> de clientes · <t t-out="numero(d.mensajes.del_asistente)"/> del asistente · <t t-out="numero(d.mensajes.de_vendedoras)"/> de vendedoras</p>
+                        </article>
+                        <article class="o_dcj_p_dato">
+                            <h2>Clientes únicos</h2>
+                            <p class="o_dcj_p_valor" t-out="numero(d.clientes_unicos)"/>
+                            <p class="o_dcj_p_detalle">en <t t-out="numero(d.conversaciones)"/> <t t-out="d.conversaciones === 1 ? 'conversación' : 'conversaciones'"/></p>
+                        </article>
+                        <article class="o_dcj_p_dato">
+                            <h2>Resueltas sin una persona</h2>
+                            <p class="o_dcj_p_valor"><t t-out="numero(d.resueltas_sin_humano)"/><span t-if="porcentajeSinHumano !== null" class="o_dcj_p_unidad"> de <t t-out="numero(d.conversaciones)"/></span></p>
+                            <p class="o_dcj_p_detalle">
+                                <t t-if="porcentajeSinHumano !== null"><t t-out="porcentajeSinHumano"/> % las resolvió el asistente solo.</t>
+                                <t t-else="">Todavía no hay conversaciones en este periodo.</t>
+                            </p>
+                        </article>
+                        <article class="o_dcj_p_dato">
+                            <h2>Oportunidades creadas</h2>
+                            <p class="o_dcj_p_valor" t-out="numero(d.oportunidades_creadas)"/>
+                            <p class="o_dcj_p_detalle">En CRM, ligadas a una conversación.</p>
+                        </article>
+                        <article class="o_dcj_p_dato">
+                            <h2>Ventas atribuidas</h2>
+                            <p class="o_dcj_p_valor" t-out="dolares(d.ventas.monto)"/>
+                            <p class="o_dcj_p_detalle"><t t-out="numero(d.ventas.facturas)"/> <t t-out="d.ventas.facturas === 1 ? 'factura pagada' : 'facturas pagadas'"/> de clientes que hablaron con el asistente. Sin ITBMS. Es atribución, no prueba de que él vendió.</p>
+                        </article>
+                        <article class="o_dcj_p_dato">
+                            <h2>Primera respuesta</h2>
+                            <p class="o_dcj_p_valor" t-out="d.primera_respuesta.cualquiera_texto"/>
+                            <p class="o_dcj_p_detalle">
+                                Mitad de los clientes, en ese tiempo o menos.
+                                <t t-if="d.primera_respuesta.con_respuesta_persona"> Una vendedora: <strong t-out="d.primera_respuesta.persona_texto"/>.</t>
+                            </p>
+                        </article>
+                    </section>
+                    <p class="o_dcj_p_nota">Las horas son de Panamá. Se cuentan los mensajes de verdad; las notas internas y los avisos del sistema no.</p>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

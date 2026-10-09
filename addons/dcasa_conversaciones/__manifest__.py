@@ -47,10 +47,13 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
         'views/etiquetas_views.xml',
         'views/res_partner_views.xml',
         'views/menus.xml',
+        'views/panel_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'dcasa_conversaciones/static/src/scss/*.scss',
+            'dcasa_conversaciones/static/src/js/*.js',
+            'dcasa_conversaciones/static/src/xml/*.xml',
         ],
     },
     'installable': True,

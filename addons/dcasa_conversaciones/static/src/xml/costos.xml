@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Costos de IA -->
+    <t t-name="dcasa_conversaciones.Costos">
+        <div class="o_dcj_p o_action">
+            <EncabezadoJuan titulo="'Costos de IA'" subtitulo="'Cuánto cuesta que el asistente conteste. Lo mide el Worker de Juan; aquí solo se ve.'" actual="'costos'" esGerencia="true">
+                <button type="button" class="btn btn-secondary o_dcj_p_boton" t-att-disabled="state.cargando" t-on-click="() => this.cargar()">
+                    <i t-attf-class="fa fa-refresh #{state.cargando ? 'fa-spin' : ''}" aria-hidden="true"/> Actualizar
+                </button>
+            </EncabezadoJuan>
+
+            <div class="o_dcj_p_cuerpo">
+                <p t-if="state.cargando and !d" class="o_dcj_p_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Consultando al Worker…</p>
+                <div t-elif="state.error" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="alert"><i class="fa fa-exclamation-triangle" aria-hidden="true"/><p t-out="state.error"/></div>
+
+                <section t-elif="d and !d.configurado" class="o_dcj_p_sin_conectar">
+                    <i class="fa fa-plug" aria-hidden="true"/>
+                    <h2 t-out="d.mensaje"/>
+                    <p t-out="d.detalle"/>
+                    <p t-if="d.faltan.length">Falta: <code t-foreach="d.faltan" t-as="n" t-key="n" t-out="n"/></p>
+                    <button type="button" class="btn btn-secondary o_dcj_p_boton" t-on-click="irAConexiones">Ver Conexiones</button>
+                </section>
+
+                <section t-elif="d and !d.ok" class="o_dcj_p_sin_conectar">
+                    <i class="fa fa-chain-broken" aria-hidden="true"/>
+                    <h2 t-out="d.mensaje"/>
+                    <p t-out="d.detalle"/>
+                    <button type="button" class="btn btn-secondary o_dcj_p_boton" t-on-click="() => this.cargar()">Intentar otra vez</button>
+                </section>
+
+                <t t-elif="d">
+                    <section class="o_dcj_p_hero" aria-labelledby="o_dcj_gasto_titulo">
+                        <div>
+                            <h2 id="o_dcj_gasto_titulo">Gasto de <t t-out="d.mes_nombre"/></h2>
+                            <p class="o_dcj_p_gigante" t-out="usd(d.gasto_usd)"/>
+                            <p t-if="d.tope_usd" class="o_dcj_p_detalle">de un tope de <strong t-out="usd(d.tope_usd)"/> al mes<t t-if="d.porcentaje_del_tope !== null"> (<t t-out="d.porcentaje_del_tope"/> %)</t>.</p>
+                            <p t-else="" class="o_dcj_p_detalle">No hay un tope puesto en Ajustes de Juan.</p>
+                        </div>
+                        <div class="o_dcj_p_medidor_caja">
+                            <div t-if="d.tope_usd" class="o_dcj_p_medidor" role="meter" aria-label="Gasto del mes frente al tope"
+                                 t-att-aria-valuenow="d.gasto_usd" aria-valuemin="0" t-att-aria-valuemax="d.tope_usd">
+                                <span t-attf-class="o_dcj_p_relleno o_dcj_p_relleno_#{estado.clase}" t-att-style="'width:' + llenado + '%'"/>
+                            </div>
+                            <p t-attf-class="o_dcj_p_estado o_dcj_p_estado_#{estado.clase}"><i t-attf-class="fa #{estado.icono}" aria-hidden="true"/> <t t-out="estado.texto"/></p>
+                            <p class="o_dcj_p_frase" t-out="frase"/>
+                        </div>
+                    </section>
+
+                    <div t-foreach="d.avisos" t-as="aviso" t-key="aviso_index" class="o_dcj_p_aviso" role="status"><i class="fa fa-info-circle" aria-hidden="true"/><p t-out="aviso"/></div>
+                    <div t-if="d.modelos_sin_precio.length" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="status">
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
+                        <p><strong>Sin precio cargado:</strong> <t t-out="d.modelos_sin_precio.join(', ')"/>. El gasto de ese modelo es una estimación con una tarifa alta de reserva, para que el tope proteja. Carga el precio en Ajustes de Juan (precios de la IA).</p>
+                    </div>
+
+                    <section class="o_dcj_p_tarjeta">
+                        <header class="o_dcj_p_tarjeta_cabecera">
+                            <h2>Gasto por día</h2>
+                            <button type="button" class="o_dcj_enlace" t-att-aria-pressed="state.tabla ? 'true' : 'false'" t-on-click="() => state.tabla = !state.tabla">
+                                <t t-out="state.tabla ? 'Ver como gráfico' : 'Ver como tabla'"/>
+                            </button>
+                        </header>
+                        <t t-if="!hayDatosPorDia">
+                            <p class="o_dcj_p_detalle">Todavía no hay días para mostrar. Odoo guarda una foto del gasto cada noche (y cada vez que abres esta pantalla): el desglose por día se va armando solo, desde hoy.</p>
+                        </t>
+                        <t t-elif="state.tabla">
+                            <table class="o_dcj_p_tabla">
+                                <caption class="o_dcj_solo_lector">Gasto de IA por día</caption>
+                                <thead><tr><th scope="col">Día</th><th scope="col" class="o_dcj_num">Gasto</th></tr></thead>
+                                <tbody><tr t-foreach="dias" t-as="x" t-key="x.fecha"><th scope="row" t-out="x.texto"/><td class="o_dcj_num" t-out="x.usd === null ? 'sin dato' : usdFino(x.usd)"/></tr></tbody>
+                            </table>
+                        </t>
+                        <t t-else="">
+                            <div class="o_dcj_p_columnas" role="img" t-att-aria-label="'Gasto de IA por día de ' + d.mes_nombre + '. El día más caro: ' + (diaMasCaro ? diaMasCaro.texto + ', ' + usdFino(diaMasCaro.usd) : 'ninguno') + '.'">
+                                <span class="o_dcj_p_guia o_alto" aria-hidden="true"><span t-out="'máx. ' + usdFino(maximoDia)"/></span>
+                                <span class="o_dcj_p_guia o_medio" aria-hidden="true"/>
+                                <div t-foreach="dias" t-as="x" t-key="x.fecha" class="o_dcj_p_columna" t-att-class="{ o_sin_dato: x.usd === null }"
+                                     t-on-mouseenter="() => this.marcar(x.fecha)" t-on-mouseleave="() => this.marcar(null)">
+                                    <span t-if="state.marcado === x.fecha or (diaMasCaro and diaMasCaro.fecha === x.fecha and !state.marcado)" class="o_dcj_p_etiqueta_columna">
+                                        <t t-out="x.usd === null ? 'sin dato' : usdFino(x.usd)"/> · <t t-out="x.texto"/>
+                                    </span>
+                                    <span class="o_dcj_p_barra" t-att-style="'height:' + alturaDe(x) + '%'"/>
+                                    <span class="o_dcj_p_dia" t-out="x.dia"/>
+                                </div>
+                            </div>
+                            <p class="o_dcj_ayuda">Un día «sin dato» es uno que Odoo no alcanzó a fotografiar; no se adivina.</p>
+                        </t>
+                    </section>
+
+                    <section class="o_dcj_p_tarjeta">
+                        <header class="o_dcj_p_tarjeta_cabecera"><h2>Gasto por modelo</h2><span class="o_dcj_secundario" t-if="d.turnos"><t t-out="numero(d.turnos)"/> respuestas en el mes</span></header>
+                        <p t-if="!d.hay_detalle_por_modelo" class="o_dcj_p_detalle">Todavía no hay gasto por modelo este mes.</p>
+                        <ul t-else="" class="o_dcj_p_modelos">
+                            <li t-foreach="d.por_modelo" t-as="m" t-key="m.modelo">
+                                <span class="o_dcj_p_modelo_nombre"><t t-out="m.modelo"/><span t-if="m.estimado" class="o_dcj_insignia o_dcj_insignia_alerta" title="Sin precio cargado: es una estimación"> estimado</span></span>
+                                <span class="o_dcj_p_modelo_barra" aria-hidden="true"><span t-att-style="'width:' + anchoDe(m) + '%'"/></span>
+                                <span class="o_dcj_p_modelo_valor"><strong t-out="usdFino(m.usd)"/> <span class="o_dcj_secundario">· <t t-out="numero(m.turnos)"/></span></span>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="o_dcj_p_tarjeta">
+                        <h2>Qué IA contesta</h2>
+                        <p>Principal: <strong t-out="d.ia.proveedor or '—'"/><t t-if="d.ia.respaldo"> · respaldo: <strong t-out="d.ia.respaldo"/></t>. Modelo rápido: <code t-out="d.ia.modelo_rapido or '—'"/> · inteligente: <code t-out="d.ia.modelo_inteligente or '—'"/>.</p>
+                        <p t-if="d.ia.claves_faltantes.length" class="o_dcj_error">Falta cargar en el Worker: <code t-foreach="d.ia.claves_faltantes" t-as="n" t-key="n" t-out="n"/></p>
+                    </section>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

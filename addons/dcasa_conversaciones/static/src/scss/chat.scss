@@ -19,7 +19,7 @@
 }
 
 .o_dcasa_burbuja {
-    max-width: min(78%, 560px);
+    max-width: #{"min(78%, 560px)"};
     padding: 8px 12px 10px;
     border-radius: var(--dc-r-md, 12px);
     border: 1px solid var(--dc-linea, #E2E7F0);
