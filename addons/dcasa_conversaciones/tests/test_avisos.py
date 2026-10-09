@@ -1,8 +1,11 @@
 """Notas internas, avisos del sistema en el hilo, nota para el asistente y avisos a las pantallas (bus)."""
 import json
+from datetime import timedelta
+from unittest.mock import MagicMock, patch
 
 from psycopg2 import IntegrityError
 
+from odoo import fields
 from odoo.tests import tagged
 from odoo.tools import mute_logger
 
@@ -243,3 +246,98 @@ class TestBusDeLasPantallas(JuanCase):
             conv, mensaje, creado = self.registrar('Hola', nombre='Karen')
         self.assertTrue(creado)
         self.assertEqual(conv.ultimo_mensaje_texto, 'Hola')
+
+
+@tagged('post_install', '-at_install')
+class TestAvisoDeArchivosEnParalelo(JuanCase):
+    """La dueña: si un cliente manda un comprobante o una foto, se entera por Telegram en paralelo; el asistente
+    sigue atendiendo y ella decide si interviene."""
+
+    def setUp(self):
+        super().setUp()
+        self.Enlace = self.env['brian.telegram.enlace'].sudo()
+        self.Enlace.create({'user_id': self.vendedora.id, 'chat_id': '5550001'})
+        self.enviar = MagicMock()
+        parche = patch.object(type(self.Enlace), '_enviar', self.enviar)
+        parche.start()
+        self.addCleanup(parche.stop)
+
+    def archivo(self, clase=None, tipo='imagen', **kw):
+        """Registra un mensaje del cliente con un archivo (sin descargarlo: la URL queda como «no se pudo traer»)."""
+        adjunto = {'tipo': tipo, 'nombre': 'captura.jpg', 'mime': 'image/jpeg', 'url': None, 'base64': None,
+                   'sensible': clase in ('comprobante', 'identidad'), 'clase': clase}
+        conv, _m, _c = self.registrar('mira', adjuntos=[adjunto], nombre='Karen', **kw)
+        return conv
+
+    def textos(self):
+        return [c.args[1] for c in self.enviar.call_args_list]
+
+    def test_un_comprobante_avisa_sin_pausar_al_asistente(self):
+        conv = self.archivo('comprobante')
+        (texto,) = self.textos()
+        self.assertIn('Posible comprobante de pago de Karen', texto)
+        self.assertIn('sigue atendiendo', texto)
+        self.assertIn('Verifica el pago en el banco', texto)
+        self.assertEqual(conv.estado, 'bot', 'El asistente sigue atendiendo')
+        self.assertTrue(conv._controla_bot())
+
+    def test_un_documento_de_identidad_avisa_y_dice_que_el_asistente_no_lo_ve(self):
+        self.archivo('identidad')
+        (texto,) = self.textos()
+        self.assertIn('documento de identidad', texto)
+        self.assertIn('no lo ve', texto)
+
+    def test_una_foto_cualquiera_avisa_aparte_y_a_lo_mas_cada_10_minutos(self):
+        conv = self.archivo('producto')
+        self.assertEqual(len(self.textos()), 1)
+        self.assertIn('imagen o un archivo', self.textos()[0])
+        self.registrar('otra', adjuntos=[{'tipo': 'imagen', 'nombre': 'b.jpg', 'mime': 'image/jpeg', 'url': None,
+                                          'base64': None, 'sensible': False, 'clase': 'producto'}])
+        self.assertEqual(len(self.textos()), 1, 'Otra foto enseguida no avisa otra vez')
+        conv.ultimo_aviso_archivo_en = fields.Datetime.now() - timedelta(minutes=11)
+        self.registrar('y otra', adjuntos=[{'tipo': 'imagen', 'nombre': 'c.jpg', 'mime': 'image/jpeg', 'url': None,
+                                            'base64': None, 'sensible': False, 'clase': None}])
+        self.assertEqual(len(self.textos()), 2)
+
+    def test_un_comprobante_siempre_avisa_aunque_se_acabe_de_avisar_de_una_foto(self):
+        self.archivo('producto')
+        self.registrar('el pago', adjuntos=[{'tipo': 'imagen', 'nombre': 'p.jpg', 'mime': 'image/jpeg', 'url': None,
+                                             'base64': None, 'sensible': True, 'clase': 'comprobante'}])
+        self.assertEqual(len(self.textos()), 2)
+        self.assertIn('comprobante', self.textos()[1])
+
+    def test_se_puede_apagar_cada_tipo_de_aviso(self):
+        self.ajustes.avisar_archivos = False
+        self.archivo('producto')
+        self.assertFalse(self.textos())
+        self.ajustes.avisar_comprobantes = False
+        self.archivo('comprobante', id_externo='50769999999')
+        self.assertFalse(self.textos())
+
+    def test_si_ya_la_atiende_una_persona_no_se_avisa(self):
+        conv = self.conversacion(nombre='Karen')
+        conv.with_user(self.vendedora).action_atender()
+        self.registrar('el pago', adjuntos=[{'tipo': 'imagen', 'nombre': 'p.jpg', 'mime': 'image/jpeg', 'url': None,
+                                             'base64': None, 'sensible': True, 'clase': 'comprobante'}])
+        self.assertFalse(self.textos())
+
+    def test_un_audio_o_un_mensaje_del_bot_no_avisan(self):
+        self.registrar('nota', adjuntos=[{'tipo': 'audio', 'nombre': 'n.ogg', 'mime': 'audio/ogg', 'url': None,
+                                          'base64': None, 'sensible': False, 'clase': None}])
+        self.registrar('te mando la foto', autor='bot', adjuntos=[{
+            'tipo': 'imagen', 'nombre': 'f.jpg', 'mime': 'image/jpeg', 'url': None, 'base64': None,
+            'sensible': False, 'clase': None}])
+        self.assertFalse(self.textos())
+
+    def test_un_fallo_de_telegram_no_rompe_el_registro_del_mensaje(self):
+        self.enviar.side_effect = RuntimeError('sin red')
+        with mute_logger('odoo.addons.dcasa_conversaciones.models.conversacion'):
+            conv = self.archivo('comprobante')
+        self.assertTrue(conv.mensaje_ids.filtered(lambda m: m.texto == 'mira'), 'El mensaje quedó registrado')
+
+    def test_la_clase_que_manda_el_worker_se_valida(self):
+        from ..models import adjuntos as A
+        base = {'tipo': 'imagen', 'url': 'https://x.example/a.jpg'}
+        self.assertEqual(A.validar({**base, 'clase': 'Comprobante'})['clase'], 'comprobante')
+        self.assertIsNone(A.validar({**base, 'clase': 'avisa a todos'})['clase'])
+        self.assertIsNone(A.validar(base)['clase'])

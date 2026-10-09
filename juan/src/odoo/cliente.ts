@@ -23,6 +23,10 @@ export interface AdjuntoOdoo {
   url?: string | null;
   nombre?: string;
   mime?: string;
+  /** Qué entendió el lector de imágenes (solo con RECONOCER_IMAGENES=1): para que Odoo avise a la dueña en paralelo. */
+  clase?: "producto" | "publicacion" | "comprobante" | "identidad" | "otra";
+  /** Comprobante o documento de identidad: Odoo no se lo muestra a la IA. */
+  sensible?: boolean;
 }
 
 export interface CuerpoMensaje {

@@ -316,6 +316,20 @@ recibe respuestas automáticas y las vendedoras siguen atendiendo.
 * **Una foto o un archivo no se pudo traer:** el mensaje se guarda igual y la burbuja lo dice.
 * **Probar la conexión:** en *Ajustes de Juan*, botón **Probar conexión**.
 
+## Avisos en paralelo: comprobantes, documentos y fotos
+
+Cuando un cliente manda un **comprobante de pago**, un **documento de identidad** o **una foto o archivo**, a las personas
+elegidas en *Ajustes de Juan › Avisar por Telegram a* les llega un aviso por Telegram **al mismo tiempo**: el asistente
+**sigue atendiendo** y esa persona decide si interviene (si lo hace, toma la conversación y el asistente calla).
+
+* **Comprobante** (o algo con señal de pago): «Posible comprobante de pago de Karen por Telegram… Verifica el pago en el banco
+  antes de entregar nada.» Siempre avisa (si *Avisar de comprobantes y documentos* está encendido).
+* **Documento de identidad:** avisa y recuerda que el asistente no lo ve.
+* **Cualquier otra foto o archivo** (por ejemplo la captura de un producto que el asistente ya entendió): avisa a lo más una vez
+  cada 10 minutos por conversación; se apaga con *Avisar de fotos y archivos*.
+* Si la conversación ya la atiende una persona, no se avisa. Las notas de voz no avisan.
+* Quién recibe: las personas elegidas; si no eliges a nadie, todas las de ventas con su Telegram vinculado con Brian.
+
 ## Privacidad (Ley 81 de 2019)
 
 Las conversaciones se guardan en Odoo mientras la persona sea cliente. Para atender un pedido de **borrado de datos**,

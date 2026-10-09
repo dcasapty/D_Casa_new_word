@@ -83,6 +83,8 @@
                             <field name="pausa_por_defecto_minutos"/>
                             <field name="responsable_id" options="{'no_create': True}"/>
                             <field name="usuarios_aviso_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="avisar_comprobantes"/>
+                            <field name="avisar_archivos"/>
                         </group>
                     </group>
                     <group string="Precios de la IA (dólares por millón de tokens)">

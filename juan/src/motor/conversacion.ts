@@ -392,7 +392,8 @@ export class MotorConversacion {
           this.log("warn", "no se pudo guardar el archivo", String(err));
         }
       }
-      lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime });
+      const marca = lectura ? marcaDeLectura(lectura) : {};
+      lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime, ...marca });
       lecturas.push(lectura);
     }
     return { lista, transcripciones, lecturas };
@@ -1089,6 +1090,13 @@ export class MotorConversacion {
       cola: this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM cola")?.n ?? 0,
     };
   }
+}
+
+/** Lo que Odoo necesita saber de una imagen leída: su clase y si es sensible. Ante cualquier señal de pago o identidad, manda lo prudente. */
+function marcaDeLectura(l: LecturaImagen): Pick<AdjuntoOdoo, "clase" | "sensible"> {
+  const clase: NonNullable<AdjuntoOdoo["clase"]> =
+    l.tipo === "comprobante" || l.parece_pago ? "comprobante" : l.tipo === "identidad" || l.parece_identidad ? "identidad" : l.tipo === "ilegible" ? "otra" : l.tipo;
+  return { clase, ...(clase === "comprobante" || clase === "identidad" ? { sensible: true } : {}) };
 }
 
 const NOMBRE_DE_CATEGORIA: Record<string, string> = { cama: "cama", colchon: "colchón", sofa: "sofá", comedor: "comedor", escritorio: "escritorio", silla: "silla", closet: "clóset", mesa: "mesa", otro: "mueble" };

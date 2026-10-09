@@ -94,6 +94,9 @@ class DcasaConversacion(models.Model):
                                             help='Cuándo se le pidió al Worker; se limpia al confirmar.')
     seguimiento_numero_pedido = fields.Integer(readonly=True)
     seguimiento_reintentos = fields.Integer(readonly=True)
+    ultimo_aviso_archivo_en = fields.Datetime(
+        'Último aviso de archivo', readonly=True,
+        help='Para no avisar de cada foto de una ráfaga: a lo más una vez cada 10 minutos.')
     estado_pendiente_de_avisar = fields.Boolean(
         readonly=True, help='El cambio de estado aún no se le avisó al Worker (se reintenta solo).')
 
@@ -297,6 +300,8 @@ class DcasaConversacion(models.Model):
         if datos.get('adjuntos'):
             mensaje._adjuntar(datos['adjuntos'])
         conv._despues_de_mensaje(mensaje)
+        if datos['direccion'] == 'entrante' and datos['autor'] == 'cliente' and datos.get('adjuntos'):
+            conv._avisar_archivos_del_cliente(datos['adjuntos'])
         mensaje._publicar_en_chatter()
         conv._notificar_panel('mensaje', mensaje)
         return conv, mensaje, True
@@ -867,6 +872,42 @@ class DcasaConversacion(models.Model):
         else:
             texto = self.env._('Ya dejé tu consulta anotada para una vendedora. Te escribe %s.', cuando.rstrip('.'))
         return {'texto_para_el_cliente': texto, 'dentro_de_horario': dentro, 'urgente': urgente}
+
+    def _avisar_archivos_del_cliente(self, adjuntos):
+        """Avisa por Telegram, EN PARALELO, cuando el cliente manda un comprobante, un documento o una foto.
+
+        El asistente sigue atendiendo: no se pausa nada. Quien recibe el aviso decide si interviene. Si ya la
+        atiende una persona, no se avisa (ya la está viendo). Nunca rompe el registro del mensaje.
+        """
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                ajustes = self.env['dcasa.juan.ajustes'].obtener()
+                archivos = [a for a in adjuntos if a.get('tipo') in ('imagen', 'documento', 'video')]
+                if not archivos or not self._controla_bot():
+                    return
+                quien = self.name or self.celular or self.env._('un cliente')
+                canal = dict(CANALES).get(self.canal, self.canal)
+                clases = {a.get('clase') for a in archivos}
+                if ajustes.avisar_comprobantes and 'comprobante' in clases:
+                    self._avisar_por_telegram(self.env._(
+                        'Posible comprobante de pago de %(quien)s por %(canal)s. El asistente sigue atendiendo; '
+                        'tú decides si intervienes. Verifica el pago en el banco antes de entregar nada.',
+                        quien=quien, canal=canal))
+                elif ajustes.avisar_comprobantes and 'identidad' in clases:
+                    self._avisar_por_telegram(self.env._(
+                        '%(quien)s mandó un documento de identidad por %(canal)s. El asistente sigue atendiendo '
+                        'y no lo ve; tú decides si intervienes.', quien=quien, canal=canal))
+                elif ajustes.avisar_archivos:
+                    ahora = fields.Datetime.now()
+                    if self.ultimo_aviso_archivo_en and ahora - self.ultimo_aviso_archivo_en < timedelta(minutes=10):
+                        return
+                    self.sudo().ultimo_aviso_archivo_en = ahora
+                    self._avisar_por_telegram(self.env._(
+                        '%(quien)s mandó una imagen o un archivo por %(canal)s. El asistente sigue atendiendo; '
+                        'tú decides si intervienes.', quien=quien, canal=canal))
+        except Exception:   # noqa: BLE001
+            _logger.exception('Juan: no se pudo avisar del archivo del cliente en la conversación %s', self.id)
 
     def _avisar_por_telegram(self, texto):
         """Aviso a las vendedoras por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad."""

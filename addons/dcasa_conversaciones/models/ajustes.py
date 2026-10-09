@@ -161,11 +161,20 @@ class JuanAjustes(models.Model):
         domain=[('share', '=', False)],
         help='A quién se le asigna la actividad cuando el asistente pasa una conversación a una vendedora '
              'y nadie la tiene asignada.')
+    avisar_comprobantes = fields.Boolean(
+        'Avisar de comprobantes y documentos', default=True, tracking=True,
+        help='Cuando un cliente manda lo que parece un comprobante de pago o un documento de identidad, se avisa '
+             'por Telegram a esas personas EN PARALELO: el asistente sigue atendiendo y ellas deciden si intervienen.')
+    avisar_archivos = fields.Boolean(
+        'Avisar de fotos y archivos', default=True, tracking=True,
+        help='Cuando un cliente manda cualquier otra foto o archivo (por ejemplo la captura de un producto), '
+             'también se avisa por Telegram, a lo más una vez cada 10 minutos por conversación. Apágalo si son muchos.')
     usuarios_aviso_ids = fields.Many2many(
         'res.users', 'dcasa_juan_ajustes_aviso_rel', 'ajustes_id', 'user_id', string='Avisar por Telegram a',
         domain=[('share', '=', False)],
-        help='Quienes reciben el aviso por Telegram cuando se pide una vendedora (necesitan haber vinculado '
-             'su Telegram con Brian). Vacío: todas las personas de ventas con Telegram vinculado.')
+        help='Quienes reciben los avisos por Telegram (cuando se pide una vendedora o llega un comprobante o un '
+             'archivo; necesitan haber vinculado su Telegram con Brian). Vacío: todas las personas de ventas con '
+             'Telegram vinculado.')
 
     # --- Conexión con el Worker (sin secretos) ----------------------------------------------------------
     juan_url = fields.Char(

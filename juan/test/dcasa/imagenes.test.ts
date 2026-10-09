@@ -85,6 +85,42 @@ describe("comprobantes y documentos: siguen el camino de siempre", () => {
   });
 });
 
+describe("lo que Odoo recibe del archivo (para avisar a la dueña en paralelo)", () => {
+  const adjuntoEnOdoo = (m: ReturnType<typeof crearMundo>) => m.odoo.mensajes.find((x) => x.autor === "cliente")!.adjuntos![0];
+
+  it("un producto llega con clase «publicacion» y sin marca de sensible", async () => {
+    const m = crearMundo({ mirarImagen: async () => PUBLICACION });
+    m.guion([{ texto: "Sí." }]);
+    await m.conversar("¿esta?", imagen());
+    expect(adjuntoEnOdoo(m)).toMatchObject({ tipo: "imagen", clase: "publicacion" });
+    expect(adjuntoEnOdoo(m).sensible).toBeUndefined();
+  });
+
+  it("un comprobante llega con clase «comprobante» y marcado como sensible (Odoo no se lo muestra a la IA)", async () => {
+    const m = crearMundo({ mirarImagen: async () => COMPROBANTE });
+    m.guion([{ texto: "Recibí tu archivo." }]);
+    await m.conversar("el pago", imagen("yappy.jpg"));
+    expect(adjuntoEnOdoo(m)).toMatchObject({ clase: "comprobante", sensible: true });
+  });
+
+  it("una imagen «producto» con señal de pago o de identidad llega como comprobante o identidad, sensible", async () => {
+    for (const [señal, clase] of [[{ parece_pago: true }, "comprobante"], [{ parece_identidad: true }, "identidad"]] as const) {
+      const m = crearMundo({ mirarImagen: async () => ({ ...PUBLICACION, ...señal }) });
+      m.guion([{ texto: "Recibí tu archivo." }]);
+      await m.conversar("mira", imagen());
+      expect(adjuntoEnOdoo(m), JSON.stringify(señal)).toMatchObject({ clase, sensible: true });
+    }
+  });
+
+  it("sin lector, el adjunto llega como siempre: sin clase ni marca", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "Recibí tu archivo." }]);
+    await m.conversar("mira", imagen());
+    expect(adjuntoEnOdoo(m).clase).toBeUndefined();
+    expect(adjuntoEnOdoo(m).sensible).toBeUndefined();
+  });
+});
+
 describe("si el lector no puede, todo sigue como antes", () => {
   it.each([
     ["no hay lector (apagado)", undefined],
