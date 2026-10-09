@@ -59,17 +59,13 @@ TIPOS_PRECIO = ('entrada', 'salida', 'cache')
 MAX_LECCIONES = 20
 MAX_LARGO_LECCION = 300
 
+# Decisión de la dueña (2026-10-09): el primer mensaje es corto. Solo dice que es un asistente automático y cómo
+# pedir una persona; el aviso largo de privacidad no se manda por el chat (vive en la política del sitio).
 BIENVENIDA = (
-    "Hola, soy el asistente automático del equipo de D'CASA. Te ayudo con camas, colchones y muebles, "
-    "y con el programa Socios. Si prefieres hablar con una persona, escríbeme *persona* y te atiende "
-    "una vendedora."
+    "Hola, soy el asistente automático de D'CASA. Si prefieres hablar con una persona, escríbeme "
+    "*persona* y te atiende una vendedora."
 )
-PRIVACIDAD = (
-    "Esta conversación la atiende un asistente automático con inteligencia artificial, y lo que "
-    "escribes se envía a nuestro proveedor de IA y a WhatsApp o la red por la que nos escribes para "
-    "poder responderte. Se guarda en el sistema de D'CASA mientras seas cliente. Puedes pedir una "
-    "persona o que borremos tus datos cuando quieras. Más en dcasapty.com/privacidad."
-)
+PRIVACIDAD = ""
 PALABRAS_PROHIBIDAS = "remate\ncorre\n¡¡\n!!"
 
 
@@ -143,7 +139,10 @@ class JuanAjustes(models.Model):
 
     # --- Textos ------------------------------------------------------------------------------------
     mensaje_bienvenida = fields.Text('Mensaje de bienvenida', default=BIENVENIDA, translate=False)
-    texto_privacidad_corto = fields.Text('Aviso de privacidad (corto)', default=PRIVACIDAD, translate=False)
+    texto_privacidad_corto = fields.Text(
+        'Aviso de privacidad (corto)', default=PRIVACIDAD, translate=False,
+        help='Se manda una sola vez, pegado a la bienvenida. Vacío = no se manda nada (lo normal: el aviso completo '
+             'vive en la política de privacidad del sitio y en la descripción del bot o el perfil del negocio).')
     palabras_prohibidas = fields.Text(
         'Palabras prohibidas', default=PALABRAS_PROHIBIDAS,
         help='Una por línea. El asistente no las usa jamás.')

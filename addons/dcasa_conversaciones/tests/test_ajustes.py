@@ -58,8 +58,31 @@ class TestAjustesPorDefecto(JuanCase):
         self.assertIn('*persona*', bienvenida)       # ofrece una persona
         self.assertNotIn('remate', bienvenida.lower())
         self.assertNotIn('!!', bienvenida)
-        self.assertIn('inteligencia artificial', self.ajustes.texto_privacidad_corto)
-        self.assertIn('persona', self.ajustes.texto_privacidad_corto)
+        self.assertLess(len(bienvenida), 150, 'El primer mensaje es corto: la dueña no quiere un párrafo')
+        self.assertFalse(self.ajustes.texto_privacidad_corto, 'El aviso largo no se manda por el chat')
+
+    def test_la_migracion_acorta_solo_los_textos_originales(self):
+        import importlib.util
+
+        from odoo.tools.misc import file_path
+        spec = importlib.util.spec_from_file_location(
+            'mig', file_path('dcasa_conversaciones/migrations/19.0.1.0.1/post-migrate.py'))
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        self.ajustes.write({'mensaje_bienvenida': mig.BIENVENIDA_VIEJA, 'texto_privacidad_corto': mig.PRIVACIDAD_VIEJA})
+        self.env.flush_all()     # la migración usa SQL directo: primero se escribe lo pendiente
+        mig.migrate(self.env.cr, '19.0.1.0.0')
+        self.ajustes.invalidate_recordset()
+        self.assertEqual(self.ajustes.mensaje_bienvenida, mig.BIENVENIDA_NUEVA)
+        self.assertFalse(self.ajustes.texto_privacidad_corto)
+        # Lo que la dueña ya editó no se pisa.
+        self.ajustes.write({'mensaje_bienvenida': 'Hola, soy el asistente automático. Dime qué buscas.',
+                            'texto_privacidad_corto': 'Mi aviso corto.'})
+        self.env.flush_all()     # la migración usa SQL directo: primero se escribe lo pendiente
+        mig.migrate(self.env.cr, '19.0.1.0.0')
+        self.ajustes.invalidate_recordset()
+        self.assertEqual(self.ajustes.mensaje_bienvenida, 'Hola, soy el asistente automático. Dime qué buscas.')
+        self.assertEqual(self.ajustes.texto_privacidad_corto, 'Mi aviso corto.')
 
     def test_es_un_solo_registro(self):
         self.assertEqual(self.env['dcasa.juan.ajustes'].obtener(), self.ajustes)

@@ -214,7 +214,7 @@ class DcasaConversacion(models.Model):
             raise AccessError(self.env._('El canal y la persona de una conversación no se cambian.'))
         resultado = super().write(vals)
         if 'oportunidad_id' in vals:
-            # La intención de compra es lo que habilita el seguimiento: al ligar o soltar la oportunidad se vuelve a calcular.
+            # La intención de compra habilita el seguimiento: al ligar o soltar la oportunidad se recalcula.
             self._programar_seguimiento()
         return resultado
 

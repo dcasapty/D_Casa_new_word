@@ -35,7 +35,7 @@ export function seccionContrato(e: Escena) {
       expect(cfg.pausa_por_defecto_minutos).toBe(120);
       expect(cfg.palabras_prohibidas).toEqual(["remate", "corre", "¡¡", "!!"]);
       expect(cfg.mensaje_bienvenida).toMatch(/asistente automático/i);
-      expect(cfg.texto_privacidad_corto).toMatch(/privacidad/i);
+      expect(typeof cfg.texto_privacidad_corto).toBe("string"); // vacío por defecto: el primer mensaje es corto
       // Lecciones: una por línea en Odoo, lista en el Worker.
       expect(cfg.lecciones).toEqual(["Si preguntan por Yappy, di que una vendedora lo confirma.", "Saluda por el nombre."]);
       // Los precios que la dueña cargó en Odoo (por nivel) llegan al Worker por modelo.

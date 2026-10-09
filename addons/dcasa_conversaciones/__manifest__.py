@@ -27,7 +27,7 @@ Messenger e Instagram con el nombre público «el equipo de D'CASA». El motor d
 
 Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.0.1',
     'category': 'Sales/CRM',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

@@ -291,7 +291,7 @@ Las de ejemplo no llevan cifras ni políticas.
 | Precios de la IA | **vacíos** a propósito: no se inventa ningún precio. Si los llenas (dólares por millón de tokens, por nivel: entrada, salida y caché), el Worker calcula el gasto con ellos |
 | Tope de IA al mes | 30 USD (al llegar, baja al modelo barato; nunca se queda sin contestar) |
 | Pausa al atender | 120 minutos (0 = hasta que la devuelvas) |
-| Mensaje de bienvenida y aviso de privacidad | Textos propuestos: **están pendientes de tu aprobación** |
+| Mensaje de bienvenida y aviso de privacidad | Bienvenida **corta** (una línea: es un asistente automático y cómo pedir una persona). El aviso de privacidad **no se manda por el chat** (queda vacío); el aviso completo va en la política del sitio y, para Telegram, en la descripción del bot (BotFather → `/setdescription`) |
 | Palabras prohibidas | remate, corre, ¡¡, !! |
 | Responsable por defecto / avisos por Telegram | Administrador / todas las vendedoras con Telegram vinculado |
 
@@ -319,8 +319,9 @@ recibe respuestas automáticas y las vendedoras siguen atendiendo.
 ## Privacidad (Ley 81 de 2019)
 
 Las conversaciones se guardan en Odoo mientras la persona sea cliente. Para atender un pedido de **borrado de datos**,
-Gerencia puede borrar la conversación (se van sus mensajes y adjuntos). El texto corto de privacidad que dice el
-asistente se edita en *Ajustes de Juan* y debe coincidir con la política del sitio (`/privacidad`).
+Gerencia puede borrar la conversación (se van sus mensajes y adjuntos). El aviso completo vive en la política del sitio
+(`/privacidad`); por decisión de la dueña el chat no lo repite en el primer mensaje. Si se quisiera mandar uno corto, se
+escribe en *Ajustes de Juan › Aviso de privacidad (corto)* y debe coincidir con esa política.
 
 ---
 
