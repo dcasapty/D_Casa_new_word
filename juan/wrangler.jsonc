@@ -49,7 +49,9 @@
     "BUFFER_SEGUNDOS": "15",
     "TOPE_DIARIO": "50",
     // "1" = las notas de voz se pasan a texto con Whisper de Workers AI (necesita el binding "ai" de arriba). "0" lo apaga.
-    "TRANSCRIBIR_AUDIO": "1"
+    "TRANSCRIBIR_AUDIO": "1",
+    // "1" = un modelo de visión de Workers AI lee las imágenes de los clientes (producto, código, ¿comprobante?). Necesita el binding "ai".
+    "RECONOCER_IMAGENES": "1"
   },
 
   // workers.dev queda encendido: esa es la dirección que Odoo (ajuste dcasa_conversaciones.juan_url) y los webhooks usan.
@@ -77,7 +79,8 @@
         "URL_SITIO": "https://dcasa-staging.dcasapty.workers.dev",
         "BUFFER_SEGUNDOS": "15",
         "TOPE_DIARIO": "50",
-        "TRANSCRIBIR_AUDIO": "1"
+        "TRANSCRIBIR_AUDIO": "1",
+        "RECONOCER_IMAGENES": "1"
       },
       "workers_dev": true
     }

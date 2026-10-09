@@ -11,6 +11,7 @@ import { MotorConversacion, type DepsMotor, type GlobalApi, type SolicitudEnviar
 import { fabricaDeProduccion, proveedoresConClave } from "./proveedores";
 import { sqlDeDurableObject } from "./sql";
 import { transcriptorDe } from "./transcribir";
+import { lectorDeImagenes } from "./vision";
 import { TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 
 export function globalDe(env: Env): GlobalApi {
@@ -51,6 +52,7 @@ export function depsDeProduccion(ctx: DurableObjectState, env: Env): DepsMotor {
     urlSitio: env.URL_SITIO || undefined,
     secretoDeMedios: env.JUAN_WORKER_TOKEN,
     transcribir: transcriptorDe(env),
+    mirarImagen: lectorDeImagenes(env),
   };
 }
 

@@ -197,7 +197,7 @@ propósito: así un despliegue no las pisa.
 | `META_AI_BASE_URL`, `OPENAI_BASE_URL` | Solo si hay que apuntar a otra dirección de esas APIs. Vacío = la oficial. |
 
 Las que sí están en `wrangler.jsonc` (y se cambian con un despliegue): `ENTORNO`, `URL_SITIO`,
-`BUFFER_SEGUNDOS` (15), `TOPE_DIARIO` (50) y `TRANSCRIBIR_AUDIO` (1).
+`BUFFER_SEGUNDOS` (15), `TOPE_DIARIO` (50), `TRANSCRIBIR_AUDIO` (1) y `RECONOCER_IMAGENES` (1).
 
 ## 6. Probar con Telegram
 
@@ -351,6 +351,31 @@ Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conve
 * Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
   de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
   nunca llegan a la IA).
+
+## 12b. Imágenes de los clientes (encendido)
+
+Muchos clientes mandan una captura de un producto o de una publicación. Un **lector de imágenes aparte**
+(`juan/src/motor/vision.ts`) la mira con un modelo de visión de Workers AI, dentro de la cuenta de
+Cloudflare de D'CASA (la imagen no sale a un tercero), y clasifica: producto, publicación, comprobante,
+identidad, otra o ilegible.
+
+* **Se enciende** con `"RECONOCER_IMAGENES": "1"` (ya puesto en `wrangler.jsonc`) y el binding `ai` de la sección 12.
+  Para apagarlo: `"0"` y desplegar; el bot vuelve a pedir el código y a dejar toda imagen para una vendedora.
+  El modelo es `@cf/meta/llama-4-scout-17b-16e-instruct`; se cambia con la variable `MODELO_VISION`.
+* **El lector no conversa:** no ve la conversación, no tiene herramientas y su respuesta se convierte en un
+  registro cerrado (tipo, hasta 3 códigos con patrón estricto de letras, números y guiones, categoría y medida de
+  una lista, y dos señales: ¿parece pago?, ¿parece identidad?). Ningún texto libre de la imagen llega al modelo que
+  conversa: «ignora tus reglas» escrito en una foto no pasa.
+* **Producto o captura de publicación** (con código o categoría y sin señal de pago o identidad): el bot recibe lo leído como
+  dato sin verificar, lo busca en el catálogo y contesta con lo que digan las herramientas. El precio que traiga la
+  imagen **no vale**; solo el del catálogo. No se le deja nota a la vendedora (la imagen queda en la conversación).
+* **Comprobantes, cédulas y cualquier duda:** camino de siempre. El bot no la ve ni la describe, se anota para una vendedora y,
+  si parece un pago, la conversación se etiqueta «Comprobante recibido». El bot **nunca** da un pago por confirmado.
+* **Si el lector falla** (sin cupo, formato, más de 4 MB, más de 20 s): todo sigue como antes. El fallo queda en el registro del Worker.
+* **Costo y tope:** cada lectura cuesta un poco de IA de Workers AI (a la cuenta de Cloudflare, aparte del tope mensual de
+  Juan). Se leen hasta 3 imágenes por mensaje y 10 por persona al día; las demás siguen el camino de siempre.
+* **Lo que falta (Fase 2):** leer el monto, la referencia y la fecha de un comprobante para la vendedora y cruzarlos con el
+  movimiento del banco en la conciliación. La verificación contra el banco, no la IA, es lo que protege de un comprobante falso.
 
 ## 13. Pruebas
 

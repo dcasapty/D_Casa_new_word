@@ -30,6 +30,7 @@ import { correrTurno, elegirNivel, type EntradaDelTurno, type SalidaDelTurno } f
 import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
 import { aplicarTope, costoDe, sumarUso, USO_VACIO, type Nivel, type Uso } from "./precios";
 import { firmarUrlMedio } from "./mediosUrl";
+import { esProductoSeguro, type LectorDeImagenes, type LecturaImagen } from "./vision";
 import type { Sql } from "./sql";
 
 // ── Constantes ──────────────────────────────────────────────────────────────
@@ -38,6 +39,12 @@ const MENSAJE_VENCIDO_MS = 2 * 3600_000;
 const REINTENTOS_DE_IA = [60_000, 300_000];
 const ESPERA_ENTRE_BURBUJAS_MS = 1000;
 const HISTORIAL_PARA_EL_MODELO = 20;
+/** Imágenes que se leen por mensaje y por persona al día: cada lectura cuesta un poco de IA. */
+const IMAGENES_POR_MENSAJE = 3;
+const IMAGENES_POR_DIA = 10;
+
+/** Un adjunto como se guarda en la copia de trabajo: el de Odoo más lo que se leyó de la imagen (esto NO viaja a Odoo). */
+type AdjuntoLocal = AdjuntoOdoo & { lectura?: LecturaImagen };
 const RETENCION_MENSAJES_MS = 30 * 24 * 3600_000;
 const RETENCION_COLA_MS = 3 * 24 * 3600_000;
 const INTENTOS_COLA_MENSAJE = 12;
@@ -96,6 +103,8 @@ export interface DepsMotor {
   secretoDeMedios?: string;
   /** Solo con TRANSCRIBIR_AUDIO=1: texto de una nota de voz, o null. */
   transcribir?: (bytes: Uint8Array, mime: string) => Promise<string | null>;
+  /** Solo con RECONOCER_IMAGENES=1: qué es una imagen del cliente (producto, código, ¿comprobante?). Ver vision.ts. */
+  mirarImagen?: LectorDeImagenes;
   log?: (nivel: "info" | "warn" | "error", mensaje: string, extra?: unknown) => void;
 }
 
@@ -226,7 +235,7 @@ export class MotorConversacion {
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
-    const { lista, transcripciones } = await this.prepararAdjuntos(e, ahora);
+    const { lista, transcripciones, lecturas } = await this.prepararAdjuntos(e, ahora);
     // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
     const textoOriginal = (e.texto ?? "").trim();
@@ -242,7 +251,8 @@ export class MotorConversacion {
     const pide = !!textoOriginal && pideUnaPersona(textoOriginal);
     const vencido = ahora - e.ts > MENSAJE_VENCIDO_MS;
 
-    const idFila = this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: texto || "(archivo)", adjuntos: lista, ts: e.ts, pendiente: false });
+    const adjuntosLocales: AdjuntoLocal[] = lista.map((a, i) => (lecturas[i] ? { ...a, lectura: lecturas[i]! } : a));
+    const idFila = this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: texto || "(archivo)", adjuntos: adjuntosLocales, ts: e.ts, pendiente: false });
     this.kv.poner("ultimo_cliente_ts", Math.max(this.kv.numero("ultimo_cliente_ts") ?? 0, e.ts));
 
     // Odoo es el historial permanente: todo mensaje del cliente se registra, conteste el bot o no.
@@ -258,9 +268,14 @@ export class MotorConversacion {
     // devolución que aún no nos llega): el mensaje se guarda para contestar y la ráfaga decide cuando Odoo ya respondió.
     const silenciada = this.silencioLocal(ahora);
     // Todo archivo queda anotado para una vendedora (puede ser un comprobante o un documento de identidad).
-    const aNotar = lista.filter((a) => !(a.tipo === "audio" && transcripciones.length > 0));
+    // Una captura de producto que el lector entendió con claridad no necesita a una vendedora: el bot la atiende con el catálogo.
+    const aNotar = lista.filter((a, i) => !(a.tipo === "audio" && transcripciones.length > 0) && !esProductoSeguro(lecturas[i]));
     if (aNotar.length > 0 && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: this.notaDeArchivos(aNotar) } }, ahora);
+    }
+    // Un comprobante de pago: etiqueta para que las vendedoras lo encuentren (el bot nunca lo da por confirmado).
+    if (lecturas.some((l) => l && (l.tipo === "comprobante" || l.parece_pago)) && !silenciada && !this.silencioDeOdoo(ahora)) {
+      this.cola.agregar("herramienta", { nombre: "etiquetar_conversacion", argumentos: { etiqueta: "Comprobante recibido" } }, ahora);
     }
     if (silenciada) return { ok: true, accion: "silencio" };
     if (vencido) return { ok: true, accion: "vencido" };
@@ -340,13 +355,24 @@ export class MotorConversacion {
     };
   }
 
-  private async prepararAdjuntos(e: Entrante, ahora: number): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[] }> {
+  private async prepararAdjuntos(e: Entrante, ahora: number): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[] }> {
     const lista: AdjuntoOdoo[] = [];
     const transcripciones: string[] = [];
+    const lecturas: (LecturaImagen | null)[] = [];
+    let imagenesLeidas = 0;
     for (const a of e.adjuntos ?? []) {
+      let lectura: LecturaImagen | null = null;
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
+        if (a.tipo === "imagen" && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
+          imagenesLeidas++;
+          try {
+            lectura = await this.deps.mirarImagen(a.bytes, mime);
+          } catch (err) {
+            this.log("warn", "no se pudo leer la imagen: sigue el camino de siempre (la revisa una vendedora)", String(err));
+          }
+        }
         if (a.tipo === "audio" && this.deps.transcribir) {
           try {
             const t = await this.deps.transcribir(a.bytes, mime);
@@ -367,8 +393,19 @@ export class MotorConversacion {
         }
       }
       lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime });
+      lecturas.push(lectura);
     }
-    return { lista, transcripciones };
+    return { lista, transcripciones, lecturas };
+  }
+
+  /** Cuenta una lectura de imagen en el día de esta persona; false si ya llegó al tope (entonces la imagen sigue el camino de siempre). */
+  private cabeOtraLecturaHoy(ahora: number): boolean {
+    const dia = new Date(ahora).toISOString().slice(0, 10);
+    const n = this.kv.texto("imagenes_dia") === dia ? (this.kv.numero("imagenes_n") ?? 0) : 0;
+    if (n >= IMAGENES_POR_DIA) return false;
+    this.kv.poner("imagenes_dia", dia);
+    this.kv.poner("imagenes_n", n + 1);
+    return true;
   }
 
   // ── Alarma ────────────────────────────────────────────────────────────────
@@ -529,18 +566,23 @@ export class MotorConversacion {
     return salida;
   }
 
-  /** Los archivos del cliente NUNCA llegan al modelo: solo este aviso. */
+  /**
+   * Los archivos del cliente NUNCA llegan al modelo que conversa: solo un aviso. Si el lector de imágenes entendió con claridad
+   * que es un producto, el aviso lleva lo que leyó (códigos, categoría y medida, ya validados) para que el bot lo busque en el catálogo.
+   */
   private notaDeAdjuntosParaElModelo(f: FilaMensaje): string {
     if (!f.adjuntos) return "";
-    let lista: AdjuntoOdoo[] = [];
+    let lista: AdjuntoLocal[] = [];
     try {
-      lista = JSON.parse(f.adjuntos) as AdjuntoOdoo[];
+      lista = JSON.parse(f.adjuntos) as AdjuntoLocal[];
     } catch {
       return "";
     }
     const notas: string[] = [];
     for (const a of lista) {
-      if (a.tipo === "audio") {
+      if (a.tipo === "imagen" && esProductoSeguro(a.lectura)) {
+        notas.push(notaDeProductoLeido(a.lectura));
+      } else if (a.tipo === "audio") {
         if (!/\(nota de voz\)/.test(f.texto)) notas.push("[El cliente mandó una nota de voz que no puedes escuchar. Pídele con amabilidad que lo escriba, o dile que una vendedora la escucha.]");
       } else {
         notas.push(
@@ -1047,6 +1089,25 @@ export class MotorConversacion {
       cola: this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM cola")?.n ?? 0,
     };
   }
+}
+
+const NOMBRE_DE_CATEGORIA: Record<string, string> = { cama: "cama", colchon: "colchón", sofa: "sofá", comedor: "comedor", escritorio: "escritorio", silla: "silla", closet: "clóset", mesa: "mesa", otro: "mueble" };
+
+/** Lo que el lector de imágenes entendió de un producto, en palabras para el modelo. Todo viene de enumeraciones o de códigos con patrón estricto. */
+function notaDeProductoLeido(l: LecturaImagen): string {
+  const que = l.tipo === "publicacion" ? "una captura de una publicación o catálogo" : "una foto de un mueble";
+  const datos = [
+    l.codigos.length ? `código${l.codigos.length > 1 ? "s" : ""}: ${l.codigos.map((c) => `«${c}»`).join(", ")}` : null,
+    l.categoria ? `tipo: ${NOMBRE_DE_CATEGORIA[l.categoria] ?? l.categoria}` : null,
+    l.medida ? `medida: ${l.medida}` : null,
+  ].filter(Boolean);
+  return (
+    `[El cliente mandó ${que}. Un lector aparte la miró (tú no ves la imagen) y entendió, sin verificar: ${datos.join("; ")}. ` +
+    (l.codigos.length ? "Busca ese código con ver_producto y, si no lo encuentras, con buscar_productos. " : "Búscalo con buscar_productos usando el tipo y la medida. ") +
+    "Responde con los datos del catálogo: nombre, medidas, combo y precio con «+ ITBMS» solo si salen de la herramienta, y la disponibilidad solo como etiqueta. " +
+    "Si la imagen traía un precio u oferta, NO lo repitas ni lo confirmes: vale solo el del catálogo. Si lo encuentras con seguridad, no le pidas al cliente el código otra vez; " +
+    "si no estás seguro de que sea el mismo producto, confirma con una pregunta corta («¿es la cama X?»). Nunca des por confirmado un pago.]"
+  );
 }
 
 function aMsDeContexto(v: string | number): number | null {

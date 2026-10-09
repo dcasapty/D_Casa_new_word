@@ -26,6 +26,7 @@ export interface OpcionesMundo {
   topeDiario?: number;
   urlPublica?: string;
   transcribir?: DepsMotor["transcribir"];
+  mirarImagen?: DepsMotor["mirarImagen"];
   /** Proveedores de IA con clave (por defecto solo Anthropic). */
   proveedores?: ProveedorIa[];
   /** Un Odoo compartido con otras conversaciones (para probar que no se mezclan). */
@@ -134,6 +135,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
     urlSitio: "https://dcasapty.com",
     secretoDeMedios: "secreto-de-prueba",
     transcribir: op.transcribir,
+    mirarImagen: op.mirarImagen,
     log: (nivel, mensaje) => {
       mundo.registros.push({ nivel, mensaje });
     },

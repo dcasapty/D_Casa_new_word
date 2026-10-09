@@ -32,6 +32,10 @@ export interface Env {
   TOPE_DIARIO?: string;
   /** "1" activa la transcripción de notas de voz con Workers AI (apagado por defecto). */
   TRANSCRIBIR_AUDIO?: string;
+  /** "1" deja que un modelo de visión de Workers AI lea las imágenes de los clientes (producto, código, ¿comprobante?). Apagado por defecto. */
+  RECONOCER_IMAGENES?: string;
+  /** Modelo de visión de Workers AI. Vacío = @cf/meta/llama-4-scout-17b-16e-instruct. */
+  MODELO_VISION?: string;
   /** Chat de Telegram al que el cron de salud avisa si algo se cae. Vacío = sin avisos. */
   ALERTA_TELEGRAM_CHAT_ID?: string;
   /** Solo si se activa la Cloud API de WhatsApp: el Phone Number ID del número. */
