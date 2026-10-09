@@ -7,7 +7,7 @@ export const TEXTO_TOPE_DIARIO =
   "Gracias por escribirnos tanto. Por hoy ya te acompañé un buen rato; mañana seguimos con gusto. " +
   "Si prefieres, escríbeme *persona* y te atiende una vendedora.";
 
-export const TEXTO_FALLO_TECNICO = "Tuve un problema para responderte ahorita. Ya le aviso a una vendedora para que te escriba por aquí.";
+export const TEXTO_FALLO_TECNICO = "Ahorita no puedo responderte yo, pero ya avisé: una vendedora te atiende por aquí en cuanto pueda.";
 
 export const TEXTO_ARCHIVO_RECIBIDO = "Recibí tu archivo. Una vendedora lo revisa y te confirma por aquí.";
 

@@ -75,6 +75,9 @@ export async function correrTurno(e: EntradaDelTurno): Promise<SalidaDelTurno> {
     tools: e.herramientas,
     stopWhen: stepCountIs(PASOS_MAXIMOS),
     maxOutputTokens: topeDeSalida(e.proveedor, e.nivel),
+    // Los reintentos y el respaldo los maneja el motor (motor/conversacion.ts → correrConRespaldo): el SDK no debe esperar segundos
+    // por su cuenta antes de pasar al otro proveedor.
+    maxRetries: 0,
   });
   const texto = r.text.trim();
   return { texto, uso: usoDelSdk(r.totalUsage), pasos: r.steps.length, sinTexto: texto.length === 0 };
