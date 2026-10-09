@@ -468,7 +468,7 @@ class TestContratoVisualJuan(PanelUiCase):
             window.abrirCotizacion = async () => {
                 __dcj.aqui('.o_dcj_herramienta', 'Cotización').click();
                 await __dcj.esperar(() => document.querySelector('.o_dcj_hoja'), 'la cotización');
-                const entrada = document.querySelector('.o_dcj_hoja input[type=search]');
+                const entrada = await __dcj.esperar(() => document.querySelector('.o_dcj_hoja input[type=search]'), 'el buscador');
                 entrada.value = 'cama';
                 entrada.dispatchEvent(new Event('input', { bubbles: true }));
                 await __dcj.esperar(() => document.querySelectorAll('.o_dcj_producto').length >= 2, 'productos');
