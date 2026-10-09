@@ -1,4 +1,4 @@
-// Sección 3: el seguimiento. Odoo decide quién y cuándo (5 h, luego 5 días, máximo 2); el Worker redacta y envía;
+// Sección 3: el seguimiento. Odoo decide quién (solo con intención de compra) y cuándo (5 h, luego 5 días, máximo 2); el Worker redacta y envía;
 // el Worker le confirma a Odoo con POST /seguimiento/hecho. Odoo → Worker: POST /odoo/seguimiento.
 
 import { beforeAll, describe, expect, it } from "vitest";
@@ -26,7 +26,11 @@ export function seccionSeguimiento(e: Escena) {
       });
 
     it("después de que el bot contesta, Odoo programa el 1.º a las 5 h (solo en horario laboral)", async () => {
-      e.w.ia.guionar([{ texto: "Claro, Luis. ¿Qué medida de colchón buscas?" }]);
+      // Luis muestra interés concreto: el asistente registra la oportunidad (eso habilita el seguimiento).
+      e.w.ia.guionar([
+        { llamadas: [{ nombre: "crear_oportunidad", args: { resumen: "Luis busca un colchón.", interes: "ando buscando un colchón" } }] },
+        { texto: "Claro, Luis. ¿Qué medida de colchón buscas?" },
+      ]);
       await e.w.cliente(celular, "Hola, ando buscando un colchón", { nombre: "Luis" });
       await e.w.quieta(celular);
       const c = (await e.conversacionDe(celular))!;
@@ -92,6 +96,20 @@ export function seccionSeguimiento(e: Escena) {
       const c = (await e.conversacionDe(celular))!;
       expect(c.seguimientos_enviados).toBe(0);
       expect(deOdoo(c.seguimiento_proximo)! - Date.now()).toBeGreaterThan(4.9 * HORA);
+    });
+
+    it("quien solo preguntó (sin intención de compra: no hay oportunidad) no recibe seguimiento", async () => {
+      const curioso = celularNuevo();
+      e.w.ia.guionar([{ texto: "Abrimos todos los días; una vendedora te atiende en ese horario." }]);
+      await e.w.cliente(curioso, "¿A qué hora abren?");
+      await e.w.quieta(curioso);
+      const c = (await e.conversacionDe(curioso))!;
+      expect(c.oportunidad_id).toBeFalsy();
+      expect(c.seguimiento_proximo).toBeFalsy();
+      await admin.escribir("dcasa.conversacion", [c.id], { seguimiento_proximo: aOdoo(Date.now() - 60_000) });
+      const pedidos = e.w.entradas.filter((x) => x.ruta === "/odoo/seguimiento").length;
+      await admin.dispararCron("pedir los seguimientos");
+      expect(e.w.entradas.filter((x) => x.ruta === "/odoo/seguimiento")).toHaveLength(pedidos); // Odoo no lo pidió
     });
 
     it("quien pide que no lo contacten no recibe seguimiento (Odoo no lo pide)", async () => {
