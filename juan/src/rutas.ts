@@ -16,6 +16,7 @@ import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, js
 import type { Env } from "./env";
 import type { ResultadoIngest, ResultadoSeguimiento, SolicitudEnviar, SolicitudSeguimiento } from "./motor/conversacion";
 import { nombreDeConversacion, verificarUrlMedio } from "./motor/mediosUrl";
+import { rutasDelPanel } from "./odoo-panel";
 import { informeDeSalud, informePublico, secretosGeneralesFaltantes } from "./salud";
 import { bearerValido } from "./seguridad";
 
@@ -165,6 +166,8 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
     );
   }
   if (!bearerValido(req, env.JUAN_WORKER_TOKEN)) return error("no autorizado", 401);
+
+  const delPanel = await rutasDelPanel(ruta, req, env, d); if (delPanel) return delPanel; // el panel de Odoo: odoo-panel*.ts
 
   if (ruta === "/odoo/salud") {
     if (req.method !== "GET") return error("método no permitido", 405);
