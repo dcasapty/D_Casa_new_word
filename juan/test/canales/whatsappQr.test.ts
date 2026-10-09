@@ -111,6 +111,21 @@ describe("el webhook del puente", () => {
     expect(v.entrantes[0].adjuntos[0].tipo).toBe("audio");
   });
 
+  it("el puente manda `de` como el celular (E.164 sin +) y un archivo omitido (muy pesado) NO hace perder el mensaje", async () => {
+    // La forma REAL del puente (puente-wa/contenedor/lib/contrato.mjs → construirWebhook): `de` sin «@s.whatsapp.net», `jid` aparte
+    // y `medio_omitido` cuando el archivo no cupo. Hallado con el puente real en la integración con Odoo.
+    const { env } = puenteFalso();
+    const r = await adaptador.recibir(
+      entrante(mensaje({ de: "50760261919", jid: "50760261919@s.whatsapp.net", tipo: "video", texto: undefined, medio_omitido: { motivo: "tamano", mime: "video/mp4", bytes: 99_000_000 } })),
+      env,
+    );
+    expect(r.entrantes).toHaveLength(1);
+    expect(r.entrantes[0]).toMatchObject({ id_externo: "50760261919", celular: "50760261919", canal: "whatsapp_qr" });
+    expect(r.entrantes[0].adjuntos).toEqual([{ tipo: "video", mime: "video/mp4" }]);
+    // Un tipo de archivo sin medio y sin motivo sigue siendo nada que contestar (no se inventa un adjunto).
+    expect((await adaptador.recibir(entrante(mensaje({ tipo: "video", texto: null })), env)).entrantes).toEqual([]);
+  });
+
   it("sticker, ubicación y contacto llegan como una nota; reacciones y borrados (sin texto ni archivo) se ignoran", async () => {
     const { env } = puenteFalso();
     expect((await adaptador.recibir(entrante(mensaje({ tipo: "ubicacion", texto: null })), env)).entrantes[0].texto).toBe("(el cliente mandó una ubicación)");

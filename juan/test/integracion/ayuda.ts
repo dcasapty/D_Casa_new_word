@@ -209,12 +209,14 @@ export interface EnvioAlPuente {
 
 export const DOMINIOS_DEL_PUENTE = "dcasapty.com,dcasapty.workers.dev";
 
+let contrato: Promise<any> | undefined;
+/** El contrato del puente de verdad (puente-wa/contenedor/lib/contrato.mjs): validarEnviar, construirWebhook, validarWebhook. */
+const cargarContrato = () =>
+  (contrato ??= import(/* @vite-ignore */ pathToFileURL(new URL("../../../puente-wa/contenedor/lib/contrato.mjs", import.meta.url).pathname).href));
+
 export function crearPuente(waToken: string) {
   const envios: EnvioAlPuente[] = [];
   const rechazos: { estado: number; error: string }[] = [];
-  let contrato: Promise<any> | undefined;
-  const cargarContrato = () =>
-    (contrato ??= import(/* @vite-ignore */ pathToFileURL(new URL("../../../puente-wa/contenedor/lib/contrato.mjs", import.meta.url).pathname).href));
   let urls: Promise<any> | undefined;
   const cargarUrls = () => (urls ??= import(/* @vite-ignore */ pathToFileURL(new URL("../../../puente-wa/contenedor/lib/urls.mjs", import.meta.url).pathname).href));
 
@@ -462,19 +464,27 @@ export async function levantarWorker(): Promise<Mundo> {
     entradas,
 
     async cliente(celular, texto, extra = {}) {
+      // El cuerpo lo arma el puente de verdad (construirWebhook) y se valida con su propio contrato: `de` es el celular sin «+».
+      const { construirWebhook, validarWebhook } = await cargarContrato();
+      const propio = extra.propio === true;
+      const cuerpo = construirWebhook({
+        idMensaje: String(extra.id_mensaje ?? `WAMID.${celular}.${++contador}.${randomBytes(3).toString("hex")}`),
+        de: celular,
+        nombre: propio ? null : "nombre" in extra ? (extra.nombre ?? null) : "Karen",
+        tipo: extra.tipo ?? "texto",
+        texto: texto || null,
+        medio: extra.medio ?? null,
+        medioOmitido: extra.medio_omitido ?? null,
+        ts: Date.now(),
+        propio,
+        jid: `${celular}@s.whatsapp.net`,
+      });
+      const errores: string[] = validarWebhook(cuerpo);
+      if (errores.length) throw new Error(`el webhook que armó la prueba no cumple el contrato del puente: ${errores.join("; ")}`);
       return fetchReal(`${url}/webhooks/whatsapp-qr`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-wa-token-b64": tokenParaCabecera(waToken) },
-        body: JSON.stringify({
-          id_mensaje: `WAMID.${celular}.${++contador}.${randomBytes(3).toString("hex")}`,
-          de: `${celular}@s.whatsapp.net`,
-          nombre: "Karen",
-          tipo: "texto",
-          texto,
-          ts: new Date().toISOString(),
-          propio: false,
-          ...extra,
-        }),
+        body: JSON.stringify(cuerpo),
       });
     },
 

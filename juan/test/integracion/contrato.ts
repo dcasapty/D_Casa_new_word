@@ -2,6 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 import { dentroDeHorario, normalizarConfig } from "../../src/config";
+import { planDeIntentos } from "../../src/motor/proveedores";
 import { OdooCliente } from "../../src/odoo/cliente";
 import { TOKEN_ODOO, apiOdoo, celularNuevo, enlaceDcasa } from "./ayuda";
 import type { Escena } from "./escena";
@@ -40,6 +41,24 @@ export function seccionContrato(e: Escena) {
       // Los precios que la dueña cargó en Odoo (por nivel) llegan al Worker por modelo.
       expect(cfg.precios_ia["claude-haiku-4-5"]).toEqual({ entrada: 1, salida: 5, entrada_cache: 0.1 });
       expect(cfg.precios_ia["claude-sonnet-5-5"]).toEqual({ entrada: 3, salida: 15, entrada_cache: 0.3 });
+    });
+
+    it("proveedor de respaldo y modelos: lo que Odoo publica es lo que el Worker usa para armar el plan de IA", async () => {
+      await e.ajustes({ proveedor_respaldo_ia: "meta" });
+      try {
+        const cfg = normalizarConfig(await cliente().config());
+        expect(cfg.proveedor_ia).toBe("anthropic");
+        expect(cfg.proveedor_respaldo_ia).toBe("meta");
+        // Odoo no tiene campos para los modelos del respaldo: el Worker usa los de siempre de ese proveedor.
+        expect(planDeIntentos(cfg, "rapido", ["anthropic", "meta"]).map((s) => `${s.proveedor}/${s.modelo}`)).toEqual([
+          "anthropic/claude-haiku-4-5",
+          "meta/muse-spark-1.3",
+        ]);
+        const crudo = (await cliente().config()) as Record<string, any>;
+        expect(crudo.modelos_por_defecto.anthropic).toEqual({ rapido: "claude-haiku-4-5", inteligente: "claude-sonnet-5-5" });
+      } finally {
+        await e.ajustes({ proveedor_respaldo_ia: false });
+      }
     });
 
     it("el horario: los días de Odoo (0 = domingo) significan lo mismo para el Worker", async () => {

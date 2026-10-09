@@ -35,6 +35,8 @@ interface EntranteDelPuente {
   tipo?: string | null;
   texto?: string | null;
   medio?: { url_temporal?: string; base64?: string; mime?: string; nombre?: string } | null;
+  /** El puente no pudo adjuntar el archivo (muy grande, descarga fallida): el mensaje igual llega, con el motivo. */
+  medio_omitido?: { motivo?: string; mime?: string; bytes?: number } | null;
   ts?: number | string;
   propio?: boolean;
 }
@@ -96,6 +98,10 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
         };
       }
       adjuntos.push(a);
+    } else if (tipo && c.medio_omitido) {
+      // Un video o una foto demasiado pesada: el puente no la pudo traer pero SÍ llegó un archivo. Sin esto el mensaje se perdía
+      // (ni texto ni adjunto) y la clienta se quedaba sin respuesta; así queda registrado y una vendedora sabe que había un archivo.
+      adjuntos.push({ tipo, mime: c.medio_omitido.mime });
     }
     let texto = (c.texto ?? "").trim() || undefined;
     if (!texto && adjuntos.length === 0) texto = SIN_ARCHIVO[(c.tipo ?? "").toLowerCase()];

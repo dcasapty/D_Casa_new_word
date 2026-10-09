@@ -117,6 +117,20 @@ export function seccionAdjuntos(e: Escena) {
       });
     });
 
+    describe("cliente → puente → Worker → Odoo: un archivo que el puente no pudo traer", () => {
+      it("un video muy pesado (medio_omitido del puente): el mensaje no se pierde, queda registrado y el bot contesta", async () => {
+        const celular = celularNuevo();
+        e.w.ia.guionar([{ texto: "Recibí tu video. Una vendedora lo revisa y te confirma." }]);
+        const r = await e.w.cliente(celular, "", { tipo: "video", medio_omitido: { motivo: "tamano", mime: "video/mp4", bytes: 99_000_000 } });
+        expect(r.status).toBe(200);
+        await e.w.quieta(celular);
+        const mensajes = (await e.mensajesDe(celular)).filter((m) => m.autor === "cliente");
+        expect(mensajes).toHaveLength(1);
+        expect(mensajes[0]).toMatchObject({ adjuntos_fallidos: 1, adjunto_ids: [] });
+        expect(e.w.puente.envios.filter((x) => x.para === celular).flatMap((x) => x.chunks).join(" ")).toContain("Recibí tu video");
+      });
+    });
+
     describe("vendedora → Odoo → Worker → puente", () => {
       const celular = celularNuevo();
       let convId: number;
