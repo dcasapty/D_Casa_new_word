@@ -28,6 +28,8 @@ OVERRIDE = 'Sobrescribe un método público estándar de Odoo; la superficie no 
 CONTADOR = 'API de la pantalla de conciliación: exige account.group_account_user en el servidor.'
 VENTAS_BOTON = ('Botón: exige sales_team.group_sale_salesman en el servidor (_exigir_vendedora) y el ACL '
                 'antes de escribir.')
+PANEL_GERENCIA = ('API de la pantalla de Juan solo para Gerencia: exige sales_team.group_sale_manager en el servidor '
+                  '(_exigir_gerencia) ANTES de hablar con el Worker; nunca devuelve claves ni imprime el QR en logs.')
 PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
                 '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
@@ -231,6 +233,26 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'cancelar_seguimiento'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'poner_etiquetas'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'agregar_nota'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'buscar_catalogo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'cotizaciones_abiertas'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'crear_cotizacion'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'descartar_adjunto'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'enviar_cotizacion'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'enviar_foto_catalogo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'equipo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'fotos_catalogo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'iniciar_panel'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'nueva_oportunidad'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'preparar_foto_catalogo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'reintentar_envios_panel'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'subir_adjunto'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'sugerir_respuesta'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'resumen'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'costos'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'conexiones'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'qr'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'desvincular_puente'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.mensaje', 'write'): 'Bloquea: el historial de la conversación no se edita.',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'action_reintentar'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.mensaje', 'marcar_sensible'):
