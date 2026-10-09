@@ -276,6 +276,9 @@ jobs:
           for name in CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
             if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
           done
+          # --keep-vars: las variables (no secretas) que la dueña pega en el panel, como JUAN_URL, no se borran al
+          # desplegar. Los secretos del panel nunca se tocan. Lo que sí está en wrangler.jsonc sigue mandando.
+          args+=(--keep-vars)
           npx wrangler deploy "${args[@]}"
 
       - name: Borrar el archivo de secretos
