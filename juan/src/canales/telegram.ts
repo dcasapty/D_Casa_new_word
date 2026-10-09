@@ -95,7 +95,7 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
     ruta: "/webhooks/telegram",
 
     capacidades(): Capacidades {
-      return { imagenes: true, documentos: true, ventana24h: false, maxTexto: MAX_TEXTO };
+      return { imagenes: true, documentos: true, ventana24h: false, maxTexto: MAX_TEXTO, pie: true };
     },
 
     faltantes(env: Env): string[] {

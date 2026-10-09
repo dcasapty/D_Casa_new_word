@@ -63,7 +63,7 @@ export interface OpcionesWhatsappCloud {
   dormir?: (ms: number) => Promise<void>;
 }
 
-const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h: true, maxTexto: 3500 };
+const CAPACIDADES: Capacidades = { imagenes: true, documentos: true, ventana24h: true, maxTexto: 3500, pie: true };
 
 export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCanal {
   const f: typeof fetch = op.fetch ?? ((...a) => fetch(...a));

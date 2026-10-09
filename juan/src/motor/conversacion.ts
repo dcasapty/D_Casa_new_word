@@ -41,6 +41,8 @@ const ESPERA_ENTRE_BURBUJAS_MS = 1000;
 const HISTORIAL_PARA_EL_MODELO = 20;
 /** Imágenes que se leen por mensaje y por persona al día: cada lectura cuesta un poco de IA. */
 const IMAGENES_POR_MENSAJE = 3;
+/** Un pie de foto largo no cabe en todos los canales (Telegram corta en 1024): hasta aquí viaja junto a la foto. */
+const MAX_PIE_DE_FOTO = 1000;
 const IMAGENES_POR_DIA = 10;
 
 /** Un adjunto como se guarda en la copia de trabajo: el de Odoo más lo que se leyó de la imagen (esto NO viaja a Odoo). */
@@ -912,7 +914,8 @@ export class MotorConversacion {
     const ahora = this.deps.ahora();
     for (const id of ids) this.kv.poner(`env:${id}`, ahora);
     for (const b of burbujas) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: b, ts: ahora, modelo: o.modelo });
-    for (const m of medios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]`, ts: ahora, modelo: o.modelo });
+    // El pie de lo que escribió una vendedora se guarda con la foto: así el asistente sabe qué se le dijo al cliente.
+    for (const m of medios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
 
     if (o.registrar) {
       this.cola.agregar(
@@ -946,8 +949,15 @@ export class MotorConversacion {
       else extra.push(a.nombre ? `${a.nombre}: ${a.url}` : a.url); // audio y video salen como enlace
     }
     const texto = (s.texto ?? "").trim();
-    const burbujas = [...(texto ? [texto] : []), ...extra];
+    let burbujas = [...(texto ? [texto] : []), ...extra];
     if (burbujas.length === 0 && medios.length === 0) throw new Error("No hay nada que enviar.");
+    // Una foto o un documento con su texto: el texto viaja como pie de la primera (una sola burbuja para el cliente), si el canal
+    // lo permite y cabe. Si no, sale como siempre: el texto y luego los archivos.
+    const canalId = this.canalId();
+    if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId).pie) {
+      medios[0] = { ...medios[0], pie: texto };
+      burbujas = [];
+    }
     // Primero se corta lo que el bot traiga a medias: una persona está escribiendo.
     this.humanoIntervino(cfg, ahora);
     const ids = await this.emitir({ burbujas, medios, autor: "vendedora", registrar: false });

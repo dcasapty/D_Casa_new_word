@@ -82,6 +82,8 @@ export interface Capacidades {
   ventana24h: boolean;
   /** Largo máximo de un mensaje de texto. */
   maxTexto: number;
+  /** El canal deja mandar un texto junto a la foto o el documento, en el mismo mensaje (pie de foto). */
+  pie?: boolean;
 }
 
 /** Lo que falta (secretos, bindings) para que un canal funcione, por nombre. */

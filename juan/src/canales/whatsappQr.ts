@@ -134,7 +134,7 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
     ruta: "/webhooks/whatsapp-qr",
 
     capacidades(): Capacidades {
-      return { imagenes: true, documentos: true, ventana24h: false, maxTexto: 3500 };
+      return { imagenes: true, documentos: true, ventana24h: false, maxTexto: 3500, pie: true };
     },
 
     faltantes(env: Env): string[] {
