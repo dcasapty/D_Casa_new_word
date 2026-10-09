@@ -421,6 +421,7 @@ class TestPasarAVendedora(HerramientasCase):
         self.assertFalse(datos['dentro_de_horario'])
         self.assertIn('mañana a primera hora, desde las 8:00 a. m.', datos['texto_para_el_cliente'])
         self.assertNotIn('ahora', datos['texto_para_el_cliente'])
+        self.assertNotIn('..', datos['texto_para_el_cliente'], 'Un punto de más al final de «a. m.»')
 
     def test_deja_una_actividad_para_la_vendedora(self):
         with freeze_time(panama(2026, 10, 9, 10, 0)):

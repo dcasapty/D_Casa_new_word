@@ -216,3 +216,27 @@ class TestSecretos(JuanCase):
             self.assertEqual(self.ajustes.with_user(self.gerente).action_probar_conexion()['params']['type'], 'warning')
         with self.assertRaises(AccessError):
             self.ajustes.with_user(self.vendedora).action_probar_conexion()
+
+    def test_probar_conexion_con_la_forma_real_del_informe_del_worker(self):
+        """El Worker contesta 200 con ``ok: false`` cuando le falta algo, y cada canal es un objeto, no una palabra."""
+        self.con_entorno(JUAN_WORKER_TOKEN=TOKEN_WORKER, JUAN_URL=URL_WORKER)
+        informe = {
+            'ok': False, 'mensaje': 'Falta WA_TOKEN: el canal de WhatsApp todavía no puede contestar.',
+            'canales': {
+                'whatsapp_qr': {'activo': True, 'configurado': False, 'faltan': ['PUENTE', 'WA_TOKEN'],
+                                'conectado': None},
+                'telegram': {'activo': True, 'configurado': True, 'faltan': [], 'conectado': None},
+                'messenger': {'activo': False, 'configurado': False, 'faltan': ['META_PAGE_TOKEN']},
+                'instagram': {'activo': True, 'configurado': True, 'conectado': False},
+                'whatsapp_cloud': {'activo': True, 'configurado': True, 'conectado': True}}}
+        with patch('requests.request', return_value=respuesta_http(informe)):
+            params = self.ajustes.with_user(self.gerente).action_probar_conexion()['params']
+        self.assertEqual(params['type'], 'warning')
+        for esperado in ('whatsapp_qr: sin configurar (PUENTE, WA_TOKEN)', 'telegram: listo', 'messenger: apagado',
+                         'instagram: desconectado', 'whatsapp_cloud: conectado', 'Falta WA_TOKEN'):
+            self.assertIn(esperado, params['message'])
+        self.assertNotIn('{', params['message'])
+        informe.update(ok=True, mensaje='Todo bien.')
+        with patch('requests.request', return_value=respuesta_http(informe)):
+            resultado = self.ajustes.with_user(self.gerente).action_probar_conexion()
+        self.assertEqual(resultado['params']['type'], 'success')

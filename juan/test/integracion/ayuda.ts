@@ -266,7 +266,8 @@ export interface ContextoIA {
   /** Las herramientas que se le ofrecieron al modelo. */
   herramientas: string[];
 }
-export type PasoIA = { texto: string } | { llamadas: { nombre: string; args: Record<string, unknown> }[] };
+/** `mientrasPiensa`: algo que ocurre MIENTRAS el modelo piensa (p. ej. una vendedora que toma la conversación). */
+export type PasoIA = ({ texto: string } | { llamadas: { nombre: string; args: Record<string, unknown> }[] }) & { mientrasPiensa?: () => Promise<void> };
 export type PasoDinamico = PasoIA | ((c: ContextoIA) => PasoIA);
 
 export function crearIa() {
@@ -305,7 +306,7 @@ export function crearIa() {
     };
   }
 
-  function responder(cuerpo: any): Response {
+  async function responder(cuerpo: any): Promise<Response> {
     peticiones.push({ cuerpo, modelo: cuerpo.model });
     const actual = guion[paso++];
     let salida: PasoIA;
@@ -315,6 +316,7 @@ export function crearIa() {
     } else {
       salida = typeof actual === "function" ? actual(contexto(cuerpo)) : actual;
     }
+    await salida.mientrasPiensa?.();
     const content =
       "llamadas" in salida
         ? salida.llamadas.map((l) => ({ type: "tool_use", id: `toolu_${++n}`, name: l.nombre, input: l.args }))

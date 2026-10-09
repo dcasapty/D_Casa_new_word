@@ -69,7 +69,10 @@ def validar(adjunto):
         raise AdjuntoInvalido(f'El tipo de adjunto debe ser uno de: {", ".join(TIPOS)}.')
     url = adjunto.get('url')
     contenido = adjunto.get('base64')
-    if bool(url) == bool(contenido):
+    # Ninguno de los dos es válido: el Worker guarda el archivo pero, sin su propia dirección pública (URL_PUBLICA), no
+    # puede darle a Odoo cómo traerlo. El mensaje NO se rechaza (se perdería): el adjunto cuenta como «no se pudo
+    # traer».
+    if url and contenido:
         raise AdjuntoInvalido('Cada adjunto lleva «url» o «base64» (uno de los dos).')
     if url is not None and (not isinstance(url, str) or len(url) > 2048):
         raise AdjuntoInvalido('La «url» del adjunto no es válida.')
@@ -142,9 +145,25 @@ def decodificar_base64(texto, max_bytes=MAX_BYTES):
     return datos if 0 < len(datos) <= max_bytes else None
 
 
-def descargar(url, max_bytes=MAX_BYTES):
-    """Bytes de la URL o ``None`` (sin lanzar): descarga acotada y sin redirecciones."""
-    if not url_permitida(url):
+def es_del_origen(url, origen):
+    """¿``url`` es del mismo esquema, host y puerto que ``origen``?"""
+    try:
+        a, b = urlsplit(url), urlsplit(origen or '')
+        puerto = {'http': 80, 'https': 443}
+        return bool(b.scheme and b.hostname and a.scheme == b.scheme and a.hostname == b.hostname
+                    and (a.port or puerto.get(a.scheme)) == (b.port or puerto.get(b.scheme)))
+    except ValueError:
+        return False
+
+
+def descargar(url, max_bytes=MAX_BYTES, origen_confiable=None):
+    """Bytes de la URL o ``None`` (sin lanzar): descarga acotada y sin redirecciones.
+
+    ``origen_confiable`` es la dirección del propio Worker de Juan (la que configuró la dueña): lo que sirve él mismo
+    (``/media/…``, sus archivos temporales firmados) no es SSRF. En producción es https público y pasa igual; en un
+    Worker local (``http://localhost``, para probar) es la única forma de que Odoo baje sus archivos.
+    """
+    if not (es_del_origen(url, origen_confiable) or url_permitida(url)):
         _logger.warning('Juan: URL de adjunto rechazada (esquema, puerto o dirección no permitidos).')
         return None
     try:
@@ -168,8 +187,10 @@ def descargar(url, max_bytes=MAX_BYTES):
     return datos or None
 
 
-def obtener_contenido(adjunto):
+def obtener_contenido(adjunto, origen_confiable=None):
     """Bytes de un adjunto ya validado (``url`` o ``base64``), o ``None`` si no se pudo."""
     if adjunto.get('base64'):
         return decodificar_base64(adjunto['base64'])
-    return descargar(adjunto['url'])
+    if not adjunto.get('url'):
+        return None
+    return descargar(adjunto['url'], origen_confiable=origen_confiable)

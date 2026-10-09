@@ -181,6 +181,16 @@ class TestMensaje(ApiCase):
         self.assertTrue(cuerpo['ok'])
         self.assertEqual([(a['nombre'], a['sensible']) for a in cuerpo['adjuntos']], [('yappy.jpg', True)])
 
+    def test_un_adjunto_sin_url_no_hace_perder_el_mensaje(self):
+        """Un Worker sin su dirección pública manda ``url: null``: el mensaje se guarda y la burbuja avisa."""
+        cuerpo = self.post('mensaje', self.mensaje(
+            texto='Aquí mi comprobante',
+            adjuntos=[{'tipo': 'imagen', 'url': None, 'nombre': 'c.jpg', 'mime': 'image/jpeg'}]))
+        self.assertEqual(cuerpo.status_code, 200, cuerpo.text)
+        mensaje = self.conversacion().mensaje_ids
+        self.assertEqual(mensaje.texto, 'Aquí mi comprobante')
+        self.assertEqual((mensaje.adjuntos_fallidos, len(mensaje.adjunto_ids)), (1, 0))
+
     def test_otros_canales(self):
         for canal, id_externo in (('telegram', '123456'), ('messenger', 'psid-1'), ('instagram', 'igsid-1'),
                                   ('whatsapp_cloud', '50761230000')):

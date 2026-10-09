@@ -451,15 +451,33 @@ class JuanAjustes(models.Model):
         resultado = self.env['dcasa.juan.cliente'].salud()
         if resultado.get('ok'):
             canales = resultado.get('canales') or {}
-            detalle = ', '.join(f'{nombre}: {estado}' for nombre, estado in canales.items()) or 'sin detalle'
+            detalle = ', '.join(
+                f'{nombre}: {_estado_del_canal(estado)}' for nombre, estado in canales.items()) or 'sin detalle'
             mensaje = self.env._('El Worker respondió. Canales: %s.', detalle)
             tipo = 'success'
+            if resultado.get('con_problemas'):
+                # El Worker contesta, pero dice que algo le falta (secretos, un canal): se le pasa tal cual.
+                mensaje = f"{mensaje} {str(resultado.get('mensaje') or '')[:300]}".strip()
+                tipo = 'warning'
         else:
             mensaje = self.env._('No pude hablar con el Worker: %s', resultado.get('error') or 'sin respuesta')
             tipo = 'warning'
         return {'type': 'ir.actions.client', 'tag': 'display_notification',
                 'params': {'title': self.env._('Conexión con Juan'), 'message': mensaje, 'type': tipo,
                            'sticky': False}}
+
+
+def _estado_del_canal(estado):
+    """Un canal del informe de salud del Worker en palabras: apagado, sin configurar (qué falta), conectado…"""
+    if not isinstance(estado, dict):
+        return str(estado)
+    if not estado.get('activo', True):
+        return 'apagado'
+    if not estado.get('configurado', True):
+        faltan = ', '.join(str(f) for f in estado.get('faltan') or [])
+        return f'sin configurar ({faltan})' if faltan else 'sin configurar'
+    conectado = estado.get('conectado')
+    return 'conectado' if conectado else ('desconectado' if conectado is False else 'listo')
 
 
 def _entero_si_se_puede(valor):

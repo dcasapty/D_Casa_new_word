@@ -23,5 +23,5 @@ export function horaLegible(hhmm: string): string {
 export function textoPasoAVendedora(dentroDeHorario: boolean, horario: Horario): string {
   return dentroDeHorario
     ? "Listo, ya le pasé tu consulta a una vendedora. Te escribe por aquí en un momento."
-    : `Listo, dejé tu consulta para una vendedora. Te escribe por aquí cuando abramos, a partir de las ${horaLegible(horario.inicio)}.`;
+    : `Listo, dejé tu consulta para una vendedora. Te escribe por aquí cuando abramos, a partir de las ${horaLegible(horario.inicio).replace(/\.$/, "")}.`;
 }

@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest";
 import { CONFIG_POR_DEFECTO, normalizarConfig } from "../../src/config";
 import { HERRAMIENTAS_DEL_CONTRATO, contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento } from "../../src/dcasa/prompt";
+import { textoPasoAVendedora } from "../../src/dcasa/textos";
 import { AHORA_INICIAL } from "../helpers/mundo";
 
 const cfg = CONFIG_POR_DEFECTO;
@@ -261,6 +262,12 @@ describe("el bloque dinámico (no se cachea)", () => {
     expect(c).toMatch(/viernes, 9 de octubre de 2026/i);
     expect(c).toMatch(/10:00/);
     expect(c).toContain("todos los días, de 8:00 a. m. a 5:00 p. m.");
+  });
+
+  it("no deja un punto de más después de «p. m.»", () => {
+    expect(contextoDelChat(cfg, base)).not.toContain("..");
+    expect(textoPasoAVendedora(false, cfg.horario)).not.toContain("..");
+    expect(textoPasoAVendedora(false, cfg.horario)).toContain("a partir de las 8:00 a. m.");
   });
 
   it("nombra los días con la convención de Odoo (0 = domingo)", () => {

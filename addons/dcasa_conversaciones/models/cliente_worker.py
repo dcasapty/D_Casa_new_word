@@ -71,7 +71,7 @@ class JuanCliente(models.AbstractModel):
             cuerpo = {}
         if respuesta.status_code >= 400 or cuerpo.get('ok') is False:
             _logger.warning('Juan: el Worker respondió %s a %s %s.', respuesta.status_code, metodo, ruta)
-            return {'ok': False, 'estado_http': respuesta.status_code,
+            return {'ok': False, 'estado_http': respuesta.status_code, 'cuerpo': cuerpo,
                     'error': str(cuerpo.get('error') or f'El Worker respondió {respuesta.status_code}.')[:300]}
         return {**cuerpo, 'ok': True}
 
@@ -111,4 +111,9 @@ class JuanCliente(models.AbstractModel):
     @api.private
     @api.model
     def salud(self):
-        return self._llamar('GET', '/odoo/salud')
+        """Salud del Worker. Un Worker con problemas (faltan secretos, un canal sin conectar) contesta 200 con
+        ``ok: false``: respondió, así que se devuelve lo que dijo (``mensaje``, ``canales``…) con ``con_problemas``."""
+        resultado = self._llamar('GET', '/odoo/salud')
+        if resultado.get('estado_http') == 200 and resultado.get('cuerpo'):
+            return {**resultado['cuerpo'], 'ok': True, 'con_problemas': True}
+        return resultado

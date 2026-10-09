@@ -20,10 +20,9 @@ from markupsafe import Markup, escape
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, ConcurrencyError, UserError
-from odoo.modules import module as modulo_odoo
 from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
-from . import celulares
+from . import celulares, transaccion
 from . import horario as H
 from .ajustes import CANALES, CANALES_CON_CELULAR
 from .mensaje import CLAVE_SISTEMA, VENTANA_ADOPCION
@@ -431,8 +430,7 @@ class DcasaConversacion(models.Model):
                 # Sin savepoint: cada seguimiento se CONFIRMA en la base antes de llamar al Worker (ver abajo).
                 pedidos += 1 if conv._intentar_seguimiento(ahora, ajustes) else 0
             except Exception:   # noqa: BLE001 — un fallo no frena a los demás
-                if not modulo_odoo.current_test:   # Odoo no deja deshacer desde dentro de un test
-                    self.env.cr.rollback()
+                transaccion.deshacer(self.env)
                 _logger.exception('Juan: falló el seguimiento de la conversación %s', conv.id)
         return pedidos
 
@@ -454,12 +452,12 @@ class DcasaConversacion(models.Model):
         # Postgres la rechazaría («could not serialize access») o, peor, pisaría lo que el Worker ya confirmó. Por eso
         # el pedido se anota y se CONFIRMA (commit) antes de llamar, y al volver se lee todo de nuevo.
         self.write({'seguimiento_pedido_en': ahora, 'seguimiento_numero_pedido': numero, 'seguimiento_proximo': False})
-        self._confirmar_en_la_base()
+        transaccion.confirmar(self.env)
         respuesta = self.env['dcasa.juan.cliente'].pedir_seguimiento(
             self.id, self.canal, self.id_externo, numero, interes=interes, ultimo_mensaje_ts=ultimo_mensaje)
         # Mientras esperaba, esta transacción volvió a abrirse (al leer la dirección del Worker) con una «foto» ANTERIOR
         # a lo que el Worker confirmó: se cierra y se lee todo de nuevo, o se vería (y se pisaría) el estado viejo.
-        self._confirmar_en_la_base()
+        transaccion.confirmar(self.env)
         self.env.invalidate_all()
         if self.seguimientos_enviados >= numero:
             return True   # el Worker ya lo confirmó (enviado o descartado) mientras contestaba
@@ -485,14 +483,6 @@ class DcasaConversacion(models.Model):
             self.write({'seguimiento_reintentos': reintentos,
                         'seguimiento_proximo': ahora + PAUSA_REINTENTO_SEGUIMIENTO * reintentos})
         return False
-
-    def _confirmar_en_la_base(self):
-        """Cierra la transacción (COMMIT) para que la siguiente empiece con una «foto» nueva de la base.
-
-        Solo donde Odoo lo permite: dentro de un test no se puede confirmar (el test lo deshace todo al terminar).
-        """
-        if not modulo_odoo.current_test:
-            self.env.cr.commit()
 
     def _interes(self):
         self.ensure_one()
@@ -861,7 +851,7 @@ class DcasaConversacion(models.Model):
             texto = self.env._(
                 'Listo, ya avisé a una vendedora para que te atienda por aquí. Ella te escribe en cuanto pueda.')
         else:
-            texto = self.env._('Ya dejé tu consulta anotada para una vendedora. Te escribe %s.', cuando)
+            texto = self.env._('Ya dejé tu consulta anotada para una vendedora. Te escribe %s.', cuando.rstrip('.'))
         return {'texto_para_el_cliente': texto, 'dentro_de_horario': dentro, 'urgente': urgente}
 
     def _avisar_por_telegram(self, texto):

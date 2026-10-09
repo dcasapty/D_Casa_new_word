@@ -9,8 +9,10 @@
  */
 import { afterAll, beforeAll, describe } from "vitest";
 import { hayOdoo } from "./ayuda";
+import { seccionAdjuntos } from "./adjuntos";
 import { seccionContrato } from "./contrato";
 import { Escena } from "./escena";
+import { seccionErrores } from "./errores";
 import { seccionHistoria } from "./historia";
 import { seccionSeguimiento } from "./seguimiento";
 
@@ -22,4 +24,6 @@ describe.skipIf(!hayOdoo)("Juan: Odoo real + Worker real", { timeout: 90_000 }, 
   seccionContrato(escena);
   seccionHistoria(escena);
   seccionSeguimiento(escena);
+  seccionAdjuntos(escena);
+  seccionErrores(escena); // la última: su prueba de 429 frena a esta máquina un minuto
 });

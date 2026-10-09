@@ -38,12 +38,23 @@ class TestValidarAdjuntos(BaseCase):
             self.assertEqual(A.validar({'tipo': tipo, 'url': 'https://x.test/a'})['tipo'], tipo)
 
     def test_rechaza_lo_que_no_cumple_el_contrato(self):
-        for malo in (None, 'texto', [], {'tipo': 'gif', 'url': 'https://x.test/a'}, {'tipo': 'imagen'},
+        for malo in (None, 'texto', [], {'tipo': 'gif', 'url': 'https://x.test/a'},
                      {'tipo': 'imagen', 'url': 'https://x.test/a', 'base64': 'QQ=='},
                      {'tipo': 'imagen', 'url': 5}, {'tipo': 'imagen', 'url': 'https://x.test/' + 'a' * 3000},
                      {'tipo': 'imagen', 'base64': 7}):
             with self.subTest(malo=malo), self.assertRaises(A.AdjuntoInvalido):
                 A.validar(malo)
+
+    def test_sin_url_ni_base64_no_se_rechaza_el_mensaje(self):
+        """El Worker sin URL_PUBLICA guarda el archivo pero no tiene cómo dárselo a Odoo y manda ``url: null``: rechazar
+        todo el mensaje lo perdería. El adjunto vale, y al traerlo cuenta como «no se pudo traer»."""
+        for sin in ({'tipo': 'imagen'}, {'tipo': 'imagen', 'url': None},
+                    {'tipo': 'documento', 'url': '', 'nombre': 'a.pdf'}):
+            with self.subTest(sin=sin):
+                adjunto = A.validar(sin)
+                self.assertIsNone(adjunto['url'])
+                self.assertIsNone(adjunto['base64'])
+                self.assertIsNone(A.obtener_contenido(adjunto))
 
     def test_limpia_nombre_y_mime(self):
         adjunto = A.validar({'tipo': 'documento', 'url': 'https://x.test/a', 'nombre': '../../etc/pass\x00wd',
@@ -113,6 +124,32 @@ class TestDescargaSegura(BaseCase):
         self.assertFalse(get.call_args.kwargs['allow_redirects'])
         self.assertTrue(get.call_args.kwargs['stream'])
 
+    def test_el_propio_worker_es_de_confianza_aunque_sea_local(self):
+        """Lo que sirve el Worker de Juan que la dueña configuró (sus ``/media/…`` firmados) no es SSRF: con un Worker
+        local (``http://localhost``, para probar) es la única forma de que Odoo baje sus archivos."""
+        propio = 'http://127.0.0.1:8787'
+        with patch('requests.get', return_value=respuesta_falsa(b'foto')) as get:
+            self.assertEqual(A.descargar(propio + '/media/abc/123?exp=1&sig=2', origen_confiable=propio), b'foto')
+        get.assert_called_once()
+        self.assertFalse(get.call_args.kwargs['allow_redirects'])
+        # Sin configurar (o configurado con otra cosa), el mismo enlace sigue prohibido.
+        with patch('requests.get') as get:
+            self.assertIsNone(A.descargar(propio + '/media/abc/123'))
+            self.assertIsNone(A.descargar(propio + '/media/abc/123', origen_confiable='http://127.0.0.1:9999'))
+            self.assertIsNone(A.descargar('http://127.0.0.1:9999/media/abc/123', origen_confiable=propio))
+            self.assertIsNone(A.descargar('http://localhost:8787/media/abc/123', origen_confiable=propio))
+            self.assertIsNone(A.descargar('https://127.0.0.1:8787/media/abc/123', origen_confiable=propio))
+        get.assert_not_called()
+
+    def test_mismo_origen(self):
+        self.assertTrue(A.es_del_origen('https://juan.example.com/media/x', 'https://juan.example.com'))
+        self.assertTrue(A.es_del_origen('https://juan.example.com:443/media/x', 'https://juan.example.com/'))
+        self.assertFalse(A.es_del_origen('http://juan.example.com/media/x', 'https://juan.example.com'))
+        self.assertFalse(A.es_del_origen('https://juan.example.com.malo.test/x', 'https://juan.example.com'))
+        self.assertFalse(A.es_del_origen('https://juan.example.com/x', ''))
+        self.assertFalse(A.es_del_origen('https://juan.example.com/x', None))
+        self.assertFalse(A.es_del_origen('https://juan.example.com:99999/x', 'https://juan.example.com'))
+
     def test_no_descarga_de_redes_internas(self):
         with resolver('127.0.0.1'), patch('requests.get') as get:
             self.assertIsNone(A.descargar('https://interno.example.com/a'))
@@ -151,4 +188,4 @@ class TestDescargaSegura(BaseCase):
         with patch.object(A, 'descargar', return_value=b'desde url') as descargar:
             adjunto = A.validar({'tipo': 'imagen', 'url': 'https://x.test/a'})
             self.assertEqual(A.obtener_contenido(adjunto), b'desde url')
-        descargar.assert_called_once_with('https://x.test/a')
+        descargar.assert_called_once_with('https://x.test/a', origen_confiable=None)

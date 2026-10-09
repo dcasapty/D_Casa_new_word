@@ -45,15 +45,18 @@ JUAN_PORT="${JUAN_PORT:-$(puerto_libre)}"
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/integracion_juan.XXXXXX")"
 export PGPASSWORD="$DB_PASSWORD"
 ODOO_PID=""
+SIN_TOKEN_PID=""
 
 limpiar() {
   local rc=$?
   set +e
-  if [[ -n "$ODOO_PID" ]] && kill -0 "$ODOO_PID" 2>/dev/null; then
-    kill "$ODOO_PID" 2>/dev/null
-    for _ in $(seq 1 50); do kill -0 "$ODOO_PID" 2>/dev/null || break; sleep 0.2; done
-    kill -9 "$ODOO_PID" 2>/dev/null
-  fi
+  for pid in "$ODOO_PID" "$SIN_TOKEN_PID"; do
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null
+      for _ in $(seq 1 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+      kill -9 "$pid" 2>/dev/null
+    fi
+  done
   if [[ "${CONSERVAR:-0}" == "1" ]]; then
     echo "ℹ CONSERVAR=1: queda la base $DB_NAME y los registros en $TMP"
   else
@@ -139,12 +142,24 @@ for _ in $(seq 1 120); do
 done
 curl -fsS "http://127.0.0.1:$ODOO_PORT/web/health" >/dev/null || { echo "✖ Odoo no arrancó a tiempo." >&2; exit 1; }
 
+# Un segundo Odoo, de la misma base, SIN los tokens: la API de Juan tiene que contestar 503 (docs/JUAN_ODOO.md).
+SIN_TOKEN_PORT="$(puerto_libre)"
+env -u JUAN_ODOO_TOKEN -u JUAN_WORKER_TOKEN -u JUAN_URL "${ODOO[@]}" "${OPCIONES[@]}" --workers=0 --max-cron-threads=0 \
+  --http-interface=127.0.0.1 --http-port="$SIN_TOKEN_PORT" --db-filter="^${DB_NAME}\$" \
+  --logfile="$TMP/odoo_sin_token.log" >/dev/null 2>&1 &
+SIN_TOKEN_PID=$!
+for _ in $(seq 1 120); do
+  curl -fsS "http://127.0.0.1:$SIN_TOKEN_PORT/web/health" >/dev/null 2>&1 && break
+  kill -0 "$SIN_TOKEN_PID" 2>/dev/null || { echo "✖ El Odoo sin tokens se cerró al arrancar." >&2; exit 1; }
+  sleep 1
+done
+
 echo "▶ Corriendo juan/test/integracion"
 set +e
 (
   cd "$ROOT/juan"
   ODOO_INTEGRACION_URL="http://127.0.0.1:$ODOO_PORT" ODOO_INTEGRACION_DB="$DB_NAME" \
-  JUAN_INTEGRACION_PUERTO="$JUAN_PORT" \
+  ODOO_INTEGRACION_URL_SIN_TOKEN="http://127.0.0.1:$SIN_TOKEN_PORT" JUAN_INTEGRACION_PUERTO="$JUAN_PORT" \
   npx vitest run test/integracion "$@"
 )
 RC=$?

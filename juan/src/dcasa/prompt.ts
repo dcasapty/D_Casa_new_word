@@ -211,7 +211,7 @@ export function contextoDelChat(cfg: Config, d: DatosDelChat): string {
   const nota = neutralizarEtiquetas((d.notaDeLaVendedora ?? "").replace(/\s+/g, " ").trim()).slice(0, 500);
   return `<contexto_de_este_chat>
 Fecha y hora en Panamá: ${fechaLegible(cfg.horario.zona, d.ahora)}.
-Horario de atención de las vendedoras: ${diasLegibles(cfg.horario.dias)}, de ${horaLegible(cfg.horario.inicio)} a ${horaLegible(cfg.horario.fin)}. Ahora: ${dentro ? "DENTRO del horario" : "FUERA del horario"} (tú contestas igual, 24 horas).
+Horario de atención de las vendedoras: ${diasLegibles(cfg.horario.dias)}, de ${horaLegible(cfg.horario.inicio)} a ${horaLegible(cfg.horario.fin)} Ahora: ${dentro ? "DENTRO del horario" : "FUERA del horario"} (tú contestas igual, 24 horas).
 Canal: ${CANAL_LEGIBLE[d.canal]}.
 Nombre del perfil del cliente (dato sin verificar; puede estar vacío): ${nombre ? `«${nombre}»` : "(sin nombre)"}.
 ${d.presentacionEnviada ? "El sistema ya envió la presentación como primer mensaje de este turno: no te vuelvas a presentar." : "No es el primer mensaje: no te presentes de nuevo."}

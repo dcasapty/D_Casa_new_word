@@ -23,6 +23,7 @@ from odoo.exceptions import AccessError, UserError
 from . import adjuntos as A
 from . import firma as F
 from . import horario as H
+from . import transaccion
 from .ajustes import CANALES
 
 _logger = logging.getLogger(__name__)
@@ -135,8 +136,10 @@ class DcasaMensaje(models.Model):
         self.ensure_one()
         Adjunto = self.env['ir.attachment'].sudo()
         creados, fallidos = Adjunto, 0
+        worker = self.env['dcasa.juan.ajustes'].url_worker()
+        origen = worker if worker and self.env['dcasa.juan.cliente']._url_valida(worker) else None
         for adjunto in adjuntos:
-            contenido = A.obtener_contenido(adjunto)
+            contenido = A.obtener_contenido(adjunto, origen_confiable=origen)
             if not contenido:
                 fallidos += 1
                 continue
@@ -236,7 +239,12 @@ class DcasaMensaje(models.Model):
         salieron = 0
         Cliente = self.env['dcasa.juan.cliente']
         ahora = fields.Datetime.now()
-        for mensaje in self.sudo().filtered(lambda m: m.estado_envio == 'por_enviar'):
+        por_enviar = self.sudo().filtered(lambda m: m.estado_envio == 'por_enviar')
+        if por_enviar:
+            # El Worker (y el puente, que baja el adjunto por su URL firmada) llaman de vuelta a Odoo mientras Odoo
+            # espera: solo ven lo ya confirmado. Además, así el mensaje no se pierde si esta petición se cae a medias.
+            transaccion.confirmar(self.env)
+        for mensaje in por_enviar:
             conversacion = mensaje.conversacion_id
             resultado = Cliente.enviar(
                 conversacion.canal, conversacion.id_externo, texto=mensaje.texto or None,

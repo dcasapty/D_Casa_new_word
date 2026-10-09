@@ -181,6 +181,23 @@ class TestEscribirDesdeOdoo(BandejaCase):
         self.assertFalse(self.conv.borrador)
         self.assertIn('Hola Karen', self.conv.ultimo_mensaje_texto)
 
+    def test_el_mensaje_se_confirma_en_la_base_antes_de_llamar_al_worker(self):
+        """El Worker (y el puente, que baja el adjunto con su URL firmada) llaman DE VUELTA a Odoo mientras Odoo
+        espera, en otra transacción: si el mensaje y su adjunto no están confirmados, el puente recibe un 404 y el
+        envío falla la primera vez (hallado con Odoo y Worker reales). Además, así el mensaje no se pierde si la
+        petición se cae."""
+        orden = []
+
+        def worker_que_anota(*_args, **_kwargs):
+            orden.append('worker')
+            return respuesta_http({'ok': True, 'id_mensaje': 'x'})
+
+        self.worker.side_effect = worker_que_anota
+        with patch('odoo.addons.dcasa_conversaciones.models.mensaje.transaccion.confirmar',
+                   side_effect=lambda env: orden.append('commit')):
+            self.escribir()
+        self.assertEqual(orden, ['commit', 'worker'])
+
     def test_al_escribir_la_vendedora_toma_la_conversacion(self):
         self.escribir()
         self.assertEqual((self.conv.estado, self.conv.asignada_a), ('humano', self.vendedora))
