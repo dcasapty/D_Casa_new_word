@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        Usuario técnico del asistente de clientes. Es un usuario de PORTAL (no interno) con el grupo propio
+        «Juan»: no tiene ninguno de los grupos internos ni contraseña (no puede entrar al panel). La API de
+        Juan ejecuta las herramientas COMO este usuario y por eso quedan auditadas a su nombre en brian.accion.
+    -->
+    <record id="user_juan" model="res.users" context="{'no_reset_password': True, 'tracking_disable': True}">
+        <field name="name">Juan (asistente de clientes)</field>
+        <field name="login">juan.asistente</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="company_ids" eval="[(6, 0, [ref('base.main_company')])]"/>
+        <field name="group_ids" eval="[(6, 0, [ref('base.group_portal'), ref('group_juan')])]"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Los ajustes que edita la dueña: un solo registro con las decisiones de la dueña como valores por defecto. -->
+    <record id="ajustes_juan" model="dcasa.juan.ajustes">
+        <field name="nombre_publico">el equipo de D'CASA</field>
+        <field name="responsable_id" ref="base.user_admin"/>
+    </record>
+
+    <!-- Tope de acciones por minuto del usuario técnico (todos los clientes comparten este usuario). -->
+    <record id="parametro_herramientas_por_minuto" model="ir.config_parameter">
+        <field name="key">dcasa_conversaciones.herramientas_por_minuto</field>
+        <field name="value">240</field>
+    </record>
+</odoo>

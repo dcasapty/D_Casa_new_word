@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_juan_ajustes_form" model="ir.ui.view">
+        <field name="name">dcasa.juan.ajustes.form</field>
+        <field name="model">dcasa.juan.ajustes</field>
+        <field name="arch" type="xml">
+            <form string="Ajustes de Juan" create="false" delete="false">
+                <header>
+                    <button name="action_probar_conexion" type="object" string="Probar conexión"
+                            class="btn-secondary" groups="sales_team.group_sale_manager"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>Ajustes de Juan</h1>
+                        <p class="text-muted">El asistente que atiende a los clientes por WhatsApp y redes. Aquí decides
+                            cómo se presenta, cuándo contesta y cuánto insiste.</p>
+                    </div>
+                    <group>
+                        <group string="Cómo se presenta">
+                            <field name="nombre_publico"/>
+                            <field name="bot_activo_global"/>
+                        </group>
+                        <group string="Dónde contesta">
+                            <field name="canal_whatsapp_qr"/>
+                            <field name="canal_whatsapp_cloud"/>
+                            <field name="canal_telegram"/>
+                            <field name="canal_messenger"/>
+                            <field name="canal_instagram"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Horario laboral (hora de Panamá)">
+                            <label for="horario_inicio" string="De"/>
+                            <div class="o_row">
+                                <field name="horario_inicio" widget="float_time" class="oe_inline"/>
+                                <span>a</span>
+                                <field name="horario_fin" widget="float_time" class="oe_inline"/>
+                            </div>
+                            <field name="dia_lunes"/>
+                            <field name="dia_martes"/>
+                            <field name="dia_miercoles"/>
+                            <field name="dia_jueves"/>
+                            <field name="dia_viernes"/>
+                            <field name="dia_sabado"/>
+                            <field name="dia_domingo"/>
+                        </group>
+                        <group string="Seguimiento a quien no volvió a escribir">
+                            <field name="seguimiento_primero_horas"/>
+                            <field name="seguimiento_segundo_dias"/>
+                            <field name="seguimiento_maximo"/>
+                            <field name="seguimiento_solo_horario_laboral"/>
+                            <div class="text-muted" colspan="2">
+                                No se le hace seguimiento a quien ya compró (factura pagada después de empezar la
+                                conversación) ni a quien pidió que no lo contacten.
+                            </div>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Inteligencia artificial">
+                            <field name="presupuesto_ia_mensual_usd"/>
+                            <field name="modelo_rapido"/>
+                            <field name="modelo_inteligente"/>
+                        </group>
+                        <group string="Cuando una vendedora toma la conversación">
+                            <field name="pausa_por_defecto_minutos"/>
+                            <field name="responsable_id" options="{'no_create': True}"/>
+                            <field name="usuarios_aviso_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                    </group>
+                    <group string="Textos">
+                        <field name="mensaje_bienvenida" placeholder="Lo primero que dice el asistente"/>
+                        <field name="texto_privacidad_corto"/>
+                        <field name="palabras_prohibidas" placeholder="Una palabra por línea"/>
+                    </group>
+                    <group string="Conexión con el Worker de Juan">
+                        <field name="juan_url" placeholder="https://juan.…"/>
+                        <field name="token_odoo_configurado" readonly="1"/>
+                        <field name="token_worker_configurado" readonly="1"/>
+                        <div class="text-muted" colspan="2">
+                            Los dos tokens (JUAN_ODOO_TOKEN y JUAN_WORKER_TOKEN) se cargan como secretos del
+                            servidor, nunca aquí. Cada uno debe tener 32 caracteres o más.
+                        </div>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_juan_ajustes" model="ir.actions.server">
+        <field name="name">Ajustes de Juan</field>
+        <field name="model_id" ref="model_dcasa_juan_ajustes"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+    </record>
+</odoo>

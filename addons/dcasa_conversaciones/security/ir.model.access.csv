@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_conversacion_vendedora,dcasa.conversacion vendedora,model_dcasa_conversacion,sales_team.group_sale_salesman,1,1,0,0
+access_dcasa_conversacion_gerente,dcasa.conversacion gerente,model_dcasa_conversacion,sales_team.group_sale_manager,1,1,0,1
+access_dcasa_mensaje_vendedora,dcasa.mensaje vendedora,model_dcasa_mensaje,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_mensaje_gerente,dcasa.mensaje gerente,model_dcasa_mensaje,sales_team.group_sale_manager,1,0,0,1
+access_dcasa_juan_ajustes_vendedora,dcasa.juan.ajustes vendedora,model_dcasa_juan_ajustes,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_juan_ajustes_gerente,dcasa.juan.ajustes gerente,model_dcasa_juan_ajustes,sales_team.group_sale_manager,1,1,0,0

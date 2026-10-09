@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_dcasa_conversaciones_root" name="Conversaciones" sequence="14"
+              web_icon="dcasa_conversaciones,static/description/icon.svg"
+              groups="sales_team.group_sale_salesman"/>
+    <menuitem id="menu_dcasa_bandeja" name="Bandeja" parent="menu_dcasa_conversaciones_root" sequence="10"
+              action="action_dcasa_conversaciones"/>
+    <menuitem id="menu_dcasa_mensajes_por_enviar" name="Mensajes por enviar" parent="menu_dcasa_conversaciones_root"
+              sequence="20" action="action_dcasa_mensajes_por_enviar"/>
+    <menuitem id="menu_dcasa_conversaciones_config" name="Configuración" parent="menu_dcasa_conversaciones_root"
+              sequence="90" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_juan_ajustes" name="Ajustes de Juan" parent="menu_dcasa_conversaciones_config"
+              sequence="10" action="action_dcasa_juan_ajustes" groups="sales_team.group_sale_manager"/>
+</odoo>
