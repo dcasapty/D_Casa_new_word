@@ -3,7 +3,7 @@
  * vista previa, respuestas rápidas con «/», «Sugerir», foto del catálogo, cotización y notas internas.
  */
 import { Component, onMounted, onPatched, useRef, useState } from "@odoo/owl";
-import { atajoEnCurso, enCuanto, hora, iconoDeArchivo, mensajeDeError, tamano } from "./utilidades";
+import { atajoEnCurso, coincideConNombre, enCuanto, hora, iconoDeArchivo, mencionEnCurso, mensajeDeError, tamano } from "./utilidades";
 
 const ALTO_MAXIMO = 168;
 
@@ -21,6 +21,7 @@ export class CajaRespuesta extends Component {
             avisos: [],
             opcion: 0,
             rapidasAbiertas: false,
+            cursor: 0,
         });
         this.refTexto = useRef("texto");
         this.refArchivo = useRef("archivo");
@@ -122,9 +123,62 @@ export class CajaRespuesta extends Component {
         }
     }
 
-    alEscribir() {
+    alEscribir(ev) {
         this.ajustarAlto();
         this.local.opcion = 0;
+        this.local.cursor = ev?.target?.selectionStart ?? this.borrador.texto.length;
+    }
+
+    // --- Menciones con «@» (solo en notas internas) -----------------------------------------------
+
+    /** Hoy en la hora del navegador (AAAA-MM-DD): la fecha más temprana que se puede dar a una tarea. */
+    get hoy() {
+        return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    get mencionActual() {
+        return this.esNota ? mencionEnCurso(this.borrador.texto, this.local.cursor) : null;
+    }
+
+    get opcionesMencion() {
+        const m = this.mencionActual;
+        if (!m) {
+            return [];
+        }
+        return this.almacen.equipo.filter((u) => u.id !== this.almacen.usuario.id && coincideConNombre(u.nombre, m.filtro));
+    }
+
+    /** Quiénes siguen mencionadas de verdad: si se borró el «@Nombre» del texto, ya no se le avisa. */
+    get mencionadas() {
+        const texto = this.borrador.texto;
+        return this.almacen.equipo.filter((u) => this.borrador.menciones.includes(u.id) && texto.includes(`@${u.nombre}`));
+    }
+
+    elegirMencion(u) {
+        const m = this.mencionActual;
+        if (!m) {
+            return;
+        }
+        const texto = this.borrador.texto;
+        const despues = texto.slice(this.local.cursor);
+        const insertado = `@${u.nombre} `;
+        this.borrador.texto = `${texto.slice(0, m.desde)}${insertado}${despues.replace(/^\s/, "")}`;
+        if (!this.borrador.menciones.includes(u.id)) {
+            this.borrador.menciones.push(u.id);
+        }
+        this.local.cursor = m.desde + insertado.length;
+        this.local.opcion = 0;
+        const el = this.refTexto.el;
+        if (el) {
+            el.focus();
+            // Con t-model el valor se pinta después: el cursor se pone al terminar el repintado.
+            Promise.resolve().then(() => el.setSelectionRange(this.local.cursor, this.local.cursor));
+        }
+        this.ajustarAlto();
+    }
+
+    alMoverElCursor(ev) {
+        this.local.cursor = ev.target.selectionStart ?? this.borrador.texto.length;
     }
 
     cambiarModo(modo) {
@@ -174,6 +228,26 @@ export class CajaRespuesta extends Component {
     }
 
     alTeclear(ev) {
+        const personas = this.opcionesMencion;
+        if (this.mencionActual) {
+            if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+                ev.preventDefault();
+                const n = Math.max(personas.length, 1);
+                this.local.opcion = (this.local.opcion + (ev.key === "ArrowDown" ? 1 : n - 1)) % n;
+                return;
+            }
+            if ((ev.key === "Enter" || ev.key === "Tab") && personas.length && !ev.shiftKey) {
+                ev.preventDefault();
+                this.elegirMencion(personas[Math.min(this.local.opcion, personas.length - 1)]);
+                return;
+            }
+            if (ev.key === "Escape") {
+                ev.preventDefault();
+                ev.stopPropagation();
+                this.local.cursor = 0;   // cierra la lista sin borrar lo escrito
+                return;
+            }
+        }
         const opciones = this.opcionesRapidas;
         if (this.hayRapidas) {
             if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
@@ -236,7 +310,7 @@ export class CajaRespuesta extends Component {
         const texto = this.borrador.texto.trim();
         try {
             const r = this.esNota
-                ? await this.almacen.agregarNota(texto)
+                ? await this.almacen.agregarNota(texto, this.mencionadas.map((u) => u.id), this.mencionadas.length ? this.borrador.tareaPara : "")
                 : await this.almacen.enviar(texto, this.listos.map((a) => a.id));
             if (r) {
                 const modo = this.borrador.modo;

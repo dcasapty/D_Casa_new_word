@@ -166,7 +166,6 @@ números que sí tiene Odoo.
 
 ### Lo que todavía no hace
 
-* **Mencionar con @** a otra vendedora en una nota interna, ni crear una **actividad** desde la nota.
 * **Adjuntar un comprobante** directamente a una factura o a un pedido.
 * **Programar un mensaje** para más tarde (hoy solo se ve el seguimiento automático).
 * **Fotos de perfil**: se muestran las iniciales de cada persona.
@@ -191,7 +190,11 @@ si ya hay una abierta de los últimos 30 días, no crea otra) y **Reintentar env
 
 **Notas internas y avisos.** Dentro de la conversación hay dos cosas que el cliente **nunca** ve:
 
-* las **notas internas** que escribimos entre vendedoras (borde punteado), que además quedan en la ficha del cliente;
+* las **notas internas** que escribimos entre vendedoras (borde punteado), que además quedan en la ficha del cliente.
+  **Mencionar con @:** en una nota, escribe `@` y elige a una compañera del equipo de ventas (con las flechas y Enter, o con
+  un clic). Al guardar, a ella le llega un aviso en Odoo (su bandeja) y por Telegram (si vinculó el suyo con Brian); la nota
+  muestra «Mencionó a…». Si pones una **fecha** en «Tarea para el…», además le queda una **tarea** con esa fecha en la
+  conversación. Se puede mencionar hasta a 8 personas por nota, no a ti misma, y solo a gente de ventas;
 * los **avisos del sistema**, una línea gris por cada cosa que pasó: «Ana tomó la conversación», «El asistente pasó la
   conversación a una vendedora. Motivo…», «Se creó la oportunidad…», «Seguimiento n.º 1 enviado», «Ana cerró la conversación».
 
@@ -419,7 +422,7 @@ Métodos públicos de `dcasa.conversacion` (RPC normal de Odoo, `call_kw`) para 
 | `enviar_respuesta(conversacion_id, texto, adjuntos_ids)` | Contesta (toma la conversación si hace falta). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
-| `poner_etiquetas(conversacion_id, etiqueta_ids)` · `agregar_nota(conversacion_id, texto)` | Etiquetas (solo activas) y nota interna. |
+| `poner_etiquetas(conversacion_id, etiqueta_ids)` · `agregar_nota(conversacion_id, texto, menciones=None, tarea_para=None)` | Etiquetas (solo activas) y nota interna; `menciones` (ids de compañeras del equipo) las avisa por Odoo y Telegram y `tarea_para` (`AAAA-MM-DD`) les deja una tarea. |
 | `marcar_leida(conversacion_ids)` | Marca como leídas, para quien llama. |
 | `ficha(conversacion_id)` | Cliente, si es Socio y su saldo (solo lectura), oportunidades abiertas, compras recientes, notas, seguimiento y **qué sabe el bot** (nombre, productos por los que preguntó, etiquetas, última vez que habló). |
 | `dcasa.mensaje.marcar_sensible(adjunto_ids, valor)` | Marca o desmarca comprobantes y documentos de identidad. |

@@ -441,6 +441,7 @@ $dcj-amarillo: #FED00F;
         .o_dcj_burbuja_privada { margin-left: auto; font-weight: 600; }
     }
     .o_dcj_burbuja_texto { white-space: pre-wrap; }
+    .o_dcj_burbuja_menciones { margin: 4px 0 0; font-size: .74rem; color: var(--dc-azul-700, #0F3591); font-weight: 600; }
     &.o_dcj_burbuja_cliente { align-self: flex-start; }
     &.o_dcj_burbuja_bot {
         align-self: flex-end;
@@ -640,6 +641,19 @@ $dcj-amarillo: #FED00F;
             span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
             &:hover, &.o_activa { background: var(--dc-azul-50, #F2F6FE); }
         }
+    }
+    .o_dcj_tarea {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 6px 10px;
+        border-radius: var(--dc-r-sm, 8px);
+        background: var(--dc-azul-50, #F2F6FE);
+        color: var(--dc-azul-800, #0E2A6B);
+        font-size: .8rem;
+        .o_dcj_tarea_fecha { margin: 0 0 0 auto; display: flex; align-items: center; gap: 6px; }
+        input[type=date] { min-height: 32px; border: 1px solid var(--dc-linea-fuerte, #CBD3E1); border-radius: 6px; padding: 0 6px; }
     }
     .o_dcj_sugerencia {
         display: flex;

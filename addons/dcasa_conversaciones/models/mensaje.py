@@ -65,6 +65,9 @@ class DcasaMensaje(models.Model):
     adjunto_ids = fields.Many2many('ir.attachment', 'dcasa_mensaje_adjunto_rel', 'mensaje_id', 'adjunto_id',
                                    string='Adjuntos', readonly=True)
     adjuntos_fallidos = fields.Integer('Adjuntos que no se pudieron traer', readonly=True)
+    mencion_ids = fields.Many2many(
+        'res.users', 'dcasa_mensaje_mencion_rel', 'mensaje_id', 'usuario_id', string='Mencionadas', readonly=True,
+        help='Compañeras mencionadas con @ en esta nota interna.')
     tiene_sensible = fields.Boolean('Adjunto sensible', readonly=True,
                                     help='Comprobante de pago o documento de identidad: no se le muestra a la IA.')
     origen = fields.Selection([('canal', 'Del canal'), ('odoo', 'Escrito en Odoo')], default='canal', readonly=True,
@@ -158,16 +161,22 @@ class DcasaMensaje(models.Model):
         return creados
 
     @api.model
-    def _crear_interno(self, conversacion, tipo, texto, usuario=None):
-        """Una nota interna (de una vendedora) o un aviso del sistema dentro del hilo. Nunca sale por el canal."""
+    def _crear_interno(self, conversacion, tipo, texto, usuario=None, menciones=None):
+        """Una nota interna (de una vendedora) o un aviso del sistema dentro del hilo. Nunca sale por el canal.
+
+        ``menciones``: las compañeras mencionadas con @ (``res.users``); solo tiene sentido en una nota.
+        """
         if tipo not in ('nota', 'aviso'):
             raise ValueError(tipo)
-        mensaje, _creado = self._crear_si_no_existe({
+        valores = {
             'conversacion_id': conversacion.id, 'id_mensaje': f'{tipo}-{uuid.uuid4().hex}', 'tipo': tipo,
             'direccion': 'interna', 'autor': 'vendedora' if tipo == 'nota' else 'sistema',
             'texto': (texto or '').strip()[:2000] or False, 'ts': fields.Datetime.now(), 'origen': 'odoo',
             'usuario_id': usuario.id if usuario else False, 'estado_envio': 'enviado',
-        })
+        }
+        if menciones and tipo == 'nota':
+            valores['mencion_ids'] = [(6, 0, menciones.ids)]
+        mensaje, _creado = self._crear_si_no_existe(valores)
         return mensaje
 
     # ------------------------------------------------------------------
@@ -321,6 +330,7 @@ class DcasaMensaje(models.Model):
             'id': self.id, 'tipo': self.tipo, 'autor': self.autor, 'direccion': self.direccion,
             'texto': self.texto or '', 'ts': H.a_iso(self.ts),
             'usuario': {'id': self.usuario_id.id, 'nombre': self.usuario_id.name} if self.usuario_id else None,
+            'menciones': [{'id': u.id, 'nombre': u.name} for u in self.mencion_ids.sudo()],
             'estado_envio': self.estado_envio, 'error': self.error_envio or None, 'origen': self.origen,
             'adjuntos': [adjunto_como_dict(a) for a in self.adjunto_ids.sudo()],
             'adjuntos_fallidos': self.adjuntos_fallidos,

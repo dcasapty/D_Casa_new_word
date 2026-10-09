@@ -230,6 +230,24 @@ export function atajoEnCurso(texto) {
     return coincide ? coincide[1].toLowerCase() : null;
 }
 
+const sinAcentos = (t) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+/**
+ * ¿Se está escribiendo una mención («@Ana»)? Mira solo hasta donde está el cursor. Devuelve el filtro (lo escrito después
+ * de la @) y dónde empieza la @, o null.
+ */
+export function mencionEnCurso(texto, cursor) {
+    const antes = (texto || "").slice(0, cursor ?? (texto || "").length);
+    const coincide = /(^|\s)@([^\s@]{0,30})$/.exec(antes);
+    return coincide ? { filtro: sinAcentos(coincide[2]), desde: antes.length - coincide[2].length - 1 } : null;
+}
+
+/** Una persona coincide con lo escrito si su nombre, o alguna de sus palabras, empieza con ello («mar» → «Ana María»). */
+export function coincideConNombre(nombre, filtro) {
+    const n = sinAcentos(nombre);
+    return !filtro || n.startsWith(filtro) || n.split(/\s+/).some((p) => p.startsWith(filtro));
+}
+
 /** Cuántas horas/minutos hay hasta que el asistente vuelva (para la barra de «Atiendes tú»). */
 export function pausaRestante(pausadaHasta, ahora = Date.now()) {
     return pausadaHasta ? enCuanto(pausadaHasta, ahora) : null;

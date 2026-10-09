@@ -14,6 +14,7 @@ sencillos listos para JSON: nada de registros de Odoo ni de campos que la pantal
 import json
 import logging
 import re
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
@@ -26,6 +27,7 @@ from .conversacion import ESTADOS, GRUPO_VENDEDORA, MAX_NOTA
 _logger = logging.getLogger(__name__)
 
 GRUPO_GERENCIA = 'sales_team.group_sale_manager'
+MAX_MENCIONES = 8
 LIMITE_LISTA = 100
 LIMITE_LISTA_POR_DEFECTO = 30
 LIMITE_HILO = 100
@@ -384,18 +386,47 @@ class DcasaConversacionPanel(models.Model):
         conv._notificar_panel('etiquetas')
         return conv._resumen_panel()
 
+    def _mencionadas_validas(self, menciones):
+        """Las personas mencionadas con @ (``res.users``): del equipo de ventas, sin repetir y sin la misma autora."""
+        if menciones in (None, []):
+            return self.env['res.users']
+        if not isinstance(menciones, (list, tuple)) or len(menciones) > MAX_MENCIONES:
+            raise UserError(self.env._('Se pueden mencionar hasta %s personas por nota.', MAX_MENCIONES))
+        ids = [_entero(i, 'menciones', minimo=1) for i in menciones]
+        equipo = self._usuarios_del_panel()
+        if not set(ids) <= set(equipo.ids):
+            raise UserError(self.env._('Solo se puede mencionar a alguien del equipo de ventas.'))
+        return equipo.filtered(lambda u: u.id in ids and u != self.env.user)
+
     @api.model
-    def agregar_nota(self, conversacion_id, texto):
-        """Una nota interna en el hilo (el cliente jamás la ve; queda también en la ficha del cliente)."""
+    def agregar_nota(self, conversacion_id, texto, menciones=None, tarea_para=None):
+        """Una nota interna en el hilo (el cliente jamás la ve; queda también en la ficha del cliente).
+
+        ``menciones``: ids de compañeras mencionadas con @; se les avisa en Odoo y por Telegram.
+        ``tarea_para``: fecha ``AAAA-MM-DD``; si viene, cada mencionada recibe además una tarea con esa fecha.
+        """
         conv = self._para_panel(conversacion_id, escritura=True)
         if not isinstance(texto, str) or not texto.strip():
             raise UserError(self.env._('Escribe la nota.'))
         if len(texto.strip()) > MAX_NOTA:
             raise UserError(self.env._('La nota es muy larga (máximo %s letras).', MAX_NOTA))
-        nota = self.env['dcasa.mensaje']._crear_interno(conv, 'nota', texto, self.env.user)
+        mencionadas = self._mencionadas_validas(menciones)
+        fecha = None
+        if tarea_para not in (None, ''):
+            try:
+                fecha = fields.Date.to_date(tarea_para) if isinstance(tarea_para, str) else None
+            except (ValueError, TypeError):
+                fecha = None
+            hoy = fields.Date.context_today(self)
+            if not fecha or fecha < hoy or fecha > hoy + timedelta(days=366):
+                raise UserError(self.env._('La fecha de la tarea no es válida.'))
+            if not mencionadas:
+                raise UserError(self.env._('Para crear una tarea, menciona con @ a quien la va a hacer.'))
+        nota = self.env['dcasa.mensaje']._crear_interno(conv, 'nota', texto, self.env.user, menciones=mencionadas)
         nota._publicar_en_chatter()
         conv._notificar_panel('mensaje', nota)
-        return {'mensaje': nota._como_dict()}
+        avisos = conv._avisar_mencion(nota, mencionadas, fecha) if mencionadas else {'telegram': 0, 'tareas': 0}
+        return {'mensaje': nota._como_dict(), 'mencionadas': len(mencionadas), **avisos}
 
     # ------------------------------------------------------------------
     # La ficha del cliente

@@ -54,6 +54,23 @@
                 </li>
             </ul>
 
+            <!-- Menciones con @ (solo en notas) -->
+            <ul t-if="opcionesMencion.length" class="o_dcj_rapidas o_dcj_menciones" aria-label="Mencionar a una compañera">
+                <li t-foreach="opcionesMencion" t-as="u" t-key="u.id">
+                    <button type="button" class="o_dcj_rapida" t-att-class="{ o_activa: u_index === local.opcion }" t-att-aria-current="u_index === local.opcion ? 'true' : 'false'" t-on-mousedown="(ev) => ev.preventDefault()" t-on-click="() => this.elegirMencion(u)">
+                        <strong>@</strong>
+                        <span t-out="u.nombre"/>
+                    </button>
+                </li>
+            </ul>
+            <div t-if="esNota and mencionadas.length" class="o_dcj_tarea">
+                <i class="fa fa-bell-o" aria-hidden="true"/>
+                <span>Les aviso a <strong t-out="mencionadas.map((u) => u.nombre).join(', ')"/> por Odoo y Telegram.</span>
+                <label class="o_dcj_tarea_fecha">Tarea para el
+                    <input type="date" t-model="borrador.tareaPara" t-att-min="hoy"/>
+                </label>
+            </div>
+
             <div t-if="local.avisos.length" class="o_dcj_sugerencia" role="status">
                 <i class="fa fa-magic" aria-hidden="true"/>
                 <ul><li t-foreach="local.avisos" t-as="aviso" t-key="aviso_index" t-out="aviso"/></ul>
@@ -62,8 +79,8 @@
             <div class="o_dcj_escribir">
                 <label for="o_dcj_texto" class="o_dcj_solo_lector" t-out="esNota ? 'Nota interna' : 'Tu respuesta'"/>
                 <textarea id="o_dcj_texto" t-ref="texto" class="o_dcj_texto" rows="1" t-model="borrador.texto"
-                          t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve' : 'Escribe tu respuesta… (usa / para respuestas rápidas)'"
-                          t-att-maxlength="limite" t-on-input="alEscribir" t-on-keydown="alTeclear" t-on-paste="alPegar"
+                          t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve (usa @ para avisarle a una compañera)' : 'Escribe tu respuesta… (usa / para respuestas rápidas)'"
+                          t-att-maxlength="limite" t-on-input="alEscribir" t-on-keydown="alTeclear" t-on-keyup="alMoverElCursor" t-on-click="alMoverElCursor" t-on-paste="alPegar"
                           t-att-aria-describedby="'o_dcj_atajos'"/>
                 <button type="button" class="btn btn-primary o_dcj_enviar" t-att-disabled="!puedeEnviar" t-on-click="enviar"
                         t-att-aria-label="esNota ? 'Guardar nota' : 'Enviar'">

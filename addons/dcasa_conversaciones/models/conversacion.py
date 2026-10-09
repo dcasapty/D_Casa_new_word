@@ -873,6 +873,38 @@ class DcasaConversacion(models.Model):
             texto = self.env._('Ya dejé tu consulta anotada para una vendedora. Te escribe %s.', cuando.rstrip('.'))
         return {'texto_para_el_cliente': texto, 'dentro_de_horario': dentro, 'urgente': urgente}
 
+    def _avisar_mencion(self, nota, mencionadas, fecha_tarea=None):
+        """Avisa a las mencionadas en una nota: bandeja de Odoo, Telegram y, si se pidió, una tarea con fecha.
+
+        Devuelve ``{'telegram': n, 'tareas': n}``. Nunca rompe el guardado de la nota.
+        """
+        self.ensure_one()
+        resultado = {'telegram': 0, 'tareas': 0}
+        autora = nota.usuario_id.name or self.env._('Una compañera')
+        quien = self.name or self.celular or self.env._('un cliente')
+        try:
+            with self.env.cr.savepoint():
+                self.sudo().message_post(
+                    body=Markup('<p>%s</p><p>%s</p>') % (
+                        escape(self.env._('%(autora)s te mencionó en una nota de la conversación con %(quien)s:',
+                                          autora=autora, quien=quien)),
+                        escape((nota.texto or '')[:MAX_NOTA])),
+                    partner_ids=mencionadas.partner_id.ids, subtype_xmlid='mail.mt_note', message_type='comment')
+                resultado['telegram'] = self._avisar_por_telegram(
+                    self.env._('%(autora)s te mencionó en la conversación con %(quien)s: %(nota)s',
+                               autora=autora, quien=quien, nota=(nota.texto or '')[:400]), usuarios=mencionadas)
+                if fecha_tarea:
+                    for usuario in mencionadas:
+                        self.sudo().activity_schedule(
+                            'mail.mail_activity_data_todo', date_deadline=fecha_tarea, user_id=usuario.id,
+                            summary=self.env._('Nota de %(autora)s: conversación con %(quien)s',
+                                               autora=autora, quien=quien)[:200],
+                            note=escape((nota.texto or '')[:MAX_NOTA]))
+                        resultado['tareas'] += 1
+        except Exception:   # noqa: BLE001
+            _logger.exception('Juan: no se pudo avisar de la mención en la conversación %s', self.id)
+        return resultado
+
     def _avisar_archivos_del_cliente(self, adjuntos):
         """Avisa por Telegram, EN PARALELO, cuando el cliente manda un comprobante, un documento o una foto.
 
@@ -909,12 +941,18 @@ class DcasaConversacion(models.Model):
         except Exception:   # noqa: BLE001
             _logger.exception('Juan: no se pudo avisar del archivo del cliente en la conversación %s', self.id)
 
-    def _avisar_por_telegram(self, texto):
-        """Aviso a las vendedoras por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad."""
+    def _avisar_por_telegram(self, texto, usuarios=None):
+        """Aviso por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad.
+
+        ``usuarios``: solo a esas personas (por ejemplo, las mencionadas en una nota). Sin ellas: a quienes se eligieron
+        en Ajustes de Juan, o a todas las vendedoras con Telegram vinculado.
+        """
         Enlace = self.env['brian.telegram.enlace'].sudo()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         dominio = [('activo', '=', True)]
-        if ajustes.usuarios_aviso_ids:
+        if usuarios:
+            dominio.append(('user_id', 'in', usuarios.ids))
+        elif ajustes.usuarios_aviso_ids:
             dominio.append(('user_id', 'in', ajustes.usuarios_aviso_ids.ids))
         else:
             dominio.append(('user_id.all_group_ids', 'in', self.env.ref(GRUPO_VENDEDORA).ids))

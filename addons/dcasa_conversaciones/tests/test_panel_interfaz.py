@@ -369,6 +369,33 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.assertEqual(self.karen.estado, 'bot')
         self.assertTrue(self.karen.mensaje_ids.filtered(lambda m: m.tipo == 'nota'))
 
+    def test_mencionar_con_arroba_en_una_nota_avisa_a_la_companera(self):
+        self.datos_de_ejemplo()
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_modo button", "Nota interna").click();
+    const caja = document.querySelector("#o_dcj_texto");
+    await esperar(() => caja.placeholder.includes("@"), "el modo nota con la pista del @");
+    await escribir(caja, "Revisa esto @Gem");
+    await esperar(() => aqui(".o_dcj_menciones .o_dcj_rapida", "Gema Gerente"), "la lista con Gema");
+    if (aqui(".o_dcj_menciones .o_dcj_rapida", "Ana Vendedora")) { throw new Error("no se ofrece a quien escribe"); }
+    tecla(caja, "Enter");
+    await esperar(() => caja.value.includes("@Gema Gerente "), "la mención en la caja: " + caja.value);
+    const aviso = await esperar(() => document.querySelector(".o_dcj_tarea"), "el aviso de a quién se le avisa");
+    if (!aviso.textContent.includes("Gema Gerente")) { throw new Error("dice a quién: " + aviso.textContent); }
+    if (document.querySelector(".o_dcj_menciones")) { throw new Error("la lista se cierra al elegir"); }
+    if (!document.querySelector("#o_dcj_texto") || document.activeElement !== caja) { throw new Error("el foco vuelve a la caja"); }
+    document.querySelector(".o_dcj_enviar").click();
+    const nota = await esperar(() => aqui(".o_dcj_burbuja_nota", "Revisa esto"), "la nota en el hilo");
+    await esperar(() => nota.textContent.includes("Mencionó a Gema Gerente") || aqui(".o_dcj_burbuja_nota", "Mencionó a Gema Gerente"), "«Mencionó a» en la nota");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        (nota,) = self.karen.mensaje_ids.filtered(lambda m: m.tipo == 'nota')
+        self.assertEqual(nota.mencion_ids, self.gerente)
+        self.assertFalse(self.al_worker('/odoo/enviar'), 'Una nota nunca sale por el canal')
+
     def test_respuestas_rapidas_con_barra(self):
         self.datos_de_ejemplo()
         self.navegador("""

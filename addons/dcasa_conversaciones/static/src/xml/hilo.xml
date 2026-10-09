@@ -13,6 +13,7 @@
                 <time t-att-datetime="m.ts" t-out="hora(m.ts)"/>
             </header>
             <p t-if="m.texto" class="o_dcj_burbuja_texto" t-out="m.texto"/>
+            <p t-if="m.menciones and m.menciones.length" class="o_dcj_burbuja_menciones"><i class="fa fa-at" aria-hidden="true"/> Mencionó a <t t-out="m.menciones.map((u) => u.nombre).join(', ')"/></p>
 
             <div t-if="imagenes.length" class="o_dcj_fotos" t-att-class="{ o_varias: imagenes.length > 1 }">
                 <div t-foreach="imagenes" t-as="a" t-key="a.id" class="o_dcj_foto">

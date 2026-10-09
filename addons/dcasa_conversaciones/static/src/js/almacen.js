@@ -82,10 +82,10 @@ export class Almacen {
     get borrador() {
         const id = this.seleccionadaId;
         if (!id) {
-            return { texto: "", modo: "respuesta", adjuntos: [] };
+            return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "" };
         }
         if (!this.borradores[id]) {
-            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [] };
+            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "" };
         }
         return this.borradores[id];
     }
@@ -492,9 +492,13 @@ export class Almacen {
         return r;
     }
 
-    async agregarNota(texto) {
-        const r = await this._hacer("agregar_nota", [this.seleccionadaId, texto]);
+    async agregarNota(texto, menciones = [], tareaPara = "") {
+        const r = await this._hacer("agregar_nota", [this.seleccionadaId, texto, menciones, tareaPara || null]);
         if (r) {
+            if (r.mencionadas) {
+                const tareas = r.tareas ? ` y les dejé ${r.tareas === 1 ? "una tarea" : "tareas"}` : "";
+                this.notification.add(`Nota guardada. Les avisé a ${r.mencionadas === 1 ? "la mencionada" : `las ${r.mencionadas} mencionadas`}${tareas}.`, { type: "success" });
+            }
             await this.refrescarAbierta();
         }
         return r;
@@ -655,6 +659,8 @@ export class Almacen {
         }
         borrador.texto = "";
         borrador.adjuntos = [];
+        borrador.menciones = [];
+        borrador.tareaPara = "";
     }
 
     /** El buscador de fotos deja el pie y las fotos en la caja para revisarlos antes de enviar. */

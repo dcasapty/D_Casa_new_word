@@ -3,14 +3,15 @@ import logging
 import os
 import time
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import requests
 
 from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
+from odoo.tools import mute_logger
 
 from .common import JuanCase, respuesta_http
 
@@ -754,3 +755,91 @@ class TestEliminarConversacion(PanelCase):
             with self.subTest(malo=malo), self.assertRaises(UserError):
                 self.gerencia.eliminar(malo)
         self.assertTrue(self.conv.exists())
+
+
+@tagged('post_install', '-at_install')
+class TestMencionesEnNotas(PanelCase):
+    """Escribir @ en una nota interna avisa a la compañera (Odoo y Telegram) y, si se pide, le deja una tarea."""
+
+    def setUp(self):
+        super().setUp()
+        self.conv = self.cliente(1, nombre='Karen Prueba')
+        self.otra = new_test_user(self.env, login='juan_otra', name='Otra Vendedora',
+                                  groups='base.group_user,sales_team.group_sale_salesman')
+        self.Enlace = self.env['brian.telegram.enlace'].sudo()
+        self.Enlace.create({'user_id': self.otra.id, 'chat_id': '7770001'})
+        self.Enlace.create({'user_id': self.vendedora.id, 'chat_id': '7770002'})
+        self.enviar = MagicMock()
+        parche = patch.object(type(self.Enlace), '_enviar', self.enviar)
+        parche.start()
+        self.addCleanup(parche.stop)
+
+    def chats(self):
+        return [c.args[0] for c in self.enviar.call_args_list]
+
+    def test_la_nota_guarda_a_quien_se_menciono_y_se_le_avisa_solo_a_ella(self):
+        r = self.panel.agregar_nota(self.conv.id, '@Otra Vendedora ¿puedes llamarla?', [self.otra.id])
+        self.assertEqual((r['mencionadas'], r['telegram'], r['tareas']), (1, 1, 0))
+        self.assertEqual(r['mensaje']['menciones'], [{'id': self.otra.id, 'nombre': 'Otra Vendedora'}])
+        self.assertEqual(self.chats(), ['7770001'], 'El aviso va solo a la mencionada, no a todo el equipo')
+        self.assertIn('Vendedora Prueba te mencionó', self.enviar.call_args.args[1])
+        self.assertIn('Karen Prueba', self.enviar.call_args.args[1])
+        self.assertIn('¿puedes llamarla?', self.enviar.call_args.args[1])
+
+    def test_le_llega_a_la_bandeja_de_odoo(self):
+        self.panel.agregar_nota(self.conv.id, '@Otra Vendedora mira esto', [self.otra.id])
+        mensaje = self.conv.message_ids.filtered(lambda m: 'te mencionó' in str(m.body))
+        self.assertTrue(mensaje)
+        self.assertIn(self.otra.partner_id, mensaje.partner_ids)
+
+    def test_con_fecha_le_deja_una_tarea(self):
+        fecha = fields.Date.context_today(self.panel) + timedelta(days=2)
+        r = self.panel.agregar_nota(self.conv.id, '@Otra Vendedora llámala', [self.otra.id], str(fecha))
+        self.assertEqual(r['tareas'], 1)
+        (tarea,) = self.conv.activity_ids
+        self.assertEqual((tarea.user_id, tarea.date_deadline), (self.otra, fecha))
+        self.assertIn('Karen Prueba', tarea.summary)
+
+    def test_una_nota_sin_menciones_no_avisa_a_nadie(self):
+        r = self.panel.agregar_nota(self.conv.id, 'Solo para que quede anotado')
+        self.assertEqual((r['mencionadas'], r['telegram'], r['tareas']), (0, 0, 0))
+        self.assertFalse(self.chats())
+        self.assertEqual(r['mensaje']['menciones'], [])
+
+    def test_no_se_avisa_a_la_misma_autora(self):
+        r = self.panel.agregar_nota(self.conv.id, '@Vendedora Prueba recuérdame', [self.vendedora.id])
+        self.assertEqual(r['mencionadas'], 0)
+        self.assertFalse(self.chats())
+
+    def test_solo_se_menciona_a_gente_del_equipo_de_ventas(self):
+        for malos in ([self.interno.id], [self.portal.id], [self.juan.id], [999999999], [True], ['x'], 5, [0]):
+            with self.subTest(malos=malos), self.assertRaises(UserError):
+                self.panel.agregar_nota(self.conv.id, 'hola', malos)
+        self.assertFalse(self.conv.mensaje_ids.filtered(lambda m: m.tipo == 'nota'))
+
+    def test_maximo_de_menciones_por_nota(self):
+        with self.assertRaises(UserError):
+            self.panel.agregar_nota(self.conv.id, 'hola', list(range(1, 12)))
+
+    def test_la_fecha_de_la_tarea_se_valida_y_pide_a_alguien(self):
+        hoy = fields.Date.context_today(self.panel)
+        for fecha in ('ayer', '2020-01-01', str(hoy + timedelta(days=900)), 20261010):
+            with self.subTest(fecha=fecha), self.assertRaises(UserError):
+                self.panel.agregar_nota(self.conv.id, '@Otra Vendedora x', [self.otra.id], fecha)
+        with self.assertRaises(UserError):     # una tarea sin nadie a quien dársela
+            self.panel.agregar_nota(self.conv.id, 'x', None, str(hoy + timedelta(days=1)))
+        self.assertFalse(self.conv.activity_ids)
+
+    def test_un_fallo_de_telegram_no_pierde_la_nota(self):
+        self.enviar.side_effect = RuntimeError('sin red')
+        with mute_logger('odoo.addons.dcasa_conversaciones.models.conversacion'):
+            r = self.panel.agregar_nota(self.conv.id, '@Otra Vendedora hola', [self.otra.id])
+        self.assertTrue(r['mensaje']['id'])
+        self.assertEqual(r['mencionadas'], 1)
+
+    def test_la_nota_con_mencion_nunca_sale_al_cliente(self):
+        worker = self.configurar_worker()
+        self.panel.agregar_nota(self.conv.id, '@Otra Vendedora hola', [self.otra.id])
+        self.Mensaje._cron_reintentar_envios()
+        enviados = [c for c in worker.call_args_list if c.args[1].endswith('/odoo/enviar')]
+        self.assertFalse(enviados)
