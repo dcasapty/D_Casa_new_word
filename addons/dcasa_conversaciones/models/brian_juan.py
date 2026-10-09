@@ -40,6 +40,22 @@ class BrianAccion(models.Model):
         return accion
 
 
+class BrianHerramientas(models.AbstractModel):
+    _inherit = 'brian.herramientas'
+
+    @api.model
+    def _disponible(self, spec):
+        """El usuario técnico ``juan`` solo ve y ejecuta las herramientas de Juan.
+
+        Brian trae herramientas «generales» sin grupo (``abrir``, ``buscar_en_todo``, ``pantalla_actual``,
+        ``ayuda``) que cualquiera ve; para el asistente de clientes no existen. ``ejecutar`` también pasa por aquí.
+        """
+        usuario = self.env.ref(USUARIO_JUAN, raise_if_not_found=False)
+        if usuario and self.env.user == usuario and not spec['nombre'].startswith('juan_'):
+            return False
+        return super()._disponible(spec)
+
+
 class BrianPolitica(models.AbstractModel):
     _inherit = 'brian.politica'
 

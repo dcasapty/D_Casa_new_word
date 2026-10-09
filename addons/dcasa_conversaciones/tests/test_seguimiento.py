@@ -63,7 +63,8 @@ class TestProgramarSeguimiento(SeguimientoCase):
         with freeze_time(panama(2026, 10, 12, 10, 0)):
             conv.with_user(self.vendedora).action_devolver_al_bot()
         self.assertEqual(conv.estado, 'bot')
-        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 12, 15, 0), 'Desde la devolución, no desde el último mensaje')
+        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 12, 15, 0),
+                         'Desde la devolución, no desde el último mensaje')
 
     def test_nada_si_el_seguimiento_esta_apagado_o_el_canal_apagado(self):
         self.ajustes.seguimiento_maximo = 0
@@ -167,7 +168,7 @@ class TestCronDeSeguimiento(SeguimientoCase):
         self.assertEqual(llamada.args[1], f'{URL_WORKER}/odoo/seguimiento')
         cuerpo = llamada.kwargs['json']
         self.assertEqual(cuerpo['conversacion_id'], conv.id)
-        self.assertEqual((cuerpo['canal'], cuerpo['id_externo'], cuerpo['numero']), ('whatsapp_qr', '50760261919', 1))
+        self.assertEqual((cuerpo['canal'], cuerpo['id_externo'], cuerpo['numero']), ('whatsapp_qr', '50761234567', 1))
         self.assertEqual(set(cuerpo['contexto']), {'interes', 'ultimo_mensaje_ts'})
         self.assertEqual(cuerpo['contexto']['ultimo_mensaje_ts'], '2026-10-09T14:05:00Z')
         self.assertIn('camas queen', cuerpo['contexto']['interes'])

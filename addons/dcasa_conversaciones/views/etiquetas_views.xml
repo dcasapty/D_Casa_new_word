@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ===================== Etiquetas ===================== -->
+    <record id="view_dcasa_etiqueta_list" model="ir.ui.view">
+        <field name="name">dcasa.conversacion.etiqueta.list</field>
+        <field name="model">dcasa.conversacion.etiqueta</field>
+        <field name="arch" type="xml">
+            <list string="Etiquetas" editable="bottom" default_order="sequence, name">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="color" widget="color_picker"/>
+                <field name="activa" widget="boolean_toggle"/>
+                <field name="conversacion_count" string="Conversaciones"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_dcasa_etiquetas" model="ir.actions.act_window">
+        <field name="name">Etiquetas de conversaciones</field>
+        <field name="res_model">dcasa.conversacion.etiqueta</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera etiqueta</p>
+            <p>Las etiquetas ayudan a encontrar conversaciones («Pidió precio», «Comprobante recibido»…). El asistente
+                solo usa las que existen aquí; no inventa etiquetas nuevas.</p>
+        </field>
+    </record>
+
+    <!-- ===================== Respuestas rápidas ===================== -->
+    <record id="view_dcasa_respuesta_rapida_list" model="ir.ui.view">
+        <field name="name">dcasa.respuesta.rapida.list</field>
+        <field name="model">dcasa.respuesta.rapida</field>
+        <field name="arch" type="xml">
+            <list string="Respuestas rápidas" default_order="sequence, atajo">
+                <field name="sequence" widget="handle"/>
+                <field name="atajo"/>
+                <field name="descripcion"/>
+                <field name="texto"/>
+                <field name="activa" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_respuesta_rapida_form" model="ir.ui.view">
+        <field name="name">dcasa.respuesta.rapida.form</field>
+        <field name="model">dcasa.respuesta.rapida</field>
+        <field name="arch" type="xml">
+            <form string="Respuesta rápida">
+                <sheet>
+                    <group>
+                        <field name="atajo" placeholder="/horario"/>
+                        <field name="descripcion"/>
+                        <field name="activa"/>
+                    </group>
+                    <group string="Lo que se envía">
+                        <field name="texto" nolabel="1" colspan="2"
+                               placeholder="{nombre}, nuestro equipo atiende {horario}."/>
+                    </group>
+                    <div class="text-muted">
+                        Puedes usar <code>{nombre}</code> (el nombre del cliente), <code>{horario}</code>,
+                        <code>{direccion}</code> y <code>{whatsapp}</code>: se llenan solos con los datos de la tienda.
+                        Sin nombre del cliente, esa palabra simplemente se quita.
+                    </div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_respuestas_rapidas" model="ir.actions.act_window">
+        <field name="name">Respuestas rápidas</field>
+        <field name="res_model">dcasa.respuesta.rapida</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera respuesta rápida</p>
+            <p>Escribe «/» en la caja de respuesta de una conversación y elige el atajo.</p>
+        </field>
+    </record>
+</odoo>

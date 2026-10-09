@@ -21,34 +21,34 @@ class TestFichaDelCliente(JuanCase):
         conv, mensaje, creado = self.registrar(nombre='Karen')
         self.assertTrue(creado)
         self.assertEqual(conv.partner_id.name, 'Karen')
-        self.assertEqual(conv.partner_id.phone, '+507 6026-1919')
+        self.assertEqual(conv.partner_id.phone, '+507 6123-4567')
         self.assertEqual(conv.partner_id.dcasa_creado_por, 'juan')
-        self.assertEqual((conv.canal, conv.id_externo, conv.estado), ('whatsapp_qr', '50760261919', 'bot'))
-        self.assertEqual(conv.celular, '+507 6026-1919')
+        self.assertEqual((conv.canal, conv.id_externo, conv.estado), ('whatsapp_qr', '50761234567', 'bot'))
+        self.assertEqual(conv.celular, '+507 6123-4567')
 
     def test_reutiliza_la_ficha_que_ya_tiene_ese_telefono(self):
-        existente = self.Partner.create({'name': 'Ana Gómez', 'phone': '6026-1919'})
+        existente = self.Partner.create({'name': 'Ana Gómez', 'phone': '6123-4567'})
         conv = self.conversacion(nombre='Otro nombre')
         self.assertEqual(conv.partner_id, existente)
-        self.assertEqual(self.Partner.search_count([('dcasa_telefono_digitos', '=', '60261919')]), 1)
+        self.assertEqual(self.Partner.search_count([('dcasa_telefono_digitos', '=', '61234567')]), 1)
         self.assertEqual(existente.name, 'Ana Gómez', 'No se pisa el nombre de una ficha existente')
 
     def test_reutiliza_la_ficha_de_socio_por_su_llave_dcasa_celular(self):
-        socio = self.Partner.create({'name': 'Luis Socio', 'dcasa_celular': '60261919'})
+        socio = self.Partner.create({'name': 'Luis Socio', 'dcasa_celular': '61234567'})
         self.assertEqual(self.conversacion().partner_id, socio)
 
     def test_la_ficha_archivada_tambien_ocupa_el_celular(self):
-        archivada = self.Partner.create({'name': 'Vieja', 'phone': '+507 6026-1919', 'active': False})
+        archivada = self.Partner.create({'name': 'Vieja', 'phone': '+507 6123-4567', 'active': False})
         self.assertEqual(self.conversacion().partner_id, archivada)
 
     def test_dos_formas_de_escribir_el_numero_son_el_mismo_cliente(self):
-        primero = self.conversacion(canal='whatsapp_qr', id_externo='50760261919')
-        segundo = self.conversacion(canal='whatsapp_cloud', id_externo='50760261919')
+        primero = self.conversacion(canal='whatsapp_qr', id_externo='50761234567')
+        segundo = self.conversacion(canal='whatsapp_cloud', id_externo='50761234567')
         self.assertNotEqual(primero, segundo, 'Una conversación por canal')
         self.assertEqual(primero.partner_id, segundo.partner_id, 'pero el mismo cliente')
 
     def test_numero_de_otro_pais_no_se_confunde_con_uno_de_panama(self):
-        panameno = self.Partner.create({'name': 'Panameño', 'phone': '+507 6026-1919'})
+        panameno = self.Partner.create({'name': 'Panameño', 'phone': '+507 5555-6026'})
         extranjero = self.conversacion(id_externo='13055556026').partner_id
         self.assertNotEqual(extranjero, panameno)
         self.assertEqual(extranjero.phone, '+13055556026')
@@ -60,8 +60,8 @@ class TestFichaDelCliente(JuanCase):
         self.assertFalse(conv.partner_id.phone)
 
     def test_telegram_con_celular_enlaza_con_la_ficha_existente(self):
-        existente = self.Partner.create({'name': 'Rosa', 'phone': '6026-1919'})
-        conv = self.conversacion(canal='telegram', id_externo='777', celular='+507 6026-1919')
+        existente = self.Partner.create({'name': 'Rosa', 'phone': '6123-4567'})
+        conv = self.conversacion(canal='telegram', id_externo='777', celular='+507 6123-4567')
         self.assertEqual(conv.partner_id, existente)
 
     def test_celular_que_llega_despues_se_enlaza(self):
@@ -86,9 +86,9 @@ class TestFichaDelCliente(JuanCase):
     def test_por_numero_y_canal_hay_una_sola_conversacion(self):
         self.registrar()
         self.registrar('Otro mensaje')
-        self.assertEqual(self.Conversacion.search_count([('id_externo', '=', '50760261919')]), 1)
+        self.assertEqual(self.Conversacion.search_count([('id_externo', '=', '50761234567')]), 1)
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.env.cr.savepoint():
-            self.Conversacion.sudo().create({'canal': 'whatsapp_qr', 'id_externo': '50760261919'})
+            self.Conversacion.sudo().create({'canal': 'whatsapp_qr', 'id_externo': '50761234567'})
 
 
 @tagged('post_install', '-at_install')
@@ -318,8 +318,8 @@ class TestOpcionesNoContactar(JuanCase):
         self.assertFalse(conv.partner_id.dcasa_no_contactar)
 
     def test_la_marca_vale_para_todas_las_conversaciones_de_la_persona(self):
-        wa = self.conversacion(canal='whatsapp_qr', id_externo='50760261919')
-        otra = self.conversacion(canal='telegram', id_externo='55', celular='6026-1919')
+        wa = self.conversacion(canal='whatsapp_qr', id_externo='50761234567')
+        otra = self.conversacion(canal='telegram', id_externo='55', celular='6123-4567')
         self.assertEqual(wa.partner_id, otra.partner_id)
         self.registrar('no me contacten', canal='telegram', id_externo='55')
         self.assertTrue(wa.partner_id.dcasa_no_contactar)

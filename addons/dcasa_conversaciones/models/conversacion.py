@@ -36,6 +36,8 @@ ESPERA_CONFIRMACION_SEGUIMIENTO = timedelta(hours=24)
 MAX_REINTENTOS_SEGUIMIENTO = 6
 PAUSA_REINTENTO_SEGUIMIENTO = timedelta(minutes=15)
 MAX_NOTA = 1000
+MAX_NOTA_PARA_EL_BOT = 500
+CANAL_BUS = 'dcasa_conversaciones/evento'
 MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'baja', 'opt_out', 'opt-out', 'pidio_no', 'pidió no')
 
 
@@ -43,7 +45,7 @@ class DcasaConversacion(models.Model):
     _name = 'dcasa.conversacion'
     _description = 'Conversación con un cliente'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'ultima_actividad desc, id desc'
+    _order = 'ultima_actividad desc nulls last, id desc'
 
     name = fields.Char('Conversación', compute='_compute_name', store=True)
     canal = fields.Selection(CANALES, required=True, readonly=True, index=True)
@@ -55,7 +57,8 @@ class DcasaConversacion(models.Model):
     pausada_hasta = fields.Datetime(
         'El asistente calla hasta', tracking=True,
         help='Vacío con la conversación en manos de una vendedora = hasta que se la devuelvan al asistente.')
-    asignada_a = fields.Many2one('res.users', 'Atiende', domain=[('share', '=', False)], tracking=True)
+    asignada_a = fields.Many2one('res.users', 'Atiende', domain=[('share', '=', False)], tracking=True,
+                                 index='btree_not_null')
     bot_atiende = fields.Boolean('Contesta el asistente', compute='_compute_bot_atiende')
     ultima_actividad = fields.Datetime('Última actividad', index=True)
     ultimo_mensaje_cliente = fields.Datetime('Último mensaje del cliente')
@@ -69,6 +72,15 @@ class DcasaConversacion(models.Model):
     mensajes_count = fields.Integer('Cantidad de mensajes', compute='_compute_contadores')
     por_enviar_count = fields.Integer('Por enviar', compute='_compute_contadores')
     chat_html = fields.Html('Chat', compute='_compute_chat_html', sanitize=False)
+    etiqueta_ids = fields.Many2many('dcasa.conversacion.etiqueta', 'dcasa_conversacion_etiqueta_rel',
+                                    'conversacion_id', 'etiqueta_id', string='Etiquetas')
+    nota_para_el_bot = fields.Text(
+        'Nota para el asistente', readonly=True,
+        help='Lo que una vendedora le dejó dicho al devolverle la conversación (p. ej. «ya quedó la cita»). '
+             'El asistente la lee en cada respuesta hasta que otra persona tome la conversación.')
+    ultimo_cliente_msg_id = fields.Integer(
+        'Último mensaje del cliente (id)', readonly=True, copy=False,
+        help='Id del último mensaje del cliente: con él se sabe, sin contar nada, si hay algo sin leer.')
     borrador = fields.Text('Tu respuesta')
     borrador_adjunto_ids = fields.Many2many('ir.attachment', 'dcasa_conversacion_borrador_rel', 'conversacion_id',
                                             'adjunto_id', string='Adjuntar')
@@ -86,6 +98,10 @@ class DcasaConversacion(models.Model):
 
     _conversacion_unica = models.Constraint(
         'UNIQUE(canal, id_externo)', 'Ya existe una conversación con esa persona por ese canal.')
+    # La lista de la bandeja es «las más recientes primero, de 30 en 30»: con estos índices es una lectura de
+    # índice y no ordenar toda la tabla (probado con 5.000 conversaciones).
+    _lista_idx = models.Index('(ultima_actividad DESC NULLS LAST, id DESC)')
+    _estado_lista_idx = models.Index('(estado, ultima_actividad DESC NULLS LAST)')
 
     # ------------------------------------------------------------------
     # Cómputos
@@ -117,7 +133,8 @@ class DcasaConversacion(models.Model):
     def _compute_contadores(self):
         datos = {}
         for conv, estado, n in self.env['dcasa.mensaje']._read_group(
-                [('conversacion_id', 'in', self.ids)], ['conversacion_id', 'estado_envio'], ['__count']):
+                [('conversacion_id', 'in', self.ids), ('tipo', '=', 'mensaje')],
+                ['conversacion_id', 'estado_envio'], ['__count']):
             datos.setdefault(conv.id, {})[estado] = n
         for conv in self:
             cuenta = datos.get(conv.id, {})
@@ -171,6 +188,7 @@ class DcasaConversacion(models.Model):
             'estado': 'bot' if self.estado == 'humano' and self._controla_bot(ahora) else self.estado,
             'pausada_hasta': H.a_iso(self.pausada_hasta) if self.estado == 'humano' else None,
             'dentro_de_horario': H.dentro_de_horario(ahora, ajustes.horario()),
+            'nota_para_el_bot': (self.nota_para_el_bot or None) if self._bot_activo(ajustes) else None,
         }
 
     @api.model
@@ -178,7 +196,7 @@ class DcasaConversacion(models.Model):
         ajustes = ajustes or self.env['dcasa.juan.ajustes'].obtener()
         ahora = fields.Datetime.now()
         return {'bot_activo': bool(ajustes.canal_activo(canal)), 'estado': 'bot', 'pausada_hasta': None,
-                'dentro_de_horario': H.dentro_de_horario(ahora, ajustes.horario())}
+                'dentro_de_horario': H.dentro_de_horario(ahora, ajustes.horario()), 'nota_para_el_bot': None}
 
     # ------------------------------------------------------------------
     # Permisos
@@ -274,6 +292,7 @@ class DcasaConversacion(models.Model):
             mensaje._adjuntar(datos['adjuntos'])
         conv._despues_de_mensaje(mensaje)
         mensaje._publicar_en_chatter()
+        conv._notificar_panel('mensaje', mensaje)
         return conv, mensaje, True
 
     def _adoptar_mensaje_de_odoo(self, datos):
@@ -309,8 +328,10 @@ class DcasaConversacion(models.Model):
                 'seguimientos_enviados': 0, 'ultimo_seguimiento_en': False, 'seguimiento_proximo': False,
                 'seguimiento_pedido_en': False, 'seguimiento_numero_pedido': 0, 'seguimiento_reintentos': 0,
             })
+            valores['ultimo_cliente_msg_id'] = max(self.ultimo_cliente_msg_id, mensaje.id)
             if self.estado == 'cerrada':
                 valores['estado'] = 'bot'
+                self._aviso(self.env._('La conversación estaba cerrada y se reabrió porque el cliente escribió.'))
             if H.pide_no_contactar(mensaje.texto):
                 self._marcar_no_contactar(self.env._('El cliente pidió que no lo contactemos.'))
         elif mensaje.autor == 'vendedora':
@@ -461,6 +482,7 @@ class DcasaConversacion(models.Model):
                         'seguimiento_pedido_en': False, 'seguimiento_numero_pedido': 0,
                         'seguimiento_reintentos': 0})
             texto = self.env._('Seguimiento n.º %s enviado.', numero)
+            self._aviso(texto)
         else:
             # Descartado: el Worker decidió no enviarlo. Se cierra el ciclo (nunca más insistencia).
             if self.seguimientos_enviados >= ajustes.seguimiento_maximo and not self.seguimiento_pedido_en:
@@ -522,7 +544,8 @@ class DcasaConversacion(models.Model):
             humano = conv.estado == 'humano' and not conv._controla_bot()
             respuesta = self.env['dcasa.juan.cliente'].cambiar_estado(
                 conv.canal, conv.id_externo, 'humano' if humano else 'bot',
-                pausada_hasta=H.a_iso(conv.pausada_hasta) if humano else None)
+                pausada_hasta=H.a_iso(conv.pausada_hasta) if humano else None,
+                nota=None if humano else conv.nota_para_el_bot)
             conv.estado_pendiente_de_avisar = not respuesta.get('ok')
 
     # ------------------------------------------------------------------
@@ -535,7 +558,7 @@ class DcasaConversacion(models.Model):
         ahora = fields.Datetime.now()
         for conv in self.sudo():
             valores = {'estado': 'humano', 'pausada_hasta': ahora + timedelta(minutes=minutos) if minutos else False,
-                       'seguimiento_proximo': False}
+                       'seguimiento_proximo': False, 'nota_para_el_bot': False}
             if usuario:
                 valores['asignada_a'] = usuario.id
             conv.write(valores)
@@ -544,25 +567,107 @@ class DcasaConversacion(models.Model):
         """«Atender»: el asistente calla, la conversación pasa a la vendedora y el Worker se entera."""
         self._exigir_vendedora()
         self.check_access('write')
-        self._poner_en_humano(usuario=self.env.user)
-        self._avisar_estado_al_worker()
+        self._tomar(self.env.user)
         return True
 
     def action_devolver_al_bot(self):
         """«Devolver al asistente»: vuelve a contestar el bot; su seguimiento cuenta desde ahora."""
         self._exigir_vendedora()
         self.check_access('write')
-        for conv in self.sudo():
-            conv.write({'estado': 'bot', 'pausada_hasta': False})
-            conv._programar_seguimiento(desde=fields.Datetime.now())
-        self._avisar_estado_al_worker()
+        self._devolver(self.env.user)
         return True
 
     def action_cerrar(self):
         self._exigir_vendedora()
         self.check_access('write')
-        self.sudo().write({'estado': 'cerrada', 'pausada_hasta': False, 'seguimiento_proximo': False})
+        self._cerrar(self.env.user)
         return True
+
+    # ------------------------------------------------------------------
+    # Tomar, devolver, cerrar: UNA sola ruta para los botones y para la API de la pantalla
+    # ------------------------------------------------------------------
+
+    def _tomar(self, usuario, minutos=None):
+        """Una persona toma la conversación: el asistente calla (por ``minutos`` o lo que digan los ajustes)."""
+        horario = self.env['dcasa.juan.ajustes'].obtener().horario()
+        self._poner_en_humano(usuario=usuario, minutos=minutos)
+        for conv in self.sudo():
+            if conv.pausada_hasta:
+                texto = self.env._('%(quien)s tomó la conversación. El asistente calla hasta %(hasta)s.',
+                                   quien=usuario.name, hasta=H.texto_fecha_hora(conv.pausada_hasta, horario))
+            else:
+                texto = self.env._('%s tomó la conversación. El asistente calla hasta que se la devuelvan.',
+                                   usuario.name)
+            conv._aviso(texto)
+            conv._notificar_panel('estado')
+        self._avisar_estado_al_worker()
+
+    def _devolver(self, usuario, nota=None):
+        """Vuelve a contestar el asistente; la nota (opcional) se la lee en cada respuesta."""
+        nota = ' '.join(str(nota or '').split())[:MAX_NOTA_PARA_EL_BOT] or False
+        ahora = fields.Datetime.now()
+        for conv in self.sudo():
+            conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota})
+            conv._programar_seguimiento(desde=ahora)
+            texto = self.env._('%s devolvió la conversación al asistente.', usuario.name)
+            if nota:
+                texto = f'{texto} ' + self.env._('Nota para el asistente: %s', nota)
+            conv._aviso(texto)
+            conv._notificar_panel('estado')
+        self._avisar_estado_al_worker()
+
+    def _cerrar(self, usuario):
+        for conv in self.sudo():
+            conv.write({'estado': 'cerrada', 'pausada_hasta': False, 'seguimiento_proximo': False,
+                        'nota_para_el_bot': False})
+            conv._aviso(self.env._('%s cerró la conversación.', usuario.name))
+            conv._notificar_panel('estado')
+
+    # ------------------------------------------------------------------
+    # Avisos en el hilo y en las pantallas abiertas
+    # ------------------------------------------------------------------
+
+    def _aviso(self, texto):
+        """Una línea del sistema dentro del hilo («Ana tomó la conversación»). No sale por el canal."""
+        self.ensure_one()
+        return self.env['dcasa.mensaje']._crear_interno(self.sudo(), 'aviso', texto)
+
+    def _usuarios_del_panel(self):
+        grupo = self.env.ref(GRUPO_VENDEDORA)
+        # all_group_ids: la gerencia también es de ventas por herencia de grupos, aunque no lo tenga marcado.
+        return self.env['res.users'].sudo().search([('all_group_ids', 'in', grupo.ids), ('share', '=', False)])
+
+    def _notificar_panel(self, evento, mensaje=None):
+        """Avisa por el bus de Odoo a las pantallas abiertas que algo cambió (mensaje nuevo, estado, etiquetas…).
+
+        Viaja SOLO ids y estado, nunca el texto: el bus guarda lo que se envía y una pantalla pide el detalle
+        con sus permisos. Un fallo aquí jamás tumba lo que se estaba haciendo.
+        """
+        for conv in self.sudo():
+            try:
+                with self.env.cr.savepoint():
+                    carga = {
+                        'evento': evento, 'conversacion_id': conv.id, 'estado': conv.estado,
+                        'asignada_a': conv.asignada_a.id or None, 'ultima_actividad': H.a_iso(conv.ultima_actividad),
+                        'mensaje_id': mensaje.id if mensaje else None,
+                        'autor': mensaje.autor if mensaje else None,
+                    }
+                    for usuario in conv._usuarios_del_panel():
+                        usuario._bus_send(CANAL_BUS, carga)
+            except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
+                _logger.exception('Juan: no se pudo avisar a las pantallas (conversación %s)', conv.id)
+
+    def _nombre_de_pila(self):
+        """El primer nombre del cliente, o vacío si solo tenemos el provisional («WhatsApp 6123-4567»)."""
+        self.ensure_one()
+        partner = self.partner_id.sudo()
+        nombre = (partner.name or '').strip()
+        Partner = self.env['res.partner']
+        if not nombre or nombre in (
+                Partner._dcasa_conv_nombre_provisional(self.canal, self.id_externo),
+                Partner._dcasa_conv_nombre_provisional(self.canal, self.id_externo, partner.phone)):
+            return ''
+        return nombre.split()[0]
 
     def action_enviar(self):
         """Escribir desde Odoo: el mensaje sale por el Worker; si no responde, queda «por enviar» y se reintenta."""
@@ -597,11 +702,16 @@ class DcasaConversacion(models.Model):
             mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(4, a.id) for a in adjuntos]})
             adjuntos.sudo().write({'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        la_tomo = conv.estado != 'humano'
         conv.write({
             'ultima_actividad': ahora, 'ultimo_mensaje_texto': (texto or self.env._('(adjunto)'))[:140],
             'ultimo_mensaje_autor': 'vendedora', 'seguimiento_proximo': False, 'asignada_a': usuario.id,
-            **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=conv.estado != 'humano')})
+            'nota_para_el_bot': False,
+            **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
         mensaje._publicar_en_chatter()
+        if la_tomo:
+            conv._aviso(self.env._('%s tomó la conversación al escribir. El asistente calla.', usuario.name))
+        conv._notificar_panel('mensaje', mensaje)
         return mensaje
 
     def action_reintentar_envios(self):
@@ -669,6 +779,8 @@ class DcasaConversacion(models.Model):
             valores['expected_revenue'] = presupuesto
         lead = Lead.with_context(mail_create_nosubscribe=True).create(valores)
         self.sudo().write({'oportunidad_id': lead.id})
+        self._aviso(self.env._('Se creó la oportunidad «%s».', lead.name))
+        self._notificar_panel('estado')
         return lead, True
 
     def _nota_en_ficha(self, nota, titulo=None):
@@ -704,6 +816,9 @@ class DcasaConversacion(models.Model):
         self._avisar_por_telegram(self.env._(
             '%(r)s\nMotivo: %(m)s\n%(h)s', r=resumen, m=motivo or '—',
             h=self.env._('Dentro del horario.') if dentro else self.env._('Fuera del horario laboral.')))
+        self._aviso(self.env._('El asistente pasó la conversación a una vendedora. Motivo: %s',
+                               (motivo or '—')[:300]))
+        self._notificar_panel('estado')
         cuando = H.cuando_atienden(ahora, horario)
         if dentro:
             texto = self.env._(
@@ -720,7 +835,7 @@ class DcasaConversacion(models.Model):
         if ajustes.usuarios_aviso_ids:
             dominio.append(('user_id', 'in', ajustes.usuarios_aviso_ids.ids))
         else:
-            dominio.append(('user_id.group_ids', 'in', self.env.ref(GRUPO_VENDEDORA).ids))
+            dominio.append(('user_id.all_group_ids', 'in', self.env.ref(GRUPO_VENDEDORA).ids))
         enviados = 0
         for enlace in Enlace.search(dominio, limit=10):
             try:

@@ -91,10 +91,13 @@ class JuanCliente(models.AbstractModel):
 
     @api.private
     @api.model
-    def cambiar_estado(self, canal, id_externo, estado, pausada_hasta=None):
+    def cambiar_estado(self, canal, id_externo, estado, pausada_hasta=None, nota=None):
         datos = {'canal': canal, 'id_externo': id_externo, 'estado': estado}
         if pausada_hasta:
             datos['pausada_hasta'] = pausada_hasta
+        if nota:
+            # Extensión del contrato: lo que la vendedora le dejó dicho al asistente al devolverle la conversación.
+            datos['nota_para_el_bot'] = nota
         return self._llamar('POST', '/odoo/estado', datos)
 
     @api.private

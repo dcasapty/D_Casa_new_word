@@ -1,4 +1,4 @@
-"""Ajustes de Juan: los valores por defecto SON las decisiones de la dueña; los secretos no se guardan ni se muestran."""
+"""Ajustes de Juan: los valores por defecto SON las decisiones de la dueña; los secretos no se guardan."""
 import os
 from datetime import time
 from unittest.mock import patch
@@ -39,7 +39,8 @@ class TestAjustesPorDefecto(JuanCase):
         datos = self.ajustes.como_json()
         self.assertEqual(set(datos), {
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
-            'presupuesto_ia_mensual_usd', 'modelo_rapido', 'modelo_inteligente', 'mensaje_bienvenida',
+            'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
+            'modelo_inteligente', 'modelos_por_defecto', 'precios', 'lecciones', 'mensaje_bienvenida',
             'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos'})
         self.assertEqual(datos['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                             'zona': 'America/Panama'})
@@ -112,7 +113,9 @@ class TestAjustesEditables(JuanCase):
 
     def test_los_cambios_quedan_en_el_historial(self):
         self.ajustes.presupuesto_ia_mensual_usd = 45
-        self.assertIn('Tope de IA', ' '.join(self.ajustes.message_ids.tracking_value_ids.field_id.mapped('field_description')))
+        self.env.cr.precommit.run()   # el historial se escribe al cerrar la transacción
+        campos = self.ajustes.message_ids.tracking_value_ids.field_id.mapped('field_description')
+        self.assertIn('Tope de IA', ' '.join(campos))
 
     def test_solo_gerencia_edita(self):
         self.ajustes.with_user(self.gerente).presupuesto_ia_mensual_usd = 50
@@ -121,7 +124,7 @@ class TestAjustesEditables(JuanCase):
         with self.assertRaises(AccessError):
             self.ajustes.with_user(self.vendedora).presupuesto_ia_mensual_usd = 5
         with self.assertRaises(AccessError):
-            self.ajustes.with_user(self.interno).presupuesto_ia_mensual_usd
+            self.ajustes.with_user(self.interno).read(['presupuesto_ia_mensual_usd'])
 
 
 @tagged('post_install', '-at_install')
@@ -171,6 +174,7 @@ class TestSecretos(JuanCase):
         self.ajustes.juan_url = 'https://juan.dcasapty.com/'
         self.assertEqual(self.env['ir.config_parameter'].sudo().get_param('dcasa_conversaciones.juan_url'),
                          'https://juan.dcasapty.com')
+        self.ajustes.invalidate_recordset()
         self.assertEqual(self.ajustes.juan_url, 'https://juan.dcasapty.com')
         for mala in ('http://juan.dcasapty.com', 'ftp://x', 'juan.dcasapty.com', 'javascript:1'):
             with self.subTest(url=mala), self.assertRaises(ValidationError):

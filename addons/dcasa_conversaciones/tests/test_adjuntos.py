@@ -149,5 +149,6 @@ class TestDescargaSegura(BaseCase):
         adjunto = A.validar({'tipo': 'documento', 'base64': base64.b64encode(b'abc').decode()})
         self.assertEqual(A.obtener_contenido(adjunto), b'abc')
         with patch.object(A, 'descargar', return_value=b'desde url') as descargar:
-            self.assertEqual(A.obtener_contenido(A.validar({'tipo': 'imagen', 'url': 'https://x.test/a'})), b'desde url')
+            adjunto = A.validar({'tipo': 'imagen', 'url': 'https://x.test/a'})
+            self.assertEqual(A.obtener_contenido(adjunto), b'desde url')
         descargar.assert_called_once_with('https://x.test/a')

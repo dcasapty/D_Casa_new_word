@@ -204,7 +204,8 @@ class JuanAPI(http.Controller):
         estado = conversacion._estado_para_worker()
         respuesta = {'ok': True, 'conversacion_id': conversacion.id, 'partner_id': conversacion.partner_id.id,
                      'estado': estado['estado'], 'bot_activo': estado['bot_activo'],
-                     'pausada_hasta': estado['pausada_hasta'], 'dentro_de_horario': estado['dentro_de_horario']}
+                     'pausada_hasta': estado['pausada_hasta'], 'dentro_de_horario': estado['dentro_de_horario'],
+                     'nota_para_el_bot': estado['nota_para_el_bot']}
         if adjuntos:
             respuesta['adjuntos'] = [
                 {'id': a.id, 'nombre': a.name, 'sensible': bool(a.dcasa_sensible)} for a in mensaje.adjunto_ids.sudo()]

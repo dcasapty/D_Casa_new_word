@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ===================== Conocimiento del bot ===================== -->
+    <record id="view_dcasa_conocimiento_list" model="ir.ui.view">
+        <field name="name">dcasa.conocimiento.list</field>
+        <field name="model">dcasa.conocimiento</field>
+        <field name="arch" type="xml">
+            <list string="Conocimiento del bot" decoration-muted="not activo">
+                <field name="titulo"/>
+                <field name="etiquetas"/>
+                <field name="fuente"/>
+                <field name="activo" widget="boolean_toggle"/>
+                <field name="ultima_revision"/>
+                <field name="autor_id" widget="many2one_avatar_user" optional="show"/>
+                <field name="nota" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_conocimiento_form" model="ir.ui.view">
+        <field name="name">dcasa.conocimiento.form</field>
+        <field name="model">dcasa.conocimiento</field>
+        <field name="arch" type="xml">
+            <form string="Conocimiento del bot">
+                <header>
+                    <button name="action_activar" type="object" string="Activar" class="btn-primary"
+                            invisible="activo"/>
+                    <button name="action_desactivar" type="object" string="Desactivar" class="btn-secondary"
+                            invisible="not activo"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="activo">
+                        Esta entrada está <strong>inactiva</strong>: el asistente no la usa todavía. Revísala y pulsa
+                        «Activar» cuando esté lista.
+                    </div>
+                    <div class="oe_title">
+                        <label for="titulo"/>
+                        <h1><field name="titulo" placeholder="p. ej. Dónde estamos y cómo llegar"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="etiquetas" placeholder="horario, dirección, ubicación"/>
+                            <field name="fuente"/>
+                        </group>
+                        <group>
+                            <field name="activo"/>
+                            <field name="ultima_revision"/>
+                            <field name="autor_id" options="{'no_create': True}"/>
+                            <field name="pregunta_id" invisible="not pregunta_id"/>
+                        </group>
+                    </group>
+                    <field name="contenido" invisible="fuente != 'manual'"
+                           placeholder="Escribe aquí lo que el asistente puede decir, con tuteo y sin inventar. Si algo depende de una vendedora (entregas, financiamiento, apartados, descuentos), dilo así: «te lo confirma una vendedora»."/>
+                    <group string="Lo que dice el asistente (se arma solo con los datos vivos)"
+                           invisible="fuente == 'manual'">
+                        <field name="contenido_vigente" nolabel="1" colspan="2" readonly="1"/>
+                    </group>
+                    <group string="Nota interna (el asistente no la ve)">
+                        <field name="nota" nolabel="1" colspan="2"
+                               placeholder="p. ej. pendiente de aprobación de la dueña"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_conocimiento_search" model="ir.ui.view">
+        <field name="name">dcasa.conocimiento.search</field>
+        <field name="model">dcasa.conocimiento</field>
+        <field name="arch" type="xml">
+            <search string="Conocimiento">
+                <field name="titulo"/>
+                <field name="etiquetas"/>
+                <field name="contenido"/>
+                <filter name="activas" string="Activas" domain="[('activo', '=', True)]"/>
+                <filter name="pendientes" string="Pendientes de aprobar" domain="[('activo', '=', False)]"/>
+                <group>
+                    <filter name="g_fuente" string="Origen" context="{'group_by': 'fuente'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_conocimiento" model="ir.actions.act_window">
+        <field name="name">Conocimiento del bot</field>
+        <field name="res_model">dcasa.conocimiento</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Escribe lo que el asistente debe saber</p>
+            <p>Cada entrada es un tema (horario, garantía, cómo comprar…). El asistente las consulta antes de contestar
+                y, si no encuentra nada, anota la pregunta en «Preguntas sin respuesta» para que la contestes tú.</p>
+        </field>
+    </record>
+
+    <!-- ===================== Preguntas sin respuesta ===================== -->
+    <record id="view_dcasa_pregunta_pendiente_list" model="ir.ui.view">
+        <field name="name">dcasa.pregunta_pendiente.list</field>
+        <field name="model">dcasa.pregunta_pendiente</field>
+        <field name="arch" type="xml">
+            <list string="Preguntas sin respuesta" create="false" decoration-muted="estado != 'nueva'">
+                <field name="texto"/>
+                <field name="veces"/>
+                <field name="ultima_vez" widget="datetime"/>
+                <field name="estado" widget="badge" decoration-info="estado == 'nueva'"
+                       decoration-success="estado == 'atendida'" decoration-muted="estado == 'descartada'"/>
+                <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
+                        class="btn-primary" invisible="estado != 'nueva'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_pregunta_pendiente_form" model="ir.ui.view">
+        <field name="name">dcasa.pregunta_pendiente.form</field>
+        <field name="model">dcasa.pregunta_pendiente</field>
+        <field name="arch" type="xml">
+            <form string="Pregunta sin respuesta" create="false">
+                <header>
+                    <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
+                            class="btn-primary" invisible="estado != 'nueva'"/>
+                    <button name="action_descartar" type="object" string="Descartar" class="btn-secondary"
+                            invisible="estado != 'nueva'"/>
+                    <button name="action_reabrir" type="object" string="Volver a «nueva»" class="btn-secondary"
+                            invisible="estado == 'nueva'"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="texto" nolabel="1" colspan="2"/>
+                        </group>
+                        <group>
+                            <field name="veces"/>
+                            <field name="ultima_vez"/>
+                            <field name="conversacion_id"/>
+                            <field name="conocimiento_id" invisible="not conocimiento_id"/>
+                        </group>
+                    </group>
+                    <group string="Contexto que anotó el asistente" invisible="not resumen">
+                        <field name="resumen" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Conversaciones donde se preguntó">
+                        <field name="conversacion_ids" nolabel="1" colspan="2" readonly="1">
+                            <list><field name="name"/><field name="ultima_actividad"/></list>
+                        </field>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_pregunta_pendiente_search" model="ir.ui.view">
+        <field name="name">dcasa.pregunta_pendiente.search</field>
+        <field name="model">dcasa.pregunta_pendiente</field>
+        <field name="arch" type="xml">
+            <search string="Preguntas sin respuesta">
+                <field name="texto"/>
+                <filter name="nuevas" string="Nuevas" domain="[('estado', '=', 'nueva')]"/>
+                <filter name="repetidas" string="Se repiten" domain="[('veces', '&gt;', 1)]"/>
+                <filter name="atendidas" string="Atendidas" domain="[('estado', '=', 'atendida')]"/>
+                <filter name="descartadas" string="Descartadas" domain="[('estado', '=', 'descartada')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_preguntas_pendientes" model="ir.actions.act_window">
+        <field name="name">Preguntas sin respuesta</field>
+        <field name="res_model">dcasa.pregunta_pendiente</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_nuevas': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Ninguna pregunta sin contestar</p>
+            <p>Cuando un cliente pregunta algo que el asistente no sabe, la pregunta aparece aquí. Si se repite, suma
+                una vez más en lugar de salir otra vez. Con «Convertir en conocimiento» escribes la respuesta y el
+                asistente la aprende.</p>
+        </field>
+    </record>
+</odoo>

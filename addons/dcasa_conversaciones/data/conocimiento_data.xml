@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        Semilla de la base de conocimiento del asistente: SOLO hechos verificados que ya están en el repositorio.
+        * «Dónde estamos…» y «Socios» son automáticas: no guardan texto, lo arman al consultarse con los datos
+          vivos (dirección y WhatsApp de la empresa, horario de Ajustes de Juan, reglas de puntos.json). No pueden
+          quedarse viejas ni duplicar una cifra.
+        * Garantía y compra salen INACTIVAS: son textos provisionales de los términos del sitio, pendientes de revisión
+          del abogado y de aprobación de la dueña. No se inventa ninguna política, plazo ni condición.
+        * Nada de entregas, flete, financiamiento ni apartados: eso siempre lo confirma una vendedora.
+    -->
+    <record id="conocimiento_tienda" model="dcasa.conocimiento">
+        <field name="titulo">Dónde estamos, horario y WhatsApp</field>
+        <field name="fuente">tienda</field>
+        <field name="etiquetas">dirección, ubicación, ubicados, dónde están, cómo llegar, mapa, horario, abren, cierran, atienden, whatsapp, teléfono, contacto, correo, visitarnos, tienda, local</field>
+        <field name="activo" eval="True"/>
+        <field name="nota">Automática: se arma con la dirección de la empresa, el WhatsApp del sitio y el horario de «Ajustes de Juan». No hay que editarla.</field>
+    </record>
+
+    <record id="conocimiento_socios" model="dcasa.conocimiento">
+        <field name="titulo">Programa Socios D'CASA: puntos, premios e invitados</field>
+        <field name="fuente">socios</field>
+        <field name="etiquetas">socios, puntos, premios, canje, canjear, invitar, referido, cumpleaños, programa, registro, pin</field>
+        <field name="activo" eval="True"/>
+        <field name="nota">Automática: las cifras salen de dcasa_socios/data/puntos.json. No hay que editarla.</field>
+    </record>
+
+    <record id="conocimiento_garantia" model="dcasa.conocimiento">
+        <field name="titulo">Garantía, cambios y devoluciones</field>
+        <field name="fuente">manual</field>
+        <field name="etiquetas">garantía, garantia, cambio, cambios, devolución, devolucion, devolver, reclamo, defecto, consumidor</field>
+        <field name="contenido">La garantía, los cambios y las devoluciones se acuerdan contigo al confirmar la compra y se rigen por la Ley 45 de 2007 de protección al consumidor de Panamá. Los plazos y las condiciones exactas te los confirma una vendedora.</field>
+        <field name="activo" eval="False"/>
+        <field name="nota">PENDIENTE DE APROBACIÓN DE LA DUEÑA. Texto provisional tomado de los términos del sitio (/terminos), pendiente de revisión del abogado. No incluye plazos porque ninguno está aprobado.</field>
+    </record>
+
+    <record id="conocimiento_compra" model="dcasa.conocimiento">
+        <field name="titulo">Cómo se hace una compra</field>
+        <field name="fuente">manual</field>
+        <field name="etiquetas">comprar, compra, pedido, orden, carrito, confirmar, medidas, fotos</field>
+        <field name="contenido">Un pedido hecho en el sitio es una solicitud: la venta queda hecha cuando una vendedora la confirma contigo. Las fotos y las medidas son de referencia; si una medida es clave para tu espacio, pregúntanos.</field>
+        <field name="activo" eval="False"/>
+        <field name="nota">PENDIENTE DE APROBACIÓN DE LA DUEÑA. Texto provisional tomado de los términos del sitio (/terminos), pendiente de revisión del abogado. No habla de pagos, entregas, fletes, financiamiento ni apartados: eso siempre lo confirma una vendedora.</field>
+    </record>
+</odoo>

@@ -55,7 +55,8 @@ class TestHorarioLaboral(BaseCase):
         # Viernes 9 de octubre de 2026 a las 6 p. m. → lunes 12 a las 8:00.
         self.assertEqual(H.siguiente_horario_laboral(panama(2026, 10, 9, 18), lunes_a_viernes), panama(2026, 10, 12, 8))
         # Sábado a mediodía → lunes.
-        self.assertEqual(H.siguiente_horario_laboral(panama(2026, 10, 10, 12), lunes_a_viernes), panama(2026, 10, 12, 8))
+        self.assertEqual(H.siguiente_horario_laboral(panama(2026, 10, 10, 12), lunes_a_viernes),
+                         panama(2026, 10, 12, 8))
         self.assertFalse(H.dentro_de_horario(panama(2026, 10, 11, 12), lunes_a_viernes))   # domingo
 
     def test_sin_dias_no_hay_horario(self):
@@ -93,7 +94,8 @@ class TestHorarioLaboral(BaseCase):
             'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6], 'zona': 'America/Panama'})
 
     def test_fecha_en_texto(self):
-        self.assertEqual(H.texto_fecha_hora(datetime(2026, 10, 9, 14, 3), TODOS), 'viernes 9 de octubre de 2026, 9:03 a. m.')
+        self.assertEqual(H.texto_fecha_hora(datetime(2026, 10, 9, 14, 3), TODOS),
+                         'viernes 9 de octubre de 2026, 9:03 a. m.')
 
 
 @tagged('post_install', '-at_install')
@@ -146,7 +148,8 @@ class TestFechasDeSeguimiento(BaseCase):
 
     def test_frases_para_el_cliente_segun_el_horario(self):
         self.assertEqual(H.cuando_atienden(panama(2026, 10, 9, 10), TODOS), 'ahora')
-        self.assertEqual(H.cuando_atienden(panama(2026, 10, 9, 22), TODOS), 'mañana a primera hora, desde las 8:00 a. m.')
+        self.assertEqual(H.cuando_atienden(panama(2026, 10, 9, 22), TODOS),
+                         'mañana a primera hora, desde las 8:00 a. m.')
         self.assertEqual(H.cuando_atienden(panama(2026, 10, 9, 5), TODOS), 'hoy desde las 8:00 a. m.')
         cerrado_el_fin_de_semana = H.Horario(dias=frozenset({1, 2, 3, 4, 5}))
         self.assertEqual(H.cuando_atienden(panama(2026, 10, 9, 18), cerrado_el_fin_de_semana),

@@ -18,16 +18,20 @@ from markupsafe import Markup, escape
 from psycopg2 import IntegrityError
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 
 from . import adjuntos as A
+from . import firma as F
 from . import horario as H
 from .ajustes import CANALES
 
 _logger = logging.getLogger(__name__)
 
-DIRECCIONES = [('entrante', 'Entrante'), ('saliente', 'Saliente')]
-AUTORES = [('cliente', 'Cliente'), ('bot', 'Asistente'), ('vendedora', 'Vendedora')]
+DIRECCIONES = [('entrante', 'Entrante'), ('saliente', 'Saliente'), ('interna', 'Interna')]
+AUTORES = [('cliente', 'Cliente'), ('bot', 'Asistente'), ('vendedora', 'Vendedora'), ('sistema', 'Sistema')]
+# «mensaje» es lo que viaja por el canal. «nota» es interna entre vendedoras (el cliente jamás la ve) y «aviso» lo
+# escribe el sistema en el hilo («el asistente pasó la conversación a una vendedora»): ninguno sale por el canal.
+TIPOS = [('mensaje', 'Mensaje'), ('nota', 'Nota interna'), ('aviso', 'Aviso del sistema')]
 ESTADOS_ENVIO = [
     ('recibido', 'Recibido'),
     ('por_enviar', 'Por enviar'),
@@ -50,6 +54,7 @@ class DcasaMensaje(models.Model):
                                       readonly=True)
     partner_id = fields.Many2one(related='conversacion_id.partner_id', store=True, index=True)
     canal = fields.Selection(related='conversacion_id.canal', store=True, index=True)
+    tipo = fields.Selection(TIPOS, default='mensaje', required=True, readonly=True, index=True)
     direccion = fields.Selection(DIRECCIONES, required=True, readonly=True)
     autor = fields.Selection(AUTORES, required=True, readonly=True, index=True)
     id_mensaje = fields.Char('Id del mensaje', required=True, readonly=True, index=True,
@@ -73,9 +78,14 @@ class DcasaMensaje(models.Model):
     _id_mensaje_unico = models.Constraint(
         'UNIQUE(conversacion_id, id_mensaje)', 'Ese mensaje ya está registrado en la conversación.')
     _direccion_autor = models.Constraint(
-        "CHECK((direccion = 'entrante' AND autor = 'cliente') "
-        "OR (direccion = 'saliente' AND autor IN ('bot', 'vendedora')))",
-        'Un mensaje entrante es del cliente; uno saliente, del asistente o de una vendedora.')
+        "CHECK((tipo = 'mensaje' AND ((direccion = 'entrante' AND autor = 'cliente') "
+        "OR (direccion = 'saliente' AND autor IN ('bot', 'vendedora')))) "
+        "OR (tipo = 'nota' AND direccion = 'interna' AND autor = 'vendedora') "
+        "OR (tipo = 'aviso' AND direccion = 'interna' AND autor = 'sistema'))",
+        'Un mensaje entrante es del cliente; uno saliente, del asistente o de una vendedora; una nota, de una '
+        'vendedora; un aviso, del sistema.')
+    # El hilo se pide por tramos hacia atrás (id < X, de 50 en 50): con este índice es una lectura de índice.
+    _hilo_idx = models.Index('(conversacion_id, id)')
 
     # ------------------------------------------------------------------
     # El historial no se edita
@@ -144,6 +154,19 @@ class DcasaMensaje(models.Model):
             'tiene_sensible': sensible})
         return creados
 
+    @api.model
+    def _crear_interno(self, conversacion, tipo, texto, usuario=None):
+        """Una nota interna (de una vendedora) o un aviso del sistema dentro del hilo. Nunca sale por el canal."""
+        if tipo not in ('nota', 'aviso'):
+            raise ValueError(tipo)
+        mensaje, _creado = self._crear_si_no_existe({
+            'conversacion_id': conversacion.id, 'id_mensaje': f'{tipo}-{uuid.uuid4().hex}', 'tipo': tipo,
+            'direccion': 'interna', 'autor': 'vendedora' if tipo == 'nota' else 'sistema',
+            'texto': (texto or '').strip()[:2000] or False, 'ts': fields.Datetime.now(), 'origen': 'odoo',
+            'usuario_id': usuario.id if usuario else False, 'estado_envio': 'enviado',
+        })
+        return mensaje
+
     # ------------------------------------------------------------------
     # Chatter del cliente
     # ------------------------------------------------------------------
@@ -152,10 +175,14 @@ class DcasaMensaje(models.Model):
         """Deja el mensaje en el chatter de la ficha del cliente (nota interna, no avisa a nadie)."""
         self.ensure_one()
         partner = self.partner_id.sudo()
-        if not partner:
+        if not partner or self.tipo == 'aviso':
             return
         canal = dict(CANALES).get(self.canal, self.canal)
-        if self.autor == 'cliente':
+        if self.tipo == 'nota':
+            usuario = self.usuario_id
+            quien = self.env._('Nota interna de %s', usuario.name or self.env._('una vendedora'))
+            autor_id = usuario.partner_id.id if usuario else self._partner_del_bot().id
+        elif self.autor == 'cliente':
             quien, autor_id = 'Cliente', partner.id
         elif self.autor == 'bot':
             quien, autor_id = self.env._('Asistente'), self._partner_del_bot().id
@@ -185,17 +212,24 @@ class DcasaMensaje(models.Model):
     # ------------------------------------------------------------------
 
     def _datos_adjuntos_para_worker(self):
-        """Los adjuntos como los espera ``POST /odoo/enviar``: ``{tipo, url, nombre, mime}``."""
+        """Los adjuntos como los espera ``POST /odoo/enviar``: ``{tipo, url, nombre, mime}``.
+
+        La ``url`` es FIRMADA y de VIDA CORTA (15 minutos por defecto, ``dcasa_conversaciones.url_adjunto_minutos``):
+        el puente la baja desde internet sin sesión, pero el enlace no sirve después ni si el archivo cambia
+        (ver ``firma.py``). Cada reintento de envío genera una nueva.
+        """
         self.ensure_one()
-        base = (self.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
-        resultado = []
-        for adjunto in self.adjunto_ids.sudo():
-            token = adjunto.generate_access_token()[0]
-            resultado.append({
-                'tipo': A.tipo_de_mime(adjunto.mimetype), 'nombre': adjunto.name, 'mime': adjunto.mimetype or '',
-                'url': f'{base}/web/content/{adjunto.id}?access_token={token}&download=true',
-            })
-        return resultado
+        parametros = self.env['ir.config_parameter'].sudo()
+        base = (parametros.get_param('web.base.url') or '').rstrip('/')
+        secreto = parametros.get_param('database.secret') or ''
+        try:
+            vida = int(parametros.get_param('dcasa_conversaciones.url_adjunto_minutos') or 15) * 60
+        except ValueError:
+            vida = F.VIDA_POR_DEFECTO
+        return [{
+            'tipo': A.tipo_de_mime(adjunto.mimetype), 'nombre': adjunto.name, 'mime': adjunto.mimetype or '',
+            'url': base + F.ruta_firmada(secreto, adjunto.id, adjunto.checksum, adjunto.name, vida),
+        } for adjunto in self.adjunto_ids.sudo()]
 
     def _enviar(self):
         """Intenta mandar cada mensaje «por enviar» por el Worker. Devuelve cuántos salieron."""
@@ -269,18 +303,58 @@ class DcasaMensaje(models.Model):
         return True
 
     # ------------------------------------------------------------------
+    # Para la pantalla del panel (diccionarios sencillos, listos para JSON)
+    # ------------------------------------------------------------------
+
+    def _como_dict(self):
+        """El mensaje como lo pinta la pantalla: sin registros, con fechas ISO en UTC (``…Z``)."""
+        self.ensure_one()
+        return {
+            'id': self.id, 'tipo': self.tipo, 'autor': self.autor, 'direccion': self.direccion,
+            'texto': self.texto or '', 'ts': H.a_iso(self.ts),
+            'usuario': {'id': self.usuario_id.id, 'nombre': self.usuario_id.name} if self.usuario_id else None,
+            'estado_envio': self.estado_envio, 'error': self.error_envio or None, 'origen': self.origen,
+            'adjuntos': [adjunto_como_dict(a) for a in self.adjunto_ids.sudo()],
+            'adjuntos_fallidos': self.adjuntos_fallidos,
+        }
+
+    @api.model
+    def marcar_sensible(self, adjunto_ids, valor=True):
+        """Una vendedora marca (o desmarca) un adjunto como sensible: comprobante de pago o documento de identidad.
+
+        Un adjunto sensible no se le muestra a la IA. Solo toca la marca; el archivo y el mensaje no cambian.
+        """
+        self.env['dcasa.conversacion']._exigir_vendedora()
+        if not isinstance(adjunto_ids, (list, tuple)) or len(adjunto_ids) > A.MAX_ADJUNTOS * 4 \
+                or not all(isinstance(i, int) and not isinstance(i, bool) for i in adjunto_ids):
+            raise UserError(self.env._('Pásame la lista de adjuntos a marcar.'))
+        # Los mensajes se buscan SIN sudo: solo se marca lo que esa persona puede ver.
+        mensajes = self.search([('adjunto_ids', 'in', adjunto_ids)])
+        adjuntos = mensajes.sudo().adjunto_ids.filtered(lambda a: a.id in adjunto_ids and a.res_model == self._name)
+        adjuntos.write({'dcasa_sensible': bool(valor)})
+        for mensaje in mensajes.sudo():
+            mensaje.with_context(**{CLAVE_SISTEMA: True}).write(
+                {'tiene_sensible': any(mensaje.adjunto_ids.mapped('dcasa_sensible'))})
+        return {'marcados': adjuntos.ids, 'sensible': bool(valor)}
+
+    # ------------------------------------------------------------------
     # Verlo como chat
     # ------------------------------------------------------------------
 
     def _burbuja_html(self, horario):
         """HTML de una burbuja del chat (todo el contenido de terceros va escapado)."""
         self.ensure_one()
+        if self.tipo == 'aviso':
+            return Markup('<div class="o_dcasa_aviso_sistema">%s</div>') % escape(self.texto or '')
         clase = {'cliente': 'cliente', 'bot': 'bot', 'vendedora': 'vendedora'}[self.autor]
         etiqueta = {
             'cliente': self.partner_id.display_name or self.env._('Cliente'),
             'bot': self.env._('Asistente'),
             'vendedora': self.usuario_id.name or self.env._('Vendedora'),
         }[self.autor]
+        if self.tipo == 'nota':
+            clase = 'nota'
+            etiqueta = self.env._('Nota interna · %s', self.usuario_id.name or self.env._('una vendedora'))
         hora = H.a_local(self.ts, horario).strftime('%d/%m %H:%M')
         partes = [Markup('<div class="o_dcasa_burbuja o_dcasa_burbuja_%s">') % clase,
                   Markup('<div class="o_dcasa_burbuja_meta"><span>%s</span><span>%s</span></div>') % (
@@ -321,3 +395,16 @@ def _adjunto_html(adjunto):
     return Markup(
         '<div class="o_dcasa_burbuja_adjunto">%s<a href="%s" target="_blank" rel="noopener">'
         '<i class="fa fa-paperclip"/> %s</a></div>') % (etiqueta, enlace, nombre)
+
+
+def adjunto_como_dict(adjunto):
+    """Un adjunto para la pantalla: enlace de descarga y, si es imagen, miniatura al ancho justo."""
+    mime = adjunto.mimetype or ''
+    datos = {
+        'id': adjunto.id, 'nombre': adjunto.name, 'mime': mime, 'tipo': A.tipo_de_mime(mime),
+        'sensible': bool(adjunto.dcasa_sensible), 'tamano': adjunto.file_size or 0,
+        'url': f'/web/content/{adjunto.id}?download=true', 'miniatura': None,
+    }
+    if mime.startswith('image/'):
+        datos['miniatura'] = f'/web/image/{adjunto.id}?width=360&height=360'
+    return datos

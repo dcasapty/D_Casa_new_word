@@ -7,8 +7,16 @@
               action="action_dcasa_conversaciones"/>
     <menuitem id="menu_dcasa_mensajes_por_enviar" name="Mensajes por enviar" parent="menu_dcasa_conversaciones_root"
               sequence="20" action="action_dcasa_mensajes_por_enviar"/>
+    <menuitem id="menu_dcasa_preguntas_pendientes" name="Preguntas sin respuesta" parent="menu_dcasa_conversaciones_root"
+              sequence="30" action="action_dcasa_preguntas_pendientes" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_conocimiento" name="Conocimiento del bot" parent="menu_dcasa_conversaciones_root"
+              sequence="40" action="action_dcasa_conocimiento" groups="sales_team.group_sale_manager"/>
     <menuitem id="menu_dcasa_conversaciones_config" name="Configuración" parent="menu_dcasa_conversaciones_root"
               sequence="90" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_etiquetas" name="Etiquetas" parent="menu_dcasa_conversaciones_config"
+              sequence="20" action="action_dcasa_etiquetas" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_respuestas_rapidas" name="Respuestas rápidas" parent="menu_dcasa_conversaciones_config"
+              sequence="30" action="action_dcasa_respuestas_rapidas" groups="sales_team.group_sale_manager"/>
     <menuitem id="menu_dcasa_juan_ajustes" name="Ajustes de Juan" parent="menu_dcasa_conversaciones_config"
               sequence="10" action="action_dcasa_juan_ajustes" groups="sales_team.group_sale_manager"/>
 </odoo>

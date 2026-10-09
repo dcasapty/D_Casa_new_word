@@ -25,15 +25,16 @@ from odoo import api, fields, models
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.website_dcasa.models.black_weekend import leer_combo
-from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.tools import html2plaintext
 
 from . import celulares
+from . import conocimiento_texto as C
 from . import horario as H
 from . import publico as P
 from .ajustes import CANALES_CON_CELULAR
 from .brian_juan import GRUPO_JUAN
 from .reglas_clientes import redactar
+from .tienda import datos_tienda, url_base, website_publico
 
 _logger = logging.getLogger(__name__)
 
@@ -41,7 +42,10 @@ PREFIJO = 'juan_'
 GRUPOS = (GRUPO_JUAN,)
 MAX_TEXTO = 1000
 MAX_VARIANTES = 10
+MAX_CONOCIMIENTO = 2000
+MAX_PREGUNTA = 500
 MAX_GALERIA = 6
+MAX_ETIQUETA = 40
 AVISO_PRECIOS = ('Los precios son sin ITBMS: el 7 % se suma en el carrito. La disponibilidad es una '
                  'etiqueta del sistema; una vendedora la confirma antes de cualquier compra.')
 PARAM_CONSULTA = {'type': 'string', 'description': 'Lo que busca el cliente, con sus palabras: «colchón queen», '
@@ -67,13 +71,11 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @api.model
     def _j_website(self):
-        return self.env['website'].sudo().search([], order='sequence, id', limit=1)
+        return website_publico(self.env)
 
     @api.model
     def _j_base_url(self):
-        website = self._j_website()
-        base = website._dcasa_url_publica() if website else ''
-        return (base or self.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
+        return url_base(self.env, self._j_website())
 
     @api.model
     def _j_dominio_publicado(self):
@@ -152,7 +154,7 @@ class BrianHerramientasJuan(models.AbstractModel):
             valores.setdefault(v['product_tmpl_id'][0], []).append(v['name'])
         resultado = []
         for plantilla in plantillas:
-            extra = ' '.join(plantilla.public_categ_ids.mapped('complete_name') + valores.get(plantilla.id, []))
+            extra = ' '.join(plantilla.public_categ_ids.mapped('display_name') + valores.get(plantilla.id, []))
             codigo = ' '.join([plantilla.default_code or ''] + codigos.get(plantilla.id, []))
             resultado.append((plantilla, plantilla.name, codigo, extra))
         return resultado
@@ -162,7 +164,7 @@ class BrianHerramientasJuan(models.AbstractModel):
         """Categorías públicas (con sus hijas) cuyo nombre coincide con ``texto``; error con la lista si ninguna."""
         Categoria = self.env['product.public.category'].sudo()
         todas = Categoria.search([])
-        elegidas = todas.filtered(lambda c: P.puntuar(texto, c.name, '', c.complete_name or ''))
+        elegidas = todas.filtered(lambda c: P.puntuar(texto, c.name, '', c.display_name or ''))
         if not elegidas:
             nombres = ', '.join(sorted(set(todas.mapped('name'))))
             raise BrianError(f'No tengo una categoría que se llame «{texto}». Las categorías son: {nombres}.')
@@ -256,11 +258,11 @@ class BrianHerramientasJuan(models.AbstractModel):
         Plantilla = self.env['product.template'].sudo()
         base = self._j_base_url()
         categorias = []
-        for categoria in self.env['product.public.category'].sudo().search([], order='complete_name'):
+        for categoria in self.env['product.public.category'].sudo().search([]).sorted('display_name'):
             cuantos = Plantilla.search_count([*dominio, ('public_categ_ids', 'child_of', categoria.id)])
             if cuantos:
                 categorias.append({
-                    'nombre': categoria.name, 'ruta': categoria.complete_name or categoria.name, 'productos': cuantos,
+                    'nombre': categoria.name, 'ruta': categoria.display_name or categoria.name, 'productos': cuantos,
                     'url': f"{base}/shop/category/{self.env['ir.http']._slug(categoria)}"})
         return {'categorias': categorias}
 
@@ -355,29 +357,67 @@ class BrianHerramientasJuan(models.AbstractModel):
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         horario = ajustes.horario()
         ahora = fields.Datetime.now()
-        empresa = self.env.company.sudo()
-        website = self._j_website()
-        base = self._j_base_url()
-        direccion = ', '.join(p for p in (empresa.street, empresa.street2, empresa.city, 'Panamá Oeste') if p)
-        todos = len(horario.dias) == 7
-        dias = 'Todos los días' if todos else ', '.join(H.NOMBRES_DIA[d] for d in sorted(horario.dias))
-        telefono = (website.dcasa_whatsapp_number if website and website.dcasa_whatsapp_number else empresa.phone) or ''
-        mapa = f'https://www.google.com/maps/dir/?api=1&destination={LATITUD}%2C{LONGITUD}'
         return {
-            'tienda': empresa.name,
-            'direccion': direccion,
-            'como_llegar': f'{direccion}. Ruta en Google Maps: {mapa}. Más datos en {base}/visitanos.',
-            'horario': {
-                'texto': f'{dias}, de {H.texto_hora_amable(horario.inicio)} a {H.texto_hora_amable(horario.fin)} '
-                         '(hora de Panamá)',
-                **horario.como_json(),
-            },
+            **datos_tienda(self.env),
             'abierto_ahora': H.dentro_de_horario(ahora, horario),
-            'whatsapp': telefono,
-            'correo': empresa.email or '',
-            'sitio': base,
             'fecha_hora_panama': H.texto_fecha_hora(ahora, horario),
         }
+
+    # ------------------------------------------------------------------
+    # Conocimiento del equipo y aprendizaje
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre=PREFIJO + 'buscar_conocimiento',
+        descripcion='Busca en lo que el equipo de D\'CASA escribió para ti (horario, dirección, garantía, Socios, '
+                    'cómo comprar…). Devuelve las 3 mejores coincidencias con su texto. Contesta SOLO con eso: '
+                    'si no hay nada, no inventes.',
+        parametros={'consulta': {'type': 'string', 'description': 'La pregunta del cliente o sus palabras clave, '
+                                                                   'p. ej. «horario» o «garantía de colchones».'}},
+        requeridos=['consulta'], nivel='lectura', categoria='general', grupos=GRUPOS,
+        ejemplos=['«¿a qué hora abren?» → consulta=horario', '«¿tienen garantía?» → consulta=garantía'],
+    )
+    def _juan_buscar_conocimiento(self, consulta):
+        consulta = str(consulta or '').strip()[:300]
+        if not C.tokens(consulta):
+            raise BrianError('Dime sobre qué tema buscas, por ejemplo «horario» o «garantía».')
+        encontrados = self.env['dcasa.conocimiento']._buscar(consulta, 3)
+        if not encontrados:
+            return {'encontrados': 0, 'resultados': [],
+                    'nota': 'El equipo no ha escrito nada sobre eso. No inventes: si el cliente necesita la '
+                            'respuesta, usa registrar_pregunta_sin_respuesta y dile que una vendedora se la confirma.'}
+        return {
+            'encontrados': len(encontrados),
+            'resultados': [{
+                'titulo': entrada.titulo, 'contenido': (entrada.contenido_vigente or '')[:MAX_CONOCIMIENTO],
+                'etiquetas': entrada.etiquetas or '',
+                'actualizado': entrada.ultima_revision.isoformat() if entrada.ultima_revision else None,
+            } for entrada, _puntos in encontrados],
+            'nota': 'Contesta solo con lo que dice el equipo. Entregas, flete, financiamiento, apartados y descuentos '
+                    'siempre los confirma una vendedora.',
+        }
+
+    @herramienta(
+        nombre=PREFIJO + 'registrar_pregunta_sin_respuesta',
+        descripcion='Anota una pregunta del cliente que no pudiste contestar con las herramientas ni con el '
+                    'conocimiento del equipo, para que la dueña la responda y aprendas. Si la misma pregunta se '
+                    'repite, solo suma una vez más.',
+        parametros={
+            'pregunta': {'type': 'string', 'description': 'La pregunta del cliente, completa y con sus palabras.'},
+            'resumen': {'type': 'string', 'description': 'Opcional: el contexto en una frase (de qué hablaban).'},
+        },
+        requeridos=['pregunta'], nivel='construccion', categoria='general', grupos=GRUPOS,
+        ejemplos=['no encontraste respuesta sobre «¿instalan los muebles?» → registrar_pregunta_sin_respuesta'],
+    )
+    def _juan_registrar_pregunta_sin_respuesta(self, pregunta, resumen=None):
+        pregunta = ' '.join(str(pregunta or '').split())[:MAX_PREGUNTA]
+        if len(pregunta) < 3 or not any(c.isalpha() for c in pregunta):
+            raise BrianError('Escribe la pregunta del cliente tal como la hizo.')
+        registro, nueva = self.env['dcasa.pregunta_pendiente']._registrar(
+            pregunta, resumen, self._j_conversacion())
+        return {'registrada': True, 'es_nueva': nueva, 'veces': registro.veces,
+                'mensaje': 'Quedó anotada para que el equipo la responda. Dile al cliente que una vendedora se '
+                           'lo confirma; no inventes la respuesta.'}
 
     # ------------------------------------------------------------------
     # Escritura acotada: oportunidad, nota y traspaso
@@ -425,6 +465,32 @@ class BrianHerramientasJuan(models.AbstractModel):
         conversacion = self._j_conversacion()
         conversacion._nota_en_ficha(nota)
         return {'anotado': True}
+
+    @herramienta(
+        nombre=PREFIJO + 'etiquetar_conversacion',
+        descripcion='Pone una etiqueta a la conversación para que las vendedoras la encuentren («Pidió precio», '
+                    '«Comprobante recibido»…). Solo sirven las etiquetas que ya existen; no se inventan nuevas. '
+                    'Si la que escribes no existe, te digo cuáles hay.',
+        parametros={'etiqueta': {'type': 'string', 'description': 'El nombre de la etiqueta, tal como existe.'}},
+        requeridos=['etiqueta'], nivel='construccion', categoria='clientes', grupos=GRUPOS,
+        ejemplos=['el cliente preguntó el precio de un sofá → etiquetar_conversacion(etiqueta="Pidió precio")'],
+    )
+    def _juan_etiquetar_conversacion(self, etiqueta):
+        nombre = ' '.join(str(etiqueta or '').split())[:MAX_ETIQUETA]
+        Etiqueta = self.env['dcasa.conversacion.etiqueta'].sudo()
+        existente = Etiqueta._buscar_por_nombre(nombre)
+        if not existente:
+            activas = Etiqueta.search([('activa', '=', True)]).mapped('name')
+            if not activas:
+                raise BrianError('Todavía no hay etiquetas creadas; no pongas ninguna.')
+            raise BrianError(f'No existe la etiqueta «{nombre}». Las etiquetas que existen son: '
+                             f'{", ".join(activas)}. Usa una de esas o ninguna.')
+        conversacion = self._j_conversacion()
+        ya_la_tenia = existente in conversacion.etiqueta_ids
+        if not ya_la_tenia:
+            conversacion.write({'etiqueta_ids': [(4, existente.id)]})
+            conversacion._notificar_panel('etiquetas')
+        return {'etiquetada': True, 'etiqueta': existente.name, 'ya_la_tenia': ya_la_tenia}
 
     @herramienta(
         nombre=PREFIJO + 'pasar_a_vendedora',

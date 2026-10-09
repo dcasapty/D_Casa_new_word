@@ -18,7 +18,8 @@ class ResPartner(models.Model):
     _inherit = 'res.partner'
 
     dcasa_conversacion_ids = fields.One2many('dcasa.conversacion', 'partner_id', string='Conversaciones')
-    dcasa_conversaciones_count = fields.Integer('Cantidad de conversaciones', compute='_compute_dcasa_conversaciones_count')
+    dcasa_conversaciones_count = fields.Integer(
+        'Cantidad de conversaciones', compute='_compute_dcasa_conversaciones_count')
     dcasa_no_contactar = fields.Boolean(
         'No contactar', copy=False, tracking=True,
         help='Pidió que no le escribamos más: no se le hace ningún seguimiento automático.')

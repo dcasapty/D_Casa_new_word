@@ -59,7 +59,7 @@ class JuanCase(TransactionCase):
     # Mensajes
     # ------------------------------------------------------------------
 
-    def datos(self, texto='Hola, ¿tienen camas queen?', canal='whatsapp_qr', id_externo='50760261919',
+    def datos(self, texto='Hola, ¿tienen camas queen?', canal='whatsapp_qr', id_externo='50761234567',
               autor='cliente', ts=None, **extra):
         direccion = 'entrante' if autor == 'cliente' else 'saliente'
         return {
@@ -72,15 +72,15 @@ class JuanCase(TransactionCase):
         """Registra un mensaje como lo hace la API. Devuelve ``(conversacion, mensaje, creado)``."""
         return self.Conversacion._registrar_mensaje(self.datos(texto, **kw))
 
-    def conversacion(self, **kw):
-        return self.registrar(**kw)[0]
+    def conversacion(self, *args, **kw):
+        return self.registrar(*args, **kw)[0]
 
     # ------------------------------------------------------------------
     # Worker falso
     # ------------------------------------------------------------------
 
     def configurar_worker(self):
-        """Pone URL y token del Worker (de prueba) y devuelve el parche de ``requests.request`` para ir viendo las llamadas."""
+        """Pone URL y token del Worker (de prueba) y devuelve el parche de ``requests.request`` (ver llamadas)."""
         entorno = patch.dict(os.environ, {'JUAN_URL': URL_WORKER, 'JUAN_WORKER_TOKEN': TOKEN_WORKER})
         entorno.start()
         self.addCleanup(entorno.stop)

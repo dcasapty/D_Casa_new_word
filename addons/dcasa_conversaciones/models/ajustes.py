@@ -46,6 +46,19 @@ ENV_TOKEN_ODOO = 'JUAN_ODOO_TOKEN'
 ENV_TOKEN_WORKER = 'JUAN_WORKER_TOKEN'
 LARGO_MINIMO_TOKEN = 32
 
+PROVEEDORES_IA = [('anthropic', 'Anthropic (Claude)'), ('meta', 'Meta (Muse Spark)'), ('openai', 'OpenAI')]
+# Modelos por defecto (rápido, inteligente) de cada proveedor. OpenAI queda vacío a propósito: no se inventa un
+# nombre de modelo; la dueña lo escribe (y el formulario no deja guardar sin él).
+MODELOS_POR_PROVEEDOR = {
+    'anthropic': ('claude-haiku-4-5', 'claude-sonnet-5-5'),
+    'meta': ('muse-spark-1.3', 'muse-spark-1.3'),
+    'openai': ('', ''),
+}
+NIVELES_IA = ('rapido', 'inteligente')
+TIPOS_PRECIO = ('entrada', 'salida', 'cache')
+MAX_LECCIONES = 20
+MAX_LARGO_LECCION = 300
+
 BIENVENIDA = (
     "Hola, soy el asistente automático del equipo de D'CASA. Te ayudo con camas, colchones y muebles, "
     "y con el programa Socios. Si prefieres hablar con una persona, escríbeme *persona* y te atiende "
@@ -107,11 +120,26 @@ class JuanAjustes(models.Model):
         help='Como máximo cuántos mensajes de seguimiento recibe una persona.')
 
     # --- IA ---------------------------------------------------------------------------------------
+    proveedor_ia = fields.Selection(
+        PROVEEDORES_IA, 'Proveedor de IA', default='anthropic', required=True, tracking=True,
+        help='Quién pone el modelo que conversa con los clientes. Las claves de acceso NO se guardan en Odoo: '
+             'viven solo en el Worker de Juan.')
+    proveedor_respaldo_ia = fields.Selection(
+        PROVEEDORES_IA, 'Proveedor de respaldo', tracking=True,
+        help='Opcional: si el proveedor principal falla, el Worker intenta con este.')
     presupuesto_ia_mensual_usd = fields.Float(
         'Tope de IA al mes (USD)', default=30.0, tracking=True,
         help='Al llegar, el asistente baja al modelo barato; nunca se queda sin contestar por dinero.')
-    modelo_rapido = fields.Char('Modelo rápido (barato)', default='claude-haiku-4-5')
-    modelo_inteligente = fields.Char('Modelo inteligente', default='claude-sonnet-5-5')
+    modelo_rapido = fields.Char('Modelo rápido (barato)', default='claude-haiku-4-5', tracking=True)
+    modelo_inteligente = fields.Char('Modelo inteligente', default='claude-sonnet-5-5', tracking=True)
+    aviso_contributor = fields.Boolean('Entrena con las conversaciones', compute='_compute_aviso_contributor')
+    # Precios en dólares por millón de tokens. Vacío (0) = sin precio verificado: no se inventa ninguno.
+    precio_rapido_entrada_usd_mtok = fields.Float('Rápido: entrada', digits=(12, 4), tracking=True)
+    precio_rapido_salida_usd_mtok = fields.Float('Rápido: salida', digits=(12, 4), tracking=True)
+    precio_rapido_cache_usd_mtok = fields.Float('Rápido: caché', digits=(12, 4), tracking=True)
+    precio_inteligente_entrada_usd_mtok = fields.Float('Inteligente: entrada', digits=(12, 4), tracking=True)
+    precio_inteligente_salida_usd_mtok = fields.Float('Inteligente: salida', digits=(12, 4), tracking=True)
+    precio_inteligente_cache_usd_mtok = fields.Float('Inteligente: caché', digits=(12, 4), tracking=True)
 
     # --- Textos ------------------------------------------------------------------------------------
     mensaje_bienvenida = fields.Text('Mensaje de bienvenida', default=BIENVENIDA, translate=False)
@@ -119,6 +147,10 @@ class JuanAjustes(models.Model):
     palabras_prohibidas = fields.Text(
         'Palabras prohibidas', default=PALABRAS_PROHIBIDAS,
         help='Una por línea. El asistente no las usa jamás.')
+    lecciones_aprendidas = fields.Text(
+        'Lecciones aprendidas', tracking=True,
+        help=f'Una por línea, hasta {MAX_LECCIONES}. Lo que el asistente debe recordar siempre, p. ej. «cuando '
+             'pregunten por X, haz Y». El Worker las suma a sus instrucciones.')
     pausa_por_defecto_minutos = fields.Integer(
         'Pausa al atender (minutos)', default=120, tracking=True,
         help='Cuánto calla el asistente cuando una vendedora toma una conversación o la pide. '
@@ -206,6 +238,37 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._(
                     'El seguimiento admite como máximo 2 mensajes (decisión de la dueña): pon 0, 1 o 2.'))
 
+    @api.constrains('proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido', 'modelo_inteligente')
+    def _check_ia(self):
+        for registro in self:
+            if registro.proveedor_respaldo_ia and registro.proveedor_respaldo_ia == registro.proveedor_ia:
+                raise ValidationError(self.env._('El proveedor de respaldo tiene que ser distinto del principal.'))
+            for nivel in (registro.modelo_rapido, registro.modelo_inteligente):
+                if not (nivel or '').strip() or len(nivel) > 100 or any(c.isspace() for c in nivel.strip()):
+                    raise ValidationError(self.env._(
+                        'Escribe el nombre del modelo rápido y del inteligente (una sola palabra, p. ej. '
+                        'claude-haiku-4-5). Para OpenAI no hay uno por defecto: pon el que quieras usar.'))
+
+    @api.constrains(*[f'precio_{n}_{t}_usd_mtok' for n in NIVELES_IA for t in TIPOS_PRECIO])
+    def _check_precios(self):
+        for registro in self:
+            for nivel in NIVELES_IA:
+                for tipo in TIPOS_PRECIO:
+                    if registro[f'precio_{nivel}_{tipo}_usd_mtok'] < 0:
+                        raise ValidationError(self.env._('Los precios de la IA no pueden ser negativos.'))
+
+    @api.constrains('lecciones_aprendidas')
+    def _check_lecciones(self):
+        for registro in self:
+            lecciones = registro.lista_lecciones()
+            if len(lecciones) > MAX_LECCIONES:
+                raise ValidationError(self.env._(
+                    'Son demasiadas lecciones (%(n)s): el máximo es %(max)s. Junta o quita algunas.',
+                    n=len(lecciones), max=MAX_LECCIONES))
+            if any(len(leccion) > MAX_LARGO_LECCION for leccion in lecciones):
+                raise ValidationError(self.env._(
+                    'Cada lección admite hasta %s caracteres. Acórtala.', MAX_LARGO_LECCION))
+
     @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos')
     def _check_numeros(self):
         for registro in self:
@@ -243,6 +306,33 @@ class JuanAjustes(models.Model):
         self.ensure_one()
         return {canal: bool(self[f'canal_{canal}']) for canal, _nombre in CANALES}
 
+    @api.depends('modelo_rapido', 'modelo_inteligente')
+    def _compute_aviso_contributor(self):
+        for registro in self:
+            registro.aviso_contributor = any(
+                'contributor' in (modelo or '').lower()
+                for modelo in (registro.modelo_rapido, registro.modelo_inteligente))
+
+    @api.onchange('proveedor_ia')
+    def _onchange_proveedor_ia(self):
+        """Al cambiar de proveedor, los modelos pasan a los suyos (si seguían siendo los de otro proveedor)."""
+        rapido, inteligente = MODELOS_POR_PROVEEDOR.get(self.proveedor_ia, ('', ''))
+        conocidos = {m for par in MODELOS_POR_PROVEEDOR.values() for m in par if m}
+        if not self.modelo_rapido or self.modelo_rapido in conocidos:
+            self.modelo_rapido = rapido
+        if not self.modelo_inteligente or self.modelo_inteligente in conocidos:
+            self.modelo_inteligente = inteligente
+
+    def lista_lecciones(self):
+        self.ensure_one()
+        return [linea.strip() for linea in (self.lecciones_aprendidas or '').splitlines() if linea.strip()]
+
+    def precios_ia(self):
+        """Precios por nivel y tipo; ``None`` donde no hay precio verificado (0 o vacío): nunca una cifra inventada."""
+        self.ensure_one()
+        return {nivel: {tipo: (self[f'precio_{nivel}_{tipo}_usd_mtok'] or None) for tipo in TIPOS_PRECIO}
+                for nivel in NIVELES_IA}
+
     def lista_palabras_prohibidas(self):
         self.ensure_one()
         return [linea.strip() for linea in (self.palabras_prohibidas or '').splitlines() if linea.strip()]
@@ -262,8 +352,14 @@ class JuanAjustes(models.Model):
                 'maximo': self.seguimiento_maximo,
             },
             'presupuesto_ia_mensual_usd': _entero_si_se_puede(self.presupuesto_ia_mensual_usd),
+            'proveedor_ia': self.proveedor_ia,
+            'proveedor_respaldo_ia': self.proveedor_respaldo_ia or None,
             'modelo_rapido': self.modelo_rapido or '',
             'modelo_inteligente': self.modelo_inteligente or '',
+            'modelos_por_defecto': {proveedor: {'rapido': rapido, 'inteligente': inteligente}
+                                    for proveedor, (rapido, inteligente) in MODELOS_POR_PROVEEDOR.items()},
+            'precios': self.precios_ia(),
+            'lecciones': self.lista_lecciones(),
             'mensaje_bienvenida': self.mensaje_bienvenida or '',
             'texto_privacidad_corto': self.texto_privacidad_corto or '',
             'palabras_prohibidas': self.lista_palabras_prohibidas(),
@@ -278,16 +374,19 @@ class JuanAjustes(models.Model):
     def _parametro(self, clave):
         return (self.env['ir.config_parameter'].sudo().get_param(clave) or '').strip()
 
+    @api.private
     @api.model
     def url_worker(self):
         return (os.environ.get(ENV_URL) or self._parametro(PARAM_URL)).strip().rstrip('/')
 
+    @api.private
     @api.model
     def token_odoo(self):
         """Token que el Worker presenta a Odoo. Vacío o demasiado corto = no configurado."""
         token = (os.environ.get(ENV_TOKEN_ODOO) or self._parametro(PARAM_TOKEN_ODOO)).strip()
         return token if len(token) >= LARGO_MINIMO_TOKEN else ''
 
+    @api.private
     @api.model
     def token_worker(self):
         """Token que Odoo presenta al Worker."""

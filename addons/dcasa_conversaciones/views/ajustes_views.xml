@@ -57,9 +57,21 @@
                     </group>
                     <group>
                         <group string="Inteligencia artificial">
-                            <field name="presupuesto_ia_mensual_usd"/>
+                            <field name="proveedor_ia"/>
+                            <field name="proveedor_respaldo_ia"/>
                             <field name="modelo_rapido"/>
                             <field name="modelo_inteligente"/>
+                            <field name="presupuesto_ia_mensual_usd"/>
+                            <field name="aviso_contributor" invisible="1"/>
+                            <div class="alert alert-warning" role="alert" colspan="2" invisible="not aviso_contributor">
+                                Elegiste un modelo «contributor»: entrena con las conversaciones de tus clientes.
+                                La política de privacidad del sitio tiene que decirlo.
+                            </div>
+                            <div class="text-muted" colspan="2">
+                                Los modelos con «contributor» en el nombre entrenan con las conversaciones de tus
+                                clientes; si los eliges, la política de privacidad del sitio debe decirlo. Las claves de
+                                acceso a la IA no se guardan en Odoo: viven solo en el Worker de Juan.
+                            </div>
                         </group>
                         <group string="Cuando una vendedora toma la conversación">
                             <field name="pausa_por_defecto_minutos"/>
@@ -67,10 +79,28 @@
                             <field name="usuarios_aviso_ids" widget="many2many_tags" options="{'no_create': True}"/>
                         </group>
                     </group>
+                    <group string="Precios de la IA (dólares por millón de tokens)">
+                        <group string="Modelo rápido">
+                            <field name="precio_rapido_entrada_usd_mtok"/>
+                            <field name="precio_rapido_salida_usd_mtok"/>
+                            <field name="precio_rapido_cache_usd_mtok"/>
+                        </group>
+                        <group string="Modelo inteligente">
+                            <field name="precio_inteligente_entrada_usd_mtok"/>
+                            <field name="precio_inteligente_salida_usd_mtok"/>
+                            <field name="precio_inteligente_cache_usd_mtok"/>
+                        </group>
+                        <div class="text-muted" colspan="2">
+                            Déjalos en 0 si no sabes el precio: sin precio verificado el Worker no calcula el gasto en
+                            dólares. No pongas cifras de memoria.
+                        </div>
+                    </group>
                     <group string="Textos">
                         <field name="mensaje_bienvenida" placeholder="Lo primero que dice el asistente"/>
                         <field name="texto_privacidad_corto"/>
                         <field name="palabras_prohibidas" placeholder="Una palabra por línea"/>
+                        <field name="lecciones_aprendidas"
+                               placeholder="Una por línea. Ejemplo: cuando pregunten por la garantía, di que una vendedora se la confirma."/>
                     </group>
                     <group string="Conexión con el Worker de Juan">
                         <field name="juan_url" placeholder="https://juan.…"/>

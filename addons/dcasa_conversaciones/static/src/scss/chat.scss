@@ -93,3 +93,26 @@
 .o_dcasa_fallido { text-decoration: underline; }
 
 .o_dcasa_bandeja_kanban .o_kanban_record { border-radius: var(--dc-r-md, 12px); }
+
+// Nota interna entre vendedoras: el cliente nunca la ve. Borde discontinuo y fondo claro para que no se confunda
+// con un mensaje que sale por el canal. (Sin amarillo: el amarillo jamás toca el blanco.)
+.o_dcasa_burbuja.o_dcasa_burbuja_nota {
+    align-self: flex-end;
+    background: var(--dc-niebla, #F4F6FA);
+    border: 1px dashed var(--dc-azul-600, #1340B1);
+    color: var(--dc-tinta, #0E1A33);
+
+    .o_dcasa_burbuja_meta { color: var(--dc-azul-700, #0F3591); }
+}
+
+// Aviso del sistema («Ana tomó la conversación»): una línea centrada y discreta.
+.o_dcasa_aviso_sistema {
+    align-self: center;
+    max-width: 90%;
+    padding: 2px 12px;
+    font-size: .75rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--dc-tinta-3, #6B7690);
+    overflow-wrap: anywhere;
+}
