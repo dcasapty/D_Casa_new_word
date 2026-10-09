@@ -231,7 +231,8 @@ class TestMensaje(ApiCase):
             'ts inválido': self.mensaje(ts='ayer'),
             'ts número': self.mensaje(ts=12345),
             'adjuntos no es lista': self.mensaje(adjuntos={'tipo': 'imagen'}),
-            'adjunto sin url': self.mensaje(adjuntos=[{'tipo': 'imagen'}]),
+            'adjunto con url y base64': self.mensaje(
+                adjuntos=[{'tipo': 'imagen', 'url': 'https://x.test/a', 'base64': 'QQ=='}]),
             'adjunto tipo raro': self.mensaje(adjuntos=[{'tipo': 'exe', 'url': 'https://x.test/a'}]),
             'demasiados adjuntos': self.mensaje(adjuntos=[{'tipo': 'imagen', 'url': 'https://x.test/a'}] * 6),
             'nombre enorme': self.mensaje(nombre='n' * 201),
