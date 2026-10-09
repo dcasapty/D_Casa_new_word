@@ -101,11 +101,11 @@ async function vigilarAvanzando(d: Do) {
 describe("arranque y entorno del contenedor", () => {
   it("el contenedor recibe un token DERIVADO, nunca el WA_TOKEN ni la clave de cifrado", async () => {
     const { d } = await montar();
-    expect(d.envVars.PUENTE_TOKEN).toBe(await derivarTokenContenedor(TOKEN));
-    const todo = JSON.stringify(d.envVars);
+    expect(d.envVars!.PUENTE_TOKEN).toBe(await derivarTokenContenedor(TOKEN));
+    const todo = JSON.stringify(d.envVars!);
     expect(todo).not.toContain(TOKEN);
     expect(todo).not.toContain(CLAVE);
-    expect(d.envVars).toMatchObject({
+    expect(d.envVars!).toMatchObject({
       PORT: "8080",
       PUENTE_URL: "https://dcasa-puente-wa-staging.dcasapty.workers.dev",
       MEDIOS_HOSTS_PERMITIDOS: "dcasapty.com",
@@ -133,7 +133,7 @@ describe("arranque y entorno del contenedor", () => {
     contenedor(a.d);
     await a.d.vigilar();
     const b = await montar({}, ctx); // el DO se reconstruye con el mismo almacenamiento
-    expect(b.d.envVars.PUENTE_EPOCA).toBe("1");
+    expect(b.d.envVars!.PUENTE_EPOCA).toBe("1");
   });
 });
 
@@ -214,7 +214,7 @@ describe("sin secretos o apagado: no enciende el contenedor", () => {
 
   it("el token del contenedor falta en el entorno si falta WA_TOKEN (no se inventa uno)", async () => {
     const { d } = await montar({ WA_TOKEN: undefined });
-    expect(d.envVars.PUENTE_TOKEN).toBeUndefined();
+    expect(d.envVars!.PUENTE_TOKEN).toBeUndefined();
   });
 
   it("si la dueña cambia WA_TOKEN, el contenedor vivo se reinicia para tomar el token nuevo (la sesión no se pierde)", async () => {

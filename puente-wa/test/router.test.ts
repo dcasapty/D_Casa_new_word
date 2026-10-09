@@ -134,7 +134,8 @@ describe("autenticación de /api/* (WA_TOKEN, en tiempo constante)", () => {
 
   it("acepta Authorization: Bearer, x-wa-token y x-wa-token-b64", async () => {
     const env = envBase();
-    for (const headers of [{ authorization: `Bearer ${TOKEN}` }, { "x-wa-token": TOKEN }, { "x-wa-token-b64": btoa(TOKEN) }]) {
+    const formas: Record<string, string>[] = [{ authorization: `Bearer ${TOKEN}` }, { "x-wa-token": TOKEN }, { "x-wa-token-b64": btoa(TOKEN) }];
+    for (const headers of formas) {
       const r = await manejar(new Request(`${BASE}/api/estado`, { headers }), env, () => stubFalso());
       expect(r.status).toBe(200);
     }

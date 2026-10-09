@@ -35,7 +35,7 @@ describe("revisarConfiguracion (solo nombres, nunca valores)", () => {
   });
 
   it("un WA_TOKEN con caracteres fuera de ASCII no es apto", () => {
-    const c = revisarConfiguracion({ WA_TOKEN: "contraseña-larga-0123456789-abcdef", WA_SESION_CLAVE: CLAVE });
+    const c = revisarConfiguracion({ WA_TOKEN: "contraseña-de-prueba-larga-0123456789", WA_SESION_CLAVE: CLAVE });
     expect(c.invalidos).toEqual([{ nombre: "WA_TOKEN", motivo: expect.stringContaining("ASCII") }]);
   });
 
