@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Grupo propio del usuario técnico «juan» (el asistente de clientes). NO implica ningún otro grupo:
+        sin él no se ve ninguna herramienta de Juan y, con él, solo se ven las herramientas de Juan (las de
+        uso interno de Brian piden el grupo de usuario interno, que «juan» no tiene).
+        No lleva permisos sobre ningún modelo: las herramientas leen y escriben acotado, con sudo() y filtros.
+    -->
+    <record id="group_juan" model="res.groups">
+        <field name="name">Juan (asistente de clientes)</field>
+        <field name="comment">Usuario técnico del asistente que atiende a los clientes. Solo ve las herramientas de Juan. Sin permisos internos.</field>
+    </record>
+
+    <!-- Cada persona ve solo su propia marca de «hasta dónde leí». -->
+    <record id="regla_dcasa_lectura_propia" model="ir.rule">
+        <field name="name">Conversaciones: cada quien ve su lectura</field>
+        <field name="model_id" ref="model_dcasa_conversacion_lectura"/>
+        <field name="domain_force">[('usuario_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+</odoo>

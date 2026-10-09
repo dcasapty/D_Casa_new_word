@@ -388,6 +388,12 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BRIAN_TELEGRAM_SECRETO",
+  // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
+  // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
+  // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.
+  "JUAN_ODOO_TOKEN",
+  "JUAN_WORKER_TOKEN",
+  "JUAN_URL",
   // Caché de páginas del borde (addons/dcasa_tienda_borde): el mismo secreto certifica las páginas
   // anónimas y protege el aviso de invalidación; TIENDA_AVISO_URL es opcional (por defecto
   // https://CANONICAL_HOST/__edge/tienda/regenerar).

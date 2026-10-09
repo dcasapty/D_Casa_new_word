@@ -1,4 +1,5 @@
 import { Container, getContainer, type StopParams } from "@cloudflare/containers";
+import { WorkerEntrypoint } from "cloudflare:workers";
 
 import {
   avisarTelegram,
@@ -18,6 +19,7 @@ import {
   type ResultadoRespaldo,
   type SaludContenedor,
 } from "./handler";
+import { atenderJuan } from "./juan";
 import { type AlmacenTienda, tiendaActiva } from "./tienda/paginas";
 
 export interface Env {
@@ -73,6 +75,14 @@ export interface Env {
   TELEGRAM_BOT_TOKEN?: string;
   /** Secreto: ruta y encabezado del webhook de Telegram. */
   BRIAN_TELEGRAM_SECRETO?: string;
+  // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en
+  // el panel de Cloudflare, nunca en el repositorio ni en GitHub. Sin ellos Odoo arranca normal y /dcasa/juan/** da 503.
+  /** Secreto (≥ 32): el Worker `juan` lo presenta a Odoo en `Authorization: Bearer`. */
+  JUAN_ODOO_TOKEN?: string;
+  /** Secreto (≥ 32): Odoo lo presenta al Worker `juan`. */
+  JUAN_WORKER_TOKEN?: string;
+  /** Variable (no secreta): URL base del Worker `juan`, p. ej. https://juan.….workers.dev */
+  JUAN_URL?: string;
   // Caché de páginas (HTML de Odoo para anónimos; addons/dcasa_tienda_borde, edge/src/tienda/)
   /** Páginas guardadas (Workers KV). Sin binding: la caché de páginas no existe. */
   TIENDA?: KVNamespace;
@@ -372,6 +382,22 @@ function registrarRespaldo(resultado: ResultadoRespaldo, origen: string): Result
   if (resultado.estado === "ok") console.log(linea);
   else console.error(linea);
   return resultado;
+}
+
+/**
+ * Punto de entrada para el service binding del Worker `juan` (el asistente de clientes).
+ *
+ * El Worker `juan` declara en su wrangler: `{ "binding": "DCASA", "service": "dcasa", "entrypoint": "JuanEntrada" }`
+ * (en staging, `"service": "dcasa-staging"`) y llama `env.DCASA.fetch(new Request("https://dcasa/dcasa/juan/v1/mensaje", …))`.
+ * Solo reenvía `/dcasa/juan/**` al contenedor de Odoo (src/juan.ts); desde internet esas rutas dan 404 (routing.ts).
+ */
+export class JuanEntrada extends WorkerEntrypoint<Env> {
+  override async fetch(request: Request): Promise<Response> {
+    return atenderJuan(request, {
+      forward: (upstream) => odoo(this.env).fetch(upstream),
+      canonicalHost: this.env.CANONICAL_HOST,
+    });
+  }
 }
 
 export default {

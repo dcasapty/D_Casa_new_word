@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_dcasa_conversaciones" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.conversaciones</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']/*[1]" position="before">
+                <button name="action_dcasa_ver_conversaciones" type="object" class="oe_stat_button" icon="fa-comments"
+                        invisible="dcasa_conversaciones_count == 0" groups="sales_team.group_sale_salesman">
+                    <div class="o_stat_info">
+                        <span class="o_stat_value"><field name="dcasa_conversaciones_count"/></span>
+                        <span class="o_stat_text">Conversaciones</span>
+                    </div>
+                </button>
+            </xpath>
+            <notebook position="inside">
+                <page string="Conversaciones" name="dcasa_conversaciones" groups="sales_team.group_sale_salesman"
+                      invisible="parent_id or dcasa_conversaciones_count == 0">
+                    <group>
+                        <field name="dcasa_no_contactar"/>
+                    </group>
+                    <div class="text-muted">
+                        Con «No contactar» el asistente no le hace seguimiento. Se marca solo si la persona lo pide por escrito.
+                    </div>
+                </page>
+            </notebook>
+        </field>
+    </record>
+</odoo>

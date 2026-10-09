@@ -23,10 +23,14 @@ export type Route =
  *   D'CASA la usa hoy; cuando Brian en el borde la necesite (fase posterior) se
  *   abrirá con su propia protección, no desde internet abierto.
  *
- * Ningún módulo de `addons/` ni el Worker usan estas rutas (Brian habla por
+ * - `/dcasa/juan/*`: la API que el Worker `juan` (el asistente de clientes) usa para registrar mensajes, pedir
+ *   herramientas y confirmar seguimientos (addons/dcasa_conversaciones). Solo entra por el service binding
+ *   (clase `JuanEntrada`, src/juan.ts): desde internet, 404 como el resto de las rutas internas.
+ *
+ * Ningún módulo de `addons/` ni el Worker usan las otras rutas (Brian habla por
  * `/brian/mcp` y el sitio por `/web/dataset/*` y rutas `http`).
  */
-const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer"];
+const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer", "/dcasa/juan"];
 
 /**
  * Odoo (http_routing) quita un prefijo de idioma (`/es/…`, `/es_419/…`) y vuelve a

@@ -26,6 +26,10 @@ ASISTENTE = ('Botón de un asistente (TransientModel): leer sus campos exige el 
              'que lo limita al grupo correspondiente.')
 OVERRIDE = 'Sobrescribe un método público estándar de Odoo; la superficie no cambia.'
 CONTADOR = 'API de la pantalla de conciliación: exige account.group_account_user en el servidor.'
+VENTAS_BOTON = ('Botón: exige sales_team.group_sale_salesman en el servidor (_exigir_vendedora) y el ACL '
+                'antes de escribir.')
+PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
+                '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
@@ -201,6 +205,69 @@ LISTA_BLANCA = {
         'Solo el dueño del chat o un administrador (se comprueba antes del sudo).',
     ('dcasa_brian', 'brian.telegram.enlace', 'action_registrar_webhook'): 'Exige base.group_system.',
     ('dcasa_brian', 'res.users', 'action_dcasa_brian_vincular_telegram'): 'Solo sobre el propio usuario.',
+    # --- dcasa_conversaciones (Juan, el asistente de clientes) ---------------------------------
+    # Todo lo que escribe con sudo() (registrar mensajes, estado, seguimiento, tokens) es privado (_ o @api.private)
+    # y solo lo llama la API /dcasa/juan/v1 (con token) o el propio módulo. Lo público de abajo:
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'write'):
+        OVERRIDE + ' Bloquea cambiar canal e id externo (salvo superusuario); sin sudo.',
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'unlink'):
+        OVERRIDE + ' Comprueba check_access("unlink") ANTES de borrar los mensajes con sudo (derecho de borrado).',
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_atender'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_devolver_al_bot'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_cerrar'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_enviar'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_reintentar_envios'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_crear_oportunidad'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'action_ver_oportunidad'): ACCION_VENTANA,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'lista'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'hilo'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'ficha'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'marcar_leida'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'enviar_respuesta'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'tomar'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'devolver'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'cerrar'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'asignar'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'cancelar_seguimiento'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'poner_etiquetas'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'agregar_nota'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.mensaje', 'write'): 'Bloquea: el historial de la conversación no se edita.',
+    ('dcasa_conversaciones', 'dcasa.mensaje', 'action_reintentar'): VENTAS_BOTON,
+    ('dcasa_conversaciones', 'dcasa.mensaje', 'marcar_sensible'):
+        'Exige sales_team.group_sale_salesman; busca los mensajes SIN sudo, así que solo marca adjuntos de mensajes '
+        'que esa persona puede ver; solo escribe la marca de sensible.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'create'): 'Bloquea: los ajustes son un solo registro; sin sudo.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'unlink'): 'Bloquea: los ajustes no se borran.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_abrir'):
+        ACCION_VENTANA + ' Comprueba check_access("read") antes.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_probar_conexion'):
+        'Botón: exige sales_team.group_sale_manager; solo pregunta la salud del Worker (sin enviar datos del cliente).',
+    ('dcasa_conversaciones', 'dcasa.conocimiento', 'create'):
+        OVERRIDE + ' Solo Gerencia crea (ACL); si nace de una pregunta, la marca atendida con sudo.',
+    ('dcasa_conversaciones', 'dcasa.conocimiento', 'write'):
+        OVERRIDE + ' Pone la fecha de revisión; sin sudo (ACL: Gerencia).',
+    ('dcasa_conversaciones', 'dcasa.conocimiento', 'action_activar'): 'Botón: exige sales_team.group_sale_manager.',
+    ('dcasa_conversaciones', 'dcasa.conocimiento', 'action_desactivar'): 'Botón: exige sales_team.group_sale_manager.',
+    ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'write'):
+        'Bloquea: solo Gerencia atiende las preguntas sin respuesta (se comprueba antes de escribir).',
+    ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_convertir_en_conocimiento'):
+        'Botón: exige sales_team.group_sale_manager; solo devuelve la acción de ventana.',
+    ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_descartar'):
+        'Botón: exige sales_team.group_sale_manager.',
+    ('dcasa_conversaciones', 'dcasa.pregunta_pendiente', 'action_reabrir'):
+        'Botón: exige sales_team.group_sale_manager.',
+    ('dcasa_conversaciones', 'dcasa.conversacion.etiqueta', 'create'):
+        OVERRIDE + ' Solo limpia el nombre; sin sudo (ACL: solo Gerencia crea).',
+    ('dcasa_conversaciones', 'dcasa.conversacion.etiqueta', 'write'):
+        OVERRIDE + ' Solo limpia el nombre; sin sudo (ACL: solo Gerencia escribe).',
+    ('dcasa_conversaciones', 'dcasa.conversacion.etiqueta', 'lista'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'create'):
+        OVERRIDE + ' Solo limpia el atajo; sin sudo (ACL: solo Gerencia crea).',
+    ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'write'):
+        OVERRIDE + ' Solo limpia el atajo; sin sudo (ACL: solo Gerencia escribe).',
+    ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'lista'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'texto_para'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'res.partner', 'action_dcasa_ver_conversaciones'): ACCION_VENTANA,
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).

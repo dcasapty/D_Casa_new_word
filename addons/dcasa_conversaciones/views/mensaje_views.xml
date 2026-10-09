@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_mensaje_list" model="ir.ui.view">
+        <field name="name">dcasa.mensaje.list</field>
+        <field name="model">dcasa.mensaje</field>
+        <field name="arch" type="xml">
+            <list string="Mensajes" create="false" edit="false" delete="false"
+                  decoration-warning="estado_envio == 'por_enviar'" decoration-danger="estado_envio == 'fallido'">
+                <field name="ts"/>
+                <field name="conversacion_id"/>
+                <field name="autor"/>
+                <field name="texto"/>
+                <field name="estado_envio" widget="badge"/>
+                <field name="intentos"/>
+                <field name="error_envio"/>
+                <button name="action_reintentar" type="object" icon="fa-repeat" title="Reintentar envío"
+                        invisible="estado_envio not in ('por_enviar', 'fallido') or origen != 'odoo'"/>
+                <field name="origen" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_mensaje_form" model="ir.ui.view">
+        <field name="name">dcasa.mensaje.form</field>
+        <field name="model">dcasa.mensaje</field>
+        <field name="arch" type="xml">
+            <form string="Mensaje" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_reintentar" type="object" string="Reintentar envío" class="btn-primary"
+                            invisible="estado_envio not in ('por_enviar', 'fallido') or origen != 'odoo'"/>
+                    <field name="estado_envio" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <field name="origen" invisible="1"/>
+                    <group>
+                        <group>
+                            <field name="conversacion_id"/>
+                            <field name="partner_id"/>
+                            <field name="canal"/>
+                            <field name="autor"/>
+                            <field name="usuario_id" invisible="not usuario_id"/>
+                        </group>
+                        <group>
+                            <field name="ts"/>
+                            <field name="id_mensaje"/>
+                            <field name="intentos"/>
+                            <field name="error_envio" invisible="not error_envio"/>
+                        </group>
+                    </group>
+                    <field name="texto" nolabel="1"/>
+                    <field name="adjunto_ids" widget="many2many_binary" readonly="1"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_mensaje_search" model="ir.ui.view">
+        <field name="name">dcasa.mensaje.search</field>
+        <field name="model">dcasa.mensaje</field>
+        <field name="arch" type="xml">
+            <search string="Mensajes">
+                <field name="texto"/>
+                <field name="partner_id"/>
+                <field name="conversacion_id"/>
+                <filter name="por_enviar" string="Por enviar" domain="[('estado_envio', '=', 'por_enviar')]"/>
+                <filter name="fallidos" string="No se pudieron enviar" domain="[('estado_envio', '=', 'fallido')]"/>
+                <filter name="sensibles" string="Con adjunto sensible" domain="[('tiene_sensible', '=', True)]"/>
+                <separator/>
+                <filter name="fecha" string="Fecha" date="ts"/>
+                <group>
+                    <filter name="g_autor" string="Quién" context="{'group_by': 'autor'}"/>
+                    <filter name="g_canal" string="Canal" context="{'group_by': 'canal'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_mensajes_por_enviar" model="ir.actions.act_window">
+        <field name="name">Mensajes por enviar</field>
+        <field name="res_model">dcasa.mensaje</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('estado_envio', 'in', ['por_enviar', 'fallido'])]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay mensajes pendientes</p>
+            <p>Lo que escribes desde Odoo sale por el canal de la conversación. Si el Worker no responde, el mensaje
+                queda aquí y se reintenta solo; nunca se pierde.</p>
+        </field>
+    </record>
+</odoo>
