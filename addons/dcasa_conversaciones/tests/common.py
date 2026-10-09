@@ -45,7 +45,7 @@ class JuanCase(TransactionCase):
     def setUp(self):
         super().setUp()
         # Sin Worker real: nada sale a internet. Los tests que lo necesitan lo configuran y lo simulan.
-        entorno = patch.dict(os.environ, {'JUAN_ODOO_TOKEN': '', 'JUAN_WORKER_TOKEN': '', 'JUAN_WORKER_URL': '',
+        entorno = patch.dict(os.environ, {'JUAN_ODOO_TOKEN': '', 'JUAN_WORKER_TOKEN': '', 'JUAN_URL': '',
                                           'DCASA_PIN_PEPPER': 'pimienta-de-prueba'})
         entorno.start()
         self.addCleanup(entorno.stop)
@@ -81,7 +81,7 @@ class JuanCase(TransactionCase):
 
     def configurar_worker(self):
         """Pone URL y token del Worker (de prueba) y devuelve el parche de ``requests.request`` para ir viendo las llamadas."""
-        entorno = patch.dict(os.environ, {'JUAN_WORKER_URL': URL_WORKER, 'JUAN_WORKER_TOKEN': TOKEN_WORKER})
+        entorno = patch.dict(os.environ, {'JUAN_URL': URL_WORKER, 'JUAN_WORKER_TOKEN': TOKEN_WORKER})
         entorno.start()
         self.addCleanup(entorno.stop)
         parche = patch('requests.request', return_value=respuesta_http({'ok': True, 'id_mensaje': 'wamid.worker.1'}))

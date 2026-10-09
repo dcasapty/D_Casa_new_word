@@ -41,7 +41,7 @@ DIAS_CAMPOS = [
 PARAM_URL = 'dcasa_conversaciones.juan_url'
 PARAM_TOKEN_ODOO = 'dcasa_conversaciones.juan_odoo_token'
 PARAM_TOKEN_WORKER = 'dcasa_conversaciones.juan_worker_token'
-ENV_URL = 'JUAN_WORKER_URL'
+ENV_URL = 'JUAN_URL'
 ENV_TOKEN_ODOO = 'JUAN_ODOO_TOKEN'
 ENV_TOKEN_WORKER = 'JUAN_WORKER_TOKEN'
 LARGO_MINIMO_TOKEN = 32
@@ -140,7 +140,7 @@ class JuanAjustes(models.Model):
     juan_url = fields.Char(
         'Dirección del Worker de Juan', compute='_compute_juan_url', inverse='_inverse_juan_url',
         help='URL base del Worker «juan» (https://…). Se guarda en el parámetro dcasa_conversaciones.juan_url '
-             'o se toma de la variable JUAN_WORKER_URL.')
+             'o se toma de la variable JUAN_URL.')
     token_odoo_configurado = fields.Boolean('JUAN_ODOO_TOKEN puesto', compute='_compute_tokens')
     token_worker_configurado = fields.Boolean('JUAN_WORKER_TOKEN puesto', compute='_compute_tokens')
 

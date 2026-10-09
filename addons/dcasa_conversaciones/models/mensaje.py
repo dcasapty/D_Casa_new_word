@@ -124,23 +124,21 @@ class DcasaMensaje(models.Model):
         """
         self.ensure_one()
         Adjunto = self.env['ir.attachment'].sudo()
-        creados, fallidos, sensible = Adjunto, 0, False
+        creados, fallidos = Adjunto, 0
         for adjunto in adjuntos:
             contenido = A.obtener_contenido(adjunto)
             if not contenido:
                 fallidos += 1
                 continue
-            es_sensible = bool(adjunto.get('sensible') or sensible_de_oficio)
             valores = {
                 'name': adjunto['nombre'], 'datas': base64.b64encode(contenido), 'res_model': self._name,
                 'res_id': self.id, 'public': False, 'description': adjunto['tipo'],
+                'dcasa_sensible': bool(adjunto.get('sensible') or sensible_de_oficio),
             }
             if adjunto.get('mime'):
                 valores['mimetype'] = adjunto['mime']
             creados |= Adjunto.create(valores)
-            if es_sensible:
-                creados[-1].dcasa_sensible = True
-                sensible = True
+        sensible = any(creados.mapped('dcasa_sensible'))
         self.with_context(**{CLAVE_SISTEMA: True}).sudo().write({
             'adjunto_ids': [(4, a.id) for a in creados], 'adjuntos_fallidos': fallidos,
             'tiene_sensible': sensible})
