@@ -78,6 +78,12 @@ export interface CuerpoSeguimientoHecho {
   motivo?: string;
 }
 
+export interface CuerpoEscribiendo {
+  canal: CanalId;
+  id_externo: string;
+  activo: boolean;
+}
+
 /** Lo que el motor necesita de Odoo. En las pruebas se sustituye por un doble. */
 export interface OdooApi {
   mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje>;
@@ -86,6 +92,8 @@ export interface OdooApi {
   herramientas(): Promise<DefHerramienta[]>;
   herramienta(nombre: string, argumentos: Record<string, unknown>, conversacion_id: number | null): Promise<ResultadoHerramienta>;
   seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void>;
+  /** Opcional: «el asistente está preparando una respuesta» para las pantallas de las vendedoras. Nunca es crítico. */
+  escribiendo?(cuerpo: CuerpoEscribiendo): Promise<void>;
 }
 
 export interface OpcionesCliente {
@@ -187,6 +195,11 @@ export class OdooCliente implements OdooApi {
 
   async seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void> {
     await this.llamar("POST", "/seguimiento/hecho", cuerpo, 2);
+  }
+
+  /** Sin reintentos y con plazo corto: un «escribiendo» tardío no sirve, y jamás debe frenar una respuesta. */
+  async escribiendo(cuerpo: CuerpoEscribiendo): Promise<void> {
+    await this.llamar("POST", "/escribiendo", cuerpo, 0, 5_000);
   }
 }
 

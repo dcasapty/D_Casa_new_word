@@ -134,7 +134,7 @@
                         </t>
                         <div t-if="escribiendo" class="o_dcj_escribiendo" role="status">
                             <span class="o_dcj_puntos" aria-hidden="true"><i/><i/><i/></span>
-                            <span>El asistente está preparando la respuesta…</span>
+                            <span t-out="escribiendo"/>
                         </div>
                     </t>
                 </div>

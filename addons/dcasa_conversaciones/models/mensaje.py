@@ -35,6 +35,7 @@ AUTORES = [('cliente', 'Cliente'), ('bot', 'Asistente'), ('vendedora', 'Vendedor
 TIPOS = [('mensaje', 'Mensaje'), ('nota', 'Nota interna'), ('aviso', 'Aviso del sistema')]
 ESTADOS_ENVIO = [
     ('recibido', 'Recibido'),
+    ('programado', 'Programado'),
     ('por_enviar', 'Por enviar'),
     ('enviado', 'Enviado'),
     ('fallido', 'No se pudo enviar'),
@@ -75,6 +76,9 @@ class DcasaMensaje(models.Model):
     usuario_id = fields.Many2one('res.users', 'Escrito por', readonly=True,
                                  help='La vendedora que lo escribió en Odoo.')
     estado_envio = fields.Selection(ESTADOS_ENVIO, default='recibido', required=True, readonly=True, index=True)
+    programado_para = fields.Datetime(
+        'Se envía el', readonly=True, index='btree_not_null',
+        help='Mensaje que una vendedora dejó programado: sale solo a esta hora (la revisión corre cada 5 minutos).')
     intentos = fields.Integer(readonly=True)
     ultimo_intento = fields.Datetime(readonly=True)
     error_envio = fields.Char('Por qué no salió', readonly=True)
@@ -300,6 +304,24 @@ class DcasaMensaje(models.Model):
         return self
 
     @api.model
+    def _cron_enviar_programados(self):
+        """Lo programado cuya hora ya llegó pasa a «por enviar» y sale por el canal. Devuelve cuántos."""
+        ahora = fields.Datetime.now()
+        vencidos = self.sudo().search([
+            ('estado_envio', '=', 'programado'), ('programado_para', '<=', ahora),
+        ], order='programado_para, id', limit=50)
+        nuevos = self.browse()
+        for mensaje in vencidos:
+            try:
+                with self.env.cr.savepoint():
+                    nuevos |= mensaje.conversacion_id._despachar_programado(mensaje)
+            except Exception:   # noqa: BLE001
+                _logger.exception('Juan: no se pudo despachar el mensaje programado %s', mensaje.id)
+        if nuevos and self.env['dcasa.juan.cliente'].configurado():
+            nuevos._enviar()
+        return len(nuevos)
+
+    @api.model
     def _cron_reintentar_envios(self):
         """Reintenta lo «por enviar» (cada 5 minutos). Nada se pierde: al agotarse, queda «fallido» a la vista."""
         ahora = fields.Datetime.now()
@@ -332,6 +354,7 @@ class DcasaMensaje(models.Model):
             'usuario': {'id': self.usuario_id.id, 'nombre': self.usuario_id.name} if self.usuario_id else None,
             'menciones': [{'id': u.id, 'nombre': u.name} for u in self.mencion_ids.sudo()],
             'estado_envio': self.estado_envio, 'error': self.error_envio or None, 'origen': self.origen,
+            'programado_para': H.a_iso(self.programado_para) if self.programado_para else None,
             'adjuntos': [adjunto_como_dict(a) for a in self.adjunto_ids.sudo()],
             'adjuntos_fallidos': self.adjuntos_fallidos,
         }
@@ -384,7 +407,10 @@ class DcasaMensaje(models.Model):
         if self.adjuntos_fallidos:
             partes.append(Markup('<div class="o_dcasa_burbuja_aviso">%s</div>') % escape(
                 self.env._('No se pudo traer %s adjunto(s).', self.adjuntos_fallidos)))
-        if self.estado_envio == 'por_enviar':
+        if self.estado_envio == 'programado':
+            partes.append(Markup('<div class="o_dcasa_burbuja_estado o_dcasa_por_enviar">%s</div>') % escape(
+                self.env._('Programado: sale el %s', hora)))
+        elif self.estado_envio == 'por_enviar':
             partes.append(Markup('<div class="o_dcasa_burbuja_estado o_dcasa_por_enviar">%s</div>') % escape(
                 self.env._('Por enviar: se reintenta solo')))
         elif self.estado_envio == 'fallido':

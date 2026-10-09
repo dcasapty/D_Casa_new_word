@@ -199,6 +199,22 @@ class TestBusDeLasPantallas(JuanCase):
                 resultado.append((json.loads(registro.channel)[2], mensaje['payload']))
         return resultado
 
+    def test_escribiendo_avisa_solo_al_equipo_de_ventas_y_sin_texto(self):
+        conv = self.conversacion('Hola, quiero una cama', nombre='Karen')
+        self.desde_el_bus = self.ultimo_del_bus()
+        conv._notificar_panel('escribiendo', activo=True)
+        eventos = self.eventos()
+        destinatarios = {partner for partner, _ in eventos}
+        self.assertLessEqual({self.vendedora.partner_id.id, self.gerente.partner_id.id}, destinatarios)
+        self.assertFalse({self.interno.partner_id.id, self.portal.partner_id.id} & destinatarios)
+        payload = next(p for partner, p in eventos if partner == self.vendedora.partner_id.id)
+        self.assertEqual((payload['evento'], payload['conversacion_id'], payload['activo']),
+                         ('escribiendo', conv.id, True))
+        self.assertNotIn('texto', payload)
+        self.desde_el_bus = self.ultimo_del_bus()
+        conv._notificar_panel('escribiendo', activo=False)
+        self.assertFalse(next(p for _, p in self.eventos())['activo'])
+
     def test_un_mensaje_nuevo_avisa_a_las_pantallas_del_equipo_de_ventas(self):
         conv = self.conversacion('Hola, quiero una cama', nombre='Karen')
         eventos = self.eventos()

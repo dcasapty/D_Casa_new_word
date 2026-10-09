@@ -145,6 +145,7 @@ export function dcasaFalso() {
       if (ruta === "/estado") return Response.json(estado.mensaje);
       if (ruta === "/herramienta") return Response.json(estado.herramienta(cuerpo.nombre, cuerpo.argumentos));
       if (ruta === "/seguimiento/hecho") return Response.json({ ok: true });
+      if (ruta === "/escribiendo") return Response.json({ ok: true });
       return new Response("no", { status: 404 });
     },
   };

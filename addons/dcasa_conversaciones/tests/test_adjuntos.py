@@ -31,7 +31,8 @@ class TestValidarAdjuntos(BaseCase):
     def test_adjunto_valido(self):
         adjunto = A.validar({'tipo': 'imagen', 'url': 'https://x.test/a.jpg', 'nombre': 'a.jpg', 'mime': 'image/jpeg'})
         self.assertEqual(adjunto, {'tipo': 'imagen', 'nombre': 'a.jpg', 'mime': 'image/jpeg',
-                                   'url': 'https://x.test/a.jpg', 'base64': None, 'sensible': False})
+                                   'url': 'https://x.test/a.jpg', 'base64': None, 'sensible': False,
+                                   'clase': None})
 
     def test_los_cuatro_tipos_del_contrato(self):
         for tipo in ('imagen', 'audio', 'documento', 'video'):

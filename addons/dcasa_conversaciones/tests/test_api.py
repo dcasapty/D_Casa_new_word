@@ -21,7 +21,7 @@ PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_soc
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
             'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion'}
 RUTAS = (('POST', 'mensaje'), ('GET', 'estado'), ('GET', 'config'), ('GET', 'herramientas'), ('POST', 'herramienta'),
-         ('POST', 'seguimiento/hecho'))
+         ('POST', 'seguimiento/hecho'), ('POST', 'escribiendo'))
 
 
 class ApiCase(HttpCase):
@@ -505,3 +505,31 @@ class TestSeguimientoHecho(ApiCase):
         ):
             with self.subTest(cuerpo=cuerpo):
                 self.assertEqual(self.hecho(**cuerpo).status_code, estado)
+
+
+@tagged('post_install', '-at_install')
+class TestEscribiendo(ApiCase):
+    """El Worker avisa que el asistente está preparando una respuesta; Odoo solo lo reparte a las pantallas."""
+
+    def avisar(self, **extra):
+        return self.post('escribiendo', {'canal': 'whatsapp_qr', 'id_externo': '50761230000', 'activo': True, **extra})
+
+    def test_avisa_a_las_pantallas_y_no_escribe_nada_en_la_conversacion(self):
+        self.post('mensaje', self.mensaje())
+        conversacion = self.conversacion()
+        antes = (len(conversacion.mensaje_ids), conversacion.write_date)
+        desde = self.env['bus.bus'].sudo().search([], order='id desc', limit=1).id or 0
+        respuesta = self.avisar()
+        self.assertEqual((respuesta.status_code, respuesta.json()), (200, {'ok': True}))
+        self.assertEqual((len(conversacion.mensaje_ids), conversacion.write_date), antes)
+        enviados = self.env['bus.bus'].sudo().search([('id', '>', desde)])
+        self.assertTrue(any('"escribiendo"' in registro.message for registro in enviados))
+
+    def test_una_conversacion_que_no_existe_no_es_un_error(self):
+        self.assertEqual(self.avisar(id_externo='50761239999').status_code, 200)
+
+    def test_validaciones(self):
+        for extra in ({'activo': 'si'}, {'activo': None}, {'activo': 1}, {'canal': 'fax'}, {'id_externo': ''},
+                      {'id_externo': 'con espacios raros'}):
+            with self.subTest(extra=extra):
+                self.assertEqual(self.avisar(**extra).status_code, 400)

@@ -104,6 +104,10 @@ Meta). El par es único.
    de otros clientes (lista negra en `docs/auditoria/ronda7/crm-whatsapp.md` §3.1).
 6. `POST /dcasa/juan/v1/seguimiento/hecho` — el Worker confirma que envió (o descartó) un
    seguimiento: `{conversacion_id, numero:1|2, resultado:"enviado|descartado", motivo?}`.
+7. `POST /dcasa/juan/v1/escribiendo` — el asistente empezó (`activo:true`) o terminó (`activo:false`) de preparar una
+   respuesta: `{canal, id_externo, activo}`. Odoo solo lo reparte por el bus a las pantallas abiertas (ids, nunca texto) y no
+   escribe nada. El Worker manda una señal al empezar el turno y otra al terminar, sin reintentos y sin que su fallo frene
+   la respuesta; si el «terminó» no llega, la pantalla lo olvida sola al minuto o cuando llega la respuesta.
 
 ### Odoo → Worker `juan`
 
@@ -222,6 +226,7 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 | `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 12 herramientas, con las claves del contrato **y** las del formato de Anthropic |
 | `POST /herramienta` | `{nombre, argumentos, conversacion_id}` | `{ok:true, resultado:{…}}` |
 | `POST /seguimiento/hecho` | `{conversacion_id, numero:1\|2, resultado:"enviado"\|"descartado", motivo?}` | `{ok, conversacion_id, seguimientos_enviados}` |
+| `POST /escribiendo` | `{canal, id_externo, activo:bool}` | `{ok}` (también si la conversación todavía no existe) |
 
 - `pausada_hasta`: ISO con `Z` o `null`. `estado` es `bot` cuando una pausa ya venció (Odoo la normaliza al responder).
 - `nota_para_el_bot`: lo que una vendedora le dejó dicho al devolver la conversación (hasta 500 letras), o `null`. **El Worker la lee

@@ -3,9 +3,12 @@
  * vista previa, respuestas rápidas con «/», «Sugerir», foto del catálogo, cotización y notas internas.
  */
 import { Component, onMounted, onPatched, useRef, useState } from "@odoo/owl";
-import { atajoEnCurso, coincideConNombre, enCuanto, hora, iconoDeArchivo, mencionEnCurso, mensajeDeError, tamano } from "./utilidades";
+import { atajoEnCurso, coincideConNombre, cuando, enCuanto, hora, iconoDeArchivo, mencionEnCurso, mensajeDeError, tamano } from "./utilidades";
 
 const ALTO_MAXIMO = 168;
+// Lo mismo que el servidor: entre 1 minuto y 30 días desde ahora (con un margen para que no rebote por segundos).
+const MIN_PROGRAMADO_MS = 90_000;
+const MAX_PROGRAMADO_MS = 30 * 24 * 3600 * 1000;
 
 export class CajaRespuesta extends Component {
     static template = "dcasa_conversaciones.Caja";
@@ -21,12 +24,14 @@ export class CajaRespuesta extends Component {
             avisos: [],
             opcion: 0,
             rapidasAbiertas: false,
+            programando: false,
             cursor: 0,
         });
         this.refTexto = useRef("texto");
         this.refArchivo = useRef("archivo");
         this.iconoDeArchivo = iconoDeArchivo;
         this.tamano = tamano;
+        this.cuando = (iso) => cuando(iso, this.almacen.ahora);
         this.esTactil = window.matchMedia?.("(pointer: coarse)")?.matches;
         this._conversacion = null;
         onMounted(() => this.ajustarAlto());
@@ -37,6 +42,7 @@ export class CajaRespuesta extends Component {
                 this.local.devolviendo = false;
                 this.local.avisos = [];
                 this.local.rapidasAbiertas = false;
+                this.local.programando = !!this.borrador.programarPara;
             }
         });
     }
@@ -66,7 +72,7 @@ export class CajaRespuesta extends Component {
     }
 
     get puedeEnviar() {
-        if (this.local.enviando || this.subiendo || !this.c) {
+        if (this.local.enviando || this.subiendo || !this.c || this.programadaInvalida) {
             return false;
         }
         const texto = this.borrador.texto.trim();
@@ -74,6 +80,74 @@ export class CajaRespuesta extends Component {
             return texto.length > 0 && texto.length <= this.limite;
         }
         return (texto.length > 0 || this.listos.length > 0) && texto.length <= this.limite;
+    }
+
+    // --- Programar un mensaje para más tarde ---------------------------------------------------------
+
+    /** La fecha y hora elegidas como las entiende el navegador (hora local de quien escribe), o null. */
+    get fechaProgramada() {
+        const valor = this.borrador.programarPara;
+        const fecha = valor ? new Date(valor) : null;
+        return fecha && !Number.isNaN(fecha.getTime()) ? fecha : null;
+    }
+
+    /** Con el selector abierto hay que elegir una hora válida; si no, Enviar espera (no manda «ya» por descuido). */
+    get programadaInvalida() {
+        if (!this.programando) {
+            return false;
+        }
+        const fecha = this.fechaProgramada;
+        if (!fecha) {
+            return true;
+        }
+        const falta = fecha.getTime() - Date.now();
+        return falta < MIN_PROGRAMADO_MS || falta > MAX_PROGRAMADO_MS;
+    }
+
+    /** Lo que la caja manda al servidor: la hora en UTC (ISO), o null para enviar ya. */
+    get programarIso() {
+        return this.programando && this.fechaProgramada ? this.fechaProgramada.toISOString() : null;
+    }
+
+    get programando() {
+        return !this.esNota && (this.local.programando || !!this.borrador.programarPara);
+    }
+
+    /** Para el campo de fecha: la hora más temprana que se acepta, en la hora local del navegador. */
+    get minimoProgramable() {
+        return this.formatoLocal(new Date(Date.now() + MIN_PROGRAMADO_MS));
+    }
+
+    formatoLocal(fecha) {
+        const pad = (n) => String(n).padStart(2, "0");
+        return `${fecha.getFullYear()}-${pad(fecha.getMonth() + 1)}-${pad(fecha.getDate())}T${pad(fecha.getHours())}:${pad(fecha.getMinutes())}`;
+    }
+
+    alternarProgramar() {
+        this.local.programando = !this.local.programando;
+        if (!this.local.programando) {
+            this.borrador.programarPara = "";
+        }
+    }
+
+    /** Atajos: «en 1 hora» y «mañana a las 8:00 a. m.». */
+    programarEn(opcion) {
+        const fecha = new Date();
+        if (opcion === "hora") {
+            fecha.setHours(fecha.getHours() + 1);
+        } else {
+            fecha.setDate(fecha.getDate() + 1);
+            fecha.setHours(8, 0, 0, 0);
+        }
+        this.borrador.programarPara = this.formatoLocal(fecha);
+    }
+
+    puedeCancelar(m) {
+        return m.usuario?.id === this.almacen.usuario.id || this.almacen.usuario.es_gerencia;
+    }
+
+    cancelarProgramado(m) {
+        return this.almacen.cancelarProgramado(m.id);
     }
 
     // --- Quién atiende ----------------------------------------------------------------------------
@@ -311,12 +385,13 @@ export class CajaRespuesta extends Component {
         try {
             const r = this.esNota
                 ? await this.almacen.agregarNota(texto, this.mencionadas.map((u) => u.id), this.mencionadas.length ? this.borrador.tareaPara : "")
-                : await this.almacen.enviar(texto, this.listos.map((a) => a.id));
+                : await this.almacen.enviar(texto, this.listos.map((a) => a.id), this.programarIso);
             if (r) {
                 const modo = this.borrador.modo;
                 this.almacen.vaciarBorrador();
                 this.borrador.modo = modo;
                 this.local.avisos = [];
+                this.local.programando = false;
             }
         } finally {
             this.local.enviando = false;

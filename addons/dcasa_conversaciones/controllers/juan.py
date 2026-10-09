@@ -6,6 +6,7 @@
 * ``GET  /herramientas``       — definición de las herramientas (fuente única).
 * ``POST /herramienta``        — ejecutar una herramienta como el usuario técnico ``juan``.
 * ``POST /seguimiento/hecho``  — el Worker confirma que envió (o descartó) un seguimiento.
+* ``POST /escribiendo``        — el asistente empezó (o terminó) de preparar una respuesta: la pantalla lo muestra.
 
 Seguridad
 ---------
@@ -336,3 +337,26 @@ class JuanAPI(http.Controller):
         conversacion._seguimiento_hecho(numero, resultado, motivo)
         return _respuesta({'ok': True, 'conversacion_id': conversacion.id,
                            'seguimientos_enviados': conversacion.seguimientos_enviados})
+
+    # ------------------------------------------------------------------
+    # POST /escribiendo
+    # ------------------------------------------------------------------
+
+    @http.route(f'{RAIZ}/escribiendo', type='http', auth='none', methods=['POST'], csrf=False, save_session=False,
+                readonly=False)
+    def escribiendo(self, **_kw):
+        return self._servir(self._escribiendo)
+
+    def _escribiendo(self, entorno):
+        """Solo avisa a las pantallas abiertas (por el bus, sin texto): no escribe nada en la conversación."""
+        cuerpo = self._cuerpo()
+        canal = _canal(cuerpo.get('canal'))
+        id_externo = _id_externo(cuerpo.get('id_externo'), canal)
+        activo = cuerpo.get('activo')
+        if not isinstance(activo, bool):
+            raise _Error(400, '«activo» debe ser verdadero o falso.')
+        conversacion = entorno['dcasa.conversacion'].sudo().search(
+            [('canal', '=', canal), ('id_externo', '=', id_externo)], limit=1)
+        if conversacion:
+            conversacion._notificar_panel('escribiendo', activo=activo)
+        return _respuesta({'ok': True})

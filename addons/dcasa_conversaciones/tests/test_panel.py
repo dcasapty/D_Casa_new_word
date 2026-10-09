@@ -283,7 +283,8 @@ class TestHilo(PanelCase):
         self.assertEqual(tipos.count('nota'), 1)
         primero = tramo['mensajes'][0]
         self.assertEqual(set(primero), {'id', 'tipo', 'autor', 'direccion', 'texto', 'ts', 'usuario', 'estado_envio',
-                                        'error', 'origen', 'adjuntos', 'adjuntos_fallidos'})
+                                        'error', 'origen', 'adjuntos', 'adjuntos_fallidos', 'menciones',
+                                        'programado_para'})
         self.assertEqual((primero['tipo'], primero['autor'], primero['usuario']), ('mensaje', 'cliente', None))
 
     def test_los_adjuntos_traen_miniatura_si_son_imagen_y_la_marca_de_sensible(self):
@@ -388,6 +389,175 @@ class TestEnviarRespuesta(PanelCase):
         self.assertEqual(len(mios), 2)
         self.assertEqual(set(mios.mapped('estado_envio')), {'enviado'})
         self.assertEqual(set(mios.mapped('origen')), {'odoo'})
+
+
+@tagged('post_install', '-at_install')
+class TestMensajesProgramados(PanelCase):
+    """Un mensaje se deja escrito para más tarde: no sale ni toma la conversación hasta su hora, y se puede cancelar."""
+
+    def setUp(self):
+        super().setUp()
+        self.worker = self.configurar_worker()
+        self.conv = self.cliente(1)
+
+    def a_las(self, **delta):
+        """Una hora futura como la manda el navegador: ISO en UTC con «Z»."""
+        return (fields.Datetime.now() + timedelta(**delta)).isoformat() + 'Z'
+
+    def programar(self, texto='Te escribo mañana', usuario=None, **delta):
+        panel = self.panel if usuario is None else self.Conversacion.with_user(usuario)
+        return panel.enviar_respuesta(self.conv.id, texto, None, self.a_las(**(delta or {'hours': 3})))
+
+    def envios(self):
+        return [c for c in self.worker.call_args_list if c.args[1].endswith('/odoo/enviar')]
+
+    def vencer(self, mensaje):
+        """Hace que su hora ya haya llegado."""
+        mensaje.with_context(dcasa_mensaje_sistema=True).sudo().programado_para = fields.Datetime.now() - timedelta(
+            minutes=1)
+
+    def test_queda_programado_y_no_toca_la_conversacion(self):
+        r = self.programar()
+        self.assertEqual((r['enviado'], r['programado']), (False, True))
+        self.assertEqual(r['mensaje']['estado_envio'], 'programado')
+        self.assertTrue(r['mensaje']['programado_para'])
+        self.assertEqual((self.conv.estado, self.conv.asignada_a), ('bot', self.env['res.users']),
+                         'El asistente sigue atendiendo hasta que el mensaje salga')
+        self.assertFalse(self.envios(), 'No sale nada antes de su hora')
+
+    def test_la_hora_tiene_que_ser_futura_y_no_muy_lejana(self):
+        pasada = (fields.Datetime.now() - timedelta(hours=1)).isoformat() + 'Z'
+        casos = {'pasada': pasada, 'en medio minuto': self.a_las(seconds=30), 'a los 31 días': self.a_las(days=31),
+                 'basura': 'mañana', 'número': 5}
+        for nombre, hora in casos.items():
+            with self.subTest(nombre), self.assertRaises(UserError):
+                self.panel.enviar_respuesta(self.conv.id, 'Hola', None, hora)
+        self.assertFalse(self.conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora'))
+
+    def test_con_zona_horaria_se_convierte_a_utc(self):
+        futura = fields.Datetime.now() + timedelta(hours=5)
+        r = self.panel.enviar_respuesta(self.conv.id, 'Hola', None, futura.isoformat() + '-05:00')
+        esperada = (futura + timedelta(hours=5)).replace(second=0, microsecond=0)
+        self.assertEqual(self.Mensaje.browse(r['mensaje']['id']).programado_para, esperada)
+
+    def test_nada_vacio_tampoco_programado(self):
+        with self.assertRaises(UserError):
+            self.panel.enviar_respuesta(self.conv.id, '  ', None, self.a_las(hours=2))
+
+    def test_antes_de_su_hora_el_revisor_no_lo_manda(self):
+        r = self.programar()
+        self.assertEqual(self.Mensaje._cron_enviar_programados(), 0)
+        self.assertEqual(self.Mensaje.browse(r['mensaje']['id']).estado_envio, 'programado')
+        self.assertFalse(self.envios())
+
+    def mios(self):
+        return self.conv.mensaje_ids.filtered(lambda m: m.autor == 'vendedora' and m.tipo == 'mensaje')
+
+    def test_a_su_hora_sale_por_el_canal_al_final_del_hilo_toma_la_conversacion_y_deja_aviso(self):
+        r = self.programar('Ya está listo tu pedido')
+        programado = self.Mensaje.browse(r['mensaje']['id'])
+        self.recibir_del_cliente('¿Y mi pedido?')
+        self.vencer(programado)
+        self.worker.return_value = respuesta_http({'ok': True, 'id_mensaje': 'wamid.worker.prog'})
+        self.assertEqual(self.Mensaje._cron_enviar_programados(), 1)
+        self.assertFalse(programado.exists(), 'El programado se vuelve un mensaje normal, nuevo')
+        (enviado,) = self.mios()
+        self.assertEqual((enviado.estado_envio, enviado.texto, enviado.usuario_id),
+                         ('enviado', 'Ya está listo tu pedido', self.vendedora))
+        self.assertFalse(enviado.programado_para)
+        self.assertGreater(enviado.id, max(self.conv.mensaje_ids.filtered(lambda m: m.autor == 'cliente').ids),
+                           'Sale después de lo último que dijo el cliente, no donde se escribió')
+        self.assertEqual((self.conv.estado, self.conv.asignada_a), ('humano', self.vendedora))
+        (envio,) = self.envios()
+        self.assertEqual(envio.kwargs['json']['texto'], 'Ya está listo tu pedido')
+        avisos = self.conv.mensaje_ids.filtered(lambda m: m.tipo == 'aviso').mapped('texto')
+        self.assertTrue(any('dejó programado' in (a or '') for a in avisos))
+        self.assertEqual(self.Mensaje._cron_enviar_programados(), 0, 'No se manda dos veces')
+
+    def recibir_del_cliente(self, texto):
+        """El cliente de ``self.conv`` escribe (cliente(1) usa este celular)."""
+        self.registrar(texto, id_externo='50761200001', ts=fields.Datetime.now())
+
+    def test_el_mantenimiento_general_tambien_lo_despacha(self):
+        mensaje = self.Mensaje.browse(self.programar()['mensaje']['id'])
+        self.vencer(mensaje)
+        self.Conversacion._cron_mantenimiento()
+        (enviado,) = self.mios()
+        self.assertEqual(enviado.estado_envio, 'enviado')
+
+    def test_con_el_worker_caido_al_llegar_la_hora_queda_por_enviar_y_se_reintenta(self):
+        mensaje = self.Mensaje.browse(self.programar()['mensaje']['id'])
+        self.vencer(mensaje)
+        self.worker.side_effect = requests.ConnectionError('sin red')
+        self.Mensaje._cron_enviar_programados()
+        (pendiente,) = self.mios()
+        self.assertEqual(pendiente.estado_envio, 'por_enviar')
+
+    def test_conserva_los_adjuntos(self):
+        foto = self.env['ir.attachment'].with_user(self.vendedora).create({
+            'name': 'foto.jpg', 'raw': b'\xff\xd8\xff\xe0', 'mimetype': 'image/jpeg',
+            'res_model': 'dcasa.conversacion', 'res_id': 0})
+        r = self.panel.enviar_respuesta(self.conv.id, None, [foto.id], self.a_las(hours=1))
+        (adjunto,) = r['mensaje']['adjuntos']
+        self.assertEqual(adjunto['nombre'], 'foto.jpg')
+        self.vencer(self.Mensaje.browse(r['mensaje']['id']))
+        self.Mensaje._cron_enviar_programados()
+        (envio,) = self.envios()
+        self.assertEqual(len(envio.kwargs['json']['adjuntos']), 1)
+        (enviado,) = self.mios()
+        self.assertEqual(enviado.adjunto_ids, foto, 'El archivo no se perdió al cambiar de mensaje')
+        self.assertEqual(foto.res_id, enviado.id)
+
+    def test_el_eco_de_otro_mensaje_igual_no_lo_confunde_con_uno_programado(self):
+        mensaje = self.Mensaje.browse(self.programar('Gracias por tu compra')['mensaje']['id'])
+        otro = self.conv._adoptar_mensaje_de_odoo({
+            'direccion': 'saliente', 'autor': 'vendedora', 'texto': 'Gracias por tu compra', 'id_mensaje': 'wamid.x'})
+        self.assertFalse(otro)
+        self.assertEqual(mensaje.estado_envio, 'programado')
+
+    def test_quien_lo_programo_lo_cancela_y_se_va_con_sus_archivos(self):
+        r = self.programar()
+        mensaje = self.Mensaje.browse(r['mensaje']['id'])
+        resultado = self.panel.cancelar_programado(mensaje.id)
+        self.assertTrue(resultado['cancelado'])
+        self.assertFalse(mensaje.exists())
+        avisos = self.conv.mensaje_ids.filtered(lambda m: m.tipo == 'aviso').mapped('texto')
+        self.assertTrue(any('canceló un mensaje' in (a or '') for a in avisos))
+        self.assertEqual(self.Mensaje._cron_enviar_programados(), 0)
+
+    def test_otra_vendedora_no_puede_cancelarlo_pero_gerencia_si(self):
+        otra = new_test_user(self.env, login='juan_otra2', name='Otra Vendedora',
+                             groups='base.group_user,sales_team.group_sale_salesman')
+        mensaje = self.Mensaje.browse(self.programar()['mensaje']['id'])
+        with self.assertRaises(AccessError):
+            self.Conversacion.with_user(otra).cancelar_programado(mensaje.id)
+        self.assertTrue(mensaje.exists())
+        self.Conversacion.with_user(self.gerente).cancelar_programado(mensaje.id)
+        self.assertFalse(mensaje.exists())
+
+    def test_no_se_cancela_lo_que_ya_salio_ni_lo_inexistente(self):
+        enviado = self.Mensaje.browse(self.panel.enviar_respuesta(self.conv.id, 'Hola')['mensaje']['id'])
+        for malo in (enviado.id, 999999999, 0, 'x', None):
+            with self.subTest(malo=malo), self.assertRaises(UserError):
+                self.panel.cancelar_programado(malo)
+        self.assertTrue(enviado.exists())
+
+    def test_los_demas_no_pueden_cancelar_por_rpc(self):
+        mensaje = self.Mensaje.browse(self.programar()['mensaje']['id'])
+        for usuario in (self.interno, self.portal):
+            with self.subTest(usuario=usuario.login), self.assertRaises(AccessError):
+                call_kw(self.env(user=usuario)['dcasa.conversacion'], 'cancelar_programado', [mensaje.id], {})
+        self.assertTrue(mensaje.exists())
+
+    def test_se_ve_en_el_hilo_como_programado(self):
+        self.programar('Para mañana')
+        hilo = self.panel.hilo(self.conv.id)
+        self.assertFalse([m for m in hilo['mensajes'] if m['estado_envio'] == 'programado'],
+                         'Lo programado no se mezcla con el hilo: se ve aparte')
+        (prog,) = hilo['programados']
+        self.assertEqual(prog['texto'], 'Para mañana')
+        self.assertTrue(prog['programado_para'])
+        self.assertIn('Programado', self.conv.chat_html)
 
 
 @tagged('post_install', '-at_install')

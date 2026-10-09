@@ -105,6 +105,8 @@ export class OdooFalso implements OdooApi {
   mensajes: CuerpoMensaje[] = [];
   llamadas: { nombre: string; args: Record<string, unknown>; conversacion_id: number | null }[] = [];
   hechos: CuerpoSeguimientoHecho[] = [];
+  /** Las señales de «escribiendo» que el motor mandó a Odoo (true = empezó, false = terminó). */
+  escribiendos: boolean[] = [];
   estadoActual = { ...ESTADO_INICIAL };
   pedidosDeEstado = 0;
   caido = false;
@@ -169,6 +171,11 @@ export class OdooFalso implements OdooApi {
   async seguimientoHecho(cuerpo: CuerpoSeguimientoHecho): Promise<void> {
     this.revisar();
     this.hechos.push(cuerpo);
+  }
+
+  async escribiendo(cuerpo: { activo: boolean }): Promise<void> {
+    this.revisar();
+    this.escribiendos.push(cuerpo.activo);
   }
 
   /** Llamadas a una herramienta, para afirmar en las pruebas. */

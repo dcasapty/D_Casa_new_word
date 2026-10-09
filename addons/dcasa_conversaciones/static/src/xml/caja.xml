@@ -12,6 +12,19 @@
                         t-on-click="alBotonDeLaBarra" t-out="barra.boton"/>
             </div>
 
+            <!-- Lo que está escrito para más tarde -->
+            <ul t-if="almacen.programados.length" class="o_dcj_programados" aria-label="Mensajes programados">
+                <li t-foreach="almacen.programados" t-as="m" t-key="m.id" class="o_dcj_programado">
+                    <i class="fa fa-clock-o" aria-hidden="true"/>
+                    <span class="o_dcj_programado_texto">
+                        <strong>Se envía <t t-out="cuando(m.programado_para)"/></strong>
+                        <t t-if="m.usuario and m.usuario.id !== almacen.usuario.id"> · <t t-out="m.usuario.nombre"/></t>
+                        <span class="o_dcj_programado_cuerpo" t-out="m.texto or (m.adjuntos.length + ' archivo(s)')"/>
+                    </span>
+                    <button t-if="puedeCancelar(m)" type="button" class="o_dcj_enlace" t-on-click="() => this.cancelarProgramado(m)">Cancelar</button>
+                </li>
+            </ul>
+
             <div t-if="local.devolviendo" class="o_dcj_devolver" role="group" aria-label="Devolver la conversación al asistente">
                 <label for="o_dcj_nota_bot">Nota para el asistente (opcional)</label>
                 <textarea id="o_dcj_nota_bot" class="o_dcj_input" rows="2" t-att-maxlength="almacen.limites.nota_para_el_bot"
@@ -71,6 +84,18 @@
                 </label>
             </div>
 
+            <div t-if="programando" class="o_dcj_programar" role="group" aria-label="Programar el envío">
+                <i class="fa fa-clock-o" aria-hidden="true"/>
+                <label class="o_dcj_programar_fecha">Enviar el
+                    <input type="datetime-local" t-model="borrador.programarPara" t-att-min="minimoProgramable"/>
+                </label>
+                <button type="button" class="o_dcj_enlace" t-on-click="() => this.programarEn('hora')">En 1 hora</button>
+                <button type="button" class="o_dcj_enlace" t-on-click="() => this.programarEn('manana')">Mañana 8:00 a. m.</button>
+                <span t-if="!fechaProgramada" class="o_dcj_ayuda">Elige el día y la hora en que debe salir.</span>
+                <span t-elif="programadaInvalida" class="o_dcj_ayuda o_dcj_error" role="alert">Elige una hora futura (hasta 30 días).</span>
+                <span t-else="" class="o_dcj_ayuda">Se envía <t t-out="cuando(fechaProgramada.toISOString())"/>. Hasta entonces el asistente sigue atendiendo.</span>
+            </div>
+
             <div t-if="local.avisos.length" class="o_dcj_sugerencia" role="status">
                 <i class="fa fa-magic" aria-hidden="true"/>
                 <ul><li t-foreach="local.avisos" t-as="aviso" t-key="aviso_index" t-out="aviso"/></ul>
@@ -86,7 +111,7 @@
                         t-att-aria-label="esNota ? 'Guardar nota' : 'Enviar'">
                     <i t-if="local.enviando" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
                     <i t-else="" class="fa fa-paper-plane" aria-hidden="true"/>
-                    <span t-out="esNota ? 'Guardar nota' : 'Enviar'"/>
+                    <span t-out="esNota ? 'Guardar nota' : (programarIso ? 'Programar' : 'Enviar')"/>
                 </button>
             </div>
 
@@ -104,6 +129,9 @@
                 </button>
                 <button type="button" class="o_dcj_herramienta" title="Respuestas rápidas (escribe / en la caja)" t-att-disabled="esNota" t-on-click="abrirRapidas">
                     <i class="fa fa-bolt" aria-hidden="true"/><span>Rápidas</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" t-att-class="{ o_activa: programando }" title="Deja el mensaje escrito para que salga solo a la hora que elijas" t-att-disabled="esNota" t-att-aria-pressed="programando ? 'true' : 'false'" t-on-click="alternarProgramar">
+                    <i class="fa fa-clock-o" aria-hidden="true"/><span>Programar</span>
                 </button>
                 <button type="button" class="o_dcj_herramienta" title="Pide un borrador de respuesta; tú lo editas y lo envías" t-att-disabled="local.sugiriendo or esNota" t-on-click="sugerir">
                     <i t-if="local.sugiriendo" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>

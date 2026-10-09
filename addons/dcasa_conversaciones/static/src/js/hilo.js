@@ -19,8 +19,10 @@ import {
 
 const CERCA_DEL_FONDO = 90;
 const CERCA_DEL_TOPE = 140;
-// Mientras el asistente prepara la respuesta (espera 15 s a que el cliente termine de escribir) se ve «escribiendo».
-const VENTANA_ESCRIBIENDO_MS = 90_000;
+// El asistente espera ~15 s a que el cliente termine de escribir; en ese rato se ve «preparando la respuesta».
+const VENTANA_ESPERA_MS = 20_000;
+// Cuando el Worker avisa que empezó a escribir, se ve «escribiendo» hasta que avise que terminó (o pase este tiempo).
+const VENTANA_ESCRIBIENDO_MS = 60_000;
 
 export class Burbuja extends Component {
     static template = "dcasa_conversaciones.Burbuja";
@@ -166,14 +168,24 @@ export class HiloConversacion extends Component {
         return this.almacen.conversacion?.nombre || "Cliente";
     }
 
-    /** «El asistente está escribiendo»: el cliente acaba de escribir y quien contesta es el asistente. */
+    /**
+     * Lo que se ve debajo del último mensaje mientras el asistente trabaja: «escribiendo» (el Worker lo avisó de verdad) o,
+     * antes de eso, «preparando la respuesta» (el cliente acaba de escribir y el asistente espera a que termine).
+     */
     get escribiendo() {
         const c = this.almacen.conversacion;
         if (!c || !c.bot_atiende || !this.almacen.bot.conectado || !this.almacen.bot.encendido) {
-            return false;
+            return null;
+        }
+        const aviso = this.almacen.escribiendoBot[c.id] || 0;
+        if (aviso && this.almacen.ahora - aviso < VENTANA_ESCRIBIENDO_MS) {
+            return "El asistente está escribiendo…";
         }
         const ultimo = this.almacen.mensajes.filter((m) => m.tipo === "mensaje").at(-1);
-        return !!ultimo && ultimo.autor === "cliente" && this.almacen.ahora - new Date(ultimo.ts).getTime() < VENTANA_ESCRIBIENDO_MS;
+        if (ultimo && ultimo.autor === "cliente" && this.almacen.ahora - new Date(ultimo.ts).getTime() < VENTANA_ESPERA_MS) {
+            return "El asistente está preparando la respuesta…";
+        }
+        return null;
     }
 
     get subtitulo() {

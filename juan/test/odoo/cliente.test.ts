@@ -154,6 +154,15 @@ describe("reintentos", () => {
     expect(llamadas).toHaveLength(3);
   });
 
+  it("escribiendo usa su ruta, manda el aviso tal cual y NO se reintenta (uno tardío no sirve)", async () => {
+    const { cliente, llamadas } = dcasaFalso([falla(500), ok()]);
+    await expect(cliente.escribiendo({ canal: "telegram", id_externo: "77", activo: true })).rejects.toBeInstanceOf(OdooError);
+    expect(llamadas).toHaveLength(1);
+    expect(`${llamadas[0].metodo} ${llamadas[0].url.replace("https://dcasa/dcasa/juan/v1", "")}`).toBe("POST /escribiendo");
+    expect(llamadas[0].cuerpo).toEqual({ canal: "telegram", id_externo: "77", activo: true });
+    expect(llamadas[0].cabeceras.authorization).toBe(`Bearer ${TOKEN}`);
+  });
+
   it("la espera entre reintentos crece pero tiene techo", async () => {
     const { cliente, esperas } = dcasaFalso([falla(500), falla(500), falla(500)]);
     await cliente.seguimientoHecho({ conversacion_id: 1, numero: 1, resultado: "enviado" }).catch(() => {});

@@ -149,6 +149,8 @@ export class MotorConversacion {
   readonly fotos: Fotos;
   private procesando = false;
   private ultimoEscribiendo: number | null = null;
+  /** Lo último que se le dijo a Odoo sobre si el asistente está preparando una respuesta (no se repite). */
+  private escribiendoEnOdoo = false;
   /** Odoo no contestó en esta pasada: no se le insiste dentro de la misma alarma (el cliente no espera minutos). */
   private odooCaido = false;
 
@@ -503,6 +505,19 @@ export class MotorConversacion {
 
   // ── Ráfaga: contestar ─────────────────────────────────────────────────────
 
+  /** Para las pantallas de las vendedoras («el asistente está escribiendo»): una señal al empezar y otra al terminar. */
+  private async avisarEscribiendoAOdoo(activo: boolean): Promise<void> {
+    if (this.escribiendoEnOdoo === activo) return;
+    this.escribiendoEnOdoo = activo;
+    const odoo = this.deps.odoo;
+    if (this.odooCaido || !odoo.escribiendo) return;
+    try {
+      await odoo.escribiendo({ canal: this.canalId(), id_externo: this.idExterno(), activo });
+    } catch {
+      /* es un extra de las pantallas: si no llega, Odoo lo olvida solo al minuto */
+    }
+  }
+
   private async procesarRafaga(): Promise<void> {
     const pend = this.mensajes.pendientes();
     if (pend.length === 0) return;
@@ -531,7 +546,11 @@ export class MotorConversacion {
       await this.alFallarLaIA(cfg, ids, new Error("ningún proveedor de IA tiene clave"), true);
       return;
     }
-    await this.turnoDeIA(cfg, pend, ids, epoca0);
+    try {
+      await this.turnoDeIA(cfg, pend, ids, epoca0);
+    } finally {
+      await this.avisarEscribiendoAOdoo(false);
+    }
   }
 
   private async atenderPeticionDePersona(cfg: Config, motivo: string): Promise<void> {
@@ -611,6 +630,7 @@ export class MotorConversacion {
     const ahora = this.deps.ahora();
     if (this.ultimoEscribiendo !== null && ahora - this.ultimoEscribiendo < 4000) return;
     this.ultimoEscribiendo = ahora;
+    void this.avisarEscribiendoAOdoo(true);
     const canalId = this.canalId();
     const adaptador = this.deps.canal(canalId);
     void Promise.resolve(adaptador?.escribiendo?.(canalId, this.idExterno(), this.deps.env)).catch(() => {});

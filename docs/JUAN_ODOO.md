@@ -66,8 +66,10 @@ Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación
   aparece un botón **«1 mensaje nuevo»** (o «N mensajes nuevos») para bajar cuando quieras.
 * Arriba: **Ficha** (muestra u oculta la ficha, útil en pantallas medianas y en el celular) y **Cerrar** la conversación.
 * Si un mensaje tuyo no salió, dice **«Por enviar»** y tiene el botón **Reintentar**.
-* Cuando el asistente está preparando una respuesta se ve **«El asistente está preparando la respuesta…»**. Es una estimación
-  (no lo sabe con certeza): desaparece sola.
+* Mientras el asistente trabaja se ve debajo del último mensaje. Primero, unos segundos de **«El asistente está preparando la
+  respuesta…»** (espera a que el cliente termine de escribir; es una estimación) y, cuando el Worker avisa que de verdad empezó,
+  **«El asistente está escribiendo…»**, que se apaga cuando termina o cuando llega su respuesta (y sola al minuto si el aviso
+  de «terminó» se pierde). Si el asistente no contesta (pausa, apagado, una persona atendiendo), no aparece nada.
 
 ### La caja de respuesta
 
@@ -87,6 +89,7 @@ Abajo, la caja y sus botones:
 | **Foto del catálogo** | Busca un producto por **nombre o código** y manda su foto. Ver abajo. |
 | **Cotización** | Manda la cotización del cliente en PDF. Ver abajo. |
 | **Rápidas** | Abre tus respuestas rápidas. También sirve escribir **/** en la caja: salen las que empiezan con lo que escribas; **↑ ↓** eligen, **Enter** o **Tab** usan la elegida y **Esc** cierra. El texto ya sale con el nombre del cliente. |
+| **Programar** | Deja el mensaje escrito para que **salga solo** el día y la hora que elijas (de 1 minuto a 30 días; atajos «En 1 hora» y «Mañana 8:00 a. m.»). Con el selector abierto, el botón dice **Programar** y no deja enviar sin hora (no se manda «ya» por descuido). Lo programado se ve **aparte, arriba de la caja** («Se envía mañana 8:00 a. m.»), no en el hilo, con **Cancelar** (quien lo programó o Gerencia). Hasta su hora **no pasa nada**: el asistente sigue atendiendo y la conversación no cambia de dueña. A la hora (la revisión corre cada 5 minutos) sale como un mensaje nuevo, al final del hilo, la conversación pasa a quien lo programó y queda un aviso. Si el Worker no responde en ese momento, queda «por enviar» y se reintenta. |
 | **Sugerir** | Le pide a Juan **un borrador** de respuesta. Lo deja escrito en la caja para que lo leas, lo cambies y lo envíes tú; **nunca se envía solo**. Si quitó algo que no debía (una foto, por ejemplo) o dejó algo por confirmar, te lo avisa. |
 | **Enviar** | Manda el mensaje. **Enter** envía; **Mayús + Enter** salta de línea; **Ctrl + Enter** también envía. En el celular solo envía el botón. |
 
@@ -166,7 +169,6 @@ números que sí tiene Odoo.
 
 ### Lo que todavía no hace
 
-* **Programar un mensaje** para más tarde (hoy solo se ve el seguimiento automático).
 * **Fotos de perfil**: se muestran las iniciales de cada persona.
 * El gasto de IA **por día** solo existe desde que Odoo empezó a guardar las fotos diarias.
 
@@ -383,6 +385,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 | `GET /dcasa/juan/v1/herramientas` | definición de las 12 herramientas | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
 | `POST /dcasa/juan/v1/herramienta` | ejecutar una herramienta | `422` = error de uso (el texto sirve para corregir); `404` = no existe |
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
+| `POST /dcasa/juan/v1/escribiendo` | «el asistente está escribiendo» | `{canal, id_externo, activo}`; solo avisa a las pantallas por el bus |
 
 Las 12 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
 `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `saldo_puntos`, `horario_y_tienda`,
@@ -424,7 +427,8 @@ Métodos públicos de `dcasa.conversacion` (RPC normal de Odoo, `call_kw`) para 
 |---|---|
 | `lista(filtros, offset, limite)` | La bandeja: `{conversaciones, total, hay_mas, sin_leer_total}`, las más recientes primero, 30 por página (máx. 100). Filtros: `canal`, `estado` (`bot`/`humano`/`cerrada`/`necesita_atencion`), `etiqueta_id`, `asignada_a_mi`, `sin_leer`, `con_oportunidad`, `busqueda` (nombre, celular o texto de cualquier mensaje). Un filtro desconocido es error. |
 | `hilo(conversacion_id, antes_de_id, limite)` | Un tramo de mensajes (50 por defecto) del más viejo al más nuevo; `antes_de_id` pide el tramo anterior; `hay_mas` dice si quedan. Incluye notas y avisos. |
-| `enviar_respuesta(conversacion_id, texto, adjuntos_ids)` | Contesta (toma la conversación si hace falta). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». |
+| `enviar_respuesta(conversacion_id, texto, adjuntos_ids, programar_para=None)` | Contesta (toma la conversación si hace falta). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». Con `programar_para` (fecha y hora ISO, entre 1 minuto y 30 días) queda «programado» y devuelve `programado: true`; no toca la conversación hasta su hora. |
+| `cancelar_programado(mensaje_id)` | Borra un mensaje programado (y sus archivos) que aún no salió. Solo quien lo programó o Gerencia. `hilo()` devuelve los programados aparte, en `programados`. |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
 | `documentos_del_cliente(conversacion_id)` · `adjuntar_a_documento(conversacion_id, adjunto_id, modelo, registro_id)` | Pedidos y facturas del cliente, y copia de un archivo suyo al chatter de uno de ellos (`sale.order` o `account.move`). |

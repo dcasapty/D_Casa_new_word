@@ -14,7 +14,7 @@ sencillos listos para JSON: nada de registros de Odoo ni de campos que la pantal
 import json
 import logging
 import re
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
@@ -28,6 +28,8 @@ _logger = logging.getLogger(__name__)
 
 GRUPO_GERENCIA = 'sales_team.group_sale_manager'
 MAX_MENCIONES = 8
+MAX_DIAS_PROGRAMADO = 30
+MAX_PROGRAMADOS_VISIBLES = 20
 LIMITE_LISTA = 100
 LIMITE_LISTA_POR_DEFECTO = 30
 LIMITE_HILO = 100
@@ -203,7 +205,7 @@ class DcasaConversacionPanel(models.Model):
         conv = self._para_panel(conversacion_id)
         limite = _entero(limite, 'limite', minimo=1, maximo=LIMITE_HILO)
         antes_de_id = _entero(antes_de_id, 'antes_de_id', minimo=1, permitir_nulo=True)
-        dominio = [('conversacion_id', '=', conv.id)]
+        dominio = [('conversacion_id', '=', conv.id), ('estado_envio', '!=', 'programado')]
         if antes_de_id:
             dominio.append(('id', '<', antes_de_id))
         tramo = self.env['dcasa.mensaje'].search(dominio, order='id desc', limit=limite + 1)
@@ -213,6 +215,10 @@ class DcasaConversacionPanel(models.Model):
             'conversacion': conv._resumen_panel(conv._sin_leer(conv.ids)),
             'mensajes': [m._como_dict() for m in tramo],
             'hay_mas': hay_mas, 'primer_id': tramo[:1].id or None,
+            # Lo que está escrito para más tarde no es parte del hilo todavía: se ve aparte, con su hora.
+            'programados': [m._como_dict() for m in self.env['dcasa.mensaje'].search([
+                ('conversacion_id', '=', conv.id), ('estado_envio', '=', 'programado')],
+                order='programado_para, id', limit=MAX_PROGRAMADOS_VISIBLES)],
         }
 
     @api.model
@@ -247,10 +253,32 @@ class DcasaConversacionPanel(models.Model):
     # Lo que hacen los botones
     # ------------------------------------------------------------------
 
+    def _hora_de_envio(self, programar_para):
+        """La hora (UTC, sin zona) a la que se programó un mensaje, validada: entre 1 minuto y 30 días desde ahora."""
+        if not isinstance(programar_para, str):
+            raise UserError(self.env._('La hora del envío no es válida.'))
+        try:
+            hora = datetime.fromisoformat(programar_para.replace('Z', '+00:00'))
+        except ValueError:
+            raise UserError(self.env._('La hora del envío no es válida.')) from None
+        if hora.tzinfo is not None:
+            hora = hora.astimezone(UTC).replace(tzinfo=None)
+        ahora = fields.Datetime.now()
+        if hora < ahora + timedelta(minutes=1):
+            raise UserError(self.env._('La hora tiene que ser en el futuro.'))
+        if hora > ahora + timedelta(days=MAX_DIAS_PROGRAMADO):
+            raise UserError(self.env._('Solo se puede programar con %s días de anticipación como máximo.',
+                                       MAX_DIAS_PROGRAMADO))
+        return hora.replace(second=0, microsecond=0)
+
     @api.model
-    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None):
-        """Una vendedora contesta desde la pantalla. Si el Worker no responde, queda «por enviar» y se reintenta."""
+    def enviar_respuesta(self, conversacion_id, texto=None, adjuntos_ids=None, programar_para=None):
+        """Una vendedora contesta desde la pantalla. Si el Worker no responde, queda «por enviar» y se reintenta.
+
+        ``programar_para`` (fecha y hora ISO): en vez de enviar ahora, el mensaje sale solo a esa hora.
+        """
         conv = self._para_panel(conversacion_id, escritura=True)
+        cuando = self._hora_de_envio(programar_para) if programar_para else None
         texto = (texto or '').strip() if isinstance(texto, str) or texto is None else None
         if texto is None:
             raise UserError(self.env._('El texto de la respuesta tiene que ser texto.'))
@@ -259,7 +287,11 @@ class DcasaConversacionPanel(models.Model):
         adjuntos = conv._adjuntos_de_la_respuesta(adjuntos_ids)
         if not texto and not adjuntos:
             raise UserError(self.env._('Escribe algo o adjunta un archivo antes de enviar.'))
-        mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user)
+        mensaje = conv._crear_mensaje_de_odoo(texto, adjuntos, usuario=self.env.user, programado_para=cuando)
+        if cuando:
+            conv.marcar_leida(conv.id)
+            return {'mensaje': mensaje._como_dict(), 'enviado': False, 'programado': True,
+                    'conversacion': conv._resumen_panel()}
         mensaje._enviar()
         if not mensaje.exists():
             # El Worker ya había registrado su eco de este mensaje y se fusionaron: queda el del Worker.
@@ -269,6 +301,26 @@ class DcasaConversacionPanel(models.Model):
         conv.marcar_leida(conv.id)
         return {'mensaje': mensaje._como_dict(), 'enviado': mensaje.estado_envio == 'enviado',
                 'conversacion': conv._resumen_panel()}
+
+    @api.model
+    def cancelar_programado(self, mensaje_id):
+        """Cancela un mensaje que todavía no salió. Solo quien lo programó o Gerencia."""
+        self._exigir_vendedora()
+        mensaje = self.env['dcasa.mensaje'].browse(_entero(mensaje_id, 'mensaje_id', minimo=1)).exists()
+        if not mensaje:
+            raise UserError(self.env._('Ese mensaje ya no existe.'))
+        conv = self._para_panel(mensaje.conversacion_id.id, escritura=True)
+        mensaje = mensaje.sudo()
+        if mensaje.estado_envio != 'programado':
+            raise UserError(self.env._('Ese mensaje ya salió o ya no está programado.'))
+        if mensaje.usuario_id != self.env.user and not self.env.user.has_group(GRUPO_GERENCIA):
+            raise AccessError(self.env._('Solo quien lo programó, o Gerencia, puede cancelarlo.'))
+        ya_dicho = self.env._('%(quien)s canceló un mensaje que había programado para el cliente.',
+                              quien=self.env.user.name)
+        mensaje.adjunto_ids.unlink()
+        mensaje.unlink()
+        conv._aviso(ya_dicho)
+        return {'cancelado': True, 'conversacion': conv._resumen_panel()}
 
     def _adjuntos_de_la_respuesta(self, adjuntos_ids):
         """Los archivos que la vendedora subió para esta respuesta: suyos, sin dueño todavía y no más de cinco."""

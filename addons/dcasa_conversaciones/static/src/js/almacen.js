@@ -3,7 +3,7 @@
  * la ficha y la caja de respuesta; toda la comunicación con Odoo pasa por aquí (API de `dcasa.conversacion`,
  * docs/JUAN_ODOO.md) y el tiempo real llega por el bus de Odoo (`dcasa_conversaciones/evento`, sin texto).
  */
-import { fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
+import { cuando, fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
 
 const MODELO = "dcasa.conversacion";
 const POR_PAGINA = 30;
@@ -52,6 +52,8 @@ export class Almacen {
         this.seleccionadaId = null;
         this.conversacion = null;
         this.mensajes = [];
+        this.programados = []; // lo que está escrito para más tarde (aparte del hilo)
+        this.escribiendoBot = {}; // conversación → cuándo (ms) avisó el Worker que el asistente prepara la respuesta; 0 = ya terminó
         this.hayMasAntes = false;
         this.cargandoHilo = false;
         this.cargandoAntes = false;
@@ -83,10 +85,10 @@ export class Almacen {
     get borrador() {
         const id = this.seleccionadaId;
         if (!id) {
-            return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "" };
+            return { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
         }
         if (!this.borradores[id]) {
-            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "" };
+            this.borradores[id] = { texto: "", modo: "respuesta", adjuntos: [], menciones: [], tareaPara: "", programarPara: "" };
         }
         return this.borradores[id];
     }
@@ -131,6 +133,14 @@ export class Almacen {
     _alEvento(carga) {
         if (!carga || typeof carga !== "object") {
             return;
+        }
+        if (carga.evento === "escribiendo") {
+            // No hay nada que traer del servidor: solo se enciende o se apaga el «escribiendo…» de esa conversación.
+            this.escribiendoBot[carga.conversacion_id] = carga.activo ? Date.now() : 0;
+            return;
+        }
+        if (carga.evento === "mensaje" && carga.autor && carga.autor !== "cliente") {
+            this.escribiendoBot[carga.conversacion_id] = 0; // ya contestó (el asistente o una persona)
         }
         this._eventosPendientes.add(JSON.stringify(carga));
         clearTimeout(this._temporizadorEventos);
@@ -280,6 +290,7 @@ export class Almacen {
         this.seleccionadaId = id;
         this.conversacion = this.lista.find((c) => c.id === id) || null;
         this.mensajes = [];
+        this.programados = [];
         this.hayMasAntes = false;
         this.ficha = null;
         this.errorHilo = null;
@@ -293,6 +304,7 @@ export class Almacen {
                 return;
             }
             this.mensajes = r.mensajes;
+            this.programados = r.programados || [];
             this.hayMasAntes = r.hay_mas;
             this.conversacion = r.conversacion;
             this.actualizarFila(r.conversacion);
@@ -352,6 +364,7 @@ export class Almacen {
             const hueco = hayHueco(this.mensajes, r.mensajes, true);
             const nuevos = r.mensajes.filter((m) => !this.mensajes.some((x) => x.id === m.id));
             this.mensajes = hueco ? r.mensajes : fusionarMensajes(this.mensajes, r.mensajes);
+            this.programados = r.programados || [];
             if (hueco) {
                 this.hayMasAntes = r.hay_mas;
             }
@@ -471,6 +484,7 @@ export class Almacen {
             this.seleccionadaId = null;
             this.conversacion = null;
             this.mensajes = [];
+            this.programados = [];
             this.ficha = null;
             this.volverALaLista();
         }
@@ -505,13 +519,25 @@ export class Almacen {
         return r;
     }
 
-    async enviar(texto, adjuntosIds) {
-        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds]);
+    /** Con `programarPara` (ISO en UTC) el mensaje no sale ahora: queda programado y sale solo a esa hora. */
+    async enviar(texto, adjuntosIds, programarPara = null) {
+        const r = await this._hacer("enviar_respuesta", [this.seleccionadaId, texto, adjuntosIds, programarPara]);
         if (r) {
             await this.refrescarAbierta();
-            if (!r.enviado) {
+            if (r.programado) {
+                this.notification.add(`Programado: se envía ${cuando(r.mensaje.programado_para, this.ahora)}. El asistente sigue atendiendo hasta entonces.`, { type: "success" });
+            } else if (!r.enviado) {
                 this.notification.add("Quedó por enviar: el Worker no respondió y se reintenta solo.", { type: "warning" });
             }
+        }
+        return r;
+    }
+
+    async cancelarProgramado(mensajeId) {
+        const r = await this._hacer("cancelar_programado", [mensajeId], { exito: "Cancelaste el mensaje programado." });
+        if (r) {
+            this.programados = this.programados.filter((m) => m.id !== mensajeId);
+            await this.refrescarAbierta();
         }
         return r;
     }
@@ -662,6 +688,7 @@ export class Almacen {
         borrador.adjuntos = [];
         borrador.menciones = [];
         borrador.tareaPara = "";
+        borrador.programarPara = "";
     }
 
     /** El buscador de fotos deja el pie y las fotos en la caja para revisarlos antes de enviar. */

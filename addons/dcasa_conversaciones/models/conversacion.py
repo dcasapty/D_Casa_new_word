@@ -316,7 +316,7 @@ class DcasaConversacion(models.Model):
             return self.env['dcasa.mensaje']   # ya está por su id: el camino normal lo trata como repetición
         propio = Mensaje.search([
             ('conversacion_id', '=', self.id), ('origen', '=', 'odoo'), ('id_mensaje', '=like', 'odoo-%'),
-            ('texto', '=', datos['texto']),
+            ('texto', '=', datos['texto']), ('estado_envio', '!=', 'programado'),
             ('create_date', '>=', fields.Datetime.now() - VENTANA_ADOPCION),
         ], order='id desc', limit=1)
         if propio:
@@ -544,6 +544,7 @@ class DcasaConversacion(models.Model):
     @api.model
     def _cron_mantenimiento(self):
         """Cada 5 minutos: reintenta envíos y avisos, devuelve las pausas vencidas y cierra seguimientos sin aviso."""
+        self.env['dcasa.mensaje']._cron_enviar_programados()
         self.env['dcasa.mensaje']._cron_reintentar_envios()
         vencidas = self.sudo().search([('estado', '=', 'humano'), ('pausada_hasta', '!=', False),
                                        ('pausada_hasta', '<=', fields.Datetime.now())])
@@ -679,7 +680,7 @@ class DcasaConversacion(models.Model):
         # all_group_ids: la gerencia también es de ventas por herencia de grupos, aunque no lo tenga marcado.
         return self.env['res.users'].sudo().search([('all_group_ids', 'in', grupo.ids), ('share', '=', False)])
 
-    def _notificar_panel(self, evento, mensaje=None):
+    def _notificar_panel(self, evento, mensaje=None, activo=None):
         """Avisa por el bus de Odoo a las pantallas abiertas que algo cambió (mensaje nuevo, estado, etiquetas…).
 
         Viaja SOLO ids y estado, nunca el texto: el bus guarda lo que se envía y una pantalla pide el detalle
@@ -694,6 +695,8 @@ class DcasaConversacion(models.Model):
                         'mensaje_id': mensaje.id if mensaje else None,
                         'autor': mensaje.autor if mensaje else None,
                     }
+                    if activo is not None:
+                        carga['activo'] = bool(activo)
                     for usuario in conv._usuarios_del_panel():
                         usuario._bus_send(CANAL_BUS, carga)
             except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
@@ -734,19 +737,34 @@ class DcasaConversacion(models.Model):
                 'type': 'warning', 'sticky': False}}
         return True
 
-    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None):
-        """Registra lo que una vendedora escribe en Odoo («por enviar») y toma la conversación."""
+    def _crear_mensaje_de_odoo(self, texto, adjuntos=None, usuario=None, programado_para=None):
+        """Registra lo que una vendedora escribe en Odoo y toma la conversación.
+
+        Sale «por enviar»; con ``programado_para`` (UTC) queda «programado»: no toma la conversación ni cambia nada
+        hasta que llegue la hora (``_despachar_programado``).
+        """
         self.ensure_one()
         usuario = usuario or self.env.user
         conv = self.sudo()
         ahora = fields.Datetime.now()
         mensaje, _creado = self.env['dcasa.mensaje']._crear_si_no_existe({
             'conversacion_id': conv.id, 'id_mensaje': self.env['dcasa.mensaje']._id_local(), 'direccion': 'saliente',
-            'autor': 'vendedora', 'texto': texto or False, 'ts': ahora, 'origen': 'odoo', 'usuario_id': usuario.id,
-            'estado_envio': 'por_enviar'})
+            'autor': 'vendedora', 'texto': texto or False, 'ts': programado_para or ahora, 'origen': 'odoo',
+            'usuario_id': usuario.id, 'estado_envio': 'programado' if programado_para else 'por_enviar',
+            'programado_para': programado_para or False})
         if adjuntos:
             mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(4, a.id) for a in adjuntos]})
             adjuntos.sudo().write({'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        if programado_para:
+            conv._notificar_panel('mensaje', mensaje)
+            return mensaje
+        conv._tomar_al_enviar(mensaje, texto, usuario, ahora)
+        return mensaje
+
+    def _tomar_al_enviar(self, mensaje, texto, usuario, ahora):
+        """Lo que pasa en la conversación cuando una vendedora le escribe al cliente: la toma y el asistente calla."""
+        self.ensure_one()
+        conv = self.sudo()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         la_tomo = conv.estado != 'humano'
         conv.write({
@@ -758,7 +776,19 @@ class DcasaConversacion(models.Model):
         if la_tomo:
             conv._aviso(self.env._('%s tomó la conversación al escribir. El asistente calla.', usuario.name))
         conv._notificar_panel('mensaje', mensaje)
-        return mensaje
+
+    def _despachar_programado(self, mensaje):
+        """Llegó la hora de un mensaje programado: sale como uno nuevo (queda al final del hilo) y toma la conversación.
+
+        Devuelve el mensaje nuevo, «por enviar». El programado desaparece: sus archivos pasan al nuevo.
+        """
+        self.ensure_one()
+        usuario = mensaje.usuario_id or self.env.user
+        nuevo = self._crear_mensaje_de_odoo(mensaje.texto, mensaje.adjunto_ids.sudo(), usuario=usuario)
+        mensaje.with_context(**{CLAVE_SISTEMA: True}).write({'adjunto_ids': [(5, 0, 0)]})
+        mensaje.sudo().unlink()
+        self._aviso(self.env._('Salió el mensaje que %s dejó programado.', usuario.name))
+        return nuevo
 
     def action_reintentar_envios(self):
         self._exigir_vendedora()

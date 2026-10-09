@@ -396,6 +396,53 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.assertEqual(nota.mencion_ids, self.gerente)
         self.assertFalse(self.al_worker('/odoo/enviar'), 'Una nota nunca sale por el canal')
 
+    def test_programar_un_mensaje_lo_deja_aparte_y_sin_enviar(self):
+        self.datos_de_ejemplo()
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Programar").click();
+    await esperar(() => document.querySelector(".o_dcj_programar"), "el selector de fecha y hora");
+    const caja = document.querySelector("#o_dcj_texto");
+    await escribir(caja, "Mañana te confirmo la entrega");
+    const enviar = document.querySelector(".o_dcj_enviar");
+    if (!enviar.disabled) { throw new Error("sin hora elegida no se puede programar (ni enviar por descuido)"); }
+    aqui(".o_dcj_programar .o_dcj_enlace", "Mañana").click();
+    await esperar(() => !enviar.disabled && enviar.textContent.includes("Programar"), "el botón dice Programar");
+    enviar.click();
+    const fila = await esperar(() => aqui(".o_dcj_programado", "Mañana te confirmo"), "el mensaje en la lista de programados");
+    if (!fila.textContent.includes("Se envía")) { throw new Error("dice cuándo se envía: " + fila.textContent); }
+    if (aqui(".o_dcj_burbuja_vendedora", "Mañana te confirmo")) { throw new Error("aún no es parte del hilo"); }
+    await esperar(() => caja.value === "", "la caja vacía");
+    await esperar(() => !document.querySelector(".o_dcj_programar"), "el selector cerrado");
+    if (!document.querySelector(".o_dcj_barra").textContent.includes("Atiende el asistente")) { throw new Error("el asistente sigue atendiendo"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        self.assertFalse(self.al_worker('/odoo/enviar'), 'Nada sale antes de su hora')
+        (programado,) = self.karen.mensaje_ids.filtered(lambda m: m.estado_envio == 'programado')
+        self.assertEqual(programado.texto, 'Mañana te confirmo la entrega')
+        self.assertGreater(programado.programado_para, self.ahora)
+        self.assertEqual(self.karen.estado, 'bot')
+
+    def test_cancelar_un_mensaje_programado(self):
+        self.datos_de_ejemplo()
+        hora = (fields.Datetime.now() + timedelta(days=2)).isoformat() + 'Z'
+        self.env['dcasa.conversacion'].with_user(self.vendedora).enviar_respuesta(
+            self.karen.id, 'Te aviso cuando llegue', None, hora)
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    const fila = await esperar(() => aqui(".o_dcj_programado", "Te aviso cuando llegue"), "el mensaje programado");
+    aqui(".o_dcj_programado .o_dcj_enlace", "Cancelar").click();
+    await esperar(() => !document.querySelector(".o_dcj_programado"), "la lista sin el mensaje");
+    await esperar(() => aqui(".o_dcj_aviso_sistema", "canceló un mensaje"), "el aviso en el hilo");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        self.assertFalse(self.karen.mensaje_ids.filtered(lambda m: m.estado_envio == 'programado'))
+        self.assertFalse(self.al_worker('/odoo/enviar'))
+
     def test_adjuntar_un_archivo_del_cliente_a_su_pedido(self):
         self.datos_de_ejemplo()
         producto = self.env['product.product'].create({
@@ -681,6 +728,26 @@ class TestPanelEnElNavegador(PanelUiCase):
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """.replace("__TOKEN__", TOKEN_ODOO))
+    def test_el_escribiendo_aparece_cuando_el_worker_avisa_y_se_va_cuando_termina(self):
+        self.datos_de_ejemplo()
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    if (document.querySelector(".o_dcj_escribiendo")) { throw new Error("no hay nada escribiendo todavía"); }
+    const avisar = (activo) => fetch("/dcasa/juan/v1/escribiendo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer __TOKEN__" },
+        body: JSON.stringify({ canal: "whatsapp_qr", id_externo: "50761000001", activo }),
+    }).then((r) => { if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); } });
+    await avisar(true);
+    const aviso = await esperar(() => document.querySelector(".o_dcj_escribiendo"), "el «escribiendo»", 30000);
+    if (!aviso.textContent.includes("está escribiendo")) { throw new Error("dice que escribe: " + aviso.textContent); }
+    await avisar(false);
+    await esperar(() => !document.querySelector(".o_dcj_escribiendo"), "que se apague al terminar", 30000);
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""".replace("__TOKEN__", TOKEN_ODOO))
+
 
 
 
