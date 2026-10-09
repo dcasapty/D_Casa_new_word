@@ -282,9 +282,21 @@ describe("POST /odoo/estado", () => {
     expect((await m.pedir(post("/odoo/estado", { canal: "telegram", id_externo: "9", estado: "humano", pausada_hasta: 1_790_000_000 }, deOdoo))).status).toBe(200);
     expect((await m.pedir(post("/odoo/estado", { canal: "telegram", id_externo: "9", estado: "bot" }, deOdoo))).status).toBe(200);
     expect(m.conv.estados).toEqual([
-      { estado: "humano", pausada_hasta: "2026-10-09T20:00:00Z" },
-      { estado: "humano", pausada_hasta: 1_790_000_000 },
-      { estado: "bot", pausada_hasta: null },
+      { estado: "humano", pausada_hasta: "2026-10-09T20:00:00Z", nota_para_el_bot: null },
+      { estado: "humano", pausada_hasta: 1_790_000_000, nota_para_el_bot: null },
+      { estado: "bot", pausada_hasta: null, nota_para_el_bot: null },
+    ]);
+  });
+
+  it("al devolver la conversación Odoo puede mandar la nota de la vendedora para el bot", async () => {
+    const m = montar();
+    const res = await m.pedir(post("/odoo/estado", { canal: "whatsapp_qr", id_externo: "50760261919", estado: "bot", nota_para_el_bot: "ya quedó la visita del sábado" }, deOdoo));
+    expect(res.status).toBe(200);
+    // Una nota que no es texto no pasa.
+    await m.pedir(post("/odoo/estado", { canal: "whatsapp_qr", id_externo: "50760261919", estado: "bot", nota_para_el_bot: { x: 1 } }, deOdoo));
+    expect(m.conv.estados).toEqual([
+      { estado: "bot", pausada_hasta: null, nota_para_el_bot: "ya quedó la visita del sábado" },
+      { estado: "bot", pausada_hasta: null, nota_para_el_bot: null },
     ]);
   });
 

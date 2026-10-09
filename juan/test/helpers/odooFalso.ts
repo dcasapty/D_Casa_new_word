@@ -40,7 +40,8 @@ export const CATALOGO = [
   { codigo: "MESA-C-003", nombre: "Mesa de centro Nórdica", precio: 129, mas_itbms: true, disponibilidad: "agotado", medidas: "100 x 60 cm", url: "/shop/mesa-nordica", foto: "/web/image/product.template/3/image_1024" },
 ];
 
-export const ESTADO_INICIAL = { estado: "bot", bot_activo: true, pausada_hasta: null as string | number | null, dentro_de_horario: true };
+/** Odoo siempre manda `nota_para_el_bot` en /mensaje y /estado (`null` si no hay). */
+export const ESTADO_INICIAL = { estado: "bot", bot_activo: true, pausada_hasta: null as string | number | null, dentro_de_horario: true, nota_para_el_bot: null as string | null };
 
 type Manejador = (args: Record<string, unknown>, odoo: OdooFalso) => unknown;
 
@@ -89,10 +90,13 @@ const MANEJADORES: Record<string, Manejador> = {
   pasar_a_vendedora: (_a, odoo) => {
     // Como Odoo: pausa al bot y devuelve el texto según el horario.
     odoo.estadoActual = { ...odoo.estadoActual, estado: "humano", bot_activo: false };
+    // La forma REAL de Odoo (`_pasar_a_vendedora`): el texto viene en `texto_para_el_cliente`.
     return {
-      texto: odoo.estadoActual.dentro_de_horario
+      texto_para_el_cliente: odoo.estadoActual.dentro_de_horario
         ? "Listo, ya avisé a una vendedora. Te escribe por aquí en unos minutos."
         : "Ya dejé tu solicitud. Una vendedora te escribe por aquí cuando abramos, a las 8:00 a. m.",
+      dentro_de_horario: odoo.estadoActual.dentro_de_horario,
+      urgente: false,
     };
   },
 };

@@ -75,7 +75,7 @@ export class Conversacion extends DurableObject<Env> {
     return this.motor.enviarVendedora(s);
   }
 
-  fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null }) {
+  fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }) {
     return this.motor.fijarEstado(s);
   }
 

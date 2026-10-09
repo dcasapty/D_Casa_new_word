@@ -6,6 +6,8 @@ import os
 from datetime import timedelta
 from unittest.mock import patch
 
+from psycopg2.errors import SerializationFailure
+
 from odoo import fields
 from odoo.addons.dcasa_conversaciones.controllers import juan as controlador
 from odoo.addons.dcasa_conversaciones.models import horario as H
@@ -255,6 +257,32 @@ class TestMensaje(ApiCase):
         self.assertFalse(cuerpo['ok'])
         self.assertNotIn('passwd', json.dumps(cuerpo))
         self.assertNotIn('Traceback', respuesta.text)
+
+    def test_un_choque_entre_transacciones_se_repite_y_no_es_un_500(self):
+        """Dos transacciones sobre la misma fila (Postgres: «could not serialize access») no son un error del Worker:
+        Odoo repite TODA la petición, con el mismo cuerpo, y el mensaje queda una sola vez."""
+        class Choque(SerializationFailure):
+            pgcode = '40001'   # como lo entrega Postgres de verdad (a mano, psycopg2 lo deja en None)
+
+        Conversacion = type(self.env['dcasa.conversacion'])
+        original = Conversacion._registrar_mensaje
+        intentos = []
+
+        def con_un_choque(modelo, datos):
+            intentos.append(datos['id_mensaje'])
+            if len(intentos) == 1:
+                raise Choque('could not serialize access due to concurrent update')
+            return original(modelo, datos)
+
+        cuerpo = self.mensaje()
+        with patch.object(Conversacion, '_registrar_mensaje', con_un_choque), \
+                patch('odoo.service.model.random.uniform', return_value=0), \
+                mute_logger('odoo.service.model'):
+            respuesta = self.post('mensaje', cuerpo)
+        self.assertEqual(respuesta.status_code, 200, respuesta.text)
+        self.assertTrue(respuesta.json()['ok'])
+        self.assertEqual(intentos, [cuerpo['id_mensaje']] * 2, 'Se intentó dos veces con el mismo mensaje')
+        self.assertEqual(len(self.conversacion().mensaje_ids), 1)
 
     def test_get_a_una_ruta_post_no_es_valido(self):
         self.assertEqual(self.get('mensaje').status_code, 405)

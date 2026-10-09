@@ -216,7 +216,8 @@ const MAX_FOTOS_POR_RESPUESTA = 3;
 export function textoDeLaHerramienta(resultado: unknown): string | null {
   if (typeof resultado === "string") return resultado.trim() || null;
   if (!esObjeto(resultado)) return null;
-  for (const k of ["texto", "mensaje", "texto_para_cliente", "texto_cliente", "decir", "respuesta", "texto_sugerido"]) {
+  // `texto_para_el_cliente` es la clave que publica Odoo (addons/dcasa_conversaciones, `_pasar_a_vendedora`); las demás, por tolerancia.
+  for (const k of ["texto_para_el_cliente", "texto", "mensaje", "texto_para_cliente", "texto_cliente", "decir", "respuesta", "texto_sugerido"]) {
     const v = resultado[k];
     if (typeof v === "string" && v.trim()) return v.trim();
   }
@@ -244,6 +245,16 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
   const { odoo, registro } = op;
   const tools: ToolSet = {};
 
+  // El modelo puede pedir varias herramientas en un mismo paso y el SDK las corre a la vez. Las que ESCRIBEN en Odoo se turnan: todas tocan
+  // la MISMA conversación (oportunidad, etiqueta, nota...) y dos transacciones sobre la misma fila chocan en Postgres («could not serialize
+  // access due to concurrent update»): Odoo contestaba error y la herramienta fallaba al azar. Hallado con Odoo real (test/integracion).
+  let turno: Promise<unknown> = Promise.resolve();
+  const enTurno = <T>(trabajo: () => Promise<T>): Promise<T> => {
+    const mia = turno.then(trabajo, trabajo);
+    turno = mia.catch(() => undefined);
+    return mia;
+  };
+
   for (const def of op.defs) {
     if (def.nombre === "enviar_foto_producto") continue; // la local manda
     tools[def.nombre] = tool({
@@ -265,7 +276,9 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         }
 
         op.alEmpezar?.();
-        const r = op.omitir?.() ? { ok: false as const, resultado: undefined } : await odoo.herramienta(def.nombre, argumentos, op.conversacionId());
+        const llamar = async () => (op.omitir?.() ? { ok: false as const, resultado: undefined } : odoo.herramienta(def.nombre, argumentos, op.conversacionId()));
+        // Las consultas corren juntas (no escriben nada); las que escriben sobre la conversación, una tras otra.
+        const r = await (HERRAMIENTAS_DE_LECTURA.has(def.nombre) ? llamar() : enTurno(llamar));
         registro.llamadas.push({ nombre: def.nombre, ok: r.ok });
         if (!r.ok) {
           return {

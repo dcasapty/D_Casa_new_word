@@ -28,7 +28,9 @@ import time
 from collections import defaultdict, deque
 
 from odoo import SUPERUSER_ID, fields, http
+from odoo.exceptions import ConcurrencyError
 from odoo.http import request
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from ..models import adjuntos as A
 from ..models import horario as H
@@ -134,7 +136,8 @@ class JuanAPI(http.Controller):
         largo = request.httprequest.content_length
         if largo and largo > maximo:
             raise _Error(413, f'El cuerpo es demasiado grande (máximo {maximo // 1024} KB).')
-        crudo = request.httprequest.get_data(cache=False)
+        # Con caché: si Odoo repite la petición por un choque entre transacciones (ver ``_servir``), se vuelve a leer.
+        crudo = request.httprequest.get_data()
         if len(crudo) > maximo:
             raise _Error(413, f'El cuerpo es demasiado grande (máximo {maximo // 1024} KB).')
         try:
@@ -152,6 +155,11 @@ class JuanAPI(http.Controller):
             return funcion(entorno)
         except _Error as error:
             return _respuesta({'ok': False, 'error': error.mensaje}, error.estado, error.encabezados)
+        except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+            # Dos transacciones tocaron la misma fila a la vez (Postgres: «could not serialize access»). No es un error
+            # del Worker ni de este mensaje: si sube, Odoo repite TODA la petición con una espera (hasta 5 veces).
+            # Si lo convirtiéramos en un 500, el mensaje o la herramienta fallarían al azar.
+            raise
         except Exception:   # noqa: BLE001 — la API siempre contesta JSON
             _logger.exception('Juan/API: error inesperado')
             request.env.cr.rollback()

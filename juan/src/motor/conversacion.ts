@@ -46,6 +46,15 @@ const VENTANA_24H_MS = 23 * 3600_000;
 const MARCA_PIN = "••••";
 const CACHE_DE_HERRAMIENTAS_MS = 60_000;
 
+const MAX_NOTA_DE_LA_VENDEDORA = 500;
+
+/** La nota de una vendedora para el bot (Odoo la limita a 500 letras): un dato sin saltos ni etiquetas, o null. */
+export function limpiarNota(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.replace(/\s+/g, " ").trim().slice(0, MAX_NOTA_DE_LA_VENDEDORA);
+  return t || null;
+}
+
 /** El mensaje de un error de la IA, sin nada que parezca una clave (algunos proveedores repiten la clave mal escrita). */
 export function limpiarError(e: unknown): string {
   const t = e instanceof Error ? e.message : String(e);
@@ -174,6 +183,8 @@ export class MotorConversacion {
     if (typeof r.bot_activo === "boolean") this.kv.poner("odoo_bot_activo", r.bot_activo);
     if (r.pausada_hasta !== undefined) this.kv.poner("odoo_pausa_hasta", aMilisegundosOdoo(r.pausada_hasta));
     if (typeof r.dentro_de_horario === "boolean") this.kv.poner("odoo_dentro_horario", r.dentro_de_horario);
+    // Odoo manda la nota de la vendedora en /mensaje y /estado (null = no hay); si el campo no viene, se conserva la que había.
+    if ("nota_para_el_bot" in r) this.kv.poner("nota_vendedora", limpiarNota(r.nota_para_el_bot));
   }
 
   /** La pausa que pusimos nosotros (una persona acaba de escribir o Odoo acaba de avisar): es exacta, vale por su hora. */
@@ -660,6 +671,7 @@ export class MotorConversacion {
         ahora,
         presentacionEnviada: primera,
         dentroDeHorario: this.kv.texto("odoo_dentro_horario") !== null ? this.kv.bandera("odoo_dentro_horario") : undefined,
+        notaDeLaVendedora: this.kv.texto("nota_vendedora") ?? undefined,
       }) + extra;
     const mensajes = this.mensajesParaElModelo();
 
@@ -901,12 +913,16 @@ export class MotorConversacion {
   }
 
   /** `POST /odoo/estado`: tomar o devolver la conversación. */
-  async fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null }): Promise<{ ok: true }> {
+  async fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }): Promise<{ ok: true }> {
     const cfg = await this.deps.config();
     const ahora = this.deps.ahora();
     if (s.estado === "humano") {
       this.humanoIntervino(cfg, ahora, aMilisegundosOdoo(s.pausada_hasta));
+      // Quien toma la conversación borra la nota anterior (Odoo hace lo mismo).
+      this.kv.poner("nota_vendedora", null);
     } else {
+      // Al devolverla puede venir una nota («ya quedó la visita del sábado»): el bot la lee hasta que otra persona tome la conversación.
+      this.kv.poner("nota_vendedora", limpiarNota(s.nota_para_el_bot));
       this.kv.poner("pausa_hasta", null);
       this.kv.poner("odoo_estado", "bot");
       this.kv.poner("odoo_pausa_hasta", null);

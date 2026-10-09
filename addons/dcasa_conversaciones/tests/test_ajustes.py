@@ -118,7 +118,8 @@ class TestAjustesEditables(JuanCase):
         self.assertEqual(datos['precios_ia'], {
             'claude-haiku-4-5': {'entrada': 1.0, 'salida': 5.0, 'entrada_cache': 0.1},
             'claude-sonnet-5-5': {'entrada': 3.0, 'salida': 15.0}})
-        self.assertEqual(datos['precios']['rapido'], {'entrada': 1.0, 'salida': 5.0, 'cache': 0.1})   # por nivel, como antes
+        # Por nivel, como antes:
+        self.assertEqual(datos['precios']['rapido'], {'entrada': 1.0, 'salida': 5.0, 'cache': 0.1})
         # Un nivel a medias (sin precio de salida) no cuenta: nunca una cifra a medio inventar.
         self.ajustes.precio_inteligente_salida_usd_mtok = 0
         self.assertNotIn('claude-sonnet-5-5', self.ajustes.como_json()['precios_ia'])

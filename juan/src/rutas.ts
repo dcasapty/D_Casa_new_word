@@ -23,7 +23,7 @@ import { bearerValido } from "./seguridad";
 export interface ConversacionApi {
   ingest(e: Entrante): Promise<ResultadoIngest>;
   enviarVendedora(s: SolicitudEnviar): Promise<{ ok: true; id_mensaje: string }>;
-  fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null }): Promise<{ ok: true }>;
+  fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }): Promise<{ ok: true }>;
   seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento>;
   leerMedio(id: string): Promise<{ bytes: Uint8Array; mime: string; nombre: string | null } | null>;
 }
@@ -215,6 +215,8 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
         await conv.fijarEstado({
           estado: cuerpo.estado,
           pausada_hasta: typeof hasta === "string" || typeof hasta === "number" ? hasta : null,
+          // Al devolver la conversación, Odoo puede dejarle una nota al bot (docs/JUAN.md → «Contrato verificado»).
+          nota_para_el_bot: typeof cuerpo.nota_para_el_bot === "string" ? cuerpo.nota_para_el_bot : null,
         }),
       );
     }

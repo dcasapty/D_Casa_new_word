@@ -175,6 +175,38 @@ describe("las herramientas independientes de un mismo paso corren juntas", () =>
     expect(dur).toBeLessThan(115);
   });
 
+  it("las que ESCRIBEN sobre la conversación se turnan (dos transacciones sobre la misma fila chocan en Odoo), aunque el modelo las pida juntas", async () => {
+    const m = crearMundo();
+    m.odoo.retardoMs = 20;
+    m.guion([
+      {
+        llamadas: [
+          { nombre: "crear_oportunidad", args: { resumen: "Quiere una cama queen", interes: "cama queen" } },
+          { nombre: "anotar_conversacion", args: { nota: "Para su cuarto" } },
+          { nombre: "registrar_pregunta_sin_respuesta", args: { pregunta: "¿instalan los muebles?" } },
+        ],
+      },
+      { texto: "Listo, ya quedó anotado." },
+    ]);
+    await m.conversar("quiero una cama queen, ¿instalan los muebles?");
+    expect(m.odoo.maxEnCurso).toBe(1);
+    expect(m.odoo.llamadas.map((l) => l.nombre)).toEqual(["crear_oportunidad", "anotar_conversacion", "registrar_pregunta_sin_respuesta"]);
+    expect(m.canal.textos.join("\n")).toContain("ya quedó anotado");
+  });
+
+  it("si una de las que escriben falla, las demás se hacen igual", async () => {
+    const m = crearMundo();
+    m.odoo.manejadores.crear_oportunidad = () => {
+      throw new Error("Odoo dijo que no");
+    };
+    m.guion([
+      { llamadas: [{ nombre: "crear_oportunidad", args: { resumen: "x", interes: "y" } }, { nombre: "anotar_conversacion", args: { nota: "n" } }] },
+      { texto: "Una vendedora lo confirma." },
+    ]);
+    await m.conversar("quiero una cama");
+    expect(m.odoo.de("anotar_conversacion")).toHaveLength(1);
+  });
+
   it("el gasto del mes y la lista de herramientas se piden a la vez", async () => {
     const m = crearMundo();
     m.guion([{ texto: "Hola." }]);

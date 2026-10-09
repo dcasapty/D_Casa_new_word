@@ -48,9 +48,11 @@ export interface RespuestaMensaje {
   /** ISO, epoch o null: se interpreta con `aMilisegundosOdoo`. */
   pausada_hasta?: string | number | null;
   dentro_de_horario?: boolean;
+  /** Lo que una vendedora le dejó dicho al bot al devolverle la conversación (`null` = nada). Si el campo no viene, no se toca. */
+  nota_para_el_bot?: string | null;
 }
 
-export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario">;
+export type EstadoOdoo = Pick<RespuestaMensaje, "estado" | "bot_activo" | "pausada_hasta" | "dentro_de_horario" | "nota_para_el_bot">;
 
 export interface DefHerramienta {
   nombre: string;

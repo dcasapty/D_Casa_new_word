@@ -343,14 +343,14 @@ class JuanAjustes(models.Model):
     def precios_por_modelo(self):
         """Los mismos precios, por NOMBRE de modelo: ``{'claude-haiku-4-5': {'entrada', 'salida', 'entrada_cache'?}}``.
 
-        Es lo que lee el Worker (``precios_ia`` en ``/config``): calcula el gasto por modelo, no por nivel. Un modelo sin
-        precio de entrada y de salida no aparece (el Worker no lo cuenta como gratis: usa una tarifa de reserva y avisa).
-        Si el rápido y el inteligente son el mismo modelo, vale el más caro, para no subestimar el gasto.
+        Es lo que lee el Worker (``precios_ia`` en ``/config``): calcula el gasto por modelo, no por nivel. Un
+        modelo sin precio de entrada y de salida no aparece (el Worker no lo cuenta como gratis: usa una tarifa de
+        reserva y avisa). Si el rápido y el inteligente son el mismo modelo, vale el más caro, para no subestimar.
         """
         self.ensure_one()
         resultado = {}
-        for nivel, modelo in (('rapido', self.modelo_rapido), ('inteligente', self.modelo_inteligente)):
-            modelo, precios = (modelo or '').strip(), self.precios_ia()[nivel]
+        for nivel, nombre in (('rapido', self.modelo_rapido), ('inteligente', self.modelo_inteligente)):
+            modelo, precios = (nombre or '').strip(), self.precios_ia()[nivel]
             if not modelo or not precios['entrada'] or not precios['salida']:
                 continue
             fila = {'entrada': precios['entrada'], 'salida': precios['salida']}
