@@ -40,6 +40,12 @@ export class CanalFalso implements AdaptadorCanal {
     this.escribiendoVeces++;
   }
 
+  /** Un canal sin «escribiendo…» (WhatsApp por QR): se le quita el método. */
+  sinEscribiendo(): this {
+    (this as { escribiendo?: unknown }).escribiendo = undefined;
+    return this;
+  }
+
   /** Todo el texto enviado, burbuja por burbuja. */
   get textos(): string[] {
     return this.salidas.flatMap((s) => s.burbujas);

@@ -17,6 +17,7 @@ import { escaparRegex, normalizar, oraciones, sinAcentos } from "./texto";
 
 export type TipoProblema =
   | "precio_inventado"
+  | "cifra_inventada"
   | "existencias"
   | "promesa"
   | "fuga"
@@ -32,6 +33,8 @@ export interface Problema {
 export interface ContextoRevision {
   /** Precios de producto que devolvieron las herramientas (llevan «+ ITBMS»). */
   preciosProducto: ReadonlySet<number>;
+  /** Números que aparecieron en el texto de las herramientas (plazos, porcentajes de una política): respaldan cifras de política, no dinero. */
+  numerosEnTexto?: ReadonlySet<number>;
   /** Cualquier cifra que ya esté respaldada: herramientas de este turno, mensajes del cliente, respuestas anteriores. */
   cifrasConocidas: ReadonlySet<number>;
   /** Las de Odoo (`palabras_prohibidas`); las de la marca ya van incluidas. */
@@ -105,6 +108,19 @@ export function asegurarItbms(texto: string, preciosProducto: ReadonlySet<number
   return salida;
 }
 
+// ── Cifras de política: plazos, porcentajes, cuotas ───────────────────────────
+// «Los cambios son en 30 días», «2 años de garantía», «10 % de recargo»: si la cifra no salió de una herramienta
+// (la base de conocimiento, Socios, el catálogo), es un invento. Lo que escribe el cliente tampoco la respalda.
+
+const CIFRA_DE_POLITICA = /\b(\d+(?:[.,]\d+)?)\s*(?:%|por ciento|dias?|horas?|semanas?|meses|mes|a[nñ]os?|cuotas?|pagos)(?![a-z])/g;
+
+const respaldada = (ctx: ContextoRevision, v: number) => cercano(ctx.cifrasConocidas, v) || (!!ctx.numerosEnTexto && cercano(ctx.numerosEnTexto, v));
+
+export function cifrasDePolitica(texto: string): { valor: number; texto: string }[] {
+  const t = sinAcentos(texto);
+  return [...t.matchAll(CIFRA_DE_POLITICA)].map((m) => ({ valor: Number(m[1].replace(",", ".")), texto: m[0] }));
+}
+
 // ── Existencias ─────────────────────────────────────────────────────────────
 // Los patrones se escriben SIN acentos y se aplican a `sinAcentos(texto)`: en JavaScript `\b`
 // no reconoce «ú» ni «í» como letras, y así no importa cómo los escriba el modelo.
@@ -139,6 +155,9 @@ const PROMESAS: { r: RegExp; que: string }[] = [
   { r: new RegExp(`\\b(?:te|se|le)\\s+(?:lo|la|los|las)?\\s*(?:entregamos|enviamos|mandamos|despachamos|llevamos|instalamos)\\s+(?:hoy|ma[nñ]ana|pasado ma[nñ]ana|en\\s+\\d+|el\\s+${DIA}|esta\\s+semana|ya)\\b`), que: "plazo de entrega" },
   { r: new RegExp(`\\b(?:llega|llegaria|llegara|lo recibes|la recibes|los recibes)\\s+(?:hoy|ma[nñ]ana|en\\s+\\d+|el\\s+${DIA}|esta\\s+semana)\\b`), que: "plazo de entrega" },
   { r: /\b(?:entregamos|enviamos|hacemos entregas?|llevamos)\s+(?:a|en)\s+(?:todo|toda|todas|todos|cualquier)\b/, que: "cobertura de entrega" },
+  // El costo y el plazo del envío los confirma una vendedora (regla 3), aunque alguna nota de la tienda los traiga.
+  { r: /\b(?:envio|flete|entrega|delivery|despacho|transporte)\b[^.!?\n]{0,40}\b(?:cuesta|cuestan|sale|salen|vale|valen|cobramos|es de|son de|tiene un costo|tiene un cargo|tiene un recargo)\b[^.!?\n]{0,15}(?:\$|\d)/, que: "costo de entrega" },
+  { r: /\b(?:entrega|envio|despacho|delivery)\b[^.!?\n]{0,30}\b(?:tarda|toma|demora|llega|es)\s+(?:en\s+|de\s+)?(?:entre\s+)?\d+/, que: "plazo de entrega" },
   { r: /\b(?:te|se|le)\s+(?:lo|la|los|las)?\s*(?:apartamos|reservamos|guardamos|separamos)\b/, que: "apartado" },
   { r: /\b(?:queda|quedan|quedo|deje|dejo|dejamos)\s+(?:apartad[oa]s?|reservad[oa]s?|separad[oa]s?)\b/, que: "apartado" },
   { r: /\b(?:te|le)\s+(?:doy|damos|hago|hacemos|aplico|aplicamos|ofrezco|ofrecemos|dejo|dejamos|regalo|regalamos)\s+(?:un\s+|el\s+|una\s+)?(?:\d+\s*%\s*de\s+)?(?:descuento|rebaja|promocion|oferta)\b/, que: "descuento" },
@@ -284,6 +303,7 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
       graves.push({ tipo: "precio_inventado", detalle: m.texto });
     }
   }
+  for (const c of cifrasDePolitica(limpio)) if (!respaldada(ctx, c.valor)) graves.push({ tipo: "cifra_inventada", detalle: c.texto });
   for (const h of detectarExistencias(limpio)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(limpio, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
   const prohibida = palabraProhibida(limpio, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
@@ -310,6 +330,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
   const graves: Problema[] = [];
   if (secretoRepetido(o, ctx)) graves.push({ tipo: "secreto", detalle: "un dato que el cliente dio en confianza" });
   for (const m of extraerMontos(o)) if (!cercano(ctx.cifrasConocidas, m.valor)) graves.push({ tipo: "precio_inventado", detalle: m.texto });
+  for (const c of cifrasDePolitica(o)) if (!respaldada(ctx, c.valor)) graves.push({ tipo: "cifra_inventada", detalle: c.texto });
   for (const h of detectarExistencias(o)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(o, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
   const prohibida = palabraProhibida(o, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
@@ -321,6 +342,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
 export function notaDeCorreccion(graves: readonly Problema[]): string {
   const por: Record<TipoProblema, string> = {
     precio_inventado: "una cifra de dinero que no salió de una herramienta",
+    cifra_inventada: "una cifra (plazo, porcentaje, cuotas) que no salió de una herramienta",
     existencias: "un número de existencias o inventario",
     promesa: "una promesa de entrega, flete, financiamiento, apartado o descuento",
     fuga: "información interna",

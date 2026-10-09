@@ -23,6 +23,8 @@ function depsDeRutas(env: Env, ctx: ExecutionContext): DepsRutas {
       return stub as unknown as ConversacionApi;
     },
     gastoMes: async (mes) => (await global().gastoMes(mes)).usd,
+    modelosSinPrecio: async (mes) => (await global().gastoMes(mes)).modelosSinPrecio,
+    leerSalud: async (clave) => global().leerSalud(clave),
     ahora: () => Date.now(),
     esperarDespues: (trabajo) => ctx.waitUntil(trabajo),
   };
@@ -52,10 +54,12 @@ export async function revisarSalud(env: Env): Promise<void> {
     adaptadores: ADAPTADORES,
     config: () => obtenerConfig(env),
     gastoMes: async (mes) => (await global.gastoMes(mes)).usd,
+    modelosSinPrecio: async (mes) => (await global.gastoMes(mes)).modelosSinPrecio,
+    leerSalud: async (clave) => global.leerSalud(clave),
     ahora: () => Date.now(),
   });
   const mes = mesDelNegocio(cfg.horario.zona, Date.now());
-  const problemas = [...informe.problemas];
+  const problemas = [...informe.problemas, ...informe.avisos];
   if (informe.tope_alcanzado) {
     problemas.push(`se alcanzó el tope de IA de ${mes} ($${informe.gasto_ia_mes_usd} de $${informe.tope_usd}); el bot sigue contestando con el modelo económico`);
   }

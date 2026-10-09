@@ -5,20 +5,37 @@
 // docs/JUAN_WORKER.md). Mientras falten, no se cae: responde con un mensaje claro. Aquí solo viajan NOMBRES de
 // secretos y estados; jamás un valor.
 
-import { canalActivo, mesDelNegocio, type Config } from "./config";
+import { canalActivo, mesDelNegocio, type Config, type ProveedorIa } from "./config";
 import type { Env } from "./env";
 import type { AdaptadorCanal, CanalId, SaludCanal } from "./canales/tipos";
 import { TODOS_LOS_CANALES } from "./canales/tipos";
+import { entrenaConLosMensajes, modelosDelPapel, NOMBRE_DE_LA_CLAVE, clavePresente } from "./motor/proveedores";
+import { precioDe } from "./motor/precios";
 
-/** Lo que el Worker necesita SIEMPRE, con qué canal o pieza lo usa y para qué (solo nombres). */
-export const SECRETOS_GENERALES: { nombre: keyof Env & string; paraQue: string }[] = [
+/** Lo que el Worker necesita SIEMPRE (la clave de la IA depende de qué proveedor se elija en Odoo: ver `clavesDeIa`). */
+export const SECRETOS_GENERALES: { nombre: "JUAN_ODOO_TOKEN" | "JUAN_WORKER_TOKEN"; paraQue: string }[] = [
   { nombre: "JUAN_ODOO_TOKEN", paraQue: "hablar con Odoo (mensajes, configuración, herramientas)" },
   { nombre: "JUAN_WORKER_TOKEN", paraQue: "que Odoo pueda llamar a este Worker (enviar, estado, seguimiento, salud)" },
-  { nombre: "ANTHROPIC_API_KEY", paraQue: "la IA que contesta a los clientes" },
 ];
 
 export interface EstadoDeCanal extends SaludCanal {
   activo: boolean;
+}
+
+export interface EstadoDeIa {
+  proveedor: ProveedorIa;
+  respaldo: ProveedorIa | null;
+  modelo_rapido: string;
+  modelo_inteligente: string;
+  /** Proveedores cuya clave está cargada. */
+  con_clave: ProveedorIa[];
+  /** NOMBRES de las claves que faltan (la del principal y la del respaldo, si hay). */
+  claves_faltantes: string[];
+  /** El último fallo registrado (sin claves ni datos de clientes). */
+  ultimo_fallo?: { proveedor: string; modelo: string; motivo: string; ts: number };
+  ultimo_respaldo?: { proveedor: string; modelo: string; ts: number };
+  /** Modelos que gastaron sin tener precio cargado en Odoo (`precios_ia`). */
+  modelos_sin_precio: string[];
 }
 
 export interface InformeDeSalud {
@@ -27,14 +44,17 @@ export interface InformeDeSalud {
   mensaje: string;
   version: string;
   entorno: string;
-  /** NOMBRES de los secretos generales que faltan. */
+  /** NOMBRES de los secretos que faltan (generales y de la IA elegida). */
   secretos_faltantes: string[];
+  ia: EstadoDeIa;
   canales: Record<CanalId, EstadoDeCanal>;
   gasto_ia_mes_usd: number;
   tope_usd: number;
   tope_alcanzado: boolean;
   /** Lo que falta o está mal, en palabras; vacío si todo bien. */
   problemas: string[];
+  /** Cosas que conviene saber aunque todo funcione (p. ej. un modelo que entrena con los mensajes). */
+  avisos: string[];
 }
 
 export interface DepsSalud {
@@ -43,6 +63,10 @@ export interface DepsSalud {
   config(): Promise<Config>;
   gastoMes(mes: string): Promise<number>;
   ahora(): number;
+  /** Modelos que gastaron este mes sin precio cargado. */
+  modelosSinPrecio?(mes: string): Promise<string[]>;
+  /** Lo que el motor dejó anotado (último fallo de la IA, uso del respaldo). */
+  leerSalud?(clave: string): Promise<{ json: string; ts: number } | null>;
   /** false = no se pregunta a nadie por la red (el endpoint público no debe poder usarse para molestar al puente). */
   consultarConexiones?: boolean;
 }
@@ -53,14 +77,29 @@ function conTiempo<T>(p: Promise<T>, ms: number, defecto: T): Promise<T> {
   return Promise.race([p, new Promise<T>((r) => setTimeout(() => r(defecto), ms))]);
 }
 
+/** Solo los dos tokens con Odoo (no depende de la configuración, que viene de Odoo). */
 export function secretosGeneralesFaltantes(env: Env): string[] {
-  return SECRETOS_GENERALES.filter((s) => !env[s.nombre]).map((s) => s.nombre);
+  return SECRETOS_GENERALES.filter((s) => !env[s.nombre]).map((s) => s.nombre as string);
+}
+
+/** Las claves de IA que hacen falta según lo elegido en Odoo: la del principal y, si hay respaldo, la del respaldo. */
+export function clavesDeIa(cfg: Config): { proveedor: ProveedorIa; clave: string; papel: "principal" | "respaldo" }[] {
+  const lista: { proveedor: ProveedorIa; clave: string; papel: "principal" | "respaldo" }[] = [{ proveedor: cfg.proveedor_ia, clave: NOMBRE_DE_LA_CLAVE[cfg.proveedor_ia], papel: "principal" }];
+  if (cfg.proveedor_respaldo_ia) lista.push({ proveedor: cfg.proveedor_respaldo_ia, clave: NOMBRE_DE_LA_CLAVE[cfg.proveedor_respaldo_ia], papel: "respaldo" });
+  return lista;
+}
+
+/** NOMBRES de los secretos que faltan: los dos tokens con Odoo y la(s) clave(s) de la IA elegida(s). */
+export function secretosFaltantes(env: Env, cfg: Config): string[] {
+  const generales = SECRETOS_GENERALES.filter((s) => !env[s.nombre]).map((s) => s.nombre as string);
+  const ia = clavesDeIa(cfg).filter((c) => !clavePresente(env, c.proveedor)).map((c) => c.clave as string);
+  return [...generales, ...ia];
 }
 
 /** La frase que se lee primero. */
-export function resumenParaPersonas(faltantes: string[], canales: Record<CanalId, EstadoDeCanal>, problemas: string[]): string {
-  if (faltantes.includes("ANTHROPIC_API_KEY")) {
-    return "Falta ANTHROPIC_API_KEY: el asistente todavía no puede contestar a los clientes. Pégala en Cloudflare (Worker → Settings → Variables and Secrets).";
+export function resumenParaPersonas(ia: EstadoDeIa, canales: Record<CanalId, EstadoDeCanal>, problemas: string[]): string {
+  if (ia.con_clave.length === 0 || (!ia.con_clave.includes(ia.proveedor) && !(ia.respaldo && ia.con_clave.includes(ia.respaldo)))) {
+    return `Falta ${ia.claves_faltantes[0] ?? NOMBRE_DE_LA_CLAVE[ia.proveedor]}: el asistente todavía no puede contestar con IA y le dice a cada cliente que una vendedora lo atiende. Pega la clave en Cloudflare (Worker → Settings → Variables and Secrets).`;
   }
   const activos = TODOS_LOS_CANALES.filter((c) => canales[c].activo);
   const listos = activos.filter((c) => canales[c].configurado);
@@ -71,16 +110,75 @@ export function resumenParaPersonas(faltantes: string[], canales: Record<CanalId
   return "Todo en orden.";
 }
 
+async function leerJson<T>(d: DepsSalud, clave: string): Promise<T | undefined> {
+  try {
+    const f = await d.leerSalud?.(clave);
+    return f ? (JSON.parse(f.json) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   const consultar = d.consultarConexiones !== false;
   const cfg = await d.config();
-  const gasto = await d.gastoMes(mesDelNegocio(cfg.horario.zona, d.ahora())).catch(() => 0);
-  const secretos = secretosGeneralesFaltantes(d.env);
-  const problemas: string[] = secretos.map((s) => {
-    const para = SECRETOS_GENERALES.find((x) => x.nombre === s)!.paraQue;
-    return `falta ${s} (${para})`;
-  });
+  const mes = mesDelNegocio(cfg.horario.zona, d.ahora());
+  const gasto = await d.gastoMes(mes).catch(() => 0);
+  const sinPrecio = (await d.modelosSinPrecio?.(mes).catch(() => [] as string[])) ?? [];
+  const faltantes = secretosFaltantes(d.env, cfg);
+  const problemas: string[] = [];
+  const avisos: string[] = [];
 
+  for (const s of SECRETOS_GENERALES) if (!d.env[s.nombre]) problemas.push(`falta ${s.nombre} (${s.paraQue})`);
+
+  // ── La IA ──
+  const conClave = (["anthropic", "meta", "openai"] as const).filter((p) => clavePresente(d.env, p));
+  const claves = clavesDeIa(cfg);
+  const falta = claves.filter((c) => !clavePresente(d.env, c.proveedor));
+  for (const c of falta) {
+    problemas.push(
+      c.papel === "principal"
+        ? `falta ${c.clave}: el proveedor de IA «${c.proveedor}» no puede contestar${cfg.proveedor_respaldo_ia && clavePresente(d.env, cfg.proveedor_respaldo_ia) ? " (contesta el respaldo)" : ""}`
+        : `falta ${c.clave}: el respaldo «${c.proveedor}» no puede contestar`,
+    );
+  }
+  const alguno = claves.some((c) => clavePresente(d.env, c.proveedor));
+  if (!alguno) problemas.push("ningún proveedor de IA tiene clave: a cada cliente se le dice que una vendedora lo atiende");
+  for (const papel of ["principal", "respaldo"] as const) {
+    const m = modelosDelPapel(cfg, papel);
+    if (!m) continue;
+    for (const modelo of new Set([m.rapido, m.inteligente])) {
+      if (entrenaConLosMensajes(modelo)) {
+        avisos.push(`el modelo ${modelo} puede usar los mensajes de los clientes para entrenar; confirma que el texto de privacidad lo diga (Ley 81 de 2019)`);
+      }
+      if (!precioDe(modelo, cfg.precios_ia).conPrecio) {
+        problemas.push(`el modelo ${modelo} no tiene precio cargado en Odoo (precios_ia): el tope mensual lo estima con una tarifa de reserva`);
+      }
+    }
+  }
+  for (const m of sinPrecio) {
+    if (!problemas.some((p) => p.includes(m))) problemas.push(`el modelo ${m} gastó este mes sin precio cargado en Odoo (precios_ia)`);
+  }
+  const ultimoFallo = await leerJson<EstadoDeIa["ultimo_fallo"]>(d, "ia_fallo");
+  const ultimoRespaldo = await leerJson<EstadoDeIa["ultimo_respaldo"]>(d, "ia_respaldo");
+  const hace24h = d.ahora() - 24 * 3600_000;
+  if (ultimoFallo && ultimoFallo.ts > hace24h) {
+    problemas.push(`la IA «${ultimoFallo.proveedor}/${ultimoFallo.modelo}» falló hace poco: ${ultimoFallo.motivo}`);
+  }
+  const principal = modelosDelPapel(cfg, "principal");
+  const ia: EstadoDeIa = {
+    proveedor: cfg.proveedor_ia,
+    respaldo: cfg.proveedor_respaldo_ia,
+    modelo_rapido: principal?.rapido ?? "",
+    modelo_inteligente: principal?.inteligente ?? "",
+    con_clave: [...conClave],
+    claves_faltantes: falta.map((c) => c.clave as string),
+    ...(ultimoFallo && ultimoFallo.ts > hace24h ? { ultimo_fallo: ultimoFallo } : {}),
+    ...(ultimoRespaldo && ultimoRespaldo.ts > hace24h ? { ultimo_respaldo: ultimoRespaldo } : {}),
+    modelos_sin_precio: sinPrecio,
+  };
+
+  // ── Los canales ──
   const canales = {} as Record<CanalId, EstadoDeCanal>;
   for (const id of TODOS_LOS_CANALES) {
     const a = d.adaptadores.find((x) => x.canales.includes(id));
@@ -100,21 +198,23 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   const tope = cfg.presupuesto_ia_mensual_usd;
   return {
     ok: problemas.length === 0,
-    mensaje: resumenParaPersonas(secretos, canales, problemas),
+    mensaje: resumenParaPersonas(ia, canales, problemas),
     version: d.env.VERSION ?? "dev",
     entorno: d.env.ENTORNO ?? "desconocido",
-    secretos_faltantes: secretos,
+    secretos_faltantes: faltantes,
+    ia,
     canales,
     gasto_ia_mes_usd: redondear(gasto),
     tope_usd: tope,
     tope_alcanzado: tope > 0 && gasto >= tope,
     problemas,
+    avisos,
   };
 }
 
 /**
  * Lo único que se muestra sin token: si el Worker está vivo, qué NOMBRES de secretos faltan y el estado de cada canal.
- * Sin gasto, sin tope, sin detalles de conexión.
+ * Sin gasto, sin tope, sin motivos de fallo, sin detalles de conexión.
  */
 export interface InformePublico {
   ok: boolean;
@@ -122,6 +222,7 @@ export interface InformePublico {
   version: string;
   entorno: string;
   secretos_faltantes: string[];
+  ia: { proveedor: ProveedorIa; respaldo: ProveedorIa | null; lista: boolean };
   canales: Record<CanalId, { activo: boolean; configurado: boolean; faltan: string[] }>;
 }
 
@@ -133,6 +234,7 @@ export async function informePublico(d: DepsSalud): Promise<InformePublico> {
     version: i.version,
     entorno: i.entorno,
     secretos_faltantes: i.secretos_faltantes,
+    ia: { proveedor: i.ia.proveedor, respaldo: i.ia.respaldo, lista: i.ia.con_clave.includes(i.ia.proveedor) || (!!i.ia.respaldo && i.ia.con_clave.includes(i.ia.respaldo)) },
     canales: Object.fromEntries(
       TODOS_LOS_CANALES.map((c) => [c, { activo: i.canales[c].activo, configurado: i.canales[c].configurado, faltan: i.canales[c].faltan ?? [] }]),
     ) as InformePublico["canales"],

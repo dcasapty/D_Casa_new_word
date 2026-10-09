@@ -24,6 +24,14 @@ export const HERRAMIENTAS_DE_PRUEBA: DefHerramienta[] = [
   { nombre: "crear_oportunidad", descripcion: "Registra una oportunidad para las vendedoras.", parametros: objeto({ resumen: texto("Resumen"), interes: texto("Interés"), presupuesto: { type: "number" } }, ["resumen"]) },
   { nombre: "anotar_conversacion", descripcion: "Nota interna.", parametros: objeto({ nota: texto("Nota") }, ["nota"]) },
   { nombre: "pasar_a_vendedora", descripcion: "Pasa la conversación a una vendedora.", parametros: objeto({ motivo: texto("Motivo"), urgencia: { type: "string", enum: ["normal", "alta"] } }, ["motivo"]) },
+  { nombre: "buscar_conocimiento", descripcion: "Busca en la base de conocimiento de la tienda (políticas, garantía, pagos...).", parametros: objeto({ consulta: texto("La pregunta") }, ["consulta"]) },
+  { nombre: "registrar_pregunta_sin_respuesta", descripcion: "Deja anotada una pregunta que la base de conocimiento no supo contestar.", parametros: objeto({ pregunta: texto("Lo que preguntó el cliente"), resumen: texto("Resumen") }, ["pregunta"]) },
+];
+
+/** La base de conocimiento de prueba: cada entrada responde a ciertas palabras. */
+export const CONOCIMIENTO = [
+  { titulo: "Garantía y cambios", texto: "Los cambios se aceptan dentro de 8 días con la factura y el producto sin uso.", score: 0.82, palabras: ["garantia", "cambio", "cambios", "devolucion", "devolver"] },
+  { titulo: "Formas de pago", texto: "Aceptamos efectivo, Yappy, transferencia y tarjeta.", score: 0.77, palabras: ["pago", "pagar", "yappy", "tarjeta", "efectivo", "transferencia"] },
 ];
 
 export const CATALOGO = [
@@ -66,6 +74,18 @@ const MANEJADORES: Record<string, Manejador> = {
   },
   crear_oportunidad: () => ({ oportunidad_id: 301 }),
   anotar_conversacion: () => ({ ok: true }),
+  buscar_conocimiento: (a) => {
+    const q = String(a.consulta ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const hallados = CONOCIMIENTO.filter((c) => c.palabras.some((p) => q.includes(p)));
+    return { resultados: hallados.map(({ titulo, texto, score }) => ({ titulo, texto, score })) };
+  },
+  registrar_pregunta_sin_respuesta: (a, odoo) => {
+    odoo.preguntasSinRespuesta.push(a);
+    return { ok: true, id: odoo.preguntasSinRespuesta.length };
+  },
   pasar_a_vendedora: (_a, odoo) => {
     // Como Odoo: pausa al bot y devuelve el texto según el horario.
     odoo.estadoActual = { ...odoo.estadoActual, estado: "humano", bot_activo: false };
@@ -90,6 +110,12 @@ export class OdooFalso implements OdooApi {
   manejadores: Record<string, Manejador> = { ...MANEJADORES };
   /** Cuántas veces se pidió config (para probar la caché). */
   pedidosDeConfig = 0;
+  /** Lo que el bot dejó anotado como pregunta sin respuesta. */
+  preguntasSinRespuesta: Record<string, unknown>[] = [];
+  /** Cuánto tarda cada herramienta (ms reales), para probar que las de un mismo paso corren juntas. */
+  retardoMs = 0;
+  enCurso = 0;
+  maxEnCurso = 0;
 
   private revisar() {
     if (this.caido) throw new OdooError("Odoo no contesta", 0, true);
@@ -121,6 +147,12 @@ export class OdooFalso implements OdooApi {
   async herramienta(nombre: string, args: Record<string, unknown>, conversacion_id: number | null): Promise<ResultadoHerramienta> {
     if (this.caido) return { ok: false, error: "Odoo no contesta" };
     this.llamadas.push({ nombre, args, conversacion_id });
+    if (this.retardoMs > 0) {
+      this.enCurso++;
+      this.maxEnCurso = Math.max(this.maxEnCurso, this.enCurso);
+      await new Promise((r) => setTimeout(r, this.retardoMs));
+      this.enCurso--;
+    }
     const f = this.manejadores[nombre];
     if (!f) return { ok: false, error: `herramienta desconocida: ${nombre}` };
     try {

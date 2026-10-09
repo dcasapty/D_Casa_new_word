@@ -126,8 +126,9 @@ const MAX_LARGO_LECCION = 300;
 
 /** Las lecciones llegan como texto (una por línea) o como lista. Sin ángulos: no pueden abrir ni cerrar etiquetas del prompt. */
 export function normalizarLecciones(v: unknown): string[] {
-  const lineas = typeof v === "string" ? v.split(/\r?\n/) : Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  return lineas
+  const crudas = typeof v === "string" ? [v] : Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  return crudas
+    .flatMap((x) => x.split(/\r?\n/))
     .map((l) => l.replace(/[<>]/g, "").replace(/^\s*[-*•]\s*/, "").trim().slice(0, MAX_LARGO_LECCION))
     .filter(Boolean)
     .slice(0, MAX_LECCIONES);

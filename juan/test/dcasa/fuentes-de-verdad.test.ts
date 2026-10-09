@@ -169,14 +169,27 @@ describe("lo que no aparece en la herramienta, no se inventa", () => {
 });
 
 describe("el modelo recibe las herramientas de Odoo tal cual", () => {
-  it("las nueve de Odoo más enviar_foto_producto, con su esquema", async () => {
+  it("las once de Odoo más enviar_foto_producto, con su esquema", async () => {
     const m = crearMundo();
     const g = m.guion([{ texto: "Hola." }]);
     await m.conversar("hola");
     const tools = (g.doGenerateCalls[0].tools ?? []) as { name: string; description?: string; inputSchema?: Record<string, unknown> }[];
     const nombres = tools.map((t) => t.name).sort();
     expect(nombres).toEqual(
-      ["anotar_conversacion", "buscar_productos", "crear_oportunidad", "enviar_foto_producto", "horario_y_tienda", "listar_categorias", "pasar_a_vendedora", "reglas_socios", "saldo_puntos", "ver_producto"].sort(),
+      [
+        "anotar_conversacion",
+        "buscar_conocimiento",
+        "buscar_productos",
+        "crear_oportunidad",
+        "enviar_foto_producto",
+        "horario_y_tienda",
+        "listar_categorias",
+        "pasar_a_vendedora",
+        "registrar_pregunta_sin_respuesta",
+        "reglas_socios",
+        "saldo_puntos",
+        "ver_producto",
+      ].sort(),
     );
     const buscar = tools.find((t) => t.name === "buscar_productos")!;
     expect(buscar.description).toContain("Busca productos publicados");

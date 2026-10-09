@@ -28,6 +28,8 @@ export interface OpcionesMundo {
   transcribir?: DepsMotor["transcribir"];
   /** Proveedores de IA con clave (por defecto solo Anthropic). */
   proveedores?: ProveedorIa[];
+  /** Un Odoo compartido con otras conversaciones (para probar que no se mezclan). */
+  odoo?: OdooFalso;
   /** Para pruebas con un servidor falso: arma el modelo real del proveedor. Si no, se usa el guion. */
   fabrica?: (sel: SeleccionDeModelo) => LanguageModel;
 }
@@ -37,7 +39,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
   const idExterno = op.idExterno ?? "50760261919";
   let t = AHORA_INICIAL;
   let alarma: number | null = null;
-  const odoo = new OdooFalso();
+  const odoo = op.odoo ?? new OdooFalso();
   if (op.config) odoo.rawConfig = { ...(odoo.rawConfig as object), ...op.config };
   const canal = new CanalFalso(canalId);
   const sqlGlobal = new AlmacenGlobal(crearSqlNode());

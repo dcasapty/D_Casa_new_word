@@ -19,6 +19,8 @@ export class RegistroDelTurno {
   readonly preciosProducto = new Set<number>();
   /** Toda cifra respaldada por una herramienta. */
   readonly cifras = new Set<number>();
+  /** Números que aparecen escritos dentro del texto de un resultado («cambios dentro de 8 días»): respaldan plazos y porcentajes. */
+  readonly numerosEnTexto = new Set<number>();
   readonly fotos = new Map<string, { url: string; nombre?: string }>();
   readonly medios: MedioSaliente[] = [];
   readonly llamadas: { nombre: string; ok: boolean }[] = [];
@@ -84,6 +86,7 @@ export function busquedaFlojaDe(resultado: unknown): boolean {
 const CLAVES_DE_EXISTENCIAS = /^(existencias?|stock|qty_available|free_qty|virtual_available|incoming_qty|outgoing_qty|cantidad(_disponible)?|unidades(_disponibles)?|inventario|disponible_cantidad|en_bodega|saldo_stock)$/i;
 const CLAVES_DE_PRECIO = /precio|price|importe/i;
 const CLAVES_DE_FOTO = ["foto", "foto_url", "imagen", "imagen_url", "image", "image_url", "url_foto", "url_imagen"];
+const CLAVES_DE_URL = /^(url|foto|imagen|image|galeria|enlace|link)|(_url|_foto|_imagen)$/i;
 const CLAVES_SIN_CIFRAS = /(^|_)(id|ids|conversacion_id|partner_id|product_id|template_id)$/i;
 
 const esObjeto = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
@@ -117,6 +120,8 @@ export function procesarResultado(valor: unknown, reg: RegistroDelTurno, sitio: 
       reg.cifras.add(m.valor);
       if (enPrecio) reg.preciosProducto.add(m.valor);
     }
+    // Direcciones de fotos y rutas llevan números que no son datos (ids): no cuentan.
+    if (!CLAVES_DE_URL.test(clave) && !/^(?:https?:)?\/|^data:/i.test(valor.trim())) for (const n of cifrasDeTexto(valor)) reg.numerosEnTexto.add(n);
     return valor;
   }
 
@@ -220,8 +225,18 @@ export function textoDeLaHerramienta(resultado: unknown): string | null {
 
 /** Procesa el resultado para el modelo y anota si la consulta sirvió o salió floja. */
 function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
-  if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) reg.busquedasFlojas++;
-  else if (HERRAMIENTAS_DE_LECTURA.has(nombre) && !(nombre === "buscar_productos" && busquedaFlojaDe(resultado))) reg.consultasUtiles++;
+  if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) {
+    reg.busquedasFlojas++;
+    // Sin respuesta en la base de conocimiento: el modelo recibe la orden de NO improvisar, junto con lo poco que haya salido.
+    return {
+      sin_respuesta: true,
+      instruccion:
+        "La base de conocimiento no tiene respuesta para esto. NO la inventes ni la deduzcas por parecido. Dile al cliente que una vendedora lo confirma, " +
+        "llama a registrar_pregunta_sin_respuesta con su pregunta y, si hay interés de compra, también a crear_oportunidad.",
+      detalle: procesarResultado(resultado, reg, sitio),
+    };
+  }
+  if (HERRAMIENTAS_DE_LECTURA.has(nombre) && !(nombre === "buscar_productos" && busquedaFlojaDe(resultado))) reg.consultasUtiles++;
   return procesarResultado(resultado, reg, sitio);
 }
 

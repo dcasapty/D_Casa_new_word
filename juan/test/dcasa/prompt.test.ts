@@ -30,7 +30,7 @@ describe("<fuentes_de_verdad> apunta a las herramientas de Odoo", () => {
     }
   });
 
-  it("el prompt completo nombra las nueve herramientas de Odoo y la local de fotos", () => {
+  it("el prompt completo nombra las once herramientas de Odoo y la local de fotos", () => {
     for (const h of HERRAMIENTAS_DEL_CONTRATO) expect(prompt, h).toContain(h);
     expect(prompt).toContain("enviar_foto_producto");
   });

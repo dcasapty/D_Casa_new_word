@@ -697,6 +697,7 @@ export class MotorConversacion {
     const contextoDeRevision = (): ContextoRevision => ({
       preciosProducto: registro.preciosProducto,
       cifrasConocidas: new Set<number>([...historicas, ...registro.cifras]),
+      numerosEnTexto: registro.numerosEnTexto,
       palabrasProhibidas: cfg.palabras_prohibidas,
       nombresHerramientas: nombresDeHerramientas,
       textoDelPrompt: promptDeFugas,
@@ -834,7 +835,8 @@ export class MotorConversacion {
     if (burbujas.length === 0 && medios.length === 0) return [];
 
     const salida: Saliente = { para: this.idExterno(), burbujas, medios, esperaMs: ESPERA_ENTRE_BURBUJAS_MS };
-    await adaptador.escribiendo?.(canalId, salida.para, this.deps.env).catch(() => {});
+    // Antes de enviar (despedidas, seguimientos...) también; si ya se mostró hace poco, no se repite.
+    if (o.autor === "bot") this.mostrarEscribiendo();
 
     let ids: string[] = [];
     for (let intento = 0; ; intento++) {

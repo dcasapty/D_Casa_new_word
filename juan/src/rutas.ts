@@ -33,6 +33,8 @@ export interface DepsRutas {
   config(): Promise<Config>;
   conversacion(canal: CanalId, idExterno: string): ConversacionApi;
   gastoMes(mes: string): Promise<number>;
+  modelosSinPrecio?(mes: string): Promise<string[]>;
+  leerSalud?(clave: string): Promise<{ json: string; ts: number } | null>;
   ahora(): number;
   /** Para que un webhook responda de inmediato y el trabajo siga después. */
   esperarDespues(trabajo: Promise<unknown>): void;
@@ -83,7 +85,7 @@ export async function manejar(req: Request, env: Env, d: DepsRutas): Promise<Res
 
   if (ruta === "/salud") {
     if (req.method !== "GET") return error("método no permitido", 405);
-    return json(await informePublico({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, ahora: d.ahora }));
+    return json(await informePublico({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora }));
   }
 
   const adaptador = adaptadorPorRuta(ruta, d.adaptadores);
@@ -163,7 +165,7 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
 
   if (ruta === "/odoo/salud") {
     if (req.method !== "GET") return error("método no permitido", 405);
-    const informe = await informeDeSalud({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, ahora: d.ahora });
+    const informe = await informeDeSalud({ env, adaptadores: d.adaptadores, config: d.config, gastoMes: d.gastoMes, modelosSinPrecio: d.modelosSinPrecio, leerSalud: d.leerSalud, ahora: d.ahora });
     return json(informe);
   }
 
