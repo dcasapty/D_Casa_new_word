@@ -85,7 +85,8 @@ export class ConexionesJuan extends Component {
             return { clase: "alerta", icono: "fa-exclamation-triangle", texto: "Faltan claves", ayuda: "Pega estas claves en el Worker de Juan (solo se muestran los nombres)." };
         }
         if (canal.conectado === false) {
-            return { clase: "alerta", icono: "fa-chain-broken", texto: "Desconectado", ayuda: canal.detalle ? `Estado: ${canal.detalle}.` : "El canal no está conectado." };
+            const detalle = canal.detalle ? NOMBRES_DE_ESTADO_DEL_QR[canal.detalle] || canal.detalle : null;
+            return { clase: "alerta", icono: "fa-chain-broken", texto: "Desconectado", ayuda: detalle ? `Estado: ${detalle}.` : "El canal no está conectado." };
         }
         if (canal.conectado === true) {
             return { clase: "ok", icono: "fa-check-circle", texto: "Conectado", ayuda: null };

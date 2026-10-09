@@ -468,7 +468,11 @@ class TestContratoVisualJuan(PanelUiCase):
             window.abrirCotizacion = async () => {
                 __dcj.aqui('.o_dcj_herramienta', 'Cotización').click();
                 await __dcj.esperar(() => document.querySelector('.o_dcj_hoja'), 'la cotización');
-                const entrada = await __dcj.esperar(() => document.querySelector('.o_dcj_hoja input[type=search]'), 'el buscador');
+                // Si ya hay una abierta (la de la captura anterior), esa es la que se ve.
+                await __dcj.esperar(() => document.querySelector('.o_dcj_hoja input[type=search]')
+                                          || __dcj.aqui('.o_dcj_hoja', 'Enviar el PDF'), 'la cotización cargada');
+                if (__dcj.aqui('.o_dcj_hoja', 'Enviar el PDF')) { await new Promise((ok) => setTimeout(ok, 1200)); return; }
+                const entrada = document.querySelector('.o_dcj_hoja input[type=search]');
                 entrada.value = 'cama';
                 entrada.dispatchEvent(new Event('input', { bubbles: true }));
                 await __dcj.esperar(() => document.querySelectorAll('.o_dcj_producto').length >= 2, 'productos');
