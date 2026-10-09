@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Adjuntar">
+        <div class="o_dcj_capa" t-on-click.self="cerrar">
+            <div class="o_dcj_hoja" t-ref="panel" role="dialog" aria-modal="true" aria-labelledby="o_dcj_adjuntar_titulo">
+                <header class="o_dcj_hoja_cabecera">
+                    <h2 id="o_dcj_adjuntar_titulo">Adjuntar a una factura o a un pedido</h2>
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </header>
+                <div class="o_dcj_hoja_cuerpo">
+                    <p t-if="archivo" class="o_dcj_ayuda">Archivo: <strong t-out="archivo.nombre"/>. Se copia al historial del documento que elijas; el original se queda en la conversación.</p>
+                    <p t-if="local.cargando" class="o_dcj_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando los documentos del cliente…</p>
+                    <p t-elif="local.error" class="o_dcj_error" role="alert" t-out="local.error"/>
+                    <p t-elif="!local.cliente" class="o_dcj_vacio_chico">Esta conversación todavía no tiene un cliente en Odoo, así que no hay documentos a los que adjuntar.</p>
+                    <t t-else="">
+                        <h3 class="o_dcj_subtitulo">Pedidos</h3>
+                        <p t-if="!local.pedidos.length" class="o_dcj_secundario">Este cliente no tiene pedidos.</p>
+                        <ul t-else="" class="o_dcj_cotizaciones" aria-label="Pedidos del cliente">
+                            <li t-foreach="local.pedidos" t-as="p" t-key="p.id">
+                                <button type="button" class="o_dcj_cotizacion_opcion" t-att-disabled="local.ocupado" t-on-click="() => this.elegir('sale.order', p)">
+                                    <strong t-out="p.nombre"/>
+                                    <span class="o_dcj_secundario"><t t-out="p.estado_nombre"/> · <t t-out="dolares(p.total)"/></span>
+                                </button>
+                            </li>
+                        </ul>
+                        <h3 class="o_dcj_subtitulo">Facturas</h3>
+                        <p t-if="!local.facturas.length" class="o_dcj_secundario">Este cliente no tiene facturas.</p>
+                        <ul t-else="" class="o_dcj_cotizaciones" aria-label="Facturas del cliente">
+                            <li t-foreach="local.facturas" t-as="f" t-key="f.id">
+                                <button type="button" class="o_dcj_cotizacion_opcion" t-att-disabled="local.ocupado" t-on-click="() => this.elegir('account.move', f)">
+                                    <strong t-out="f.nombre"/>
+                                    <span class="o_dcj_secundario"><t t-out="f.estado_nombre"/> · <t t-out="dolares(f.total)"/></span>
+                                </button>
+                            </li>
+                        </ul>
+                    </t>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

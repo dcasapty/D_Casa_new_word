@@ -843,3 +843,140 @@ class TestMencionesEnNotas(PanelCase):
         self.Mensaje._cron_reintentar_envios()
         enviados = [c for c in worker.call_args_list if c.args[1].endswith('/odoo/enviar')]
         self.assertFalse(enviados)
+
+
+@tagged('post_install', '-at_install')
+class TestComprobanteAUnDocumento(PanelCase):
+    """Un archivo del cliente (un comprobante) se adjunta con un clic al pedido o a la factura de ESE cliente."""
+
+    def setUp(self):
+        super().setUp()
+        self.conv = self.cliente(1, nombre='Karen Prueba')
+        self.partner = self.conv.partner_id
+        self.assertTrue(self.partner, 'La conversación de WhatsApp crea la ficha del cliente')
+        self.mensaje = self.conv.mensaje_ids.filtered(lambda m: m.autor == 'cliente')[:1]
+        self.adjunto = self.env['ir.attachment'].create({
+            'name': 'yappy.png', 'raw': b'contenido-del-comprobante', 'mimetype': 'image/png',
+            'res_model': 'dcasa.mensaje', 'res_id': self.mensaje.id})
+        self.mensaje.sudo().adjunto_ids = [Command.link(self.adjunto.id)]
+        self.producto = self.env['product.product'].create({
+            'name': 'Cama de prueba (comprobantes)', 'type': 'consu', 'list_price': 100.0,
+            'taxes_id': [Command.clear()]})
+        self.pedido = self.env['sale.order'].create({
+            'partner_id': self.partner.id, 'user_id': self.vendedora.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1})]})
+        self.factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': self.partner.id, 'invoice_date': fields.Date.today(),
+            'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': 100.0})]})
+        self.ajeno = self.env['res.partner'].create({'name': 'Otro cliente'})
+        self.pedido_ajeno = self.env['sale.order'].create({
+            'partner_id': self.ajeno.id, 'user_id': self.vendedora.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1})]})
+
+    def adjuntar(self, modelo, registro, usuario=None, adjunto=None):
+        return (self.panel if usuario is None else self.Conversacion.with_user(usuario)).adjuntar_a_documento(
+            self.conv.id, (adjunto or self.adjunto).id, modelo, registro.id)
+
+    def test_lista_solo_los_documentos_de_ese_cliente(self):
+        r = self.panel.documentos_del_cliente(self.conv.id)
+        self.assertTrue(r['cliente'])
+        self.assertEqual([p['id'] for p in r['pedidos']], [self.pedido.id])
+        self.assertEqual([f['id'] for f in r['facturas']], [self.factura.id])
+        self.assertEqual(r['pedidos'][0]['total'], 100.0)
+
+    def test_sin_cliente_no_hay_documentos(self):
+        sin = self.conversacion('hola', canal='telegram', id_externo='999')
+        sin.sudo().partner_id = False
+        self.assertEqual(self.panel.documentos_del_cliente(sin.id), {'cliente': False, 'pedidos': [], 'facturas': []})
+
+    def test_adjunta_el_comprobante_al_pedido_con_nota_en_su_chatter_y_aviso_en_el_hilo(self):
+        r = self.adjuntar('sale.order', self.pedido)
+        self.assertEqual((r['ok'], r['ya_estaba'], r['documento']), (True, False, self.pedido.name))
+        copia = self.env['ir.attachment'].search([('res_model', '=', 'sale.order'), ('res_id', '=', self.pedido.id)])
+        self.assertEqual(len(copia), 1)
+        self.assertEqual(copia.raw, b'contenido-del-comprobante')
+        self.assertTrue(self.adjunto.exists(), 'El original se queda en la conversación')
+        nota = self.pedido.message_ids.filtered(lambda m: 'adjuntó «yappy.png»' in str(m.body))
+        self.assertTrue(nota)
+        self.assertIn(copia, nota.attachment_ids)
+        avisos = self.conv.mensaje_ids.filtered(lambda m: m.tipo == 'aviso').mapped('texto')
+        self.assertTrue(any(self.pedido.name in a and 'yappy.png' in a for a in avisos))
+
+    def test_tambien_a_una_factura_del_cliente(self):
+        # El rol real «Vendedora» de D'CASA incluye Facturación (account.group_account_invoice).
+        facturadora = new_test_user(self.env, login='juan_facturadora', name='Facturadora Prueba',
+                                    groups='base.group_user,dcasa_base.group_vendedora')
+        self.adjuntar('account.move', self.factura, usuario=facturadora)
+        self.assertEqual(self.env['ir.attachment'].search_count([
+            ('res_model', '=', 'account.move'), ('res_id', '=', self.factura.id), ('name', '=', 'yappy.png')]), 1)
+
+    def test_adjuntarlo_dos_veces_no_lo_duplica(self):
+        self.adjuntar('sale.order', self.pedido)
+        r = self.adjuntar('sale.order', self.pedido)
+        self.assertTrue(r['ya_estaba'])
+        self.assertEqual(self.env['ir.attachment'].search_count([
+            ('res_model', '=', 'sale.order'), ('res_id', '=', self.pedido.id)]), 1)
+
+    def test_no_se_adjunta_al_documento_de_otro_cliente(self):
+        with self.assertRaises(UserError) as error:
+            self.adjuntar('sale.order', self.pedido_ajeno)
+        self.assertIn('otro cliente', str(error.exception))
+        self.assertFalse(self.env['ir.attachment'].search_count([('res_id', '=', self.pedido_ajeno.id),
+                                                                  ('res_model', '=', 'sale.order')]))
+
+    def test_solo_archivos_que_mando_el_cliente_en_esta_conversacion(self):
+        otra = self.cliente(2, nombre='Otra Persona')
+        ajeno = self.env['ir.attachment'].create({
+            'name': 'ajeno.png', 'raw': b'x', 'res_model': 'dcasa.mensaje', 'res_id': otra.mensaje_ids[:1].id})
+        otra.mensaje_ids[:1].sudo().adjunto_ids = [Command.link(ajeno.id)]
+        with self.assertRaises(UserError):
+            self.adjuntar('sale.order', self.pedido, adjunto=ajeno)       # de otra conversación
+        propio = self.env['ir.attachment'].create({
+            'name': 'cotizacion.pdf', 'raw': b'pdf', 'res_model': 'dcasa.mensaje', 'res_id': self.mensaje.id})
+        nota = self.Mensaje._crear_interno(self.conv, 'nota', 'una nota', self.vendedora)
+        nota.sudo().adjunto_ids = [Command.link(propio.id)]
+        with self.assertRaises(UserError):
+            self.adjuntar('sale.order', self.pedido, adjunto=propio)      # no lo mandó el cliente
+        with self.assertRaises(UserError):
+            self.adjuntar('sale.order', self.pedido, adjunto=self.env['ir.attachment'].browse(999999999))
+
+    def test_sin_permiso_de_facturacion_el_mensaje_es_claro(self):
+        with self.assertRaises(UserError) as error:
+            self.adjuntar('account.move', self.factura, usuario=self.gerente)   # solo equipo de ventas, sin Facturación
+        self.assertIn('No tienes permiso', str(error.exception))
+
+    def test_solo_pedidos_y_facturas_de_cliente(self):
+        for modelo in ('res.partner', 'ir.config_parameter', 'sale.order.line', None, 5):
+            with self.subTest(modelo=modelo), self.assertRaises(UserError):
+                self.panel.adjuntar_a_documento(self.conv.id, self.adjunto.id, modelo, self.pedido.id)
+        compra = self.env['account.move'].create({
+            'move_type': 'out_refund', 'partner_id': self.partner.id, 'invoice_date': fields.Date.today()})
+        with self.assertRaises(UserError):
+            self.adjuntar('account.move', compra)
+
+    def test_pide_numeros_enteros(self):
+        for malo in (None, True, 'x', 0, -3):
+            with self.subTest(malo=malo), self.assertRaises(UserError):
+                self.panel.adjuntar_a_documento(self.conv.id, malo, 'sale.order', self.pedido.id)
+            with self.subTest(malo=malo, campo='registro'), self.assertRaises(UserError):
+                self.panel.adjuntar_a_documento(self.conv.id, self.adjunto.id, 'sale.order', malo)
+
+    def test_quien_no_puede_escribir_en_el_documento_recibe_un_mensaje_claro(self):
+        ajeno_a_ella = self.env['sale.order'].create({
+            'partner_id': self.partner.id, 'user_id': self.gerente.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1})]})
+        try:
+            ajeno_a_ella.with_user(self.vendedora).check_access('write')
+            self.skipTest('La vendedora puede escribir en los pedidos de otras: no hay nada que negar en este entorno')
+        except AccessError:
+            pass
+        with self.assertRaises(UserError) as error:
+            self.adjuntar('sale.order', ajeno_a_ella)
+        self.assertIn('No tienes permiso', str(error.exception))
+
+    def test_nadie_fuera_de_ventas_puede_ni_por_rpc(self):
+        for usuario in (self.interno, self.portal):
+            adjuntar = [self.conv.id, self.adjunto.id, 'sale.order', self.pedido.id]
+            for metodo, args in (('documentos_del_cliente', [self.conv.id]), ('adjuntar_a_documento', adjuntar)):
+                with self.subTest(usuario=usuario.login, metodo=metodo), self.assertRaises(AccessError):
+                    call_kw(self.env(user=usuario)['dcasa.conversacion'], metodo, list(args), {})

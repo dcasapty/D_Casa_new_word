@@ -11,7 +11,7 @@ import os
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.tools.mimetypes import guess_mimetype
 
 from . import adjuntos as A
@@ -146,6 +146,81 @@ class DcasaConversacionPanelExtra(models.Model):
             'rapidas': self.env['dcasa.respuesta.rapida'].lista(),
             'equipo': self.equipo(),
         }
+
+    # ------------------------------------------------------------------
+    # Adjuntar un comprobante a una factura o a un pedido del cliente
+    # ------------------------------------------------------------------
+
+    @api.model
+    def documentos_del_cliente(self, conversacion_id):
+        """Los pedidos y las facturas recientes del cliente, para elegir a cuál se adjunta un comprobante."""
+        conv = self._para_panel(conversacion_id)
+        if not conv.partner_id:
+            return {'cliente': False, 'pedidos': [], 'facturas': []}
+        comercial = conv.partner_id.sudo().commercial_partner_id
+        estados_pedido = dict(self.env['sale.order']._fields['state']._description_selection(self.env))
+        pedidos = self.env['sale.order'].sudo().search([
+            ('partner_id.commercial_partner_id', '=', comercial.id), ('state', '!=', 'cancel')],
+            order='date_order desc, id desc', limit=8)
+        facturas = self.env['account.move'].sudo().search([
+            ('commercial_partner_id', '=', comercial.id), ('move_type', '=', 'out_invoice'),
+            ('state', '!=', 'cancel')], order='invoice_date desc, id desc', limit=8)
+        estados_factura = dict(self.env['account.move']._fields['state']._description_selection(self.env))
+        return {
+            'cliente': True,
+            'pedidos': [{'id': o.id, 'nombre': o.name, 'estado_nombre': estados_pedido.get(o.state, o.state),
+                         'total': round(o.amount_total, 2)} for o in pedidos],
+            'facturas': [{'id': f.id, 'nombre': f.name or self.env._('Borrador'),
+                          'estado_nombre': estados_factura.get(f.state, f.state),
+                          'total': round(f.amount_total, 2)} for f in facturas],
+        }
+
+    @api.model
+    def adjuntar_a_documento(self, conversacion_id, adjunto_id, modelo, registro_id):
+        """Copia un archivo que mandó el cliente (un comprobante) al chatter de SU pedido o factura.
+
+        Solo archivos de ESTA conversación mandados por el cliente, solo pedidos y facturas del MISMO cliente y solo si
+        quien lo pide puede escribir en ese documento. La IA no interviene: el archivo nunca se le muestra.
+        """
+        conv = self._para_panel(conversacion_id, escritura=True)
+        adjunto_id = _entero(adjunto_id, 'adjunto_id', minimo=1)
+        registro_id = _entero(registro_id, 'registro_id', minimo=1)
+        if modelo not in ('sale.order', 'account.move'):
+            raise UserError(self.env._('Solo se puede adjuntar a un pedido o a una factura.'))
+        if not conv.partner_id:
+            raise UserError(self.env._('Esta conversación todavía no tiene un cliente.'))
+        mensaje = self.env['dcasa.mensaje'].sudo().search([
+            ('conversacion_id', '=', conv.id), ('autor', '=', 'cliente'), ('adjunto_ids', 'in', [adjunto_id])], limit=1)
+        if not mensaje:
+            raise UserError(self.env._('Ese archivo no es de esta conversación.'))
+        destino = self.env[modelo].browse(registro_id).exists()
+        if not destino:
+            raise UserError(self.env._('Ese documento ya no existe.'))
+        try:
+            destino.check_access('write')
+        except AccessError:
+            raise UserError(self.env._('No tienes permiso para adjuntar archivos a ese documento.')) from None
+        cliente = conv.partner_id.sudo().commercial_partner_id
+        dueno = destino.sudo().partner_id.commercial_partner_id
+        if modelo == 'account.move' and destino.sudo().move_type != 'out_invoice':
+            raise UserError(self.env._('Solo se puede adjuntar a facturas de cliente.'))
+        if dueno != cliente:
+            raise UserError(self.env._('Ese documento es de otro cliente.'))
+        original = self.env['ir.attachment'].sudo().browse(adjunto_id)
+        repetido = self.env['ir.attachment'].sudo().search([
+            ('res_model', '=', modelo), ('res_id', '=', destino.id), ('checksum', '=', original.checksum)], limit=1)
+        nombre_doc = destino.sudo().display_name
+        if repetido:
+            return {'ok': True, 'ya_estaba': True, 'documento': nombre_doc, 'modelo': modelo}
+        copia = original.copy({'res_model': modelo, 'res_id': destino.id})
+        canal = dict(CANALES).get(conv.canal, conv.canal)
+        destino.sudo().message_post(
+            body=self.env._('%(quien)s adjuntó «%(archivo)s», que mandó el cliente por %(canal)s, desde la '
+                            'conversación.', quien=self.env.user.name, archivo=original.name, canal=canal),
+            attachment_ids=[copia.id], subtype_xmlid='mail.mt_note')
+        conv._aviso(self.env._('%(quien)s adjuntó «%(archivo)s» a %(doc)s.', quien=self.env.user.name,
+                               archivo=original.name, doc=nombre_doc))
+        return {'ok': True, 'ya_estaba': False, 'documento': nombre_doc, 'modelo': modelo}
 
     @api.model
     def equipo(self):

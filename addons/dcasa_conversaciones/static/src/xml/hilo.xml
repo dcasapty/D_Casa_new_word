@@ -45,6 +45,10 @@
                     <button t-else="" type="button" class="o_dcj_enlace" t-on-click="() => almacen.marcarSensible(a.id, false)">
                         <i class="fa fa-unlock" aria-hidden="true"/> Ya no es sensible
                     </button>
+                    <button type="button" class="o_dcj_enlace o_dcj_adjuntar_a" t-on-click="() => almacen.abrirAdjuntar(a)"
+                            t-att-title="'Copia ' + a.nombre + ' al pedido o a la factura de este cliente'">
+                        <i class="fa fa-paperclip" aria-hidden="true"/> Adjuntar a factura o pedido
+                    </button>
                 </t>
             </div>
             <p t-if="m.adjuntos_fallidos" class="o_dcj_burbuja_aviso">

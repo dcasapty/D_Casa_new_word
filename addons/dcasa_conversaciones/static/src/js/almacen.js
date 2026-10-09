@@ -65,7 +65,8 @@ export class Almacen {
         this.enVivo = false;
         this.ahora = Date.now();
         // Ventanas encima de la pantalla: el buscador de fotos, la cotización y el visor de imágenes
-        this.panel = null; // "catalogo" | "cotizacion" | null
+        this.panel = null; // "catalogo" | "cotizacion" | "adjuntar" | null
+        this.adjuntoAAsociar = null; // el archivo del cliente que se va a adjuntar a una factura o pedido
         this.visor = null; // { imagenes: [{url, nombre}], indice }
         // Lo que se está escribiendo en cada conversación (se conserva al cambiar de una a otra)
         this.borradores = {};
@@ -714,6 +715,24 @@ export class Almacen {
 
     async prepararFotoDelCatalogo(productoId, fotos) {
         return this.orm.call(MODELO, "preparar_foto_catalogo", [this.seleccionadaId, productoId, fotos]);
+    }
+
+    /** Abre la ventana para adjuntar un archivo del cliente a uno de sus pedidos o facturas. */
+    abrirAdjuntar(adjunto) {
+        this.adjuntoAAsociar = adjunto;
+        this.abrirPanel("adjuntar");
+    }
+
+    async documentosDelCliente() {
+        return this.orm.call(MODELO, "documentos_del_cliente", [this.seleccionadaId]);
+    }
+
+    async adjuntarADocumento(adjuntoId, modelo, registroId) {
+        const r = await this._hacer("adjuntar_a_documento", [this.seleccionadaId, adjuntoId, modelo, registroId]);
+        if (r) {
+            await this.refrescarAbierta();
+        }
+        return r;
     }
 
     async cotizacionesAbiertas() {

@@ -396,6 +396,31 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.assertEqual(nota.mencion_ids, self.gerente)
         self.assertFalse(self.al_worker('/odoo/enviar'), 'Una nota nunca sale por el canal')
 
+    def test_adjuntar_un_archivo_del_cliente_a_su_pedido(self):
+        self.datos_de_ejemplo()
+        producto = self.env['product.product'].create({
+            'name': 'Zzcama para comprobante', 'type': 'consu', 'list_price': 100.0, 'taxes_id': [Command.clear()]})
+        pedido = self.env['sale.order'].create({
+            'partner_id': self.karen.partner_id.id, 'user_id': self.vendedora.id,
+            'order_line': [Command.create({'product_id': producto.id, 'product_uom_qty': 1})]})
+        self.navegador(f"const NOMBRE_DEL_PEDIDO = {pedido.name!r};" + """
+(async () => {
+    await abrirConversacion("Karen");
+    const boton = await esperar(() => document.querySelector(".o_dcj_adjuntar_a"), "el botón para adjuntar a un documento");
+    boton.click();
+    const hoja = await esperar(() => document.querySelector(".o_dcj_hoja[aria-labelledby='o_dcj_adjuntar_titulo']"), "la ventana de adjuntar");
+    if (!hoja.textContent.includes("cuarto.png")) { throw new Error("dice qué archivo es: " + hoja.textContent); }
+    const opcion = await esperar(() => aqui(".o_dcj_cotizacion_opcion", NOMBRE_DEL_PEDIDO), "el pedido del cliente");
+    opcion.click();
+    await esperar(() => !document.querySelector(".o_dcj_hoja"), "la ventana cerrada");
+    await esperar(() => aqui(".o_dcj_aviso_sistema", "adjuntó"), "el aviso en el hilo");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        copia = self.env['ir.attachment'].search([
+            ('res_model', '=', 'sale.order'), ('res_id', '=', pedido.id), ('name', '=', 'cuarto.png')])
+        self.assertEqual(len(copia), 1, 'El archivo del cliente quedó en el pedido')
+
     def test_respuestas_rapidas_con_barra(self):
         self.datos_de_ejemplo()
         self.navegador("""

@@ -25,6 +25,7 @@
                 </div>
                 <BuscadorCatalogo t-if="almacen.panel === 'catalogo'" almacen="almacen"/>
                 <DialogoCotizacion t-if="almacen.panel === 'cotizacion'" almacen="almacen"/>
+                <DialogoAdjuntar t-if="almacen.panel === 'adjuntar'" almacen="almacen"/>
                 <VisorImagenes t-if="almacen.visor" almacen="almacen"/>
             </t>
         </div>

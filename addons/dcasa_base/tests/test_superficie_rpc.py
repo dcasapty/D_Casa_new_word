@@ -231,6 +231,8 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'devolver'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'cerrar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'eliminar'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'documentos_del_cliente'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'adjuntar_a_documento'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'asignar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'cancelar_seguimiento'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'poner_etiquetas'): PANEL_VENTAS,

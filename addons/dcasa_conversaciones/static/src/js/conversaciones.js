@@ -8,6 +8,7 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { Almacen } from "./almacen";
 import { BuscadorCatalogo } from "./catalogo";
+import { DialogoAdjuntar } from "./adjuntar";
 import { DialogoCotizacion } from "./cotizacion";
 import { FichaCliente } from "./ficha";
 import { HiloConversacion } from "./hilo";
@@ -39,7 +40,7 @@ function guardarAbierta(id) {
 
 export class DcasaConversaciones extends Component {
     static template = "dcasa_conversaciones.Conversaciones";
-    static components = { ListaConversaciones, HiloConversacion, FichaCliente, BuscadorCatalogo, DialogoCotizacion, VisorImagenes };
+    static components = { ListaConversaciones, HiloConversacion, FichaCliente, BuscadorCatalogo, DialogoCotizacion, DialogoAdjuntar, VisorImagenes };
     static props = ["*"];
 
     setup() {

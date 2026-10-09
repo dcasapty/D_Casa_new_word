@@ -166,7 +166,6 @@ números que sí tiene Odoo.
 
 ### Lo que todavía no hace
 
-* **Adjuntar un comprobante** directamente a una factura o a un pedido.
 * **Programar un mensaje** para más tarde (hoy solo se ve el seguimiento automático).
 * **Fotos de perfil**: se muestran las iniciales de cada persona.
 * El gasto de IA **por día** solo existe desde que Odoo empezó a guardar las fotos diarias.
@@ -190,6 +189,12 @@ si ya hay una abierta de los últimos 30 días, no crea otra) y **Reintentar env
 
 **Notas internas y avisos.** Dentro de la conversación hay dos cosas que el cliente **nunca** ve:
 
+* **Adjuntar un comprobante a una factura o a un pedido:** debajo de cada archivo que manda el cliente está el botón
+  **Adjuntar a factura o pedido**. Se abre una lista con los pedidos y facturas **de ese cliente** (los más recientes); al elegir
+  uno, el archivo se **copia** al historial de ese documento (con una nota de quién lo adjuntó) y queda un aviso en la
+  conversación. El original se queda en el hilo, adjuntarlo dos veces no lo duplica, y la IA nunca lo ve. Para facturas hace
+  falta el permiso de Facturación (el rol Vendedora lo trae). Un comprobante falso no se detecta mirando la imagen: **verifica
+  el pago en el banco** antes de entregar;
 * las **notas internas** que escribimos entre vendedoras (borde punteado), que además quedan en la ficha del cliente.
   **Mencionar con @:** en una nota, escribe `@` y elige a una compañera del equipo de ventas (con las flechas y Enter, o con
   un clic). Al guardar, a ella le llega un aviso en Odoo (su bandeja) y por Telegram (si vinculó el suyo con Brian); la nota
@@ -422,6 +427,7 @@ Métodos públicos de `dcasa.conversacion` (RPC normal de Odoo, `call_kw`) para 
 | `enviar_respuesta(conversacion_id, texto, adjuntos_ids)` | Contesta (toma la conversación si hace falta). Hasta 5 adjuntos propios, de 10 MB. Si el Worker no responde queda «por enviar». |
 | `tomar(conversacion_id, minutos)` · `devolver(conversacion_id, nota)` · `cerrar(conversacion_id)` | Lo mismo que los botones (una sola ruta de código). |
 | `asignar(conversacion_id, usuario_id)` | Asigna a alguien de ventas (`null` = sin asignar). |
+| `documentos_del_cliente(conversacion_id)` · `adjuntar_a_documento(conversacion_id, adjunto_id, modelo, registro_id)` | Pedidos y facturas del cliente, y copia de un archivo suyo al chatter de uno de ellos (`sale.order` o `account.move`). |
 | `poner_etiquetas(conversacion_id, etiqueta_ids)` · `agregar_nota(conversacion_id, texto, menciones=None, tarea_para=None)` | Etiquetas (solo activas) y nota interna; `menciones` (ids de compañeras del equipo) las avisa por Odoo y Telegram y `tarea_para` (`AAAA-MM-DD`) les deja una tarea. |
 | `marcar_leida(conversacion_ids)` | Marca como leídas, para quien llama. |
 | `ficha(conversacion_id)` | Cliente, si es Socio y su saldo (solo lectura), oportunidades abiertas, compras recientes, notas, seguimiento y **qué sabe el bot** (nombre, productos por los que preguntó, etiquetas, última vez que habló). |
