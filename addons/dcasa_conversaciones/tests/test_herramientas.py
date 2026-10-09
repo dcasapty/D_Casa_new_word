@@ -409,10 +409,12 @@ class TestPasarAVendedora(HerramientasCase):
     def test_dentro_de_horario(self):
         with freeze_time(panama(2026, 10, 9, 10, 0)):
             datos = self.salida('pasar_a_vendedora', {'motivo': 'Quiere cotizar una entrega a David'})
+            # El estado se lee con el mismo reloj: la pausa es de unos minutos y, con el reloj real, a veces ya venció.
+            bot_activo = self.conv._estado_para_worker()['bot_activo']
         self.assertTrue(datos['dentro_de_horario'])
         self.assertIn('ya avisé a una vendedora', datos['texto_para_el_cliente'])
         self.assertEqual(self.conv.estado, 'humano')
-        self.assertFalse(self.conv._estado_para_worker()['bot_activo'], 'Pausa al bot')
+        self.assertFalse(bot_activo, 'Pausa al bot')
         self.assertTrue(self.conv.pausada_hasta)
 
     def test_fuera_de_horario_dice_cuando_atienden(self):
