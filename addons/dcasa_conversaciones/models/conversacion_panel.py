@@ -6,21 +6,26 @@ sencillos listos para JSON: nada de registros de Odoo ni de campos que la pantal
 * ``lista``      — la bandeja, de 30 en 30, con filtros y búsqueda, y UN número fijo de consultas (no depende de
                    cuántas conversaciones haya: probado con 5.000).
 * ``hilo``       — los mensajes por tramos de 50 hacia atrás (``antes_de_id``), nunca el hilo completo.
+* ``eliminar``   — borra una conversación (solo Gerencia): primero la copia del bot, luego la de Odoo.
 * ``enviar_respuesta``, ``tomar``, ``devolver``, ``cerrar``, ``asignar``, ``poner_etiquetas``, ``agregar_nota``,
   ``marcar_leida`` — lo que hacen los botones, por la MISMA ruta que los botones del formulario.
 * ``ficha``      — el cliente y lo que Odoo sabe de él (Socios solo lectura, oportunidades, compras, qué sabe el bot).
 """
 import json
+import logging
 import re
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from . import adjuntos as A
 from . import horario as H
 from .ajustes import CANALES
 from .conversacion import ESTADOS, GRUPO_VENDEDORA, MAX_NOTA
 
+_logger = logging.getLogger(__name__)
+
+GRUPO_GERENCIA = 'sales_team.group_sale_manager'
 LIMITE_LISTA = 100
 LIMITE_LISTA_POR_DEFECTO = 30
 LIMITE_HILO = 100
@@ -306,6 +311,27 @@ class DcasaConversacionPanel(models.Model):
         conv = self._para_panel(conversacion_id, escritura=True)
         conv._cerrar(self.env.user)
         return conv._resumen_panel()
+
+    @api.model
+    def eliminar(self, conversacion_id):
+        """«Eliminar conversación» (solo Gerencia; Ley 81, derecho de borrado).
+
+        Primero el bot olvida su copia de trabajo (si no, seguiría «recordando» lo borrado y, al volver a escribir la
+        persona, reaparecería el historial); solo cuando eso salió bien se borra la conversación de Odoo, con sus
+        mensajes y archivos. La oportunidad y la ficha del cliente NO se tocan: son registros del negocio.
+        """
+        conv = self._para_panel(conversacion_id, escritura=True)
+        if not self.env.su and not self.env.user.has_group(GRUPO_GERENCIA):
+            raise AccessError(self.env._('Solo Gerencia puede eliminar una conversación.'))
+        conv.check_access('unlink')
+        respuesta = self.env['dcasa.juan.cliente'].olvidar_conversacion(conv.canal, conv.id_externo)
+        if not respuesta['sin_configurar'] and (respuesta['error'] or respuesta['cuerpo'].get('ok') is not True):
+            raise UserError(self.env._(
+                'No pude borrar la copia que guarda el bot de esta conversación (%s). No se eliminó nada: '
+                'inténtalo de nuevo en unos minutos.', respuesta['error'] or self.env._('el bot no respondió')))
+        _logger.info('Juan: %s eliminó la conversación %s (%s).', self.env.user.login, conv.id, conv.canal)
+        conv.unlink()
+        return {'eliminada': True, 'conversacion_id': conversacion_id}
 
     @api.model
     def asignar(self, conversacion_id, usuario_id=None):

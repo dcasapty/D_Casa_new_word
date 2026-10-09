@@ -37,6 +37,7 @@ function montar() {
     fijarEstado: async (s: unknown) => (estados.push(s), { ok: true as const }),
     seguimiento: async () => ({ ok: true as const, resultado: "enviado" as const }),
     leerMedio: async () => null,
+    olvidar: async () => ({ ok: true as const, mensajes: 0 }),
   };
   const deps: DepsRutas = {
     adaptadores: [],

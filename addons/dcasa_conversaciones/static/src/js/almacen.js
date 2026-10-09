@@ -460,6 +460,22 @@ export class Almacen {
         return r;
     }
 
+    /** Elimina la conversación abierta (Gerencia): la quita de la lista y vuelve a ella. */
+    async eliminar() {
+        const id = this.seleccionadaId;
+        const r = await this._hacer("eliminar", [id], { exito: "Conversación eliminada." });
+        if (r?.eliminada) {
+            this.lista = this.lista.filter((c) => c.id !== id);
+            this.total = Math.max(0, this.total - 1);
+            this.seleccionadaId = null;
+            this.conversacion = null;
+            this.mensajes = [];
+            this.ficha = null;
+            this.volverALaLista();
+        }
+        return r;
+    }
+
     async asignar(usuarioId) {
         const r = await this._hacer("asignar", [this.seleccionadaId, usuarioId || null]);
         if (r) {

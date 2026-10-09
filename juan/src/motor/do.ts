@@ -87,6 +87,10 @@ export class Conversacion extends DurableObject<Env> {
     return this.motor.leerMedio(id);
   }
 
+  olvidar() {
+    return this.motor.olvidar();
+  }
+
   resumen() {
     return this.motor.resumen();
   }

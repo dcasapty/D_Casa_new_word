@@ -98,6 +98,11 @@
                             t-on-click="cerrarConversacion">
                         <i class="fa fa-check-circle-o" aria-hidden="true"/><span class="o_dcj_texto_boton">Cerrar</span>
                     </button>
+                    <button t-if="almacen.conversacion and almacen.usuario.es_gerencia" type="button"
+                            class="o_dcj_icono_boton o_dcj_boton_eliminar" title="Eliminar la conversación (solo Gerencia)"
+                            aria-label="Eliminar la conversación" t-on-click="confirmarEliminar">
+                        <i class="fa fa-trash-o" aria-hidden="true"/><span class="o_dcj_texto_boton">Eliminar</span>
+                    </button>
                 </header>
 
                 <div class="o_dcj_hilo_cuerpo" t-ref="cuerpo" t-on-scroll="alDesplazar" tabindex="0" role="log"

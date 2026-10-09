@@ -1025,6 +1025,17 @@ export class MotorConversacion {
     return this.medios.leer(id, this.deps.ahora());
   }
 
+  /**
+   * «Borrar mis datos» (Ley 81): Odoo ya borró la conversación y aquí se borra la copia de trabajo (mensajes, cola,
+   * archivos, memoria de la persona). Sin esto, el bot seguiría «recordando» lo que se borró. Devuelve cuántos mensajes había.
+   */
+  async olvidar(): Promise<{ ok: true; mensajes: number }> {
+    const mensajes = this.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM mensajes")?.n ?? 0;
+    for (const tabla of ["mensajes", "cola", "medios", "fotos", "enviados", "seguimientos", "kv"]) this.deps.sql.correr(`DELETE FROM ${tabla}`);
+    await this.deps.fijarAlarma(null);
+    return { ok: true, mensajes };
+  }
+
   /** Para las pruebas y el diagnóstico. */
   resumen() {
     return {

@@ -3,6 +3,8 @@
  * sistema, carga hacia atrás de 50 en 50, arrastrar y soltar archivos, y la caja de respuesta abajo.
  */
 import { Component, onMounted, onPatched, onWillPatch, onWillUnmount, useRef, useState } from "@odoo/owl";
+import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { useService } from "@web/core/utils/hooks";
 import { CajaRespuesta } from "./caja";
 import {
     colorDeEtiqueta,
@@ -86,6 +88,7 @@ export class HiloConversacion extends Component {
 
     setup() {
         this.almacen = useState(this.props.almacen);
+        this.dialog = useService("dialog");
         this.local = useState({ arrastrando: false });
         this.refCuerpo = useRef("cuerpo");
         this.elementosDelHilo = (mensajes) => elementosDelHilo(mensajes, this.almacen.ahora);
@@ -211,6 +214,20 @@ export class HiloConversacion extends Component {
 
     async cerrarConversacion() {
         await this.almacen.cerrar();
+    }
+
+    /** Solo Gerencia. Siempre con confirmación: borra la conversación, sus mensajes y archivos, y lo que el bot recuerda. */
+    confirmarEliminar() {
+        const nombre = this.almacen.conversacion?.nombre || "esta persona";
+        this.dialog.add(ConfirmationDialog, {
+            title: "¿Eliminar esta conversación?",
+            body: `Se borra la conversación con ${nombre}, con sus mensajes y archivos, y el asistente deja de recordarla. No se puede deshacer. La oportunidad y la ficha del cliente se quedan.`,
+            confirmLabel: "Sí, eliminar",
+            confirmClass: "btn-danger",
+            cancelLabel: "No, dejarla",
+            confirm: () => this.almacen.eliminar(),
+            cancel: () => {},
+        });
     }
 
     // --- Arrastrar y soltar archivos ---------------------------------------------------------------

@@ -36,6 +36,7 @@ class ConversacionDoble implements ConversacionApi {
   enviados: unknown[] = [];
   estados: unknown[] = [];
   seguimientos: unknown[] = [];
+  olvidos = 0;
   medio: { bytes: Uint8Array; mime: string; nombre: string | null } | null = null;
   falla: string | null = null;
   seguimientoResultado: any = { ok: true, resultado: "enviado" };
@@ -61,6 +62,11 @@ class ConversacionDoble implements ConversacionApi {
   }
   async leerMedio() {
     return this.medio;
+  }
+  async olvidar() {
+    if (this.falla) throw new Error(this.falla);
+    this.olvidos++;
+    return { ok: true as const, mensajes: 3 };
   }
 }
 
@@ -306,6 +312,37 @@ describe("POST /odoo/estado", () => {
       expect((await m.pedir(post("/odoo/estado", { canal: "telegram", id_externo: "9", estado }, deOdoo))).status).toBe(400);
     }
     expect(m.conv.estados).toEqual([]);
+  });
+});
+
+describe("POST /odoo/olvidar", () => {
+  it("borra la copia de trabajo de ESA conversación y dice cuántos mensajes tenía", async () => {
+    const m = montar();
+    const res = await m.pedir(post("/odoo/olvidar", { canal: "telegram", id_externo: "555" }, deOdoo));
+    expect([res.status, await res.json()]).toEqual([200, { ok: true, mensajes: 3 }]);
+    expect(m.pedidas).toEqual([["telegram", "555"]]);
+    expect(m.conv.olvidos).toBe(1);
+  });
+
+  it("sin la clave de Odoo, 401 y no borra nada", async () => {
+    const m = montar();
+    expect((await m.pedir(post("/odoo/olvidar", { canal: "telegram", id_externo: "555" }))).status).toBe(401);
+    expect((await m.pedir(post("/odoo/olvidar", { canal: "telegram", id_externo: "555" }, { authorization: "Bearer mal" }))).status).toBe(401);
+    expect(m.conv.olvidos).toBe(0);
+  });
+
+  it("valida canal e id_externo", async () => {
+    const m = montar();
+    expect((await m.pedir(post("/odoo/olvidar", { canal: "fax", id_externo: "1" }, deOdoo))).status).toBe(400);
+    expect((await m.pedir(post("/odoo/olvidar", { canal: "telegram" }, deOdoo))).status).toBe(400);
+    expect(m.conv.olvidos).toBe(0);
+  });
+
+  it("si falla, 502 con el motivo corto (Odoo no borra su copia hasta que esta se borre)", async () => {
+    const m = montar();
+    m.conv.falla = "almacenamiento no disponible";
+    const res = await m.pedir(post("/odoo/olvidar", { canal: "telegram", id_externo: "555" }, deOdoo));
+    expect(res.status).toBe(502);
   });
 });
 

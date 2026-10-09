@@ -137,6 +137,7 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
     ('dcasa_socios', 'account.move', 'button_cancel'):
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
+    ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
     ('dcasa_socios', 'sale.order', 'action_dcasa_cobrar_premio'): ACCION_VENTANA,
@@ -229,6 +230,7 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'tomar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'devolver'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'cerrar'): PANEL_VENTAS,
+    ('dcasa_conversaciones', 'dcasa.conversacion', 'eliminar'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'asignar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'cancelar_seguimiento'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'poner_etiquetas'): PANEL_VENTAS,

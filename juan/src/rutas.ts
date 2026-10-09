@@ -7,6 +7,7 @@
 //   POST /odoo/enviar                 → una vendedora escribe desde Odoo
 //   POST /odoo/estado                 → tomar o devolver la conversación
 //   POST /odoo/seguimiento            → redactar y enviar el seguimiento n.º 1 o 2
+//   POST /odoo/olvidar                → borrar la copia de trabajo de una conversación (cuando Odoo la elimina)
 //   GET  /odoo/salud                  → estado del Worker
 //   (las cuatro de /odoo/* con Authorization: Bearer <JUAN_WORKER_TOKEN>, en tiempo constante)
 
@@ -27,6 +28,7 @@ export interface ConversacionApi {
   fijarEstado(s: { estado: "humano" | "bot"; pausada_hasta?: string | number | null; nota_para_el_bot?: string | null }): Promise<{ ok: true }>;
   seguimiento(s: SolicitudSeguimiento): Promise<ResultadoSeguimiento>;
   leerMedio(id: string): Promise<{ bytes: Uint8Array; mime: string; nombre: string | null } | null>;
+  olvidar(): Promise<{ ok: true; mensajes: number }>;
 }
 
 export interface DepsRutas {
@@ -223,6 +225,8 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
         }),
       );
     }
+
+    if (ruta === "/odoo/olvidar") return json(await conv.olvidar());
 
     if (ruta === "/odoo/seguimiento") {
       if (typeof cuerpo.conversacion_id !== "number") return error("falta conversacion_id", 400);

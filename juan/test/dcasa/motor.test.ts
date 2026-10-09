@@ -213,3 +213,31 @@ describe("el re-chequeo con Odoo justo antes de enviar", () => {
     expect(m.odoo.mensajes.filter((x) => x.autor === "cliente").length).toBe(1);
   });
 });
+
+describe("«borrar mis datos»: la copia de trabajo se olvida de verdad", () => {
+  it("no queda ningún mensaje, ninguna memoria ni alarma, y la persona vuelve a empezar", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "Hola, te ayudo con eso." }, { texto: "Claro, dime qué buscas." }]);
+    await m.conversar("hola, busco una cama queen");
+    expect(m.deps.sql.uno<{ n: number }>("SELECT COUNT(*) AS n FROM mensajes")!.n).toBeGreaterThan(0);
+
+    const r = await m.motor.olvidar();
+
+    expect(r.ok).toBe(true);
+    expect(r.mensajes).toBeGreaterThan(0);
+    for (const tabla of ["mensajes", "cola", "medios", "fotos", "enviados", "seguimientos", "kv"]) {
+      expect(m.deps.sql.uno<{ n: number }>(`SELECT COUNT(*) AS n FROM ${tabla}`)!.n, tabla).toBe(0);
+    }
+    expect(m.alarmaProgramada()).toBeNull();
+
+    // Si la persona vuelve a escribir, es una conversación nueva: se vuelve a presentar y no recuerda lo anterior.
+    await m.conversar("hola otra vez");
+    const textos = m.canal.textos.slice(-3).join("\n");
+    expect(textos).toMatch(/asistente automático/i);
+  });
+
+  it("olvidar una conversación que no tiene nada no falla", async () => {
+    const m = crearMundo();
+    expect(await m.motor.olvidar()).toEqual({ ok: true, mensajes: 0 });
+  });
+});

@@ -8,6 +8,7 @@ Rutas del Worker (``juan/src/odoo-panel*.ts``), todas con ``Authorization: Beare
 * ``GET  /odoo/qr``         — el código QR para vincular WhatsApp (NUNCA se escribe en un registro).
 * ``POST /odoo/reiniciar``  — reinicia el puente de WhatsApp.
 * ``POST /odoo/desvincular``— desvincula el número de WhatsApp (hay que escanear otro QR).
+* ``POST /odoo/olvidar``    — el Worker borra su copia de trabajo de UNA conversación (cuando Odoo la elimina).
 
 Igual que ``cliente_worker.py``: nada lanza excepciones por culpa de la red. ``_pedir`` devuelve SIEMPRE el cuerpo que
 contestó el Worker (aunque diga ``ok: false``, como hace ``/odoo/salud`` cuando hay algo por arreglar): justo en ese
@@ -101,3 +102,9 @@ class JuanClientePanel(models.AbstractModel):
     @api.model
     def desvincular_puente(self):
         return self._pedir('POST', '/odoo/desvincular', {})
+
+    @api.private
+    @api.model
+    def olvidar_conversacion(self, canal, id_externo):
+        """El Worker borra lo que recuerda de esa conversación (mensajes, archivos, memoria). Ver ``_pedir``."""
+        return self._pedir('POST', '/odoo/olvidar', {'canal': canal, 'id_externo': id_externo})

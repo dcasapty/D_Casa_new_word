@@ -1,7 +1,9 @@
 """La API de la pantalla «Conversaciones» (docs/JUAN_PANEL.md): lista, hilo, no leídos, respuestas y ficha."""
 import logging
+import os
 import time
 from datetime import timedelta
+from unittest.mock import patch
 
 import requests
 
@@ -673,3 +675,82 @@ class TestRendimientoDeLaBandeja(PanelCase):
         plan = '\n'.join(fila[0] for fila in self.env.cr.fetchall())
         self.assertIn('Index', plan, plan)
         self.assertNotIn('Sort', plan, 'Sin ordenar toda la tabla: ' + plan)
+
+
+@tagged('post_install', '-at_install')
+class TestEliminarConversacion(PanelCase):
+    """«Eliminar conversación» (Ley 81): solo Gerencia; el bot olvida su copia ANTES de que Odoo borre la suya."""
+
+    def setUp(self):
+        super().setUp()
+        self.llamadas = self.configurar_worker()
+        self.llamadas.return_value = respuesta_http({'ok': True, 'mensajes': 3})
+        self.gerencia = self.Conversacion.with_user(self.gerente)
+        self.conv = self.cliente(1, nombre='Karen Prueba')
+        self.mensaje = self.conv.mensaje_ids[:1]
+        self.adjunto = self.env['ir.attachment'].create({
+            'name': 'foto.txt', 'raw': b'contenido', 'res_model': 'dcasa.mensaje', 'res_id': self.mensaje.id})
+        self.mensaje.adjunto_ids = [Command.link(self.adjunto.id)]
+
+    def olvidos(self):
+        return [c for c in self.llamadas.call_args_list if c.args[1].endswith('/odoo/olvidar')]
+
+    def test_gerencia_la_elimina_con_sus_mensajes_y_archivos_y_el_bot_la_olvida(self):
+        conv_id, partner, canal, externo = self.conv.id, self.conv.partner_id, self.conv.canal, self.conv.id_externo
+        lead, _nueva = self.conv._oportunidad('Quiere una cama queen', interes='cama queen')
+        resultado = self.gerencia.eliminar(conv_id)
+        self.assertEqual(resultado, {'eliminada': True, 'conversacion_id': conv_id})
+        self.assertFalse(self.Conversacion.browse(conv_id).exists())
+        self.assertFalse(self.Mensaje.search([('conversacion_id', '=', conv_id)]))
+        self.assertFalse(self.adjunto.exists(), 'Los archivos de la conversación se van con ella')
+        (llamada,) = self.olvidos()
+        self.assertEqual((llamada.args[0], llamada.kwargs['json']), ('POST', {'canal': canal, 'id_externo': externo}))
+        # La oportunidad y la ficha del cliente son registros del negocio: se quedan.
+        self.assertTrue(lead.exists())
+        self.assertTrue(partner.exists())
+
+    def test_las_vendedoras_no_pueden(self):
+        with self.assertRaises(AccessError):
+            self.panel.eliminar(self.conv.id)
+        self.assertTrue(self.conv.exists())
+        self.assertFalse(self.olvidos())
+
+    def test_nadie_mas_puede_ni_por_rpc(self):
+        for usuario in (self.interno, self.portal):
+            with self.subTest(usuario=usuario.login), self.assertRaises(AccessError):
+                call_kw(self.env(user=usuario)['dcasa.conversacion'], 'eliminar', [self.conv.id], {})
+        self.assertTrue(self.conv.exists())
+        self.assertFalse(self.olvidos())
+
+    def test_si_el_bot_no_pudo_olvidar_no_se_borra_nada(self):
+        self.llamadas.return_value = respuesta_http({'ok': False, 'error': 'almacenamiento no disponible'}, 502)
+        with self.assertRaises(UserError) as error:
+            self.gerencia.eliminar(self.conv.id)
+        self.assertIn('No se eliminó nada', str(error.exception))
+        self.assertTrue(self.conv.exists())
+        self.assertTrue(self.conv.mensaje_ids)
+        self.assertTrue(self.adjunto.exists())
+
+    def test_si_el_bot_no_responde_tampoco_se_borra(self):
+        self.llamadas.side_effect = requests.ConnectionError('sin red')
+        with self.assertRaises(UserError):
+            self.gerencia.eliminar(self.conv.id)
+        self.assertTrue(self.conv.exists())
+
+    def test_sin_bot_conectado_se_borra_solo_lo_de_odoo(self):
+        with patch.dict(os.environ, {'JUAN_URL': '', 'JUAN_WORKER_TOKEN': ''}):
+            self.gerencia.eliminar(self.conv.id)
+        self.assertFalse(self.conv.exists())
+        self.assertFalse(self.olvidos())
+
+    def test_una_conversacion_que_ya_no_existe_avisa(self):
+        conv_id = self.conv.id
+        self.gerencia.eliminar(conv_id)
+        with self.assertRaises(UserError):
+            self.gerencia.eliminar(conv_id)
+
+    def test_pide_un_numero_entero_valido(self):
+        for malo in (None, True, 'x', 0, -1, 1.5):
+            with self.subTest(malo=malo), self.assertRaises(UserError):
+                self.gerencia.eliminar(malo)
+        self.assertTrue(self.conv.exists())
