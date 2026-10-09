@@ -145,7 +145,7 @@ set +e
   cd "$ROOT/juan"
   ODOO_INTEGRACION_URL="http://127.0.0.1:$ODOO_PORT" ODOO_INTEGRACION_DB="$DB_NAME" \
   JUAN_INTEGRACION_PUERTO="$JUAN_PORT" \
-  npx vitest run test/integracion
+  npx vitest run test/integracion "$@"
 )
 RC=$?
 set -e
@@ -155,7 +155,11 @@ if [[ $RC -ne 0 ]]; then
   grep -E ' (ERROR|CRITICAL|WARNING) ' "$TMP/odoo.log" | tail -n 30 >&2 || true
   exit "$RC"
 fi
-if grep -E ' (ERROR|CRITICAL) ' "$TMP/odoo.log" >"$TMP/errores.log"; then
+# Errores inesperados en Odoo. No cuentan los choques entre transacciones que Odoo repite solo (Postgres: «could not
+# serialize access», que sql_db anota como ERROR aunque la petición se repita y salga bien): si no se repitieran, la
+# prueba fallaría por su respuesta 500.
+awk '/ (ERROR|CRITICAL) /{ if ($0 ~ /odoo.sql_db: bad query/) { getline siguiente; if (siguiente ~ /could not serialize access/) next } print }'   "$TMP/odoo.log" >"$TMP/errores.log"
+if [[ -s "$TMP/errores.log" ]]; then
   echo "✖ Pasaron las pruebas, pero Odoo registró errores inesperados:" >&2
   head -n 20 "$TMP/errores.log" >&2
   exit 1

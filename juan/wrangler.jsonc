@@ -24,7 +24,7 @@
   //   PUENTE: el puente de WhatsApp por QR (puente-wa/). Descomentar cuando ESE Worker ya esté publicado; mientras tanto el
   //          canal de WhatsApp aparece en /salud como «le falta PUENTE» y el resto del bot funciona (docs/JUAN_WORKER.md).
   "services": [
-    { "binding": "DCASA", "service": "dcasa" }
+    { "binding": "DCASA", "service": "dcasa", "entrypoint": "JuanEntrada" }
     // , { "binding": "PUENTE", "service": "dcasa-puente-wa" }
   ],
 
@@ -63,7 +63,7 @@
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
       // Hoy solo existe `dcasa-staging`: staging habla con ese.
       "services": [
-        { "binding": "DCASA", "service": "dcasa-staging" }
+        { "binding": "DCASA", "service": "dcasa-staging", "entrypoint": "JuanEntrada" }
         // , { "binding": "PUENTE", "service": "dcasa-puente-wa-staging" }
       ],
       "triggers": { "crons": ["23 * * * *"] },

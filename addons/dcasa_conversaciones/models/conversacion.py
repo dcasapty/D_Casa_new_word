@@ -19,7 +19,9 @@ from datetime import timedelta
 from markupsafe import Markup, escape
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, ConcurrencyError, UserError
+from odoo.modules import module as modulo_odoo
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from . import celulares
 from . import horario as H
@@ -426,9 +428,11 @@ class DcasaConversacion(models.Model):
         pedidos = 0
         for conv in pendientes:
             try:
-                with self.env.cr.savepoint():
-                    pedidos += 1 if conv._intentar_seguimiento(ahora, ajustes) else 0
+                # Sin savepoint: cada seguimiento se CONFIRMA en la base antes de llamar al Worker (ver abajo).
+                pedidos += 1 if conv._intentar_seguimiento(ahora, ajustes) else 0
             except Exception:   # noqa: BLE001 — un fallo no frena a los demás
+                if not modulo_odoo.current_test:   # Odoo no deja deshacer desde dentro de un test
+                    self.env.cr.rollback()
                 _logger.exception('Juan: falló el seguimiento de la conversación %s', conv.id)
         return pedidos
 
@@ -444,13 +448,33 @@ class DcasaConversacion(models.Model):
             self.write({'seguimiento_proximo': H.siguiente_horario_laboral(ahora, horario) or False})
             return False
         numero = self.seguimientos_enviados + 1
+        interes, ultimo_mensaje = self._interes(), H.a_iso(self.ultima_actividad)
+        # El Worker contesta DESPUÉS de haber llamado a ``/seguimiento/hecho`` (y a ``/mensaje`` con el texto que
+        # envió), que escriben esta misma fila. Si esta transacción llegara a escribir después con su «foto» vieja,
+        # Postgres la rechazaría («could not serialize access») o, peor, pisaría lo que el Worker ya confirmó. Por eso
+        # el pedido se anota y se CONFIRMA (commit) antes de llamar, y al volver se lee todo de nuevo.
+        self.write({'seguimiento_pedido_en': ahora, 'seguimiento_numero_pedido': numero, 'seguimiento_proximo': False})
+        self._confirmar_en_la_base()
         respuesta = self.env['dcasa.juan.cliente'].pedir_seguimiento(
-            self.id, self.canal, self.id_externo, numero, interes=self._interes(),
-            ultimo_mensaje_ts=H.a_iso(self.ultima_actividad))
+            self.id, self.canal, self.id_externo, numero, interes=interes, ultimo_mensaje_ts=ultimo_mensaje)
+        # Mientras esperaba, esta transacción volvió a abrirse (al leer la dirección del Worker) con una «foto» ANTERIOR
+        # a lo que el Worker confirmó: se cierra y se lee todo de nuevo, o se vería (y se pisaría) el estado viejo.
+        self._confirmar_en_la_base()
+        self.env.invalidate_all()
+        if self.seguimientos_enviados >= numero:
+            return True   # el Worker ya lo confirmó (enviado o descartado) mientras contestaba
+        if respuesta.get('ok') and respuesta.get('resultado') == 'pospuesto':
+            # El Worker no lo envió ahora (fuera de horario, asistente apagado): sin ``hecho``; se reintenta luego.
+            siguiente = H.siguiente_horario_laboral(ahora, ajustes.horario()) \
+                if ajustes.seguimiento_solo_horario_laboral else None
+            self.write({'seguimiento_pedido_en': False, 'seguimiento_numero_pedido': 0,
+                        'seguimiento_proximo': max(siguiente or ahora, ahora + PAUSA_REINTENTO_SEGUIMIENTO)})
+            return False
         if respuesta.get('ok'):
-            self.write({'seguimiento_pedido_en': ahora, 'seguimiento_numero_pedido': numero,
-                        'seguimiento_proximo': False, 'seguimiento_reintentos': 0})
+            self.write({'seguimiento_reintentos': 0})   # sigue «pedido»: el aviso del Worker lo cierra
             return True
+        # El Worker no lo aceptó: ya no hay nada pedido.
+        self.write({'seguimiento_pedido_en': False, 'seguimiento_numero_pedido': 0})
         reintentos = self.seguimiento_reintentos + 1
         if reintentos >= MAX_REINTENTOS_SEGUIMIENTO or respuesta.get('estado_http') in (400, 404, 422):
             self.write({'seguimiento_proximo': False, 'seguimiento_reintentos': reintentos})
@@ -461,6 +485,14 @@ class DcasaConversacion(models.Model):
             self.write({'seguimiento_reintentos': reintentos,
                         'seguimiento_proximo': ahora + PAUSA_REINTENTO_SEGUIMIENTO * reintentos})
         return False
+
+    def _confirmar_en_la_base(self):
+        """Cierra la transacción (COMMIT) para que la siguiente empiece con una «foto» nueva de la base.
+
+        Solo donde Odoo lo permite: dentro de un test no se puede confirmar (el test lo deshace todo al terminar).
+        """
+        if not modulo_odoo.current_test:
+            self.env.cr.commit()
 
     def _interes(self):
         self.ensure_one()
@@ -655,6 +687,10 @@ class DcasaConversacion(models.Model):
                     }
                     for usuario in conv._usuarios_del_panel():
                         usuario._bus_send(CANAL_BUS, carga)
+            except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+                # No es del aviso: al entrar al savepoint se escriben las escrituras pendientes de la petición, y si
+                # chocaron con otra transacción hay que repetir TODA la petición (Odoo lo hace si el error sube).
+                raise
             except Exception:   # noqa: BLE001 — avisar a las pantallas es un extra
                 _logger.exception('Juan: no se pudo avisar a las pantallas (conversación %s)', conv.id)
 

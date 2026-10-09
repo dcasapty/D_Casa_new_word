@@ -212,6 +212,62 @@ class TestCronDeSeguimiento(SeguimientoCase):
         self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 9, 14, 25))
         self.assertFalse(conv.seguimiento_pedido_en)
 
+    def test_el_worker_confirma_mientras_contesta_y_el_cron_no_pisa_la_confirmacion(self):
+        """Odoo llama al Worker de forma síncrona; el Worker, ANTES de contestar, llama a ``/seguimiento/hecho`` (y esa
+        petición escribe la misma fila). Lo que el cron escriba al volver no puede deshacer esa confirmación: sin esto
+        el 2.º seguimiento no se programaba nunca y la fila quedaba «pedida» para siempre."""
+        conv = self.pregunta_y_bot_contesta(hora_panama=9)
+
+        def worker_que_confirma_antes_de_contestar(*_args, **_kwargs):
+            conv._seguimiento_hecho(1, 'enviado')
+            return respuesta_http({'ok': True, 'resultado': 'enviado'})
+
+        self.llamadas.side_effect = worker_que_confirma_antes_de_contestar
+        with freeze_time(panama(2026, 10, 9, 14, 10)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 1)
+        self.assertEqual(conv.seguimientos_enviados, 1)
+        self.assertFalse(conv.seguimiento_pedido_en, 'Ya estaba confirmado: nada queda «pedido»')
+        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 14, 14, 10), 'El 2.º sigue programado a los 5 días')
+
+    def test_el_worker_descarta_mientras_contesta_y_el_ciclo_queda_cerrado(self):
+        conv = self.pregunta_y_bot_contesta(hora_panama=9)
+
+        def worker_que_descarta(*_args, **_kwargs):
+            conv._seguimiento_hecho(1, 'descartado', 'el cliente ya volvió a escribir')
+            return respuesta_http({'ok': True, 'resultado': 'descartado'})
+
+        self.llamadas.side_effect = worker_que_descarta
+        with freeze_time(panama(2026, 10, 9, 14, 10)):
+            self.Conversacion._cron_seguimientos()
+        self.assertFalse(conv.seguimiento_pedido_en)
+        self.assertFalse(conv.seguimiento_proximo)
+
+    def test_si_el_worker_lo_pospone_se_reintenta_luego_y_no_queda_pedido(self):
+        """«pospuesto» (fuera de horario, asistente apagado): el Worker no envió nada y no llama a ``hecho``."""
+        conv = self.pregunta_y_bot_contesta(hora_panama=9)
+        self.llamadas.return_value = respuesta_http(
+            {'ok': True, 'resultado': 'pospuesto', 'motivo': 'fuera del horario'})
+        with freeze_time(panama(2026, 10, 9, 14, 10)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
+        self.assertFalse(conv.seguimiento_pedido_en)
+        self.assertEqual(conv.seguimientos_enviados, 0)
+        self.assertGreaterEqual(conv.seguimiento_proximo, panama(2026, 10, 9, 14, 25))
+
+    def test_el_pedido_se_anota_antes_de_llamar_al_worker(self):
+        """Si el Worker llama de vuelta a Odoo mientras Odoo espera, tiene que encontrar el pedido ya anotado (el commit
+        de verdad lo prueba la integración real, scripts/integracion_juan.sh: un test no puede confirmar)."""
+        conv = self.pregunta_y_bot_contesta(hora_panama=9)
+        vistos = []
+
+        def worker_que_mira(*_args, **_kwargs):
+            vistos.append((conv.seguimiento_pedido_en, conv.seguimiento_numero_pedido))
+            return respuesta_http({'ok': True})
+
+        self.llamadas.side_effect = worker_que_mira
+        with freeze_time(panama(2026, 10, 9, 14, 10)):
+            self.Conversacion._cron_seguimientos()
+        self.assertEqual([(bool(en), n) for en, n in vistos], [(True, 1)])
+
     def test_tras_varios_fallos_deja_de_insistir_y_lo_dice(self):
         conv = self.pregunta_y_bot_contesta(hora_panama=9)
         self.llamadas.return_value = respuesta_http({'ok': False, 'error': 'caído'}, 503)

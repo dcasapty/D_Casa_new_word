@@ -75,7 +75,7 @@ export function seccionContrato(e: Escena) {
       // Odoo las publica con claves duales (contrato + formato de Anthropic) bajo «herramientas».
       const crudo = await apiOdoo("GET", "/herramientas");
       expect(crudo.estado).toBe(200);
-      expect(Object.keys(crudo.json.herramientas[0]).sort()).toEqual(["description", "descripcion", "input_schema", "name", "nombre", "parametros"]);
+      expect(Object.keys(crudo.json.herramientas[0]).sort()).toEqual(["description", "descripcion", "input_schema", "name", "nombre", "parametros"].sort());
 
       // Y se ejecuta con ese mismo nombre.
       expect((await cliente().herramienta("listar_categorias", {}, null)).ok).toBe(true);

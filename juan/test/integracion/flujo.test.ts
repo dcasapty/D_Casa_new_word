@@ -12,6 +12,7 @@ import { hayOdoo } from "./ayuda";
 import { seccionContrato } from "./contrato";
 import { Escena } from "./escena";
 import { seccionHistoria } from "./historia";
+import { seccionSeguimiento } from "./seguimiento";
 
 describe.skipIf(!hayOdoo)("Juan: Odoo real + Worker real", { timeout: 90_000 }, () => {
   const escena = new Escena();
@@ -20,4 +21,5 @@ describe.skipIf(!hayOdoo)("Juan: Odoo real + Worker real", { timeout: 90_000 }, 
 
   seccionContrato(escena);
   seccionHistoria(escena);
+  seccionSeguimiento(escena);
 });

@@ -356,6 +356,8 @@ export interface Mundo {
   puente: ReturnType<typeof crearPuente>;
   ia: ReturnType<typeof crearIa>;
   waToken: string;
+  /** Lo que llegó al Worker por HTTP desde Odoo (/odoo/*) y desde fuera (/media/*, webhooks), con su estado. */
+  entradas: { metodo: string; ruta: string; estado: number }[];
   /** Un mensaje del cliente por WhatsApp (QR), por el webhook real. Devuelve la respuesta HTTP del Worker. */
   cliente(celular: string, texto: string, extra?: Record<string, unknown>): Promise<Response>;
   /** Lo mismo, pero como si la vendedora lo hubiera escrito desde el teléfono (`propio: true`). */
@@ -417,6 +419,7 @@ export async function levantarWorker(): Promise<Mundo> {
         cluster.env,
         ctx,
       );
+      entradas.push({ metodo: req.method ?? 'GET', ruta: (req.url ?? '').split('?')[0], estado: r.status });
       res.writeHead(r.status, Object.fromEntries(r.headers.entries()));
       res.end(Buffer.from(await r.arrayBuffer()));
     } catch (e) {
@@ -445,6 +448,7 @@ export async function levantarWorker(): Promise<Mundo> {
 
   const nombreDe = (celular: string) => `whatsapp_qr:${celular}`;
   let contador = 0;
+  const entradas: Mundo['entradas'] = [];
 
   const mundo: Mundo = {
     url,
@@ -453,6 +457,7 @@ export async function levantarWorker(): Promise<Mundo> {
     puente,
     ia,
     waToken,
+    entradas,
 
     async cliente(celular, texto, extra = {}) {
       return fetchReal(`${url}/webhooks/whatsapp-qr`, {
