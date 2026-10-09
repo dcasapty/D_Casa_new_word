@@ -407,6 +407,17 @@ jobs:
       respaldo_previo: true
     secrets: inherit
 
+  desplegar-juan-staging:
+    name: Desplegar Juan (bot) a staging
+    # Después de `dcasa`: el binding de Juan apunta a su entrada `JuanEntrada`, que tiene que existir ya.
+    needs: [desplegar-staging, juan, integracion-juan]
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
+    uses: ./.github/workflows/desplegar-juan.yml
+    with:
+      entorno: staging
+      dry_run: false
+    secrets: inherit
+
   desplegar-produccion:
     name: Desplegar a producción
     needs: [lint, odoo-tests, edge, juan, integracion-juan, puente-wa, docker, simulacro-restauracion]

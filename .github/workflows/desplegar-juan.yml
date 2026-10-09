@@ -31,6 +31,15 @@ on:
         description: "Solo validar (no despliega nada)"
         type: boolean
         default: true
+  # Lo llama ci.yml después de desplegar `dcasa` (el Worker de Juan apunta a `JuanEntrada`, que debe existir ya).
+  workflow_call:
+    inputs:
+      entorno:
+        type: string
+        required: true
+      dry_run:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
