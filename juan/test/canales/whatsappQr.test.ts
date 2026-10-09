@@ -65,7 +65,7 @@ describe("el webhook del puente", () => {
   it("valida el token del puente (cabecera en claro o en base64), en tiempo constante y fallando cerrado", async () => {
     const { env } = puenteFalso();
     expect((await adaptador.recibir(entrante(mensaje(), { "x-wa-token-b64": tokenParaCabecera(WA_TOKEN) }), env)).entrantes).toHaveLength(1);
-    for (const mal of [{}, { "x-wa-token": "" }, { "x-wa-token": "otro" }, { "x-wa-token": WA_TOKEN + "x" }, { "x-wa-token-b64": "%%%" }]) {
+    for (const mal of [{} as Record<string, string>, { "x-wa-token": "" }, { "x-wa-token": "otro" }, { "x-wa-token": WA_TOKEN + "x" }, { "x-wa-token-b64": "%%%" }]) {
       const r = await adaptador.recibir(entrante(mensaje(), mal), env);
       expect(r.respuesta.status, JSON.stringify(mal)).toBe(401);
       expect(r.entrantes).toEqual([]);

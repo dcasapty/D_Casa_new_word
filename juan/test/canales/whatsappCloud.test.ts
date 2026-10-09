@@ -61,7 +61,7 @@ describe("la verificación y la firma", () => {
 
   it("POST sin firma, con firma mala o sin secreto: 401", async () => {
     const cuerpo = JSON.stringify(cambio({ messages: [] }));
-    for (const cab of [{}, { "x-hub-signature-256": `sha256=${"a".repeat(64)}` }]) {
+    for (const cab of [{} as Record<string, string>, { "x-hub-signature-256": `sha256=${"a".repeat(64)}` }]) {
       expect((await adaptador.recibir(new Request("https://x/w", { method: "POST", headers: cab, body: cuerpo }), env)).respuesta.status).toBe(401);
     }
     expect((await adaptador.recibir(await firmado(cambio({ messages: [] })), {} as Env)).respuesta.status).toBe(401);

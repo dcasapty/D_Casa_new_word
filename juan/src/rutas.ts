@@ -53,14 +53,17 @@ async function prepararEntrante(e: Entrante): Promise<Entrante> {
     e.adjuntos.map(async (a) => {
       const limpio = { tipo: a.tipo, mime: a.mime, nombre: a.nombre, url: a.url, bytes: a.bytes };
       if (!limpio.bytes && a.obtener) {
+        let reloj: ReturnType<typeof setTimeout> | undefined;
         try {
-          const r = await Promise.race([a.obtener(), new Promise<null>((res) => setTimeout(() => res(null), PLAZO_DESCARGA_MS))]);
+          const r = await Promise.race([a.obtener(), new Promise<null>((res) => (reloj = setTimeout(() => res(null), PLAZO_DESCARGA_MS)))]);
           if (r && r.bytes.byteLength > 0 && r.bytes.byteLength <= MAX_ADJUNTO_BYTES) {
             limpio.bytes = r.bytes;
             limpio.mime ??= r.mime;
           }
         } catch (err) {
           console.warn("[juan] no se pudo descargar el archivo del cliente:", String(err).slice(0, 200));
+        } finally {
+          clearTimeout(reloj);
         }
       }
       return limpio;

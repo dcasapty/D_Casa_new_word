@@ -216,6 +216,8 @@ export class MotorConversacion {
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
     const { lista, transcripciones } = await this.prepararAdjuntos(e, ahora);
+    // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
+    if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
     const textoOriginal = (e.texto ?? "").trim();
     const texto = [textoOriginal, ...transcripciones.map((t) => `(nota de voz) ${t}`)].filter(Boolean).join("\n");
 
