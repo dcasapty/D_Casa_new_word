@@ -14,3 +14,4 @@ access_dcasa_etiqueta_gerente,dcasa.conversacion.etiqueta gerente,model_dcasa_co
 access_dcasa_respuesta_rapida_vendedora,dcasa.respuesta.rapida vendedora,model_dcasa_respuesta_rapida,sales_team.group_sale_salesman,1,0,0,0
 access_dcasa_respuesta_rapida_gerente,dcasa.respuesta.rapida gerente,model_dcasa_respuesta_rapida,sales_team.group_sale_manager,1,1,1,1
 access_dcasa_lectura_vendedora,dcasa.conversacion.lectura vendedora,model_dcasa_conversacion_lectura,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_juan_costo_dia_gerente,dcasa.juan.costo.dia gerente,model_dcasa_juan_costo_dia,sales_team.group_sale_manager,1,0,0,0
