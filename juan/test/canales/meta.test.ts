@@ -192,6 +192,12 @@ describe("el envío por la Send API", () => {
     expect(r.ids).toEqual(["m.0", "m.1"]);
   });
 
+  it("quita los asteriscos de negrita (Messenger e Instagram no los entienden)", async () => {
+    const { llamadas, adaptador } = graphFalso();
+    await adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Escríbeme *persona* y te atiende una vendedora."], medios: [] }, env);
+    expect(llamadas[0].cuerpo.message.text).toBe("Escríbeme persona y te atiende una vendedora.");
+  });
+
   it("el token NO viaja en la URL", async () => {
     const { llamadas, adaptador } = graphFalso();
     await adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Hola"], medios: [] }, env);

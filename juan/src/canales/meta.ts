@@ -23,6 +23,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  sinNegritas,
 } from "./tipos";
 
 interface MetaEvento {
@@ -158,7 +159,7 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       const cap = canal === "instagram" ? CAPACIDADES.instagram : CAPACIDADES.messenger;
       for (let i = 0; i < salida.burbujas.length; i++) {
         if (i > 0) await dormir(salida.esperaMs ?? 1000);
-        const id = await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { text: salida.burbujas[i] } });
+        const id = await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { text: sinNegritas(salida.burbujas[i]) } });
         if (id) ids.push(id);
       }
       for (const m of salida.medios) {

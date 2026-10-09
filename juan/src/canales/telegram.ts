@@ -20,6 +20,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  sinNegritas,
 } from "./tipos";
 
 const API = "https://api.telegram.org";
@@ -160,7 +161,7 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       const ids: string[] = [];
       for (let i = 0; i < salida.burbujas.length; i++) {
         if (i > 0) await dormir(salida.esperaMs ?? 1000);
-        const r = await llamar(token, "sendMessage", { chat_id: chat, text: salida.burbujas[i] });
+        const r = await llamar(token, "sendMessage", { chat_id: chat, text: sinNegritas(salida.burbujas[i]) });
         if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
       }
       for (const m of salida.medios) {
@@ -168,7 +169,7 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
         const r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", {
           chat_id: chat,
           [esFoto ? "photo" : "document"]: m.url,
-          ...(m.pie ? { caption: m.pie.slice(0, 1000) } : {}),
+          ...(m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {}),
         });
         if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
       }

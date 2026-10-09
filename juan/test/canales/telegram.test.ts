@@ -154,6 +154,14 @@ describe("enviar por Telegram", () => {
     expect(r.ids).toEqual(["tg:555:101", "tg:555:102"]);
   });
 
+  it("quita los asteriscos de negrita (Telegram no los entiende): *persona* sale como persona", async () => {
+    const f = telegramFalso();
+    const { adaptador } = tg(f);
+    await adaptador.enviar("telegram", { para: "555", burbujas: ["Escríbeme *persona* y te atiende una vendedora. 2 * 3"], medios: [] }, env);
+    const envios = f.llamadas.filter((l) => l.url.endsWith("/sendMessage"));
+    expect(envios[0].cuerpo).toEqual({ chat_id: "555", text: "Escríbeme persona y te atiende una vendedora. 2 * 3" });
+  });
+
   it("imagen: sendPhoto con la URL y el pie; documento: sendDocument", async () => {
     const f = telegramFalso();
     const { adaptador } = tg(f);

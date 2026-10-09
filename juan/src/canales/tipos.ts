@@ -137,6 +137,14 @@ export function aMilisegundos(v: unknown, ahora: number): number {
   return ahora;
 }
 
+/**
+ * Telegram, Messenger e Instagram no entienden la negrita de WhatsApp (`*persona*`): mostrarían los asteriscos tal cual.
+ * Para esos canales se quitan los asteriscos que rodean una palabra o frase (`*persona*` → `persona`).
+ */
+export function sinNegritas(texto: string): string {
+  return texto.replace(/\*([^*\n]+)\*/g, "$1");
+}
+
 /** Parte un texto largo respetando el máximo del canal (último recurso: las burbujas ya son cortas). */
 export function partirPorLargo(texto: string, max: number): string[] {
   if (texto.length <= max) return [texto];
