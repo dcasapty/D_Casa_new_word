@@ -197,7 +197,7 @@ propósito: así un despliegue no las pisa.
 | `META_AI_BASE_URL`, `OPENAI_BASE_URL` | Solo si hay que apuntar a otra dirección de esas APIs. Vacío = la oficial. |
 
 Las que sí están en `wrangler.jsonc` (y se cambian con un despliegue): `ENTORNO`, `URL_SITIO`,
-`BUFFER_SEGUNDOS` (15), `TOPE_DIARIO` (50) y `TRANSCRIBIR_AUDIO` (0).
+`BUFFER_SEGUNDOS` (15), `TOPE_DIARIO` (50) y `TRANSCRIBIR_AUDIO` (1).
 
 ## 6. Probar con Telegram
 
@@ -333,12 +333,24 @@ Comandos locales: `cd juan && npm ci && npm test && npm run typecheck`, y para v
   desconectado, la IA fallando, el tope alcanzado. **Avisa una sola vez** por problema y avisa
   «Resuelto» cuando se arregla.
 
-## 12. Notas de voz (apagado)
+## 12. Notas de voz (encendido)
 
-Por defecto una nota de voz **no se transcribe**: Juan le pide al cliente que escriba, o le dice que
-una vendedora la escucha. Para transcribir con Whisper de Workers AI hay que **ambas cosas**:
-`"TRANSCRIBIR_AUDIO": "1"` en `wrangler.jsonc` y declarar el binding `"ai": { "binding": "AI" }`.
-No se activa solo porque Workers AI no debe ser obligatorio, y el audio de un cliente es dato personal.
+Juan **entiende las notas de voz**: el audio se pasa a texto con Whisper (`@cf/openai/whisper-large-v3-turbo`) de
+Workers AI, dentro de la misma cuenta de Cloudflare, y el texto entra a la conversación como
+`(nota de voz) …`. En Odoo la vendedora ve el audio original **y** lo que se entendió.
+
+* Se enciende con **las dos cosas**: `"TRANSCRIBIR_AUDIO": "1"` y el binding `"ai": { "binding": "AI" }`,
+  ya puestos en `wrangler.jsonc` (producción y staging). Para apagarlo: `"TRANSCRIBIR_AUDIO": "0"` y
+  desplegar; Juan vuelve a pedirle al cliente que escriba, o le dice que una vendedora la escucha.
+* Cuesta por minuto de audio, a la cuenta de Cloudflare: según la página de precios de Workers AI,
+  Whisper large-v3-turbo es US$0.0005 por minuto de audio (46.63 *neurons*), y el plan incluye
+  10.000 *neurons* gratis al día. Esto **no** cuenta en el tope mensual de IA de Juan (que es del
+  proveedor que contesta).
+* Un audio vacío o de más de 8 MB no se procesa. Si Whisper no entiende nada o falla, Juan pide que lo
+  escriban; nunca inventa lo que dijo.
+* Privacidad: el audio de un cliente es dato personal. Solo viaja del canal a tu Worker y a Workers AI
+  de tu cuenta; el texto sigue las mismas reglas que cualquier mensaje (los comprobantes y cédulas
+  nunca llegan a la IA).
 
 ## 13. Pruebas
 
@@ -385,8 +397,8 @@ no las manda, Juan usa valores por defecto):
 
 1. **Meta como IA.** Si se va a usar, hay que verificar el precio y decidir si el nivel `contributor`
    queda **prohibido** (lo más seguro; hoy Juan solo lo acepta si alguien lo escribe en Odoo y avisa).
-2. **Notas de voz.** ¿Se transcriben con Whisper (cuesta y trata el audio del cliente) o se le pide al
-   cliente que escriba?
+2. ~~Notas de voz.~~ **Decidido por la dueña: sí se entienden** (§12). Queda confirmar con el abogado la línea de
+   privacidad que se le muestra al cliente.
 3. **WhatsApp Cloud API.** Está completo pero apagado. El formato de los mensajes que la vendedora
    escribe desde su app (coexistencia) **no está verificado** contra la documentación de Meta (estaba
    bloqueada al construirlo): hay que revisarlo antes de encenderlo.

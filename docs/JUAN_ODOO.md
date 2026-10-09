@@ -220,12 +220,19 @@ recibe «ya avisé a una vendedora»; fuera del horario, «te escribe mañana a 
 
 ## Seguimiento (decisión de la dueña)
 
-A quien **preguntó y no volvió a escribir**, el asistente le escribe **como máximo dos veces**:
+El seguimiento es **solo para quien quiso comprar y nunca compró**. «Quiso comprar» quiere decir que hay una
+**oportunidad viva** en el CRM ligada a la conversación (ni ganada ni perdida): el asistente la crea solo cuando el
+cliente muestra interés concreto (un mueble puntual, un presupuesto, quiere ir a la tienda) y tú puedes crearla con el
+botón *Crear oportunidad*. Una persona que solo preguntó la hora o la dirección no recibe seguimiento. Si marcas la
+oportunidad como **perdida** (o **ganada**), el seguimiento se cancela.
+
+A quien tiene esa oportunidad y **no volvió a escribir**, el asistente le escribe **como máximo dos veces**:
 
 * la **primera**, 5 horas después del último mensaje, **solo en horario laboral** (8:00 a. m. a 5:00 p. m., todos los
   días, hora de Panamá; si cae fuera, espera al siguiente horario laboral);
 * la **segunda**, 5 días después de la primera, también en horario laboral;
-* **ninguna** si la persona **ya compró** (una factura suya pagada después de que empezó la conversación) o si
+* **ninguna** si la persona **ya es cliente** (tiene alguna factura pagada, de antes o de después de la
+  conversación: a quien ya compra no se le hace seguimiento) o si
   **pidió que no la contacten** (se marca sola cuando lo escribe, y también la puedes marcar tú en la ficha:
   pestaña *Conversaciones › No contactar*);
 * tampoco si la atiende una persona, si la conversación está cerrada o si el asistente está apagado.

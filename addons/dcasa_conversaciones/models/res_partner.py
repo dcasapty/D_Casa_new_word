@@ -95,16 +95,19 @@ class ResPartner(models.Model):
         ficha = ficha.sudo()
         return celulares.interpretar(ficha.dcasa_celular or ficha.phone or '')
 
-    def _dcasa_conv_ya_compro(self, desde):
-        """¿Tiene alguna factura de cliente pagada con fecha de ``desde`` (una fecha) en adelante?
+    def _dcasa_conv_ya_compro(self, desde=None):
+        """¿Tiene alguna factura de cliente pagada (con fecha de ``desde`` en adelante, si se da)?
 
-        «Pagada» como en Socios: ``paid`` o ``in_payment``. Es la regla del seguimiento: quien ya
-        compró después de empezar la conversación no recibe seguimiento.
+        «Pagada» como en Socios: ``paid`` o ``in_payment``. Es la regla del seguimiento: a quien ya es
+        cliente (compró alguna vez) no se le hace seguimiento; el seguimiento es para quien quiso comprar
+        y nunca compró.
         """
         self.ensure_one()
-        return bool(self.env['account.move'].sudo().search_count([
+        dominio = [
             ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'),
             ('payment_state', 'in', ('paid', 'in_payment')),
             ('commercial_partner_id', '=', self.commercial_partner_id.id),
-            ('invoice_date', '>=', desde),
-        ], limit=1))
+        ]
+        if desde:
+            dominio.append(('invoice_date', '>=', desde))
+        return bool(self.env['account.move'].sudo().search_count(dominio, limit=1))

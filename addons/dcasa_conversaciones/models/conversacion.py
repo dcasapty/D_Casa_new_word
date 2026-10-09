@@ -212,7 +212,11 @@ class DcasaConversacion(models.Model):
     def write(self, vals):
         if not self.env.su and {'canal', 'id_externo'} & set(vals):
             raise AccessError(self.env._('El canal y la persona de una conversación no se cambian.'))
-        return super().write(vals)
+        resultado = super().write(vals)
+        if 'oportunidad_id' in vals:
+            # La intención de compra es lo que habilita el seguimiento: al ligar o soltar la oportunidad se vuelve a calcular.
+            self._programar_seguimiento()
+        return resultado
 
     def unlink(self):
         """Borrar una conversación (derecho de borrado, Ley 81) borra sus mensajes y adjuntos por el ORM."""
@@ -365,13 +369,19 @@ class DcasaConversacion(models.Model):
     # ------------------------------------------------------------------
 
     def _ya_compro(self):
-        """¿Tiene una factura pagada desde que empezó la conversación? (fecha local de Panamá)"""
+        """¿Ya es cliente? Tiene alguna factura pagada, de antes o de después de empezar la conversación."""
         self.ensure_one()
-        if not self.partner_id:
-            return False
-        horario = self.env['dcasa.juan.ajustes'].obtener().horario()
-        empezo = H.a_local(self.inicio or self.create_date or fields.Datetime.now(), horario).date()
-        return self.partner_id._dcasa_conv_ya_compro(empezo)
+        return bool(self.partner_id) and self.partner_id._dcasa_conv_ya_compro()
+
+    def _con_intencion_de_compra(self):
+        """¿Mostró intención de compra? Hay una oportunidad de CRM viva (ni ganada ni perdida) ligada a la conversación.
+
+        El asistente la crea cuando el cliente muestra interés concreto (un mueble puntual, un presupuesto, quiere ir a
+        la tienda) y una vendedora puede crearla con un botón. Sin oportunidad, el seguimiento no corre.
+        """
+        self.ensure_one()
+        oportunidad = self.oportunidad_id.sudo()
+        return bool(oportunidad and oportunidad.active and oportunidad.won_status == 'pending')
 
     def _motivo_sin_seguimiento(self, ahora=None, ajustes=None):
         """Por qué NO toca seguimiento ahora (texto corto), o ``None`` si toca. Es la regla 10 del contrato."""
@@ -395,7 +405,9 @@ class DcasaConversacion(models.Model):
         if self.seguimientos_enviados >= ajustes.seguimiento_maximo:
             return 'ya recibió todos los seguimientos'
         if self._ya_compro():
-            return 'ya compró'
+            return 'ya es cliente: ya compró'
+        if not self._con_intencion_de_compra():
+            return 'no mostró intención de compra'
         return None
 
     def _programar_seguimiento(self, desde=None):
@@ -487,7 +499,9 @@ class DcasaConversacion(models.Model):
     def _interes(self):
         self.ensure_one()
         if self.oportunidad_id:
-            return (self.oportunidad_id.name or '')[:200]
+            nombre = self.oportunidad_id.name or ''
+            prefijo = f'{dict(CANALES).get(self.canal, self.canal)}: '   # «WhatsApp (QR): cama queen» → «cama queen»
+            return (nombre[len(prefijo):] if nombre.startswith(prefijo) else nombre)[:200]
         ultimo = self.env['dcasa.mensaje'].search([('conversacion_id', '=', self.id), ('autor', '=', 'cliente')],
                                                   order='ts desc, id desc', limit=1)
         return (ultimo.texto or '')[:200]

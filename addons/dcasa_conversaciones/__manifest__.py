@@ -21,8 +21,9 @@ Messenger e Instagram con el nombre público «el equipo de D'CASA». El motor d
   precios «+ ITBMS», reglas de Socios solo desde ``puntos.json``, saldo con PIN), registradas en el
   registro de Brian bajo el usuario técnico ``juan`` (sin permisos internos) y auditadas en
   ``brian.accion``. Ninguna escribe puntos, precios, stock, facturas ni pagos.
-* **Seguimiento**: Odoo decide quién y cuándo (5 h solo en horario laboral, luego 5 días, máximo 2,
-  ninguno si ya compró o pidió que no lo contacten) y pide al Worker que redacte y envíe.
+* **Seguimiento**: Odoo decide quién y cuándo, solo para quien mostró intención de compra (oportunidad
+  viva) y nunca compró (5 h solo en horario laboral, luego 5 días, máximo 2; ninguno si ya es cliente
+  o pidió que no lo contacten) y pide al Worker que redacte y envíe.
 
 Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
 """,

@@ -9,7 +9,7 @@
   "observability": { "enabled": true },
 
   // Un Durable Object por conversación (`canal:id_externo`) y uno solo para el gasto de IA y la salud.
-  // Los dos con almacenamiento SQLite propio: sin D1, sin Vectorize, sin R2, sin Workers AI obligatorios.
+  // Los dos con almacenamiento SQLite propio: sin D1, sin Vectorize ni R2. Workers AI (binding `ai`, abajo) solo transcribe notas de voz.
   "durable_objects": {
     "bindings": [
       { "name": "CONVERSACION", "class_name": "Conversacion" },
@@ -17,6 +17,10 @@
     ]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+
+  // Workers AI: SOLO para pasar a texto las notas de voz (Whisper, TRANSCRIBIR_AUDIO=1). No se usa para contestar: eso lo hace
+  // el proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare por minuto de audio (docs/JUAN_WORKER.md §12).
+  "ai": { "binding": "AI" },
 
   // Worker a Worker SIEMPRE por service binding: Cloudflare rechaza (error 1042) la URL pública entre Workers de la misma cuenta.
   //   DCASA: el Worker `dcasa` (el que está delante de Odoo). En producción todavía no está desplegado: hasta que exista,
@@ -44,8 +48,8 @@
     "URL_SITIO": "https://dcasapty.com",
     "BUFFER_SEGUNDOS": "15",
     "TOPE_DIARIO": "50",
-    // "1" activa la transcripción de notas de voz con Workers AI; además hay que declarar el binding "ai" (docs/JUAN_WORKER.md).
-    "TRANSCRIBIR_AUDIO": "0"
+    // "1" = las notas de voz se pasan a texto con Whisper de Workers AI (necesita el binding "ai" de arriba). "0" lo apaga.
+    "TRANSCRIBIR_AUDIO": "1"
   },
 
   // workers.dev queda encendido: esa es la dirección que Odoo (ajuste dcasa_conversaciones.juan_url) y los webhooks usan.
@@ -61,6 +65,7 @@
         ]
       },
       "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+      "ai": { "binding": "AI" },
       // Hoy solo existe `dcasa-staging`: staging habla con ese.
       "services": [
         { "binding": "DCASA", "service": "dcasa-staging", "entrypoint": "JuanEntrada" }
@@ -72,7 +77,7 @@
         "URL_SITIO": "https://dcasa-staging.dcasapty.workers.dev",
         "BUFFER_SEGUNDOS": "15",
         "TOPE_DIARIO": "50",
-        "TRANSCRIBIR_AUDIO": "0"
+        "TRANSCRIBIR_AUDIO": "1"
       },
       "workers_dev": true
     }

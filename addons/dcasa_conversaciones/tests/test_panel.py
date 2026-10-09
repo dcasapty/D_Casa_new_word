@@ -438,6 +438,7 @@ class TestAccionesDelPanel(PanelCase):
         self.assertFalse(self.conv.asignada_a)
 
     def test_cancelar_el_seguimiento_programado(self):
+        self.conv._oportunidad('Quiere una cama queen', interes='cama queen')
         self.registrar('¿Te muestro opciones?', id_externo=self.conv.id_externo, autor='bot',
                        ts=self.ahora - timedelta(minutes=5))
         self.assertTrue(self.conv.seguimiento_proximo)
@@ -451,6 +452,7 @@ class TestAccionesDelPanel(PanelCase):
             self.panel.cancelar_seguimiento(self.conv.id)    # ya no hay nada que cancelar
 
     def test_no_se_cancela_un_seguimiento_que_ya_esta_en_camino(self):
+        self.conv._oportunidad('Quiere una cama queen', interes='cama queen')
         self.registrar('¿Te muestro opciones?', id_externo=self.conv.id_externo, autor='bot',
                        ts=self.ahora - timedelta(minutes=5))
         self.conv.write({'seguimiento_pedido_en': self.ahora, 'seguimiento_numero_pedido': 1,

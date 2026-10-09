@@ -161,11 +161,15 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
    devuelvan o venza la pausa).
 8. Tope de IA del mes: al llegar, baja al modelo barato; nunca se queda sin contestar por dinero.
 9. Anti-spam: mensaje repetido → descanso 1 h; tope diario por persona; ráfaga de 15 s.
-10. **Seguimiento (decisión de la dueña):** como máximo 2 mensajes a quien preguntó y no volvió a
+10. **Seguimiento (decisión de la dueña):** solo a quien **mostró intención de compra y nunca
+    compró**. Intención de compra = hay una oportunidad de CRM viva (ni ganada ni perdida) ligada a
+    la conversación: el asistente la crea con `crear_oportunidad` cuando el cliente muestra interés
+    concreto, y una vendedora puede crearla con un botón. Como máximo 2 mensajes a quien no volvió a
     escribir: el 1.º a las **5 h** del último mensaje, **solo en horario laboral** (8:00–17:00,
     todos los días, hora de Panamá; si cae fuera, espera al siguiente horario laboral); el 2.º a
-    los **5 días**; **ninguno** si ya compró (factura pagada del cliente posterior a la
-    conversación) o si pidió que no lo contacten. Odoo decide; el Worker redacta y envía.
+    los **5 días**. **Ninguno** si no hay oportunidad viva, si la persona **ya es cliente** (alguna
+    factura pagada, de antes o de después de empezar la conversación) o si pidió que no la contacten.
+    Odoo decide; el Worker redacta y envía.
 11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles.
 
 ## Secretos (solo nombres; los valores los carga la dueña en GitHub/Cloudflare, nunca en el chat)

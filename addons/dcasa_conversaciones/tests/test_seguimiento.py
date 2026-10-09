@@ -1,5 +1,6 @@
-"""Seguimiento (decisión de la dueña): 1.º a las 5 h solo en horario laboral, 2.º a los 5 días, máximo 2,
-ninguno si ya compró o pidió que no lo contacten. Odoo decide; el Worker redacta y envía."""
+"""Seguimiento (decisión de la dueña): 1.º a las 5 h solo en horario laboral, 2.º a los 5 días, máximo 2.
+Solo para quien mostró intención de compra (hay una oportunidad viva) y nunca compró; ninguno si ya es cliente
+(alguna factura pagada) o pidió que no lo contacten. Odoo decide; el Worker redacta y envía."""
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -18,12 +19,17 @@ def panama(anio, mes, dia, hora=0, minuto=0):
 
 class SeguimientoCase(JuanCase):
 
-    def pregunta_y_bot_contesta(self, hora_panama=9, dia=9, **kw):
-        """El cliente pregunta y el asistente contesta 5 minutos después. Devuelve la conversación."""
+    def pregunta_y_bot_contesta(self, hora_panama=9, dia=9, con_interes=True, **kw):
+        """El cliente pregunta y el asistente contesta 5 minutos después. Devuelve la conversación.
+
+        ``con_interes``: el asistente registró la oportunidad (interés concreto): es lo que habilita el seguimiento.
+        """
         pregunta = panama(2026, 10, dia, hora_panama, 0)
         conv, _, _ = self.registrar('¿Tienen camas queen?', ts=pregunta, **kw)
         self.registrar('Sí, tenemos varias. ¿Para cuántas personas?', autor='bot', ts=pregunta + timedelta(minutes=5),
                        **{k: v for k, v in kw.items() if k in ('canal', 'id_externo')})
+        if con_interes:
+            conv._oportunidad('Busca una cama queen', interes='camas queen')
         return conv
 
 
@@ -85,6 +91,61 @@ class TestProgramarSeguimiento(SeguimientoCase):
 
 
 @tagged('post_install', '-at_install')
+class TestSoloConIntencionDeCompra(SeguimientoCase):
+    """La dueña: seguimiento a quien quiso comprar y nunca compró; a nadie más."""
+
+    def test_sin_oportunidad_no_hay_seguimiento(self):
+        conv = self.pregunta_y_bot_contesta(con_interes=False)
+        self.assertFalse(conv.seguimiento_proximo)
+        self.assertEqual(conv._motivo_sin_seguimiento(panama(2026, 10, 9, 14, 6)), 'no mostró intención de compra')
+
+    def test_con_oportunidad_viva_si_hay_seguimiento(self):
+        conv = self.pregunta_y_bot_contesta(con_interes=True)
+        self.assertEqual(conv.seguimiento_proximo, panama(2026, 10, 9, 14, 5))
+
+    def test_si_la_oportunidad_aparece_despues_se_programa_el_seguimiento(self):
+        conv = self.pregunta_y_bot_contesta(con_interes=False)
+        self.assertFalse(conv.seguimiento_proximo)
+        conv._oportunidad('Quiere un sofá de tres puestos', interes='sofá')
+        self.assertTrue(conv.seguimiento_proximo, 'Al ligar la oportunidad se calcula el seguimiento')
+
+    def test_si_sueltan_la_oportunidad_se_cancela(self):
+        conv = self.pregunta_y_bot_contesta()
+        self.assertTrue(conv.seguimiento_proximo)
+        conv.oportunidad_id = False
+        self.assertFalse(conv.seguimiento_proximo)
+
+    def test_oportunidad_perdida_o_ganada_no_cuenta(self):
+        for cerrar in ('action_set_lost', 'action_set_won'):
+            with self.subTest(cerrar=cerrar):
+                conv = self.pregunta_y_bot_contesta(id_externo=f'5076000{cerrar[-4:]}')
+                getattr(conv.oportunidad_id, cerrar)()
+                self.assertEqual(conv._motivo_sin_seguimiento(panama(2026, 10, 9, 14, 6)),
+                                 'no mostró intención de compra')
+
+    def test_oportunidad_archivada_no_cuenta(self):
+        conv = self.pregunta_y_bot_contesta()
+        conv.oportunidad_id.active = False
+        self.assertEqual(conv._motivo_sin_seguimiento(panama(2026, 10, 9, 14, 6)), 'no mostró intención de compra')
+
+    def test_el_cron_no_pide_seguimiento_si_la_oportunidad_se_perdio_despues_de_programarse(self):
+        llamadas = self.configurar_worker()
+        conv = self.pregunta_y_bot_contesta()
+        self.assertTrue(conv.seguimiento_proximo)
+        conv.oportunidad_id.action_set_lost()      # la vendedora la marcó perdida: ya no quiere comprar
+        with freeze_time(panama(2026, 10, 9, 14, 10)):
+            self.assertEqual(self.Conversacion._cron_seguimientos(), 0)
+        self.assertFalse([c for c in llamadas.call_args_list if c.args[1].endswith('/odoo/seguimiento')])
+        self.assertFalse(conv.seguimiento_proximo)
+
+    def test_el_segundo_seguimiento_tambien_exige_intencion(self):
+        conv = self.pregunta_y_bot_contesta()
+        conv.write({'seguimientos_enviados': 1, 'ultimo_seguimiento_en': panama(2026, 10, 9, 14, 10)})
+        conv.oportunidad_id.action_set_lost()
+        self.assertEqual(conv._motivo_sin_seguimiento(panama(2026, 10, 14, 14, 10)), 'no mostró intención de compra')
+
+
+@tagged('post_install', '-at_install')
 class TestMotivosParaNoSeguir(SeguimientoCase, SociosCommon):
     """Cada razón por la que NO toca seguimiento, con la factura de verdad."""
 
@@ -111,16 +172,16 @@ class TestMotivosParaNoSeguir(SeguimientoCase, SociosCommon):
 
     def test_ya_compro_con_factura_pagada(self):
         self.factura_del_cliente(pagar=True)
-        self.assertEqual(self.motivo(), 'ya compró')
+        self.assertEqual(self.motivo(), 'ya es cliente: ya compró')
 
     def test_una_factura_sin_pagar_no_cuenta_como_compra(self):
         self.factura_del_cliente(pagar=False)
         self.assertIsNone(self.motivo())
 
-    def test_una_factura_pagada_anterior_a_la_conversacion_no_cuenta(self):
+    def test_una_compra_de_antes_de_la_conversacion_tambien_cuenta(self):
+        """La dueña: el seguimiento es para quien nunca compró, no para quien «ya compra»."""
         self.factura_del_cliente(pagar=True, fecha=fields.Date.today() - timedelta(days=400))
-        # La conversación empezó el 9/10/2026; una factura de hace más de un año es anterior.
-        self.assertIsNone(self.motivo())
+        self.assertEqual(self.motivo(), 'ya es cliente: ya compró')
 
     def test_la_factura_de_otro_cliente_no_cuenta(self):
         factura = self.factura(self.cliente)   # factura pagada de OTRO cliente

@@ -55,8 +55,9 @@
                             <field name="seguimiento_maximo"/>
                             <field name="seguimiento_solo_horario_laboral"/>
                             <div class="text-muted" colspan="2">
-                                No se le hace seguimiento a quien ya compró (factura pagada después de empezar la
-                                conversación) ni a quien pidió que no lo contacten.
+                                Solo se le hace seguimiento a quien mostró intención de compra (hay una oportunidad
+                                viva en el CRM) y nunca compró. No se le hace a quien ya es cliente (alguna factura
+                                pagada), a quien la dejó como perdida ni a quien pidió que no lo contacten.
                             </div>
                         </group>
                     </group>
