@@ -262,6 +262,9 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'unlink'): 'Bloquea: los ajustes no se borran.',
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_abrir'):
         ACCION_VENTANA + ' Comprueba check_access("read") antes.',
+    ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_cargar_ejemplos'):
+        ('Botón solo de staging: exige Gerencia y existencias de prueba en el servidor; crea filas ficticias '
+         'y no escribe en ningún canal.'),
     ('dcasa_conversaciones', 'dcasa.juan.ajustes', 'action_probar_conexion'):
         'Botón: exige sales_team.group_sale_manager; solo pregunta la salud del Worker (sin enviar datos del cliente).',
     ('dcasa_conversaciones', 'dcasa.conocimiento', 'create'):

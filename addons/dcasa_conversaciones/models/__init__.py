@@ -7,3 +7,5 @@ from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_c
 from . import cliente_worker_panel, panel_juan
 # Herramientas de Juan en el registro de Brian.
 from . import brian_juan, herramientas_juan
+# Solo para el entorno de prueba.
+from . import ejemplos

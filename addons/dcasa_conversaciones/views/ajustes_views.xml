@@ -8,6 +8,11 @@
                 <header>
                     <button name="action_probar_conexion" type="object" string="Probar conexión"
                             class="btn-secondary" groups="sales_team.group_sale_manager"/>
+                    <field name="es_entorno_de_prueba" invisible="1"/>
+                    <button name="action_cargar_ejemplos" type="object" string="Cargar conversaciones de ejemplo"
+                            class="btn-secondary" groups="sales_team.group_sale_manager"
+                            invisible="not es_entorno_de_prueba"
+                            help="Solo en el entorno de prueba: crea 4 conversaciones ficticias para ver cómo se ve la pantalla."/>
                 </header>
                 <sheet>
                     <div class="oe_title">

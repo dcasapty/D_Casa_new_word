@@ -7,6 +7,7 @@ from . import (
     test_celulares,
     test_conocimiento,
     test_conversaciones,
+    test_ejemplos,
     test_etiquetas,
     test_firma,
     test_herramientas,
