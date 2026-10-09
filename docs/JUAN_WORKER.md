@@ -306,6 +306,8 @@ workflow*). No lo llama el CI y **todavía no se ha ejecutado**.
   `/salud`.
 - Solo usa los dos secretos de GitHub que ya existen para desplegar (`CLOUDFLARE_API_TOKEN` y
   `CLOUDFLARE_ACCOUNT_ID`). **Ningún secreto de Juan pasa por GitHub.**
+- El binding `DCASA` lleva `"entrypoint": "JuanEntrada"` (la clase del Worker `dcasa` que reenvía a Odoo): sin él, el Worker `juan`
+  llamaría al `fetch` público de `dcasa`, donde `/dcasa/juan/**` da 404 (`test/despliegue.test.ts` lo vigila).
 - Antes del primer despliegue real tienen que existir los Workers a los que apunta `services`:
   staging apunta a `dcasa-staging` y producción a `dcasa`. Cloudflare rechaza el despliegue si el
   destino del binding no existe.
@@ -347,6 +349,11 @@ Durable Objects corren sobre SQLite de Node.
 | `test/odoo/`, `test/config.test.ts` | El cliente de Odoo (rutas, reintentos, plazos) y la configuración (normalización, caché de 60 s, horario). |
 | `test/rutas.test.ts` | Todas las direcciones: `/odoo/*` con token, `/media` firmado, webhooks, canal apagado, y que no sobreviva ninguna ruta del CRM de Baby Caleb. |
 | `test/punta-a-punta.test.ts` | Telegram -> ráfaga -> IA -> respuesta -> Odoo, con las clases reales de Durable Object, el cron y el primer despliegue sin secretos. |
+| `test/despliegue.test.ts` | La configuración de Cloudflare: el binding `DCASA` entra por `JuanEntrada` (con `entrypoint`), producción y staging iguales. |
+| `test/integracion/` | **Con el Odoo de verdad** (no un doble): se omite sin `ODOO_INTEGRACION_URL`; la corre `scripts/integracion_juan.sh`. Ver «Contrato verificado» en `JUAN.md`. |
+
+> Los dobles de Odoo de las demás pruebas **hablan como el Odoo real** desde la integración: `pasar_a_vendedora` devuelve
+> `texto_para_el_cliente`, `/mensaje` y `/estado` traen `nota_para_el_bot` y los días del horario son `0 = domingo`.
 
 ## 14. Qué falta (y qué decide la dueña)
 

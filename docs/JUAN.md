@@ -73,6 +73,7 @@ Meta). El par es único.
    El Worker lo consulta **justo antes de enviar** cada respuesta del bot: si una vendedora tomó la
    conversación, no envía.
 3. `GET /dcasa/juan/v1/config` — configuración editable por la dueña en Odoo:
+   (La forma exacta y verificada está en «Contrato verificado», al final; `dias`: 0 = domingo.)
    `{nombre_publico, bot_activo_global, canales_activos:{...}, horario:{inicio:"08:00",fin:"17:00",dias:[0..6],zona:"America/Panama"},
     seguimiento:{primero_horas:5,segundo_dias:5,solo_horario_laboral:true,maximo:2},
     presupuesto_ia_mensual_usd:30, modelo_rapido:"claude-haiku-4-5", modelo_inteligente:"claude-sonnet-5-5",
@@ -172,3 +173,138 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
 Desplegar (nada de recursos nuevos en Cloudflare sin aprobación), usar el número real, activar
 Messenger/Instagram/Cloud API (solo adaptadores con pruebas), chat web en el sitio (la regla de
 marca es un solo CTA: WhatsApp), campañas masivas, voz.
+
+---
+
+## Contrato verificado
+
+Las tres piezas se construyeron en paralelo contra el contrato de arriba. Esta sección es la **forma real, comprobada con el
+Odoo de verdad y el Worker de verdad hablándose por HTTP** (`scripts/integracion_juan.sh`, ver el final). Donde difiere de lo
+anterior, **gana esta sección**. Todo lo que no aparece aquí se cumple tal como está escrito arriba.
+
+### Convenciones (las dos mitades)
+
+- **Días del horario:** `0 = domingo … 6 = sábado` (`Date.getDay()`). Antes el Worker leía `0 = lunes`.
+- **Fechas:** texto ISO 8601 en UTC con `Z` (`2026-10-09T14:03:00Z`). El Worker también acepta `YYYY-MM-DD HH:MM:SS` (UTC) y epoch.
+- **Errores:** siempre `{"ok": false, "error": "texto"}` con el código HTTP que corresponde. Odoo → Worker y Worker → Odoo.
+- **Nombres de las herramientas:** los públicos, sin prefijo (`buscar_productos`). Dentro de Odoo (Brian) llevan `juan_`, pero eso
+  no sale de Odoo: `GET /herramientas` publica los públicos y `POST /herramienta` solo acepta los públicos.
+- **Precios de la IA:** en dólares por millón de tokens.
+
+### Worker → Odoo
+
+Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service binding con entrypoint**
+(`{"binding":"DCASA","service":"dcasa"|"dcasa-staging","entrypoint":"JuanEntrada"}`, ya en `juan/wrangler.jsonc`; sin el
+`entrypoint` el binding llama al `fetch` público del Worker `dcasa`, donde `/dcasa/juan/**` da 404). `JuanEntrada` es un
+`WorkerEntrypoint` con `fetch` (no RPC): reenvía solo `GET`/`POST` a `/dcasa/juan/**`. Todas con `Authorization: Bearer
+<JUAN_ODOO_TOKEN>`.
+
+| Ruta | Cuerpo | Respuesta 200 |
+|---|---|---|
+| `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, adjuntos?[{id, nombre, sensible}]}` |
+| `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot}` (sin conversación: los valores de los ajustes) |
+| `GET /config` | | ver abajo |
+| `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 12 herramientas, con las claves del contrato **y** las del formato de Anthropic |
+| `POST /herramienta` | `{nombre, argumentos, conversacion_id}` | `{ok:true, resultado:{…}}` |
+| `POST /seguimiento/hecho` | `{conversacion_id, numero:1\|2, resultado:"enviado"\|"descartado", motivo?}` | `{ok, conversacion_id, seguimientos_enviados}` |
+
+- `pausada_hasta`: ISO con `Z` o `null`. `estado` es `bot` cuando una pausa ya venció (Odoo la normaliza al responder).
+- `nota_para_el_bot`: lo que una vendedora le dejó dicho al devolver la conversación (hasta 500 letras), o `null`. **El Worker la lee
+  de `/mensaje` y `/estado` (y de `POST /odoo/estado`) y la pone en el contexto del chat** como un dato; Odoo la borra cuando
+  alguien toma la conversación y el Worker también.
+- `adjuntos[].url`: si es `null` (el Worker no tiene `URL_PUBLICA`), el mensaje **se guarda igual** y el adjunto cuenta como
+  «no se pudo traer» (`adjuntos_fallidos`); antes se rechazaba todo el mensaje con 400.
+- `POST /herramienta` con `pasar_a_vendedora` devuelve `{texto_para_el_cliente, dentro_de_horario, urgente}`: **el texto que el bot
+  dice es ese** (el Worker solo usa el suyo si Odoo no contesta). Códigos: `404` no existe la herramienta o la conversación,
+  `422` error de uso (el texto sirve para corregir), `409` pide confirmación humana.
+- **Idempotencia:** por `(conversacion, id_mensaje)`; repetir una petición devuelve la misma conversación sin duplicar. Los
+  mensajes del Worker llevan `id_mensaje` propio (`bot-<uuid>`); el eco que el puente devuelve de lo que escribió una vendedora
+  desde Odoo se funde con el mensaje original.
+
+`GET /config`:
+
+```json
+{"ok": true, "nombre_publico": "el equipo de D'CASA", "bot_activo_global": true,
+ "canales_activos": {"whatsapp_qr": true, "whatsapp_cloud": false, "telegram": true, "messenger": false, "instagram": false},
+ "horario": {"inicio": "08:00", "fin": "17:00", "dias": [0,1,2,3,4,5,6], "zona": "America/Panama"},
+ "seguimiento": {"primero_horas": 5, "segundo_dias": 5, "solo_horario_laboral": true, "maximo": 2},
+ "presupuesto_ia_mensual_usd": 30, "pausa_por_defecto_minutos": 120,
+ "proveedor_ia": "anthropic", "proveedor_respaldo_ia": null,
+ "modelo_rapido": "claude-haiku-4-5", "modelo_inteligente": "claude-sonnet-5-5",
+ "modelos_por_defecto": {"anthropic": {"rapido": "…", "inteligente": "…"}, "meta": {…}, "openai": {…}},
+ "precios": {"rapido": {"entrada": null, "salida": null, "cache": null}, "inteligente": {…}},
+ "precios_ia": {"claude-haiku-4-5": {"entrada": 1.0, "salida": 5.0, "entrada_cache": 0.1}},
+ "lecciones": ["una frase por elemento"], "mensaje_bienvenida": "…", "texto_privacidad_corto": "…",
+ "palabras_prohibidas": ["remate", "corre", "¡¡", "!!"]}
+```
+
+`precios_ia` es **por nombre de modelo** (lo que lee el Worker) y solo trae los modelos con precio de entrada **y** de salida; `precios` es
+lo mismo por nivel (con `null` donde no hay precio). Odoo **no** publica los modelos del proveedor de respaldo
+(`modelo_rapido_respaldo`/`modelo_inteligente_respaldo` que el Worker sí sabe leer): se usan los de siempre de ese proveedor, y para
+OpenAI (que no tiene) el respaldo no funciona hasta que se agreguen esos campos en Odoo.
+
+### Odoo → Worker
+
+Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http://localhost` solo para pruebas). Todas con
+`Authorization: Bearer <JUAN_WORKER_TOKEN>`.
+
+| Ruta | Cuerpo | Respuesta |
+|---|---|---|
+| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}]}` | `200 {ok, id_mensaje}` |
+| `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
+| `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
+| `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
+
+- `/odoo/salud` responde **200 aunque `ok` sea `false`** (le falta un secreto, un canal sin conectar): Odoo lo lee y lo muestra en
+  «Probar conexión» («whatsapp_qr: conectado, telegram: sin configurar (…)»).
+- `/odoo/enviar`: los adjuntos son URLs **`https`** del dominio público de la tienda (`web.base.url`, que el despliegue congela en
+  `https://CANONICAL_HOST`), firmadas y de **15 minutos**: `/dcasa/adjunto/<id>/<vence>/<firma>/<nombre>`, con
+  `firma = HMAC-SHA256(database.secret, "dcasa_adjunto:<id>:<vence>:<checksum>")`. El puente solo baja de `dcasapty.com` y
+  `*.dcasapty.workers.dev` (`MEDIOS_HOSTS_PERMITIDOS`), por https y sin IPs: si `web.base.url` no es de esos dominios el puente
+  contesta 422, el Worker responde 502 a Odoo y el mensaje queda «por enviar». Un adjunto con `http://` lo rechaza el Worker (400).
+  Audio y video salen como enlace dentro del texto.
+- `/odoo/estado` al **devolver**: trae `nota_para_el_bot` si la vendedora dejó una. Al **tomar** no. Si el aviso falla, Odoo lo
+  reintenta cada 5 minutos y mientras tanto el Worker se entera igual: pregunta `GET /estado` justo antes de enviar.
+- **Seguimiento:** el cron de Odoo (cada 15 min) anota el pedido y **confirma en la base antes** de llamar al Worker, porque el Worker
+  responde después de llamar a `/seguimiento/hecho` y a `/mensaje`. `pospuesto` (fuera de horario, asistente apagado) no lleva
+  `hecho`: Odoo lo reprograma. El 2.º se cuenta **5 días desde el 1.º** (no desde el último mensaje), en horario laboral.
+- **Archivos del cliente:** el Worker los guarda 2 días y los publica en `GET /media/<conversación>/<id>?exp=&sig=` (firma
+  HMAC-SHA256 con `JUAN_WORKER_TOKEN`; sin firma, 403; vencida, 410; de otra conversación, 404). Odoo los baja y los guarda como
+  `ir.attachment` (privado, del mensaje). La dirección del propio Worker (`juan_url`) es de confianza para la defensa anti-SSRF; las
+  demás URLs deben ser públicas.
+
+### Códigos y reintentos
+
+| Caso | Odoo | Worker |
+|---|---|---|
+| Sin `JUAN_ODOO_TOKEN` (o de menos de 32 caracteres) | `503 {ok:false, error}` en **todas** las rutas | `OdooError` reintentable (1 reintento, luego la cola de Odoo: 12 intentos para mensajes, 6 para herramientas) |
+| Token malo o ausente | `401` + `WWW-Authenticate` | sin reintento |
+| 30 intentos fallidos en un minuto (por IP) | `429` + `Retry-After: 60`, incluso con el token bueno | reintentable |
+| Odoo dormido o arrancando (lo contesta el borde) | `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` + `Retry-After` | reintenta; los mensajes esperan en la cola, **no se pierden** |
+| Choque entre dos transacciones de Postgres | Odoo repite la petición (hasta 5 veces); no llega al Worker | — |
+| Sin `JUAN_WORKER_TOKEN` en el Worker | — | `503` en `/odoo/*` (falla cerrado); con token malo, `401` |
+| Odoo no puede llamar al Worker | el mensaje de la vendedora queda «por enviar» y el cron lo reintenta cada 5 min durante 1 h | — |
+
+- Las herramientas **no se reintentan solas** (podrían duplicar una nota u oportunidad). Las que **escriben** en Odoo se ejecutan de a
+  una por turno del bot (las consultas siguen corriendo juntas): dos escrituras a la vez sobre la misma conversación chocan en Postgres.
+- `POST /odoo/seguimiento` y `/odoo/enviar` son síncronos: el Worker contesta cuando terminó. Odoo espera hasta 25 s.
+
+### Puente QR ↔ Worker (verificado con el código del puente)
+
+- Puente → Worker: el cuerpo lo arma `construirWebhook` del puente: `{id_mensaje, de, nombre, tipo, texto?, medio?, medio_omitido?, ts, propio, jid?}`.
+  **`de` es el celular en E.164 sin «+»** (no el JID); `jid` va aparte. El token puede ir en `x-wa-token-b64` (el que usa el Worker) o en `x-wa-token`.
+- `medio_omitido: {motivo, mime?, bytes?}` (archivo demasiado pesado o descarga fallida): el Worker registra el mensaje con un adjunto
+  «no se pudo traer» y el bot contesta; antes el mensaje se descartaba en silencio.
+- Worker → puente: `POST /api/enviar {para, chunks, medios?}` pasa la validación `validarEnviar` del puente (destino, burbujas, medios
+  `https` de los dominios permitidos).
+
+### Cómo se comprueba
+
+`scripts/integracion_juan.sh` crea una base propia (`dcasa_integra_<pid>`), instala `dcasa_conversaciones`, carga productos de prueba y
+arranca Odoo en un puerto libre con `JUAN_ODOO_TOKEN`/`JUAN_WORKER_TOKEN` **generados en ese momento** (solo viven en el entorno de los
+procesos de la corrida; nunca en archivos ni en pantalla), más un segundo Odoo **sin** tokens para el 503. Después corre
+`juan/test/integracion` (vitest; se omite sin `ODOO_INTEGRACION_URL`): el Worker real (su `fetch`, las clases de Durable Object, el
+cliente de Odoo y las rutas `/odoo/*` y `/media/*`) escucha en otro puerto; el binding `DCASA` es el código real de `edge/src/juan.ts`;
+solo la IA (un modelo guionado con la forma de la API de Anthropic) y el puente de WhatsApp (que valida con el contrato del puente real)
+son de mentira. Al terminar apaga Odoo y borra la base. Variables: `ODOO_DIR`, `DB_*`, `CONSERVAR=1`, `REUSAR_BASE=1` (solo para
+desarrollar la prueba: no borra la base entre corridas).

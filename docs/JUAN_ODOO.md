@@ -205,7 +205,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 |---|---|---|
 | `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Responde también `nota_para_el_bot` |
 | `GET /dcasa/juan/v1/estado?canal=&id_externo=` | ¿puede contestar el bot? | sin conversación: valores de los ajustes. Incluye `nota_para_el_bot` (`null` si no hay) |
-| `GET /dcasa/juan/v1/config` | ajustes de la dueña | `dias`: `0 = domingo … 6 = sábado`. Incluye `proveedor_ia`, `proveedor_respaldo_ia`, `modelo_rapido`, `modelo_inteligente`, `modelos_por_defecto`, `precios` (`null` donde no hay precio) y `lecciones` |
+| `GET /dcasa/juan/v1/config` | ajustes de la dueña | `dias`: `0 = domingo … 6 = sábado`. Incluye `proveedor_ia`, `proveedor_respaldo_ia`, `modelo_rapido`, `modelo_inteligente`, `modelos_por_defecto`, `precios` por nivel (`null` donde no hay precio), `precios_ia` por modelo (lo que lee el Worker) y `lecciones` |
 | `GET /dcasa/juan/v1/herramientas` | definición de las 12 herramientas | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
 | `POST /dcasa/juan/v1/herramienta` | ejecutar una herramienta | `422` = error de uso (el texto sirve para corregir); `404` = no existe |
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
@@ -271,7 +271,7 @@ tarda bien por debajo de 1 s (probado en las pruebas del módulo).
 
 Todo lo del contrato se cumple. Se añadió, sin quitar nada: `ok: true` en las respuestas, `adjuntos` en la respuesta de `/mensaje`,
 `adjuntos[].sensible`/`base64` aceptados, `nota_para_el_bot` en `/mensaje`, `/estado` y `POST /odoo/estado`, los campos de IA en
-`/config`, claves duales en `/herramientas` y tres herramientas más (`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`,
+`/config` (con `precios` por nivel **y** `precios_ia` por modelo, que es el que lee el Worker), claves duales en `/herramientas` y tres herramientas más (`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`,
 `etiquetar_conversacion`; el contrato tenía 9, ahora son 12). Decisiones donde el contrato dejaba margen: días `0 = domingo`; el
 2.º seguimiento cuenta 5 días desde el primero y también espera al horario laboral; `descartado` cierra el ciclo; el catálogo se lee
 directo de los productos publicados (`/dcasa/tienda/feed` no existe en este repositorio); tras `pasar_a_vendedora` la pausa es la de
