@@ -27,9 +27,12 @@ export default {
    * adentro es rápida y barata pero depende de que el DO siga en pie; ésta llega desde fuera
    * aunque el DO se haya desalojado — que es exactamente lo que dejó el canal mudo una
    * noche entera. No lanza: un cron que revienta no deja rastro útil.
+   *
+   * Siempre despierta al DO, también sin secretos: es el DO quien decide (si falta algo, no
+   * enciende el contenedor y apaga el que esté corriendo — por ejemplo si la dueña borra WA_TOKEN
+   * del panel para detener el canal).
    */
   async scheduled(_evento: ScheduledController, env: Env): Promise<void> {
-    if (!env.WA_TOKEN || !env.WA_SESION_CLAVE) return;
     try {
       await instancia(env).despertar();
     } catch (e) {

@@ -178,5 +178,5 @@ export function resolverDestino(para) {
  * @param {unknown} valor
  */
 export function enmascarar(valor) {
-  return String(valor ?? "").replace(/\d{5,}/g, (m) => `***${m.slice(-4)}`);
+  return String(valor ?? "").replace(/\d{7,}/g, (m) => `***${m.slice(-4)}`);
 }

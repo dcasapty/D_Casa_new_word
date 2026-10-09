@@ -119,7 +119,7 @@ export function crearNucleo(deps) {
   /** @param {string} prefijo @param {unknown} e */
   function anotarError(prefijo, e) {
     const msg = e instanceof Error ? e.message : String(e);
-    estado.ultimoError = `${prefijo}: ${msg}`.slice(0, 300);
+    estado.ultimoError = enmascarar(`${prefijo}: ${msg}`).slice(0, 300);
     log.error(`${prefijo}:`, enmascarar(msg));
   }
 

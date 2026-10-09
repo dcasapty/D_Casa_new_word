@@ -37,6 +37,7 @@ import { Container } from "@cloudflare/containers";
 import { enviarTelegram, evaluarAlerta, despuesDeAvisar, leerConfigAlerta } from "./alertas";
 import { crearAlmacen, iniciarEsquema, type Almacen, PRE_KEYS_A_CONSERVAR } from "./almacen";
 import { crearCifrador } from "./cifrado";
+import { revisarConfiguracion } from "./configuracion";
 import {
   VIGILANCIA_S,
   derivarTokenContenedor,
@@ -131,12 +132,29 @@ export class PuenteWa extends Container<Env> {
     await this.#refrescarEntorno();
   }
 
+  /** Huella (SHA-256) del token con el que arranca el contenedor; sirve para notar un cambio de WA_TOKEN. */
+  async #huellaToken(): Promise<string> {
+    const bytes = new TextEncoder().encode(this.envVars?.PUENTE_TOKEN ?? "");
+    const h = await crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
   #epocaVigente(epoca: string | null): boolean {
     return epoca !== null && Number(epoca) === this.#epoca;
   }
 
+  /** ¿Están los secretos obligatorios (y sirven)? Sin ellos NO se enciende el contenedor. */
+  #configurado(): boolean {
+    return revisarConfiguracion(this.env).listo;
+  }
+
+  /**
+   * ¿Debe estar encendido? Hace falta el interruptor `PUENTE_ACTIVO` Y los secretos. Sin
+   * `WA_TOKEN` no hay token que darle al contenedor ni con qué atender a Juan; sin
+   * `WA_SESION_CLAVE` no hay cómo guardar la sesión cifrada.
+   */
   #activo(): boolean {
-    return this.env.PUENTE_ACTIVO === "on";
+    return this.env.PUENTE_ACTIVO === "on" && this.#configurado();
   }
 
   async #alm(): Promise<Almacen> {
@@ -171,9 +189,30 @@ export class PuenteWa extends Container<Env> {
    * es LA señal con la que se encontró el fallo del 17-sep: una señal que sube sola no sirve.
    */
   async #arrancar(forzarEpocaNueva = false): Promise<void> {
-    const corriendo = this.ctx.container?.running === true;
+    let corriendo = this.ctx.container?.running === true;
+
+    // Si la dueña cambió WA_TOKEN en el panel, el contenedor vivo conserva el token viejo y todas
+    // sus llamadas darían 401 (no podría ni leer su sesión). Se reconoce por la huella del token
+    // con el que arrancó, y se reinicia: la sesión no se pierde, vive en el Durable Object.
+    const huella = await this.#huellaToken();
+    if (corriendo && !forzarEpocaNueva) {
+      const guardada = await this.ctx.storage.get<string>("huellaToken");
+      if (guardada && guardada !== huella) {
+        console.log("WA_TOKEN cambió: se reinicia el contenedor para que tome el token nuevo");
+        try {
+          await this.destroy();
+        } catch {
+          /* ya estaba apagado */
+        }
+        corriendo = false;
+      }
+    }
+
     // Un arranque de verdad = época nueva ANTES de arrancar (el entorno se lee al arrancar).
-    if (!corriendo || forzarEpocaNueva) await this.#nuevaEpoca();
+    if (!corriendo || forzarEpocaNueva) {
+      await this.#nuevaEpoca();
+      await this.ctx.storage.put("huellaToken", huella);
+    }
     this.#yaEstabaPrendido = corriendo && !forzarEpocaNueva;
     try {
       await this.startAndWaitForPorts({ ports: PUERTO_CONTENEDOR });
@@ -309,7 +348,7 @@ export class PuenteWa extends Container<Env> {
 
   async #apagarSiCorre(): Promise<void> {
     if (this.ctx.container?.running === true) {
-      console.log("PUENTE_ACTIVO no está en «on»: se apaga el contenedor");
+      console.log("el puente está apagado o sin configurar (PUENTE_ACTIVO / secretos): se apaga el contenedor");
       try {
         await this.destroy();
       } catch {

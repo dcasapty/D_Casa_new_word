@@ -13,6 +13,7 @@
 
 import { entregarAJuan } from "./juan";
 import { derivarTokenContenedor, tokenPresentado, tokensIguales, tokenEsApto } from "./comun";
+import { estadoSinConfigurar, revisarConfiguracion } from "./configuracion";
 import { leerArchivo } from "./respaldo";
 import type { Env, PuenteStub } from "./tipos";
 import { validarWebhook } from "../contenedor/lib/contrato.mjs";
@@ -58,25 +59,46 @@ export function prepararPendiente(texto: string, payload: Record<string, any>): 
   });
 }
 
+function sinConfigurar(faltan: string[], invalidos: { nombre: string }[]): Response {
+  return json(503, {
+    error: "El puente todavía no está configurado: faltan secretos en este Worker.",
+    secretos_faltantes: faltan,
+    secretos_invalidos: invalidos.map((i) => i.nombre),
+  });
+}
+
 export async function manejar(request: Request, env: Env, stub: () => PuenteStub): Promise<Response> {
   const url = new URL(request.url);
   const ruta = url.pathname;
 
   if (ruta === "/health") return new Response("ok");
 
-  if (!env.WA_TOKEN) return json(500, { error: "Falta el secret WA_TOKEN." });
-  if (!env.WA_SESION_CLAVE) return json(500, { error: "Falta el secret WA_SESION_CLAVE." });
+  // El primer despliegue ocurre SIN secretos (la dueña los pega después en el panel de
+  // Cloudflare). Hasta entonces el puente no se cae ni conecta nada: dice qué nombres faltan.
+  const cfg = revisarConfiguracion(env);
+
+  // Sin WA_TOKEN no hay con qué autenticar: el estado se muestra tal cual. Solo trae NOMBRES
+  // de secretos que faltan y que no está conectado; nada que permita hacer algo.
+  if (!env.WA_TOKEN) {
+    if (ruta === "/api/estado" && request.method === "GET") return json(200, estadoSinConfigurar(cfg, env));
+    return sinConfigurar(cfg.faltan, cfg.invalidos);
+  }
 
   // ── Del contenedor ───────────────────────────────────────────────────────
   if (ruta.startsWith("/puente/")) {
     const presentado = tokenPresentado(request).valor;
     if (!tokensIguales(presentado, await tokenDelContenedor(env.WA_TOKEN))) return noAutorizado(request);
+    if (!cfg.listo) return sinConfigurar(cfg.faltan, cfg.invalidos);
     return rutasDelContenedor(request, env, stub(), ruta, url);
   }
 
   // ── De Juan (y de quien opera) ───────────────────────────────────────────
   if (ruta.startsWith("/api/")) {
     if (!tokensIguales(tokenPresentado(request).valor, env.WA_TOKEN)) return noAutorizado(request);
+    if (!cfg.listo) {
+      if (ruta === "/api/estado" && request.method === "GET") return json(200, estadoSinConfigurar(cfg, env));
+      return sinConfigurar(cfg.faltan, cfg.invalidos);
+    }
     return rutasDeApi(request, env, stub(), ruta, url);
   }
 
@@ -176,7 +198,14 @@ async function rutasDelContenedor(request: Request, env: Env, s: PuenteStub, rut
 async function rutasDeApi(request: Request, env: Env, s: PuenteStub, ruta: string, url: URL): Promise<Response> {
   if (ruta === "/api/estado" && request.method === "GET") {
     const estado = await s.estadoPublico();
-    return json(200, { ...estado, token: { apto: tokenEsApto(env.WA_TOKEN) } });
+    const cfg = revisarConfiguracion(env);
+    return json(200, {
+      ...estado,
+      secretos_faltantes: cfg.faltan,
+      opcionales_faltantes: cfg.opcionalesFaltan,
+      binding_juan: Boolean(env.JUAN),
+      token: { apto: tokenEsApto(env.WA_TOKEN) },
+    });
   }
 
   // El QR solo con token, sin caché y NUNCA a los registros. El contenedor tampoco lo sirve
