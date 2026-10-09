@@ -31,12 +31,13 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_socios', 'crm', 'mail', 'bus'],
+    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'crm', 'mail', 'bus'],
     'data': [
         'security/conversaciones_security.xml',
         'security/ir.model.access.csv',
         'data/conversaciones_data.xml',
         'data/ir_cron_data.xml',
+        'data/ir_cron_panel.xml',
         'data/conocimiento_data.xml',
         'data/etiquetas_data.xml',
         'views/ajustes_views.xml',
@@ -46,10 +47,13 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
         'views/etiquetas_views.xml',
         'views/res_partner_views.xml',
         'views/menus.xml',
+        'views/panel_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
             'dcasa_conversaciones/static/src/scss/*.scss',
+            'dcasa_conversaciones/static/src/js/*.js',
+            'dcasa_conversaciones/static/src/xml/*.xml',
         ],
     },
     'installable': True,

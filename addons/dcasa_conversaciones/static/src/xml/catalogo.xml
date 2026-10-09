@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Catalogo">
+        <div class="o_dcj_capa" t-on-click.self="cerrar">
+            <div class="o_dcj_hoja" t-ref="panel" role="dialog" aria-modal="true" aria-labelledby="o_dcj_catalogo_titulo">
+                <header class="o_dcj_hoja_cabecera">
+                    <h2 id="o_dcj_catalogo_titulo">
+                        <t t-if="local.galeria">Fotos de <t t-out="local.galeria.producto.nombre"/></t>
+                        <t t-else="">Foto del catálogo</t>
+                    </h2>
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </header>
+
+                <!-- Galería de un producto -->
+                <t t-if="local.galeria">
+                    <div class="o_dcj_hoja_cuerpo">
+                        <p class="o_dcj_ayuda">Elige las fotos que quieres mandar (hasta <t t-out="almacen.limites.adjuntos"/>). Salen en un solo mensaje con el pie del producto.</p>
+                        <ul class="o_dcj_galeria">
+                            <li t-foreach="local.galeria.fotos" t-as="f" t-key="f.ref">
+                                <button type="button" class="o_dcj_galeria_foto" t-att-class="{ o_activa: local.galeria.elegidas.includes(f.ref) }"
+                                        t-att-aria-pressed="local.galeria.elegidas.includes(f.ref) ? 'true' : 'false'"
+                                        t-att-aria-label="'Foto ' + (f_index + 1) + (f.ref === 'principal' ? ' (la principal)' : '')"
+                                        t-on-click="() => this.alternarFoto(f.ref)">
+                                    <img t-att-src="f.miniatura" alt="" loading="lazy"/>
+                                    <span class="o_dcj_marca_foto"><i class="fa fa-check" aria-hidden="true"/></span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <footer class="o_dcj_hoja_pie">
+                        <button type="button" class="btn btn-secondary o_dcj_boton" t-on-click="volverALosResultados">Volver</button>
+                        <span class="o_dcj_espaciador"/>
+                        <button type="button" class="btn btn-secondary o_dcj_boton" t-att-disabled="!local.galeria.elegidas.length or local.ocupado"
+                                t-on-click="() => this.revisarAntes(local.galeria.producto, local.galeria.elegidas)">Ponerlas en la caja</button>
+                        <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="!local.galeria.elegidas.length or local.ocupado" t-on-click="enviarElegidas">
+                            <t t-if="local.ocupado === 'enviar'">Enviando…</t>
+                            <t t-else="">Enviar <t t-out="local.galeria.elegidas.length"/> <t t-out="local.galeria.elegidas.length === 1 ? 'foto' : 'fotos'"/></t>
+                        </button>
+                    </footer>
+                </t>
+
+                <!-- Buscador -->
+                <t t-else="">
+                    <div class="o_dcj_hoja_buscar">
+                        <i class="fa fa-search" aria-hidden="true"/>
+                        <input t-ref="consulta" type="search" class="o_dcj_input" autocomplete="off" aria-label="Buscar un producto por nombre o código"
+                               placeholder="Nombre o código: cama queen, 888K, colchón…" t-att-value="local.consulta" t-on-input="alEscribir"/>
+                    </div>
+                    <div class="o_dcj_hoja_cuerpo">
+                        <p t-if="!local.buscado and !local.cargando and !local.error" class="o_dcj_ayuda">
+                            Escribe al menos 2 letras. Solo salen los productos publicados en la tienda. El precio va «+ ITBMS»; la disponibilidad es una etiqueta, nunca la cantidad.
+                        </p>
+                        <p t-if="local.cargando" class="o_dcj_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando…</p>
+                        <p t-if="local.error" class="o_dcj_error" role="alert" t-out="local.error"/>
+                        <p t-if="local.buscado and !local.productos.length and !local.cargando" class="o_dcj_vacio_chico">
+                            No encuentro «<t t-out="local.consulta"/>» entre los productos publicados. Prueba con otra palabra o con el código.
+                        </p>
+                        <ul t-if="local.productos.length" class="o_dcj_productos">
+                            <li t-foreach="local.productos" t-as="p" t-key="p.id" class="o_dcj_producto">
+                                <div class="o_dcj_producto_foto">
+                                    <img t-if="p.miniatura" t-att-src="p.miniatura" alt="" loading="lazy"/>
+                                    <i t-else="" class="fa fa-picture-o" aria-hidden="true"/>
+                                </div>
+                                <div class="o_dcj_producto_datos">
+                                    <strong t-out="p.nombre"/>
+                                    <span class="o_dcj_secundario" t-if="p.codigo" t-out="p.codigo"/>
+                                    <span class="o_dcj_precio" t-out="p.precio_texto"/>
+                                    <span t-if="p.medidas" class="o_dcj_secundario" t-out="p.medidas"/>
+                                    <span t-attf-class="o_dcj_existencia o_dcj_existencia_#{p.disponibilidad}" t-out="etiquetaDeExistencias(p.disponibilidad)"/>
+                                </div>
+                                <div class="o_dcj_producto_acciones">
+                                    <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="!p.miniatura or local.ocupado"
+                                            t-att-title="p.miniatura ? '' : 'Este producto no tiene foto'" t-on-click="() => this.enviarFoto(p)">
+                                        <t t-if="local.ocupado === 'enviar' and local.productoOcupado === p.id">Enviando…</t>
+                                        <t t-else=""><i class="fa fa-paper-plane" aria-hidden="true"/> Enviar foto</t>
+                                    </button>
+                                    <button t-if="p.fotos_total > 1" type="button" class="btn btn-secondary o_dcj_boton" t-att-disabled="local.ocupado" t-on-click="() => this.abrirGaleria(p)">
+                                        <i class="fa fa-th" aria-hidden="true"/> Galería (<t t-out="p.fotos_total"/>)
+                                    </button>
+                                    <button t-if="p.miniatura" type="button" class="o_dcj_enlace" t-att-disabled="local.ocupado" t-on-click="() => this.revisarAntes(p)">Revisar antes de enviar</button>
+                                </div>
+                            </li>
+                        </ul>
+                        <p t-if="local.encontrados > local.productos.length" class="o_dcj_ayuda">
+                            Hay <t t-out="local.encontrados"/> productos; se muestran los <t t-out="local.productos.length"/> que mejor coinciden. Afina la búsqueda.
+                        </p>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

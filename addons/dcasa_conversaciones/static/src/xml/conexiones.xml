@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Conexiones">
+        <div class="o_dcj_p o_action">
+            <EncabezadoJuan titulo="'Conexiones'" subtitulo="'Por dónde le escriben los clientes a Juan, en vivo. Aquí nunca se muestran claves, solo sus nombres.'" actual="'conexiones'" esGerencia="true">
+                <button type="button" class="btn btn-secondary o_dcj_p_boton" t-att-disabled="state.cargando" t-on-click="() => this.cargar()">
+                    <i t-attf-class="fa fa-refresh #{state.cargando ? 'fa-spin' : ''}" aria-hidden="true"/> Actualizar
+                </button>
+            </EncabezadoJuan>
+
+            <div class="o_dcj_p_cuerpo">
+                <p t-if="state.cargando and !d" class="o_dcj_p_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Consultando al Worker…</p>
+                <div t-elif="state.error" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="alert"><i class="fa fa-exclamation-triangle" aria-hidden="true"/><p t-out="state.error"/></div>
+
+                <t t-elif="d">
+                    <section t-if="!d.configurado" class="o_dcj_p_sin_conectar">
+                        <i class="fa fa-plug" aria-hidden="true"/>
+                        <h2 t-out="d.mensaje"/>
+                        <p t-out="d.detalle"/>
+                        <p t-if="d.faltan.length">Falta en Odoo: <code t-foreach="d.faltan" t-as="n" t-key="n" t-out="n"/></p>
+                        <button type="button" class="btn btn-secondary o_dcj_p_boton" t-on-click="abrirAjustes">Abrir Ajustes de Juan</button>
+                    </section>
+                    <section t-elif="!d.ok" class="o_dcj_p_sin_conectar">
+                        <i class="fa fa-chain-broken" aria-hidden="true"/>
+                        <h2 t-out="d.mensaje"/>
+                        <p t-out="d.detalle"/>
+                        <button type="button" class="btn btn-secondary o_dcj_p_boton" t-on-click="() => this.cargar()">Intentar otra vez</button>
+                    </section>
+
+                    <t t-if="d.ok">
+                        <div t-attf-class="o_dcj_p_aviso #{d.todo_bien ? 'o_dcj_p_aviso_ok' : 'o_dcj_p_aviso_alerta'}" role="status">
+                            <i t-attf-class="fa #{d.todo_bien ? 'fa-check-circle' : 'fa-exclamation-triangle'}" aria-hidden="true"/>
+                            <p><strong t-out="d.todo_bien ? 'Todo en orden.' : 'Hay cosas por revisar.'"/> <t t-out="d.todo_bien ? '' : d.mensaje"/>
+                                <span class="o_dcj_secundario" t-if="d.version"> Versión <t t-out="d.version"/><t t-if="d.entorno"> · <t t-out="d.entorno"/></t></span></p>
+                        </div>
+
+                        <section class="o_dcj_p_canales" aria-label="Canales">
+                            <article t-foreach="d.canales" t-as="c" t-key="c.id" class="o_dcj_p_canal">
+                                <t t-set="e" t-value="estadoDe(c)"/>
+                                <header>
+                                    <span class="o_dcj_p_canal_icono"><i t-attf-class="fa #{iconoDeCanal(c.id)}" aria-hidden="true"/></span>
+                                    <h2 t-out="c.nombre"/>
+                                    <span t-attf-class="o_dcj_p_chip o_dcj_p_chip_#{e.clase}"><i t-attf-class="fa #{e.icono}" aria-hidden="true"/> <t t-out="e.texto"/></span>
+                                </header>
+                                <p t-if="e.ayuda" class="o_dcj_p_detalle" t-out="e.ayuda"/>
+                                <p t-if="c.activo and c.faltan.length">Faltan: <code t-foreach="c.faltan" t-as="n" t-key="n" t-out="n"/></p>
+
+                                <t t-if="c.id === 'whatsapp_qr' and c.activo and c.configurado">
+                                    <div class="o_dcj_p_acciones">
+                                        <button type="button" class="btn btn-primary o_dcj_p_boton" t-on-click="() => state.qr.visible ? this.ocultarQr() : this.mostrarQr()">
+                                            <i class="fa fa-qrcode" aria-hidden="true"/> <t t-out="state.qr.visible ? 'Ocultar el QR' : 'Mostrar el QR para vincular'"/>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary o_dcj_p_boton" t-att-disabled="state.trabajando" t-on-click="confirmarReiniciar">
+                                            <i t-attf-class="fa fa-refresh #{state.trabajando === 'reiniciar' ? 'fa-spin' : ''}" aria-hidden="true"/> Reiniciar
+                                        </button>
+                                        <button type="button" class="btn btn-secondary o_dcj_p_boton o_dcj_p_peligro" t-att-disabled="state.trabajando" t-on-click="confirmarDesvincular">
+                                            <i class="fa fa-chain-broken" aria-hidden="true"/> Desvincular
+                                        </button>
+                                    </div>
+                                    <div t-if="state.qr.visible" class="o_dcj_p_qr" role="group" aria-label="Vincular WhatsApp">
+                                        <div class="o_dcj_p_qr_imagen">
+                                            <img t-if="state.qr.imagen" t-att-src="state.qr.imagen" alt="Código QR para vincular WhatsApp"/>
+                                            <p t-else="" class="o_dcj_p_detalle"><i t-if="state.qr.cargando" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> <t t-out="nombreDelEstadoDelQr"/></p>
+                                        </div>
+                                        <ol class="o_dcj_p_pasos">
+                                            <li>Abre WhatsApp en el teléfono de la tienda.</li>
+                                            <li>Entra a <strong>Ajustes › Dispositivos vinculados</strong>.</li>
+                                            <li>Toca <strong>Vincular un dispositivo</strong> y apunta la cámara a este código.</li>
+                                            <li class="o_dcj_p_detalle" role="status"><t t-out="nombreDelEstadoDelQr"/>. El código cambia solo cada rato.</li>
+                                        </ol>
+                                        <p t-if="qrVencio" class="o_dcj_p_detalle">Pasaron unos minutos. <button type="button" class="o_dcj_enlace" t-on-click="mostrarQr">Pedir un código nuevo</button></p>
+                                    </div>
+                                </t>
+                            </article>
+                        </section>
+
+                        <section t-if="d.secretos_faltantes.length or d.ia.claves_faltantes.length" class="o_dcj_p_tarjeta">
+                            <h2>Claves que faltan en el Worker</h2>
+                            <p class="o_dcj_p_detalle">Solo los nombres. La dueña las pega en Cloudflare (Workers › dcasa-juan › Settings › Variables and Secrets); nunca por aquí.</p>
+                            <ul class="o_dcj_p_claves">
+                                <li t-foreach="d.secretos_faltantes" t-as="n" t-key="n"><code t-out="n"/></li>
+                            </ul>
+                        </section>
+
+                        <section t-if="d.problemas.length" class="o_dcj_p_tarjeta">
+                            <h2>Por revisar</h2>
+                            <ul class="o_dcj_p_lista"><li t-foreach="d.problemas" t-as="p" t-key="p_index" t-out="p"/></ul>
+                        </section>
+                        <div t-foreach="d.avisos" t-as="aviso" t-key="aviso_index" class="o_dcj_p_aviso" role="status"><i class="fa fa-info-circle" aria-hidden="true"/><p t-out="aviso"/></div>
+                    </t>
+
+                    <section class="o_dcj_p_tarjeta">
+                        <h2>Lo que Odoo sabe de sí mismo</h2>
+                        <ul class="o_dcj_p_lista o_dcj_p_chequeo">
+                            <li><i t-attf-class="fa #{d.odoo.url_del_worker ? 'fa-check-circle o_ok' : 'fa-times-circle o_mal'}" aria-hidden="true"/> Dirección del Worker de Juan: <strong t-out="d.odoo.url_del_worker ? 'cargada' : 'falta (JUAN_URL)'"/></li>
+                            <li><i t-attf-class="fa #{d.odoo.token_del_worker ? 'fa-check-circle o_ok' : 'fa-times-circle o_mal'}" aria-hidden="true"/> Clave para hablarle al Worker: <strong t-out="d.odoo.token_del_worker ? 'cargada' : 'falta (JUAN_WORKER_TOKEN)'"/></li>
+                            <li><i t-attf-class="fa #{d.odoo.token_de_odoo ? 'fa-check-circle o_ok' : 'fa-times-circle o_mal'}" aria-hidden="true"/> Clave para que el Worker le hable a Odoo: <strong t-out="d.odoo.token_de_odoo ? 'cargada' : 'falta (JUAN_ODOO_TOKEN)'"/></li>
+                            <li>
+                                <i t-attf-class="fa #{d.odoo.direccion_de_odoo_sirve_al_puente ? 'fa-check-circle o_ok' : 'fa-exclamation-triangle o_mal'}" aria-hidden="true"/>
+                                Dirección de Odoo para las fotos y documentos <code t-out="d.odoo.direccion_de_odoo || '—'"/>:
+                                <strong t-out="d.odoo.direccion_de_odoo_sirve_al_puente ? 'sirve' : 'no sirve'"/>.
+                                <span class="o_dcj_secundario" t-if="!d.odoo.direccion_de_odoo_sirve_al_puente"> El puente solo baja archivos de <t t-out="d.odoo.dominios_del_puente.join(' y ')"/> con https; si la dirección es otra, las fotos que mandes no saldrán.</span>
+                            </li>
+                        </ul>
+                    </section>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

@@ -1,0 +1,240 @@
+"""Lo que la pantalla «Conversaciones» necesita además de ``conversacion_panel.py``: subir archivos, el equipo de
+ventas, crear la oportunidad sin salir de la pantalla y pedir un borrador de respuesta al Worker.
+
+Todo exige ser del equipo de ventas EN EL SERVIDOR y devuelve diccionarios sencillos. Las firmas de
+``conversacion_panel.py`` no se tocan: aquí solo hay métodos nuevos.
+"""
+import base64
+import binascii
+import logging
+import os
+from datetime import timedelta
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
+from odoo.tools.mimetypes import guess_mimetype
+
+from . import adjuntos as A
+from . import horario as H
+from .ajustes import CANALES
+from .conversacion import MAX_NOTA, MAX_NOTA_PARA_EL_BOT
+from .conversacion_panel import MAX_RESPUESTA, _entero
+from .mensaje import adjunto_como_dict
+
+_logger = logging.getLogger(__name__)
+
+MAX_PENDIENTES = 10
+HORAS_DE_UNA_SUBIDA_SIN_USAR = 48
+CONTEXTO_PARA_SUGERIR = 14          # últimos mensajes que se le pasan al Worker
+MAX_TEXTO_PARA_SUGERIR = 1500
+# Lo que una vendedora puede mandar por el canal. Nada que un navegador pueda ejecutar (HTML, SVG, JS…).
+TIPOS_QUE_SE_SUBEN = {
+    'image/jpeg': ('.jpg', '.jpeg'), 'image/png': ('.png',), 'image/webp': ('.webp',), 'image/gif': ('.gif',),
+    'application/pdf': ('.pdf',),
+    'application/msword': ('.doc',),
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ('.docx',),
+    'application/vnd.ms-excel': ('.xls',),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ('.xlsx',),
+    'text/plain': ('.txt',), 'text/csv': ('.csv',),
+}
+
+
+def tipo_de_archivo(nombre, contenido):
+    """El tipo del archivo si se puede mandar por el canal; ``None`` si no.
+
+    Se mira el CONTENIDO (no solo el nombre) y la extensión tiene que corresponder: una foto que dice ser PDF, un
+    ejecutable o un HTML con nombre de imagen no pasan. Los Word y Excel viejos (.doc/.xls) y los textos
+    (.txt/.csv) no se distinguen por el contenido, así que ahí decide la extensión.
+    """
+    extension = os.path.splitext(nombre or '')[1].lower()
+    detectado = guess_mimetype(contenido, default='application/octet-stream')
+    if detectado in ('application/msword', 'application/x-ole-storage'):
+        detectado = {'.doc': 'application/msword', '.xls': 'application/vnd.ms-excel'}.get(extension)
+    elif detectado == 'text/plain':
+        detectado = {'.txt': 'text/plain', '.csv': 'text/csv'}.get(extension)
+    if detectado not in TIPOS_QUE_SE_SUBEN or extension not in TIPOS_QUE_SE_SUBEN[detectado]:
+        return None
+    return detectado
+
+
+class DcasaConversacionPanelExtra(models.Model):
+    _inherit = 'dcasa.conversacion'
+
+    # ------------------------------------------------------------------
+    # Archivos para la caja de respuesta
+    # ------------------------------------------------------------------
+
+    @api.model
+    def subir_adjunto(self, conversacion_id, nombre, datos, mimetype=None):
+        """Sube un archivo (``datos`` en base64) para adjuntarlo a la próxima respuesta.
+
+        Solo fotos (JPG, PNG, WebP, GIF), PDF, Word, Excel y texto; hasta 10 MB. El archivo queda a nombre de quien
+        lo sube, sin dueño todavía: se pasa a ``enviar_respuesta`` con su id. ``mimetype`` es solo una pista.
+        """
+        conv = self._para_panel(conversacion_id, escritura=True)
+        if not isinstance(nombre, str) or not isinstance(datos, str) or not datos:
+            raise UserError(self.env._('Falta el archivo.'))
+        if len(datos) > (A.MAX_BYTES * 4) // 3 + 16:
+            raise UserError(self.env._('«%s» pesa demasiado (máximo 10 MB).', A.nombre_seguro(nombre)))
+        try:
+            contenido = base64.b64decode(datos.partition(',')[2] if datos.startswith('data:') else datos,
+                                         validate=True)
+        except (binascii.Error, ValueError):
+            raise UserError(self.env._('No pude leer el archivo. Súbelo otra vez.')) from None
+        nombre = A.nombre_seguro(nombre)
+        if not contenido:
+            raise UserError(self.env._('«%s» está vacío.', nombre))
+        if len(contenido) > A.MAX_BYTES:
+            raise UserError(self.env._('«%s» pesa demasiado (máximo 10 MB).', nombre))
+        tipo = tipo_de_archivo(nombre, contenido)
+        if not tipo:
+            raise UserError(self.env._(
+                '«%s» no se puede enviar. Adjunta una foto (JPG, PNG, WebP), un PDF, un Word, un Excel o un texto.',
+                nombre))
+        Adjunto = self.env['ir.attachment']
+        pendientes = Adjunto.search_count([
+            ('res_model', '=', self._name), ('res_id', '=', conv.id), ('create_uid', '=', self.env.uid)])
+        if pendientes >= MAX_PENDIENTES:
+            raise UserError(self.env._('Tienes muchos archivos sin enviar en esta conversación. '
+                                       'Envía la respuesta o quítalos antes de subir más.'))
+        adjunto = Adjunto.create({
+            'name': nombre, 'raw': contenido, 'mimetype': tipo, 'res_model': self._name, 'res_id': conv.id,
+            'public': False,
+        })
+        return {'adjunto': adjunto_como_dict(adjunto)}
+
+    @api.model
+    def descartar_adjunto(self, adjunto_id):
+        """Quita un archivo que se subió y todavía no se envió (el que ya salió en un mensaje no se toca)."""
+        self._exigir_vendedora()
+        adjunto_id = _entero(adjunto_id, 'adjunto_id', minimo=1)
+        adjunto = self.env['ir.attachment'].browse(adjunto_id).exists()
+        if not adjunto or adjunto.res_model != self._name or adjunto.create_uid != self.env.user:
+            raise UserError(self.env._('Ese archivo no se puede quitar.'))
+        adjunto.check_access('unlink')
+        adjunto.sudo().unlink()
+        return {'quitado': adjunto_id}
+
+    @api.model
+    def _cron_limpiar_subidas(self):
+        """Cada día: borra los archivos que se subieron para una respuesta y nunca se enviaron (más de 48 h)."""
+        limite = fields.Datetime.now() - timedelta(hours=HORAS_DE_UNA_SUBIDA_SIN_USAR)
+        viejos = self.env['ir.attachment'].sudo().search([
+            ('res_model', '=', self._name), ('create_date', '<', limite)])
+        viejos.unlink()
+        return len(viejos)
+
+    # ------------------------------------------------------------------
+    # Arranque de la pantalla, el equipo y la oportunidad
+    # ------------------------------------------------------------------
+
+    @api.model
+    def iniciar_panel(self):
+        """Todo lo que la pantalla necesita al abrir, en UNA llamada: quién es, límites, etiquetas, atajos y equipo."""
+        self._exigir_vendedora()
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        return {
+            'usuario': {'id': self.env.uid, 'nombre': self.env.user.name,
+                        'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager')},
+            'bot': {'conectado': bool(self.env['dcasa.juan.cliente'].configurado()),
+                    'encendido': bool(ajustes.bot_activo_global)},
+            'limites': {'adjuntos': A.MAX_ADJUNTOS, 'bytes': A.MAX_BYTES, 'respuesta': MAX_RESPUESTA,
+                        'nota': MAX_NOTA, 'nota_para_el_bot': MAX_NOTA_PARA_EL_BOT,
+                        'pausa_minutos': ajustes.pausa_por_defecto_minutos},
+            'canales': [{'id': clave, 'nombre': nombre} for clave, nombre in CANALES],
+            'etiquetas': self.env['dcasa.conversacion.etiqueta'].lista(),
+            'rapidas': self.env['dcasa.respuesta.rapida'].lista(),
+            'equipo': self.equipo(),
+        }
+
+    @api.model
+    def equipo(self):
+        """Las personas a quienes se puede asignar una conversación: ``[{id, nombre}]``."""
+        self._exigir_vendedora()
+        usuarios = self._usuarios_del_panel().sorted(lambda u: (u.name or '').lower())
+        return [{'id': u.id, 'nombre': u.name} for u in usuarios]
+
+    @api.model
+    def nueva_oportunidad(self, conversacion_id):
+        """«Crear oportunidad» sin salir de la pantalla. Si ya hay una abierta reciente, no crea otra."""
+        conv = self._para_panel(conversacion_id, escritura=True)
+        if not conv.partner_id:
+            raise UserError(self.env._('Esta conversación todavía no tiene un cliente.'))
+        lead, nueva = conv._oportunidad(
+            resumen=self.env._('Creada por %s desde la pantalla de Conversaciones.', self.env.user.name),
+            interes=None, usuario=self.env.user)
+        return {'oportunidad': {'id': lead.id, 'nombre': lead.name, 'etapa': lead.stage_id.name or ''},
+                'nueva': nueva, 'conversacion': conv._resumen_panel()}
+
+    @api.model
+    def reintentar_envios_panel(self, conversacion_id):
+        """«Reintentar» lo que no salió: devuelve cuántos mensajes salieron ahora."""
+        conv = self._para_panel(conversacion_id, escritura=True)
+        pendientes = conv.mensaje_ids.filtered(
+            lambda m: m.estado_envio in ('por_enviar', 'fallido') and m.origen == 'odoo')
+        antes = len(pendientes)
+        pendientes.action_reintentar()
+        pendientes.invalidate_recordset()
+        faltan = len(pendientes.filtered(lambda m: m.exists() and m.estado_envio != 'enviado'))
+        return {'reintentados': antes, 'salieron': antes - faltan, 'conversacion': conv._resumen_panel()}
+
+    # ------------------------------------------------------------------
+    # «Sugerir»: un borrador de respuesta que redacta el Worker (no envía nada)
+    # ------------------------------------------------------------------
+
+    def _mensajes_para_sugerir(self):
+        """Los últimos mensajes del cliente, del asistente y de las vendedoras, listos para el Worker.
+
+        Nunca viajan las notas internas ni los avisos del sistema. Un mensaje con un comprobante o documento
+        de identidad (adjunto sensible) viaja SIN su texto: ni la IA lo ve (regla 5 del contrato).
+        """
+        self.ensure_one()
+        tramo = self.env['dcasa.mensaje'].search(
+            [('conversacion_id', '=', self.id), ('tipo', '=', 'mensaje')], order='id desc',
+            limit=CONTEXTO_PARA_SUGERIR).sorted('id')
+        mensajes = []
+        for mensaje in tramo:
+            if mensaje.tiene_sensible:
+                texto = '[archivo sensible: lo revisa una vendedora]'
+            else:
+                texto = (mensaje.texto or '').strip()
+                if not texto and mensaje.adjunto_ids:
+                    texto = '[envió un archivo]'
+            if not texto:
+                continue
+            mensajes.append({'autor': {'cliente': 'cliente', 'bot': 'asistente'}.get(mensaje.autor, 'vendedora'),
+                             'texto': texto[:MAX_TEXTO_PARA_SUGERIR], 'ts': H.a_iso(mensaje.ts)})
+        return mensajes
+
+    def _interes_para_sugerir(self):
+        """Lo que el cliente quiere, en pocas palabras: la oportunidad o su último mensaje SIN archivo sensible."""
+        self.ensure_one()
+        if self.oportunidad_id:
+            return (self.oportunidad_id.name or '')[:200]
+        ultimo = self.env['dcasa.mensaje'].search([
+            ('conversacion_id', '=', self.id), ('autor', '=', 'cliente'), ('tipo', '=', 'mensaje'),
+            ('tiene_sensible', '=', False)], order='ts desc, id desc', limit=1)
+        return (ultimo.texto or '')[:200]
+
+    @api.model
+    def sugerir_respuesta(self, conversacion_id):
+        """Pide al Worker un borrador para la vendedora: ``{texto, avisos}``. No envía ni guarda nada."""
+        conv = self._para_panel(conversacion_id, escritura=True)
+        mensajes = conv._mensajes_para_sugerir()
+        if not any(m['autor'] == 'cliente' for m in mensajes):
+            raise UserError(self.env._('Todavía no hay nada del cliente a lo que responder.'))
+        Cliente = self.env['dcasa.juan.cliente']
+        if not Cliente.configurado():
+            raise UserError(self.env._(
+                'Falta conectar el bot: no hay dirección o clave del Worker de Juan. Pídele a Gerencia que la '
+                'cargue (Conversaciones › Conexiones).'))
+        respuesta = Cliente.sugerir(
+            conv.id, conv.canal, conv.id_externo, mensajes, nombre=conv._nombre_de_pila(),
+            interes=conv._interes_para_sugerir(), etiquetas=conv.etiqueta_ids.mapped('name'))
+        texto = str(respuesta.get('texto') or '').strip() if respuesta.get('ok') else ''
+        if not texto:
+            raise UserError(self.env._(
+                'No pude armar un borrador ahora: %s',
+                (respuesta.get('error') or 'el Worker no devolvió texto')[:300]))
+        avisos = [str(a)[:200] for a in (respuesta.get('avisos') or []) if isinstance(a, str)][:5]
+        return {'texto': texto[:4000], 'avisos': avisos}

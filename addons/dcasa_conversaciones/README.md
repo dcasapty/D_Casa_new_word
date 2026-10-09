@@ -20,6 +20,9 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 | Base de conocimiento, preguntas sin respuesta y lecciones | `models/conocimiento.py`, `models/conocimiento_texto.py`, `data/conocimiento_data.xml` |
 | Etiquetas, respuestas rápidas y lectura por persona (sin leer) | `models/etiquetas.py`, `data/etiquetas_data.xml` |
 | API de la pantalla «Conversaciones» (lista, hilo, ficha, enviar…) | `models/conversacion_panel.py` |
+| Pantalla OWL «Conversaciones» (lista, chat, ficha, caja, catálogo, cotización) | `static/src/js`, `static/src/xml`, `static/src/scss/panel.scss` |
+| Resumen, Costos de IA y Conexiones (acciones de cliente) | `models/panel_juan.py`, `models/panel_calculos.py`, `models/cliente_worker_panel.py`, `static/src/js/{resumen,costos,conexiones}.js` |
+| Subir adjuntos, sugerir respuesta, catálogo y cotización para la pantalla | `models/conversacion_panel_extra.py`, `models/conversacion_panel_catalogo.py` |
 | Adjuntos con URL firmada de vida corta | `models/firma.py`, `controllers/adjuntos.py` |
 | Datos de la tienda (dirección, horario, WhatsApp) | `models/tienda.py` |
 
@@ -45,8 +48,15 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 
 ## La pantalla (panel)
 
-La API de backend para la pantalla OWL de [`docs/JUAN_PANEL.md`](../../docs/JUAN_PANEL.md) está en
-`models/conversacion_panel.py` y documentada en `docs/JUAN_ODOO.md`. La pantalla OWL en sí **no está hecha**.
+La pantalla de [`docs/JUAN_PANEL.md`](../../docs/JUAN_PANEL.md) es una acción de cliente OWL (`dcasa_conversaciones`), con tres
+hermanas: `dcasa_juan_resumen`, `dcasa_juan_costos` y `dcasa_juan_conexiones`. Todo el JS vive en `static/src/js` (un almacén reactivo
+compartido, `almacen.js`, y un componente por zona), las plantillas en `static/src/xml` y los estilos en `static/src/scss/panel*.scss`
+(prefijos `o_dcj_` y `o_dcj_p_`; sistema plano con los tokens de `dcasa_interfaz`). El servidor es `models/conversacion_panel*.py` y
+`models/panel_juan.py`; está documentado en `docs/JUAN_ODOO.md` (lo que ve la dueña y la API). El bus avisa con
+`dcasa_conversaciones/evento` solo ids y estado, nunca texto.
+
+Pruebas de la pantalla: `tests/test_panel_interfaz.py` (Chrome, escritorio y celular de 390 px) y `tests/test_panel_visual.py`
+(contrato visual con referencias en `tests/referencia/`; se regeneran con `scripts/actualizar_referencias_visuales_juan.sh`).
 
 ## Pruebas
 

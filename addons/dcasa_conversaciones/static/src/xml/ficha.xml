@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Ficha">
+        <aside class="o_dcj_col o_dcj_ficha" aria-label="Ficha del cliente">
+            <header class="o_dcj_ficha_cabecera">
+                <button type="button" class="o_dcj_icono_boton o_dcj_volver_ficha" aria-label="Volver a la conversación" t-on-click="volver">
+                    <i class="fa fa-arrow-left" aria-hidden="true"/>
+                </button>
+                <h2>Ficha del cliente</h2>
+            </header>
+
+            <div t-if="!almacen.seleccionadaId" class="o_dcj_sin_seleccion o_dcj_sin_seleccion_chica">
+                <i class="fa fa-id-card-o" aria-hidden="true"/>
+                <span>Elige una conversación para ver a la persona.</span>
+            </div>
+
+            <div t-elif="!f" class="o_dcj_ficha_cuerpo">
+                <div class="o_dcj_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando…</div>
+            </div>
+
+            <div t-else="" class="o_dcj_ficha_cuerpo">
+                <!-- Cliente -->
+                <section class="o_dcj_tarjeta o_dcj_cliente">
+                    <span class="o_dcj_avatar o_dcj_avatar_grande" aria-hidden="true"><span class="o_dcj_iniciales" t-out="iniciales(f.cliente.nombre)"/></span>
+                    <div class="o_dcj_cliente_datos">
+                        <h3 t-out="f.cliente.nombre"/>
+                        <p t-if="f.cliente.celular" class="o_dcj_celular">
+                            <span t-out="f.cliente.celular"/>
+                            <button type="button" class="o_dcj_icono_boton" title="Copiar el celular" aria-label="Copiar el celular" t-on-click="copiarCelular">
+                                <i t-attf-class="fa #{local.copiado ? 'fa-check' : 'fa-clipboard'}" aria-hidden="true"/>
+                            </button>
+                        </p>
+                        <p t-if="f.cliente.correo" class="o_dcj_secundario" t-out="f.cliente.correo"/>
+                        <p class="o_dcj_secundario"><i t-attf-class="fa #{iconoDeCanal(f.cliente.canal)}" aria-hidden="true"/> <t t-out="f.cliente.canal_nombre"/></p>
+                    </div>
+                    <div class="o_dcj_insignias">
+                        <span t-if="f.socio.es_socio" class="o_dcj_insignia o_dcj_insignia_socio"><i class="fa fa-star" aria-hidden="true"/> Socio</span>
+                        <span t-if="f.cliente.no_contactar" class="o_dcj_insignia o_dcj_insignia_alerta"><i class="fa fa-ban" aria-hidden="true"/> No contactar</span>
+                    </div>
+                    <button t-if="f.cliente.id" type="button" class="btn btn-secondary o_dcj_boton o_dcj_ancho" t-on-click="abrirContacto">
+                        <i class="fa fa-external-link" aria-hidden="true"/> Abrir el contacto en Odoo
+                    </button>
+                </section>
+
+                <!-- Socios: solo lectura -->
+                <section t-if="f.socio.es_socio" class="o_dcj_tarjeta">
+                    <h3>Socios D'CASA</h3>
+                    <p class="o_dcj_puntos_socio">
+                        <strong t-out="numero(f.socio.puntos)"/> <span>puntos</span>
+                    </p>
+                    <p class="o_dcj_ayuda">Solo lectura. Los puntos se mueven desde Socios, no desde aquí.</p>
+                </section>
+
+                <!-- Asignación -->
+                <section class="o_dcj_tarjeta">
+                    <h3><label for="o_dcj_asignar">Atiende</label></h3>
+                    <select id="o_dcj_asignar" class="o_dcj_input" t-on-change="alAsignar">
+                        <option value="" t-att-selected="!almacen.conversacion or !almacen.conversacion.asignada_a">Sin asignar</option>
+                        <option t-foreach="almacen.equipo" t-as="u" t-key="u.id" t-att-value="u.id"
+                                t-att-selected="almacen.conversacion and almacen.conversacion.asignada_a and almacen.conversacion.asignada_a.id === u.id"
+                                t-out="u.nombre"/>
+                    </select>
+                </section>
+
+                <!-- Etiquetas -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Etiquetas</h3>
+                    <div class="o_dcj_etiquetas" role="group" aria-label="Etiquetas de la conversación">
+                        <button t-foreach="almacen.etiquetas" t-as="e" t-key="e.id" type="button" class="o_dcj_etiqueta_boton"
+                                t-att-class="{ o_activa: idsDeEtiquetas.includes(e.id) }"
+                                t-att-aria-pressed="idsDeEtiquetas.includes(e.id) ? 'true' : 'false'"
+                                t-att-style="idsDeEtiquetas.includes(e.id) ? 'background:' + colorDeEtiqueta(e.color).fondo + ';color:' + colorDeEtiqueta(e.color).texto + ';border-color:' + colorDeEtiqueta(e.color).texto : ''"
+                                t-on-click="() => this.alternarEtiqueta(e.id)">
+                            <i t-if="idsDeEtiquetas.includes(e.id)" class="fa fa-check" aria-hidden="true"/><t t-out="e.nombre"/>
+                        </button>
+                        <span t-foreach="etiquetasInactivas" t-as="e" t-key="e.id" class="o_dcj_etiqueta" title="Etiqueta desactivada: se conserva pero ya no se puede poner"
+                              t-att-style="'background:' + colorDeEtiqueta(e.color).fondo + ';color:' + colorDeEtiqueta(e.color).texto" t-out="e.nombre"/>
+                    </div>
+                    <p t-if="!almacen.etiquetas.length" class="o_dcj_ayuda">Todavía no hay etiquetas. La dueña las crea en Configuración › Etiquetas.</p>
+                </section>
+
+                <!-- Oportunidades -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Oportunidades</h3>
+                    <ul t-if="f.oportunidades.length" class="o_dcj_lista_simple">
+                        <li t-foreach="f.oportunidades" t-as="o" t-key="o.id">
+                            <button type="button" class="o_dcj_enlace_fila" t-on-click="() => this.abrir('crm.lead', o.id, o.nombre)">
+                                <span class="o_dcj_enlace_titulo" t-out="o.nombre"/>
+                                <span class="o_dcj_secundario"><t t-out="o.etapa"/><t t-if="o.ingreso_esperado"> · <t t-out="dolares(o.ingreso_esperado)"/></t></span>
+                            </button>
+                        </li>
+                    </ul>
+                    <p t-else="" class="o_dcj_secundario">No hay oportunidades abiertas.</p>
+                    <button t-if="!f.oportunidades.length" type="button" class="btn btn-secondary o_dcj_boton o_dcj_ancho" t-att-disabled="local.creando" t-on-click="crearOportunidad">
+                        <i class="fa fa-plus" aria-hidden="true"/> Crear oportunidad
+                    </button>
+                </section>
+
+                <!-- Compras -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Compras recientes</h3>
+                    <ul t-if="f.compras.length" class="o_dcj_lista_simple">
+                        <li t-foreach="f.compras" t-as="c" t-key="c.id">
+                            <button type="button" class="o_dcj_enlace_fila" t-on-click="() => this.abrir('account.move', c.id, c.numero)">
+                                <span class="o_dcj_enlace_titulo"><t t-out="c.numero"/> <span t-if="c.pagada" class="o_dcj_insignia o_dcj_insignia_ok">Pagada</span></span>
+                                <span class="o_dcj_secundario"><t t-out="c.fecha"/> · <t t-out="dolares(c.total)"/></span>
+                            </button>
+                        </li>
+                    </ul>
+                    <p t-else="" class="o_dcj_secundario">Todavía no ha comprado.</p>
+                </section>
+
+                <!-- Seguimiento -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Seguimiento</h3>
+                    <p t-if="seguimiento" t-out="seguimiento.texto"/>
+                    <button t-if="seguimiento and seguimiento.cancelar" type="button" class="btn btn-secondary o_dcj_boton o_dcj_ancho" t-on-click="cancelarSeguimiento">
+                        Cancelar el seguimiento
+                    </button>
+                </section>
+
+                <!-- Notas internas -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Notas internas</h3>
+                    <ul t-if="f.notas.length" class="o_dcj_lista_simple">
+                        <li t-foreach="f.notas" t-as="n" t-key="n.id" class="o_dcj_nota_ficha">
+                            <p t-out="n.texto"/>
+                            <span class="o_dcj_secundario"><t t-out="n.usuario ? n.usuario.nombre : 'Una vendedora'"/> · <t t-out="hora(n.ts)"/></span>
+                        </li>
+                    </ul>
+                    <p t-else="" class="o_dcj_secundario">Sin notas. Cambia la caja a «Nota interna» para escribir una.</p>
+                </section>
+
+                <!-- Qué sabe el bot -->
+                <section class="o_dcj_tarjeta">
+                    <h3>Qué sabe el asistente de esta persona</h3>
+                    <dl class="o_dcj_sabe">
+                        <dt>Nombre</dt><dd t-out="f.bot_sabe.nombre or 'Solo tiene su número'"/>
+                        <dt>Canal</dt><dd t-out="f.bot_sabe.canal"/>
+                        <dt>Es Socio</dt><dd t-out="f.bot_sabe.es_socio ? 'Sí' : 'No'"/>
+                        <dt>Preguntó por</dt>
+                        <dd>
+                            <t t-if="f.bot_sabe.productos_preguntados.length">
+                                <span t-foreach="f.bot_sabe.productos_preguntados" t-as="p" t-key="p_index" class="o_dcj_etiqueta o_dcj_etiqueta_neutra" t-out="p"/>
+                            </t>
+                            <t t-else="">Nada todavía</t>
+                        </dd>
+                        <dt>Oportunidad</dt><dd t-out="f.bot_sabe.oportunidad_abierta or 'Ninguna abierta'"/>
+                        <dt>Última vez que escribió</dt><dd t-out="f.bot_sabe.ultima_vez_que_hablo ? cuando(f.bot_sabe.ultima_vez_que_hablo) : '—'"/>
+                        <dt t-if="f.bot_sabe.nota_para_el_bot">Tu nota para él</dt><dd t-if="f.bot_sabe.nota_para_el_bot" t-out="f.bot_sabe.nota_para_el_bot"/>
+                    </dl>
+                </section>
+            </div>
+        </aside>
+    </t>
+</templates>

@@ -120,6 +120,12 @@ Meta). El par es único.
    redacta (con el motor, en la voz de la marca, corto, sin presión) y envía; luego llama a
    `seguimiento/hecho`.
 4. `GET /odoo/salud` — `{ok, version, canales:{...}, gasto_ia_mes_usd, tope_usd}`.
+5. Para la pantalla de Odoo (`dcasa_conversaciones`; ver `docs/JUAN_ODOO.md`), todas con el mismo token y `Cache-Control: no-store`:
+   * `POST /odoo/sugerir` — `{conversacion_id,canal,mensajes:[{autor:"cliente|asistente|vendedora",texto}],nombre?,interes?,etiquetas?}`
+     → `{ok, texto, avisos}`: un **borrador** de respuesta. Solo herramientas de lectura; **no envía nada**.
+   * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio}`.
+   * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
+   * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).
 
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)
 

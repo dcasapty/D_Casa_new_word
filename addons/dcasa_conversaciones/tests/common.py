@@ -13,6 +13,30 @@ URL_WORKER = 'https://juan.prueba.example.com'
 _contador = itertools.count(1)
 
 
+# Lo que contestaría el Worker de Juan en /odoo/salud y /odoo/costos (para las pantallas Costos y Conexiones).
+SALUD = {
+    'ok': False, 'mensaje': 'Hay 1 cosa(s) por revisar: falta META_AI_API_KEY', 'version': 'abc123',
+    'entorno': 'staging',
+    'secretos_faltantes': ['META_AI_API_KEY'],
+    'ia': {'proveedor': 'anthropic', 'respaldo': None, 'modelo_rapido': 'claude-haiku-4-5',
+           'modelo_inteligente': 'claude-sonnet-5-5', 'con_clave': ['anthropic'],
+           'claves_faltantes': ['META_AI_API_KEY'],
+           'modelos_sin_precio': ['muse-spark-1.3']},
+    'canales': {
+        'whatsapp_qr': {'activo': True, 'configurado': True, 'conectado': False, 'detalle': 'necesita_qr',
+                        'faltan': []},
+        'telegram': {'activo': True, 'configurado': False, 'conectado': None,
+                     'faltan': ['TELEGRAM_BOT_TOKEN_JUAN', 'TELEGRAM_WEBHOOK_SECRET_JUAN']},
+        'messenger': {'activo': False, 'configurado': False, 'conectado': None, 'faltan': ['META_PAGE_TOKEN']},
+    },
+    'gasto_ia_mes_usd': 12.34, 'tope_usd': 30, 'tope_alcanzado': False,
+    'problemas': ['falta META_AI_API_KEY'], 'avisos': ['el modelo x-contributor puede entrenar'],
+}
+COSTOS = {'ok': True, 'mes': '2026-10', 'gasto_usd': 12.34, 'turnos': 321, 'tope_usd': 30, 'por_modelo': [
+    {'modelo': 'claude-haiku-4-5', 'usd': 2.3456, 'turnos': 300, 'estimado': False},
+    {'modelo': 'claude-sonnet-5-5', 'usd': 9.9944, 'turnos': 21, 'estimado': False}]}
+
+
 def respuesta_http(cuerpo=None, estado=200):
     """Lo que devolvería ``requests`` desde el Worker."""
     respuesta = MagicMock()

@@ -1,8 +1,8 @@
 # Juan en Odoo: la bandeja de conversaciones
 
 Guía sencilla para la dueña y las vendedoras. El contrato técnico con el Worker está en [`JUAN.md`](JUAN.md); la
-pantalla nueva de conversaciones (panel) está especificada en [`JUAN_PANEL.md`](JUAN_PANEL.md). Aquí solo está lo
-que **ves y haces en Odoo**, y al final una parte corta para quien instala o programa.
+pantalla de conversaciones (panel) estaba especificada en [`JUAN_PANEL.md`](JUAN_PANEL.md) y ya está construida. Aquí
+solo está lo que **ves y haces en Odoo**, y al final una parte corta para quien instala o programa.
 
 ## Qué es
 
@@ -17,7 +17,11 @@ Menú **Conversaciones** (el ícono del globo de chat).
 
 | Opción | Quién | Para qué sirve |
 |---|---|---|
-| **Bandeja** | Ventas | Todas las conversaciones, en tres columnas: *Con el asistente*, *Con una vendedora* y *Cerrada*. |
+| **Conversaciones** | Ventas | **La pantalla de trabajo**: lista, chat y ficha del cliente en una sola vista (ver «La pantalla de Conversaciones»). |
+| **Resumen** | Ventas | Los números del día, de 7 y de 30 días. |
+| **Costos de IA** | Gerencia | Cuánto cuesta que el asistente conteste y cómo va el mes frente al tope. |
+| **Conexiones** | Gerencia | Cómo está cada canal, el QR de WhatsApp, reiniciar y desvincular. |
+| **Bandeja** | Ventas | La bandeja de siempre, en tres columnas: *Con el asistente*, *Con una vendedora* y *Cerrada*. |
 | **Mensajes por enviar** | Ventas | Lo que escribiste desde Odoo y todavía no salió (ver «Si algo falla»). Normalmente está vacío. |
 | **Preguntas sin respuesta** | Gerencia | Lo que los clientes preguntaron y el asistente no supo contestar (ver «El asistente aprende»). |
 | **Conocimiento del bot** | Gerencia | Los textos que el asistente puede usar para contestar (horario, ubicación, Socios, garantía…). |
@@ -28,7 +32,147 @@ Menú **Conversaciones** (el ícono del globo de chat).
 La tarjeta de cada conversación muestra a la persona, el canal, las etiquetas, el último mensaje y quién la atiende.
 Una etiqueta azul **«Espera tu respuesta»** marca las que el cliente escribió y nadie ha contestado.
 
-## Atender a un cliente
+## La pantalla de Conversaciones
+
+Es la pantalla de trabajo de las vendedoras: **todo en una sola vista**, como un WhatsApp Web pero dentro de Odoo y con la
+ficha del cliente al lado. Se abre en *Conversaciones › Conversaciones*. Tiene tres columnas:
+
+| Columna | Qué hay |
+|---|---|
+| **Izquierda: la lista** | Todas las conversaciones, las más recientes primero. Cada una muestra a la persona, el canal, las etiquetas, el último mensaje, quién la atiende y cuántos mensajes tienes sin leer. |
+| **Centro: la conversación** | Los mensajes como un chat y, abajo, la caja para responder. |
+| **Derecha: la ficha del cliente** | Quién es, si es Socio y cuántos puntos tiene, sus oportunidades y compras, las etiquetas y a quién se la asignaste. |
+
+Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación, aparece sin recargar nada.
+
+### La lista
+
+* **Buscar**: escribe un nombre, un celular o una palabra que dijo el cliente. Busca en todos los mensajes.
+* **Filtros rápidos**: **Mías** (las que atiendes tú), **Sin leer**, **Con oportunidad** (ya tienen una venta anotada en CRM) y
+  **Más filtros** (canal, estado y etiqueta). **Quitar filtros** deja todo como estaba.
+* **Estados** (siempre con palabra, no solo color): **Necesita atención** (el cliente escribió y nadie ha contestado; franja azul
+  oscuro con letras amarillas), **Asistente** (contesta Juan), **Una vendedora** (la atiende una persona) y **Cerrada**.
+* Baja y cargan **30 más** solas. Con las flechas **↑ ↓** del teclado pasas de una conversación a otra.
+
+### La conversación
+
+* **Cada quien en su color**: el cliente a la izquierda; el asistente en azul claro; las vendedoras en azul fuerte. Las horas son de
+  Panamá. Un renglón gris es un **aviso del sistema** («Ana tomó la conversación»).
+* **Notas internas**: burbuja con borde punteado y la leyenda **«El cliente no la ve»**. Sirven para hablar entre vendedoras.
+* **Fotos**: salen como miniatura; un clic las **amplía** (flechas ← → para pasar de una a otra, **Esc** para cerrar). Los
+  documentos (PDF, Word, Excel) se descargan. En un comprobante de pago o un documento de identidad que mandó el cliente puedes
+  pulsar **Es un comprobante**: así el asistente nunca lo ve (**Ya no es sensible** lo deshace).
+* **Ver mensajes anteriores** trae los 50 anteriores. Si estás leyendo mensajes viejos y entra uno nuevo, no te mueve la pantalla:
+  aparece un botón **«1 mensaje nuevo»** (o «N mensajes nuevos») para bajar cuando quieras.
+* Arriba: **Ficha** (muestra u oculta la ficha, útil en pantallas medianas y en el celular) y **Cerrar** la conversación.
+* Si un mensaje tuyo no salió, dice **«Por enviar»** y tiene el botón **Reintentar**.
+* Cuando el asistente está preparando una respuesta se ve **«El asistente está preparando la respuesta…»**. Es una estimación
+  (no lo sabe con certeza): desaparece sola.
+
+### La caja de respuesta
+
+Arriba de la caja, una barra dice **quién atiende**:
+
+* **Atiende el asistente** → botón **Atender**: la conversación pasa a ti y Juan se calla.
+* **Atiendes tú. El asistente vuelve a las 4:30 p. m. (en 1 h 20 min)** → botón **Devolver al asistente**. Puedes dejarle una nota
+  corta («ya quedó la visita del sábado»); la lee hasta que otra persona tome la conversación. Cada mensaje tuyo renueva la pausa.
+* **Cerrada** → si escribes, se reabre y la atiendes tú.
+
+Abajo, la caja y sus botones:
+
+| Botón | Qué hace |
+|---|---|
+| **Respuesta / Nota interna** | Cambia entre hablarle al cliente y escribir una nota que el cliente no ve. La nota tiene otro color y su botón dice **Guardar nota**. |
+| **Adjuntar** | Elige fotos o documentos (también puedes **arrastrarlos y soltarlos** sobre la conversación o **pegar** una imagen). Se ven en miniatura antes de enviar y se pueden quitar. Hasta 10 MB cada uno. Aceptados: fotos (JPG, PNG, WebP, GIF), PDF, Word, Excel, texto y CSV. |
+| **Foto del catálogo** | Busca un producto por **nombre o código** y manda su foto. Ver abajo. |
+| **Cotización** | Manda la cotización del cliente en PDF. Ver abajo. |
+| **Rápidas** | Abre tus respuestas rápidas. También sirve escribir **/** en la caja: salen las que empiezan con lo que escribas; **↑ ↓** eligen, **Enter** o **Tab** usan la elegida y **Esc** cierra. El texto ya sale con el nombre del cliente. |
+| **Sugerir** | Le pide a Juan **un borrador** de respuesta. Lo deja escrito en la caja para que lo leas, lo cambies y lo envíes tú; **nunca se envía solo**. Si quitó algo que no debía (una foto, por ejemplo) o dejó algo por confirmar, te lo avisa. |
+| **Enviar** | Manda el mensaje. **Enter** envía; **Mayús + Enter** salta de línea; **Ctrl + Enter** también envía. En el celular solo envía el botón. |
+
+**Foto del catálogo.** Escribe lo que buscas («cama queen» o el código). Cada producto muestra su foto, el precio con **«+ ITBMS»**,
+las medidas y si está **DISPONIBLE**, con **POCAS** unidades o **AGOTADO**. La pantalla **nunca** muestra cuántas unidades hay ni lo
+que costó. Con **Enviar foto** sale la foto y, debajo, el pie ya armado (nombre, precio + ITBMS, medidas y enlace al producto).
+**Galería** deja elegir varias fotos del mismo producto y **Revisar antes de enviar** no manda nada: deja las fotos y el pie en la
+caja para que los edites. Solo salen productos **publicados**. Las fotos se mandan reducidas (1024 px) y con una dirección que
+**vence a los 15 minutos**.
+
+**Cotización.** Busca la **cotización abierta más reciente** de ese cliente y la muestra (productos, subtotal, ITBMS, total y hasta
+cuándo vale). **Enviar el PDF** la manda con un mensaje que puedes cambiar. Si el cliente no tiene ninguna abierta, puedes **crear
+un borrador** eligiendo productos del catálogo; el borrador **nunca se confirma**: eso lo decide una persona en Ventas. **Abrir en
+Odoo** la abre completa. Cada vendedora ve las cotizaciones que ya podía ver en Ventas.
+
+### La ficha del cliente
+
+* **Socios D'CASA**: si es Socio y cuántos puntos tiene. **Solo lectura**: los puntos se mueven desde el programa de Socios, no desde
+  aquí.
+* **Atiende**: asigna la conversación a otra vendedora. Queda un aviso en el hilo.
+* **Etiquetas**: pon o quita (un clic cada una).
+* **Oportunidades**, **Compras recientes** y **Seguimiento** (con el botón para **cancelar** el seguimiento automático).
+* **Crear oportunidad**: deja la venta anotada en CRM, ligada al cliente y a la conversación.
+* **Notas internas** y **Qué sabe el asistente de esta persona**: nombre, productos por los que preguntó, etiquetas y la última vez
+  que habló.
+
+### En el celular
+
+La pantalla se vuelve **una columna a la vez**: primero la lista; al tocar una conversación se ve solo el chat, con la **caja de
+respuesta fija abajo**; el botón **Volver** regresa a la lista y **Ficha** abre la ficha a pantalla completa. Todos los botones miden
+al menos 44 píxeles (cabe el pulgar). El catálogo y la cotización suben desde abajo como una hoja.
+
+### Teclado: resumen
+
+| Tecla | Dónde | Qué hace |
+|---|---|---|
+| **↑ ↓** | Lista | Pasa de una conversación a otra |
+| **Enter** | Caja | Envía (en el celular, no) |
+| **Mayús + Enter** | Caja | Salta de línea |
+| **Ctrl + Enter** | Caja | Envía siempre |
+| **/** | Caja | Abre las respuestas rápidas |
+| **↑ ↓ · Enter · Tab · Esc** | Respuestas rápidas | Elegir · usar la elegida · cerrar |
+| **← →** | Foto ampliada | Foto anterior o siguiente |
+| **Esc** | Foto ampliada, catálogo y cotización | Cierra |
+| **Tab** | Todas | Recorre los botones; el que tiene el foco se ve con un contorno azul |
+
+### Resumen, Costos de IA y Conexiones
+
+Tres pantallas hermanas, con la misma barra de arriba para pasar de una a otra.
+
+* **Resumen** (todo el equipo de ventas). Los números de **Hoy**, **7 días** o **30 días** (hora de Panamá): **mensajes** (de
+  clientes, del asistente y de vendedoras), **clientes únicos**, **resueltas sin una persona** (las que el asistente cerró solo),
+  **oportunidades creadas**, **ventas atribuidas** (facturas pagadas, sin ITBMS, de clientes que hablaron con el asistente; es una
+  atribución aproximada, no una prueba de que el asistente vendió) y **primera respuesta** (en cuánto tiempo, la mitad de los
+  clientes recibe respuesta). Lo que no se puede calcular se muestra como «—»: no se inventa. Si hay conversaciones esperando
+  respuesta, un aviso lleva directo a ellas.
+* **Costos de IA** (**solo Gerencia**). El **gasto del mes** frente al **tope** (30 USD por defecto), con una barra que dice «Vas
+  bien», «Vas a pasar el tope» o «Tope alcanzado» (con ícono y palabra). Debajo, la frase **«Si sigues a este ritmo, terminarás el mes
+  en…»**, el gasto **por día** (un botón lo pasa a tabla) y **por modelo**. Al llegar al tope, el asistente baja al modelo económico;
+  **nunca se queda sin contestar**. Si un modelo no tiene precio cargado en *Ajustes de Juan*, el gasto de ese modelo es una
+  estimación alta y la pantalla lo dice. El desglose por día se va armando desde que se abre esta pantalla por primera vez: Odoo
+  guarda una foto del gasto cada noche; un día sin foto sale como «sin dato» y no se adivina.
+* **Conexiones** (**solo Gerencia**). El estado **en vivo** de cada canal (Conectado, Desconectado, Faltan claves, Apagado), con
+  ícono y palabra. En **WhatsApp (QR)**:
+  * **Mostrar el QR para vincular**: aparece el código para escanearlo desde el teléfono de la tienda (*WhatsApp › Ajustes ›
+    Dispositivos vinculados › Vincular un dispositivo*). Se renueva solo y se avisa cuando WhatsApp queda conectado. El código
+    **no se guarda ni se escribe en ningún registro**.
+  * **Reiniciar**: apaga y vuelve a prender el puente en menos de un minuto; la sesión se conserva (no pide QR). Antes pregunta.
+  * **Desvincular**: cierra la sesión de WhatsApp; para volver hay que escanear un QR nuevo. Es el botón rojo y siempre pregunta.
+  Quién reinició o desvinculó, y cuándo, queda en el historial de *Ajustes de Juan*. Además se ve qué **claves faltan en el Worker**
+  (**solo sus nombres**, nunca su valor: la dueña las pega en el panel de Cloudflare) y lo que Odoo sabe de sí mismo.
+
+**Si ves «Falta conectar el bot».** Odoo todavía no sabe dónde está el Worker de Juan o no tiene su clave. Quien instala carga las
+variables `JUAN_URL` y `JUAN_WORKER_TOKEN` (ver «Para quien instala»). Mientras tanto, la lista y los chats funcionan igual con lo
+que ya hay en Odoo; **Sugerir**, **Costos de IA** y **Conexiones** avisan que falta conectar el bot y el **Resumen** muestra los
+números que sí tiene Odoo.
+
+### Lo que todavía no hace
+
+* **Mencionar con @** a otra vendedora en una nota interna, ni crear una **actividad** desde la nota.
+* **Adjuntar un comprobante** directamente a una factura o a un pedido.
+* **Programar un mensaje** para más tarde (hoy solo se ve el seguimiento automático).
+* **Fotos de perfil**: se muestran las iniciales de cada persona.
+* El gasto de IA **por día** solo existe desde que Odoo empezó a guardar las fotos diarias.
+
+## Atender a un cliente (en la bandeja de siempre)
 
 1. Abre la conversación: la ves **como un chat**. A la izquierda lo que dice el cliente; a la derecha el
    asistente (azul claro) y las vendedoras (azul fuerte). Las horas son de Panamá. Las fotos y los archivos se abren con un clic.
@@ -55,7 +199,7 @@ si ya hay una abierta de los últimos 30 días, no crea otra) y **Reintentar env
 quedó la visita del sábado». El asistente la lee en cada respuesta hasta que otra persona tome la conversación.
 
 **Sin leer.** Cada persona del equipo lleva su propia lectura: lo que el cliente escribió y tú aún no abriste cuenta
-como «sin leer» solo para ti. (Los contadores los muestra la pantalla nueva de conversaciones; el backend ya los lleva.)
+como «sin leer» solo para ti. (Los contadores y el filtro **Sin leer** están en la pantalla de Conversaciones.)
 
 Todo lo que se dice queda también en la **ficha del cliente** (Contactos), en el chatter, como nota interna. Los
 **comprobantes de pago** y **documentos de identidad** se guardan ahí para que los revise una vendedora; **no se le muestran a la IA**
@@ -220,7 +364,8 @@ Códigos: `400` datos inválidos · `401` token · `404` no existe · `413` dema
 intentos fallidos · `503` sin token configurado o Odoo arrancando · `500` error interno (sin detalles).
 
 **Odoo → Worker** (`JUAN_WORKER_TOKEN`): `POST /odoo/enviar` (los adjuntos van con URL **firmada de 15 minutos**, ver más
-abajo), `POST /odoo/estado` (al devolver con nota, trae `nota_para_el_bot`), `POST /odoo/seguimiento`, `GET /odoo/salud`.
+abajo), `POST /odoo/estado` (al devolver con nota, trae `nota_para_el_bot`), `POST /odoo/seguimiento`, `GET /odoo/salud` y, para la pantalla, `POST /odoo/sugerir`, `GET /odoo/costos`, `GET /odoo/qr`,
+`POST /odoo/reiniciar` y `POST /odoo/desvincular` (ver «Lo que añadió la pantalla OWL»).
 
 **Usuario técnico:** `juan.asistente`, de portal, con el grupo `Juan (asistente de clientes)` y sin ningún grupo interno ni
 contraseña. Solo ve y ejecuta las herramientas de Juan (todas auditadas en *Brian › Acciones* con canal «Juan (clientes)» y la
@@ -242,8 +387,8 @@ y deja de valer si el archivo cambia. Solo sirve adjuntos de mensajes de convers
 ### API de la pantalla «Conversaciones» (panel)
 
 Métodos públicos de `dcasa.conversacion` (RPC normal de Odoo, `call_kw`) para la pantalla OWL de
-[`JUAN_PANEL.md`](JUAN_PANEL.md). Todos exigen ser del equipo de ventas **en el servidor** y devuelven diccionarios JSON; la pantalla
-OWL todavía no está hecha, pero todo su backend sí y está probado.
+[`JUAN_PANEL.md`](JUAN_PANEL.md) (el código OWL está en `addons/dcasa_conversaciones/static/src`). Todos exigen ser del equipo de ventas
+**en el servidor** y devuelven diccionarios JSON.
 
 | Método | Qué hace |
 |---|---|
@@ -266,6 +411,45 @@ detalle con `hilo`. Un fallo del bus nunca tumba el mensaje.
 **Rendimiento.** Índices para la lista (`ultima_actividad DESC NULLS LAST, id DESC`; `estado, ultima_actividad`; asignada a) y para
 el hilo (`conversacion_id, id`). Las consultas no dependen de cuántas filas se piden (probado), y con 5.000 conversaciones la lista
 tarda bien por debajo de 1 s (probado en las pruebas del módulo).
+
+**Lo que añadió la pantalla OWL** (más métodos de `dcasa.conversacion`, mismos permisos):
+
+| Método | Qué hace |
+|---|---|
+| `iniciar_panel()` | Todo lo que la pantalla necesita al abrir: usuario, si el bot está configurado y encendido, límites (texto, nota, tamaño y número de adjuntos), canales, etiquetas, respuestas rápidas y equipo. |
+| `subir_adjunto(conversacion_id, nombre, datos, mimetype)` · `descartar_adjunto(adjunto_id)` | Sube (base64, máx. 10 MB, máx. 10 pendientes por persona) o descarta un archivo antes de enviarlo. Se valida el **contenido** y la extensión (JPG, PNG, WebP, GIF, PDF, Word, Excel, TXT, CSV); el cron `Juan: limpiar archivos subidos y no enviados` borra a las 48 h los que nadie envió. |
+| `equipo()` · `nueva_oportunidad(conversacion_id)` · `reintentar_envios_panel(conversacion_id)` | El equipo de ventas (para asignar), la oportunidad y los reintentos desde la ficha. |
+| `sugerir_respuesta(conversacion_id)` | Pide un **borrador** al Worker (`POST /odoo/sugerir`). Manda los últimos 14 mensajes sin notas internas ni avisos; los adjuntos sensibles viajan sin texto ni contenido. Nunca envía nada. |
+| `buscar_catalogo(consulta, limite)` · `fotos_catalogo(producto_id)` | Productos **publicados** por nombre o código: miniatura WebP, precio «+ ITBMS», `DISPONIBLE`/`POCAS`/`AGOTADO` (nunca la cantidad ni el costo), medidas. |
+| `preparar_foto_catalogo(...)` · `enviar_foto_catalogo(conversacion_id, producto_id, fotos, texto)` | Arma el pie (nombre, precio + ITBMS, medidas, enlace) y manda las fotos como JPEG de 1024 px con URL firmada de 15 minutos. |
+| `cotizaciones_abiertas(conversacion_id)` · `crear_cotizacion(conversacion_id, lineas)` · `enviar_cotizacion(conversacion_id, orden_id, texto)` | La cotización abierta más reciente (con los permisos de Ventas de quien llama); un **borrador** nuevo con líneas del catálogo, sin confirmar; el PDF de `sale.action_report_saleorder` enviado como adjunto (la orden queda «enviada»). |
+| `dcasa.juan.panel.resumen(periodo)` | Los seis números del Resumen (`hoy`, `7_dias`, `30_dias`, en la hora de Panamá). |
+| `dcasa.juan.panel.costos()` · `conexiones()` · `qr()` · `reiniciar_puente()` · `desvincular_puente()` | **Solo Gerencia** (se exige en el servidor). Hablan con el Worker por `GET /odoo/salud`, `GET /odoo/costos`, `GET /odoo/qr`, `POST /odoo/reiniciar` y `POST /odoo/desvincular`. Sin `JUAN_URL`/`JUAN_WORKER_TOKEN` contestan `configurado: false` («Falta conectar el bot») sin salir a ninguna parte. `qr()` solo deja pasar un PNG en base64 de hasta 200 KB, y **ni el QR ni las claves se escriben en ningún registro**. Reiniciar y desvincular dejan una nota en el historial de los ajustes. |
+
+**Rutas nuevas del Worker `juan`** (`juan/src/odoo-panel*.ts`; todas con `Authorization: Bearer <JUAN_WORKER_TOKEN>` comparado en tiempo
+constante, respuestas `Cache-Control: no-store`, errores genéricos sin detalles internos):
+
+| Ruta | Qué hace |
+|---|---|
+| `POST /odoo/sugerir` | Recibe la conversación recortada y devuelve `{ok, texto, avisos}`. Usa solo herramientas de **lectura** (`buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `horario_y_tienda`, `buscar_conocimiento`), nivel inteligente (baja al rápido si se llegó al tope), registra el gasto y avisa de lo que quitó (fotos, enlaces) y de los `[CONFIRMAR…]`. |
+| `GET /odoo/costos` | Gasto del mes por modelo, turnos, tope y modelos sin precio cargado (desde el contador del Worker). |
+| `GET /odoo/qr` | El QR del puente de WhatsApp (data URL PNG) y su estado: `necesita_qr`, `conectado`, `desconectado`, `desvinculada`, `arrancando`, `apagado`. No imprime el QR en logs. |
+| `POST /odoo/reiniciar` · `POST /odoo/desvincular` | Reinicia o cierra la sesión del puente. |
+
+**Tareas programadas** (`data/ir_cron_panel.xml`): «Juan: foto diaria del gasto de IA» (04:50 UTC; si el Worker no responde no pasa nada) y «Juan: limpiar archivos subidos y no
+enviados» (07:10 UTC).
+
+**Para que las fotos lleguen a WhatsApp:** el puente solo baja archivos de `https://dcasapty.com` y `https://dcasapty.workers.dev`
+(`DOMINIOS_DEL_PUENTE` en `models/panel_calculos.py`). Si `web.base.url` de Odoo es otra dirección, *Conexiones* lo marca en rojo («Dirección de Odoo para las
+fotos y documentos: no sirve»).
+
+**Pruebas.** `tests/test_panel_extra.py`, `test_panel_catalogo.py`, `test_panel_juan.py` (modelos y controladores, con Worker falso);
+`test_panel_interfaz.py` (Chrome de verdad: abrir la lista y un hilo, atender y devolver, enviar con Enter, adjuntar con botón y
+arrastrando, documentos, notas, rápidas, sugerir, filtros, ficha, foto del catálogo, cotización, tiempo real, celular de 390 px, Resumen,
+Costos y Conexiones) y `test_panel_visual.py` (**contrato visual**: sistema plano, amarillo solo sobre azul marino, contraste, foco visible
+con Tab y capturas de referencia en `tests/referencia/panel-*.webp`, a 1440 y 390 px). Para regenerar las referencias a propósito:
+`scripts/actualizar_referencias_visuales_juan.sh` (ver `docs/OPERACION.md`). Las capturas para la dueña se generan con
+`DCASA_CAPTURAS_JUAN=<carpeta> scripts/test.sh dcasa_conversaciones` (se guardan en `docs/auditoria/ronda7/capturas/`).
 
 ### Cambios sobre el contrato `JUAN.md`
 

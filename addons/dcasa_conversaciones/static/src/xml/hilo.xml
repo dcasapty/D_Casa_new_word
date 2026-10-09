@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Burbuja">
+        <t t-set="m" t-value="props.m"/>
+        <div t-if="m.tipo === 'aviso'" class="o_dcj_aviso_sistema" role="note">
+            <span t-out="m.texto"/>
+            <time class="o_dcj_aviso_hora" t-att-datetime="m.ts" t-out="hora(m.ts)"/>
+        </div>
+        <article t-else="" t-attf-class="o_dcj_burbuja o_dcj_burbuja_#{clase}" t-att-data-mensaje="m.id">
+            <header class="o_dcj_burbuja_meta">
+                <span class="o_dcj_burbuja_autor" t-out="autor"/>
+                <span t-if="m.tipo === 'nota'" class="o_dcj_burbuja_privada"><i class="fa fa-eye-slash" aria-hidden="true"/> El cliente no la ve</span>
+                <time t-att-datetime="m.ts" t-out="hora(m.ts)"/>
+            </header>
+            <p t-if="m.texto" class="o_dcj_burbuja_texto" t-out="m.texto"/>
+
+            <div t-if="imagenes.length" class="o_dcj_fotos" t-att-class="{ o_varias: imagenes.length > 1 }">
+                <div t-foreach="imagenes" t-as="a" t-key="a.id" class="o_dcj_foto">
+                    <button type="button" class="o_dcj_foto_boton" t-att-aria-label="'Ampliar la foto ' + a.nombre" t-on-click="() => this.abrirImagen(a)">
+                        <img t-att-src="a.miniatura" t-att-alt="a.nombre" loading="lazy"/>
+                    </button>
+                    <span t-if="a.sensible" class="o_dcj_sensible">Sensible</span>
+                </div>
+            </div>
+
+            <ul t-if="documentos.length" class="o_dcj_documentos">
+                <li t-foreach="documentos" t-as="a" t-key="a.id" class="o_dcj_documento">
+                    <a t-att-href="a.url" target="_blank" rel="noopener" t-att-download="a.nombre">
+                        <i t-attf-class="fa #{iconoDeArchivo(a.mime, a.nombre)}" aria-hidden="true"/>
+                        <span class="o_dcj_documento_nombre" t-out="a.nombre"/>
+                        <span class="o_dcj_documento_peso" t-out="tamano(a.tamano)"/>
+                        <span class="o_dcj_solo_lector">Descargar</span>
+                    </a>
+                    <span t-if="a.sensible" class="o_dcj_sensible">Sensible</span>
+                </li>
+            </ul>
+
+            <div t-if="m.adjuntos.length and m.autor === 'cliente'" class="o_dcj_burbuja_acciones">
+                <t t-foreach="m.adjuntos" t-as="a" t-key="a.id">
+                    <button t-if="!a.sensible" type="button" class="o_dcj_enlace" t-on-click="() => almacen.marcarSensible(a.id, true)"
+                            t-att-title="'Marca ' + a.nombre + ' como comprobante o documento de identidad: la IA no lo verá'">
+                        <i class="fa fa-lock" aria-hidden="true"/> Es un comprobante
+                    </button>
+                    <button t-else="" type="button" class="o_dcj_enlace" t-on-click="() => almacen.marcarSensible(a.id, false)">
+                        <i class="fa fa-unlock" aria-hidden="true"/> Ya no es sensible
+                    </button>
+                </t>
+            </div>
+            <p t-if="m.adjuntos_fallidos" class="o_dcj_burbuja_aviso">
+                <i class="fa fa-exclamation-circle" aria-hidden="true"/>
+                <t t-out="m.adjuntos_fallidos === 1 ? 'No se pudo traer 1 archivo.' : 'No se pudieron traer ' + m.adjuntos_fallidos + ' archivos.'"/>
+            </p>
+
+            <p t-if="estadoDeEnvio" t-attf-class="o_dcj_burbuja_estado o_dcj_estado_envio_#{estadoDeEnvio.clase}" role="status">
+                <i class="fa fa-clock-o" aria-hidden="true"/>
+                <t t-out="estadoDeEnvio.texto"/>
+                <button t-if="estadoDeEnvio.reintentar" type="button" class="o_dcj_enlace" t-on-click="() => almacen.reintentar()">Reintentar</button>
+            </p>
+        </article>
+    </t>
+
+    <t t-name="dcasa_conversaciones.Hilo">
+        <section class="o_dcj_col o_dcj_hilo" aria-label="Conversación"
+                 t-on-dragenter="alEntrarConArchivos" t-on-dragover="alPasarConArchivos"
+                 t-on-dragleave="alSalirConArchivos" t-on-drop="alSoltarArchivos">
+
+            <div t-if="!almacen.seleccionadaId" class="o_dcj_sin_seleccion">
+                <i class="fa fa-comments-o" aria-hidden="true"/>
+                <strong>Elige una conversación</strong>
+                <span>Aquí ves lo que dijo el cliente, lo que contestó el asistente y lo que respondes tú.</span>
+            </div>
+
+            <t t-else="">
+                <header class="o_dcj_hilo_cabecera">
+                    <button type="button" class="o_dcj_icono_boton o_dcj_volver" aria-label="Volver a la lista" t-on-click="volver">
+                        <i class="fa fa-arrow-left" aria-hidden="true"/>
+                    </button>
+                    <span class="o_dcj_avatar o_dcj_avatar_grande" aria-hidden="true">
+                        <span class="o_dcj_iniciales" t-out="almacen.conversacion ? almacen.conversacion.iniciales : '?'"/>
+                    </span>
+                    <div class="o_dcj_hilo_titulo">
+                        <h2 t-out="nombreDelCliente"/>
+                        <p>
+                            <i t-if="almacen.conversacion" t-attf-class="fa #{iconoDeCanal(almacen.conversacion.canal)}" aria-hidden="true"/>
+                            <t t-out="subtitulo"/>
+                        </p>
+                    </div>
+                    <span t-if="estadoDelHeader" t-attf-class="o_dcj_estado o_dcj_estado_#{estadoDelHeader.clase}">
+                        <i t-if="almacen.conversacion.bot_atiende and almacen.conversacion.estado !== 'cerrada'" class="o_dcj_punto_verde" title="El asistente está atendiendo"/>
+                        <t t-out="estadoDelHeader.texto"/>
+                    </span>
+                    <button type="button" class="o_dcj_icono_boton o_dcj_boton_ficha" t-att-aria-expanded="almacen.fichaAbierta ? 'true' : 'false'"
+                            title="Ver la ficha del cliente" t-on-click="abrirFicha">
+                        <i class="fa fa-id-card-o" aria-hidden="true"/><span class="o_dcj_texto_boton">Ficha</span>
+                    </button>
+                    <button t-if="almacen.conversacion and almacen.conversacion.estado !== 'cerrada'" type="button"
+                            class="o_dcj_icono_boton" title="Cerrar la conversación" aria-label="Cerrar la conversación"
+                            t-on-click="cerrarConversacion">
+                        <i class="fa fa-check-circle-o" aria-hidden="true"/><span class="o_dcj_texto_boton">Cerrar</span>
+                    </button>
+                </header>
+
+                <div class="o_dcj_hilo_cuerpo" t-ref="cuerpo" t-on-scroll="alDesplazar" tabindex="0" role="log"
+                     aria-label="Mensajes de la conversación">
+                    <div t-if="almacen.cargandoHilo" class="o_dcj_cargando" role="status">
+                        <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando mensajes…
+                    </div>
+                    <div t-elif="almacen.errorHilo" class="o_dcj_vacio" role="alert">
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
+                        <strong>No pude abrir esta conversación</strong>
+                        <span t-out="almacen.errorHilo"/>
+                        <button type="button" class="btn btn-secondary" t-on-click="() => { const id = almacen.seleccionadaId; almacen.seleccionadaId = null; almacen.abrir(id); }">Intentar otra vez</button>
+                    </div>
+                    <t t-else="">
+                        <div t-if="almacen.hayMasAntes" class="o_dcj_antes">
+                            <button type="button" class="btn btn-secondary" t-att-disabled="almacen.cargandoAntes" t-on-click="() => almacen.cargarAntes()">
+                                <t t-if="almacen.cargandoAntes">Cargando…</t><t t-else="">Ver mensajes anteriores</t>
+                            </button>
+                        </div>
+                        <p t-if="!almacen.mensajes.length" class="o_dcj_vacio_chico">Todavía no hay mensajes.</p>
+                        <t t-foreach="elementosDelHilo(almacen.mensajes)" t-as="e" t-key="e.clave">
+                            <div t-if="e.clase === 'dia'" class="o_dcj_dia"><span t-out="e.texto"/></div>
+                            <Burbuja t-else="" m="e.m" almacen="almacen" nombreCliente="nombreDelCliente"/>
+                        </t>
+                        <div t-if="escribiendo" class="o_dcj_escribiendo" role="status">
+                            <span class="o_dcj_puntos" aria-hidden="true"><i/><i/><i/></span>
+                            <span>El asistente está preparando la respuesta…</span>
+                        </div>
+                    </t>
+                </div>
+
+                <button t-if="almacen.nuevosSinVer" type="button" class="o_dcj_nuevos" t-on-click="irAlFondo">
+                    <i class="fa fa-arrow-down" aria-hidden="true"/>
+                    <t t-out="almacen.nuevosSinVer === 1 ? '1 mensaje nuevo' : almacen.nuevosSinVer + ' mensajes nuevos'"/>
+                </button>
+
+                <CajaRespuesta almacen="almacen"/>
+
+                <div t-if="local.arrastrando" class="o_dcj_soltar" aria-hidden="true">
+                    <i class="fa fa-cloud-upload"/>
+                    <strong>Suelta aquí las fotos o los documentos</strong>
+                    <span>Se adjuntan a tu respuesta</span>
+                </div>
+            </t>
+        </section>
+    </t>
+</templates>
