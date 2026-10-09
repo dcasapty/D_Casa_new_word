@@ -144,6 +144,10 @@ Un despliegue nuevo **nunca borra** lo que pegaste en el panel (secretos ni vari
 La versión con más detalle (con staging, tope, estado de la IA y avisos) está en
 `GET /odoo/salud`, que pide `Authorization: Bearer <JUAN_WORKER_TOKEN>`.
 
+La pantalla de Odoo usa además `POST /odoo/sugerir`, `GET /odoo/costos`, `GET /odoo/qr`, `POST /odoo/reiniciar` y
+`POST /odoo/desvincular` (`juan/src/odoo-panel*.ts`), con el mismo token. Ninguna imprime el QR ni una clave en los logs, y los errores
+llegan a Odoo con un texto genérico (sin detalles internos).
+
 ## 5. Qué secreto, en qué Worker, para qué
 
 | Secreto | En qué Worker | Para qué | Cuándo hace falta |

@@ -626,3 +626,27 @@ ven (una foto distinta, un elemento que se coló encima, una placa dibujada por 
 (`CI=true`) la tolerancia por defecto es del 6 %; en local y al regenerar, del 1,5 %. Si en CI la
 diferencia es consistentemente alta sin cambio de diseño, regenera las referencias desde el
 runner (`DCASA_TOLERANCIA_VISUAL` solo sube el umbral, nunca apaga la comparación).
+
+## Contrato visual de la pantalla de Conversaciones de Juan
+
+La pantalla de Conversaciones (y Resumen, Costos de IA y Conexiones) tiene su propio contrato, con el mismo método que la cabecera del
+sitio: `addons/dcasa_conversaciones/tests/test_panel_visual.py`, medido en Chrome a 1440 y 390 px.
+
+| Nivel | Qué mide | Falla cuando… |
+|---|---|---|
+| **Estilos computados** (bloqueante) | Sistema plano: ningún degradado, ninguna sombra de texto, ninguna sombra de más de 16 px de desenfoque ni 8 px de caída. El amarillo `#FED00F` solo sobre azul marino (nunca texto, ícono ni fondo amarillo sobre un fondo claro). Contraste del texto de al menos 4,5:1 (3:1 si es grande). **Foco visible con Tab de verdad** (`:focus-visible` con contorno o anillo) en cada control | un estilo nuevo se sale de la marca o de la accesibilidad. No depende de la versión de Chrome |
+| **Píxeles contra las referencias** | la lista, un hilo abierto y Conexiones, a 1440 (media resolución) y 390 px, contra `addons/dcasa_conversaciones/tests/referencia/panel-*.webp` (sin pérdida), con la misma tolerancia que el contrato del sitio (**1,5 %** local, **6 %** en CI, `DCASA_TOLERANCIA_VISUAL` manda) | el diseño cambió de verdad |
+
+Las capturas son deterministas: reloj del navegador fijo (10 de marzo de 2026, 10:00 en Panamá) y mensajes fechados respecto a él, viewport
+fijo, `prefers-reduced-motion: reduce`, sin animaciones, sin barras de desplazamiento y fuentes e imágenes cargadas.
+
+**Cambiar la pantalla exige regenerar las referencias en el mismo commit:**
+
+```bash
+scripts/actualizar_referencias_visuales_juan.sh      # scripts/test.sh con DCASA_REFERENCIAS_VISUALES=regenerar
+git add addons/dcasa_conversaciones/tests/referencia
+```
+
+Las capturas que se le enseñan a la dueña (las ocho pantallas, escritorio y celular, con el catálogo real de la base) se generan
+con `DCASA_CAPTURAS_JUAN=docs/auditoria/ronda7/capturas TEST_TAGS=/dcasa_conversaciones:TestContratoVisualJuan.test_capturas_para_la_duena scripts/test.sh dcasa_conversaciones`
+y se llaman `juan-panel-<pantalla>-<escritorio|celular>.webp`.
