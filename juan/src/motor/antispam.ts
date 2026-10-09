@@ -12,10 +12,12 @@ export const MIRAR_ATRAS = 5;
 /** El mensaje nuevo + 2 iguales anteriores = 3.ª repetición. */
 export const REPETICIONES = 2;
 
-/** Un «ok» o un «sí» sueltos no cuentan como spam. */
+/** Un «ok», un «sí» o un «no» sueltos no cuentan como spam: son respuestas, no insistencia. */
+export const LARGO_MINIMO_PARA_SPAM = 4;
+
 export function esRepetido(nuevo: string, anteriores: readonly string[]): boolean {
   const n = normalizar(nuevo);
-  if (n.length < 2) return false;
+  if (n.length < LARGO_MINIMO_PARA_SPAM) return false;
   return anteriores.slice(0, MIRAR_ATRAS).filter((t) => normalizar(t) === n).length >= REPETICIONES;
 }
 

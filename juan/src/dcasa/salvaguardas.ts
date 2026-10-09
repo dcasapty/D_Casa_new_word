@@ -20,6 +20,7 @@ export type TipoProblema =
   | "existencias"
   | "promesa"
   | "fuga"
+  | "secreto"
   | "palabra_prohibida";
 
 export interface Problema {
@@ -245,7 +246,6 @@ const ACUSES_DE_MANIPULACION = new RegExp(
 
 function fuga(texto: string, ctx: ContextoRevision): string | null {
   const bajo = texto.toLowerCase();
-  for (const x of ctx.secretos ?? []) if (x.length >= 4 && texto.includes(x)) return "dato secreto del cliente";
   for (const e of ETIQUETAS_DEL_PROMPT) if (bajo.includes(e)) return e;
   const acuse = ACUSES_DE_MANIPULACION.exec(sinAcentos(texto));
   if (acuse) return acuse[0];
@@ -276,6 +276,9 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
 
   limpio = asegurarItbms(limpio, ctx.preciosProducto);
 
+  const secreto = secretoRepetido(limpio, ctx);
+  if (secreto) graves.push({ tipo: "secreto", detalle: "un dato que el cliente dio en confianza" });
+
   for (const m of extraerMontos(limpio)) {
     if (!cercano(ctx.cifrasConocidas, m.valor)) {
       graves.push({ tipo: "precio_inventado", detalle: m.texto });
@@ -298,8 +301,14 @@ export function quitarGraves(limpio: string, ctx: ContextoRevision): string {
   return buenas.join(" ").trim();
 }
 
+/** Un dato que el cliente dio en confianza (su PIN) y la respuesta repite. */
+function secretoRepetido(texto: string, ctx: ContextoRevision): boolean {
+  return (ctx.secretos ?? []).some((x) => x.length >= 4 && texto.includes(x));
+}
+
 function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[] } {
   const graves: Problema[] = [];
+  if (secretoRepetido(o, ctx)) graves.push({ tipo: "secreto", detalle: "un dato que el cliente dio en confianza" });
   for (const m of extraerMontos(o)) if (!cercano(ctx.cifrasConocidas, m.valor)) graves.push({ tipo: "precio_inventado", detalle: m.texto });
   for (const h of detectarExistencias(o)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(o, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
@@ -315,6 +324,7 @@ export function notaDeCorreccion(graves: readonly Problema[]): string {
     existencias: "un número de existencias o inventario",
     promesa: "una promesa de entrega, flete, financiamiento, apartado o descuento",
     fuga: "información interna",
+    secreto: "un dato que el cliente dio en confianza (como su PIN): jamás se repite",
     palabra_prohibida: "una palabra que la marca no usa",
   };
   const lista = [...new Set(graves.map((g) => `${por[g.tipo]} («${g.detalle}»)`))].join("; ");
