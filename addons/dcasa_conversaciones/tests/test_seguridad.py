@@ -45,6 +45,12 @@ class TestSuperficieRpc(JuanCase):
             ('dcasa.juan.ajustes', 'obtener', []),
             ('dcasa.juan.ajustes', 'token_odoo', []),
             ('dcasa.juan.ajustes', 'token_worker', []),
+            ('dcasa.juan.ajustes', 'como_json', [[self.ajustes.id]]),
+            ('dcasa.juan.ajustes', 'horario', [[self.ajustes.id]]),
+            ('dcasa.juan.ajustes', 'precios_ia', [[self.ajustes.id]]),
+            ('dcasa.juan.ajustes', 'lista_lecciones', [[self.ajustes.id]]),
+            ('dcasa.conocimiento', '_buscar', ['horario']),
+            ('dcasa.pregunta_pendiente', '_registrar', ['¿Instalan?', None, conv.id]),
             ('brian.herramientas', 'ejecutar', ['juan_horario_y_tienda', {}]),
             ('brian.accion', 'registrar', [{'nombre': 'x'}, {}]),
         ]

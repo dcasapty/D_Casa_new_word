@@ -215,6 +215,7 @@ class DcasaConversacion(models.Model):
 
     def unlink(self):
         """Borrar una conversación (derecho de borrado, Ley 81) borra sus mensajes y adjuntos por el ORM."""
+        self.check_access('unlink')   # primero el permiso; los mensajes se borran con sudo
         self.sudo().mensaje_ids.unlink()
         return super().unlink()
 

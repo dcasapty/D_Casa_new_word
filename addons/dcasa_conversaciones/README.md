@@ -17,6 +17,11 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
 | Reglas de Socios para el cliente (solo desde `puntos.json`) | `models/reglas_clientes.py` |
 | Odoo → Worker (enviar, tomar/devolver, seguimiento) | `models/cliente_worker.py` |
 | Bandeja: kanban, lista, formulario-chat, ajustes | `views/`, `static/src/scss/chat.scss` |
+| Base de conocimiento, preguntas sin respuesta y lecciones | `models/conocimiento.py`, `models/conocimiento_texto.py`, `data/conocimiento_data.xml` |
+| Etiquetas, respuestas rápidas y lectura por persona (sin leer) | `models/etiquetas.py`, `data/etiquetas_data.xml` |
+| API de la pantalla «Conversaciones» (lista, hilo, ficha, enviar…) | `models/conversacion_panel.py` |
+| Adjuntos con URL firmada de vida corta | `models/firma.py`, `controllers/adjuntos.py` |
+| Datos de la tienda (dirección, horario, WhatsApp) | `models/tienda.py` |
 
 ## Reglas que no se rompen
 
@@ -30,6 +35,18 @@ con el nombre público «el equipo de D'CASA». El contrato completo con el Work
   alternativa, de un parámetro del sistema). Nunca están en el repositorio, ni en un registro, ni en la pantalla.
   `JUAN_URL` (no secreta) o el parámetro `dcasa_conversaciones.juan_url` dicen dónde está el Worker `juan`.
   Sin `JUAN_ODOO_TOKEN` (de 32 caracteres o más) la API responde **503**.
+
+* **El bus no lleva texto**: los avisos a las pantallas (`dcasa_conversaciones/evento`) llevan solo ids y estado.
+* **Adjuntos**: el puente los baja con una URL firmada (HMAC con `database.secret`) que vale 15 minutos y deja de valer si el
+  archivo cambia; solo sirve adjuntos de mensajes de conversaciones.
+* **Las claves de la IA no se guardan en Odoo** (viven en el Worker `juan`); Odoo solo guarda proveedor, modelos y precios
+  (los precios van vacíos: no se inventa ninguno). Un modelo con «contributor» en el nombre avisa en los ajustes.
+* **Etiquetas**: el asistente solo pone las que ya existen; no crea etiquetas.
+
+## La pantalla (panel)
+
+La API de backend para la pantalla OWL de [`docs/JUAN_PANEL.md`](../../docs/JUAN_PANEL.md) está en
+`models/conversacion_panel.py` y documentada en `docs/JUAN_ODOO.md`. La pantalla OWL en sí **no está hecha**.
 
 ## Pruebas
 

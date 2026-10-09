@@ -10,6 +10,7 @@ from odoo import fields
 from odoo.addons.dcasa_conversaciones.controllers import juan as controlador
 from odoo.addons.dcasa_conversaciones.models import horario as H
 from odoo.tests import HttpCase, tagged
+from odoo.tools import mute_logger
 
 from .common import TOKEN_ODOO
 
@@ -246,7 +247,8 @@ class TestMensaje(ApiCase):
 
     def test_un_fallo_interno_es_json_500_sin_detalles(self):
         with patch.object(type(self.env['dcasa.conversacion']), '_registrar_mensaje',
-                          side_effect=RuntimeError('secreto interno /etc/passwd')):
+                          side_effect=RuntimeError('secreto interno /etc/passwd')), \
+                mute_logger('odoo.addons.dcasa_conversaciones.controllers.juan'):   # se anota; aquí es esperado
             respuesta = self.post('mensaje', self.mensaje())
         self.assertEqual(respuesta.status_code, 500)
         cuerpo = respuesta.json()

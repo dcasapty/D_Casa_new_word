@@ -9,6 +9,7 @@ from freezegun import freeze_time
 from odoo import Command, fields
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.tests import tagged
+from odoo.tools import mute_logger
 
 from ..models.reglas_clientes import redactar
 from .common import JuanCase
@@ -449,7 +450,8 @@ class TestPasarAVendedora(HerramientasCase):
 
     def test_un_fallo_de_telegram_no_rompe_el_traspaso(self):
         self.env['brian.telegram.enlace'].sudo().create({'user_id': self.vendedora.id, 'chat_id': '5550001'})
-        with patch.object(type(self.env['brian.telegram.enlace']), '_enviar', side_effect=RuntimeError('sin red')):
+        with patch.object(type(self.env['brian.telegram.enlace']), '_enviar', side_effect=RuntimeError('sin red')), \
+                mute_logger('odoo.addons.dcasa_conversaciones.models.conversacion'):   # se anota; aquí es esperado
             datos = self.salida('pasar_a_vendedora', {'motivo': 'x'})
         self.assertIn('texto_para_el_cliente', datos)
         self.assertEqual(self.conv.estado, 'humano')

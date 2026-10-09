@@ -285,6 +285,7 @@ class JuanAjustes(models.Model):
         self.ensure_one()
         return frozenset(dia for campo, dia in DIAS_CAMPOS if self[campo])
 
+    @api.private
     def horario(self):
         """El horario laboral como objeto puro (ver ``horario.py``)."""
         self.ensure_one()
@@ -292,16 +293,19 @@ class JuanAjustes(models.Model):
             inicio=H.float_a_hora(self.horario_inicio), fin=H.float_a_hora(self.horario_fin),
             dias=self._dias(), zona=self.zona_horaria or H.ZONA_PANAMA)
 
+    @api.private
     def regla_seguimiento(self):
         self.ensure_one()
         return H.ReglaSeguimiento(
             primero_horas=self.seguimiento_primero_horas, segundo_dias=self.seguimiento_segundo_dias,
             solo_horario_laboral=self.seguimiento_solo_horario_laboral, maximo=self.seguimiento_maximo)
 
+    @api.private
     def canal_activo(self, canal):
         self.ensure_one()
         return bool(self.bot_activo_global and canal in dict(CANALES) and self[f'canal_{canal}'])
 
+    @api.private
     def canales_activos(self):
         self.ensure_one()
         return {canal: bool(self[f'canal_{canal}']) for canal, _nombre in CANALES}
@@ -323,20 +327,24 @@ class JuanAjustes(models.Model):
         if not self.modelo_inteligente or self.modelo_inteligente in conocidos:
             self.modelo_inteligente = inteligente
 
+    @api.private
     def lista_lecciones(self):
         self.ensure_one()
         return [linea.strip() for linea in (self.lecciones_aprendidas or '').splitlines() if linea.strip()]
 
+    @api.private
     def precios_ia(self):
         """Precios por nivel y tipo; ``None`` donde no hay precio verificado (0 o vacío): nunca una cifra inventada."""
         self.ensure_one()
         return {nivel: {tipo: (self[f'precio_{nivel}_{tipo}_usd_mtok'] or None) for tipo in TIPOS_PRECIO}
                 for nivel in NIVELES_IA}
 
+    @api.private
     def lista_palabras_prohibidas(self):
         self.ensure_one()
         return [linea.strip() for linea in (self.palabras_prohibidas or '').splitlines() if linea.strip()]
 
+    @api.private
     def como_json(self):
         """La configuración tal como la lee el Worker (``GET /dcasa/juan/v1/config``)."""
         self.ensure_one()

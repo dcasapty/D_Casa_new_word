@@ -1,4 +1,5 @@
 """La API de la pantalla «Conversaciones» (docs/JUAN_PANEL.md): lista, hilo, no leídos, respuestas y ficha."""
+import logging
 import time
 from datetime import timedelta
 
@@ -12,6 +13,7 @@ from odoo.tests import tagged
 from .common import JuanCase, respuesta_http
 
 PIN = '482913'
+_logger = logging.getLogger(__name__)
 
 
 class PanelCase(JuanCase):
@@ -661,6 +663,7 @@ class TestRendimientoDeLaBandeja(PanelCase):
             tiempos.append((filtros, round(minimo, 3)))
             self.assertLess(minimo, 1.0, f'{filtros} tardó {minimo:.2f} s')
             self.assertTrue(resultado['conversaciones'])
+        _logger.info('Bandeja con 5.000 conversaciones (mejor de 3, segundos): %s', tiempos)
         self.assertEqual(self.panel.lista()['total'], 5000)
         self.assertEqual(len(self.panel.lista(limite=30)['conversaciones']), 30)
         self.env.cr.execute("""
