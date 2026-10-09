@@ -13,6 +13,8 @@ import { modeloGuionado, type ModeloGuionado, type PasoDelGuion } from "./modelo
 import { OdooFalso } from "./odooFalso";
 import { crearSqlNode } from "./sqlNode";
 import type { CanalId } from "../../src/canales/tipos";
+import type { LanguageModel } from "ai";
+import type { ProveedorIa, SeleccionDeModelo } from "../../src/motor/proveedores";
 
 /** Viernes 9 de octubre de 2026, 10:00 en Panamá (UTC-5). */
 export const AHORA_INICIAL = Date.parse("2026-10-09T15:00:00Z");
@@ -24,6 +26,10 @@ export interface OpcionesMundo {
   topeDiario?: number;
   urlPublica?: string;
   transcribir?: DepsMotor["transcribir"];
+  /** Proveedores de IA con clave (por defecto solo Anthropic). */
+  proveedores?: ProveedorIa[];
+  /** Para pruebas con un servidor falso: arma el modelo real del proveedor. Si no, se usa el guion. */
+  fabrica?: (sel: SeleccionDeModelo) => LanguageModel;
 }
 
 export function crearMundo(op: OpcionesMundo = {}) {
@@ -36,6 +42,7 @@ export function crearMundo(op: OpcionesMundo = {}) {
   const canal = new CanalFalso(canalId);
   const sqlGlobal = new AlmacenGlobal(crearSqlNode());
   const idsDeModelo: string[] = [];
+  const selecciones: SeleccionDeModelo[] = [];
   const cargadorConfig = new CargadorConfig(() => odoo.config(), () => t);
   const cargadorHerramientas = new CargadorHerramientas(() => odoo.herramientas(), () => t);
   const mundo = {
@@ -43,6 +50,10 @@ export function crearMundo(op: OpcionesMundo = {}) {
     canal,
     gastoGlobal: sqlGlobal,
     idsDeModelo,
+    /** Cada vez que el motor pidió un modelo: proveedor, modelo y nivel. */
+    selecciones,
+    /** Qué proveedores tienen clave ahora (se puede cambiar en la prueba). */
+    proveedores: (op.proveedores ?? ["anthropic"]) as ProveedorIa[],
     /** El modelo que usarán TODOS los turnos (se cambia con `guion`). */
     modelo: modeloGuionado([{ texto: "(sin guion)" }]) as ModeloGuionado,
     registros: [] as { nivel: string; mensaje: string }[],
@@ -92,17 +103,22 @@ export function crearMundo(op: OpcionesMundo = {}) {
     config: () => cargadorConfig.obtener(),
     herramientas: () => cargadorHerramientas.obtener(),
     canal: () => canal,
-    modelo: (id) => {
-      idsDeModelo.push(id);
-      return mundo.modelo;
+    modelo: (sel) => {
+      idsDeModelo.push(sel.modelo);
+      selecciones.push(sel);
+      return op.fabrica ? op.fabrica(sel) : mundo.modelo;
     },
+    proveedoresDisponibles: () => mundo.proveedores,
     global: {
       gastoMes: async (mes) => {
         if (mundo.fallosDeGlobal) throw new Error("global caído");
         return sqlGlobal.gastoMes(mes).usd;
       },
-      registrarGasto: async (mes: string, modelo: string, uso: Uso, usd: number) => {
-        sqlGlobal.registrarGasto(mes, modelo, uso, usd);
+      registrarGasto: async (mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean) => {
+        sqlGlobal.registrarGasto(mes, modelo, uso, usd, estimado);
+      },
+      guardarSalud: async (clave: string, json: string) => {
+        sqlGlobal.guardarSalud(clave, JSON.parse(json), t);
       },
     },
     dormir: async () => {},

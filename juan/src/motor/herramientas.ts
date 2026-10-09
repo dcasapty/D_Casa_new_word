@@ -25,6 +25,60 @@ export class RegistroDelTurno {
   pasoAVendedora = false;
   textoDeVendedora: string | null = null;
   readonly pines: string[] = [];
+  /** buscar_conocimiento sin respuesta (vacía o floja). */
+  busquedasFlojas = 0;
+  /** Consultas que SÍ trajeron algo útil (conocimiento, Socios, horario, catálogo con resultados). */
+  consultasUtiles = 0;
+  /** El modelo ya llamó registrar_pregunta_sin_respuesta en este turno. */
+  preguntaRegistrada = false;
+}
+
+/** Herramientas de LECTURA: dan lo mismo para los mismos argumentos durante un rato, así que se guardan 60 s. Nunca saldo_puntos ni las de escritura. */
+export const HERRAMIENTAS_DE_LECTURA: ReadonlySet<string> = new Set([
+  "buscar_productos",
+  "ver_producto",
+  "listar_categorias",
+  "reglas_socios",
+  "horario_y_tienda",
+  "buscar_conocimiento",
+]);
+
+export interface CacheDeHerramientas {
+  obtener(clave: string): unknown | undefined;
+  guardar(clave: string, valor: unknown): void;
+}
+
+/** Argumentos con las llaves ordenadas: {a,b} y {b,a} son la misma consulta. */
+export function argumentosEstables(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(argumentosEstables).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${argumentosEstables((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v) ?? "null";
+}
+
+/**
+ * ¿La búsqueda en la base de conocimiento salió floja? Sin resultados, `encontrado: false` o una puntuación baja.
+ * (El CRM de Baby Caleb subía al modelo inteligente cuando `lastSearchKbScore < 0.5`.) Tolera la forma exacta que mande Odoo.
+ */
+export function busquedaFlojaDe(resultado: unknown): boolean {
+  if (resultado === null || resultado === undefined) return true;
+  if (Array.isArray(resultado)) return resultado.length === 0;
+  if (typeof resultado === "string") return resultado.trim().length === 0;
+  if (!esObjeto(resultado)) return false;
+  if (resultado.encontrado === false || resultado.sin_resultados === true) return true;
+  for (const k of ["resultados", "fragmentos", "documentos", "items", "resultado", "articulos"]) {
+    const lista = resultado[k];
+    if (Array.isArray(lista)) {
+      if (lista.length === 0) return true;
+      const puntos = lista.map((x) => (esObjeto(x) ? [x.score, x.puntaje, x.similitud, x.relevancia].find((n) => typeof n === "number") : undefined)).filter((n): n is number => typeof n === "number");
+      return puntos.length > 0 && Math.max(...puntos) < 0.5;
+    }
+  }
+  return false;
 }
 
 const CLAVES_DE_EXISTENCIAS = /^(existencias?|stock|qty_available|free_qty|virtual_available|incoming_qty|outgoing_qty|cantidad(_disponible)?|unidades(_disponibles)?|inventario|disponible_cantidad|en_bodega|saldo_stock)$/i;
@@ -143,6 +197,12 @@ export interface OpcionesHerramientas {
   fotoPrevia: (codigo: string) => { url: string; nombre?: string } | undefined;
   /** true = Odoo no contesta en esta pasada: las herramientas fallan al instante en vez de esperar. */
   omitir?: () => boolean;
+  /** Caché de 60 s de las herramientas de LECTURA (solo de esta conversación). */
+  cache?: CacheDeHerramientas;
+  /** Quién es esta conversación (`canal:id`): va en la clave de la caché, para que jamás se mezclen datos de dos personas. */
+  identidad?: string;
+  /** Se llama justo antes de preguntarle a Odoo (para mostrar «escribiendo…» mientras tanto). */
+  alEmpezar?: () => void;
 }
 
 const MAX_FOTOS_POR_RESPUESTA = 3;
@@ -156,6 +216,13 @@ export function textoDeLaHerramienta(resultado: unknown): string | null {
     if (typeof v === "string" && v.trim()) return v.trim();
   }
   return null;
+}
+
+/** Procesa el resultado para el modelo y anota si la consulta sirvió o salió floja. */
+function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurno, sitio: string | undefined): unknown {
+  if (nombre === "buscar_conocimiento" && busquedaFlojaDe(resultado)) reg.busquedasFlojas++;
+  else if (HERRAMIENTAS_DE_LECTURA.has(nombre) && !(nombre === "buscar_productos" && busquedaFlojaDe(resultado))) reg.consultasUtiles++;
+  return procesarResultado(resultado, reg, sitio);
 }
 
 export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
@@ -173,6 +240,16 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         if (def.nombre === "saldo_puntos" && op.celularDeLaConversacion) argumentos.celular = op.celularDeLaConversacion;
         if (def.nombre === "saldo_puntos" && typeof argumentos.pin === "string") registro.pines.push(argumentos.pin);
 
+        // Lectura repetida (mismos argumentos, misma conversación, menos de 60 s): sin viaje a Odoo.
+        const clave =
+          op.cache && HERRAMIENTAS_DE_LECTURA.has(def.nombre) ? `${op.identidad ?? ""}|${def.nombre}|${argumentosEstables(argumentos)}` : null;
+        const guardado = clave ? op.cache!.obtener(clave) : undefined;
+        if (guardado !== undefined) {
+          registro.llamadas.push({ nombre: def.nombre, ok: true });
+          return { ok: true, resultado: acotar(anotarConsulta(def.nombre, guardado, registro, op.sitio)) };
+        }
+
+        op.alEmpezar?.();
         const r = op.omitir?.() ? { ok: false as const, resultado: undefined } : await odoo.herramienta(def.nombre, argumentos, op.conversacionId());
         registro.llamadas.push({ nombre: def.nombre, ok: r.ok });
         if (!r.ok) {
@@ -186,8 +263,9 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
           registro.pasoAVendedora = true;
           registro.textoDeVendedora = textoDeLaHerramienta(r.resultado);
         }
-        const limpio = procesarResultado(r.resultado, registro, op.sitio);
-        return { ok: true, resultado: acotar(limpio) };
+        if (def.nombre === "registrar_pregunta_sin_respuesta") registro.preguntaRegistrada = true;
+        if (clave) op.cache!.guardar(clave, r.resultado);
+        return { ok: true, resultado: acotar(anotarConsulta(def.nombre, r.resultado, registro, op.sitio)) };
       },
     });
   }

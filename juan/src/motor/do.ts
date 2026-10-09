@@ -8,7 +8,7 @@ import type { Entrante } from "../canales/tipos";
 import type { Env } from "../env";
 import { obtenerConfig, obtenerHerramientas, odooDe } from "../odoo/fabrica";
 import { MotorConversacion, type DepsMotor, type GlobalApi, type SolicitudEnviar, type SolicitudSeguimiento } from "./conversacion";
-import { fabricaAnthropic } from "./modelo";
+import { fabricaDeProduccion, proveedoresConClave } from "./proveedores";
 import { sqlDeDurableObject } from "./sql";
 import { transcriptorDe } from "./transcribir";
 import { TOPE_DIARIO_POR_DEFECTO } from "./antispam";
@@ -17,8 +17,11 @@ export function globalDe(env: Env): GlobalApi {
   const stub = () => env.GLOBAL.get(env.GLOBAL.idFromName("juan"));
   return {
     gastoMes: async (mes) => (await stub().gastoMes(mes)).usd,
-    registrarGasto: async (mes, modelo, uso, usd) => {
-      await stub().registrarGasto(mes, modelo, uso, usd);
+    registrarGasto: async (mes, modelo, uso, usd, estimado) => {
+      await stub().registrarGasto(mes, modelo, uso, usd, estimado);
+    },
+    guardarSalud: async (clave, json) => {
+      await stub().guardarSalud(clave, json);
     },
   };
 }
@@ -36,13 +39,13 @@ export function depsDeProduccion(ctx: DurableObjectState, env: Env): DepsMotor {
     config: () => obtenerConfig(env),
     herramientas: () => obtenerHerramientas(env),
     canal: (id) => adaptadorDe(id),
-    // Se arma en cada uso: sin ANTHROPIC_API_KEY el Worker arranca igual (iaConfigurada=false evita llamarlo).
-    modelo: (id) => fabricaAnthropic(env.ANTHROPIC_API_KEY ?? "")(id),
+    // Se arma en cada uso: sin ninguna clave de IA el Worker arranca igual (proveedoresDisponibles vacío evita llamarla).
+    modelo: (sel) => fabricaDeProduccion(env)(sel),
+    proveedoresDisponibles: () => proveedoresConClave(env),
     global: globalDe(env),
     dormir: (ms) => new Promise((r) => setTimeout(r, ms)),
     uuid: () => crypto.randomUUID(),
     bufferMs: (Number(env.BUFFER_SEGUNDOS) || 15) * 1000,
-    iaConfigurada: !!env.ANTHROPIC_API_KEY,
     topeDiario: Number(env.TOPE_DIARIO) || TOPE_DIARIO_POR_DEFECTO,
     urlPublica: env.URL_PUBLICA || undefined,
     urlSitio: env.URL_SITIO || undefined,

@@ -26,8 +26,9 @@ import { Cola, crearEsquema, Fotos, Kv, Medios, Mensajes, type FilaMensaje } fro
 import { DESCANSO_POR_REPETIDO_MS, DESCANSO_POR_TOPE_MS, esRepetido, superaTopeDiario, TOPE_DIARIO_POR_DEFECTO } from "./antispam";
 import { partirEnBurbujas } from "./burbujas";
 import { cifrasDeTexto, construirHerramientas, RegistroDelTurno, textoDeLaHerramienta } from "./herramientas";
-import { correrTurno, elegirNivel, type FabricaDeModelos, type SalidaDelTurno } from "./modelo";
-import { aplicarTope, costoUsd, sumarUso, USO_VACIO, type Uso } from "./precios";
+import { correrTurno, elegirNivel, type EntradaDelTurno, type SalidaDelTurno } from "./modelo";
+import { planDeIntentos, type FabricaDeModelos, type ProveedorIa, type SeleccionDeModelo } from "./proveedores";
+import { aplicarTope, costoDe, sumarUso, USO_VACIO, type Nivel, type Uso } from "./precios";
 import { firmarUrlMedio } from "./mediosUrl";
 import type { Sql } from "./sql";
 
@@ -43,12 +44,22 @@ const INTENTOS_COLA_MENSAJE = 12;
 const INTENTOS_COLA_HERRAMIENTA = 6;
 const VENTANA_24H_MS = 23 * 3600_000;
 const MARCA_PIN = "••••";
+const CACHE_DE_HERRAMIENTAS_MS = 60_000;
+
+/** El mensaje de un error de la IA, sin nada que parezca una clave (algunos proveedores repiten la clave mal escrita). */
+export function limpiarError(e: unknown): string {
+  const t = e instanceof Error ? e.message : String(e);
+  return t.replace(/(?:sk|LLM|xai|key)[-|_][A-Za-z0-9_\-|]{6,}/gi, "[clave]").replace(/Bearer\s+\S+/gi, "Bearer [clave]").slice(0, 300);
+}
 
 // ── Dependencias ────────────────────────────────────────────────────────────
 
 export interface GlobalApi {
   gastoMes(mes: string): Promise<number>;
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number): Promise<void>;
+  /** `estimado`: el modelo no tenía precio cargado y se usó la tarifa de reserva (se avisa en /salud). */
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean): Promise<void>;
+  /** Deja un dato para /salud (último fallo de la IA, uso del respaldo...). Valores como texto JSON, nunca secretos. */
+  guardarSalud?(clave: string, json: string): Promise<void>;
 }
 
 export interface DepsMotor {
@@ -61,13 +72,14 @@ export interface DepsMotor {
   config(): Promise<Config>;
   herramientas(): Promise<DefHerramienta[]>;
   canal(id: CanalId): AdaptadorCanal | undefined;
+  /** Arma el modelo de IA del proveedor elegido (Anthropic, Meta u OpenAI). */
   modelo: FabricaDeModelos;
+  /** Qué proveedores de IA tienen su clave cargada ahora. */
+  proveedoresDisponibles(): ProveedorIa[];
   global: GlobalApi;
   dormir(ms: number): Promise<void>;
   uuid(): string;
   bufferMs: number;
-  /** false = falta ANTHROPIC_API_KEY: no se intenta llamar a la IA (el cliente pasa a una vendedora). Por defecto true. */
-  iaConfigurada?: boolean;
   topeDiario?: number;
   urlPublica?: string;
   urlSitio?: string;
@@ -116,6 +128,7 @@ export class MotorConversacion {
   readonly medios: Medios;
   readonly fotos: Fotos;
   private procesando = false;
+  private ultimoEscribiendo: number | null = null;
   /** Odoo no contestó en esta pasada: no se le insiste dentro de la misma alarma (el cliente no espera minutos). */
   private odooCaido = false;
 
@@ -459,9 +472,10 @@ export class MotorConversacion {
       return;
     }
 
-    if (this.deps.iaConfigurada === false) {
-      // Primer despliegue sin la llave de IA: el cliente no se queda sin respuesta ni se insiste a ciegas.
-      await this.alFallarLaIA(cfg, ids, new Error("falta ANTHROPIC_API_KEY"), true);
+    if (planDeIntentos(cfg, "rapido", this.deps.proveedoresDisponibles()).length === 0) {
+      // Ningún proveedor de IA tiene clave (p. ej. el primer despliegue, antes de pegar los secretos): el cliente no se
+      // queda sin respuesta ni se insiste a ciegas, y /salud dice qué falta.
+      await this.alFallarLaIA(cfg, ids, new Error("ningún proveedor de IA tiene clave"), true);
       return;
     }
     await this.turnoDeIA(cfg, pend, ids, epoca0);
@@ -534,16 +548,89 @@ export class MotorConversacion {
     }
   }
 
+  /** «Escribiendo…» mientras el bot piensa (si el canal lo tiene), sin repetirlo más de una vez cada 4 s. */
+  private mostrarEscribiendo(): void {
+    const ahora = this.deps.ahora();
+    if (this.ultimoEscribiendo !== null && ahora - this.ultimoEscribiendo < 4000) return;
+    this.ultimoEscribiendo = ahora;
+    const canalId = this.canalId();
+    const adaptador = this.deps.canal(canalId);
+    void Promise.resolve(adaptador?.escribiendo?.(canalId, this.idExterno(), this.deps.env)).catch(() => {});
+  }
+
+  /** Caché de 60 s de las herramientas de LECTURA, solo de ESTA conversación (vive en la memoria de su Durable Object). */
+  private readonly cacheDeHerramientas = new Map<string, { valor: unknown; vence: number }>();
+  private readonly cacheDelMotor = {
+    obtener: (clave: string): unknown | undefined => {
+      const e = this.cacheDeHerramientas.get(clave);
+      if (!e) return undefined;
+      if (e.vence <= this.deps.ahora()) {
+        this.cacheDeHerramientas.delete(clave);
+        return undefined;
+      }
+      return e.valor;
+    },
+    guardar: (clave: string, valor: unknown): void => {
+      if (this.cacheDeHerramientas.size >= 100) this.cacheDeHerramientas.delete(this.cacheDeHerramientas.keys().next().value as string);
+      this.cacheDeHerramientas.set(clave, { valor, vence: this.deps.ahora() + CACHE_DE_HERRAMIENTAS_MS });
+    },
+  };
+
+  /**
+   * Prueba los proveedores en el orden del plan (el principal y luego el respaldo). Cada fallo se anota para /salud; si contesta
+   * un proveedor que no es el primero, también. Al final, un último intento tras una pausa por si fue un tropiezo pasajero.
+   */
+  private async correrConRespaldo(
+    plan: SeleccionDeModelo[],
+    entrada: Omit<EntradaDelTurno, "modelo" | "proveedor" | "nivel">,
+  ): Promise<{ salida: SalidaDelTurno; usado: SeleccionDeModelo }> {
+    const intentos = [...plan];
+    const reintento = plan.find((p) => p.nivel === "rapido");
+    if (reintento) intentos.push(reintento);
+    let ultimoError: unknown = new Error("ningún proveedor de IA tiene clave");
+    for (let i = 0; i < intentos.length; i++) {
+      const sel = intentos[i];
+      if (i === intentos.length - 1 && i > 0 && reintento) await this.deps.dormir(2000);
+      try {
+        const salida = await correrTurno({ ...entrada, modelo: this.deps.modelo(sel), proveedor: sel.proveedor, nivel: sel.nivel });
+        if (sel.proveedor !== plan[0].proveedor) {
+          this.log("warn", `contestó el respaldo: ${sel.proveedor}/${sel.modelo}`);
+          await this.anotarEnSalud("ia_respaldo", { proveedor: sel.proveedor, modelo: sel.modelo, ts: this.deps.ahora() });
+        }
+        return { salida, usado: sel };
+      } catch (e) {
+        ultimoError = e;
+        const motivo = limpiarError(e);
+        this.log("error", `la IA ${sel.proveedor}/${sel.modelo} falló`, motivo);
+        await this.anotarEnSalud("ia_fallo", { proveedor: sel.proveedor, modelo: sel.modelo, motivo, ts: this.deps.ahora() });
+      }
+    }
+    throw ultimoError;
+  }
+
+  private async anotarEnSalud(clave: string, valor: unknown): Promise<void> {
+    try {
+      await this.deps.global.guardarSalud?.(clave, JSON.stringify(valor));
+    } catch {
+      /* /salud es un extra: nunca estorba */
+    }
+  }
+
   private async turnoDeIA(cfg: Config, pend: FilaMensaje[], ids: number[], epoca0: number): Promise<void> {
     const ahora = this.deps.ahora();
     const textoReciente = pend.map((p) => p.texto).join("\n");
-    const nivelPedido = elegirNivel({ textoDelCliente: textoReciente, llamadasRecientes: this.kv.numero("llamadas_turno_anterior") ?? 0 });
+    const nivelPedido = elegirNivel({
+      textoDelCliente: textoReciente,
+      llamadasRecientes: (this.kv.numero("llamadas_t1") ?? 0) + (this.kv.numero("llamadas_t2") ?? 0),
+      busquedaFloja: this.kv.bandera("busqueda_floja"),
+    });
     const mes = mesDelNegocio(cfg.horario.zona, ahora);
-    const { nivel, bajo } = aplicarTope(nivelPedido, await this.gastoSeguro(mes), cfg.presupuesto_ia_mensual_usd);
+    // El gasto del mes y la lista de herramientas se piden a la vez: ninguna depende de la otra.
+    const [gasto, defs] = await Promise.all([this.gastoSeguro(mes), this.deps.herramientas()]);
+    const { nivel, bajo } = aplicarTope(nivelPedido, gasto, cfg.presupuesto_ia_mensual_usd);
     if (bajo) this.log("warn", "tope mensual de IA alcanzado: se usa el modelo económico");
-    const modeloPrincipal = nivel === "inteligente" ? cfg.modelo_inteligente : cfg.modelo_rapido;
+    const plan = planDeIntentos(cfg, nivel, this.deps.proveedoresDisponibles());
 
-    const defs = await this.deps.herramientas();
     const registro = new RegistroDelTurno();
     const herramientas = construirHerramientas({
       odoo: this.deps.odoo,
@@ -553,6 +640,9 @@ export class MotorConversacion {
       sitio: this.deps.urlSitio,
       celularDeLaConversacion: this.kv.texto("celular") ?? undefined,
       omitir: () => this.odooCaido,
+      cache: this.cacheDelMotor,
+      identidad: `${this.canalId()}:${this.idExterno()}`,
+      alEmpezar: () => this.mostrarEscribiendo(),
       fotoPrevia: (c) => {
         const f = this.fotos.buscar(c);
         return f ? { url: f.url, nombre: f.nombre ?? undefined } : undefined;
@@ -571,30 +661,17 @@ export class MotorConversacion {
       }) + extra;
     const mensajes = this.mensajesParaElModelo();
 
-    let uso: Uso = USO_VACIO;
-    let modeloUsado = modeloPrincipal;
+    // Mientras el modelo piensa y las herramientas consultan a Odoo, el cliente ve «escribiendo…».
+    this.mostrarEscribiendo();
+
+    const usos = new Map<string, { sel: SeleccionDeModelo; uso: Uso }>();
+    let usado: SeleccionDeModelo = plan[0];
     const correr = async (extra: string, conHerramientas: boolean): Promise<SalidaDelTurno> => {
-      const secuencia = [modeloPrincipal, ...(modeloPrincipal !== cfg.modelo_rapido ? [cfg.modelo_rapido] : []), cfg.modelo_rapido];
-      let ultimoError: unknown;
-      for (let i = 0; i < secuencia.length; i++) {
-        if (i === secuencia.length - 1 && i > 0) await this.deps.dormir(2000);
-        try {
-          const r = await correrTurno({
-            modelo: this.deps.modelo(secuencia[i]),
-            sistemaEstable: estable,
-            sistemaDinamico: dinamicoBase(extra),
-            mensajes,
-            herramientas: conHerramientas ? herramientas : {},
-          });
-          modeloUsado = secuencia[i];
-          uso = sumarUso(uso, r.uso);
-          return r;
-        } catch (e) {
-          ultimoError = e;
-          this.log("error", `el modelo ${secuencia[i]} falló`, e instanceof Error ? e.message : String(e));
-        }
-      }
-      throw ultimoError;
+      const r = await this.correrConRespaldo(plan, { sistemaEstable: estable, sistemaDinamico: dinamicoBase(extra), mensajes, herramientas: conHerramientas ? herramientas : {} });
+      usado = r.usado;
+      const clave = `${r.usado.proveedor}|${r.usado.modelo}`;
+      usos.set(clave, { sel: r.usado, uso: sumarUso(usos.get(clave)?.uso ?? USO_VACIO, r.salida.uso) });
+      return r.salida;
     };
 
     let salida: SalidaDelTurno;
@@ -647,8 +724,22 @@ export class MotorConversacion {
     if (!texto && registro.textoDeVendedora) texto = limpiarForma(registro.textoDeVendedora);
     if (!texto) texto = TEXTO_SIN_DATO;
 
-    // El gasto se anota aunque la respuesta no llegue a salir.
-    await this.anotarGasto(mes, modeloUsado, uso);
+    // El gasto se anota aunque la respuesta no llegue a salir (cada modelo con SU precio).
+    for (const { sel, uso } of usos.values()) await this.anotarGasto(mes, sel.modelo, uso, cfg);
+
+    // Una pregunta que la base de conocimiento no supo contestar queda registrada para que las vendedoras la completen:
+    // no depende de que el modelo se acuerde de llamar la herramienta.
+    if (registro.busquedasFlojas > 0 && registro.consultasUtiles === 0 && !registro.preguntaRegistrada && defs.some((d) => d.nombre === "registrar_pregunta_sin_respuesta")) {
+      this.cola.agregar(
+        "herramienta",
+        {
+          nombre: "registrar_pregunta_sin_respuesta",
+          argumentos: { pregunta: textoParaElModelo(textoReciente).slice(0, 500), resumen: "Registrada automáticamente: la base de conocimiento no tenía respuesta." },
+        },
+        ahora,
+      );
+    }
+    this.kv.poner("busqueda_floja", registro.busquedasFlojas > 0 || registro.preguntaRegistrada);
 
     // ── Última puerta: ¿alguien tomó la conversación mientras el bot pensaba? ──
     if (!(await this.puedeEnviar(epoca0, registro.pasoAVendedora))) {
@@ -657,16 +748,19 @@ export class MotorConversacion {
     }
 
     for (const [codigo, f] of registro.fotos) this.fotos.guardar(codigo, f.url, f.nombre, ahora);
-    await this.responder(cfg, texto, registro.medios, modeloUsado);
+    await this.responder(cfg, texto, registro.medios, usado.modelo);
 
-    this.kv.poner("llamadas_turno_anterior", registro.llamadas.length);
+    this.kv.poner("llamadas_t2", this.kv.numero("llamadas_t1") ?? 0);
+    this.kv.poner("llamadas_t1", registro.llamadas.length);
     for (const pin of new Set(registro.pines)) this.mensajes.redactar(pin, MARCA_PIN);
     if (registro.pasoAVendedora) this.kv.poner("pausa_hasta", this.deps.ahora() + cfg.pausa_por_defecto_minutos * 60_000);
   }
 
-  private async anotarGasto(mes: string, modelo: string, uso: Uso): Promise<void> {
+  private async anotarGasto(mes: string, modelo: string, uso: Uso, cfg: Config): Promise<void> {
+    const costo = costoDe(modelo, uso, cfg.precios_ia);
+    if (costo.estimado) this.log("warn", `el modelo ${modelo} no tiene precio cargado en Odoo (precios_ia): el gasto se estima con la tarifa de reserva`);
     try {
-      await this.deps.global.registrarGasto(mes, modelo, uso, costoUsd(modelo, uso));
+      await this.deps.global.registrarGasto(mes, modelo, uso, costo.usd, costo.estimado);
     } catch (e) {
       this.log("warn", "no se pudo anotar el gasto de IA", String(e));
     }
@@ -868,13 +962,13 @@ export class MotorConversacion {
     // ── Redactar (sin herramientas: no puede traer precios ni existencias) ──
     const epoca0 = this.epoca();
     const mes = mesDelNegocio(cfg.horario.zona, ahora);
-    // El seguimiento siempre es del modelo económico: redactar dos líneas no necesita más (y respeta el tope).
-    const modelo = cfg.modelo_rapido;
+    // El seguimiento siempre es del nivel económico: redactar dos líneas no necesita más (y respeta el tope).
+    const plan = planDeIntentos(cfg, "rapido", this.deps.proveedoresDisponibles());
+    if (plan.length === 0) return { ok: false, error: "ningún proveedor de IA tiene clave" };
     const reciente = this.mensajesParaElModelo().slice(-6);
-    let r: SalidaDelTurno;
+    let r: { salida: SalidaDelTurno; usado: SeleccionDeModelo };
     try {
-      r = await correrTurno({
-        modelo: this.deps.modelo(modelo),
+      r = await this.correrConRespaldo(plan, {
         sistemaEstable: promptSeguimiento(cfg, { numero, interes: s.contexto?.interes ?? "", ahora, nombreCliente: this.kv.texto("nombre") ?? undefined }),
         sistemaDinamico: "Redacta el mensaje de seguimiento ahora.",
         mensajes: reciente.length ? reciente : [{ role: "user", content: "(sin mensajes)" }],
@@ -882,14 +976,15 @@ export class MotorConversacion {
         cachear: false,
       });
     } catch (err) {
-      this.log("error", "seguimiento: la IA falló", String(err));
+      this.log("error", "seguimiento: la IA falló", limpiarError(err));
       return { ok: false, error: "la IA no pudo redactar el seguimiento" };
     }
-    await this.anotarGasto(mes, modelo, r.uso);
+    const modelo = r.usado.modelo;
+    await this.anotarGasto(mes, modelo, r.salida.uso, cfg);
 
     // Un seguimiento no lleva cifras de dinero: cualquiera es una invención.
     const ctx: ContextoRevision = { preciosProducto: new Set(), cifrasConocidas: new Set(), palabrasProhibidas: cfg.palabras_prohibidas, textoDelPrompt: promptParaFugas(cfg) };
-    const a = analizar(r.texto, ctx);
+    const a = analizar(r.salida.texto, ctx);
     const texto = a.graves.length ? quitarGraves(a.limpio, ctx) : a.limpio;
     if (!texto) return { ok: false, error: "el borrador del seguimiento no pasó la guardia de salida" };
 

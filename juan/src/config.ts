@@ -4,6 +4,35 @@
 
 import type { CanalId } from "./canales/tipos";
 
+/** Quién pone la IA. Se elige en Odoo (`proveedor_ia`); cambiar de uno a otro no toca código. */
+export type ProveedorIa = "anthropic" | "meta" | "openai";
+export const PROVEEDORES_IA: readonly ProveedorIa[] = ["anthropic", "meta", "openai"];
+
+/**
+ * Modelos de cada proveedor cuando Odoo no dice cuál. Meta: SIEMPRE el estándar (`muse-spark-1.3`); el nivel «contributor»
+ * entrena con los mensajes y solo se usa si la dueña lo escribe a propósito en Odoo. OpenAI: sin modelo por defecto (hay que elegirlo).
+ */
+export const MODELOS_POR_DEFECTO: Record<ProveedorIa, { rapido: string; inteligente: string }> = {
+  anthropic: { rapido: "claude-haiku-4-5", inteligente: "claude-sonnet-5-5" },
+  meta: { rapido: "muse-spark-1.3", inteligente: "muse-spark-1.3" },
+  openai: { rapido: "", inteligente: "" },
+};
+
+/** Qué forma debe tener el identificador de modelo de cada proveedor: Odoo no puede mandar al Worker a cualquier parte. */
+const FORMA_DE_MODELO: Record<ProveedorIa, RegExp> = {
+  anthropic: /^claude-[a-z0-9.-]{3,60}$/,
+  meta: /^muse-[a-z0-9.-]{3,60}$/,
+  openai: /^(?:gpt|chatgpt|o\d)[a-z0-9.-]{0,60}$/,
+};
+
+/** Dólares por millón de tokens. `entrada_cache` y `escritura_cache` son opcionales (si faltan: 10 % y 125 % de la entrada). */
+export interface PrecioModelo {
+  entrada: number;
+  salida: number;
+  entrada_cache?: number;
+  escritura_cache?: number;
+}
+
 export interface Horario {
   /** "HH:MM" */
   inicio: string;
@@ -25,8 +54,18 @@ export interface Config {
     maximo: number;
   };
   presupuesto_ia_mensual_usd: number;
+  proveedor_ia: ProveedorIa;
+  /** Si el principal falla o no tiene clave, contesta este. null = sin respaldo. */
+  proveedor_respaldo_ia: ProveedorIa | null;
   modelo_rapido: string;
   modelo_inteligente: string;
+  /** Modelos del proveedor de respaldo; vacío = los de siempre de ese proveedor. */
+  modelo_rapido_respaldo: string;
+  modelo_inteligente_respaldo: string;
+  /** Precio por modelo (USD por millón de tokens). Un modelo sin precio no cuenta como gratis: ver motor/precios.ts. */
+  precios_ia: Record<string, PrecioModelo>;
+  /** Lo que las vendedoras han aprendido de casos reales (máx. 20 líneas). Va al prompt; NO es fuente de datos. */
+  lecciones: string[];
   mensaje_bienvenida: string;
   texto_privacidad_corto: string;
   palabras_prohibidas: string[];
@@ -40,8 +79,14 @@ export const CONFIG_POR_DEFECTO: Config = {
   horario: { inicio: "08:00", fin: "17:00", dias: [0, 1, 2, 3, 4, 5, 6], zona: "America/Panama" },
   seguimiento: { primero_horas: 5, segundo_dias: 5, solo_horario_laboral: true, maximo: 2 },
   presupuesto_ia_mensual_usd: 30,
+  proveedor_ia: "anthropic",
+  proveedor_respaldo_ia: null,
   modelo_rapido: "claude-haiku-4-5",
   modelo_inteligente: "claude-sonnet-5-5",
+  modelo_rapido_respaldo: "",
+  modelo_inteligente_respaldo: "",
+  precios_ia: {},
+  lecciones: [],
   mensaje_bienvenida: "",
   texto_privacidad_corto: "",
   palabras_prohibidas: [],
@@ -69,8 +114,45 @@ const numero = (v: unknown, defecto: number, min: number, max: number) => {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : defecto;
 };
 const hora = (v: unknown, defecto: string) => (typeof v === "string" && /^\d{1,2}:\d{2}$/.test(v.trim()) ? v.trim() : defecto);
-/** Un identificador de modelo de Anthropic; lo demás se descarta (Odoo no puede mandar al Worker a otro proveedor). */
-const modelo = (v: unknown, defecto: string) => (typeof v === "string" && /^claude-[a-z0-9.-]{3,60}$/.test(v.trim()) ? v.trim() : defecto);
+const proveedor = (v: unknown): ProveedorIa | null => (typeof v === "string" && (PROVEEDORES_IA as readonly string[]).includes(v.trim().toLowerCase()) ? (v.trim().toLowerCase() as ProveedorIa) : null);
+
+/** El identificador de modelo, solo si tiene la forma del proveedor elegido; lo demás se descarta. */
+export function modeloValido(p: ProveedorIa, v: unknown): string {
+  return typeof v === "string" && FORMA_DE_MODELO[p].test(v.trim()) ? v.trim() : "";
+}
+
+const MAX_LECCIONES = 20;
+const MAX_LARGO_LECCION = 300;
+
+/** Las lecciones llegan como texto (una por línea) o como lista. Sin ángulos: no pueden abrir ni cerrar etiquetas del prompt. */
+export function normalizarLecciones(v: unknown): string[] {
+  const lineas = typeof v === "string" ? v.split(/\r?\n/) : Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  return lineas
+    .map((l) => l.replace(/[<>]/g, "").replace(/^\s*[-*•]\s*/, "").trim().slice(0, MAX_LARGO_LECCION))
+    .filter(Boolean)
+    .slice(0, MAX_LECCIONES);
+}
+
+const precioNumero = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  return Number.isFinite(n) && n >= 0 && n <= 1000 ? n : null;
+};
+
+/** `{ "muse-spark-1.3": { entrada: 1.25, salida: 4.25, entrada_cache: 0.15 } }`; también acepta input/output/cache_read. */
+export function normalizarPrecios(v: unknown): Record<string, PrecioModelo> {
+  if (!esObjeto(v)) return {};
+  const salida: Record<string, PrecioModelo> = {};
+  for (const [modelo, crudo] of Object.entries(v)) {
+    if (!/^[a-z0-9][a-z0-9._-]{2,80}$/i.test(modelo) || !esObjeto(crudo)) continue;
+    const entrada = precioNumero(crudo.entrada ?? crudo.input);
+    const salidaUsd = precioNumero(crudo.salida ?? crudo.output);
+    if (entrada === null || salidaUsd === null) continue;
+    const cache = precioNumero(crudo.entrada_cache ?? crudo.cache_read);
+    const escritura = precioNumero(crudo.escritura_cache ?? crudo.cache_write);
+    salida[modelo] = { entrada, salida: salidaUsd, ...(cache !== null ? { entrada_cache: cache } : {}), ...(escritura !== null ? { escritura_cache: escritura } : {}) };
+  }
+  return salida;
+}
 
 /** Convierte lo que conteste Odoo en una Config completa y segura. Nunca lanza. */
 export function normalizarConfig(crudo: unknown): Config {
@@ -83,6 +165,8 @@ export function normalizarConfig(crudo: unknown): Config {
   for (const id of Object.keys(ENCENDIDOS_POR_DEFECTO) as CanalId[]) {
     if (typeof ca[id] === "boolean") canales[id] = ca[id] as boolean;
   }
+  const principal = proveedor(c.proveedor_ia) ?? d.proveedor_ia;
+  const respaldo = proveedor(c.proveedor_respaldo_ia);
   const dias = Array.isArray(h.dias)
     ? [...new Set(h.dias.map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))]
     : d.horario.dias;
@@ -104,8 +188,14 @@ export function normalizarConfig(crudo: unknown): Config {
       maximo: numero(s.maximo, d.seguimiento.maximo, 0, 2),
     },
     presupuesto_ia_mensual_usd: numero(c.presupuesto_ia_mensual_usd, d.presupuesto_ia_mensual_usd, 0, 100000),
-    modelo_rapido: modelo(c.modelo_rapido, d.modelo_rapido),
-    modelo_inteligente: modelo(c.modelo_inteligente, d.modelo_inteligente),
+    proveedor_ia: principal,
+    proveedor_respaldo_ia: respaldo && respaldo !== principal ? respaldo : null,
+    modelo_rapido: modeloValido(principal, c.modelo_rapido) || MODELOS_POR_DEFECTO[principal].rapido,
+    modelo_inteligente: modeloValido(principal, c.modelo_inteligente) || MODELOS_POR_DEFECTO[principal].inteligente,
+    modelo_rapido_respaldo: respaldo ? modeloValido(respaldo, c.modelo_rapido_respaldo) : "",
+    modelo_inteligente_respaldo: respaldo ? modeloValido(respaldo, c.modelo_inteligente_respaldo) : "",
+    precios_ia: normalizarPrecios(c.precios_ia),
+    lecciones: normalizarLecciones(c.lecciones),
     mensaje_bienvenida: typeof c.mensaje_bienvenida === "string" ? c.mensaje_bienvenida.trim() : "",
     texto_privacidad_corto: typeof c.texto_privacidad_corto === "string" ? c.texto_privacidad_corto.trim() : "",
     palabras_prohibidas: Array.isArray(c.palabras_prohibidas)

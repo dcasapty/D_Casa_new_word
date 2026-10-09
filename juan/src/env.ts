@@ -38,12 +38,19 @@ export interface Env {
   WHATSAPP_PHONE_NUMBER_ID?: string;
   /** Versión de la Graph API de Meta (vNN.N). Vacío = la del código. */
   GRAPH_API_VERSION?: string;
+  /** Dirección de la API de IA de Meta (Chat Completions compatible con OpenAI). Vacío = https://api.meta.ai/v1. */
+  META_AI_BASE_URL?: string;
+  /** Dirección de la API de OpenAI (o una compatible). Vacío = https://api.openai.com/v1. */
+  OPENAI_BASE_URL?: string;
 
   // ── Secretos (solo nombres) ───────────────────────────────────────────────
   JUAN_ODOO_TOKEN?: string;
   JUAN_WORKER_TOKEN?: string;
   WA_TOKEN?: string;
+  /** La IA: solo hace falta la del proveedor que se elija en Odoo (proveedor_ia) y, si hay, la del respaldo. */
   ANTHROPIC_API_KEY?: string;
+  META_AI_API_KEY?: string;
+  OPENAI_API_KEY?: string;
   TELEGRAM_BOT_TOKEN_JUAN?: string;
   TELEGRAM_WEBHOOK_SECRET_JUAN?: string;
   META_APP_SECRET?: string;

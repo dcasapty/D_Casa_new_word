@@ -10,7 +10,9 @@ export interface GastoDelMes {
   mes: string;
   usd: number;
   turnos: number;
-  porModelo: { modelo: string; usd: number; turnos: number }[];
+  porModelo: { modelo: string; usd: number; turnos: number; estimado: boolean }[];
+  /** Modelos cuyo costo se estimó porque no tenían precio cargado en Odoo. */
+  modelosSinPrecio: string[];
 }
 
 /** La lógica, sin Cloudflare: se prueba con SQLite de Node. */
@@ -21,18 +23,19 @@ export class AlmacenGlobal {
       entrada INTEGER NOT NULL DEFAULT 0, cache_lectura INTEGER NOT NULL DEFAULT 0,
       cache_escritura INTEGER NOT NULL DEFAULT 0, salida INTEGER NOT NULL DEFAULT 0,
       usd REAL NOT NULL DEFAULT 0, turnos INTEGER NOT NULL DEFAULT 0,
+      estimado INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (mes, modelo))`);
     sql.correr("CREATE TABLE IF NOT EXISTS salud (clave TEXT PRIMARY KEY, valor TEXT NOT NULL, ts INTEGER NOT NULL)");
   }
 
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number): void {
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado = false): void {
     this.sql.correr(
-      `INSERT INTO gasto (mes, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      `INSERT INTO gasto (mes, modelo, entrada, cache_lectura, cache_escritura, salida, usd, turnos, estimado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)
        ON CONFLICT(mes, modelo) DO UPDATE SET
          entrada = entrada + excluded.entrada, cache_lectura = cache_lectura + excluded.cache_lectura,
          cache_escritura = cache_escritura + excluded.cache_escritura, salida = salida + excluded.salida,
-         usd = usd + excluded.usd, turnos = turnos + 1`,
+         usd = usd + excluded.usd, turnos = turnos + 1, estimado = MAX(estimado, excluded.estimado)`,
       mes,
       modelo,
       uso.entrada,
@@ -40,16 +43,18 @@ export class AlmacenGlobal {
       uso.cacheEscritura,
       uso.salida,
       usd,
+      estimado ? 1 : 0,
     );
   }
 
   gastoMes(mes: string): GastoDelMes {
-    const filas = this.sql.todos<{ modelo: string; usd: number; turnos: number }>("SELECT modelo, usd, turnos FROM gasto WHERE mes = ?", mes);
+    const filas = this.sql.todos<{ modelo: string; usd: number; turnos: number; estimado: number }>("SELECT modelo, usd, turnos, estimado FROM gasto WHERE mes = ?", mes);
     return {
       mes,
       usd: filas.reduce((n, f) => n + f.usd, 0),
       turnos: filas.reduce((n, f) => n + f.turnos, 0),
-      porModelo: filas,
+      porModelo: filas.map((f) => ({ ...f, estimado: f.estimado === 1 })),
+      modelosSinPrecio: filas.filter((f) => f.estimado === 1).map((f) => f.modelo),
     };
   }
 
@@ -81,8 +86,8 @@ export class Global extends DurableObject<Env> {
     this.almacen = new AlmacenGlobal(sqlDeDurableObject(ctx.storage.sql));
   }
 
-  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number): void {
-    this.almacen.registrarGasto(mes, modelo, uso, usd);
+  registrarGasto(mes: string, modelo: string, uso: Uso, usd: number, estimado: boolean): void {
+    this.almacen.registrarGasto(mes, modelo, uso, usd, estimado);
   }
 
   gastoMes(mes: string): GastoDelMes {

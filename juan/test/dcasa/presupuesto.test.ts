@@ -57,9 +57,13 @@ describe("rápido por defecto, inteligente cuando hace falta", () => {
       expect(elegirNivel({ ...base, textoDelCliente: t }), t).toBe("inteligente");
     }
   });
-  it("muchas herramientas en el turno anterior suben al inteligente", () => {
-    expect(elegirNivel({ ...base, llamadasRecientes: 4 })).toBe("inteligente");
-    expect(elegirNivel({ ...base, llamadasRecientes: 3 })).toBe("rapido");
+  it("muchas herramientas en los dos turnos anteriores suben al inteligente", () => {
+    expect(elegirNivel({ ...base, llamadasRecientes: 6 })).toBe("inteligente");
+    expect(elegirNivel({ ...base, llamadasRecientes: 5 })).toBe("rapido");
+  });
+  it("una búsqueda floja en la base de conocimiento también", () => {
+    expect(elegirNivel({ ...base, busquedaFloja: true })).toBe("inteligente");
+    expect(elegirNivel({ ...base, busquedaFloja: false })).toBe("rapido");
   });
   it("un mensaje larguísimo o con muchas preguntas también", () => {
     expect(elegirNivel({ ...base, textoDelCliente: "x".repeat(800) })).toBe("inteligente");
@@ -261,10 +265,10 @@ describe("si el proveedor de IA falla, nunca se deja al cliente sin respuesta", 
   });
 });
 
-describe("sin ANTHROPIC_API_KEY (primer despliegue, antes de pegar los secretos)", () => {
+describe("sin ninguna clave de IA (primer despliegue, antes de pegar los secretos)", () => {
   it("no se intenta la IA: el cliente recibe la disculpa y se avisa a una vendedora", async () => {
     const m = crearMundo();
-    m.deps.iaConfigurada = false;
+    m.proveedores = [];
     const g = m.guion([{ texto: "no debería llamarse" }]);
     await m.conversar("hola");
     expect(g.doGenerateCalls.length).toBe(0);
