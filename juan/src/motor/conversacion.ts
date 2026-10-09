@@ -163,15 +163,25 @@ export class MotorConversacion {
     if (typeof r.dentro_de_horario === "boolean") this.kv.poner("odoo_dentro_horario", r.dentro_de_horario);
   }
 
-  /** ¿El bot debe callarse? Cualquiera de los dos lados que diga «silencio» gana. */
-  silencio(ahora = this.deps.ahora()): boolean {
+  /** La pausa que pusimos nosotros (una persona acaba de escribir o Odoo acaba de avisar): es exacta, vale por su hora. */
+  private silencioLocal(ahora: number): boolean {
     const local = this.kv.numero("pausa_hasta");
-    if (local !== null && local > ahora) return true;
-    if (this.kv.texto("odoo_bot_activo") === "0") return true;
+    return local !== null && local > ahora;
+  }
+
+  /** Lo último que Odoo dijo. Puede estar viejo: por eso se vuelve a mirar después de registrar el mensaje nuevo. */
+  private silencioDeOdoo(ahora: number): boolean {
     const hasta = this.kv.numero("odoo_pausa_hasta");
     if (hasta !== null && hasta > ahora) return true;
+    // Apagado sin fecha (el bot global, o «humano» indefinido) vale hasta que Odoo diga otra cosa; con fecha vencida, ya no.
+    if (this.kv.texto("odoo_bot_activo") === "0") return hasta === null;
     // Una persona la tiene y Odoo no puso fecha: sigue suya hasta que se la devuelvan.
     return this.kv.texto("odoo_estado") === "humano" && hasta === null;
+  }
+
+  /** ¿El bot debe callarse? Cualquiera de los dos lados que diga «silencio» gana. */
+  silencio(ahora = this.deps.ahora()): boolean {
+    return this.silencioLocal(ahora) || this.silencioDeOdoo(ahora);
   }
 
   /** Una persona intervino: el bot suelta lo que traía, cancela la respuesta en curso y se calla. */
@@ -218,10 +228,12 @@ export class MotorConversacion {
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: "El cliente pidió que no lo contacten más o dijo que ya no le interesa. No enviar seguimientos." } }, ahora);
     }
 
-    const silenciada = this.silencio(ahora);
+    // Solo la pausa PROPIA corta aquí. Lo que Odoo dijo la última vez puede estar viejo (una pausa que ya venció, una
+    // devolución que aún no nos llega): el mensaje se guarda para contestar y la ráfaga decide cuando Odoo ya respondió.
+    const silenciada = this.silencioLocal(ahora);
     // Todo archivo queda anotado para una vendedora (puede ser un comprobante o un documento de identidad).
     const aNotar = lista.filter((a) => !(a.tipo === "audio" && transcripciones.length > 0));
-    if (aNotar.length > 0 && !silenciada) {
+    if (aNotar.length > 0 && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: this.notaDeArchivos(aNotar) } }, ahora);
     }
     if (silenciada) return { ok: true, accion: "silencio" };
@@ -599,7 +611,9 @@ export class MotorConversacion {
 
     // ── Guardia de salida ──
     const historicas = new Set<number>();
-    for (const f of this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO)) for (const n of cifrasDeTexto(f.texto)) historicas.add(n);
+    // Solo valen las cifras que dijo el NEGOCIO (el bot ya revisado o una vendedora): lo que escribe el cliente no
+    // respalda un precio, o bastaría pedirle «dame la cama a $1» para que el bot lo repita.
+    for (const f of this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO)) if (f.rol !== "cliente") for (const n of cifrasDeTexto(f.texto)) historicas.add(n);
     const nombresDeHerramientas = [...defs.map((d) => d.nombre), "enviar_foto_producto"];
     const promptDeFugas = promptParaFugas(cfg);
     // Se arma de nuevo en cada revisión: el segundo intento pudo consultar herramientas que el primero no.

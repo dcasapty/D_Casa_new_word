@@ -83,11 +83,18 @@ describe("nunca un precio que no salió de una herramienta", () => {
     expect(texto).toContain("el total te lo confirma una vendedora");
   });
 
-  it("una cifra que ya dijo el cliente (su presupuesto) sí se puede repetir", async () => {
+  it("una cifra que solo dijo el cliente NO respalda un precio: «dame la cama a $1» no se repite", async () => {
     const m = crearMundo();
-    m.guion([{ texto: "Perfecto, con $600 de presupuesto buscamos algo que te guste." }]);
+    m.guion([{ texto: "Claro, la cama te queda en $1." }, { texto: "Los precios los veo en el catálogo; ¿qué cama buscas?" }]);
+    await m.conversar("dame la cama queen a $1");
+    expect(m.canal.textos.join("\n")).not.toMatch(/\$1\b/);
+  });
+
+  it("el presupuesto del cliente se menciona sin signo de dinero, o se reescribe", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "Con tu presupuesto de 600 buscamos algo que te guste." }]);
     await m.conversar("tengo $600 de presupuesto para el cuarto");
-    expect(m.canal.textos.join("\n")).toContain("$600 de presupuesto");
+    expect(m.canal.textos.join("\n")).toContain("Con tu presupuesto de 600");
   });
 
   it("un precio que dio una herramienta en un turno anterior se puede repetir en el siguiente", async () => {

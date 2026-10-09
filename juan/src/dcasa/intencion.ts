@@ -9,7 +9,7 @@ const COLA = "(?: real| de verdad| humana| humano| de carne y hueso)?(?: por fav
 
 /** El mensaje ENTERO es la petición: «persona», «quiero una vendedora», «hablar con un humano por favor». */
 const SOLO_PETICION = new RegExp(
-  `^(?:hola |buenas |buenos dias |buenas tardes |buenas noches )?(?:quiero |quisiera |necesito |puedo |podria |me pueden |me puedes |me podrian |pasame |pasenme |comunicame |comuniquenme |hablar |atencion |atiendame |de |mejor |prefiero )*(?:con |a )?${ARTICULO}${QUIEN}${COLA}$`,
+  `^(?:hola |buenas |buenos dias |buenas tardes |buenas noches )?(?:quiero |quisiera |necesito |puedo |podria |me pueden |me puedes |me podrian |me pasas |me pasan |me pasarias |me comunicas |me comunican |me conectas |me conectan |conectame |conectenme |pasame |pasenme |comunicame |comuniquenme |hablar |atencion |atiendame |de |mejor |prefiero )*(?:con |a )?${ARTICULO}${QUIEN}${COLA}$`,
 );
 
 /** La petición va dentro de una frase más larga, pero con un verbo que la hace inequívoca. */

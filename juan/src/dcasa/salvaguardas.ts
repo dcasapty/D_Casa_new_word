@@ -231,10 +231,24 @@ function copiaDelPrompt(texto: string, prompt: string): string | null {
   return null;
 }
 
+/** El modelo «aceptó» una manipulación: lo dice en voz alta aunque no haya filtrado nada. */
+const ACUSES_DE_MANIPULACION = new RegExp(
+  [
+    String.raw`\bmodo\s+(?:administrador|admin|desarrollador|developer|dios|debug|mantenimiento|sin\s+restricciones)\b`,
+    String.raw`\bsin\s+(?:reglas|restricciones|filtros)\b`,
+    String.raw`\b(?:ignor(?:o|are|ando)|olvido|olvidare|dejo\s+de\s+seguir)\s+(?:mis|las|todas\s+mis|todas\s+las|mi)\s+(?:reglas|instrucciones|normas)\b`,
+    String.raw`\ba\s+partir\s+de\s+ahora\s+(?:soy|ya\s+no\s+soy|actuo|actuare|respondo\s+como)\b`,
+    String.raw`\bahora\s+(?:soy|actuo\s+como)\s+(?:dan|otro|otra)\b`,
+    String.raw`\bmis\s+(?:instrucciones|reglas)\s+(?:dicen|son|indican|me\s+piden)\b`,
+  ].join("|"),
+);
+
 function fuga(texto: string, ctx: ContextoRevision): string | null {
   const bajo = texto.toLowerCase();
   for (const x of ctx.secretos ?? []) if (x.length >= 4 && texto.includes(x)) return "dato secreto del cliente";
   for (const e of ETIQUETAS_DEL_PROMPT) if (bajo.includes(e)) return e;
+  const acuse = ACUSES_DE_MANIPULACION.exec(sinAcentos(texto));
+  if (acuse) return acuse[0];
   for (const n of ctx.nombresHerramientas ?? []) {
     if (new RegExp(`(?<![a-z0-9_])${escaparRegex(n)}(?![a-z0-9_])`, "i").test(texto)) return n;
   }
