@@ -23,3 +23,17 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
    respuestas que no vienen al caso, se sube el umbral (`UMBRAL_SIGNIFICADO`, hoy 0.6); si no encuentra nada, se baja.
 8. **Plan B de WhatsApp (cuenta oficial de Meta):** empezar ya la **verificación del negocio** en Meta Business (es lo único que no se
    puede acelerar el día que se necesite). Pasos completos y qué hay que confirmar en Meta: `docs/JUAN_PLAN_B.md`.
+9. **Puerta del equipo (Cloudflare Access):** staging está en modo «avisar» (2026-10-10). Falta que las 4 personas entren
+   por `/master` con Google Authenticator; tras 1 o 2 días sin accesos «sin puerta» en Odoo › Accesos al panel, pasar a
+   modo `"1"` (con su visto bueno) y, si se quiere, `DCASA_PUERTA_EXIGIR_CORREO`. Producción sigue sin la puerta.
+10. **Nómina — lo que valida el contador** (docs/NOMINA.md, checklist): tasas de seguro social (la cuota patronal sube por
+    pasos hasta 2029), seguro educativo, **riesgo profesional** (queda vacío a propósito), tramos y método del ISR, aportes
+    del **décimo tercer mes** (vacíos a propósito), cuentas contables, provisión mensual del décimo, promedio de vacaciones
+    y prima. Sin esa validación una planilla se calcula como borrador pero **no se confirma**. También hay que cargar las
+    **fichas de los colaboradores** (salario mensual, fecha de ingreso, cédula, seguro social, cuenta bancaria).
+11. **Contactos sin duplicados:** al desplegar, abrir **Socios › Configuración › Posibles duplicados** y fusionar lo que ya
+    estaba repetido (el candado impide que crezca). Los puntos por WhatsApp siguen pidiendo el PIN de Socios (decisión
+    de la dueña si algún día se quiere que baste el número: docs/CONTACTOS.md).
+12. **Consolidación:** nada que hacer hoy (D'CASA tiene una sola empresa); cuando haya una segunda, el contador revisa el
+    mapa de cuentas y lo que la guía deja como «requiere contador» (docs/CONSOLIDACION.md).
+13. **Factura electrónica DGI** sigue en desarrollo (necesita elegir el PAC: docs/FACTURA_ELECTRONICA.md).
