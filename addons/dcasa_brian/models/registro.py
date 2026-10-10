@@ -61,13 +61,41 @@ class BrianError(Exception):
     """Error de uso de una herramienta: el mensaje va de vuelta al modelo para que corrija."""
 
 
+MAX_TEXTO_ARGUMENTO = 10_000    # letras por dato de texto
+MAX_ARGUMENTOS = 30_000         # letras entre todos los datos de una llamada
+
+
+def argumento_demasiado_largo(argumentos):
+    """El mensaje de error si los datos de la llamada pasan el tope; ``None`` si están bien.
+
+    Se revisa ANTES de registrar la llamada y de interpretarla: un modelo (o un cliente MCP) que manda megabytes no
+    puede inflar la auditoría ni dejar un hilo ocupado en un análisis de texto.
+    """
+    total = 0
+    for nombre, valor in argumentos.items():
+        if isinstance(valor, str):
+            largo = len(valor)
+            if largo > MAX_TEXTO_ARGUMENTO:
+                return f'«{nombre}» es demasiado largo (máximo {MAX_TEXTO_ARGUMENTO} letras). Pártelo en varias partes.'
+        else:
+            largo = len(json.dumps(valor, ensure_ascii=False, default=str))
+        total += largo
+    if total > MAX_ARGUMENTOS:
+        return f'Los datos son demasiado largos (máximo {MAX_ARGUMENTOS} letras en total). Pártelos en varias partes.'
+    return None
+
+
 def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lectura', categoria='general',
-                grupos=(), ejemplos=(), segura_con_adjuntos=False):
+                grupos=(), ejemplos=(), segura_con_adjuntos=False, texto_externo=False):
     """Marca un método de ``brian.herramientas`` como herramienta de Brian.
 
     ``segura_con_adjuntos``: solo para herramientas de construcción que únicamente dejan un
     borrador revisable (p. ej. ``proponer_importacion``). Las demás, pedidas en un turno que
     trae adjuntos, piden confirmación (ver ``_pide_confirmacion``).
+
+    ``texto_externo``: la herramienta devuelve texto que escribió un tercero (un cliente por WhatsApp, un nombre de
+    perfil). Una vez usada en el turno, las herramientas de construcción también piden confirmación, igual que con
+    adjuntos: ese texto podría traer instrucciones escondidas.
     """
     if nivel not in NIVELES:
         raise ValueError(f'Nivel desconocido: {nivel}')
@@ -85,6 +113,7 @@ def herramienta(nombre, descripcion, parametros=None, requeridos=(), nivel='lect
             'grupos': tuple(grupos),
             'ejemplos': list(ejemplos),
             'segura_con_adjuntos': bool(segura_con_adjuntos),
+            'texto_externo': bool(texto_externo),
             'metodo': metodo.__name__,
         }
         return metodo
@@ -242,6 +271,9 @@ class BrianHerramientas(models.AbstractModel):
         Accion = self.env['brian.accion']
         if not spec or not self._disponible(spec):
             return {'ok': False, 'error': f'No existe la herramienta «{nombre}» o no tienes permiso para usarla.'}
+        exceso = argumento_demasiado_largo(argumentos)
+        if exceso:
+            return {'ok': False, 'error': exceso}
         argumentos = coercer(spec['parametros'], argumentos)
         faltan = [r for r in spec['requeridos'] if argumentos.get(r) in (None, '')]
         if faltan:
@@ -261,11 +293,19 @@ class BrianHerramientas(models.AbstractModel):
         if not confirmado and self._pide_confirmacion(spec):
             resumen = politica.resumir(spec, argumentos)
             if spec['nivel'] != 'sensible':
-                resumen += ('\n(Te lo pregunto porque en este mensaje hay un archivo o una foto: lo que '
-                            'sale de un adjunto no se aplica sin tu visto bueno.)')
+                if self.env.context.get('brian_turno_con_adjuntos'):
+                    resumen += ('\n(Te lo pregunto porque en este mensaje hay un archivo o una foto: lo que '
+                                'sale de un adjunto no se aplica sin tu visto bueno.)')
+                else:
+                    resumen += ('\n(Te lo pregunto porque acabo de leer textos que escribieron clientes: lo que '
+                                'sale de ahí no se aplica sin tu visto bueno.)')
             accion.marcar('por_confirmar', resumen=resumen)
             return {'ok': False, 'requiere_confirmacion': True, 'accion_id': accion.id, 'resumen': resumen}
-        return self._correr(spec, argumentos, accion)
+        resultado = self._correr(spec, argumentos, accion)
+        estado = self.env.context.get('brian_turno_estado')
+        if spec.get('texto_externo') and resultado.get('ok') and isinstance(estado, dict):
+            estado['texto_externo'] = True   # desde aquí, en este turno, lo de construcción pide visto bueno
+        return resultado
 
     @api.model
     def _pide_confirmacion(self, spec):
@@ -274,8 +314,11 @@ class BrianHerramientas(models.AbstractModel):
         archivo. Las que solo dejan un borrador revisable van marcadas ``segura_con_adjuntos``."""
         if spec['nivel'] == 'sensible':
             return True
-        return (spec['nivel'] == 'construccion' and bool(self.env.context.get('brian_turno_con_adjuntos'))
-                and not spec.get('segura_con_adjuntos'))
+        if spec['nivel'] != 'construccion' or spec.get('segura_con_adjuntos'):
+            return False
+        contexto = self.env.context
+        return bool(contexto.get('brian_turno_con_adjuntos')
+                    or (contexto.get('brian_turno_estado') or {}).get('texto_externo'))
 
     @api.model
     def _correr(self, spec, argumentos, accion):

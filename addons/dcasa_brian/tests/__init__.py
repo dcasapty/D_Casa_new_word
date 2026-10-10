@@ -11,3 +11,4 @@ from . import test_importacion
 from . import test_herramientas_contabilidad
 from . import test_ronda6
 from . import test_brian_ux
+from . import test_ronda8

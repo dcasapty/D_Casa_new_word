@@ -212,7 +212,9 @@ const MANDA_A_LEER = [
 const SER_HUMANO = [
   /(?<!\bno )\bsoy (?:una |un )?(?:persona|humano|humana|ser humano)\b/,
   /(?<!\bno )\bsoy (?:una |un )?(?:persona )?(?:real|de verdad|de carne y hueso)\b/,
-  /\bno soy (?:un |una )?(?:bot|chatbot|robot|ia|inteligencia artificial|programa|maquina|asistente(?: virtual| automatico)?)\b/,
+  /\bno soy (?:ningun |ninguna |un |una )?(?:bot|chatbot|robot|ia|inteligencia artificial|programa|maquina|asistente(?: virtual| automatico)?)\b/,
+  /(?<!\bno soy (?:una |un )?(?:persona )?)\bde carne y hueso\b/,
+  /(?<!\bno )\b(?:hablas?|esta hablando|estas hablando) con (?:una |un )?(?:persona|humano|humana)(?: real| de verdad)?\b/,
   /\bsoy (?:un |una )?(?:vendedor|vendedora|asesor|asesora) (?:de|en) /,
   /\bsoy (?:el |la |un |una )?(?:vendedor|vendedora)\b/,
 ];
@@ -309,7 +311,10 @@ function fuga(texto: string, ctx: ContextoRevision): string | null {
   const acuse = ACUSES_DE_MANIPULACION.exec(sinAcentos(texto));
   if (acuse) return acuse[0];
   for (const n of ctx.nombresHerramientas ?? []) {
-    if (new RegExp(`(?<![a-z0-9_])${escaparRegex(n)}(?![a-z0-9_])`, "i").test(texto)) return n;
+    // Un nombre con guion bajo («buscar_productos») nunca es una frase natural: basta que aparezca. Uno de una sola palabra
+    // («cotizar») sí lo es («para cotizar necesito el tamaño»): solo cuenta si se escribe como llamada o entre comillas.
+    const patron = n.includes("_") ? `(?<![a-z0-9_])${escaparRegex(n)}(?![a-z0-9_])` : `(?<![a-z0-9_])${escaparRegex(n)}\\s*\\(|[\`'"“«]${escaparRegex(n)}[\`'"”»]`;
+    if (new RegExp(patron, "i").test(texto)) return n;
   }
   return ctx.textoDelPrompt ? copiaDelPrompt(texto, ctx.textoDelPrompt) : null;
 }

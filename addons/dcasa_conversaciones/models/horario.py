@@ -218,7 +218,8 @@ _PIDE_NO_CONTACTAR = re.compile(
     r'\b('
     r'no\s+(?:me\s+)?(?:vuelvas?|vuelvan)\s+a\s+(?:escribir|contactar|llamar|molestar)'
     r'|no\s+me\s+(?:escribas|escriban|contactes|contacten|llames|llamen|molestes|molesten|envies|envien|mandes|manden)'
-    r'|deja(?:n)?\s+de\s+(?:escribir|contactar|molestar|enviar|mandar)(?:me)?'
+    r'|(?:deja|dejan|deje|dejen|para|paran|pare|paren)\s+de\s+(?:escribir|contactar|molestar|enviar|mandar|llamar)(?:me)?'
+    r'|dej(?:a|e|en)me(?:n)?\s+en\s+paz'
     r'|ya\s+no\s+(?:me\s+)?(?:escribas|escriban|contactes|contacten|molestes|molesten)'
     r'|no\s+quiero\s+(?:que\s+me\s+(?:escriban|escribas|contacten|contactes|llamen|llames)|mas\s+mensajes)'
     r'|no\s+(?:me\s+)?interesa\s+(?:que\s+me\s+)?(?:escriban|escribas|contacten|contactes)'
@@ -231,10 +232,15 @@ def _sin_acentos(texto):
     return ''.join(c for c in texto if not unicodedata.combining(c))
 
 
+# «STOP» solo, como mensaje completo: la señal de baja que usa todo el mundo en WhatsApp y SMS.
+_SOLO_STOP = re.compile(r'[\s¡!.¿?]*(?:stop|baja)[\s¡!.¿?]*')
+
+
 def pide_no_contactar(texto):
     """True si el mensaje del cliente pide, sin rodeos, que no le escriban más.
 
     Es una red de seguridad determinista (la IA puede fallar): ante un falso positivo solo se
     deja de hacerle seguimiento, que es el lado seguro. La vendedora puede quitar la marca.
     """
-    return bool(_PIDE_NO_CONTACTAR.search(_sin_acentos(texto)))
+    limpio = _sin_acentos(texto)
+    return bool(_PIDE_NO_CONTACTAR.search(limpio) or _SOLO_STOP.fullmatch(limpio))

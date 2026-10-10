@@ -77,6 +77,7 @@ def leer_fecha(texto, nombre='fecha'):
 
 
 MAX_LINEAS = 30
+MAX_LARGO_LINEA = 300     # «SOF-001 x 2 @ 150» cabe de sobra; más largo es basura (y la expresión se vuelve lenta)
 _LINEA = re.compile(
     r'^(?P<ref>.+?)'
     r'(?:(?:\s+(?:x|cant(?:idad)?\.?:?)|\s*[×*])\s*(?P<cant>\d+(?:[.,]\d+)?))?'
@@ -90,13 +91,18 @@ def leer_lineas(texto):
     Una línea por «;» o salto de línea. Cantidad con «x», «×» o «*» (por defecto 1); precio
     opcional con «@», «$» o «precio». Lo que no se entiende da ``BrianError`` con la línea.
     """
-    partes = [p.strip(' -•\t') for p in re.split(r'[;\n]+', str(texto or '')) if p.strip(' -•\t')]
+    texto = str(texto or '')
+    if len(texto) > MAX_LINEAS * MAX_LARGO_LINEA:
+        raise BrianError('El texto de los productos es demasiado largo. Pártelo en varias partes.')
+    partes = [p.strip(' -•\t') for p in re.split(r'[;\n]+', texto) if p.strip(' -•\t')]
     if not partes:
         raise BrianError('No entendí los productos. Escríbelos así: «SOF-001 x 2; MES-003 x 1».')
     if len(partes) > MAX_LINEAS:
         raise BrianError(f'Son {len(partes)} líneas: el máximo por vez es {MAX_LINEAS}. Pártelo en dos.')
     lineas = []
     for parte in partes:
+        if len(parte) > MAX_LARGO_LINEA:
+            raise BrianError(f'La línea «{parte[:40]}…» es demasiado larga. Escríbela como «código x cantidad».')
         encontrado = _LINEA.match(parte)
         if not encontrado or not encontrado.group('ref').strip():
             raise BrianError(f'No entendí la línea «{parte}». Escríbela como «código x cantidad», '

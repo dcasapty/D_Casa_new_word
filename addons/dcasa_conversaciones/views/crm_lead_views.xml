@@ -35,8 +35,8 @@
         <field name="arch" type="xml">
             <field name="name" position="after">
                 <field name="dcasa_temperatura" widget="badge" optional="show"
-                       decoration-danger="dcasa_temperatura == '3'" decoration-warning="dcasa_temperatura == '2'"
-                       decoration-info="dcasa_temperatura == '1'"/>
+                       decoration-danger="dcasa_temperatura == '3'" decoration-primary="dcasa_temperatura == '2'"
+                       decoration-muted="dcasa_temperatura == '1'"/>
                 <field name="dcasa_para_cuando" optional="show"/>
                 <field name="dcasa_zona_entrega" optional="hide"/>
             </field>
@@ -55,8 +55,8 @@
             </xpath>
             <field name="name" position="after">
                 <field name="dcasa_temperatura" widget="badge"
-                       decoration-danger="dcasa_temperatura == '3'" decoration-warning="dcasa_temperatura == '2'"
-                       decoration-info="dcasa_temperatura == '1'"/>
+                       decoration-danger="dcasa_temperatura == '3'" decoration-primary="dcasa_temperatura == '2'"
+                       decoration-muted="dcasa_temperatura == '1'"/>
                 <field name="dcasa_temperatura_motivo" optional="show"/>
                 <field name="dcasa_para_cuando" optional="show"/>
                 <field name="dcasa_zona_entrega" optional="show"/>

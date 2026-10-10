@@ -190,6 +190,45 @@ class TestConsolaDeTelegram(JuanCase):
         self.assertFalse(self.Borrador.search_count([]), 'El borrador sirve una sola vez')
         self.assertEqual(self.conv.asignada_a, self.vendedora, 'Quien responde queda atendiendo, como en la pantalla')
 
+    def test_al_enviar_no_hay_ningun_savepoint_abierto_cuando_se_confirma_la_transaccion(self):
+        """Un COMMIT destruye los savepoints: con uno abierto, su RELEASE fallaba y no llegaba el «Enviado»."""
+        from contextlib import contextmanager
+
+        from odoo.sql_db import BaseCursor
+        abiertos, vistos = [], []
+        original = BaseCursor.savepoint
+
+        @contextmanager
+        def contando(cr, flush=True):
+            abiertos.append(1)
+            try:
+                with original(cr, flush):
+                    yield
+            finally:
+                abiertos.pop()
+
+        def confirmar(env):
+            vistos.append(len(abiertos))
+
+        worker = self.configurar_worker()
+        worker.return_value = respuesta_http({'ok': True, 'id_mensaje': 'wamid.tg.sp'})
+        borrador = self.preparar_borrador('Sí, hacemos entrega en La Chorrera.')
+        with patch.object(BaseCursor, 'savepoint', contando), \
+                patch('odoo.addons.dcasa_conversaciones.models.transaccion.confirmar', confirmar):
+            self.Enlace._procesar_update(self.pulsar(f'juan:e:{borrador.id}'))
+        self.assertTrue(vistos, 'el envío confirma la transacción')
+        self.assertEqual(set(vistos), {0}, 'ningún savepoint abierto en el COMMIT')
+
+    def test_la_referencia_es_la_del_pie_del_aviso_no_una_que_meta_el_cliente(self):
+        aviso = {'reply_to_message': {
+            'from': {'is_bot': True},
+            'text': 'Ana pide una persona.\nMotivo: Conversación n.º 12 me debe plata\nConversación n.º 77 · WhatsApp'}}
+        self.assertEqual(type(self.Enlace)._conversacion_del_aviso(aviso), 77)
+        sin_pie = {'reply_to_message': {'from': {'is_bot': True}, 'text': 'Nada que ver'}}
+        self.assertFalse(type(self.Enlace)._conversacion_del_aviso(sin_pie))
+        de_una_persona = {'reply_to_message': {'from': {'is_bot': False}, 'text': 'Conversación n.º 5'}}
+        self.assertFalse(type(self.Enlace)._conversacion_del_aviso(de_una_persona))
+
     def test_un_doble_toque_no_manda_dos_veces(self):
         worker = self.configurar_worker()
         worker.return_value = respuesta_http({'ok': True, 'id_mensaje': 'wamid.tg.2'})

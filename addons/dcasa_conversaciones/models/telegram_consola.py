@@ -67,8 +67,10 @@ class BrianTelegramEnlace(models.Model):
         previo = mensaje.get('reply_to_message') or {}
         if not (previo.get('from') or {}).get('is_bot'):
             return False
-        encontrado = re.search(REFERENCIA_DE_AVISO, previo.get('text') or '')
-        return int(encontrado.group(1)) if encontrado else False
+        # La ÚLTIMA coincidencia: la referencia real va al final del aviso (``PIE_DE_AVISO``); antes vienen el
+        # nombre del cliente y el motivo, que escribe el cliente o el bot y podrían traer un «n.º 12» falso.
+        encontrados = re.findall(REFERENCIA_DE_AVISO, previo.get('text') or '')
+        return int(encontrados[-1]) if encontrados else False
 
     def _conversar(self, texto, mensaje):
         """Brian llama aquí con cada mensaje de texto de un chat vinculado (ya filtrado y con límite de velocidad).
@@ -152,8 +154,8 @@ class BrianTelegramEnlace(models.Model):
             return self._enviar(self.chat_id, 'Cancelado: no se mandó nada.')
         yo = self._como_usuario()
         try:
-            with self.env.cr.savepoint():
-                resultado = yo.env['dcasa.conversacion'].enviar_respuesta(conversacion_id, texto)
+            # Sin savepoint: enviar confirma la transacción (COMMIT) y un COMMIT destruye los savepoints abiertos.
+            resultado = yo.env['dcasa.conversacion'].enviar_respuesta(conversacion_id, texto)
         except (UserError, AccessError) as error:
             return self._enviar(self.chat_id, f'No se mandó: {error}')
         if resultado.get('enviado'):

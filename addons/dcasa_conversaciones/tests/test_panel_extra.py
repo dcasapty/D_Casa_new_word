@@ -184,6 +184,18 @@ class TestSubirAdjunto(PanelCase):
         self.assertEqual((bool(Adjunto.browse(viejo).exists()), bool(Adjunto.browse(reciente).exists()),
                           bool(Adjunto.browse(enviado).exists())), (False, True, True))
 
+    def test_el_cron_no_borra_el_archivo_que_una_vendedora_adjunto_en_el_chatter_de_la_conversacion(self):
+        adjunto = self.env['ir.attachment'].create({
+            'name': 'contrato.txt', 'raw': b'datos', 'res_model': 'dcasa.conversacion', 'res_id': self.conv.id})
+        self.conv.message_post(body='Contrato firmado', attachment_ids=[adjunto.id])
+        sobra = self.panel.subir_adjunto(self.conv.id, 'sobra.png', b64(png()))['adjunto']['id']
+        self.env.cr.execute('UPDATE ir_attachment SET create_date = %s WHERE id IN %s',
+                            [self.ahora - timedelta(days=3), (adjunto.id, sobra)])
+        self.env['ir.attachment'].invalidate_model()
+        self.assertEqual(self.Conversacion._cron_limpiar_subidas(), 1)
+        self.assertTrue(adjunto.exists(), 'es de una nota del chatter, no una subida sin usar')
+        self.assertFalse(self.env['ir.attachment'].browse(sobra).exists())
+
 
 @tagged('post_install', '-at_install')
 class TestIniciarPanel(PanelCase):

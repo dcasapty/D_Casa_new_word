@@ -148,6 +148,19 @@ Meta). El par es único.
    * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
    * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).
 
+### Lo que se reforzó con la auditoría de la ronda 8 (`docs/auditoria/ronda8/crm-juan-brian.md`)
+
+- **El historial del modelo termina con el cliente.** Si el cliente escribe mientras el bot piensa, la respuesta del bot a la primera
+  pregunta se guarda después de la segunda; al armar el siguiente turno esa respuesta se coloca antes de lo que se contesta ahora.
+- **La respuesta lista nunca se pierde en silencio.** Si el canal no la deja salir: se reintenta el turno (1 min, 5 min) y, si ya salió una
+  parte o se acaban los reintentos, `pasar_a_vendedora` con el motivo (la parte enviada no se repite).
+- **Un mensaje del cliente llega al modelo con un tope de 2 000 letras** (el original queda entero en Odoo).
+- **PIN de Socios** (`pin`, `clave`, `contraseña` + 4 a 8 cifras): se tapa en lo que viaja a Odoo y se borra del historial local después del turno.
+- **`crear_oportunidad`**: la `zona` y el `cuando` solo se anotan si el cliente los dijo (todas sus palabras con peso están en lo que escribió).
+- **La guardia de fugas** no confunde la palabra «cotizar» con la herramienta: los nombres de una sola palabra cuentan solo escritos como
+  llamada `cotizar(` o entre comillas; los que llevan guion bajo (`buscar_productos`) siempre.
+- Lo que escribe el cliente no puede imitar las marcas de confianza del historial (`[Vendedora]`, `[El cliente …]`).
+
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)
 
 Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENTE` y viceversa

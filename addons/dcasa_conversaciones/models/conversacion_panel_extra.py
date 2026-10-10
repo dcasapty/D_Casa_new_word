@@ -123,6 +123,10 @@ class DcasaConversacionPanelExtra(models.Model):
         limite = fields.Datetime.now() - timedelta(hours=HORAS_DE_UNA_SUBIDA_SIN_USAR)
         viejos = self.env['ir.attachment'].sudo().search([
             ('res_model', '=', self._name), ('create_date', '<', limite)])
+        # Los que viajan en un mensaje del chatter de la conversación (Odoo los liga a ella) son de esa nota, no sobras.
+        en_el_chatter = self.env['mail.message'].sudo().search([
+            ('model', '=', self._name), ('attachment_ids', 'in', viejos.ids)]).attachment_ids
+        viejos -= en_el_chatter
         viejos.unlink()
         return len(viejos)
 

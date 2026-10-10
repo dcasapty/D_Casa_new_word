@@ -224,6 +224,8 @@ export interface OpcionesHerramientas {
   identidad?: string;
   /** Se llama justo antes de preguntarle a Odoo (para mostrar «escribiendo…» mientras tanto). */
   alEmpezar?: () => void;
+  /** Lo último que escribió el cliente (texto plano): `crear_oportunidad` solo anota la zona y el «para cuándo» que están ahí. */
+  textoDelCliente?: () => string;
 }
 
 const MAX_FOTOS_POR_RESPUESTA = 3;
@@ -277,6 +279,25 @@ function tomarDocumentoDeLaCotizacion(resultado: unknown, reg: RegistroDelTurno)
   return { ...resto, pdf_adjunto: true };
 }
 
+const PALABRAS_SIN_PESO = new Set(["para", "por", "con", "del", "los", "las", "una", "uno", "que", "esta", "este", "estos", "entre", "sobre", "hacia"]);
+
+function palabrasDe(texto: string): string[] {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9ñ]+/)
+    .filter((p) => p.length >= 3 || /\d/.test(p));
+}
+
+/** ¿Lo que el modelo anota (zona, «para cuándo») está en lo que el cliente escribió? Todas sus palabras con peso deben aparecer. */
+export function loDijoElCliente(valor: string, dicho: string): boolean {
+  const pedidas = palabrasDe(valor).filter((p) => !PALABRAS_SIN_PESO.has(p));
+  if (pedidas.length === 0) return false;
+  const reales = new Set(palabrasDe(dicho));
+  return pedidas.every((p) => reales.has(p));
+}
+
 export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
   const { odoo, registro } = op;
   const tools: ToolSet = {};
@@ -301,6 +322,14 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         // Un cliente (o un mensaje manipulado) no puede pedir el saldo de otro número.
         if (def.nombre === "saldo_puntos" && op.celularDeLaConversacion) argumentos.celular = op.celularDeLaConversacion;
         if (def.nombre === "saldo_puntos" && typeof argumentos.pin === "string") registro.pines.push(argumentos.pin);
+        // La zona y el «para cuándo» van a la ficha y puntúan la temperatura de la oportunidad: solo valen si el cliente lo dijo.
+        if (def.nombre === "crear_oportunidad" && op.textoDelCliente) {
+          const dicho = op.textoDelCliente();
+          for (const campo of ["zona", "cuando"]) {
+            const valor = argumentos[campo];
+            if (valor !== undefined && !(typeof valor === "string" && loDijoElCliente(valor, dicho))) delete argumentos[campo];
+          }
+        }
 
         // Lectura repetida (mismos argumentos, misma conversación, menos de 60 s): sin viaje a Odoo.
         const clave =

@@ -18,7 +18,7 @@ import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
 import { analizar, detectarSerHumano, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
-import { textoParaElModelo } from "../dcasa/sensibles";
+import { pinesEscritos, taparPines, textoParaElModelo } from "../dcasa/sensibles";
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
 import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type OdooApi, type RespuestaMensaje } from "../odoo/cliente";
 import type { Env } from "../env";
@@ -42,6 +42,12 @@ const etiquetaDeMedio = (m: MedioSaliente) => `[${m.tipo === "documento" ? "Docu
 
 const ESPERA_ENTRE_BURBUJAS_MS = 1000;
 const HISTORIAL_PARA_EL_MODELO = 20;
+/** Lo máximo que se le muestra al modelo de UN mensaje del cliente: WhatsApp deja mandar decenas de miles de letras y cada una se paga. */
+const MAX_LETRAS_DE_UN_MENSAJE_PARA_EL_MODELO = 2000;
+
+function recortarParaElModelo(texto: string): string {
+  return texto.length > MAX_LETRAS_DE_UN_MENSAJE_PARA_EL_MODELO ? `${texto.slice(0, MAX_LETRAS_DE_UN_MENSAJE_PARA_EL_MODELO)} […mensaje muy largo, el resto no se muestra]` : texto;
+}
 /** Imágenes que se leen por mensaje y por persona al día: cada lectura cuesta un poco de IA. */
 const IMAGENES_POR_MENSAJE = 3;
 /** Un pie de foto largo no cabe en todos los canales (Telegram corta en 1024): hasta aquí viaja junto a la foto. */
@@ -314,7 +320,7 @@ export class MotorConversacion {
     this.kv.poner("ultimo_cliente_ts", Math.max(this.kv.numero("ultimo_cliente_ts") ?? 0, e.ts));
 
     // Odoo es el historial permanente: todo mensaje del cliente se registra, conteste el bot o no.
-    this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, texto, "cliente", "entrante", lista), ahora);
+    this.cola.agregar("mensaje", this.cuerpoDeMensaje(e, taparPines(texto), "cliente", "entrante", lista), ahora);
     await this.programar();
 
     if (textoOriginal && noQuiereSeguimiento(textoOriginal) && !this.kv.bandera("sin_seguimiento")) {
@@ -693,21 +699,36 @@ export class MotorConversacion {
     await this.programar();
   }
 
-  private mensajesParaElModelo(): ModelMessage[] {
-    const filas = this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO);
+  /**
+   * El historial que ve el modelo. `ahora` son los mensajes que se están contestando en ESTE turno.
+   *
+   * Un turno puede terminar de contestar DESPUÉS de que el cliente escribió otra cosa: la respuesta del bot a la primera pregunta se
+   * guarda con un id mayor que la segunda pregunta. Si el historial acabara con la voz del propio bot, el modelo lo tomaría como el
+   * comienzo de su respuesta (o contestaría vacío). Por eso esa respuesta se coloca justo antes de lo que se contesta ahora.
+   */
+  private mensajesParaElModelo(ahora: number[] = []): ModelMessage[] {
+    let filas = this.mensajes.ultimos(HISTORIAL_PARA_EL_MODELO);
+    let fin = filas.length;
+    while (fin > 0 && filas[fin - 1].rol === "bot") fin--;
+    const cola = filas.slice(fin);
+    const primeraDeAhora = filas.findIndex((f) => ahora.includes(f.id));
+    if (cola.length > 0 && primeraDeAhora >= 0 && primeraDeAhora < fin) {
+      filas = [...filas.slice(0, primeraDeAhora), ...cola, ...filas.slice(primeraDeAhora, fin)];
+    }
     const salida: ModelMessage[] = [];
     for (const f of filas) {
       const adj = this.notaDeAdjuntosParaElModelo(f);
       if (f.rol === "cliente") {
-        salida.push({ role: "user", content: `${textoParaElModelo(f.texto)}${adj}` });
+        salida.push({ role: "user", content: `${recortarParaElModelo(textoParaElModelo(f.texto))}${adj}` });
       } else if (f.rol === "vendedora") {
         salida.push({ role: "assistant", content: `[Vendedora] ${f.texto}` });
       } else {
         salida.push({ role: "assistant", content: f.texto });
       }
     }
-    // La conversación del modelo empieza con el cliente.
+    // La conversación del modelo empieza con el cliente y termina con el cliente (lo último que dijo la IA no es nada que contestar).
     while (salida.length && salida[0].role !== "user") salida.shift();
+    while (salida.length && salida[salida.length - 1].role !== "user") salida.pop();
     return salida;
   }
 
@@ -819,7 +840,7 @@ export class MotorConversacion {
 
   private async turnoDeIA(cfg: Config, pend: FilaMensaje[], ids: number[], epoca0: number): Promise<void> {
     const ahora = this.deps.ahora();
-    const textoReciente = pend.map((p) => p.texto).join("\n");
+    const textoReciente = pend.map((p) => p.texto.slice(0, MAX_LETRAS_DE_UN_MENSAJE_PARA_EL_MODELO)).join("\n");
     const nivelPedido = elegirNivel({
       textoDelCliente: textoReciente,
       llamadasRecientes: (this.kv.numero("llamadas_t1") ?? 0) + (this.kv.numero("llamadas_t2") ?? 0),
@@ -855,6 +876,7 @@ export class MotorConversacion {
         return f ? { url: f.url, nombre: f.nombre ?? undefined } : undefined;
       },
       fotosYaEnviadas: () => this.fotosEnviadas(),
+      textoDelCliente: () => this.mensajes.textosDelCliente(8).join("\n"),
     });
 
     const primera = !this.kv.numero("bienvenida");
@@ -868,7 +890,7 @@ export class MotorConversacion {
         dentroDeHorario: this.kv.texto("odoo_dentro_horario") !== null ? this.kv.bandera("odoo_dentro_horario") : undefined,
         notaDeLaVendedora: this.kv.texto("nota_vendedora") ?? undefined,
       }) + extra;
-    const mensajes = this.mensajesParaElModelo();
+    const mensajes = this.mensajesParaElModelo(ids);
 
     // Mientras el modelo piensa y las herramientas consultan a Odoo, el cliente ve «escribiendo…».
     this.mostrarEscribiendo();
@@ -958,11 +980,21 @@ export class MotorConversacion {
     }
 
     for (const [codigo, f] of registro.fotos) this.fotos.guardar(codigo, f.url, f.nombre, ahora);
-    await this.responder(cfg, texto, registro.medios, usado.modelo);
+    const ultimoIdAntes = this.mensajes.ultimos(1)[0]?.id ?? 0;
+    try {
+      await this.responder(cfg, texto, registro.medios, usado.modelo);
+    } catch (e) {
+      // La respuesta ya estaba lista (y pagada) pero no salió: no se pierde en silencio.
+      await this.alFallarElEnvio(cfg, ids, e, ultimoIdAntes);
+      return;
+    }
+    this.kv.poner("fallos_envio", 0);
 
     this.kv.poner("llamadas_t2", this.kv.numero("llamadas_t1") ?? 0);
     this.kv.poner("llamadas_t1", registro.llamadas.length);
     for (const pin of new Set(registro.pines)) this.mensajes.redactar(pin, MARCA_PIN);
+    // Un PIN escrito en el chat no se queda en la historia que se le muestra al modelo, lo haya usado o no.
+    for (const pin of new Set(pend.flatMap((p) => pinesEscritos(p.texto)))) this.mensajes.redactar(pin, MARCA_PIN);
     if (registro.pasoAVendedora) this.kv.poner("pausa_hasta", this.deps.ahora() + cfg.pausa_por_defecto_minutos * 60_000);
   }
 
@@ -990,6 +1022,29 @@ export class MotorConversacion {
     this.cola.agregar("herramienta", { nombre: "pasar_a_vendedora", argumentos: { motivo } }, this.deps.ahora());
     await this.responder(cfg, TEXTO_FALLO_TECNICO, [], undefined);
     this.kv.poner("pausa_hasta", this.deps.ahora() + cfg.pausa_por_defecto_minutos * 60_000);
+  }
+
+  /**
+   * La respuesta estaba lista pero el canal no la dejó salir. Si no salió NADA, se reintenta el turno con calma (como si fallara la IA);
+   * si ya salió una parte, no se repite (el cliente vería dos veces lo mismo) y se avisa a una vendedora. Tras los reintentos, igual.
+   */
+  private async alFallarElEnvio(cfg: Config, ids: number[], e: unknown, ultimoIdAntes: number): Promise<void> {
+    const ahora = this.deps.ahora();
+    const algoSalio = this.mensajes.ultimos(10).some((f) => f.id > ultimoIdAntes && f.rol === "bot");
+    const fallos = this.kv.sumar("fallos_envio");
+    this.log("error", `la respuesta estaba lista pero no salió por el canal (${fallos})`, e instanceof Error ? e.message : String(e));
+    if (!algoSalio && fallos <= REINTENTOS_DE_IA.length) {
+      this.mensajes.marcarPendientes(ids, true);
+      this.kv.poner("t_rafaga", ahora + REINTENTOS_DE_IA[fallos - 1]);
+      return;
+    }
+    this.kv.poner("fallos_envio", 0);
+    if (algoSalio && !this.kv.numero("bienvenida")) this.kv.poner("bienvenida", ahora);
+    const motivo = algoSalio
+      ? "La respuesta del asistente se envió a medias: el canal falló. Revisar la conversación y escribirle al cliente."
+      : "El canal no dejó entregar la respuesta del asistente. Atender a mano.";
+    this.cola.agregar("herramienta", { nombre: "pasar_a_vendedora", argumentos: { motivo } }, ahora);
+    this.kv.poner("pausa_hasta", ahora + cfg.pausa_por_defecto_minutos * 60_000);
   }
 
   /** El re-chequeo con Odoo justo antes de enviar (docs/JUAN.md, `GET /estado`). */

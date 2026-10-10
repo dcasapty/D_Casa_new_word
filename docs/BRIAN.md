@@ -84,6 +84,13 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
   precio…) queda «por confirmar» como una sensible. Excepción: las que solo dejan un borrador
   revisable, marcadas `segura_con_adjuntos=True` (hoy `proponer_importacion`). La acción queda con
   `con_adjuntos` en el registro.
+* **Dura más de un turno** (ronda 8): el turno cuenta como «con adjuntos» si alguno de los **últimos 6 mensajes** de la persona trae
+  un archivo (el texto del adjunto sigue a la vista del modelo; un «ok, sigue» no quita la defensa).
+* **Texto que escribió un cliente** (`@herramienta(texto_externo=True)`, hoy `oportunidades_abiertas`): una vez usada una herramienta
+  así en el turno, las de construcción también piden confirmación («acabo de leer textos que escribieron clientes…»).
+* **Tamaño de lo que manda el modelo**: hasta 10 000 letras por dato y 30 000 entre todos, revisado **antes** de registrar la llamada
+  (si no, la auditoría —que no se puede borrar— se infla). `leer_lineas` rechaza líneas de más de 300 letras.
+* **Telegram**: el vínculo se revisa en cada mensaje y botón; un usuario archivado (o que ya no es interno) pierde su chat al instante.
 * Límite de pasos por turno y de mensajes por minuto por usuario.
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /
   GitHub Actions; **nunca en el repositorio**.

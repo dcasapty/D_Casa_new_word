@@ -61,6 +61,17 @@ les ha escrito en las últimas 24 horas** (campo calculado `dcasa_para_hoy`; la 
 No se usa «el último mensaje es del cliente», porque Juan contesta al instante y casi nunca se cumpliría. Están ordenadas de
 más caliente a más fría en **Conversaciones › Oportunidades**, en el acceso del Inicio y en Brian (`para_hoy`).
 
+## Lo que se corrigió después de la auditoría (`docs/auditoria/ronda8/crm-juan-brian.md`)
+
+- **Lo que ya existía no se adopta.** Las oportunidades de conversaciones que había antes de esta versión (migración `19.0.1.1.0`) y
+  las que una vendedora abrió **a mano** y luego se ligaron a una conversación quedan «en manos de una persona»
+  (`dcasa_auto_off`) y salen como «fría — la maneja una persona». Para que Juan las maneje: desmarcar *Una persona tomó el control*.
+- **El cron revisa todas**, de la más vieja a la más nueva, por tandas de 200, cerrando la transacción entre tanda y tanda.
+- **«Propuesta» solo con una cotización que sí salió.** La cotización de Juan nace en borrador y pasa a *Enviada* cuando el PDF ya
+  está en el hilo; si el PDF falla, queda en borrador (ligada a la oportunidad, para que la vendedora la encuentre) y nada avanza.
+- **«A quién escribirle hoy»** solo cuenta mensajes de una vendedora que sí le llegaron al cliente (no notas internas, ni
+  programados, ni fallidos).
+
 ## Lo que NO se hace en esta fase (queda escrito en issues del repositorio)
 
 - Seguimiento específico de cotizaciones sin respuesta.

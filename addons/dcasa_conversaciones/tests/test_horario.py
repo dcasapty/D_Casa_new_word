@@ -166,8 +166,17 @@ class TestPideNoContactar(BaseCase):
             with self.subTest(texto=texto):
                 self.assertTrue(H.pide_no_contactar(texto))
 
+    def test_las_otras_formas_de_pedirlo_tambien(self):
+        """Con «usted», en plural, en imperativo o con la palabra de baja de siempre."""
+        for texto in ('Dejen de escribirme por favor', 'deje de escribirme', 'paren de escribirme', 'Pare de molestar',
+                      'déjenme en paz', 'Dejame en paz', 'STOP', 'stop.', '¡Baja!', 'dejan de llamarme'):
+            with self.subTest(texto=texto):
+                self.assertTrue(H.pide_no_contactar(texto))
+
     def test_conversacion_normal_no_lo_activa(self):
         for texto in ('Hola, ¿tienen camas queen?', 'Escríbeme mañana por la tarde', 'me interesa el colchón',
-                      '¿Me puedes escribir el precio?', '', None):
+                      '¿Me puedes escribir el precio?', '', None, 'Es para enviar el pedido a Arraiján',
+                      'Necesito parar de pagar la letra', 'No dejen de avisarme cuando llegue',
+                      'Bus stop de La Chorrera', 'Quiero dejarlo en paz y silencio'):
             with self.subTest(texto=texto):
                 self.assertFalse(H.pide_no_contactar(texto))

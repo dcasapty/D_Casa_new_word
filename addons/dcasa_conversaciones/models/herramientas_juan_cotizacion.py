@@ -160,11 +160,11 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             'origin': origen,
             'order_line': [(0, 0, {'product_id': v.id, 'product_uom_qty': c}) for v, c in pares]})
         orden.message_post(
-            body=self.env._('Cotización armada por Juan (automática) desde la conversación de %s y enviada en PDF. '
+            body=self.env._('Cotización armada por Juan (automática) desde la conversación de %s. '
                             'Sin confirmar: una vendedora la revisa.', dict(conv._fields['canal'].selection).get(
                                 conv.canal, conv.canal)),
             subtype_xmlid='mail.mt_note')
-        orden.action_quotation_sent()
+        # Queda en borrador: pasa a «Enviada» solo cuando el PDF de verdad salió (ver ``_juan_cotizar``).
         return orden
 
     @api.model
@@ -255,9 +255,7 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             if self._j_cotizaciones_nuevas_hoy(conv) >= TOPE_NUEVAS_POR_DIA:
                 return _no_creada('tope_diario', 'Ya armé varias cotizaciones para este cliente hoy. ' + A_VENDEDORA)
             orden = self._j_crear_cotizacion(conv, pares)
-        lead = conv._ligar_cotizacion(orden)   # pedir una cotización es interés concreto: oportunidad y etapa
-        if lead:
-            lead._dcasa_al_cotizar(orden)
+        lead = conv._ligar_cotizacion(orden)   # pedir una cotización es interés concreto: oportunidad y temperatura
         datos = self._j_cotizacion_como_dict(orden)
         pdf = self._j_pdf_de_cotizacion(orden)
         if not pdf:
@@ -268,5 +266,9 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
                                             'total tal cual aparece abajo y que una vendedora le manda el '
                                             'documento. ' + A_VENDEDORA), 'cotizacion': datos}
         documento = self._j_dejar_pdf_en_el_hilo(conv, orden, pdf, datos['total_texto'])
+        if orden.state == 'draft':
+            orden.sudo().action_quotation_sent()   # recién ahora es cierto que se envió
+        if lead:
+            lead._dcasa_al_cotizar(orden)   # «Propuesta» y temperatura: solo con una cotización que sí salió
         return {'creada': True, 'reutilizada': reutilizada, 'cotizacion': datos, 'documento': documento,
                 'nota': NOTA_DE_COTIZACION}

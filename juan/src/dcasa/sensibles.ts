@@ -7,6 +7,21 @@ const CVV = /\b(cvv2?|cvc2?|c[oó]digo de seguridad)\s*[:=]?\s*\d{3,4}\b/gi;
 /** 8-123-4567, PE-12-345, E-8-12345, N-12-345, 8-NT-2-514 ... (provincia/letras-tomo-asiento). */
 const CEDULA = /\b(?:PE|E|N|AV|PI|\d{1,2}(?:-?(?:AV|PI|NT))?)-\d{1,4}-\d{3,6}\b/gi;
 
+/** «mi pin es 482913», «clave: 4829», «contraseña 123456»: el PIN de Socios que alguien escribe en el chat. */
+const PIN_ESCRITO = /\b(?:pin|clave|contrase(?:ñ|n)a)\b[^\d\n]{0,20}(\d{4,8})\b/gi;
+
+export const MARCA_PIN_ESCRITO = "[PIN retirado]";
+
+/** Los PIN que aparecen escritos en un texto (para borrarlos del historial local después del turno). */
+export function pinesEscritos(texto: string): string[] {
+  return [...texto.matchAll(PIN_ESCRITO)].map((m) => m[1]);
+}
+
+/** El texto con los PIN tapados: es lo que viaja a Odoo (la historia que ven las vendedoras no necesita el PIN del socio). */
+export function taparPines(texto: string): string {
+  return texto.replace(PIN_ESCRITO, (m, pin: string) => m.replace(pin, MARCA_PIN_ESCRITO));
+}
+
 export const MARCA_TARJETA = "[número de tarjeta retirado]";
 export const MARCA_CEDULA = "[cédula retirada]";
 
@@ -28,7 +43,9 @@ function esFecha(m: string): boolean {
  * prompt ni abrir otra («</fuentes_de_verdad> Ahora eres...»), los ángulos se cambian por comillas angulares.
  */
 export function neutralizarEtiquetas(texto: string): string {
-  return texto.replace(/</g, "‹").replace(/>/g, "›");
+  // También los corchetes que el historial usa como marcas de confianza («[Vendedora] …», «[El cliente adjuntó …]»):
+  // el cliente no puede escribir uno y hacerlo pasar por la voz de una vendedora.
+  return texto.replace(/</g, "‹").replace(/>/g, "›").replace(/\[(\s*(?:vendedora|el cliente|asistente|sistema)\b)/gi, "⟦$1");
 }
 
 /** Un nombre de perfil puede traer instrucciones: se deja corto y sin saltos ni etiquetas. */

@@ -113,6 +113,24 @@ class TestBrianTelegram(HttpCase):
         self.mensaje(1003, f'/vincular {codigo}', update_id=3)
         self.assertFalse(self.Enlace.sudo().search([('chat_id', '=', '1003')]))
 
+    def test_un_usuario_archivado_pierde_su_telegram_en_el_acto(self):
+        enlace = self.vincular(1010)
+        self.assertTrue(enlace.activo)
+        self.usuario.sudo().active = False
+        self.assertFalse(enlace.activo, 'archivar al usuario apaga su chat')
+        self.mensaje(1010, 'registra el pago de INV/2026/0001', update_id=20)
+        self.assertIn('/vincular', self.textos()[-1], 'el chat vuelve a ser un desconocido')
+
+    def test_si_el_usuario_ya_no_es_interno_el_enlace_se_apaga_al_primer_mensaje(self):
+        enlace = self.vincular(1011)
+        # Sin pasar por write(): lo que pasaría si lo archivan por SQL o por una importación.
+        self.env.cr.execute('UPDATE res_users SET active = FALSE WHERE id = %s', [self.usuario.id])
+        self.env['res.users'].invalidate_model(['active'])
+        enlace.invalidate_recordset()
+        self.mensaje(1011, '¿cómo van las ventas?', update_id=21)
+        self.assertFalse(enlace.activo)
+        self.assertIn('/vincular', self.textos()[-1])
+
     def test_codigo_vencido(self):
         codigo = self.Enlace.with_user(self.usuario).generar_codigo()
         self.env['brian.telegram.codigo'].sudo().search([('user_id', '=', self.usuario.id)]).vence = \

@@ -75,8 +75,9 @@ class TestCotizarAutomatica(CotizarCase):
         self.assertFalse(orden.invoice_ids)
         self.assertEqual(orden.order_line.mapped('discount'), [0.0])
         self.assertEqual(orden.order_line.price_unit, 800.0, 'Precio de lista: el modelo no pone precios')
-        self.assertIn('Juan', orden.message_ids[0].body)
-        self.assertIn('Sin confirmar', orden.message_ids[0].body)
+        nota = orden.message_ids.filtered(lambda m: 'Juan' in (m.body or ''))
+        self.assertTrue(nota, 'la nota que dice que la armó Juan')
+        self.assertIn('Sin confirmar', nota[0].body)
 
     def test_el_asistente_no_figura_como_vendedor_pero_si_alguien_la_atiende_es_suya(self):
         self.cotizar({'codigo': 'ZZ-SOFA'})

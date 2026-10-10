@@ -117,7 +117,9 @@ tocar nada y dice qué falta.
 1. GitHub → **Actions** → **CI/CD** → **Run workflow**.
 2. Rama `main`, *desplegar_en* = `staging` → **Run workflow**.
 3. Esperar a que todo quede en verde (tests ≈ 15-25 min, despliegue unos minutos más). El paso
-   «Esperar a que el sitio esté sano» confirma que respondió.
+   «Esperar a que el sitio esté sano» confirma que respondió. (Mientras espera visita `/web/login` en cada vuelta: la portada
+   sale de la copia guardada en el borde y **no** despierta a Odoo; así falló el despliegue 95, con el contenedor en
+   `stopped` durante los 20 minutos.)
 4. Abrir `URL_SITIO` de staging y luego `/web/login` → usuario `admin`, clave `ODOO_ADMIN_PASSWORD`
    de staging.
 5. Comprobar: portada, `/shop`, `/socios`, entrar al backend.

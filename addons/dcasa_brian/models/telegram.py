@@ -334,7 +334,7 @@ class BrianTelegramEnlace(models.Model):
             return False
         chat_id = str(chat['id'])
         texto = (mensaje.get('text') or mensaje.get('caption') or '').strip()
-        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        enlace = self._enlace_vigente(chat_id)
 
         comando, _, resto = texto.partition(' ')
         comando = comando.split('@')[0].lower() if texto.startswith('/') else ''
@@ -384,6 +384,15 @@ class BrianTelegramEnlace(models.Model):
         with _candado:
             _intentos.pop(chat_id, None)
         return self._enviar(chat_id, f'Listo, {usuario.name}: este chat quedó vinculado a tu usuario. {AYUDA}')
+
+    def _enlace_vigente(self, chat_id):
+        """El enlace activo del chat, o vacío. Si la persona ya no puede usar Brian (usuario archivado, o ya no es
+        interno) el enlace se apaga aquí mismo: vincular se revisa una vez, pero el chat sigue vivo meses."""
+        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        if enlace and not (enlace.user_id.active and enlace.user_id._is_internal()):
+            enlace.activo = False
+            return self.browse()
+        return enlace
 
     def _como_usuario(self):
         usuario = self.user_id
@@ -463,7 +472,7 @@ class BrianTelegramEnlace(models.Model):
         self._api('answerCallbackQuery', {'callback_query_id': callback.get('id')})
         if chat.get('type') != 'private' or str((callback.get('from') or {}).get('id')) != chat_id:
             return False
-        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        enlace = self._enlace_vigente(chat_id)
         coincide = re.fullmatch(r'brian:([cr]):(\d+)', callback.get('data') or '')
         if not enlace or not coincide:
             return False
@@ -507,3 +516,11 @@ class ResUsers(models.Model):
         if self and self != self.env.user:
             raise UserError(self.env._('Solo puedes vincular tu propio Telegram: hazlo desde tu perfil.'))
         return self.env['brian.telegram.enlace'].action_vincular()
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if vals.get('active') is False:
+            # Quien sale de la empresa pierde su chat de Telegram en el acto (los permisos los trae el usuario).
+            self.env['brian.telegram.enlace'].sudo().search(
+                [('user_id', 'in', self.ids), ('activo', '=', True)]).write({'activo': False})
+        return resultado

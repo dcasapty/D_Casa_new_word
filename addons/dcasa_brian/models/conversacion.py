@@ -109,6 +109,7 @@ from .uso import costo_estimado
 _logger = logging.getLogger(__name__)
 
 MAX_PASOS = 8
+MENSAJES_CON_ADJUNTOS = 6          # cuántos mensajes de la persona hacia atrás cuentan para «el turno trae adjuntos»
 MAX_SEGUNDOS_TURNO = 150            # el bucle corre dentro de la petición HTTP: no se pasa de esto
 MAX_TOKENS_HISTORIAL = 30000        # aproximado (caracteres / 4)
 MAX_RESULTADO_HERRAMIENTA = 12000   # caracteres guardados por resultado
@@ -632,7 +633,8 @@ class BrianConversacion(models.Model):
         contexto = _cargar(self.contexto, {})
         herramientas_env = self.env['brian.herramientas'].with_context(
             brian_contexto=contexto, brian_conversacion_id=self.id, brian_canal=self.canal,
-            brian_turno_con_adjuntos=self._turno_con_adjuntos())
+            brian_turno_con_adjuntos=self._turno_con_adjuntos(),
+            brian_turno_estado={'texto_externo': False})   # lo llena ``ejecutar`` (ver registro.py)
         sistema = self._sistema(contexto)
         consulta = self._ultima_consulta()
         herramientas = self._herramientas(consulta)
@@ -810,9 +812,14 @@ class BrianConversacion(models.Model):
         return [self._sistema_fijo(), '\n'.join(variable)]
 
     def _turno_con_adjuntos(self):
-        """¿El último mensaje de la persona trae archivos o fotos (contenido de terceros)?"""
-        ultimo = self.mensaje_ids.filtered(lambda m: m.rol == 'user' and not m.oculto).sorted('id')[-1:]
-        return bool(ultimo.adjunto_ids)
+        """¿Alguno de los últimos mensajes de la persona trae archivos o fotos (contenido de terceros)?
+
+        No solo el último: el texto extraído del adjunto se le sigue mostrando al modelo en los turnos que vienen, y
+        un «ok, sigue» no puede quitar la defensa que la factura con instrucciones escondidas ya activó.
+        """
+        suyos = self.mensaje_ids.filtered(lambda m: m.rol == 'user' and not m.oculto).sorted('id')
+        recientes = suyos[-MENSAJES_CON_ADJUNTOS:]
+        return any(m.adjunto_ids or m.datos_adjuntos for m in recientes)
 
     @api.model
     def _describir_pantalla(self, contexto):
@@ -1078,8 +1085,11 @@ class BrianMensaje(models.Model):
         salida = []
         for mensaje in self:
             herramientas, abrir = [], []
+            # Solo se muestran acciones de quien es dueño de la conversación: un mensaje creado a mano por RPC con el
+            # id de la acción de otra persona no puede servir para leer sus argumentos (se lee con sudo).
+            duenio = mensaje.conversacion_id.usuario_id
             # Las acciones del mensaje van en el mismo orden que sus tool calls: de ahí sale la duración.
-            acciones = list(mensaje.accion_ids.sudo().sorted('id'))
+            acciones = [a for a in mensaje.accion_ids.sudo().sorted('id') if a.create_uid == duenio]
             for llamada in _cargar(mensaje.tool_calls, []):
                 resultado = resultados.get(llamada.get('id'))
                 datos = _cargar(resultado.contenido, {}) if resultado else {}
@@ -1101,7 +1111,7 @@ class BrianMensaje(models.Model):
                     'abrir': destino,
                 })
             confirmacion = None
-            if mensaje.accion_id:
+            if mensaje.accion_id and mensaje.accion_id.sudo().create_uid == duenio:
                 accion = mensaje.accion_id.sudo()
                 destino = _destino_abrir(_cargar(accion.resultado, {})) if accion.estado == 'hecha' else None
                 if destino:

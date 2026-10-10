@@ -9,12 +9,14 @@ from unittest.mock import patch
 from freezegun import freeze_time
 
 from odoo import Command, fields
+from odoo.exceptions import ConcurrencyError
 from odoo.tests import tagged
 from odoo.tools import mute_logger
+from odoo.tools.misc import file_path
 
 from ..models import crm_reglas as R
 from ..models.crm_lead import ETAPA_COTIZADA
-from .test_cotizacion_automatica import CotizarCase
+from .test_cotizacion_automatica import RENDER, CotizarCase
 from .test_panel_catalogo import CatalogoCase
 
 AHORA = '2026-10-09 16:00:00'   # una hora después del mensaje de prueba (2026-10-09 15:00)
@@ -691,3 +693,128 @@ class TestBrianLeeElCrm(CrmCase):
         for nombre in ('oportunidades_abiertas', 'resumen_del_crm'):
             respuesta = self.brian(nombre, usuario=self.interno)
             self.assertFalse(respuesta['ok'], nombre)
+
+
+@tagged('post_install', '-at_install')
+class TestCorreccionesDeLaAuditoria(CrmCase):
+    """Los huecos que encontró la auditoría del 2026-10-10, cada uno con el escenario que lo rompía."""
+
+    @freeze_time(AHORA)
+    def test_si_el_pdf_no_sale_la_cotizacion_sigue_en_borrador_y_la_oportunidad_no_avanza(self):
+        with patch(RENDER, return_value=(b'<html>no es pdf</html>', 'html')):
+            datos = self.cotizar({'codigo': 'ZZ-SOFA'})
+        self.assertEqual(datos['motivo'], 'sin_pdf')
+        (orden,) = self.ordenes()
+        (lead,) = self.env['crm.lead'].search([('partner_id', '=', self.conv.partner_id.id)])
+        self.assertEqual(orden.state, 'draft', 'no se envió nada: no puede figurar como enviada')
+        self.assertEqual(orden.opportunity_id, lead, 'sí queda ligada, para que la vendedora la encuentre')
+        self.assertNotEqual(lead.stage_id, self.etapa(ETAPA_COTIZADA))
+        self.cron()
+        self.assertNotEqual(lead.stage_id, self.etapa(ETAPA_COTIZADA), 'tampoco el cron la adelanta')
+        self.assertNotIn('cotización', (lead.dcasa_temperatura_motivo or ''))
+
+    @freeze_time(AHORA)
+    def test_con_el_pdf_enviado_la_cotizacion_pasa_a_enviada_y_la_oportunidad_a_propuesta(self):
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        (orden,) = self.ordenes()
+        (lead,) = self.env['crm.lead'].search([('partner_id', '=', self.conv.partner_id.id)])
+        self.assertEqual(orden.state, 'sent')
+        self.assertEqual(lead.stage_id, self.etapa(ETAPA_COTIZADA))
+
+    def cron(self):
+        return self.env['crm.lead']._dcasa_cron_crm()
+
+    @freeze_time(AHORA)
+    def test_una_oportunidad_hecha_a_mano_se_liga_pero_queda_en_manos_de_su_persona(self):
+        manual = self.env['crm.lead'].with_user(self.vendedora).create({
+            'name': 'Sala para Karen (llamada)', 'type': 'opportunity', 'partner_id': self.conv.partner_id.id,
+            'user_id': self.vendedora.id})
+        self.assertFalse(manual.dcasa_auto_off)
+        datos = self.salida('crear_oportunidad', {'resumen': 'Quiere una cama queen', 'interes': 'Cama queen'})
+        self.assertEqual(datos['oportunidad_id'], manual.id, 'no duplica: usa la que ya había')
+        self.assertTrue(manual.dcasa_auto_off, 'el CRM automático no adopta lo que una persona abrió')
+        self.conv.write({'ultima_actividad': fields.Datetime.now() - timedelta(days=90)})
+        self.cron()
+        self.assertTrue(manual.active, 'ni la archiva por días sin mensajes')
+        self.assertEqual(manual.dcasa_temperatura, R.FRIO, 'sin juicio propio: «fría» para que no salga de primera')
+        self.assertEqual(manual.dcasa_temperatura_motivo, 'la maneja una persona')
+
+    @freeze_time(AHORA)
+    def test_una_oportunidad_que_nacio_de_la_conversacion_si_queda_automatica(self):
+        lead = self.lead()
+        self.assertFalse(lead.dcasa_auto_off)
+        self.assertTrue(lead.dcasa_temperatura)
+
+    def test_la_migracion_deja_en_manos_de_personas_lo_que_ya_existia(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            'mig110', file_path('dcasa_conversaciones/migrations/19.0.1.1.0/post-migrate.py'))
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        de_conversacion = self.env['crm.lead'].create({'name': 'Vieja de Juan', 'type': 'opportunity'})
+        self.conv.write({'oportunidad_id': de_conversacion.id})
+        suelta = self.env['crm.lead'].create({'name': 'Hecha a mano sin conversación', 'type': 'opportunity'})
+        self.assertFalse(de_conversacion.dcasa_auto_off or suelta.dcasa_auto_off)
+        self.env.flush_all()
+        mig.migrate(self.env.cr, '19.0.1.0.2')
+        self.env.invalidate_all()
+        self.assertTrue(de_conversacion.dcasa_auto_off)
+        self.assertEqual(de_conversacion.dcasa_temperatura, R.FRIO, 'sin temperatura saldría de primera en la lista')
+        self.assertFalse(suelta.dcasa_auto_off, 'solo lo que viene de una conversación')
+        self.assertFalse(suelta.dcasa_temperatura)
+
+    @freeze_time(AHORA)
+    def test_el_cron_revisa_todas_las_oportunidades_aunque_pasen_del_tamano_de_la_tanda(self):
+        otras = []
+        for i in range(4):
+            conv = self.conversacion(nombre=f'Cliente {i}', id_externo=f'5076000010{i}', texto='hola')
+            datos = self.salida('crear_oportunidad', {'resumen': 'Quiere un sofá', 'interes': f'Sofá {i}'}, conv=conv)
+            otras.append(self.env['crm.lead'].browse(datos['oportunidad_id']))
+        for lead in otras:
+            self.orden_enviada(lead)
+        with patch('odoo.addons.dcasa_conversaciones.models.crm_lead.LOTE_DEL_CRON', 2):
+            resumen = self.cron()
+        self.assertEqual(resumen.get('cotizada'), 4, 'las cuatro, también las más viejas')
+        for lead in otras:
+            self.assertEqual(lead.stage_id, self.etapa(ETAPA_COTIZADA))
+
+    @freeze_time(AHORA)
+    def test_una_nota_interna_o_un_mensaje_que_no_salio_no_cuentan_como_haberle_escrito(self):
+        lead = self.lead(cuando='esta semana')
+        self.assertTrue(lead.dcasa_para_hoy)
+        Mensaje = self.env['dcasa.mensaje'].sudo()
+        base = {'conversacion_id': self.conv.id, 'autor': 'vendedora',
+                'ts': fields.Datetime.now() - timedelta(hours=1)}
+        Mensaje.create({**base, 'id_mensaje': 'nota-1', 'tipo': 'nota', 'direccion': 'interna',
+                        'texto': 'ojo con ella'})
+        for i, estado in enumerate(('por_enviar', 'fallido')):
+            Mensaje.create({**base, 'id_mensaje': f'odoo-{i}', 'tipo': 'mensaje', 'direccion': 'saliente',
+                            'texto': 'Hola, soy Ana', 'origen': 'odoo', 'estado_envio': estado})
+        Mensaje.create({**base, 'id_mensaje': 'prog-1', 'tipo': 'mensaje', 'direccion': 'saliente', 'texto': 'Mañana',
+                        'origen': 'odoo', 'estado_envio': 'programado',
+                        'programado_para': fields.Datetime.now() + timedelta(days=1),
+                        'ts': fields.Datetime.now() + timedelta(hours=20)})
+        lead.invalidate_recordset()
+        self.assertTrue(lead.dcasa_para_hoy, 'nadie le escribió de verdad')
+        self.registrar('Hola, soy Ana de D\'CASA', autor='vendedora', ts=fields.Datetime.now() - timedelta(hours=1))
+        lead.invalidate_recordset()
+        self.assertFalse(lead.dcasa_para_hoy, 'ahora sí')
+
+    def test_un_choque_de_concurrencia_se_reintenta_no_se_traga(self):
+        lead = self.lead()
+
+        def choca():
+            raise ConcurrencyError('res.partner')
+
+        with self.assertRaises(ConcurrencyError):
+            lead._dcasa_seguro('prueba', choca)
+        with mute_logger('odoo.addons.dcasa_conversaciones.models.crm_lead'):
+            self.assertIsNone(lead._dcasa_seguro('prueba', lambda: 1 / 0), 'un error cualquiera sí se registra y sigue')
+
+    @freeze_time(AHORA)
+    def test_ligar_la_cotizacion_tampoco_traga_un_choque_de_concurrencia(self):
+        self.cotizar({'codigo': 'ZZ-SOFA'})
+        (orden,) = self.ordenes()
+        with patch.object(type(self.conv), '_oportunidad', side_effect=ConcurrencyError('crm.lead')):
+            with self.assertRaises(ConcurrencyError):
+                self.conv._ligar_cotizacion(orden)

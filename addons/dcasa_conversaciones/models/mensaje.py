@@ -70,6 +70,10 @@ class DcasaMensaje(models.Model):
     # índice recorre todos los mensajes.
     texto = fields.Text(readonly=True, index='trigram')
     ts = fields.Datetime('Fecha', required=True, readonly=True, default=fields.Datetime.now, index=True)
+    chatter_id = fields.Many2one(
+        'mail.message', 'Copia en la ficha del cliente', readonly=True, copy=False, ondelete='set null',
+        index='btree_not_null',
+        help='La nota que este mensaje dejó en el chatter del cliente. Se borra junto con el mensaje (Ley 81).')
     adjunto_ids = fields.Many2many('ir.attachment', 'dcasa_mensaje_adjunto_rel', 'mensaje_id', 'adjunto_id',
                                    string='Adjuntos', readonly=True)
     adjuntos_fallidos = fields.Integer('Adjuntos que no se pudieron traer', readonly=True)
@@ -110,6 +114,13 @@ class DcasaMensaje(models.Model):
     _hilo_idx = models.Index('(conversacion_id, id)')
     # Solo lo que espera salir o falló (unas pocas filas entre muchas): los crones lo encuentran sin recorrer todo.
     _pendientes_idx = models.Index("(estado_envio) WHERE estado_envio IN ('por_enviar', 'programado', 'fallido')")
+
+    def unlink(self):
+        """Borrar un mensaje (derecho de borrado, Ley 81) borra también su copia en la ficha del cliente."""
+        copias = self.sudo().chatter_id
+        resultado = super().unlink()
+        copias.sudo().unlink()
+        return resultado
 
     # ------------------------------------------------------------------
     # El historial no se edita
@@ -230,9 +241,10 @@ class DcasaMensaje(models.Model):
         if self.adjuntos_fallidos:
             cuerpo += Markup('<p><em>%s</em></p>') % escape(self.env._(
                 'No se pudo traer %s adjunto(s) del mensaje.', self.adjuntos_fallidos))
-        partner.with_context(mail_post_autofollow=False).message_post(
+        copia = partner.with_context(mail_post_autofollow=False).message_post(
             body=cuerpo, message_type='comment', subtype_xmlid='mail.mt_note', author_id=autor_id,
             attachment_ids=self.adjunto_ids.ids)
+        self.sudo().chatter_id = copia   # para poder borrarla con el mensaje
 
     @api.model
     def _partner_del_bot(self):

@@ -26,6 +26,7 @@ from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from . import adjuntos as A
 from . import celulares, transaccion
+from . import crm_reglas as R
 from . import horario as H
 from .ajustes import CANALES, CANALES_CON_CELULAR
 from .mensaje import CLAVE_SISTEMA, VENTANA_ADOPCION
@@ -249,8 +250,21 @@ class DcasaConversacion(models.Model):
     def unlink(self):
         """Borrar una conversación (derecho de borrado, Ley 81) borra sus mensajes y adjuntos por el ORM."""
         self.check_access('unlink')   # primero el permiso; los mensajes se borran con sudo
+        self._olvidar_preguntas()
         self.sudo().mensaje_ids.unlink()
         return super().unlink()
+
+    def _olvidar_preguntas(self):
+        """Las preguntas «sin respuesta» que salieron SOLO de estas conversaciones se van con ellas; si otras
+        conversaciones también la hicieron, se queda la pregunta (sin el contexto de esta)."""
+        Pregunta = self.env['dcasa.pregunta_pendiente'].sudo()
+        dominio = ['|', ('conversacion_id', 'in', self.ids), ('conversacion_ids', 'in', self.ids)]
+        for pregunta in Pregunta.search(dominio):
+            if pregunta.conversacion_ids - self:
+                if pregunta.conversacion_id in self:
+                    pregunta.resumen = False
+            else:
+                pregunta.unlink()
 
     # ------------------------------------------------------------------
     # Entrada de mensajes (la usa la API; privado: escribe con sudo)
@@ -920,6 +934,14 @@ class DcasaConversacion(models.Model):
         nota = Markup('<p><strong>%s</strong></p><p>%s</p>') % (
             escape(self.env._('Desde la conversación de %s', etiqueta)), escape(resumen or ''))
         if abierta:
+            if not abierta.dcasa_conversacion_ids and not abierta.dcasa_auto_off:
+                # La creó una persona a mano: se liga a la conversación, pero el CRM automático no la mueve.
+                abierta.with_context(dcasa_auto=True).write({
+                    'dcasa_auto_off': True,
+                    # Sin temperatura saldría de primera en la lista (los vacíos van primero de mayor a menor).
+                    'dcasa_temperatura': abierta.dcasa_temperatura or R.FRIO,
+                    'dcasa_temperatura_motivo': (
+                        abierta.dcasa_temperatura_motivo or self.env._('la maneja una persona'))})
             abierta.message_post(body=nota, subtype_xmlid='mail.mt_note')
             if presupuesto and not abierta.expected_revenue:
                 abierta.write({'expected_revenue': presupuesto})
@@ -972,6 +994,8 @@ class DcasaConversacion(models.Model):
                     interes=texto[:100] or orden.name)
                 orden.sudo().write({'opportunity_id': lead.id})
             return lead
+        except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+            raise   # Odoo repite toda la petición; tragarlo dejaría la cotización sin oportunidad para siempre
         except Exception:   # noqa: BLE001 — ligar es un extra: no puede tumbar la cotización ya hecha
             _logger.exception('No pude ligar la cotización %s a una oportunidad.', orden.id)
             self.env.invalidate_all()

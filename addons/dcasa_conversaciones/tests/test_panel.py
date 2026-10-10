@@ -977,6 +977,29 @@ class TestEliminarConversacion(PanelCase):
         self.assertTrue(lead.exists())
         self.assertTrue(partner.exists())
 
+    def test_tambien_se_va_la_copia_que_cada_mensaje_dejo_en_la_ficha_del_cliente(self):
+        partner = self.conv.partner_id
+        copias = self.conv.mensaje_ids.chatter_id
+        self.assertTrue(copias, 'cada mensaje deja su copia en la ficha')
+        otra = partner.message_post(body='Llamé a Karen y quiere pasar el sábado', message_type='comment',
+                                    subtype_xmlid='mail.mt_note')
+        self.gerencia.eliminar(self.conv.id)
+        self.assertFalse(copias.exists(), 'el texto del cliente no puede quedar en su ficha')
+        self.assertTrue(otra.exists(), 'lo que escribió una persona a mano en la ficha no se toca')
+
+    def test_las_preguntas_que_solo_salieron_de_esta_conversacion_se_olvidan(self):
+        Pregunta = self.env['dcasa.pregunta_pendiente']
+        sola, _ = Pregunta._registrar('¿Hacen entrega en Bejuco?', 'Cliente de Bejuco', self.conv)
+        otra_conv = self.cliente(2, nombre='Otra Persona')
+        compartida, _ = Pregunta._registrar('¿Aceptan Yappy para pagar?', 'Contexto de Karen', self.conv)
+        Pregunta._registrar('¿Aceptan Yappy para pagar?', 'Contexto de Otra', otra_conv)
+        self.assertEqual(compartida.conversacion_ids, self.conv | otra_conv)
+        self.gerencia.eliminar(self.conv.id)
+        self.assertFalse(sola.exists())
+        self.assertTrue(compartida.exists())
+        self.assertEqual(compartida.conversacion_ids, otra_conv)
+        self.assertNotIn('Karen', compartida.resumen or '')
+
     def test_las_vendedoras_no_pueden(self):
         with self.assertRaises(AccessError):
             self.panel.eliminar(self.conv.id)

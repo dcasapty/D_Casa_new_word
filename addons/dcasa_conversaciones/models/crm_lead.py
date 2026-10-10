@@ -16,9 +16,10 @@ from datetime import timedelta
 
 from markupsafe import escape
 
-from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo import api, fields, models, modules
+from odoo.exceptions import ConcurrencyError, UserError
 from odoo.fields import Domain
+from odoo.service.model import PG_CONCURRENCY_EXCEPTIONS_TO_RETRY
 
 from . import crm_reglas as R
 
@@ -27,7 +28,7 @@ _logger = logging.getLogger(__name__)
 ETAPA_COTIZADA = 'crm.stage_lead3'                                   # «Propuesta»
 MOTIVO_SIN_RESPUESTA = 'dcasa_conversaciones.perdida_sin_respuesta'
 ESTADOS_COTIZADA = ('sent', 'sale')
-LOTE_DEL_CRON = 500
+LOTE_DEL_CRON = 200   # oportunidades por tanda; entre una tanda y otra se cierra la transacción
 HORAS_SIN_CONTACTO = 24   # «a quién escribirle hoy»: ninguna vendedora le escribió en las últimas 24 horas
 FACTURA_PAGADA = ('paid', 'in_payment')   # como en «Socios» y en el seguimiento: ``_dcasa_conv_ya_compro``
 
@@ -67,14 +68,19 @@ class CrmLead(models.Model):
         """Pendientes, de una conversación, tibias o calientes y sin mensaje de una vendedora en las últimas 24 h.
 
         Juan contesta al instante: «el último mensaje es del cliente» casi nunca se cumple. Lo útil para una vendedora
-        es lo que ya está tibio o caliente y nadie del equipo ha tocado.
+        es lo que ya está tibio o caliente y nadie del equipo ha tocado. Solo cuenta un mensaje que SÍ le llegó al
+        cliente: una nota interna, un mensaje programado para después o uno que falló al enviarse no es haberle escrito.
         """
-        corte = fields.Datetime.now() - timedelta(hours=HORAS_SIN_CONTACTO)
+        ahora = fields.Datetime.now()
+        corte = ahora - timedelta(hours=HORAS_SIN_CONTACTO)
         return [
             ('type', '=', 'opportunity'), ('active', '=', True), ('won_status', '=', 'pending'),
             ('dcasa_temperatura', 'in', [R.TIBIO, R.CALIENTE]), ('dcasa_conversacion_ids', '!=', False),
             ('dcasa_conversacion_ids', 'not any', [
-                ('mensaje_ids', 'any', [('autor', '=', 'vendedora'), ('ts', '>=', corte)])])]
+                ('mensaje_ids', 'any', [
+                    ('autor', '=', 'vendedora'), ('tipo', '=', 'mensaje'),
+                    ('estado_envio', 'not in', ['por_enviar', 'programado', 'fallido']),
+                    ('ts', '>=', corte), ('ts', '<=', ahora)])])]
 
     def _compute_dcasa_para_hoy(self):
         ids = set(self._search(Domain(self._dcasa_dominio_para_hoy()) & Domain('id', 'in', self.ids)))
@@ -132,6 +138,8 @@ class CrmLead(models.Model):
         try:
             with self.env.cr.savepoint():
                 return funcion()
+        except (ConcurrencyError, *PG_CONCURRENCY_EXCEPTIONS_TO_RETRY):
+            raise   # no es de las reglas: Odoo repite TODA la petición (tragarlo dejaría el cambio a medias)
         except Exception:   # noqa: BLE001 — el CRM automático no puede tumbar lo que hizo la vendedora o Juan
             _logger.exception('CRM automático: falló «%s» en la oportunidad %s', que, self.ids)
             self.env.invalidate_all()
@@ -285,23 +293,33 @@ class CrmLead(models.Model):
 
     @api.model
     def _dcasa_cron_crm(self):
-        """Cada 15 minutos: lee los hechos de las oportunidades de conversaciones y las ajusta. Devuelve un resumen."""
-        ajustes = self.env['dcasa.juan.ajustes'].obtener()
-        if not ajustes.crm_automatico:
+        """Cada 15 minutos: lee los hechos de las oportunidades de conversaciones y las ajusta. Devuelve un resumen.
+
+        Las revisa TODAS, de la más vieja a la más nueva y por tandas: entre una tanda y otra se cierra la transacción
+        (no deja filas bloqueadas mucho rato y un fallo tardío no deshace lo ya ajustado). Si el cron se queda sin
+        tiempo, la siguiente corrida empieza de nuevo y alcanza a las que faltaron.
+        """
+        if not self.env['dcasa.juan.ajustes'].obtener().crm_automatico:
             return {}
-        leads = self.sudo().search([
-            ('type', '=', 'opportunity'), ('won_status', '=', 'pending'), ('dcasa_auto_off', '=', False),
-            ('dcasa_conversacion_ids', '!=', False)], order='id desc', limit=LOTE_DEL_CRON)
-        if len(leads) >= LOTE_DEL_CRON:
-            _logger.warning(
-                'CRM automático: hay %s o más oportunidades pendientes; este turno revisa las %s más nuevas.',
-                LOTE_DEL_CRON, LOTE_DEL_CRON)
-        resumen = {}
-        for lead in leads:
-            hecho = lead._dcasa_seguro('reglas', lambda lead=lead: lead._dcasa_aplicar_reglas(ajustes)) or {}
-            for clave, cuenta in hecho.items():
-                resumen[clave] = resumen.get(clave, 0) + cuenta
-        return resumen
+        resumen, ultimo = {}, 0
+        while True:
+            ajustes = self.env['dcasa.juan.ajustes'].obtener()
+            leads = self.sudo().search([
+                ('type', '=', 'opportunity'), ('won_status', '=', 'pending'), ('dcasa_auto_off', '=', False),
+                ('dcasa_conversacion_ids', '!=', False), ('id', '>', ultimo)], order='id asc', limit=LOTE_DEL_CRON)
+            if not leads:
+                return resumen
+            ultimo = leads[-1].id
+            for lead in leads:
+                hecho = lead._dcasa_seguro(
+                    'reglas', lambda lead=lead, ajustes=ajustes: lead._dcasa_aplicar_reglas(ajustes)) or {}
+                for clave, cuenta in hecho.items():
+                    resumen[clave] = resumen.get(clave, 0) + cuenta
+            # En las pruebas no se cierra la transacción (Odoo lo prohíbe); en el cron real sí, tanda por tanda.
+            tiempo = float('inf') if modules.module.current_test else self.env['ir.cron']._commit_progress(len(leads))
+            if tiempo <= 0:
+                _logger.warning('CRM automático: se acabó el tiempo del cron; sigue en la próxima corrida.')
+                return resumen
 
     def _dcasa_al_cotizar(self, orden):
         """Una cotización de esta oportunidad se envió: etapa y temperatura al momento (sin esperar al cron)."""
