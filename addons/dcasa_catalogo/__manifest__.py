@@ -25,20 +25,24 @@ las ventas y la tienda web.
 * Inventario del sistema anterior (data/inventario_anterior.csv, transcrito de las capturas de
   «up media/inventario-anterior»): existencias, costo y precio por código; los códigos nuevos
   entran como productos (publicados solo con foto); combos con colchón sin publicar.
+* Stock y precios (models/producto_stock.py): lista de solo lectura para elegir qué empujar en una campaña, con
+  stock, precio y categoría ordenables, filtros por estado de stock y precio, favoritos de orden y tabla dinámica.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.7.0',
+    'version': '19.0.1.8.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
     'depends': ['dcasa_base', 'website_dcasa', 'website_sale_stock'],
     'data': [
+        'security/ir.model.access.csv',
         'data/product_category_data.xml',
         'data/product_public_category_data.xml',
         'views/backend_views.xml',
         'views/product_templates.xml',
+        'views/producto_stock_views.xml',
     ],
     'assets': {
         'web.assets_frontend': [
