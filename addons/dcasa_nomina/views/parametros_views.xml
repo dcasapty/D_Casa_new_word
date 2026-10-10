@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="parametros_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.parametros.list</field>
+        <field name="model">dcasa.nomina.parametros</field>
+        <field name="arch" type="xml">
+            <list string="Tasas y reglas" decoration-warning="estado == 'borrador'" decoration-success="estado == 'validado'">
+                <field name="fecha_desde"/>
+                <field name="css_trabajador"/>
+                <field name="css_patronal"/>
+                <field name="se_trabajador"/>
+                <field name="se_patronal"/>
+                <field name="riesgo_profesional"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'validado'" decoration-warning="estado == 'borrador'"/>
+                <field name="validado_por" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="parametros_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.parametros.form</field>
+        <field name="model">dcasa.nomina.parametros</field>
+        <field name="arch" type="xml">
+            <form string="Tasas y reglas de la planilla">
+                <header>
+                    <button name="action_validar" type="object" string="Validar (contador)" class="btn-primary"
+                            invisible="estado == 'validado'"
+                            confirm="Al validar, estas tasas quedan fijas y la planilla podrá confirmarse con ellas. ¿El contador las revisó?"/>
+                    <button name="action_reabrir" type="object" string="Reabrir" invisible="estado == 'borrador'"
+                            confirm="Las tasas vuelven a estar por validar y la planilla no se podrá confirmar hasta validarlas otra vez. ¿Seguro?"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <div class="alert alert-warning" role="alert" invisible="estado == 'validado'">
+                        <strong>Por validar.</strong> Con estas tasas la planilla se puede calcular como borrador, pero no se
+                        confirma hasta que el contador las valide. Cifras tomadas de fuentes públicas, no de la Gaceta Oficial.
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not pendientes or estado == 'validado'">
+                        <strong>Falta para poder validar:</strong>
+                        <field name="pendientes" readonly="1" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="not planillas_usadas">
+                        Ya la usaron <field name="planillas_usadas" class="oe_inline" readonly="1"/> planillas confirmadas:
+                        no se cambia; para una tasa nueva crea otra vigencia con «Duplicar».
+                    </div>
+                    <group>
+                        <group>
+                            <field name="fecha_desde" readonly="estado == 'validado'"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="estado == 'validado'"/>
+                        </group>
+                        <group>
+                            <field name="validado_por"/>
+                            <field name="validado_el"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Planilla quincenal" name="quincena">
+                            <group>
+                                <group string="Trabajador (se descuenta)">
+                                    <field name="css_trabajador" readonly="estado == 'validado'"/>
+                                    <field name="se_trabajador" readonly="estado == 'validado'"/>
+                                    <field name="isr_descuenta_css_se" readonly="estado == 'validado'"/>
+                                </group>
+                                <group string="Patrono (lo paga D'CASA)">
+                                    <field name="css_patronal" readonly="estado == 'validado'"/>
+                                    <field name="se_patronal" readonly="estado == 'validado'"/>
+                                    <field name="riesgo_profesional" readonly="estado == 'validado'"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Impuesto sobre la renta" name="isr">
+                            <p class="text-muted">Cada tramo grava solo la parte de la renta anual que cae en él. El último tramo no
+                                lleva «hasta». La retención de cada quincena se calcula proyectando el salario a 24 quincenas.</p>
+                            <field name="tramo_ids" readonly="estado == 'validado'">
+                                <list editable="bottom">
+                                    <field name="desde"/>
+                                    <field name="hasta"/>
+                                    <field name="tasa"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Décimo tercer mes" name="decimo">
+                            <p class="text-muted">Los aportes del décimo pueden ser distintos a los de la quincena. No se rellenan
+                                a ojo: los pone el contador y marca que los confirmó.</p>
+                            <group>
+                                <group string="Trabajador">
+                                    <field name="css_trabajador_decimo" readonly="estado == 'validado'"/>
+                                    <field name="se_trabajador_decimo" readonly="estado == 'validado'"/>
+                                </group>
+                                <group string="Patrono">
+                                    <field name="css_patronal_decimo" readonly="estado == 'validado'"/>
+                                    <field name="se_patronal_decimo" readonly="estado == 'validado'"/>
+                                    <field name="riesgo_profesional_decimo" readonly="estado == 'validado'"/>
+                                </group>
+                            </group>
+                            <field name="decimo_listo" readonly="estado == 'validado'"/>
+                        </page>
+                        <page string="Vacaciones y prima" name="vacaciones">
+                            <group>
+                                <field name="vacaciones_dias_de_trabajo_por_dia_de_descanso" readonly="estado == 'validado'"/>
+                                <field name="prima_semanas_por_anio" readonly="estado == 'validado'"/>
+                                <field name="semanas_por_mes" readonly="estado == 'validado'"/>
+                            </group>
+                        </page>
+                        <page string="Fuente y notas del contador" name="fuente">
+                            <group>
+                                <field name="fuente" placeholder="Ley, decreto o documento de donde salió cada cifra"/>
+                                <field name="notas_contador" placeholder="Qué revisó el contador y contra qué documento"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_parametros" model="ir.actions.act_window">
+        <field name="name">Tasas y reglas</field>
+        <field name="res_model">dcasa.nomina.parametros</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aquí viven las tasas de la ley</p>
+            <p>Cada juego de tasas rige desde una fecha. El contador las valida antes de confirmar una planilla.</p>
+        </field>
+    </record>
+</odoo>

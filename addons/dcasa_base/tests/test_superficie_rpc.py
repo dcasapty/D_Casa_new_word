@@ -33,6 +33,13 @@ PANEL_GERENCIA = ('API de la pantalla de Juan solo para Gerencia: exige sales_te
 PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
                 '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
+NOMINA_BOTON = ('Botón de nómina: check_access("write") (grupo «Administra la nómina») ANTES de cualquier sudo(); el '
+                'sudo solo cambia el estado, que nunca se escribe por RPC (write lo exige).')
+NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia (solo con sudo desde sus botones); '
+                  'sin sudo, con el ACL del grupo «Administra la nómina».')
+NOMINA_REEMBOLSO = ('Botón del reembolso: el colaborador solo el suyo; aprobar y rechazar exigen el grupo '
+                    '«Administra la nómina» en el servidor; el estado solo cambia con sudo, ya comprobado.')
+
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
     # --- dcasa_base -------------------------------------------------------------------------
@@ -75,6 +82,42 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_reabrir'):
         'Botón: exige account.group_account_manager y motivo ANTES de bajar la fecha de bloqueo con sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes.paso', 'action_ver'): ACCION_VENTANA,
+    # --- dcasa_nomina -------------------------------------------------------------------
+    ('dcasa_nomina', 'dcasa.nomina.config', 'action_abrir'):
+        ACCION_VENTANA + ' Exige leer la configuración (grupo Nómina).',
+    ('dcasa_nomina', 'dcasa.nomina.parametros', 'action_validar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.parametros', 'action_reabrir'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.parametros', 'create'): OVERRIDE + ' Una copia nunca nace validada.',
+    ('dcasa_nomina', 'dcasa.nomina.parametros', 'write'): NOMINA_BLOQUEO,
+    ('dcasa_nomina', 'dcasa.nomina.isr.tramo', 'create'): NOMINA_BLOQUEO,
+    ('dcasa_nomina', 'dcasa.nomina.isr.tramo', 'write'): NOMINA_BLOQUEO,
+    ('dcasa_nomina', 'dcasa.nomina.isr.tramo', 'unlink'): NOMINA_BLOQUEO,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_calcular'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_confirmar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_pagar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_borrador'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_cancelar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'write'):
+        'Bloquea: el estado solo cambia con los botones y una planilla confirmada no cambia de periodo; sin sudo.',
+    ('dcasa_nomina', 'dcasa.nomina.linea', 'create'):
+        'Bloquea: no se agregan colaboradores a una planilla confirmada; sin sudo.',
+    ('dcasa_nomina', 'dcasa.nomina.linea', 'write'):
+        'Bloquea: una línea confirmada no cambia y el pago solo se anota con «Pagar»; sin sudo.',
+    ('dcasa_nomina', 'dcasa.nomina.vacacion', 'action_confirmar'): SIN_SUDO,
+    ('dcasa_nomina', 'dcasa.nomina.vacacion', 'action_cancelar'): SIN_SUDO,
+    ('dcasa_nomina', 'dcasa.nomina.vacacion', 'action_borrador'): SIN_SUDO,
+    ('dcasa_nomina', 'dcasa.nomina.liquidacion', 'action_calcular'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.liquidacion', 'action_revisar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.liquidacion', 'action_borrador'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'action_enviar'): NOMINA_REEMBOLSO,
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'action_aprobar'): NOMINA_REEMBOLSO,
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'action_rechazar'): NOMINA_REEMBOLSO,
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'action_borrador'): NOMINA_REEMBOLSO,
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'create'):
+        'Bloquea: el colaborador solo registra a su nombre y no pone estado ni aprobación; la foto sin dueño se '
+        'le asigna con sudo solo si la subió él.',
+    ('dcasa_nomina', 'dcasa.nomina.reembolso', 'write'):
+        'Bloquea: el colaborador solo edita su borrador; estado y aprobación solo por los botones (sudo).',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',

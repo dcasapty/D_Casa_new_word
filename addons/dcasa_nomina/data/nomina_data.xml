@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        Tasas de PARTIDA, tomadas de fuentes públicas (despachos de abogados y medios sobre la Ley 462 de 2025 y
+        el Código Fiscal), NO de la Gaceta Oficial. Quedan «Por validar»: la planilla se puede calcular como
+        borrador, pero NO se confirma hasta que el contador las revise y las valide (Nómina › Configuración › Tasas
+        y reglas). Faltan a propósito, porque no se rellenan a ojo: el riesgo profesional (depende de la clase de
+        riesgo que le asigne la CSS a D'CASA) y las tasas del décimo tercer mes (las fuentes no coinciden).
+    -->
+    <record id="parametros_2025_04" model="dcasa.nomina.parametros">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="fecha_desde">2025-04-01</field>
+        <field name="css_trabajador">9.75</field>
+        <field name="css_patronal">13.25</field>
+        <field name="se_trabajador">1.25</field>
+        <field name="se_patronal">1.5</field>
+        <field name="fuente">Seguro social del trabajador 9,75 % y del patrono 13,25 % desde abril de 2025 (Ley 462 de 2025, reforma a la Ley 51 de 2005); seguro educativo 1,25 % del trabajador y 1,50 % del patrono; ISR de personas naturales: 0 % hasta B/. 11,000, 15 % de B/. 11,000 a B/. 50,000 y 25 % del excedente (Código Fiscal). Fuente: notas de despachos de abogados y medios; NO verificado contra la Gaceta Oficial. El riesgo profesional y las tasas del décimo tercer mes las debe fijar el contador.</field>
+        <field name="tramo_ids" eval="[
+            (0, 0, {'desde': 0, 'hasta': 11000, 'tasa': 0}),
+            (0, 0, {'desde': 11000, 'hasta': 50000, 'tasa': 15}),
+            (0, 0, {'desde': 50000, 'hasta': 0, 'tasa': 25}),
+        ]"/>
+    </record>
+    <record id="parametros_2027_03" model="dcasa.nomina.parametros">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="fecha_desde">2027-03-01</field>
+        <field name="css_trabajador">9.75</field>
+        <field name="css_patronal">14.25</field>
+        <field name="se_trabajador">1.25</field>
+        <field name="se_patronal">1.5</field>
+        <field name="fuente">Segundo aumento escalonado de la cuota patronal del seguro social (1 de marzo de 2027, según la Ley 462 de 2025). Fuente: notas de despachos de abogados; NO verificado contra la Gaceta Oficial.</field>
+        <field name="tramo_ids" eval="[
+            (0, 0, {'desde': 0, 'hasta': 11000, 'tasa': 0}),
+            (0, 0, {'desde': 11000, 'hasta': 50000, 'tasa': 15}),
+            (0, 0, {'desde': 50000, 'hasta': 0, 'tasa': 25}),
+        ]"/>
+    </record>
+    <record id="parametros_2029_03" model="dcasa.nomina.parametros">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="fecha_desde">2029-03-01</field>
+        <field name="css_trabajador">9.75</field>
+        <field name="css_patronal">15.25</field>
+        <field name="se_trabajador">1.25</field>
+        <field name="se_patronal">1.5</field>
+        <field name="fuente">Tercer aumento escalonado de la cuota patronal del seguro social (1 de marzo de 2029, según la Ley 462 de 2025). Fuente: notas de despachos de abogados; NO verificado contra la Gaceta Oficial.</field>
+        <field name="tramo_ids" eval="[
+            (0, 0, {'desde': 0, 'hasta': 11000, 'tasa': 0}),
+            (0, 0, {'desde': 11000, 'hasta': 50000, 'tasa': 15}),
+            (0, 0, {'desde': 50000, 'hasta': 0, 'tasa': 25}),
+        ]"/>
+    </record>
+</odoo>

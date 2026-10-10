@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="reembolso_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.reembolso.list</field>
+        <field name="model">dcasa.nomina.reembolso</field>
+        <field name="arch" type="xml">
+            <list string="Reembolsos" decoration-muted="estado == 'contabilizado'" decoration-danger="estado == 'rechazado'">
+                <field name="fecha"/>
+                <field name="empleado_id"/>
+                <field name="concepto"/>
+                <field name="monto" sum="Total"/>
+                <field name="estado" widget="badge" decoration-success="estado in ('aprobado', 'en_planilla', 'contabilizado')"
+                       decoration-warning="estado == 'enviado'" decoration-danger="estado == 'rechazado'"/>
+                <field name="planilla_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="reembolso_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.reembolso.form</field>
+        <field name="model">dcasa.nomina.reembolso</field>
+        <field name="arch" type="xml">
+            <form string="Reembolso">
+                <header>
+                    <button name="action_enviar" type="object" string="Enviar" class="btn-primary"
+                            invisible="estado not in ('borrador', 'rechazado')"/>
+                    <button name="action_aprobar" type="object" string="Aprobar" class="btn-primary"
+                            invisible="estado != 'enviado'" groups="dcasa_nomina.group_nomina"/>
+                    <button name="action_rechazar" type="object" string="Rechazar" invisible="estado != 'enviado'"
+                            groups="dcasa_nomina.group_nomina"/>
+                    <button name="action_borrador" type="object" string="Volver a borrador"
+                            invisible="estado not in ('enviado', 'aprobado', 'rechazado')"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,enviado,aprobado,en_planilla,contabilizado"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title"><h1><field name="concepto" placeholder="Ej.: taxi a la bodega, compra de bolsas…"
+                                                     readonly="estado not in ('borrador', 'rechazado')"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="empleado_id" readonly="estado not in ('borrador', 'rechazado')" options="{'no_create': True}"/>
+                            <field name="fecha" readonly="estado not in ('borrador', 'rechazado')"/>
+                            <field name="monto" readonly="estado not in ('borrador', 'rechazado')"/>
+                        </group>
+                        <group>
+                            <field name="cuenta_gasto_id" groups="dcasa_nomina.group_nomina"
+                                   readonly="estado in ('en_planilla', 'contabilizado')"/>
+                            <field name="planilla_id" invisible="not planilla_id"/>
+                            <field name="aprobado_por" invisible="not aprobado_por"/>
+                            <field name="aprobado_el" invisible="not aprobado_el"/>
+                        </group>
+                    </group>
+                    <group string="Foto del recibo">
+                        <field name="recibo_ids" widget="many2many_binary" nolabel="1"
+                               readonly="estado not in ('borrador', 'rechazado')"/>
+                    </group>
+                    <group invisible="estado not in ('enviado', 'rechazado')" groups="dcasa_nomina.group_nomina">
+                        <field name="motivo_rechazo" placeholder="Si lo rechazas, escribe por qué (lo ve el colaborador)"/>
+                    </group>
+                    <group invisible="estado != 'rechazado'" groups="!dcasa_nomina.group_nomina">
+                        <field name="motivo_rechazo" readonly="1"/>
+                    </group>
+                    <field name="notas" placeholder="Notas" readonly="estado not in ('borrador', 'rechazado')"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="reembolso_search" model="ir.ui.view">
+        <field name="name">dcasa.nomina.reembolso.search</field>
+        <field name="model">dcasa.nomina.reembolso</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="empleado_id"/>
+                <field name="concepto"/>
+                <filter name="por_aprobar" string="Por aprobar" domain="[('estado', '=', 'enviado')]"/>
+                <filter name="aprobados" string="Aprobados, sin pagar" domain="[('estado', 'in', ('aprobado', 'en_planilla'))]"/>
+                <group>
+                    <filter name="por_colaborador" string="Colaborador" context="{'group_by': 'empleado_id'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_reembolsos" model="ir.actions.act_window">
+        <field name="name">Reembolsos</field>
+        <field name="res_model">dcasa.nomina.reembolso</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_por_aprobar': 1}</field>
+    </record>
+
+    <record id="accion_mis_reembolsos" model="ir.actions.act_window">
+        <field name="name">Mis reembolsos</field>
+        <field name="res_model">dcasa.nomina.reembolso</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('empleado_id.user_id', '=', uid)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">¿Pagaste algo de tu bolsillo por D'CASA?</p>
+            <p>Regístralo con la foto del recibo y envíalo. Cuando la administración lo apruebe, te lo suman en la
+                siguiente planilla.</p>
+        </field>
+    </record>
+</odoo>

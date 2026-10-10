@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="vacacion_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.vacacion.list</field>
+        <field name="model">dcasa.nomina.vacacion</field>
+        <field name="arch" type="xml">
+            <list string="Vacaciones" decoration-muted="estado == 'cancelada'">
+                <field name="empleado_id"/>
+                <field name="desde"/>
+                <field name="hasta"/>
+                <field name="dias"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'confirmada'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="vacacion_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.vacacion.form</field>
+        <field name="model">dcasa.nomina.vacacion</field>
+        <field name="arch" type="xml">
+            <form string="Vacaciones">
+                <header>
+                    <button name="action_confirmar" type="object" string="Confirmar" class="btn-primary"
+                            invisible="estado != 'borrador'"/>
+                    <button name="action_cancelar" type="object" string="Cancelar" invisible="estado == 'cancelada'"/>
+                    <button name="action_borrador" type="object" string="Volver a borrador" invisible="estado != 'cancelada'"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="empleado_id" options="{'no_create': True}" readonly="estado != 'borrador'"/>
+                            <field name="desde" readonly="estado != 'borrador'"/>
+                            <field name="hasta" readonly="estado != 'borrador'"/>
+                            <field name="dias" readonly="estado != 'borrador'"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">Mientras descansa, la planilla sigue pagando su salario normal. El saldo que no se
+                        toma se paga en la liquidación.</p>
+                    <field name="notas" placeholder="Notas"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_vacaciones" model="ir.actions.act_window">
+        <field name="name">Vacaciones</field>
+        <field name="res_model">dcasa.nomina.vacacion</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

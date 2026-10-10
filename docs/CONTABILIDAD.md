@@ -29,15 +29,17 @@ Odoo Community no limita la cantidad de usuarios: se crean todos los que hagan f
 (Ajustes › Usuarios). El cobro «por usuario» es de Odoo Enterprise/Odoo.sh, que D'CASA
 no usa.
 
-## En desarrollo (con su plan)
+## Nómina, consolidación y lo que sigue en desarrollo
 
-- **Nómina y reembolsos en nómina**: fichas de colaboradores, planilla quincenal
-  (seguro social, seguro educativo, ISR), décimo tercer mes, vacaciones y asiento
-  automático. Necesita las tasas y reglas vigentes validadas por el contador.
-- **Facturación electrónica DGI (SFEP)**: exige contrato con un PAC autorizado; el envío
-  de cada factura, el CUFE y el QR se integran con la API del PAC elegido.
-- **Consolidación**: solo aplica si D'CASA llega a tener más de una empresa
-  (multiempresa ya viene incluido en Community).
+- **Nómina y reembolsos en nómina**: ya están construidos en `dcasa_nomina` (menú **Nómina**; guía en
+  [docs/NOMINA.md](NOMINA.md)): fichas de colaboradores, planilla quincenal (seguro social, seguro educativo e ISR),
+  décimo tercer mes, vacaciones, prima, liquidación y asiento automático. Las tasas de la ley las **valida el
+  contador** antes de poder confirmar una planilla.
+- **Consolidación**: construida en `dcasa_consolidacion` (Facturación › Reportes contables › Consolidación; guía en
+  [docs/CONSOLIDACION.md](CONSOLIDACION.md)): estados financieros de varias empresas con eliminaciones entre ellas.
+- **Facturación electrónica DGI (SFEP)**: sigue **en desarrollo** (pantalla «En desarrollo»): exige contrato con un PAC
+  autorizado; el envío de cada factura, el CUFE y el QR se integran con la API del PAC elegido
+  (`dcasa_fe_pa`, [docs/FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md)).
 
 ## Brian
 

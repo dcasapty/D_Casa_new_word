@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem id="menu_nomina_raiz" name="Nómina" sequence="60"
+              web_icon="dcasa_nomina,static/src/img/nomina.svg"/>
+
+    <menuitem id="menu_planillas" name="Planillas quincenales" parent="menu_nomina_raiz" action="accion_planillas"
+              sequence="10" groups="group_nomina"/>
+    <menuitem id="menu_decimo" name="Décimo tercer mes" parent="menu_nomina_raiz" action="accion_decimo"
+              sequence="20" groups="group_nomina"/>
+    <menuitem id="menu_colaboradores" name="Colaboradores" parent="menu_nomina_raiz"
+              action="hr.open_view_employee_list_my" sequence="30" groups="group_nomina"/>
+    <menuitem id="menu_vacaciones" name="Vacaciones" parent="menu_nomina_raiz" action="accion_vacaciones"
+              sequence="40" groups="group_nomina"/>
+    <menuitem id="menu_liquidaciones" name="Liquidaciones" parent="menu_nomina_raiz" action="accion_liquidaciones"
+              sequence="50" groups="group_nomina"/>
+    <menuitem id="menu_reembolsos" name="Reembolsos" parent="menu_nomina_raiz" action="accion_reembolsos"
+              sequence="60" groups="group_nomina"/>
+    <menuitem id="menu_mis_reembolsos" name="Mis reembolsos" parent="menu_nomina_raiz" action="accion_mis_reembolsos"
+              sequence="70" groups="base.group_user"/>
+
+    <menuitem id="menu_nomina_configuracion" name="Configuración" parent="menu_nomina_raiz" sequence="90"
+              groups="group_nomina"/>
+    <menuitem id="menu_parametros" name="Tasas y reglas" parent="menu_nomina_configuracion" action="accion_parametros"
+              sequence="10"/>
+    <menuitem id="menu_config_cuentas" name="Cuentas y diario" parent="menu_nomina_configuracion"
+              action="accion_config" sequence="20"/>
+</odoo>
