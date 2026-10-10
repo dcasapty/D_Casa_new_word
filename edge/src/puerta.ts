@@ -22,6 +22,14 @@
 export const NOMBRE_COOKIE = "__Host-dcasa_puerta";
 /** Cabecera hacia Odoo. El borde SIEMPRE la borra de lo que manda el visitante. */
 export const CABECERA_PUERTA = "X-Dcasa-Puerta";
+/**
+ * Qué exige Odoo en ESTA petición: `<modo>|<exigir correo 0/1>|<vence>|<firma>`. La decide el Worker en cada petición
+ * (su variable cambia en cuanto se despliega, sin reiniciar el contenedor: así el rescate funciona al instante) y la
+ * firma con el mismo secreto. Una petición sin esta cabecera (las que nacen dentro del contenedor, p. ej. la que arma
+ * un PDF) no exige nada. También se borra siempre de lo que manda el visitante.
+ */
+export const CABECERA_MODO = "X-Dcasa-Puerta-Modo";
+const VIDA_CABECERA_MODO_S = 300;
 /** A dónde va la persona al pasar la puerta. */
 export const DESTINO_PANEL = "/odoo";
 
@@ -45,8 +53,10 @@ export interface ConfigPuerta {
 }
 
 export interface EntornoPuerta {
-  /** «1» = el borde cierra el panel (`/odoo…`) a quien no abrió la puerta. Con «0» o «avisar» solo la verifica. */
+  /** «0» (por defecto), «avisar» o «1»: ver `DepsPuerta.modo`. Con «1» el borde también cierra `/odoo…` sin la puerta. */
   DCASA_PUERTA_OBLIGATORIA?: string;
+  /** «1» = Odoo exige que el correo con que se pasó la puerta sea el de la cuenta. */
+  DCASA_PUERTA_EXIGIR_CORREO?: string;
   DCASA_PUERTA_RUTA?: string;
   DCASA_PUERTA_SECRETO?: string;
   DCASA_ACCESS_EQUIPO?: string;
@@ -57,6 +67,9 @@ export interface EntornoPuerta {
 const RUTA_VALIDA = /^\/[a-z0-9][a-z0-9-]{7,63}$/;
 const EQUIPO_VALIDO = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}\.cloudflareaccess\.com$/;
 const AUD_VALIDA = /^[A-Za-z0-9]{16,128}$/;
+
+/** Un aviso por problema y por isolate: configPuerta se llama en cada petición y no debe llenar los logs. */
+const avisados = new Set<string>();
 
 function limpio(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
@@ -82,7 +95,11 @@ export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
   if (!EQUIPO_VALIDO.test(equipo)) problemas.push("DCASA_ACCESS_EQUIPO (https://<equipo>.cloudflareaccess.com)");
   if (!AUD_VALIDA.test(aud)) problemas.push("DCASA_ACCESS_AUD (el «AUD tag» de la aplicación de Access)");
   if (problemas.length) {
-    console.warn(JSON.stringify({ evento: "puerta_incompleta", detalle: "La puerta queda APAGADA", faltan: problemas }));
+    const aviso = JSON.stringify({ evento: "puerta_incompleta", detalle: "La puerta queda APAGADA", faltan: problemas });
+    if (!avisados.has(aviso)) {
+      avisados.add(aviso);
+      console.warn(aviso);
+    }
     return null;
   }
   const horasPedidas = Number.parseInt(limpio(env.DCASA_PUERTA_HORAS), 10);
@@ -90,32 +107,37 @@ export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
   return { ruta, secreto, equipo, aud, horas };
 }
 
+export type ModoPuerta = "0" | "avisar" | "1";
+
 /** Lo que el borde necesita para trabajar con la puerta (o `undefined` si está apagada: sigue como siempre). */
 export interface DepsPuerta {
   config: ConfigPuerta;
-  /** `DCASA_PUERTA_OBLIGATORIA=1`: sin la puerta abierta, `/odoo…` es un 404 del borde. */
-  cerrarPanel: boolean;
+  /** `0` solo verifica y firma; `avisar` además hace que Odoo anote lo que entra sin puerta; `1` exige la puerta. */
+  modo: ModoPuerta;
+  /** `DCASA_PUERTA_EXIGIR_CORREO=1`: Odoo exige que el correo de la puerta sea el de la cuenta. */
+  exigirCorreo: boolean;
   jwt?: DepsJwt;
 }
 
-export function depsPuerta(env: EntornoPuerta): Pick<DepsPuerta, "config" | "cerrarPanel"> | undefined {
+export function depsPuerta(env: EntornoPuerta): Pick<DepsPuerta, "config" | "modo" | "exigirCorreo"> | undefined {
   const config = configPuerta(env);
   if (!config) return undefined;
-  return { config, cerrarPanel: limpio(env.DCASA_PUERTA_OBLIGATORIA) === "1" };
+  const pedido = limpio(env.DCASA_PUERTA_OBLIGATORIA).toLowerCase();
+  const modo: ModoPuerta = pedido === "1" || pedido === "avisar" ? pedido : "0";
+  return { config, modo, exigirCorreo: limpio(env.DCASA_PUERTA_EXIGIR_CORREO) === "1" };
 }
 
-/**
- * Lo que Odoo debe saber del interruptor. Odoo solo puede exigir la puerta si el borde SÍ la puede abrir (las cuatro
- * variables completas y válidas): si no, se manda «0» y nadie queda fuera por un error al copiar un secreto.
- */
-export function interruptorParaOdoo(env: EntornoPuerta): string | undefined {
-  const pedido = limpio(env.DCASA_PUERTA_OBLIGATORIA).toLowerCase();
-  if (!pedido || pedido === "0") return pedido || undefined;
-  if (!configPuerta(env)) {
-    console.warn(JSON.stringify({ evento: "puerta_sin_borde", detalle: "Odoo NO exigirá la puerta: el borde no la tiene completa", pedido }));
-    return "0";
-  }
-  return pedido;
+/** Valor de `X-Dcasa-Puerta-Modo`: el modo y el amarre del correo, firmados y con vencimiento corto. */
+export async function cabeceraDeModo(
+  cfg: Pick<ConfigPuerta, "secreto">,
+  modo: ModoPuerta,
+  exigirCorreo: boolean,
+  ahoraMs: number,
+): Promise<string> {
+  const vence = Math.floor(ahoraMs / 1000) + VIDA_CABECERA_MODO_S;
+  const exigir = exigirCorreo ? "1" : "0";
+  const firma = await hmacHex(cfg.secreto, `modo|${modo}|${exigir}|${vence}`);
+  return `${modo}|${exigir}|${vence}|${firma}`;
 }
 
 // ------------------------------------------------------------------ utilidades criptográficas
@@ -176,14 +198,23 @@ interface CacheJwks {
 }
 
 const cacheJwks = new Map<string, CacheJwks>();
+/** Descargas en curso (una por equipo: veinte pedidos a la vez no hacen veinte descargas). */
+const descargasEnCurso = new Map<string, Promise<CacheJwks>>();
+/** Cuándo falló la última descarga de cada equipo: tras un fallo no se insiste durante unos segundos. */
+const ultimoFalloJwks = new Map<string, number>();
+const PAUSA_TRAS_FALLO_JWKS_MS = 10 * 1000;
+const TOPE_DESCARGA_JWKS_MS = 5 * 1000;
 
-/** Para pruebas: olvida las llaves guardadas. */
+/** Para pruebas: olvida las llaves guardadas y los avisos ya dados. */
 export function reiniciarCacheJwks(): void {
+  avisados.clear();
   cacheJwks.clear();
+  descargasEnCurso.clear();
+  ultimoFalloJwks.clear();
 }
 
 async function descargarJwks(url: string): Promise<unknown> {
-  const respuesta = await fetch(url, { headers: { Accept: "application/json" } });
+  const respuesta = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(TOPE_DESCARGA_JWKS_MS) });
   if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
   return respuesta.json();
 }
@@ -216,12 +247,23 @@ async function claveParaKid(equipo: string, kid: string, deps: DepsJwt, ahora: n
   if (guardado && vigente && guardado.claves.has(kid)) return guardado.claves.get(kid) ?? null;
   // Llave desconocida (Access rota sus llaves) o listado viejo: se vuelve a pedir, con pausa entre intentos.
   if (guardado && ahora - guardado.ultimoRefresco < PAUSA_REFRESCO_JWKS_MS) return guardado.claves.get(kid) ?? null;
+  // Sin nada guardado y con un fallo reciente: no se insiste (una ráfaga de pedidos no se convierte en una ráfaga
+  // de descargas contra Cloudflare).
+  const fallo = ultimoFalloJwks.get(equipo);
+  if (fallo !== undefined && ahora - fallo < PAUSA_TRAS_FALLO_JWKS_MS) return guardado?.claves.get(kid) ?? null;
   try {
-    const nuevo = await cargarLlaves(equipo, deps, ahora);
+    let descarga = descargasEnCurso.get(equipo);
+    if (!descarga) {
+      descarga = cargarLlaves(equipo, deps, ahora).finally(() => descargasEnCurso.delete(equipo));
+      descargasEnCurso.set(equipo, descarga);
+    }
+    const nuevo = await descarga;
     cacheJwks.set(equipo, nuevo);
+    ultimoFalloJwks.delete(equipo);
     return nuevo.claves.get(kid) ?? null;
   } catch (error) {
     console.error(JSON.stringify({ evento: "puerta_jwks_fallido", error: String(error).slice(0, 200) }));
+    ultimoFalloJwks.set(equipo, ahora);
     if (guardado) guardado.ultimoRefresco = ahora;
     return guardado?.claves.get(kid) ?? null;
   }
@@ -243,7 +285,8 @@ function objetoJson(parte: string): Record<string, unknown> | null {
   }
 }
 
-const CORREO_VALIDO = /^[^\s@|\u0000-\u001f]{1,64}@[^\s@|\u0000-\u001f]{1,190}$/;
+/** ASCII imprimible, sin espacios ni «|» ni un segundo «@»: un carácter raro haría fallar las cabeceras HTTP. */
+const CORREO_VALIDO = /^[\x21-\x3f\x41-\x7b\x7d-\x7e]{1,64}@[\x21-\x3f\x41-\x7b\x7d-\x7e]{1,190}$/;
 
 /**
  * Verifica el token que Access pone en `Cf-Access-Jwt-Assertion`. Falla CERRADO: cualquier duda = `null`.
@@ -367,13 +410,19 @@ export function esEntrada(pathname: string, cfg: ConfigPuerta): boolean {
   return ruta === cfg.ruta;
 }
 
+const SEGMENTO_IDIOMA = /^\/[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?(?:@[a-z]+)?(?=\/|$)/;
+
+/** La ruta normalizada y, aparte, sin un primer segmento con forma de idioma (Odoo lo quita y vuelve a enrutar). */
+export function rutasConYSinIdioma(rutaNormalizada: string): string[] {
+  return [rutaNormalizada, rutaNormalizada.replace(SEGMENTO_IDIOMA, "") || "/"];
+}
+
 /**
  * ¿Es el panel de Odoo (`/odoo…`, con o sin prefijo de idioma)? Sin la puerta abierta, el borde responde 404
  * a estas rutas: el panel ni siquiera aparece para quien no es del equipo.
  */
 export function esPanel(rutaNormalizada: string): boolean {
-  const sinIdioma = rutaNormalizada.replace(/^\/[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?(?:@[a-z]+)?(?=\/|$)/, "") || "/";
-  return [rutaNormalizada, sinIdioma].some((ruta) => ruta === "/odoo" || ruta.startsWith("/odoo/"));
+  return rutasConYSinIdioma(rutaNormalizada).some((ruta) => ruta === "/odoo" || ruta.startsWith("/odoo/"));
 }
 
 /**

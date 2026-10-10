@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { handleRequest, secretosFaltantes, SECRETOS_PARA_ARRANCAR, variablesDelContenedor } from "../src/handler";
-import { atenderJuan, esRutaJuan, MAX_CUERPO_JUAN } from "../src/juan";
+import { atenderJuan, cabecerasHaciaOdoo, esRutaJuan, MAX_CUERPO_JUAN } from "../src/juan";
 import { isBlockedPath, route } from "../src/routing";
 
 const u = (path: string, host = "dcasapty.com") => new URL(`https://${host}${path}`);
@@ -66,6 +66,26 @@ describe("las rutas de Juan no se alcanzan desde internet", () => {
     );
     expect(res.status).toBe(404);
     expect(forward).not.toHaveBeenCalled();
+  });
+});
+
+describe("cabecerasHaciaOdoo", () => {
+  it("nunca deja pasar las cabeceras de la puerta del equipo ni las marcas internas, ni con otra capitalización", () => {
+    const pedido = new Request("https://dcasa/dcasa/juan/v1/mensaje", {
+      headers: {
+        Authorization: "Bearer x",
+        Cookie: "session_id=abc",
+        "X-Dcasa-Borde": "token",
+        "X-Dcasa-Puerta": "a@b.c|9999999999|firma",
+        "x-dcasa-puerta-modo": "1|0|9999999999|firma",
+      },
+    });
+    const cabeceras = cabecerasHaciaOdoo(pedido, "dcasapty.com");
+    for (const nombre of ["Cookie", "X-Dcasa-Borde", "X-Dcasa-Puerta", "X-Dcasa-Puerta-Modo"]) {
+      expect(cabeceras.has(nombre), nombre).toBe(false);
+    }
+    expect(cabeceras.get("Authorization")).toBe("Bearer x");
+    expect(cabeceras.get("X-Forwarded-Host")).toBe("dcasapty.com");
   });
 });
 

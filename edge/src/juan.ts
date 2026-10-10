@@ -55,6 +55,9 @@ export function cabecerasHaciaOdoo(request: Request, canonicalHost?: string): He
   const headers = new Headers(request.headers);
   headers.delete("Cookie");
   headers.delete("X-Dcasa-Borde");
+  // La puerta del equipo no aplica a esta API (sin sesión de personal), pero nada del Worker `juan` la fabrica.
+  headers.delete("X-Dcasa-Puerta");
+  headers.delete("X-Dcasa-Puerta-Modo");
   headers.set("X-Forwarded-Host", canonicalHost || url.host);
   headers.set("X-Forwarded-Proto", "https");
   return headers;

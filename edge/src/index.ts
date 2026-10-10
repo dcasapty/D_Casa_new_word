@@ -139,9 +139,9 @@ export interface Env {
   DCASA_ACCESS_AUD?: string;
   /** Horas que dura la puerta abierta (1 a 24; por defecto 12). */
   DCASA_PUERTA_HORAS?: string;
-  /** Odoo: «0» (apagada), «avisar» (solo anota a quien entra sin puerta) o «1» (el personal solo entra por la puerta). */
+  /** «0» (apagada), «avisar» (Odoo anota a quien entra sin puerta) o «1» (el personal solo entra por la puerta). Solo del Worker. */
   DCASA_PUERTA_OBLIGATORIA?: string;
-  /** Odoo: «1» exige que el correo de Access sea el del usuario de Odoo. */
+  /** «1»: Odoo exige que el correo de Access sea el del usuario de Odoo. Solo del Worker (viaja firmado en cada petición). */
   DCASA_PUERTA_EXIGIR_CORREO?: string;
   /** Rate Limiting de Workers (wrangler.jsonc → ratelimits, hoy comentado). Sin ellos: contador en memoria. */
   LIMITE_ACCESO?: RateLimit;

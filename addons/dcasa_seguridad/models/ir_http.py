@@ -17,7 +17,7 @@ sirve desde fuera de la puerta. Las sesiones de clientes y socios (portal) no se
 import logging
 import time
 
-from odoo import models
+from odoo import api, models
 from odoo.http import request, root
 
 from . import puerta
@@ -35,22 +35,31 @@ class IrHttp(models.AbstractModel):
         sesion = request.session
         if sesion.uid is not None and cls._dcasa_sesion_vencida(sesion):
             _logger.info('Seguridad: sesión del usuario %s vencida (tope desde el inicio de sesión)', sesion.uid)
-            sesion.logout(keep_db=True)
-            root.session_store.save(sesion)
+            cls._dcasa_cerrar_sesion(sesion)
         elif sesion.uid is not None and cls._dcasa_sesion_sin_puerta(sesion):
             _logger.info('Seguridad: sesión del usuario %s cerrada: la petición no pasó por la puerta', sesion.uid)
-            sesion.logout(keep_db=True)
-            root.session_store.save(sesion)
+            cls._dcasa_cerrar_sesion(sesion)
         super()._authenticate(endpoint)
 
     @classmethod
+    def _dcasa_cerrar_sesion(cls, sesion):
+        """Cierra la sesión Y quita al usuario de ESTA petición, como hace Odoo cuando una sesión no vale
+        (``ir.http._authenticate_explicit``). Sin lo segundo, ``request.env`` seguía siendo el del usuario (Odoo lo arma
+        con ``session.uid`` antes de autenticar) y las rutas ``auth='user'`` y ``auth='public'`` ejecutaban esa última
+        petición con sus permisos."""
+        sesion.logout(keep_db=True)
+        root.session_store.save(sesion)
+        request.env = api.Environment(request.env.cr, None, sesion.context)
+
+    @classmethod
     def _dcasa_sesion_sin_puerta(cls, sesion):
-        if puerta.modo() != puerta.OBLIGATORIA:
+        modo, exigir_correo = puerta.ajustes_de_la_peticion(request.httprequest.headers.get(puerta.CABECERA_MODO))
+        if modo != puerta.OBLIGATORIA:
             return False
         usuario = request.env(user=sesion.uid).user
         if not usuario.exists() or not usuario._is_internal():
             return False
-        return puerta.problema(request.httprequest.headers.get(puerta.CABECERA), usuario) is not None
+        return puerta.problema(request.httprequest.headers.get(puerta.CABECERA), usuario, exigir_correo) is not None
 
     @classmethod
     def _dcasa_sesion_vencida(cls, sesion):

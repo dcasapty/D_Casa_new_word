@@ -4,6 +4,7 @@ import { handleRequest, variablesDelContenedor } from "../src/handler";
 import {
   aBase64Url,
   atenderEntrada,
+  cabeceraDeModo,
   cabeceraParaOdoo,
   type ConfigPuerta,
   configPuerta,
@@ -11,7 +12,6 @@ import {
   depsPuerta,
   esEntrada,
   esPanel,
-  interruptorParaOdoo,
   leerCookie,
   NOMBRE_COOKIE,
   reiniciarCacheJwks,
@@ -65,7 +65,7 @@ async function firmar(par: Par, carga: Record<string, unknown>, cabecera: Record
 const cargaBuena = (extra: Record<string, unknown> = {}) => ({
   iss: EQUIPO,
   aud: [AUD],
-  email: "Dueña@Example.com",
+  email: "Duena@Example.com",
   iat: AHORA_S - 60,
   nbf: AHORA_S - 60,
   exp: AHORA_S + 3600,
@@ -131,6 +131,12 @@ describe("configPuerta", () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining("puerta_incompleta"));
   });
 
+  it("el aviso de configuración incompleta sale una sola vez, no en cada petición", () => {
+    const rota = { ...ENV_VALIDO, DCASA_PUERTA_SECRETO: "distinto-y-corto" };
+    for (let i = 0; i < 5; i++) configPuerta(rota);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
   it("las horas se limitan a 1–24 y por defecto son 12", () => {
     expect(configPuerta({ ...ENV_VALIDO, DCASA_PUERTA_HORAS: "6" })?.horas).toBe(6);
     expect(configPuerta({ ...ENV_VALIDO, DCASA_PUERTA_HORAS: "999" })?.horas).toBe(24);
@@ -140,35 +146,40 @@ describe("configPuerta", () => {
 });
 
 describe("el interruptor", () => {
-  it("depsPuerta: apagada sin variables; encendida solo cierra el panel con «1»", () => {
+  it("depsPuerta: apagada sin variables; el modo sale de la variable y lo raro es «0»", () => {
     expect(depsPuerta({})).toBeUndefined();
-    expect(depsPuerta({ ...ENV_VALIDO })?.cerrarPanel).toBe(false);
-    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "0" })?.cerrarPanel).toBe(false);
-    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "avisar" })?.cerrarPanel).toBe(false);
-    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: " 1 " })?.cerrarPanel).toBe(true);
+    expect(depsPuerta({ ...ENV_VALIDO })).toMatchObject({ modo: "0", exigirCorreo: false });
+    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "0" })?.modo).toBe("0");
+    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "avisar" })?.modo).toBe("avisar");
+    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: " 1 " })?.modo).toBe("1");
+    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "si" })?.modo).toBe("0");
+    expect(depsPuerta({ ...ENV_VALIDO, DCASA_PUERTA_EXIGIR_CORREO: "1" })?.exigirCorreo).toBe(true);
     // Sin las cuatro variables no hay puerta aunque el interruptor diga «1».
     expect(depsPuerta({ DCASA_PUERTA_OBLIGATORIA: "1" })).toBeUndefined();
   });
 
-  it("a Odoo solo le llega «1» o «avisar» si el borde de verdad puede abrir la puerta", () => {
-    expect(interruptorParaOdoo({})).toBeUndefined();
-    expect(interruptorParaOdoo({ DCASA_PUERTA_OBLIGATORIA: "0" })).toBe("0");
-    expect(interruptorParaOdoo({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "1" })).toBe("1");
-    expect(interruptorParaOdoo({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "avisar" })).toBe("avisar");
-    for (const pedido of ["1", "avisar"]) {
-      expect(interruptorParaOdoo({ DCASA_PUERTA_SECRETO: SECRETO, DCASA_PUERTA_OBLIGATORIA: pedido })).toBe("0");
-      expect(interruptorParaOdoo({ ...ENV_VALIDO, DCASA_ACCESS_AUD: "mal", DCASA_PUERTA_OBLIGATORIA: pedido })).toBe("0");
+  it("al contenedor solo viaja el secreto: ni el modo ni la ruta ni los datos de Access", () => {
+    const vars = variablesDelContenedor({
+      ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "1", DCASA_PUERTA_EXIGIR_CORREO: "1", DCASA_PUERTA_HORAS: "6",
+    });
+    expect(vars.DCASA_PUERTA_SECRETO).toBe(SECRETO);
+    for (const solo_del_worker of [
+      "DCASA_PUERTA_OBLIGATORIA", "DCASA_PUERTA_EXIGIR_CORREO", "DCASA_PUERTA_RUTA",
+      "DCASA_ACCESS_EQUIPO", "DCASA_ACCESS_AUD", "DCASA_PUERTA_HORAS",
+    ]) {
+      expect(vars).not.toHaveProperty(solo_del_worker);
     }
   });
 
-  it("al contenedor viaja el secreto y los interruptores, nunca la ruta de la entrada ni los datos de Access", () => {
-    const vars = variablesDelContenedor({ ...ENV_VALIDO, DCASA_PUERTA_OBLIGATORIA: "1", DCASA_PUERTA_EXIGIR_CORREO: "1" });
-    expect(vars).toMatchObject({ DCASA_PUERTA_SECRETO: SECRETO, DCASA_PUERTA_OBLIGATORIA: "1", DCASA_PUERTA_EXIGIR_CORREO: "1" });
-    for (const secreta of ["DCASA_PUERTA_RUTA", "DCASA_ACCESS_EQUIPO", "DCASA_ACCESS_AUD", "DCASA_PUERTA_HORAS"]) {
-      expect(vars).not.toHaveProperty(secreta);
-    }
-    const incompleta = variablesDelContenedor({ DCASA_PUERTA_SECRETO: SECRETO, DCASA_PUERTA_OBLIGATORIA: "1" });
-    expect(incompleta.DCASA_PUERTA_OBLIGATORIA).toBe("0");
+  it("la cabecera del modo lleva modo, amarre, vencimiento corto y una firma propia", async () => {
+    const cabecera = await cabeceraDeModo(cfg, "1", true, AHORA);
+    const [modo, exigir, vence, firma] = cabecera.split("|");
+    expect([modo, exigir, vence]).toEqual(["1", "1", String(AHORA_S + 300)]);
+    expect(firma).toMatch(/^[0-9a-f]{64}$/);
+    const otra = await cabeceraDeModo(cfg, "avisar", true, AHORA);
+    expect(otra.split("|")[3]).not.toBe(firma);
+    const otroSecreto = await cabeceraDeModo({ secreto: "z".repeat(40) }, "1", true, AHORA);
+    expect(otroSecreto.split("|")[3]).not.toBe(firma);
   });
 });
 
@@ -177,7 +188,7 @@ describe("el interruptor", () => {
 describe("verificarJwtAccess", () => {
   it("acepta un token bien firmado, con el correo en minúsculas", async () => {
     const token = await firmar(par, cargaBuena());
-    expect(await verificarJwtAccess(token, cfg, deps())).toEqual({ email: "dueña@example.com", exp: AHORA_S + 3600 });
+    expect(await verificarJwtAccess(token, cfg, deps())).toEqual({ email: "duena@example.com", exp: AHORA_S + 3600 });
   });
 
   it("acepta la audiencia como texto suelto", async () => {
@@ -193,7 +204,7 @@ describe("verificarJwtAccess", () => {
     ["emitido en el futuro", { iat: AHORA_S + 600 }],
     ["sin correo (un service token)", { email: undefined, common_name: "abc.access" }],
     ["correo con barra vertical (rompería la cabecera)", { email: "a|b@example.com" }],
-    ["correo sin arroba", { email: "dueña" }],
+    ["correo sin arroba", { email: "duena" }],
     ["sin vencimiento", { exp: undefined }],
   ])("rechaza: %s", async (_nombre, cambio) => {
     const token = await firmar(par, cargaBuena(cambio));
@@ -240,6 +251,25 @@ describe("verificarJwtAccess", () => {
     expect(await verificarJwtAccess(token, cfg, roto)).toBeNull();
   });
 
+  it("varias visitas a la vez comparten una sola descarga de llaves", async () => {
+    const token = await firmar(par, cargaBuena());
+    const resultados = await Promise.all(Array.from({ length: 8 }, () => verificarJwtAccess(token, cfg, deps())));
+    expect(resultados.every((r) => r !== null)).toBe(true);
+    expect(jwksLlamadas).toBe(1);
+  });
+
+  it("si Cloudflare falla, no se insiste en cada visita: se espera unos segundos", async () => {
+    const token = await firmar(par, cargaBuena());
+    let intentos = 0;
+    const caido = { ahora: () => AHORA, fetchJwks: async () => { intentos += 1; throw new Error("HTTP 503"); } };
+    for (let i = 0; i < 6; i++) expect(await verificarJwtAccess(token, cfg, caido)).toBeNull();
+    expect(intentos).toBe(1);
+    // Pasados los segundos de pausa se vuelve a intentar.
+    const luego = { ...caido, ahora: () => AHORA + 15_000 };
+    await verificarJwtAccess(token, cfg, luego);
+    expect(intentos).toBe(2);
+  });
+
   it("guarda las llaves una hora y no las pide en cada visita", async () => {
     const token = await firmar(par, cargaBuena());
     await verificarJwtAccess(token, cfg, deps());
@@ -267,7 +297,7 @@ describe("verificarJwtAccess", () => {
 // ------------------------------------------------------------------ cookie propia
 
 describe("cookie de la puerta", () => {
-  const identidad = { email: "dueña@example.com", exp: AHORA_S + 24 * 3600 };
+  const identidad = { email: "duena@example.com", exp: AHORA_S + 24 * 3600 };
 
   async function conCookie(valor: string, extra = ""): Promise<Request> {
     return new Request("https://dcasapty.com/odoo", { headers: { Cookie: `${extra}${NOMBRE_COOKIE}=${valor}` } });
@@ -277,7 +307,7 @@ describe("cookie de la puerta", () => {
     const cookie = await crearCookie(cfg, identidad, AHORA);
     expect(cookie.maxAge).toBe(12 * 3600);
     expect(await leerCookie(await conCookie(cookie.valor, "session_id=abc; "), cfg, AHORA)).toEqual({
-      email: "dueña@example.com",
+      email: "duena@example.com",
       exp: AHORA_S + 12 * 3600,
     });
   });
@@ -311,12 +341,12 @@ describe("cookie de la puerta", () => {
   });
 
   it("la cabecera hacia Odoo lleva correo, vencimiento y una firma distinta a la de la cookie", async () => {
-    const cabecera = await cabeceraParaOdoo(cfg, { email: "dueña@example.com", exp: 1_800_000_000 });
+    const cabecera = await cabeceraParaOdoo(cfg, { email: "duena@example.com", exp: 1_800_000_000 });
     const [correo, exp, firma] = cabecera.split("|");
-    expect(correo).toBe("dueña@example.com");
+    expect(correo).toBe("duena@example.com");
     expect(exp).toBe("1800000000");
     expect(firma).toMatch(/^[0-9a-f]{64}$/);
-    const cookie = await crearCookie(cfg, { email: "dueña@example.com", exp: 1_800_000_000 }, AHORA);
+    const cookie = await crearCookie(cfg, { email: "duena@example.com", exp: 1_800_000_000 }, AHORA);
     expect(cookie.valor.split(".")[2]).not.toBe(firma);
   });
 
@@ -351,14 +381,14 @@ describe("rutas de la puerta", () => {
 describe("handleRequest con la puerta", () => {
   const conPuerta = (forward = vi.fn(async (req: Request) => new Response("odoo", { headers: { "X-Visto": req.headers.get("X-Dcasa-Puerta") ?? "" } }))) => ({
     forward,
-    puerta: { config: cfg, jwt: deps(), cerrarPanel: true },
+    puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false },
   });
 
-  async function entrar(forward = vi.fn(async () => new Response("odoo")), correo = "dueña@example.com") {
+  async function entrar(forward = vi.fn(async () => new Response("odoo")), correo = "duena@example.com") {
     const token = await firmar(par, cargaBuena({ email: correo, exp: AHORA_S + 24 * 3600 }));
     const respuesta = await handleRequest(
       new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
-      { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
     );
     const cookie = (respuesta.headers.get("Set-Cookie") ?? "").split(";")[0];
     return { respuesta, cookie, forward };
@@ -367,11 +397,11 @@ describe("handleRequest con la puerta", () => {
   it("con el interruptor en «0» o «avisar» el panel NO se cierra (rescate y periodo de prueba), pero sí se firma la cabecera", async () => {
     const { cookie } = await entrar();
     const forward = vi.fn(async (req: Request) => new Response(req.headers.get("X-Dcasa-Puerta") ?? "ninguna"));
-    const abierto = { config: cfg, jwt: deps(), cerrarPanel: false };
+    const abierto = { config: cfg, jwt: deps(), modo: "avisar" as const, exigirCorreo: false };
     const sin = await handleRequest(new Request("https://dcasapty.com/odoo"), { forward, puerta: abierto });
     expect(await sin.text()).toBe("ninguna");
     const con = await handleRequest(new Request("https://dcasapty.com/odoo", { headers: { Cookie: cookie } }), { forward, puerta: abierto });
-    expect((await con.text()).startsWith("dueña@example.com|")).toBe(true);
+    expect((await con.text()).startsWith("duena@example.com|")).toBe(true);
     // La entrada funciona igual en este modo: así se prueba antes de cerrar.
     const token = await firmar(par, cargaBuena({ exp: AHORA_S + 24 * 3600 }));
     const entrada = await handleRequest(
@@ -394,7 +424,7 @@ describe("handleRequest con la puerta", () => {
   it("encendida y sin cookie: /odoo es un 404 del borde y Odoo ni se entera", async () => {
     const forward = vi.fn();
     for (const ruta of ["/odoo", "/odoo/action-3", "/es/odoo", "/ODOO", "/%6fdoo"]) {
-      const res = await handleRequest(new Request(`https://dcasapty.com${ruta}`), { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } });
+      const res = await handleRequest(new Request(`https://dcasapty.com${ruta}`), { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } });
       expect(res.status, ruta).toBe(404);
       expect(res.headers.get("Strict-Transport-Security")).toContain("max-age=");
     }
@@ -406,7 +436,7 @@ describe("handleRequest con la puerta", () => {
     for (const ruta of ["/", "/shop", "/web/login", "/my", "/socios"]) {
       const res = await handleRequest(
         new Request(`https://dcasapty.com${ruta}`, { headers: { "X-Dcasa-Puerta": "jefa@example.com|9999999999|firma" } }),
-        { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+        { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
       );
       expect(await res.text(), ruta).toBe("ninguna");
     }
@@ -434,7 +464,7 @@ describe("handleRequest con la puerta", () => {
       new Request(`https://dcasapty.com${RUTA}`, { method: "POST", headers: { "Cf-Access-Jwt-Assertion": await firmar(par, cargaBuena()) } }),
     ];
     for (const caso of casos) {
-      const res = await handleRequest(caso, { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } });
+      const res = await handleRequest(caso, { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } });
       expect(res.status).toBe(404);
       expect(res.headers.get("Set-Cookie")).toBeNull();
     }
@@ -448,11 +478,11 @@ describe("handleRequest con la puerta", () => {
     })));
     const res = await handleRequest(
       new Request("https://dcasapty.com/odoo", { headers: { Cookie: `session_id=abc; ${cookie}` } }),
-      { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
     );
     const visto = (await res.json()) as { puerta: string; cookie: string };
     const [correo, exp, firma] = visto.puerta.split("|");
-    expect(correo).toBe("dueña@example.com");
+    expect(correo).toBe("duena@example.com");
     expect(Number(exp)).toBe(AHORA_S + 12 * 3600);
     expect(firma).toBe((await cabeceraParaOdoo(cfg, { email: correo, exp: Number(exp) })).split("|")[2]);
     expect(visto.cookie).toBe("session_id=abc");
@@ -465,9 +495,9 @@ describe("handleRequest con la puerta", () => {
       new Request("https://dcasapty.com/web/login", {
         headers: { Cookie: cookie, "X-Dcasa-Puerta": "jefa@example.com|9999999999|firma" },
       }),
-      { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
     );
-    expect((await res.text()).startsWith("dueña@example.com|")).toBe(true);
+    expect((await res.text()).startsWith("duena@example.com|")).toBe(true);
   });
 
   it("una cookie fabricada con otro secreto no abre nada", async () => {
@@ -475,7 +505,7 @@ describe("handleRequest con la puerta", () => {
     const forward = vi.fn();
     const res = await handleRequest(
       new Request("https://dcasapty.com/odoo", { headers: { Cookie: `${NOMBRE_COOKIE}=${falsa.valor}` } }),
-      { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
     );
     expect(res.status).toBe(404);
     expect(forward).not.toHaveBeenCalled();
@@ -486,11 +516,56 @@ describe("handleRequest con la puerta", () => {
     const forward = vi.fn(async () => new Response(null, { status: 303, headers: { Location: "/web/login" } }));
     const res = await handleRequest(
       new Request("https://dcasapty.com/web/session/logout", { headers: { Cookie: cookie } }),
-      { forward, puerta: { config: cfg, jwt: deps(), cerrarPanel: true } },
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
     );
     expect(res.status).toBe(303);
     expect(res.headers.get("Set-Cookie")).toContain(`${NOMBRE_COOKIE}=;`);
     expect(res.headers.get("Set-Cookie")).toContain("Max-Age=0");
+  });
+
+  it("a Odoo le llega en CADA petición el modo firmado (también sin cookie), y el del visitante se borra", async () => {
+    const forward = vi.fn(async (req: Request) => new Response(req.headers.get("X-Dcasa-Puerta-Modo") ?? "ninguna"));
+    for (const [modo, exigirCorreo] of [["1", true], ["avisar", false], ["0", false]] as const) {
+      const res = await handleRequest(
+        new Request("https://dcasapty.com/web/login", { headers: { "X-Dcasa-Puerta-Modo": "0|0|9999999999|firma-falsa" } }),
+        { forward, puerta: { config: cfg, jwt: deps(), modo, exigirCorreo } },
+      );
+      const [m, e, vence, firma] = (await res.text()).split("|");
+      expect([m, e]).toEqual([modo, exigirCorreo ? "1" : "0"]);
+      expect(Number(vence)).toBe(AHORA_S + 300);
+      expect(firma).toBe((await cabeceraDeModo(cfg, modo, exigirCorreo, AHORA)).split("|")[3]);
+    }
+  });
+
+  it("apagada del todo: ninguna de las dos cabeceras llega a Odoo, ni siquiera las falsas", async () => {
+    const forward = vi.fn(async (req: Request) => new Response(
+      `${req.headers.get("X-Dcasa-Puerta") ?? "-"}/${req.headers.get("X-Dcasa-Puerta-Modo") ?? "-"}`));
+    const res = await handleRequest(
+      new Request("https://dcasapty.com/web/login", {
+        headers: { "X-Dcasa-Puerta": "a@b.c|1|f", "x-dcasa-puerta-modo": "0|0|1|f" },
+      }),
+      { forward },
+    );
+    expect(await res.text()).toBe("-/-");
+  });
+
+  it("cerrar sesión con prefijo de idioma también cierra la puerta", async () => {
+    const { cookie } = await entrar();
+    for (const ruta of ["/web/session/logout", "/es/web/session/logout", "/es_419/web/session/logout"]) {
+      const forward = vi.fn(async () => new Response(null, { status: 303, headers: { Location: "/web/login" } }));
+      const res = await handleRequest(
+        new Request(`https://dcasapty.com${ruta}`, { headers: { Cookie: cookie } }),
+        { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
+      );
+      expect(res.headers.get("Set-Cookie"), ruta).toContain("Max-Age=0");
+    }
+  });
+
+  it("un correo con caracteres fuera de ASCII no abre la puerta (rompería las cabeceras HTTP)", async () => {
+    for (const correo of ["jose@例え.jp", "josé@example.com", "a b@example.com", "a@@example.com"]) {
+      const token = await firmar(par, cargaBuena({ email: correo }));
+      expect(await verificarJwtAccess(token, cfg, deps()), correo).toBeNull();
+    }
   });
 
   it("atenderEntrada se puede probar sola", async () => {

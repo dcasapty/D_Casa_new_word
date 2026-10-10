@@ -136,13 +136,16 @@ class ResUsers(models.Model):
         Solo mira a los usuarios internos y solo si hay petición web. En modo ``1`` rechaza con el mismo
         «usuario o clave incorrectos» de siempre (no dice por qué); en ``avisar`` deja entrar pero lo anota.
         """
-        modo = puerta.modo()
-        if not request or modo == puerta.APAGADA:
+        if not request:
+            return
+        cabeceras = request.httprequest.headers
+        modo, exigir_correo = puerta.ajustes_de_la_peticion(cabeceras.get(puerta.CABECERA_MODO))
+        if modo == puerta.APAGADA:
             return
         usuario = self.browse(auth_info['uid']).sudo()
         if not usuario._is_internal():
             return
-        motivo = puerta.problema(request.httprequest.headers.get(puerta.CABECERA), usuario)
+        motivo = puerta.problema(cabeceras.get(puerta.CABECERA), usuario, exigir_correo)
         if not motivo:
             return
         bloquea = modo == puerta.OBLIGATORIA

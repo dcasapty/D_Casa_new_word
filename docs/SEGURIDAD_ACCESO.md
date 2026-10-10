@@ -273,7 +273,7 @@ Cloudflare) y se borra sola al **cerrar sesión** en Odoo. Pasado ese tiempo hay
 |---|---|
 | **Personal** (Odoo «usuario interno») | Solo entra y solo sigue dentro si pasó por la puerta. Si escribe su clave en `/web/login` sin haber pasado, ve el mismo «usuario o contraseña incorrectos» de siempre (no se le dice por qué); queda anotado en **Accesos al panel** como «Clave correcta, pero sin pasar por la puerta» y, si era un administrador, llega un aviso a Telegram. |
 | **Clientes del portal y socios** | Nada. Siguen entrando por `/web/login` (clientes) y `/socios` (celular + PIN). |
-| **Quien teclea `/odoo` sin permiso** | `404 Not Found`, como una página que no existe: el panel ni aparece. |
+| **Quien teclea `/odoo` sin permiso** | `404 Not Found`, como una página que no existe. (`/web` lleva al login público, donde el personal ya no puede entrar.) |
 | **Brian (MCP y Telegram), Juan, el despliegue y los respaldos** | Nada: no usan sesión de personal (clave de API, secreto del webhook, tokens). |
 
 ### 8.3 Dos listas, no una (y en qué orden)
@@ -344,12 +344,17 @@ Nada de esto toca a clientes ni a socios.
 
 ### 8.6 Si la puerta no abre (rescate)
 
-- **Cloudflare Access caído, PIN que no llega, correo sin acceso, secreto mal copiado:** pon
-  `DCASA_PUERTA_OBLIGATORIA` en **`"0"`** en `edge/wrangler.jsonc` y despliega. Con `"0"` el borde **no cierra**
-  `/odoo` y Odoo **no exige** la puerta: se entra como antes (clave + código). No hace falta borrar nada en Cloudflare.
-- **Seguro adicional:** si el borde no tiene la puerta completa (falta o está mal alguno de los cuatro secretos), el
-  borde le manda a Odoo `"0"` aunque el interruptor diga `"1"` (log: `puerta_sin_borde`); y Odoo tampoco exige la
-  puerta sin un `DCASA_PUERTA_SECRETO` de 32+ caracteres. Un error de copiar y pegar no te deja fuera.
+- **Cloudflare Access caído, PIN que no llega, correo sin acceso, secreto o *AUD Tag* mal copiado:** pon
+  `DCASA_PUERTA_OBLIGATORIA` en **`"0"`** en `edge/wrangler.jsonc` y despliega (o vuelve atrás el despliegue:
+  docs/OPERACION.md → «Volver atrás un despliegue»). El modo lo decide el Worker en **cada petición**, así que en cuanto
+  termina el despliegue el borde no cierra `/odoo` y Odoo no exige la puerta: se entra como antes (clave + código). No
+  hace falta reiniciar a Odoo ni borrar nada en Cloudflare.
+- **Seguros que ya trae:** una petición sin la cabecera firmada del modo no exige nada (por eso un error de copiar el
+  secreto no deja a nadie fuera, y lo que nace dentro del contenedor, como el PDF de una factura, sigue funcionando);
+  si falta alguno de los cuatro secretos, la puerta queda apagada.
+- **Un detalle que NO se detecta solo:** un *AUD Tag*, un nombre de equipo o una ruta que están bien escritos pero son de
+  otra aplicación pasan la validación de formato y la entrada no abre. Por eso el §8.5 manda probar la entrada con el
+  interruptor en `"0"` antes de pasar a `"avisar"` y a `"1"`.
 - **Alguien perdió su correo o el teléfono:** el §4 (el doble factor) sigue igual. Para el correo: otro administrador
   cambia el correo en Odoo y en la política de Access.
 
@@ -357,19 +362,35 @@ Nada de esto toca a clientes ni a socios.
 
 - **Borde** (`edge/src/puerta.ts`, `handler.ts`): la entrada (`DCASA_PUERTA_RUTA`) lee el token que Access pone en
   `Cf-Access-Jwt-Assertion` y lo **verifica**: firma RS256 con las llaves de `<equipo>/cdn-cgi/access/certs`
-  (guardadas 1 h), emisor, audiencia, vencimiento y correo. Si Access estuviera mal configurado, la entrada no abre
-  (404). Con el token bueno pone su propia cookie `__Host-dcasa_puerta` (HMAC con `DCASA_PUERTA_SECRETO`, HttpOnly,
-  Secure, SameSite=Lax) y manda a `/odoo`.
-- **Hacia Odoo:** en cada petición con cookie válida el borde manda `X-Dcasa-Puerta: <correo>|<vence>|<firma>`;
-  **siempre** borra esa cabecera (y la cookie) de lo que manda el visitante.
-- **Odoo** (`addons/dcasa_seguridad/models/puerta.py`, `res_users.py`, `ir_http.py`): verifica la firma con el mismo
-  secreto (solo en el entorno del contenedor). Al iniciar sesión (usuarios internos) y en cada petición con sesión de un
-  usuario interno exige la cabecera válida; si falta, rechaza el inicio o cierra la sesión.
+  (guardadas 1 h; una sola descarga a la vez, con tiempo máximo y pausa tras un fallo), emisor, audiencia,
+  vencimiento y un correo ASCII bien formado. Si Access estuviera mal configurado, la entrada no abre (404). Con el
+  token bueno pone su propia cookie `__Host-dcasa_puerta` (HMAC con `DCASA_PUERTA_SECRETO`, HttpOnly, Secure,
+  SameSite=Lax) y manda a `/odoo`. Cerrar sesión en Odoo (también con prefijo de idioma) borra la cookie.
+- **Hacia Odoo**, en cada petición, dos cabeceras firmadas con el mismo secreto: `X-Dcasa-Puerta` (quién pasó la puerta,
+  solo si la pasó) y `X-Dcasa-Puerta-Modo` (el modo y el amarre del correo, válida 5 minutos). El borde **siempre** borra
+  ambas de lo que manda el visitante y quita la cookie de la puerta del `Cookie` que viaja a Odoo.
+- **Odoo** (`addons/dcasa_seguridad/models/puerta.py`, `res_users.py`, `ir_http.py`): verifica las firmas. Al iniciar
+  sesión (usuarios internos) y en cada petición con sesión de un usuario interno exige la cabecera de la puerta; si
+  falta, rechaza el inicio o **cierra la sesión y quita al usuario de esa misma petición** (sin eso, la última petición
+  se ejecutaba aún con sus permisos: lo encontró la revisión independiente y lo cubre una prueba). Con modo `0` o sin
+  cabecera de modo no exige nada.
 - **Por qué una cookie propia y no solo la de Access:** así la ruta secreta es lo único que Access protege (se puede
   usar en un `workers.dev` o en el dominio, sin tocar la tienda ni el chat), no depende de cómo Cloudflare reparta su
   cookie por ruta y no afecta a los WebSockets del panel (el Access de un Worker entero no los admite).
-- **Pruebas:** `edge/test/puerta.test.ts` (llaves RSA reales, tokens manipulados, `none`/HS256, cookie alterada) y
-  `addons/dcasa_seguridad/tests/test_puerta.py`.
+- **Pruebas:** `edge/test/puerta.test.ts` (llaves RSA reales, tokens manipulados, `none`/HS256, cookie alterada, llaves
+  y descargas) y `addons/dcasa_seguridad/tests/test_puerta.py` (inicio de sesión, sesión robada, modo falsificado,
+  amarre del correo). Cada regla se rompió a propósito para comprobar que alguna prueba falla.
+
+### 8.8 Límites que conviene conocer
+
+- Las **claves de API** de usuarios internos (Brian por MCP) no pasan por la puerta: tienen su propia protección.
+- Una conexión **WebSocket** ya abierta no se corta cuando vence la cookie; la siguiente petición sí.
+- Si quitas a alguien de la política de Access, su cookie de la puerta vale hasta **12 horas** (o menos); para cortarla ya,
+  archiva su usuario en Odoo y revoca su sesión en Zero Trust › *Users*.
+- Un **correo con letras fuera de ASCII** (acentos, ñ) no puede usar la puerta: se rechaza a propósito para no romper las
+  cabeceras HTTP. Usa una dirección sin esos caracteres.
+
+---
 
 ## 9. Referencia rápida de variables
 

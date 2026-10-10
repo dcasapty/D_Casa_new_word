@@ -16,14 +16,14 @@ import { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
 import {
   atenderEntrada,
+  cabeceraDeModo,
   cabeceraParaOdoo,
   COOKIE_BORRADA,
   type DepsPuerta,
-  type EntornoPuerta,
   esEntrada,
   esPanel,
-  interruptorParaOdoo,
   leerCookie,
+  rutasConYSinIdioma,
 } from "./puerta";
 import { type DepsAssets, servirAsset } from "./tienda/assets";
 import {
@@ -84,9 +84,10 @@ export interface EdgeDeps {
   limitadores?: Partial<Record<Cubeta, Limitador>>;
   /**
    * La puerta del equipo (src/puerta.ts): ausente = apagada, el borde se comporta como siempre.
-   * Encendida: la ruta de entrada verifica el token de Cloudflare Access y abre la puerta, y a Odoo le llega la
-   * cabecera firmada para que solo el personal que pasó por la puerta entre. Con `cerrarPanel` (el interruptor en «1»)
-   * además `/odoo…` da 404 sin la puerta abierta; con «0» o «avisar» el panel no se cierra (rescate y periodo de prueba).
+   * Encendida: la ruta de entrada verifica el token de Cloudflare Access y abre la puerta, y a Odoo le llegan dos
+   * cabeceras firmadas: quién pasó la puerta y qué se exige en esta petición (`modo`). Con el modo «1» además `/odoo…`
+   * da 404 sin la puerta abierta; con «0» o «avisar» el panel no se cierra (rescate y periodo de prueba). El modo
+   * lo decide el Worker en cada petición: cambiarlo y desplegar surte efecto al instante, sin reiniciar a Odoo.
    */
   puerta?: DepsPuerta;
 }
@@ -100,7 +101,10 @@ export async function handleRequest(request: Request, deps: EdgeDeps): Promise<R
 function cerrarPuertaAlSalir(request: Request, respuesta: Response, deps: EdgeDeps): Response {
   if (!deps.puerta) return respuesta;
   if (respuesta.status === 101 || (respuesta as Response & { webSocket?: unknown }).webSocket) return respuesta;
-  if (!normalizePath(new URL(request.url).pathname).startsWith("/web/session/logout")) return respuesta;
+  const sale = rutasConYSinIdioma(normalizePath(new URL(request.url).pathname)).some((ruta) =>
+    ruta.startsWith("/web/session/logout"),
+  );
+  if (!sale) return respuesta;
   const cerrada = new Response(respuesta.body, respuesta);
   cerrada.headers.append("Set-Cookie", COOKIE_BORRADA);
   return cerrada;
@@ -138,19 +142,22 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   if (rechazo) return withSecurityHeaders(rechazo);
 
   // La puerta del equipo. Va antes de despertar a Odoo: sin la puerta abierta, `/odoo…` es un 404 del borde.
-  let cabeceraPuerta: string | undefined;
+  let puertaHaciaOdoo: { acceso?: string; modo?: string } | undefined;
   if (deps.puerta) {
-    const { config, jwt, cerrarPanel } = deps.puerta;
+    const { config, jwt, modo, exigirCorreo } = deps.puerta;
     if (esEntrada(url.pathname, config)) return withSecurityHeaders(await atenderEntrada(request, config, jwt));
-    const abierta = await leerCookie(request, config, (jwt?.ahora ?? Date.now)());
-    if (abierta) {
-      cabeceraPuerta = await cabeceraParaOdoo(config, abierta);
-    } else if (cerrarPanel && esPanel(normalizePath(url.pathname))) {
+    const ahora = (jwt?.ahora ?? Date.now)();
+    const abierta = await leerCookie(request, config, ahora);
+    puertaHaciaOdoo = {
+      acceso: abierta ? await cabeceraParaOdoo(config, abierta) : undefined,
+      modo: await cabeceraDeModo(config, modo, exigirCorreo, ahora),
+    };
+    if (!abierta && modo === "1" && esPanel(normalizePath(url.pathname))) {
       return withSecurityHeaders(new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } }));
     }
   }
 
-  const upstream = new Request(request, { headers: forwardedHeaders(request, cabeceraPuerta) });
+  const upstream = new Request(request, { headers: forwardedHeaders(request, puertaHaciaOdoo) });
 
   const paginas = deps.tienda?.activa ? depsPaginas(deps) : null;
   const ruta = paginas ? rutaEstatica(url, request.method) : null;
@@ -441,12 +448,10 @@ export const VARIABLES_DEL_CONTENEDOR = [
   // https://CANONICAL_HOST/__edge/tienda/regenerar).
   "TIENDA_FEED_TOKEN",
   "TIENDA_AVISO_URL",
-  // La puerta del equipo (edge/src/puerta.ts; addons/dcasa_seguridad). Al contenedor solo viaja lo que Odoo necesita
-  // para verificar la cabecera firmada: el secreto y los dos interruptores. La ruta de la entrada y los datos de
-  // Cloudflare Access son solo del Worker.
+  // La puerta del equipo (edge/src/puerta.ts; addons/dcasa_seguridad). Al contenedor solo viaja el secreto con que
+  // Odoo verifica las cabeceras firmadas. El modo (DCASA_PUERTA_OBLIGATORIA), la ruta de la entrada y los datos de
+  // Cloudflare Access son solo del Worker: el modo viaja firmado en cada petición, no en el entorno del contenedor.
   "DCASA_PUERTA_SECRETO",
-  "DCASA_PUERTA_OBLIGATORIA",
-  "DCASA_PUERTA_EXIGIR_CORREO",
   // Seguridad de acceso (addons/dcasa_seguridad; docker/entrypoint.sh «2e»)
   "DCASA_2FA_OBLIGATORIO",
   "DCASA_2FA_ALCANCE",
@@ -482,9 +487,6 @@ export function variablesDelContenedor(env: object): Record<string, string> {
     const valor = valores[nombre];
     if (typeof valor === "string" && valor !== "") resultado[nombre] = valor;
   }
-  // La puerta del equipo: Odoo solo la exige si el borde de verdad la puede abrir (src/puerta.ts).
-  const interruptor = interruptorParaOdoo(valores as EntornoPuerta);
-  if (interruptor !== undefined) resultado.DCASA_PUERTA_OBLIGATORIA = interruptor;
   return resultado;
 }
 

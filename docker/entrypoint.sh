@@ -553,20 +553,16 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_seguridad'"
     fi
   fi
   echo "▶ Seguridad: 2FA obligatorio=$seg_2fa (alcance $seg_alcance), aviso Telegram=$seg_aviso"
-  # La puerta del equipo (addons/dcasa_seguridad/models/puerta.py): Odoo lee DCASA_PUERTA_* del entorno en cada
-  # petición; aquí solo se avisa si algo está mal puesto. Sin secreto de 32+ caracteres Odoo NO exige la puerta.
-  puerta_modo="${DCASA_PUERTA_OBLIGATORIA:-0}"
-  case "$puerta_modo" in
-    0 | avisar | 1) ;;
-    *) echo "⚠ DCASA_PUERTA_OBLIGATORIA inválido («$puerta_modo»): la puerta NO se exige (usa 0, avisar o 1)." >&2
-       puerta_modo=0 ;;
-  esac
+  # La puerta del equipo (addons/dcasa_seguridad/models/puerta.py): el MODO (0, avisar o 1) lo decide el Worker en cada
+  # petición y viaja firmado; aquí solo llega el secreto con que Odoo verifica esas cabeceras. Sin un secreto de 32+
+  # caracteres Odoo no verifica nada y por tanto no exige la puerta a nadie.
   puerta_secreto="${DCASA_PUERTA_SECRETO:-}"
-  if [[ "$puerta_modo" != "0" && ${#puerta_secreto} -lt 32 ]]; then
-    echo "⚠ DCASA_PUERTA_OBLIGATORIA=$puerta_modo pero falta DCASA_PUERTA_SECRETO (mínimo 32 caracteres): la puerta" \
-      "NO se exige hasta que el secreto esté cargado (docs/SEGURIDAD_ACCESO.md §8)." >&2
+  if [[ -z "$puerta_secreto" ]]; then
+    echo "▶ Puerta del equipo: sin secreto cargado (apagada)"
+  elif [[ ${#puerta_secreto} -lt 32 ]]; then
+    echo "⚠ DCASA_PUERTA_SECRETO tiene menos de 32 caracteres: la puerta NO se exige (docs/SEGURIDAD_ACCESO.md §8)." >&2
   else
-    echo "▶ Puerta del equipo: modo=$puerta_modo, exigir correo=${DCASA_PUERTA_EXIGIR_CORREO:-0}"
+    echo "▶ Puerta del equipo: secreto cargado (el modo lo manda el Worker en cada petición)"
   fi
 fi
 
