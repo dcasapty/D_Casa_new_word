@@ -208,6 +208,9 @@ LISTA_BLANCA = {
         'Solo el dueño del chat o un administrador (se comprueba antes del sudo).',
     ('dcasa_brian', 'brian.telegram.enlace', 'action_registrar_webhook'): 'Exige base.group_system.',
     ('dcasa_brian', 'res.users', 'action_dcasa_brian_vincular_telegram'): 'Solo sobre el propio usuario.',
+    ('dcasa_brian', 'res.users', 'write'):
+        OVERRIDE + ' Después del write estándar (que ya exige permisos), si se archiva al usuario apaga sus chats de '
+                   'Telegram; no devuelve datos.',
     # --- dcasa_conversaciones (Juan, el asistente de clientes) ---------------------------------
     # Todo lo que escribe con sudo() (registrar mensajes, estado, seguimiento, tokens) es privado (_ o @api.private)
     # y solo lo llama la API /dcasa/juan/v1 (con token) o el propio módulo. Lo público de abajo:
@@ -264,6 +267,15 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'desvincular_puente'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.mensaje', 'write'): 'Bloquea: el historial de la conversación no se edita.',
+    ('dcasa_conversaciones', 'dcasa.mensaje', 'unlink'):
+        OVERRIDE + ' Tras el unlink estándar (ACL y reglas de registro) borra con sudo la copia del mensaje en la '
+                   'ficha del cliente (Ley 81); no devuelve datos.',
+    ('dcasa_conversaciones', 'crm.lead', 'write'):
+        OVERRIDE + ' Marca «una persona tomó el control» cuando alguien cambia etapa o temperatura a mano; escribe '
+                   'con los permisos del usuario (ACL y reglas de registro de crm.lead).',
+    ('dcasa_conversaciones', 'crm.lead', 'action_dcasa_devolver_control'):
+        'Botón: devuelve la oportunidad al CRM automático escribiendo con los permisos del usuario (ACL y reglas de '
+        'crm.lead).',
     ('dcasa_conversaciones', 'dcasa.mensaje', 'action_reintentar'): VENTAS_BOTON,
     ('dcasa_conversaciones', 'dcasa.mensaje', 'marcar_sensible'):
         'Exige sales_team.group_sale_salesman; busca los mensajes SIN sudo, así que solo marca adjuntos de mensajes '
