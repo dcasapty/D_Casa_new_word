@@ -78,7 +78,10 @@ export class Almacen {
         this._numeroDeHilo = 0;
         this._temporizadorEventos = null;
         this._eventosPendientes = new Set();
-        this._alEvento = this._alEvento.bind(this);
+        // «En vivo» solo lo dice la conexión de verdad (no un deseo): se enciende al conectar y se apaga al caerse.
+        this._ultimaSincronizacion = Date.now();
+        this._resincronizando = false;
+        this._escuchas = [];
     }
 
     /** El borrador de la conversación abierta: texto, modo («respuesta» o «nota») y archivos por enviar. */
@@ -120,13 +123,65 @@ export class Almacen {
     }
 
     suscribir() {
-        this.bus.subscribe("dcasa_conversaciones/evento", this._alEvento);
-        this.bus.start?.().then(() => (this.enVivo = true)).catch(() => (this.enVivo = false));
+        // Ojo: las funciones que se le dejan al bus y al navegador usan `almacen`, el objeto REACTIVO (el que llegó aquí
+        // como `this` porque la pantalla llamó a este método). Si usaran el objeto «crudo» (p. ej. un `bind` en el
+        // constructor), lo que cambian no volvería a pintar la pantalla hasta que otra cosa la moviera.
+        const almacen = this;
+        this._escuchas = [
+            ["dcasa_conversaciones/evento", (carga) => almacen._alEvento(carga)],
+            ["BUS:CONNECT", () => (almacen.enVivo = true)],
+            ["BUS:RECONNECT", () => almacen._alReconectar()],
+            ["BUS:DISCONNECT", () => (almacen.enVivo = false)],
+            ["BUS:RECONNECTING", () => (almacen.enVivo = false)],
+        ];
+        this.bus.subscribe(...this._escuchas[0]);
+        for (const [tipo, funcion] of this._escuchas.slice(1)) {
+            this.bus.addEventListener?.(tipo, funcion);
+        }
+        this._alVolverLaRed = () => almacen.resincronizar();
+        window.addEventListener("online", this._alVolverLaRed);
+        this.bus
+            .start?.()
+            .then(() => {
+                // Si la conexión ya estaba abierta (otra pestaña la comparte) no habrá un aviso de «conectó»: se mira cómo está.
+                this.enVivo = this.enVivo || this.bus.workerState === "CONNECTED";
+            })
+            .catch(() => (this.enVivo = false));
     }
 
     desuscribir() {
-        this.bus.unsubscribe("dcasa_conversaciones/evento", this._alEvento);
+        const [aviso, ...conexion] = this._escuchas;
+        if (aviso) {
+            this.bus.unsubscribe(...aviso);
+        }
+        for (const [tipo, funcion] of conexion) {
+            this.bus.removeEventListener?.(tipo, funcion);
+        }
+        this._escuchas = [];
+        window.removeEventListener("online", this._alVolverLaRed);
         clearTimeout(this._temporizadorEventos);
+    }
+
+    /** Volvió la conexión en vivo: lo que pasó mientras estuvo caída no llegó por avisos, así que se trae de nuevo. */
+    _alReconectar() {
+        this.enVivo = true;
+        return this.resincronizar();
+    }
+
+    /**
+     * Pone al día la lista y la conversación abierta con lo que tiene el servidor. Se usa al reconectar, al volver a ver la
+     * pestaña y, si no hay conexión en vivo, cada tanto. `sinPasarDe`: si se sincronizó hace menos de esos ms, no hace nada.
+     */
+    async resincronizar(sinPasarDe = 0) {
+        if (this._resincronizando || !this.iniciado || Date.now() - this._ultimaSincronizacion < sinPasarDe) {
+            return;
+        }
+        this._resincronizando = true;
+        try {
+            await Promise.all([this.cargarLista({ silencioso: true }), this.seleccionadaId ? this.refrescarAbierta() : null]);
+        } finally {
+            this._resincronizando = false;
+        }
     }
 
     /** Un aviso del servidor (solo ids y estado, jamás texto): se juntan los de un instante y se refresca una vez. */
@@ -215,6 +270,7 @@ export class Almacen {
             this.total = r.total;
             this.hayMas = r.hay_mas;
             this.sinLeerTotal = r.sin_leer_total;
+            this._ultimaSincronizacion = Date.now();
             const abierta = this.lista.find((c) => c.id === this.seleccionadaId);
             if (abierta) {
                 this.conversacion = abierta;

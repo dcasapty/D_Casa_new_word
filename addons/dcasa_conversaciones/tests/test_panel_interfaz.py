@@ -742,10 +742,42 @@ class TestPanelEnElNavegador(PanelUiCase):
             direccion: "entrante", autor: "cliente", texto: "¿Siguen ahí? Me urge saber", ts: new Date().toISOString() }),
     });
     if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); }
-    await esperar(() => aqui(".o_dcj_burbuja_cliente", "Me urge saber"), "el mensaje nuevo, sin recargar", 30000);
+    await esperar(() => aqui(".o_dcj_burbuja_cliente", "Me urge saber"), "el mensaje nuevo, sin recargar (en segundos, no esperando al siguiente reloj de 30 s)", 8000);
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """.replace("__TOKEN__", TOKEN_ODOO))
+    def test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio(self):
+        """El punto «En vivo» solo está encendido si la conexión lo está; y al volver la conexión la pantalla se pone al día
+        (los avisos que llegaron mientras estuvo caída no se repiten)."""
+        self.datos_de_ejemplo()
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    const bus = odoo.__WOWL_DEBUG__.root.env.services.bus_service;
+    const vivo = () => document.querySelector(".o_dcj_envivo.o_activo");
+    await esperar(vivo, "el punto «En vivo» con la conexión abierta", 30000);
+    // Se cae la conexión: el aviso no puede seguir diciendo «En vivo».
+    bus.stop();
+    bus.trigger("BUS:DISCONNECT");
+    await esperar(() => !vivo() && document.querySelector(".o_dcj_envivo").textContent.includes("Sin conexión en vivo"), "que diga «Sin conexión en vivo»");
+    // Llega un mensaje mientras no hay conexión (el aviso en vivo no llega).
+    const r = await fetch("/dcasa/juan/v1/mensaje", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer __TOKEN__" },
+        body: JSON.stringify({ canal: "whatsapp_qr", id_externo: "50761000001", id_mensaje: "wamid.reconexion.1",
+            direccion: "entrante", autor: "cliente", texto: "Me quedé sin conexión y sigo aquí", ts: new Date().toISOString() }),
+    });
+    if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); }
+    await pausa(1500);
+    if (aqui(".o_dcj_burbuja_cliente", "Me quedé sin conexión")) { throw new Error("sin conexión no debería aparecer solo"); }
+    // Vuelve la conexión: se enciende y se trae lo que faltaba, sin recargar.
+    bus.trigger("BUS:RECONNECT");
+    await esperar(vivo, "que vuelva a decir «En vivo»");
+    await esperar(() => aqui(".o_dcj_burbuja_cliente", "Me quedé sin conexión"), "el mensaje perdido, traído al reconectar", 8000);
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""".replace("__TOKEN__", TOKEN_ODOO))
+
     def test_el_escribiendo_aparece_cuando_el_worker_avisa_y_se_va_cuando_termina(self):
         self.datos_de_ejemplo()
         self.navegador("""
@@ -758,10 +790,10 @@ class TestPanelEnElNavegador(PanelUiCase):
         body: JSON.stringify({ canal: "whatsapp_qr", id_externo: "50761000001", activo }),
     }).then((r) => { if (!r.ok) { throw new Error("la API de Juan respondió " + r.status); } });
     await avisar(true);
-    const aviso = await esperar(() => document.querySelector(".o_dcj_escribiendo"), "el «escribiendo»", 30000);
+    const aviso = await esperar(() => document.querySelector(".o_dcj_escribiendo"), "el «escribiendo»", 8000);
     if (!aviso.textContent.includes("está escribiendo")) { throw new Error("dice que escribe: " + aviso.textContent); }
     await avisar(false);
-    await esperar(() => !document.querySelector(".o_dcj_escribiendo"), "que se apague al terminar", 30000);
+    await esperar(() => !document.querySelector(".o_dcj_escribiendo"), "que se apague al terminar", 8000);
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """.replace("__TOKEN__", TOKEN_ODOO))

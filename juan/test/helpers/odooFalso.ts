@@ -130,8 +130,12 @@ export class OdooFalso implements OdooApi {
     if (this.caido) throw new OdooError("Odoo no contesta", 0, true);
   }
 
+  /** Si no es null, `mensaje()` lanza esto (p. ej. un 4xx de Odoo) en lugar de guardar. */
+  falloDeMensaje: Error | null = null;
+
   async mensaje(cuerpo: CuerpoMensaje): Promise<RespuestaMensaje> {
     this.revisar();
+    if (this.falloDeMensaje) throw this.falloDeMensaje;
     if (!this.mensajes.some((m) => m.id_mensaje === cuerpo.id_mensaje)) this.mensajes.push(cuerpo);
     return { ok: true, conversacion_id: this.conversacionId, partner_id: 55, ...this.estadoActual };
   }
@@ -154,7 +158,7 @@ export class OdooFalso implements OdooApi {
   }
 
   async herramienta(nombre: string, args: Record<string, unknown>, conversacion_id: number | null): Promise<ResultadoHerramienta> {
-    if (this.caido) return { ok: false, error: "Odoo no contesta" };
+    if (this.caido) return { ok: false, error: "Odoo no contesta", transitorio: true };
     this.llamadas.push({ nombre, args, conversacion_id });
     if (this.retardoMs > 0) {
       this.enCurso++;
@@ -163,11 +167,11 @@ export class OdooFalso implements OdooApi {
       this.enCurso--;
     }
     const f = this.manejadores[nombre];
-    if (!f) return { ok: false, error: `herramienta desconocida: ${nombre}` };
+    if (!f) return { ok: false, error: `herramienta desconocida: ${nombre}`, transitorio: false };
     try {
       return { ok: true, resultado: f(args, this) };
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: false };
     }
   }
 

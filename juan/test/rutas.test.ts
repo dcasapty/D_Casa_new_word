@@ -232,6 +232,24 @@ describe("POST /odoo/enviar", () => {
     expect(m.conv.enviados).toEqual([{ texto: "Hola, soy Marisol.", adjuntos: [{ tipo: "imagen", url: "https://sitio/foto.jpg", nombre: "foto.jpg", mime: "image/jpeg" }] }]);
   });
 
+  it("id_envio (la llave contra duplicados) pasa tal cual a la conversación; sin él, un Odoo viejo sigue funcionando", async () => {
+    const m = montar();
+    expect((await m.pedir(post("/odoo/enviar", { ...base, id_envio: "odoo-0f1e2d3c4b5a69788796a5b4c3d2e1f0" }, deOdoo))).status).toBe(200);
+    expect(m.conv.enviados).toEqual([{ id_envio: "odoo-0f1e2d3c4b5a69788796a5b4c3d2e1f0", texto: "Hola, soy Marisol.", adjuntos: [] }]);
+    expect((await m.pedir(post("/odoo/enviar", base, deOdoo))).status).toBe(200);
+    expect((m.conv.enviados[1] as { id_envio?: string }).id_envio).toBeUndefined();
+  });
+
+  it("un id_envio con forma rara → 400 (no se usa de llave de memoria)", async () => {
+    const m = montar();
+    for (const malo of ["", 5, "con espacios", "x".repeat(121), "a/b", { a: 1 }]) {
+      const res = await m.pedir(post("/odoo/enviar", { ...base, id_envio: malo }, deOdoo));
+      expect(res.status, JSON.stringify(malo)).toBe(400);
+      expect((await res.json<any>()).error).toMatch(/id_envio/);
+    }
+    expect(m.conv.enviados).toEqual([]);
+  });
+
   it("solo adjuntos (sin texto) también vale", async () => {
     const m = montar();
     expect((await m.pedir(post("/odoo/enviar", { ...base, texto: undefined, adjuntos: [{ tipo: "documento", url: "https://sitio/ficha.pdf" }] }, deOdoo))).status).toBe(200);

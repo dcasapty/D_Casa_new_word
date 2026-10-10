@@ -7,7 +7,7 @@
                     <h1>Conversaciones</h1>
                     <span t-if="almacen.sinLeerTotal" class="o_dcj_contador" t-out="almacen.sinLeerTotal + ' sin leer'"/>
                     <span class="o_dcj_envivo" t-att-class="{ o_activo: almacen.enVivo }"
-                          t-att-title="almacen.enVivo ? 'En vivo: los mensajes nuevos aparecen solos' : 'Sin conexión en vivo: recarga la página si no ves mensajes nuevos'">
+                          t-att-title="almacen.enVivo ? 'En vivo: los mensajes nuevos aparecen solos' : 'Sin conexión en vivo: la pantalla se revisa sola cada 30 segundos'">
                         <i class="fa fa-circle" aria-hidden="true"/>
                         <span class="o_dcj_solo_lector" t-out="almacen.enVivo ? 'En vivo' : 'Sin conexión en vivo'"/>
                     </span>

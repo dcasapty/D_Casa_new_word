@@ -26,6 +26,7 @@ import {
   type Saliente,
   type SaludCanal,
   type TipoAdjunto,
+  EnvioParcialError,
   MAX_FOTO_DE_PERFIL_BYTES,
 } from "./tipos";
 
@@ -40,6 +41,24 @@ interface EntranteDelPuente {
   medio_omitido?: { motivo?: string; mime?: string; bytes?: number } | null;
   ts?: number | string;
   propio?: boolean;
+}
+
+/**
+ * Lo que el puente alcanzó a mandar antes de fallar (`{enviados:{chunks, medios}, ids}`), o null si no salió nada.
+ * `chunks` cuenta también los restos de un pie largo, que van DESPUÉS de sus archivos: aquí solo importan las burbujas propias.
+ */
+function enviadoSegunElPuente(cuerpo: string, salida: Saliente): { burbujas: number; medios: number; ids: string[] } | null {
+  let j: { enviados?: { chunks?: unknown; medios?: unknown }; ids?: unknown } | null;
+  try {
+    j = JSON.parse(cuerpo) as typeof j;
+  } catch {
+    return null;
+  }
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+  const burbujas = Math.min(n(j?.enviados?.chunks), salida.burbujas.length);
+  const medios = Math.min(n(j?.enviados?.medios), salida.medios.length);
+  if (burbujas + medios === 0) return null;
+  return { burbujas, medios, ids: Array.isArray(j?.ids) ? j.ids.filter((x): x is string => typeof x === "string") : [] };
 }
 
 /** Estados, grupos, canales y bots de Meta no son un cliente escribiéndole al negocio. */
@@ -181,7 +200,13 @@ export function crearWhatsappQr(op: OpcionesWhatsappQr = {}): AdaptadorCanal {
             : {}),
         }),
       });
-      if (!r.ok) throw new Error(`puente /api/enviar → ${r.status} ${(await r.text().catch(() => "")).slice(0, 200)}`);
+      if (!r.ok) {
+        const texto = await r.text().catch(() => "");
+        const mensaje = `puente /api/enviar → ${r.status} ${texto.slice(0, 200)}`;
+        // El puente dice qué alcanzó a salir (`enviados`, `ids`): eso no se repite al reintentar.
+        const parcial = enviadoSegunElPuente(texto, salida);
+        throw parcial ? new EnvioParcialError(mensaje, parcial) : new Error(mensaje);
+      }
       return { ids: [] };
     },
 

@@ -273,8 +273,8 @@ describe("una conversación completa por Telegram", () => {
     e.odoo.estado.caido = true;
     await e.telegram("Hola");
     await e.vencerRafaga();
-    // Con Odoo caído el bot igual contestó (usó los valores por defecto), y nada se registró todavía.
-    expect(e.textosAlCliente().length).toBeGreaterThan(0);
+    // Con Odoo caído y sin herramientas el bot NO contesta de memoria (no hay catálogo ni precios): espera, y nada se registró todavía.
+    expect(e.textosAlCliente()).toEqual([]);
     expect(e.odoo.peticiones.every((p) => p.ruta !== "/mensaje" || e.odoo.estado.caido)).toBe(true);
 
     e.odoo.estado.caido = false;
@@ -283,6 +283,23 @@ describe("una conversación completa por Telegram", () => {
     const registrados = e.odoo.peticiones.slice(antes).filter((p) => p.ruta === "/mensaje").map((p) => p.cuerpo);
     expect(registrados.some((m) => m.autor === "cliente" && m.texto === "Hola")).toBe(true);
     expect(registrados.some((m) => m.autor === "bot")).toBe(true);
+    // Y al despertar Odoo (con sus herramientas) el asistente sí contestó, sin que el cliente tuviera que repetir nada.
+    expect(e.textosAlCliente().length).toBeGreaterThan(0);
+  });
+
+  it("si Odoo sigue dormido, el asistente no inventa: al agotar los reintentos avisa con honestidad y pasa a una vendedora", async () => {
+    const e = escenario();
+    e.odoo.estado.caido = true;
+    await e.telegram("Hola, ¿cuánto cuesta la cama queen?");
+    await e.vencerRafaga();
+    await e.pasar(61_000);
+    await e.pasar(301_000);
+    expect(e.alIA()).toHaveLength(0); // jamás se le preguntó a la IA sin catálogo
+    expect(e.textosAlCliente().join(" ")).toContain(TEXTO_FALLO_TECNICO);
+    // La nota para la vendedora espera en la cola: sale cuando Odoo despierta.
+    e.odoo.estado.caido = false;
+    await e.pasar(30 * 60_000);
+    expect(e.odoo.peticiones.some((p) => p.ruta === "/herramienta" && p.cuerpo.nombre === "pasar_a_vendedora")).toBe(true);
   });
 });
 

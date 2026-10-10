@@ -126,6 +126,7 @@ describe("foto de perfil", () => {
 
   it("con Odoo caído no se guarda nada y la conversación no se rompe", async () => {
     const m = mundoConFoto();
+    await m.deps.herramientas(); // las herramientas ya se conocían: sin ellas el asistente no contesta (ver «arranque cerrado»)
     m.odoo.caido = true;
     m.guion([{ texto: "Hola" }]);
     await m.conversar("Hola");

@@ -199,8 +199,15 @@ class DcasaConversacionPanel(models.Model):
         offset = _entero(offset, 'offset', minimo=0)
         limite = _entero(limite, 'limite', minimo=1, maximo=LIMITE_LISTA)
         dominio = self._dominio_panel(filtros)
-        total = self.search_count(dominio)
-        conversaciones = self.search(dominio, offset=offset, limit=limite)
+        if self._dominio_busqueda((filtros or {}).get('busqueda')):
+            # Con búsqueda, lo caro es mirar el texto de los mensajes: se hace UNA vez
+            # (antes, una para contar y otra para la página).
+            todas = self.search(dominio)
+            total = len(todas)
+            conversaciones = todas[offset:offset + limite]
+        else:
+            total = self.search_count(dominio)
+            conversaciones = self.search(dominio, offset=offset, limit=limite)
         sin_leer = self._sin_leer(conversaciones.ids)
         return {
             'conversaciones': [c._resumen_panel(sin_leer) for c in conversaciones],

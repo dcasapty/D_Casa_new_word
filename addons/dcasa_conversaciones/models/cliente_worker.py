@@ -81,8 +81,12 @@ class JuanCliente(models.AbstractModel):
 
     @api.private
     @api.model
-    def enviar(self, canal, id_externo, texto=None, adjuntos=None):
+    def enviar(self, canal, id_externo, texto=None, adjuntos=None, id_envio=None):
+        """``id_envio`` es la llave que impide mandar dos veces lo mismo: si Odoo no oyó la respuesta y reintenta con el
+        mismo ``id_envio``, el Worker no vuelve a escribirle al cliente (devuelve lo que ya había hecho)."""
         datos = {'canal': canal, 'id_externo': id_externo, 'autor': 'vendedora'}
+        if id_envio:
+            datos['id_envio'] = id_envio
         if texto:
             datos['texto'] = texto
         if adjuntos:

@@ -117,8 +117,9 @@ Meta). El par es único.
 `Authorization: Bearer <JUAN_WORKER_TOKEN>`; URL base en el ajuste `dcasa_conversaciones.juan_url`.
 
 1. `POST /odoo/enviar` — **una vendedora escribe desde Odoo** y sale por el canal:
-   `{canal,id_externo,texto?,adjuntos?:[{tipo,url,nombre,mime}],autor:"vendedora"}` → `{ok, id_mensaje}`.
-   Lo envía sin pasar por la IA ni por la ráfaga; respeta el ritmo del canal.
+   `{canal,id_externo,texto?,adjuntos?:[{tipo,url,nombre,mime}],autor:"vendedora",id_envio?}` → `{ok, id_mensaje, repetido?}`.
+   Lo envía sin pasar por la IA ni por la ráfaga; respeta el ritmo del canal. **`id_envio` evita los mensajes duplicados**
+   (ver «Envío sin duplicados»).
 2. `POST /odoo/estado` — **tomar o devolver** la conversación:
    `{canal,id_externo,estado:"humano|bot",pausada_hasta?}`. El Worker cancela cualquier respuesta
    del bot en curso al pasar a `humano`.
@@ -274,7 +275,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 
 | Ruta | Cuerpo | Respuesta |
 |---|---|---|
-| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}]}` | `200 {ok, id_mensaje}` |
+| `POST /odoo/enviar` | `{canal, id_externo, autor:"vendedora", texto?, adjuntos?[{tipo, url, nombre, mime}], id_envio?}` | `200 {ok, id_mensaje, repetido?:true}` |
 | `POST /odoo/estado` | `{canal, id_externo, estado:"humano"\|"bot", pausada_hasta?, nota_para_el_bot?}` | `200 {ok}` |
 | `POST /odoo/seguimiento` | `{conversacion_id, canal, id_externo, numero:1\|2, contexto:{interes, ultimo_mensaje_ts}}` | `200 {ok:true, resultado:"enviado"\|"descartado"\|"pospuesto", motivo?}` · `502 {ok:false, error}` |
 | `GET /odoo/salud` | | `200 {ok, mensaje, version, entorno, secretos_faltantes, ia, canales:{<canal>:{activo, configurado, faltan, conectado, detalle?}}, gasto_ia_mes_usd, tope_usd, tope_alcanzado, problemas, avisos}` |
@@ -287,6 +288,14 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
   `*.dcasapty.workers.dev` (`MEDIOS_HOSTS_PERMITIDOS`), por https y sin IPs: si `web.base.url` no es de esos dominios el puente
   contesta 422, el Worker responde 502 a Odoo y el mensaje queda «por enviar». Un adjunto con `http://` lo rechaza el Worker (400).
   Audio y video salen como enlace dentro del texto.
+- **Envío sin duplicados (`id_envio`).** Odoo reintenta un envío cuando no oyó la respuesta (red caída, el Worker tardó más de
+  25 s). Sin protección, el cliente recibiría el mismo mensaje dos veces. Odoo manda como `id_envio` el `id_mensaje` de su propio
+  mensaje (`odoo-<uuid>`, 1 a 120 letras, cifras, `.`, `:`, `_` o `-`; otra cosa es `400`) y **no cambia entre reintentos**. El
+  Worker lo recuerda 3 días: si ya salió contesta `200 {ok, id_mensaje, repetido:true}` con el mismo id y **no vuelve a escribirle al
+  cliente**; si ese mismo envío todavía está saliendo (hasta 3 minutos), contesta `502 «ya se está enviando»` y Odoo reintenta
+  después. Si un canal se corta a la mitad (salió la burbuja 1 de 3), el Worker reintenta solo lo que faltaba y, si no puede, Odoo
+  sigue donde quedó. Sin `id_envio` (un Odoo viejo) todo funciona como antes, sin esa protección. Solo si el Worker mismo se cae
+  justo mientras manda puede repetirse algo (lo que se mandaba en ese instante).
 - `/odoo/estado` al **devolver**: trae `nota_para_el_bot` si la vendedora dejó una. Al **tomar** no. Si el aviso falla, Odoo lo
   reintenta cada 5 minutos y mientras tanto el Worker se entera igual: pregunta `GET /estado` justo antes de enviar.
 - **Seguimiento:** el cron de Odoo (cada 15 min) anota el pedido y **confirma en la base antes** de llamar al Worker, porque el Worker
@@ -301,7 +310,7 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 
 | Caso | Odoo | Worker |
 |---|---|---|
-| Sin `JUAN_ODOO_TOKEN` (o de menos de 32 caracteres) | `503 {ok:false, error}` en **todas** las rutas | `OdooError` reintentable (1 reintento, luego la cola de Odoo: 12 intentos para mensajes, 6 para herramientas) |
+| Sin `JUAN_ODOO_TOKEN` (o de menos de 32 caracteres) | `503 {ok:false, error}` en **todas** las rutas | `OdooError` reintentable (1 reintento, luego la cola del Worker: ver abajo) |
 | Token malo o ausente | `401` + `WWW-Authenticate` | sin reintento |
 | 30 intentos fallidos en un minuto (por IP) | `429` + `Retry-After: 60`, incluso con el token bueno | reintentable |
 | Odoo dormido o arrancando (lo contesta el borde) | `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` + `Retry-After` | reintenta; los mensajes esperan en la cola, **no se pierden** |
@@ -309,6 +318,17 @@ Base: ajuste `dcasa_conversaciones.juan_url` o variable `JUAN_URL` (https; `http
 | Sin `JUAN_WORKER_TOKEN` en el Worker | — | `503` en `/odoo/*` (falla cerrado); con token malo, `401` |
 | Odoo no puede llamar al Worker | el mensaje de la vendedora queda «por enviar» y el cron lo reintenta cada 5 min durante 1 h | — |
 
+- **La cola del Worker nunca descarta lo que Odoo no pudo recibir.** Lo que el Worker debe escribir en Odoo (los mensajes de la
+  conversación y las notas/etiquetas) espera en su cola: primero reintenta rápido (30 s, 1, 2, 4, 8 y luego cada 15 min, 12 veces) y,
+  si Odoo sigue sin contestar, **cada 6 horas**, sin límite de intentos. Los mensajes se conservan 30 días; las escrituras sueltas,
+  3. `GET /odoo/salud` avisa en `problemas` («Odoo no está recibiendo los mensajes de los clientes…») y lo retira cuando se entrega.
+  Lo único que se deja es una escritura suelta que Odoo **rechaza** (4xx: etiqueta que no existe) tras 6 intentos, porque
+  reintentar no la arregla; un mensaje, nunca.
+- **Arranque cerrado.** Si Odoo no entrega la lista de herramientas (y no hay una anterior en memoria), el asistente **no contesta
+  de memoria** (sin catálogo, precios ni existencias inventaría): reintenta a los 60 s y 5 min y, si Odoo no vuelve, le avisa al
+  cliente con honestidad y pasa la conversación a una vendedora, igual que si fallara la IA. Una lista vacía nunca se recuerda.
+- **Tope de la ráfaga.** Cada mensaje nuevo reinicia la espera de 15 s, pero pasadas 3 esperas (45 s) desde el primer mensaje de la
+  ráfaga se contesta con lo que haya: quien escribe una frase cada 10 s ya no se queda sin respuesta.
 - Las herramientas **no se reintentan solas** (podrían duplicar una nota u oportunidad). Las que **escriben** en Odoo se ejecutan de a
   una por turno del bot (las consultas siguen corriendo juntas): dos escrituras a la vez sobre la misma conversación chocan en Postgres.
 - `POST /odoo/seguimiento` y `/odoo/enviar` son síncronos: el Worker contesta cuando terminó. Odoo espera hasta 25 s.

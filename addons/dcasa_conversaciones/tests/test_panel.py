@@ -803,7 +803,73 @@ class TestRendimientoDeLaBandeja(PanelCase):
         con_40 = self.consultas(lambda: self.panel.hilo(conv.id, limite=40))
         self.assertEqual(con_3, con_40)
 
-    def test_con_5000_conversaciones_la_lista_sale_en_menos_de_un_segundo_y_usa_el_indice(self):
+    def test_la_busqueda_mira_el_texto_de_los_mensajes_una_sola_vez(self):
+        """Antes la bandeja contaba y luego pedía la página: el subselect sobre TODOS los mensajes corría dos veces."""
+        for n in range(1, 6):
+            self.cliente(n, nombre=f'Zzbusca {n}')
+        consultas = []
+        real = self.env.cr.execute
+
+        def espia(query, *args, **kwargs):
+            consultas.append(str(getattr(query, 'code', query)).lower())
+            return real(query, *args, **kwargs)
+
+        with patch.object(self.env.cr, 'execute', side_effect=espia):
+            pagina = self.panel.lista({'busqueda': 'zzbusca'}, offset=0, limite=2)
+        sobre_texto = [q for q in consultas if 'dcasa_mensaje' in q and 'ilike' in q and 'texto' in q]
+        self.assertEqual(len(sobre_texto), 1, sobre_texto)
+        self.assertEqual((pagina['total'], len(pagina['conversaciones']), pagina['hay_mas']), (5, 2, True))
+
+    def test_buscar_pagina_a_pagina_da_lo_mismo_que_todo_junto(self):
+        for n in range(1, 8):
+            self.cliente(n, nombre=f'Zzpagina {n}')
+        todo = self.panel.lista({'busqueda': 'zzpagina'}, limite=100)
+        self.assertEqual(todo['total'], 7)
+        vistos = []
+        for offset in (0, 3, 6):
+            parte = self.panel.lista({'busqueda': 'zzpagina'}, offset=offset, limite=3)
+            self.assertEqual(parte['total'], 7)
+            self.assertEqual(parte['hay_mas'], offset + len(parte['conversaciones']) < 7)
+            vistos += [c['id'] for c in parte['conversaciones']]
+        self.assertEqual(vistos, [c['id'] for c in todo['conversaciones']])
+        self.assertEqual(self.panel.lista({'busqueda': 'zzpagina'}, offset=50, limite=3)['conversaciones'], [])
+
+    def test_los_indices_de_los_mensajes_son_los_que_se_usan(self):
+        """12 índices en la tabla que más crece: 5 repetidos o sobre columnas de 2 a 5 valores (no sirven)."""
+        self.env.cr.execute("SELECT indexdef FROM pg_indexes WHERE tablename = 'dcasa_mensaje'")
+        definiciones = [fila[0].lower() for fila in self.env.cr.fetchall()]
+        columnas = ['conversacion_id', 'id_mensaje', 'canal', 'tipo', 'autor', 'estado_envio']
+        for columna in columnas:
+            sueltos = [d for d in definiciones if f'({columna})' in d and 'where' not in d]
+            self.assertFalse(sueltos, f'Índice suelto sobre {columna}: {sueltos}')
+        self.assertTrue(any('(conversacion_id, id)' in d for d in definiciones), definiciones)
+        self.assertTrue(any('unique' in d and 'conversacion_id, id_mensaje' in d for d in definiciones), definiciones)
+        # El que busca lo pendiente es PARCIAL: solo guarda lo que espera salir o falló.
+        self.assertTrue(any('(estado_envio)' in d and "'por_enviar'" in d for d in definiciones), definiciones)
+        if self.env.registry.has_trigram:
+            self.assertTrue(any('gin' in d and 'texto' in d and 'trgm' in d for d in definiciones), definiciones)
+
+    def test_el_hilo_y_los_pendientes_leen_por_indice(self):
+        self.cliente(1)
+        self.env.cr.execute('ANALYZE dcasa_mensaje')
+        # Con tan pocas filas el planificador prefiere recorrer: se prueba que el índice PUEDE usarse.
+        self.env.cr.execute('SET LOCAL enable_seqscan = off')
+        consultas = {
+            'hilo': 'SELECT id FROM dcasa_mensaje WHERE conversacion_id = 1 AND id < 999999 ORDER BY id DESC LIMIT 51',
+            'por enviar': "SELECT id FROM dcasa_mensaje WHERE estado_envio = 'por_enviar' ORDER BY id LIMIT 50",
+            'programados': ("SELECT id FROM dcasa_mensaje WHERE estado_envio = 'programado' "
+                            "AND programado_para <= NOW() ORDER BY programado_para LIMIT 50"),
+        }
+        for nombre, consulta in consultas.items():
+            self.env.cr.execute('EXPLAIN ' + consulta)
+            plan = '\n'.join(fila[0] for fila in self.env.cr.fetchall())
+            self.assertIn('Index', plan, f'{nombre}: {plan}')
+        if self.env.registry.has_trigram:
+            self.env.cr.execute("EXPLAIN SELECT conversacion_id FROM dcasa_mensaje WHERE texto ILIKE '%zzbusca%'")
+            plan = '\n'.join(fila[0] for fila in self.env.cr.fetchall())
+            self.assertIn('Index', plan, plan)
+
+    def test_con_5000_conversaciones_la_lista_sale_en_menos_de_un_cuarto_de_segundo_y_usa_el_indice(self):
         self.env.cr.execute("""
             INSERT INTO dcasa_conversacion
                    (canal, id_externo, estado, name, inicio, ultima_actividad, ultimo_mensaje_texto,
@@ -836,7 +902,8 @@ class TestRendimientoDeLaBandeja(PanelCase):
                 dt = time.perf_counter() - t0
                 minimo = dt if minimo is None else min(minimo, dt)
             tiempos.append((filtros, round(minimo, 3)))
-            self.assertLess(minimo, 1.0, f'{filtros} tardó {minimo:.2f} s')
+            # Medido: ~0,03 s. Con 0,25 s se nota un índice perdido o una consulta de más, sin falsas alarmas.
+            self.assertLess(minimo, 0.25, f'{filtros} tardó {minimo:.2f} s')
             self.assertTrue(resultado['conversaciones'])
         _logger.info('Bandeja con 5.000 conversaciones (mejor de 3, segundos): %s', tiempos)
         self.assertEqual(self.panel.lista()['total'], 5000)

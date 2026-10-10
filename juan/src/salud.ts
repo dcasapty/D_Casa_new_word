@@ -165,6 +165,11 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   if (ultimoFallo && ultimoFallo.ts > hace24h) {
     problemas.push(`la IA «${ultimoFallo.proveedor}/${ultimoFallo.modelo}» falló hace poco: ${ultimoFallo.motivo}`);
   }
+  // Odoo no recibe lo que le llega al Worker: nada se pierde (se guarda y se reintenta), pero el historial y los avisos no avanzan.
+  const cola = await leerJson<{ ts: number; resuelto?: boolean }>(d, "cola_estancada");
+  if (cola && !cola.resuelto && cola.ts > d.ahora() - 12 * 3600_000) {
+    problemas.push("Odoo no está recibiendo los mensajes de los clientes: el Worker los guarda y los reintenta cada 6 horas; no se pierde nada, pero hay que revisar Odoo");
+  }
   const principal = modelosDelPapel(cfg, "principal");
   const ia: EstadoDeIa = {
     proveedor: cfg.proveedor_ia,

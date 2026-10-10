@@ -171,9 +171,11 @@ class TestEscribirDesdeOdoo(BandejaCase):
         self.escribir()
         (llamada,) = self.llamadas('/odoo/enviar')
         self.assertEqual(llamada.args[0], 'POST')
-        self.assertEqual(llamada.kwargs['json'], {'canal': 'whatsapp_qr', 'id_externo': '50761234567',
-                                                  'autor': 'vendedora',
-                                                  'texto': 'Hola Karen, soy Marta. Sí tenemos queen.'})
+        enviado = dict(llamada.kwargs['json'])
+        # La llave de idempotencia: el id del mensaje en Odoo (`odoo-<uuid>`), que no cambia entre reintentos.
+        self.assertRegex(enviado.pop('id_envio'), r'^odoo-[0-9a-f]{32}$')
+        self.assertEqual(enviado, {'canal': 'whatsapp_qr', 'id_externo': '50761234567', 'autor': 'vendedora',
+                                   'texto': 'Hola Karen, soy Marta. Sí tenemos queen.'})
         mensaje = self.mensaje_de_odoo()
         self.assertEqual((mensaje.estado_envio, mensaje.id_mensaje), ('enviado', 'wamid.worker.1'))
         self.assertEqual((mensaje.autor, mensaje.direccion, mensaje.usuario_id),
@@ -242,6 +244,23 @@ class TestEscribirDesdeOdoo(BandejaCase):
         self.assertEqual((mensaje.estado_envio, mensaje.id_mensaje), ('enviado', 'wamid.worker.9'))
         self.assertFalse(mensaje.error_envio)
         self.assertEqual(self.conv.por_enviar_count, 0)
+
+    def test_el_reintento_usa_la_misma_llave_de_idempotencia(self):
+        """Si Odoo no oyó la respuesta (se cayó la red, el Worker tardó más de 25 s) y reintenta, el Worker reconoce el
+        `id_envio` y no vuelve a escribirle al cliente lo que ya salió."""
+        self.worker_caido()
+        self.escribir('Una sola vez, por favor')
+        mensaje = self.mensaje_de_odoo()
+        llave = mensaje.id_mensaje
+        self.envejecer(mensaje)
+        self.Mensaje._cron_reintentar_envios()
+        self.worker_ok('wamid.worker.3')
+        self.envejecer(mensaje)
+        self.Mensaje._cron_reintentar_envios()
+        llaves = [llamada.kwargs['json']['id_envio'] for llamada in self.llamadas('/odoo/enviar')]
+        self.assertEqual(llaves, [llave, llave, llave])
+        # Al confirmar, el mensaje toma el id del canal, pero la llave ya cumplió.
+        self.assertEqual(mensaje.id_mensaje, 'wamid.worker.3')
 
     def test_el_cron_no_reintenta_demasiado_pronto(self):
         self.worker_caido()

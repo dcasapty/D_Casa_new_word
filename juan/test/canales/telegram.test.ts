@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
 import { avisarPorTelegram, crearTelegram, type TgUpdate } from "../../src/canales/telegram";
+import { EnvioParcialError } from "../../src/canales/tipos";
 
 const SECRETO = "secreto-del-webhook-de-prueba";
 const TOKEN = "123456:token-de-prueba";
@@ -188,6 +189,24 @@ describe("enviar por Telegram", () => {
     const p = adaptador.enviar("telegram", { para: "555", burbujas: ["x"], medios: [] }, env);
     await expect(p).rejects.toThrow(/403.*bot was blocked by the user/);
     await p.catch((e) => expect(String(e)).not.toContain(TOKEN));
+  });
+
+  it("si se corta a la mitad, avisa qué SÍ salió (para que el reintento no lo repita)", async () => {
+    let n = 0;
+    const f = telegramFalso();
+    const fetchCortado: typeof fetch = async (r, i) => (String(r).endsWith("/sendMessage") && ++n === 2 ? Response.json({ ok: false, description: "Too Many Requests" }, { status: 429 }) : f.fetch(r, i));
+    const adaptador = crearTelegram({ fetch: fetchCortado, dormir: async () => {} });
+    const e = await adaptador.enviar("telegram", { para: "555", burbujas: ["Uno", "Dos", "Tres"], medios: [{ tipo: "imagen", url: "https://x/f.jpg" }] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(EnvioParcialError);
+    expect(e.enviado).toEqual({ burbujas: 1, medios: 0, ids: ["tg:555:101"] });
+  });
+
+  it("si falla desde la primera llamada, es un error normal (no salió nada)", async () => {
+    const f = telegramFalso({ sendMessage: Response.json({ ok: false, description: "x" }, { status: 500 }) });
+    const { adaptador } = tg(f);
+    const e = await adaptador.enviar("telegram", { para: "555", burbujas: ["Uno"], medios: [] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(Error);
+    expect(e).not.toBeInstanceOf(EnvioParcialError);
   });
 
   it("sin TELEGRAM_BOT_TOKEN_JUAN no envía", async () => {

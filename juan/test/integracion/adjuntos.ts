@@ -224,6 +224,28 @@ export function seccionAdjuntos(e: Escena) {
         expect(Buffer.from(envio.descargas[0].bytes).equals(png)).toBe(true);
       });
 
+      it("Odoo manda su `id_envio` real y un reintento con la misma llave NO le escribe otra vez al cliente", async () => {
+        // Lo que Odoo mandó de verdad en el envío anterior: el id de su propio mensaje, con la forma que el Worker acepta.
+        const mensajes = (await e.mensajesDe(celular)).filter((x) => x.autor === "vendedora" && x.tipo === "mensaje");
+        expect(mensajes.length).toBeGreaterThan(0);
+        // Un envío nuevo, con la misma forma de llave que usa Odoo (`odoo-<uuid>`), repetido como lo haría un reintento.
+        const llave = `odoo-${"ab12".repeat(8)}`;
+        const cuerpo = { canal: "whatsapp_qr", id_externo: celular, autor: "vendedora", texto: "Te escribo una sola vez.", id_envio: llave };
+        const antes = e.w.puente.envios.length;
+        const primero = await e.w.odooAlWorker("POST", "/odoo/enviar", cuerpo);
+        expect(primero.estado).toBe(200);
+        expect(primero.json.repetido).toBeUndefined();
+        const segundo = await e.w.odooAlWorker("POST", "/odoo/enviar", cuerpo);
+        expect(segundo.estado).toBe(200);
+        expect(segundo.json).toMatchObject({ ok: true, repetido: true, id_mensaje: primero.json.id_mensaje });
+        expect(e.w.puente.envios.length).toBe(antes + 1);
+        expect(e.w.puente.envios.filter((x) => x.chunks.includes("Te escribo una sola vez."))).toHaveLength(1);
+        // Una llave con forma rara es un 400 claro, no una memoria de basura.
+        const mala = await e.w.odooAlWorker("POST", "/odoo/enviar", { ...cuerpo, id_envio: "con espacios" });
+        expect(mala.estado).toBe(400);
+        expect(mala.json.error).toMatch(/id_envio/);
+      });
+
       it("el administrador puede ver la clave de firma, y la firma de Odoo se verifica igual que en el servidor (HMAC-SHA256)", async () => {
         const [param] = await admin.buscar("ir.config_parameter", [["key", "=", "database.secret"]], ["value"]);
         const url = new URL(e.w.puente.envios.find((x) => x.medios[0]?.nombre === "cotizacion.pdf")!.medios[0].url);

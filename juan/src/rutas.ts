@@ -198,10 +198,14 @@ async function odoo(ruta: string, req: Request, env: Env, d: DepsRutas): Promise
       const adjuntos = Array.isArray(cuerpo.adjuntos) ? cuerpo.adjuntos.filter(esObjeto) : [];
       if (!texto?.trim() && adjuntos.length === 0) return error("hay que mandar texto o adjuntos", 400);
       for (const a of adjuntos) if (typeof a.url !== "string" || !/^https:\/\//i.test(a.url)) return error("cada adjunto necesita una url https", 400);
+      // La llave que impide mandar dos veces lo mismo cuando Odoo reintenta (opcional: un Odoo viejo no la manda).
+      const idEnvio = cuerpo.id_envio;
+      if (idEnvio !== undefined && (typeof idEnvio !== "string" || !/^[\w.:-]{1,120}$/.test(idEnvio))) return error("id_envio inválido", 400);
       const adaptador = d.adaptadores.find((a) => a.canales.includes(canal));
       if (!adaptador || !adaptador.configurado(env, canal)) return error(`el canal ${canal} no está configurado en el Worker`, 502);
       return json(
         await conv.enviarVendedora({
+          id_envio: idEnvio,
           texto,
           adjuntos: adjuntos.map((a) => ({
             tipo: String(a.tipo ?? "documento"),

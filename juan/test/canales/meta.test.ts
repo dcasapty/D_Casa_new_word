@@ -7,6 +7,7 @@ import type { Env } from "../../src/env";
 import { crearMeta, eventosDeMeta } from "../../src/canales/meta";
 import { adaptadorDe, adaptadorPorRuta, crearAdaptadores } from "../../src/canales/index";
 import { hmacHex } from "../../src/seguridad";
+import { EnvioParcialError } from "../../src/canales/tipos";
 
 const SECRETO = "secreto-de-la-app-0123456789abcdef";
 const VERIFICACION = "verificacion-de-prueba-0123456789";
@@ -246,6 +247,21 @@ describe("el envío por la Send API", () => {
     expect((err as Error).message).toMatch(/outside of allowed window/);
     expect((err as Error).message).toMatch(/código 10/);
     expect((err as Error).message).not.toContain(TOKEN_PAGINA);
+  });
+
+  it("si se corta a la mitad, avisa qué SÍ salió (para que el reintento no lo repita)", async () => {
+    const { llamadas, adaptador } = graphFalso((_c, n) => (n === 2 ? Response.json({ error: { message: "Temporarily unavailable", code: 2 } }, { status: 500 }) : Response.json({ recipient_id: "1", message_id: `m.${n}` })));
+    const e = await adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Uno", "Dos", "Tres"], medios: [] }, env).catch((x) => x);
+    expect(llamadas).toHaveLength(3);
+    expect(e).toBeInstanceOf(EnvioParcialError);
+    expect(e.enviado).toEqual({ burbujas: 2, medios: 0, ids: ["m.0", "m.1"] });
+  });
+
+  it("si falla desde la primera llamada, es un error normal (no salió nada)", async () => {
+    const { adaptador } = graphFalso(() => Response.json({ error: { message: "x", code: 1 } }, { status: 500 }));
+    const e = await adaptador.enviar("messenger", { para: "PSID1", burbujas: ["Uno"], medios: [] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(Error);
+    expect(e).not.toBeInstanceOf(EnvioParcialError);
   });
 
   it("sin META_PAGE_TOKEN no intenta nada", async () => {

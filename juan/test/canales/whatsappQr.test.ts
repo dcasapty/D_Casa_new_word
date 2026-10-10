@@ -7,6 +7,7 @@
 import { describe, expect, it } from "vitest";
 import type { Env } from "../../src/env";
 import { crearWhatsappQr, esChatDeUnaPersona, idExternoDeJid } from "../../src/canales/whatsappQr";
+import { EnvioParcialError } from "../../src/canales/tipos";
 import { tokenDelPuente, tokenParaCabecera, tokensIguales } from "../../src/seguridad";
 
 const WA_TOKEN = "token-compartido-con-el-puente-0123456789";
@@ -218,6 +219,29 @@ describe("enviar por el puente", () => {
   it("si el puente contesta con error, se lanza para que se vea (no se pierde en silencio)", async () => {
     const { env } = puenteFalso(() => new Response("socket cerrado", { status: 503 }));
     await expect(adaptador.enviar("whatsapp_qr", { para: "50760261919", burbujas: ["x"], medios: [] }, env)).rejects.toThrow(/503.*socket cerrado/);
+  });
+
+  it("si el puente alcanzó a mandar parte antes de fallar, lo avisa (lo que salió no se repite)", async () => {
+    const { env } = puenteFalso(() => Response.json({ ok: false, error: "socket cerrado", ids: ["A1"], enviados: { chunks: 1, medios: 0 }, parcial: true }, { status: 502 }));
+    const e = await adaptador.enviar("whatsapp_qr", { para: "50760261919", burbujas: ["Uno", "Dos"], medios: [] }, env).catch((x) => x);
+    expect(e).toBeInstanceOf(EnvioParcialError);
+    expect(e.enviado).toEqual({ burbujas: 1, medios: 0, ids: ["A1"] });
+    expect(e.message).toMatch(/502.*socket cerrado/);
+  });
+
+  it("el conteo del puente incluye el resto de un pie largo: aquí solo cuentan las burbujas propias y los archivos", async () => {
+    const { env } = puenteFalso(() => Response.json({ ok: false, ids: ["A", "B", "C"], enviados: { chunks: 5, medios: 1 } }, { status: 502 }));
+    const e = await adaptador.enviar("whatsapp_qr", { para: "50760261919", burbujas: ["Uno"], medios: [{ tipo: "imagen", url: "https://x/f.jpg" }] }, env).catch((x) => x);
+    expect(e.enviado).toMatchObject({ burbujas: 1, medios: 1 });
+  });
+
+  it("un 502 sin nada enviado, o con un cuerpo que no es JSON, es un error normal", async () => {
+    for (const respuesta of [() => Response.json({ ok: false, ids: [], enviados: { chunks: 0, medios: 0 } }, { status: 502 }), () => new Response("<html>bad gateway</html>", { status: 502 })]) {
+      const { env } = puenteFalso(respuesta);
+      const e = await adaptador.enviar("whatsapp_qr", { para: "50760261919", burbujas: ["Uno"], medios: [] }, env).catch((x) => x);
+      expect(e).toBeInstanceOf(Error);
+      expect(e).not.toBeInstanceOf(EnvioParcialError);
+    }
   });
 
   it("sin el binding PUENTE o sin WA_TOKEN, lo dice por su nombre", async () => {

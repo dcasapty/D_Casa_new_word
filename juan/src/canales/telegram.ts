@@ -20,6 +20,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  EnvioParcialError,
   MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
@@ -160,19 +161,29 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
       if (!token) throw new Error("Falta TELEGRAM_BOT_TOKEN_JUAN");
       const chat = salida.para;
       const ids: string[] = [];
-      for (let i = 0; i < salida.burbujas.length; i++) {
-        if (i > 0) await dormir(salida.esperaMs ?? 1000);
-        const r = await llamar(token, "sendMessage", { chat_id: chat, text: sinNegritas(salida.burbujas[i]) });
-        if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
-      }
-      for (const m of salida.medios) {
-        const esFoto = m.tipo === "imagen";
-        const r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", {
-          chat_id: chat,
-          [esFoto ? "photo" : "document"]: m.url,
-          ...(m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {}),
-        });
-        if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
+      let burbujas = 0;
+      let medios = 0;
+      try {
+        for (let i = 0; i < salida.burbujas.length; i++) {
+          if (i > 0) await dormir(salida.esperaMs ?? 1000);
+          const r = await llamar(token, "sendMessage", { chat_id: chat, text: sinNegritas(salida.burbujas[i]) });
+          burbujas++;
+          if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
+        }
+        for (const m of salida.medios) {
+          const esFoto = m.tipo === "imagen";
+          const r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", {
+            chat_id: chat,
+            [esFoto ? "photo" : "document"]: m.url,
+            ...(m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {}),
+          });
+          medios++;
+          if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
+        }
+      } catch (e) {
+        // Lo que ya salió no se repite: quien reintente manda solo lo que falta.
+        if (burbujas + medios > 0) throw new EnvioParcialError(e instanceof Error ? e.message : String(e), { burbujas, medios, ids });
+        throw e;
       }
       return { ids };
     },

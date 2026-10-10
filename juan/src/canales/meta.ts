@@ -23,6 +23,7 @@ import {
   type ResultadoWebhook,
   type Saliente,
   type SaludCanal,
+  EnvioParcialError,
   MAX_FOTO_DE_PERFIL_BYTES,
   sinNegritas,
 } from "./tipos";
@@ -161,19 +162,32 @@ export function crearMeta(op: OpcionesMeta = {}): AdaptadorCanal {
       const ids: string[] = [];
       const destino = { id: salida.para };
       const cap = canal === "instagram" ? CAPACIDADES.instagram : CAPACIDADES.messenger;
-      for (let i = 0; i < salida.burbujas.length; i++) {
-        if (i > 0) await dormir(salida.esperaMs ?? 1000);
-        const id = await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { text: sinNegritas(salida.burbujas[i]) } });
-        if (id) ids.push(id);
-      }
-      for (const m of salida.medios) {
-        if (m.tipo === "documento" && !cap.documentos) continue;
-        const id = await enviarUno(env, {
-          recipient: destino,
-          messaging_type: "RESPONSE",
-          message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: { url: m.url, is_reusable: true } } },
-        });
-        if (id) ids.push(id);
+      let burbujas = 0;
+      let medios = 0;
+      try {
+        for (let i = 0; i < salida.burbujas.length; i++) {
+          if (i > 0) await dormir(salida.esperaMs ?? 1000);
+          const id = await enviarUno(env, { recipient: destino, messaging_type: "RESPONSE", message: { text: sinNegritas(salida.burbujas[i]) } });
+          burbujas++;
+          if (id) ids.push(id);
+        }
+        for (const m of salida.medios) {
+          if (m.tipo === "documento" && !cap.documentos) {
+            medios++;
+            continue;
+          }
+          const id = await enviarUno(env, {
+            recipient: destino,
+            messaging_type: "RESPONSE",
+            message: { attachment: { type: m.tipo === "imagen" ? "image" : "file", payload: { url: m.url, is_reusable: true } } },
+          });
+          medios++;
+          if (id) ids.push(id);
+        }
+      } catch (e) {
+        // Lo que ya salió no se repite: quien reintente manda solo lo que falta.
+        if (burbujas + medios > 0) throw new EnvioParcialError(e instanceof Error ? e.message : String(e), { burbujas, medios, ids });
+        throw e;
       }
       return { ids };
     },

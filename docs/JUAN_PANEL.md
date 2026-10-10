@@ -67,11 +67,18 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
 
 ## Rendimiento y calidad
 
-- Cargar la lista en menos de 1 s con 5.000 conversaciones (índices, paginación, sin cargar hilos
-  completos): el hilo se trae por tramos de 50 mensajes, hacia atrás.
+- Cargar la lista en menos de 0,25 s con 5.000 conversaciones (medido: ~0,03 s; índices, paginación, sin cargar hilos
+  completos): el hilo se trae por tramos de 50 mensajes, hacia atrás. La búsqueda por lo que se dijo usa un índice de trigramas
+  sobre el texto de los mensajes (`pg_trgm`; sin la extensión se busca igual, más lento) y mira los mensajes UNA sola vez.
+  En `dcasa.mensaje` solo quedan los índices que se usan (el hilo, la restricción única, la fecha, el cliente, lo programado,
+  el parcial de «por enviar / fallido» y el de trigramas): Odoo no borra solo un índice al quitarlo del campo, así que el
+  modelo los borra en `init()` al actualizar.
 - Imágenes: miniaturas WebP al ancho justo (el mismo servicio `/dcasa/img` del sitio), carga
   diferida; documentos solo al abrirlos.
-- Tiempo real con el bus de Odoo (un solo canal por usuario), sin sondeo.
+- Tiempo real con el bus de Odoo (un solo canal por usuario), sin sondeo. El punto «En vivo» solo está encendido si la conexión
+  lo está de verdad (se apaga al caerse y se enciende al conectar). Al **reconectar**, al **volver a ver la pestaña** (si pasaron
+  más de 20 s) y al volver la red, la pantalla se pone al día sola; y mientras no haya conexión en vivo se revisa cada 30 s: nadie
+  se queda sin ver un mensaje por tener que «recargar la página».
 - Funciona en celular (390 px) y con el pulgar: botones de al menos 44 px, caja de respuesta fija
   abajo, la lista y el hilo como pantallas separadas.
 - Accesible (teclado, foco visible, etiquetas), sin degradados ni sombras dramáticas (regla de

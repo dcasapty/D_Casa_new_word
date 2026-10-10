@@ -73,6 +73,18 @@ describe("informeDeSalud", () => {
     expect(i.problemas.join(" ")).toMatch(/whatsapp_qr no está conectado/);
   });
 
+  it("Odoo no recibe lo que se le manda: es un problema (con una frase estable, para avisar una sola vez), hasta que se resuelve", async () => {
+    const nota = (valor: unknown, ts = AHORA - 3600_000) => ({ leerSalud: async (clave: string) => (clave === "cola_estancada" ? { json: JSON.stringify(valor), ts } : null) });
+    const atascada = await informeDeSalud(deps(todo, {}, nota({ ts: AHORA - 3600_000, tipo: "mensaje" })));
+    expect(atascada.ok).toBe(false);
+    expect(atascada.problemas.filter((p) => /Odoo no está recibiendo/.test(p))).toHaveLength(1);
+    expect(atascada.problemas.join("")).not.toMatch(/\d+ mensaje/); // sin cifras que cambien: así el cron no avisa de nuevo cada vez
+    const resuelta = await informeDeSalud(deps(todo, {}, nota({ ts: AHORA - 60_000, resuelto: true })));
+    expect(resuelta.problemas).toEqual([]);
+    const vieja = await informeDeSalud(deps(todo, {}, nota({ ts: AHORA - 13 * 3600_000 }))); // nadie lo reanotó en 12 h: ya pasó
+    expect(vieja.problemas).toEqual([]);
+  });
+
   it("un puente que no contesta a tiempo no cuelga el informe", async () => {
     const env = { ...todo, PUENTE: { fetch: () => new Promise<Response>(() => {}) } } as unknown as Env;
     const t0 = Date.now();

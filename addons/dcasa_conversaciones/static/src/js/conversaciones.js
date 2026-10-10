@@ -17,6 +17,8 @@ import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
 const CADA_CUANTO = 30_000;
+/** Al volver a ver la pestaña se pone al día, salvo que se haya sincronizado hace menos de esto. */
+const AL_VOLVER_SIN_PASAR_DE = 20_000;
 
 function leerAbierta() {
     try {
@@ -56,11 +58,19 @@ export class DcasaConversaciones extends Component {
             if (document.visibilityState === "visible") {
                 this.almacen.ahora = Date.now();
                 this.almacen.marcarLeida();
+                // Una pestaña escondida pudo perder avisos (el navegador la duerme): al volver se pone al día.
+                this.almacen.resincronizar(AL_VOLVER_SIN_PASAR_DE);
             }
         };
         onMounted(async () => {
             document.addEventListener("visibilitychange", this.alVolverAVer);
-            this.reloj = setInterval(() => (this.almacen.ahora = Date.now()), CADA_CUANTO);
+            this.reloj = setInterval(() => {
+                this.almacen.ahora = Date.now();
+                // Sin conexión en vivo no llegan avisos: la pantalla se revisa sola, para que nadie se quede sin ver un mensaje.
+                if (!this.almacen.enVivo) {
+                    this.almacen.resincronizar(CADA_CUANTO - 1000);
+                }
+            }, CADA_CUANTO);
             await this.almacen.iniciar();
             const recordada = leerAbierta();
             if (recordada && !this.almacen.errorInicio) {

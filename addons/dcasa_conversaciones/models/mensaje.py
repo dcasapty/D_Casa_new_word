@@ -19,6 +19,7 @@ from psycopg2 import IntegrityError
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
+from odoo.tools import sql as tools_sql
 
 from . import adjuntos as A
 from . import firma as F
@@ -44,6 +45,10 @@ MAX_INTENTOS = 12                       # con el cron cada 5 min: ~1 hora de rei
 EDAD_MINIMA_REINTENTO = timedelta(minutes=2)
 VENTANA_ADOPCION = timedelta(minutes=15)
 CLAVE_SISTEMA = 'dcasa_mensaje_sistema'
+# Índices de una sola columna que ya no se declaran: `conversacion_id` y `id_mensaje` los cubren `_hilo_idx` y la
+# restricción única; `canal`, `tipo` y `autor` tienen 2 a 5 valores (un índice así no ayuda a buscar);
+# `estado_envio` pasó a uno parcial.
+INDICES_QUE_SOBRAN = ('conversacion_id', 'id_mensaje', 'canal', 'tipo', 'autor', 'estado_envio')
 
 
 class DcasaMensaje(models.Model):
@@ -52,16 +57,18 @@ class DcasaMensaje(models.Model):
     _order = 'ts, id'
     _rec_name = 'id_mensaje'
 
-    conversacion_id = fields.Many2one('dcasa.conversacion', required=True, ondelete='cascade', index=True,
-                                      readonly=True)
+    # Sin `index=True`: lo cubren `_hilo_idx` y la restricción única, que empiezan por `conversacion_id`.
+    conversacion_id = fields.Many2one('dcasa.conversacion', required=True, ondelete='cascade', readonly=True)
     partner_id = fields.Many2one(related='conversacion_id.partner_id', store=True, index=True)
-    canal = fields.Selection(related='conversacion_id.canal', store=True, index=True)
-    tipo = fields.Selection(TIPOS, default='mensaje', required=True, readonly=True, index=True)
+    canal = fields.Selection(related='conversacion_id.canal', store=True)
+    tipo = fields.Selection(TIPOS, default='mensaje', required=True, readonly=True)
     direccion = fields.Selection(DIRECCIONES, required=True, readonly=True)
-    autor = fields.Selection(AUTORES, required=True, readonly=True, index=True)
-    id_mensaje = fields.Char('Id del mensaje', required=True, readonly=True, index=True,
+    autor = fields.Selection(AUTORES, required=True, readonly=True)
+    id_mensaje = fields.Char('Id del mensaje', required=True, readonly=True,
                              help='Lo asigna el canal (o el Worker). Es la llave de la idempotencia.')
-    texto = fields.Text(readonly=True)
+    # `trigram`: la búsqueda de la bandeja («lo que se dijo en cualquier mensaje») usa ILIKE '%…%', que sin este
+    # índice recorre todos los mensajes.
+    texto = fields.Text(readonly=True, index='trigram')
     ts = fields.Datetime('Fecha', required=True, readonly=True, default=fields.Datetime.now, index=True)
     adjunto_ids = fields.Many2many('ir.attachment', 'dcasa_mensaje_adjunto_rel', 'mensaje_id', 'adjunto_id',
                                    string='Adjuntos', readonly=True)
@@ -75,7 +82,7 @@ class DcasaMensaje(models.Model):
                               required=True)
     usuario_id = fields.Many2one('res.users', 'Escrito por', readonly=True,
                                  help='La vendedora que lo escribió en Odoo.')
-    estado_envio = fields.Selection(ESTADOS_ENVIO, default='recibido', required=True, readonly=True, index=True)
+    estado_envio = fields.Selection(ESTADOS_ENVIO, default='recibido', required=True, readonly=True)
     programado_para = fields.Datetime(
         'Se envía el', readonly=True, index='btree_not_null',
         help='Mensaje que una vendedora dejó programado: sale solo a esta hora (la revisión corre cada 5 minutos).')
@@ -92,8 +99,17 @@ class DcasaMensaje(models.Model):
         "OR (tipo = 'aviso' AND direccion = 'interna' AND autor = 'sistema'))",
         'Un mensaje entrante es del cliente; uno saliente, del asistente o de una vendedora; una nota, de una '
         'vendedora; un aviso, del sistema.')
+    def init(self):
+        """Odoo NO borra un índice cuando a un campo se le quita ``index=True`` (lo deja: «Keep unexpected index»),
+        así que en una base que ya existía seguirían ahí, estorbando al guardar cada mensaje. Se borran aquí."""
+        super().init()
+        for campo in INDICES_QUE_SOBRAN:
+            tools_sql.drop_index(self.env.cr, tools_sql.make_index_name(self._table, campo), self._table)
+
     # El hilo se pide por tramos hacia atrás (id < X, de 50 en 50): con este índice es una lectura de índice.
     _hilo_idx = models.Index('(conversacion_id, id)')
+    # Solo lo que espera salir o falló (unas pocas filas entre muchas): los crones lo encuentran sin recorrer todo.
+    _pendientes_idx = models.Index("(estado_envio) WHERE estado_envio IN ('por_enviar', 'programado', 'fallido')")
 
     # ------------------------------------------------------------------
     # El historial no se edita
@@ -259,9 +275,10 @@ class DcasaMensaje(models.Model):
             transaccion.confirmar(self.env)
         for mensaje in por_enviar:
             conversacion = mensaje.conversacion_id
+            # El id del mensaje es la llave de idempotencia: un reintento (sin oír la respuesta) no duplica lo enviado.
             resultado = Cliente.enviar(
                 conversacion.canal, conversacion.id_externo, texto=mensaje.texto or None,
-                adjuntos=mensaje._datos_adjuntos_para_worker() or None)
+                adjuntos=mensaje._datos_adjuntos_para_worker() or None, id_envio=mensaje.id_mensaje)
             intentos = mensaje.intentos + 1
             sistema = mensaje.with_context(**{CLAVE_SISTEMA: True})
             if resultado.get('ok'):

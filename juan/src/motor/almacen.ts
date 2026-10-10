@@ -190,8 +190,14 @@ export class Cola {
   posponer(id: number, proximo: number): void {
     this.sql.correr("UPDATE cola SET proximo = ? WHERE id = ?", proximo, id);
   }
-  purgar(antesDe: number): void {
-    this.sql.correr("DELETE FROM cola WHERE creado < ?", antesDe);
+  /** Borra lo viejo de ese tipo (sin tipo, de todos). */
+  purgar(antesDe: number, tipo?: FilaCola["tipo"]): void {
+    if (tipo) this.sql.correr("DELETE FROM cola WHERE creado < ? AND tipo = ?", antesDe, tipo);
+    else this.sql.correr("DELETE FROM cola WHERE creado < ?", antesDe);
+  }
+  /** ¿Queda algo que ya falló tantas veces seguidas que pasó al reintento lento? */
+  hayEstancadas(intentos: number): boolean {
+    return !!this.sql.uno("SELECT 1 AS x FROM cola WHERE intentos >= ? LIMIT 1", intentos);
   }
 }
 

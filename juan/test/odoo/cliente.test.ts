@@ -143,9 +143,17 @@ describe("reintentos", () => {
   });
 
   it("herramienta: `ok:false` de Odoo llega con su error; `ok:true` con su resultado", async () => {
-    expect(await dcasaFalso([ok({ ok: false, error: "no hay stock de eso" })]).cliente.herramienta("x", {}, null)).toEqual({ ok: false, error: "no hay stock de eso" });
+    // Odoo SÍ contestó y la rechazó: `transitorio: false` (reintentar no la arregla).
+    expect(await dcasaFalso([ok({ ok: false, error: "no hay stock de eso" })]).cliente.herramienta("x", {}, null)).toEqual({ ok: false, error: "no hay stock de eso", transitorio: false });
     expect(await dcasaFalso([ok({ ok: true, resultado: { n: 2 } })]).cliente.herramienta("x", {}, null)).toEqual({ ok: true, resultado: { n: 2 } });
-    expect(await dcasaFalso([ok({ ok: false })]).cliente.herramienta("x", {}, null)).toEqual({ ok: false, error: "la herramienta falló" });
+    expect(await dcasaFalso([ok({ ok: false })]).cliente.herramienta("x", {}, null)).toEqual({ ok: false, error: "la herramienta falló", transitorio: false });
+  });
+
+  it("herramienta: si no se pudo hablar con Odoo (5xx, red) es un fallo pasajero; un 4xx de Odoo, no", async () => {
+    const dormido = await dcasaFalso([falla(503)]).cliente.herramienta("x", {}, null);
+    expect(dormido).toMatchObject({ ok: false, transitorio: true });
+    const rechazo = await dcasaFalso([falla(422)]).cliente.herramienta("x", {}, null);
+    expect(rechazo).toMatchObject({ ok: false, transitorio: false });
   });
 
   it("seguimiento/hecho se reintenta hasta 2 veces (es idempotente)", async () => {
@@ -253,6 +261,18 @@ describe("CargadorHerramientas", () => {
       throw new Error("Odoo dormido");
     }, () => ahora);
     expect(await nuevo.obtener()).toEqual([]);
+  });
+
+  it("una lista vacía NO se recuerda: el siguiente mensaje vuelve a preguntar (sin herramientas el asistente no contesta)", async () => {
+    let ahora = 0;
+    let n = 0;
+    let respuesta: DefHerramienta[] = [];
+    const c = new CargadorHerramientas(async () => (n++, respuesta), () => ahora);
+    expect(await c.obtener()).toEqual([]);
+    ahora += 1000; // un segundo después, no a los 5 minutos
+    respuesta = una;
+    expect(await c.obtener()).toEqual(una);
+    expect(n).toBe(2);
   });
 
   it("una lista vacía NO pisa la última buena (casi seguro es un error de Odoo)", async () => {

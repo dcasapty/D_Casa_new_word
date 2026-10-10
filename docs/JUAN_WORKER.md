@@ -66,7 +66,8 @@ automático** y ofrece una persona. «Juan» es solo el nombre interno.
 2. Si en Odoo ese canal está apagado, no pasa nada más. Si no, el mensaje va al Durable Object de
    esa persona. Uno por persona: dos mensajes seguidos nunca se pisan.
 3. Se anotan en Odoo (el historial es de Odoo). Si Odoo está dormido, el mensaje espera en una cola
-   y se manda cuando despierte. No se pierde.
+   y se manda cuando despierte. **No se pierde ni se descarta nunca**: reintenta rápido y luego cada 6 horas, se conserva 30 días
+   y `/odoo/salud` avisa si Odoo no lo recibe (docs/JUAN.md → «Códigos y reintentos»).
 4. Antes de gastar IA: anti-spam (mismo mensaje 3 veces, o más de 50 turnos al día), «¿está pausada
    por una persona?», y «persona / vendedora / humano» (eso pasa a una vendedora **siempre**, sin
    preguntarle a la IA).

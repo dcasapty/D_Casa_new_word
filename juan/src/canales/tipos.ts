@@ -67,6 +67,20 @@ export interface ResultadoEnvio {
   ids: string[];
 }
 
+/**
+ * El envío se cortó a la mitad: ya salieron `burbujas` textos y `medios` archivos (en el orden de `Saliente`).
+ * Quien reintente manda SOLO lo que falta; si no, el cliente recibiría dos veces lo mismo.
+ */
+export class EnvioParcialError extends Error {
+  constructor(
+    mensaje: string,
+    readonly enviado: { burbujas: number; medios: number; ids: string[] },
+  ) {
+    super(mensaje);
+    this.name = "EnvioParcialError";
+  }
+}
+
 export interface ResultadoWebhook {
   /** Lo que se le contesta al proveedor, siempre rápido. */
   respuesta: Response;

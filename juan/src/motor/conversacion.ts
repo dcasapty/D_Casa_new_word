@@ -14,7 +14,7 @@
 import type { ModelMessage } from "ai";
 import { canalActivo, dentroDeHorario, diaDelNegocio, mesDelNegocio, type Config } from "../config";
 import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from "../canales/tipos";
-import { partirPorLargo } from "../canales/tipos";
+import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
 import { analizar, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
@@ -55,12 +55,43 @@ function bytesABase64(bytes: Uint8Array): string {
 }
 const IMAGENES_POR_DIA = 10;
 
+/** Lo que ya salió por el canal en un mismo envío. */
+interface ProgresoDeEnvio {
+  burbujas: number;
+  medios: number;
+  ids: string[];
+}
+
+/** El estado de un envío de Odoo, recordado por su `id_envio`: saliendo, cortado a medias o terminado. */
+interface EnvioRecordado {
+  e: "curso" | "parcial" | "listo";
+  ts: number;
+  b: number;
+  m: number;
+  ids: string[];
+  /** Solo en «listo»: el id que se le devolvió a Odoo. */
+  id?: string;
+}
+const PREFIJO_ID_ENVIO = "ide:";
+
 /** Un adjunto como se guarda en la copia de trabajo: el de Odoo más lo que se leyó de la imagen (esto NO viaja a Odoo). */
 type AdjuntoLocal = AdjuntoOdoo & { lectura?: LecturaImagen };
 const RETENCION_MENSAJES_MS = 30 * 24 * 3600_000;
-const RETENCION_COLA_MS = 3 * 24 * 3600_000;
-const INTENTOS_COLA_MENSAJE = 12;
+/** Un mensaje por registrar en Odoo es el historial permanente: se conserva un mes entero (como los de la copia de trabajo). */
+const RETENCION_COLA_MENSAJES_MS = 30 * 24 * 3600_000;
+/** Las escrituras sueltas (etiquetas, notas) pierden valor pronto: a los 3 días ya no importan. */
+const RETENCION_COLA_HERRAMIENTAS_MS = 3 * 24 * 3600_000;
+/** Con tantos intentos seguidos la cola deja el ritmo rápido (30 s → 15 min) y pasa a uno lento; NUNCA descarta. */
+const INTENTOS_COLA_RAPIDOS = 12;
+/** Una escritura suelta que Odoo rechaza con un 4xx se deja tras tantos intentos (reintentar no la arregla). */
 const INTENTOS_COLA_HERRAMIENTA = 6;
+const ESPERA_COLA_LENTA_MS = 6 * 3600_000;
+/** Un envío desde Odoo recordado por su `id_envio`: el tiempo que Odoo puede seguir reintentándolo. */
+const VIDA_ID_ENVIO_MS = 3 * 24 * 3600_000;
+/** Mientras un envío con ese `id_envio` está saliendo, otro igual espera (si no, el cliente recibiría el mensaje dos veces). */
+const ENVIO_EN_CURSO_MS = 3 * 60_000;
+/** La ráfaga espera a que el cliente termine de escribir, pero no más de esto desde su primer mensaje (tantas veces `bufferMs`). */
+const TOPE_DE_RAFAGA_VECES = 3;
 const VENTANA_24H_MS = 23 * 3600_000;
 const MARCA_PIN = "••••";
 const CACHE_DE_HERRAMIENTAS_MS = 60_000;
@@ -126,6 +157,11 @@ export interface ResultadoIngest {
 }
 
 export interface SolicitudEnviar {
+  /**
+   * Llave de idempotencia: el mismo `id_envio` nunca sale dos veces por el canal (Odoo reintenta si no oyó la respuesta).
+   * Odoo manda el `id_mensaje` de su propio mensaje.
+   */
+  id_envio?: string;
   texto?: string;
   adjuntos?: { tipo: string; url: string; nombre?: string; mime?: string }[];
 }
@@ -325,9 +361,22 @@ export class MotorConversacion {
     }
 
     this.mensajes.marcarPendientes([idFila], true);
-    this.kv.poner("t_rafaga", ahora + this.deps.bufferMs);
+    this.kv.poner("t_rafaga", this.siguienteSalidaDeRafaga(ahora));
     await this.programar();
     return { ok: true, accion: "en_espera" };
+  }
+
+  /**
+   * Cada mensaje nuevo reinicia la espera de la ráfaga (el cliente sigue escribiendo), pero no para siempre: pasadas
+   * `TOPE_DE_RAFAGA_VECES` esperas desde el primer mensaje de la ráfaga, se contesta con lo que haya. Sin este tope, quien escribe
+   * una frase por vez cada 10 s nunca recibiría respuesta.
+   */
+  private siguienteSalidaDeRafaga(ahora: number): number {
+    const armada = this.kv.numero("t_rafaga") !== null;
+    const inicioGuardado = this.kv.numero("t_rafaga_inicio");
+    const inicio = armada && inicioGuardado !== null && inicioGuardado <= ahora ? inicioGuardado : ahora;
+    this.kv.poner("t_rafaga_inicio", inicio);
+    return Math.max(ahora, Math.min(ahora + this.deps.bufferMs, inicio + TOPE_DE_RAFAGA_VECES * this.deps.bufferMs));
   }
 
   private notaDeArchivos(lista: AdjuntoOdoo[]): string {
@@ -444,6 +493,7 @@ export class MotorConversacion {
       const t = this.kv.numero("t_rafaga");
       if (t !== null && t <= this.deps.ahora()) {
         this.kv.poner("t_rafaga", null);
+        this.kv.poner("t_rafaga_inicio", null);
         await this.procesarRafaga().catch((e) => this.log("error", "ráfaga", e instanceof Error ? (e.stack ?? e.message) : String(e)));
       }
 
@@ -461,17 +511,26 @@ export class MotorConversacion {
   private purgar(): void {
     const ahora = this.deps.ahora();
     this.mensajes.purgar(ahora - RETENCION_MENSAJES_MS, 200);
-    this.cola.purgar(ahora - RETENCION_COLA_MS);
+    this.cola.purgar(ahora - RETENCION_COLA_MENSAJES_MS, "mensaje");
+    this.cola.purgar(ahora - RETENCION_COLA_HERRAMIENTAS_MS, "herramienta");
     this.medios.purgar(ahora - 2 * 24 * 3600_000);
     this.fotos.purgar(ahora - 30 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM enviados WHERE ts < ?", ahora - 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM seguimientos WHERE ts < ?", ahora - 90 * 24 * 3600_000);
     this.deps.sql.correr("DELETE FROM kv WHERE k LIKE 'env:%' AND CAST(v AS INTEGER) < ?", ahora - 24 * 3600_000);
+    this.deps.sql.correr(`DELETE FROM kv WHERE k LIKE '${PREFIJO_ID_ENVIO}%' AND CAST(json_extract(v, '$.ts') AS INTEGER) < ?`, ahora - VIDA_ID_ENVIO_MS);
   }
 
   // ── Cola de escrituras a Odoo (con reintentos: Odoo puede estar dormido) ──
 
+  /**
+   * Lo que no se pudo entregar a Odoo se reintenta SIEMPRE: primero rápido (30 s, 1 min, 2 min... hasta 15 min) y, pasados
+   * `INTENTOS_COLA_RAPIDOS`, cada 6 horas. Nada se descarta por fallar (el historial de los clientes está en juego): solo se
+   * borra al entregarse, por vejez (`purgar`) o si Odoo rechaza una escritura suelta por una razón que no se arregla reintentando.
+   */
   private async vaciarCola(): Promise<void> {
+    const habiaEstancadas = this.kv.bandera("cola_estancada");
+    let entregadas = 0;
     for (const fila of this.cola.vencidas(this.deps.ahora())) {
       const ahora = this.deps.ahora();
       try {
@@ -487,9 +546,11 @@ export class MotorConversacion {
           }
           const c = JSON.parse(fila.cuerpo) as { nombre: string; argumentos: Record<string, unknown> };
           const r = await this.deps.odoo.herramienta(c.nombre, c.argumentos, id);
-          if (!r.ok) throw new Error(r.error ?? "herramienta falló");
+          // Odoo contestó y la rechazó (`transitorio: false`): reintentar no la arregla. Si ni siquiera se pudo hablar con Odoo, sí.
+          if (!r.ok) throw r.transitorio === false ? new OdooError(r.error ?? "Odoo rechazó la herramienta", 422, false) : new Error(r.error ?? "herramienta falló");
           this.cola.borrar(fila.id);
         }
+        entregadas++;
       } catch (err) {
         // Sin el token de Odoo (primer despliegue, antes de pegar los secretos) lo pendiente espera: no se pierde ni gasta intentos.
         if (err instanceof OdooError && err.sinCredenciales) {
@@ -497,10 +558,16 @@ export class MotorConversacion {
           this.odooCaido = true;
           break;
         }
-        const max = fila.tipo === "mensaje" ? INTENTOS_COLA_MENSAJE : INTENTOS_COLA_HERRAMIENTA;
-        if (fila.intentos + 1 >= max) {
-          this.log("error", `se descarta ${fila.tipo} de la cola tras ${max} intentos`, String(err));
+        const intentos = fila.intentos + 1;
+        // Una etiqueta o nota que Odoo rechaza (4xx) no mejora reintentando: tras unos intentos se deja. Un MENSAJE jamás se descarta.
+        if (fila.tipo === "herramienta" && err instanceof OdooError && !err.reintentable && intentos >= INTENTOS_COLA_HERRAMIENTA) {
+          this.log("error", `Odoo rechazó la escritura «${fila.tipo}» ${intentos} veces: se deja`, String(err));
           this.cola.borrar(fila.id);
+        } else if (intentos >= INTENTOS_COLA_RAPIDOS) {
+          this.cola.reintentar(fila.id, ahora + ESPERA_COLA_LENTA_MS);
+          if (intentos === INTENTOS_COLA_RAPIDOS) this.log("error", `Odoo no recibe un ${fila.tipo} tras ${intentos} intentos: se reintenta cada 6 horas, no se pierde`, String(err));
+          this.kv.poner("cola_estancada", true);
+          await this.anotarEnSalud("cola_estancada", { ts: ahora, desde: fila.creado, tipo: fila.tipo });
         } else {
           this.cola.reintentar(fila.id, ahora + Math.min(15 * 60_000, 30_000 * 2 ** fila.intentos));
         }
@@ -510,6 +577,11 @@ export class MotorConversacion {
           break;
         }
       }
+    }
+    // Se entregó algo y ya no queda nada vencido por tantos intentos: el aviso de /salud se retira.
+    if (habiaEstancadas && entregadas > 0 && !this.cola.hayEstancadas(INTENTOS_COLA_RAPIDOS)) {
+      this.kv.poner("cola_estancada", null);
+      await this.anotarEnSalud("cola_estancada", { ts: this.deps.ahora(), resuelto: true });
     }
   }
 
@@ -748,6 +820,12 @@ export class MotorConversacion {
     const mes = mesDelNegocio(cfg.horario.zona, ahora);
     // El gasto del mes y la lista de herramientas se piden a la vez: ninguna depende de la otra.
     const [gasto, defs] = await Promise.all([this.gastoSeguro(mes), this.deps.herramientas()]);
+    // Sin la lista de herramientas (Odoo no contestó y no hay una anterior) el modelo contestaría de memoria, sin catálogo, precios ni
+    // existencias: se prefiere no contestar. Se reintenta con calma y, si Odoo no vuelve, pasa a una vendedora (igual que si fallara la IA).
+    if (defs.length === 0) {
+      await this.alFallarLaIA(cfg, ids, new Error("Odoo no entregó las herramientas del asistente"));
+      return;
+    }
     const { nivel, bajo } = aplicarTope(nivelPedido, gasto, cfg.presupuesto_ia_mensual_usd);
     if (bajo) this.log("warn", "tope mensual de IA alcanzado: se usa el modelo económico");
     const plan = planDeIntentos(cfg, nivel, this.deps.proveedoresDisponibles());
@@ -939,8 +1017,13 @@ export class MotorConversacion {
     if (primera) this.kv.poner("bienvenida", this.deps.ahora());
   }
 
-  /** Envía por el canal, lo anota en el historial local y (si toca) lo encola para Odoo. */
-  private async emitir(o: { burbujas: string[]; medios: MedioSaliente[]; autor: "bot" | "vendedora"; registrar: boolean; modelo?: string }): Promise<string[]> {
+  /**
+   * Envía por el canal, lo anota en el historial local y (si toca) lo encola para Odoo.
+   *
+   * Si el canal se corta a la mitad (`EnvioParcialError`), lo ya enviado no se repite: se reintenta solo lo que falta, y lo que sí
+   * salió igual queda anotado. `progreso` permite seguir donde se quedó un envío anterior (el reintento de Odoo con el mismo `id_envio`).
+   */
+  private async emitir(o: { burbujas: string[]; medios: MedioSaliente[]; autor: "bot" | "vendedora"; registrar: boolean; modelo?: string; progreso?: ProgresoDeEnvio; alAvanzar?: (p: ProgresoDeEnvio) => void }): Promise<string[]> {
     const canalId = this.canalId();
     const adaptador = this.deps.canal(canalId);
     if (!adaptador) throw new Error(`no hay adaptador para el canal ${canalId}`);
@@ -956,39 +1039,57 @@ export class MotorConversacion {
     const burbujas = [...o.burbujas, ...enlaces].flatMap((b) => partirPorLargo(b, cap.maxTexto)).filter((b) => b.trim());
     if (burbujas.length === 0 && medios.length === 0) return [];
 
-    const salida: Saliente = { para: this.idExterno(), burbujas, medios, esperaMs: ESPERA_ENTRE_BURBUJAS_MS };
+    const progreso = o.progreso ?? { burbujas: 0, medios: 0, ids: [] };
+    const inicio = { burbujas: progreso.burbujas, medios: progreso.medios, ids: progreso.ids.length };
+    const falta = () => progreso.burbujas < burbujas.length || progreso.medios < medios.length;
     // Antes de enviar (despedidas, seguimientos...) también; si ya se mostró hace poco, no se repite.
     if (o.autor === "bot") this.mostrarEscribiendo();
 
-    let ids: string[] = [];
-    for (let intento = 0; ; intento++) {
+    let fallo: unknown = null;
+    for (let intento = 0; falta(); intento++) {
+      const salida: Saliente = {
+        para: this.idExterno(),
+        burbujas: burbujas.slice(progreso.burbujas),
+        medios: medios.slice(progreso.medios),
+        esperaMs: ESPERA_ENTRE_BURBUJAS_MS,
+      };
       try {
-        ids = (await adaptador.enviar(canalId, salida, this.deps.env)).ids;
-        break;
+        const r = await adaptador.enviar(canalId, salida, this.deps.env);
+        progreso.burbujas = burbujas.length;
+        progreso.medios = medios.length;
+        progreso.ids.push(...r.ids);
+        fallo = null;
       } catch (e) {
-        if (intento >= 1) {
-          this.log("error", "no se pudo enviar por el canal", e instanceof Error ? e.message : String(e));
-          throw e;
+        fallo = e;
+        if (e instanceof EnvioParcialError) {
+          progreso.burbujas = Math.min(burbujas.length, progreso.burbujas + e.enviado.burbujas);
+          progreso.medios = Math.min(medios.length, progreso.medios + e.enviado.medios);
+          progreso.ids.push(...e.enviado.ids);
         }
-        await this.deps.dormir(1500);
       }
+      o.alAvanzar?.(progreso);
+      if (fallo === null || intento >= 1) break;
+      await this.deps.dormir(1500);
     }
 
+    // Lo que SÍ salió se anota aunque el envío haya terminado mal.
     const ahora = this.deps.ahora();
-    for (const id of ids) this.kv.poner(`env:${id}`, ahora);
-    for (const b of burbujas) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: b, ts: ahora, modelo: o.modelo });
+    const salieronBurbujas = burbujas.slice(inicio.burbujas, progreso.burbujas);
+    const salieronMedios = medios.slice(inicio.medios, progreso.medios);
+    for (const id of progreso.ids.slice(inicio.ids)) this.kv.poner(`env:${id}`, ahora);
+    for (const b of salieronBurbujas) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: b, ts: ahora, modelo: o.modelo });
     // El pie de lo que escribió una vendedora se guarda con la foto: así el asistente sabe qué se le dijo al cliente.
-    for (const m of medios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
+    for (const m of salieronMedios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
 
-    if (o.registrar) {
+    if (o.registrar && (salieronBurbujas.length > 0 || salieronMedios.length > 0)) {
       this.cola.agregar(
         "mensaje",
         this.cuerpoDeMensaje(
           { canal: canalId, id_externo: this.idExterno(), id_mensaje: "" },
-          [...burbujas, ...medios.map((m) => `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]`)].join("\n"),
+          [...salieronBurbujas, ...salieronMedios.map((m) => `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]`)].join("\n"),
           o.autor,
           "saliente",
-          medios.map((m) => ({ tipo: m.tipo, url: m.url, nombre: m.nombre, mime: m.mime })),
+          salieronMedios.map((m) => ({ tipo: m.tipo, url: m.url, nombre: m.nombre, mime: m.mime })),
           ahora,
           `${o.autor}-${this.deps.uuid()}`,
         ),
@@ -996,36 +1097,82 @@ export class MotorConversacion {
       );
       await this.programar();
     }
-    return ids;
+    if (fallo !== null) {
+      this.log("error", "no se pudo enviar por el canal", fallo instanceof Error ? fallo.message : String(fallo));
+      throw fallo;
+    }
+    return progreso.ids;
   }
 
   // ── Odoo → Worker ─────────────────────────────────────────────────────────
 
-  /** `POST /odoo/enviar`: una vendedora escribe desde Odoo. Sin IA, sin ráfaga. */
-  async enviarVendedora(s: SolicitudEnviar): Promise<{ ok: true; id_mensaje: string }> {
-    const cfg = await this.deps.config();
-    const ahora = this.deps.ahora();
-    const medios: MedioSaliente[] = [];
-    const extra: string[] = [];
-    for (const a of s.adjuntos ?? []) {
-      if (a.tipo === "imagen" || a.tipo === "documento") medios.push({ tipo: a.tipo, url: a.url, nombre: a.nombre, mime: a.mime });
-      else extra.push(a.nombre ? `${a.nombre}: ${a.url}` : a.url); // audio y video salen como enlace
+  /**
+   * `POST /odoo/enviar`: una vendedora escribe desde Odoo. Sin IA, sin ráfaga.
+   *
+   * Con `id_envio` es idempotente: Odoo reintenta cuando no oyó la respuesta (se cayó la red, el Worker tardó más de 25 s), y ese
+   * reintento NO vuelve a mandar al cliente lo que ya salió. Si ese mismo envío todavía está saliendo, el reintento espera.
+   */
+  async enviarVendedora(s: SolicitudEnviar): Promise<{ ok: true; id_mensaje: string; repetido?: true }> {
+    const idEnvio = s.id_envio || null;
+    const previo = idEnvio ? this.envioRecordado(idEnvio) : null;
+    if (previo?.e === "listo") return { ok: true, id_mensaje: previo.id ?? `vendedora-${idEnvio}`, repetido: true };
+    if (previo?.e === "curso" && this.deps.ahora() - previo.ts < ENVIO_EN_CURSO_MS) {
+      throw new Error("Ese mensaje ya se está enviando: se reintenta en un momento.");
     }
-    const texto = (s.texto ?? "").trim();
-    let burbujas = [...(texto ? [texto] : []), ...extra];
-    if (burbujas.length === 0 && medios.length === 0) throw new Error("No hay nada que enviar.");
-    // Una foto o un documento con su texto: el texto viaja como pie de la primera (una sola burbuja para el cliente), si el canal
-    // lo permite y cabe. Si no, sale como siempre: el texto y luego los archivos.
-    const canalId = this.canalId();
-    if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId).pie) {
-      medios[0] = { ...medios[0], pie: texto };
-      burbujas = [];
+
+    // Se marca «saliendo» ANTES de cualquier espera: dos peticiones iguales que llegan casi juntas no pueden pasar las dos.
+    // Un envío cortado a la mitad sigue donde se quedó: lo que ya salió no se repite.
+    const progreso: ProgresoDeEnvio = previo ? { burbujas: previo.b, medios: previo.m, ids: [...previo.ids] } : { burbujas: 0, medios: 0, ids: [] };
+    const recordar = (e: EnvioRecordado["e"], id?: string) => {
+      if (idEnvio) this.kv.poner(`${PREFIJO_ID_ENVIO}${idEnvio}`, JSON.stringify({ e, ts: this.deps.ahora(), b: progreso.burbujas, m: progreso.medios, ids: progreso.ids, ...(id ? { id } : {}) } satisfies EnvioRecordado));
+    };
+    recordar("curso");
+
+    let ids: string[];
+    try {
+      const cfg = await this.deps.config();
+      const ahora = this.deps.ahora();
+      const medios: MedioSaliente[] = [];
+      const extra: string[] = [];
+      for (const a of s.adjuntos ?? []) {
+        if (a.tipo === "imagen" || a.tipo === "documento") medios.push({ tipo: a.tipo, url: a.url, nombre: a.nombre, mime: a.mime });
+        else extra.push(a.nombre ? `${a.nombre}: ${a.url}` : a.url); // audio y video salen como enlace
+      }
+      const texto = (s.texto ?? "").trim();
+      let burbujas = [...(texto ? [texto] : []), ...extra];
+      if (burbujas.length === 0 && medios.length === 0) throw new Error("No hay nada que enviar.");
+      // Una foto o un documento con su texto: el texto viaja como pie de la primera (una sola burbuja para el cliente), si el canal
+      // lo permite y cabe. Si no, sale como siempre: el texto y luego los archivos.
+      const canalId = this.canalId();
+      if (texto && medios.length > 0 && extra.length === 0 && texto.length <= MAX_PIE_DE_FOTO && this.deps.canal(canalId)?.capacidades(canalId).pie) {
+        medios[0] = { ...medios[0], pie: texto };
+        burbujas = [];
+      }
+      // Primero se corta lo que el bot traiga a medias: una persona está escribiendo.
+      this.humanoIntervino(cfg, ahora);
+      ids = await this.emitir({ burbujas, medios, autor: "vendedora", registrar: false, progreso, alAvanzar: () => recordar("curso") });
+    } catch (err) {
+      if (progreso.burbujas + progreso.medios > 0) recordar("parcial");
+      else if (idEnvio) this.kv.poner(`${PREFIJO_ID_ENVIO}${idEnvio}`, null);
+      throw err;
     }
-    // Primero se corta lo que el bot traiga a medias: una persona está escribiendo.
-    this.humanoIntervino(cfg, ahora);
-    const ids = await this.emitir({ burbujas, medios, autor: "vendedora", registrar: false });
+    const idMensaje = ids[0] ?? `vendedora-${this.deps.uuid()}`;
+    recordar("listo", idMensaje);
     await this.programar();
-    return { ok: true, id_mensaje: ids[0] ?? `vendedora-${this.deps.uuid()}` };
+    return { ok: true, id_mensaje: idMensaje };
+  }
+
+  /** Lo que se recuerda de un envío de Odoo con ese `id_envio`, o null. */
+  private envioRecordado(idEnvio: string): EnvioRecordado | null {
+    const crudo = this.kv.texto(`${PREFIJO_ID_ENVIO}${idEnvio}`);
+    if (!crudo) return null;
+    try {
+      const v = JSON.parse(crudo) as Partial<EnvioRecordado>;
+      if ((v.e !== "curso" && v.e !== "parcial" && v.e !== "listo") || typeof v.ts !== "number") return null;
+      return { e: v.e, ts: v.ts, b: Number(v.b) || 0, m: Number(v.m) || 0, ids: Array.isArray(v.ids) ? v.ids.filter((x): x is string => typeof x === "string") : [], ...(typeof v.id === "string" ? { id: v.id } : {}) };
+    } catch {
+      return null;
+    }
   }
 
   /** `POST /odoo/estado`: tomar o devolver la conversación. */

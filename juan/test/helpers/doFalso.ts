@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { Env } from "../../src/env";
 import { Conversacion } from "../../src/motor/do";
 import { Global } from "../../src/motor/global";
+import { HERRAMIENTAS_DE_PRUEBA } from "./odooFalso";
 
 export interface CtxFalso {
   storage: {
@@ -126,7 +127,7 @@ export function dcasaFalso() {
   const peticiones: { metodo: string; ruta: string; cuerpo: any; auth: string | null }[] = [];
   const estado = {
     config: {} as Record<string, unknown>,
-    herramientas: [] as unknown[],
+    herramientas: HERRAMIENTAS_DE_PRUEBA as unknown[],
     mensaje: { ok: true, conversacion_id: 77, estado: "bot", bot_activo: true, pausada_hasta: null, dentro_de_horario: true } as Record<string, unknown>,
     herramienta: (_nombre: string, _args: Record<string, unknown>): unknown => ({ ok: true, resultado: {} }),
     caido: false,

@@ -69,6 +69,11 @@ export interface ResultadoHerramienta {
   ok: boolean;
   resultado?: unknown;
   error?: string;
+  /**
+   * Solo cuando `ok` es false: `true` = no se pudo hablar con Odoo (red, 5xx, dormido), reintentar puede funcionar;
+   * `false` = Odoo SÍ contestó y la rechazó (reintentar no la arregla). Sin dato = se trata como pasajero.
+   */
+  transitorio?: boolean;
 }
 
 export interface CuerpoSeguimientoHecho {
@@ -196,9 +201,9 @@ export class OdooCliente implements OdooApi {
         0,
         30_000,
       );
-      return r.ok === false ? { ok: false, error: r.error ?? "la herramienta falló" } : { ok: true, resultado: r.resultado };
+      return r.ok === false ? { ok: false, error: r.error ?? "la herramienta falló", transitorio: false } : { ok: true, resultado: r.resultado };
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e) };
+      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: !(e instanceof OdooError) || e.reintentable };
     }
   }
 
@@ -278,9 +283,13 @@ export class CargadorHerramientas {
     if (this.ultima && t - this.ultima.en < this.ttlMs) return this.ultima.lista;
     try {
       const lista = await this.traer();
-      // Una lista vacía casi seguro es un error de Odoo: mejor la última buena.
-      if (lista.length > 0 || !this.ultima) this.ultima = { lista, en: t };
-      return this.ultima.lista;
+      if (lista.length > 0) {
+        this.ultima = { lista, en: t };
+        return lista;
+      }
+      // Una lista vacía casi seguro es un error de Odoo: mejor la última buena. Y NUNCA se recuerda la vacía (ni 5 minutos):
+      // sin herramientas el asistente no debe contestar, y el siguiente mensaje tiene que volver a preguntar.
+      return this.ultima?.lista ?? [];
     } catch (e) {
       console.warn("[herramientas] Odoo no respondió:", String(e));
       return this.ultima?.lista ?? [];
