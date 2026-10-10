@@ -58,8 +58,12 @@ class TestHerramientas(TransactionCase):
                 continue
             self.assertLessEqual(len(spec['parametros']), 5, nombre)
             self.assertEqual(nombre, nombre.lower(), nombre)
+            # Las herramientas de Juan (``juan_*``, solo para su usuario técnico) comparten el registro. Una cotización
+            # lleva varios productos: su única lista de líneas (``juan_cotizar.lineas``) es la excepción; el Worker de
+            # Juan la prueba con su propio contrato y le devuelve al modelo el texto para corregirse (422).
+            tipos = simples | {'array'} if nombre.startswith('juan_') else simples
             for parametro, esquema in spec['parametros'].items():
-                self.assertIn(esquema['type'], simples, f'{nombre}.{parametro}')
+                self.assertIn(esquema['type'], tipos, f'{nombre}.{parametro}')
                 self.assertTrue(esquema.get('description'), f'{nombre}.{parametro}')
             self.assertLess(len(spec['descripcion']), 260, nombre)
 

@@ -219,9 +219,9 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'cotizar',
-        descripcion='Arma la cotización del cliente de ESTA conversación con productos de la tienda y deja listo el '
-                    'PDF, que sale junto con tu respuesta. Devuelve el subtotal, el ITBMS y el total (esas cifras SÍ '
-                    'puedes decirlas). Solo precios de lista: no hay descuentos. No confirma ninguna venta.',
+        descripcion='Arma la cotización de ESTA conversación con productos de la tienda y deja listo el PDF, que sale '
+                    'junto con tu respuesta. Devuelve subtotal, ITBMS y total (esas cifras sí puedes decirlas). Solo '
+                    'precios de lista, sin descuentos. No confirma ninguna venta.',
         parametros={
             'lineas': {
                 'type': 'array', 'minItems': 1, 'maxItems': MAX_LINEAS_AUTOMATICAS,
