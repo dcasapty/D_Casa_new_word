@@ -15,14 +15,17 @@ import {
 import { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
 import {
-  atenderEntrada,
+  abrirPuerta,
   cabeceraDeModo,
   cabeceraParaOdoo,
+  conCookieDePuerta,
   COOKIE_BORRADA,
   type DepsPuerta,
   esEntrada,
+  esLoginPublicoDelPanel,
   esPanel,
   leerCookie,
+  respuestaNoExiste,
   rutasConYSinIdioma,
 } from "./puerta";
 import { type DepsAssets, servirAsset } from "./tienda/assets";
@@ -143,21 +146,37 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
 
   // La puerta del equipo. Va antes de despertar a Odoo: sin la puerta abierta, `/odoo…` es un 404 del borde.
   let puertaHaciaOdoo: { acceso?: string; modo?: string } | undefined;
+  let cookieNueva: string | undefined;
   if (deps.puerta) {
     const { config, jwt, modo, exigirCorreo } = deps.puerta;
-    if (esEntrada(url.pathname, config)) return withSecurityHeaders(await atenderEntrada(request, config, jwt));
     const ahora = (jwt?.ahora ?? Date.now)();
-    const abierta = await leerCookie(request, config, ahora);
+    const rutaNormalizada = normalizePath(url.pathname);
+    let abierta;
+    if (esEntrada(url.pathname, config)) {
+      // La entrada es la página de login del equipo: Access ya pidió el PIN; aquí se verifica y se abre la puerta.
+      const paso = await abrirPuerta(request, config, jwt);
+      if (!paso) return withSecurityHeaders(respuestaNoExiste());
+      abierta = paso.abierta;
+      cookieNueva = paso.setCookie;
+    } else {
+      abierta = await leerCookie(request, config, ahora);
+      if (modo === "1") {
+        if (!abierta && esPanel(rutaNormalizada)) return withSecurityHeaders(respuestaNoExiste());
+        if (esLoginPublicoDelPanel(request, rutaNormalizada)) {
+          return withSecurityHeaders(new Response(null, { status: 302, headers: { Location: config.ruta, "Cache-Control": "no-store" } }));
+        }
+      }
+    }
     puertaHaciaOdoo = {
       acceso: abierta ? await cabeceraParaOdoo(config, abierta) : undefined,
       modo: await cabeceraDeModo(config, modo, exigirCorreo, ahora),
     };
-    if (!abierta && modo === "1" && esPanel(normalizePath(url.pathname))) {
-      return withSecurityHeaders(new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } }));
-    }
   }
 
   const upstream = new Request(request, { headers: forwardedHeaders(request, puertaHaciaOdoo) });
+
+  // La entrada nunca pasa por las cachés: es la página del equipo y lleva la cookie de la puerta.
+  if (cookieNueva) return withSecurityHeaders(conCookieDePuerta(await reenviar(request, upstream, deps), cookieNueva));
 
   const paginas = deps.tienda?.activa ? depsPaginas(deps) : null;
   const ruta = paginas ? rutaEstatica(url, request.method) : null;

@@ -19,7 +19,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | Bloqueo progresivo por intentos fallidos | `dcasa_seguridad` | Activo: 5 fallos desde una IP → espera 1 min, luego 2, 4, 8… hasta 30 min |
 | Límite del doble factor | Odoo | Activo: 5 códigos por hora por usuario |
 | Registro de inicios de sesión | Ajustes › Usuarios y compañías › **Accesos al panel** | Activo: correctos, clave mala, código malo, IP y navegador. 180 días |
-| Aviso de inicio de sesión de administrador | Telegram de Brian | Activo si tu usuario tiene Telegram vinculado con Brian |
+| Aviso de cada inicio de sesión del personal | Telegram de Brian | Activo si algún administrador tiene Telegram vinculado con Brian (§8.1) |
 | Sesión de administrador | Odoo `auth_timeout` | Se cierra sola a las **12 h**; pantalla bloqueada (pide la clave) tras **60 min** sin uso |
 | Gestor de bases de datos (`/web/database/*`) | `list_db = False` + borde | Cerrado desde internet (404 en el borde) |
 | API de Odoo por XML-RPC/JSON-RPC (`/jsonrpc`, `/xmlrpc`, `/json/2`) | Borde | Cerrada desde internet |
@@ -147,9 +147,10 @@ desplegar (§8.6).
   llenar la base. Además Odoo trae **Ajustes › Usuarios › Dispositivos** (sesiones abiertas, con
   botón para cerrarlas).
 - **Avisos por Telegram** (si `dcasa_brian` está instalado y el usuario vinculó su Telegram):
-  cada vez que entra un administrador (con IP, navegador y hora de Panamá), cuando llega a 5
-  claves malas seguidas y cuando alguien enrola el 2FA. Van a ese usuario y a los demás
-  administradores vinculados. `DCASA_AVISO_LOGIN_TELEGRAM=0` los apaga.
+  cada vez que entra alguien del personal (con IP, navegador y hora de Panamá; antes solo los
+  administradores), cuando llega a 5 claves malas seguidas y cuando alguien enrola el 2FA. Van a
+  ese usuario y a los demás administradores vinculados. `DCASA_AVISO_LOGIN_TELEGRAM`: `1` (todo el
+  personal), `admins` (solo administradores) o `0` (apagados).
 - **Sesiones de administrador** (`auth_timeout`, grupo Administración/Ajustes): cierre a las 12 h
   (`DCASA_SESION_ADMIN_HORAS`), bloqueo de pantalla tras 60 min sin uso
   (`DCASA_INACTIVIDAD_ADMIN_MIN`). Se ajusta también en Ajustes › Usuarios › Grupos ›
@@ -251,27 +252,38 @@ el precio vigente antes de contratar algo de pago.
 
 ## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
-> **Estado (2026-10-10):** el código está construido, probado y desplegado en staging **APAGADO**: no cambia nada
-> hasta que se carguen los cuatro secretos del §8.4 y se enciendan los pasos del §8.5. Pedido de la dueña: que el
-> personal **no** inicie sesión por la página web pública, y que antes de ver siquiera la pantalla de la clave haya
-> un filtro de Cloudflare que mande un PIN al correo.
+> **Estado (2026-10-10):** el código está construido y probado; **apagado** hasta que se carguen los cuatro secretos del
+> §8.4 y se enciendan los pasos del §8.5. Pedido de la dueña: que el personal **no** inicie sesión por la página web
+> pública (esa entrada es solo para clientes y socios), que antes de ver siquiera la pantalla de la clave haya un
+> filtro de Cloudflare que mande un PIN al correo, que el equipo entre por su propia página (`/master`) con correo y
+> clave **o con llave de acceso**, que **siempre** pidan el código de Google Authenticator (también con la llave: una
+> huella o una cara se pueden falsificar) y que cada acceso avise al canal del administrador.
 
 ### 8.1 Cómo se entra (los tres pasos)
 
-1. **El PIN al correo (Cloudflare Access).** El equipo abre **una dirección que solo ellos conocen**
-   (`https://<sitio>/<ruta-secreta>`). Cloudflare pide el correo y manda un PIN de 6 números (dura 10 minutos). Solo
-   llega a los correos que la dueña puso en la lista de Cloudflare.
-2. **La clave de Odoo** de la persona (pantalla de siempre).
-3. **El código de la app** (Google Authenticator), §2 y §3.
+1. **El PIN al correo (Cloudflare Access).** El equipo abre **`https://<sitio>/master`**. Cloudflare pide el correo y
+   manda un PIN de 6 números (dura 10 minutos). Solo llega a los correos que la dueña puso en la lista de Cloudflare.
+2. **La página «Acceso del equipo»** (la misma dirección `/master`, ya servida por Odoo): **correo y contraseña, o llave
+   de acceso** (huella o cara del aparato).
+3. **El código de la app (Google Authenticator), SIEMPRE.** También con la llave de acceso, porque una huella o una cara
+   se pueden falsificar; y **sin** la casilla «No volver a preguntar en este dispositivo» (Odoo la ofrece por 90 días;
+   para el personal está desactivada). Quien todavía no tiene la app la enrola en ese momento (§2).
 
 Después de pasar el paso 1 el navegador queda con una cookie que dura **12 horas** (nunca más que la sesión de
-Cloudflare) y se borra sola al **cerrar sesión** en Odoo. Pasado ese tiempo hay que pasar el PIN otra vez.
+Cloudflare) y se borra sola al **cerrar sesión** en Odoo. Pasado ese tiempo hay que pasar el PIN otra vez. Con el
+modo «1», si a alguien se le vence la sesión y Odoo lo manda al login público (`/web/login?redirect=/odoo…`), el borde
+lo lleva solo a `/master`.
+
+**Cada acceso avisa.** Cada inicio de sesión del personal manda un aviso al **Telegram de los administradores
+vinculados con Brian** (el del dueño): quién, desde qué IP y navegador, a qué hora y con qué correo pasó la puerta.
+`DCASA_AVISO_LOGIN_TELEGRAM`: `1` (todo el personal, por defecto), `admins` (solo administradores, como antes) o `0`
+(nada). Además quedan en **Accesos al panel** (180 días).
 
 ### 8.2 Qué cambia para cada quien
 
 | Quién | Qué pasa |
 |---|---|
-| **Personal** (Odoo «usuario interno») | Solo entra y solo sigue dentro si pasó por la puerta. Si escribe su clave en `/web/login` sin haber pasado, ve el mismo «usuario o contraseña incorrectos» de siempre (no se le dice por qué); queda anotado en **Accesos al panel** como «Clave correcta, pero sin pasar por la puerta» y, si era un administrador, llega un aviso a Telegram. |
+| **Personal** (Odoo «usuario interno») | Solo inicia sesión **en `/master`** y solo sigue dentro si pasó por la puerta. Si escribe su clave en `/web/login` (el login público), aunque sea correcta, ve el mismo «usuario o contraseña incorrectos» de siempre (no se le dice por qué); queda anotado en **Accesos al panel** («Clave correcta, pero sin pasar por la puerta» o «Intentó entrar por el login público») y, si era un administrador, llega un aviso a Telegram. |
 | **Clientes del portal y socios** | Nada. Siguen entrando por `/web/login` (clientes) y `/socios` (celular + PIN). |
 | **Quien teclea `/odoo` sin permiso** | `404 Not Found`, como una página que no existe. (`/web` lleva al login público, donde el personal ya no puede entrar.) |
 | **Brian (MCP y Telegram), Juan, el despliegue y los respaldos** | Nada: no usan sesión de personal (clave de API, secreto del webhook, tokens). |
@@ -301,12 +313,15 @@ Los valores secretos los pegas tú en GitHub; nunca se escriben en el chat ni en
 
 **A. Cloudflare Zero Trust** (gratis hasta 50 personas; Cloudflare puede pedir una tarjeta sin cobrar):
 1. Cloudflare › **Zero Trust** → elige el nombre del equipo (p. ej. `dcasa` → `dcasa.cloudflareaccess.com`) → plan **Free**.
-2. Zero Trust › **Settings › Authentication › Login methods**: deja activo **One-time PIN** (viene por defecto).
-3. Zero Trust › **Access › Applications › Add an application › Self-hosted**:
-   - **Application name:** «Entrada del equipo (staging)».
+2. Zero Trust › **Integrations › Identity providers › Add new identity provider › One-time PIN**. **En cuentas nuevas
+   el PIN por correo NO viene activado** (Cloudflare pone por defecto su propio login de cuenta): hay que agregarlo.
+   Debe aparecer como «ADDED».
+3. Zero Trust › **Access controls › Applications › Add an application › Self-hosted**:
+   - **Application name:** «Master (staging)».
    - **Public hostname:** el del sitio (staging: `dcasa-staging.dcasapty.workers.dev`; producción: `dcasapty.com`) y
-     **Path:** la ruta secreta **sin** la barra del principio (p. ej. `entrada-7f3k9q2x`).
+     **Path:** `master*`.
    - **Policy:** nombre «Equipo D'CASA», acción **Allow**, regla **Include › Emails** y los correos del equipo.
+   - **Login methods:** desmarca «aceptar todos» y deja **solo One-time PIN**.
    - **Session duration:** 24 horas. Guarda.
    - Abre la aplicación y copia el **Application Audience (AUD) Tag** (es un texto largo de letras y números).
    - Si Cloudflare no te deja poner una ruta sobre un `workers.dev`, avísame: hay una alternativa (proteger todo
@@ -316,8 +331,8 @@ Los valores secretos los pegas tú en GitHub; nunca se escriben en el chat ni en
 
 | Secreto | Qué poner |
 |---|---|
-| `DCASA_PUERTA_RUTA` | La ruta secreta **con** barra: `/entrada-7f3k9q2x`. Mínimo 8 letras minúsculas, números o guiones. Una cualquiera: `echo "/entrada-$(openssl rand -hex 5)"`. Es la **misma** que pusiste en la aplicación de Access. |
-| `DCASA_PUERTA_SECRETO` | 32+ caracteres al azar: `openssl rand -hex 32`. Distinto por entorno. Firma la cookie y la cabecera hacia Odoo. |
+| `DCASA_PUERTA_RUTA` | `/master` (con barra; es la **misma** ruta de la aplicación de Access). Puede ser otra palabra (3 a 64 letras minúsculas, números o guiones; no puede ser una ruta del sitio como `/odoo`, `/web` o `/shop`): una más rara es más discreta, pero lo que protege es el PIN, no el nombre. |
+| `DCASA_PUERTA_SECRETO` | 32+ caracteres al azar: `openssl rand -hex 32`. Distinto por entorno. Firma la cookie y las cabeceras hacia Odoo. |
 | `DCASA_ACCESS_EQUIPO` | `https://dcasa.cloudflareaccess.com` (con el nombre de **tu** equipo). |
 | `DCASA_ACCESS_AUD` | El *AUD Tag* que copiaste. |
 
@@ -329,12 +344,13 @@ los logs del Worker (`puerta_incompleta`); nunca queda a medias.
 El interruptor es `DCASA_PUERTA_OBLIGATORIA` (en `edge/wrangler.jsonc` → `vars`, uno por entorno):
 
 1. **Con los secretos cargados y el interruptor en `"0"`**: despliega. La puerta ya **abre**, pero no obliga. Prueba:
-   abre `https://<sitio>/<ruta-secreta>` → te pide el correo → PIN → llegas a `/odoo` → clave → código. En el log
-   del Worker aparece `puerta_abierta`.
+   abre `https://<sitio>/master` → te pide el correo → PIN → aparece «Acceso del equipo» → correo y clave (o llave de
+   acceso) → código de la app → llegas al panel. En el log del Worker aparece `puerta_abierta`.
 2. **`"avisar"`**: nadie se queda fuera, pero cada inicio de sesión del personal **sin** puerta queda anotado
    (Ajustes › Usuarios › **Accesos al panel** › filtro «Sin pasar por la puerta»). Úsalo unos días, hasta que no
    salga nadie del equipo.
-3. **`"1"`**: el personal solo entra por la puerta y `/odoo` sin permiso da 404. Si quieres el amarre, también
+3. **`"1"`**: el personal solo entra por la puerta y por `/master`, `/odoo` sin permiso da 404, y quien aún no tiene la
+   app la enrola al entrar (el código es obligatorio para todo el personal). Si quieres el amarre, también
    `DCASA_PUERTA_EXIGIR_CORREO` en `"1"` (primero comprueba que el correo de cada usuario de Odoo es el mismo que
    está en Access).
 4. **Producción:** repite A y B con su propia aplicación de Access (otro hostname, otro *AUD Tag*, otro secreto) y
@@ -360,16 +376,20 @@ Nada de esto toca a clientes ni a socios.
 
 ### 8.7 Cómo está armado (para quien mantiene el sistema)
 
-- **Borde** (`edge/src/puerta.ts`, `handler.ts`): la entrada (`DCASA_PUERTA_RUTA`) lee el token que Access pone en
-  `Cf-Access-Jwt-Assertion` y lo **verifica**: firma RS256 con las llaves de `<equipo>/cdn-cgi/access/certs`
+- **Borde** (`edge/src/puerta.ts`, `handler.ts`): la entrada (`DCASA_PUERTA_RUTA`, p. ej. `/master`) es la página de
+  login del equipo: lee el token que Access pone en `Cf-Access-Jwt-Assertion` y lo **verifica**: firma RS256 con las llaves de `<equipo>/cdn-cgi/access/certs`
   (guardadas 1 h; una sola descarga a la vez, con tiempo máximo y pausa tras un fallo), emisor, audiencia,
   vencimiento y un correo ASCII bien formado. Si Access estuviera mal configurado, la entrada no abre (404). Con el
   token bueno pone su propia cookie `__Host-dcasa_puerta` (HMAC con `DCASA_PUERTA_SECRETO`, HttpOnly, Secure,
-  SameSite=Lax) y manda a `/odoo`. Cerrar sesión en Odoo (también con prefijo de idioma) borra la cookie.
+  SameSite=Lax) y le entrega a la persona la página que da Odoo (GET y POST del formulario; nunca se guarda en caché).
+  Cerrar sesión en Odoo (también con prefijo de idioma) borra la cookie. En modo «1», `/web/login?redirect=/odoo…`
+  redirige a la entrada.
 - **Hacia Odoo**, en cada petición, dos cabeceras firmadas con el mismo secreto: `X-Dcasa-Puerta` (quién pasó la puerta,
   solo si la pasó) y `X-Dcasa-Puerta-Modo` (el modo y el amarre del correo, válida 5 minutos). El borde **siempre** borra
   ambas de lo que manda el visitante y quita la cookie de la puerta del `Cookie` que viaja a Odoo.
-- **Odoo** (`addons/dcasa_seguridad/models/puerta.py`, `res_users.py`, `ir_http.py`): verifica las firmas. Al iniciar
+- **Odoo** (`addons/dcasa_seguridad`): `controllers/master.py` sirve `/master` reutilizando el `web_login` de Odoo
+  (clave, llave de acceso, Turnstile, bloqueo progresivo, segundo factor) con otra plantilla; `models/puerta.py`,
+  `res_users.py` e `ir_http.py` verifican las firmas. Al iniciar
   sesión (usuarios internos) y en cada petición con sesión de un usuario interno exige la cabecera de la puerta; si
   falta, rechaza el inicio o **cierra la sesión y quita al usuario de esa misma petición** (sin eso, la última petición
   se ejecutaba aún con sus permisos: lo encontró la revisión independiente y lo cubre una prueba). Con modo `0` o sin
@@ -401,7 +421,7 @@ Nada de esto toca a clientes ni a socios.
 | `DCASA_2FA_RESCATE` | login del usuario a rescatar (quitar después) | — |
 | `DCASA_SESION_ADMIN_HORAS` | horas, `0` = sin cierre | 12 (al instalar) |
 | `DCASA_INACTIVIDAD_ADMIN_MIN` | minutos, `0` = sin bloqueo | 60 (al instalar) |
-| `DCASA_AVISO_LOGIN_TELEGRAM` | `0` / `1` | `1` |
+| `DCASA_AVISO_LOGIN_TELEGRAM` | `1` (todo el personal) / `admins` (solo administradores) / `0` (nada) | `1` |
 | `DCASA_ROBOTS_IA` | `abierta` / `equilibrada` / `cerrada` | `equilibrada` |
 | `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET` (secreto) | claves del widget | — (apagado) |
 | `DCASA_TURNSTILE` | `off` = apagar | — |

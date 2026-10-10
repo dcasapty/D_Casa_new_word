@@ -3,7 +3,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { handleRequest, variablesDelContenedor } from "../src/handler";
 import {
   aBase64Url,
-  atenderEntrada,
+  abrirPuerta,
   cabeceraDeModo,
   cabeceraParaOdoo,
   type ConfigPuerta,
@@ -11,6 +11,7 @@ import {
   crearCookie,
   depsPuerta,
   esEntrada,
+  esLoginPublicoDelPanel,
   esPanel,
   leerCookie,
   NOMBRE_COOKIE,
@@ -108,6 +109,11 @@ describe("configPuerta", () => {
     expect(console.warn).not.toHaveBeenCalled();
   });
 
+  it("/master es una ruta válida para la entrada", () => {
+    expect(configPuerta({ ...ENV_VALIDO, DCASA_PUERTA_RUTA: "/master" })?.ruta).toBe("/master");
+    expect(configPuerta({ ...ENV_VALIDO, DCASA_PUERTA_RUTA: "Master" })?.ruta).toBe("/master");
+  });
+
   it("con las cuatro variables válidas queda encendida (ruta en minúsculas, equipo sin barra final)", () => {
     const config = configPuerta({ ...ENV_VALIDO, DCASA_PUERTA_RUTA: "Entrada-K7Q2M9X4", DCASA_ACCESS_EQUIPO: `${EQUIPO}/` });
     expect(config).toEqual({ ruta: RUTA, secreto: SECRETO, equipo: EQUIPO, aud: AUD, horas: 12 });
@@ -119,7 +125,10 @@ describe("configPuerta", () => {
     ["falta el equipo", { DCASA_ACCESS_EQUIPO: undefined }],
     ["falta la audiencia", { DCASA_ACCESS_AUD: undefined }],
     ["secreto corto", { DCASA_PUERTA_SECRETO: "corto" }],
-    ["ruta demasiado corta (adivinable)", { DCASA_PUERTA_RUTA: "/odoo" }],
+    ["ruta demasiado corta", { DCASA_PUERTA_RUTA: "/ab" }],
+    ["ruta que ya es del sitio (el panel)", { DCASA_PUERTA_RUTA: "/odoo" }],
+    ["ruta que ya es del sitio (la tienda)", { DCASA_PUERTA_RUTA: "/shop" }],
+    ["ruta que ya es del sitio (el login)", { DCASA_PUERTA_RUTA: "/web" }],
     ["ruta con barras", { DCASA_PUERTA_RUTA: "/web/login-largo" }],
     ["ruta con caracteres raros", { DCASA_PUERTA_RUTA: "/entrada_k7q2m9x4" }],
     ["equipo que no es de Cloudflare Access", { DCASA_ACCESS_EQUIPO: "https://evil.example.com" }],
@@ -384,7 +393,10 @@ describe("handleRequest con la puerta", () => {
     puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false },
   });
 
-  async function entrar(forward = vi.fn(async () => new Response("odoo")), correo = "duena@example.com") {
+  async function entrar(
+    forward: (req: Request) => Promise<Response> = vi.fn(async () => new Response("odoo")),
+    correo = "duena@example.com",
+  ) {
     const token = await firmar(par, cargaBuena({ email: correo, exp: AHORA_S + 24 * 3600 }));
     const respuesta = await handleRequest(
       new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
@@ -408,7 +420,8 @@ describe("handleRequest con la puerta", () => {
       new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
       { forward, puerta: abierto },
     );
-    expect(entrada.status).toBe(302);
+    expect(entrada.status).toBe(200);
+    expect(entrada.headers.get("Set-Cookie")).toContain(NOMBRE_COOKIE);
   });
 
   it("apagada: todo pasa como antes y la cabecera falsa del visitante se borra", async () => {
@@ -442,17 +455,41 @@ describe("handleRequest con la puerta", () => {
     }
   });
 
-  it("la entrada con un token válido abre la puerta: cookie HttpOnly/Secure y al panel", async () => {
-    const { respuesta, forward } = await entrar();
-    expect(respuesta.status).toBe(302);
-    expect(respuesta.headers.get("Location")).toBe("/odoo");
+  it("la entrada con un token válido abre la puerta: Odoo da la página del equipo y la respuesta trae la cookie", async () => {
+    const forward = vi.fn(async (req: Request) => new Response(`pagina:${new URL(req.url).pathname}:${req.headers.get("X-Dcasa-Puerta")}`));
+    const { respuesta } = await entrar(forward);
+    expect(respuesta.status).toBe(200);
+    const cuerpo = await respuesta.text();
+    expect(cuerpo.startsWith(`pagina:${RUTA}:duena@example.com|`)).toBe(true);
     const cookie = respuesta.headers.get("Set-Cookie") ?? "";
     expect(cookie).toContain(`${NOMBRE_COOKIE}=`);
     for (const parte of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/", "Max-Age=43200"]) expect(cookie).toContain(parte);
     expect(cookie).not.toContain("Domain");
     expect(respuesta.headers.get("Cache-Control")).toBe("no-store");
     expect(respuesta.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(forward).not.toHaveBeenCalled();
+    expect(forward).toHaveBeenCalledOnce();
+  });
+
+  it("enviar el formulario (POST) a la entrada también pasa por la puerta, con el token de Access de ese pedido", async () => {
+    const token = await firmar(par, cargaBuena({ exp: AHORA_S + 24 * 3600 }));
+    const forward = vi.fn(async (req: Request) => new Response(`${req.method}:${await req.text()}:${req.headers.get("X-Dcasa-Puerta-Modo")?.split("|")[0]}`));
+    const res = await handleRequest(
+      new Request(`https://dcasapty.com${RUTA}`, { method: "POST", body: "login=a", headers: { "Cf-Access-Jwt-Assertion": token } }),
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
+    );
+    expect(await res.text()).toBe("POST:login=a:1");
+    expect(res.headers.get("Set-Cookie")).toContain(NOMBRE_COOKIE);
+  });
+
+  it("si Odoo está arrancando (5xx) la entrada no entrega cookie todavía", async () => {
+    const token = await firmar(par, cargaBuena({ exp: AHORA_S + 24 * 3600 }));
+    const forward = vi.fn(async () => new Response("arrancando", { status: 503 }));
+    const res = await handleRequest(
+      new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
+      { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
+    );
+    expect(res.status).toBe(503);
+    expect(res.headers.get("Set-Cookie")).toBeNull();
   });
 
   it("la entrada sin token, con token malo o con otro método es un 404 sin cookie", async () => {
@@ -461,7 +498,7 @@ describe("handleRequest con la puerta", () => {
     const casos: Request[] = [
       new Request(`https://dcasapty.com${RUTA}`),
       new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": malo } }),
-      new Request(`https://dcasapty.com${RUTA}`, { method: "POST", headers: { "Cf-Access-Jwt-Assertion": await firmar(par, cargaBuena()) } }),
+      new Request(`https://dcasapty.com${RUTA}`, { method: "DELETE", headers: { "Cf-Access-Jwt-Assertion": await firmar(par, cargaBuena()) } }),
     ];
     for (const caso of casos) {
       const res = await handleRequest(caso, { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } });
@@ -568,13 +605,47 @@ describe("handleRequest con la puerta", () => {
     }
   });
 
-  it("atenderEntrada se puede probar sola", async () => {
+  it("abrirPuerta se puede probar sola", async () => {
     const token = await firmar(par, cargaBuena());
-    const res = await atenderEntrada(
+    const paso = await abrirPuerta(
       new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
       cfg,
       deps(),
     );
-    expect(res.status).toBe(302);
+    expect(paso?.abierta.email).toBe("duena@example.com");
+    expect(paso?.setCookie).toContain(NOMBRE_COOKIE);
+    expect(await abrirPuerta(new Request(`https://dcasapty.com${RUTA}`), cfg, deps())).toBeNull();
+  });
+
+  it("con /master como entrada, el login público del panel manda a /master (solo en modo «1»)", async () => {
+    const maestra = { ...cfg, ruta: "/master" };
+    const forward = vi.fn(async () => new Response("login-publico"));
+    const ir = (modo: "0" | "avisar" | "1", ruta: string, init?: RequestInit) =>
+      handleRequest(new Request(`https://dcasapty.com${ruta}`, init), {
+        forward, puerta: { config: maestra, jwt: deps(), modo, exigirCorreo: false },
+      });
+    const sinSesion = await ir("1", "/web/login?redirect=%2Fodoo%3Fdebug%3D1");
+    expect(sinSesion.status).toBe(302);
+    expect(sinSesion.headers.get("Location")).toBe("/master");
+    expect(forward).not.toHaveBeenCalled();
+    for (const modo of ["0", "avisar"] as const) {
+      expect(await (await ir(modo, "/web/login?redirect=%2Fodoo")).text(), modo).toBe("login-publico");
+    }
+    // Lo que NO se redirige: clientes, el segundo paso del código, otros destinos y los POST.
+    for (const ruta of ["/web/login", "/web/login?redirect=%2Fmy", "/web/login/totp?redirect=%2Fodoo", "/web/login?redirect=%2Fodoo-no", "/my"]) {
+      expect(await (await ir("1", ruta)).text(), ruta).toBe("login-publico");
+    }
+    expect(await (await ir("1", "/web/login?redirect=%2Fodoo", { method: "POST", body: "x=1" })).text()).toBe("login-publico");
+  });
+
+  it("esLoginPublicoDelPanel solo reconoce el login con destino al panel", () => {
+    const pide = (ruta: string, method = "GET") =>
+      esLoginPublicoDelPanel(new Request(`https://dcasapty.com${ruta}`, { method }), ruta.split("?")[0]);
+    expect(pide("/web/login?redirect=/odoo")).toBe(true);
+    expect(pide("/web/login?redirect=/odoo/action-1")).toBe(true);
+    expect(pide("/web/login?redirect=/shop")).toBe(false);
+    expect(pide("/web/login")).toBe(false);
+    expect(pide("/web/login?redirect=/odoo", "POST")).toBe(false);
+    expect(pide("/web/login/totp?redirect=/odoo")).toBe(false);
   });
 });

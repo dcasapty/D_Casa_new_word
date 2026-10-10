@@ -9,7 +9,8 @@ defecto prudente: sin parámetro, nada queda más abierto ni nadie queda fuera.
 | dcasa_seguridad.2fa_obligatorio     | DCASA_2FA_OBLIGATORIO        | 0 (apagado)  |
 | dcasa_seguridad.2fa_alcance         | DCASA_2FA_ALCANCE            | admins       |
 | dcasa_seguridad.bloqueo_tope_s      | —                            | 1800 (30 min)|
-| dcasa_seguridad.aviso_telegram      | DCASA_AVISO_LOGIN_TELEGRAM   | 1            |
+| dcasa_seguridad.aviso_telegram      | DCASA_AVISO_LOGIN_TELEGRAM   | 1 (personal) |
+|                                     |   «admins» = solo administradores · «0» = nada              |              |
 | dcasa_seguridad.aviso_operacion     | DCASA_ALERTA_TELEGRAM        | 1            |
 | dcasa_seguridad.robots_ia           | DCASA_ROBOTS_IA              | equilibrada  |
 | grupo Administración/Ajustes        | DCASA_SESION_ADMIN_HORAS     | 12           |
@@ -35,6 +36,15 @@ def activo(env, clave, defecto=False):
     if valor in (None, False, ''):
         return defecto
     return str2bool(str(valor).strip().lower(), defecto)
+
+
+def alcance_aviso_login(env):
+    """A quién se avisa por Telegram cuando entra alguien: ``'todos'`` (todo el personal; por defecto), ``'admins'``
+    (como antes: solo los administradores) o ``'nadie'`` (``dcasa_seguridad.aviso_telegram`` = 0)."""
+    valor = (param(env, 'aviso_telegram') or '1').strip().lower()
+    if valor in ('0', 'false', 'no', 'off'):
+        return 'nadie'
+    return 'admins' if valor == 'admins' else 'todos'
 
 
 def entero(env, clave, defecto):

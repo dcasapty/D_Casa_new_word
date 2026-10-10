@@ -25,6 +25,7 @@ RESULTADOS = [
     ('rescate', 'Rescate: doble factor quitado al desplegar'),
     ('sin_puerta', 'Clave correcta, pero sin pasar por la puerta'),
     ('puerta_correo', 'Pasó la puerta con otro correo'),
+    ('login_publico', 'Intentó entrar por el login público (el personal entra por /master)'),
 ]
 
 

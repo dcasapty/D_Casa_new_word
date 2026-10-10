@@ -481,8 +481,10 @@ if [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_seguridad'"
     echo "⚠ auth_totp.policy está puesto y no hay servidor de correo saliente: quien no tenga la app" \
       "no podrá entrar (el código va por correo). Quítalo en Ajustes › Permisos." >&2
   fi
+  # Aviso por Telegram de cada inicio de sesión: «1» a todo el personal (por defecto), «admins» solo a los
+  # administradores, «0» nada.
   seg_aviso="${DCASA_AVISO_LOGIN_TELEGRAM:-1}"
-  [[ "$seg_aviso" == "0" ]] || seg_aviso=1
+  [[ "$seg_aviso" == "0" || "$seg_aviso" == "admins" ]] || seg_aviso=1
   set_param dcasa_seguridad.aviso_telegram "$seg_aviso"
   if [[ -n "${DCASA_ROBOTS_IA:-}" ]]; then
     case "$DCASA_ROBOTS_IA" in

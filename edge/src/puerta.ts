@@ -3,10 +3,11 @@
  *
  * El personal entra al panel por TRES pasos, en este orden:
  *   1. Cloudflare Access (Zero Trust): un PIN que llega al correo. Protege UNA ruta del sitio, la «entrada»
- *      (`DCASA_PUERTA_RUTA`, una dirección que solo conoce el equipo). Access le entrega al Worker un token
- *      firmado (`Cf-Access-Jwt-Assertion`); aquí se VERIFICA (firma, emisor, audiencia, vencimiento): si Access
- *      estuviera mal configurado, la entrada simplemente no abre.
- *   2. La clave de Odoo.   3. El código de la app (Google Authenticator).
+ *      (`DCASA_PUERTA_RUTA`, p. ej. `/master`), que es también la PÁGINA de login del equipo (la sirve Odoo:
+ *      correo y clave, o llave de acceso). Access le entrega al Worker un token firmado (`Cf-Access-Jwt-Assertion`);
+ *      aquí se VERIFICA (firma, emisor, audiencia, vencimiento): si Access estuviera mal configurado, la entrada
+ *      simplemente no abre.
+ *   2. La clave de Odoo (o la llave de acceso).   3. El código de la app (Google Authenticator).
  *
  * Con el token verificado, el Worker pone su PROPIA cookie firmada (`__Host-dcasa_puerta`, 12 h por defecto,
  * nunca más que la sesión de Access). En cada petición con esa cookie válida, el Worker le manda a Odoo la
@@ -64,7 +65,14 @@ export interface EntornoPuerta {
   DCASA_PUERTA_HORAS?: string;
 }
 
-const RUTA_VALIDA = /^\/[a-z0-9][a-z0-9-]{7,63}$/;
+/** Mínimo 3 letras después de la barra (`/master` sirve). Una ruta larga y rara es más discreta, pero lo que protege es el PIN. */
+const RUTA_VALIDA = /^\/[a-z0-9][a-z0-9-]{2,63}$/;
+/** Rutas que ya son del sitio o de Odoo: la entrada no puede taparlas. */
+const RESERVADAS = new Set([
+  "odoo", "web", "shop", "my", "socios", "brian", "dcasa", "website", "mail", "auth", "report", "contactus",
+  "privacidad", "terminos", "visitanos", "whatsapp", "sitemap", "robots", "favicon", "longpolling", "websocket",
+  "calendar", "survey", "blog", "forum", "event", "slides", "helpdesk", "api", "json", "jsonrpc", "xmlrpc",
+]);
 const EQUIPO_VALIDO = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}\.cloudflareaccess\.com$/;
 const AUD_VALIDA = /^[A-Za-z0-9]{16,128}$/;
 
@@ -90,7 +98,8 @@ export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
   const ruta = ("/" + rutaCruda.replace(/^\/+/, "")).toLowerCase();
   const equipo = equipoCrudo.replace(/\/+$/, "").toLowerCase();
   const problemas: string[] = [];
-  if (!RUTA_VALIDA.test(ruta)) problemas.push("DCASA_PUERTA_RUTA (8 a 64 letras minúsculas, números o guiones)");
+  if (RESERVADAS.has(ruta.slice(1))) problemas.push(`DCASA_PUERTA_RUTA (${ruta} ya es una ruta del sitio: elige otra, p. ej. /master)`);
+  else if (!RUTA_VALIDA.test(ruta)) problemas.push("DCASA_PUERTA_RUTA (3 a 64 letras minúsculas, números o guiones, p. ej. /master)");
   if (secreto.length < LARGO_MINIMO_SECRETO) problemas.push(`DCASA_PUERTA_SECRETO (mínimo ${LARGO_MINIMO_SECRETO} caracteres)`);
   if (!EQUIPO_VALIDO.test(equipo)) problemas.push("DCASA_ACCESS_EQUIPO (https://<equipo>.cloudflareaccess.com)");
   if (!AUD_VALIDA.test(aud)) problemas.push("DCASA_ACCESS_AUD (el «AUD tag» de la aplicación de Access)");
@@ -425,25 +434,50 @@ export function esPanel(rutaNormalizada: string): boolean {
   return rutasConYSinIdioma(rutaNormalizada).some((ruta) => ruta === "/odoo" || ruta.startsWith("/odoo/"));
 }
 
+/** 404 igual al de una página que no existe: la ruta de la entrada no se delata. */
+export function respuestaNoExiste(): Response {
+  return new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } });
+}
+
+export interface PasoPorLaPuerta {
+  /** Quién pasó, para firmar la cabecera de ESTA petición (la cookie recién creada aún no viaja en ella). */
+  abierta: PuertaAbierta;
+  /** Valor del `Set-Cookie` que abre la puerta en el navegador. */
+  setCookie: string;
+}
+
 /**
- * La entrada: si Access dejó pasar a la persona (token verificado), se abre la puerta y va al panel.
- * Cualquier otra cosa es un 404 igual al de una página que no existe: la ruta no se delata.
+ * La entrada (`DCASA_PUERTA_RUTA`): Access ya pidió el PIN; aquí se VERIFICA el token que dejó. Si es bueno, la
+ * persona pasó: se devuelve su identidad y la cookie, y el borde le entrega la página de login de Odoo. Cualquier
+ * otra cosa (sin token, token malo, método raro) es `null` y el que llama responde 404.
  */
-export async function atenderEntrada(request: Request, cfg: ConfigPuerta, deps: DepsJwt = {}): Promise<Response> {
-  const noExiste = () => new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } });
-  if (request.method !== "GET") return noExiste();
+export async function abrirPuerta(request: Request, cfg: ConfigPuerta, deps: DepsJwt = {}): Promise<PasoPorLaPuerta | null> {
+  if (request.method !== "GET" && request.method !== "POST" && request.method !== "HEAD") return null;
   const identidad = await verificarJwtAccess(request.headers.get("Cf-Access-Jwt-Assertion"), cfg, deps);
-  if (!identidad) return noExiste();
+  if (!identidad) return null;
   const ahoraMs = (deps.ahora ?? Date.now)();
   const cookie = await crearCookie(cfg, identidad, ahoraMs);
-  if (cookie.maxAge <= 0) return noExiste();
+  if (cookie.maxAge <= 0) return null;
   console.log(JSON.stringify({ evento: "puerta_abierta", correo: identidad.email, vence: cookie.exp }));
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: DESTINO_PANEL,
-      "Set-Cookie": cookieDePuerta(cookie.valor, cookie.maxAge),
-      "Cache-Control": "no-store",
-    },
-  });
+  return { abierta: { email: identidad.email, exp: cookie.exp }, setCookie: cookieDePuerta(cookie.valor, cookie.maxAge) };
+}
+
+/** La respuesta de Odoo para la entrada, con la cookie de la puerta y sin guardarse en ninguna caché. */
+export function conCookieDePuerta(respuesta: Response, setCookie: string): Response {
+  if (respuesta.status >= 500) return respuesta; // Odoo arrancando: todavía no se abre nada
+  const abierta = new Response(respuesta.body, respuesta);
+  abierta.headers.append("Set-Cookie", setCookie);
+  abierta.headers.set("Cache-Control", "no-store");
+  return abierta;
+}
+
+/**
+ * ¿Es el login PÚBLICO al que Odoo manda a quien perdió la sesión del panel (`/web/login?redirect=/odoo…`)? El
+ * personal ya no inicia sesión ahí: se le lleva a la página del equipo. El segundo paso del código (`/web/login/totp`)
+ * y el login de clientes (sin `redirect` hacia el panel) no se tocan.
+ */
+export function esLoginPublicoDelPanel(request: Request, rutaNormalizada: string): boolean {
+  if (request.method !== "GET" || rutaNormalizada !== "/web/login") return false;
+  const destino = new URL(request.url).searchParams.get("redirect") ?? "";
+  return /^\/odoo(?:[/?#]|$)/i.test(destino);
 }

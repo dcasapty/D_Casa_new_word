@@ -22,7 +22,7 @@ from odoo.modules.registry import Registry
 from . import puerta
 from .acceso import en_pruebas
 from .ir_http import INICIO as INICIO_SESION
-from .parametros import ALCANCES, BLOQUEO_TOPE_S, activo, entero, param
+from .parametros import ALCANCES, BLOQUEO_TOPE_S, activo, alcance_aviso_login, entero, param
 
 _logger = logging.getLogger(__name__)
 
@@ -77,9 +77,19 @@ class ResUsers(models.Model):
         entra con la llave ya no pasa por aquí (Odoo da ese acceso por completo, ``mfa: skip``).
         """
         self.ensure_one()
-        return (activo(self.env, '2fa_obligatorio', False)
-                and self._dcasa_2fa_en_alcance()
-                and not self.sudo().totp_enabled)
+        if self.sudo().totp_enabled:
+            return False
+        return ((activo(self.env, '2fa_obligatorio', False) and self._dcasa_2fa_en_alcance())
+                or self._dcasa_puerta_exige_app())
+
+    def _dcasa_puerta_exige_app(self):
+        """Con la puerta obligatoria (modo ``1``) el personal SIEMPRE usa el código de la app: quien aún no la tiene
+        la enrola al entrar. Una huella o una cara se pueden falsificar; el código del teléfono no."""
+        self.ensure_one()
+        if not request:
+            return False
+        modo, _exigir = puerta.ajustes_de_la_peticion(request.httprequest.headers.get(puerta.CABECERA_MODO))
+        return modo == puerta.OBLIGATORIA and self._is_internal()
 
     def _mfa_url(self):
         url = super()._mfa_url()
@@ -146,6 +156,8 @@ class ResUsers(models.Model):
         if not usuario._is_internal():
             return
         motivo = puerta.problema(cabeceras.get(puerta.CABECERA), usuario, exigir_correo)
+        if not motivo and not puerta.es_login_del_equipo(request.httprequest.path):
+            motivo = puerta.LOGIN_PUBLICO   # el login público (/web/login) es solo para clientes y socios
         if not motivo:
             return
         bloquea = modo == puerta.OBLIGATORIA
@@ -155,16 +167,17 @@ class ResUsers(models.Model):
             'es_admin': usuario._is_system(),
             'puerta': puerta.correo_de_la_puerta(request.httprequest.headers.get(puerta.CABECERA)) or False,
         }, aparte=True)
-        _logger.warning('Seguridad: «%s» acertó la clave pero %s (modo %s) desde %s', usuario.login,
-                        'no pasó por la puerta' if motivo == puerta.SIN_PUERTA else 'pasó la puerta con otro correo',
-                        modo, _ip())
+        hecho = {
+            puerta.SIN_PUERTA: 'no pasó por la puerta del equipo',
+            puerta.CORREO_DISTINTO: 'pasó la puerta con otro correo',
+            puerta.LOGIN_PUBLICO: 'lo intentó por el login público (el equipo entra por /master)',
+        }[motivo]
+        _logger.warning('Seguridad: «%s» acertó la clave pero %s (modo %s) desde %s', usuario.login, hecho, modo, _ip())
         if usuario._is_system():
             self._dcasa_avisar_admins(usuario, (
                 f'\U0001F6AA D’CASA: alguien acertó la clave de administrador «{usuario.name}» '
                 f'({usuario.login}) desde la IP {_ip()} ({_agente() or "navegador desconocido"}), '
-                f'{self._dcasa_hora()}, pero '
-                + ('no pasó por la puerta del equipo' if motivo == puerta.SIN_PUERTA
-                   else 'pasó la puerta con otro correo')
+                f'{self._dcasa_hora()}, pero {hecho}'
                 + (': no entró.' if bloquea else ' (modo aviso: entró).')
                 + ' Si no fuiste tú, cambia esa clave.'))
         if bloquea:
@@ -172,7 +185,13 @@ class ResUsers(models.Model):
 
     def _check_credentials(self, credential, env):
         try:
-            return super()._check_credentials(credential, env)
+            info = super()._check_credentials(credential, env)
+            if (credential.get('type') == 'webauthn' and isinstance(info, dict) and info.get('mfa') == 'skip'
+                    and self._is_internal()):
+                # La llave de acceso (huella o cara) NO reemplaza el código de la app para el personal: Odoo la deja
+                # saltarse el segundo paso y aquí se le quita ese permiso (pedido de la dueña: «siempre el código»).
+                info = dict(info, mfa='default')
+            return info
         except AccessDenied:
             if request and credential.get('type') in ('totp', 'totp_mail'):
                 usuario = self.env.user
@@ -215,20 +234,24 @@ class ResUsers(models.Model):
             # Inicio real de la sesión (la rotación de Odoo lo conserva): models/ir_http.py.
             request.session[INICIO_SESION] = time.time()
         es_admin = usuario._is_system()
+        correo_puerta = (puerta.correo_de_la_puerta(request.httprequest.headers.get(puerta.CABECERA))
+                         if request else False) or False
         self.env['dcasa.seguridad.acceso']._registrar({
             'login': usuario.login, 'user_id': usuario.id, 'resultado': 'ok',
             'metodo': auth_info.get('auth_method') or tipo or 'password', 'ip': _ip(), 'agente': _agente(),
-            'es_admin': es_admin,
-            'puerta': (puerta.correo_de_la_puerta(request.httprequest.headers.get(puerta.CABECERA))
-                       if request else False) or False,
+            'es_admin': es_admin, 'puerta': correo_puerta,
         })
-        if es_admin and request:
+        # Aviso a los administradores vinculados con Brian (Telegram): a los administradores siempre; a todo el personal
+        # mientras DCASA_AVISO_LOGIN_TELEGRAM sea «1» (por defecto; «admins» = solo administradores, «0» = nada).
+        if request and (es_admin or (usuario._is_internal() and alcance_aviso_login(self.env) == 'todos')):
             falta = (' Falta el código de la app: si no eras tú, cambia tu clave ya.'
                      if usuario.totp_enabled and auth_info.get('mfa') != 'skip' else '')
+            por_la_puerta = f' Pasó la puerta como {correo_puerta}.' if correo_puerta else ''
+            quien = 'administrador ' if es_admin else ''
             self._dcasa_avisar_admins(usuario, (
-                f'\U0001F510 D’CASA: inicio de sesión de administrador «{usuario.name}» '
+                f'\U0001F510 D’CASA: inicio de sesión {"de " + quien if quien else "del personal "}«{usuario.name}» '
                 f'({usuario.login}) desde la IP {_ip()} ({_agente() or "navegador desconocido"}), '
-                f'{self._dcasa_hora()}.{falta} Si no fuiste tú, avisa y revisa Ajustes › Usuarios › '
+                f'{self._dcasa_hora()}.{por_la_puerta}{falta} Si no fuiste tú, avisa y revisa Ajustes › Usuarios › '
                 f'Accesos al panel.'))
 
     @api.model

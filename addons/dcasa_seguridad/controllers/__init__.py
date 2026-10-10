@@ -1,1 +1,1 @@
-from . import enrolar, robots
+from . import enrolar, master, robots

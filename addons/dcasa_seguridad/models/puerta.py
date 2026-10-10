@@ -12,8 +12,10 @@ código de la app. El borde verifica el primer paso y le pasa a Odoo, en cada pe
   * ``0``: no se exige nada.
   * ``avisar``: quien entra sin puerta entra, pero queda en «Accesos al panel» y se avisa por Telegram. Sirve para
     comprobar, antes de cerrar, que todo el equipo ya está pasando por la puerta.
-  * ``1``: el personal (usuarios internos) solo inicia sesión y solo sigue dentro con la puerta abierta. Los
-    clientes del portal y los socios nunca pasan por aquí.
+  * ``1``: el personal (usuarios internos) solo inicia sesión y solo sigue dentro con la puerta abierta, solo
+    inicia sesión en la página del equipo (``/master``, nunca en ``/web/login``) y SIEMPRE con el código de la
+    app (Google Authenticator), también si entra con llave de acceso. Los clientes del portal y los socios
+    nunca pasan por aquí.
 
 Una petición SIN la cabecera del modo (o con una que no se pueda verificar) no exige nada: así lo que nace dentro
 del contenedor y no pasa por el borde (el PDF de una factura, por ejemplo, que llama a Odoo con la sesión de quien
@@ -40,6 +42,10 @@ MODOS = (APAGADA, AVISAR, OBLIGATORIA)
 # Resultados que se anotan en «Accesos al panel»
 SIN_PUERTA = 'sin_puerta'
 CORREO_DISTINTO = 'puerta_correo'
+LOGIN_PUBLICO = 'login_publico'
+
+# El personal inicia sesión SOLO en la página del equipo; el login público (/web/login) es para clientes y socios.
+RUTAS_LOGIN_DEL_EQUIPO = ('/master', '/master/')
 
 LARGO_MINIMO_SECRETO = 32
 # ASCII imprimible, sin «|» ni un segundo «@» (igual que el borde): lo demás haría fallar las cabeceras HTTP.
@@ -92,6 +98,10 @@ def correo_de_la_puerta(valor, ahora=None):
     if not _firma_valida(clave, f'cabecera|{correo}|{vence}', firma):
         return None
     return correo.lower()
+
+
+def es_login_del_equipo(ruta):
+    return ruta in RUTAS_LOGIN_DEL_EQUIPO
 
 
 def coincide(usuario, correo):
