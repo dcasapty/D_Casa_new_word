@@ -145,7 +145,11 @@
         // staging.dcasapty.com aún no apunta al Worker: el aviso de invalidación va a workers.dev.
         "TIENDA_AVISO_URL": "https://dcasa-staging.dcasapty.workers.dev/__edge/tienda/regenerar",
         "TIENDA_ESTATICA": "on",
-        "DCASA_2FA_OBLIGATORIO": "0",
+        // Doble factor OBLIGATORIO en staging (pedido de la dueña, 2026-10-10: «blindar el acceso»):
+        // cada administrador enrola la app de códigos la primera vez que entra después de la clave
+        // (docs/SEGURIDAD_ACCESO.md §2 y §3). Rescate si se pierde el teléfono: §4. Producción sigue en "0"
+        // hasta que la dueña pruebe aquí el flujo completo.
+        "DCASA_2FA_OBLIGATORIO": "1",
         "DCASA_2FA_ALCANCE": "admins"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]

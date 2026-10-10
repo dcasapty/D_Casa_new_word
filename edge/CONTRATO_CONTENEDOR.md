@@ -83,7 +83,7 @@ propio valor por defecto (`dcasa`).
 | `BRIAN_*`, `TELEGRAM_BOT_TOKEN` | var/secreto | — | opcionales |
 | `TIENDA_FEED_TOKEN` | secreto | — | ≥ 32 caracteres. Odoo lo exige en `GET /dcasa/tienda/feed` (cabecera `X-Dcasa-Tienda-Token`) y lo manda como `Bearer` al avisar `POST /__edge/tienda/regenerar` (§5) |
 | `TIENDA_AVISO_URL` | var | — | opcional; por defecto `https://<CANONICAL_HOST>/__edge/tienda/regenerar` |
-| `DCASA_2FA_OBLIGATORIO` | var | — | `0` (por defecto). `1` = quien está en el alcance enrola la app de códigos al entrar (addons/dcasa_seguridad). Encender solo cuando la dueña ya enroló la suya (docs/SEGURIDAD_ACCESO.md) |
+| `DCASA_2FA_OBLIGATORIO` | var | — | `0` (por defecto). `1` = quien está en el alcance enrola la app de códigos al entrar (addons/dcasa_seguridad). Encender solo cuando la dueña ya enroló la suya (docs/SEGURIDAD_ACCESO.md). Staging: `1` desde 2026-10-10; producción: `0` |
 | `DCASA_2FA_ALCANCE` | var | — | `admins` (por defecto) o `internos` |
 | `DCASA_SESION_ADMIN_HORAS` / `DCASA_INACTIVIDAD_ADMIN_MIN` | var | — | opcionales (al instalar: 12 h / 60 min; `0` = sin). Vacías: no se toca lo que haya en Odoo |
 | `DCASA_AVISO_LOGIN_TELEGRAM` | var | — | `0` apaga el aviso por Telegram de inicios de sesión de administrador |
