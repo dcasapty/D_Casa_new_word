@@ -19,6 +19,8 @@ son las líneas que calculaste, y siempre puedes volver a calcularlas.
 2. Elige el **reporte**: Estado de resultados, Balance general o Balance de comprobación.
 3. Elige las **fechas**. El balance general es «al» último día, así que solo usa «Hasta».
 4. Elige las **empresas del grupo**: solo las que tú tienes acceso, y todas deben usar la misma moneda.
+   Si una empresa no te aparece en la lista, actívala antes en el selector de empresas (arriba a la
+   derecha).
 5. Pulsa **Calcular**. Quedan las líneas con una columna por empresa, una de **Eliminaciones** y una de
    **Consolidado**.
 6. Lee el cuadro de **Advertencias** (si sale). Dice qué no cuadra entre las empresas y de cuánto es.

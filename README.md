@@ -23,13 +23,14 @@ código fuente en este repositorio y desplegado en **Cloudflare**.
 | `addons/dcasa_contabilidad` | Contabilidad a medida: estado de resultados, balance general, balance de comprobación, libro mayor, ITBMS y analítica (Excel y PDF); conciliación bancaria con importación de extractos CSV; presupuestos; cheques. Ver [docs/CONTABILIDAD.md](docs/CONTABILIDAD.md). |
 | `addons/dcasa_nomina` | Nómina de Panamá: fichas de colaboradores, planilla quincenal (seguro social, seguro educativo, ISR), décimo tercer mes, vacaciones, prima, liquidación, reembolsos en nómina y asiento contable. Las tasas las valida el contador. Ver [docs/NOMINA.md](docs/NOMINA.md). |
 | `addons/dcasa_contactos` | Una persona, una ficha: celular (con o sin +507), correo y RUC/cédula no se repiten; lista de posibles duplicados con fusión; el chat y la tienda reutilizan la ficha existente. Ver [docs/CONTACTOS.md](docs/CONTACTOS.md). |
+| `addons/dcasa_consolidacion` | Consolidación: estado de resultados, balance general y balance de comprobación de varias empresas del grupo en uno solo (columna por empresa, eliminaciones entre empresas y consolidado), con mapa de cuentas, advertencias de descuadre y PDF. Ver [docs/CONSOLIDACION.md](docs/CONSOLIDACION.md). |
 | `addons/dcasa_brian` | **Brian**, el asistente de IA: chat en todas las pantallas (Ctrl + J), Telegram y servidor MCP con un solo catálogo de herramientas (ventas, catálogo, clientes, contabilidad, usuarios); lo sensible pide confirmación y lo prohibido no existe. Claude, ChatGPT, Grok o Llama. Ver [docs/BRIAN.md](docs/BRIAN.md). |
 | `addons/dcasa_catalogo` | Catálogo real (199 productos, 323 fotos) del Excel y la carpeta `up media`: el mismo producto en inventario, ventas y tienda web. Ver [docs/CATALOGO.md](docs/CATALOGO.md). |
 | `addons/dcasa_seguridad` | Acceso seguro al panel: doble factor (app de códigos y llaves de acceso), obligatoriedad por variable, bloqueo progresivo, registro y avisos de inicios de sesión, Turnstile y robots.txt para IA. Ver [docs/SEGURIDAD_ACCESO.md](docs/SEGURIDAD_ACCESO.md). |
 | `edge/` | Cloudflare Worker + Container que sirve Odoo (caché, seguridad, cron). |
 | `docker/` | Imagen de producción (Odoo + módulos) y su arranque. |
 | `scripts/test.sh` | Instala los módulos en una base limpia y corre todos los tests. |
-| `docs/` | [Plan](docs/PLAN.md) · [Arquitectura](docs/ARQUITECTURA.md) · [Despliegue](docs/DESPLIEGUE.md) · [Socios D'CASA](docs/SOCIOS.md) · [Seguridad de acceso](docs/SEGURIDAD_ACCESO.md) · [Nómina](docs/NOMINA.md) · [Contactos sin duplicados](docs/CONTACTOS.md) |
+| `docs/` | [Plan](docs/PLAN.md) · [Arquitectura](docs/ARQUITECTURA.md) · [Despliegue](docs/DESPLIEGUE.md) · [Socios D'CASA](docs/SOCIOS.md) · [Seguridad de acceso](docs/SEGURIDAD_ACCESO.md) · [Nómina](docs/NOMINA.md) · [Contactos sin duplicados](docs/CONTACTOS.md) · [Consolidación](docs/CONSOLIDACION.md) |
 
 ## Empezar (desarrollo local)
 

@@ -79,7 +79,7 @@ class Armado:
         """La fila consolidada de una cuenta: el mapa manda sobre el código propio de la cuenta."""
         seccion = SECCION_DE_TIPO[cuenta.account_type]
         entrada = self.mapa.get((empresa.id, cuenta.id))
-        codigo_propio = cuenta.code or ''
+        codigo_propio = cuenta.with_company(empresa).code or ''
         codigo = entrada.codigo_consolidado if entrada else codigo_propio
         nombre = entrada.nombre_consolidado if entrada and entrada.nombre_consolidado else cuenta.name
         clave = (seccion, codigo, '' if codigo else nombre)

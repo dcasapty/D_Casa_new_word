@@ -50,9 +50,11 @@ class TestLibroMayor(SociosCommon):
 
     def test_ficha_por_celular_unica(self):
         self.assertEqual(self.padrino.dcasa_celular, '60000001', 'El celular del contacto pasa a ser la llave')
-        otro = self.env['res.partner'].create({'name': 'Otra', 'phone': '6000-0001'})
+        # Un celular, una ficha: la llave del programa es única en la base de datos (aunque se escriba de otra forma).
+        # (Que dos fichas tengan el mismo teléfono lo impide además dcasa_contactos: ver sus pruebas.)
+        otro = self.env['res.partner'].create({'name': 'Otra', 'phone': '6000-0099'})
         otro._dcasa_asegurar_ficha()
-        self.assertFalse(otro.dcasa_celular, 'Un celular, una ficha')
+        self.assertEqual(otro.dcasa_celular, '60000099')
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
             otro.dcasa_celular = '+507 6000-0001'
             self.env.flush_all()

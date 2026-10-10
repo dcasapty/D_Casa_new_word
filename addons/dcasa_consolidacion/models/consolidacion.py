@@ -38,8 +38,8 @@ class DcasaConsolidacion(models.Model):
     company_ids = fields.Many2many(
         'res.company', 'dcasa_consolidacion_empresa_rel', 'consolidacion_id', 'company_id',
         string='Empresas del grupo', default=lambda self: self.env.companies, bypass_search_access=True,
-        help='Las empresas que se suman. Solo puedes incluir empresas a las que tienes acceso. Todas deben '
-             'usar la misma moneda.')
+        help='Las empresas que se suman. Solo puedes incluir empresas a las que tienes acceso; para elegir otra, '
+             'actívala antes en el selector de empresas (arriba a la derecha). Todas deben usar la misma moneda.')
     empresas_resumen = fields.Char('Empresas', compute='_compute_empresas_resumen')
     tipo_reporte = fields.Selection(TIPOS_REPORTE, 'Reporte', required=True, default='resultados', tracking=True)
     fecha_desde = fields.Date('Desde', required=True, tracking=True,
