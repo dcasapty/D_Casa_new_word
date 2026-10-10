@@ -658,3 +658,13 @@ categorías ordenables: `docs/CATALOGO.md`) y **Conversaciones** (el chat de Jua
 uno sale solo si la persona tiene permiso y el módulo está instalado (`dcasa_interfaz`, `models/tablero.py › _atajos`).
 Para agregar otro acceso: una entrada más en `_atajos` con el `xml_id` de la acción y un test en
 `addons/dcasa_interfaz/tests/test_interfaz.py`.
+
+## El CRM se ajusta solo (acción planificada)
+
+Cada 15 minutos corre **«Juan: ajustar el CRM»** (`crm.lead._dcasa_cron_crm`, módulo `dcasa_conversaciones`): lee las
+oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/CRM_AUTOMATICO.md` (cotizada, ganada,
+temperatura, sin respuesta). Cada oportunidad se procesa aparte: un error se escribe en el registro del servidor
+(«CRM automático: falló …») y no frena a las demás. Para apagarlo sin tocar código: *Conversaciones › Configuración ›
+Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pendientes, el log avisa que ese turno revisó solo
+las 500 más nuevas.
+

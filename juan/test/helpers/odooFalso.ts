@@ -24,7 +24,7 @@ export const HERRAMIENTAS_DE_PRUEBA: DefHerramienta[] = [
   { nombre: "reglas_socios", descripcion: "Reglas del programa Socios D'CASA.", parametros: objeto({}) },
   { nombre: "horario_y_tienda", descripcion: "Dirección, horario y WhatsApp.", parametros: objeto({}) },
   { nombre: "saldo_puntos", descripcion: "Saldo de puntos de un socio (con PIN).", parametros: objeto({ celular: texto("Celular"), pin: texto("PIN") }, ["celular", "pin"]) },
-  { nombre: "crear_oportunidad", descripcion: "Registra una oportunidad para las vendedoras.", parametros: objeto({ resumen: texto("Resumen"), interes: texto("Interés"), presupuesto: { type: "number" } }, ["resumen"]) },
+  { nombre: "crear_oportunidad", descripcion: "Registra una oportunidad para las vendedoras.", parametros: objeto({ resumen: texto("Resumen"), interes: texto("Interés"), presupuesto: { type: "number" }, zona: texto("Zona de entrega"), cuando: texto("Para cuándo") }, ["resumen"]) },
   { nombre: "anotar_conversacion", descripcion: "Nota interna.", parametros: objeto({ nota: texto("Nota") }, ["nota"]) },
   { nombre: "pasar_a_vendedora", descripcion: "Pasa la conversación a una vendedora.", parametros: objeto({ motivo: texto("Motivo"), urgencia: { type: "string", enum: ["normal", "alta"] } }, ["motivo"]) },
   { nombre: "buscar_conocimiento", descripcion: "Busca en la base de conocimiento de la tienda (políticas, garantía, pagos...).", parametros: objeto({ consulta: texto("La pregunta") }, ["consulta"]) },

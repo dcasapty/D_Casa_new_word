@@ -252,6 +252,31 @@ A quien tiene esa oportunidad y **no volvió a escribir**, el asistente le escri
 Si el cliente vuelve a escribir, el conteo empieza de nuevo. En cada conversación, la pestaña **Seguimiento** muestra
 cuántos se enviaron y cuándo toca el próximo. **Odoo decide quién y cuándo; el Worker redacta y envía.**
 
+## El CRM se ajusta solo
+
+Las oportunidades que nacen de una conversación se mueven solas, **con hechos que Odoo ya sabe** (no con lo que la IA
+opine). Diseño completo, fallas del plan y reglas: [`docs/CRM_AUTOMATICO.md`](CRM_AUTOMATICO.md).
+
+* **Cotizada.** Al enviar una cotización (Juan o el botón *Cotización* de la pantalla) la oportunidad pasa a «Propuesta». Juan
+  y el botón ligan la cotización a la oportunidad (la crean si no había: pedir una cotización es interés concreto).
+* **Ganada.** Cuando una cotización ligada tiene una **factura pagada**. Una venta confirmada sin pagar (un apartado) sigue
+  en «Propuesta».
+* **Temperatura** (frío, tibio, caliente) con puntos por hechos: cotización enviada, para cuándo lo quiere, zona de entrega,
+  si escribió hace poco o seguido, si lo atiende una persona. Se enfría con el tiempo. La causa queda escrita en la ficha.
+* **Datos que dijo el cliente.** Juan anota la **zona de entrega** (distrito o corregimiento) y **para cuándo** lo quiere,
+  solo si el cliente lo dijo, y nunca pisa lo que escribió una persona.
+* **Sin respuesta.** Si la conversación no tiene mensajes en *Ajustes de Juan › Días sin respuesta* (30 por defecto; 0 =
+  nunca; mínimo 14) y ninguna vendedora tiene algo pendiente, la oportunidad se archiva con el motivo «Sin respuesta
+  (automático)». Se restaura desde el CRM.
+* **La persona manda.** Solo avanzan, nunca retroceden. Si alguien cambia a mano la etapa o la temperatura de una oportunidad
+  (o restaura una archivada), esa oportunidad queda marcada «Una persona tomó el control» y nada vuelve a moverla hasta que
+  alguien use el botón **Que Juan la maneje de nuevo**.
+* **Oportunidades** (*Conversaciones › Oportunidades* y el acceso del Inicio): de la más caliente a la más fría, con el filtro
+  **A quién escribirle hoy** (tibias y calientes a las que ninguna vendedora les ha escrito en las últimas 24 horas).
+* **Brian** lo lee: «¿a quién le escribo hoy?» (`oportunidades_abiertas`) y «¿cómo va el CRM?» (`resumen_del_crm`). Solo lectura.
+* **Apagarlo:** *Ajustes de Juan › El CRM se ajusta solo*. Lo ya anotado queda como estaba. Corre cada 15 minutos (acción
+  planificada «Juan: ajustar el CRM»).
+
 ## El asistente aprende: conocimiento, preguntas sin respuesta y lecciones
 
 **Conocimiento del bot** (*Conversaciones › Conocimiento del bot*). Es lo único que el asistente puede decir sobre
@@ -386,6 +411,12 @@ Gerencia puede borrar la conversación (se van sus mensajes y adjuntos). El avis
 (`/privacidad`); por decisión de la dueña el chat no lo repite en el primer mensaje. Si se quisiera mandar uno corto, se
 escribe en *Ajustes de Juan › Aviso de privacidad (corto)* y debe coincidir con esa política.
 
+**Oportunidades y borrado de datos.** Borrar la conversación **no** borra la oportunidad del CRM (es un registro del negocio, con
+el nombre, el celular y las notas del cliente). Para un pedido de borrado, Gerencia también **elimina la oportunidad** (CRM ›
+la oportunidad › Acciones › Eliminar). Lo nuevo que Juan anota en ella (zona de entrega, para cuándo) es dato personal: solo
+distrito o corregimiento, nunca la dirección exacta, y se va con la oportunidad. **La política de privacidad del sitio debe
+mencionar la zona de entrega** (pendiente de revisión del abogado).
+
 **Foto de perfil.** Es un dato personal. El Worker la pide al canal (Telegram, WhatsApp por QR a través del puente, Messenger e
 Instagram; WhatsApp oficial no la da) **a lo más una vez por semana por conversación** (una hora después si algo falló) y solo si
 *Ajustes de Juan › Guardar la foto de perfil del cliente* está encendido. Odoo la valida (solo JPEG, PNG o WebP de verdad, hasta 300
@@ -438,7 +469,7 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 
 Las 13 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
 `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `saldo_puntos`, `horario_y_tienda`,
-`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `crear_oportunidad`, `anotar_conversacion`,
+`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `crear_oportunidad` (con `zona` y `cuando` opcionales), `anotar_conversacion`,
 `etiquetar_conversacion`, `pasar_a_vendedora` y `cotizar`. Las de lectura leen con `sudo()` y filtros (publicados) y devuelven una lista
 blanca de campos; el cliente sale **siempre** de la conversación (`juan_conversacion_id`), nunca de un argumento.
 

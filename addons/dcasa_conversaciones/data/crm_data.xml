@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Motivo de la pérdida automática (docs/CRM_AUTOMATICO.md). noupdate: si la dueña lo renombra, se respeta. -->
+    <data noupdate="1">
+        <record id="perdida_sin_respuesta" model="crm.lost.reason">
+            <field name="name">Sin respuesta (automático)</field>
+        </record>
+    </data>
+
+    <record id="ir_cron_crm_automatico" model="ir.cron">
+        <field name="name">Juan: ajustar el CRM (cotizada, ganada, temperatura, sin respuesta)</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_cron_crm()</field>
+        <field name="interval_number">15</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

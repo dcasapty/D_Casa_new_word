@@ -255,6 +255,7 @@ class DcasaConversacionCatalogo(models.Model):
                                            'Sin confirmar.', quien=self.env.user.name, canal=conv.canal),
                            subtype_xmlid='mail.mt_note')
         conv._aviso(self.env._('%(quien)s creó la cotización borrador %(n)s.', quien=self.env.user.name, n=orden.name))
+        conv._ligar_cotizacion(orden)   # queda ligada a la oportunidad; pasa a «Propuesta» cuando se envíe
         return {'cotizacion': self._orden_como_dict(orden)}
 
     @api.model
@@ -287,4 +288,8 @@ class DcasaConversacionCatalogo(models.Model):
         orden.message_post(body=self.env._('Enviada en PDF por %(quien)s por %(canal)s.', quien=self.env.user.name,
                                            canal=conv.canal), subtype_xmlid='mail.mt_note')
         resultado['cotizacion'] = self._orden_como_dict(orden)
+        # Enviada: la oportunidad pasa a «Propuesta» (si la cotización no estaba ligada, se liga ahora).
+        lead = orden.sudo().opportunity_id or conv._ligar_cotizacion(orden)
+        if lead:
+            lead._dcasa_al_cotizar(orden)
         return resultado

@@ -10,6 +10,8 @@ from . import (
     test_conocimiento_significado,
     test_conversaciones,
     test_cotizacion_automatica,
+    test_crm_automatico,
+    test_crm_reglas,
     test_ejemplos,
     test_espera,
     test_etiquetas,

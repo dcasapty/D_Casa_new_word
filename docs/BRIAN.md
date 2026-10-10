@@ -317,6 +317,10 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
 | `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |
 | `consumo_de_brian` | lectura | Administrador |
+| `oportunidades_abiertas(temperatura?, para_hoy?, limite?)` — las del CRM que nacieron de una conversación, de la más caliente a la más fría: etapa, qué pidió, para cuándo, zona, si esperan respuesta o tienen cotización; `para_hoy` = tibias y calientes sin mensaje de una vendedora en 24 h (módulo `dcasa_conversaciones`) | lectura | Ventas |
+| `resumen_del_crm` — abiertas por temperatura y por etapa, las que esperan respuesta, con cotización enviada, en manos de una persona y lo ganado y archivado en 30 días | lectura | Ventas |
+
+Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte

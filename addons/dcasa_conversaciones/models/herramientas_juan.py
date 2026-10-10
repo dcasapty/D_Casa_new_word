@@ -425,8 +425,9 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'crear_oportunidad',
-        descripcion='Deja registrado en el CRM lo que el cliente quiere, para que una vendedora le dé seguimiento. '
-                    'No duplica: si ya tiene una oportunidad abierta reciente, le agrega una nota.',
+        descripcion='Deja registrado en el CRM lo que el cliente quiere (y su zona y para cuándo, si los dijo) '
+                    'para dar seguimiento. No duplica: si ya hay una oportunidad abierta reciente, le agrega una '
+                    'nota.',
         parametros={
             'resumen': {'type': 'string',
                         'description': 'Qué pidió el cliente, en 1 a 3 frases con sus datos concretos.'},
@@ -434,11 +435,17 @@ class BrianHerramientasJuan(models.AbstractModel):
                         'description': 'El producto o tema en pocas palabras, p. ej. «Cama queen con base».'},
             'presupuesto': {'type': 'number',
                             'description': 'Opcional: solo si el cliente dijo cuánto quiere gastar (USD).'},
+            'zona': {'type': 'string',
+                     'description': 'Opcional: solo si el cliente dijo dónde vive, en distrito o corregimiento '
+                                    '(nunca la dirección exacta).'},
+            'cuando': {'type': 'string',
+                       'description': 'Opcional: solo si el cliente dijo para cuándo lo quiere, con sus palabras.'},
         },
         requeridos=['resumen', 'interes'], nivel='construccion', categoria='ventas', grupos=GRUPOS,
-        ejemplos=['el cliente quiere una cama queen para esta semana → crear_oportunidad(resumen, interes)'],
+        ejemplos=['el cliente quiere una cama queen para esta semana → crear_oportunidad(resumen, interes, '
+                  'cuando="esta semana")'],
     )
-    def _juan_crear_oportunidad(self, resumen, interes, presupuesto=None):
+    def _juan_crear_oportunidad(self, resumen, interes, presupuesto=None, zona=None, cuando=None):
         resumen = str(resumen or '').strip()[:MAX_TEXTO]
         interes = str(interes or '').strip()[:120]
         if not resumen or not interes:
@@ -446,7 +453,11 @@ class BrianHerramientasJuan(models.AbstractModel):
         if presupuesto is not None and (isinstance(presupuesto, bool) or not isinstance(presupuesto, (int, float))
                                         or presupuesto < 0):
             raise BrianError('El presupuesto es un número en dólares, mayor o igual que cero.')
-        lead, nueva = self._j_conversacion()._oportunidad(resumen, interes=interes, presupuesto=presupuesto)
+        for nombre, valor in (('zona', zona), ('cuando', cuando)):
+            if valor is not None and not isinstance(valor, str):
+                raise BrianError(f'«{nombre}» es texto: lo que dijo el cliente, con sus palabras.')
+        lead, nueva = self._j_conversacion()._oportunidad(
+            resumen, interes=interes, presupuesto=presupuesto, zona=zona, cuando=cuando)
         return {'oportunidad_id': lead.id, 'nombre': lead.name, 'nueva': nueva,
                 'mensaje': 'Oportunidad creada.' if nueva else 'Ya tenía una oportunidad abierta: le agregué una nota.'}
 

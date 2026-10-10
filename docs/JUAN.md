@@ -98,8 +98,12 @@ Meta). El par es único.
      hora de Panamá.
    - `saldo_puntos(celular, pin)` → solo si el celular es el de la conversación y el PIN es válido
      (candado del programa: 5 fallos → 15 min). Sin movimientos con motivos.
-   - `crear_oportunidad(resumen, interes, presupuesto?)` → `crm.lead` ligado al cliente y a la
-     conversación (no duplica uno abierto reciente).
+   - `crear_oportunidad(resumen, interes, presupuesto?, zona?, cuando?)` → `crm.lead` ligado al cliente y a la
+     conversación (no duplica uno abierto reciente). `zona` (distrito o corregimiento, nunca la dirección exacta) y
+     `cuando` («para cuándo lo quiere», con sus palabras) **solo si el cliente los dijo**: llenan lo que esté vacío y
+     nunca pisan lo que ya escribió una persona (si difiere, queda una nota). Texto plano de una línea, hasta 80
+     letras. Es **idempotente**: se puede volver a llamar cuando el cliente da un dato nuevo. `cotizar` también
+     crea o reutiliza la oportunidad y la liga a la cotización (`docs/CRM_AUTOMATICO.md`).
    - `anotar_conversacion(nota)` → nota interna en el chatter del cliente.
    - `pasar_a_vendedora(motivo, urgencia?)` → pausa al bot, actividad para la vendedora, aviso
      por Telegram/Odoo. Devuelve el texto que el bot debe decir según el horario.

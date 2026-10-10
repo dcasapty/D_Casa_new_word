@@ -39,6 +39,23 @@ class TestAtajoDeConversaciones(TransactionCase):
     def test_quien_no_es_del_equipo_de_ventas_no_lo_ve(self):
         interno = new_test_user(self.env, login='atajo_interno', groups='base.group_user')
         self.assertNotIn('conversaciones', self.atajos(interno))
+        self.assertNotIn('oportunidades', self.atajos(interno))
+
+    def test_el_atajo_de_oportunidades_abre_la_lista(self):
+        atajo = self.atajos(self.vendedora)['oportunidades']
+        self.assertEqual(atajo['accion'], 'dcasa_conversaciones.accion_oportunidades_hoy')
+        self.assertEqual((atajo['titulo'], atajo['icono'], atajo['cuenta']), ('Oportunidades', 'fa-fire', 0))
+        self.assertEqual(atajo['detalle'], 'Nadie por ahora')
+        self.assertTrue(self.env.ref(atajo['accion']))
+
+    def test_dice_a_cuantas_hay_que_escribirles_hoy(self):
+        for i in range(2):
+            conv = self.env['dcasa.conversacion'].create({'canal': 'telegram', 'id_externo': f'77700{i}'})
+            lead = self.env['crm.lead'].create({'name': f'Caliente {i}', 'type': 'opportunity', 'user_id': False})
+            conv.oportunidad_id = lead
+            lead.with_context(dcasa_auto=True).dcasa_temperatura = '3'
+        self.assertEqual(self.atajos(self.vendedora)['oportunidades']['detalle'], '2 para escribirles hoy')
+        self.assertEqual(self.atajos(self.vendedora)['oportunidades']['cuenta'], 2)
 
 
 @tagged('post_install', '-at_install')
@@ -50,7 +67,7 @@ class TestAtajosEnElNavegador(PanelUiCase):
         self.navegador("""
 (async () => {
             const atajo = (clave) => document.querySelector(".o_dcasa_atajo_" + clave);
-            for (const clave of ["productos", "conversaciones"]) {
+            for (const clave of ["productos", "conversaciones", "oportunidades"]) {
                 await esperar(() => atajo(clave), "el atajo " + clave);
             }
             // Conversaciones: la vendedora tiene mensajes sin leer y el atajo lo dice.
@@ -61,9 +78,18 @@ class TestAtajosEnElNavegador(PanelUiCase):
             }
             atajo("conversaciones").click();
             await esperar(() => document.querySelector(".o_dcj .o_dcj_fila"), "el panel del chat");
+            // Oportunidades: a quién escribirle hoy (la lista abre aunque todavía no haya ninguna).
+            history.back();
+            await esperar(() => atajo("oportunidades"), "el Inicio otra vez (oportunidades)");
+            atajo("oportunidades").click();
+            await esperar(() => [...document.querySelectorAll(".o_breadcrumb, .o_control_panel")]
+                .some((el) => el.textContent.includes("Oportunidades")), "la pantalla de oportunidades");
             // Vuelve al Inicio y abre Productos: la lista (no las tarjetas), con las categorías a la izquierda,
             // la columna de stock y los botones de orden.
-            history.back();
+            // La lista se abrió encima del Inicio: se vuelve con la migaja de pan, no con «atrás» del navegador.
+            const migaja = await esperar(() => document.querySelector(
+                ".o_breadcrumb .breadcrumb-item:not(.active) a, .o_breadcrumb .o_back_button"), "la migaja «Inicio»");
+            migaja.click();
             await esperar(() => atajo("productos"), "el Inicio otra vez");
             atajo("productos").click();
             await esperar(() => document.querySelector(".o_list_view .o_data_row"), "la lista de productos");

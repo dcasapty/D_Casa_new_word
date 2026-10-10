@@ -235,6 +235,16 @@ describe("la voz de la marca (CLAUDE.md)", () => {
     expect(como).toMatch(/Es una cotización: no es una venta ni reserva nada/);
   });
 
+  it("crear_oportunidad: la zona y el para cuándo van en la herramienta, solo si el cliente los dijo", () => {
+    const como = prompt.split("<como_trabajas>")[1]!.split("</como_trabajas>")[0]!;
+    expect(como).toMatch(/pásalos en zona y cuando, con sus palabras y solo si lo dijo/);
+    expect(como).toMatch(/solo distrito o corregimiento, nunca la dirección exacta/);
+    expect(como).toMatch(/no se los preguntes por rutina ni los supongas/);
+    expect(como).toMatch(/vuelve a llamar a crear_oportunidad con ese dato \(no duplica\)/);
+    // «para cuándo» ya no se guarda como nota suelta: va en la oportunidad.
+    expect(como).not.toMatch(/para qué cuarto, medidas del espacio, para cuándo/);
+  });
+
   it("usa el nombre público que fija Odoo", () => {
     const otro = promptEstable(normalizarConfig({ nombre_publico: "Casa y Más" }));
     expect(otro).toContain("«Casa y Más»");

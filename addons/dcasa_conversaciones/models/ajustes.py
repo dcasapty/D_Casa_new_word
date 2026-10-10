@@ -176,6 +176,18 @@ class JuanAjustes(models.Model):
              'Juan le dice al cliente que una vendedora se la prepara y le pasa la conversación; ellas la mandan a '
              'mano con el botón «Cotización» de la pantalla de Conversaciones, que funciona igual con esto '
              'encendido o apagado.')
+    crm_automatico = fields.Boolean(
+        'El CRM se ajusta solo', default=True, tracking=True,
+        help='Las oportunidades que nacen de una conversación se mueven solas con hechos que Odoo ya sabe: pasan a '
+             '«Propuesta» cuando se envía la cotización, a «Ganada» cuando se paga la factura, reciben una '
+             'temperatura (frío, tibio, caliente) y se archivan como «Sin respuesta» tras los días de abajo. Nunca '
+             'retroceden y, si una persona cambia la etapa o la temperatura, esa oportunidad queda en sus manos. '
+             'Apágalo y todo se queda como está.')
+    crm_dias_para_perdida = fields.Integer(
+        'Días sin respuesta para archivarla', default=30, tracking=True,
+        help='Si la conversación no tiene ningún mensaje en este tiempo y ninguna vendedora tiene algo pendiente con '
+             'ella, la oportunidad se archiva como «Sin respuesta» (se puede restaurar). 0 = nunca; si no, de 14 a '
+             '365 días (los seguimientos terminan antes de una semana).')
     resumen_ia_activo = fields.Boolean(
         'Resumir conversaciones con IA', default=True, tracking=True,
         help='Muestra el botón «Resumir» en la pantalla de Conversaciones: la IA lee los mensajes de esa conversación '
@@ -284,6 +296,15 @@ class JuanAjustes(models.Model):
             if not 0 <= registro.seguimiento_maximo <= 2:
                 raise ValidationError(self.env._(
                     'El seguimiento admite como máximo 2 mensajes (decisión de la dueña): pon 0, 1 o 2.'))
+
+    @api.constrains('crm_dias_para_perdida')
+    def _check_crm_dias_para_perdida(self):
+        for registro in self:
+            dias = registro.crm_dias_para_perdida
+            if dias and not 14 <= dias <= 365:
+                raise ValidationError(self.env._(
+                    'Los días sin respuesta son 0 (nunca) o de 14 a 365: los seguimientos terminan antes de '
+                    'una semana.'))
 
     @api.constrains('proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido', 'modelo_inteligente')
     def _check_ia(self):

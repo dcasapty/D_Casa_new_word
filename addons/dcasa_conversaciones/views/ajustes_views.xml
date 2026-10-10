@@ -63,6 +63,17 @@
                         </group>
                     </group>
                     <group>
+                        <group string="CRM que se ajusta solo">
+                            <field name="crm_automatico"/>
+                            <field name="crm_dias_para_perdida" invisible="not crm_automatico"/>
+                            <div class="text-muted" colspan="2">
+                                Pasan solas a «Propuesta» (cotización enviada) y a «Ganada» (factura pagada), reciben
+                                su temperatura y se archivan sin respuesta. Solo se mueven hacia adelante y, si una
+                                persona toca la etapa o la temperatura, esa oportunidad queda en sus manos.
+                            </div>
+                        </group>
+                    </group>
+                    <group>
                         <group string="Inteligencia artificial">
                             <field name="proveedor_ia"/>
                             <field name="proveedor_respaldo_ia"/>

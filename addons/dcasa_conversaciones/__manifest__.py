@@ -27,18 +27,19 @@ Messenger e Instagram con el nombre público «el equipo de D'CASA». El motor d
 
 Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
 """,
-    'version': '19.0.1.0.2',
+    'version': '19.0.1.1.0',
     'category': 'Sales/CRM',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'crm', 'mail', 'bus'],
+    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'crm', 'sale_crm', 'mail', 'bus'],
     'data': [
         'security/conversaciones_security.xml',
         'security/ir.model.access.csv',
         'data/conversaciones_data.xml',
         'data/ir_cron_data.xml',
         'data/ir_cron_panel.xml',
+        'data/crm_data.xml',
         'data/conocimiento_data.xml',
         'data/etiquetas_data.xml',
         'views/ajustes_views.xml',
@@ -49,6 +50,7 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
         'views/res_partner_views.xml',
         'views/menus.xml',
         'views/panel_views.xml',
+        'views/crm_lead_views.xml',
     ],
     'assets': {
         'web.assets_backend': [

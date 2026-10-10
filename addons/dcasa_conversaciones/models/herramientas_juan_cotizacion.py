@@ -255,6 +255,9 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             if self._j_cotizaciones_nuevas_hoy(conv) >= TOPE_NUEVAS_POR_DIA:
                 return _no_creada('tope_diario', 'Ya armé varias cotizaciones para este cliente hoy. ' + A_VENDEDORA)
             orden = self._j_crear_cotizacion(conv, pares)
+        lead = conv._ligar_cotizacion(orden)   # pedir una cotización es interés concreto: oportunidad y etapa
+        if lead:
+            lead._dcasa_al_cotizar(orden)
         datos = self._j_cotizacion_como_dict(orden)
         pdf = self._j_pdf_de_cotizacion(orden)
         if not pdf:

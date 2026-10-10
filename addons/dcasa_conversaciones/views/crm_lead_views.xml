@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Oportunidades que nacen de una conversación: temperatura, lo que dijo el cliente y quién las maneja
+         (docs/CRM_AUTOMATICO.md). Nada de esto toca los campos de Odoo: todo es dcasa_*. -->
+
+    <record id="crm_lead_form_dcasa" model="ir.ui.view">
+        <field name="name">crm.lead.form.dcasa</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_dcasa_devolver_control" type="object" class="btn-secondary"
+                        string="Que Juan la maneje de nuevo" invisible="not dcasa_auto_off"/>
+            </xpath>
+            <xpath expr="//sheet" position="before">
+                <field name="dcasa_auto_off" invisible="1"/>
+                <div class="alert alert-info" role="status" invisible="not dcasa_auto_off">
+                    Una persona tomó el control de esta oportunidad: el CRM automático ya no mueve su etapa ni su
+                    temperatura. Con el botón «Que Juan la maneje de nuevo» vuelve a ajustarse sola.
+                </div>
+            </xpath>
+            <xpath expr="(//field[@name='tag_ids'])[1]" position="after">
+                <field name="dcasa_temperatura"/>
+                <field name="dcasa_temperatura_motivo" invisible="not dcasa_temperatura_motivo"/>
+                <field name="dcasa_zona_entrega"/>
+                <field name="dcasa_para_cuando"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_lead_list_dcasa" model="ir.ui.view">
+        <field name="name">crm.lead.list.dcasa</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+            <field name="name" position="after">
+                <field name="dcasa_temperatura" widget="badge" optional="show"
+                       decoration-danger="dcasa_temperatura == '3'" decoration-warning="dcasa_temperatura == '2'"
+                       decoration-info="dcasa_temperatura == '1'"/>
+                <field name="dcasa_para_cuando" optional="show"/>
+                <field name="dcasa_zona_entrega" optional="hide"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- La lista de «Oportunidades» de Conversaciones: lo más caliente primero. -->
+    <record id="crm_lead_list_dcasa_hoy" model="ir.ui.view">
+        <field name="name">crm.lead.list.dcasa.hoy</field>
+        <field name="model">crm.lead</field>
+        <field name="mode">primary</field>
+        <field name="inherit_id" ref="crm.crm_case_tree_view_oppor"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="attributes">
+                <attribute name="default_order">dcasa_temperatura desc, id desc</attribute>
+            </xpath>
+            <field name="name" position="after">
+                <field name="dcasa_temperatura" widget="badge"
+                       decoration-danger="dcasa_temperatura == '3'" decoration-warning="dcasa_temperatura == '2'"
+                       decoration-info="dcasa_temperatura == '1'"/>
+                <field name="dcasa_temperatura_motivo" optional="show"/>
+                <field name="dcasa_para_cuando" optional="show"/>
+                <field name="dcasa_zona_entrega" optional="show"/>
+                <field name="stage_id" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="crm_lead_search_dcasa" model="ir.ui.view">
+        <field name="name">crm.lead.search.dcasa</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.view_crm_case_opportunities_filter"/>
+        <field name="arch" type="xml">
+            <filter name="assigned_to_me" position="before">
+                <filter string="A quién escribirle hoy" name="dcasa_para_hoy"
+                        domain="[('dcasa_para_hoy', '=', True)]"
+                        help="Tibias y calientes a las que ninguna vendedora les ha escrito en las últimas 24 horas"/>
+                <filter string="Calientes" name="dcasa_calientes" domain="[('dcasa_temperatura', '=', '3')]"/>
+                <filter string="Tibias" name="dcasa_tibias" domain="[('dcasa_temperatura', '=', '2')]"/>
+                <filter string="Frías" name="dcasa_frias" domain="[('dcasa_temperatura', '=', '1')]"/>
+                <separator/>
+                <filter string="Esperan respuesta" name="dcasa_esperan"
+                        domain="[('dcasa_conversacion_ids.ultimo_mensaje_autor', '=', 'cliente')]"/>
+                <filter string="Con cotización enviada" name="dcasa_cotizadas"
+                        domain="[('order_ids.state', '=', 'sent')]"/>
+                <filter string="En manos de una persona" name="dcasa_manuales" domain="[('dcasa_auto_off', '=', True)]"/>
+                <separator/>
+            </filter>
+            <xpath expr="//search" position="inside">
+                <group>
+                    <filter string="Temperatura" name="dcasa_por_temperatura"
+                            context="{'group_by': 'dcasa_temperatura'}"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="accion_oportunidades_hoy" model="ir.actions.act_window">
+        <field name="name">Oportunidades</field>
+        <field name="res_model">crm.lead</field>
+        <field name="path">oportunidades</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('crm_lead_list_dcasa_hoy')}),
+            Command.create({'view_mode': 'form', 'view_id': ref('crm.crm_lead_view_form')})]"/>
+        <field name="search_view_id" ref="crm.view_crm_case_opportunities_filter"/>
+        <field name="domain">[('type', '=', 'opportunity'), ('dcasa_conversacion_ids', '!=', False)]</field>
+        <field name="context">{'default_type': 'opportunity', 'search_default_dcasa_para_hoy': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay oportunidades de conversaciones</p>
+            <p>Aparecen cuando Juan o una vendedora dejan anotado lo que quiere un cliente. Aquí se ven de la más
+               caliente a la más fría.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_oportunidades" name="Oportunidades" parent="menu_dcasa_conversaciones_root"
+              sequence="15" action="accion_oportunidades_hoy" groups="sales_team.group_sale_salesman"/>
+</odoo>

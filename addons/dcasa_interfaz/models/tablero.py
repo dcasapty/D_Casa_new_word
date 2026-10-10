@@ -56,11 +56,12 @@ class DcasaTablero(models.AbstractModel):
     # ------------------------------------------------------------------
 
     def _atajos(self, permisos):
-        """Los accesos grandes del Inicio: Productos y Conversaciones.
+        """Los accesos grandes del Inicio: Productos, Conversaciones y Oportunidades.
 
-        Solo los que quien mira puede abrir. Conversaciones vive en otro módulo: si no está instalado (o la persona no
-        tiene permiso) simplemente no sale. ``vista`` es la vista con la que abre. Productos es la lista donde se
-        ordena y filtra por stock, precio y categoría (dcasa_catalogo): marketing arma ahí las campañas.
+        Solo los que quien mira puede abrir. Conversaciones y Oportunidades viven en otro módulo: si no está instalado
+        (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista con la que abre. Productos es la
+        lista donde se ordena y filtra por stock, precio y categoría (dcasa_catalogo): marketing arma ahí las
+        campañas.
         """
         atajos = []
         if permisos['catalogo'] and self.env.ref('sale.product_template_action', raise_if_not_found=False):
@@ -76,6 +77,17 @@ class DcasaTablero(models.AbstractModel):
                 'detalle': 'Todo al día' if not sin_leer else f'{sin_leer} sin leer',
                 'icono': 'fa-comments', 'accion': 'dcasa_conversaciones.accion_conversaciones', 'vista': None,
                 'cuenta': sin_leer})
+        oportunidades = self.env.get('crm.lead')
+        if oportunidades is not None and 'dcasa_temperatura' in oportunidades._fields \
+                and oportunidades.has_access('read') \
+                and self.env.ref('dcasa_conversaciones.accion_oportunidades_hoy', raise_if_not_found=False):
+            para_hoy = oportunidades.search_count([('dcasa_para_hoy', '=', True)])
+            atajos.append({
+                'clave': 'oportunidades', 'titulo': 'Oportunidades',
+                'detalle': 'Nadie por ahora' if not para_hoy else
+                           ('1 para escribirle hoy' if para_hoy == 1 else f'{para_hoy} para escribirles hoy'),
+                'icono': 'fa-fire', 'accion': 'dcasa_conversaciones.accion_oportunidades_hoy', 'vista': None,
+                'cuenta': para_hoy})
         return atajos
 
     @api.model

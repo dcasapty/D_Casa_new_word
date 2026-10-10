@@ -899,11 +899,12 @@ class DcasaConversacion(models.Model):
     # Oportunidad y notas (las usan los botones y las herramientas del asistente)
     # ------------------------------------------------------------------
 
-    def _oportunidad(self, resumen, interes=None, presupuesto=None, usuario=None):
+    def _oportunidad(self, resumen, interes=None, presupuesto=None, usuario=None, zona=None, cuando=None):
         """La oportunidad de CRM de esta conversación: la abierta si ya hay una reciente; si no, una nueva.
 
         Devuelve ``(lead, nueva)``. No duplica: una oportunidad abierta de los últimos 30 días del
-        mismo cliente se reutiliza (el resumen nuevo queda como nota en ella).
+        mismo cliente se reutiliza (el resumen nuevo queda como nota en ella). ``zona`` y ``cuando`` son lo que
+        dijo el cliente: llenan lo que esté vacío y nunca pisan lo que ya escribió una persona.
         """
         self.ensure_one()
         Lead = self.env['crm.lead'].sudo()
@@ -924,6 +925,7 @@ class DcasaConversacion(models.Model):
                 abierta.write({'expected_revenue': presupuesto})
             if not self.oportunidad_id:
                 self.sudo().write({'oportunidad_id': abierta.id})
+            self._despues_de_oportunidad(abierta, zona, cuando)
             return abierta, False
         partner = self.partner_id.sudo()
         titulo = (interes or resumen or self.env._('Consulta')).strip().replace('\n', ' ')
@@ -942,7 +944,38 @@ class DcasaConversacion(models.Model):
         self.sudo().write({'oportunidad_id': lead.id})
         self._aviso(self.env._('Se creó la oportunidad «%s».', lead.name))
         self._notificar_panel('estado')
+        self._despues_de_oportunidad(lead, zona, cuando)
         return lead, True
+
+    def _despues_de_oportunidad(self, lead, zona=None, cuando=None):
+        """Los datos que dijo el cliente y su temperatura, al momento. Nada de esto puede tumbar a quien llamó."""
+        if zona or cuando:
+            lead._dcasa_seguro('datos del cliente', lambda: lead._dcasa_anotar_datos(zona, cuando))
+        if lead._dcasa_activo():
+            lead._dcasa_seguro('temperatura', lambda: lead._dcasa_manejables() and lead._dcasa_recalcular_temperatura())
+
+    def _ligar_cotizacion(self, orden):
+        """La cotización hecha desde esta conversación queda ligada a su oportunidad (se crea si no hay).
+
+        Sin esto Odoo no sabe qué oportunidad terminó en venta: ni «Propuesta» ni «Ganada» se podrían deducir.
+        Pedir una cotización ES interés concreto. Devuelve la oportunidad, o ``None`` si algo falló (la cotización ya
+        estaba hecha y no se toca).
+        """
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                texto = ', '.join(
+                    f'{linea.product_uom_qty:g} × {linea.product_id.display_name}'
+                    for linea in orden.sudo().order_line if not linea.display_type)[:200]
+                lead, _nueva = self._oportunidad(
+                    resumen=self.env._('Cotización %(numero)s: %(texto)s.', numero=orden.name, texto=texto),
+                    interes=texto[:100] or orden.name)
+                orden.sudo().write({'opportunity_id': lead.id})
+            return lead
+        except Exception:   # noqa: BLE001 — ligar es un extra: no puede tumbar la cotización ya hecha
+            _logger.exception('No pude ligar la cotización %s a una oportunidad.', orden.id)
+            self.env.invalidate_all()
+            return None
 
     def _nota_en_ficha(self, nota, titulo=None):
         """Nota interna en el chatter de la ficha del cliente."""
