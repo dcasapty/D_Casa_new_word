@@ -172,11 +172,20 @@ export function crearTelegram(op: OpcionesTelegram = {}): AdaptadorCanal {
         }
         for (const m of salida.medios) {
           const esFoto = m.tipo === "imagen";
-          const r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", {
-            chat_id: chat,
-            [esFoto ? "photo" : "document"]: m.url,
-            ...(m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {}),
-          });
+          const pie = m.pie ? { caption: sinNegritas(m.pie).slice(0, 1000) } : {};
+          let r: { message_id?: number };
+          try {
+            r = await llamar(token, esFoto ? "sendPhoto" : "sendDocument", { chat_id: chat, [esFoto ? "photo" : "document"]: m.url, ...pie });
+          } catch (e) {
+            // Telegram baja la foto por su cuenta. Si responde «400» (no la acepta como foto: formato, tamaño o proporciones; o no pudo
+            // abrir la dirección), se prueba como ARCHIVO, que es más permisivo. Un 429 o un corte de red no se maquillan: se reintenta.
+            if (!esFoto || !/ 400: /.test(e instanceof Error ? e.message : String(e))) throw e;
+            try {
+              r = await llamar(token, "sendDocument", { chat_id: chat, document: m.url, ...pie });
+            } catch (e2) {
+              throw new Error(`${e instanceof Error ? e.message : String(e)} | como archivo: ${e2 instanceof Error ? e2.message : String(e2)}`);
+            }
+          }
           medios++;
           if (r.message_id !== undefined) ids.push(`tg:${chat}:${r.message_id}`);
         }

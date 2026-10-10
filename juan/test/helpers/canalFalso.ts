@@ -8,6 +8,8 @@ export class CanalFalso implements AdaptadorCanal {
   escribiendoVeces = 0;
   /** Cuántos envíos fallan antes de funcionar. */
   fallar = 0;
+  /** Lo que dice el error de un envío que falla (para probar que /salud no repite direcciones ni claves). */
+  motivoDeFallo = "el canal falló";
   cap: Capacidades = { imagenes: true, documentos: true, ventana24h: false, maxTexto: 3500 };
   idsDevueltos = true;
   /** El próximo envío se corta a la mitad: salen solo estas burbujas y archivos y luego falla, como un canal que se cae a media respuesta. */
@@ -46,7 +48,7 @@ export class CanalFalso implements AdaptadorCanal {
     }
     if (this.fallar > 0) {
       this.fallar--;
-      throw new Error("el canal falló");
+      throw new Error(this.motivoDeFallo);
     }
     this.salidas.push(salida);
     return { ids: this.idsDevueltos ? salida.burbujas.map(() => `m${++this.n}`) : [] };

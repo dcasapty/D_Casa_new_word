@@ -170,6 +170,11 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   if (cola && !cola.resuelto && cola.ts > d.ahora() - 12 * 3600_000) {
     problemas.push("Odoo no está recibiendo los mensajes de los clientes: el Worker los guarda y los reintenta cada 6 horas; no se pierde nada, pero hay que revisar Odoo");
   }
+  // Un envío por el canal que falló (el motivo ya viene sin datos de nadie). Se apaga solo cuando un envío posterior sale bien.
+  const envio = await leerJson<{ ts: number; canal?: string; motivo?: string; con_archivos?: boolean; resuelto?: boolean }>(d, "envio_fallo");
+  if (envio && !envio.resuelto && envio.ts > hace24h) {
+    problemas.push(`no se pudo enviar ${envio.con_archivos ? "un mensaje con foto o archivo" : "un mensaje"} por ${envio.canal ?? "un canal"}: ${envio.motivo ?? "sin detalle"}`);
+  }
   const principal = modelosDelPapel(cfg, "principal");
   const ia: EstadoDeIa = {
     proveedor: cfg.proveedor_ia,

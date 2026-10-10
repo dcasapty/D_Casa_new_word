@@ -430,3 +430,13 @@ no las manda, Juan usa valores por defecto):
    bloqueada al construirlo): hay que revisarlo antes de encenderlo.
 4. **Tope diario de 50 turnos por persona** y descanso de 1 hora si repite el mismo mensaje 3 veces:
    están en los valores del contrato; se pueden cambiar (`TOPE_DIARIO`).
+
+## Cuando una foto o un PDF no llega al cliente
+
+El motivo queda en `GET /odoo/salud` (campo `problemas`, que también muestra la pantalla de Conexiones de Odoo): «no se pudo enviar un
+mensaje con foto o archivo por telegram: telegram sendPhoto 400: …». El motivo viene sin claves ni direcciones y se apaga solo cuando un
+envío posterior sale bien. En **Telegram**, si no acepta una imagen como foto (400: formato, tamaño, proporciones o no pudo abrir la
+dirección), se manda como archivo con el mismo pie; si tampoco, el error dice las dos respuestas de Telegram. Un 429 o un corte de red no
+se maquillan: se reintentan como siempre. Si el motivo habla de no poder abrir la dirección, revisa que `web.base.url` de Odoo (la
+variable `CANONICAL_HOST` del despliegue) sea una dirección que Telegram pueda abrir desde internet (en staging con `workers.dev`, la
+de `workers.dev`, no `staging.dcasapty.com` mientras ese dominio no exista).

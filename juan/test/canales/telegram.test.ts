@@ -183,6 +183,41 @@ describe("enviar por Telegram", () => {
     expect(f.llamadas[1].cuerpo).toMatchObject({ document: "https://odoo.example/cot.pdf", caption: "Tu cotización" });
   });
 
+  describe("una foto que Telegram no acepta como foto", () => {
+    const rechazoDeFoto = (descripcion: string, status = 400) => ({ sendPhoto: Response.json({ ok: false, description: descripcion }, { status }) });
+
+    it("si responde 400 (formato, tamaño, proporciones o no pudo abrir la dirección), se manda como ARCHIVO con el mismo pie", async () => {
+      const f = telegramFalso(rechazoDeFoto("Bad Request: wrong type of the web page content"));
+      const { adaptador } = tg(f);
+      const r = await adaptador.enviar("telegram", { para: "555", burbujas: [], medios: [{ tipo: "imagen", url: "https://odoo.example/foto.webp", pie: "Sofá 77090" }] }, env);
+      expect(f.llamadas.map((l) => l.url.split("/").pop())).toEqual(["sendPhoto", "sendDocument"]);
+      expect(f.llamadas[1].cuerpo).toEqual({ chat_id: "555", document: "https://odoo.example/foto.webp", caption: "Sofá 77090" });
+      expect(r.ids).toHaveLength(1);
+    });
+
+    it("si tampoco la acepta como archivo, el error dice las dos cosas (así se ve por qué)", async () => {
+      const f = telegramFalso({ ...rechazoDeFoto("Bad Request: failed to get HTTP URL content"), sendDocument: Response.json({ ok: false, description: "Bad Request: wrong file identifier/HTTP URL specified" }, { status: 400 }) });
+      const { adaptador } = tg(f);
+      const e = await adaptador.enviar("telegram", { para: "555", burbujas: [], medios: [{ tipo: "imagen", url: "https://x/f.jpg" }] }, env).catch((x) => x);
+      expect(String(e)).toMatch(/sendPhoto 400.*failed to get HTTP URL content.*como archivo: .*sendDocument 400.*wrong file identifier/);
+      expect(String(e)).not.toContain(TOKEN);
+    });
+
+    it("un 429 (demasiados envíos) o cualquier otro error NO se maquilla: se reintenta como foto", async () => {
+      const f = telegramFalso(rechazoDeFoto("Too Many Requests: retry after 5", 429));
+      const { adaptador } = tg(f);
+      await expect(adaptador.enviar("telegram", { para: "555", burbujas: [], medios: [{ tipo: "imagen", url: "https://x/f.jpg" }] }, env)).rejects.toThrow(/429/);
+      expect(f.llamadas.map((l) => l.url.split("/").pop())).toEqual(["sendPhoto"]);
+    });
+
+    it("un documento que Telegram rechaza no se reintenta como otra cosa", async () => {
+      const f = telegramFalso({ sendDocument: Response.json({ ok: false, description: "Bad Request: wrong file identifier/HTTP URL specified" }, { status: 400 }) });
+      const { adaptador } = tg(f);
+      await expect(adaptador.enviar("telegram", { para: "555", burbujas: [], medios: [{ tipo: "documento", url: "https://x/c.pdf" }] }, env)).rejects.toThrow(/sendDocument 400/);
+      expect(f.llamadas).toHaveLength(1);
+    });
+  });
+
   it("si Telegram rechaza, lanza el motivo (chat not found, bot bloqueado...) sin mostrar el token", async () => {
     const f = telegramFalso({ sendMessage: Response.json({ ok: false, description: "Forbidden: bot was blocked by the user" }, { status: 403 }) });
     const { adaptador } = tg(f);

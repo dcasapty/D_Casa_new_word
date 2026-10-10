@@ -111,6 +111,11 @@ export function limpiarError(e: unknown): string {
   return t.replace(/(?:sk|LLM|xai|key)[-|_][A-Za-z0-9_\-|]{6,}/gi, "[clave]").replace(/Bearer\s+\S+/gi, "Bearer [clave]").slice(0, 300);
 }
 
+/** El motivo de un envío fallido para /salud: sin claves, sin tokens de bots y sin direcciones (las firmadas llevan la firma en la dirección). */
+export function motivoDeEnvio(e: unknown): string {
+  return limpiarError(e).replace(/https?:\/\/\S+/gi, "[enlace]").replace(/\b\d{6,}:[A-Za-z0-9_-]{20,}/g, "[clave]");
+}
+
 // ── Dependencias ────────────────────────────────────────────────────────────
 
 export interface GlobalApi {
@@ -1099,7 +1104,14 @@ export class MotorConversacion {
     }
     if (fallo !== null) {
       this.log("error", "no se pudo enviar por el canal", fallo instanceof Error ? fallo.message : String(fallo));
+      // Para /salud (y la pantalla de Conexiones de Odoo): el motivo, sin datos de nadie. Así un fallo repetido se ve sin abrir los registros.
+      this.kv.poner("envio_fallo_abierto", true);
+      await this.anotarEnSalud("envio_fallo", { canal: canalId, motivo: motivoDeEnvio(fallo), con_archivos: medios.length > 0, ts: ahora });
       throw fallo;
+    }
+    if (this.kv.bandera("envio_fallo_abierto")) {
+      this.kv.poner("envio_fallo_abierto", null);
+      await this.anotarEnSalud("envio_fallo", { canal: canalId, resuelto: true, ts: ahora });
     }
     return progreso.ids;
   }
