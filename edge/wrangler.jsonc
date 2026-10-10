@@ -160,7 +160,9 @@
         "DCASA_2FA_OBLIGATORIO": "1",
         "DCASA_2FA_ALCANCE": "admins",
         // La puerta del equipo (ver arriba): primero "avisar" para comprobar que todo el equipo pasa por ella, luego "1".
-        "DCASA_PUERTA_OBLIGATORIA": "0",
+        // 2026-10-10: la dueña ya probó /master (PIN al correo → «Acceso del equipo») → "avisar": entra todo el
+        // personal, pero quien entra sin pasar la puerta queda en «Accesos al panel» y avisa a Telegram.
+        "DCASA_PUERTA_OBLIGATORIA": "avisar",
         "DCASA_PUERTA_EXIGIR_CORREO": "0"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
