@@ -156,6 +156,20 @@ describe("reintentos", () => {
     expect(rechazo).toMatchObject({ ok: false, transitorio: false });
   });
 
+  it("herramienta: solo el 422 con su explicación llega como `rechazo` (lo que el modelo puede leer); un 401 o un 5xx no", async () => {
+    const explicacion = await dcasaFalso([falla(422, { ok: false, error: "No encuentro el código «X»." })]).cliente.herramienta("cotizar", {}, 5);
+    expect(explicacion).toMatchObject({ ok: false, transitorio: false, rechazo: "No encuentro el código «X»." });
+    const larga = await dcasaFalso([falla(422, { ok: false, error: "y".repeat(2000) })]).cliente.herramienta("cotizar", {}, 5);
+    expect(larga.rechazo).toHaveLength(400);
+    const sinPermiso = await dcasaFalso([falla(401, { error: "token inválido JUAN_ODOO_TOKEN" })]).cliente.herramienta("cotizar", {}, 5);
+    expect(sinPermiso).toMatchObject({ ok: false, transitorio: false });
+    expect(sinPermiso.rechazo).toBeUndefined();
+    const sinCuerpo = await dcasaFalso([new Response("<html>422</html>", { status: 422 })]).cliente.herramienta("cotizar", {}, 5);
+    expect(sinCuerpo.rechazo).toBeUndefined();
+    const caido = await dcasaFalso([falla(503)]).cliente.herramienta("cotizar", {}, 5);
+    expect(caido.rechazo).toBeUndefined();
+  });
+
   it("seguimiento/hecho se reintenta hasta 2 veces (es idempotente)", async () => {
     const { cliente, llamadas } = dcasaFalso([falla(500), falla(500), ok()]);
     await cliente.seguimientoHecho({ conversacion_id: 1, numero: 2, resultado: "descartado", motivo: "el cliente ya compró" });

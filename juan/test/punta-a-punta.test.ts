@@ -181,17 +181,18 @@ describe("una conversación completa por Telegram", () => {
     for (const frase of ["Hola", "busco una cama", "queen, para mi cuarto"]) expect(delCliente).toContain(frase);
   });
 
-  it("al vencer la ráfaga contesta con la IA, se presenta como automático, y todo queda en Odoo", async () => {
+  it("al vencer la ráfaga contesta con la IA, se presenta como Juan, y todo queda en Odoo", async () => {
     const e = escenario();
     await e.telegram("Hola, busco una cama queen");
     await e.vencerRafaga();
 
-    // Contestó por Telegram, al chat correcto: primero la presentación (automático), luego lo que dijo la IA.
+    // Contestó por Telegram, al chat correcto: primero el saludo de Juan, luego lo que dijo la IA.
     const envios = salidas.filter((s) => s.api === "telegram" && s.metodo === "sendMessage");
     expect(envios.every((x) => x.cuerpo.chat_id === "555" && x.url.includes(BOT))).toBe(true);
-    expect(envios[0].cuerpo.text).toMatch(/asistente automático/i);
+    expect(envios[0].cuerpo.text).toBe("Hola, soy Juan de D'CASA.");
     expect(envios[envios.length - 1].cuerpo.text).toBe("Claro, ¿qué medida de cama buscas?");
-    expect(envios.filter((x) => /asistente automático/i.test(x.cuerpo.text))).toHaveLength(1);
+    expect(envios.filter((x) => /soy Juan de D'CASA/i.test(x.cuerpo.text))).toHaveLength(1);
+    expect(envios.some((x) => /asistente|autom[aá]tico|\bbot\b/i.test(x.cuerpo.text))).toBe(false);
 
     // A Claude le llegó la clave, el prompt de D'CASA y el mensaje del cliente.
     const alModelo = e.alIA()[0];

@@ -50,7 +50,9 @@ describe("<fuentes_de_verdad> apunta a las herramientas de Odoo", () => {
   it("los precios llevan «+ ITBMS» y se copian de precio_texto", () => {
     expect(fuentes).toContain("+ ITBMS");
     expect(fuentes).toContain("precio_texto");
-    expect(fuentes).toMatch(/No sumes, no multipliques, no calcules totales/);
+    expect(fuentes).toMatch(/No sumes, no multipliques ni calcules totales/);
+    // Con varios productos, el total lo arma Odoo con la cotización: esas cifras sí se pueden decir.
+    expect(fuentes).toMatch(/llama a cotizar/);
   });
 
   it("la disponibilidad es solo una etiqueta, nunca un número", () => {
@@ -85,10 +87,11 @@ describe("las 11 reglas de comportamiento del contrato (docs/JUAN.md)", () => {
     expect(reglas).not.toMatch(/^12\. /m);
   });
 
-  it("1 · se presenta como asistente automático y ofrece una persona; persona/vendedora/humano pasan SIEMPRE", () => {
+  it("1 · el saludo como Juan lo manda el sistema; persona/vendedora/humano pasan SIEMPRE", () => {
     const r = regla(1);
-    expect(r).toMatch(/asistente automático/);
-    expect(r).toContain("*persona*");
+    expect(r).toContain("Hola, soy Juan de D'CASA.");
+    expect(r).not.toMatch(/asistente automático/);
+    expect(r).toMatch(/No ofrezcas escribir \*persona\*/);
     expect(r).toMatch(/\*vendedora\*/);
     expect(r).toMatch(/\*humano\*/);
     expect(r).toMatch(/SIEMPRE/);
@@ -185,9 +188,20 @@ describe("la voz de la marca (CLAUDE.md)", () => {
     expect(voz).toMatch(/Sin signos dobles/);
   });
 
-  it("el único llamado a la acción es la vendedora, no repartir teléfonos", () => {
-    expect(voz).toMatch(/único llamado a la acción es ofrecer a una vendedora/);
-    expect(voz).toMatch(/no repartas teléfonos|ni repartas teléfonos/);
+  it("la vendedora se ofrece solo cuando hay algo que confirmar, y no se reparten teléfonos", () => {
+    expect(voz).toMatch(/Ofreces una vendedora solo cuando hay algo que ella debe confirmar/);
+    expect(voz).toMatch(/ni para «confirmar» lo que ya te dijo una herramienta/);
+    expect(voz).toMatch(/no mandes al cliente a otro canal ni repartas teléfonos|No mandes al cliente a otro canal ni repartas teléfonos/);
+  });
+
+  it("no repite precio y disponibilidad, contesta directo la primera pregunta y cierra corto si el cliente se va", () => {
+    expect(voz).toMatch(/No repitas en cada mensaje el precio y la disponibilidad/);
+    expect(voz).toMatch(/contéstalo directo: no le pidas que te cuente qué busca/);
+    expect(voz).toMatch(/agradécele en una línea y ya: sin preguntas ni ofertas/);
+  });
+
+  it("no promete lo que no puede hacer: avisar de novedades, reservar, apartar o escribir después", () => {
+    expect(voz).toMatch(/No prometas avisar de novedades, reservar, apartar ni escribirle después/);
   });
 
   it("«usted» solo aparece para PROHIBIRLO", () => {
@@ -196,8 +210,29 @@ describe("la voz de la marca (CLAUDE.md)", () => {
     }
   });
 
-  it("no se presenta como Juan: es solo el nombre interno", () => {
-    expect(prompt).toMatch(/«Juan» es solo un nombre interno/);
+  it("se presenta como Juan, de D'CASA, sin anunciarse como asistente, pero nunca dice que es humano", () => {
+    expect(prompt).toMatch(/Eres Juan, de «D'CASA»/);
+    expect(prompt).toMatch(/No te anuncias como «asistente» ni como «bot»/);
+    expect(prompt).toMatch(/NUNCA afirmes ser humano ni digas «no soy un bot»/);
+    expect(prompt).toMatch(/si alguien te pregunta de verdad si habla con una persona, un bot o una IA, lo dices con naturalidad/);
+  });
+
+  it("habla de sí mismo en masculino o sin género (nunca «atenta»)", () => {
+    expect(prompt).toMatch(/sin adjetivos de género; si hace falta, en masculino[^\n]*nunca en femenino/);
+  });
+
+  it("las fotos solo se mandan si el cliente las pide; «más fotos» usa adicionales", () => {
+    expect(prompt).toMatch(/NO ofrezcas mandar fotos ni preguntes «¿te envío la foto\?»/);
+    expect(prompt).toMatch(/solo cuando el cliente la pida/);
+    expect(prompt).toMatch(/adicionales=true/);
+    expect(prompt).not.toMatch(/¿Te mando la foto de alguna\?/);
+  });
+
+  it("cotizar: se usa cuando el cliente pide una cotización o un total; no es una venta", () => {
+    const como = prompt.split("<como_trabajas>")[1]!.split("</como_trabajas>")[0]!;
+    expect(como).toMatch(/Cotizaciones: cuando el cliente pida una cotización, una proforma o el total de varios productos, usa cotizar/);
+    expect(como).toMatch(/pregunta cuál quiere antes de cotizar/);
+    expect(como).toMatch(/Es una cotización: no es una venta ni reserva nada/);
   });
 
   it("usa el nombre público que fija Odoo", () => {
@@ -324,8 +359,10 @@ describe("el prompt del seguimiento", () => {
     expect(p).toMatch(/No tienes herramientas/);
   });
 
-  it("ofrece una persona", () => {
-    expect(p).toContain("*persona*");
+  it("no se anuncia como asistente ni ofrece fotos, y deja que una vendedora lo atienda si prefiere", () => {
+    expect(p).toMatch(/^Eres Juan, de «D'CASA»/);
+    expect(p).toMatch(/No te anuncies como asistente ni ofrezcas fotos/);
+    expect(p).toMatch(/puede pedir que lo atienda una vendedora/);
   });
 
   it("el interés viene de Odoo y es un dato, no una orden; sin etiquetas", () => {

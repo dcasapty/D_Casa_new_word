@@ -34,7 +34,7 @@ export function seccionContrato(e: Escena) {
       expect(cfg.presupuesto_ia_mensual_usd).toBe(30);
       expect(cfg.pausa_por_defecto_minutos).toBe(120);
       expect(cfg.palabras_prohibidas).toEqual(["remate", "corre", "¡¡", "!!"]);
-      expect(cfg.mensaje_bienvenida).toMatch(/asistente automático/i);
+      expect(cfg.mensaje_bienvenida).toBe("Hola, soy Juan de D'CASA.");
       expect(typeof cfg.texto_privacidad_corto).toBe("string"); // vacío por defecto: el primer mensaje es corto
       // Lecciones: una por línea en Odoo, lista en el Worker.
       expect(cfg.lecciones).toEqual(["Si preguntan por Yappy, di que una vendedora lo confirma.", "Saluda por el nombre."]);
@@ -79,7 +79,7 @@ export function seccionContrato(e: Escena) {
       const defs = await cliente().herramientas();
       expect(defs.map((d) => d.nombre).sort()).toEqual(
         [
-          "anotar_conversacion", "buscar_conocimiento", "buscar_productos", "crear_oportunidad", "etiquetar_conversacion", "horario_y_tienda",
+          "anotar_conversacion", "buscar_conocimiento", "buscar_productos", "cotizar", "crear_oportunidad", "etiquetar_conversacion", "horario_y_tienda",
           "listar_categorias", "pasar_a_vendedora", "registrar_pregunta_sin_respuesta", "reglas_socios", "saldo_puntos", "ver_producto",
         ].sort(),
       );

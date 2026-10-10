@@ -17,7 +17,7 @@ import type { AdaptadorCanal, CanalId, Entrante, MedioSaliente, Saliente } from 
 import { EnvioParcialError, partirPorLargo } from "../canales/tipos";
 import { noQuiereSeguimiento, pideUnaPersona } from "../dcasa/intencion";
 import { contextoDelChat, promptEstable, promptParaFugas, promptSeguimiento, presentacionPorDefecto } from "../dcasa/prompt";
-import { analizar, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
+import { analizar, detectarSerHumano, notaDeCorreccion, quitarGraves, TEXTO_FUGA, TEXTO_SIN_DATO, limpiarForma, type ContextoRevision } from "../dcasa/salvaguardas";
 import { textoParaElModelo } from "../dcasa/sensibles";
 import { TEXTO_FALLO_TECNICO, TEXTO_TOPE_DIARIO, textoPasoAVendedora } from "../dcasa/textos";
 import { aMilisegundosOdoo, OdooError, type AdjuntoOdoo, type CuerpoMensaje, type DefHerramienta, type EstadoOdoo, type OdooApi, type RespuestaMensaje } from "../odoo/cliente";
@@ -37,6 +37,9 @@ import type { Sql } from "./sql";
 
 const MENSAJE_VENCIDO_MS = 2 * 3600_000;
 const REINTENTOS_DE_IA = [60_000, 300_000];
+/** La línea con que un archivo saliente queda en el historial («[Foto enviada: …]», «[Documento enviado: …]»). */
+const etiquetaDeMedio = (m: MedioSaliente) => `[${m.tipo === "documento" ? "Documento enviado" : "Foto enviada"}${m.nombre ? `: ${m.nombre}` : ""}]`;
+
 const ESPERA_ENTRE_BURBUJAS_MS = 1000;
 const HISTORIAL_PARA_EL_MODELO = 20;
 /** Imágenes que se leen por mensaje y por persona al día: cada lectura cuesta un poco de IA. */
@@ -851,6 +854,7 @@ export class MotorConversacion {
         const f = this.fotos.buscar(c);
         return f ? { url: f.url, nombre: f.nombre ?? undefined } : undefined;
       },
+      fotosYaEnviadas: () => this.fotosEnviadas(),
     });
 
     const primera = !this.kv.numero("bienvenida");
@@ -1008,7 +1012,8 @@ export class MotorConversacion {
 
   private presentacion(cfg: Config): string[] {
     const propia = cfg.mensaje_bienvenida;
-    const base = propia && /autom[aá]tic|\bbot\b|asistente virtual|inteligencia artificial/i.test(propia) ? propia : presentacionPorDefecto(cfg.nombre_publico);
+    // La bienvenida de Odoo manda, salvo que afirme ser una persona real (Juan nunca lo dice): entonces se usa la de siempre.
+    const base = propia?.trim() && detectarSerHumano(propia).length === 0 ? propia : presentacionPorDefecto(cfg.nombre_publico);
     const priv = cfg.texto_privacidad_corto;
     return partirEnBurbujas(priv ? `${base}\n${priv}` : base, { objetivo: 520, maxLineas: 6 });
   }
@@ -1020,6 +1025,21 @@ export class MotorConversacion {
     const todas = primera ? [...this.presentacion(cfg), ...burbujas] : burbujas;
     await this.emitir({ burbujas: todas, medios, autor: "bot", registrar: true, modelo });
     if (primera) this.kv.poner("bienvenida", this.deps.ahora());
+  }
+
+  /** Direcciones de las fotos que este bot ya le mandó al cliente (para que «más fotos» no repita). Las últimas 80. */
+  private fotosEnviadas(): Set<string> {
+    try {
+      const v: unknown = JSON.parse(this.kv.texto("fotos_enviadas") ?? "[]");
+      return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  }
+
+  private recordarFotos(urls: string[]): void {
+    if (urls.length === 0) return;
+    this.kv.poner("fotos_enviadas", JSON.stringify([...new Set([...this.fotosEnviadas(), ...urls])].slice(-80)));
   }
 
   /**
@@ -1084,17 +1104,19 @@ export class MotorConversacion {
     for (const id of progreso.ids.slice(inicio.ids)) this.kv.poner(`env:${id}`, ahora);
     for (const b of salieronBurbujas) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: b, ts: ahora, modelo: o.modelo });
     // El pie de lo que escribió una vendedora se guarda con la foto: así el asistente sabe qué se le dijo al cliente.
-    for (const m of salieronMedios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
+    for (const m of salieronMedios) this.mensajes.insertar({ id_mensaje: null, rol: o.autor, texto: `${etiquetaDeMedio(m)}${o.autor === "vendedora" && m.pie ? ` ${m.pie}` : ""}`, ts: ahora, modelo: o.modelo });
+    if (o.autor === "bot") this.recordarFotos(salieronMedios.filter((m) => m.tipo === "imagen").map((m) => m.url));
 
     if (o.registrar && (salieronBurbujas.length > 0 || salieronMedios.length > 0)) {
       this.cola.agregar(
         "mensaje",
         this.cuerpoDeMensaje(
           { canal: canalId, id_externo: this.idExterno(), id_mensaje: "" },
-          [...salieronBurbujas, ...salieronMedios.map((m) => `[Foto enviada${m.nombre ? `: ${m.nombre}` : ""}]`)].join("\n"),
+          [...salieronBurbujas, ...salieronMedios.map(etiquetaDeMedio)].join("\n"),
           o.autor,
           "saliente",
-          salieronMedios.map((m) => ({ tipo: m.tipo, url: m.url, nombre: m.nombre, mime: m.mime })),
+          // Lo que ya vive en Odoo (la cotización en PDF) no se baja otra vez: solo queda la línea de texto.
+          salieronMedios.filter((m) => !m.sinCopia).map((m) => ({ tipo: m.tipo, url: m.url, nombre: m.nombre, mime: m.mime })),
           ahora,
           `${o.autor}-${this.deps.uuid()}`,
         ),

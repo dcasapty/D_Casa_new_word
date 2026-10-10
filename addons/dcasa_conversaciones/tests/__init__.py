@@ -8,6 +8,7 @@ from . import (
     test_conocimiento,
     test_conocimiento_significado,
     test_conversaciones,
+    test_cotizacion_automatica,
     test_ejemplos,
     test_espera,
     test_etiquetas,

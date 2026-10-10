@@ -24,6 +24,7 @@
                         <group string="Cómo se presenta">
                             <field name="nombre_publico"/>
                             <field name="bot_activo_global"/>
+                            <field name="cotizacion_automatica"/>
                         </group>
                         <group string="Dónde contesta">
                             <field name="canal_whatsapp_qr"/>

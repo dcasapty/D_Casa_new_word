@@ -9,6 +9,7 @@ import {
   detectarExistencias,
   detectarMandaALeer,
   detectarPromesas,
+  detectarSerHumano,
   extraerMontos,
   limpiarForma,
   notaDeCorreccion,
@@ -285,5 +286,44 @@ describe("la nota para que el modelo reescriba", () => {
     expect(n).toMatch(/número de existencias/);
     expect(n).toMatch(/promesa de entrega/);
     expect(n).toMatch(/te lo confirma una vendedora/);
+  });
+});
+
+describe("Juan nunca dice que es una persona ni que «no es un bot»", () => {
+  it.each([
+    "Soy una persona, tranquilo.",
+    "Soy humano, igual que tú.",
+    "Tranquilo, no soy un bot.",
+    "No soy un robot, soy Juan.",
+    "No soy una IA.",
+    "Soy una persona real de la tienda.",
+    "Soy vendedora de D'CASA.",
+    "Soy el vendedor de camas.",
+    "Soy asesor de ventas en la tienda.",
+  ])("«%s» es grave", (frase) => {
+    expect(detectarSerHumano(frase).length).toBeGreaterThan(0);
+    expect(analizar(frase, ctx()).graves.map((g) => g.tipo)).toContain("se_hace_pasar_por_persona");
+  });
+
+  it.each([
+    "Soy Juan, el asistente virtual de D'CASA. Si prefieres, te paso con una vendedora.",
+    "No soy una persona, soy el asistente virtual de D'CASA.",
+    "Si prefieres hablar con una persona, te paso con una vendedora.",
+    "Una vendedora te escribe mañana a las 8:00 a. m.",
+    "Soy Juan de D'CASA.",
+  ])("«%s» está bien", (frase) => {
+    expect(detectarSerHumano(frase)).toEqual([]);
+    expect(analizar(frase, ctx()).graves.map((g) => g.tipo)).not.toContain("se_hace_pasar_por_persona");
+  });
+
+  it("el borrador de una vendedora (escribe una persona de verdad) no se toca", () => {
+    const a = analizar("Hola Karen, soy Marisol, vendedora de D'CASA.", { ...ctx(), escribePersona: true });
+    expect(a.graves.map((g) => g.tipo)).not.toContain("se_hace_pasar_por_persona");
+  });
+
+  it("se quita solo la oración que lo dice y se le pide al modelo que la reescriba", () => {
+    const limpio = analizar("Soy una persona de verdad. Te ayudo con camas.", ctx()).limpio;
+    expect(quitarGraves(limpio, ctx())).toBe("Te ayudo con camas.");
+    expect(notaDeCorreccion([{ tipo: "se_hace_pasar_por_persona", detalle: "soy una persona" }])).toMatch(/decir que eres una persona o que no eres un bot/);
   });
 });

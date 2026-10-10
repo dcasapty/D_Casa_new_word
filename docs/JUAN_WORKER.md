@@ -217,8 +217,7 @@ Telegram es el canal de **pruebas**: no necesita el número de la tienda ni a Me
    https://api.telegram.org/bot<TOKEN_DEL_BOT>/setWebhook?url=https://dcasa-juan-staging.dcasapty.workers.dev/webhooks/telegram&secret_token=<SECRETO_DEL_WEBHOOK>
    ```
    Debe contestar `{"ok":true,"result":true,...}`. (Para quitarlo: `.../deleteWebhook`.)
-5. Escríbele «Hola» a tu bot. A los ~15 segundos contesta, se presenta como asistente automático y
-   ofrece una persona.
+5. Escríbele «Hola» a tu bot. A los ~15 segundos contesta y se presenta como «Juan de D'CASA».
 6. Escríbele `/miid`: te dice tu chat id. Pégalo como `ALERTA_TELEGRAM_CHAT_ID` si quieres que los
    avisos de salud te lleguen ahí.
 7. Pruebas útiles: «persona» (debe pasar a una vendedora), «cuánto cuesta una cama queen» (debe usar
@@ -293,9 +292,16 @@ líneas; ayudan con el tono y el modo de atender, **nunca** son fuente de precio
 
 Precios, existencias, medidas, combos, horario, dirección, cifras de Socios, políticas: **solo** de
 las herramientas de Odoo. El prompt no tiene ni un precio ni una cifra. Las herramientas son las 9
-del contrato más 2 de la base de conocimiento: `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`,
-`horario_y_tienda`, `saldo_puntos`, `crear_oportunidad`, `anotar_conversacion`, `pasar_a_vendedora`,
-`buscar_conocimiento` y `registrar_pregunta_sin_respuesta`; más una local, `enviar_foto_producto`.
+del contrato más la base de conocimiento, las etiquetas y las cotizaciones: `buscar_productos`, `ver_producto`, `listar_categorias`,
+`reglas_socios`, `horario_y_tienda`, `saldo_puntos`, `crear_oportunidad`, `anotar_conversacion`, `pasar_a_vendedora`,
+`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `etiquetar_conversacion` y `cotizar`; más una local, `enviar_foto_producto`
+(`adicionales=true` = más fotos de la galería, sin repetir).
+
+`cotizar` es la única herramienta cuyo resultado trae un archivo: el PDF llega como `documento` (URL firmada de Odoo, de vida corta).
+El Worker lo saca del resultado —el modelo **nunca ve el enlace**—, lo manda por el canal junto con la respuesta (un PDF por respuesta,
+solo si la URL es https) y en Odoo registra solo la línea «[Documento enviado: …]»: el PDF ya vive en un aviso del hilo y no se baja
+otra copia (`sinCopia`). Cuando Odoo rechaza una herramienta con una explicación (HTTP 422: «no encuentro el código…», «elige el
+tamaño»), esa explicación llega al modelo; cualquier otro fallo sigue siendo «no pude consultar el sistema ahora».
 
 Si el cliente pregunta algo que la base de conocimiento no responde, Juan **no inventa**: lo dice, y
 la pregunta queda registrada en Odoo para que una persona la conteste y la agregue.

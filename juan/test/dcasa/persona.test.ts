@@ -129,11 +129,11 @@ describe("«persona» siempre pasa a una vendedora", () => {
     expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
   });
 
-  it("también cuando es el primer mensaje: la presentación como asistente automático va primero", async () => {
+  it("también cuando es el primer mensaje: el saludo de Juan va primero", async () => {
     const m = crearMundo();
     m.guion([{ texto: "x" }]);
     await m.conversar("persona");
-    expect(m.canal.textos[0]).toMatch(/asistente autom[aá]tico/i);
+    expect(m.canal.textos[0]).toBe("Hola, soy Juan de D'CASA.");
     expect(m.canal.textos.join("\n")).toContain("ya avisé a una vendedora");
   });
 
@@ -149,21 +149,21 @@ describe("«persona» siempre pasa a una vendedora", () => {
   });
 });
 
-describe("se presenta como asistente automático", () => {
-  it("lo dice en la primera burbuja, con el nombre público y la vía a una persona", async () => {
+describe("se presenta como Juan, de D'CASA", () => {
+  it("la primera burbuja es el saludo con el nombre público; no dice asistente, bot ni automático, ni ofrece escribir «persona»", async () => {
     const m = crearMundo();
     m.guion([{ texto: "Dime qué buscas." }]);
     await m.conversar("hola");
     const primera = m.canal.textos[0];
-    expect(primera).toMatch(/asistente automático/);
-    expect(primera).toContain("asistente automático de D'CASA.");
-    expect(primera).toContain("escríbeme *persona* y te atiende una vendedora");
+    expect(primera).toBe("Hola, soy Juan de D'CASA.");
+    expect(m.canal.textos.join("\n")).not.toMatch(/asistente|autom[aá]tico|\bbot\b|\*persona\*/i);
   });
 
-  it("no firma como «Juan»", async () => {
+  it("aun así, «persona» sigue pasando a una vendedora sin que nadie se lo ofrezca", async () => {
     const m = crearMundo();
-    m.guion([{ texto: "Dime qué buscas." }]);
-    await m.conversar("hola");
-    expect(m.canal.textos.join("\n")).not.toMatch(/\bJuan\b/);
+    m.guion([{ texto: "x" }]);
+    await m.conversar("quiero hablar con una persona");
+    await m.pasar(3_000);
+    expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
   });
 });

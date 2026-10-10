@@ -54,12 +54,32 @@ class TestAjustesPorDefecto(JuanCase):
 
     def test_textos_en_la_voz_de_la_marca(self):
         bienvenida = self.ajustes.mensaje_bienvenida
-        self.assertIn('asistente automático', bienvenida)
-        self.assertIn('*persona*', bienvenida)       # ofrece una persona
+        self.assertEqual(bienvenida, "Hola, soy Juan de D'CASA.")
+        self.assertNotIn('asistente', bienvenida.lower())       # decisión de la dueña: no se anuncia como asistente
         self.assertNotIn('remate', bienvenida.lower())
         self.assertNotIn('!!', bienvenida)
         self.assertLess(len(bienvenida), 150, 'El primer mensaje es corto: la dueña no quiere un párrafo')
         self.assertFalse(self.ajustes.texto_privacidad_corto, 'El aviso largo no se manda por el chat')
+
+    def test_la_migracion_del_saludo_solo_cambia_el_texto_anterior(self):
+        import importlib.util
+
+        from odoo.tools.misc import file_path
+        spec = importlib.util.spec_from_file_location(
+            'mig2', file_path('dcasa_conversaciones/migrations/19.0.1.0.2/post-migrate.py'))
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        self.ajustes.write({'mensaje_bienvenida': mig.BIENVENIDA_ANTERIOR})
+        self.env.flush_all()
+        mig.migrate(self.env.cr, '19.0.1.0.1')
+        self.ajustes.invalidate_recordset()
+        self.assertEqual(self.ajustes.mensaje_bienvenida, "Hola, soy Juan de D'CASA.")
+        # Editado por la dueña: no se pisa.
+        self.ajustes.write({'mensaje_bienvenida': 'Hola, soy Juan. ¿Qué buscas?'})
+        self.env.flush_all()
+        mig.migrate(self.env.cr, '19.0.1.0.1')
+        self.ajustes.invalidate_recordset()
+        self.assertEqual(self.ajustes.mensaje_bienvenida, 'Hola, soy Juan. ¿Qué buscas?')
 
     def test_la_migracion_acorta_solo_los_textos_originales(self):
         import importlib.util

@@ -51,7 +51,7 @@ def texto_tienda(datos):
         f"{datos['tienda']} está en {datos['direccion']}.",
         f"Cómo llegar: {datos['como_llegar']}",
         f"El equipo atiende {datos['horario']['texto'][0].lower() + datos['horario']['texto'][1:]}. "
-        'El asistente automático contesta a cualquier hora.',
+        'Juan te contesta por mensaje a cualquier hora.',
     ]
     if datos['whatsapp']:
         lineas.append(f"WhatsApp: {datos['whatsapp']}.")

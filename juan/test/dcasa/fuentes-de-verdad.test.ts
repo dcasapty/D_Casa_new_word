@@ -169,7 +169,7 @@ describe("lo que no aparece en la herramienta, no se inventa", () => {
 });
 
 describe("el modelo recibe las herramientas de Odoo tal cual", () => {
-  it("las once de Odoo más enviar_foto_producto, con su esquema", async () => {
+  it("las doce de Odoo más enviar_foto_producto, con su esquema", async () => {
     const m = crearMundo();
     const g = m.guion([{ texto: "Hola." }]);
     await m.conversar("hola");
@@ -180,6 +180,7 @@ describe("el modelo recibe las herramientas de Odoo tal cual", () => {
         "anotar_conversacion",
         "buscar_conocimiento",
         "buscar_productos",
+        "cotizar",
         "crear_oportunidad",
         "enviar_foto_producto",
         "horario_y_tienda",

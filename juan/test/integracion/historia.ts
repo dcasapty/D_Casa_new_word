@@ -1,8 +1,12 @@
 // Sección 2: la historia de Karen, de la bienvenida al seguimiento. Cada paso depende del anterior (misma conversación).
 
+import { spawnSync } from "node:child_process";
 import { beforeAll, describe, expect, it } from "vitest";
 import { OdooRpc, celularNuevo, type ContextoIA } from "./ayuda";
 import type { Escena } from "./escena";
+
+/** El PDF de la cotización lo arma wkhtmltopdf (el trabajo de CI de esta integración no lo instala: ahí solo se prueba lo que no lo necesita). */
+const HAY_WKHTMLTOPDF = spawnSync("wkhtmltopdf", ["--version"]).status === 0;
 
 export function seccionHistoria(e: Escena) {
   describe("2. La historia de Karen: bienvenida → camas queen → herramientas → vendedora → devolver", () => {
@@ -30,10 +34,10 @@ export function seccionHistoria(e: Escena) {
       expect(r.status).toBe(200);
       await w.quieta(celular);
 
-      // Lo que le llegó al cliente por el puente: la presentación como asistente automático y la respuesta, con «+ ITBMS».
+      // Lo que le llegó al cliente por el puente: el saludo de Juan (sin anunciarse como asistente) y la respuesta, con «+ ITBMS».
       const texto = w.puente.textos().join("\n");
-      expect(texto).toMatch(/asistente automático/i);
-      expect(texto).toMatch(/\*persona\*/);
+      expect(texto).toContain("Hola, soy Juan de D'CASA.");
+      expect(texto).not.toMatch(/asistente automático/i);
       expect(texto).toContain("Cama Roble Queen Integración");
       expect(texto).toContain("$349.99 + ITBMS");
       expect(w.puente.envios[0].para).toBe(celular);
@@ -61,7 +65,7 @@ export function seccionHistoria(e: Escena) {
       expect(ficha.phone).toContain("6");
       expect(await e.textosDe(celular, "cliente")).toEqual(["Hola, ¿tienen camas queen?"]);
       const delBot = (await e.textosDe(celular, "bot")).join("\n");
-      expect(delBot).toMatch(/asistente automático/i);
+      expect(delBot).toContain("Hola, soy Juan de D'CASA.");
       expect(delBot).toContain("$349.99 + ITBMS");
       // La herramienta quedó auditada en Brian como el usuario técnico «juan».
       const acciones = await admin.buscar("brian.accion", [["herramienta", "=", "juan_buscar_productos"], ["canal", "=", "juan"]], ["estado", "usuario_id"]);
@@ -225,6 +229,109 @@ export function seccionHistoria(e: Escena) {
       await w.cliente(celular, "¿Me ayudas con otra cosa?");
       await w.quieta(celular);
       expect(JSON.stringify(w.ia.peticiones.at(-1)!.cuerpo.system)).not.toContain("ya quedó la visita del sábado");
+    });
+  });
+
+  describe("2b. Cotización automática: Juan arma el borrador y el PDF en Odoo y el puente lo baja con la URL firmada", () => {
+    const celular = celularNuevo();
+    let admin: OdooRpc;
+    let ventas: OdooRpc;
+    beforeAll(() => {
+      admin = e.admin;
+      ventas = e.ventas;
+    });
+
+    const pedido = (codigo: string, cantidad: number) => ({ nombre: "cotizar", args: { lineas: [{ codigo, cantidad }] } });
+
+    it.skipIf(!HAY_WKHTMLTOPDF)("encendida (de fábrica): hay cotización en Ventas, aviso con el PDF en el hilo y el documento sale por el puente", async () => {
+      const w = e.w;
+      w.ia.guionar([
+        { llamadas: [pedido("INT-CAMA-Q", 2)] },
+        (c) => {
+          const r = c.resultado("cotizar")?.resultado;
+          return { texto: `Listo, te armé la cotización ${r.cotizacion.numero}: el total es ${r.cotizacion.total_texto}, con ITBMS. El PDF va adjunto.` };
+        },
+      ]);
+      await w.cliente(celular, "Mándame la cotización de dos INT-CAMA-Q", { nombre: "Marta" });
+      await w.quieta(celular);
+      expect(w.ia.sinGuion).toEqual([]);
+      expect(w.puente.rechazos).toEqual([]);
+
+      // Odoo: un borrador enviado (nunca confirmado), a precio de lista, con los totales de Odoo.
+      const conv = (await e.conversacionDe(celular))!;
+      const ordenes = await admin.buscar("sale.order", [["partner_id", "=", conv.partner_id[0]]], ["name", "state", "amount_untaxed", "amount_tax", "amount_total", "user_id"]);
+      expect(ordenes).toHaveLength(1);
+      const orden = ordenes[0];
+      expect(orden.state).toBe("sent");
+      expect(orden.amount_untaxed).toBeCloseTo(2 * 349.99, 2);
+      expect(orden.amount_total).toBeCloseTo(2 * 349.99 * 1.07, 2);
+      expect(orden.user_id).toBe(false);
+      const lineas = await admin.buscar("sale.order.line", [["order_id", "=", orden.id]], ["price_unit", "product_uom_qty", "discount"]);
+      expect(lineas).toEqual([expect.objectContaining({ price_unit: 349.99, product_uom_qty: 2, discount: 0 })]);
+
+      // El PDF salió por el puente como documento, con un enlace firmado de dcasapty.com que el puente bajó entero.
+      const envio = w.puente.envios.find((x) => x.medios.some((m) => m.tipo === "documento"))!;
+      expect(envio).toBeTruthy();
+      expect(envio.medios[0]).toMatchObject({ tipo: "documento", nombre: `Cotizacion-${orden.name}.pdf` });
+      const url = new URL(envio.medios[0].url);
+      expect(url.protocol).toBe("https:");
+      expect(url.pathname).toMatch(new RegExp(`^/dcasa/adjunto/\\d+/\\d+/[0-9a-f]{64}/Cotizacion-${orden.name}\\.pdf$`));
+      expect(envio.descargas[0].estado).toBe(200);
+      expect(envio.descargas[0].mime).toBe("application/pdf");
+      expect(Buffer.from(envio.descargas[0].bytes).subarray(0, 4).toString()).toBe("%PDF");
+      // El texto que vio el cliente trae el total de Odoo.
+      expect(w.puente.textos().join("\n")).toContain(`$${orden.amount_total.toFixed(2)}`);
+
+      // El modelo nunca vio el enlace firmado.
+      expect(JSON.stringify(w.ia.peticiones.at(-1)!.cuerpo.messages)).not.toContain("/dcasa/adjunto/");
+
+      // En el hilo: el aviso (interno) que guarda el PDF y la línea del mensaje del bot SIN una segunda copia del archivo.
+      const mensajes = await e.mensajesDe(celular);
+      const aviso = mensajes.find((m) => m.tipo === "aviso" && m.adjunto_ids.length > 0)!;
+      expect(aviso).toBeTruthy();
+      expect(aviso.texto).toContain(orden.name);
+      const [adjunto] = await admin.leer("ir.attachment", aviso.adjunto_ids, ["name", "mimetype", "res_model", "res_id"]);
+      expect(adjunto).toMatchObject({ name: `Cotizacion-${orden.name}.pdf`, mimetype: "application/pdf", res_model: "dcasa.mensaje", res_id: aviso.id });
+      const delBot = mensajes.filter((m) => m.autor === "bot" && m.tipo === "mensaje");
+      expect(delBot.map((m) => m.texto).join("\n")).toContain(`[Documento enviado: Cotizacion-${orden.name}.pdf]`);
+      expect(delBot.every((m) => m.adjunto_ids.length === 0 && m.adjuntos_fallidos === 0)).toBe(true);
+
+      // Auditada en Brian como el usuario técnico «juan».
+      const acciones = await admin.buscar("brian.accion", [["herramienta", "=", "juan_cotizar"]], ["estado"]);
+      expect(acciones.some((a: any) => a.estado === "hecha")).toBe(true);
+    });
+
+    it("apagada en Ajustes: nada se arma ni se manda, y Juan le pasa la conversación a una vendedora; la vendedora sí puede mandarla a mano", async () => {
+      const w = e.w;
+      const otro = celularNuevo();
+      await e.ajustes({ cotizacion_automatica: false });
+      try {
+        w.ia.guionar([
+          { llamadas: [pedido("INT-CAMA-Q", 1)] },
+          (c) => {
+            expect(c.resultado("cotizar")?.resultado).toMatchObject({ creada: false, motivo: "apagada" });
+            return { texto: "Una vendedora te prepara la cotización." };
+          },
+        ]);
+        const antes = w.puente.envios.filter((x) => x.medios.length > 0).length;
+        await w.cliente(otro, "Mándame la cotización de la INT-CAMA-Q", { nombre: "Pedro" });
+        await w.quieta(otro);
+        expect(w.ia.sinGuion).toEqual([]);
+        expect(w.puente.envios.filter((x) => x.medios.length > 0).length).toBe(antes);
+        const conv = (await e.conversacionDe(otro))!;
+        expect(await admin.buscar("sale.order", [["partner_id", "=", conv.partner_id[0]]], ["name"])).toEqual([]);
+
+        // La vendedora arma y manda la suya con los botones de la pantalla (funciona con la automática apagada).
+        if (!HAY_WKHTMLTOPDF) return;
+        const [variante] = await admin.buscar("product.product", [["default_code", "=", "INT-CAMA-Q"]], ["id"]);
+        const creada = await ventas.llamar("dcasa.conversacion", "crear_cotizacion", [conv.id, [{ variante_id: variante.id, cantidad: 1 }]]);
+        const enviada = await ventas.llamar("dcasa.conversacion", "enviar_cotizacion", [conv.id, creada.cotizacion.id]);
+        expect(enviada.cotizacion.estado).toBe("sent");
+        expect(w.puente.rechazos).toEqual([]);
+        expect(w.puente.envios.filter((x) => x.medios.length > 0).length).toBe(antes + 1);
+      } finally {
+        await e.ajustes({ cotizacion_automatica: true });
+      }
     });
   });
 }

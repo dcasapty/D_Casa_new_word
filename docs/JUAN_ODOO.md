@@ -319,7 +319,8 @@ Las de ejemplo no llevan cifras ni políticas.
 | Precios de la IA | **vacíos** a propósito: no se inventa ningún precio. Si los llenas (dólares por millón de tokens, por nivel: entrada, salida y caché), el Worker calcula el gasto con ellos |
 | Tope de IA al mes | 30 USD (al llegar, baja al modelo barato; nunca se queda sin contestar) |
 | Pausa al atender | 120 minutos (0 = hasta que la devuelvas) |
-| Mensaje de bienvenida y aviso de privacidad | Bienvenida **corta** (una línea: es un asistente automático y cómo pedir una persona). El aviso de privacidad **no se manda por el chat** (queda vacío); el aviso completo va en la política del sitio y, para Telegram, en la descripción del bot (BotFather → `/setdescription`) |
+| Juan envía las cotizaciones solo | **Encendido** (decisión de la dueña, 2026-10-10). El administrador lo apaga en *Ajustes de Juan*; la vendedora siempre puede mandarlas a mano con el botón «Cotización» |
+| Mensaje de bienvenida y aviso de privacidad | Bienvenida **corta** («Hola, soy Juan de D'CASA.»: sin anunciarse como asistente; el límite de honestidad está en `docs/JUAN.md`). El aviso de privacidad **no se manda por el chat** (queda vacío); el aviso completo va en la política del sitio y, para Telegram, en la descripción del bot (BotFather → `/setdescription`) |
 | Palabras prohibidas | remate, corre, ¡¡, !! |
 | Responsable por defecto / avisos por Telegram | Administrador / todas las vendedoras con Telegram vinculado |
 | Guardar la foto de perfil del cliente | **Encendido** (decisión de la dueña, 2026-10-09). Se apaga en *Privacidad de los clientes* |
@@ -429,17 +430,29 @@ JSON `503 {ok:false, error:"Odoo está arrancando.", reintentar_en:15}` con `Ret
 | `POST /dcasa/juan/v1/mensaje` | registrar un mensaje | idempotente por `id_mensaje`; acepta `adjuntos[].sensible` y `base64` además de `url`. Responde también `nota_para_el_bot` |
 | `GET /dcasa/juan/v1/estado?canal=&id_externo=` | ¿puede contestar el bot? | sin conversación: valores de los ajustes. Incluye `nota_para_el_bot` (`null` si no hay) |
 | `GET /dcasa/juan/v1/config` | ajustes de la dueña | `dias`: `0 = domingo … 6 = sábado`. Incluye `proveedor_ia`, `proveedor_respaldo_ia`, `modelo_rapido`, `modelo_inteligente`, `modelos_por_defecto`, `precios` por nivel (`null` donde no hay precio), `precios_ia` por modelo (lo que lee el Worker) y `lecciones` |
-| `GET /dcasa/juan/v1/herramientas` | definición de las 12 herramientas | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
+| `GET /dcasa/juan/v1/herramientas` | definición de las 13 herramientas | cada una con `nombre/descripcion/parametros` y también `name/description/input_schema` |
 | `POST /dcasa/juan/v1/herramienta` | ejecutar una herramienta | `422` = error de uso (el texto sirve para corregir); `404` = no existe |
 | `POST /dcasa/juan/v1/seguimiento/hecho` | confirmar un seguimiento | `descartado` cierra el ciclo |
 | `POST /dcasa/juan/v1/escribiendo` | «el asistente está escribiendo» | `{canal, id_externo, activo}`; solo avisa a las pantallas por el bus |
 | `POST /dcasa/juan/v1/foto-perfil` | la foto de perfil de quien escribe | `{canal, id_externo, mime, base64}` → `{ok, guardada, motivo?}`; `guardada:false` si el ajuste está apagado o no es una foto válida; `404` si no existe la conversación |
 
-Las 12 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
+Las 13 herramientas, por su nombre público (en Brian llevan el prefijo `juan_` para no chocar con las de uso interno):
 `buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `saldo_puntos`, `horario_y_tienda`,
 `buscar_conocimiento`, `registrar_pregunta_sin_respuesta`, `crear_oportunidad`, `anotar_conversacion`,
-`etiquetar_conversacion` y `pasar_a_vendedora`. Las de lectura leen con `sudo()` y filtros (publicados) y devuelven una lista
+`etiquetar_conversacion`, `pasar_a_vendedora` y `cotizar`. Las de lectura leen con `sudo()` y filtros (publicados) y devuelven una lista
 blanca de campos; el cliente sale **siempre** de la conversación (`juan_conversacion_id`), nunca de un argumento.
+
+**`cotizar`** (`models/herramientas_juan_cotizacion.py`): `lineas: [{codigo, cantidad?, opcion?}]` (1 a 10; `opcion` solo para elegir
+tamaño o color). Con *Juan envía las cotizaciones solo* apagado contesta `{creada:false, motivo:'apagada'}` sin tocar nada. Si no:
+resuelve cada código entre los productos **publicados** (comparación exacta, sin comodines; un producto con varias opciones devuelve
+`motivo:'elegir_opcion'` con las opciones; uno que no existe, `producto_no_encontrado`), crea (o reutiliza, si hay una igual de las
+últimas 2 h) un `sale.order` **sin vendedor fijo**, sin descuentos y a precio de lista, lo deja «Enviada» (nunca confirmada), arma el
+PDF con el informe de cotización de Ventas y lo guarda como adjunto de un **aviso** del hilo (`res_model = dcasa.mensaje`). Devuelve
+`{creada:true, cotizacion:{numero, lineas, subtotal, itbms, total y sus *_texto}, documento:{tipo, url, nombre, mime}}`: la `url` es la
+firmada de 15 minutos de siempre (`firma.py`) y la herramienta **no habla con el canal**: el Worker manda el documento junto con la
+respuesta. Si el PDF no sale: `motivo:'sin_pdf'` y un aviso para las vendedoras. Tope: 5 cotizaciones nuevas por cliente por día
+(`motivo:'tope_diario'`). Un rechazo de negocio con un texto pensado para el modelo viaja como `422 {ok:false, error}`; el Worker lo
+lee (`rechazo`) en vez del genérico «no pude consultar».
 
 Códigos: `400` datos inválidos · `401` token · `404` no existe · `413` demasiado grande · `422` herramienta · `429` demasiados
 intentos fallidos · `503` sin token configurado o Odoo arrancando · `500` error interno (sin detalles).
@@ -544,8 +557,8 @@ con Tab y capturas de referencia en `tests/referencia/panel-*.webp`, a 1440 y 39
 
 Todo lo del contrato se cumple. Se añadió, sin quitar nada: `ok: true` en las respuestas, `adjuntos` en la respuesta de `/mensaje`,
 `adjuntos[].sensible`/`base64` aceptados, `nota_para_el_bot` en `/mensaje`, `/estado` y `POST /odoo/estado`, los campos de IA en
-`/config` (con `precios` por nivel **y** `precios_ia` por modelo, que es el que lee el Worker), claves duales en `/herramientas` y tres herramientas más (`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`,
-`etiquetar_conversacion`; el contrato tenía 9, ahora son 12). Decisiones donde el contrato dejaba margen: días `0 = domingo`; el
+`/config` (con `precios` por nivel **y** `precios_ia` por modelo, que es el que lee el Worker), claves duales en `/herramientas` y cuatro herramientas más (`buscar_conocimiento`, `registrar_pregunta_sin_respuesta`,
+`etiquetar_conversacion` y `cotizar`; el contrato tenía 9, ahora son 13). Decisiones donde el contrato dejaba margen: días `0 = domingo`; el
 2.º seguimiento cuenta 5 días desde el primero y también espera al horario laboral; `descartado` cierra el ciclo; el catálogo se lee
 directo de los productos publicados (`/dcasa/tienda/feed` no existe en este repositorio); tras `pasar_a_vendedora` la pausa es la de
 los ajustes y luego el asistente retoma.

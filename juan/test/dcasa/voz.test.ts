@@ -88,13 +88,12 @@ describe("burbujas cortas (2 a 4 líneas)", () => {
 });
 
 describe("tuteo y presentación", () => {
-  it("la presentación va primero, en tuteo, sin emojis, y ofrece una persona", async () => {
+  it("el saludo va primero, sin emojis ni «usted»", async () => {
     const m = crearMundo();
     m.guion([{ texto: "¿Qué estás buscando?" }]);
     await m.conversar("hola");
     const primera = m.canal.textos[0];
-    expect(primera).toMatch(/asistente autom[aá]tico/i);
-    expect(primera).toMatch(/persona|vendedora/i);
+    expect(primera).toBe("Hola, soy Juan de D'CASA.");
     expect(primera).not.toMatch(EMOJI);
     expect(primera).not.toMatch(/\busted\b/i);
   });
@@ -106,30 +105,29 @@ describe("tuteo y presentación", () => {
     const antes = m.canal.textos.length;
     await m.conversar("busco una cama");
     const nuevos = m.canal.textos.slice(antes);
-    expect(nuevos.join(" ")).not.toMatch(/asistente autom[aá]tico/i);
+    expect(nuevos.join(" ")).not.toMatch(/soy Juan de D'CASA/i);
   });
 
-  it("la presentación de Odoo manda si dice que es automático; si no, se usa la nuestra", async () => {
-    const propia = crearMundo({ config: { mensaje_bienvenida: "Hola, soy el asistente automático de D'CASA. ¿Qué buscas?" } });
+  it("la bienvenida de Odoo manda; si afirma ser una persona real, se usa la nuestra", async () => {
+    const propia = crearMundo({ config: { mensaje_bienvenida: "Hola, soy Juan de D'CASA. ¿Qué buscas?" } });
     propia.guion([{ texto: "Dime la medida." }]);
     await propia.conversar("hola");
-    expect(propia.canal.textos[0]).toBe("Hola, soy el asistente automático de D'CASA. ¿Qué buscas?");
+    expect(propia.canal.textos[0]).toBe("Hola, soy Juan de D'CASA. ¿Qué buscas?");
 
-    const enganosa = crearMundo({ config: { mensaje_bienvenida: "Hola, soy Karina de la tienda." } });
+    const enganosa = crearMundo({ config: { mensaje_bienvenida: "Hola, soy una persona real, no un robot." } });
     enganosa.guion([{ texto: "Dime la medida." }]);
     await enganosa.conversar("hola");
-    expect(enganosa.canal.textos[0]).toMatch(/asistente autom[aá]tico/i);
-    expect(enganosa.canal.textos.join("\n")).not.toContain("soy Karina");
+    expect(enganosa.canal.textos[0]).toBe("Hola, soy Juan de D'CASA.");
   });
 });
 
 describe("el nombre del negocio", () => {
-  it("«el equipo de D'CASA» (el nombre del contrato) se lee bien en «asistente automático de ...»", () => {
+  it("«el equipo de D'CASA» (el nombre del contrato) se lee bien en «Juan de ...»", () => {
     expect(marcaDe("el equipo de D'CASA")).toBe("D'CASA");
     expect(marcaDe("  El equipo de D'CASA Panamá ")).toBe("D'CASA Panamá");
     expect(marcaDe("Casa y Más")).toBe("Casa y Más");
     expect(marcaDe("el equipo de")).toBe("el equipo de"); // nada que quitar sin dejarlo vacío
-    expect(presentacionPorDefecto("el equipo de D'CASA")).toMatch(/^Hola, soy el asistente automático de D'CASA\. /);
+    expect(presentacionPorDefecto("el equipo de D'CASA")).toBe("Hola, soy Juan de D'CASA.");
     expect(presentacionPorDefecto("el equipo de D'CASA")).not.toContain("equipo");
   });
 

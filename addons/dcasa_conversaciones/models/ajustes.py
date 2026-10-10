@@ -59,12 +59,11 @@ TIPOS_PRECIO = ('entrada', 'salida', 'cache')
 MAX_LECCIONES = 20
 MAX_LARGO_LECCION = 300
 
-# Decisión de la dueña (2026-10-09): el primer mensaje es corto. Solo dice que es un asistente automático y cómo
-# pedir una persona; el aviso largo de privacidad no se manda por el chat (vive en la política del sitio).
-BIENVENIDA = (
-    "Hola, soy el asistente automático de D'CASA. Si prefieres hablar con una persona, escríbeme "
-    "*persona* y te atiende una vendedora."
-)
+# Decisión de la dueña (2026-10-09, noche): Juan se presenta como una persona de la tienda, sin anunciarse como
+# asistente.
+# El primer mensaje es corto; el aviso largo de privacidad no se manda por el chat (vive en la política del sitio).
+# Lo que no cambia: Juan nunca afirma ser humano y, si alguien pregunta de verdad, dice que es el asistente virtual.
+BIENVENIDA = "Hola, soy Juan de D'CASA."
 PRIVACIDAD = ""
 PALABRAS_PROHIBIDAS = "remate\ncorre\n¡¡\n!!"
 
@@ -169,6 +168,14 @@ class JuanAjustes(models.Model):
         'Avisar de fotos y archivos', default=True, tracking=True,
         help='Cuando un cliente manda cualquier otra foto o archivo (por ejemplo la captura de un producto), '
              'también se avisa por Telegram, a lo más una vez cada 10 minutos por conversación. Apágalo si son muchos.')
+    cotizacion_automatica = fields.Boolean(
+        'Juan envía las cotizaciones solo', default=True, tracking=True,
+        help='Cuando el cliente pide una cotización o el total de varios productos, Juan la arma con productos de la '
+             'tienda (precios de lista + ITBMS, sin descuentos) y se la manda en PDF sin esperar a una vendedora. '
+             'Queda un borrador en Ventas y un aviso en la conversación, y nunca confirma una venta. Si lo apagas, '
+             'Juan le dice al cliente que una vendedora se la prepara y le pasa la conversación; ellas la mandan a '
+             'mano con el botón «Cotización» de la pantalla de Conversaciones, que funciona igual con esto '
+             'encendido o apagado.')
     resumen_ia_activo = fields.Boolean(
         'Resumir conversaciones con IA', default=True, tracking=True,
         help='Muestra el botón «Resumir» en la pantalla de Conversaciones: la IA lee los mensajes de esa conversación '

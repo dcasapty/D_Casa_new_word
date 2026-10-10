@@ -130,10 +130,18 @@ describe("aunque el modelo obedezca la manipulación, no llega al cliente", () =
 });
 
 describe("la presentación no depende del modelo", () => {
-  it("aunque el modelo diga que es una persona, la primera burbuja ya lo presentó como asistente automático", async () => {
+  it("la primera burbuja es el saludo de Juan; si el modelo dice que es una persona, eso no sale", async () => {
     const m = crearMundo();
-    m.guion([{ texto: "Soy Karina, de la tienda." }]);
+    m.guion([{ texto: "Soy una persona, tranquilo." }, { texto: "Soy una persona de verdad, no soy un bot." }]);
     await m.conversar("¿eres una persona o un robot?");
-    expect(m.canal.textos[0]).toMatch(/asistente autom[aá]tico/i);
+    expect(m.canal.textos[0]).toBe("Hola, soy Juan de D'CASA.");
+    expect(m.canal.textos.join("\n")).not.toMatch(/soy una persona|no soy un bot/i);
+  });
+
+  it("si preguntan de verdad, Juan dice que es el asistente virtual y ofrece una vendedora", async () => {
+    const m = crearMundo();
+    m.guion([{ texto: "Soy Juan, el asistente virtual de D'CASA. Si prefieres, te paso con una vendedora." }]);
+    await m.conversar("¿eres una persona o un robot?");
+    expect(m.canal.textos.join("\n")).toContain("Soy Juan, el asistente virtual de D'CASA.");
   });
 });

@@ -12,6 +12,8 @@ export class OdooError extends Error {
     readonly reintentable: boolean,
     /** Falta el token de Odoo: no es un fallo de Odoo ni de este mensaje, y se arregla pegando el secreto. */
     readonly sinCredenciales = false,
+    /** El texto que Odoo mandó en `error` (sin el «Odoo POST … → 422» de adelante). Solo si el cuerpo era JSON con `error`. */
+    readonly detalle?: string,
   ) {
     super(mensaje);
     this.name = "OdooError";
@@ -69,6 +71,11 @@ export interface ResultadoHerramienta {
   ok: boolean;
   resultado?: unknown;
   error?: string;
+  /**
+   * Odoo SÍ contestó y la herramienta rechazó la llamada con una explicación pensada para el modelo («no encuentro el código X», «elige el
+   * tamaño»…): HTTP 422 con `{ok:false, error}`. Solo ese texto se le pasa al modelo; cualquier otro fallo llega como «no pude consultar».
+   */
+  rechazo?: string;
   /**
    * Solo cuando `ok` es false: `true` = no se pudo hablar con Odoo (red, 5xx, dormido), reintentar puede funcionar;
    * `false` = Odoo SÍ contestó y la rechazó (reintentar no la arregla). Sin dato = se trata como pasajero.
@@ -158,7 +165,8 @@ export class OdooCliente implements OdooApi {
         }
         if (r.ok) return (json ?? {}) as T;
         const detalle = (json as { error?: string } | null)?.error ?? texto.slice(0, 200);
-        const e = new OdooError(`Odoo ${metodo} ${ruta} → ${r.status} ${detalle}`, r.status, REINTENTABLES.has(r.status));
+        const dicho = (json as { error?: unknown } | null)?.error;
+        const e = new OdooError(`Odoo ${metodo} ${ruta} → ${r.status} ${detalle}`, r.status, REINTENTABLES.has(r.status), false, typeof dicho === "string" ? dicho : undefined);
         if (!e.reintentable) throw e;
         ultimo = e;
       } catch (e) {
@@ -203,7 +211,8 @@ export class OdooCliente implements OdooApi {
       );
       return r.ok === false ? { ok: false, error: r.error ?? "la herramienta falló", transitorio: false } : { ok: true, resultado: r.resultado };
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: !(e instanceof OdooError) || e.reintentable };
+      const rechazo = e instanceof OdooError && e.estado === 422 && e.detalle ? e.detalle.slice(0, 400) : undefined;
+      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: !(e instanceof OdooError) || e.reintentable, ...(rechazo ? { rechazo } : {}) };
     }
   }
 

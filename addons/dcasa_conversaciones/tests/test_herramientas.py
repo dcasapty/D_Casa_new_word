@@ -16,7 +16,7 @@ from .common import JuanCase
 
 PUBLICAS = {'buscar_productos', 'ver_producto', 'listar_categorias', 'reglas_socios', 'horario_y_tienda',
             'saldo_puntos', 'crear_oportunidad', 'anotar_conversacion', 'pasar_a_vendedora',
-            'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion'}
+            'buscar_conocimiento', 'registrar_pregunta_sin_respuesta', 'etiquetar_conversacion', 'cotizar'}
 PIN = '482913'
 
 

@@ -7,6 +7,6 @@ from . import conocimiento, presencia
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan, telegram_consola
 # Herramientas de Juan en el registro de Brian.
-from . import brian_juan, herramientas_juan
+from . import brian_juan, herramientas_juan, herramientas_juan_cotizacion
 # Solo para el entorno de prueba.
 from . import ejemplos

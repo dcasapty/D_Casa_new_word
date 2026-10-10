@@ -9,7 +9,7 @@
 //   · se recuerdan las fotos que devolvió `ver_producto`, que son las únicas que `enviar_foto_producto` puede enviar.
 
 import { jsonSchema, tool, type ToolSet } from "ai";
-import type { DefHerramienta, OdooApi } from "../odoo/cliente";
+import type { DefHerramienta, OdooApi, ResultadoHerramienta } from "../odoo/cliente";
 import type { MedioSaliente } from "../canales/tipos";
 import { extraerMontos, parseMonto } from "../dcasa/salvaguardas";
 
@@ -22,6 +22,8 @@ export class RegistroDelTurno {
   /** Números que aparecen escritos dentro del texto de un resultado («cambios dentro de 8 días»): respaldan plazos y porcentajes. */
   readonly numerosEnTexto = new Set<number>();
   readonly fotos = new Map<string, { url: string; nombre?: string }>();
+  /** Las otras fotos (la galería) de cada producto que devolvió `ver_producto` en este turno: de ahí salen las «más fotos». */
+  readonly galerias = new Map<string, { url: string; nombre?: string }[]>();
   readonly medios: MedioSaliente[] = [];
   readonly llamadas: { nombre: string; ok: boolean }[] = [];
   pasoAVendedora = false;
@@ -33,6 +35,8 @@ export class RegistroDelTurno {
   consultasUtiles = 0;
   /** El modelo ya llamó registrar_pregunta_sin_respuesta en este turno. */
   preguntaRegistrada = false;
+  /** Ya hay una cotización en PDF en la respuesta de este turno (solo va una por respuesta). */
+  cotizacionPreparada = false;
 }
 
 /** Herramientas de LECTURA: dan lo mismo para los mismos argumentos durante un rato, así que se guardan 60 s. Nunca saldo_puntos ni las de escritura. */
@@ -152,6 +156,16 @@ export function procesarResultado(valor: unknown, reg: RegistroDelTurno, sitio: 
       }
     }
     if (url) reg.fotos.set(codigo.toUpperCase(), { url, nombre: aTexto(valor.nombre) || undefined });
+    if (Array.isArray(valor.galeria)) {
+      const nombre = aTexto(valor.nombre) || undefined;
+      const otras: { url: string; nombre?: string }[] = [];
+      for (const g of valor.galeria) {
+        const cand = typeof g === "string" ? g : esObjeto(g) ? aTexto(g.url) : "";
+        const u = cand ? resolverUrl(cand, sitio) : null;
+        if (u && !otras.some((o) => o.url === u)) otras.push({ url: u, nombre });
+      }
+      if (otras.length > 0) reg.galerias.set(codigo.toUpperCase(), otras);
+    }
   }
 
   // «$499.00 + ITBMS» ya armado, para que el modelo lo copie en vez de escribirlo.
@@ -200,6 +214,8 @@ export interface OpcionesHerramientas {
   celularDeLaConversacion?: string;
   /** Fotos de turnos anteriores (código → url). */
   fotoPrevia: (codigo: string) => { url: string; nombre?: string } | undefined;
+  /** Direcciones de las fotos que ya se le mandaron a este cliente: «más fotos» no repite ninguna. */
+  fotosYaEnviadas?: () => ReadonlySet<string>;
   /** true = Odoo no contesta en esta pasada: las herramientas fallan al instante en vez de esperar. */
   omitir?: () => boolean;
   /** Caché de 60 s de las herramientas de LECTURA (solo de esta conversación). */
@@ -211,6 +227,8 @@ export interface OpcionesHerramientas {
 }
 
 const MAX_FOTOS_POR_RESPUESTA = 3;
+/** Cuántas fotos nuevas salen cada vez que el cliente pide «más fotos». */
+const FOTOS_ADICIONALES_POR_PEDIDO = 3;
 
 /** Extrae el texto que `pasar_a_vendedora` pide decirle al cliente. */
 export function textoDeLaHerramienta(resultado: unknown): string | null {
@@ -239,6 +257,24 @@ function anotarConsulta(nombre: string, resultado: unknown, reg: RegistroDelTurn
   }
   if (HERRAMIENTAS_DE_LECTURA.has(nombre) && !(nombre === "buscar_productos" && busquedaFlojaDe(resultado))) reg.consultasUtiles++;
   return procesarResultado(resultado, reg, sitio);
+}
+
+/**
+ * `cotizar` devuelve el PDF como `documento` (URL firmada de Odoo, de vida corta). Ese enlace NO le llega al modelo —no lo debe
+ * pegar en el chat—: pasa a los medios de la respuesta y sale como archivo junto con ella. Solo se acepta una dirección https
+ * de un PDF; cualquier otra cosa se ignora y el modelo lo sabe (no dirá que va adjunto algo que no va).
+ */
+function tomarDocumentoDeLaCotizacion(resultado: unknown, reg: RegistroDelTurno): unknown {
+  if (!esObjeto(resultado)) return resultado;
+  const { documento, ...resto } = resultado;
+  if (!esObjeto(documento)) return resultado;
+  const url = aTexto(documento.url).trim();
+  if (!/^https:\/\//i.test(url) || reg.medios.some((m) => m.url === url)) {
+    return { ...resto, pdf_adjunto: false, nota: "No pude preparar el PDF: dile al cliente el total y que una vendedora le manda el documento." };
+  }
+  reg.medios.push({ tipo: "documento", url, nombre: aTexto(documento.nombre) || "Cotizacion.pdf", mime: aTexto(documento.mime) || "application/pdf", sinCopia: true });
+  reg.cotizacionPreparada = true;
+  return { ...resto, pdf_adjunto: true };
 }
 
 export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
@@ -275,11 +311,24 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
           return { ok: true, resultado: acotar(anotarConsulta(def.nombre, guardado, registro, op.sitio)) };
         }
 
+        // Solo va una cotización por respuesta: lo que el cliente cambie después se arma en su siguiente mensaje.
+        if (def.nombre === "cotizar" && registro.cotizacionPreparada) {
+          registro.llamadas.push({ nombre: def.nombre, ok: true });
+          return {
+            ok: true,
+            resultado: { creada: false, motivo: "ya_va_una", mensaje: "Ya va una cotización en esta respuesta. Si el cliente quiere cambiar algo, la armas en su siguiente mensaje." },
+          };
+        }
+
         op.alEmpezar?.();
-        const llamar = async () => (op.omitir?.() ? { ok: false as const, resultado: undefined } : odoo.herramienta(def.nombre, argumentos, op.conversacionId()));
+        const llamar = async () => (op.omitir?.() ? ({ ok: false, resultado: undefined } as ResultadoHerramienta) : odoo.herramienta(def.nombre, argumentos, op.conversacionId()));
         // Las consultas corren juntas (no escriben nada); las que escriben sobre la conversación, una tras otra.
         const r = await (HERRAMIENTAS_DE_LECTURA.has(def.nombre) ? llamar() : enTurno(llamar));
         registro.llamadas.push({ nombre: def.nombre, ok: r.ok });
+        if (!r.ok && r.rechazo) {
+          // Odoo contestó y explicó por qué no (código que no existe, falta elegir tamaño…): el modelo corrige o se lo dice al cliente.
+          return { ok: false, error: r.rechazo, instruccion: "Corrige la llamada con eso. Si no se puede, dile al cliente con honestidad lo que pasó y ofrécele una vendedora. No inventes el dato." };
+        }
         if (!r.ok) {
           return {
             ok: false,
@@ -293,23 +342,30 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
         }
         if (def.nombre === "registrar_pregunta_sin_respuesta") registro.preguntaRegistrada = true;
         if (clave) op.cache!.guardar(clave, r.resultado);
-        return { ok: true, resultado: acotar(anotarConsulta(def.nombre, r.resultado, registro, op.sitio)) };
+        const resultado = def.nombre === "cotizar" ? tomarDocumentoDeLaCotizacion(r.resultado, registro) : r.resultado;
+        return { ok: true, resultado: acotar(anotarConsulta(def.nombre, resultado, registro, op.sitio)) };
       },
     });
   }
 
   tools.enviar_foto_producto = tool({
     description:
-      "Envía al cliente la foto de un producto por este mismo chat. Úsala solo con un código que ya consultaste con ver_producto o buscar_productos. " +
+      "Envía al cliente la foto de un producto por este mismo chat. Úsala SOLO cuando el cliente pida ver el producto, y con un código que ya consultaste con ver_producto o buscar_productos. " +
+      "Si pide MÁS fotos de un producto cuya foto ya recibió, llámala con adicionales=true (después de ver_producto): manda otras de su galería, sin repetir. " +
       "La foto sale junto con tu respuesta; no digas que ya la mandaste, di que se la envías.",
     inputSchema: jsonSchema({
       type: "object",
-      properties: { codigo: { type: "string", description: "Código del producto, tal cual lo devolvió la herramienta." } },
+      properties: {
+        codigo: { type: "string", description: "Código del producto, tal cual lo devolvió la herramienta." },
+        adicionales: { type: "boolean", description: "true = otras fotos de su galería (el cliente pidió más). Por defecto false: la foto principal." },
+      },
       required: ["codigo"],
       additionalProperties: false,
     } as never),
     execute: async (args: unknown) => {
       const codigo = esObjeto(args) ? aTexto(args.codigo).trim().toUpperCase() : "";
+      const adicionales = esObjeto(args) && (args.adicionales === true || args.adicionales === "true");
+      if (adicionales) return enviarFotosAdicionales(codigo, op, registro);
       const foto = registro.fotos.get(codigo) ?? op.fotoPrevia(codigo);
       registro.llamadas.push({ nombre: "enviar_foto_producto", ok: !!foto });
       if (!codigo || !foto) {
@@ -325,6 +381,25 @@ export function construirHerramientas(op: OpcionesHerramientas): ToolSet {
   });
 
   return tools;
+}
+
+/** «Más fotos»: hasta 3 de la galería que `ver_producto` devolvió en este turno, sin repetir ninguna que ya se le mandó al cliente. */
+function enviarFotosAdicionales(codigo: string, op: OpcionesHerramientas, registro: RegistroDelTurno) {
+  const galeria = registro.galerias.get(codigo);
+  registro.llamadas.push({ nombre: "enviar_foto_producto", ok: !!galeria });
+  if (!codigo || !galeria) {
+    return { ok: false, error: "Para mandar más fotos consulta primero el producto con ver_producto: ahí vienen las de su galería." };
+  }
+  const yaEnviadas = op.fotosYaEnviadas?.() ?? new Set<string>();
+  const principal = registro.fotos.get(codigo)?.url;
+  const nuevas = galeria.filter((f) => f.url !== principal && !yaEnviadas.has(f.url) && !registro.medios.some((m) => m.url === f.url));
+  if (nuevas.length === 0) return { ok: true, resultado: "Ya le mandaste todas las fotos que hay de ese producto: díselo con honestidad, no inventes otras." };
+  const cupo = Math.min(FOTOS_ADICIONALES_POR_PEDIDO, MAX_FOTOS_POR_RESPUESTA - registro.medios.length);
+  if (cupo <= 0) return { ok: false, error: `Ya van ${MAX_FOTOS_POR_RESPUESTA} fotos en esta respuesta; ofrece mandar las demás después.` };
+  const salen = nuevas.slice(0, cupo);
+  for (const f of salen) registro.medios.push({ tipo: "imagen", url: f.url, nombre: f.nombre });
+  const quedan = nuevas.length - salen.length;
+  return { ok: true, resultado: `Salen ${salen.length} foto(s) más junto con tu respuesta.${quedan > 0 ? ` Todavía quedan ${quedan}: si quiere más, vuelve a llamarla.` : " Con esas ya vio todas las que hay."}` };
 }
 
 /** Para las pruebas y el registro de cifras: números de un texto cualquiera (mensajes del cliente, respuestas previas). */

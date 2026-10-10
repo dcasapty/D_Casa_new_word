@@ -49,6 +49,11 @@ export interface MedioSaliente {
   mime?: string;
   /** Pie de foto. */
   pie?: string;
+  /**
+   * El archivo YA vive en Odoo (p. ej. la cotización en PDF queda en un aviso del hilo): al registrar el mensaje en Odoo
+   * va solo la línea «[Documento enviado: …]», sin la URL, para que Odoo no baje una segunda copia de su propio archivo.
+   */
+  sinCopia?: boolean;
 }
 
 export interface Saliente {

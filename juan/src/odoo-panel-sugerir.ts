@@ -148,6 +148,7 @@ const QUE_SE_QUITO: Record<TipoProblema, string> = {
   fuga: "información interna",
   secreto: "un dato que el cliente dio en confianza",
   manda_a_leer: "una invitación a leer políticas o términos",
+  se_hace_pasar_por_persona: "una frase sobre ser persona o no ser un bot",
   palabra_prohibida: "una palabra que la marca no usa",
 };
 
@@ -227,6 +228,7 @@ export async function sugerir(p: PeticionSugerir, d: DepsSugerir): Promise<{ sta
     cifrasConocidas: cifrasDeLaConversacion,
     palabrasProhibidas: cfg.palabras_prohibidas,
     textoDelPrompt: promptParaFugas(cfg),
+    escribePersona: true, // el borrador lo revisa, lo edita y lo envía una vendedora: ahí «soy vendedora» es cierto
   };
   const { texto, avisos } = revisarBorrador(salida.texto, ctx);
   if (!texto) return { status: 502, cuerpo: { ok: false, error: "El borrador no pasó la revisión de la marca. Inténtalo otra vez o escríbelo tú.", avisos } };

@@ -11,6 +11,9 @@ import {
   type ResultadoHerramienta,
 } from "../../src/odoo/cliente";
 
+/** Odoo contestó 422 con una explicación pensada para el modelo (lo que lanza un `BrianError`). */
+export class RechazoDeOdoo extends Error {}
+
 const objeto = (propiedades: Record<string, unknown>, requeridas: string[] = []) => ({ type: "object", properties: propiedades, required: requeridas });
 const texto = (description: string) => ({ type: "string", description });
 
@@ -25,6 +28,11 @@ export const HERRAMIENTAS_DE_PRUEBA: DefHerramienta[] = [
   { nombre: "anotar_conversacion", descripcion: "Nota interna.", parametros: objeto({ nota: texto("Nota") }, ["nota"]) },
   { nombre: "pasar_a_vendedora", descripcion: "Pasa la conversación a una vendedora.", parametros: objeto({ motivo: texto("Motivo"), urgencia: { type: "string", enum: ["normal", "alta"] } }, ["motivo"]) },
   { nombre: "buscar_conocimiento", descripcion: "Busca en la base de conocimiento de la tienda (políticas, garantía, pagos...).", parametros: objeto({ consulta: texto("La pregunta") }, ["consulta"]) },
+  {
+    nombre: "cotizar",
+    descripcion: "Arma la cotización del cliente y deja listo el PDF.",
+    parametros: objeto({ lineas: { type: "array", items: objeto({ codigo: texto("Código"), cantidad: { type: "integer" }, opcion: texto("Tamaño o color") }, ["codigo"]) } }, ["lineas"]),
+  },
   { nombre: "registrar_pregunta_sin_respuesta", descripcion: "Deja anotada una pregunta que la base de conocimiento no supo contestar.", parametros: objeto({ pregunta: texto("Lo que preguntó el cliente"), resumen: texto("Resumen") }, ["pregunta"]) },
 ];
 
@@ -83,6 +91,39 @@ const MANEJADORES: Record<string, Manejador> = {
     const hallados = CONOCIMIENTO.filter((c) => c.palabras.some((p) => q.includes(p)));
     return { resultados: hallados.map(({ titulo, texto, score }) => ({ titulo, texto, score })) };
   },
+  cotizar: (a, odoo) => {
+    // Como Odoo (`_juan_cotizar`): apagada = un «no» con el motivo; si no, arma la cotización y devuelve el PDF firmado.
+    if (!odoo.cotizacionAutomatica) return { creada: false, motivo: "apagada", mensaje: "Las cotizaciones las prepara una vendedora. Una vendedora se la prepara: llama a pasar_a_vendedora." };
+    const lineas = (Array.isArray(a.lineas) ? a.lineas : []) as { codigo?: string; cantidad?: number }[];
+    const armadas = lineas.map((l) => {
+      const p = CATALOGO.find((x) => x.codigo.toLowerCase() === String(l.codigo ?? "").toLowerCase());
+      if (!p) throw new RechazoDeOdoo(`No encuentro el código «${String(l.codigo)}» entre los productos de la tienda. Búscalo por nombre con buscar_productos; si no aparece, no lo manejamos: no lo cotices.`);
+      return { p, cantidad: l.cantidad ?? 1 };
+    });
+    const subtotal = Math.round(armadas.reduce((t, x) => t + x.p.precio * x.cantidad, 0) * 100) / 100;
+    const itbms = Math.round(subtotal * 7) / 100;
+    const total = Math.round((subtotal + itbms) * 100) / 100;
+    const dinero = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    odoo.cotizacionesArmadas++;
+    const numero = `S${String(7 + odoo.cotizacionesArmadas).padStart(5, "0")}`;
+    return {
+      creada: true,
+      reutilizada: false,
+      cotizacion: {
+        numero,
+        lineas: armadas.map((x) => ({ codigo: x.p.codigo, producto: x.p.nombre, cantidad: x.cantidad, precio_unitario_texto: `${dinero(x.p.precio)} + ITBMS`, subtotal_texto: dinero(x.p.precio * x.cantidad), disponibilidad: x.p.disponibilidad })),
+        subtotal,
+        subtotal_texto: dinero(subtotal),
+        itbms,
+        itbms_texto: dinero(itbms),
+        total,
+        total_texto: dinero(total),
+        valida_hasta: null,
+      },
+      documento: { tipo: "documento", url: `https://dcasa.example/dcasa/adjunto/${40 + odoo.cotizacionesArmadas}/1790000000/${"a".repeat(64)}/Cotizacion-${numero}.pdf`, nombre: `Cotizacion-${numero}.pdf`, mime: "application/pdf" },
+      nota: "Es una cotización: no es una venta ni reserva nada.",
+    };
+  },
   registrar_pregunta_sin_respuesta: (a, odoo) => {
     odoo.preguntasSinRespuesta.push(a);
     return { ok: true, id: odoo.preguntasSinRespuesta.length };
@@ -114,6 +155,9 @@ export class OdooFalso implements OdooApi {
   pedidosDeEstado = 0;
   caido = false;
   conversacionId = 12;
+  /** El interruptor de Ajustes de Juan: false = `cotizar` contesta que las cotizaciones las prepara una vendedora. */
+  cotizacionAutomatica = true;
+  cotizacionesArmadas = 0;
   rawConfig: unknown = { nombre_publico: "el equipo de D'CASA" };
   defs: DefHerramienta[] = HERRAMIENTAS_DE_PRUEBA;
   manejadores: Record<string, Manejador> = { ...MANEJADORES };
@@ -171,7 +215,8 @@ export class OdooFalso implements OdooApi {
     try {
       return { ok: true, resultado: f(args, this) };
     } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: false };
+      const rechazo = e instanceof RechazoDeOdoo ? e.message : undefined;
+      return { ok: false, error: e instanceof Error ? e.message : String(e), transitorio: false, ...(rechazo ? { rechazo } : {}) };
     }
   }
 

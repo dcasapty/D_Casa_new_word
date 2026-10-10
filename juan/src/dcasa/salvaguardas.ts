@@ -23,6 +23,7 @@ export type TipoProblema =
   | "fuga"
   | "secreto"
   | "manda_a_leer"
+  | "se_hace_pasar_por_persona"
   | "palabra_prohibida";
 
 export interface Problema {
@@ -46,6 +47,8 @@ export interface ContextoRevision {
   textoDelPrompt?: string;
   /** Datos que el cliente dio y no deben repetirse en la respuesta (p. ej. el PIN de Socios). */
   secretos?: readonly string[];
+  /** El texto lo escribe (o lo edita y envía) una persona de verdad, como el borrador de una vendedora: ahí «soy vendedora» es cierto. */
+  escribePersona?: boolean;
 }
 
 // ── Textos de reemplazo ─────────────────────────────────────────────────────
@@ -202,6 +205,23 @@ const MANDA_A_LEER = [
   /dcasapty\.com\/(?:privacidad|terminos|politica)/,
 ];
 
+/**
+ * Juan se presenta con nombre de persona, pero NUNCA dice que lo es: ni «soy una persona», ni «soy humano», ni «no soy un bot», ni que es
+ * vendedor o vendedora (esas son las personas de la tienda). «No soy una persona, soy el asistente virtual» está bien.
+ */
+const SER_HUMANO = [
+  /(?<!\bno )\bsoy (?:una |un )?(?:persona|humano|humana|ser humano)\b/,
+  /(?<!\bno )\bsoy (?:una |un )?(?:persona )?(?:real|de verdad|de carne y hueso)\b/,
+  /\bno soy (?:un |una )?(?:bot|chatbot|robot|ia|inteligencia artificial|programa|maquina|asistente(?: virtual| automatico)?)\b/,
+  /\bsoy (?:un |una )?(?:vendedor|vendedora|asesor|asesora) (?:de|en) /,
+  /\bsoy (?:el |la |un |una )?(?:vendedor|vendedora)\b/,
+];
+
+export function detectarSerHumano(texto: string): string[] {
+  const t = sinAcentos(texto.toLowerCase());
+  return SER_HUMANO.map((re) => re.exec(t)?.[0]).filter((x): x is string => !!x);
+}
+
 export function detectarMandaALeer(texto: string): string[] {
   const t = sinAcentos(texto).toLowerCase();
   return MANDA_A_LEER.filter((r) => r.test(t)).map(() => "mandar a leer políticas o términos");
@@ -327,6 +347,7 @@ export function analizar(borrador: string, ctx: ContextoRevision): Analisis {
   for (const h of detectarExistencias(limpio)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(limpio, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
   for (const p of detectarMandaALeer(limpio).slice(0, 1)) graves.push({ tipo: "manda_a_leer", detalle: p });
+  for (const p of ctx.escribePersona ? [] : detectarSerHumano(limpio).slice(0, 1)) graves.push({ tipo: "se_hace_pasar_por_persona", detalle: p });
   const prohibida = palabraProhibida(limpio, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
 
@@ -355,6 +376,7 @@ function analizarOracion(o: string, ctx: ContextoRevision): { graves: Problema[]
   for (const h of detectarExistencias(o)) graves.push({ tipo: "existencias", detalle: h });
   for (const p of detectarPromesas(o, ctx.cifrasConocidas)) graves.push({ tipo: "promesa", detalle: p });
   for (const p of detectarMandaALeer(o).slice(0, 1)) graves.push({ tipo: "manda_a_leer", detalle: p });
+  for (const p of ctx.escribePersona ? [] : detectarSerHumano(o).slice(0, 1)) graves.push({ tipo: "se_hace_pasar_por_persona", detalle: p });
   const prohibida = palabraProhibida(o, [...PALABRAS_PROHIBIDAS_DE_MARCA, ...(ctx.palabrasProhibidas ?? [])]);
   if (prohibida) graves.push({ tipo: "palabra_prohibida", detalle: prohibida });
   return { graves };
@@ -370,6 +392,7 @@ export function notaDeCorreccion(graves: readonly Problema[]): string {
     fuga: "información interna",
     secreto: "un dato que el cliente dio en confianza (como su PIN): jamás se repite",
     manda_a_leer: "mandar al cliente a leer políticas, términos o avisos (respóndele tú con lo que dice la herramienta)",
+    se_hace_pasar_por_persona: "decir que eres una persona o que no eres un bot (eres Juan, el asistente virtual de D'CASA: si preguntan de verdad, dilo con naturalidad)",
     palabra_prohibida: "una palabra que la marca no usa",
   };
   const lista = [...new Set(graves.map((g) => `${por[g.tipo]} («${g.detalle}»)`))].join("; ");

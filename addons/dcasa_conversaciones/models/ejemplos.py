@@ -16,8 +16,8 @@ PREFIJO_ID = '5076000000'
 EJEMPLOS = [
     ('whatsapp_qr', '1', 'Karen S. (ejemplo)', 'bot', [], [
         ('cliente', 'Hola, buenas tardes. ¿Tienen camas queen?'),
-        ('bot', 'Hola, soy el asistente automático de D\'CASA. Sí, tenemos camas queen en varios modelos. '
-                '¿La buscas con cabecero tapizado o de metal? Si prefieres hablar con una persona, escribe «persona».'),
+        ('bot', 'Hola, soy Juan de D\'CASA. Sí, tenemos camas queen en varios modelos. '
+                '¿La buscas con cabecero tapizado o de metal?'),
         ('cliente', 'Tapizada, de color claro'),
     ]),
     ('telegram', '2', 'Luis P. (ejemplo)', 'humano', ['Socios'], [

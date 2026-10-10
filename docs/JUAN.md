@@ -11,8 +11,11 @@ Un asistente que atiende a los **clientes** por mensajería (hacia afuera; Brian
 hacia adentro). Contesta 24/7, consulta el catálogo real, explica Socios con las cifras reales,
 crea la oportunidad en Odoo y pasa la conversación a una vendedora cuando hace falta.
 
-- **Nombre público:** «el equipo de D'CASA» (se presenta como asistente automático y ofrece una
-  persona: «escríbeme *persona* y te atiende una vendedora»). «Juan» es solo el nombre interno.
+- **Nombre público:** «Juan de D'CASA» (decisión de la dueña, 2026-10-10): se presenta como una persona
+  de la tienda, **sin anunciarse como asistente ni como bot** («Hola, soy Juan de D'CASA.»). El límite
+  que NO cambia: **nunca afirma ser humano** ni dice «no soy un bot»; si alguien pregunta de verdad si
+  habla con una persona o con un robot, dice la verdad («Soy Juan, el asistente virtual de D'CASA…») y
+  ofrece pasarlo a una vendedora. Escribir *persona* / *vendedora* sigue pasando a una vendedora siempre.
 - **Canales (multicanal):** WhatsApp por **QR** (decisión de la dueña; número lo decide ella al
   final), Telegram (canal de **pruebas** y avisos a vendedoras), Messenger e Instagram (Meta) y el
   adaptador de WhatsApp Cloud API (plan B, apagado). El motor es agnóstico del canal: agregar uno
@@ -158,8 +161,9 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
 
 ## Reglas de comportamiento del bot (pruebas obligatorias en `juan/`)
 
-1. Se presenta como asistente automático de «el equipo de D'CASA» en el primer mensaje y ofrece
-   una persona. Escribir *persona* / *vendedora* / *humano* pasa a una vendedora **siempre**.
+1. Se presenta como «Juan de D'CASA» en el primer mensaje, sin decir que es un asistente (ver el
+   límite de honestidad arriba: nunca afirma ser humano, y si le preguntan de verdad, lo dice).
+   Escribir *persona* / *vendedora* / *humano* pasa a una vendedora **siempre**.
 2. **Nunca inventa**: precio, existencia, medida, color, plazo, descuento ni promesa. Todo lo
    dice una herramienta; si no aparece, «no lo manejamos» o «te lo confirma una vendedora».
    Precios con «+ ITBMS». Existencias solo como etiqueta.
@@ -190,6 +194,21 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
     factura pagada, de antes o de después de empezar la conversación) o si pidió que no la contacten.
     Odoo decide; el Worker redacta y envía.
 11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles.
+12. **Fotos solo si las piden.** No ofrece ni pregunta «¿te mando la foto?». Si el cliente pide ver el
+    producto, manda la principal; si pide **más fotos**, manda hasta 3 más de la galería por pedido,
+    sin repetir ninguna que ya recibió (`enviar_foto_producto` con `adicionales=true`).
+13. **Cotizaciones automáticas (decisión de la dueña, 2026-10-10).** Si el cliente pide una cotización o
+    el total de varios productos, Juan la arma con `cotizar` y se la manda en PDF **sin esperar a una
+    vendedora**. Encendido de fábrica; el administrador lo apaga en *Ajustes de Juan › Juan envía las
+    cotizaciones solo* (`cotizacion_automatica`). Apagado, Juan dice que una vendedora se la prepara y
+    le pasa la conversación; el botón **Cotización** de la pantalla de Conversaciones funciona igual
+    con la opción encendida o apagada. Reglas fijas: solo productos publicados a **precio de lista +
+    ITBMS** (sin argumento de precio ni de descuento: el modelo no puede poner uno), las cifras
+    (subtotal, ITBMS, total) las calcula Odoo y son las únicas que Juan puede decir, queda un
+    **borrador en Ventas** (enviado, **nunca confirmado**, sin reservar existencias) y un aviso en el
+    hilo con el PDF para las vendedoras, entrega/flete/financiamiento/apartado/descuento siguen siendo
+    de una vendedora, hasta 10 líneas, una cotización por respuesta, la misma cotización pedida otra
+    vez se reutiliza (2 h) y como máximo 5 nuevas por cliente por día.
 
 ## Secretos (solo nombres; los valores los carga la dueña en GitHub/Cloudflare, nunca en el chat)
 
@@ -233,7 +252,7 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
 | `POST /mensaje` | `canal, id_externo, id_mensaje, direccion, autor, texto?, adjuntos?[{tipo, url \| base64, nombre, mime, sensible?}], ts?, nombre?, celular?` | `{ok, conversacion_id, partner_id, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot, adjuntos?[{id, nombre, sensible}]}` |
 | `GET /estado?canal=&id_externo=` | | `{ok, estado, bot_activo, pausada_hasta, dentro_de_horario, nota_para_el_bot}` (sin conversación: los valores de los ajustes) |
 | `GET /config` | | ver abajo |
-| `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 12 herramientas, con las claves del contrato **y** las del formato de Anthropic |
+| `GET /herramientas` | | `{ok, herramientas:[{nombre, descripcion, parametros, name, description, input_schema}]}`: 13 herramientas, con las claves del contrato **y** las del formato de Anthropic |
 | `POST /herramienta` | `{nombre, argumentos, conversacion_id}` | `{ok:true, resultado:{…}}` |
 | `POST /seguimiento/hecho` | `{conversacion_id, numero:1\|2, resultado:"enviado"\|"descartado", motivo?}` | `{ok, conversacion_id, seguimientos_enviados}` |
 | `POST /escribiendo` | `{canal, id_externo, activo:bool}` | `{ok}` (también si la conversación todavía no existe) |

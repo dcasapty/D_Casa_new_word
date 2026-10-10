@@ -293,6 +293,18 @@ class TestCotizacion(CatalogoCase):
         self.assertEqual(resultado['cotizacion']['estado'], 'draft')
         self.assertIn('Sin confirmar', orden.message_ids[0].body)
 
+    def test_la_vendedora_manda_la_cotizacion_igual_con_la_automatica_de_juan_apagada_o_encendida(self):
+        for encendida in (False, True):
+            with self.subTest(automatica=encendida):
+                self.env['dcasa.juan.ajustes'].obtener().cotizacion_automatica = encendida
+                creada = self.panel.crear_cotizacion(self.conv.id, [
+                    {'variante_id': self.sofa.product_variant_id.id, 'cantidad': 1 if encendida else 2}])
+                with patch('odoo.addons.base.models.ir_actions_report.IrActionsReport._render_qweb_pdf',
+                           return_value=(b'%PDF-1.4 prueba', 'pdf')):
+                    resultado = self.panel.enviar_cotizacion(self.conv.id, creada['cotizacion']['id'])
+                self.assertEqual(resultado['cotizacion']['estado'], 'sent')
+                self.assertTrue(resultado['enviado'] or resultado['mensaje']['adjuntos'])
+
     def test_el_precio_lo_pone_odoo_no_la_pantalla(self):
         resultado = self.panel.crear_cotizacion(self.conv.id, [
             {'variante_id': self.cama.product_variant_id.id, 'cantidad': 1, 'precio': 1.0}])
