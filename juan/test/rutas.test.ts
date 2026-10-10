@@ -170,6 +170,7 @@ describe("/odoo/*: el token", () => {
     ["POST /odoo/seguimiento", () => post("/odoo/seguimiento", { canal: "telegram", id_externo: "1", conversacion_id: 1, numero: 1 })],
     ["POST /odoo/sugerir", () => post("/odoo/sugerir", { conversacion_id: 1, canal: "telegram", mensajes: [{ autor: "cliente", texto: "hola" }] })],
     ["POST /odoo/resumir", () => post("/odoo/resumir", { conversacion_id: 1, canal: "telegram", mensajes: [{ autor: "cliente", texto: "hola" }] })],
+    ["POST /odoo/embeber", () => post("/odoo/embeber", { textos: ["hola"] })],
   ];
 
   it("sin JUAN_WORKER_TOKEN en el Worker: 503 con el NOMBRE que falta, aunque la petición traiga un Bearer cualquiera", async () => {

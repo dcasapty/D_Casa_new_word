@@ -5,6 +5,7 @@ Rutas del Worker (``juan/src/odoo-panel*.ts``), todas con ``Authorization: Beare
 * ``GET  /odoo/salud``      — estado de cada canal, claves que faltan, gasto del mes (ya existía).
 * ``POST /odoo/sugerir``    — un borrador de respuesta para la vendedora (no envía nada).
 * ``POST /odoo/resumir``    — el resumen de una conversación para la vendedora (no envía ni escribe nada).
+* ``POST /odoo/embeber``    — la «huella de significado» de unos textos (búsqueda en el conocimiento por significado).
 * ``GET  /odoo/costos``     — gasto de IA del mes, por modelo.
 * ``GET  /odoo/qr``         — el código QR para vincular WhatsApp (NUNCA se escribe en un registro).
 * ``POST /odoo/reiniciar``  — reinicia el puente de WhatsApp.
@@ -26,6 +27,7 @@ from .cliente_worker import MAX_RESPUESTA, TIMEOUT  # noqa: F401 — la misma po
 
 _logger = logging.getLogger(__name__)
 
+TIMEOUT_RAPIDO = (2, 4)             # una búsqueda en vivo: o contesta enseguida o se sigue sin ella
 MAX_RESPUESTA_GRANDE = 256 * 1024    # el QR (una imagen en base64) cabe de sobra
 
 
@@ -33,7 +35,7 @@ class JuanClientePanel(models.AbstractModel):
     _inherit = 'dcasa.juan.cliente'
 
     @api.model
-    def _pedir(self, metodo, ruta, datos=None):
+    def _pedir(self, metodo, ruta, datos=None, timeout=TIMEOUT):
         """``{conectado, estado_http, cuerpo, error, sin_configurar}``; ``cuerpo`` es siempre un diccionario."""
         ajustes = self.env['dcasa.juan.ajustes']
         url = ajustes.url_worker()
@@ -47,7 +49,7 @@ class JuanClientePanel(models.AbstractModel):
                     'error': 'La dirección del Worker de Juan no es válida (debe ser https://).'}
         try:
             respuesta = requests.request(
-                metodo, f'{url}{ruta}', json=datos if metodo != 'GET' else None, timeout=TIMEOUT,
+                metodo, f'{url}{ruta}', json=datos if metodo != 'GET' else None, timeout=timeout,
                 headers={'Authorization': f'Bearer {token}', 'Accept': 'application/json'}, allow_redirects=False)
         except requests.RequestException as error:
             # Solo el tipo de error: el mensaje de requests puede traer la URL.
@@ -95,6 +97,18 @@ class JuanClientePanel(models.AbstractModel):
     def informe_de_salud(self):
         """``GET /odoo/salud`` completo (aunque el Worker diga ``ok: false``). Ver ``_pedir``."""
         return self._pedir('GET', '/odoo/salud')
+
+    @api.private
+    @api.model
+    def embeber(self, textos, rapido=False):
+        """Un vector por texto: ``{ok, vectores, dimensiones}`` o ``{ok: False, error}``. Con ``rapido`` (una búsqueda
+        en vivo, con un cliente esperando) se rinde a los 4 segundos en vez de insistir."""
+        respuesta = self._pedir('POST', '/odoo/embeber', {'textos': list(textos)},
+                                timeout=TIMEOUT_RAPIDO if rapido else TIMEOUT)
+        if respuesta['error'] or respuesta['cuerpo'].get('ok') is False:
+            return {'ok': False, 'error': respuesta['error'] or str(respuesta['cuerpo'].get('error') or '')[:300]
+                    or 'El Worker no pudo calcular el significado.', 'sin_configurar': respuesta['sin_configurar']}
+        return {**respuesta['cuerpo'], 'ok': True}
 
     @api.private
     @api.model

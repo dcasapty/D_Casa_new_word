@@ -4,6 +4,8 @@ Sin vectores ni extensiones de la base: se normaliza el texto (minúsculas, sin 
 palabras vacías («cuál», «tienen», «de», «la»…) y se cuentan coincidencias. Así «¿Cuál es el horario?» encuentra
 la entrada «Horario y WhatsApp» y «¿Tienen garantía en los colchones?» se agrupa con «garantía de colchones».
 """
+import hashlib
+import math
 import re
 
 from .publico import normalizar, raiz
@@ -63,6 +65,54 @@ def puntuar(consulta, titulo, etiquetas, contenido):
     return puntos if coincidencias * 2 >= len(buscadas) else 0
 
 
+def _comparten(a, b):
+    """Dos palabras ya normalizadas son «la misma» si son iguales o empiezan igual (instalan ≈ instalación)."""
+    return a == b or (len(a) >= 5 and len(b) >= 5 and a[:5] == b[:5])
+
+
+def mejor_respuesta(pregunta, candidatos, largo_minimo=25):
+    """De los mensajes de una vendedora (``[(id, texto)]``), el que parece contestar la pregunta, o ``None``.
+
+    Es el que comparte más palabras significativas con la pregunta (al menos un tercio de ellas) y no es un saludo
+    suelto: tiene ``largo_minimo`` letras. Gana el primero si empatan.
+    """
+    buscadas = tokens(pregunta)
+    if not buscadas:
+        return None
+    mejor, puntos_mejor = None, 0
+    for identificador, texto in candidatos:
+        if len(' '.join((texto or '').split())) < largo_minimo:
+            continue
+        palabras = tokens(texto)
+        puntos = sum(1 for b in buscadas if any(_comparten(b, p) for p in palabras))
+        if puntos > puntos_mejor and puntos * 3 >= len(buscadas):
+            mejor, puntos_mejor = identificador, puntos
+    return mejor
+
+
+_CORREO = re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+')
+_NUMERO_LARGO = re.compile(r'(?<!\d)\+?\d(?:[\s().-]?\d){6,}(?!\d)')
+
+
+def limpiar_respuesta(texto, largo=800):
+    """Lo que una vendedora le escribió a un cliente, listo para volverse una entrada de conocimiento: sin correos ni
+    números largos (celulares, cédulas, cuentas), con los espacios arreglados y recortado en una oración si es largo."""
+    limpio = _CORREO.sub('[correo]', texto or '')
+    limpio = _NUMERO_LARGO.sub('[número]', limpio)
+    limpio = re.sub(r'[ \t]+', ' ', limpio)
+    limpio = re.sub(r'\n{3,}', '\n\n', limpio).strip()
+    if len(limpio) > largo:
+        corte = limpio[:largo]
+        fin = max(corte.rfind('. '), corte.rfind('.\n'), corte.rfind('? '), corte.rfind('! '))
+        limpio = (corte[:fin + 1] if fin > largo // 2 else corte).rstrip()
+    return limpio
+
+
+def tiene_cifras(texto):
+    """¿Menciona dinero o números (precios, plazos, porcentajes)? Quien revisa debe confirmarlos."""
+    return bool(re.search(r'[$]|\d', texto or ''))
+
+
 def clave(texto):
     """Forma canónica de una pregunta: sus palabras significativas, ordenadas."""
     return ' '.join(sorted(tokens(texto)))
@@ -78,3 +128,30 @@ def similitud(a, b):
 
 def son_parecidas(a, b):
     return similitud(a, b) >= UMBRAL_PARECIDAS
+
+
+# ---------------------------------------------------------------------------
+# Búsqueda por significado (opcional): los vectores los calcula el Worker; aquí solo se comparan.
+# ---------------------------------------------------------------------------
+
+DIMENSIONES_VECTOR = 1024
+UMBRAL_SIGNIFICADO = 0.6   # coseno mínimo para decir «habla de lo mismo» (hay que calibrarlo con preguntas reales)
+
+
+def huella(texto):
+    """Identifica el texto con el que se calculó un vector: si el texto cambia, el vector ya no vale."""
+    return hashlib.sha1((texto or '').encode()).hexdigest()
+
+
+def vector_valido(vector):
+    return (isinstance(vector, list) and len(vector) == DIMENSIONES_VECTOR
+            and all(isinstance(n, (int, float)) and not isinstance(n, bool) and math.isfinite(n) for n in vector))
+
+
+def coseno(a, b):
+    """-1 a 1: qué tanto apuntan al mismo lado dos vectores (0 si alguno es nulo o no miden lo mismo)."""
+    if len(a) != len(b):
+        return 0.0
+    producto = sum(x * y for x, y in zip(a, b, strict=True))
+    norma = math.sqrt(sum(x * x for x in a)) * math.sqrt(sum(y * y for y in b))
+    return producto / norma if norma else 0.0

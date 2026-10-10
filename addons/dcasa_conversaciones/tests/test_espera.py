@@ -115,9 +115,11 @@ class TestClienteEsperando(JuanCase):
     def test_si_el_telegram_falla_no_se_rompe_el_mantenimiento_ni_se_repite_el_aviso(self):
         conv = self.espera(15, atiende=self.vendedora)
         self.enviar.side_effect = RuntimeError('sin red')
-        self.assertEqual(self.Conversacion._avisar_clientes_esperando(), 1)
-        self.assertTrue(conv.espera_avisada_en)
-        self.assertEqual(self.Conversacion._avisar_clientes_esperando(), 0)
+        with self.assertLogs('odoo.addons.dcasa_conversaciones.models.conversacion', level='ERROR') as registros:
+            self.assertEqual(self.Conversacion._avisar_clientes_esperando(), 1)
+            self.assertTrue(conv.espera_avisada_en)
+            self.assertEqual(self.Conversacion._avisar_clientes_esperando(), 0)
+        self.assertIn('no se pudo avisar por Telegram', registros.output[0])
 
     def test_el_mantenimiento_de_cada_5_minutos_lo_incluye(self):
         self.espera(15, atiende=self.vendedora)

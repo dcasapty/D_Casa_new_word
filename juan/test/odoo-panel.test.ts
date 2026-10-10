@@ -56,6 +56,7 @@ const conToken = { authorization: `Bearer ${TOKEN_WORKER}` };
 
 const RUTAS: [string, string][] = [
   ["POST", "/odoo/sugerir"],
+  ["POST", "/odoo/embeber"],
   ["GET", "/odoo/costos"],
   ["GET", "/odoo/qr"],
   ["POST", "/odoo/reiniciar"],

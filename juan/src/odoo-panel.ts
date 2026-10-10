@@ -3,6 +3,7 @@
 //
 //   POST /odoo/sugerir     → un borrador de respuesta para la vendedora (odoo-panel-sugerir.ts)
 //   POST /odoo/resumir     → el resumen de una conversación larga para la vendedora (odoo-panel-resumir.ts)
+//   POST /odoo/embeber     → la huella de significado de unos textos, para la búsqueda en el conocimiento (odoo-panel-embeber.ts)
 //   GET  /odoo/costos      → gasto de IA del mes por modelo (odoo-panel-costos.ts)
 //   GET  /odoo/qr          → el QR para vincular WhatsApp (odoo-panel-conexiones.ts)
 //   POST /odoo/reiniciar   → reiniciar el puente de WhatsApp
@@ -11,6 +12,7 @@
 import type { Env } from "./env";
 import { manejarConexiones } from "./odoo-panel-conexiones";
 import { manejarCostos } from "./odoo-panel-costos";
+import { manejarEmbeber } from "./odoo-panel-embeber";
 import { manejarResumir } from "./odoo-panel-resumir";
 import { manejarSugerir } from "./odoo-panel-sugerir";
 import type { DepsRutas } from "./rutas";
@@ -22,6 +24,8 @@ export async function rutasDelPanel(ruta: string, req: Request, env: Env, d: Dep
       return manejarSugerir(req, env, d);
     case "/odoo/resumir":
       return manejarResumir(req, env, d);
+    case "/odoo/embeber":
+      return manejarEmbeber(req, env, d);
     case "/odoo/costos":
       return manejarCostos(req, env, d);
     case "/odoo/qr":

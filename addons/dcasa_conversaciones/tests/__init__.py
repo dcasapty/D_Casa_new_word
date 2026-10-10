@@ -6,6 +6,7 @@ from . import (
     test_bandeja,
     test_celulares,
     test_conocimiento,
+    test_conocimiento_significado,
     test_conversaciones,
     test_ejemplos,
     test_espera,
@@ -27,4 +28,5 @@ from . import (
     test_reglas_clientes,
     test_seguimiento,
     test_seguridad,
+    test_telegram_consola,
 )

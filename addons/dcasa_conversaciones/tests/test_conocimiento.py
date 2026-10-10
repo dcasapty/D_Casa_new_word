@@ -279,6 +279,147 @@ class TestPreguntasSinRespuesta(JuanCase):
 
 
 @tagged('post_install', '-at_install')
+class TestRespuestasDeLasVendedoras(BaseCase):
+    """Las funciones puras que eligen y limpian lo que una vendedora contestó."""
+
+    def test_elige_el_mensaje_que_parece_contestar_la_pregunta(self):
+        candidatos = [
+            (1, 'Hola, soy Ana de D\'CASA, te ayudo'),
+            (2, 'Sí, hacemos la instalación de la cama y del closet sin costo dentro de La Chorrera.'),
+            (3, 'Cualquier otra duda me avisas por aquí, con gusto te atiendo en lo que necesites.'),
+        ]
+        self.assertEqual(C.mejor_respuesta('¿Instalan los muebles?', candidatos), 2)
+
+    def test_un_saludo_corto_o_un_mensaje_de_otro_tema_no_es_una_respuesta(self):
+        saludos = [(1, 'Hola, instalación'), (2, 'Gracias por escribirnos, que tengas buen día')]
+        self.assertIsNone(C.mejor_respuesta('¿Instalan los muebles?', saludos))
+        self.assertIsNone(C.mejor_respuesta('¿Instalan los muebles?', []))
+        self.assertIsNone(C.mejor_respuesta('???', [(1, 'Sí hacemos la instalación sin costo en La Chorrera')]))
+
+    def test_empate_gana_el_primero_y_gana_quien_comparte_mas_palabras(self):
+        igual = [(1, 'Aceptamos Yappy y también transferencia ACH al comprar la cama'),
+                 (2, 'Aceptamos Yappy y también transferencia ACH al comprar la cama')]
+        self.assertEqual(C.mejor_respuesta('¿Aceptan Yappy o transferencia?', igual), 1)
+        mas = [(1, 'Aceptamos Yappy en la tienda, pasa cuando quieras por aquí'),
+               (2, 'Aceptamos Yappy y también transferencia ACH al comprar la cama')]
+        self.assertEqual(C.mejor_respuesta('¿Aceptan Yappy o transferencia?', mas), 2)
+
+    def test_limpia_correos_y_numeros_largos_pero_no_las_medidas(self):
+        texto = 'Escríbeme a ana@dcasapty.com o al +507 6026-1919. La cama mide 160 x 200 y cuesta 349.99.'
+        limpio = C.limpiar_respuesta(texto)
+        self.assertNotIn('ana@dcasapty.com', limpio)
+        self.assertNotIn('6026', limpio)
+        self.assertIn('[correo]', limpio)
+        self.assertIn('[número]', limpio)
+        self.assertIn('160 x 200', limpio)
+        self.assertIn('349.99', limpio)
+
+    def test_recorta_en_una_oracion_y_arregla_espacios(self):
+        largo = ' '.join(f'Oración número {i} con algo de texto.' for i in range(60))
+        limpio = C.limpiar_respuesta('Hola   mundo.\n\n\n\n' + largo, largo=300)
+        self.assertLessEqual(len(limpio), 300)
+        self.assertTrue(limpio.endswith('.'))
+        self.assertNotIn('   ', limpio)
+
+    def test_avisa_si_menciona_dinero_o_numeros(self):
+        self.assertTrue(C.tiene_cifras('Cuesta $349 más ITBMS'))
+        self.assertTrue(C.tiene_cifras('Son 30 días'))
+        self.assertFalse(C.tiene_cifras('Sí, instalamos sin costo en La Chorrera'))
+
+
+@tagged('post_install', '-at_install')
+class TestRespuestasDeVendedorasEnPreguntas(JuanCase):
+    """De noche se busca lo que una vendedora contestó a una pregunta sin respuesta; se propone, nunca se activa."""
+
+    def setUp(self):
+        super().setUp()
+        self.Pregunta = self.env['dcasa.pregunta_pendiente']
+        self.conv = self.conversacion(id_externo='50761230001', nombre='Karen')
+        self.pregunta, _ = self.Pregunta._registrar('¿Instalan los muebles?', 'Hablaban de una cama', self.conv)
+        self.ahora = fields.Datetime.now()
+
+    def contesta(self, texto, minutos=10, conv=None, usuario=None):
+        mensaje = self.registrar(texto, id_externo=(conv or self.conv).id_externo, autor='vendedora',
+                                 ts=self.ahora + timedelta(minutes=minutos))[1]
+        if usuario:
+            mensaje.sudo().with_context(dcasa_mensaje_sistema=True).write({'usuario_id': usuario.id, 'origen': 'odoo'})
+        return mensaje
+
+    def test_guarda_lo_que_contesto_la_vendedora_sin_activar_nada(self):
+        self.contesta('Hola Karen, soy Ana', 5)
+        self.contesta('Sí, hacemos la instalación de la cama sin costo en La Chorrera. Escríbeme al 6026-1919.', 10,
+                      usuario=self.vendedora)
+        self.assertEqual(self.Pregunta._cron_buscar_respuestas(), 1)
+        self.assertEqual(self.pregunta.respuesta_vendedora,
+                         'Sí, hacemos la instalación de la cama sin costo en La Chorrera. Escríbeme al [número].')
+        self.assertEqual(self.pregunta.respuesta_de_id, self.vendedora)
+        self.assertFalse(self.pregunta.respuesta_con_cifras)
+        self.assertEqual(self.pregunta.estado, 'nueva', 'Sigue nueva: la entrada la crea y la activa Gerencia')
+        self.assertFalse(self.env['dcasa.conocimiento'].search([('pregunta_id', '=', self.pregunta.id)]))
+
+    def test_no_toma_mensajes_de_otra_conversacion_ni_anteriores_ni_fuera_de_ventana_ni_programados(self):
+        otra = self.conversacion(id_externo='50761230002')
+        self.contesta('Sí, hacemos la instalación de muebles sin costo en La Chorrera', 10, conv=otra)
+        self.contesta('Sí, hacemos la instalación de muebles sin costo en La Chorrera', -60 * 24)
+        self.contesta('Sí, hacemos la instalación de muebles sin costo en La Chorrera', 60 * 24 * 8)
+        self.Mensaje.sudo().create({
+            'conversacion_id': self.conv.id, 'id_mensaje': 'odoo-prog-1', 'tipo': 'mensaje', 'direccion': 'saliente',
+            'autor': 'vendedora', 'texto': 'Sí, hacemos la instalación de muebles sin costo en La Chorrera',
+            'origen': 'odoo', 'estado_envio': 'programado', 'programado_para': self.ahora + timedelta(days=1),
+            'ts': self.ahora + timedelta(minutes=20)})
+        self.assertEqual(self.Pregunta._cron_buscar_respuestas(), 0)
+        self.assertFalse(self.pregunta.respuesta_vendedora)
+
+    def test_marca_si_la_respuesta_trae_cifras(self):
+        self.contesta('Sí, instalamos los muebles; el servicio cuesta $25 dentro de La Chorrera', 10)
+        self.Pregunta._cron_buscar_respuestas()
+        self.assertTrue(self.pregunta.respuesta_con_cifras)
+
+    def test_solo_busca_en_las_nuevas_y_no_pisa_lo_ya_encontrado(self):
+        self.contesta('Sí, instalamos los muebles sin costo dentro de La Chorrera', 10)
+        atendida, _ = self.Pregunta._registrar('¿Aceptan Yappy para pagar?', None, self.conv)
+        atendida.estado = 'atendida'
+        self.Pregunta._cron_buscar_respuestas()
+        self.assertTrue(self.pregunta.respuesta_vendedora)
+        self.assertFalse(atendida.respuesta_vendedora)
+        primera = self.pregunta.respuesta_vendedora
+        self.contesta('Y también armamos el closet dentro de La Chorrera sin costo', 20)
+        self.assertEqual(self.Pregunta._cron_buscar_respuestas(), 0)
+        self.assertEqual(self.pregunta.respuesta_vendedora, primera)
+
+    def test_sin_conversaciones_o_sin_respuesta_no_pasa_nada(self):
+        sin_conv = self.Pregunta.sudo().create({'texto': '¿Hacen entregas?', 'clave': 'entrega hacen'})
+        self.assertFalse(sin_conv._buscar_respuesta())
+        self.assertEqual(self.Pregunta._cron_buscar_respuestas(), 0)
+
+    def test_el_boton_abre_la_entrada_como_borrador_inactivo_con_la_respuesta(self):
+        self.contesta('Sí, instalamos los muebles; el servicio cuesta $25 dentro de La Chorrera', 10,
+                      usuario=self.vendedora)
+        self.Pregunta._cron_buscar_respuestas()
+        contexto = self.pregunta.with_user(self.gerente).action_convertir_en_conocimiento()['context']
+        self.assertEqual(contexto['default_contenido'], self.pregunta.respuesta_vendedora)
+        self.assertFalse(contexto['default_activo'])
+        self.assertIn('Vendedora Prueba', contexto['default_nota'])
+        self.assertIn('confírmalas', contexto['default_nota'])
+        entrada = self.env['dcasa.conocimiento'].with_user(self.gerente).with_context(**contexto).create(
+            {'titulo': '¿Instalan los muebles?'})
+        self.assertFalse(entrada.activo, 'Nace inactiva: el asistente no la ve hasta que Gerencia la active')
+        self.assertFalse(self.env['dcasa.conocimiento']._buscar('instalan los muebles', 3))
+        entrada.with_user(self.gerente).action_activar()
+        self.assertTrue(self.env['dcasa.conocimiento']._buscar('instalan los muebles', 3))
+
+    def test_sin_respuesta_de_vendedora_el_boton_sigue_como_antes(self):
+        contexto = self.pregunta.with_user(self.gerente).action_convertir_en_conocimiento()['context']
+        self.assertNotIn('default_contenido', contexto)
+        self.assertNotIn('default_activo', contexto)
+
+    def test_el_cron_existe_y_corre_de_noche(self):
+        cron = self.env.ref('dcasa_conversaciones.ir_cron_buscar_respuestas')
+        self.assertEqual((cron.interval_type, cron.interval_number, cron.active), ('days', 1, True))
+        self.assertEqual(cron.model_id.model, 'dcasa.pregunta_pendiente')
+
+
+@tagged('post_install', '-at_install')
 class TestLeccionesAprendidas(JuanCase):
 
     def test_van_en_config_como_lista(self):

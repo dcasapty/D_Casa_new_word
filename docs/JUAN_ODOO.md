@@ -270,6 +270,22 @@ y le dice al cliente que una vendedora se la confirma. Las parecidas se **agrupa
 repitieron. Con el botón **Convertir en conocimiento** abres la pantalla de conocimiento ya con la pregunta; al guardar,
 la pregunta queda *atendida* y el asistente la sabrá desde ese momento. También puedes **Descartar** una pregunta.
 
+*Lo que ya contestó una vendedora.* Cada noche (03:10 de Panamá) Odoo busca, para cada pregunta *nueva*, lo que una vendedora le
+escribió después al cliente en esa conversación (hasta 7 días, el mensaje que comparte más palabras con la pregunta; un saludo suelto
+o un mensaje de otro tema no cuenta). Lo guarda en la pregunta, con **quién** lo escribió y **cuándo**, sin correos ni números largos
+(celulares, cédulas, cuentas) y avisando si menciona **dinero o números** (hay que confirmarlos). Al apretar **Convertir en conocimiento**
+la entrada nace con ese texto como **borrador inactivo**: el asistente no sabe nada de eso hasta que Gerencia lo revisa y lo **activa**.
+No lo redacta ninguna IA: son las palabras de la vendedora, y por eso no inventa nada.
+
+*Buscar por significado* (opcional, **apagado**; *Ajustes de Juan › Buscar en el conocimiento por significado*). Las palabras no
+encuentran «¿Se llevan el colchón viejo?» si la entrada dice «Retiro de lo usado». Con esto encendido, cada hora Odoo le pide al Worker
+(`POST /odoo/embeber`, modelo `@cf/baai/bge-m3` de Workers AI, dentro de la cuenta de Cloudflare de D'CASA) una «huella de
+significado» de cada entrada **activa** nueva o editada (se guarda en `dcasa.conocimiento.vector`; solo la ve Gerencia) y, al buscar,
+las **palabras mandan** y el significado solo **completa los lugares que quedaron vacíos** (de las 3 que devuelve la herramienta), con
+las entradas cuya huella se parece lo suficiente a la pregunta (coseno ≥ 0.6). Si el Worker no tiene el binding `AI`, tarda más de 4
+segundos o falla, se sigue por palabras y no se vuelve a intentar durante 5 minutos. Una huella cuyo texto cambió no cuenta hasta que
+se recalcula. Nada de esto manda datos de clientes: viaja la pregunta del cliente recortada a 300 letras y los textos del equipo.
+
 **Lecciones aprendidas** (*Ajustes de Juan*, campo «Lecciones aprendidas»). Una frase por línea (hasta 20, de 300 letras): normas cortas
 como «si preguntan por Yappy, di que una vendedora lo confirma». El asistente las recibe junto con su configuración.
 
@@ -342,6 +358,25 @@ elegidas en *Ajustes de Juan › Avisar por Telegram a* les llega un aviso por T
   cada 10 minutos por conversación; se apaga con *Avisar de fotos y archivos*.
 * Si la conversación ya la atiende una persona, no se avisa. Las notas de voz no avisan.
 * Quién recibe: las personas elegidas; si no eliges a nadie, todas las de ventas con su Telegram vinculado con Brian.
+
+## Atender y contestar desde Telegram (sin abrir Odoo)
+
+Los avisos de **un cliente que espera** (el asistente lo pasó a una vendedora, lleva rato sin respuesta, mandó un comprobante o un
+archivo) traen un botón **Atender** y, al final, «Conversación n.º N». Los avisos de menciones en una nota **no** (esos son para ti,
+no para el cliente). Para esto hay que tener el Telegram vinculado con Brian (*Mis preferencias › Vincular Telegram*).
+
+* **Atender:** toma la conversación igual que el botón de la pantalla (el asistente calla y queda a tu nombre).
+* **Responder al aviso** (en Telegram: mantén el dedo sobre el aviso › *Responder*, y escribe): el bot **no manda nada todavía**.
+  Te enseña el texto tal cual, «Le voy a escribir a Karen por WhatsApp…», con los botones **Enviar** y **Cancelar**. Solo al pulsar
+  *Enviar* sale por el canal del cliente, a tu nombre, por la misma ruta de la pantalla (si el canal no lo entrega, el mensaje queda
+  «por enviar» y se reintenta; el bot te lo dice con la verdad, no dice «Enviado» si no salió).
+
+Reglas (probadas en `tests/test_telegram_consola.py`): solo **texto** (una foto o un archivo se rechazan y se te manda a la pantalla);
+solo en el **chat privado** con el bot y vinculado a tu usuario (no funciona en grupos); todo corre **como tú**: quien no es del equipo
+de ventas, o ya no tiene permiso cuando pulsa *Enviar*, no manda nada; el borrador sirve **una sola vez**, **vence a los 15 minutos**
+y **solo tú** puedes enviarlo o cancelarlo (aunque otra persona vea el botón); un doble toque no manda dos veces; el límite de
+velocidad de Brian (20 mensajes por minuto) aplica igual. No se tocó Brian: la consola solo se engancha a dos puntos de su bot
+(`_conversar` y `_procesar_callback`) y todo lo que no sea de Juan (botones `brian:…`, mensajes normales) sigue en manos de Brian.
 
 ## Privacidad (Ley 81 de 2019)
 
@@ -485,6 +520,7 @@ constante, respuestas `Cache-Control: no-store`, errores genéricos sin detalles
 | Ruta | Qué hace |
 |---|---|
 | `POST /odoo/sugerir` | Recibe la conversación recortada y devuelve `{ok, texto, avisos}`. Usa solo herramientas de **lectura** (`buscar_productos`, `ver_producto`, `listar_categorias`, `reglas_socios`, `horario_y_tienda`, `buscar_conocimiento`), nivel inteligente (baja al rápido si se llegó al tope), registra el gasto y avisa de lo que quitó (fotos, enlaces) y de los `[CONFIRMAR…]`. |
+| `POST /odoo/embeber` | `{textos:[…]}` (1 a 8, hasta 2000 letras cada uno) → `{ok, vectores:[[1024 números]], dimensiones, modelo}`. Lo usa la búsqueda por significado. Sin binding `AI`: 503 con `faltan:["AI"]`. No envía ni escribe nada y no pasa por el tope de gasto (cuesta centavos por millón de palabras). |
 | `GET /odoo/costos` | Gasto del mes por modelo, turnos, tope y modelos sin precio cargado (desde el contador del Worker). |
 | `GET /odoo/qr` | El QR del puente de WhatsApp (data URL PNG) y su estado: `necesita_qr`, `conectado`, `desconectado`, `desvinculada`, `arrancando`, `apagado`. No imprime el QR en logs. |
 | `POST /odoo/reiniciar` · `POST /odoo/desvincular` | Reinicia o cierra la sesión del puente. |

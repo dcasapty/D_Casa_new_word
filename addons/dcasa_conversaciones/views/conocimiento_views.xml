@@ -102,6 +102,7 @@
                 <field name="texto"/>
                 <field name="veces"/>
                 <field name="ultima_vez" widget="datetime"/>
+                <field name="respuesta_de_id" string="Ya la contestó" optional="show"/>
                 <field name="estado" widget="badge" decoration-info="estado == 'nueva'"
                        decoration-success="estado == 'atendida'" decoration-muted="estado == 'descartada'"/>
                 <button name="action_convertir_en_conocimiento" type="object" string="Convertir en conocimiento"
@@ -138,6 +139,18 @@
                     </group>
                     <group string="Contexto que anotó el asistente" invisible="not resumen">
                         <field name="resumen" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Lo que ya contestó una vendedora" invisible="not respuesta_vendedora">
+                        <field name="respuesta_vendedora" nolabel="1" colspan="2"/>
+                        <field name="respuesta_de_id"/>
+                        <field name="respuesta_en"/>
+                        <div class="alert alert-warning" colspan="2" role="alert" invisible="not respuesta_con_cifras">
+                            Menciona dinero o números: confírmalos antes de activar la entrada.
+                        </div>
+                        <div class="text-muted" colspan="2">
+                            «Convertir en conocimiento» usa este texto como borrador (queda inactivo hasta que lo revises y
+                            lo actives). Nada de esto lo ve el asistente hasta entonces.
+                        </div>
                     </group>
                     <group string="Conversaciones donde se preguntó">
                         <field name="conversacion_ids" nolabel="1" colspan="2" readonly="1">

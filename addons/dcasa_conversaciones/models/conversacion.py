@@ -42,6 +42,10 @@ PAUSA_REINTENTO_SEGUIMIENTO = timedelta(minutes=15)
 # Una espera más vieja que esto ya no es una espera que se avise (un fin de semana, un feriado): es otra cosa.
 HORAS_MAXIMAS_DE_ESPERA_AVISADA = 24
 MAX_NOTA = 1000
+# Los avisos por Telegram de una conversación traen esta línea: quien responde a ese mensaje le escribe al cliente
+# (models/telegram_consola.py). Texto fijo, sin traducir: es lo que se busca al recibir la respuesta.
+PIE_DE_AVISO = '↩ Responde a este mensaje para escribirle al cliente. (Conversación n.º %s)'
+REFERENCIA_DE_AVISO = r'Conversación n\.º (\d+)'
 MAX_NOTA_PARA_EL_BOT = 500
 CANAL_BUS = 'dcasa_conversaciones/evento'
 MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'baja', 'opt_out', 'opt-out', 'pidio_no', 'pidió no')
@@ -608,9 +612,11 @@ class DcasaConversacion(models.Model):
                 canal=dict(CANALES).get(conv.canal, conv.canal),
                 quien=self.env._('La atiende %s.', conv.asignada_a.name) if conv.asignada_a
                 else self.env._('Nadie la atiende todavía.'))
-            enviados = conv._avisar_por_telegram(texto, usuarios=conv.asignada_a) if conv.asignada_a else 0
+            enviados = 0
+            if conv.asignada_a:
+                enviados = conv._avisar_por_telegram(texto, usuarios=conv.asignada_a, acciones=True)
             if not enviados:
-                conv._avisar_por_telegram(texto)
+                conv._avisar_por_telegram(texto, acciones=True)
             avisos += 1
         return avisos
 
@@ -975,9 +981,9 @@ class DcasaConversacion(models.Model):
         if por_turno:
             # Le tocó por turno: el aviso va a ella (si tiene Telegram vinculado; si no, a las de siempre).
             texto_aviso = self.env._('Te tocó a ti.\n%s', texto_aviso)
-        enviados = self._avisar_por_telegram(texto_aviso, usuarios=por_turno) if por_turno else 0
+        enviados = self._avisar_por_telegram(texto_aviso, usuarios=por_turno, acciones=True) if por_turno else 0
         if not enviados:
-            self._avisar_por_telegram(texto_aviso)
+            self._avisar_por_telegram(texto_aviso, acciones=True)
         self._aviso(self.env._('El asistente pasó la conversación a una vendedora. Motivo: %s',
                                (motivo or '—')[:300]))
         if por_turno:
@@ -1059,11 +1065,11 @@ class DcasaConversacion(models.Model):
                     self._avisar_por_telegram(self.env._(
                         'Posible comprobante de pago de %(quien)s por %(canal)s. El asistente sigue atendiendo; '
                         'tú decides si intervienes. Verifica el pago en el banco antes de entregar nada.',
-                        quien=quien, canal=canal))
+                        quien=quien, canal=canal), acciones=True)
                 elif ajustes.avisar_comprobantes and 'identidad' in clases:
                     self._avisar_por_telegram(self.env._(
                         '%(quien)s mandó un documento de identidad por %(canal)s. El asistente sigue atendiendo '
-                        'y no lo ve; tú decides si intervienes.', quien=quien, canal=canal))
+                        'y no lo ve; tú decides si intervienes.', quien=quien, canal=canal), acciones=True)
                 elif ajustes.avisar_archivos:
                     ahora = fields.Datetime.now()
                     if self.ultimo_aviso_archivo_en and ahora - self.ultimo_aviso_archivo_en < timedelta(minutes=10):
@@ -1071,16 +1077,23 @@ class DcasaConversacion(models.Model):
                     self.sudo().ultimo_aviso_archivo_en = ahora
                     self._avisar_por_telegram(self.env._(
                         '%(quien)s mandó una imagen o un archivo por %(canal)s. El asistente sigue atendiendo; '
-                        'tú decides si intervienes.', quien=quien, canal=canal))
+                        'tú decides si intervienes.', quien=quien, canal=canal), acciones=True)
         except Exception:   # noqa: BLE001
             _logger.exception('Juan: no se pudo avisar del archivo del cliente en la conversación %s', self.id)
 
-    def _avisar_por_telegram(self, texto, usuarios=None):
+    def _avisar_por_telegram(self, texto, usuarios=None, acciones=False):
         """Aviso por Telegram (el bot de Brian). Nunca falla: es un extra de la actividad.
 
         ``usuarios``: solo a esas personas (por ejemplo, las mencionadas en una nota). Sin ellas: a quienes se eligieron
         en Ajustes de Juan, o a todas las vendedoras con Telegram vinculado.
+
+        ``acciones``: el aviso es de un cliente que espera. Lleva el botón «Atender» y, al final, de qué conversación
+        es: quien responde a ese mensaje le escribe al cliente (con confirmación; ver ``telegram_consola.py``).
         """
+        botones = None
+        if acciones and len(self) == 1:
+            texto = f'{texto}\n\n{PIE_DE_AVISO % self.id}'
+            botones = [[{'text': 'Atender', 'callback_data': f'juan:t:{self.id}'}]]
         Enlace = self.env['brian.telegram.enlace'].sudo()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         dominio = [('activo', '=', True)]
@@ -1094,7 +1107,10 @@ class DcasaConversacion(models.Model):
         for enlace in Enlace.search(dominio, limit=10):
             try:
                 with self.env.cr.savepoint():
-                    Enlace._enviar(enlace.chat_id, texto)
+                    if botones:
+                        Enlace._enviar(enlace.chat_id, texto, botones=botones)
+                    else:
+                        Enlace._enviar(enlace.chat_id, texto)
                     enviados += 1
             except Exception:   # noqa: BLE001
                 _logger.exception('Juan: no se pudo avisar por Telegram')

@@ -135,6 +135,8 @@ Meta). El par es único.
      → `{ok, texto, avisos, modelo}`: de 3 a 6 viñetas de lo que pasó, para quien recibe la conversación. Solo mensajes que viajaron por el
      canal (**nunca notas internas**), tarjetas y cédulas tapadas, modelo económico, sin herramientas; una cifra de dinero que no esté en
      la conversación se quita. **No envía ni escribe nada.** El gasto cuenta para el tope del mes.
+   * `POST /odoo/embeber` — `{textos:[string]}` (1 a 8, ≤ 2000 letras) → `{ok, vectores:[[1024 números a 4 decimales]], dimensiones, modelo}`: la «huella de
+     significado» que usa la búsqueda opcional en el conocimiento (`@cf/baai/bge-m3`). Sin binding `AI`: 503 `{ok:false, faltan:["AI"]}`. No envía ni escribe nada.
    * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio}`.
    * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
    * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).

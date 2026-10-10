@@ -18,8 +18,9 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
 
-  // Workers AI: SOLO para pasar a texto las notas de voz (Whisper, TRANSCRIBIR_AUDIO=1). No se usa para contestar: eso lo hace
-  // el proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare por minuto de audio (docs/JUAN_WORKER.md §12).
+  // Workers AI: notas de voz (Whisper, TRANSCRIBIR_AUDIO=1), lectura de imágenes (RECONOCER_IMAGENES=1) y, solo si Gerencia lo enciende
+  // en Odoo, la búsqueda del conocimiento por significado (bge-m3, POST /odoo/embeber). No se usa para contestar: eso lo hace el
+  // proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare (por minuto de audio / por texto; docs/JUAN_WORKER.md §12).
   "ai": { "binding": "AI" },
 
   // Worker a Worker SIEMPRE por service binding: Cloudflare rechaza (error 1042) la URL pública entre Workers de la misma cuenta.

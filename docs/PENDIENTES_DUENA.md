@@ -16,3 +16,10 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
    conversación), que lee las imágenes que manda (capturas de productos) con un servicio de IA de Cloudflare, que transcribe notas de
    voz, que a petición de una vendedora la IA resume una conversación (solo los mensajes con el cliente, nunca las notas internas), y —si se eligen modelos «contributor»— que esa IA puede entrenar con las conversaciones. La foto de perfil se apaga en
    Conversaciones › Configuración › Ajustes de Juan › Privacidad de los clientes.
+7. **Buscar en el conocimiento por significado** (opcional, apagado): está construido y probado con vectores de mentira, pero **nadie ha
+   visto todavía cuánto se parecen de verdad dos frases reales** con el modelo de Cloudflare. Para probarlo en staging: encender el ajuste,
+   esperar una hora (o ejecutar la tarea «Juan: calcular la huella de significado del conocimiento»), preguntarle al bot algo con otras
+   palabras que las de una entrada, y mirar en el registro de Odoo la línea «lo más parecido a la pregunta es … (coseno …)». Si salen
+   respuestas que no vienen al caso, se sube el umbral (`UMBRAL_SIGNIFICADO`, hoy 0.6); si no encuentra nada, se baja.
+8. **Plan B de WhatsApp (cuenta oficial de Meta):** empezar ya la **verificación del negocio** en Meta Business (es lo único que no se
+   puede acelerar el día que se necesite). Pasos completos y qué hay que confirmar en Meta: `docs/JUAN_PLAN_B.md`.
