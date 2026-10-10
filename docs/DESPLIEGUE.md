@@ -94,7 +94,7 @@ clave de cifrado con producción):
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
 | Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché de páginas) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: con él Odoo certifica las páginas anónimas que el borde guarda y protege el aviso de invalidación. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
 | Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: `https://dcasa.<subdominio>.workers.dev` hasta activar el dominio, luego `https://dcasapty.com`; staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com`) |
-| Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`); útil mientras se usa `workers.dev` |
+| Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`). **Vacía = se usa el anfitrión de `URL_SITIO`**: Odoo arma con este dominio las direcciones de las fotos de productos, del PDF de una cotización y de los webhooks, así que tiene que ser donde el sitio de verdad responde (si apuntara a `staging.dcasapty.com` sin que exista, Telegram no podría bajar la foto ni el PDF) |
 | Variable | `R2_ENDPOINT` | no | solo si el bucket está en otra jurisdicción; por defecto `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | Variable | `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | ver «Brian» |
 

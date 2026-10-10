@@ -269,6 +269,17 @@ jobs:
           BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
         run: |
           set -euo pipefail
+          # Sin CANONICAL_HOST a mano, el dominio canónico es donde el sitio de verdad responde (el de URL_SITIO). Si no, Odoo arma sus
+          # direcciones (fotos de productos, PDF de cotizaciones, webhooks) con un dominio que todavía no existe —p. ej.
+          # staging.dcasapty.com mientras staging vive en workers.dev— y Telegram, WhatsApp y los clientes no pueden abrirlas.
+          if [ -z "${CANONICAL_HOST:-}" ] && [ -n "${URL_SITIO:-}" ]; then
+            anfitrion="${URL_SITIO#*://}"
+            anfitrion="${anfitrion%%/*}"
+            if [[ "$anfitrion" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]]; then
+              CANONICAL_HOST="$anfitrion"
+              echo "▶ CANONICAL_HOST vacío: se usa el de URL_SITIO (${CANONICAL_HOST})."
+            fi
+          fi
           args=(--config wrangler.desplegar.json --secrets-file "$RUNNER_TEMP/secretos.json"
                 --var "APP_VERSION:${APP_VERSION}")
           # Producción es la raíz del archivo: --env="" (wrangler.jsonc define env.staging).
