@@ -1,274 +1,210 @@
-"""«Stock y precios»: la lista de solo lectura para elegir qué empujar en una campaña (models/producto_stock.py)."""
-import json
-from datetime import timedelta
+"""Stock ordenable en Productos (``dcasa_stock``, models/product.py).
 
-from odoo import Command, fields
-from odoo.exceptions import AccessError
+Pedido de la dueña: marketing arma las campañas a partir del inventario y necesita ver, en la misma lista de
+Productos, qué categoría tiene más o menos stock y, dentro de ella, ordenar por precio. El «A la mano» de Odoo se
+calcula al vuelo y no se puede ordenar; ``dcasa_stock`` es ese mismo número guardado en el producto.
+"""
+import json
+
+from lxml import etree
+
+from odoo import Command
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools.safe_eval import safe_eval
 
-MODELO = 'dcasa.producto.stock'
-
 
 @tagged('post_install', '-at_install')
-class TestProductoStock(TransactionCase):
+class TestStockEnProductos(TransactionCase):
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         Plantilla = cls.env['product.template']
-        cls.categoria = cls.env['product.category'].create({'name': 'Zzcamas de prueba'})
-        cls.otra_categoria = cls.env['product.category'].create({'name': 'Zzsofas de prueba'})
-        cls.hija = cls.env['product.category'].create({'name': 'Zzcamas king', 'parent_id': cls.categoria.id})
-        cls.tienda = cls.env['product.public.category'].create({'name': 'Zzdormitorio'})
-        base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'categ_id': cls.categoria.id,
-                'public_categ_ids': [Command.set(cls.tienda.ids)]}
-        cls.mucho = Plantilla.create({**base, 'name': 'Zzcama barata mucho stock', 'default_code': 'ZZ-A',
-                                      'list_price': 100.0, 'is_published': True})
-        cls.poco = Plantilla.create({**base, 'name': 'Zzcama cara poco stock', 'default_code': 'ZZ-B',
-                                     'list_price': 900.0, 'is_published': False, 'dcasa_black_weekend': True})
-        cls.agotada = Plantilla.create({**base, 'name': 'Zzcama agotada', 'default_code': 'ZZ-C',
-                                        'list_price': 500.0, 'categ_id': cls.otra_categoria.id})
-        cls.sin_control = Plantilla.create({**base, 'name': 'Zzcama sin control', 'default_code': 'ZZ-D',
-                                            'list_price': 300.0, 'is_storable': False})
-        cls.umbral_alto = Plantilla.create({**base, 'name': 'Zzcama umbral alto', 'default_code': 'ZZ-E',
-                                            'list_price': 200.0, 'available_threshold': 10.0,
-                                            'categ_id': cls.hija.id})
+        cls.camas = cls.env['product.category'].create({'name': 'Zzcamas de prueba'})
+        cls.sofas = cls.env['product.category'].create({'name': 'Zzsofas de prueba'})
+        base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'categ_id': cls.camas.id}
+        cls.mucho = Plantilla.create({**base, 'name': 'Zzcama barata mucho stock', 'list_price': 100.0})
+        cls.medio = Plantilla.create({**base, 'name': 'Zzcama media', 'list_price': 500.0})
+        cls.poco = Plantilla.create({**base, 'name': 'Zzcama cara poco stock', 'list_price': 900.0})
+        cls.agotada = Plantilla.create({**base, 'name': 'Zzcama agotada', 'list_price': 300.0})
+        cls.sin_control = Plantilla.create({**base, 'name': 'Zzcama sin control', 'list_price': 250.0,
+                                            'is_storable': False})
+        cls.sofa = Plantilla.create({**base, 'name': 'Zzsofá', 'list_price': 700.0, 'categ_id': cls.sofas.id})
         tamano = cls.env['product.attribute'].create({'name': 'Zztamaño', 'create_variant': 'always', 'value_ids': [
             Command.create({'name': 'Zzqueen'}), Command.create({'name': 'Zzking'})]})
         cls.con_variantes = Plantilla.create({
-            **base, 'name': 'Zzcolchón con tamaños', 'default_code': 'ZZ-F', 'list_price': 400.0,
+            **base, 'name': 'Zzcolchón con tamaños', 'list_price': 400.0,
             'attribute_line_ids': [Command.create({'attribute_id': tamano.id,
                                                    'value_ids': [Command.set(tamano.value_ids.ids)]})]})
-        king = cls.con_variantes.attribute_line_ids.product_template_value_ids.filtered(
-            lambda v: v.name == 'Zzking')
-        king.price_extra = 150.0
         cls.v_queen = cls.con_variantes.product_variant_ids.filtered(lambda v: 'Zzqueen' in v.display_name)
         cls.v_king = cls.con_variantes.product_variant_ids.filtered(lambda v: 'Zzking' in v.display_name)
-        # No deben salir: archivado, servicio y no vendible.
-        cls.archivado = Plantilla.create({**base, 'name': 'Zzcama archivada', 'active': False})
-        cls.servicio = Plantilla.create({'name': 'Zzservicio', 'type': 'service', 'categ_id': cls.categoria.id})
-        cls.no_vendible = Plantilla.create({**base, 'name': 'Zzcama no vendible', 'sale_ok': False})
 
         cls.ubicacion = cls.env['stock.warehouse'].search([], limit=1).lot_stock_id
-        quant = cls.env['stock.quant']
-        for plantilla, cantidad in ((cls.mucho, 40), (cls.poco, 3), (cls.umbral_alto, 8)):
-            quant._update_available_quantity(plantilla.product_variant_id, cls.ubicacion, cantidad)
-        quant._update_available_quantity(cls.v_queen, cls.ubicacion, 20)
-        quant._update_available_quantity(cls.v_king, cls.ubicacion, 2)
-        # De «mucho» hay 12 reservadas: libres 28.
-        cls.env['stock.quant'].search([('product_id', '=', cls.mucho.product_variant_id.id)]).reserved_quantity = 12
-        cls.plantillas = [cls.mucho, cls.poco, cls.agotada, cls.sin_control, cls.umbral_alto, cls.con_variantes]
+        cls.Quant = cls.env['stock.quant']
+        for plantilla, cantidad in ((cls.mucho, 40), (cls.medio, 12), (cls.poco, 3), (cls.sofa, 9)):
+            cls.Quant._update_available_quantity(plantilla.product_variant_id, cls.ubicacion, cantidad)
+        cls.Quant._update_available_quantity(cls.v_queen, cls.ubicacion, 20)
+        cls.Quant._update_available_quantity(cls.v_king, cls.ubicacion, 2)
+        cls.camas_de_prueba = cls.mucho | cls.medio | cls.poco | cls.agotada | cls.sin_control | cls.con_variantes
+        cls.todas = cls.camas_de_prueba | cls.sofa
 
-    # ------------------------------------------------------------------
+    def propias(self, dominio=None, orden=None, usuario=None):
+        """Solo las de esta prueba (la base real trae el catálogo completo)."""
+        modelo = self.env['product.template'].with_user(usuario) if usuario else self.env['product.template']
+        return modelo.search([('id', 'in', self.todas.ids)] + (dominio or []), order=orden)
 
-    def _actualizar(self):
-        """La lista se calcula en la base de datos: se escribe lo pendiente y se olvida lo ya leído de ella."""
-        self.env.flush_all()
-        self.env.invalidate_all()
+    # ------------------------------------------------------------------ la cifra
 
-    def filas(self, dominio=None, orden=None, usuario=None):
-        self._actualizar()
-        modelo = self.env[MODELO].with_user(usuario) if usuario else self.env[MODELO]
-        propios = [('product_tmpl_id', 'in', [p.id for p in self.plantillas])]
-        return modelo.search((dominio or []) + propios, order=orden)
+    def test_suma_todas_las_medidas_y_colores(self):
+        self.assertEqual(self.mucho.dcasa_stock, 40)
+        self.assertEqual(self.con_variantes.dcasa_stock, 22, 'queen 20 + king 2')
+        self.assertEqual(self.agotada.dcasa_stock, 0)
 
-    def fila(self, plantilla, variante=None):
-        self._actualizar()
-        variante = variante or plantilla.product_variant_id
-        (fila,) = self.env[MODELO].search([('product_id', '=', variante.id)])
-        return fila
+    def test_un_producto_sin_control_de_inventario_vale_cero(self):
+        """Odoo no deja crear existencias de lo que no controla inventario: su stock es 0 y no se inventa otra cifra."""
+        self.assertEqual(self.sin_control.dcasa_stock, 0)
+        with self.assertRaises(ValidationError):
+            self.Quant._update_available_quantity(self.sin_control.product_variant_id, self.ubicacion, 5)
 
-    # ------------------------------------------------------------------ qué sale y con qué cifras
+    def test_solo_cuenta_lo_que_hay_en_la_bodega_y_la_tienda(self):
+        clientes = self.env.ref('stock.stock_location_customers')
+        self.Quant._update_available_quantity(self.mucho.product_variant_id, clientes, 7)
+        self.assertEqual(self.mucho.dcasa_stock, 40, 'lo que ya está en manos del cliente no es stock')
 
-    def test_solo_productos_vendibles_activos_y_de_bienes(self):
-        nombres = set(self.filas().mapped('product_id.name'))
-        self.assertIn('Zzcama barata mucho stock', nombres)
-        self.assertEqual(self.env[MODELO].search_count([('product_tmpl_id', 'in', [
-            self.archivado.id, self.servicio.id, self.no_vendible.id])]), 0,
-            'ni archivados, ni servicios, ni lo que no se vende')
+    def test_se_recalcula_solo_con_cada_movimiento(self):
+        variante = self.poco.product_variant_id
+        self.Quant._update_available_quantity(variante, self.ubicacion, 10)      # entra mercancía
+        self.assertEqual(self.poco.dcasa_stock, 13)
+        self.Quant._update_available_quantity(variante, self.ubicacion, -13)     # se vende todo
+        self.assertEqual(self.poco.dcasa_stock, 0)
+        self.Quant._update_available_quantity(variante, self.ubicacion, -2)      # se vende de más: negativo, real
+        self.assertEqual(self.poco.dcasa_stock, -2)
 
-    def test_existencia_reservado_y_libre(self):
-        fila = self.fila(self.mucho)
-        self.assertEqual((fila.stock, fila.reservado, fila.disponible), (40, 12, 28))
-        self.assertEqual(fila.estado_stock, 'disponible')
-        self.assertEqual(fila.default_code, 'ZZ-A')
-        self.assertEqual(fila.categ_id, self.categoria)
-        self.assertEqual(fila.categoria_web_id, self.tienda)
-        self.assertEqual(fila.product_tmpl_id, self.mucho)
-        self.assertTrue(fila.controla_stock)
+    def test_un_ajuste_de_inventario_lo_actualiza(self):
+        variante = self.medio.product_variant_id
+        quant = self.Quant.with_context(inventory_mode=True).create({
+            'product_id': variante.id, 'location_id': self.ubicacion.id, 'inventory_quantity': 30})
+        quant.action_apply_inventory()
+        self.assertEqual(self.medio.dcasa_stock, 30, 'el conteo físico reemplaza lo que había (12)')
 
-    def test_estado_del_stock_con_la_misma_regla_que_juan_y_la_tienda(self):
-        self.assertEqual(self.fila(self.poco).estado_stock, 'pocas', '3 libres, umbral 5 por defecto')
-        self.assertEqual(self.fila(self.agotada).estado_stock, 'agotado', 'sin existencias')
-        self.assertEqual(self.fila(self.umbral_alto).estado_stock, 'pocas', '8 libres, umbral 10 de su ficha')
-        self.assertEqual(self.fila(self.mucho).estado_stock, 'disponible')
-        # Lo reservado no se puede ofrecer: 3 existentes y 3 reservadas = agotado.
-        self.env['stock.quant'].search([('product_id', '=', self.poco.product_variant_id.id)]).reserved_quantity = 3
-        self.assertEqual(self.fila(self.poco).estado_stock, 'agotado')
+    def test_borrar_la_existencia_lo_baja_a_cero(self):
+        self.Quant.search([('product_id', '=', self.sofa.product_variant_id.id)]).sudo().unlink()
+        self.assertEqual(self.sofa.dcasa_stock, 0)
 
-    def test_un_producto_sin_control_de_inventario_no_inventa_cifra(self):
-        fila = self.fila(self.sin_control)
-        self.assertEqual(fila.estado_stock, 'sin_control')
-        self.assertFalse(fila.controla_stock)
-        self.assertEqual((fila.stock, fila.reservado, fila.disponible, fila.valor_a_precio), (0, 0, 0, 0))
+    def test_activar_o_quitar_el_control_de_inventario_lo_recalcula(self):
+        self.mucho.is_storable = False
+        self.assertEqual(self.mucho.dcasa_stock, 0)
+        self.mucho.is_storable = True
+        self.assertEqual(self.mucho.dcasa_stock, 40, 'las existencias seguían ahí')
 
-    def test_el_precio_suma_el_extra_de_la_variante(self):
-        self.assertEqual(self.fila(self.con_variantes, self.v_queen).precio, 400.0)
-        self.assertEqual(self.fila(self.con_variantes, self.v_king).precio, 550.0)
-        self.assertEqual(self.fila(self.con_variantes, self.v_king).stock, 2)
-        self.assertEqual(len(self.filas(dominio=[('product_tmpl_id', '=', self.con_variantes.id)])), 2,
-                         'una fila por variante')
+    def test_una_medida_archivada_ya_no_cuenta(self):
+        self.v_king.active = False
+        self.assertEqual(self.con_variantes.dcasa_stock, 20)
+        self.assertEqual(self.con_variantes.dcasa_stock, self.con_variantes.qty_available,
+                         'igual que el «A la mano» de Odoo')
 
-    def test_valor_a_precio_de_venta_sin_costos(self):
-        self.assertEqual(self.fila(self.mucho).valor_a_precio, 40 * 100.0)
-        self.assertEqual(self.fila(self.con_variantes, self.v_king).valor_a_precio, 2 * 550.0)
-        self.assertEqual(self.fila(self.agotada).valor_a_precio, 0.0)
-        # Un stock negativo no resta valor.
-        self.env['stock.quant']._update_available_quantity(self.agotada.product_variant_id, self.ubicacion, -4)
-        self.assertEqual(self.fila(self.agotada).valor_a_precio, 0.0)
-        campos = set(self.env[MODELO]._fields)
-        self.assertFalse(campos & {'standard_price', 'costo', 'margen', 'cost'}, 'esta lista no enseña costos')
+    def test_es_el_mismo_numero_que_el_a_la_mano_de_odoo(self):
+        for plantilla in self.todas:
+            esperado = plantilla.qty_available if plantilla.is_storable else 0
+            self.assertEqual(plantilla.dcasa_stock, esperado, plantilla.name)
 
-    def test_publicado_black_weekend_y_ventas_de_30_dias(self):
-        self.assertTrue(self.fila(self.mucho).publicado)
-        self.assertFalse(self.fila(self.poco).publicado)
-        self.assertTrue(self.fila(self.poco).en_black_weekend)
-        self.assertFalse(self.fila(self.mucho).en_black_weekend)
-        cliente = self.env['res.partner'].create({'name': 'Cliente de la prueba de stock'})
-        ahora = fields.Datetime.now()
-
-        def vender(plantilla, unidades, estado, fecha):
-            orden = self.env['sale.order'].create({
-                'partner_id': cliente.id, 'date_order': fecha,
-                'order_line': [Command.create({'product_id': plantilla.product_variant_id.id,
-                                               'product_uom_qty': unidades})]})
-            orden.state = estado     # se fuerza el estado: la prueba no necesita mover inventario
-            return orden
-        vender(self.mucho, 6, 'sale', ahora - timedelta(days=5))
-        vender(self.mucho, 2, 'sale', ahora - timedelta(days=29))
-        vender(self.mucho, 50, 'sale', ahora - timedelta(days=45))      # fuera de la ventana
-        vender(self.mucho, 40, 'draft', ahora - timedelta(days=1))      # una cotización no es una venta
-        self.assertEqual(self.fila(self.mucho).vendidas_30d, 8)
-        self.assertEqual(self.fila(self.poco).vendidas_30d, 0)
-        dormidos = self.filas(dominio=[('disponible', '>', 0), ('vendidas_30d', '=', 0)])
-        self.assertIn(self.poco.product_variant_id, dormidos.product_id)
-        self.assertNotIn(self.mucho.product_variant_id, dormidos.product_id)
+    def test_lo_guardado_es_el_total_aunque_el_movimiento_venga_de_una_pantalla_filtrada(self):
+        """El contexto de una pantalla (``location``, ``warehouse_id``) cambia el «A la mano» que ella muestra, pero
+        no puede cambiar lo que se guarda en el producto."""
+        almacen = self.ubicacion.warehouse_id
+        otra = self.env['stock.location'].create({'name': 'Zzotra bodega', 'usage': 'internal',
+                                                  'location_id': almacen.view_location_id.id})
+        self.Quant.with_context(location=otra.id, warehouse_id=almacen.id)._update_available_quantity(
+            self.poco.product_variant_id, otra, 4)
+        self.assertEqual(self.poco.dcasa_stock, 7, '3 en la tienda + 4 en la otra bodega')
 
     # ------------------------------------------------------------------ ordenar, filtrar y agrupar
 
-    def test_los_cuatro_favoritos_de_orden_existen_y_ordenan(self):
-        favoritos = {
-            'filtro_stock_mayor': ['stock desc'], 'filtro_stock_menor': ['stock asc'],
-            'filtro_precio_mayor': ['precio desc'], 'filtro_precio_menor': ['precio asc']}
-        for xmlid, orden in favoritos.items():
-            filtro = self.env.ref(f'dcasa_catalogo.{xmlid}')
-            self.assertEqual(json.loads(filtro.sort), orden, xmlid)
-            self.assertEqual(filtro.model_id, MODELO)
-            self.assertFalse(filtro.user_ids, 'compartido con todos')
-            self.assertEqual(filtro.action_id.id, self.env.ref('dcasa_catalogo.action_dcasa_producto_stock').id)
+    def test_ordenar_camas_por_mayor_y_menor_stock(self):
+        camas = [('categ_id', '=', self.camas.id), ('is_storable', '=', True)]
+        mayor = self.propias(camas, 'dcasa_stock desc, id')
+        self.assertEqual(mayor.mapped('dcasa_stock'), [40, 22, 12, 3, 0])
+        self.assertEqual(mayor[0], self.mucho)
+        menor = self.propias(camas + [('dcasa_stock', '>', 0)], 'dcasa_stock asc, id')
+        self.assertEqual(menor.mapped('dcasa_stock'), [3, 12, 22, 40])
+        self.assertEqual(menor[0], self.poco)
 
-    def test_menor_stock_primero_deja_fuera_lo_agotado(self):
-        filtro = self.env.ref('dcasa_catalogo.filtro_stock_menor')
-        con_favorito = self.filas(dominio=safe_eval(filtro.domain), orden='stock asc')
-        self.assertNotIn('agotado', con_favorito.mapped('estado_stock'))
-        self.assertNotIn('sin_control', con_favorito.mapped('estado_stock'))
-        self.assertEqual(con_favorito[:1].stock, 2, 'el king del colchón: el que menos tiene sin estar agotado')
+    def test_dentro_de_la_categoria_se_ordena_por_precio_en_los_dos_sentidos(self):
+        camas = [('categ_id', '=', self.camas.id)]
+        self.assertEqual(self.propias(camas, 'list_price asc, id')[0], self.mucho)
+        self.assertEqual(self.propias(camas, 'list_price desc, id')[0], self.poco)
+        # Y el stock sigue visible al lado: lo más caro es lo que menos hay.
+        mas_caro = self.propias(camas, 'list_price desc, id')[0]
+        self.assertEqual((mas_caro.list_price, mas_caro.dcasa_stock), (900.0, 3))
 
-    def test_mayor_y_menor_stock_primero(self):
-        con_control = [('controla_stock', '=', True), ('product_tmpl_id', '!=', self.agotada.id)]
-        mayor = self.filas(dominio=con_control, orden='stock desc').mapped('stock')
-        self.assertEqual(mayor, sorted(mayor, reverse=True))
-        self.assertEqual(mayor[0], 40)
-        menor = self.filas(dominio=con_control, orden='stock asc').mapped('stock')
-        self.assertEqual(menor, sorted(menor))
-        self.assertEqual(menor[0], 2)
-        # Lo que no controla inventario (sin cifra, queda en 0) no encabeza «mayor stock primero»: va con los ceros.
-        con_todo = self.filas(orden='stock desc')
-        self.assertEqual(con_todo[:1].stock, 40)
-        self.assertEqual(con_todo.mapped('stock'), sorted(con_todo.mapped('stock'), reverse=True))
-        self.assertEqual(con_todo[-2:].mapped('stock'), [0, 0])
-
-    def test_mayor_y_menor_precio_primero(self):
-        mayor = self.filas(orden='precio desc').mapped('precio')
-        self.assertEqual(mayor, sorted(mayor, reverse=True))
-        self.assertEqual(mayor[0], 900.0)
-        menor = self.filas(orden='precio asc').mapped('precio')
-        self.assertEqual(menor[0], 100.0)
-
-    def test_filtros_por_estado_precio_y_categoria(self):
-        self.assertEqual(self.filas([('estado_stock', '=', 'agotado')]).mapped('default_code'), ['ZZ-C'])
-        pocas = self.filas([('estado_stock', '=', 'pocas')])
-        self.assertEqual(set(pocas.product_tmpl_id), {self.poco, self.umbral_alto, self.con_variantes},
-                         'el tamaño king del colchón (2 unidades) también es «pocas»')
-        self.assertEqual(pocas.filtered(lambda f: f.product_tmpl_id == self.con_variantes).product_id, self.v_king)
-        caros = self.filas([('precio', '>', 600)])
-        self.assertEqual(caros.mapped('default_code'), ['ZZ-B'])
-        camas = self.filas([('categ_id', 'child_of', self.categoria.id)])
-        self.assertEqual(set(camas.product_tmpl_id), {self.mucho, self.poco, self.sin_control, self.umbral_alto,
-                                                      self.con_variantes},
-                         'la categoría trae a sus hijas; la agotada es de otra categoría')
-        en_tienda = self.filas([('public_categ_ids', 'in', self.tienda.ids)])
-        self.assertEqual(len(en_tienda), len(self.filas()))
-
-    def test_buscar_por_nombre_o_codigo(self):
-        self.assertEqual(self.filas([('product_id', 'ilike', 'cara poco')]).mapped('default_code'), ['ZZ-B'])
-        self.assertEqual(self.filas([('default_code', 'ilike', 'ZZ-A')]).mapped('default_code'), ['ZZ-A'])
+    def test_los_filtros_disponibles_pocas_y_agotados(self):
+        arch = self.env['product.template'].get_view(
+            self.env.ref('product.product_template_search_view').id, 'search')['arch']
+        raiz = etree.fromstring(arch)
+        dominios = {}
+        for nombre in ('dcasa_disponibles', 'dcasa_pocas', 'dcasa_agotados'):
+            (filtro,) = raiz.xpath(f'//filter[@name="{nombre}"]')
+            dominios[nombre] = safe_eval(filtro.get('domain'))
+        camas = [('categ_id', '=', self.camas.id)]
+        self.assertEqual(self.propias(camas + dominios['dcasa_disponibles']),
+                         self.mucho | self.medio | self.poco | self.con_variantes)
+        self.assertEqual(self.propias(camas + dominios['dcasa_pocas']), self.poco, '1 a 5 unidades')
+        self.assertEqual(self.propias(camas + dominios['dcasa_agotados']), self.agotada,
+                         'lo que no controla inventario no está agotado')
 
     def test_agrupar_por_categoria_suma_el_stock(self):
-        grupos = self.env[MODELO]._read_group(
-            [('product_tmpl_id', 'in', [p.id for p in self.plantillas])], ['categ_id'], ['stock:sum', '__count'])
-        por_categoria = {categoria.id: (stock, n) for categoria, stock, n in grupos}
-        # Camas: «mucho» 40 + «poco» 3 + colchón (20 + 2) + sin control (sin cifra) = 65 en 5 variantes.
-        self.assertEqual(por_categoria[self.categoria.id], (65, 5))
-        self.assertEqual(por_categoria[self.otra_categoria.id], (0, 1))
-        self.assertEqual(por_categoria[self.hija.id], (8, 1))
+        grupos = self.env['product.template']._read_group(
+            [('id', 'in', self.todas.ids)], ['categ_id'], ['dcasa_stock:sum'])
+        por_categoria = {categoria.id: total for categoria, total in grupos}
+        self.assertEqual(por_categoria[self.camas.id], 40 + 12 + 3 + 22)
+        self.assertEqual(por_categoria[self.sofas.id], 9)
 
-    # ------------------------------------------------------------------ pantallas y permisos
+    # ------------------------------------------------------------------ la pantalla
 
-    def test_las_vistas_y_el_panel_de_categorias_cargan(self):
-        modelo = self.env[MODELO]
-        vistas = modelo.get_views([(False, 'list'), (False, 'kanban'), (False, 'pivot'), (False, 'graph'),
-                                   (False, 'search')])
-        self.assertEqual(set(vistas['views']), {'list', 'kanban', 'pivot', 'graph', 'search'})
-        # Lo que pide la lista en pantalla (con la foto, el cliente web agrega «write_date» para no ver una foto vieja).
-        resultado = modelo.web_search_read(
-            [('product_tmpl_id', 'in', [p.id for p in self.plantillas])],
-            {'image_128': {}, 'product_id': {'fields': {'display_name': {}}}, 'precio': {}, 'stock': {},
-             'estado_stock': {}, 'write_date': {}, 'currency_id': {'fields': {'display_name': {}}}},
-            limit=80)
-        self.assertEqual(resultado['length'], 7)
-        self.assertTrue(all(fila['write_date'] for fila in resultado['records']))
-        raiz = modelo.search_panel_select_range('categ_id', enable_counters=True)
-        self.assertTrue(any(v['display_name'] == 'Zzcamas de prueba' for v in raiz['values']))
-        accion = self.env.ref('dcasa_catalogo.action_dcasa_producto_stock')
-        self.assertEqual(accion.view_mode, 'list,kanban,pivot,graph')
-        self.assertEqual(accion.path, 'stock-y-precios')
-
-    def test_la_vendedora_y_bodega_leen_y_nadie_escribe(self):
-        vendedora = new_test_user(self.env, login='zz_stock_vendedora',
+    def test_quien_vende_lee_y_ordena_por_stock(self):
+        vendedora = new_test_user(self.env, login='vende_stock',
                                   groups='base.group_user,sales_team.group_sale_salesman')
-        bodega = new_test_user(self.env, login='zz_stock_bodega', groups='base.group_user,stock.group_stock_user')
-        for usuario in (vendedora, bodega):
-            self.assertTrue(self.filas(usuario=usuario), usuario.login)
-        fila = self.fila(self.mucho)
-        with self.assertRaises(AccessError):
-            fila.with_user(vendedora).write({'stock': 1})
-        with self.assertRaises(AccessError):
-            self.env[MODELO].with_user(vendedora).create({'precio': 1})
-        with self.assertRaises(AccessError):
-            fila.with_user(vendedora).unlink()
+        lectura = self.env['product.template'].with_user(vendedora).search_read(
+            [('id', 'in', self.todas.ids), ('is_storable', '=', True)], ['name', 'dcasa_stock'],
+            order='dcasa_stock desc')
+        self.assertEqual(lectura[0]['dcasa_stock'], 40)
+        self.assertEqual(lectura[0]['name'], 'Zzcama barata mucho stock')
 
-    def test_quien_no_es_del_equipo_no_la_ve(self):
-        portal = new_test_user(self.env, login='zz_stock_portal', groups='base.group_portal')
-        interno = new_test_user(self.env, login='zz_stock_interno', groups='base.group_user')
-        for usuario in (portal, interno):
-            with self.assertRaises(AccessError, msg=usuario.login):
-                self.env[MODELO].with_user(usuario).search_count([])
+    def test_la_lista_de_productos_trae_la_columna_stock_y_esconde_la_de_odoo(self):
+        accion = self.env.ref('sale.product_template_action')
+        vista = accion.view_ids.filtered(lambda v: v.view_mode == 'list').view_id
+        arch = self.env['product.template'].get_view(vista.id, 'list')['arch']
+        self.assertRegex(arch, r'name="dcasa_stock"[^>]*optional="show"')
+        # El «A la mano» de Odoo era el mismo número pero no se ordenaba: sigue en las columnas opcionales.
+        self.assertNotRegex(arch, r'name="qty_available"[^>]*optional="show"')
+        self.assertNotRegex(arch, r'name="virtual_available"[^>]*optional="show"')
 
-    def test_los_menus_son_de_ventas_y_de_inventario(self):
-        ventas = self.env.ref('dcasa_catalogo.menu_dcasa_stock_y_precios')
-        inventario = self.env.ref('dcasa_catalogo.menu_dcasa_stock_y_precios_inventario')
-        self.assertEqual(ventas.parent_id, self.env.ref('sale.sale_menu_root'))
-        self.assertEqual(inventario.parent_id, self.env.ref('stock.menu_warehouse_report'))
-        self.assertEqual(ventas.action.id, inventario.action.id)
+    def test_productos_abre_en_lista(self):
+        self.assertEqual(self.env.ref('sale.product_template_action').view_mode.split(',')[0], 'list')
+        self.assertEqual(self.env.ref('stock.product_template_action_product').view_mode.split(',')[0], 'list')
+
+    def test_los_favoritos_de_orden_son_para_todo_el_equipo(self):
+        esperado = {
+            'dcasa_catalogo.filtro_productos_stock_mayor': ['dcasa_stock desc'],
+            'dcasa_catalogo.filtro_productos_stock_menor': ['dcasa_stock asc'],
+            'dcasa_catalogo.filtro_productos_precio_mayor': ['list_price desc'],
+            'dcasa_catalogo.filtro_productos_precio_menor': ['list_price asc'],
+        }
+        Plantilla = self.env['product.template']
+        for xmlid, orden in esperado.items():
+            favorito = self.env.ref(xmlid)
+            self.assertEqual(favorito.model_id, 'product.template', xmlid)
+            self.assertFalse(favorito.user_ids, f'{xmlid}: compartido, no personal')
+            self.assertEqual(json.loads(favorito.sort), orden, xmlid)
+            Plantilla.search(safe_eval(favorito.domain), order=favorito.sort and ', '.join(json.loads(favorito.sort)),
+                             limit=1)   # el dominio y el orden son válidos
+        self.assertIn('dcasa_stock', self.env.ref('dcasa_catalogo.filtro_productos_stock_menor').domain)
+
+    def test_la_pantalla_aparte_ya_no_existe(self):
+        """Pedido de la dueña: una sola página de Productos. Nada quedó de «Stock y precios»."""
+        self.assertNotIn('dcasa.producto.stock', self.env.registry)
+        self.assertFalse(self.env['ir.model'].search([('model', '=', 'dcasa.producto.stock')]))
+        self.assertFalse(self.env['ir.ui.menu'].search([('name', 'ilike', 'Stock y precios')]))
+        self.assertFalse(self.env['ir.actions.act_window'].search([('res_model', '=', 'dcasa.producto.stock')]))
+        self.assertFalse(self.env['ir.filters'].search([('model_id', '=', 'dcasa.producto.stock')]))

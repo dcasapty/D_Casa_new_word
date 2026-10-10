@@ -130,7 +130,10 @@ class TestPanel(TransactionCase):
         self.assertEqual(opcional('res.partner', 'activity_ids'), 'hide')
         self.assertEqual(opcional('res.partner', 'avatar_128'), 'hide')
         self.assertEqual(opcional('product.template', 'standard_price'), 'hide')
-        self.assertEqual(opcional('product.template', 'qty_available'), 'show')
+        # Las existencias se ven en «Stock» (dcasa_stock: el mismo número que «A la mano», pero ordenable);
+        # el «A la mano» de Odoo queda en las columnas opcionales para no repetirlo.
+        self.assertEqual(opcional('product.template', 'dcasa_stock'), 'show')
+        self.assertEqual(opcional('product.template', 'qty_available'), 'hide')
 
     def test_ficha_de_cliente_sin_datos_de_la_tienda_como_ejemplo(self):
         """UI-09: con el RUC o el WhatsApp de D'CASA de ejemplo, un cliente nuevo terminaba con ellos."""

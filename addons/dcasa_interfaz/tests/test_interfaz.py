@@ -63,14 +63,14 @@ class TestTablero(TransactionCase):
         self.assertRegex(xml, r't-if="d\.permisos\.cobrar"[^\n]*\n[^\n]*this\.nuevo\(\'account\.payment\'')
         self.assertIn('t-if="d.permisos.ver_cobros" class="o_dcasa_panel o_dcasa_caja"', xml)
 
-    def test_atajos_a_productos_y_a_stock_y_precios_para_quien_vende(self):
+    def test_atajo_a_productos_para_quien_vende(self):
         vendedora = self.env['res.users'].create({
             'name': 'Vendedora atajos', 'login': 'vendedora_atajos',
             'group_ids': [(6, 0, [self.env.ref('sales_team.group_sale_salesman').id])]})
         atajos = {a['clave']: a for a in self.env['dcasa.tablero'].with_user(vendedora).obtener_datos()['atajos']}
         self.assertEqual(atajos['productos']['accion'], 'sale.product_template_action')
         self.assertEqual(atajos['productos']['vista'], 'list', 'los productos abren en lista, no en tarjetas')
-        self.assertEqual(atajos['stock_precios']['accion'], 'dcasa_catalogo.action_dcasa_producto_stock')
+        self.assertNotIn('stock_precios', atajos, 'el stock se ve y se ordena en Productos: una sola pantalla')
         for atajo in atajos.values():
             self.assertTrue(atajo['titulo'] and atajo['detalle'] and atajo['icono'].startswith('fa-'))
             self.assertTrue(self.env.ref(atajo['accion'], raise_if_not_found=False), atajo['accion'])
@@ -83,7 +83,6 @@ class TestTablero(TransactionCase):
         claves = {a['clave'] for a in datos['atajos']}
         if not datos['permisos']['catalogo']:
             self.assertNotIn('productos', claves)
-        self.assertNotIn('stock_precios', claves, 'sin permiso para ver el stock no se ofrece la lista')
 
     def test_el_inicio_dibuja_los_atajos_y_ya_no_el_boton_catalogo(self):
         with open(file_path('dcasa_interfaz/static/src/xml/inicio.xml'), encoding='utf-8') as plantilla:
@@ -215,3 +214,124 @@ class TestInterfazWeb(HttpCase):
             console.log('test successful');
         })();"""
         self.browser_js('/odoo/action-sale.product_template_action', codigo, login='admin')
+
+
+@tagged('post_install', '-at_install')
+class TestOrdenarProductosEnElNavegador(HttpCase):
+    """Marketing en Productos: filtrar por categoría y disponibilidad y ordenar por stock y precio, con botones."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        categoria = cls.env['product.category'].create({'name': 'Zzordenes'})
+        cls.ubicacion = cls.env['stock.warehouse'].search([], limit=1).lot_stock_id
+        base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'categ_id': categoria.id}
+        # nombre, precio, stock
+        for nombre, precio, stock in (('Zzorden A', 300.0, 50), ('Zzorden B', 900.0, 20), ('Zzorden C', 100.0, 5),
+                                      ('Zzorden D', 500.0, 0)):
+            producto = cls.env['product.template'].create({**base, 'name': nombre, 'list_price': precio})
+            if stock:
+                cls.env['stock.quant']._update_available_quantity(producto.product_variant_id, cls.ubicacion, stock)
+
+    def probar(self, cuerpo):
+        codigo = """(async () => {
+            const esperar = async (fn, que, intentos = 150) => {
+                for (let i = 0; i < intentos; i++) {
+                    const r = fn();
+                    if (r) { return r; }
+                    await new Promise((ok) => setTimeout(ok, 100));
+                }
+                throw new Error('No apareció: ' + que);
+            };
+            const pausa = (ms = 150) => new Promise((ok) => setTimeout(ok, ms));
+            const nombres = () => [...document.querySelectorAll('.o_list_view .o_data_row td[name="name"]')]
+                .map((td) => td.textContent.trim());
+            const orden = (clave) => document.querySelector(`.o_dcasa_orden[data-orden="${clave}"]`);
+            const pulsar = async (clave) => {
+                (await esperar(() => orden(clave), 'el botón ' + clave)).click();
+                await pausa();
+            };
+            const igual = (visto, esperado, que) => {
+                if (JSON.stringify(visto) !== JSON.stringify(esperado)) {
+                    const dos = [visto, esperado].map((x) => JSON.stringify(x));
+                    throw new Error(`${que}: se vio ${dos[0]} y se esperaba ${dos[1]}`);
+                }
+            };
+            // Solo las cuatro de la prueba: el buscador por nombre.
+            await esperar(() => document.querySelector('.o_search_panel'), 'el panel de categorías');
+            const buscador = await esperar(() => document.querySelector('.o_searchview_input'), 'el buscador');
+            buscador.focus();
+            buscador.value = 'Zzorden';
+            buscador.dispatchEvent(new Event('input', { bubbles: true }));
+            // La primera sugerencia es «Buscar Nombre o código: Zzorden».
+            (await esperar(() => document.querySelector('.o_searchview_autocomplete .dropdown-item'),
+                           'las sugerencias del buscador')).click();
+            await esperar(() => nombres().length === 4 && nombres().every((n) => n.startsWith('Zzorden')),
+                          'las 4 de la prueba');
+            __CUERPO__
+            console.log('test successful');
+        })();""".replace('__CUERPO__', cuerpo)
+        self.browser_js('/odoo/action-sale.product_template_action', codigo, login='admin')
+
+    def test_ordenar_por_stock_y_por_precio_con_un_clic(self):
+        self.probar("""
+            // La columna de stock se ve con la cifra de cada producto.
+            const filas = () => [...document.querySelectorAll('.o_list_view .o_data_row')];
+            const cifras = () => Object.fromEntries(filas().map((fila) => [
+                fila.querySelector('td[name="name"]').textContent.trim(),
+                (fila.querySelector('td[name="dcasa_stock"]') || {}).textContent]));
+            const stock = cifras();
+            igual([stock['Zzorden A'], stock['Zzorden B'], stock['Zzorden C']].map((x) => (x || '').trim()),
+                  ['50', '20', '5'], 'las cifras de la columna Stock');
+
+            await pulsar('stock_desc');
+            igual(nombres(), ['Zzorden A', 'Zzorden B', 'Zzorden C', 'Zzorden D'], 'mayor stock primero');
+            if (!orden('stock_desc').classList.contains('o_activo')) {
+                throw new Error('Mayor stock debe verse activo');
+            }
+
+            await pulsar('stock_asc');
+            igual(nombres(), ['Zzorden D', 'Zzorden C', 'Zzorden B', 'Zzorden A'], 'menor stock primero');
+            if (orden('stock_desc').classList.contains('o_activo')) { throw new Error('solo un orden a la vez'); }
+
+            // El filtro «Disponibles» se suma al orden (no lo quita): el agotado sale y el menor stock queda primero.
+            (await esperar(() => [...document.querySelectorAll('.o_dcasa_chip')]
+                .find((b) => b.textContent.trim() === 'Disponibles'), 'el filtro Disponibles')).click();
+            await esperar(() => nombres().length === 3, 'sin el agotado');
+            igual(nombres(), ['Zzorden C', 'Zzorden B', 'Zzorden A'], 'menor stock con unidades');
+            if (!orden('stock_asc').classList.contains('o_activo')) {
+                throw new Error('el orden se mantiene al filtrar');
+            }
+
+            await pulsar('precio_desc');
+            igual(nombres(), ['Zzorden B', 'Zzorden A', 'Zzorden C'], 'mayor precio primero');
+            await pulsar('precio_asc');
+            igual(nombres(), ['Zzorden C', 'Zzorden A', 'Zzorden B'], 'menor precio primero');
+
+            // Otro clic en el mismo botón lo quita: vuelve al orden de siempre.
+            await pulsar('precio_asc');
+            if (document.querySelector('.o_dcasa_orden.o_activo')) {
+                throw new Error('el segundo clic debe quitar el orden');
+            }
+
+            // Pelear con el título de la columna también se refleja en los botones.
+            document.querySelector('.o_list_view th[data-name="dcasa_stock"]').click();
+            await pausa(400);
+            if (!orden('stock_asc').classList.contains('o_activo')) {
+                throw new Error('el título de la columna también ordena');
+            }
+        """)
+
+    def test_los_botones_de_orden_solo_salen_en_la_lista(self):
+        self.probar("""
+            await esperar(() => orden('stock_desc'), 'los botones en la lista');
+            (await esperar(() => document.querySelector('.o_switch_view.o_kanban'), 'cambiar a tarjetas')).click();
+            await esperar(() => document.querySelector('.o_kanban_view'), 'las tarjetas');
+            await pausa(300);
+            if (document.querySelector('.o_dcasa_orden')) { throw new Error('en tarjetas no hay botones de orden'); }
+            // Los filtros rápidos sí siguen.
+            const chips = [...document.querySelectorAll('.o_dcasa_chip')];
+            if (!chips.some((b) => b.textContent.trim() === 'Disponibles')) {
+                throw new Error('los filtros rápidos siguen en tarjetas');
+            }
+        """)

@@ -43,14 +43,14 @@ class TestAtajoDeConversaciones(TransactionCase):
 
 @tagged('post_install', '-at_install')
 class TestAtajosEnElNavegador(PanelUiCase):
-    """El Inicio en Chromium: los tres atajos están a la vista y cada uno abre su pantalla."""
+    """El Inicio en Chromium: los dos atajos están a la vista y cada uno abre su pantalla."""
 
-    def test_el_inicio_ofrece_productos_stock_y_conversaciones_y_cada_uno_abre_su_pantalla(self):
+    def test_el_inicio_ofrece_productos_y_conversaciones_y_cada_uno_abre_su_pantalla(self):
         self.datos_de_ejemplo()
         self.navegador("""
 (async () => {
             const atajo = (clave) => document.querySelector(".o_dcasa_atajo_" + clave);
-            for (const clave of ["productos", "stock_precios", "conversaciones"]) {
+            for (const clave of ["productos", "conversaciones"]) {
                 await esperar(() => atajo(clave), "el atajo " + clave);
             }
             // Conversaciones: la vendedora tiene mensajes sin leer y el atajo lo dice.
@@ -61,16 +61,13 @@ class TestAtajosEnElNavegador(PanelUiCase):
             }
             atajo("conversaciones").click();
             await esperar(() => document.querySelector(".o_dcj .o_dcj_fila"), "el panel del chat");
-            // Vuelve al Inicio (primera app de la barra) y abre «Stock y precios».
+            // Vuelve al Inicio y abre Productos: la lista (no las tarjetas), con las categorías a la izquierda,
+            // la columna de stock y los botones de orden.
             history.back();
-            await esperar(() => atajo("stock_precios"), "el Inicio otra vez");
-            atajo("stock_precios").click();
-            await esperar(() => document.querySelector(".o_list_view .o_data_row"), "la lista de stock y precios");
-            await esperar(() => document.querySelector(".o_search_panel"), "las categorías a la izquierda");
-            history.back();
-            await esperar(() => atajo("productos"), "el Inicio otra vez (2)");
+            await esperar(() => atajo("productos"), "el Inicio otra vez");
             atajo("productos").click();
             await esperar(() => document.querySelector(".o_list_view .o_data_row"), "la lista de productos");
+            await esperar(() => document.querySelector(".o_search_panel"), "las categorías a la izquierda");
             console.log("test successful");
 })();
         """, url='/odoo')

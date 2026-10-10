@@ -179,7 +179,8 @@ class TestBuscarProductos(TransactionCase):
         vista = self.env['product.template'].get_view(
             self.env.ref('product.product_template_search_view').id, 'search')
         arch = vista['arch']
-        for nombre in ('dcasa_disponibles', 'dcasa_agotados', 'dcasa_precio_1', 'dcasa_precio_4', 'dcasa_en_web'):
+        for nombre in ('dcasa_disponibles', 'dcasa_pocas', 'dcasa_agotados', 'dcasa_precio_1', 'dcasa_precio_4',
+                       'dcasa_en_web'):
             self.assertIn(f'name="{nombre}"', arch)
         self.assertIn('<searchpanel', arch)
         self.assertIn('public_categ_ids', arch)

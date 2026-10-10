@@ -129,34 +129,35 @@ Detalle técnico: `docs/BRIAN.md` › «Importar productos desde el Excel de un 
 Los precios de combo (cama + colchón) de esos Excel son fórmulas sobre la tabla de colchones y
 no se importan: el combo se escribe a mano en «Precio en combo o el par» si se quiere mostrar.
 
-## Stock y precios (para armar una campaña)
+## Stock ordenable en Productos (para armar una campaña)
 
-Pedido de la dueña (2026-10-10): cuando hay una campaña (esta semana, las camas) hay que ver el stock de una
-categoría, de una línea o de todo, y ordenar por mayor o menor stock y por mayor o menor precio según la campaña.
-En la lista de Productos de Odoo el «A la mano» se calcula al vuelo y no se puede ordenar ni agrupar; por eso hay
-una pantalla aparte, **solo de lectura** (`dcasa.producto.stock`, una vista de la base de datos con una fila por
-medida/variante, `addons/dcasa_catalogo/models/producto_stock.py`).
+Pedido de la dueña (2026-10-10): el equipo de marketing arma las campañas a partir del inventario y necesita, en la
+**misma lista de Productos**, ver qué categoría tiene más o menos stock y, dentro de ella, ordenar por precio (por
+ejemplo, «las camas: cuál tiene más stock, cuál menos, de la más barata a la más cara»).
 
-- **Dónde:** Inicio → **Stock y precios** (acceso grande), Ventas → **Stock y precios**, e Inventario → Informes →
-  **Stock y precios (campañas)**. También por la dirección `/odoo/stock-y-precios`.
-- **Quién la ve:** vendedoras, gerencia y almacén (lectura). No muestra costos ni márgenes, y no cambia nada.
-- **Columnas:** foto, producto, código, categoría, categoría de la tienda, precio (sin ITBMS), en existencia,
-  reservado, libre, estado, vendidas en 30 días, valor a precio de venta, publicado y Black Weekend. Las de
-  «reservado», «valor» y «Black Weekend» se activan en el selector de columnas.
-- **Estado del stock:** la misma regla que Juan y la tienda: *agotado* si no hay unidades libres, *pocas
-  unidades* hasta el umbral de la ficha (5 por defecto) y *disponible* si hay más. Un producto que no controla
-  inventario no tiene cifra: queda en 0 y se ve «Sin control de stock».
-- **Cómo elegir qué empujar:**
-  1. Abre **Favoritos** y toca uno: **Mayor stock primero**, **Menor stock primero** (deja fuera lo agotado),
-     **Mayor precio primero** o **Menor precio primero**. Son favoritos compartidos: los ve todo el equipo.
-  2. A la izquierda, el panel de **categorías** (con cuántos productos tiene cada una): toca «Camas» y la lista
-     se limita a esa categoría. Debajo, «En la tienda» filtra por categoría de la tienda en línea.
-  3. Los filtros de arriba (agotados, pocas unidades, rangos de precio, publicados, Black Weekend, «con stock y
-     sin ventas en 30 días») se combinan con lo anterior. Tocar el título de una columna ordena por ella.
-  4. Vistas: lista, tarjetas, tabla dinámica (stock y valor por categoría y estado) y gráfica.
-- **«Línea»:** hoy se entiende como la categoría interna (la que usa el inventario) o la categoría de la tienda
-  en línea; si la dueña llama «línea» a otra clasificación (marca, proveedor), se agrega como filtro.
-- Se puede exportar a Excel con el botón de la lista.
+- **Cómo está hecho** (`dcasa_catalogo`, `models/product.py`): el campo `dcasa_stock` («Stock») es el mismo número que
+  el «A la mano» de Odoo, pero **guardado en el producto** y recalculado solo con cada entrada, venta, ajuste o
+  traslado. Odoo calcula el «A la mano» al vuelo y por eso su columna no se puede ordenar ni sumar por categoría.
+  Suma todas las medidas y colores de la ficha (en las ubicaciones internas: bodega y tienda), vale 0 si el producto no
+  controla inventario y no cuenta las medidas archivadas. Hay una prueba que lo compara con el «A la mano» de Odoo.
+- **Dónde:** Inicio → **Productos**, Ventas → **Productos** e Inventario → **Productos**. Abren en lista (las tarjetas
+  siguen a un clic en el selector de vistas). Ya no existe la pantalla aparte «Stock y precios».
+- **Cómo se usa** (de izquierda a derecha en la pantalla):
+  1. **Categorías a la izquierda** (con cuántos productos tiene cada una): toca «Camas».
+  2. **Filtrar:** botones de un clic arriba: Disponibles, **Pocas unidades** (1 a 5), Agotados, rangos de precio
+     (hasta $100, $100 a $300, $300 a $600, más de $600), En la tienda en línea, Sin foto. Se pueden sumar.
+  3. **Ordenar:** botones **Mayor stock · Menor stock · Mayor precio · Menor precio**. Solo cambian el orden: los
+     filtros y la categoría se quedan. Otro clic en el mismo botón vuelve al orden de siempre. Para ver lo que más
+     escasea sin los agotados: «Disponibles» + «Menor stock». También se ordena tocando el título de la columna
+     **Stock** o **Precio**.
+  4. **Favoritos** (menú de la lupa): los mismos cuatro órdenes como favoritos compartidos, que sirven también en tarjetas.
+- **Columnas:** foto, nombre, código, categoría de la tienda, precio, **Stock** (rojo si es negativo, naranja si es 0),
+  publicado. El «A la mano» y el «Previsto» de Odoo siguen en las columnas opcionales (los esconde el selector de
+  columnas de la derecha); el costo también.
+- **Qué suma el stock de una ficha con medidas:** la ficha de una cama muestra el total de sus medidas (Twin, Full,
+  Queen, King). Para ver cada medida, Inventario → **Variantes** (si está activado en Ajustes).
+- **Se retiró** la pantalla de solo lectura «Stock y precios» que se había hecho primero (modelo `dcasa.producto.stock`):
+  al actualizar el módulo, Odoo borra sus menús, vistas y favoritos solo.
 
 ## Black Weekend
 
