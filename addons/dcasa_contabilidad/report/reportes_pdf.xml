@@ -19,7 +19,9 @@
                         .o_dcasa_reporte_pdf h2 { color: #1340B1; font-weight: 700; margin-bottom: 2px; }
                         .o_dcasa_reporte_pdf .periodo { color: #5B6478; margin-bottom: 14px; }
                         .o_dcasa_reporte_pdf table { width: 100%; border-collapse: collapse; }
-                        .o_dcasa_reporte_pdf th { background: #1340B1; color: #fff; padding: 5px 6px; text-align: left; }
+                        /* El layout D'CASA pinta de azul todo «thead th» (más específico): sin !important el texto saldría azul sobre azul. */
+                        .o_dcasa_reporte_pdf table thead th, .o_dcasa_reporte_pdf th {
+                            background: #1340B1; color: #fff !important; border-bottom: 0; padding: 5px 6px; text-align: left; }
                         .o_dcasa_reporte_pdf td { padding: 4px 6px; border-bottom: 1px solid #E6EAF2; }
                         .o_dcasa_reporte_pdf .num { text-align: right; white-space: nowrap; }
                         .o_dcasa_reporte_pdf .sub td { font-weight: 700; background: #F4F6FA; }
