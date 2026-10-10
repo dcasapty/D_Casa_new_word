@@ -118,6 +118,24 @@ LISTA_BLANCA = {
         'le asigna con sudo solo si la subió él.',
     ('dcasa_nomina', 'dcasa.nomina.reembolso', 'write'):
         'Bloquea: el colaborador solo edita su borrador; estado y aprobación solo por los botones (sudo).',
+    # --- dcasa_consolidacion (estados financieros de varias empresas) -----------------------------
+    # El motor (dcasa.consolidacion.motor) es todo privado: solo lo llaman los botones de abajo.
+    ('dcasa_consolidacion', 'dcasa.consolidacion', 'create'):
+        OVERRIDE + ' Bloquea estado, advertencias y líneas puestos a mano (solo «Calcular» los pone); sin sudo.',
+    ('dcasa_consolidacion', 'dcasa.consolidacion', 'write'):
+        OVERRIDE + ' Bloquea estado, advertencias y líneas puestos a mano, y cambiar empresas, reporte o fechas de '
+                   'una consolidación ya calculada; sin sudo.',
+    ('dcasa_consolidacion', 'dcasa.consolidacion', 'action_calcular'):
+        'Botón: exige account.group_account_user ANTES de calcular; lee los apuntes con los permisos de la persona '
+        '(sin sudo) y solo escribe con sudo las líneas ya calculadas.',
+    ('dcasa_consolidacion', 'dcasa.consolidacion', 'action_borrador'):
+        'Botón: exige account.group_account_user y escritura sobre el registro ANTES de soltar las líneas con sudo.',
+    ('dcasa_consolidacion', 'dcasa.consolidacion', 'action_ver_pivote'):
+        ACCION_VENTANA + ' Comprueba check_access("read") antes.',
+    ('dcasa_consolidacion', 'dcasa.consolidacion.mapa', 'create'):
+        OVERRIDE + ' Solo quita espacios del código consolidado; sin sudo (ACL: contador).',
+    ('dcasa_consolidacion', 'dcasa.consolidacion.mapa', 'write'):
+        OVERRIDE + ' Solo quita espacios del código consolidado; sin sudo (ACL: contador).',
     # --- dcasa_contactos -------------------------------------------------------------------
     ('dcasa_contactos', 'dcasa.contacto.duplicado', 'action_ver'):
         ACCION_VENTANA + ' Solo lee las fichas de la fila (ACL: Gerencia).',

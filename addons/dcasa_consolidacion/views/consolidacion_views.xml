@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Líneas calculadas (lista, tabla dinámica, búsqueda) -->
+    <record id="consolidacion_linea_list" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.linea.list</field>
+        <field name="model">dcasa.consolidacion.linea</field>
+        <field name="arch" type="xml">
+            <list string="Líneas de la consolidación" create="0" edit="0" delete="0"
+                  decoration-muted="tipo_columna == 'eliminaciones'" decoration-bf="tipo_columna == 'consolidado'">
+                <field name="consolidacion_id" optional="hide"/>
+                <field name="sequence" column_invisible="1"/>
+                <field name="seccion" optional="show"/>
+                <field name="cuenta"/>
+                <field name="tipo_cuenta" optional="hide"/>
+                <field name="columna"/>
+                <field name="tipo_columna" column_invisible="1"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="inicial" optional="hide"/>
+                <field name="debe" optional="hide"/>
+                <field name="haber" optional="hide"/>
+                <field name="importe" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="consolidacion_linea_pivot" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.linea.pivot</field>
+        <field name="model">dcasa.consolidacion.linea</field>
+        <field name="arch" type="xml">
+            <!-- La columna «Total» de esta tabla es el consolidado: empresas + eliminaciones. -->
+            <pivot string="Consolidación" disable_linking="1">
+                <field name="cuenta" type="row"/>
+                <field name="columna" type="col"/>
+                <field name="importe" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="consolidacion_linea_search" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.linea.search</field>
+        <field name="model">dcasa.consolidacion.linea</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="cuenta"/>
+                <field name="columna"/>
+                <field name="consolidacion_id"/>
+                <filter name="sin_consolidado" string="Empresas y eliminaciones (el total es el consolidado)"
+                        domain="[('tipo_columna', '!=', 'consolidado')]"/>
+                <filter name="solo_consolidado" string="Solo consolidado" domain="[('tipo_columna', '=', 'consolidado')]"/>
+                <filter name="solo_eliminaciones" string="Solo eliminaciones" domain="[('tipo_columna', '=', 'eliminaciones')]"/>
+                <group>
+                    <filter name="por_columna" string="Columna" context="{'group_by': 'columna'}"/>
+                    <filter name="por_seccion" string="Sección" context="{'group_by': 'seccion'}"/>
+                    <filter name="por_consolidacion" string="Consolidación" context="{'group_by': 'consolidacion_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Consolidación -->
+    <record id="consolidacion_list" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.list</field>
+        <field name="model">dcasa.consolidacion</field>
+        <field name="arch" type="xml">
+            <list string="Consolidaciones" decoration-info="estado == 'borrador'">
+                <field name="name"/>
+                <field name="tipo_reporte"/>
+                <field name="fecha_desde" optional="show"/>
+                <field name="fecha_hasta"/>
+                <field name="empresas_resumen"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'calculada'"
+                       decoration-warning="estado == 'borrador'"/>
+                <field name="calculada_el" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="consolidacion_form" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.form</field>
+        <field name="model">dcasa.consolidacion</field>
+        <field name="arch" type="xml">
+            <form string="Consolidación">
+                <header>
+                    <button name="action_calcular" type="object" string="Calcular" class="btn-primary"
+                            invisible="estado == 'calculada'" groups="account.group_account_user"/>
+                    <button name="action_calcular" type="object" string="Recalcular"
+                            invisible="estado != 'calculada'" groups="account.group_account_user"/>
+                    <button name="%(dcasa_consolidacion.accion_reporte_consolidacion)d" type="action"
+                            string="Imprimir PDF" invisible="estado != 'calculada'"/>
+                    <button name="action_borrador" type="object" string="Volver a borrador"
+                            invisible="estado != 'calculada'" groups="account.group_account_user"
+                            confirm="Se descartan las líneas calculadas para poder cambiar las empresas, el reporte o las fechas. ¿Seguro?"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_ver_pivote" type="object" class="oe_stat_button" icon="fa-table"
+                                invisible="estado != 'calculada'">
+                            <span>Tabla dinámica</span>
+                        </button>
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="not una_empresa or estado == 'calculada'">
+                        Solo hay una empresa en el grupo: el consolidado será igual a esa empresa.
+                        Agrega las demás empresas del grupo para consolidar.
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not monedas_distintas">
+                        Estas empresas usan monedas distintas y todavía no se consolidan monedas distintas.
+                        Deja solo empresas que lleven la contabilidad en la misma moneda.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not advertencias">
+                        <strong>Advertencias: revísalas antes de usar estas cifras.</strong>
+                        <field name="advertencias" readonly="1" nolabel="1"/>
+                    </div>
+                    <div class="alert alert-danger" role="alert"
+                         invisible="estado != 'calculada' or cuadra or tipo_reporte == 'resultados'">
+                        El consolidado NO cuadra: la diferencia es
+                        <field name="diferencia" class="oe_inline" readonly="1"/>. Mira las advertencias.
+                    </div>
+                    <div class="alert alert-success" role="alert"
+                         invisible="estado != 'calculada' or not cuadra or tipo_reporte == 'resultados'">
+                        El consolidado cuadra.
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="p. ej. Consolidado de septiembre"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tipo_reporte" readonly="estado == 'calculada'"/>
+                            <field name="fecha_desde" invisible="tipo_reporte == 'balance'"
+                                   readonly="estado == 'calculada'"/>
+                            <field name="fecha_hasta" readonly="estado == 'calculada'"/>
+                        </group>
+                        <group>
+                            <field name="company_ids" widget="many2many_tags" options="{'no_create': True}"
+                                   readonly="estado == 'calculada'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="calculada_por" invisible="estado != 'calculada'"/>
+                            <field name="calculada_el" invisible="estado != 'calculada'"/>
+                            <field name="utilidad_neta" invisible="estado != 'calculada' or tipo_reporte != 'resultados'"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Líneas" name="lineas">
+                            <p class="text-muted" invisible="estado == 'calculada'">
+                                Pulsa «Calcular» para armar el consolidado desde los asientos publicados.
+                            </p>
+                            <field name="linea_ids" invisible="estado != 'calculada'">
+                                <list create="0" edit="0" delete="0" decoration-muted="tipo_columna == 'eliminaciones'"
+                                      decoration-bf="tipo_columna == 'consolidado'">
+                                    <field name="seccion" optional="hide"/>
+                                    <field name="cuenta"/>
+                                    <field name="columna"/>
+                                    <field name="tipo_columna" column_invisible="1"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="inicial" optional="hide"/>
+                                    <field name="debe" optional="hide"/>
+                                    <field name="haber" optional="hide"/>
+                                    <field name="importe"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="consolidacion_search" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.search</field>
+        <field name="model">dcasa.consolidacion</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter name="borrador" string="Borrador" domain="[('estado', '=', 'borrador')]"/>
+                <filter name="calculada" string="Calculada" domain="[('estado', '=', 'calculada')]"/>
+                <group>
+                    <filter name="por_reporte" string="Reporte" context="{'group_by': 'tipo_reporte'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_consolidacion" model="ir.actions.act_window">
+        <field name="name">Consolidación</field>
+        <field name="res_model">dcasa.consolidacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Arma tu primer consolidado</p>
+            <p>Elige las empresas del grupo, el reporte y las fechas. D'CASA suma cada empresa, quita lo que
+                se hacen entre ellas y te avisa si algo no cuadra.</p>
+        </field>
+    </record>
+</odoo>

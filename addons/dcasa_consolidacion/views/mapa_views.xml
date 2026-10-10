@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="consolidacion_mapa_list" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.mapa.list</field>
+        <field name="model">dcasa.consolidacion.mapa</field>
+        <field name="arch" type="xml">
+            <list string="Mapa de cuentas" editable="bottom">
+                <field name="company_id" options="{'no_create': True}"/>
+                <field name="account_id" options="{'no_create': True}"/>
+                <field name="codigo_cuenta"/>
+                <field name="codigo_consolidado"/>
+                <field name="nombre_consolidado"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="consolidacion_mapa_search" model="ir.ui.view">
+        <field name="name">dcasa.consolidacion.mapa.search</field>
+        <field name="model">dcasa.consolidacion.mapa</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="account_id"/>
+                <field name="codigo_consolidado"/>
+                <field name="company_id"/>
+                <group>
+                    <filter name="por_empresa" string="Empresa" context="{'group_by': 'company_id'}"/>
+                    <filter name="por_codigo" string="Código consolidado" context="{'group_by': 'codigo_consolidado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_consolidacion_mapa" model="ir.actions.act_window">
+        <field name="name">Mapa de cuentas (consolidación)</field>
+        <field name="res_model">dcasa.consolidacion.mapa</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hace falta mapa mientras las empresas usen el mismo plan</p>
+            <p>Por omisión las cuentas se unen por su código. Agrega una fila solo cuando el plan de una empresa
+                sea distinto: dices a qué código consolidado va cada cuenta. El mapa manda sobre el código.</p>
+        </field>
+    </record>
+</odoo>
