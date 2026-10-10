@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El menú «Empleados» de Odoo trae un ícono a colores que no es de la marca: este es azul D'CASA con trazo blanco. -->
+    <record id="hr.menu_hr_root" model="ir.ui.menu">
+        <field name="web_icon">dcasa_equipo,static/src/img/empleados.svg</field>
+    </record>
+</odoo>
