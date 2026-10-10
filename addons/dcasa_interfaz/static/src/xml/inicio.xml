@@ -25,9 +25,6 @@
                             t-on-click="() => this.nuevo('account.payment', {default_payment_type: 'inbound', default_partner_type: 'customer'})">
                         <i class="fa fa-money me-2"/>Registrar cobro
                     </button>
-                    <button t-if="d.permisos.catalogo" class="btn btn-secondary" t-on-click="catalogo">
-                        <i class="fa fa-th-large me-2"/>Catálogo
-                    </button>
                     <button class="btn btn-secondary" t-on-click="verTienda">
                         <i class="fa fa-external-link me-2"/>Ver la tienda
                     </button>
@@ -38,6 +35,19 @@
             </header>
 
             <div class="o_dcasa_inicio_cuerpo">
+                <!-- Accesos directos: lo que más se abre, a un clic (sin buscar en el menú de la izquierda). -->
+                <section t-if="d.atajos.length" class="o_dcasa_atajos" aria-label="Accesos directos">
+                    <button t-foreach="d.atajos" t-as="a" t-key="a.clave" type="button"
+                            t-attf-class="o_dcasa_atajo o_dcasa_atajo_{{a.clave}}" t-on-click="() => this.abrirAtajo(a)">
+                        <span class="o_dcasa_atajo_icono"><i t-attf-class="fa {{a.icono}}"/></span>
+                        <span class="o_dcasa_atajo_texto">
+                            <strong t-out="a.titulo"/>
+                            <span t-out="a.detalle"/>
+                        </span>
+                        <span t-if="a.cuenta" class="o_dcasa_atajo_cuenta" t-out="a.cuenta"/>
+                    </button>
+                </section>
+
                 <!-- Cifras del día -->
                 <section class="o_dcasa_cifras" aria-label="Cifras del día">
                     <button t-foreach="d.cifras" t-as="c" t-key="c.clave" type="button"

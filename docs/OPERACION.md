@@ -650,3 +650,12 @@ git add addons/dcasa_conversaciones/tests/referencia
 Las capturas que se le enseñan a la dueña (las ocho pantallas, escritorio y celular, con el catálogo real de la base) se generan
 con `DCASA_CAPTURAS_JUAN=docs/auditoria/ronda7/capturas TEST_TAGS=/dcasa_conversaciones:TestContratoVisualJuan.test_capturas_para_la_duena scripts/test.sh dcasa_conversaciones`
 y se llaman `juan-panel-<pantalla>-<escritorio|celular>.webp`.
+
+## Inicio: accesos directos (pedido de la dueña, 2026-10-10)
+
+Al abrir el panel, arriba del tablero hay tres accesos grandes para no andar por el menú de la izquierda:
+**Productos** (la lista, con fotos, precios y existencias), **Stock y precios** (la pantalla para armar campañas,
+`docs/CATALOGO.md`) y **Conversaciones** (el chat de Juan; muestra cuántas hay sin leer). Cada uno sale solo si la
+persona tiene permiso y el módulo está instalado (`dcasa_interfaz`, `models/tablero.py › _atajos`); las vendedoras
+no ven «Productos» si no tienen el permiso de catálogo. Para agregar otro acceso: una entrada más en `_atajos` con el
+`xml_id` de la acción y un test en `addons/dcasa_interfaz/tests/test_interfaz.py`.

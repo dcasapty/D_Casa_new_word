@@ -104,6 +104,82 @@
     max-width: 1440px;
 }
 
+// --- Accesos directos ----------------------------------------------------------------
+.o_dcasa_atajos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+
+    @media (max-width: 575.98px) {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+    }
+}
+
+.o_dcasa_atajo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-align: left;
+    background: var(--dc-azul-600);
+    border: 1px solid var(--dc-azul-600);
+    border-radius: var(--dc-r-md);
+    padding: 16px 18px;
+    min-height: 72px;
+    color: var(--dc-blanco);
+    transition: background-color var(--dc-transicion), transform var(--dc-transicion);
+
+    &:hover { background: var(--dc-azul-700); transform: translateY(-1px); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_atajo_icono {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: rgba(255, 255, 255, .16);
+    color: var(--dc-blanco);
+    font-size: 1.1rem;
+}
+
+.o_dcasa_atajo_texto {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    strong {
+        font-size: 1rem;
+        font-weight: 700;
+        letter-spacing: -.01em;
+    }
+
+    span {
+        font-size: .8rem;
+        color: rgba(255, 255, 255, .82);
+    }
+}
+
+// El amarillo solo toca el azul: cuántas conversaciones esperan lectura.
+.o_dcasa_atajo_cuenta {
+    margin-left: auto;
+    flex: 0 0 auto;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    background: var(--dc-amarillo);
+    color: var(--dc-azul-800);
+    font-weight: 700;
+    font-size: .85rem;
+}
+
 // --- Cifras del día -----------------------------------------------------------------
 .o_dcasa_cifras {
     display: grid;
@@ -364,5 +440,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .o_dcasa_cifra, .o_dcasa_app, .o_dcasa_grafico_barra * { transition: none; &:hover { transform: none; } }
+    .o_dcasa_cifra, .o_dcasa_atajo, .o_dcasa_app, .o_dcasa_grafico_barra * { transition: none; &:hover { transform: none; } }
 }

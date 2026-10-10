@@ -2,6 +2,7 @@ from . import (
     test_adjuntos,
     test_ajustes,
     test_api,
+    test_atajos_inicio,
     test_avisos,
     test_bandeja,
     test_celulares,

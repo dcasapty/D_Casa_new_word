@@ -95,8 +95,9 @@ export class DcasaInicio extends Component {
         });
     }
 
-    catalogo() {
-        this.action.doAction("sale.product_template_action");
+    /** Un acceso directo del Inicio: abre su pantalla (en la vista que dice el servidor, p. ej. lista). */
+    abrirAtajo(atajo) {
+        this.action.doAction(atajo.accion, atajo.vista ? { viewType: atajo.vista } : {});
     }
 
     abrirProducto(p) {

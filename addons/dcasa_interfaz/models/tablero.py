@@ -55,6 +55,35 @@ class DcasaTablero(models.AbstractModel):
     # Datos
     # ------------------------------------------------------------------
 
+    def _atajos(self, permisos):
+        """Los accesos grandes del Inicio: Productos, Stock y precios y Conversaciones.
+
+        Solo los que quien mira puede abrir. Conversaciones y «Stock y precios» viven en otros módulos: si no están
+        instalados (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista con la que abre.
+        """
+        atajos = []
+        if permisos['catalogo'] and self.env.ref('sale.product_template_action', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'productos', 'titulo': 'Productos', 'detalle': 'Fotos, precios y existencias',
+                'icono': 'fa-th-large', 'accion': 'sale.product_template_action', 'vista': 'list'})
+        stock = self.env.get('dcasa.producto.stock')
+        if stock is not None and stock.has_access('read') \
+                and self.env.ref('dcasa_catalogo.action_dcasa_producto_stock', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'stock_precios', 'titulo': 'Stock y precios', 'detalle': 'Para armar una campaña',
+                'icono': 'fa-sort-amount-desc', 'accion': 'dcasa_catalogo.action_dcasa_producto_stock',
+                'vista': 'list'})
+        conversaciones = self.env.get('dcasa.conversacion')
+        if conversaciones is not None and conversaciones.has_access('read') \
+                and self.env.ref('dcasa_conversaciones.accion_conversaciones', raise_if_not_found=False):
+            sin_leer = len(conversaciones._ids_con_sin_leer())
+            atajos.append({
+                'clave': 'conversaciones', 'titulo': 'Conversaciones',
+                'detalle': 'Todo al día' if not sin_leer else f'{sin_leer} sin leer',
+                'icono': 'fa-comments', 'accion': 'dcasa_conversaciones.accion_conversaciones', 'vista': None,
+                'cuenta': sin_leer})
+        return atajos
+
     @api.model
     def obtener_datos(self):
         hoy = fields.Date.context_today(self)
@@ -70,6 +99,7 @@ class DcasaTablero(models.AbstractModel):
             'top': [],
             'permisos': self._permisos(),
         }
+        datos['atajos'] = self._atajos(datos['permisos'])
         if self._puede('sale.order'):
             self._cifras_de_ventas(datos, hoy, inicio, fin)
         if datos['permisos']['ver_cobros']:

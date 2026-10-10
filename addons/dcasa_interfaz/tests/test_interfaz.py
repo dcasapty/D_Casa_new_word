@@ -63,6 +63,35 @@ class TestTablero(TransactionCase):
         self.assertRegex(xml, r't-if="d\.permisos\.cobrar"[^\n]*\n[^\n]*this\.nuevo\(\'account\.payment\'')
         self.assertIn('t-if="d.permisos.ver_cobros" class="o_dcasa_panel o_dcasa_caja"', xml)
 
+    def test_atajos_a_productos_y_a_stock_y_precios_para_quien_vende(self):
+        vendedora = self.env['res.users'].create({
+            'name': 'Vendedora atajos', 'login': 'vendedora_atajos',
+            'group_ids': [(6, 0, [self.env.ref('sales_team.group_sale_salesman').id])]})
+        atajos = {a['clave']: a for a in self.env['dcasa.tablero'].with_user(vendedora).obtener_datos()['atajos']}
+        self.assertEqual(atajos['productos']['accion'], 'sale.product_template_action')
+        self.assertEqual(atajos['productos']['vista'], 'list', 'los productos abren en lista, no en tarjetas')
+        self.assertEqual(atajos['stock_precios']['accion'], 'dcasa_catalogo.action_dcasa_producto_stock')
+        for atajo in atajos.values():
+            self.assertTrue(atajo['titulo'] and atajo['detalle'] and atajo['icono'].startswith('fa-'))
+            self.assertTrue(self.env.ref(atajo['accion'], raise_if_not_found=False), atajo['accion'])
+
+    def test_sin_permiso_de_productos_no_hay_atajos_de_catalogo(self):
+        interno = self.env['res.users'].create({
+            'name': 'Interno sin ventas', 'login': 'interno_atajos',
+            'group_ids': [(6, 0, [self.env.ref('base.group_user').id])]})
+        datos = self.env['dcasa.tablero'].with_user(interno).obtener_datos()
+        claves = {a['clave'] for a in datos['atajos']}
+        if not datos['permisos']['catalogo']:
+            self.assertNotIn('productos', claves)
+        self.assertNotIn('stock_precios', claves, 'sin permiso para ver el stock no se ofrece la lista')
+
+    def test_el_inicio_dibuja_los_atajos_y_ya_no_el_boton_catalogo(self):
+        with open(file_path('dcasa_interfaz/static/src/xml/inicio.xml'), encoding='utf-8') as plantilla:
+            xml = plantilla.read()
+        self.assertIn('t-foreach="d.atajos"', xml)
+        self.assertIn('this.abrirAtajo(a)', xml)
+        self.assertNotIn('t-on-click="catalogo"', xml)
+
     def test_inicio_sin_recorrido_ni_odoobot(self):
         admin = self.env.ref('base.user_admin')
         self.assertEqual(admin.action_id.id, self.env.ref('dcasa_interfaz.action_dcasa_inicio').id)
