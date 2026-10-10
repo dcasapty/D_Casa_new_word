@@ -538,6 +538,23 @@ describe("webhook de Telegram", () => {
     expect(fetchTg).not.toHaveBeenCalled(); // ni siquiera se bajó la foto
   });
 
+  it("si la dueña ABRE Telegram a cualquiera, entran todos los chats (ella decide)", async () => {
+    const m = montar({ config: { telegram_chats: [], telegram_abierto: true } });
+    const res = await m.pedir(hook({ update_id: 6, message: { message_id: 9, from: { id: 999, first_name: "Cualquiera" }, chat: { id: 999, type: "private" }, date: 1_790_000_000, text: "hola" } }));
+    await m.despues();
+    expect(res.status).toBe(200);
+    expect(m.conv.ingestados.map((e) => e.id_externo)).toEqual(["999"]);
+  });
+
+  it("el interruptor solo vale si Odoo manda true de verdad (un texto o un 1 no lo abre)", async () => {
+    for (const raro of ["true", 1, "si", null]) {
+      const m = montar({ config: { telegram_chats: [], telegram_abierto: raro as never } });
+      await m.pedir(hook(update()));
+      await m.despues();
+      expect(m.pedidas, String(raro)).toEqual([]);
+    }
+  });
+
   it("con la lista vacía nadie entra por Telegram (pero WhatsApp no se toca)", async () => {
     const m = montar({ config: { telegram_chats: [] } });
     await m.pedir(hook(update()));

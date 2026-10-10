@@ -90,8 +90,9 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
   así en el turno, las de construcción también piden confirmación («acabo de leer textos que escribieron clientes…»).
 * **Tamaño de lo que manda el modelo**: hasta 10 000 letras por dato y 30 000 entre todos, revisado **antes** de registrar la llamada
   (si no, la auditoría —que no se puede borrar— se infla). `leer_lineas` rechaza líneas de más de 300 letras.
-* **Tope de gasto de IA** (*Ajustes › Brian*): freno de seguridad en dólares por mes (hora de Panamá), uno para **todos** (30 de
-  fábrica) y uno **por persona** (10 de fábrica); 0 lo quita. Al llegar, Brian lo dice con claridad y no llama al modelo; una acción
+* **Tope de gasto de IA** (*Ajustes › Brian*): dólares por mes (hora de Panamá), uno para **todos** y uno **por persona**.
+  **De fábrica NO hay tope (0):** la cifra la pone la dueña, y el límite que ponga en el panel de su proveedor de IA es el freno
+  más fuerte (está fuera del código). Al llegar, Brian lo dice con claridad y no llama al modelo; una acción
   por confirmar sigue pendiente hasta que haya cupo. Cuenta el costo estimado con la tarifa pública (`brian.uso`); un modelo sin
   tarifa se cuenta con la más cara que conocemos, así que un modelo nuevo no deja el tope ciego. No es un presupuesto: es la red
   para una clave filtrada o un script que repite mensajes.

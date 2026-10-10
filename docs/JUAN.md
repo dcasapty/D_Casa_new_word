@@ -165,6 +165,9 @@ Meta). El par es único.
   bot de Juan (responde con su número) y pegarlo en la lista. Si la lista no se pudo leer (Odoo dormido y sin copia reciente) el
   webhook contesta 503 y Telegram reintenta: no se pierde el mensaje de un chat que quizá sí está permitido. WhatsApp y los demás
   canales no se tocan. La migración `19.0.1.2.0` arranca la lista con los chats que ya habían hablado con Juan.
+  **Interruptor de la dueña:** *Ajustes de Juan › Telegram abierto a cualquiera* (apagado de fábrica; `telegram_abierto` en `/config`,
+  solo un `true` de verdad lo enciende). Encendido, la lista no se mira. Cuidado: si alguien abusa, el límite del proveedor de IA se
+  agota y Juan deja de contestar a los clientes reales.
 - Lo que escribe el cliente no puede imitar las marcas de confianza del historial (`[Vendedora]`, `[El cliente …]`).
 
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)

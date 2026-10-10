@@ -30,7 +30,8 @@
                             <field name="canal_whatsapp_qr"/>
                             <field name="canal_whatsapp_cloud"/>
                             <field name="canal_telegram"/>
-                            <field name="telegram_chats_permitidos" invisible="not canal_telegram"
+                            <field name="telegram_abierto" invisible="not canal_telegram"/>
+                            <field name="telegram_chats_permitidos" invisible="not canal_telegram or telegram_abierto"
                                    placeholder="Un número por línea (te lo da /miid en el bot de Juan)"/>
                             <field name="canal_messenger"/>
                             <field name="canal_instagram"/>

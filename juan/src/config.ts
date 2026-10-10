@@ -77,6 +77,8 @@ export interface Config {
   guardar_foto_perfil: boolean;
   /** Chats de Telegram que pueden hablar con Juan (el canal de pruebas). Lista vacía = nadie: Telegram no es un canal abierto al público. */
   telegram_chats: string[];
+  /** Interruptor de la dueña: Telegram abierto a cualquiera (apagado de fábrica). Encendido, la lista de arriba no se mira. */
+  telegram_abierto: boolean;
 }
 
 export const CONFIG_POR_DEFECTO: Config = {
@@ -100,6 +102,7 @@ export const CONFIG_POR_DEFECTO: Config = {
   pausa_por_defecto_minutos: 120,
   guardar_foto_perfil: true,
   telegram_chats: [],
+  telegram_abierto: false,
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -223,6 +226,7 @@ export function normalizarConfig(crudo: unknown): Config {
     pausa_por_defecto_minutos: numero(c.pausa_por_defecto_minutos, d.pausa_por_defecto_minutos, 1, 60 * 24 * 14),
     guardar_foto_perfil: typeof c.guardar_foto_perfil === "boolean" ? c.guardar_foto_perfil : d.guardar_foto_perfil,
     telegram_chats: normalizarChats(c.telegram_chats),
+    telegram_abierto: c.telegram_abierto === true,
   };
 }
 

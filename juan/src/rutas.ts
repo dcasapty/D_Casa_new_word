@@ -117,6 +117,7 @@ async function soloLosPermitidos(entrantes: Entrante[], d: DepsRutas): Promise<E
   if (!entrantes.some((e) => e.canal === "telegram")) return entrantes;
   const cfg = await d.config().catch(() => null);
   if (!cfg || cfg === CONFIG_POR_DEFECTO) return null;
+  if (cfg.telegram_abierto) return entrantes; // la dueña lo abrió a propósito (Ajustes de Juan)
   const permitidos = new Set<string>(cfg.telegram_chats);
   const pasan = entrantes.filter((e) => e.canal !== "telegram" || permitidos.has(String(e.id_externo)));
   const descartados = entrantes.length - pasan.length;

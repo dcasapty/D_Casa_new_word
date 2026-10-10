@@ -25,6 +25,13 @@ describe("chats de Telegram permitidos", () => {
     expect(normalizarConfig({}).telegram_chats).toEqual([]);
   });
 
+  it("el interruptor «abierto a cualquiera» viene apagado y solo un true lo enciende", () => {
+    expect(CONFIG_POR_DEFECTO.telegram_abierto).toBe(false);
+    expect(normalizarConfig({}).telegram_abierto).toBe(false);
+    expect(normalizarConfig({ telegram_abierto: true }).telegram_abierto).toBe(true);
+    for (const raro of ["true", 1, "si", null]) expect(normalizarConfig({ telegram_abierto: raro }).telegram_abierto).toBe(false);
+  });
+
   it("solo cifras (como texto o número), sin repetir, y lo raro se descarta", () => {
     expect(normalizarChats(["555", 555, " 7013 ", "-100123456", "abc", "12", "", null, {}, "5550"])).toEqual(["555", "7013", "5550"]);
     expect(normalizarChats("555")).toEqual([]);

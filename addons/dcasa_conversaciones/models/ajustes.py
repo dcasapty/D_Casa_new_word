@@ -86,6 +86,12 @@ class JuanAjustes(models.Model):
     canal_whatsapp_qr = fields.Boolean('WhatsApp (QR)', default=True, tracking=True)
     canal_whatsapp_cloud = fields.Boolean('WhatsApp (API oficial)', default=False, tracking=True)
     canal_telegram = fields.Boolean('Telegram', default=True, tracking=True)
+    telegram_abierto = fields.Boolean(
+        'Telegram abierto a cualquiera', default=False, tracking=True,
+        help='Apagado (de fábrica): Juan solo contesta a la lista de abajo y a quienes vincularon Brian. Encendido: '
+             'cualquiera que conozca el @ del bot de Juan puede escribirle; cada mensaje gasta IA y puede crear '
+             'oportunidades, y si alguien abusa, el límite de tu proveedor de IA se agota y Juan deja de contestar a '
+             'los clientes reales. Los clientes escriben por WhatsApp; Telegram es de pruebas.')
     telegram_chats_permitidos = fields.Text(
         'Chats de Telegram con permiso', tracking=True,
         help='Telegram es el canal de PRUEBAS del equipo, no una puerta abierta: Juan solo contesta a los chats de '
@@ -481,6 +487,7 @@ class JuanAjustes(models.Model):
             'pausa_por_defecto_minutos': self.pausa_por_defecto_minutos,
             'guardar_foto_perfil': bool(self.guardar_foto_perfil),
             'telegram_chats': self.telegram_chats(),
+            'telegram_abierto': bool(self.telegram_abierto),
         }
 
     # ------------------------------------------------------------------

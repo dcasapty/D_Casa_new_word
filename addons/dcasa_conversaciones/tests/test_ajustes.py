@@ -42,7 +42,7 @@ class TestAjustesPorDefecto(JuanCase):
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
             'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
             'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil',
-            'telegram_chats'})
+            'telegram_chats', 'telegram_abierto'})
         self.assertEqual(datos['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                             'zona': 'America/Panama'})
         self.assertEqual(datos['seguimiento'], {'primero_horas': 5, 'segundo_dias': 5,
@@ -139,6 +139,11 @@ class TestAjustesEditables(JuanCase):
         self.assertEqual(self.ajustes.como_json()['telegram_chats'],
                          ['100200300', '555123', '777999', '888111'],
                          'suma a quienes vincularon Brian (activos); un enlace apagado no cuenta')
+
+    def test_telegram_abierto_viene_apagado_y_lo_enciende_la_duena(self):
+        self.assertIs(self.ajustes.como_json()['telegram_abierto'], False)
+        self.ajustes.telegram_abierto = True
+        self.assertIs(self.ajustes.como_json()['telegram_abierto'], True)
 
     def test_la_migracion_llena_la_lista_con_los_chats_que_ya_hablaron_y_no_pisa_lo_editado(self):
         import importlib.util

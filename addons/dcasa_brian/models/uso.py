@@ -36,9 +36,10 @@ def costo_estimado(modelo, entrada, salida, cache_lectura, cache_escritura):
 TARIFA_DE_RESERVA = max(PRECIOS.values(), key=lambda precio: precio['entrada'] + precio['salida'])
 ZONA = ZoneInfo('America/Panama')
 
-# Topes de seguridad del gasto de IA de Brian (USD por mes; 0 = sin tope). Se cambian en Ajustes › Brian.
-TOPE_MENSUAL_USD = 30.0
-TOPE_POR_PERSONA_USD = 10.0
+# Topes del gasto de IA de Brian (USD por mes). De fábrica NO hay tope (0): la cifra la pone la dueña en Ajustes › Brian
+# (y, más fuerte, el límite del panel de su proveedor de IA). Un valor ilegible tampoco inventa uno: queda en 0.
+TOPE_MENSUAL_USD = 0.0
+TOPE_POR_PERSONA_USD = 0.0
 
 
 def costo_para_el_tope(modelo, entrada, salida, cache_lectura, cache_escritura):

@@ -115,13 +115,18 @@ class TestTopesDeGasto(BrianCase):
         Conversacion = self.env['brian.conversacion'].with_user(usuario or self.usuario)
         return Conversacion.browse(Conversacion.nueva('chat')['id'])
 
-    def test_los_topes_traen_valores_de_seguridad_y_cero_los_quita(self):
-        self.assertEqual(self.Uso.topes(), (30.0, 10.0))
-        self.parametros.set_param('dcasa_brian.tope_mensual_usd', '0')
+    def test_de_fabrica_no_hay_tope_la_cifra_la_pone_la_duena(self):
+        self.assertEqual(self.Uso.topes(), (0.0, 0.0))
+        self.gastar(self.usuario, salida=50_000_000)
+        proveedores.fijar_guion(['Sigo aquí.'])
+        self.assertTrue(self.conversacion().enviar('hola')['ok'], 'sin tope puesto, nadie se frena')
+        self.parametros.set_param('dcasa_brian.tope_mensual_usd', '40')
         self.parametros.set_param('dcasa_brian.tope_por_persona_usd', '2.5')
-        self.assertEqual(self.Uso.topes(), (0.0, 2.5))
+        self.assertEqual(self.Uso.topes(), (40.0, 2.5))
         self.parametros.set_param('dcasa_brian.tope_mensual_usd', 'basura')
-        self.assertEqual(self.Uso.topes()[0], 30.0, 'un valor roto no deja a Brian sin freno')
+        self.assertEqual(self.Uso.topes()[0], 0.0, 'un valor ilegible no inventa un tope')
+        self.parametros.set_param('dcasa_brian.tope_mensual_usd', '-5')
+        self.assertEqual(self.Uso.topes()[0], 0.0, 'ni uno negativo')
 
     def test_el_gasto_del_mes_usa_la_tarifa_y_un_modelo_nuevo_la_mas_cara(self):
         # 1 millón de tokens de salida de Sonnet = $10.
@@ -158,6 +163,11 @@ class TestTopesDeGasto(BrianCase):
         self.assertTrue(libre['ok'], libre)
 
     def test_cero_en_los_dos_topes_no_frena_a_nadie(self):
+        self.parametros.set_param('dcasa_brian.tope_mensual_usd', '40')
+        self.parametros.set_param('dcasa_brian.tope_por_persona_usd', '10')
+        self.gastar(self.usuario, salida=2_000_000)
+        proveedores.fijar_guion(['Frenada.'])
+        self.assertFalse(self.conversacion().enviar('hola')['ok'])
         self.parametros.set_param('dcasa_brian.tope_mensual_usd', '0')
         self.parametros.set_param('dcasa_brian.tope_por_persona_usd', '0')
         self.gastar(self.usuario, salida=50_000_000)
