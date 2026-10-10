@@ -19,6 +19,7 @@ from odoo.exceptions import AccessDenied
 from odoo.http import request
 from odoo.modules.registry import Registry
 
+from . import puerta
 from .acceso import en_pruebas
 from .ir_http import INICIO as INICIO_SESION
 from .parametros import ALCANCES, BLOQUEO_TOPE_S, activo, entero, param
@@ -124,8 +125,47 @@ class ResUsers(models.Model):
         except AccessDenied:
             self._dcasa_tras_fallo(login, credential.get('type'))
             raise
+        self._dcasa_revisar_puerta(auth_info, credential.get('type'))
         self._dcasa_tras_exito(auth_info, credential.get('type'))
         return auth_info
+
+    @api.model
+    def _dcasa_revisar_puerta(self, auth_info, tipo):
+        """La puerta del equipo (``puerta.py``): clave correcta, pero ¿pasó el personal por Cloudflare Access?
+
+        Solo mira a los usuarios internos y solo si hay petición web. En modo ``1`` rechaza con el mismo
+        «usuario o clave incorrectos» de siempre (no dice por qué); en ``avisar`` deja entrar pero lo anota.
+        """
+        modo = puerta.modo()
+        if not request or modo == puerta.APAGADA:
+            return
+        usuario = self.browse(auth_info['uid']).sudo()
+        if not usuario._is_internal():
+            return
+        motivo = puerta.problema(request.httprequest.headers.get(puerta.CABECERA), usuario)
+        if not motivo:
+            return
+        bloquea = modo == puerta.OBLIGATORIA
+        self.env['dcasa.seguridad.acceso']._registrar({
+            'login': usuario.login, 'user_id': usuario.id, 'resultado': motivo,
+            'metodo': 'bloqueado' if bloquea else 'solo aviso', 'ip': _ip(), 'agente': _agente(),
+            'es_admin': usuario._is_system(),
+            'puerta': puerta.correo_de_la_puerta(request.httprequest.headers.get(puerta.CABECERA)) or False,
+        }, aparte=True)
+        _logger.warning('Seguridad: «%s» acertó la clave pero %s (modo %s) desde %s', usuario.login,
+                        'no pasó por la puerta' if motivo == puerta.SIN_PUERTA else 'pasó la puerta con otro correo',
+                        modo, _ip())
+        if usuario._is_system():
+            self._dcasa_avisar_admins(usuario, (
+                f'\U0001F6AA D’CASA: alguien acertó la clave de administrador «{usuario.name}» '
+                f'({usuario.login}) desde la IP {_ip()} ({_agente() or "navegador desconocido"}), '
+                f'{self._dcasa_hora()}, pero '
+                + ('no pasó por la puerta del equipo' if motivo == puerta.SIN_PUERTA
+                   else 'pasó la puerta con otro correo')
+                + (': no entró.' if bloquea else ' (modo aviso: entró).')
+                + ' Si no fuiste tú, cambia esa clave.'))
+        if bloquea:
+            raise AccessDenied()
 
     def _check_credentials(self, credential, env):
         try:
@@ -176,6 +216,8 @@ class ResUsers(models.Model):
             'login': usuario.login, 'user_id': usuario.id, 'resultado': 'ok',
             'metodo': auth_info.get('auth_method') or tipo or 'password', 'ip': _ip(), 'agente': _agente(),
             'es_admin': es_admin,
+            'puerta': (puerta.correo_de_la_puerta(request.httprequest.headers.get(puerta.CABECERA))
+                       if request else False) or False,
         })
         if es_admin and request:
             falta = (' Falta el código de la app: si no eras tú, cambia tu clave ya.'

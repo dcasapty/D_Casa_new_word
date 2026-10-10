@@ -20,6 +20,7 @@ import {
   type SaludContenedor,
 } from "./handler";
 import { atenderJuan } from "./juan";
+import { depsPuerta } from "./puerta";
 import { type AlmacenTienda, tiendaActiva } from "./tienda/paginas";
 
 export interface Env {
@@ -127,6 +128,21 @@ export interface Env {
   DCASA_TURNSTILE?: string;
   /** Rescate: login que perdió el teléfono; se le quita el 2FA una vez por versión. Quitar después. */
   DCASA_2FA_RESCATE?: string;
+  // La puerta del equipo (edge/src/puerta.ts, docs/SEGURIDAD_ACCESO.md §8). Apagada mientras falte alguna de las cuatro primeras.
+  /** Secreto: la dirección de la entrada, p. ej. «/entrada-k7q2m9x4» (solo la conoce el equipo; es la que se protege en Access). */
+  DCASA_PUERTA_RUTA?: string;
+  /** Secreto (≥ 32): firma la cookie de la puerta y la cabecera hacia Odoo; Odoo (contenedor) tiene el mismo. */
+  DCASA_PUERTA_SECRETO?: string;
+  /** `https://<equipo>.cloudflareaccess.com` (el nombre del equipo de Zero Trust). */
+  DCASA_ACCESS_EQUIPO?: string;
+  /** El «AUD tag» de la aplicación de Access que protege la entrada. */
+  DCASA_ACCESS_AUD?: string;
+  /** Horas que dura la puerta abierta (1 a 24; por defecto 12). */
+  DCASA_PUERTA_HORAS?: string;
+  /** Odoo: «0» (apagada), «avisar» (solo anota a quien entra sin puerta) o «1» (el personal solo entra por la puerta). */
+  DCASA_PUERTA_OBLIGATORIA?: string;
+  /** Odoo: «1» exige que el correo de Access sea el del usuario de Odoo. */
+  DCASA_PUERTA_EXIGIR_CORREO?: string;
   /** Rate Limiting de Workers (wrangler.jsonc → ratelimits, hoy comentado). Sin ellos: contador en memoria. */
   LIMITE_ACCESO?: RateLimit;
   LIMITE_FORMULARIOS?: RateLimit;
@@ -420,6 +436,7 @@ export default {
       // Si el Durable Object no responde, tampoco respondería Odoo: se trata como «no listo».
       odooListo: () => odoo(env).listo().catch(() => false),
       entorno: env.DCASA_ENTORNO,
+      puerta: depsPuerta(env),
       limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO },
     });
   },

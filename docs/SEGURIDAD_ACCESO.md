@@ -27,6 +27,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | Rutas de sondeo (`/wp-admin`, `/.env`, `*.php`…) y escáneres (`sqlmap`, `nikto`…) | Borde | 404 / 403 sin despertar a Odoo |
 | Límite de intentos por IP en login, clave, registro, formularios, /socios y carrito | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
 | Cloudflare Turnstile (captcha invisible) | Odoo `website_cf_turnstile` | **Listo y apagado** hasta tener las claves (§6) |
+| **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Construida y apagada** hasta cargar los cuatro secretos (§8) |
 | robots.txt para rastreadores de IA | `dcasa_seguridad` | Política «equilibrada» (§6.3) |
 
 **Lo que NO se rompe:** Brian por MCP entra con **clave de API** (no con contraseña ni con
@@ -128,8 +129,8 @@ maestra (pueden desplegar y leer respaldos). Las dos con 2FA y con sus **código
 impresos** y guardados en un lugar físico seguro.
 
 **Si Turnstile no deja entrar** (p. ej. clave mal copiada): `DCASA_TURNSTILE=off` en las
-variables y desplegar. **Si Cloudflare Access no deja entrar** (cuando exista, §8): en el panel
-de Cloudflare › Zero Trust › Access › Applications, deshabilita la aplicación del panel.
+variables y desplegar. **Si la puerta del equipo (Cloudflare Access) no deja entrar:** `DCASA_PUERTA_OBLIGATORIA` en `"0"` y
+desplegar (§8.6).
 
 ---
 
@@ -248,59 +249,127 @@ el precio vigente antes de contratar algo de pago.
 
 ---
 
-## 8. Plan: Cloudflare Access (Zero Trust) delante del panel
+## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
-Una puerta más **antes** de Odoo: para ver siquiera la pantalla de login del panel hay que
-pasar por Cloudflare (código al correo o cuenta de Google). Los robots nunca llegan a Odoo.
+> **Estado (2026-10-10):** el código está construido, probado y desplegado en staging **APAGADO**: no cambia nada
+> hasta que se carguen los cuatro secretos del §8.4 y se enciendan los pasos del §8.5. Pedido de la dueña: que el
+> personal **no** inicie sesión por la página web pública, y que antes de ver siquiera la pantalla de la clave haya
+> un filtro de Cloudflare que mande un PIN al correo.
 
-**Costo:** plan **Zero Trust Free hasta 50 usuarios** (de sobra para D'CASA). Si algún día pasa
-de 50: pago por usuario (≈ US$7 por usuario al mes, autoservicio; verificar precio vigente).
-Al elegir el plan Free, Cloudflare puede pedir una tarjeta aunque no cobre.
+### 8.1 Cómo se entra (los tres pasos)
 
-**El problema a resolver:** el panel y la tienda viven en el mismo Odoo. Si se pone Access
-sobre `/web` en `dcasapty.com`, se rompe la tienda (las fotos están en `/web/image`, el JS en
-`/web/assets`) y el portal de clientes (`/my` entra por `/web/login`). Por eso el plan usa **un
-subdominio solo para el panel**.
+1. **El PIN al correo (Cloudflare Access).** El equipo abre **una dirección que solo ellos conocen**
+   (`https://<sitio>/<ruta-secreta>`). Cloudflare pide el correo y manda un PIN de 6 números (dura 10 minutos). Solo
+   llega a los correos que la dueña puso en la lista de Cloudflare.
+2. **La clave de Odoo** de la persona (pantalla de siempre).
+3. **El código de la app** (Google Authenticator), §2 y §3.
 
-### Pasos exactos
+Después de pasar el paso 1 el navegador queda con una cookie que dura **12 horas** (nunca más que la sesión de
+Cloudflare) y se borra sola al **cerrar sesión** en Odoo. Pasado ese tiempo hay que pasar el PIN otra vez.
 
-1. **Subdominio del panel.** En `edge/wrangler.jsonc` → `routes`, agregar
-   `{ "pattern": "panel.dcasapty.com", "custom_domain": true }` junto a `dcasapty.com`.
-2. **Zero Trust.** Cloudflare › **Zero Trust** → elegir nombre del equipo (p. ej.
-   `dcasa` → `dcasa.cloudflareaccess.com`) → plan **Free**.
-3. **Cómo se identifican.** Zero Trust › Settings › Authentication: dejar **One-time PIN**
-   (código al correo) y, si se quiere, agregar **Google** como proveedor.
-4. **Aplicación.** Zero Trust › Access › Applications › **Add an application** › **Self-hosted**:
-   - Dominio: `panel.dcasapty.com` (todas las rutas).
-   - Política «Administradores D'CASA»: Action **Allow**, Include → **Emails** → los correos de la
-     dueña y de quien administre. Duración de sesión: 24 h.
-   - Opcional: exigir llave de acceso o MFA del proveedor (Independent MFA).
-5. **En el Worker** (cambio de código pendiente, pequeño):
-   - En `panel.dcasapty.com`: dejar pasar todo a Odoo (Access ya filtró) y **verificar** el JWT
-     de Access (`ctx.access` o la cabecera `Cf-Access-Jwt-Assertion`) para que nadie lo salte.
-   - En `dcasapty.com`: **redirigir `/odoo*`** (el panel) a `panel.dcasapty.com`. `/web/login` se
-     queda, porque lo usan los clientes del portal; el borde no sabe si quien entra es cliente o
-     personal, así que el personal entra siempre por `https://panel.dcasapty.com/odoo`. (Un
-     empleado que entre por `dcasapty.com/web/login` termina en `/odoo` y lo redirige al panel,
-     donde Access le pide identificarse.)
-   - Desactivar `workers.dev` (`"workers_dev": false`) o protegerlo también con Access: si no, es
-     una puerta lateral sin Access.
-6. **Probar en staging** (`panel.staging.dcasapty.com`): entrar al panel, editar el sitio web
-   (el editor abre el sitio dentro del panel), imprimir PDF, Brian en el panel.
-7. **Encender en producción** y avisar al personal de la nueva dirección.
+### 8.2 Qué cambia para cada quien
 
-### Cómo convive con lo demás
+| Quién | Qué pasa |
+|---|---|
+| **Personal** (Odoo «usuario interno») | Solo entra y solo sigue dentro si pasó por la puerta. Si escribe su clave en `/web/login` sin haber pasado, ve el mismo «usuario o contraseña incorrectos» de siempre (no se le dice por qué); queda anotado en **Accesos al panel** como «Clave correcta, pero sin pasar por la puerta» y, si era un administrador, llega un aviso a Telegram. |
+| **Clientes del portal y socios** | Nada. Siguen entrando por `/web/login` (clientes) y `/socios` (celular + PIN). |
+| **Quien teclea `/odoo` sin permiso** | `404 Not Found`, como una página que no existe: el panel ni aparece. |
+| **Brian (MCP y Telegram), Juan, el despliegue y los respaldos** | Nada: no usan sesión de personal (clave de API, secreto del webhook, tokens). |
 
-- **Clientes y portal `/my`**: siguen en `dcasapty.com`, sin Access, con su clave de Odoo.
-- **Socios `/socios`**: siguen igual (celular + PIN, con su propio candado y Turnstile).
-- **Brian por MCP (`/brian/mcp`) y Telegram (`/brian/telegram/…`)**: se quedan en `dcasapty.com`,
-  **fuera** de Access (Telegram no puede iniciar sesión en Access). Ya tienen su propia
-  protección: clave de API por usuario, secreto del webhook y límites. Si algún día MCP se mueve
-  detrás de Access, se usa un **Service Token** de Access para el cliente MCP.
-- **Respaldo y tienda estática** (`/__edge/*`): siguen con su token, sin Access.
-- **El doble factor de Odoo se mantiene**: Access es una capa más, no un reemplazo.
+### 8.3 Dos listas, no una (y en qué orden)
 
----
+La duda natural: «¿primero hago las políticas en Cloudflare o primero creo los usuarios en Odoo?». **Son dos listas
+distintas y las dos hacen falta**:
+
+| Lista | Dónde | Qué decide |
+|---|---|---|
+| **Correos permitidos** | Cloudflare › Zero Trust › Access (política «Equipo D'CASA») | Quién puede **ver la entrada** y recibir el PIN. |
+| **Usuarios** | Odoo › Ajustes › Usuarios | Quién puede **iniciar sesión** y qué puede hacer dentro. |
+
+- **Orden para empezar:** los usuarios de Odoo ya existen; entonces crea la política de Access con **los mismos
+  correos**. Para una persona nueva: **1)** su usuario en Odoo (con su correo en el campo *Correo electrónico*),
+  **2)** su correo en la política de Access.
+- **El amarre** (`DCASA_PUERTA_EXIGIR_CORREO=1`, recomendado cuando todo funcione): el correo con el que se pasó la
+  puerta tiene que ser el correo (o el usuario) de la cuenta de Odoo. Así nadie pasa la puerta con su correo y entra
+  con la cuenta de otra persona, y queda escrito en **Accesos al panel** quién pasó por cada inicio de sesión.
+- **Para dar de baja a alguien:** **1)** archivar su usuario en Odoo, **2)** quitar su correo de la política de Access.
+  Su cookie de la puerta vence sola en ≤ 12 h; para cortarla ya, en Zero Trust › *Users* revoca su sesión.
+
+### 8.4 Preparación (la hace la dueña, una vez por entorno; staging primero)
+
+Los valores secretos los pegas tú en GitHub; nunca se escriben en el chat ni en el repositorio.
+
+**A. Cloudflare Zero Trust** (gratis hasta 50 personas; Cloudflare puede pedir una tarjeta sin cobrar):
+1. Cloudflare › **Zero Trust** → elige el nombre del equipo (p. ej. `dcasa` → `dcasa.cloudflareaccess.com`) → plan **Free**.
+2. Zero Trust › **Settings › Authentication › Login methods**: deja activo **One-time PIN** (viene por defecto).
+3. Zero Trust › **Access › Applications › Add an application › Self-hosted**:
+   - **Application name:** «Entrada del equipo (staging)».
+   - **Public hostname:** el del sitio (staging: `dcasa-staging.dcasapty.workers.dev`; producción: `dcasapty.com`) y
+     **Path:** la ruta secreta **sin** la barra del principio (p. ej. `entrada-7f3k9q2x`).
+   - **Policy:** nombre «Equipo D'CASA», acción **Allow**, regla **Include › Emails** y los correos del equipo.
+   - **Session duration:** 24 horas. Guarda.
+   - Abre la aplicación y copia el **Application Audience (AUD) Tag** (es un texto largo de letras y números).
+   - Si Cloudflare no te deja poner una ruta sobre un `workers.dev`, avísame: hay una alternativa (proteger todo
+     staging mientras se prueba, o esperar al dominio propio).
+
+**B. Los cuatro secretos** (GitHub › Settings › Environments › *staging* (y luego *production*) › Secrets):
+
+| Secreto | Qué poner |
+|---|---|
+| `DCASA_PUERTA_RUTA` | La ruta secreta **con** barra: `/entrada-7f3k9q2x`. Mínimo 8 letras minúsculas, números o guiones. Una cualquiera: `echo "/entrada-$(openssl rand -hex 5)"`. Es la **misma** que pusiste en la aplicación de Access. |
+| `DCASA_PUERTA_SECRETO` | 32+ caracteres al azar: `openssl rand -hex 32`. Distinto por entorno. Firma la cookie y la cabecera hacia Odoo. |
+| `DCASA_ACCESS_EQUIPO` | `https://dcasa.cloudflareaccess.com` (con el nombre de **tu** equipo). |
+| `DCASA_ACCESS_AUD` | El *AUD Tag* que copiaste. |
+
+Las cuatro juntas o ninguna: si falta alguna o está mal copiada, **la puerta queda apagada** y se escribe el motivo en
+los logs del Worker (`puerta_incompleta`); nunca queda a medias.
+
+### 8.5 Encender, sin quedarte fuera (en este orden)
+
+El interruptor es `DCASA_PUERTA_OBLIGATORIA` (en `edge/wrangler.jsonc` → `vars`, uno por entorno):
+
+1. **Con los secretos cargados y el interruptor en `"0"`**: despliega. La puerta ya **abre**, pero no obliga. Prueba:
+   abre `https://<sitio>/<ruta-secreta>` → te pide el correo → PIN → llegas a `/odoo` → clave → código. En el log
+   del Worker aparece `puerta_abierta`.
+2. **`"avisar"`**: nadie se queda fuera, pero cada inicio de sesión del personal **sin** puerta queda anotado
+   (Ajustes › Usuarios › **Accesos al panel** › filtro «Sin pasar por la puerta»). Úsalo unos días, hasta que no
+   salga nadie del equipo.
+3. **`"1"`**: el personal solo entra por la puerta y `/odoo` sin permiso da 404. Si quieres el amarre, también
+   `DCASA_PUERTA_EXIGIR_CORREO` en `"1"` (primero comprueba que el correo de cada usuario de Odoo es el mismo que
+   está en Access).
+4. **Producción:** repite A y B con su propia aplicación de Access (otro hostname, otro *AUD Tag*, otro secreto) y
+   los mismos tres pasos de este apartado. Producción usa el dominio definitivo cuando esté en Cloudflare.
+
+Nada de esto toca a clientes ni a socios.
+
+### 8.6 Si la puerta no abre (rescate)
+
+- **Cloudflare Access caído, PIN que no llega, correo sin acceso, secreto mal copiado:** pon
+  `DCASA_PUERTA_OBLIGATORIA` en **`"0"`** en `edge/wrangler.jsonc` y despliega. Con `"0"` el borde **no cierra**
+  `/odoo` y Odoo **no exige** la puerta: se entra como antes (clave + código). No hace falta borrar nada en Cloudflare.
+- **Seguro adicional:** si el borde no tiene la puerta completa (falta o está mal alguno de los cuatro secretos), el
+  borde le manda a Odoo `"0"` aunque el interruptor diga `"1"` (log: `puerta_sin_borde`); y Odoo tampoco exige la
+  puerta sin un `DCASA_PUERTA_SECRETO` de 32+ caracteres. Un error de copiar y pegar no te deja fuera.
+- **Alguien perdió su correo o el teléfono:** el §4 (el doble factor) sigue igual. Para el correo: otro administrador
+  cambia el correo en Odoo y en la política de Access.
+
+### 8.7 Cómo está armado (para quien mantiene el sistema)
+
+- **Borde** (`edge/src/puerta.ts`, `handler.ts`): la entrada (`DCASA_PUERTA_RUTA`) lee el token que Access pone en
+  `Cf-Access-Jwt-Assertion` y lo **verifica**: firma RS256 con las llaves de `<equipo>/cdn-cgi/access/certs`
+  (guardadas 1 h), emisor, audiencia, vencimiento y correo. Si Access estuviera mal configurado, la entrada no abre
+  (404). Con el token bueno pone su propia cookie `__Host-dcasa_puerta` (HMAC con `DCASA_PUERTA_SECRETO`, HttpOnly,
+  Secure, SameSite=Lax) y manda a `/odoo`.
+- **Hacia Odoo:** en cada petición con cookie válida el borde manda `X-Dcasa-Puerta: <correo>|<vence>|<firma>`;
+  **siempre** borra esa cabecera (y la cookie) de lo que manda el visitante.
+- **Odoo** (`addons/dcasa_seguridad/models/puerta.py`, `res_users.py`, `ir_http.py`): verifica la firma con el mismo
+  secreto (solo en el entorno del contenedor). Al iniciar sesión (usuarios internos) y en cada petición con sesión de un
+  usuario interno exige la cabecera válida; si falta, rechaza el inicio o cierra la sesión.
+- **Por qué una cookie propia y no solo la de Access:** así la ruta secreta es lo único que Access protege (se puede
+  usar en un `workers.dev` o en el dominio, sin tocar la tienda ni el chat), no depende de cómo Cloudflare reparta su
+  cookie por ruta y no afecta a los WebSockets del panel (el Access de un Worker entero no los admite).
+- **Pruebas:** `edge/test/puerta.test.ts` (llaves RSA reales, tokens manipulados, `none`/HS256, cookie alterada) y
+  `addons/dcasa_seguridad/tests/test_puerta.py`.
 
 ## 9. Referencia rápida de variables
 
@@ -315,6 +384,10 @@ subdominio solo para el panel**.
 | `DCASA_ROBOTS_IA` | `abierta` / `equilibrada` / `cerrada` | `equilibrada` |
 | `TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET` (secreto) | claves del widget | — (apagado) |
 | `DCASA_TURNSTILE` | `off` = apagar | — |
+| `DCASA_PUERTA_OBLIGATORIA` | `0` / `avisar` / `1` (§8.5) | `0` |
+| `DCASA_PUERTA_EXIGIR_CORREO` | `0` / `1` (el correo de la puerta = el de la cuenta de Odoo) | `0` |
+| `DCASA_PUERTA_HORAS` | 1 a 24: cuánto dura la puerta abierta | 12 |
+| `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` (secretos de GitHub, las cuatro juntas) | datos de la entrada y de Access (§8.4) | — (puerta apagada) |
 
 Parámetros de Odoo relacionados: `base.login_cooldown_after` (5), `base.login_cooldown_duration`
 (60), `dcasa_seguridad.bloqueo_tope_s` (1800).

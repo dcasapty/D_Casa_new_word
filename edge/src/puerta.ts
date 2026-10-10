@@ -1,0 +1,400 @@
+/**
+ * La puerta del equipo (docs/SEGURIDAD_ACCESO.md §8). Sin dependencias de Cloudflare: se prueba en Node.
+ *
+ * El personal entra al panel por TRES pasos, en este orden:
+ *   1. Cloudflare Access (Zero Trust): un PIN que llega al correo. Protege UNA ruta del sitio, la «entrada»
+ *      (`DCASA_PUERTA_RUTA`, una dirección que solo conoce el equipo). Access le entrega al Worker un token
+ *      firmado (`Cf-Access-Jwt-Assertion`); aquí se VERIFICA (firma, emisor, audiencia, vencimiento): si Access
+ *      estuviera mal configurado, la entrada simplemente no abre.
+ *   2. La clave de Odoo.   3. El código de la app (Google Authenticator).
+ *
+ * Con el token verificado, el Worker pone su PROPIA cookie firmada (`__Host-dcasa_puerta`, 12 h por defecto,
+ * nunca más que la sesión de Access). En cada petición con esa cookie válida, el Worker le manda a Odoo la
+ * cabecera `X-Dcasa-Puerta: <correo>|<vence>|<firma>` (firmada con `DCASA_PUERTA_SECRETO`, que Odoo también
+ * tiene): Odoo solo deja entrar o seguir dentro al personal (usuarios internos) cuando la cabecera es válida
+ * (addons/dcasa_seguridad). Los clientes y los socios no pasan por aquí.
+ *
+ * Todo está APAGADO mientras falte cualquiera de las cuatro variables: `configPuerta` devuelve `null` y el borde
+ * se comporta exactamente como antes.
+ */
+
+/** Cookie de la puerta. `__Host-`: solo HTTPS, sin dominio, ruta `/`. */
+export const NOMBRE_COOKIE = "__Host-dcasa_puerta";
+/** Cabecera hacia Odoo. El borde SIEMPRE la borra de lo que manda el visitante. */
+export const CABECERA_PUERTA = "X-Dcasa-Puerta";
+/** A dónde va la persona al pasar la puerta. */
+export const DESTINO_PANEL = "/odoo";
+
+const HORAS_POR_DEFECTO = 12;
+const HORAS_MAXIMAS = 24;
+const LARGO_MINIMO_SECRETO = 32;
+const TTL_JWKS_MS = 60 * 60 * 1000;
+/** Si llega un token con una llave desconocida, se vuelve a pedir el listado, pero no más de una vez por minuto. */
+const PAUSA_REFRESCO_JWKS_MS = 60 * 1000;
+const MARGEN_RELOJ_S = 60;
+
+export interface ConfigPuerta {
+  /** Ruta de la entrada, en minúsculas: «/entrada-…». */
+  ruta: string;
+  secreto: string;
+  /** `https://<equipo>.cloudflareaccess.com` (sin barra final). */
+  equipo: string;
+  /** Audiencia («AUD tag») de la aplicación de Access. */
+  aud: string;
+  horas: number;
+}
+
+export interface EntornoPuerta {
+  /** «1» = el borde cierra el panel (`/odoo…`) a quien no abrió la puerta. Con «0» o «avisar» solo la verifica. */
+  DCASA_PUERTA_OBLIGATORIA?: string;
+  DCASA_PUERTA_RUTA?: string;
+  DCASA_PUERTA_SECRETO?: string;
+  DCASA_ACCESS_EQUIPO?: string;
+  DCASA_ACCESS_AUD?: string;
+  DCASA_PUERTA_HORAS?: string;
+}
+
+const RUTA_VALIDA = /^\/[a-z0-9][a-z0-9-]{7,63}$/;
+const EQUIPO_VALIDO = /^https:\/\/[a-z0-9][a-z0-9-]{0,62}\.cloudflareaccess\.com$/;
+const AUD_VALIDA = /^[A-Za-z0-9]{16,128}$/;
+
+function limpio(valor: unknown): string {
+  return typeof valor === "string" ? valor.trim() : "";
+}
+
+/**
+ * La configuración de la puerta, o `null` si está apagada. Apagada = faltan variables (todas son necesarias).
+ * Incompleta o inválida = también `null`, pero con un aviso en los logs: así un error de copiar y pegar no
+ * deja a medias una puerta que parece encendida.
+ */
+export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
+  const rutaCruda = limpio(env.DCASA_PUERTA_RUTA);
+  const secreto = limpio(env.DCASA_PUERTA_SECRETO);
+  const equipoCrudo = limpio(env.DCASA_ACCESS_EQUIPO);
+  const aud = limpio(env.DCASA_ACCESS_AUD);
+  if (!rutaCruda && !secreto && !equipoCrudo && !aud) return null;
+
+  const ruta = ("/" + rutaCruda.replace(/^\/+/, "")).toLowerCase();
+  const equipo = equipoCrudo.replace(/\/+$/, "").toLowerCase();
+  const problemas: string[] = [];
+  if (!RUTA_VALIDA.test(ruta)) problemas.push("DCASA_PUERTA_RUTA (8 a 64 letras minúsculas, números o guiones)");
+  if (secreto.length < LARGO_MINIMO_SECRETO) problemas.push(`DCASA_PUERTA_SECRETO (mínimo ${LARGO_MINIMO_SECRETO} caracteres)`);
+  if (!EQUIPO_VALIDO.test(equipo)) problemas.push("DCASA_ACCESS_EQUIPO (https://<equipo>.cloudflareaccess.com)");
+  if (!AUD_VALIDA.test(aud)) problemas.push("DCASA_ACCESS_AUD (el «AUD tag» de la aplicación de Access)");
+  if (problemas.length) {
+    console.warn(JSON.stringify({ evento: "puerta_incompleta", detalle: "La puerta queda APAGADA", faltan: problemas }));
+    return null;
+  }
+  const horasPedidas = Number.parseInt(limpio(env.DCASA_PUERTA_HORAS), 10);
+  const horas = Number.isFinite(horasPedidas) && horasPedidas >= 1 ? Math.min(horasPedidas, HORAS_MAXIMAS) : HORAS_POR_DEFECTO;
+  return { ruta, secreto, equipo, aud, horas };
+}
+
+/** Lo que el borde necesita para trabajar con la puerta (o `undefined` si está apagada: sigue como siempre). */
+export interface DepsPuerta {
+  config: ConfigPuerta;
+  /** `DCASA_PUERTA_OBLIGATORIA=1`: sin la puerta abierta, `/odoo…` es un 404 del borde. */
+  cerrarPanel: boolean;
+  jwt?: DepsJwt;
+}
+
+export function depsPuerta(env: EntornoPuerta): Pick<DepsPuerta, "config" | "cerrarPanel"> | undefined {
+  const config = configPuerta(env);
+  if (!config) return undefined;
+  return { config, cerrarPanel: limpio(env.DCASA_PUERTA_OBLIGATORIA) === "1" };
+}
+
+/**
+ * Lo que Odoo debe saber del interruptor. Odoo solo puede exigir la puerta si el borde SÍ la puede abrir (las cuatro
+ * variables completas y válidas): si no, se manda «0» y nadie queda fuera por un error al copiar un secreto.
+ */
+export function interruptorParaOdoo(env: EntornoPuerta): string | undefined {
+  const pedido = limpio(env.DCASA_PUERTA_OBLIGATORIA).toLowerCase();
+  if (!pedido || pedido === "0") return pedido || undefined;
+  if (!configPuerta(env)) {
+    console.warn(JSON.stringify({ evento: "puerta_sin_borde", detalle: "Odoo NO exigirá la puerta: el borde no la tiene completa", pedido }));
+    return "0";
+  }
+  return pedido;
+}
+
+// ------------------------------------------------------------------ utilidades criptográficas
+
+const codificador = new TextEncoder();
+
+export function aBase64Url(bytes: Uint8Array): string {
+  let binario = "";
+  for (const byte of bytes) binario += String.fromCharCode(byte);
+  return btoa(binario).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function deBase64Url(texto: string): Uint8Array | null {
+  if (!/^[A-Za-z0-9_-]*$/.test(texto)) return null;
+  const relleno = texto.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (texto.length % 4)) % 4);
+  try {
+    const binario = atob(relleno);
+    return Uint8Array.from(binario, (letra) => letra.charCodeAt(0));
+  } catch {
+    return null;
+  }
+}
+
+async function hmacHex(secreto: string, mensaje: string): Promise<string> {
+  const clave = await crypto.subtle.importKey("raw", codificador.encode(secreto), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const firma = new Uint8Array(await crypto.subtle.sign("HMAC", clave, codificador.encode(mensaje)));
+  return Array.from(firma, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Comparación sin atajos: el tiempo no depende de en qué letra difieren. */
+export function igualesSinAtajo(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diferencia = 0;
+  for (let i = 0; i < a.length; i++) diferencia |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diferencia === 0;
+}
+
+// ------------------------------------------------------------------ token de Access (JWT RS256)
+
+export interface DepsJwt {
+  /** Descarga el listado de llaves públicas del equipo (`<equipo>/cdn-cgi/access/certs`). */
+  fetchJwks?: (url: string) => Promise<unknown>;
+  /** Reloj en milisegundos (para pruebas). */
+  ahora?: () => number;
+}
+
+export interface IdentidadAccess {
+  /** Correo con el que se identificó en Access, en minúsculas. */
+  email: string;
+  /** Vencimiento del token de Access (segundos Unix). */
+  exp: number;
+}
+
+interface CacheJwks {
+  claves: Map<string, CryptoKey>;
+  cargadoEn: number;
+  ultimoRefresco: number;
+}
+
+const cacheJwks = new Map<string, CacheJwks>();
+
+/** Para pruebas: olvida las llaves guardadas. */
+export function reiniciarCacheJwks(): void {
+  cacheJwks.clear();
+}
+
+async function descargarJwks(url: string): Promise<unknown> {
+  const respuesta = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
+  return respuesta.json();
+}
+
+async function cargarLlaves(equipo: string, deps: DepsJwt, ahora: number): Promise<CacheJwks> {
+  const crudo = (await (deps.fetchJwks ?? descargarJwks)(`${equipo}/cdn-cgi/access/certs`)) as { keys?: unknown };
+  const claves = new Map<string, CryptoKey>();
+  const lista = Array.isArray(crudo?.keys) ? (crudo.keys as Array<Record<string, unknown>>) : [];
+  for (const jwk of lista) {
+    if (jwk?.kty !== "RSA" || typeof jwk.kid !== "string" || typeof jwk.n !== "string" || typeof jwk.e !== "string") continue;
+    try {
+      const clave = await crypto.subtle.importKey(
+        "jwk",
+        { kty: "RSA", n: jwk.n, e: jwk.e, alg: "RS256", ext: true },
+        { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+        false,
+        ["verify"],
+      );
+      claves.set(jwk.kid, clave);
+    } catch {
+      // una llave rara no invalida las demás
+    }
+  }
+  return { claves, cargadoEn: ahora, ultimoRefresco: ahora };
+}
+
+async function claveParaKid(equipo: string, kid: string, deps: DepsJwt, ahora: number): Promise<CryptoKey | null> {
+  const guardado = cacheJwks.get(equipo);
+  const vigente = guardado && ahora - guardado.cargadoEn < TTL_JWKS_MS;
+  if (guardado && vigente && guardado.claves.has(kid)) return guardado.claves.get(kid) ?? null;
+  // Llave desconocida (Access rota sus llaves) o listado viejo: se vuelve a pedir, con pausa entre intentos.
+  if (guardado && ahora - guardado.ultimoRefresco < PAUSA_REFRESCO_JWKS_MS) return guardado.claves.get(kid) ?? null;
+  try {
+    const nuevo = await cargarLlaves(equipo, deps, ahora);
+    cacheJwks.set(equipo, nuevo);
+    return nuevo.claves.get(kid) ?? null;
+  } catch (error) {
+    console.error(JSON.stringify({ evento: "puerta_jwks_fallido", error: String(error).slice(0, 200) }));
+    if (guardado) guardado.ultimoRefresco = ahora;
+    return guardado?.claves.get(kid) ?? null;
+  }
+}
+
+function rechazo(motivo: string): null {
+  console.warn(JSON.stringify({ evento: "puerta_token_rechazado", motivo }));
+  return null;
+}
+
+function objetoJson(parte: string): Record<string, unknown> | null {
+  const bytes = deBase64Url(parte);
+  if (!bytes) return null;
+  try {
+    const valor: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    return valor && typeof valor === "object" && !Array.isArray(valor) ? (valor as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+const CORREO_VALIDO = /^[^\s@|\u0000-\u001f]{1,64}@[^\s@|\u0000-\u001f]{1,190}$/;
+
+/**
+ * Verifica el token que Access pone en `Cf-Access-Jwt-Assertion`. Falla CERRADO: cualquier duda = `null`.
+ * Solo RS256 (nunca `none` ni HS256), emisor y audiencia exactos, vigente, con un correo bien formado.
+ */
+export async function verificarJwtAccess(
+  token: string | null,
+  cfg: Pick<ConfigPuerta, "equipo" | "aud">,
+  deps: DepsJwt = {},
+): Promise<IdentidadAccess | null> {
+  if (!token) return rechazo("sin token");
+  const ahoraMs = (deps.ahora ?? Date.now)();
+  const partes = token.split(".");
+  if (partes.length !== 3 || partes.some((parte) => parte === "")) return rechazo("forma");
+  const cabecera = objetoJson(partes[0]);
+  const carga = objetoJson(partes[1]);
+  const firma = deBase64Url(partes[2]);
+  if (!cabecera || !carga || !firma) return rechazo("ilegible");
+  if (cabecera.alg !== "RS256") return rechazo("algoritmo");
+  if (typeof cabecera.kid !== "string" || cabecera.kid === "") return rechazo("sin kid");
+
+  const clave = await claveParaKid(cfg.equipo, cabecera.kid, deps, ahoraMs);
+  if (!clave) return rechazo("llave desconocida");
+  const valida = await crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    clave,
+    firma as unknown as BufferSource,
+    codificador.encode(`${partes[0]}.${partes[1]}`),
+  );
+  if (!valida) return rechazo("firma");
+
+  const ahoraS = Math.floor(ahoraMs / 1000);
+  if (typeof carga.iss !== "string" || carga.iss.replace(/\/+$/, "").toLowerCase() !== cfg.equipo) return rechazo("emisor");
+  const audiencia = carga.aud;
+  const coincide = Array.isArray(audiencia) ? audiencia.includes(cfg.aud) : audiencia === cfg.aud;
+  if (!coincide) return rechazo("audiencia");
+  if (typeof carga.exp !== "number" || !Number.isFinite(carga.exp) || carga.exp <= ahoraS - MARGEN_RELOJ_S) return rechazo("vencido");
+  if (typeof carga.nbf === "number" && carga.nbf > ahoraS + MARGEN_RELOJ_S) return rechazo("todavía no vale");
+  if (typeof carga.iat === "number" && carga.iat > ahoraS + MARGEN_RELOJ_S) return rechazo("emitido en el futuro");
+  const email = typeof carga.email === "string" ? carga.email.trim().toLowerCase() : "";
+  if (!CORREO_VALIDO.test(email)) return rechazo("sin correo");
+  return { email, exp: carga.exp };
+}
+
+// ------------------------------------------------------------------ cookie propia y cabecera hacia Odoo
+
+export interface PuertaAbierta {
+  email: string;
+  /** Vencimiento (segundos Unix). */
+  exp: number;
+}
+
+/** Cookie de la puerta para quien acaba de pasar Access: dura lo configurado, nunca más que su sesión de Access. */
+export async function crearCookie(
+  cfg: ConfigPuerta,
+  identidad: IdentidadAccess,
+  ahoraMs: number,
+): Promise<{ valor: string; exp: number; maxAge: number }> {
+  const ahoraS = Math.floor(ahoraMs / 1000);
+  const exp = Math.min(ahoraS + cfg.horas * 3600, identidad.exp);
+  const correo = aBase64Url(codificador.encode(identidad.email));
+  const firma = await hmacHex(cfg.secreto, `cookie|${correo}|${exp}`);
+  return { valor: `${correo}.${exp}.${firma}`, exp, maxAge: Math.max(exp - ahoraS, 0) };
+}
+
+function leerCookieCruda(cabecera: string | null, nombre: string): string | null {
+  if (!cabecera) return null;
+  for (const trozo of cabecera.split(";")) {
+    const igual = trozo.indexOf("=");
+    if (igual < 0) continue;
+    if (trozo.slice(0, igual).trim() === nombre) return trozo.slice(igual + 1).trim();
+  }
+  return null;
+}
+
+/** ¿La petición trae la cookie de la puerta, firmada por nosotros y vigente? */
+export async function leerCookie(request: Request, cfg: ConfigPuerta, ahoraMs: number): Promise<PuertaAbierta | null> {
+  const crudo = leerCookieCruda(request.headers.get("Cookie"), NOMBRE_COOKIE);
+  if (!crudo) return null;
+  const partes = crudo.split(".");
+  if (partes.length !== 3 || !/^\d{1,12}$/.test(partes[1]) || !/^[0-9a-f]{64}$/.test(partes[2])) return null;
+  const exp = Number(partes[1]);
+  if (exp <= Math.floor(ahoraMs / 1000)) return null;
+  const esperada = await hmacHex(cfg.secreto, `cookie|${partes[0]}|${exp}`);
+  if (!igualesSinAtajo(esperada, partes[2])) return null;
+  const bytes = deBase64Url(partes[0]);
+  if (!bytes) return null;
+  const email = new TextDecoder().decode(bytes);
+  return CORREO_VALIDO.test(email) ? { email, exp } : null;
+}
+
+/** Valor de `X-Dcasa-Puerta` para Odoo: `<correo>|<vence>|<firma>`. Odoo lo verifica con el mismo secreto. */
+export async function cabeceraParaOdoo(cfg: ConfigPuerta, puerta: PuertaAbierta): Promise<string> {
+  const firma = await hmacHex(cfg.secreto, `cabecera|${puerta.email}|${puerta.exp}`);
+  return `${puerta.email}|${puerta.exp}|${firma}`;
+}
+
+/** Quita la cookie de la puerta del `Cookie` que viaja a Odoo (Odoo no la necesita). */
+export function sinCookieDePuerta(cookie: string | null): string | null {
+  if (!cookie) return cookie;
+  const resto = cookie
+    .split(";")
+    .filter((trozo) => trozo.slice(0, Math.max(trozo.indexOf("="), 0)).trim() !== NOMBRE_COOKIE)
+    .map((trozo) => trozo.trim())
+    .filter((trozo) => trozo !== "");
+  return resto.length ? resto.join("; ") : null;
+}
+
+function cookieDePuerta(valor: string, maxAge: number): string {
+  return `${NOMBRE_COOKIE}=${valor}; Max-Age=${maxAge}; Path=/; Secure; HttpOnly; SameSite=Lax`;
+}
+
+/** `Set-Cookie` que borra la cookie (al cerrar sesión). */
+export const COOKIE_BORRADA = cookieDePuerta("", 0);
+
+// ------------------------------------------------------------------ rutas
+
+/** ¿Esta petición es la entrada de la puerta (la ruta secreta)? */
+export function esEntrada(pathname: string, cfg: ConfigPuerta): boolean {
+  const ruta = pathname.toLowerCase().replace(/\/+$/, "");
+  return ruta === cfg.ruta;
+}
+
+/**
+ * ¿Es el panel de Odoo (`/odoo…`, con o sin prefijo de idioma)? Sin la puerta abierta, el borde responde 404
+ * a estas rutas: el panel ni siquiera aparece para quien no es del equipo.
+ */
+export function esPanel(rutaNormalizada: string): boolean {
+  const sinIdioma = rutaNormalizada.replace(/^\/[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?(?:@[a-z]+)?(?=\/|$)/, "") || "/";
+  return [rutaNormalizada, sinIdioma].some((ruta) => ruta === "/odoo" || ruta.startsWith("/odoo/"));
+}
+
+/**
+ * La entrada: si Access dejó pasar a la persona (token verificado), se abre la puerta y va al panel.
+ * Cualquier otra cosa es un 404 igual al de una página que no existe: la ruta no se delata.
+ */
+export async function atenderEntrada(request: Request, cfg: ConfigPuerta, deps: DepsJwt = {}): Promise<Response> {
+  const noExiste = () => new Response("Not Found", { status: 404, headers: { "Cache-Control": "no-store" } });
+  if (request.method !== "GET") return noExiste();
+  const identidad = await verificarJwtAccess(request.headers.get("Cf-Access-Jwt-Assertion"), cfg, deps);
+  if (!identidad) return noExiste();
+  const ahoraMs = (deps.ahora ?? Date.now)();
+  const cookie = await crearCookie(cfg, identidad, ahoraMs);
+  if (cookie.maxAge <= 0) return noExiste();
+  console.log(JSON.stringify({ evento: "puerta_abierta", correo: identidad.email, vence: cookie.exp }));
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: DESTINO_PANEL,
+      "Set-Cookie": cookieDePuerta(cookie.valor, cookie.maxAge),
+      "Cache-Control": "no-store",
+    },
+  });
+}

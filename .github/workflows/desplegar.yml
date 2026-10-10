@@ -235,6 +235,11 @@ jobs:
           TIENDA_FEED_TOKEN: ${{ secrets.TIENDA_FEED_TOKEN }}
           # Opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md). Sin él, Turnstile apagado.
           TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          # Opcional: la puerta del equipo (docs/SEGURIDAD_ACCESO.md §8). Las cuatro juntas o ninguna.
+          DCASA_PUERTA_RUTA: ${{ secrets.DCASA_PUERTA_RUTA }}
+          DCASA_PUERTA_SECRETO: ${{ secrets.DCASA_PUERTA_SECRETO }}
+          DCASA_ACCESS_EQUIPO: ${{ secrets.DCASA_ACCESS_EQUIPO }}
+          DCASA_ACCESS_AUD: ${{ secrets.DCASA_ACCESS_AUD }}
           DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
           PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
         run: .github/scripts/secretos_despliegue.sh

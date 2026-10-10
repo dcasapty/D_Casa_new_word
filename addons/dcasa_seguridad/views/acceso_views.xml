@@ -6,12 +6,13 @@
         <field name="model">dcasa.seguridad.acceso</field>
         <field name="arch" type="xml">
             <list create="false" edit="false" delete="false"
-                  decoration-danger="resultado in ('fallo', 'fallo_2fa')" decoration-success="resultado == 'enrolado'">
+                  decoration-danger="resultado in ('fallo', 'fallo_2fa', 'sin_puerta', 'puerta_correo')" decoration-success="resultado == 'enrolado'">
                 <field name="create_date" string="Fecha"/>
                 <field name="login"/>
                 <field name="user_id" optional="show"/>
                 <field name="resultado"/>
                 <field name="metodo" optional="show"/>
+                <field name="puerta" optional="show"/>
                 <field name="ip"/>
                 <field name="agente" optional="show"/>
                 <field name="es_admin" optional="show"/>
@@ -28,6 +29,8 @@
                 <field name="user_id"/>
                 <field name="ip"/>
                 <filter name="fallidos" string="Fallidos" domain="[('resultado', 'in', ('fallo', 'fallo_2fa'))]"/>
+                <filter name="sin_puerta" string="Sin pasar por la puerta"
+                        domain="[('resultado', 'in', ('sin_puerta', 'puerta_correo'))]"/>
                 <filter name="correctos" string="Correctos" domain="[('resultado', '=', 'ok')]"/>
                 <filter name="admins" string="Administradores" domain="[('es_admin', '=', True)]"/>
                 <group>

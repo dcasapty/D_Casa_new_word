@@ -74,7 +74,15 @@
     // Doble factor obligatorio (addons/dcasa_seguridad): "0" hasta que la dueña enrole su app
     // (docs/SEGURIDAD_ACCESO.md, paso 2). Luego "1" y desplegar.
     "DCASA_2FA_OBLIGATORIO": "0",
-    "DCASA_2FA_ALCANCE": "admins"
+    "DCASA_2FA_ALCANCE": "admins",
+    // La puerta del equipo (docs/SEGURIDAD_ACCESO.md §8): el personal entra al panel solo después de pasar por
+    // Cloudflare Access (PIN al correo). Se prepara con cuatro secretos de GitHub (DCASA_PUERTA_RUTA,
+    // DCASA_PUERTA_SECRETO, DCASA_ACCESS_EQUIPO, DCASA_ACCESS_AUD); sin ellos no hace nada. Este interruptor
+    // es el último paso: "0" apagada · "avisar" anota a quien entra sin la puerta pero lo deja entrar ·
+    // "1" el personal solo entra por la puerta. Rescate si la puerta no abre: ponerlo en "0" y desplegar.
+    "DCASA_PUERTA_OBLIGATORIA": "0",
+    // "1" = el correo con que se pasó la puerta debe ser el correo (o usuario) de la cuenta de Odoo.
+    "DCASA_PUERTA_EXIGIR_CORREO": "0"
     // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
     // secreto. Sin las dos, Turnstile queda apagado (docs/SEGURIDAD_ACCESO.md → Turnstile).
     // Alertas del Worker por Telegram (docs/OPERACION.md «Alertas por Telegram»): el chat_id de la
@@ -150,7 +158,10 @@
         // (docs/SEGURIDAD_ACCESO.md §2 y §3). Rescate si se pierde el teléfono: §4. Producción sigue en "0"
         // hasta que la dueña pruebe aquí el flujo completo.
         "DCASA_2FA_OBLIGATORIO": "1",
-        "DCASA_2FA_ALCANCE": "admins"
+        "DCASA_2FA_ALCANCE": "admins",
+        // La puerta del equipo (ver arriba): primero "avisar" para comprobar que todo el equipo pasa por ella, luego "1".
+        "DCASA_PUERTA_OBLIGATORIA": "0",
+        "DCASA_PUERTA_EXIGIR_CORREO": "0"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

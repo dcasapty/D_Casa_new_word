@@ -1,6 +1,7 @@
 /**
  * Reglas del borde (sin dependencias de Cloudflare: se testean en Node).
  */
+import { CABECERA_PUERTA, sinCookieDePuerta } from "./puerta";
 
 export type Route =
   | { kind: "health" }
@@ -232,11 +233,18 @@ export function withCacheStatus(response: Response, status: CacheStatus): Respon
 }
 
 /** Cabeceras para que Odoo (proxy_mode) conozca el host, el esquema y la IP reales. */
-export function forwardedHeaders(request: Request): Headers {
+export function forwardedHeaders(request: Request, cabeceraPuerta?: string): Headers {
   const url = new URL(request.url);
   const headers = new Headers(request.headers);
   // Solo el borde habla con Odoo por esta cabecera (caché de páginas, con el secreto).
   headers.delete("X-Dcasa-Borde");
+  // Igual la de la puerta del equipo: nunca la que mande el visitante; solo la que el borde firma tras
+  // verificar la cookie de la puerta (src/puerta.ts). La cookie misma tampoco viaja a Odoo.
+  headers.delete(CABECERA_PUERTA);
+  if (cabeceraPuerta) headers.set(CABECERA_PUERTA, cabeceraPuerta);
+  const cookie = sinCookieDePuerta(headers.get("Cookie"));
+  if (cookie === null) headers.delete("Cookie");
+  else headers.set("Cookie", cookie);
   const clientIp = request.headers.get("CF-Connecting-IP");
   headers.set("X-Forwarded-Host", url.host);
   headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));

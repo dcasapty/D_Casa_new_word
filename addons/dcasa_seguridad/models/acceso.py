@@ -23,6 +23,8 @@ RESULTADOS = [
     ('fallo_2fa', 'Código incorrecto'),
     ('enrolado', 'Activó el doble factor'),
     ('rescate', 'Rescate: doble factor quitado al desplegar'),
+    ('sin_puerta', 'Clave correcta, pero sin pasar por la puerta'),
+    ('puerta_correo', 'Pasó la puerta con otro correo'),
 ]
 
 
@@ -46,6 +48,8 @@ class DcasaSeguridadAcceso(models.Model):
     ip = fields.Char(string='IP', readonly=True, index=True)
     agente = fields.Char(string='Navegador', readonly=True)
     es_admin = fields.Boolean(string='Administrador', readonly=True, index=True)
+    puerta = fields.Char(string='Correo de la puerta', readonly=True,
+                         help='Correo con el que pasó la puerta del equipo (Cloudflare Access) antes de la clave.')
 
     @api.model
     def _registrar(self, valores, aparte=False):
@@ -69,7 +73,7 @@ class DcasaSeguridadAcceso(models.Model):
                                 TOPE_FALLOS_HORA)
                 return self.browse()
         valores = dict(valores)
-        for campo in ('login', 'agente', 'metodo'):
+        for campo in ('login', 'agente', 'metodo', 'puerta'):
             if valores.get(campo):
                 valores[campo] = str(valores[campo])[:256]
         return self.create(valores)

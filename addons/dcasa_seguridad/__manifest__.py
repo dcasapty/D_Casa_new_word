@@ -21,8 +21,11 @@ Seguridad del acceso al panel de D'CASA (docs/SEGURIDAD_ACCESO.md).
 * Cloudflare Turnstile (``website_cf_turnstile`` de Odoo) en el acceso, el registro, el cambio
   de clave y los formularios del sitio: apagado mientras no haya claves.
 * robots.txt: política para rastreadores de IA (``dcasa_seguridad.robots_ia``).
+* La puerta del equipo (``DCASA_PUERTA_OBLIGATORIA``, apagada por defecto): el personal solo inicia sesión y solo
+  sigue dentro si pasó antes por Cloudflare Access (PIN al correo); el borde se lo prueba a Odoo con una cabecera
+  firmada. Clientes y socios no cambian. Ver models/puerta.py y docs/SEGURIDAD_ACCESO.md §8.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

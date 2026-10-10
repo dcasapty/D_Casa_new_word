@@ -91,6 +91,7 @@ propio valor por defecto (`dcasa`).
 | `ODOO_LOG_LEVEL` / `ODOO_LOG_HANDLER` | var | — | nivel de log de Odoo; sin variable `warn` en producción e `info` en staging, con `werkzeug:WARNING` y las métricas de D'CASA a INFO |
 | `DCASA_ROBOTS_IA` | var | — | `abierta` · `equilibrada` (por defecto) · `cerrada`: política de robots.txt para rastreadores de IA |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET` | var / secreto | — | opcionales, las dos juntas: Cloudflare Turnstile en login, registro, cambio de clave, formularios y /socios. `DCASA_TURNSTILE=off` lo apaga (rescate) |
+| `DCASA_PUERTA_SECRETO` / `DCASA_PUERTA_OBLIGATORIA` / `DCASA_PUERTA_EXIGIR_CORREO` | secreto / var / var | `0` / `0` | La puerta del equipo (docs/SEGURIDAD_ACCESO.md §8). Odoo verifica con el secreto (≥ 32) la cabecera `X-Dcasa-Puerta: <correo>\|<vence>\|<firma>` que firma el borde. `OBLIGATORIA`: `0`, `avisar` o `1`; el Worker manda `0` si no tiene la puerta completa. `DCASA_PUERTA_RUTA`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` y `DCASA_PUERTA_HORAS` son solo del Worker y **no** viajan al contenedor |
 
 Adjuntos en R2: el entrypoint copia `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`,
 `R2_SECRET_ACCESS_KEY` (y `R2_REGION`, `R2_VERIFY_TLS`) a `DCASA_ADJUNTOS_R2_*` para el proceso de

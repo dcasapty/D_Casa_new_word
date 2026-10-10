@@ -9,12 +9,18 @@ se configura en un solo lugar (Ajustes › Grupos › Administración / Ajustes,
 
 Vencida, la sesión se cierra ANTES de autenticar la ruta: así también lo nota ``/odoo`` (que es
 ``auth='none'``) y el cliente web no queda en un bucle de «sesión vencida».
+
+Lo mismo con la puerta del equipo (``DCASA_PUERTA_OBLIGATORIA=1``, ``puerta.py``): la sesión de un usuario interno
+solo vale en las peticiones que traen la cabecera firmada del borde; sin ella se cierra, así una sesión robada no
+sirve desde fuera de la puerta. Las sesiones de clientes y socios (portal) no se tocan.
 """
 import logging
 import time
 
 from odoo import models
 from odoo.http import request, root
+
+from . import puerta
 
 _logger = logging.getLogger(__name__)
 
@@ -31,7 +37,20 @@ class IrHttp(models.AbstractModel):
             _logger.info('Seguridad: sesión del usuario %s vencida (tope desde el inicio de sesión)', sesion.uid)
             sesion.logout(keep_db=True)
             root.session_store.save(sesion)
+        elif sesion.uid is not None and cls._dcasa_sesion_sin_puerta(sesion):
+            _logger.info('Seguridad: sesión del usuario %s cerrada: la petición no pasó por la puerta', sesion.uid)
+            sesion.logout(keep_db=True)
+            root.session_store.save(sesion)
         super()._authenticate(endpoint)
+
+    @classmethod
+    def _dcasa_sesion_sin_puerta(cls, sesion):
+        if puerta.modo() != puerta.OBLIGATORIA:
+            return False
+        usuario = request.env(user=sesion.uid).user
+        if not usuario.exists() or not usuario._is_internal():
+            return False
+        return puerta.problema(request.httprequest.headers.get(puerta.CABECERA), usuario) is not None
 
     @classmethod
     def _dcasa_sesion_vencida(cls, sesion):
