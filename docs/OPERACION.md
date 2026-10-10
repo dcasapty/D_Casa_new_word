@@ -670,3 +670,34 @@ temperatura, sin respuesta). Cada oportunidad se procesa aparte: un error se esc
 Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pendientes, el log avisa que ese turno revisó solo
 las 500 más nuevas.
 
+
+## Apartados: cuánto duran y qué pasa si el cliente no llega (decisión de la dueña, 2026-10-09 y 2026-10-10)
+
+Un «apartado» es un **pedido** de Odoo (no una factura: la factura nace al cobrar o entregar). Hay dos formas:
+
+* **De la tienda web.** Con «Pago al recibir o en la tienda» el pedido se confirma solo y reserva el inventario; con
+  transferencia o Yappy queda como cotización enviada. En cuanto queda por cobrar recibe una fecha:
+  **hoy + 7 días** (*Ajustes › Sitio web › Apartados de la tienda*; **0 = nunca vence**).
+* **A mano** (WhatsApp, mostrador). La vendedora pulsa **«Apartar»** en el pedido (enviado o confirmado) y cuenta los
+  mismos días. Un pedido hecho a mano **sin** ese botón es una venta normal y no vence nunca. Si ella confirma un
+  apartado a mano, la fecha se queda (la puso ella); si confirma un pedido de la web, la fecha se borra (lo tomó ella).
+
+**Si el cliente no llega.** Cada noche a las 2:00 a. m. de Panamá (acción planificada «anular apartados que nadie
+reclamó», `sale.order._dcasa_cron_vencer_apartados`) se anula todo pedido con fecha vencida: se cancela la entrega (el
+inventario vuelve a quedar libre), si usó puntos de un premio se le devuelven, y queda la nota «Apartado vencido…» en el
+pedido. El último día todavía vale: aparta el 9 y la fecha es el 16, se anula en la madrugada del 17. **Nunca** se anula
+solo lo que ya tiene factura publicada, pago hecho o autorizado, o entrega hecha. Una vendedora puede **mover la fecha**
+(dar más días) o **borrarla** (la venta ya es firme) en el mismo pedido.
+
+**Avisos.** El sistema **no** le escribe al cliente. Cuando faltan 2 días o menos (`DIAS_DE_AVISO`) la vendedora del
+pedido recibe una actividad «Apartado por vencer: avisa al cliente» con el nombre, el teléfono y la fecha; el aviso al
+cliente lo manda ella por WhatsApp. Sale una sola vez por fecha de vencimiento (si la marca como hecha no vuelve a salir;
+si mueve la fecha, el aviso viejo se quita y llega otro a su hora). Un pedido sin vendedora no genera actividad, pero
+aparece igual en la lista.
+
+**La lista.** *Ventas › Hoy › Apartados por vencer* (`/odoo/apartados`): del que vence primero al que vence al final, en
+rojo los que vencen hoy o mañana; filtros «Vencen en 2 días o menos», «De la tienda web», «Hechos a mano», «Mis
+apartados».
+
+Pendiente (no construido): el botón «Apartar» del cliente en la ficha del producto con abonos (porcentaje mínimo, plazo y
+qué pasa con los abonos si vence: lo define la dueña con el abogado; `docs/auditoria/ronda5/pagos-y-apartados.md`).

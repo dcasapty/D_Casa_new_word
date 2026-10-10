@@ -17,17 +17,4 @@
             </xpath>
         </field>
     </record>
-
-    <record id="view_order_form_dcasa_apartado" model="ir.ui.view">
-        <field name="name">sale.order.form.dcasa.apartado</field>
-        <field name="model">sale.order</field>
-        <field name="inherit_id" ref="sale.view_order_form"/>
-        <field name="arch" type="xml">
-            <xpath expr="//group[@name='order_details']/field[@name='validity_date']" position="after">
-                <field name="dcasa_apartado_vence"
-                       invisible="not website_id or state not in ('sent', 'sale')"
-                       readonly="state == 'cancel'"/>
-            </xpath>
-        </field>
-    </record>
 </odoo>

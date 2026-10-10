@@ -28,7 +28,7 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.11.0',
+    'version': '19.0.1.12.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -40,6 +40,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/website_data.xml',
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
+        'views/apartados_views.xml',
         'views/layout_templates.xml',
         'views/resenas_templates.xml',
         'views/black_weekend_templates.xml',

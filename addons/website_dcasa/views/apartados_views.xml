@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Apartados: el botón «Apartar» (a mano), la fecha en el pedido y la lista «Apartados por vencer» (models/sale_order.py). -->
+    <record id="view_order_form_dcasa_apartado" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.apartado</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='state'][@widget='statusbar']" position="before">
+                <button name="action_dcasa_apartar" type="object" string="Apartar" icon="fa-clock-o"
+                        help="Aparta este pedido para el cliente: si no lo reclama en los días de apartado, se anula solo y el inventario vuelve a quedar libre."
+                        invisible="state not in ('sent', 'sale') or dcasa_apartado_vence"/>
+            </xpath>
+            <xpath expr="//group[@name='order_details']/field[@name='validity_date']" position="after">
+                <field name="dcasa_apartado_vence"
+                       invisible="state not in ('sent', 'sale')"
+                       readonly="state == 'cancel'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_apartados_list" model="ir.ui.view">
+        <field name="name">sale.order.list.dcasa.apartados</field>
+        <field name="model">sale.order</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <list string="Apartados por vencer" default_order="dcasa_apartado_vence, id"
+                  decoration-danger="dcasa_apartado_dias &lt;= 1" create="0">
+                <field name="dcasa_apartado_vence"/>
+                <field name="dcasa_apartado_dias" string="Días"/>
+                <field name="name" string="Pedido"/>
+                <field name="partner_id" string="Cliente"/>
+                <field name="website_id" string="Tienda web" optional="show"/>
+                <field name="user_id" string="Vendedora" widget="many2one_avatar_user" optional="show"/>
+                <field name="amount_total" string="Total" sum="Total"/>
+                <field name="state" string="Estado" widget="badge" optional="show"/>
+                <field name="activity_ids" widget="list_activity" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_apartados_search" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.apartados</field>
+        <field name="model">sale.order</field>
+        <field name="priority">20</field>
+        <field name="arch" type="xml">
+            <search string="Apartados">
+                <field name="name" string="Pedido"
+                       filter_domain="['|', ('name', 'ilike', self), ('client_order_ref', 'ilike', self)]"/>
+                <field name="partner_id" string="Cliente" operator="child_of"/>
+                <field name="user_id" string="Vendedora"/>
+                <filter name="por_vencer" string="Vencen en 2 días o menos"
+                        domain="[('dcasa_apartado_vence', '&lt;=', (context_today() + datetime.timedelta(days=2)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter name="de_la_tienda" string="De la tienda web" domain="[('website_id', '!=', False)]"/>
+                <filter name="a_mano" string="Hechos a mano" domain="[('website_id', '=', False)]"/>
+                <separator/>
+                <filter name="mis_apartados" string="Mis apartados" domain="[('user_id', '=', uid)]"/>
+                <group>
+                    <filter name="por_vendedora" string="Vendedora" context="{'group_by': 'user_id'}"/>
+                    <filter name="por_origen" string="Origen" context="{'group_by': 'website_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_apartados" model="ir.actions.act_window">
+        <field name="name">Apartados por vencer</field>
+        <field name="res_model">sale.order</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('dcasa_apartado_vence', '!=', False), ('state', 'in', ('sent', 'sale'))]</field>
+        <field name="search_view_id" ref="view_apartados_search"/>
+        <field name="path">apartados</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay apartados esperando al cliente.</p>
+            <p>Aquí salen los pedidos de la tienda sin cobrar y los que apartas con el botón «Apartar», del que vence
+               primero al que vence al final. Si el cliente no los reclama a tiempo, se anulan solos y el inventario
+               vuelve a quedar libre.</p>
+        </field>
+    </record>
+    <record id="action_dcasa_apartados_list" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="view_apartados_list"/>
+        <field name="act_window_id" ref="action_dcasa_apartados"/>
+    </record>
+    <record id="action_dcasa_apartados_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="sale.view_order_form"/>
+        <field name="act_window_id" ref="action_dcasa_apartados"/>
+    </record>
+
+    <menuitem id="menu_dcasa_apartados" name="Apartados por vencer" parent="dcasa_base.menu_dcasa_hoy"
+              action="action_dcasa_apartados" sequence="15"/>
+</odoo>
