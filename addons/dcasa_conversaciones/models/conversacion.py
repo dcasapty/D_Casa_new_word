@@ -39,6 +39,8 @@ OPORTUNIDAD_RECIENTE = timedelta(days=30)
 ESPERA_CONFIRMACION_SEGUIMIENTO = timedelta(hours=24)
 MAX_REINTENTOS_SEGUIMIENTO = 6
 PAUSA_REINTENTO_SEGUIMIENTO = timedelta(minutes=15)
+# Una espera más vieja que esto ya no es una espera que se avise (un fin de semana, un feriado): es otra cosa.
+HORAS_MAXIMAS_DE_ESPERA_AVISADA = 24
 MAX_NOTA = 1000
 MAX_NOTA_PARA_EL_BOT = 500
 CANAL_BUS = 'dcasa_conversaciones/evento'
@@ -104,6 +106,15 @@ class DcasaConversacion(models.Model):
                                             help='Cuándo se le pidió al Worker; se limpia al confirmar.')
     seguimiento_numero_pedido = fields.Integer(readonly=True)
     seguimiento_reintentos = fields.Integer(readonly=True)
+    resumen_ia = fields.Text('Resumen con IA', readonly=True, copy=False)
+    resumen_ia_en = fields.Datetime('Resumen hecho el', readonly=True, copy=False)
+    resumen_ia_hasta_id = fields.Integer(
+        'Último mensaje resumido', readonly=True, copy=False,
+        help='Id del último mensaje que el resumen ya cubre: si hay uno más nuevo, el resumen está desactualizado.')
+    espera_avisada_en = fields.Datetime(
+        'Último aviso de espera', readonly=True, copy=False,
+        help='Cuándo se avisó que el cliente esperaba respuesta. Se avisa una vez por espera: vuelve a avisar si el '
+             'cliente escribe de nuevo y nadie le contesta.')
     ultimo_aviso_archivo_en = fields.Datetime(
         'Último aviso de archivo', readonly=True,
         help='Para no avisar de cada foto de una ráfaga: a lo más una vez cada 10 minutos.')
@@ -563,6 +574,45 @@ class DcasaConversacion(models.Model):
             conv.estado_pendiente_de_avisar = True
         self._reintentar_avisos_de_estado()
         self._cerrar_seguimientos_sin_aviso()
+        self._avisar_clientes_esperando()
+        self.env['dcasa.presencia']._limpiar()
+
+    @api.model
+    def _avisar_clientes_esperando(self):
+        """Avisa por Telegram de cada cliente que lleva más de ``aviso_espera_minutos`` sin respuesta de una persona.
+
+        Una vez por espera (si el cliente vuelve a escribir y nadie contesta, se vuelve a avisar). Va a quien atiende la
+        conversación; si nadie la atiende o no tiene Telegram, a las personas de siempre. No avisa fuera del horario
+        laboral (si así se pidió) ni de esperas de más de un día (ya son otra cosa). Devuelve cuántos avisos mandó.
+        """
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        if ajustes.aviso_espera_minutos <= 0:
+            return 0
+        ahora = fields.Datetime.now()
+        if ajustes.aviso_espera_solo_horario and not H.dentro_de_horario(ahora, ajustes.horario()):
+            return 0
+        esperando = self.sudo().search([
+            ('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente'),
+            ('ultimo_mensaje_cliente', '<=', ahora - timedelta(minutes=ajustes.aviso_espera_minutos)),
+            ('ultimo_mensaje_cliente', '>=', ahora - timedelta(hours=HORAS_MAXIMAS_DE_ESPERA_AVISADA)),
+        ], order='ultimo_mensaje_cliente', limit=50)
+        avisos = 0
+        sin_avisar = esperando.filtered(
+            lambda c: not c.espera_avisada_en or c.espera_avisada_en < c.ultimo_mensaje_cliente)
+        for conv in sin_avisar:
+            conv.espera_avisada_en = ahora   # primero: si el aviso falla no se repite cada 5 minutos
+            minutos = int((ahora - conv.ultimo_mensaje_cliente).total_seconds() // 60)
+            texto = self.env._(
+                '⏰ %(cliente)s lleva %(min)s min esperando respuesta por %(canal)s. %(quien)s',
+                cliente=conv.partner_id.display_name or conv.id_externo, min=minutos,
+                canal=dict(CANALES).get(conv.canal, conv.canal),
+                quien=self.env._('La atiende %s.', conv.asignada_a.name) if conv.asignada_a
+                else self.env._('Nadie la atiende todavía.'))
+            enviados = conv._avisar_por_telegram(texto, usuarios=conv.asignada_a) if conv.asignada_a else 0
+            if not enviados:
+                conv._avisar_por_telegram(texto)
+            avisos += 1
+        return avisos
 
     @api.model
     def _reintentar_avisos_de_estado(self):
@@ -909,6 +959,7 @@ class DcasaConversacion(models.Model):
         horario = ajustes.horario()
         dentro = H.dentro_de_horario(ahora, horario)
         self._poner_en_humano()
+        por_turno = self._asignar_por_turno()
         responsable = self.asignada_a or ajustes.responsable_id or self.env.ref('base.user_admin', False)
         urgente = urgencia == 'alta'
         cliente = self.partner_id.display_name or self.id_externo
@@ -918,11 +969,19 @@ class DcasaConversacion(models.Model):
             self.sudo().activity_schedule(
                 'mail.mail_activity_data_todo', summary=resumen[:200],
                 note=escape((motivo or '')[:MAX_NOTA]) or False, user_id=responsable.id)
-        self._avisar_por_telegram(self.env._(
+        texto_aviso = self.env._(
             '%(r)s\nMotivo: %(m)s\n%(h)s', r=resumen, m=motivo or '—',
-            h=self.env._('Dentro del horario.') if dentro else self.env._('Fuera del horario laboral.')))
+            h=self.env._('Dentro del horario.') if dentro else self.env._('Fuera del horario laboral.'))
+        if por_turno:
+            # Le tocó por turno: el aviso va a ella (si tiene Telegram vinculado; si no, a las de siempre).
+            texto_aviso = self.env._('Te tocó a ti.\n%s', texto_aviso)
+        enviados = self._avisar_por_telegram(texto_aviso, usuarios=por_turno) if por_turno else 0
+        if not enviados:
+            self._avisar_por_telegram(texto_aviso)
         self._aviso(self.env._('El asistente pasó la conversación a una vendedora. Motivo: %s',
                                (motivo or '—')[:300]))
+        if por_turno:
+            self._aviso(self.env._('Le tocó a %s por turno.', por_turno.name))
         self._notificar_panel('estado')
         cuando = H.cuando_atienden(ahora, horario)
         if dentro:
@@ -931,6 +990,22 @@ class DcasaConversacion(models.Model):
         else:
             texto = self.env._('Ya dejé tu consulta anotada para una vendedora. Te escribe %s.', cuando.rstrip('.'))
         return {'texto_para_el_cliente': texto, 'dentro_de_horario': dentro, 'urgente': urgente}
+
+    def _asignar_por_turno(self):
+        """Con el reparto «por turnos», asigna la conversación a quien lleva más tiempo sin recibir una, de entre
+        las personas disponibles. Devuelve a quién le tocó, o vacío si no hay reparto, ya la tenía alguien o no hay
+        nadie disponible (entonces sigue el camino de siempre: el responsable por defecto)."""
+        self.ensure_one()
+        if self.asignada_a or self.env['dcasa.juan.ajustes'].obtener().reparto_modo != 'turnos':
+            return self.env['res.users']
+        disponibles = self._usuarios_del_panel().filtered('dcasa_disponible')
+        if not disponibles:
+            return self.env['res.users']
+        # Un contador (no la hora: dos conversaciones en el mismo segundo no pueden caerle a la misma persona).
+        elegida = min(disponibles, key=lambda u: (u.dcasa_turno, u.id))
+        elegida.dcasa_turno = max(self._usuarios_del_panel().mapped('dcasa_turno') or [0]) + 1
+        self.sudo().asignada_a = elegida
+        return elegida
 
     def _avisar_mencion(self, nota, mencionadas, fecha_tarea=None):
         """Avisa a las mencionadas en una nota: bandeja de Odoo, Telegram y, si se pidió, una tarea con fecha.

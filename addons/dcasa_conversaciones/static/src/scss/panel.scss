@@ -364,6 +364,14 @@ $dcj-amarillo: #FED00F;
         text-align: center;
     }
     .o_dcj_fila_abajo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    // Cuánto lleva esperando el cliente. Pasado el aviso: marino con amarillo (el amarillo solo sobre azul), como «Necesita atención».
+    .o_dcj_espera { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font-size: .72rem; font-weight: 700; background: var(--dc-perla, #ECF0F6); color: var(--dc-tinta-2, #44506A); white-space: nowrap;
+        &.o_urgente { background: $dcj-marino; color: $dcj-amarillo; }
+    }
+    // Quién más tiene abierta la conversación: azul tranquilo; si le está escribiendo al cliente, azul fuerte.
+    .o_dcj_viendo { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-700, #0F3591); border: 1px solid var(--dc-azul-100, #E4ECFD); white-space: nowrap;
+        &.o_escribe { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; border-color: transparent; }
+    }
     .o_dcj_asignada { display: inline-flex; align-items: center; gap: 4px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .74rem; font-weight: 600; color: var(--dc-tinta-2, #44506A); }
 }
 .o_dcj .o_dcj_mas { padding: 12px; text-align: center; }
@@ -1103,3 +1111,43 @@ $dcj-amarillo: #FED00F;
     }
     .o_dcj_visor .o_dcj_visor_cuerpo { padding: 8px 8px 24px; }
 }
+
+// «Ana está viendo esta conversación» / «Ana está escribiéndole al cliente…» (bajo la cabecera del hilo).
+.o_dcj .o_dcj_presencia {
+    display: flex; align-items: center; gap: 8px; padding: 6px 16px; font-size: .82rem; font-weight: 600;
+    background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-700, #0F3591); border-bottom: 1px solid var(--dc-azul-100, #E4ECFD);
+    &.o_escribe { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
+}
+
+// Interruptor «Disponible» del reparto por turnos (solo si Gerencia lo activó).
+.o_dcj .o_dcj_disponible {
+    display: inline-flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 14px; min-height: 44px; border-radius: 999px;
+    font-size: .8rem; font-weight: 700; cursor: pointer; background: var(--dc-perla, #ECF0F6); color: var(--dc-tinta-2, #44506A); border: 1px solid var(--dc-perla, #ECF0F6);
+    &.o_si { background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-700, #0F3591); border-color: var(--dc-azul-100, #E4ECFD); }
+}
+
+// Resumen · «Por persona» (solo Gerencia).
+.o_dcj_p .o_dcj_p_personas {
+    margin-top: 24px;
+    h2 { font-family: Oswald, sans-serif; font-size: 1.1rem; margin: 0 0 10px; color: $dcj-marino; }
+    .o_dcj_p_solo_gerencia { margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-family: Inter, sans-serif; font-size: .7rem; font-weight: 700; background: var(--dc-perla, #ECF0F6); color: var(--dc-tinta-2, #44506A); }
+    .o_dcj_p_tabla_caja { overflow-x: auto; }
+    .o_dcj_p_tabla { width: 100%; border-collapse: collapse; font-size: .9rem;
+        th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--dc-perla, #ECF0F6); white-space: nowrap; }
+        thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-tinta-3, #6B7690); }
+        tbody th { font-weight: 700; color: $dcj-marino; }
+    }
+}
+
+// «Resumir»: el botón y la tarjeta con las viñetas (bajo la cabecera del hilo).
+.o_dcj .o_dcj_resumir { padding: 8px 16px; border-bottom: 1px solid var(--dc-perla, #ECF0F6); .btn { min-height: 44px; } }
+.o_dcj .o_dcj_resumen {
+    padding: 10px 16px 12px; background: var(--dc-azul-50, #F2F6FE); border-bottom: 1px solid var(--dc-azul-100, #E4ECFD); color: var(--dc-tinta-1, #1B2540); font-size: .88rem;
+    header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+        strong { color: var(--dc-azul-700, #0F3591); }
+        .o_dcj_resumen_cuando { flex: 1; font-size: .75rem; color: var(--dc-tinta-3, #6B7690); }
+    }
+    ul { margin: 0; padding-left: 20px; li { margin: 2px 0; } }
+    .o_dcj_resumen_aviso { margin: 6px 0 0; font-size: .78rem; font-weight: 600; color: var(--dc-azul-700, #0F3591); }
+}
+

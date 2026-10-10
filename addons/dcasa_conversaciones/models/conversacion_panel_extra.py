@@ -26,6 +26,8 @@ _logger = logging.getLogger(__name__)
 MAX_PENDIENTES = 10
 HORAS_DE_UNA_SUBIDA_SIN_USAR = 48
 CONTEXTO_PARA_SUGERIR = 14          # últimos mensajes que se le pasan al Worker
+CONTEXTO_PARA_RESUMIR = 60          # un resumen lee más que un borrador (el máximo que acepta el Worker)
+ESPERA_ENTRE_RESUMENES = timedelta(seconds=60)
 MAX_TEXTO_PARA_SUGERIR = 1500
 # Lo que una vendedora puede mandar por el canal. Nada que un navegador pueda ejecutar (HTML, SVG, JS…).
 TIPOS_QUE_SE_SUBEN = {
@@ -135,12 +137,16 @@ class DcasaConversacionPanelExtra(models.Model):
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
         return {
             'usuario': {'id': self.env.uid, 'nombre': self.env.user.name,
-                        'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager')},
+                        'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager'),
+                        'disponible': bool(self.env.user.sudo().dcasa_disponible)},
+            'reparto': ajustes.reparto_modo,
+            'resumen_ia': bool(ajustes.resumen_ia_activo),
             'bot': {'conectado': bool(self.env['dcasa.juan.cliente'].configurado()),
                     'encendido': bool(ajustes.bot_activo_global)},
             'limites': {'adjuntos': A.MAX_ADJUNTOS, 'bytes': A.MAX_BYTES, 'respuesta': MAX_RESPUESTA,
                         'nota': MAX_NOTA, 'nota_para_el_bot': MAX_NOTA_PARA_EL_BOT,
-                        'pausa_minutos': ajustes.pausa_por_defecto_minutos},
+                        'pausa_minutos': ajustes.pausa_por_defecto_minutos,
+                        'espera_aviso_minutos': ajustes.aviso_espera_minutos},
             'canales': [{'id': clave, 'nombre': nombre} for clave, nombre in CANALES],
             'etiquetas': self.env['dcasa.conversacion.etiqueta'].lista(),
             'rapidas': self.env['dcasa.respuesta.rapida'].lista(),
@@ -230,6 +236,66 @@ class DcasaConversacionPanelExtra(models.Model):
         return [{'id': u.id, 'nombre': u.name} for u in usuarios]
 
     @api.model
+    def fijar_disponible(self, disponible):
+        """«Estoy disponible» / «No estoy»: con el reparto por turnos, solo a quien lo está le tocan conversaciones."""
+        self._exigir_vendedora()
+        if not isinstance(disponible, bool):
+            raise UserError(self.env._('Disponible es sí o no.'))
+        self.env.user.sudo().dcasa_disponible = disponible
+        return {'disponible': disponible}
+
+    @api.model
+    def presencia(self, conversacion_id=None, escribiendo=False):
+        """El pulso de la pantalla (cada 20 s y mientras se teclea): qué conversación tiene abierta esta persona.
+
+        Devuelve quiénes están viendo cuáles ahora: ``{presencia: {conversacion_id: [{usuario_id, escribiendo}]}}``."""
+        self._exigir_vendedora()
+        conversacion = self._para_panel(conversacion_id) if conversacion_id else self.browse()
+        if not isinstance(escribiendo, bool):
+            raise UserError(self.env._('Escribiendo es sí o no.'))
+        mapa = self.env['dcasa.presencia']._pulso(self.env.user, conversacion, escribiendo)
+        return {'presencia': mapa}
+
+    @api.model
+    def resumir_conversacion(self, conversacion_id, regenerar=False):
+        """«Resumir»: unas líneas de lo que pasó en la conversación, para quien la recibe. Cuesta un poco de IA, así que
+        solo se pide al apretar el botón: si el resumen guardado ya cubre el último mensaje (o se pidió hace menos de un
+        minuto), se devuelve ese y no se gasta nada. ``regenerar`` fuerza uno nuevo.
+        """
+        conv = self._para_panel(conversacion_id)
+        if not isinstance(regenerar, bool):
+            raise UserError(self.env._('Regenerar es sí o no.'))
+        if not self.env['dcasa.juan.ajustes'].obtener().resumen_ia_activo:
+            raise UserError(self.env._('El resumen con IA está apagado en Ajustes de Juan.'))
+        ultimo = self.env['dcasa.mensaje'].search([
+            ('conversacion_id', '=', conv.id), ('tipo', '=', 'mensaje'), ('estado_envio', '!=', 'programado')],
+            order='id desc', limit=1).id
+        if not ultimo:
+            raise UserError(self.env._('Todavía no hay mensajes que resumir.'))
+        ahora = fields.Datetime.now()
+        reciente = conv.resumen_ia_en and ahora - conv.resumen_ia_en < ESPERA_ENTRE_RESUMENES
+        if conv.resumen_ia and ((conv.resumen_ia_hasta_id >= ultimo and not regenerar) or reciente):
+            return {**conv._resumen_ia_datos(ultimo), 'desde_cache': True, 'avisos': []}
+        mensajes = conv._mensajes_para_sugerir(CONTEXTO_PARA_RESUMIR)
+        if not any(m['autor'] == 'cliente' for m in mensajes):
+            raise UserError(self.env._('Todavía no hay nada del cliente que resumir.'))
+        Cliente = self.env['dcasa.juan.cliente']
+        if not Cliente.configurado():
+            raise UserError(self.env._(
+                'Falta conectar el bot: no hay dirección o clave del Worker de Juan. Pídele a Gerencia que la '
+                'cargue (Conversaciones › Conexiones).'))
+        respuesta = Cliente.resumir(conv.id, conv.canal, mensajes, nombre=conv._nombre_de_pila(),
+                                    etiquetas=conv.etiqueta_ids.mapped('name'))
+        texto = str(respuesta.get('texto') or '').strip() if respuesta.get('ok') else ''
+        if not texto:
+            raise UserError(self.env._(
+                'No pude resumir la conversación ahora: %s',
+                (respuesta.get('error') or 'el Worker no devolvió texto')[:300]))
+        conv.sudo().write({'resumen_ia': texto[:4000], 'resumen_ia_en': ahora, 'resumen_ia_hasta_id': ultimo})
+        avisos = [str(a)[:200] for a in (respuesta.get('avisos') or []) if isinstance(a, str)][:5]
+        return {**conv._resumen_ia_datos(ultimo), 'desde_cache': False, 'avisos': avisos}
+
+    @api.model
     def nueva_oportunidad(self, conversacion_id):
         """«Crear oportunidad» sin salir de la pantalla. Si ya hay una abierta reciente, no crea otra."""
         conv = self._para_panel(conversacion_id, escritura=True)
@@ -257,16 +323,17 @@ class DcasaConversacionPanelExtra(models.Model):
     # «Sugerir»: un borrador de respuesta que redacta el Worker (no envía nada)
     # ------------------------------------------------------------------
 
-    def _mensajes_para_sugerir(self):
+    def _mensajes_para_sugerir(self, limite=CONTEXTO_PARA_SUGERIR):
         """Los últimos mensajes del cliente, del asistente y de las vendedoras, listos para el Worker.
 
-        Nunca viajan las notas internas ni los avisos del sistema. Un mensaje con un comprobante o documento
-        de identidad (adjunto sensible) viaja SIN su texto: ni la IA lo ve (regla 5 del contrato).
+        Nunca viajan las notas internas ni los avisos del sistema, ni lo que está programado y todavía no salió. Un
+        mensaje con un comprobante o documento de identidad (adjunto sensible) viaja SIN su texto: ni la IA lo ve
+        (regla 5 del contrato).
         """
         self.ensure_one()
         tramo = self.env['dcasa.mensaje'].search(
-            [('conversacion_id', '=', self.id), ('tipo', '=', 'mensaje')], order='id desc',
-            limit=CONTEXTO_PARA_SUGERIR).sorted('id')
+            [('conversacion_id', '=', self.id), ('tipo', '=', 'mensaje'), ('estado_envio', '!=', 'programado')],
+            order='id desc', limit=limite).sorted('id')
         mensajes = []
         for mensaje in tramo:
             if mensaje.tiene_sensible:
@@ -280,6 +347,17 @@ class DcasaConversacionPanelExtra(models.Model):
             mensajes.append({'autor': {'cliente': 'cliente', 'bot': 'asistente'}.get(mensaje.autor, 'vendedora'),
                              'texto': texto[:MAX_TEXTO_PARA_SUGERIR], 'ts': H.a_iso(mensaje.ts)})
         return mensajes
+
+    def _resumen_ia_datos(self, hasta_id=None):
+        """Lo guardado, para la pantalla: ``{texto, generado_en, vigente}`` o ``None`` si nunca se pidió.
+
+        ``vigente``: el resumen ya cubre el último mensaje (``hasta_id``, si se conoce).
+        """
+        self.ensure_one()
+        if not self.resumen_ia:
+            return None
+        return {'texto': self.resumen_ia, 'generado_en': H.a_iso(self.resumen_ia_en),
+                'vigente': None if hasta_id is None else self.resumen_ia_hasta_id >= hasta_id}
 
     def _interes_para_sugerir(self):
         """Lo que el cliente quiere, en pocas palabras: la oportunidad o su último mensaje SIN archivo sensible."""

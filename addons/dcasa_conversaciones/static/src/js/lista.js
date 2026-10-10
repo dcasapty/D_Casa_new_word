@@ -50,6 +50,30 @@ export class ListaConversaciones extends Component {
         return { texto: "Asistente", clase: "bot" };
     }
 
+    /** Cuánto lleva esperando un cliente a quien una persona debe contestar: { texto, urgente } o null. */
+    esperaDe(c) {
+        if (!c.esperando_desde) {
+            return null;
+        }
+        const minutos = Math.max(0, Math.floor((this.almacen.ahora - Date.parse(c.esperando_desde)) / 60000));
+        const umbral = this.almacen.limites?.espera_aviso_minutos || 0;
+        const texto = minutos < 1 ? "Acaba de escribir" : minutos < 60 ? `Espera ${minutos} min` : `Espera ${Math.floor(minutos / 60)} h`;
+        return { texto, urgente: umbral > 0 && minutos >= umbral };
+    }
+
+    /** «Ana» o «Ana +1»: quién más tiene abierta esa conversación (y si le está escribiendo al cliente). */
+    viendo(c) {
+        const gente = this.almacen.quienVe(c.id);
+        if (!gente.length) {
+            return null;
+        }
+        return {
+            texto: gente.length > 1 ? `${gente[0].nombre} +${gente.length - 1}` : gente[0].nombre,
+            escribe: gente.some((g) => g.escribiendo),
+            titulo: gente.map((g) => `${g.nombre}${g.escribiendo ? " está escribiéndole al cliente" : " la tiene abierta"}`).join(" · "),
+        };
+    }
+
     quienDijo(c) {
         const autor = c.ultimo_mensaje?.autor;
         return autor === "bot" ? "Asistente: " : autor === "vendedora" ? "Tú o una vendedora: " : "";

@@ -131,6 +131,10 @@ Meta). El par es único.
 5. Para la pantalla de Odoo (`dcasa_conversaciones`; ver `docs/JUAN_ODOO.md`), todas con el mismo token y `Cache-Control: no-store`:
    * `POST /odoo/sugerir` — `{conversacion_id,canal,mensajes:[{autor:"cliente|asistente|vendedora",texto}],nombre?,interes?,etiquetas?}`
      → `{ok, texto, avisos}`: un **borrador** de respuesta. Solo herramientas de lectura; **no envía nada**.
+   * `POST /odoo/resumir` — `{conversacion_id,canal,mensajes:[{autor:"cliente|asistente|vendedora",texto}],nombre?,etiquetas?}`
+     → `{ok, texto, avisos, modelo}`: de 3 a 6 viñetas de lo que pasó, para quien recibe la conversación. Solo mensajes que viajaron por el
+     canal (**nunca notas internas**), tarjetas y cédulas tapadas, modelo económico, sin herramientas; una cifra de dinero que no esté en
+     la conversación se quita. **No envía ni escribe nada.** El gasto cuenta para el tope del mes.
    * `GET /odoo/costos` — `{ok, mes, gasto_usd, turnos, tope_usd, por_modelo:[{modelo,usd,turnos,estimado}], modelos_sin_precio}`.
    * `GET /odoo/qr` — `{ok, estado, qr?, edad_s?}`; `qr` es un data URL PNG. Nunca se imprime en logs.
    * `POST /odoo/reiniciar` y `POST /odoo/desvincular` — acciones sobre el puente de WhatsApp (Odoo siempre pide confirmación).

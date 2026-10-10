@@ -10,6 +10,9 @@ const POR_PAGINA = 30;
 const MAX_LISTA = 100;
 const TRAMO_DEL_HILO = 50;
 const ESPERA_DE_EVENTOS = 350;
+// La presencia («Ana está viendo») se renueva con cada pulso (cada 20 s); sin pulso en este tiempo, se borra sola.
+const VIDA_DE_PRESENCIA_MS = 55_000;
+const CADA_CUANTO_AVISA_QUE_ESCRIBE_MS = 4_000;
 // Lo mismo que acepta el servidor (models/conversacion_panel_extra.py): fotos, PDF, Word, Excel y texto.
 const TIPOS_QUE_SE_SUBEN = /\.(jpe?g|png|webp|gif|pdf|docx?|xlsx?|txt|csv)$/i;
 
@@ -53,6 +56,13 @@ export class Almacen {
         this.conversacion = null;
         this.mensajes = [];
         this.programados = []; // lo que está escrito para más tarde (aparte del hilo)
+        this.resumen = null; // el resumen con IA de la conversación abierta: { texto, generado_en, vigente } o null
+        this.resumiendo = false;
+        this.resumenActivo = false; // Ajustes de Juan: ¿se ofrece el botón «Resumir»?
+        this.presencia = {}; // conversación → quiénes más la tienen abierta [{usuario_id, escribiendo, hasta}]
+        this.disponible = true; // con el reparto por turnos: ¿me tocan conversaciones nuevas?
+        this.reparto = "manual";
+        this._ultimoAvisoEscribe = 0;
         this.escribiendoBot = {}; // conversación → cuándo (ms) avisó el Worker que el asistente prepara la respuesta; 0 = ya terminó
         this.hayMasAntes = false;
         this.cargandoHilo = false;
@@ -111,7 +121,10 @@ export class Almacen {
                 etiquetas: datos.etiquetas,
                 rapidas: datos.rapidas,
                 equipo: datos.equipo,
+                reparto: datos.reparto,
+                resumenActivo: !!datos.resumen_ia,
             });
+            this.disponible = datos.usuario.disponible !== false;
             this.iniciado = true;
         } catch (error) {
             this.errorInicio = mensajeDeError(error);
@@ -178,7 +191,7 @@ export class Almacen {
         }
         this._resincronizando = true;
         try {
-            await Promise.all([this.cargarLista({ silencioso: true }), this.seleccionadaId ? this.refrescarAbierta() : null]);
+            await this.refrescarTodo();
         } finally {
             this._resincronizando = false;
         }
@@ -187,6 +200,11 @@ export class Almacen {
     /** Un aviso del servidor (solo ids y estado, jamás texto): se juntan los de un instante y se refresca una vez. */
     _alEvento(carga) {
         if (!carga || typeof carga !== "object") {
+            return;
+        }
+        if (carga.evento === "presencia") {
+            // Otra persona abrió, cambió o dejó una conversación: solo se mueve su nombre, sin pedir nada al servidor.
+            this._aplicarPresencia(carga);
             return;
         }
         if (carga.evento === "escribiendo") {
@@ -202,16 +220,115 @@ export class Almacen {
         this._temporizadorEventos = setTimeout(() => this._atenderEventos(), ESPERA_DE_EVENTOS);
     }
 
+    // ------------------------------------------------------------------
+    // Quién más está viendo cada conversación, y mi disponibilidad
+    // ------------------------------------------------------------------
+
+    /** El pulso de esta pantalla: «tengo abierta esta conversación» (y si estoy escribiéndole al cliente). */
+    async latido(escribiendo = false) {
+        if (!this.iniciado) {
+            return;
+        }
+        try {
+            const r = await this.orm.silent.call(MODELO, "presencia", [this.seleccionadaId || null, escribiendo]);
+            const hasta = Date.now() + VIDA_DE_PRESENCIA_MS;
+            const mapa = {};
+            for (const [conversacion, personas] of Object.entries(r.presencia || {})) {
+                mapa[conversacion] = personas.map((p) => ({ ...p, hasta }));
+            }
+            this.presencia = mapa;
+        } catch {
+            /* es un extra de la pantalla: si no llega, todo lo demás sigue igual */
+        }
+    }
+
+    /** Al teclear una respuesta: avisa («escribiendo») a lo más una vez cada 4 s. */
+    avisarQueEscribo() {
+        const ahora = Date.now();
+        if (ahora - this._ultimoAvisoEscribe < CADA_CUANTO_AVISA_QUE_ESCRIBE_MS) {
+            return;
+        }
+        this._ultimoAvisoEscribe = ahora;
+        this.latido(true);
+    }
+
+    /** Al salir de la pantalla: ya no tengo ninguna conversación abierta. */
+    salir() {
+        this.orm.silent.call(MODELO, "presencia", [null, false]).catch(() => {});
+    }
+
+    _aplicarPresencia(c) {
+        const quitar = (conversacion) => {
+            if (conversacion && this.presencia[conversacion]) {
+                this.presencia[conversacion] = this.presencia[conversacion].filter((p) => p.usuario_id !== c.usuario_id);
+            }
+        };
+        quitar(c.anterior);
+        quitar(c.conversacion_id);
+        if (c.conversacion_id) {
+            const ya = this.presencia[c.conversacion_id] || [];
+            this.presencia[c.conversacion_id] = [...ya, { usuario_id: c.usuario_id, escribiendo: !!c.escribiendo, hasta: Date.now() + VIDA_DE_PRESENCIA_MS }];
+        }
+    }
+
+    /** Las otras personas que tienen abierta esa conversación ahora: [{ nombre, escribiendo }]. */
+    quienVe(conversacionId) {
+        const ahora = Date.now();
+        return (this.presencia[conversacionId] || [])
+            .filter((p) => p.hasta > ahora)
+            .map((p) => ({
+                nombre: (this.equipo.find((u) => u.id === p.usuario_id)?.nombre || "Alguien").split(" ")[0],
+                escribiendo: p.escribiendo,
+            }));
+    }
+
+    /**
+     * «Resumir»: pide al servidor un resumen de la conversación abierta (si ya hay uno al día, lo devuelve sin gastar IA).
+     * `regenerar`: uno nuevo aunque el guardado cubra todo.
+     */
+    async resumirLaAbierta(regenerar = false) {
+        const id = this.seleccionadaId;
+        if (!id || this.resumiendo) {
+            return;
+        }
+        this.resumiendo = true;
+        try {
+            const r = await this.orm.call(MODELO, "resumir_conversacion", [id, regenerar]);
+            if (id === this.seleccionadaId) {
+                this.resumen = { texto: r.texto, generado_en: r.generado_en, vigente: r.vigente };
+                if (r.avisos?.length) {
+                    this.notification.add(r.avisos.join(" "), { type: "warning" });
+                }
+            }
+        } catch (error) {
+            this.notification.add(mensajeDeError(error), { type: "danger" });
+        } finally {
+            this.resumiendo = false;
+        }
+    }
+
+    async fijarDisponible(valor) {
+        const antes = this.disponible;
+        this.disponible = valor;
+        try {
+            await this.orm.call(MODELO, "fijar_disponible", [valor]);
+        } catch (error) {
+            this.disponible = antes;
+            this.notification.add(mensajeDeError(error), { type: "danger" });
+        }
+    }
+
     async _atenderEventos() {
         const eventos = [...this._eventosPendientes].map((e) => JSON.parse(e));
         this._eventosPendientes.clear();
         const abierta = this.seleccionadaId;
         const tocaLaAbierta = eventos.some((e) => e.conversacion_id === abierta);
         const llegoDeCliente = eventos.filter((e) => e.evento === "mensaje" && e.autor === "cliente" && e.conversacion_id !== abierta);
-        await Promise.all([
-            this.cargarLista({ silencioso: true }),
-            tocaLaAbierta ? this.refrescarAbierta() : null,
-        ]);
+        if (tocaLaAbierta) {
+            await this.refrescarTodo();
+        } else {
+            await this.cargarLista({ silencioso: true });
+        }
         for (const evento of llegoDeCliente.slice(0, 2)) {
             const fila = this.lista.find((c) => c.id === evento.conversacion_id);
             if (fila) {
@@ -266,15 +383,7 @@ export class Almacen {
             if (numero !== this._numeroDeListado) {
                 return;
             }
-            this.lista = r.conversaciones;
-            this.total = r.total;
-            this.hayMas = r.hay_mas;
-            this.sinLeerTotal = r.sin_leer_total;
-            this._ultimaSincronizacion = Date.now();
-            const abierta = this.lista.find((c) => c.id === this.seleccionadaId);
-            if (abierta) {
-                this.conversacion = abierta;
-            }
+            this._aplicarLista(r);
         } catch (error) {
             if (numero === this._numeroDeListado && !silencioso) {
                 this.errorLista = mensajeDeError(error);
@@ -283,6 +392,18 @@ export class Almacen {
             if (numero === this._numeroDeListado) {
                 this.cargandoLista = false;
             }
+        }
+    }
+
+    _aplicarLista(r) {
+        this.lista = r.conversaciones;
+        this.total = r.total;
+        this.hayMas = r.hay_mas;
+        this.sinLeerTotal = r.sin_leer_total;
+        this._ultimaSincronizacion = Date.now();
+        const abierta = this.lista.find((c) => c.id === this.seleccionadaId);
+        if (abierta) {
+            this.conversacion = abierta;
         }
     }
 
@@ -347,6 +468,7 @@ export class Almacen {
         this.conversacion = this.lista.find((c) => c.id === id) || null;
         this.mensajes = [];
         this.programados = [];
+        this.resumen = null;
         this.hayMasAntes = false;
         this.ficha = null;
         this.errorHilo = null;
@@ -354,6 +476,7 @@ export class Almacen {
         this.cargandoHilo = true;
         this.columna = "hilo";
         this.fichaAbierta = false;
+        this.latido();
         try {
             const r = await this.orm.call(MODELO, "hilo", [id, null, TRAMO_DEL_HILO]);
             if (numero !== this._numeroDeHilo) {
@@ -361,6 +484,9 @@ export class Almacen {
             }
             this.mensajes = r.mensajes;
             this.programados = r.programados || [];
+            if (r.resumen_ia !== undefined && r.resumen_ia !== null) {
+                this.resumen = r.resumen_ia;
+            }
             this.hayMasAntes = r.hay_mas;
             this.conversacion = r.conversacion;
             this.actualizarFila(r.conversacion);
@@ -417,21 +543,54 @@ export class Almacen {
             if (numero !== this._numeroDeHilo) {
                 return;
             }
-            const hueco = hayHueco(this.mensajes, r.mensajes, true);
-            const nuevos = r.mensajes.filter((m) => !this.mensajes.some((x) => x.id === m.id));
-            this.mensajes = hueco ? r.mensajes : fusionarMensajes(this.mensajes, r.mensajes);
-            this.programados = r.programados || [];
-            if (hueco) {
-                this.hayMasAntes = r.hay_mas;
+            this._aplicarHiloReciente(r, teniaAntes);
+        } catch {
+            /* el tiempo real es un extra: la próxima vez se pone al día */
+        }
+    }
+
+    _aplicarHiloReciente(r, teniaAntes) {
+        const hueco = hayHueco(this.mensajes, r.mensajes, true);
+        const nuevos = r.mensajes.filter((m) => !this.mensajes.some((x) => x.id === m.id));
+        this.mensajes = hueco ? r.mensajes : fusionarMensajes(this.mensajes, r.mensajes);
+        this.programados = r.programados || [];
+        if (r.resumen_ia !== undefined && r.resumen_ia !== null) {
+            this.resumen = r.resumen_ia;
+        }
+        if (hueco) {
+            this.hayMasAntes = r.hay_mas;
+        }
+        this.conversacion = r.conversacion;
+        this.actualizarFila(r.conversacion);
+        if (teniaAntes && nuevos.some((m) => m.autor === "cliente")) {
+            this.nuevosSinVer += nuevos.filter((m) => m.autor === "cliente").length;
+        }
+        this.cargarFicha({ silencioso: true });
+        if (document.visibilityState === "visible") {
+            this.marcarLeida();
+        }
+    }
+
+    /**
+     * Pone al día la lista y la conversación abierta con UNA sola llamada (antes eran dos). Es lo que se hace cuando el
+     * servidor avisa que algo cambió en la conversación que se está viendo, al reconectar y al volver a la pestaña.
+     */
+    async refrescarTodo() {
+        const id = this.seleccionadaId;
+        if (!id) {
+            return this.cargarLista({ silencioso: true });
+        }
+        const numeroLista = ++this._numeroDeListado;
+        const numeroHilo = this._numeroDeHilo;
+        const teniaAntes = this.mensajes.length;
+        const limite = Math.min(MAX_LISTA, Math.max(POR_PAGINA, this.lista.length));
+        try {
+            const r = await this.orm.silent.call(MODELO, "refrescar", [this._filtrosParaElServidor(), limite, id, TRAMO_DEL_HILO]);
+            if (numeroLista === this._numeroDeListado) {
+                this._aplicarLista(r.lista);
             }
-            this.conversacion = r.conversacion;
-            this.actualizarFila(r.conversacion);
-            if (teniaAntes && nuevos.some((m) => m.autor === "cliente")) {
-                this.nuevosSinVer += nuevos.filter((m) => m.autor === "cliente").length;
-            }
-            this.cargarFicha({ silencioso: true });
-            if (document.visibilityState === "visible") {
-                this.marcarLeida();
+            if (r.hilo && id === this.seleccionadaId && numeroHilo === this._numeroDeHilo) {
+                this._aplicarHiloReciente(r.hilo, teniaAntes);
             }
         } catch {
             /* el tiempo real es un extra: la próxima vez se pone al día */

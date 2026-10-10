@@ -82,9 +82,13 @@
                         <group string="Cuando una vendedora toma la conversación">
                             <field name="pausa_por_defecto_minutos"/>
                             <field name="responsable_id" options="{'no_create': True}"/>
+                            <field name="reparto_modo"/>
+                            <field name="resumen_ia_activo"/>
                             <field name="usuarios_aviso_ids" widget="many2many_tags" options="{'no_create': True}"/>
                             <field name="avisar_comprobantes"/>
                             <field name="avisar_archivos"/>
+                            <field name="aviso_espera_minutos"/>
+                            <field name="aviso_espera_solo_horario" invisible="aviso_espera_minutos == 0"/>
                         </group>
                     </group>
                     <group string="Precios de la IA (dólares por millón de tokens)">

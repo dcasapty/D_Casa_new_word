@@ -778,6 +778,110 @@ class TestPanelEnElNavegador(PanelUiCase):
 })().catch((e) => console.error(e.message || e));
 """.replace("__TOKEN__", TOKEN_ODOO))
 
+    def test_la_lista_dice_cuanto_espera_el_cliente_que_una_persona_debe_contestar(self):
+        self.datos_de_ejemplo()   # Marta la tiene Ana y escribió hace una hora; Karen la atiende el asistente
+        self.navegador("""
+(async () => {
+    await esperar(() => document.querySelectorAll(".o_dcj_fila").length >= 3, "las conversaciones en la lista");
+    const marta = aqui(".o_dcj_fila", "Marta");
+    const espera = marta.querySelector(".o_dcj_espera");
+    if (!espera || !espera.textContent.includes("Espera 1 h")) { throw new Error("Marta lleva 1 h esperando: " + marta.textContent); }
+    if (!espera.classList.contains("o_urgente")) { throw new Error("pasó el aviso de 10 min: se ve urgente"); }
+    if (aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_espera")) { throw new Error("a Karen la atiende el asistente: nadie le debe respuesta"); }
+    if (aqui(".o_dcj_fila", "Luis").querySelector(".o_dcj_espera")) { throw new Error("Luis está cerrada"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
+    def test_se_ve_quien_mas_tiene_abierta_la_conversacion_y_si_le_escribe_al_cliente(self):
+        """Gema ya tiene abierta la de Karen y está escribiéndole: Ana lo ve en la lista y en la cabecera del hilo.
+        (Los cambios en vivo por el bus se prueban en juan/test/panel/almacen.test.ts.)"""
+        self.datos_de_ejemplo()
+        self.env['dcasa.conversacion'].with_user(self.gerente).presencia(self.karen.id, True)
+        # El «escribiendo» dura segundos: para la prueba se sostiene lo que tarde en abrir la página.
+        self.env['dcasa.presencia'].sudo().search([]).write({'escribe_hasta': fields.Datetime.now() + timedelta(hours=1)})
+        self.navegador("""
+(async () => {
+    const fila = await esperar(() => aqui(".o_dcj_fila", "Karen") && aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_viendo"), "Gema en la lista de Karen", 15000);
+    if (!fila.textContent.includes("Gema") || !fila.classList.contains("o_escribe")) { throw new Error("la lista dice: " + fila.textContent); }
+    if (aqui(".o_dcj_fila", "Marta").querySelector(".o_dcj_viendo")) { throw new Error("nadie más tiene abierta la de Marta"); }
+    await abrirConversacion("Karen");
+    const banda = await esperar(() => document.querySelector(".o_dcj_presencia.o_escribe"), "el aviso de que Gema le escribe al cliente", 15000);
+    if (!banda.textContent.includes("Gema está escribiéndole al cliente")) { throw new Error("dice: " + banda.textContent); }
+    await abrirConversacion("Marta");
+    await esperar(() => !document.querySelector(".o_dcj_presencia"), "que en la conversación de Marta no haya aviso", 8000);
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
+    def test_el_interruptor_de_disponible_solo_sale_con_el_reparto_por_turnos_y_cambia_la_disponibilidad(self):
+        self.datos_de_ejemplo()
+        self.ajustes.reparto_modo = 'turnos'
+        self.navegador("""
+(async () => {
+    const boton = await esperar(() => document.querySelector(".o_dcj_disponible"), "el interruptor «Disponible»");
+    if (!boton.textContent.includes("Disponible para conversaciones nuevas")) { throw new Error("dice: " + boton.textContent); }
+    boton.click();
+    await esperar(() => document.querySelector(".o_dcj_disponible").textContent.includes("No disponible"), "que cambie a «No disponible»");
+    if (document.querySelector(".o_dcj_disponible").getAttribute("aria-pressed") !== "false") { throw new Error("aria-pressed"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        self.assertFalse(self.vendedora.dcasa_disponible, 'Quedó guardado en Odoo')
+        self.assertTrue(self.gerente.dcasa_disponible, 'Y solo el suyo')
+
+    def test_resumir_muestra_las_vinetas_y_no_gasta_otra_vez_si_ya_esta_al_dia(self):
+        self.datos_de_ejemplo()   # Karen: cuatro mensajes
+        self.rutas['POST', '/odoo/resumir'] = ({'ok': True, 'avisos': [],
+                                                'texto': '• Busca una cama queen para dos.\n• Pregunta cuánto cuesta la gris.'}, 200)
+        self.navegador("""
+(async () => {
+    if (document.querySelector(".o_dcj_resumir")) { throw new Error("sin una conversación abierta no hay botón"); }
+    await abrirConversacion("Karen");
+    const boton = await esperar(() => document.querySelector(".o_dcj_resumir button"), "el botón «Resumir»");
+    if (!boton.textContent.includes("Resumir lo que pasó")) { throw new Error("dice: " + boton.textContent); }
+    boton.click();
+    const tarjeta = await esperar(() => document.querySelector(".o_dcj_resumen"), "la tarjeta del resumen");
+    const lineas = [...tarjeta.querySelectorAll("li")].map((e) => e.textContent.trim());
+    if (lineas.join("|") !== "Busca una cama queen para dos.|Pregunta cuánto cuesta la gris.") { throw new Error("líneas: " + lineas.join("|")); }
+    if (document.querySelector(".o_dcj_resumir")) { throw new Error("con el resumen a la vista ya no sale el botón"); }
+    if (tarjeta.querySelector(".o_dcj_resumen_aviso")) { throw new Error("recién hecho: está al día"); }
+    // «Actualizar» enseguida no vuelve a gastar: el servidor devuelve el guardado.
+    tarjeta.querySelector("header button").click();
+    await pausa(800);
+    // Al abrir otra conversación y volver, el resumen guardado se ve sin pedir nada.
+    await abrirConversacion("Marta");
+    await pausa(400);
+    if (document.querySelector(".o_dcj_resumen")) { throw new Error("el resumen de Karen no es de Marta"); }
+    await abrirConversacion("Karen");
+    await esperar(() => document.querySelector(".o_dcj_resumen"), "el resumen guardado, al volver");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        self.assertEqual(len(self.al_worker('/odoo/resumir')), 1, 'Una sola vez: lo demás salió de lo guardado')
+
+    def test_sin_el_resumen_encendido_no_hay_boton(self):
+        self.datos_de_ejemplo()
+        self.ajustes.resumen_ia_activo = False
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    await pausa(500);
+    if (document.querySelector(".o_dcj_resumir") || document.querySelector(".o_dcj_resumen")) { throw new Error("apagado en Ajustes: no se ofrece"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
+    def test_sin_reparto_por_turnos_no_hay_interruptor(self):
+        self.datos_de_ejemplo()
+        self.navegador("""
+(async () => {
+    await esperar(() => document.querySelectorAll(".o_dcj_fila").length >= 3, "las conversaciones en la lista");
+    if (document.querySelector(".o_dcj_disponible")) { throw new Error("con el reparto manual no hace falta el interruptor"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+
     def test_el_escribiendo_aparece_cuando_el_worker_avisa_y_se_va_cuando_termina(self):
         self.datos_de_ejemplo()
         self.navegador("""
@@ -967,6 +1071,8 @@ class TestPantallasDeJuan(PanelUiCase):
     aqui(".o_dcj_p_segmento button", "30 días").click();
     await esperar(() => aqui(".o_dcj_p_segmento button", "30 días").getAttribute("aria-pressed") === "true", "el periodo de 30 días");
     await esperar(() => Number(valorDe("Mensajes").replace(/[^0-9]/g, "")) >= 5, "los mensajes de 30 días");
+    // Una vendedora no ve cómo le fue a cada persona (es de Gerencia).
+    if (document.querySelector(".o_dcj_p_personas")) { throw new Error("la sección «Por persona» es solo de Gerencia"); }
     // Una vendedora no ve Costos ni Conexiones en la barra.
     const nav = [...document.querySelectorAll(".o_dcj_p_nav_boton")].map((e) => e.textContent.trim());
     if (nav.join("|") !== "Conversaciones|Resumen") { throw new Error("la barra de la vendedora: " + nav.join("|")); }
@@ -975,6 +1081,21 @@ class TestPantallasDeJuan(PanelUiCase):
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """, url=ACCION_RESUMEN)
+
+    def test_resumen_gerencia_ve_como_le_fue_a_cada_persona(self):
+        self.datos_de_ejemplo()   # Marta escribió hace una hora y la tiene Ana
+        self.env['dcasa.conversacion'].with_user(self.vendedora).enviar_respuesta(self.marta.id, 'Hola Marta, te ayudo')
+        self.navegador("""
+(async () => {
+    const seccion = await esperar(() => document.querySelector(".o_dcj_p_personas"), "la sección «Por persona»");
+    const fila = await esperar(() => aqui(".o_dcj_p_personas tbody tr", "Ana Vendedora"), "la fila de Ana");
+    const celdas = [...fila.querySelectorAll("td")].map((e) => e.textContent.replace(/\\s+/g, " ").trim());
+    if (celdas[0] !== "1" || celdas[1] !== "1") { throw new Error("Ana escribió 1 mensaje en 1 conversación: " + celdas.join("|")); }
+    if (!/h/.test(celdas[2]) && !/min/.test(celdas[2])) { throw new Error("cuánto tardó en contestar: " + celdas[2]); }
+    if (!seccion.textContent.includes("solo Gerencia")) { throw new Error("debe decir que es solo de Gerencia"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""", url=ACCION_RESUMEN, login=GERENTE)
 
     def test_resumen_sin_el_bot_conectado_lo_dice(self):
         self.sin_bot()

@@ -13,6 +13,14 @@
                     </span>
                 </div>
 
+                <button t-if="almacen.reparto === 'turnos'" type="button" class="o_dcj_disponible"
+                        t-att-class="{ o_si: almacen.disponible }" t-att-aria-pressed="almacen.disponible ? 'true' : 'false'"
+                        title="Con el reparto por turnos, las conversaciones nuevas se asignan solo a quien está disponible"
+                        t-on-click="() => almacen.fijarDisponible(!almacen.disponible)">
+                    <i t-attf-class="fa #{almacen.disponible ? 'fa-check-circle' : 'fa-pause-circle-o'}" aria-hidden="true"/>
+                    <t t-out="almacen.disponible ? 'Disponible para conversaciones nuevas' : 'No disponible (no me asignan nuevas)'"/>
+                </button>
+
                 <div class="o_dcj_buscar">
                     <i class="fa fa-search" aria-hidden="true"/>
                     <input type="search" class="o_dcj_input" autocomplete="off" aria-label="Buscar conversaciones"
@@ -124,6 +132,15 @@
                                     <span t-attf-class="o_dcj_estado o_dcj_estado_#{estado.clase}">
                                         <i t-if="c.bot_atiende and c.estado !== 'cerrada'" class="o_dcj_punto_verde" title="El asistente está atendiendo"/>
                                         <t t-out="estado.texto"/>
+                                    </span>
+                                    <t t-set="esp" t-value="esperaDe(c)"/>
+                                    <span t-if="esp" class="o_dcj_espera" t-att-class="{ o_urgente: esp.urgente }"
+                                          title="Tiempo que lleva el cliente sin respuesta de una persona">
+                                        <i class="fa fa-hourglass-half" aria-hidden="true"/> <t t-out="esp.texto"/>
+                                    </span>
+                                    <t t-set="otros" t-value="viendo(c)"/>
+                                    <span t-if="otros" class="o_dcj_viendo" t-att-class="{ o_escribe: otros.escribe }" t-att-title="otros.titulo">
+                                        <i t-attf-class="fa #{otros.escribe ? 'fa-pencil' : 'fa-eye'}" aria-hidden="true"/> <t t-out="otros.texto"/>
                                     </span>
                                     <span t-if="c.asignada_a" class="o_dcj_asignada" title="La atiende"><i class="fa fa-user-o" aria-hidden="true"/> <t t-out="c.asignada_a.nombre"/></span>
                                     <span t-foreach="c.etiquetas" t-as="e" t-key="e.id" class="o_dcj_etiqueta"

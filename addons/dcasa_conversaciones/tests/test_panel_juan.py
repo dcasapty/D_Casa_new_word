@@ -1,4 +1,5 @@
 """Resumen, Costos de IA y Conexiones: números honestos, sin cifras inventadas y sin filtrar ni un valor secreto."""
+import itertools
 import json
 import os
 from datetime import date, datetime, timedelta
@@ -371,9 +372,106 @@ class TestCostos(JuanCase):
 
     def test_solo_gerencia(self):
         for usuario in (self.vendedora, self.interno, self.portal):
-            for metodo in ('costos', 'conexiones', 'qr', 'reiniciar_puente', 'desvincular_puente'):
+            for metodo in ('costos', 'conexiones', 'qr', 'reiniciar_puente', 'desvincular_puente', 'por_persona'):
                 with self.subTest(usuario=usuario.login, metodo=metodo), self.assertRaises(AccessError):
                     call_kw(self.env(user=usuario)['dcasa.juan.panel'], metodo, [], {})
+
+
+@tagged('post_install', '-at_install')
+class TestPorPersona(JuanCase):
+    """Cómo le fue a cada persona: lo que escribió en Odoo, cuánto tardó en contestar y a quién le debe respuesta."""
+
+    AHORA = panama(2026, 10, 9, 13, 0)    # viernes 9 de octubre, 1:00 p. m. en Panamá
+
+    def setUp(self):
+        super().setUp()
+        worker = self.configurar_worker()
+        numeros = itertools.count(1)
+        # Cada envío con su propio id del canal (con el mismo id, Odoo los toma por el mismo mensaje y los junta).
+        worker.side_effect = lambda *a, **k: respuesta_http(
+            {'ok': True, 'id_mensaje': f'wamid.persona.{next(numeros)}'})
+        self.gerencia = self.env['dcasa.juan.panel'].with_user(self.gerente)
+        self.reloj = freeze_time(self.AHORA)
+        self.reloj.start()
+        self.addCleanup(self.reloj.stop)
+
+    def cliente_escribe(self, id_externo, a, nombre='Cliente'):
+        return self.registrar('Hola, busco una cama', id_externo=id_externo, ts=a, nombre=nombre)[0]
+
+    def escribe(self, usuario, conv, hora, texto='Te ayudo'):
+        """``usuario`` le escribe al cliente desde Odoo a esa hora (de Panamá)."""
+        with freeze_time(hora):
+            return self.Conversacion.with_user(usuario).enviar_respuesta(conv.id, texto)
+
+    def fila(self, usuario):
+        return next((f for f in self.gerencia.por_persona('hoy')['personas'] if f['usuario_id'] == usuario.id), None)
+
+    def test_mensajes_conversaciones_y_cuanto_tardo_en_contestar(self):
+        a = self.cliente_escribe('50761000001', panama(2026, 10, 9, 9, 0))
+        b = self.cliente_escribe('50761000002', panama(2026, 10, 9, 10, 0))
+        self.escribe(self.vendedora, a, panama(2026, 10, 9, 9, 10))            # tardó 10 min
+        self.escribe(self.vendedora, a, panama(2026, 10, 9, 9, 12), 'Y también')
+        self.escribe(self.vendedora, b, panama(2026, 10, 9, 10, 20))           # tardó 20 min
+        f = self.fila(self.vendedora)
+        self.assertEqual((f['mensajes'], f['conversaciones']), (3, 2))
+        self.assertEqual((f['con_respuesta'], f['respuesta_seg']), (2, 900.0), 'Mediana de 10 y 20 min')
+        self.assertEqual(f['respuesta_texto'], '15 min')
+
+    def test_si_el_asistente_ya_habia_contestado_la_espera_cuenta_desde_el_ultimo_mensaje_sin_respuesta(self):
+        a = self.cliente_escribe('50761000001', panama(2026, 10, 9, 9, 0))
+        self.registrar('Claro, te cuento.', id_externo='50761000001', autor='bot', ts=panama(2026, 10, 9, 9, 1))
+        self.registrar('Quiero hablar con alguien', id_externo='50761000001', ts=panama(2026, 10, 9, 9, 30))
+        self.registrar('¿Hola?', id_externo='50761000001', ts=panama(2026, 10, 9, 9, 35))
+        self.escribe(self.vendedora, a, panama(2026, 10, 9, 9, 40))
+        # Esperó desde las 9:30 (después de la última respuesta del asistente), no desde las 9:00.
+        self.assertEqual(self.fila(self.vendedora)['respuesta_seg'], 600.0)
+
+    def test_si_ella_escribio_primero_no_hay_tiempo_de_respuesta_que_medir(self):
+        a = self.cliente_escribe('50761000001', panama(2026, 10, 9, 9, 0))
+        self.registrar('Ya te escribo', id_externo='50761000001', autor='vendedora', ts=panama(2026, 10, 9, 9, 5))
+        self.escribe(self.vendedora, a, panama(2026, 10, 9, 9, 10))
+        f = self.fila(self.vendedora)
+        self.assertEqual((f['con_respuesta'], f['respuesta_seg'], f['respuesta_texto']), (0, None, '—'))
+
+    def test_cada_persona_aparte_y_lo_escrito_desde_el_telefono_no_cuenta(self):
+        a = self.cliente_escribe('50761000001', panama(2026, 10, 9, 9, 0))
+        self.escribe(self.vendedora, a, panama(2026, 10, 9, 9, 10))
+        self.escribe(self.gerente, a, panama(2026, 10, 9, 9, 50), 'Soy la gerente')
+        self.registrar('Desde el teléfono', id_externo='50761000001', autor='vendedora', ts=panama(2026, 10, 9, 10, 0))
+        personas = self.gerencia.por_persona('hoy')['personas']
+        self.assertEqual({f['usuario_id']: f['mensajes'] for f in personas},
+                         {self.vendedora.id: 1, self.gerente.id: 1}, 'Lo del teléfono no dice quién lo escribió')
+        # La gerente escribió cuando el cliente ya tenía respuesta (de Ana): no hay una espera que se le pueda medir.
+        gema = self.fila(self.gerente)
+        self.assertEqual((gema['con_respuesta'], gema['respuesta_seg']), (0, None))
+
+    def test_lo_de_otro_dia_no_cuenta_en_hoy_pero_si_en_siete_dias(self):
+        ayer = self.cliente_escribe('50761000001', panama(2026, 10, 8, 9, 0))
+        self.escribe(self.vendedora, ayer, panama(2026, 10, 8, 9, 5))
+        self.assertIsNone(self.fila(self.vendedora))
+        semana = self.gerencia.por_persona('7_dias')['personas']
+        self.assertEqual([f['mensajes'] for f in semana if f['usuario_id'] == self.vendedora.id], [1])
+
+    def test_a_quien_le_debe_respuesta_un_cliente_ahora_y_desde_cuando(self):
+        a = self.cliente_escribe('50761000001', panama(2026, 10, 9, 12, 0))      # espera hace 60 min
+        b = self.cliente_escribe('50761000002', panama(2026, 10, 9, 12, 40))     # hace 20 min
+        for conv in (a, b):
+            conv.with_user(self.vendedora).action_atender()
+        f = self.fila(self.vendedora)
+        self.assertEqual((f['esperando_ahora'], f['espera_mas_min'], f['mensajes']), (2, 60, 0))
+
+    def test_las_que_nadie_tiene_aparecen_aparte(self):
+        sola = self.cliente_escribe('50761000001', panama(2026, 10, 9, 12, 30))
+        sola._poner_en_humano()
+        self.assertEqual(self.gerencia.por_persona('hoy')['sin_dueno'], {'conversaciones': 1, 'espera_mas_min': 30})
+
+    def test_sin_actividad_no_se_inventa_nada(self):
+        r = self.gerencia.por_persona('hoy')
+        self.assertEqual((r['personas'], r['sin_dueno']), ([], {'conversaciones': 0, 'espera_mas_min': None}))
+
+    def test_periodo_desconocido(self):
+        with self.assertRaises(UserError):
+            self.gerencia.por_persona('siempre')
 
 
 @tagged('post_install', '-at_install')

@@ -17,6 +17,8 @@ import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
 const CADA_CUANTO = 30_000;
+/** Cada cuánto esta pantalla dice «sigo aquí, viendo esta conversación». */
+const CADA_CUANTO_PULSO = 20_000;
 /** Al volver a ver la pestaña se pone al día, salvo que se haya sincronizado hace menos de esto. */
 const AL_VOLVER_SIN_PASAR_DE = 20_000;
 
@@ -58,12 +60,18 @@ export class DcasaConversaciones extends Component {
             if (document.visibilityState === "visible") {
                 this.almacen.ahora = Date.now();
                 this.almacen.marcarLeida();
+                this.almacen.latido();
                 // Una pestaña escondida pudo perder avisos (el navegador la duerme): al volver se pone al día.
                 this.almacen.resincronizar(AL_VOLVER_SIN_PASAR_DE);
             }
         };
         onMounted(async () => {
             document.addEventListener("visibilitychange", this.alVolverAVer);
+            this.pulso = setInterval(() => {
+                if (document.visibilityState === "visible") {
+                    this.almacen.latido();
+                }
+            }, CADA_CUANTO_PULSO);
             this.reloj = setInterval(() => {
                 this.almacen.ahora = Date.now();
                 // Sin conexión en vivo no llegan avisos: la pantalla se revisa sola, para que nadie se quede sin ver un mensaje.
@@ -72,6 +80,7 @@ export class DcasaConversaciones extends Component {
                 }
             }, CADA_CUANTO);
             await this.almacen.iniciar();
+            this.almacen.latido();
             const recordada = leerAbierta();
             if (recordada && !this.almacen.errorInicio) {
                 this.almacen.abrir(recordada);
@@ -80,6 +89,8 @@ export class DcasaConversaciones extends Component {
         onWillUnmount(() => {
             document.removeEventListener("visibilitychange", this.alVolverAVer);
             clearInterval(this.reloj);
+            clearInterval(this.pulso);
+            this.almacen.salir();
             this.almacen.desuscribir();
         });
         useEffect(

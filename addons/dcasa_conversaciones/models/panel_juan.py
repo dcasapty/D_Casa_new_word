@@ -69,7 +69,7 @@ class DcasaJuanPanel(models.AbstractModel):
     @api.model
     def _exigir_gerencia(self):
         if not self.env.su and not self.env.user.has_group(GRUPO_GERENCIA):
-            raise AccessError(self.env._('Solo Gerencia ve los costos y las conexiones de Juan.'))
+            raise AccessError(self.env._('Solo Gerencia ve los costos, las conexiones y cómo le fue a cada persona.'))
 
     @api.model
     def _horario(self):
@@ -170,6 +170,82 @@ class DcasaJuanPanel(models.AbstractModel):
             'bot_encendido': bool(self.env['dcasa.juan.ajustes'].obtener().bot_activo_global),
             'zona': horario.zona,
         }
+
+    @api.model
+    def por_persona(self, periodo='hoy'):
+        """Cómo le fue a cada persona del equipo en el periodo: mensajes que escribió en Odoo, conversaciones en las que
+        habló, cuánto tardó en contestar y a quién le debe respuesta un cliente ahora. Solo Gerencia.
+
+        «Cuánto tardó» = desde que el cliente quedó sin respuesta (de cualquiera) hasta el primer mensaje de esa
+        persona en esa conversación; la mediana de todas sus conversaciones. Solo cuentan los mensajes escritos en
+        Odoo (los que escribió desde su teléfono no dicen quién los escribió).
+        """
+        self._exigir_gerencia()
+        if periodo not in C.PERIODOS:
+            raise UserError(self.env._('Periodo desconocido: %s.', periodo))
+        inicio_local, fin_local = C.limites_del_periodo(periodo, self._ahora_local())
+        inicio, fin = H.a_utc(inicio_local), H.a_utc(fin_local)
+        cr = self.env.cr
+        cr.execute("""
+            SELECT usuario_id, COUNT(*), COUNT(DISTINCT conversacion_id)
+              FROM dcasa_mensaje
+             WHERE tipo = 'mensaje' AND autor = 'vendedora' AND usuario_id IS NOT NULL AND ts >= %s AND ts < %s
+          GROUP BY usuario_id""", [inicio, fin])
+        personas = {uid: {'mensajes': n, 'conversaciones': c} for uid, n, c in cr.fetchall()}
+
+        # Por cada persona y conversación: cuándo escribió por primera vez y desde cuándo esperaba el cliente (el
+        # primer mensaje suyo después del último mensaje que SALIÓ por el canal, de quien sea).
+        cr.execute("""
+            WITH primero AS (
+                SELECT conversacion_id, usuario_id, MIN(ts) AS p
+                  FROM dcasa_mensaje
+                 WHERE tipo = 'mensaje' AND autor = 'vendedora' AND usuario_id IS NOT NULL AND ts >= %s AND ts < %s
+              GROUP BY conversacion_id, usuario_id)
+            SELECT pr.usuario_id, pr.p,
+                   (SELECT MIN(c.ts) FROM dcasa_mensaje c
+                     WHERE c.conversacion_id = pr.conversacion_id AND c.tipo = 'mensaje' AND c.autor = 'cliente'
+                       AND c.ts < pr.p
+                       AND c.ts > COALESCE((SELECT MAX(o.ts) FROM dcasa_mensaje o
+                                             WHERE o.conversacion_id = pr.conversacion_id AND o.tipo = 'mensaje'
+                                               AND o.direccion = 'saliente' AND o.ts < pr.p), '1970-01-01'))
+              FROM primero pr""", [inicio, fin])
+        esperas = {}
+        for uid, p, desde in cr.fetchall():
+            if desde:
+                esperas.setdefault(uid, []).append((p - desde).total_seconds())
+
+        ahora = fields.Datetime.now()
+        debiendo = {}   # usuario → (cuántas conversaciones le esperan, desde cuándo la que más)
+        sin_dueno = [0, None]
+        for conv in self.env['dcasa.conversacion'].search([('estado', '=', 'humano'),
+                                                           ('ultimo_mensaje_autor', '=', 'cliente')]):
+            if conv.asignada_a:
+                n, desde = debiendo.get(conv.asignada_a.id, (0, None))
+                debiendo[conv.asignada_a.id] = (n + 1, min(filter(None, (desde, conv.ultimo_mensaje_cliente)),
+                                                           default=None))
+            else:
+                sin_dueno[0] += 1
+                sin_dueno[1] = min(filter(None, (sin_dueno[1], conv.ultimo_mensaje_cliente)), default=None)
+
+        def minutos(desde):
+            return int((ahora - desde).total_seconds() // 60) if desde else None
+
+        nombres = {u.id: u.name for u in self.env['res.users'].sudo().browse(set(personas) | set(debiendo))}
+        filas = []
+        for uid in set(personas) | set(debiendo):
+            mediana = C.mediana(esperas.get(uid, []))
+            esperando, desde = debiendo.get(uid, (0, None))
+            filas.append({
+                'usuario_id': uid, 'nombre': nombres.get(uid, ''),
+                'mensajes': personas.get(uid, {}).get('mensajes', 0),
+                'conversaciones': personas.get(uid, {}).get('conversaciones', 0),
+                'respuesta_seg': mediana, 'respuesta_texto': C.duracion_corta(mediana),
+                'con_respuesta': len(esperas.get(uid, [])),
+                'esperando_ahora': esperando, 'espera_mas_min': minutos(desde),
+            })
+        filas.sort(key=lambda f: (-f['mensajes'], f['nombre'].lower()))
+        return {'periodo': periodo, 'personas': filas,
+                'sin_dueno': {'conversaciones': sin_dueno[0], 'espera_mas_min': minutos(sin_dueno[1])}}
 
     @api.model
     def _ventas_atribuidas(self, desde, hasta):

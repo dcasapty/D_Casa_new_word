@@ -2,7 +2,8 @@
 from . import horario, celulares, adjuntos, publico, reglas_clientes, conocimiento_texto, tienda, firma
 from . import transaccion, panel_calculos
 # Modelos.
-from . import ajustes, cliente_worker, etiquetas, conversacion, mensaje, res_partner, ir_attachment, conocimiento
+from . import ajustes, cliente_worker, etiquetas, conversacion, mensaje, res_partner, res_users, ir_attachment
+from . import conocimiento, presencia
 from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_catalogo
 from . import cliente_worker_panel, panel_juan
 # Herramientas de Juan en el registro de Brian.

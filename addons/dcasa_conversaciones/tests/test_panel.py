@@ -916,6 +916,36 @@ class TestRendimientoDeLaBandeja(PanelCase):
 
 
 @tagged('post_install', '-at_install')
+class TestRefrescar(PanelCase):
+    """Un aviso en vivo se atiende con UNA llamada: la lista y, si hay una conversación abierta, su hilo."""
+
+    def test_trae_la_lista_y_el_hilo_igual_que_las_dos_llamadas_de_antes(self):
+        conv = self.cliente(1)
+        self.cliente(2)
+        r = self.panel.refrescar({}, 30, conv.id, 50)
+        self.assertEqual(r['lista'], self.panel.lista({}, 0, 30))
+        self.assertEqual(r['hilo'], self.panel.hilo(conv.id, None, 50))
+
+    def test_sin_conversacion_abierta_solo_la_lista(self):
+        self.cliente(1)
+        r = self.panel.refrescar({'estado': 'bot'})
+        self.assertEqual(r['lista'], self.panel.lista({'estado': 'bot'}))
+        self.assertIsNone(r['hilo'])
+
+    def test_respeta_los_filtros_los_permisos_y_la_validacion_de_cada_parte(self):
+        conv = self.cliente(1)
+        with self.assertRaises(UserError):
+            self.panel.refrescar({'inventado': True})
+        with self.assertRaises(UserError):
+            self.panel.refrescar({}, 30, 99999999)
+        with self.assertRaises(UserError):
+            self.panel.refrescar({}, 0, conv.id)
+        for usuario in (self.interno, self.portal):
+            with self.assertRaises(AccessError):
+                call_kw(self.env(user=usuario)['dcasa.conversacion'], 'refrescar', [], {})
+
+
+@tagged('post_install', '-at_install')
 class TestEliminarConversacion(PanelCase):
     """«Eliminar conversación» (Ley 81): solo Gerencia; el bot olvida su copia ANTES de que Odoo borre la suya."""
 

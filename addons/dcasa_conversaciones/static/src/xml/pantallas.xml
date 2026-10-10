@@ -88,6 +88,30 @@
                             </p>
                         </article>
                     </section>
+                    <section t-if="state.personas" class="o_dcj_p_personas" aria-label="Por persona">
+                        <h2>Por persona <span class="o_dcj_p_solo_gerencia">solo Gerencia</span></h2>
+                        <div t-if="state.personas.sin_dueno.conversaciones" class="o_dcj_p_aviso o_dcj_p_aviso_atencion" role="status">
+                            <i class="fa fa-user-times" aria-hidden="true"/>
+                            <p><strong t-out="state.personas.sin_dueno.conversaciones"/> <t t-out="state.personas.sin_dueno.conversaciones === 1 ? 'conversación espera' : 'conversaciones esperan'"/> y nadie las tiene
+                                (la que más, <strong t-out="minutosEnTexto(state.personas.sin_dueno.espera_mas_min)"/>).</p>
+                        </div>
+                        <p t-if="!state.personas.personas.length" class="o_dcj_p_detalle">Nadie escribió desde Odoo en este periodo.</p>
+                        <div t-else="" class="o_dcj_p_tabla_caja">
+                            <table class="o_dcj_p_tabla">
+                                <thead><tr><th>Persona</th><th>Mensajes</th><th>Conversaciones</th><th>Tarda en contestar</th><th>Le esperan ahora</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="state.personas.personas" t-as="p" t-key="p.usuario_id">
+                                        <th scope="row" t-out="p.nombre"/>
+                                        <td t-out="numero(p.mensajes)"/>
+                                        <td t-out="numero(p.conversaciones)"/>
+                                        <td><t t-out="p.respuesta_texto"/><span t-if="p.con_respuesta" class="o_dcj_p_detalle"> (<t t-out="p.con_respuesta"/>)</span></td>
+                                        <td><t t-if="p.esperando_ahora"><strong t-out="p.esperando_ahora"/> · la que más, <t t-out="minutosEnTexto(p.espera_mas_min)"/></t><t t-else="">—</t></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="o_dcj_p_nota">«Tarda en contestar» es la mediana desde que el cliente quedó sin respuesta hasta el primer mensaje de esa persona en la conversación. Solo cuentan los mensajes escritos en Odoo.</p>
+                    </section>
                     <p class="o_dcj_p_nota">Las horas son de Panamá. Se cuentan los mensajes de verdad; las notas internas y los avisos del sistema no.</p>
                 </t>
             </div>

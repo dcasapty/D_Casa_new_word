@@ -188,6 +188,39 @@ export class HiloConversacion extends Component {
         return null;
     }
 
+    /** ¿Se ofrece «Resumir»? Con la función encendida y una conversación con algo que leer. */
+    get puedeResumir() {
+        return this.almacen.resumenActivo && this.almacen.mensajes.filter((m) => m.tipo === "mensaje").length >= 4;
+    }
+
+    /** El resumen guardado, en líneas, con cuándo se hizo y si ya no cubre los mensajes nuevos. */
+    get resumen() {
+        const r = this.almacen.resumen;
+        if (!r) {
+            return null;
+        }
+        return {
+            lineas: r.texto.split("\n").map((l) => l.replace(/^•\s*/, "").trim()).filter(Boolean),
+            cuando: r.generado_en ? this.cuando(r.generado_en) : "",
+            desactualizado: r.vigente === false,
+        };
+    }
+
+    /** Las otras personas que tienen abierta esta conversación: «Ana está viendo esta conversación». */
+    get presencia() {
+        const gente = this.almacen.quienVe(this.almacen.seleccionadaId);
+        if (!gente.length) {
+            return null;
+        }
+        const escriben = gente.filter((g) => g.escribiendo).map((g) => g.nombre);
+        const nombres = (lista) => (lista.length > 1 ? `${lista.slice(0, -1).join(", ")} y ${lista.at(-1)}` : lista[0]);
+        if (escriben.length) {
+            return { texto: `${nombres(escriben)} ${escriben.length > 1 ? "están escribiéndole" : "está escribiéndole"} al cliente…`, escribe: true };
+        }
+        const verbo = gente.length > 1 ? "están viendo" : "está viendo";
+        return { texto: `${nombres(gente.map((g) => g.nombre))} ${verbo} esta conversación`, escribe: false };
+    }
+
     get subtitulo() {
         const c = this.almacen.conversacion;
         const ficha = this.almacen.ficha;

@@ -199,6 +199,9 @@ export class CajaRespuesta extends Component {
 
     alEscribir(ev) {
         this.ajustarAlto();
+        if (!this.esNota && ev?.target?.value) {
+            this.almacen.avisarQueEscribo(); // las demás personas ven «Ana está escribiendo…» (a una nota interna no)
+        }
         this.local.opcion = 0;
         this.local.cursor = ev?.target?.selectionStart ?? this.borrador.texto.length;
     }

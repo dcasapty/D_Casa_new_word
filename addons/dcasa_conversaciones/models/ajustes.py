@@ -169,6 +169,25 @@ class JuanAjustes(models.Model):
         'Avisar de fotos y archivos', default=True, tracking=True,
         help='Cuando un cliente manda cualquier otra foto o archivo (por ejemplo la captura de un producto), '
              'también se avisa por Telegram, a lo más una vez cada 10 minutos por conversación. Apágalo si son muchos.')
+    resumen_ia_activo = fields.Boolean(
+        'Resumir conversaciones con IA', default=True, tracking=True,
+        help='Muestra el botón «Resumir» en la pantalla de Conversaciones: la IA lee los mensajes de esa conversación '
+             '(los que viajaron por el canal; nunca las notas internas ni los archivos) y escribe unas líneas para '
+             'quien la recibe. Solo se pide cuando alguien aprieta el botón y el resumen se guarda en la conversación.')
+    reparto_modo = fields.Selection(
+        [('manual', 'Nadie: la toma quien quiera'), ('turnos', 'Por turnos entre quienes estén disponibles')],
+        'Reparto de conversaciones', default='manual', required=True, tracking=True,
+        help='Qué pasa cuando el asistente pasa una conversación a una vendedora y nadie la tenía. «Por turnos»: le '
+             'toca a quien lleva más tiempo sin recibir una (entre quienes marcaron que están disponibles) y se le '
+             'avisa a ella. Si nadie está disponible, la actividad va al responsable por defecto, como siempre.')
+    aviso_espera_minutos = fields.Integer(
+        'Avisar si un cliente espera (minutos)', default=10, tracking=True,
+        help='Si una persona tiene la conversación y el cliente lleva tantos minutos sin respuesta, se avisa por '
+             'Telegram (a quien la atiende; si nadie, a las personas de arriba) y en la lista se ve cuánto espera. '
+             '0 = no avisar.')
+    aviso_espera_solo_horario = fields.Boolean(
+        'Avisar solo en horario laboral', default=True, tracking=True,
+        help='Fuera del horario laboral nadie está para contestar: el aviso espera a que abran.')
     guardar_foto_perfil = fields.Boolean(
         'Guardar la foto de perfil del cliente', default=True, tracking=True,
         help='El asistente trae la foto de perfil de quien escribe (Telegram, WhatsApp, Messenger, Instagram) y la '
@@ -284,9 +303,11 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._(
                     'Cada lección admite hasta %s caracteres. Acórtala.', MAX_LARGO_LECCION))
 
-    @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos')
+    @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos', 'aviso_espera_minutos')
     def _check_numeros(self):
         for registro in self:
+            if not 0 <= registro.aviso_espera_minutos <= 1440:
+                raise ValidationError(self.env._('El aviso de espera va de 0 a 1.440 minutos.'))
             if registro.presupuesto_ia_mensual_usd < 0:
                 raise ValidationError(self.env._('El tope de IA no puede ser negativo.'))
             if registro.pausa_por_defecto_minutos < 0:

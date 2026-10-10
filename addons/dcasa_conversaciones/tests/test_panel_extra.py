@@ -143,6 +143,9 @@ class TestSubirAdjunto(PanelCase):
         for usuario in (self.interno, self.portal):
             for metodo, args in (('subir_adjunto', [self.conv.id, 'x.png', b64(png())]),
                                  ('descartar_adjunto', [1]), ('equipo', []), ('iniciar_panel', []),
+                                 ('fijar_disponible', [True]), ('presencia', [self.conv.id, False]),
+                                 ('resumir_conversacion', [self.conv.id]),
+                                 ('refrescar', []),
                                  ('nueva_oportunidad', [self.conv.id]),
                                  ('sugerir_respuesta', [self.conv.id]), ('reintentar_envios_panel', [self.conv.id])):
                 with self.subTest(usuario=usuario.login, metodo=metodo), self.assertRaises(AccessError):
@@ -189,10 +192,12 @@ class TestIniciarPanel(PanelCase):
         etiqueta = self.env['dcasa.conversacion.etiqueta'].create({'name': 'Zzinicio', 'color': 4})
         datos = self.panel.iniciar_panel()
         self.assertEqual(datos['usuario'],
-                         {'id': self.vendedora.id, 'nombre': 'Vendedora Prueba', 'es_gerencia': False})
+                         {'id': self.vendedora.id, 'nombre': 'Vendedora Prueba', 'es_gerencia': False,
+                          'disponible': True})
         self.assertEqual(datos['limites'], {
             'adjuntos': 5, 'bytes': 10 * 1024 * 1024, 'respuesta': 4000, 'nota': 1000, 'nota_para_el_bot': 500,
-            'pausa_minutos': 120})
+            'pausa_minutos': 120, 'espera_aviso_minutos': 10})
+        self.assertEqual((datos['reparto'], datos['resumen_ia']), ('manual', True))
         self.assertIn(etiqueta.id, [e['id'] for e in datos['etiquetas']])
         self.assertIn('/horario', [r['atajo'] for r in datos['rapidas']])
         self.assertIn('Gerente Prueba', [u['nombre'] for u in datos['equipo']])

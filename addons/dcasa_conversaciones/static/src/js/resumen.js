@@ -59,7 +59,7 @@ export class ResumenJuan extends Component {
         this.periodos = PERIODOS;
         this.numero = numero;
         this.dolares = dolares;
-        this.state = useState({ periodo: "hoy", datos: null, cargando: true, error: null });
+        this.state = useState({ periodo: "hoy", datos: null, cargando: true, error: null, personas: null });
         onMounted(() => {
             this.cargar();
             this.reloj = setInterval(() => this.cargar(true), 60_000);
@@ -77,6 +77,19 @@ export class ResumenJuan extends Component {
             if (periodo === this.state.periodo) {
                 this.state.datos = datos;
                 this.state.error = null;
+            }
+            // Cómo le fue a cada persona: solo lo ve Gerencia. Si falla, el resto del Resumen sigue igual.
+            if (datos.es_gerencia) {
+                try {
+                    const personas = await this.orm.silent.call("dcasa.juan.panel", "por_persona", [periodo]);
+                    if (periodo === this.state.periodo) {
+                        this.state.personas = personas;
+                    }
+                } catch {
+                    this.state.personas = null;
+                }
+            } else {
+                this.state.personas = null;
             }
         } catch (error) {
             if (!silencioso) {
@@ -99,6 +112,14 @@ export class ResumenJuan extends Component {
     get porcentajeSinHumano() {
         const d = this.state.datos;
         return d && d.conversaciones ? Math.round((d.resueltas_sin_humano / d.conversaciones) * 100) : null;
+    }
+
+    /** «37 min», «2 h 5 min»: minutos que lleva esperando un cliente. */
+    minutosEnTexto(m) {
+        if (m === null || m === undefined) {
+            return "—";
+        }
+        return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}`;
     }
 
     irAConversaciones() {

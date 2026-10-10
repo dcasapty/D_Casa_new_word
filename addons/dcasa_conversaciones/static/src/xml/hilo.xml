@@ -111,6 +111,30 @@
                     </button>
                 </header>
 
+                <section t-if="resumen" class="o_dcj_resumen" aria-label="Resumen de la conversación">
+                    <header>
+                        <strong><i class="fa fa-list-ul" aria-hidden="true"/> Resumen</strong>
+                        <span class="o_dcj_resumen_cuando">hecho <t t-out="resumen.cuando"/> con IA</span>
+                        <button type="button" class="o_dcj_icono_boton" title="Volver a resumir con lo último" aria-label="Actualizar el resumen"
+                                t-att-disabled="almacen.resumiendo" t-on-click="() => almacen.resumirLaAbierta(true)">
+                            <i t-attf-class="fa #{almacen.resumiendo ? 'fa-circle-o-notch fa-spin' : 'fa-refresh'}" aria-hidden="true"/>
+                        </button>
+                    </header>
+                    <ul><li t-foreach="resumen.lineas" t-as="linea" t-key="linea_index" t-out="linea"/></ul>
+                    <p t-if="resumen.desactualizado" class="o_dcj_resumen_aviso"><i class="fa fa-info-circle" aria-hidden="true"/> Llegaron mensajes después de este resumen.</p>
+                </section>
+                <div t-elif="puedeResumir" class="o_dcj_resumir">
+                    <button type="button" class="btn btn-secondary" t-att-disabled="almacen.resumiendo" t-on-click="() => almacen.resumirLaAbierta()">
+                        <i t-attf-class="fa #{almacen.resumiendo ? 'fa-circle-o-notch fa-spin' : 'fa-list-ul'}" aria-hidden="true"/>
+                        <t t-if="almacen.resumiendo">Resumiendo…</t><t t-else="">Resumir lo que pasó</t>
+                    </button>
+                </div>
+
+                <div t-if="presencia" class="o_dcj_presencia" t-att-class="{ o_escribe: presencia.escribe }" role="status">
+                    <i t-attf-class="fa #{presencia.escribe ? 'fa-pencil' : 'fa-eye'}" aria-hidden="true"/>
+                    <t t-out="presencia.texto"/>
+                </div>
+
                 <div class="o_dcj_hilo_cuerpo" t-ref="cuerpo" t-on-scroll="alDesplazar" tabindex="0" role="log"
                      aria-label="Mensajes de la conversación">
                     <div t-if="almacen.cargandoHilo" class="o_dcj_cargando" role="status">

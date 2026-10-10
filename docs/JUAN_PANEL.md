@@ -65,6 +65,23 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
 - **Mensajes programados** y **seguimiento** visibles: «Seguimiento 1 pendiente para el
   jueves 8:00 a. m.», con opción de cancelarlo.
 
+## Trabajo en equipo
+
+* **Cliente esperando.** Si una persona tiene la conversación y el cliente lleva más de `aviso_espera_minutos` (10 por defecto; 0 = apagado)
+  sin respuesta, la lista dice «Espera N min» (en marino con amarillo pasado el umbral) y el mantenimiento de cada 5 minutos avisa **una vez
+  por espera** por Telegram a quien la atiende (si nadie o no tiene Telegram, a las personas de siempre). Solo en horario laboral (se puede
+  cambiar) y no avisa de esperas de más de un día. Si el cliente vuelve a escribir y nadie contesta, avisa otra vez.
+* **«Ana está viendo» / «Ana está escribiéndole al cliente…».** Cada pantalla da un pulso cada 20 s con la conversación que tiene abierta
+  (y mientras teclea una respuesta, cada 4 s). En la lista aparece un chip con el nombre y en el hilo una franja; desaparece a los ~55 s
+  sin pulso. Una nota interna no cuenta como «escribiendo».
+* **Reparto por turnos** (Ajustes de Juan → «Reparto de conversaciones»; apagado por defecto). Cuando el asistente pasa una conversación a una
+  persona y nadie la tenía, le toca a quien lleva más tiempo sin recibir una, entre quienes están **disponibles** (cada quien lo marca arriba
+  de la lista, solo se ve con el reparto por turnos). Se le asigna, se le deja la actividad y el aviso de Telegram va a ella. Si nadie está
+  disponible, todo sigue como siempre (responsable por defecto y aviso a todas).
+* **Resumir.** Botón «Resumir lo que pasó» en conversaciones con 4 mensajes o más: unas viñetas hechas por la IA (modelo económico) con los
+  mensajes que viajaron por el canal; las notas internas nunca. Se guarda en la conversación y se vuelve a pedir solo con «Actualizar».
+* **Por persona (Gerencia).** En Resumen: mensajes, conversaciones, cuánto tarda en contestar y cuántas le esperan, por persona.
+
 ## Rendimiento y calidad
 
 - Cargar la lista en menos de 0,25 s con 5.000 conversaciones (medido: ~0,03 s; índices, paginación, sin cargar hilos

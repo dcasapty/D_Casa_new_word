@@ -127,6 +127,9 @@ class DcasaConversacionPanel(models.Model):
             'estado': self.estado, 'estado_nombre': dict(ESTADOS).get(self.estado),
             'bot_atiende': self._controla_bot(ahora) and self.estado != 'cerrada',
             'necesita_atencion': self.estado == 'humano' and self.ultimo_mensaje_autor == 'cliente',
+            # Desde cuándo espera el cliente una respuesta de una persona (la pantalla calcula cuánto lleva).
+            'esperando_desde': (H.a_iso(self.ultimo_mensaje_cliente)
+                                if self.estado == 'humano' and self.ultimo_mensaje_autor == 'cliente' else None),
             'sin_leer': (sin_leer or {}).get(self.id, 0),
             'ultimo_mensaje': {'texto': self.ultimo_mensaje_texto or '', 'autor': self.ultimo_mensaje_autor or None},
             'ultima_actividad': H.a_iso(self.ultima_actividad),
@@ -216,6 +219,17 @@ class DcasaConversacionPanel(models.Model):
         }
 
     @api.model
+    def refrescar(self, filtros=None, limite=LIMITE_LISTA_POR_DEFECTO, conversacion_id=None,
+                  tramo=LIMITE_HILO_POR_DEFECTO):
+        """Lo que la pantalla pide cuando le avisan que algo cambió: la lista (desde la primera) y, si hay una
+        conversación abierta, su hilo más reciente, en UNA sola llamada (antes eran dos).
+        """
+        return {
+            'lista': self.lista(filtros, 0, limite),
+            'hilo': self.hilo(conversacion_id, None, tramo) if conversacion_id else None,
+        }
+
+    @api.model
     def hilo(self, conversacion_id, antes_de_id=None, limite=LIMITE_HILO_POR_DEFECTO):
         """Un tramo del hilo, del más viejo al más nuevo. ``antes_de_id`` pide el tramo anterior a ese mensaje."""
         conv = self._para_panel(conversacion_id)
@@ -227,10 +241,13 @@ class DcasaConversacionPanel(models.Model):
         tramo = self.env['dcasa.mensaje'].search(dominio, order='id desc', limit=limite + 1)
         hay_mas = len(tramo) > limite
         tramo = tramo[:limite].sorted('id')
+        # El resumen guardado (si hay) y si ya cubre el último mensaje; solo cuando se pide el tramo más reciente.
+        ultimo = max((m.id for m in tramo if m.tipo == 'mensaje'), default=0) if not antes_de_id else None
         return {
             'conversacion': conv._resumen_panel(conv._sin_leer(conv.ids)),
             'mensajes': [m._como_dict() for m in tramo],
             'hay_mas': hay_mas, 'primer_id': tramo[:1].id or None,
+            'resumen_ia': conv._resumen_ia_datos(ultimo) if ultimo is not None else None,
             # Lo que está escrito para más tarde no es parte del hilo todavía: se ve aparte, con su hora.
             'programados': [m._como_dict() for m in self.env['dcasa.mensaje'].search([
                 ('conversacion_id', '=', conv.id), ('estado_envio', '=', 'programado')],

@@ -4,6 +4,7 @@ Rutas del Worker (``juan/src/odoo-panel*.ts``), todas con ``Authorization: Beare
 
 * ``GET  /odoo/salud``      — estado de cada canal, claves que faltan, gasto del mes (ya existía).
 * ``POST /odoo/sugerir``    — un borrador de respuesta para la vendedora (no envía nada).
+* ``POST /odoo/resumir``    — el resumen de una conversación para la vendedora (no envía ni escribe nada).
 * ``GET  /odoo/costos``     — gasto de IA del mes, por modelo.
 * ``GET  /odoo/qr``         — el código QR para vincular WhatsApp (NUNCA se escribe en un registro).
 * ``POST /odoo/reiniciar``  — reinicia el puente de WhatsApp.
@@ -75,6 +76,18 @@ class JuanClientePanel(models.AbstractModel):
         if respuesta['error'] or respuesta['cuerpo'].get('ok') is False:
             return {'ok': False, 'error': respuesta['error'] or str(respuesta['cuerpo'].get('error') or '')[:300]
                     or 'El Worker no pudo redactar el borrador.', 'sin_configurar': respuesta['sin_configurar']}
+        return {**respuesta['cuerpo'], 'ok': True}
+
+    @api.private
+    @api.model
+    def resumir(self, conversacion_id, canal, mensajes, nombre=None, etiquetas=None):
+        """El resumen de una conversación: ``{ok, texto, avisos}`` o ``{ok: False, error}``."""
+        respuesta = self._pedir('POST', '/odoo/resumir', {
+            'conversacion_id': conversacion_id, 'canal': canal, 'mensajes': mensajes,
+            'nombre': nombre or '', 'etiquetas': etiquetas or []})
+        if respuesta['error'] or respuesta['cuerpo'].get('ok') is False:
+            return {'ok': False, 'error': respuesta['error'] or str(respuesta['cuerpo'].get('error') or '')[:300]
+                    or 'El Worker no pudo resumir.', 'sin_configurar': respuesta['sin_configurar']}
         return {**respuesta['cuerpo'], 'ok': True}
 
     @api.private
