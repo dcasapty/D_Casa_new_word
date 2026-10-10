@@ -159,6 +159,12 @@ Meta). El par es único.
 - **`crear_oportunidad`**: la `zona` y el `cuando` solo se anotan si el cliente los dijo (todas sus palabras con peso están en lo que escribió).
 - **La guardia de fugas** no confunde la palabra «cotizar» con la herramienta: los nombres de una sola palabra cuentan solo escritos como
   llamada `cotizar(` o entre comillas; los que llevan guion bajo (`buscar_productos`) siempre.
+- **Telegram no es un canal abierto** (canal de pruebas del equipo): Juan solo atiende a los chats de la lista de *Ajustes de Juan ›
+  Chats de Telegram con permiso* y a quienes vincularon su Telegram con Brian (`/config` → `telegram_chats`). Cualquier otro chat se
+  ignora **antes** de descargar nada, transcribir, leer una imagen o llamar a la IA. Para agregar a alguien: que le escriba `/miid` al
+  bot de Juan (responde con su número) y pegarlo en la lista. Si la lista no se pudo leer (Odoo dormido y sin copia reciente) el
+  webhook contesta 503 y Telegram reintenta: no se pierde el mensaje de un chat que quizá sí está permitido. WhatsApp y los demás
+  canales no se tocan. La migración `19.0.1.2.0` arranca la lista con los chats que ya habían hablado con Juan.
 - Lo que escribe el cliente no puede imitar las marcas de confianza del historial (`[Vendedora]`, `[El cliente …]`).
 
 ## Contrato Worker `juan` ↔ puente QR (`puente-wa/`)

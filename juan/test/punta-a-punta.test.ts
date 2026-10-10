@@ -127,6 +127,10 @@ function escenario(secretos: Record<string, unknown> = SECRETOS, vars: Record<st
     await conReloj(cluster.correrAlarmas(nombre));
   };
   const vencerRafaga = (nombre = "telegram:555") => pasar(16_000, nombre);
+  /** Una visita a /salud hace que el Worker lea (y recuerde) la configuración de Odoo, como pasa en cuanto llega cualquier mensaje. */
+  const conocerLaConfiguracion = async () => {
+    await pedir(new Request("https://juan.example/salud"));
+  };
   const textosAlCliente = () => salidas.filter((s) => s.api === "telegram" && s.metodo === "sendMessage" && s.cuerpo.chat_id !== "999").map((s) => s.cuerpo.text as string);
   const alIA = () => salidas.filter((s) => s.api === "claude");
   const cron = async () => {
@@ -134,7 +138,7 @@ function escenario(secretos: Record<string, unknown> = SECRETOS, vars: Record<st
     await conReloj(worker.scheduled!({ cron: "23 * * * *", scheduledTime: Date.now(), noRetry() {} } as ScheduledController, cluster.env, c));
     await conReloj(c.esperar());
   };
-  return { odoo, cluster, ctx, pedir, telegram, desdeOdoo, vencerRafaga, pasar, textosAlCliente, alIA, cron };
+  return { odoo, cluster, ctx, pedir, telegram, desdeOdoo, vencerRafaga, pasar, textosAlCliente, alIA, cron, conocerLaConfiguracion };
 }
 
 describe("el primer despliegue: sin ningún secreto el Worker NO se cae", () => {
@@ -271,6 +275,7 @@ describe("una conversación completa por Telegram", () => {
 
   it("si Odoo está dormido, los mensajes esperan en la cola y se registran cuando despierta (no se pierden)", async () => {
     const e = escenario();
+    await e.conocerLaConfiguracion(); // la lista de chats permitidos ya se leyó antes de que Odoo se durmiera
     e.odoo.estado.caido = true;
     await e.telegram("Hola");
     await e.vencerRafaga();
@@ -290,6 +295,7 @@ describe("una conversación completa por Telegram", () => {
 
   it("si Odoo sigue dormido, el asistente no inventa: al agotar los reintentos avisa con honestidad y pasa a una vendedora", async () => {
     const e = escenario();
+    await e.conocerLaConfiguracion();
     e.odoo.estado.caido = true;
     await e.telegram("Hola, ¿cuánto cuesta la cama queen?");
     await e.vencerRafaga();

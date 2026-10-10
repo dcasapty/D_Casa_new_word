@@ -11,6 +11,7 @@ dice si están puestos, nunca los muestra.
 """
 import logging
 import os
+import re
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -85,6 +86,11 @@ class JuanAjustes(models.Model):
     canal_whatsapp_qr = fields.Boolean('WhatsApp (QR)', default=True, tracking=True)
     canal_whatsapp_cloud = fields.Boolean('WhatsApp (API oficial)', default=False, tracking=True)
     canal_telegram = fields.Boolean('Telegram', default=True, tracking=True)
+    telegram_chats_permitidos = fields.Text(
+        'Chats de Telegram con permiso', tracking=True,
+        help='Telegram es el canal de PRUEBAS del equipo, no una puerta abierta: Juan solo contesta a los chats de '
+             'esta lista y a quienes vincularon su Telegram con Brian. Un chat por línea (el número que da el '
+             'comando /miid del bot de Juan). Cualquier otro chat se ignora sin gastar IA.')
     canal_messenger = fields.Boolean('Messenger', default=False, tracking=True)
     canal_instagram = fields.Boolean('Instagram', default=False, tracking=True)
 
@@ -432,6 +438,14 @@ class JuanAjustes(models.Model):
         return resultado
 
     @api.private
+    def telegram_chats(self):
+        """Los chats de Telegram que pueden hablar con Juan: los de la lista y los de quienes vincularon Brian."""
+        self.ensure_one()
+        escritos = re.findall(r'\d{3,20}', self.telegram_chats_permitidos or '')
+        vinculados = self.env['brian.telegram.enlace'].sudo().search([('activo', '=', True)]).mapped('chat_id')
+        return sorted({chat for chat in (*escritos, *vinculados) if re.fullmatch(r'\d{3,20}', chat or '')})
+
+    @api.private
     def lista_palabras_prohibidas(self):
         self.ensure_one()
         return [linea.strip() for linea in (self.palabras_prohibidas or '').splitlines() if linea.strip()]
@@ -466,6 +480,7 @@ class JuanAjustes(models.Model):
             'palabras_prohibidas': self.lista_palabras_prohibidas(),
             'pausa_por_defecto_minutos': self.pausa_por_defecto_minutos,
             'guardar_foto_perfil': bool(self.guardar_foto_perfil),
+            'telegram_chats': self.telegram_chats(),
         }
 
     # ------------------------------------------------------------------

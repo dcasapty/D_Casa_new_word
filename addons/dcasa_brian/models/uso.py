@@ -9,6 +9,9 @@ Los precios por millón de tokens son de la página oficial de Anthropic (consul
 2026-10-02). Un modelo que no está en la tabla no tiene costo estimado: se reportan solo tokens
 (nunca se inventa una tarifa).
 """
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from odoo import api, fields, models
 
 CANALES = [('chat', 'Chat del panel'), ('telegram', 'Telegram'), ('mcp', 'MCP')]
@@ -25,6 +28,25 @@ def costo_estimado(modelo, entrada, salida, cache_lectura, cache_escritura):
     precio = PRECIOS.get((modelo or '').strip().lower())
     if not precio:
         return None
+    return (entrada * precio['entrada'] + salida * precio['salida'] + cache_lectura * precio['cache_lectura']
+            + cache_escritura * precio['cache_escritura']) / 1_000_000
+
+
+# Un modelo sin tarifa registrada se cuenta con la más cara que conocemos: el tope no queda ciego con un modelo nuevo.
+TARIFA_DE_RESERVA = max(PRECIOS.values(), key=lambda precio: precio['entrada'] + precio['salida'])
+ZONA = ZoneInfo('America/Panama')
+
+# Topes de seguridad del gasto de IA de Brian (USD por mes; 0 = sin tope). Se cambian en Ajustes › Brian.
+TOPE_MENSUAL_USD = 30.0
+TOPE_POR_PERSONA_USD = 10.0
+
+
+def costo_para_el_tope(modelo, entrada, salida, cache_lectura, cache_escritura):
+    """USD para comparar con el tope: la tarifa del modelo, o la de reserva si no la conocemos."""
+    estimado = costo_estimado(modelo, entrada, salida, cache_lectura, cache_escritura)
+    if estimado is not None:
+        return estimado
+    precio = TARIFA_DE_RESERVA
     return (entrada * precio['entrada'] + salida * precio['salida'] + cache_lectura * precio['cache_lectura']
             + cache_escritura * precio['cache_escritura']) / 1_000_000
 
@@ -62,3 +84,33 @@ class BrianUso(models.Model):
         }
         # sudo conserva el uid: create_uid queda como la persona que conversa.
         return self.sudo().create(valores).sudo(False)
+
+    @api.private
+    @api.model
+    def gasto_del_mes(self, usuario=None):
+        """USD estimados que Brian gastó en IA este mes (hora de Panamá), de todos o de ``usuario``."""
+        inicio_mes = datetime.now(ZONA).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        desde = fields.Datetime.to_string(inicio_mes.astimezone(ZoneInfo('UTC')).replace(tzinfo=None))
+        dominio = [('create_date', '>=', desde)]
+        if usuario:
+            dominio.append(('usuario_id', '=', usuario.id))
+        grupos = self.sudo()._read_group(
+            dominio, ['modelo'],
+            ['tokens_entrada:sum', 'tokens_salida:sum', 'tokens_cache_lectura:sum', 'tokens_cache_escritura:sum'])
+        return sum(costo_para_el_tope(modelo, entrada or 0, salida or 0, cache_l or 0, cache_e or 0)
+                   for modelo, entrada, salida, cache_l, cache_e in grupos)
+
+    @api.private
+    @api.model
+    def topes(self):
+        """``(tope mensual de todos, tope mensual por persona)`` en USD; 0 = sin tope."""
+        parametros = self.env['ir.config_parameter'].sudo()
+
+        def leer(clave, defecto):
+            try:
+                return max(0.0, float(parametros.get_param(clave, defecto)))
+            except (TypeError, ValueError):
+                return defecto
+
+        return (leer('dcasa_brian.tope_mensual_usd', TOPE_MENSUAL_USD),
+                leer('dcasa_brian.tope_por_persona_usd', TOPE_POR_PERSONA_USD))

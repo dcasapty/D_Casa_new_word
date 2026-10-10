@@ -10,6 +10,7 @@ import {
   CONFIG_TTL_MS,
   dentroDeHorario,
   mesDelNegocio,
+  normalizarChats,
   modeloValido,
   normalizarConfig,
   normalizarLecciones,
@@ -17,6 +18,25 @@ import {
   relojDelNegocio,
   type Horario,
 } from "../src/config";
+
+describe("chats de Telegram permitidos", () => {
+  it("vienen vacíos de fábrica: Telegram no es un canal abierto", () => {
+    expect(CONFIG_POR_DEFECTO.telegram_chats).toEqual([]);
+    expect(normalizarConfig({}).telegram_chats).toEqual([]);
+  });
+
+  it("solo cifras (como texto o número), sin repetir, y lo raro se descarta", () => {
+    expect(normalizarChats(["555", 555, " 7013 ", "-100123456", "abc", "12", "", null, {}, "5550"])).toEqual(["555", "7013", "5550"]);
+    expect(normalizarChats("555")).toEqual([]);
+    expect(normalizarChats(undefined)).toEqual([]);
+    expect(normalizarConfig({ telegram_chats: ["555", "x"] }).telegram_chats).toEqual(["555"]);
+  });
+
+  it("tiene tope de tamaño", () => {
+    const muchos = Array.from({ length: 2000 }, (_, i) => String(100000 + i));
+    expect(normalizarChats(muchos)).toHaveLength(500);
+  });
+});
 
 describe("normalizarConfig: nunca lanza y siempre devuelve algo usable", () => {
   it("basura de cualquier tipo → los valores por defecto del contrato", () => {

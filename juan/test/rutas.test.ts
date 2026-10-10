@@ -74,7 +74,7 @@ function montar(opciones: { config?: Partial<Config> | Record<string, unknown>; 
   const conv = new ConversacionDoble();
   const pedidas: [CanalId, string][] = [];
   const pendientes: Promise<unknown>[] = [];
-  const config = normalizarConfig({ ...CONFIG_POR_DEFECTO, ...opciones.config });
+  const config = normalizarConfig({ ...CONFIG_POR_DEFECTO, telegram_chats: ["555", "556"], ...opciones.config });
   const deps: DepsRutas = {
     adaptadores: opciones.adaptadores ?? [crearTelegram({ fetch: async () => new Response("{}"), dormir: async () => {} }), crearWhatsappQr({ fetch: async () => new Response("{}") })],
     config: async () => config,
@@ -526,6 +526,45 @@ describe("webhook de Telegram", () => {
     expect(m.pedidas).toEqual([]);
   });
 
+  it("un chat que NO está en la lista de Odoo se ignora: 200, nada se atiende ni se descarga ni llega a la IA", async () => {
+    const fetchTg = vi.fn(async () => new Response("{}"));
+    const m = montar({ adaptadores: [crearTelegram({ fetch: fetchTg as unknown as typeof fetch, dormir: async () => {} })] });
+    const foto = { update_id: 5, message: { message_id: 8, from: { id: 999, first_name: "Intruso" }, chat: { id: 999, type: "private" }, date: 1_790_000_000, caption: "hola", photo: [{ file_id: "F1", width: 90, height: 90 }] } };
+    const res = await m.pedir(hook(foto));
+    await m.despues();
+    expect(res.status).toBe(200);
+    expect(m.pedidas).toEqual([]);
+    expect(m.conv.ingestados).toEqual([]);
+    expect(fetchTg).not.toHaveBeenCalled(); // ni siquiera se bajó la foto
+  });
+
+  it("con la lista vacía nadie entra por Telegram (pero WhatsApp no se toca)", async () => {
+    const m = montar({ config: { telegram_chats: [] } });
+    await m.pedir(hook(update()));
+    await m.despues();
+    expect(m.pedidas).toEqual([]);
+  });
+
+  it("si la lista no se pudo leer (Odoo dormido) contesta 503 para que Telegram reintente, no pierde el mensaje", async () => {
+    const m = montar();
+    m.deps.config = async () => CONFIG_POR_DEFECTO;
+    const res = await m.pedir(hook(update()));
+    await m.despues();
+    expect(res.status).toBe(503);
+    expect(m.pedidas).toEqual([]);
+    m.deps.config = async () => normalizarConfig({ telegram_chats: ["555"] });
+    expect((await m.pedir(hook(update()))).status).toBe(200);
+    await m.despues();
+    expect(m.conv.ingestados).toHaveLength(1);
+  });
+
+  it("el chat permitido se compara como texto exacto (no por prefijo)", async () => {
+    const m = montar({ config: { telegram_chats: ["5550"] } });
+    await m.pedir(hook(update()));
+    await m.despues();
+    expect(m.pedidas).toEqual([]);
+  });
+
   it("canal APAGADO en Odoo: responde 200 y no atiende ni registra", async () => {
     const m = montar({ config: { canales_activos: { telegram: false } } });
     const res = await m.pedir(hook(update()));
@@ -567,7 +606,7 @@ describe("webhook de Telegram", () => {
     a.ruta = "/webhooks/telegram";
     a.recibir = async () => ({
       respuesta: new Response("ok"),
-      entrantes: [{ canal: "telegram", id_externo: "1", id_mensaje: "g", adjuntos: [{ tipo: "documento", obtener: async () => ({ bytes: new Uint8Array(12 * 1024 * 1024 + 1) }) }], ts: 1 }],
+      entrantes: [{ canal: "telegram", id_externo: "555", id_mensaje: "g", adjuntos: [{ tipo: "documento", obtener: async () => ({ bytes: new Uint8Array(12 * 1024 * 1024 + 1) }) }], ts: 1 }],
     });
     const m = montar({ adaptadores: [a] });
     await m.pedir(post("/webhooks/telegram", {}));
@@ -580,7 +619,7 @@ describe("webhook de Telegram", () => {
     a.ruta = "/webhooks/telegram";
     a.recibir = async () => ({
       respuesta: new Response("ok"),
-      entrantes: ["uno", "dos", "tres"].map((t, i) => ({ canal: "telegram" as const, id_externo: "1", id_mensaje: `m${i}`, texto: t, adjuntos: [], ts: i + 1 })),
+      entrantes: ["uno", "dos", "tres"].map((t, i) => ({ canal: "telegram" as const, id_externo: "555", id_mensaje: `m${i}`, texto: t, adjuntos: [], ts: i + 1 })),
     });
     const m = montar({ adaptadores: [a] });
     await m.pedir(post("/webhooks/telegram", {}));

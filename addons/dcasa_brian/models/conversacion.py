@@ -116,6 +116,8 @@ MAX_RESULTADO_HERRAMIENTA = 12000   # caracteres guardados por resultado
 MAX_TEXTO_ADJUNTO = 20000
 MAX_IMAGEN = 5 * 1024 * 1024
 MENSAJES_POR_MINUTO = 20
+MAX_LETRAS_DEL_MENSAJE = 8000       # lo que la persona escribe; un archivo largo va como adjunto
+MAX_ADJUNTOS_POR_MENSAJE = 5
 HERRAMIENTAS_MODELO_PEQUENO = 12
 ZONA = ZoneInfo('America/Panama')
 
@@ -445,6 +447,22 @@ class BrianConversacion(models.Model):
             return self.env._('ayer %s', local.strftime('%H:%M'))
         return local.strftime('%d/%m/%Y')
 
+    def _tope_de_gasto(self):
+        """El error si Brian llegó al tope de gasto de IA del mes (de todos o de esta persona); si no, ``None``.
+
+        Los topes son de seguridad (una clave filtrada, un script que repite mensajes): se cambian en Ajustes › Brian
+        y 0 los quita. Se cuentan los dólares estimados con la tarifa pública; un modelo sin tarifa, con la más cara.
+        """
+        Uso = self.env['brian.uso']
+        tope_total, tope_persona = Uso.topes()
+        if tope_total and Uso.gasto_del_mes() >= tope_total:
+            return self.env._('Brian llegó al tope de gasto de IA de este mes ($%(tope).2f). Un administrador puede '
+                              'subirlo en Ajustes › Brian; si no, vuelve el mes que viene.', tope=tope_total)
+        if tope_persona and Uso.gasto_del_mes(self.env.user) >= tope_persona:
+            return self.env._('Llegaste a tu tope de gasto de IA de este mes ($%(tope).2f). Un administrador puede '
+                              'subirlo en Ajustes › Brian.', tope=tope_persona)
+        return None
+
     def enviar(self, texto, adjunto_ids=None, contexto=None):
         self.ensure_one()
         self._verificar_duenio()
@@ -452,6 +470,16 @@ class BrianConversacion(models.Model):
         adjuntos = self._adjuntos_validos(adjunto_ids or [])
         if not texto and not adjuntos:
             return self._resultado([], error=self.env._('Escribe un mensaje o adjunta un archivo.'))
+        if len(texto) > MAX_LETRAS_DEL_MENSAJE:
+            return self._resultado([], error=self.env._(
+                'Tu mensaje es muy largo (máximo %s letras). Si es un documento, adjúntalo como archivo.',
+                f'{MAX_LETRAS_DEL_MENSAJE:,}'))
+        if len(adjuntos) > MAX_ADJUNTOS_POR_MENSAJE:
+            return self._resultado([], error=self.env._(
+                'Son muchos archivos a la vez (máximo %s por mensaje).', MAX_ADJUNTOS_POR_MENSAJE))
+        tope = self._tope_de_gasto()
+        if tope:
+            return self._resultado([], error=tope)
         if contexto is not None:
             self.contexto = json.dumps(contexto, ensure_ascii=False, default=str)[:8000]
         try:
@@ -478,6 +506,9 @@ class BrianConversacion(models.Model):
         accion = self._accion_propia(accion_id)
         if not accion:
             return self._resultado([], error=self.env._('Esa acción no es de esta conversación.'))
+        tope = self._tope_de_gasto()
+        if tope:
+            return self._resultado([], error=tope)   # la acción sigue por confirmar: se confirma cuando haya cupo
         resultado = self.env['brian.herramientas'].confirmar(accion.id)
         cambiados = self.mensaje_ids.filtered(lambda m: m.accion_id == accion)
         if resultado.get('ok'):

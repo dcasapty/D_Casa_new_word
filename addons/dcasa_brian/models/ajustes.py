@@ -22,6 +22,14 @@ class ResConfigSettings(models.TransientModel):
     dcasa_brian_herramientas_max = fields.Integer(
         'Máximo de herramientas por mensaje', config_parameter='dcasa_brian.herramientas_max',
         help='0: todas con modelos grandes y 12 con modelos pequeños.')
+    dcasa_brian_tope_mensual_usd = fields.Float(
+        'Tope de gasto de IA del mes (todos)', config_parameter='dcasa_brian.tope_mensual_usd', default=30.0,
+        help='Dólares por mes (hora de Panamá) que Brian puede gastar en IA entre todos. Al llegar, Brian avisa y '
+             'espera al mes siguiente o a que lo subas. 0 = sin tope. Es un freno de seguridad, no un presupuesto.')
+    dcasa_brian_tope_por_persona_usd = fields.Float(
+        'Tope de gasto de IA del mes (por persona)', config_parameter='dcasa_brian.tope_por_persona_usd', default=10.0,
+        help='Lo mismo, pero por persona: una clave o un script descontrolado de una sola persona no se come el '
+             'tope de todos. 0 = sin tope.')
     dcasa_brian_clave_nueva = fields.Char(
         'Clave de API nueva', store=False,
         help='Se guarda solo si escribes una. Si existe BRIAN_API_KEY en el servidor, esa tiene prioridad.')

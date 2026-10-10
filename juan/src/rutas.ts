@@ -11,7 +11,7 @@
 //   GET  /odoo/salud                  → estado del Worker
 //   (las cuatro de /odoo/* con Authorization: Bearer <JUAN_WORKER_TOKEN>, en tiempo constante)
 
-import { canalActivo, type Config } from "./config";
+import { canalActivo, CONFIG_POR_DEFECTO, type Config } from "./config";
 import { adaptadorPorRuta } from "./canales";
 import { TODOS_LOS_CANALES, type AdaptadorCanal, type CanalId, type Entrante, json } from "./canales/tipos";
 import type { Env } from "./env";
@@ -103,6 +103,27 @@ export async function manejar(req: Request, env: Env, d: DepsRutas): Promise<Res
   return new Response("no encontrado", { status: 404 });
 }
 
+/**
+ * Telegram es el canal de PRUEBAS del equipo, no una puerta abierta: cualquiera que conozca el @ del bot podría escribirle, gastar la IA
+ * y crear oportunidades. Solo pasan los chats de la lista de Odoo (el equipo con Brian vinculado y los que se agreguen a mano). Se filtra
+ * ANTES de atender el mensaje: no se descarga nada, no se transcribe, no se lee ninguna imagen, no se llama a la IA. Los demás canales
+ * no se tocan.
+ *
+ * Si la lista no se pudo leer (Odoo dormido y ninguna copia reciente: `CargadorConfig` entrega entonces la configuración de fábrica) NO se
+ * descarta el mensaje de un chat que quizá sí está permitido: se devuelve `null` y el webhook contesta 503 para que Telegram lo reintente
+ * cuando Odoo despierte.
+ */
+async function soloLosPermitidos(entrantes: Entrante[], d: DepsRutas): Promise<Entrante[] | null> {
+  if (!entrantes.some((e) => e.canal === "telegram")) return entrantes;
+  const cfg = await d.config().catch(() => null);
+  if (!cfg || cfg === CONFIG_POR_DEFECTO) return null;
+  const permitidos = new Set<string>(cfg.telegram_chats);
+  const pasan = entrantes.filter((e) => e.canal !== "telegram" || permitidos.has(String(e.id_externo)));
+  const descartados = entrantes.length - pasan.length;
+  if (descartados > 0) console.warn(`[juan] telegram: ${descartados} mensaje(s) de chats que no están en la lista de Odoo: se ignoran`);
+  return pasan;
+}
+
 async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: DepsRutas): Promise<Response> {
   let r;
   try {
@@ -111,10 +132,12 @@ async function webhook(adaptador: AdaptadorCanal, req: Request, env: Env, d: Dep
     console.error(`[juan] webhook ${adaptador.ruta}:`, e instanceof Error ? e.message : String(e));
     return new Response("error", { status: 500 });
   }
-  if (r.entrantes.length === 0) return r.respuesta;
+  const entrantes = await soloLosPermitidos(r.entrantes, d);
+  if (entrantes === null) return new Response("la lista de chats permitidos no está disponible: reintenta", { status: 503 });
+  if (entrantes.length === 0) return r.respuesta;
 
   const trabajo = (async () => {
-    for (const e of r.entrantes) await entregar(e, d);
+    for (const e of entrantes) await entregar(e, d);
   })();
   if (r.esperar) {
     // El puente QR necesita un error HTTP para reintentar: se responde cuando el mensaje ya está guardado.

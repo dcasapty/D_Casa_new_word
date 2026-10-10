@@ -41,7 +41,8 @@ class TestAjustesPorDefecto(JuanCase):
             'nombre_publico', 'bot_activo_global', 'canales_activos', 'horario', 'seguimiento',
             'presupuesto_ia_mensual_usd', 'proveedor_ia', 'proveedor_respaldo_ia', 'modelo_rapido',
             'modelo_inteligente', 'modelos_por_defecto', 'precios', 'precios_ia', 'lecciones', 'mensaje_bienvenida',
-            'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil'})
+            'texto_privacidad_corto', 'palabras_prohibidas', 'pausa_por_defecto_minutos', 'guardar_foto_perfil',
+            'telegram_chats'})
         self.assertEqual(datos['horario'], {'inicio': '08:00', 'fin': '17:00', 'dias': [0, 1, 2, 3, 4, 5, 6],
                                             'zona': 'America/Panama'})
         self.assertEqual(datos['seguimiento'], {'primero_horas': 5, 'segundo_dias': 5,
@@ -125,6 +126,40 @@ class TestAjustesEditables(JuanCase):
         self.ajustes.bot_activo_global = False
         self.assertFalse(self.ajustes.canal_activo('whatsapp_qr'))
         self.assertFalse(self.ajustes.como_json()['bot_activo_global'])
+
+    def test_telegram_solo_contesta_a_la_lista_y_al_equipo_vinculado_con_brian(self):
+        self.assertEqual(self.ajustes.como_json()['telegram_chats'], [], 'de fábrica: nadie (no es un canal abierto)')
+        self.ajustes.telegram_chats_permitidos = '555123\n 777999 \nabc\n12\n555123\n-100200300'
+        self.assertEqual(self.ajustes.telegram_chats(), ['100200300', '555123', '777999'],
+                         'solo cifras, sin repetir; lo que no es un número se ignora')
+        self.env['brian.telegram.enlace'].sudo().create({
+            'chat_id': '888111', 'user_id': self.vendedora.id, 'nombre': 'Ana', 'activo': True})
+        self.env['brian.telegram.enlace'].sudo().create({
+            'chat_id': '888222', 'user_id': self.gerente.id, 'nombre': 'Gerente', 'activo': False})
+        self.assertEqual(self.ajustes.como_json()['telegram_chats'],
+                         ['100200300', '555123', '777999', '888111'],
+                         'suma a quienes vincularon Brian (activos); un enlace apagado no cuenta')
+
+    def test_la_migracion_llena_la_lista_con_los_chats_que_ya_hablaron_y_no_pisa_lo_editado(self):
+        import importlib.util
+
+        from odoo.tools.misc import file_path
+        spec = importlib.util.spec_from_file_location(
+            'mig120', file_path('dcasa_conversaciones/migrations/19.0.1.2.0/post-migrate.py'))
+        mig = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mig)
+        self.conversacion(id_externo='4445556', texto='hola desde telegram', canal='telegram')
+        self.env.flush_all()
+        self.ajustes.telegram_chats_permitidos = False
+        self.env.flush_all()
+        mig.migrate(self.env.cr, '19.0.1.1.0')
+        self.ajustes.invalidate_recordset()
+        self.assertIn('4445556', (self.ajustes.telegram_chats_permitidos or '').split())
+        self.ajustes.telegram_chats_permitidos = '999888'
+        self.env.flush_all()
+        mig.migrate(self.env.cr, '19.0.1.1.0')
+        self.ajustes.invalidate_recordset()
+        self.assertEqual(self.ajustes.telegram_chats_permitidos, '999888', 'lo que alguien ya escribió no se pisa')
 
     def test_horario_editable(self):
         self.ajustes.write({'horario_inicio': 9.5, 'horario_fin': 18.0, 'dia_domingo': False})

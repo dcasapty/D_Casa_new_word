@@ -90,6 +90,12 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
   así en el turno, las de construcción también piden confirmación («acabo de leer textos que escribieron clientes…»).
 * **Tamaño de lo que manda el modelo**: hasta 10 000 letras por dato y 30 000 entre todos, revisado **antes** de registrar la llamada
   (si no, la auditoría —que no se puede borrar— se infla). `leer_lineas` rechaza líneas de más de 300 letras.
+* **Tope de gasto de IA** (*Ajustes › Brian*): freno de seguridad en dólares por mes (hora de Panamá), uno para **todos** (30 de
+  fábrica) y uno **por persona** (10 de fábrica); 0 lo quita. Al llegar, Brian lo dice con claridad y no llama al modelo; una acción
+  por confirmar sigue pendiente hasta que haya cupo. Cuenta el costo estimado con la tarifa pública (`brian.uso`); un modelo sin
+  tarifa se cuenta con la más cara que conocemos, así que un modelo nuevo no deja el tope ciego. No es un presupuesto: es la red
+  para una clave filtrada o un script que repite mensajes.
+* **Tamaño de lo que se manda**: hasta 8 000 letras por mensaje (un documento largo va como adjunto) y 5 archivos por mensaje.
 * **Telegram**: el vínculo se revisa en cada mensaje y botón; un usuario archivado (o que ya no es interno) pierde su chat al instante.
 * Límite de pasos por turno y de mensajes por minuto por usuario.
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /

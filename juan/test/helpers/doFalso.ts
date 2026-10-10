@@ -126,7 +126,8 @@ export function armarCluster(base: Partial<Env>): Cluster {
 export function dcasaFalso() {
   const peticiones: { metodo: string; ruta: string; cuerpo: any; auth: string | null }[] = [];
   const estado = {
-    config: {} as Record<string, unknown>,
+    /** Los chats de Telegram de las pruebas están en la lista permitida de Odoo (el canal no es abierto: ver `soloLosPermitidos` en rutas.ts). */
+    config: { telegram_chats: ["555", "111", "222", "333", "444", "666", "777", "888", "999"] } as Record<string, unknown>,
     herramientas: HERRAMIENTAS_DE_PRUEBA as unknown[],
     mensaje: { ok: true, conversacion_id: 77, estado: "bot", bot_activo: true, pausada_hasta: null, dentro_de_horario: true } as Record<string, unknown>,
     herramienta: (_nombre: string, _args: Record<string, unknown>): unknown => ({ ok: true, resultado: {} }),

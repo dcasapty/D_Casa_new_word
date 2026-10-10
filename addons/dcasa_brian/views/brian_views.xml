@@ -262,6 +262,19 @@
                                  help="Solo para cambiar la dirección por defecto del proveedor (p. ej. tu propio Ollama).">
                             <field name="dcasa_brian_base_url" placeholder="https://…"/>
                         </setting>
+                        <setting id="brian_topes" string="Tope de gasto de IA"
+                                 help="Freno de seguridad: dólares por mes que Brian puede gastar en IA (hora de Panamá). Al llegar, avisa y espera. 0 = sin tope.">
+                            <div class="content-group">
+                                <div class="row mt8">
+                                    <label for="dcasa_brian_tope_mensual_usd" class="col-lg-5 o_light_label"/>
+                                    <field name="dcasa_brian_tope_mensual_usd"/>
+                                </div>
+                                <div class="row">
+                                    <label for="dcasa_brian_tope_por_persona_usd" class="col-lg-5 o_light_label"/>
+                                    <field name="dcasa_brian_tope_por_persona_usd"/>
+                                </div>
+                            </div>
+                        </setting>
                         <setting id="brian_herramientas_max" string="Herramientas por mensaje"
                                  help="Con modelos pequeños conviene ofrecer pocas herramientas a la vez. 0 = automático (todas con modelos grandes, 12 con pequeños).">
                             <field name="dcasa_brian_herramientas_max"/>

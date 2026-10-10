@@ -75,6 +75,8 @@ export interface Config {
   pausa_por_defecto_minutos: number;
   /** Guardar en Odoo la foto de perfil de quien escribe (la dueña lo apaga en Ajustes de Juan). Nunca va a la IA. */
   guardar_foto_perfil: boolean;
+  /** Chats de Telegram que pueden hablar con Juan (el canal de pruebas). Lista vacía = nadie: Telegram no es un canal abierto al público. */
+  telegram_chats: string[];
 }
 
 export const CONFIG_POR_DEFECTO: Config = {
@@ -97,6 +99,7 @@ export const CONFIG_POR_DEFECTO: Config = {
   palabras_prohibidas: [],
   pausa_por_defecto_minutos: 120,
   guardar_foto_perfil: true,
+  telegram_chats: [],
 };
 
 /** Canales que arrancan encendidos si Odoo no dice nada. La Cloud API y Meta empiezan APAGADOS. */
@@ -125,6 +128,15 @@ const proveedor = (v: unknown): ProveedorIa | null => (typeof v === "string" && 
 /** El identificador de modelo, solo si tiene la forma del proveedor elegido; lo demás se descarta. */
 export function modeloValido(p: ProveedorIa, v: unknown): string {
   return typeof v === "string" && FORMA_DE_MODELO[p].test(v.trim()) ? v.trim() : "";
+}
+
+const MAX_CHATS_DE_TELEGRAM = 500;
+
+/** Los chats de Telegram permitidos: solo cifras (un chat privado es el id numérico de la persona), sin repetir. */
+export function normalizarChats(v: unknown): string[] {
+  const crudos = Array.isArray(v) ? v : [];
+  const chats = crudos.map((x) => (typeof x === "number" ? String(x) : typeof x === "string" ? x.trim() : "")).filter((x) => /^\d{3,20}$/.test(x));
+  return [...new Set(chats)].slice(0, MAX_CHATS_DE_TELEGRAM);
 }
 
 const MAX_LECCIONES = 20;
@@ -210,6 +222,7 @@ export function normalizarConfig(crudo: unknown): Config {
       : [],
     pausa_por_defecto_minutos: numero(c.pausa_por_defecto_minutos, d.pausa_por_defecto_minutos, 1, 60 * 24 * 14),
     guardar_foto_perfil: typeof c.guardar_foto_perfil === "boolean" ? c.guardar_foto_perfil : d.guardar_foto_perfil,
+    telegram_chats: normalizarChats(c.telegram_chats),
   };
 }
 
