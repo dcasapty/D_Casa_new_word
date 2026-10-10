@@ -39,6 +39,12 @@ class TestFichasUnicasEnElChat(JuanCase):
         empleado = self.env['hr.employee'].create({'name': 'Empleada Chat', 'work_phone': '+507 6444-1414'})
         self.assertEqual(self.Partner._dcasa_conv_buscar('50764441414'), empleado.work_contact_id)
 
+    def test_prefiere_la_ficha_de_cliente_sobre_el_contacto_del_equipo(self):
+        empleada = self.env['hr.employee'].create({'name': 'Empleada Mismo Numero', 'work_phone': '+507 6444-1616'})
+        cliente = self.Partner.create({'name': 'Cliente Mismo Numero', 'phone': '6444-1616'})
+        self.assertGreater(cliente.id, empleada.work_contact_id.id)
+        self.assertEqual(self.Partner._dcasa_conv_buscar('50764441616'), cliente)
+
     def test_la_ficha_nueva_del_chat_no_choca_con_ninguna(self):
         conv = self.conversacion(id_externo='50764441515', nombre='Nueva Chat')
         self.assertEqual(conv.partner_id.dcasa_telefono_llave, 'pa:64441515')

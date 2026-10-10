@@ -35,5 +35,9 @@ class BasePartnerMergeAutomaticWizard(models.TransientModel):
     _inherit = 'base.partner.merge.automatic.wizard'
 
     def _merge(self, partner_ids, dst_partner=None, extra_checks=True):
-        return super(BasePartnerMergeAutomaticWizard, self.with_context(**{SIN_DUPLICADOS: True}))._merge(
-            partner_ids, dst_partner=dst_partner, extra_checks=extra_checks)
+        # La ficha que queda llega ya leída por el asistente (sin esta excepción): se le pone también a ella, porque es
+        # la que recibe los datos de la que se va mientras esa todavía existe.
+        contexto = {SIN_DUPLICADOS: True}
+        return super(BasePartnerMergeAutomaticWizard, self.with_context(**contexto))._merge(
+            partner_ids, dst_partner=dst_partner.with_context(**contexto) if dst_partner else dst_partner,
+            extra_checks=extra_checks)

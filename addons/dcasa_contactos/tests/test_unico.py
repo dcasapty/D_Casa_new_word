@@ -101,6 +101,16 @@ class TestFichaUnica(TransactionCase):
                                                    'work_phone': '+507 6026-1919'})
         self.assertTrue(empleado.work_contact_id)
 
+    def test_el_contacto_de_un_usuario_o_de_un_empleado_no_cuenta_como_otra_ficha(self):
+        new_test_user(self.env, login='usuaria_existente_contactos', name='Usuaria Existente',
+                      email='usuaria.existente@correo.com', groups='base.group_user')
+        self.env['hr.employee'].create({'name': 'Empleado Existente', 'work_email': 'empleado.existente@correo.com',
+                                        'work_phone': '+507 6555-0101'})
+        # una ficha de cliente nueva puede tener los mismos datos que el contacto de quien ya es del equipo
+        self.Partner.create({'name': 'Cliente con el correo de la usuaria', 'email': 'usuaria.existente@correo.com'})
+        self.Partner.create({'name': 'Cliente con los datos del empleado', 'email': 'empleado.existente@correo.com',
+                             'phone': '6555-0101'})
+
     def test_la_empresa_propia_no_cuenta(self):
         empresa = self.env['res.company'].create({'name': 'Empresa del grupo prueba', 'vat': '8-123-456',
                                                   'phone': '+507 6026-1919', 'email': 'ana.gomez@correo.com'})
@@ -123,6 +133,16 @@ class TestFichaUnica(TransactionCase):
         self.env['base.partner.merge.automatic.wizard']._merge((self.ana + vieja).ids, dst_partner=self.ana)
         self.assertFalse(vieja.exists())
         self.assertTrue(self.ana.exists())
+
+    def test_fusionar_pasa_los_datos_de_la_ficha_que_se_va_a_la_que_queda(self):
+        # el asistente copia los datos de la ficha que se borra a la que queda MIENTRAS la primera aún existe
+        destino = self.Partner.create({'name': 'Destino sin datos'})
+        origen = self.Partner.create({'name': 'Origen con datos', 'phone': '6888-0001', 'email': 'origen@x.com',
+                                      'vat': '8-888-001'})
+        self.env['base.partner.merge.automatic.wizard']._merge((destino + origen).ids, dst_partner=destino)
+        self.assertFalse(origen.exists())
+        self.assertEqual((destino.email, destino.dcasa_telefono_llave, destino.dcasa_vat_llave),
+                         ('origen@x.com', 'pa:68880001', '8-888-001'))
 
     # --- quién ve qué mensaje ---------------------------------------------------------------------------------------
 
