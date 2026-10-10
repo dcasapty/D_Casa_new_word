@@ -15,6 +15,7 @@ from . import (
     test_ejemplos,
     test_espera,
     test_etiquetas,
+    test_fichas_unicas,
     test_firma,
     test_foto_perfil,
     test_herramientas,

@@ -75,6 +75,14 @@ class DcasaCheckout(WebsiteSale):
         pais = super()._get_default_country(order_sudo=order_sudo, **kwargs)
         return pais or request.website.company_id.country_id
 
+    def _create_new_address(self, address_values, address_type, use_delivery_as_billing, order_sudo):
+        """Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha: su dirección
+        queda como dirección de esa persona (una persona, una ficha; así suma sus puntos), sin tocar sus datos."""
+        if order_sudo._is_anonymous_cart():
+            address_values = request.env['res.partner'].sudo()._dcasa_valores_de_direccion(
+                address_values, address_type)
+        return super()._create_new_address(address_values, address_type, use_delivery_as_billing, order_sudo)
+
 
 def _sitemap_black_weekend(env, rule, qs):
     """/black-weekend entra al sitemap solo mientras la campaña está activa y tiene productos."""

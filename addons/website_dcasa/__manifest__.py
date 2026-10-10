@@ -33,7 +33,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_socios', 'website_sale'],
+    'depends': ['dcasa_base', 'dcasa_socios', 'dcasa_contactos', 'website_sale'],
     'data': [
         'security/dcasa_roles_website.xml',
         'security/ir.model.access.csv',

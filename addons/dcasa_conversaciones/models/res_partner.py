@@ -48,18 +48,24 @@ class ResPartner(models.Model):
     def _dcasa_conv_buscar(self, celular):
         """La ficha que ya tiene ese celular, o vacío. Nunca crea.
 
-        Un celular de Panamá se busca por la llave del programa (``dcasa_celular``) y, si no, por el
-        teléfono de la ficha; uno de otro país, por su teléfono completo. Con ``active_test=False``:
-        una ficha archivada también ocupa el celular (no se duplica).
+        Se busca por la llave del teléfono (``dcasa_contactos``): un celular de Panamá se encuentra escrito de
+        cualquier forma y por la llave del programa de socios; uno de otro país, solo por su número COMPLETO (nunca por
+        sus últimos 8 dígitos, que podrían ser los de un celular de Panamá). Primero las fichas de clientes; si la
+        persona es del equipo (usuario o empleado) se encuentra su contacto. Con ``active_test=False``: una ficha
+        archivada también ocupa el celular (no se duplica).
         """
         tipo, valor = celulares.interpretar(celular)
         Partner = self.sudo().with_context(active_test=False)
+        if not tipo:
+            return Partner
+        ficha = Partner._dcasa_buscar_ficha(celular=celular)
+        if ficha:
+            return ficha
+        llave = f'{tipo}:{valor}'
+        dominio = [('dcasa_telefono_llave', '=', llave)]
         if tipo == 'pa':
-            ficha = Partner.search([('dcasa_celular', '=', valor)], limit=1)
-            return ficha or Partner.search([('dcasa_telefono_digitos', '=', valor)], order='id', limit=1)
-        if tipo == 'intl':
-            return Partner.search([('phone', 'in', [f'+{valor}', valor])], order='id', limit=1)
-        return Partner
+            dominio = ['|', ('dcasa_celular', '=', valor)] + dominio
+        return Partner.search(dominio, order='id', limit=1)
 
     @api.model
     def _dcasa_conv_nombre_provisional(self, canal, id_externo, celular=None):

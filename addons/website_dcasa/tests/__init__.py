@@ -11,3 +11,4 @@ from . import test_contrato_visual
 from . import test_apartados
 from . import test_movil
 from . import test_carrito_feedback
+from . import test_direccion_visitante

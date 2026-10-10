@@ -32,7 +32,8 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'crm', 'sale_crm', 'mail', 'bus'],
+    'depends': ['dcasa_brian', 'dcasa_catalogo', 'dcasa_interfaz', 'dcasa_socios', 'dcasa_contactos', 'crm', 'sale_crm',
+                'mail', 'bus'],
     'data': [
         'security/conversaciones_security.xml',
         'security/ir.model.access.csv',

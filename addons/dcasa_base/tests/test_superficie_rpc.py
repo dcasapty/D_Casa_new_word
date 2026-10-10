@@ -118,6 +118,17 @@ LISTA_BLANCA = {
         'le asigna con sudo solo si la subió él.',
     ('dcasa_nomina', 'dcasa.nomina.reembolso', 'write'):
         'Bloquea: el colaborador solo edita su borrador; estado y aprobación solo por los botones (sudo).',
+    # --- dcasa_contactos -------------------------------------------------------------------
+    ('dcasa_contactos', 'dcasa.contacto.duplicado', 'action_ver'):
+        ACCION_VENTANA + ' Solo lee las fichas de la fila (ACL: Gerencia).',
+    ('dcasa_contactos', 'dcasa.contacto.duplicado', 'action_fusionar'):
+        ACCION_VENTANA + ' El asistente de fusión de Odoo exige ser administrador de contactos; no escribe aquí.',
+    ('dcasa_contactos', 'res.partner', 'create'):
+        OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
+    ('dcasa_contactos', 'res.partner', 'write'):
+        OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
+    ('dcasa_contactos', 'res.users', 'create'): OVERRIDE + ' Solo crea el usuario sin el candado de su contacto.',
+    ('dcasa_contactos', 'res.company', 'create'): OVERRIDE + ' Solo crea la empresa sin el candado de su contacto.',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
