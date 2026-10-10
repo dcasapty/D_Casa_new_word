@@ -280,3 +280,36 @@ Unos 90 hallazgos. Lo corregido:
   texto en placa navy); cabeceras como /socios en legales y cuenta; fotos de producto en 3:4.
 - Detalle, regresiones con su commit de origen, métricas y capturas:
   [`docs/auditoria/ronda6/diseno.md`](auditoria/ronda6/diseno.md).
+
+## Ronda 7 (pedido de la dueña: celular sin movimientos raros y avisos de «cargando»)
+
+**Lo que se reportó:** en el teléfono, al llegar a categorías y seguir bajando, la página también se movía de
+lado y se hacía zoom; solo los carriles deberían deslizarse de lado. Y al tocar «Agregar al carrito» no pasaba
+nada visible, así que se podía tocar varias veces (cada toque sumaba una unidad).
+
+**Causas medidas** (Chrome con el teléfono emulado, `addons/website_dcasa/tests/test_movil.py`; el navegador del
+teléfono agranda la «ventana» cuando algo mide más que la pantalla y achica todo para que quepa: eso es el zoom):
+1. Los carriles no contenían los textos ocultos de sus botones (`position: absolute`): cada uno quedaba a metros
+   a la derecha y la página crecía a ~5 veces el ancho. Arreglo: `.o_dcasa_rail_track { position: relative }`.
+2. El menú del celular (offcanvas) estaba fuera de la pantalla, a la derecha, también cuando estaba cerrado; al
+   volver arriba Odoo suelta y vuelve a fijar la cabecera ~0,4 s y en ese lapso la página se ensanchaba. Arreglo:
+   cerrado no se dibuja (`display: none`) y al abrirse entra con una animación propia.
+3. Campos de formulario con letra menor de 16 px: el iPhone acerca la pantalla al tocarlos. Arreglo: 16 px en
+   móvil. Además `touch-action: manipulation` (sin zoom por doble toque; el pellizco sigue funcionando).
+
+**Avisos de «cargando»** (`static/src/js/carrito.js`):
+- «Agregar al carrito» (tienda y ficha, JS de Odoo) y «Agregar» de las tarjetas de la portada y de Black Weekend:
+  el botón gira y queda bloqueado desde el primer toque hasta que el servidor contesta; los toques repetidos no
+  hacen nada (tres toques seguidos = una petición = una unidad). Un lector de pantalla oye «Agregando al
+  carrito…». Si el servidor no contesta en 20 s, el botón se libera. Al volver atrás desde el carrito el botón
+  no queda girando.
+- Barra azul fina arriba mientras se abre otra página o se envía un formulario (enlaces del mismo sitio; no
+  para pestañas nuevas, descargas, anclas ni menús). Plana, sin sombras; sin movimiento si la persona pidió
+  menos animaciones.
+- Controles táctiles (`pointer: coarse`) de al menos 44 px: «Ver todo →», cantidad (− y +), flechas de la
+  galería, buscador.
+
+**Límites honestos:** se probó en Chrome (Android) emulado; no hay iPhone/Safari en el entorno de pruebas, así
+que el comportamiento en Safari se confirma con el teléfono de la dueña en staging. Los tiempos medidos son de
+una máquina local, no del servidor.
+

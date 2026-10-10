@@ -9,3 +9,5 @@ from . import test_black_weekend
 from . import test_diseno
 from . import test_contrato_visual
 from . import test_apartados
+from . import test_movil
+from . import test_carrito_feedback
