@@ -42,3 +42,7 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
     `docs/EQUIPO.md`), (b) confirmar el rol de cada quien, (c) enviar la invitación cuando alguien deba entrar (Ajustes ›
     Usuarios › Enviar correo de invitación, con su correo ya en Cloudflare Access) y (d) pasarme el **esquema de ejemplo**
     de cómo debe organizarse el alta del equipo: la pantalla de alta por texto se retiró (2026-10-11).
+15. **Lector de códigos de barras:** (a) probar el Escáner en staging con los dos aparatos (que el lector escriba como
+    teclado y termine con Enter); (b) **Códigos de barras › Revisar productos** y, si el informe cuadra, asignarlos; (c) decidir
+    el tamaño de las etiquetas y la impresora (¿térmica o pegatinas?), y qué se hace primero con los lectores: contar
+    (hecho), recibir o cobrar. Guía: `docs/BARRAS.md`.

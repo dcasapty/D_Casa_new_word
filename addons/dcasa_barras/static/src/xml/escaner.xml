@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_barras.Escaner">
+        <div class="o_dcasa_escaner">
+            <div class="o_dcasa_escaner_cuerpo">
+
+                <header class="o_dcasa_escaner_cabecera">
+                    <h1>Escáner</h1>
+                    <div class="o_dcasa_escaner_modos" role="group" aria-label="Qué quieres hacer">
+                        <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'consultar'}"
+                                t-att-aria-pressed="state.modo === 'consultar' ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarModo('consultar')">Consultar</button>
+                        <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'contar'}"
+                                t-att-aria-pressed="state.modo === 'contar' ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarModo('contar')">Contar</button>
+                    </div>
+                </header>
+
+                <!-- Aquí cae lo que escribe el lector. -->
+                <form class="o_dcasa_escaner_entrada" t-on-submit.prevent="escanear">
+                    <label for="o_dcasa_escaner_texto" class="o_dcasa_escaner_etiqueta">
+                        Escanea el código o escríbelo
+                    </label>
+                    <div class="o_dcasa_escaner_fila">
+                        <input id="o_dcasa_escaner_texto" type="text" class="o_dcasa_escaner_texto" t-ref="entrada"
+                               t-model="state.texto" t-on-keydown="alTeclear"
+                               autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+                               placeholder="Código, referencia o nombre"/>
+                        <button type="submit" class="o_dcasa_boton o_dcasa_boton_primario"
+                                t-att-disabled="state.cargando or !state.texto.trim()">Buscar</button>
+                    </div>
+                </form>
+
+                <div class="o_dcasa_escaner_aviso" role="status" aria-live="polite">
+                    <p t-if="state.mensaje" t-attf-class="o_dcasa_msg o_dcasa_msg_{{ state.mensaje.tipo }}"
+                       t-esc="state.mensaje.texto"/>
+                </div>
+
+                <!-- Varios productos con ese código, o los que salieron de buscar por nombre. -->
+                <ul t-if="state.opciones.length" class="o_dcasa_opciones">
+                    <li t-foreach="state.opciones" t-as="opcion" t-key="opcion.id">
+                        <button type="button" class="o_dcasa_opcion" t-on-click="() => this.elegir(opcion)">
+                            <span class="o_dcasa_opcion_nombre" t-esc="opcion.nombre"/>
+                            <span t-if="opcion.referencia or opcion.codigo_de_barras" class="o_dcasa_opcion_ref"
+                                  t-esc="opcion.referencia or opcion.codigo_de_barras"/>
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- La tarjeta del producto. -->
+                <section t-if="state.ficha" class="o_dcasa_ficha" aria-label="Producto escaneado">
+                    <div class="o_dcasa_ficha_arriba">
+                        <img class="o_dcasa_ficha_foto" t-att-src="state.ficha.imagen" alt=""/>
+                        <div class="o_dcasa_ficha_datos">
+                            <h2 class="o_dcasa_ficha_nombre" t-esc="state.ficha.nombre"/>
+                            <p class="o_dcasa_ficha_ref">
+                                <span t-if="state.ficha.referencia">Ref. <strong t-esc="state.ficha.referencia"/></span>
+                                <span t-if="state.ficha.codigo_de_barras"> · Código <strong t-esc="state.ficha.codigo_de_barras"/></span>
+                                <span t-if="!state.ficha.codigo_de_barras"> · Sin código de barras</span>
+                            </p>
+                            <p t-if="state.ficha.precio_texto" class="o_dcasa_ficha_precio" t-esc="state.ficha.precio_texto"/>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_ficha_existencias">
+                        <div class="o_dcasa_total">
+                            <span class="o_dcasa_total_cifra" t-esc="cifra(state.ficha.unidades)"/>
+                            <span class="o_dcasa_total_texto">en existencia</span>
+                        </div>
+                        <span t-attf-class="o_dcasa_estado o_dcasa_estado_{{ state.ficha.etiqueta }}" t-esc="etiqueta"/>
+                    </div>
+                    <p t-if="!state.ficha.controla_inventario" class="o_dcasa_nota">
+                        Este producto no controla inventario: no tiene existencias que contar.
+                    </p>
+                    <ul t-if="state.ficha.ubicaciones.length" class="o_dcasa_ubicaciones">
+                        <li t-foreach="state.ficha.ubicaciones" t-as="u" t-key="u.id">
+                            <span t-esc="u.nombre"/>
+                            <strong t-esc="cifra(u.cantidad)"/>
+                        </li>
+                    </ul>
+
+                    <!-- Contar -->
+                    <div t-if="state.modo === 'contar'" class="o_dcasa_contar">
+                        <p t-if="state.ficha.con_lotes" class="o_dcasa_nota">
+                            Este producto se controla por lote o serie: cuéntalo en Inventario › Inventario físico.
+                        </p>
+                        <p t-elif="!state.ficha.puede_contar and state.ficha.controla_inventario" class="o_dcasa_nota">
+                            Contar existencias es de Gerencia. Aquí solo puedes consultar.
+                        </p>
+                        <t t-elif="state.ficha.puede_contar">
+                            <div t-if="!state.confirmando" class="o_dcasa_contar_campos">
+                                <label>
+                                    <span>Dónde contaste</span>
+                                    <select class="o_dcasa_select" t-model.number="state.ubicacion">
+                                        <option t-foreach="state.ficha.lugares_para_contar" t-as="lugar" t-key="lugar.id"
+                                                t-att-value="lugar.id" t-esc="lugar.nombre"/>
+                                    </select>
+                                </label>
+                                <label>
+                                    <span>Cantidad contada</span>
+                                    <input type="text" inputmode="decimal" class="o_dcasa_cantidad" autocomplete="off"
+                                           t-model="state.cantidad" t-on-keydown="alTeclearCantidad"/>
+                                </label>
+                                <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
+                                        t-on-click="pedirConfirmacion">Revisar</button>
+                            </div>
+                            <div t-else="" class="o_dcasa_confirmar" role="alertdialog" aria-label="Confirmar el conteo">
+                                <p>El sistema decía <strong t-esc="cifra(state.confirmando.antes)"/>. Tú contaste
+                                    <strong t-esc="cifra(state.confirmando.cantidad)"/>.</p>
+                                <p t-if="state.confirmando.diferencia !== 0" class="o_dcasa_diferencia">
+                                    Se ajusta
+                                    <strong><t t-if="state.confirmando.diferencia > 0">+</t><t t-esc="cifra(state.confirmando.diferencia)"/></strong>
+                                    unidades (queda en el historial de movimientos).
+                                </p>
+                                <p t-else="" class="o_dcasa_diferencia">Coincide: no hay nada que ajustar.</p>
+                                <div class="o_dcasa_botones">
+                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
+                                            t-att-disabled="state.cargando" t-on-click="confirmarConteo">Confirmar conteo</button>
+                                    <button type="button" class="o_dcasa_boton" t-on-click="cancelarConteo">Cancelar</button>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </section>
+
+                <section t-if="state.historial.length" class="o_dcasa_historial" aria-label="Lo último que escaneaste">
+                    <h3>Lo último</h3>
+                    <ul>
+                        <li t-foreach="state.historial" t-as="h" t-key="h.id" t-attf-class="o_dcasa_hist_{{ h.tipo }}">
+                            <span class="o_dcasa_hist_nombre" t-esc="h.nombre"/>
+                            <span class="o_dcasa_hist_detalle" t-esc="h.detalle"/>
+                        </li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </t>
+</templates>

@@ -147,6 +147,26 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
     ('dcasa_contactos', 'res.users', 'create'): OVERRIDE + ' Solo crea el usuario sin el candado de su contacto.',
     ('dcasa_contactos', 'res.company', 'create'): OVERRIDE + ' Solo crea la empresa sin el candado de su contacto.',
+    # --- dcasa_barras -------------------------------------------------------------------------
+    ('dcasa_barras', 'dcasa.barras', 'buscar'):
+        'API del Escáner: exige stock.group_stock_user en el servidor ANTES de leer; no devuelve costos; sin sudo.',
+    ('dcasa_barras', 'dcasa.barras', 'buscar_por_nombre'):
+        'API del Escáner: exige stock.group_stock_user en el servidor ANTES de buscar; sin sudo.',
+    ('dcasa_barras', 'dcasa.barras', 'ficha'):
+        'API del Escáner: exige stock.group_stock_user en el servidor y lectura del producto; sin sudo.',
+    ('dcasa_barras', 'dcasa.barras', 'contar'):
+        'API del Escáner: exige stock.group_stock_manager (Gerencia) en el servidor ANTES de escribir; valida cada '
+        'argumento y usa el Inventario físico de Odoo con los permisos de la persona (sin sudo).',
+    ('dcasa_barras', 'dcasa.barras.asignacion', 'action_revisar'):
+        'Botón: exige stock.group_stock_manager y escritura sobre el registro; no cambia productos (la lista de '
+        'líneas la arma con sudo, solo con lo que ya leyó).',
+    ('dcasa_barras', 'dcasa.barras.asignacion', 'action_aplicar'):
+        'Botón: exige stock.group_stock_manager y product.group_product_manager y escritura sobre el registro; vuelve '
+        'a comprobar cada producto y nunca pisa un código existente; el producto se escribe con los permisos de la '
+        'persona (sin sudo; solo las líneas de la lista se escriben con sudo).',
+    ('dcasa_barras', 'dcasa.barras.asignacion', 'action_deshacer'):
+        'Botón: exige stock.group_stock_manager y escritura sobre el registro; quita solo lo que sigue igual a lo '
+        'asignado.',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
