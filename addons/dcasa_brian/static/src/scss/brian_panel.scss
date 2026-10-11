@@ -4,61 +4,55 @@
 
 $brian-ancho: 400px;
 
+// Dibujo de IA: chispa grande blanca y chispa chica amarilla (el amarillo solo sobre azul: nunca toca el blanco).
+.o_brian_icono_ia {
+    display: block;
+    width: 100%;
+    height: 100%;
+    .o_brian_chispa { fill: var(--dc-blanco, #fff); }
+    .o_brian_chispa_chica { fill: var(--dc-amarillo, #FED00F); }
+}
+
 .o_brian_monograma {
     flex: none;
     display: inline-grid;
     place-items: center;
     width: 34px;
     height: 34px;
+    padding: 6px;
     border-radius: 10px;
     background: var(--dc-azul-600, #1340B1);
-    color: var(--dc-blanco, #fff);
-    font-family: "Anton", "Inter", sans-serif;
-    font-size: 1.05rem;
-    line-height: 1;
-    letter-spacing: .02em;
     user-select: none;
 }
 .o_brian_monograma_mini {
     width: 26px;
     height: 26px;
+    padding: 4px;
     border-radius: 8px;
-    font-size: .85rem;
 }
 .o_brian_monograma_grande {
     width: 56px;
     height: 56px;
+    padding: 10px;
     border-radius: 16px;
-    font-size: 1.8rem;
 }
 
-// --- Botón flotante ---------------------------------------------------------------
+// --- Botón flotante: redondo, solo el dibujo (el nombre va en el aria-label y en el tooltip) -----------
 .o_brian_lanzador {
     position: fixed;
     right: 20px;
     bottom: 20px;
     z-index: 1040;
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 16px 6px 6px;
+    display: inline-grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    padding: 12px;
     border: 1px solid var(--dc-azul-700);
-    border-radius: 999px;
+    border-radius: 50%;
     background: var(--dc-azul-600);
-    color: var(--dc-blanco);
-    font-family: "Inter", sans-serif;
-    font-weight: 600;
-    font-size: .95rem;
     box-shadow: var(--dc-sombra-2);
     transition: transform var(--dc-transicion), background-color var(--dc-transicion), opacity var(--dc-transicion);
-
-    .o_brian_monograma {
-        width: 32px;
-        height: 32px;
-        border-radius: 999px;
-        background: var(--dc-blanco);
-        color: var(--dc-azul-600);
-    }
 
     &:hover { background: var(--dc-azul-700); transform: translateY(-1px); }
     &:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300); }

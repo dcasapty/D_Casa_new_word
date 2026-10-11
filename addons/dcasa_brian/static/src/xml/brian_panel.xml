@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
 
-    <!-- Monograma de Brian: una «B» en el azul de la marca. -->
+    <!-- Dibujo de IA de Brian: una chispa grande (blanca) y otra chica (amarilla, sobre el azul, sin tocar el blanco).
+         Sin letras: el nombre ya se lee al lado y en el aria-label. -->
+    <t t-name="dcasa_brian.IconoIA">
+        <svg class="o_brian_icono_ia" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+            <path class="o_brian_chispa" d="M13 5 C14.2 12.2 16.2 14.2 23.4 15.4 C16.2 16.6 14.2 18.6 13 25.8 C11.8 18.6 9.8 16.6 2.6 15.4 C9.8 14.2 11.8 12.2 13 5 Z"/>
+            <path class="o_brian_chispa_chica" d="M26.2 1.4 C26.7 4.8 27.6 5.7 31 6.2 C27.6 6.7 26.7 7.6 26.2 11 C25.7 7.6 24.8 6.7 21.4 6.2 C24.8 5.7 25.7 4.8 26.2 1.4 Z"/>
+        </svg>
+    </t>
+
+    <!-- Ficha azul con el dibujo de IA (encabezado del panel, barra superior, bienvenida). -->
     <t t-name="dcasa_brian.Monograma">
-        <span t-attf-class="o_brian_monograma {{ tamano ? 'o_brian_monograma_' + tamano : '' }}" aria-hidden="true">B</span>
+        <span t-attf-class="o_brian_monograma {{ tamano ? 'o_brian_monograma_' + tamano : '' }}" aria-hidden="true">
+            <t t-call="dcasa_brian.IconoIA"/>
+        </span>
     </t>
 
     <t t-name="dcasa_brian.Brian">
@@ -14,8 +25,7 @@
                 t-att-aria-expanded="abierto.abierto ? 'true' : 'false'" aria-controls="o_brian_panel"
                 aria-label="Hablar con Brian, el asistente (Ctrl + J)" title="Brian · Ctrl + J"
                 t-on-click="() => brian.abrir()">
-            <t t-call="dcasa_brian.Monograma"/>
-            <span class="o_brian_lanzador_texto">Brian</span>
+            <t t-call="dcasa_brian.IconoIA"/>
         </button>
 
         <!-- claseAvatar: o_brian_avatar_esperando | trabajando | te_necesito | termine (hoy sin dibujo; ver SCSS). -->

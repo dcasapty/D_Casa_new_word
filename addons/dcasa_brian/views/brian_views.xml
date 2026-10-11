@@ -296,7 +296,7 @@
          Menú
          ============================================================ -->
     <menuitem id="menu_brian_raiz" name="Brian" sequence="90" groups="base.group_user"
-              web_icon="dcasa_brian,static/description/icon.svg"/>
+              web_icon="dcasa_brian,static/src/img/brian_ia.svg"/>
     <menuitem id="menu_brian_conversaciones" name="Conversaciones" parent="menu_brian_raiz"
               action="brian_conversacion_action" sequence="10"/>
     <menuitem id="menu_brian_acciones" name="Registro de acciones" parent="menu_brian_raiz"
