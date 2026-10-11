@@ -118,15 +118,6 @@ class DcasaEquipoAlta(models.TransientModel):
         if not self.env.su and not self.env.user.has_group('base.group_erp_manager'):
             raise AccessError(self.env._("Solo quien administra los accesos puede dar de alta al equipo."))
 
-    def _reabrir(self):
-        return {
-            'type': 'ir.actions.act_window',
-            'res_model': self._name,
-            'res_id': self.id,
-            'view_mode': 'form',
-            'target': 'new',
-        }
-
     def action_leer(self):
         """Lee la lista pegada y arma las líneas para revisarlas. No crea nada todavía."""
         self.ensure_one()
@@ -145,7 +136,6 @@ class DcasaEquipoAlta(models.TransientModel):
             'estado': 'error' if f['error'] else 'pendiente',
             'resultado': f['error'],
         } for f in filas])
-        return self._reabrir()
 
     def action_crear(self):
         """Crea a quien está por crear (y reintenta lo que tenía error). Quien ya se creó no se vuelve a tocar."""
@@ -156,7 +146,6 @@ class DcasaEquipoAlta(models.TransientModel):
             raise UserError(self.env._("No hay nadie por crear. Pega la lista y pulsa «Leer lista»."))
         for linea in pendientes:
             linea._procesar()
-        return self._reabrir()
 
 
 class DcasaEquipoAltaLinea(models.TransientModel):

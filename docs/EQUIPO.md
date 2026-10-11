@@ -62,4 +62,7 @@ y después entra por `/master` (correo y clave, y el código de Google Authentic
 ## Notas
 
 * No se crean permisos nuevos: los tres roles se arman con los grupos de siempre (`dcasa_base`).
+* **Alta del equipo es una página normal**, no una ventana emergente: una ventana abierta desde un menú deja su
+  dirección en la barra del navegador y reaparecía vacía al recargar o al volver atrás. La acción declara
+  `target = current` de forma explícita: al actualizar, Odoo no quita un valor que el XML deja de nombrar.
 * El ícono de **Empleados** se cambia desde este módulo (`hr.menu_hr_root`), igual que los demás íconos de la marca.

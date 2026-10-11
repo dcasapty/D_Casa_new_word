@@ -253,6 +253,12 @@ class TestAlta(TransactionCase):
         alta.with_user(self.accesos)._exigir_administrador()
         alta.with_user(self.admin)._exigir_administrador()
 
+    def test_es_una_pagina_normal_y_no_una_ventana_emergente(self):
+        """Una ventana emergente abierta desde un menú reaparece vacía al recargar o volver atrás."""
+        accion = self.env.ref('dcasa_equipo.action_dcasa_equipo_alta')
+        self.assertEqual(accion.target, 'current')
+        self.assertEqual(self.env.ref('dcasa_equipo.menu_dcasa_equipo_alta').action, accion)
+
     def test_el_menu_es_solo_de_quien_administra_accesos(self):
         menu = self.env.ref('dcasa_equipo.menu_dcasa_equipo_alta')
         self.assertEqual(menu.group_ids, self.env.ref('base.group_erp_manager'))
