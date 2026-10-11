@@ -42,8 +42,8 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
     `docs/EQUIPO.md`), (b) confirmar el rol de cada quien, (c) enviar la invitación cuando alguien deba entrar (Ajustes ›
     Usuarios › Enviar correo de invitación, con su correo ya en Cloudflare Access) y (d) pasarme el **esquema de ejemplo**
     de cómo debe organizarse el alta del equipo: la pantalla de alta por texto se retiró (2026-10-11).
-15. **Lector de códigos de barras y etiquetas:** (a) pedir al proveedor de etiquetas el **rollo numerado** (Code 128,
-    `DC0001`… más de 1,000, cada número dos veces, número escrito debajo, 10 de prueba; ver `docs/BARRAS.md`); (b) con las
+15. **Lector de códigos de barras y etiquetas:** (a) pedir al proveedor de etiquetas el **rollo numerado** (Code 128 o QR
+    con solo el número dentro, `DC0001`… más de 1,000, cada número dos veces, número escrito debajo, 10 de prueba; ver `docs/BARRAS.md`); (b) con las
     pruebas, ensayar **Escáner › Asignar** con los dos aparatos (que el lector escriba como teclado y termine con
     Enter); (c) **no aplicar** «Códigos de barras › Revisar productos» si se usa el rollo; (d) decidir con qué se sigue:
     **recibir contenedores** (hoja de códigos o etiquetas en cada caja; sin lista del proveedor no hay contra qué comparar)

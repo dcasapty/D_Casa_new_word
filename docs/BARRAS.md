@@ -90,7 +90,13 @@ Reglas:
 
 ### Qué pedirle al proveedor de etiquetas
 
-* **Code 128** (las referencias llevan letras y guiones; el formato de tienda, EAN, solo admite números).
+* **Code 128 o QR.** Las dos sirven: el lector las lee como teclado y manda el texto, y esta pantalla no se entera de cuál
+  era. Si es Code 128, porque las referencias llevan letras y guiones (el formato de tienda, EAN, solo admite números). Si
+  es **QR**: el lector tiene que ser **2D** (un lector solo de barras 1D no lee QR; confirmar en el manual que el QR esté
+  activado y que mande Enter al final), y **el contenido del QR debe ser solo el número en texto** (`DC0001`), sin enlace
+  ni datos extra: el precio, la foto y las existencias salen del sistema en el momento y una etiqueta impresa se
+  desactualiza. Un QR tiene la ventaja de leerse aunque la etiqueta esté rayada o sucia (corrección de errores) y en poco
+  espacio; con un número de 6 caracteres basta un QR chico, pero no más pequeño de unos 2 × 2 cm (dejando el borde blanco).
 * **Un prefijo de letras y un número** (por ejemplo `DC0001` a `DC1000`): así no se confunde con ninguna referencia que sea
   un número suelto. Hoy hay 652 productos y cada medida (Twin, Full, Queen, King) es un producto aparte: pedir más de
   1,000, con números de sobra para etiquetas dañadas y productos nuevos.
@@ -131,7 +137,8 @@ se puede repetir sin miedo.
   (el precio sale del sistema, con «+ ITBMS»).
 * **Qué código lleva cada producto**: decidido, un **número propio de D'CASA** en etiquetas del rollo (arriba). La
   asignación por referencia queda como alternativa, sin aplicar.
-* **Cámara del celular** como lector: no está (los dos aparatos ya traen lector).
+* **Cámara del celular** como lector: no está (los dos aparatos ya traen lector). Con QR sería fácil de agregar si algún
+  día se quiere leer con el celular.
 
 ## Seguridad
 
