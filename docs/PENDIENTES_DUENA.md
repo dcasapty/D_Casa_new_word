@@ -37,7 +37,8 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
 12. **Consolidación:** nada que hacer hoy (D'CASA tiene una sola empresa); cuando haya una segunda, el contador revisa el
     mapa de cuentas y lo que la guía deja como «requiere contador» (docs/CONSOLIDACION.md).
 13. **Factura electrónica DGI** sigue en desarrollo (necesita elegir el PAC: docs/FACTURA_ELECTRONICA.md).
-14. **Alta del equipo:** entrar a Odoo (staging) › **Empleados › Alta del equipo**, pegar la lista del equipo
-    (`nombre | correo | departamento | cargo | rol`; los datos quedan solo en Odoo, no en el repositorio) y pulsar
-    «Leer lista» y «Crear al equipo». No se manda ninguna invitación: cuando alguien deba entrar, enviarle la invitación
-    desde Ajustes › Usuarios y tener su correo en Cloudflare Access (Equipo D'CASA). Guía: `docs/EQUIPO.md`.
+14. **Equipo:** las 7 personas ya están en Odoo (staging) como usuarios y empleados, sin invitación enviada. Falta
+    (a) armar la **jerarquía** (departamentos con su gerente y superior; el campo Gerente de cada ficha; ver
+    `docs/EQUIPO.md`), (b) confirmar el rol de cada quien, (c) enviar la invitación cuando alguien deba entrar (Ajustes ›
+    Usuarios › Enviar correo de invitación, con su correo ya en Cloudflare Access) y (d) pasarme el **esquema de ejemplo**
+    de cómo debe organizarse el alta del equipo: la pantalla de alta por texto se retiró (2026-10-11).

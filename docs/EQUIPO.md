@@ -1,68 +1,37 @@
-# Alta del equipo (`dcasa_equipo`)
+# Equipo (`dcasa_equipo`)
 
-Para dar de alta a las personas del equipo en **un solo paso**: el usuario, su ficha de empleado, su departamento y su
-rol, **sin mandar ninguna invitación**. También cambia el ícono del menú **Empleados** por uno de la marca.
+Lo que toca a las personas del equipo (Empleados) y no es de nómina ni de ventas.
 
-> **Los datos de las personas viven solo en Odoo.** Este módulo no trae ninguna lista de nombres ni correos: se pegan en
-> la pantalla y quedan en la base de datos. Nada de eso se guarda en el repositorio.
+> **Los datos de las personas viven solo en Odoo.** Ni nombres ni correos del equipo se guardan en el repositorio
+> (una prueba vigila que no entren correos reales al módulo).
 
-## Cómo se usa
+## Qué hace hoy
 
-1. Entra a Odoo como administrador de Ajustes o de accesos (quien puede crear usuarios).
-2. **Empleados › Alta del equipo**.
-3. Pega una persona por línea, con cinco datos separados por `|` (también sirven `;` o tabulador):
+* El menú **Empleados** deja el ícono a colores de Odoo por uno azul D'CASA con trazo blanco (`hr.menu_hr_root`),
+  igual que los demás íconos de la marca.
 
-   ```
-   nombre | correo | departamento | cargo | rol
-   ```
+## Lo que se retiró (2026-10-11)
 
-   El **rol** es uno de estos (con las mayúsculas que quieras):
+Hubo una pantalla **Empleados › Alta del equipo** (se pegaba una lista de texto y creaba usuario, ficha de empleado,
+departamento y rol sin mandar invitaciones). La dueña pidió **quitarla**: las personas no se crean pegando texto. El
+código, el menú y los permisos se borraron, y la migración `19.0.2.0.0` elimina las dos tablas temporales que dejaba.
+Las personas que ya se habían creado con ella **siguen en Odoo, intactas** (son usuarios y empleados normales).
 
-   | Escribes | Qué recibe |
-   |---|---|
-   | `Vendedora` (o `Vendedor`, `Ventas`) | El rol **Vendedora** de D'CASA: vende, cobra y despacha. |
-   | `Gerencia` (o `Gerente`) | El rol **Gerencia** de D'CASA: lo de Vendedora más reportes, contabilidad, compras, inventario y **nómina**. |
-   | `Administrador` (o `Admin`, `Control total`) | Gerencia **más** Ajustes de Odoo (control total). Solo lo puede dar un administrador de Ajustes. |
+La dueña dejará un **esquema de ejemplo** de cómo debe organizarse el equipo; cuando llegue se construye sobre eso.
 
-   Las líneas en blanco y las que empiezan con `#` se ignoran.
-4. **Leer lista**: se arma una tabla para revisar. Lo que esté mal sale en rojo con el motivo y se corrige ahí mismo.
-5. **Crear al equipo**. Cada fila queda *Creado*, *Ya estaba* o *Revisar*. Un error en una persona no frena a las demás
-   ni deja nada a medias.
+## Cuidado al crear usuarios a mano
 
-## Qué se crea por persona
+En Odoo, guardar un usuario nuevo **que tenga correo manda solo la invitación** para elegir clave (también la importación
+normal). Si se quiere crear a alguien sin que le llegue nada todavía, hay que preverlo (por ejemplo, dejando el correo
+para el final) o usar el esquema que se defina. Quien entra por `/master` necesita además estar en Cloudflare Access
+(política «Equipo D'CASA», [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8).
 
-* El **usuario** (el correo es su acceso), de la empresa, con zona horaria de Panamá y el rol elegido.
-* Su **ficha de empleado**, enlazada al usuario y a su contacto, con su departamento y su cargo (el departamento se crea
-  si no existe; se compara sin importar mayúsculas).
-* **Nada más**: ni sueldo ni cédula ni datos de nómina (eso lo carga quien lleva la nómina, ver [NOMINA.md](NOMINA.md)).
+## Jerarquía del equipo en Odoo (cómo se arma)
 
-## Sin invitación
+Odoo tiene dos niveles, y conviene llenar los dos:
 
-En Odoo, crear un usuario con correo **manda solo** la invitación para elegir clave, y la importación normal también.
-Aquí no: el usuario queda como **«Nunca conectado»** y **no puede entrar** hasta que alguien lo decida.
-
-Cuando quieras que entre: **Ajustes › Usuarios › abrir a la persona › Enviar correo de invitación**. Ella elige su clave
-y después entra por `/master` (correo y clave, y el código de Google Authenticator). Si el correo no está en
-**Cloudflare Access › Política «Equipo D'CASA»**, la puerta no la deja pasar: agrégalo también ahí
-([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8).
-
-## Repetir es seguro
-
-* Quien **ya tiene usuario** (activo o archivado, por su acceso o por el correo de su contacto) **no se toca**: ni sus
-  grupos, ni su nombre, ni su ficha. Si le faltaba la ficha de empleado, se le crea.
-* Los **roles no se vuelven a aplicar**: si a alguien le quitaste Gerencia a mano, repetir el alta no se la devuelve.
-* Para cambiar el rol de alguien ya creado: Ajustes › Usuarios (selector «D'CASA»).
-
-## Quién puede
-
-* La pantalla es de quien administra accesos (`base.group_erp_manager`); se comprueba en el servidor, no solo en el menú.
-* El rol **Administrador** exige además ser administrador de Ajustes (`base.group_system`).
-* Con 2FA obligatorio para administradores, la primera vez que entre cada administrador enrola su app de códigos.
-
-## Notas
-
-* No se crean permisos nuevos: los tres roles se arman con los grupos de siempre (`dcasa_base`).
-* **Alta del equipo es una página normal**, no una ventana emergente: una ventana abierta desde un menú deja su
-  dirección en la barra del navegador y reaparecía vacía al recargar o al volver atrás. La acción declara
-  `target = current` de forma explícita: al actualizar, Odoo no quita un valor que el XML deja de nombrar.
-* El ícono de **Empleados** se cambia desde este módulo (`hr.menu_hr_root`), igual que los demás íconos de la marca.
+1. **Departamentos** (Empleados › Departamentos): cada uno tiene **Departamento superior** y **Gerente**. Al poner el
+   gerente de un departamento, Odoo **asigna ese gerente (y coach) a quien esté en el departamento y no tenga gerente**.
+   Por eso se empieza por los departamentos y luego se corrige a mano a quien tenga otro jefe.
+2. **Ficha de cada empleado** (campo **Gerente**): es lo que dibuja el **Organigrama** (el ícono de tres nodos en
+   Empleados). Cada persona tiene un solo gerente. El campo **Coach** no cambia el organigrama.

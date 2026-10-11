@@ -147,12 +147,6 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
     ('dcasa_contactos', 'res.users', 'create'): OVERRIDE + ' Solo crea el usuario sin el candado de su contacto.',
     ('dcasa_contactos', 'res.company', 'create'): OVERRIDE + ' Solo crea la empresa sin el candado de su contacto.',
-    # --- dcasa_equipo --------------------------------------------------------------------------
-    ('dcasa_equipo', 'dcasa.equipo.alta', 'action_leer'):
-        ASISTENTE + ' Exige base.group_erp_manager en el servidor; solo lee la lista pegada y arma las líneas.',
-    ('dcasa_equipo', 'dcasa.equipo.alta', 'action_crear'):
-        ASISTENTE + ' Exige base.group_erp_manager en el servidor ANTES de cualquier sudo(); el rol Administrador '
-                    'exige además base.group_system; crea al usuario sin mandar invitación.',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
