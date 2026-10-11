@@ -13,8 +13,11 @@ Odoo Community:
   de su empaque. Tolera guiones y mayúsculas distintos según el teclado del lector.
 * Inventario › Configuración › Códigos de barras: llena el código de barras de los productos que no tienen, a partir
   de su referencia interna. Nunca pisa uno que ya existe, avisa lo repetido y se puede deshacer.
+* Escáner › Asignar: etiquetas numeradas de un rollo (DC0001, DC0002…): se escanea la etiqueta, se elige el producto y
+  ese número queda como su código de barras. Se puede pasar a otro producto, reemplazar o quitar; el número viejo queda
+  retirado y avisa si alguien lo escanea. Cada cambio queda en el historial. Solo Gerencia.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Inventory/Inventory',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -24,6 +27,7 @@ Odoo Community:
         'security/ir.model.access.csv',
         'security/barras_security.xml',
         'views/asignacion_views.xml',
+        'views/etiqueta_views.xml',
         'views/menus.xml',
     ],
     'assets': {

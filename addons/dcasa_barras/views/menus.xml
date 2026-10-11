@@ -11,4 +11,7 @@
 
     <menuitem id="menu_dcasa_barras_asignacion" name="Códigos de barras" parent="stock.menu_stock_config_settings"
               sequence="90" action="action_dcasa_barras_asignacion" groups="stock.group_stock_manager"/>
+
+    <menuitem id="menu_dcasa_barras_etiquetas" name="Historial de etiquetas" parent="stock.menu_stock_config_settings"
+              sequence="91" action="action_dcasa_barras_etiqueta" groups="stock.group_stock_manager"/>
 </odoo>

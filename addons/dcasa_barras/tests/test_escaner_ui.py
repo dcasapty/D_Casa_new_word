@@ -128,6 +128,120 @@ CODIGO_PARECIDO = """
 """
 
 
+CODIGO_ASIGNAR = """
+(async () => {
+    const esperar = async (fn, que, ms = 20000) => {
+        const inicio = Date.now();
+        while (Date.now() - inicio < ms) {
+            const r = fn();
+            if (r) { return r; }
+            await new Promise((ok) => setTimeout(ok, 100));
+        }
+        throw new Error("Asignar: no apareció " + que);
+    };
+    const boton = (texto) => [...document.querySelectorAll(".o_dcasa_escaner button")]
+        .find((b) => b.textContent.trim() === texto);
+    const escribir = (el, valor) => {
+        el.value = valor;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const enter = (el) => el.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const falla = (texto) => { throw new Error("Asignar: " + texto); };
+    const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
+    const campo = await esperar(() => document.querySelector(".o_dcasa_escaner_texto"), "el cuadro del lector");
+
+    // Se escanea la etiqueta del rollo (el lector puede escribirla en minúsculas) y todavía no es de nadie.
+    boton("Asignar").click();
+    await esperar(() => document.querySelector(".o_dcasa_asignar_guia"), "la guía de Asignar");
+    escribir(campo, "dc9500");
+    enter(campo);
+    const codigo = await esperar(() => document.querySelector(".o_dcasa_etiqueta_codigo"), "el número de la etiqueta");
+    if (codigo.textContent.trim() !== "DC9500") { falla("el número debe salir en mayúsculas: " + codigo.textContent); }
+    if (!document.querySelector(".o_dcasa_etiqueta_cabecera").textContent.includes("Sin producto")) {
+        falla("una etiqueta nueva no es de ningún producto");
+    }
+    if (campo.value !== "") { falla("el cuadro del lector debe quedar vacío"); }
+
+    // El foco pasa a la búsqueda del producto; se elige el producto y se confirma con Enter en el botón.
+    const busqueda = await esperar(
+        () => document.querySelector(".o_dcasa_busqueda_producto"), "la búsqueda del producto");
+    await espera(150);
+    if (document.activeElement !== busqueda) { falla("el foco debe pasar a la búsqueda del producto"); }
+    escribir(busqueda, "zzmesa a");
+    enter(busqueda);
+    const opcion = await esperar(() => [...document.querySelectorAll(".o_dcasa_opciones_etiqueta .o_dcasa_opcion")]
+        .find((o) => o.textContent.includes("Zzmesa A")), "el producto en la lista");
+    opcion.click();
+    const confirmar = await esperar(() => document.querySelector(".o_dcasa_asignar_confirmar"), "la confirmación");
+    if (!confirmar.textContent.includes("DC9500")) {
+        falla("la confirmación debe decir la etiqueta: " + confirmar.textContent);
+    }
+    await espera(150);
+    if (document.activeElement.textContent.trim() !== "Asignar etiqueta") {
+        falla("el foco debe estar en Asignar etiqueta");
+    }
+    boton("Asignar etiqueta").click();
+    const ok = await esperar(() => document.querySelector(".o_dcasa_msg_ok"), "el aviso de etiqueta asignada");
+    if (!ok.textContent.includes("DC9500")) { falla("aviso " + ok.textContent); }
+    if (document.querySelector(".o_dcasa_etiqueta_cabecera")) {
+        falla("después de asignar la pantalla queda lista para la siguiente");
+    }
+
+    // La misma etiqueta otra vez: ya es de ese producto. Se pasa a otro producto a propósito.
+    escribir(campo, "DC9500");
+    enter(campo);
+    const dueno = await esperar(
+        () => document.querySelector(".o_dcasa_ficha_dueno"), "el producto dueño de la etiqueta");
+    if (!dueno.textContent.includes("Zzmesa A")) { falla("dueño " + dueno.textContent); }
+    if (!document.querySelector(".o_dcasa_etiqueta_cabecera").textContent.includes("Ya asignada")) { falla("estado"); }
+    boton("Pasarla a otro producto").click();
+    const busqueda2 = await esperar(() => document.querySelector(".o_dcasa_busqueda_producto"), "la búsqueda otra vez");
+    escribir(busqueda2, "zzmesa b");
+    enter(busqueda2);
+    (await esperar(() => [...document.querySelectorAll(".o_dcasa_opciones_etiqueta .o_dcasa_opcion")]
+        .find((o) => o.textContent.includes("Zzmesa B")), "el otro producto")).click();
+    const confirmar2 = await esperar(() => document.querySelector(".o_dcasa_asignar_confirmar"), "la confirmación 2");
+    if (!confirmar2.textContent.includes("Zzmesa A") || !confirmar2.textContent.includes("sin etiqueta")) {
+        falla("debe avisar que el anterior se queda sin etiqueta: " + confirmar2.textContent);
+    }
+    boton("Asignar etiqueta").click();
+    const ok2 = await esperar(() => (document.querySelector(".o_dcasa_msg_ok") || {}).textContent?.includes("Zzmesa A"),
+                              "el aviso de etiqueta pasada");
+    if (!ok2) { falla("aviso de pasarla"); }
+
+    // Quitar la etiqueta: pide confirmar en un cuadro y deja el número retirado.
+    escribir(campo, "DC9500");
+    enter(campo);
+    await esperar(() => document.querySelector(".o_dcasa_ficha_dueno"), "el dueño nuevo");
+    boton("Quitar la etiqueta").click();
+    const quitar = await esperar(() => [...document.querySelectorAll(".modal-footer button")]
+        .find((b) => b.textContent.trim() === "Sí, quitarla"), "el cuadro de confirmar");
+    quitar.click();
+    await esperar(() => (document.querySelector(".o_dcasa_msg_ok") || {}).textContent?.includes("retirada"),
+                  "el aviso de etiqueta quitada");
+
+    // Retirada: en Asignar avisa que estuvo retirada y en Consultar dice que ya no es de ningún producto.
+    escribir(campo, "DC9500");
+    enter(campo);
+    await esperar(() => document.querySelector(".o_dcasa_aviso_retirada"), "el aviso de etiqueta retirada");
+    boton("Consultar").click();
+    escribir(campo, "DC9500");
+    enter(campo);
+    const retirada = await esperar(() => document.querySelector(".o_dcasa_msg_aviso"), "el aviso al consultar");
+    if (!retirada.textContent.includes("retirada")) {
+        falla("al consultar debe decir que está retirada: " + retirada.textContent);
+    }
+
+    // Al volver a Asignar no queda la etiqueta de antes a medias.
+    boton("Asignar").click();
+    await esperar(() => document.querySelector(".o_dcasa_asignar_guia"), "la guía de Asignar otra vez");
+    if (document.querySelector(".o_dcasa_etiqueta_cabecera")) { falla("no debe quedar la etiqueta de antes"); }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+
+
 @tagged('post_install', '-at_install')
 class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
 
@@ -147,3 +261,15 @@ class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
         self.producto('Zzsofa de prueba', 'ZZT-SOFA-3-1', precio=10, unidades=2)
         self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_PARECIDO, ready='odoo.isReady',
                         login='admin', timeout=120)
+
+    def test_asignar_etiqueta_pasarla_quitarla_y_el_aviso_de_retirada(self):
+        a = self.producto('Zzmesa A de etiqueta', 'ZZT-ETQ-A', precio=50)
+        b = self.producto('Zzmesa B de etiqueta', 'ZZT-ETQ-B', precio=60)
+        self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_ASIGNAR, ready='odoo.isReady',
+                        login='admin', timeout=180)
+        a.invalidate_recordset()
+        b.invalidate_recordset()
+        self.assertEqual((a.barcode, b.barcode), (False, False), 'al final la etiqueta quedó quitada')
+        acciones = self.env['dcasa.barras.etiqueta'].search([('codigo', '=', 'DC9500')], order='id')
+        self.assertEqual([(f.accion, f.producto_id) for f in acciones],
+                         [('asignada', a), ('retirada', a), ('asignada', b), ('retirada', b)])

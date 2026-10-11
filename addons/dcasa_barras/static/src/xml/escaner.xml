@@ -14,19 +14,22 @@
                         <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'contar'}"
                                 t-att-aria-pressed="state.modo === 'contar' ? 'true' : 'false'"
                                 t-on-click="() => this.cambiarModo('contar')">Contar</button>
+                        <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'asignar'}"
+                                t-att-aria-pressed="state.modo === 'asignar' ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarModo('asignar')">Asignar</button>
                     </div>
                 </header>
 
                 <!-- Aquí cae lo que escribe el lector. -->
                 <form class="o_dcasa_escaner_entrada" t-on-submit.prevent="escanear">
                     <label for="o_dcasa_escaner_texto" class="o_dcasa_escaner_etiqueta">
-                        Escanea el código o escríbelo
+                        <t t-esc="textoDeAyuda"/>
                     </label>
                     <div class="o_dcasa_escaner_fila">
                         <input id="o_dcasa_escaner_texto" type="text" class="o_dcasa_escaner_texto" t-ref="entrada"
                                t-model="state.texto" t-on-keydown="alTeclear" t-on-blur="alPerderFoco"
                                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
-                               placeholder="Código, referencia o nombre"/>
+                               t-att-placeholder="textoDeEjemplo"/>
                         <button type="submit" class="o_dcasa_boton o_dcasa_boton_primario"
                                 t-att-disabled="state.cargando or !state.texto.trim()">Buscar</button>
                     </div>
@@ -38,7 +41,7 @@
                 </div>
 
                 <!-- Varios productos con ese código, o los que salieron de buscar por nombre. -->
-                <ul t-if="state.opciones.length" class="o_dcasa_opciones">
+                <ul t-if="state.opciones.length and state.modo !== 'asignar'" class="o_dcasa_opciones">
                     <li t-foreach="state.opciones" t-as="opcion" t-key="opcion.id">
                         <button type="button" class="o_dcasa_opcion" t-on-click="() => this.elegir(opcion)">
                             <span class="o_dcasa_opcion_nombre" t-esc="opcion.nombre"/>
@@ -49,7 +52,7 @@
                 </ul>
 
                 <!-- La tarjeta del producto. -->
-                <section t-if="state.ficha" class="o_dcasa_ficha" aria-label="Producto escaneado">
+                <section t-if="state.ficha and state.modo !== 'asignar'" class="o_dcasa_ficha" aria-label="Producto escaneado">
                     <div class="o_dcasa_ficha_arriba">
                         <img class="o_dcasa_ficha_foto" t-att-src="state.ficha.imagen" alt=""/>
                         <div class="o_dcasa_ficha_datos">
@@ -131,6 +134,119 @@
                             </div>
                         </t>
                     </div>
+                </section>
+
+                <!-- Asignar etiqueta: escanear la etiqueta del rollo y elegir el producto. -->
+                <section t-if="state.modo === 'asignar'" class="o_dcasa_asignar" aria-label="Asignar etiqueta">
+                    <p t-if="!state.asig" class="o_dcasa_nota o_dcasa_asignar_guia">
+                        Escanea la etiqueta del rollo que vas a pegar. Después eliges el producto y ese número queda como su
+                        código de barras. Esto es solo de Gerencia.
+                    </p>
+                    <t t-if="state.asig">
+                        <div class="o_dcasa_etiqueta_cabecera">
+                            <span class="o_dcasa_etiqueta_codigo" t-esc="state.asig.codigo"/>
+                            <span t-attf-class="o_dcasa_estado o_dcasa_estado_etiqueta_{{ state.asig.estado }}"
+                                  t-esc="estadoDeLaEtiqueta"/>
+                            <button type="button" class="o_dcasa_boton o_dcasa_otra_etiqueta"
+                                    t-on-click="cancelarAsignacion">Otra etiqueta</button>
+                        </div>
+
+                        <div t-if="state.asig.estado === 'retirada' and state.asig.paso !== 'confirmar'"
+                             class="o_dcasa_parecido o_dcasa_aviso_retirada" role="note">
+                            <p>Esta etiqueta estuvo retirada: era de «<t t-esc="state.asig.antes.producto"/>»<t t-if="state.asig.antes.motivo"> (<t t-esc="state.asig.antes.motivo"/>)</t>.
+                                Si sigues, se usa otra vez.</p>
+                        </div>
+
+                        <!-- La etiqueta ya es de un producto. -->
+                        <div t-if="state.asig.paso === 'dueno'" class="o_dcasa_ficha o_dcasa_ficha_dueno">
+                            <div class="o_dcasa_ficha_arriba">
+                                <img class="o_dcasa_ficha_foto" t-att-src="state.asig.dueno.imagen" alt=""/>
+                                <div class="o_dcasa_ficha_datos">
+                                    <h2 class="o_dcasa_ficha_nombre" t-esc="state.asig.dueno.nombre"/>
+                                    <p class="o_dcasa_ficha_ref">
+                                        <span t-if="state.asig.dueno.referencia">Ref. <strong t-esc="state.asig.dueno.referencia"/></span>
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="o_dcasa_asignar_texto">Esta etiqueta ya es de este producto.</p>
+                            <div class="o_dcasa_botones">
+                                <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
+                                        t-on-click="cancelarAsignacion">Está bien</button>
+                                <button type="button" class="o_dcasa_boton" t-on-click="pasarAOtro">Pasarla a otro producto</button>
+                                <button type="button" class="o_dcasa_boton" t-on-click="quitarEtiqueta">Quitar la etiqueta</button>
+                            </div>
+                        </div>
+
+                        <!-- Elegir el producto. -->
+                        <div t-if="state.asig.paso === 'producto'" class="o_dcasa_asignar_buscar">
+                            <label class="o_dcasa_escaner_etiqueta" for="o_dcasa_busqueda_producto">
+                                ¿De qué producto es? Escribe el nombre o la referencia
+                            </label>
+                            <div class="o_dcasa_escaner_fila">
+                                <input id="o_dcasa_busqueda_producto" type="text" class="o_dcasa_escaner_texto o_dcasa_busqueda_producto"
+                                       t-ref="busquedaProducto" t-model="state.asig.busqueda" t-on-keydown="alTeclearBusqueda"
+                                       autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Nombre o referencia"/>
+                                <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
+                                        t-att-disabled="state.cargando or state.asig.busqueda.trim().length &lt; 2"
+                                        t-on-click="buscarProducto">Buscar</button>
+                            </div>
+                            <ul t-if="state.asig.opciones.length" class="o_dcasa_opciones o_dcasa_opciones_etiqueta">
+                                <li t-foreach="state.asig.opciones" t-as="opcion" t-key="opcion.id">
+                                    <button type="button" class="o_dcasa_opcion" t-on-click="() => this.elegirParaEtiqueta(opcion)">
+                                        <span class="o_dcasa_opcion_nombre" t-esc="opcion.nombre"/>
+                                        <span class="o_dcasa_opcion_ref">
+                                            <t t-esc="opcion.referencia"/>
+                                            <t t-if="opcion.codigo_de_barras"> · ya tiene la etiqueta <t t-esc="opcion.codigo_de_barras"/></t>
+                                        </span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- Confirmar. -->
+                        <div t-if="state.asig.paso === 'confirmar'" class="o_dcasa_ficha o_dcasa_ficha_elegido">
+                            <div class="o_dcasa_ficha_arriba">
+                                <img class="o_dcasa_ficha_foto" t-att-src="state.asig.elegido.imagen" alt=""/>
+                                <div class="o_dcasa_ficha_datos">
+                                    <h2 class="o_dcasa_ficha_nombre" t-esc="state.asig.elegido.nombre"/>
+                                    <p class="o_dcasa_ficha_ref">
+                                        <span t-if="state.asig.elegido.referencia">Ref. <strong t-esc="state.asig.elegido.referencia"/></span>
+                                        <span t-if="state.asig.elegido.codigo_de_barras"> · Etiqueta actual <strong t-esc="state.asig.elegido.codigo_de_barras"/></span>
+                                        <span t-if="!state.asig.elegido.codigo_de_barras"> · Sin etiqueta</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="o_dcasa_asignar_confirmar" role="alertdialog" aria-label="Confirmar la etiqueta">
+                                <p class="o_dcasa_asignar_texto">Pega <strong t-esc="state.asig.codigo"/> en este producto.</p>
+                                <p t-if="state.asig.elegido.codigo_de_barras and state.asig.elegido.codigo_de_barras.toUpperCase() !== state.asig.codigo"
+                                   class="o_dcasa_nota">
+                                    Su etiqueta actual (<t t-esc="state.asig.elegido.codigo_de_barras"/>) quedará retirada.
+                                </p>
+                                <p t-if="state.asig.estado === 'asignada' and state.asig.dueno" class="o_dcasa_nota">
+                                    <t t-esc="state.asig.dueno.nombre"/> se queda sin etiqueta.
+                                </p>
+                                <p t-if="state.asig.estado === 'retirada'" class="o_dcasa_nota">
+                                    Esta etiqueta estuvo retirada (era de «<t t-esc="state.asig.antes.producto"/>»).
+                                </p>
+                                <div t-if="state.asig.pregunta" class="o_dcasa_parecido" role="alert">
+                                    <p t-if="state.asig.pregunta.motivo === 'dueno'">
+                                        Mientras tanto esa etiqueta pasó a ser de «<t t-esc="state.asig.pregunta.dueno.nombre"/>».
+                                        Si sigues, ese producto se queda sin etiqueta.
+                                    </p>
+                                    <p t-else="">
+                                        Mientras tanto esa etiqueta quedó retirada (era de «<t t-esc="state.asig.pregunta.antes.producto"/>»).
+                                        ¿La usamos otra vez?
+                                    </p>
+                                </div>
+                                <div class="o_dcasa_botones">
+                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-ref="confirmarEtiqueta"
+                                            t-att-disabled="state.cargando" t-on-click="confirmarAsignacion" t-esc="botonAsignar"/>
+                                    <button type="button" class="o_dcasa_boton" t-on-click="volverABuscar">Otro producto</button>
+                                    <button type="button" class="o_dcasa_boton" t-on-click="cancelarAsignacion">Cancelar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
                 </section>
 
                 <section t-if="state.historial.length" class="o_dcasa_historial" aria-label="Lo último que escaneaste">

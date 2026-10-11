@@ -37,6 +37,8 @@
                         El código de barras se toma de la <strong>referencia interna</strong> del producto, solo donde está vacío:
                         nunca se pisa uno que ya existe. Pulsa <strong>Revisar productos</strong> para ver qué se haría, sin
                         cambiar nada; después <strong>Asignar los códigos</strong>. Se puede deshacer.
+                        <br/>Si vas a usar las <strong>etiquetas numeradas del rollo</strong> (Inventario › Escáner › Asignar),
+                        no apliques esto: puedes mirar el informe, pero cada etiqueta se asigna a su producto desde el Escáner.
                     </div>
                     <group>
                         <group>

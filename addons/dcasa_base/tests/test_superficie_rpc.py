@@ -157,6 +157,18 @@ LISTA_BLANCA = {
     ('dcasa_barras', 'dcasa.barras', 'contar'):
         'API del Escáner: exige stock.group_stock_manager (Gerencia) en el servidor ANTES de escribir; valida cada '
         'argumento y usa el Inventario físico de Odoo con los permisos de la persona (sin sudo).',
+    ('dcasa_barras', 'dcasa.barras', 'etiqueta'):
+        'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
+        'ANTES de leer; solo lee con los permisos de la persona (sin sudo).',
+    ('dcasa_barras', 'dcasa.barras', 'asignar_etiqueta'):
+        'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
+        'ANTES de escribir; el producto se escribe con los permisos de la persona (sin sudo); solo el historial se '
+        'escribe con sudo, después de comprobar el permiso.',
+    ('dcasa_barras', 'dcasa.barras', 'quitar_etiqueta'):
+        'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
+        'ANTES de escribir; el producto se escribe con los permisos de la persona; solo el historial usa sudo.',
+    ('dcasa_barras', 'dcasa.barras.etiqueta', 'write'): 'Bloquea: el historial de etiquetas no se edita.',
+    ('dcasa_barras', 'dcasa.barras.etiqueta', 'unlink'): 'Bloquea: el historial de etiquetas no se borra.',
     ('dcasa_barras', 'dcasa.barras.asignacion', 'action_revisar'):
         'Botón: exige stock.group_stock_manager y escritura sobre el registro; no cambia productos (la lista de '
         'líneas la arma con sudo, solo con lo que ya leyó).',

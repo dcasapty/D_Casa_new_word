@@ -9,7 +9,9 @@ lo que sí trae Odoo Community. Responde a los issues #9, #11, #13 y #14 del rep
 |---|---|---|
 | **Inventario › Escáner** | Escaneas (o escribes) un código y sale la foto, el nombre, la referencia, el precio «+ ITBMS», las existencias por ubicación y si está *disponible*, con *pocas* o *agotado*. | Quien usa Inventario (la Vendedora lo es) |
 | **Escáner › Contar** | Escribes lo contado, ves la diferencia con lo que dice el sistema y confirmas. Se registra el ajuste de inventario de Odoo. | Gerencia |
-| **Inventario › Configuración › Códigos de barras** | Llena el código de barras de los productos que no tienen, a partir de su referencia interna. | Gerencia |
+| **Escáner › Asignar** | Escaneas una etiqueta numerada del rollo (`DC0001`…), eliges el producto y ese número queda como su código de barras. Se puede pasar a otro producto, reemplazar o quitar; el número viejo queda *retirado* y avisa si alguien lo escanea. | Gerencia |
+| **Inventario › Configuración › Historial de etiquetas** | Quién asignó, pasó o retiró cada número y cuándo. No se edita ni se borra. | Gerencia |
+| **Inventario › Configuración › Códigos de barras** | Llena el código de barras de los productos que no tienen, a partir de su referencia interna (alternativa a las etiquetas numeradas; ver más abajo). | Gerencia |
 
 ## Los lectores
 
@@ -51,6 +53,52 @@ tienen referencia, así que ya sirve desde el primer día) · código del empaqu
   (se cuentan en Inventario › Inventario físico).
 * Una cantidad que no es un número, es negativa o pasa de 100,000 se rechaza (es un error de dedo).
 
+## Etiquetas numeradas (el rollo del proveedor de etiquetas)
+
+La forma pensada para D'CASA: el proveedor de etiquetas imprime un **rollo con códigos numerados** que todavía no son de
+ningún producto. Cada etiqueta se pega en el mueble de exhibición (o en la caja) y el sistema aprende de quién es.
+
+1. **Pegas** la etiqueta en el mueble.
+2. **Escáner › Asignar**, escaneas la etiqueta. Si es nueva, dice *Sin producto*.
+3. **Escribes el nombre o la referencia** del producto y lo eliges (se ve su foto para confirmar que es ese).
+4. **Asignar etiqueta**. Desde ese momento, escanear esa etiqueta en **Consultar** o **Contar** saca ese producto.
+
+Si el mueble cambia: pegas otra etiqueta y la asignas al producto (o vuelves a escanear la vieja y eliges **Pasarla a otro
+producto** / **Quitar la etiqueta**). La etiqueta que se deja de usar queda **retirada**: si alguien la escanea, el
+sistema dice «la etiqueta DC0001 está retirada: era de «X»» en vez de «no existe».
+
+Reglas:
+
+* Solo **Gerencia** (administra Inventario y Productos: el código se escribe en el producto, con sus permisos).
+* Un número es de un solo producto. **Pasarlo a otro** o **usar uno que estuvo retirado** pide confirmación; mientras no
+  se confirma, no cambia nada.
+* El número se guarda en **mayúsculas** y la búsqueda no distingue mayúsculas (un lector con las mayúsculas invertidas
+  escribe `dc0001` y encuentra lo mismo).
+* El número no puede traer espacios ni letras con tilde ni símbolos raros, ni ser de 64 caracteres o más.
+* El código de un **empaque** de otro producto no puede ser una etiqueta.
+* Cada cambio queda en **Inventario › Configuración › Historial de etiquetas** (número, qué pasó, producto, quién, cuándo).
+  Ese historial no se edita ni se borra; es lo que permite decir «estuvo retirada».
+* Un producto archivado sigue siendo el dueño de su etiqueta: reutilizarla pide confirmación.
+
+### Qué pedirle al proveedor de etiquetas
+
+* **Code 128** (las referencias llevan letras y guiones; el formato de tienda, EAN, solo admite números).
+* **Un prefijo de letras y un número** (por ejemplo `DC0001` a `DC1000`): así no se confunde con ninguna referencia que sea
+  un número suelto. Hoy hay 652 productos y cada medida (Twin, Full, Queen, King) es un producto aparte: pedir más de
+  1,000, con números de sobra para etiquetas dañadas y productos nuevos.
+* **El número escrito debajo de las barras**, para teclearlo si una etiqueta se daña.
+* **Cada número dos veces** (una para el mueble de exhibición y otra para la caja en bodega): el sistema no tiene
+  problema con que dos etiquetas digan lo mismo.
+* Adhesivo que agarre bien en cartón y madera, y **10 etiquetas de prueba** para ensayar con los dos lectores antes de
+  imprimir el rollo completo.
+* No lleva precio: el precio sale del sistema («+ ITBMS») y una etiqueta impresa se desactualiza.
+
+### Si se usa el rollo numerado, no apliques «Revisar productos»
+
+La asignación a partir de la referencia (más abajo) escribe la **referencia** como código de barras en los productos que no
+tienen ninguno. Con etiquetas numeradas no hace falta, y mezclarlas confunde: un producto con la referencia como código
+tendría que cambiarse al pegar su etiqueta. Se puede seguir revisando el informe, pero no aplicarlo.
+
 ## Asignar los códigos de barras
 
 Hoy 0 de 652 productos tienen código de barras. Sin código el lector solo encuentra por referencia.
@@ -73,13 +121,15 @@ se puede repetir sin miedo.
 * **Etiquetas** (#12): Odoo trae «Imprimir etiquetas» en la ficha del producto. Falta decidir el tamaño y la
   impresora (¿térmica o pegatinas en hoja normal?) antes de hacer una etiqueta con la marca; **sin precio inventado**
   (el precio sale del sistema, con «+ ITBMS»).
-* **Qué código lleva cada producto**: hoy se usa la referencia del proveedor tal cual. Si se prefiere un número propio
-  de D'CASA, se cambia la regla de asignación.
+* **Qué código lleva cada producto**: decidido, un **número propio de D'CASA** en etiquetas del rollo (arriba). La
+  asignación por referencia queda como alternativa, sin aplicar.
 * **Cámara del celular** como lector: no está (los dos aparatos ya traen lector).
 
 ## Seguridad
 
 Todo lo que lee o escribe el Escáner lo comprueba el servidor (no solo el menú): consultar pide ser usuario de Inventario;
 contar y asignar piden ser administrador de Inventario (Gerencia). El lector **nunca** muestra el costo del producto.
-No usa `sudo()`: los permisos de Odoo siguen mandando. La lista de métodos públicos está en
+Asignar etiquetas pide además administrar Productos (el código se escribe en el producto). Los productos se escriben
+con los permisos de la persona; el único `sudo()` es el que anota el historial de etiquetas, después de comprobar el
+permiso. Los permisos de Odoo siguen mandando. La lista de métodos públicos está en
 `addons/dcasa_base/tests/test_superficie_rpc.py`.

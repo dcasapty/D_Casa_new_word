@@ -88,6 +88,8 @@ class DcasaBarras(models.AbstractModel):
             'codigo': codigo,
             'forma': forma,
             'productos': [self._ficha_de(p) for p in productos[:MAXIMO_CANDIDATOS]],
+            # Una etiqueta numerada que se retiró (docs/BARRAS.md): se avisa en vez de decir solo «no existe».
+            'retirada': self._etiqueta_retirada(codigo) if not productos else False,
         }
 
     def _productos_por_codigo(self, codigo):
@@ -96,6 +98,8 @@ class DcasaBarras(models.AbstractModel):
         escapado = codigo.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         for forma, dominio in (
                 ('codigo_de_barras', [('barcode', '=', codigo)]),
+                # Las etiquetas se guardan en mayúsculas; un lector con las mayúsculas invertidas escribe «dc0001».
+                ('codigo_de_barras', [('barcode', '=ilike', escapado)]),
                 ('referencia', [('default_code', '=ilike', escapado)]),
                 ('empaque', [('product_uom_ids.barcode', '=', codigo)]),
         ):
@@ -127,7 +131,8 @@ class DcasaBarras(models.AbstractModel):
         # search() (no name_search) para que cuente la búsqueda de varias palabras de dcasa_catalogo
         # («cama queen» encuentra la cama en tamaño Queen).
         encontrados = self.env['product.product'].search([('display_name', 'ilike', texto)], limit=MAXIMO_CANDIDATOS)
-        return [{'id': p.id, 'nombre': p.display_name, 'referencia': p.default_code or ''} for p in encontrados]
+        return [{'id': p.id, 'nombre': p.display_name, 'referencia': p.default_code or '',
+                 'codigo_de_barras': p.barcode or ''} for p in encontrados]
 
     @api.model
     def ficha(self, producto_id):
