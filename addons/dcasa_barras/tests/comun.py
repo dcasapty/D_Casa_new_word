@@ -1,4 +1,5 @@
 """Productos y usuarios de prueba (todo inventado) para el lector de códigos de barras."""
+from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, new_test_user
 
 
@@ -37,3 +38,20 @@ class BarrasCommon(TransactionCase):
         ubicacion = ubicacion or self.bodega
         return sum(self.Quant.search([('product_id', '=', producto.id), ('location_id', '=', ubicacion.id)])
                    .mapped('quantity'))
+
+    def assertUserError(self, mensaje=None):
+        """UserError que NO sea de permisos (AccessError también es UserError y taparía un permiso mal puesto)."""
+        prueba = self
+
+        class _Contexto:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, tipo, valor, _tb):
+                prueba.assertIsNotNone(tipo, "debió fallar")
+                prueba.assertTrue(issubclass(tipo, UserError) and not issubclass(tipo, AccessError),
+                                  f"debió ser un aviso, no {tipo.__name__}: {valor}")
+                if mensaje:
+                    prueba.assertIn(mensaje, str(valor))
+                return True
+        return _Contexto()

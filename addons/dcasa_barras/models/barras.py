@@ -15,7 +15,7 @@ Vendedora lo es); contar pide ser administrador de Inventario (Gerencia). Nunca 
 import math
 import re
 
-from odoo import api, models
+from odoo import api, models, tools
 from odoo.exceptions import AccessError, UserError
 
 LARGO_MAXIMO = 64            # un código más largo no es de un lector: se recorta
@@ -174,6 +174,8 @@ class DcasaBarras(models.AbstractModel):
             'precio_texto': precio_texto(producto.lst_price) if producto.lst_price else '',
             'controla_inventario': controla,
             'con_lotes': producto.tracking != 'none',
+            'unidad': producto.uom_id.name,
+            'admite_decimales': tools.float_is_zero(0.5 - producto.uom_id.round(0.5), precision_digits=6),
             'unidades': unidades if controla else None,
             'etiqueta': etiqueta_existencias(unidades, controla),
             'ubicaciones': [{'id': u.id, 'nombre': u.complete_name, 'cantidad': c} for u, c in existencias],
@@ -196,11 +198,16 @@ class DcasaBarras(models.AbstractModel):
     # Contar
     # ------------------------------------------------------------------
     @api.model
-    def contar(self, producto_id, ubicacion_id, cantidad):
-        """Lo contado reemplaza lo que dice el sistema en esa ubicación; el ajuste queda en el historial."""
+    def contar(self, producto_id, ubicacion_id, cantidad, esperado):
+        """Lo contado reemplaza lo que dice el sistema en esa ubicación; el ajuste queda en el historial.
+
+        ``esperado`` es lo que la pantalla le mostró a quien contó. Si mientras tanto el sistema cambió (una venta, una
+        entrada), no se guarda: contar sobre un número viejo dejaría el inventario mal.
+        """
         self._exigir_conteo()
         producto = self._producto(producto_id)
         cantidad = self._cantidad_valida(cantidad)
+        esperado = self._numero(esperado)
         if not producto.is_storable:
             raise UserError(self.env._("«%s» no controla inventario: no tiene existencias que contar.",
                                        producto.display_name))
@@ -208,29 +215,44 @@ class DcasaBarras(models.AbstractModel):
             raise UserError(self.env._(
                 "«%s» se controla por lote o por serie: cuéntalo en Inventario › Inventario físico.",
                 producto.display_name))
+        unidad = producto.uom_id
+        if not tools.float_is_zero(cantidad - unidad.round(cantidad), precision_digits=6):
+            raise UserError(self.env._(
+                "«%(producto)s» se cuenta en %(unidad)s enteras: no admite decimales.",
+                producto=producto.display_name, unidad=unidad.name))
         ubicacion = self._ubicacion_valida(ubicacion_id)
-        antes = sum(c for u, c in self._existencias(producto) if u == ubicacion)
-        if cantidad == antes:
+        quants = self.env['stock.quant'].search([('product_id', '=', producto.id), ('location_id', '=', ubicacion.id)])
+        if len(quants) > 1:
+            raise UserError(self.env._(
+                "«%s» tiene varias líneas de existencia en esa ubicación (por dueño, paquete o repetidas): "
+                "cuéntalo en Inventario › Inventario físico.", producto.display_name))
+        antes = sum(quants.mapped('quantity'))
+        if unidad.compare(antes, esperado) != 0:
+            raise UserError(self.env._(
+                "Mientras contabas, el sistema cambió de %(visto)s a %(ahora)s. Escanea el producto otra vez y "
+                "cuenta de nuevo.", visto=f'{esperado:g}', ahora=f'{antes:g}'))
+        if unidad.compare(cantidad, antes) == 0:
             return {'cambio': False, 'antes': antes, 'despues': antes, 'diferencia': 0.0,
                     'ficha': self._ficha_de(producto)}
         Quant = self.env['stock.quant'].with_context(
             inventory_mode=True,
             inventory_name=self.env._("Conteo con lector (%s)", self.env.user.name))
-        quant = Quant.create({'product_id': producto.id, 'location_id': ubicacion.id, 'inventory_quantity': cantidad})
-        resultado = quant.action_apply_inventory()
-        if isinstance(resultado, dict):   # Odoo pide resolver un conflicto: alguien más movió el producto
-            raise UserError(self.env._(
-                "Alguien movió este producto mientras lo contabas. Escanéalo otra vez y vuelve a contar."))
+        Quant.create({'product_id': producto.id, 'location_id': ubicacion.id, 'inventory_quantity': cantidad}) \
+            .action_apply_inventory()
         despues = sum(c for u, c in self._existencias(producto) if u == ubicacion)
         return {'cambio': True, 'antes': antes, 'despues': despues, 'diferencia': despues - antes,
                 'ficha': self._ficha_de(producto)}
 
-    def _cantidad_valida(self, cantidad):
-        if isinstance(cantidad, bool) or not isinstance(cantidad, int | float) or not math.isfinite(cantidad):
+    def _numero(self, valor):
+        if isinstance(valor, bool) or not isinstance(valor, int | float) or not math.isfinite(valor):
             raise UserError(self.env._("La cantidad contada debe ser un número."))
+        return float(valor)
+
+    def _cantidad_valida(self, cantidad):
+        cantidad = self._numero(cantidad)
         if cantidad < 0 or cantidad > MAXIMO_CANTIDAD:
             raise UserError(self.env._("La cantidad contada debe estar entre 0 y %s.", f'{MAXIMO_CANTIDAD:,}'))
-        return float(cantidad)
+        return cantidad
 
     def _ubicacion_valida(self, ubicacion_id):
         if isinstance(ubicacion_id, bool) or not isinstance(ubicacion_id, int):

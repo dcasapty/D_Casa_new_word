@@ -21,6 +21,9 @@ sin aparato.
 * Si el lector escribe símbolos distintos (guion por guion bajo, etc.) porque su teclado está en otro idioma, **igual
   encuentra el producto**: la búsqueda tolera símbolos y mayúsculas (`xht022_t_w` = `XHT022-T-W`).
 * Si el código no existe, avisa y ofrece productos parecidos por nombre.
+* Si el producto salió de un código **parecido** (no igual: se ignoraron símbolos o mayúsculas), lo dice y **no deja
+  contar** hasta pulsar «Sí, es este»: así no se ajusta el producto equivocado.
+* Si el lector dispara varios códigos seguidos, **gana el último** y el cuadro queda listo para el siguiente.
 * Si dos productos tienen el mismo código o referencia, muestra los dos para elegir.
 
 ## Qué se busca
@@ -37,6 +40,13 @@ tienen referencia, así que ya sirve desde el primer día) · código del empaqu
 * Usa el *Inventario físico* de Odoo: el ajuste queda en el historial de movimientos con el nombre «Conteo con lector (quien
   contó)» y el stock del producto (`dcasa_stock`, lo que dice Juan y lo que ordena Marketing) se actualiza solo.
 * Si coincide con lo que decía el sistema, no se crea ningún movimiento.
+* **Si mientras contabas el sistema cambió** (una venta, una entrada), no se guarda: dice «cambió de X a Y» y hay que
+  escanear y contar de nuevo. Contar sobre un número viejo dejaría el inventario mal.
+* La cantidad se escribe **solo con números y punto** (nada de comas: «1,200» se leería como 1.2). Si el producto se
+  cuenta en unidades enteras, no admite decimales.
+* La confirmación dice **en qué ubicación** se contó.
+* Si el producto tiene varias líneas de existencia en la misma ubicación (por dueño, paquete o repetidas), no se cuenta
+  aquí: Odoo ajustaría solo una y el total no quedaría en lo contado (Inventario › Inventario físico).
 * Los productos que se controlan por **lote o serie** y los que **no controlan inventario** no se cuentan aquí
   (se cuentan en Inventario › Inventario físico).
 * Una cantidad que no es un número, es negativa o pasa de 100,000 se rechaza (es un error de dedo).

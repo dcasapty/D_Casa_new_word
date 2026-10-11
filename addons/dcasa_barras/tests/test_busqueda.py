@@ -88,6 +88,7 @@ class TestBusqueda(BarrasCommon):
         self.assertEqual([(u['nombre'], u['cantidad']) for u in ficha['ubicaciones']],
                          [(self.bodega.complete_name, 12)])
         self.assertEqual(ficha['ubicacion_habitual'], self.bodega.id)
+        self.assertEqual((ficha['admite_decimales'], bool(ficha['unidad'])), (False, True))
         self.assertNotIn('77.77', str(ficha), 'el costo no sale en el lector')
         self.assertFalse([k for k in ficha if 'costo' in k or 'cost' in k])
 
@@ -113,9 +114,8 @@ class TestBusqueda(BarrasCommon):
         self.assertEqual(self.Barras.ficha(self.cama.id)['referencia'], 'ZZT-CAMA-1')
 
     def test_ficha_con_un_dato_que_no_es_un_producto(self):
-        from odoo.exceptions import UserError
         for malo in (True, 'abc', None, -1, 99999999):
-            with self.assertRaises(UserError, msg=repr(malo)):
+            with self.assertUserError():
                 self.Barras.ficha(malo)
 
     def test_solo_quien_trabaja_con_inventario_puede_consultar(self):

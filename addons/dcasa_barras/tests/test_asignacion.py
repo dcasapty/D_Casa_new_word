@@ -1,6 +1,8 @@
 """Asignar el código de barras desde la referencia: sin pisar, sin repetir, revisable y reversible."""
+from unittest.mock import patch
+
 from odoo.addons.dcasa_barras.models.asignacion import planear_codigos
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .comun import BarrasCommon
@@ -89,7 +91,7 @@ class TestAsignacion(BarrasCommon):
         segunda = self.asignar()
         self.assertEqual(segunda.n_asignar, 0)
         self.assertEqual(segunda.n_ya_tienen, 3)
-        with self.assertRaises(UserError):
+        with self.assertUserError():
             segunda.action_aplicar()
 
     def test_antes_de_escribir_se_vuelve_a_comprobar(self):
@@ -119,30 +121,51 @@ class TestAsignacion(BarrasCommon):
         self.assertFalse(self.cama.barcode, 'lo que se asignó y siguió igual se quita')
         self.assertEqual(self.nuevo.barcode, 'CAMBIADO-A-MANO', 'lo que alguien cambió después no se toca')
         self.assertEqual(self.zapatera.barcode, '7501234567890')
-        with self.assertRaises(UserError):
+        with self.assertUserError():
             asignacion.action_deshacer()
 
     def test_no_se_puede_aplicar_ni_revisar_dos_veces(self):
         asignacion = self.asignar()
         asignacion.action_aplicar()
-        with self.assertRaises(UserError):
+        with self.assertUserError():
             asignacion.action_aplicar()
-        with self.assertRaises(UserError):
+        with self.assertUserError():
             asignacion.action_revisar()
 
-    def test_sin_permiso_de_productos_no_se_asigna_ni_se_calla(self):
-        """Administrar Inventario no basta: el código se escribe en el producto con los permisos de la persona."""
+    def test_un_error_de_permisos_al_escribir_el_producto_no_se_calla(self):
+        """Si Odoo no deja escribir el producto, el aviso sale: no queda como un «error» silencioso en la línea."""
+        asignacion = self.asignar()
+        sin_permiso = AccessError("No puedes escribir productos")
+        with patch.object(self.env.registry['product.product'], 'write', side_effect=sin_permiso):
+            with self.assertRaises(AccessError):
+                asignacion.action_aplicar()
+        self.assertNotIn('error', asignacion.linea_ids.mapped('decision'))
+        self.assertEqual(asignacion.estado, 'borrador')
+
+    def test_administrar_inventario_sin_productos_no_basta(self):
         asignacion = self.asignar()
         with self.assertRaises(AccessError):
             asignacion.with_user(self.solo_inventario).action_aplicar()
         self.assertFalse(self.cama.barcode)
-        self.assertEqual(asignacion.estado, 'borrador')
-        self.assertEqual(set(asignacion.linea_ids.mapped('decision')) - {'error'},
-                         set(asignacion.linea_ids.mapped('decision')), 'ninguna línea quedó marcada con error')
+
+    def test_si_le_cambian_la_referencia_despues_de_revisar_no_se_asigna(self):
+        asignacion = self.asignar()
+        self.cama.default_code = 'ZZT-CAMA-OTRA'
+        asignacion.action_aplicar()
+        self.assertFalse(self.cama.barcode)
+        self.assertEqual(self.decisiones(asignacion)[self.cama], 'error')
+        self.assertEqual(self.nuevo.barcode, 'NUE-1', 'los demás sí')
+
+    def test_si_aparece_otro_producto_con_la_misma_referencia_no_se_asigna(self):
+        asignacion = self.asignar()
+        self.producto('Gemelo que apareció', 'nue-1')
+        asignacion.action_aplicar()
+        self.assertFalse(self.nuevo.barcode)
+        self.assertEqual(self.decisiones(asignacion)[self.nuevo], 'repetida')
 
     def test_aplicar_sin_revisar_avisa(self):
         vacia = self.env['dcasa.barras.asignacion'].with_user(self.gerencia).create({})
-        with self.assertRaises(UserError):
+        with self.assertUserError():
             vacia.action_aplicar()
 
     def test_solo_gerencia(self):

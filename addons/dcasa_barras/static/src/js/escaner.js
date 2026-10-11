@@ -29,8 +29,12 @@ export class DcasaEscaner extends Component {
             ubicacion: null,
             cantidad: "",
             confirmando: null, // { antes, cantidad, diferencia } mientras se espera el visto bueno
+            parecido: false, // el producto salió de un código «parecido», no igual: hay que confirmarlo
             historial: [],
         });
+        this.confirmar = useRef("confirmar");
+        // Cada búsqueda lleva un número: si llega la respuesta de una vieja cuando ya salió una más nueva, se ignora.
+        this.peticion = 0;
         onMounted(() => this.enfocar());
     }
 
@@ -43,6 +47,15 @@ export class DcasaEscaner extends Component {
         }
     }
 
+    alPerderFoco() {
+        // Si el foco se fue al fondo de la página (un toque en blanco), el lector escribiría en el vacío: se recupera.
+        setTimeout(() => {
+            if (document.activeElement === document.body && !this.state.confirmando) {
+                this.enfocar();
+            }
+        }, 60);
+    }
+
     alTeclear(ev) {
         // Casi todos los lectores terminan con Enter; algunos con Tab.
         if ((ev.key === "Enter" || ev.key === "Tab") && this.state.texto.trim()) {
@@ -53,36 +66,53 @@ export class DcasaEscaner extends Component {
 
     async escanear() {
         const codigo = this.state.texto.trim();
-        if (!codigo || this.state.cargando) {
+        if (!codigo) {
             return;
         }
+        // El lector ya escribió: el cuadro queda libre para el siguiente código, aunque este siga en camino. Se limpia
+        // también el cuadro mismo: un lector escribe el código y el Enter dentro del mismo cuadro de pantalla, y si
+        // el estado cambia dos veces antes de dibujar, el cuadro se quedaría con el código viejo.
+        this.state.texto = "";
+        if (this.entrada.el) {
+            this.entrada.el.value = "";
+        }
+        const mia = ++this.peticion;
         this.state.cargando = true;
         this.state.mensaje = null;
         try {
             const r = await this.orm.call("dcasa.barras", "buscar", [codigo]);
+            if (mia !== this.peticion) {
+                return; // llegó la respuesta de un escaneo viejo: manda el más nuevo
+            }
             if (r.resultado === "ok") {
-                this.mostrarFicha(r.productos[0], codigo);
+                this.mostrarFicha(r.productos[0], codigo, r.forma === "parecido");
             } else if (r.resultado === "varios") {
                 this.limpiarProducto();
                 this.state.opciones = r.productos;
                 this.avisar("aviso", `Hay ${r.productos.length} productos con «${r.codigo}». Elige el correcto.`);
                 this.sonar(false);
             } else {
-                await this.noEncontrado(codigo);
+                await this.noEncontrado(codigo, mia);
             }
         } catch (e) {
-            this.fallo(e);
+            if (mia === this.peticion) {
+                this.fallo(e);
+            }
         } finally {
-            this.state.cargando = false;
-            this.state.texto = "";
+            if (mia === this.peticion) {
+                this.state.cargando = false;
+            }
             this.enfocar();
         }
     }
 
-    async noEncontrado(codigo) {
+    async noEncontrado(codigo, mia) {
         this.limpiarProducto();
         this.sonar(false);
         const parecidos = await this.orm.call("dcasa.barras", "buscar_por_nombre", [codigo]);
+        if (mia !== this.peticion) {
+            return;
+        }
         this.state.opciones = parecidos;
         this.avisar(
             "aviso",
@@ -93,32 +123,46 @@ export class DcasaEscaner extends Component {
     }
 
     async elegir(opcion) {
+        const mia = ++this.peticion;
         this.state.cargando = true;
         try {
             const ficha = await this.orm.call("dcasa.barras", "ficha", [opcion.id]);
-            this.mostrarFicha(ficha, ficha.codigo_de_barras || ficha.referencia);
+            if (mia === this.peticion) {
+                this.mostrarFicha(ficha, ficha.codigo_de_barras || ficha.referencia, false);
+            }
         } catch (e) {
-            this.fallo(e);
+            if (mia === this.peticion) {
+                this.fallo(e);
+            }
         } finally {
-            this.state.cargando = false;
+            if (mia === this.peticion) {
+                this.state.cargando = false;
+            }
             this.enfocar();
         }
     }
 
     // --- Tarjeta ------------------------------------------------------------------------------------------------
-    mostrarFicha(ficha, codigo) {
+    mostrarFicha(ficha, codigo, parecido) {
         this.state.ficha = ficha;
         this.state.opciones = [];
         this.state.mensaje = null;
+        this.state.parecido = !!parecido;
         this.state.confirmando = null;
         this.state.ubicacion = ficha.ubicacion_habitual;
         this.state.cantidad = "";
-        this.sonar(true);
+        this.sonar(!parecido);
         this.anotar("consulta", ficha, `Escaneado ${codigo}`);
+    }
+
+    esEste() {
+        this.state.parecido = false;
+        this.enfocar();
     }
 
     limpiarProducto() {
         this.state.ficha = null;
+        this.state.parecido = false;
         this.state.opciones = [];
         this.state.confirmando = null;
     }
@@ -147,16 +191,9 @@ export class DcasaEscaner extends Component {
     }
 
     // --- Contar -------------------------------------------------------------------------------------------------
-    pedirConfirmacion() {
-        const texto = String(this.state.cantidad).trim().replace(",", ".");
-        const cantidad = Number(texto);
-        if (texto === "" || !Number.isFinite(cantidad) || cantidad < 0) {
-            this.avisar("error", "Escribe la cantidad contada (un número desde 0).");
-            return;
-        }
-        const antes = this.existenciaAqui;
-        this.state.confirmando = { antes, cantidad, diferencia: cantidad - antes };
-        this.state.mensaje = null;
+    get lugarContado() {
+        const lugar = (this.state.ficha?.lugares_para_contar || []).find((u) => u.id === this.state.ubicacion);
+        return lugar ? lugar.nombre : "";
     }
 
     alTeclearCantidad(ev) {
@@ -164,6 +201,25 @@ export class DcasaEscaner extends Component {
             ev.preventDefault();
             this.pedirConfirmacion();
         }
+    }
+
+    pedirConfirmacion() {
+        const texto = String(this.state.cantidad).trim();
+        // Solo dígitos y, si la unidad lo admite, un punto decimal: «1,200» se leería como 1.2 y dejaría el stock mal.
+        if (!/^\d+(\.\d+)?$/.test(texto)) {
+            this.avisar("error", "Escribe solo el número contado, sin comas ni letras (los decimales van con punto).");
+            return;
+        }
+        const cantidad = Number(texto);
+        if (!this.state.ficha.admite_decimales && !Number.isInteger(cantidad)) {
+            this.avisar("error", `Este producto se cuenta en ${this.state.ficha.unidad} enteras: sin decimales.`);
+            return;
+        }
+        const antes = this.existenciaAqui;
+        this.state.confirmando = { antes, cantidad, diferencia: cantidad - antes };
+        this.state.mensaje = null;
+        // El foco pasa al botón de confirmar: Enter confirma y un escaneo no cae en el cuadro de cantidad.
+        setTimeout(() => this.confirmar.el?.focus(), 0);
     }
 
     cancelarConteo() {
@@ -182,6 +238,7 @@ export class DcasaEscaner extends Component {
                 this.state.ficha.id,
                 this.state.ubicacion,
                 c.cantidad,
+                c.antes, // lo que vio quien contó: si el sistema cambió mientras tanto, el servidor no guarda
             ]);
             this.state.ficha = r.ficha;
             this.state.confirmando = null;

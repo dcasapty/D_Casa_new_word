@@ -24,7 +24,7 @@
                     </label>
                     <div class="o_dcasa_escaner_fila">
                         <input id="o_dcasa_escaner_texto" type="text" class="o_dcasa_escaner_texto" t-ref="entrada"
-                               t-model="state.texto" t-on-keydown="alTeclear"
+                               t-model="state.texto" t-on-keydown="alTeclear" t-on-blur="alPerderFoco"
                                autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
                                placeholder="Código, referencia o nombre"/>
                         <button type="submit" class="o_dcasa_boton o_dcasa_boton_primario"
@@ -63,6 +63,12 @@
                         </div>
                     </div>
 
+                    <div t-if="state.parecido" class="o_dcasa_parecido" role="alert">
+                        <p>Ese código no es igual al de ningún producto: se parece a este (sin contar guiones,
+                            símbolos ni mayúsculas). ¿Es el que tienes en la mano?</p>
+                        <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-on-click="esEste">Sí, es este</button>
+                    </div>
+
                     <div class="o_dcasa_ficha_existencias">
                         <div class="o_dcasa_total">
                             <span class="o_dcasa_total_cifra" t-esc="cifra(state.ficha.unidades)"/>
@@ -82,7 +88,10 @@
 
                     <!-- Contar -->
                     <div t-if="state.modo === 'contar'" class="o_dcasa_contar">
-                        <p t-if="state.ficha.con_lotes" class="o_dcasa_nota">
+                        <p t-if="state.parecido" class="o_dcasa_nota">
+                            Confirma que es este producto (arriba) para poder contarlo.
+                        </p>
+                        <p t-elif="state.ficha.con_lotes" class="o_dcasa_nota">
                             Este producto se controla por lote o serie: cuéntalo en Inventario › Inventario físico.
                         </p>
                         <p t-elif="!state.ficha.puede_contar and state.ficha.controla_inventario" class="o_dcasa_nota">
@@ -106,7 +115,7 @@
                                         t-on-click="pedirConfirmacion">Revisar</button>
                             </div>
                             <div t-else="" class="o_dcasa_confirmar" role="alertdialog" aria-label="Confirmar el conteo">
-                                <p>El sistema decía <strong t-esc="cifra(state.confirmando.antes)"/>. Tú contaste
+                                <p>En <strong t-esc="lugarContado"/> el sistema decía <strong t-esc="cifra(state.confirmando.antes)"/>. Tú contaste
                                     <strong t-esc="cifra(state.confirmando.cantidad)"/>.</p>
                                 <p t-if="state.confirmando.diferencia !== 0" class="o_dcasa_diferencia">
                                     Se ajusta
@@ -115,7 +124,7 @@
                                 </p>
                                 <p t-else="" class="o_dcasa_diferencia">Coincide: no hay nada que ajustar.</p>
                                 <div class="o_dcasa_botones">
-                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
+                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-ref="confirmar"
                                             t-att-disabled="state.cargando" t-on-click="confirmarConteo">Confirmar conteo</button>
                                     <button type="button" class="o_dcasa_boton" t-on-click="cancelarConteo">Cancelar</button>
                                 </div>

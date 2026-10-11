@@ -13,7 +13,7 @@ Reglas (docs/BARRAS.md):
 * Solo caracteres imprimibles sin espacios (letras, números y símbolos): lo demás no lo escribe bien un lector.
 * Se revisa antes de aplicar, se puede repetir sin miedo y se puede deshacer (solo lo que sigue igual a lo asignado).
 """
-from odoo import api, fields, models
+from odoo import api, fields, models, tools
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 DECISIONES = [
@@ -142,6 +142,13 @@ class DcasaBarrasAsignacion(models.Model):
                 with self.env.cr.savepoint():
                     if producto.barcode:
                         linea.sudo().write({'decision': 'ya_tiene', 'codigo': producto.barcode})
+                        continue
+                    if (producto.default_code or '').strip() != linea.codigo:
+                        linea.sudo().write({'decision': 'error'})   # le cambiaron la referencia después de revisar
+                        continue
+                    if Producto.search_count([('default_code', '=ilike', tools.escape_psql(linea.codigo)),
+                                              ('id', '!=', producto.id)]):
+                        linea.sudo().write({'decision': 'repetida'})   # apareció otro con la misma referencia
                         continue
                     if Producto.with_context(active_test=False).search_count([('barcode', '=', linea.codigo)]):
                         linea.sudo().write({'decision': 'usada'})
