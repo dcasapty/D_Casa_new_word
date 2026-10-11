@@ -183,3 +183,18 @@ class TestAsignacion(BarrasCommon):
             asignacion.with_user(self.solo_inventario)._exigir_gerencia()
         asignacion.with_user(self.gerencia)._exigir_gerencia()
         self.assertFalse(self.cama.barcode)
+
+    def test_aplicar_y_deshacer_dejan_historial_de_etiquetas(self):
+        """El historial ve también lo que escribe esta asignación, no solo el Escáner."""
+        asignacion = self.asignar()
+        asignacion.action_aplicar()
+        Historial = self.env['dcasa.barras.etiqueta']
+        filas = Historial.search([('codigo', '=', 'NUE-1')], order='id')
+        self.assertEqual([(f.accion, f.motivo, f.producto_id, f.usuario_id) for f in filas],
+                         [('asignada', 'Asignado desde la referencia', self.nuevo, self.gerencia)])
+        asignacion.action_deshacer()
+        filas = Historial.search([('codigo', '=', 'NUE-1')], order='id')
+        self.assertEqual([(f.accion, f.motivo) for f in filas],
+                         [('asignada', 'Asignado desde la referencia'),
+                          ('retirada', 'Se deshizo la asignación desde la referencia')])
+        self.assertEqual(self.como(self.gerencia).etiqueta('NUE-1')['estado'], 'retirada')

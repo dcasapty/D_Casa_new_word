@@ -7,9 +7,10 @@
  * numerada del rollo, se elige el producto y ese número queda como su código de barras. Todo lo que se lee o se guarda
  * lo comprueba el servidor (dcasa.barras); aquí no hay reglas de negocio, solo la pantalla.
  */
-import { Component, onMounted, useEffect, useRef, useState } from "@odoo/owl";
+import { Component, onMounted, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
 
 const ETIQUETAS = { disponible: "Disponible", pocas: "Pocas", agotado: "Agotado" };
@@ -40,14 +41,29 @@ export class DcasaEscaner extends Component {
         });
         this.confirmar = useRef("confirmar");
         this.busquedaProducto = useRef("busquedaProducto");
-        this.confirmarEtiqueta = useRef("confirmarEtiqueta");
+        // Asignar etiquetas es de Gerencia: a quien no lo es no se le muestra la pestaña (el servidor lo exige igual).
+        this.puedeAsignar = false;
+        onWillStart(async () => {
+            this.puedeAsignar =
+                (await user.hasGroup("stock.group_stock_manager")) && (await user.hasGroup("product.group_product_manager"));
+        });
         // Cada búsqueda lleva un número: si llega la respuesta de una vieja cuando ya salió una más nueva, se ignora.
         this.peticion = 0;
         onMounted(() => this.enfocar());
-        // Al cambiar de paso en «Asignar» el foco se va a donde se escribe después (la búsqueda o el botón de asignar).
+        // Al cambiar de paso en «Asignar» el foco se va a donde se escribe después (la búsqueda o el cuadro del lector).
         useEffect(
             () => this.enfocar(),
             () => [this.state.modo, this.state.asig && this.state.asig.paso, this.state.asig && !!this.state.asig.pregunta]
+        );
+        // Al terminar una petición el foco vuelve a donde se escribe, ya con la pantalla dibujada (un botón que estaba
+        // desactivado mientras tanto no recibe el foco hasta entonces).
+        useEffect(
+            () => {
+                if (!this.state.cargando) {
+                    this.enfocar();
+                }
+            },
+            () => [this.state.cargando]
         );
         // Al pedir el visto bueno de un conteo el foco pasa al botón de confirmar: Enter confirma y un escaneo no cae en
         // el cuadro de cantidad. Se hace cuando el botón ya está dibujado (no con un temporizador, que a veces llega antes).
@@ -67,9 +83,6 @@ export class DcasaEscaner extends Component {
         if (this.state.modo === "asignar" && a) {
             if (a.paso === "producto" && this.busquedaProducto.el) {
                 return this.busquedaProducto.el;
-            }
-            if (a.paso === "confirmar" && this.confirmarEtiqueta.el) {
-                return this.confirmarEtiqueta.el;
             }
         }
         return this.entrada.el;
@@ -99,6 +112,11 @@ export class DcasaEscaner extends Component {
         if ((ev.key === "Enter" || ev.key === "Tab") && this.state.texto.trim()) {
             ev.preventDefault();
             this.escanear();
+        } else if (ev.key === "Enter" && this.state.modo === "asignar" && this.state.asig?.paso === "confirmar") {
+            // Con el cuadro vacío, Enter confirma. Un escaneo escribe el código antes del Enter: eso es otra etiqueta
+            // y no confirma nada.
+            ev.preventDefault();
+            this.confirmarAsignacion();
         }
     }
 
@@ -107,7 +125,12 @@ export class DcasaEscaner extends Component {
     }
 
     get textoDeEjemplo() {
-        return this.state.modo === "asignar" ? "Etiqueta (por ejemplo DC0001)" : "Código, referencia o nombre";
+        if (this.state.modo !== "asignar") {
+            return "Código, referencia o nombre";
+        }
+        return this.state.asig?.paso === "confirmar"
+            ? "Enter para asignar, o escanea otra etiqueta"
+            : "Etiqueta (por ejemplo DC0001)";
     }
 
     async escanear() {
@@ -122,6 +145,10 @@ export class DcasaEscaner extends Component {
         if (this.entrada.el) {
             this.entrada.el.value = "";
         }
+        await this.procesarCodigo(codigo);
+    }
+
+    async procesarCodigo(codigo) {
         const mia = ++this.peticion;
         this.state.cargando = true;
         this.state.mensaje = null;
@@ -142,7 +169,7 @@ export class DcasaEscaner extends Component {
                 this.avisar("aviso", `Hay ${r.productos.length} productos con «${r.codigo}». Elige el correcto.`);
                 this.sonar(false);
             } else {
-                await this.noEncontrado(codigo, mia, r.retirada);
+                await this.noEncontrado(codigo, mia, r.retirada, r.archivado);
             }
         } catch (e) {
             if (mia === this.peticion) {
@@ -156,9 +183,13 @@ export class DcasaEscaner extends Component {
         }
     }
 
-    async noEncontrado(codigo, mia, retirada) {
+    async noEncontrado(codigo, mia, retirada, archivado) {
         this.limpiarProducto();
         this.sonar(false);
+        if (archivado) {
+            this.avisar("aviso", `El código «${codigo}» es del producto «${archivado.producto}», que está archivado.`);
+            return;
+        }
         if (retirada) {
             const motivo = retirada.motivo ? ` (${retirada.motivo})` : "";
             this.avisar(
@@ -226,6 +257,8 @@ export class DcasaEscaner extends Component {
     }
 
     cambiarModo(modo) {
+        this.peticion++; // lo que estaba en camino ya no corresponde a esta pestaña
+        this.state.cargando = false;
         this.state.modo = modo;
         this.state.confirmando = null;
         this.state.mensaje = null;
@@ -332,7 +365,8 @@ export class DcasaEscaner extends Component {
             opciones: [],
             elegido: null,
             pregunta: null, // lo que el servidor pidió confirmar si la etiqueta cambió de dueño mientras tanto
-            forzar: r.estado === "retirada", // ya se avisó que estuvo retirada: usarla otra vez es a propósito
+            // Lo que se le mostró a la persona: el servidor solo toma una etiqueta ajena o retirada si sigue igual.
+            visto: { estado: r.estado, dueno_id: r.producto ? r.producto.id : false },
         };
         this.sonar(r.estado !== "retirada");
     }
@@ -354,7 +388,6 @@ export class DcasaEscaner extends Component {
     pasarAOtro() {
         const a = this.state.asig;
         a.paso = "producto";
-        a.forzar = true; // pasarla a otro producto es a propósito
         a.busqueda = "";
         a.opciones = [];
     }
@@ -367,10 +400,34 @@ export class DcasaEscaner extends Component {
     }
 
     alTeclearBusqueda(ev) {
-        if (ev.key === "Enter") {
-            ev.preventDefault();
+        if (ev.key !== "Enter") {
+            return;
+        }
+        ev.preventDefault();
+        const texto = this.state.asig ? this.state.asig.busqueda.trim() : "";
+        if (this.parecidaALaEtiqueta(texto)) {
+            // El lector escribió otra etiqueta del rollo (misma forma: letras y el mismo largo de número) en el cuadro de
+            // buscar: es un escaneo, no el nombre de un producto.
+            this.state.asig.busqueda = "";
+            if (this.busquedaProducto.el) {
+                this.busquedaProducto.el.value = "";
+            }
+            this.procesarCodigo(texto);
+        } else {
             this.buscarProducto();
         }
+    }
+
+    parecidaALaEtiqueta(texto) {
+        const forma = (codigo) => /^([A-Za-z]+)(\d+)$/.exec(codigo);
+        const actual = this.state.asig && forma(this.state.asig.codigo);
+        const escrita = forma(texto);
+        return !!(
+            actual &&
+            escrita &&
+            actual[1].toUpperCase() === escrita[1].toUpperCase() &&
+            actual[2].length === escrita[2].length
+        );
     }
 
     async buscarProducto() {
@@ -435,13 +492,15 @@ export class DcasaEscaner extends Component {
         }
         this.state.cargando = true;
         try {
-            const r = await this.orm.call("dcasa.barras", "asignar_etiqueta", [
-                a.codigo,
-                a.elegido.id,
-                !!(a.forzar || a.pregunta), // el servidor pide confirmar si la etiqueta es de otro o estuvo retirada
-            ]);
+            const r = await this.orm.call("dcasa.barras", "asignar_etiqueta", [a.codigo, a.elegido.id, a.visto]);
             if (r.resultado === "confirmar") {
-                a.pregunta = r; // la etiqueta cambió de dueño mientras tanto: se pregunta y se espera otro clic
+                // La etiqueta no está como se le mostró a la persona (otra persona la pasó mientras tanto): se le
+                // muestra cómo está ahora y se espera otro clic, que ya vale para lo nuevo.
+                a.pregunta = r;
+                a.visto = {
+                    estado: r.motivo === "dueno" ? "asignada" : "retirada",
+                    dueno_id: r.dueno ? r.dueno.id : false,
+                };
                 return;
             }
             const nombre = a.elegido.nombre;
@@ -453,13 +512,20 @@ export class DcasaEscaner extends Component {
                 this.avisar("ok", `Listo: ${a.codigo} es ahora de «${nombre}»${antes}.${dueno}`);
                 this.anotar("etiqueta", r.ficha, `Etiqueta ${a.codigo}`);
             }
-            this.state.asig = null;
+            this.cerrarAsignacion(a.codigo);
             this.sonar(true);
         } catch (e) {
             this.fallo(e);
         } finally {
             this.state.cargando = false;
             this.enfocar();
+        }
+    }
+
+    cerrarAsignacion(codigo) {
+        // Si mientras tanto se escaneó otra etiqueta, esa sigue en pantalla.
+        if (this.state.asig && this.state.asig.codigo === codigo) {
+            this.state.asig = null;
         }
     }
 
@@ -482,10 +548,10 @@ export class DcasaEscaner extends Component {
     async confirmarQuitar(productoId, codigo) {
         this.state.cargando = true;
         try {
-            const r = await this.orm.call("dcasa.barras", "quitar_etiqueta", [productoId]);
+            const r = await this.orm.call("dcasa.barras", "quitar_etiqueta", [productoId, codigo]);
             this.avisar("ok", `Listo: «${r.ficha.nombre}» ya no tiene etiqueta; la ${codigo} quedó retirada.`);
             this.anotar("etiqueta", r.ficha, `Quitada ${codigo}`);
-            this.state.asig = null;
+            this.cerrarAsignacion(codigo);
             this.sonar(true);
         } catch (e) {
             this.fallo(e);

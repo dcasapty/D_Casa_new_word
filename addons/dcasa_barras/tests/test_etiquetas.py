@@ -41,8 +41,16 @@ class TestEtiquetas(BarrasCommon):
     def historial(self, codigo):
         return self.Historial.search([('codigo', '=', codigo)], order='id')
 
-    def asignar(self, codigo, producto, confirmar=False):
-        return self.gerente().asignar_etiqueta(codigo, producto.id, confirmar)
+    def visto(self, codigo):
+        """Lo que la pantalla le mostró a la persona al escanear la etiqueta."""
+        r = self.gerente().etiqueta(codigo)
+        return {'estado': r['estado'], 'dueno_id': r['producto']['id'] if r['producto'] else False}
+
+    def asignar(self, codigo, producto, confirmar=False, visto=None):
+        """``confirmar=True``: la persona vio cómo estaba la etiqueta y está de acuerdo."""
+        if confirmar:
+            visto = self.visto(codigo)
+        return self.gerente().asignar_etiqueta(codigo, producto.id, visto)
 
     # ------------------------------------------------------------------
     def test_una_etiqueta_nueva_no_es_de_nadie(self):
@@ -82,10 +90,8 @@ class TestEtiquetas(BarrasCommon):
     # --- pasarla a otro producto ---------------------------------------------------------------------------------
     def test_pasarla_a_otro_producto_pide_confirmar_y_mientras_no_cambia_nada(self):
         self.asignar('DC9001', self.a)
-        for no_confirma in (False, None, 1, 'si', 'true', [True]):   # solo un verdadero de verdad confirma
-            r = self.asignar('DC9001', self.b, confirmar=no_confirma)
-            self.assertEqual((r['resultado'], r['motivo'], r['dueno']['id']), ('confirmar', 'dueno', self.a.id),
-                             repr(no_confirma))
+        r = self.asignar('DC9001', self.b)   # sin que la persona haya visto nada
+        self.assertEqual((r['resultado'], r['motivo'], r['dueno']['id']), ('confirmar', 'dueno', self.a.id))
         self.assertEqual((self.a.barcode, self.b.barcode), ('DC9001', False))
         self.assertEqual(len(self.historial('DC9001')), 1)
 
@@ -100,6 +106,38 @@ class TestEtiquetas(BarrasCommon):
              ('retirada', self.a, f'Pasó a «{self.b.display_name}»'),
              ('asignada', self.b, f'Venía de «{self.a.display_name}»')])
 
+    def test_la_confirmacion_vale_solo_para_lo_que_la_persona_vio(self):
+        """Si otra persona pasó la etiqueta mientras tanto, el clic de confirmar no se la quita al nuevo dueño."""
+        self.asignar('DC9001', self.a)
+        visto = self.visto('DC9001')                       # la persona ve: «es de A»
+        self.asignar('DC9001', self.c, confirmar=True)     # otra persona la pasa a C
+        r = self.gerente().asignar_etiqueta('DC9001', self.b.id, visto)
+        self.assertEqual((r['resultado'], r['motivo'], r['dueno']['id']), ('confirmar', 'dueno', self.c.id))
+        self.assertEqual((self.a.barcode, self.b.barcode, self.c.barcode), (False, False, 'DC9001'))
+        self.assertEqual(self.gerente().asignar_etiqueta('DC9001', self.b.id, self.visto('DC9001'))['resultado'], 'ok')
+        self.assertEqual((self.b.barcode, self.c.barcode), ('DC9001', False))
+
+    def test_lo_confirmado_como_retirada_no_vale_si_ya_tiene_dueno(self):
+        self.asignar('DC9001', self.a)
+        self.asignar('DC9002', self.a)                     # DC9001 queda retirada
+        visto = self.visto('DC9001')                       # la persona ve: «retirada»
+        self.asignar('DC9001', self.c, confirmar=True)     # otra persona la usa otra vez
+        r = self.gerente().asignar_etiqueta('DC9001', self.b.id, visto)
+        self.assertEqual((r['resultado'], r['motivo']), ('confirmar', 'dueno'))
+        self.assertFalse(self.b.barcode)
+
+    def test_una_etiqueta_libre_no_pide_confirmar_aunque_llegue_algo_raro_en_lo_visto(self):
+        self.assertEqual(self.gerente().asignar_etiqueta(
+            'DC9001', self.a.id, {'estado': 'asignada', 'dueno_id': self.b.id})['resultado'], 'ok')
+
+    def test_lo_visto_tiene_que_ser_lo_que_manda_la_pantalla(self):
+        for malo in ('si', 1, True, [], [True], {}, {'estado': 'otra'}, {'estado': ['libre']},
+                     {'estado': 'asignada', 'dueno_id': 'x'}, {'estado': 'asignada', 'dueno_id': True},
+                     {'estado': 'asignada', 'dueno_id': 1.5}):
+            with self.assertUserError('no se entiende'):
+                self.gerente().asignar_etiqueta('DC9001', self.a.id, malo)
+        self.assertFalse(self.a.barcode)
+
     def test_las_mayusculas_no_hacen_otro_dueno(self):
         self.asignar('DC9001', self.a)
         r = self.asignar('dc9001', self.b)
@@ -112,6 +150,26 @@ class TestEtiquetas(BarrasCommon):
         self.assertEqual(self.asignar('DC9050', self.b)['resultado'], 'confirmar')
         self.assertEqual(self.a.barcode, 'dc9050')
 
+    def test_dos_duenos_con_distinta_capitalizacion_se_limpian_los_dos(self):
+        self.a.barcode = 'dc9060'
+        self.b.barcode = 'DC9060'   # Odoo distingue mayúsculas: pueden coexistir
+        self.assertEqual(self.asignar('DC9060', self.c)['resultado'], 'confirmar')
+        self.assertEqual(self.asignar('DC9060', self.c, confirmar=True)['resultado'], 'ok')
+        self.assertEqual((self.a.barcode, self.b.barcode, self.c.barcode), (False, False, 'DC9060'))
+
+    def test_pasarla_a_un_producto_que_ya_tenia_otra_etiqueta(self):
+        """Los dos movimientos juntos: el dueño la suelta y el nuevo deja la suya."""
+        self.asignar('DC9001', self.a)
+        self.asignar('DC9002', self.b)
+        r = self.asignar('DC9001', self.b, confirmar=True)
+        self.assertEqual((r['resultado'], r['etiqueta_anterior'], r['dueno_anterior']),
+                         ('ok', 'DC9002', self.a.display_name))
+        self.assertEqual((self.a.barcode, self.b.barcode), (False, 'DC9001'))
+        self.assertEqual([(f.accion, f.producto_id, f.motivo) for f in self.historial('DC9002')],
+                         [('asignada', self.b, ''), ('retirada', self.b, 'Reemplazada por DC9001')])
+        self.assertEqual([(f.accion, f.producto_id) for f in self.historial('DC9001')],
+                         [('asignada', self.a), ('retirada', self.a), ('asignada', self.b)])
+
     def test_si_el_dueno_esta_archivado_la_etiqueta_sigue_siendo_suya(self):
         self.asignar('DC9001', self.a)
         self.a.action_archive()
@@ -119,6 +177,22 @@ class TestEtiquetas(BarrasCommon):
         self.assertEqual(self.asignar('DC9001', self.b)['resultado'], 'confirmar')
         self.assertEqual(self.asignar('DC9001', self.b, confirmar=True)['resultado'], 'ok')
         self.assertEqual((self.a.barcode, self.b.barcode), (False, 'DC9001'))
+
+    def test_se_puede_asignar_a_un_producto_archivado_y_quitarle_la_etiqueta(self):
+        self.b.action_archive()
+        self.assertEqual(self.asignar('DC9001', self.b)['resultado'], 'ok')
+        self.assertEqual(self.gerente().quitar_etiqueta(self.b.id, 'DC9001')['resultado'], 'ok')
+        self.assertFalse(self.b.barcode)
+
+    def test_escanear_la_etiqueta_de_un_producto_archivado_dice_que_esta_archivado(self):
+        self.asignar('DC9001', self.a)
+        self.a.action_archive()
+        for usuario in (self.vendedora, self.gerencia):
+            r = self.como(usuario).buscar('dc9001')
+            self.assertEqual(r['resultado'], 'no_encontrado')
+            self.assertEqual(r['archivado']['producto'], self.a.display_name)
+            self.assertFalse(r['retirada'])
+        self.assertFalse(self.como(self.vendedora).buscar('DC0000')['archivado'])
 
     # --- reemplazar y quitar -------------------------------------------------------------------------------------
     def test_reemplazar_la_etiqueta_deja_la_vieja_retirada(self):
@@ -140,6 +214,7 @@ class TestEtiquetas(BarrasCommon):
             r = self.como(usuario).buscar('dc9001')
             self.assertEqual(r['resultado'], 'no_encontrado')
             self.assertEqual(r['retirada']['producto'], self.a.display_name)
+            self.assertFalse(r['archivado'])
         self.assertFalse(self.como(self.vendedora).buscar('DC9002')['retirada'])
         self.assertFalse(self.como(self.vendedora).buscar('DC0000')['retirada'], 'una etiqueta que nunca existió')
 
@@ -156,14 +231,25 @@ class TestEtiquetas(BarrasCommon):
 
     def test_quitar_la_etiqueta(self):
         self.asignar('DC9001', self.a)
-        r = self.gerente().quitar_etiqueta(self.a.id)
+        r = self.gerente().quitar_etiqueta(self.a.id, 'dc9001')
         self.assertEqual((r['resultado'], r['etiqueta_anterior']), ('ok', 'DC9001'))
         self.assertFalse(self.a.barcode)
         self.assertEqual([(f.accion, f.motivo) for f in self.historial('DC9001')],
                          [('asignada', ''), ('retirada', 'Quitada a mano')])
         self.assertEqual(self.gerente().etiqueta('DC9001')['estado'], 'retirada')
         with self.assertUserError('no tiene etiqueta'):
-            self.gerente().quitar_etiqueta(self.a.id)
+            self.gerente().quitar_etiqueta(self.a.id, 'DC9001')
+
+    def test_quitar_solo_la_etiqueta_que_la_persona_vio(self):
+        """Si mientras tanto se le puso otra etiqueta al producto, no se quita la nueva por error."""
+        self.asignar('DC9001', self.a)
+        self.asignar('DC9002', self.a)
+        with self.assertUserError('cambió mientras tanto'):
+            self.gerente().quitar_etiqueta(self.a.id, 'DC9001')
+        self.assertEqual(self.a.barcode, 'DC9002')
+        for malo in ('', 'DC 9002', None, 5):
+            with self.assertUserError('etiqueta'):
+                self.gerente().quitar_etiqueta(self.a.id, malo)
 
     # --- lo que no se puede -------------------------------------------------------------------------------------
     def test_lo_que_no_se_lee_como_etiqueta_se_rechaza(self):
@@ -179,7 +265,7 @@ class TestEtiquetas(BarrasCommon):
             with self.assertUserError():
                 self.gerente().asignar_etiqueta('DC9001', malo)
             with self.assertUserError():
-                self.gerente().quitar_etiqueta(malo)
+                self.gerente().quitar_etiqueta(malo, 'DC9001')
 
     def test_el_codigo_de_un_empaque_no_puede_ser_etiqueta(self):
         self.env['product.uom'].create({
@@ -188,21 +274,43 @@ class TestEtiquetas(BarrasCommon):
             self.asignar('dc9100', self.a)
         self.assertFalse(self.a.barcode)
 
+    def test_los_comodines_de_busqueda_no_encuentran_otras_etiquetas(self):
+        self.asignar('DC8001', self.a)
+        self.asignar('DC8002', self.b)
+        self.gerente().quitar_etiqueta(self.b.id, 'DC8002')    # DC8002 retirada
+        for escrito in ('DC_001', 'DC_002', 'DC%', 'DC8%', '%', '_'):
+            self.assertEqual(self.gerente().etiqueta(escrito)['estado'], 'libre', escrito)
+            self.assertFalse(self.como(self.vendedora).buscar(escrito)['retirada'], escrito)
+        r = self.asignar('DC_001', self.c)   # un comodín se guarda como texto: no le quita nada a DC8001
+        self.assertEqual(r['resultado'], 'ok')
+        self.assertEqual((self.a.barcode, self.c.barcode), ('DC8001', 'DC_001'))
+
     def test_solo_gerencia_asigna_etiquetas(self):
         self.asignar('DC9001', self.a)
+        filas = self.Historial.search_count([])
         # El administrador de Inventario sin Productos, la Vendedora y quien no usa Inventario: nada de esto.
+        visto = {'estado': 'asignada', 'dueno_id': self.a.id}
         for usuario in (self.solo_inventario, self.vendedora, self.sin_inventario):
             barras = self.como(usuario)
-            for llamada in (lambda b: b.etiqueta('DC9001'), lambda b: b.asignar_etiqueta('DC9001', self.b.id, True),
-                            lambda b: b.asignar_etiqueta('DC9003', self.b.id), lambda b: b.quitar_etiqueta(self.a.id)):
+            for llamada in (lambda b: b.etiqueta('DC9001'), lambda b: b.asignar_etiqueta('DC9001', self.b.id, visto),
+                            lambda b: b.asignar_etiqueta('DC9003', self.b.id),
+                            lambda b: b.quitar_etiqueta(self.a.id, 'DC9001')):
                 with self.assertRaises(AccessError, msg=usuario.login):
                     llamada(barras)
         self.assertEqual((self.a.barcode, self.b.barcode), ('DC9001', False))
-        self.assertEqual(len(self.Historial.search([])), 1)
+        self.assertEqual(self.Historial.search_count([]), filas)
+
+    def test_etiqueta_no_ve_lo_de_otra_empresa(self):
+        otra = self.env['res.company'].create({'name': 'Otra empresa de prueba'})
+        ajeno = self.producto('Zzajeno', 'ZZT-AJENO', barcode='DC7001', company_id=otra.id)
+        self.Historial.sudo().create({
+            'codigo': 'DC7002', 'accion': 'retirada', 'producto_nombre': 'Ajeno', 'company_id': otra.id})
+        self.assertEqual(ajeno.barcode, 'DC7001')
+        for codigo in ('DC7001', 'DC7002'):
+            self.assertEqual(self.gerente().etiqueta(codigo)['estado'], 'libre', codigo)
 
     def test_un_fallo_a_medias_no_deja_nada_a_medias(self):
         self.asignar('DC9001', self.a)
-        self.a.barcode = 'DC9001'
         original = DcasaBarrasEtiquetas._anotar_etiqueta
 
         def falla_al_ultimo(modelo, codigo, accion, producto, motivo):
@@ -218,6 +326,45 @@ class TestEtiquetas(BarrasCommon):
         self.assertEqual((self.a.barcode, self.b.barcode), ('DC9001', False), 'el dueño no se queda sin etiqueta')
         self.assertEqual(len(self.historial('DC9001')), 1, 'ni el historial a medias')
 
+    # --- el historial ve todos los cambios del código de barras, vengan de donde vengan --------------------------
+    def test_borrar_el_codigo_en_la_ficha_deja_la_etiqueta_retirada(self):
+        self.asignar('DC9001', self.a)
+        self.a.with_user(self.gerencia).write({'barcode': False})
+        self.assertEqual([(f.accion, f.motivo, f.usuario_id) for f in self.historial('DC9001')],
+                         [('asignada', '', self.gerencia),
+                          ('retirada', 'Cambiada en la ficha del producto', self.gerencia)])
+        self.assertEqual(self.gerente().etiqueta('DC9001')['estado'], 'retirada')
+        self.assertTrue(self.como(self.vendedora).buscar('DC9001')['retirada'])
+
+    def test_cambiar_el_codigo_desde_la_ficha_de_la_plantilla_tambien_queda(self):
+        self.asignar('DC9001', self.a)
+        self.a.product_tmpl_id.with_user(self.gerencia).write({'barcode': 'DC9777'})
+        self.assertEqual(self.a.barcode, 'DC9777')
+        self.assertEqual([f.accion for f in self.historial('DC9001')], ['asignada', 'retirada'])
+        self.assertEqual([(f.accion, f.producto_id) for f in self.historial('DC9777')], [('asignada', self.a)])
+
+    def test_cambiar_solo_las_mayusculas_no_anota_nada(self):
+        self.asignar('DC9001', self.a)
+        self.a.write({'barcode': 'dc9001'})
+        self.assertEqual(len(self.historial('DC9001')), 1)
+        self.a.write({'name': 'Otro nombre'})
+        self.assertEqual(len(self.historial('DC9001')), 1)
+
+    def test_eliminar_el_producto_deja_la_etiqueta_retirada(self):
+        efimero = self.producto('Zzefimero', 'ZZT-EFI')
+        self.asignar('DC9001', efimero)
+        nombre = efimero.display_name
+        efimero.unlink()
+        self.assertEqual([(f.accion, f.motivo, f.producto_nombre) for f in self.historial('DC9001')],
+                         [('asignada', '', nombre), ('retirada', 'El producto se eliminó', nombre)])
+        r = self.gerente().etiqueta('DC9001')
+        self.assertEqual((r['estado'], r['antes']['producto']), ('retirada', nombre))
+
+    def test_eliminar_un_producto_sin_etiqueta_no_anota(self):
+        filas = self.Historial.search_count([])
+        self.producto('Zzefimero2', 'ZZT-EFI2').unlink()
+        self.assertEqual(self.Historial.search_count([]), filas)
+
     # --- historial ----------------------------------------------------------------------------------------------
     def test_el_historial_no_se_edita_ni_se_borra_ni_se_crea_a_mano(self):
         self.asignar('DC9001', self.a)
@@ -227,10 +374,13 @@ class TestEtiquetas(BarrasCommon):
                 fila.with_user(usuario).write({'motivo': 'otro'})
             with self.assertRaises(UserError):
                 fila.with_user(usuario).unlink()
-        with self.assertRaises(UserError):
+        # Con sudo no hay ACL: solo el bloqueo propio del modelo lo impide (y es un aviso, no un error de permisos).
+        with self.assertRaises(UserError) as editar:
             fila.sudo().write({'codigo': 'DC0000'})
-        with self.assertRaises(UserError):
+        with self.assertRaises(UserError) as borrar:
             fila.sudo().unlink()
+        self.assertIs(type(editar.exception), UserError)
+        self.assertIs(type(borrar.exception), UserError)
         for usuario in (self.gerencia, self.vendedora):
             with self.assertRaises(AccessError):
                 self.Historial.with_user(usuario).create(

@@ -153,7 +153,8 @@ class DcasaBarrasAsignacion(models.Model):
                     if Producto.with_context(active_test=False).search_count([('barcode', '=', linea.codigo)]):
                         linea.sudo().write({'decision': 'usada'})
                         continue
-                    producto.write({'barcode': linea.codigo})
+                    producto.with_context(dcasa_etiqueta_alta=self.env._("Asignado desde la referencia")) \
+                        .write({'barcode': linea.codigo})
                     linea.sudo().write({'resultado': 'asignado'})
             except ValidationError:   # Odoo rechazó el código (p. ej. ya lo usa un empaque); un AccessError sí se ve
                 linea.sudo().write({'decision': 'error'})
@@ -167,7 +168,9 @@ class DcasaBarrasAsignacion(models.Model):
             raise UserError(self.env._("Solo se puede deshacer una asignación aplicada."))
         for linea in self.linea_ids.filtered(lambda linea: linea.resultado == 'asignado'):
             if linea.producto_id.barcode == linea.codigo:
-                linea.producto_id.write({'barcode': False})
+                linea.producto_id.with_context(
+                    dcasa_etiqueta_retiro=self.env._("Se deshizo la asignación desde la referencia")
+                ).write({'barcode': False})
                 linea.sudo().resultado = 'deshecho'
         self.estado = 'deshecha'
 

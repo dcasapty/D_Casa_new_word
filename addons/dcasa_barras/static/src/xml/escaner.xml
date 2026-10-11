@@ -14,7 +14,7 @@
                         <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'contar'}"
                                 t-att-aria-pressed="state.modo === 'contar' ? 'true' : 'false'"
                                 t-on-click="() => this.cambiarModo('contar')">Contar</button>
-                        <button type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'asignar'}"
+                        <button t-if="puedeAsignar" type="button" class="o_dcasa_modo" t-att-class="{'o_dcasa_modo_activo': state.modo === 'asignar'}"
                                 t-att-aria-pressed="state.modo === 'asignar' ? 'true' : 'false'"
                                 t-on-click="() => this.cambiarModo('asignar')">Asignar</button>
                     </div>
@@ -238,8 +238,9 @@
                                         ¿La usamos otra vez?
                                     </p>
                                 </div>
+                                <p class="o_dcasa_nota">Enter o el botón asigna. Si escaneas otra etiqueta, esta se descarta.</p>
                                 <div class="o_dcasa_botones">
-                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-ref="confirmarEtiqueta"
+                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario"
                                             t-att-disabled="state.cargando" t-on-click="confirmarAsignacion" t-esc="botonAsignar"/>
                                     <button type="button" class="o_dcasa_boton" t-on-click="volverABuscar">Otro producto</button>
                                     <button type="button" class="o_dcasa_boton" t-on-click="cancelarAsignacion">Cancelar</button>

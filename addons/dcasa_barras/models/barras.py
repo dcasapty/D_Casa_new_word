@@ -90,6 +90,8 @@ class DcasaBarras(models.AbstractModel):
             'productos': [self._ficha_de(p) for p in productos[:MAXIMO_CANDIDATOS]],
             # Una etiqueta numerada que se retiró (docs/BARRAS.md): se avisa en vez de decir solo «no existe».
             'retirada': self._etiqueta_retirada(codigo) if not productos else False,
+            # El código es de un producto archivado: el mueble puede seguir en bodega con su etiqueta.
+            'archivado': self._producto_archivado_con_codigo(codigo) if not productos else False,
         }
 
     def _productos_por_codigo(self, codigo):

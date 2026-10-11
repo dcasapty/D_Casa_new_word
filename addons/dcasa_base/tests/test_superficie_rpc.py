@@ -162,11 +162,18 @@ LISTA_BLANCA = {
         'ANTES de leer; solo lee con los permisos de la persona (sin sudo).',
     ('dcasa_barras', 'dcasa.barras', 'asignar_etiqueta'):
         'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
-        'ANTES de escribir; el producto se escribe con los permisos de la persona (sin sudo); solo el historial se '
-        'escribe con sudo, después de comprobar el permiso.',
+        'ANTES de escribir; el producto se escribe con los permisos de la persona (sin sudo); el único sudo es leer '
+        'si un empaque ya usa el código y escribir el historial, después de comprobar el permiso; tomar una etiqueta '
+        'ajena o retirada exige que la persona haya visto su estado actual.',
     ('dcasa_barras', 'dcasa.barras', 'quitar_etiqueta'):
         'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
         'ANTES de escribir; el producto se escribe con los permisos de la persona; solo el historial usa sudo.',
+    ('dcasa_barras', 'product.product', 'write'):
+        OVERRIDE + ' Solo anota en el historial de etiquetas (con sudo, sin cambiar permisos ni valores) cuando cambia '
+                   'el código de barras.',
+    ('dcasa_barras', 'product.product', 'unlink'):
+        OVERRIDE + ' Solo anota en el historial de etiquetas el código del producto que se elimina; no cambia '
+                   'permisos.',
     ('dcasa_barras', 'dcasa.barras.etiqueta', 'write'): 'Bloquea: el historial de etiquetas no se edita.',
     ('dcasa_barras', 'dcasa.barras.etiqueta', 'unlink'): 'Bloquea: el historial de etiquetas no se borra.',
     ('dcasa_barras', 'dcasa.barras.asignacion', 'action_revisar'):
