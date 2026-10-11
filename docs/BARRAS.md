@@ -61,7 +61,10 @@ ningún producto. Cada etiqueta se pega en el mueble de exhibición (o en la caj
 1. **Pegas** la etiqueta en el mueble.
 2. **Escáner › Asignar**, escaneas la etiqueta. Si es nueva, dice *Sin producto*.
 3. **Escribes el nombre o la referencia** del producto y lo eliges (se ve su foto para confirmar que es ese).
-4. **Asignar etiqueta**. Desde ese momento, escanear esa etiqueta en **Consultar** o **Contar** saca ese producto.
+4. **Asignar etiqueta** (el botón, o Enter con el cuadro de arriba vacío). Desde ese momento, escanear esa etiqueta en
+   **Consultar** o **Contar** saca ese producto.
+
+Si en cualquier paso escaneas otra etiqueta, se toma como una etiqueta nueva: nada se asigna por error.
 
 Si el mueble cambia: pegas otra etiqueta y la asignas al producto (o vuelves a escanear la vieja y eliges **Pasarla a otro
 producto** / **Quitar la etiqueta**). La etiqueta que se deja de usar queda **retirada**: si alguien la escanea, el
@@ -71,14 +74,19 @@ Reglas:
 
 * Solo **Gerencia** (administra Inventario y Productos: el código se escribe en el producto, con sus permisos).
 * Un número es de un solo producto. **Pasarlo a otro** o **usar uno que estuvo retirado** pide confirmación; mientras no
-  se confirma, no cambia nada.
+  se confirma, no cambia nada. La confirmación vale **solo para lo que viste**: si otra persona pasó la etiqueta mientras
+  mirabas la pantalla, no se hace nada y te vuelve a preguntar con lo nuevo.
 * El número se guarda en **mayúsculas** y la búsqueda no distingue mayúsculas (un lector con las mayúsculas invertidas
   escribe `dc0001` y encuentra lo mismo).
 * El número no puede traer espacios ni letras con tilde ni símbolos raros, ni ser de 64 caracteres o más.
 * El código de un **empaque** de otro producto no puede ser una etiqueta.
-* Cada cambio queda en **Inventario › Configuración › Historial de etiquetas** (número, qué pasó, producto, quién, cuándo).
-  Ese historial no se edita ni se borra; es lo que permite decir «estuvo retirada».
-* Un producto archivado sigue siendo el dueño de su etiqueta: reutilizarla pide confirmación.
+* Cada cambio queda en **Inventario › Configuración › Historial de etiquetas** (número, qué pasó, producto, quién, cuándo),
+  **venga de donde venga**: del Escáner, de la ficha del producto (si alguien borra o cambia el código a mano), de la
+  asignación desde la referencia o de eliminar el producto. Ese historial no se edita ni se borra; es lo que permite
+  decir «estuvo retirada».
+* Un producto archivado sigue siendo el dueño de su etiqueta: reutilizarla pide confirmación, y escanearla en Consultar
+  dice «es del producto X, que está archivado» (el mueble puede seguir en bodega con su etiqueta).
+* La pestaña **Asignar** solo la ve Gerencia.
 
 ### Qué pedirle al proveedor de etiquetas
 

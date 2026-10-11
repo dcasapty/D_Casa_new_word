@@ -288,9 +288,10 @@ class TestEtiquetas(BarrasCommon):
     def test_solo_gerencia_asigna_etiquetas(self):
         self.asignar('DC9001', self.a)
         filas = self.Historial.search_count([])
-        # El administrador de Inventario sin Productos, la Vendedora y quien no usa Inventario: nada de esto.
+        # El administrador de Inventario sin Productos, el de Productos sin Inventario (este SÍ puede escribir el
+        # producto: solo la regla de Gerencia lo frena), la Vendedora y quien no usa Inventario: nada de esto.
         visto = {'estado': 'asignada', 'dueno_id': self.a.id}
-        for usuario in (self.solo_inventario, self.vendedora, self.sin_inventario):
+        for usuario in (self.solo_inventario, self.solo_productos, self.vendedora, self.sin_inventario):
             barras = self.como(usuario)
             for llamada in (lambda b: b.etiqueta('DC9001'), lambda b: b.asignar_etiqueta('DC9001', self.b.id, visto),
                             lambda b: b.asignar_etiqueta('DC9003', self.b.id),

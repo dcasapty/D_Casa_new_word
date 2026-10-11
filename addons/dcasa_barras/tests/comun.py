@@ -18,6 +18,9 @@ class BarrasCommon(TransactionCase):
         cls.solo_inventario = new_test_user(cls.env, login='barras_inventario', groups='stock.group_stock_manager')
         cls.vendedora = new_test_user(cls.env, login='barras_vendedora', groups='stock.group_stock_user')
         cls.sin_inventario = new_test_user(cls.env, login='barras_nada', groups='base.group_user')
+        # Administra Productos (puede escribir el código de barras) pero no Inventario: tampoco asigna etiquetas.
+        cls.solo_productos = new_test_user(
+            cls.env, login='barras_productos', groups='stock.group_stock_user,product.group_product_manager')
         cls.cama = cls.producto('Zzcama de prueba', 'ZZT-CAMA-1', precio=349.99, costo=77.77, unidades=12)
         cls.zapatera = cls.producto(
             'Zzzapatera de prueba', 'ZZT-ZAP-1', barcode='7501234567890', precio=89.5, unidades=0)
