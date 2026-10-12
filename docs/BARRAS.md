@@ -1,7 +1,9 @@
 # Lector de códigos de barras (`dcasa_barras`)
 
 El «Escáner de códigos de barras» de Odoo (`stock_barcode`) es **Enterprise**. Esto es lo que D'CASA necesita, hecho con
-lo que sí trae Odoo Community. Responde a los issues #9, #11, #13 y #14 del repositorio.
+lo que sí trae Odoo Community. Responde a los issues #9, #11, #13 y #14 del repositorio: los tres últimos están
+cerrados (construidos y en staging); #9, #10 y #12 siguen abiertos hasta probar los lectores con las etiquetas reales
+y decidir cómo se imprimen.
 
 ## Qué hay
 

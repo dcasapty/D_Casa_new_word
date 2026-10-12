@@ -1,6 +1,21 @@
-# Pendientes de la dueña (recordar al final de la sesión)
+# Pendientes de la dueña
 
-Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le recuerdan al cerrar:
+Lo que falta decidir, validar o hacer y no es trabajo de programación. Revisado el 2026-10-12. La evaluación de
+cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que es trabajo de desarrollo vive en los
+[issues del repositorio](https://github.com/dcasapty/D_Casa_new_word/issues).
+
+## Por prioridad
+
+| Cuándo | Qué | Puntos |
+|---|---|---|
+| **Antes de abrir al público** | Factura electrónica (contador y PAC) · textos legales con abogado · nómina y contabilidad con el contador · puerta del equipo y doble factor encendidos · verificación del negocio en Meta | 13 · 5, 6 · 10 · 9 · 8 |
+| **Esta semana** | Etiquetas y Escáner (pedir el rollo, ensayar con los lectores, contar) · que el equipo entre por `/master` | 15 · 9 |
+| **Datos del catálogo** | Precios que cambia el inventario, códigos repetidos, lecturas dudosas, contactos duplicados | 1 a 4 · 11 |
+| **El equipo** | Jerarquía, roles e invitaciones | 14 |
+| **Cuando haya tiempo** | Buscar en el conocimiento por significado · consolidación | 7 · 12 |
+| **Decisiones de limpieza** | Producción por etapas, ramas viejas, peso del repositorio | 16 a 18 |
+
+## El detalle
 
 1. **Inventario anterior — 23 precios del catálogo que cambia el inventario** (regla «el inventario
    manda»), 3 del pedido LTSC-07 (p. ej. Y0300200 $129.99 → $159.99). Lista en
@@ -48,3 +63,24 @@ Decisiones que la dueña pidió dejar fuera por ahora (2026-10-03) y que se le r
     Enter); (c) **no aplicar** «Códigos de barras › Revisar productos» si se usa el rollo; (d) decidir con qué se sigue:
     **recibir contenedores** (hoja de códigos o etiquetas en cada caja; sin lista del proveedor no hay contra qué comparar)
     o **cobrar** (espera la factura electrónica). Guía: `docs/BARRAS.md`.
+16. **Pasar a producción por etapas.** La rama de trabajo lleva más de 200 cambios que `main` no tiene, y el despliegue a
+    producción es solo con push a `main`. Mejor no pasarlo de un golpe: primero encender el doble factor y la puerta del
+    equipo en staging, ensayar una venta completa con dos vendedoras, medir la restauración con R2 real, y entonces decidir
+    qué pasa a `main` y cuándo. Esta decisión es de la dueña; no se hace sin su visto bueno. Ver [ESTADO.md](ESTADO.md).
+17. **Ramas y propuestas viejas del repositorio (limpieza que necesita tu visto bueno).** Hay nueve ramas `respaldo/…` y la
+    rama `claude/bold-volta-fsqq4c`, copias de seguridad de trabajos que ya están en la rama principal de trabajo; y tres
+    propuestas automáticas de actualización de librerías (Dependabot: #3, #7 y #8) sin revisar. Borrar las ramas no pierde
+    nada (todo está en el historial), pero quedan fuera de este trabajo de orden porque el borrado lo decide la dueña.
+18. **Peso del repositorio (~1 GB).** Casi todo es `fuentes/` (948 MB): las fotos originales con las que se regenera el
+    catálogo; **no es basura**. Si pesa demasiado, `scripts/archivar_fuentes.sh` las pasa a R2 sin perder la trazabilidad
+    (necesita las llaves de R2). Ver [OPERACION.md](OPERACION.md) › «Cómo subir fotos».
+
+## Issues abiertos que dependen de ti
+
+| Issue | Qué falta |
+|---|---|
+| [#9](https://github.com/dcasapty/D_Casa_new_word/issues/9) · [#10](https://github.com/dcasapty/D_Casa_new_word/issues/10) | Probar los dos lectores con el Escáner y con las etiquetas de prueba (punto 15). |
+| [#12](https://github.com/dcasapty/D_Casa_new_word/issues/12) | Imprimir las etiquetas: el proveedor las hace con BarTender (punto 15). |
+| [#27](https://github.com/dcasapty/D_Casa_new_word/issues/27) | Puerta del equipo: que entren por `/master` y pasar a modo «1» (punto 9); las preguntas para los jefes siguen abiertas. |
+| [#15](https://github.com/dcasapty/D_Casa_new_word/issues/15) a [#22](https://github.com/dcasapty/D_Casa_new_word/issues/22) | CRM, fase 2: ideas no construidas; decidir cuáles interesan. |
+| [#23](https://github.com/dcasapty/D_Casa_new_word/issues/23) a [#26](https://github.com/dcasapty/D_Casa_new_word/issues/26) | Hallazgos de la auditoría que quedaron para después (privacidad, Juan, Conversaciones, Brian). |

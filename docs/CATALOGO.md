@@ -213,3 +213,9 @@ alta una base nueva, con las reglas de la dueña (LEEME del inventario):
 Informe para la dueña: `scripts/inventario_anterior_informe.py` escribe
 `docs/inventario-anterior-informe.md` (resumen y listas) y `docs/inventario-anterior-fotos-faltantes.xlsx`
 (código, nombre, existencias de los productos nuevos sin foto).
+
+## Códigos de barras
+
+Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las
+etiquetas numeradas de un rollo, desde Inventario › Escáner › Asignar; el Escáner también encuentra un producto por su
+referencia interna. Todo está en [BARRAS.md](BARRAS.md).

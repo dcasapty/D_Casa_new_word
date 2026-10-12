@@ -1,5 +1,8 @@
 # Rediseño del sitio D'CASA (v2)
 
+> **Registro histórico (septiembre de 2026).** Es el diagnóstico y el diseño con los que se construyó el sitio actual.
+> El sitio vigente se describe en [OPERACION.md](OPERACION.md) y se mantiene desde `addons/website_dcasa`.
+
 ## Diagnóstico de la v1
 
 - **Sin fotografía.** Una mueblería vende con imágenes; la v1 era texto sobre bloques de color.
