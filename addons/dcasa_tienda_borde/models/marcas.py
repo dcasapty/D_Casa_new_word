@@ -25,6 +25,9 @@ CAMPOS_VARIANTE = frozenset({
     'website_published', 'is_published',
 })
 CAMPOS_CATEGORIA = frozenset({'name', 'parent_id', 'sequence', 'website_id', 'seo_name', 'image_1920'})
+# Vistas QWeb (plantillas del sitio, ediciones con el constructor de sitios) y páginas/menús: el
+# borde guarda el HTML entero de Odoo, cabecera y pie incluidos.
+CAMPOS_VISTA = frozenset({'arch', 'arch_db', 'arch_fs', 'active', 'inherit_id', 'mode', 'priority', 'key'})
 CAMPOS_SITIO = frozenset({
     'dcasa_whatsapp_number', 'shop_ppg', 'shop_default_sort', 'prevent_zero_price_sale',
     'show_line_subtotals_tax_selection', 'domain', 'name', 'company_id', 'social_instagram',
@@ -178,3 +181,89 @@ class AccountMove(models.Model):
             .invoice_line_ids.product_id.product_tmpl_id
         _marcar(self.env, plantillas.ids, 'factura')
         return publicados
+
+
+class IrUiView(models.Model):
+    _inherit = 'ir.ui.view'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        vistas = super().create(vals_list)
+        if vistas.filtered(lambda v: v.type == 'qweb'):
+            _marcar(self.env, [0], 'plantilla')
+        return vistas
+
+    def write(self, vals):
+        qweb = bool(self.filtered(lambda v: v.type == 'qweb'))
+        resultado = super().write(vals)
+        if qweb and CAMPOS_VISTA.intersection(vals):
+            _marcar(self.env, [0], 'plantilla')
+        return resultado
+
+    def unlink(self):
+        qweb = bool(self.filtered(lambda v: v.type == 'qweb'))
+        resultado = super().unlink()
+        if qweb:
+            _marcar(self.env, [0], 'plantilla')
+        return resultado
+
+
+# Menú, páginas y tarifas: cualquier cambio puede verse en todo el sitio (cabecera, precios).
+class WebsiteMenu(models.Model):
+    _inherit = 'website.menu'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'menú')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        _marcar(self.env, [0], 'menú')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'menú')
+        return resultado
+
+
+class WebsitePage(models.Model):
+    _inherit = 'website.page'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'página')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        _marcar(self.env, [0], 'página')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'página')
+        return resultado
+
+
+class ProductPricelistItem(models.Model):
+    _inherit = 'product.pricelist.item'
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        registros = super().create(vals_list)
+        _marcar(self.env, [0], 'tarifa')
+        return registros
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        _marcar(self.env, [0], 'tarifa')
+        return resultado
+
+    def unlink(self):
+        resultado = super().unlink()
+        _marcar(self.env, [0], 'tarifa')
+        return resultado

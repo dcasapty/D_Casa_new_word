@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="config_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.config.form</field>
+        <field name="model">dcasa.nomina.config</field>
+        <field name="arch" type="xml">
+            <form string="Cuentas y diario de la nómina">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        Estas cuentas se proponen buscándolas por código en el plan contable de Panamá. <strong>Las confirma el
+                        contador</strong>: una cuenta vacía impide confirmar la planilla que la necesita.
+                    </div>
+                    <group>
+                        <group string="Diario">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="diario_id"/>
+                        </group>
+                        <group string="Gastos">
+                            <field name="cuenta_gasto_sueldos_id"/>
+                            <field name="cuenta_gasto_cargas_id"/>
+                            <field name="cuenta_reembolsos_id"/>
+                        </group>
+                        <group string="Por pagar">
+                            <field name="cuenta_sueldos_pagar_id"/>
+                            <field name="cuenta_css_pagar_id"/>
+                            <field name="cuenta_se_pagar_id"/>
+                            <field name="cuenta_rp_pagar_id"/>
+                            <field name="cuenta_isr_pagar_id"/>
+                            <field name="cuenta_otros_descuentos_id"/>
+                        </group>
+                        <group string="Décimo tercer mes">
+                            <field name="provisionar_decimo"/>
+                            <field name="cuenta_decimo_id"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_config" model="ir.actions.server">
+        <field name="name">Cuentas y diario de la nómina</field>
+        <field name="model_id" ref="model_dcasa_nomina_config"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+    </record>
+</odoo>

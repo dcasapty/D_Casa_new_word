@@ -293,7 +293,8 @@ class TestMarcaYMovimiento(HttpCase):
         respuesta = self.url_open('/visitanos')
         self.assertEqual(respuesta.status_code, 200)
         html = respuesta.text
-        self.assertIn('Local 4550 PB-1', html)
+        self.assertIn('Frente al Parque Libertadores', html)
+        self.assertNotIn('Local 4550', html, 'La dirección vieja ya no sale')
         self.assertIn('https://www.google.com/maps/embed?pb=', html)
         self.assertRegex(html, r'title="Mapa: D(&#39;|\')CASA en La Chorrera"')
         self.assertIn('destination=8.8765881%2C-79.7867962', html)

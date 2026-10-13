@@ -7,7 +7,7 @@
                     <span class="o_dc_conta_eyebrow">Contabilidad</span>
                     <h1 t-out="titulo"/>
                     <p t-if="state.datos">
-                        <t t-if="state.reporte === 'balance_general'">Al <t t-out="fecha(state.datos.hasta)"/></t>
+                        <t t-if="alCorte">Al <t t-out="fecha(state.datos.hasta)"/></t>
                         <t t-else="">Del <t t-out="fecha(state.datos.desde)"/> al <t t-out="fecha(state.datos.hasta)"/></t>
                         · <t t-out="state.datos.empresa"/>
                     </p>
@@ -34,11 +34,18 @@
                             t-on-click="() => this.usarPeriodo(p)" t-out="p.nombre"/>
                 </div>
                 <div class="o_dc_conta_fechas">
-                    <label t-if="state.reporte !== 'balance_general'">Desde
+                    <label t-if="!alCorte">Desde
                         <input type="date" class="o_input" t-att-value="state.desde" t-on-change="(ev) => this.cambiarFecha('desde', ev)"/>
                     </label>
-                    <label><t t-if="state.reporte === 'balance_general'">Al</t><t t-else="">Hasta</t>
+                    <label><t t-if="alCorte">Al</t><t t-else="">Hasta</t>
                         <input type="date" class="o_input" t-att-value="state.hasta" t-on-change="(ev) => this.cambiarFecha('hasta', ev)"/>
+                    </label>
+                    <label t-if="comparable">Comparar con
+                        <select class="o_input" t-on-change="cambiarComparar">
+                            <option value="" t-att-selected="!state.comparar">Sin comparar</option>
+                            <option value="periodo_anterior" t-att-selected="state.comparar === 'periodo_anterior'">Periodo anterior</option>
+                            <option value="anio_anterior" t-att-selected="state.comparar === 'anio_anterior'">Mismo periodo del año pasado</option>
+                        </select>
                     </label>
                     <label class="o_dc_conta_check">
                         <input type="checkbox" t-att-checked="state.borradores" t-on-change="alternarBorradores"/>
@@ -48,8 +55,17 @@
             </div>
 
             <main t-attf-class="o_dc_conta_cuerpo #{state.cargando ? 'o_cargando' : ''}">
-                <t t-if="state.datos">
-                    <t t-if="state.reporte === 'estado_resultados'" t-call="dcasa_contabilidad.Reportes.resultados"/>
+                <t t-if="state.datos and state.datos.reporte === state.reporte">
+                    <div t-if="comparando" class="o_dc_nota o_dc_comparado">
+                        Comparado con <t t-out="state.datos.comparado.etiqueta.toLowerCase()"/>:
+                        <t t-if="alCorte">al <t t-out="fecha(state.datos.comparado.hasta)"/></t>
+                        <t t-else="">del <t t-out="fecha(state.datos.comparado.desde)"/> al <t t-out="fecha(state.datos.comparado.hasta)"/></t>
+                    </div>
+                    <t t-if="state.reporte === 'resumen'" t-call="dcasa_contabilidad.Reportes.resumen"/>
+                    <t t-elif="comparando" t-call="dcasa_contabilidad.Reportes.comparativo"/>
+                    <t t-elif="state.reporte === 'flujo_efectivo'" t-call="dcasa_contabilidad.Reportes.flujo"/>
+                    <t t-elif="state.reporte === 'por_cobrar' or state.reporte === 'por_pagar'" t-call="dcasa_contabilidad.Reportes.antiguedad"/>
+                    <t t-elif="state.reporte === 'estado_resultados'" t-call="dcasa_contabilidad.Reportes.resultados"/>
                     <t t-elif="state.reporte === 'balance_general'" t-call="dcasa_contabilidad.Reportes.balance"/>
                     <t t-elif="state.reporte === 'balance_comprobacion'" t-call="dcasa_contabilidad.Reportes.comprobacion"/>
                     <t t-elif="state.reporte === 'libro_mayor'" t-call="dcasa_contabilidad.Reportes.mayor"/>
@@ -58,6 +74,158 @@
                 </t>
             </main>
         </div>
+    </t>
+
+    <!-- Resumen: el tablero de la dueña -->
+    <t t-name="dcasa_contabilidad.Reportes.resumen">
+        <section class="o_dc_kpis o_dc_resumen">
+            <button t-foreach="state.datos.tarjetas" t-as="t" t-key="t.clave" type="button"
+                    t-attf-class="o_dc_kpi o_dc_clic #{t.clave === 'utilidad' ? 'o_dc_kpi_fuerte' : ''}"
+                    t-on-click="() => this.irA(t.clave)">
+                <span t-out="t.titulo"/>
+                <strong t-attf-class="#{claseMonto(t.valor)}" t-out="dinero(t.valor)"/>
+                <small t-if="t.vencido">Vencido <t t-out="dinero(t.vencido)"/></small>
+                <small t-elif="t.clave === 'itbms'">Ventas <t t-out="dinero(t.debito)"/> − compras <t t-out="dinero(t.credito)"/></small>
+                <small t-elif="t.comparado !== undefined">Antes <t t-out="dinero(t.comparado)"/> · <t t-out="pct(t.variacion_pct)"/></small>
+                <small t-elif="t.nota" t-out="t.nota"/>
+            </button>
+        </section>
+        <div t-foreach="state.datos.alertas" t-as="a" t-key="a_index"
+             t-attf-class="o_dc_aviso o_dc_clic #{a.nivel === 'info' ? 'o_dc_aviso_info' : ''}" t-on-click="() => this.irA(a.destino)">
+            <i class="fa fa-exclamation-circle me-2"/><t t-out="a.texto"/>
+        </div>
+        <div class="o_dc_columnas">
+            <div class="o_dc_tarjeta">
+                <table class="o_dc_tabla">
+                    <thead><tr><th>Bancos y caja</th><th class="o_dc_num">Por conciliar</th><th class="o_dc_num">Saldo</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.datos.bancos" t-as="b" t-key="b.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirBanco(b)">
+                            <td t-out="b.nombre"/><td class="o_dc_num" t-out="b.por_conciliar or '—'"/>
+                            <td t-attf-class="o_dc_num #{claseMonto(b.saldo)}" t-out="dinero(b.saldo)"/>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="o_dc_tarjeta">
+                <table class="o_dc_tabla">
+                    <thead><tr><th>Quién te debe más</th><th class="o_dc_num">Vencido</th><th class="o_dc_num">Total</th></tr></thead>
+                    <tbody>
+                        <tr t-foreach="state.datos.deudores" t-as="d" t-key="d.id or d.nombre" class="o_dc_fila o_dc_clic" t-on-click="() => this.irA('por_cobrar')">
+                            <td t-out="d.nombre"/><td class="o_dc_num" t-out="d.vencido ? dinero(d.vencido) : '—'"/><td class="o_dc_num" t-out="dinero(d.total)"/>
+                        </tr>
+                        <tr t-if="!state.datos.deudores.length" class="o_dc_fila o_dc_vacia"><td colspan="3">Nadie te debe.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <p class="o_dc_nota">
+            Ventas y utilidad del <t t-out="fecha(state.datos.desde)"/> al <t t-out="fecha(state.datos.hasta)"/>, comparadas con
+            el <t t-out="fecha(state.datos.periodo_comparado.desde)"/> al <t t-out="fecha(state.datos.periodo_comparado.hasta)"/>.
+            Bancos, cobros y pagos al <t t-out="fecha(state.datos.hasta)"/>.
+            <t t-if="state.datos.bloqueado_hasta"> Contabilidad cerrada hasta el <t t-out="fecha(state.datos.bloqueado_hasta)"/>.</t>
+        </p>
+    </t>
+
+    <!-- Comparativo: estado de resultados, balance general o flujo de efectivo con otro periodo al lado -->
+    <t t-name="dcasa_contabilidad.Reportes.comparativo">
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr>
+                    <th>Código</th><th>Cuenta</th>
+                    <th class="o_dc_num">Actual</th><th class="o_dc_num">Comparado</th>
+                    <th class="o_dc_num">Variación</th><th class="o_dc_num">%</th>
+                </tr></thead>
+                <tbody>
+                    <t t-foreach="state.datos.secciones" t-as="s" t-key="s.clave">
+                        <tr class="o_dc_seccion"><th colspan="2" t-out="s.titulo"/>
+                            <th class="o_dc_num" t-out="dinero(s.total)"/><th class="o_dc_num" t-out="dinero(s.comparado)"/>
+                            <th t-attf-class="o_dc_num #{claseMonto(s.variacion)}" t-out="dinero(s.variacion)"/><th class="o_dc_num" t-out="pct(s.variacion_pct)"/>
+                        </tr>
+                        <tr t-foreach="s.filas" t-as="f" t-key="f.id or f.nombre" t-attf-class="o_dc_fila #{f.id ? 'o_dc_clic' : ''}" t-on-click="() => this.abrirApuntes(f)">
+                            <td class="o_dc_codigo" t-out="f.codigo"/><td t-out="f.nombre"/>
+                            <td class="o_dc_num" t-out="dinero(f.monto)"/><td class="o_dc_num" t-out="dinero(f.comparado)"/>
+                            <td t-attf-class="o_dc_num #{claseMonto(f.variacion)}" t-out="dinero(f.variacion)"/><td class="o_dc_num" t-out="pct(f.variacion_pct)"/>
+                        </tr>
+                    </t>
+                    <tr t-foreach="totalesComparativo" t-as="t" t-key="t.nombre" class="o_dc_total o_dc_total_final">
+                        <td/><td t-out="t.nombre"/>
+                        <td class="o_dc_num" t-out="dinero(t.actual)"/><td class="o_dc_num" t-out="dinero(t.anterior)"/>
+                        <td t-attf-class="o_dc_num #{claseMonto(t.variacion)}" t-out="dinero(t.variacion)"/><td class="o_dc_num" t-out="pct(t.pct)"/>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </t>
+
+    <!-- Flujo de efectivo -->
+    <t t-name="dcasa_contabilidad.Reportes.flujo">
+        <t t-set="r" t-value="state.datos.resumen"/>
+        <section class="o_dc_kpis">
+            <div class="o_dc_kpi"><span>Efectivo al inicio</span><strong t-out="dinero(r.efectivo_inicial)"/></div>
+            <div t-foreach="state.datos.secciones" t-as="s" t-key="s.clave" class="o_dc_kpi">
+                <span t-out="s.titulo.replace('Actividades de ', 'De ')"/><strong t-attf-class="#{claseMonto(s.total)}" t-out="dinero(s.total)"/>
+            </div>
+            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Efectivo al final</span><strong t-out="dinero(r.efectivo_final)"/></div>
+        </section>
+        <div t-if="!state.datos.cuadra" class="o_dc_aviso"><i class="fa fa-exclamation-triangle me-2"/>La variación no coincide con los bancos: revisa los asientos en borrador.</div>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <t t-foreach="state.datos.secciones" t-as="s" t-key="s.clave">
+                    <tr class="o_dc_seccion"><th colspan="2" t-out="s.titulo"/><th t-attf-class="o_dc_num #{claseMonto(s.total)}" t-out="dinero(s.total)"/></tr>
+                    <tr t-foreach="s.filas" t-as="f" t-key="f.id or f.nombre" t-attf-class="o_dc_fila #{f.id ? 'o_dc_clic' : ''}" t-on-click="() => this.abrirApuntes(f)">
+                        <td class="o_dc_codigo" t-out="f.codigo"/><td t-out="f.nombre"/><td t-attf-class="o_dc_num #{claseMonto(f.monto)}" t-out="dinero(f.monto)"/>
+                    </tr>
+                    <tr t-if="!s.filas.length" class="o_dc_fila o_dc_vacia"><td colspan="3">Sin movimientos.</td></tr>
+                </t>
+                <tr class="o_dc_total"><td/><td>Variación del efectivo</td><td t-attf-class="o_dc_num #{claseMonto(r.variacion)}" t-out="dinero(r.variacion)"/></tr>
+                <tr class="o_dc_total o_dc_total_final"><td/><td>Efectivo al final</td><td class="o_dc_num" t-out="dinero(r.efectivo_final)"/></tr>
+            </table>
+        </div>
+        <p class="o_dc_nota">Método indirecto: parte de la utilidad y suma o resta lo que cambió en lo que te deben, lo que debes, el inventario y los activos. En positivo, dinero que entró; entre paréntesis, dinero que salió.</p>
+    </t>
+
+    <!-- Antigüedad de saldos (por cobrar / por pagar) -->
+    <t t-name="dcasa_contabilidad.Reportes.antiguedad">
+        <t t-set="t" t-value="state.datos.totales"/>
+        <section class="o_dc_kpis">
+            <div class="o_dc_kpi"><span t-out="state.reporte === 'por_cobrar' ? 'Te deben' : 'Debes'"/><strong t-out="dinero(t.total)"/></div>
+            <div t-attf-class="o_dc_kpi #{t.vencido > 0 ? 'o_dc_kpi_alerta' : 'o_dc_kpi_ok'}"><span>Vencido</span><strong t-out="dinero(t.vencido)"/></div>
+            <div class="o_dc_kpi"><span>Más de 90 días</span><strong t-out="dinero(t.d91_120 + t.mas_120)"/></div>
+        </section>
+        <div class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr>
+                    <th t-out="state.reporte === 'por_cobrar' ? 'Cliente' : 'Proveedor'"/>
+                    <th t-foreach="state.datos.tramos" t-as="tr" t-key="tr.clave" class="o_dc_num" t-out="tr.nombre"/>
+                    <th class="o_dc_num">Total</th>
+                </tr></thead>
+                <tbody>
+                    <t t-foreach="state.datos.filas" t-as="f" t-key="f.id or f.nombre">
+                        <tr class="o_dc_seccion o_dc_clic" t-on-click="() => this.alternarCuenta(f.id or f.nombre)">
+                            <th><i t-attf-class="fa fa-fw #{state.abiertas[f.id or f.nombre] ? 'fa-angle-down' : 'fa-angle-right'} me-1"/><t t-out="f.nombre"/></th>
+                            <th t-foreach="state.datos.tramos" t-as="tr" t-key="tr.clave" class="o_dc_num" t-out="f.tramos[tr.clave] ? dinero(f.tramos[tr.clave]) : ''"/>
+                            <th class="o_dc_num" t-out="dinero(f.total)"/>
+                        </tr>
+                        <t t-if="state.abiertas[f.id or f.nombre]">
+                            <tr t-foreach="f.documentos" t-as="d" t-key="d.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirAsiento(d)">
+                                <td><span class="o_dc_codigo" t-out="d.documento"/> · vence <t t-out="fecha(d.vence)"/><t t-if="d.dias"> · <t t-out="d.dias"/> días</t></td>
+                                <td t-foreach="state.datos.tramos" t-as="tr" t-key="tr.clave" class="o_dc_num" t-out="d.tramo === tr.clave ? dinero(d.monto) : ''"/>
+                                <td class="o_dc_num" t-out="dinero(d.monto)"/>
+                            </tr>
+                            <tr class="o_dc_fila"><td t-att-colspan="state.datos.tramos.length + 2"><a href="#" t-on-click.prevent="() => this.abrirDocumentos(f)">Ver los apuntes</a></td></tr>
+                        </t>
+                    </t>
+                    <tr t-if="!state.datos.filas.length" class="o_dc_fila o_dc_vacia"><td t-att-colspan="state.datos.tramos.length + 2">Nada pendiente a esta fecha.</td></tr>
+                </tbody>
+                <tfoot>
+                    <tr class="o_dc_total o_dc_total_final"><td>Total</td>
+                        <td t-foreach="state.datos.tramos" t-as="tr" t-key="tr.clave" class="o_dc_num" t-out="dinero(t[tr.clave])"/>
+                        <td class="o_dc_num" t-out="dinero(t.total)"/>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <p class="o_dc_nota">Saldo pendiente de cada documento a la fecha elegida (los pagos posteriores no cuentan), por días desde su vencimiento. Los montos negativos son anticipos o notas de crédito a favor.</p>
     </t>
 
     <!-- Estado de resultados -->

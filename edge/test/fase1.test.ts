@@ -3,12 +3,17 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CRON_HORARIO,
   CRON_RESPALDO,
+  PAUSA_ALERTA_MS,
   PAUSA_REARRANQUE_MS,
   autorizado,
+  avisarTelegram,
+  canalTelegram,
   colaDeSalida,
+  debeAvisar,
   debeRearrancar,
-  debeRegenerarEnCron,
   handleRequest,
+  mensajeDeArranqueFallido,
+  mensajeDeParada,
   mismoSecreto,
   politicaDeSueno,
   respuestaArrancando,
@@ -299,6 +304,11 @@ describe("contenedor único con PostgreSQL local", () => {
       variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
     ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });
     expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
+    // Las opciones de Brian documentadas como variables (docs/BRIAN.md) llegan al contenedor.
+    expect(variablesDelContenedor({ BRIAN_ESFUERZO: "medium", BRIAN_CACHE: "0" })).toMatchObject({
+      BRIAN_ESFUERZO: "medium",
+      BRIAN_CACHE: "0",
+    });
   });
 
   it("detecta los secretos que faltan para arrancar", () => {
@@ -327,15 +337,100 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(debeRearrancar(true, ahora, ahora - PAUSA_REARRANQUE_MS)).toBe(true);
     expect(debeRearrancar(false, ahora)).toBe(false);
   });
+
+  it("las variables de alertas y de nivel de log llegan al contenedor", () => {
+    const vars = variablesDelContenedor({
+      DCASA_ALERTA_TELEGRAM: "0",
+      DCASA_ALERTA_DISCO_PCT: "85",
+      DCASA_ALERTA_MEMORIA_PCT: "95",
+      DCASA_ALERTA_BASE_GB: "1.5",
+      DCASA_ALERTA_SILENCIO_H: "6",
+      ODOO_LOG_LEVEL: "info",
+      DCASA_ALERTA_TELEGRAM_CHAT: "12345",
+    });
+    expect(vars).toMatchObject({
+      DCASA_ALERTA_TELEGRAM: "0",
+      DCASA_ALERTA_DISCO_PCT: "85",
+      DCASA_ALERTA_MEMORIA_PCT: "95",
+      DCASA_ALERTA_BASE_GB: "1.5",
+      DCASA_ALERTA_SILENCIO_H: "6",
+      ODOO_LOG_LEVEL: "info",
+    });
+    // El chat del Worker no hace falta dentro del contenedor (Odoo avisa a los admins vinculados).
+    expect(vars).not.toHaveProperty("DCASA_ALERTA_TELEGRAM_CHAT");
+  });
+});
+
+describe("alertas por Telegram desde el Worker (caída o arranque fallido del contenedor)", () => {
+  it("el canal exige el token del bot de Brian y un chat_id entero", () => {
+    expect(canalTelegram({})).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc" })).toBeNull();
+    expect(canalTelegram({ DCASA_ALERTA_TELEGRAM_CHAT: "777" })).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc", DCASA_ALERTA_TELEGRAM_CHAT: "@dueña" })).toBeNull();
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: " 123:abc ", DCASA_ALERTA_TELEGRAM_CHAT: " 777 " })).toEqual({
+      token: "123:abc",
+      chat: "777",
+    });
+    expect(canalTelegram({ TELEGRAM_BOT_TOKEN: "123:abc", DCASA_ALERTA_TELEGRAM_CHAT: "-100123" })?.chat).toBe("-100123");
+  });
+
+  it("una salida limpia (código 0) no avisa; una caída sí, con entorno, causa y qué pasa después", () => {
+    expect(mensajeDeParada({ exitCode: 0, reason: "runtime_signal" }, "produccion", true)).toBeNull();
+    const caida = mensajeDeParada({ exitCode: 137, reason: "exit" }, "produccion", true)!;
+    expect(caida).toContain("producción");
+    expect(caida).toContain("código 137");
+    expect(caida).toContain("el proceso terminó solo");
+    expect(caida).toContain("Se rearranca solo");
+    const staging = mensajeDeParada({ exitCode: 1, reason: "runtime_signal" }, "staging", false)!;
+    expect(staging).toContain("staging");
+    expect(staging).toContain("lo detuvo Cloudflare (runtime_signal)");
+    expect(staging).toContain("No se rearranca solo");
+    const sinArrancar = mensajeDeArranqueFallido(undefined, 420_500, "x".repeat(400));
+    expect(sinArrancar).toContain("producción");
+    expect(sinArrancar).toContain("421 s");
+    expect(sinArrancar.length).toBeLessThan(500);
+  });
+
+  it("como mucho un aviso cada PAUSA_ALERTA_MS", () => {
+    const ahora = 1_000_000_000;
+    expect(debeAvisar(ahora)).toBe(true);
+    expect(debeAvisar(ahora, ahora - 1000)).toBe(false);
+    expect(debeAvisar(ahora, ahora - PAUSA_ALERTA_MS)).toBe(true);
+  });
+
+  it("manda sendMessage al bot con el chat y el texto, sin registrar el token", async () => {
+    const fetchFn = vi.fn(async () => Response.json({ ok: true, result: {} }));
+    const canal = { token: "123:secreto", chat: "777" };
+    expect(await avisarTelegram(canal, "hola", fetchFn as unknown as typeof fetch)).toBe(true);
+    const [url, init] = fetchFn.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("https://api.telegram.org/bot123:secreto/sendMessage");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body as string)).toEqual({ chat_id: "777", text: "hola", disable_web_page_preview: true });
+  });
+
+  it("si Telegram falla o no responde, devuelve false y no lanza (ni filtra el token)", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const canal = { token: "123:secreto", chat: "777" };
+    const rechazo = vi.fn(async () => Response.json({ ok: false, description: "chat not found" }, { status: 400 }));
+    expect(await avisarTelegram(canal, "hola", rechazo as unknown as typeof fetch)).toBe(false);
+    const caido = vi.fn(async () => {
+      throw new Error("red caída");
+    });
+    expect(await avisarTelegram(canal, "hola", caido as unknown as typeof fetch)).toBe(false);
+    const noJson = vi.fn(async () => new Response("<html>", { status: 502 }));
+    expect(await avisarTelegram(canal, "hola", noJson as unknown as typeof fetch)).toBe(false);
+    for (const llamada of error.mock.calls) expect(String(llamada[0])).not.toContain("secreto");
+    error.mockRestore();
+  });
 });
 
 describe("wrangler.jsonc (producción y staging)", () => {
   const config = leerWrangler();
   const contenedor = (c: Record<string, any>) => c.containers[0];
 
-  it("producción: basic, singleton, cerca de Panamá, política default", () => {
+  it("producción: standard-1 (decisión de la dueña), singleton, cerca de Panamá, política default", () => {
     const c = contenedor(config);
-    expect(c.instance_type).toBe("basic");
+    expect(c.instance_type).toBe("standard-1");
     expect(c.max_instances).toBe(1);
     expect(c.constraints.regions).toEqual(["ENAM"]);
     expect(c.scheduling_policy).toBe("default");
@@ -380,28 +475,20 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(staging).not.toHaveProperty("routes");
   });
 
-  it("tienda estática: KV por entorno; apagada en producción y encendida en staging", () => {
+  it("caché de páginas: KV por entorno; apagada en producción y encendida en staging", () => {
     expect(config.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
     expect(config.env.staging.kv_namespaces).toEqual([{ binding: "TIENDA" }]);
     expect(config.vars.TIENDA_ESTATICA).toBe("off");
     expect(config.env.staging.vars.TIENDA_ESTATICA).toBe("on");
   });
 
-  it("el secreto de la tienda llega al contenedor (Odoo lo usa para el feed y el aviso)", () => {
+  it("el secreto de la caché de páginas llega al contenedor (Odoo certifica las páginas y avisa)", () => {
     const vars = variablesDelContenedor({ TIENDA_FEED_TOKEN: TOKEN, TIENDA_AVISO_URL: "https://x/__edge/tienda/regenerar" });
     expect(vars.TIENDA_FEED_TOKEN).toBe(TOKEN);
     expect(vars.TIENDA_AVISO_URL).toBe("https://x/__edge/tienda/regenerar");
   });
 
-  it("el cron horario regenera la tienda solo con Odoo ya encendido", () => {
-    expect(debeRegenerarEnCron("encendido", true, TOKEN)).toBe(true);
-    expect(debeRegenerarEnCron("dormido", true, TOKEN)).toBe(false);
-    expect(debeRegenerarEnCron("despertado", true, TOKEN)).toBe(false);
-    expect(debeRegenerarEnCron("encendido", false, TOKEN)).toBe(false);
-    expect(debeRegenerarEnCron("encendido", true, "corto")).toBe(false);
-  });
-
-  it("staging duerme: su cron horario no lo despierta (costos-y-limpieza §2.6)", () => {
-    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(false);
+  it("staging también 24/7 (decisión de la dueña, 2026-10-02): no se duerme", () => {
+    expect(politicaDeSueno(config.env.staging.vars.ODOO_DORMIR_TRAS).siempreEncendido).toBe(true);
   });
 });

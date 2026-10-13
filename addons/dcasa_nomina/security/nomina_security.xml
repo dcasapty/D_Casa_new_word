@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los sueldos son datos delicados: un grupo aparte, que Gerencia incluye. La vendedora no lo tiene. -->
+    <record id="res_groups_privilege_nomina" model="res.groups.privilege">
+        <field name="name">Nómina</field>
+        <field name="description">Planillas, sueldos, reembolsos y liquidaciones (datos delicados).</field>
+        <field name="placeholder">Sin acceso</field>
+        <field name="sequence">2</field>
+        <field name="category_id" ref="dcasa_base.module_category_dcasa"/>
+    </record>
+
+    <record id="group_nomina" model="res.groups">
+        <field name="name">Administra la nómina</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_nomina"/>
+        <field name="comment">Ve los sueldos, prepara y confirma planillas, valida las tasas y aprueba reembolsos.</field>
+        <field name="implied_ids" eval="[(4, ref('hr.group_hr_manager')), (4, ref('account.group_account_user'))]"/>
+    </record>
+
+    <record id="dcasa_base.group_gerencia" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('group_nomina'))]"/>
+    </record>
+
+    <!-- Empresas permitidas -->
+    <record id="regla_parametros_empresa" model="ir.rule">
+        <field name="name">Nómina, tasas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_parametros"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_config_empresa" model="ir.rule">
+        <field name="name">Nómina, configuración: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_config"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_planilla_empresa" model="ir.rule">
+        <field name="name">Nómina, planillas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_planilla"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_linea_empresa" model="ir.rule">
+        <field name="name">Nómina, líneas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_linea"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_vacacion_empresa" model="ir.rule">
+        <field name="name">Nómina, vacaciones: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_vacacion"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_liquidacion_empresa" model="ir.rule">
+        <field name="name">Nómina, liquidaciones: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_liquidacion"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_reembolso_empresa" model="ir.rule">
+        <field name="name">Nómina, reembolsos: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_reembolso"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <!-- Reembolsos: cada colaborador ve los suyos; la nómina ve todos -->
+    <record id="regla_reembolso_propios" model="ir.rule">
+        <field name="name">Reembolsos: cada quien los suyos</field>
+        <field name="model_id" ref="model_dcasa_nomina_reembolso"/>
+        <field name="domain_force">[('empleado_id.user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+    <record id="regla_reembolso_nomina" model="ir.rule">
+        <field name="name">Reembolsos: la nómina ve todos</field>
+        <field name="model_id" ref="model_dcasa_nomina_reembolso"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_nomina'))]"/>
+    </record>
+</odoo>

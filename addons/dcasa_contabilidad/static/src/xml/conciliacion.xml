@@ -60,6 +60,16 @@
                         <strong t-attf-class="o_dc_conc_monto #{state.linea.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(state.linea.monto)"/>
                     </div>
 
+                    <div t-if="state.reglas.length" class="o_dc_reglas">
+                        <span><i class="fa fa-magic me-1"/>Reglas que aplican:</span>
+                        <button t-foreach="state.reglas" t-as="r" t-key="r.id" class="btn btn-sm btn-secondary"
+                                t-att-disabled="state.trabajando or r.con_impuestos"
+                                t-att-title="r.con_impuestos ? 'Lleva impuestos: aplícala a mano en Contabilidad' : (r.tercero ? 'Asigna el tercero ' + r.tercero : r.cuentas)"
+                                t-on-click="() => this.aplicarRegla(r)">
+                            <t t-out="r.nombre"/>
+                        </button>
+                    </div>
+
                     <div class="o_dc_segmento" role="tablist">
                         <button t-attf-class="#{state.modo === 'facturas' ? 'o_activa' : ''}" t-on-click="() => this.cambiarModo('facturas')">
                             <t t-out="state.linea.monto &lt; 0 ? 'Facturas y pagos a proveedores' : 'Facturas y cobros de clientes'"/>
@@ -123,7 +133,8 @@
                             <label>Descripción
                                 <input type="text" class="o_input" t-model="state.etiqueta"/>
                             </label>
-                            <p class="o_dc_nota">Úsalo para comisiones bancarias, cargos de Yappy o tarjeta, intereses y movimientos sin factura.</p>
+                            <p class="o_dc_nota">Úsalo para comisiones bancarias, cargos de Yappy o tarjeta, intereses y movimientos sin factura.
+                                Si se repite cada mes, crea una <a href="#" t-on-click.prevent="reglasDeConciliacion">regla de conciliación</a> y se hará sola.</p>
                         </div>
                         <div class="o_dc_conc_pie">
                             <div>Se registra <strong t-out="dinero(state.linea.pendiente)"/> en la cuenta elegida.</div>

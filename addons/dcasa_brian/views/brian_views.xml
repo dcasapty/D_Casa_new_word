@@ -23,6 +23,8 @@
                        decoration-warning="estado == 'por_confirmar'"/>
                 <field name="resumen" optional="show"/>
                 <field name="error" optional="hide"/>
+                <field name="con_adjuntos" optional="hide"/>
+                <field name="duracion_ms" optional="hide"/>
             </list>
         </field>
     </record>
@@ -89,6 +91,52 @@
                     <filter name="por_canal" string="Canal" context="{'group_by': 'canal'}"/>
                 </group>
             </search>
+        </field>
+    </record>
+
+    <!-- Consumo del proveedor de IA (una fila por llamada; solo lectura) -->
+    <record id="brian_uso_view_list" model="ir.ui.view">
+        <field name="name">brian.uso.list</field>
+        <field name="model">brian.uso</field>
+        <field name="arch" type="xml">
+            <list string="Consumo de IA" create="0" edit="0" delete="0">
+                <field name="create_date" string="Fecha"/>
+                <field name="usuario_id"/>
+                <field name="canal"/>
+                <field name="modelo"/>
+                <field name="tokens_entrada" sum="Total"/>
+                <field name="tokens_cache_lectura" sum="Total"/>
+                <field name="tokens_cache_escritura" sum="Total" optional="hide"/>
+                <field name="tokens_salida" sum="Total"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="brian_uso_view_search" model="ir.ui.view">
+        <field name="name">brian.uso.search</field>
+        <field name="model">brian.uso</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="usuario_id"/>
+                <field name="modelo"/>
+                <group>
+                    <filter name="por_modelo" string="Modelo" context="{'group_by': 'modelo'}"/>
+                    <filter name="por_usuario" string="Usuario" context="{'group_by': 'usuario_id'}"/>
+                    <filter name="por_dia" string="Día" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="brian_uso_action" model="ir.actions.act_window">
+        <field name="name">Consumo de IA de Brian</field>
+        <field name="res_model">brian.uso</field>
+        <field name="view_mode">list</field>
+        <field name="context">{'search_default_por_modelo': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aún no hay consumo</p>
+            <p>Cada llamada de Brian al proveedor de IA: tokens de entrada, de salida y leídos de la caché.
+               Pregúntale «¿cuánto gastó Brian este mes?» para el costo estimado.</p>
         </field>
     </record>
 
@@ -214,6 +262,19 @@
                                  help="Solo para cambiar la dirección por defecto del proveedor (p. ej. tu propio Ollama).">
                             <field name="dcasa_brian_base_url" placeholder="https://…"/>
                         </setting>
+                        <setting id="brian_topes" string="Tope de gasto de IA"
+                                 help="Freno de seguridad: dólares por mes que Brian puede gastar en IA (hora de Panamá). Al llegar, avisa y espera. 0 = sin tope.">
+                            <div class="content-group">
+                                <div class="row mt8">
+                                    <label for="dcasa_brian_tope_mensual_usd" class="col-lg-5 o_light_label"/>
+                                    <field name="dcasa_brian_tope_mensual_usd"/>
+                                </div>
+                                <div class="row">
+                                    <label for="dcasa_brian_tope_por_persona_usd" class="col-lg-5 o_light_label"/>
+                                    <field name="dcasa_brian_tope_por_persona_usd"/>
+                                </div>
+                            </div>
+                        </setting>
                         <setting id="brian_herramientas_max" string="Herramientas por mensaje"
                                  help="Con modelos pequeños conviene ofrecer pocas herramientas a la vez. 0 = automático (todas con modelos grandes, 12 con pequeños).">
                             <field name="dcasa_brian_herramientas_max"/>
@@ -235,11 +296,13 @@
          Menú
          ============================================================ -->
     <menuitem id="menu_brian_raiz" name="Brian" sequence="90" groups="base.group_user"
-              web_icon="dcasa_brian,static/description/icon.svg"/>
+              web_icon="dcasa_brian,static/src/img/brian_ia.svg"/>
     <menuitem id="menu_brian_conversaciones" name="Conversaciones" parent="menu_brian_raiz"
               action="brian_conversacion_action" sequence="10"/>
     <menuitem id="menu_brian_acciones" name="Registro de acciones" parent="menu_brian_raiz"
               action="brian_accion_action" sequence="20" groups="base.group_system"/>
+    <menuitem id="menu_brian_uso" name="Consumo de IA" parent="menu_brian_raiz"
+              action="brian_uso_action" sequence="30" groups="base.group_system"/>
     <menuitem id="menu_brian_ajustes" name="Ajustes" parent="menu_brian_raiz"
               action="brian_ajustes_action" sequence="90" groups="base.group_system"/>
 </odoo>

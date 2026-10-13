@@ -1,5 +1,6 @@
 from . import models
 from .catalogo import cargar_catalogo, marcar_black_weekend
+from .inventario_anterior import cargar_inventario_anterior, leer_inventario_anterior
 
 
 def _dcasa_catalogo_post_init(env):
@@ -14,7 +15,9 @@ def _dcasa_catalogo_post_init(env):
             pendiente(env)
             cargar_catalogo(env)
             marcar_black_weekend(env)
+            cargar_inventario_anterior(env, leer_inventario_anterior())
         env.registry._auto_install_template = plan_y_catalogo
     else:
         cargar_catalogo(env)
         marcar_black_weekend(env)
+        cargar_inventario_anterior(env, leer_inventario_anterior())

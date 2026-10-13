@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Sin noupdate: corre en CADA instalación o actualización de dcasa_base. Apaga o espacia
+         las acciones planificadas de Odoo que no aplican a D'CASA (CRONS_ODOO en
+         models/mantenimiento.py; motivos en docs/OPERACION.md). Idempotente: solo escribe lo
+         que difiere y no toca los crons propios. -->
+    <function model="dcasa.mantenimiento" name="_ajustar_crons_odoo"/>
+</odoo>

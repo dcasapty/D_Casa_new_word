@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="cron_purgar_accesos" model="ir.cron">
+        <field name="name">D'CASA: purgar registro de accesos (180 días)</field>
+        <field name="model_id" ref="model_dcasa_seguridad_acceso"/>
+        <field name="state">code</field>
+        <field name="code">model._purgar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">weeks</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Hoja carta horizontal: hay una columna por empresa, otra de eliminaciones y otra de consolidado. -->
+    <record id="papel_consolidacion" model="report.paperformat">
+        <field name="name">Consolidación D'CASA (carta horizontal)</field>
+        <field name="format">Letter</field>
+        <field name="orientation">Landscape</field>
+        <field name="margin_top">38</field>
+        <field name="margin_bottom">22</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">32</field>
+        <field name="dpi">90</field>
+    </record>
+
+    <record id="accion_reporte_consolidacion" model="ir.actions.report">
+        <field name="name">Consolidación (PDF)</field>
+        <field name="model">dcasa.consolidacion</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_consolidacion.reporte_consolidacion</field>
+        <field name="report_file">dcasa_consolidacion.reporte_consolidacion</field>
+        <field name="print_report_name">'Consolidación - %s' % (object.name or '')</field>
+        <field name="paperformat_id" ref="papel_consolidacion"/>
+        <field name="binding_model_id" ref="model_dcasa_consolidacion"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="reporte_consolidacion">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="datos" t-value="matrices[o.id]"/>
+                <t t-set="m" t-value="formatos[o.id]"/>
+                <t t-call="web.external_layout">
+                    <div class="page o_dcasa_consolidacion_pdf">
+                        <style>
+                            .o_dcasa_consolidacion_pdf { font-size: 10px; }
+                            .o_dcasa_consolidacion_pdf h2 { color: #1340B1; font-weight: 700; margin-bottom: 2px; }
+                            .o_dcasa_consolidacion_pdf .periodo { color: #5B6478; margin-bottom: 10px; }
+                            .o_dcasa_consolidacion_pdf table { width: 100%; border-collapse: collapse; }
+                            .o_dcasa_consolidacion_pdf table thead th { background: none; color: #1340B1; padding: 5px 6px; text-align: left; vertical-align: bottom; border-bottom: 2px solid #1340B1; }
+                            .o_dcasa_consolidacion_pdf table thead th.num { text-align: right; }
+                            .o_dcasa_consolidacion_pdf td { padding: 4px 6px; border-bottom: 1px solid #E6EAF2; }
+                            .o_dcasa_consolidacion_pdf .num { text-align: right; white-space: nowrap; }
+                            .o_dcasa_consolidacion_pdf .sub td { font-weight: 700; background: #F4F6FA; }
+                            .o_dcasa_consolidacion_pdf .tot td { font-weight: 700; border-top: 2px solid #0B1F5C; }
+                            .o_dcasa_consolidacion_pdf .consolidado { font-weight: 700; background: #F4F6FA; }
+                            .o_dcasa_consolidacion_pdf .avisos { border: 1px solid #9A3412; color: #9A3412; padding: 6px 10px; margin-bottom: 10px; }
+                            .o_dcasa_consolidacion_pdf .avisos p { margin: 2px 0; }
+                            .o_dcasa_consolidacion_pdf .nota { color: #5B6478; margin-top: 12px; }
+                        </style>
+                        <h2 t-out="datos['titulo']"/>
+                        <div class="periodo">
+                            <t t-out="datos['periodo']"/> · Empresas: <t t-out="datos['empresas']"/>
+                        </div>
+
+                        <div t-if="datos['advertencias']" class="avisos">
+                            <strong>Advertencias: revísalas antes de usar estas cifras.</strong>
+                            <p t-foreach="datos['advertencias']" t-as="aviso" t-out="aviso"/>
+                        </div>
+                        <div t-if="datos['tipo_reporte'] != 'resultados' and not datos['cuadra']" class="avisos">
+                            <strong>No cuadra:</strong> la diferencia del consolidado es <t t-out="m(datos['diferencia'])"/>.
+                        </div>
+
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Cuenta</th>
+                                    <th t-foreach="datos['columnas']" t-as="columna" class="num" t-out="columna['etiqueta']"/>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <t t-foreach="datos['secciones']" t-as="seccion">
+                                    <tr t-if="seccion['titulo']" class="sub">
+                                        <td t-att-colspan="datos['ancho']" t-out="seccion['titulo']"/>
+                                    </tr>
+                                    <tr t-foreach="seccion['filas']" t-as="fila">
+                                        <td t-out="fila['codigo']"/>
+                                        <td t-out="fila['nombre']"/>
+                                        <td t-foreach="fila['valores']" t-as="valor"
+                                            t-att-class="'num consolidado' if datos['columnas'][valor_index]['clave'] == 'consolidado' else 'num'"
+                                            t-out="m(valor)"/>
+                                    </tr>
+                                    <tr t-if="seccion['titulo']" class="tot">
+                                        <td/>
+                                        <td>Total <t t-out="seccion['titulo'].lower()"/></td>
+                                        <td t-foreach="seccion['totales']" t-as="valor" class="num" t-out="m(valor)"/>
+                                    </tr>
+                                </t>
+                                <tr t-foreach="datos['resumen']" t-as="fila" class="tot">
+                                    <td/>
+                                    <td t-out="fila['etiqueta']"/>
+                                    <td t-foreach="fila['valores']" t-as="valor" class="num" t-out="m(valor)"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <p class="nota">
+                            Eliminaciones: saldos con otra empresa del grupo en cuentas por cobrar y por pagar, e ingresos
+                            y gastos entre ellas. No incluye ajustes manuales de consolidación, utilidades no realizadas en
+                            inventario ni participaciones minoritarias (requiere contador).
+                        </p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

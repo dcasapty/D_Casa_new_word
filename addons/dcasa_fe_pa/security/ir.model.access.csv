@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fe_documento_facturacion,fe documento facturacion,model_dcasa_fe_documento,account.group_account_invoice,1,0,0,0
+access_fe_documento_lector,fe documento lector,model_dcasa_fe_documento,account.group_account_readonly,1,0,0,0
+access_fe_intento_facturacion,fe intento facturacion,model_dcasa_fe_intento,account.group_account_invoice,1,0,0,0
+access_fe_intento_lector,fe intento lector,model_dcasa_fe_intento,account.group_account_readonly,1,0,0,0
+access_fe_anular_wizard,fe anular wizard,model_dcasa_fe_anular_wizard,account.group_account_invoice,1,1,1,0

@@ -5,13 +5,45 @@ import {
   isCacheableRequest,
   isCacheableResponse,
   notModified,
+  normalizePath,
   notModifiedResponse,
   route,
   rutaEstatica,
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
-import { type AlmacenTienda, type ResultadoRegeneracion, servirPaginaEstatica } from "./tienda/servir";
+import { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
+import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
+import {
+  abrirPuerta,
+  cabeceraDeModo,
+  cabeceraParaOdoo,
+  conCookieDePuerta,
+  COOKIE_BORRADA,
+  type DepsPuerta,
+  esEntrada,
+  esLoginPublicoDelPanel,
+  esPanel,
+  leerCookie,
+  respuestaNoExiste,
+  rutasConYSinIdioma,
+} from "./puerta";
+import { type DepsAssets, servirAsset } from "./tienda/assets";
+import {
+  type AlmacenTienda,
+  type DepsPaginas,
+  esPersonal,
+  estadoTienda,
+  type EstadoTienda,
+  invalidar,
+  precalentar,
+  rutasAPrecalentar,
+  servirPagina,
+} from "./tienda/paginas";
+
+// La página 503 «arrancando» vive en ./arranque.ts (la usa también la caché de páginas); se
+// re-exporta porque siempre fue parte de este módulo.
+export { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
@@ -29,24 +61,56 @@ export interface EdgeDeps {
   /** Respaldo a mano: `POST /__edge/respaldo` con el token compartido. */
   respaldo?: { token?: string; respaldar: () => Promise<ResultadoRespaldo> };
   /**
-   * Tienda estática (Fase 2). `activa` = TIENDA_ESTATICA=on: las páginas públicas salen del
-   * almacén (KV) y, si no están, de Odoo como siempre. La regeneración (`POST
-   * /__edge/tienda/regenerar` con `Bearer TIENDA_FEED_TOKEN`) funciona aunque no esté activa,
-   * para dejar las páginas listas antes de encenderla.
+   * Caché de páginas (src/tienda/paginas.ts). `activa` = TIENDA_ESTATICA=on: las páginas públicas
+   * se sirven a visitantes anónimos con el HTML de Odoo guardado en el almacén (KV). Necesita el
+   * almacén y el token (≥ 32): Odoo solo certifica una página como anónima si se la pide el borde
+   * con ese secreto. La invalidación (`POST /__edge/tienda/regenerar` con `Bearer
+   * TIENDA_FEED_TOKEN`) funciona aunque no esté activa.
    */
   tienda?: {
     activa: boolean;
     almacen?: AlmacenTienda;
     token?: string;
-    regenerar?: () => Promise<ResultadoRegeneracion>;
   };
+  /**
+   * ¿Odoo está listo? (estado del contenedor según el Durable Object, sin despertarlo ni hacerle
+   * HTTP). La caché de páginas lo consulta solo cuando una página guardada tiene estilos o JS que no
+   * están en el borde: con Odoo caído responde el 503 amable en vez de una página sin estilos.
+   */
+  odooListo?: () => Promise<boolean>;
   /** DCASA_ENTORNO: en "staging" toda respuesta lleva `X-Robots-Tag: noindex`. */
   entorno?: string;
+  /**
+   * Bindings de Rate Limiting de Workers por cubeta (src/bots.ts). Los que falten usan un
+   * contador en memoria del isolate.
+   */
+  limitadores?: Partial<Record<Cubeta, Limitador>>;
+  /**
+   * La puerta del equipo (src/puerta.ts): ausente = apagada, el borde se comporta como siempre.
+   * Encendida: la ruta de entrada verifica el token de Cloudflare Access y abre la puerta, y a Odoo le llegan dos
+   * cabeceras firmadas: quién pasó la puerta y qué se exige en esta petición (`modo`). Con el modo «1» además `/odoo…`
+   * da 404 sin la puerta abierta; con «0» o «avisar» el panel no se cierra (rescate y periodo de prueba). El modo
+   * lo decide el Worker en cada petición: cambiarlo y desplegar surte efecto al instante, sin reiniciar a Odoo.
+   */
+  puerta?: DepsPuerta;
 }
 
 export async function handleRequest(request: Request, deps: EdgeDeps): Promise<Response> {
-  const respuesta = await atender(request, deps);
+  const respuesta = cerrarPuertaAlSalir(request, await atender(request, deps), deps);
   return deps.entorno === "staging" ? conNoindex(respuesta) : respuesta;
+}
+
+/** Al cerrar sesión en Odoo también se cierra la puerta (una computadora compartida no queda abierta 12 h). */
+function cerrarPuertaAlSalir(request: Request, respuesta: Response, deps: EdgeDeps): Response {
+  if (!deps.puerta) return respuesta;
+  if (respuesta.status === 101 || (respuesta as Response & { webSocket?: unknown }).webSocket) return respuesta;
+  const sale = rutasConYSinIdioma(normalizePath(new URL(request.url).pathname)).some((ruta) =>
+    ruta.startsWith("/web/session/logout"),
+  );
+  if (!sale) return respuesta;
+  const cerrada = new Response(respuesta.body, respuesta);
+  cerrada.headers.append("Set-Cookie", COOKIE_BORRADA);
+  return cerrada;
 }
 
 async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
@@ -54,38 +118,89 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   const decision = route(url, request.method, deps.canonicalHost);
 
   switch (decision.kind) {
-    case "health":
+    case "health": {
       if (!deps.salud) return new Response("ok", { headers: { "Content-Type": "text/plain" } });
-      return respuestaSalud(
-        await deps.salud().catch((error: unknown) => ({
+      const [salud, tienda] = await Promise.all([
+        deps.salud().catch((error: unknown) => ({
           contenedor: "stopped" as const,
           odoo: { error: `sin respuesta del Durable Object: ${String(error)}` },
         })),
-      );
+        estadoTiendaParaSalud(url, deps),
+      ]);
+      return respuestaSalud(salud, tienda);
+    }
     case "respaldo":
       if (!deps.respaldo) return new Response("Not Found", { status: 404 });
       return manejarRespaldo(request, deps.respaldo);
     case "tienda_regenerar":
-      return manejarRegenerarTienda(request, deps.tienda);
+      return manejarRegenerarTienda(request, depsPaginas(deps));
     case "blocked":
       return new Response("Not Found", { status: 404 });
     case "redirect":
       return Response.redirect(decision.location, decision.status);
   }
 
-  const estatica = deps.tienda?.activa && deps.tienda.almacen ? rutaEstatica(url, request.method) : null;
-  if (estatica && deps.tienda?.almacen) {
-    try {
-      const pagina = await servirPaginaEstatica(request, estatica, deps.tienda.almacen);
-      if (pagina) return withSecurityHeaders(pagina);
-    } catch (error) {
-      // KV caído o lento: la página la sirve Odoo, como antes de la Fase 2.
-      console.error(JSON.stringify({ evento: "tienda_lectura_fallida", ruta: estatica, error: String(error) }));
+  // Sondeos, escáneres y ráfagas de POST sensibles: se cortan antes de despertar a Odoo.
+  const rechazo = await filtrarAutomatizados(request, url, deps.limitadores);
+  if (rechazo) return withSecurityHeaders(rechazo);
+
+  // La puerta del equipo. Va antes de despertar a Odoo: sin la puerta abierta, `/odoo…` es un 404 del borde.
+  let puertaHaciaOdoo: { acceso?: string; modo?: string } | undefined;
+  let cookieNueva: string | undefined;
+  if (deps.puerta) {
+    const { config, jwt, modo, exigirCorreo } = deps.puerta;
+    const ahora = (jwt?.ahora ?? Date.now)();
+    const rutaNormalizada = normalizePath(url.pathname);
+    let abierta;
+    if (esEntrada(url.pathname, config)) {
+      // La entrada es la página de login del equipo: Access ya pidió el PIN; aquí se verifica y se abre la puerta.
+      const paso = await abrirPuerta(request, config, jwt);
+      if (!paso) return withSecurityHeaders(respuestaNoExiste());
+      abierta = paso.abierta;
+      cookieNueva = paso.setCookie;
+    } else {
+      abierta = await leerCookie(request, config, ahora);
+      if (modo === "1") {
+        if (!abierta && esPanel(rutaNormalizada)) return withSecurityHeaders(respuestaNoExiste());
+        if (esLoginPublicoDelPanel(request, rutaNormalizada)) {
+          return withSecurityHeaders(new Response(null, { status: 302, headers: { Location: config.ruta, "Cache-Control": "no-store" } }));
+        }
+      }
     }
+    puertaHaciaOdoo = {
+      acceso: abierta ? await cabeceraParaOdoo(config, abierta) : undefined,
+      modo: await cabeceraDeModo(config, modo, exigirCorreo, ahora),
+    };
   }
 
-  const upstream = new Request(request, { headers: forwardedHeaders(request) });
+  const upstream = new Request(request, { headers: forwardedHeaders(request, puertaHaciaOdoo) });
 
+  // La entrada nunca pasa por las cachés: es la página del equipo y lleva la cookie de la puerta.
+  if (cookieNueva) return withSecurityHeaders(conCookieDePuerta(await reenviar(request, upstream, deps), cookieNueva));
+
+  const paginas = deps.tienda?.activa ? depsPaginas(deps) : null;
+  const ruta = paginas ? rutaEstatica(url, request.method) : null;
+  if (paginas && ruta) {
+    // Con sesión propia (usuario, carrito, socio) o credenciales: la página es suya, la da Odoo.
+    if (esPersonal(request)) {
+      return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
+    }
+    const pagina = await servirPagina(request, ruta, paginas, () => reenviar(request, upstream, deps));
+    if (pagina) return withSecurityHeaders(pagina);
+    // Almacén caído: la sirve Odoo, como si la caché no existiera.
+  }
+
+  // Assets (estilos, JS, fuentes, fotos): con la caché de páginas encendida se guardan en el mismo
+  // almacén (KV, global) que las páginas, para que una página guardada se vea entera aunque Odoo
+  // esté reiniciando. `null` = no aplica (Range, Authorization) o el almacén falló: sigue abajo.
+  const assets = decision.cacheable ? depsAssets(deps) : null;
+  if (assets) {
+    const servido = await servirAsset(request, upstream, assets, (pedido) => reenviar(request, pedido, deps));
+    if (servido) return withSecurityHeaders(servido);
+  }
+
+  // Caché de assets anterior (Cache API, por centro de datos; en workers.dev no guarda): queda como
+  // camino con la caché de páginas apagada.
   if (decision.cacheable && deps.cache) {
     if (!isCacheableRequest(request)) {
       return withSecurityHeaders(withCacheStatus(await reenviar(request, upstream, deps), "BYPASS"));
@@ -127,6 +242,45 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
   }
 
   return withSecurityHeaders(await reenviar(request, upstream, deps));
+}
+
+/** Dependencias de la caché de páginas, o `null` si falta el almacén o el token (≥ 32). */
+function depsPaginas(deps: EdgeDeps): DepsPaginas | null {
+  const token = deps.tienda?.token;
+  if (!deps.tienda?.almacen || !token || token.length < LARGO_MINIMO_TOKEN) return null;
+  return {
+    almacen: deps.tienda.almacen,
+    token,
+    // Mismo camino que una visita: si Odoo está apagado, el 503 amable (no se guarda).
+    forward: (pedido) => reenviar(pedido, pedido, deps),
+    waitUntil: deps.waitUntil,
+    odooListo: deps.odooListo,
+  };
+}
+
+/**
+ * Dependencias de la caché de assets, o `null` si la caché de páginas está apagada o no hay almacén.
+ * El token es opcional: sin él, igual se guarda lo que Odoo mande `public` y sin cookies.
+ */
+function depsAssets(deps: EdgeDeps): DepsAssets | null {
+  if (!deps.tienda?.activa || !deps.tienda.almacen) return null;
+  const token = deps.tienda.token;
+  return {
+    almacen: deps.tienda.almacen,
+    token: token && token.length >= LARGO_MINIMO_TOKEN ? token : undefined,
+    forward: (pedido) => reenviar(pedido, pedido, deps),
+    waitUntil: deps.waitUntil,
+  };
+}
+
+/** Estado de la caché de páginas para `/__edge/health` (solo si hay almacén; nunca despierta a Odoo). */
+async function estadoTiendaParaSalud(url: URL, deps: EdgeDeps): Promise<EstadoTienda | { error: string } | undefined> {
+  if (!deps.tienda?.almacen) return undefined;
+  try {
+    return await estadoTienda(url, deps.tienda.almacen);
+  } catch (error) {
+    return { error: String(error).slice(0, 200) };
+  }
 }
 
 /**
@@ -196,62 +350,6 @@ export type TareaCron = "despertar" | "respaldo";
 /** Qué hace cada disparo del cron. Cualquier expresión desconocida solo despierta. */
 export function tareaDelCron(cron: string): TareaCron {
   return cron.trim() === CRON_RESPALDO ? "respaldo" : "despertar";
-}
-
-/** Segundos que se le piden al navegador/cliente antes de reintentar. */
-export const REINTENTO_SEGUNDOS = 15;
-
-/**
- * Respuesta 503 amable mientras Odoo arranca o restaura la base desde R2 (I-07): en
- * vez de un error pelado, una página corta que se recarga sola. Nunca se guarda en
- * caché. A quien no pide HTML (Brian, Telegram, JSON-RPC, POST) se le da texto.
- */
-export function respuestaArrancando(request: Request, reintento = REINTENTO_SEGUNDOS): Response {
-  const headers = new Headers({
-    "Retry-After": String(reintento),
-    "Cache-Control": "no-store",
-    "X-Dcasa-Estado": "arrancando",
-  });
-  const aceptaHtml = (request.headers.get("Accept") || "").includes("text/html");
-  if (!aceptaHtml || request.method !== "GET") {
-    headers.set("Content-Type", "text/plain; charset=utf-8");
-    return withSecurityHeaders(
-      new Response(`D'CASA está arrancando. Vuelve a intentar en ${reintento} segundos.\n`, { status: 503, headers }),
-    );
-  }
-  headers.set("Content-Type", "text/html; charset=utf-8");
-  return withSecurityHeaders(new Response(paginaArrancando(reintento), { status: 503, headers }));
-}
-
-function paginaArrancando(reintento: number): string {
-  // Marca: fondo blanco, texto navy/azul, sin amarillo sobre blanco, sin degradados.
-  return `<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="${reintento}">
-<meta name="robots" content="noindex">
-<title>D'CASA · Un momento</title>
-<style>
-  body{margin:0;background:#fff;color:#0B1F4D;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}
-  main{max-width:420px;text-align:center}
-  h1{font-family:Anton,Impact,"Arial Narrow",sans-serif;text-transform:uppercase;color:#1340B1;font-weight:400;
-    font-size:2rem;letter-spacing:.02em;margin:0 0 12px}
-  p{line-height:1.5;margin:0 0 12px}
-  a{color:#1340B1;font-weight:600}
-</style>
-</head>
-<body>
-<main>
-  <h1>Estamos abriendo la tienda</h1>
-  <p>Dame un momento: la página se recarga sola en ${reintento} segundos.</p>
-  <p>¿Tienes prisa? <a href="https://wa.me/50760261919">Escríbenos por WhatsApp</a></p>
-</main>
-</body>
-</html>
-`;
 }
 
 export interface ArranqueDeps {
@@ -352,13 +450,48 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_MODELO",
   "BRIAN_BASE_URL",
   "BRIAN_HERRAMIENTAS_MAX",
+  // Esfuerzo y caché de prompts de Anthropic (docs/BRIAN.md): sin estas líneas no llegaban a Odoo.
+  "BRIAN_ESFUERZO",
+  "BRIAN_CACHE",
   "BRIAN_API_KEY",
   "TELEGRAM_BOT_TOKEN",
   "BRIAN_TELEGRAM_SECRETO",
-  // Tienda estática del borde (addons/dcasa_tienda_borde): el mismo secreto protege el feed y
-  // el aviso de regeneración; TIENDA_AVISO_URL es opcional (por defecto https://CANONICAL_HOST/…).
+  // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
+  // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
+  // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.
+  "JUAN_ODOO_TOKEN",
+  "JUAN_WORKER_TOKEN",
+  "JUAN_URL",
+  // Caché de páginas del borde (addons/dcasa_tienda_borde): el mismo secreto certifica las páginas
+  // anónimas y protege el aviso de invalidación; TIENDA_AVISO_URL es opcional (por defecto
+  // https://CANONICAL_HOST/__edge/tienda/regenerar).
   "TIENDA_FEED_TOKEN",
   "TIENDA_AVISO_URL",
+  // La puerta del equipo (edge/src/puerta.ts; addons/dcasa_seguridad). Al contenedor solo viaja el secreto con que
+  // Odoo verifica las cabeceras firmadas. El modo (DCASA_PUERTA_OBLIGATORIA), la ruta de la entrada y los datos de
+  // Cloudflare Access son solo del Worker: el modo viaja firmado en cada petición, no en el entorno del contenedor.
+  "DCASA_PUERTA_SECRETO",
+  // Seguridad de acceso (addons/dcasa_seguridad; docker/entrypoint.sh «2e»)
+  "DCASA_2FA_OBLIGATORIO",
+  "DCASA_2FA_ALCANCE",
+  "DCASA_SESION_ADMIN_HORAS",
+  "DCASA_INACTIVIDAD_ADMIN_MIN",
+  "DCASA_AVISO_LOGIN_TELEGRAM",
+  "DCASA_ROBOTS_IA",
+  "TURNSTILE_SITE_KEY",
+  "TURNSTILE_SECRET",
+  "DCASA_TURNSTILE",
+  // Rescate: login al que se le quita el doble factor una vez (docs/SEGURIDAD_ACCESO.md)
+  "DCASA_2FA_RESCATE",
+  // Alertas de operación de Odoo (addons/dcasa_base mantenimiento.py; docker/entrypoint.sh «2f»)
+  "DCASA_ALERTA_TELEGRAM",
+  "DCASA_ALERTA_DISCO_PCT",
+  "DCASA_ALERTA_MEMORIA_PCT",
+  "DCASA_ALERTA_BASE_GB",
+  "DCASA_ALERTA_SILENCIO_H",
+  // Nivel de log de Odoo (por defecto warn en producción, info en staging)
+  "ODOO_LOG_LEVEL",
+  "ODOO_LOG_HANDLER",
 ] as const;
 
 /**
@@ -407,6 +540,90 @@ export function debeRearrancar(siempreEncendido: boolean, ahora: number, ultimoR
   return ultimoRearranque === undefined || ahora - ultimoRearranque >= PAUSA_REARRANQUE_MS;
 }
 
+// ------------------------- Alertas por Telegram desde el Worker -------------------------
+//
+// Cuando el contenedor se cae, Odoo (y con él el canal de avisos de dcasa_seguridad) está
+// apagado: el aviso lo manda el Worker directo a la API de Telegram con el MISMO bot de Brian
+// (`TELEGRAM_BOT_TOKEN`, ya secreto del Worker) al chat `DCASA_ALERTA_TELEGRAM_CHAT` (el chat_id
+// que Brian muestra al vincular a la dueña). Sin alguna de las dos, el evento queda solo en los
+// logs del Worker. Mismo aviso como mucho una vez cada PAUSA_ALERTA_MS (un bucle de caídas no
+// inunda el chat).
+
+export const PAUSA_ALERTA_MS = 10 * 60 * 1000;
+const API_TELEGRAM = "https://api.telegram.org";
+const TIMEOUT_TELEGRAM_MS = 10_000;
+
+export interface CanalTelegram {
+  token?: string;
+  chat?: string;
+}
+
+/** El canal está configurado si hay token y un chat_id de Telegram (entero, puede ser negativo en grupos). */
+export function canalTelegram(env: object): CanalTelegram | null {
+  const valores = env as Record<string, unknown>;
+  const token = typeof valores.TELEGRAM_BOT_TOKEN === "string" ? valores.TELEGRAM_BOT_TOKEN.trim() : "";
+  const chat = typeof valores.DCASA_ALERTA_TELEGRAM_CHAT === "string" ? valores.DCASA_ALERTA_TELEGRAM_CHAT.trim() : "";
+  if (!token || !/^-?\d{1,20}$/.test(chat)) return null;
+  return { token, chat };
+}
+
+/** ¿Toca avisar, o ya se avisó hace menos de PAUSA_ALERTA_MS? */
+export function debeAvisar(ahora: number, ultimaAlerta?: number): boolean {
+  return ultimaAlerta === undefined || ahora - ultimaAlerta >= PAUSA_ALERTA_MS;
+}
+
+export interface ParadaContenedor {
+  exitCode: number;
+  reason: string;
+}
+
+/**
+ * Texto del aviso tras una parada. `null` cuando no hay nada que avisar: salida limpia
+ * (código 0: SIGTERM de un despliegue o del sueño de staging).
+ */
+export function mensajeDeParada(parada: ParadaContenedor, entorno: string | undefined, rearrancar: boolean): string | null {
+  if (parada.exitCode === 0) return null;
+  const donde = entorno === "staging" ? "staging" : "producción";
+  const causa =
+    parada.reason === "exit"
+      ? "el proceso terminó solo (fallo de restauración, falta de memoria o error de Odoo)"
+      : `lo detuvo Cloudflare (${parada.reason})`;
+  const despues = rearrancar
+    ? "Se rearranca solo en 30 s desde el último respaldo en R2."
+    : "No se rearranca solo ahora: lo enciende el cron horario o la próxima visita.";
+  return `D'CASA · el contenedor de ${donde} se detuvo con código ${parada.exitCode}: ${causa}. ${despues} Revisar la última factura o pedido (docs/OPERACION.md «Si el sitio se cae»).`;
+}
+
+/** Texto del aviso cuando el contenedor no llegó a abrir el puerto (restauración o arranque fallidos). */
+export function mensajeDeArranqueFallido(entorno: string | undefined, duracionMs: number, error: string): string {
+  const donde = entorno === "staging" ? "staging" : "producción";
+  return `D'CASA · el contenedor de ${donde} no arrancó tras ${Math.round(duracionMs / 1000)} s: ${error.slice(0, 300)}. Se reintenta con la próxima visita o el cron horario; si sigue, docs/OPERACION.md «Si el sitio se cae».`;
+}
+
+/**
+ * Manda un texto al chat (sendMessage, texto plano, como `brian.telegram.enlace._enviar`). Nunca
+ * lanza: devuelve `true` si Telegram respondió `ok`. El token no se registra jamás.
+ */
+export async function avisarTelegram(canal: CanalTelegram, texto: string, fetchFn: typeof fetch = fetch): Promise<boolean> {
+  try {
+    const respuesta = await fetchFn(`${API_TELEGRAM}/bot${canal.token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: canal.chat, text: texto.slice(0, 4096), disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(TIMEOUT_TELEGRAM_MS),
+    });
+    const cuerpo = (await respuesta.json().catch(() => ({}))) as { ok?: boolean; description?: string };
+    if (!cuerpo.ok) {
+      console.error(JSON.stringify({ evento: "alerta_telegram_fallida", status: respuesta.status, detalle: cuerpo.description ?? "" }));
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(JSON.stringify({ evento: "alerta_telegram_fallida", error: String(error).slice(0, 200) }));
+    return false;
+  }
+}
+
 // ------------------------------- Salud -------------------------------------
 
 export type EstadoContenedor = "running" | "healthy" | "stopping" | "stopped" | "stopped_with_code";
@@ -424,8 +641,10 @@ export interface SaludContenedor {
  * `/__edge/health`: 200 solo si Odoo responde 2xx en `/dcasa/salud` (que comprueba la
  * base). Si el contenedor está apagado o arrancando NO se despierta: se informa y se
  * responde 503 con Retry-After, para que un monitor externo vea la caída real.
+ * `tienda` (si hay caché de páginas): qué páginas principales saldrían enteras del borde
+ * durante un reinicio (`sobrevive_reinicio`). No cambia el código HTTP: informa.
  */
-export function respuestaSalud(salud: SaludContenedor): Response {
+export function respuestaSalud(salud: SaludContenedor, tienda?: EstadoTienda | { error: string }): Response {
   let odoo: "ok" | "arrancando" | "detenido" | "error" | "sin_configurar";
   if (salud.faltan?.length) odoo = "sin_configurar";
   else if (salud.odoo && "status" in salud.odoo)
@@ -441,6 +660,7 @@ export function respuestaSalud(salud: SaludContenedor): Response {
     if (salud.odoo.cuerpo) cuerpo.detalle = salud.odoo.cuerpo.slice(0, 500);
   }
   if (salud.odoo && "error" in salud.odoo) cuerpo.detalle = salud.odoo.error.slice(0, 200);
+  if (tienda) cuerpo.tienda = tienda;
 
   const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   if (odoo !== "ok") headers.set("Retry-After", String(REINTENTO_SEGUNDOS));
@@ -513,44 +733,51 @@ export async function manejarRespaldo(
   });
 }
 
-// ------------------------------- Tienda estática ---------------------------
+// ------------------------------- Caché de páginas --------------------------
 
 /**
  * `POST /__edge/tienda/regenerar` con `Authorization: Bearer <TIENDA_FEED_TOKEN>`: Odoo avisa que
- * algo cambió (addons/dcasa_tienda_borde) y el Worker relee el feed y reescribe las páginas
- * que cambiaron. Sin token válido configurado (≥ 32 caracteres) o sin almacén, la ruta no existe.
- * Responde cuando terminó: Odoo reintenta si no fue 2xx.
+ * algo visible cambió (addons/dcasa_tienda_borde: precio, stock, categoría, ajustes, Black
+ * Weekend, vistas…). El Worker marca TODAS las páginas guardadas como viejas (una escritura en KV)
+ * y, ya respondido, pide a Odoo las principales y las que vengan en `rutas` para que la próxima
+ * visita no espere. Sin token válido (≥ 32) o sin almacén, la ruta no existe. Si no se pudo
+ * invalidar, 503: Odoo reintenta.
  */
-export async function manejarRegenerarTienda(
-  request: Request,
-  tienda?: { token?: string; almacen?: AlmacenTienda; regenerar?: () => Promise<ResultadoRegeneracion> },
-): Promise<Response> {
-  if (!tienda?.regenerar || !tienda.almacen || !tienda.token || tienda.token.length < LARGO_MINIMO_TOKEN) {
-    return new Response("Not Found", { status: 404 });
-  }
+export async function manejarRegenerarTienda(request: Request, paginas: DepsPaginas | null): Promise<Response> {
+  if (!paginas) return new Response("Not Found", { status: 404 });
   if (request.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405, headers: { Allow: "POST" } });
   }
-  if (!autorizado(request.headers.get("Authorization"), tienda.token)) {
+  if (!autorizado(request.headers.get("Authorization"), paginas.token)) {
     return new Response("Unauthorized", { status: 401, headers: { "WWW-Authenticate": "Bearer" } });
   }
-  // El cuerpo (productos y motivos) solo se registra: se regenera todo y se escribe lo que cambió.
   const aviso = await request.text().catch(() => "");
-  const resultado = await tienda.regenerar();
-  const linea = JSON.stringify({ evento: "tienda_regenerada", aviso: aviso.slice(0, 500), ...resultado });
+  let rutasDeOdoo: unknown;
+  try {
+    rutasDeOdoo = (JSON.parse(aviso) as { rutas?: unknown }).rutas;
+  } catch {
+    rutasDeOdoo = undefined;
+  }
+  let resultado: { estado: "ok" | "fallo"; invalidado?: number; precalentar?: number; motivo?: string };
+  try {
+    const invalidado = await invalidar(paginas.almacen);
+    const origen = new URL(request.url);
+    const rutas = rutasAPrecalentar(rutasDeOdoo, (r) => rutaEstatica(new URL(r, origen), "GET") === r);
+    const tarea = precalentar(origen, rutas, paginas).then(({ paginas: guardadas, assets }) =>
+      console.log(JSON.stringify({ evento: "paginas_precalentadas", rutas: rutas.length, guardadas, assets })),
+    );
+    // Después de responder: Odoo espera este 200 con su cron ocupado.
+    if (paginas.waitUntil) paginas.waitUntil(tarea);
+    else await tarea;
+    resultado = { estado: "ok", invalidado, precalentar: rutas.length };
+  } catch (error) {
+    resultado = { estado: "fallo", motivo: String(error) };
+  }
+  const linea = JSON.stringify({ evento: "paginas_invalidadas", aviso: aviso.slice(0, 500), ...resultado });
   if (resultado.estado === "ok") console.log(linea);
   else console.error(linea);
   return new Response(JSON.stringify(resultado), {
     status: resultado.estado === "ok" ? 200 : 503,
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
   });
-}
-
-/** ¿El cron horario regenera la tienda? Solo con almacén y token, y con Odoo ya encendido. */
-export function debeRegenerarEnCron(
-  odoo: "encendido" | "despertado" | "dormido",
-  hayAlmacen: boolean,
-  token?: string,
-): boolean {
-  return odoo === "encendido" && hayAlmacen && !!token && token.length >= LARGO_MINIMO_TOKEN;
 }

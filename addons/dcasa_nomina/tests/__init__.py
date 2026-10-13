@@ -1,0 +1,7 @@
+from . import test_calculo
+from . import test_parametros
+from . import test_planilla
+from . import test_decimo_vacaciones
+from . import test_reembolsos
+from . import test_seguridad
+from . import test_vistas

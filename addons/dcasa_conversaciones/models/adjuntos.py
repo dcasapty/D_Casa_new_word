@@ -1,0 +1,248 @@
+"""Adjuntos de los mensajes: validar lo que manda el Worker y traer el archivo con seguridad.
+
+El Worker manda cada adjunto como ``{tipo, url, nombre, mime}`` (o, opcional, ``base64`` en vez de
+``url``). Odoo guarda el archivo en ``ir.attachment`` (que ``dcasa_adjuntos_r2`` lleva a R2).
+
+Defensas:
+
+* Solo ``http``/``https`` en los puertos 80 y 443, y **nunca** hacia direcciones internas: la URL se
+  resuelve y si alguna dirección es privada, de loopback, de enlace local, multicast o reservada,
+  no se descarga (SSRF: el contenedor de Odoo vive en una red con otras cosas).
+* Sin redirecciones (una redirección podría saltar la comprobación anterior).
+* Tamaño máximo por archivo y tiempo máximo de descarga; se lee por trozos y se corta al pasar el tope.
+* Los tipos y nombres se limpian: lo que llega es dato de un tercero.
+"""
+import base64
+import binascii
+import io
+import ipaddress
+import logging
+import re
+import socket
+from urllib.parse import urlsplit
+
+import requests
+from PIL import Image, ImageOps
+
+_logger = logging.getLogger(__name__)
+
+TIPOS = ('imagen', 'audio', 'documento', 'video')
+# Lo que entendió el lector de imágenes del Worker (opcional): sirve para avisar a la dueña.
+CLASES = ('producto', 'publicacion', 'comprobante', 'identidad', 'otra')
+MAX_ADJUNTOS = 5
+# La foto de perfil del cliente: pequeña (los canales la dan de ~10-60 KB) y de tipos de imagen reales.
+MAX_FOTO_DE_PERFIL = 300 * 1024
+LADO_FOTO_DE_PERFIL = 256
+MAX_PIXELES_FOTO_DE_PERFIL = 25_000_000   # una «bomba» de descompresión es pequeña en bytes y enorme en píxeles
+MAX_BYTES = 10 * 1024 * 1024
+TIMEOUT = (3.05, 15)
+PUERTOS = (None, 80, 443)
+_MIME = re.compile(r'^[a-z0-9][a-z0-9!#$&^_.+-]{0,60}/[a-z0-9][a-z0-9!#$&^_.+-]{0,100}$')
+_NOMBRE_MALO = re.compile(r'[\x00-\x1f\\/:*?"<>|]+')
+
+TIPO_POR_MIME = (('image/', 'imagen'), ('audio/', 'audio'), ('video/', 'video'))
+
+
+class AdjuntoInvalido(ValueError):
+    """El adjunto que mandó el Worker no cumple el contrato (se responde 400)."""
+
+
+def tipo_de_mime(mime):
+    mime = (mime or '').lower()
+    for prefijo, tipo in TIPO_POR_MIME:
+        if mime.startswith(prefijo):
+            return tipo
+    return 'documento'
+
+
+def nombre_seguro(nombre, por_defecto='adjunto'):
+    limpio = _NOMBRE_MALO.sub('_', str(nombre or '')).strip(' .')[:120]
+    return limpio or por_defecto
+
+
+def mime_seguro(mime):
+    mime = str(mime or '').strip().lower()
+    return mime if _MIME.match(mime) else ''
+
+
+def validar(adjunto):
+    """Normaliza un adjunto del contrato o lanza ``AdjuntoInvalido``.
+
+    Devuelve ``{tipo, nombre, mime, url, base64, sensible, clase}`` (url y base64 son excluyentes; ``clase`` es una de
+    ``CLASES`` o ``None``).
+    """
+    if not isinstance(adjunto, dict):
+        raise AdjuntoInvalido('Cada adjunto debe ser un objeto.')
+    tipo = str(adjunto.get('tipo') or '').strip().lower()
+    if tipo not in TIPOS:
+        raise AdjuntoInvalido(f'El tipo de adjunto debe ser uno de: {", ".join(TIPOS)}.')
+    url = adjunto.get('url')
+    contenido = adjunto.get('base64')
+    # Ninguno de los dos es válido: el Worker guarda el archivo pero, sin su propia dirección pública (URL_PUBLICA), no
+    # puede darle a Odoo cómo traerlo. El mensaje NO se rechaza (se perdería): el adjunto cuenta como «no se pudo
+    # traer».
+    if url and contenido:
+        raise AdjuntoInvalido('Cada adjunto lleva «url» o «base64» (uno de los dos).')
+    if url is not None and (not isinstance(url, str) or len(url) > 2048):
+        raise AdjuntoInvalido('La «url» del adjunto no es válida.')
+    if contenido is not None and not isinstance(contenido, str):
+        raise AdjuntoInvalido('El «base64» del adjunto no es válido.')
+    mime = mime_seguro(adjunto.get('mime'))
+    clase = str(adjunto.get('clase') or '').strip().lower()
+    return {
+        'tipo': tipo,
+        'nombre': nombre_seguro(adjunto.get('nombre')),
+        'mime': mime,
+        'url': url or None,
+        'base64': contenido or None,
+        'sensible': bool(adjunto.get('sensible')),
+        'clase': clase if clase in CLASES else None,
+    }
+
+
+def validar_lista(adjuntos):
+    if adjuntos is None:
+        return []
+    if not isinstance(adjuntos, list):
+        raise AdjuntoInvalido('«adjuntos» debe ser una lista.')
+    if len(adjuntos) > MAX_ADJUNTOS:
+        raise AdjuntoInvalido(f'Como máximo {MAX_ADJUNTOS} adjuntos por mensaje.')
+    return [validar(a) for a in adjuntos]
+
+
+def tipo_de_imagen(datos):
+    """``jpeg``, ``png`` o ``webp`` según los primeros bytes (el nombre no cuenta); si no, ``None``."""
+    if datos[:3] == b'\xff\xd8\xff':
+        return 'jpeg'
+    if datos[:8] == b'\x89PNG\r\n\x1a\n':
+        return 'png'
+    if datos[:4] == b'RIFF' and datos[8:12] == b'WEBP':
+        return 'webp'
+    return None
+
+
+def imagen_de_perfil(datos):
+    """Una foto de perfil lista para guardar (JPEG de hasta 256 px) o ``None`` si no sirve.
+
+    Solo JPEG, PNG o WebP de verdad (nada de SVG, GIF ni documentos disfrazados), hasta ``MAX_FOTO_DE_PERFIL`` y con una
+    cantidad de píxeles normal. Se endereza según su orientación, se aplana sobre blanco (sin transparencias) y se
+    reduce siempre a JPEG: lo que se guarda no depende del formato en que llegó. Lo que no se puede leer se descarta
+    sin lanzar.
+    """
+    if not isinstance(datos, (bytes, bytearray)) or not 0 < len(datos) <= MAX_FOTO_DE_PERFIL:
+        return None
+    if tipo_de_imagen(bytes(datos[:16])) is None:
+        return None
+    try:
+        with Image.open(io.BytesIO(bytes(datos))) as original:
+            if original.format not in ('JPEG', 'PNG', 'WEBP'):
+                return None
+            if original.width * original.height > MAX_PIXELES_FOTO_DE_PERFIL:
+                return None
+            imagen = ImageOps.exif_transpose(original).convert('RGBA')
+        fondo = Image.new('RGB', imagen.size, (255, 255, 255))
+        fondo.paste(imagen, mask=imagen.getchannel('A'))
+        fondo.thumbnail((LADO_FOTO_DE_PERFIL, LADO_FOTO_DE_PERFIL))
+        salida = io.BytesIO()
+        fondo.save(salida, 'JPEG', quality=85, optimize=True)
+    except Exception:   # noqa: BLE001 — una imagen corrupta o demasiado grande simplemente no se guarda
+        _logger.info('Juan: una foto de perfil no se pudo leer y se descartó.')
+        return None
+    return salida.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Descarga segura
+# ---------------------------------------------------------------------------
+
+def direccion_publica(ip):
+    """¿Es una dirección de internet de verdad (ni privada, ni loopback, ni reservada…)?"""
+    try:
+        direccion = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    if getattr(direccion, 'ipv4_mapped', None):
+        direccion = direccion.ipv4_mapped
+    return direccion.is_global and not direccion.is_multicast
+
+
+def url_permitida(url):
+    """Esquema http(s), puerto 80/443 y TODAS las direcciones del host son públicas."""
+    try:
+        partes = urlsplit(url)
+        puerto = partes.port
+    except ValueError:
+        return False
+    if partes.scheme not in ('http', 'https') or not partes.hostname or puerto not in PUERTOS or partes.username:
+        return False
+    try:
+        resueltas = socket.getaddrinfo(partes.hostname, puerto or (443 if partes.scheme == 'https' else 80),
+                                       type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError, OSError):
+        return False
+    direcciones = {r[4][0] for r in resueltas}
+    return bool(direcciones) and all(direccion_publica(d) for d in direcciones)
+
+
+def decodificar_base64(texto, max_bytes=MAX_BYTES):
+    """Bytes del ``base64`` (con o sin el prefijo ``data:…;base64,``); ``None`` si no es válido o es muy grande."""
+    if texto.startswith('data:'):
+        _, _, texto = texto.partition(',')
+    if len(texto) > (max_bytes * 4) // 3 + 8:
+        return None
+    try:
+        datos = base64.b64decode(texto, validate=True)
+    except (binascii.Error, ValueError):
+        return None
+    return datos if 0 < len(datos) <= max_bytes else None
+
+
+def es_del_origen(url, origen):
+    """¿``url`` es del mismo esquema, host y puerto que ``origen``?"""
+    try:
+        a, b = urlsplit(url), urlsplit(origen or '')
+        puerto = {'http': 80, 'https': 443}
+        return bool(b.scheme and b.hostname and a.scheme == b.scheme and a.hostname == b.hostname
+                    and (a.port or puerto.get(a.scheme)) == (b.port or puerto.get(b.scheme)))
+    except ValueError:
+        return False
+
+
+def descargar(url, max_bytes=MAX_BYTES, origen_confiable=None):
+    """Bytes de la URL o ``None`` (sin lanzar): descarga acotada y sin redirecciones.
+
+    ``origen_confiable`` es la dirección del propio Worker de Juan (la que configuró la dueña): lo que sirve él mismo
+    (``/media/…``, sus archivos temporales firmados) no es SSRF. En producción es https público y pasa igual; en un
+    Worker local (``http://localhost``, para probar) es la única forma de que Odoo baje sus archivos.
+    """
+    if not (es_del_origen(url, origen_confiable) or url_permitida(url)):
+        _logger.warning('Juan: URL de adjunto rechazada (esquema, puerto o dirección no permitidos).')
+        return None
+    try:
+        with requests.get(url, stream=True, timeout=TIMEOUT, allow_redirects=False) as respuesta:
+            if respuesta.status_code != 200:
+                _logger.warning('Juan: la descarga de un adjunto respondió %s.', respuesta.status_code)
+                return None
+            declarado = respuesta.headers.get('Content-Length')
+            if declarado and declarado.isdigit() and int(declarado) > max_bytes:
+                return None
+            trozos, total = [], 0
+            for trozo in respuesta.iter_content(64 * 1024):
+                total += len(trozo)
+                if total > max_bytes:
+                    return None
+                trozos.append(trozo)
+    except requests.RequestException as error:
+        _logger.warning('Juan: no se pudo descargar un adjunto (%s).', type(error).__name__)
+        return None
+    datos = b''.join(trozos)
+    return datos or None
+
+
+def obtener_contenido(adjunto, origen_confiable=None):
+    """Bytes de un adjunto ya validado (``url`` o ``base64``), o ``None`` si no se pudo."""
+    if adjunto.get('base64'):
+        return decodificar_base64(adjunto['base64'])
+    if not adjunto.get('url'):
+        return None
+    return descargar(adjunto['url'], origen_confiable=origen_confiable)

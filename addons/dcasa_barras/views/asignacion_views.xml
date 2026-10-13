@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_barras_asignacion_list" model="ir.ui.view">
+        <field name="name">dcasa.barras.asignacion.list</field>
+        <field name="model">dcasa.barras.asignacion</field>
+        <field name="arch" type="xml">
+            <list string="Códigos de barras" default_order="id desc">
+                <field name="display_name" string="Asignación"/>
+                <field name="usuario_id"/>
+                <field name="n_asignados" sum="Total"/>
+                <field name="n_ya_tienen"/>
+                <field name="n_sin_referencia"/>
+                <field name="n_repetidas"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'aplicada'" decoration-muted="estado == 'deshecha'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_barras_asignacion_form" model="ir.ui.view">
+        <field name="name">dcasa.barras.asignacion.form</field>
+        <field name="model">dcasa.barras.asignacion</field>
+        <field name="arch" type="xml">
+            <form string="Códigos de barras" duplicate="0">
+                <header>
+                    <button name="action_revisar" type="object" string="Revisar productos" class="btn-secondary"
+                            invisible="estado != 'borrador'"/>
+                    <button name="action_aplicar" type="object" string="Asignar los códigos" class="btn-primary"
+                            invisible="estado != 'borrador' or not n_asignar"
+                            confirm="Se escribe el código de barras en los productos que lo tienen vacío (a partir de su referencia interna). No se pisa ninguno que ya exista. ¿Seguimos?"/>
+                    <button name="action_deshacer" type="object" string="Deshacer" class="btn-secondary"
+                            invisible="estado != 'aplicada'"
+                            confirm="Se quita el código a los productos que se asignaron aquí y siguen con ese mismo código. ¿Seguimos?"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert" invisible="estado != 'borrador'">
+                        El código de barras se toma de la <strong>referencia interna</strong> del producto, solo donde está vacío:
+                        nunca se pisa uno que ya existe. Pulsa <strong>Revisar productos</strong> para ver qué se haría, sin
+                        cambiar nada; después <strong>Asignar los códigos</strong>. Se puede deshacer.
+                        <br/>Si vas a usar las <strong>etiquetas numeradas del rollo</strong> (Inventario › Escáner › Asignar),
+                        no apliques esto: puedes mirar el informe, pero cada etiqueta se asigna a su producto desde el Escáner.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="n_asignar" invisible="estado != 'borrador'"/>
+                            <field name="n_asignados" invisible="estado == 'borrador'"/>
+                            <field name="n_ya_tienen"/>
+                        </group>
+                        <group>
+                            <field name="n_sin_referencia"/>
+                            <field name="n_repetidas"/>
+                            <field name="n_otros"/>
+                        </group>
+                    </group>
+                    <field name="linea_ids" invisible="not linea_ids">
+                        <list string="Productos" create="0" edit="0" delete="0" default_order="decision, id"
+                              decoration-success="resultado == 'asignado'"
+                              decoration-danger="decision in ('repetida', 'usada', 'caracteres', 'error')"
+                              decoration-muted="decision in ('ya_tiene', 'sin_referencia')">
+                            <field name="producto_id"/>
+                            <field name="referencia"/>
+                            <field name="codigo"/>
+                            <field name="decision"/>
+                            <field name="resultado" widget="badge"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_barras_asignacion" model="ir.actions.act_window">
+        <field name="name">Códigos de barras</field>
+        <field name="res_model">dcasa.barras.asignacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Asigna el código de barras a tus productos</p>
+            <p>Crea una asignación, revisa lo que se haría y aplícala: el código sale de la referencia interna.</p>
+        </field>
+    </record>
+</odoo>

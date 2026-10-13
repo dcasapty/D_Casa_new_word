@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="regla_barras_asignacion_empresa" model="ir.rule">
+        <field name="name">Códigos de barras: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_barras_asignacion"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_barras_asignacion_linea_empresa" model="ir.rule">
+        <field name="name">Códigos de barras, líneas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_barras_asignacion_linea"/>
+        <field name="domain_force">[('asignacion_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_barras_etiqueta_empresa" model="ir.rule">
+        <field name="name">Historial de etiquetas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_barras_etiqueta"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

@@ -93,6 +93,31 @@ class TestSeguridadRpcBrian(BrianCase):
         self.assertBloqueado(self.usuario, 'brian.conversacion', 'historial', [ajena['id']])
         self.assertTrue(self.rpc(self.jefe, 'brian.conversacion', 'historial', [ajena['id']])['conversacion'])
 
+    def test_no_se_leen_las_acciones_de_otro_enlazandolas_a_un_mensaje_propio(self):
+        """Un mensaje propio con el ``accion_id`` de otra persona (el many2one no revisa acceso) no la muestra."""
+        proveedores.fijar_guion([{'herramientas': [('prueba_sensible', {'nombre': 'Cliente Secreto de Gerencia'})]}])
+        conv_jefe = self.rpc(self.jefe, 'brian.conversacion', 'nueva')
+        tarjeta = self.rpc(self.jefe, 'brian.conversacion', 'enviar', [[conv_jefe['id']], 'Crea el cliente'])
+        accion_id = tarjeta['mensajes'][-1]['confirmacion']['accion_id']
+        propia = self.rpc(self.usuario, 'brian.conversacion', 'nueva')
+        llamadas = '[{"id": "x", "nombre": "prueba_sensible", "argumentos": {}}]'
+        # El enlace directo se puede crear (es el hueco); la lista de acciones sí la frena la regla de brian.accion.
+        self.rpc(self.usuario, 'brian.mensaje', 'create', [{
+            'conversacion_id': propia['id'], 'rol': 'assistant', 'contenido': 'mira', 'accion_id': accion_id,
+            'tool_calls': llamadas}])
+        with self.assertRaises(AccessError):
+            self.rpc(self.usuario, 'brian.mensaje', 'create', [{
+                'conversacion_id': propia['id'], 'rol': 'assistant', 'contenido': 'mira',
+                'accion_ids': [(6, 0, [accion_id])], 'tool_calls': llamadas}])
+        historial = self.rpc(self.usuario, 'brian.conversacion', 'historial', [propia['id']])
+        self.assertTrue(historial['mensajes'])
+        for mensaje in historial['mensajes']:
+            self.assertIsNone(mensaje['confirmacion'], 'la acción es de otra persona')
+            self.assertNotIn('Cliente Secreto', str(mensaje))
+        # Y al dueño sí se la muestra.
+        propia_del_jefe = self.rpc(self.jefe, 'brian.conversacion', 'historial', [conv_jefe['id']])
+        self.assertTrue(any(m['confirmacion'] for m in propia_del_jefe['mensajes']))
+
     def test_confirmar_accion_propia_por_rpc(self):
         """El único camino público para confirmar: brian.conversacion.confirmar_accion, solo el dueño."""
         proveedores.fijar_guion([{'herramientas': [('prueba_sensible', {'nombre': 'Cliente RPC'})]}])

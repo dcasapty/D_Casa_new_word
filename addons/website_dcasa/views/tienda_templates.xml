@@ -62,6 +62,32 @@
         </xpath>
     </template>
 
+    <!-- Ficha (ronda 6): la foto principal es la LCP y Odoo la pedía tarde (loading="lazy" del
+         sitio: 2,1 s de espera en 4G lenta) y en JPEG/PNG de 1024. Ahora la primera va «eager» con
+         prioridad alta, en WebP al ancho justo (/dcasa/img) y con srcset; las demás, perezosas. -->
+    <template id="ficha_foto_prioritaria" inherit_id="website_sale.shop_product_image" name="D'CASA: foto de la ficha a tiempo">
+        <xpath expr="//span[@t-field='product_image.image_1920']" position="attributes">
+            <attribute name="t-options">{
+                'widget': 'image', 'preview_image': 'image_1024',
+                'class': 'oe_unmovable product_detail_img h-100 w-100', 'alt-field': 'name',
+                'zoom': product_image.can_image_1024_be_zoomed and 'image_1920',
+                'dcasa_srcset': ('image_512', 'image_1024'), 'dcasa_webp': True,
+                'dcasa_sizes': '(min-width: 992px) 50vw, 100vw',
+                'dcasa_prioridad': bool(product_images) and product_image == product_images[0],
+            }</attribute>
+        </xpath>
+        <xpath expr="//div[@t-field='product_image.image_1920']" position="attributes">
+            <attribute name="t-options">{
+                'widget': 'image', 'preview_image': 'image_1024',
+                'class': 'oe_unmovable product_detail_img w-100 h-100', 'alt-field': 'name',
+                'zoom': product_image.can_image_1024_be_zoomed and 'image_1920',
+                'dcasa_srcset': ('image_512', 'image_1024'), 'dcasa_webp': True,
+                'dcasa_sizes': '(min-width: 992px) 50vw, 100vw',
+                'dcasa_prioridad': bool(product_images) and product_image == product_images[0],
+            }</attribute>
+        </xpath>
+    </template>
+
     <!-- La imagen LCP de /shop está en la primera fila del celular (2 columnas): cuál de las
          dos gana depende de la foto (área pintada), así que las dos van con prioridad. -->
     <template id="tienda_primera_imagen_prioritaria" inherit_id="website_sale.products" name="D'CASA: imagen LCP de la tienda">

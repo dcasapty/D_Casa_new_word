@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_interfaz.VistaPrevia">
+        <div class="o_action o_dcasa_vista_previa">
+            <header class="o_dcasa_vp_barra">
+                <div class="o_dcasa_vp_titulo">
+                    <h1>Vista previa móvil</h1>
+                    <p>
+                        El sitio tal como lo ve un visitante. Se edita por código: aquí solo se mira.
+                        <a t-att-href="direccionPublica" target="_blank" rel="noopener" t-out="state.datos.url || origen"/>
+                    </p>
+                </div>
+
+                <div class="o_dcasa_vp_dispositivos" role="group" aria-label="Tamaño de pantalla">
+                    <button t-foreach="dispositivos" t-as="disp" t-key="disp.clave" type="button"
+                            t-attf-class="o_dcasa_vp_dispositivo {{ disp.clave === state.dispositivo ? 'o_activo' : '' }}"
+                            t-att-aria-pressed="disp.clave === state.dispositivo ? 'true' : 'false'"
+                            t-on-click="() => this.elegir(disp)">
+                        <i t-attf-class="fa {{disp.icono}} me-2" aria-hidden="true"/>
+                        <t t-out="disp.nombre"/>
+                        <small><t t-out="disp.ancho"/>×<t t-out="disp.alto"/></small>
+                    </button>
+                </div>
+            </header>
+
+            <div class="o_dcasa_vp_navegacion">
+                <div class="o_dcasa_vp_paginas" role="group" aria-label="Página">
+                    <button t-foreach="state.datos.paginas" t-as="pagina" t-key="pagina.ruta" type="button"
+                            t-attf-class="o_dcasa_vp_pagina {{ pagina.ruta === rutaLimpia ? 'o_activo' : '' }}"
+                            t-on-click="() => this.irA(pagina.ruta)" t-out="pagina.nombre"/>
+                </div>
+                <form class="o_dcasa_vp_ruta" t-on-submit="enviarRuta">
+                    <label class="visually-hidden" for="o_dcasa_vp_ruta">Dirección dentro del sitio</label>
+                    <span class="o_dcasa_vp_origen" t-out="state.datos.url || origen"/>
+                    <input id="o_dcasa_vp_ruta" type="text" class="form-control" t-model="state.ruta"
+                           placeholder="/shop" autocomplete="off" spellcheck="false"/>
+                    <button type="submit" class="btn btn-primary">Ir</button>
+                </form>
+                <div class="o_dcasa_vp_acciones">
+                    <button type="button" class="btn btn-secondary" t-on-click="recargar" title="Volver a cargar la página">
+                        <i class="fa fa-refresh me-2" aria-hidden="true"/>Recargar
+                    </button>
+                    <button type="button" class="btn btn-secondary" t-on-click="abrirAparte" title="Abrir en una pestaña nueva">
+                        <i class="fa fa-external-link me-2" aria-hidden="true"/>Abrir aparte
+                    </button>
+                </div>
+            </div>
+
+            <p t-if="!mismoOrigen" class="o_dcasa_vp_aviso" role="status">
+                <i class="fa fa-info-circle me-2" aria-hidden="true"/>
+                El panel está abierto en <strong t-out="origen"/>, así que el marco muestra esa misma dirección
+                (el sitio canónico es <a t-att-href="direccionPublica" target="_blank" rel="noopener" t-out="state.datos.url"/>).
+            </p>
+
+            <div class="o_dcasa_vp_escena">
+                <div class="o_dcasa_vp_escenario" t-ref="escenario" t-att-style="estiloEscenario">
+                    <div t-attf-class="o_dcasa_vp_marco o_dcasa_vp_marco_{{state.dispositivo}}" t-att-style="estiloMarco">
+                        <iframe t-key="state.version" class="o_dcasa_vp_iframe" t-att-src="direccion"
+                                t-att-title="'Vista previa de ' + direccionPublica"
+                                t-on-load="marcoCargado" loading="eager"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

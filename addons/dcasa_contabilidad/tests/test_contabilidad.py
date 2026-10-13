@@ -40,7 +40,7 @@ class ContabilidadCommon(TransactionCase):
             linea['analytic_distribution'] = {str(analitica.id): 100}
         factura = self.env['account.move'].create({
             'move_type': tipo, 'partner_id': (self.proveedor if compra else self.cliente).id,
-            'invoice_date': fecha, 'date': fecha, 'invoice_line_ids': [(0, 0, linea)],
+            'invoice_date': fecha, 'date': fecha, 'invoice_date_due': fecha, 'invoice_line_ids': [(0, 0, linea)],
         })
         factura.action_post()
         return factura
@@ -147,6 +147,9 @@ class TestContabilidad(ContabilidadCommon):
                 'dcasa_contabilidad.reporte_contable', self.company.ids,
                 data={'reporte': reporte, 'desde': DESDE, 'hasta': HASTA})
             self.assertIn(datos['titulo'], html.decode(), reporte)
+            # El encabezado de la tabla es blanco sobre azul y gana al estilo del layout (que pinta «thead th» de
+            # azul): sin !important el texto saldría azul sobre azul y no se leería.
+            self.assertIn('color: #fff !important', html.decode(), reporte)
 
     def test_sin_permiso_no_ve_reportes(self):
         usuario = self.env['res.users'].create({

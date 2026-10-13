@@ -1,0 +1,157 @@
+name: Desplegar Juan
+
+# Despliega el Worker `dcasa-juan` (el bot de atención a clientes; juan/, docs/JUAN_WORKER.md) a staging o producción.
+# SOLO A MANO (Actions → Desplegar Juan → Run workflow). No lo llama ci.yml.
+#
+# Qué hace, en orden:
+#   1. npm ci + pruebas + typecheck de juan/ (si algo falla, no se despliega nada);
+#   2. comprueba que la configuración no exija secretos (el primer despliegue es SIN secretos);
+#   3. `wrangler deploy --dry-run` (valida el paquete sin tocar Cloudflare; no necesita credenciales);
+#   4. con «dry_run» apagado: `wrangler deploy --keep-vars` y, al final, lee GET /salud y lo deja en el resumen.
+#
+# SECRETOS: este workflow solo usa los dos secretos de GitHub que YA existen para desplegar (CLOUDFLARE_API_TOKEN y
+# CLOUDFLARE_ACCOUNT_ID). Los secretos de Juan (JUAN_ODOO_TOKEN, JUAN_WORKER_TOKEN, WA_TOKEN, ANTHROPIC_API_KEY,
+# TELEGRAM_*, META_*) NO pasan por GitHub: la dueña los pega en el panel de Cloudflare (Worker → Settings → Variables
+# and Secrets). Un despliegue nunca borra los secretos puestos en el panel; `--keep-vars` también respeta las variables
+# que ella cambie ahí (URL_PUBLICA, ALERTA_TELEGRAM_CHAT_ID...). No se usa `--secrets-file` ni `secrets.required`.
+#
+# ANTES del primer despliegue real: los Workers a los que apunta `services` tienen que existir (staging → `dcasa-staging`;
+# producción → `dcasa`). Cloudflare rechaza el despliegue si el destino de un service binding no existe.
+
+on:
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: "Entorno"
+        type: choice
+        options: [staging, production]
+        required: true
+        default: staging
+      dry_run:
+        description: "Solo validar (no despliega nada)"
+        type: boolean
+        default: true
+  # Lo llama ci.yml después de desplegar `dcasa` (el Worker de Juan apunta a `JuanEntrada`, que debe existir ya).
+  workflow_call:
+    inputs:
+      entorno:
+        type: string
+        required: true
+      dry_run:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desplegar-juan-${{ inputs.entorno }}
+  cancel-in-progress: false
+
+jobs:
+  probar:
+    name: Pruebas de juan/
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: juan
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: juan/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: La configuración no exige secretos
+        working-directory: .
+        run: |
+          # El primer despliegue ocurre sin secretos y debe tener éxito: nada de `secrets` en wrangler.jsonc.
+          if grep -nE '^\s*"secrets"' juan/wrangler.jsonc; then
+            echo "::error::juan/wrangler.jsonc declara «secrets»: los secretos de Juan se pegan en el panel de Cloudflare, no se exigen al desplegar."
+            exit 1
+          fi
+      - name: Validar el paquete (dry-run, sin credenciales)
+        env:
+          ENTORNO: ${{ inputs.entorno }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          # Producción es la raíz del archivo: --env="" (wrangler.jsonc define env.staging).
+          if [ "$ENTORNO" = "production" ]; then destino=""; else destino="$ENTORNO"; fi
+          npx wrangler deploy --dry-run --env="$destino" --outdir "$RUNNER_TEMP/dry-run"
+
+  desplegar:
+    name: Desplegar a ${{ inputs.entorno }}
+    needs: probar
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Solo a mano: el clic de quien lo lanza es la aprobación («Required reviewers» no existe en repos privados
+    # Free/Pro/Team; docs/DESPLIEGUE.md §3).
+    environment:
+      name: ${{ inputs.entorno }}
+    defaults:
+      run:
+        working-directory: juan
+    env:
+      ENTORNO: ${{ inputs.entorno }}
+      WRANGLER_SEND_METRICS: "false"
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Credenciales de despliegue
+        # Corre antes del checkout: la carpeta juan/ todavía no existe, así que va en la raíz del espacio de trabajo.
+        working-directory: .
+        run: |
+          # Solo estos dos secretos de GitHub; ninguno de Juan.
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Faltan CLOUDFLARE_API_TOKEN o CLOUDFLARE_ACCOUNT_ID en el environment «$ENTORNO» (docs/DESPLIEGUE.md)."
+            exit 1
+          fi
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: juan/package-lock.json
+      - run: npm ci
+      - name: wrangler deploy
+        id: desplegar
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$ENTORNO" = "production" ]; then destino=""; else destino="$ENTORNO"; fi
+          # --keep-vars: no pisar las variables que la dueña cambió en el panel. Los secretos del panel nunca se tocan.
+          npx wrangler deploy --env="$destino" --keep-vars --var "VERSION:$SHA" 2>&1 | tee "$RUNNER_TEMP/despliegue.log"
+          url="$(grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' "$RUNNER_TEMP/despliegue.log" | head -1 || true)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Estado después de desplegar (GET /salud)
+        env:
+          URL_JUAN: ${{ steps.desplegar.outputs.url }}
+        run: |
+          # Informa, no falla: sin secretos el Worker responde «faltan ...» y eso es lo esperado en el primer despliegue.
+          {
+            echo "## Juan · ${ENTORNO}"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ -z "$URL_JUAN" ]; then
+            echo "No pude leer la dirección del Worker en la salida de wrangler; abre /salud a mano." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          sleep 5
+          if cuerpo="$(curl -fsS --max-time 20 "$URL_JUAN/salud")"; then
+            {
+              echo "Dirección: ${URL_JUAN}"
+              echo ""
+              echo '```json'
+              echo "$cuerpo"
+              echo '```'
+              echo ""
+              echo "Si faltan secretos, la dueña los pega en Cloudflare: Worker → Settings → Variables and Secrets (docs/JUAN_WORKER.md)."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "El Worker se desplegó en ${URL_JUAN} pero /salud no contestó todavía." >> "$GITHUB_STEP_SUMMARY"
+          fi

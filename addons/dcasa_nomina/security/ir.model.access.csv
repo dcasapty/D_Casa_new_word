@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_parametros_nomina,parametros nomina,model_dcasa_nomina_parametros,group_nomina,1,1,1,1
+access_isr_tramo_nomina,isr tramo nomina,model_dcasa_nomina_isr_tramo,group_nomina,1,1,1,1
+access_config_nomina,config nomina,model_dcasa_nomina_config,group_nomina,1,1,1,0
+access_planilla_nomina,planilla nomina,model_dcasa_nomina_planilla,group_nomina,1,1,1,1
+access_linea_nomina,linea nomina,model_dcasa_nomina_linea,group_nomina,1,1,1,1
+access_vacacion_nomina,vacacion nomina,model_dcasa_nomina_vacacion,group_nomina,1,1,1,1
+access_liquidacion_nomina,liquidacion nomina,model_dcasa_nomina_liquidacion,group_nomina,1,1,1,1
+access_reembolso_nomina,reembolso nomina,model_dcasa_nomina_reembolso,group_nomina,1,1,1,1
+access_reembolso_colaborador,reembolso colaborador,model_dcasa_nomina_reembolso,base.group_user,1,1,1,1

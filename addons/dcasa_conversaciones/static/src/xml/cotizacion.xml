@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Cotizacion">
+        <div class="o_dcj_capa" t-on-click.self="cerrar">
+            <div class="o_dcj_hoja" t-ref="panel" role="dialog" aria-modal="true" aria-labelledby="o_dcj_cotizacion_titulo">
+                <header class="o_dcj_hoja_cabecera">
+                    <h2 id="o_dcj_cotizacion_titulo">Cotización en PDF</h2>
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </header>
+
+                <div t-if="local.cargando" class="o_dcj_hoja_cuerpo"><p class="o_dcj_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando la cotización del cliente…</p></div>
+                <div t-elif="local.error" class="o_dcj_hoja_cuerpo"><p class="o_dcj_error" role="alert" t-out="local.error"/></div>
+                <div t-elif="!local.tieneCliente" class="o_dcj_hoja_cuerpo">
+                    <p class="o_dcj_vacio_chico">Esta conversación todavía no tiene un cliente en Odoo, así que no hay a quién cotizarle.</p>
+                </div>
+
+                <!-- Ver y enviar la cotización abierta -->
+                <t t-elif="local.modo === 'ver'">
+                    <div class="o_dcj_hoja_cuerpo">
+                        <ul t-if="local.cotizaciones.length > 1" class="o_dcj_cotizaciones" aria-label="Cotizaciones abiertas del cliente">
+                            <li t-foreach="local.cotizaciones" t-as="c" t-key="c.id">
+                                <button type="button" class="o_dcj_cotizacion_opcion" t-att-class="{ o_activa: c.id === local.elegida }"
+                                        t-att-aria-pressed="c.id === local.elegida ? 'true' : 'false'" t-on-click="() => this.elegir(c.id)">
+                                    <strong t-out="c.nombre"/>
+                                    <span class="o_dcj_secundario"><t t-out="c.estado_nombre"/> · <t t-out="dolares(c.total)"/></span>
+                                </button>
+                            </li>
+                        </ul>
+
+                        <section t-if="cotizacion" class="o_dcj_cotizacion">
+                            <header>
+                                <h3 t-out="cotizacion.nombre"/>
+                                <span class="o_dcj_insignia" t-out="cotizacion.estado_nombre"/>
+                            </header>
+                            <p class="o_dcj_secundario">
+                                <t t-out="cotizacion.fecha_texto"/>
+                                <t t-if="cotizacion.valida_hasta"> · válida hasta <t t-out="cotizacion.valida_hasta"/></t>
+                            </p>
+                            <table class="o_dcj_tabla">
+                                <thead><tr><th>Producto</th><th class="o_dcj_num">Cant.</th><th class="o_dcj_num">Precio</th><th class="o_dcj_num">Subtotal</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="cotizacion.lineas" t-as="l" t-key="l.id">
+                                        <td><span t-out="l.producto"/><span t-if="l.codigo" class="o_dcj_secundario"> · <t t-out="l.codigo"/></span></td>
+                                        <td class="o_dcj_num" t-out="l.cantidad"/>
+                                        <td class="o_dcj_num" t-out="dolares(l.precio_unitario)"/>
+                                        <td class="o_dcj_num" t-out="dolares(l.subtotal)"/>
+                                    </tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr><td colspan="3">Subtotal</td><td class="o_dcj_num" t-out="dolares(cotizacion.subtotal)"/></tr>
+                                    <tr><td colspan="3">ITBMS</td><td class="o_dcj_num" t-out="dolares(cotizacion.impuestos)"/></tr>
+                                    <tr class="o_dcj_total"><td colspan="3">Total</td><td class="o_dcj_num" t-out="dolares(cotizacion.total)"/></tr>
+                                </tfoot>
+                            </table>
+                            <label for="o_dcj_texto_cotizacion">Mensaje que acompaña al PDF</label>
+                            <textarea id="o_dcj_texto_cotizacion" class="o_dcj_input" rows="2" maxlength="1000" t-model="local.texto"/>
+                            <p class="o_dcj_ayuda">Sale como documento PDF. La cotización pasa a «Enviada»; no se confirma.</p>
+                        </section>
+                    </div>
+                    <footer class="o_dcj_hoja_pie">
+                        <button type="button" class="btn btn-secondary o_dcj_boton" t-on-click="empezarOtra">Crear otra</button>
+                        <button type="button" class="btn btn-secondary o_dcj_boton" t-on-click="abrirEnOdoo">Abrir en Odoo</button>
+                        <span class="o_dcj_espaciador"/>
+                        <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="local.ocupado or !cotizacion" t-on-click="enviar">
+                            <t t-if="local.ocupado">Armando el PDF…</t><t t-else=""><i class="fa fa-paper-plane" aria-hidden="true"/> Enviar el PDF</t>
+                        </button>
+                    </footer>
+                </t>
+
+                <!-- Crear un borrador con productos del catálogo -->
+                <t t-else="">
+                    <div class="o_dcj_hoja_cuerpo">
+                        <p t-if="!local.cotizaciones.length" class="o_dcj_ayuda">Este cliente no tiene una cotización abierta. Elige los productos y se crea un borrador (sin confirmar).</p>
+                        <div class="o_dcj_hoja_buscar">
+                            <i class="fa fa-search" aria-hidden="true"/>
+                            <input type="search" class="o_dcj_input" autocomplete="off" aria-label="Buscar un producto para la cotización"
+                                   placeholder="Nombre o código del producto…" t-att-value="local.consulta" t-on-input="alBuscar"/>
+                        </div>
+                        <p t-if="local.buscando" class="o_dcj_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Buscando…</p>
+                        <p t-if="local.buscado and !local.productos.length and !local.buscando" class="o_dcj_vacio_chico">No encuentro ese producto entre los publicados.</p>
+                        <ul t-if="local.productos.length" class="o_dcj_productos o_dcj_productos_chicos">
+                            <li t-foreach="local.productos" t-as="p" t-key="p.id" class="o_dcj_producto">
+                                <div class="o_dcj_producto_datos">
+                                    <strong t-out="p.nombre"/>
+                                    <span class="o_dcj_precio" t-out="p.precio_texto"/>
+                                </div>
+                                <div class="o_dcj_producto_acciones">
+                                    <button t-if="p.variante_id" type="button" class="btn btn-secondary o_dcj_boton" t-on-click="() => this.agregar(p)">
+                                        <i class="fa fa-plus" aria-hidden="true"/> Agregar
+                                    </button>
+                                    <t t-else="">
+                                        <button t-foreach="p.variantes" t-as="v" t-key="v.id" type="button" class="btn btn-secondary o_dcj_boton" t-on-click="() => this.agregar(p, v)">
+                                            <i class="fa fa-plus" aria-hidden="true"/> <t t-out="v.nombre"/>
+                                        </button>
+                                    </t>
+                                </div>
+                            </li>
+                        </ul>
+
+                        <h3 class="o_dcj_subtitulo">En la cotización</h3>
+                        <p t-if="!local.lineas.length" class="o_dcj_secundario">Todavía no agregaste productos.</p>
+                        <ul t-else="" class="o_dcj_lineas">
+                            <li t-foreach="local.lineas" t-as="l" t-key="l.variante_id" class="o_dcj_linea">
+                                <span class="o_dcj_linea_nombre"><t t-out="l.nombre"/> <span class="o_dcj_secundario" t-out="l.precio_texto"/></span>
+                                <span class="o_dcj_cantidad" role="group" t-att-aria-label="'Cantidad de ' + l.nombre">
+                                    <button type="button" class="o_dcj_icono_boton" aria-label="Una menos" t-on-click="() => this.cambiarCantidad(l, -1)"><i class="fa fa-minus" aria-hidden="true"/></button>
+                                    <output t-out="l.cantidad"/>
+                                    <button type="button" class="o_dcj_icono_boton" aria-label="Una más" t-on-click="() => this.cambiarCantidad(l, 1)"><i class="fa fa-plus" aria-hidden="true"/></button>
+                                </span>
+                                <button type="button" class="o_dcj_icono_boton" t-att-aria-label="'Quitar ' + l.nombre" t-on-click="() => this.quitar(l)"><i class="fa fa-trash-o" aria-hidden="true"/></button>
+                            </li>
+                        </ul>
+                        <p class="o_dcj_ayuda">Los precios los pone Odoo con la lista de precios de la tienda; aquí no se cambian.</p>
+                    </div>
+                    <footer class="o_dcj_hoja_pie">
+                        <button t-if="local.cotizaciones.length" type="button" class="btn btn-secondary o_dcj_boton" t-on-click="volver">Volver</button>
+                        <span class="o_dcj_espaciador"/>
+                        <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="!local.lineas.length or local.ocupado" t-on-click="crearBorrador">
+                            <t t-if="local.ocupado">Creando…</t><t t-else="">Crear el borrador</t>
+                        </button>
+                    </footer>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

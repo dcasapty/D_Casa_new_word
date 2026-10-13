@@ -1,6 +1,7 @@
 {
   "$comentario": "FUENTE ÚNICA DE LA ECONOMÍA DEL PROGRAMA. Ninguna cifra de puntos vive en el código: si el código necesita un valor que no está aquí, ese valor no existe todavía. Es la misma disciplina de datos/precios.json en PanaClaw-WorkSpace, y existe por lo mismo: una cifra inventada en un programa de puntos es dinero real regalado o negado.",
-  "version": 2,
+  "version": 3,
+  "$version3": "2026-10-03: se añade canje.puntosPorDolar (la cifra de $decidido, 100 puntos = $1) para que la lea el código del carrito web. Ninguna cifra de acumulación ni de referido cambió.",
   "$version": "La versión se guarda con CADA compra (compras.reglas_version). Si estas cifras cambian, las compras viejas siguen explicando los puntos que dieron. Súbela cuando cambies cualquier valor de acumulación o de referido.",
   "moneda": "USD",
 
@@ -56,7 +57,10 @@
     "$vigenciaDelCodigoHoras": "Cuánto dura el código antes de vencer y devolver los puntos. 72 horas dan un fin de semana completo para pasar por la tienda.",
 
     "saldoMinimoParaCanjear": 500,
-    "$saldoMinimoParaCanjear": "500 puntos = $5. Evita que el programa se convierta en una molestia administrativa por descuentos de $0.37."
+    "$saldoMinimoParaCanjear": "500 puntos = $5. Evita que el programa se convierta en una molestia administrativa por descuentos de $0.37.",
+
+    "puntosPorDolar": 100,
+    "$puntosPorDolar": "Cuántos puntos vale un dólar AL CANJEAR: la cifra aprobada en $decidido («100 puntos = $1 al canjear») y la misma escalera de los premios de arranque (500 puntos = $5). Hasta ahora vivía solo en ese texto y en los premios; aquí la lee el código. Solo la usa el modo 'todo' de puntos en el carrito web (dcasa_socios.puntos_en_carrito): el socio elige cuántos puntos usar y el descuento sale de aquí, redondeado hacia abajo al centavo. En null, ese modo se apaga solo y quedan los premios del catálogo."
   },
 
   "vencimiento": {

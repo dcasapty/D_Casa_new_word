@@ -1,6 +1,6 @@
 # Despliegue en Cloudflare
 
-Arquitectura elegida (opción A, `docs/auditoria/DECISION_Y_PLAN.md`): **un Container `basic` de
+Arquitectura elegida (opción A, `docs/auditoria/DECISION_Y_PLAN.md`): **un Container (`standard-1` en producción, `basic` en staging) de
 Cloudflare con Odoo y PostgreSQL 16 adentro**. El disco del contenedor es efímero, así que la base
 vive protegida por **pgBackRest**, que manda el WAL (cada cambio) a un bucket de **R2** de forma
 continua (RPO aceptado ≈ 1 min), más un respaldo lógico diario (`pg_dump` cifrado, 03:17 de Panamá)
@@ -12,16 +12,17 @@ cómo restaurar): **[docs/OPERACION.md](OPERACION.md)**. Este documento es la re
 
 ## 1. El camino de un cambio hasta producción
 
-`.github/workflows/ci.yml` corre en cada PR, en cada push a `main` y a mano:
+`.github/workflows/ci.yml` corre en cada PR, en cada push a `main` y a mano. **Un push a `main` solo corre las
+pruebas: a ningún entorno se despliega solo.**
 
 | Job | Qué hace |
 |---|---|
 | `lint` | ruff, XML, shellcheck (`docker/`, `scripts/`, `.github/scripts/`) y actionlint |
 | `odoo-tests` | instala los módulos en una base limpia y corre los tests |
 | `edge` | typecheck y tests del Worker |
-| `docker` | **construye la imagen una sola vez**, la arranca con su PostgreSQL interno contra un S3 local (moto), prueba el sitio, `admin/admin`, y que el WAL llegue al bucket. Si la ejecución va a desplegar, guarda **esa** imagen como artefacto |
+| `docker` | **construye la imagen una sola vez**, la arranca con su PostgreSQL interno contra un S3 local (moto), prueba el sitio, `admin/admin`, y que el WAL llegue al bucket. Si la ejecución va a desplegar, guarda **esa** imagen como artefacto (dura 1 día; si el espacio de GitHub se llena, ver «Limpiar copias temporales» en [OPERACION.md](OPERACION.md)) |
 | `simulacro-restauracion` | `scripts/simulacro_restauracion.sh`: carga, mata PostgreSQL, borra el disco, restaura desde S3 y compara. Falla si el RPO pasa de 90 s o hay filas distintas/corruptas |
-| `desplegar-produccion` | solo push a `main`, y solo si **todo** lo anterior pasó |
+| `desplegar-produccion` | solo *Run workflow* con `desplegar_en = produccion`, **desde `main`**, y solo si **todo** lo anterior pasó. Desde otra rama falla con un aviso (`produccion-solo-desde-main`) |
 | `desplegar-staging` | solo *Run workflow* con `desplegar_en = staging` (cualquier rama) |
 
 Los dos despliegues usan `.github/workflows/desplegar.yml`, que en este orden:
@@ -72,9 +73,13 @@ temporal; no toca ningún entorno.
 
 ## 3. GitHub: environments, secretos y variables
 
-*Settings → Environments*: crear **`staging`** y **`production`**. En `production` activar
-**Required reviewers** (el dueño) y, en *Deployment branches*, solo `main`: así cada despliegue a
-producción espera la aprobación del dueño en Actions. `staging` sin revisores.
+*Settings → Environments*: crear **`staging`** y **`production`**. En `production`, en *Deployment branches and
+tags*, elegir *Selected branches* y permitir solo `main`.
+
+**No hay «Required reviewers».** GitHub solo lo ofrece en repositorios públicos o en planes que este repositorio
+(privado) no tiene. La aprobación es el **clic de quien lanza el despliegue** (*Run workflow* con
+`desplegar_en = produccion`, desde `main`); por eso un merge nunca despliega solo. Una prueba
+(`edge/test/despliegue-produccion.test.ts`) falla si alguien vuelve a enganchar producción a un push.
 
 Cada environment lleva **sus propios** valores (staging nunca comparte bucket, token de respaldo ni
 clave de cifrado con producción):
@@ -92,9 +97,10 @@ clave de cifrado con producción):
 | Secret | `DCASA_PIN_PEPPER` | sí | pimienta del PIN de socios (ver abajo); **jamás se rota** |
 | Secret | `BRIAN_API_KEY` | sí | clave del proveedor de IA de Brian (en staging, una clave de pruebas con tope de gasto) |
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
-| Secret | `TIENDA_FEED_TOKEN` | no (sí para la tienda estática) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: protege el feed del catálogo y el aviso de regeneración. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
+| Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché de páginas) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: con él Odoo certifica las páginas anónimas que el borde guarda y protege el aviso de invalidación. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
+| Secret | `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` | no (las cuatro juntas para la puerta del equipo) | Ver docs/SEGURIDAD_ACCESO.md §8.4: la ruta secreta de la entrada (`/entrada-…`), `openssl rand -hex 32` (≥ 32, **distinto por entorno**), `https://<equipo>.cloudflareaccess.com` y el *AUD Tag* de la aplicación de Cloudflare Access. Si falta alguna, la puerta queda apagada |
 | Variable | `URL_SITIO` | sí | dirección pública del Worker, sin `/` final: `https://dcasa.<subdominio>.workers.dev` hasta activar el dominio, luego `https://dcasapty.com`; staging: `https://dcasa-staging.<subdominio>.workers.dev` (o `https://staging.dcasapty.com`) |
-| Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`); útil mientras se usa `workers.dev` |
+| Variable | `CANONICAL_HOST` | no | pisa el de `edge/wrangler.jsonc` (`dcasapty.com` / `staging.dcasapty.com`). **Vacía = se usa el anfitrión de `URL_SITIO`**: Odoo arma con este dominio las direcciones de las fotos de productos, del PDF de una cotización y de los webhooks, así que tiene que ser donde el sitio de verdad responde (si apuntara a `staging.dcasapty.com` sin que exista, Telegram no podría bajar la foto ni el PDF) |
 | Variable | `R2_ENDPOINT` | no | solo si el bucket está en otra jurisdicción; por defecto `https://<ACCOUNT_ID>.r2.cloudflarestorage.com` |
 | Variable | `BRIAN_PROVEEDOR`, `BRIAN_MODELO`, `BRIAN_BASE_URL` | no | ver «Brian» |
 
@@ -153,7 +159,9 @@ bucket vacío, crea la base (instala los módulos en español) y empieza a archi
 minutos. Luego `<URL_SITIO>/web/login` con `admin` / `ODOO_ADMIN_PASSWORD`. Staging se duerme tras 1 h
 sin visitas (`ODOO_DORMIR_TRAS = 1h`) y al despertar restaura desde R2: cada visita es un simulacro.
 
-Producción: el siguiente push a `main` (o merge de un PR) despliega tras la aprobación del dueño.
+Producción: con el código ya en `main`, *Actions → CI/CD → Run workflow*, rama `main`,
+`desplegar_en = produccion`. Se vuelven a correr todas las pruebas y, si pasan, se despliega. Un merge a `main` no
+despliega por sí solo.
 Después, crear un usuario por persona y no compartir el de administrador.
 
 ## 5. Actualizaciones de módulos en el arranque (I-02) y cómo volver atrás

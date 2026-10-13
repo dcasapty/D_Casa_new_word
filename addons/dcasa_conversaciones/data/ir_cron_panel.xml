@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Una foto cada noche (23:50 en Panamá = 04:50 UTC) del gasto de IA acumulado: así Costos puede mostrar el gasto por día. -->
+    <record id="ir_cron_foto_de_costos" model="ir.cron">
+        <field name="name">Juan: foto diaria del gasto de IA</field>
+        <field name="model_id" ref="model_dcasa_juan_costo_dia"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_foto_diaria()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now().replace(hour=4, minute=50, second=0) + relativedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Los archivos que se subieron para una respuesta y nunca se enviaron se borran a los 2 días. -->
+    <record id="ir_cron_limpiar_subidas" model="ir.cron">
+        <field name="name">Juan: limpiar archivos subidos y no enviados</field>
+        <field name="model_id" ref="model_dcasa_conversacion"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_limpiar_subidas()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now().replace(hour=7, minute=10, second=0) + relativedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Cada noche (03:10 en Panamá = 08:10 UTC): a las preguntas sin respuesta se les busca lo que una vendedora contestó después.
+         Solo propone un borrador: la entrada de conocimiento la revisa y la activa Gerencia. -->
+    <record id="ir_cron_buscar_respuestas" model="ir.cron">
+        <field name="name">Juan: buscar lo que contestaron las vendedoras a preguntas sin respuesta</field>
+        <field name="model_id" ref="model_dcasa_pregunta_pendiente"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_buscar_respuestas()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now().replace(hour=8, minute=10, second=0) + relativedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Cada hora: las entradas de conocimiento nuevas o editadas reciben su huella de significado (solo si Gerencia encendió
+         la búsqueda por significado; si no, no hace nada). -->
+    <record id="ir_cron_calcular_vectores" model="ir.cron">
+        <field name="name">Juan: calcular la huella de significado del conocimiento</field>
+        <field name="model_id" ref="model_dcasa_conocimiento"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_calcular_vectores()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -440,3 +440,27 @@
     font-size: 1.3rem;
     margin-bottom: 14px;
 }
+
+// Resumen contable: tarjetas que llevan al detalle
+button.o_dc_kpi {
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    &:hover { border-color: var(--dc-azul-300); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dc_aviso.o_dc_clic { cursor: pointer; }
+.o_dc_aviso_info { background: #EFF6FF; color: #1E3A8A; border-color: #BFDBFE; }
+.o_dc_comparado { margin: 0 0 12px; }
+
+// Reglas de conciliación sugeridas
+.o_dc_reglas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    span { font-size: .82rem; color: var(--dc-tinta-3); }
+}

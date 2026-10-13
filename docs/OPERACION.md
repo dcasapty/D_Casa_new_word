@@ -54,9 +54,9 @@ Un bucket es una «carpeta» de almacenamiento. Se usan dos, uno por entorno, **
    Crear.
 3. Repetir con `dcasa-respaldos-staging`.
 4. No activar acceso público en ninguno.
-5. **No** crear reglas de ciclo de vida (*Object lifecycle rules*) que borren o expiren el prefijo
-   `adjuntos/`: ahí están las fotos y PDF del sistema y los borra solo Odoo, con su propio plazo
-   (ver «Adjuntos en R2» más abajo). Si alguna vez se agrega una regla, que sea solo para
+5. **No** crear reglas de ciclo de vida (*Object lifecycle rules*) que borren o expiren los prefijos
+   `adjuntos/` ni `fuentes/` (originales de fotos, ver «Cómo subir fotos»). En `adjuntos/` están las
+   fotos y PDF del sistema y los borra solo Odoo, con su propio plazo (ver «Adjuntos en R2» más abajo). Si alguna vez se agrega una regla, que sea solo para
    `pgbackrest/` o `pg_dump/`.
 
 ### 3. Crear los tokens de R2 (las llaves de los buckets)
@@ -90,7 +90,7 @@ openssl rand -hex 32
 | `PGBACKREST_CIPHER_PASS` | cifra los respaldos en R2 | **Nunca.** Sin ella, los respaldos no se pueden abrir |
 | `DCASA_PIN_PEPPER` | protege el PIN de los socios | **Nunca.** Cambiarla invalida el PIN de todos los socios |
 | `RESPALDO_TOKEN` | autoriza pedir un respaldo a mano | sí |
-| `TIENDA_FEED_TOKEN` | la tienda rápida (páginas estáticas): Odoo y el Worker se reconocen con ella | sí (se sube en cada despliegue) |
+| `TIENDA_FEED_TOKEN` | la tienda rápida (caché de páginas en el borde): Odoo y el Worker se reconocen con ella | sí (se sube en cada despliegue) |
 | `ODOO_ADMIN_PASSWORD` | clave del usuario `admin` de Odoo | sí (desde Odoo) |
 | `ODOO_MASTER_PASSWORD` | contraseña maestra de Odoo, distinta de la anterior | sí |
 
@@ -102,8 +102,9 @@ no deja volver a leerlas: esa copia es la única.
 GitHub → repositorio → *Settings* → **Environments**:
 
 1. Crear `staging` y `production`.
-2. En `production`: activar **Required reviewers** y ponerse como revisor; en *Deployment branches*
-   permitir solo `main`. Así **nada llega a producción sin tu aprobación**.
+2. En `production`: en *Deployment branches and tags* elegir *Selected branches* y permitir solo `main`.
+   («Required reviewers» no existe en este repositorio privado.) **Nada llega a producción sin que tú lo lances**:
+   un merge a `main` solo corre pruebas, y a producción se sale con *Run workflow* y `desplegar_en = produccion`.
 3. En cada uno, cargar los secretos y variables de la tabla de [DESPLIEGUE.md §3](DESPLIEGUE.md)
    (los de staging con las llaves de staging).
 
@@ -117,7 +118,9 @@ tocar nada y dice qué falta.
 1. GitHub → **Actions** → **CI/CD** → **Run workflow**.
 2. Rama `main`, *desplegar_en* = `staging` → **Run workflow**.
 3. Esperar a que todo quede en verde (tests ≈ 15-25 min, despliegue unos minutos más). El paso
-   «Esperar a que el sitio esté sano» confirma que respondió.
+   «Esperar a que el sitio esté sano» confirma que respondió. (Mientras espera visita `/web/login` en cada vuelta: la portada
+   sale de la copia guardada en el borde y **no** despierta a Odoo; así falló el despliegue 95, con el contenedor en
+   `stopped` durante los 20 minutos.)
 4. Abrir `URL_SITIO` de staging y luego `/web/login` → usuario `admin`, clave `ODOO_ADMIN_PASSWORD`
    de staging.
 5. Comprobar: portada, `/shop`, `/socios`, entrar al backend.
@@ -129,14 +132,28 @@ diario (no hay cambios que respaldar). Producción, en cambio, sigue encendida 2
 
 ## Desplegar a producción
 
-Cada vez que se aprueba y une un cambio a `main`, GitHub prueba todo y **espera tu aprobación**:
-Actions → la ejecución → **Review deployments** → *Approve*. Antes de desplegar hace un respaldo de la
-base; si el respaldo falla, no despliega.
+**Un cambio unido a `main` NO se despliega solo**: GitHub solo corre las pruebas. A producción se sale cuando
+tú lo lanzas: *Actions → CI/CD → Run workflow*, rama **`main`**, `desplegar_en` = **`produccion`**. Se vuelven a
+correr todas las pruebas y, si pasan, se despliega. Antes de desplegar hace un respaldo de la base; si el respaldo
+falla, no despliega. (Desde otra rama que no sea `main` falla con un aviso: es a propósito.)
 
 - Desplegar **fuera del horario de venta**: durante el cambio el sitio muestra «estamos arrancando»
   uno o dos minutos. Las sesiones se guardan en la base, así que al volver nadie tiene que iniciar
   sesión de nuevo ni pierde su carrito.
 - Si el cambio toca módulos de Odoo de forma importante, **probar primero en staging**.
+
+### Si GitHub dice «Artifact storage quota has been hit» (espacio lleno)
+
+Cada despliegue guarda en GitHub una copia temporal de la imagen (~420 MB, archivos `imagen-odoo-…`) que dura 1 día. Si
+hubo muchos despliegues seguidos, el espacio de GitHub se llena y el siguiente despliegue falla al subir la imagen. No
+es un error del sistema ni se pierde nada: **no toca R2, ni la base, ni las fotos, ni el repositorio**.
+
+1. *Actions → **Limpiar copias temporales** → Run workflow* con `borrar = false` (ensayo): el resumen de la ejecución
+   lista qué borraría, con nombre y tamaño. No borra nada.
+2. Si la lista es la esperada, lanzarlo de nuevo con `borrar = true`. Solo borra copias `imagen-odoo-…` de más de 24 horas.
+3. **Esperar 6 a 12 horas**: GitHub recalcula el espacio ocupado con ese retraso. Después se vuelve a lanzar el despliegue.
+
+Los registros de diagnóstico (simulacro, log de pruebas) ya no ponen la ejecución en rojo si no caben.
 
 ## Simulacro mensual de restauración
 
@@ -258,6 +275,76 @@ token de R2 no se puede limitar a una carpeta). No es una frontera nueva: Odoo y
 corren con el mismo usuario dentro del contenedor. La clave de cifrado de los respaldos
 (`PGBACKREST_CIPHER_PASS`) nunca llega a Odoo.
 
+## Cómo subir fotos (y Excel de pedidos)
+
+1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y poner la foto ahí. Se guarda
+   sola en R2 (`adjuntos/`) y sale en la web al momento. Es el camino normal del día a día.
+2. **Un pedido nuevo del proveedor**: mandarle a Brian (Telegram) el Excel del proveedor con el
+   **código** de cada producto; él arma la vista previa, gerencia confirma y los productos nacen sin
+   publicar, para publicarlos con Brian uno a uno (`docs/CATALOGO.md` › «Inventario nuevo…»).
+3. **Cargas grandes** (muchas fotos de una vez, un Excel completo): en GitHub, carpeta `up media`
+   → *Add file* → *Upload files* → *Commit changes*. GitHub las procesa solo (unos 15 minutos) y
+   deja el resultado en `up media/RESUMEN.md`. Nombre de cada foto = **código** del producto
+   (`CODIGO.jpg`, `CODIGO_2.jpg`…); para un pedido nuevo, el código al inicio del nombre.
+
+### Cómo leer `up media/RESUMEN.md`
+
+Se reescribe con cada subida (lo corre `.github/workflows/up-media.yml`). Tiene cuatro partes:
+
+- **Excel cargados**: qué Excel entró y a dónde se guardó (`fuentes/<pedido>/`).
+- **Fotos cargadas: a qué producto fue cada una**: una fila por foto con el producto, *cómo* se
+  asignó (por código, por descripción, o decisión revisada a mano) y dónde quedó el original.
+- **Lo que no se asignó y por qué**: lo **pendiente** sigue en `up media/` con su motivo (foto dudosa
+  entre dos productos, Excel que el programador aún no registró, PDF u otro tipo de archivo);
+  lo **conservado** son archivos de la dueña que no son fotos de producto pero sirven (las gráficas de
+  Black Weekend → `fuentes/graficas-black-weekend/`); lo **descartado** fue a `descartado/<fecha>/`
+  con el motivo en su `LEEME.md`. **Nada se borra**: si algo era de un producto, se vuelve a subir
+  con el código en el nombre.
+- **Cómo subir más**: las tres reglas de arriba.
+
+Las dudas del catálogo mismo (precios repetidos, medidas, fotos del Excel) están en
+`docs/CATALOGO_REVISAR.md`. Si la ejecución falla (Actions → *up media* en rojo), la bandeja queda
+tal cual se subió, no se publica nada y hay que avisar a quien mantiene el sistema: el RESUMEN que se
+habría escrito queda en el resumen de la ejecución.
+
+### Qué pasa por detrás (para quien mantiene el sistema)
+
+- `scripts/procesar_up_media.py` corre `scripts/importar_catalogo.py` (regenera `catalogo.json`, las
+  fotos optimizadas y `docs/CATALOGO_REVISAR.md`), mueve con `git mv` lo procesado y escribe el
+  RESUMEN y un `LEEME.md` histórico por carpeta destino. `--simular` imprime el RESUMEN sin mover nada.
+- El workflow prueba el resultado (tests del procesador: `python -m unittest discover -s scripts/tests`;
+  `scripts/test.sh dcasa_catalogo` instala el módulo con el catálogo nuevo) y **solo si pasa** hace el
+  commit con `GITHUB_TOKEN` y lo empuja a `main`; después construye la imagen de ese commit y la
+  despliega a **staging** con `desplegar.yml`. A producción se llega como siempre: CI/CD con aprobación.
+- Sin bucles: un push con `GITHUB_TOKEN` no dispara workflows, y el commit del bot lleva
+  `[skip up-media] [skip ci]`. Si `main` tuviera protección de rama que `GITHUB_TOKEN` no pueda
+  saltar, hace falta un PAT fino (*Contents: read and write* en este repositorio, con bypass) en el
+  secreto `UP_MEDIA_TOKEN`.
+- Una subida detrás de otra: las ejecuciones van en fila (`concurrency: up-media`) y cada una parte de
+  la punta de `main`, así no se pisan.
+- `up media/inventario-anterior/` es otra carga (capturas del sistema anterior) y el procesador no la
+  toca: las subcarpetas de la bandeja quedan «pendientes, de otro flujo».
+
+### Originales pesados: a R2 con `scripts/archivar_fuentes.sh`
+
+Los originales ya procesados viven en `fuentes/<pedido>/` (hoy ≈ 1 GB; la web usa las copias
+optimizadas de `addons/dcasa_catalogo/static/img/productos/`, y ni `up media/`, ni `fuentes/`, ni
+`descartado/` entran a la imagen Docker). Cuando el repositorio pese demasiado:
+
+1. `scripts/archivar_fuentes.sh listar [--minimo-mb 2]`: qué imágenes de `fuentes/` irían (sin red).
+2. `scripts/archivar_fuentes.sh subir`: las sube al bucket de producción (`R2_BUCKET`, las mismas
+   cuatro variables `R2_*` de los respaldos) con la **misma ruta** como clave (`fuentes/LTSC-07/…`),
+   verifica el tamaño y las anota en `fuentes/ARCHIVADO.tsv` (ruta, sha256, bytes, fecha).
+3. `scripts/archivar_fuentes.sh podar`: `git rm` de lo que ya está verificado en R2 y una nota en el
+   `LEEME.md` de cada carpeta. Revisar y hacer commit.
+4. Para volver a leerlos (regenerar una foto): `scripts/archivar_fuentes.sh traer` (verifica sha256).
+   El importador los sigue contando como fuente por el índice y avisa si tiene que leerlos.
+
+`--simular` muestra el plan sin tocar nada. **Nunca borra en R2**; el prefijo `fuentes/` no lleva
+reglas de ciclo de vida (como `adjuntos/`). Solo imágenes: los Excel y los LEEME se quedan en el
+repositorio. Lo que ya está en la historia de git no se achica con esto: la política vale para lo que
+entra desde ahora. Todavía no se ha ejecutado contra R2.
+
 ## Barandas de costo (hacer una vez, en el panel de Cloudflare)
 
 Nada de esto se configura desde el código: lo hace el dueño en el panel, una sola vez.
@@ -338,18 +425,86 @@ Las dos quedan también en Odoo: Ajustes → Técnico → **Registros** (`dcasa.
 `dcasa.reporte.alerta_gb` (0.7). Lo que Odoo ya limpia solo (visitantes del sitio a los 60 días,
 sesiones a los 7, notificaciones, bus) no se repite.
 
-## Tienda rápida (páginas estáticas del Worker)
+### Alertas por Telegram (disco, memoria, base y caídas del contenedor)
 
-La portada, el catálogo (`/shop`, categorías y páginas), las fichas, Visítanos, Privacidad y Términos
-se pueden servir **desde el borde de Cloudflare** en vez de pedírselas a Odoo cada vez: cargan en
-1-2 s en un celular y no gastan la CPU del contenedor. Las URL son **las mismas** de Odoo. El carrito,
-el pago, `/my` (portal del cliente), `/socios`, el panel y todo lo demás siguen en Odoo.
+Todas llegan por **el mismo bot de Brian** (`TELEGRAM_BOT_TOKEN`), al chat de la dueña y de los demás
+administradores que lo tengan vinculado (Brian → Telegram → vincular; es el mismo canal del aviso de
+inicios de sesión de administrador). Nada nuevo que crear.
+
+| Aviso | Quién lo manda | Cuándo (por defecto) | Variable que lo ajusta |
+|---|---|---|---|
+| Disco del contenedor lleno | Odoo, acción planificada «D'CASA: vigilancia de disco, memoria y tamaño de la base» (cada hora) | uso ≥ **80 %** del disco donde viven PostgreSQL y los archivos de Odoo | `DCASA_ALERTA_DISCO_PCT` (parámetro `dcasa.alerta.disco_pct`) |
+| Memoria cerca del límite | ídem | memoria **en uso real** (sin contar la caché de disco, que el kernel libera sola) ≥ **90 %** del límite del contenedor | `DCASA_ALERTA_MEMORIA_PCT` (`dcasa.alerta.memoria_pct`) |
+| La base pesa demasiado | ídem (y el reporte mensual del día 1) | base > **0,7 GB** | `DCASA_ALERTA_BASE_GB` (`dcasa.reporte.alerta_gb`) |
+| El kernel mató un proceso por falta de memoria | ídem | cada vez que `oom_kill` sube desde la revisión anterior | — |
+| El contenedor se cayó | El Worker (`contenedor_detenido` con código ≠ 0), porque en ese momento Odoo no está para avisar | cualquier parada con código distinto de 0 (una parada limpia por despliegue no avisa) | `DCASA_ALERTA_TELEGRAM_CHAT`: el **chat_id** de la dueña (lo muestra Brian al vincular). Sin él, queda solo en los logs del Worker |
+| El contenedor no arrancó | El Worker (`arranque_fallido`: no abrió el puerto en 7 min) | cada arranque fallido | ídem |
+
+Reglas para no inundar el chat: Odoo no repite **el mismo** aviso antes de **24 h**
+(`DCASA_ALERTA_SILENCIO_H`, parámetro `dcasa.alerta.silencio_h`; en el log y en Ajustes → Técnico →
+Registros queda cada vez), y el Worker manda como mucho un aviso cada 10 min. `DCASA_ALERTA_TELEGRAM=0`
+apaga los avisos de Odoo (siguen saliendo en el log como `DCASA_ALERTA`). Los umbrales se pueden
+cambiar también en Ajustes → Técnico → Parámetros del sistema, sin desplegar.
+
+Qué hacer al recibir uno: disco o base → sacar adjuntos a R2 (`DCASA_ADJUNTOS=r2`, ya es lo normal) y
+revisar «Depuración y reporte mensual»; memoria u `oom_kill` → mirar `"evento": "memoria"` en los logs del
+contenedor y, si se repite, subir el tipo de instancia (`edge/wrangler.jsonc`); caída → «Si el sitio se
+cae» y revisar la última factura o pedido.
+
+### Acciones planificadas de Odoo que se apagan o espacian
+
+Odoo trae acciones planificadas (Ajustes → Técnico → Acciones planificadas) para funciones que D'CASA
+no usa. En cada instalación o actualización de `dcasa_base` (y tras quitar los módulos sobrantes en el
+arranque) se dejan así, de forma idempotente; si alguien las vuelve a encender, la siguiente
+actualización las apaga de nuevo. Si la tienda activa la función (p. ej. configura un correo entrante o
+enciende la asignación de iniciativas), Odoo vuelve a encender el cron por su cuenta.
+
+| Acción planificada de Odoo | Qué se hace | Por qué |
+|---|---|---|
+| Mail: Fetchmail Service (cada 5 min) | apagada | no hay servidor de correo entrante |
+| Publisher: Update Notification (semanal) | apagada | manda estadísticas anónimas de la instalación a Odoo S.A. |
+| CRM: Lead Assignment (diaria) | apagada | no se usan reglas de asignación por equipo |
+| Predictive Lead Scoring (diaria) | pasa a **semanal** | pocas iniciativas: basta recalcular una vez por semana |
+| CRM: enrich leads (IAP) | apagada | servicio de pago de Odoo que no se contrata |
+| Digest Emails (diaria) | apagada | correos de KPI que nadie pidió |
+| Users: Notify About Unregistered Users (diaria) | apagada | recordatorios por correo a usuarios invitados; no se invita por correo |
+| Calendar: Event Reminder (diaria) | apagada | el calendario está oculto |
+| SMS Queue Manager, Snailmail (diarias) | apagadas | SMS y correo postal de pago; además esos módulos se desinstalan |
+| eCommerce: abandoned cart email (cada hora) | pasa a **diaria** | el CTA es WhatsApp y la opción está apagada en Ajustes del sitio |
+
+Los crons propios (respaldos, caché del borde, factura electrónica, sesiones, recolección de adjuntos en
+R2, Socios, purga de accesos, depuración y vigilancia) **no se tocan**. La lista vive en
+`CRONS_ODOO` (`addons/dcasa_base/models/mantenimiento.py`), con test.
+
+## Tienda rápida (caché de páginas en el borde)
+
+La portada, el catálogo (`/shop`, categorías y páginas), las fichas, Black Weekend, Visítanos,
+Privacidad y Términos se pueden servir **desde el borde de Cloudflare** a los visitantes anónimos en
+vez de pedírselas a Odoo cada vez. Es **la misma página que dibuja Odoo**, guardada tal cual: mismo
+navbar píldora, héroe, footer y diseño (no hay una segunda plantilla que mantener). Quien entró con
+usuario, tiene carrito o lista de deseos, o es socio con sesión, recibe siempre la página de Odoo
+(con su carrito y su menú). El carrito, el pago, `/my`, `/socios` y el panel siempre son de Odoo.
 
 **Cómo se mantiene al día.** Cada cambio que se ve en el sitio (precio, nombre, publicar/despublicar,
-fotos, categorías, existencias, una venta confirmada o cancelada, una factura publicada) deja una
-marca en Odoo; a los ~20 segundos Odoo avisa al Worker y el Worker regenera las páginas que cambiaron
-(normalmente en menos de un minuto; Cloudflare tarda hasta ~60 s más en propagarlas). Además, cada
-hora el Worker revisa todo por si un aviso se perdió.
+fotos, categorías, existencias, una venta o factura, ajustes del sitio, ediciones con el constructor
+de sitios, menú, tarifas, Black Weekend) deja una marca en Odoo; a los ~20 segundos Odoo avisa al
+Worker, que da por viejas todas las páginas guardadas y vuelve a pedir la portada, `/shop`,
+`/black-weekend` y las fichas que cambiaron (las demás, con la primera visita). Otros centros de datos
+de Cloudflare pueden tardar ~1-2 min más. Además, ninguna página se sirve sin pedirla de nuevo a
+Odoo pasada una hora.
+
+**Qué pasa si Odoo se reinicia (despliegue, caída, reinicio del host).** El borde guarda, junto con
+cada página, lo que esa página necesita para verse bien: los estilos, el JS, las fuentes, el logo y la
+foto principal. Mientras el contenedor arranca (~1 min), la portada, el catálogo y las fichas que ya
+estaban guardadas salen **enteras** del borde y nadie nota nada; lo que no estaba guardado (una ficha
+que nadie visitó, el carrito, pagar) recibe la página de «Estamos abriendo la tienda», que se recarga
+sola. Si a una página guardada le faltaran los estilos en el borde (p. ej. Odoo no los pudo dar cuando
+se guardó), el borde prefiere mostrar esa misma página de espera antes que una página sin estilos:
+**nunca** debe verse rota. En `https://<sitio>/__edge/health`, el campo `tienda.sobrevive_reinicio`
+dice si en este momento la portada y el catálogo saldrían enteros del borde (`rutas` detalla cada una:
+`completa`, `sin_assets`, `vieja`, `falta`). Tras un despliegue, Odoo avisa al abrir y el borde vuelve
+a guardar las páginas con los estilos nuevos; los viejos se borran solos a los 30 días. Costo: dentro
+de lo incluido en el plan de Workers (estimación en `edge/CONTRATO_CONTENEDOR.md` §5).
 
 **Encenderla:**
 
@@ -357,26 +512,86 @@ hora el Worker revisa todo por si un aviso se perdió.
    GitHub → Environments → `staging` (y luego `production`).
 2. El token de despliegue de Cloudflare necesita además el permiso **Workers KV Storage: Edit**
    (el primer despliegue crea solo el almacén «TIENDA» de cada entorno).
-3. Desplegar. Staging ya viene con `TIENDA_ESTATICA = "on"`: revisar `https://<staging>/`, `/shop` y una
-   ficha (la cabecera `X-Dcasa-Tienda: estatica` confirma que salió del borde). Staging nunca se
-   indexa en Google (`X-Robots-Tag: noindex` en todas sus respuestas).
-4. Si Odoo todavía no avisó nada, forzar la primera generación:
-   `curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`
-   (responde con cuántas páginas escribió).
-5. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
+3. Desplegar. Staging viene con `TIENDA_ESTATICA = "on"`: abrir `https://<staging>/`, `/shop` y una
+   ficha en una ventana privada; la cabecera `X-Dcasa-Cache: HIT` (o `MISS` la primera vez) confirma
+   que salió del borde, también en el CSS (`/web/assets/…`) y las fuentes de la pestaña Red. Con
+   sesión iniciada la página debe decir `BYPASS`. Staging nunca se indexa en Google (`X-Robots-Tag:
+   noindex` en todas sus respuestas). Prueba de fuego: reiniciar el contenedor (o desplegar) y abrir
+   la portada en el celular mientras arranca: debe verse igual que siempre.
+4. Para producción: cambiar `TIENDA_ESTATICA` a `"on"` en `edge/wrangler.jsonc` (raíz) y desplegar.
    Para apagarla: `"off"` y desplegar; todo vuelve a salir de Odoo al instante.
 
-**Si algo se ve viejo:** repetir el paso 4. Si el Worker no puede leer una página, la pide a Odoo
-(nunca una página en blanco). Logs: eventos `tienda_regenerada` y `tienda_lectura_fallida`.
+**Si algo se ve viejo:** forzar la invalidación
+`curl -X POST -H "Authorization: Bearer <TIENDA_FEED_TOKEN>" https://<sitio>/__edge/tienda/regenerar`.
+Si el Worker no puede leer el almacén, la página la da Odoo (nunca una página en blanco). Logs:
+eventos `paginas_invalidadas`, `paginas_precalentadas` (con cuántas páginas y assets), `pagina_retenida`
+(se dio la página de espera porque faltaban estilos y Odoo no estaba), `pagina_lectura_fallida`,
+`pagina_escritura_fallida`, `asset_lectura_fallida`, `asset_escritura_fallida`,
+`asset_precalentar_fallido`.
+
+## El sitio se edita por código
+
+El sitio (`dcasapty.com`) **se construye y se cambia solo desde el repositorio** (`addons/website_dcasa`)
+y llega con cada despliegue. Odoo trae además un constructor de páginas («Sitio web → Editar», «Nuevo
+→ Página», galería de plantillas); en D'CASA **está apagado a propósito**. El porqué, en lenguaje llano,
+está en [auditoria/ronda7/constructor-web.md](auditoria/ronda7/constructor-web.md). En corto: al guardar
+una página con el constructor, Odoo hace una copia de esa página para el sitio y, desde entonces, lo
+que llegue por código ya no se ve en ella (las dos versiones chocan y gana la copia).
+
+**Lo que queda en el panel (menú «Sitio web», solo Gerencia):**
+
+| Entrada | Para qué |
+|---|---|
+| **Vista previa móvil** | el sitio tal como lo ve un visitante, en un marco de teléfono (390×844), tableta (768) o escritorio (1440). Atajos a Inicio, Tienda, Socios y Visítanos, cualquier dirección a mano, «Recargar» y «Abrir aparte». También desde el Inicio: botón **Ver en el celular**. Nunca abre el modo edición |
+| Sitio → Contenido → **Páginas** | ver las páginas y **publicarlas o despublicarlas**; al pulsar una fila se abre en la vista previa móvil. Nombre, dirección y contenido vienen del código; el título y la descripción para Google solo los puede cambiar un administrador (Odoo los guarda en la vista) |
+| Sitio → Contenido → **Productos** y eCommerce → **Productos** | publicar/despublicar productos en la tienda, fotos, descripciones, categorías: esto sí es trabajo del día a día |
+| eCommerce → **Pedidos** | pedidos, carritos abandonados y clientes de la tienda en línea |
+| Reportes → **Ventas en línea** | lo vendido por la tienda |
+| **Configuración** (solo administradores) | el WhatsApp del sitio, medios de pago, entregas |
+
+Lo que **no** está: Editar, Nueva página, editor de menús, propiedades/SEO/HTML de «esta página»,
+páginas técnicas, temas y bloques, y los reportes de visitantes (la tienda se sirve desde la caché de
+Cloudflare, así que Odoo no ve a los visitantes anónimos: las visitas se miran en el panel de Cloudflare).
+
+**Cómo se sostiene (módulo `dcasa_interfaz`):**
+
+1. **Nadie tiene los grupos «Sitio web / Editor» ni «Editor y diseñador»**, ni la dueña. Odoo se los da
+   solo a `admin` y a todo administrador (Ajustes); el módulo los retira **en cada actualización**
+   (`dcasa.sitio._sitio_por_codigo`, idempotente), también de los roles Vendedora y Gerencia. Sin esos
+   grupos, Odoo no muestra «Editar» ni «Nuevo» en ninguna parte (ni en el sitio ni en el panel).
+2. **Guarda de seguridad.** Aunque alguien consiguiera el grupo, las plantillas de D'CASA
+   (`website_dcasa.*`, `dcasa_*.*` y la portada `website.homepage`) no admiten copias por sitio ni
+   ediciones desde el panel: Odoo responde «Esta página se mantiene desde el código y no se edita desde
+   aquí: pide el cambio a quien mantiene el sitio». Las copias que Odoo hace por su cuenta (al instalar:
+   `website.homepage` y la portada de D'CASA que hereda de ella; las opciones de la tienda de
+   `website_sale`) no se tocan, y nada de esto frena instalar o actualizar módulos (corren como
+   superusuario). Solo frena a una persona en el panel; `sudo()` y las funciones de datos pasan.
+3. Los menús del constructor se cuelgan del grupo «Editor y diseñador»: si algún día se le devuelve a
+   alguien, vuelve todo junto.
+
+**Cómo comprobarlo:** Ajustes → Usuarios → cualquier usuario → pestaña de permisos: en «Sitio web» no debe
+haber nada marcado. Si alguien ve «Editar» o «Nuevo» en el panel, es que tiene el grupo: una
+actualización del módulo (`make update` o el despliegue) se lo quita.
+
+**Si algún día la dueña quiere el constructor (no recomendado mientras el sitio se mantenga por código):**
+
+1. Ajustes → Técnico → Parámetros del sistema → crear `dcasa_interfaz.sitio_editable` = `1` (apaga la
+   guarda del punto 2; con `0` o borrándolo vuelve).
+2. Ajustes → Usuarios → la dueña → pestaña de permisos → **Sitio web: Editor y diseñador**. Dura hasta la
+   siguiente actualización del módulo (que lo retira); para que sea permanente hay que quitar esa regla
+   del código (`addons/dcasa_interfaz/models/sitio.py`) o cambiar la política.
+3. Avisar a quien mantiene el sitio: toda página guardada con el constructor deja de recibir los cambios
+   del código hasta que se borre su copia por sitio (Ajustes → Técnico → Vistas, filtro «Sitio web»).
 
 ## Dónde ver los logs
 
 | Qué | Dónde |
 |---|---|
 | Lo que pasa en el sitio (arranques, caídas, respaldos) | Panel de Cloudflare → *Workers & Pages* → `dcasa` (o `dcasa-staging`) → **Logs**. Buscar eventos `arranque_listo`, `arranque_fallido`, `contenedor_detenido`, `respaldo` |
-| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs. Para no gastar eventos de log, Odoo no escribe una línea por visita (`werkzeug:WARNING`; los errores sí salen) y PostgreSQL no anota los *checkpoints*. Para depurar: variable `ODOO_LOG_HANDLER=werkzeug:INFO` |
+| El contenedor (Odoo y PostgreSQL por dentro) | Panel → *Workers & Pages* → **Containers** → `dcasa-odoocontainer` → instancias y logs. Para no gastar eventos de log, en producción Odoo escribe solo avisos y errores (`ODOO_LOG_LEVEL`, por defecto `warn`; staging `info`), no escribe una línea por visita (`werkzeug:WARNING`) y PostgreSQL no anota los *checkpoints*. Las métricas de D'CASA (`DCASA_METRICA`, `DCASA_LIMPIEZA`, `DCASA_ALERTA`) y la línea `"evento": "memoria"` salen igual. Para depurar: variables `ODOO_LOG_LEVEL=info` y `ODOO_LOG_HANDLER=werkzeug:INFO` |
+| Alertas por Telegram | En el chat del bot de Brian (ver «Alertas por Telegram»). En los logs: Odoo deja `DCASA_ALERTA …` y en Ajustes → Técnico → Registros (`dcasa.alerta`); el Worker deja `alerta_telegram` (enviada o no), `alerta_sin_canal` (falta `DCASA_ALERTA_TELEGRAM_CHAT`) o `alerta_telegram_fallida` |
 | Memoria real del contenedor | Buscar `"evento": "memoria"` en los logs del contenedor: una línea ~3 min después de cada arranque (`momento: arranque`) y otra cada vez que Odoo se cae (`odoo_caido`). `cgroup.anon` = memoria que de verdad usan los procesos; `cgroup.file` = caché de disco (el kernel la libera sola; el gráfico del panel puede incluirla); `procesos.odoo` / `procesos.postgres` = RSS y PSS (la PSS de PostgreSQL es la buena: la RSS cuenta `shared_buffers` en cada proceso); `cgroup.eventos.oom_kill` > 0 = el kernel mató un proceso por falta de memoria. También va dentro del reporte mensual (`DCASA_METRICA`) |
-| Depuración y tamaños del mes | Logs del contenedor: `DCASA_LIMPIEZA`, `DCASA_METRICA`, `DCASA_ALERTA`; o en Odoo: Ajustes → Técnico → **Registros** |
+| Depuración y tamaños del mes; disco y memoria cada hora | Logs del contenedor: `DCASA_LIMPIEZA`, `DCASA_METRICA`, `DCASA_ALERTA`; o en Odoo: Ajustes → Técnico → **Registros** |
 | En vivo desde una terminal | `cd edge && npx wrangler tail --env=""` (staging: `--env=staging`) |
 | Despliegues y pruebas | GitHub → **Actions** → la ejecución → cada paso; el *Summary* trae la versión desplegada y el respaldo previo |
 
@@ -389,3 +604,115 @@ hora el Worker revisa todo por si un aviso se perdió.
 | mes | simulacro de restauración en staging; revisar la factura de Cloudflare (*Billable Usage*) y el reporte `DCASA_METRICA` del día 1 (¿la base se acerca a 0,7 GB?) |
 | enero | comprobar con `dcasa-respaldo info` que existe la copia anual del año que cerró |
 | siempre | las claves `PGBACKREST_CIPHER_PASS` y `DCASA_PIN_PEPPER` guardadas en el gestor de contraseñas, nunca cambiadas |
+
+## Contrato visual de la cabecera y del hero (pedido de la dueña: «que este navbar nunca más se vuelva a dañar»)
+
+El diseño aprobado de la píldora de vidrio líquido y del hero de la portada está fijado en un test
+que abre el sitio en Chrome a 1440 y 390 px (`addons/website_dcasa/tests/test_contrato_visual.py`),
+en las cinco páginas tipo: `/`, `/shop`, una ficha, `/socios` y `/black-weekend`. Tiene dos niveles:
+
+| Nivel | Qué mide | Falla cuando… |
+|---|---|---|
+| **Estilos computados** (bloqueante, siempre) | `.o_main_nav::before`: `backdrop-filter` con `blur(` y `saturate(`, tinte `rgba(255,255,255,.62)` con texto tinta (vidrio claro: tienda, ficha) o `rgba(0,0,0,.26)` con texto blanco (ahumado: portada, socios, Black Weekend), radio de píldora `32px`, filos de luz, **los mismos valores en todas las páginas del mismo tipo**; hamburguesa visible en el celular. Hero de la portada: `.o_dcasa_hero_texto` sin fondo, texto blanco con halo, velo negro plano del 35-50 %, nada azul ni navy detrás del titular | cualquier valor se sale del contrato. No depende de la versión de Chrome ni de las fuentes del sistema: si falla, el navbar o el hero cambiaron de verdad |
+| **Píxeles contra las referencias** | capturas de la cabecera (todas las páginas) y del hero (portada, a media resolución) contra `addons/website_dcasa/tests/referencia/*.webp` (sin pérdida). Cuenta los píxeles con una diferencia > 40/255 en algún canal | superan la tolerancia: **1,5 %** en local, **6 %** en CI (`CI=true`); `DCASA_TOLERANCIA_VISUAL` manda sobre ambas |
+
+Las capturas son deterministas: viewport fijo, `prefers-reduced-motion: reduce`, animaciones y
+transiciones apagadas, `document.fonts.ready`, fotos de la cabecera y del hero cargadas, barra de
+desplazamiento oculta, cabecera ya medida por el observador del sitio.
+
+**Regla: cambiar la cabecera o el hero exige regenerar las referencias en el mismo commit.**
+
+```bash
+scripts/actualizar_referencias_visuales.sh          # usa scripts/test.sh con DCASA_REFERENCIAS_VISUALES=regenerar
+git add addons/website_dcasa/tests/referencia       # y se suben junto con el cambio de SCSS/plantilla
+```
+
+El script corre primero el contrato de estilos: si el navbar o el hero rompieron el contrato, falla y
+no reescribe nada. Antes de subir las capturas, míralas: son lo que verá la dueña.
+
+Cuando el test de píxeles falla, deja la captura actual y la máscara de diferencias en la carpeta de
+capturas de Odoo (`screenshots/…/contrato_visual/visual_*_actual.png` y `*_diff.png`; la ruta sale
+en el log) para ver qué se movió.
+
+Por qué los píxeles no son el nivel bloqueante: el rasterizado del texto, el antialiasing y el
+desenfoque del vidrio cambian entre versiones de Chrome y entre sistemas (el Chrome del runner de
+GitHub no es el Chromium local), y una diferencia de un píxel en el borde de cada letra ya mueve
+el 1-2 % de la cabecera sin que el diseño haya cambiado. Por eso el contrato de estilos computados
+es el que garantiza el diseño, y los píxeles son la red de seguridad contra lo que los estilos no
+ven (una foto distinta, un elemento que se coló encima, una placa dibujada por otra regla). En CI
+(`CI=true`) la tolerancia por defecto es del 6 %; en local y al regenerar, del 1,5 %. Si en CI la
+diferencia es consistentemente alta sin cambio de diseño, regenera las referencias desde el
+runner (`DCASA_TOLERANCIA_VISUAL` solo sube el umbral, nunca apaga la comparación).
+
+## Contrato visual de la pantalla de Conversaciones de Juan
+
+La pantalla de Conversaciones (y Resumen, Costos de IA y Conexiones) tiene su propio contrato, con el mismo método que la cabecera del
+sitio: `addons/dcasa_conversaciones/tests/test_panel_visual.py`, medido en Chrome a 1440 y 390 px.
+
+| Nivel | Qué mide | Falla cuando… |
+|---|---|---|
+| **Estilos computados** (bloqueante) | Sistema plano: ningún degradado, ninguna sombra de texto, ninguna sombra de más de 16 px de desenfoque ni 8 px de caída. El amarillo `#FED00F` solo sobre azul marino (nunca texto, ícono ni fondo amarillo sobre un fondo claro). Contraste del texto de al menos 4,5:1 (3:1 si es grande). **Foco visible con Tab de verdad** (`:focus-visible` con contorno o anillo) en cada control | un estilo nuevo se sale de la marca o de la accesibilidad. No depende de la versión de Chrome |
+| **Píxeles contra las referencias** | la lista, un hilo abierto y Conexiones, a 1440 (media resolución) y 390 px, contra `addons/dcasa_conversaciones/tests/referencia/panel-*.webp` (sin pérdida), con la misma tolerancia que el contrato del sitio (**1,5 %** local, **6 %** en CI, `DCASA_TOLERANCIA_VISUAL` manda) | el diseño cambió de verdad |
+
+Las capturas son deterministas: reloj del navegador fijo (10 de marzo de 2026, 10:00 en Panamá) y mensajes fechados respecto a él, viewport
+fijo, `prefers-reduced-motion: reduce`, sin animaciones, sin barras de desplazamiento y fuentes e imágenes cargadas.
+
+**Cambiar la pantalla exige regenerar las referencias en el mismo commit:**
+
+```bash
+scripts/actualizar_referencias_visuales_juan.sh      # scripts/test.sh con DCASA_REFERENCIAS_VISUALES=regenerar
+git add addons/dcasa_conversaciones/tests/referencia
+```
+
+Las capturas que se le enseñan a la dueña (las ocho pantallas, escritorio y celular, con el catálogo real de la base) se generan
+con `DCASA_CAPTURAS_JUAN=docs/auditoria/ronda7/capturas TEST_TAGS=/dcasa_conversaciones:TestContratoVisualJuan.test_capturas_para_la_duena scripts/test.sh dcasa_conversaciones`
+y se llaman `juan-panel-<pantalla>-<escritorio|celular>.webp`.
+
+## Inicio: accesos directos (pedido de la dueña, 2026-10-10)
+
+Al abrir el panel, arriba del tablero hay dos accesos grandes: **Productos** (la lista, con stock, precio y
+categorías ordenables: `docs/CATALOGO.md`) y **Conversaciones** (el chat de Juan; muestra cuántas hay sin leer). Cada
+uno sale solo si la persona tiene permiso y el módulo está instalado (`dcasa_interfaz`, `models/tablero.py › _atajos`).
+Para agregar otro acceso: una entrada más en `_atajos` con el `xml_id` de la acción y un test en
+`addons/dcasa_interfaz/tests/test_interfaz.py`.
+
+## El CRM se ajusta solo (acción planificada)
+
+Cada 15 minutos corre **«Juan: ajustar el CRM»** (`crm.lead._dcasa_cron_crm`, módulo `dcasa_conversaciones`): lee las
+oportunidades que nacieron de una conversación y aplica las reglas fijas de `docs/CRM_AUTOMATICO.md` (cotizada, ganada,
+temperatura, sin respuesta). Cada oportunidad se procesa aparte: un error se escribe en el registro del servidor
+(«CRM automático: falló …») y no frena a las demás. Para apagarlo sin tocar código: *Conversaciones › Configuración ›
+Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pendientes, el log avisa que ese turno revisó solo
+las 500 más nuevas.
+
+
+## Apartados: cuánto duran y qué pasa si el cliente no llega (decisión de la dueña, 2026-10-09 y 2026-10-10)
+
+Un «apartado» es un **pedido** de Odoo (no una factura: la factura nace al cobrar o entregar). Hay dos formas:
+
+* **De la tienda web.** Con «Pago al recibir o en la tienda» el pedido se confirma solo y reserva el inventario; con
+  transferencia o Yappy queda como cotización enviada. En cuanto queda por cobrar recibe una fecha:
+  **hoy + 7 días** (*Ajustes › Sitio web › Apartados de la tienda*; **0 = nunca vence**).
+* **A mano** (WhatsApp, mostrador). La vendedora pulsa **«Apartar»** en el pedido (enviado o confirmado) y cuenta los
+  mismos días. Un pedido hecho a mano **sin** ese botón es una venta normal y no vence nunca. Si ella confirma un
+  apartado a mano, la fecha se queda (la puso ella); si confirma un pedido de la web, la fecha se borra (lo tomó ella).
+
+**Si el cliente no llega.** Cada noche a las 2:00 a. m. de Panamá (acción planificada «anular apartados que nadie
+reclamó», `sale.order._dcasa_cron_vencer_apartados`) se anula todo pedido con fecha vencida: se cancela la entrega (el
+inventario vuelve a quedar libre), si usó puntos de un premio se le devuelven, y queda la nota «Apartado vencido…» en el
+pedido. El último día todavía vale: aparta el 9 y la fecha es el 16, se anula en la madrugada del 17. **Nunca** se anula
+solo lo que ya tiene factura publicada, pago hecho o autorizado, o entrega hecha. Una vendedora puede **mover la fecha**
+(dar más días) o **borrarla** (la venta ya es firme) en el mismo pedido.
+
+**Avisos.** El sistema **no** le escribe al cliente. Cuando faltan 2 días o menos (`DIAS_DE_AVISO`) la vendedora del
+pedido recibe una actividad «Apartado por vencer: avisa al cliente» con el nombre, el teléfono y la fecha; el aviso al
+cliente lo manda ella por WhatsApp. Sale una sola vez por fecha de vencimiento (si la marca como hecha no vuelve a salir;
+si mueve la fecha, el aviso viejo se quita y llega otro a su hora). Un pedido sin vendedora no genera actividad, pero
+aparece igual en la lista.
+
+**La lista.** *Ventas › Hoy › Apartados por vencer* (`/odoo/apartados`): del que vence primero al que vence al final, en
+rojo los que vencen hoy o mañana; filtros «Vencen en 2 días o menos», «De la tienda web», «Hechos a mano», «Mis
+apartados».
+
+Pendiente (no construido): el botón «Apartar» del cliente en la ficha del producto con abonos (porcentaje mínimo, plazo y
+qué pasa con los abonos si vence: lo define la dueña con el abogado; `docs/auditoria/ronda5/pagos-y-apartados.md`).

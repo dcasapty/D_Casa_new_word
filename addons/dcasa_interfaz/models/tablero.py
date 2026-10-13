@@ -55,6 +55,41 @@ class DcasaTablero(models.AbstractModel):
     # Datos
     # ------------------------------------------------------------------
 
+    def _atajos(self, permisos):
+        """Los accesos grandes del Inicio: Productos, Conversaciones y Oportunidades.
+
+        Solo los que quien mira puede abrir. Conversaciones y Oportunidades viven en otro módulo: si no está instalado
+        (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista con la que abre. Productos es la
+        lista donde se ordena y filtra por stock, precio y categoría (dcasa_catalogo): marketing arma ahí las
+        campañas.
+        """
+        atajos = []
+        if permisos['catalogo'] and self.env.ref('sale.product_template_action', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'productos', 'titulo': 'Productos', 'detalle': 'Stock, precio y categoría',
+                'icono': 'fa-th-large', 'accion': 'sale.product_template_action', 'vista': 'list'})
+        conversaciones = self.env.get('dcasa.conversacion')
+        if conversaciones is not None and conversaciones.has_access('read') \
+                and self.env.ref('dcasa_conversaciones.accion_conversaciones', raise_if_not_found=False):
+            sin_leer = len(conversaciones._ids_con_sin_leer())
+            atajos.append({
+                'clave': 'conversaciones', 'titulo': 'Conversaciones',
+                'detalle': 'Todo al día' if not sin_leer else f'{sin_leer} sin leer',
+                'icono': 'fa-comments', 'accion': 'dcasa_conversaciones.accion_conversaciones', 'vista': None,
+                'cuenta': sin_leer})
+        oportunidades = self.env.get('crm.lead')
+        if oportunidades is not None and 'dcasa_temperatura' in oportunidades._fields \
+                and oportunidades.has_access('read') \
+                and self.env.ref('dcasa_conversaciones.accion_oportunidades_hoy', raise_if_not_found=False):
+            para_hoy = oportunidades.search_count([('dcasa_para_hoy', '=', True)])
+            atajos.append({
+                'clave': 'oportunidades', 'titulo': 'Oportunidades',
+                'detalle': 'Nadie por ahora' if not para_hoy else
+                           ('1 para escribirle hoy' if para_hoy == 1 else f'{para_hoy} para escribirles hoy'),
+                'icono': 'fa-fire', 'accion': 'dcasa_conversaciones.accion_oportunidades_hoy', 'vista': None,
+                'cuenta': para_hoy})
+        return atajos
+
     @api.model
     def obtener_datos(self):
         hoy = fields.Date.context_today(self)
@@ -70,6 +105,7 @@ class DcasaTablero(models.AbstractModel):
             'top': [],
             'permisos': self._permisos(),
         }
+        datos['atajos'] = self._atajos(datos['permisos'])
         if self._puede('sale.order'):
             self._cifras_de_ventas(datos, hoy, inicio, fin)
         if datos['permisos']['ver_cobros']:
@@ -86,20 +122,43 @@ class DcasaTablero(models.AbstractModel):
 
     def _cifras_de_ventas(self, datos, hoy, inicio, fin):
         Order = self.env['sale.order']
+        # Una sola lectura para «Vendido hoy» y las barras de la semana (antes: 8 búsquedas que
+        # cargaban los pedidos enteros). Cada pedido cae en su día de Panamá, no en el de UTC.
+        zona = self._zona()
+        inicio_semana = self._limites_del_dia(hoy - timedelta(days=6))[0]
+        ventas_semana = Order.search_read(
+            [('state', '=', 'sale'), ('date_order', '>=', inicio_semana), ('date_order', '<', fin)],
+            ['date_order', 'amount_total'])
+        por_dia = {}
+        for venta in ventas_semana:
+            dia = pytz.utc.localize(venta['date_order']).astimezone(zona).date()
+            cuenta, monto = por_dia.get(dia, (0, 0.0))
+            por_dia[dia] = (cuenta + 1, monto + venta['amount_total'])
+
         de_hoy = [('state', '=', 'sale'), ('date_order', '>=', inicio), ('date_order', '<', fin)]
-        ventas = Order.search(de_hoy)
+        cuantas, vendido = por_dia.get(hoy, (0, 0.0))
         datos['cifras'].append({
-            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'valor': sum(ventas.mapped('amount_total')),
-            'formato': 'moneda', 'detalle': f'{len(ventas)} venta' + ('' if len(ventas) == 1 else 's'),
+            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'valor': vendido,
+            'formato': 'moneda', 'detalle': f'{cuantas} venta' + ('' if cuantas == 1 else 's'),
             'accion': _accion('Ventas de hoy', 'sale.order', de_hoy),
         })
         abiertas = [('state', 'in', ('draft', 'sent')), ('website_id', '=', False)]
-        cotizaciones = Order.search_read(abiertas, ['amount_total'])
+        cotizaciones = Order.search_read(abiertas, ['amount_total', 'user_id'])
         datos['cifras'].append({
             'clave': 'cotizaciones', 'titulo': 'Cotizaciones abiertas', 'valor': len(cotizaciones),
             'formato': 'numero', 'detalle_moneda': sum(c['amount_total'] for c in cotizaciones),
             'accion': _accion('Cotizaciones abiertas', 'sale.order', abiertas),
         })
+        # La vendedora ve aparte las suyas: las que le toca seguir por WhatsApp. Gerencia ya
+        # tiene el total de la tienda en la tarjeta anterior.
+        if not self.env.user.has_group('sales_team.group_sale_manager'):
+            mias = abiertas + [('user_id', '=', self.env.uid)]
+            propias = [c for c in cotizaciones if c['user_id'] and c['user_id'][0] == self.env.uid]
+            datos['cifras'].append({
+                'clave': 'mis_cotizaciones', 'titulo': 'Mis cotizaciones', 'valor': len(propias),
+                'formato': 'numero', 'detalle_moneda': sum(c['amount_total'] for c in propias),
+                'accion': _accion('Mis cotizaciones abiertas', 'sale.order', mias),
+            })
         web = [('website_id', '!=', False), ('state', '=', 'sale'), ('delivery_status', '!=', 'full')]
         datos['cifras'].append({
             'clave': 'web', 'titulo': 'Pedidos web por atender', 'valor': Order.search_count(web),
@@ -109,10 +168,7 @@ class DcasaTablero(models.AbstractModel):
         # Ventas de los últimos 7 días (barras del tablero).
         for atras in range(6, -1, -1):
             dia = hoy - timedelta(days=atras)
-            d_inicio, d_fin = self._limites_del_dia(dia)
-            monto = sum(Order.search([
-                ('state', '=', 'sale'), ('date_order', '>=', d_inicio), ('date_order', '<', d_fin),
-            ]).mapped('amount_total'))
+            monto = por_dia.get(dia, (0, 0.0))[1]
             datos['semana'].append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': monto, 'hoy': atras == 0})
         # Lo más vendido del mes.
         lineas = self.env['sale.order.line'].read_group(
@@ -192,3 +248,16 @@ class DcasaTablero(models.AbstractModel):
         apps = self.env.ref('base.open_module_tree', raise_if_not_found=False)
         if apps:
             apps.domain = "[('to_buy', '=', False)]"
+
+    @api.model
+    def _dcasa_configurar_panel(self):
+        """Ajustes del panel que se repiten en cada actualización (views/panel_views.xml).
+
+        Sin «enriquecimiento» de la empresa con el servicio IAP de Odoo: al primer ingreso de
+        un administrador, ``partner_autocomplete`` llamaba a odoo.com en el arranque del panel
+        (~70 consultas y una espera de red) y podía reemplazar el logo de D'CASA por el que
+        encuentre para el dominio del correo. Los datos de la empresa los pone dcasa_base.
+        """
+        companias = self.env['res.company'].sudo().search([])
+        if 'iap_enrich_auto_done' in companias._fields:
+            companias.filtered(lambda c: not c.iap_enrich_auto_done).iap_enrich_auto_done = True

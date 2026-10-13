@@ -1,0 +1,89 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // PRODUCCIÓN es la raíz de este archivo (Worker `dcasa-juan`); STAGING es `env.staging` (Worker `dcasa-juan-staging`).
+  // Wrangler NO hereda bindings, vars, Durable Objects ni crons entre entornos: por eso se repiten abajo.
+  "name": "dcasa-juan",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // Un Durable Object por conversación (`canal:id_externo`) y uno solo para el gasto de IA y la salud.
+  // Los dos con almacenamiento SQLite propio: sin D1, sin Vectorize ni R2. Workers AI (binding `ai`, abajo) solo transcribe notas de voz.
+  "durable_objects": {
+    "bindings": [
+      { "name": "CONVERSACION", "class_name": "Conversacion" },
+      { "name": "GLOBAL", "class_name": "Global" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+
+  // Workers AI: notas de voz (Whisper, TRANSCRIBIR_AUDIO=1), lectura de imágenes (RECONOCER_IMAGENES=1) y, solo si Gerencia lo enciende
+  // en Odoo, la búsqueda del conocimiento por significado (bge-m3, POST /odoo/embeber). No se usa para contestar: eso lo hace el
+  // proveedor que se elige en Odoo. Se factura a la cuenta de Cloudflare (por minuto de audio / por texto; docs/JUAN_WORKER.md §12).
+  "ai": { "binding": "AI" },
+
+  // Worker a Worker SIEMPRE por service binding: Cloudflare rechaza (error 1042) la URL pública entre Workers de la misma cuenta.
+  //   DCASA: el Worker `dcasa` (el que está delante de Odoo). En producción todavía no está desplegado: hasta que exista,
+  //          Cloudflare rechaza el despliegue de ESTE entorno (el destino de un binding tiene que existir).
+  //   PUENTE: el puente de WhatsApp por QR (puente-wa/). Descomentar cuando ESE Worker ya esté publicado; mientras tanto el
+  //          canal de WhatsApp aparece en /salud como «le falta PUENTE» y el resto del bot funciona (docs/JUAN_WORKER.md).
+  "services": [
+    { "binding": "DCASA", "service": "dcasa", "entrypoint": "JuanEntrada" }
+    // , { "binding": "PUENTE", "service": "dcasa-puente-wa" }
+  ],
+
+  // UTC. Cada hora (minuto 23): ¿sigue conectado el puente? ¿se alcanzó el tope de IA? Avisa por Telegram si hay chat configurado.
+  "triggers": { "crons": ["23 * * * *"] },
+
+  // Solo valores NO secretos y que la dueña no cambia a mano. Los que ella sí toca desde el panel de Cloudflare
+  // (URL_PUBLICA, ALERTA_TELEGRAM_CHAT_ID, WHATSAPP_PHONE_NUMBER_ID, GRAPH_API_VERSION) NO se declaran aquí: el despliegue
+  // los respeta porque se hace con `--keep-vars`.
+  //
+  // SECRETOS: ninguno en este archivo ni en GitHub. La dueña los pega en Cloudflare → Worker → Settings → Variables and Secrets:
+  //   JUAN_ODOO_TOKEN, JUAN_WORKER_TOKEN, WA_TOKEN, ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN_JUAN, TELEGRAM_WEBHOOK_SECRET_JUAN,
+  //   META_APP_SECRET, META_VERIFY_TOKEN, META_PAGE_TOKEN (y WHATSAPP_CLOUD_TOKEN si algún día se enciende la Cloud API).
+  // El Worker arranca sin ellos y GET /salud dice cuáles faltan. No se usa `secrets.required`: el primer despliegue es sin secretos.
+  "vars": {
+    "ENTORNO": "produccion",
+    "URL_SITIO": "https://dcasapty.com",
+    "BUFFER_SEGUNDOS": "15",
+    "TOPE_DIARIO": "50",
+    // "1" = las notas de voz se pasan a texto con Whisper de Workers AI (necesita el binding "ai" de arriba). "0" lo apaga.
+    "TRANSCRIBIR_AUDIO": "1",
+    // "1" = un modelo de visión de Workers AI lee las imágenes de los clientes (producto, código, ¿comprobante?). Necesita el binding "ai".
+    "RECONOCER_IMAGENES": "1"
+  },
+
+  // workers.dev queda encendido: esa es la dirección que Odoo (ajuste dcasa_conversaciones.juan_url) y los webhooks usan.
+  "workers_dev": true,
+
+  "env": {
+    "staging": {
+      "name": "dcasa-juan-staging",
+      "durable_objects": {
+        "bindings": [
+          { "name": "CONVERSACION", "class_name": "Conversacion" },
+          { "name": "GLOBAL", "class_name": "Global" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Conversacion", "Global"] }],
+      "ai": { "binding": "AI" },
+      // Hoy solo existe `dcasa-staging`: staging habla con ese.
+      "services": [
+        { "binding": "DCASA", "service": "dcasa-staging", "entrypoint": "JuanEntrada" }
+        // , { "binding": "PUENTE", "service": "dcasa-puente-wa-staging" }
+      ],
+      "triggers": { "crons": ["23 * * * *"] },
+      "vars": {
+        "ENTORNO": "staging",
+        "URL_SITIO": "https://dcasa-staging.dcasapty.workers.dev",
+        "BUFFER_SEGUNDOS": "15",
+        "TOPE_DIARIO": "50",
+        "TRANSCRIBIR_AUDIO": "1",
+        "RECONOCER_IMAGENES": "1"
+      },
+      "workers_dev": true
+    }
+  }
+}

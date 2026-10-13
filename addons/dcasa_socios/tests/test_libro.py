@@ -50,9 +50,11 @@ class TestLibroMayor(SociosCommon):
 
     def test_ficha_por_celular_unica(self):
         self.assertEqual(self.padrino.dcasa_celular, '60000001', 'El celular del contacto pasa a ser la llave')
-        otro = self.env['res.partner'].create({'name': 'Otra', 'phone': '6000-0001'})
+        # Un celular, una ficha: la llave del programa es única en la base de datos (aunque se escriba de otra forma).
+        # (Que dos fichas tengan el mismo teléfono lo impide además dcasa_contactos: ver sus pruebas.)
+        otro = self.env['res.partner'].create({'name': 'Otra', 'phone': '6000-0099'})
         otro._dcasa_asegurar_ficha()
-        self.assertFalse(otro.dcasa_celular, 'Un celular, una ficha')
+        self.assertEqual(otro.dcasa_celular, '60000099')
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
             otro.dcasa_celular = '+507 6000-0001'
             self.env.flush_all()
@@ -65,3 +67,16 @@ class TestLibroMayor(SociosCommon):
             self.cliente.dcasa_referido_por_id = otro
         with self.assertRaises(UserError):
             self.cliente.dcasa_referido_por_id = False
+
+
+@tagged('post_install', '-at_install')
+class TestIndicesDeListas(SociosCommon):
+    """Las listas de Socios se ordenan por fecha: sin índice, cada página ordena la tabla entera."""
+
+    def test_fechas_de_orden_con_indice(self):
+        for tabla, columna in (('dcasa_movimiento', 'ocurrido_en'), ('dcasa_compra', 'registrada_en'),
+                               ('dcasa_canje', 'solicitado_en')):
+            self.env.cr.execute(
+                "SELECT 1 FROM pg_indexes WHERE tablename = %s AND indexdef LIKE %s",
+                [tabla, f'%({columna})%'])
+            self.assertTrue(self.env.cr.fetchone(), f'{tabla}.{columna} sin índice')

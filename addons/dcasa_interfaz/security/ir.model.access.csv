@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+"access_website_page_dcasa_gerencia","website.page: Gerencia ve y publica (el contenido se mantiene desde el código)","website.model_website_page","dcasa_base.group_gerencia",1,1,0,0

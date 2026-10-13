@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La factura impresa de D'CASA muestra el CUFE y el QR de la DGI cuando existen.
+         Sin documento autorizado (o en contingencia) no se imprime nada nuevo: el formato
+         de dcasa_invoice queda tal cual. -->
+    <template id="report_invoice_document_dcasa_fe" inherit_id="account.report_invoice_document">
+        <xpath expr="//div[@id='payment_term']" position="after">
+            <t t-set="dcasa_fe" t-value="o._l10n_pa_fe_impreso()"/>
+            <div t-if="dcasa_fe" class="o_dcasa_fe avoid-page-break-inside mt-3" name="dcasa_fe">
+                <table class="table table-borderless table-sm mb-0">
+                    <tr>
+                        <td t-if="dcasa_fe.qr" style="width: 30mm; vertical-align: top;">
+                            <img t-att-src="o._l10n_pa_fe_qr_src()" alt="QR de la DGI" style="width: 28mm; height: 28mm;"/>
+                        </td>
+                        <td style="vertical-align: top;">
+                            <div><strong>Factura electrónica DGI</strong>
+                                · N.º <span t-out="dcasa_fe.punto"/>-<span t-out="dcasa_fe.numero"/></div>
+                            <div class="small">CUFE: <span class="text-break" t-out="dcasa_fe.cufe"/></div>
+                            <div t-if="dcasa_fe.protocolo" class="small">
+                                Protocolo de autorización: <span t-out="dcasa_fe.protocolo"/>
+                                <t t-if="dcasa_fe.fecha_autorizacion"> · <t t-out="o._dcasa_fecha(dcasa_fe.fecha_autorizacion)"/></t>
+                            </div>
+                            <div t-if="dcasa_fe.estado == 'contingencia'" class="small">
+                                Emitida en contingencia: pendiente de autorización de uso de la DGI.
+                            </div>
+                            <div class="small">Consulta en <span class="text-break" t-out="o._l10n_pa_fe_url_consulta()"/></div>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </xpath>
+    </template>
+</odoo>

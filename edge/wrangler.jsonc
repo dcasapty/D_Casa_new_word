@@ -19,9 +19,10 @@
       // que admite snapshots, pero rechaza instance_type, max_instances y constraints, y
       // no sirve con la clase Container. Ver CONTRATO_CONTENEDOR.md → «Política».
       "scheduling_policy": "default",
-      // basic = 1/4 vCPU, 1 GiB, 4 GB de disco. Medido: Odoo + PostgreSQL ≈ 400 MiB de
-      // pico (ronda3/odoo-medicion.md). La imagen debe pesar ≤ 4 GB.
-      "instance_type": "basic",
+      // standard-1 = 1/2 vCPU, 4 GiB, 8 GB de disco (decisión de la dueña, 2026-10-02: ≈ $31/mes
+      // encendido 24/7; la memoria se cobra reservada, la CPU por uso). Odoo + PostgreSQL en
+      // basic (1 GiB) iban justos y 1/4 vCPU hacía lento el panel. Staging sigue en basic.
+      "instance_type": "standard-1",
       // Singleton: nunca dos PostgreSQL escribiendo al mismo repositorio de R2.
       "max_instances": 1,
       // Este de Norteamérica: lo más cercano a Panamá (y al bucket de R2, que debe crearse
@@ -34,10 +35,10 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OdooContainer"] }],
 
-  // Tienda estática (Fase 2): páginas generadas desde el feed de Odoo. Sin "id": Wrangler crea
-  // el namespace en el primer deploy («automatic provisioning», wrangler ≥ 4.45) y lo deja
-  // enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por entorno.
-  // Por qué KV y no R2 ni Static Assets: edge/CONTRATO_CONTENEDOR.md → «Tienda estática».
+  // Caché de páginas: el HTML que dibuja Odoo para anónimos, guardado tal cual (src/tienda/paginas.ts).
+  // Sin "id": Wrangler crea el namespace en el primer deploy («automatic provisioning», wrangler
+  // ≥ 4.45) y lo deja enlazado; el token de CI necesita permiso «Workers KV Storage: Edit». Uno por
+  // entorno. Por qué KV y no Cache API: edge/CONTRATO_CONTENEDOR.md → «Caché de páginas».
   "kv_namespaces": [{ "binding": "TIENDA" }],
 
   // UTC. "7 * * * *": cada hora, si Odoo está apagado lo despierta (runScheduled), solo
@@ -67,9 +68,38 @@
     "R2_BUCKET": "dcasa-respaldos",
     // Vacío = 24/7 (el contenedor no se duerme nunca).
     "ODOO_DORMIR_TRAS": "",
-    // Tienda estática: "off" hasta que el dueño la apruebe en staging (todo lo sirve Odoo).
-    "TIENDA_ESTATICA": "off"
+    // Caché de páginas: "off" en producción hasta que la dueña la apruebe en staging (todo lo
+    // sirve Odoo).
+    "TIENDA_ESTATICA": "off",
+    // Doble factor obligatorio (addons/dcasa_seguridad): "0" hasta que la dueña enrole su app
+    // (docs/SEGURIDAD_ACCESO.md, paso 2). Luego "1" y desplegar.
+    "DCASA_2FA_OBLIGATORIO": "0",
+    "DCASA_2FA_ALCANCE": "admins",
+    // La puerta del equipo (docs/SEGURIDAD_ACCESO.md §8): el personal entra al panel solo después de pasar por
+    // Cloudflare Access (PIN al correo). Se prepara con cuatro secretos de GitHub (DCASA_PUERTA_RUTA,
+    // DCASA_PUERTA_SECRETO, DCASA_ACCESS_EQUIPO, DCASA_ACCESS_AUD); sin ellos no hace nada. Este interruptor
+    // es el último paso: "0" apagada · "avisar" anota a quien entra sin la puerta pero lo deja entrar ·
+    // "1" el personal solo entra por la puerta. Rescate si la puerta no abre: ponerlo en "0" y desplegar.
+    "DCASA_PUERTA_OBLIGATORIA": "0",
+    // "1" = el correo con que se pasó la puerta debe ser el correo (o usuario) de la cuenta de Odoo.
+    "DCASA_PUERTA_EXIGIR_CORREO": "0"
+    // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
+    // secreto. Sin las dos, Turnstile queda apagado (docs/SEGURIDAD_ACCESO.md → Turnstile).
+    // Alertas del Worker por Telegram (docs/OPERACION.md «Alertas por Telegram»): el chat_id de la
+    // dueña, "DCASA_ALERTA_TELEGRAM_CHAT": "<chat_id>", con el bot de Brian (TELEGRAM_BOT_TOKEN).
+    // Sin él, las caídas del contenedor quedan solo en los logs. Umbrales de Odoo (opcionales):
+    // DCASA_ALERTA_DISCO_PCT (80), DCASA_ALERTA_MEMORIA_PCT (90), DCASA_ALERTA_BASE_GB (0.7).
   },
+
+  // Límite de intentos por IP en los POST sensibles (edge/src/bots.ts). Rate Limiting de Workers:
+  // no es un recurso que se cree aparte (namespace_id es un número que elegimos, único en la
+  // cuenta) y no tiene costo propio; se activa al desplegar con estas líneas. Mientras sigan
+  // comentadas, el Worker usa un contador en memoria (aproximado). period solo admite 10 o 60.
+  // "ratelimits": [
+  //   { "name": "LIMITE_ACCESO", "namespace_id": "1101", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_FORMULARIOS", "namespace_id": "1102", "simple": { "limit": 10, "period": 60 } },
+  //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
+  // ],
 
   // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
   // "routes": [
@@ -113,12 +143,27 @@
         "DCASA_BLACK_WEEKEND_INICIO": "2026-10-02",
         "DCASA_BLACK_WEEKEND_FIN": "2026-10-11",
         "R2_BUCKET": "dcasa-respaldos-staging",
-        // Duerme tras 1 h sin visitas y el cron horario NO lo despierta (solo la próxima
-        // visita): abarata la prueba y ensaya la restauración desde R2 en cada despertar.
-        // El respaldo diario tampoco lo enciende. Para ensayar el 24/7 de producción, dejar "".
-        "ODOO_DORMIR_TRAS": "1h",
-        // Staging ya prueba la tienda estática (y manda X-Robots-Tag: noindex en todo).
-        "TIENDA_ESTATICA": "on"
+        // 24/7 como producción (decisión de la dueña, 2026-10-02): dormido, la página cacheada
+        // en el borde salía sin estilos (los assets los sirve Odoo) y /socios tardaba ~1 min en
+        // despertar y restaurar desde R2. Para abaratar una pausa larga, poner "1h".
+        "ODOO_DORMIR_TRAS": "",
+        // Caché de páginas encendida: el borde sirve a los anónimos el MISMO HTML que dibuja Odoo
+        // (navbar píldora, héroe, footer; probado idéntico byte a byte salvo el token CSRF, que el
+        // JS refresca). La plantilla propia de antes (apagada el 2026-10-02) ya no existe.
+        // staging.dcasapty.com aún no apunta al Worker: el aviso de invalidación va a workers.dev.
+        "TIENDA_AVISO_URL": "https://dcasa-staging.dcasapty.workers.dev/__edge/tienda/regenerar",
+        "TIENDA_ESTATICA": "on",
+        // Doble factor OBLIGATORIO en staging (pedido de la dueña, 2026-10-10: «blindar el acceso»):
+        // cada administrador enrola la app de códigos la primera vez que entra después de la clave
+        // (docs/SEGURIDAD_ACCESO.md §2 y §3). Rescate si se pierde el teléfono: §4. Producción sigue en "0"
+        // hasta que la dueña pruebe aquí el flujo completo.
+        "DCASA_2FA_OBLIGATORIO": "1",
+        "DCASA_2FA_ALCANCE": "admins",
+        // La puerta del equipo (ver arriba): primero "avisar" para comprobar que todo el equipo pasa por ella, luego "1".
+        // 2026-10-10: la dueña ya probó /master (PIN al correo → «Acceso del equipo») → "avisar": entra todo el
+        // personal, pero quien entra sin pasar la puerta queda en «Accesos al panel» y avisa a Telegram.
+        "DCASA_PUERTA_OBLIGATORIA": "avisar",
+        "DCASA_PUERTA_EXIGIR_CORREO": "0"
       }
       // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
     }

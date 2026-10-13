@@ -12,6 +12,7 @@ const ICONOS = {
     ventas_hoy: "fa-shopping-bag",
     cobrado_hoy: "fa-money",
     cotizaciones: "fa-file-text-o",
+    mis_cotizaciones: "fa-user-o",
     web: "fa-globe",
     por_cobrar: "fa-clock-o",
     entregas: "fa-truck",
@@ -94,8 +95,9 @@ export class DcasaInicio extends Component {
         });
     }
 
-    catalogo() {
-        this.action.doAction("sale.product_template_action");
+    /** Un acceso directo del Inicio: abre su pantalla (en la vista que dice el servidor, p. ej. lista). */
+    abrirAtajo(atajo) {
+        this.action.doAction(atajo.accion, atajo.vista ? { viewType: atajo.vista } : {});
     }
 
     abrirProducto(p) {
@@ -109,6 +111,11 @@ export class DcasaInicio extends Component {
 
     verTienda() {
         window.open("/shop", "_blank");
+    }
+
+    /** El sitio público en un marco de teléfono (vista_previa.js); sin modo edición. */
+    vistaPrevia() {
+        this.action.doAction("dcasa_interfaz.action_dcasa_vista_previa");
     }
 }
 

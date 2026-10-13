@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="duplicado_list" model="ir.ui.view">
+        <field name="name">dcasa.contacto.duplicado.list</field>
+        <field name="model">dcasa.contacto.duplicado</field>
+        <field name="arch" type="xml">
+            <list string="Posibles duplicados" create="0" delete="0" edit="0">
+                <field name="tipo"/>
+                <field name="valor"/>
+                <field name="cantidad"/>
+                <field name="nombres"/>
+                <button name="action_ver" type="object" string="Ver las fichas" icon="fa-eye"/>
+                <button name="action_fusionar" type="object" string="Fusionar" icon="fa-compress"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="duplicado_search" model="ir.ui.view">
+        <field name="name">dcasa.contacto.duplicado.search</field>
+        <field name="model">dcasa.contacto.duplicado</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="valor"/>
+                <field name="nombres"/>
+                <filter name="celular" string="Celular" domain="[('tipo', '=', 'celular')]"/>
+                <filter name="correo" string="Correo" domain="[('tipo', '=', 'correo')]"/>
+                <filter name="ruc" string="RUC o cédula" domain="[('tipo', '=', 'ruc')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_duplicados" model="ir.actions.act_window">
+        <field name="name">Posibles duplicados</field>
+        <field name="res_model">dcasa.contacto.duplicado</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay fichas repetidas</p>
+            <p>Cada celular, correo o RUC/cédula tiene una sola ficha.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_duplicados" name="Posibles duplicados" parent="dcasa_socios.menu_dcasa_config"
+              action="accion_duplicados" sequence="30" groups="sales_team.group_sale_manager"/>
+</odoo>

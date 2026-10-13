@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Comprobante de pago: uno por colaborador -->
+    <record id="accion_comprobante_pago" model="ir.actions.report">
+        <field name="name">Comprobante de pago</field>
+        <field name="model">dcasa.nomina.linea</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_nomina.comprobante_pago</field>
+        <field name="report_file">dcasa_nomina.comprobante_pago</field>
+        <field name="print_report_name">'Comprobante - %s - %s' % (object.empleado_id.name, object.planilla_id.name)</field>
+        <field name="binding_model_id" ref="model_dcasa_nomina_linea"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="comprobante_pago">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2>Comprobante de pago</h2>
+                        <p class="text-muted"><span t-field="o.planilla_id.name"/></p>
+                        <table class="table table-sm">
+                            <tr><th>Colaborador</th><td><span t-field="o.empleado_id.name"/></td>
+                                <th>Cédula</th><td><span t-out="o.empleado_id.sudo().identification_id"/></td></tr>
+                            <tr><th>Periodo</th><td><span t-field="o.planilla_id.fecha_desde"/> al <span t-field="o.planilla_id.fecha_hasta"/></td>
+                                <th>Fecha de pago</th><td><span t-field="o.planilla_id.fecha_pago"/></td></tr>
+                            <tr t-if="o.tipo == 'quincenal'"><th>Salario mensual</th>
+                                <td><span t-field="o.salario_mensual"/></td>
+                                <th>Días pagados</th><td><span t-field="o.dias_pagados"/> de <span t-field="o.dias_periodo"/></td></tr>
+                        </table>
+                        <table class="table table-sm">
+                            <thead><tr><th>Concepto</th><th class="text-end">Ingresos</th><th class="text-end">Descuentos</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td t-if="o.tipo == 'quincenal'">Salario del periodo</td>
+                                    <td t-else="">Décimo tercer mes (partida)</td>
+                                    <td class="text-end"><span t-field="o.salario"/></td><td/></tr>
+                                <tr t-if="o.otros_ingresos"><td>Otros ingresos</td>
+                                    <td class="text-end"><span t-field="o.otros_ingresos"/></td><td/></tr>
+                                <tr t-if="o.css_trabajador"><td>Seguro social</td><td/>
+                                    <td class="text-end"><span t-field="o.css_trabajador"/></td></tr>
+                                <tr t-if="o.se_trabajador"><td>Seguro educativo</td><td/>
+                                    <td class="text-end"><span t-field="o.se_trabajador"/></td></tr>
+                                <tr t-if="o.isr"><td>Impuesto sobre la renta</td><td/>
+                                    <td class="text-end"><span t-field="o.isr"/></td></tr>
+                                <tr t-if="o.otros_descuentos"><td>Otros descuentos</td><td/>
+                                    <td class="text-end"><span t-field="o.otros_descuentos"/></td></tr>
+                                <tr t-foreach="o.reembolso_ids" t-as="r"><td>Reembolso: <span t-field="r.concepto"/></td>
+                                    <td class="text-end"><span t-field="r.monto"/></td><td/></tr>
+                            </tbody>
+                            <tfoot><tr><th>Neto a pagar</th><th colspan="2" class="text-end"><span t-field="o.neto"/></th></tr></tfoot>
+                        </table>
+                        <p class="mt-5">Recibí conforme: ______________________________</p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Resumen de la planilla -->
+    <record id="accion_resumen_planilla" model="ir.actions.report">
+        <field name="name">Resumen de la planilla</field>
+        <field name="model">dcasa.nomina.planilla</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_nomina.resumen_planilla</field>
+        <field name="report_file">dcasa_nomina.resumen_planilla</field>
+        <field name="print_report_name">'Planilla - %s' % object.name</field>
+        <field name="binding_model_id" ref="model_dcasa_nomina_planilla"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="resumen_planilla">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2><span t-field="o.name"/></h2>
+                        <p>Fecha de pago: <span t-field="o.fecha_pago"/> · Estado: <span t-field="o.estado"/>
+                            <t t-if="not o.parametros_validados"> · <strong>BORRADOR: las tasas todavía no las valida el contador</strong></t></p>
+                        <table class="table table-sm">
+                            <thead><tr><th>Colaborador</th><th class="text-end">Devengado</th><th class="text-end">Seguro social</th>
+                                <th class="text-end">Seg. educativo</th><th class="text-end">ISR</th><th class="text-end">Otros desc.</th>
+                                <th class="text-end">Reembolsos</th><th class="text-end">Neto</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="o.linea_ids" t-as="l">
+                                    <td><span t-field="l.empleado_id.name"/></td>
+                                    <td class="text-end"><span t-field="l.devengado"/></td>
+                                    <td class="text-end"><span t-field="l.css_trabajador"/></td>
+                                    <td class="text-end"><span t-field="l.se_trabajador"/></td>
+                                    <td class="text-end"><span t-field="l.isr"/></td>
+                                    <td class="text-end"><span t-field="l.otros_descuentos"/></td>
+                                    <td class="text-end"><span t-field="l.reembolsos"/></td>
+                                    <td class="text-end"><span t-field="l.neto"/></td>
+                                </tr>
+                            </tbody>
+                            <tfoot><tr><th>Total</th>
+                                <th class="text-end"><span t-field="o.total_devengado"/></th>
+                                <th colspan="4" class="text-end"><span t-field="o.total_descuentos"/> en descuentos</th>
+                                <th class="text-end"><span t-field="o.total_reembolsos"/></th>
+                                <th class="text-end"><span t-field="o.total_neto"/></th></tr></tfoot>
+                        </table>
+                        <p>Aportes del patrono (seguro social, educativo y riesgo profesional): <strong><span t-field="o.total_patronal"/></strong></p>
+                        <div t-if="o.avisos" class="alert alert-warning"><pre t-out="o.avisos"/></div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- Cálculo de liquidación -->
+    <record id="accion_liquidacion" model="ir.actions.report">
+        <field name="name">Cálculo de liquidación</field>
+        <field name="model">dcasa.nomina.liquidacion</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_nomina.liquidacion</field>
+        <field name="report_file">dcasa_nomina.liquidacion</field>
+        <field name="print_report_name">'Liquidación - %s' % object.empleado_id.name</field>
+        <field name="binding_model_id" ref="model_dcasa_nomina_liquidacion"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="liquidacion">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2><span t-field="o.name"/></h2>
+                        <p>Motivo: <span t-field="o.motivo"/> · Ingreso: <span t-field="o.ingreso"/> · Años de servicio: <span t-field="o.anios"/></p>
+                        <div class="alert alert-warning">Cálculo de apoyo para el contador. La indemnización, el preaviso y el ISR de la liquidación los define el contador.
+                            <t t-if="not o.parametros_validados"><strong> Las tasas usadas todavía no están validadas.</strong></t></div>
+                        <table class="table table-sm">
+                            <tr><td>Salario sin pagar (<span t-field="o.dias_pendientes"/> días)</td><td class="text-end"><span t-field="o.salario_pendiente"/></td></tr>
+                            <tr><td>Décimo tercer mes proporcional</td><td class="text-end"><span t-field="o.decimo_proporcional"/></td></tr>
+                            <tr><td>Vacaciones sin tomar (<span t-field="o.vacaciones_dias"/> días)</td><td class="text-end"><span t-field="o.vacaciones_valor"/></td></tr>
+                            <tr><td>Prima de antigüedad</td><td class="text-end"><span t-field="o.prima"/></td></tr>
+                            <tr><td>Indemnización / preaviso</td><td class="text-end"><span t-field="o.indemnizacion"/></td></tr>
+                            <tr><td>Menos: seguro social y educativo</td><td class="text-end">- <span t-field="o.seguro_social"/></td></tr>
+                            <tr><td>Menos: ISR</td><td class="text-end">- <span t-field="o.isr"/></td></tr>
+                            <tr><th>Total a pagar</th><th class="text-end"><span t-field="o.total"/></th></tr>
+                        </table>
+                        <p t-if="o.notas"><span t-field="o.notas"/></p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>

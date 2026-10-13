@@ -10,6 +10,7 @@
  *   · DcasaCabecera    ¿la píldora está sobre la foto del hero? + refracción del vidrio.
  *   · DcasaGotaMenu    la gota de vidrio que sigue al puntero y al foco en el menú.
  *   · DcasaResenas     botón para pausar la cinta de opiniones (WCAG 2.2.2).
+ *   · DcasaFotos       fotos de producto anchas: enteras («contain») en el cuadro 3:4.
  *
  * Lo que está sobre el pliegue (el hero) usa [data-anim-entrada]: CSS puro, sin esperar a nadie.
  */
@@ -17,6 +18,19 @@ import { Interaction } from "@web/public/interaction";
 import { registry } from "@web/core/registry";
 
 const reducido = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * `rootMargin` del observador de la cabecera: recorta por arriba la franja que tapa la píldora.
+ * Nunca negativo ni NaN: si la página se abre ya desplazada (el navegador restaura el scroll) o la
+ * cabecera aún no está fijada, su borde inferior es negativo y `-${-85}px` daría "--85px", que
+ * IntersectionObserver rechaza con SyntaxError (y Odoo mostraba «¡Vaya! Ocurrió un error»).
+ * @param {number} piso borde inferior de la cabecera en px (getBoundingClientRect().bottom)
+ * @returns {string} p. ej. "-85px 0px 0px 0px"; "0px 0px 0px 0px" si no hay nada que recortar
+ */
+export function margenBajoCabecera(piso) {
+    const px = Math.max(0, Math.round(piso) || 0);
+    return `${px ? -px : 0}px 0px 0px 0px`;
+}
 
 export class DcasaRevelar extends Interaction {
     static selector = "#wrapwrap";
@@ -112,7 +126,7 @@ export class DcasaCabecera extends Interaction {
             }
         }
         this.registerCleanup(() => {
-            raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto");
+            raiz.classList.remove("o_dcasa_refraccion", "o_dcasa_nav_sobre_foto", "o_dcasa_nav_medida");
             raiz.style.removeProperty("--dcasa-refraccion");
         });
 
@@ -120,26 +134,34 @@ export class DcasaCabecera extends Interaction {
         // que Odoo hace en cada `transitionend` de la cabecera.
         this.addListener(this.el.querySelectorAll(".o_main_nav"), "transitionend", (ev) => ev.stopPropagation());
 
-        const hero = document.querySelector(".o_dcasa_hero");
+        // El vidrio ahumado de /socios va sobre cualquier foto o fondo oscuro que abra la página
+        // (hero, cabecera de página, Black Weekend); el vidrio claro, sobre el resto.
+        const hero = document.querySelector(".o_dcasa_hero, .o_dcasa_fondo_oscuro");
         if (!hero || !("IntersectionObserver" in window)) {
             return;
         }
         // Sobre la foto = el hero sigue asomando por debajo del borde inferior de la píldora.
-        const piso = Math.round(this.el.getBoundingClientRect().bottom);
         const observador = new IntersectionObserver(
             ([entrada]) => {
                 raiz.classList.toggle("o_dcasa_nav_sobre_foto", entrada.isIntersecting);
+                raiz.classList.add("o_dcasa_nav_medida");
                 if (this.svg) {
                     entrada.isIntersecting ? this.svg.unpauseAnimations() : this.svg.pauseAnimations();
                 }
             },
-            { rootMargin: `-${piso}px 0px 0px 0px`, threshold: 0 }
+            { rootMargin: margenBajoCabecera(this.el.getBoundingClientRect().bottom), threshold: 0 }
         );
         observador.observe(hero);
         this.registerCleanup(() => observador.disconnect());
     }
 
-    /** El ruido del filtro se mueve lento (el vidrio «fluye»); en pausa si no se ve. */
+    /**
+     * El ruido del filtro se mueve lento: el vidrio «fluye» (el look líquido de la v2.3).
+     * Mover el ruido repinta la píldora en cada cuadro, así que solo corre mientras la píldora
+     * está sobre la foto (donde se ve): nace en pausa, el observador la despierta sobre la foto
+     * y la vuelve a pausar al bajar; en pausa también con la pestaña oculta y nunca con
+     * prefers-reduced-motion. Sobre un fondo liso la refracción no se nota: no gasta nada ahí.
+     */
     animarVidrio(filtro) {
         const ruido = filtro.querySelector("feTurbulence");
         const anim = document.createElementNS("http://www.w3.org/2000/svg", "animate");
@@ -148,12 +170,18 @@ export class DcasaCabecera extends Interaction {
         anim.setAttribute("repeatCount", "indefinite");
         anim.setAttribute("values", "0.009 0.022;0.012 0.018;0.009 0.022");
         ruido.appendChild(anim);
+        filtro.pauseAnimations();
         this.svg = filtro;
-        this.addListener(document, "visibilitychange", () =>
-            document.hidden ? filtro.pauseAnimations() : filtro.unpauseAnimations()
-        );
+        this.addListener(document, "visibilitychange", () => {
+            if (document.hidden) {
+                filtro.pauseAnimations();
+            } else if (document.documentElement.classList.contains("o_dcasa_nav_sobre_foto")) {
+                filtro.unpauseAnimations();
+            }
+        });
         this.registerCleanup(() => {
             anim.remove();
+            filtro.unpauseAnimations();
             this.svg = null;
         });
     }
@@ -219,8 +247,36 @@ export class DcasaResenas extends Interaction {
     }
 }
 
+/**
+ * Fotos de producto en un cuadro 3:4 que llenan («cover»): casi todas son verticales. Las anchas
+ * (más de 4:5) perderían los lados del mueble, así que van enteras (.o_dcasa_foto_ancha).
+ * El cuadro no cambia de tamaño: no hay salto de diseño.
+ */
+export class DcasaFotos extends Interaction {
+    static selector = "#wrapwrap";
+
+    start() {
+        const fotos = this.el.querySelectorAll(
+            ".o_dcasa_pcard_media img, #o_wsale_products_grid .oe_product_image_link img"
+        );
+        for (const foto of fotos) {
+            if (foto.complete && foto.naturalWidth) {
+                this.clasificar(foto);
+            } else {
+                this.addListener(foto, "load", () => this.clasificar(foto));
+            }
+        }
+        this.registerCleanup(() => fotos.forEach((foto) => foto.classList.remove("o_dcasa_foto_ancha")));
+    }
+
+    clasificar(foto) {
+        foto.classList.toggle("o_dcasa_foto_ancha", foto.naturalWidth / foto.naturalHeight > 0.8);
+    }
+}
+
 const interacciones = registry.category("public.interactions");
 interacciones.add("website_dcasa.revelar", DcasaRevelar);
 interacciones.add("website_dcasa.cabecera", DcasaCabecera);
 interacciones.add("website_dcasa.gota_menu", DcasaGotaMenu);
 interacciones.add("website_dcasa.resenas", DcasaResenas);
+interacciones.add("website_dcasa.fotos", DcasaFotos);

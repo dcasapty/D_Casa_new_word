@@ -8,7 +8,7 @@ Flujo
    y todo lo que Brian haga desde ese chat corre COMO ÉL (sus permisos, sus compañías).
 3. Mensajes (texto, fotos, documentos) → ``brian.conversacion.enviar`` en la conversación
    activa del chat (canal ``telegram``). Las acciones sensibles llegan con botones
-   Confirmar / Cancelar; solo el mismo usuario puede confirmarlas.
+   Permitir / Rechazar (con el detalle exacto); solo el mismo usuario puede pulsarlos.
 
 Seguridad
 ---------
@@ -204,8 +204,22 @@ class BrianTelegramEnlace(models.Model):
 
     @staticmethod
     def _botones(accion_id):
-        return [[{'text': 'Confirmar', 'callback_data': f'brian:c:{accion_id}'},
-                 {'text': 'Cancelar', 'callback_data': f'brian:r:{accion_id}'}]]
+        """Permitir / Rechazar, nada más: no existe «Siempre» (decisión de seguridad: cada acción
+        sensible se aprueba una por una, también en Telegram)."""
+        return [[{'text': 'Permitir', 'callback_data': f'brian:c:{accion_id}'},
+                 {'text': 'Rechazar', 'callback_data': f'brian:r:{accion_id}'}]]
+
+    @staticmethod
+    def _texto_detalle(detalle):
+        """«Detalle exacto» de la tarjeta, en texto plano para Telegram."""
+        lineas = [f'• {d.get("etiqueta")}: {d.get("valor")}' for d in detalle or () if d.get('valor')]
+        return ('\n\nDetalle exacto de lo que voy a hacer:\n' + '\n'.join(lineas)) if lineas else ''
+
+    @api.model
+    def _detalle_de_accion(self, accion_id):
+        from .conversacion import _detalle_accion
+        accion = self.env['brian.accion'].sudo().browse(int(accion_id)).exists()
+        return _detalle_accion(accion) if accion else []
 
     # ------------------------------------------------------------------
     # Vincular (panel)
@@ -293,9 +307,10 @@ class BrianTelegramEnlace(models.Model):
     def notificar_confirmacion(self, usuario, accion_id, resumen, origen='MCP'):
         """Si el usuario tiene Telegram vinculado, le manda la acción sensible con botones."""
         enlaces = self.sudo().search([('user_id', '=', usuario.id), ('activo', '=', True)])
+        detalle = self._texto_detalle(self._detalle_de_accion(accion_id)) if enlaces else ''
         for enlace in enlaces:
             self._enviar(enlace.chat_id,
-                         f'Brian ({origen}) quiere hacer algo que necesita tu confirmación:\n\n{resumen}',
+                         f'Brian ({origen}) quiere hacer algo que necesita tu permiso:\n\n{resumen}{detalle}',
                          botones=self._botones(accion_id))
         return bool(enlaces)
 
@@ -319,7 +334,7 @@ class BrianTelegramEnlace(models.Model):
             return False
         chat_id = str(chat['id'])
         texto = (mensaje.get('text') or mensaje.get('caption') or '').strip()
-        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        enlace = self._enlace_vigente(chat_id)
 
         comando, _, resto = texto.partition(' ')
         comando = comando.split('@')[0].lower() if texto.startswith('/') else ''
@@ -369,6 +384,15 @@ class BrianTelegramEnlace(models.Model):
         with _candado:
             _intentos.pop(chat_id, None)
         return self._enviar(chat_id, f'Listo, {usuario.name}: este chat quedó vinculado a tu usuario. {AYUDA}')
+
+    def _enlace_vigente(self, chat_id):
+        """El enlace activo del chat, o vacío. Si la persona ya no puede usar Brian (usuario archivado, o ya no es
+        interno) el enlace se apaga aquí mismo: vincular se revisa una vez, pero el chat sigue vivo meses."""
+        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        if enlace and not (enlace.user_id.active and enlace.user_id._is_internal()):
+            enlace.activo = False
+            return self.browse()
+        return enlace
 
     def _como_usuario(self):
         usuario = self.user_id
@@ -428,7 +452,9 @@ class BrianTelegramEnlace(models.Model):
             texto = (mensaje.get('texto') or '').strip() if mensaje.get('rol') == 'assistant' else ''
             if confirmacion and confirmacion.get('estado') == 'por_confirmar':
                 previo = f'{texto}\n\n' if texto else ''
-                self._enviar(self.chat_id, f'{previo}Necesito tu confirmación:\n\n{confirmacion.get("resumen") or ""}',
+                detalle = self._texto_detalle(confirmacion.get('detalle'))
+                self._enviar(self.chat_id,
+                             f'{previo}Necesito tu permiso:\n\n{confirmacion.get("resumen") or ""}{detalle}',
                              botones=self._botones(confirmacion['accion_id']))
                 enviados = True
             elif texto:
@@ -446,7 +472,7 @@ class BrianTelegramEnlace(models.Model):
         self._api('answerCallbackQuery', {'callback_query_id': callback.get('id')})
         if chat.get('type') != 'private' or str((callback.get('from') or {}).get('id')) != chat_id:
             return False
-        enlace = self.sudo().search([('chat_id', '=', chat_id), ('activo', '=', True)], limit=1)
+        enlace = self._enlace_vigente(chat_id)
         coincide = re.fullmatch(r'brian:([cr]):(\d+)', callback.get('data') or '')
         if not enlace or not coincide:
             return False
@@ -490,3 +516,11 @@ class ResUsers(models.Model):
         if self and self != self.env.user:
             raise UserError(self.env._('Solo puedes vincular tu propio Telegram: hazlo desde tu perfil.'))
         return self.env['brian.telegram.enlace'].action_vincular()
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if vals.get('active') is False:
+            # Quien sale de la empresa pierde su chat de Telegram en el acto (los permisos los trae el usuario).
+            self.env['brian.telegram.enlace'].sudo().search(
+                [('user_id', 'in', self.ids), ('activo', '=', True)]).write({'activo': False})
+        return resultado

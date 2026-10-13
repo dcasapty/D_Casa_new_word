@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Caja">
+        <footer class="o_dcj_caja" t-att-class="{ o_nota: esNota }" aria-label="Responder">
+            <!-- Quién atiende y hasta cuándo -->
+            <div t-if="barra" t-attf-class="o_dcj_barra o_dcj_barra_#{barra.clase}">
+                <p class="o_dcj_barra_texto">
+                    <i t-if="barra.punto" class="o_dcj_punto_verde" aria-hidden="true"/>
+                    <t t-out="barra.texto"/>
+                </p>
+                <button type="button" t-att-class="barra.devolver ? 'btn btn-secondary o_dcj_boton' : 'btn btn-primary o_dcj_boton'"
+                        t-on-click="alBotonDeLaBarra" t-out="barra.boton"/>
+            </div>
+
+            <!-- Lo que está escrito para más tarde -->
+            <ul t-if="almacen.programados.length" class="o_dcj_programados" aria-label="Mensajes programados">
+                <li t-foreach="almacen.programados" t-as="m" t-key="m.id" class="o_dcj_programado">
+                    <i class="fa fa-clock-o" aria-hidden="true"/>
+                    <span class="o_dcj_programado_texto">
+                        <strong>Se envía <t t-out="cuando(m.programado_para)"/></strong>
+                        <t t-if="m.usuario and m.usuario.id !== almacen.usuario.id"> · <t t-out="m.usuario.nombre"/></t>
+                        <span class="o_dcj_programado_cuerpo" t-out="m.texto or (m.adjuntos.length + ' archivo(s)')"/>
+                    </span>
+                    <button t-if="puedeCancelar(m)" type="button" class="o_dcj_enlace" t-on-click="() => this.cancelarProgramado(m)">Cancelar</button>
+                </li>
+            </ul>
+
+            <div t-if="local.devolviendo" class="o_dcj_devolver" role="group" aria-label="Devolver la conversación al asistente">
+                <label for="o_dcj_nota_bot">Nota para el asistente (opcional)</label>
+                <textarea id="o_dcj_nota_bot" class="o_dcj_input" rows="2" t-att-maxlength="almacen.limites.nota_para_el_bot"
+                          placeholder="Por ejemplo: ya quedó la visita del sábado"
+                          t-model="local.notaParaElBot"/>
+                <p class="o_dcj_ayuda">El asistente la lee en cada respuesta hasta que otra persona tome la conversación.</p>
+                <div class="o_dcj_devolver_botones">
+                    <button type="button" class="btn btn-primary o_dcj_boton" t-on-click="confirmarDevolver">Devolver al asistente</button>
+                    <button type="button" class="btn btn-secondary o_dcj_boton" t-on-click="() => local.devolviendo = false">Cancelar</button>
+                </div>
+            </div>
+
+            <!-- Archivos por enviar -->
+            <ul t-if="borrador.adjuntos.length" class="o_dcj_previas" aria-label="Archivos por enviar">
+                <li t-foreach="borrador.adjuntos" t-as="a" t-key="a.clave" t-attf-class="o_dcj_previa o_dcj_previa_#{a.estado}">
+                    <img t-if="a.local" t-att-src="a.local" alt=""/>
+                    <i t-else="" t-attf-class="fa #{iconoDeArchivo(a.mime, a.nombre)}" aria-hidden="true"/>
+                    <span class="o_dcj_previa_texto">
+                        <span class="o_dcj_previa_nombre" t-out="a.nombre"/>
+                        <span class="o_dcj_previa_peso">
+                            <t t-if="a.estado === 'subiendo'"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Subiendo…</t>
+                            <t t-elif="a.estado === 'error'" t-out="a.error"/>
+                            <t t-else="" t-out="tamano(a.tamano)"/>
+                        </span>
+                    </span>
+                    <button type="button" class="o_dcj_icono_boton" t-att-aria-label="'Quitar ' + a.nombre" t-on-click="() => almacen.quitarAdjunto(a.clave)">
+                        <i class="fa fa-times" aria-hidden="true"/>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Respuestas rápidas -->
+            <ul t-if="hayRapidas" class="o_dcj_rapidas" aria-label="Respuestas rápidas">
+                <li t-if="!opcionesRapidas.length" class="o_dcj_rapida_vacia">No hay una respuesta rápida con ese atajo. La dueña las crea en Configuración › Respuestas rápidas.</li>
+                <li t-foreach="opcionesRapidas" t-as="r" t-key="r.id">
+                    <button type="button" class="o_dcj_rapida" t-att-class="{ o_activa: r_index === local.opcion }" t-att-aria-current="r_index === local.opcion ? 'true' : 'false'" t-on-mousedown="(ev) => ev.preventDefault()" t-on-click="() => this.elegirRapida(r)">
+                        <strong t-out="r.atajo"/>
+                        <span t-out="r.descripcion or r.texto"/>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Menciones con @ (solo en notas) -->
+            <ul t-if="opcionesMencion.length" class="o_dcj_rapidas o_dcj_menciones" aria-label="Mencionar a una compañera">
+                <li t-foreach="opcionesMencion" t-as="u" t-key="u.id">
+                    <button type="button" class="o_dcj_rapida" t-att-class="{ o_activa: u_index === local.opcion }" t-att-aria-current="u_index === local.opcion ? 'true' : 'false'" t-on-mousedown="(ev) => ev.preventDefault()" t-on-click="() => this.elegirMencion(u)">
+                        <strong>@</strong>
+                        <span t-out="u.nombre"/>
+                    </button>
+                </li>
+            </ul>
+            <div t-if="esNota and mencionadas.length" class="o_dcj_tarea">
+                <i class="fa fa-bell-o" aria-hidden="true"/>
+                <span>Les aviso a <strong t-out="mencionadas.map((u) => u.nombre).join(', ')"/> por Odoo y Telegram.</span>
+                <label class="o_dcj_tarea_fecha">Tarea para el
+                    <input type="date" t-model="borrador.tareaPara" t-att-min="hoy"/>
+                </label>
+            </div>
+
+            <div t-if="programando" class="o_dcj_programar" role="group" aria-label="Programar el envío">
+                <i class="fa fa-clock-o" aria-hidden="true"/>
+                <label class="o_dcj_programar_fecha">Enviar el
+                    <input type="datetime-local" t-model="borrador.programarPara" t-att-min="minimoProgramable"/>
+                </label>
+                <button type="button" class="o_dcj_enlace" t-on-click="() => this.programarEn('hora')">En 1 hora</button>
+                <button type="button" class="o_dcj_enlace" t-on-click="() => this.programarEn('manana')">Mañana 8:00 a. m.</button>
+                <span t-if="!fechaProgramada" class="o_dcj_ayuda">Elige el día y la hora en que debe salir.</span>
+                <span t-elif="programadaInvalida" class="o_dcj_ayuda o_dcj_error" role="alert">Elige una hora futura (hasta 30 días).</span>
+                <span t-else="" class="o_dcj_ayuda">Se envía <t t-out="cuando(fechaProgramada.toISOString())"/>. Hasta entonces el asistente sigue atendiendo.</span>
+            </div>
+
+            <div t-if="local.avisos.length" class="o_dcj_sugerencia" role="status">
+                <i class="fa fa-magic" aria-hidden="true"/>
+                <ul><li t-foreach="local.avisos" t-as="aviso" t-key="aviso_index" t-out="aviso"/></ul>
+            </div>
+
+            <div class="o_dcj_escribir">
+                <label for="o_dcj_texto" class="o_dcj_solo_lector" t-out="esNota ? 'Nota interna' : 'Tu respuesta'"/>
+                <textarea id="o_dcj_texto" t-ref="texto" class="o_dcj_texto" rows="1" t-model="borrador.texto"
+                          t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve (usa @ para avisarle a una compañera)' : 'Escribe tu respuesta… (usa / para respuestas rápidas)'"
+                          t-att-maxlength="limite" t-on-input="alEscribir" t-on-keydown="alTeclear" t-on-keyup="alMoverElCursor" t-on-click="alMoverElCursor" t-on-paste="alPegar"
+                          t-att-aria-describedby="'o_dcj_atajos'"/>
+                <button type="button" class="btn btn-primary o_dcj_enviar" t-att-disabled="!puedeEnviar" t-on-click="enviar"
+                        t-att-aria-label="esNota ? 'Guardar nota' : 'Enviar'">
+                    <i t-if="local.enviando" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
+                    <i t-else="" class="fa fa-paper-plane" aria-hidden="true"/>
+                    <span t-out="esNota ? 'Guardar nota' : (programarIso ? 'Programar' : 'Enviar')"/>
+                </button>
+            </div>
+
+            <div class="o_dcj_herramientas" role="toolbar" aria-label="Herramientas de la respuesta">
+                <input type="file" t-ref="archivo" class="o_dcj_oculto" multiple="multiple" tabindex="-1" aria-hidden="true"
+                       accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" t-on-change="alElegirArchivos"/>
+                <button type="button" class="o_dcj_herramienta" title="Adjuntar fotos o documentos (también puedes arrastrarlos)" t-on-click="elegirArchivos">
+                    <i class="fa fa-paperclip" aria-hidden="true"/><span>Adjuntar</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" title="Buscar un producto y mandar su foto" t-att-disabled="esNota" t-on-click="abrirCatalogo">
+                    <i class="fa fa-picture-o" aria-hidden="true"/><span>Foto del catálogo</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" title="Mandar la cotización del cliente en PDF" t-att-disabled="esNota" t-on-click="abrirCotizacion">
+                    <i class="fa fa-file-pdf-o" aria-hidden="true"/><span>Cotización</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" title="Respuestas rápidas (escribe / en la caja)" t-att-disabled="esNota" t-on-click="abrirRapidas">
+                    <i class="fa fa-bolt" aria-hidden="true"/><span>Rápidas</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" t-att-class="{ o_activa: programando }" title="Deja el mensaje escrito para que salga solo a la hora que elijas" t-att-disabled="esNota" t-att-aria-pressed="programando ? 'true' : 'false'" t-on-click="alternarProgramar">
+                    <i class="fa fa-clock-o" aria-hidden="true"/><span>Programar</span>
+                </button>
+                <button type="button" class="o_dcj_herramienta" title="Pide un borrador de respuesta; tú lo editas y lo envías" t-att-disabled="local.sugiriendo or esNota" t-on-click="sugerir">
+                    <i t-if="local.sugiriendo" class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/>
+                    <i t-else="" class="fa fa-magic" aria-hidden="true"/><span>Sugerir</span>
+                </button>
+                <span class="o_dcj_espaciador"/>
+                <div class="o_dcj_modo" role="group" aria-label="Qué vas a escribir">
+                    <button type="button" t-att-class="{ o_activa: !esNota }" t-att-aria-pressed="!esNota ? 'true' : 'false'" t-on-click="() => this.cambiarModo('respuesta')">Respuesta</button>
+                    <button type="button" t-att-class="{ o_activa: esNota }" t-att-aria-pressed="esNota ? 'true' : 'false'" t-on-click="() => this.cambiarModo('nota')">Nota interna</button>
+                </div>
+            </div>
+            <p id="o_dcj_atajos" class="o_dcj_ayuda o_dcj_atajos">
+                <t t-if="esTactil">Pulsa Enviar para mandar.</t>
+                <t t-else="">Enter envía · Mayús + Enter salta de línea · / abre las respuestas rápidas</t>
+                <t t-if="borrador.texto.length > limite * 0.85"> · <t t-out="borrador.texto.length"/>/<t t-out="limite"/></t>
+            </p>
+        </footer>
+    </t>
+</templates>

@@ -30,6 +30,15 @@ class TestAppSocio(HttpCase):
                  'pin2': '482915', 'cumple_dia': '14', 'cumple_mes': '2', 'acepta': 'on', **extra}
         return self.post('/socios/registro', **datos)
 
+    def test_turnstile_en_entrar_y_registro(self):
+        """Entrar y registrarse piden Turnstile cuando hay claves (website_cf_turnstile); sin claves,
+        el captcha de Odoo no interviene (los demás tests de esta clase entran sin token)."""
+        from odoo.addons.dcasa_socios.controllers.main import SociosDcasa  # noqa: PLC0415
+        self.assertEqual(SociosDcasa.entrar.original_routing['captcha'], 'socios_entrar')
+        self.assertEqual(SociosDcasa.registro.original_routing['captcha'], 'socios_registro')
+        self.assertIn('data-captcha="socios_entrar"', self.url_open('/socios').text)
+        self.assertIn('data-captcha="socios_registro"', self.url_open('/socios/registro').text)
+
     def test_pagina_de_inicio_y_terminos(self):
         self.assertIn('Tus puntos', self.url_open('/socios').text)
         terminos = self.url_open('/socios/terminos').text

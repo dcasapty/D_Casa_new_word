@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="planilla_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.planilla.list</field>
+        <field name="model">dcasa.nomina.planilla</field>
+        <field name="arch" type="xml">
+            <list string="Planillas" decoration-muted="estado == 'cancelada'" decoration-success="estado == 'pagada'">
+                <field name="name"/>
+                <field name="tipo" optional="hide"/>
+                <field name="fecha_pago"/>
+                <field name="colaboradores"/>
+                <field name="total_devengado" sum="Total"/>
+                <field name="total_neto" sum="Total"/>
+                <field name="total_patronal" sum="Total" optional="show"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'pagada'"
+                       decoration-info="estado == 'confirmada'" decoration-warning="estado in ('borrador', 'calculada')"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="planilla_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.planilla.form</field>
+        <field name="model">dcasa.nomina.planilla</field>
+        <field name="arch" type="xml">
+            <form string="Planilla">
+                <header>
+                    <button name="action_calcular" type="object" string="Calcular" class="btn-primary"
+                            invisible="estado not in ('borrador', 'calculada')"/>
+                    <button name="action_confirmar" type="object" string="Confirmar y contabilizar" class="btn-primary"
+                            invisible="estado != 'calculada'"
+                            confirm="Se publica el asiento contable de la planilla. ¿Confirmar?"/>
+                    <button name="action_pagar" type="object" string="Pagar" class="btn-primary"
+                            invisible="estado != 'confirmada'"/>
+                    <button name="action_borrador" type="object" string="Volver a borrador"
+                            invisible="estado != 'calculada'"/>
+                    <button name="action_cancelar" type="object" string="Cancelar planilla"
+                            invisible="estado in ('cancelada', 'pagada')"
+                            confirm="Si ya está confirmada se reversa su asiento contable. ¿Cancelar?"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,calculada,confirmada,pagada"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <div class="alert alert-warning" role="alert" invisible="estado not in ('calculada', 'borrador') or parametros_validados or not parametros_id">
+                        <strong>Borrador.</strong> Las tasas «<field name="parametros_id" class="oe_inline" readonly="1" options="{'no_open': True}"/>»
+                        todavía no las valida el contador: la planilla no se puede confirmar. (Nómina › Configuración › Tasas y reglas.)
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="not avisos">
+                        <field name="avisos" readonly="1" nolabel="1"/>
+                    </div>
+                    <field name="parametros_validados" invisible="1"/>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group>
+                            <field name="tipo" readonly="estado != 'borrador'"/>
+                            <field name="anio" invisible="tipo != 'decimo'" readonly="estado != 'borrador'"/>
+                            <field name="partida" invisible="tipo != 'decimo'" required="tipo == 'decimo'"
+                                   readonly="estado != 'borrador'"/>
+                            <field name="fecha_desde" readonly="estado not in ('borrador', 'calculada')"/>
+                            <field name="fecha_hasta" readonly="estado not in ('borrador', 'calculada')"/>
+                            <field name="fecha_pago" readonly="estado not in ('borrador', 'calculada', 'confirmada')"/>
+                        </group>
+                        <group>
+                            <field name="diario_pago_id" invisible="estado not in ('confirmada', 'pagada')"
+                                   readonly="estado == 'pagada'"/>
+                            <field name="move_id" invisible="not move_id"/>
+                            <field name="move_reverso_id" invisible="not move_reverso_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <field name="linea_ids">
+                        <list editable="bottom" create="0" decoration-danger="neto &lt; 0">
+                            <field name="estado" column_invisible="1"/>
+                            <field name="tipo" column_invisible="1"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="empleado_id" readonly="1" force_save="1"/>
+                            <field name="dias_pagados" column_invisible="parent.tipo == 'decimo'"
+                                   readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="base_decimo" column_invisible="parent.tipo != 'decimo'"
+                                   readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="salario" readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="otros_ingresos" column_invisible="parent.tipo == 'decimo'"
+                                   readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="css_trabajador" readonly="1"/>
+                            <field name="se_trabajador" readonly="1"/>
+                            <field name="isr" readonly="1"/>
+                            <field name="otros_descuentos" readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="reembolsos" readonly="1" optional="show"/>
+                            <field name="neto" readonly="1" sum="Neto"/>
+                            <field name="costo_patronal" readonly="1" optional="hide"/>
+                            <field name="notas"/>
+                            <button name="%(accion_comprobante_pago)d" type="action" string="Comprobante" icon="fa-print"/>
+                        </list>
+                    </field>
+                    <group class="oe_subtotal_footer">
+                        <field name="total_devengado"/>
+                        <field name="total_descuentos"/>
+                        <field name="total_reembolsos"/>
+                        <field name="total_neto" class="oe_subtotal_footer_separator"/>
+                        <field name="total_patronal" string="Aportes del patrono (aparte)"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="planilla_search" model="ir.ui.view">
+        <field name="name">dcasa.nomina.planilla.search</field>
+        <field name="model">dcasa.nomina.planilla</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter name="por_confirmar" string="Por confirmar" domain="[('estado', 'in', ('borrador', 'calculada'))]"/>
+                <filter name="por_pagar" string="Por pagar" domain="[('estado', '=', 'confirmada')]"/>
+                <filter name="pagadas" string="Pagadas" domain="[('estado', '=', 'pagada')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_planillas" model="ir.actions.act_window">
+        <field name="name">Planillas quincenales</field>
+        <field name="res_model">dcasa.nomina.planilla</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('tipo', '=', 'quincenal')]</field>
+        <field name="context">{'default_tipo': 'quincenal'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera planilla</p>
+            <p>Elige la quincena, pulsa «Calcular», revisa a cada colaborador y confirma. El contador tiene que validar
+                las tasas antes de poder confirmar.</p>
+        </field>
+    </record>
+
+    <record id="accion_decimo" model="ir.actions.act_window">
+        <field name="name">Décimo tercer mes</field>
+        <field name="res_model">dcasa.nomina.planilla</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('tipo', '=', 'decimo')]</field>
+        <field name="context">{'default_tipo': 'decimo'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aquí se pagan las tres partidas del décimo</p>
+            <p>Abril, agosto y diciembre. Cada partida suma lo devengado en sus cuatro meses y lo divide entre 12.</p>
+        </field>
+    </record>
+</odoo>

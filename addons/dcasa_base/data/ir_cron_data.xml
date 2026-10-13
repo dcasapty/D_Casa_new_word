@@ -22,4 +22,15 @@
         <field name="nextcall" eval="(DateTime.now().replace(day=1, hour=8, minute=45, second=0) + relativedelta(months=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
         <field name="active" eval="True"/>
     </record>
+    <!-- Vigilancia de recursos (docs/OPERACION.md «Alertas por Telegram»): cada hora mide el disco,
+         la memoria real y el tamaño de la base contra sus umbrales y avisa por Telegram. -->
+    <record id="ir_cron_dcasa_vigilar_recursos" model="ir.cron">
+        <field name="name">D'CASA: vigilancia de disco, memoria y tamaño de la base</field>
+        <field name="model_id" ref="model_dcasa_mantenimiento"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_vigilar_recursos()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
 </odoo>

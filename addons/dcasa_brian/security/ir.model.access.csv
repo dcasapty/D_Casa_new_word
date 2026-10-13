@@ -7,3 +7,4 @@ access_brian_mensaje_usuario,brian.mensaje usuario,model_brian_mensaje,base.grou
 access_brian_accion_usuario,brian.accion usuario,model_brian_accion,base.group_user,1,0,0,0
 access_brian_importacion_vendedora,brian.importacion vendedora,model_brian_importacion,sales_team.group_sale_salesman,1,0,0,0
 access_brian_importacion_linea_vendedora,brian.importacion.linea vendedora,model_brian_importacion_linea,sales_team.group_sale_salesman,1,0,0,0
+access_brian_uso_admin,brian.uso admin,model_brian_uso,base.group_system,1,0,0,0

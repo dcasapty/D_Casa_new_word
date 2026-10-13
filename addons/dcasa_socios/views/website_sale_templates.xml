@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Puntos en el carrito de la tienda web. Herencias de website_sale dentro del módulo de socios:
+         el paso «Usar mis puntos» va debajo de las líneas del carrito. El premio aplicado es una línea
+         negativa de la orden (dcasa.canje._aplicar_en_venta): el resumen de Odoo la suma solo. -->
+
+    <template id="carrito_puntos" name="Socios: usar mis puntos en el carrito">
+        <section t-if="website_sale_order and website_sale_order.website_order_line"
+                 class="o_dcasa_carrito_puntos mb-4" aria-labelledby="dcasa_puntos_titulo">
+            <div t-if="dcasa_aviso" t-attf-class="alert alert-#{dcasa_aviso.get('tipo', 'info')} mb-3" role="status"
+                 t-out="dcasa_aviso['texto']"/>
+            <t t-if="dcasa_socio">
+                <div class="o_dcasa_carrito_puntos_placa">
+                    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div>
+                            <p class="o_dcasa_kicker mb-1">Socios D'CASA</p>
+                            <h2 id="dcasa_puntos_titulo" class="h5 mb-0">
+                                <t t-if="dcasa_premio_aplicado">Tu premio está aplicado</t>
+                                <t t-else="">Usar mis puntos</t>
+                            </h2>
+                        </div>
+                        <div class="o_dcasa_carrito_puntos_saldo">
+                            <span class="o_dcasa_carrito_puntos_n" t-out="dcasa_fmt_puntos(dcasa_saldo)"/>
+                            <span>puntos</span>
+                        </div>
+                    </div>
+
+                    <t t-if="dcasa_premio_aplicado">
+                        <p class="mb-2 mt-3">
+                            <strong t-out="dcasa_premio_aplicado.premio_nombre"/>:
+                            <t t-out="dcasa_fmt_dolares(0 - int(round(dcasa_premio_aplicado.valor * 100)))"/>
+                            con <t t-out="dcasa_fmt_puntos(dcasa_premio_aplicado.puntos)"/> puntos
+                            (código <span class="o_dcasa_socios_codigo text-white" t-out="dcasa_premio_aplicado.codigo"/>).
+                        </p>
+                        <form action="/socios/carrito/quitar" method="post">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-outline-light o_dcasa_socios_btn_toque">Quitar el premio y recuperar mis puntos</button>
+                        </form>
+                    </t>
+                    <t t-elif="dcasa_saldo &lt; dcasa_minimo">
+                        <p class="mb-0 mt-3">El canje mínimo es de <t t-out="dcasa_fmt_puntos(dcasa_minimo)"/> puntos.
+                            Te faltan <t t-out="dcasa_fmt_puntos(dcasa_minimo - dcasa_saldo)"/>: esta compra te los suma cuando quede pagada.</p>
+                    </t>
+                    <t t-else="">
+                        <t t-if="dcasa_premios">
+                            <p class="mb-2 mt-3">Elige un premio del catálogo. Los puntos salen de tu saldo al aplicarlo y vuelven si lo quitas.</p>
+                            <div class="o_dcasa_carrito_premios">
+                                <form t-foreach="dcasa_premios" t-as="premio" action="/socios/carrito/usar" method="post">
+                                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                    <input type="hidden" name="premio_id" t-att-value="premio.id"/>
+                                    <button type="submit" t-att-disabled="dcasa_saldo &lt; premio.puntos"
+                                            t-attf-class="o_dcasa_carrito_premio o_dcasa_socios_btn_toque #{'o_dcasa_carrito_premio_lejos' if dcasa_saldo &lt; premio.puntos else ''}">
+                                        <span class="o_dcasa_carrito_premio_valor" t-out="premio.name"/>
+                                        <span class="small"><t t-out="dcasa_fmt_puntos(premio.puntos)"/> puntos</span>
+                                        <span t-if="dcasa_saldo &lt; premio.puntos" class="small">Te faltan <t t-out="dcasa_fmt_puntos(premio.puntos - dcasa_saldo)"/></span>
+                                    </button>
+                                </form>
+                            </div>
+                        </t>
+                        <p t-else="" class="mb-0 mt-3">Ningún premio del catálogo cabe en este carrito todavía.</p>
+                        <t t-if="dcasa_modo_puntos == 'todo' and dcasa_puntos_libres_max">
+                            <form action="/socios/carrito/usar" method="post" class="o_dcasa_carrito_libre mt-3">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <label for="dcasa_puntos_libres" class="d-block mb-1">O usa los puntos que quieras
+                                    (<t t-out="dcasa_fmt_puntos(dcasa_reglas['canje']['puntosPorDolar'])"/> puntos = $1; hasta
+                                    <t t-out="dcasa_fmt_puntos(dcasa_puntos_libres_max)"/> en este carrito)</label>
+                                <div class="input-group">
+                                    <input id="dcasa_puntos_libres" name="puntos" type="number" inputmode="numeric" class="form-control"
+                                           t-att-min="dcasa_minimo" t-att-max="dcasa_puntos_libres_max" step="1"
+                                           t-att-value="dcasa_puntos_libres_max" required="required"/>
+                                    <button type="submit" class="btn btn-outline-light o_dcasa_socios_btn_toque">Aplicar</button>
+                                </div>
+                            </form>
+                        </t>
+                    </t>
+                </div>
+            </t>
+            <div t-elif="dcasa_socio_pin" class="o_dcasa_carrito_puntos_nota">
+                <p class="o_dcasa_kicker mb-1">Socios D'CASA</p>
+                <p class="mb-0">Tienes <strong t-out="dcasa_fmt_puntos(dcasa_socio_pin.dcasa_saldo)"/> puntos. Para usarlos en esta
+                    compra <a t-attf-href="/web/login?redirect=/shop/cart">entra con tu cuenta de la tienda</a> (el mismo celular), o
+                    <a href="/socios/premios">pide un premio</a> y díctanos el código al coordinar tu pedido.</p>
+            </div>
+            <div t-else="" class="o_dcasa_carrito_puntos_nota">
+                <p class="o_dcasa_kicker mb-1">Socios D'CASA</p>
+                <p class="mb-0">¿Eres socio? <a t-attf-href="/web/login?redirect=/shop/cart">Entra con tu cuenta de la tienda</a>
+                    para usar tus puntos en esta compra. Esta compra suma puntos cuando quede pagada.
+                    <a href="/socios">Más sobre el programa</a>.</p>
+            </div>
+        </section>
+    </template>
+
+    <template id="cart_puntos" inherit_id="website_sale.cart" name="Socios: paso «Usar mis puntos» en el carrito">
+        <xpath expr="//t[@t-call='website_sale.cart_lines']" position="after">
+            <t t-call="dcasa_socios.carrito_puntos"/>
+        </xpath>
+    </template>
+
+    <!-- La línea del premio no cambia de cantidad: se usa una vez o se quita (y los puntos vuelven). -->
+    <template id="cart_lines_quantity_premio" inherit_id="website_sale.cart_lines_quantity" name="Socios: sin cantidad en el premio">
+        <xpath expr="//div[contains(@t-attf-class, 'css_quantity')]" position="attributes">
+            <attribute name="t-if">not line.dcasa_canje_id</attribute>
+        </xpath>
+    </template>
+</odoo>

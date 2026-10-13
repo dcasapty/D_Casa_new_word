@@ -14,6 +14,7 @@ import logging
 
 from odoo import SUPERUSER_ID, http
 from odoo.http import request
+from odoo.modules import module as modulo_odoo
 
 _logger = logging.getLogger(__name__)
 
@@ -44,8 +45,18 @@ class BrianTelegram(http.Controller):
         if not isinstance(update, dict):
             return request.make_response('Bad Request', status=400)
         try:
-            with env.cr.savepoint():
+            if modulo_odoo.current_test:
+                # Las pruebas no pueden cerrar la transacción: aquí sí las protege un savepoint.
+                with env.cr.savepoint():
+                    Enlace._procesar_update(update)
+            else:
+                # SIN savepoint: responder desde Telegram a un cliente confirma la transacción (COMMIT antes y
+                # después de llamar al Worker; dcasa_conversaciones/models/transaccion.py) y un COMMIT destruye los
+                # savepoints abiertos: el RELEASE de después fallaba, se perdía el «Enviado ✅» y lo escrito tras el
+                # último COMMIT.
                 Enlace._procesar_update(update)
         except Exception:  # noqa: BLE001 — Telegram no debe reintentar en bucle
             _logger.exception('Brian/Telegram: error procesando el update %s', update.get('update_id'))
+            if not modulo_odoo.current_test:
+                env.cr.rollback()
         return request.make_json_response({'ok': True})

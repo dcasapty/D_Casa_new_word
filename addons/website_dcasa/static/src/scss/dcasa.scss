@@ -248,6 +248,21 @@ html {
     gap: .25rem 2.5rem;
     min-height: 2.5rem;
     padding-block: .35rem;
+
+    // Celular: los dos avisos en una sola línea (antes, dos líneas = 70 px menos de foto).
+    @media (max-width: 575.98px) {
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        gap: .75rem;
+        padding-block: 0;
+        font-size: .75rem;
+        letter-spacing: .03em;
+        white-space: nowrap;
+
+        .fa {
+            margin-right: .35rem !important;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -450,9 +465,18 @@ html.o_dcasa_refraccion #wrapwrap > header#top .o_main_nav::before {
     }
 }
 
-// Sobre la foto oscura del hero: vidrio ahumado (texto blanco con contraste AA sobre
-// cualquier parte de la foto) y foco blanco.
-html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
+// Sobre una foto o un fondo oscuro (hero de la portada, cabeceras de página, Black Weekend):
+// vidrio ahumado (texto blanco con contraste AA sobre cualquier parte de la foto), foco blanco
+// y hamburguesa blanca. Es la MISMA píldora líquida (desenfoque, saturación, refracción y filos
+// de luz): solo cambia el tinte del vidrio y el color del texto.
+// · html.o_dcasa_nav_sobre_foto la pone animaciones.js mientras la foto asoma bajo la píldora.
+// · Antes de que animaciones.js mida (o sin JavaScript), las páginas con la cabecera encima del
+//   contenido (o_header_overlay) ya nacen ahumadas: sin destello al cargar (ronda 6).
+// Ronda 6, corrección de la dueña: la píldora es una sola en todo el sitio (logo, menú, carrito,
+// búsqueda, cuenta, «Escríbenos» y este vidrio líquido). La tienda, la ficha y el carrito abren
+// sobre fondo claro: ahí el mismo vidrio va claro, con el texto en tinta.
+html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed),
+html:not(.o_dcasa_nav_medida) #wrapwrap.o_header_overlay > header#top:not(.o_header_affixed) {
     .o_main_nav::before {
         background: rgba(#000000, .26);
         border-color: rgba(#FFFFFF, .38);
@@ -488,7 +512,7 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     }
 
     .navbar-toggler-icon {
-        filter: invert(1);
+        filter: invert(1) brightness(2);   // hamburguesa blanca, no gris
     }
 
     .o_dcasa_gota {
@@ -534,10 +558,16 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Hero: foto a sangre sobre negro, con la opacidad baja y el texto en blanco.
-// El azul de marca ya está en la cabecera y los botones: el hero no lo repite.
+// 1. Hero: foto a sangre sobre negro, un poco oscurecida, y el texto en blanco ENCIMA de la
+// foto: sin placa ni tarjeta (decisión de la dueña, v2.1 y ronda 6). El azul de marca ya está
+// en la cabecera y los botones: el hero no lo repite.
 // Lo usan la portada y las cabeceras de las páginas interiores (.o_dcasa_hero_compacto).
 // ---------------------------------------------------------------------------
+
+// Velo de la portada: cuánto se oscurece la foto (negro plano detrás; sin degradado ni placa).
+// La dueña la quiere «un poco opaca»: 45 % es el tope del rango acordado (35-45 %). Las
+// cabeceras de página (/socios…) siguen con su foto al 45 % (velo del 55 %), el estilo que le gusta.
+$dcasa-hero-velo: .45;
 
 .o_dcasa_hero {
     position: relative;
@@ -620,6 +650,24 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 
     .o_dcasa_display {
         font-size: clamp(2.25rem, 5vw, 4rem);
+    }
+}
+
+// Portada: velo moderado y texto directamente sobre la foto, también en el celular (la foto
+// va detrás, a sangre; el texto abajo a la izquierda). Un solo selector: sirve igual a una
+// portada ya editada en el constructor.
+.o_dcasa_hero:not(.o_dcasa_hero_compacto) {
+    .o_dcasa_hero_media img {
+        opacity: 1 - $dcasa-hero-velo;
+    }
+
+    // La foto es clara (sala blanca): con un velo plano moderado el blanco no llega a AA sobre
+    // los puntos más claros. Un halo oscuro y ajustado en las letras (no una sombra dramática)
+    // asegura ese borde de contraste sin placa y sin oscurecer más la foto.
+    .o_dcasa_kicker,
+    .o_dcasa_display,
+    .o_dcasa_hero_sub {
+        text-shadow: 0 1px 2px rgba(#000000, .5), 0 0 1px rgba(#000000, .6);
     }
 }
 
@@ -743,6 +791,11 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 // ---------------------------------------------------------------------------
 
 .o_dcasa_rail_track {
+    // Contiene a los hijos con position:absolute (los «visually-hidden» de los botones: textos solo para
+    // lectores de pantalla). Sin esto su contenedor no es el carril, el carril no los recorta y cada uno queda
+    // a metros a la derecha: la página crece a 5 veces el ancho del teléfono, el navegador achica todo para que
+    // quepa («zoom») y se puede arrastrar de lado.
+    position: relative;
     display: grid;
     grid-auto-flow: column;
     grid-auto-columns: 72%;
@@ -783,25 +836,34 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
 
 // <picture> (WebP con respaldo) no debe crear una caja: la <img> sigue siendo la hija que se mide.
 .o_dcasa_pcard_media > picture,
-.oe_product_image_img_wrapper > picture {
+.oe_product_image_img_wrapper > picture,
+.o_product_detail_img_wrapper > picture {
     display: contents;
 }
 
+// Fotos de producto (ronda 6): casi todas son verticales (9:16 y 3:4) con fondo de estudio.
+// En un cuadro 1:1 con «contain» quedaban como una tira angosta entre dos bandas (y el
+// «multiply» las agrisaba). Ahora: cuadro 3:4 que la foto llena («cover»; a una 9:16 solo
+// se le recorta aire de arriba y abajo). Las anchas (muebles de TV, estantes con medidas)
+// no se recortan: animaciones.js les pone .o_dcasa_foto_ancha y van enteras («contain»).
+$dcasa-foto-fondo: #EEEDEA;
+
 .o_dcasa_pcard_media {
     display: block;
-    aspect-ratio: 1;
+    aspect-ratio: 3 / 4;
     border-radius: $dcasa-radius;
     overflow: hidden;
-    background: #FFFFFF;
+    background: $dcasa-foto-fondo;
 
     img {
         width: 100%;
         height: 100%;
-        object-fit: contain;
-        padding: 8%;
-        // Las fotos de catálogo traen fondo casi blanco: se funde con la tarjeta.
-        mix-blend-mode: multiply;
+        object-fit: cover;
         transition: transform .4s ease;
+    }
+
+    img.o_dcasa_foto_ancha {
+        object-fit: contain;
     }
 
     &:hover img {
@@ -1214,8 +1276,39 @@ html.o_dcasa_nav_sobre_foto #wrapwrap > header#top:not(.o_header_affixed) {
     // alto 0 (el paginador aparecía dentro de la pantalla) y al medirse lo empujaban ~4 000 px.
     // Con un alto estimado (medido: 332-357 px en celular, tableta y escritorio) el paginador
     // nace fuera de pantalla y las tarjetas lejanas siguen sin pintarse ni bajar su foto.
+    // Ronda 6: con la foto 3:4 la tarjeta mide 430-520 px (celular a escritorio).
     #o_wsale_products_grid .oe_product_cart {
-        contain-intrinsic-size: auto 350px;
+        contain-intrinsic-size: auto 480px;
+    }
+
+    // Fotos de la tienda como las de la portada: cuadro 3:4 lleno, las anchas enteras.
+    #o_wsale_products_grid {
+        --o-wsale-card-thumb-aspect-ratio: 3 / 4;
+        --o-wsale-card-thumb-fill-mode: cover;
+        --o-wsale-card-thumb-background: #{$dcasa-foto-fondo};
+    }
+
+    #o_wsale_products_grid .oe_product_image_link img.o_dcasa_foto_ancha {
+        object-fit: contain !important;
+    }
+
+    // Nombre del producto en Inter, como en la portada: se lee mejor que la condensada.
+    .o_wsale_products_item_title {
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.35;
+        text-transform: none;
+        letter-spacing: 0;
+
+        a {
+            color: $dcasa-tinta;
+
+            &:hover,
+            &:focus-visible {
+                color: $dcasa-azul;
+            }
+        }
     }
 
     // Tarjetas del catálogo como las de la portada: botón de compra sólido y grande.
@@ -2013,4 +2106,191 @@ $dcasa-negro: #000000;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
     gap: 1.25rem;
+}
+
+// Página /black-weekend: la banda negra empieza bajo la cabecera (que flota encima).
+.o_dcasa_bw_pagina {
+    padding-top: calc(7.5rem + #{clamp(2.5rem, 6vw, 4.5rem)});
+}
+
+// ---------------------------------------------------------------------------
+// Ronda 6: el estilo de /socios en el resto de páginas (legales y cuenta)
+// ---------------------------------------------------------------------------
+
+// Legales: cuerpo de lectura (≈70 caracteres por línea), subtítulos en Oswald azul en caja
+// alta como /socios/terminos (Anton es solo para titulares de 2-5 palabras).
+.o_dcasa_legal_cuerpo {
+    padding-block: clamp(2.5rem, 6vw, 5rem);
+    font-size: 1.0625rem;
+    line-height: 1.7;
+
+    .col-lg-8 {
+        max-width: 46rem;
+    }
+
+    h2 {
+        font-family: 'Oswald', sans-serif;
+        font-weight: 600;
+        font-size: 1.3rem;
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        color: $dcasa-azul;
+        margin: 2.5rem 0 .75rem;
+    }
+
+    li + li {
+        margin-top: .35rem;
+    }
+
+    // Enlaces dentro del texto: subrayados (el azul solo no basta, WCAG 1.4.1).
+    p a,
+    li a {
+        text-decoration: underline;
+        text-underline-offset: .15em;
+    }
+}
+
+// Cuenta: el formulario en la tarjeta de /socios.
+.o_dcasa_login {
+    padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2.5rem, 6vw, 4.5rem);
+    // Odoo 19 pinta el formulario de entrar oculto (d-none) y lo muestra con JavaScript: sin
+    // reservar su alto, el pie saltaba ~500 px al aparecer (CLS 0,18 en escritorio).
+    min-height: 41rem;
+
+    .oe_login_form,
+    .oe_signup_form,
+    .oe_reset_password_form {
+        background: #FFFFFF;
+        border: 2px solid rgba($dcasa-azul, .12);
+        border-radius: $dcasa-radius;
+        padding: clamp(1.25rem, 4vw, 2rem);
+        max-width: 26rem;
+        margin-inline: auto;
+    }
+
+    .form-control {
+        min-height: 3rem;
+    }
+
+    .btn-primary {
+        min-height: 3rem;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Celular: nada fuera de la pantalla, ni un instante, y sin zoom por accidente
+// (pedido de la dueña: en el teléfono solo se debe deslizar hacia abajo; de lado, nada más los carriles).
+//
+// Causas que se midieron en Chrome con el teléfono emulado (tests/test_movil.py las vigila):
+//  1. El menú del celular (offcanvas) está a la derecha, fuera de la pantalla, mientras está cerrado. Al volver
+//     arriba tras bajar, Odoo suelta y vuelve a fijar la cabecera ~0,4 s y en ese lapso el menú ahí parado
+//     ensancha la página: el navegador del teléfono la achica («zoom») y se puede arrastrar de lado.
+//     Cerrado, ahora no se dibuja ni mide nada; al abrirse se desliza con una animación propia.
+//  2. Los carriles (.o_dcasa_rail_track) no contenían a sus hijos con position:absolute (arriba).
+//  3. Un campo de formulario con letra menor de 16 px hace que el iPhone acerque la pantalla al tocarlo.
+//  4. Doble toque = zoom en el iPhone: se desactiva (el pellizco para agrandar sigue funcionando).
+// ---------------------------------------------------------------------------
+
+#top_menu_collapse_mobile.offcanvas:not(.show):not(.showing):not(.hiding) {
+    display: none;
+}
+
+#top_menu_collapse_mobile.offcanvas.showing {
+    animation: o_dcasa_menu_entra .3s ease-in-out;
+}
+
+@keyframes o_dcasa_menu_entra {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #top_menu_collapse_mobile.offcanvas.showing {
+        animation: none;
+    }
+}
+
+@media (max-width: 991.98px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+html {
+    touch-action: manipulation;
+}
+
+// ---------------------------------------------------------------------------
+// «Cargando…»: barra fina arriba mientras se abre otra página (static/src/js/carrito.js). El botón ocupado usa
+// el cargador de Odoo (.o_btn_loading). Azul de marca: se ve sobre blanco y sobre las fotos; plana, sin sombra.
+// ---------------------------------------------------------------------------
+
+html.o_dcasa_navegando::before {
+    content: "";
+    position: fixed;
+    inset: 0 0 auto 0;
+    height: 3px;
+    background: $dcasa-azul;
+    transform-origin: 0 50%;
+    animation: o_dcasa_progreso 1.4s cubic-bezier(.2, .7, .2, 1) infinite;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+@keyframes o_dcasa_progreso {
+    0% {
+        transform: scaleX(0);
+    }
+
+    70% {
+        transform: scaleX(.85);
+    }
+
+    100% {
+        transform: scaleX(.95);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.o_dcasa_navegando::before {
+        animation: none;
+        transform: scaleX(.6);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Pantallas táctiles: los controles que se tocan con el dedo miden al menos 44 px (guía de Apple y de WCAG 2.5.5).
+// Medidos en el teléfono eran de 28 a 36 px: «Ver todo →», cantidad (− y +), flechas de la galería, buscador.
+// ---------------------------------------------------------------------------
+
+@media (pointer: coarse) {
+    .o_dcasa_link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 2.75rem;
+    }
+
+    .css_quantity .btn,
+    .css_quantity input.quantity {
+        min-height: 2.75rem;
+        min-width: 2.75rem;
+    }
+
+    #o-carousel-product .carousel-control-prev,
+    #o-carousel-product .carousel-control-next {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
+    .o_wsale_products_searchbar_form .oe_search_box,
+    .o_wsale_products_searchbar_form .oe_search_button {
+        min-height: 2.75rem;
+    }
 }

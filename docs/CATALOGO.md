@@ -4,11 +4,20 @@ De dónde sale lo que se vende en Odoo (inventario, ventas y tienda web: es el m
 
 ## Fuentes
 
-- `up media/DCASA_listado_productos.xlsx`, hoja «Productos»: código, nombre, precio
+- `fuentes/carga-inicial/DCASA_listado_productos.xlsx`, hoja «Productos»: código, nombre, precio
   **sin ITBMS** («+ITBMS»), precios por tamaño, combo/el par, existencias y observaciones.
-- `up media/*.png`: fotos originales. **El nombre es el código**: `CODIGO.png` o
+- `fuentes/carga-inicial/*.png`: fotos originales. **El nombre es el código**: `CODIGO.png` o
   `CODIGO_1.png`, `CODIGO_2.png`… (varias fotos del mismo producto). Una `/` del código
   se escribe `-` en el archivo. No van en la imagen Docker (`.dockerignore`).
+- `up media/` es la **bandeja de entrada** de la dueña (sube desde GitHub, sin terminal): ahí solo
+  queda lo pendiente. Con cada subida, `.github/workflows/up-media.yml` corre
+  `scripts/procesar_up_media.py`, que regenera el catálogo, mueve con `git mv` lo ya cargado a
+  `fuentes/<pedido-o-carga>/` (y lo que no es de ningún producto a `descartado/<fecha>/`, con el
+  motivo en su `LEEME.md`) y escribe `up media/RESUMEN.md` (qué foto fue a qué producto, qué quedó
+  pendiente y por qué, qué Excel se cargó). El importador busca cada original primero en la
+  bandeja y después en `fuentes/**`, así el catálogo se regenera completo con la bandeja vacía.
+  Originales pesados: `scripts/archivar_fuentes.sh` (R2, prefijo `fuentes/`; ver
+  `docs/OPERACION.md` › «Cómo subir fotos»). Operación para la dueña: esa misma sección.
 
 ## Cómo se carga
 
@@ -27,7 +36,8 @@ De dónde sale lo que se vende en Odoo (inventario, ventas y tienda web: es el m
 
 ## Actualizar
 
-Con un Excel o fotos nuevas: `python scripts/importar_catalogo.py` (necesita `openpyxl` y
+Con un Excel o fotos nuevas en la bandeja: `python scripts/procesar_up_media.py` (o solo
+`python scripts/importar_catalogo.py` si no se quiere mover nada; los dos necesitan `openpyxl` y
 `Pillow`), commit, y en la base `odoo-bin shell` →
 `from odoo.addons.dcasa_catalogo.catalogo import cargar_catalogo; cargar_catalogo(env); env.cr.commit()`.
 Solo crea los códigos que falten: lo que se cambió en Odoo (precios, fotos, textos) no se pisa.
@@ -41,7 +51,7 @@ Código: `reglas.precio_terminado_en_99` (con tests en `tests/test_pedido_ltsc07
 
 ## Pedidos nuevos cargados como la mercancía inicial (LTSC-07)
 
-El pedido LTSC-07 (`up media/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`, hoja «Catálogo
+El pedido LTSC-07 (`fuentes/LTSC-07/Catalogo_LTSC-07_Precios_PRODUCTOS_NUEVOS.xlsm`, hoja «Catálogo
 LTSC-07», encabezado en la fila 4) entra por el mismo camino que la carga inicial —inventario
 **y** tienda web— y no por Brian. `scripts/importar_catalogo.py` (lista `PEDIDOS`) lo agrega a
 `catalogo.json`:
@@ -58,7 +68,7 @@ LTSC-07», encabezado en la fila 4) entra por el mismo camino que la carga inici
 - **Código que ya estaba en el catálogo** (Y0300300, $159.99): el que estaba **no se toca**
   (ni precio ni foto); las unidades del pedido son un producto aparte con sufijo:
   `Y0300300-LTSC07` a $129.99 (decisión de la dueña). Sin textos de promoción en el nombre.
-- **Fotos** (`up media/`, las que no son de la carga inicial; .jpg/.png/.webp), en este orden
+- **Fotos** (`up media/` y `fuentes/LTSC-07/`, las que no son de la carga inicial; .jpg/.png/.webp), en este orden
   (`reglas.asignar_foto`):
   1. decisiones revisadas a mano, con su motivo (`decisiones` del pedido en el script);
   2. código al inicio del nombre del archivo (`908K - Cama…`, `Y0200201 -Full…`); si el código
@@ -119,10 +129,40 @@ Detalle técnico: `docs/BRIAN.md` › «Importar productos desde el Excel de un 
 Los precios de combo (cama + colchón) de esos Excel son fórmulas sobre la tabla de colchones y
 no se importan: el combo se escribe a mano en «Precio en combo o el par» si se quiere mostrar.
 
+## Stock ordenable en Productos (para armar una campaña)
+
+Pedido de la dueña (2026-10-10): el equipo de marketing arma las campañas a partir del inventario y necesita, en la
+**misma lista de Productos**, ver qué categoría tiene más o menos stock y, dentro de ella, ordenar por precio (por
+ejemplo, «las camas: cuál tiene más stock, cuál menos, de la más barata a la más cara»).
+
+- **Cómo está hecho** (`dcasa_catalogo`, `models/product.py`): el campo `dcasa_stock` («Stock») es el mismo número que
+  el «A la mano» de Odoo, pero **guardado en el producto** y recalculado solo con cada entrada, venta, ajuste o
+  traslado. Odoo calcula el «A la mano» al vuelo y por eso su columna no se puede ordenar ni sumar por categoría.
+  Suma todas las medidas y colores de la ficha (en las ubicaciones internas: bodega y tienda), vale 0 si el producto no
+  controla inventario y no cuenta las medidas archivadas. Hay una prueba que lo compara con el «A la mano» de Odoo.
+- **Dónde:** Inicio → **Productos**, Ventas → **Productos** e Inventario → **Productos**. Abren en lista (las tarjetas
+  siguen a un clic en el selector de vistas). Ya no existe la pantalla aparte «Stock y precios».
+- **Cómo se usa** (de izquierda a derecha en la pantalla):
+  1. **Categorías a la izquierda** (con cuántos productos tiene cada una): toca «Camas».
+  2. **Filtrar:** botones de un clic arriba: Disponibles, **Pocas unidades** (1 a 5), Agotados, rangos de precio
+     (hasta $100, $100 a $300, $300 a $600, más de $600), En la tienda en línea, Sin foto. Se pueden sumar.
+  3. **Ordenar:** botones **Mayor stock · Menor stock · Mayor precio · Menor precio**. Solo cambian el orden: los
+     filtros y la categoría se quedan. Otro clic en el mismo botón vuelve al orden de siempre. Para ver lo que más
+     escasea sin los agotados: «Disponibles» + «Menor stock». También se ordena tocando el título de la columna
+     **Stock** o **Precio**.
+  4. **Favoritos** (menú de la lupa): los mismos cuatro órdenes como favoritos compartidos, que sirven también en tarjetas.
+- **Columnas:** foto, nombre, código, categoría de la tienda, precio, **Stock** (rojo si es negativo, naranja si es 0),
+  publicado. El «A la mano» y el «Previsto» de Odoo siguen en las columnas opcionales (los esconde el selector de
+  columnas de la derecha); el costo también.
+- **Qué suma el stock de una ficha con medidas:** la ficha de una cama muestra el total de sus medidas (Twin, Full,
+  Queen, King). Para ver cada medida, Inventario → **Variantes** (si está activado en Ajustes).
+- **Se retiró** la pantalla de solo lectura «Stock y precios» que se había hecho primero (modelo `dcasa.producto.stock`):
+  al actualizar el módulo, Odoo borra sus menús, vistas y favoritos solo.
+
 ## Black Weekend
 
 Banda negra con titular amarillo en la portada (antes de los carriles), página `/black-weekend`
-(Odoo y tienda estática, con sitemap, canónica, `ItemList` y la imagen para compartir) y etiqueta
+(con sitemap, canónica, `ItemList` y la imagen para compartir; la caché del borde guarda la misma página) y etiqueta
 «Black Weekend» en las tarjetas de los productos marcados.
 
 - **Qué productos:** los marcados en el producto (casilla «Black Weekend» junto a la categoría, con su orden y,
@@ -140,11 +180,42 @@ Banda negra con titular amarillo en la portada (antes de los carriles), página 
     staging `1`) y `DCASA_BLACK_WEEKEND_INICIO` / `_FIN` (`edge/wrangler.jsonc`). Para otra fecha:
     cambiar esas variables (o el parámetro en Ajustes › Técnico › Parámetros del sistema si la
     variable queda vacía).
-  - La tienda estática se regenera al cambiar la marca o un parámetro, y el cron horario
-    «D'CASA: Black Weekend» la regenera (y borra el sitemap guardado) cuando la campaña empieza o
+  - La caché de páginas del borde se invalida al cambiar la marca o un parámetro, y el cron horario
+    «D'CASA: Black Weekend» la invalida (y borra el sitemap guardado) cuando la campaña empieza o
     termina sola.
 - **Lo que no lleva:** cuenta regresiva, «tiempo limitado», «remate», cuotas ni financiamiento
-  (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña (`up media/115.png` …
-  `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
+  (tafi: descartado por la dueña el 2026-10-02). Las gráficas de la dueña
+  (`fuentes/graficas-black-weekend/115.png` … `153.png`) no son fotos de producto: solo `115.png` completa es la imagen para
   compartir (la dueña aceptó, el 2026-10-02, que ahí salgan tafi y «tiempo limitado»; la página no
   los repite). Revisión de las gráficas: `docs/CATALOGO_REVISAR.md`.
+
+## Inventario del sistema anterior (capturas del 2026-10-02)
+
+Las 7 capturas de Inventario → Productos del Odoo anterior (`up media/inventario-anterior/`, 535
+productos) están transcritas en `inventario_anterior.csv` (doble lectura independiente por captura;
+columna `dudas` con lo que se confirmó con zoom) y copiadas en `addons/dcasa_catalogo/data/`.
+`inventario_anterior.cargar_inventario_anterior` las aplica en la migración 19.0.1.7.0 y al dar de
+alta una base nueva, con las reglas de la dueña (LEEME del inventario):
+
+- Llave = código (`default_code`); sin código, el nombre exacto. Mismo código: existencias, costo y
+  precio si cambiaron (nombre y fotos no se tocan; el inventario manda sobre el precio, también en
+  los del pedido LTSC-07: el informe lista los 23 que cambian). Código nuevo: producto nuevo,
+  categoría por las palabras del nombre (`reglas.CATEGORIAS`), precio SIN ITBMS, publicado solo si
+  tiene foto en `static/img/productos` (archivo que empieza por el código).
+- Un código del inventario que en el catálogo tiene tamaños como variantes (`N-F10018-F-BK` →
+  `N-F10018-F-BK-FULL`, `XHT022-F-W` → `XHT022-F-W-FULL`) se aplica a la variante del tamaño que dice
+  el nombre, sin crear otro producto.
+- «A la mano» → ajuste de inventario en el almacén principal; negativo → 0 y a la lista de conteo.
+- «COMBO … + COLCHÓN» → producto sin publicar. «Descuento», «Propinas» y «X COLCHÓN … PARA COMBO»
+  no se importan. Un código repetido en el CSV (XXI070507) solo entra la primera vez.
+- Idempotente: la segunda corrida no crea nada ni deja movimientos.
+
+Informe para la dueña: `scripts/inventario_anterior_informe.py` escribe
+`docs/inventario-anterior-informe.md` (resumen y listas) y `docs/inventario-anterior-fotos-faltantes.xlsx`
+(código, nombre, existencias de los productos nuevos sin foto).
+
+## Códigos de barras
+
+Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las
+etiquetas numeradas de un rollo, desde Inventario › Escáner › Asignar; el Escáner también encuentra un producto por su
+referencia interna. Todo está en [BARRAS.md](BARRAS.md).

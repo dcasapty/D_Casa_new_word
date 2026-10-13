@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        El sitio se edita por código (models/sitio.py; docs/OPERACION.md, «El sitio se edita por código»;
+        análisis en docs/auditoria/ronda7/constructor-web.md).
+
+        En el panel, «Sitio web» queda para Gerencia y solo con lo que sí se usa: la vista previa móvil,
+        las páginas (ver y publicar), los productos y pedidos de la tienda y la configuración
+        (administradores). Todo lo del constructor (Editar, Nueva página, editor de menús, propiedades,
+        SEO de «esta página», editor HTML/CSS, páginas técnicas) se cuelga del grupo «Editor y
+        diseñador», que nadie tiene: si algún día se le devuelve a alguien, vuelve todo junto.
+    -->
+
+    <!-- Vista previa móvil: el sitio público en un marco de teléfono (390×844), tableta o escritorio. -->
+    <record id="action_dcasa_vista_previa" model="ir.actions.client">
+        <field name="name">Vista previa móvil</field>
+        <field name="tag">dcasa_vista_previa</field>
+    </record>
+
+    <!-- «Sitio web»: Gerencia (antes: solo quien tuviera el grupo de editor, que ya nadie tiene). -->
+    <record id="website.menu_website_configuration" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('dcasa_base.group_gerencia')])]"/>
+    </record>
+
+    <menuitem id="menu_dcasa_vista_previa" name="Vista previa móvil" parent="website.menu_website_configuration"
+              action="action_dcasa_vista_previa" sequence="5"/>
+
+    <!-- Lo del constructor: solo para el grupo Editor y diseñador (nadie). -->
+    <record id="website.menu_website_preview" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_edit_menu" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_current_page" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_page_properties" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_optimize_seo" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_ace_editor" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.custom_menu_edit_menu" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_website_technical_pages" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <!-- Reportes de visitantes y «Analytics»: la tienda se sirve desde la caché del borde de Cloudflare
+         a los visitantes anónimos, así que Odoo no ve esas visitas y el reporte saldría incompleto.
+         Las visitas se miran en Cloudflare. «Ventas en línea» (Gerencia) sí se queda. -->
+    <record id="website.menu_website_analytics" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.website_visitor_menu" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+    <record id="website.menu_visitor_view_menu" model="ir.ui.menu">
+        <field name="group_ids" eval="[Command.set([ref('website.group_website_designer')])]"/>
+    </record>
+
+    <!-- Se repite en cada actualización: nadie queda con los grupos de editor/diseñador del sitio. -->
+    <function model="dcasa.sitio" name="_sitio_por_codigo"/>
+</odoo>

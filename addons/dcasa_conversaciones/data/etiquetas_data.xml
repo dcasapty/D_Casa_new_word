@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!--
+        Semilla de etiquetas y respuestas rápidas. La dueña las cambia, borra y agrega desde el menú.
+        * Etiquetas: solo nombres de clasificación interna (nada que se le diga a un cliente).
+        * Respuestas rápidas: sin cifras ni políticas. La dirección, el horario y el WhatsApp salen de donde ya
+          viven ({direccion}, {horario}, {whatsapp}), así que no pueden quedarse viejos.
+    -->
+    <record id="etiqueta_pidio_precio" model="dcasa.conversacion.etiqueta">
+        <field name="name">Pidió precio</field>
+        <field name="color">2</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="etiqueta_comprobante" model="dcasa.conversacion.etiqueta">
+        <field name="name">Comprobante recibido</field>
+        <field name="color">10</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="etiqueta_socios" model="dcasa.conversacion.etiqueta">
+        <field name="name">Socios</field>
+        <field name="color">4</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="etiqueta_reclamo" model="dcasa.conversacion.etiqueta">
+        <field name="name">Reclamo</field>
+        <field name="color">1</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <record id="respuesta_ubicacion" model="dcasa.respuesta.rapida">
+        <field name="atajo">/ubicacion</field>
+        <field name="descripcion">Dónde estamos</field>
+        <field name="texto">{nombre}, estamos en {direccion}. Te esperamos.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="respuesta_horario" model="dcasa.respuesta.rapida">
+        <field name="atajo">/horario</field>
+        <field name="descripcion">Horario de atención</field>
+        <field name="texto">{nombre}, nuestro equipo atiende {horario}.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="respuesta_socios" model="dcasa.respuesta.rapida">
+        <field name="atajo">/socios</field>
+        <field name="descripcion">Qué es Socios D'CASA (sin cifras)</field>
+        <field name="texto">{nombre}, con Socios D'CASA acumulas puntos en tus compras y los canjeas. Si quieres, te cuento cómo funciona y cómo registrarte.</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

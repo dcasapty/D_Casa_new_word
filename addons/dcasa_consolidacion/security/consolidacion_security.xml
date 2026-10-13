@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Una consolidación suma varias empresas: solo la ve quien tiene acceso a TODAS las del grupo.
+         El campo company_ids lleva bypass_search_access: así «not any» no pasa por la regla de res.company
+         (que solo deja ver las empresas activas en el selector) y no se cuela una empresa escondida. -->
+    <record id="regla_consolidacion_empresas" model="ir.rule">
+        <field name="name">Consolidación: solo con empresas a las que tienes acceso</field>
+        <field name="model_id" ref="model_dcasa_consolidacion"/>
+        <field name="domain_force">[('company_ids', 'not any', [('id', 'not in', user.company_ids.ids)])]</field>
+    </record>
+
+    <record id="regla_consolidacion_linea_empresas" model="ir.rule">
+        <field name="name">Línea de consolidación: solo con empresas a las que tienes acceso</field>
+        <field name="model_id" ref="model_dcasa_consolidacion_linea"/>
+        <field name="domain_force">[('consolidacion_id', 'any', [('company_ids', 'not any', [('id', 'not in', user.company_ids.ids)])])]</field>
+    </record>
+
+    <record id="regla_consolidacion_mapa_empresa" model="ir.rule">
+        <field name="name">Mapa de consolidación: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_consolidacion_mapa"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

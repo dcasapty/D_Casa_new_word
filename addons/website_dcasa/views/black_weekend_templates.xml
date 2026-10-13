@@ -50,7 +50,7 @@
                         <input type="hidden" name="product_template_id" t-att-value="producto.id"/>
                         <input t-if="producto.product_variant_count &gt; 1" type="hidden" name="product_id" t-att-value="variante.id"/>
                         <button type="submit" class="btn btn-primary w-100"
-                                t-attf-aria-label="Agregar {{ producto.name }} al carrito">Agregar al carrito</button>
+                                t-attf-aria-label="Agregar al carrito: {{ producto.name }}">Agregar al carrito</button>
                     </form>
                     <a t-else="" t-att-href="variante.website_url" class="btn btn-primary w-100">Ver opciones<span class="visually-hidden">: <t t-out="producto.name"/></span></a>
                     <a t-att-href="item['whatsapp']" target="_blank" rel="noopener" class="btn o_dcasa_btn_contorno w-100">
@@ -91,13 +91,18 @@
             <t t-set="meta_description" t-value="bw_descripcion"/>
             <t t-set="website_meta_description" t-value="bw_descripcion"/>
             <t t-set="dcasa_og_black_weekend" t-value="True"/>
+            <!-- La banda negra sube bajo la cabecera, con la píldora oscura de /socios (ronda 6:
+                 antes quedaba una franja blanca entre la píldora clara y el negro). -->
+            <t t-set="dcasa_header_overlay" t-value="True"/>
             <div id="wrap" class="o_dcasa_pagina_bw">
-                <section class="o_dcasa_bw o_dcasa_bw_pagina" aria-labelledby="dcasa-bw-h1">
+                <section class="o_dcasa_bw o_dcasa_bw_pagina o_dcasa_fondo_oscuro" aria-labelledby="dcasa-bw-h1">
                     <div class="o_dcasa_container">
                         <p class="o_dcasa_kicker o_dcasa_kicker_light">D'CASA Panamá · La Chorrera</p>
                         <h1 id="dcasa-bw-h1" class="o_dcasa_bw_titulo o_dcasa_bw_titulo_grande">Black Weekend</h1>
                         <p class="o_dcasa_bw_sub">Camas tapizadas y bases seleccionadas<t t-if="fechas">, <t t-out="fechas"/></t>.
                             Cada una con su precio de cama sola y en combo con colchón. Precios sin ITBMS: el 7 % se suma en el carrito.</p>
+                        <!-- Orden de titulares (h1 → h2 → h3 de cada tarjeta) para el lector de pantalla. -->
+                        <h2 class="visually-hidden">Camas en Black Weekend</h2>
                         <ul class="o_dcasa_bw_grid" role="list">
                             <li t-foreach="items" t-as="item">
                                 <t t-call="website_dcasa.tarjeta_black_weekend"/>

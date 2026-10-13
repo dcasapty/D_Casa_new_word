@@ -14,6 +14,7 @@ from odoo.addons.website_dcasa.models.black_weekend import (
     fechas_en_texto,
     leer_combo,
 )
+from odoo.addons.website_dcasa.tests.test_imagen import foto
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tools.misc import file_path
 
@@ -160,6 +161,8 @@ class TestPaginasBlackWeekend(_Base, HttpCase):
             'name': 'Cama Black de prueba', 'list_price': 187.99, 'is_published': True,
             'default_code': 'BW-PRUEBA-1', 'public_categ_ids': [(6, 0, self.recamaras.ids)],
             'dcasa_black_weekend': True, 'dcasa_bw_orden': -1000, 'website_sequence': -1000,
+            # Con foto propia: el <source> WebP de la tarjeta no depende del catálogo cargado.
+            'image_1920': foto(600, 600),
         })
         self.otra = self.env['product.template'].create({
             'name': 'Cama normal de prueba', 'list_price': 77.0, 'is_published': True,

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="regla_formato_extracto_empresa" model="ir.rule">
+        <field name="name">Formato de extracto: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_formato_extracto"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="formato_extracto_list" model="ir.ui.view">
+        <field name="name">dcasa.formato.extracto.list</field>
+        <field name="model">dcasa.formato.extracto</field>
+        <field name="arch" type="xml">
+            <list string="Formatos de extracto">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="journal_ids" widget="many2many_tags"/>
+                <field name="col_fecha"/>
+                <field name="col_monto"/>
+                <field name="col_debito"/>
+                <field name="col_credito"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="formato_extracto_form" model="ir.ui.view">
+        <field name="name">dcasa.formato.extracto.form</field>
+        <field name="model">dcasa.formato.extracto</field>
+        <field name="arch" type="xml">
+            <form string="Formato de extracto">
+                <sheet>
+                    <p class="text-muted">
+                        Ármalo con un extracto real de tu banca en línea: escribe los encabezados tal como vienen
+                        en el archivo (o el número de columna, 1 = la primera). Después pruébalo en
+                        «Importar extracto»: la vista previa te muestra si lo leyó bien antes de importar.
+                    </p>
+                    <group>
+                        <group string="Archivo">
+                            <field name="name" placeholder="Banco General — cuenta corriente"/>
+                            <field name="journal_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                            <field name="separador"/>
+                            <field name="codificacion"/>
+                            <field name="filas_omitir"/>
+                        </group>
+                        <group string="Columnas">
+                            <field name="col_fecha"/>
+                            <field name="formato_fecha"/>
+                            <field name="col_concepto"/>
+                            <field name="col_referencia"/>
+                            <field name="col_monto"/>
+                            <field name="col_debito"/>
+                            <field name="col_credito"/>
+                            <field name="decimal"/>
+                            <field name="invertir_signo"/>
+                        </group>
+                    </group>
+                    <field name="notas" placeholder="Cómo se descarga el CSV en la banca en línea…"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_formato_extracto" model="ir.actions.act_window">
+        <field name="name">Formatos de extracto</field>
+        <field name="res_model">dcasa.formato.extracto</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Sin formatos: se detectan las columnas solas</p>
+            <p>Crea un formato solo si el CSV de tu banco no se reconoce (columnas con otros nombres, filas de
+                título, coma decimal…).</p>
+        </field>
+    </record>
+</odoo>

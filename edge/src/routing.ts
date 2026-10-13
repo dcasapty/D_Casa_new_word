@@ -1,6 +1,7 @@
 /**
  * Reglas del borde (sin dependencias de Cloudflare: se testean en Node).
  */
+import { CABECERA_MODO, CABECERA_PUERTA, sinCookieDePuerta } from "./puerta";
 
 export type Route =
   | { kind: "health" }
@@ -23,13 +24,14 @@ export type Route =
  *   D'CASA la usa hoy; cuando Brian en el borde la necesite (fase posterior) se
  *   abrirá con su propia protección, no desde internet abierto.
  *
- * - `/dcasa/tienda/feed`: catálogo para el generador de la tienda estática. Lleva su propio
- *   secreto, pero solo lo pide el Worker, directo al contenedor (sin pasar por estas reglas).
+ * - `/dcasa/juan/*`: la API que el Worker `juan` (el asistente de clientes) usa para registrar mensajes, pedir
+ *   herramientas y confirmar seguimientos (addons/dcasa_conversaciones). Solo entra por el service binding
+ *   (clase `JuanEntrada`, src/juan.ts): desde internet, 404 como el resto de las rutas internas.
  *
- * Ningún módulo de `addons/` ni el Worker usan estas rutas (Brian habla por
+ * Ningún módulo de `addons/` ni el Worker usan las otras rutas (Brian habla por
  * `/brian/mcp` y el sitio por `/web/dataset/*` y rutas `http`).
  */
-const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer", "/dcasa/tienda/feed"];
+const BLOCKED_PREFIXES = ["/web/database", "/jsonrpc", "/xmlrpc", "/json/2", "/doc-bearer", "/dcasa/juan"];
 
 /**
  * Odoo (http_routing) quita un prefijo de idioma (`/es/…`, `/es_419/…`) y vuelve a
@@ -88,9 +90,9 @@ const NEVER_CACHE_PREFIXES = ["/brian/"];
  * y Odoo solo marca "public" lo servido a un visitante anónimo (`Stream.public`, http.py).
  *
  * No entran (a propósito):
- * - El HTML (`/`, `/shop`, fichas): Odoo manda `Set-Cookie` de sesión a todo anónimo y el
- *   CSRF va atado a esa sesión. Cachearlo exige quitar la cookie a anónimos, bypass por
- *   `session_id`, purga por etiqueta y pasar el «Agregar» a JSON-RPC (ronda3/sitio-edge.md §2.A).
+ * - El HTML (`/`, `/shop`, fichas): lo guarda otra pieza, la caché de páginas
+ *   (`src/tienda/paginas.ts`, con `rutaEstatica`), que lo pide a Odoo sin cookies y solo lo sirve
+ *   a anónimos; aquí Odoo lo manda sin "public" y con `Set-Cookie`, así que nunca se guardaría.
  * - `/web/webclient/translations`: Odoo responde `public, max-age=1 año` pero el JS lo pide
  *   con `cache: "no-store"` y compara el hash para enterarse de traducciones nuevas.
  */
@@ -101,6 +103,30 @@ const CACHEABLE_PATTERNS = [
   /^\/web\/content\/[^?]*\?(?:.*&)?unique=/, // adjuntos versionados (/web/content/12-abc/x.css?unique=…)
   /^\/dcasa\/img\/[^?]*\?(?:.*&)?v=/, // fotos WebP/JPEG al ancho justo, versionadas (website_dcasa/models/imagen.py)
 ];
+
+/** ¿Esta ruta (con query) es un asset que el borde puede guardar? (Además Odoo debe responder "public".) */
+export function esAssetCacheable(rutaYQuery: string): boolean {
+  return CACHEABLE_PATTERNS.some((re) => re.test(rutaYQuery));
+}
+
+/**
+ * Assets cuya URL lleva la versión del contenido: si cambia el archivo, cambia la URL. Son
+ * inmutables (Odoo los manda `max-age=1 año, immutable`): el borde los guarda sin mirar la marca de
+ * invalidación. Los estáticos de los módulos (`/<módulo>/static/…`: fuentes, logo, foto del hero)
+ * NO llevan versión: se guardan igual, pero caducan con cada invalidación.
+ *
+ * - `/web/assets/[<website_id>/]<versión>/<bundle>` (Odoo 19; el módulo website antepone el id del
+ *   sitio; `debug`, `any` y `%` no son versiones).
+ * - `/web/image/<id>-<versión>/…` o `/web/image/…?unique=…`, `/web/content/…?unique=…`.
+ * - `/dcasa/img/…?v=<checksum>` (website_dcasa/models/imagen.py).
+ */
+export function esAssetVersionado(rutaYQuery: string): boolean {
+  const bundle = /^\/web\/assets\/(?:\d+\/)?([^/?]+)\/[^/?]+/.exec(rutaYQuery);
+  if (bundle) return !["debug", "any", "%", "%25"].includes(bundle[1]);
+  if (/^\/web\/image\/\d+-[^/?]+(?:\/|$|\?)/.test(rutaYQuery)) return true;
+  if (/^\/web\/(?:image|content)\/[^?]*\?(?:.*&)?unique=[^&]+/.test(rutaYQuery)) return true;
+  return /^\/dcasa\/img\/[^?]*\?(?:.*&)?v=[^&]+/.test(rutaYQuery);
+}
 
 export function route(url: URL, method: string, canonicalHost?: string): Route {
   if (url.pathname === "/__edge/health") {
@@ -129,7 +155,7 @@ export function route(url: URL, method: string, canonicalHost?: string): Route {
   }
   const isRead = method === "GET" || method === "HEAD";
   const pathAndQuery = url.pathname + url.search;
-  return { kind: "origin", cacheable: isRead && CACHEABLE_PATTERNS.some((re) => re.test(pathAndQuery)) };
+  return { kind: "origin", cacheable: isRead && esAssetCacheable(pathAndQuery) };
 }
 
 /**
@@ -196,7 +222,8 @@ export function notModifiedResponse(response: Response): Response {
 
 /** Cabecera de diagnóstico: permite medir si la caché del borde de verdad acierta. */
 export const CACHE_STATUS_HEADER = "X-Dcasa-Cache";
-export type CacheStatus = "HIT" | "MISS" | "BYPASS";
+/** STALE: página guardada de hace más de una hora, servida mientras se pide otra a Odoo. */
+export type CacheStatus = "HIT" | "MISS" | "STALE" | "BYPASS";
 
 export function withCacheStatus(response: Response, status: CacheStatus): Response {
   if (response.status === 101 || (response as Response & { webSocket?: unknown }).webSocket) return response;
@@ -206,9 +233,20 @@ export function withCacheStatus(response: Response, status: CacheStatus): Respon
 }
 
 /** Cabeceras para que Odoo (proxy_mode) conozca el host, el esquema y la IP reales. */
-export function forwardedHeaders(request: Request): Headers {
+export function forwardedHeaders(request: Request, puerta?: { acceso?: string; modo?: string }): Headers {
   const url = new URL(request.url);
   const headers = new Headers(request.headers);
+  // Solo el borde habla con Odoo por esta cabecera (caché de páginas, con el secreto).
+  headers.delete("X-Dcasa-Borde");
+  // Igual la de la puerta del equipo: nunca la que mande el visitante; solo la que el borde firma tras
+  // verificar la cookie de la puerta (src/puerta.ts). La cookie misma tampoco viaja a Odoo.
+  headers.delete(CABECERA_PUERTA);
+  headers.delete(CABECERA_MODO);
+  if (puerta?.acceso) headers.set(CABECERA_PUERTA, puerta.acceso);
+  if (puerta?.modo) headers.set(CABECERA_MODO, puerta.modo);
+  const cookie = sinCookieDePuerta(headers.get("Cookie"));
+  if (cookie === null) headers.delete("Cookie");
+  else headers.set("Cookie", cookie);
   const clientIp = request.headers.get("CF-Connecting-IP");
   headers.set("X-Forwarded-Host", url.host);
   headers.set("X-Forwarded-Proto", url.protocol.replace(":", ""));
@@ -225,6 +263,10 @@ const SECURITY_HEADERS: Record<string, string> = {
   "Referrer-Policy": "strict-origin-when-cross-origin",
   // El constructor de sitios de Odoo carga la página en un iframe del mismo origen.
   "X-Frame-Options": "SAMEORIGIN",
+  // Lo mismo en CSP (los navegadores nuevos priorizan frame-ancestors). Solo si Odoo no mandó
+  // su propia CSP: /web/login ya la trae igual.
+  "Content-Security-Policy": "frame-ancestors 'self'",
+  "X-Permitted-Cross-Domain-Policies": "none",
 };
 
 export function withSecurityHeaders(response: Response): Response {
@@ -239,13 +281,13 @@ export function withSecurityHeaders(response: Response): Response {
   return secured;
 }
 
-// ------------------------------------------------------------------ tienda estática
+// ------------------------------------------------------------------ caché de páginas
 
 /**
- * Rutas que la tienda estática puede servir (las mismas URL de Odoo). Todo lo demás (carrito,
- * checkout, pago, /my, /odoo, /web, /socios, /brian, /dcasa/*, buscador, filtros) va a Odoo.
- * Las fichas y categorías llevan el `-<id>` final del slug de Odoo: así `/shop/cart`,
- * `/shop/checkout`, `/shop/payment`… nunca se confunden con un producto.
+ * Páginas públicas cuyo HTML de Odoo puede guardarse en el borde para visitantes anónimos. Todo
+ * lo demás (carrito, checkout, pago, /my, /odoo, /web, /socios, /brian, /dcasa/*, buscador,
+ * filtros) va siempre a Odoo. Las fichas y categorías llevan el `-<id>` final del slug de Odoo:
+ * así `/shop/cart`, `/shop/checkout`, `/shop/payment`… nunca se confunden con un producto.
  */
 const RUTAS_ESTATICAS = [
   /^\/$/,
@@ -259,8 +301,8 @@ const RUTAS_ESTATICAS = [
 const PARAMETROS_IGNORABLES = /^(?:utm_[a-z_]+|gclid|fbclid|msclkid|gbraid|wbraid)$/;
 
 /**
- * Ruta de la página estática que corresponde a esta petición, o `null` si va a Odoo: solo
- * GET/HEAD, sin parámetros de búsqueda/filtro/orden y con una ruta de la lista.
+ * Ruta guardable que corresponde a esta petición, o `null` si va a Odoo: solo GET/HEAD, sin
+ * parámetros de búsqueda/filtro/orden (los de campaña se ignoran) y con una ruta de la lista.
  */
 export function rutaEstatica(url: URL, method: string): string | null {
   if (method !== "GET" && method !== "HEAD") return null;

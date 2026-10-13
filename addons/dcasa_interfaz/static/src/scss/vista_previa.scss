@@ -1,0 +1,246 @@
+// «Vista previa móvil»: el sitio público en un marco de teléfono, tableta o escritorio.
+// Mismo sistema de diseño que el Inicio (tokens.scss): plano, bordes finos, azul de la marca.
+
+.o_dcasa_vista_previa {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: var(--dc-niebla);
+    color: var(--dc-tinta);
+}
+
+.o_dcasa_vp_barra {
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+    padding: 20px clamp(1rem, 3vw, 40px) 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+
+    h1 {
+        font-family: "Anton", "Oswald", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: .01em;
+        font-size: 1.5rem;
+        line-height: 1.1;
+        color: var(--dc-azul-800);
+        margin: 0 0 4px;
+    }
+
+    p {
+        margin: 0;
+        color: var(--dc-tinta-2);
+        font-size: .9rem;
+
+        a {
+            color: var(--dc-azul-600);
+            margin-left: .35rem;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+    }
+}
+
+.o_dcasa_vp_dispositivos {
+    display: inline-flex;
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-md);
+    overflow: hidden;
+    background: var(--dc-nieve);
+}
+
+.o_dcasa_vp_dispositivo {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--dc-tinta-2);
+    padding: 8px 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+
+    + .o_dcasa_vp_dispositivo {
+        border-left: 1px solid var(--dc-linea);
+    }
+
+    small {
+        margin-left: 8px;
+        font-weight: 400;
+        color: var(--dc-tinta-3);
+        font-variant-numeric: tabular-nums;
+    }
+
+    &:hover {
+        background: var(--dc-azul-50);
+        color: var(--dc-azul-700);
+    }
+
+    &.o_activo {
+        background: var(--dc-azul-600);
+        color: var(--dc-blanco);
+
+        small {
+            color: var(--dc-azul-200);
+        }
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: inset var(--dc-foco);
+    }
+}
+
+.o_dcasa_vp_navegacion {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    padding: 12px clamp(1rem, 3vw, 40px);
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+}
+
+.o_dcasa_vp_paginas {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.o_dcasa_vp_pagina {
+    appearance: none;
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: 999px;
+    background: var(--dc-blanco);
+    color: var(--dc-azul-700);
+    padding: 4px 12px;
+    font-size: .875rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--dc-azul-50);
+    }
+
+    &.o_activo {
+        background: var(--dc-azul-100);
+        border-color: var(--dc-azul-300);
+        color: var(--dc-azul-800);
+    }
+}
+
+.o_dcasa_vp_ruta {
+    display: flex;
+    align-items: stretch;
+    flex: 1 1 320px;
+    max-width: 640px;
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-sm);
+    overflow: hidden;
+    background: var(--dc-blanco);
+
+    .o_dcasa_vp_origen {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 10px;
+        background: var(--dc-niebla);
+        color: var(--dc-tinta-3);
+        font-size: .85rem;
+        border-right: 1px solid var(--dc-linea);
+        white-space: nowrap;
+    }
+
+    .form-control {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .btn {
+        border-radius: 0;
+    }
+}
+
+.o_dcasa_vp_acciones {
+    display: inline-flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.o_dcasa_vp_aviso {
+    margin: 12px clamp(1rem, 3vw, 40px) 0;
+    padding: 8px 12px;
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-800);
+    font-size: .875rem;
+
+    a {
+        color: var(--dc-azul-700);
+        text-decoration: underline;
+    }
+}
+
+// --- Escena -----------------------------------------------------------------------------
+.o_dcasa_vp_escena {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 16px;
+}
+
+.o_dcasa_vp_escenario {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.o_dcasa_vp_marco {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea-fuerte);
+    box-shadow: var(--dc-sombra-1);
+    overflow: hidden;
+
+    &.o_dcasa_vp_marco_telefono {
+        border-radius: 36px;
+        border-width: 10px;
+        border-color: var(--dc-azul-950);
+    }
+
+    &.o_dcasa_vp_marco_tableta {
+        border-radius: 24px;
+        border-width: 12px;
+        border-color: var(--dc-azul-950);
+    }
+
+    &.o_dcasa_vp_marco_escritorio {
+        border-radius: var(--dc-r-md);
+        border-top-width: 28px;
+        border-color: var(--dc-perla);
+    }
+}
+
+.o_dcasa_vp_iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    background: var(--dc-blanco);
+}
+
+@media (max-width: 767px) {
+    .o_dcasa_vp_acciones {
+        margin-left: 0;
+    }
+}

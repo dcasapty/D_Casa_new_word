@@ -3,8 +3,10 @@
 #
 # Usa GET ${URL_SITIO}/__edge/health (edge/CONTRATO_CONTENEDOR.md §2): 200 solo si Odoo y la
 # base responden (/dcasa/salud); 503 mientras arranca (restauración desde R2 + `odoo -u`).
-# Ese endpoint no despierta el contenedor, así que cada vuelta también visita la portada
-# (una visita sí lo arranca; mientras tanto responde el 503 amable).
+# Ese endpoint no despierta el contenedor, así que cada vuelta también visita una página que SIEMPRE
+# llega a Odoo (/web/login; una visita sí lo arranca y mientras tanto responde el 503 amable). La
+# portada no sirve para esto: sale de la copia guardada en el borde (válida 1 hora) y no despierta
+# nada; así falló el despliegue 95 (el contenedor quedó «stopped» los 20 minutos de espera).
 #
 # Con max_instances = 1 el rollout para la instancia vieja y recién después arranca la nueva
 # (CONTRATO §4): justo después de `wrangler deploy` un 200 puede venir todavía de la vieja.
@@ -21,7 +23,7 @@ cuerpo="$(mktemp)"
 trap 'rm -f "$cuerpo"' EXIT
 
 salud() {
-  curl -sS --max-time 20 -o /dev/null "${URL_SITIO}/" 2>/dev/null || true
+  curl -sS --max-time 20 -o /dev/null "${URL_SITIO}/web/login" 2>/dev/null || true
   curl -sS --max-time 20 -o "$cuerpo" -w '%{http_code}' "${URL_SITIO}/__edge/health" 2>/dev/null || true
 }
 

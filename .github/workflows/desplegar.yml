@@ -67,8 +67,9 @@ jobs:
     name: Desplegar a ${{ inputs.entorno }}
     runs-on: ubuntu-24.04
     timeout-minutes: 75
-    # Con «Required reviewers» en el environment `production`, el job espera la aprobación
-    # del dueño antes de empezar (docs/DESPLIEGUE.md §3).
+    # A producción solo se llega a mano (Run workflow en ci.yml, desde main): el clic de quien lo
+    # lanza es la aprobación. «Required reviewers» no existe en repositorios privados de los
+    # planes Free, Pro ni Team (docs/DESPLIEGUE.md §3).
     environment:
       name: ${{ inputs.entorno }}
       url: ${{ vars.URL_SITIO }}
@@ -231,8 +232,15 @@ jobs:
           BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
-          # Opcional: tienda estática (edge/CONTRATO_CONTENEDOR.md → «Tienda estática»).
+          # Opcional: caché de páginas (edge/CONTRATO_CONTENEDOR.md → «Caché de páginas»).
           TIENDA_FEED_TOKEN: ${{ secrets.TIENDA_FEED_TOKEN }}
+          # Opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md). Sin él, Turnstile apagado.
+          TURNSTILE_SECRET: ${{ secrets.TURNSTILE_SECRET }}
+          # Opcional: la puerta del equipo (docs/SEGURIDAD_ACCESO.md §8). Las cuatro juntas o ninguna.
+          DCASA_PUERTA_RUTA: ${{ secrets.DCASA_PUERTA_RUTA }}
+          DCASA_PUERTA_SECRETO: ${{ secrets.DCASA_PUERTA_SECRETO }}
+          DCASA_ACCESS_EQUIPO: ${{ secrets.DCASA_ACCESS_EQUIPO }}
+          DCASA_ACCESS_AUD: ${{ secrets.DCASA_ACCESS_AUD }}
           DCASA_PIN_PEPPER: ${{ secrets.DCASA_PIN_PEPPER }}
           PGBACKREST_CIPHER_PASS: ${{ secrets.PGBACKREST_CIPHER_PASS }}
         run: .github/scripts/secretos_despliegue.sh
@@ -267,6 +275,17 @@ jobs:
           BRIAN_BASE_URL: ${{ vars.BRIAN_BASE_URL }}
         run: |
           set -euo pipefail
+          # Sin CANONICAL_HOST a mano, el dominio canónico es donde el sitio de verdad responde (el de URL_SITIO). Si no, Odoo arma sus
+          # direcciones (fotos de productos, PDF de cotizaciones, webhooks) con un dominio que todavía no existe —p. ej.
+          # staging.dcasapty.com mientras staging vive en workers.dev— y Telegram, WhatsApp y los clientes no pueden abrirlas.
+          if [ -z "${CANONICAL_HOST:-}" ] && [ -n "${URL_SITIO:-}" ]; then
+            anfitrion="${URL_SITIO#*://}"
+            anfitrion="${anfitrion%%/*}"
+            if [[ "$anfitrion" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$ ]]; then
+              CANONICAL_HOST="$anfitrion"
+              echo "▶ CANONICAL_HOST vacío: se usa el de URL_SITIO (${CANONICAL_HOST})."
+            fi
+          fi
           args=(--config wrangler.desplegar.json --secrets-file "$RUNNER_TEMP/secretos.json"
                 --var "APP_VERSION:${APP_VERSION}")
           # Producción es la raíz del archivo: --env="" (wrangler.jsonc define env.staging).
@@ -274,6 +293,9 @@ jobs:
           for name in CANONICAL_HOST BRIAN_PROVEEDOR BRIAN_MODELO BRIAN_BASE_URL; do
             if [ -n "${!name}" ]; then args+=(--var "${name}:${!name}"); fi
           done
+          # --keep-vars: las variables (no secretas) que la dueña pega en el panel, como JUAN_URL, no se borran al
+          # desplegar. Los secretos del panel nunca se tocan. Lo que sí está en wrangler.jsonc sigue mandando.
+          args+=(--keep-vars)
           npx wrangler deploy "${args[@]}"
 
       - name: Borrar el archivo de secretos

@@ -1,3 +1,5 @@
+import functools
+import hashlib
 import json
 import math
 import os
@@ -11,7 +13,16 @@ from odoo.exceptions import ValidationError
 from odoo.fields import Domain
 from odoo.http import request
 from odoo.tools.json import scriptsafe as json_scriptsafe
-from odoo.tools.misc import file_path
+from odoo.tools.misc import file_open, file_path
+
+LOGO_DE_FABRICA = 'dcasa_base/static/img/logo.png'
+
+
+@functools.cache
+def _sha1_logo_de_fabrica():
+    with file_open(LOGO_DE_FABRICA, 'rb') as archivo:
+        return hashlib.sha1(archivo.read()).hexdigest()
+
 
 # La tienda en Google Maps (ficha «D'CASA», La Chorrera): la usan la página «Visítanos» y el JSON-LD.
 LATITUD, LONGITUD = 8.8765881, -79.7867962
@@ -138,6 +149,19 @@ class Website(models.Model):
             digits = f'507{digits}'
         return f'https://wa.me/{digits}?text={quote(message or DEFAULT_WHATSAPP_MESSAGE)}'
 
+    def _dcasa_logo_de_fabrica(self):
+        """¿El logo del sitio sigue siendo el de D'CASA que trae el módulo (dcasa_base)?
+
+        Entonces la cabecera usa su copia en WebP (3-7 KB, static/src/img/logo-*.webp) en lugar del
+        PNG de 56 KB que pedía cada página con prioridad alta, compitiendo con la foto LCP. Si la
+        dueña cambia el logo desde el editor, se muestra el suyo como siempre.
+        """
+        self.ensure_one()
+        adjunto = self.env['ir.attachment'].sudo().search_read(
+            [('res_model', '=', 'website'), ('res_field', '=', 'logo'), ('res_id', '=', self.id)],
+            ['checksum'], limit=1)
+        return bool(adjunto) and adjunto[0]['checksum'] == _sha1_logo_de_fabrica()
+
     def _dcasa_whatsapp_producto(self, product):
         """Mensaje de WhatsApp con el nombre del mueble ya escrito."""
         return self._dcasa_whatsapp_url(f"Hola D'CASA, me interesa: {product.display_name}")
@@ -204,6 +228,8 @@ class Website(models.Model):
             'nombre': nombre,
             'url': self._dcasa_categoria_url(clave),
             'imagen': f'/website_dcasa/static/src/img/cat-{clave}.webp',
+            # 400 px para el celular (dos columnas de ~180 px): 11-18 KB en vez de 36-68 KB.
+            'imagen_chica': f'/website_dcasa/static/src/img/cat-{clave}-400.webp',
             'alt': alt,
         } for clave, nombre, alt in CATEGORIAS_PORTADA]
 

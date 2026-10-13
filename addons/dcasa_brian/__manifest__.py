@@ -13,7 +13,8 @@ incluso con modelos pequeños. Ver docs/BRIAN.md.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_catalogo', 'dcasa_socios', 'mail'],
+    'depends': ['dcasa_interfaz', 'dcasa_contabilidad', 'dcasa_catalogo', 'dcasa_socios', 'mail',
+                'purchase_stock'],
     'data': [
         'security/brian_security.xml',
         'security/ir.model.access.csv',

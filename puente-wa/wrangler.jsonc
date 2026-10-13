@@ -1,0 +1,122 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Puente de WhatsApp por QR para Juan: Worker + Durable Object + Container (Baileys).
+  // Contrato con el Worker `juan`: docs/JUAN.md («Worker juan ↔ puente QR»). Operación: docs/JUAN_PUENTE.md.
+  //
+  // APARTE del Worker `juan` a propósito: si la imagen del contenedor no construye, lo único que no sale es
+  // el puente, y `juan` se sigue publicando (contestando por los demás canales).
+  "name": "dcasa-puente-wa",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Sin logs no hay forma de ver por qué Baileys no levantó. (Los registros del puente nunca llevan el QR,
+  // credenciales, textos de clientes ni números completos.)
+  "observability": { "enabled": true },
+
+  // El contenedor: Baileys sosteniendo el socket de WhatsApp 24/7.
+  "containers": [
+    {
+      "class_name": "PuenteWa",
+      "image": "./contenedor/Dockerfile",
+      "image_build_context": "./contenedor",
+      // Política "default", como el borde (edge/wrangler.jsonc): es INMUTABLE, cambiarla después exige otra app.
+      "scheduling_policy": "default",
+      // `lite` = 1/16 vCPU, 256 MiB, 2 GB de disco: el tamaño cuyo costo se midió en el CRM de origen
+      // (≈ $1.50–2.00/mes encendido 24/7). Por eso los archivos entrantes tienen tope (≤ 12 MB).
+      "instance_type": "lite",
+      // UNO. WhatsApp admite una sola conexión por dispositivo vinculado: dos contenedores sobre el mismo
+      // número se expulsan entre sí en bucle. (Además: un único Durable Object y la «época» de la sesión.)
+      "max_instances": 1
+    }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "WA", "class_name": "PuenteWa" }]
+  },
+  // SQLite del propio Durable Object: ahí vive la sesión de WhatsApp CIFRADA. No hay base D1 aparte (el
+  // CRM de origen usaba una): ningún recurso extra en Cloudflare.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PuenteWa"] }],
+
+  // El Worker `juan`, por SERVICE BINDING (Worker a Worker de la misma cuenta por URL pública da el error
+  // 1042 de Cloudflare, disfrazado de 404). Cloudflare NO despliega un Worker que declara un binding a otro
+  // que todavía no existe: primero se despliega `dcasa-juan`, después este.
+  "services": [{ "binding": "JUAN", "service": "dcasa-juan" }],
+
+  // Un supervisor FUERA del Durable Object: llega aunque el DO se haya desalojado y su cadena de alarmas se
+  // haya perdido (la causa de la noche muda del CRM de origen). Cada minuto, que es el mínimo que permite
+  // Cloudflare. Con el puente sin configurar o apagado no hace nada más que comprobarlo.
+  "triggers": { "crons": ["* * * * *"] },
+
+  // Valores NO secretos. Los SECRETOS no están aquí ni en GitHub: la dueña los pega en el panel de
+  // Cloudflare (Workers → este Worker → Settings → Variables and Secrets). Los despliegues nunca los borran.
+  //   obligatorios:  WA_TOKEN (el mismo valor que en el Worker `juan`), WA_SESION_CLAVE (cifra la sesión;
+  //                  se genera UNA vez y NO se cambia: docs/JUAN_PUENTE.md)
+  //   opcionales:    TELEGRAM_BOT_TOKEN_JUAN y ALERTA_TELEGRAM_CHAT (aviso si WhatsApp se desconecta),
+  //                  WA_SESION_CLAVE_ANTERIOR (solo durante una rotación de clave)
+  // Sin los obligatorios el puente arranca «sin configurar»: no enciende el contenedor, no conecta WhatsApp y
+  // GET /api/estado dice qué nombres faltan.
+  "vars": {
+    // Interruptor general. «on» = encendido (si hay secretos); cualquier otro valor = apagado.
+    "PUENTE_ACTIVO": "on",
+    // La URL pública de este mismo Worker: el contenedor vuelve a entrar por aquí a guardar su sesión.
+    "PUENTE_BASE_URL": "https://dcasa-puente-wa.dcasapty.workers.dev",
+    // Dominios de los que se pueden descargar imágenes y documentos para enviar (protección SSRF, además de
+    // exigir https y direcciones públicas). Subdominios incluidos. Vacío = cualquier dominio público.
+    "MEDIOS_HOSTS_PERMITIDOS": "dcasapty.com,dcasapty.workers.dev",
+    // Ritmo de envío conservador (menos riesgo de que WhatsApp bloquee el número).
+    "LIMITE_POR_MINUTO": "10",
+    "LIMITE_POR_DIA": "400",
+    "LIMITE_POR_DESTINATARIO_HORA": "30",
+    // Personas a las que se les escribe sin que ellas hayan escrito antes, por día.
+    "LIMITE_FRIOS_DIA": "15",
+    // Aviso por Telegram: minutos sin conexión antes del primer aviso, y cada cuántos se repite.
+    "ALERTA_MINUTOS": "10",
+    "ALERTA_REAVISO_MINUTOS": "120",
+    // Copia diaria de la sesión en R2 (además de la que siempre se guarda dentro del Durable Object).
+    // APAGADA: encenderla exige crear el bucket y descomentar r2_buckets (lo decide la dueña).
+    "COPIA_R2": "off"
+  },
+
+  // Copia diaria opcional en R2 (apagada). Para encenderla: crear el bucket, descomentar esto, poner
+  // COPIA_R2 en «on» y desplegar. La retención se pone con una regla de ciclo de vida del bucket: el código
+  // nunca borra objetos de R2 (regla del repositorio).
+  // "r2_buckets": [{ "binding": "COPIAS", "bucket_name": "dcasa-puente-wa-copias" }],
+
+  "env": {
+    // Para probar con un número de PRUEBA (nunca el del negocio). `wrangler deploy --env staging`: otro Worker
+    // (dcasa-puente-wa-staging), otro Durable Object, otra sesión y otro contenedor. Nada se comparte con
+    // producción. Las claves de `env.*` no heredan containers, durable_objects, migrations, services, triggers
+    // ni vars: por eso se repiten completas.
+    "staging": {
+      "name": "dcasa-puente-wa-staging",
+      "containers": [
+        {
+          "class_name": "PuenteWa",
+          "image": "./contenedor/Dockerfile",
+          "image_build_context": "./contenedor",
+          "scheduling_policy": "default",
+          "instance_type": "lite",
+          "max_instances": 1
+        }
+      ],
+      "durable_objects": {
+        "bindings": [{ "name": "WA", "class_name": "PuenteWa" }]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PuenteWa"] }],
+      "services": [{ "binding": "JUAN", "service": "dcasa-juan-staging" }],
+      "triggers": { "crons": ["* * * * *"] },
+      "vars": {
+        "PUENTE_ACTIVO": "on",
+        "PUENTE_BASE_URL": "https://dcasa-puente-wa-staging.dcasapty.workers.dev",
+        "MEDIOS_HOSTS_PERMITIDOS": "dcasapty.com,dcasapty.workers.dev",
+        "LIMITE_POR_MINUTO": "10",
+        "LIMITE_POR_DIA": "400",
+        "LIMITE_POR_DESTINATARIO_HORA": "30",
+        "LIMITE_FRIOS_DIA": "15",
+        "ALERTA_MINUTOS": "10",
+        "ALERTA_REAVISO_MINUTOS": "120",
+        "COPIA_R2": "off"
+      }
+    }
+  }
+}

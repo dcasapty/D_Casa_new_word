@@ -9,7 +9,11 @@
 #   R2_SECRET_ACCESS_KEY, RESPALDO_TOKEN, BRIAN_API_KEY   se suben en cada despliegue
 #   R2_ENDPOINT   opcional; por defecto https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 #   TELEGRAM_BOT_TOKEN, BRIAN_TELEGRAM_SECRETO            opcionales: solo si existen
-#   TIENDA_FEED_TOKEN   opcional: tienda estática (feed de Odoo + aviso de regeneración, ≥ 32)
+#   TIENDA_FEED_TOKEN   opcional: caché de páginas (Odoo certifica las anónimas + aviso, ≥ 32)
+#   TURNSTILE_SECRET    opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md)
+#   DCASA_PUERTA_RUTA, DCASA_PUERTA_SECRETO, DCASA_ACCESS_EQUIPO, DCASA_ACCESS_AUD
+#                       opcionales, las cuatro juntas: la puerta del equipo (docs/SEGURIDAD_ACCESO.md §8).
+#                       Sin ellas la puerta queda apagada y nada cambia.
 #   DCASA_PIN_PEPPER, PGBACKREST_CIPHER_PASS              se suben UNA vez (ver abajo)
 #
 # Nombres y obligatoriedad: edge/CONTRATO_CONTENEDOR.md §3.
@@ -88,7 +92,12 @@ UNA_VEZ="${una_vez[*]:-}" jq -n '
       BRIAN_API_KEY: $e.BRIAN_API_KEY,
       TELEGRAM_BOT_TOKEN: $e.TELEGRAM_BOT_TOKEN,
       BRIAN_TELEGRAM_SECRETO: $e.BRIAN_TELEGRAM_SECRETO,
-      TIENDA_FEED_TOKEN: $e.TIENDA_FEED_TOKEN
+      TIENDA_FEED_TOKEN: $e.TIENDA_FEED_TOKEN,
+      TURNSTILE_SECRET: $e.TURNSTILE_SECRET,
+      DCASA_PUERTA_RUTA: $e.DCASA_PUERTA_RUTA,
+      DCASA_PUERTA_SECRETO: $e.DCASA_PUERTA_SECRETO,
+      DCASA_ACCESS_EQUIPO: $e.DCASA_ACCESS_EQUIPO,
+      DCASA_ACCESS_AUD: $e.DCASA_ACCESS_AUD
     }
   + ( ($e.UNA_VEZ | split(" ") | map(select(. != "")))
       | map({key: ., value: $e[.]}) | from_entries )

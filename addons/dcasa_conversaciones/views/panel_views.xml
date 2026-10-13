@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Las pantallas propias del panel de Juan (acciones de cliente OWL): ver static/src/js/ -->
+    <record id="accion_conversaciones" model="ir.actions.client">
+        <field name="name">Conversaciones</field>
+        <field name="tag">dcasa_conversaciones</field>
+    </record>
+    <record id="accion_resumen" model="ir.actions.client">
+        <field name="name">Resumen de Juan</field>
+        <field name="tag">dcasa_juan_resumen</field>
+    </record>
+    <record id="accion_costos" model="ir.actions.client">
+        <field name="name">Costos de IA</field>
+        <field name="tag">dcasa_juan_costos</field>
+    </record>
+    <record id="accion_conexiones" model="ir.actions.client">
+        <field name="name">Conexiones</field>
+        <field name="tag">dcasa_juan_conexiones</field>
+    </record>
+
+    <menuitem id="menu_dcasa_panel_conversaciones" name="Conversaciones" parent="menu_dcasa_conversaciones_root"
+              sequence="5" action="accion_conversaciones" groups="sales_team.group_sale_salesman"/>
+    <menuitem id="menu_dcasa_panel_resumen" name="Resumen" parent="menu_dcasa_conversaciones_root"
+              sequence="6" action="accion_resumen" groups="sales_team.group_sale_salesman"/>
+    <menuitem id="menu_dcasa_panel_costos" name="Costos de IA" parent="menu_dcasa_conversaciones_root"
+              sequence="50" action="accion_costos" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_panel_conexiones" name="Conexiones" parent="menu_dcasa_conversaciones_root"
+              sequence="60" action="accion_conexiones" groups="sales_team.group_sale_manager"/>
+</odoo>

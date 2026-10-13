@@ -1,6 +1,10 @@
 """Interfaz de Brian en el panel: el bundle la incluye y funciona en el navegador."""
+import os
+
 from odoo.addons.dcasa_brian.models.proveedores import fijar_guion
 from odoo.tests import HttpCase, tagged
+
+from .test_mcp import parchar_herramientas
 
 ARCHIVOS = (
     'dcasa_brian/static/src/js/brian_servicio.js',
@@ -27,6 +31,11 @@ const esperar = async (fn, que, ms = 20000) => {
 @tagged('post_install', '-at_install')
 class TestInterfazBrian(HttpCase):
 
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        parchar_herramientas(cls)
+
     def setUp(self):
         super().setUp()
         self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.proveedor', 'prueba')
@@ -36,6 +45,56 @@ class TestInterfazBrian(HttpCase):
         rutas |= {ruta.lstrip('/') for ruta in list(rutas)}
         for archivo in ARCHIVOS:
             self.assertTrue(any(r.endswith(archivo) for r in rutas), f'{archivo} no está en web.assets_backend')
+
+    def test_icono_del_menu_es_el_dibujo_de_ia_sin_letras(self):
+        """El menú de Brian y el botón usan el mismo dibujo de IA de la marca; sin la «B» (pedido de la dueña)."""
+        menu = self.env.ref('dcasa_brian.menu_brian_raiz')
+        self.assertEqual(menu.web_icon, 'dcasa_brian,static/src/img/brian_ia.svg')
+        self.assertTrue(menu.web_icon_data)
+        raiz = os.path.join(os.path.dirname(__file__), '..', 'static')
+        for ruta in ('src/img/brian_ia.svg', 'description/icon.svg'):
+            with open(os.path.join(raiz, ruta), encoding='utf-8') as f:
+                svg = f.read()
+            self.assertNotIn('<text', svg, ruta + ': el ícono no lleva letras')
+            self.assertIn('#1340B1', svg)
+            self.assertIn('#FED00F', svg)
+            self.assertNotIn('gradient', svg.lower())
+
+    def test_el_boton_flotante_es_un_icono_sin_la_b_ni_el_nombre(self):
+        """Redondo y sin texto: «B» + «Brian» repetían el nombre. El nombre sigue en el aria-label y el tooltip."""
+        codigo = ESPERAR + """
+(async () => {
+    const boton = await esperar(() => document.querySelector(".o_brian_lanzador"), "el botón flotante");
+    if (boton.textContent.trim() !== "") {
+        throw new Error("Brian: el botón no debe llevar texto: " + boton.textContent);
+    }
+    if (!boton.querySelector("svg.o_brian_icono_ia")) { throw new Error("Brian: falta el dibujo de IA en el botón"); }
+    if (!/Brian/.test(boton.getAttribute("aria-label") || "") || !/Ctrl/.test(boton.title)) {
+        throw new Error("Brian: el botón debe llevar su nombre accesible y el atajo");
+    }
+    const caja = boton.getBoundingClientRect();
+    if (Math.abs(caja.width - caja.height) > 1 || getComputedStyle(boton).borderRadius.indexOf("50%") < 0) {
+        throw new Error("Brian: el botón debe ser redondo");
+    }
+    const blanca = getComputedStyle(boton.querySelector(".o_brian_chispa")).fill;
+    const amarilla = getComputedStyle(boton.querySelector(".o_brian_chispa_chica")).fill;
+    if (blanca !== "rgb(255, 255, 255)" || amarilla !== "rgb(254, 208, 15)") {
+        throw new Error("Brian: chispa grande blanca y chica amarilla, no " + blanca + " / " + amarilla);
+    }
+    // En el encabezado del panel tampoco hay letras dentro de la ficha azul.
+    boton.click();
+    const panel = await esperar(() => document.querySelector(".o_brian_panel.o_brian_visible"), "el panel");
+    const fichas = panel.querySelectorAll(".o_brian_monograma");
+    if (!fichas.length) { throw new Error("Brian: falta la ficha azul del encabezado"); }
+    for (const ficha of fichas) {
+        if (ficha.textContent.trim() !== "" || !ficha.querySelector("svg.o_brian_icono_ia")) {
+            throw new Error("Brian: la ficha del encabezado debe llevar el dibujo, no letras");
+        }
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+        self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=90)
 
     def test_chat_en_el_navegador(self):
         """Ctrl + J abre el panel, se escribe, Brian responde y el markdown es seguro."""
@@ -102,6 +161,52 @@ class TestInterfazBrian(HttpCase):
 })().catch((e) => console.error(e.message || e));
 """
         self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=90)
+
+    def test_pastillas_y_tarjeta_permitir_rechazar(self):
+        """Tour mínimo: pastillas en la cabecera, tarjeta con detalle exacto y botones Permitir / Rechazar."""
+        fijar_guion([{'texto': 'Te propongo crearlo.',
+                      'herramientas': [('prueba_canal_sensible', {'nombre': 'Cliente del tour'})]}])
+        codigo = ESPERAR + """
+(async () => {
+    (await esperar(() => document.querySelector(".o_brian_lanzador"), "el botón flotante")).click();
+    const panel = await esperar(() => document.querySelector(".o_brian_panel.o_brian_visible"), "el panel");
+    if (!/o_brian_avatar_(esperando|termine)/.test(panel.className)) {
+        throw new Error("Brian: el panel debe llevar la clase del estado del avatar");
+    }
+    // Pastillas según el rol: el administrador ve Telegram, MCP, consumo y última actividad.
+    await esperar(() => panel.querySelectorAll(".o_brian_pastilla").length >= 4, "las pastillas de estado");
+    const claves = [...panel.querySelectorAll(".o_brian_pastilla")].map((p) =>
+        [...p.classList].find((c) => /^o_brian_pastilla_(telegram|mcp|consumo|actividad|importaciones)$/.test(c)));
+    for (const clave of ["o_brian_pastilla_telegram", "o_brian_pastilla_mcp", "o_brian_pastilla_consumo"]) {
+        if (!claves.includes(clave)) { throw new Error("Brian: falta la pastilla " + clave); }
+    }
+    const texto = panel.querySelector(".o_brian_texto");
+    texto.value = "Crea el cliente del tour";
+    texto.dispatchEvent(new Event("input", { bubbles: true }));
+    await new Promise((ok) => setTimeout(ok, 50));
+    texto.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    const tarjeta = await esperar(() => panel.querySelector(".o_brian_tarjeta_por_confirmar"), "la tarjeta");
+    if (!panel.classList.contains("o_brian_avatar_te_necesito")) {
+        throw new Error("Brian: con una tarjeta pendiente el avatar debe estar en «te_necesito»");
+    }
+    const detalle = tarjeta.querySelector(".o_brian_tarjeta_detalle");
+    if (!detalle || !/Nombre/.test(detalle.textContent) || !/Cliente del tour/.test(detalle.textContent)) {
+        throw new Error("Brian: la tarjeta debe mostrar el detalle exacto");
+    }
+    const botones = [...tarjeta.querySelectorAll(".o_brian_tarjeta_botones button")].map((b) => b.textContent.trim());
+    if (botones.join("|") !== "Permitir|Rechazar") {
+        throw new Error("Brian: los botones deben ser Permitir y Rechazar, nada más: " + botones.join("|"));
+    }
+    tarjeta.querySelector(".o_brian_rechazar").click();
+    await esperar(() => panel.querySelector(".o_brian_tarjeta_rechazada"), "la tarjeta rechazada");
+    await esperar(() => !panel.classList.contains("o_brian_avatar_te_necesito"), "el avatar sin pendientes");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+        self.browser_js('/odoo', codigo, ready="odoo.isReady", login='admin', timeout=120)
+        self.assertFalse(self.env['res.partner'].search([('name', '=', 'Cliente del tour')]))
+        accion = self.env['brian.accion'].search([('herramienta', '=', 'prueba_canal_sensible')], limit=1)
+        self.assertEqual(accion.estado, 'rechazada')
 
     def test_historial_renombrar_y_borrar(self):
         """Renombrar en línea, borrar con confirmación y enterarse de un borrado hecho en otra parte."""

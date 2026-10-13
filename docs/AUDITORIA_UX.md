@@ -1,5 +1,8 @@
 # Auditoría de experiencia de usuario e intuitividad — 100 problemas reales
 
+> **Registro histórico (2026-09-29).** Muchos de estos hallazgos se atendieron en las rondas siguientes
+> ([auditoria/](auditoria/README.md)); no se revisó uno por uno cuáles quedan. Se conserva como evidencia de cómo estaba el sistema.
+
 Fecha: 29/09/2026 · Base local con el catálogo real (199 productos) · Odoo 19.
 
 Cuatro auditorías en paralelo: sitio en escritorio (1440/1280 px), sitio en celular (390/360 px), backend de la vendedora y backend de la dueña + factura impresa. Cada hallazgo se observó y capturó en pantalla; 137 hallazgos en bruto se unieron en 100 (sin duplicados).

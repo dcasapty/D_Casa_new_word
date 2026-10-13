@@ -1,0 +1,130 @@
+// Escáner: plano, azul de la marca y blanco; el amarillo no se usa aquí (nunca toca el blanco).
+.o_dcasa_escaner {
+    height: 100%;
+    overflow: auto;
+    background: var(--dc-fondo, #F4F6FB);
+    padding: 16px;
+    font-family: "Inter", sans-serif;
+    color: var(--dc-tinta, #0E1A33);
+
+    .o_dcasa_escaner_cuerpo { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+
+    .o_dcasa_escaner_cabecera {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+        h1 { margin: 0; font-family: "Anton", "Inter", sans-serif; font-weight: 400; letter-spacing: .02em;
+             text-transform: uppercase; font-size: 1.8rem; color: var(--dc-azul-600, #1340B1); }
+    }
+    .o_dcasa_escaner_modos {
+        display: inline-flex; border: 1px solid var(--dc-azul-600, #1340B1); border-radius: 999px; overflow: hidden;
+    }
+    .o_dcasa_modo {
+        border: 0; background: var(--dc-blanco, #fff); color: var(--dc-azul-600, #1340B1);
+        padding: 8px 20px; font-weight: 600; min-height: 44px;
+        &.o_dcasa_modo_activo { background: var(--dc-azul-600, #1340B1); color: var(--dc-blanco, #fff); }
+    }
+
+    .o_dcasa_escaner_etiqueta { font-weight: 600; margin-bottom: 6px; display: block; }
+    .o_dcasa_escaner_fila { display: flex; gap: 8px; }
+    .o_dcasa_escaner_texto {
+        flex: 1; min-width: 0; min-height: 56px; padding: 0 16px; font-size: 1.25rem;
+        border: 2px solid var(--dc-azul-600, #1340B1); border-radius: 12px; background: var(--dc-blanco, #fff);
+        &:focus { outline: none; box-shadow: 0 0 0 3px var(--dc-azul-300, #9DB5F0); }
+    }
+
+    .o_dcasa_boton {
+        min-height: 56px; padding: 0 22px; border-radius: 12px; font-weight: 600; font-size: 1rem;
+        border: 1px solid var(--dc-azul-600, #1340B1); background: var(--dc-blanco, #fff); color: var(--dc-azul-600, #1340B1);
+        &:disabled { opacity: .5; }
+    }
+    .o_dcasa_boton_primario { background: var(--dc-azul-600, #1340B1); color: var(--dc-blanco, #fff); }
+
+    .o_dcasa_escaner_aviso { min-height: 24px; }
+    .o_dcasa_msg {
+        margin: 0; padding: 10px 14px; border-radius: 10px; font-weight: 500;
+        background: var(--dc-blanco, #fff); border: 1px solid var(--dc-linea, #D6DCEB);
+    }
+    .o_dcasa_msg_ok { border-color: #2E7D32; color: #1B5E20; }
+    .o_dcasa_msg_aviso { border-color: var(--dc-azul-600, #1340B1); color: var(--dc-azul-800, #0D2D7E); }
+    .o_dcasa_msg_error { border-color: #C62828; color: #8E1B1B; }
+
+    .o_dcasa_opciones { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .o_dcasa_opcion {
+        width: 100%; text-align: left; min-height: 56px; padding: 10px 14px; border-radius: 12px;
+        border: 1px solid var(--dc-linea, #D6DCEB); background: var(--dc-blanco, #fff);
+        display: flex; flex-direction: column;
+        &:hover, &:focus-visible { border-color: var(--dc-azul-600, #1340B1); outline: none; }
+    }
+    .o_dcasa_opcion_nombre { font-weight: 600; }
+    .o_dcasa_opcion_ref { font-size: .85rem; color: var(--dc-gris, #5B6783); }
+
+    .o_dcasa_ficha {
+        background: var(--dc-blanco, #fff); border: 1px solid var(--dc-linea, #D6DCEB); border-radius: 16px; padding: 16px;
+        display: flex; flex-direction: column; gap: 14px;
+    }
+    .o_dcasa_ficha_arriba { display: flex; gap: 14px; align-items: flex-start; }
+    .o_dcasa_ficha_foto {
+        flex: none; width: 96px; height: 96px; object-fit: cover; border-radius: 12px;
+        background: var(--dc-fondo, #F4F6FB); border: 1px solid var(--dc-linea, #D6DCEB);
+    }
+    .o_dcasa_ficha_nombre { margin: 0 0 4px; font-family: "Oswald", "Inter", sans-serif; font-weight: 500; font-size: 1.25rem; }
+    .o_dcasa_ficha_ref { margin: 0; font-size: .9rem; color: var(--dc-gris, #5B6783); }
+    .o_dcasa_ficha_precio { margin: 6px 0 0; font-weight: 700; font-size: 1.15rem; color: var(--dc-azul-600, #1340B1); }
+
+    .o_dcasa_ficha_existencias { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .o_dcasa_total { display: flex; align-items: baseline; gap: 8px; }
+    .o_dcasa_total_cifra { font-family: "Anton", "Inter", sans-serif; font-size: 3rem; line-height: 1; color: var(--dc-azul-600, #1340B1); }
+    .o_dcasa_total_texto { color: var(--dc-gris, #5B6783); }
+    .o_dcasa_estado {
+        padding: 6px 14px; border-radius: 999px; font-weight: 700; font-size: .9rem;
+        border: 1px solid var(--dc-azul-600, #1340B1); color: var(--dc-azul-600, #1340B1); background: var(--dc-blanco, #fff);
+    }
+    .o_dcasa_estado_agotado { background: #C62828; border-color: #C62828; color: #fff; }
+    .o_dcasa_estado_pocas { background: var(--dc-azul-100, #E3EAFB); }
+    .o_dcasa_estado_disponible { background: var(--dc-azul-600, #1340B1); color: #fff; }
+
+    .o_dcasa_ubicaciones {
+        list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--dc-linea, #D6DCEB);
+        li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--dc-linea, #D6DCEB); }
+    }
+    .o_dcasa_nota { margin: 0; color: var(--dc-gris, #5B6783); }
+    .o_dcasa_parecido {
+        border: 2px solid var(--dc-azul-600, #1340B1); border-radius: 12px; padding: 12px 14px;
+        background: var(--dc-azul-100, #E3EAFB); display: flex; flex-direction: column; gap: 10px;
+        p { margin: 0; font-weight: 600; }
+        button { align-self: flex-start; }
+    }
+
+    .o_dcasa_contar { border-top: 2px solid var(--dc-azul-600, #1340B1); padding-top: 14px; }
+    .o_dcasa_contar_campos { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end;
+        label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; flex: 1; min-width: 160px; } }
+    .o_dcasa_select, .o_dcasa_cantidad {
+        min-height: 56px; padding: 0 12px; border: 2px solid var(--dc-azul-600, #1340B1); border-radius: 12px;
+        font-size: 1.15rem; background: var(--dc-blanco, #fff);
+    }
+    .o_dcasa_confirmar p { margin: 0 0 8px; font-size: 1.1rem; }
+    .o_dcasa_botones { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .o_dcasa_historial {
+        h3 { margin: 0 0 6px; font-size: .95rem; color: var(--dc-gris, #5B6783); text-transform: uppercase; letter-spacing: .04em; }
+        ul { list-style: none; margin: 0; padding: 0; }
+        li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--dc-linea, #D6DCEB); }
+        .o_dcasa_hist_detalle { color: var(--dc-gris, #5B6783); text-align: right; }
+        .o_dcasa_hist_conteo .o_dcasa_hist_detalle { color: var(--dc-azul-600, #1340B1); font-weight: 600; }
+    }
+
+    // Asignar etiqueta
+    .o_dcasa_asignar { display: flex; flex-direction: column; gap: 14px; }
+    .o_dcasa_asignar_guia { padding: 14px 16px; background: var(--dc-blanco, #fff); border: 1px dashed var(--dc-azul-600, #1340B1); border-radius: 12px; }
+    .o_dcasa_etiqueta_cabecera { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .o_dcasa_etiqueta_codigo {
+        font-family: "Anton", "Inter", sans-serif; font-size: 2rem; line-height: 1; letter-spacing: .04em;
+        color: var(--dc-azul-600, #1340B1);
+    }
+    .o_dcasa_otra_etiqueta { margin-left: auto; min-height: 44px; }
+    .o_dcasa_estado_etiqueta_libre { background: var(--dc-azul-100, #E3EAFB); }
+    .o_dcasa_estado_etiqueta_asignada { background: var(--dc-azul-600, #1340B1); color: #fff; }
+    .o_dcasa_estado_etiqueta_retirada { background: var(--dc-blanco, #fff); border-style: dashed; }
+    .o_dcasa_asignar_buscar { display: flex; flex-direction: column; gap: 10px; }
+    .o_dcasa_asignar_texto { margin: 0; font-size: 1.15rem; }
+    .o_dcasa_asignar_confirmar { display: flex; flex-direction: column; gap: 10px; border-top: 2px solid var(--dc-azul-600, #1340B1); padding-top: 14px; }
+}

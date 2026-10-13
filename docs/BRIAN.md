@@ -32,7 +32,10 @@ MCP ────────┘         │                        │  tool cal
   Grok/xAI, Llama vía Groq/Together/OpenRouter, Ollama local) y `prueba` (guion fijo para
   tests). Configuración por variables de entorno (secretos de Cloudflare), nunca en Git.
 * **`conversacion.py`** — hilo, mensajes, adjuntos, bucle agente (pensar → herramienta →
-  observar) con límite de pasos y de tokens.
+  observar) con límite de pasos y de tokens; `_PasosEnVivo` cuenta cada paso al navegador por el
+  bus; `estado_panel()` arma las pastillas de la cabecera.
+* **`pasos.py`** — funciones puras: el título humano de un paso («Buscando productos «888K»»), el
+  resumen corto del resultado y el detalle expandible. Nunca inventa: texto, conteo o «Listo».
 * **`herramientas_*.py`** — las capacidades, por área.
 
 ## Niveles de permiso
@@ -41,7 +44,7 @@ MCP ────────┘         │                        │  tool cal
 |---|---|---|
 | lectura | reporte del día, buscar productos, balance, clientes que deben | Directo |
 | construcción | crear producto, cliente, cotización, factura en borrador; editar precio; mover stock | Directo, auditado |
-| sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano confirma con un clic |
+| sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
 | prohibido | ver abajo | No existe herramienta para eso |
 
 ### Lo que Brian nunca hace
@@ -73,7 +76,28 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
 * Cada canal autentica al usuario de Odoo (sesión, clave de API con alcance, o vínculo de
   Telegram por código de un solo uso) y todo se ejecuta con sus permisos.
 * Contenido de adjuntos, correos, descripciones y registros es **dato**, nunca instrucción
-  (defensa contra inyección de prompts): va marcado como tal al modelo.
+  (defensa contra inyección de prompts): va marcado como tal al modelo. Las marcas del bloque
+  (`<<…>>`) y etiquetas tipo `</system>` escritas dentro de un archivo o en su nombre se
+  neutralizan: un adjunto no puede «cerrar» su bloque de datos.
+* **Lo que se construye a partir de adjuntos pide confirmación**: en un turno cuyo mensaje trae
+  archivos o fotos, toda herramienta de construcción (crear cliente, cotización, factura, cambiar
+  precio…) queda «por confirmar» como una sensible. Excepción: las que solo dejan un borrador
+  revisable, marcadas `segura_con_adjuntos=True` (hoy `proponer_importacion`). La acción queda con
+  `con_adjuntos` en el registro.
+* **Dura más de un turno** (ronda 8): el turno cuenta como «con adjuntos» si alguno de los **últimos 6 mensajes** de la persona trae
+  un archivo (el texto del adjunto sigue a la vista del modelo; un «ok, sigue» no quita la defensa).
+* **Texto que escribió un cliente** (`@herramienta(texto_externo=True)`, hoy `oportunidades_abiertas`): una vez usada una herramienta
+  así en el turno, las de construcción también piden confirmación («acabo de leer textos que escribieron clientes…»).
+* **Tamaño de lo que manda el modelo**: hasta 10 000 letras por dato y 30 000 entre todos, revisado **antes** de registrar la llamada
+  (si no, la auditoría —que no se puede borrar— se infla). `leer_lineas` rechaza líneas de más de 300 letras.
+* **Tope de gasto de IA** (*Ajustes › Brian*): dólares por mes (hora de Panamá), uno para **todos** y uno **por persona**.
+  **De fábrica NO hay tope (0):** la cifra la pone la dueña, y el límite que ponga en el panel de su proveedor de IA es el freno
+  más fuerte (está fuera del código). Al llegar, Brian lo dice con claridad y no llama al modelo; una acción
+  por confirmar sigue pendiente hasta que haya cupo. Cuenta el costo estimado con la tarifa pública (`brian.uso`); un modelo sin
+  tarifa se cuenta con la más cara que conocemos, así que un modelo nuevo no deja el tope ciego. No es un presupuesto: es la red
+  para una clave filtrada o un script que repite mensajes.
+* **Tamaño de lo que se manda**: hasta 8 000 letras por mensaje (un documento largo va como adjunto) y 5 archivos por mensaje.
+* **Telegram**: el vínculo se revisa en cada mensaje y botón; un usuario archivado (o que ya no es interno) pierde su chat al instante.
 * Límite de pasos por turno y de mensajes por minuto por usuario.
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /
   GitHub Actions; **nunca en el repositorio**.
@@ -110,6 +134,80 @@ muda de conversación (cierra la puerta a «regalarle» un historial fabricado a
   **180**; **0 = nunca**).
 * Borra los adjuntos subidos a Brian cuya conversación/mensaje ya no existe, y los que llevan
   más de un día sin enviarse en ningún mensaje (subidos y quitados antes de enviar).
+
+## Brian en vivo: pasos, permisos y pastillas
+
+### Ver a Brian trabajar (pasos en tiempo real)
+
+Mientras `enviar` / `confirmar_accion` corren, el panel ya no muestra solo «Brian está
+pensando…»: pinta la lista de pasos del turno a medida que ocurren («Pensando…», «Leyendo adjunto
+«42»», «Buscando productos «888K» — 3 productos», con lo que tardó cada uno) y, al terminar, los
+mismos pasos quedan en «Usó N herramientas», cada uno con **Ver resultado** (el JSON compacto,
+recortado a 600 caracteres).
+
+* **Por qué el bus de Odoo y no SSE**: el módulo ya usa el bus para avisar borrados y renombres
+  (`dcasa_brian/conversacion_borrada`, `…_cambiada`), el cliente web ya está suscrito al canal del
+  usuario y el Worker de Cloudflare ya pasa el websocket. SSE habría exigido una ruta HTTP nueva, un
+  segundo *stream* abierto por turno y configurar el borde para no cortarlo; además el bucle agente
+  sigue dentro de la petición RPC, que ya devuelve la respuesta completa. **No cambia el proveedor
+  de IA ni la política**: lo que viaja son metadatos del turno (títulos, resúmenes cortos,
+  duraciones), nunca el prompt ni la respuesta del modelo.
+* **Cómo**: `_PasosEnVivo` (en `conversacion.py`) manda por `dcasa_brian/pasos` la lista
+  **completa** de pasos en cada cambio (idempotente: el panel la reemplaza), con `turno` = id del
+  mensaje que lo disparó. Se emite con un **cursor aparte y commit inmediato**: `bus.bus` escribe en
+  el *precommit* y notifica en el *postcommit*, así que dentro de la transacción del RPC nada
+  llegaría hasta el final (ese cursor aparte usa el superusuario solo para escribir la fila del bus;
+  el destino es siempre el partner del dueño de la conversación). Solo canal `chat` (Telegram y MCP reciben la respuesta por su canal).
+  Si el bus falla, el turno sigue igual: la respuesta completa llega por el RPC.
+* Formato: ver el docstring de `models/conversacion.py` (`paso = {id, tipo: modelo|herramienta,
+  nombre, titulo, estado: en_curso|ok|error|por_confirmar, resumen, detalle, duracion_ms}`).
+
+### Tarjeta Permitir / Rechazar (acciones sensibles)
+
+La tarjeta de una acción sensible (o de construcción en un turno con adjuntos) trae el resumen de
+la política **más el detalle exacto**, campo por campo, de los argumentos registrados en
+`brian.accion` (`_detalle_accion`): son los mismos que `brian.herramientas.confirmar` relee al
+ejecutar, así que lo que se ve es lo que se hace. Botones: **Permitir** y **Rechazar**, nada más.
+**No existe «Siempre»** (decisión de seguridad: cada acción se aprueba una por una, en el panel y
+en Telegram). Permitir vale una sola vez; volver a pulsar no repite la acción.
+
+En Telegram la misma tarjeta llega como texto («Necesito tu permiso: … Detalle exacto de lo que voy
+a hacer: • Nombre: …») con botones *inline* **Permitir / Rechazar**; solo el dueño del chat
+vinculado puede pulsarlos.
+
+### Pastillas de estado (cabecera del chat)
+
+`brian.conversacion.estado_panel()` devuelve las pastillas que **ese usuario** puede ver; el
+servidor decide según el rol (cada bloque pregunta `has_access` y lee sin sudo, con sus reglas de
+registro; el único sudo cuenta las claves de API del propio usuario):
+
+| Pastilla | Quién la ve | Qué dice |
+|---|---|---|
+| Telegram | todos | «Telegram conectado» (tono ok) o «Telegram sin vincular» |
+| MCP | todos | «MCP activo» si tiene una clave de API vigente (global o alcance `brian`); si no, «MCP sin clave» |
+| Importaciones | quien ve `brian.importacion` (vendedoras las suyas, Gerencia todas) | «N importación(es) por aplicar» (tono aviso; solo si hay borradores) |
+| Consumo de IA | administradores (quien lee `brian.uso`) | «IA este mes: N llamadas · $X.XX»; sin tarifa registrada, solo tokens (nunca un costo inventado) |
+| Última actividad | todos | «Última actividad: hoy 14:05» / «ayer…» / fecha, en hora de Panamá |
+
+El panel las carga al abrir, las refresca al terminar cada turno y al volver a la pestaña. Son un
+extra: si fallan, el chat sigue igual.
+
+### Estados del avatar (preparado, sin construir)
+
+El panel (`<aside id="o_brian_panel">`) lleva **siempre** una clase `o_brian_avatar_<estado>` y
+`data-avatar="<estado>"`, que pone `brian_panel.js` (`ESTADOS_AVATAR`, getter `estadoAvatar`):
+
+| Estado | Cuándo |
+|---|---|
+| `esperando` | nada en curso, sin pendientes |
+| `trabajando` | hay un turno en marcha (pasos en vivo) |
+| `te_necesito` | hay una tarjeta Permitir / Rechazar sin responder, o el último mensaje es un error |
+| `termine` | acaba de responder (8 s, `TERMINE_MS`, o hasta que la persona vuelve a escribir) |
+
+Las clases existen en `brian_panel.scss` **intencionalmente vacías**: cuando se dibuje el avatar
+(ronda posterior) se cuelga de ellas sin tocar el JS, p. ej. `.o_brian_avatar_trabajando
+.o_brian_monograma { … }`. Reglas de marca de siempre: plano, sin degradados, sin amarillo sobre
+blanco.
 
 ## Adjuntos que Brian lee
 
@@ -199,9 +297,48 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `BRIAN_PROVEEDOR` | `anthropic` · `openai` · `xai` · `groq` · `openrouter` · `ollama` |
 | `BRIAN_MODELO` | Anthropic por defecto `claude-sonnet-5-5` (económico: `claude-haiku-4-5`); en los demás proveedores es obligatorio, p. ej. `gpt-4o-mini`, `llama-3.3-70b-versatile` |
 | `BRIAN_HERRAMIENTAS_MAX` | opcional: cuántas herramientas ofrecer por mensaje (0 = automático) |
+| `BRIAN_ESFUERZO` | opcional (Anthropic): `low`, `medium`, `high`, `xhigh`, `max`. Vacío = el del modelo. Haiku 4.5 no lo recibe |
+| `BRIAN_CACHE` | caché de prompts de Anthropic, activa por defecto; `0` la apaga |
 | `BRIAN_API_KEY` | secreto |
 | `BRIAN_BASE_URL` | opcional (OpenAI-compatible) |
 | `TELEGRAM_BOT_TOKEN` | secreto |
+
+(Cada variable también se puede poner como parámetro del sistema `dcasa_brian.<clave>`:
+`esfuerzo`, `cache`, …)
+
+## Costo y consumo
+
+* **Caché de prompts** (Anthropic): marca de caché en la última herramienta, en la parte fija
+  del sistema (`brian.conversacion._sistema_fijo`: sin fecha, persona ni pantalla) y en el último
+  mensaje. En el bucle, cada paso relee lo anterior a ~10 % del precio.
+* **`brian.uso`**: una fila por llamada al modelo (persona, canal, modelo, tokens de entrada,
+  salida, leídos y escritos en caché). Solo lectura para administradores (Brian › Consumo de IA);
+  la escribe el sistema; sobrevive al borrado de la conversación.
+* `consumo_de_brian(periodo)` (administradores): llamadas y tokens por modelo y persona, % leído
+  de caché y costo estimado con la tarifa pública (`models/uso.py`, `PRECIOS`); un modelo sin
+  tarifa se reporta «sin tarifa registrada».
+* Un turno no pasa de 150 s (`MAX_SEGUNDOS_TURNO`): Brian se detiene y lo dice. Si el proveedor
+  corta la respuesta por largo, Brian lo avisa.
+
+## Herramientas del día a día (ronda 6)
+
+| Herramienta | Nivel | Quién |
+|---|---|---|
+| `sugerir_reabastecimiento` — vendido en N días, hay, en camino, comprometido, cuánto pedir para cubrir N días, proveedor y costo | lectura | Inventario |
+| `crear_pedido_compra(proveedor, lineas)` — solicitud de compra en borrador | construcción | Compras |
+| `buscar_compras` — borradores, confirmadas, por recibir | lectura | Compras |
+| `pendientes_de_hoy` — entregas, cotizaciones dormidas, compras por recibir, vencidas, publicados agotados, acciones por confirmar | lectura | Interno |
+| `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
+| `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |
+| `consumo_de_brian` | lectura | Administrador |
+| `oportunidades_abiertas(temperatura?, para_hoy?, limite?)` — las del CRM que nacieron de una conversación, de la más caliente a la más fría: etapa, qué pidió, para cuándo, zona, si esperan respuesta o tienen cotización; `para_hoy` = tibias y calientes sin mensaje de una vendedora en 24 h (módulo `dcasa_conversaciones`) | lectura | Ventas |
+| `resumen_del_crm` — abiertas por temperatura y por etapa, las que esperan respuesta, con cotización enviada, en manos de una persona y lo ganado y archivado en 30 días | lectura | Ventas |
+
+Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
+
+`crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;
+máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
+(`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
 ## Para cada función nueva
 
@@ -247,7 +384,8 @@ Reglas del canal MCP:
 * **Las herramientas sensibles nunca se ejecutan desde MCP**: la llamada responde
   `isError: true` con el resumen y el `accion_id`, y la acción queda «por confirmar». La
   confirma una persona en el panel o en Telegram (si el usuario tiene el chat vinculado, le
-  llegan al instante los botones Confirmar / Cancelar). `rechazar_accion` siempre existe.
+  llegan al instante el detalle exacto y los botones Permitir / Rechazar). `rechazar_accion`
+  siempre existe.
 * Solo si un administrador pone el parámetro del sistema `dcasa_brian.mcp_permite_confirmar`
   en `True` aparece la herramienta `confirmar_accion` (marcada `destructiveHint`), pensada para
   clientes que piden aprobación humana en cada llamada. Por defecto está apagado.
@@ -277,6 +415,6 @@ Reglas del canal MCP:
 
 Comandos del bot: `/ayuda`, `/nuevo` (conversación nueva), `/desvincular`, `/vincular CÓDIGO`.
 Se pueden mandar fotos y documentos (hasta 10 MB): se guardan como adjuntos de la conversación.
-Las acciones sensibles llegan con botones **Confirmar / Cancelar**; solo el dueño del chat
-vinculado puede pulsarlos. Un chat no vinculado solo recibe las instrucciones para vincularse.
+Las acciones sensibles llegan con el detalle exacto y botones **Permitir / Rechazar** (sin
+«Siempre»); solo el dueño del chat vinculado puede pulsarlos. Un chat no vinculado solo recibe las instrucciones para vincularse.
 Para cortar el acceso: `/desvincular` en el chat, o *Brian → Telegram* → *Desvincular*.

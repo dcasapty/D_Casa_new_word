@@ -93,11 +93,14 @@ class TestSitioFase0(HttpCase):
 
     def test_precarga_de_las_fuentes_del_primer_pantallazo(self):
         html = self.url_open('/').text
-        for archivo in ('anton-latin', 'inter-latin-var'):
-            enlace = re.search(r'<link[^>]*href="/website_dcasa/static/src/fonts/' + archivo + r'\.woff2"[^>]*>', html)
-            self.assertTrue(enlace, archivo)
-            for atributo in ('rel="preload"', 'as="font"', 'type="font/woff2"', 'crossorigin'):
-                self.assertIn(atributo, enlace.group(0), archivo)
+        enlace = re.search(r'<link[^>]*href="/website_dcasa/static/src/fonts/anton-latin\.woff2"[^>]*>', html)
+        self.assertTrue(enlace, 'Anton (titular del hero) va precargada')
+        for atributo in ('rel="preload"', 'as="font"', 'type="font/woff2"', 'crossorigin'):
+            self.assertIn(atributo, enlace.group(0))
+        # Ronda 6: Inter (texto, llega con swap) y FontAwesome (iconos) ya no se precargan: en 4G
+        # lenta compartían la red con el CSS que bloquea el pintado y retrasaban la foto LCP.
+        self.assertNotRegex(html, r'<link[^>]*rel="preload"[^>]*inter-latin-var')
+        self.assertNotRegex(html, r'<link[^>]*rel="preload"[^>]*fontawesome-webfont')
 
     def _foto(self, color):
         salida = io.BytesIO()

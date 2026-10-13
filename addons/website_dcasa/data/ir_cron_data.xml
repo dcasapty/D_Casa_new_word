@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Cada noche, 7:00 UTC = 2:00 a. m. en Panamá: anula los apartados de la tienda que nadie reclamó y libera su
+         inventario (ver models/sale_order.py). -->
+    <record id="ir_cron_dcasa_vencer_apartados" model="ir.cron">
+        <field name="name">D'CASA: anular apartados de la tienda que nadie reclamó</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_cron_vencer_apartados()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + relativedelta(days=1)).replace(hour=7, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

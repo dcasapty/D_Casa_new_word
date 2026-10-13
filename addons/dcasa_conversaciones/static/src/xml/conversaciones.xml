@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Conversaciones">
+        <div class="o_dcj o_action" t-attf-class="o_dcj_ver_#{almacen.columna} #{almacen.fichaAbierta ? 'o_dcj_ficha_abierta' : ''}">
+            <div t-if="almacen.cargandoInicio" class="o_dcj_pantalla_centro" role="status">
+                <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Abriendo las conversaciones…
+            </div>
+
+            <div t-elif="almacen.errorInicio" class="o_dcj_pantalla_centro" role="alert">
+                <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
+                <strong>No pude abrir las conversaciones</strong>
+                <span t-out="almacen.errorInicio"/>
+            </div>
+
+            <t t-else="">
+                <div t-if="aviso" t-attf-class="o_dcj_aviso o_dcj_aviso_#{aviso.clase}" role="status">
+                    <i class="fa fa-plug" aria-hidden="true"/>
+                    <p><strong t-out="aviso.titulo"/> <span t-out="aviso.texto"/></p>
+                    <button t-if="aviso.enlace" type="button" class="o_dcj_enlace" t-on-click="irAConexiones" t-out="aviso.enlace"/>
+                </div>
+                <div class="o_dcj_cuerpo">
+                    <ListaConversaciones almacen="almacen"/>
+                    <HiloConversacion almacen="almacen"/>
+                    <FichaCliente almacen="almacen"/>
+                </div>
+                <BuscadorCatalogo t-if="almacen.panel === 'catalogo'" almacen="almacen"/>
+                <DialogoCotizacion t-if="almacen.panel === 'cotizacion'" almacen="almacen"/>
+                <DialogoAdjuntar t-if="almacen.panel === 'adjuntar'" almacen="almacen"/>
+                <VisorImagenes t-if="almacen.visor" almacen="almacen"/>
+            </t>
+        </div>
+    </t>
+</templates>

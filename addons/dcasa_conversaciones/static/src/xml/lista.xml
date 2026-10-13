@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Lista">
+        <section class="o_dcj_col o_dcj_lista" aria-label="Lista de conversaciones">
+            <header class="o_dcj_lista_cabecera">
+                <div class="o_dcj_titulo">
+                    <h1>Conversaciones</h1>
+                    <span t-if="almacen.sinLeerTotal" class="o_dcj_contador" t-out="almacen.sinLeerTotal + ' sin leer'"/>
+                    <span class="o_dcj_envivo" t-att-class="{ o_activo: almacen.enVivo }"
+                          t-att-title="almacen.enVivo ? 'En vivo: los mensajes nuevos aparecen solos' : 'Sin conexión en vivo: la pantalla se revisa sola cada 30 segundos'">
+                        <i class="fa fa-circle" aria-hidden="true"/>
+                        <span class="o_dcj_solo_lector" t-out="almacen.enVivo ? 'En vivo' : 'Sin conexión en vivo'"/>
+                    </span>
+                </div>
+
+                <button t-if="almacen.reparto === 'turnos'" type="button" class="o_dcj_disponible"
+                        t-att-class="{ o_si: almacen.disponible }" t-att-aria-pressed="almacen.disponible ? 'true' : 'false'"
+                        title="Con el reparto por turnos, las conversaciones nuevas se asignan solo a quien está disponible"
+                        t-on-click="() => almacen.fijarDisponible(!almacen.disponible)">
+                    <i t-attf-class="fa #{almacen.disponible ? 'fa-check-circle' : 'fa-pause-circle-o'}" aria-hidden="true"/>
+                    <t t-out="almacen.disponible ? 'Disponible para conversaciones nuevas' : 'No disponible (no me asignan nuevas)'"/>
+                </button>
+
+                <div class="o_dcj_buscar">
+                    <i class="fa fa-search" aria-hidden="true"/>
+                    <input type="search" class="o_dcj_input" autocomplete="off" aria-label="Buscar conversaciones"
+                           placeholder="Buscar por nombre, celular o mensaje…"
+                           t-att-value="local.busqueda" t-on-input="alBuscar"/>
+                    <button t-if="local.busqueda" type="button" class="o_dcj_icono_boton" aria-label="Borrar la búsqueda"
+                            t-on-click="borrarBusqueda"><i class="fa fa-times" aria-hidden="true"/></button>
+                </div>
+
+                <div class="o_dcj_chips" role="group" aria-label="Filtros rápidos">
+                    <button type="button" class="o_dcj_chip" t-att-class="{ o_activa: almacen.filtros.asignada_a_mi }"
+                            t-att-aria-pressed="almacen.filtros.asignada_a_mi ? 'true' : 'false'"
+                            t-on-click="() => almacen.cambiarFiltro('asignada_a_mi', !almacen.filtros.asignada_a_mi)">Mías</button>
+                    <button type="button" class="o_dcj_chip" t-att-class="{ o_activa: almacen.filtros.sin_leer }"
+                            t-att-aria-pressed="almacen.filtros.sin_leer ? 'true' : 'false'"
+                            t-on-click="() => almacen.cambiarFiltro('sin_leer', !almacen.filtros.sin_leer)">Sin leer</button>
+                    <button type="button" class="o_dcj_chip" t-att-class="{ o_activa: almacen.filtros.con_oportunidad }"
+                            t-att-aria-pressed="almacen.filtros.con_oportunidad ? 'true' : 'false'"
+                            t-on-click="() => almacen.cambiarFiltro('con_oportunidad', !almacen.filtros.con_oportunidad)">Con oportunidad</button>
+                    <button type="button" class="o_dcj_chip o_dcj_chip_mas" t-att-class="{ o_activa: local.filtros }"
+                            t-att-aria-expanded="local.filtros ? 'true' : 'false'" aria-controls="o_dcj_mas_filtros"
+                            t-on-click="() => local.filtros = !local.filtros">
+                        <i class="fa fa-sliders" aria-hidden="true"/> Más filtros
+                    </button>
+                </div>
+
+                <div t-if="local.filtros" id="o_dcj_mas_filtros" class="o_dcj_mas_filtros">
+                    <label>
+                        <span>Canal</span>
+                        <select class="o_dcj_input" t-on-change="(ev) => almacen.cambiarFiltro('canal', ev.target.value)">
+                            <option value="" t-att-selected="!almacen.filtros.canal">Todos los canales</option>
+                            <option t-foreach="almacen.canales" t-as="c" t-key="c.id" t-att-value="c.id"
+                                    t-att-selected="almacen.filtros.canal === c.id" t-out="c.nombre"/>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Estado</span>
+                        <select class="o_dcj_input" t-on-change="(ev) => almacen.cambiarFiltro('estado', ev.target.value)">
+                            <option t-foreach="estados" t-as="e" t-key="e.id" t-att-value="e.id"
+                                    t-att-selected="almacen.filtros.estado === e.id" t-out="e.nombre"/>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Etiqueta</span>
+                        <select class="o_dcj_input" t-on-change="(ev) => this.alElegirEtiqueta(ev)">
+                            <option value="0" t-att-selected="!almacen.filtros.etiqueta_id">Todas las etiquetas</option>
+                            <option t-foreach="almacen.etiquetas" t-as="e" t-key="e.id" t-att-value="e.id"
+                                    t-att-selected="almacen.filtros.etiqueta_id === e.id" t-out="e.nombre"/>
+                        </select>
+                    </label>
+                </div>
+                <div t-if="hayFiltros" class="o_dcj_filtros_resumen">
+                    <span t-out="almacen.total + (almacen.total === 1 ? ' conversación' : ' conversaciones')"/>
+                    <button type="button" class="o_dcj_enlace" t-on-click="limpiar">Quitar filtros</button>
+                </div>
+            </header>
+
+            <div class="o_dcj_lista_cuerpo" t-ref="lista" t-on-scroll="alDesplazar" t-on-keydown="alTeclear">
+                <div t-if="almacen.cargandoLista and !almacen.lista.length" class="o_dcj_esqueleto" role="status" aria-label="Cargando conversaciones">
+                    <div t-foreach="[1, 2, 3, 4, 5, 6]" t-as="n" t-key="n" class="o_dcj_esqueleto_fila"><span/><div><i/><i/></div></div>
+                </div>
+
+                <div t-elif="almacen.errorLista" class="o_dcj_vacio" role="alert">
+                    <i class="fa fa-exclamation-triangle" aria-hidden="true"/>
+                    <strong>No pude cargar las conversaciones</strong>
+                    <span t-out="almacen.errorLista"/>
+                    <button type="button" class="btn btn-secondary" t-on-click="() => almacen.cargarLista()">Intentar otra vez</button>
+                </div>
+
+                <div t-elif="!almacen.lista.length and hayFiltros" class="o_dcj_vacio">
+                    <i class="fa fa-search" aria-hidden="true"/>
+                    <strong>No hay conversaciones con esos filtros</strong>
+                    <button type="button" class="btn btn-secondary" t-on-click="limpiar">Quitar filtros</button>
+                </div>
+
+                <div t-elif="!almacen.lista.length" class="o_dcj_vacio">
+                    <i class="fa fa-comments-o" aria-hidden="true"/>
+                    <strong>Todavía no hay conversaciones</strong>
+                    <span>Cuando un cliente escriba por WhatsApp o Telegram, aparece aquí.</span>
+                </div>
+
+                <ul t-else="" class="o_dcj_filas">
+                    <li t-foreach="almacen.lista" t-as="c" t-key="c.id">
+                        <button type="button" class="o_dcj_fila"
+                                t-att-class="{ o_activa: c.id === almacen.seleccionadaId, o_sin_leer: c.sin_leer }"
+                                t-att-aria-current="c.id === almacen.seleccionadaId ? 'true' : 'false'"
+                                t-on-click="() => almacen.abrir(c.id)">
+                            <span class="o_dcj_avatar" aria-hidden="true">
+                                <span class="o_dcj_iniciales" t-out="c.iniciales"/>
+                                <img t-if="c.foto_perfil" class="o_dcj_avatar_foto" t-att-src="c.foto_perfil" alt="" loading="lazy" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
+                                <span class="o_dcj_canal" t-att-title="c.canal_nombre"><i t-attf-class="fa #{iconoDeCanal(c.canal)}"/></span>
+                            </span>
+                            <span class="o_dcj_fila_cuerpo">
+                                <span class="o_dcj_fila_arriba">
+                                    <strong class="o_dcj_nombre" t-out="c.nombre"/>
+                                    <time class="o_dcj_hora" t-att-datetime="c.ultima_actividad" t-out="horaDeLista(c.ultima_actividad)"/>
+                                </span>
+                                <span class="o_dcj_fila_medio">
+                                    <span class="o_dcj_ultimo">
+                                        <span t-if="quienDijo(c)" class="o_dcj_quien" t-out="quienDijo(c)"/><t t-out="textoUltimo(c)"/>
+                                    </span>
+                                    <span t-if="c.sin_leer" class="o_dcj_no_leidos">
+                                        <t t-out="c.sin_leer > 99 ? '99+' : c.sin_leer"/>
+                                        <span class="o_dcj_solo_lector" t-out="c.sin_leer === 1 ? ' mensaje sin leer' : ' mensajes sin leer'"/>
+                                    </span>
+                                </span>
+                                <span class="o_dcj_fila_abajo">
+                                    <t t-set="estado" t-value="estadoVisual(c)"/>
+                                    <span t-attf-class="o_dcj_estado o_dcj_estado_#{estado.clase}">
+                                        <i t-if="c.bot_atiende and c.estado !== 'cerrada'" class="o_dcj_punto_verde" title="El asistente está atendiendo"/>
+                                        <t t-out="estado.texto"/>
+                                    </span>
+                                    <t t-set="esp" t-value="esperaDe(c)"/>
+                                    <span t-if="esp" class="o_dcj_espera" t-att-class="{ o_urgente: esp.urgente }"
+                                          title="Tiempo que lleva el cliente sin respuesta de una persona">
+                                        <i class="fa fa-hourglass-half" aria-hidden="true"/> <t t-out="esp.texto"/>
+                                    </span>
+                                    <t t-set="otros" t-value="viendo(c)"/>
+                                    <span t-if="otros" class="o_dcj_viendo" t-att-class="{ o_escribe: otros.escribe }" t-att-title="otros.titulo">
+                                        <i t-attf-class="fa #{otros.escribe ? 'fa-pencil' : 'fa-eye'}" aria-hidden="true"/> <t t-out="otros.texto"/>
+                                    </span>
+                                    <span t-if="c.asignada_a" class="o_dcj_asignada" title="La atiende"><i class="fa fa-user-o" aria-hidden="true"/> <t t-out="c.asignada_a.nombre"/></span>
+                                    <span t-foreach="c.etiquetas" t-as="e" t-key="e.id" class="o_dcj_etiqueta"
+                                          t-att-style="'background:' + colorDeEtiqueta(e.color).fondo + ';color:' + colorDeEtiqueta(e.color).texto"
+                                          t-out="e.nombre"/>
+                                    <span t-if="c.oportunidad_id" class="o_dcj_marca" title="Tiene una oportunidad en CRM"><i class="fa fa-star-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Con oportunidad</span></span>
+                                    <span t-if="c.por_enviar" class="o_dcj_marca o_dcj_marca_alerta" title="Hay mensajes por enviar"><i class="fa fa-clock-o" aria-hidden="true"/><span class="o_dcj_solo_lector">Mensajes por enviar</span></span>
+                                </span>
+                            </span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div t-if="almacen.hayMas" class="o_dcj_mas">
+                    <button type="button" class="btn btn-secondary" t-att-disabled="almacen.cargandoMas" t-on-click="() => almacen.cargarMas()">
+                        <t t-if="almacen.cargandoMas">Cargando…</t><t t-else="">Ver más conversaciones</t>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </t>
+</templates>

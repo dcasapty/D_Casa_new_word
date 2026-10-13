@@ -22,6 +22,19 @@
             <button t-if="hayActivos" type="button" class="o_dcasa_chip o_dcasa_chip_limpiar" t-on-click="limpiar">
                 <i class="fa fa-times me-1" aria-hidden="true"/>Quitar filtros
             </button>
+            <t t-set="botonesOrden" t-value="ordenes"/>
+            <t t-if="botonesOrden.length">
+                <span class="o_dcasa_filtros_sep" aria-hidden="true"/>
+                <span class="o_dcasa_filtros_titulo"><i class="fa fa-sort-amount-desc me-1" aria-hidden="true"/>Ordenar:</span>
+                <button t-foreach="botonesOrden" t-as="orden" t-key="orden.clave" type="button"
+                        class="o_dcasa_chip o_dcasa_orden" t-att-data-orden="orden.clave"
+                        t-att-class="{'o_activo': orden.activo}"
+                        t-att-aria-pressed="orden.activo ? 'true' : 'false'"
+                        t-on-click="() => this.ordenar(orden)">
+                    <i t-if="orden.activo" class="fa fa-check me-1" aria-hidden="true"/>
+                    <t t-out="orden.etiqueta"/>
+                </button>
+            </t>
         </div>
     </t>
 </templates>

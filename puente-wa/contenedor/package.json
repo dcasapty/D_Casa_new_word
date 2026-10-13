@@ -1,0 +1,14 @@
+{
+  "name": "dcasa-puente-wa-contenedor",
+  "private": true,
+  "type": "module",
+  "description": "Baileys sostiene la sesión de WhatsApp 24/7 dentro de un contenedor de Cloudflare.",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "^9.6.0",
+    "qrcode": "^1.5.4"
+  }
+}

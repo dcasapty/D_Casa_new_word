@@ -8,3 +8,7 @@ from . import test_seguridad_rpc
 from . import test_historial
 from . import test_adjuntos
 from . import test_importacion
+from . import test_herramientas_contabilidad
+from . import test_ronda6
+from . import test_brian_ux
+from . import test_ronda8

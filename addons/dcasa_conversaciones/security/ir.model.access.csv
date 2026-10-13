@@ -1,0 +1,19 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_conversacion_vendedora,dcasa.conversacion vendedora,model_dcasa_conversacion,sales_team.group_sale_salesman,1,1,0,0
+access_dcasa_conversacion_gerente,dcasa.conversacion gerente,model_dcasa_conversacion,sales_team.group_sale_manager,1,1,0,1
+access_dcasa_mensaje_vendedora,dcasa.mensaje vendedora,model_dcasa_mensaje,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_mensaje_gerente,dcasa.mensaje gerente,model_dcasa_mensaje,sales_team.group_sale_manager,1,0,0,1
+access_dcasa_juan_ajustes_vendedora,dcasa.juan.ajustes vendedora,model_dcasa_juan_ajustes,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_juan_ajustes_gerente,dcasa.juan.ajustes gerente,model_dcasa_juan_ajustes,sales_team.group_sale_manager,1,1,0,0
+access_dcasa_conocimiento_vendedora,dcasa.conocimiento vendedora,model_dcasa_conocimiento,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_conocimiento_gerente,dcasa.conocimiento gerente,model_dcasa_conocimiento,sales_team.group_sale_manager,1,1,1,1
+access_dcasa_pregunta_pendiente_vendedora,dcasa.pregunta_pendiente vendedora,model_dcasa_pregunta_pendiente,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_pregunta_pendiente_gerente,dcasa.pregunta_pendiente gerente,model_dcasa_pregunta_pendiente,sales_team.group_sale_manager,1,1,0,1
+access_dcasa_etiqueta_vendedora,dcasa.conversacion.etiqueta vendedora,model_dcasa_conversacion_etiqueta,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_etiqueta_gerente,dcasa.conversacion.etiqueta gerente,model_dcasa_conversacion_etiqueta,sales_team.group_sale_manager,1,1,1,1
+access_dcasa_respuesta_rapida_vendedora,dcasa.respuesta.rapida vendedora,model_dcasa_respuesta_rapida,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_respuesta_rapida_gerente,dcasa.respuesta.rapida gerente,model_dcasa_respuesta_rapida,sales_team.group_sale_manager,1,1,1,1
+access_dcasa_lectura_vendedora,dcasa.conversacion.lectura vendedora,model_dcasa_conversacion_lectura,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_presencia_gerente,dcasa.presencia gerente,model_dcasa_presencia,sales_team.group_sale_manager,1,0,0,0
+access_dcasa_juan_costo_dia_gerente,dcasa.juan.costo.dia gerente,model_dcasa_juan_costo_dia,sales_team.group_sale_manager,1,0,0,0
+access_dcasa_telegram_borrador_admin,dcasa.telegram_borrador admin,model_dcasa_telegram_borrador,base.group_system,1,0,0,0

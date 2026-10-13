@@ -61,7 +61,7 @@ class BrianHerramientasImportacion(models.AbstractModel):
                                           'tal cual. incluido: el precio ya trae el ITBMS y se le quita.'},
         },
         requeridos=['adjunto'],
-        nivel='construccion', categoria='catalogo', grupos=VENDEDORA,
+        nivel='construccion', categoria='catalogo', grupos=VENDEDORA, segura_con_adjuntos=True,
         ejemplos=['carga los productos de este Excel → adjunto=«Catalogo_LTSC-07.xlsx»',
                   'usa el precio de la columna E → columna_precio=E'],
     )

@@ -1,6 +1,6 @@
 {
     'name': "D'CASA Panamá — Sitio web",
-    'summary': "Sitio web y tienda de D'CASA con su marca, editable desde el constructor de Odoo",
+    'summary': "Sitio web y tienda de D'CASA con su marca, mantenido desde el código (sin constructor)",
     'description': """
 Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 
@@ -12,6 +12,9 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 * Ficha de producto con WhatsApp del mueble, sellos de confianza y botón fijo en el
   celular; tienda a 4 columnas; datos estructurados y SEO local.
 * Pie de página con los datos reales y botón flotante de WhatsApp, sin el crédito de Odoo.
+* La píldora de /socios en todas las páginas (logo, menú, carrito, búsqueda, cuenta y
+  «Escríbenos»), la foto de la portada con sus colores reales y el texto en placa navy,
+  cabeceras de página como la de /socios (legales, cuenta) y fotos de producto en 3:4.
 * Cabecera de vidrio flotante, animaciones de entrada (secciones y titulares) y
   opiniones reales de Google en una cinta en movimiento (data/resenas.json).
 * Categorías de la tienda (Salas, Recámaras, Colchones, Zapateras, Estantes y
@@ -25,18 +28,19 @@ Sitio web de D'CASA sobre el constructor de sitios y el eCommerce de Odoo:
 Todo el contenido de las páginas es editable con el constructor de Odoo
 (Sitio web > Editar), sin programador.
 """,
-    'version': '19.0.1.10.0',
+    'version': '19.0.1.12.0',
     'category': 'Website/Website',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_socios', 'website_sale'],
+    'depends': ['dcasa_base', 'dcasa_socios', 'dcasa_contactos', 'website_sale'],
     'data': [
         'security/dcasa_roles_website.xml',
         'security/ir.model.access.csv',
         'data/website_data.xml',
         'data/product_public_category_data.xml',
         'views/res_config_settings_views.xml',
+        'views/apartados_views.xml',
         'views/layout_templates.xml',
         'views/resenas_templates.xml',
         'views/black_weekend_templates.xml',
@@ -48,6 +52,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'views/tienda_templates.xml',
         'data/seo_data.xml',
         'data/black_weekend_data.xml',
+        'data/ir_cron_data.xml',
     ],
     'assets': {
         'web._assets_primary_variables': [
@@ -57,6 +62,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
             'website_dcasa/static/src/scss/fuentes.scss',
             'website_dcasa/static/src/scss/dcasa.scss',
             'website_dcasa/static/src/js/animaciones.js',
+            'website_dcasa/static/src/js/carrito.js',
         ],
     },
     'installable': True,

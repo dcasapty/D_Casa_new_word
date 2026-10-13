@@ -1,10 +1,12 @@
 """Marcas de «página pendiente de regenerar» y aviso al Worker.
 
 Cualquier cambio que se vea en el sitio público (precio, nombre, publicación, fotos, existencias,
-una venta confirmada, una factura) llama a ``_dcasa_marcar`` con los productos afectados. Las
-marcas se juntan en la transacción (``cr.precommit``) y se escriben de una vez al confirmarla, y
-el cron ``cron_avisar_borde`` se dispara a los pocos segundos: le manda al Worker la lista de
-productos y el Worker vuelve a leer el catálogo (``/dcasa/tienda/feed``) y regenera lo que cambió.
+una venta confirmada, una factura, categorías, ajustes, plantillas, menú, tarifas, Black Weekend)
+llama a ``_dcasa_marcar`` con los productos afectados. Las marcas se juntan en la transacción
+(``cr.precommit``) y se escriben de una vez al confirmarla, y el cron ``cron_avisar_borde`` se
+dispara a los pocos segundos: le avisa al Worker, que da por viejas TODAS las páginas que guardó
+del HTML de Odoo (edge/src/tienda/paginas.ts) y vuelve a pedirle a Odoo las principales y las
+fichas de los productos que cambiaron (``rutas``); el resto, con la primera visita.
 
 Si el Worker no responde, las marcas se quedan y el cron reintenta en su intervalo. Sin secreto
 configurado (TIENDA_FEED_TOKEN) no hay a quién avisar: las marcas se descartan.
@@ -22,6 +24,8 @@ _logger = logging.getLogger(__name__)
 
 # Último estado de Black Weekend que se avisó al Worker (ver _dcasa_vigilar_black_weekend).
 PARAM_BW_PUBLICADO = 'dcasa_tienda_borde.black_weekend_publicado'
+# Última versión desplegada (APP_VERSION) por la que se regeneró la tienda (ver _dcasa_revisar_version).
+PARAM_VERSION = 'dcasa_tienda_borde.version_avisada'
 # Clave del acumulador en cr.precommit.data.
 CLAVE_PRECOMMIT = 'dcasa_tienda_borde.pendientes'
 # Producto «0» = regenerar todo (categorías, ajustes del sitio).
@@ -30,6 +34,8 @@ TODO = 0
 PAUSA_AVISO = timedelta(seconds=20)
 # Máximo de marcas por aviso (el resto va en la siguiente corrida).
 LOTE = 2000
+# Fichas que el Worker vuelve a pedir enseguida (las demás, con la primera visita).
+MAX_RUTAS = 30
 TIEMPO_ESPERA = 60
 LARGO_MINIMO_TOKEN = 32
 
@@ -120,8 +126,35 @@ class DcasaTiendaPendiente(models.Model):
         return True
 
     @api.model
+    def _dcasa_rutas_de(self, plantilla_ids):
+        """URL públicas (``website_url``) de los productos publicados, para precalentar en el borde."""
+        productos = self.env['product.template'].sudo().browse(plantilla_ids).exists()
+        return sorted({p.website_url for p in productos if p.is_published and p.website_url})
+
+    @api.model
+    def _dcasa_revisar_version(self):
+        """Versión nueva desplegada (``APP_VERSION``) → «regenerar todo».
+
+        Un despliegue cambia plantillas, estilos y código que ningún ``write`` del ORM anota: el
+        ``-u`` de website_dcasa corre ANTES de que este módulo se cargue, y el resto ni pasa por la
+        base. Sin esto, el borde seguiría sirviendo hasta una hora (y una vez más, vieja) el HTML de
+        la versión anterior, que además pide bundles de estilos y JS que ya no existen (Odoo los
+        redirige a los nuevos: diseño viejo con estilos nuevos). docker/entrypoint.sh adelanta el
+        cron al arrancar para que el aviso salga en cuanto Odoo abre. Devuelve True si marcó.
+        """
+        version = (os.environ.get('APP_VERSION') or '').strip()
+        param = self.env['ir.config_parameter'].sudo()
+        if not version or param.get_param(PARAM_VERSION) == version:
+            return False
+        param.set_param(PARAM_VERSION, version)
+        self.sudo().create({'producto_id': TODO, 'motivo': 'despliegue'})
+        _logger.info('Tienda del borde: versión nueva (%s); se regenera todo.', version)
+        return True
+
+    @api.model
     def _dcasa_avisar_borde(self):
         """Cron: manda al Worker los productos pendientes; si responde 2xx, borra esas marcas."""
+        self._dcasa_revisar_version()
         marcas = self.sudo().search([], limit=LOTE)
         if not marcas:
             return False
@@ -132,10 +165,12 @@ class DcasaTiendaPendiente(models.Model):
             marcas.unlink()
             return False
         productos = sorted(set(marcas.mapped('producto_id')))
+        ids = [p for p in productos if p != TODO]
         cuerpo = {
             'todo': TODO in productos,
-            'productos': [p for p in productos if p != TODO],
+            'productos': ids,
             'motivos': sorted(set(filter(None, marcas.mapped('motivo')))),
+            'rutas': self._dcasa_rutas_de(ids[:MAX_RUTAS]),
         }
         try:
             respuesta = requests.post(url, json=cuerpo, timeout=TIEMPO_ESPERA, headers={

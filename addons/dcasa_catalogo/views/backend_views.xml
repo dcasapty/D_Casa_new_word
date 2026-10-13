@@ -43,6 +43,21 @@
                 <field name="public_categ_ids" widget="many2many_tags" string="En la tienda" optional="show"/>
                 <field name="is_published" widget="boolean_toggle" string="Publicado" optional="show"/>
             </field>
+            <!-- Stock al lado del precio, y los dos se ordenan con un clic en el título de la columna (o con los
+                 botones «Ordenar» de dcasa_interfaz). Es el mismo número que «A la mano», pero ese Odoo no lo
+                 deja ordenar; por eso se esconde (sigue en las columnas opcionales). -->
+            <field name="list_price" position="after">
+                <field name="is_storable" column_invisible="True"/>
+                <field name="dcasa_stock" string="Stock" optional="show" invisible="not is_storable"
+                       decoration-danger="dcasa_stock &lt; 0" decoration-warning="dcasa_stock == 0"
+                       decoration-bf="1" sum="Total"/>
+            </field>
+            <field name="qty_available" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
+            <field name="virtual_available" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </field>
         </field>
     </record>
 
@@ -58,9 +73,11 @@
                 <attribute name="string">Nombre o código</attribute>
             </field>
             <filter name="goods" position="before">
-                <filter string="Disponibles" name="dcasa_disponibles" domain="[('qty_available', '&gt;', 0)]"/>
+                <filter string="Disponibles" name="dcasa_disponibles" domain="[('dcasa_stock', '&gt;', 0)]"/>
+                <filter string="Pocas unidades" name="dcasa_pocas"
+                        domain="[('dcasa_stock', '&gt;', 0), ('dcasa_stock', '&lt;=', 5)]"/>
                 <filter string="Agotados" name="dcasa_agotados"
-                        domain="[('is_storable', '=', True), ('qty_available', '&lt;=', 0)]"/>
+                        domain="[('is_storable', '=', True), ('dcasa_stock', '&lt;=', 0)]"/>
                 <separator/>
                 <filter string="Hasta $100" name="dcasa_precio_1" domain="[('list_price', '&lt;=', 100)]"/>
                 <filter string="$100 a $300" name="dcasa_precio_2"
@@ -88,5 +105,51 @@
                 </searchpanel>
             </xpath>
         </field>
+    </record>
+
+    <!-- Productos abre en lista (con foto, precio y stock ordenables): es la vista de trabajo de quien arma una
+         campaña. Las tarjetas siguen a un clic en el selector de vistas. -->
+    <record id="sale.product_template_action" model="ir.actions.act_window">
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('account.product_template_list_view_sellable_inherit')}),
+            Command.create({'view_mode': 'kanban'}),
+            Command.create({'view_mode': 'form'}),
+            Command.create({'view_mode': 'activity'})]"/>
+    </record>
+    <record id="stock.product_template_action_product" model="ir.actions.act_window">
+        <field name="view_mode">list,kanban,form</field>
+    </record>
+
+    <!-- Favoritos compartidos: el orden que se usa según la campaña (menú «Favoritos» de la lista de productos).
+         «Menor stock» deja fuera lo agotado y lo que no controla inventario: eso no se puede empujar.
+         (Los ids son nuevos a propósito: los de la pantalla aparte que se retiró colgaban de su acción y Odoo los
+         borra junto con ella al actualizar.) -->
+    <record id="filtro_productos_stock_mayor" model="ir.filters">
+        <field name="name">Mayor stock primero</field>
+        <field name="model_id">product.template</field>
+        <field name="domain">[('is_storable', '=', True)]</field>
+        <field name="context">{}</field>
+        <field name="sort">["dcasa_stock desc"]</field>
+    </record>
+    <record id="filtro_productos_stock_menor" model="ir.filters">
+        <field name="name">Menor stock primero</field>
+        <field name="model_id">product.template</field>
+        <field name="domain">[('is_storable', '=', True), ('dcasa_stock', '&gt;', 0)]</field>
+        <field name="context">{}</field>
+        <field name="sort">["dcasa_stock asc"]</field>
+    </record>
+    <record id="filtro_productos_precio_mayor" model="ir.filters">
+        <field name="name">Mayor precio primero</field>
+        <field name="model_id">product.template</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="sort">["list_price desc"]</field>
+    </record>
+    <record id="filtro_productos_precio_menor" model="ir.filters">
+        <field name="name">Menor precio primero</field>
+        <field name="model_id">product.template</field>
+        <field name="domain">[]</field>
+        <field name="context">{}</field>
+        <field name="sort">["list_price asc"]</field>
     </record>
 </odoo>

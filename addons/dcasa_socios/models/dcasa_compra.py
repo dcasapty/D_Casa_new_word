@@ -57,7 +57,8 @@ class DcasaCompra(models.Model):
     monto = fields.Monetary(string='Pagado', compute='_compute_montos', store=True)
     puntos = fields.Integer(readonly=True, required=True)
     reglas_version = fields.Integer(string='Versión de reglas', readonly=True, required=True)
-    registrada_en = fields.Datetime(readonly=True, required=True, default=fields.Datetime.now)
+    # index: la lista de compras se ordena por aquí (_order).
+    registrada_en = fields.Datetime(readonly=True, required=True, default=fields.Datetime.now, index=True)
     vendedor_id = fields.Many2one('res.users', string='Vendedora', readonly=True, index=True)
     referido = fields.Selection(MOTIVOS_SIN_REFERIDO, string='Referido', readonly=True)
     notas = fields.Char(readonly=True)

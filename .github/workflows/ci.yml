@@ -3,8 +3,11 @@ name: CI/CD
 # Cada push y PR corre: lint, tests de Odoo, tests del borde (Worker), la imagen Docker
 # (se construye UNA vez y se prueba) y el simulacro de restauración de la base desde S3.
 # Solo si TODO pasa:
-#   - push a main            → despliega a producción (environment `production`, con aprobación).
-#   - Run workflow (a mano)  → despliega a staging (environment `staging`), si se elige.
+#   - push a main            → SOLO pruebas: un merge NUNCA despliega a producción.
+#   - Run workflow (a mano)  → despliega a staging (`desplegar_en = staging`, cualquier rama) o a
+#                              producción (`desplegar_en = produccion`, solo desde `main`). El clic de quien
+#                              lo lanza es la aprobación: GitHub no ofrece «Required reviewers» en
+#                              repositorios privados de los planes Free, Pro ni Team.
 # Se despliega la MISMA imagen que se probó (I-08): viaja como artefacto de esta ejecución
 # y el job de despliegue comprueba su ID antes de subirla al registro de Cloudflare.
 # Detalle: docs/DESPLIEGUE.md. Operación diaria: docs/OPERACION.md.
@@ -18,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       desplegar_en:
-        description: "Después de los tests, ¿desplegar esta rama?"
+        description: "Después de los tests, ¿desplegar? («produccion»: solo desde la rama main; «solo-juan-staging»: solo el bot Juan, sin repetir las pruebas de Odoo)"
         type: choice
-        options: [staging, ninguno]
+        options: [staging, produccion, solo-juan-staging, ninguno]
         default: staging
 
 # Un PR nuevo cancela la ejecución anterior del mismo PR. Nunca se cancela un push a main
@@ -36,13 +39,16 @@ jobs:
   lint:
     name: Lint (Python, XML, shell y workflows)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: "3.12"
-      - run: pip install ruff actionlint-py==1.7.12.25
-      - run: ruff check addons --output-format=github
+      - run: pip install ruff actionlint-py==1.7.12.25 openpyxl Pillow
+      - run: ruff check addons scripts --output-format=github
+      - name: Tests del procesador de «up media» (sin Odoo)
+        run: python -m unittest discover -s scripts/tests -v
       - name: XML bien formado
         run: |
           python - <<'PY'
@@ -73,6 +79,7 @@ jobs:
   odoo-tests:
     name: Tests de Odoo
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     services:
       postgres:
         image: postgres:16
@@ -95,7 +102,7 @@ jobs:
       - name: Dependencias del sistema
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libldap2-dev libsasl2-dev libpq-dev postgresql-client
       - name: Dependencias de Odoo
-        run: pip install -r vendor/odoo/requirements.txt
+        run: pip install -r vendor/odoo/requirements.txt -r docker/requirements-dcasa.txt
       # Como en producción, dcasa_sesiones se carga como módulo de todo el servidor
       # (equivale a --load=base,web,dcasa_sesiones): sesiones HTTP en la base desde la
       # primera petición. scripts/test.sh no recibe --load; Odoo lee la opción del archivo
@@ -109,14 +116,18 @@ jobs:
           PYTHON: python
           ODOO_RC: ${{ runner.temp }}/odoo-ci.conf
       - if: failure()
+        # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe tapar el resultado de las pruebas.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: odoo-test-log
           path: .test.log
+          retention-days: 7
 
   edge:
     name: Tests del borde (Cloudflare Worker)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     defaults:
       run:
         working-directory: edge
@@ -133,16 +144,97 @@ jobs:
       - name: La configuración se puede desplegar con la imagen ya construida (dry-run)
         working-directory: .
         run: .github/scripts/probar_config_despliegue.sh
+      - name: La limpieza de copias temporales solo borra lo que debe
+        working-directory: .
+        run: .github/scripts/probar_limpieza_artefactos.sh
+
+  juan:
+    name: Tests del motor del bot (Worker juan)
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
+    defaults:
+      run:
+        working-directory: juan
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: juan/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  integracion-juan:
+    name: Integración Odoo y Worker juan (reales, juntos)
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: odoo
+          POSTGRES_PASSWORD: odoo
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          submodules: true
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: vendor/odoo/requirements.txt
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: juan/package-lock.json
+      - name: Dependencias del sistema
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libldap2-dev libsasl2-dev libpq-dev postgresql-client
+      - name: Dependencias de Odoo
+        run: pip install -r vendor/odoo/requirements.txt -r docker/requirements-dcasa.txt
+      - name: Dependencias del Worker juan
+        run: npm ci
+        working-directory: juan
+      - name: Odoo real y Worker real, hablándose por HTTP
+        run: scripts/integracion_juan.sh
+        env:
+          DB_HOST: localhost
+          PYTHON: python
+
+  puente-wa:
+    name: Tests del puente QR de WhatsApp (Juan)
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
+    defaults:
+      run:
+        working-directory: puente-wa
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: puente-wa/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
 
   docker:
     name: Imagen Docker (se construye una vez y se prueba)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     outputs:
       imagen_id: ${{ steps.imagen.outputs.id }}
     env:
       # ¿Esta ejecución termina en un despliegue? Entonces la imagen probada se guarda como
       # artefacto para que el despliegue suba EXACTAMENTE esta (I-08).
-      SE_DESPLIEGA: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging') }}
+      SE_DESPLIEGA: ${{ github.event_name == 'workflow_dispatch' && (inputs.desplegar_en == 'staging' || (inputs.desplegar_en == 'produccion' && github.ref == 'refs/heads/main')) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
@@ -239,6 +331,28 @@ jobs:
             exit 1
           fi
           echo "Adjunto $id en R2: $(grep -cE '"PUT /dcasa-ci/adjuntos/' "$RUNNER_TEMP/s3/moto.log") PUT en adjuntos/."
+      - name: La factura en PDF sale con el diseño de D'CASA (estilos y fuentes cargados)
+        # web.base.url apunta a https://localhost (inalcanzable aquí, como Cloudflare desde el
+        # contenedor): si wkhtmltopdf pidiera los estilos ahí, el PDF saldría como texto suelto.
+        run: |
+          jar="$RUNNER_TEMP/cookies-pdf"
+          curl -fsS -c "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/session/authenticate \
+            -d '{"jsonrpc":"2.0","params":{"db":"dcasa","login":"admin","password":"ci-admin"}}' >/dev/null
+          rpc() {
+            curl -fsS -b "$jar" -H 'Content-Type: application/json' http://localhost:8069/web/dataset/call_kw \
+              -d "{\"jsonrpc\":\"2.0\",\"params\":{\"model\":\"$1\",\"method\":\"create\",\"args\":[$2],\"kwargs\":{}}}" \
+              | python3 -c 'import json, sys; print(json.load(sys.stdin)["result"])'
+          }
+          cliente="$(rpc res.partner '{"name":"Cliente PDF CI"}')"
+          producto="$(rpc product.product '{"name":"Mesa PDF CI","list_price":99}')"
+          orden="$(rpc sale.order "{\"partner_id\":$cliente,\"order_line\":[[0,0,{\"product_id\":$producto,\"product_uom_qty\":1}]]}")"
+          curl -fsS -b "$jar" -o "$RUNNER_TEMP/cotizacion.pdf" "http://localhost:8069/report/pdf/sale.report_saleorder/$orden"
+          head -c 4 "$RUNNER_TEMP/cotizacion.pdf" | grep -q '%PDF'
+          if ! grep -aq 'Anton' "$RUNNER_TEMP/cotizacion.pdf"; then
+            echo "::error::La cotización salió sin estilos: wkhtmltopdf no cargó el CSS (¿pide los estilos a la URL pública?)."
+            exit 1
+          fi
+          echo "PDF con fuentes de marca ($(wc -c < "$RUNNER_TEMP/cotizacion.pdf") bytes)."
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
@@ -254,12 +368,15 @@ jobs:
           name: imagen-odoo-${{ github.sha }}
           path: ${{ runner.temp }}/imagen.tar.zst
           compression-level: 0
-          retention-days: 3
+          # Solo hace de transporte hasta el despliegue de esta misma ejecución (~420 MB cada una): con 1 día basta y
+          # no llena el espacio de GitHub. Para liberarlo antes: «Limpiar copias temporales» (docs/OPERACION.md).
+          retention-days: 1
           if-no-files-found: error
 
   simulacro-restauracion:
     name: Simulacro de restauración (RPO ≤ 90 s, sin corrupción)
     runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
@@ -289,16 +406,27 @@ jobs:
           SIMULACRO_RPO_MAX_S: "90"
           SIMULACRO_DIR: ${{ runner.temp }}/simulacro
       - if: always()
+        # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe poner el simulacro en rojo.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: simulacro-restauracion
           path: ${{ runner.temp }}/simulacro
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7
+
+  produccion-solo-desde-main:
+    name: Producción solo se despliega desde main
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'produccion' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          echo "::error::A producción solo se despliega desde la rama main (esta ejecución es de ${GITHUB_REF_NAME}). Vuelve a lanzar con la rama main."
+          exit 1
 
   desplegar-staging:
     name: Desplegar a staging
-    needs: [lint, odoo-tests, edge, docker, simulacro-restauracion]
+    needs: [lint, odoo-tests, edge, juan, integracion-juan, puente-wa, docker, simulacro-restauracion]
     if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
     uses: ./.github/workflows/desplegar.yml
     with:
@@ -309,10 +437,32 @@ jobs:
       respaldo_previo: true
     secrets: inherit
 
+  desplegar-juan-staging:
+    name: Desplegar Juan (bot) a staging
+    # Después de `dcasa`: el binding de Juan apunta a su entrada `JuanEntrada`, que tiene que existir ya.
+    needs: [desplegar-staging, juan, integracion-juan]
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging'
+    uses: ./.github/workflows/desplegar-juan.yml
+    with:
+      entorno: staging
+      dry_run: false
+    secrets: inherit
+
+  desplegar-juan-solo:
+    name: Desplegar solo Juan (bot) a staging
+    # Sin repetir Odoo: el flujo de Juan trae sus propias pruebas. Requiere que dcasa-staging ya tenga el módulo y JuanEntrada.
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'solo-juan-staging'
+    uses: ./.github/workflows/desplegar-juan.yml
+    with:
+      entorno: staging
+      dry_run: false
+    secrets: inherit
+
   desplegar-produccion:
     name: Desplegar a producción
-    needs: [lint, odoo-tests, edge, docker, simulacro-restauracion]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [lint, odoo-tests, edge, juan, integracion-juan, puente-wa, docker, simulacro-restauracion]
+    # Nunca con un push: solo a mano y solo desde main (un merge no despliega).
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'produccion' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/desplegar.yml
     with:
       entorno: production

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="dcasa_conversaciones.Visor">
+        <div class="o_dcj_visor" t-ref="visor" role="dialog" aria-modal="true" aria-label="Foto ampliada" t-on-click.self="cerrar">
+            <header class="o_dcj_visor_cabecera">
+                <span class="o_dcj_visor_nombre" t-out="imagen ? imagen.nombre : ''"/>
+                <span t-if="hayVarias" class="o_dcj_visor_posicion" aria-live="polite" t-out="posicion"/>
+                <a t-if="imagen" class="o_dcj_icono_boton" t-att-href="imagen.url" t-att-download="imagen.nombre" aria-label="Descargar la foto" title="Descargar">
+                    <i class="fa fa-download" aria-hidden="true"/>
+                </a>
+                <button type="button" class="o_dcj_icono_boton" t-ref="cerrar" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                    <i class="fa fa-times" aria-hidden="true"/>
+                </button>
+            </header>
+            <div class="o_dcj_visor_cuerpo" t-att-class="{ o_ampliada: local.ampliada }" t-on-click.self="cerrar">
+                <button t-if="hayVarias" type="button" class="o_dcj_visor_flecha o_dcj_visor_anterior" aria-label="Foto anterior" t-on-click="() => this.mover(-1)">
+                    <i class="fa fa-chevron-left" aria-hidden="true"/>
+                </button>
+                <img t-if="imagen" t-att-src="imagen.url" t-att-alt="imagen.nombre" t-on-click="alternarZoom"
+                     t-att-title="local.ampliada ? 'Clic para ajustar al tamaño de la pantalla' : 'Clic para ver en su tamaño real'"/>
+                <button t-if="hayVarias" type="button" class="o_dcj_visor_flecha o_dcj_visor_siguiente" aria-label="Foto siguiente" t-on-click="() => this.mover(1)">
+                    <i class="fa fa-chevron-right" aria-hidden="true"/>
+                </button>
+            </div>
+        </div>
+    </t>
+</templates>

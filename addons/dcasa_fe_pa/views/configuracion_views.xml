@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ajustes → Facturación: el interruptor (apagado por defecto) y la contingencia. -->
+    <record id="res_config_settings_view_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">res.config.settings.form.dcasa.fe</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="account.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@id='invoicing_settings']" position="before">
+                <block title="Factura electrónica DGI (Panamá)" id="dcasa_fe_pa">
+                    <setting id="dcasa_fe_activo" string="Factura electrónica"
+                             help="Apagada: Odoo factura como siempre. Encendida y con PAC: cada factura publicada se envía a la DGI por el PAC.">
+                        <field name="l10n_pa_fe_activo"/>
+                        <div class="content-group mt-2" invisible="not l10n_pa_fe_activo">
+                            <div class="row"><label for="l10n_pa_fe_adaptador" class="col-lg-4 o_light_label"/><field name="l10n_pa_fe_adaptador"/></div>
+                            <div class="row"><label for="l10n_pa_fe_ambiente" class="col-lg-4 o_light_label"/><field name="l10n_pa_fe_ambiente"/></div>
+                            <div class="text-muted">Los datos fiscales de la empresa (sucursal, ubicación DGI, CAFE) están en Ajustes → Empresas.</div>
+                        </div>
+                    </setting>
+                    <setting id="dcasa_fe_contingencia" string="Modo contingencia" invisible="not l10n_pa_fe_activo"
+                             help="Sin internet o sin PAC: se sigue facturando y los documentos se transmiten cuando vuelva la conexión.">
+                        <field name="l10n_pa_fe_contingencia"/>
+                        <div class="content-group mt-2" invisible="not l10n_pa_fe_contingencia">
+                            <div class="row"><label for="l10n_pa_fe_contingencia_motivo" class="col-lg-4 o_light_label"/><field name="l10n_pa_fe_contingencia_motivo"/></div>
+                            <div class="row"><label for="l10n_pa_fe_contingencia_inicio" class="col-lg-4 o_light_label"/><field name="l10n_pa_fe_contingencia_inicio"/></div>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_company_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">res.company.form.dcasa.fe</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Factura electrónica (DGI)" name="dcasa_fe_pa">
+                    <group>
+                        <group string="Emisor">
+                            <field name="l10n_pa_fe_activo"/>
+                            <field name="l10n_pa_fe_adaptador"/>
+                            <field name="l10n_pa_fe_ambiente"/>
+                            <field name="l10n_pa_fe_tipo_ruc"/>
+                            <field name="l10n_pa_fe_sucursal"/>
+                            <field name="l10n_pa_fe_coordenadas"/>
+                        </group>
+                        <group string="Ubicación DGI">
+                            <field name="l10n_pa_cod_ubicacion"/>
+                            <field name="l10n_pa_corregimiento"/>
+                            <field name="l10n_pa_distrito"/>
+                            <field name="l10n_pa_provincia"/>
+                        </group>
+                        <group string="Comprobante y pagos">
+                            <field name="l10n_pa_fe_forma_cafe"/>
+                            <field name="l10n_pa_fe_entrega_cafe"/>
+                            <field name="l10n_pa_fe_forma_pago"/>
+                            <field name="l10n_pa_fe_reintentos"/>
+                        </group>
+                        <group string="Contingencia">
+                            <field name="l10n_pa_fe_contingencia"/>
+                            <field name="l10n_pa_fe_contingencia_inicio"/>
+                            <field name="l10n_pa_fe_contingencia_motivo"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.fe</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='accounting']/group" position="after">
+                <group string="Factura electrónica (DGI)" name="dcasa_fe_pa">
+                    <group>
+                        <field name="l10n_pa_tipo_receptor" placeholder="Se deduce de la ficha"/>
+                        <field name="l10n_pa_tipo_ruc" placeholder="Se deduce de la ficha"/>
+                    </group>
+                    <group>
+                        <field name="l10n_pa_cod_ubicacion" placeholder="p. ej. 8-8-8"/>
+                        <field name="l10n_pa_corregimiento"/>
+                        <field name="l10n_pa_distrito"/>
+                        <field name="l10n_pa_provincia"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="product_template_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.fe</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="account.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='invoicing']/group[@name='properties']" position="after">
+                <group string="Factura electrónica (DGI)" name="dcasa_fe_pa">
+                    <field name="l10n_pa_cpbs" placeholder="4 dígitos; obligatorio solo para el Gobierno"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_tax_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">account.tax.form.dcasa.fe</field>
+        <field name="model">account.tax</field>
+        <field name="inherit_id" ref="account.view_tax_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='advanced_booleans']" position="inside">
+                <field name="l10n_pa_tasa_itbms" placeholder="Se deduce del porcentaje"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_journal_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">account.journal.form.dcasa.fe</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='advanced_settings']/group" position="inside">
+                <group string="Factura electrónica (DGI)" name="dcasa_fe_pa" invisible="type not in ('sale', 'bank', 'cash')">
+                    <field name="l10n_pa_fe_punto" invisible="type != 'sale'"/>
+                    <field name="l10n_pa_fe_forma_pago" invisible="type not in ('bank', 'cash')"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_move_form_dcasa_fe" model="ir.ui.view">
+        <field name="name">account.move.form.dcasa.fe</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_l10n_pa_fe_procesar" type="object" string="Enviar a la DGI ahora"
+                        invisible="l10n_pa_fe_estado not in ('por_enviar', 'contingencia', 'enviado')"
+                        groups="account.group_account_invoice"/>
+            </xpath>
+            <xpath expr="//page[@name='other_info']" position="after">
+                <page string="Factura electrónica (DGI)" name="dcasa_fe_pa" invisible="not l10n_pa_fe_documento_ids">
+                    <field name="l10n_pa_fe_estado" invisible="1"/>
+                    <field name="l10n_pa_fe_documento_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="estado"/>
+                            <field name="cufe"/>
+                            <field name="fecha_autorizacion"/>
+                            <field name="error"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

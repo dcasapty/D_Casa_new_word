@@ -13,13 +13,18 @@ ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
   en modelos de Odoo llevan prefijo `dcasa_` (o `l10n_pa_` si es de localización).
 - `edge/` — Worker de Cloudflare (TypeScript). La lógica testeable vive en
   `src/routing.ts` y `src/handler.ts`, sin dependencias de Cloudflare.
+- `juan/` — Worker de Juan, el asistente de los clientes (TypeScript, Durable Objects).
+- `puente-wa/` — puente de WhatsApp por QR para Juan (Worker + Container).
 - `docker/` — imagen de producción; `entrypoint.sh` instala/actualiza módulos.
+- `scripts/` — pruebas, importación del catálogo, respaldos y simulacro de restauración.
+- `fuentes/` y `up media/` — originales del catálogo y la bandeja donde la dueña sube lo nuevo.
+- `docs/` — documentación; el índice es `docs/README.md`.
 
 ## Comandos
 
 - `scripts/test.sh [modulos]` — instala en base limpia y corre tests (PostgreSQL local).
 - `make run DB=dcasa` / `make init` / `make update` — ver `Makefile`.
-- `cd edge && npm test && npm run typecheck`.
+- `cd edge && npm test && npm run typecheck` (igual en `juan/` y `puente-wa/`).
 - `ruff check addons`.
 
 ## Convenciones Odoo 19
@@ -53,5 +58,5 @@ Reglas de DCasa-Referidos (Abrinay), no negociables:
 
 ## Datos reales de la empresa
 
-D'CASA Panamá · RUC 155779346-2-2026 DV7 · Avenida Las Américas, Urbanización
-Santa Clara, Local 4550 PB-1, La Chorrera · +507 6026-1919 · info@dcasapty.com.
+D'CASA Panamá · RUC 155779346-2-2026 DV7 · Frente al Parque Libertadores,
+diagonal a la Discoteca Seven, La Chorrera, Panamá Oeste · +507 6026-1919 · info@dcasapty.com.

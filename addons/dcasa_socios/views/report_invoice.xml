@@ -1,25 +1,48 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Los puntos van impresos en la factura: es la única vez que el cliente tiene el
-         programa delante sin abrir nada, y el código es lo que le permite reclamarlos. -->
+         programa delante sin abrir nada, y el código es lo que le permite reclamarlos.
+         Todo sale del libro (dcasa.movimiento) y de las reglas (puntos.json): nada a ojo.
+         Si el cliente no es socio, una línea de invitación (con el código de quien lo invitó
+         si el pedido lo trae). -->
     <template id="report_invoice_document_dcasa_socios" inherit_id="account.report_invoice_document">
         <xpath expr="//div[@id='payment_term']" position="before">
             <t t-if="o.move_type == 'out_invoice' and o.state == 'posted'">
-                <t t-set="dcasa_ficha" t-value="o.sudo().commercial_partner_id"/>
-                <t t-set="dcasa_compra" t-value="o.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)[:1]"/>
-                <t t-set="dcasa_por_ganar" t-value="o._dcasa_puntos_por_ganar()"/>
-                <div t-if="dcasa_compra or dcasa_por_ganar" class="o_dcasa_socios_factura avoid-page-break-inside" name="dcasa_socios">
-                    <strong>Socios D'CASA</strong>
-                    <t t-if="dcasa_compra">
-                        · Esta compra te dio <strong t-out="dcasa_compra.puntos"/> puntos.
-                        Tienes <strong t-out="dcasa_ficha.dcasa_saldo"/> en total.
+                <t t-set="dcasa_socios" t-value="o._dcasa_socios_factura()"/>
+                <div t-if="dcasa_socios" class="o_dcasa_socios_factura avoid-page-break-inside" name="dcasa_socios">
+                    <div class="o_dcasa_socios_titulo">Socios D'CASA</div>
+                    <t t-if="dcasa_socios['socio']">
+                        <div name="dcasa_socios_codigo">
+                            Tu código de socio: <span class="o_dcasa_socios_codigo" t-out="dcasa_socios['codigo']"/>
+                        </div>
+                        <div t-if="dcasa_socios['compra']" name="dcasa_socios_ganados">
+                            Puntos de esta compra: <strong t-out="dcasa_socios['compra'].puntos"/>
+                            · Tu saldo: <strong t-out="dcasa_socios['saldo']"/> puntos
+                        </div>
+                        <div t-elif="dcasa_socios['por_ganar']" name="dcasa_socios_por_ganar">
+                            Puntos de esta compra: <strong t-out="dcasa_socios['por_ganar']"/> (se acreditan al pagar)
+                            · Tu saldo hoy: <strong t-out="dcasa_socios['saldo']"/> puntos
+                        </div>
+                        <div t-foreach="dcasa_socios['canjes']" t-as="canje" name="dcasa_socios_premio">
+                            Premio cobrado en este pedido: <strong t-out="canje.premio_nombre"/>
+                            (código <t t-out="canje.codigo"/>, <t t-out="canje.puntos"/> puntos)
+                        </div>
+                        <div>
+                            Revísalos y canjéalos en
+                            <t t-if="dcasa_socios['web']"><span t-out="dcasa_socios['web']"/>/socios</t>
+                            <t t-else="">la sección Socios D'CASA de nuestra web</t>
+                        </div>
                     </t>
-                    <t t-else="">· Al pagar esta factura ganas <strong t-out="dcasa_por_ganar"/> puntos.</t>
-                    <t t-if="dcasa_ficha.dcasa_socio_codigo">
-                        Tu código de socio: <strong t-out="dcasa_ficha.dcasa_socio_codigo"/>.
+                    <t t-else="">
+                        <div name="dcasa_socios_invitacion">
+                            Suma puntos con cada compra. Únete en
+                            <t t-if="dcasa_socios['web']"><span t-out="dcasa_socios['web']"/>/socios</t>
+                            <t t-else="">la sección Socios D'CASA de nuestra web</t>
+                            <t t-if="dcasa_socios['padrino_codigo']">
+                                con el código de quien te invitó: <strong t-out="dcasa_socios['padrino_codigo']"/>
+                            </t>
+                        </div>
                     </t>
-                    <t t-set="dcasa_web" t-value="o.company_id._dcasa_url_publica_corta()"/>
-                    Revísalos y canjéalos en <t t-if="dcasa_web"><span t-out="dcasa_web"/>/socios</t><t t-else="">la sección Socios D'CASA de nuestra web</t>
                 </div>
             </t>
         </xpath>

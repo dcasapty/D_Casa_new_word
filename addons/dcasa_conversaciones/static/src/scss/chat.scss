@@ -1,0 +1,118 @@
+// La conversación como chat (bandeja de Juan). Identidad de dcasa_interfaz: azul #1340B1, sistema plano
+// (bordes finos, sin sombras ni degradados) y el amarillo nunca toca el blanco (aquí no se usa).
+.o_dcasa_chat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    margin: 8px 0 16px;
+    max-height: 560px;
+    overflow-y: auto;
+    background: var(--dc-niebla, #F4F6FA);
+    border: 1px solid var(--dc-linea, #E2E7F0);
+    border-radius: var(--dc-r-md, 12px);
+}
+
+.o_dcasa_chat_vacio {
+    color: var(--dc-tinta-3, #6B7690);
+    align-items: center;
+}
+
+.o_dcasa_burbuja {
+    max-width: unquote("min(78%, 560px)");
+    padding: 8px 12px 10px;
+    border-radius: var(--dc-r-md, 12px);
+    border: 1px solid var(--dc-linea, #E2E7F0);
+    background: var(--dc-blanco, #FFFFFF);
+    color: var(--dc-tinta, #0E1A33);
+    overflow-wrap: anywhere;
+
+    // El cliente a la izquierda; el asistente y las vendedoras a la derecha.
+    &.o_dcasa_burbuja_cliente { align-self: flex-start; }
+    &.o_dcasa_burbuja_bot {
+        align-self: flex-end;
+        background: var(--dc-azul-100, #E4ECFD);
+        border-color: var(--dc-azul-200, #C3D2F6);
+    }
+    &.o_dcasa_burbuja_vendedora {
+        align-self: flex-end;
+        background: var(--dc-azul-600, #1340B1);
+        border-color: var(--dc-azul-600, #1340B1);
+        color: #FFFFFF;
+
+        .o_dcasa_burbuja_meta { color: var(--dc-azul-200, #C3D2F6); }
+        a { color: #FFFFFF; text-decoration: underline; }
+    }
+}
+
+.o_dcasa_burbuja_meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 2px;
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--dc-tinta-3, #6B7690);
+}
+
+.o_dcasa_burbuja_texto { white-space: normal; }
+
+.o_dcasa_burbuja_adjunto {
+    margin-top: 6px;
+
+    img {
+        display: block;
+        max-width: 100%;
+        max-height: 240px;
+        border-radius: var(--dc-r-sm, 8px);
+        border: 1px solid var(--dc-linea, #E2E7F0);
+    }
+}
+
+.o_dcasa_sensible {
+    display: inline-block;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: var(--dc-azul-900, #0B1F52);
+    color: #FFFFFF;
+}
+
+.o_dcasa_burbuja_estado,
+.o_dcasa_burbuja_aviso {
+    margin-top: 4px;
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.o_dcasa_por_enviar { color: var(--dc-azul-100, #E4ECFD); }
+.o_dcasa_burbuja_bot .o_dcasa_por_enviar,
+.o_dcasa_burbuja_cliente .o_dcasa_por_enviar { color: var(--dc-azul-700, #0F3591); }
+.o_dcasa_fallido { text-decoration: underline; }
+
+.o_dcasa_bandeja_kanban .o_kanban_record { border-radius: var(--dc-r-md, 12px); }
+
+// Nota interna entre vendedoras: el cliente nunca la ve. Borde discontinuo y fondo claro para que no se confunda
+// con un mensaje que sale por el canal. (Sin amarillo: el amarillo jamás toca el blanco.)
+.o_dcasa_burbuja.o_dcasa_burbuja_nota {
+    align-self: flex-end;
+    background: var(--dc-niebla, #F4F6FA);
+    border: 1px dashed var(--dc-azul-600, #1340B1);
+    color: var(--dc-tinta, #0E1A33);
+
+    .o_dcasa_burbuja_meta { color: var(--dc-azul-700, #0F3591); }
+}
+
+// Aviso del sistema («Ana tomó la conversación»): una línea centrada y discreta.
+.o_dcasa_aviso_sistema {
+    align-self: center;
+    max-width: 90%;
+    padding: 2px 12px;
+    font-size: .75rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--dc-tinta-3, #6B7690);
+    overflow-wrap: anywhere;
+}

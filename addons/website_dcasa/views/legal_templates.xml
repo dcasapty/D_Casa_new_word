@@ -8,13 +8,21 @@
         <t t-call="website.layout">
             <t t-set="additional_title" t-value="titulo"/>
             <t t-set="meta_description" t-value="descripcion"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
             <div id="wrap" class="o_dcasa_legal">
-                <section class="container py-5">
+                <!-- Cabecera como la de /socios (ronda 6): foto, antetítulo y título en blanco. -->
+                <t t-call="website_dcasa.cabecera_pagina">
+                    <t t-set="cabecera_kicker">D'CASA Panamá</t>
+                    <t t-set="cabecera_titulo" t-value="titulo"/>
+                    <t t-set="cabecera_imagen" t-value="'/website_dcasa/static/src/img/hero.webp'"/>
+                    <t t-set="cabecera_srcset" t-value="'/website_dcasa/static/src/img/hero-800.webp 800w, /website_dcasa/static/src/img/hero.webp 1400w'"/>
+                    <t t-set="cabecera_ancho" t-value="1400"/>
+                    <t t-set="cabecera_alto" t-value="787"/>
+                </t>
+                <section class="container o_dcasa_legal_cuerpo">
                     <div class="row">
                         <div class="col-lg-8 offset-lg-2">
-                            <p class="o_dcasa_kicker">D'CASA Panamá</p>
-                            <h1 class="o_dcasa_display" t-out="titulo"/>
-                            <p class="text-muted">Última actualización: <t t-out="actualizado"/></p>
+                            <p class="o_dcasa_muted">Última actualización: <t t-out="actualizado"/></p>
                             <t t-call="{{ cuerpo }}"/>
                         </div>
                     </div>
@@ -23,14 +31,13 @@
         </t>
     </template>
 
-    <!-- Cuerpos sin el marco: los usa la página de Odoo (pagina_legal) y la tienda estática del
-         borde (dcasa_tienda_borde los exporta ya renderizados). Título y descripción: PAGINAS_LEGALES
-         en controllers/main.py. -->
+    <!-- Cuerpos sin el marco: los usa la página de Odoo (pagina_legal). Título y descripción:
+         PAGINAS_LEGALES en controllers/main.py. -->
     <template id="privacidad_cuerpo" name="D'CASA: política de privacidad (cuerpo)">
 
             <h2>Quiénes somos</h2>
-            <p>D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa Clara,
-                Local 4550 PB-1, La Chorrera. Correo: <a href="mailto:info@dcasapty.com">info@dcasapty.com</a>.
+            <p>D'CASA Panamá, RUC 155779346-2-2026 DV7, frente al Parque Libertadores,
+                diagonal a la Discoteca Seven, La Chorrera, Panamá Oeste. Correo: <a href="mailto:info@dcasapty.com">info@dcasapty.com</a>.
                 Tratamos tus datos conforme a la Ley 81 de 2019 de Protección de Datos Personales de Panamá.</p>
 
             <h2>Qué datos guardamos</h2>
@@ -99,8 +106,8 @@
     <template id="terminos_cuerpo" name="D'CASA: términos y condiciones (cuerpo)">
 
             <h2>Quiénes somos</h2>
-            <p>Este sitio es de D'CASA Panamá, RUC 155779346-2-2026 DV7, Avenida Las Américas, Urbanización Santa
-                Clara, Local 4550 PB-1, La Chorrera.</p>
+            <p>Este sitio es de D'CASA Panamá, RUC 155779346-2-2026 DV7, frente al Parque
+                Libertadores, diagonal a la Discoteca Seven, La Chorrera, Panamá Oeste.</p>
 
             <h2>Precios</h2>
             <p>Los precios del sitio están en dólares y <strong>no incluyen el ITBMS</strong>: se muestran como

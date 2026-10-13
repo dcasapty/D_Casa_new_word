@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_consolidacion_lectura,consolidacion lectura,model_dcasa_consolidacion,account.group_account_readonly,1,0,0,0
+access_consolidacion_contador,consolidacion contador,model_dcasa_consolidacion,account.group_account_user,1,1,1,1
+access_consolidacion_linea_lectura,consolidacion linea lectura,model_dcasa_consolidacion_linea,account.group_account_readonly,1,0,0,0
+access_consolidacion_mapa_lectura,consolidacion mapa lectura,model_dcasa_consolidacion_mapa,account.group_account_readonly,1,0,0,0
+access_consolidacion_mapa_contador,consolidacion mapa contador,model_dcasa_consolidacion_mapa,account.group_account_user,1,1,1,1

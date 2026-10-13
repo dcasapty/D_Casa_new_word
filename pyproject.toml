@@ -22,3 +22,5 @@ section-order = ["future", "standard-library", "third-party", "first-party", "lo
 # En Odoo los __init__.py importan submódulos para registrarlos y el orden importa.
 "__init__.py" = ["F401", "I001"]
 "__manifest__.py" = ["B018"]
+"addons/dcasa_conversaciones/tests/test_panel_interfaz.py" = ["E501"]  # JavaScript del navegador embebido en texto
+"addons/dcasa_conversaciones/tests/test_panel_visual.py" = ["E501"]  # JavaScript del navegador embebido en texto

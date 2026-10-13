@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Facturación › Reportes contables › Consolidación (el menú padre ya limita a quien lee la contabilidad) -->
+    <menuitem id="menu_consolidacion" name="Consolidación" parent="dcasa_contabilidad.menu_reportes"
+              action="accion_consolidacion" sequence="11"/>
+    <menuitem id="menu_consolidacion_mapa" name="Mapa de cuentas (consolidación)"
+              parent="dcasa_contabilidad.menu_reportes" action="accion_consolidacion_mapa" sequence="12"
+              groups="account.group_account_user"/>
+</odoo>

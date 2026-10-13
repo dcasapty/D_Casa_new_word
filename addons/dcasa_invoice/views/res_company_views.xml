@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los textos que se imprimen al pie de facturas, cotizaciones y pedidos. Los redacta la
+         dueña; mientras estén vacíos no se imprime nada. -->
+    <record id="view_company_form_dcasa_invoice" model="ir.ui.view">
+        <field name="name">res.company.form.dcasa.invoice</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Documentos D'CASA" name="dcasa_documentos">
+                    <group>
+                        <div class="text-muted mb-2" colspan="2">
+                            Textos cortos que salen al final de la factura, la cotización y el pedido.
+                            Si un campo está vacío, su bloque no se imprime.
+                        </div>
+                        <field name="dcasa_factura_garantia" placeholder="Por ejemplo: cuánto dura la garantía de fábrica y qué cubre."/>
+                        <field name="dcasa_factura_cambios" placeholder="Por ejemplo: en qué plazo y en qué condiciones se cambia un producto."/>
+                        <field name="dcasa_factura_terminos" placeholder="Por ejemplo: condiciones de apartado, entrega y pago."/>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

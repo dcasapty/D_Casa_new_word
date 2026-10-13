@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Formato de documentos D'CASA.
-         Cabecera: logo (la placa) a la izquierda, datos de la empresa a la derecha.
-         Pie: una sola línea de contacto + el tagline, con altura fija para que no
-         se corte (el formato anterior cortaba el texto largo del pie). -->
+    <!-- Formato de documentos D'CASA (hoja carta).
+         Cabecera: la placa a la izquierda, datos de la empresa a la derecha y la banda
+         «azul arriba, amarillo abajo» como separador.
+         Cuerpo: título del documento y, debajo, la rejilla Cliente | Entrega | Datos que
+         cada reporte arma en la variable «address» (si un reporte trae además un
+         «information_block», se imprime a su lado).
+         Pie: dos líneas de contacto con altura fija para que nunca se corte. -->
     <template id="external_layout_dcasa" name="D'CASA">
         <div t-attf-class="header o_company_#{company.id}_layout o_dcasa_header">
             <div class="d-flex justify-content-between align-items-start">
@@ -13,7 +16,7 @@
                     <li t-if="company.street" t-out="company.street"/>
                     <li t-if="company.street2" t-out="company.street2"/>
                     <li t-if="company.city or company.country_id">
-                        <t t-out="company.city"/><t t-if="company.city and company.country_id">, </t><t t-out="company.country_id.name"/>
+                        <t t-out="company.city"/><t t-if="company.city and company.country_id">, </t><t t-out="'Panamá' if company.country_id.code == 'PA' else company.country_id.name"/>
                     </li>
                     <li t-if="forced_vat">
                         <t t-out="company.country_id.vat_label or 'RUC'"/>: <span t-out="forced_vat"/>
@@ -30,18 +33,29 @@
              t-att-data-oe-model="o and o._name"
              t-att-data-oe-id="o and o.id"
              t-att-data-oe-lang="o and o.env.context.get('lang')">
-            <t t-call="web.address_layout"/>
             <h2 class="o_dcasa_title" t-out="layout_document_title"/>
+            <div t-if="address or information_block" class="o_dcasa_cabecera row mb-3" name="dcasa_cabecera">
+                <div t-if="information_block" class="col-6" name="information_block"><t t-out="information_block"/></div>
+                <div t-att-class="'col-6' if information_block else 'col-12'" name="address"><t t-out="address or None"/></div>
+            </div>
             <t t-out="0"/>
         </div>
 
         <div t-attf-class="footer o_company_#{company.id}_layout o_dcasa_footer {{report_type != 'pdf' and 'mt-auto'}}">
             <div class="d-flex justify-content-between align-items-start">
                 <div class="o_dcasa_contact">
-                    <span t-if="company.phone" t-out="company.phone"/>
-                    <span t-if="company.email"> · <t t-out="company.email"/></span>
-                    <span t-if="company.website"> · <t t-out="company.website"/></span>
-                    <div t-if="company.vat"><t t-out="company.country_id.vat_label or 'RUC'"/>: <t t-out="company.partner_id.dcasa_ruc_display"/></div>
+                    <div>
+                        <t t-set="dcasa_whatsapp" t-value="company._dcasa_whatsapp()"/>
+                        <span t-if="dcasa_whatsapp" class="o_dcasa_contact_item">WhatsApp <t t-out="dcasa_whatsapp"/></span>
+                        <span t-if="company.email" class="o_dcasa_contact_item"><t t-out="company.email"/></span>
+                        <t t-set="dcasa_web" t-value="company._dcasa_url_publica_corta()"/>
+                        <span t-if="dcasa_web" class="o_dcasa_contact_item" t-out="dcasa_web"/>
+                    </div>
+                    <div>
+                        <span t-if="company.vat" class="o_dcasa_contact_item"><t t-out="company.country_id.vat_label or 'RUC'"/> <t t-out="company.partner_id.dcasa_ruc_display"/></span>
+                        <t t-set="dcasa_direccion" t-value="company._dcasa_direccion_corta()"/>
+                        <span t-if="dcasa_direccion" class="o_dcasa_contact_item" t-out="dcasa_direccion"/>
+                    </div>
                 </div>
                 <div class="text-end">
                     <div t-if="company.report_header" class="o_dcasa_tagline" t-field="company.report_header"/>

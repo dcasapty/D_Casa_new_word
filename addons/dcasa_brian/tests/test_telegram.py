@@ -113,6 +113,24 @@ class TestBrianTelegram(HttpCase):
         self.mensaje(1003, f'/vincular {codigo}', update_id=3)
         self.assertFalse(self.Enlace.sudo().search([('chat_id', '=', '1003')]))
 
+    def test_un_usuario_archivado_pierde_su_telegram_en_el_acto(self):
+        enlace = self.vincular(1010)
+        self.assertTrue(enlace.activo)
+        self.usuario.sudo().active = False
+        self.assertFalse(enlace.activo, 'archivar al usuario apaga su chat')
+        self.mensaje(1010, 'registra el pago de INV/2026/0001', update_id=20)
+        self.assertIn('/vincular', self.textos()[-1], 'el chat vuelve a ser un desconocido')
+
+    def test_si_el_usuario_ya_no_es_interno_el_enlace_se_apaga_al_primer_mensaje(self):
+        enlace = self.vincular(1011)
+        # Sin pasar por write(): lo que pasaría si lo archivan por SQL o por una importación.
+        self.env.cr.execute('UPDATE res_users SET active = FALSE WHERE id = %s', [self.usuario.id])
+        self.env['res.users'].invalidate_model(['active'])
+        enlace.invalidate_recordset()
+        self.mensaje(1011, '¿cómo van las ventas?', update_id=21)
+        self.assertFalse(enlace.activo)
+        self.assertIn('/vincular', self.textos()[-1])
+
     def test_codigo_vencido(self):
         codigo = self.Enlace.with_user(self.usuario).generar_codigo()
         self.env['brian.telegram.codigo'].sudo().search([('user_id', '=', self.usuario.id)]).vence = \
@@ -166,8 +184,14 @@ class TestBrianTelegram(HttpCase):
         self.assertTrue(propuesta['requiere_confirmacion'])
         # Aviso fuera de banda con botones.
         self.Enlace.notificar_confirmacion(self.usuario, propuesta['accion_id'], propuesta['resumen'])
-        botones = [d for m, d in self.llamadas if m == 'sendMessage'][-1]['reply_markup']['inline_keyboard']
+        aviso = [d for m, d in self.llamadas if m == 'sendMessage'][-1]
+        botones = aviso['reply_markup']['inline_keyboard']
         self.assertEqual(botones[0][0]['callback_data'], f'brian:c:{propuesta["accion_id"]}')
+        # Permitir / Rechazar, nada más (no existe «Siempre»), y el detalle exacto de lo que va a hacer.
+        self.assertEqual([[b['text'] for b in fila] for fila in botones], [['Permitir', 'Rechazar']])
+        self.assertIn('tu permiso', aviso['text'])
+        self.assertIn('Detalle exacto', aviso['text'])
+        self.assertIn('• Nombre: Contacto por Telegram', aviso['text'])
 
         def callback(chat_id, datos, update_id, desde=None):
             return self.webhook({'update_id': update_id, 'callback_query': {
@@ -231,7 +255,10 @@ class TestBrianTelegram(HttpCase):
             recibido.update(uid=conv.env.uid, conversacion=conv.id, accion=accion_id)
             return {'ok': True, 'mensajes': [
                 {'rol': 'assistant', 'texto': 'Viejo', 'confirmacion': {'accion_id': accion_id, 'estado': 'hecha'}},
-                {'rol': 'assistant', 'texto': 'Listo, creé el contacto.', 'confirmacion': None}]}
+                {'rol': 'assistant', 'texto': 'Listo, creé el contacto.', 'confirmacion': None},
+                {'rol': 'assistant', 'texto': 'Y ahora esto:', 'confirmacion': {
+                    'accion_id': 999, 'estado': 'por_confirmar', 'resumen': 'Crear otro contacto.',
+                    'detalle': [{'etiqueta': 'Nombre', 'valor': 'Segundo'}, {'etiqueta': 'Vacío', 'valor': ''}]}}]}
 
         with patch.object(type(self.env['brian.conversacion']), 'confirmar_accion', confirmar_accion):
             self.webhook({'update_id': 40, 'callback_query': {
@@ -239,7 +266,12 @@ class TestBrianTelegram(HttpCase):
                 'message': {'message_id': 5, 'chat': {'id': 1009, 'type': 'private'}}}})
         self.assertEqual(recibido, {'uid': self.usuario.id, 'conversacion': conversacion.id,
                                     'accion': propuesta['accion_id']})
-        self.assertEqual(self.textos(), ['Listo, creé el contacto.'])
+        self.assertEqual(self.textos(), [
+            'Listo, creé el contacto.',
+            'Y ahora esto:\n\nNecesito tu permiso:\n\nCrear otro contacto.\n\n'
+            'Detalle exacto de lo que voy a hacer:\n• Nombre: Segundo'])
+        tarjeta = [d for m, d in self.llamadas if m == 'sendMessage'][-1]
+        self.assertEqual([b['text'] for b in tarjeta['reply_markup']['inline_keyboard'][0]], ['Permitir', 'Rechazar'])
 
     def test_desvincular(self):
         enlace = self.vincular(1008)
