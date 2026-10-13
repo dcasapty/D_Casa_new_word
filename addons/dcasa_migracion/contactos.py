@@ -56,6 +56,15 @@ def _valores(fila, pais, etiqueta, rol):
     return valores
 
 
+def _pais(env, nombre, por_defecto):
+    """El país por su nombre (en español o en inglés); Panamá si el archivo no dice; vacío si no se encuentra."""
+    if not nombre:
+        return por_defecto
+    Pais = env['res.country']
+    return (Pais.with_context(lang='es_419').search([('name', '=ilike', nombre)], limit=1)
+            or Pais.with_context(lang='en_US').search([('name', '=ilike', nombre)], limit=1))
+
+
 def _motivo(error):
     if isinstance(error, psycopg2.Error):
         return 'la base de datos rechazó la ficha'
@@ -74,9 +83,12 @@ def cargar_contactos(env, filas, rol):
     """Crea las fichas que faltan. Devuelve ``{'creados': [(id_viejo, nombre)], 'ya_estaban': [id_viejo],
     'ampliados': [id_viejo], 'con_error': [(id_viejo, nombre, motivo)]}``. ``ampliados`` son fichas que ya estaban
     con el otro papel (cliente o proveedor) y ahora tienen también este. No hace commit: lo decide quien llama."""
+    # no_vat_validation: el RUC o la cédula se guardan como estaban (un proveedor del extranjero no sigue el formato de
+    # Panamá). El candado de contactos sigue comparando el RUC con el de las demás fichas.
     Partner = env['res.partner'].with_context(
-        tracking_disable=True, mail_create_nolog=True, mail_notrack=True, no_reset_password=True)
-    pais = env.ref('base.pa', raise_if_not_found=False)
+        tracking_disable=True, mail_create_nolog=True, mail_notrack=True, no_reset_password=True,
+        no_vat_validation=True)
+    panama = env.ref('base.pa', raise_if_not_found=False)
     etiqueta = _etiqueta_de_origen(env)
     campo_rol = ROLES[rol][0]
     resumen = {'creados': [], 'ya_estaban': [], 'ampliados': [], 'con_error': []}
@@ -95,9 +107,13 @@ def cargar_contactos(env, filas, rol):
                 ficha.write({campo_rol: 1})
                 resumen['ampliados'].append(id_viejo)
             continue
+        pais = _pais(env, fila['pais'], panama)
+        datos = fila
+        if fila['pais'] and not pais:
+            datos = dict(fila, notas=fila['notas'] + [f'País en el sistema anterior: {fila["pais"]}'])
         try:
             with env.cr.savepoint():
-                ficha = Partner.create(_valores(fila, pais, etiqueta, rol))
+                ficha = Partner.create(_valores(datos, pais, etiqueta, rol))
                 env['ir.model.data'].create({
                     'module': MODULO, 'name': nombre_externo, 'model': 'res.partner', 'res_id': ficha.id,
                     'noupdate': True})

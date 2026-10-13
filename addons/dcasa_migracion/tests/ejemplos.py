@@ -19,12 +19,14 @@ CLIENTES = BOM + '\n'.join([
 ])
 
 PROVEEDORES = BOM + '\n'.join([
-    'id_viejo,nombre,tipo,cedula_ruc,dv,celular,correo,direccion,ciudad',
-    '70001,Proveedor de Prueba 1 S.A.,empresa,0000000-0-000101,77,6000-0101,ventas@proveedor-prueba.com,'
-    'Zona Libre de Prueba,Ciudad de Prueba',
-    '90002,Cliente de Prueba 2,persona,0-000-0002,,+507 6000-0002,prueba2@ejemplo.com,'
-    'Calle Ficticia 2,Ciudad de Prueba',
-    '70003,Proveedor de Prueba 3,persona,0-000-0103,,6000-0103,,,',
+    'id_viejo,nombre,tipo,ruc,dv,telefono,correo,direccion,ciudad,pais',
+    '70001,Proveedor de Prueba 1 S.A.,empresa,0000000-0-000001,99,200-0001,ventas@proveedor1-prueba.com,'
+    '"Zona de Prueba, Galera 1",Ciudad de Prueba,Panamá',
+    '70002,Proveedor de Prueba 2 Ltd.,empresa,PRUEBA-0002,,+86 000 0000 0002,contacto@proveedor2-prueba.com,,,China',
+    '70003,Proveedor de Prueba 3,persona,0-000-0003,,6000-0003,,,,Panamá',
+    '70004,Proveedor de Prueba 4 S.A.,empresa,0000000-0-000004,98,,,,,',
+    '70005,Proveedor de Prueba 5 Corp.,empresa,,,+1 000 000 0005,info@proveedor5-prueba.com,Calle Ficticia 5,'
+    'Ciudad de Prueba,Estados Unidos',
     '',
 ])
 
@@ -44,13 +46,16 @@ PRUEBA-004,-2,D'CASA Principal,2026-10-12
 PRUEBA-005,1.5,D'CASA Principal,2026-10-12
 '''
 
-PRECIOS = BOM + '''id_proveedor_viejo,codigo_producto,precio,cantidad_minima
-70001,PRUEBA-001,80.5,
-70001,PRUEBA-002,20,10
-70003,PRUEBA-001,82,5
-70001,NO-EXISTE,1,
-99999,PRUEBA-002,5,
-'''
+PRECIOS = BOM + '\n'.join([
+    'id_proveedor_viejo,codigo_producto,nombre_producto,precio,moneda,cantidad_minima,descuento,plazo_entrega_dias,'
+    'vigente_desde,vigente_hasta',
+    '70001,PRUEBA-001,Producto de Prueba 1,85.5,USD,0,0,0,,',
+    '70001,PRUEBA-002,Producto de Prueba 2,22,USD,0,0,0,,',
+    '70002,PRUEBA-003,Producto de Prueba 3,140,USD,1,0,0,,',
+    '70004,,Producto de Prueba 4,0,USD,0,0,0,,',
+    '70005,PRUEBA-005,Producto de Prueba 5,61.25,USD,0,0,0,,',
+    '',
+])
 
 
 def como_bytes(texto):

@@ -38,9 +38,10 @@ def _seccion_contactos(titulo, resumen):
 
 def _seccion_precios(resumen):
     errores = resumen['con_error']
-    return Markup('<h4>Precios de proveedor</h4><ul>%s%s%s</ul>%s') % (
+    return Markup('<h4>Precios de proveedor</h4><ul>%s%s%s%s</ul>%s') % (
         _linea('Precios nuevos', len(resumen['creados'])),
         _linea('Ya estaban (no se tocan)', len(resumen['ya_estaban'])),
+        _linea('Con precio 0 (no se registró: no se cargan)', len(resumen['omitidos'])),
         _linea('No se pudieron cargar', len(errores)),
         _lista(errores, lambda e: Markup('proveedor n.º %s, producto %s: %s') % (e[0], e[1], e[2])),
     )

@@ -7,6 +7,7 @@ vacía significa «ese dato no existe en el sistema anterior».
 import csv
 import io
 import re
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from odoo.addons.dcasa_catalogo.reglas import clase_de_fila_inventario
@@ -101,6 +102,14 @@ def separar_telefonos(texto):
     return principal, piezas[:donde] + piezas[donde + 1:]
 
 
+def _primero(celdas, *nombres):
+    """La primera celda con dato entre varias columnas posibles (clientes.csv y proveedores.csv no las llaman igual)."""
+    for nombre in nombres:
+        if celdas.get(nombre):
+            return celdas[nombre]
+    return ''
+
+
 def filas_clientes(texto):
     """``(filas, errores)`` de clientes.csv (ver ``filas_contactos``)."""
     return filas_contactos(texto, 'clientes.csv')
@@ -112,10 +121,12 @@ def filas_proveedores(texto):
 
 
 def filas_contactos(texto, nombre_del_archivo):
-    """``(filas, errores)`` de clientes.csv o proveedores.csv (mismas columnas).
+    """``(filas, errores)`` de clientes.csv o proveedores.csv. Las columnas son casi las mismas: el RUC puede llamarse
+    ``cedula_ruc`` o ``ruc`` y el teléfono ``celular`` o ``telefono``; ``pais`` solo lo trae proveedores.csv.
 
     Cada fila: ``id_viejo`` (entero), ``nombre``, ``es_empresa``, ``vat``, ``dv``, ``telefono``, ``correo``,
-    ``direccion``, ``ciudad`` y ``notas`` (datos que no caben en su campo y se guardan en la nota de la ficha).
+    ``direccion``, ``ciudad``, ``pais`` (el nombre, si el archivo lo trae) y ``notas`` (datos que no caben en su
+    campo y se guardan en la nota de la ficha).
     Una fila sin nombre, con un número viejo que no es entero o repetido en el archivo, no se carga: va a ``errores``
     como ``(id_viejo, nombre, motivo)``.
     """
@@ -135,7 +146,7 @@ def filas_contactos(texto, nombre_del_archivo):
             continue
         vistos.add(id_viejo)
         notas = []
-        telefono, otros = separar_telefonos(celdas.get('celular', ''))
+        telefono, otros = separar_telefonos(_primero(celdas, 'celular', 'telefono'))
         if otros:
             notas.append('Otros teléfonos en el sistema anterior: ' + ', '.join(otros))
         correo = celdas.get('correo', '')
@@ -150,41 +161,60 @@ def filas_contactos(texto, nombre_del_archivo):
             'id_viejo': id_viejo,
             'nombre': nombre,
             'es_empresa': celdas.get('tipo', '').lower() == 'empresa',
-            'vat': celdas.get('cedula_ruc', ''),
+            'vat': _primero(celdas, 'cedula_ruc', 'ruc'),
             'dv': dv,
             'telefono': telefono,
             'correo': correo,
             'direccion': celdas.get('direccion', ''),
             'ciudad': celdas.get('ciudad', ''),
+            'pais': celdas.get('pais', ''),
             'notas': notas,
         })
     return filas, errores
 
 
+def _fecha(texto):
+    """``'2026-10-01'`` → la misma fecha; vacío → ``None``; otra cosa → ``ValueError``."""
+    return date.fromisoformat(texto).isoformat() if texto else None
+
+
 def filas_precios_proveedor(texto):
     """``(filas, errores)`` de precios_proveedor.csv: lo que cobra cada proveedor por cada producto.
 
-    Cada fila: ``id_proveedor_viejo`` (entero), ``codigo`` (del producto), ``precio`` y ``cantidad_minima`` (1 si no
-    viene). Una fila sin proveedor entero, sin código o con precio vacío o negativo va a ``errores`` como
-    ``(id_proveedor_viejo, codigo, motivo)``.
+    Cada fila: ``id_proveedor_viejo`` (entero), ``codigo`` y ``nombre`` del producto (el código puede faltar: entonces
+    se busca por nombre), ``precio``, ``moneda``, ``cantidad_minima`` (1 si no viene o es 0), ``descuento`` (%),
+    ``plazo`` (días de entrega) y las fechas ``desde`` y ``hasta`` de vigencia. Una fila sin proveedor entero, sin
+    código ni nombre, con precio vacío o negativo o con una fecha mal escrita va a ``errores`` como
+    ``(id_proveedor_viejo, producto, motivo)``. Un precio 0 no es un error: «no se registró» (la carga lo deja pasar
+    sin cargarlo).
     """
     filas, errores = [], []
     for posicion, celdas in enumerate(leer_csv(texto, COLUMNAS_PRECIOS, 'precios_proveedor.csv'), start=2):
         crudo = celdas.get('id_proveedor_viejo', '')
         codigo = celdas.get('codigo_producto', '')
+        nombre = re.sub(r'\s+', ' ', celdas.get('nombre_producto', '')).strip()
         if not crudo.isdigit():
-            errores.append((crudo or f'fila {posicion}', codigo, 'el número del proveedor no es un entero'))
+            errores.append((crudo or f'fila {posicion}', codigo or nombre, 'el número del proveedor no es un entero'))
             continue
-        if not codigo:
-            errores.append((int(crudo), '', 'no tiene código de producto'))
+        if not codigo and not nombre:
+            errores.append((int(crudo), '', 'no tiene código ni nombre de producto'))
             continue
         precio = numero(celdas.get('precio'), 'precio', posicion)
         if precio is None or precio < 0:
-            errores.append((int(crudo), codigo, 'el precio falta o es negativo'))
+            errores.append((int(crudo), codigo or nombre, 'el precio falta o es negativo'))
+            continue
+        try:
+            desde, hasta = _fecha(celdas.get('vigente_desde', '')), _fecha(celdas.get('vigente_hasta', ''))
+        except ValueError:
+            errores.append((int(crudo), codigo or nombre, 'una fecha de vigencia está mal escrita (AAAA-MM-DD)'))
             continue
         minima = numero(celdas.get('cantidad_minima'), 'cantidad_minima', posicion)
-        filas.append({'id_proveedor_viejo': int(crudo), 'codigo': codigo, 'precio': precio,
-                      'cantidad_minima': minima if minima and minima > 0 else 1.0})
+        descuento = numero(celdas.get('descuento'), 'descuento', posicion)
+        plazo = numero(celdas.get('plazo_entrega_dias'), 'plazo_entrega_dias', posicion)
+        filas.append({
+            'id_proveedor_viejo': int(crudo), 'codigo': codigo, 'nombre': nombre, 'precio': precio,
+            'moneda': celdas.get('moneda', ''), 'cantidad_minima': minima if minima and minima > 0 else 1.0,
+            'descuento': descuento or 0.0, 'plazo': int(plazo or 0), 'desde': desde, 'hasta': hasta})
     return filas, errores
 
 

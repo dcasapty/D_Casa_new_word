@@ -136,29 +136,53 @@ class TestFilasDeCatalogo(BaseCase):
 @tagged('post_install', '-at_install')
 class TestProveedoresYPrecios(BaseCase):
 
-    def test_proveedores_tiene_el_mismo_formato_y_el_error_nombra_su_archivo(self):
+    def test_proveedores_con_las_columnas_reales_ruc_telefono_y_pais(self):
         filas, errores = R.filas_proveedores(ejemplos.PROVEEDORES)
-        self.assertEqual((len(filas), errores), (3, []))
-        self.assertTrue(filas[0]['es_empresa'])
+        self.assertEqual((len(filas), errores), (5, []))
+        uno, china, persona, sin_datos, eeuu = filas
+        self.assertTrue(uno['es_empresa'])
+        self.assertEqual((uno['vat'], uno['dv'], uno['telefono'], uno['pais']),
+                         ('0000000-0-000001', '99', '200-0001', 'Panamá'))
+        self.assertEqual((china['vat'], china['telefono'], china['pais']),
+                         ('PRUEBA-0002', '+86 000 0000 0002', 'China'))
+        self.assertFalse(persona['es_empresa'])
+        self.assertEqual((sin_datos['telefono'], sin_datos['pais'], sin_datos['correo']), ('', '', ''))
+        self.assertEqual((eeuu['vat'], eeuu['pais']), ('', 'Estados Unidos'))
+
+    def test_el_error_de_columna_nombra_el_archivo(self):
         with self.assertRaisesRegex(R.ErrorDeArchivo, 'A proveedores.csv le falta la columna'):
             R.filas_proveedores('nombre\nAna\n')
 
-    def test_precios_de_ejemplo(self):
+    def test_precios_con_todas_las_columnas_de_la_receta(self):
         filas, errores = R.filas_precios_proveedor(ejemplos.PRECIOS)
         self.assertEqual(errores, [])
-        self.assertEqual([(f['id_proveedor_viejo'], f['codigo'], f['precio'], f['cantidad_minima']) for f in filas], [
-            (70001, 'PRUEBA-001', 80.5, 1.0), (70001, 'PRUEBA-002', 20.0, 10.0), (70003, 'PRUEBA-001', 82.0, 5.0),
-            (70001, 'NO-EXISTE', 1.0, 1.0), (99999, 'PRUEBA-002', 5.0, 1.0)])
+        self.assertEqual([(f['id_proveedor_viejo'], f['codigo'], f['nombre'], f['precio'], f['cantidad_minima'])
+                          for f in filas], [
+            (70001, 'PRUEBA-001', 'Producto de Prueba 1', 85.5, 1.0),
+            (70001, 'PRUEBA-002', 'Producto de Prueba 2', 22.0, 1.0),
+            (70002, 'PRUEBA-003', 'Producto de Prueba 3', 140.0, 1.0),
+            (70004, '', 'Producto de Prueba 4', 0.0, 1.0),
+            (70005, 'PRUEBA-005', 'Producto de Prueba 5', 61.25, 1.0)])
+        self.assertEqual((filas[0]['moneda'], filas[0]['descuento'], filas[0]['plazo'], filas[0]['desde']),
+                         ('USD', 0.0, 0, None))
+
+    def test_descuento_plazo_y_vigencia(self):
+        filas, errores = R.filas_precios_proveedor(
+            'id_proveedor_viejo,codigo_producto,precio,cantidad_minima,descuento,plazo_entrega_dias,vigente_desde,'
+            'vigente_hasta\n7,A,10,5,12.5,30,2026-10-01,2026-12-31\n')
+        self.assertEqual(errores, [])
+        self.assertEqual((filas[0]['cantidad_minima'], filas[0]['descuento'], filas[0]['plazo'],
+                          filas[0]['desde'], filas[0]['hasta']), (5.0, 12.5, 30, '2026-10-01', '2026-12-31'))
 
     def test_precios_que_no_se_cargan(self):
         filas, errores = R.filas_precios_proveedor(
-            'id_proveedor_viejo,codigo_producto,precio\nabc,A,1\n7,,1\n7,B,\n7,C,-3\n7,D,2\n')
+            'id_proveedor_viejo,codigo_producto,precio,vigente_desde\n'
+            'abc,A,1,\n7,,1,\n7,B,,\n7,C,-3,\n7,D,2,\n7,E,2,2026-13-45\n')
         self.assertEqual([f['codigo'] for f in filas], ['D'])
-        self.assertEqual(len(errores), 4)
+        self.assertEqual(len(errores), 5)
         motivos = ' | '.join(e[2] for e in errores)
-        self.assertIn('no es un entero', motivos)
-        self.assertIn('no tiene código', motivos)
-        self.assertIn('falta o es negativo', motivos)
+        for texto in ('no es un entero', 'no tiene código ni nombre', 'falta o es negativo', 'AAAA-MM-DD'):
+            self.assertIn(texto, motivos)
 
     def test_un_precio_mal_escrito_dice_en_que_fila(self):
         with self.assertRaisesRegex(R.ErrorDeArchivo, 'Fila 3: «caro»'):

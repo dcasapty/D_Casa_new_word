@@ -4,7 +4,7 @@ import re
 
 from odoo.tests import BaseCase, tagged
 
-PERMITIDOS = {'ejemplo.com', 'empresa-prueba.com', 'proveedor-prueba.com'}
+PERMITIDOS = {'ejemplo.com', 'empresa-prueba.com'}
 
 
 @tagged('post_install', '-at_install')
@@ -30,6 +30,6 @@ class TestSinDatosPersonales(BaseCase):
                 continue
             with open(ruta, encoding='utf-8') as f:
                 for dominio in re.findall(r'[\w.+-]+@([\w-]+(?:\.[\w-]+)+)', f.read()):
-                    if dominio.lower() not in PERMITIDOS:
+                    if dominio.lower() not in PERMITIDOS and not dominio.lower().endswith('-prueba.com'):
                         encontrados.add((archivo, dominio))
         self.assertFalse(encontrados, 'Hay correos reales dentro del módulo')
