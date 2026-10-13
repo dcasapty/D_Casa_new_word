@@ -12,7 +12,7 @@ import time
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .. import catalogo, clientes, informe, reglas
+from .. import catalogo, contactos, informe, precios, reglas
 
 _logger = logging.getLogger(__name__)
 
@@ -27,10 +27,14 @@ class DcasaMigracionCarga(models.TransientModel):
 
     archivo_clientes = fields.Binary('clientes.csv', attachment=False)
     nombre_clientes = fields.Char()
+    archivo_proveedores = fields.Binary('proveedores.csv', attachment=False)
+    nombre_proveedores = fields.Char()
     archivo_productos = fields.Binary('productos.csv', attachment=False)
     nombre_productos = fields.Char()
     archivo_inventario = fields.Binary('inventario.csv', attachment=False)
     nombre_inventario = fields.Char()
+    archivo_precios = fields.Binary('precios_proveedor.csv', attachment=False)
+    nombre_precios = fields.Char()
     actualizar_precios = fields.Boolean(
         'También cambiar precio y costo de los productos que ya existen', default=False,
         help='Apagado (lo normal): de un producto que ya existe solo cambian las existencias; su precio y su costo se '
@@ -83,36 +87,46 @@ class DcasaMigracionCarga(models.TransientModel):
     def _huella(self):
         """Resume los archivos y las casillas: si algo cambia, la revisión anterior ya no vale."""
         resumen = hashlib.sha256()
-        for campo in ('archivo_clientes', 'archivo_productos', 'archivo_inventario'):
+        for campo in ('archivo_clientes', 'archivo_proveedores', 'archivo_productos', 'archivo_inventario',
+                      'archivo_precios'):
             resumen.update(hashlib.sha256(self._bytes(campo)).digest())
         resumen.update(b'precios' if self.actualizar_precios else b'sin-precios')
         return resumen.hexdigest()
 
     def _textos(self):
-        """Los textos de los archivos subidos, o un error claro si no hay nada que cargar."""
+        """Los textos de los archivos subidos (``{nombre: texto}``, solo los que hay), o un error claro."""
+        campos = {'clientes': 'archivo_clientes', 'proveedores': 'archivo_proveedores',
+                  'productos': 'archivo_productos', 'inventario': 'archivo_inventario',
+                  'precios': 'archivo_precios'}
         try:
-            clientes_csv = reglas.texto_de_bytes(self._bytes('archivo_clientes')) if self.archivo_clientes else None
-            productos_csv = reglas.texto_de_bytes(self._bytes('archivo_productos')) if self.archivo_productos else None
-            inventario_csv = (reglas.texto_de_bytes(self._bytes('archivo_inventario'))
-                              if self.archivo_inventario else None)
+            textos = {nombre: reglas.texto_de_bytes(self._bytes(campo)) for nombre, campo in campos.items()
+                      if self[campo]}
         except reglas.ErrorDeArchivo as error:
             raise UserError(str(error)) from error
-        if inventario_csv is not None and productos_csv is None:
+        if 'inventario' in textos and 'productos' not in textos:
             raise UserError(self.env._('Subiste inventario.csv sin productos.csv. Las existencias se cargan con los '
                                        'productos: sube los dos.'))
-        if clientes_csv is None and productos_csv is None:
-            raise UserError(self.env._('Sube al menos un archivo: clientes.csv, o productos.csv (con inventario.csv).'))
-        return clientes_csv, productos_csv, inventario_csv
+        if not textos:
+            raise UserError(self.env._(
+                'Sube al menos un archivo: clientes.csv, proveedores.csv, productos.csv (con inventario.csv) o '
+                'precios_proveedor.csv.'))
+        return textos
 
     def _correr(self, ensayo):
         """Lee los archivos (un error de archivo se avisa antes de tocar nada) y carga dentro de un savepoint; en el
-        ensayo el savepoint se deshace. Devuelve el informe en HTML."""
-        clientes_csv, productos_csv, inventario_csv = self._textos()
+        ensayo el savepoint se deshace. Devuelve el informe en HTML. El orden importa: contactos, productos y, al
+        final, los precios de proveedor (que usan a los dos)."""
+        textos = self._textos()
         try:
-            filas, errores_de_filas = reglas.filas_clientes(clientes_csv) if clientes_csv is not None else ([], [])
+            leidos = {}
+            for nombre, lector in (('clientes', reglas.filas_clientes), ('proveedores', reglas.filas_proveedores)):
+                if nombre in textos:
+                    leidos[nombre] = lector(textos[nombre])
+            if 'precios' in textos:
+                leidos['precios'] = reglas.filas_precios_proveedor(textos['precios'])
             # Leer productos aquí, antes de abrir el savepoint: así un número mal escrito corta con su fila.
-            if productos_csv is not None:
-                reglas.filas_catalogo(productos_csv, inventario_csv)
+            if 'productos' in textos:
+                reglas.filas_catalogo(textos['productos'], textos.get('inventario'))
         except reglas.ErrorDeArchivo as error:
             raise UserError(str(error)) from error
 
@@ -120,20 +134,29 @@ class DcasaMigracionCarga(models.TransientModel):
         inicio = time.monotonic()
         try:
             with self.env.cr.savepoint():
-                if clientes_csv is not None:
-                    resumen = clientes.cargar_clientes(self.env, filas)
-                    resumen['con_error'] = [(i, n, m) for i, n, m in errores_de_filas] + resumen['con_error']
-                    salida['clientes'] = resumen
-                if productos_csv is not None:
+                for nombre, rol in (('clientes', 'cliente'), ('proveedores', 'proveedor')):
+                    if nombre in leidos:
+                        filas, errores_de_filas = leidos[nombre]
+                        resumen = contactos.cargar_contactos(self.env, filas, rol)
+                        resumen['con_error'] = list(errores_de_filas) + resumen['con_error']
+                        salida[nombre] = resumen
+                if 'productos' in textos:
                     salida['catalogo'], salida['avisos'] = catalogo.cargar_catalogo(
-                        self.env, productos_csv, inventario_csv, self.actualizar_precios)
+                        self.env, textos['productos'], textos.get('inventario'), self.actualizar_precios)
+                if 'precios' in leidos:
+                    filas, errores_de_filas = leidos['precios']
+                    resumen = precios.cargar_precios_proveedor(self.env, filas)
+                    resumen['con_error'] = list(errores_de_filas) + resumen['con_error']
+                    salida['precios'] = resumen
                 if ensayo:
                     raise _Deshacer
         except _Deshacer:
-            pass
+            # Odoo guarda en memoria qué ficha tiene cada id externo (lo consultan los precios de proveedor): tras
+            # deshacer el ensayo esa memoria apuntaría a fichas que ya no existen.
+            self.env.registry.clear_cache()
         _logger.info('Carga del sistema anterior (%s) hecha por el usuario %s.',
                      'ensayo' if ensayo else 'real', self.env.uid)
         return informe.informe_html(
-            ensayo, clientes=salida.get('clientes'), catalogo=salida.get('catalogo'),
-            avisos=salida.get('avisos'), con_existencias=inventario_csv is not None,
-            segundos=time.monotonic() - inicio)
+            ensayo, clientes=salida.get('clientes'), proveedores=salida.get('proveedores'),
+            catalogo=salida.get('catalogo'), avisos=salida.get('avisos'), precios=salida.get('precios'),
+            con_existencias='inventario' in textos, segundos=time.monotonic() - inicio)

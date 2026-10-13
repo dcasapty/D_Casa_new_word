@@ -4,7 +4,7 @@ import re
 
 from odoo.tests import BaseCase, tagged
 
-PERMITIDOS = {'ejemplo.com', 'empresa-prueba.com'}
+PERMITIDOS = {'ejemplo.com', 'empresa-prueba.com', 'proveedor-prueba.com'}
 
 
 @tagged('post_install', '-at_install')

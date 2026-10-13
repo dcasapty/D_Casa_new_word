@@ -131,3 +131,35 @@ class TestFilasDeCatalogo(BaseCase):
         productos = 'codigo,nombre,activo\nX1,Mesa de Prueba,si\n'
         filas, _ = R.filas_catalogo(productos, 'codigo_producto,cantidad\nOTRO,5\n')
         self.assertEqual(filas[0]['a_la_mano'], 0.0)
+
+
+@tagged('post_install', '-at_install')
+class TestProveedoresYPrecios(BaseCase):
+
+    def test_proveedores_tiene_el_mismo_formato_y_el_error_nombra_su_archivo(self):
+        filas, errores = R.filas_proveedores(ejemplos.PROVEEDORES)
+        self.assertEqual((len(filas), errores), (3, []))
+        self.assertTrue(filas[0]['es_empresa'])
+        with self.assertRaisesRegex(R.ErrorDeArchivo, 'A proveedores.csv le falta la columna'):
+            R.filas_proveedores('nombre\nAna\n')
+
+    def test_precios_de_ejemplo(self):
+        filas, errores = R.filas_precios_proveedor(ejemplos.PRECIOS)
+        self.assertEqual(errores, [])
+        self.assertEqual([(f['id_proveedor_viejo'], f['codigo'], f['precio'], f['cantidad_minima']) for f in filas], [
+            (70001, 'PRUEBA-001', 80.5, 1.0), (70001, 'PRUEBA-002', 20.0, 10.0), (70003, 'PRUEBA-001', 82.0, 5.0),
+            (70001, 'NO-EXISTE', 1.0, 1.0), (99999, 'PRUEBA-002', 5.0, 1.0)])
+
+    def test_precios_que_no_se_cargan(self):
+        filas, errores = R.filas_precios_proveedor(
+            'id_proveedor_viejo,codigo_producto,precio\nabc,A,1\n7,,1\n7,B,\n7,C,-3\n7,D,2\n')
+        self.assertEqual([f['codigo'] for f in filas], ['D'])
+        self.assertEqual(len(errores), 4)
+        motivos = ' | '.join(e[2] for e in errores)
+        self.assertIn('no es un entero', motivos)
+        self.assertIn('no tiene código', motivos)
+        self.assertIn('falta o es negativo', motivos)
+
+    def test_un_precio_mal_escrito_dice_en_que_fila(self):
+        with self.assertRaisesRegex(R.ErrorDeArchivo, 'Fila 3: «caro»'):
+            R.filas_precios_proveedor('id_proveedor_viejo,codigo_producto,precio\n1,A,2\n1,B,caro\n')

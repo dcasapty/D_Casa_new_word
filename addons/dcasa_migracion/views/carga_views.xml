@@ -10,11 +10,15 @@
                     Sube los archivos que dejó la receta de migración, pulsa <b>Revisar</b> (no cambia nada y te muestra
                     qué pasaría) y, si todo se ve bien, pulsa <b>Cargar</b>. Volver a cargar el mismo archivo no repite
                     nada. Las existencias se reemplazan por las del archivo: carga el inventario antes de empezar a
-                    vender. Es mejor hacerlo en dos pasadas: primero los clientes y después los productos.
+                    vender. Es mejor hacerlo por pasadas: primero clientes y proveedores, después productos con sus existencias, y al final
+                    los precios de proveedor.
                 </div>
-                <group string="Clientes">
+                <group string="Clientes y proveedores">
                     <field name="archivo_clientes" filename="nombre_clientes" widget="binary" string="clientes.csv"/>
                     <field name="nombre_clientes" invisible="1"/>
+                    <field name="archivo_proveedores" filename="nombre_proveedores" widget="binary"
+                           string="proveedores.csv"/>
+                    <field name="nombre_proveedores" invisible="1"/>
                 </group>
                 <group string="Productos y existencias">
                     <field name="archivo_productos" filename="nombre_productos" widget="binary" string="productos.csv"/>
@@ -23,6 +27,11 @@
                            string="inventario.csv"/>
                     <field name="nombre_inventario" invisible="1"/>
                     <field name="actualizar_precios"/>
+                </group>
+                <group string="Precios de proveedor (después de cargar proveedores y productos)">
+                    <field name="archivo_precios" filename="nombre_precios" widget="binary"
+                           string="precios_proveedor.csv"/>
+                    <field name="nombre_precios" invisible="1"/>
                 </group>
                 <field name="huella_revisada" invisible="1"/>
                 <field name="informe" invisible="not informe" nolabel="1"/>

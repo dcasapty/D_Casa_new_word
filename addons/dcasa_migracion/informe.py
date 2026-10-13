@@ -22,13 +22,27 @@ def _linea(texto, cantidad, detalle=''):
     return Markup('<li>%s: <b>%s</b>%s</li>') % (texto, cantidad, detalle)
 
 
-def _seccion_clientes(resumen):
+def _seccion_contactos(titulo, resumen):
     errores = resumen['con_error']
-    return Markup('<h4>Clientes</h4><ul>%s%s%s</ul>%s') % (
+    ampliadas = Markup('') if not resumen['ampliados'] else _linea(
+        'Ya estaban con el otro papel (ahora tienen también este)', len(resumen['ampliados']))
+    return Markup('<h4>%s</h4><ul>%s%s%s%s</ul>%s') % (
+        titulo,
         _linea('Fichas nuevas', len(resumen['creados'])),
         _linea('Ya estaban (no se tocan)', len(resumen['ya_estaban'])),
+        ampliadas,
         _linea('No se pudieron crear', len(errores)),
         _lista(errores, lambda e: Markup('n.º %s — %s: %s') % (e[0], e[1], e[2])),
+    )
+
+
+def _seccion_precios(resumen):
+    errores = resumen['con_error']
+    return Markup('<h4>Precios de proveedor</h4><ul>%s%s%s</ul>%s') % (
+        _linea('Precios nuevos', len(resumen['creados'])),
+        _linea('Ya estaban (no se tocan)', len(resumen['ya_estaban'])),
+        _linea('No se pudieron cargar', len(errores)),
+        _lista(errores, lambda e: Markup('proveedor n.º %s, producto %s: %s') % (e[0], e[1], e[2])),
     )
 
 
@@ -68,9 +82,11 @@ def _seccion_catalogo(resumen, avisos, con_existencias):
     )
 
 
-def informe_html(ensayo, clientes=None, catalogo=None, avisos=None, con_existencias=True, segundos=None):
-    """El HTML del informe. ``clientes`` es el resumen de ``cargar_clientes``; ``catalogo`` y ``avisos`` los de
-    ``cargar_catalogo``. Lo que no se subió no aparece."""
+def informe_html(ensayo, clientes=None, catalogo=None, avisos=None, con_existencias=True, segundos=None,
+                 proveedores=None, precios=None):
+    """El HTML del informe. ``clientes`` y ``proveedores`` son los resúmenes de ``cargar_contactos``; ``catalogo``
+    y ``avisos`` los de ``cargar_catalogo``; ``precios`` el de ``cargar_precios_proveedor``. Lo que no se subió no
+    aparece."""
     if ensayo:
         titulo = Markup('<div class="alert alert-info"><b>ENSAYO: no se cambió nada.</b> '
                         'Así quedaría la carga. Si todo se ve bien, pulsa «Cargar».</div>')
@@ -79,9 +95,13 @@ def informe_html(ensayo, clientes=None, catalogo=None, avisos=None, con_existenc
                         'Volver a cargar el mismo archivo no repite nada.</div>')
     secciones = [titulo]
     if clientes is not None:
-        secciones.append(_seccion_clientes(clientes))
+        secciones.append(_seccion_contactos('Clientes', clientes))
+    if proveedores is not None:
+        secciones.append(_seccion_contactos('Proveedores', proveedores))
     if catalogo is not None:
         secciones.append(_seccion_catalogo(catalogo, avisos, con_existencias))
+    if precios is not None:
+        secciones.append(_seccion_precios(precios))
     if segundos is not None:
         secciones.append(Markup('<p><i>Tardó %s segundos.</i></p>') % round(segundos))
     return Markup('').join(secciones)

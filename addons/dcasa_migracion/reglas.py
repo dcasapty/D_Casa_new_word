@@ -15,6 +15,7 @@ from odoo.tools import email_normalize
 COLUMNAS_CLIENTES = ('id_viejo', 'nombre')
 COLUMNAS_PRODUCTOS = ('codigo', 'nombre')
 COLUMNAS_INVENTARIO = ('codigo_producto', 'cantidad')
+COLUMNAS_PRECIOS = ('id_proveedor_viejo', 'codigo_producto', 'precio')
 
 _SEPARADORES_DE_TELEFONO = re.compile(r'[/;,|]|\s+y\s+|\s+o\s+', re.IGNORECASE)
 _SI = {'si', 'sí', 's', 'true', '1', 'yes', 'y', 'x'}
@@ -101,7 +102,17 @@ def separar_telefonos(texto):
 
 
 def filas_clientes(texto):
-    """``(filas, errores)`` de clientes.csv.
+    """``(filas, errores)`` de clientes.csv (ver ``filas_contactos``)."""
+    return filas_contactos(texto, 'clientes.csv')
+
+
+def filas_proveedores(texto):
+    """``(filas, errores)`` de proveedores.csv: mismo formato que clientes.csv."""
+    return filas_contactos(texto, 'proveedores.csv')
+
+
+def filas_contactos(texto, nombre_del_archivo):
+    """``(filas, errores)`` de clientes.csv o proveedores.csv (mismas columnas).
 
     Cada fila: ``id_viejo`` (entero), ``nombre``, ``es_empresa``, ``vat``, ``dv``, ``telefono``, ``correo``,
     ``direccion``, ``ciudad`` y ``notas`` (datos que no caben en su campo y se guardan en la nota de la ficha).
@@ -109,7 +120,7 @@ def filas_clientes(texto):
     como ``(id_viejo, nombre, motivo)``.
     """
     filas, errores, vistos = [], [], set()
-    for posicion, celdas in enumerate(leer_csv(texto, COLUMNAS_CLIENTES, 'clientes.csv'), start=2):
+    for posicion, celdas in enumerate(leer_csv(texto, COLUMNAS_CLIENTES, nombre_del_archivo), start=2):
         crudo = celdas.get('id_viejo', '')
         nombre = re.sub(r'\s+', ' ', celdas.get('nombre', '')).strip()
         if not crudo.isdigit():
@@ -147,6 +158,33 @@ def filas_clientes(texto):
             'ciudad': celdas.get('ciudad', ''),
             'notas': notas,
         })
+    return filas, errores
+
+
+def filas_precios_proveedor(texto):
+    """``(filas, errores)`` de precios_proveedor.csv: lo que cobra cada proveedor por cada producto.
+
+    Cada fila: ``id_proveedor_viejo`` (entero), ``codigo`` (del producto), ``precio`` y ``cantidad_minima`` (1 si no
+    viene). Una fila sin proveedor entero, sin código o con precio vacío o negativo va a ``errores`` como
+    ``(id_proveedor_viejo, codigo, motivo)``.
+    """
+    filas, errores = [], []
+    for posicion, celdas in enumerate(leer_csv(texto, COLUMNAS_PRECIOS, 'precios_proveedor.csv'), start=2):
+        crudo = celdas.get('id_proveedor_viejo', '')
+        codigo = celdas.get('codigo_producto', '')
+        if not crudo.isdigit():
+            errores.append((crudo or f'fila {posicion}', codigo, 'el número del proveedor no es un entero'))
+            continue
+        if not codigo:
+            errores.append((int(crudo), '', 'no tiene código de producto'))
+            continue
+        precio = numero(celdas.get('precio'), 'precio', posicion)
+        if precio is None or precio < 0:
+            errores.append((int(crudo), codigo, 'el precio falta o es negativo'))
+            continue
+        minima = numero(celdas.get('cantidad_minima'), 'cantidad_minima', posicion)
+        filas.append({'id_proveedor_viejo': int(crudo), 'codigo': codigo, 'precio': precio,
+                      'cantidad_minima': minima if minima and minima > 0 else 1.0})
     return filas, errores
 
 

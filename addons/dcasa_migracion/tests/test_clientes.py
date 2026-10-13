@@ -1,5 +1,5 @@
 """La carga de clientes: una ficha por cliente, idempotente, sin saltarse el candado y sin tocar Socios."""
-from odoo.addons.dcasa_migracion import clientes as C
+from odoo.addons.dcasa_migracion import contactos as C
 from odoo.addons.dcasa_migracion import reglas
 from odoo.tests import TransactionCase, tagged
 
@@ -16,7 +16,7 @@ def _filas():
 class TestCargaDeClientes(TransactionCase):
 
     def _ficha(self, id_viejo):
-        return self.env.ref(f'__import__.{C.xmlid_cliente(id_viejo)}', raise_if_not_found=False)
+        return self.env.ref(f'__import__.{C.xmlid_contacto(id_viejo)}', raise_if_not_found=False)
 
     def test_crea_una_ficha_por_cliente_con_sus_datos(self):
         resumen = C.cargar_clientes(self.env, _filas())
@@ -44,7 +44,7 @@ class TestCargaDeClientes(TransactionCase):
         """Desinstalar un módulo borra lo que tiene id externo suyo: los clientes llevan el de «__import__»."""
         C.cargar_clientes(self.env, _filas())
         externos = self.env['ir.model.data'].search(
-            [('model', '=', 'res.partner'), ('name', '=like', 'dcasa_cliente_%')])
+            [('model', '=', 'res.partner'), ('name', '=like', 'dcasa_contacto_%')])
         self.assertEqual(len(externos), 5)
         self.assertEqual(set(externos.mapped('module')), {'__import__'})
 
@@ -95,7 +95,7 @@ class TestCargaDeClientes(TransactionCase):
         self.assertIn('Dueño del RUC', resumen['con_error'][0][2])
 
     def test_los_nombres_de_las_personas_no_van_al_log(self):
-        with self.assertLogs('odoo.addons.dcasa_migracion.clientes', level='INFO') as registro:
+        with self.assertLogs('odoo.addons.dcasa_migracion.contactos', level='INFO') as registro:
             C.cargar_clientes(self.env, _filas())
         texto = '\n'.join(registro.output)
         self.assertIn('5 creados', texto)

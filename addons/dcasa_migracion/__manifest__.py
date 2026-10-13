@@ -1,11 +1,13 @@
 {
     'name': "D'CASA Panamá — Cargar datos del sistema anterior",
-    'summary': "Carga única de clientes, productos y existencias exportados por la receta de migración",
+    'summary': "Carga única de clientes, proveedores, productos, existencias y precios exportados por la receta",
     'description': """
 Carga única de lo que sale de la receta de migración (Cowork) al ERP nuevo:
 
 * Clientes (clientes.csv): una ficha por cliente, con su número del sistema anterior; respeta el candado
   de contactos (un celular, un correo, un RUC: una sola ficha) y no los junta ni los pisa.
+* Proveedores (proveedores.csv, mismo formato; quien es cliente y proveedor tiene una sola ficha) y sus precios
+  por producto (precios_proveedor.csv).
 * Productos y existencias (productos.csv + inventario.csv): usa las reglas de la dueña de «Inventario del
   sistema anterior» (la llave es el código; no se pisan nombres ni fotos).
 * «Revisar» muestra qué pasaría sin cambiar nada; «Cargar» lo hace. Solo para administradores.

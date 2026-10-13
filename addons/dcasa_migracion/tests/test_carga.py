@@ -127,3 +127,16 @@ class TestAsistenteDeCarga(TransactionCase):
         vista = self.env['dcasa.migracion.carga'].with_user(self.admin).get_views([(False, 'form')])
         self.assertIn('action_revisar', vista['views']['form']['arch'])
         self.assertIn('action_cargar', vista['views']['form']['arch'])
+
+    def test_proveedores_productos_y_precios_en_una_sola_carga_respetan_el_orden(self):
+        """Los precios de proveedor usan a los proveedores y a los productos que se cargan en la misma pasada."""
+        asistente = self.Carga.create({
+            'archivo_proveedores': _b64(ejemplos.PROVEEDORES), 'archivo_productos': _b64(ejemplos.PRODUCTOS),
+            'archivo_inventario': _b64(ejemplos.INVENTARIO), 'archivo_precios': _b64(ejemplos.PRECIOS)})
+        asistente.action_revisar()
+        self.assertIn('Proveedores', asistente.informe)
+        self.assertIn('Precios de proveedor', asistente.informe)
+        self.assertFalse(self.env['product.supplierinfo'].search([('price', '=', 82.0)]), 'El ensayo no deja nada')
+        asistente.action_cargar()
+        precios = self.env['product.supplierinfo'].search([('product_tmpl_id.default_code', '=', 'PRUEBA-001')])
+        self.assertEqual(sorted(precios.mapped('price')), [80.5, 82.0])
