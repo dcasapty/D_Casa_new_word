@@ -1,0 +1,2 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_migracion_carga_admin,dcasa.migracion.carga administradores,model_dcasa_migracion_carga,base.group_system,1,1,1,1
