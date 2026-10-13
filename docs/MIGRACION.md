@@ -163,6 +163,12 @@ cuentas del contador. El archivo `balance_de_comprobacion.csv` (por cuenta y mes
 cuadre cuenta por cuenta. Dos documentos que se registraron mientras Cowork exportaba (la factura `INV/2026/01018` y su cobro)
 salieron en los zip pero no en las cabeceras: la exportación del día del corte los trae completos.
 
+**El día del corte** (receta de Cowork): con los zip nuevos del sistema anterior en una carpeta, `python corte.py --datos
+"..\CORTE_2026-xx-xx"` corre todo en orden (repetidos, clientes y productos, facturas y contabilidad), verifica que entren
+`INV/2026/01018` y su cobro y que no quede ninguna línea sin asiento, y deja el resultado en `RESUMEN_CORTE.md`. **Exportar con
+Odoo quieto**: nadie facturando ni cobrando mientras sale la exportación; si algo se registra durante ella, el resumen lo
+avisa y se repite. `pagos.csv` ya trae la columna `numero` (la primera): el cargador la usa como id del pago.
+
 **Para la prueba en staging:** crear antes los diarios de banco y efectivo con los nombres de la columna `diario` de
 `pagos.csv`; subir los 5 archivos reales en esa pantalla (después de clientes, proveedores y productos); Revisar; leer
 «Antes de cargar»; Cargar hasta que no falte nada; mirar el cuadre. Las facturas nuevas deben salir con el número que
