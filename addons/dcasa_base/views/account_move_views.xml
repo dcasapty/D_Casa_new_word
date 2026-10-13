@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_move_form_dcasa_historica" model="ir.ui.view">
+        <field name="name">account.move.form.dcasa.historica</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <field name="dcasa_historica" invisible="1"/>
+                <div class="alert alert-info" role="alert" invisible="not dcasa_historica">
+                    <b>Cargada del sistema anterior.</b> Es historia: no se manda a la DGI ni da puntos de Socios.
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_invoice_filter_dcasa_historica" model="ir.ui.view">
+        <field name="name">account.invoice.select.dcasa.historica</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <filter name="draft" position="after">
+                <filter name="dcasa_historica" string="Cargadas del sistema anterior" domain="[('dcasa_historica', '=', True)]"/>
+            </filter>
+        </field>
+    </record>
+</odoo>

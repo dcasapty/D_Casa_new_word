@@ -108,6 +108,16 @@ class TestMarcasDeCambio(TransactionCase):
         factura.action_post()
         self.assertIn(self.producto.id, self._marcados())
 
+    def test_factura_cargada_del_sistema_anterior_no_marca(self):
+        factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'dcasa_historica': True,
+            'invoice_line_ids': [(0, 0, {'product_id': self.variante.id, 'quantity': 1, 'price_unit': 25})],
+        })
+        self._confirmar()
+        self.Pendiente.search([]).unlink()
+        factura.action_post()
+        self.assertNotIn(self.producto.id, self._marcados())
+
     def test_aviso_al_worker(self):
         self.producto.list_price = 32
         self._confirmar()

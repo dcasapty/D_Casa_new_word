@@ -12,7 +12,7 @@ import time
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .. import catalogo, contactos, documentos, informe, precios, reglas
+from .. import catalogo, contactos, documentos, historial, informe, precios, reglas, reglas_historial
 
 _logger = logging.getLogger(__name__)
 
@@ -43,6 +43,16 @@ class DcasaMigracionCarga(models.TransientModel):
     nombre_compras = fields.Char()
     archivo_compras_lineas = fields.Binary('compras_pendientes_lineas.csv', attachment=False)
     nombre_compras_lineas = fields.Char()
+    archivo_facturas_clientes = fields.Binary('facturas_clientes.csv', attachment=False)
+    nombre_facturas_clientes = fields.Char()
+    archivo_facturas_clientes_lineas = fields.Binary('facturas_clientes_lineas.csv', attachment=False)
+    nombre_facturas_clientes_lineas = fields.Char()
+    archivo_facturas_proveedores = fields.Binary('facturas_proveedores.csv', attachment=False)
+    nombre_facturas_proveedores = fields.Char()
+    archivo_facturas_proveedores_lineas = fields.Binary('facturas_proveedores_lineas.csv', attachment=False)
+    nombre_facturas_proveedores_lineas = fields.Char()
+    archivo_pagos = fields.Binary('pagos.csv', attachment=False)
+    nombre_pagos = fields.Char()
     actualizar_precios = fields.Boolean(
         'También cambiar precio y costo de los productos que ya existen', default=False,
         help='Apagado (lo normal): de un producto que ya existe solo cambian las existencias; su precio y su costo se '
@@ -58,7 +68,7 @@ class DcasaMigracionCarga(models.TransientModel):
         """Corre la carga y la deshace: solo muestra el informe de lo que pasaría."""
         self.ensure_one()
         self._exigir_administrador()
-        resultado = self._correr(ensayo=True)
+        resultado, _faltan = self._correr(ensayo=True)
         self.write({'informe': resultado, 'huella_revisada': self._huella()})
         return self._reabrir()
 
@@ -70,8 +80,9 @@ class DcasaMigracionCarga(models.TransientModel):
             raise UserError(self.env._(
                 'Antes de cargar, pulsa «Revisar» con estos mismos archivos y mira el informe. '
                 'Si cambiaste un archivo o una casilla, hay que revisar otra vez.'))
-        resultado = self._correr(ensayo=False)
-        self.write({'informe': resultado, 'huella_revisada': False})
+        resultado, faltan = self._correr(ensayo=False)
+        # Si quedan documentos por cargar, la revisión sigue valiendo: «Cargar» retoma donde se quedó.
+        self.write({'informe': resultado, 'huella_revisada': self.huella_revisada if faltan else False})
         return self._reabrir()
 
     # ------------------------------------------------------------------
@@ -97,7 +108,8 @@ class DcasaMigracionCarga(models.TransientModel):
         resumen = hashlib.sha256()
         for campo in ('archivo_clientes', 'archivo_proveedores', 'archivo_productos', 'archivo_inventario',
                       'archivo_precios', 'archivo_ventas', 'archivo_ventas_lineas', 'archivo_compras',
-                      'archivo_compras_lineas'):
+                      'archivo_compras_lineas', 'archivo_facturas_clientes', 'archivo_facturas_clientes_lineas',
+                      'archivo_facturas_proveedores', 'archivo_facturas_proveedores_lineas', 'archivo_pagos'):
             resumen.update(hashlib.sha256(self._bytes(campo)).digest())
         resumen.update(b'precios' if self.actualizar_precios else b'sin-precios')
         return resumen.hexdigest()
@@ -107,7 +119,11 @@ class DcasaMigracionCarga(models.TransientModel):
         campos = {'clientes': 'archivo_clientes', 'proveedores': 'archivo_proveedores',
                   'productos': 'archivo_productos', 'inventario': 'archivo_inventario',
                   'precios': 'archivo_precios', 'ventas': 'archivo_ventas', 'ventas_lineas': 'archivo_ventas_lineas',
-                  'compras': 'archivo_compras', 'compras_lineas': 'archivo_compras_lineas'}
+                  'compras': 'archivo_compras', 'compras_lineas': 'archivo_compras_lineas',
+                  'facturas_clientes': 'archivo_facturas_clientes',
+                  'facturas_clientes_lineas': 'archivo_facturas_clientes_lineas',
+                  'facturas_proveedores': 'archivo_facturas_proveedores',
+                  'facturas_proveedores_lineas': 'archivo_facturas_proveedores_lineas', 'pagos': 'archivo_pagos'}
         try:
             textos = {nombre: reglas.texto_de_bytes(self._bytes(campo)) for nombre, campo in campos.items()
                       if self[campo]}
@@ -116,15 +132,18 @@ class DcasaMigracionCarga(models.TransientModel):
         if 'inventario' in textos and 'productos' not in textos:
             raise UserError(self.env._('Subiste inventario.csv sin productos.csv. Las existencias se cargan con los '
                                        'productos: sube los dos.'))
-        for cabecera, lineas in (('ventas', 'ventas_lineas'), ('compras', 'compras_lineas')):
+        for cabecera, lineas in (('ventas', 'ventas_lineas'), ('compras', 'compras_lineas'),
+                                 ('facturas_clientes', 'facturas_clientes_lineas'),
+                                 ('facturas_proveedores', 'facturas_proveedores_lineas')):
             if (cabecera in textos) != (lineas in textos):
+                archivo = cabecera + ('_pendientes' if cabecera in ('ventas', 'compras') else '')
                 raise UserError(self.env._(
-                    'Las órdenes pendientes van en dos archivos: %(cabecera)s_pendientes.csv y '
-                    '%(cabecera)s_pendientes_lineas.csv. Sube los dos.', cabecera=cabecera))
+                    'Este grupo va en dos archivos: %(archivo)s.csv y %(archivo)s_lineas.csv. Sube los dos.',
+                    archivo=archivo))
         if not textos:
             raise UserError(self.env._(
                 'Sube al menos un archivo: clientes.csv, proveedores.csv, productos.csv (con inventario.csv), '
-                'precios_proveedor.csv o las ventas y compras pendientes.'))
+                'precios_proveedor.csv, las ventas y compras pendientes, las facturas del año o los pagos.'))
         return textos
 
     def _leer(self, textos):
@@ -139,6 +158,11 @@ class DcasaMigracionCarga(models.TransientModel):
                 leidos['ventas'] = reglas.filas_ventas_pendientes(textos['ventas'], textos['ventas_lineas'])
             if 'compras' in textos:
                 leidos['compras'] = reglas.filas_compras_pendientes(textos['compras'], textos['compras_lineas'])
+            for rol, nombre in (('cliente', 'facturas_clientes'), ('proveedor', 'facturas_proveedores')):
+                if nombre in textos:
+                    leidos[nombre] = reglas_historial.filas_facturas(textos[nombre], textos[nombre + '_lineas'], rol)
+            if 'pagos' in textos:
+                leidos['pagos'] = reglas_historial.filas_pagos(textos['pagos'])
             # Leer productos aquí, antes de abrir el savepoint: así un número mal escrito corta con su fila.
             if 'productos' in textos:
                 reglas.filas_catalogo(textos['productos'], textos.get('inventario'))
@@ -173,11 +197,15 @@ class DcasaMigracionCarga(models.TransientModel):
             salida['compras_por_recibir'] = con_errores_de_filas(
                 'compras', documentos.cargar_compras_por_recibir(self.env, ordenes))
             salida['compras_por_facturar'] = documentos.cargar_compras_por_facturar(self.env, ordenes)
+        if {'facturas_clientes', 'facturas_proveedores', 'pagos'} & set(leidos):
+            segundos = None if self.env.context.get('dcasa_documentos_por_tanda') else historial.SEGUNDOS_POR_TANDA
+            salida['historial'] = historial.cargar_historial(self.env, leidos, historial.Presupuesto(
+                segundos=segundos, documentos=self.env.context.get('dcasa_documentos_por_tanda')))
         return salida
 
     def _correr(self, ensayo):
-        """Lee los archivos y carga dentro de un savepoint; en el ensayo el savepoint se deshace. Devuelve el informe
-        en HTML."""
+        """Lee los archivos y carga dentro de un savepoint; en el ensayo el savepoint se deshace. Devuelve ``(informe en
+        HTML, documentos que faltan por cargar)``: si faltan, hay que pulsar «Cargar» otra vez."""
         textos = self._textos()
         leidos = self._leer(textos)
         salida = {}
@@ -193,10 +221,11 @@ class DcasaMigracionCarga(models.TransientModel):
             self.env.registry.clear_cache()
         _logger.info('Carga del sistema anterior (%s) hecha por el usuario %s.',
                      'ensayo' if ensayo else 'real', self.env.uid)
-        return informe.informe_html(
+        html = informe.informe_html(
             ensayo, clientes=salida.get('clientes'), proveedores=salida.get('proveedores'),
             catalogo=salida.get('catalogo'), avisos=salida.get('avisos'), precios=salida.get('precios'),
             ventas=salida.get('ventas'), entregas=salida.get('entregas'),
             compras_por_recibir=salida.get('compras_por_recibir'),
-            compras_por_facturar=salida.get('compras_por_facturar'),
+            compras_por_facturar=salida.get('compras_por_facturar'), historial=salida.get('historial'),
             con_existencias='inventario' in textos, segundos=time.monotonic() - inicio)
+        return html, salida.get('historial', {}).get('faltan', 0)

@@ -46,6 +46,7 @@ Módulo raíz del ERP de D'CASA Panamá.
         'data/ir_cron_data.xml',
         'data/crons_odoo.xml',
         'views/res_partner_views.xml',
+        'views/account_move_views.xml',
         'views/hoy_views.xml',
         'views/res_config_settings_views.xml',
     ],

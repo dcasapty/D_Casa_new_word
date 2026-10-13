@@ -27,6 +27,14 @@ class TestCompras(SociosCommon):
         self.pagar(factura)
         self.assertEqual(factura.dcasa_compra_ids.puntos, 107)
 
+    def test_factura_cargada_del_sistema_anterior_no_suma(self):
+        factura = self.factura(pagar=False)
+        factura.dcasa_historica = True
+        self.pagar(factura)
+        self.assertIn(factura.payment_state, ('paid', 'in_payment'))
+        self.assertFalse(factura.dcasa_compra_ids)
+        self.assertFalse(self.movimientos(self.cliente))
+
     def test_una_factura_una_carga(self):
         factura = self.factura()
         factura._invoice_paid_hook()

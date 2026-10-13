@@ -178,3 +178,42 @@ class TestAsistenteDeCarga(TransactionCase):
         asistente = self.Carga.create({'archivo_compras_lineas': _b64(ejemplos.COMPRAS_LINEAS)})
         with self.assertRaisesRegex(UserError, 'compras_pendientes.csv'):
             asistente.action_revisar()
+
+    def test_facturas_y_pagos_del_ano_se_cargan_por_tandas(self):
+        Diario = self.env['account.journal']
+        Diario.create({'name': 'Caja Ejemplo', 'type': 'cash', 'code': 'CEJ'})
+        Diario.create({'name': 'Banco Ejemplo', 'type': 'bank', 'code': 'BEJ'})
+        asistente = self.Carga.with_context(dcasa_documentos_por_tanda=4).create({
+            'archivo_clientes': _b64(ejemplos.CLIENTES), 'archivo_proveedores': _b64(ejemplos.PROVEEDORES),
+            'archivo_facturas_clientes': _b64(ejemplos.FACTURAS_CLIENTES),
+            'archivo_facturas_clientes_lineas': _b64(ejemplos.FACTURAS_CLIENTES_LINEAS),
+            'archivo_facturas_proveedores': _b64(ejemplos.FACTURAS_PROVEEDORES),
+            'archivo_facturas_proveedores_lineas': _b64(ejemplos.FACTURAS_PROVEEDORES_LINEAS),
+            'archivo_pagos': _b64(ejemplos.PAGOS)})
+        Movimiento = self.env['account.move']
+        asistente.action_revisar()
+        self.assertIn('Antes de cargar', asistente.informe)
+        self.assertIn('El ensayo cubre solo la primera tanda', asistente.informe)
+        self.assertFalse(Movimiento.search([('dcasa_historica', '=', True)]), 'El ensayo no deja nada')
+        # 15 documentos de 4 en 4: tres tandas incompletas y una última que termina.
+        for tanda in range(1, 5):
+            asistente.action_cargar()
+            cargados = Movimiento.search_count([('dcasa_historica', '=', True)])
+            if tanda < 4:
+                self.assertTrue(asistente.huella_revisada, 'Quedan documentos: la revisión sigue valiendo')
+                self.assertIn('Pulsa «Cargar» otra vez', asistente.informe)
+        self.assertFalse(asistente.huella_revisada, 'Ya no falta nada')
+        self.assertEqual(cargados, 10)
+        self.assertEqual(
+            self.env['account.payment'].search_count([('memo', 'ilike', 'Cargado del sistema anterior')]), 5)
+        self.assertIn('Cuadre contra el archivo', asistente.informe)
+        self.assertIn('CARGA HECHA', asistente.informe)
+
+    def test_las_facturas_del_ano_se_suben_en_pareja(self):
+        asistente = self.Carga.create({'archivo_facturas_clientes': _b64(ejemplos.FACTURAS_CLIENTES)})
+        with self.assertRaisesRegex(UserError, 'facturas_clientes.csv y facturas_clientes_lineas.csv'):
+            asistente.action_revisar()
+        asistente = self.Carga.create({
+            'archivo_facturas_proveedores_lineas': _b64(ejemplos.FACTURAS_PROVEEDORES_LINEAS)})
+        with self.assertRaisesRegex(UserError, 'facturas_proveedores.csv'):
+            asistente.action_revisar()

@@ -15,7 +15,9 @@ class AccountMove(models.Model):
     def _invoice_paid_hook(self):
         res = super()._invoice_paid_hook()
         Compra = self.env['dcasa.compra'].sudo()
-        for move in self.filtered(lambda m: m.move_type == 'out_invoice' and m.payment_state in ('paid', 'in_payment')):
+        # Las facturas cargadas del sistema anterior son historia: no dan puntos.
+        for move in self.filtered(lambda m: m.move_type == 'out_invoice' and not m.dcasa_historica
+                                  and m.payment_state in ('paid', 'in_payment')):
             Compra._registrar_desde_factura(move)
         return res
 

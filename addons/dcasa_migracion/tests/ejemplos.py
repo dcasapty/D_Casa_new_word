@@ -101,3 +101,63 @@ COMPRAS_LINEAS = BOM + '\n'.join([
     'P99905,1,PRUEBA-005,Producto de Prueba 5,12,63.33,0,0,12,12,0',
     '',
 ])
+
+FACTURAS_CLIENTES = BOM + '\n'.join([
+    'numero,tipo,fecha,fecha_vencimiento,id_cliente_viejo,moneda,base_imponible,impuesto,total,pagado,saldo,'
+    'estado_pago,diario,orden_origen,referencia_fiscal,factura_original,condicion_pago,vendedor',
+    'INV/2026/90001,factura,2026-08-03,2026-08-03,90001,USD,100,7,107,107,0,pagada,Ventas,S90001,,,Pago inmediato,'
+    'Vendedor Ejemplo 1',
+    'INV/2026/90002,factura,2026-08-15,2026-09-14,90002,USD,250,17.5,267.5,100,167.5,parcial,Ventas,S90002,'
+    'FE-0000000001,,30 días,Vendedor Ejemplo 2',
+    'INV/2026/90003,factura,2026-09-01,2026-09-01,90003,USD,45,3.15,48.15,0,48.15,sin_pagar,Ventas,,,,,',
+    'RINV/2026/90001,nota_credito,2026-09-05,2026-09-05,90001,USD,20,1.4,21.4,21.4,0,pagada,Ventas,S90001,,'
+    'INV/2026/90001,,Vendedor Ejemplo 1',
+    'INV/2026/90004,factura,2026-10-10,2026-10-25,90004,USD,1200,84,1284,1284,0,pagada,Ventas,S90004,,,15 días,'
+    'Vendedor Ejemplo 2',
+    '',
+])
+
+FACTURAS_CLIENTES_LINEAS = BOM + '\n'.join([
+    'numero,codigo_producto,nombre_producto,cantidad,precio_unitario,descuento,impuesto,subtotal,cuenta_ingreso',
+    'INV/2026/90001,EJ-001,Producto Ejemplo 1,1,100,0,ITBMS 7% Ventas,100,000001',
+    'INV/2026/90002,EJ-002,Producto Ejemplo 2,2,125,0,ITBMS 7% Ventas,250,000001',
+    'INV/2026/90003,,Servicio Ejemplo de entrega,1,50,10,ITBMS 7% Ventas,45,000002',
+    'RINV/2026/90001,EJ-001,Producto Ejemplo 1,1,20,0,ITBMS 7% Ventas,20,000001',
+    'INV/2026/90004,EJ-003,Combo Ejemplo 3,1,1200,0,ITBMS 7% Ventas,1200,000001',
+    '',
+])
+
+FACTURAS_PROVEEDORES = BOM + '\n'.join([
+    'numero,referencia_proveedor,tipo,fecha,fecha_vencimiento,id_proveedor_viejo,moneda,base_imponible,impuesto,'
+    'total,pagado,saldo,estado_pago,diario,orden_origen,factura_original,condicion_pago',
+    'BILL/2026/90001,FAC-EJ-1001,factura,2026-08-02,2026-09-01,70001,USD,5000,350,5350,5350,0,pagada,Compras,'
+    'P90001,,30 días',
+    'BILL/2026/90002,FAC-EJ-1002,factura,2026-08-20,2026-08-20,70002,USD,12000,0,12000,6000,6000,parcial,Compras,'
+    'P90002,,',
+    'BILL/2026/90003,,factura,2026-09-10,2026-10-10,70001,USD,900,63,963,0,963,sin_pagar,Compras,,,30 días',
+    'RBILL/2026/90001,NC-EJ-0001,nota_credito,2026-09-15,2026-09-15,70001,USD,100,7,107,107,0,pagada,Compras,,'
+    'BILL/2026/90001,',
+    'BILL/2026/90004,PI-EJ-0004,factura,2026-10-05,2026-11-04,70005,USD,760,53.2,813.2,0,813.2,sin_pagar,Compras,'
+    'P90005,,30 días',
+    '',
+])
+
+FACTURAS_PROVEEDORES_LINEAS = BOM + '\n'.join([
+    'numero,codigo_producto,nombre_producto,cantidad,precio_unitario,descuento,impuesto,subtotal,cuenta_gasto',
+    'BILL/2026/90001,EJ-001,Producto Ejemplo 1,50,100,0,ITBMS 7% Compras,5000,000010',
+    'BILL/2026/90002,EJ-004,Producto Ejemplo 4,100,120,0,,12000,000010',
+    'BILL/2026/90003,,Flete Ejemplo,1,900,0,ITBMS 7% Compras,900,000011',
+    'RBILL/2026/90001,EJ-001,Producto Ejemplo 1,1,100,0,ITBMS 7% Compras,100,000010',
+    'BILL/2026/90004,EJ-005,Producto Ejemplo 5,8,95,0,ITBMS 7% Compras,760,000010',
+    '',
+])
+
+PAGOS = BOM + '\n'.join([
+    'fecha,tipo,id_contacto_viejo,monto,moneda,diario,metodo,referencia,facturas_que_paga,estado',
+    '2026-08-03,cobro,90001,107,USD,Caja Ejemplo,Manual,INV/2026/90001,INV/2026/90001,conciliado',
+    '2026-08-20,cobro,90002,100,USD,Banco Ejemplo,Manual,INV/2026/90002,INV/2026/90002,sin_conciliar',
+    '2026-08-25,pago,70002,6000,USD,Banco Ejemplo,Transferencia,Abono FAC-EJ-1002,BILL/2026/90002,conciliado',
+    '2026-09-30,pago,70001,5350,USD,Banco Ejemplo,Manual,FAC-EJ-1001,BILL/2026/90001,conciliado',
+    '2026-10-10,cobro,90004,1284,USD,Banco Ejemplo,Manual,Pago combinado,INV/2026/90004|INV/2026/90005,sin_conciliar',
+    '',
+])

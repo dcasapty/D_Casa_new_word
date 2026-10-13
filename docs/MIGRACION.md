@@ -2,7 +2,8 @@
 
 Pantalla de **Ajustes › Cargar datos del sistema anterior** (solo administradores). Carga, **una sola vez**, lo que
 deja la receta de migración (Cowork, en la computadora de la dueña): clientes, proveedores, productos, existencias,
-precios de proveedor y lo que quedó a medias (ventas por facturar o entregar, compras por recibir o facturar).
+precios de proveedor, lo que quedó a medias (ventas por facturar o entregar, compras por recibir o facturar) y la
+contabilidad del año (todas las facturas emitidas y los pagos).
 
 > **Los datos de las personas nunca pasan por GitHub, por el repositorio ni por el chat.** El archivo de clientes se
 > sube desde el navegador, directo a Odoo, con la sesión de un administrador. El módulo no trae ningún dato de personas
@@ -20,9 +21,11 @@ precios de proveedor y lo que quedó a medias (ventas por facturar o entregar, c
 | Ventas con algo pendiente (27) | `ventas_pendientes.csv` + `ventas_pendientes_lineas.csv` | Las **por facturar** (24) quedan como factura en **borrador**; las **por entregar** (10) solo se listan |
 | Compras con algo pendiente (20) | `compras_pendientes.csv` + `compras_pendientes_lineas.csv` | Las **por recibir** (4) quedan como orden de compra confirmada; las **por facturar** (16), como factura de proveedor en **borrador** |
 
-**Todavía no entra:** la **contabilidad** (todas las facturas del año, pagos y plan de cuentas): ver el final de este
-documento. Se agrega a esta misma pantalla, con su propio cuadre contra el balance de comprobación del sistema viejo y la
-firma del contador.
+| Facturas emitidas del año (1,005 de clientes, 14 de proveedores) | `facturas_clientes.csv` + `_lineas.csv`, `facturas_proveedores.csv` + `_lineas.csv` | Quedan **publicadas**, con su número original |
+| Cobros y pagos del año (1,141) | `pagos.csv` | Quedan publicados y aplicados a sus facturas |
+
+**Todavía no entra:** la equivalencia entre las cuentas contables del sistema anterior y las de aquí (decisión del
+contador): ver «Facturas y pagos del año» más abajo.
 
 **No entra, a propósito:** el historial de ventas ya cerradas, los movimientos viejos de inventario, la configuración del
 sistema anterior y sus ~2,700 adjuntos (las fotos de productos ya están en el catálogo).
@@ -100,23 +103,58 @@ historial ya cerrado:
   `dcasa_compra_<n>`, `dcasa_factura_compra_<n>`). Volver a cargar no repite nada, y borrar un documento permite cargarlo
   de nuevo.
 
-## Qué falta: contabilidad histórica
+## Facturas y pagos del año (`dcasa_migracion/historial.py`)
 
-Cowork entregó (2026-10-13) la exportación de **todas las facturas ya emitidas del año**, con la receta
-`receta\exportar_facturas.py`: `facturas_clientes.csv` (1,005), `facturas_clientes_lineas.csv` (1,637),
-`facturas_proveedores.csv` (14), `facturas_proveedores_lineas.csv` (40) y `pagos.csv` (1,141), más un `REPORTE.md` cuyo
-cuadre coincide con la contabilidad del sistema anterior. Lo que dice el reporte y hay que tener presente:
+Cowork entregó (2026-10-13) la exportación de **todas las facturas ya emitidas del año** con la receta
+`receta\exportar_facturas.py`, y su `REPORTE.md` cuadra con la contabilidad del sistema anterior. Lo que dice y hay que
+tener presente: el sistema anterior solo tiene facturas **desde el 22 de julio** (de enero a julio no hay nada en él);
+no hay notas de crédito en el periodo (los archivos están preparados para el día del corte); `referencia_fiscal` y
+`condicion_pago` vienen vacías; 2 facturas están a nombre de la propia empresa (no están en `clientes.csv`), 3 facturas
+de proveedor tienen total 0 y 3 tienen fecha adelantada; hay 41 cobros sin conciliar con el banco y 7 pagos sin aplicar
+a ninguna factura.
 
-- El sistema anterior solo tiene facturas **desde el 22 de julio**; de enero a julio no hay nada en él (si se facturó en
-  otro programa, eso es otra conversación).
-- No hay notas de crédito en el periodo; los archivos están preparados para incluirlas el día del corte.
-- `referencia_fiscal` (número de factura electrónica) viene vacía y `condicion_pago` también en las de cliente.
-- 2 facturas están a nombre de la propia empresa (su cliente no está en `clientes.csv` a propósito); 3 facturas de
-  proveedor tienen total 0 y 3 tienen fecha contable adelantada: se listan para revisar, no se cargan a ciegas.
-- 41 cobros sin conciliar con el banco y 7 pagos sin aplicar a ninguna factura.
+**Reglas de la carga**
+- **Quedan publicadas con el número que tenían** (`INV/2026/00123`, `BILL/2026/00007`…). La numeración nueva sigue donde
+  quedó la última de cada diario: Odoo toma el último número publicado. Las facturas de proveedor siguen con su prefijo
+  `BILL/` en vez del `FACTU/` del diario.
+- Todo lleva la marca **«Cargada del sistema anterior»** (`dcasa_historica`, filtro en Facturas y aviso en el
+  formulario). Es historia: **no se manda a la DGI** aunque la factura electrónica esté operando, **no da puntos de
+  Socios** y no marca páginas de la tienda. Ni el número de FE ni el CUFE se cargan (la exportación no los trae).
+- **Una factura solo entra si Odoo arma los mismos importes del archivo** (base, impuesto y total, con 2 centavos de
+  tolerancia). Si no cuadra, no entra y el informe dice cuánto difiere: nada entra al libro con otro total.
+- **Impuestos:** el nombre exacto, o cualquier «ITBMS 7%», es el ITBMS de la empresa (venta o compra); sin impuesto es una
+  línea exenta; otro nombre es un error que dice cuál (créalo con ese nombre o cámbialo en el archivo).
+- **Cuentas contables:** las de aquí (la del producto, la del diario, la del cliente o proveedor). Las equivalencias con
+  las cuentas del sistema anterior son decisión del contador y **todavía no se aplican**: hasta entonces el cuadre es
+  por factura, por saldo y por el libro de cuentas por cobrar y por pagar, no cuenta por cuenta.
+- Una línea cuyo código no está en el catálogo entra sin producto, con el nombre del archivo. Un cliente o proveedor que
+  no está cargado deja esa factura como error (así salen las 2 de la propia empresa: o se agrega la empresa a
+  `clientes.csv`, o se registran a mano). Total 0 y fecha futura **sí entran**, pero salen en «Entraron, pero conviene
+  mirarlas».
+- **Notas de crédito:** montos en positivo, `tipo = nota_credito`, enlazadas a su `factura_original`. Odoo aplica la nota
+  a su factura al publicarla.
+- **Pagos:** el diario se busca **por nombre** entre los diarios de banco y efectivo (si no existe, el informe lo nombra:
+  créalo con ese nombre en Contabilidad). Un pago **conciliado** con el banco entra directo a la cuenta del banco; uno
+  **sin conciliar** queda como pago en tránsito esperando el extracto, igual que estaba. Se aplica a las facturas que
+  decía pagar, en ese orden; lo que sobra, o un pago sin facturas, queda como saldo a favor de la ficha. Un pago que cita
+  una factura que no está cargada entra igual y el informe lo lista.
+- **Idempotente:** cada factura guarda su número anterior como id externo (`__import__.dcasa_factura_<número>`); cada pago,
+  uno que sale de sus propios datos. Volver a cargar no repite nada, y un pago que había quedado a medias se aplica
+  cuando su factura llega.
+- **Por tandas.** Una factura o un pago tarda ~0.2 s; ~2,100 documentos son ~8 minutos, demasiado para una sola
+  petición. Cada «Cargar» trabaja ~40 segundos y dice cuántos faltan; se pulsa de nuevo hasta que diga «Ya no falta nada»
+  (unas 12 veces). **Revisar** corre una tanda y la deshace, pero su sección «Antes de cargar» abarca todo el archivo
+  (contactos, impuestos, diarios o productos que faltan, facturas que los pagos citan y no están).
+- **Cuadre al terminar:** base, impuesto, total y saldo del archivo contra lo cargado, las facturas que quedaron con otro
+  saldo y lo que el libro mayor dice que deben los clientes (o se les debe a los proveedores). Si el libro no coincide con
+  la suma de saldos del archivo, la diferencia son pagos sin aplicar o notas de crédito aplicadas distinto: lo revisa el
+  contador y firma.
 
-El cargador de esta etapa respeta los números originales de cada factura, enlaza cada pago a su factura, **no reenvía
-nada a la DGI ni da puntos de Socios**, y deja que las facturas nuevas continúen la numeración. Antes de escribirlo
-quedan por decidir con el contador: cómo se relacionan las cuentas del sistema anterior con las de aquí, qué hacer con
-los pagos sin conciliar y las facturas raras de arriba, y el balance de comprobación al día del corte contra el cual
-cuadra el total por cuenta (al centavo, firmado por el contador).
+**Para la prueba en staging:** crear antes los diarios de banco y efectivo con los nombres de la columna `diario` de
+`pagos.csv`; subir los 5 archivos reales en esa pantalla (después de clientes, proveedores y productos); Revisar; leer
+«Antes de cargar»; Cargar hasta que no falte nada; mirar el cuadre. Las facturas nuevas deben salir con el número que
+sigue al último cargado, y ninguna debe aparecer en la cola de la DGI.
+
+**Pendiente con el contador:** la equivalencia de cuentas (viejas → nuevas), qué hacer con los 41 cobros sin conciliar y
+los 7 pagos sin aplicar, la revisión de las facturas raras de arriba y el balance de comprobación al día del corte, contra
+el cual se firma el cuadre.
