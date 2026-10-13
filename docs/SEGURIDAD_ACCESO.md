@@ -27,7 +27,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | Rutas de sondeo (`/wp-admin`, `/.env`, `*.php`…) y escáneres (`sqlmap`, `nikto`…) | Borde | 404 / 403 sin despertar a Odoo |
 | Límite de intentos por IP en login, clave, registro, formularios, /socios y carrito | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
 | Cloudflare Turnstile (captcha invisible) | Odoo `website_cf_turnstile` | **Listo y apagado** hasta tener las claves (§6) |
-| **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Encendida en modo «1»** en staging y producción: el personal solo entra por `/master` (§8) |
+| **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Staging en modo «1»**; producción en «0» hasta aclarar por qué `/master` daba «Not Found» (§8) |
 | robots.txt para rastreadores de IA | `dcasa_seguridad` | Política «equilibrada» (§6.3) |
 
 **Lo que NO se rompe:** Brian por MCP entra con **clave de API** (no con contraseña ni con
@@ -251,11 +251,14 @@ el precio vigente antes de contratar algo de pago.
 
 ## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
-> **Estado (2026-10-13):** **staging y producción están en modo `"1"`** (el personal solo entra por `/master`; por
-> `/web/login` ya no). Cada uno tiene su aplicación de Cloudflare Access («Master (staging)» y «Master (producción)»,
-> política «Equipo D'CASA») y sus cuatro secretos. La dueña probó `/master` en producción (PIN al correo, clave y app de
-> códigos) antes de pasar a «1». El modo `"1"` bloquea el login público únicamente si la puerta está completa (los cuatro
-> secretos): sin ellos queda apagada aunque diga `"1"`.
+> **Estado (2026-10-13):** **staging está en modo `"1"`** (el personal solo entra por `/master`; por `/web/login` ya no;
+> la puerta en «1» todavía no se probó de punta a punta allí). **Producción volvió a `"0"`**: con «1», `/master` respondía
+> «Not Found» después del PIN de Access (el borde rechazó el pase) y el personal se quedó sin entrada. Antes de volver a
+> encenderla hay que ver el motivo en los logs del Worker de producción (`puerta_token_rechazado`, campo `motivo`: audiencia,
+> emisor, llave desconocida, firma, vencido o sin correo) y probar la entrada **con el interruptor en `"0"` y de nuevo con
+> `"avisar"`** (§8.5) antes de pasar a `"1"`. Cada entorno tiene su aplicación de Cloudflare Access («Master (staging)» y
+> «Master (producción)», política «Equipo D'CASA») y sus cuatro secretos: son del entorno, no se heredan del otro. El modo
+> `"1"` bloquea el login público únicamente si la puerta está completa (los cuatro secretos).
 >
 > *Historia:* el 2026-10-10 el código quedó construido y probado, apagado hasta cargar los secretos del §8.4 y encender los
 > pasos del §8.5. Pedido de la dueña: que el personal **no** inicie sesión por la página web

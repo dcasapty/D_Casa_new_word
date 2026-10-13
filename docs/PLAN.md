@@ -78,9 +78,10 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 - ✅ Respaldos: WAL continuo y `pg_dump` diario cifrados a R2, con simulacro de restauración en cada
   ejecución de CI ([OPERACION.md](OPERACION.md)). *(Reemplaza el «PITR de Neon» del plan original.)*
 - ⬜ Capacitación: vendedoras (ventas, socios y canjes, Escáner), bodega (inventario), dueña (reportes).
-- ✅ Seguridad de acceso: doble factor obligatorio para administradores y puerta del equipo (Cloudflare Access) en modo
-  «1», en staging y en producción: el personal solo entra por `/master`; `/web/login` es para clientes y socios
-  ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8). Rescate: `DCASA_PUERTA_OBLIGATORIA` en «0» y desplegar.
+- 🟡 Seguridad de acceso: doble factor obligatorio para administradores (staging y producción). Puerta del equipo
+  (Cloudflare Access): staging en «1»; producción volvió a «0» el 2026-10-13 porque con «1» `/master` daba «Not Found»;
+  falta ver el motivo en los logs y volver a encender por pasos «0» → «avisar» → «1»
+  ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8).
 
 ### Fase 4 — Mejoras 🟡
 
