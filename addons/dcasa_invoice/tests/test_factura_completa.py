@@ -16,7 +16,7 @@ class TestFacturaCompleta(TransactionCase):
                            'dcasa_factura_terminos': False})
         pa = cls.env.ref('base.pa').id
         cls.cliente = cls.env['res.partner'].create({
-            'name': 'KAREN SANJUR', 'vat': '8-797-2148', 'phone': '+507 61234567', 'email': 'karen@example.com',
+            'name': 'CLIENTE DE PRUEBA', 'vat': '8-000-0000', 'phone': '+507 61234567', 'email': 'cliente@example.com',
             'street': 'Calle 5, Barrio Balboa', 'city': 'La Chorrera', 'country_id': pa,
         })
         cls.entrega = cls.env['res.partner'].create({
@@ -126,7 +126,8 @@ class TestFacturaCompleta(TransactionCase):
         factura = self._factura_completa()
         self.assertEqual(factura._dcasa_entrega(), self.entrega)
         html = self._render(factura)
-        for texto in ('KAREN SANJUR', 'RUC', '8-797-2148', '6123-4567', 'karen@example.com', 'Calle 5, Barrio Balboa',
+        for texto in ('CLIENTE DE PRUEBA', 'RUC', '8-000-0000', '6123-4567', 'cliente@example.com',
+                      'Calle 5, Barrio Balboa',
                       '>Entrega<', 'Villa Lucre, casa 12', 'Arraiján', '6999-0000',
                       'Fecha de factura', 'Vence', 'Pedido', 'S01004', 'Vendedora', 'Ana Vendedora', 'Condiciones'):
             self.assertIn(texto, html, texto)
@@ -136,7 +137,7 @@ class TestFacturaCompleta(TransactionCase):
         self.assertEqual(datos['Fecha de entrega'], factura._dcasa_fecha(fields.Date.today()))
         # La entrega se imprime con su propio nombre y sin repetir la identificación del cliente.
         self.assertIn('>Casa de Karen<', html)
-        self.assertEqual(html.count('8-797-2148'), 1)
+        self.assertEqual(html.count('8-000-0000'), 1)
 
     def test_referencia_igual_al_pedido_no_se_repite(self):
         factura = self._factura_completa()

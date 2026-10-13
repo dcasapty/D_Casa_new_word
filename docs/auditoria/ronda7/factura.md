@@ -1,7 +1,8 @@
 # Ronda 7 — Factura impresa (`dcasa_invoice`)
 
 Fecha: 2026-10-03. Rediseño del reporte de factura, cotización y pedido tomando como
-referencia `up media/factura-sistema-anterior-INV_2026_00858.pdf`. **Nada se desplegó.**
+referencia una factura del sistema anterior (INV/2026/00858; su PDF se retiró del repositorio el 2026-10-13
+porque llevaba el nombre y la cédula de un cliente). **Nada se desplegó.**
 
 ## Muestras (datos ficticios, generadas en una base de prueba)
 

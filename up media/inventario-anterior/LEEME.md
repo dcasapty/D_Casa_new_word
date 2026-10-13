@@ -6,8 +6,8 @@ Suma «A la mano» por página (para verificar la transcripción): 565 · 490 ·
 
 Pendiente (ronda 7): transcribir con doble lectura, cruzar por código con el catálogo actual,
 convertir los «COMBO … + COLCHÓN» en el campo combo del producto, existencias negativas → 0 con
-aviso, y lista de fotos faltantes para la dueña. La factura del sistema anterior está en
-`../factura-sistema-anterior-INV_2026_00858.pdf` (referencia para el rediseño de dcasa_invoice).
+aviso, y lista de fotos faltantes para la dueña. La factura del sistema anterior que sirvió de referencia para el rediseño de dcasa_invoice se retiró del
+repositorio el 2026-10-13: llevaba el nombre y la cédula de un cliente.
 
 ## Reglas de la dueña para la carga (2026-10-02, confirmadas)
 
