@@ -142,8 +142,9 @@ a ninguna factura.
   uno que sale de sus propios datos. Volver a cargar no repite nada, y un pago que había quedado a medias se aplica
   cuando su factura llega.
 - **Por tandas.** Una factura o un pago tarda ~0.2 s; ~2,100 documentos son ~8 minutos, demasiado para una sola
-  petición. Cada «Cargar» trabaja ~40 segundos y dice cuántos faltan; se pulsa de nuevo hasta que diga «Ya no falta nada»
-  (unas 12 veces). **Revisar** corre una tanda y la deshace, pero su sección «Antes de cargar» abarca todo el archivo
+  petición. Cada «Cargar» trabaja ~40 segundos y dice cuántos faltan; se pulsa de nuevo hasta que ya no falte nada
+  (unas 14 veces con los datos del año; en una copia local con 1,005 facturas y 1,141 pagos inventados tardó 9 minutos
+  en total, sin errores, y el cuadre dio igual al archivo). **Revisar** corre una tanda y la deshace, pero su sección «Antes de cargar» abarca todo el archivo
   (contactos, impuestos, diarios o productos que faltan, facturas que los pagos citan y no están).
 - **Cuadre al terminar:** base, impuesto, total y saldo del archivo contra lo cargado, las facturas que quedaron con otro
   saldo y lo que el libro mayor dice que deben los clientes (o se les debe a los proveedores). Si el libro no coincide con
