@@ -1,8 +1,8 @@
 # Cargar los datos del sistema anterior (`dcasa_migracion`)
 
 Pantalla de **Ajustes › Cargar datos del sistema anterior** (solo administradores). Carga, **una sola vez**, lo que
-deja la receta de migración (Cowork, en la computadora de la dueña): clientes, proveedores, productos, existencias y
-precios de proveedor.
+deja la receta de migración (Cowork, en la computadora de la dueña): clientes, proveedores, productos, existencias,
+precios de proveedor y lo que quedó a medias (ventas por facturar o entregar, compras por recibir o facturar).
 
 > **Los datos de las personas nunca pasan por GitHub, por el repositorio ni por el chat.** El archivo de clientes se
 > sube desde el navegador, directo a Odoo, con la sesión de un administrador. El módulo no trae ningún dato de personas
@@ -17,11 +17,12 @@ precios de proveedor.
 | Productos activos (555) | `productos.csv` | Mismas reglas del inventario anterior |
 | Existencias (444 filas) | `inventario.csv` | Se reemplazan por las del archivo |
 | Precios de proveedor (251) | `precios_proveedor.csv` | `id_proveedor_viejo, codigo_producto, precio` y, si hay, `cantidad_minima` |
+| Ventas con algo pendiente (27) | `ventas_pendientes.csv` + `ventas_pendientes_lineas.csv` | Las **por facturar** (24) quedan como factura en **borrador**; las **por entregar** (10) solo se listan |
+| Compras con algo pendiente (20) | `compras_pendientes.csv` + `compras_pendientes_lineas.csv` | Las **por recibir** (4) quedan como orden de compra confirmada; las **por facturar** (16), como factura de proveedor en **borrador** |
 
-**Todavía no entra** (se agrega a esta misma pantalla, un cargador por grupo; el formato de cada archivo lo define el
-módulo, no Cowork): las **órdenes de venta abiertas** (entrega o factura pendiente), las **órdenes de compra abiertas**
-(recepción o factura pendiente) y la **contabilidad** (facturas de clientes y de proveedores, pagos), esta última con su
-propio cuadre contra el balance de comprobación del sistema viejo y la firma del contador.
+**Todavía no entra:** la **contabilidad** (todas las facturas del año, pagos y plan de cuentas): ver el final de este
+documento. Se agrega a esta misma pantalla, con su propio cuadre contra el balance de comprobación del sistema viejo y la
+firma del contador.
 
 **No entra, a propósito:** el historial de ventas ya cerradas, los movimientos viejos de inventario, la configuración del
 sistema anterior y sus ~2,700 adjuntos (las fotos de productos ya están en el catálogo).
@@ -31,8 +32,9 @@ sistema anterior y sus ~2,700 adjuntos (las fotos de productos ya están en el c
 1. Exportar de nuevo el sistema anterior y correr la receta (`LEEME_RECETA.md`): deja `clientes.csv`, `productos.csv` e
    `inventario.csv` (UTF-8, coma, punto decimal). No abrirlos con Excel y guardarlos: subirlos tal cual.
 2. **Ajustes › Cargar datos del sistema anterior**: subir los archivos. Conviene hacerlo **por pasadas** (primero
-   `clientes.csv` y `proveedores.csv`, después `productos.csv` con `inventario.csv`, y al final `precios_proveedor.csv`,
-   que usa a los proveedores y a los productos): cada pasada es una sola petición y tarda menos. Con
+   `clientes.csv` y `proveedores.csv`, después `productos.csv` con `inventario.csv`, luego `precios_proveedor.csv` y al
+   final las ventas y compras pendientes, que usan a los contactos y a los productos): cada pasada es una sola petición y
+   tarda menos. Con
    datos del tamaño de la exportación del 2026-10-12, en una copia local: 958 clientes ≈ 20 s; 555 productos nuevos
    ≈ 105 s (si ya existen, solo se ajustan existencias y tarda menos). El informe dice cuánto tardó cada pasada.
 3. **Revisar (no cambia nada).** Corre la carga completa y la deshace; el informe dice qué pasaría. Mirarlo con calma.
@@ -74,15 +76,47 @@ precio que ya existe para ese proveedor, producto y cantidad mínima. Lo que no 
 - Existencias negativas entran en 0 y se listan. Un código repetido: solo entra el primero.
 - Sin `inventario.csv` no se toca ninguna existencia.
 
-## Qué falta: órdenes abiertas y contabilidad histórica
+**Ventas y compras pendientes** (`dcasa_migracion/documentos.py`). Solo se carga **lo que falta por hacer**, nunca el
+historial ya cerrado:
+- **Ventas por facturar → factura de cliente en borrador**, una por orden, con las cantidades `pendiente_facturar`. El
+  borrador no tiene número, no va a la DGI ni suma puntos de Socios: quien factura la revisa y la publica, y recién ahí
+  sale con el número que sigue en la numeración nueva. Lleva el número de la orden vieja en «Documento origen». El
+  impuesto es el del producto; una línea sin producto (un servicio suelto, un código que no existe) lleva el nombre del
+  archivo y el ITBMS de venta por defecto. Si la orden se factura completa y su total no coincide con el del archivo,
+  el informe lo marca «revisar antes de publicar».
+- **Ventas por entregar:** no se cargan. El informe las lista (orden, cliente, producto y cantidad) para entregarlas o
+  rehacerlas a mano: esa mercancía ya cuenta en `inventario.csv`, y entregarla desde una orden cargada la descontaría
+  dos veces.
+- **Compras por recibir → orden de compra confirmada**, una por orden, solo con las cantidades `pendiente_recibir` y con
+  la fecha y el número del proveedor del archivo. Al recibir la mercancía entra al inventario. Odoo no confirma una orden
+  con líneas sin producto: si falta un producto, esa orden sale como error con el código que falta y se carga cuando el
+  producto exista. Si el sistema anterior ya la había facturado (total o parcialmente), la nota de la orden dice
+  «NO la factures otra vez» y el informe la lista. *El ensayo puede saltar números de órdenes de compra y de
+  recepciones (las secuencias de Odoo no se deshacen); no importa, no son documentos fiscales.*
+- **Compras por facturar → factura de proveedor en borrador**, una por orden, con las cantidades `pendiente_facturar`.
+  Lleva el número del proveedor (`referencia_proveedor`); si el archivo no lo trae, el informe la lista para ponérselo a
+  mano. La fecha de la factura la pone quien la registra (es la que trae el papel del proveedor).
+- Todo es **idempotente**: cada documento guarda el número de la orden vieja como id externo (`__import__.dcasa_venta_<n>`,
+  `dcasa_compra_<n>`, `dcasa_factura_compra_<n>`). Volver a cargar no repite nada, y borrar un documento permite cargarlo
+  de nuevo.
 
-Las **órdenes de venta y de compra abiertas** se definen con la descripción que entregue Cowork (hay que decidir cómo
-traerlas sin duplicar contabilidad ni mover el stock dos veces).
+## Qué falta: contabilidad histórica
 
-### Contabilidad histórica
+Cowork entregó (2026-10-13) la exportación de **todas las facturas ya emitidas del año**, con la receta
+`receta\exportar_facturas.py`: `facturas_clientes.csv` (1,005), `facturas_clientes_lineas.csv` (1,637),
+`facturas_proveedores.csv` (14), `facturas_proveedores_lineas.csv` (40) y `pagos.csv` (1,141), más un `REPORTE.md` cuyo
+cuadre coincide con la contabilidad del sistema anterior. Lo que dice el reporte y hay que tener presente:
 
-Las facturas de clientes (1,006), las de proveedores (18) y los pagos (1,144) del sistema anterior **entran** en una segunda
-etapa, con sus números originales y cada pago enlazado a su factura. Antes: el plan de cuentas, los diarios y los
-impuestos del sistema anterior contra los de aquí, y el balance de comprobación al día del corte. Cuando termine la
-carga, el total por cuenta de este sistema debe **cuadrar al centavo** con el del anterior, y el contador lo firma. Las
-facturas viejas no deben reenviarse a la DGI ni dar puntos de Socios, y las facturas nuevas deben continuar la numeración.
+- El sistema anterior solo tiene facturas **desde el 22 de julio**; de enero a julio no hay nada en él (si se facturó en
+  otro programa, eso es otra conversación).
+- No hay notas de crédito en el periodo; los archivos están preparados para incluirlas el día del corte.
+- `referencia_fiscal` (número de factura electrónica) viene vacía y `condicion_pago` también en las de cliente.
+- 2 facturas están a nombre de la propia empresa (su cliente no está en `clientes.csv` a propósito); 3 facturas de
+  proveedor tienen total 0 y 3 tienen fecha contable adelantada: se listan para revisar, no se cargan a ciegas.
+- 41 cobros sin conciliar con el banco y 7 pagos sin aplicar a ninguna factura.
+
+El cargador de esta etapa respeta los números originales de cada factura, enlaza cada pago a su factura, **no reenvía
+nada a la DGI ni da puntos de Socios**, y deja que las facturas nuevas continúen la numeración. Antes de escribirlo
+quedan por decidir con el contador: cómo se relacionan las cuentas del sistema anterior con las de aquí, qué hacer con
+los pagos sin conciliar y las facturas raras de arriba, y el balance de comprobación al día del corte contra el cual
+cuadra el total por cuenta (al centavo, firmado por el contador).

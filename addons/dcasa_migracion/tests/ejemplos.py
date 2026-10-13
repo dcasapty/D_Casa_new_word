@@ -60,3 +60,44 @@ PRECIOS = BOM + '\n'.join([
 
 def como_bytes(texto):
     return texto.encode('utf-8')
+VENTAS = BOM + '\n'.join([
+    'numero_orden,id_cliente_viejo,fecha,total,estado_entrega,estado_facturacion,pendiente',
+    'S99901,90001,2026-09-02,450,completa,por facturar,facturar',
+    'S99902,90002,2026-09-15,1299.99,completa,por facturar,entregar y facturar',
+    'S99903,90003,2026-10-01,89,completa,facturada,entregar',
+    'S99904,90001,2026-10-08,215.5,,facturada,entregar',
+    'S99905,90005,2026-10-11,60,completa,por facturar,facturar',
+    '',
+])
+
+VENTAS_LINEAS = BOM + '\n'.join([
+    'numero_orden,linea,codigo_producto,nombre_producto,tipo_producto,cantidad,precio_unitario,descuento,'
+    'cantidad_entregada,cantidad_facturada,pendiente_entregar,pendiente_facturar',
+    'S99901,1,PRUEBA-001,Producto de Prueba 1,bien,2,199.99,0,2,0,0,2',
+    'S99901,2,ENVIO-PRUEBA,Servicio de Prueba (entrega),servicio,1,25,0,0,0,0,1',
+    'S99902,1,PRUEBA-005,Combo de Prueba 5,combo,1,1299.99,0,0,0,0,0',
+    'S99902,2,PRUEBA-002,Producto de Prueba 2,bien,1,0,0,0,0,1,1',
+    'S99903,1,PRUEBA-003,Producto de Prueba 3,bien,3,29.67,0,2,3,1,0',
+    '',
+])
+
+COMPRAS = BOM + '\n'.join([
+    'numero_orden,id_proveedor_viejo,referencia_proveedor,fecha,total,estado_recepcion,estado_facturacion,pendiente',
+    'P99901,70001,FAC-PRUEBA-001,2026-08-03,5400,completa,por facturar,facturar',
+    'P99902,70002,,2026-08-20,12850.75,completa,por facturar,facturar',
+    'P99903,70001,FAC-PRUEBA-003,2026-09-10,980,completa,por facturar,recibir',
+    'P99904,70004,,2026-10-02,2300,pendiente,nada que facturar,recibir',
+    'P99905,70005,PI-PRUEBA-005,2026-10-08,760,pendiente,facturada,recibir',
+    '',
+])
+
+COMPRAS_LINEAS = BOM + '\n'.join([
+    'numero_orden,linea,codigo_producto,nombre_producto,cantidad,precio_unitario,descuento,cantidad_recibida,'
+    'cantidad_facturada,pendiente_recibir,pendiente_facturar',
+    'P99901,1,PRUEBA-001,Producto de Prueba 1,20,85.5,0,20,0,0,20',
+    'P99901,2,PRUEBA-002,Producto de Prueba 2,50,22,0,50,0,0,50',
+    'P99903,1,PRUEBA-003,Producto de Prueba 3,10,98,0,8,0,2,8',
+    'P99904,1,PRUEBA-004,Producto de Prueba 4,25,92,0,0,0,25,0',
+    'P99905,1,PRUEBA-005,Producto de Prueba 5,12,63.33,0,0,12,12,0',
+    '',
+])

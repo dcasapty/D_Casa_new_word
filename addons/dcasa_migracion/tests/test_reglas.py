@@ -187,3 +187,51 @@ class TestProveedoresYPrecios(BaseCase):
     def test_un_precio_mal_escrito_dice_en_que_fila(self):
         with self.assertRaisesRegex(R.ErrorDeArchivo, 'Fila 3: «caro»'):
             R.filas_precios_proveedor('id_proveedor_viejo,codigo_producto,precio\n1,A,2\n1,B,caro\n')
+
+
+@tagged('post_install', '-at_install')
+class TestOrdenesPendientes(BaseCase):
+
+    def test_ventas_de_los_cinco_ejemplos(self):
+        ordenes, errores = R.filas_ventas_pendientes(ejemplos.VENTAS, ejemplos.VENTAS_LINEAS)
+        self.assertEqual(errores, [])
+        self.assertEqual([o['numero'] for o in ordenes], ['S99901', 'S99902', 'S99903', 'S99904', 'S99905'])
+        s1 = ordenes[0]
+        self.assertEqual((s1['id_contacto'], s1['fecha'], s1['total']), (90001, '2026-09-02', 450.0))
+        self.assertEqual([(f['codigo'], f['cantidad'], f['pend_facturar'], f['pend_entregar']) for f in s1['lineas']],
+                         [('PRUEBA-001', 2.0, 2.0, 0.0), ('ENVIO-PRUEBA', 1.0, 1.0, 0.0)])
+        self.assertEqual(ordenes[1]['lineas'][1]['pend_entregar'], 1.0)
+        self.assertEqual(ordenes[3]['lineas'], [], 'S99904 no trae líneas en el ejemplo')
+
+    def test_compras_de_los_cinco_ejemplos(self):
+        ordenes, errores = R.filas_compras_pendientes(ejemplos.COMPRAS, ejemplos.COMPRAS_LINEAS)
+        self.assertEqual(errores, [])
+        self.assertEqual([(o['numero'], o['id_contacto'], o['referencia']) for o in ordenes],
+                         [('P99901', 70001, 'FAC-PRUEBA-001'), ('P99902', 70002, ''),
+                          ('P99903', 70001, 'FAC-PRUEBA-003'), ('P99904', 70004, ''),
+                          ('P99905', 70005, 'PI-PRUEBA-005')])
+        p3 = ordenes[2]['lineas'][0]
+        self.assertEqual((p3['cantidad'], p3['recibida'], p3['pend_recibir'], p3['pend_facturar'], p3['precio']),
+                         (10.0, 8.0, 2.0, 8.0, 98.0))
+
+    def test_el_pendiente_que_falta_se_calcula(self):
+        ordenes, errores = R.filas_ventas_pendientes(
+            'numero_orden,id_cliente_viejo\nS1,5\n',
+            'numero_orden,cantidad,precio_unitario,cantidad_entregada,cantidad_facturada\nS1,10,3,4,6\n')
+        self.assertEqual(errores, [])
+        linea = ordenes[0]['lineas'][0]
+        self.assertEqual((linea['pend_entregar'], linea['pend_facturar']), (6.0, 4.0))
+
+    def test_ordenes_con_problemas(self):
+        ordenes, errores = R.filas_ventas_pendientes(
+            'numero_orden,id_cliente_viejo,fecha\nS1,5,2026-10-01\n,6,\nS3,abc,\nS1,5,\nS5,5,2026-13-45\n',
+            'numero_orden,cantidad,precio_unitario\nS1,1,10\nS9,1,10\nS5,1,10\n')
+        self.assertEqual([o['numero'] for o in ordenes], ['S1'])
+        motivos = ' | '.join(f'{numero}: {motivo}' for numero, motivo in errores)
+        for texto in ('fila 3', 'S3', 'aparece dos veces', 'AAAA-MM-DD', 'S9: una línea'):
+            self.assertIn(texto, motivos)
+        self.assertNotIn('S5: una línea', motivos, 'Las líneas de una orden ya rechazada no se reportan otra vez')
+
+    def test_faltan_columnas(self):
+        with self.assertRaisesRegex(R.ErrorDeArchivo, 'ventas_pendientes_lineas.csv'):
+            R.filas_ventas_pendientes('numero_orden,id_cliente_viejo\nS1,5\n', 'numero_orden,cantidad\nS1,1\n')

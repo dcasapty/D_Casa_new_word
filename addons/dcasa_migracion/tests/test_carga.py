@@ -140,3 +140,41 @@ class TestAsistenteDeCarga(TransactionCase):
         asistente.action_cargar()
         precios = self.env['product.supplierinfo'].search([('product_tmpl_id.default_code', '=', 'PRUEBA-001')])
         self.assertEqual(precios.mapped('price'), [85.5])
+
+    def test_ventas_y_compras_pendientes_van_al_final_de_la_misma_carga(self):
+        """Las facturas en borrador y las órdenes de compra usan a los contactos y productos de la misma pasada."""
+        asistente = self.Carga.create({
+            'archivo_clientes': _b64(ejemplos.CLIENTES), 'archivo_proveedores': _b64(ejemplos.PROVEEDORES),
+            'archivo_productos': _b64(ejemplos.PRODUCTOS), 'archivo_inventario': _b64(ejemplos.INVENTARIO),
+            'archivo_ventas': _b64(ejemplos.VENTAS), 'archivo_ventas_lineas': _b64(ejemplos.VENTAS_LINEAS),
+            'archivo_compras': _b64(ejemplos.COMPRAS), 'archivo_compras_lineas': _b64(ejemplos.COMPRAS_LINEAS)})
+        asistente.action_revisar()
+        for texto in ('Ventas por facturar', 'por entregar', 'Compras por recibir', 'Compras por facturar'):
+            self.assertIn(texto, asistente.informe)
+        Movimiento = self.env['account.move']
+        self.assertFalse(Movimiento.search([('invoice_origin', 'in', ['S99901', 'S99902', 'P99901'])]),
+                         'El ensayo no deja ninguna factura')
+        self.assertFalse(self.env['purchase.order'].search([('origin', '=', 'P99905')]))
+        asistente.action_cargar()
+        venta = Movimiento.search([('invoice_origin', '=', 'S99901')])
+        self.assertEqual((venta.move_type, venta.state), ('out_invoice', 'draft'))
+        compra = Movimiento.search([('invoice_origin', '=', 'P99901')])
+        self.assertEqual((compra.move_type, compra.state, compra.ref), ('in_invoice', 'draft', 'FAC-PRUEBA-001'))
+        orden = self.env['purchase.order'].search([('origin', '=', 'P99905')])
+        self.assertEqual(orden.state, 'purchase')
+        # Volver a cargar lo mismo no repite nada.
+        repetido = self.Carga.create({
+            'archivo_ventas': asistente.archivo_ventas, 'archivo_ventas_lineas': asistente.archivo_ventas_lineas,
+            'archivo_compras': asistente.archivo_compras, 'archivo_compras_lineas': asistente.archivo_compras_lineas})
+        repetido.action_revisar()
+        repetido.action_cargar()
+        self.assertEqual(Movimiento.search_count([('invoice_origin', '=', 'S99901')]), 1)
+        self.assertEqual(self.env['purchase.order'].search_count([('origin', '=', 'P99905')]), 1)
+
+    def test_las_ordenes_pendientes_se_suben_en_pareja(self):
+        asistente = self.Carga.create({'archivo_ventas': _b64(ejemplos.VENTAS)})
+        with self.assertRaisesRegex(UserError, 'ventas_pendientes_lineas.csv'):
+            asistente.action_revisar()
+        asistente = self.Carga.create({'archivo_compras_lineas': _b64(ejemplos.COMPRAS_LINEAS)})
+        with self.assertRaisesRegex(UserError, 'compras_pendientes.csv'):
+            asistente.action_revisar()

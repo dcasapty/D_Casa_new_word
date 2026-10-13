@@ -17,6 +17,9 @@ COLUMNAS_CLIENTES = ('id_viejo', 'nombre')
 COLUMNAS_PRODUCTOS = ('codigo', 'nombre')
 COLUMNAS_INVENTARIO = ('codigo_producto', 'cantidad')
 COLUMNAS_PRECIOS = ('id_proveedor_viejo', 'codigo_producto', 'precio')
+COLUMNAS_VENTAS = ('numero_orden', 'id_cliente_viejo')
+COLUMNAS_COMPRAS = ('numero_orden', 'id_proveedor_viejo')
+COLUMNAS_LINEAS = ('numero_orden', 'cantidad', 'precio_unitario')
 
 _SEPARADORES_DE_TELEFONO = re.compile(r'[/;,|]|\s+y\s+|\s+o\s+', re.IGNORECASE)
 _SI = {'si', 'sí', 's', 'true', '1', 'yes', 'y', 'x'}
@@ -216,6 +219,105 @@ def filas_precios_proveedor(texto):
             'moneda': celdas.get('moneda', ''), 'cantidad_minima': minima if minima and minima > 0 else 1.0,
             'descuento': descuento or 0.0, 'plazo': int(plazo or 0), 'desde': desde, 'hasta': hasta})
     return filas, errores
+
+
+# ----------------------------------------------------------------------------------------------
+# Órdenes pendientes (ventas y compras)
+# ----------------------------------------------------------------------------------------------
+
+def _pendiente(celdas, columna, total, hecho):
+    """La cantidad pendiente: la que trae el archivo o, si falta, lo pedido menos lo hecho."""
+    crudo = celdas.get(columna, '')
+    if crudo != '':
+        return numero(crudo, columna, 0) or 0.0
+    return max((total or 0.0) - (hecho or 0.0), 0.0)
+
+
+def _ordenes(texto_cabecera, texto_lineas, nombre_cabecera, nombre_lineas, columnas_cabecera, columna_contacto,
+             lector_de_linea):
+    """Une cada orden con sus líneas. ``(ordenes, errores)``; un error es ``(numero_orden, motivo)``."""
+    ordenes, errores, por_numero, rechazadas = [], [], {}, set()
+    for posicion, celdas in enumerate(leer_csv(texto_cabecera, columnas_cabecera, nombre_cabecera), start=2):
+        numero_orden = celdas.get('numero_orden', '')
+        crudo = celdas.get(columna_contacto, '')
+        if not numero_orden or not crudo.isdigit():
+            errores.append((numero_orden or f'fila {posicion}', 'le falta el número de orden o el número del contacto'))
+            continue
+        if numero_orden in por_numero:
+            errores.append((numero_orden, 'la orden aparece dos veces'))
+            continue
+        try:
+            fecha = _fecha(celdas.get('fecha', ''))
+        except ValueError:
+            errores.append((numero_orden, 'la fecha está mal escrita (AAAA-MM-DD)'))
+            rechazadas.add(numero_orden)
+            continue
+        orden = {'numero': numero_orden, 'id_contacto': int(crudo), 'fecha': fecha,
+                 'total': numero(celdas.get('total'), 'total', posicion), 'lineas': [],
+                 'referencia': celdas.get('referencia_proveedor', '')}
+        por_numero[numero_orden] = orden
+        ordenes.append(orden)
+    for posicion, celdas in enumerate(leer_csv(texto_lineas, COLUMNAS_LINEAS, nombre_lineas), start=2):
+        orden = por_numero.get(celdas.get('numero_orden', ''))
+        if orden is None and celdas.get('numero_orden', '') in rechazadas:
+            continue  # la orden ya se reportó con error: sus líneas no se reportan otra vez
+        if orden is None:
+            errores.append((celdas.get('numero_orden', '') or f'fila {posicion}',
+                            f'una línea de {nombre_lineas} no tiene su orden en {nombre_cabecera}'))
+            continue
+        orden['lineas'].append(lector_de_linea(celdas, posicion))
+    return ordenes, errores
+
+
+def _linea_comun(celdas, posicion):
+    cantidad = numero(celdas.get('cantidad'), 'cantidad', posicion) or 0.0
+    return {
+        'linea': celdas.get('linea', ''), 'codigo': celdas.get('codigo_producto', ''),
+        'nombre': re.sub(r'\s+', ' ', celdas.get('nombre_producto', '')).strip(), 'cantidad': cantidad,
+        'precio': numero(celdas.get('precio_unitario'), 'precio_unitario', posicion) or 0.0,
+        'descuento': numero(celdas.get('descuento'), 'descuento', posicion) or 0.0,
+    }
+
+
+def _linea_de_venta(celdas, posicion):
+    linea = _linea_comun(celdas, posicion)
+    entregada = numero(celdas.get('cantidad_entregada'), 'cantidad_entregada', posicion) or 0.0
+    facturada = numero(celdas.get('cantidad_facturada'), 'cantidad_facturada', posicion) or 0.0
+    linea.update({
+        'tipo': celdas.get('tipo_producto', ''), 'entregada': entregada, 'facturada': facturada,
+        'pend_entregar': _pendiente(celdas, 'pendiente_entregar', linea['cantidad'], entregada),
+        'pend_facturar': _pendiente(celdas, 'pendiente_facturar', linea['cantidad'], facturada)})
+    return linea
+
+
+def _linea_de_compra(celdas, posicion):
+    linea = _linea_comun(celdas, posicion)
+    recibida = numero(celdas.get('cantidad_recibida'), 'cantidad_recibida', posicion) or 0.0
+    facturada = numero(celdas.get('cantidad_facturada'), 'cantidad_facturada', posicion) or 0.0
+    linea.update({
+        'recibida': recibida, 'facturada': facturada,
+        'pend_recibir': _pendiente(celdas, 'pendiente_recibir', linea['cantidad'], recibida),
+        'pend_facturar': _pendiente(celdas, 'pendiente_facturar', linea['cantidad'], facturada)})
+    return linea
+
+
+def filas_ventas_pendientes(texto_ordenes, texto_lineas):
+    """``(ordenes, errores)`` de ventas_pendientes.csv y ventas_pendientes_lineas.csv.
+
+    Cada orden: ``numero``, ``id_contacto`` (el cliente), ``fecha``, ``total`` y ``lineas`` con ``codigo``, ``nombre``,
+    ``tipo``, ``cantidad``, ``precio``, ``descuento``, ``entregada``, ``facturada``, ``pend_entregar`` y
+    ``pend_facturar``.
+    """
+    return _ordenes(texto_ordenes, texto_lineas, 'ventas_pendientes.csv', 'ventas_pendientes_lineas.csv',
+                    COLUMNAS_VENTAS, 'id_cliente_viejo', _linea_de_venta)
+
+
+def filas_compras_pendientes(texto_ordenes, texto_lineas):
+    """``(ordenes, errores)`` de compras_pendientes.csv y compras_pendientes_lineas.csv (el contacto es el proveedor;
+    ``referencia`` es la del proveedor; cada línea trae ``recibida``, ``facturada``, ``pend_recibir`` y
+    ``pend_facturar``)."""
+    return _ordenes(texto_ordenes, texto_lineas, 'compras_pendientes.csv', 'compras_pendientes_lineas.csv',
+                    COLUMNAS_COMPRAS, 'id_proveedor_viejo', _linea_de_compra)
 
 
 # ----------------------------------------------------------------------------------------------
