@@ -14,7 +14,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 
 | Protección | Dónde | Estado |
 |---|---|---|
-| Doble factor con app de códigos (Google Authenticator, Microsoft Authenticator…) | Odoo `auth_totp` | Disponible para quien lo active. **No obligatorio** todavía |
+| Doble factor con app de códigos (Google Authenticator, Microsoft Authenticator…) | Odoo `auth_totp` | **Obligatorio para administradores** en staging y producción (§3) |
 | Llaves de acceso (passkeys: huella o cara del teléfono/computadora) | Odoo `auth_passkey` | Disponible |
 | Bloqueo progresivo por intentos fallidos | `dcasa_seguridad` | Activo: 5 fallos desde una IP → espera 1 min, luego 2, 4, 8… hasta 30 min |
 | Límite del doble factor | Odoo | Activo: 5 códigos por hora por usuario |
@@ -27,7 +27,7 @@ Módulo: `addons/dcasa_seguridad`. Borde: `edge/src/bots.ts`.
 | Rutas de sondeo (`/wp-admin`, `/.env`, `*.php`…) y escáneres (`sqlmap`, `nikto`…) | Borde | 404 / 403 sin despertar a Odoo |
 | Límite de intentos por IP en login, clave, registro, formularios, /socios y carrito | Borde | Activo (contador en memoria; mejor con el binding de Cloudflare, §7) |
 | Cloudflare Turnstile (captcha invisible) | Odoo `website_cf_turnstile` | **Listo y apagado** hasta tener las claves (§6) |
-| **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Construida y apagada** hasta cargar los cuatro secretos (§8) |
+| **La puerta del equipo** (PIN al correo con Cloudflare Access antes de la clave) | Borde + `dcasa_seguridad` | **Encendida en modo «1»** en staging y producción: el personal solo entra por `/master` (§8) |
 | robots.txt para rastreadores de IA | `dcasa_seguridad` | Política «equilibrada» (§6.3) |
 
 **Lo que NO se rompe:** Brian por MCP entra con **clave de API** (no con contraseña ni con
@@ -251,10 +251,11 @@ el precio vigente antes de contratar algo de pago.
 
 ## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
-> **Estado (2026-10-13):** **staging está en modo `"1"`** (el personal solo entra por `/master`; por `/web/login` ya no).
-> **Producción sigue apagada (`"0"`)** hasta crear su aplicación de Cloudflare Access y cargar sus cuatro secretos (§8.4);
-> mientras tanto el personal puede entrar por `/web/login`, solo con clave y código de la app. El modo `"1"` bloquea el
-> login público únicamente si la puerta está completa (los cuatro secretos): sin ellos queda apagada aunque diga `"1"`.
+> **Estado (2026-10-13):** **staging y producción están en modo `"1"`** (el personal solo entra por `/master`; por
+> `/web/login` ya no). Cada uno tiene su aplicación de Cloudflare Access («Master (staging)» y «Master (producción)»,
+> política «Equipo D'CASA») y sus cuatro secretos. La dueña probó `/master` en producción (PIN al correo, clave y app de
+> códigos) antes de pasar a «1». El modo `"1"` bloquea el login público únicamente si la puerta está completa (los cuatro
+> secretos): sin ellos queda apagada aunque diga `"1"`.
 >
 > *Historia:* el 2026-10-10 el código quedó construido y probado, apagado hasta cargar los secretos del §8.4 y encender los
 > pasos del §8.5. Pedido de la dueña: que el personal **no** inicie sesión por la página web

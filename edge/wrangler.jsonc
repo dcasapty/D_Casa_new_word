@@ -81,7 +81,9 @@
     // DCASA_PUERTA_SECRETO, DCASA_ACCESS_EQUIPO, DCASA_ACCESS_AUD); sin ellos no hace nada. Este interruptor
     // es el último paso: "0" apagada · "avisar" anota a quien entra sin la puerta pero lo deja entrar ·
     // "1" el personal solo entra por la puerta. Rescate si la puerta no abre: ponerlo en "0" y desplegar.
-    "DCASA_PUERTA_OBLIGATORIA": "0",
+    // "1" desde el 2026-10-13 (pedido de la dueña: el personal no inicia sesión por /web/login; ya probó /master con
+    // Access y la app de códigos en producción).
+    "DCASA_PUERTA_OBLIGATORIA": "1",
     // "1" = el correo con que se pasó la puerta debe ser el correo (o usuario) de la cuenta de Odoo.
     "DCASA_PUERTA_EXIGIR_CORREO": "0"
     // Turnstile: "TURNSTILE_SITE_KEY": "<clave pública del widget>" aquí y TURNSTILE_SECRET como
