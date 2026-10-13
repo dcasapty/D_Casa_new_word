@@ -186,8 +186,9 @@ def cargar_facturas(env, facturas, rol, presupuesto):
 # ----------------------------------------------------------------------------------------------
 
 def rotulo_de_pago(pago):
-    """Cómo se nombra un pago en el informe (no tiene número): fecha, monto y su referencia."""
-    return f'{pago["fecha"]} · {pago["monto"]:.2f} · {pago["referencia"] or pago["diario"]}'
+    """Cómo se nombra un pago en el informe: su número (si el archivo lo trae), fecha, monto y referencia."""
+    detalle = f'{pago["fecha"]} · {pago["monto"]:.2f} · {pago["referencia"] or pago["diario"]}'
+    return f'{pago["numero"]} · {detalle}' if pago['numero'] else detalle
 
 
 def _conciliar(env, pago, datos):
@@ -225,6 +226,7 @@ def _crear_pago(env, Pago, datos, contacto, diario):
         # escribe después de crear (Odoo recalcula la cuenta en tránsito al crear el pago).
         pago.outstanding_account_id = diario.default_account_id
     pago.action_post()
+    pago.move_id.dcasa_historica = True
     return pago
 
 

@@ -203,7 +203,7 @@ class TestAsistenteDeCarga(TransactionCase):
                 self.assertTrue(asistente.huella_revisada, 'Quedan documentos: la revisión sigue valiendo')
                 self.assertIn('Pulsa «Cargar» otra vez', asistente.informe)
         self.assertFalse(asistente.huella_revisada, 'Ya no falta nada')
-        self.assertEqual(cargados, 10)
+        self.assertEqual(cargados, 10 + 5, '10 facturas y los 5 asientos de los pagos')
         self.assertEqual(
             self.env['account.payment'].search_count([('memo', 'ilike', 'Cargado del sistema anterior')]), 5)
         self.assertIn('Cuadre contra el archivo', asistente.informe)
