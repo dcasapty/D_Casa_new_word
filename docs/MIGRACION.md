@@ -154,7 +154,7 @@ a ninguna factura.
   la suma de saldos del archivo, la diferencia son pagos sin aplicar o notas de crédito aplicadas distinto: lo revisa el
   contador y firma.
 
-**Contabilidad completa (Cowork, 2026-10-13, `receta\\exportar_contabilidad.py`):** el detalle de todas las líneas de
+**Contabilidad completa (Cowork, 2026-10-13, `receta\exportar_contabilidad.py`):** el detalle de todas las líneas de
 asiento (5,971 en 2,162 asientos) confirma que el libro del año son **solo** los asientos de las 1,005 facturas de cliente,
 las 14 de proveedor y los 1,141 pagos, más 2 movimientos de extracto de banco en el diario de efectivo; **no hay asientos
 manuales ni de apertura**. Debe y haber cuadran (347,725.70) en total y en cada asiento. Por eso cargar las facturas y los
