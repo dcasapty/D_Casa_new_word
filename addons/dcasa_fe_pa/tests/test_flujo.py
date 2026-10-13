@@ -41,6 +41,29 @@ class TestApagado(FeComun):
 
 
 @tagged('post_install', '-at_install')
+class TestFacturaHistorica(FeComun):
+    """Lo cargado del sistema anterior no se valida ni se envía a la DGI, aunque la FE esté operando."""
+
+    def _cliente_incompleto(self):
+        # Sin dirección ni ubicación: una factura nueva con la FE operando no se publicaría.
+        return self.env['res.partner'].create({
+            'name': 'Mueblería X', 'vat': '8-NT-2-1', 'l10n_pa_dv': '3', 'country_id': self.env.ref('base.pa').id})
+
+    def test_publicar_una_historica_no_crea_documento_ni_valida(self):
+        self._activar()
+        factura = self._factura(self._cliente_incompleto(), publicar=False, dcasa_historica=True)
+        factura.action_post()
+        self.assertEqual(factura.state, 'posted')
+        self.assertFalse(factura.l10n_pa_fe_documento_ids)
+
+    def test_una_nueva_sigue_validandose(self):
+        self._activar()
+        factura = self._factura(self._cliente_incompleto(), publicar=False)
+        with self.assertRaises(UserError):
+            factura.action_post()
+
+
+@tagged('post_install', '-at_install')
 class TestFlujoSimulado(FeComun):
 
     def _doc(self, factura):

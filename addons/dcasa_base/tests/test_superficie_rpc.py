@@ -82,6 +82,13 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_reabrir'):
         'Botón: exige account.group_account_manager y motivo ANTES de bajar la fecha de bloqueo con sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes.paso', 'action_ver'): ACCION_VENTANA,
+    # --- dcasa_migracion ----------------------------------------------------------------
+    ('dcasa_migracion', 'dcasa.migracion.carga', 'action_revisar'):
+        ASISTENTE + ' (base.group_system); además exige administrador en el servidor (_exigir_administrador) y '
+        'el ensayo se deshace por completo.',
+    ('dcasa_migracion', 'dcasa.migracion.carga', 'action_cargar'):
+        ASISTENTE + ' (base.group_system); además exige administrador en el servidor (_exigir_administrador) y '
+        'haber revisado antes los mismos archivos.',
     # --- dcasa_nomina -------------------------------------------------------------------
     ('dcasa_nomina', 'dcasa.nomina.config', 'action_abrir'):
         ACCION_VENTANA + ' Exige leer la configuración (grupo Nómina).',

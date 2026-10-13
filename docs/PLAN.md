@@ -67,9 +67,11 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 - 🟡 Cloudflare, R2, secretos de GitHub y despliegue: funcionando en **staging**. **Producción todavía no se ha
   desplegado nunca** (no existe el Worker `dcasa`); sus secretos obligatorios están cargados desde 2026-10-13. A
   producción se sale a mano (*Run workflow* → `desplegar_en = produccion`, desde `main`): un merge no despliega.
-- ⬜ **Cargar los datos reales del Odoo anterior** (exportación en JSON/CSV: contactos, productos, existencias,
-  facturas): importador, ensayo en staging y carga el día del corte. Antes: decidir con el contador si el historial de
-  facturas se carga como facturas o como saldos iniciales.
+- 🟡 **Cargar los datos reales del Odoo anterior**: el importador (Ajustes › Cargar datos del sistema anterior) ya carga
+  contactos, productos, existencias, precios de proveedor, ventas y compras pendientes y las facturas y pagos del año
+  ([MIGRACION.md](MIGRACION.md)). Decidido (2026-10-13): el historial entra como **facturas publicadas**, no como saldos.
+  Falta: el ensayo en staging con los archivos reales, la equivalencia de cuentas con el contador y la carga el día del
+  corte.
 - ⬜ Mover el DNS de `dcasapty.com` a Cloudflare y activar el dominio en `edge/wrangler.jsonc`.
 - ⬜ Correo saliente (SMTP) para enviar facturas y cotizaciones (hoy no hay servidor de correo saliente).
 - ⬜ Pasarela de pago para la tienda (Yappy / tarjeta) y métodos de entrega.

@@ -43,7 +43,8 @@ class AccountMove(models.Model):
 
     def _l10n_pa_fe_aplica(self):
         self.ensure_one()
-        return (self.move_type in TIPOS_FE and self.journal_id.type == 'sale'
+        # Lo cargado del sistema anterior es historia: ya se declaró allá, nunca se reenvía a la DGI.
+        return (self.move_type in TIPOS_FE and self.journal_id.type == 'sale' and not self.dcasa_historica
                 and self.company_id._l10n_pa_fe_operando())
 
     def _post(self, soft=True):

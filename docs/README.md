@@ -29,6 +29,7 @@
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
 | `dcasa_equipo` | [EQUIPO.md](EQUIPO.md) |
+| `dcasa_migracion` | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_fe_pa` (factura electrónica, apagado) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
 | `dcasa_brian` | [BRIAN.md](BRIAN.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN_WORKER.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |

@@ -71,9 +71,10 @@
     // Caché de páginas: "off" en producción hasta que la dueña la apruebe en staging (todo lo
     // sirve Odoo).
     "TIENDA_ESTATICA": "off",
-    // Doble factor obligatorio (addons/dcasa_seguridad): "0" hasta que la dueña enrole su app
-    // (docs/SEGURIDAD_ACCESO.md, paso 2). Luego "1" y desplegar.
-    "DCASA_2FA_OBLIGATORIO": "0",
+    // Doble factor obligatorio (addons/dcasa_seguridad): "1" desde el 2026-10-13, igual que en staging. Todo
+    // administrador que aún no tenga la app la enrola al entrar (docs/SEGURIDAD_ACCESO.md, paso 2).
+    // Rescate si alguien queda fuera: "0" y desplegar.
+    "DCASA_2FA_OBLIGATORIO": "1",
     "DCASA_2FA_ALCANCE": "admins",
     // La puerta del equipo (docs/SEGURIDAD_ACCESO.md §8): el personal entra al panel solo después de pasar por
     // Cloudflare Access (PIN al correo). Se prepara con cuatro secretos de GitHub (DCASA_PUERTA_RUTA,

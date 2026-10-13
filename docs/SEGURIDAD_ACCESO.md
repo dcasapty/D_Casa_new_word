@@ -61,11 +61,10 @@ Hazlo **en la computadora**, con el teléfono a mano.
 
 ## 3. Encender la obligatoriedad (cuando la dueña ya tiene su app)
 
-> **Estado actual (2026-10-10):** **staging está ENCENDIDO** (`env.staging.vars` →
-> `"DCASA_2FA_OBLIGATORIO": "1"`, alcance `admins`). En cuanto se despliegue, el primer
+> **Estado actual (2026-10-13):** **staging y producción están ENCENDIDOS** (`"DCASA_2FA_OBLIGATORIO": "1"`,
+> alcance `admins`; la dueña ya probó el flujo en staging). En cuanto se despliegue, el primer
 > administrador que entre verá el QR después de su clave: ten el teléfono a mano y sigue el §2.
-> **Producción sigue APAGADA** (`"0"`) hasta que la dueña pruebe el flujo completo en staging.
-> Para apagarlo en staging por una emergencia: poner `"0"` y desplegar (o §4 si solo falta el teléfono).
+> Para apagarlo por una emergencia: poner `"0"` y desplegar (o §4 si solo falta el teléfono).
 
 Mientras esté apagada, cada quien decide. Encendida, **todo administrador que aún no tenga la
 app la enrola al entrar**: después de la clave ve el QR, escanea, escribe el código y recién

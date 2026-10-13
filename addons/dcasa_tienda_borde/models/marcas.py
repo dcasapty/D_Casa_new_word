@@ -177,7 +177,8 @@ class AccountMove(models.Model):
 
     def _post(self, soft=True):
         publicados = super()._post(soft=soft)
-        plantillas = publicados.filtered(lambda m: m.is_invoice(include_receipts=True)) \
+        # Las facturas cargadas del sistema anterior no cambian lo que se ve en la tienda.
+        plantillas = publicados.filtered(lambda m: m.is_invoice(include_receipts=True) and not m.dcasa_historica) \
             .invoice_line_ids.product_id.product_tmpl_id
         _marcar(self.env, plantillas.ids, 'factura')
         return publicados
