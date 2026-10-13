@@ -132,14 +132,28 @@ diario (no hay cambios que respaldar). Producción, en cambio, sigue encendida 2
 
 ## Desplegar a producción
 
-Cada vez que se aprueba y une un cambio a `main`, GitHub prueba todo y **espera tu aprobación**:
-Actions → la ejecución → **Review deployments** → *Approve*. Antes de desplegar hace un respaldo de la
-base; si el respaldo falla, no despliega.
+**Un cambio unido a `main` NO se despliega solo**: GitHub solo corre las pruebas. A producción se sale cuando
+tú lo lanzas: *Actions → CI/CD → Run workflow*, rama **`main`**, `desplegar_en` = **`produccion`**. Se vuelven a
+correr todas las pruebas y, si pasan, se despliega. Antes de desplegar hace un respaldo de la base; si el respaldo
+falla, no despliega. (Desde otra rama que no sea `main` falla con un aviso: es a propósito.)
 
 - Desplegar **fuera del horario de venta**: durante el cambio el sitio muestra «estamos arrancando»
   uno o dos minutos. Las sesiones se guardan en la base, así que al volver nadie tiene que iniciar
   sesión de nuevo ni pierde su carrito.
 - Si el cambio toca módulos de Odoo de forma importante, **probar primero en staging**.
+
+### Si GitHub dice «Artifact storage quota has been hit» (espacio lleno)
+
+Cada despliegue guarda en GitHub una copia temporal de la imagen (~420 MB, archivos `imagen-odoo-…`) que dura 1 día. Si
+hubo muchos despliegues seguidos, el espacio de GitHub se llena y el siguiente despliegue falla al subir la imagen. No
+es un error del sistema ni se pierde nada: **no toca R2, ni la base, ni las fotos, ni el repositorio**.
+
+1. *Actions → **Limpiar copias temporales** → Run workflow* con `borrar = false` (ensayo): el resumen de la ejecución
+   lista qué borraría, con nombre y tamaño. No borra nada.
+2. Si la lista es la esperada, lanzarlo de nuevo con `borrar = true`. Solo borra copias `imagen-odoo-…` de más de 24 horas.
+3. **Esperar 6 a 12 horas**: GitHub recalcula el espacio ocupado con ese retraso. Después se vuelve a lanzar el despliegue.
+
+Los registros de diagnóstico (simulacro, log de pruebas) ya no ponen la ejecución en rojo si no caben.
 
 ## Simulacro mensual de restauración
 

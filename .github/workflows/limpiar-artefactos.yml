@@ -1,0 +1,42 @@
+name: Limpiar copias temporales
+
+# Libera el espacio de artefactos de GitHub Actions cuando se llena («Artifact storage quota has been hit»): borra las
+# copias viejas de la imagen (artefactos «imagen-odoo-…») que ya cumplieron su trabajo. Solo a mano.
+# NO toca R2, ni la base de datos, ni las fotos, ni el repositorio: ver .github/scripts/limpiar_artefactos.sh.
+#
+# Primero se lanza con borrar = false (ensayo: solo lista lo que borraría) y, si la lista es la esperada, con
+# borrar = true. GitHub recalcula el espacio ocupado cada 6 a 12 horas. Operación: docs/OPERACION.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      borrar:
+        description: "false = ensayo (solo muestra la lista, no borra nada); true = borra de verdad"
+        type: choice
+        options: ["false", "true"]
+        default: "false"
+      horas_minimas:
+        description: "Solo copias de más de estas horas (entero, mínimo 1)"
+        type: string
+        default: "24"
+
+# Solo lo necesario: leer el código y borrar artefactos de Actions.
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  limpiar:
+    name: Limpiar copias de la imagen
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          sparse-checkout: .github
+      - name: Listar y, si se pidió, borrar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BORRAR: ${{ inputs.borrar }}
+          HORAS_MINIMAS: ${{ inputs.horas_minimas }}
+        run: .github/scripts/limpiar_artefactos.sh

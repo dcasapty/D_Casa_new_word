@@ -116,10 +116,13 @@ jobs:
           PYTHON: python
           ODOO_RC: ${{ runner.temp }}/odoo-ci.conf
       - if: failure()
+        # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe tapar el resultado de las pruebas.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: odoo-test-log
           path: .test.log
+          retention-days: 7
 
   edge:
     name: Tests del borde (Cloudflare Worker)
@@ -141,6 +144,9 @@ jobs:
       - name: La configuración se puede desplegar con la imagen ya construida (dry-run)
         working-directory: .
         run: .github/scripts/probar_config_despliegue.sh
+      - name: La limpieza de copias temporales solo borra lo que debe
+        working-directory: .
+        run: .github/scripts/probar_limpieza_artefactos.sh
 
   juan:
     name: Tests del motor del bot (Worker juan)
@@ -362,7 +368,9 @@ jobs:
           name: imagen-odoo-${{ github.sha }}
           path: ${{ runner.temp }}/imagen.tar.zst
           compression-level: 0
-          retention-days: 3
+          # Solo hace de transporte hasta el despliegue de esta misma ejecución (~420 MB cada una): con 1 día basta y
+          # no llena el espacio de GitHub. Para liberarlo antes: «Limpiar copias temporales» (docs/OPERACION.md).
+          retention-days: 1
           if-no-files-found: error
 
   simulacro-restauracion:
@@ -398,12 +406,14 @@ jobs:
           SIMULACRO_RPO_MAX_S: "90"
           SIMULACRO_DIR: ${{ runner.temp }}/simulacro
       - if: always()
+        # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe poner el simulacro en rojo.
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
         with:
           name: simulacro-restauracion
           path: ${{ runner.temp }}/simulacro
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 7
 
   produccion-solo-desde-main:
     name: Producción solo se despliega desde main

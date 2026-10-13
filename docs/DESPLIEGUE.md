@@ -20,7 +20,7 @@ pruebas: a ningún entorno se despliega solo.**
 | `lint` | ruff, XML, shellcheck (`docker/`, `scripts/`, `.github/scripts/`) y actionlint |
 | `odoo-tests` | instala los módulos en una base limpia y corre los tests |
 | `edge` | typecheck y tests del Worker |
-| `docker` | **construye la imagen una sola vez**, la arranca con su PostgreSQL interno contra un S3 local (moto), prueba el sitio, `admin/admin`, y que el WAL llegue al bucket. Si la ejecución va a desplegar, guarda **esa** imagen como artefacto |
+| `docker` | **construye la imagen una sola vez**, la arranca con su PostgreSQL interno contra un S3 local (moto), prueba el sitio, `admin/admin`, y que el WAL llegue al bucket. Si la ejecución va a desplegar, guarda **esa** imagen como artefacto (dura 1 día; si el espacio de GitHub se llena, ver «Limpiar copias temporales» en [OPERACION.md](OPERACION.md)) |
 | `simulacro-restauracion` | `scripts/simulacro_restauracion.sh`: carga, mata PostgreSQL, borra el disco, restaura desde S3 y compara. Falla si el RPO pasa de 90 s o hay filas distintas/corruptas |
 | `desplegar-produccion` | solo *Run workflow* con `desplegar_en = produccion`, **desde `main`**, y solo si **todo** lo anterior pasó. Desde otra rama falla con un aviso (`produccion-solo-desde-main`) |
 | `desplegar-staging` | solo *Run workflow* con `desplegar_en = staging` (cualquier rama) |
