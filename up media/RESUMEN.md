@@ -18,7 +18,6 @@ Cómo funciona esta carpeta: aquí solo queda lo **pendiente**. Lo que ya se car
 
 ### Se queda aquí, pendiente de alguien
 
-- `factura-sistema-anterior-INV_2026_00858.pdf`: tipo de archivo que este flujo no procesa; lo revisa una persona.
 - `inventario-anterior`: carpeta: la procesa otro flujo (ver su LEEME); este script no la toca.
 
 ### Se guardó sin cargar (no es foto de producto)

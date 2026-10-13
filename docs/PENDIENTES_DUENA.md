@@ -77,6 +77,13 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 18. **Peso del repositorio (~1 GB).** Casi todo es `fuentes/` (948 MB): las fotos originales con las que se regenera el
     catálogo; **no es basura**. Si pesa demasiado, `scripts/archivar_fuentes.sh` las pasa a R2 sin perder la trazabilidad
     (necesita las llaves de R2). Ver [OPERACION.md](OPERACION.md) › «Cómo subir fotos».
+19. **El repositorio está público (desde 2026-10-13).** Se hizo para que GitHub no limitara el espacio de los
+    despliegues (en repositorios públicos no cuenta). A la vista de todos quedan el código, los catálogos y precios del
+    proveedor (`fuentes/`), el inventario del sistema anterior y los informes de gerencia. **Datos de personas no deben
+    estar nunca aquí:** el 2026-10-13 se quitó la factura de un cliente de `up media/` y su nombre y cédula de un test;
+    pero el historial de Git sigue guardando esa versión. Recomendado: **volver a ponerlo privado** cuando termine el
+    lanzamiento (Settings › General › Danger Zone › Change visibility); si se deja público, borrar esa factura del
+    historial (reescribir historia, con cuidado) y no subir a `up media/` nada con datos de personas.
 
 ## Issues abiertos que dependen de ti
 
