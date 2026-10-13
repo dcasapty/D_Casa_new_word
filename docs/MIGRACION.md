@@ -139,7 +139,10 @@ a ninguna factura.
   decía pagar, en ese orden; lo que sobra, o un pago sin facturas, queda como saldo a favor de la ficha. Un pago que cita
   una factura que no está cargada entra igual y el informe lo lista.
 - **Idempotente:** cada factura guarda su número anterior como id externo (`__import__.dcasa_factura_<número>`); cada pago,
-  uno que sale de sus propios datos. Volver a cargar no repite nada, y un pago que había quedado a medias se aplica
+  también: si `pagos.csv` trae la columna opcional `numero` (el del asiento del pago en el sistema anterior, lo ideal), el
+  id sale de ese número; si no, de los datos del propio pago (fecha, monto, contacto, diario, referencia y facturas). Si se
+  carga con una forma y después con la otra, los pagos se duplican: hay que usar siempre la misma. El asiento de cada pago
+  también queda marcado como histórico. Volver a cargar no repite nada, y un pago que había quedado a medias se aplica
   cuando su factura llega.
 - **Por tandas.** Una factura o un pago tarda ~0.2 s; ~2,100 documentos son ~8 minutos, demasiado para una sola
   petición. Cada «Cargar» trabaja ~40 segundos y dice cuántos faltan; se pulsa de nuevo hasta que ya no falte nada
@@ -150,6 +153,21 @@ a ninguna factura.
   saldo y lo que el libro mayor dice que deben los clientes (o se les debe a los proveedores). Si el libro no coincide con
   la suma de saldos del archivo, la diferencia son pagos sin aplicar o notas de crédito aplicadas distinto: lo revisa el
   contador y firma.
+
+**Contabilidad completa (Cowork, 2026-10-13, `receta\exportar_contabilidad.py`):** el detalle de todas las líneas de
+asiento (5,971 en 2,162 asientos) confirma que el libro del año son **solo** los asientos de las 1,005 facturas de cliente,
+las 14 de proveedor y los 1,141 pagos, más 2 movimientos de extracto de banco en el diario de efectivo; **no hay asientos
+manuales ni de apertura**. Debe y haber cuadran (347,725.70) en total y en cada asiento. Por eso cargar las facturas y los
+pagos reproduce el libro; lo único que no cubre el cargador son esos 2 movimientos de efectivo, que esperan la equivalencia de
+cuentas del contador. El archivo `balance_de_comprobacion.csv` (por cuenta y mes) y `plan_de_cuentas.csv` son la base del
+cuadre cuenta por cuenta. Dos documentos que se registraron mientras Cowork exportaba (la factura `INV/2026/01018` y su cobro)
+salieron en los zip pero no en las cabeceras: la exportación del día del corte los trae completos.
+
+**El día del corte** (receta de Cowork): con los zip nuevos del sistema anterior en una carpeta, `python corte.py --datos
+"..\CORTE_2026-xx-xx"` corre todo en orden (repetidos, clientes y productos, facturas y contabilidad), verifica que entren
+`INV/2026/01018` y su cobro y que no quede ninguna línea sin asiento, y deja el resultado en `RESUMEN_CORTE.md`. **Exportar con
+Odoo quieto**: nadie facturando ni cobrando mientras sale la exportación; si algo se registra durante ella, el resumen lo
+avisa y se repite. `pagos.csv` ya trae la columna `numero` (la primera): el cargador la usa como id del pago.
 
 **Para la prueba en staging:** crear antes los diarios de banco y efectivo con los nombres de la columna `diario` de
 `pagos.csv`; subir los 5 archivos reales en esa pantalla (después de clientes, proveedores y productos); Revisar; leer

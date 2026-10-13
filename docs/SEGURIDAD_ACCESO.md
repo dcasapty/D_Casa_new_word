@@ -251,8 +251,13 @@ el precio vigente antes de contratar algo de pago.
 
 ## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
-> **Estado (2026-10-10):** el código está construido y probado; **apagado** hasta que se carguen los cuatro secretos del
-> §8.4 y se enciendan los pasos del §8.5. Pedido de la dueña: que el personal **no** inicie sesión por la página web
+> **Estado (2026-10-13):** **staging está en modo `"1"`** (el personal solo entra por `/master`; por `/web/login` ya no).
+> **Producción sigue apagada (`"0"`)** hasta crear su aplicación de Cloudflare Access y cargar sus cuatro secretos (§8.4);
+> mientras tanto el personal puede entrar por `/web/login`, solo con clave y código de la app. El modo `"1"` bloquea el
+> login público únicamente si la puerta está completa (los cuatro secretos): sin ellos queda apagada aunque diga `"1"`.
+>
+> *Historia:* el 2026-10-10 el código quedó construido y probado, apagado hasta cargar los secretos del §8.4 y encender los
+> pasos del §8.5. Pedido de la dueña: que el personal **no** inicie sesión por la página web
 > pública (esa entrada es solo para clientes y socios), que antes de ver siquiera la pantalla de la clave haya un
 > filtro de Cloudflare que mande un PIN al correo, que el equipo entre por su propia página (`/master`) con correo y
 > clave **o con llave de acceso**, que **siempre** pidan el código de Google Authenticator (también con la llave: una

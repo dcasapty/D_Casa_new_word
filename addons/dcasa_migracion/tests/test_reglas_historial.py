@@ -91,6 +91,16 @@ class TestLecturaDePagos(BaseCase):
         self.assertEqual([p['clave'] for p in uno], [p['clave'] for p in otra_vez])
         self.assertEqual(len({p['clave'] for p in uno}), 2, 'Dos pagos iguales siguen siendo dos pagos')
 
+    def test_con_la_columna_numero_la_clave_sale_del_numero(self):
+        pagos, errores = H.filas_pagos(
+            'numero,fecha,tipo,id_contacto_viejo,monto,diario,referencia,facturas_que_paga,estado\n'
+            'PEFE/2026/90001,2026-08-03,cobro,90001,107,Caja,R1,INV/1,conciliado\n'
+            'PEFE/2026/90001,2026-08-04,cobro,90001,5,Caja,R2,,\n'
+            'PBNK/2026/90002,2026-08-05,pago,70001,9,Banco,R3,,\n')
+        self.assertEqual([(p['numero'], p['clave']) for p in pagos],
+                         [('PEFE/2026/90001', 'PEFE_2026_90001'), ('PBNK/2026/90002', 'PBNK_2026_90002')])
+        self.assertEqual(errores, [('fila 3', 'el pago PEFE/2026/90001 aparece dos veces')])
+
     def test_pagos_con_problemas(self):
         pagos, errores = H.filas_pagos(
             'fecha,tipo,id_contacto_viejo,monto,estado\n'

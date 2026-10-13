@@ -110,12 +110,13 @@ def filas_facturas(texto_facturas, texto_lineas, rol):
 
 
 def filas_pagos(texto):
-    """``(pagos, errores)`` de pagos.csv. Cada pago: ``clave`` (única y estable: sirve de id externo), ``fecha``,
-    ``rol`` (``'cliente'`` para un cobro, ``'proveedor'`` para un pago), ``id_contacto``, ``monto`` (positivo),
-    ``moneda``, ``diario`` (el nombre), ``metodo``, ``referencia``, ``facturas`` (los números que paga, en orden) y
-    ``conciliado`` (True si el banco ya lo había conciliado; lo dudoso cuenta como sin conciliar). Un error es
-    ``('fila N', motivo)``."""
-    pagos, errores, vistos = [], [], {}
+    """``(pagos, errores)`` de pagos.csv. Cada pago: ``numero`` (el del sistema anterior, si el archivo trae la
+    columna ``numero``), ``clave`` (única y estable: sirve de id externo; sale del número y, sin él, de los datos del
+    pago), ``fecha``, ``rol`` (``'cliente'`` para un cobro, ``'proveedor'`` para un pago), ``id_contacto``, ``monto``
+    (positivo), ``moneda``, ``diario`` (el nombre), ``metodo``, ``referencia``, ``facturas`` (los números que paga, en
+    orden) y ``conciliado`` (True si el banco ya lo había conciliado; lo dudoso cuenta como sin conciliar). Un error
+    es ``('fila N', motivo)``."""
+    pagos, errores, vistos, numeros = [], [], {}, set()
     for posicion, celdas in enumerate(leer_csv(texto, COLUMNAS_PAGOS, 'pagos.csv'), start=2):
         etiqueta = f'fila {posicion}'
         tipo = celdas.get('tipo', '').lower()
@@ -135,12 +136,21 @@ def filas_pagos(texto):
             errores.append((etiqueta, 'el monto falta o no es mayor que cero'))
         else:
             facturas = [f.strip() for f in celdas.get('facturas_que_paga', '').split('|') if f.strip()]
-            huella = '|'.join([fecha, tipo, contacto, f'{monto:.2f}', celdas.get('diario', ''),
-                               celdas.get('referencia', ''), '|'.join(facturas)])
-            base = hashlib.sha1(huella.encode(), usedforsecurity=False).hexdigest()[:20]
-            vistos[base] = vistos.get(base, 0) + 1
+            numero_del_pago = celdas.get('numero') or celdas.get('numero_pago', '')
+            if numero_del_pago and numero_del_pago in numeros:
+                errores.append((etiqueta, f'el pago {numero_del_pago} aparece dos veces'))
+                continue
+            numeros.add(numero_del_pago)
+            if numero_del_pago:
+                clave = re.sub(r'[^A-Za-z0-9_]', '_', numero_del_pago)
+            else:
+                huella = '|'.join([fecha, tipo, contacto, f'{monto:.2f}', celdas.get('diario', ''),
+                                   celdas.get('referencia', ''), '|'.join(facturas)])
+                base = hashlib.sha1(huella.encode(), usedforsecurity=False).hexdigest()[:20]
+                vistos[base] = vistos.get(base, 0) + 1
+                clave = f'{base}_{vistos[base]}'
             pagos.append({
-                'clave': f'{base}_{vistos[base]}', 'fecha': fecha, 'rol': TIPOS_DE_PAGO[tipo],
+                'numero': numero_del_pago, 'clave': clave, 'fecha': fecha, 'rol': TIPOS_DE_PAGO[tipo],
                 'id_contacto': int(contacto), 'monto': monto, 'moneda': celdas.get('moneda', '').upper(),
                 'diario': celdas.get('diario', ''), 'metodo': celdas.get('metodo', ''),
                 'referencia': celdas.get('referencia', ''), 'facturas': facturas,

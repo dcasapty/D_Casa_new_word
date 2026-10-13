@@ -198,6 +198,18 @@ class TestHistorialDelAno(TransactionCase):
         self.assertEqual(
             self.env['account.payment'].search_count([('memo', 'ilike', 'Cargado del sistema anterior')]), 5)
 
+    def test_pagos_con_numero_y_sus_asientos_quedan_marcados_como_historia(self):
+        H.cargar_facturas(self.env, self.clientes, 'cliente', H.Presupuesto())
+        H.cargar_facturas(self.env, self.proveedores, 'proveedor', H.Presupuesto())
+        con_numero = [dict(p, numero=f'PAGO/{i}', clave=f'PAGO_{i}') for i, p in enumerate(self.pagos)]
+        resumen = H.cargar_pagos(self.env, con_numero, H.Presupuesto())
+        self.assertTrue(resumen['creados'][0].startswith('PAGO/0 · '))
+        pago = self.env.ref('__import__.dcasa_pago_PAGO_0')
+        self.assertTrue(pago.move_id.dcasa_historica)
+        self.assertEqual(self.env['account.move'].search_count([('dcasa_historica', '=', True)]), 10 + 5)
+        again = H.cargar_pagos(self.env, con_numero, H.Presupuesto())
+        self.assertEqual((again['creados'], len(again['ya_estaban'])), ([], 5))
+
     def test_un_diario_que_no_existe_es_un_error_que_lo_nombra(self):
         self.caja.name = 'Otra caja'
         H.cargar_facturas(self.env, self.clientes, 'cliente', H.Presupuesto())
@@ -214,7 +226,8 @@ class TestHistorialDelAno(TransactionCase):
     def test_un_pago_que_quedo_a_medias_se_aplica_cuando_llega_su_factura(self):
         # Primero los pagos (sus facturas aún no están cargadas) y después las facturas: la segunda pasada los aplica.
         H.cargar_pagos(self.env, self.pagos, H.Presupuesto())
-        self.assertFalse(self.env['account.move'].search([('dcasa_historica', '=', True)]))
+        self.assertFalse(self.env['account.move'].search(
+            [('dcasa_historica', '=', True), ('move_type', '!=', 'entry')]))
         H.cargar_facturas(self.env, self.clientes, 'cliente', H.Presupuesto())
         H.cargar_facturas(self.env, self.proveedores, 'proveedor', H.Presupuesto())
         H.cargar_pagos(self.env, self.pagos, H.Presupuesto())

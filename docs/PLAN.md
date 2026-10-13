@@ -78,8 +78,10 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 - ✅ Respaldos: WAL continuo y `pg_dump` diario cifrados a R2, con simulacro de restauración en cada
   ejecución de CI ([OPERACION.md](OPERACION.md)). *(Reemplaza el «PITR de Neon» del plan original.)*
 - ⬜ Capacitación: vendedoras (ventas, socios y canjes, Escáner), bodega (inventario), dueña (reportes).
-- 🟡 Seguridad de acceso: doble factor y puerta del equipo construidos; en staging, la puerta está en modo
-  «avisar» y producción los tiene apagados ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md)).
+- 🟡 Seguridad de acceso: doble factor y puerta del equipo construidos. Staging: doble factor y puerta en modo «1»
+  (el personal solo entra por `/master`). Producción: doble factor obligatorio desde el despliegue del 2026-10-13; la
+  puerta sigue apagada hasta crear su aplicación de Cloudflare Access y cargar los cuatro secretos
+  ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8.4 y §8.5).
 
 ### Fase 4 — Mejoras 🟡
 
