@@ -12,7 +12,8 @@ cómo restaurar): **[docs/OPERACION.md](OPERACION.md)**. Este documento es la re
 
 ## 1. El camino de un cambio hasta producción
 
-`.github/workflows/ci.yml` corre en cada PR, en cada push a `main` y a mano:
+`.github/workflows/ci.yml` corre en cada PR, en cada push a `main` y a mano. **Un push a `main` solo corre las
+pruebas: a ningún entorno se despliega solo.**
 
 | Job | Qué hace |
 |---|---|
@@ -21,7 +22,7 @@ cómo restaurar): **[docs/OPERACION.md](OPERACION.md)**. Este documento es la re
 | `edge` | typecheck y tests del Worker |
 | `docker` | **construye la imagen una sola vez**, la arranca con su PostgreSQL interno contra un S3 local (moto), prueba el sitio, `admin/admin`, y que el WAL llegue al bucket. Si la ejecución va a desplegar, guarda **esa** imagen como artefacto |
 | `simulacro-restauracion` | `scripts/simulacro_restauracion.sh`: carga, mata PostgreSQL, borra el disco, restaura desde S3 y compara. Falla si el RPO pasa de 90 s o hay filas distintas/corruptas |
-| `desplegar-produccion` | solo push a `main`, y solo si **todo** lo anterior pasó |
+| `desplegar-produccion` | solo *Run workflow* con `desplegar_en = produccion`, **desde `main`**, y solo si **todo** lo anterior pasó. Desde otra rama falla con un aviso (`produccion-solo-desde-main`) |
 | `desplegar-staging` | solo *Run workflow* con `desplegar_en = staging` (cualquier rama) |
 
 Los dos despliegues usan `.github/workflows/desplegar.yml`, que en este orden:
@@ -72,9 +73,13 @@ temporal; no toca ningún entorno.
 
 ## 3. GitHub: environments, secretos y variables
 
-*Settings → Environments*: crear **`staging`** y **`production`**. En `production` activar
-**Required reviewers** (el dueño) y, en *Deployment branches*, solo `main`: así cada despliegue a
-producción espera la aprobación del dueño en Actions. `staging` sin revisores.
+*Settings → Environments*: crear **`staging`** y **`production`**. En `production`, en *Deployment branches and
+tags*, elegir *Selected branches* y permitir solo `main`.
+
+**No hay «Required reviewers».** GitHub solo lo ofrece en repositorios públicos o en planes que este repositorio
+(privado) no tiene. La aprobación es el **clic de quien lanza el despliegue** (*Run workflow* con
+`desplegar_en = produccion`, desde `main`); por eso un merge nunca despliega solo. Una prueba
+(`edge/test/despliegue-produccion.test.ts`) falla si alguien vuelve a enganchar producción a un push.
 
 Cada environment lleva **sus propios** valores (staging nunca comparte bucket, token de respaldo ni
 clave de cifrado con producción):
@@ -154,7 +159,9 @@ bucket vacío, crea la base (instala los módulos en español) y empieza a archi
 minutos. Luego `<URL_SITIO>/web/login` con `admin` / `ODOO_ADMIN_PASSWORD`. Staging se duerme tras 1 h
 sin visitas (`ODOO_DORMIR_TRAS = 1h`) y al despertar restaura desde R2: cada visita es un simulacro.
 
-Producción: el siguiente push a `main` (o merge de un PR) despliega tras la aprobación del dueño.
+Producción: con el código ya en `main`, *Actions → CI/CD → Run workflow*, rama `main`,
+`desplegar_en = produccion`. Se vuelven a correr todas las pruebas y, si pasan, se despliega. Un merge a `main` no
+despliega por sí solo.
 Después, crear un usuario por persona y no compartir el de administrador.
 
 ## 5. Actualizaciones de módulos en el arranque (I-02) y cómo volver atrás

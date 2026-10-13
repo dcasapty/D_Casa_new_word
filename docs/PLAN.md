@@ -64,8 +64,12 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
 
 ### Fase 3 — Puesta en producción 🟡
 
-- 🟡 Cloudflare, R2, secretos de GitHub y despliegue: funcionando en **staging**. **Producción** todavía no
-  recibe lo construido después del primer merge (el despliegue a producción es solo con push a `main`).
+- 🟡 Cloudflare, R2, secretos de GitHub y despliegue: funcionando en **staging**. **Producción todavía no se ha
+  desplegado nunca** (no existe el Worker `dcasa`); sus secretos obligatorios están cargados desde 2026-10-13. A
+  producción se sale a mano (*Run workflow* → `desplegar_en = produccion`, desde `main`): un merge no despliega.
+- ⬜ **Cargar los datos reales del Odoo anterior** (exportación en JSON/CSV: contactos, productos, existencias,
+  facturas): importador, ensayo en staging y carga el día del corte. Antes: decidir con el contador si el historial de
+  facturas se carga como facturas o como saldos iniciales.
 - ⬜ Mover el DNS de `dcasapty.com` a Cloudflare y activar el dominio en `edge/wrangler.jsonc`.
 - ⬜ Correo saliente (SMTP) para enviar facturas y cotizaciones (hoy no hay servidor de correo saliente).
 - ⬜ Pasarela de pago para la tienda (Yappy / tarjeta) y métodos de entrega.

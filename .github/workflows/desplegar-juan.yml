@@ -89,7 +89,8 @@ jobs:
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    # Con «Required reviewers» en el environment `production`, el job espera la aprobación de la dueña.
+    # Solo a mano: el clic de quien lo lanza es la aprobación («Required reviewers» no existe en repos privados
+    # Free/Pro/Team; docs/DESPLIEGUE.md §3).
     environment:
       name: ${{ inputs.entorno }}
     defaults:

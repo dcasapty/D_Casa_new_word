@@ -102,8 +102,9 @@ no deja volver a leerlas: esa copia es la única.
 GitHub → repositorio → *Settings* → **Environments**:
 
 1. Crear `staging` y `production`.
-2. En `production`: activar **Required reviewers** y ponerse como revisor; en *Deployment branches*
-   permitir solo `main`. Así **nada llega a producción sin tu aprobación**.
+2. En `production`: en *Deployment branches and tags* elegir *Selected branches* y permitir solo `main`.
+   («Required reviewers» no existe en este repositorio privado.) **Nada llega a producción sin que tú lo lances**:
+   un merge a `main` solo corre pruebas, y a producción se sale con *Run workflow* y `desplegar_en = produccion`.
 3. En cada uno, cargar los secretos y variables de la tabla de [DESPLIEGUE.md §3](DESPLIEGUE.md)
    (los de staging con las llaves de staging).
 

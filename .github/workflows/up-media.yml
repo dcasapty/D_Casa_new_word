@@ -10,7 +10,7 @@ name: up media
 #      el módulo con el catálogo recién generado en una base limpia);
 #   3. solo si todo pasó, hace commit del resultado y lo empuja a main (GITHUB_TOKEN);
 #   4. construye la imagen de ESE commit y la despliega a staging con desplegar.yml. Producción no:
-#      a producción se llega con un despliegue aprobado desde CI/CD (ci.yml).
+#      a producción se llega a mano, con «Run workflow» en CI/CD (ci.yml).
 #
 # Si los tests fallan, no se hace commit: la bandeja queda como la subió la dueña, el RESUMEN que
 # se habría escrito queda en el resumen de la ejecución y en un artefacto, y hay que mirar el log.

@@ -64,10 +64,16 @@ si el sitio cae: [OPERACION.md](OPERACION.md).
 |---|---|---|
 | Worker | `dcasa`; el dominio `dcasapty.com` se activa en `edge/wrangler.jsonc` (rutas hoy comentadas) cuando se mueva el DNS | `dcasa-staging` (`workers.dev`) |
 | Contenedor | `standard-1`, 24/7 | `basic`, se duerme tras 1 h |
-| Despliegue | solo con push a `main` y todo en verde | a mano: *Run workflow* con `desplegar_en = staging`, desde cualquier rama |
+| Despliegue | solo a mano: *Run workflow* con `desplegar_en = produccion`, **desde `main`** y con todo en verde | a mano: *Run workflow* con `desplegar_en = staging`, desde cualquier rama |
 
-A 2026-10-12 **producción no tiene nada de lo construido después del primer merge**: todo está en la
-rama de trabajo y en staging. Ver [PLAN.md](PLAN.md).
+Un merge a `main` solo corre las pruebas: **nunca despliega** (GitHub no ofrece «Required reviewers» en un
+repositorio privado de estos planes; la aprobación es el clic de quien lanza el despliegue, ver
+[DESPLIEGUE.md](DESPLIEGUE.md) §3).
+
+A 2026-10-13 **producción todavía no existe**: en la cuenta de Cloudflare solo están los Workers de staging
+(`dcasa-staging`, `dcasa-juan-staging`) y el despliegue a producción nunca ha corrido (el intento del 2026-10-02 se
+omitió por falta de secretos). Los secretos obligatorios de `production` ya están cargados en GitHub; falta lanzarlo.
+Hoy el negocio sigue operando en el Odoo anterior de dcasapty.com. Ver [PLAN.md](PLAN.md).
 
 ## Arranque del contenedor
 

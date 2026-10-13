@@ -77,8 +77,9 @@ job está en [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md):
 5. **Imagen Docker**: se construye una sola vez, se arranca contra una base vacía y se prueba (sitio, que no
    quede `admin/admin`, que el WAL llegue al almacenamiento de respaldos, factura en PDF).
 6. **Simulacro de restauración**: mata PostgreSQL, borra el disco y restaura desde el respaldo.
-7. **Despliegue** a Cloudflare: a **producción** solo con push a `main` y solo si todo lo anterior pasó; a
-   **staging** a mano (*Actions → CI/CD → Run workflow*, `desplegar_en = staging`), desde cualquier rama.
+7. **Despliegue** a Cloudflare, siempre a mano (*Actions → CI/CD → Run workflow*): a **staging** con
+   `desplegar_en = staging` desde cualquier rama; a **producción** con `desplegar_en = produccion` y solo desde
+   `main`. Un merge a `main` corre las pruebas y **nunca** despliega.
 
 Pasos para dejar Cloudflare listo: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
 

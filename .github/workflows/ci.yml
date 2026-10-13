@@ -3,8 +3,11 @@ name: CI/CD
 # Cada push y PR corre: lint, tests de Odoo, tests del borde (Worker), la imagen Docker
 # (se construye UNA vez y se prueba) y el simulacro de restauración de la base desde S3.
 # Solo si TODO pasa:
-#   - push a main            → despliega a producción (environment `production`, con aprobación).
-#   - Run workflow (a mano)  → despliega a staging (environment `staging`), si se elige.
+#   - push a main            → SOLO pruebas: un merge NUNCA despliega a producción.
+#   - Run workflow (a mano)  → despliega a staging (`desplegar_en = staging`, cualquier rama) o a
+#                              producción (`desplegar_en = produccion`, solo desde `main`). El clic de quien
+#                              lo lanza es la aprobación: GitHub no ofrece «Required reviewers» en
+#                              repositorios privados de los planes Free, Pro ni Team.
 # Se despliega la MISMA imagen que se probó (I-08): viaja como artefacto de esta ejecución
 # y el job de despliegue comprueba su ID antes de subirla al registro de Cloudflare.
 # Detalle: docs/DESPLIEGUE.md. Operación diaria: docs/OPERACION.md.
@@ -18,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       desplegar_en:
-        description: "Después de los tests, ¿desplegar esta rama? («solo-juan-staging»: solo el bot Juan, sin repetir las pruebas de Odoo)"
+        description: "Después de los tests, ¿desplegar? («produccion»: solo desde la rama main; «solo-juan-staging»: solo el bot Juan, sin repetir las pruebas de Odoo)"
         type: choice
-        options: [staging, solo-juan-staging, ninguno]
+        options: [staging, produccion, solo-juan-staging, ninguno]
         default: staging
 
 # Un PR nuevo cancela la ejecución anterior del mismo PR. Nunca se cancela un push a main
@@ -225,7 +228,7 @@ jobs:
     env:
       # ¿Esta ejecución termina en un despliegue? Entonces la imagen probada se guarda como
       # artefacto para que el despliegue suba EXACTAMENTE esta (I-08).
-      SE_DESPLIEGA: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'staging') }}
+      SE_DESPLIEGA: ${{ github.event_name == 'workflow_dispatch' && (inputs.desplegar_en == 'staging' || (inputs.desplegar_en == 'produccion' && github.ref == 'refs/heads/main')) }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
         with:
@@ -402,6 +405,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  produccion-solo-desde-main:
+    name: Producción solo se despliega desde main
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'produccion' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          echo "::error::A producción solo se despliega desde la rama main (esta ejecución es de ${GITHUB_REF_NAME}). Vuelve a lanzar con la rama main."
+          exit 1
+
   desplegar-staging:
     name: Desplegar a staging
     needs: [lint, odoo-tests, edge, juan, integracion-juan, puente-wa, docker, simulacro-restauracion]
@@ -439,7 +451,8 @@ jobs:
   desplegar-produccion:
     name: Desplegar a producción
     needs: [lint, odoo-tests, edge, juan, integracion-juan, puente-wa, docker, simulacro-restauracion]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Nunca con un push: solo a mano y solo desde main (un merge no despliega).
+    if: github.event_name == 'workflow_dispatch' && inputs.desplegar_en == 'produccion' && github.ref == 'refs/heads/main'
     uses: ./.github/workflows/desplegar.yml
     with:
       entorno: production

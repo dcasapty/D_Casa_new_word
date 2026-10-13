@@ -5,8 +5,8 @@ name: Desplegar puente de WhatsApp
 #
 # SOLO A MANO (Actions → «Desplegar puente de WhatsApp» → Run workflow). No corre en cada push y no lo
 # integra ci.yml. Por defecto hace un ENSAYO («dry-run»): pruebas, tipos, la configuración de Wrangler y la
-# construcción de la imagen, sin tocar Cloudflare. Desplegar de verdad es otra opción, y en producción espera
-# la aprobación del dueño (environment `production` con «Required reviewers», como desplegar.yml).
+# construcción de la imagen, sin tocar Cloudflare. Desplegar de verdad es otra opción, siempre a mano: el clic
+# de quien lo lanza es la aprobación (sin «Required reviewers»: no existe en repos privados Free/Pro/Team).
 #
 # SECRETOS: los del puente (WA_TOKEN, WA_SESION_CLAVE, TELEGRAM_BOT_TOKEN_JUAN…) NO pasan por GitHub. La dueña
 # los pega directamente en el panel de Cloudflare (Workers → dcasa-puente-wa → Settings → Variables and
@@ -93,7 +93,7 @@ jobs:
     if: inputs.accion == 'desplegar'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    # Con «Required reviewers» en el environment `production`, el job espera la aprobación del dueño.
+    # Solo a mano: el clic de quien lo lanza es la aprobación (docs/DESPLIEGUE.md §3).
     environment:
       name: ${{ inputs.entorno }}
     concurrency:

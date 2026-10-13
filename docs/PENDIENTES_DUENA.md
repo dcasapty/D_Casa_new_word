@@ -63,10 +63,13 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     Enter); (c) **no aplicar** «Códigos de barras › Revisar productos» si se usa el rollo; (d) decidir con qué se sigue:
     **recibir contenedores** (hoja de códigos o etiquetas en cada caja; sin lista del proveedor no hay contra qué comparar)
     o **cobrar** (espera la factura electrónica). Guía: `docs/BARRAS.md`.
-16. **Pasar a producción por etapas.** La rama de trabajo lleva más de 200 cambios que `main` no tiene, y el despliegue a
-    producción es solo con push a `main`. Mejor no pasarlo de un golpe: primero encender el doble factor y la puerta del
-    equipo en staging, ensayar una venta completa con dos vendedoras, medir la restauración con R2 real, y entonces decidir
-    qué pasa a `main` y cuándo. Esta decisión es de la dueña; no se hace sin su visto bueno. Ver [ESTADO.md](ESTADO.md).
+16. **Pasar a producción por etapas.** Producción todavía no existe (nunca se ha desplegado) y la rama de trabajo lleva más de
+    200 cambios que `main` no tiene. Un merge a `main` ya **no despliega**: a producción se sale a mano con *Actions → CI/CD →
+    Run workflow* (`desplegar_en = produccion`, rama `main`). Orden: (a) mezclar a `main`; (b) tener cargados los secretos de
+    `production` (ya están los 10 obligatorios; faltan las variables de Brian si usa el mismo proveedor que staging); (c) antes de
+    cargar datos reales, la puerta del equipo y el doble factor en producción (secretos propios, no los de staging); (d) lanzar;
+    (e) cargar los datos del Odoo anterior el día del corte y hacer un conteo físico con el Escáner. Esta decisión es de la
+    dueña; no se lanza sin su visto bueno. Ver [ESTADO.md](ESTADO.md).
 17. **Ramas y propuestas viejas del repositorio (limpieza que necesita tu visto bueno).** Hay nueve ramas `respaldo/…` y la
     rama `claude/bold-volta-fsqq4c`, copias de seguridad de trabajos que ya están en la rama principal de trabajo; y tres
     propuestas automáticas de actualización de librerías (Dependabot: #3, #7 y #8) sin revisar. Borrar las ramas no pierde
