@@ -1022,7 +1022,8 @@ class DcasaConversacion(models.Model):
         horario = ajustes.horario()
         dentro = H.dentro_de_horario(ahora, horario)
         self._poner_en_humano()
-        por_turno = self._asignar_por_turno()
+        reparto = self._repartir()
+        por_turno = reparto.usuario
         responsable = self.asignada_a or ajustes.responsable_id or self.env.ref('base.user_admin', False)
         urgente = urgencia == 'alta'
         cliente = self.partner_id.display_name or self.id_externo
@@ -1036,15 +1037,23 @@ class DcasaConversacion(models.Model):
             '%(r)s\nMotivo: %(m)s\n%(h)s', r=resumen, m=motivo or '—',
             h=self.env._('Dentro del horario.') if dentro else self.env._('Fuera del horario laboral.'))
         if por_turno:
-            # Le tocó por turno: el aviso va a ella (si tiene Telegram vinculado; si no, a las de siempre).
-            texto_aviso = self.env._('Te tocó a ti.\n%s', texto_aviso)
+            # Le tocó (por turno o porque ya era su cliente): el aviso va a ella (si tiene Telegram vinculado; si no, a
+            # las de siempre).
+            texto_aviso = self.env._('Es un cliente tuyo: ya lo atendiste.\n%s', texto_aviso) \
+                if reparto.regla == 'misma' else self.env._('Te tocó a ti.\n%s', texto_aviso)
+        elif reparto.sin_nadie:
+            texto_aviso = self.env._('Nadie estaba disponible para recibirla.\n%s', texto_aviso)
         enviados = self._avisar_por_telegram(texto_aviso, usuarios=por_turno, acciones=True) if por_turno else 0
         if not enviados:
             self._avisar_por_telegram(texto_aviso, acciones=True)
         self._aviso(self.env._('El asistente pasó la conversación a una vendedora. Motivo: %s',
                                (motivo or '—')[:300]))
         if por_turno:
-            self._aviso(self.env._('Le tocó a %s por turno.', por_turno.name))
+            self._aviso(reparto.razon)
+        elif reparto.sin_nadie:
+            self._aviso(self.env._(
+                'Nadie estaba disponible para recibirla: la tarea quedó con %s y se avisó a todo el equipo.',
+                responsable.name if responsable else '—'))
         self._notificar_panel('estado')
         cuando = H.cuando_atienden(ahora, horario)
         if dentro:
@@ -1056,12 +1065,13 @@ class DcasaConversacion(models.Model):
 
     def _asignar_por_turno(self):
         """Con el reparto «por turnos», asigna la conversación a quien lleva más tiempo sin recibir una, de entre
-        las personas disponibles. Devuelve a quién le tocó, o vacío si no hay reparto, ya la tenía alguien o no hay
-        nadie disponible (entonces sigue el camino de siempre: el responsable por defecto)."""
+        las personas disponibles (las que Gerencia sacó del reparto tampoco entran). Devuelve a quién le tocó, o vacío
+        si no hay reparto, ya la tenía alguien o no hay nadie disponible (entonces sigue el camino de siempre: el
+        responsable por defecto). El reparto «parejo» no pasa por aquí: ver ``_repartir``."""
         self.ensure_one()
         if self.asignada_a or self.env['dcasa.juan.ajustes'].obtener().reparto_modo != 'turnos':
             return self.env['res.users']
-        disponibles = self._usuarios_del_panel().filtered('dcasa_disponible')
+        disponibles = self.env['dcasa.reparto']._disponibles()
         if not disponibles:
             return self.env['res.users']
         # Un contador (no la hora: dos conversaciones en el mismo segundo no pueden caerle a la misma persona).

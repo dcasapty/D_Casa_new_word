@@ -1,8 +1,7 @@
 """Panel más rápido y más claro (auditoría ronda 6, docs/auditoria/ronda6/panel.md)."""
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
-import pytz
 from lxml import etree
 
 from odoo import Command, fields
@@ -48,18 +47,18 @@ class TestPanel(TransactionCase):
         self.assertFalse(busquedas_de_pedidos, 'la semana y «Vendido hoy» salen de una sola lectura')
         self.assertEqual(len(datos['semana']), 7)
 
-    def test_tablero_cuenta_cada_venta_en_su_dia_de_panama(self):
-        """Una venta a las 8 p. m. de ayer (1 a. m. UTC de hoy) es de ayer, no de hoy."""
+    def test_tablero_cuenta_cada_venta_en_el_dia_de_su_factura(self):
+        """Una venta es del día de su factura (en Panamá): la de ayer no entra en «hoy», entra en la barra de ayer."""
         Tablero = self.env['dcasa.tablero'].with_user(self.gerencia)
-        zona = pytz.timezone('America/Panama')
         hoy = fields.Date.context_today(Tablero.with_context(tz='America/Panama'))
-        anoche = zona.localize(datetime.combine(hoy - timedelta(days=1), datetime.min.time()) + timedelta(hours=20))
         antes = Tablero.obtener_datos()
         orden = self.env['sale.order'].create({
             'partner_id': self.cliente.id, 'order_line': [Command.create({'product_id': self.producto.id})],
         })
         orden.action_confirm()
-        orden.date_order = anoche.astimezone(pytz.utc).replace(tzinfo=None)
+        factura = orden._create_invoices()
+        factura.invoice_date = hoy - timedelta(days=1)
+        factura.action_post()
         despues = Tablero.obtener_datos()
 
         def cifra(datos):
@@ -79,9 +78,11 @@ class TestPanel(TransactionCase):
         cifras = {c['clave']: c for c in self.env['dcasa.tablero'].with_user(self.vendedora).obtener_datos()['cifras']}
         self.assertEqual(cifras['mis_cotizaciones']['valor'], 1)
         self.assertIn(('user_id', '=', self.vendedora.id), cifras['mis_cotizaciones']['accion']['domain'])
-        self.assertGreaterEqual(cifras['cotizaciones']['valor'], 1)
-        claves = {c['clave'] for c in self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()['cifras']}
-        self.assertNotIn('mis_cotizaciones', claves)
+        # 2026-10-14: ella ve solo las suyas; el total de la tienda es de Gerencia.
+        self.assertNotIn('cotizaciones', cifras)
+        gerencia = {c['clave']: c for c in self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()['cifras']}
+        self.assertNotIn('mis_cotizaciones', gerencia)
+        self.assertGreaterEqual(gerencia['cotizaciones']['valor'], 1)
 
     def test_cotizaciones_abre_las_abiertas_de_toda_la_tienda(self):
         accion = self.env['ir.actions.act_window']._for_xml_id('sale.action_quotations_with_onboarding')

@@ -7,3 +7,7 @@ from . import ir_qweb_fields
 from . import res_company
 from . import res_partner
 from . import sale_order
+from . import account_move_paquete
+from . import account_payment_register
+from . import facturas_panel
+from . import sale_order_paquete

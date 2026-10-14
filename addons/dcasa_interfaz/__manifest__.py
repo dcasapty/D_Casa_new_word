@@ -31,7 +31,8 @@ La interfaz de trabajo de D'CASA, hecha a medida:
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
     'depends': [
-        'dcasa_catalogo', 'website', 'sale_management', 'stock', 'stock_delivery', 'account', 'web_tour', 'mail_bot',
+        'dcasa_base', 'dcasa_catalogo', 'website', 'sale_management', 'stock', 'stock_delivery', 'account', 'web_tour',
+        'mail_bot',
     ],
     'data': [
         'security/ir.model.access.csv',

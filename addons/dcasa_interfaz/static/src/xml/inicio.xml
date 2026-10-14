@@ -10,15 +10,23 @@
                 <div class="o_dcasa_inicio_hero_texto">
                     <div class="o_dcasa_inicio_fecha" t-out="d.fecha"/>
                     <h1>Hola, <t t-out="d.saludo"/></h1>
-                    <p>Así va el día en D'CASA.</p>
+                    <p t-if="d.alcance === 'propio'">Así va tu día.</p>
+                    <p t-else="">Así va el día en D'CASA.</p>
                 </div>
                 <!-- Solo los accesos que quien mira puede usar (permisos de obtener_datos). -->
                 <div class="o_dcasa_inicio_accesos">
                     <button t-if="d.guia" class="btn btn-secondary o_dcasa_inicio_guia" t-on-click="abrirGuia">
                         <i class="fa fa-compass me-2"/>¿Qué necesito hacer?
                     </button>
-                    <button t-if="d.permisos.cotizar" class="btn btn-primary" t-on-click="() => this.nuevo('sale.order')">
+                    <!-- La vendedora solo tiene lo del día a día: nueva factura y nuevo cliente. Nueva cotización,
+                         cobros y la tienda en el celular son de quien controla (d.permisos.completo). -->
+                    <button t-if="d.permisos.cotizar and d.permisos.completo" class="btn btn-primary"
+                            t-on-click="() => this.nuevo('sale.order')">
                         <i class="fa fa-plus me-2"/>Nueva cotización
+                    </button>
+                    <button t-if="d.permisos.facturar" t-attf-class="btn {{ d.permisos.completo ? 'btn-secondary' : 'btn-primary' }} o_dcasa_nueva_factura"
+                            t-on-click="() => this.nuevo('account.move', {default_move_type: 'out_invoice'})">
+                        <i class="fa fa-file-text-o me-2"/>Nueva factura
                     </button>
                     <button t-if="d.permisos.crear_cliente" class="btn btn-secondary"
                             t-on-click="() => this.nuevo('res.partner')">
@@ -28,10 +36,10 @@
                             t-on-click="() => this.nuevo('account.payment', {default_payment_type: 'inbound', default_partner_type: 'customer'})">
                         <i class="fa fa-money me-2"/>Registrar cobro
                     </button>
-                    <button class="btn btn-secondary" t-on-click="verTienda">
+                    <button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="verTienda">
                         <i class="fa fa-external-link me-2"/>Ver la tienda
                     </button>
-                    <button class="btn btn-secondary" t-on-click="vistaPrevia" title="El sitio como se ve en un teléfono">
+                    <button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="vistaPrevia" title="El sitio como se ve en un teléfono">
                         <i class="fa fa-mobile me-2"/>Ver en el celular
                     </button>
                 </div>
@@ -65,7 +73,7 @@
                     </button>
                 </section>
 
-                <div class="o_dcasa_inicio_fila">
+                <div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">
                     <!-- Semana -->
                     <section t-if="d.semana.length" class="o_dcasa_panel o_dcasa_semana">
                         <h2>Ventas de la semana</h2>

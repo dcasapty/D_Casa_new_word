@@ -45,6 +45,12 @@ class ResCompany(models.Model):
         string='Términos (factura)',
         help='Texto corto que se imprime en facturas, cotizaciones y pedidos. Vacío: no se imprime.')
 
+    dcasa_ofrecer_impresion_pago = fields.Boolean(
+        string='Ofrecer imprimir los documentos al completar el pago', default=True,
+        help='Al registrar el pago que deja una factura de cliente pagada por completo, sale un cuadro pequeño '
+             'para imprimir (o descargar) la factura, la copia de la empresa y la nota de entrega. Se cierra con '
+             'un clic. Apagado, el pago se registra exactamente como antes.')
+
     @api.model
     def _dcasa_poner_textos_iniciales(self):
         """Llena garantía, cambios y términos vacíos con TEXTOS_INICIALES, una sola vez por base."""

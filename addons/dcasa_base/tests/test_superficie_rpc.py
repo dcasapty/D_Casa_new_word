@@ -271,6 +271,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
     ('dcasa_socios', 'account.move', 'button_cancel'):
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
+    ('dcasa_socios', 'account.move', 'unlink'):
+        OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
+                   'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
@@ -453,6 +456,14 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'resumen'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'costos'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'por_persona'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'reparto'):
+        PANEL_VENTAS + ' Cada vendedora recibe solo lo suyo; el equipo completo solo viaja si es de Gerencia.',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'fijar_fuera_del_reparto'):
+        'Solo Gerencia (sales_team.group_sale_manager, comprobado en el servidor antes de escribir con sudo): saca a '
+        'una persona del reparto o la vuelve a meter; no toca permisos y deja nota en el historial de los ajustes.',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'fijar_modo_reparto'):
+        'Solo Gerencia (sales_team.group_sale_manager, comprobado en el servidor antes de escribir con sudo): '
+        'enciende o apaga el reparto de Ajustes de Juan; el campo lleva seguimiento (queda quién y cuándo).',
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'conexiones'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'qr'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,

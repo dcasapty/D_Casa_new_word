@@ -1,6 +1,10 @@
+import logging
+
 from odoo import fields, models
 
 from . import reglas as R
+
+_logger = logging.getLogger(__name__)
 
 
 class AccountMove(models.Model):
@@ -28,7 +32,8 @@ class AccountMove(models.Model):
     def _dcasa_anular_compras(self, motivo):
         compras = self.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)
         if compras:
-            compras._anular(motivo, self.env.user.login)
+            # por_factura: la factura misma se deshace, así que si vuelve a quedar pagada sus puntos pueden volver.
+            compras._anular(motivo, self.env.user.login, por_factura=True)
 
     def button_draft(self):
         self.check_access('write')  # antes de anular puntos con sudo (método público por RPC)
@@ -41,6 +46,22 @@ class AccountMove(models.Model):
         for move in self.filtered(lambda m: m.move_type == 'out_invoice'):
             move._dcasa_anular_compras(self.env._('Se canceló la factura %s.', move.name))
         return super().button_cancel()
+
+    def unlink(self):
+        """Borrar un borrador no se queda trabado por los puntos que dio.
+
+        Lo normal es que la compra ya esté anulada (la factura volvió a borrador antes de poder borrarse). Si todavía
+        queda una activa, se anula con su asiento contrario; el libro no se toca. La compra se queda en la historia
+        del programa, sin factura (la clave foránea es ``set null``) pero con su número y su motivo. Se anula DESPUÉS
+        de borrar: si Odoo se niega (una factura publicada no se borra), no se tocó ningún punto.
+        """
+        self.check_access('unlink')  # antes de anular puntos con sudo (método público por RPC)
+        compras = self.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)
+        motivos = {compra.id: self.env._('Se eliminó la factura %s.', compra.move_id.name) for compra in compras}
+        res = super().unlink()
+        for compra in compras:
+            compra._anular(motivos[compra.id], self.env.user.login, por_factura=True)
+        return res
 
     def _post(self, soft=True):
         posted = super()._post(soft=soft)
@@ -55,7 +76,24 @@ class AccountMove(models.Model):
                 compras._anular(self.env._('Nota de crédito %s', nota.name), self.env.user.login)
             else:
                 compras._devolucion_parcial(nota, self.env.user.login)
+        posted._dcasa_reabrir_compras()
         return posted
+
+    def _dcasa_reabrir_compras(self):
+        """Una factura que volvió a borrador y se publica otra vez con su pago todavía puesto vuelve a estar pagada
+        sin que Odoo avise (solo avisa cuando el pago se concilia): sin esto, el cliente de una venta real quedaría
+        sin los puntos que se anularon por la corrección. Nunca hace fallar la publicación."""
+        pagadas = self.filtered(lambda m: m.move_type == 'out_invoice' and not m.dcasa_historica
+                                and m.payment_state in ('paid', 'in_payment'))
+        if not pagadas:
+            return
+        Compra = self.env['dcasa.compra'].sudo()
+        for move in Compra.search([('move_id', 'in', pagadas.ids), ('anulada_por_factura', '=', True)]).move_id:
+            try:
+                with self.env.cr.savepoint():
+                    Compra._registrar_desde_factura(move)
+            except Exception:  # noqa: BLE001  — el programa de puntos nunca hace fallar una factura
+                _logger.exception('No se pudieron volver a dar los puntos de la factura %s', move.name)
 
     # ------------------------------------------------------------------------
     # Lo que se imprime en la factura

@@ -142,7 +142,10 @@ class DcasaConversacionPanelExtra(models.Model):
         return {
             'usuario': {'id': self.env.uid, 'nombre': self.env.user.name,
                         'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager'),
-                        'disponible': bool(self.env.user.sudo().dcasa_disponible)},
+                        'disponible': bool(self.env.user.sudo().dcasa_disponible),
+                        # Gerencia la sacó del reparto (vacaciones, ausencia…): no le asignan nuevas, esté como esté.
+                        'fuera_del_reparto': not self.env.user.sudo()._dcasa_en_el_reparto(
+                            self.env['dcasa.reparto']._hoy())},
             'reparto': ajustes.reparto_modo,
             'resumen_ia': bool(ajustes.resumen_ia_activo),
             'bot': {'conectado': bool(self.env['dcasa.juan.cliente'].configurado()),

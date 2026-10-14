@@ -18,6 +18,13 @@
                         <field name="dcasa_factura_cambios" placeholder="Por ejemplo: en qué plazo y en qué condiciones se cambia un producto."/>
                         <field name="dcasa_factura_terminos" placeholder="Por ejemplo: condiciones de apartado, entrega y pago."/>
                     </group>
+                    <group string="Imprimir documentos">
+                        <div class="text-muted mb-2" colspan="2">
+                            El botón «Imprimir documentos» de la factura y del pedido junta en un solo PDF la
+                            factura del cliente, la copia de la empresa y la nota de entrega.
+                        </div>
+                        <field name="dcasa_ofrecer_impresion_pago"/>
+                    </group>
                 </page>
             </xpath>
         </field>

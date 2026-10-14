@@ -1,4 +1,4 @@
-from . import models
+from . import controllers, models, wizard
 
 
 def _dcasa_invoice_post_init(env):

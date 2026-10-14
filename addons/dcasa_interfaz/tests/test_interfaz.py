@@ -19,17 +19,23 @@ class TestTablero(TransactionCase):
             self.assertIn('res_model', cifra['accion'])
 
     def test_venta_de_hoy_suma_en_el_tablero(self):
-        antes = next(c['valor'] for c in self.env['dcasa.tablero'].obtener_datos()['cifras']
-                     if c['clave'] == 'ventas_hoy')
+        """Una venta suma en «Vendido hoy» cuando está facturada por completo, no antes."""
+        def vendido():
+            return next(c['valor'] for c in self.env['dcasa.tablero'].obtener_datos()['cifras']
+                        if c['clave'] == 'ventas_hoy')
+        antes = vendido()
         producto = self.env['product.product'].create({'name': 'Mesa tablero', 'list_price': 100})
         orden = self.env['sale.order'].create({
             'partner_id': self.env['res.partner'].create({'name': 'Cliente tablero'}).id,
             'order_line': [(0, 0, {'product_id': producto.id})],
         })
+        self.assertAlmostEqual(vendido(), antes, places=2)   # cotización: no es una venta
         orden.action_confirm()
-        despues = next(c['valor'] for c in self.env['dcasa.tablero'].obtener_datos()['cifras']
-                       if c['clave'] == 'ventas_hoy')
-        self.assertAlmostEqual(despues - antes, orden.amount_total, places=2)
+        self.assertAlmostEqual(vendido(), antes, places=2)   # confirmada pero por facturar: tampoco
+        factura = orden._create_invoices()
+        self.assertAlmostEqual(vendido(), antes, places=2)   # factura en borrador: tampoco
+        factura.action_post()
+        self.assertAlmostEqual(vendido() - antes, orden.amount_total, places=2)
 
     def test_vendedora_sin_contabilidad_ve_su_tablero(self):
         vendedora = self.env['res.users'].create({
@@ -47,12 +53,24 @@ class TestTablero(TransactionCase):
         self.assertNotIn('por_cobrar', claves)
         self.assertFalse(datos['cobros'])
 
-    def test_rol_vendedora_cobra_desde_el_inicio(self):
+    def test_rol_vendedora_no_ve_cobros_en_el_inicio_y_gerencia_si(self):
+        """2026-10-14: la vendedora no ve lo cobrado ni lo por cobrar (ni «Registrar cobro» en el Inicio): se cobra
+        desde la factura. Gerencia conserva todo."""
         vendedora = self.env['res.users'].create({
             'name': 'Vendedora con rol', 'login': 'vendedora_rol_tablero',
             'group_ids': [(6, 0, [self.env.ref('dcasa_base.group_vendedora').id])],
         })
         datos = self.env['dcasa.tablero'].with_user(vendedora).obtener_datos()
+        self.assertFalse(datos['permisos']['cobrar'])
+        self.assertFalse(datos['permisos']['ver_cobros'])
+        self.assertFalse(datos['permisos']['completo'])
+        self.assertTrue(datos['permisos']['facturar'] and datos['permisos']['crear_cliente'])
+        self.assertTrue({'cobrado_hoy', 'por_cobrar'}.isdisjoint({c['clave'] for c in datos['cifras']}))
+        gerencia = self.env['res.users'].create({
+            'name': 'Gerencia con rol', 'login': 'gerencia_rol_tablero',
+            'group_ids': [(6, 0, [self.env.ref('dcasa_base.group_gerencia').id])],
+        })
+        datos = self.env['dcasa.tablero'].with_user(gerencia).obtener_datos()
         self.assertTrue(all(datos['permisos'].values()), datos['permisos'])
         self.assertIn('cobrado_hoy', {c['clave'] for c in datos['cifras']})
 
