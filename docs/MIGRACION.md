@@ -179,6 +179,62 @@ avisa y se repite. `pagos.csv` ya trae la columna `numero` (la primera): el carg
 «Antes de cargar»; Cargar hasta que no falte nada; mirar el cuadre. Las facturas nuevas deben salir con el número que
 sigue al último cargado, y ninguna debe aparecer en la cola de la DGI.
 
+**Ensayo en producción con la exportación del 2026-10-12 (2026-10-14, «Revisar», nada se guardó):** contactos, productos,
+precios de proveedor, ventas y compras pendientes y la primera tanda de facturas de clientes salieron sin errores
+inesperados (70 s la última). Lo que dejó para decidir:
+- **4 clientes repetidos por cédula** quedaron enlazados a la ficha que ya existía (antes eran error). Los otros ~120 grupos
+  de repetidos del Excel no chocan por cédula, celular ni correo: se cargarían como fichas separadas; se resuelven antes
+  del corte, marcándolos para la receta (`corte.py`), o se fusionan después con la lista de duplicados de Contactos.
+- **El cliente n.º 1 del sistema anterior no está en `clientes.csv`:** 2 facturas del año y 4 documentos más no entran.
+  Decisión de la dueña y el contador (¿son ventas a la propia empresa?).
+- **Productos que no están en el catálogo:** sobre todo archivados y «Descuento» (168 líneas); esas líneas entran sin
+  producto, con el nombre del archivo. Sin problema de contabilidad; sí hay que mirar los que siguen vendiéndose.
+- **Cobertura del ensayo:** solo la primera tanda (~180 facturas de ~1,005). Los pagos, las facturas de proveedores y el
+  cuadre contra el archivo y el libro **solo se ven con la carga de verdad**. Por eso la primera carga completa conviene
+  hacerla donde se pueda mirar sin consecuencias (staging) o el día del corte.
+- Los 10 pedidos de venta con mercancía por entregar no se cargan (se entregan o se rehacen a mano), y 15 facturas de
+  proveedor en borrador necesitan el número de factura del proveedor antes de publicarse.
+
 **Pendiente con el contador:** la equivalencia de cuentas (viejas → nuevas), qué hacer con los 41 cobros sin conciliar y
 los 7 pagos sin aplicar, la revisión de las facturas raras de arriba y el balance de comprobación al día del corte, contra
 el cual se firma el cuadre.
+
+## Carga real en producción (2026-10-14)
+
+Cargada una sola vez, por pasadas (cada una con «Revisar» antes de «Cargar»), con la exportación del 2026-10-13 de
+Cowork y el Excel de repetidos marcado (51 fichas unidas). Nadie había vendido ni en el sistema anterior ni en el nuevo.
+**No se vuelve a cargar**: los archivos ya están dentro. Solo cifras; los datos de personas quedan en Odoo.
+
+| Pasada | Resultado |
+|---|---|
+| Clientes y proveedores | 971 fichas nuevas + 1 enlazada por el mismo RUC; 6 proveedores; 0 errores |
+| Productos y existencias | 26 productos nuevos (21 con foto, publicados; 5 sin foto y 69 combos sin publicar); 106 con existencias; 0 errores |
+| Precios de proveedor | 242 nuevos; 3 con precio 0 y 6 de productos archivados no se cargaron |
+| Ventas y compras pendientes | 26 facturas de venta en borrador; 4 órdenes de compra por recibir; 16 facturas de proveedor en borrador |
+| Facturas de clientes | 1,025 publicadas; total 158,706.48 contra 158,706.33 del archivo (redondeo del ITBMS) |
+| Pagos | 1,166 |
+| Facturas de proveedores | 14 publicadas; total 28,703.82 y saldo por pagar 23,247.06 = libro mayor |
+
+**Lo que se aprendió**
+- Un archivo en la casilla equivocada (las líneas de compras en la de ventas) se nota en «Revisar»: salían 242 líneas «sin su
+  orden». Mirar el nombre que muestra cada casilla antes de pulsar.
+- Una variante con varias medidas guarda el código en cada variante (`…-FULL`); las facturas buscan el código exacto. Se
+  igualó el código a mano antes de cargar y se devuelve después (los enlaces van por el producto, no por el texto).
+- 3 facturas de proveedor traían el número con el mes de una fecha contable dos meses posterior a la de la factura y Odoo las
+  rechazó («la fecha no coincide con la secuencia»). Se cargaron conservando la fecha real y cambiando solo el número; el
+  número viejo quedó en la referencia.
+
+**Lo que sigue abierto (para el contador y para la dueña)**
+- Saldos iniciales (bancos, caja, inventario, capital): el sistema anterior solo tiene facturas desde el 22 de julio, así que el
+  balance general necesita un asiento de apertura. Ventas, ITBMS y cuentas por cobrar y por pagar ya salen completos.
+- El libro mayor dice que los clientes deben 1,558.18 y las facturas abiertas suman 3,703.68: la diferencia son pagos sin aplicar
+  a ninguna factura (los 7 conocidos y el cobro de 244.65 que quedó suelto cuando se borró en el sistema anterior la factura
+  `INV/2026/00995`; su orden `S01156` volvió a estar pendiente). `INV/2026/00809` quedó en 0.00 y el archivo decía 77.01.
+- 41 cobros sin conciliar con el banco (quedan en tránsito hasta importar el extracto).
+- Documentos de la propia empresa (cliente n.º 1), fuera de la carga: 2 facturas y 4 pagos por 513.57.
+- 13 ventas con mercancía por entregar (no se cargan): entregarlas o rehacerlas a mano; la lista con nombres se guardó fuera del
+  repositorio. La línea de `S00295` quedó sin producto: se corrige a mano en el borrador.
+- 15 facturas de proveedor en borrador necesitan el número de factura del proveedor; `P00029` sale 7 % más alta (ITBMS) y
+  `P00006` ya tenía factura del proveedor.
+- Conteo con el Escáner: 9 productos con existencia negativa (entraron en 0), 82 productos activos sin código y 5 filas de
+  inventario sin código (64 unidades).
