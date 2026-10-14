@@ -1,9 +1,10 @@
 /**
- * La ficha del cliente (columna derecha): quién es, si es Socio (solo lectura), asignación, etiquetas,
+ * La ficha del cliente (al lado del hilo en pantallas amplias; encima, a pedido, en las demás): quién es, si es Socio (solo lectura), asignación, etiquetas,
  * oportunidades, compras, seguimiento, notas y «qué sabe el bot de esta persona».
  */
 import { Component, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
+import { esCelular } from "./preferencias";
 import { colorDeEtiqueta, cuando, dolares, hora, iniciales, iconoDeCanal, numero } from "./utilidades";
 
 export class FichaCliente extends Component {
@@ -112,7 +113,15 @@ export class FichaCliente extends Component {
     }
 
     volver() {
-        this.almacen.fichaAbierta = false;
-        this.almacen.columna = this.almacen.seleccionadaId ? "hilo" : "lista";
+        this.almacen.cerrarFicha();
+    }
+
+    /** Esc cierra la ficha y el foco vuelve al botón «Cliente» (en celular, la flecha ya hace de «volver»). */
+    alTeclear(ev) {
+        if (ev.key === "Escape" && this.almacen.fichaAbierta && !esCelular()) {
+            ev.stopPropagation();
+            this.almacen.cerrarFicha();
+            document.querySelector(".o_dcj_boton_ficha")?.focus();
+        }
     }
 }

@@ -47,6 +47,10 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
     ('dcasa_base', 'sale.order.line', 'write'):
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
+    ('dcasa_base', 'product.template', 'write'):
+        OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'product.product', 'write'):
+        OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
@@ -54,6 +58,8 @@ LISTA_BLANCA = {
         OVERRIDE + ' Hereda la anterior (image_url extiende image); sin sudo().',
     # --- dcasa_catalogo -----------------------------------------------------------------
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Solo agrega que un combo sin sus piezas no se confirma; corre como el usuario, sin sudo().',
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_aprobar'): SIN_SUDO,
@@ -215,6 +221,11 @@ LISTA_BLANCA = {
     # --- dcasa_interfaz -----------------------------------------------------------------
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
+    ('dcasa_guia', 'dcasa.guia', 'obtener'):
+        SIN_SUDO + ' Solo devuelve las tareas de la Guía cuyo menú (y los de arriba) ve quien pregunta; el catálogo '
+        'es un archivo del repositorio, sin datos del negocio.',
+    ('dcasa_guia', 'dcasa.guia', 'buscar'):
+        SIN_SUDO + ' Busca solo entre las tareas que quien pregunta puede abrir; el texto buscado no toca la base.',
     ('dcasa_interfaz', 'dcasa.sitio', 'vista_previa'):
         'Solo devuelve la URL pública del sitio (web.base.url, ya visible en cualquier enlace) y su nombre.',
     # El sitio se edita por código (models/sitio.py): solo AGREGAN un bloqueo, nunca un permiso.
@@ -227,6 +238,10 @@ LISTA_BLANCA = {
         'Bloquea: de una página de D\'CASA solo se cambia publicar y SEO; el contenido viene del código.',
     # --- dcasa_invoice -------------------------------------------------------------------
     ('dcasa_invoice', 'ir.qweb.field.monetary', 'value_to_html'): OVERRIDE + ' Solo formatea un valor.',
+    ('dcasa_invoice', 'account.move.line', 'get_section_subtotal'):
+        OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
+    ('dcasa_invoice', 'account.move.line', 'get_section_total'):
+        OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
     # --- dcasa_socios -------------------------------------------------------------------
     ('dcasa_socios', 'res.partner', 'create'): OVERRIDE,
     ('dcasa_socios', 'res.partner', 'write'): OVERRIDE,
@@ -260,6 +275,63 @@ LISTA_BLANCA = {
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
     ('dcasa_socios', 'sale.order', 'action_dcasa_cobrar_premio'): ACCION_VENTANA,
+    # --- dcasa_socios: programa de vendedores ---------------------------------------------
+    ('dcasa_socios', 'res.partner', 'action_dcasa_afiliar_vendedor'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor; solo abre el asistente.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_suspender_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_reactivar_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_ajustar_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor; solo abre el asistente.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_ver_movimientos_vendedor'): ACCION_VENTANA,
+    ('dcasa_socios', 'dcasa.vend.canje', 'action_entregar'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor (igual que el canje de socios).',
+    ('dcasa_socios', 'dcasa.vend.canje', 'action_cancelar'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor (igual que el canje de socios).',
+    ('dcasa_socios', 'dcasa.vend.movimiento', 'write'): 'Bloquea: el libro de vendedores no se edita.',
+    ('dcasa_socios', 'dcasa.vend.movimiento', 'unlink'): 'Bloquea: el libro de vendedores no se borra.',
+    ('dcasa_socios', 'dcasa.afiliar.vendedor.wizard', 'action_confirmar'):
+        ASISTENTE + ' (vendedora; la afiliación exige sales_team.group_sale_salesman en el servidor).',
+    ('dcasa_socios', 'dcasa.vend.ajuste.wizard', 'action_confirmar'): ASISTENTE + ' (gerencia)',
+    ('dcasa_socios', 'sale.order', 'create'):
+        OVERRIDE + ' Solo anota quién escribió el código de vendedor.',
+    ('dcasa_socios', 'sale.order', 'write'):
+        OVERRIDE + ' Confirmada la venta, solo Gerencia cambia el vendedor, y nunca con una comisión ya pagada.',
+    ('dcasa_socios', 'account.move', 'write'):
+        OVERRIDE + ' Publicada la factura, solo Gerencia cambia el vendedor, y nunca con una comisión ya pagada.',
+    # --- dcasa_socios: Ajustes › Programa de vendedores (Gerencia cambia las cifras; solo hacia adelante) ---------
+    ('dcasa_socios', 'dcasa.vend.reglas', 'create'):
+        OVERRIDE + ' Solo numera la versión y exige que rija hacia adelante; el ACL no deja crear a nadie (la crea '
+                   'el servidor con sudo, después de exigir Gerencia o administrador).',
+    ('dcasa_socios', 'dcasa.vend.reglas', 'write'): 'Bloquea: el historial de reglas no se edita.',
+    ('dcasa_socios', 'dcasa.vend.reglas', 'unlink'): 'Bloquea: el historial de reglas no se borra.',
+    ('dcasa_socios', 'dcasa.vend.ajustes', 'default_get'):
+        OVERRIDE + ' Exige Gerencia o administrador (_exigir_gerencia) ANTES de leer las reglas; solo devuelve las '
+                   'cifras de la pantalla.',
+    ('dcasa_socios', 'dcasa.vend.ajustes', 'execute'):
+        'Botón «Guardar»: exige Gerencia o administrador en el servidor ANTES de escribir; vuelve a convertir y a '
+        'validar las cifras y solo entonces crea la versión (con sudo).',
+    ('dcasa_socios', 'dcasa.vend.ajustes', 'cancel'): ACCION_VENTANA,
+    ('dcasa_socios', 'dcasa.vend.ajustes', 'action_dcasa_vend_fabrica'):
+        'Botón: exige Gerencia o administrador en el servidor ANTES de crear la versión de fábrica (con sudo).',
+    ('dcasa_socios', 'dcasa.vend.ajustes', 'action_dcasa_vend_historial'):
+        ACCION_VENTANA + ' Exige Gerencia o administrador.',
+    ('dcasa_socios', 'dcasa.vend.ajustes.mixin', 'action_dcasa_vend_fabrica'):
+        'Botón del molde de la pantalla de ajustes: exige Gerencia o administrador en el servidor ANTES de escribir.',
+    ('dcasa_socios', 'dcasa.vend.ajustes.mixin', 'action_dcasa_vend_historial'):
+        ACCION_VENTANA + ' Exige Gerencia o administrador.',
+    ('dcasa_socios', 'res.config.settings', 'action_dcasa_vend_fabrica'):
+        'Botón del bloque en Ajustes (solo administradores por ACL): exige Gerencia o administrador en el servidor '
+        'ANTES de crear la versión de fábrica (con sudo).',
+    ('dcasa_socios', 'res.config.settings', 'action_dcasa_vend_historial'):
+        ACCION_VENTANA + ' Exige Gerencia o administrador.',
+    ('dcasa_socios', 'res.config.settings', 'get_values'):
+        OVERRIDE + ' Agrega las cifras del programa de vendedores solo si quien abre es Gerencia o administrador; '
+                   'res.config.settings es solo de administradores.',
+    ('dcasa_socios', 'res.config.settings', 'set_values'):
+        OVERRIDE + ' Después de los ajustes estándar entrega las cifras a dcasa.vend.reglas, que exige Gerencia o '
+                   'administrador y valida todo; res.config.settings es solo de administradores.',
     # --- dcasa_tienda_borde ----------------------------------------------------------------
     # Solo anotan «página pendiente» (dcasa.tienda.pendiente, tabla interna sin ACL de escritura)
     # en el precommit; el registro del usuario se escribe sin sudo, con su propio ACL.

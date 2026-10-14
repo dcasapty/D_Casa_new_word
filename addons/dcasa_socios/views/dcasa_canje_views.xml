@@ -145,6 +145,6 @@
         <field name="res_model">dcasa.premio</field>
         <field name="view_mode">list,form</field>
         <!-- El premio técnico del canje libre no es inventario: no se edita desde aquí. -->
-        <field name="domain">[('libre', '=', False)]</field>
+        <field name="domain">[('libre', '=', False), ('para_vendedores', '=', False)]</field>
     </record>
 </odoo>

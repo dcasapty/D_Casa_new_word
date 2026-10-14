@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERADO a partir de un solo contenido: la pantalla de Gerencia (dcasa.vend.ajustes) y el bloque dentro de
+     Ajustes (res.config.settings) muestran exactamente lo mismo. Si cambias uno, cambia el otro (hay una prueba que
+     lo vigila). -->
+<odoo>
+    <!-- ================= Ajustes del programa de vendedores (pantalla de Gerencia) ================= -->
+    <record id="view_dcasa_vend_ajustes_form" model="ir.ui.view">
+        <field name="name">dcasa.vend.ajustes.form</field>
+        <field name="model">dcasa.vend.ajustes</field>
+        <field name="arch" type="xml">
+            <form string="Programa de vendedores" class="oe_form_configuration o_dcasa_vend_ajustes" js_class="base_settings">
+                <app string="Programa de vendedores" name="dcasa_socios">
+                    <block title="Programa" name="dcasa_vend_bloque_programa">
+                        <setting id="dcasa_vend_programa" help="Si lo apagas no se acredita nada nuevo y las ventas siguen igual. Lo que los vendedores ya ganaron no se toca.">
+                            <field name="dcasa_vend_programa"/>
+                        </setting>
+                        <setting id="dcasa_vend_vigente" string="Qué reglas rigen ahora"
+                                 help="Cada cambio que guardas es una versión nueva que rige desde ese momento. Lo que ya se acreditó no se recalcula nunca.">
+                            <div>
+                                <field name="dcasa_vend_estado" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/>
+                                <field name="dcasa_vend_cargado" invisible="1"/>
+                                <field name="dcasa_vend_version_vista" invisible="1"/>
+                            </div>
+                            <div class="mt8 d-flex flex-wrap gap-3">
+                                <button name="action_dcasa_vend_historial" type="object" string="Ver los cambios anteriores"
+                                        class="btn-link p-0" icon="fa-history"/>
+                                <button name="action_dcasa_vend_fabrica" type="object" string="Volver a los valores de fábrica"
+                                        class="btn-link p-0" icon="fa-undo"
+                                        confirm="Esto crea una versión nueva con los valores de fábrica (puntos.json). El historial queda y lo que ya se acreditó no cambia. ¿Seguir?"/>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_motivo" string="Motivo del cambio"
+                                 help="Opcional. Queda escrito en el historial junto a tu nombre y la fecha.">
+                            <div><field name="dcasa_vend_motivo" class="o_dcasa_vend_texto" placeholder="Ej.: subimos la base para la temporada"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12 o_dcasa_vend_ancho"
+                                 help="Se recalcula mientras escribes. No se guarda nada hasta que pulses Guardar.">
+                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/></div>
+                        </setting>
+                    </block>
+                    <block title="Comisión y escalera" name="dcasa_vend_bloque_comision">
+                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12 o_dcasa_vend_ancho"
+                                 help="El vendedor empieza en la base. Según lo que vendió en los últimos días (la cifra de abajo) sube de escalón: gana más por cada dólar y puede ganar más al mes. Deja un escalón en 0 para no usarlo. Cada escalón tiene que empezar más arriba, pagar más y tener un tope igual o mayor que el anterior.">
+                            <div class="o_dcasa_vend_tabla">
+                                <table class="table table-sm o_dcasa_vend_escalera mb-0">
+                                    <thead>
+                                        <tr><th/><th>Vendido en esos días</th><th>Gana por cada dólar</th><th>Tope del mes</th></tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <th scope="row">Base</th>
+                                        <td data-label="Vendido en esos días" class="text-muted">desde $0</td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_comision_base" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_tope_base" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 1</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc1_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc1_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc1_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 2</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc2_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc2_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc2_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 3</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc3_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc3_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc3_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 4</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc4_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc4_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc4_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 5</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc5_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc5_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc5_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_dias_escalon" string="Días que se miran para el escalón" help="La escalera mira lo que el vendedor vendió en estos últimos días para decidir en qué escalón está.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_dias_escalon" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_compra_minima" string="Venta mínima que da comisión" help="Una venta de menos que esto se registra, pero no da comisión.">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_compra_minima" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_recompra" string="Recompra de su cliente: paga este % de la comisión" help="Cuando un cliente ligado a un vendedor vuelve a comprar sin decir el código, el vendedor gana esta parte de la comisión. 100 % es la comisión completa.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_recompra" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_existente" string="Cliente que ya compraba: paga este % de la comisión" help="Cuando alguien que ya había comprado en D’CASA compra con un código, el vendedor gana esta parte de la comisión. 100 % es la comisión completa.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_existente" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_vinculo_meses" string="Meses que el cliente queda ligado a su vendedor" help="Sus compras de ese tiempo cuentan para el vendedor aunque no diga el código. 0 = el cliente no se liga. Un cambio vale para los clientes que se liguen desde que lo guardas; los que ya estaban ligados conservan el plazo con que se ligaron.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_vinculo_meses" class="o_dcasa_vend_cifra"/><span>meses</span></div>
+                        </setting>
+                    </block>
+                    <block title="Patrocinio" name="dcasa_vend_bloque_patrocinio">
+                        <setting id="dcasa_vend_patrocinio" string="Patrocinio (% de la venta del vendedor directo)" help="Lo que gana quien patrocinó al vendedor, por cada dólar que vende su directo (un solo nivel). No le resta nada al directo y no puede ser más que la comisión base.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_patrocinio" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_directos" string="Vendedores que puede patrocinar cada persona" help="Cuántos vendedores directos puede tener, como máximo, cada patrocinador.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_directos" class="o_dcasa_vend_cifra"/><span>vendedores</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_ventas_propias" string="Clientes que el patrocinador tiene que atender en el mes" help="Para cobrar patrocinio en un mes, el patrocinador tiene que haberle vendido él mismo a esta cantidad de clientes distintos. 0 = no se pide.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_ventas_propias" class="o_dcasa_vend_cifra"/><span>clientes</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_patrocinio_multiplo" string="Tope del patrocinio del mes, en veces su comisión propia" help="El patrocinio de un mes no puede pasar de esta cantidad de veces lo que el patrocinador ganó ese mes por sus propias ventas: nadie vive solo de su colmena.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_patrocinio_multiplo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>veces</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_patrocinio_tope" string="Tope de patrocinio al mes por patrocinador" help="Lo máximo que un patrocinador puede ganar por patrocinio en un mes. 0 = sin este tope (rige el de arriba).">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_patrocinio_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                    </block>
+                    <block title="Retención (cuándo se pueden canjear los puntos)" name="dcasa_vend_bloque_retencion">
+                        <setting id="dcasa_vend_retencion_dias" string="Días de espera antes de poder canjear" help="Los puntos de una venta se ven desde el primer día, pero no se pueden canjear hasta que pasen estos días (la ventana de devoluciones).">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_retencion_dias" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_primeras_ventas" string="Primeras ventas que esperan más" help="Las primeras ventas de un vendedor nuevo esperan más días. Aquí dices cuántas son. 0 = ninguna.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_primeras_ventas" class="o_dcasa_vend_cifra"/><span>ventas</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_primeras_dias" string="Días de espera de esas primeras ventas" help="No puede ser menos que la espera normal.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_primeras_dias" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                    </block>
+                    <block title="Límites de seguridad" name="dcasa_vend_bloque_limites">
+                        <setting id="dcasa_vend_techo" string="Techo de costo por venta (% de la venta neta)" help="Por cada factura, lo que cuestan juntos los puntos del cliente, del vendedor y del patrocinador no puede pasar de este porcentaje de la venta neta. Si se pasa, se recorta primero el patrocinio y luego la comisión. Ninguna comisión puede ser mayor que este techo.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_techo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_freno" string="Freno de todo el programa (% de lo vendido en la tienda)" help="Lo que el programa entrega a todos los vendedores en 30 días no puede pasar de este porcentaje de lo vendido en toda la tienda en esos días. Es el seguro contra una cifra mal puesta; no puede ser mayor que el techo por venta.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_freno" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                    </block>
+                    <block title="Canjes" name="dcasa_vend_bloque_canjes">
+                        <setting id="dcasa_vend_canje_minimo" string="Canje mínimo" help="Lo menos que vale un premio para poder pedirlo.">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_canje_minimo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_vigencia_horas" string="Horas que dura el código de un premio" help="Pasado ese tiempo sin recoger el premio, los puntos vuelven al vendedor.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_vigencia_horas" class="o_dcasa_vend_cifra"/><span>horas</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_canjes_mes" string="Canjes por vendedor al mes" help="Cuántos premios puede pedir un vendedor en un mes.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_canjes_mes" class="o_dcasa_vend_cifra"/><span>canjes</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_externos" string="Canje para vendedores de afuera" class="o_dcasa_vend_candado"
+                                 help="Esto no se enciende desde Ajustes: lo decide el abogado y la contadora, y lo enciende el programador cuando llegue su visto bueno por escrito.">
+                            <div class="o_dcasa_vend_candado_texto">
+                                <i class="fa fa-lock me-1"/>
+                                <field name="dcasa_vend_externos" invisible="1"/>
+                                <span invisible="dcasa_vend_externos">Apagado hasta el dictamen del abogado y la contadora.</span>
+                                <span invisible="not dcasa_vend_externos">Encendido (lo decidió el programador con el visto bueno por escrito).</span>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_efectivo" string="Canje en efectivo" class="o_dcasa_vend_candado"
+                                 help="Esto no se enciende desde Ajustes: lo decide el abogado y la contadora, y lo enciende el programador cuando llegue su visto bueno por escrito.">
+                            <div class="o_dcasa_vend_candado_texto">
+                                <i class="fa fa-lock me-1"/>
+                                <field name="dcasa_vend_efectivo" invisible="1"/>
+                                <span invisible="dcasa_vend_efectivo">Apagado hasta el dictamen del abogado y la contadora.</span>
+                                <span invisible="not dcasa_vend_efectivo">Encendido (lo decidió el programador con el visto bueno por escrito).</span>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_ajustes" model="ir.actions.act_window">
+        <field name="name">Ajustes del programa de vendedores</field>
+        <field name="res_model">dcasa.vend.ajustes</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_dcasa_vend_ajustes_form"/>
+        <field name="context">{'module': 'dcasa_socios', 'bin_size': False}</field>
+    </record>
+
+    <!-- ================= El mismo bloque dentro de Ajustes (administradores) ================= -->
+    <record id="res_config_settings_view_form_dcasa_vendedores" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.dcasa.vendedores</field>
+        <field name="model">res.config.settings</field>
+        <field name="priority" eval="85"/>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Programa de vendedores" string="Programa de vendedores" name="dcasa_socios"
+                     groups="dcasa_base.group_gerencia,base.group_system">
+                    <block title="Programa" name="dcasa_vend_bloque_programa">
+                        <setting id="dcasa_vend_programa" help="Si lo apagas no se acredita nada nuevo y las ventas siguen igual. Lo que los vendedores ya ganaron no se toca.">
+                            <field name="dcasa_vend_programa"/>
+                        </setting>
+                        <setting id="dcasa_vend_vigente" string="Qué reglas rigen ahora"
+                                 help="Cada cambio que guardas es una versión nueva que rige desde ese momento. Lo que ya se acreditó no se recalcula nunca.">
+                            <div>
+                                <field name="dcasa_vend_estado" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/>
+                                <field name="dcasa_vend_cargado" invisible="1"/>
+                                <field name="dcasa_vend_version_vista" invisible="1"/>
+                            </div>
+                            <div class="mt8 d-flex flex-wrap gap-3">
+                                <button name="action_dcasa_vend_historial" type="object" string="Ver los cambios anteriores"
+                                        class="btn-link p-0" icon="fa-history"/>
+                                <button name="action_dcasa_vend_fabrica" type="object" string="Volver a los valores de fábrica"
+                                        class="btn-link p-0" icon="fa-undo"
+                                        confirm="Esto crea una versión nueva con los valores de fábrica (puntos.json). El historial queda y lo que ya se acreditó no cambia. ¿Seguir?"/>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_motivo" string="Motivo del cambio"
+                                 help="Opcional. Queda escrito en el historial junto a tu nombre y la fecha.">
+                            <div><field name="dcasa_vend_motivo" class="o_dcasa_vend_texto" placeholder="Ej.: subimos la base para la temporada"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12 o_dcasa_vend_ancho"
+                                 help="Se recalcula mientras escribes. No se guarda nada hasta que pulses Guardar.">
+                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/></div>
+                        </setting>
+                    </block>
+                    <block title="Comisión y escalera" name="dcasa_vend_bloque_comision">
+                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12 o_dcasa_vend_ancho"
+                                 help="El vendedor empieza en la base. Según lo que vendió en los últimos días (la cifra de abajo) sube de escalón: gana más por cada dólar y puede ganar más al mes. Deja un escalón en 0 para no usarlo. Cada escalón tiene que empezar más arriba, pagar más y tener un tope igual o mayor que el anterior.">
+                            <div class="o_dcasa_vend_tabla">
+                                <table class="table table-sm o_dcasa_vend_escalera mb-0">
+                                    <thead>
+                                        <tr><th/><th>Vendido en esos días</th><th>Gana por cada dólar</th><th>Tope del mes</th></tr>
+                                    </thead>
+                                    <tbody>
+                                    <tr>
+                                        <th scope="row">Base</th>
+                                        <td data-label="Vendido en esos días" class="text-muted">desde $0</td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_comision_base" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_tope_base" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 1</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc1_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc1_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc1_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 2</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc2_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc2_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc2_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 3</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc3_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc3_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc3_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 4</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc4_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc4_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc4_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">Escalón 5</th>
+                                        <td data-label="Vendido en esos días"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc5_desde" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                        <td data-label="Gana por cada dólar"><div class="o_dcasa_vend_celda"><field name="dcasa_vend_esc5_tasa" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div></td>
+                                        <td data-label="Tope del mes"><div class="o_dcasa_vend_celda"><span>$</span><field name="dcasa_vend_esc5_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div></td>
+                                    </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_dias_escalon" string="Días que se miran para el escalón" help="La escalera mira lo que el vendedor vendió en estos últimos días para decidir en qué escalón está.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_dias_escalon" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_compra_minima" string="Venta mínima que da comisión" help="Una venta de menos que esto se registra, pero no da comisión.">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_compra_minima" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_recompra" string="Recompra de su cliente: paga este % de la comisión" help="Cuando un cliente ligado a un vendedor vuelve a comprar sin decir el código, el vendedor gana esta parte de la comisión. 100 % es la comisión completa.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_recompra" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_existente" string="Cliente que ya compraba: paga este % de la comisión" help="Cuando alguien que ya había comprado en D’CASA compra con un código, el vendedor gana esta parte de la comisión. 100 % es la comisión completa.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_existente" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_vinculo_meses" string="Meses que el cliente queda ligado a su vendedor" help="Sus compras de ese tiempo cuentan para el vendedor aunque no diga el código. 0 = el cliente no se liga. Un cambio vale para los clientes que se liguen desde que lo guardas; los que ya estaban ligados conservan el plazo con que se ligaron.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_vinculo_meses" class="o_dcasa_vend_cifra"/><span>meses</span></div>
+                        </setting>
+                    </block>
+                    <block title="Patrocinio" name="dcasa_vend_bloque_patrocinio">
+                        <setting id="dcasa_vend_patrocinio" string="Patrocinio (% de la venta del vendedor directo)" help="Lo que gana quien patrocinó al vendedor, por cada dólar que vende su directo (un solo nivel). No le resta nada al directo y no puede ser más que la comisión base.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_patrocinio" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_directos" string="Vendedores que puede patrocinar cada persona" help="Cuántos vendedores directos puede tener, como máximo, cada patrocinador.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_directos" class="o_dcasa_vend_cifra"/><span>vendedores</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_ventas_propias" string="Clientes que el patrocinador tiene que atender en el mes" help="Para cobrar patrocinio en un mes, el patrocinador tiene que haberle vendido él mismo a esta cantidad de clientes distintos. 0 = no se pide.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_ventas_propias" class="o_dcasa_vend_cifra"/><span>clientes</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_patrocinio_multiplo" string="Tope del patrocinio del mes, en veces su comisión propia" help="El patrocinio de un mes no puede pasar de esta cantidad de veces lo que el patrocinador ganó ese mes por sus propias ventas: nadie vive solo de su colmena.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_patrocinio_multiplo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>veces</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_patrocinio_tope" string="Tope de patrocinio al mes por patrocinador" help="Lo máximo que un patrocinador puede ganar por patrocinio en un mes. 0 = sin este tope (rige el de arriba).">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_patrocinio_tope" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                    </block>
+                    <block title="Retención (cuándo se pueden canjear los puntos)" name="dcasa_vend_bloque_retencion">
+                        <setting id="dcasa_vend_retencion_dias" string="Días de espera antes de poder canjear" help="Los puntos de una venta se ven desde el primer día, pero no se pueden canjear hasta que pasen estos días (la ventana de devoluciones).">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_retencion_dias" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_primeras_ventas" string="Primeras ventas que esperan más" help="Las primeras ventas de un vendedor nuevo esperan más días. Aquí dices cuántas son. 0 = ninguna.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_primeras_ventas" class="o_dcasa_vend_cifra"/><span>ventas</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_primeras_dias" string="Días de espera de esas primeras ventas" help="No puede ser menos que la espera normal.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_primeras_dias" class="o_dcasa_vend_cifra"/><span>días</span></div>
+                        </setting>
+                    </block>
+                    <block title="Límites de seguridad" name="dcasa_vend_bloque_limites">
+                        <setting id="dcasa_vend_techo" string="Techo de costo por venta (% de la venta neta)" help="Por cada factura, lo que cuestan juntos los puntos del cliente, del vendedor y del patrocinador no puede pasar de este porcentaje de la venta neta. Si se pasa, se recorta primero el patrocinio y luego la comisión. Ninguna comisión puede ser mayor que este techo.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_techo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_freno" string="Freno de todo el programa (% de lo vendido en la tienda)" help="Lo que el programa entrega a todos los vendedores en 30 días no puede pasar de este porcentaje de lo vendido en toda la tienda en esos días. Es el seguro contra una cifra mal puesta; no puede ser mayor que el techo por venta.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_freno" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/><span>%</span></div>
+                        </setting>
+                    </block>
+                    <block title="Canjes" name="dcasa_vend_bloque_canjes">
+                        <setting id="dcasa_vend_canje_minimo" string="Canje mínimo" help="Lo menos que vale un premio para poder pedirlo.">
+                            <div class="d-flex align-items-center gap-2"><span>$</span><field name="dcasa_vend_canje_minimo" class="o_dcasa_vend_cifra" options="{'hide_trailing_zeros': true}"/></div>
+                        </setting>
+                        <setting id="dcasa_vend_vigencia_horas" string="Horas que dura el código de un premio" help="Pasado ese tiempo sin recoger el premio, los puntos vuelven al vendedor.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_vigencia_horas" class="o_dcasa_vend_cifra"/><span>horas</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_canjes_mes" string="Canjes por vendedor al mes" help="Cuántos premios puede pedir un vendedor en un mes.">
+                            <div class="d-flex align-items-center gap-2"><field name="dcasa_vend_canjes_mes" class="o_dcasa_vend_cifra"/><span>canjes</span></div>
+                        </setting>
+                        <setting id="dcasa_vend_externos" string="Canje para vendedores de afuera" class="o_dcasa_vend_candado"
+                                 help="Esto no se enciende desde Ajustes: lo decide el abogado y la contadora, y lo enciende el programador cuando llegue su visto bueno por escrito.">
+                            <div class="o_dcasa_vend_candado_texto">
+                                <i class="fa fa-lock me-1"/>
+                                <field name="dcasa_vend_externos" invisible="1"/>
+                                <span invisible="dcasa_vend_externos">Apagado hasta el dictamen del abogado y la contadora.</span>
+                                <span invisible="not dcasa_vend_externos">Encendido (lo decidió el programador con el visto bueno por escrito).</span>
+                            </div>
+                        </setting>
+                        <setting id="dcasa_vend_efectivo" string="Canje en efectivo" class="o_dcasa_vend_candado"
+                                 help="Esto no se enciende desde Ajustes: lo decide el abogado y la contadora, y lo enciende el programador cuando llegue su visto bueno por escrito.">
+                            <div class="o_dcasa_vend_candado_texto">
+                                <i class="fa fa-lock me-1"/>
+                                <field name="dcasa_vend_efectivo" invisible="1"/>
+                                <span invisible="dcasa_vend_efectivo">Apagado hasta el dictamen del abogado y la contadora.</span>
+                                <span invisible="not dcasa_vend_efectivo">Encendido (lo decidió el programador con el visto bueno por escrito).</span>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ================= Historial de reglas (solo lectura) ================= -->
+    <record id="view_dcasa_vend_reglas_list" model="ir.ui.view">
+        <field name="name">dcasa.vend.reglas.list</field>
+        <field name="model">dcasa.vend.reglas</field>
+        <field name="arch" type="xml">
+            <list string="Historial de reglas del programa de vendedores" create="false" edit="false" delete="false"
+                  decoration-success="rige_ahora" decoration-muted="not rige_ahora">
+                <field name="numero"/>
+                <field name="vigente_desde" width="190px"/>
+                <field name="rige_ahora"/>
+                <field name="autor"/>
+                <field name="tipo" optional="show"/>
+                <field name="resumen"/>
+                <field name="motivo" optional="show"/>
+                <field name="fabrica_version" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_reglas_form" model="ir.ui.view">
+        <field name="name">dcasa.vend.reglas.form</field>
+        <field name="model">dcasa.vend.reglas</field>
+        <field name="arch" type="xml">
+            <form string="Versión de las reglas" create="false" edit="false" delete="false">
+                <sheet>
+                    <div class="oe_title"><h1><field name="nombre"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="vigente_desde"/>
+                            <field name="rige_ahora"/>
+                            <field name="autor"/>
+                            <field name="tipo"/>
+                        </group>
+                        <group>
+                            <field name="motivo"/>
+                            <field name="fabrica_version"/>
+                        </group>
+                    </group>
+                    <separator string="Qué cambió"/>
+                    <field name="cambios_html" nolabel="1"/>
+                    <group groups="base.group_no_one">
+                        <field name="ajustes"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_reglas_search" model="ir.ui.view">
+        <field name="name">dcasa.vend.reglas.search</field>
+        <field name="model">dcasa.vend.reglas</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="autor"/>
+                <field name="motivo"/>
+                <filter name="ajustes_de_gerencia" string="Ajustes" domain="[('tipo', '=', 'ajuste')]"/>
+                <filter name="vueltas_a_fabrica" string="Vueltas a la fábrica" domain="[('tipo', '=', 'fabrica')]"/>
+                <separator/>
+                <filter name="vigente_desde" string="Fecha" date="vigente_desde"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_reglas" model="ir.actions.act_window">
+        <field name="name">Historial de reglas</field>
+        <field name="res_model">dcasa.vend.reglas</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no se ha cambiado ninguna regla</p>
+            <p>Rigen los valores de fábrica. Cuando Gerencia cambie una cifra en Ajustes, aquí queda quién la cambió,
+                cuándo, qué había antes y qué hay ahora. Este historial no se edita ni se borra.</p>
+        </field>
+    </record>
+
+    <!-- ================= Lo ya pagado dice con qué reglas se pagó ================= -->
+    <record id="view_dcasa_vend_comision_form_ajuste" model="ir.ui.view">
+        <field name="name">dcasa.vend.comision.form.ajuste</field>
+        <field name="model">dcasa.vend.comision</field>
+        <field name="inherit_id" ref="view_dcasa_vend_comision_form"/>
+        <field name="arch" type="xml">
+            <field name="reglas_version" position="after">
+                <field name="reglas_ajuste" invisible="not reglas_ajuste"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- ================= Menús ================= -->
+    <menuitem id="menu_dcasa_vend_ajustes" name="Ajustes del programa de vendedores" parent="menu_dcasa_config"
+              sequence="5" action="action_dcasa_vend_ajustes" groups="dcasa_base.group_gerencia,base.group_system"/>
+    <menuitem id="menu_dcasa_vend_reglas" name="Historial de reglas" parent="menu_dcasa_socios_root" sequence="60"
+              action="action_dcasa_vend_reglas" groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

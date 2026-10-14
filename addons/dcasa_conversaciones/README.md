@@ -55,7 +55,14 @@ compartido, `almacen.js`, y un componente por zona), las plantillas en `static/s
 `models/panel_juan.py`; está documentado en `docs/JUAN_ODOO.md` (lo que ve la dueña y la API). El bus avisa con
 `dcasa_conversaciones/evento` solo ids y estado, nunca texto.
 
-Pruebas de la pantalla: `tests/test_panel_interfaz.py` (Chrome, escritorio y celular de 390 px) y `tests/test_panel_visual.py`
+**Disposición compacta** (laptops de 1366 × 768 y menos): el hilo es lo único que se estira. La ficha del cliente nace cerrada (abierta solo
+en pantallas de 1500 × 800 o más) y se abre con el botón «Cliente»; la lista puede reducirse a las fotos; la caja es una franja y una línea
+(íconos con nombre + menú «Más»); los avisos son de una línea. Qué se ve a cada tamaño y cómo se recuerda la preferencia por persona
+(`localStorage`, envuelto en try/catch) está en `static/src/js/preferencias.js`; los límites de pantalla de ese archivo son los mismos
+de los `@media` de `panel.scss`. Medidas y explicación para la dueña: «Tamaños probados» en `docs/JUAN_ODOO.md`.
+
+Pruebas de la pantalla: `tests/test_panel_interfaz.py` (Chrome, escritorio y celular de 390 px), `tests/test_panel_disposicion.py`
+(la disposición compacta a siete tamaños de ventana, con el JavaScript de `tests/disposicion.js`) y `tests/test_panel_visual.py`
 (contrato visual con referencias en `tests/referencia/`; se regeneran con `scripts/actualizar_referencias_visuales_juan.sh`).
 
 ## Pruebas

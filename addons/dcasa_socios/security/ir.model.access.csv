@@ -10,3 +10,14 @@ access_ajuste_wizard_gerente,ajuste gerente,model_dcasa_ajuste_wizard,sales_team
 access_anular_compra_wizard_gerente,anular compra gerente,model_dcasa_anular_compra_wizard,sales_team.group_sale_manager,1,1,1,0
 access_cobrar_premio_wizard_vendedora,cobrar premio vendedora,model_dcasa_cobrar_premio_wizard,sales_team.group_sale_salesman,1,1,1,0
 access_compra_manual_wizard_gerente,compra manual gerente,model_dcasa_compra_manual_wizard,sales_team.group_sale_manager,1,1,1,0
+access_vend_movimiento_vendedora,vend movimiento vendedora,model_dcasa_vend_movimiento,sales_team.group_sale_salesman,1,0,0,0
+access_vend_movimiento_contabilidad,vend movimiento contabilidad,model_dcasa_vend_movimiento,account.group_account_invoice,1,0,0,0
+access_vend_comision_vendedora,vend comision vendedora,model_dcasa_vend_comision,sales_team.group_sale_salesman,1,0,0,0
+access_vend_comision_contabilidad,vend comision contabilidad,model_dcasa_vend_comision,account.group_account_invoice,1,0,0,0
+access_vend_canje_vendedora,vend canje vendedora,model_dcasa_vend_canje,sales_team.group_sale_salesman,1,0,0,0
+access_afiliar_vendedor_wizard_vendedora,afiliar vendedor vendedora,model_dcasa_afiliar_vendedor_wizard,sales_team.group_sale_salesman,1,1,1,0
+access_vend_ajuste_wizard_gerente,vend ajuste gerente,model_dcasa_vend_ajuste_wizard,sales_team.group_sale_manager,1,1,1,0
+access_vend_reglas_gerencia,vend reglas gerencia,model_dcasa_vend_reglas,dcasa_base.group_gerencia,1,0,0,0
+access_vend_reglas_admin,vend reglas admin,model_dcasa_vend_reglas,base.group_system,1,0,0,0
+access_vend_ajustes_gerencia,vend ajustes gerencia,model_dcasa_vend_ajustes,dcasa_base.group_gerencia,1,1,1,0
+access_vend_ajustes_admin,vend ajustes admin,model_dcasa_vend_ajustes,base.group_system,1,1,1,0

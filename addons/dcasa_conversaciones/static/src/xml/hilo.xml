@@ -85,19 +85,20 @@
                         <img t-if="almacen.conversacion and almacen.conversacion.foto_perfil" class="o_dcj_avatar_foto" t-att-src="almacen.conversacion.foto_perfil" alt="" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
                     </span>
                     <div class="o_dcj_hilo_titulo">
-                        <h2 t-out="nombreDelCliente"/>
-                        <p>
+                        <h2 t-out="nombreDelCliente" t-att-title="nombreDelCliente"/>
+                        <p t-att-title="subtitulo">
                             <i t-if="almacen.conversacion" t-attf-class="fa #{iconoDeCanal(almacen.conversacion.canal)}" aria-hidden="true"/>
                             <t t-out="subtitulo"/>
                         </p>
                     </div>
-                    <span t-if="estadoDelHeader" t-attf-class="o_dcj_estado o_dcj_estado_#{estadoDelHeader.clase}">
+                    <span t-if="estadoDelHeader" t-attf-class="o_dcj_estado o_dcj_estado_#{estadoDelHeader.clase}" t-att-title="estadoDelHeader.texto">
                         <i t-if="almacen.conversacion.bot_atiende and almacen.conversacion.estado !== 'cerrada'" class="o_dcj_punto_verde" title="El asistente está atendiendo"/>
                         <t t-out="estadoDelHeader.texto"/>
                     </span>
-                    <button type="button" class="o_dcj_icono_boton o_dcj_boton_ficha" t-att-aria-expanded="almacen.fichaAbierta ? 'true' : 'false'"
-                            title="Ver la ficha del cliente" t-on-click="abrirFicha">
-                        <i class="fa fa-id-card-o" aria-hidden="true"/><span class="o_dcj_texto_boton">Ficha</span>
+                    <button type="button" class="o_dcj_icono_boton o_dcj_boton_ficha" t-att-class="{ o_activa: almacen.fichaAbierta }"
+                            aria-controls="o_dcj_ficha" t-att-aria-expanded="almacen.fichaAbierta ? 'true' : 'false'"
+                            aria-label="Cliente: mostrar u ocultar la ficha" title="Ficha del cliente: mostrar u ocultar" t-on-click="abrirFicha">
+                        <i class="fa fa-id-card-o" aria-hidden="true"/><span class="o_dcj_texto_boton o_dcj_texto_siempre">Cliente</span>
                     </button>
                     <button t-if="almacen.conversacion and almacen.conversacion.estado !== 'cerrada'" type="button"
                             class="o_dcj_icono_boton" title="Cerrar la conversación" aria-label="Cerrar la conversación"
@@ -111,17 +112,26 @@
                     </button>
                 </header>
 
-                <section t-if="resumen" class="o_dcj_resumen" aria-label="Resumen de la conversación">
+                <section t-if="resumen" class="o_dcj_resumen" t-att-class="{ o_abierto: resumenAbierto }" aria-label="Resumen de la conversación">
                     <header>
-                        <strong><i class="fa fa-list-ul" aria-hidden="true"/> Resumen</strong>
-                        <span class="o_dcj_resumen_cuando">hecho <t t-out="resumen.cuando"/> con IA</span>
+                        <button type="button" class="o_dcj_resumen_titulo" aria-controls="o_dcj_resumen_cuerpo"
+                                t-att-aria-expanded="resumenAbierto ? 'true' : 'false'" t-on-click="alternarResumen"
+                                t-att-title="resumenAbierto ? 'Ocultar el resumen' : 'Ver el resumen completo'">
+                            <i class="fa fa-list-ul" aria-hidden="true"/>
+                            <strong>Resumen</strong>
+                            <span class="o_dcj_resumen_cuando">hecho <t t-out="resumen.cuando"/> con IA<t t-if="resumen.desactualizado"> · hay mensajes nuevos</t></span>
+                            <span class="o_dcj_resumen_vista" t-out="resumen.lineas[0]"/>
+                            <i t-attf-class="fa #{resumenAbierto ? 'fa-angle-up' : 'fa-angle-down'} o_dcj_resumen_flecha" aria-hidden="true"/>
+                        </button>
                         <button type="button" class="o_dcj_icono_boton" title="Volver a resumir con lo último" aria-label="Actualizar el resumen"
                                 t-att-disabled="almacen.resumiendo" t-on-click="() => almacen.resumirLaAbierta(true)">
                             <i t-attf-class="fa #{almacen.resumiendo ? 'fa-circle-o-notch fa-spin' : 'fa-refresh'}" aria-hidden="true"/>
                         </button>
                     </header>
-                    <ul><li t-foreach="resumen.lineas" t-as="linea" t-key="linea_index" t-out="linea"/></ul>
-                    <p t-if="resumen.desactualizado" class="o_dcj_resumen_aviso"><i class="fa fa-info-circle" aria-hidden="true"/> Llegaron mensajes después de este resumen.</p>
+                    <div id="o_dcj_resumen_cuerpo" class="o_dcj_resumen_cuerpo">
+                        <ul><li t-foreach="resumen.lineas" t-as="linea" t-key="linea_index" t-out="linea"/></ul>
+                        <p t-if="resumen.desactualizado" class="o_dcj_resumen_aviso"><i class="fa fa-info-circle" aria-hidden="true"/> Llegaron mensajes después de este resumen.</p>
+                    </div>
                 </section>
                 <div t-elif="puedeResumir" class="o_dcj_resumir">
                     <button type="button" class="btn btn-secondary" t-att-disabled="almacen.resumiendo" t-on-click="() => almacen.resumirLaAbierta()">

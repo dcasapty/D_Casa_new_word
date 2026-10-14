@@ -212,6 +212,21 @@ export class BrianPanel extends Component {
             },
             () => [this.abierto.abierto]
         );
+        // Otra pantalla (la Guía) deja una pregunta escrita: va a la caja del chat, sin enviarla.
+        useEffect(
+            (pregunta) => {
+                if (pregunta) {
+                    this.state.vista = "chat";
+                    this.state.texto = pregunta;
+                    this.brian.estado.pregunta = "";
+                    browser.setTimeout(() => {
+                        this.entradaRef.el?.focus();
+                        this.ajustarAltura();
+                    }, 50);
+                }
+            },
+            () => [this.abierto.pregunta]
+        );
         useEffect(
             () => {
                 const el = this.mensajesRef.el;

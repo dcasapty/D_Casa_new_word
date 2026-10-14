@@ -2,7 +2,7 @@
  * El hilo de la conversación (columna central): burbujas por autor, fotos y documentos, notas internas, avisos del
  * sistema, carga hacia atrás de 50 en 50, arrastrar y soltar archivos, y la caja de respuesta abajo.
  */
-import { Component, onMounted, onPatched, onWillPatch, onWillUnmount, useRef, useState } from "@odoo/owl";
+import { Component, onMounted, onPatched, onWillPatch, onWillUnmount, useEffect, useRef, useState } from "@odoo/owl";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { useService } from "@web/core/utils/hooks";
 import { CajaRespuesta } from "./caja";
@@ -91,7 +91,7 @@ export class HiloConversacion extends Component {
     setup() {
         this.almacen = useState(this.props.almacen);
         this.dialog = useService("dialog");
-        this.local = useState({ arrastrando: false });
+        this.local = useState({ arrastrando: false, resumenDe: null });
         this.refCuerpo = useRef("cuerpo");
         this.elementosDelHilo = (mensajes) => elementosDelHilo(mensajes, this.almacen.ahora);
         this.iconoDeCanal = iconoDeCanal;
@@ -102,6 +102,25 @@ export class HiloConversacion extends Component {
         this._primerId = null;
         this._ultimoId = null;
         this._arrastresAnidados = 0;
+        this._alFondo = true; // ¿se estaba leyendo lo último? (para no perder el fondo cuando cambia el tamaño del hilo)
+
+        // Si el hilo cambia de tamaño (se abre la ficha, la lista se reduce, la caja crece con un texto largo) y se estaba
+        // en el último mensaje, se sigue ahí; si se estaba leyendo más arriba, no se mueve.
+        useEffect(
+            (cuerpo) => {
+                if (!cuerpo || typeof ResizeObserver === "undefined") {
+                    return;
+                }
+                const observador = new ResizeObserver(() => {
+                    if (this._alFondo) {
+                        cuerpo.scrollTop = cuerpo.scrollHeight;
+                    }
+                });
+                observador.observe(cuerpo);
+                return () => observador.disconnect();
+            },
+            () => [this.refCuerpo.el]
+        );
 
         onWillPatch(() => {
             const el = this.refCuerpo.el;
@@ -148,6 +167,7 @@ export class HiloConversacion extends Component {
         if (!el) {
             return;
         }
+        this._alFondo = el.scrollHeight - el.scrollTop - el.clientHeight < CERCA_DEL_FONDO;
         if (el.scrollTop < CERCA_DEL_TOPE) {
             this.almacen.cargarAntes();
         }
@@ -252,9 +272,18 @@ export class HiloConversacion extends Component {
         this.almacen.volverALaLista();
     }
 
+    /** «Cliente»: abre o cierra la ficha (al lado en pantallas amplias, encima en las demás, otra pantalla en celular). */
     abrirFicha() {
-        this.almacen.fichaAbierta = !this.almacen.fichaAbierta;
-        this.almacen.columna = "ficha";
+        this.almacen.alternarFicha();
+    }
+
+    /** El resumen nace plegado en una línea (en cada conversación) para no quitarle espacio a los mensajes. */
+    get resumenAbierto() {
+        return this.local.resumenDe === this.almacen.seleccionadaId;
+    }
+
+    alternarResumen() {
+        this.local.resumenDe = this.resumenAbierto ? null : this.almacen.seleccionadaId;
     }
 
     async cerrarConversacion() {

@@ -49,10 +49,16 @@ a Odoo para que haya un solo sistema:
         'views/portal_templates.xml',
         'views/res_config_settings_views.xml',
         'views/menus.xml',
+        'views/vendedores_views.xml',
+        'views/vendedores_templates.xml',
+        'views/vendedores_ajustes_views.xml',
     ],
     'assets': {
         'web.assets_frontend': [
             'dcasa_socios/static/src/scss/socios.scss',
+        ],
+        'web.assets_backend': [
+            'dcasa_socios/static/src/scss/vendedores_ajustes.scss',
         ],
     },
     'installable': True,

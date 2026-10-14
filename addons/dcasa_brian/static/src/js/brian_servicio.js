@@ -1,6 +1,6 @@
 /**
  * Servicio `dcasa_brian`: abre y cierra el panel de Brian desde cualquier lugar
- * (botón flotante, barra superior, atajo Ctrl + J). El panel (brian_panel.js) se encarga
+ * (botón flotante, barra superior, atajo Ctrl + J) y puede abrirlo con una pregunta ya escrita (`preguntar`). El panel (brian_panel.js) se encarga
  * del foco: al abrir va a la caja de texto y al cerrar vuelve a donde estaba.
  */
 import { reactive } from "@odoo/owl";
@@ -9,7 +9,8 @@ import { registry } from "@web/core/registry";
 export const brianServicio = {
     dependencies: ["hotkey"],
     start(env, { hotkey }) {
-        const estado = reactive({ abierto: false });
+        // `pregunta`: texto que otra pantalla (la Guía) quiere dejar escrito en la caja de Brian.
+        const estado = reactive({ abierto: false, pregunta: "" });
 
         const servicio = {
             estado,
@@ -26,6 +27,11 @@ export const brianServicio = {
                     estado.abierto = false;
                     document.body.classList.remove("o_brian_abierto");
                 }
+            },
+            /** Abre el panel con `texto` ya escrito en la caja (no lo envía: la persona decide). */
+            preguntar(texto) {
+                estado.pregunta = String(texto || "");
+                servicio.abrir();
             },
             alternar() {
                 return estado.abierto ? servicio.cerrar() : servicio.abrir();

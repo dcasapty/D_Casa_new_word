@@ -95,6 +95,17 @@ export class DcasaInicio extends Component {
         });
     }
 
+    /** «¿Qué necesito hacer?»: la Guía del negocio (módulo dcasa_guia). */
+    abrirGuia() {
+        // Por su menú, para que la barra de arriba y la de la izquierda digan «Guía» y no «Inicio».
+        const menu = this.menu.getAll().find((m) => m.xmlid === "dcasa_guia.menu_guia");
+        if (menu) {
+            this.menu.selectMenu(menu);
+        } else {
+            this.action.doAction("dcasa_guia.accion_guia", { clearBreadcrumbs: true });
+        }
+    }
+
     /** Un acceso directo del Inicio: abre su pantalla (en la vista que dice el servidor, p. ej. lista). */
     abrirAtajo(atajo) {
         this.action.doAction(atajo.accion, atajo.vista ? { viewType: atajo.vista } : {});

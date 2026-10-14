@@ -6,6 +6,10 @@ llevado **dentro de Odoo** para que haya un solo sistema. Se conservaron sus reg
 de negocio y sus defensas antifraude. Lo que aporta Odoo es que las ventas ya no
 se teclean dos veces.
 
+> **Vendedores.** Quien vende por su cuenta (empleado o de afuera) tiene un programa aparte, con código
+> `VEN…`, puntos propios y una colmena de un solo nivel; ver [VENDEDORES.md](VENDEDORES.md). Convive con
+> este: el cliente sigue ganando sus puntos de Socios y el vendedor es la misma ficha.
+
 ## Qué se tomó de cada lado
 
 | De DCasa-Referidos (Abrinay) | De la integración con Odoo |

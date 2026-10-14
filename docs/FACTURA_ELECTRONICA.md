@@ -228,6 +228,10 @@ Seguridad: Facturación y el lector contable solo **leen**; los botones exigen
 `account.group_account_invoice` antes de trabajar con sudo (lista blanca en
 `dcasa_base/tests/test_superficie_rpc.py`). Los adaptadores de PAC no exponen nada por RPC.
 
+Combos (cama + colchón, tipo «Combo» de Odoo): la factura lleva el combo como un **título** sin importe y debajo sus
+piezas (la cama y el colchón), cada una con su precio repartido y su ITBMS. A la DGI van **dos ítems** (las piezas), con
+la tasa de cada una; el título no viaja, no hay ítems en cero y el total es el mismo (`dcasa_fe_pa/tests/test_combos.py`).
+
 Brian: herramienta de solo lectura `estado_factura_electronica` (en
 `dcasa_brian/models/herramientas_fe.py`): conteo por estado y lo que pide atención
 (rechazados y contingencias de más de 72 h).

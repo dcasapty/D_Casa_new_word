@@ -52,7 +52,7 @@ MCP ────────┘         │                        │  tool cal
 1. Eliminar, archivar o quitarle permisos al administrador, ni a sí mismo (el usuario con quien conversa).
 2. Modificar facturas publicadas o pagadas, asientos publicados ni conciliaciones: eso se corrige con notas de crédito o asientos contrarios, por una persona.
 3. Borrar (unlink) registros contables, del libro de puntos (`dcasa.movimiento`) o del registro de acciones de Brian.
-4. Tocar el programa Socios fuera de sus reglas (cifras solo de `puntos.json`; el libro no se edita).
+4. Tocar el programa Socios o el de vendedores fuera de sus reglas (cifras solo de `puntos.json`; el libro no se edita).
 5. Ver o cambiar contraseñas, claves de API, `DCASA_PIN_PEPPER` ni parámetros técnicos del sistema.
 6. Ejecutar código, SQL o acciones del servidor arbitrarias.
 7. Actuar con más permisos que el usuario: todo corre como él.
@@ -335,6 +335,8 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `consumo_de_brian` | lectura | Administrador |
 | `oportunidades_abiertas(temperatura?, para_hoy?, limite?)` — las del CRM que nacieron de una conversación, de la más caliente a la más fría: etapa, qué pidió, para cuándo, zona, si esperan respuesta o tienen cotización; `para_hoy` = tibias y calientes sin mensaje de una vendedora en 24 h (módulo `dcasa_conversaciones`) | lectura | Ventas |
 | `resumen_del_crm` — abiertas por temperatura y por etapa, las que esperan respuesta, con cotización enviada, en manos de una persona y lo ganado y archivado en 30 días | lectura | Ventas |
+
+| `buscar_en_guia(consulta)` — busca en la Guía del negocio (módulo `dcasa_guia`, [GUIA.md](GUIA.md)) qué pantalla sirve para lo que la persona quiere hacer (declaración de renta, ITBMS, cerrar el mes, planilla…): qué logra, dónde queda en el menú, los pasos y la nota; solo lo que quien pregunta puede abrir | lectura | Interno |
 
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 

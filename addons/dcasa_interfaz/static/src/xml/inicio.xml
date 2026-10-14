@@ -14,6 +14,9 @@
                 </div>
                 <!-- Solo los accesos que quien mira puede usar (permisos de obtener_datos). -->
                 <div class="o_dcasa_inicio_accesos">
+                    <button t-if="d.guia" class="btn btn-secondary o_dcasa_inicio_guia" t-on-click="abrirGuia">
+                        <i class="fa fa-compass me-2"/>¿Qué necesito hacer?
+                    </button>
                     <button t-if="d.permisos.cotizar" class="btn btn-primary" t-on-click="() => this.nuevo('sale.order')">
                         <i class="fa fa-plus me-2"/>Nueva cotización
                     </button>

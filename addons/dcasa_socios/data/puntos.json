@@ -1,7 +1,9 @@
 {
   "$comentario": "FUENTE ÚNICA DE LA ECONOMÍA DEL PROGRAMA. Ninguna cifra de puntos vive en el código: si el código necesita un valor que no está aquí, ese valor no existe todavía. Es la misma disciplina de datos/precios.json en PanaClaw-WorkSpace, y existe por lo mismo: una cifra inventada en un programa de puntos es dinero real regalado o negado.",
-  "version": 3,
+  "version": 5,
   "$version3": "2026-10-03: se añade canje.puntosPorDolar (la cifra de $decidido, 100 puntos = $1) para que la lea el código del carrito web. Ninguna cifra de acumulación ni de referido cambió.",
+  "$version4": "2026-10-14: se añade la sección «vendedores» (programa de vendedores, colmena de un nivel). Ninguna cifra de Socios (acumulación, referido, canje de clientes) cambió. Decidida por la dueña «con tal de que el sistema nunca colapse», tras investigación de mercado y un debate de tres posturas (finanzas, crecimiento, riesgo) con consenso de un moderador; ver docs/VENDEDORES.md.",
+  "$version5": "2026-10-14: la dueña pide que un vendedor de tiempo completo pueda llegar a unos $700 al mes en puntos sin quemar la utilidad. Se añade la ESCALERA de vendedores: la tasa sube de 4 % a 5 %, 6.5 % y 8 % según lo vendido en los últimos 90 días, cada escalón con su tope mensual (antes: 4 % plano y $200 al mes), el freno global pasa de 1.5 % a 3 % y los canjes por mes de 2 a 4. Ninguna cifra de Socios cambió. Razón: con 4 % plano, $700 piden $17,500 netos (121 ventas, un tercio de las ~366 facturas mensuales de la tienda); a 8 % bastan unas 60 ventas (~3 por día hábil). El costo real del escalón más alto es unos 19 % del margen supuesto de 35 % (15 % con el 44.6 % medido en el inventario) y se paga solo si al menos 19 % de lo vendido con código es de clientes que no habrían comprado; ver docs/VENDEDORES.md.",
   "$version": "La versión se guarda con CADA compra (compras.reglas_version). Si estas cifras cambian, las compras viejas siguen explicando los puntos que dieron. Súbela cuando cambies cualquier valor de acumulación o de referido.",
   "moneda": "USD",
 
@@ -72,5 +74,81 @@
     "puntos": 500,
     "$puntos": "500 puntos = $5, una vez al año. Los acredita el reloj del servidor cada madrugada, no una pantalla: nadie tiene que acordarse.",
     "$exigeCompraPrevia": "Exige al menos una compra que haya dado puntos y que no esté anulada, y se entrega una sola vez por año natural. Sin ese candado se abren cuentas solo para cobrar el regalo."
+  },
+
+  "vendedores": {
+    "$comentario": "PROGRAMA DE VENDEDORES. Las cifras de arranque (FASE 1) salen del consenso del debate de 2026-10-14: son las más bajas que todavía motivan, porque subir un porcentaje después es fácil y bajarlo es perder la confianza de quien ya vendió. Unidad: 1 punto = 1 centavo nominal (misma escala de canje.puntosPorDolar); con la venta neta en centavos, puntos por dólar neto = porcentaje nominal. Una cifra en null no se rellena a ojo.",
+    "programaActivo": true,
+    "$programaActivo": "Interruptor de la dueña. Apagado (false): no se acredita nada y las ventas siguen igual. Encendido, sin vendedores afiliados no pasa nada: solo gana quien Gerencia o la caja afilian.",
+    "comision": {
+      "puntosPorDolarNeto": 4,
+      "$puntosPorDolarNeto": "4 puntos por cada $1 de venta NETA (sin ITBMS y ya con los descuentos) = 4 %. Con un ticket neto de $145 son 580 puntos ($5.80 nominales). Techo duro del debate: 5 %. El 6 % que el modelo toleraba no se usa.",
+      "baseDeCalculo": "neto",
+      "compraMinimaCentavos": 2000,
+      "$compraMinimaCentavos": "$20, igual que Socios: una venta menor se registra y da cero, para que quede claro por qué.",
+      "pagaEn": "cada-compra",
+      "$pagaEn": "Cada compra con código o vínculo paga, pero a tasa completa SOLO la primera compra de un cliente nuevo; el resto paga la mitad (factorDeRecompra y factorClienteExistente).",
+      "factorDeRecompra": 0.5,
+      "$factorDeRecompra": "Recompra de un cliente ligado al vendedor (dentro de vinculacion.meses): la mitad = 2 %, sin patrocinio. Con la recompra real de la tienda (53 recompras en 972 clientes en 84 días) 12 meses a mitad de tasa suman solo +12 % al costo de la comisión; ligar para siempre a tasa completa sumaba +119 % sobre ventas que casi no son adicionales.",
+      "factorClienteExistente": 0.5,
+      "$factorClienteExistente": "Venta con código a un cliente que YA había comprado y no está ligado: la mitad = 2 %, sin vínculo y sin patrocinio. Evita regalar la tasa completa por clientes que la tienda ya tenía (los miles de clientes migrados del sistema anterior cuentan como existentes).",
+      "escalones": [
+        {"desdeVentasNetasCentavos": 300000, "puntosPorDolarNeto": 5, "topeAlMesPuntos": 30000},
+        {"desdeVentasNetasCentavos": 900000, "puntosPorDolarNeto": 6.5, "topeAlMesPuntos": 50000},
+        {"desdeVentasNetasCentavos": 1800000, "puntosPorDolarNeto": 8, "topeAlMesPuntos": 90000}
+      ],
+      "diasParaEscalon": 90,
+      "$escalones": "LA ESCALERA (versión 5). La tasa depende de lo que el vendedor vendió en los últimos 90 días (comisiones directas pagadas y no anuladas): menos de $3,000 → 4 %, desde $3,000 → 5 % (hasta 30,000 puntos al mes), desde $9,000 → 6.5 % (50,000), desde $18,000 → 8 % (90,000). Con tickets de $145 y clientes nuevos, $700 al mes son unas 60 ventas (~3 por día hábil) en el escalón de 8 %, que se alcanza sosteniendo unas 42 ventas al mes durante 90 días. Se recalcula con cada venta y solo afecta ventas futuras, nunca las pasadas. El 8 % está dentro del rango de mueblerías (4-8 %, hasta 10 % en gama alta, normalmente con sueldo base; fuente: página de carreras, no encuesta). Cada escalón se paga solo si una parte de lo vendido con código es de clientes que no habrían comprado: punto de equilibrio 11 %, 13 %, 16 % y 19 % con margen de 35 % (9, 10, 13 y 15 % con 44.6 %). Para bajar un escalón basta cambiar la cifra, subir la versión y desplegar (hacia adelante, nunca retroactivo)."
+    },
+    "patrocinio": {
+      "puntosPorDolarNetoDelDirecto": 0.8,
+      "$puntosPorDolarNetoDelDirecto": "0.8 puntos por $1 neto de la venta de cada vendedor directo = 0.8 % (20 % de la comisión del directo). No le resta nada al directo: lo paga D'CASA aparte. Un solo nivel: lo que venda alguien por debajo de un directo no le genera nada al patrocinador. Techo duro: 1 %.",
+      "soloClientesNuevos": true,
+      "$soloClientesNuevos": "El patrocinio solo nace de la primera compra de un cliente nuevo (la parte a tasa completa): ancla el pago a ventas que la tienda no tenía y mantiene el patrocinio en una parte pequeña de lo que se paga.",
+      "topeDeDirectos": 3,
+      "$topeDeDirectos": "3 directos por patrocinador en fase 1 (el ejemplo de la dueña). Sube a 5 en fase 2, máximo absoluto. El tope NO baja el costo (cada vendedor tiene un solo patrocinador: una venta paga como máximo comisión + patrocinio); limita la concentración de ingreso y la apariencia de pirámide.",
+      "ventasPropiasMinimasAlMes": 2,
+      "$ventasPropiasMinimasAlMes": "Para cobrar patrocinio en un mes, el patrocinador tiene que haber vendido él mismo a 2 clientes distintos. Cobrar por la colmena sin vender no existe.",
+      "topeComoMultiploDeSuComisionDelMes": 1,
+      "$topeComoMultiploDeSuComisionDelMes": "El patrocinio de un mes no pasa de 1 vez la comisión propia que ganó ese mes: nadie puede vivir solo de su colmena. Lo que sobra se pierde, no se acumula."
+    },
+    "vinculacion": {
+      "meses": 12,
+      "$meses": "El cliente que llega con el código de un vendedor queda ligado a él por 12 meses fijos (nunca para siempre, no se renueva): sus recompras sin código también cuentan, a la mitad. El código de otro vendedor no le quita el cliente mientras dure el vínculo. Se corta si el vendedor se da de baja.",
+      "pagaPatrocinio": false
+    },
+    "retencion": {
+      "dias": 30,
+      "$dias": "Los puntos de una venta esperan 30 días (la ventana de devoluciones) antes de poder canjearse; se ven desde la venta como «por liberar». Si la devolución real de D'CASA es más larga, se iguala a esa.",
+      "primerasVentas": 5,
+      "diasPrimerasVentas": 60,
+      "$diasPrimerasVentas": "Las primeras 5 ventas con puntos de un vendedor esperan 60 días, no 30: «vender, canjear y que el cliente devuelva o desconozca el pago» es el truco de quien recién llega (propuesta del equipo rojo del debate). Después vale la ventana normal."
+    },
+    "techos": {
+      "totalPorVentaPorcentajeDelNeto": 8.75,
+      "pesoDelPuntoDeVendedor": 0.7,
+      "$totalPorVentaPorcentajeDelNeto": "Por factura, el costo real conjunto (puntos de cliente y referido al 100 % + puntos de vendedor y patrocinio a pesoDelPuntoDeVendedor) no pasa de 25 % de la ganancia bruta, que con el margen supuesto de 35 % es 8.75 % de la venta neta. Si se pasa, se recorta primero el patrocinio, luego la comisión del vendedor; nunca los puntos del cliente.",
+      "$pesoDelPuntoDeVendedor": "SUPUESTO, no dato: un punto de vendedor le cuesta a D'CASA como máximo 70 % de su valor nominal (la mercancía del catálogo de premios cuesta 65 % de su precio de lista o menos, más un margen por ITBMS y reventa que compite; el equipo rojo calculó 67 % en el peor catálogo). Por eso un premio de vendedores no puede pedir menos puntos que su costo ÷ 0.7. El margen de 35 % también es supuesto hasta cargar el costo de todo el catálogo.",
+      "margenBrutoSupuestoPorcentaje": 35,
+      "$margenBrutoSupuestoPorcentaje": "SUPUESTO, no dato: ya estaba escrito en «$supuestos» y en «$totalPorVentaPorcentajeDelNeto»; aquí solo se vuelve legible por el código. Margen bruto de 35 % sobre la venta neta, hasta cargar el costo de todo el catálogo. NO cambia ningún pago: lo usa la pantalla de Ajustes › Programa de vendedores para decir qué parte de lo vendido con código tiene que ser de clientes nuevos para que el programa se pague (costo ÷ margen) y como tope de lo que se puede poner de techo por venta. Esta cifra no se ajusta desde Ajustes.",
+      "porVendedorAlMesPuntos": 20000,
+      "$porVendedorAlMesPuntos": "20,000 puntos al mes ($200 nominales, unas 34 primeras compras de $145) para quien está en el escalón base, es decir, quien apenas empieza o vende poco; es el control antifraude de la gente nueva. Cada escalón de la escalera trae su propio tope (30,000 / 50,000 / 90,000), que solo se alcanza vendiendo de verdad durante 90 días. Lo que pase del tope no se acredita solo; Gerencia puede acreditarlo con un ajuste y motivo después de revisar las ventas.",
+      "patrocinioPorPatrocinadorAlMesPuntos": null,
+      "frenoGlobalPorcentajeDeLaVentaNeta": 3,
+      "$frenoGlobalPorcentajeDeLaVentaNeta": "Seguro contra una cifra mal puesta o una racha de ventas con código: los puntos entregados a TODOS los vendedores en 30 días no pasan de 3 % de la venta neta de TODA la tienda en esos 30 días (versión 5; antes 1.5 %, que un solo vendedor del escalón más alto ya consumía casi entero). A 3 % nominal el costo real máximo es ~2.1 % de la venta neta, ~6 % del margen supuesto. Si se llega, las comisiones nuevas se recortan; la venta nunca falla."
+    },
+    "canje": {
+      "puntosMinimosParaCanjear": 3000,
+      "$puntosMinimosParaCanjear": "3,000 puntos ($30): unas 6 primeras compras, para que el primer premio llegue pronto. Siempre por producto completo.",
+      "vigenciaDelCodigoHoras": 72,
+      "canjesPorVendedorAlMes": 4,
+      "$canjesPorVendedorAlMes": "Máximo 4 premios por vendedor al mes (versión 5; antes 2): quien gana hasta $900 nominales al mes necesita poder canjear en más de dos tandas. El riesgo no es el tamaño del premio sino el costo y el cupo, y el tope mensual de puntos ya lo acota.",
+      "externosHabilitado": false,
+      "$externosHabilitado": "APAGADO a propósito. Los puntos de un vendedor externo SÍ se acumulan, pero su canje por mercancía espera la revisión escrita del abogado laboral (contrato de agente independiente, riesgo de relación laboral encubierta) y de la contadora (ITBMS del canje, ISR). Los empleados sí canjean. Cuando llegue ese visto bueno: cambiar a true y subir la versión.",
+      "efectivoHabilitado": false,
+      "$efectivoHabilitado": "No existe canje en efectivo. Fase 3, no antes de 6 meses y con dictamen escrito del contador y del abogado: solo vendedores y como máximo $0.50 de efectivo por cada $1 nominal, nunca 1 a 1."
+    },
+    "bloquearComprasDentroDeLaColmena": true,
+    "$supuestos": "Margen bruto supuesto 35 % (solo hay un costo cargado); costo/precio de los premios ≤ 65 %; ticket neto de referencia $145; recompra real de la tienda 2 % por cliente al mes. Cuando se cargue el costo del catálogo hay que verificar que el margen ponderado de lo vendido con código sea 31 % o más (ver docs/VENDEDORES.md)."
   }
 }

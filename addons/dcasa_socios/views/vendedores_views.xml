@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ================= La ficha: pestaña «Vendedor D'CASA» ================= -->
+    <record id="view_partner_form_dcasa_vendedores" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.vendedores</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']/*[1]" position="before">
+                <button name="action_dcasa_ver_movimientos_vendedor" type="object" class="oe_stat_button"
+                        icon="fa-handshake-o" invisible="not dcasa_vendedor_codigo"
+                        groups="sales_team.group_sale_salesman">
+                    <div class="o_stat_info">
+                        <span class="o_stat_value"><field name="dcasa_vend_saldo"/></span>
+                        <span class="o_stat_text">Puntos de vendedor</span>
+                    </div>
+                </button>
+            </xpath>
+            <notebook position="inside">
+                <page string="Vendedor D'CASA" name="dcasa_vendedor" groups="sales_team.group_sale_salesman"
+                      invisible="parent_id">
+                    <div invisible="dcasa_vendedor_codigo" class="mb-3">
+                        <p class="text-muted">No es vendedor del programa. Para afiliarlo hace falta su cédula o RUC y
+                            un celular de Panamá en la ficha, y que la persona acepte los términos.</p>
+                        <button name="action_dcasa_afiliar_vendedor" type="object" string="Afiliar como vendedor"
+                                class="btn-secondary"/>
+                    </div>
+                    <group invisible="not dcasa_vendedor_codigo">
+                        <group string="Vendedor">
+                            <field name="dcasa_vendedor_codigo"/>
+                            <field name="dcasa_vendedor_estado"/>
+                            <field name="dcasa_vendedor_tipo"/>
+                            <field name="dcasa_vendedor_afiliado_en"/>
+                            <field name="dcasa_vendedor_afiliado_por"/>
+                            <field name="dcasa_vend_terminos_version"/>
+                        </group>
+                        <group string="Colmena (un solo nivel)">
+                            <field name="dcasa_vendedor_patrocinador_id" readonly="dcasa_vendedor_patrocinador_id"
+                                   options="{'no_create': True}" groups="sales_team.group_sale_manager"/>
+                            <field name="dcasa_vendedor_patrocinador_id" readonly="1" groups="!sales_team.group_sale_manager"/>
+                            <field name="dcasa_vend_directos_count"/>
+                            <field name="dcasa_vend_disponible"/>
+                            <field name="dcasa_vend_por_liberar"/>
+                        </group>
+                    </group>
+                    <div invisible="not dcasa_vendedor_codigo" class="d-flex flex-wrap gap-2 mb-3">
+                        <button name="action_dcasa_ajustar_vendedor" type="object" string="Ajustar puntos de vendedor"
+                                groups="sales_team.group_sale_manager"/>
+                        <button name="action_dcasa_suspender_vendedor" type="object" string="Suspender vendedor"
+                                invisible="dcasa_vendedor_estado != 'activo'" groups="sales_team.group_sale_manager"
+                                confirm="Un vendedor suspendido no gana puntos ni canjea. ¿Seguir?"/>
+                        <button name="action_dcasa_reactivar_vendedor" type="object" string="Reactivar vendedor"
+                                invisible="dcasa_vendedor_estado == 'activo'" groups="sales_team.group_sale_manager"/>
+                    </div>
+                    <field name="dcasa_vend_movimiento_ids" invisible="not dcasa_vendedor_codigo" readonly="1">
+                        <list limit="20">
+                            <field name="ocurrido_en"/>
+                            <field name="tipo"/>
+                            <field name="motivo"/>
+                            <field name="puntos" sum="Saldo"/>
+                            <field name="disponible_desde" optional="hide"/>
+                        </list>
+                    </field>
+                </page>
+            </notebook>
+        </field>
+    </record>
+
+    <!-- ================= Vendedores: lista, búsqueda y acción ================= -->
+    <record id="view_partner_vendedores_list" model="ir.ui.view">
+        <field name="name">res.partner.list.dcasa.vendedores</field>
+        <field name="model">res.partner</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <list string="Vendedores" decoration-muted="dcasa_vendedor_estado == 'suspendido'">
+                <field name="dcasa_vendedor_codigo"/>
+                <field name="complete_name" string="Nombre"/>
+                <field name="dcasa_vendedor_tipo"/>
+                <field name="dcasa_vendedor_estado"/>
+                <field name="dcasa_vendedor_patrocinador_id" optional="show"/>
+                <field name="dcasa_vend_directos_count" optional="show"/>
+                <field name="dcasa_vend_saldo"/>
+                <field name="dcasa_vend_disponible" optional="show"/>
+                <field name="dcasa_vend_por_liberar" optional="hide"/>
+                <field name="dcasa_celular" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_partner_vendedores_search" model="ir.ui.view">
+        <field name="name">res.partner.search.dcasa.vendedores</field>
+        <field name="model">res.partner</field>
+        <field name="priority">100</field>
+        <field name="arch" type="xml">
+            <search string="Vendedores">
+                <field name="name" filter_domain="['|', '|', ('complete_name', 'ilike', self), ('dcasa_vendedor_codigo', 'ilike', self), ('dcasa_celular', 'ilike', self)]"/>
+                <filter name="activos" string="Activos" domain="[('dcasa_vendedor_estado', '=', 'activo')]"/>
+                <filter name="suspendidos" string="Suspendidos" domain="[('dcasa_vendedor_estado', '=', 'suspendido')]"/>
+                <separator/>
+                <filter name="empleados" string="Empleados" domain="[('dcasa_vendedor_tipo', '=', 'empleado')]"/>
+                <filter name="externos" string="De afuera" domain="[('dcasa_vendedor_tipo', '=', 'externo')]"/>
+                <filter name="sin_patrocinador" string="Sin patrocinador" domain="[('dcasa_vendedor_patrocinador_id', '=', False)]"/>
+                <filter name="patrocinados" string="Patrocinados" domain="[('dcasa_vendedor_patrocinador_id', '!=', False)]"/>
+                <filter name="con_saldo" string="Con puntos" domain="[('dcasa_vend_saldo', '&gt;', 0)]"/>
+                <group>
+                    <filter name="g_patrocinador" string="Patrocinador" context="{'group_by': 'dcasa_vendedor_patrocinador_id'}"/>
+                    <filter name="g_tipo" string="Tipo" context="{'group_by': 'dcasa_vendedor_tipo'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vendedores" model="ir.actions.act_window">
+        <field name="name">Vendedores</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('dcasa_vendedor_codigo', '!=', False)]</field>
+        <field name="search_view_id" ref="view_partner_vendedores_search"/>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_partner_vendedores_list')}), (0, 0, {'view_mode': 'form', 'view_id': ref('base.view_partner_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aún no hay vendedores</p>
+            <p>Se afilian desde la ficha de la persona (pestaña «Vendedor D'CASA»), en caja o en Gerencia.</p>
+        </field>
+    </record>
+
+    <!-- ================= Comisiones ================= -->
+    <record id="view_dcasa_vend_comision_list" model="ir.ui.view">
+        <field name="name">dcasa.vend.comision.list</field>
+        <field name="model">dcasa.vend.comision</field>
+        <field name="arch" type="xml">
+            <list string="Comisiones de vendedores" create="false" edit="false" delete="false"
+                  decoration-muted="estado == 'anulada'" decoration-warning="puntos == 0 and estado == 'activa'">
+                <field name="registrada_en"/>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="tipo"/>
+                <field name="cliente_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="neto" sum="Venta neta"/>
+                <field name="puntos" sum="Puntos"/>
+                <field name="resultado"/>
+                <field name="disponible_desde" optional="hide"/>
+                <field name="estado" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_comision_form" model="ir.ui.view">
+        <field name="name">dcasa.vend.comision.form</field>
+        <field name="model">dcasa.vend.comision</field>
+        <field name="arch" type="xml">
+            <form string="Comisión de vendedor" create="false" edit="false" delete="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="partner_id"/>
+                            <field name="tipo"/>
+                            <field name="cliente_id"/>
+                            <field name="directo_id" invisible="tipo != 'patrocinio'"/>
+                            <field name="via"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="neto"/>
+                            <field name="puntos_calculados"/>
+                            <field name="puntos"/>
+                            <field name="resultado"/>
+                            <field name="disponible_desde"/>
+                            <field name="reglas_version"/>
+                            <field name="estado"/>
+                            <field name="anulada_motivo" invisible="estado != 'anulada'"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_comision_search" model="ir.ui.view">
+        <field name="name">dcasa.vend.comision.search</field>
+        <field name="model">dcasa.vend.comision</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="partner_id"/>
+                <field name="name"/>
+                <field name="cliente_id"/>
+                <filter name="activas" string="Activas" domain="[('estado', '=', 'activa')]"/>
+                <filter name="pagadas" string="Pagaron puntos" domain="[('puntos', '&gt;', 0), ('estado', '=', 'activa')]"/>
+                <filter name="sin_pago" string="No pagaron (revisar)" domain="[('puntos', '=', 0), ('estado', '=', 'activa')]"/>
+                <filter name="recortadas" string="Recortadas por un tope" domain="[('resultado', '=', 'recortada')]"/>
+                <separator/>
+                <filter name="registrada_en" string="Fecha" date="registrada_en"/>
+                <group>
+                    <filter name="g_vendedor" string="Vendedor" context="{'group_by': 'partner_id'}"/>
+                    <filter name="g_tipo" string="Tipo" context="{'group_by': 'tipo'}"/>
+                    <filter name="g_resultado" string="Resultado" context="{'group_by': 'resultado'}"/>
+                    <filter name="g_mes" string="Mes" context="{'group_by': 'registrada_en:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_comision_pivot" model="ir.ui.view">
+        <field name="name">dcasa.vend.comision.pivot</field>
+        <field name="model">dcasa.vend.comision</field>
+        <field name="arch" type="xml">
+            <pivot string="Costo del programa de vendedores">
+                <field name="registrada_en" interval="month" type="row"/>
+                <field name="tipo" type="col"/>
+                <field name="neto" type="measure"/>
+                <field name="puntos" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_comisiones" model="ir.actions.act_window">
+        <field name="name">Comisiones</field>
+        <field name="res_model">dcasa.vend.comision</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_activas': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay comisiones</p>
+            <p>Nacen solas cuando se paga la factura de una venta que llegó con un código de vendedor.</p>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_costo" model="ir.actions.act_window">
+        <field name="name">Costo del programa de vendedores</field>
+        <field name="res_model">dcasa.vend.comision</field>
+        <field name="view_mode">pivot,list</field>
+        <field name="domain">[('estado', '=', 'activa')]</field>
+        <field name="help" type="html">
+            <p>Ventas netas atribuidas y puntos nominales pagados por mes. Mide el costo del
+                programa contra lo que de verdad se vendió.</p>
+        </field>
+    </record>
+
+    <!-- ================= Libro de puntos de vendedores ================= -->
+    <record id="view_dcasa_vend_movimiento_list" model="ir.ui.view">
+        <field name="name">dcasa.vend.movimiento.list</field>
+        <field name="model">dcasa.vend.movimiento</field>
+        <field name="arch" type="xml">
+            <list string="Libro de puntos de vendedores" create="false" edit="false" delete="false"
+                  decoration-danger="puntos &lt; 0" decoration-success="puntos &gt; 0">
+                <field name="ocurrido_en"/>
+                <field name="partner_id"/>
+                <field name="tipo"/>
+                <field name="motivo"/>
+                <field name="puntos" sum="Total"/>
+                <field name="disponible_desde" optional="show"/>
+                <field name="origen_partner_id" optional="hide"/>
+                <field name="comision_id" optional="hide"/>
+                <field name="canje_id" optional="hide"/>
+                <field name="autor" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_movimiento_search" model="ir.ui.view">
+        <field name="name">dcasa.vend.movimiento.search</field>
+        <field name="model">dcasa.vend.movimiento</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="partner_id"/>
+                <field name="motivo"/>
+                <field name="autor"/>
+                <filter name="entradas" string="Suman" domain="[('puntos', '&gt;', 0)]"/>
+                <filter name="salidas" string="Restan" domain="[('puntos', '&lt;', 0)]"/>
+                <separator/>
+                <filter name="ocurrido_en" string="Fecha" date="ocurrido_en"/>
+                <group>
+                    <filter name="g_tipo" string="Tipo" context="{'group_by': 'tipo'}"/>
+                    <filter name="g_vendedor" string="Vendedor" context="{'group_by': 'partner_id'}"/>
+                    <filter name="g_mes" string="Mes" context="{'group_by': 'ocurrido_en:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_movimiento_pivot" model="ir.ui.view">
+        <field name="name">dcasa.vend.movimiento.pivot</field>
+        <field name="model">dcasa.vend.movimiento</field>
+        <field name="arch" type="xml">
+            <pivot string="Pasivo del programa de vendedores">
+                <field name="tipo" type="row"/>
+                <field name="ocurrido_en" interval="month" type="col"/>
+                <field name="puntos" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_movimientos" model="ir.actions.act_window">
+        <field name="name">Libro de vendedores</field>
+        <field name="res_model">dcasa.vend.movimiento</field>
+        <field name="view_mode">list,pivot</field>
+    </record>
+
+    <record id="action_dcasa_vend_pasivo" model="ir.actions.act_window">
+        <field name="name">Pasivo del programa de vendedores</field>
+        <field name="res_model">dcasa.vend.movimiento</field>
+        <field name="view_mode">pivot,list</field>
+        <field name="help" type="html">
+            <p>Lo que la empresa debe en puntos de vendedor: suma de los asientos, en puntos nominales.</p>
+        </field>
+    </record>
+
+    <!-- ================= Canjes de vendedores ================= -->
+    <record id="view_dcasa_vend_canje_list" model="ir.ui.view">
+        <field name="name">dcasa.vend.canje.list</field>
+        <field name="model">dcasa.vend.canje</field>
+        <field name="arch" type="xml">
+            <list string="Canjes de vendedores" create="false" edit="false" delete="false"
+                  decoration-success="estado == 'entregado'" decoration-muted="estado in ('vencido', 'cancelado')">
+                <field name="solicitado_en"/>
+                <field name="codigo"/>
+                <field name="partner_id"/>
+                <field name="premio_nombre"/>
+                <field name="puntos" sum="Puntos"/>
+                <field name="estado"/>
+                <field name="expira_en" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_canje_form" model="ir.ui.view">
+        <field name="name">dcasa.vend.canje.form</field>
+        <field name="model">dcasa.vend.canje</field>
+        <field name="arch" type="xml">
+            <form string="Canje de vendedor" create="false" edit="false" delete="false">
+                <header>
+                    <button name="action_entregar" type="object" string="Entregar" class="btn-primary"
+                            invisible="estado != 'solicitado'"/>
+                    <button name="action_cancelar" type="object" string="Cancelar y devolver puntos"
+                            invisible="estado != 'solicitado'"
+                            confirm="Se le devuelven sus puntos al vendedor. ¿Seguir?"/>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="codigo"/>
+                            <field name="partner_id"/>
+                            <field name="premio_id"/>
+                            <field name="premio_nombre"/>
+                            <field name="origen"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="puntos"/>
+                            <field name="valor"/>
+                            <field name="costo"/>
+                            <field name="solicitado_en"/>
+                            <field name="expira_en"/>
+                            <field name="entregado_en" invisible="not entregado_en"/>
+                            <field name="entregado_por" invisible="not entregado_por"/>
+                            <field name="cerrado_motivo" invisible="not cerrado_motivo"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_canje_search" model="ir.ui.view">
+        <field name="name">dcasa.vend.canje.search</field>
+        <field name="model">dcasa.vend.canje</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="codigo"/>
+                <field name="partner_id"/>
+                <field name="premio_nombre"/>
+                <filter name="pendientes" string="Pendientes de entregar" domain="[('estado', '=', 'solicitado')]"/>
+                <filter name="entregados" string="Entregados" domain="[('estado', '=', 'entregado')]"/>
+                <group>
+                    <filter name="g_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                    <filter name="g_vendedor" string="Vendedor" context="{'group_by': 'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_vend_canjes" model="ir.actions.act_window">
+        <field name="name">Canjes de vendedores</field>
+        <field name="res_model">dcasa.vend.canje</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_pendientes': 1}</field>
+    </record>
+
+    <!-- ================= Premios para vendedores ================= -->
+    <record id="view_dcasa_premio_form_vendedores" model="ir.ui.view">
+        <field name="name">dcasa.premio.form.vendedores</field>
+        <field name="model">dcasa.premio</field>
+        <field name="inherit_id" ref="view_dcasa_premio_form"/>
+        <field name="arch" type="xml">
+            <field name="active" position="after">
+                <field name="para_vendedores"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_dcasa_premio_list_vendedores" model="ir.ui.view">
+        <field name="name">dcasa.premio.list.vendedores</field>
+        <field name="model">dcasa.premio</field>
+        <field name="inherit_id" ref="view_dcasa_premio_list"/>
+        <field name="arch" type="xml">
+            <field name="tipo" position="after">
+                <field name="para_vendedores" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="action_dcasa_premios_vendedores" model="ir.actions.act_window">
+        <field name="name">Premios para vendedores</field>
+        <field name="res_model">dcasa.premio</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('libre', '=', False), ('para_vendedores', '=', True)]</field>
+        <field name="context">{'default_para_vendedores': True, 'default_tipo': 'producto'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aún no hay premios para vendedores</p>
+            <p>Crea los premios de mercancía (por ejemplo, una cama) con su costo real: un premio nunca puede pedir
+                menos puntos de los que cuesta.</p>
+        </field>
+    </record>
+
+    <!-- ================= Venta y factura: el código del vendedor ================= -->
+    <record id="view_order_form_dcasa_vendedores" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.vendedores</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="payment_term_id" position="after">
+                <field name="dcasa_vendedor_fijo" invisible="1"/>
+                <field name="dcasa_vendedor_id" placeholder="Código VEN… o nombre del vendedor"
+                       options="{'no_create': True}" readonly="state == 'cancel'"/>
+                <field name="dcasa_vendedor_anotado_por" invisible="not dcasa_vendedor_id"
+                       groups="sales_team.group_sale_manager"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_move_form_dcasa_vendedores" model="ir.ui.view">
+        <field name="name">account.move.form.dcasa.vendedores</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <field name="invoice_user_id" position="after">
+                <field name="dcasa_vendedor_id" invisible="move_type != 'out_invoice'"
+                       placeholder="Código VEN… o nombre del vendedor" options="{'no_create': True}"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- ================= Asistentes ================= -->
+    <record id="view_dcasa_afiliar_vendedor_wizard" model="ir.ui.view">
+        <field name="name">dcasa.afiliar.vendedor.wizard.form</field>
+        <field name="model">dcasa.afiliar.vendedor.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Afiliar como vendedor">
+                <group>
+                    <field name="partner_id"/>
+                    <field name="tipo"/>
+                    <field name="patrocinador_id" placeholder="Código VEN… o nombre (opcional)"
+                           options="{'no_create': True}" groups="sales_team.group_sale_manager"/>
+                    <field name="acepta"/>
+                </group>
+                <p class="text-muted">Léele los términos a la persona (están en dcasapty.com/vendedores/terminos).
+                    En caja se afilia sin patrocinador: Gerencia lo escribe después, una sola vez, y no se cambia
+                    jamás. Hace falta su cédula o RUC y un celular de Panamá en la ficha.</p>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Afiliar" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_vend_ajuste_wizard" model="ir.ui.view">
+        <field name="name">dcasa.vend.ajuste.wizard.form</field>
+        <field name="model">dcasa.vend.ajuste.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Ajustar puntos de vendedor">
+                <group>
+                    <field name="partner_id"/>
+                    <field name="saldo"/>
+                    <field name="puntos"/>
+                    <field name="motivo" placeholder="Ej.: Venta de julio que no se registró"/>
+                </group>
+                <p class="text-muted">El vendedor ve este motivo en su cuenta. No se puede dejar el saldo en negativo.</p>
+                <footer>
+                    <button name="action_confirmar" type="object" string="Ajustar" class="btn-primary"/>
+                    <button special="cancel" string="Cancelar"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ================= Menús ================= -->
+    <menuitem id="menu_dcasa_vendedores" name="Vendedores" parent="menu_dcasa_socios_root" sequence="12"
+              action="action_dcasa_vendedores"/>
+    <menuitem id="menu_dcasa_vend_canjes" name="Canjes de vendedores" parent="menu_dcasa_socios_root" sequence="22"
+              action="action_dcasa_vend_canjes"/>
+    <menuitem id="menu_dcasa_vend_comisiones" name="Comisiones" parent="menu_dcasa_socios_root" sequence="32"
+              action="action_dcasa_vend_comisiones"/>
+    <menuitem id="menu_dcasa_vend_movimientos" name="Libro de vendedores" parent="menu_dcasa_socios_root"
+              sequence="42" action="action_dcasa_vend_movimientos"/>
+    <menuitem id="menu_dcasa_vend_costo" name="Costo del programa de vendedores" parent="menu_dcasa_reportes"
+              sequence="30" action="action_dcasa_vend_costo" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_vend_pasivo" name="Pasivo de vendedores" parent="menu_dcasa_reportes" sequence="40"
+              action="action_dcasa_vend_pasivo" groups="sales_team.group_sale_manager"/>
+    <menuitem id="menu_dcasa_premios_vendedores" name="Premios para vendedores" parent="menu_dcasa_config"
+              sequence="15" action="action_dcasa_premios_vendedores"/>
+</odoo>

@@ -15,19 +15,21 @@
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
+| Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia): nómina y contabilidad de un jefe | [PERMISOS.md](PERMISOS.md) |
 
 ## Por módulo (`addons/`)
 
 | Módulo | Documento |
 |---|---|
-| `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
-| `dcasa_socios` | [SOCIOS.md](SOCIOS.md) |
+| `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · roles y permisos: [PERMISOS.md](PERMISOS.md) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
+| `dcasa_socios` | [SOCIOS.md](SOCIOS.md) · programa de vendedores: [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |
 | `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
+| `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |
 | `dcasa_equipo` | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_fe_pa` (factura electrónica, apagado) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |

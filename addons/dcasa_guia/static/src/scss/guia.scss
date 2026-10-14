@@ -1,0 +1,308 @@
+// «Guía»: ¿Qué necesitas hacer hoy? Sistema de diseño D'CASA (tokens de dcasa_interfaz): blanco sobre blanco frío,
+// azul de la marca, bordes finos, sin sombras dramáticas. El amarillo no aparece (nunca toca el blanco).
+
+.o_dcasa_guia {
+    height: 100%;
+    overflow-y: auto;
+    background: var(--dc-niebla);
+    color: var(--dc-tinta);
+
+    h2 {
+        font-size: .95rem;
+        font-weight: 600;
+        letter-spacing: -.005em;
+        margin: 0 0 .75rem;
+        color: var(--dc-tinta);
+    }
+}
+
+.o_dcasa_guia_hero {
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+    padding: 28px clamp(1rem, 3vw, 40px) 24px;
+
+    h1 {
+        font-size: clamp(1.6rem, 2.6vw, 2.1rem);
+        font-weight: 700;
+        letter-spacing: -.02em;
+        line-height: 1.15;
+        margin: 0 0 6px;
+    }
+    p {
+        margin: 0 0 16px;
+        color: var(--dc-tinta-3);
+        max-width: 46rem;
+    }
+}
+
+.o_dcasa_guia_buscador {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 46rem;
+    padding: 0 14px;
+    background: var(--dc-nieve);
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-md);
+    color: var(--dc-tinta-3);
+
+    &:focus-within {
+        border-color: var(--dc-azul-500);
+        box-shadow: var(--dc-foco);
+    }
+    .o_dcasa_guia_buscar {
+        flex: 1;
+        min-width: 0;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        padding: 14px 0;
+        font-size: 1rem;
+        color: var(--dc-tinta);
+    }
+}
+
+.o_dcasa_guia_cuerpo {
+    padding: 22px clamp(1rem, 3vw, 40px) 40px;
+    max-width: 62rem;
+}
+
+.o_dcasa_guia_vacio {
+    color: var(--dc-tinta-3);
+    padding: 12px 0;
+
+    p {
+        margin-bottom: .75rem;
+    }
+}
+
+.o_dcasa_guia_detalle {
+    color: var(--dc-tinta-3);
+    margin: 0 0 18px;
+}
+
+// --- Migas y volver -----------------------------------------------------------------
+.o_dcasa_guia_migas {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+    color: var(--dc-tinta-2);
+
+    .btn-link {
+        padding: 0;
+        color: var(--dc-azul-600);
+    }
+}
+
+.o_dcasa_guia_volver {
+    padding: 0;
+    margin-top: 14px;
+    color: var(--dc-azul-600);
+}
+
+// --- Temas -------------------------------------------------------------------------
+.o_dcasa_guia_temas,
+.o_dcasa_guia_empezar,
+.o_dcasa_guia_grupo {
+    margin-bottom: 26px;
+}
+
+.o_dcasa_guia_grilla {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+}
+
+.o_dcasa_guia_tema {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    text-align: left;
+    padding: 16px;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-lg);
+    color: var(--dc-tinta);
+    transition: border-color var(--dc-transicion), background var(--dc-transicion);
+
+    &:hover,
+    &:focus-visible {
+        border-color: var(--dc-azul-400);
+        background: var(--dc-azul-50);
+        outline: 0;
+    }
+    &:focus-visible {
+        box-shadow: var(--dc-foco);
+    }
+}
+
+.o_dcasa_guia_tema_icono {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--dc-r-md);
+    background: var(--dc-azul-100);
+    color: var(--dc-azul-700);
+    font-size: 1.15rem;
+}
+
+.o_dcasa_guia_tema_texto {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+
+    strong {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    span {
+        font-size: .85rem;
+        color: var(--dc-tinta-3);
+        line-height: 1.35;
+    }
+}
+
+// --- Tareas -------------------------------------------------------------------------
+.o_dcasa_guia_lista {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.o_dcasa_guia_tarea {
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-md);
+
+    &.o_abierta {
+        border-color: var(--dc-azul-300);
+    }
+}
+
+.o_dcasa_guia_tarea_cabeza {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 13px 16px;
+    background: transparent;
+    border: 0;
+    border-radius: var(--dc-r-md);
+    text-align: left;
+    color: var(--dc-tinta);
+
+    &:hover {
+        background: var(--dc-nieve);
+    }
+    &:focus-visible {
+        outline: 0;
+        box-shadow: var(--dc-foco);
+    }
+}
+
+.o_dcasa_guia_tarea_titulo {
+    flex: 1;
+    font-weight: 600;
+}
+
+.o_dcasa_guia_tarea_tema {
+    flex: none;
+    font-size: .75rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-700);
+    border: 1px solid var(--dc-azul-100);
+}
+
+.o_dcasa_guia_tarea_flecha {
+    flex: none;
+    color: var(--dc-tinta-3);
+    transition: transform var(--dc-transicion);
+}
+
+.o_abierta .o_dcasa_guia_tarea_flecha {
+    transform: rotate(180deg);
+}
+
+.o_dcasa_guia_tarea_cuerpo {
+    padding: 2px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--dc-linea);
+    padding-top: 14px;
+
+    p {
+        margin: 0;
+    }
+}
+
+.o_dcasa_guia_logras {
+    color: var(--dc-tinta);
+    line-height: 1.5;
+}
+
+.o_dcasa_guia_pasos {
+    margin: 0;
+    padding-left: 1.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    li::marker {
+        color: var(--dc-azul-600);
+        font-weight: 700;
+    }
+    .btn-link {
+        padding: 0 0 0 6px;
+        vertical-align: baseline;
+        color: var(--dc-azul-600);
+    }
+}
+
+.o_dcasa_guia_nota {
+    padding: 10px 12px;
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-azul-50);
+    border: 1px solid var(--dc-azul-100);
+    color: var(--dc-azul-800);
+    font-size: .9rem;
+    line-height: 1.45;
+}
+
+.o_dcasa_guia_ruta {
+    font-size: .85rem;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_guia_botones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+// Teléfono: la barra de búsqueda y los temas ocupan todo el ancho.
+@media (max-width: 575.98px) {
+    .o_dcasa_guia_grilla {
+        grid-template-columns: 1fr;
+    }
+    .o_dcasa_guia_tarea_tema {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_dcasa_guia_tema,
+    .o_dcasa_guia_tarea_flecha {
+        transition: none;
+    }
+}

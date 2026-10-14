@@ -1,0 +1,295 @@
+"""Las reglas puras del programa de vendedores: entra un número, sale un número, sin tocar la base."""
+import copy
+from datetime import datetime
+
+from odoo.tests import BaseCase, tagged
+
+from ..models import reglas as R
+from ..models import reglas_vendedores as RV
+from .common import VENDEDORES_DE_PRUEBA
+
+
+@tagged('post_install', '-at_install')
+class TestReglasDeVendedores(BaseCase):
+
+    def reglas(self, **cambios):
+        reglas = {**R.cargar_reglas(), 'vendedores': copy.deepcopy(VENDEDORES_DE_PRUEBA)}
+        for ruta, valor in cambios.items():
+            seccion, clave = ruta.split('__')
+            reglas['vendedores'][seccion][clave] = valor
+        return reglas
+
+    # --- ¿Está lista la economía? ---------------------------------------------------------
+
+    def test_apagado_no_acredita_y_lo_dice(self):
+        reglas = self.reglas()
+        reglas['vendedores']['programaActivo'] = False
+        self.assertIn('apagado', ' '.join(RV.falta_para_comisionar(reglas)))
+        with self.assertRaises(R.FaltaConfigurar):
+            RV.comision_directa(10000, reglas)
+
+    def test_encendido_pero_con_cifras_en_null_no_acredita(self):
+        for ruta in ('comision__puntosPorDolarNeto', 'comision__pagaEn', 'retencion__dias',
+                     'techos__totalPorVentaPorcentajeDelNeto'):
+            with self.subTest(ruta):
+                reglas = self.reglas(**{ruta: None})
+                self.assertTrue(RV.falta_para_comisionar(reglas), ruta)
+                with self.assertRaises(R.FaltaConfigurar):
+                    RV.comision_directa(10000, reglas)
+
+    def test_la_seccion_ausente_no_acredita(self):
+        reglas = {**R.cargar_reglas()}
+        reglas.pop('vendedores', None)
+        self.assertTrue(RV.falta_para_comisionar(reglas))
+
+    def test_con_todo_puesto_no_falta_nada(self):
+        reglas = self.reglas()
+        self.assertEqual(RV.falta_para_comisionar(reglas), [])
+        self.assertEqual(RV.falta_para_patrocinar(reglas), [])
+
+    def test_sin_cifra_de_patrocinio_el_patrocinador_no_gana_pero_el_directo_si(self):
+        reglas = self.reglas(patrocinio__puntosPorDolarNetoDelDirecto=None)
+        self.assertGreater(RV.comision_directa(10000, reglas), 0)
+        with self.assertRaises(R.FaltaConfigurar):
+            RV.comision_patrocinio(10000, reglas)
+
+    def test_las_cifras_reales_de_puntos_json_estan_completas_y_son_las_decididas(self):
+        """Lo decidido el 2026-10-14 (consenso del debate). Si alguien cambia una cifra, esta prueba obliga a hacerlo
+        a propósito: sube la versión y actualiza docs/VENDEDORES.md."""
+        reales = R.cargar_reglas()
+        self.assertEqual((RV.falta_para_comisionar(reales), RV.falta_para_patrocinar(reales)), ([], []))
+        self.assertGreaterEqual(reales['version'], 5)
+        self.assertEqual(RV.comision_directa(14500, reales), 580)            # 4 % de $145 neto
+        self.assertEqual(RV.comision_patrocinio(14500, reales), 116)         # 0.8 %: un quinto de la comisión
+        self.assertEqual(RV.aplicar_factor_de_recompra(580, reales), 290)
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(580, reales), 290)
+        v = RV.seccion(reales)
+        self.assertEqual((v['retencion']['dias'], v['vinculacion']['meses'], v['patrocinio']['topeDeDirectos']),
+                         (30, 12, 3))
+        self.assertEqual((v['retencion']['primerasVentas'], v['retencion']['diasPrimerasVentas']), (5, 60))
+        self.assertEqual(v['techos']['pesoDelPuntoDeVendedor'], 0.7)
+        self.assertTrue(v['patrocinio']['soloClientesNuevos'] and not v['vinculacion']['pagaPatrocinio'])
+        self.assertEqual((v['patrocinio']['ventasPropiasMinimasAlMes'],
+                          v['patrocinio']['topeComoMultiploDeSuComisionDelMes']), (2, 1))
+        self.assertEqual((v['techos']['porVendedorAlMesPuntos'], v['techos']['frenoGlobalPorcentajeDeLaVentaNeta']),
+                         (20000, 3))
+        self.assertEqual((v['canje']['puntosMinimosParaCanjear'], v['canje']['canjesPorVendedorAlMes']), (3000, 4))
+        self.assertIs(v['canje']['efectivoHabilitado'], False, 'Efectivo: no existe hasta el dictamen')
+        self.assertIs(v['canje']['externosHabilitado'], False, 'Externos: esperan la revisión del abogado')
+        # La escalera (versión 5): 4 % → 5 % → 6.5 % → 8 % según lo vendido en 90 días, con tope mensual propio.
+        self.assertEqual([(e['desdeVentasNetasCentavos'], e['puntosPorDolarNeto'], e['topeAlMesPuntos'])
+                          for e in v['comision']['escalones']],
+                         [(300000, 5, 30000), (900000, 6.5, 50000), (1800000, 8, 90000)])
+        self.assertEqual(v['comision']['diasParaEscalon'], 90)
+        self.assertEqual(RV.problemas_de_la_escalera(reales), [])
+        # El costo máximo de una primera compra normal cabe holgado bajo el techo por factura.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 155, 14500, reales), (580, 116, False))
+
+    # --- Los puntos -------------------------------------------------------------------------
+
+    def test_comision_directa_redondea_hacia_abajo(self):
+        reglas = self.reglas(comision__puntosPorDolarNeto=4)
+        self.assertEqual(RV.comision_directa(14500, reglas), 580)      # $145.00 neto × 4
+        self.assertEqual(RV.comision_directa(10049, reglas), 401)      # 401.96 → 401
+        reglas = self.reglas(comision__puntosPorDolarNeto=2.5)
+        self.assertEqual(RV.comision_directa(10001, reglas), 250)      # 250.0025 → 250
+
+    def test_la_venta_minima_no_da_puntos(self):
+        reglas = self.reglas(comision__compraMinimaCentavos=2000)
+        self.assertEqual(RV.comision_directa(1999, reglas), 0)
+        self.assertEqual(RV.comision_directa(2000, reglas), 80)
+
+    def test_la_venta_va_en_centavos_enteros(self):
+        for malo in (-1, 1.5, True):
+            with self.subTest(malo), self.assertRaises(ValueError):
+                RV.comision_directa(malo, self.reglas())
+
+    def test_escalones_suben_la_tasa_con_lo_vendido_en_el_periodo(self):
+        reglas = self.reglas(comision__escalones=[
+            {'desdeVentasNetasCentavos': 50000, 'puntosPorDolarNeto': 5},
+            {'desdeVentasNetasCentavos': 200000, 'puntosPorDolarNeto': 6}])
+        self.assertEqual(RV.comision_directa(10000, reglas, 0), 400)
+        self.assertEqual(RV.comision_directa(10000, reglas, 50000), 500)
+        self.assertEqual(RV.comision_directa(10000, reglas, 999999), 600)
+
+    # --- La escalera (versión 5) --------------------------------------------------------------
+
+    def con_la_escalera_real(self):
+        """Las reglas de prueba con la escalera, el freno y el tope tal como están en ``puntos.json``."""
+        reales = RV.seccion(R.cargar_reglas())
+        return self.reglas(comision__escalones=copy.deepcopy(reales['comision']['escalones']),
+                           techos__porVendedorAlMesPuntos=reales['techos']['porVendedorAlMesPuntos'])
+
+    def test_la_escalera_sube_la_tasa_y_el_tope_con_lo_vendido(self):
+        reglas = self.con_la_escalera_real()
+        # (vendido en 90 días en centavos, puntos por dólar, tope del mes)
+        for vendido, tasa, tope in ((0, 4, 20000), (299999, 4, 20000), (300000, 5, 30000), (899999, 5, 30000),
+                                    (900000, 6.5, 50000), (1799999, 6.5, 50000), (1800000, 8, 90000),
+                                    (9999999, 8, 90000)):
+            with self.subTest(vendido):
+                self.assertEqual(RV.puntos_por_dolar_de_escalon(vendido, RV.seccion(reglas)['comision']), tasa)
+                self.assertEqual(RV.tope_al_mes_del_vendedor(vendido, reglas), tope)
+
+    def test_setecientos_dolares_al_mes_son_unas_60_ventas_en_el_escalon_alto(self):
+        """La meta de la dueña: un vendedor de tiempo completo llega a ~$700 en puntos con ~3 ventas por día hábil."""
+        reglas = self.con_la_escalera_real()
+        por_venta = RV.comision_directa(14500, reglas, 1800000)                  # $145 neto al 8 %
+        self.assertEqual(por_venta, 1160)
+        self.assertEqual(60 * por_venta, 69600)                                  # $696 nominales
+        self.assertGreaterEqual(RV.tope_al_mes_del_vendedor(1800000, reglas), 70000, 'El tope no frena los $700')
+        # Sin la escalera, el mismo trabajo no llegaba ni a la mitad: 4 % y tope de $200.
+        self.assertEqual(RV.tope_al_mes_del_vendedor(0, reglas), 20000)
+
+    def test_el_escalon_mas_alto_cabe_bajo_el_techo_de_la_venta(self):
+        """Cliente 155 + vendedor al 8 % + patrocinio: nada se recorta en una primera compra normal de $145."""
+        reglas = self.con_la_escalera_real()
+        reglas['vendedores']['techos']['totalPorVentaPorcentajeDelNeto'] = 8.75
+        reglas['vendedores']['techos']['pesoDelPuntoDeVendedor'] = 0.7
+        self.assertEqual(RV.repartir_bajo_el_techo(1160, 116, 155, 14500, reglas), (1160, 116, False))
+
+    def test_un_escalon_sin_tope_propio_usa_el_tope_base(self):
+        reglas = self.reglas(comision__escalones=[{'desdeVentasNetasCentavos': 50000, 'puntosPorDolarNeto': 5}],
+                             techos__porVendedorAlMesPuntos=20000)
+        self.assertEqual(RV.tope_al_mes_del_vendedor(50000, reglas), 20000)
+        reglas['vendedores']['techos']['porVendedorAlMesPuntos'] = None
+        self.assertIsNone(RV.tope_al_mes_del_vendedor(50000, reglas), 'Sin ninguna cifra: sin tope')
+
+    def test_el_nivel_dice_donde_esta_y_cuanto_falta(self):
+        reglas = self.con_la_escalera_real()
+        abajo = RV.nivel_del_vendedor(100000, reglas)
+        self.assertEqual((abajo['puntos_por_dolar'], abajo['tope_al_mes']), (4, 20000))
+        self.assertEqual(abajo['siguiente'], {'puntos_por_dolar': 5, 'falta_centavos': 200000})
+        medio = RV.nivel_del_vendedor(1000000, reglas)
+        self.assertEqual((medio['puntos_por_dolar'], medio['siguiente']['falta_centavos']), (6.5, 800000))
+        self.assertIsNone(RV.nivel_del_vendedor(1800000, reglas)['siguiente'], 'En el más alto no hay siguiente')
+        self.assertIsNone(RV.nivel_del_vendedor(5000, self.reglas()), 'Sin escalera no hay nivel que mostrar')
+
+    def test_una_escalera_incoherente_se_detecta(self):
+        base = {'puntosPorDolarNeto': 4}
+        casos = {
+            'umbral repetido': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 5},
+                                {'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 6}],
+            'no paga más': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 4}],
+            'el tope baja': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 10}],
+        }
+        for nombre, escalones in casos.items():
+            with self.subTest(nombre):
+                reglas = self.reglas(comision__escalones=escalones, techos__porVendedorAlMesPuntos=20000)
+                reglas['vendedores']['comision'].update(base)
+                self.assertTrue(RV.problemas_de_la_escalera(reglas), nombre)
+        self.assertEqual(RV.problemas_de_la_escalera(self.con_la_escalera_real()), [])
+
+    def test_patrocinio_es_aparte_y_tambien_redondea_hacia_abajo(self):
+        reglas = self.reglas(patrocinio__puntosPorDolarNetoDelDirecto=0.4)
+        self.assertEqual(RV.comision_patrocinio(14500, reglas), 58)
+        self.assertEqual(RV.comision_patrocinio(10049, reglas), 40)    # 40.196 → 40
+
+    # --- El techo por venta -------------------------------------------------------------------
+
+    def test_techo_total_por_venta(self):
+        self.assertEqual(RV.techo_total_por_venta(14500, self.reglas()), 1160)   # 8 % de $145.00
+
+    def test_dentro_del_techo_no_se_recorta(self):
+        # neto $145: techo 1,160; el cliente ya recibió 155; vendedor 580 + patrocinio 58 caben.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 58, 155, 14500, self.reglas()), (580, 58, False))
+
+    def test_pasado_el_techo_se_recorta_primero_el_patrocinio(self):
+        reglas = self.reglas(techos__totalPorVentaPorcentajeDelNeto=5)           # techo 725
+        # lo que cabe: 725 − 155 = 570. El vendedor (580) se recorta a 570 y el patrocinador a 0.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 58, 155, 14500, reglas), (570, 0, True))
+        reglas = self.reglas(techos__totalPorVentaPorcentajeDelNeto=5.5)         # techo 797 → caben 642
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 100, 155, 14500, reglas), (580, 62, True))
+
+    def test_si_el_cliente_ya_se_comio_el_techo_no_queda_nada(self):
+        reglas = self.reglas(techos__totalPorVentaPorcentajeDelNeto=1)
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 58, 155, 14500, reglas), (0, 0, True))
+
+    def test_la_recompra_paga_una_fraccion_y_sin_cifra_paga_entera(self):
+        self.assertEqual(RV.aplicar_factor_de_recompra(400, self.reglas()), 400)
+        reglas = self.reglas(comision__factorDeRecompra=0.5)
+        self.assertEqual(RV.aplicar_factor_de_recompra(400, reglas), 200)
+        self.assertEqual(RV.aplicar_factor_de_recompra(401, reglas), 200, 'Hacia abajo, como todo')
+
+    def test_el_cliente_existente_paga_una_fraccion_y_sin_cifra_paga_entero(self):
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(400, self.reglas()), 400)
+        reglas = self.reglas(comision__factorClienteExistente=0.25)
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(400, reglas), 100)
+
+    def test_el_patrocinio_solo_de_clientes_nuevos_viene_apagado(self):
+        self.assertFalse(RV.patrocinio_solo_clientes_nuevos(self.reglas()))
+        self.assertTrue(RV.patrocinio_solo_clientes_nuevos(self.reglas(patrocinio__soloClientesNuevos=True)))
+
+    def test_el_patrocinio_en_recompras_y_las_ventas_minimas_vienen_apagados(self):
+        self.assertFalse(RV.patrocinio_paga_en_recompras(self.reglas()))
+        self.assertTrue(RV.patrocinio_paga_en_recompras(self.reglas(vinculacion__pagaPatrocinio=True)))
+        self.assertEqual(RV.ventas_propias_minimas_para_patrocinar(self.reglas()), 0)
+        reglas = self.reglas(patrocinio__ventasPropiasMinimasAlMes=2)
+        self.assertEqual(RV.ventas_propias_minimas_para_patrocinar(reglas), 2)
+
+    def test_el_patrocinio_se_topa_contra_la_comision_propia_del_mes(self):
+        self.assertEqual(RV.topar_patrocinio(100, 0, 0, self.reglas()), 100, 'Sin cifra no hay tope')
+        reglas = self.reglas(patrocinio__topeComoMultiploDeSuComisionDelMes=0.5)
+        self.assertEqual(RV.topar_patrocinio(100, 0, 1000, reglas), 100)       # tope 500
+        self.assertEqual(RV.topar_patrocinio(100, 450, 1000, reglas), 50)
+        self.assertEqual(RV.topar_patrocinio(100, 500, 1000, reglas), 0)
+        self.assertEqual(RV.topar_patrocinio(100, 0, 0, reglas), 0, 'Sin ventas propias no hay patrocinio')
+
+    def test_freno_global_recorta_primero_el_patrocinio(self):
+        reglas = self.reglas(techos__frenoGlobalPorcentajeDeLaVentaNeta=2)
+        # 2 % de $10,000.00 = 20,000 puntos; ya se emitieron 19,500 → caben 500.
+        self.assertEqual(RV.repartir_bajo_el_freno_global(400, 40, 19500, 1000000, reglas), (400, 40, False))
+        self.assertEqual(RV.repartir_bajo_el_freno_global(480, 40, 19500, 1000000, reglas), (480, 20, True))
+        self.assertEqual(RV.repartir_bajo_el_freno_global(600, 40, 19500, 1000000, reglas), (500, 0, True))
+        self.assertEqual(RV.repartir_bajo_el_freno_global(600, 40, 25000, 1000000, reglas), (0, 0, True))
+        self.assertEqual(RV.repartir_bajo_el_freno_global(600, 40, 0, 0, reglas), (0, 0, True),
+                         'Sin ventas en la tienda no hay con qué pagar')
+
+    def test_sin_cifra_de_freno_global_no_se_recorta(self):
+        self.assertEqual(RV.repartir_bajo_el_freno_global(600, 40, 10**9, 0, self.reglas()), (600, 40, False))
+
+    def test_el_peso_del_punto_de_vendedor_deja_pagar_mas_puntos_bajo_el_mismo_techo(self):
+        reglas = self.reglas(techos__totalPorVentaPorcentajeDelNeto=8.75, techos__pesoDelPuntoDeVendedor=0.65)
+        # neto $145: techo 1,268 de costo real; el cliente ya recibió 155 → caben 1,113 de costo = 1,712 puntos.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 155, 14500, reglas), (580, 116, False))
+        # con referido (905 al cliente): quedan 363 de costo real = 558 puntos de vendedor.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 905, 14500, reglas), (558, 0, True))
+        self.assertEqual(RV.peso_del_punto_de_vendedor(self.reglas()), 1, 'Sin cifra: lo más estricto')
+
+    def test_minimo_de_puntos_de_un_premio_sube_con_el_peso(self):
+        self.assertEqual(RV.puntos_minimos_de_premio(29.34, 100, self.reglas()), 2934)
+        reglas = self.reglas(techos__pesoDelPuntoDeVendedor=0.65)
+        self.assertEqual(RV.puntos_minimos_de_premio(29.34, 100, reglas), 4514)     # 2934 / 0.65 = 4513.8 → arriba
+
+    def test_tope_al_mes(self):
+        self.assertEqual(RV.topar_al_mes(100, 0, None), 100)
+        self.assertEqual(RV.topar_al_mes(100, 950, 1000), 50)
+        self.assertEqual(RV.topar_al_mes(100, 1000, 1000), 0)
+        self.assertEqual(RV.topar_al_mes(100, 1200, 1000), 0, 'Un mes ya pasado del tope no da negativo')
+
+    # --- Tiempos y códigos -----------------------------------------------------------------------
+
+    def test_ventana_de_devoluciones(self):
+        hoy = datetime(2026, 10, 14, 12, 0)
+        self.assertEqual(RV.disponible_desde(hoy, self.reglas()), datetime(2026, 11, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, self.reglas(retencion__dias=0)), hoy)
+
+    def test_las_primeras_ventas_esperan_mas(self):
+        hoy = datetime(2026, 10, 14, 12, 0)
+        reglas = self.reglas(retencion__primerasVentas=5, retencion__diasPrimerasVentas=60)
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 0), datetime(2026, 12, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 4), datetime(2026, 12, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 5), datetime(2026, 11, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas), datetime(2026, 11, 13, 12, 0), 'No se sabe: ventana normal')
+
+    def test_vinculacion_en_meses(self):
+        self.assertEqual(RV.meses_de_vinculacion(self.reglas(vinculacion__meses=0)), 0)
+        self.assertEqual(RV.meses_de_vinculacion(self.reglas(vinculacion__meses=12)), 12)
+        self.assertEqual(RV.meses_de_vinculacion({'vendedores': {}}), 0)
+
+    def test_codigos_de_vendedor(self):
+        codigo = RV.nuevo_codigo_vendedor()
+        self.assertTrue(codigo.startswith('VEN') and len(codigo) == 9)
+        self.assertTrue(RV.es_codigo_vendedor_valido(codigo))
+        self.assertTrue(RV.es_codigo_vendedor_valido(RV.codigo_vendedor_normal(f' {codigo[:3]}-{codigo[3:].lower()} ')))
+        self.assertFalse(RV.es_codigo_vendedor_valido('DCA7K2M9P'), 'Un código de socio no es de vendedor')
+        self.assertFalse(RV.es_codigo_vendedor_valido('VEN0O1IL2'), 'Sin O/0 ni I/1/L')

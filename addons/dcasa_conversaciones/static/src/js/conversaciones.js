@@ -1,7 +1,8 @@
 /**
  * «Conversaciones»: la pantalla donde el equipo atiende a los clientes con Juan (docs/JUAN_PANEL.md).
- * Tres columnas en escritorio (lista, hilo, ficha) y una a la vez en celular. Acción de cliente OWL, igual que la
- * conciliación bancaria de dcasa_contabilidad.
+ * Escritorio: la lista (que puede reducirse a las fotos) y el hilo, que es lo que más espacio tiene; la ficha del cliente
+ * va al lado solo en pantallas amplias y, en las demás, se abre encima y se cierra sola (ver preferencias.js).
+ * Celular: una columna a la vez. Acción de cliente OWL, igual que la conciliación bancaria de dcasa_contabilidad.
  */
 import { Component, onMounted, onWillUnmount, useEffect, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -13,6 +14,7 @@ import { DialogoCotizacion } from "./cotizacion";
 import { FichaCliente } from "./ficha";
 import { HiloConversacion } from "./hilo";
 import { ListaConversaciones } from "./lista";
+import { escucharCambioDeTamano } from "./preferencias";
 import { VisorImagenes } from "./visor";
 
 const CLAVE_ABIERTA = "dcasa.conversaciones.abierta";
@@ -67,6 +69,7 @@ export class DcasaConversaciones extends Component {
         };
         onMounted(async () => {
             document.addEventListener("visibilitychange", this.alVolverAVer);
+            this.dejarDeEscucharElTamano = escucharCambioDeTamano(() => this.almacen.alCambiarElTamano());
             this.pulso = setInterval(() => {
                 if (document.visibilityState === "visible") {
                     this.almacen.latido();
@@ -88,6 +91,7 @@ export class DcasaConversaciones extends Component {
         });
         onWillUnmount(() => {
             document.removeEventListener("visibilitychange", this.alVolverAVer);
+            this.dejarDeEscucharElTamano?.();
             clearInterval(this.reloj);
             clearInterval(this.pulso);
             this.almacen.salir();
