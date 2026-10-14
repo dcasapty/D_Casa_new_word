@@ -26,14 +26,26 @@ def _seccion_contactos(titulo, resumen):
     errores = resumen['con_error']
     ampliadas = Markup('') if not resumen['ampliados'] else _linea(
         'Ya estaban con el otro papel (ahora tienen también este)', len(resumen['ampliados']))
-    return Markup('<h4>%s</h4><ul>%s%s%s%s</ul>%s') % (
+    enlazados = resumen['enlazados']
+    return Markup('<h4>%s</h4><ul>%s%s%s%s%s</ul>%s%s') % (
         titulo,
         _linea('Fichas nuevas', len(resumen['creados'])),
         _linea('Ya estaban (no se tocan)', len(resumen['ya_estaban'])),
         ampliadas,
+        _linea('Repetidos enlazados a una ficha con el mismo RUC o cédula (no se crea otra)', len(enlazados))
+        if enlazados else Markup(''),
         _linea('No se pudieron crear', len(errores)),
+        _lista(enlazados, _enlazado),
         _lista(errores, lambda e: Markup('n.º %s — %s: %s') % (e[0], e[1], e[2])),
     )
+
+
+def _enlazado(item):
+    """«n.º 4034 usa la ficha del n.º 4033»; si esa ficha ya existía por otro lado, se dice su nombre."""
+    id_viejo, otro_numero, nombre = item
+    if otro_numero:
+        return Markup('n.º %s usa la ficha del n.º %s (mismo RUC o cédula)') % (id_viejo, otro_numero)
+    return Markup('n.º %s usa la ficha que ya existía de «%s» (mismo RUC o cédula)') % (id_viejo, nombre)
 
 
 def _seccion_precios(resumen):

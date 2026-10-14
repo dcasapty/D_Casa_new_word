@@ -5,8 +5,11 @@
   tiene UNA sola ficha (mismo número en los dos archivos): la segunda carga solo le agrega el otro papel.
   El id externo es de «__import__», como los de la importación de Odoo, y NO de este módulo: desinstalar un módulo
   borra todo lo que tiene id externo suyo, y las fichas no pueden desaparecer si algún día se quita esta pantalla.
-* El candado de contactos NO se salta: si el celular, el correo o el RUC/cédula ya son de otra ficha, esa fila no
-  se crea y queda en el informe con el motivo, para resolverla a mano (fusionando, o corrigiendo el dato).
+* El candado de contactos NO se salta: si el celular o el correo ya son de otra ficha, esa fila no se crea y queda en
+  el informe con el motivo, para resolverla a mano (fusionando, o corrigiendo el dato).
+* Mismo RUC o cédula = misma persona («un RUC, una persona»): esa fila no crea otra ficha; su número del sistema
+  anterior queda enlazado a la que ya existe (mismo id externo ``__import__.dcasa_contacto_<n>``) y sus órdenes,
+  facturas y pagos se cargan a ella. Va en el informe («enlazados») para revisar que sea la misma persona.
 * Un cliente no es un socio: no se le pone PIN ni celular de Socios, así que no reclama ficha ni junta puntos. Tampoco
   se le escribe nada: Juan solo contesta a quien le escribe.
 * Cada fila va en su propio savepoint: una ficha mala no tumba a las demás.
@@ -71,6 +74,21 @@ def _motivo(error):
     return ' '.join(str(error).split()) or error.__class__.__name__
 
 
+def _ficha_con_el_mismo_ruc(env, fila):
+    """La ficha que ya tiene el mismo RUC o cédula que esta fila (con las mismas reglas del candado), o vacío."""
+    if not fila['vat']:
+        return env['res.partner']
+    return env['res.partner']._dcasa_buscar_ficha(ruc=fila['vat'])
+
+
+def _numero_viejo_de(env, ficha):
+    """El número del sistema anterior con que se creó esta ficha (``None`` si ya existía por otro lado)."""
+    dato = env['ir.model.data'].search([
+        ('module', '=', MODULO), ('model', '=', 'res.partner'), ('res_id', '=', ficha.id),
+        ('name', '=like', 'dcasa_contacto_%')], order='id', limit=1)
+    return dato.name.removeprefix('dcasa_contacto_') if dato else None
+
+
 def cargar_clientes(env, filas):
     return cargar_contactos(env, filas, 'cliente')
 
@@ -81,8 +99,11 @@ def cargar_proveedores(env, filas):
 
 def cargar_contactos(env, filas, rol):
     """Crea las fichas que faltan. Devuelve ``{'creados': [(id_viejo, nombre)], 'ya_estaban': [id_viejo],
-    'ampliados': [id_viejo], 'con_error': [(id_viejo, nombre, motivo)]}``. ``ampliados`` son fichas que ya estaban
-    con el otro papel (cliente o proveedor) y ahora tienen también este. No hace commit: lo decide quien llama."""
+    'ampliados': [id_viejo], 'enlazados': [(id_viejo, n.º de la ficha o None, nombre de la ficha)],
+    'con_error': [(id_viejo, nombre, motivo)]}``. ``ampliados`` son fichas que ya estaban con el otro papel (cliente o
+    proveedor) y ahora tienen también este. ``enlazados`` son filas con el mismo RUC o cédula que otra ficha: su número
+    quedó apuntando a esa ficha (el n.º que ella tiene del sistema anterior, si lo tiene). No hace commit: lo decide
+    quien llama."""
     # no_vat_validation: el RUC o la cédula se guardan como estaban (un proveedor del extranjero no sigue el formato de
     # Panamá). El candado de contactos sigue comparando el RUC con el de las demás fichas.
     Partner = env['res.partner'].with_context(
@@ -91,7 +112,7 @@ def cargar_contactos(env, filas, rol):
     panama = env.ref('base.pa', raise_if_not_found=False)
     etiqueta = _etiqueta_de_origen(env)
     campo_rol = ROLES[rol][0]
-    resumen = {'creados': [], 'ya_estaban': [], 'ampliados': [], 'con_error': []}
+    resumen = {'creados': [], 'ya_estaban': [], 'ampliados': [], 'enlazados': [], 'con_error': []}
     for fila in filas:
         id_viejo = fila['id_viejo']
         nombre_externo = xmlid_contacto(id_viejo)
@@ -106,6 +127,21 @@ def cargar_contactos(env, filas, rol):
             else:
                 ficha.write({campo_rol: 1})
                 resumen['ampliados'].append(id_viejo)
+            continue
+        igual = _ficha_con_el_mismo_ruc(env, fila)
+        if igual:
+            otro_numero = _numero_viejo_de(env, igual)   # antes de enlazar: si no, se encontraría a sí mismo
+            try:
+                with env.cr.savepoint():
+                    env['ir.model.data'].create({
+                        'module': MODULO, 'name': nombre_externo, 'model': 'res.partner', 'res_id': igual.id,
+                        'noupdate': True})
+                    if not igual[campo_rol]:
+                        igual.write({campo_rol: 1})
+            except (ValidationError, UserError, AccessError, psycopg2.Error) as error:
+                resumen['con_error'].append((id_viejo, fila['nombre'], _motivo(error)))
+                continue
+            resumen['enlazados'].append((id_viejo, otro_numero, igual.name))
             continue
         pais = _pais(env, fila['pais'], panama)
         datos = fila
@@ -122,7 +158,7 @@ def cargar_contactos(env, filas, rol):
             continue
         resumen['creados'].append((id_viejo, fila['nombre']))
     # Solo cantidades en el registro del servidor: los nombres de las personas no van a los logs.
-    _logger.info('Carga de %ss: %s creados, %s ya estaban, %s ampliados, %s con error.', rol,
+    _logger.info('Carga de %ss: %s creados, %s ya estaban, %s ampliados, %s enlazados, %s con error.', rol,
                  len(resumen['creados']), len(resumen['ya_estaban']), len(resumen['ampliados']),
-                 len(resumen['con_error']))
+                 len(resumen['enlazados']), len(resumen['con_error']))
     return resumen
