@@ -274,15 +274,27 @@ def _seccion_combos(resumen):
         _linea('Ya eran combos con OTRAS piezas (no se pisan)', len(resumen['otra_estructura'])),
         _linea('Sin piezas en el archivo (no se cargan)', len(resumen['sin_piezas'])),
         _linea('Archivados en el sistema anterior (no se cargan)', len(resumen['archivados'])),
+        _linea('Posible duplicado de un combo que ya está aquí (no se cargan: decide la dueña)',
+               len(resumen['posibles_duplicados'])),
         _linea('Auxiliares «X COLCHÓN … PARA COMBO» (no se cargan, a propósito)', len(resumen['omitidos'])),
         _linea('Necesitan revisión (no se tocaron)', len(resumen['necesitan_revision'])),
-        _linea('No se pudieron cargar', len(resumen['con_error'])),
+        _linea('No se cargaron porque les falta una pieza en el catálogo',
+               sum(1 for _c, motivo in resumen['con_error'] if 'falta en el catálogo' in motivo)),
+        _linea('No se pudieron cargar por otro motivo',
+               sum(1 for _c, motivo in resumen['con_error'] if 'falta en el catálogo' not in motivo)),
         _linea('No coinciden con su nombre (se cargaron como dice el archivo: revisar)',
                len(resumen['no_coinciden'])),
     ])
     listas = Markup('').join([
         _titulo_lista('No coincide con el nombre: el combo dice una cosa y sus piezas son otras (se cargó tal cual '
                       'viene en el archivo)', resumen['no_coinciden'], _combo_con_motivo),
+        _titulo_lista('Cama corregida por el código del nombre (casilla encendida)', resumen['corregidos'],
+                      _combo_con_motivo),
+        _titulo_lista('Posible duplicado: ya hay un combo de nombre casi igual (no se creó otro ni se tocó)',
+                      resumen['posibles_duplicados'], _combo_con_motivo),
+        _titulo_lista('Piezas que faltan en el catálogo (NUNCA se crean desde este archivo: se cargan con los '
+                      'productos y se vuelve a cargar)', resumen['piezas_faltantes'],
+                      lambda p: Markup('%s — falta en %s combos') % (p[0], p[1])),
         _titulo_lista('Necesitan revisión: no se convirtieron', resumen['necesitan_revision'], _combo_con_motivo),
         _titulo_lista('No se pudieron cargar (lo que falta en el catálogo no se inventa)', resumen['con_error'],
                       _combo_con_motivo),
@@ -295,6 +307,7 @@ def _seccion_combos(resumen):
                       'lo cambia)', resumen['precio_distinto'],
                       lambda e: Markup('%s — archivo $%s, aquí $%s') % (e[0], f'{e[1]:,.2f}', f'{e[2]:,.2f}')),
         _titulo_lista('Se les puso el código del archivo (no tenían)', resumen['codigo_puesto'], escape),
+        _titulo_lista('No tenían precio: recibieron el del archivo', resumen['precio_puesto'], escape),
         _titulo_lista('Revisar el precio', resumen['avisos_de_precio'], _combo_con_motivo),
     ])
     return Markup('<h4>Combos de cama y colchón (combos.csv)</h4><ul>%s</ul>%s') % (cabecera, listas)

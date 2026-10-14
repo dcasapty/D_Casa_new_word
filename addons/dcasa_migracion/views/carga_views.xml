@@ -38,6 +38,7 @@
                 <group string="Combos de cama y colchón (después de cargar los productos)">
                     <field name="archivo_combos" filename="nombre_combos" widget="binary" string="combos.csv"/>
                     <field name="nombre_combos" invisible="1"/>
+                    <field name="corregir_cama_por_nombre"/>
                     <field name="armar_combos_desde_nombre"/>
                 </group>
                 <group string="Ventas y compras pendientes (después de cargar contactos y productos)">

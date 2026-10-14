@@ -498,7 +498,7 @@ def aviso_de_precio(precio, precios_de_piezas):
 
 # --- Contrastar lo que trae el archivo con lo que dice el nombre -----------------------------------
 
-def _es_colchon(pieza):
+def es_colchon(pieza):
     return bool(re.search(r'\bcolch', limpio(pieza.get('nombre'))))
 
 
@@ -514,7 +514,7 @@ def contrastar_con_el_nombre(nombre, grupos, camas):
     if not analisis['ok']:
         return []
     opciones = [o for grupo in grupos for o in grupo]
-    colchones = [g for g in grupos if g and all(_es_colchon(o) for o in g)]
+    colchones = [g for g in grupos if g and all(es_colchon(o) for o in g)]
     problemas = []
     if len(colchones) != analisis['cantidad_colchones']:
         problemas.append(f'el nombre dice {analisis["cantidad_colchones"]} colchón(es) y el archivo trae '
@@ -527,14 +527,14 @@ def contrastar_con_el_nombre(nombre, grupos, camas):
         elif analisis['tamano'] and not any(o.get('tamano') in (None, analisis['tamano']) for o in grupo):
             problemas.append(f'el nombre dice tamaño {ETIQUETA_TAMANO[analisis["tamano"]]} y el colchón del archivo '
                              f'es {ETIQUETA_TAMANO[grupo[0]["tamano"]]}')
-    de_cama = [o for o in opciones if not _es_colchon(o)]
+    de_cama = [o for o in opciones if not es_colchon(o)]
     if not de_cama:
         return problemas + ['el archivo no trae la cama']
     problema = _contrastar_cama(analisis, de_cama, camas)
     return problemas + ([problema] if problema else [])
 
 
-def _texto_de(pieza):
+def texto_de(pieza):
     codigo = f'[{pieza["codigo"]}] ' if pieza.get('codigo') else ''
     return f'{codigo}{pieza["nombre"]}'
 
@@ -546,16 +546,26 @@ def _contrastar_cama(analisis, de_cama, camas):
     if resultado['estado'] == CLARO:
         buenas = {resultado['elegida']['id']} | {o['id'] for o in resultado['otras']}
         if not ids_del_archivo & buenas:
-            return (f'el nombre dice la cama {_texto_de(resultado["elegida"])} y el archivo trae '
-                    f'{_texto_de(de_cama[0])}')
+            return (f'el nombre dice la cama {texto_de(resultado["elegida"])} y el archivo trae '
+                    f'{texto_de(de_cama[0])}')
         return None
     if ids_del_archivo & {o['id'] for o in resultado['opciones']}:
         return None
     propias = ' '.join(f"{o.get('codigo') or ''} {o.get('nombre') or ''}" for o in de_cama)
     color = color_de(analisis['cama'])
     if color and color_de(propias) and color_de(propias) != color:
-        return f'el nombre dice color {color} y la cama del archivo ({_texto_de(de_cama[0])}) es {color_de(propias)}'
+        return f'el nombre dice color {color} y la cama del archivo ({texto_de(de_cama[0])}) es {color_de(propias)}'
     if analisis['tamano'] and all(o.get('tamano') and o['tamano'] != analisis['tamano'] for o in de_cama):
         return (f'el nombre dice tamaño {ETIQUETA_TAMANO[analisis["tamano"]]} y la cama del archivo '
-                f'({_texto_de(de_cama[0])}) es {ETIQUETA_TAMANO[de_cama[0]["tamano"]]}')
+                f'({texto_de(de_cama[0])}) es {ETIQUETA_TAMANO[de_cama[0]["tamano"]]}')
     return None
+
+
+def cama_por_el_codigo_del_nombre(nombre, camas):
+    """La cama que lleva el CÓDIGO que dice el nombre del combo (solo si es una sola y el código coincide de verdad;
+    nunca por parecido), o ``None``. Es la que se pone con «Corregir la cama por el código del nombre»."""
+    analisis = analizar_nombre(nombre)
+    if not analisis['ok']:
+        return None
+    resultado = resolver_cama(analisis['cama'], analisis['tamano'], camas)
+    return resultado['elegida'] if resultado['estado'] == CLARO and resultado['motivo'] == 'por su código' else None

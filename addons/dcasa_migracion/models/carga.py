@@ -98,6 +98,12 @@ class DcasaMigracionCarga(models.TransientModel):
     nombre_pagos = fields.Char()
     archivo_combos = fields.Binary('combos.csv', attachment=False)
     nombre_combos = fields.Char()
+    corregir_cama_por_nombre = fields.Boolean(
+        'Corregir la cama por el código del nombre', default=False,
+        help='Apagado (lo normal): los combos se cargan tal cual viene en combos.csv y los que no coinciden con su '
+             'nombre solo se marcan en el informe. Encendido: si la cama del archivo no es la del código que dice el '
+             'nombre del combo (p. ej. «… BLACK 908KBK» con la cama 908KBE) y existe un producto con ese código, se '
+             'usa ese.')
     armar_combos_desde_nombre = fields.Boolean(
         'Armar los combos desde su nombre', default=False,
         help='Lee el nombre de cada combo («COMBO CAMA … + COLCHÓN …»), busca su cama y su colchón en el catálogo y '
@@ -165,6 +171,7 @@ class DcasaMigracionCarga(models.TransientModel):
             resumen.update(hashlib.sha256(self._bytes(campo)).digest())
         resumen.update(b'precios' if self.actualizar_precios else b'sin-precios')
         resumen.update(b'combos-por-nombre' if self.armar_combos_desde_nombre else b'sin-combos-por-nombre')
+        resumen.update(b'corregir-cama' if self.corregir_cama_por_nombre else b'sin-corregir-cama')
         return resumen.hexdigest()
 
     def _textos(self):
@@ -248,7 +255,7 @@ class DcasaMigracionCarga(models.TransientModel):
         tratados = self.env['product.template'].browse()
         if 'combos' in leidos:
             salida['combos'], tratados = combos.cargar_combos(
-                self.env, leidos['combos'][0], self.actualizar_precios)
+                self.env, leidos['combos'][0], self.actualizar_precios, self.corregir_cama_por_nombre)
             salida['combos']['con_error'] = list(leidos['combos'][1]) + salida['combos']['con_error']
         if self.armar_combos_desde_nombre:
             salida['combos_nombre'] = combos.armar_desde_nombre(self.env, tratados)

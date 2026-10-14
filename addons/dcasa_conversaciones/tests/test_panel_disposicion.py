@@ -356,7 +356,7 @@ class TestContratoDeLosArchivos(TransactionCase):
         for boton in botones:
             self.assertIn('title=', boton, f'sin tooltip: {boton}')
             self.assertIn('aria-label=', boton, f'sin aria-label: {boton}')
-        self.assertRegex(scss, r'max-height: min\(100px, 14vh\)')     # la caja de texto crece hasta un máximo
+        self.assertRegex(scss, r'max-height: #\{"min\(100px, 14vh\)"\}')     # la caja de texto crece hasta un máximo
         self.assertIn('@container caja', scss)
 
     def test_los_avisos_son_de_una_linea_y_el_resumen_nace_plegado(self):

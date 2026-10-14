@@ -53,7 +53,8 @@ def clave_de_nombre(nombre):
 
 
 def _numeros_del_nombre(clave):
-    """Las fichas del nombre que llevan cifras (los códigos): si dos nombres «casi iguales» las comparten, es el mismo."""
+    """Las fichas del nombre que llevan cifras (los códigos): si dos nombres casi iguales las
+    comparten, es el mismo combo."""
     return sorted(f for f in re.findall(r'[a-z0-9]+', clave) if re.search(r'\d', f))
 
 
@@ -252,13 +253,13 @@ def _crear_combo(env, combo, grupos):
         return env['product.template'].create(valores)
 
 
-def _grupos_con_productos(env, grupos_del_archivo):
+def _grupos_con_productos(env, grupos_del_archivo, nombres):
     """Busca cada pieza en el catálogo. ``(grupos, faltan)``: ``faltan`` dice cuáles no se encontraron y por qué."""
     grupos, faltan = [], []
     for grupo in grupos_del_archivo:
         opciones = []
         for opcion in grupo['opciones']:
-            variante, motivo = _buscar_pieza(env, opcion['codigo'], opcion['nombre'])
+            variante, motivo = _buscar_pieza(env, opcion['codigo'], opcion['nombre'], nombres)
             if motivo:
                 texto = f'{opcion["codigo"] or opcion["nombre"]}: {motivo}'
                 if texto not in faltan:
@@ -271,31 +272,39 @@ def _grupos_con_productos(env, grupos_del_archivo):
 
 CLAVES_DEL_RESUMEN = ('creados', 'convertidos', 'ya_estaban', 'otra_estructura', 'sin_piezas', 'necesitan_revision',
                       'con_error', 'precio_distinto', 'codigo_puesto', 'avisos_de_precio', 'archivados', 'omitidos',
-                      'no_coinciden')
+                      'no_coinciden', 'posibles_duplicados', 'corregidos', 'piezas_faltantes', 'precio_puesto')
 
 
-def cargar_combos(env, combos, actualizar_precios=False):
+def cargar_combos(env, combos, actualizar_precios=False, corregir_cama=False):
     """Carga los combos de ``reglas_combos.filas_combos``. Devuelve ``(resumen, tratados)``: ``tratados`` son los
     productos que el archivo nombra y ya existían (para que «armar desde el nombre» no los vuelva a tocar) y
     ``resumen`` las listas por grupo:
 
-    ``creados`` (producto nuevo), ``convertidos`` (ya existía y pasó a tipo Combo), ``ya_estaban``, ``otra_estructura``
-    (ya eran combos con otras piezas: no se pisan), ``sin_piezas`` (el archivo no les dice qué llevan),
-    ``necesitan_revision`` ``[(clave, motivo)]``, ``con_error`` ``[(clave, motivo)]`` (incluye las piezas que no se
-    encontraron), ``precio_distinto`` ``[(clave, archivo, aquí)]``, ``codigo_puesto`` y ``avisos_de_precio``
-    ``[(clave, texto)]`` (el precio no cuadra con el de las piezas), ``archivados`` (la columna ``activo`` dice 0),
-    ``omitidos`` (los auxiliares «X COLCHÓN … PARA COMBO», que no se cargan) y ``no_coinciden`` ``[(clave, motivo)]``
-    (lo que el nombre del combo dice y las piezas del archivo contradicen: se cargaron tal cual, para revisar).
+    * ``creados`` (producto nuevo), ``convertidos`` (ya existía y pasó a tipo Combo), ``ya_estaban``,
+      ``otra_estructura`` (ya eran combos con otras piezas: no se pisan), ``sin_piezas`` (el archivo no les dice qué
+      llevan), ``archivados`` (la columna ``activo`` dice 0) y ``omitidos`` (los auxiliares «X COLCHÓN … PARA COMBO»,
+      que no se cargan);
+    * ``necesitan_revision``, ``con_error`` y ``posibles_duplicados``: ``[(clave, motivo)]`` (con_error incluye los
+      combos a los que les falta una pieza en el catálogo; las piezas NUNCA se crean). ``piezas_faltantes`` es
+      ``[(pieza, en cuántos combos)]``;
+    * ``precio_distinto`` ``[(clave, archivo, aquí)]``, ``precio_puesto`` (el producto no tenía precio y recibió el del
+      archivo), ``codigo_puesto`` y ``avisos_de_precio`` ``[(clave, texto)]`` (el precio no cuadra con el de sus
+      piezas);
+    * ``no_coinciden`` ``[(clave, motivo)]``: lo que el nombre del combo dice y las piezas del archivo contradicen (se
+      cargó tal cual, para revisar). Con ``corregir_cama``, la cama que no coincide con el CÓDIGO del nombre se cambia
+      por la que lleva ese código (si existe) y se anota en ``corregidos`` ``[(clave, texto)]``.
+
     No hace commit.
     """
     env = _entorno(env)
-    carga = _CargaDeCombos(env, actualizar_precios)
+    nombres = _Nombres(env)
+    carga = _CargaDeCombos(env, nombres, actualizar_precios, corregir_cama)
     tratados = env['product.template'].browse()
     for combo in combos:
-        plantilla, poner_codigo, error = _buscar_combo(env, combo)
+        plantilla, poner_codigo, error = _buscar_combo(env, combo, nombres)
         tratados |= plantilla
         carga.uno(combo, plantilla, poner_codigo, error)
-    resumen = carga.resumen
+    resumen = carga.cerrar()
     _logger.info('Carga de combos: %s nuevos, %s convertidos, %s ya estaban, %s con otra estructura, %s sin piezas, '
                  '%s necesitan revisión, %s con error.', len(resumen['creados']), len(resumen['convertidos']),
                  len(resumen['ya_estaban']), len(resumen['otra_estructura']), len(resumen['sin_piezas']),
@@ -306,11 +315,22 @@ def cargar_combos(env, combos, actualizar_precios=False):
 class _CargaDeCombos:
     """Lo que se hace con cada combo del archivo y lo que se anota en el resumen."""
 
-    def __init__(self, env, actualizar_precios):
+    def __init__(self, env, nombres, actualizar_precios, corregir_cama):
         self.env = env
+        self.nombres = nombres
         self.actualizar_precios = actualizar_precios
+        self.corregir_cama = corregir_cama
         self.resumen = {k: [] for k in CLAVES_DEL_RESUMEN}
-        self._contraste = None   # (camas, por id, nombres, códigos): se arma la primera vez que hace falta
+        self.faltantes = {}
+        self._indices = None   # (camas, por id, nombres, códigos): se arma la primera vez que hace falta
+
+    def cerrar(self):
+        self.resumen['piezas_faltantes'] = sorted(self.faltantes.items(), key=lambda par: (-par[1], par[0]))
+        return self.resumen
+
+    def indices(self):
+        self._indices = self._indices or _indices_para_contraste(self.env)
+        return self._indices
 
     def uno(self, combo, plantilla, poner_codigo, error):
         clave, resumen = combo['clave'], self.resumen
@@ -321,18 +341,38 @@ class _CargaDeCombos:
         elif combo['sin_piezas']:
             resumen['sin_piezas'].append(clave)
         elif error:
-            resumen['con_error'].append((clave, error))
+            clave_de_lista = 'posibles_duplicados' if error.startswith(PREFIJO_DUPLICADO) else 'con_error'
+            resumen[clave_de_lista].append((clave, error))
         elif plantilla and plantilla.type != 'combo' and 'combo' not in RC.limpio(plantilla.name):
             resumen['con_error'].append((clave, f'el código es del producto «{plantilla.name}», que no parece un '
                                                 'combo: no se convierte'))
         else:
-            grupos, faltan = _grupos_con_productos(self.env, combo['grupos'])
+            grupos, faltan = _grupos_con_productos(self.env, combo['grupos'], self.nombres)
             if faltan:
                 resumen['con_error'].append((clave, 'no se cargó, falta en el catálogo: ' + '; '.join(faltan)))
-            elif plantilla:
+                for texto in faltan:
+                    self.faltantes[texto] = self.faltantes.get(texto, 0) + 1
+                return
+            if self.corregir_cama:
+                self._corregir_la_cama(combo, grupos)
+            if plantilla:
                 self._existente(combo, plantilla, poner_codigo, grupos)
             else:
                 self._nuevo(combo, grupos)
+
+    def _corregir_la_cama(self, combo, grupos):
+        """Con la casilla encendida: la cama que no es la del CÓDIGO del nombre se cambia por la que lo lleva."""
+        camas, por_id, _nombres, _codigos = self.indices()
+        buena = RC.cama_por_el_codigo_del_nombre(combo['nombre'], camas)
+        if not buena:
+            return
+        for grupo in grupos:
+            propias = [por_id.get(v.id) for v, _e in grupo['opciones']]
+            if len(propias) == 1 and propias[0] and not RC.es_colchon(propias[0]) and propias[0]['id'] != buena['id']:
+                antes = propias[0]
+                grupo['opciones'] = [(self.env['product.product'].browse(buena['id']), grupo['opciones'][0][1])]
+                self.resumen['corregidos'].append((combo['clave'], f'cama {RC.texto_de(antes)} → {RC.texto_de(buena)}'))
+                return
 
     def _nuevo(self, combo, grupos):
         clave, env = combo['clave'], self.env
@@ -365,9 +405,14 @@ class _CargaDeCombos:
         """Avisos de un combo ya cargado: su precio frente al de sus piezas y su nombre frente a sus piezas."""
         self.resumen['avisos_de_precio'].extend((clave, aviso) for aviso in RC.aviso_de_precio(
             precio, [min(v.lst_price for v, _extra in g['opciones']) for g in grupos]))
-        self._contraste = self._contraste or _indices_para_contraste(self.env)
-        _anotar_contraste(self.resumen, clave, plantilla, [[v for v, _e in g['opciones']] for g in grupos],
-                          self._contraste)
+        problemas = _contraste(plantilla, [[v for v, _e in g['opciones']] for g in grupos], self.indices())
+        if not problemas:
+            return
+        camas = self.indices()[0]
+        if not self.corregir_cama and RC.cama_por_el_codigo_del_nombre(plantilla.name, camas):
+            problemas.append('existe la cama con el código del nombre: la casilla «Corregir la cama por el código del '
+                             'nombre» la pone')
+        self.resumen['no_coinciden'].append((clave, '; '.join(problemas)))
 
 
 def _indices_para_contraste(env):
@@ -383,11 +428,16 @@ def _anotar_contraste(resumen, clave, plantilla, grupos, contraste):
 
 
 def _ajustar_ficha(env, plantilla, combo, poner_codigo, actualizar_precios, resumen):
-    """El precio del archivo (solo si se pidió) y el código que le faltaba al combo. Lo demás no se toca."""
+    """El precio del archivo y el código que le faltaba al combo. Lo demás no se toca.
+
+    El precio del archivo solo se aplica si el producto no tenía precio (o si se pidió con la casilla «También cambiar
+    precio y costo»); si difiere, se anota."""
     precio = combo['precio']
     if precio and abs(plantilla.list_price - precio) >= 0.005:
-        if actualizar_precios:
+        if actualizar_precios or not plantilla.list_price:
             plantilla.list_price = precio
+            if not actualizar_precios:
+                resumen['precio_puesto'].append(combo['clave'])
         else:
             resumen['precio_distinto'].append((combo['clave'], precio, plantilla.list_price))
     if poner_codigo and not plantilla.default_code and not env['product.product'].with_context(
