@@ -109,6 +109,147 @@ historial ya cerrado:
   `dcasa_compra_<n>`, `dcasa_factura_compra_<n>`). Volver a cargar no repite nada, y borrar un documento permite cargarlo
   de nuevo.
 
+## Combos de cama y colchón (`dcasa_migracion/combos.py`, `reglas_combos.py`)
+
+Un combo es el tipo **Combo** que ya trae Odoo 19 (no hace falta fabricación): un producto vendible que se arma con
+**grupos**, y cada grupo es una pieza (la cama, el colchón…) o varias opciones entre las que el cliente escoge una.
+Los combos NO tienen existencias propias: al entregar, Odoo descuenta las piezas.
+
+**Cómo se vende (lo que ve la vendedora).** En la cotización escoge el combo como cualquier producto. Odoo agrega la
+línea del combo y, debajo, **una línea por pieza** (cama, colchón). La línea del combo queda en **$0.00** y el precio del
+combo (sin ITBMS) **se reparte entre las piezas** en proporción a su precio normal; el ITBMS 7 % se suma a cada pieza. El
+último centavo de redondeo lo lleva la última pieza, así que las piezas siempre suman el precio del combo exacto. Ejemplo
+verificado con datos del catálogo: BOX SPRING FULL + COLCHÓN IMPERIAL FULL, **$146.99** (el colchón de $96.99 y el box
+spring de $59.99) → el colchón queda en **$90.82** y el box spring en **$56.17** (suman $146.99), ITBMS $10.29, total
+$157.28. Si un grupo tiene varios colchones, la vendedora escoge uno y
+el «precio extra» de esa opción se suma. El precio de un combo no se cambia a mano: se rebaja con el descuento (y rige
+el tope de descuento de la vendedora, calculado sobre las piezas).
+
+**Factura, entrega y programas.** La entrega saca de inventario la cama y el colchón, nunca el combo. La factura lleva el
+combo como **título** («COMBO … x 1», con lo que suman sus piezas) y las dos piezas debajo, cada una con su ITBMS: así lo
+verá también el PDF de `dcasa_invoice`. La factura electrónica (`dcasa_fe_pa`) manda a la DGI **dos ítems** (la cama y
+el colchón); el nombre del combo no viaja y no hay líneas en cero. Los puntos de Socios y la comisión de vendedores
+cuentan **una sola vez** el neto de la venta (piezas, nunca el combo además).
+
+### Cargar los combos
+
+El archivo es `combos.csv` (de Cowork), **una fila por pieza**. Se lee por el nombre de sus columnas: en cualquier orden,
+con o sin mayúsculas o tildes, separado por coma, punto y coma o tabulador, con o sin BOM:
+
+| Columna | Qué lleva |
+|---|---|
+| `codigo_combo` | El código del combo. **Puede ir vacío**: entonces el combo se reconoce por su nombre exacto |
+| `nombre_combo` | El nombre («COMBO CAMA … + COLCHÓN …»). Todas las filas del mismo combo lo repiten |
+| `precio_combo` | Precio del combo **sin ITBMS** (vacío o 0 = no se registró). Igual en todas las filas del combo |
+| `codigo_componente` | Código de la pieza (cama, colchón). Sin código, se busca por el nombre exacto |
+| `nombre_componente` | Nombre de la pieza. Si termina en « [opción]», esa pieza es una opción de un grupo |
+| `cantidad` | Opcional (1 a 10). 3 colchones = 3 grupos iguales (Odoo no tiene cantidad por opción) |
+| `precio_extra` | Opcional. Lo que se suma al combo si el cliente escoge esa opción |
+| `grupo` | Opcional. Junta filas de opciones aunque no vayan seguidas |
+| `activo` | Opcional. `0`, `no` o `false` = el combo está archivado: **no se carga**, se lista |
+
+Ejemplo inventado (dos combos; el primero deja escoger el colchón y el segundo es un camarote con dos colchones):
+
+```csv
+codigo_combo,nombre_combo,precio_combo,codigo_componente,nombre_componente,cantidad,precio_extra
+,COMBO CAMA EJEMPLO QUEEN EJ-100-Q + COLCHÓN MARCA UNO,299.99,EJ-100-Q,CAMA EJEMPLO QUEEN EJ-100-Q,1,0
+,COMBO CAMA EJEMPLO QUEEN EJ-100-Q + COLCHÓN MARCA UNO,299.99,CO-1-Q,COLCHON MARCA UNO QUEEN [opción],1,0
+,COMBO CAMA EJEMPLO QUEEN EJ-100-Q + COLCHÓN MARCA UNO,299.99,CO-2-Q,COLCHON MARCA DOS QUEEN [opción],1,20
+CMB-EJ-2,COMBO CAMAROTE EJEMPLO + 2 COLCHONES MARCA UNO,350.00,EJ-200,CAMAROTE EJEMPLO EJ-200,1,0
+CMB-EJ-2,COMBO CAMAROTE EJEMPLO + 2 COLCHONES MARCA UNO,350.00,CO-1-T,COLCHON MARCA UNO TWIN,2,0
+```
+
+Las filas marcadas « [opción]» y seguidas son las opciones de **un** grupo; una pieza sin marca entre ellas parte el grupo.
+(Una prueba lee este mismo ejemplo: `test_reglas_combos.py`.)
+
+**Pasos** (después de cargar los productos, porque los combos usan sus piezas):
+1. Ajustes › Cargar datos del sistema anterior: subir `combos.csv` en «Combos de cama y colchón».
+2. **Revisar (no cambia nada)** y leer el informe «Combos de cama y colchón»; después **Cargar**.
+3. Los combos quedan **sin publicar** en la tienda hasta que la dueña los publique.
+
+**Reglas del cargador** (las mismas de todo el importador: candado, idempotente, sin nombres de personas en los registros):
+- **Las piezas nunca se crean desde este archivo.** Solo se enlazan las camas y los colchones que ya existen (se buscan
+  por código; sin código, por nombre exacto; una pieza con tamaños se toma en la variante del tamaño que dice el
+  nombre). Un combo al que le falta una pieza **no se carga** y el informe dice cuál falta («Piezas que faltan en el
+  catálogo»). Se corrige cargando antes `productos.csv`, y se vuelve a cargar `combos.csv`.
+- **Un combo que ya existe como producto** (los «COMBO … + COLCHÓN» que trajo el inventario del sistema anterior,
+  `consu`, sin publicar) se **convierte** en vez de crear otro: conserva su id, su nombre, su precio y su historial. Se
+  reconoce por el código o por el nombre (sin importar espacios junto al «+»); si el nombre se parece a otro por poco, el
+  informe lo marca «posible duplicado» y no crea nada.
+- **No se fuerza una conversión peligrosa.** Si el combo tiene existencias, movimientos reales de inventario
+  (entregas, recepciones o traslados; los ajustes de inventario no cuentan), está en cotizaciones o ventas abiertas, o
+  tiene más de una medida o color, queda **«necesita revisión»** con el motivo y no se toca. (Una sola línea de «Tamaño»
+  con un valor, como traen los del inventario anterior, se quita sin cambiar el id.)
+- **El precio:** si el producto ya tenía precio, **no se cambia** (el informe lista los que difieren del archivo); si no
+  tenía, recibe el del archivo. La casilla «También cambiar precio y costo…» lo cambia siempre al del archivo.
+- **Contraste con el nombre.** El informe compara lo que dice el archivo con lo que dice el nombre del combo (el código
+  de la cama, el tamaño, la marca del colchón) y lista **«No coincide con el nombre»**. La casilla **«Corregir la cama
+  por el código del nombre»** (apagada por defecto) pone la cama que dice el nombre cuando existe; nunca toca el colchón.
+- Volver a cargar no repite nada. Un combo archivado (`activo` = 0) o sin ninguna pieza se lista y no se carga.
+- Un combo mal escrito (cantidad rara, precio distinto entre sus filas, precio extra negativo) sale en «con error» y los
+  demás se cargan; un número ilegible en cualquier fila corta todo el archivo y dice en cuál.
+
+### Armar los combos desde su nombre
+
+Mientras llega `combos.csv` se puede empezar a vender: la casilla **«Armar los combos desde su nombre»** lee cada
+«COMBO … + COLCHÓN …» ya cargado (los del inventario del sistema anterior) y busca la cama y el colchón en el catálogo.
+**Nunca adivina.** Cada combo queda en uno de tres grupos:
+- **Claro:** un solo producto posible para la cama y para el colchón (por código dentro del nombre, o por nombre exacto,
+  y el colchón por marca y tamaño). **Solo estos se arman.**
+- **Dudoso:** hay varios candidatos o la cama sale de una suposición. No se arma; el informe lista las opciones con su
+  precio y existencias.
+- **Sin resolver:** no hay candidato. Tampoco se arma.
+
+Con los 49 combos del inventario anterior (los de una base limpia): **46 claros, 2 dudosos, 1 sin resolver**.
+- `COMBO CAMA BUTTERFLY UP TWIN + COLCHO IMPERIAL` (dudoso): el nombre no trae el código de la cama y hay dos camas
+  parecidas (`HDSF-SF-T-BK` y `butterfly-bed-up-bed`).
+- `COMBO CAMA QUEEN W160969417 + COLCHÓN DULCES SUEÑOS` (dudoso): el código `W160969417` es de una cama **Full** y el
+  nombre dice Queen.
+- `COMBO CAMA KING CON ESTANTES 1062010753-54N + COLCHON IMPERIAL` (sin resolver): no hay colchón Imperial King (solo
+  Twin y Full) y la cama del nombre no tiene un código que coincida (existe `1062010753N`).
+Si el mismo colchón o cama está dos veces en el catálogo (el del catálogo y el del inventario anterior), gana el que
+tiene el código escrito igual que en el nombre del combo y, si no hay forma de distinguirlos, el que viene del
+inventario anterior (el que usaban los combos). Los dudosos y sin resolver se resuelven con `combos.csv` o a mano.
+
+### Qué pasó con el `combos.csv` real de Cowork (71 combos)
+
+Contra el catálogo que trae el repositorio (base limpia): **69 de 71 se cargan** (47 convierten un producto que ya
+existía y 22 se crean sin publicar). Los **2 que no** se quedan sin cargar por una pieza que falta, a propósito:
+- `COMBO DE 2 SOFÁS BLANCOS DE 2 Y 3 PUESTOS 77090`: los sofás `77090-2` y `77090-3` no están en el catálogo.
+- `COMBO CAMA KING CON ESTANTES 1062010753-54N + COLCHON IMPERIAL`: su cama «CAMA KING CON ESTANTES 1062010753» no
+  tiene código y no existe con ese nombre. Además, el nombre dice colchón IMPERIAL y el archivo trae FIRST CLASS.
+
+Avisos del informe (para que la dueña decida, nada se cambia solo): `COMBO CAMA KING COLOR BLACK 908KBK` y `… GREY
+908KGR` traen en el archivo la cama `908KBE` (beige): la casilla «Corregir la cama…» las cambia por la del nombre. Dos
+combos tienen en Odoo un precio mucho menor que el del archivo (`J02HF-BF-2208GF`: $119.99 en Odoo contra $206.99 en el
+archivo; `N-F12002-K-GR`: $139.99 contra $389.99, y $139.99 es menos que una sola de sus piezas): como ya tenían precio,
+no se cambió.
+
+**Pruebas:** `test_reglas_combos.py` (lectura y nombres, sin base de datos), `test_combos.py`,
+`test_combos_reales.py` (el archivo real, como texto dentro del test: es catálogo, no datos de personas) y, en
+`dcasa_catalogo`, `test_combos_venta.py` (cotización, entrega, factura, PDF, tope, Socios y comisión).
+
+### Lo que hubo que ajustar en otros módulos para vender combos de punta a punta
+
+Se probó la venta completa (cotización → confirmar → entrega → factura → PDF → factura electrónica → Socios y comisión) y
+estas cuatro cosas **no funcionaban bien con el comportamiento nativo**; se corrigieron con cambios chicos y con pruebas:
+- **Tope de descuento (`dcasa_base`).** Antes, tanto la línea del combo como sus piezas estaban exentas del tope de
+  descuento de la vendedora: un combo se podía rebajar sin límite. Ahora la línea del combo (en $0.00) sigue exenta, pero
+  **las piezas cuentan**: se mide el descuento contra el precio repartido de cada pieza. Con 10 % pasa, con 11 % no, bajar
+  a mano el precio de una pieza tampoco, y gerencia sí puede.
+- **Título del combo en la factura (`dcasa_invoice`).** Odoo calcula el subtotal de una sección sumando todo lo que sigue
+  hasta la próxima sección: el título del combo mostraba también el flete y los muebles sueltos de la factura (ejemplo:
+  $414.99 en vez de $389.99). Ahora suma **solo las piezas del combo**; un mueble suelto que quedaba bajo el título se
+  imprime antes.
+- **Confirmar una venta (`dcasa_catalogo`).** Un combo sin todas sus piezas (porque se quitó una línea, o se armó por otro
+  camino que no es la pantalla de Ventas) ya no se confirma: se vendería en cero y no saldría nada de la bodega. Dice que
+  hay que quitarlo y volver a agregarlo. Es la única regla nueva de `action_confirm`; corre con el usuario, sin `sudo()`.
+- **Brian y Juan.** Brian puede agregar un combo a una cotización con sus piezas (no cambia su precio: «es un combo: su
+  precio no se cambia a mano»; si hay que escoger colchón, le dice que lo haga desde Ventas). Juan no cotiza combos: manda
+  la conversación a la vendedora (`pasar_a_vendedora`) y el panel de conversaciones no crea cotizaciones con un combo.
+Sin cambios: la factura electrónica ve **dos ítems** (cama y colchón) y suma lo mismo; Socios y comisión cuentan una vez.
+Por eso cambió `dcasa_base`, `dcasa_invoice`, `dcasa_conversaciones`, `dcasa_brian` y `dcasa_catalogo` (con sus tests).
+
 ## Facturas y pagos del año (`dcasa_migracion/historial.py`)
 
 Cowork entregó (2026-10-13) la exportación de **todas las facturas ya emitidas del año** con la receta

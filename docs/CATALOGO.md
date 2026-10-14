@@ -214,6 +214,44 @@ Informe para la dueña: `scripts/inventario_anterior_informe.py` escribe
 `docs/inventario-anterior-informe.md` (resumen y listas) y `docs/inventario-anterior-fotos-faltantes.xlsx`
 (código, nombre, existencias de los productos nuevos sin foto).
 
+## Combos de cama y colchón
+
+Un combo junta la cama y el colchón en **un solo producto con un solo precio**. Es el tipo **Combo** que ya trae Odoo
+(no se instala nada). Los combos de la web siguen con su línea «Combo con colchón … + ITBMS» de arriba: esto es para
+**vender** el combo en una cotización, una entrega y una factura.
+
+**Crear o cambiar uno a mano** (también está en la Guía: «Crear o cambiar un combo de cama y colchón»):
+
+1. **Ventas › Productos › Productos › Nuevo.** Para cambiar uno que ya existe, búscalo por su nombre (empiezan con
+   «COMBO»).
+2. Escribe el **nombre**, como los demás: `COMBO CAMA KING … + COLCHÓN …`.
+3. En **Tipo de producto** escoge **Combo**.
+4. En **Precio de venta** pon el precio del **combo completo, sin ITBMS** y terminado en .99 (la regla de arriba). No es
+   el de la cama ni el del colchón.
+5. En **Opciones de los combos** escribe «Cama», toca **Crear y editar…** y, en la ventana que abre, agrega una línea
+   con la cama; guarda. Repite con «Colchón».
+   - Si el cliente puede **escoger entre varios colchones**, ponlos todos en el **mismo** grupo. En **Precio extra** pon
+     cuánto sube el combo si escoge ese (0 si no sube nada).
+   - Si el combo lleva **más de una pieza igual** (un camarote con tres colchones), crea **un grupo por cada una**.
+6. **Guardar.** Un combo nuevo no sale en la tienda en línea hasta que lo publiques.
+
+Qué hay que saber: las piezas (la cama y el colchón) tienen que existir ya como productos y estar a la venta; un combo
+no puede llevar otro combo; el combo no tiene existencias propias (se cuentan la cama y el colchón); y **no se escribe el
+precio de cada pieza**: Odoo reparte el precio del combo entre ellas.
+
+**Cómo se vende.** En la cotización se agrega el combo como cualquier producto. Si tiene opciones, Odoo pregunta cuál
+colchón. Salen **una línea por la cama y otra por el colchón**, con su parte del precio y el ITBMS; la línea del combo
+queda en $0.00 porque el precio ya está repartido en las piezas (así suma exacto: 146.99 → 90.82 + 56.17). El precio no se
+cambia a mano: se rebaja con el descuento, con el mismo tope de la vendedora. Al entregar, sale de la bodega la cama y el
+colchón. La factura lleva el nombre del combo como título y las dos piezas debajo.
+
+**Cargar los combos de Cowork.** El archivo `combos.csv` se sube en **Ajustes › Cargar datos del sistema anterior ›
+Combos de cama y colchón**, **después** de los productos: primero «Revisar» (no cambia nada), se lee el informe y después
+«Cargar». Solo enlaza camas y colchones que ya están; si falta una, ese combo no se carga y el informe dice cuál. La
+casilla **«Armar los combos desde su nombre»** sirve mientras tanto: lee cada «COMBO … + COLCHÓN …» y arma los que tienen
+una sola cama y un solo colchón posibles; los dudosos solo se listan. El formato del archivo y todas las reglas están en
+[MIGRACION.md › Combos de cama y colchón](MIGRACION.md#combos-de-cama-y-colchón).
+
 ## Códigos de barras
 
 Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las
