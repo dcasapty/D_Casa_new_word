@@ -60,7 +60,7 @@ class TestBrianConCombos(TransactionCase):
 
     def test_un_combo_sin_sus_piezas_no_se_confirma(self):
         orden = self.env['sale.order'].create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, 'user_id': self.vendedor.id,
             'order_line': [(0, 0, {'product_id': self.combo.product_variant_id.id, 'product_uom_qty': 1})]})
         respuesta = self.ejecutar('confirmar_venta', {'venta': orden.name})
         confirmada = self.env['brian.herramientas'].with_user(self.vendedor).confirmar(respuesta['accion_id'])
