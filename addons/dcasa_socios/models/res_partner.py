@@ -25,7 +25,8 @@ GRUPO_GERENTE = 'sales_team.group_sale_manager'
 class ResPartner(models.Model):
     _inherit = 'res.partner'
     # El código de socio también encuentra a la persona en cualquier campo de contacto.
-    _rec_names_search = ['complete_name', 'email', 'ref', 'vat', 'company_registry', 'dcasa_socio_codigo']
+    _rec_names_search = ['complete_name', 'email', 'ref', 'vat', 'company_registry', 'dcasa_socio_codigo',
+                         'dcasa_vendedor_codigo']
 
     @api.depends('phone')
     def _compute_dcasa_telefono_digitos(self):

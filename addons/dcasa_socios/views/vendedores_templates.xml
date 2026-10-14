@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Mi cuenta de socio: si además es vendedor, un acceso a su panel. -->
+    <template id="socios_cuenta_vendedor" name="Socios: acceso al panel de vendedor" inherit_id="dcasa_socios.socios_cuenta">
+        <xpath expr="//div[hasclass('o_dcasa_socios_saldo')]" position="after">
+            <div t-if="socio.dcasa_vendedor_codigo" class="o_dcasa_socios_card mt-4">
+                <h2 class="h5">Eres vendedor D’CASA</h2>
+                <p class="mb-2">Tu código de vendedor: <strong class="o_dcasa_socios_codigo" t-out="socio.dcasa_vendedor_codigo"/></p>
+                <a href="/socios/vendedor" class="btn btn-primary w-100 o_dcasa_socios_btn_toque">Mi panel de vendedor</a>
+            </div>
+        </xpath>
+    </template>
+
+    <template id="vendedor_panel" name="Vendedores: mi panel">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo" t-value="'Panel de vendedor'"/>
+            <div class="row g-4">
+                <div class="col-lg-5">
+                    <div class="o_dcasa_socios_saldo">
+                        <div class="o_dcasa_kicker">Puntos para canjear</div>
+                        <div class="o_dcasa_socios_saldo_n" t-out="fmt_puntos(resumen['disponible'])"/>
+                        <div t-if="resumen['por_liberar']" class="small">y <strong t-out="fmt_puntos(resumen['por_liberar'])"/> por liberar
+                            (esperan unos días por si hay devoluciones)</div>
+                        <div t-if="not resumen['por_liberar']" class="small">equivalen a <strong t-out="fmt_dolares(resumen['disponible'])"/> en premios</div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Tu código y tu link</h2>
+                        <p class="mb-2">Tu código: <strong class="o_dcasa_socios_codigo" t-out="socio.dcasa_vendedor_codigo"/></p>
+                        <p class="small text-muted">Quien compre con tu código o con tu link cuenta para ti. En la caja, díselo a la
+                            vendedora antes de facturar: después no se puede agregar.</p>
+                        <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-primary w-100">
+                            <i class="fa fa-whatsapp me-1"/> Compartir por WhatsApp
+                        </a>
+                        <div class="text-center mt-3">
+                            <img t-att-src="qr" width="180" height="180" alt="QR con tu link de vendedor" loading="lazy"/>
+                            <input type="text" class="form-control form-control-sm mt-2" readonly="readonly"
+                                   t-att-value="link" onclick="this.select()" aria-label="Tu link"/>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Este mes</h2>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li class="d-flex justify-content-between"><span>Ventas con tu código</span><strong t-out="resumen['ventas_del_mes']"/></li>
+                            <li class="d-flex justify-content-between"><span>Puntos ganados</span><strong t-out="fmt_puntos(resumen['puntos_del_mes'])"/></li>
+                            <li class="d-flex justify-content-between"><span>Vendedores que patrocinas</span>
+                                <strong><t t-out="resumen['directos']"/><t t-if="resumen['tope_directos']"> de <t t-out="resumen['tope_directos']"/></t></strong></li>
+                        </ul>
+                        <ul t-if="directos" class="list-unstyled mt-3 mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="directos" t-as="directo" class="d-flex justify-content-between">
+                                <span t-out="directo._dcasa_nombre_publico()"/>
+                                <span class="badge text-bg-light" t-out="directo.dcasa_vendedor_codigo"/>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-lg-7">
+                    <div t-if="canjes" class="o_dcasa_socios_card mb-4">
+                        <h2 class="h5">Premios por recoger</h2>
+                        <div t-foreach="canjes" t-as="canje" class="o_dcasa_socios_canje">
+                            <div>
+                                <div class="o_dcasa_socios_codigo fs-3" t-out="canje.codigo"/>
+                                <div t-out="canje.premio_nombre"/>
+                                <div class="small text-muted">Recógelo en la tienda antes del
+                                    <span t-field="canje.expira_en" t-options="{'widget': 'datetime', 'tz_name': 'America/Panama', 'format': 'dd/MM/yyyy h:mm a'}"/></div>
+                            </div>
+                            <form t-attf-action="/socios/vendedor/canjes/#{canje.codigo}/cancelar" method="post"
+                                  data-confirmar="¿Cancelar este premio? Los puntos vuelven a tu saldo."
+                                  onsubmit="return confirm(this.dataset.confirmar)">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <button type="submit" class="btn btn-link o_dcasa_socios_btn_toque">Cancelar</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mb-4">
+                        <h2 class="h5">Premios para vendedores</h2>
+                        <p t-if="not premios" class="text-muted mb-0">Todavía no hay premios para vendedores en el catálogo.</p>
+                        <div t-foreach="premios" t-as="premio" class="d-flex justify-content-between align-items-center gap-3 py-2 border-top">
+                            <div>
+                                <strong t-out="premio.name"/>
+                                <div class="small text-muted"><t t-out="fmt_puntos(premio.puntos)"/> puntos</div>
+                            </div>
+                            <form t-if="resumen['disponible'] &gt;= premio.puntos" action="/socios/vendedor/canjear" method="post">
+                                <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                <input type="hidden" name="premio_id" t-att-value="premio.id"/>
+                                <button type="submit" class="btn btn-primary o_dcasa_socios_btn_toque">Pedir</button>
+                            </form>
+                            <span t-else="" class="small text-muted">Te faltan <t t-out="fmt_puntos(premio.puntos - resumen['disponible'])"/></span>
+                        </div>
+                        <ul t-if="historial" class="list-unstyled mt-3 mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="historial" t-as="h" class="d-flex justify-content-between gap-3">
+                                <span t-out="h.premio_nombre"/>
+                                <span t-attf-class="badge align-self-center #{'text-bg-success' if h.estado == 'entregado' else 'text-bg-light'}"
+                                      t-out="estados_canje[h.estado]"/>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="o_dcasa_socios_card mb-4">
+                        <h2 class="h5">Tus ventas</h2>
+                        <p t-if="not comisiones" class="text-muted mb-0">Todavía no hay ventas con tu código.</p>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="comisiones" t-as="c" class="d-flex justify-content-between gap-3">
+                                <span>
+                                    <t t-out="'Venta %s' % c.name if c.tipo == 'directa' else 'Venta de tu colmena %s' % c.name"/>
+                                    <br/><small class="text-muted" t-field="c.registrada_en" t-options="{'widget': 'date', 'tz_name': 'America/Panama'}"/>
+                                    <small t-if="not c.puntos" class="text-muted"> · no sumó puntos</small>
+                                </span>
+                                <strong t-out="('+' if c.puntos &gt; 0 else '') + fmt_puntos(c.puntos)"/>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="o_dcasa_socios_card">
+                        <h2 class="h5">Tu actividad</h2>
+                        <p t-if="not movimientos" class="text-muted mb-0">Todavía no hay movimientos.</p>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li t-foreach="movimientos" t-as="m" class="d-flex justify-content-between gap-3">
+                                <span>
+                                    <span t-out="m.motivo or dict(m._fields['tipo'].selection).get(m.tipo)"/>
+                                    <br/><small class="text-muted" t-field="m.ocurrido_en" t-options="{'widget': 'date', 'tz_name': 'America/Panama'}"/>
+                                </span>
+                                <strong t-attf-class="#{'text-success' if m.puntos &gt; 0 else 'text-danger'}"
+                                        t-out="('+' if m.puntos &gt; 0 else '') + fmt_puntos(m.puntos)"/>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-3 mt-3">
+                        <a href="/socios/cuenta">Mi cuenta de socio</a>
+                        <a href="/vendedores/terminos">Reglas para vendedores</a>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- Los términos leen las reglas reales: no pueden contradecir al sistema. -->
+    <template id="vendedor_terminos" name="Vendedores: términos">
+        <t t-call="dcasa_socios.socios_layout">
+            <t t-set="titulo">Programa de vendedores</t>
+            <t t-set="v" t-value="reglas.get('vendedores') or {}"/>
+            <t t-set="com" t-value="v.get('comision') or {}"/>
+            <t t-set="pat" t-value="v.get('patrocinio') or {}"/>
+            <t t-set="ret" t-value="v.get('retencion') or {}"/>
+            <t t-set="can" t-value="v.get('canje') or {}"/>
+            <t t-set="vin" t-value="v.get('vinculacion') or {}"/>
+            <t t-set="tec" t-value="v.get('techos') or {}"/>
+            <div class="o_dcasa_socios_card o_dcasa_socios_terminos mx-auto" style="max-width: 48rem;">
+                <p t-if="not v.get('programaActivo')" class="alert alert-info">El programa de vendedores todavía no
+                    está encendido. Estas son las reglas con las que va a funcionar.</p>
+                <h2>Qué es</h2>
+                <p>Eres vendedor D’CASA cuando Gerencia o la caja te afilian. No cuesta nada afiliarte ni te obliga
+                    a comprar mercancía: ganas únicamente cuando una venta <strong>real</strong> con tu código queda
+                    <strong>pagada</strong>.</p>
+                <h2>Qué ganas</h2>
+                <p t-if="com.get('puntosPorDolarNeto')">Ganas <t t-out="com['puntosPorDolarNeto']"/> puntos por cada
+                    dólar de venta (sin ITBMS y ya con los descuentos) de quien compra con tu código<t
+                        t-if="com.get('pagaEn') == 'primera-compra'">, solo en su primera compra</t><t
+                        t-elif="com.get('pagaEn') == 'cada-compra'">, en cada compra</t>.</p>
+                <p t-if="com.get('compraMinimaCentavos')">Las ventas de menos de
+                    <t t-out="fmt_dolares(com['compraMinimaCentavos'])"/> no suman.</p>
+                <p t-if="vin.get('meses')">El cliente queda ligado a ti por <t t-out="vin['meses']"/> meses: sus compras
+                    de ese tiempo cuentan para ti aunque no diga tu código. Mientras dure ese vínculo, el código de otro
+                    vendedor no te lo quita.</p>
+                <p t-if="vin.get('meses') and com.get('factorDeRecompra') is not None">Esas compras que llegan sin tu
+                    código pagan <t t-out="'%g' % (com['factorDeRecompra'] * 100)"/>% de lo que paga una compra con tu
+                    código.</p>
+                <p>Nunca ganas por tus propias compras ni por las de alguien que comparte tus datos (cédula, celular o
+                    correo), ni por las de tu patrocinador o tus vendedores directos.</p>
+                <h2>Tu colmena (un solo nivel)</h2>
+                <p>Puedes patrocinar a otros vendedores<t t-if="pat.get('topeDeDirectos')"> (hasta
+                    <t t-out="pat['topeDeDirectos']"/>)</t>. Cuando uno de ellos cierra una venta, tú ganas
+                    <t t-if="pat.get('puntosPorDolarNetoDelDirecto')"><t t-out="pat['puntosPorDolarNetoDelDirecto']"/> puntos
+                        por cada dólar de esa venta</t><t t-else="">un porcentaje de esa venta</t>, y a él no se le
+                    resta nada. Lo que vendan los vendedores de tus vendedores no te genera nada: es un solo nivel.
+                    Cada vendedor tiene un solo patrocinador y no se cambia. Afiliar a alguien no da puntos: solo
+                    cuentan las ventas reales<t t-if="not vin.get('pagaPatrocinio')"> a clientes con tu código, no las
+                        recompras sin código</t>.</p>
+                <p t-if="pat.get('ventasPropiasMinimasAlMes')">Para cobrar patrocinio tienes que haber hecho tú
+                    mismo <t t-out="pat['ventasPropiasMinimasAlMes']"/> venta(s) propia(s) en el mes.</p>
+                <p t-if="pat.get('topeComoMultiploDeSuComisionDelMes') is not None">Lo que ganas por patrocinio en un
+                    mes no pasa de <t t-out="'%g' % pat['topeComoMultiploDeSuComisionDelMes']"/> veces lo que ganaste
+                    ese mes por tus propias ventas.</p>
+                <h2>Cuándo puedes usar los puntos</h2>
+                <p t-if="ret.get('dias') is not None">Los puntos de una venta se liberan a los
+                    <t t-out="ret['dias']"/> días de pagada, por si hay devoluciones. Si la venta se devuelve o se
+                    anula, esos puntos salen de tu cuenta.</p>
+                <p t-if="tec.get('totalPorVentaPorcentajeDelNeto')">Cada venta tiene un techo de costo: entre los puntos
+                    del cliente, los tuyos y los de tu patrocinador nunca se pasa del
+                    <t t-out="tec['totalPorVentaPorcentajeDelNeto']"/>% de la venta neta. Si se pasara, se recortan.</p>
+                <p t-if="tec.get('frenoGlobalPorcentajeDeLaVentaNeta')">Además, el programa completo tiene un freno:
+                    los puntos que D’CASA entrega a todos los vendedores en 30 días no pasan del
+                    <t t-out="'%g' % tec['frenoGlobalPorcentajeDeLaVentaNeta']"/>% de lo vendido en la tienda en esos
+                    mismos 30 días. Si se llegara a ese límite, las comisiones nuevas se recortan hasta que baje.</p>
+                <p t-if="tec.get('porVendedorAlMesPuntos')">Hay un tope de
+                    <t t-out="fmt_puntos(tec['porVendedorAlMesPuntos'])"/> puntos ganados por mes.</p>
+                <h2>En qué los cambias</h2>
+                <p>Por ahora solo por mercancía del catálogo de premios para vendedores. No se cambian por efectivo,
+                    no se transfieren y no se heredan.<t t-if="can.get('puntosMinimosParaCanjear')"> El canje mínimo es de
+                    <t t-out="fmt_puntos(can['puntosMinimosParaCanjear'])"/> puntos.</t> Pides el premio desde tu panel,
+                    te sale un código y lo recoges en la tienda en
+                    <t t-out="can.get('vigenciaDelCodigoHoras') or 72"/> horas; si no, vence y te devolvemos los puntos.</p>
+                <h2>Tus responsabilidades</h2>
+                <p>Vendes por tu cuenta y no eres empleado de D’CASA por ser vendedor del programa (si ya lo eres, tu
+                    relación laboral sigue siendo la misma). Eres responsable de lo que digas a tus clientes: no
+                    prometas precios, plazos ni garantías que D’CASA no haya dado. Si usas el programa para engañar
+                    (compras falsas, cuentas duplicadas, devoluciones para quedarte con puntos), te suspendemos y
+                    anulamos los puntos.</p>
+                <h2>Tus datos</h2>
+                <p>Usamos tu nombre, cédula o RUC, celular y los datos de tus ventas solo para administrar el programa,
+                    según la Ley 81 de 2019 de Protección de Datos Personales. Puedes pedirnos por WhatsApp que los
+                    corrijamos o que retiremos tu cuenta.</p>
+                <p class="small text-muted">Versión <t t-out="1"/> de las reglas del programa.</p>
+            </div>
+        </t>
+    </template>
+</odoo>

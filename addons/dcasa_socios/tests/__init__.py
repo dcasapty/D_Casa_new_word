@@ -8,3 +8,6 @@ from . import test_roles
 from . import test_socios_web
 from . import test_factura_impresa
 from . import test_premio_ejemplo
+from . import test_vendedores_reglas
+from . import test_vendedores
+from . import test_vendedores_web

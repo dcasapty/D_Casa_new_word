@@ -49,6 +49,8 @@ a Odoo para que haya un solo sistema:
         'views/portal_templates.xml',
         'views/res_config_settings_views.xml',
         'views/menus.xml',
+        'views/vendedores_views.xml',
+        'views/vendedores_templates.xml',
     ],
     'assets': {
         'web.assets_frontend': [

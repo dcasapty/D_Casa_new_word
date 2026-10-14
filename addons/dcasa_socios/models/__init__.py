@@ -8,3 +8,10 @@ from . import sale_order
 from . import res_config_settings
 from . import ir_http
 from . import website
+from . import reglas_vendedores
+from . import vend_movimiento
+from . import vend_comision
+from . import vend_canje
+from . import res_partner_vend
+from . import account_move_vend
+from . import sale_order_vend

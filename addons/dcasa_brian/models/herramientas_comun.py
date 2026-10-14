@@ -248,7 +248,7 @@ class BrianHerramientasComun(models.AbstractModel):
 
     @api.model
     def _b_contacto(self, texto, etiqueta='cliente'):
-        """Cliente o proveedor por nombre, celular, RUC/cédula o código de socio."""
+        """Cliente o proveedor por nombre, celular, RUC/cédula o código de socio o de vendedor."""
         texto = str(texto or '').strip()
         digitos = re.sub(r'\D', '', texto)
         dominio = [('parent_id', '=', False)]
@@ -260,7 +260,8 @@ class BrianHerramientasComun(models.AbstractModel):
                 return encontrados
             if encontrados:
                 self._b_ambiguo(encontrados, texto, etiqueta, self._b_describir_contacto)
-        return self._b_resolver('res.partner', texto, etiqueta, exactos=('vat', 'ref', 'dcasa_socio_codigo'),
+        return self._b_resolver('res.partner', texto, etiqueta,
+                                exactos=('vat', 'ref', 'dcasa_socio_codigo', 'dcasa_vendedor_codigo'),
                                 dominio=dominio, describir=self._b_describir_contacto)
 
     @api.model
