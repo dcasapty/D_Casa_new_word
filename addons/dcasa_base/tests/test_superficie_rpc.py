@@ -260,6 +260,31 @@ LISTA_BLANCA = {
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
     ('dcasa_socios', 'sale.order', 'action_dcasa_cobrar_premio'): ACCION_VENTANA,
+    # --- dcasa_socios: programa de vendedores ---------------------------------------------
+    ('dcasa_socios', 'res.partner', 'action_dcasa_afiliar_vendedor'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor; solo abre el asistente.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_suspender_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_reactivar_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_ajustar_vendedor'):
+        'Botón: exige sales_team.group_sale_manager en el servidor; solo abre el asistente.',
+    ('dcasa_socios', 'res.partner', 'action_dcasa_ver_movimientos_vendedor'): ACCION_VENTANA,
+    ('dcasa_socios', 'dcasa.vend.canje', 'action_entregar'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor (igual que el canje de socios).',
+    ('dcasa_socios', 'dcasa.vend.canje', 'action_cancelar'):
+        'Botón: exige sales_team.group_sale_salesman en el servidor (igual que el canje de socios).',
+    ('dcasa_socios', 'dcasa.vend.movimiento', 'write'): 'Bloquea: el libro de vendedores no se edita.',
+    ('dcasa_socios', 'dcasa.vend.movimiento', 'unlink'): 'Bloquea: el libro de vendedores no se borra.',
+    ('dcasa_socios', 'dcasa.afiliar.vendedor.wizard', 'action_confirmar'):
+        ASISTENTE + ' (vendedora; la afiliación exige sales_team.group_sale_salesman en el servidor).',
+    ('dcasa_socios', 'dcasa.vend.ajuste.wizard', 'action_confirmar'): ASISTENTE + ' (gerencia)',
+    ('dcasa_socios', 'sale.order', 'create'):
+        OVERRIDE + ' Solo anota quién escribió el código de vendedor.',
+    ('dcasa_socios', 'sale.order', 'write'):
+        OVERRIDE + ' Confirmada la venta, solo Gerencia cambia el vendedor, y nunca con una comisión ya pagada.',
+    ('dcasa_socios', 'account.move', 'write'):
+        OVERRIDE + ' Publicada la factura, solo Gerencia cambia el vendedor, y nunca con una comisión ya pagada.',
     # --- dcasa_tienda_borde ----------------------------------------------------------------
     # Solo anotan «página pendiente» (dcasa.tienda.pendiente, tabla interna sin ACL de escritura)
     # en el precommit; el registro del usuario se escribe sin sudo, con su propio ACL.
