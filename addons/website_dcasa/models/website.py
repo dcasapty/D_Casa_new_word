@@ -163,8 +163,11 @@ class Website(models.Model):
         return bool(adjunto) and adjunto[0]['checksum'] == _sha1_logo_de_fabrica()
 
     def _dcasa_whatsapp_producto(self, product):
-        """Mensaje de WhatsApp con el nombre del mueble ya escrito."""
-        return self._dcasa_whatsapp_url(f"Hola D'CASA, me interesa: {product.display_name}")
+        """Mensaje de WhatsApp con el nombre del mueble y su código público ya escritos (nunca la referencia del
+        proveedor: la vendedora busca ese código en Productos y encuentra el mueble)."""
+        texto = f"Hola D'CASA, me interesa: {product.with_context(display_default_code=False).display_name}"
+        codigo = product.dcasa_codigo_publico
+        return self._dcasa_whatsapp_url(f'{texto} (código {codigo})' if codigo else texto)
 
     def _dcasa_mas_itbms(self, producto):
         """¿Va «+ ITBMS» junto al precio? Sí, si la tienda muestra el precio sin impuesto y el

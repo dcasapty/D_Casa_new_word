@@ -50,6 +50,10 @@ class IrQwebFieldImage(models.AbstractModel):
 
     @api.model
     def record_to_html(self, record, field_name, options):
+        if record._name in ('product.template', 'product.product'):
+            # El nombre del archivo y el texto alternativo de la foto salen del nombre del producto, que Odoo
+            # antecede con «[referencia del proveedor]»: el cliente no tiene que verla.
+            record = record.with_context(display_default_code=False)
         atributos = self._dcasa_atributos_img(record, field_name, options)
         if atributos:
             # El widget arma sus atributos y llama a ir.qweb._post_processing_att: los nuestros

@@ -252,6 +252,56 @@ casilla **«Armar los combos desde su nombre»** sirve mientras tanto: lee cada 
 una sola cama y un solo colchón posibles; los dudosos solo se listan. El formato del archivo y todas las reglas están en
 [MIGRACION.md › Combos de cama y colchón](MIGRACION.md#combos-de-cama-y-colchón).
 
+## Código público de cada producto (el que ve el cliente)
+
+Pedido de la dueña: «Nosotros manejamos códigos que vienen de los proveedores. Pero nuestro sistema debería asignarle
+automáticamente un número a cualquier producto nuevo […]. El cliente no tiene que conocer nuestros códigos actuales de
+proveedores.» Ahora cada producto tiene **dos códigos distintos** y no se mezclan:
+
+| | Referencia interna | **Código público** |
+|---|---|---|
+| Ejemplo | el del proveedor (`XHT022-T-W`…) | `DC-K7M4PX` (así se ve; cada producto tiene el suyo) |
+| Quién lo pone | tú o el importador, a mano | **el sistema, solo**, al crear el producto |
+| Quién lo ve | solo la tienda (Odoo, bodega) | **el cliente**: ficha de la tienda, WhatsApp, Juan |
+| ¿Cambia? | cuando quieras | **nunca** (el cliente ya pudo guardarlo) |
+
+- **Cómo es:** `DC-` y 6 símbolos al azar. Los símbolos son números del 2 al 9 y letras **sin vocales y sin L** (no hay
+  `0`, `O`, `1`, `I`, `L`, que se confunden, ni palabras que salgan por casualidad). Siempre lleva al menos una letra,
+  así nunca se parece a una etiqueta numerada del rollo (`DC0001`, ver [BARRAS.md](BARRAS.md)): **son cosas distintas**.
+  Hay más de 480 millones de combinaciones y no se repite jamás, ni con los productos archivados.
+- **Cuándo se pone:** al crear **cualquier** producto, venga de donde venga: a mano en Odoo, la carga del catálogo, el
+  importador, Brian, un combo o al duplicar un producto (la copia recibe otro código). No hay que hacer nada.
+- **Los más de 600 que ya existían** (archivados y combos incluidos) recibieron su código al actualizar el sistema.
+  Es seguro repetirlo: no cambia ninguno que ya tenga código y si dos códigos chocan, sortea otro.
+- **Un producto con medidas o colores** (Twin, Full, Queen, King) tiene **un solo código**: es el del mueble. La medida
+  se dice aparte, como siempre («la DC-K7M4PX en Queen»).
+- **Dónde se ve en la oficina:** en la ficha del producto, junto a la referencia interna; como columna en la lista de
+  Productos (se puede esconder desde el selector de columnas); y se **busca** escribiéndolo en el buscador de Productos,
+  en el campo «Producto» de una cotización, en el Escáner y en Brian. Sirve en mayúsculas o minúsculas, con o sin guion,
+  y también un pedazo («K7M4»). Así la vendedora encuentra el mueble cuando el cliente le dice el código.
+- **Si de verdad hace falta cambiarlo:** solo un administrador, en la ficha del producto, con el botón **Regenerar**
+  junto al código (pide confirmar). El código viejo deja de servir y queda anotado en el historial del producto.
+- **Qué ve el cliente en el sitio:** «Código: DC-K7M4PX» debajo del nombre en la ficha; el botón de WhatsApp de la ficha
+  ya manda el nombre del mueble **con su código público**; en Black Weekend, igual. La referencia del proveedor **ya no
+  sale** en ningún lado del sitio: antes se filtraba, sin verse escrita, en la dirección de la página
+  (`/shop/xht022-t-w-cama-…`), en el mensaje de WhatsApp, en el nombre y el texto alternativo de las fotos y en los datos
+  para Google. Las direcciones viejas siguen funcionando (llevan a la nueva). El buscador de la tienda también encuentra
+  un producto por su código público.
+- **Juan** (el asistente de los clientes) dice el código público; si el cliente trae el del proveedor (de una foto vieja),
+  igual lo entiende.
+- **QR:** la dirección `https://dcasapty.com/codigo/DC-K7M4PX` abre la ficha del producto en la tienda. Es lo que debe
+  llevar el QR que se imprima para el cliente (cotizaciones, etiquetas): al escanearlo con el celular se abre el
+  mueble. Si el producto no está publicado, o el código ya no existe, lleva a la tienda. El método
+  `product.template._dcasa_url_codigo_publico()` da esa dirección completa.
+- **Documentos impresos** (cotización, factura, nota de entrega): su columna «Código» todavía no usa el código público;
+  se cambia aparte.
+
+Detalle técnico: el campo `dcasa_codigo_publico` y su sorteo viven en `dcasa_base/models/codigo_publico.py` (es el
+único módulo que ven a la vez la tienda y los documentos); lo de la tienda está en `website_dcasa/models/producto.py`;
+el relleno de lo que ya existía, en `dcasa_catalogo/migrations/19.0.1.10.0/`. Pruebas: `dcasa_catalogo/tests/test_codigo_publico.py`,
+`website_dcasa/tests/test_codigo_publico_web.py`, `dcasa_barras/tests/test_codigo_publico.py` y
+`dcasa_conversaciones/tests/test_herramientas.py` (clase `TestCodigoPublicoEnJuan`).
+
 ## Códigos de barras
 
 Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las

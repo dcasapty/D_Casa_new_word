@@ -19,6 +19,9 @@ CAMPOS_PLANTILLA = frozenset({
     'optional_product_ids', 'website_ribbon_id', 'combo_ids',
     # Black Weekend (website_dcasa) y el combo del catálogo (dcasa_catalogo), que sale en su tarjeta.
     'dcasa_black_weekend', 'dcasa_bw_orden', 'dcasa_bw_variante_id', 'dcasa_combo',
+    # El código público (dcasa_base) sale en la ficha y en el mensaje de WhatsApp: si un administrador lo regenera,
+    # la página guardada en el borde se vuelve a armar.
+    'dcasa_codigo_publico',
 })
 CAMPOS_VARIANTE = frozenset({
     'active', 'default_code', 'image_variant_1920', 'product_template_attribute_value_ids', 'lst_price',

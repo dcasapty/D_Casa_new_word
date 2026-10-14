@@ -5,21 +5,24 @@
 * Atajos: Productos · Facturas · Conversaciones · Oportunidades · Resumen contable (este último, solo contabilidad).
 * «Mis gastos por reembolsar»: de todo el personal, con ícono propio, sin dejar ver Nómina ni los gastos de otros.
 """
+import json
 from datetime import timedelta
 
 from odoo import Command, fields
 from odoo.exceptions import AccessError
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import HttpCase, TransactionCase, tagged
+from odoo.tools.misc import file_path
 
 
 def crear_usuario(env, login, grupo):
     return env['res.users'].with_context(no_reset_password=True).create({
-        'name': login.replace('_', ' ').title(), 'login': login, 'tz': 'America/Panama',
+        'name': login.replace('_', ' ').title(), 'login': login, 'password': login, 'tz': 'America/Panama',
         'group_ids': [Command.set([env.ref('base.group_user').id, env.ref(grupo).id])],
     })
 
 
-class VentasCommon(TransactionCase):
+class VentasMixin:
+    """Usuarios por rol y pedidos de prueba, para las pruebas de servidor y las del navegador."""
 
     @classmethod
     def setUpClass(cls):
@@ -51,6 +54,10 @@ class VentasCommon(TransactionCase):
     def cifras(self, usuario=None):
         tablero = self.env['dcasa.tablero'].with_user(usuario) if usuario else self.env['dcasa.tablero']
         return {c['clave']: c for c in tablero.obtener_datos()['cifras']}
+
+
+class VentasCommon(VentasMixin, TransactionCase):
+    pass
 
 
 @tagged('post_install', '-at_install')
@@ -237,6 +244,23 @@ class TestInicioPorRol(VentasCommon):
                         <= claves, claves)
         self.assertEqual(len(datos['semana']), 7)
 
+    def test_gerencia_ve_lo_cobrado_hoy_por_forma_de_pago_y_la_vendedora_no(self):
+        diario = self.env['account.journal'].search([('type', 'in', ('cash', 'bank'))], limit=1)
+        if not diario:
+            self.skipTest('Sin diarios de caja o banco')
+        antes = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
+        cobrado_antes = next(c['valor'] for c in antes['cifras'] if c['clave'] == 'cobrado_hoy')
+        self.env['account.payment'].create({
+            'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
+            'amount': 12.5, 'journal_id': diario.id}).action_post()
+        datos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
+        cifras = {c['clave']: c for c in datos['cifras']}
+        self.assertAlmostEqual(cifras['cobrado_hoy']['valor'] - cobrado_antes, 12.5, places=2)
+        self.assertIn(diario.display_name, {c['forma'] for c in datos['cobros']})
+        propio = self.env['dcasa.tablero'].with_user(self.vendedora).obtener_datos()
+        self.assertFalse(propio['cobros'])
+        self.assertNotIn('cobrado_hoy', {c['clave'] for c in propio['cifras']})
+
     def test_el_vendido_de_gerencia_incluye_a_todas_las_vendedoras(self):
         mia, ajena = self.pedido(vendedor=self.vendedora), self.pedido(vendedor=self.otra)
         self.facturar(mia)
@@ -294,7 +318,6 @@ class TestInicioPorRol(VentasCommon):
             self.assertNotIn('facturas', claves)
 
     def test_la_plantilla_oculta_a_la_vendedora_lo_que_no_es_suyo(self):
-        from odoo.tools.misc import file_path
         with open(file_path('dcasa_interfaz/static/src/xml/inicio.xml'), encoding='utf-8') as plantilla:
             xml = plantilla.read()
         self.assertIn('o_dcasa_nueva_factura', xml)
@@ -367,3 +390,100 @@ class TestGastosPorReembolsar(VentasCommon):
         # Gerencia ve los dos
         self.assertEqual(Reembolso.with_user(self.gerencia).search([('id', 'in', (suyo | de_otra).ids)]),
                          suyo | de_otra)
+
+
+ESPERAR_JS = """
+    const esperar = async (fn, que, intentos = 150) => {
+        for (let i = 0; i < intentos; i++) {
+            const r = fn();
+            if (r) { return r; }
+            await new Promise((ok) => setTimeout(ok, 100));
+        }
+        throw new Error('No apareció: ' + que);
+    };
+    const textos = (selector) => [...document.querySelectorAll(selector)]
+        .map((e) => e.textContent.trim().replace(/\\s+/g, ' '));
+    const igual = (visto, esperado, que) => {
+        if (JSON.stringify(visto) !== JSON.stringify(esperado)) {
+            throw new Error(`${que}: se vio ${JSON.stringify(visto)} y se esperaba ${JSON.stringify(esperado)}`);
+        }
+    };
+"""
+
+
+@tagged('post_install', '-at_install')
+class TestInicioEnElNavegador(VentasMixin, HttpCase):
+    """Lo que de verdad se ve en pantalla: la vendedora y Gerencia, y la lista que abre «Vendido hoy»."""
+
+    def probar(self, login, cuerpo):
+        codigo = '(async () => {' + ESPERAR_JS + cuerpo + "console.log('test successful'); })();"
+        self.browser_js('/odoo/action-dcasa_interfaz.action_dcasa_inicio', codigo, login=login)
+
+    def test_la_vendedora_ve_solo_sus_herramientas_y_lo_que_vendio(self):
+        mia = self.pedido(vendedor=self.vendedora)
+        self.facturar(mia)
+        ajena = self.pedido(vendedor=self.otra)
+        self.facturar(ajena)
+        por_facturar = self.pedido(vendedor=self.vendedora)
+        borrador = self.pedido(vendedor=self.vendedora)
+        self.facturar(borrador, publicar=False)
+        self.probar('vendedora_rol', """
+            await esperar(() => document.querySelector('.o_dcasa_inicio .o_dcasa_cifra'), 'las cifras');
+            igual(textos('.o_dcasa_cifra .o_dcasa_cifra_titulo'), ['Vendido hoy', 'Mis cotizaciones'], 'cifras');
+            const atajos = textos('.o_dcasa_atajo strong');
+            igual(atajos.slice(0, 2), ['Productos', 'Facturas'], 'los primeros atajos');
+            for (const fuera of ['Oportunidades', 'Resumen contable']) {
+                if (atajos.includes(fuera)) { throw new Error('la vendedora no debe ver el atajo ' + fuera); }
+            }
+            const botones = textos('.o_dcasa_inicio_accesos .btn');
+            for (const dentro of ['Nueva factura', 'Nuevo cliente']) {
+                if (!botones.includes(dentro)) { throw new Error('falta el botón ' + dentro); }
+            }
+            for (const fuera of ['Registrar cobro', 'Nueva cotización', 'Ver la tienda', 'Ver en el celular']) {
+                if (botones.includes(fuera)) { throw new Error('la vendedora no debe ver el botón ' + fuera); }
+            }
+            if (document.querySelector('.o_dcasa_panel')) { throw new Error('sin barras ni paneles de la tienda'); }
+            if (document.body.innerText.includes('Cobrado hoy') || document.body.innerText.includes('Por cobrar')) {
+                throw new Error('la vendedora no ve lo cobrado ni lo por cobrar');
+            }
+            // Tocar «Vendido hoy»: solo lo suyo y facturado por completo.
+            document.querySelector('.o_dcasa_cifra_ventas_hoy').click();
+            await esperar(() => document.querySelector('.o_list_view .o_data_row'), 'la lista de ventas');
+            const nombres = textos('.o_list_view .o_data_row td[name="name"]');
+            igual(nombres, [__MIA__], 'la lista de Vendido hoy');
+        """.replace('__MIA__', json.dumps(mia.name)))
+        self.assertNotIn(ajena.name, [mia.name])
+        self.assertTrue(por_facturar and borrador)
+
+    def test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden(self):
+        self.probar('gerencia_rol', """
+            await esperar(() => document.querySelector('.o_dcasa_inicio .o_dcasa_cifra'), 'las cifras');
+            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Oportunidades', 'Resumen contable'];
+            const atajos = textos('.o_dcasa_atajo strong');
+            igual(atajos, orden.filter((t) => atajos.includes(t)), 'orden de los atajos');
+            const titulos = textos('.o_dcasa_cifra .o_dcasa_cifra_titulo');
+            for (const dentro of ['Vendido hoy', 'Cobrado hoy', 'Por cobrar']) {
+                if (!titulos.includes(dentro)) { throw new Error('Gerencia debe ver ' + dentro); }
+            }
+            await esperar(() => document.querySelector('.o_dcasa_semana'), 'las barras de la semana');
+            const botones = textos('.o_dcasa_inicio_accesos .btn');
+            for (const dentro of ['Nueva cotización', 'Nueva factura', 'Nuevo cliente', 'Registrar cobro']) {
+                if (!botones.includes(dentro)) { throw new Error('falta el botón ' + dentro); }
+            }
+            // El Inicio baja con scroll (regla fuerte de interfaz.scss).
+            const accion = document.querySelector('.o_dcasa_inicio');
+            if (getComputedStyle(accion).overflowY !== 'auto') { throw new Error('el Inicio debe tener scroll'); }
+        """)
+
+    def test_ayuda_propia_en_la_lista_vacia_de_gastos_por_reembolsar(self):
+        if not self.env.ref('dcasa_nomina.accion_mis_reembolsos', raise_if_not_found=False):
+            self.skipTest('Sin dcasa_nomina')
+        codigo = '(async () => {' + ESPERAR_JS + """
+            const ayuda = await esperar(() => document.querySelector('.o_view_nocontent'), 'la ayuda de la lista');
+            const texto = ayuda.textContent.replace(/\\s+/g, ' ');
+            if (!texto.includes('regístralo aquí con la foto del recibo')) {
+                throw new Error('Se esperaba la ayuda propia y se vio: ' + texto);
+            }
+            console.log('test successful');
+        })();"""
+        self.browser_js('/odoo/action-dcasa_nomina.accion_mis_reembolsos', codigo, login='vendedora_rol')

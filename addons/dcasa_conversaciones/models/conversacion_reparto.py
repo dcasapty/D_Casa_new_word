@@ -49,7 +49,7 @@ class DcasaConversacionReparto(models.Model):
                                quien=elegida.name, cuando=Reparto._hace_cuanto(momento))
         else:
             # 2) Quien lleva menos hoy.
-            cuentas = Reparto._cuentas(candidatas, hoy, hoy)
+            cuentas = Reparto._cuentas(candidatas, hoy, hoy, excepto=self)
             ordenadas = Reparto._ordenar(candidatas, cuentas)
             elegida, regla = ordenadas[0], 'parejo'
             razon = self.env._('Le tocó a %(quien)s. %(por_que)s', quien=elegida.name,

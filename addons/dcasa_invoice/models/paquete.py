@@ -1,7 +1,8 @@
 """Piezas del «paquete de impresión» que no dependen de la base de datos: sellar la copia y unir PDF.
 
-Usan las mismas herramientas de PDF que Odoo (``odoo.tools.pdf``), así que funcionan igual con la versión de
-PyPDF2/pypdf que traiga cada imagen. No se agrega ninguna librería.
+Usan las herramientas de PDF que ya trae Odoo (``odoo.tools.pdf``); no se agrega ninguna librería. El código
+funciona igual con PyPDF2 1.26 / 2.12 (la imagen de producción) y con 3.x / pypdf: los nombres de los métodos de
+página cambiaron entre versiones, por eso se pide cada uno con su nombre nuevo y, si no existe, con el viejo.
 """
 import io
 
@@ -18,18 +19,47 @@ _AZUL = (0x13 / 255, 0x40 / 255, 0xB1 / 255)
 _MM = 72 / 25.4  # puntos por milímetro
 
 
+def _leer(contenido):
+    return pdf.PdfFileReader(io.BytesIO(contenido), strict=False)
+
+
+def _paginas(lector):
+    return list(lector.pages)
+
+
+def _agregar(escritor, pagina):
+    """Agrega la página y devuelve la página ya dentro del escritor."""
+    agregar = getattr(escritor, 'add_page', None) or escritor.addPage
+    agregar(pagina)
+    return _paginas(escritor)[-1] if hasattr(escritor, 'pages') else escritor.getPage(-1)
+
+
+def _tamano(pagina):
+    caja = getattr(pagina, 'mediabox', None) or pagina.mediaBox
+    ancho = caja.width if hasattr(caja, 'width') else caja.getWidth()
+    alto = caja.height if hasattr(caja, 'height') else caja.getHeight()
+    return float(abs(ancho)), float(abs(alto))
+
+
 def paginas(contenido):
     """Cuántas páginas tiene un PDF (bytes)."""
-    return pdf.PdfFileReader(io.BytesIO(contenido), strict=False).getNumPages()
+    return len(_paginas(_leer(contenido)))
 
 
 def unir(pdfs):
     """Un solo PDF con los de la lista, en ese orden."""
-    return pdf.merge_pdf([contenido for contenido in pdfs if contenido])
+    escritor = pdf.PdfFileWriter()
+    for contenido in pdfs:
+        if contenido:
+            for pagina in _paginas(_leer(contenido)):
+                _agregar(escritor, pagina)
+    salida = io.BytesIO()
+    escritor.write(salida)
+    return salida.getvalue()
 
 
 def sellar_copia(contenido, texto=TEXTO_COPIA):
-    """El mismo PDF con una cinta azul «COPIA EMPRESA» en la esquina de arriba a la derecha de cada página.
+    """El mismo PDF con una cinta azul «COPIA EMPRESA» en cada página, a la derecha del título.
 
     La copia de la empresa es la misma factura que recibe el cliente: no es otra plantilla, solo lleva la cinta.
     Así lo que cambie en la factura (QR, textos) cambia también en la copia sin tocar nada más.
@@ -37,18 +67,17 @@ def sellar_copia(contenido, texto=TEXTO_COPIA):
     from reportlab.lib import colors  # noqa: PLC0415
     from reportlab.pdfgen import canvas  # noqa: PLC0415
 
-    entrada = pdf.PdfFileReader(io.BytesIO(contenido), strict=False, overwriteWarnings=False)
+    originales = _paginas(_leer(contenido))
     sello = io.BytesIO()
     lienzo = canvas.Canvas(sello)
-    for n in range(entrada.getNumPages()):
-        pagina = entrada.getPage(n)
-        ancho = float(abs(pagina.mediaBox.getWidth()))
-        alto = float(abs(pagina.mediaBox.getHeight()))
+    for pagina in originales:
+        ancho, alto = _tamano(pagina)
         lienzo.setPageSize((ancho, alto))
-        # Cinta en el margen de arriba, a la derecha, sin tapar el encabezado ni el cuerpo.
+        # Cinta a la derecha, a la altura del título «Factura INV/…» (bajo la banda del encabezado, donde la
+        # hoja de D'CASA tiene el margen derecho libre): no tapa la dirección de la empresa ni los datos.
         caja_ancho, caja_alto = 44 * _MM, 7 * _MM
         x = ancho - 12 * _MM - caja_ancho
-        y = alto - 8 * _MM - caja_alto
+        y = alto - 37 * _MM - caja_alto
         lienzo.setFillColorRGB(*_AZUL)
         lienzo.rect(x, y, caja_ancho, caja_alto, fill=1, stroke=0)
         lienzo.setFillColor(colors.white)
@@ -57,15 +86,13 @@ def sellar_copia(contenido, texto=TEXTO_COPIA):
         lienzo.showPage()
     lienzo.save()
 
-    marcas = pdf.PdfFileReader(sello, overwriteWarnings=False)
+    marcas = _paginas(_leer(sello.getvalue()))
     salida = pdf.PdfFileWriter()
-    for n in range(entrada.getNumPages()):
-        salida.addPage(entrada.getPage(n))
-        nueva = salida.getPage(-1)
+    for pagina, marca in zip(originales, marcas):
+        nueva = _agregar(salida, pagina)
         if '/Annots' in nueva:  # PyPDF2 se queja de las anotaciones al fusionar
             del nueva['/Annots']
-        nueva.mergePage(marcas.getPage(n))
-        nueva.compressContentStreams()
+        (getattr(nueva, 'merge_page', None) or nueva.mergePage)(marca)
     resultado = io.BytesIO()
     salida.write(resultado)
     return resultado.getvalue()

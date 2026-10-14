@@ -127,9 +127,15 @@ class ProductTemplate(models.Model):
         if not all(es_codigo_publico(codigo) for codigo in dados):
             raise ValidationError(self.env._(
                 'El código público tiene la forma DC-K7M4PX. Déjalo vacío y el sistema le pone uno.'))
+        if dados:
+            self.env.cr.execute(
+                'SELECT dcasa_codigo_publico FROM product_template WHERE dcasa_codigo_publico = ANY(%s)', [list(dados)])
+            if self.env.cr.fetchone():
+                raise ValidationError(self.env._('Ese código público ya es de otro producto.'))
         sin_codigo = [vals for vals in vals_list if not vals.get('dcasa_codigo_publico')]
         for _intento in range(INTENTOS_AL_CREAR):
-            for vals, codigo in zip(sin_codigo, self._dcasa_codigos_libres(len(sin_codigo), reservados=dados)):
+            for vals, codigo in zip(
+                    sin_codigo, self._dcasa_codigos_libres(len(sin_codigo), reservados=dados), strict=True):
                 vals['dcasa_codigo_publico'] = codigo
             try:
                 with self.env.cr.savepoint():
@@ -182,28 +188,32 @@ class ProductTemplate(models.Model):
 
     @api.model
     def _dcasa_rellenar_codigos_publicos(self, lote=500):
-        """Le da código a los productos que no tienen (también archivados). Seguro de repetir: no toca los que ya
-        tienen. Va por lotes y vuelve a sortear si un código choca. Devuelve cuántos rellenó."""
-        plantillas = self.with_context(active_test=False).sudo()
-        pendientes = plantillas.search([('dcasa_codigo_publico', '=', False)], order='id')
+        """Le da código a los productos que no tienen (también archivados y de otras empresas). Seguro de repetir: no
+        toca los que ya tienen. Va por lotes, vuelve a sortear si un código choca y no cambia la fecha de
+        modificación de los productos (las fotos del sitio no se vuelven a pedir). Devuelve cuántos rellenó."""
+        cr = self.env.cr
+        self.env['product.template'].flush_model(['dcasa_codigo_publico'])
+        cr.execute('SELECT id FROM product_template WHERE dcasa_codigo_publico IS NULL ORDER BY id')
+        pendientes = [fila[0] for fila in cr.fetchall()]
         total = 0
         for inicio in range(0, len(pendientes), lote):
-            grupo = pendientes[inicio:inicio + lote]
+            ids = pendientes[inicio:inicio + lote]
             for _intento in range(INTENTOS_AL_CREAR):
-                codigos = self._dcasa_codigos_libres(len(grupo))
+                codigos = self._dcasa_codigos_libres(len(ids))
                 try:
-                    with self.env.cr.savepoint():
-                        for plantilla, codigo in zip(grupo, codigos):
-                            plantilla.with_context(**{CLAVE_PASE: PASE}).write({'dcasa_codigo_publico': codigo})
-                        self.env['product.template'].flush_model(['dcasa_codigo_publico'])
+                    with cr.savepoint(flush=False):
+                        cr.execute(
+                            'UPDATE product_template AS t SET dcasa_codigo_publico = v.codigo '
+                            'FROM (SELECT unnest(%s::int[]) AS id, unnest(%s::text[]) AS codigo) AS v '
+                            'WHERE t.id = v.id AND t.dcasa_codigo_publico IS NULL', [ids, codigos])
+                        total += cr.rowcount
                     break
-                except Exception as error:   # noqa: BLE001
+                except Exception as error:   # noqa: BLE001 — solo el choque de códigos se repite
                     if not self._dcasa_es_choque_de_codigo(error):
                         raise
             else:
                 raise UserError(self.env._('No pude asignar códigos públicos libres. Vuelve a correrlo.'))
-            total += len(grupo)
-            self.env.invalidate_all()
+        self.env['product.template'].invalidate_model(['dcasa_codigo_publico'])
         return total
 
     def _dcasa_url_codigo_publico(self):

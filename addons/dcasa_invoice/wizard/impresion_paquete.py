@@ -34,7 +34,9 @@ class DcasaImpresionPaquete(models.TransientModel):
     pago_ids = fields.Many2many(
         'account.payment', 'dcasa_impresion_paquete_pago_rel', 'paquete_id', 'pago_id', string='Pagos',
         help='Solo cuando el cuadro sale al completar un pago: al cerrarlo se muestra el pago como siempre.')
-    omitidas = fields.Integer(help='Cuántos documentos elegidos se dejaron fuera por no ser facturas de clientes ya publicadas.')
+    tras_pago = fields.Boolean(help='El cuadro salió al completar un pago: se ofrece y se puede cerrar sin imprimir.')
+    omitidas = fields.Integer(
+        help='Cuántos de lo elegido se dejó fuera por no ser una factura de cliente ya publicada.')
     incluir_cliente = fields.Boolean('Factura del cliente', default=True)
     incluir_copia = fields.Boolean('Copia de la empresa', default=True)
     incluir_entrega = fields.Boolean('Nota de entrega / retiro de bodega', default=True)
@@ -71,8 +73,8 @@ class DcasaImpresionPaquete(models.TransientModel):
                 aviso = (f'Elegiste {cuantas} facturas y el máximo por paquete es {paquete.MAX_FACTURAS}. '
                          'Elige menos y vuelve a intentar.')
             elif paquete_.omitidas:
-                aviso = ('Se dejaron fuera los documentos que no son facturas de clientes ya publicadas '
-                         f'({paquete_.omitidas}).')
+                aviso = (f'Se dejaron fuera {paquete_.omitidas} de lo que elegiste: '
+                         'solo van las facturas de clientes ya publicadas.')
             paquete_.aviso = aviso
 
     # ------------------------------------------------------------------
@@ -86,8 +88,12 @@ class DcasaImpresionPaquete(models.TransientModel):
         return validas, facturas - validas
 
     @api.model
-    def _accion_dialogo(self, facturas, pagos=None):
-        """La acción que abre el cuadro para estas facturas (``pagos``: los que se acaban de registrar)."""
+    def _accion_dialogo(self, facturas, pagos=None, sin_factura=0, tras_pago=False):
+        """La acción que abre el cuadro para estas facturas.
+
+        ``tras_pago``: sale al completar un pago (``pagos``: los que se acaban de registrar, para mostrarlos al cerrar).
+        ``sin_factura``: cuántos pedidos elegidos no tenían factura.
+        """
         validas, omitidas = self._separar_validas(facturas)
         if not validas:
             raise UserError(self.env._(
@@ -96,7 +102,8 @@ class DcasaImpresionPaquete(models.TransientModel):
         cuadro = self.create({
             'move_ids': [Command.set(validas.ids)],
             'pago_ids': [Command.set(pagos.ids)] if pagos else [],
-            'omitidas': len(omitidas),
+            'tras_pago': tras_pago,
+            'omitidas': len(omitidas) + sin_factura,
         })
         return {
             'type': 'ir.actions.act_window',
@@ -192,9 +199,15 @@ class DcasaImpresionPaquete(models.TransientModel):
         """
         informe_modelo = self.env['ir.actions.report']
         if len(registros) > 1:
-            flujos, tipo = informe_modelo._pre_render_qweb_pdf(informe, res_ids=registros.ids)
-            if tipo == 'pdf' and all(flujos.get(r.id) and flujos[r.id].get('stream') for r in registros):
-                return {r.id: flujos[r.id]['stream'].getvalue() for r in registros}
+            try:
+                flujos, tipo = informe_modelo._pre_render_qweb_pdf(informe, res_ids=registros.ids)
+            except UserError:
+                raise
+            except Exception:  # noqa: BLE001 - p. ej. una versión de PyPDF2 que no sabe partir: se hace uno por uno
+                _logger.warning('DCASA_PAQUETE no se pudo partir el PDF por registro; se arma uno por uno', exc_info=True)
+            else:
+                if tipo == 'pdf' and all(flujos.get(r.id) and flujos[r.id].get('stream') for r in registros):
+                    return {r.id: flujos[r.id]['stream'].getvalue() for r in registros}
         resultado = {}
         for registro in registros:
             contenido, tipo = informe_modelo._render_qweb_pdf(informe, [registro.id])

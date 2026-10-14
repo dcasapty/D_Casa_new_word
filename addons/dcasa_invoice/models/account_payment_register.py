@@ -13,12 +13,13 @@ class AccountPaymentRegister(models.TransientModel):
         el cuadro pequeño «Imprimir documentos».
 
         Solo es el botón del asistente (la persona frente a la pantalla). Los cobros por código (Brian, Juan,
-        integraciones) llaman a ``_create_payments`` y no pasan por aquí; con ``dont_redirect_to_payments`` en el
-        contexto tampoco. Si el interruptor de la empresa está apagado, o el pago fue parcial, todo es como antes.
+        integraciones) llaman a ``_create_payments`` y no pasan por aquí. Desde la factura Odoo pone
+        ``dont_redirect_to_payments`` (el asistente se cierra y se queda en la factura): ahí también se ofrece.
+        Si el interruptor de la empresa está apagado, o el pago fue parcial, todo es como antes.
         Un fallo del ofrecimiento nunca deshace ni estorba el pago.
         """
         accion = super().action_create_payments()
-        if accion is True or not isinstance(accion, dict) or self.env.context.get('dont_redirect_to_payments'):
+        if self.env.context.get('dcasa_sin_oferta_impresion'):
             return accion
         try:
             with self.env.cr.savepoint():
@@ -38,8 +39,11 @@ class AccountPaymentRegister(models.TransientModel):
             and factura._dcasa_is_paid())
         if not pagadas:
             return None
+        # Con ``dont_redirect_to_payments`` Odoo no devuelve acción: al cerrar el cuadro se queda en la factura.
+        accion_pago = accion_pago if isinstance(accion_pago, dict) else {}
         if accion_pago.get('res_id'):
             ids_pagos = [accion_pago['res_id']]
         else:
             ids_pagos = [id_ for _campo, _op, ids in accion_pago.get('domain', []) for id_ in ids]
-        return self.env['dcasa.impresion.paquete']._accion_dialogo(pagadas, self.env['account.payment'].browse(ids_pagos))
+        return self.env['dcasa.impresion.paquete']._accion_dialogo(
+            pagadas, self.env['account.payment'].browse(ids_pagos), tras_pago=True)

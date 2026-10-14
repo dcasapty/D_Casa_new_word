@@ -51,6 +51,11 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'product.template', 'create'):
+        OVERRIDE + ' Solo le pone al producto nuevo su código público (sorteado, único); sin sudo().',
+    ('dcasa_base', 'product.template', 'action_dcasa_regenerar_codigo_publico'):
+        'Botón: exige base.group_system (administrador) y escritura sobre el producto ANTES de cambiar el código; '
+        'deja nota en el historial del producto; sin sudo().',
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',

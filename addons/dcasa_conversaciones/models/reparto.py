@@ -88,13 +88,16 @@ class DcasaReparto(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def _cuentas(self, usuarios, desde, hasta):
+    def _cuentas(self, usuarios, desde, hasta, excepto=None):
         """``{usuario_id: {recibidas, abiertas, ultima}}``.
 
         * ``recibidas``: las que Juan le pasó entre los días ``desde`` y ``hasta`` (fechas de Panamá, ambos incluidos).
         * ``abiertas``: clientes que le esperan ahora (conversación suya, con una persona, y el último mensaje es del
           cliente).
         * ``ultima``: cuándo fue la última que Juan le pasó (de cualquier día), o ``None``.
+
+        ``excepto``: una conversación que no se cuenta como «esperando» (la que se está repartiendo ahora mismo: si ya
+        tenía dueña, no puede pesarle en su contra).
         """
         cuentas = {u.id: {'recibidas': 0, 'abiertas': 0, 'ultima': None} for u in usuarios}
         if not cuentas:
@@ -107,7 +110,7 @@ class DcasaReparto(models.Model):
         for usuario, ultima in libro._read_group(de_juan, ['usuario_id'], ['momento:max']):
             cuentas[usuario.id]['ultima'] = ultima
         esperando = [('asignada_a', 'in', list(cuentas)), ('estado', '=', 'humano'),
-                     ('ultimo_mensaje_autor', '=', 'cliente')]
+                     ('ultimo_mensaje_autor', '=', 'cliente'), ('id', 'not in', excepto.ids if excepto else [])]
         for usuario, n in self.env['dcasa.conversacion'].sudo()._read_group(esperando, ['asignada_a'], ['__count']):
             cuentas[usuario.id]['abiertas'] = n
         return cuentas
@@ -132,8 +135,8 @@ class DcasaReparto(models.Model):
         if a['recibidas'] < b['recibidas']:
             return self.env._('Era quien llevaba menos conversaciones hoy (%s).', a['recibidas'])
         if a['abiertas'] < b['abiertas']:
-            return self.env._('Iban parejas hoy y a ella le esperan menos clientes.')
-        return self.env._('Iban parejas y era quien llevaba más tiempo sin recibir una.')
+            return self.env._('Iban parejos hoy y era a quien menos clientes le esperaban.')
+        return self.env._('Iban parejos y era quien llevaba más tiempo sin recibir una.')
 
     @api.model
     def _anotar(self, conversacion, usuario, regla, razon='', hoy=None):

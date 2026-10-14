@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_invoice.FacturasPanel">
+        <article t-foreach="state.tarjetas" t-as="tarjeta" t-key="tarjeta.clave"
+                 t-attf-class="o_kanban_record o_dcasa_panel_tarjeta o_dcasa_panel_{{ tarjeta.clave }}">
+            <h2 class="o_dcasa_panel_titulo">
+                <i t-attf-class="fa {{ tarjeta.icono }} me-2" aria-hidden="true"/>
+                <a href="#" t-on-click.prevent="() => this.abrir(tarjeta.clave, 'todas')" t-out="tarjeta.titulo"/>
+            </h2>
+            <ul class="o_dcasa_panel_filas list-unstyled mb-0">
+                <li t-foreach="tarjeta.filas" t-as="fila" t-key="fila.clave">
+                    <button type="button"
+                            t-attf-class="o_dcasa_panel_fila o_dcasa_panel_fila_{{ fila.clave }} {{ fila.alerta ? 'o_dcasa_panel_alerta' : '' }}"
+                            t-on-click="() => this.abrir(tarjeta.clave, fila.clave)">
+                        <span class="o_dcasa_panel_cuenta" t-out="fila.cuenta"/>
+                        <span class="o_dcasa_panel_texto" t-out="fila.texto"/>
+                        <span class="o_dcasa_panel_monto" t-out="fila.monto"/>
+                    </button>
+                </li>
+            </ul>
+            <button type="button" class="btn btn-primary o_dcasa_panel_ver"
+                    t-on-click="() => this.abrir(tarjeta.clave, 'todas')">Ver todas</button>
+        </article>
+    </t>
+
+    <t t-inherit="account.DashboardKanbanRenderer" t-inherit-mode="extension">
+        <xpath expr="//div[@t-ref='root']/t[@t-foreach='getGroupsOrRecords()']" position="before">
+            <DcasaFacturasPanel/>
+        </xpath>
+    </t>
+
+</templates>

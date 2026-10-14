@@ -32,6 +32,7 @@ export class EncabezadoJuan extends Component {
         this.secciones = [
             { id: "conversaciones", nombre: "Conversaciones", accion: "dcasa_conversaciones.accion_conversaciones", icono: "fa-comments-o" },
             { id: "resumen", nombre: "Resumen", accion: "dcasa_conversaciones.accion_resumen", icono: "fa-tachometer" },
+            { id: "reparto", nombre: "Reparto", accion: "dcasa_conversaciones.accion_reparto", icono: "fa-balance-scale" },
             { id: "costos", nombre: "Costos de IA", accion: "dcasa_conversaciones.accion_costos", icono: "fa-usd", gerencia: true },
             { id: "conexiones", nombre: "Conexiones", accion: "dcasa_conversaciones.accion_conexiones", icono: "fa-plug", gerencia: true },
         ];

@@ -14,8 +14,10 @@ from datetime import date, timedelta
 from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 from odoo.fields import Domain
+
+ZONA_PANAMA = 'America/Panama'
 
 TIPOS_RESULTADOS = (
     'income', 'income_other', 'expense', 'expense_other', 'expense_depreciation', 'expense_direct_cost',
@@ -81,10 +83,23 @@ class ReporteContable(models.AbstractModel):
         return fields.Date.to_date(valor) if valor else defecto
 
     @api.model
+    def _hoy(self):
+        """Hoy en la hora de Panamá (o la de quien mira, si tiene una).
+
+        Un servidor en UTC ya está en «mañana» desde las 7 p. m. de Panamá: sin esto, «Hoy» y todo lo que
+        se mide contra hoy (lo vencido, el periodo por defecto) saldrían un día adelantados por la noche.
+        """
+        zona = self.env.context.get('tz') or self.env.user.tz or ZONA_PANAMA
+        return fields.Date.context_today(self.with_context(tz=zona))
+
+    @api.model
     def _periodo(self, desde, hasta):
-        hoy = fields.Date.context_today(self)
-        hasta = self._fecha(hasta, hoy)
+        hasta = self._fecha(hasta, self._hoy())
         desde = self._fecha(desde, hasta.replace(day=1))
+        if desde > hasta:
+            raise UserError(self.env._(
+                'La fecha «Desde» (%(desde)s) es posterior a «Hasta» (%(hasta)s). Corrige las fechas.',
+                desde=desde.strftime('%d/%m/%Y'), hasta=hasta.strftime('%d/%m/%Y')))
         return desde, hasta
 
     @api.model
@@ -165,7 +180,10 @@ class ReporteContable(models.AbstractModel):
         totales = {k: self._r(sum(f[k] for f in filas)) for k in ('inicial', 'debe', 'haber', 'final')}
         return {'reporte': 'balance_comprobacion', 'titulo': 'Balance de comprobación', 'desde': str(desde),
                 'hasta': str(hasta), 'moneda': self._moneda(), 'filas': filas, 'totales': totales,
-                'cuadra': not self._r(totales['debe'] - totales['haber'])}
+                'cuadra': not self._r(totales['debe'] - totales['haber']),
+                # Un periodo que cruza el cierre del año fiscal sigue acumulando las cuentas de resultados desde
+                # el inicio del año fiscal de «Desde» (el saldo final no se «reinicia» a medio periodo).
+                'cruza_ejercicio': self._inicio_ejercicio(desde) != self._inicio_ejercicio(hasta)}
 
     # ------------------------------------------------------------------
     # Libro mayor
@@ -174,24 +192,26 @@ class ReporteContable(models.AbstractModel):
     @api.private
     @api.model
     def libro_mayor(self, desde=None, hasta=None, cuenta_ids=None, borradores=False, limite=2000):
+        """Movimientos por cuenta con saldo corrido. ``limite`` recorta solo el DETALLE de cada cuenta (``None`` =
+        sin tope); el saldo inicial, el debe, el haber y el saldo final salen siempre de la suma completa."""
         desde, hasta = self._periodo(desde, hasta)
         iniciales, _no_asignado = self._saldos_iniciales(desde, borradores)
         dominio = Domain.AND([self._dominio(borradores), [('date', '>=', desde), ('date', '<=', hasta)]])
         if cuenta_ids:
             dominio = Domain.AND([dominio, [('account_id', 'in', cuenta_ids)]])
         Linea = self.env['account.move.line']
-        movidas = {c for c, *_ in Linea._read_group(dominio, ['account_id'], ['__count'])}
-        cuentas = movidas | {c for c, v in iniciales.items() if self._r(v)}
+        sumas = self._sumas_por_cuenta(dominio)
+        cuentas = set(sumas) | {c for c, v in iniciales.items() if self._r(v)}
         if cuenta_ids:
             cuentas = {c for c in cuentas if c.id in cuenta_ids}
         resultado = []
         for cuenta in sorted(cuentas, key=lambda c: c.code or ''):
-            saldo = iniciales.get(cuenta, 0.0)
-            inicial = saldo
+            saldo = inicial = iniciales.get(cuenta, 0.0)
+            debe, haber, _neto = sumas.get(cuenta, (0.0, 0.0, 0.0))
             lineas = Linea.search(Domain.AND([dominio, [('account_id', '=', cuenta.id)]]),
-                                  order='date, move_name, id', limit=limite + 1)
+                                  order='date, move_name, id', limit=(limite + 1) if limite else None)
             detalle = []
-            for linea in lineas[:limite]:
+            for linea in (lineas[:limite] if limite else lineas):
                 saldo += linea.debit - linea.credit
                 detalle.append({
                     'id': linea.id, 'fecha': str(linea.date), 'asiento': linea.move_id.name,
@@ -199,11 +219,9 @@ class ReporteContable(models.AbstractModel):
                     'tercero': linea.partner_id.display_name or '', 'concepto': linea.name or linea.ref or '',
                     'debe': self._r(linea.debit), 'haber': self._r(linea.credit), 'saldo': self._r(saldo),
                 })
-            debe = sum(d['debe'] for d in detalle)
-            haber = sum(d['haber'] for d in detalle)
             resultado.append({**self._cuenta(cuenta), 'inicial': self._r(inicial), 'debe': self._r(debe),
                               'haber': self._r(haber), 'final': self._r(inicial + debe - haber),
-                              'lineas': detalle, 'truncado': len(lineas) > limite})
+                              'lineas': detalle, 'truncado': bool(limite) and len(lineas) > limite})
         return {'reporte': 'libro_mayor', 'titulo': 'Libro mayor', 'desde': str(desde), 'hasta': str(hasta),
                 'moneda': self._moneda(), 'cuentas': resultado}
 

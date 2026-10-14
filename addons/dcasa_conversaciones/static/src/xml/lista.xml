@@ -20,13 +20,19 @@
                     </button>
                 </div>
 
-                <button t-if="almacen.reparto === 'turnos'" type="button" class="o_dcj_disponible"
+                <button t-if="almacen.reparto !== 'manual' and !almacen.fueraDelReparto" type="button" class="o_dcj_disponible"
                         t-att-class="{ o_si: almacen.disponible }" t-att-aria-pressed="almacen.disponible ? 'true' : 'false'"
-                        title="Con el reparto por turnos, las conversaciones nuevas se asignan solo a quien está disponible"
+                        title="Con el reparto encendido, las conversaciones nuevas que pasa Juan se asignan solo a quien está disponible"
                         t-on-click="() => almacen.fijarDisponible(!almacen.disponible)">
                     <i t-attf-class="fa #{almacen.disponible ? 'fa-check-circle' : 'fa-pause-circle-o'}" aria-hidden="true"/>
                     <span class="o_dcj_disponible_texto" t-out="almacen.disponible ? 'Disponible para conversaciones nuevas' : 'No disponible (no me asignan nuevas)'"/>
                 </button>
+
+                <p t-if="almacen.reparto !== 'manual' and almacen.fueraDelReparto" class="o_dcj_disponible o_dcj_fuera_del_reparto" role="status"
+                   title="Gerencia te sacó del reparto: sigues pudiendo atender las conversaciones que quieras">
+                    <i class="fa fa-plane" aria-hidden="true"/>
+                    <span class="o_dcj_disponible_texto">Fuera del reparto (no te asignan nuevas)</span>
+                </p>
 
                 <div class="o_dcj_buscar">
                     <i class="fa fa-search" aria-hidden="true"/>

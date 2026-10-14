@@ -68,7 +68,7 @@ class AccountMove(models.Model):
         queda en la historia sin factura."""
         self.check_access('unlink')  # antes de anular puntos con sudo (método público por RPC)
         comisiones = self.sudo().dcasa_vend_comision_ids.filtered(lambda c: not c.anulada_en)
-        motivos = {c.id: self.env._('Se eliminó la factura %s.', c.move_id.name) for c in comisiones}
+        motivos = {c.id: self.env._('Se eliminó la factura %s.', c.name) for c in comisiones}
         res = super().unlink()
         for comision in comisiones:
             comision._anular(motivos[comision.id], self.env.user.login, por_factura=True)

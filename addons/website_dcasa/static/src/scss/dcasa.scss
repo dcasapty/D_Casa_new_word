@@ -904,6 +904,20 @@ $dcasa-foto-fondo: #EEEDEA;
     margin-bottom: .85rem;
 }
 
+// Código público del producto en la ficha («Código: DC-K7M4PX»): discreto, en gris de la marca; el código en navy.
+.o_dcasa_codigo_publico {
+    font-family: 'Inter', sans-serif;
+    font-size: .875rem;
+    color: $dcasa-gris;
+    margin: 0 0 .75rem;
+    strong {
+        color: $dcasa-navy;
+        font-weight: 600;
+        letter-spacing: .04em;
+        user-select: all;   // un toque selecciona el código entero para copiarlo
+    }
+}
+
 // «$39.99 + ITBMS»: los precios son sin ITBMS; la leyenda va al lado, discreta y en navy.
 .o_dcasa_mas_itbms {
     font-family: 'Inter', sans-serif;

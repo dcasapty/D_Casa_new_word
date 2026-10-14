@@ -63,6 +63,6 @@ class SaleOrder(models.Model):
         hoy = fields.Date.context_today(self.with_context(tz=self.env.user.tz or 'America/Panama'))
         accion['domain'] = self._dcasa_dominio_vendido(desde=hoy, hasta=hoy)
         accion['help'] = (
-            '<p class="o_view_nocontent_smiling_face">Todavía no hay ventas facturadas hoy.</p>'
+            '<p class="o_view_nocontent_smiling_face o_dcasa_ayuda">Todavía no hay ventas facturadas hoy.</p>'
             '<p>Una venta cuenta cuando su factura ya está publicada.</p>')
         return accion

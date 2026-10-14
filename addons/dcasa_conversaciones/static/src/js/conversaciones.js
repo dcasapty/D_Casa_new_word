@@ -68,6 +68,9 @@ export class DcasaConversaciones extends Component {
             }
         };
         onMounted(async () => {
+            // Se lee ANTES de esperar al servidor: el efecto de abajo borra la marca en cuanto la pantalla se monta, y
+            // «Abrir» de la pantalla Reparto (y volver a cargar la página) dependen de que todavía esté.
+            const recordada = leerAbierta();
             document.addEventListener("visibilitychange", this.alVolverAVer);
             this.dejarDeEscucharElTamano = escucharCambioDeTamano(() => this.almacen.alCambiarElTamano());
             this.pulso = setInterval(() => {
@@ -84,7 +87,6 @@ export class DcasaConversaciones extends Component {
             }, CADA_CUANTO);
             await this.almacen.iniciar();
             this.almacen.latido();
-            const recordada = leerAbierta();
             if (recordada && !this.almacen.errorInicio) {
                 this.almacen.abrir(recordada);
             }

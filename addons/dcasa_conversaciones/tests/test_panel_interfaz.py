@@ -1088,7 +1088,7 @@ class TestPantallasDeJuan(PanelUiCase):
     if (document.querySelector(".o_dcj_p_personas")) { throw new Error("la sección «Por persona» es solo de Gerencia"); }
     // Una vendedora no ve Costos ni Conexiones en la barra.
     const nav = [...document.querySelectorAll(".o_dcj_p_nav_boton")].map((e) => e.textContent.trim());
-    if (nav.join("|") !== "Conversaciones|Resumen") { throw new Error("la barra de la vendedora: " + nav.join("|")); }
+    if (nav.join("|") !== "Conversaciones|Resumen|Reparto") { throw new Error("la barra de la vendedora: " + nav.join("|")); }
     aqui(".o_dcj_p_nav_boton", "Conversaciones").click();
     await esperar(() => document.querySelector(".o_dcj_lista"), "volver a Conversaciones desde el Resumen");
     console.log("test successful");

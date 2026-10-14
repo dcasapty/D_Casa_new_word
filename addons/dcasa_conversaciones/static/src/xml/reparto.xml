@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Reparto: cómo reparte Juan las conversaciones que pasa a una persona -->
+    <t t-name="dcasa_conversaciones.Reparto">
+        <div class="o_dcj_p o_action o_dcj_reparto">
+            <EncabezadoJuan titulo="d ? titulo : 'Reparto'" subtitulo="d ? subtitulo : ''" actual="'reparto'" esGerencia="esGerencia">
+                <div class="o_dcj_p_segmento" role="group" aria-label="Periodo">
+                    <button t-foreach="periodos" t-as="p" t-key="p.id" type="button" t-att-class="{ o_activa: state.periodo === p.id }"
+                            t-att-aria-pressed="state.periodo === p.id ? 'true' : 'false'" t-on-click="() => this.elegir(p.id)" t-out="p.nombre"/>
+                </div>
+            </EncabezadoJuan>
+
+            <div class="o_dcj_p_cuerpo">
+                <p t-if="state.cargando and !d" class="o_dcj_p_cargando" role="status"><i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Calculando…</p>
+                <div t-elif="state.error" class="o_dcj_p_aviso o_dcj_p_aviso_alerta" role="alert"><i class="fa fa-exclamation-triangle" aria-hidden="true"/><p t-out="state.error"/></div>
+
+                <t t-elif="d">
+                    <!-- Estado del reparto -->
+                    <div t-if="d.modo === 'manual'" class="o_dcj_p_aviso o_dcj_p_aviso_alerta o_dcj_reparto_apagado" role="status">
+                        <i class="fa fa-power-off" aria-hidden="true"/>
+                        <p t-if="esGerencia"><strong>El reparto está apagado.</strong> Cuando Juan pasa una conversación, nadie la recibe: queda sin dueña hasta que alguien la toma. Al encenderlo, Juan se la da a quien lleva menos hoy entre quienes están disponibles.</p>
+                        <p t-else=""><strong>El reparto está apagado.</strong> Juan no te asigna conversaciones: las toma quien quiera desde Conversaciones.</p>
+                        <button t-if="esGerencia" type="button" class="btn btn-primary o_dcj_p_boton o_dcj_encender" t-att-disabled="state.ocupado" t-on-click="encender">Encender el reparto parejo</button>
+                    </div>
+                    <div t-elif="d.modo === 'turnos' and esGerencia" class="o_dcj_p_aviso" role="status">
+                        <i class="fa fa-refresh" aria-hidden="true"/>
+                        <p><strong>Estás repartiendo por turnos:</strong> Juan rota en orden sin mirar cuántas lleva cada quien. El reparto parejo sí lo mira.</p>
+                        <button type="button" class="btn btn-secondary o_dcj_p_boton" t-att-disabled="state.ocupado" t-on-click="encender">Cambiar a parejo</button>
+                    </div>
+
+                    <!-- Gerencia: a quién le espera qué -->
+                    <t t-if="esGerencia">
+                        <div t-if="d.sin_dueno.conversaciones" class="o_dcj_p_aviso o_dcj_p_aviso_atencion" role="status">
+                            <i class="fa fa-user-times" aria-hidden="true"/>
+                            <p><strong t-out="d.sin_dueno.conversaciones"/> <t t-out="d.sin_dueno.conversaciones === 1 ? 'conversación espera' : 'conversaciones esperan'"/> y nadie las tiene
+                                (la que más, <strong t-out="minutosEnTexto(d.sin_dueno.espera_mas_min)"/>).</p>
+                            <button type="button" class="o_dcj_enlace" t-on-click="irAConversaciones">Ir a Conversaciones</button>
+                        </div>
+
+                        <section class="o_dcj_p_personas o_dcj_reparto_equipo" aria-label="Todo el equipo">
+                            <h2>Todo el equipo <span class="o_dcj_p_solo_gerencia">solo Gerencia</span></h2>
+                            <p t-if="d.modo === 'parejo'" class="o_dcj_p_detalle">
+                                Juan le da cada conversación a quien lleva menos hoy entre quienes están disponibles; si empatan, a quien menos clientes tiene esperando.
+                                <t t-if="d.dias_misma_vendedora">Si el cliente habló con una vendedora en los últimos <t t-out="d.dias_misma_vendedora"/> días y ella está disponible, vuelve con ella.</t>
+                                <t t-else="">No hay memoria de la vendedora de siempre: todas se reparten parejo.</t>
+                            </p>
+                            <p t-if="frasePareja" class="o_dcj_p_detalle o_dcj_reparto_pareja" t-out="frasePareja"/>
+                            <p t-if="!d.equipo.length" class="o_dcj_p_detalle">Todavía no hay personas de ventas.</p>
+                            <div t-else="" class="o_dcj_p_tabla_caja">
+                                <table class="o_dcj_p_tabla o_dcj_reparto_tabla">
+                                    <thead><tr><th>Persona</th><th>Estado</th><th>Recibidas</th><th>Esperan respuesta</th><th>La última que le tocó</th><th><span class="o_dcj_solo_lector">Cambiar</span></th></tr></thead>
+                                    <tbody>
+                                        <tr t-foreach="d.equipo" t-as="p" t-key="p.usuario_id" t-att-class="{ o_fuera: p.estado === 'fuera' }" t-att-data-usuario="p.usuario_id">
+                                            <th scope="row"><t t-out="p.nombre"/><span t-if="p.es_yo" class="o_dcj_p_detalle"> (tú)</span></th>
+                                            <td data-label="Estado">
+                                                <span t-attf-class="o_dcj_p_chip o_dcj_p_chip_#{estados[p.estado].clase}"><i t-attf-class="fa #{estados[p.estado].icono}" aria-hidden="true"/> <t t-out="estados[p.estado].texto"/></span>
+                                                <small t-if="p.estado === 'fuera'" class="o_dcj_p_detalle o_dcj_reparto_hasta"><t t-if="p.fuera_hasta">hasta el <t t-out="fecha(p.fuera_hasta)"/></t><t t-else="">sin fecha de regreso</t></small>
+                                            </td>
+                                            <td data-label="Recibidas">
+                                                <span class="o_dcj_reparto_recibidas" t-out="numero(p.recibidas)"/>
+                                                <span class="o_dcj_reparto_barra" aria-hidden="true"><span t-att-style="'width: ' + ancho(p) + '%'"/></span>
+                                            </td>
+                                            <td data-label="Esperan respuesta"><t t-if="p.abiertas"><strong t-out="p.abiertas"/></t><t t-else="">—</t></td>
+                                            <td data-label="La última que le tocó" t-out="cuando(p.ultima)"/>
+                                            <td class="o_dcj_reparto_celda_acciones">
+                                              <div class="o_dcj_reparto_acciones">
+                                                <t t-if="p.estado === 'fuera'">
+                                                    <label class="o_dcj_reparto_regreso"><span class="o_dcj_p_detalle">Vuelve el</span>
+                                                        <input type="date" class="o_input" t-att-value="p.fuera_hasta || ''" t-att-min="manana" t-att-disabled="state.ocupado"
+                                                               t-att-aria-label="'Día en que vuelve ' + p.nombre" t-on-change="(ev) => this.cambiarRegreso(p, ev)"/></label>
+                                                    <button type="button" class="btn btn-secondary o_dcj_p_boton o_dcj_volver" t-att-disabled="state.ocupado"
+                                                            t-att-aria-label="'Volver a asignarle conversaciones a ' + p.nombre" t-on-click="() => this.volver(p)">Volver a asignarle</button>
+                                                </t>
+                                                <button t-else="" type="button" class="btn btn-secondary o_dcj_p_boton o_dcj_sacar" t-att-disabled="state.ocupado"
+                                                        t-att-aria-label="'Dejar de asignarle conversaciones a ' + p.nombre" t-on-click="() => this.sacar(p)">Dejar de asignarle</button>
+                                              </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «Dejar de asignarle» sirve para vacaciones, ausencias o quien no atiende clientes: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
+                            <p class="o_dcj_p_nota">
+                                <button type="button" class="o_dcj_enlace" t-on-click="abrirAjustes">Ajustes de Juan</button> · Reparto:
+                                <t t-out="d.modo_nombre"/>.
+                                <button t-if="d.modo !== 'manual'" type="button" class="o_dcj_enlace o_dcj_apagar" t-att-disabled="state.ocupado" t-on-click="apagar">Apagar el reparto</button>
+                            </p>
+                        </section>
+                    </t>
+
+                    <!-- Lo mío (la vendedora solo ve esto) -->
+                    <section t-if="!esGerencia or d.yo.recibidas or d.mis_conversaciones.length" class="o_dcj_reparto_mias" aria-label="Lo mío">
+                        <h2 t-if="esGerencia">Lo tuyo</h2>
+                        <div t-if="d.yo.estado === 'fuera'" class="o_dcj_p_aviso" role="status">
+                            <i class="fa fa-plane" aria-hidden="true"/>
+                            <p>Gerencia te sacó del reparto <t t-if="d.yo.fuera_hasta">hasta el <t t-out="fecha(d.yo.fuera_hasta)"/></t><t t-else="">por ahora</t>: Juan no te asigna conversaciones nuevas. Sigues pudiendo atender las que quieras.</p>
+                        </div>
+                        <div t-elif="d.yo.estado === 'no_disponible' and d.modo !== 'manual'" class="o_dcj_p_aviso" role="status">
+                            <i class="fa fa-pause-circle-o" aria-hidden="true"/>
+                            <p>Estás como <strong>No disponible</strong>: Juan no te asigna conversaciones nuevas. Vuelve a ponerte disponible arriba de la lista, en Conversaciones.</p>
+                        </div>
+                        <section class="o_dcj_p_tarjetas" aria-label="Mis números">
+                            <article class="o_dcj_p_dato o_dcj_mis_recibidas">
+                                <h2>Te pasó Juan</h2>
+                                <p class="o_dcj_p_valor" t-out="numero(d.yo.recibidas)"/>
+                                <p class="o_dcj_p_detalle"><t t-out="d.yo.recibidas === 1 ? 'conversación' : 'conversaciones'"/> <t t-out="nombreDelPeriodo"/>.</p>
+                            </article>
+                            <article class="o_dcj_p_dato o_dcj_mis_abiertas">
+                                <h2>Te esperan ahora</h2>
+                                <p class="o_dcj_p_valor" t-out="numero(d.yo.abiertas)"/>
+                                <p class="o_dcj_p_detalle"><t t-out="d.yo.abiertas === 1 ? 'cliente espera' : 'clientes esperan'"/> tu respuesta.</p>
+                            </article>
+                            <article class="o_dcj_p_dato o_dcj_mi_ultima">
+                                <h2>La última que te tocó</h2>
+                                <p class="o_dcj_p_valor o_dcj_reparto_ultima" t-out="cuando(d.yo.ultima)"/>
+                                <p class="o_dcj_p_detalle">Cuando Juan pasa una conversación, te llega aviso por Telegram si lo tienes vinculado.</p>
+                            </article>
+                        </section>
+
+                        <p t-if="!d.mis_conversaciones.length" class="o_dcj_p_detalle o_dcj_reparto_vacio">Juan todavía no te ha pasado conversaciones <t t-out="nombreDelPeriodo"/>.</p>
+                        <div t-else="" class="o_dcj_p_tabla_caja">
+                            <table class="o_dcj_p_tabla o_dcj_reparto_mias_tabla">
+                                <thead><tr><th>Cliente</th><th>Canal</th><th>Te tocó</th><th>Cómo va</th><th><span class="o_dcj_solo_lector">Abrir</span></th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="d.mis_conversaciones" t-as="c" t-key="c.conversacion_id">
+                                        <th scope="row" t-out="c.nombre"/>
+                                        <td data-label="Canal" t-out="c.canal_nombre"/>
+                                        <td data-label="Te tocó"><t t-out="cuando(c.asignada_en)"/></td>
+                                        <td data-label="Cómo va">
+                                            <t t-if="!c.sigue_conmigo">La atiende otra persona</t>
+                                            <t t-elif="c.esperando_desde"><strong>Te espera</strong> <t t-out="cuando(c.esperando_desde)"/></t>
+                                            <t t-elif="c.estado === 'humano'">Ya le contestaste</t>
+                                            <t t-elif="c.estado === 'cerrada'">Cerrada</t>
+                                            <t t-else="">Con el asistente otra vez</t>
+                                        </td>
+                                        <td><button type="button" class="o_dcj_enlace" t-on-click="() => this.abrirConversacion(c)"
+                                                    t-att-aria-label="'Abrir la conversación de ' + c.nombre">Abrir</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+
+                    <p class="o_dcj_p_nota">Las horas y el cambio de día son de Panamá. Se cuentan solo las conversaciones que Juan pasó a una persona; las que alguien toma por su cuenta no cuentan como recibidas.</p>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

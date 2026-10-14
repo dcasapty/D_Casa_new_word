@@ -269,3 +269,54 @@ $dcj-marino: #0B1F52;
     .o_dcj_p_columnas .o_dcj_p_columna .o_dcj_p_dia { display: none; }
     .o_dcj_p_columnas .o_dcj_p_columna:nth-child(5n) .o_dcj_p_dia { display: block; }
 }
+
+// Reparto: las barras de «recibidas» por persona y los controles de Gerencia (todo plano, un solo azul).
+.o_dcj_reparto {
+    .o_dcj_reparto_apagado { flex-wrap: wrap; .btn { flex: none; } }
+    .o_dcj_reparto_mias { margin-top: 24px;
+        h2 { font-family: Oswald, sans-serif; font-size: 1.1rem; margin: 0 0 10px; color: $dcj-marino; }
+        .o_dcj_p_aviso { margin-bottom: 12px; }
+        .o_dcj_p_tabla_caja { margin-top: 12px; overflow-x: auto; }
+        .o_dcj_p_tabla { width: 100%; border-collapse: collapse; font-size: .9rem;
+            th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--dc-perla, #ECF0F6); white-space: nowrap; }
+            thead th { font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; color: var(--dc-tinta-3, #6B7690); }
+            tbody th { font-weight: 700; color: $dcj-marino; }
+        }
+    }
+    .o_dcj_reparto_ultima { font-size: 1.5rem; }
+    .o_dcj_reparto_recibidas { display: inline-block; min-width: 2ch; margin-right: 8px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+    .o_dcj_reparto_equipo > .o_dcj_p_detalle { margin-top: 6px; }
+    .o_dcj_reparto_hasta { display: block; margin-top: 2px; font-size: .78rem; }
+    .o_dcj_reparto_barra {
+        display: inline-block; vertical-align: middle; width: 90px; height: 10px; border-radius: 5px; overflow: hidden;
+        background: var(--dc-azul-100, #E4ECFD);
+        > span { display: block; height: 100%; border-radius: 5px; background: var(--dc-azul-600, #1340B1); }
+    }
+    tr.o_fuera { color: var(--dc-tinta-3, #6B7690); .o_dcj_reparto_barra > span { background: var(--dc-linea-fuerte, #CBD3E1); } }
+    .o_dcj_reparto_celda_acciones { white-space: normal !important; width: 1%; }
+    .o_dcj_reparto_acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 8px; min-width: 150px; max-width: 250px; margin-left: auto; }
+    .o_dcj_reparto_regreso { display: inline-flex; align-items: center; gap: 6px; margin: 0; white-space: nowrap; .o_input { min-height: 40px; padding: 0 8px; } }
+    .o_dcj_p_nota .o_dcj_enlace[disabled] { opacity: .5; cursor: default; }
+}
+@media (max-width: 767.98px) {
+    .o_dcj_reparto {
+        .o_dcj_reparto_acciones .btn, .o_dcj_reparto_regreso .o_input { min-height: 44px; }
+        // En el celular cada persona es una tarjeta: nada de desplazarse de lado para ver los números.
+        .o_dcj_reparto_tabla {
+            thead { display: none; }
+            tbody, tr, th, td { display: block; }
+            tr { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--dc-linea, #E2E7F0); border-radius: var(--dc-r-md, 12px); background: var(--dc-blanco, #FFFFFF); }
+            th, td { padding: 4px 0 !important; border: 0 !important; white-space: normal !important; }
+            td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
+            .o_dcj_reparto_celda_acciones { width: auto; }
+            .o_dcj_reparto_acciones { max-width: none; justify-content: flex-start; margin-left: 0; }
+        }
+        .o_dcj_reparto_mias_tabla {
+            thead { display: none; }
+            tbody, tr, th, td { display: block; }
+            tr { margin: 0 0 10px; padding: 10px 12px; border: 1px solid var(--dc-linea, #E2E7F0); border-radius: var(--dc-r-md, 12px); background: var(--dc-blanco, #FFFFFF); }
+            th, td { padding: 3px 0 !important; border: 0 !important; white-space: normal !important; }
+            td[data-label]::before { content: attr(data-label) ": "; color: var(--dc-tinta-3, #6B7690); font-size: .78rem; }
+        }
+    }
+}

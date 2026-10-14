@@ -21,17 +21,24 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
 * Abonos con fecha y medio, pagado y por pagar debajo del total; descuento aplicado.
 * Garantía, cambios y términos: textos cortos que la dueña escribe en la empresa.
 * Hoja carta con la placa, la banda y un pie de dos líneas que no se corta.
+* «Imprimir documentos»: botón extra en la factura y en el pedido (y «Imprimir paquete» en sus listas) que junta en
+  un solo PDF la factura del cliente, la copia de la empresa y la nota de entrega; «Imprimir» abre el cuadro de
+  impresión sin guardar archivos y «Descargar» lo guarda. Al completar un pago, el asistente lo ofrece (se apaga
+  en la empresa). Todo lo que se imprimía antes sigue igual.
+* Facturación › Tablero: tarjetas «Facturas de clientes» y «Facturas de proveedores» con sus conteos.
 """,
-    'version': '19.0.2.1.0',
+    'version': '19.0.2.2.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'account', 'sale'],
+    'depends': ['dcasa_base', 'account', 'sale', 'stock', 'sale_stock'],
     'data': [
+        'security/ir.model.access.csv',
         'views/report_layout.xml',
         'views/report_invoice.xml',
         'views/res_company_views.xml',
+        'views/paquete_views.xml',
         'data/report_layout_data.xml',
         'data/paperformat_data.xml',
         'data/product_data.xml',
@@ -40,6 +47,12 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
     'assets': {
         'web.report_assets_common': [
             'dcasa_invoice/static/src/scss/report_dcasa.scss',
+        ],
+        'web.assets_backend': [
+            'dcasa_invoice/static/src/scss/panel_facturas.scss',
+            'dcasa_invoice/static/src/js/paquete_pdf.js',
+            'dcasa_invoice/static/src/js/panel_facturas.js',
+            'dcasa_invoice/static/src/xml/panel_facturas.xml',
         ],
     },
     'post_init_hook': '_dcasa_invoice_post_init',

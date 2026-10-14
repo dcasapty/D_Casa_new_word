@@ -57,7 +57,7 @@ class AccountMove(models.Model):
         """
         self.check_access('unlink')  # antes de anular puntos con sudo (método público por RPC)
         compras = self.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)
-        motivos = {compra.id: self.env._('Se eliminó la factura %s.', compra.move_id.name) for compra in compras}
+        motivos = {compra.id: self.env._('Se eliminó la factura %s.', compra.name) for compra in compras}
         res = super().unlink()
         for compra in compras:
             compra._anular(motivos[compra.id], self.env.user.login, por_factura=True)

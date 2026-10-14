@@ -70,6 +70,7 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         if es_gerencia:
             filas = [self._fila_de(u, cuentas[u.id], hoy, horario) for u in
                      equipo.sorted(lambda u: (u.name or '').lower())]
+            filas.sort(key=lambda f: f['estado'] == 'fuera')   # quienes no reciben, al final (el orden se conserva)
             for fila in filas:
                 fila['es_yo'] = fila['usuario_id'] == yo.id
             datos['equipo'] = filas
@@ -159,7 +160,7 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         """Gerencia enciende o apaga el reparto desde la pantalla (lo mismo que Ajustes de Juan → Reparto)."""
         self._exigir_gerencia_del_reparto()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
-        if modo not in dict(ajustes._fields['reparto_modo'].selection):
+        if not isinstance(modo, str) or modo not in dict(ajustes._fields['reparto_modo'].selection):
             raise UserError(self.env._('Ese reparto no existe.'))
         ajustes.write({'reparto_modo': modo})   # queda en el historial de los ajustes (campo con seguimiento)
         return {'modo': modo, 'modo_nombre': NOMBRES_DEL_MODO.get(modo, '')}

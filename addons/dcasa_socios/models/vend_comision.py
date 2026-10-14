@@ -201,10 +201,13 @@ class DcasaVendComision(models.Model):
 
         Sí, si nunca la dio. También si todo lo que dio se anuló porque la factura misma se deshizo (volvió a
         borrador, se canceló o se eliminó): el vendedor de una venta real que se corrigió no se queda sin su comisión,
-        y el número de una factura borrada se vuelve a usar en la siguiente. Nunca hay dos comisiones activas de la
+        ni uno que vende con un número de factura que ya había quedado libre. Nunca hay dos comisiones activas de la
         misma factura. No, si hay una activa, o si alguna se anuló por otra razón (una devolución, un cobro revertido
         o a mano). Tampoco una factura que ya tiene una nota de crédito publicada.
         """
+        # Lo que se anuló en esta misma transacción tiene que estar ya en la base antes de crear la comisión nueva:
+        # el índice único mira la base, no la memoria.
+        self.flush_model(['factura_normal', 'partner_id', 'tipo', 'anulada_en', 'anulada_por_factura'])
         previas = self.sudo().search([('factura_normal', '=', factura_normal), ('partner_id', '=', vendedor.id),
                                       ('tipo', '=', 'directa')])
         if not previas:

@@ -22,6 +22,7 @@ filtros (publicados) y en lo que se devuelve (lista blanca de campos), no en los
 import logging
 
 from odoo import api, fields, models
+from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.website_dcasa.models.black_weekend import leer_combo
@@ -49,7 +50,7 @@ MAX_ETIQUETA = 40
 AVISO_PRECIOS = ('Los precios son sin ITBMS: el 7 % se suma en el carrito. La disponibilidad es una '
                  'etiqueta del sistema; una vendedora la confirma antes de cualquier compra.')
 PARAM_CONSULTA = {'type': 'string', 'description': 'Lo que busca el cliente, con sus palabras: «colchón queen», '
-                                                    '«sofá gris», «SOF-001».'}
+                                                    '«sofá gris», o el código de la ficha, p. ej. «DC-K7M4PX».'}
 
 
 class BrianHerramientasJuan(models.AbstractModel):
@@ -127,7 +128,8 @@ class BrianHerramientasJuan(models.AbstractModel):
         mas_itbms = self._j_mas_itbms(plantilla)
         return {
             'nombre': plantilla.name,
-            'codigo': plantilla.default_code or '',
+            # El código público (DC-K7M4PX) es el único que ve el cliente: la referencia del proveedor no sale.
+            'codigo': plantilla.dcasa_codigo_publico or '',
             'precio': round(plantilla.list_price, 2),
             'precio_texto': P.precio_texto(plantilla.list_price, mas_itbms),
             'mas_itbms': mas_itbms,
@@ -155,7 +157,9 @@ class BrianHerramientasJuan(models.AbstractModel):
         resultado = []
         for plantilla in plantillas:
             extra = ' '.join(plantilla.public_categ_ids.mapped('display_name') + valores.get(plantilla.id, []))
-            codigo = ' '.join([plantilla.default_code or ''] + codigos.get(plantilla.id, []))
+            # Para encontrarlo: el código público y, por si el cliente trae el del proveedor, los otros.
+            propios = [plantilla.dcasa_codigo_publico or '', plantilla.default_code or '']
+            codigo = ' '.join(propios + codigos.get(plantilla.id, []))
             resultado.append((plantilla, plantilla.name, codigo, extra))
         return resultado
 
@@ -191,7 +195,8 @@ class BrianHerramientasJuan(models.AbstractModel):
     def _juan_buscar_productos(self, consulta, categoria=None, limite=P.LIMITE_POR_DEFECTO):
         consulta = str(consulta or '').strip()[:200]
         if not P.palabras(consulta):
-            raise BrianError('Dime qué producto buscas, por ejemplo «cama queen» o un código como SOF-001.')
+            raise BrianError('Dime qué producto buscas, por ejemplo «cama queen» o el código de la ficha (DC-…).')
+        consulta = normalizar_codigo_publico(consulta) or consulta   # «dck7m4px» = «DC-K7M4PX»
         plantillas = self._j_plantillas_publicadas()
         if categoria:
             categorias = self._j_categorias_que_coinciden(str(categoria))
@@ -215,17 +220,25 @@ class BrianHerramientasJuan(models.AbstractModel):
         nombre=PREFIJO + 'ver_producto',
         descripcion='Ficha completa de un producto publicado por su código: descripción, medidas, variantes '
                     '(tamaños o colores) con su disponibilidad y la galería de fotos.',
-        parametros={'codigo': {'type': 'string', 'description': 'Código del producto, p. ej. «SOF-001» o «888K».'}},
+        parametros={'codigo': {'type': 'string', 'description': 'Código del producto, el que devolvió '
+                                                                'buscar_productos o el que dice el cliente: '
+                                                                'p. ej. «DC-K7M4PX».'}},
         requeridos=['codigo'], nivel='lectura', categoria='catalogo', grupos=GRUPOS,
-        ejemplos=['«¿cuánto mide el 888K?» → codigo=888K'],
+        ejemplos=['«¿cuánto mide el DC-K7M4PX?» → codigo=DC-K7M4PX'],
     )
     def _juan_ver_producto(self, codigo):
         codigo = str(codigo or '').strip()[:60]
         plantillas = self._j_plantillas_publicadas()
-        producto = self.env['product.product'].sudo().search([
-            ('product_tmpl_id', 'in', plantillas.ids), ('default_code', '=ilike', codigo)], limit=1) if codigo else None
-        plantilla = producto.product_tmpl_id if producto else plantillas.filtered(
-            lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
+        publico = normalizar_codigo_publico(codigo)
+        plantilla = plantillas.filtered(lambda p: p.dcasa_codigo_publico == publico)[:1] if publico \
+            else plantillas.browse()
+        if not plantilla:
+            # El cliente puede traer la referencia del proveedor (de una foto o de una conversación vieja).
+            producto = self.env['product.product'].sudo().search([
+                ('product_tmpl_id', 'in', plantillas.ids), ('default_code', '=ilike', codigo)],
+                limit=1) if codigo else None
+            plantilla = producto.product_tmpl_id if producto else plantillas.filtered(
+                lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
         if not plantilla:
             raise BrianError(f'No encuentro el código «{codigo}» entre los productos de la tienda. '
                              'Búscalo por nombre con buscar_productos; si no aparece, no lo manejamos.')
@@ -235,8 +248,8 @@ class BrianHerramientasJuan(models.AbstractModel):
         ficha['descripcion'] = P.recortar(descripcion)
         mas_itbms = ficha['mas_itbms']
         if plantilla.product_variant_count > 1:
+            # Sin código por variante: el código público es del producto y la medida o el color se elige con «opcion».
             ficha['variantes'] = [{
-                'codigo': v.default_code or '',
                 'nombre': v.with_context(display_default_code=False).display_name,
                 'precio': round(v.lst_price, 2),
                 'precio_texto': P.precio_texto(v.lst_price, mas_itbms),

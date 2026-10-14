@@ -1,6 +1,7 @@
 import json
 
 from odoo import http
+from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 from odoo.addons.website_sale.controllers.main import WebsiteSale
@@ -132,6 +133,18 @@ class DcasaTienda(http.Controller):
         carrito = request.cart or website._create_cart()
         carrito._cart_add(product_id=variante.id, quantity=1)
         return request.redirect('/shop/cart')
+
+    @http.route('/codigo/<string:codigo>', type='http', auth='public', website=True, sitemap=False)
+    def producto_por_codigo(self, codigo, **kwargs):
+        """Lo que abre el QR de un producto: ``/codigo/DC-K7M4PX`` lleva a su ficha en la tienda.
+
+        Solo productos publicados. Un código que no existe, que se regeneró o de un producto que no está en la
+        tienda lleva a la tienda, sin decir cuál de los tres es. Solo redirige a una dirección propia."""
+        normal = normalizar_codigo_publico(codigo)
+        producto = request.env['product.template'].search(Domain.AND([
+            request.website._dcasa_dominio_publicado(), [('dcasa_codigo_publico', '=', normal)],
+        ]), limit=1) if normal else None
+        return request.redirect(producto.website_url if producto else '/shop', code=302)
 
     @http.route(RUTA_BLACK_WEEKEND, type='http', auth='public', website=True, sitemap=_sitemap_black_weekend)
     def black_weekend(self, **kwargs):

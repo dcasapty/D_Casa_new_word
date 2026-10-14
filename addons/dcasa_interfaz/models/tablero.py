@@ -63,8 +63,8 @@ class DcasaTablero(models.AbstractModel):
     def _permisos(self, propio=False):
         """Qué accesos y paneles del Inicio puede usar quien mira.
 
-        ``propio``: el panel de quien vende sin controlar. Ahí no hay cobros (ni «Registrar cobro»), cotizaciones
-        nuevas desde el Inicio, ni la tienda en el celular: solo las herramientas del día (UI-02, 2026-10-14).
+        ``propio``: el panel de quien vende sin controlar. Ahí no hay cobros ni «Registrar cobro», ni «Nueva
+        cotización», ni «Ver la tienda»: solo las herramientas del día (UI-02, 2026-10-14).
         """
         return {
             'cotizar': self._puede('sale.order', 'create'),
@@ -233,17 +233,14 @@ class DcasaTablero(models.AbstractModel):
             datos['semana'].append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': monto, 'hoy': atras == 0})
         # Las líneas de las ventas de los últimos 30 días: el mismo dominio de «vendido», visto desde la línea.
         vendido = self.env['sale.order']._dcasa_dominio_vendido(desde=hoy - timedelta(days=30), hasta=hoy)
-        lineas = self.env['sale.order.line'].read_group(
+        lineas = self.env['sale.order.line']._read_group(
             [(f'order_id.{campo}', operador, valor) for campo, operador, valor in vendido]
             + [('product_id.type', '!=', 'service'), ('is_downpayment', '=', False)],
-            ['product_uom_qty:sum'], ['product_id'])
+            ['product_id'], ['product_uom_qty:sum'])
         por_plantilla = {}
-        productos = self.env['product.product'].browse([g['product_id'][0] for g in lineas if g['product_id']])
-        cantidades = {g['product_id'][0]: g['product_uom_qty'] for g in lineas if g['product_id']}
-        for producto in productos:
-            plantilla = producto.product_tmpl_id
-            por_plantilla.setdefault(plantilla, 0)
-            por_plantilla[plantilla] += cantidades[producto.id]
+        for producto, cantidad in lineas:
+            if producto:
+                por_plantilla[producto.product_tmpl_id] = por_plantilla.get(producto.product_tmpl_id, 0) + cantidad
         for plantilla, cantidad in sorted(por_plantilla.items(), key=lambda pc: -pc[1])[:5]:
             datos['top'].append({
                 'id': plantilla.id, 'nombre': plantilla.name, 'cantidad': int(cantidad),
@@ -252,10 +249,10 @@ class DcasaTablero(models.AbstractModel):
 
     def _cobros_de_hoy(self, datos, hoy):
         dominio = [('payment_type', '=', 'inbound'), ('state', '!=', 'canceled'), ('date', '=', hoy)]
-        grupos = self.env['account.payment'].read_group(dominio, ['amount:sum'], ['journal_id'])
-        for grupo in grupos:
-            if grupo['journal_id']:
-                datos['cobros'].append({'forma': grupo['journal_id'][1], 'monto': grupo['amount']})
+        grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum'])
+        for diario, monto in grupos:
+            if diario:
+                datos['cobros'].append({'forma': diario.display_name, 'monto': monto})
         datos['cifras'].append({
             'clave': 'cobrado_hoy', 'titulo': 'Cobrado hoy', 'valor': sum(c['monto'] for c in datos['cobros']),
             'formato': 'moneda', 'detalle': ' · '.join(c['forma'] for c in datos['cobros']) or 'Sin cobros todavía',

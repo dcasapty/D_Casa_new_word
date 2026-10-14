@@ -17,4 +17,5 @@ class SaleOrder(models.Model):
     def action_dcasa_imprimir_documentos(self):
         """Abre el cuadro «Imprimir documentos» con las facturas publicadas de estos pedidos."""
         facturas = self.invoice_ids.filtered(lambda f: f.move_type == 'out_invoice' and f.state == 'posted')
-        return self.env['dcasa.impresion.paquete']._accion_dialogo(facturas.sorted('id'))
+        sin_factura = len(self.filtered(lambda pedido: not pedido.dcasa_tiene_factura_publicada))
+        return self.env['dcasa.impresion.paquete']._accion_dialogo(facturas.sorted('id'), sin_factura=sin_factura)

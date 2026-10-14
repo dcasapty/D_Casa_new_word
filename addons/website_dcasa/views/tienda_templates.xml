@@ -95,4 +95,14 @@
             <t t-set="dcasa_img_prioridad" t-value="tr_product_first and td_product_index &lt; 2"/>
         </xpath>
     </template>
+
+    <!-- Código público (DC-K7M4PX) en la ficha, debajo del nombre: es el que el cliente le dice a la vendedora.
+         La referencia del proveedor no se muestra en ningún lado del sitio (models/producto.py). -->
+    <template id="ficha_codigo_publico" inherit_id="website_sale.product_title" name="D'CASA: código público en la ficha">
+        <xpath expr="//h1[@t-field='product.name']" position="after">
+            <p t-if="product.dcasa_codigo_publico" class="o_dcasa_codigo_publico">
+                Código: <strong t-out="product.dcasa_codigo_publico"/>
+            </p>
+        </xpath>
+    </template>
 </odoo>

@@ -152,6 +152,7 @@ class TestInterfazWeb(HttpCase):
         codigo = self.url_open(js[0]).text
         self.assertIn('DcasaBarraLateral', codigo)
         self.assertIn('DcasaVistaPrevia', codigo)
+        self.assertIn('o_dcasa_ayuda', codigo)  # las ayudas propias de las listas vacías sí se muestran
         self.assertIn('o_dcasa_vp_marco', contenido)
         self.assertNotIn('css error', contenido.lower())
 
