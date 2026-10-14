@@ -3,3 +3,4 @@ from . import test_configuracion
 from . import test_superficie_rpc
 from . import test_roles
 from . import test_mantenimiento
+from . import test_permisos_vendedora

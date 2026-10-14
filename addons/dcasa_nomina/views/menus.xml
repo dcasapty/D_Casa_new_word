@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="menu_nomina_raiz" name="Nómina" sequence="60"
+    <!-- La app «Nómina» es solo para quien administra la nómina: una vendedora no la ve ni vacía. -->
+    <menuitem id="menu_nomina_raiz" name="Nómina" sequence="60" groups="group_nomina"
               web_icon="dcasa_nomina,static/src/img/nomina.svg"/>
 
     <menuitem id="menu_planillas" name="Planillas quincenales" parent="menu_nomina_raiz" action="accion_planillas"
@@ -15,8 +16,11 @@
               sequence="50" groups="group_nomina"/>
     <menuitem id="menu_reembolsos" name="Reembolsos" parent="menu_nomina_raiz" action="accion_reembolsos"
               sequence="60" groups="group_nomina"/>
-    <menuitem id="menu_mis_reembolsos" name="Mis reembolsos" parent="menu_nomina_raiz" action="accion_mis_reembolsos"
-              sequence="70" groups="base.group_user"/>
+    <!-- «Mis reembolsos» es de cada colaborador (sus propios gastos): vive aparte de «Nómina» para que quien no
+         administra sueldos no vea nada que diga nómina. -->
+    <menuitem id="menu_mis_reembolsos" name="Mis reembolsos" action="accion_mis_reembolsos"
+              sequence="65" groups="base.group_user"
+              web_icon="dcasa_nomina,static/src/img/nomina.svg"/>
 
     <menuitem id="menu_nomina_configuracion" name="Configuración" parent="menu_nomina_raiz" sequence="90"
               groups="group_nomina"/>

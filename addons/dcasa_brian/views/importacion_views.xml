@@ -98,5 +98,6 @@
     </record>
 
     <menuitem id="menu_brian_importaciones" name="Importaciones de productos" parent="menu_brian_raiz"
-              action="brian_importacion_action" sequence="15" groups="sales_team.group_sale_salesman"/>
+              action="brian_importacion_action" sequence="15"
+              groups="dcasa_base.group_gerencia,-sales_team.group_sale_salesman"/>
 </odoo>
