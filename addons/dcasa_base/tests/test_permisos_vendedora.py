@@ -34,6 +34,8 @@ class TestPermisosVendedora(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.interfaz_instalada = bool(cls.env['ir.module.module'].sudo().search_count(
+            [('name', '=', 'dcasa_interfaz'), ('state', '=', 'installed')]))
         cls.vendedora = crear_usuario(cls.env, 'perm_vendedora', 'dcasa_base.group_vendedora')
         cls.gerencia = crear_usuario(cls.env, 'perm_gerencia', 'dcasa_base.group_gerencia')
         cls.visibles = menus_visibles(cls.env, cls.vendedora)
@@ -57,6 +59,8 @@ class TestPermisosVendedora(TransactionCase):
                 self.assertIn(xmlid, self.visibles, f'La vendedora debe ver {xmlid}')
 
     def test_la_vendedora_no_ve_nomina_ni_contabilidad_de_jefe(self):
+        if not self.interfaz_instalada:
+            self.skipTest('Los menús contables los oculta dcasa_interfaz (no instalado en esta corrida)')
         prohibidos = (
             # nómina: ni la app ni ninguna de sus pantallas
             'dcasa_nomina.menu_planillas', 'dcasa_nomina.menu_decimo', 'dcasa_nomina.menu_colaboradores',
@@ -81,6 +85,8 @@ class TestPermisosVendedora(TransactionCase):
                 self.assertNotIn(xmlid, self.visibles, f'La vendedora no debe ver {xmlid}')
 
     def test_en_facturacion_la_vendedora_solo_ve_el_lado_de_clientes(self):
+        if not self.interfaz_instalada:
+            self.skipTest('Los menús contables los oculta dcasa_interfaz (no instalado en esta corrida)')
         raiz = self.env.ref('account.menu_finance', raise_if_not_found=False)
         if not raiz:
             self.skipTest('Sin la app de Facturación')
