@@ -3,6 +3,15 @@
  * la ficha y la caja de respuesta; toda la comunicación con Odoo pasa por aquí (API de `dcasa.conversacion`,
  * docs/JUAN_ODOO.md) y el tiempo real llega por el bus de Odoo (`dcasa_conversaciones/evento`, sin texto).
  */
+import {
+    esAnchoParaTodo,
+    esCelular,
+    esPantallaAmplia,
+    esPantallaEstrecha,
+    fichaVaAlLado,
+    guardarPreferencia,
+    leerPreferencia,
+} from "./preferencias";
 import { cuando, fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
 
 const MODELO = "dcasa.conversacion";
@@ -71,9 +80,13 @@ export class Almacen {
         this.ficha = null;
         this.cargandoFicha = false;
         this.nuevosSinVer = 0;
-        // Pantalla (en celular se ve una columna a la vez)
+        // Pantalla (en celular se ve una columna a la vez). La ficha del cliente nace abierta solo en pantallas amplias
+        // (al lado del hilo); en las demás nace cerrada y un botón «Cliente» la abre. La lista nace reducida a las fotos
+        // en pantallas estrechas. Cada persona puede cambiarlo y se le recuerda (ver cargarPreferencias).
         this.columna = "lista";
-        this.fichaAbierta = false;
+        this.fichaAbierta = esPantallaAmplia();
+        this.listaCompacta = esPantallaEstrecha() && !esCelular();
+        this.tamanoVersion = 0; // sube cuando la ventana cruza un límite de tamaño: así la pantalla se vuelve a acomodar
         this.enVivo = false;
         this.ahora = Date.now();
         // Ventanas encima de la pantalla: el buscador de fotos, la cotización y el visor de imágenes
@@ -125,6 +138,7 @@ export class Almacen {
                 resumenActivo: !!datos.resumen_ia,
             });
             this.disponible = datos.usuario.disponible !== false;
+            this.cargarPreferencias();
             this.iniciado = true;
         } catch (error) {
             this.errorInicio = mensajeDeError(error);
@@ -133,6 +147,84 @@ export class Almacen {
         }
         await this.cargarLista();
         this.suscribir();
+    }
+
+    // ------------------------------------------------------------------
+    // Cómo se acomoda la pantalla: ficha del cliente y lista (preferencias de cada persona)
+    // ------------------------------------------------------------------
+
+    /** Lo que cada persona dejó elegido en este navegador: la ficha (solo desde 1024 px) y la lista. */
+    cargarPreferencias() {
+        const id = this.usuario.id;
+        const ficha = leerPreferencia("ficha", id);
+        if (fichaVaAlLado() && ficha) {
+            this.fichaAbierta = ficha === "abierta";
+        }
+        const lista = leerPreferencia("lista", id);
+        if (lista && !esCelular()) {
+            this.listaCompacta = lista === "compacta";
+        }
+    }
+
+    /**
+     * ¿La lista se ve reducida a las fotos? Cuando la persona lo eligió, o cuando hay poco ancho (menos de 1250 px) y la
+     * ficha está abierta: así el hilo no se queda sin espacio. En ese segundo caso no hace falta el botón de la lista
+     * (se amplía sola al cerrar la ficha).
+     */
+    get listaForzada() {
+        void this.tamanoVersion;
+        return !esCelular() && this.fichaAbierta && !esAnchoParaTodo();
+    }
+
+    get listaReducida() {
+        void this.tamanoVersion;
+        return !esCelular() && (this.listaCompacta || this.listaForzada);
+    }
+
+    /** «Cliente»: abre o cierra la ficha. En celular es otra pantalla; en escritorio, al lado; en tablet, encima. */
+    alternarFicha() {
+        if (esCelular()) {
+            this.fichaAbierta = true;
+            this.columna = "ficha";
+            return;
+        }
+        this.fichaAbierta = !this.fichaAbierta;
+        this.recordarFicha();
+    }
+
+    cerrarFicha() {
+        this.fichaAbierta = false;
+        if (esCelular()) {
+            this.columna = this.seleccionadaId ? "hilo" : "lista";
+            return;
+        }
+        this.recordarFicha();
+    }
+
+    /** Se recuerda abierta o cerrada desde 1024 px; en tablet (ficha encima del hilo) nace cerrada siempre. */
+    recordarFicha() {
+        if (fichaVaAlLado()) {
+            guardarPreferencia("ficha", this.fichaAbierta ? "abierta" : "cerrada", this.usuario.id);
+        }
+    }
+
+    alternarLista() {
+        this.listaCompacta = !this.listaCompacta;
+        guardarPreferencia("lista", this.listaCompacta ? "compacta" : "completa", this.usuario.id);
+    }
+
+    /** La ventana cruzó un límite de tamaño (zoom, otra pantalla): la ficha y la lista se acomodan solas. */
+    alCambiarElTamano() {
+        this.tamanoVersion++;
+        if (esCelular()) {
+            return;
+        }
+        if (fichaVaAlLado()) {
+            const recordada = leerPreferencia("ficha", this.usuario.id);
+            this.fichaAbierta = recordada ? recordada === "abierta" : esPantallaAmplia();
+        } else {
+            this.fichaAbierta = false;
+        }
     }
 
     suscribir() {
@@ -475,7 +567,9 @@ export class Almacen {
         this.nuevosSinVer = 0;
         this.cargandoHilo = true;
         this.columna = "hilo";
-        this.fichaAbierta = false;
+        if (!fichaVaAlLado()) {
+            this.fichaAbierta = false; // encima del hilo (tablet) o en celular, la ficha se cierra al cambiar de conversación
+        }
         this.latido();
         try {
             const r = await this.orm.call(MODELO, "hilo", [id, null, TRAMO_DEL_HILO]);
@@ -507,7 +601,9 @@ export class Almacen {
 
     volverALaLista() {
         this.columna = "lista";
-        this.fichaAbierta = false;
+        if (!fichaVaAlLado()) {
+            this.fichaAbierta = false;
+        }
     }
 
     async cargarAntes() {

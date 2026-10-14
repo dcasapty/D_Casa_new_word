@@ -5,3 +5,4 @@ from . import sale_order
 from . import sale_order_line
 from . import mantenimiento
 from . import product
+from . import campos_contables

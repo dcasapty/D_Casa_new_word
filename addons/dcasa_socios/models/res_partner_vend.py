@@ -237,7 +237,7 @@ class ResPartner(models.Model):
             raise UserError(self.env._('Quien patrocina tiene que ser un vendedor activo.'))
         if ficha._dcasa_es_la_misma_persona(patrocinador):
             raise UserError(self.env._('Esa persona comparte sus datos con quien la patrocina: no puede ser.'))
-        tope = RV.tope_de_directos(R.cargar_reglas())
+        tope = RV.tope_de_directos(self.env['dcasa.vend.reglas']._vigentes())
         if tope is not None and patrocinador.dcasa_vend_directos_count >= tope:
             raise UserError(self.env._(
                 '%(nombre)s ya tiene %(tope)s vendedores patrocinados, que es el máximo de una colmena.',
@@ -301,7 +301,7 @@ class ResPartner(models.Model):
         ficha = self.commercial_partner_id.sudo()
         if not ficha.dcasa_vendedor_codigo:
             return None
-        reglas = R.cargar_reglas()
+        reglas = self.env['dcasa.vend.reglas']._vigentes()      # lo que rige ahora: lo mismo que se paga
         Comision = self.env['dcasa.vend.comision'].sudo()
         inicio_mes = fields.Datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         del_mes = Comision.search([('partner_id', '=', ficha.id), ('anulada_en', '=', False),

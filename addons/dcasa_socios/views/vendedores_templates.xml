@@ -246,7 +246,9 @@
                 <p>Usamos tu nombre, cédula o RUC, celular y los datos de tus ventas solo para administrar el programa,
                     según la Ley 81 de 2019 de Protección de Datos Personales. Puedes pedirnos por WhatsApp que los
                     corrijamos o que retiremos tu cuenta.</p>
-                <p class="small text-muted">Versión <t t-out="1"/> de las reglas del programa.</p>
+                <p class="small text-muted">Reglas del programa, versión <t t-out="reglas.get('version')"/><t
+                    t-if="reglas.get('ajusteVendedores')"> · con los ajustes de Gerencia número
+                    <t t-out="reglas['ajusteVendedores']['numero']"/>, vigentes desde el <t t-out="ajuste_desde"/></t>.</p>
             </div>
         </t>
     </template>

@@ -15,12 +15,13 @@
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
+| Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia): nómina y contabilidad de un jefe | [PERMISOS.md](PERMISOS.md) |
 
 ## Por módulo (`addons/`)
 
 | Módulo | Documento |
 |---|---|
-| `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
+| `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · roles y permisos: [PERMISOS.md](PERMISOS.md) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
 | `dcasa_socios` | [SOCIOS.md](SOCIOS.md) · programa de vendedores: [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |

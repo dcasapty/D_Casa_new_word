@@ -1,11 +1,14 @@
 /**
  * La caja de respuesta (abajo del hilo): Atender / Devolver con el vencimiento a la vista, escribir, adjuntar con
  * vista previa, respuestas rápidas con «/», «Sugerir», foto del catálogo, cotización y notas internas.
+ * Es compacta a propósito (docs/JUAN_ODOO.md, «Tamaños probados»): una franja, una línea de escribir con las
+ * herramientas como íconos, y el menú «Más» para lo menos usado. Lo demás aparece solo cuando hace falta.
  */
-import { Component, onMounted, onPatched, useRef, useState } from "@odoo/owl";
+import { Component, onMounted, onPatched, useExternalListener, useRef, useState } from "@odoo/owl";
 import { atajoEnCurso, coincideConNombre, cuando, enCuanto, hora, iconoDeArchivo, mencionEnCurso, mensajeDeError, tamano } from "./utilidades";
 
-const ALTO_MAXIMO = 168;
+// Hasta dónde crece la caja de texto (unas 4 líneas); el SCSS la limita además a una parte del alto de la ventana.
+const ALTO_MAXIMO = 100;
 // Lo mismo que el servidor: entre 1 minuto y 30 días desde ahora (con un margen para que no rebote por segundos).
 const MIN_PROGRAMADO_MS = 90_000;
 const MAX_PROGRAMADO_MS = 30 * 24 * 3600 * 1000;
@@ -26,9 +29,19 @@ export class CajaRespuesta extends Component {
             rapidasAbiertas: false,
             programando: false,
             cursor: 0,
+            masAbierto: false,
         });
+        this.refCaja = useRef("caja");
         this.refTexto = useRef("texto");
         this.refArchivo = useRef("archivo");
+        this.refMas = useRef("mas");
+        this._enfocar = null; // qué enfocar cuando termine de pintarse (el menú «Más», la fecha de programar)
+        // Un clic fuera del menú «Más» lo cierra.
+        useExternalListener(window, "mousedown", (ev) => {
+            if (this.local.masAbierto && !this.refMas.el?.contains(ev.target)) {
+                this.local.masAbierto = false;
+            }
+        });
         this.iconoDeArchivo = iconoDeArchivo;
         this.tamano = tamano;
         this.cuando = (iso) => cuando(iso, this.almacen.ahora);
@@ -42,9 +55,83 @@ export class CajaRespuesta extends Component {
                 this.local.devolviendo = false;
                 this.local.avisos = [];
                 this.local.rapidasAbiertas = false;
+                this.local.masAbierto = false;
                 this.local.programando = !!this.borrador.programarPara;
             }
+            this.enfocarLoPendiente();
         });
+    }
+
+    /** Cuando algo se acaba de abrir (el menú «Más», la fecha de programar), el foco va a su primer control. */
+    enfocarLoPendiente() {
+        const destino = this._enfocar;
+        this._enfocar = null;
+        if (destino === "menu") {
+            this.refMas.el?.querySelector("[role=menuitem]:not([disabled])")?.focus();
+        } else if (destino === "fecha") {
+            this.refCaja.el?.querySelector(".o_dcj_programar input")?.focus();
+        }
+    }
+
+    /** ¿Hay algo para mostrar entre la franja y la línea de escribir? (si no, esa zona ni existe) */
+    get hayExtras() {
+        return !!(
+            this.almacen.programados.length ||
+            this.local.devolviendo ||
+            this.borrador.adjuntos.length ||
+            (this.esNota && this.mencionadas.length) ||
+            this.programando ||
+            this.local.avisos.length
+        );
+    }
+
+    // --- El menú «Más» -------------------------------------------------------------------------------
+
+    alternarMas() {
+        this.local.masAbierto = !this.local.masAbierto;
+        this._enfocar = this.local.masAbierto ? "menu" : null;
+    }
+
+    cerrarMas(devolverElFoco) {
+        this.local.masAbierto = false;
+        if (devolverElFoco) {
+            this.refMas.el?.querySelector(".o_dcj_mas_boton")?.focus();
+        }
+    }
+
+    /** Esc cierra y devuelve el foco al botón; Tab cierra; las flechas recorren las opciones. */
+    alTeclearMas(ev) {
+        if (!this.local.masAbierto) {
+            return;
+        }
+        if (ev.key === "Escape") {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.cerrarMas(true);
+        } else if (ev.key === "Tab") {
+            this.cerrarMas(false);
+        } else if (["ArrowDown", "ArrowUp", "Home", "End"].includes(ev.key)) {
+            const opciones = [...this.refMas.el.querySelectorAll("[role=menuitem]:not([disabled])")];
+            if (!opciones.length) {
+                return;
+            }
+            ev.preventDefault();
+            const i = opciones.indexOf(document.activeElement);
+            const n = opciones.length;
+            const destino =
+                ev.key === "Home" ? 0 : ev.key === "End" ? n - 1 : ev.key === "ArrowDown" ? (i + 1) % n : i < 0 ? n - 1 : (i - 1 + n) % n;
+            opciones[destino].focus();
+        }
+    }
+
+    programarDesdeElMenu() {
+        this.alternarProgramar();
+        this.local.masAbierto = false;
+        if (this.programando) {
+            this._enfocar = "fecha";
+        } else {
+            this.refTexto.el?.focus();
+        }
     }
 
     get borrador() {
@@ -127,6 +214,7 @@ export class CajaRespuesta extends Component {
         this.local.programando = !this.local.programando;
         if (!this.local.programando) {
             this.borrador.programarPara = "";
+            this.refTexto.el?.focus();
         }
     }
 

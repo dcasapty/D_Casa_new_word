@@ -67,6 +67,11 @@ class DcasaVendComision(models.Model):
     puntos = fields.Integer(readonly=True, required=True)
     resultado = fields.Selection(RESULTADOS, required=True, readonly=True, index=True)
     reglas_version = fields.Integer(string='Versión de reglas', readonly=True, required=True)
+    reglas_ajuste = fields.Integer(
+        string='Ajuste de Gerencia (versión)', readonly=True, default=0,
+        help='La versión de los ajustes de Gerencia (Ajustes › Programa de vendedores) con que se pagó esta comisión. '
+             '0: se pagó con los valores de fábrica (puntos.json). Una comisión no se recalcula si después cambian '
+             'las reglas.')
     registrada_en = fields.Datetime(readonly=True, required=True, default=fields.Datetime.now, index=True)
     disponible_desde = fields.Datetime(readonly=True)
     anulada_en = fields.Datetime(readonly=True, copy=False)
@@ -94,14 +99,18 @@ class DcasaVendComision(models.Model):
     # ------------------------------------------------------------------------
 
     @api.model
-    def _vendedor_de_la_factura(self, move, reglas):
+    def _vendedor_de_la_factura(self, move):
         """``(vendedor, via)`` de una factura. Mientras el cliente siga ligado a un vendedor, la comisión es de ese
-        vendedor: el código de otro no se lo quita (si no, bastaría con anotar el código propio en el mostrador)."""
+        vendedor: el código de otro no se lo quita (si no, bastaría con anotar el código propio en el mostrador).
+
+        El plazo del vínculo es el que decían las reglas el día en que el cliente se ligó: si Gerencia cambia los
+        meses, el cambio vale para los clientes que se liguen después, no para los que ya estaban ligados."""
         cliente = move.commercial_partner_id
         ligado = cliente.dcasa_vendedor_ligado_id
-        meses = RV.meses_de_vinculacion(reglas)
-        if ligado and meses and cliente.dcasa_vendedor_ligado_en \
-                and cliente.dcasa_vendedor_ligado_en + timedelta(days=30 * meses) > fields.Datetime.now():
+        ligado_en = cliente.dcasa_vendedor_ligado_en
+        meses = RV.meses_de_vinculacion(self.env['dcasa.vend.reglas']._vigentes(ligado_en)) if ligado and ligado_en \
+            else 0
+        if ligado and meses and ligado_en + timedelta(days=30 * meses) > fields.Datetime.now():
             return ligado, ('codigo' if move.dcasa_vendedor_id == ligado else 'vinculo')
         if move.dcasa_vendedor_id:
             return move.dcasa_vendedor_id.commercial_partner_id, 'codigo'
@@ -179,10 +188,11 @@ class DcasaVendComision(models.Model):
     @api.model
     def _registrar_desde_factura(self, move):
         """Una factura de cliente pagada con vendedor da sus comisiones. Idempotente. Nunca hace fallar el cobro."""
-        reglas = R.cargar_reglas()
+        # Las reglas que rigen AHORA (la venta ya está pagada): puntos.json más los ajustes de Gerencia vigentes.
+        reglas = self.env['dcasa.vend.reglas']._vigentes()
         if not RV.seccion(reglas).get('programaActivo'):
             return self.browse()
-        vendedor, via = self._vendedor_de_la_factura(move, reglas)
+        vendedor, via = self._vendedor_de_la_factura(move)
         if not vendedor or not vendedor.dcasa_vendedor_codigo:
             return self.browse()
         factura = R.factura_normal(move.name)
@@ -195,7 +205,7 @@ class DcasaVendComision(models.Model):
         cliente = move.commercial_partner_id
         base = {'name': move.name, 'factura_normal': factura, 'move_id': move.id, 'cliente_id': cliente.id,
                 'via': via, 'neto_centavos': neto, 'reglas_version': reglas['version'],
-                'currency_id': move.company_id.currency_id.id}
+                'reglas_ajuste': RV.ajuste_aplicado(reglas), 'currency_id': move.company_id.currency_id.id}
         autor = (move.invoice_user_id or self.env.user).login
 
         nuevo = self._es_cliente_nuevo(move)

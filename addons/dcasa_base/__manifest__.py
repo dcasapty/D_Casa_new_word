@@ -40,6 +40,7 @@ Módulo raíz del ERP de D'CASA Panamá.
     ],
     'data': [
         'security/dcasa_roles.xml',
+        'security/dcasa_reglas_contables.xml',
         'security/ir.model.access.csv',
         'data/res_company_data.xml',
         'data/descuento_data.xml',

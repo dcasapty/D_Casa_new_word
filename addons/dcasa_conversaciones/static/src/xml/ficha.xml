@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="dcasa_conversaciones.Ficha">
-        <aside class="o_dcj_col o_dcj_ficha" aria-label="Ficha del cliente">
+        <aside id="o_dcj_ficha" class="o_dcj_col o_dcj_ficha" aria-label="Ficha del cliente" t-on-keydown="alTeclear">
             <header class="o_dcj_ficha_cabecera">
-                <button type="button" class="o_dcj_icono_boton o_dcj_volver_ficha" aria-label="Volver a la conversación" t-on-click="volver">
-                    <i class="fa fa-arrow-left" aria-hidden="true"/>
+                <button type="button" class="o_dcj_icono_boton o_dcj_volver_ficha" aria-label="Cerrar la ficha y volver a la conversación"
+                        title="Cerrar la ficha" t-on-click="volver">
+                    <i class="fa fa-arrow-left o_dcj_solo_celular" aria-hidden="true"/><i class="fa fa-times o_dcj_solo_escritorio" aria-hidden="true"/>
                 </button>
                 <h2>Ficha del cliente</h2>
             </header>

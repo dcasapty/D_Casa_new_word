@@ -48,6 +48,11 @@ const tecla = (el, key, extra = {}) => el.dispatchEvent(new KeyboardEvent("keydo
 const archivo = (nombre, tipo, bytes) => new File([new Uint8Array(bytes)], nombre, { type: tipo });
 const PDF = [37, 80, 68, 70, 45, 49, 46, 52, 10, 37, 37, 69, 79, 70];
 const PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+// Lo menos usado de la caja vive en el menú «Más» (íconos con nombre al pasar el mouse): lo abre si hace falta y devuelve la opción.
+const masAcciones = async (texto) => {
+    if (!document.querySelector(".o_dcj_menu")) { document.querySelector(".o_dcj_mas_boton").click(); }
+    return await esperar(() => aqui(".o_dcj_menu_item", texto), "«" + texto + "» en el menú Más");
+};
 const abrirConversacion = async (nombre) => {
     const fila = await esperar(() => aqui(".o_dcj_fila", nombre), "la conversación de " + nombre);
     fila.click();
@@ -401,7 +406,7 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.navegador("""
 (async () => {
     await abrirConversacion("Karen");
-    aqui(".o_dcj_herramienta", "Programar").click();
+    (await masAcciones("Programar")).click();
     await esperar(() => document.querySelector(".o_dcj_programar"), "el selector de fecha y hora");
     const caja = document.querySelector("#o_dcj_texto");
     await escribir(caja, "Mañana te confirmo la entrega");
@@ -586,6 +591,14 @@ class TestPanelEnElNavegador(PanelUiCase):
         self.navegador("""
 (async () => {
     await abrirConversacion("Karen");
+    // En una pantalla de 1366 × 768 la ficha nace cerrada y el botón «Cliente» la abre al lado del hilo.
+    const boton = document.querySelector(".o_dcj_boton_ficha");
+    if (boton.getAttribute("aria-expanded") !== "false" || document.querySelector(".o_dcj_ficha").getBoundingClientRect().width > 0) {
+        throw new Error("la ficha debe nacer cerrada en una pantalla de laptop");
+    }
+    boton.click();
+    await esperar(() => document.querySelector(".o_dcj_ficha").getBoundingClientRect().width > 200, "la ficha abierta con «Cliente»");
+    if (boton.getAttribute("aria-expanded") !== "true") { throw new Error("aria-expanded de «Cliente»"); }
     const ficha = await esperar(() => document.querySelector(".o_dcj_ficha .o_dcj_cliente h3"), "la ficha del cliente");
     if (ficha.textContent.trim() !== "Karen Pérez") { throw new Error("nombre en la ficha"); }
     const etiqueta = await esperar(() => aqui(".o_dcj_etiqueta_boton", "Zzpidió precio"), "las etiquetas de la ficha");
@@ -847,7 +860,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (document.querySelector(".o_dcj_resumir")) { throw new Error("con el resumen a la vista ya no sale el botón"); }
     if (tarjeta.querySelector(".o_dcj_resumen_aviso")) { throw new Error("recién hecho: está al día"); }
     // «Actualizar» enseguida no vuelve a gastar: el servidor devuelve el guardado.
-    tarjeta.querySelector("header button").click();
+    tarjeta.querySelector("button[aria-label='Actualizar el resumen']").click();
     await pausa(800);
     // Al abrir otra conversación y volver, el resumen guardado se ve sin pedir nada.
     await abrirConversacion("Marta");

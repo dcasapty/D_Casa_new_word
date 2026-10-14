@@ -91,7 +91,7 @@ export class HiloConversacion extends Component {
     setup() {
         this.almacen = useState(this.props.almacen);
         this.dialog = useService("dialog");
-        this.local = useState({ arrastrando: false });
+        this.local = useState({ arrastrando: false, resumenDe: null });
         this.refCuerpo = useRef("cuerpo");
         this.elementosDelHilo = (mensajes) => elementosDelHilo(mensajes, this.almacen.ahora);
         this.iconoDeCanal = iconoDeCanal;
@@ -252,9 +252,18 @@ export class HiloConversacion extends Component {
         this.almacen.volverALaLista();
     }
 
+    /** «Cliente»: abre o cierra la ficha (al lado en pantallas amplias, encima en las demás, otra pantalla en celular). */
     abrirFicha() {
-        this.almacen.fichaAbierta = !this.almacen.fichaAbierta;
-        this.almacen.columna = "ficha";
+        this.almacen.alternarFicha();
+    }
+
+    /** El resumen nace plegado en una línea (en cada conversación) para no quitarle espacio a los mensajes. */
+    get resumenAbierto() {
+        return this.local.resumenDe === this.almacen.seleccionadaId;
+    }
+
+    alternarResumen() {
+        this.local.resumenDe = this.resumenAbierto ? null : this.almacen.seleccionadaId;
     }
 
     async cerrarConversacion() {

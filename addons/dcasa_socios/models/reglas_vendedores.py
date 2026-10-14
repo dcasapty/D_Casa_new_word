@@ -140,14 +140,20 @@ def problemas_de_la_escalera(reglas):
     for numero, escalon in enumerate(
             sorted(comision.get('escalones') or [], key=lambda e: e['desdeVentasNetasCentavos']), 1):
         if desde is not None and escalon['desdeVentasNetasCentavos'] <= desde:
-            problemas.append(f'escalón {numero}: el umbral no sube.')
+            problemas.append(f'Escalón {numero}: tiene que empezar en una venta mayor que la del escalón anterior.')
         if tasa is not None and escalon['puntosPorDolarNeto'] <= tasa:
-            problemas.append(f'escalón {numero}: no paga más que el anterior.')
+            problemas.append(f'Escalón {numero}: tiene que pagar un porcentaje mayor que el escalón anterior.')
         propio = base if escalon.get('topeAlMesPuntos') is None else escalon['topeAlMesPuntos']
         if propio is not None and tope is not None and propio < tope:
-            problemas.append(f'escalón {numero}: el tope mensual baja.')
+            problemas.append(f'Escalón {numero}: su tope del mes no puede ser menor que el del escalón anterior.')
         desde, tasa, tope = escalon['desdeVentasNetasCentavos'], escalon['puntosPorDolarNeto'], propio
     return problemas
+
+
+def ajuste_aplicado(reglas):
+    """Número del ajuste de Gerencia (``dcasa.vend.reglas``) con que se leyeron estas reglas; 0 = valores de fábrica
+    (``puntos.json`` tal cual). Las reglas efectivas lo traen en ``ajusteVendedores``."""
+    return int((reglas.get('ajusteVendedores') or {}).get('numero') or 0)
 
 
 def comision_directa(neto_centavos, reglas, ventas_netas_recientes_centavos=0):

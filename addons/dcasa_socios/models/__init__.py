@@ -15,3 +15,6 @@ from . import vend_canje
 from . import res_partner_vend
 from . import account_move_vend
 from . import sale_order_vend
+from . import reglas_ajustes
+from . import vend_reglas
+from . import vend_ajustes

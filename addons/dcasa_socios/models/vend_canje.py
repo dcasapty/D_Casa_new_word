@@ -24,7 +24,7 @@ class DcasaPremio(models.Model):
     def _check_vendedores_no_bajo_el_costo(self):
         """Un premio de vendedores nunca se vende por debajo de lo que cuesta: los puntos son un tope de gasto,
         no una forma de regalar mercancía."""
-        reglas = R.cargar_reglas()
+        reglas = self.env['dcasa.vend.reglas']._vigentes()
         por_dolar = (reglas.get('canje') or {}).get('puntosPorDolar')
         if not por_dolar:
             return
@@ -79,7 +79,7 @@ class DcasaVendCanje(models.Model):
 
     @api.model
     def _pedir(self, partner, premio, origen='panel'):
-        reglas = R.cargar_reglas()
+        reglas = self.env['dcasa.vend.reglas']._vigentes()
         canje_reglas = RV.seccion(reglas).get('canje') or {}
         ficha = partner.commercial_partner_id.sudo()
         premio = premio.sudo()

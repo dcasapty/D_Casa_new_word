@@ -4,7 +4,10 @@ El vendedor entra con la misma sesión de Socios (celular + PIN, o la sesión de
 hay otro login.
 """
 
+from datetime import datetime
 from urllib.parse import quote
+
+import pytz
 
 from odoo import http
 from odoo.exceptions import UserError
@@ -13,6 +16,7 @@ from odoo.http import request
 from ..models import reglas as R
 from ..models import reglas_vendedores as RV
 from ..models.dcasa_canje import ESTADOS_CANJE
+from ..models.dcasa_compra import TZ_PANAMA
 from ..models.ir_http import SESSION_VENDEDOR
 from .main import SESSION_AVISO, socio_por_pin
 
@@ -38,10 +42,22 @@ class VendedoresDcasa(http.Controller):
     def _avisar(self, texto, tipo='info'):
         request.session[SESSION_AVISO] = {'texto': texto, 'tipo': tipo}
 
+    @staticmethod
+    def _ajuste_desde(reglas):
+        """Desde qué día (hora de Panamá) rigen los ajustes de Gerencia, o ``''`` si rigen los valores de fábrica."""
+        ajuste = reglas.get('ajusteVendedores')
+        if not ajuste:
+            return ''
+        desde = datetime.strptime(ajuste['vigenteDesde'], '%Y-%m-%d %H:%M:%S')
+        return pytz.utc.localize(desde).astimezone(TZ_PANAMA).strftime('%d/%m/%Y')
+
     def _render(self, plantilla, valores=None):
         valores = dict(valores or {})
         valores.setdefault('aviso', request.session.pop(SESSION_AVISO, None))
-        valores.setdefault('reglas', R.cargar_reglas())
+        # Los términos y el panel leen las reglas que RIGEN (puntos.json más los ajustes de Gerencia): lo que se lee
+        # aquí es lo que se paga.
+        valores.setdefault('reglas', request.env['dcasa.vend.reglas']._vigentes())
+        valores.setdefault('ajuste_desde', self._ajuste_desde(valores['reglas']))
         valores.setdefault('fmt_puntos', R.como_puntos)
         valores.setdefault('fmt_dolares', R.como_dolares)
         valores.setdefault('sesion_tienda', bool(request.env.user and not request.env.user._is_public()))
@@ -106,7 +122,8 @@ class VendedoresDcasa(http.Controller):
         except UserError as error:
             self._avisar(error.args[0], 'danger')
         else:
-            horas = (RV.seccion(R.cargar_reglas()).get('canje') or {}).get('vigenciaDelCodigoHoras') or 72
+            horas = (RV.seccion(request.env['dcasa.vend.reglas']._vigentes()).get('canje') or {}).get(
+                'vigenciaDelCodigoHoras') or 72
             self._avisar(f'Tu código es {canje.codigo}. Recógelo en la tienda en las próximas {horas} horas.',
                          'success')
         return request.redirect('/socios/vendedor')

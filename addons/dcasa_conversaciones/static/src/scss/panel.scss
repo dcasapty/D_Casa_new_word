@@ -229,29 +229,37 @@ $dcj-amarillo: #FED00F;
     }
 }
 
-// --- Avisos de arriba (Falta conectar el bot) ----------------------------------------------------------------------
+// --- Avisos de arriba (Falta conectar el bot): UNA línea; si no cabe, se corta con «…» y el texto completo sale al pasar el mouse ----
 .o_dcj .o_dcj_aviso {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 16px;
+    gap: 8px;
+    min-height: 30px;
+    padding: 3px 12px;
     border-bottom: 1px solid var(--dc-linea, #E2E7F0);
     background: var(--dc-azul-50, #F2F6FE);
     color: var(--dc-azul-800, #0E2A6B);
-    p { flex: 1; }
+    font-size: .84rem;
+    p { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .o_dcj_enlace { flex: none; white-space: nowrap; }
     &.o_dcj_aviso_alerta { background: #FBE4E4; color: #8A1C1C; border-color: #F2C5C5; .o_dcj_enlace { color: #8A1C1C; } }
 }
 
-// --- Las tres columnas ---------------------------------------------------------------------------------------------
+// --- Las columnas ----------------------------------------------------------------------------------------------------
+// La conversación (el hilo) es lo que más espacio tiene y la ÚNICA columna que se estira. La lista mide 300 px (o 72 px
+// reducida a las fotos). La ficha del cliente va al lado solo en pantallas amplias (1500 × 800 o más); en las demás se
+// abre ENCIMA del hilo, a pedido (ver más abajo), para no quitarle ancho a los mensajes.
 .o_dcj .o_dcj_cuerpo {
     flex: 1;
     min-height: 0;
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr) minmax(280px, 340px);
+    grid-template-columns: 300px minmax(0, 1fr);
     gap: 1px;
     background: var(--dc-linea, #E2E7F0);
 }
+.o_dcj.o_dcj_lista_compacta .o_dcj_cuerpo { grid-template-columns: 72px minmax(0, 1fr); }
 .o_dcj .o_dcj_col {
     min-width: 0;
     min-height: 0;
@@ -266,15 +274,16 @@ $dcj-amarillo: #FED00F;
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px 12px 8px;
+    gap: 6px;
+    padding: 8px 10px 6px;
     border-bottom: 1px solid var(--dc-linea, #E2E7F0);
 
     .o_dcj_titulo {
         display: flex;
         align-items: center;
         gap: 8px;
-        h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -.01em; }
+        h1 { font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+        .o_dcj_lista_toggle { min-width: 30px; min-height: 30px; padding: 0 6px; }
     }
     .o_dcj_contador {
         padding: 1px 8px;
@@ -290,12 +299,13 @@ $dcj-amarillo: #FED00F;
         color: var(--dc-tinta-3, #6B7690);
         &.o_activo { color: $dcj-verde; }
     }
+    .o_dcj_envivo + .o_dcj_lista_toggle { margin-left: -4px; }
     .o_dcj_buscar {
         position: relative;
         display: flex;
         align-items: center;
         > .fa-search { position: absolute; left: 11px; color: var(--dc-tinta-3, #6B7690); pointer-events: none; }
-        .o_dcj_input { padding-left: 32px; padding-right: 36px; }
+        .o_dcj_input { min-height: 34px; padding-top: 3px; padding-bottom: 3px; padding-left: 32px; padding-right: 36px; }
         .o_dcj_icono_boton { position: absolute; right: 2px; }
     }
     .o_dcj_chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -308,13 +318,13 @@ $dcj-amarillo: #FED00F;
     .o_dcj_filtros_resumen { display: flex; align-items: center; justify-content: space-between; color: var(--dc-tinta-3, #6B7690); font-size: .8rem; }
 }
 .o_dcj .o_dcj_chip {
-    min-height: 32px;
-    padding: 4px 12px;
+    min-height: 28px;
+    padding: 2px 10px;
     border: 1px solid var(--dc-linea, #E2E7F0);
     border-radius: 999px;
     background: var(--dc-blanco, #FFFFFF);
     color: var(--dc-tinta-2, #44506A);
-    font-size: .82rem;
+    font-size: .8rem;
     font-weight: 500;
     cursor: pointer;
     &:hover { border-color: var(--dc-azul-300, #93AEEE); color: var(--dc-tinta, #0E1A33); }
@@ -326,7 +336,7 @@ $dcj-amarillo: #FED00F;
     width: 100%;
     display: flex;
     gap: 10px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: 0;
     border-bottom: 1px solid var(--dc-linea, #E2E7F0);
     border-left: 3px solid transparent;
@@ -387,21 +397,33 @@ $dcj-amarillo: #FED00F;
 
 // --- El hilo -------------------------------------------------------------------------------------------------------
 .o_dcj .o_dcj_hilo { background: var(--dc-niebla, #F4F6FA); }
+// La barra del hilo: UNA fila baja (nombre y canal a la izquierda; estado y botones a la derecha). «Cliente» siempre dice su
+// nombre; Cerrar y Eliminar son íconos con su nombre al pasar el mouse y solo escriben el nombre si la barra es ancha.
 .o_dcj .o_dcj_hilo_cabecera {
     flex: none;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
+    gap: 6px;
+    min-height: 48px;
+    padding: 6px 12px;
     background: var(--dc-blanco, #FFFFFF);
     border-bottom: 1px solid var(--dc-linea, #E2E7F0);
+    container: cabecera / inline-size;
+    .o_dcj_avatar { width: 34px; height: 34px; font-size: .84rem; }
     .o_dcj_hilo_titulo {
         flex: 1;
         min-width: 0;
-        h2 { font-size: 1rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        p { color: var(--dc-tinta-3, #6B7690); font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        margin-right: 4px;
+        h2 { font-size: .98rem; line-height: 1.25; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        p { color: var(--dc-tinta-3, #6B7690); font-size: .76rem; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     }
+    .o_dcj_estado { flex: 0 1 auto; max-width: 210px; overflow: hidden; }
+    .o_dcj_icono_boton { flex: none; min-width: 34px; min-height: 34px; }
+    .o_dcj_boton_ficha { padding: 0 10px; font-weight: 600; color: var(--dc-azul-700, #0F3591); &.o_activa { background: var(--dc-azul-50, #F2F6FE); } }
     .o_dcj_volver { display: none; }
+    .o_dcj_texto_boton { display: none; font-size: .86rem; font-weight: 600; }
+    .o_dcj_texto_boton.o_dcj_texto_siempre { display: inline; }
+    @container cabecera (min-width: 760px) { .o_dcj_texto_boton { display: inline; } }
 }
 .o_dcj .o_dcj_hilo_cuerpo {
     flex: 1;
@@ -410,8 +432,8 @@ $dcj-amarillo: #FED00F;
     overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: 6px;
+    padding: 10px 16px;
 }
 .o_dcj .o_dcj_antes { text-align: center; }
 .o_dcj .o_dcj_dia {
@@ -438,7 +460,7 @@ $dcj-amarillo: #FED00F;
     .o_dcj_aviso_hora { margin-left: 6px; font-weight: 500; }
 }
 .o_dcj .o_dcj_burbuja {
-    max-width: 78%;
+    max-width: #{"min(78%, 680px)"};
     padding: 8px 12px 9px;
     border-radius: var(--dcj-radio);
     border: 1px solid var(--dc-linea, #E2E7F0);
@@ -543,11 +565,12 @@ $dcj-amarillo: #FED00F;
 }
 @keyframes o_dcj_latido { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
 
+// No ocupa lugar (el margen negativo lo monta sobre el final de los mensajes): sirve igual con una caja baja o alta.
 .o_dcj .o_dcj_nuevos {
-    position: absolute;
-    left: 50%;
-    bottom: 150px;
-    transform: translateX(-50%);
+    flex: none;
+    align-self: center;
+    position: relative;
+    margin: -46px 0 10px;
     z-index: 3;
     display: inline-flex;
     align-items: center;
@@ -577,113 +600,139 @@ $dcj-amarillo: #FED00F;
     .fa { font-size: 2.6rem; }
 }
 
-// --- La caja de respuesta ------------------------------------------------------------------------------------------
+// --- La caja de respuesta (compacta) ----------------------------------------------------------------------------------
+// De arriba abajo: la franja (quién atiende + Respuesta/Nota), lo que aparece solo si hace falta (con tope de alto) y la
+// línea de escribir. Con la caja vacía mide ~100 px; con todo abierto (archivos, programar, texto de 4 líneas) ~200 px.
 .o_dcj .o_dcj_caja {
     flex: none;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px 12px;
+    gap: 6px;
+    padding: 6px 12px 8px;
     background: var(--dc-blanco, #FFFFFF);
     border-top: 1px solid var(--dc-linea, #E2E7F0);
     position: relative;
+    container: caja / inline-size;
 
+    // La franja: una línea con lo que está pasando y qué vas a escribir.
+    .o_dcj_franja { display: flex; align-items: center; gap: 8px; }
     .o_dcj_barra {
+        flex: 1;
+        min-width: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
-        padding: 6px 10px;
+        gap: 8px;
+        min-height: 32px;
+        padding: 2px 3px 2px 10px;
         border-radius: var(--dc-r-sm, 8px);
         background: var(--dc-azul-50, #F2F6FE);
         color: var(--dc-azul-800, #0E2A6B);
         border: 1px solid var(--dc-azul-100, #E4ECFD);
-        .o_dcj_barra_texto { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: .84rem; }
+        // Una línea; si no cabe, se corta con «…» y la frase completa sale al pasar el mouse.
+        .o_dcj_barra_texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .82rem; .o_dcj_punto_verde { margin-right: 6px; vertical-align: 1px; } }
+        .o_dcj_boton { flex: none; min-height: 26px; padding: 0 12px; font-size: .8rem; line-height: 1.2; white-space: nowrap; }
         &.o_dcj_barra_humano { background: var(--dc-azul-100, #E4ECFD); border-color: var(--dc-azul-200, #C3D2F6); }
         &.o_dcj_barra_cerrada { background: var(--dc-perla, #ECF0F6); border-color: var(--dc-linea, #E2E7F0); color: var(--dc-tinta-2, #44506A); }
     }
-    .o_dcj_devolver {
+    .o_dcj_modo {
+        flex: none;
+        display: inline-flex;
+        border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+        border-radius: var(--dc-r-sm, 8px);
+        overflow: hidden;
+        button {
+            min-height: 30px;
+            padding: 0 12px;
+            border: 0;
+            background: var(--dc-blanco, #FFFFFF);
+            color: var(--dc-tinta-2, #44506A);
+            font-size: .8rem;
+            font-weight: 600;
+            cursor: pointer;
+            &.o_activa { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
+        }
+    }
+
+    // Lo que aparece solo cuando hace falta. Si crece (varios archivos, varios programados), se desplaza por dentro: la caja
+    // nunca pasa de una parte de la ventana y el hilo conserva su espacio.
+    .o_dcj_extras {
         display: flex;
         flex-direction: column;
         gap: 6px;
-        padding: 10px;
+        max-height: #{"min(26vh, 200px)"};
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+    .o_dcj_devolver {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 4px 8px;
+        align-items: end;
+        padding: 6px 8px;
         border: 1px solid var(--dc-azul-200, #C3D2F6);
         border-radius: var(--dc-r-sm, 8px);
         background: var(--dc-azul-50, #F2F6FE);
-        label { font-weight: 600; font-size: .84rem; }
-        .o_dcj_devolver_botones { display: flex; flex-wrap: wrap; gap: 8px; }
+        label { grid-column: 1 / -1; font-weight: 600; font-size: .82rem; }
+        .o_dcj_input { min-height: 40px; }
+        .o_dcj_ayuda { grid-column: 1 / -1; margin: 0; }
+        .o_dcj_devolver_botones { display: flex; flex-wrap: wrap; gap: 6px; .o_dcj_boton { min-height: 36px; } }
     }
     .o_dcj_previas {
         display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
+        overflow-x: auto;
+        padding-bottom: 2px;
         .o_dcj_previa {
+            flex: none;
             display: flex;
             align-items: center;
-            gap: 8px;
-            max-width: 100%;
-            padding: 4px 4px 4px 6px;
+            gap: 6px;
+            max-width: 230px;
+            padding: 2px 2px 2px 4px;
             border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
             border-radius: var(--dc-r-sm, 8px);
             background: var(--dc-nieve, #FAFBFD);
-            img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
-            > .fa { width: 40px; text-align: center; font-size: 1.6rem; color: var(--dc-azul-600, #1340B1); }
-            .o_dcj_previa_texto { display: flex; flex-direction: column; min-width: 0; max-width: 180px; }
-            .o_dcj_previa_nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .8rem; }
-            .o_dcj_previa_peso { font-size: .72rem; color: var(--dc-tinta-3, #6B7690); }
+            img { width: 30px; height: 30px; object-fit: cover; border-radius: 6px; }
+            > .fa { width: 30px; text-align: center; font-size: 1.3rem; color: var(--dc-azul-600, #1340B1); }
+            .o_dcj_previa_texto { display: flex; flex-direction: column; min-width: 0; max-width: 150px; line-height: 1.2; }
+            .o_dcj_previa_nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: .78rem; }
+            .o_dcj_previa_peso { font-size: .7rem; color: var(--dc-tinta-3, #6B7690); }
+            .o_dcj_icono_boton { min-width: 28px; min-height: 28px; padding: 0 4px; }
             &.o_dcj_previa_error { border-color: $dcj-rojo; .o_dcj_previa_peso { color: $dcj-rojo; } }
             &.o_dcj_previa_subiendo { opacity: .75; }
         }
     }
-    .o_dcj_rapidas {
-        max-height: 200px;
-        overflow-y: auto;
-        border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+    .o_dcj_tarea, .o_dcj_programar, .o_dcj_sugerencia {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 2px 10px;
+        padding: 3px 8px;
         border-radius: var(--dc-r-sm, 8px);
-        background: var(--dc-blanco, #FFFFFF);
-        .o_dcj_rapida_vacia { padding: 10px 12px; color: var(--dc-tinta-3, #6B7690); }
-        .o_dcj_rapida {
-            width: 100%;
-            display: flex;
-            gap: 10px;
-            align-items: baseline;
-            min-height: 40px;
-            padding: 6px 12px;
-            border: 0;
-            border-bottom: 1px solid var(--dc-linea, #E2E7F0);
-            background: transparent;
-            text-align: left;
-            cursor: pointer;
-            strong { flex: none; color: var(--dc-azul-700, #0F3591); }
-            span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
-            &:hover, &.o_activa { background: var(--dc-azul-50, #F2F6FE); }
-        }
+        background: var(--dc-azul-50, #F2F6FE);
+        color: var(--dc-azul-800, #0E2A6B);
+        font-size: .8rem;
     }
     .o_dcj_tarea {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 10px;
-        padding: 6px 10px;
-        border-radius: var(--dc-r-sm, 8px);
-        background: var(--dc-azul-50, #F2F6FE);
-        color: var(--dc-azul-800, #0E2A6B);
-        font-size: .8rem;
         .o_dcj_tarea_fecha { margin: 0 0 0 auto; display: flex; align-items: center; gap: 6px; }
-        input[type=date] { min-height: 32px; border: 1px solid var(--dc-linea-fuerte, #CBD3E1); border-radius: 6px; padding: 0 6px; }
+        input[type=date] { min-height: 30px; border: 1px solid var(--dc-linea-fuerte, #CBD3E1); border-radius: 6px; padding: 0 6px; }
     }
     .o_dcj_programar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 6px 10px;
-        padding: 6px 10px;
-        border-radius: var(--dc-r-sm, 8px);
-        background: var(--dc-azul-50, #F2F6FE);
-        color: var(--dc-azul-800, #0E2A6B);
-        font-size: .8rem;
-        .o_dcj_programar_fecha { display: flex; align-items: center; gap: 6px; }
-        input[type=datetime-local] { min-height: 32px; border: 1px solid var(--dc-linea-fuerte, #CBD3E1); border-radius: 6px; padding: 0 6px; }
+        flex-wrap: nowrap;
+        .o_dcj_programar_fecha { flex: none; display: flex; align-items: center; gap: 6px; }
+        .o_dcj_enlace { flex: none; white-space: nowrap; }
+        input[type=datetime-local] { min-height: 30px; border: 1px solid var(--dc-linea-fuerte, #CBD3E1); border-radius: 6px; padding: 0 6px; }
+        // La ayuda ocupa lo que sobre en la misma línea; si no cabe, se corta con «…».
+        .o_dcj_programar_ayuda { flex: 1 1 0; min-width: 40px; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .o_dcj_programar_quitar { flex: none; min-width: 28px; min-height: 28px; padding: 0 4px; margin-left: auto; }
+    }
+    .o_dcj_sugerencia {
+        flex-wrap: nowrap;
+        align-items: flex-start;
+        gap: 8px;
+        > .fa { margin-top: 3px; }
+        ul { max-height: 4.2em; overflow-y: auto; }
     }
     .o_dcj_programados {
         display: flex;
@@ -696,77 +745,135 @@ $dcj-amarillo: #FED00F;
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 6px 10px;
+            padding: 3px 8px;
             border: 1px dashed var(--dc-azul-600, #1340B1);
             border-radius: var(--dc-r-sm, 8px);
             background: var(--dc-niebla, #F4F6FA);
             color: var(--dc-azul-800, #0E2A6B);
             font-size: .8rem;
         }
-        .o_dcj_programado_texto { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 2px 8px; }
-        .o_dcj_programado_cuerpo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); flex-basis: 100%; }
+        .o_dcj_programado_texto { flex: 1; min-width: 0; display: flex; flex-wrap: nowrap; gap: 2px 8px; align-items: baseline; > strong { flex: none; } }
+        .o_dcj_programado_cuerpo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
     }
-    .o_dcj_sugerencia {
-        display: flex;
-        gap: 8px;
-        padding: 6px 10px;
-        border-radius: var(--dc-r-sm, 8px);
-        background: var(--dc-azul-50, #F2F6FE);
-        color: var(--dc-azul-800, #0E2A6B);
-        font-size: .8rem;
-        > .fa { margin-top: 3px; }
-    }
-    .o_dcj_escribir { display: flex; align-items: flex-end; gap: 8px; }
-    .o_dcj_texto {
-        flex: 1;
-        min-height: 44px;
-        max-height: 168px;
-        padding: 10px 12px;
-        border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
-        border-radius: var(--dc-r-sm, 8px);
-        background: var(--dc-blanco, #FFFFFF);
-        color: var(--dc-tinta, #0E1A33);
-        resize: none;
-        &:focus { border-color: var(--dc-azul-600, #1340B1); }
-    }
-    .o_dcj_enviar { flex: none; min-height: 44px; min-width: 96px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-    &.o_nota .o_dcj_texto { border: 1px dashed var(--dc-azul-600, #1340B1); background: var(--dc-niebla, #F4F6FA); }
-    .o_dcj_herramientas { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+    // La línea de escribir: [herramientas] [caja de texto] [Enviar]. Las listas (respuestas rápidas, menciones, «Más») flotan
+    // encima, sin mover el hilo.
+    .o_dcj_escribir { position: relative; display: flex; align-items: flex-end; gap: 6px; }
+    .o_dcj_herramientas { flex: none; display: flex; align-items: center; gap: 2px; padding-bottom: 2px; }
     .o_dcj_herramienta {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        justify-content: center;
+        min-width: 36px;
         min-height: 36px;
-        padding: 4px 10px;
+        padding: 0;
         border: 1px solid transparent;
         border-radius: var(--dc-r-sm, 8px);
         background: transparent;
         color: var(--dc-azul-700, #0F3591);
-        font-weight: 600;
-        font-size: .84rem;
+        font-size: 1.05rem;
         cursor: pointer;
         &:hover:not([disabled]) { background: var(--dc-azul-50, #F2F6FE); border-color: var(--dc-azul-100, #E4ECFD); }
         &[disabled] { color: var(--dc-tinta-3, #6B7690); cursor: default; opacity: .6; }
         &.o_activa { background: var(--dc-azul-50, #F2F6FE); border-color: var(--dc-azul-100, #E4ECFD); }
     }
-    .o_dcj_modo {
-        display: inline-flex;
+    .o_dcj_mas_caja { position: relative; }
+    .o_dcj_menu {
+        position: absolute;
+        left: 0;
+        bottom: calc(100% + 6px);
+        z-index: 6;
+        width: 290px;
+        max-width: calc(100vw - 24px);
+        padding: 4px;
+        border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+        border-radius: var(--dc-r-md, 12px);
+        background: var(--dc-blanco, #FFFFFF);
+    }
+    .o_dcj_menu_item {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-height: 38px;
+        padding: 4px 10px;
+        border: 0;
+        border-radius: var(--dc-r-sm, 8px);
+        background: transparent;
+        color: var(--dc-azul-700, #0F3591);
+        font-weight: 600;
+        text-align: left;
+        cursor: pointer;
+        .fa { width: 18px; text-align: center; }
+        &:hover:not([disabled]) { background: var(--dc-azul-50, #F2F6FE); }
+        &[disabled] { color: var(--dc-tinta-3, #6B7690); cursor: default; opacity: .6; }
+    }
+    .o_dcj_menu_ayuda { margin: 4px 6px 2px; padding-top: 6px; border-top: 1px solid var(--dc-linea, #E2E7F0); color: var(--dc-tinta-3, #6B7690); font-size: .76rem; }
+
+    .o_dcj_texto_caja { position: relative; flex: 1; min-width: 0; display: flex; }
+    .o_dcj_texto {
+        width: 100%;
+        min-height: 40px;
+        max-height: #{"min(100px, 14vh)"};
+        padding: 9px 12px;
         border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
         border-radius: var(--dc-r-sm, 8px);
-        overflow: hidden;
-        button {
-            min-height: 34px;
-            padding: 2px 12px;
+        background: var(--dc-blanco, #FFFFFF);
+        color: var(--dc-tinta, #0E1A33);
+        line-height: 1.35;
+        resize: none;
+        &:focus { border-color: var(--dc-azul-600, #1340B1); }
+    }
+    .o_dcj_cuenta { position: absolute; right: 8px; bottom: 3px; padding: 0 4px; background: var(--dc-blanco, #FFFFFF); color: var(--dc-tinta-3, #6B7690); font-size: .68rem; pointer-events: none; }
+    .o_dcj_enviar { flex: none; min-height: 40px; min-width: 92px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    &.o_nota .o_dcj_texto { border: 1px dashed var(--dc-azul-600, #1340B1); background: var(--dc-niebla, #F4F6FA); }
+
+    // Las listas flotantes (respuestas rápidas y menciones): encima de la línea de escribir.
+    .o_dcj_rapidas {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: calc(100% + 6px);
+        z-index: 6;
+        max-height: #{"min(220px, 30vh)"};
+        overflow-y: auto;
+        border: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+        border-radius: var(--dc-r-sm, 8px);
+        background: var(--dc-blanco, #FFFFFF);
+        .o_dcj_rapida_vacia { padding: 10px 12px; color: var(--dc-tinta-3, #6B7690); }
+        .o_dcj_rapida {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            align-items: baseline;
+            min-height: 38px;
+            padding: 6px 12px;
             border: 0;
-            background: var(--dc-blanco, #FFFFFF);
-            color: var(--dc-tinta-2, #44506A);
-            font-size: .82rem;
-            font-weight: 600;
+            border-bottom: 1px solid var(--dc-linea, #E2E7F0);
+            background: transparent;
+            text-align: left;
             cursor: pointer;
-            &.o_activa { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
+            strong { flex: none; color: var(--dc-azul-700, #0F3591); }
+            span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
+            &:hover, &.o_activa { background: var(--dc-azul-50, #F2F6FE); }
         }
     }
-    .o_dcj_atajos { margin-top: -2px; }
+
+    // Si la columna del hilo es angosta (medidas del espacio de adentro, sin el relleno): las herramientas pasan a su propia
+    // línea; más angosta aún, Enviar pierde el texto y la línea de programar se parte.
+    @container caja (max-width: 500px) {
+        .o_dcj_escribir { flex-wrap: wrap; }
+        .o_dcj_herramientas { flex: 1 0 100%; padding-bottom: 0; }
+        .o_dcj_mas_caja { position: static; }
+    }
+    @container caja (max-width: 540px) {
+        .o_dcj_programar { flex-wrap: wrap; }
+        .o_dcj_programar .o_dcj_programar_ayuda { flex: 1 1 140px; white-space: normal; }
+    }
+    @container caja (max-width: 400px) {
+        .o_dcj_enviar { min-width: 44px; padding-left: 12px; padding-right: 12px; }
+        .o_dcj_enviar_texto { @include dcj-solo-lector; }
+    }
 }
 
 // --- La ficha -------------------------------------------------------------------------------------------------------
@@ -776,13 +883,17 @@ $dcj-amarillo: #FED00F;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    min-height: 48px;
+    padding: 6px 8px 6px 12px;
     background: var(--dc-blanco, #FFFFFF);
     border-bottom: 1px solid var(--dc-linea, #E2E7F0);
-    h2 { font-size: 1rem; font-weight: 700; }
-    .o_dcj_volver_ficha { display: none; }
+    h2 { flex: 1; min-width: 0; font-size: .98rem; font-weight: 700; }
+    // En escritorio la X va a la derecha; en celular, la flecha de «volver» va a la izquierda (ver el @media de celular).
+    .o_dcj_volver_ficha { order: 2; flex: none; }
+    .o_dcj_solo_celular { display: none; }
 }
-.o_dcj .o_dcj_ficha_cuerpo { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
+// La ficha tiene su propio desplazamiento: nunca mueve ni encoge el hilo.
+.o_dcj .o_dcj_ficha_cuerpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 8px; padding: 10px; }
 .o_dcj .o_dcj_tarjeta {
     display: flex;
     flex-direction: column;
@@ -1048,74 +1159,92 @@ $dcj-amarillo: #FED00F;
     .o_dcj_visor_siguiente { right: 6px; }
 }
 
-// --- Pantallas medianas: la ficha se abre encima -------------------------------------------------------------------------
-@media (max-width: 1199.98px) {
-    .o_dcj .o_dcj_cuerpo { grid-template-columns: minmax(280px, 340px) minmax(0, 1fr); }
+// --- La ficha del cliente: cerrada hasta que se pide con «Cliente» --------------------------------------------------------------
+// Desde 1024 px, abierta queda AL LADO del hilo como una tercera columna (320 px; en pantallas amplias nace abierta). Entre 768 y
+// 1023 px (tablet) no cabe: se desliza desde la derecha ENCIMA del hilo y se cierra sola al cambiar de conversación. Cerrada, no
+// se ve ni se puede enfocar con el teclado. Tiene su propio desplazamiento: nunca mueve el del hilo.
+.o_dcj .o_dcj_ficha {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 7;
+    width: 100%;
+    max-width: 340px;
+    border-left: 1px solid var(--dc-linea-fuerte, #CBD3E1);
+    visibility: hidden;
+    transform: translateX(100%);
+    transition: transform 160ms ease-out, visibility 160ms;
+}
+.o_dcj.o_dcj_ficha_abierta .o_dcj_ficha { visibility: visible; transform: none; }
+
+@media (min-width: 1024px) {
     .o_dcj .o_dcj_ficha {
-        position: absolute;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        z-index: 7;
-        width: 100%;
-        max-width: 360px;
-        border-left: 1px solid var(--dc-linea-fuerte, #CBD3E1);
-        visibility: hidden;
-        transform: translateX(100%);
-        transition: transform 160ms ease-out, visibility 160ms;
-        .o_dcj_volver_ficha { display: inline-flex; }
+        position: relative;
+        right: auto;
+        top: auto;
+        bottom: auto;
+        z-index: auto;
+        max-width: none;
+        border-left: 0;
+        visibility: visible;
+        transform: none;
+        transition: none;
+        display: none;
     }
-    .o_dcj.o_dcj_ficha_abierta .o_dcj_ficha { visibility: visible; transform: none; }
-}
-@media (min-width: 1200px) {
-    .o_dcj .o_dcj_boton_ficha { display: none; }
+    .o_dcj.o_dcj_ficha_abierta .o_dcj_ficha { display: flex; }
+    .o_dcj.o_dcj_ficha_abierta .o_dcj_cuerpo { grid-template-columns: 300px minmax(0, 1fr) 320px; }
+    .o_dcj.o_dcj_ficha_abierta.o_dcj_lista_compacta .o_dcj_cuerpo { grid-template-columns: 72px minmax(0, 1fr) 320px; }
 }
 
-// --- Celular: una sola columna a la vez, caja fija abajo, botones de al menos 44 px ---------------------------------------------
-@media (max-width: 767.98px) {
-    .o_dcj {
-        font-size: .95rem;
-        .o_dcj_cuerpo { display: block; position: relative; background: var(--dc-blanco, #FFFFFF); }
-        .o_dcj_col { position: absolute; inset: 0; width: 100%; display: none; }
-        &.o_dcj_ver_lista .o_dcj_lista,
-        &.o_dcj_ver_hilo .o_dcj_hilo,
-        &.o_dcj_ver_ficha .o_dcj_ficha { display: flex; }
-        .o_dcj_ficha { visibility: visible; transform: none; position: absolute; width: 100%; border-left: 0; .o_dcj_volver_ficha { display: inline-flex; } }
-        .o_dcj_hilo_cabecera .o_dcj_volver { display: inline-flex; }
-        .o_dcj_hilo_cabecera .o_dcj_estado { display: none; } // la barra de abajo ya dice quién atiende; así el nombre cabe
-        .o_dcj_hilo_cabecera .o_dcj_texto_boton { @include dcj-solo-lector; }
-        .o_dcj_hilo_cuerpo { padding: 10px 10px; }
-        .o_dcj_burbuja { max-width: 88%; }
-        .o_dcj_nuevos { bottom: 190px; }
-
-        // Con el pulgar: nada de menos de 44 px.
-        .o_dcj_icono_boton, .o_dcj_chip, .o_dcj_boton, .o_dcj_herramienta, .o_dcj_etiqueta_boton, .o_dcj_input,
-        .o_dcj_modo button, .o_dcj_rapida, .o_dcj_enlace_fila { min-height: 44px; min-width: 44px; }
-        .o_dcj_fila { padding: 12px; min-height: 72px; }
-        .o_dcj_enviar { min-width: 56px; span { @include dcj-solo-lector; } }
-        .o_dcj_caja {
-            padding: 8px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-            .o_dcj_herramientas { gap: 2px 4px; flex-wrap: wrap; > * { flex: none; } }
-            .o_dcj_herramienta span { @include dcj-solo-lector; }
-            .o_dcj_herramienta { min-width: 44px; min-height: 44px; justify-content: center; padding: 4px 10px; }
-            .o_dcj_modo { margin-left: auto; button { min-height: 44px; } }
-            .o_dcj_barra { flex-direction: column; align-items: stretch; .o_dcj_boton { width: 100%; } }
-            .o_dcj_atajos { display: none; }
+// --- La lista reducida a las fotos (desde tablet hacia arriba; en celular la lista ya es una pantalla entera) ------------
+@media (min-width: 768px) {
+    .o_dcj .o_dcj_lista.o_compacta {
+        .o_dcj_lista_cabecera {
+            align-items: center;
+            padding: 8px 4px;
+            .o_dcj_titulo { flex-direction: column; gap: 6px; }
+            .o_dcj_titulo h1, .o_dcj_envivo, .o_dcj_contador_texto, .o_dcj_buscar, .o_dcj_chips, .o_dcj_mas_filtros, .o_dcj_filtros_resumen, .o_dcj_disponible_texto { display: none; }
+            .o_dcj_envivo + .o_dcj_lista_toggle { margin-left: 0; }
+            .o_dcj_contador { padding: 0 7px; }
+            .o_dcj_disponible { min-height: 36px; margin: 0; padding: 0 10px; }
         }
-    }
-    .o_dcj_capa { align-items: flex-end; padding: 0;
-        .o_dcj_hoja { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; border-bottom: 0;
-            .o_dcj_boton, .o_dcj_icono_boton, .o_dcj_input, .o_dcj_cotizacion_opcion { min-height: 44px; min-width: 44px; }
-            .o_dcj_producto { flex-wrap: wrap; .o_dcj_producto_acciones { max-width: none; width: 100%; flex-direction: row; flex-wrap: wrap; } }
+        .o_dcj_fila {
+            justify-content: center;
+            padding: 8px 0;
+            .o_dcj_fila_cuerpo { display: none; }
+            .o_dcj_avatar { overflow: visible; }
+            .o_dcj_punto_sin_leer { display: flex; }
         }
+        .o_dcj_mas { padding: 8px 4px; .o_dcj_mas_texto { @include dcj-solo-lector; } .o_dcj_mas_icono { display: inline-block; } .btn { min-width: 40px; padding: 4px 0; } }
+        .o_dcj_esqueleto_fila { justify-content: center; > div { display: none; } }
     }
-    .o_dcj_visor .o_dcj_visor_cuerpo { padding: 8px 8px 24px; }
+}
+.o_dcj .o_dcj_mas .o_dcj_mas_icono { display: none; }
+// El número de mensajes sin leer sobre la foto: solo se ve con la lista reducida.
+.o_dcj .o_dcj_punto_sin_leer {
+    display: none;
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--dc-azul-600, #1340B1);
+    color: #FFFFFF;
+    font-size: .68rem;
+    font-weight: 700;
 }
 
-// «Ana está viendo esta conversación» / «Ana está escribiéndole al cliente…» (bajo la cabecera del hilo).
+// «Ana está viendo esta conversación» / «Ana está escribiéndole al cliente…» (bajo la cabecera del hilo): una línea baja.
 .o_dcj .o_dcj_presencia {
-    display: flex; align-items: center; gap: 8px; padding: 6px 16px; font-size: .82rem; font-weight: 600;
+    flex: none;
+    display: flex; align-items: center; gap: 8px; min-height: 26px; padding: 2px 16px; font-size: .78rem; font-weight: 600;
     background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-700, #0F3591); border-bottom: 1px solid var(--dc-azul-100, #E4ECFD);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     &.o_escribe { background: var(--dc-azul-600, #1340B1); color: #FFFFFF; }
 }
 
@@ -1139,15 +1268,88 @@ $dcj-amarillo: #FED00F;
     }
 }
 
-// «Resumir»: el botón y la tarjeta con las viñetas (bajo la cabecera del hilo).
-.o_dcj .o_dcj_resumir { padding: 8px 16px; border-bottom: 1px solid var(--dc-perla, #ECF0F6); .btn { min-height: 44px; } }
+// «Resumir»: una tira baja con el botón, y el resumen en UNA línea que se despliega a pedido (y se desplaza por dentro), para que
+// nunca le quite espacio a los mensajes.
+.o_dcj .o_dcj_resumir {
+    flex: none; display: flex; align-items: center; min-height: 32px; padding: 2px 12px; border-bottom: 1px solid var(--dc-perla, #ECF0F6);
+    background: var(--dc-blanco, #FFFFFF);
+    .btn { min-height: 26px; padding: 0 12px; font-size: .8rem; line-height: 1.2; display: inline-flex; align-items: center; gap: 6px; }
+}
 .o_dcj .o_dcj_resumen {
-    padding: 10px 16px 12px; background: var(--dc-azul-50, #F2F6FE); border-bottom: 1px solid var(--dc-azul-100, #E4ECFD); color: var(--dc-tinta-1, #1B2540); font-size: .88rem;
-    header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
-        strong { color: var(--dc-azul-700, #0F3591); }
-        .o_dcj_resumen_cuando { flex: 1; font-size: .75rem; color: var(--dc-tinta-3, #6B7690); }
+    flex: none; background: var(--dc-azul-50, #F2F6FE); border-bottom: 1px solid var(--dc-azul-100, #E4ECFD); color: var(--dc-tinta, #0E1A33); font-size: .84rem;
+    header { display: flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 6px 0 4px; }
+    .o_dcj_resumen_titulo {
+        flex: 1; min-width: 0; min-height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: var(--dc-r-sm, 8px);
+        background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+        strong { flex: none; color: var(--dc-azul-700, #0F3591); }
+        .fa-list-ul { flex: none; color: var(--dc-azul-700, #0F3591); }
+        .o_dcj_resumen_cuando { flex: none; font-size: .74rem; color: var(--dc-tinta-3, #6B7690); }
+        .o_dcj_resumen_vista { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--dc-tinta-2, #44506A); }
+        .o_dcj_resumen_flecha { flex: none; margin-left: auto; color: var(--dc-azul-700, #0F3591); }
+        &:hover { background: var(--dc-azul-100, #E4ECFD); }
     }
-    ul { margin: 0; padding-left: 20px; li { margin: 2px 0; } }
+    .o_dcj_icono_boton { flex: none; min-width: 30px; min-height: 30px; }
+    // Plegado: solo la línea. Desplegado: las viñetas, con tope de alto.
+    .o_dcj_resumen_cuerpo { display: none; padding: 0 16px 8px; max-height: #{"min(28vh, 220px)"}; overflow-y: auto; overscroll-behavior: contain; }
+    &.o_abierto .o_dcj_resumen_cuerpo { display: block; }
+    &.o_abierto .o_dcj_resumen_vista { visibility: hidden; }
+    ul { margin: 0; padding-left: 20px; list-style: disc; li { margin: 2px 0; } }
     .o_dcj_resumen_aviso { margin: 6px 0 0; font-size: .78rem; font-weight: 600; color: var(--dc-azul-700, #0F3591); }
 }
 
+// --- Celular: una sola columna a la vez, caja fija abajo, botones de al menos 44 px ---------------------------------------------
+// (Los ajustes de tamaño repiten el selector largo de escritorio a propósito: así ganan en celular sin usar !important.)
+@media (max-width: 767.98px) {
+    .o_dcj {
+        font-size: .95rem;
+        .o_dcj_cuerpo { display: block; background: var(--dc-blanco, #FFFFFF); }
+        .o_dcj_col { position: absolute; inset: 0; width: 100%; display: none; }
+        &.o_dcj_ver_lista .o_dcj_lista,
+        &.o_dcj_ver_hilo .o_dcj_hilo,
+        &.o_dcj_ver_ficha .o_dcj_ficha { display: flex; }
+        // La ficha es otra pantalla entera: la flecha de la izquierda vuelve a la conversación.
+        .o_dcj_ficha { visibility: visible; transform: none; transition: none; max-width: none; border-left: 0; }
+        .o_dcj_ficha_cabecera { padding-left: 8px; .o_dcj_volver_ficha { order: 0; } .o_dcj_solo_celular { display: inline-block; } .o_dcj_solo_escritorio { display: none; } }
+        .o_dcj_lista_toggle { display: none; }
+        .o_dcj_aviso { min-height: 36px; }
+        .o_dcj_hilo_cabecera .o_dcj_volver { display: inline-flex; }
+        .o_dcj_hilo_cabecera .o_dcj_estado { display: none; } // la barra de abajo ya dice quién atiende; así el nombre cabe
+        .o_dcj_hilo_cabecera .o_dcj_texto_boton { @include dcj-solo-lector; }
+        .o_dcj_hilo_cuerpo { padding: 10px 10px; }
+        .o_dcj_burbuja { max-width: 88%; }
+
+        // Con el pulgar: nada de menos de 44 px.
+        .o_dcj_icono_boton, .o_dcj_chip, .o_dcj_boton, .o_dcj_herramienta, .o_dcj_etiqueta_boton, .o_dcj_input,
+        .o_dcj_modo button, .o_dcj_rapida, .o_dcj_enlace_fila { min-height: 44px; min-width: 44px; }
+        .o_dcj_hilo_cabecera .o_dcj_icono_boton,
+        .o_dcj_lista_cabecera .o_dcj_buscar .o_dcj_input { min-width: 44px; min-height: 44px; }
+        .o_dcj_fila { padding: 12px; min-height: 72px; }
+        .o_dcj_resumir .btn, .o_dcj_resumen .o_dcj_resumen_titulo, .o_dcj_antes .btn, .o_dcj_mas .btn { min-height: 44px; }
+        .o_dcj_resumen header .o_dcj_icono_boton { min-width: 44px; min-height: 44px; }
+
+        .o_dcj_caja {
+            padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+            .o_dcj_franja { flex-wrap: wrap; }
+            .o_dcj_barra { flex: 1 1 100%; padding-top: 0; padding-bottom: 0; .o_dcj_boton { min-height: 44px; min-width: 44px; } }
+            .o_dcj_modo { margin-left: auto; button { min-height: 44px; min-width: 44px; } }
+            .o_dcj_devolver .o_dcj_input { min-height: 44px; }
+            .o_dcj_devolver .o_dcj_devolver_botones .o_dcj_boton { min-height: 44px; }
+            .o_dcj_previas .o_dcj_previa .o_dcj_icono_boton, .o_dcj_programar .o_dcj_programar_quitar { min-width: 44px; min-height: 44px; }
+            .o_dcj_tarea input[type=date], .o_dcj_programar input[type=datetime-local] { min-height: 44px; }
+            .o_dcj_herramientas { gap: 2px; > * { flex: none; } }
+            .o_dcj_herramienta { min-width: 44px; min-height: 44px; }
+            .o_dcj_menu_item { min-height: 44px; }
+            .o_dcj_menu { width: #{"min(290px, calc(100vw - 20px))"}; }
+            .o_dcj_extras { max-height: 22vh; }
+            .o_dcj_texto { min-height: 44px; }
+            .o_dcj_enviar { min-height: 44px; min-width: 56px; .o_dcj_enviar_texto { @include dcj-solo-lector; } }
+        }
+    }
+    .o_dcj_capa { align-items: flex-end; padding: 0;
+        .o_dcj_hoja { width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0; border-bottom: 0;
+            .o_dcj_boton, .o_dcj_icono_boton, .o_dcj_input, .o_dcj_cotizacion_opcion { min-height: 44px; min-width: 44px; }
+            .o_dcj_producto { flex-wrap: wrap; .o_dcj_producto_acciones { max-width: none; width: 100%; flex-direction: row; flex-wrap: wrap; } }
+        }
+    }
+    .o_dcj_visor .o_dcj_visor_cuerpo { padding: 8px 8px 24px; }
+}

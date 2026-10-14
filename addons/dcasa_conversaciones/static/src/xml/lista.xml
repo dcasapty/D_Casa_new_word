@@ -1,16 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="dcasa_conversaciones.Lista">
-        <section class="o_dcj_col o_dcj_lista" aria-label="Lista de conversaciones">
+        <section class="o_dcj_col o_dcj_lista" t-att-class="{ o_compacta: almacen.listaReducida }" aria-label="Lista de conversaciones">
             <header class="o_dcj_lista_cabecera">
                 <div class="o_dcj_titulo">
                     <h1>Conversaciones</h1>
-                    <span t-if="almacen.sinLeerTotal" class="o_dcj_contador" t-out="almacen.sinLeerTotal + ' sin leer'"/>
+                    <span t-if="almacen.sinLeerTotal" class="o_dcj_contador"><t t-out="almacen.sinLeerTotal"/><span class="o_dcj_contador_texto"> sin leer</span></span>
                     <span class="o_dcj_envivo" t-att-class="{ o_activo: almacen.enVivo }"
                           t-att-title="almacen.enVivo ? 'En vivo: los mensajes nuevos aparecen solos' : 'Sin conexión en vivo: la pantalla se revisa sola cada 30 segundos'">
                         <i class="fa fa-circle" aria-hidden="true"/>
                         <span class="o_dcj_solo_lector" t-out="almacen.enVivo ? 'En vivo' : 'Sin conexión en vivo'"/>
                     </span>
+                    <button t-if="!almacen.listaForzada" type="button" class="o_dcj_icono_boton o_dcj_lista_toggle" aria-controls="o_dcj_lista_cuerpo"
+                            t-att-aria-expanded="almacen.listaCompacta ? 'false' : 'true'"
+                            t-att-aria-label="almacen.listaCompacta ? 'Ampliar la lista de conversaciones' : 'Reducir la lista a las fotos'"
+                            t-att-title="almacen.listaCompacta ? 'Ampliar la lista de conversaciones' : 'Reducir la lista a las fotos'"
+                            t-on-click="() => almacen.alternarLista()">
+                        <i t-attf-class="fa #{almacen.listaCompacta ? 'fa-angle-double-right' : 'fa-angle-double-left'}" aria-hidden="true"/>
+                    </button>
                 </div>
 
                 <button t-if="almacen.reparto === 'turnos'" type="button" class="o_dcj_disponible"
@@ -18,7 +25,7 @@
                         title="Con el reparto por turnos, las conversaciones nuevas se asignan solo a quien está disponible"
                         t-on-click="() => almacen.fijarDisponible(!almacen.disponible)">
                     <i t-attf-class="fa #{almacen.disponible ? 'fa-check-circle' : 'fa-pause-circle-o'}" aria-hidden="true"/>
-                    <t t-out="almacen.disponible ? 'Disponible para conversaciones nuevas' : 'No disponible (no me asignan nuevas)'"/>
+                    <span class="o_dcj_disponible_texto" t-out="almacen.disponible ? 'Disponible para conversaciones nuevas' : 'No disponible (no me asignan nuevas)'"/>
                 </button>
 
                 <div class="o_dcj_buscar">
@@ -78,7 +85,7 @@
                 </div>
             </header>
 
-            <div class="o_dcj_lista_cuerpo" t-ref="lista" t-on-scroll="alDesplazar" t-on-keydown="alTeclear">
+            <div id="o_dcj_lista_cuerpo" class="o_dcj_lista_cuerpo" t-ref="lista" t-on-scroll="alDesplazar" t-on-keydown="alTeclear">
                 <div t-if="almacen.cargandoLista and !almacen.lista.length" class="o_dcj_esqueleto" role="status" aria-label="Cargando conversaciones">
                     <div t-foreach="[1, 2, 3, 4, 5, 6]" t-as="n" t-key="n" class="o_dcj_esqueleto_fila"><span/><div><i/><i/></div></div>
                 </div>
@@ -107,11 +114,14 @@
                         <button type="button" class="o_dcj_fila"
                                 t-att-class="{ o_activa: c.id === almacen.seleccionadaId, o_sin_leer: c.sin_leer }"
                                 t-att-aria-current="c.id === almacen.seleccionadaId ? 'true' : 'false'"
+                                t-att-aria-label="almacen.listaReducida ? c.nombre + (c.sin_leer ? ', ' + c.sin_leer + (c.sin_leer === 1 ? ' mensaje sin leer' : ' mensajes sin leer') : '') : null"
+                                t-att-title="almacen.listaReducida ? c.nombre : null"
                                 t-on-click="() => almacen.abrir(c.id)">
                             <span class="o_dcj_avatar" aria-hidden="true">
                                 <span class="o_dcj_iniciales" t-out="c.iniciales"/>
                                 <img t-if="c.foto_perfil" class="o_dcj_avatar_foto" t-att-src="c.foto_perfil" alt="" loading="lazy" t-on-error="(ev) => ev.target.style.display = 'none'" t-on-load="(ev) => ev.target.style.display = ''"/>
                                 <span class="o_dcj_canal" t-att-title="c.canal_nombre"><i t-attf-class="fa #{iconoDeCanal(c.canal)}"/></span>
+                                <span t-if="c.sin_leer" class="o_dcj_punto_sin_leer" t-out="c.sin_leer > 99 ? '99+' : c.sin_leer"/>
                             </span>
                             <span class="o_dcj_fila_cuerpo">
                                 <span class="o_dcj_fila_arriba">
@@ -156,7 +166,7 @@
 
                 <div t-if="almacen.hayMas" class="o_dcj_mas">
                     <button type="button" class="btn btn-secondary" t-att-disabled="almacen.cargandoMas" t-on-click="() => almacen.cargarMas()">
-                        <t t-if="almacen.cargandoMas">Cargando…</t><t t-else="">Ver más conversaciones</t>
+                        <i class="fa fa-plus o_dcj_mas_icono" aria-hidden="true"/><span class="o_dcj_mas_texto"><t t-if="almacen.cargandoMas">Cargando…</t><t t-else="">Ver más conversaciones</t></span>
                     </button>
                 </div>
             </div>
