@@ -352,6 +352,7 @@ class _CargaDeCombos:
                 resumen['con_error'].append((clave, 'no se cargó, falta en el catálogo: ' + '; '.join(faltan)))
                 for texto in faltan:
                     self.faltantes[texto] = self.faltantes.get(texto, 0) + 1
+                self._contrastar_lo_que_hay(combo, grupos)
                 return
             if self.corregir_cama:
                 self._corregir_la_cama(combo, grupos)
@@ -359,6 +360,15 @@ class _CargaDeCombos:
                 self._existente(combo, plantilla, poner_codigo, grupos)
             else:
                 self._nuevo(combo, grupos)
+
+    def _contrastar_lo_que_hay(self, combo, grupos):
+        """A un combo al que le falta una pieza aún se le mira el colchón que sí está contra su nombre."""
+        problemas = _contraste(combo['nombre'] or combo['clave'],
+                               [[v for v, _e in g['opciones']] for g in grupos if g['opciones']],
+                               self.indices(), completo=False)
+        if problemas:
+            self.resumen['no_coinciden'].append((combo['clave'], '; '.join(problemas)
+                                                 + ' (el combo no se cargó: le falta una pieza)'))
 
     def _corregir_la_cama(self, combo, grupos):
         """Con la casilla encendida: la cama que no es la del CÓDIGO del nombre se cambia por la que lo lleva."""
@@ -405,7 +415,7 @@ class _CargaDeCombos:
         """Avisos de un combo ya cargado: su precio frente al de sus piezas y su nombre frente a sus piezas."""
         self.resumen['avisos_de_precio'].extend((clave, aviso) for aviso in RC.aviso_de_precio(
             precio, [min(v.lst_price for v, _extra in g['opciones']) for g in grupos]))
-        problemas = _contraste(plantilla, [[v for v, _e in g['opciones']] for g in grupos], self.indices())
+        problemas = _contraste(plantilla.name, [[v for v, _e in g['opciones']] for g in grupos], self.indices())
         if not problemas:
             return
         camas = self.indices()[0]
@@ -422,7 +432,7 @@ def _indices_para_contraste(env):
 
 
 def _anotar_contraste(resumen, clave, plantilla, grupos, contraste):
-    problemas = _contraste(plantilla, grupos, contraste)
+    problemas = _contraste(plantilla.name, grupos, contraste)
     if problemas:
         resumen['no_coinciden'].append((clave, '; '.join(problemas)))
 
@@ -494,11 +504,11 @@ def indices_de_piezas(env):
     return camas, colchones
 
 
-def _contraste(plantilla, grupos, contraste):
+def _contraste(nombre, grupos, contraste, completo=True):
     """Lo que no coincide entre el nombre del combo y las piezas de ``grupos`` (listas de variantes por grupo)."""
     camas, por_id, nombres, codigos = contraste
     descritos = [[por_id.get(v.id) or _describir(v, nombres, codigos) for v in grupo] for grupo in grupos]
-    return RC.contrastar_con_el_nombre(plantilla.name, descritos, camas)
+    return RC.contrastar_con_el_nombre(nombre, descritos, camas, completo)
 
 
 def _texto_pieza(pieza):

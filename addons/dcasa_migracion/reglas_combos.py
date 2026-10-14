@@ -502,21 +502,22 @@ def es_colchon(pieza):
     return bool(re.search(r'\bcolch', limpio(pieza.get('nombre'))))
 
 
-def contrastar_con_el_nombre(nombre, grupos, camas):
+def contrastar_con_el_nombre(nombre, grupos, camas, completo=True):
     """Lo que no coincide entre el NOMBRE de un combo y las piezas que de verdad lleva (``[]`` si todo coincide).
 
     ``grupos`` son los grupos del combo y cada uno la lista de sus opciones (dicts como los de ``camas``). Es un
     contraste para revisar, no cambia nada: en el sistema anterior hay combos cuyo nombre dice una cosa y cuyas piezas
     son otras (p. ej. tres combos King con la misma cama beige, o un nombre «Imperial» con un colchón First Class).
     Se compara: la marca, el tamaño y la cantidad de colchones, y la cama (por su código o nombre; si el nombre no
-    alcanza para saber cuál es, solo su color y su tamaño)."""
+    alcanza para saber cuál es, solo su color y su tamaño). Con ``completo=False`` (al combo le faltan piezas en el
+    catálogo) solo se compara la marca de los colchones que sí están."""
     analisis = analizar_nombre(nombre)
     if not analisis['ok']:
         return []
     opciones = [o for grupo in grupos for o in grupo]
     colchones = [g for g in grupos if g and all(es_colchon(o) for o in g)]
     problemas = []
-    if len(colchones) != analisis['cantidad_colchones']:
+    if completo and len(colchones) != analisis['cantidad_colchones']:
         problemas.append(f'el nombre dice {analisis["cantidad_colchones"]} colchón(es) y el archivo trae '
                          f'{len(colchones)}')
     forma = forma_de_marca(analisis['marca'])
@@ -524,10 +525,12 @@ def contrastar_con_el_nombre(nombre, grupos, camas):
         if not any(forma in forma_de_marca(o['nombre']) for o in grupo):
             problemas.append(f'el nombre dice colchón «{analisis["marca"].upper()}» y el archivo trae '
                              f'«{grupo[0]["nombre"]}»')
-        elif analisis['tamano'] and not any(o.get('tamano') in (None, analisis['tamano']) for o in grupo):
+        elif completo and analisis['tamano'] and not any(o.get('tamano') in (None, analisis['tamano']) for o in grupo):
             problemas.append(f'el nombre dice tamaño {ETIQUETA_TAMANO[analisis["tamano"]]} y el colchón del archivo '
                              f'es {ETIQUETA_TAMANO[grupo[0]["tamano"]]}')
     de_cama = [o for o in opciones if not es_colchon(o)]
+    if not completo:
+        return problemas
     if not de_cama:
         return problemas + ['el archivo no trae la cama']
     problema = _contrastar_cama(analisis, de_cama, camas)
