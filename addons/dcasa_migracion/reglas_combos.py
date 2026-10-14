@@ -76,8 +76,8 @@ def filas_combos(texto):
       vacío o 0) y ``fila`` (la primera fila del archivo);
     * ``grupos``: lista de ``{'nombre', 'opciones': [{'codigo', 'nombre', 'extra'}], 'a_escoger'}``. Cada pieza es un
       grupo de una sola opción; una pieza con ``cantidad`` N es N grupos iguales (Odoo no tiene cantidad por opción).
-      Las piezas cuyo nombre termina en « [opción]» son las opciones de UN grupo (o de uno por cada valor distinto de
-      la columna ``grupo``);
+      Las piezas cuyo nombre termina en « [opción]» y van en filas seguidas son las opciones de UN grupo (una pieza
+      sin marca entre ellas parte el grupo; la columna opcional ``grupo`` junta filas aunque no sean seguidas);
     * ``sin_piezas``: ``True`` si el archivo lo lista sin ninguna pieza;
     * ``archivado``: ``True`` si una columna opcional ``activo`` dice 0, no o false (no se carga, se lista).
 
@@ -96,7 +96,7 @@ def filas_combos(texto):
         if clave not in combos:
             orden.append(clave)
             combos[clave] = {'clave': clave, 'codigo': celdas.get('codigo_combo', ''), 'nombre': '', 'precio': None,
-                             'fila': posicion, 'piezas': [], 'sin_piezas': False, 'archivado': False}
+                             'fila': posicion, 'piezas': [], 'sin_piezas': False, 'archivado': False, 'corrida': 0}
         problema = _sumar_fila(combos[clave], celdas, posicion)
         if problema:
             malos.setdefault(clave, problema)
@@ -141,10 +141,12 @@ def _sumar_fila(combo, celdas, posicion):
     if extra is not None and extra < 0:
         return problema or f'fila {posicion}: el precio extra no puede ser negativo'
     a_escoger = bool(_MARCA_OPCION.search(nombre_pieza))
+    if not a_escoger:
+        combo['corrida'] += 1   # una pieza fija corta la corrida de opciones
     combo['piezas'].append({
         'codigo': codigo, 'nombre': _MARCA_OPCION.sub('', nombre_pieza).strip(), 'cantidad': cantidad,
-        'extra': extra or 0.0, 'a_escoger': a_escoger, 'grupo': celdas.get('grupo', '') if a_escoger else '',
-        'fila': posicion})
+        'extra': extra or 0.0, 'a_escoger': a_escoger, 'fila': posicion,
+        'grupo': (celdas.get('grupo', '') or f'#{combo["corrida"]}') if a_escoger else ''})
     return problema
 
 
@@ -214,7 +216,7 @@ def forma_de_marca(texto):
     return re.sub(r'(.)\1+', r'\1', re.sub(r'[^a-z]', '', limpio(texto)))
 
 
-_COLCHON = re.compile(r'^(?:(?P<n>\d+)\s*)?colch\w*\s*(?P<marca>.*)$')
+_COLCHON = re.compile(r'^(?:(?P<n>\d+)\s*)?c[a-z]lch\w*\s*(?P<marca>.*)$')   # colchon, colcho, «CPLCHON»
 
 
 def analizar_nombre(nombre):

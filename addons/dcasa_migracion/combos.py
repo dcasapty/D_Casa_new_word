@@ -16,6 +16,7 @@ id, su nombre, su precio y su historial. Si el producto tiene existencias, movim
 cotización o venta abierta, NO se toca: queda en el informe como «necesita revisión», con el motivo. Todo es
 idempotente.
 """
+import difflib
 import logging
 import re
 
@@ -45,10 +46,49 @@ def _entorno(env):
 # Buscar piezas y combos
 # ----------------------------------------------------------------------------------------------
 
-def _buscar_pieza(env, codigo, nombre):
+def clave_de_nombre(nombre):
+    """Para comparar nombres sin importar mayúsculas, tildes, espacios sobrantes ni los espacios junto al «+»:
+    «COMBO CAMA KING 811KBE+ COLCHÓN» y «combo cama king 811kbe + colchon» son el mismo nombre."""
+    return re.sub(r'\s*\+\s*', ' + ', RC.limpio(nombre))
+
+
+def _numeros_del_nombre(clave):
+    """Las fichas del nombre que llevan cifras (los códigos): si dos nombres «casi iguales» las comparten, es el mismo."""
+    return sorted(f for f in re.findall(r'[a-z0-9]+', clave) if re.search(r'\d', f))
+
+
+class _Nombres:
+    """Los productos por nombre normalizado (una sola lectura por carga)."""
+
+    def __init__(self, env):
+        self.vacio = env['product.template']
+        self.por_clave = {}
+        for plantilla in env['product.template'].with_context(active_test=False).search([]):
+            clave = clave_de_nombre(plantilla.name)
+            self.por_clave[clave] = self.por_clave.get(clave, self.vacio) | plantilla
+
+    def de(self, nombre):
+        return self.por_clave.get(clave_de_nombre(nombre), self.vacio)
+
+    def parecidos(self, nombre):
+        """Productos «COMBO …» cuyo nombre se parece mucho al de este combo sin ser igual: la misma cifra en los
+        códigos y casi las mismas letras. No son iguales, pero tampoco hay que crear otro al lado."""
+        clave = clave_de_nombre(nombre)
+        cifras = _numeros_del_nombre(clave)
+        parecidos = self.vacio
+        for otra, plantillas in self.por_clave.items():
+            if otra == clave or not otra.startswith('combo') or _numeros_del_nombre(otra) != cifras:
+                continue
+            comparador = difflib.SequenceMatcher(None, clave, otra)
+            if comparador.quick_ratio() >= 0.9 and comparador.ratio() >= 0.9:
+                parecidos |= plantillas
+        return parecidos
+
+
+def _buscar_pieza(env, codigo, nombre, nombres):
     """``(variante, None)`` o ``(None, motivo)``: la pieza (cama, colchón…) del catálogo. Por código y, sin código, por
-    nombre exacto; con el sufijo de tamaño de las variantes (``XHT022-F-W`` → ``XHT022-F-W-FULL``) como en el inventario
-    anterior. Nunca inventa: si no hay, o hay varias, dice por qué."""
+    nombre exacto normalizado; con el sufijo de tamaño de las variantes (``XHT022-F-W`` → ``XHT022-F-W-FULL``) como en
+    el inventario anterior. Nunca inventa ni crea una pieza: si no hay, o hay varias, dice por qué."""
     Variante = env['product.product'].with_context(active_test=False)
     if codigo:
         encontradas = Variante.search([('default_code', '=', codigo)])
@@ -60,12 +100,12 @@ def _buscar_pieza(env, codigo, nombre):
             return None, 'hay varios productos con ese código'
         variante = encontradas
     else:
-        plantillas = env['product.template'].with_context(active_test=False).search([('name', '=', nombre)])
+        plantillas = nombres.de(nombre)
         if not plantillas:
-            return None, 'no hay un producto con ese nombre'
+            return None, 'no hay un producto con ese nombre (la pieza no tiene código: se busca por su nombre exacto)'
         if len(plantillas) > 1:
             return None, 'hay varios productos con ese nombre: usa el código'
-        variantes = plantillas.product_variant_ids
+        variantes = plantillas.with_context(active_test=False).product_variant_ids
         if len(variantes) != 1:
             return None, 'tiene varias medidas: usa el código de la medida'
         variante = variantes
@@ -76,12 +116,16 @@ def _buscar_pieza(env, codigo, nombre):
     return variante, None
 
 
-def _buscar_combo(env, combo):
+PREFIJO_DUPLICADO = 'posible duplicado'
+
+
+def _buscar_combo(env, combo, nombres):
     """``(plantilla, poner_codigo, error)``: el producto del combo, o una plantilla vacía si hay que crearlo.
 
-    Por código; si ese código no está, por el nombre exacto de un producto SIN código (los combos viejos no tenían): en
-    ese caso ``poner_codigo`` es ``True`` si el código del archivo está libre. Sin código, por nombre exacto. Si hay
-    varios productos con ese nombre, o uno con otro código, no se adivina: ``error`` dice por qué."""
+    Por código; si ese código no está, por el nombre exacto normalizado de un producto SIN código (los combos viejos no
+    tenían): en ese caso ``poner_codigo`` es ``True`` si el código del archivo está libre. Sin código, por nombre exacto
+    normalizado. Si hay varios productos con ese nombre, uno con otro código o uno de nombre casi igual (un posible
+    duplicado), no se adivina ni se crea otro: ``error`` dice por qué."""
     Plantilla = env['product.template'].with_context(active_test=False)
     Variante = env['product.product'].with_context(active_test=False)
     codigo, nombre = combo['codigo'], combo['nombre']
@@ -91,10 +135,16 @@ def _buscar_combo(env, combo):
             return Plantilla.browse(), False, 'hay varios productos con ese código'
         if variantes:
             return variantes.product_tmpl_id, False, None
-    con_nombre = Plantilla.search([('name', '=', nombre)]) if nombre else Plantilla.browse()
+    con_nombre = nombres.de(nombre) if nombre else Plantilla.browse()
+    if not con_nombre and nombre:
+        parecidos = nombres.parecidos(nombre)
+        if parecidos:
+            return Plantilla.browse(), False, (
+                f'{PREFIJO_DUPLICADO}: ya hay «{parecidos[0].name}», casi igual: no se creó otro ni se tocó')
     if not codigo:
         if len(con_nombre) > 1:
-            return Plantilla.browse(), False, 'hay varios productos con ese nombre: ponle un código a cada uno'
+            return Plantilla.browse(), False, ('hay varios productos con ese nombre (posible duplicado): '
+                                               'ponle un código a cada uno')
         return con_nombre, False, None
     sin_codigo = con_nombre.filtered(lambda p: not p.default_code)
     if len(sin_codigo) == 1:

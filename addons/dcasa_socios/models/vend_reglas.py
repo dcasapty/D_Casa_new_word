@@ -51,7 +51,7 @@ class DcasaVendReglas(models.Model):
         string='Versión de puntos.json', readonly=True,
         help='La versión de las cifras de fábrica (puntos.json) que había cuando se guardó este cambio.')
     ajustes = fields.Text(
-        readonly=True, groups='base.group_no_one',
+        readonly=True,
         help='Técnico: todo lo que está cambiado frente a la fábrica (ruta → valor), acumulado hasta esta versión.')
     cambios = fields.Text(readonly=True, help='Técnico: lo que cambió en esta versión, con el antes y el nuevo.')
     cambios_html = fields.Html(string='Qué cambió', compute='_compute_cambios', sanitize=False)

@@ -362,7 +362,7 @@
             <list string="Historial de reglas del programa de vendedores" create="false" edit="false" delete="false"
                   decoration-success="rige_ahora" decoration-muted="not rige_ahora">
                 <field name="numero"/>
-                <field name="vigente_desde"/>
+                <field name="vigente_desde" width="190px"/>
                 <field name="rige_ahora"/>
                 <field name="autor"/>
                 <field name="tipo" optional="show"/>

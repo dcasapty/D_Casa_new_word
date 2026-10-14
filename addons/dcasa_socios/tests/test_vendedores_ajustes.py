@@ -553,8 +553,6 @@ class TestPermisosDeAjustes(AjustesCommon):
             Historial.browse(version.id).unlink()
         with self.assertRaises(AccessError):
             Historial.create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{}'})
-        # Ni siquiera Gerencia lee el JSON técnico: es solo para el modo desarrollador.
-        self.assertNotIn('ajustes', Historial.browse(version.id).read()[0])
 
     def test_los_administradores_tambien_cambian_las_reglas(self):
         version = self.guardar(usuario=self.admin, comision_base=4.5)
