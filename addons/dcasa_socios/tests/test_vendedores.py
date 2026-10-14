@@ -392,6 +392,42 @@ class TestComisiones(VendedoresCommon):
         self.assertEqual(self.factura(vendedor=self.ana).dcasa_vend_comision_ids.puntos, 400)
         self.assertEqual(self.factura(vendedor=self.ana).dcasa_vend_comision_ids.puntos, 500)
 
+    def test_el_tope_del_mes_sube_con_el_escalon_alcanzado(self):
+        """Quien lleva ventas sostenidas (escalón alto) tiene un tope mensual más alto que quien empieza."""
+        self.reglas['vendedores']['techos']['porVendedorAlMesPuntos'] = 500
+        self.reglas['vendedores']['comision']['escalones'] = [
+            {'desdeVentasNetasCentavos': 10000, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 2000}]
+        primera = self.factura(vendedor=self.ana)           # escalón base: 400 (cabe en el tope base de 500)
+        self.assertEqual(primera.dcasa_vend_comision_ids.puntos, 400)
+        for _ in range(3):                                   # ya vendió $100: escalón de 5 % y tope de 2,000
+            self.assertEqual(self.factura(vendedor=self.ana).dcasa_vend_comision_ids.puntos, 500)
+        quinta = self.factura(vendedor=self.ana)             # 400 + 3 × 500 = 1,900: caben 100 de los 500
+        self.assertEqual((quinta.dcasa_vend_comision_ids.puntos, quinta.dcasa_vend_comision_ids.resultado),
+                         (100, 'recortada'))
+        sexta = self.factura(vendedor=self.ana)
+        self.assertEqual((sexta.dcasa_vend_comision_ids.puntos, sexta.dcasa_vend_comision_ids.resultado),
+                         (0, 'tope-del-mes'))
+
+    def test_el_tope_base_sigue_frenando_a_quien_no_ha_subido_de_escalon(self):
+        self.reglas['vendedores']['techos']['porVendedorAlMesPuntos'] = 500
+        self.reglas['vendedores']['comision']['escalones'] = [
+            {'desdeVentasNetasCentavos': 99999999, 'puntosPorDolarNeto': 8, 'topeAlMesPuntos': 90000}]
+        self.factura(vendedor=self.ana)
+        segunda = self.factura(vendedor=self.ana)
+        self.assertEqual((segunda.dcasa_vend_comision_ids.puntos, segunda.dcasa_vend_comision_ids.resultado),
+                         (100, 'recortada'))
+
+    def test_el_resumen_del_panel_trae_el_nivel(self):
+        self.reglas['vendedores']['comision']['escalones'] = [
+            {'desdeVentasNetasCentavos': 10000, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 2000}]
+        self.reglas['vendedores']['techos']['porVendedorAlMesPuntos'] = 500
+        nivel = self.ana._dcasa_vend_resumen_panel()['nivel']
+        self.assertEqual((nivel['puntos_por_dolar'], nivel['tope_al_mes'], nivel['ventas_centavos']), (4, 500, 0))
+        self.assertEqual(nivel['siguiente'], {'puntos_por_dolar': 5, 'falta_centavos': 10000})
+        self.factura(vendedor=self.ana)
+        nivel = self.ana._dcasa_vend_resumen_panel()['nivel']
+        self.assertEqual((nivel['puntos_por_dolar'], nivel['tope_al_mes'], nivel['siguiente']), (5, 2000, None))
+
     # --- Vínculo del cliente ---------------------------------------------------------------------------
 
     def test_sin_vinculacion_solo_cuenta_la_compra_con_el_codigo(self):

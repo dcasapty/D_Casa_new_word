@@ -79,19 +79,75 @@ def _puntos(neto_centavos, puntos_por_dolar):
     return int(Fraction(neto_centavos) * Fraction(str(puntos_por_dolar)) // 100)
 
 
+def escalon_alcanzado(ventas_netas_centavos, comision):
+    """El escalón más alto que se alcanzó con lo vendido en los últimos días, o ``None`` si solo rige la base.
+
+    ``escalones`` es una lista ``[{"desdeVentasNetasCentavos": 300000, "puntosPorDolarNeto": 5,
+    "topeAlMesPuntos": 30000}, ...]``; el tope mensual propio del escalón es opcional."""
+    alcanzado = None
+    for escalon in sorted(comision.get('escalones') or [], key=lambda e: e['desdeVentasNetasCentavos']):
+        if ventas_netas_centavos >= escalon['desdeVentasNetasCentavos']:
+            alcanzado = escalon
+    return alcanzado
+
+
 def puntos_por_dolar_de_escalon(ventas_netas_centavos, comision):
     """Puntos por dólar que corresponden según lo vendido en los últimos días (escalones opcionales).
 
-    ``escalones`` es una lista ``[{"desdeVentasNetasCentavos": 0, "puntosPorDolarNeto": 3}, ...]``. Sin escalones,
-    vale la cifra base. Toma el escalón más alto que se alcanzó.
+    Sin escalones, o sin haber alcanzado el primero, vale la cifra base. Toma el escalón más alto que se alcanzó.
     """
-    base = comision['puntosPorDolarNeto']
+    escalon = escalon_alcanzado(ventas_netas_centavos, comision)
+    return comision['puntosPorDolarNeto'] if escalon is None else escalon['puntosPorDolarNeto']
+
+
+def tope_al_mes_del_vendedor(ventas_netas_centavos, reglas):
+    """Lo máximo que el vendedor puede ganar en el mes entre comisión y patrocinio (``None`` = sin tope).
+
+    Sube con el escalón: quien lleva meses vendiendo mucho tiene un tope más alto que quien apenas empieza (el tope
+    de abajo es el control antifraude de la gente nueva). Un escalón sin ``topeAlMesPuntos`` usa el tope base."""
+    escalon = escalon_alcanzado(ventas_netas_centavos, seccion(reglas).get('comision') or {})
+    if escalon is not None and escalon.get('topeAlMesPuntos') is not None:
+        return escalon['topeAlMesPuntos']
+    return (seccion(reglas).get('techos') or {}).get('porVendedorAlMesPuntos')
+
+
+def nivel_del_vendedor(ventas_netas_centavos, reglas):
+    """Dónde está el vendedor en la escalera, para mostrárselo: su tasa y su tope del mes, y lo que le falta vender
+    para el siguiente escalón (``None`` si ya está en el más alto o no hay escalera)."""
+    comision = seccion(reglas).get('comision') or {}
     escalones = sorted(comision.get('escalones') or [], key=lambda e: e['desdeVentasNetasCentavos'])
-    valor = base
-    for escalon in escalones:
-        if ventas_netas_centavos >= escalon['desdeVentasNetasCentavos']:
-            valor = escalon['puntosPorDolarNeto']
-    return valor
+    if not escalones:
+        return None
+    siguiente = next((e for e in escalones if ventas_netas_centavos < e['desdeVentasNetasCentavos']), None)
+    return {
+        'puntos_por_dolar': puntos_por_dolar_de_escalon(ventas_netas_centavos, comision),
+        'tope_al_mes': tope_al_mes_del_vendedor(ventas_netas_centavos, reglas),
+        'ventas_centavos': ventas_netas_centavos,
+        'siguiente': None if siguiente is None else {
+            'puntos_por_dolar': siguiente['puntosPorDolarNeto'],
+            'falta_centavos': siguiente['desdeVentasNetasCentavos'] - ventas_netas_centavos},
+    }
+
+
+def problemas_de_la_escalera(reglas):
+    """Incoherencias de la escalera de escalones (vacío = bien): cada escalón debe subir el umbral, pagar más y no
+    topar menos que el anterior (el escalón sin tope propio usa el tope base)."""
+    v = seccion(reglas)
+    comision = v.get('comision') or {}
+    base = (v.get('techos') or {}).get('porVendedorAlMesPuntos')
+    problemas = []
+    desde, tasa, tope = None, comision.get('puntosPorDolarNeto'), base
+    for numero, escalon in enumerate(
+            sorted(comision.get('escalones') or [], key=lambda e: e['desdeVentasNetasCentavos']), 1):
+        if desde is not None and escalon['desdeVentasNetasCentavos'] <= desde:
+            problemas.append(f'escalón {numero}: el umbral no sube.')
+        if tasa is not None and escalon['puntosPorDolarNeto'] <= tasa:
+            problemas.append(f'escalón {numero}: no paga más que el anterior.')
+        propio = base if escalon.get('topeAlMesPuntos') is None else escalon['topeAlMesPuntos']
+        if propio is not None and tope is not None and propio < tope:
+            problemas.append(f'escalón {numero}: el tope mensual baja.')
+        desde, tasa, tope = escalon['desdeVentasNetasCentavos'], escalon['puntosPorDolarNeto'], propio
+    return problemas
 
 
 def comision_directa(neto_centavos, reglas, ventas_netas_recientes_centavos=0):

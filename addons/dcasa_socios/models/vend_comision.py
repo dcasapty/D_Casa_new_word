@@ -281,8 +281,9 @@ class DcasaVendComision(models.Model):
         # vendedor afiliado solo dan puntos de cliente.
         if cliente.commercial_partner_id.dcasa_vendedor_codigo:
             return sin('comprador-es-vendedor')
+        recientes = self._ventas_netas_recientes(vendedor, reglas)
         try:
-            puntos = RV.comision_directa(neto, reglas, self._ventas_netas_recientes(vendedor, reglas))
+            puntos = RV.comision_directa(neto, reglas, recientes)
         except R.FaltaConfigurar:
             return sin('sin-configurar')
         if not nuevo:
@@ -298,8 +299,8 @@ class DcasaVendComision(models.Model):
                     ('partner_id', '=', vendedor.id), ('cliente_id', '=', cliente.id), ('tipo', '=', 'directa'),
                     ('anulada_en', '=', False), ('puntos', '>', 0)], limit=1)):
             return sin('ya-pago-la-primera')
-        tope = (RV.seccion(reglas).get('techos') or {}).get('porVendedorAlMesPuntos')
-        permitido = RV.topar_al_mes(puntos, self._ya_gano_en_el_mes(vendedor), tope)
+        permitido = RV.topar_al_mes(puntos, self._ya_gano_en_el_mes(vendedor),
+                                    RV.tope_al_mes_del_vendedor(recientes, reglas))
         if permitido <= 0:
             return sin('tope-del-mes')
         return {'puntos': permitido, 'calculados': puntos,

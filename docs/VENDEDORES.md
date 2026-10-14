@@ -5,7 +5,7 @@ afuera. El cliente sigue ganando sus puntos de Socios como siempre; el vendedor 
 altos**, cuando alguien compra con su código. Los puntos de vendedor se cambian por **mercancía**.
 
 > Las cifras viven en [`puntos.json`](../addons/dcasa_socios/data/puntos.json) (sección `vendedores`,
-> versión 4). Este documento explica qué significan. Si algo no cuadra, manda `puntos.json`.
+> versión 5). Este documento explica qué significan. Si algo no cuadra, manda `puntos.json`.
 
 ## En una frase
 
@@ -33,11 +33,11 @@ una cama o lo que haya en el catálogo.*
 6. **Revender.** Lo que el vendedor canjeó es suyo: lo puede revender al precio que quiera (no se fija
    precio de reventa).
 
-## Las cifras de arranque (Fase 1)
+## Las cifras (versión 5)
 
 | Qué | Cifra | Por qué |
 |---|---|---|
-| Comisión por vender | **4 puntos por cada $1** de venta neta (sin ITBMS, ya con descuentos) = 4 % | El piso que todavía motiva; subir después es fácil, bajar es perder la confianza |
+| Comisión por vender | **Base: 4 puntos por cada $1** de venta neta (sin ITBMS, ya con descuentos) = 4 %. **Sube a 5 %, 6.5 % y 8 %** según lo vendido en los últimos 90 días (ver «La escalera») | La base es el piso que ya motiva; la escalera deja que quien vende de verdad llegue a un ingreso de oficio |
 | ¿A quién se le paga la tasa completa? | Solo a la **primera compra de un cliente nuevo** | Es la venta que de verdad trajo el vendedor |
 | Cliente que ya había comprado, o recompra de su cliente | **La mitad (2 %)** | Esas ventas casi seguro ya iban a ocurrir |
 | El cliente queda ligado al vendedor | **12 meses**, no para siempre | Cubre el ciclo de compra de camas; no se paga eternamente por clientes de la casa |
@@ -47,9 +47,9 @@ una cama o lo que haya en el catálogo.*
 | Directos por patrocinador | **3** (después 5, máximo) | Evita concentración y aspecto de pirámide |
 | Espera antes de poder canjear | **30 días** (60 en las primeras 5 ventas del vendedor) | Ventana de devoluciones; quien recién llega es el que más riesgo trae |
 | Canje mínimo | **3,000 puntos** ($30): unas 6 primeras compras | Que el primer premio llegue pronto |
-| Canjes por vendedor | **2 al mes** | El riesgo es el costo y el cupo |
-| Máximo por vendedor | **20,000 puntos al mes** | Antifraude |
-| Freno de todo el programa | Lo entregado a **todos** los vendedores en 30 días no pasa del **1.5 %** de lo vendido en toda la tienda | Seguro contra una cifra mal puesta |
+| Canjes por vendedor | **4 al mes** | El riesgo es el costo y el cupo; el tope mensual de puntos ya lo acota |
+| Máximo por vendedor al mes | **20,000 puntos ($200)** en el escalón base; **30,000 / 50,000 / 90,000** en los escalones de arriba | Antifraude: la gente nueva tiene el tope más bajo; el alto se gana vendiendo 90 días |
+| Freno de todo el programa | Lo entregado a **todos** los vendedores en 30 días no pasa del **3 %** de lo vendido en toda la tienda | Seguro contra una cifra mal puesta (antes 1.5 %, que un solo vendedor del escalón alto consumía casi entero) |
 | Techo por factura | Entre cliente + vendedor + patrocinio no se pasa del **25 % de la ganancia** de esa factura | Si se pasa se recorta primero el patrocinio, luego la comisión; nunca los puntos del cliente |
 | Efectivo | **No existe** | Solo mercancía; efectivo, más adelante y con abogado y contadora |
 
@@ -63,19 +63,78 @@ Una cama vendida en **$145 netos** (sin ITBMS) a un cliente nuevo que llegó con
   ($1.16), sin quitarle nada a Brian. La mamá de Isabela, si existe, no gana nada: es un solo nivel.
 - El cliente gana sus puntos de Socios aparte (155).
 - Si ese cliente vuelve dentro de 12 meses **sin decir el código**, Brian gana la mitad (290) y Isabela nada.
-- 10 primeras compras al mes = **5,800 puntos ($58)**. Una cama Full ($59.99) cuesta 6,419 puntos: unas
-  **12 ventas**. Es **ingreso complementario, no un sueldo**; así se le debe decir a la gente. Con los
-  números de la tienda, todo el programa reparte unos $390 nominales al mes si el 15 % de las ventas llegan
-  con código.
+- Eso es en el **escalón base** (4 %). 10 primeras compras al mes = **5,800 puntos ($58)**. Una cama Full ($59.99)
+  cuesta 6,419 puntos: unas **12 ventas**. En la base es un **ingreso complementario**, y así se le debe decir a la
+  gente; quien vende mucho y sostiene el ritmo sube por la escalera (siguiente sección). Con los números de la
+  tienda y solo la base, todo el programa reparte unos $390 nominales al mes si el 15 % de las ventas llegan con código.
 
-### Qué le cuesta a D'CASA
+## La escalera: de complemento a oficio (versión 5)
+
+La dueña pidió que un vendedor de tiempo completo pudiera llegar a unos **$700 al mes en puntos** sin quemar
+la utilidad de D'CASA. Con 4 % plano eso eran $17,500 netos al mes (121 ventas de $145: un tercio de todas las
+facturas de la tienda, unas 366 al mes), y el tope de $200 lo impedía de todos modos. La solución no fue empezar
+de nuevo: se dejó la base y se añadió una **escalera**. La tasa y el tope mensual suben según lo que el vendedor
+**vendió en los últimos 90 días** (comisiones directas pagadas y no anuladas):
+
+| Vendido en 90 días | Ganas por cada $1 | Tope del mes | Ventas de $145 al mes para sostenerlo |
+|---|---|---|---|
+| menos de $3,000 | 4 puntos (4 %) | 20,000 puntos ($200) | — |
+| $3,000 o más | 5 puntos (5 %) | 30,000 ($300) | ~7 |
+| $9,000 o más | 6.5 puntos (6.5 %) | 50,000 ($500) | ~21 |
+| $18,000 o más | 8 puntos (8 %) | 90,000 ($900) | ~42 |
+
+Se recalcula con cada venta y solo afecta ventas futuras. Quien deja de vender baja de escalón. El vendedor ve
+su nivel y cuánto le falta para subir en su panel (`/socios/vendedor`) y en los términos.
+
+**Cuánto gana** (clientes nuevos, ticket neto de $145, escalón ya alcanzado):
+
+| Ventas al mes | Ganas (puntos) | Equivale a |
+|---|---|---|
+| 14 | 10,150 | $102 |
+| 28 | 26,376 | $264 |
+| 41 | 38,622 | $386 |
+| **60 (~3 por día hábil)** | **69,600** | **$696** |
+| 69 | 80,040 | $800 |
+
+El escalón más alto se sostiene con unas 42 ventas al mes; los $700 llegan con unas 60. Llegar toma unos
+**3 meses de ritmo constante** (el primer mes casi nunca llega). Con 4 % plano, los mismos $700 serían 121 ventas.
+
+**El límite real es la demanda, no el programa.** 60 clientes nuevos al mes son el 16 % de las facturas que hoy
+hace toda la tienda: caben pocos vendedores así a la vez (2 o 3). Y quien solo trae recompras gana la mitad.
+
+### Qué le cuesta a D'CASA (y por qué se paga solo)
 
 Los puntos de vendedor se pagan **en mercancía que cuesta menos que su precio**, y solo cuando la venta ya
-se cobró y pasó la ventana de devoluciones. En el escenario esperado el programa consume cerca del **7 %
-de la ganancia** de lo vendido con código; en el peor caso razonable, cerca del **14 %**; el límite que se
-puso es 20 %. **Supuestos honestos:** solo hay un costo de producto cargado, así que se supone un margen de
-35 %; los premios solo pueden costar 65 % de su precio o menos. Hay que cargar los costos del catálogo y
-verificar que el margen de lo vendido con código sea 31 % o más (ver «Antes de subir a Fase 2»).
+se cobró y pasó la ventana de devoluciones. Costo real por escalón, **incluyendo los puntos de Socios del
+cliente** (1.07 % del neto) y suponiendo que un punto de vendedor cuesta 70 % de su valor nominal (el punto de
+la cama Full cuesta menos: costo $29.34 sobre precio $59.99):
+
+| Escalón | Costo real sobre la venta neta | % del margen (35 % supuesto) | % del margen (44.6 % medido en el inventario) | La venta con código tiene que ser nueva al menos... |
+|---|---|---|---|---|
+| 4 % | 3.9 % | 11 % | 9 % | 11 % (9 %) de las veces |
+| 5 % | 4.6 % | 13 % | 10 % | 13 % (10 %) |
+| 6.5 % | 5.6 % | 16 % | 13 % | 16 % (13 %) |
+| 8 % | 6.7 % | 19 % | 15 % | 19 % (15 %) |
+
+Ejemplo del escalón más alto con 60 ventas de $145 (**$8,700 vendidos**): se entregan $696 nominales en puntos,
+cuesta unos **$580 reales** (con los puntos de Socios del cliente) y a D'CASA le quedan unos **$2,500 a $3,300** de
+ganancia después de pagar el programa, según el margen sea 35 % o 44.6 %. Esas ventas no existirían sin el vendedor:
+**la regla es que el programa se paga si al menos una de cada cinco ventas con código es de alguien que no habría
+comprado**, y por eso a quien ya compraba se le paga la mitad. **Supuestos honestos:** solo hay un costo de
+producto cargado, así que se supone un margen de 35 % (el inventario sugiere 44.6 %); los premios solo pueden
+costar 65 % de su precio o menos. Hay que cargar los costos del catálogo y verificar que el margen de lo vendido
+con código sea 31 % o más.
+
+**Rango de mercado.** Lo que encontré: los vendedores de mueblería cobran 4 % a 8 % de la venta, hasta 10 % en gama alta,
+normalmente con sueldo base (fuente: página de carreras, no encuesta). La escalera cae dentro de ese rango.
+
+**Prometer poco.** En las ventas directas la mayoría gana muy poco (la FTC halló en 2024 que la gran mayoría gana $1,000
+al año o menos). La escalera se muestra tal cual; **no se promete un ingreso**.
+
+### Qué le cuesta a D'CASA en la base (escalón de 4 %)
+
+En el escenario esperado el programa consume cerca del **7 %
+de la ganancia** de lo vendido con código; en el peor caso razonable, cerca del **14 %**.
 
 ## Qué lo protege (por qué no se cae y no es pirámide)
 
@@ -121,28 +180,23 @@ ajustar puntos (los últimos, con confirmación y motivo).
   guardan la versión con que se calcularon.
 - **Una cifra en `null`** hace que el programa se niegue a acreditar (queda escrito «falta una cifra»).
 
-## Antes de subir de fase (5 % y 1 %)
+## Cómo se cuida la escalera (y cuándo se baja)
 
-No se sube nada hasta cumplir **todo** esto (el 4 % base no baja en los primeros 6 meses salvo alerta roja):
-
-1. Costos del catálogo cargados y margen de lo vendido con código **35 % o más**.
-2. **Incrementalidad 20 % o más** dos meses seguidos (que de lo vendido con código, la parte de clientes
-   nuevos sea esa).
-3. Devolución de lo vendido con código **3 % o menos**.
-4. Costo real del programa **menos de 10 %** de la ganancia atribuida.
-5. Revisión escrita del abogado y de la contadora, sin objeciones.
-
-Entonces: 5 % (solo para quien venda $2,000 netos o más en 90 días; en `puntos.json`, `escalones`), patrocinio
-1 %, hasta 5 directos, máximo 30,000 puntos al mes, freno 2 %. Siempre hacia adelante, nunca retroactivo.
+La escalera ya está encendida, pero se vigila cada mes. Si el semáforo se pone amarillo, se **baja un escalón o dos
+hacia adelante** (cambiar la cifra, subir la versión, desplegar; nunca retroactivo). Lo que más importa vigilar es la
+**incrementalidad**: el escalón de 8 % solo se paga solo si al menos 19 % de lo vendido con código es de clientes que no
+habrían comprado (15 % con el margen medido). Antes de la versión 5 se pedía además que los costos del catálogo estuvieran
+cargados, que el abogado y la contadora no tuvieran objeciones y que la incrementalidad fuera de 20 % o más; **esas
+condiciones siguen siendo la meta** y se revisan al medir, pero ya no son un candado para empezar con la escalera.
 
 ### Semáforo del programa
 
-| Qué mirar | Verde | Amarillo (volver a tasas de Fase 1, no afiliar más) | Rojo (congelar afiliaciones, revisar con abogado y contadora) |
+| Qué mirar | Verde | Amarillo (bajar la escalera, no afiliar más) | Rojo (congelar afiliaciones, revisar con abogado y contadora) |
 |---|---|---|---|
-| Costo sobre la ganancia atribuida | hasta 10 % | más de 12 % | más de 20 % |
-| Incrementalidad | 20 % o más | menos de 17 % dos meses | menos de 10 % dos meses |
+| Costo real sobre la ganancia atribuida | hasta 20 % | más de 20 % | más de 30 % |
+| Incrementalidad (parte de lo vendido con código que es de clientes nuevos) | 30 % o más | menos de 25 % dos meses | menos de 20 % dos meses |
 | Margen de lo atribuido | 35 % o más | entre 31 y 35 % (no se sube) | menos de 31 % |
-| Ventas con código sobre las facturas | menos de 20 % | 20 % | 30 % |
+| Ventas con código sobre las facturas | menos de 35 % | 35 % (el freno de 3 % corta cerca) | 50 % |
 | Devolución de ventas con código | hasta 3 % | más de 5 % | vendedor con más de 8 %: en revisión |
 | Pasivo de puntos sobre 90 días de venta | menos de 1 % | más de 3 % | más de 5 % |
 
@@ -183,15 +237,23 @@ contables separadas para los puntos y datos de costo cargados para al menos el 8
    si ella misma registra la venta), pero si otra persona registra la venta con el código de ella, sí paga.
    Lo más sano: empezar solo con vendedores de afuera y empleados que traen clientes de fuera de la tienda.
 2. **Encender el canje de externos** (`canje.externosHabilitado`) solo después del visto bueno del abogado.
-3. **Subir de fase** (5 %) solo con las condiciones de arriba.
+3. **Cómo se le paga a quien vive de esto.** Un vendedor de tiempo completo necesita efectivo, y con puntos solo en
+   mercancía tendría que revender para comer. Si trabaja a tiempo completo solo para D'CASA se parece mucho a un
+   empleado: el abogado y la contadora deben decir si va con **sueldo base más comisión** (como pagan las mueblerías)
+   o como **agente independiente con comisión en efectivo**. El interruptor de efectivo ya existe
+   (`canje.efectivoHabilitado`), apagado hasta ese dictamen.
+4. **Cuántos vendedores de tiempo completo.** 60 ventas nuevas al mes por vendedor son el 16 % de lo que vende hoy toda
+   la tienda: caben 2 o 3 a la vez. Más vendedores así piden más tráfico, y el freno de 3 % corta cerca de ahí.
 
 ## Lo que NO está hecho todavía (para no engañarnos)
 
 - Líneas con descuento manual mayor a 5 %, en promoción o de margen menor a 31 % **no se excluyen una a
   una**: la comisión sale del neto realmente cobrado (el descuento ya baja la base) y el techo por factura
   cuida el costo. Excluir por línea queda para cuando estén los costos cargados.
-- Los 20,000 puntos al mes por vendedor **recortan**; el excedente no queda en una cola de revisión: Gerencia
-  puede acreditarlo con *Ajustar puntos* y motivo.
+- El tope mensual por vendedor (20,000 en la base, hasta 90,000 en el escalón alto) **recorta**; el excedente no queda
+  en una cola de revisión: Gerencia puede acreditarlo con *Ajustar puntos* y motivo.
+- La escalera cuenta lo vendido en 90 días con **todas** las comisiones directas pagadas (también las de recompra, que
+  pagan la mitad): no distingue clientes nuevos de recompras para subir de escalón. Se puede afinar con datos.
 - No hay tope por colmena (40,000) ni la regla «80 % de las ventas de la colmena a no afiliados»; los reportes
   de comisiones permiten revisarlo a mano.
 - No hay alertas automáticas semanales; los reportes (pivotes) están, la revisión es de Gerencia.

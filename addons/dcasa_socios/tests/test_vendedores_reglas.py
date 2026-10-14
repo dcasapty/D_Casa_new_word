@@ -58,7 +58,7 @@ class TestReglasDeVendedores(BaseCase):
         a propósito: sube la versión y actualiza docs/VENDEDORES.md."""
         reales = R.cargar_reglas()
         self.assertEqual((RV.falta_para_comisionar(reales), RV.falta_para_patrocinar(reales)), ([], []))
-        self.assertGreaterEqual(reales['version'], 4)
+        self.assertGreaterEqual(reales['version'], 5)
         self.assertEqual(RV.comision_directa(14500, reales), 580)            # 4 % de $145 neto
         self.assertEqual(RV.comision_patrocinio(14500, reales), 116)         # 0.8 %: un quinto de la comisión
         self.assertEqual(RV.aplicar_factor_de_recompra(580, reales), 290)
@@ -72,11 +72,16 @@ class TestReglasDeVendedores(BaseCase):
         self.assertEqual((v['patrocinio']['ventasPropiasMinimasAlMes'],
                           v['patrocinio']['topeComoMultiploDeSuComisionDelMes']), (2, 1))
         self.assertEqual((v['techos']['porVendedorAlMesPuntos'], v['techos']['frenoGlobalPorcentajeDeLaVentaNeta']),
-                         (20000, 1.5))
-        self.assertEqual((v['canje']['puntosMinimosParaCanjear'], v['canje']['canjesPorVendedorAlMes']), (3000, 2))
+                         (20000, 3))
+        self.assertEqual((v['canje']['puntosMinimosParaCanjear'], v['canje']['canjesPorVendedorAlMes']), (3000, 4))
         self.assertIs(v['canje']['efectivoHabilitado'], False, 'Efectivo: no existe hasta el dictamen')
         self.assertIs(v['canje']['externosHabilitado'], False, 'Externos: esperan la revisión del abogado')
-        self.assertEqual(v['comision']['escalones'], [], 'Fase 1: tasa plana')
+        # La escalera (versión 5): 4 % → 5 % → 6.5 % → 8 % según lo vendido en 90 días, con tope mensual propio.
+        self.assertEqual([(e['desdeVentasNetasCentavos'], e['puntosPorDolarNeto'], e['topeAlMesPuntos'])
+                          for e in v['comision']['escalones']],
+                         [(300000, 5, 30000), (900000, 6.5, 50000), (1800000, 8, 90000)])
+        self.assertEqual(v['comision']['diasParaEscalon'], 90)
+        self.assertEqual(RV.problemas_de_la_escalera(reales), [])
         # El costo máximo de una primera compra normal cabe holgado bajo el techo por factura.
         self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 155, 14500, reales), (580, 116, False))
 
@@ -106,6 +111,73 @@ class TestReglasDeVendedores(BaseCase):
         self.assertEqual(RV.comision_directa(10000, reglas, 0), 400)
         self.assertEqual(RV.comision_directa(10000, reglas, 50000), 500)
         self.assertEqual(RV.comision_directa(10000, reglas, 999999), 600)
+
+    # --- La escalera (versión 5) --------------------------------------------------------------
+
+    def con_la_escalera_real(self):
+        """Las reglas de prueba con la escalera, el freno y el tope tal como están en ``puntos.json``."""
+        reales = RV.seccion(R.cargar_reglas())
+        return self.reglas(comision__escalones=copy.deepcopy(reales['comision']['escalones']),
+                           techos__porVendedorAlMesPuntos=reales['techos']['porVendedorAlMesPuntos'])
+
+    def test_la_escalera_sube_la_tasa_y_el_tope_con_lo_vendido(self):
+        reglas = self.con_la_escalera_real()
+        # (vendido en 90 días en centavos, puntos por dólar, tope del mes)
+        for vendido, tasa, tope in ((0, 4, 20000), (299999, 4, 20000), (300000, 5, 30000), (899999, 5, 30000),
+                                    (900000, 6.5, 50000), (1799999, 6.5, 50000), (1800000, 8, 90000),
+                                    (9999999, 8, 90000)):
+            with self.subTest(vendido):
+                self.assertEqual(RV.puntos_por_dolar_de_escalon(vendido, RV.seccion(reglas)['comision']), tasa)
+                self.assertEqual(RV.tope_al_mes_del_vendedor(vendido, reglas), tope)
+
+    def test_setecientos_dolares_al_mes_son_unas_60_ventas_en_el_escalon_alto(self):
+        """La meta de la dueña: un vendedor de tiempo completo llega a ~$700 en puntos con ~3 ventas por día hábil."""
+        reglas = self.con_la_escalera_real()
+        por_venta = RV.comision_directa(14500, reglas, 1800000)                  # $145 neto al 8 %
+        self.assertEqual(por_venta, 1160)
+        self.assertEqual(60 * por_venta, 69600)                                  # $696 nominales
+        self.assertGreaterEqual(RV.tope_al_mes_del_vendedor(1800000, reglas), 70000, 'El tope no frena los $700')
+        # Sin la escalera, el mismo trabajo no llegaba ni a la mitad: 4 % y tope de $200.
+        self.assertEqual(RV.tope_al_mes_del_vendedor(0, reglas), 20000)
+
+    def test_el_escalon_mas_alto_cabe_bajo_el_techo_de_la_venta(self):
+        """Cliente 155 + vendedor al 8 % + patrocinio: nada se recorta en una primera compra normal de $145."""
+        reglas = self.con_la_escalera_real()
+        reglas['vendedores']['techos']['totalPorVentaPorcentajeDelNeto'] = 8.75
+        reglas['vendedores']['techos']['pesoDelPuntoDeVendedor'] = 0.7
+        self.assertEqual(RV.repartir_bajo_el_techo(1160, 116, 155, 14500, reglas), (1160, 116, False))
+
+    def test_un_escalon_sin_tope_propio_usa_el_tope_base(self):
+        reglas = self.reglas(comision__escalones=[{'desdeVentasNetasCentavos': 50000, 'puntosPorDolarNeto': 5}],
+                             techos__porVendedorAlMesPuntos=20000)
+        self.assertEqual(RV.tope_al_mes_del_vendedor(50000, reglas), 20000)
+        reglas['vendedores']['techos']['porVendedorAlMesPuntos'] = None
+        self.assertIsNone(RV.tope_al_mes_del_vendedor(50000, reglas), 'Sin ninguna cifra: sin tope')
+
+    def test_el_nivel_dice_donde_esta_y_cuanto_falta(self):
+        reglas = self.con_la_escalera_real()
+        abajo = RV.nivel_del_vendedor(100000, reglas)
+        self.assertEqual((abajo['puntos_por_dolar'], abajo['tope_al_mes']), (4, 20000))
+        self.assertEqual(abajo['siguiente'], {'puntos_por_dolar': 5, 'falta_centavos': 200000})
+        medio = RV.nivel_del_vendedor(1000000, reglas)
+        self.assertEqual((medio['puntos_por_dolar'], medio['siguiente']['falta_centavos']), (6.5, 800000))
+        self.assertIsNone(RV.nivel_del_vendedor(1800000, reglas)['siguiente'], 'En el más alto no hay siguiente')
+        self.assertIsNone(RV.nivel_del_vendedor(5000, self.reglas()), 'Sin escalera no hay nivel que mostrar')
+
+    def test_una_escalera_incoherente_se_detecta(self):
+        base = {'puntosPorDolarNeto': 4}
+        casos = {
+            'umbral repetido': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 5},
+                                {'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 6}],
+            'no paga más': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 4}],
+            'el tope baja': [{'desdeVentasNetasCentavos': 100, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 10}],
+        }
+        for nombre, escalones in casos.items():
+            with self.subTest(nombre):
+                reglas = self.reglas(comision__escalones=escalones, techos__porVendedorAlMesPuntos=20000)
+                reglas['vendedores']['comision'].update(base)
+                self.assertTrue(RV.problemas_de_la_escalera(reglas), nombre)
+        self.assertEqual(RV.problemas_de_la_escalera(self.con_la_escalera_real()), [])
 
     def test_patrocinio_es_aparte_y_tambien_redondea_hacia_abajo(self):
         reglas = self.reglas(patrocinio__puntosPorDolarNetoDelDirecto=0.4)

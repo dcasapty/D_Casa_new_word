@@ -307,6 +307,7 @@ class ResPartner(models.Model):
         del_mes = Comision.search([('partner_id', '=', ficha.id), ('anulada_en', '=', False),
                                    ('registrada_en', '>=', inicio_mes)])
         return {
+            'nivel': RV.nivel_del_vendedor(Comision._ventas_netas_recientes(ficha, reglas), reglas),
             'codigo': ficha.dcasa_vendedor_codigo,
             'estado': ficha.dcasa_vendedor_estado,
             'saldo': ficha.dcasa_vend_saldo,

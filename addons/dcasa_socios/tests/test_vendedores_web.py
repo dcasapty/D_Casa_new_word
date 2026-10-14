@@ -40,6 +40,10 @@ class TestVendedoresWeb(HttpCase):
         self.ana._dcasa_guardar_pin(PIN)
         self.authenticate(None, None)
 
+    def texto(self, url):
+        """Lo que se lee en la página: sin etiquetas y con los espacios colapsados."""
+        return re.sub(r'\s+', ' ', re.sub(r'<[^>]+>', '', self.url_open(url).text))
+
     def csrf(self):
         return re.search(r'csrf_token: "([^"]+)"', self.url_open('/vendedores/terminos').text).group(1)
 
@@ -145,6 +149,29 @@ class TestVendedoresWeb(HttpCase):
         self.assertIn('un solo nivel', pagina.lower())
         self.assertIn('Ley 81 de 2019', pagina)
         self.assertNotIn('todavía no está encendido', pagina)
+
+    def test_los_terminos_ensenan_la_escalera_si_la_hay(self):
+        self.reglas['vendedores']['comision']['escalones'] = [
+            {'desdeVentasNetasCentavos': 300000, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 30000},
+            {'desdeVentasNetasCentavos': 1800000, 'puntosPorDolarNeto': 8, 'topeAlMesPuntos': 90000}]
+        pagina = self.texto('/vendedores/terminos')
+        self.assertIn('subes de escalón', pagina)
+        self.assertIn('Desde $3,000.00 vendidos: 5 puntos por cada dólar, y puedes ganar hasta 30,000 puntos al mes',
+                      pagina)
+        self.assertIn('Desde $18,000.00 vendidos: 8 puntos', pagina)
+        self.assertIn('si dejas de vender, vuelves a bajar', pagina)
+        self.reglas['vendedores']['comision']['escalones'] = []
+        self.assertNotIn('subes de escalón', self.texto('/vendedores/terminos'))
+
+    def test_el_panel_ensena_el_nivel_y_cuanto_falta_para_el_siguiente(self):
+        self.reglas['vendedores']['comision']['escalones'] = [
+            {'desdeVentasNetasCentavos': 300000, 'puntosPorDolarNeto': 5, 'topeAlMesPuntos': 30000}]
+        self.entrar()
+        pagina = self.texto('/socios/vendedor')
+        self.assertIn('Tu nivel', pagina)
+        self.assertIn('Te faltan $3,000.00 en ventas para ganar 5 puntos por cada $1', pagina)
+        self.reglas['vendedores']['comision']['escalones'] = []
+        self.assertNotIn('Tu nivel', self.url_open('/socios/vendedor').text)
 
     def test_los_terminos_avisan_si_el_programa_esta_apagado(self):
         self.reglas['vendedores']['programaActivo'] = False

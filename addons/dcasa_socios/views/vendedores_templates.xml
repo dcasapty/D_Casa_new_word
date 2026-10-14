@@ -39,6 +39,23 @@
                         </div>
                     </div>
 
+                    <div t-if="resumen.get('nivel')" class="o_dcasa_socios_card mt-4">
+                        <h2 class="h5">Tu nivel</h2>
+                        <t t-set="nivel" t-value="resumen['nivel']"/>
+                        <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
+                            <li class="d-flex justify-content-between"><span>Ganas por cada $1 vendido</span>
+                                <strong><t t-out="'%g' % nivel['puntos_por_dolar']"/> puntos</strong></li>
+                            <li class="d-flex justify-content-between"><span>Vendido en los últimos 90 días</span>
+                                <strong t-out="fmt_dolares(nivel['ventas_centavos'])"/></li>
+                            <li t-if="nivel['tope_al_mes']" class="d-flex justify-content-between"><span>Puedes ganar este mes hasta</span>
+                                <strong><t t-out="fmt_puntos(nivel['tope_al_mes'])"/> puntos</strong></li>
+                        </ul>
+                        <p t-if="nivel['siguiente']" class="small mt-2 mb-0">Te faltan
+                            <strong t-out="fmt_dolares(nivel['siguiente']['falta_centavos'])"/> en ventas para ganar
+                            <strong><t t-out="'%g' % nivel['siguiente']['puntos_por_dolar']"/> puntos</strong> por cada $1.</p>
+                        <p t-else="" class="small mt-2 mb-0">Estás en el nivel más alto. Se mantiene mientras sigas vendiendo.</p>
+                    </div>
+
                     <div class="o_dcasa_socios_card mt-4">
                         <h2 class="h5">Este mes</h2>
                         <ul class="list-unstyled mb-0 o_dcasa_socios_lista">
@@ -161,6 +178,20 @@
                     dólar de venta (sin ITBMS y ya con los descuentos) de quien compra con tu código<t
                         t-if="com.get('pagaEn') == 'primera-compra'">, solo en su primera compra</t><t
                         t-elif="com.get('pagaEn') == 'cada-compra'">, en cada compra</t>.</p>
+                <t t-set="escalones" t-value="com.get('escalones') or []"/>
+                <t t-if="escalones">
+                    <p>Esa es tu base. Cuanto más vendes, más ganas: según lo que hayas vendido en los últimos
+                        <t t-out="com.get('diasParaEscalon') or 90"/> días subes de escalón.</p>
+                    <ul>
+                        <li t-foreach="escalones" t-as="escalon">Desde
+                            <strong t-out="fmt_dolares(escalon['desdeVentasNetasCentavos'])"/> vendidos:
+                            <strong><t t-out="'%g' % escalon['puntosPorDolarNeto']"/> puntos</strong> por cada dólar<t
+                                t-if="escalon.get('topeAlMesPuntos')">, y puedes ganar hasta
+                                <t t-out="fmt_puntos(escalon['topeAlMesPuntos'])"/> puntos al mes</t>.</li>
+                    </ul>
+                    <p>El escalón se recalcula con cada venta: si dejas de vender, vuelves a bajar. Subir de escalón
+                        solo afecta las ventas que vengan después, nunca las anteriores.</p>
+                </t>
                 <p t-if="com.get('compraMinimaCentavos')">Las ventas de menos de
                     <t t-out="fmt_dolares(com['compraMinimaCentavos'])"/> no suman.</p>
                 <p t-if="vin.get('meses')">El cliente queda ligado a ti por <t t-out="vin['meses']"/> meses: sus compras
@@ -197,7 +228,8 @@
                     <t t-out="'%g' % tec['frenoGlobalPorcentajeDeLaVentaNeta']"/>% de lo vendido en la tienda en esos
                     mismos 30 días. Si se llegara a ese límite, las comisiones nuevas se recortan hasta que baje.</p>
                 <p t-if="tec.get('porVendedorAlMesPuntos')">Hay un tope de
-                    <t t-out="fmt_puntos(tec['porVendedorAlMesPuntos'])"/> puntos ganados por mes.</p>
+                    <t t-out="fmt_puntos(tec['porVendedorAlMesPuntos'])"/> puntos ganados por mes<t
+                        t-if="escalones"> mientras estás en el escalón base; los escalones de arriba lo suben</t>.</p>
                 <h2>En qué los cambias</h2>
                 <p>Por ahora solo por mercancía del catálogo de premios para vendedores. No se cambian por efectivo,
                     no se transfieren y no se heredan.<t t-if="can.get('puntosMinimosParaCanjear')"> El canje mínimo es de

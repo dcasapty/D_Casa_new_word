@@ -63,6 +63,7 @@ Reglas de DCasa-Referidos (Abrinay), no negociables:
 3. Nada se paga por afiliar ni por reclutar; solo por ventas **pagadas**; un solo nivel; un solo patrocinador (se escribe una vez).
 4. Un tope o un error del programa **nunca** hace fallar una venta (la comisión corre en un savepoint tras el pago).
 5. Canje de externos y efectivo apagados hasta dictamen del abogado y la contadora (`canje.externosHabilitado`, `efectivoHabilitado`).
+6. La escalera de comisión (`comision.escalones`: tasa y tope mensual por lo vendido en 90 días) solo se cambia hacia adelante, subiendo la `version` de `puntos.json`; nunca retroactiva.
 
 ## Datos reales de la empresa
 
