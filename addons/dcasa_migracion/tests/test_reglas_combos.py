@@ -79,6 +79,15 @@ class TestLecturaDeCombosCsv(BaseCase):
         self.assertEqual([[o['codigo'] for o in g['opciones']] for g in combos[0]['grupos']],
                          [['COL-1', 'COL-2'], ['ALM-1', 'ALM-2']])
 
+    def test_filas_seguidas_con_la_marca_son_un_grupo_y_una_pieza_fija_en_medio_lo_parte(self):
+        (combo,), errores = RC.filas_combos(_csv(
+            'CB-8,COMBO,100,A,COL UNO [opción],1,0', 'CB-8,,,B,COL DOS [opción],1,15',
+            'CB-8,,,C,CAMA FIJA,1,0',
+            'CB-8,,,D,ALMOHADA UNO [opción],1,0', 'CB-8,,,E,ALMOHADA DOS [opción],1,0'))
+        self.assertEqual(errores, [])
+        self.assertEqual([[o['codigo'] for o in g['opciones']] for g in combo['grupos']],
+                         [['A', 'B'], ['C'], ['D', 'E']])
+
     def test_un_combo_sin_piezas_se_lista_pero_no_tiene_grupos(self):
         combos, errores = RC.filas_combos(_csv('CB-6,COMBO VACIO,99,,,,'))
         self.assertEqual(errores, [])
@@ -136,6 +145,12 @@ class TestLecturaDeNombres(BaseCase):
                 analisis = RC.analizar_nombre(nombre)
                 self.assertTrue(analisis['ok'])
                 self.assertEqual(analisis['marca'], marca)
+
+    def test_un_error_de_dedo_en_la_palabra_colchon_se_entiende(self):
+        analisis = RC.analizar_nombre('COMBO CAMA FELPA KING WHITE HK-HK-BF-022-N-K-1-W + CPLCHON FIRST CLASS')
+        self.assertTrue(analisis['ok'])
+        self.assertEqual((analisis['marca'], analisis['tamano']), ('first class', 'king'))
+        self.assertTrue(RC.analizar_nombre('COMBO CAMA KING COLOR BEIGE 811KBE+ COLCHON FIRST CLASS')['ok'])
 
     def test_varios_colchones_y_box_spring(self):
         a = RC.analizar_nombre('COMBO CAMAROTE TRIPLE 3 TWIN W160969418 + 3 COLCHONES IMPERIAL')
