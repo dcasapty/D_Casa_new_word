@@ -22,6 +22,7 @@ from . import (
     test_horario,
     test_panel,
     test_panel_catalogo,
+    test_panel_disposicion,
     test_panel_extra,
     test_panel_interfaz,
     test_panel_juan,

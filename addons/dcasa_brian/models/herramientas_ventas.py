@@ -1,5 +1,6 @@
 """Herramientas de ventas: reporte del día, resúmenes, cotizaciones y ventas."""
 from odoo import api, models
+from odoo.exceptions import UserError
 
 from . import herramientas_comun as c
 from .registro import BrianError, herramienta
@@ -44,6 +45,15 @@ class BrianHerramientasVentas(models.AbstractModel):
             raise BrianError('La cantidad tiene que ser mayor que cero.')
         if precio is not None and precio < 0:
             raise BrianError('El precio no puede ser negativo.')
+        if producto.type == 'combo':
+            # Un combo lleva una línea por cada pieza (la cama, el colchón…) y su precio no se cambia a mano.
+            if precio is not None:
+                raise BrianError(f'«{producto.display_name}» es un combo: su precio no se cambia a mano. '
+                                 'Si hay rebaja, se da como descuento en Ventas.')
+            try:
+                return orden._dcasa_agregar_producto(producto, cantidad or 1)
+            except UserError as error:
+                raise BrianError(f'{error} Agrégalo desde Ventas, donde se escogen las piezas.') from error
         valores = {'order_id': orden.id, 'product_id': producto.id, 'product_uom_qty': cantidad or 1}
         linea = self.env['sale.order.line'].create(valores)
         if precio is not None:

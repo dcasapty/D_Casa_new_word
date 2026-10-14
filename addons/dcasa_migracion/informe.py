@@ -257,11 +257,101 @@ def _seccion_historial(historial, ensayo):
     return Markup('').join(secciones)
 
 
+LIMITE_COMBOS = 120
+
+
+def _combo_con_motivo(item):
+    return Markup('%s — %s') % (item[0], item[1])
+
+
+def _seccion_combos(resumen):
+    """Los combos de combos.csv (tipo Combo de Odoo)."""
+    cabecera = Markup('').join([
+        _linea('Combos nuevos', len(resumen['creados'])),
+        _linea('Ya existían y pasaron a tipo Combo (conservan su nombre, precio e historial)',
+               len(resumen['convertidos'])),
+        _linea('Ya estaban con esas mismas piezas (no se tocan)', len(resumen['ya_estaban'])),
+        _linea('Ya eran combos con OTRAS piezas (no se pisan)', len(resumen['otra_estructura'])),
+        _linea('Sin piezas en el archivo (no se cargan)', len(resumen['sin_piezas'])),
+        _linea('Archivados en el sistema anterior (no se cargan)', len(resumen['archivados'])),
+        _linea('Auxiliares «X COLCHÓN … PARA COMBO» (no se cargan, a propósito)', len(resumen['omitidos'])),
+        _linea('Necesitan revisión (no se tocaron)', len(resumen['necesitan_revision'])),
+        _linea('No se pudieron cargar', len(resumen['con_error'])),
+        _linea('No coinciden con su nombre (se cargaron como dice el archivo: revisar)',
+               len(resumen['no_coinciden'])),
+    ])
+    listas = Markup('').join([
+        _titulo_lista('No coincide con el nombre: el combo dice una cosa y sus piezas son otras (se cargó tal cual '
+                      'viene en el archivo)', resumen['no_coinciden'], _combo_con_motivo),
+        _titulo_lista('Necesitan revisión: no se convirtieron', resumen['necesitan_revision'], _combo_con_motivo),
+        _titulo_lista('No se pudieron cargar (lo que falta en el catálogo no se inventa)', resumen['con_error'],
+                      _combo_con_motivo),
+        _titulo_lista('Ya eran combos con otras piezas (el archivo dice otra cosa: se respetó lo que hay)',
+                      resumen['otra_estructura'], escape),
+        _titulo_lista('El archivo no dice qué piezas lleva', resumen['sin_piezas'], escape),
+        _titulo_lista('Archivados en el sistema anterior', resumen['archivados'], escape),
+        _titulo_lista('Auxiliares que no se cargan', resumen['omitidos'], escape),
+        _titulo_lista('Precio del archivo distinto al de aquí (no se cambió; la casilla «También cambiar precio» '
+                      'lo cambia)', resumen['precio_distinto'],
+                      lambda e: Markup('%s — archivo $%s, aquí $%s') % (e[0], f'{e[1]:,.2f}', f'{e[2]:,.2f}')),
+        _titulo_lista('Se les puso el código del archivo (no tenían)', resumen['codigo_puesto'], escape),
+        _titulo_lista('Revisar el precio', resumen['avisos_de_precio'], _combo_con_motivo),
+    ])
+    return Markup('<h4>Combos de cama y colchón (combos.csv)</h4><ul>%s</ul>%s') % (cabecera, listas)
+
+
+def _titulo_lista(titulo, items, formato):
+    if not items:
+        return Markup('')
+    return Markup('<p><b>%s</b> (%s)</p>%s') % (titulo, len(items), _lista(items, formato, LIMITE_COMBOS))
+
+
+def _opciones(item):
+    return Markup('<br/>').join(Markup('<i>%s:</i> %s') % (rol, texto) for rol, texto in item[2])
+
+
+def _combo_con_opciones(item):
+    return Markup('<b>%s</b> — %s%s') % (item[0], item[1], Markup('<br/>%s') % _opciones(item) if item[2] else '')
+
+
+def _seccion_combos_nombre(resumen):
+    """«Armar los combos desde su nombre»: claros (se cargan), dudosos y sin resolver (solo se listan)."""
+    cabecera = Markup('').join([
+        _linea('Claros: armados (un solo producto posible para su cama y su colchón)', len(resumen['cargados'])),
+        _linea('Dudosos: varios productos posibles o una suposición (NO se cargan: decide la dueña)',
+               len(resumen['dudosos'])),
+        _linea('Sin resolver: no se encontró su cama o su colchón (NO se cargan)', len(resumen['sin_resolver'])),
+        _linea('Necesitan revisión (no se tocaron)', len(resumen['necesitan_revision'])),
+        _linea('No se pudieron armar', len(resumen['con_error'])),
+        _linea('Ya eran tipo Combo (no se tocan)', len(resumen['ya_estaban'])),
+        _linea('Ya eran combos pero sus piezas no coinciden con su nombre (revisar)', len(resumen['no_coinciden'])),
+    ])
+    listas = Markup('').join([
+        _titulo_lista('No coincide con el nombre: ya eran combos y sus piezas contradicen su nombre',
+                      resumen['no_coinciden'], _combo_con_motivo),
+        _titulo_lista('Dudosos: escoge cuál es y dímelo, o arma el combo a mano', resumen['dudosos'],
+                      _combo_con_opciones),
+        _titulo_lista('Sin resolver', resumen['sin_resolver'], _combo_con_opciones),
+        _titulo_lista('Necesitan revisión: no se convirtieron', resumen['necesitan_revision'], _combo_con_motivo),
+        _titulo_lista('No se pudieron armar', resumen['con_error'], _combo_con_motivo),
+        _titulo_lista('Revisar el precio', resumen['avisos_de_precio'], _combo_con_motivo),
+        _titulo_lista(
+            'Armados con un producto que tiene otro igual en el catálogo (revisa que sea el correcto)',
+            resumen['con_alternativa'],
+            lambda a: Markup('%s — %s (en %s combos).<br/>%s') % (
+                a[0], a[1], a[3], Markup('<br/>').join(Markup('Otro igual: %s') % otra for otra in a[2]))),
+        _titulo_lista('Armados', resumen['cargados'],
+                      lambda c: Markup('<b>%s</b><br/>Cama: %s<br/>Colchón: %s') % (c[0], c[1], c[2])),
+    ])
+    return Markup('<h4>Combos armados desde su nombre</h4><ul>%s</ul>%s') % (cabecera, listas)
+
+
 def informe_html(ensayo, clientes=None, catalogo=None, avisos=None, con_existencias=True, segundos=None,
                  proveedores=None, precios=None, ventas=None, entregas=None, compras_por_recibir=None,
-                 compras_por_facturar=None, historial=None):
+                 compras_por_facturar=None, historial=None, combos=None, combos_nombre=None):
     """El HTML del informe. ``clientes`` y ``proveedores`` son los resúmenes de ``cargar_contactos``; ``catalogo``
-    y ``avisos`` los de ``cargar_catalogo``; ``precios`` el de ``cargar_precios_proveedor``; ``ventas``,
+    y ``avisos`` los de ``cargar_catalogo``; ``precios`` el de ``cargar_precios_proveedor``; ``combos`` el de
+    ``combos.cargar_combos`` y ``combos_nombre`` el de ``combos.armar_desde_nombre``; ``ventas``,
     ``compras_por_recibir`` y ``compras_por_facturar`` los de ``documentos`` y ``entregas`` la lista de
     ``documentos.entregas_pendientes``; ``historial`` el de ``historial.cargar_historial``. Lo que no se subió no
     aparece."""
@@ -271,25 +361,18 @@ def informe_html(ensayo, clientes=None, catalogo=None, avisos=None, con_existenc
     else:
         titulo = Markup('<div class="alert alert-success"><b>CARGA HECHA.</b> Esto fue lo que pasó. '
                         'Volver a cargar el mismo archivo no repite nada.</div>')
-    secciones = [titulo]
-    if clientes is not None:
-        secciones.append(_seccion_contactos('Clientes', clientes))
-    if proveedores is not None:
-        secciones.append(_seccion_contactos('Proveedores', proveedores))
-    if catalogo is not None:
-        secciones.append(_seccion_catalogo(catalogo, avisos, con_existencias))
-    if precios is not None:
-        secciones.append(_seccion_precios(precios))
-    if ventas is not None:
-        secciones.append(_seccion_ventas(ventas))
-    if entregas:
-        secciones.append(_seccion_entregas(entregas))
-    if compras_por_recibir is not None:
-        secciones.append(_seccion_compras_por_recibir(compras_por_recibir))
-    if compras_por_facturar is not None:
-        secciones.append(_seccion_compras_por_facturar(compras_por_facturar))
-    if historial is not None:
-        secciones.append(_seccion_historial(historial, ensayo))
-    if segundos is not None:
-        secciones.append(Markup('<p><i>Tardó %s segundos.</i></p>') % round(segundos))
+    secciones = [titulo] + [armar() for hay, armar in (
+        (clientes is not None, lambda: _seccion_contactos('Clientes', clientes)),
+        (proveedores is not None, lambda: _seccion_contactos('Proveedores', proveedores)),
+        (catalogo is not None, lambda: _seccion_catalogo(catalogo, avisos, con_existencias)),
+        (precios is not None, lambda: _seccion_precios(precios)),
+        (combos is not None, lambda: _seccion_combos(combos)),
+        (combos_nombre is not None, lambda: _seccion_combos_nombre(combos_nombre)),
+        (ventas is not None, lambda: _seccion_ventas(ventas)),
+        (bool(entregas), lambda: _seccion_entregas(entregas)),
+        (compras_por_recibir is not None, lambda: _seccion_compras_por_recibir(compras_por_recibir)),
+        (compras_por_facturar is not None, lambda: _seccion_compras_por_facturar(compras_por_facturar)),
+        (historial is not None, lambda: _seccion_historial(historial, ensayo)),
+        (segundos is not None, lambda: Markup('<p><i>Tardó %s segundos.</i></p>') % round(segundos)),
+    ) if hay]
     return Markup('').join(secciones)

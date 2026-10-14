@@ -4,8 +4,11 @@ Un programa **aparte de Socios**, hecho para quien vende por su cuenta: empleado
 afuera. El cliente sigue ganando sus puntos de Socios como siempre; el vendedor gana **otros puntos, más
 altos**, cuando alguien compra con su código. Los puntos de vendedor se cambian por **mercancía**.
 
-> Las cifras viven en [`puntos.json`](../addons/dcasa_socios/data/puntos.json) (sección `vendedores`,
-> versión 5). Este documento explica qué significan. Si algo no cuadra, manda `puntos.json`.
+> Las cifras de fábrica viven en [`puntos.json`](../addons/dcasa_socios/data/puntos.json) (sección `vendedores`,
+> versión 5). Gerencia puede **ajustarlas desde Ajustes** sin programador (ver «Ajustar las cifras desde Ajustes»):
+> el ajuste va encima de la fábrica, con versión y fecha, y solo rige hacia adelante. Este documento explica qué
+> significan las cifras de fábrica. Si algo no cuadra, manda lo que dice Ajustes › Programa de vendedores (que
+> arranca igual a `puntos.json` hasta que alguien lo cambie).
 
 ## En una frase
 
@@ -163,27 +166,140 @@ de la ganancia** de lo vendido con código; en el peor caso razonable, cerca del
 ## Dónde se ve en Odoo
 
 Menú **Socios**: *Vendedores* (lista y afiliación), *Comisiones* (cada comisión con su motivo: pagada,
-recortada, o por qué no se pagó), *Canjes de vendedores* (entregar/cancelar), *Libro de vendedores*.
+recortada, o por qué no se pagó, y con qué versión de las reglas se pagó), *Canjes de vendedores*
+(entregar/cancelar), *Libro de vendedores* y *Historial de reglas* (solo Gerencia: quién cambió qué y cuándo).
 En **Reportes**: *Costo del programa de vendedores* y *Pasivo de vendedores*. En **Configuración**:
-*Premios para vendedores* (se crean con su costo real; no pueden pedir menos puntos de lo que cuestan).
+*Ajustes del programa de vendedores* (las cifras, ver abajo) y *Premios para vendedores* (se crean con su costo
+real; no pueden pedir menos puntos de lo que cuestan).
 
 Brian entiende: consultar un vendedor, resumen del programa (Gerencia), afiliar, suspender, reactivar y
 ajustar puntos (los últimos, con confirmación y motivo).
 
+## Ajustar las cifras desde Ajustes
+
+La dueña (y Gerencia) cambia los porcentajes y demás cifras **sin programador y sin despliegue**. `puntos.json` sigue
+siendo la **fábrica**: lo que dice ahí rige mientras nadie ajuste nada, y nunca se pierde ni se edita desde la pantalla.
+Los ajustes son una **capa encima**.
+
+### Cómo se usa (paso a paso)
+
+1. Entra a **Socios › Configuración › Ajustes del programa de vendedores** (Gerencia). Los administradores del sistema
+   también lo ven en **Ajustes › Programa de vendedores**: es exactamente lo mismo.
+2. Arriba ves **qué reglas rigen ahora** (fábrica o la versión tal, desde qué día y quién la guardó).
+3. Cambia lo que quieras. Las cifras vienen en palabras sencillas: **porcentajes**, **dólares** (los topes y mínimos de
+   puntos también van en dólares; el sistema los pasa a puntos con «100 puntos = $1») y **días/meses**.
+4. Mientras escribes, el cuadro **«Lo que cuesta y lo que vas a cambiar»** se actualiza solo y te dice:
+   - *«Con estas cifras el programa cuesta hasta X % de la venta neta»*: la venta que más cuesta (cliente nuevo, en el
+     escalón más alto, con patrocinio y con los puntos que gana el cliente). Es (comisión más alta + patrocinio) × 0.7
+     (lo que de verdad cuesta un punto de vendedor, ver `pesoDelPuntoDeVendedor`) + los puntos de Socios del cliente.
+     Con las cifras de fábrica: 7.23 %. (La tabla de más arriba no suma el patrocinio, por eso allí el escalón más alto
+     sale 6.7 % y 19 %; la pantalla cuenta el peor caso.)
+   - *«Para que se pague solo, al menos Y % de lo vendido con código tiene que ser de clientes que no habrían
+     comprado»*: es el punto de equilibrio, costo ÷ ganancia supuesta (35 %, `techos.margenBrutoSupuestoPorcentaje`).
+     Con las cifras de fábrica: 20.7 %.
+   - **Lo que no se puede guardar todavía** (en rojo), con lo que hay que corregir.
+   - **Lo que vas a cambiar**, con el valor de antes y el de ahora.
+5. Si quieres, escribe el **motivo** (queda en el historial) y pulsa **Guardar**. Si algo no cumple los límites, **no
+   se guarda nada** y el mensaje dice qué corregir. Si todo está bien, nace una **versión nueva**.
+6. **Volver a los valores de fábrica**: botón en la misma pantalla. Crea una versión nueva igual a `puntos.json`; no
+   borra nada del historial.
+
+### Qué se puede ajustar
+
+| Bloque | Cifras |
+|---|---|
+| **Programa** | Encendido / apagado. Motivo del cambio. |
+| **Comisión y escalera** | Comisión base (%); la escalera (hasta 5 escalones: cuánto hay que vender, cuánto gana y su tope del mes) y el tope del mes del escalón base; días que se miran para el escalón; venta mínima que da comisión; cuánto paga la recompra de su cliente y el cliente que ya compraba (% de la comisión); meses que el cliente queda ligado al vendedor |
+| **Patrocinio** | Patrocinio (%); vendedores que puede patrocinar cada uno; clientes que debe atender el patrocinador en el mes; tope del patrocinio (veces su comisión propia del mes); tope de patrocinio al mes (en dólares, 0 = sin tope) |
+| **Retención** | Días de espera antes de poder canjear; cuántas primeras ventas esperan más y cuántos días |
+| **Límites de seguridad** | Techo de costo por venta (%); freno de todo el programa (%) |
+| **Canjes** | Canje mínimo (en dólares); horas que dura el código; canjes por vendedor al mes |
+
+**Lo que NO se ajusta desde Ajustes** (cambia solo con el programador, en `puntos.json`, subiendo la versión):
+
+- **Canje de externos y canje en efectivo**: la pantalla los muestra apagados, de solo lectura, con la nota *«Apagado
+  hasta el dictamen del abogado y la contadora»*. El servidor los ignora aunque alguien intente mandarlos.
+- Lo antifraude y el diseño: nada por reclutar, compras dentro de la colmena, patrocinio solo de clientes nuevos,
+  cuándo paga la comisión, base de cálculo, el peso del punto de vendedor (70 %) y el margen supuesto (35 %).
+- Todo lo de Socios (puntos del cliente, referidos, cumpleaños, 100 puntos = $1).
+
+### Límites duros (lo que nunca se deja guardar)
+
+Los **límites de negocio** salen de las propias cifras del programa; los de **sentido común** (contra un cero de más)
+están en `models/reglas_ajustes.py` (`CAMPOS`).
+
+| Qué | Límite |
+|---|---|
+| Cualquier comisión (base o de escalón) | Mayor que 0, nunca por encima del **techo por venta** |
+| Patrocinio | No mayor que la comisión base |
+| Una sola venta | (comisión más alta + patrocinio) × 0.7 + puntos del cliente **no puede pasar del techo por venta** |
+| Techo por venta | Mayor que 0 y no mayor que la **ganancia supuesta** (35 %) |
+| Freno de todo el programa | Mayor que 0, no mayor que el techo por venta |
+| La escalera | Cada escalón empieza más arriba que el anterior, paga más y tiene un tope igual o mayor; máximo 5; un escalón a medias no se guarda (déjalo todo en 0 para no usarlo) |
+| Porcentajes | Entre 0 y 100 |
+| Días de la escalera | 1 a 365 |
+| Días de espera / de las primeras ventas | 0 a 365; las primeras ventas no esperan menos que las demás |
+| Meses de vínculo | 0 a 60 (0 = el cliente no se liga) |
+| Vendedores por patrocinador | 1 a 5 (el máximo absoluto de `puntos.json`) |
+| Horas del código / canjes al mes | 1 a 720 / 1 a 100 |
+| Dólares | Venta y canje mínimos hasta $1,000; topes del mes hasta $10,000; lo que hay que vender para un escalón hasta $1,000,000 |
+| Siempre | Enteros donde van enteros; nada negativo; una cifra que falta en `puntos.json` se dice, no se rellena a ojo |
+
+### Solo hacia adelante (la regla de oro)
+
+- Cada cambio guardado es una **versión nueva** (`dcasa.vend.reglas`) con **fecha-hora de vigencia**: rige desde que se
+  guarda, nunca antes (el sistema rechaza una fecha pasada).
+- **Lo ya acreditado no se recalcula jamás**: las comisiones guardan lo que pagaron, la versión de `puntos.json` y el
+  número del ajuste con que se pagaron (campo «Ajuste de Gerencia» de la comisión); el libro de puntos es inmutable y
+  no se toca; la ventana de devoluciones ya quedó escrita en cada asiento.
+- Una venta usa las reglas que rigen **cuando se paga la factura**.
+- **Los meses del vínculo cliente-vendedor**: un cambio vale para los clientes que se liguen después; los que ya estaban
+  ligados conservan el plazo con que se ligaron.
+- Una cifra que Gerencia deja igual a la de fábrica deja de ser un ajuste: vuelve a seguir a `puntos.json`. Los
+  ajustes se acumulan: cada versión dice todo lo que está cambiado frente a la fábrica.
+- Si dos personas tienen la pantalla abierta a la vez, la segunda que guarda recibe un aviso y no pisa el cambio de la
+  primera. Si `puntos.json` sube de versión después de un ajuste, la pantalla avisa.
+
+### El historial
+
+**Socios › Historial de reglas** (solo Gerencia y administradores, solo lectura): una fila por cambio, con la fecha
+desde la que rige, quién lo guardó, el motivo, y por cada cifra el valor de **antes → ahora**. No se edita ni se
+borra: un error se corrige guardando otro cambio, y *Volver a los valores de fábrica* es otro cambio más.
+
+### Qué ve el vendedor
+
+El panel del vendedor y la página de términos (`/vendedores/terminos`) leen las **mismas reglas que se pagan** (fábrica
+más ajustes vigentes), y al pie de los términos dicen con qué versión están. Lo que el vendedor lee coincide con lo que
+se le paga.
+
+### Permisos y seguridad
+
+- Solo **Gerencia** (`dcasa_base.group_gerencia`) y los **administradores** del sistema leen y cambian los ajustes y el
+  historial; una vendedora ni lo ve en el menú ni lo abre por ninguna otra puerta. El servidor vuelve a comprobar el
+  permiso antes de leer o escribir; nada que venga del navegador es de confianza (se vuelve a convertir y a validar
+  todo en el servidor).
+- Gerencia no entra a Ajustes de Odoo (ahí hay mucho más que esto): tiene su propia pantalla igual (Socios ›
+  Configuración). El bloque dentro de Ajustes es para administradores.
+- Si leer los ajustes fallara (una fila dañada), **la venta se cobra igual**: rige la versión anterior o la fábrica y
+  queda escrito en el registro.
+
 ## Interruptores y cómo cambiar las reglas
 
-- **Apagar todo:** `vendedores.programaActivo: false`. No se acredita nada y las ventas siguen igual.
+- **Apagar todo:** Ajustes › Programa de vendedores › *Programa encendido* (o `vendedores.programaActivo: false` en la
+  fábrica). No se acredita nada y las ventas siguen igual.
 - **Canje de externos: APAGADO** (`canje.externosHabilitado: false`). Los puntos de un externo **sí se
   acumulan y no se pierden**, pero no pueden canjear hasta que el abogado revise el contrato. Los empleados
-  sí canjean. Cuando llegue el visto bueno: cambiar a `true`, subir la versión y desplegar.
-- **Cambiar una cifra:** se edita `puntos.json`, se sube la `version` y se despliega. Las comisiones viejas
-  guardan la versión con que se calcularon.
+  sí canjean. Cuando llegue el visto bueno: lo cambia el programador a `true` en `puntos.json`, sube la versión y
+  despliega (no se enciende desde Ajustes).
+- **Cambiar una cifra de rutina:** desde Ajustes (arriba). **Cambiar la fábrica:** se edita `puntos.json`, se sube la
+  `version` y se despliega. Las comisiones viejas guardan la versión con que se calcularon.
 - **Una cifra en `null`** hace que el programa se niegue a acreditar (queda escrito «falta una cifra»).
 
 ## Cómo se cuida la escalera (y cuándo se baja)
 
 La escalera ya está encendida, pero se vigila cada mes. Si el semáforo se pone amarillo, se **baja un escalón o dos
-hacia adelante** (cambiar la cifra, subir la versión, desplegar; nunca retroactivo). Lo que más importa vigilar es la
+hacia adelante** (desde Ajustes › Programa de vendedores, o en la fábrica subiendo la versión y desplegando; nunca
+retroactivo). Lo que más importa vigilar es la
 **incrementalidad**: el escalón de 8 % solo se paga solo si al menos 19 % de lo vendido con código es de clientes que no
 habrían comprado (15 % con el margen medido). Antes de la versión 5 se pedía además que los costos del catálogo estuvieran
 cargados, que el abogado y la contadora no tuvieran objeciones y que la incrementalidad fuera de 20 % o más; **esas
@@ -259,6 +375,8 @@ contables separadas para los puntos y datos de costo cargados para al menos el 8
 - No hay alertas automáticas semanales; los reportes (pivotes) están, la revisión es de Gerencia.
 - El canje de más de 20,000 puntos no pide aprobación aparte (se entrega en caja, donde Gerencia puede frenarlo).
 - No hay vencimiento de puntos (queda para después de la revisión legal).
+- La herramienta de Brian `resumen_programa_vendedores` todavía lee la fábrica (`puntos.json`) para decir si el programa
+  está encendido: debe leer las reglas vigentes (`dcasa.vend.reglas._vigentes()`), porque desde Ajustes se puede apagar.
 - La ventana de 30 días cuenta desde el pago; la regla «o la entrega confirmada» no está.
 - La investigación de mercado se hizo con búsqueda web (sin poder abrir páginas completas) y un modelo
   numérico propio con datos reales de la tienda; es una base seria, no un estudio auditado.
@@ -273,7 +391,13 @@ contables separadas para los puntos y datos de costo cargados para al menos el 8
   registra y **nunca** impide el cobro.
 - Ficha única: el vendedor es el mismo `res.partner` que el cliente y el socio (llave = celular). Campos
   `dcasa_vendedor_*` y `dcasa_vend_*`.
-- Web: `/v/<código>`, `/socios/vendedor`, `/vendedores/terminos` (generado desde `puntos.json`).
-- Pruebas: `tests/test_vendedores_reglas.py`, `test_vendedores.py`, `test_vendedores_web.py` y
-  `dcasa_brian/tests/test_vendedores_brian.py`.
+- Web: `/v/<código>`, `/socios/vendedor`, `/vendedores/terminos` (generado desde las reglas vigentes).
+- Ajustes de Gerencia: la lógica pura está en `models/reglas_ajustes.py` (`CAMPOS`, conversiones, `reglas_efectivas`,
+  `calcular_cambio`, `problemas_de_las_cifras`, `costo_del_programa`); las versiones en `dcasa.vend.reglas`
+  (`models/vend_reglas.py`; `_vigentes()` es lo que lee TODO lo de vendedores, y nunca falla); la pantalla en
+  `models/vend_ajustes.py` (un molde con los campos que usan `res.config.settings` y `dcasa.vend.ajustes`, la pantalla
+  de Gerencia) y `views/vendedores_ajustes_views.xml`.
+- Pruebas: `tests/test_vendedores_reglas.py`, `test_vendedores.py`, `test_vendedores_web.py`,
+  `test_vendedores_ajustes_reglas.py` (la capa de ajustes en puro), `test_vendedores_ajustes.py` (versiones, pantalla,
+  permisos, vistas y web) y `dcasa_brian/tests/test_vendedores_brian.py`.
 - Datos personales: ninguno en el repositorio; solo viven dentro de Odoo.

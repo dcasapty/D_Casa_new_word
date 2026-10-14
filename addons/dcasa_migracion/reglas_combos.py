@@ -12,11 +12,11 @@ Funciones PURAS (sin base de datos), como ``reglas.py``. Dos trabajos:
 import re
 import unicodedata
 
-from .reglas import leer_csv, numero
+from .reglas import leer_csv, numero, si_o_no
 
 COLUMNAS_COMBOS = ('codigo_combo', 'nombre_combo', 'codigo_componente', 'nombre_componente')
 MAX_CANTIDAD = 10
-_MARCA_OPCION = re.compile(r'\s*\[\s*opci[oó]n\s*\]\s*$', re.IGNORECASE)
+_MARCA_OPCION = re.compile(r'[\s\xa0]*[\[(]\s*opci[oó]n\s*[\])][\s\xa0]*$', re.IGNORECASE)
 TAMANOS = ('twin', 'full', 'queen', 'king')
 ETIQUETA_TAMANO = {'twin': 'Twin', 'full': 'Full', 'queen': 'Queen', 'king': 'King'}
 CLARO, DUDOSO, SIN_RESOLVER = 'claro', 'dudoso', 'sin_resolver'
@@ -30,6 +30,11 @@ def limpio(texto):
 
 def _espacios(texto):
     return re.sub(r'\s+', ' ', str(texto or '')).strip()
+
+
+def _cifra(texto, columna, fila):
+    """Un número del archivo; tolera «$», espacios y los miles con coma («$1,250.50»). Vacío → ``None``."""
+    return numero(re.sub(r'[\s$]', '', str(texto or '')).replace(',', ''), columna, fila)
 
 
 # ----------------------------------------------------------------------------------------------
@@ -52,7 +57,7 @@ def nombre_de_grupo(nombre_pieza, numero_de=1, de=1, a_escoger=False):
 
 def _entero_positivo(texto, columna, fila):
     """``''`` → 1; ``'2'`` o ``'2.0'`` → 2; ``'0'``, ``'-1'`` o ``'1.5'`` → ``None`` (no sirve)."""
-    valor = numero(texto, columna, fila)
+    valor = _cifra(texto, columna, fila)
     if valor is None:
         return 1
     if valor != int(valor) or not 1 <= valor <= MAX_CANTIDAD:
@@ -73,7 +78,11 @@ def filas_combos(texto):
       grupo de una sola opción; una pieza con ``cantidad`` N es N grupos iguales (Odoo no tiene cantidad por opción).
       Las piezas cuyo nombre termina en « [opción]» son las opciones de UN grupo (o de uno por cada valor distinto de
       la columna ``grupo``);
-    * ``sin_piezas``: ``True`` si el archivo lo lista sin ninguna pieza.
+    * ``sin_piezas``: ``True`` si el archivo lo lista sin ninguna pieza;
+    * ``archivado``: ``True`` si una columna opcional ``activo`` dice 0, no o false (no se carga, se lista).
+
+    El archivo se lee por el nombre de sus columnas: en cualquier orden, con o sin mayúsculas, tildes o espacios, con
+    separador coma, punto y coma o tabulador, con o sin BOM y con las celdas entre comillas.
 
     Un combo mal escrito no se carga: va a ``errores`` como ``(clave, motivo)``. Un número ilegible corta todo el
     archivo (con su fila), como en los demás archivos.
@@ -87,7 +96,7 @@ def filas_combos(texto):
         if clave not in combos:
             orden.append(clave)
             combos[clave] = {'clave': clave, 'codigo': celdas.get('codigo_combo', ''), 'nombre': '', 'precio': None,
-                             'fila': posicion, 'piezas': [], 'sin_piezas': False}
+                             'fila': posicion, 'piezas': [], 'sin_piezas': False, 'archivado': False}
         problema = _sumar_fila(combos[clave], celdas, posicion)
         if problema:
             malos.setdefault(clave, problema)
@@ -100,7 +109,8 @@ def filas_combos(texto):
             continue
         resultado.append({
             'clave': clave, 'codigo': combo['codigo'], 'nombre': combo['nombre'], 'precio': combo['precio'],
-            'fila': combo['fila'], 'grupos': grupos, 'sin_piezas': combo['sin_piezas'] and not grupos})
+            'fila': combo['fila'], 'grupos': grupos, 'sin_piezas': combo['sin_piezas'] and not grupos,
+            'archivado': combo['archivado']})
     return resultado, errores
 
 
@@ -110,7 +120,7 @@ def _sumar_fila(combo, celdas, posicion):
     if nombre and not combo['nombre']:
         combo['nombre'] = nombre
     problema = None
-    precio = numero(celdas.get('precio_combo'), 'precio_combo', posicion)
+    precio = _cifra(celdas.get('precio_combo'), 'precio_combo', posicion)
     if precio:  # 0 o vacío: «no se registró»
         if combo['precio'] not in (None, precio):
             problema = 'el precio del combo no es el mismo en todas sus filas'
@@ -118,7 +128,9 @@ def _sumar_fila(combo, celdas, posicion):
     codigo, nombre_pieza = celdas.get('codigo_componente', ''), _espacios(celdas.get('nombre_componente', ''))
     cantidad_cruda, extra_crudo = celdas.get('cantidad', ''), celdas.get('precio_extra', '')
     cantidad = _entero_positivo(cantidad_cruda, 'cantidad', posicion)
-    extra = numero(extra_crudo, 'precio_extra', posicion)
+    extra = _cifra(extra_crudo, 'precio_extra', posicion)
+    if si_o_no(celdas.get('activo'), por_defecto=True) is False:
+        combo['archivado'] = True
     if not codigo and not nombre_pieza:
         combo['sin_piezas'] = True
         if cantidad_cruda or extra_crudo:
@@ -282,6 +294,15 @@ def _contiene(fichas, buscada):
     return bool(n) and any(fichas[i:i + n] == buscada for i in range(len(fichas) - n + 1))
 
 
+def _aparece(texto, alias):
+    """¿El código ``alias`` (lista de fichas) aparece COMPLETO en ``texto``? Aunque esté escrito con otros separadores
+    («LTSC-01-6877 K BL»), pero no como el principio de un código más largo: «81904» no está en «81904-6002»."""
+    separador = r'[^a-z0-9]+'
+    patron = (r'(?<![a-z0-9])' + separador.join(re.escape(f) for f in alias)
+              + r'(?![a-z0-9])(?![-/]\s?[a-z0-9])')
+    return bool(alias) and re.search(patron, limpio(texto)) is not None
+
+
 def _alias_de_codigo(codigo):
     """Las formas en que un código puede aparecer escrito en un nombre: el código y, si termina en un tamaño
     (``XHT022-F-W-FULL``), el código sin él (``XHT022-F-W``)."""
@@ -328,11 +349,10 @@ def resolver_cama(texto_cama, tamano, camas):
     3. Si no, una SUPOSICIÓN (queda ``dudoso``): las camas que comparten el número largo del nombre o todas sus palabras
        (tamaño, color y modelo).
     """
-    fichas = _fichas(texto_cama)
     por_codigo = []
     for cama in camas:
         for alias in _alias_de_codigo(cama.get('codigo') or ''):
-            if _contiene(fichas, alias):
+            if _aparece(texto_cama, alias):
                 por_codigo.append((cama, alias))
     # El código más largo manda: «8017-1003-K DG» le gana a «8017-1003-K».
     maximos = [(c, a) for c, a in por_codigo
@@ -372,6 +392,8 @@ def _suponer_cama(texto_cama, tamano, camas):
                 if p not in _PALABRAS_VACIAS and p not in TAMANOS and not re.fullmatch(r'\d{1,3}', p)}
     candidatas = []
     for cama in camas:
+        if not re.search(r'cama|camarote|box|bed|base', limpio(cama.get('nombre'))):
+            continue
         if tamano and cama.get('tamano') and cama['tamano'] != tamano:
             continue
         propias = f"{cama.get('codigo') or ''} {cama.get('nombre') or ''}"
@@ -470,3 +492,68 @@ def aviso_de_precio(precio, precios_de_piezas):
     if precio > suma:
         return [f'el combo cuesta ${precio:,.2f}, más que sus piezas por separado (${suma:,.2f})']
     return []
+
+
+# --- Contrastar lo que trae el archivo con lo que dice el nombre -----------------------------------
+
+def _es_colchon(pieza):
+    return bool(re.search(r'\bcolch', limpio(pieza.get('nombre'))))
+
+
+def contrastar_con_el_nombre(nombre, grupos, camas):
+    """Lo que no coincide entre el NOMBRE de un combo y las piezas que de verdad lleva (``[]`` si todo coincide).
+
+    ``grupos`` son los grupos del combo y cada uno la lista de sus opciones (dicts como los de ``camas``). Es un
+    contraste para revisar, no cambia nada: en el sistema anterior hay combos cuyo nombre dice una cosa y cuyas piezas
+    son otras (p. ej. tres combos King con la misma cama beige, o un nombre «Imperial» con un colchón First Class).
+    Se compara: la marca, el tamaño y la cantidad de colchones, y la cama (por su código o nombre; si el nombre no
+    alcanza para saber cuál es, solo su color y su tamaño)."""
+    analisis = analizar_nombre(nombre)
+    if not analisis['ok']:
+        return []
+    opciones = [o for grupo in grupos for o in grupo]
+    colchones = [g for g in grupos if g and all(_es_colchon(o) for o in g)]
+    problemas = []
+    if len(colchones) != analisis['cantidad_colchones']:
+        problemas.append(f'el nombre dice {analisis["cantidad_colchones"]} colchón(es) y el archivo trae '
+                         f'{len(colchones)}')
+    forma = forma_de_marca(analisis['marca'])
+    for grupo in colchones:
+        if not any(forma in forma_de_marca(o['nombre']) for o in grupo):
+            problemas.append(f'el nombre dice colchón «{analisis["marca"].upper()}» y el archivo trae '
+                             f'«{grupo[0]["nombre"]}»')
+        elif analisis['tamano'] and not any(o.get('tamano') in (None, analisis['tamano']) for o in grupo):
+            problemas.append(f'el nombre dice tamaño {ETIQUETA_TAMANO[analisis["tamano"]]} y el colchón del archivo '
+                             f'es {ETIQUETA_TAMANO[grupo[0]["tamano"]]}')
+    de_cama = [o for o in opciones if not _es_colchon(o)]
+    if not de_cama:
+        return problemas + ['el archivo no trae la cama']
+    problema = _contrastar_cama(analisis, de_cama, camas)
+    return problemas + ([problema] if problema else [])
+
+
+def _texto_de(pieza):
+    codigo = f'[{pieza["codigo"]}] ' if pieza.get('codigo') else ''
+    return f'{codigo}{pieza["nombre"]}'
+
+
+def _contrastar_cama(analisis, de_cama, camas):
+    """El problema de la cama del archivo frente al nombre, o ``None``."""
+    resultado = resolver_cama(analisis['cama'], analisis['tamano'], camas)
+    ids_del_archivo = {o['id'] for o in de_cama}
+    if resultado['estado'] == CLARO:
+        buenas = {resultado['elegida']['id']} | {o['id'] for o in resultado['otras']}
+        if not ids_del_archivo & buenas:
+            return (f'el nombre dice la cama {_texto_de(resultado["elegida"])} y el archivo trae '
+                    f'{_texto_de(de_cama[0])}')
+        return None
+    if ids_del_archivo & {o['id'] for o in resultado['opciones']}:
+        return None
+    propias = ' '.join(f"{o.get('codigo') or ''} {o.get('nombre') or ''}" for o in de_cama)
+    color = color_de(analisis['cama'])
+    if color and color_de(propias) and color_de(propias) != color:
+        return f'el nombre dice color {color} y la cama del archivo ({_texto_de(de_cama[0])}) es {color_de(propias)}'
+    if analisis['tamano'] and all(o.get('tamano') and o['tamano'] != analisis['tamano'] for o in de_cama):
+        return (f'el nombre dice tamaño {ETIQUETA_TAMANO[analisis["tamano"]]} y la cama del archivo '
+                f'({_texto_de(de_cama[0])}) es {ETIQUETA_TAMANO[de_cama[0]["tamano"]]}')
+    return None

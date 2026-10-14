@@ -10,11 +10,13 @@ Carga única de lo que sale de la receta de migración (Cowork) al ERP nuevo:
   por producto (precios_proveedor.csv).
 * Productos y existencias (productos.csv + inventario.csv): usa las reglas de la dueña de «Inventario del
   sistema anterior» (la llave es el código; no se pisan nombres ni fotos).
+* Combos de cama y colchón (combos.csv, o «Armar los combos desde su nombre»): usa el tipo «Combo» nativo de Odoo; los
+  combos ya cargados pasan a ese tipo conservando su id, nombre, precio e historial. Nunca adivina: solo arma lo claro.
 * «Revisar» muestra qué pasaría sin cambiar nada; «Cargar» lo hace. Solo para administradores.
 * Los archivos viajan por la pantalla de Odoo: nunca por el repositorio ni por GitHub. El módulo no trae
   datos de personas.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Hidden',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',

@@ -7,7 +7,9 @@ from contextlib import contextmanager
 from datetime import timedelta
 from unittest.mock import patch
 
-from odoo import Command, fields
+from psycopg2 import IntegrityError
+
+from odoo import fields
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import HttpCase, new_test_user, tagged
 from odoo.tools import mute_logger
@@ -36,6 +38,12 @@ class AjustesCommon(SociosCommon):
 
     def setUp(self):
         super().setUp()
+        # El freno de todo el programa depende de lo vendido en la tienda en 30 días (en una base de pruebas casi vacía
+        # se pasaría con una sola venta): aquí se mide lo que Gerencia ajusta, no ese freno.
+        freno = patch.object(type(self.env['dcasa.vend.comision']), '_datos_del_freno_global',
+                             return_value=(0, 10**12))
+        freno.start()
+        self.addCleanup(freno.stop)
         self.ana = self.vendedor('Ana Vendedora', '8-111-111', '6100-0001')
         self._clientes = 0
 
@@ -43,7 +51,8 @@ class AjustesCommon(SociosCommon):
 
     def cliente_nuevo(self):
         self._clientes += 1
-        return self.env['res.partner'].create({'name': f'Cliente {self._clientes}', 'phone': f'6000-{self._clientes:04d}'})
+        return self.env['res.partner'].create({'name': f'Cliente {self._clientes}',
+                                               'phone': f'6200-{self._clientes:04d}'})
 
     def vender(self, vendedor, precio=100.0):
         """Una venta a un cliente nuevo con el código del vendedor, ya pagada. Devuelve su comisión directa."""
@@ -51,7 +60,7 @@ class AjustesCommon(SociosCommon):
         return factura.dcasa_vend_comision_ids.filtered(lambda c: c.tipo == 'directa')
 
     def abrir(self, usuario=None, **cambios):
-        """La pantalla de Ajustes como la abre el navegador: valores de ``default_get``, más lo que la persona cambió."""
+        """La pantalla como la abre el navegador (valores de ``default_get``), más lo que la persona cambió."""
         Ajustes = self.env['dcasa.vend.ajustes'].with_user(usuario or self.gerencia)
         valores = Ajustes.default_get(list(A.CLAVES_DE_PANTALLA_ODOO))
         valores.update({f'dcasa_vend_{clave}': valor for clave, valor in cambios.items()})
@@ -103,8 +112,9 @@ class TestVersionesDeReglas(AjustesCommon):
 
     def test_la_version_vigente_depende_de_la_fecha(self):
         ahora = fields.Datetime.now()
-        v1 = self.Reglas.sudo().create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{"comision.puntosPorDolarNeto": 4.5}'})
-        v2 = self.Reglas.sudo().create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{"comision.puntosPorDolarNeto": 4.8}',
+        base = {'tipo': 'ajuste', 'autor': 'x'}
+        v1 = self.Reglas.sudo().create({**base, 'ajustes': '{"comision.puntosPorDolarNeto": 4.5}'})
+        v2 = self.Reglas.sudo().create({**base, 'ajustes': '{"comision.puntosPorDolarNeto": 4.8}',
                                         'vigente_desde': ahora + timedelta(days=10)})
         self.assertEqual(self.vigentes()['comision']['puntosPorDolarNeto'], 4.5, 'La v2 todavía no empieza')
         self.assertEqual(RV.ajuste_aplicado(self.Reglas._vigentes()), v1.numero)
@@ -122,7 +132,7 @@ class TestVersionesDeReglas(AjustesCommon):
                                        'vigente_desde': ahora - timedelta(days=1)})
         self.Reglas.sudo().create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{}',
                                    'vigente_desde': ahora + timedelta(days=5)})
-        with self.assertRaisesRegex(UserError, 'ya hay un cambio programado|Ya hay un cambio programado'):
+        with self.assertRaisesRegex(UserError, 'cambio programado'):
             self.Reglas.sudo().create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{}'})
         self.assertEqual(len(self.versiones()), 1)
 
@@ -137,7 +147,7 @@ class TestVersionesDeReglas(AjustesCommon):
 
     def test_el_numero_de_version_es_unico(self):
         v = self.Reglas._registrar('ajuste', {}, [], None, R.cargar_reglas())
-        with mute_logger('odoo.sql_db'), self.assertRaises(Exception), self.cr.savepoint():
+        with mute_logger('odoo.sql_db'), self.assertRaises(IntegrityError), self.cr.savepoint():
             self.cr.execute(
                 "INSERT INTO dcasa_vend_reglas (numero, vigente_desde, tipo, autor) VALUES (%s, now(), 'ajuste', 'x')",
                 [v.numero])
@@ -203,7 +213,8 @@ class TestLaPantallaDeGerencia(AjustesCommon):
         self.assertEqual(self.vigentes()['comision']['puntosPorDolarNeto'], 4.5)
         self.assertEqual(version.fabrica_version, 5)
         # Lo demás sigue siendo de fábrica.
-        self.assertEqual(self.vigentes()['comision']['escalones'], RV.seccion(R.cargar_reglas())['comision']['escalones'])
+        self.assertEqual(self.vigentes()['comision']['escalones'],
+                         RV.seccion(R.cargar_reglas())['comision']['escalones'])
         # La pantalla, vuelta a abrir, muestra la versión que rige y quién la hizo.
         otra = self.abrir()
         self.assertEqual((otra.dcasa_vend_comision_base, otra.dcasa_vend_version_vista), (4.5, 1))
@@ -308,7 +319,8 @@ class TestLaPantallaDeGerencia(AjustesCommon):
         premio = self.env['dcasa.premio'].create({'name': 'Cama box Twin', 'tipo': 'producto', 'puntos': 3000,
                                                   'costo': 14.0, 'para_vendedores': True})
         self.env['dcasa.vend.movimiento']._asentar(
-            self.ana, 'ajuste', 9000, 'prueba', motivo='Saldo', disponible_desde=fields.Datetime.now() - timedelta(days=1))
+            self.ana, 'ajuste', 9000, 'prueba', motivo='Saldo',
+            disponible_desde=fields.Datetime.now() - timedelta(days=1))
         self.guardar(canjes_mes=2)
         with self.assertRaisesRegex(UserError, 'externos todavía no está habilitado'):
             self.env['dcasa.vend.canje']._pedir(self.ana, premio)
@@ -390,7 +402,8 @@ class TestLaPantallaDeGerencia(AjustesCommon):
         self.assertEqual(self.vigentes()['comision']['puntosPorDolarNeto'], 4.5)
 
     def test_una_pantalla_que_no_cargo_las_cifras_no_guarda_nada(self):
-        pantalla = self.env['dcasa.vend.ajustes'].with_user(self.gerencia).create({'dcasa_vend_comision_base': 9})
+        pantalla = self.env['dcasa.vend.ajustes'].with_user(self.gerencia).create(
+            {'dcasa_vend_comision_base': 9, 'dcasa_vend_cargado': False})
         with self.assertRaisesRegex(UserError, 'no cargó las cifras'):
             pantalla.execute()
         self.assertFalse(self.versiones())
@@ -421,7 +434,8 @@ class TestLaPantallaDeGerencia(AjustesCommon):
         pantalla.dcasa_vend_motivo = 'Nos arrepentimos'
         pantalla.action_dcasa_vend_fabrica()
         nueva = self.versiones() - antes
-        self.assertEqual((nueva.numero, nueva.tipo, nueva.motivo, nueva.ajustes), (3, 'fabrica', 'Nos arrepentimos', '{}'))
+        self.assertEqual((nueva.numero, nueva.tipo, nueva.motivo, nueva.ajustes),
+                         (3, 'fabrica', 'Nos arrepentimos', '{}'))
         self.assertEqual(self.versiones()[:2], antes, 'Las versiones anteriores siguen ahí, intactas')
         self.assertEqual(self.vigentes(), RV.seccion(R.cargar_reglas()), 'Las reglas efectivas son las del JSON')
         self.assertEqual(RV.ajuste_aplicado(self.Reglas._vigentes()), 3)
@@ -463,7 +477,8 @@ class TestLaPantallaDeGerencia(AjustesCommon):
 
     def test_si_la_lectura_de_ajustes_falla_la_venta_se_cobra_y_se_paga_con_la_fabrica(self):
         self.guardar(comision_base=4.5)
-        with patch.object(A, 'reglas_efectivas', side_effect=RuntimeError('fallo')), self.assertLogs(LOGGER_REGLAS, 'ERROR'):
+        with patch.object(A, 'reglas_efectivas', side_effect=RuntimeError('fallo')), \
+                self.assertLogs(LOGGER_REGLAS, 'ERROR'):
             factura = self.factura(partner=self.cliente_nuevo(), vendedor=self.ana)
         self.assertEqual(factura.payment_state, 'paid')
         self.assertEqual(factura.dcasa_vend_comision_ids.puntos, 400)
@@ -522,7 +537,7 @@ class TestPermisosDeAjustes(AjustesCommon):
         with self.assertRaises(AccessError):
             self.env['dcasa.vend.ajustes.mixin'].with_user(self.caja)._dcasa_vend_valores_iniciales()
 
-    def test_nadie_es_vendedora_y_gerencia_a_la_vez_por_error(self):
+    def test_un_usuario_interno_sin_rol_tampoco(self):
         sin_rol = new_test_user(self.env, login='ajustes_sin_rol', groups='base.group_user')
         with self.assertRaises(AccessError):
             self.env['dcasa.vend.ajustes'].with_user(sin_rol).default_get(['dcasa_vend_comision_base'])
@@ -532,9 +547,9 @@ class TestPermisosDeAjustes(AjustesCommon):
         Historial = self.Reglas.with_user(self.gerencia)
         self.assertEqual(Historial.search([]), version)
         self.assertEqual(Historial.browse(version.id).nombre, 'Versión 1')
-        with self.assertRaises(AccessError):
+        with self.assertRaisesRegex(UserError, 'no se edita'):
             Historial.browse(version.id).write({'motivo': 'x'})
-        with self.assertRaises(AccessError):
+        with self.assertRaisesRegex(UserError, 'no se borra'):
             Historial.browse(version.id).unlink()
         with self.assertRaises(AccessError):
             Historial.create({'tipo': 'ajuste', 'autor': 'x', 'ajustes': '{}'})
@@ -546,8 +561,15 @@ class TestPermisosDeAjustes(AjustesCommon):
         self.assertEqual(version.autor, 'Admin Sistema')
         self.assertEqual(self.env['dcasa.vend.reglas'].with_user(self.admin).search([]), version)
 
+    @staticmethod
+    def valores_de_ajustes(Ajustes):
+        """Lo que el navegador manda de este bloque al guardar (no los demás ajustes de Odoo)."""
+        valores = Ajustes.default_get(list(A.CLAVES_DE_PANTALLA_ODOO))
+        return {campo: valor for campo, valor in valores.items() if campo.startswith('dcasa_vend_')}
+
     def test_los_menus_son_de_gerencia_y_administradores(self):
-        menus = [self.env.ref('dcasa_socios.menu_dcasa_vend_ajustes'), self.env.ref('dcasa_socios.menu_dcasa_vend_reglas')]
+        menus = [self.env.ref('dcasa_socios.menu_dcasa_vend_ajustes'),
+                 self.env.ref('dcasa_socios.menu_dcasa_vend_reglas')]
         gerencia = set(self.env['ir.ui.menu'].with_user(self.gerencia)._visible_menu_ids())
         caja = set(self.env['ir.ui.menu'].with_user(self.caja)._visible_menu_ids())
         for menu in menus:
@@ -560,7 +582,7 @@ class TestPermisosDeAjustes(AjustesCommon):
     def test_el_bloque_dentro_de_ajustes_es_de_administradores(self):
         Ajustes = self.env['res.config.settings']
         pantalla = A.CLAVES_DE_PANTALLA_ODOO
-        valores = Ajustes.with_user(self.admin).default_get(list(pantalla))
+        valores = Ajustes.with_user(self.admin).default_get(list(pantalla))      # un administrador del sistema
         self.assertEqual(valores['dcasa_vend_comision_base'], 4.0)
         self.assertTrue(valores['dcasa_vend_cargado'])
         # Gerencia no entra a Ajustes de Odoo (ahí hay mucho más que las reglas de vendedores).
@@ -570,27 +592,29 @@ class TestPermisosDeAjustes(AjustesCommon):
             Ajustes.with_user(self.caja).create({})
 
     def test_guardar_desde_ajustes_de_odoo_crea_la_misma_version(self):
-        Ajustes = self.env['res.config.settings'].with_user(self.admin)
-        valores = Ajustes.default_get(list(A.CLAVES_DE_PANTALLA_ODOO))
+        # Se crea el registro de Ajustes con todos los permisos (sus campos de otras apps escriben en la empresa y el
+        # sitio) y se guarda como administrador: lo que se prueba es este bloque.
+        Ajustes = self.env['res.config.settings']
+        valores = self.valores_de_ajustes(Ajustes.with_user(self.admin))
         sin_cambios = Ajustes.create(valores)
-        sin_cambios.set_values()
+        sin_cambios.with_user(self.admin).set_values()
         self.assertFalse(self.versiones(), 'Guardar otros ajustes de Odoo no toca las reglas de vendedores')
         cambiado = Ajustes.create({**valores, 'dcasa_vend_comision_base': 4.5, 'dcasa_vend_motivo': 'Desde Ajustes'})
-        cambiado.set_values()
+        cambiado.with_user(self.admin).set_values()
         version = self.versiones()
         self.assertEqual((version.numero, version.motivo, version.autor), (1, 'Desde Ajustes', 'Admin Sistema'))
         self.assertEqual(self.vigentes()['comision']['puntosPorDolarNeto'], 4.5)
 
     def test_guardar_otros_ajustes_de_odoo_sin_cargar_las_cifras_no_las_toca(self):
-        Ajustes = self.env['res.config.settings'].with_user(self.admin)
-        Ajustes.create({'dcasa_vend_comision_base': 9}).set_values()
+        Ajustes = self.env['res.config.settings']
+        Ajustes.create({'dcasa_vend_comision_base': 9, 'dcasa_vend_cargado': False}).with_user(self.admin).set_values()
         self.assertFalse(self.versiones())
 
     def test_ajustes_de_odoo_valida_igual_que_la_pantalla_de_gerencia(self):
-        Ajustes = self.env['res.config.settings'].with_user(self.admin)
-        valores = Ajustes.default_get(list(A.CLAVES_DE_PANTALLA_ODOO))
+        Ajustes = self.env['res.config.settings']
+        valores = self.valores_de_ajustes(Ajustes.with_user(self.admin))
         with self.assertRaisesRegex(UserError, 'No se guardó nada'):
-            Ajustes.create({**valores, 'dcasa_vend_comision_base': 9}).set_values()
+            Ajustes.create({**valores, 'dcasa_vend_comision_base': 9}).with_user(self.admin).set_values()
         self.assertFalse(self.versiones())
 
 
@@ -625,9 +649,7 @@ class TestPantallasYVistas(AjustesCommon):
         vista = self.env['dcasa.vend.ajustes'].with_user(self.gerencia).get_views([(False, 'form')])
         self.assertIn('dcasa_vend_comision_base', vista['views']['form']['arch'])
         for bloque in ('Programa', 'Comisión y escalera', 'Patrocinio', 'Retención', 'Límites de seguridad', 'Canjes'):
-            self.assertIn(f'title="{bloque}', vista['views']['form']['arch'] if bloque != 'Retención' else
-                          vista['views']['form']['arch'].replace('Retención (cuándo se pueden canjear los puntos)',
-                                                                 'Retención'))
+            self.assertIn(f'title="{bloque}', vista['views']['form']['arch'])
         ajustes = self.env['res.config.settings'].with_user(self.admin).get_views([(False, 'form')])
         self.assertIn('Programa de vendedores', ajustes['views']['form']['arch'])
 

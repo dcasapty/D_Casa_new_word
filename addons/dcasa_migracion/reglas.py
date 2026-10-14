@@ -7,6 +7,7 @@ vacía significa «ese dato no existe en el sistema anterior».
 import csv
 import io
 import re
+import unicodedata
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
@@ -45,16 +46,23 @@ def _delimitador(texto):
     return max((',', ';', '\t'), key=primera.count) if any(d in primera for d in (',', ';', '\t')) else ','
 
 
+def _encabezado(nombre):
+    """El nombre de una columna sin importar cómo se escribió: «Código Combo» y «codigo_combo» son la misma."""
+    claro = unicodedata.normalize('NFKD', nombre or '').encode('ascii', 'ignore').decode().strip().lower()
+    return re.sub(r'[\s\-]+', '_', claro)
+
+
 def leer_csv(texto, requeridas, nombre_del_archivo):
     """Las filas del CSV como diccionarios con las celdas sin espacios sobrantes.
 
-    ``requeridas`` son las columnas sin las que no se puede cargar; faltar una es un error del archivo.
+    ``requeridas`` son las columnas sin las que no se puede cargar; faltar una es un error del archivo. Las columnas se
+    reconocen por su encabezado (en cualquier orden, con o sin mayúsculas, tildes o espacios).
     """
     texto = (texto or '').lstrip('﻿')
     if not texto.strip():
         raise ErrorDeArchivo(f'{nombre_del_archivo} está vacío.')
     lector = csv.DictReader(io.StringIO(texto), delimiter=_delimitador(texto))
-    columnas = [(c or '').strip().lower() for c in (lector.fieldnames or [])]
+    columnas = [_encabezado(c) for c in (lector.fieldnames or [])]
     faltan = [c for c in requeridas if c not in columnas]
     if faltan:
         raise ErrorDeArchivo(
@@ -62,7 +70,7 @@ def leer_csv(texto, requeridas, nombre_del_archivo):
             f'Las columnas que trae son: {", ".join(columnas) or "ninguna"}.')
     filas = []
     for fila in lector:
-        filas.append({(k or '').strip().lower(): (v or '').strip() for k, v in fila.items() if k is not None})
+        filas.append({_encabezado(k): (v or '').strip() for k, v in fila.items() if k is not None})
     return filas
 
 

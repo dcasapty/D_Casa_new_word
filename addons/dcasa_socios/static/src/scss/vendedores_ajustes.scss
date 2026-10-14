@@ -11,6 +11,19 @@ $dcasa-vend-rojo: #8A1C14;
 $dcasa-vend-rojo-fondo: #FDEDEC;
 $dcasa-vend-rojo-borde: #F1C0BC;
 
+// Las cajas anchas (el resumen y la escalera) ocupan todo el ancho; los textos y el motivo, todo el ancho de su caja.
+.o_setting_box.o_dcasa_vend_ancho {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+}
+
+.o_setting_box .o_field_widget.o_dcasa_vend_texto {
+    display: block;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
 // --- El resumen: lo que cuesta, lo que no deja guardar, lo que se va a cambiar -----------------------------------
 .o_dcasa_vend_resumen {
     background: $dcasa-vend-fondo;

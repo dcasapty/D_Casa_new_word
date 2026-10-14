@@ -17,7 +17,7 @@
                         <setting id="dcasa_vend_vigente" string="Qué reglas rigen ahora"
                                  help="Cada cambio que guardas es una versión nueva que rige desde ese momento. Lo que ya se acreditó no se recalcula nunca.">
                             <div>
-                                <field name="dcasa_vend_estado" nolabel="1" readonly="1"/>
+                                <field name="dcasa_vend_estado" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/>
                                 <field name="dcasa_vend_cargado" invisible="1"/>
                                 <field name="dcasa_vend_version_vista" invisible="1"/>
                             </div>
@@ -31,15 +31,15 @@
                         </setting>
                         <setting id="dcasa_vend_motivo" string="Motivo del cambio"
                                  help="Opcional. Queda escrito en el historial junto a tu nombre y la fecha.">
-                            <div><field name="dcasa_vend_motivo" class="w-100" placeholder="Ej.: subimos la base para la temporada"/></div>
+                            <div><field name="dcasa_vend_motivo" class="o_dcasa_vend_texto" placeholder="Ej.: subimos la base para la temporada"/></div>
                         </setting>
-                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12"
+                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12 o_dcasa_vend_ancho"
                                  help="Se recalcula mientras escribes. No se guarda nada hasta que pulses Guardar.">
-                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1"/></div>
+                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/></div>
                         </setting>
                     </block>
                     <block title="Comisión y escalera" name="dcasa_vend_bloque_comision">
-                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12"
+                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12 o_dcasa_vend_ancho"
                                  help="El vendedor empieza en la base. Según lo que vendió en los últimos días (la cifra de abajo) sube de escalón: gana más por cada dólar y puede ganar más al mes. Deja un escalón en 0 para no usarlo. Cada escalón tiene que empezar más arriba, pagar más y tener un tope igual o mayor que el anterior.">
                             <div class="o_dcasa_vend_tabla">
                                 <table class="table table-sm o_dcasa_vend_escalera mb-0">
@@ -198,7 +198,7 @@
                         <setting id="dcasa_vend_vigente" string="Qué reglas rigen ahora"
                                  help="Cada cambio que guardas es una versión nueva que rige desde ese momento. Lo que ya se acreditó no se recalcula nunca.">
                             <div>
-                                <field name="dcasa_vend_estado" nolabel="1" readonly="1"/>
+                                <field name="dcasa_vend_estado" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/>
                                 <field name="dcasa_vend_cargado" invisible="1"/>
                                 <field name="dcasa_vend_version_vista" invisible="1"/>
                             </div>
@@ -212,15 +212,15 @@
                         </setting>
                         <setting id="dcasa_vend_motivo" string="Motivo del cambio"
                                  help="Opcional. Queda escrito en el historial junto a tu nombre y la fecha.">
-                            <div><field name="dcasa_vend_motivo" class="w-100" placeholder="Ej.: subimos la base para la temporada"/></div>
+                            <div><field name="dcasa_vend_motivo" class="o_dcasa_vend_texto" placeholder="Ej.: subimos la base para la temporada"/></div>
                         </setting>
-                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12"
+                        <setting id="dcasa_vend_costo" string="Lo que cuesta y lo que vas a cambiar" class="col-lg-12 o_dcasa_vend_ancho"
                                  help="Se recalcula mientras escribes. No se guarda nada hasta que pulses Guardar.">
-                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1"/></div>
+                            <div><field name="dcasa_vend_resumen" nolabel="1" readonly="1" class="o_dcasa_vend_texto"/></div>
                         </setting>
                     </block>
                     <block title="Comisión y escalera" name="dcasa_vend_bloque_comision">
-                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12"
+                        <setting id="dcasa_vend_escalera" string="La escalera: cuanto más vende, más gana" class="col-lg-12 o_dcasa_vend_ancho"
                                  help="El vendedor empieza en la base. Según lo que vendió en los últimos días (la cifra de abajo) sube de escalón: gana más por cada dólar y puede ganar más al mes. Deja un escalón en 0 para no usarlo. Cada escalón tiene que empezar más arriba, pagar más y tener un tope igual o mayor que el anterior.">
                             <div class="o_dcasa_vend_tabla">
                                 <table class="table table-sm o_dcasa_vend_escalera mb-0">

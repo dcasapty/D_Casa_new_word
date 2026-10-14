@@ -44,6 +44,14 @@ def _no_creada(motivo, mensaje, **extra):
     return {'creada': False, 'motivo': motivo, 'mensaje': mensaje, **extra}
 
 
+def _no_cotizable_combo(plantilla):
+    """Un combo (cama + colchón) lo arma una vendedora: sus piezas se escogen en Ventas, no aquí."""
+    return _no_creada(
+        'es_combo',
+        f'«{plantilla.name}» es un combo y los combos los arma una vendedora. Dile al cliente su precio de la ficha y '
+        f'llama a pasar_a_vendedora para que se lo prepare. {A_VENDEDORA}')
+
+
 def _dinero(valor):
     return P.precio_texto(valor, mas_itbms=False)
 
@@ -78,13 +86,15 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         de_codigo = Variante.search([('product_tmpl_id', 'in', publicadas.ids), ('default_code', 'ilike', codigo)])
         exacta = de_codigo.filtered(lambda v: (v.default_code or '').lower() == codigo.lower())[:1]
         if exacta:
-            return exacta, None
+            return (None, _no_cotizable_combo(exacta.product_tmpl_id)) if exacta.type == 'combo' else (exacta, None)
         plantilla = publicadas.filtered(lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
         if not plantilla:
             return None, _no_creada(
                 'producto_no_encontrado',
                 f'No encuentro el código «{codigo}» entre los productos de la tienda. Búscalo por nombre con '
                 'buscar_productos; si no aparece, no lo manejamos: no lo cotices.')
+        if plantilla.type == 'combo':
+            return None, _no_cotizable_combo(plantilla)
         variantes = plantilla.sudo().product_variant_ids
         opcion = ' '.join(str(opcion or '').split())[:80]
         if len(variantes) > 1 and opcion:

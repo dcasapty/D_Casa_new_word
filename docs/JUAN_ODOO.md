@@ -35,15 +35,34 @@ Una etiqueta azul **«Espera tu respuesta»** marca las que el cliente escribió
 ## La pantalla de Conversaciones
 
 Es la pantalla de trabajo de las vendedoras: **todo en una sola vista**, como un WhatsApp Web pero dentro de Odoo y con la
-ficha del cliente al lado. Se abre en *Conversaciones › Conversaciones*. Tiene tres columnas:
+ficha del cliente a un botón de distancia. Se abre en *Conversaciones › Conversaciones*. Tiene tres partes:
 
-| Columna | Qué hay |
+| Parte | Qué hay |
 |---|---|
-| **Izquierda: la lista** | Todas las conversaciones, las más recientes primero. Cada una muestra a la persona, el canal, las etiquetas, el último mensaje, quién la atiende y cuántos mensajes tienes sin leer. |
-| **Centro: la conversación** | Los mensajes como un chat y, abajo, la caja para responder. |
-| **Derecha: la ficha del cliente** | Quién es, si es Socio y cuántos puntos tiene, sus oportunidades y compras, las etiquetas y a quién se la asignaste. |
+| **Izquierda: la lista** | Todas las conversaciones, las más recientes primero. Cada una muestra a la persona, el canal, las etiquetas, el último mensaje, quién la atiende y cuántos mensajes tienes sin leer. Se puede **reducir a las fotos** (botón **«**). |
+| **Centro: la conversación** | Los mensajes como un chat y, abajo, la caja para responder. **Es lo que más espacio tiene, siempre.** |
+| **Derecha: la ficha del cliente** | Quién es, si es Socio y cuántos puntos tiene, sus oportunidades y compras, las etiquetas y a quién se la asignaste. **Se abre y se cierra con el botón «Cliente»** de la barra de la conversación. |
 
 Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación, aparece sin recargar nada.
+
+### Cómo se acomoda según la computadora
+
+Las computadoras de la tienda son laptops de 1366 × 768, 1280 × 720, 1440 × 900, 1536 × 864 o 1024 × 768 (y un monitor de
+1920 × 1080). En todas, **la conversación es lo más grande y lo único que se desplaza**; todo lo demás se acomoda:
+
+* **La ficha del cliente nace cerrada** (solo en pantallas amplias, de 1500 × 800 o más, nace abierta). El botón **Cliente** la abre
+  al lado de la conversación y la **X** (o la tecla **Esc**) la cierra. Lo que elijas **se recuerda** en esa computadora, por persona.
+  Abrirla no le quita altura a los mensajes (solo un poco de ancho) y los mensajes se quedan en el último renglón.
+* **La lista** mide 300 px, o 72 px si la reduces a las fotos con el botón **«** (**»** la vuelve a abrir; también se recuerda). Con
+  1100 px de ancho o menos nace reducida. Con menos de 1250 px de ancho, mientras la ficha está abierta, la lista se reduce sola
+  (para que la conversación no baje de unos 560 px de ancho) y se ensancha al cerrar la ficha.
+* **Avisos de una línea**: el aviso de arriba («Falta conectar el bot»), la franja de quién atiende y el **Resumen** ocupan una
+  sola línea baja. Si el texto no cabe se corta con «…» y completo sale al pasar el mouse. El **Resumen** nace plegado (una línea
+  con la primera viñeta); con un clic se despliega y con otro se pliega.
+* **La caja de respuesta** es compacta (ver más abajo) y tiene tope: lo que se abre (archivos, programar, devolver) se desplaza por
+  dentro y **nunca** pasa de la mitad de la pantalla.
+* En **tablet** (de 768 a 1023 px) la ficha se abre encima de la conversación y se cierra sola al cambiar de conversación; en
+  **celular** (hasta 767 px) es otra pantalla (ver «En el celular»).
 
 ### La lista
 
@@ -66,7 +85,8 @@ Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación
   pulsar **Es un comprobante**: así el asistente nunca lo ve (**Ya no es sensible** lo deshace).
 * **Ver mensajes anteriores** trae los 50 anteriores. Si estás leyendo mensajes viejos y entra uno nuevo, no te mueve la pantalla:
   aparece un botón **«1 mensaje nuevo»** (o «N mensajes nuevos») para bajar cuando quieras.
-* Arriba: **Ficha** (muestra u oculta la ficha, útil en pantallas medianas y en el celular) y **Cerrar** la conversación.
+* Arriba, en **una sola fila**: el nombre, el canal y el celular, quién la atiende, **Cliente** (muestra u oculta la ficha) y los
+  íconos **Cerrar** la conversación y **Eliminar** (solo Gerencia); con la barra ancha, esos dos también dicen su nombre.
 * Si un mensaje tuyo no salió, dice **«Por enviar»** y tiene el botón **Reintentar**.
 * Mientras el asistente trabaja se ve debajo del último mensaje. Primero, unos segundos de **«El asistente está preparando la
   respuesta…»** (espera a que el cliente termine de escribir; es una estimación) y, cuando el Worker avisa que de verdad empezó,
@@ -75,25 +95,27 @@ Se actualiza **sola**: cuando entra un mensaje, o alguien toma una conversación
 
 ### La caja de respuesta
 
-Arriba de la caja, una barra dice **quién atiende**:
+La caja es de **dos líneas**. En la de arriba, una franja dice **quién atiende** y, a la derecha, **Respuesta / Nota interna**:
 
 * **Atiende el asistente** → botón **Atender**: la conversación pasa a ti y Juan se calla.
 * **Atiendes tú. El asistente vuelve a las 4:30 p. m. (en 1 h 20 min)** → botón **Devolver al asistente**. Puedes dejarle una nota
   corta («ya quedó la visita del sábado»); la lee hasta que otra persona tome la conversación. Cada mensaje tuyo renueva la pausa.
 * **Cerrada** → si escribes, se reabre y la atiendes tú.
 
-Abajo, la caja y sus botones:
+En la de abajo están las herramientas (**solo íconos**; al pasar el mouse sale su nombre), la caja de texto y **Enviar**. La caja de
+texto es de **una línea y crece hasta unas 4 líneas**; si escribes más, se desplaza por dentro. Lo que es solo de a ratos (archivos
+por enviar, la hora de programar, la nota al devolver, las respuestas rápidas) aparece cuando hace falta y vuelve a desaparecer.
 
 | Botón | Qué hace |
 |---|---|
 | **Respuesta / Nota interna** | Cambia entre hablarle al cliente y escribir una nota que el cliente no ve. La nota tiene otro color y su botón dice **Guardar nota**. |
-| **Adjuntar** | Elige fotos o documentos (también puedes **arrastrarlos y soltarlos** sobre la conversación o **pegar** una imagen). Se ven en miniatura antes de enviar y se pueden quitar. Hasta 10 MB cada uno. Aceptados: fotos (JPG, PNG, WebP, GIF), PDF, Word, Excel, texto y CSV. |
-| **Foto del catálogo** | Busca un producto por **nombre o código** y manda su foto. Ver abajo. |
-| **Cotización** | Manda la cotización del cliente en PDF. Ver abajo. |
-| **Rápidas** | Abre tus respuestas rápidas. También sirve escribir **/** en la caja: salen las que empiezan con lo que escribas; **↑ ↓** eligen, **Enter** o **Tab** usan la elegida y **Esc** cierra. El texto ya sale con el nombre del cliente. |
-| **Programar** | Deja el mensaje escrito para que **salga solo** el día y la hora que elijas (de 1 minuto a 30 días; atajos «En 1 hora» y «Mañana 8:00 a. m.»). Con el selector abierto, el botón dice **Programar** y no deja enviar sin hora (no se manda «ya» por descuido). Lo programado se ve **aparte, arriba de la caja** («Se envía mañana 8:00 a. m.»), no en el hilo, con **Cancelar** (quien lo programó o Gerencia). Hasta su hora **no pasa nada**: el asistente sigue atendiendo y la conversación no cambia de dueña. A la hora (la revisión corre cada 5 minutos) sale como un mensaje nuevo, al final del hilo, la conversación pasa a quien lo programó y queda un aviso. Si el Worker no responde en ese momento, queda «por enviar» y se reintenta. |
-| **Sugerir** | Le pide a Juan **un borrador** de respuesta. Lo deja escrito en la caja para que lo leas, lo cambies y lo envíes tú; **nunca se envía solo**. Si quitó algo que no debía (una foto, por ejemplo) o dejó algo por confirmar, te lo avisa. |
-| **Enviar** | Manda el mensaje. **Enter** envía; **Mayús + Enter** salta de línea; **Ctrl + Enter** también envía. En el celular solo envía el botón. |
+| **Adjuntar** (📎) | Elige fotos o documentos (también puedes **arrastrarlos y soltarlos** sobre la conversación o **pegar** una imagen). Se ven en miniatura antes de enviar y se pueden quitar. Hasta 10 MB cada uno. Aceptados: fotos (JPG, PNG, WebP, GIF), PDF, Word, Excel, texto y CSV. |
+| **Foto del catálogo** (🖼) | Busca un producto por **nombre o código** y manda su foto. Ver abajo. |
+| **Cotización** (PDF) | Manda la cotización del cliente en PDF. Ver abajo. |
+| **Rápidas** (⚡) | Abre tus respuestas rápidas. También sirve escribir **/** en la caja: salen las que empiezan con lo que escribas; **↑ ↓** eligen, **Enter** o **Tab** usan la elegida y **Esc** cierra. El texto ya sale con el nombre del cliente. |
+| **Más** (···) → **Programar el envío** | Está en el menú **Más** (lo menos usado; ahí también se recuerdan las teclas: Enter envía, Mayús + Enter salta de línea, / abre las rápidas). Deja el mensaje escrito para que **salga solo** el día y la hora que elijas (de 1 minuto a 30 días; atajos «En 1 hora» y «Mañana 8:00 a. m.»). Con el selector abierto, el botón dice **Programar** y no deja enviar sin hora (no se manda «ya» por descuido). Lo programado se ve **aparte, arriba de la caja** («Se envía mañana 8:00 a. m.»), no en el hilo, con **Cancelar** (quien lo programó o Gerencia). Hasta su hora **no pasa nada**: el asistente sigue atendiendo y la conversación no cambia de dueña. A la hora (la revisión corre cada 5 minutos) sale como un mensaje nuevo, al final del hilo, la conversación pasa a quien lo programó y queda un aviso. Si el Worker no responde en ese momento, queda «por enviar» y se reintenta. |
+| **Sugerir** (✨) | Le pide a Juan **un borrador** de respuesta. Lo deja escrito en la caja para que lo leas, lo cambies y lo envíes tú; **nunca se envía solo**. Si quitó algo que no debía (una foto, por ejemplo) o dejó algo por confirmar, te lo avisa. |
+| **Enviar** (✈) | Manda el mensaje. **Enter** envía; **Mayús + Enter** salta de línea; **Ctrl + Enter** también envía. En el celular solo envía el botón. |
 
 **Foto del catálogo.** Escribe lo que buscas («cama queen» o el código). Cada producto muestra su foto, el precio con **«+ ITBMS»**,
 las medidas y si está **DISPONIBLE**, con **POCAS** unidades o **AGOTADO**. La pantalla **nunca** muestra cuántas unidades hay ni lo
@@ -121,8 +143,31 @@ Odoo** la abre completa. Cada vendedora ve las cotizaciones que ya podía ver en
 ### En el celular
 
 La pantalla se vuelve **una columna a la vez**: primero la lista; al tocar una conversación se ve solo el chat, con la **caja de
-respuesta fija abajo**; el botón **Volver** regresa a la lista y **Ficha** abre la ficha a pantalla completa. Todos los botones miden
-al menos 44 píxeles (cabe el pulgar). El catálogo y la cotización suben desde abajo como una hoja.
+respuesta fija abajo**; el botón **Volver** regresa a la lista y **Cliente** (el ícono de la tarjeta) abre la ficha a pantalla
+completa, con su flecha para volver. Todos los botones miden al menos 44 píxeles (cabe el pulgar); el menú **Más** se abre hacia
+arriba, dentro de la pantalla. El catálogo y la cotización suben desde abajo como una hoja.
+
+### Tamaños probados
+
+Medido en Chrome (altura del contenedor de los mensajes, con una conversación de ~90 mensajes, el aviso «Falta conectar el bot»
+encendido y la ficha **abierta**; «% útil» = sobre el alto bajo la barra de Odoo). Antes → ahora:
+
+| Pantalla (ventana) | Mensajes antes | Mensajes ahora | % útil ahora | Caja vacía (antes → ahora) |
+|---|---|---|---|---|
+| 1366 × 768 | 307 px | **508 px** | 71 % | 250 → 93 px |
+| 1366 × 640 (con barra de tareas y del navegador) | 179 px | **380 px** | 65 % | 250 → 93 px |
+| 1280 × 720 | 240 px | **460 px** | 69 % | 269 → 93 px |
+| 1440 × 900 | 452 px | **640 px** | 76 % | 236 → 93 px |
+| 1536 × 864 | 416 px | **604 px** | 75 % | 236 → 93 px |
+| 1024 × 768 | 286 px | **508 px** | 71 % | 250 → 93 px |
+| 1920 × 1080 | 672 px | **820 px** | 80 % | 196 → 93 px |
+| 390 × 844 (celular) | 245 px | **418 px** | 53 % | 298 → 232 px |
+
+Con la caja **a tope** (dos archivos por enviar, la hora de programar abierta y un texto de 4 líneas) en 1366 × 768 los mensajes
+miden 362 px (antes, 113 px): es el peor caso y sigue siendo más de la mitad del alto útil. Las pruebas
+(`tests/test_panel_disposicion.py`) exigen que los mensajes ocupen **al menos 55 % del alto útil** con la ficha abierta en todos
+estos tamaños, que la barra del hilo y los avisos no se partan, que el hilo se desplace con la rueda del ratón con la ficha, la caja
+y el menú abiertos, y que en celular nada baje de 44 px.
 
 ### Teclado: resumen
 
@@ -579,7 +624,9 @@ fotos y documentos: no sirve»).
 **Pruebas.** `tests/test_panel_extra.py`, `test_panel_catalogo.py`, `test_panel_juan.py` (modelos y controladores, con Worker falso);
 `test_panel_interfaz.py` (Chrome de verdad: abrir la lista y un hilo, atender y devolver, enviar con Enter, adjuntar con botón y
 arrastrando, documentos, notas, rápidas, sugerir, filtros, ficha, foto del catálogo, cotización, tiempo real, celular de 390 px, Resumen,
-Costos y Conexiones) y `test_panel_visual.py` (**contrato visual**: sistema plano, amarillo solo sobre azul marino, contraste, foco visible
+Costos y Conexiones), `test_panel_disposicion.py` (**la disposición compacta**: los mensajes ocupan al menos 55 % del alto útil en
+1366 × 768, 1366 × 640, 1280 × 720, 1440 × 900, 1536 × 864, 1024 × 768 y 1920 × 1080; la ficha nace cerrada y se recuerda; la lista se
+reduce a las fotos; el menú «Más» con teclado; avisos de una línea; sin `localStorage` todo funciona; y el contrato de los archivos) y `test_panel_visual.py` (**contrato visual**: sistema plano, amarillo solo sobre azul marino, contraste, foco visible
 con Tab y capturas de referencia en `tests/referencia/panel-*.webp`, a 1440 y 390 px). Para regenerar las referencias a propósito:
 `scripts/actualizar_referencias_visuales_juan.sh` (ver `docs/OPERACION.md`). Las capturas para la dueña se generan con
 `DCASA_CAPTURAS_JUAN=<carpeta> scripts/test.sh dcasa_conversaciones` (se guardan en `docs/auditoria/ronda7/capturas/`).

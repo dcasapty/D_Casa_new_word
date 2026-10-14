@@ -164,7 +164,7 @@
                 <div class="o_dcj_texto_caja">
                     <label for="o_dcj_texto" class="o_dcj_solo_lector" t-out="esNota ? 'Nota interna' : 'Tu respuesta'"/>
                     <textarea id="o_dcj_texto" t-ref="texto" class="o_dcj_texto" rows="1" t-model="borrador.texto"
-                              t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve (@ avisa a una compañera)' : 'Escribe tu respuesta… (/ abre las respuestas rápidas)'"
+                              t-att-placeholder="esNota ? 'Nota interna: el cliente no la ve (@ avisa)' : 'Escribe tu respuesta… (/ para rápidas)'"
                               t-att-maxlength="limite" t-on-input="alEscribir" t-on-keydown="alTeclear" t-on-keyup="alMoverElCursor" t-on-click="alMoverElCursor" t-on-paste="alPegar"
                               t-att-aria-describedby="'o_dcj_atajos'"/>
                     <span t-if="borrador.texto.length > limite * 0.85" class="o_dcj_cuenta" aria-live="polite"><t t-out="borrador.texto.length"/>/<t t-out="limite"/></span>

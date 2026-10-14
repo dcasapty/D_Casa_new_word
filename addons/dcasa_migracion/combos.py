@@ -110,7 +110,14 @@ def _buscar_combo(env, combo):
 # ----------------------------------------------------------------------------------------------
 
 def motivos_para_convertir(env, plantilla):
-    """Por qué un producto NO se debe pasar a tipo Combo todavía (lista vacía = se puede)."""
+    """Por qué un producto NO se debe pasar a tipo Combo todavía (lista vacía = se puede).
+
+    * Existencias: un combo no tiene existencias propias. Hay que contarlas y ajustarlas a 0 (el ajuste de inventario
+      no impide convertirlo: es solo un conteo).
+    * Movimientos de inventario de verdad (entregas, recepciones, traslados) o pendientes: el historial es de un
+      producto con existencias y Odoo desaconseja cambiarlo. No se fuerza.
+    * Cotizaciones abiertas, o ventas confirmadas con algo por facturar: se quedarían con un combo sin piezas.
+    * Varias medidas o colores: un combo no puede tenerlos (una sola línea de «Tamaño» de un valor sí se quita)."""
     variantes = plantilla.with_context(active_test=False).product_variant_ids
     motivos = []
     existencias = sum(env['stock.quant'].sudo().search([
@@ -118,17 +125,19 @@ def motivos_para_convertir(env, plantilla):
     if existencias:
         motivos.append(f'tiene {existencias:g} unidades en existencia: cuéntalas y ajústalas a 0 en Inventario '
                        '(un combo no tiene existencias propias) y vuelve a cargar')
-    movimientos = env['stock.move'].sudo().search_count(
-        [('product_id', 'in', variantes.ids), ('state', '!=', 'cancel')])
-    if movimientos:
-        motivos.append(f'tiene {movimientos} movimientos de inventario')
-    abiertas = env['sale.order.line'].sudo().search([
-        ('product_id', 'in', variantes.ids), ('order_id.state', 'in', ('draft', 'sent', 'sale'))]).order_id
+    movimientos = env['stock.move'].sudo().search([('product_id', 'in', variantes.ids), ('state', '!=', 'cancel')])
+    reales = movimientos.filtered(
+        lambda m: m.state != 'done' or 'inventory' not in (m.location_id.usage, m.location_dest_id.usage))
+    if reales:
+        motivos.append(f'tiene {len(reales)} movimientos de inventario (entregas, recepciones o traslados)')
+    lineas = env['sale.order.line'].sudo().search([
+        ('product_id', 'in', variantes.ids), ('order_id.state', 'in', ('draft', 'sent', 'sale'))])
+    abiertas = lineas.filtered(lambda ln: ln.order_id.state != 'sale' or ln.qty_to_invoice > 0).order_id
     if abiertas:
         motivos.append('está en cotizaciones o ventas abiertas (' + ', '.join(abiertas.mapped('name')[:5])
                        + (' …' if len(abiertas) > 5 else '') + '): termínalas o quita el combo de ellas')
-    if plantilla.attribute_line_ids:
-        motivos.append('tiene medidas o colores: un combo no puede tenerlos')
+    if plantilla.product_variant_count > 1:
+        motivos.append('tiene varias medidas o colores: un combo no puede tenerlas')
     return motivos
 
 
@@ -169,6 +178,9 @@ def aplicar_estructura(env, plantilla, grupos):
         return 'necesita_revision', '; '.join(motivos)
     try:
         with env.cr.savepoint():
+            # La carga del catálogo le puso al combo una línea «Tamaño» de un solo valor (para el filtro de la tienda);
+            # un combo no puede tener atributos. Quitarla no cambia el producto: conserva su id y no crea variantes.
+            plantilla.attribute_line_ids.unlink()
             plantilla.write({'type': 'combo', 'is_storable': False, 'purchase_ok': False,
                              'combo_ids': _comandos_de_grupos(env, grupos)})
     except (ValidationError, UserError, AccessError, psycopg2.Error) as error:
@@ -207,62 +219,117 @@ def _grupos_con_productos(env, grupos_del_archivo):
     return grupos, faltan
 
 
+CLAVES_DEL_RESUMEN = ('creados', 'convertidos', 'ya_estaban', 'otra_estructura', 'sin_piezas', 'necesitan_revision',
+                      'con_error', 'precio_distinto', 'codigo_puesto', 'avisos_de_precio', 'archivados', 'omitidos',
+                      'no_coinciden')
+
+
 def cargar_combos(env, combos, actualizar_precios=False):
-    """Carga los combos de ``reglas_combos.filas_combos``. Devuelve el resumen (listas de claves por grupo):
+    """Carga los combos de ``reglas_combos.filas_combos``. Devuelve ``(resumen, tratados)``: ``tratados`` son los
+    productos que el archivo nombra y ya existían (para que «armar desde el nombre» no los vuelva a tocar) y
+    ``resumen`` las listas por grupo:
 
     ``creados`` (producto nuevo), ``convertidos`` (ya existía y pasó a tipo Combo), ``ya_estaban``, ``otra_estructura``
     (ya eran combos con otras piezas: no se pisan), ``sin_piezas`` (el archivo no les dice qué llevan),
     ``necesitan_revision`` ``[(clave, motivo)]``, ``con_error`` ``[(clave, motivo)]`` (incluye las piezas que no se
     encontraron), ``precio_distinto`` ``[(clave, archivo, aquí)]``, ``codigo_puesto`` y ``avisos_de_precio``
-    ``[(clave, texto)]`` (el precio no cuadra con el de las piezas). No hace commit.
+    ``[(clave, texto)]`` (el precio no cuadra con el de las piezas), ``archivados`` (la columna ``activo`` dice 0),
+    ``omitidos`` (los auxiliares «X COLCHÓN … PARA COMBO», que no se cargan) y ``no_coinciden`` ``[(clave, motivo)]``
+    (lo que el nombre del combo dice y las piezas del archivo contradicen: se cargaron tal cual, para revisar).
+    No hace commit.
     """
     env = _entorno(env)
-    resumen = {k: [] for k in ('creados', 'convertidos', 'ya_estaban', 'otra_estructura', 'sin_piezas',
-                               'necesitan_revision', 'con_error', 'precio_distinto', 'codigo_puesto',
-                               'avisos_de_precio')}
+    carga = _CargaDeCombos(env, actualizar_precios)
+    tratados = env['product.template'].browse()
     for combo in combos:
-        clave = combo['clave']
-        if combo['sin_piezas']:
-            resumen['sin_piezas'].append(clave)
-            continue
-        grupos, faltan = _grupos_con_productos(env, combo['grupos'])
-        if faltan:
-            resumen['con_error'].append((clave, 'no se cargó, falta en el catálogo: ' + '; '.join(faltan)))
-            continue
         plantilla, poner_codigo, error = _buscar_combo(env, combo)
-        if error:
-            resumen['con_error'].append((clave, error))
-            continue
-        if not plantilla:
-            if not combo['nombre']:
-                resumen['con_error'].append((clave, 'es un combo nuevo y el archivo no trae su nombre'))
-                continue
-            try:
-                _crear_combo(env, combo, grupos)
-            except (ValidationError, UserError, AccessError, psycopg2.Error) as error:
-                resumen['con_error'].append((clave, _motivo(error)))
-                continue
-            resumen['creados'].append(clave)
-            resumen['avisos_de_precio'].extend((clave, aviso) for aviso in RC.aviso_de_precio(
-                combo['precio'], [min(v.lst_price for v, _extra in g['opciones']) for g in grupos]))
-            continue
-        resultado, texto = aplicar_estructura(env, plantilla, grupos)
-        if resultado == 'necesita_revision':
-            resumen['necesitan_revision'].append((clave, texto))
-        elif resultado == 'error':
-            resumen['con_error'].append((clave, texto))
-        else:
-            resumen[{'convertido': 'convertidos', 'ya_estaba': 'ya_estaban',
-                     'otra_estructura': 'otra_estructura'}[resultado]].append(clave)
-            if resultado != 'otra_estructura':
-                _ajustar_ficha(env, plantilla, combo, poner_codigo, actualizar_precios, resumen)
-                resumen['avisos_de_precio'].extend((clave, aviso) for aviso in RC.aviso_de_precio(
-                    plantilla.list_price, [min(v.lst_price for v, _extra in g['opciones']) for g in grupos]))
+        tratados |= plantilla
+        carga.uno(combo, plantilla, poner_codigo, error)
+    resumen = carga.resumen
     _logger.info('Carga de combos: %s nuevos, %s convertidos, %s ya estaban, %s con otra estructura, %s sin piezas, '
                  '%s necesitan revisión, %s con error.', len(resumen['creados']), len(resumen['convertidos']),
                  len(resumen['ya_estaban']), len(resumen['otra_estructura']), len(resumen['sin_piezas']),
                  len(resumen['necesitan_revision']), len(resumen['con_error']))
-    return resumen
+    return resumen, tratados
+
+
+class _CargaDeCombos:
+    """Lo que se hace con cada combo del archivo y lo que se anota en el resumen."""
+
+    def __init__(self, env, actualizar_precios):
+        self.env = env
+        self.actualizar_precios = actualizar_precios
+        self.resumen = {k: [] for k in CLAVES_DEL_RESUMEN}
+        self._contraste = None   # (camas, por id, nombres, códigos): se arma la primera vez que hace falta
+
+    def uno(self, combo, plantilla, poner_codigo, error):
+        clave, resumen = combo['clave'], self.resumen
+        if combo['archivado']:
+            resumen['archivados'].append(clave)
+        elif clase_de_fila_inventario(combo['nombre'] or clave) == 'omitir':
+            resumen['omitidos'].append(clave)
+        elif combo['sin_piezas']:
+            resumen['sin_piezas'].append(clave)
+        elif error:
+            resumen['con_error'].append((clave, error))
+        elif plantilla and plantilla.type != 'combo' and 'combo' not in RC.limpio(plantilla.name):
+            resumen['con_error'].append((clave, f'el código es del producto «{plantilla.name}», que no parece un '
+                                                'combo: no se convierte'))
+        else:
+            grupos, faltan = _grupos_con_productos(self.env, combo['grupos'])
+            if faltan:
+                resumen['con_error'].append((clave, 'no se cargó, falta en el catálogo: ' + '; '.join(faltan)))
+            elif plantilla:
+                self._existente(combo, plantilla, poner_codigo, grupos)
+            else:
+                self._nuevo(combo, grupos)
+
+    def _nuevo(self, combo, grupos):
+        clave, env = combo['clave'], self.env
+        if not combo['nombre']:
+            self.resumen['con_error'].append((clave, 'es un combo nuevo y el archivo no trae su nombre'))
+            return
+        try:
+            plantilla = _crear_combo(env, combo, grupos)
+        except (ValidationError, UserError, AccessError, psycopg2.Error) as error:
+            self.resumen['con_error'].append((clave, _motivo(error)))
+            return
+        self.resumen['creados'].append(clave)
+        self._revisar(clave, plantilla, grupos, combo['precio'])
+
+    def _existente(self, combo, plantilla, poner_codigo, grupos):
+        clave = combo['clave']
+        resultado, texto = aplicar_estructura(self.env, plantilla, grupos)
+        if resultado == 'necesita_revision':
+            self.resumen['necesitan_revision'].append((clave, texto))
+        elif resultado == 'error':
+            self.resumen['con_error'].append((clave, texto))
+        else:
+            self.resumen[{'convertido': 'convertidos', 'ya_estaba': 'ya_estaban',
+                          'otra_estructura': 'otra_estructura'}[resultado]].append(clave)
+            if resultado != 'otra_estructura':
+                _ajustar_ficha(self.env, plantilla, combo, poner_codigo, self.actualizar_precios, self.resumen)
+                self._revisar(clave, plantilla, grupos, plantilla.list_price)
+
+    def _revisar(self, clave, plantilla, grupos, precio):
+        """Avisos de un combo ya cargado: su precio frente al de sus piezas y su nombre frente a sus piezas."""
+        self.resumen['avisos_de_precio'].extend((clave, aviso) for aviso in RC.aviso_de_precio(
+            precio, [min(v.lst_price for v, _extra in g['opciones']) for g in grupos]))
+        self._contraste = self._contraste or _indices_para_contraste(self.env)
+        _anotar_contraste(self.resumen, clave, plantilla, [[v for v, _e in g['opciones']] for g in grupos],
+                          self._contraste)
+
+
+def _indices_para_contraste(env):
+    camas, colchones = indices_de_piezas(env)
+    nombres, codigos = _origenes(_entorno(env))
+    return camas, {p['id']: p for p in camas + colchones}, nombres, codigos
+
+
+def _anotar_contraste(resumen, clave, plantilla, grupos, contraste):
+    problemas = _contraste(plantilla, grupos, contraste)
+    if problemas:
+        resumen['no_coinciden'].append((clave, '; '.join(problemas)))
 
 
 def _ajustar_ficha(env, plantilla, combo, poner_codigo, actualizar_precios, resumen):
@@ -292,6 +359,23 @@ def _origenes(env):
     return nombres, codigos
 
 
+def _describir(variante, nombres, codigos, existencias=None):
+    """Una variante como la ven las reglas puras: ``id, codigo, nombre, tamano, precio, existencias, origen``."""
+    nombre = variante.with_context(display_default_code=False).display_name
+    codigo = variante.default_code or ''
+    xmlid = nombres.get(variante.product_tmpl_id.id, '')
+    base = codigo.rsplit('-', 1)[0] if codigo.rsplit('-', 1)[-1].lower() in RC.TAMANOS else codigo
+    es_colchon = bool(re.search(r'\bcolch', RC.limpio(nombre)))
+    return {
+        'id': variante.id, 'codigo': codigo, 'nombre': nombre, 'precio': variante.lst_price,
+        'existencias': variante.qty_available if existencias is None else existencias.get(variante.id, 0.0),
+        'origen': 'inventario' if xmlid.startswith(PREFIJO_INVENTARIO) or codigo in codigos or base in codigos
+        else 'catalogo',
+        'tamano': RC.tamano_de_colchon(nombre) if es_colchon
+        else RC.tamano_de_cama(nombre) or RC.tamano_de_cama(codigo.replace('-', ' ')),
+    }
+
+
 def indices_de_piezas(env):
     """``(camas, colchones)`` para ``reglas_combos.resolver_combo``: los productos que se pueden vender, sin combos ni
     colchonetas. Cada uno: ``id, codigo, nombre, tamano, precio, existencias, origen``. ``origen`` es ``inventario``
@@ -302,24 +386,19 @@ def indices_de_piezas(env):
     existencias = {v.id: v.qty_available for v in variantes}
     camas, colchones = [], []
     for variante in variantes:
-        nombre = variante.with_context(display_default_code=False).display_name
-        claro = RC.limpio(nombre)
-        if claro.startswith('combo') or 'colchoneta' in claro or clase_de_fila_inventario(nombre) == 'omitir':
+        pieza = _describir(variante, nombres, codigos, existencias)
+        claro = RC.limpio(pieza['nombre'])
+        if claro.startswith('combo') or 'colchoneta' in claro or clase_de_fila_inventario(pieza['nombre']) == 'omitir':
             continue
-        codigo = variante.default_code or ''
-        xmlid = nombres.get(variante.product_tmpl_id.id, '')
-        base = codigo.rsplit('-', 1)[0] if codigo.rsplit('-', 1)[-1].lower() in RC.TAMANOS else codigo
-        es_colchon = bool(re.search(r'\bcolch', claro))
-        pieza = {
-            'id': variante.id, 'codigo': codigo, 'nombre': nombre, 'precio': variante.lst_price,
-            'existencias': existencias.get(variante.id, 0.0),
-            'origen': 'inventario' if xmlid.startswith(PREFIJO_INVENTARIO) or codigo in codigos or base in codigos
-            else 'catalogo',
-            'tamano': RC.tamano_de_colchon(nombre) if es_colchon
-            else RC.tamano_de_cama(nombre) or RC.tamano_de_cama(codigo.replace('-', ' ')),
-        }
-        (colchones if es_colchon else camas).append(pieza)
+        (colchones if re.search(r'\bcolch', claro) else camas).append(pieza)
     return camas, colchones
+
+
+def _contraste(plantilla, grupos, contraste):
+    """Lo que no coincide entre el nombre del combo y las piezas de ``grupos`` (listas de variantes por grupo)."""
+    camas, por_id, nombres, codigos = contraste
+    descritos = [[por_id.get(v.id) or _describir(v, nombres, codigos) for v in grupo] for grupo in grupos]
+    return RC.contrastar_con_el_nombre(plantilla.name, descritos, camas)
 
 
 def _texto_pieza(pieza):
@@ -346,17 +425,26 @@ def armar_desde_nombre(env, tratados=()):
     * ``dudosos`` y ``sin_resolver``: ``(nombre, motivo, [(rol, texto de una opción)])``: no se tocan;
     * ``necesitan_revision`` y ``con_error``: ``(nombre, motivo)``;
     * ``ya_estaban``: nombres de los que ya son tipo Combo (no se tocan);
-    * ``con_alternativa``: ``(nombre, nota)`` de los claros donde había otro producto parecido;
+    * ``no_coinciden``: ``(nombre, motivo)`` de los que ya son tipo Combo y cuyas piezas contradicen lo que dice su
+      nombre (el contraste: solo para revisar);
+    * ``con_alternativa``: ``(pieza elegida, por qué, [otras piezas parecidas], en cuántos combos)`` de las piezas donde
+      había otro producto igual en el catálogo;
     * ``avisos_de_precio``: ``(nombre, texto)`` de los claros cuyo precio no cuadra con el de sus piezas.
 
     Solo los claros se cargan. No hace commit."""
     env = _entorno(env)
     resumen = {k: [] for k in ('cargados', 'dudosos', 'sin_resolver', 'necesitan_revision', 'con_error', 'ya_estaban',
-                               'avisos_de_precio', 'con_alternativa')}
+                               'avisos_de_precio', 'con_alternativa', 'no_coinciden')}
     pendientes, ya_combos = combos_por_nombre(env)
     resumen['ya_estaban'] = [p.name for p in ya_combos if p not in tratados]
+    contraste = _indices_para_contraste(env)
     camas, colchones = indices_de_piezas(env)
+    for plantilla in ya_combos - tratados:
+        _anotar_contraste(resumen, plantilla.name, plantilla,
+                          [grupo.combo_item_ids.product_id for grupo in plantilla.combo_ids.sorted('sequence')],
+                          contraste)
     Variante = env['product.product']
+    alternativas = {}
     for plantilla in pendientes - tratados:
         resolucion = RC.resolver_combo(plantilla.name, camas, colchones, plantilla.list_price)
         if resolucion['estado'] != RC.CLARO:
@@ -379,9 +467,11 @@ def armar_desde_nombre(env, tratados=()):
                                     (f'{n} × ' if n > 1 else '') + _texto_pieza(colchon['elegida'])))
         for pieza in (cama, colchon):
             if pieza['nota']:
-                resumen['con_alternativa'].append((plantilla.name, '; '.join(
-                    [pieza['nota']] + [f'también está: {_texto_pieza(otra)}' for otra in pieza['otras']])))
+                alternativas.setdefault(pieza['elegida']['id'], [pieza, 0])[1] += 1
         resumen['avisos_de_precio'].extend((plantilla.name, aviso) for aviso in resolucion['avisos_de_precio'])
+    resumen['con_alternativa'] = [
+        (_texto_pieza(pieza['elegida']), pieza['nota'], [_texto_pieza(otra) for otra in pieza['otras']], veces)
+        for pieza, veces in alternativas.values()]
     _logger.info('Combos desde su nombre: %s armados, %s dudosos, %s sin resolver, %s necesitan revisión.',
                  len(resumen['cargados']), len(resumen['dudosos']), len(resumen['sin_resolver']),
                  len(resumen['necesitan_revision']))

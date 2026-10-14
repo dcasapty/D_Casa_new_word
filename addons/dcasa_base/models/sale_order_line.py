@@ -32,19 +32,24 @@ class SaleOrderLine(models.Model):
         return min(max(tope, 0.0), 100.0)
 
     def _dcasa_exenta_tope_descuento(self):
-        """Líneas que no son una rebaja sobre un producto (secciones, notas, anticipos, combos).
+        """Líneas que no son una rebaja sobre un producto (secciones, notas, anticipos, la línea de un combo).
 
-        dcasa_socios añade las líneas de premio canjeado con puntos.
+        La línea del combo no lleva importe (Odoo reparte su precio entre las piezas): lo que se rebaja se mide en
+        las líneas de sus piezas, que SÍ cuentan contra el tope. dcasa_socios añade las líneas de premio canjeado
+        con puntos.
         """
         self.ensure_one()
         return bool(self.display_type or not self.product_id or self.is_downpayment
-                    or self.combo_item_id or self.product_type == 'combo')
+                    or self.product_type == 'combo' or (self.combo_item_id and not self._get_linked_line()))
 
     def _dcasa_precio_autorizado(self):
-        """Precio unitario que da la tarifa, en la misma base que price_unit (con ITBMS si aplica)."""
+        """Precio unitario que da la tarifa, en la misma base que price_unit (con ITBMS si aplica).
+
+        Una pieza de combo cuesta la parte del precio del combo que le toca (más el recargo de su opción): ese es su
+        precio de tarifa, no el de lista de la cama o del colchón por separado."""
         self.ensure_one()
         linea = self.with_company(self.company_id)
-        precio = linea._get_pricelist_price()
+        precio = linea._get_combo_item_display_price() if linea.combo_item_id else linea._get_pricelist_price()
         return linea.product_id._get_tax_included_unit_price_from_price(
             precio,
             product_taxes=linea.product_id.taxes_id._filter_taxes_by_company(linea.company_id),

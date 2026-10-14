@@ -12,3 +12,4 @@ from . import test_vendedores_reglas
 from . import test_vendedores
 from . import test_vendedores_web
 from . import test_vendedores_ajustes_reglas
+from . import test_vendedores_ajustes

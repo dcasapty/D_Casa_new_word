@@ -131,7 +131,10 @@ def _crear(env, fila, impuesto, foto):
 
 
 def _ajustar_stock(env, variante, ubicacion, existencias):
-    """Ajuste de inventario a ``existencias`` en la ubicación; nada si ya está así."""
+    """Ajuste de inventario a ``existencias`` en la ubicación; nada si ya está así. Un combo no tiene existencias
+    propias (descuenta las de su cama y su colchón al venderse): no se ajusta."""
+    if variante.type == 'combo':
+        return False
     actual = variante.with_context(location=ubicacion.id).qty_available
     if not float_compare(actual, existencias, precision_digits=2):
         return False

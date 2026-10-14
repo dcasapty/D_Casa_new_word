@@ -823,6 +823,8 @@ $dcj-amarillo: #FED00F;
         line-height: 1.35;
         resize: none;
         &:focus { border-color: var(--dc-azul-600, #1340B1); }
+        // La pista nunca se parte en dos líneas (la caja es de una): si no cabe, se corta.
+        &::placeholder { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     }
     .o_dcj_cuenta { position: absolute; right: 8px; bottom: 3px; padding: 0 4px; background: var(--dc-blanco, #FFFFFF); color: var(--dc-tinta-3, #6B7690); font-size: .68rem; pointer-events: none; }
     .o_dcj_enviar { flex: none; min-height: 40px; min-width: 92px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
@@ -859,8 +861,8 @@ $dcj-amarillo: #FED00F;
         }
     }
 
-    // Si la columna del hilo es angosta (medidas del espacio de adentro, sin el relleno): las herramientas pasan a su propia
-    // línea; más angosta aún, Enviar pierde el texto y la línea de programar se parte.
+    // Si la columna del hilo es angosta (medidas del espacio de adentro, sin el relleno): con menos de 620 px Enviar es solo el
+    // ícono; con menos de 540 la línea de programar se parte; con menos de 500 las herramientas pasan a su propia línea.
     @container caja (max-width: 500px) {
         .o_dcj_escribir { flex-wrap: wrap; }
         .o_dcj_herramientas { flex: 1 0 100%; padding-bottom: 0; }
@@ -870,7 +872,7 @@ $dcj-amarillo: #FED00F;
         .o_dcj_programar { flex-wrap: wrap; }
         .o_dcj_programar .o_dcj_programar_ayuda { flex: 1 1 140px; white-space: normal; }
     }
-    @container caja (max-width: 400px) {
+    @container caja (max-width: 620px) {
         .o_dcj_enviar { min-width: 44px; padding-left: 12px; padding-right: 12px; }
         .o_dcj_enviar_texto { @include dcj-solo-lector; }
     }

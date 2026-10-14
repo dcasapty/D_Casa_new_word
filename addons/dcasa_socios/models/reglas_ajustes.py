@@ -164,6 +164,10 @@ def claves_de_escalon(numero):
 
 CLAVES_DE_ESCALONES = tuple(clave for n in range(1, MAX_ESCALONES + 1) for clave in claves_de_escalon(n))
 CLAVES_DE_PANTALLA = tuple(campo.clave for campo in CAMPOS) + CLAVES_DE_ESCALONES
+# Los campos de Odoo que la pantalla carga al abrirse: las cifras, los dos interruptores legales (solo se ven) y las
+# dos marcas de control (cargó bien; qué versión estaba mirando).
+CLAVES_DE_PANTALLA_ODOO = tuple(f'dcasa_vend_{clave}' for clave in CLAVES_DE_PANTALLA) + (
+    'dcasa_vend_externos', 'dcasa_vend_efectivo', 'dcasa_vend_cargado', 'dcasa_vend_version_vista')
 
 
 # ---------------------------------------------------------------------------

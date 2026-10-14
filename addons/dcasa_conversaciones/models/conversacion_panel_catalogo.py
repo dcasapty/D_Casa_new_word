@@ -247,6 +247,10 @@ class DcasaConversacionCatalogo(models.Model):
             variante = self.env['product.product'].sudo().browse(variante_id).exists()
             if not variante or variante.product_tmpl_id not in publicadas:
                 raise UserError(self.env._('Alguno de los productos ya no está publicado en la tienda.'))
+            if variante.type == 'combo':
+                raise UserError(self.env._(
+                    '«%s» es un combo: se cotiza desde Ventas, donde se escogen sus piezas (la cama y el colchón).',
+                    variante.display_name))
             valores.append((0, 0, {'product_id': variante.id, 'product_uom_qty': cantidad}))
         orden = self.env['sale.order'].create({
             'partner_id': conv.partner_id.id, 'user_id': self.env.uid,

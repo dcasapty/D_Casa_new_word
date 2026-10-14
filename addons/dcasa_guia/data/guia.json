@@ -1408,6 +1408,43 @@
    ]
   },
   {
+   "id": "vendedores-porcentajes",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Cambiar los porcentajes del programa de vendedores",
+   "logras": "Ajustas lo que gana cada vendedor, la escalera, el patrocinio, la espera y los canjes, sin tocar lo que ya se pagó.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vend_ajustes"
+   },
+   "nota": "Cada cambio rige desde el momento en que lo guardas y queda en el historial. El canje para vendedores de afuera y el canje en efectivo no se encienden aquí: esperan el visto bueno del abogado y la contadora.",
+   "palabras": [
+    "porcentajes de vendedores",
+    "comision",
+    "escalera",
+    "cambiar comision",
+    "ajustar programa de vendedores",
+    "patrocinio",
+    "tope del mes",
+    "valores de fabrica"
+   ]
+  },
+  {
+   "id": "vendedores-historial-reglas",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Ver quién cambió los porcentajes de los vendedores y cuándo",
+   "logras": "Cada cambio de las reglas con su fecha, quién lo hizo, el valor de antes y el de ahora.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vend_reglas"
+   },
+   "palabras": [
+    "historial de reglas",
+    "quien cambio la comision",
+    "cambios del programa",
+    "versiones de reglas"
+   ]
+  },
+  {
    "id": "oportunidades",
    "categoria": "clientes",
    "grupo": "Seguimiento",

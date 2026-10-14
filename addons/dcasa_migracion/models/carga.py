@@ -13,7 +13,18 @@ import time
 from odoo import fields, models
 from odoo.exceptions import AccessError, UserError
 
-from .. import catalogo, contactos, documentos, historial, informe, precios, reglas, reglas_historial
+from .. import (
+    catalogo,
+    combos,
+    contactos,
+    documentos,
+    historial,
+    informe,
+    precios,
+    reglas,
+    reglas_combos,
+    reglas_historial,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -85,10 +96,18 @@ class DcasaMigracionCarga(models.TransientModel):
     nombre_facturas_proveedores_lineas = fields.Char()
     archivo_pagos = fields.Binary('pagos.csv', attachment=False)
     nombre_pagos = fields.Char()
+    archivo_combos = fields.Binary('combos.csv', attachment=False)
+    nombre_combos = fields.Char()
+    armar_combos_desde_nombre = fields.Boolean(
+        'Armar los combos desde su nombre', default=False,
+        help='Lee el nombre de cada combo («COMBO CAMA … + COLCHÓN …»), busca su cama y su colchón en el catálogo y '
+             'arma los combos donde hay un solo producto posible. Los dudosos y los que no se encuentran solo se '
+             'listan en el informe: nunca adivina. Sirve para empezar a vender mientras llega combos.csv.')
     actualizar_precios = fields.Boolean(
         'También cambiar precio y costo de los productos que ya existen', default=False,
         help='Apagado (lo normal): de un producto que ya existe solo cambian las existencias; su precio y su costo se '
-             'quedan como están aquí. Encendido: precio y costo pasan a ser los del archivo.')
+             'quedan como están aquí. Encendido: precio y costo pasan a ser los del archivo (y el precio de un combo '
+             'que ya existe, el de combos.csv).')
     huella_revisada = fields.Char(readonly=True, copy=False)
     informe = fields.Html(readonly=True, sanitize=False)
 
@@ -141,9 +160,11 @@ class DcasaMigracionCarga(models.TransientModel):
         for campo in ('archivo_clientes', 'archivo_proveedores', 'archivo_productos', 'archivo_inventario',
                       'archivo_precios', 'archivo_ventas', 'archivo_ventas_lineas', 'archivo_compras',
                       'archivo_compras_lineas', 'archivo_facturas_clientes', 'archivo_facturas_clientes_lineas',
-                      'archivo_facturas_proveedores', 'archivo_facturas_proveedores_lineas', 'archivo_pagos'):
+                      'archivo_facturas_proveedores', 'archivo_facturas_proveedores_lineas', 'archivo_pagos',
+                      'archivo_combos'):
             resumen.update(hashlib.sha256(self._bytes(campo)).digest())
         resumen.update(b'precios' if self.actualizar_precios else b'sin-precios')
+        resumen.update(b'combos-por-nombre' if self.armar_combos_desde_nombre else b'sin-combos-por-nombre')
         return resumen.hexdigest()
 
     def _textos(self):
@@ -155,7 +176,8 @@ class DcasaMigracionCarga(models.TransientModel):
                   'facturas_clientes': 'archivo_facturas_clientes',
                   'facturas_clientes_lineas': 'archivo_facturas_clientes_lineas',
                   'facturas_proveedores': 'archivo_facturas_proveedores',
-                  'facturas_proveedores_lineas': 'archivo_facturas_proveedores_lineas', 'pagos': 'archivo_pagos'}
+                  'facturas_proveedores_lineas': 'archivo_facturas_proveedores_lineas', 'pagos': 'archivo_pagos',
+                  'combos': 'archivo_combos'}
         try:
             textos = {nombre: reglas.texto_de_bytes(self._bytes(campo)) for nombre, campo in campos.items()
                       if self[campo]}
@@ -172,10 +194,11 @@ class DcasaMigracionCarga(models.TransientModel):
                 raise UserError(self.env._(
                     'Este grupo va en dos archivos: %(archivo)s.csv y %(archivo)s_lineas.csv. Sube los dos.',
                     archivo=archivo))
-        if not textos:
+        if not textos and not self.armar_combos_desde_nombre:
             raise UserError(self.env._(
                 'Sube al menos un archivo: clientes.csv, proveedores.csv, productos.csv (con inventario.csv), '
-                'precios_proveedor.csv, las ventas y compras pendientes, las facturas del año o los pagos.'))
+                'precios_proveedor.csv, combos.csv, las ventas y compras pendientes, las facturas del año o los pagos '
+                '(o marca «Armar los combos desde su nombre»).'))
         return textos
 
     def _leer(self, textos):
@@ -195,6 +218,8 @@ class DcasaMigracionCarga(models.TransientModel):
                     leidos[nombre] = reglas_historial.filas_facturas(textos[nombre], textos[nombre + '_lineas'], rol)
             if 'pagos' in textos:
                 leidos['pagos'] = reglas_historial.filas_pagos(textos['pagos'])
+            if 'combos' in textos:
+                leidos['combos'] = reglas_combos.filas_combos(textos['combos'])
             # Leer productos aquí, antes de abrir el savepoint: así un número mal escrito corta con su fila.
             if 'productos' in textos:
                 reglas.filas_catalogo(textos['productos'], textos.get('inventario'))
@@ -220,6 +245,13 @@ class DcasaMigracionCarga(models.TransientModel):
         if 'precios' in leidos:
             salida['precios'] = con_errores_de_filas(
                 'precios', precios.cargar_precios_proveedor(self.env, leidos['precios'][0]))
+        tratados = self.env['product.template'].browse()
+        if 'combos' in leidos:
+            salida['combos'], tratados = combos.cargar_combos(
+                self.env, leidos['combos'][0], self.actualizar_precios)
+            salida['combos']['con_error'] = list(leidos['combos'][1]) + salida['combos']['con_error']
+        if self.armar_combos_desde_nombre:
+            salida['combos_nombre'] = combos.armar_desde_nombre(self.env, tratados)
         if 'ventas' in leidos:
             ordenes = leidos['ventas'][0]
             salida['ventas'] = con_errores_de_filas('ventas', documentos.cargar_ventas_por_facturar(self.env, ordenes))
@@ -262,5 +294,6 @@ class DcasaMigracionCarga(models.TransientModel):
             ventas=salida.get('ventas'), entregas=salida.get('entregas'),
             compras_por_recibir=salida.get('compras_por_recibir'),
             compras_por_facturar=salida.get('compras_por_facturar'), historial=salida.get('historial'),
+            combos=salida.get('combos'), combos_nombre=salida.get('combos_nombre'),
             con_existencias='inventario' in textos, segundos=time.monotonic() - inicio)
         return html, salida.get('historial', {}).get('faltan', 0)
