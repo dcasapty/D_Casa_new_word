@@ -24,4 +24,9 @@
             </filter>
         </field>
     </record>
+
+    <!-- Ventas › Para facturar › Facturas: la misma lista de Facturación › Clientes › Facturas (con las cargadas del
+         sistema anterior, que no vienen de un pedido y por eso no aparecen en Pedidos). -->
+    <menuitem id="menu_dcasa_ventas_facturas" name="Facturas" parent="sale.menu_sale_invoicing"
+              action="account.action_move_out_invoice_type" sequence="5" groups="account.group_account_invoice"/>
 </odoo>

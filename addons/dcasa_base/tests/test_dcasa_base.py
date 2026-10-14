@@ -1,5 +1,5 @@
 from odoo.exceptions import ValidationError
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 
 @tagged('post_install', '-at_install')
@@ -76,3 +76,21 @@ class TestDcasaBase(TransactionCase):
     def test_numbers_use_panama_format(self):
         lang = self.env['res.lang']._lang_get('es_419')
         self.assertEqual((lang.decimal_point, lang.thousands_sep), ('.', ','))
+
+
+@tagged('post_install', '-at_install')
+class TestAccesoFacturasEnVentas(TransactionCase):
+    """Las facturas cargadas del sistema anterior no vienen de un pedido: se ven desde Ventas por este acceso."""
+
+    def test_ventas_tiene_el_acceso_a_las_facturas_de_clientes(self):
+        menu = self.env.ref('dcasa_base.menu_dcasa_ventas_facturas')
+        self.assertEqual(menu.parent_id, self.env.ref('sale.menu_sale_invoicing'))
+        self.assertEqual(menu.action, self.env.ref('account.action_move_out_invoice_type'))
+        self.assertEqual(menu.group_ids, self.env.ref('account.group_account_invoice'))
+
+    def test_quien_factura_lo_ve_y_quien_no_tiene_permiso_no(self):
+        menu = self.env.ref('dcasa_base.menu_dcasa_ventas_facturas')
+        facturador = new_test_user(self.env, login='dc_facturador_menu', groups='account.group_account_invoice')
+        solo_ventas = new_test_user(self.env, login='dc_solo_ventas_menu', groups='sales_team.group_sale_salesman')
+        self.assertIn(menu.id, self.env['ir.ui.menu'].with_user(facturador)._visible_menu_ids())
+        self.assertNotIn(menu.id, self.env['ir.ui.menu'].with_user(solo_ventas)._visible_menu_ids())
