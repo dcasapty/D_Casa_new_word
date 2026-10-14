@@ -59,12 +59,12 @@ Reglas de DCasa-Referidos (Abrinay), no negociables:
 
 ## Programa de vendedores (`dcasa_socios`, ver `docs/VENDEDORES.md`)
 
-1. Cifras solo en la sección `vendedores` de `puntos.json` (misma regla que Socios); `programaActivo` es el interruptor.
+1. Las cifras de fábrica viven solo en la sección `vendedores` de `puntos.json` (misma regla que Socios; `null`/`PENDIENTE` no se rellena a ojo). La dueña las ajusta desde Ajustes › Programa de vendedores (Gerencia y administradores): una capa encima, con versión y vigencia hacia adelante (`dcasa.vend.reglas`). El código de vendedores lee siempre `self.env['dcasa.vend.reglas']._vigentes()`, nunca `cargar_reglas()` a pelo; `programaActivo` es el interruptor.
 2. Libro propio e inmutable (`dcasa.vend.movimiento`); el saldo es la suma. Correcciones con asiento contrario.
 3. Nada se paga por afiliar ni por reclutar; solo por ventas **pagadas**; un solo nivel; un solo patrocinador (se escribe una vez).
 4. Un tope o un error del programa **nunca** hace fallar una venta (la comisión corre en un savepoint tras el pago).
-5. Canje de externos y efectivo apagados hasta dictamen del abogado y la contadora (`canje.externosHabilitado`, `efectivoHabilitado`).
-6. La escalera de comisión (`comision.escalones`: tasa y tope mensual por lo vendido en 90 días) solo se cambia hacia adelante, subiendo la `version` de `puntos.json`; nunca retroactiva.
+5. Canje de externos y efectivo apagados hasta dictamen del abogado y la contadora (`canje.externosHabilitado`, `efectivoHabilitado`); la pantalla de Ajustes los muestra de solo lectura y el servidor los ignora aunque alguien los mande.
+6. La escalera de comisión (`comision.escalones`: tasa y tope mensual por lo vendido en 90 días) solo se cambia hacia adelante, nunca retroactiva: desde Ajustes (cada cambio guardado crea una versión nueva con fecha-hora de vigencia y queda en el historial, que no se edita ni se borra) o, para cambiar la fábrica, subiendo la `version` de `puntos.json`. Lo ya acreditado no se recalcula.
 
 ## Datos reales de la empresa
 
