@@ -330,6 +330,8 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `pendientes_de_hoy` — entregas, cotizaciones dormidas, compras por recibir, vencidas, publicados agotados, acciones por confirmar | lectura | Interno |
 | `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
 | `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |
+| `ajustar_existencias_en_bloque(cantidad, productos? / categoria? / todos?, almacen?)` — deja la misma cantidad en varios productos a la vez (lo normal: en cero). La tarjeta dice cuántos y cuáles; `todos` solo sirve con cantidad 0 y toma los que hoy tienen existencias en el almacén; hasta 1,000 por vez | sensible | Gerencia de inventario |
+| `actualizar_productos_en_bloque(campo, productos? / categoria?, valor? / porcentaje?)` — cambia varios productos a la vez: `precio` (valor fijo o porcentaje, sin ITBMS), `categoria` o `vendible`; la tarjeta muestra el antes y el después de cada uno; hasta 200 por vez | sensible | Gerencia de ventas |
 | `consumo_de_brian` | lectura | Administrador |
 | `oportunidades_abiertas(temperatura?, para_hoy?, limite?)` — las del CRM que nacieron de una conversación, de la más caliente a la más fría: etapa, qué pidió, para cuándo, zona, si esperan respuesta o tienen cotización; `para_hoy` = tibias y calientes sin mensaje de una vendedora en 24 h (módulo `dcasa_conversaciones`) | lectura | Ventas |
 | `resumen_del_crm` — abiertas por temperatura y por etapa, las que esperan respuesta, con cotización enviada, en manos de una persona y lo ganado y archivado en 30 días | lectura | Ventas |

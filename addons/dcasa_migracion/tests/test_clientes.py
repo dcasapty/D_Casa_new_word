@@ -1,6 +1,6 @@
 """La carga de clientes: una ficha por cliente, idempotente, sin saltarse el candado y sin tocar Socios."""
 from odoo.addons.dcasa_migracion import contactos as C
-from odoo.addons.dcasa_migracion import reglas
+from odoo.addons.dcasa_migracion import documentos, informe, reglas
 from odoo.tests import TransactionCase, tagged
 
 from . import ejemplos
@@ -88,11 +88,48 @@ class TestCargaDeClientes(TransactionCase):
         self.assertEqual(existente.name, 'Ya Estaba Aquí')
         self.assertTrue(otro_correo.exists())
 
-    def test_el_mismo_ruc_ya_registrado_tampoco_pasa(self):
+    def test_el_mismo_ruc_de_otra_ficha_enlaza_el_numero_viejo_a_esa_ficha(self):
+        """Un RUC, una persona: no se crea otra ficha ni se pisa la que ya existe; el número viejo apunta a ella."""
+        dueno = self.env['res.partner'].create({'name': 'Dueño del RUC', 'vat': '0-000-0005'})
+        antes = self.env['res.partner'].search_count([])
+        resumen = C.cargar_clientes(self.env, _filas())
+        self.assertEqual(resumen['con_error'], [])
+        self.assertEqual(resumen['enlazados'], [(90005, None, 'Dueño del RUC')])
+        self.assertEqual([i for i, _n in resumen['creados']], [90001, 90002, 90003, 90004])
+        self.assertEqual(self.env['res.partner'].search_count([]), antes + 4)
+        self.assertEqual(self._ficha(90005), dueno)
+        self.assertEqual((dueno.name, dueno.customer_rank), ('Dueño del RUC', 1))
+
+    def test_dos_numeros_con_el_mismo_ruc_quedan_en_una_sola_ficha(self):
+        texto = ejemplos.BOM + '\n'.join([
+            'id_viejo,nombre,tipo,cedula_ruc,dv,celular,correo,direccion,ciudad',
+            '91001,Cliente Repetido A,persona,0-000-0091,,6000-0091,,,',
+            '91002,Cliente Repetido B,persona,0 000 0091,,6000-0092,otro@ejemplo.com,,',
+            '91003,Otra Persona,persona,0-000-0093,,6000-0093,,,',
+            '',
+        ])
+        filas, errores = reglas.filas_clientes(texto)
+        self.assertFalse(errores)
+        resumen = C.cargar_clientes(self.env, filas)
+        self.assertEqual(resumen['con_error'], [])
+        self.assertEqual([i for i, _n in resumen['creados']], [91001, 91003])
+        self.assertEqual(resumen['enlazados'], [(91002, '91001', 'Cliente Repetido A')])
+        self.assertEqual(self._ficha(91002), self._ficha(91001))
+        self.assertEqual(self._ficha(91001).name, 'Cliente Repetido A')
+        # Las órdenes, facturas y pagos del número repetido buscan su ficha por el mismo id externo.
+        self.assertEqual(documentos._contacto(self.env, 91002), self._ficha(91001).id)
+        # Volver a cargar no cambia nada: los tres números ya apuntan a su ficha.
+        segunda = C.cargar_clientes(self.env, filas)
+        self.assertEqual((segunda['creados'], segunda['enlazados'], segunda['con_error']), ([], [], []))
+        self.assertEqual(segunda['ya_estaban'], [91001, 91002, 91003])
+
+    def test_el_informe_dice_cuales_se_enlazaron_para_revisarlos(self):
         self.env['res.partner'].create({'name': 'Dueño del RUC', 'vat': '0-000-0005'})
         resumen = C.cargar_clientes(self.env, _filas())
-        self.assertEqual([i for i, _n, _m in resumen['con_error']], [90005])
-        self.assertIn('Dueño del RUC', resumen['con_error'][0][2])
+        html = str(informe._seccion_contactos('Clientes', resumen))
+        self.assertIn('Repetidos enlazados', html)
+        self.assertIn('n.º 90005 usa la ficha que ya existía de «Dueño del RUC»', html)
+        self.assertIn('No se pudieron crear: <b>0</b>', html)
 
     def test_los_nombres_de_las_personas_no_van_al_log(self):
         with self.assertLogs('odoo.addons.dcasa_migracion.contactos', level='INFO') as registro:

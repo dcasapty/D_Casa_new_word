@@ -264,11 +264,14 @@ class TestHerramientasRonda6(TransactionCase):
         gerente = {h['name'] for h in self.env['brian.herramientas'].with_user(self.gerente).catalogo()}
         for nombre in ('sugerir_reabastecimiento', 'pendientes_de_hoy', 'productos_incompletos'):
             self.assertIn(nombre, vendedor)
-        for nombre in ('crear_pedido_compra', 'buscar_compras', 'publicar_productos_en_bloque', 'consumo_de_brian'):
+        for nombre in ('crear_pedido_compra', 'buscar_compras', 'publicar_productos_en_bloque', 'consumo_de_brian',
+                       'ajustar_existencias_en_bloque', 'actualizar_productos_en_bloque'):
             self.assertNotIn(nombre, vendedor)
             self.assertIn(nombre, gerente)
         especificaciones = self.env['brian.herramientas']._todas()
         self.assertEqual(especificaciones['publicar_productos_en_bloque']['nivel'], 'sensible')
+        self.assertEqual(especificaciones['ajustar_existencias_en_bloque']['nivel'], 'sensible')
+        self.assertEqual(especificaciones['actualizar_productos_en_bloque']['nivel'], 'sensible')
         self.assertTrue(especificaciones['proponer_importacion']['segura_con_adjuntos'])
 
     def test_leer_lineas(self):
@@ -386,6 +389,103 @@ class TestHerramientasRonda6(TransactionCase):
         malo = self.ejecutar(self.gerente, 'publicar_productos_en_bloque', {'productos': 'NO-EXISTE', 'publicar': True})
         self.assertTrue(malo.get('requiere_confirmacion'))
         self.assertFalse(self.confirmar(self.gerente, malo)['ok'])
+
+    # -- Varios productos a la vez -------------------------------------------------
+
+    def _con_existencias(self, plantilla, cantidad):
+        bodega = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1)
+        quant = self.env['stock.quant'].with_context(inventory_mode=True).create({
+            'product_id': plantilla.product_variant_id.id, 'location_id': bodega.lot_stock_id.id,
+            'inventory_quantity': cantidad})
+        quant.action_apply_inventory()
+        return bodega
+
+    def _almacen(self):
+        return self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)], limit=1).name
+
+    def test_existencias_en_bloque_dejan_en_cero_varios_productos_con_una_sola_confirmacion(self):
+        self._con_existencias(self.cama, 5)
+        self._con_existencias(self.mesa, 3)
+        argumentos = {'productos': 'R6-CAMA; R6-MESA; R6-CERO', 'cantidad': 0, 'almacen': self._almacen()}
+        propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', argumentos)
+        self.assertTrue(propuesta.get('requiere_confirmacion'))
+        self.assertIn('Dejar en 0 las existencias de 2 productos', propuesta['resumen'])
+        self.assertIn('Ronda6 Cama Roble', propuesta['resumen'])
+        self.assertIn('Ya están así: 1', propuesta['resumen'])
+        self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (5, 3), 'Nada cambia antes del clic')
+        hecho = self.confirmar(self.gerente, propuesta)
+        self.assertTrue(hecho['ok'], hecho)
+        self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (0, 0))
+        self.assertIn('2 productos', hecho['datos']['mensaje'])
+        self.assertEqual(sorted(hecho['datos']['cambiados']), ['[R6-CAMA] Ronda6 Cama Roble',
+                                                              '[R6-MESA] Ronda6 Mesa Pino'])
+
+    def test_existencias_en_bloque_con_una_cantidad_distinta_de_cero(self):
+        self._con_existencias(self.cama, 5)
+        propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
+            'productos': 'R6-CAMA; R6-MESA', 'cantidad': '3', 'almacen': self._almacen()})
+        self.assertTrue(self.confirmar(self.gerente, propuesta)['ok'])
+        self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (3, 3))
+
+    def test_existencias_en_bloque_todos_solo_sirve_para_cero_y_toca_solo_lo_que_tiene(self):
+        self._con_existencias(self.cama, 5)
+        self._con_existencias(self.mesa, 3)
+        malo = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
+            'todos': True, 'cantidad': 2, 'almacen': self._almacen()})
+        self.assertTrue(malo.get('requiere_confirmacion'))
+        self.assertFalse(self.confirmar(self.gerente, malo)['ok'])
+        self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (5, 3))
+        propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
+            'todos': 'true', 'cantidad': 0, 'almacen': self._almacen()})
+        self.assertIn('Dejar en 0 las existencias de', propuesta['resumen'])
+        hecho = self.confirmar(self.gerente, propuesta)
+        self.assertTrue(hecho['ok'], hecho)
+        self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (0, 0))
+        quants = self.env['stock.quant'].search([('location_id.usage', '=', 'internal'), ('quantity', '!=', 0)])
+        self.assertFalse(quants, 'Ningún producto queda con existencias')
+
+    def test_existencias_en_bloque_pide_decir_cuales_y_exige_el_permiso(self):
+        sin_nada = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {'cantidad': 0})
+        self.assertTrue(sin_nada.get('requiere_confirmacion') or not sin_nada['ok'])
+        if sin_nada.get('requiere_confirmacion'):
+            self.assertFalse(self.confirmar(self.gerente, sin_nada)['ok'])
+        no_puede = self.ejecutar(self.vendedor, 'ajustar_existencias_en_bloque', {
+            'productos': 'R6-CAMA', 'cantidad': 0})
+        self.assertFalse(no_puede['ok'])
+        self.assertIn('no tienes permiso', no_puede['error'])
+
+    def test_actualizar_precio_en_bloque_por_valor_y_por_porcentaje(self):
+        propuesta = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'precio', 'productos': 'R6-CAMA; R6-MESA', 'porcentaje': '10'})
+        self.assertIn('Cambiar precio en 2 productos', propuesta['resumen'])
+        self.assertIn('$300.00 → $330.00', propuesta['resumen'])
+        self.assertEqual((self.cama.list_price, self.mesa.list_price), (300.0, 80.0), 'Nada cambia antes del clic')
+        self.assertTrue(self.confirmar(self.gerente, propuesta)['ok'])
+        self.assertEqual((self.cama.list_price, self.mesa.list_price), (330.0, 88.0))
+        fijo = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'precio', 'productos': 'R6-CAMA; R6-MESA', 'valor': '99.99'})
+        self.assertTrue(self.confirmar(self.gerente, fijo)['ok'])
+        self.assertEqual((self.cama.list_price, self.mesa.list_price), (99.99, 99.99))
+        ambos = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'precio', 'productos': 'R6-CAMA', 'valor': '10', 'porcentaje': '5'})
+        self.assertFalse(self.confirmar(self.gerente, ambos)['ok'], 'O un valor o un porcentaje, no los dos')
+        self.assertEqual(self.cama.list_price, 99.99)
+
+    def test_actualizar_en_bloque_categoria_y_vendible(self):
+        categoria = self.env['product.category'].create({'name': 'Ronda6 Categoria Nueva'})
+        propuesta = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'categoria', 'productos': 'R6-CAMA; R6-MESA', 'valor': 'Ronda6 Categoria Nueva'})
+        self.assertIn('Cambiar categoria en 2 productos', propuesta['resumen'])
+        self.assertTrue(self.confirmar(self.gerente, propuesta)['ok'])
+        self.assertEqual((self.cama.categ_id, self.mesa.categ_id), (categoria, categoria))
+        retirar = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'vendible', 'productos': 'R6-MESA', 'valor': 'no'})
+        self.assertTrue(self.confirmar(self.gerente, retirar)['ok'])
+        self.assertFalse(self.mesa.sale_ok)
+        self.assertTrue(self.cama.sale_ok)
+        raro = self.ejecutar(self.gerente, 'actualizar_productos_en_bloque', {
+            'campo': 'nombre', 'productos': 'R6-CAMA', 'valor': 'x'})
+        self.assertFalse(raro.get('ok', True) and self.confirmar(self.gerente, raro)['ok'])
 
     # -- Consumo de Brian ----------------------------------------------------------
 

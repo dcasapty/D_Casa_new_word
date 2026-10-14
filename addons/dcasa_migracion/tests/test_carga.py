@@ -209,6 +209,44 @@ class TestAsistenteDeCarga(TransactionCase):
         self.assertIn('Cuadre contra el archivo', asistente.informe)
         self.assertIn('CARGA HECHA', asistente.informe)
 
+    def _asistente_con_facturas_y_pagos(self):
+        Diario = self.env['account.journal']
+        Diario.create({'name': 'Caja Ejemplo', 'type': 'cash', 'code': 'CEJ'})
+        Diario.create({'name': 'Banco Ejemplo', 'type': 'bank', 'code': 'BEJ'})
+        return self.Carga.create({
+            'archivo_clientes': _b64(ejemplos.CLIENTES), 'archivo_proveedores': _b64(ejemplos.PROVEEDORES),
+            'archivo_facturas_clientes': _b64(ejemplos.FACTURAS_CLIENTES),
+            'archivo_facturas_clientes_lineas': _b64(ejemplos.FACTURAS_CLIENTES_LINEAS),
+            'archivo_facturas_proveedores': _b64(ejemplos.FACTURAS_PROVEEDORES),
+            'archivo_facturas_proveedores_lineas': _b64(ejemplos.FACTURAS_PROVEEDORES_LINEAS),
+            'archivo_pagos': _b64(ejemplos.PAGOS)})
+
+    def test_el_ensayo_no_deja_anotado_para_el_commit_nada_de_lo_que_deshizo(self):
+        """Al terminar la petición Odoo corre lo anotado para el commit. Si el ensayo dejó ahí el aumento del rango de
+        fichas que ya no existen, falla con «Registro faltante» (pasó en producción con el ensayo de facturas)."""
+        asistente = self._asistente_con_facturas_y_pagos()
+        cr = self.env.cr
+        cr.precommit.clear()    # lo que dejaron otras pruebas (aquí nada se confirma de verdad) no cuenta
+        cr.postcommit.clear()
+        antes = {nombre: list(cola.data) for nombre, cola in (('pre', cr.precommit), ('post', cr.postcommit))}
+        asistente.action_revisar()
+        self.assertIn('Antes de cargar', asistente.informe)
+        self.assertEqual({nombre: list(cola.data) for nombre, cola in (('pre', cr.precommit), ('post', cr.postcommit))},
+                         antes)
+        cr.precommit.run()
+        cr.postcommit.run()   # sin el arreglo: MissingError
+
+    def test_la_carga_real_si_conserva_lo_anotado_para_el_commit(self):
+        """Lo del ensayo se devuelve, pero la carga de verdad sigue subiendo el rango de cliente de sus fichas."""
+        asistente = self._asistente_con_facturas_y_pagos()
+        self.env.cr.precommit.clear()    # lo que dejaron otras pruebas (aquí nada se confirma de verdad) no cuenta
+        self.env.cr.postcommit.clear()
+        asistente.action_revisar()
+        asistente.action_cargar()
+        datos = self.env.cr.postcommit.data['account.res.partner.increase_rank.customer_rank']
+        self.assertTrue(datos, 'La carga de verdad deja anotado el aumento del rango de sus clientes')
+        self.assertTrue(set(datos) <= set(self.env['res.partner'].search([]).ids), 'y solo de fichas que existen')
+
     def test_las_facturas_del_ano_se_suben_en_pareja(self):
         asistente = self.Carga.create({'archivo_facturas_clientes': _b64(ejemplos.FACTURAS_CLIENTES)})
         with self.assertRaisesRegex(UserError, 'facturas_clientes.csv y facturas_clientes_lineas.csv'):

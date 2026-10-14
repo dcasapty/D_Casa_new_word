@@ -5,6 +5,7 @@ funciona si se revisó antes con exactamente los mismos archivos y opciones: as�
 se quedan en la tabla temporal del asistente (que Odoo vacía sola), nunca como adjuntos ni en el repositorio.
 """
 import base64
+import copy
 import hashlib
 import logging
 import time
@@ -15,6 +16,37 @@ from odoo.exceptions import AccessError, UserError
 from .. import catalogo, contactos, documentos, historial, informe, precios, reglas, reglas_historial
 
 _logger = logging.getLogger(__name__)
+
+
+def _pendientes_del_commit(cr):
+    """Foto de lo que Odoo tiene anotado para el momento del commit (``precommit`` y ``postcommit``)."""
+    def copia(valor):
+        return copy.copy(valor) if isinstance(valor, (dict, set, list)) else valor
+    return [(cola, list(cola._funcs), {clave: (valor, copia(valor)) for clave, valor in cola.data.items()})
+            for cola in (cr.precommit, cr.postcommit)]
+
+
+def _devolver_pendientes_del_commit(pendientes):
+    """Deja lo anotado para el commit como estaba antes del ensayo.
+
+    Deshacer un savepoint deshace la base, pero NO lo que Odoo dejó anotado para después del commit: p. ej. el
+    aumento del rango de cliente de cada ficha (``res.partner._increase_rank``). Si se queda anotado, al terminar la
+    petición Odoo busca fichas que el ensayo ya deshizo y falla con «Registro faltante»."""
+    for cola, funciones, datos in pendientes:
+        cola._funcs.clear()
+        cola._funcs.extend(funciones)
+        for clave in [k for k in cola.data if k not in datos]:
+            del cola.data[clave]
+        for clave, (original, copia) in datos.items():
+            cola.data[clave] = original
+            if isinstance(original, dict):
+                original.clear()
+                original.update(copia)
+            elif isinstance(original, set):
+                original.clear()
+                original.update(copia)
+            elif isinstance(original, list):
+                original[:] = copia
 
 
 class _Deshacer(Exception):
@@ -210,6 +242,7 @@ class DcasaMigracionCarga(models.TransientModel):
         leidos = self._leer(textos)
         salida = {}
         inicio = time.monotonic()
+        pendientes = _pendientes_del_commit(self.env.cr) if ensayo else None
         try:
             with self.env.cr.savepoint():
                 salida = self._aplicar(textos, leidos)
@@ -217,8 +250,10 @@ class DcasaMigracionCarga(models.TransientModel):
                     raise _Deshacer
         except _Deshacer:
             # Odoo guarda en memoria qué ficha tiene cada id externo (lo consultan los precios de proveedor): tras
-            # deshacer el ensayo esa memoria apuntaría a fichas que ya no existen.
+            # deshacer el ensayo esa memoria apuntaría a fichas que ya no existen. Igual con lo que dejó anotado para
+            # el commit (ver _devolver_pendientes_del_commit).
             self.env.registry.clear_cache()
+            _devolver_pendientes_del_commit(pendientes)
         _logger.info('Carga del sistema anterior (%s) hecha por el usuario %s.',
                      'ensayo' if ensayo else 'real', self.env.uid)
         html = informe.informe_html(

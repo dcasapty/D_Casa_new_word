@@ -53,8 +53,13 @@ Primero se ensaya en **staging** con los archivos reales. En producción se carg
 - La llave es el número del sistema anterior (`id_viejo`), guardado como id externo `__import__.dcasa_contacto_<n>` (de
   «__import__», como los de la importación de Odoo, para que quitar esta pantalla algún día no borre clientes) y en la
   nota de la ficha. Volver a cargar el mismo archivo no crea nada y **no pisa** lo que ya se cambió aquí.
-- **El candado de contactos no se salta.** Si el celular, el correo o el RUC/cédula ya son de otra ficha, esa fila no se
-  crea y el informe dice con quién choca; se resuelve a mano (fusionar, o corregir el dato) y se vuelve a cargar.
+- **El candado de contactos no se salta.** Si el celular o el correo ya son de otra ficha, esa fila no se crea y el
+  informe dice con quién choca; se resuelve a mano (fusionar, o corregir el dato) y se vuelve a cargar.
+- **Mismo RUC o cédula = misma persona** («un RUC, una persona»). Esa fila no crea otra ficha: su número del sistema
+  anterior queda enlazado a la que ya existe (el mismo id externo `__import__.dcasa_contacto_<n>`), y sus órdenes,
+  facturas y pagos se cargan a esa ficha. El informe los lista aparte («Repetidos enlazados…», con el número de la ficha a
+  la que se enlazaron) para revisar que de verdad sean la misma persona. Salió del ensayo con la exportación del
+  2026-10-12: 4 clientes repetidos por cédula y una venta pendiente de uno de ellos que se habría perdido.
 - El campo Teléfono del sistema anterior es texto libre: el primer número con cifras suficientes va al teléfono; los demás
   van a la nota de la ficha (no se pierden). Un correo o un DV mal escritos tampoco se pierden: van a la nota.
 - Todos llevan la etiqueta **«Sistema anterior»** (sirve para filtrar y, si hiciera falta, revertir).
