@@ -115,7 +115,17 @@ class AccountMove(models.Model):
 
     def _dcasa_lineas(self, lineas_a_imprimir):
         """(principales, servicios) a partir de las líneas que el reporte ya decidió imprimir."""
-        return lineas.separar(lineas_a_imprimir, lambda linea: linea.display_type == 'product')
+        principales, servicios = lineas.separar(lineas_a_imprimir, lambda linea: linea.display_type == 'product')
+        return self._dcasa_fuera_de_los_combos(principales), servicios
+
+    def _dcasa_fuera_de_los_combos(self, principales):
+        """Lo que no es una pieza de un combo pero Odoo deja debajo de su título (una mesa de noche que se vendió
+        después del combo) se imprime ANTES de los combos: así no queda sangrado como si fuera parte del combo."""
+        sueltas = principales.filtered(
+            lambda linea: linea.display_type in ('product', 'line_note') and linea.parent_id
+            and linea.parent_id._dcasa_es_titulo_de_combo()
+            and linea not in linea.parent_id._dcasa_piezas_del_combo())
+        return sueltas | principales
 
     def _dcasa_titulo_servicios(self, servicios):
         return lineas.titulo_servicios(servicios)

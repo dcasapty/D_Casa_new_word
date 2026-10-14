@@ -2,10 +2,11 @@
 
 Cómo lo hace Odoo y lo que estas pruebas fijan: la línea del combo va en 0 y sin impuesto; debajo va una línea por cada
 pieza con la parte del precio del combo que le toca (y su ITBMS); la entrega descuenta la cama y el colchón; la factura
-lleva el combo como título de sección y las piezas debajo; el tope de descuento de la vendedora, los puntos de Socios y la
-comisión de vendedores cuentan el neto UNA vez (sobre las piezas, no sobre el título).
+lleva el combo como título de sección y las piezas debajo; el tope de descuento de la vendedora, los puntos de Socios
+y la comisión de vendedores cuentan el neto UNA vez (sobre las piezas, no sobre el título).
 """
 import re
+from html import unescape
 
 from odoo.addons.dcasa_socios.tests.common import SociosCommon
 from odoo.exceptions import UserError, ValidationError
@@ -149,7 +150,7 @@ class TestVentaDeCombos(SociosCommon):
 
     def _texto(self, html):
         html = re.sub(r'<style.*?</style>', '', html, flags=re.S)
-        html = re.sub(r'<[^>]+>', '\n', html)
+        html = unescape(re.sub(r'<[^>]+>', '\n', html)).replace('\xa0', ' ')
         return [linea.strip() for linea in html.split('\n') if linea.strip()]
 
     def test_el_pdf_de_la_factura_muestra_el_combo_con_sus_piezas_sin_duplicar_importes(self):
@@ -166,6 +167,30 @@ class TestVentaDeCombos(SociosCommon):
         self.assertEqual(texto.count('$ 342.40'), 1, 'El total, una sola vez')
         self.assertEqual(texto.count('$ 22.40'), 1)
         self.assertEqual(texto.count('7%'), 2, 'El ITBMS de cada pieza')
+
+    def test_el_titulo_del_combo_suma_solo_sus_piezas_aunque_despues_vengan_flete_y_otros_muebles(self):
+        """Odoo suma en un título todo lo que sigue hasta el próximo título: con el flete (o una mesa de noche) después
+        del combo, el título cobraría de más. En la factura de D'CASA suma solo las piezas del combo."""
+        orden, _combo, _piezas = self.orden()
+        flete = self.env.ref('dcasa_invoice.product_flete')
+        self.env['sale.order.line'].create(
+            {'order_id': orden.id, 'product_id': flete.id, 'product_uom_qty': 1, 'price_unit': 25})
+        orden._dcasa_agregar_producto(self.extra, 2)      # un mueble suelto después del combo
+        orden.action_confirm()
+        factura = orden._create_invoices()
+        factura.action_post()
+        (titulo,) = factura.invoice_line_ids.filtered(lambda ln: ln.display_type == 'line_section')
+        self.assertEqual((titulo.get_section_subtotal(), titulo.get_section_total()), (320.0, 342.4))
+        self.assertEqual(factura.amount_untaxed, 320.0 + 25.0 + 2 * 230.0)
+        principales, servicios = factura._dcasa_lineas(factura._get_move_lines_to_report())
+        self.assertEqual(servicios.product_id, flete)
+        self.assertEqual(principales[0].product_id, self.extra, 'El mueble suelto va antes del título del combo')
+        self.assertEqual(principales[1].display_type, 'line_section')
+        html = self.env['ir.actions.report']._render_qweb_html('account.report_invoice', factura.ids)[0].decode()
+        texto = self._texto(html)
+        self.assertEqual(texto.count('$ 320.00'), 1, 'El título del combo: lo que suman sus piezas, nada más')
+        self.assertIn('$ 805.00', texto)
+        self.assertLess(texto.index('CMB-COL2'), texto.index('COMBO CAMA KING DE PRUEBA x 1'))
 
     def test_la_cotizacion_en_pdf_muestra_lo_mismo(self):
         orden, _combo, _piezas = self.orden()
