@@ -161,7 +161,7 @@ encendido y la ficha **abierta**; «% útil» = sobre el alto bajo la barra de O
 | 1536 × 864 | 416 px | **604 px** | 75 % | 236 → 93 px |
 | 1024 × 768 | 286 px | **508 px** | 71 % | 250 → 93 px |
 | 1920 × 1080 | 672 px | **820 px** | 80 % | 196 → 93 px |
-| 390 × 844 (celular) | 245 px | **418 px** | 53 % | 298 → 232 px |
+| 390 × 844 (celular) | 245 px | **435 px** | 55 % | 298 → 215 px |
 
 Con la caja **a tope** (dos archivos por enviar, la hora de programar abierta y un texto de 4 líneas) en 1366 × 768 los mensajes
 miden 362 px (antes, 113 px): es el peor caso y sigue siendo más de la mitad del alto útil. Las pruebas

@@ -238,6 +238,10 @@ LISTA_BLANCA = {
         'Bloquea: de una página de D\'CASA solo se cambia publicar y SEO; el contenido viene del código.',
     # --- dcasa_invoice -------------------------------------------------------------------
     ('dcasa_invoice', 'ir.qweb.field.monetary', 'value_to_html'): OVERRIDE + ' Solo formatea un valor.',
+    ('dcasa_invoice', 'account.move.line', 'get_section_subtotal'):
+        OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
+    ('dcasa_invoice', 'account.move.line', 'get_section_total'):
+        OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
     # --- dcasa_socios -------------------------------------------------------------------
     ('dcasa_socios', 'res.partner', 'create'): OVERRIDE,
     ('dcasa_socios', 'res.partner', 'write'): OVERRIDE,
