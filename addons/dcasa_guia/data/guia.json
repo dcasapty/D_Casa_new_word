@@ -1,0 +1,1667 @@
+{
+ "$comentario": "LA GUÍA DEL NEGOCIO («¿Qué necesitas hacer hoy?»). Cada tarea dice, en palabras sencillas, qué quiere hacer la persona y qué logra al llegar a esa pantalla. La fuente única: la pantalla de la Guía, la herramienta buscar_en_guia de Brian y las pruebas leen este archivo. Una tarea solo se muestra si la persona puede abrir su pantalla (los mismos permisos del menú). No se inventan fechas ni montos de impuestos: donde hay una fecha límite, la nota manda a confirmarla con el contador.",
+ "$destino": "{\"menu\": \"modulo.xmlid_del_menu\", \"contexto\": {...}} abre ese menú (con filtros opcionales search_default_*); {\"nuevo\": \"modelo\", \"contexto\": {...}} abre un formulario nuevo; null = no hay pantalla (solo explicación o una pregunta para Brian).",
+ "version": 1,
+ "empezar": [
+  "resumen",
+  "facturas-vencidas",
+  "itbms",
+  "renta",
+  "cierre-mes",
+  "cobrar-cliente",
+  "cotizacion-nueva",
+  "planilla",
+  "banco-conciliar",
+  "usuario-nuevo"
+ ],
+ "categorias": [
+  {
+   "clave": "vender",
+   "titulo": "Vender y cobrar",
+   "icono": "fa-shopping-bag",
+   "detalle": "Cotizaciones, ventas del día, cobros y devoluciones."
+  },
+  {
+   "clave": "facturar",
+   "titulo": "Facturas y pagos",
+   "icono": "fa-file-text-o",
+   "detalle": "Facturas a clientes y de proveedores, pagos, cheques y correcciones."
+  },
+  {
+   "clave": "bancos",
+   "titulo": "Bancos",
+   "icono": "fa-university",
+   "detalle": "Subir el movimiento del banco y comprobar que todo cuadra."
+  },
+  {
+   "clave": "reportes",
+   "titulo": "Cómo va el negocio",
+   "icono": "fa-line-chart",
+   "detalle": "Reportes en palabras claras: ganancias, deudas, dinero y cierre de mes."
+  },
+  {
+   "clave": "impuestos",
+   "titulo": "Impuestos y obligaciones",
+   "icono": "fa-balance-scale",
+   "detalle": "Declaración de renta, ITBMS, seguro social y lo que le toca a una empresa en Panamá."
+  },
+  {
+   "clave": "personal",
+   "titulo": "Personal y nómina",
+   "icono": "fa-users",
+   "detalle": "Colaboradores, planilla, vacaciones, décimo tercer mes y liquidaciones."
+  },
+  {
+   "clave": "productos",
+   "titulo": "Productos e inventario",
+   "icono": "fa-cubes",
+   "detalle": "Crear productos, ver existencias, recibir mercancía y contar inventario."
+  },
+  {
+   "clave": "compras",
+   "titulo": "Compras y proveedores",
+   "icono": "fa-truck",
+   "detalle": "Pedirle mercancía a un proveedor y llevar sus precios."
+  },
+  {
+   "clave": "clientes",
+   "titulo": "Clientes, socios y vendedores",
+   "icono": "fa-star",
+   "detalle": "Fichas de clientes, programa Socios, vendedores y seguimiento."
+  },
+  {
+   "clave": "tienda",
+   "titulo": "Tienda en línea y conversaciones",
+   "icono": "fa-globe",
+   "detalle": "Pedidos de la web, carritos, mensajes de clientes y Juan."
+  },
+  {
+   "clave": "administrar",
+   "titulo": "Administrar el sistema",
+   "icono": "fa-cog",
+   "detalle": "Accesos de las personas, datos de la empresa, Brian y rastro de cambios."
+  }
+ ],
+ "tareas": [
+  {
+   "id": "cotizacion-nueva",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Hacerle una cotización a un cliente",
+   "logras": "Armas el pedido con los productos y el precio, y se lo mandas al cliente o lo imprimes. Cuando el cliente confirma, la cotización pasa a ser una venta.",
+   "destino": {
+    "nuevo": "sale.order"
+   },
+   "palabras": [
+    "cotizar",
+    "presupuesto",
+    "pedido",
+    "proforma",
+    "venta nueva"
+   ]
+  },
+  {
+   "id": "cotizaciones",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Ver las cotizaciones que están abiertas",
+   "logras": "Ves cuáles cotizaciones siguen esperando respuesta del cliente, para darles seguimiento o confirmarlas.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "palabras": [
+    "pendientes",
+    "seguimiento",
+    "confirmar cotizacion",
+    "cambiar estado"
+   ]
+  },
+  {
+   "id": "ventas-hoy",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Ver cuánto se vendió hoy",
+   "logras": "La lista de las ventas de hoy, con quién vendió y por cuánto.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_hoy"
+   },
+   "palabras": [
+    "ventas del dia",
+    "cierre de caja",
+    "hoy"
+   ]
+  },
+  {
+   "id": "cobros-hoy",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Ver cuánto dinero entró hoy (caja)",
+   "logras": "Los cobros del día separados por forma de pago: efectivo, Yappy y tarjeta. Sirve para cuadrar la caja.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_cobros_hoy"
+   },
+   "palabras": [
+    "caja",
+    "efectivo",
+    "yappy",
+    "tarjeta",
+    "cobros del dia",
+    "cuadrar"
+   ]
+  },
+  {
+   "id": "cobrar-cliente",
+   "categoria": "vender",
+   "grupo": "Cobrar",
+   "titulo": "Registrar el cobro de un cliente",
+   "logras": "Anotas que el cliente pagó y de qué forma. El sistema lo une a su factura y la deja como pagada.",
+   "destino": {
+    "nuevo": "account.payment",
+    "contexto": {
+     "default_payment_type": "inbound",
+     "default_partner_type": "customer"
+    }
+   },
+   "palabras": [
+    "pago",
+    "abono",
+    "recibir plata",
+    "cobrar factura"
+   ]
+  },
+  {
+   "id": "apartados",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Ver los apartados que están por vencer",
+   "logras": "Los productos que un cliente separó desde la web y todavía no ha pagado. Así sabes cuáles se liberan pronto.",
+   "destino": {
+    "menu": "website_dcasa.menu_dcasa_apartados"
+   },
+   "palabras": [
+    "separar",
+    "reservas",
+    "apartado",
+    "vencen"
+   ]
+  },
+  {
+   "id": "por-facturar",
+   "categoria": "vender",
+   "grupo": "Facturar",
+   "titulo": "Ver qué ventas faltan por facturar",
+   "logras": "Las ventas confirmadas que todavía no tienen factura. Desde ahí creas la factura con un clic.",
+   "destino": {
+    "menu": "sale.menu_sale_order_invoice"
+   },
+   "palabras": [
+    "facturar pedido",
+    "crear factura",
+    "pendiente de factura"
+   ]
+  },
+  {
+   "id": "devolucion-cliente",
+   "categoria": "vender",
+   "grupo": "Corregir",
+   "titulo": "Devolverle el dinero a un cliente (nota de crédito)",
+   "logras": "Registras la devolución sin borrar la factura original: queda una nota de crédito que descuenta la venta y devuelve el ITBMS.",
+   "destino": {
+    "menu": "account.menu_action_move_out_refund_type"
+   },
+   "palabras": [
+    "devolucion",
+    "reembolso",
+    "cliente devuelve",
+    "anular venta"
+   ],
+   "nota": "Una factura ya publicada no se borra: se corrige con una nota de crédito."
+  },
+  {
+   "id": "listas-precios",
+   "categoria": "vender",
+   "grupo": "Precios",
+   "titulo": "Ver o cambiar las listas de precios",
+   "logras": "Las listas de precios que el sistema aplica a las ventas.",
+   "destino": {
+    "menu": "sale.menu_product_pricelist_main"
+   },
+   "palabras": [
+    "precios",
+    "descuentos",
+    "tarifas"
+   ]
+  },
+  {
+   "id": "facturas-clientes",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver las facturas de los clientes",
+   "logras": "La lista de todas las facturas de ventas, con su estado (borrador, publicada, pagada) y lo que falta por cobrar.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "palabras": [
+    "facturas",
+    "ventas facturadas",
+    "buscar factura"
+   ]
+  },
+  {
+   "id": "factura-borrador",
+   "categoria": "facturar",
+   "grupo": "Cambiar el estado de algo",
+   "titulo": "Una factura quedó en borrador y necesito confirmarla",
+   "logras": "Ves solo las facturas en borrador. Ábrela y toca «Confirmar»: desde ahí cuenta en la contabilidad y en el ITBMS.",
+   "destino": {
+    "menu": "account.menu_action_move_out_invoice_type",
+    "contexto": {
+     "search_default_draft": 1
+    }
+   },
+   "palabras": [
+    "confirmar factura",
+    "publicar",
+    "borrador",
+    "cambiar estado",
+    "pasar a publicada"
+   ]
+  },
+  {
+   "id": "factura-anular",
+   "categoria": "facturar",
+   "grupo": "Cambiar el estado de algo",
+   "titulo": "Corregir o anular una factura ya publicada",
+   "logras": "Abres la factura y la revierten con una nota de crédito (o la restableces a borrador si el mes sigue abierto). Así queda rastro de lo que pasó y la contabilidad sigue cuadrando.",
+   "destino": {
+    "menu": "account.menu_action_move_out_invoice_type"
+   },
+   "palabras": [
+    "anular",
+    "cancelar factura",
+    "error en factura",
+    "revertir",
+    "restablecer a borrador",
+    "cambiar estado"
+   ],
+   "nota": "Si el mes ya está cerrado, primero hay que reabrirlo en «Cerrar el mes»."
+  },
+  {
+   "id": "factura-proveedor",
+   "categoria": "facturar",
+   "grupo": "Facturas de proveedores",
+   "titulo": "Anotar una factura que me mandó un proveedor",
+   "logras": "Registras lo que le debes: el sistema la suma a «A quién le debo» y a los gastos del mes.",
+   "destino": {
+    "menu": "account.menu_action_move_in_invoice_type"
+   },
+   "palabras": [
+    "gasto",
+    "compra",
+    "cuenta por pagar",
+    "factura de compra"
+   ]
+  },
+  {
+   "id": "pagar-proveedor",
+   "categoria": "facturar",
+   "grupo": "Facturas de proveedores",
+   "titulo": "Pagarle a un proveedor",
+   "logras": "Registras el pago (transferencia, efectivo o cheque) y la factura del proveedor queda como pagada.",
+   "destino": {
+    "menu": "account.menu_action_account_payments_payable"
+   },
+   "palabras": [
+    "pago a proveedor",
+    "transferencia",
+    "pagar factura"
+   ]
+  },
+  {
+   "id": "cheque",
+   "categoria": "facturar",
+   "grupo": "Facturas de proveedores",
+   "titulo": "Imprimir un cheque",
+   "logras": "Sale el cheque con el monto en letras y el talón con las facturas que paga.",
+   "destino": {
+    "menu": "account.menu_action_account_payments_payable"
+   },
+   "pasos": [
+    {
+     "texto": "Abre el pago al proveedor (o crea uno) y elige el método «Cheque» en el diario Banco.",
+     "destino": {
+      "menu": "account.menu_action_account_payments_payable"
+     }
+    },
+    {
+     "texto": "Dentro del pago toca «Imprimir cheque».",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "cheque",
+    "imprimir cheque",
+    "monto en letras"
+   ]
+  },
+  {
+   "id": "nota-credito-proveedor",
+   "categoria": "facturar",
+   "grupo": "Facturas de proveedores",
+   "titulo": "Un proveedor me devuelve dinero o me hace un descuento",
+   "logras": "Registras la nota de crédito del proveedor para que lo que le debes baje.",
+   "destino": {
+    "menu": "account.menu_action_move_in_refund_type"
+   },
+   "palabras": [
+    "reembolso proveedor",
+    "devolucion proveedor",
+    "descuento proveedor"
+   ]
+  },
+  {
+   "id": "cobros-recibidos",
+   "categoria": "facturar",
+   "grupo": "Pagos",
+   "titulo": "Ver los pagos que han hecho los clientes",
+   "logras": "La lista de pagos recibidos, para revisar uno o buscar quién pagó qué.",
+   "destino": {
+    "menu": "account.menu_action_account_payments_receivable"
+   },
+   "palabras": [
+    "pagos recibidos",
+    "quien pago"
+   ]
+  },
+  {
+   "id": "facturas-vencidas",
+   "categoria": "facturar",
+   "grupo": "Cobrar",
+   "titulo": "Saber quién me debe y qué está vencido",
+   "logras": "Ves cada cliente con lo que debe y desde hace cuánto, en tramos (al día, 1–30 días, etc.), para saber a quién llamar.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_por_cobrar"
+   },
+   "palabras": [
+    "morosos",
+    "deudores",
+    "cuentas por cobrar",
+    "cobranza",
+    "me deben"
+   ],
+   "tambien": [
+    "reportes"
+   ]
+  },
+  {
+   "id": "factura-electronica",
+   "categoria": "facturar",
+   "grupo": "DGI",
+   "titulo": "Facturación electrónica de la DGI",
+   "logras": "Aquí se verá cuando una factura se envíe a la DGI con su CUFE y su código QR.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_fe"
+   },
+   "palabras": [
+    "sfep",
+    "cufe",
+    "pac",
+    "dgi",
+    "factura electronica"
+   ],
+   "nota": "Todavía está en desarrollo: exige contratar un proveedor autorizado (PAC). Hasta entonces las facturas se emiten como siempre.",
+   "tambien": [
+    "impuestos"
+   ]
+  },
+  {
+   "id": "banco-importar",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "Subir el movimiento de mi banco (extracto)",
+   "logras": "Cargas el archivo que baja de la banca en línea y el sistema lo lee sin duplicar lo que ya estaba.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_importar_extracto"
+   },
+   "palabras": [
+    "estado de cuenta",
+    "csv",
+    "banco general",
+    "bac",
+    "yappy",
+    "importar banco"
+   ]
+  },
+  {
+   "id": "banco-conciliar",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "Comprobar qué pagos ya cuadraron con el banco (conciliar)",
+   "logras": "A la izquierda los movimientos del banco, a la derecha las facturas y pagos que los explican: los unes y queda cuadrado.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_conciliacion"
+   },
+   "palabras": [
+    "conciliacion",
+    "cuadrar banco",
+    "reconciliar"
+   ]
+  },
+  {
+   "id": "banco-reglas",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "Que el sistema reconozca solo ciertos movimientos del banco",
+   "logras": "Creas una regla (por ejemplo: si dice «COMISION», va a la cuenta de gastos bancarios) y se aplica sola.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_reglas_conciliacion"
+   },
+   "palabras": [
+    "regla",
+    "automatico",
+    "comisiones",
+    "cargos"
+   ]
+  },
+  {
+   "id": "banco-formato",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "Mi banco manda un archivo que el sistema no entiende",
+   "logras": "Le enseñas al sistema qué columna es la fecha, cuál el monto y cuál la descripción, una sola vez.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_formatos_extracto"
+   },
+   "palabras": [
+    "formato",
+    "csv",
+    "columnas"
+   ]
+  },
+  {
+   "id": "resumen",
+   "categoria": "reportes",
+   "grupo": "De un vistazo",
+   "titulo": "Ver cómo va el negocio (resumen contable)",
+   "logras": "En una pantalla: dinero en bancos y caja, lo que te deben y lo que debes, el ITBMS del periodo y las ventas y la utilidad comparadas con el periodo anterior.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_resumen"
+   },
+   "palabras": [
+    "como voy",
+    "resumen",
+    "tablero",
+    "indicadores",
+    "cuanto gane"
+   ]
+  },
+  {
+   "id": "ganancias",
+   "categoria": "reportes",
+   "grupo": "Ganar o perder",
+   "titulo": "¿Gané o perdí? (Estado de resultados)",
+   "logras": "Ves las ventas, los costos y los gastos del periodo que elijas y lo que queda de ganancia.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_estado_resultados"
+   },
+   "palabras": [
+    "utilidad",
+    "perdida",
+    "ganancia",
+    "pyg",
+    "estado de resultados"
+   ]
+  },
+  {
+   "id": "balance",
+   "categoria": "reportes",
+   "grupo": "Lo que tengo y lo que debo",
+   "titulo": "Ver lo que tengo y lo que debo (Balance general)",
+   "logras": "Una foto de la empresa a una fecha: lo que tiene, lo que debe y lo que queda para los dueños.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_balance_general"
+   },
+   "palabras": [
+    "activos",
+    "pasivos",
+    "patrimonio",
+    "capital",
+    "balance"
+   ]
+  },
+  {
+   "id": "flujo",
+   "categoria": "reportes",
+   "grupo": "Dinero",
+   "titulo": "Ver a dónde se fue el dinero (flujo de efectivo)",
+   "logras": "Cuánto dinero entró y salió en el periodo y por qué: operación, inversión o préstamos.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_flujo_efectivo"
+   },
+   "palabras": [
+    "efectivo",
+    "liquidez",
+    "entradas y salidas",
+    "flujo de caja"
+   ]
+  },
+  {
+   "id": "por-pagar",
+   "categoria": "reportes",
+   "grupo": "Dinero",
+   "titulo": "Ver a quién le debo y cuándo vence",
+   "logras": "Cada proveedor con lo que le debes y desde cuándo, para pagar a tiempo.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_por_pagar"
+   },
+   "palabras": [
+    "cuentas por pagar",
+    "deudas",
+    "proveedores",
+    "vencimientos"
+   ]
+  },
+  {
+   "id": "presupuestos",
+   "categoria": "reportes",
+   "grupo": "Planear",
+   "titulo": "Comparar lo planeado con lo gastado (presupuestos)",
+   "logras": "Pones cuánto piensas gastar por cuenta y el sistema te muestra cuánto llevas y qué porcentaje es.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_presupuestos"
+   },
+   "palabras": [
+    "presupuesto",
+    "planeado",
+    "gasto maximo"
+   ]
+  },
+  {
+   "id": "rentabilidad",
+   "categoria": "reportes",
+   "grupo": "Planear",
+   "titulo": "Saber si deja más la tienda física o la tienda en línea",
+   "logras": "Ventas y utilidad separadas por canal.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_analitica"
+   },
+   "palabras": [
+    "canal",
+    "analitica",
+    "rentabilidad",
+    "que sucursal vende mas"
+   ]
+  },
+  {
+   "id": "analisis-facturas",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Analizar las ventas por producto, cliente o vendedor",
+   "logras": "Una tabla que puedes girar para ver qué se vende más, a quién y quién lo vendió.",
+   "destino": {
+    "menu": "account.menu_action_account_invoice_report_all"
+   },
+   "palabras": [
+    "mas vendido",
+    "por cliente",
+    "por vendedor",
+    "analisis",
+    "pivote"
+   ]
+  },
+  {
+   "id": "libro-mayor",
+   "categoria": "reportes",
+   "grupo": "Para el contador",
+   "titulo": "Ver todos los movimientos de una cuenta (libro mayor)",
+   "logras": "Cada asiento que tocó una cuenta, con su saldo. Es lo primero que pide un contador cuando algo no cuadra.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_libro_mayor"
+   },
+   "palabras": [
+    "mayor",
+    "cuenta contable",
+    "asientos",
+    "movimientos"
+   ]
+  },
+  {
+   "id": "balance-comprobacion",
+   "categoria": "reportes",
+   "grupo": "Para el contador",
+   "titulo": "Comprobar que la contabilidad cuadra (balance de comprobación)",
+   "logras": "Lista cada cuenta con sus débitos y créditos; si todo está bien, el total de los dos lados es igual.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_balance_comprobacion"
+   },
+   "palabras": [
+    "cuadra",
+    "comprobacion",
+    "debitos y creditos"
+   ]
+  },
+  {
+   "id": "cierre-mes",
+   "categoria": "reportes",
+   "grupo": "Cerrar",
+   "titulo": "Cerrar el mes",
+   "logras": "El sistema revisa una lista (bancos conciliados, facturas en borrador, ventas sin facturar, ITBMS) y, si todo está bien, bloquea el mes para que nadie cambie números viejos.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_cierre_mes"
+   },
+   "palabras": [
+    "cierre",
+    "bloquear mes",
+    "cerrar periodo",
+    "reabrir mes",
+    "fin de mes"
+   ],
+   "tambien": [
+    "impuestos"
+   ]
+  },
+  {
+   "id": "pista-auditoria",
+   "categoria": "reportes",
+   "grupo": "Para el contador",
+   "titulo": "Ver quién cambió qué en la contabilidad",
+   "logras": "Un registro de cada cambio en los asientos: quién, cuándo y qué.",
+   "destino": {
+    "menu": "account.account_audit_trail_menu"
+   },
+   "palabras": [
+    "auditoria",
+    "historial de cambios",
+    "quien cambio"
+   ]
+  },
+  {
+   "id": "renta",
+   "categoria": "impuestos",
+   "grupo": "Una vez al año",
+   "titulo": "Preparar la declaración de renta",
+   "logras": "Dejas listos los números del año para declarar el impuesto sobre la renta de la empresa: ganancias, lo que tienes y debes, y el ITBMS.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_estado_resultados"
+   },
+   "pasos": [
+    {
+     "texto": "Cierra los meses del año, uno por uno, para que nadie cambie números.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_cierre_mes"
+     }
+    },
+    {
+     "texto": "Mira si ganaste o perdiste en el año: elige las fechas de tu año fiscal.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_estado_resultados"
+     }
+    },
+    {
+     "texto": "Mira lo que tienes y lo que debes al cierre del año.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_balance_general"
+     }
+    },
+    {
+     "texto": "Revisa quién te debe.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_por_cobrar"
+     }
+    },
+    {
+     "texto": "Revisa a quién le debes.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_por_pagar"
+     }
+    },
+    {
+     "texto": "Revisa el ITBMS del año.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_itbms"
+     }
+    },
+    {
+     "texto": "Entrégale esos reportes a tu contador (o úsalos al declarar en el portal de la DGI).",
+     "destino": null
+    }
+   ],
+   "nota": "El sistema no presenta la declaración por ti: la presenta tu contador, o tú en el portal de la DGI. Aquí dejas los números listos. La fecha límite depende del cierre de tu año fiscal: confírmala con tu contador.",
+   "palabras": [
+    "declaracion de renta",
+    "isr",
+    "impuesto sobre la renta",
+    "dgi",
+    "declarar",
+    "cierre de ano",
+    "fiscal"
+   ],
+   "brian": "¿Qué necesito tener listo para la declaración de renta de la empresa?"
+  },
+  {
+   "id": "itbms",
+   "categoria": "impuestos",
+   "grupo": "Cada mes",
+   "titulo": "Saber cuánto ITBMS toca declarar",
+   "logras": "Ves cuánto ITBMS cobraste en tus ventas y cuánto pagaste en tus compras en el periodo que elijas: la diferencia es lo que normalmente se declara y se paga a la DGI.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_itbms"
+   },
+   "nota": "Normalmente se declara cada mes. Confirma con tu contador la fecha y el formulario.",
+   "palabras": [
+    "impuesto de ventas",
+    "iva",
+    "declaracion mensual",
+    "dgi",
+    "7%",
+    "impuesto"
+   ],
+   "brian": "¿Cuánto ITBMS debo este mes?"
+  },
+  {
+   "id": "impuestos-revisar",
+   "categoria": "impuestos",
+   "grupo": "Configuración",
+   "titulo": "Revisar los impuestos que usa el sistema (ITBMS 7 %)",
+   "logras": "La lista de impuestos con su porcentaje y a qué cuenta va cada uno.",
+   "destino": {
+    "menu": "account.menu_action_tax_form"
+   },
+   "palabras": [
+    "itbms",
+    "porcentaje",
+    "tasa de impuesto"
+   ]
+  },
+  {
+   "id": "seguro-social",
+   "categoria": "impuestos",
+   "grupo": "Cada quincena",
+   "titulo": "Calcular el seguro social, el seguro educativo y el ISR de los colaboradores",
+   "logras": "La planilla quincenal calcula lo que se le descuenta a cada colaborador y lo que paga la empresa, y deja el asiento contable listo.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_planillas"
+   },
+   "nota": "Las tasas de la ley las valida tu contador antes de poder confirmar una planilla.",
+   "palabras": [
+    "css",
+    "caja de seguro social",
+    "seguro educativo",
+    "planilla",
+    "sipe",
+    "isr empleados"
+   ],
+   "tambien": [
+    "personal"
+   ]
+  },
+  {
+   "id": "decimo-tercer",
+   "categoria": "impuestos",
+   "grupo": "Tres veces al año",
+   "titulo": "Pagar el décimo tercer mes",
+   "logras": "El sistema calcula el décimo tercer mes de cada colaborador y deja el pago listo.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_decimo"
+   },
+   "nota": "Se paga en partidas durante el año: confirma las fechas con tu contador.",
+   "palabras": [
+    "decimo",
+    "13",
+    "partida",
+    "bono",
+    "treceavo"
+   ],
+   "tambien": [
+    "personal"
+   ]
+  },
+  {
+   "id": "otras-obligaciones",
+   "categoria": "impuestos",
+   "grupo": "Pregúntale a tu contador",
+   "titulo": "Otras obligaciones de una empresa en Panamá",
+   "logras": "El sistema no las maneja, pero conviene tenerlas presentes: por ejemplo el aviso de operación, la tasa única y los impuestos municipales. Tu contador sabe cuáles te aplican y cuándo vencen.",
+   "destino": null,
+   "palabras": [
+    "aviso de operacion",
+    "tasa unica",
+    "municipio",
+    "registro publico",
+    "obligaciones",
+    "licencia"
+   ],
+   "nota": "Esto es solo un recordatorio: las fechas y montos los confirma tu contador."
+  },
+  {
+   "id": "entregar-contador",
+   "categoria": "impuestos",
+   "grupo": "Una vez al año",
+   "titulo": "Pasarle los números a mi contador",
+   "logras": "Reúnes en orden lo que un contador pide casi siempre: cierre de mes, balance de comprobación, libro mayor, estado de resultados y balance general.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_balance_comprobacion"
+   },
+   "pasos": [
+    {
+     "texto": "Cierra el mes que vas a entregar.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_cierre_mes"
+     }
+    },
+    {
+     "texto": "Imprime o descarga el balance de comprobación.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_balance_comprobacion"
+     }
+    },
+    {
+     "texto": "Imprime o descarga el libro mayor.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_libro_mayor"
+     }
+    },
+    {
+     "texto": "Imprime o descarga el estado de resultados.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_estado_resultados"
+     }
+    },
+    {
+     "texto": "Imprime o descarga el balance general.",
+     "destino": {
+      "menu": "dcasa_contabilidad.menu_balance_general"
+     }
+    }
+   ],
+   "palabras": [
+    "contador",
+    "contabilidad",
+    "entregar",
+    "reportes para contador"
+   ]
+  },
+  {
+   "id": "colaborador-nuevo",
+   "categoria": "personal",
+   "grupo": "Personas",
+   "titulo": "Agregar un colaborador nuevo",
+   "logras": "Creas su ficha con el sueldo y los datos que necesita la planilla. Desde ahí se le calculan quincenas, vacaciones y décimo tercer mes.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_colaboradores"
+   },
+   "palabras": [
+    "empleado",
+    "contratar",
+    "nuevo empleado",
+    "alta",
+    "sueldo"
+   ]
+  },
+  {
+   "id": "directorio",
+   "categoria": "personal",
+   "grupo": "Personas",
+   "titulo": "Ver quién trabaja en la empresa",
+   "logras": "El directorio del equipo con cargo, departamento y contacto.",
+   "destino": {
+    "menu": "hr.menu_hr_employee"
+   },
+   "palabras": [
+    "equipo",
+    "empleados",
+    "organigrama",
+    "departamentos"
+   ]
+  },
+  {
+   "id": "planilla",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Preparar la planilla quincenal",
+   "logras": "Calcula el sueldo, el seguro social, el seguro educativo y el ISR de cada colaborador y deja el asiento listo.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_planillas"
+   },
+   "palabras": [
+    "quincena",
+    "pagar sueldos",
+    "nomina",
+    "planilla"
+   ]
+  },
+  {
+   "id": "vacaciones",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Registrar las vacaciones de un colaborador",
+   "logras": "Calculas cuántos días le corresponden y cuánto se le paga.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_vacaciones"
+   },
+   "palabras": [
+    "descanso",
+    "dias libres",
+    "vacaciones"
+   ]
+  },
+  {
+   "id": "liquidacion",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Liquidar a un colaborador que se va",
+   "logras": "Calculas lo que se le debe: vacaciones, décimo tercer mes proporcional y prima de antigüedad.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_liquidaciones"
+   },
+   "palabras": [
+    "renuncia",
+    "despido",
+    "prima de antiguedad",
+    "finiquito",
+    "salida"
+   ]
+  },
+  {
+   "id": "reembolso-aprobar",
+   "categoria": "personal",
+   "grupo": "Gastos",
+   "titulo": "Aprobar el reembolso de un gasto de un colaborador",
+   "logras": "El colaborador sube la foto del gasto; tú lo apruebas y se suma a su planilla.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_reembolsos"
+   },
+   "palabras": [
+    "gastos",
+    "reintegro",
+    "comprobante",
+    "aprobar gasto"
+   ]
+  },
+  {
+   "id": "reembolso-pedir",
+   "categoria": "personal",
+   "grupo": "Gastos",
+   "titulo": "Pedir que me reembolsen un gasto",
+   "logras": "Registras el gasto con su foto para que lo aprueben y te lo paguen.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_mis_reembolsos"
+   },
+   "palabras": [
+    "mis gastos",
+    "reintegro"
+   ]
+  },
+  {
+   "id": "tasas-nomina",
+   "categoria": "personal",
+   "grupo": "Reglas",
+   "titulo": "Revisar las tasas de la ley que usa la nómina",
+   "logras": "Las tasas del seguro social, del seguro educativo y del ISR, con la fecha desde la que valen.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_parametros"
+   },
+   "palabras": [
+    "tasas",
+    "css",
+    "isr",
+    "reglas de nomina"
+   ]
+  },
+  {
+   "id": "producto-nuevo",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Crear un producto nuevo",
+   "logras": "Lo das de alta con nombre, precio, categoría y foto. Si quieres, lo publicas también en la tienda en línea.",
+   "destino": {
+    "nuevo": "product.template"
+   },
+   "palabras": [
+    "articulo",
+    "mueble",
+    "agregar producto",
+    "alta de producto"
+   ]
+  },
+  {
+   "id": "productos-lista",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver y ordenar los productos por stock, precio o categoría",
+   "logras": "La lista de productos para buscar, filtrar y ordenar. Sirve para armar campañas o revisar precios.",
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "palabras": [
+    "catalogo",
+    "lista de productos",
+    "inventario",
+    "precios"
+   ]
+  },
+  {
+   "id": "precios-en-bloque",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Cambiar el precio o las existencias de muchos productos a la vez",
+   "logras": "Brian lo hace por ti: le dices qué productos y qué cambio, te muestra lo que va a hacer y espera tu confirmación.",
+   "destino": null,
+   "brian": "Quiero cambiar el precio de varios productos a la vez. ¿Cómo te lo pido?",
+   "palabras": [
+    "masivo",
+    "en bloque",
+    "subir precios",
+    "actualizar precios",
+    "cambio masivo"
+   ]
+  },
+  {
+   "id": "categorias-producto",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ordenar los productos en categorías",
+   "logras": "Las categorías agrupan los productos para encontrarlos y para los reportes.",
+   "destino": {
+    "menu": "sale.menu_product_categories"
+   },
+   "palabras": [
+    "clasificar",
+    "tipos de producto"
+   ]
+  },
+  {
+   "id": "existencias",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver cuánto hay en existencia",
+   "logras": "Cuánto hay de cada producto en este momento.",
+   "destino": {
+    "menu": "stock.menu_product_stock"
+   },
+   "palabras": [
+    "stock",
+    "cuantos hay",
+    "disponible",
+    "bodega"
+   ]
+  },
+  {
+   "id": "recibir-mercancia",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Recibir mercancía de un proveedor",
+   "logras": "Confirmas lo que llegó y el stock sube solo.",
+   "destino": {
+    "menu": "stock.in_picking"
+   },
+   "palabras": [
+    "recepcion",
+    "llego mercancia",
+    "entrada de inventario"
+   ]
+  },
+  {
+   "id": "entregas",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver las entregas que están pendientes",
+   "logras": "Las ventas ya confirmadas que faltan por entregar al cliente.",
+   "destino": {
+    "menu": "stock.out_picking"
+   },
+   "palabras": [
+    "despachos",
+    "entregar a cliente",
+    "delivery",
+    "por entregar"
+   ]
+  },
+  {
+   "id": "inventario-fisico",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Contar el inventario y corregir diferencias",
+   "logras": "Cuentas lo que hay en la bodega, el sistema te muestra la diferencia y corrige las existencias.",
+   "destino": {
+    "menu": "stock.menu_action_inventory_tree"
+   },
+   "palabras": [
+    "conteo",
+    "ajuste de inventario",
+    "inventario ciclico",
+    "faltantes"
+   ]
+  },
+  {
+   "id": "escaner",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Usar el escáner de códigos de barras",
+   "logras": "Pasas el lector por el producto y el sistema lo reconoce para contar, recibir o buscar.",
+   "destino": {
+    "menu": "dcasa_barras.menu_dcasa_escaner"
+   },
+   "palabras": [
+    "codigo de barras",
+    "lector",
+    "scanner",
+    "pistola"
+   ]
+  },
+  {
+   "id": "etiquetas",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Asignar una etiqueta con código a un producto",
+   "logras": "Le pones a cada producto una etiqueta numerada y queda ligada en el sistema.",
+   "destino": {
+    "menu": "dcasa_barras.menu_dcasa_barras_asignacion"
+   },
+   "palabras": [
+    "etiqueta",
+    "rollo",
+    "codigo de barras",
+    "asignar"
+   ]
+  },
+  {
+   "id": "reabastecer",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver qué productos se están acabando",
+   "logras": "La lista de lo que está por debajo del mínimo para pedirle más al proveedor.",
+   "destino": {
+    "menu": "stock.menu_reordering_rules_replenish"
+   },
+   "palabras": [
+    "reorden",
+    "agotado",
+    "se acaba",
+    "pedir mas"
+   ],
+   "brian": "¿Qué productos se están acabando?"
+  },
+  {
+   "id": "orden-compra",
+   "categoria": "compras",
+   "grupo": "Pedir",
+   "titulo": "Pedirle mercancía a un proveedor",
+   "logras": "Armas la orden de compra, se la mandas y, cuando llega la mercancía, el stock sube.",
+   "destino": {
+    "menu": "purchase.menu_purchase_form_action"
+   },
+   "palabras": [
+    "comprar",
+    "orden de compra",
+    "pedido a proveedor",
+    "reponer"
+   ]
+  },
+  {
+   "id": "proveedores",
+   "categoria": "compras",
+   "grupo": "Proveedores",
+   "titulo": "Ver o agregar un proveedor",
+   "logras": "La lista de proveedores con sus datos y lo que se les debe.",
+   "destino": {
+    "menu": "account.menu_account_supplier"
+   },
+   "palabras": [
+    "proveedor nuevo",
+    "suplidor",
+    "fabricante"
+   ]
+  },
+  {
+   "id": "precios-proveedor",
+   "categoria": "compras",
+   "grupo": "Proveedores",
+   "titulo": "Ver lo que cuesta cada producto con cada proveedor",
+   "logras": "Los precios de compra de cada proveedor, para comparar.",
+   "destino": {
+    "menu": "purchase.menu_product_pricelist_action2_purchase"
+   },
+   "palabras": [
+    "costos",
+    "precio de compra",
+    "comparar proveedores"
+   ]
+  },
+  {
+   "id": "analisis-compras",
+   "categoria": "compras",
+   "grupo": "Reportes",
+   "titulo": "Analizar cuánto estoy comprando",
+   "logras": "Compras por proveedor, por producto y por mes.",
+   "destino": {
+    "menu": "purchase.purchase_report"
+   },
+   "palabras": [
+    "gastos de compra",
+    "reporte de compras"
+   ]
+  },
+  {
+   "id": "cliente-nuevo",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Agregar un cliente",
+   "logras": "Lo registras con su celular y su cédula o RUC. El celular es su llave en Socios.",
+   "destino": {
+    "nuevo": "res.partner"
+   },
+   "palabras": [
+    "crear cliente",
+    "alta de cliente",
+    "contacto nuevo"
+   ]
+  },
+  {
+   "id": "clientes-lista",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Buscar a un cliente",
+   "logras": "Encuentras su ficha por nombre, celular o cédula, con sus ventas y sus puntos.",
+   "destino": {
+    "menu": "contacts.res_partner_menu_contacts"
+   },
+   "palabras": [
+    "buscar cliente",
+    "ficha",
+    "contactos"
+   ]
+  },
+  {
+   "id": "duplicados",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Unir clientes que están repetidos",
+   "logras": "Ves los que parecen el mismo y los fusionas sin perder sus ventas.",
+   "destino": {
+    "menu": "dcasa_contactos.menu_duplicados"
+   },
+   "palabras": [
+    "repetidos",
+    "fusionar",
+    "duplicado"
+   ]
+  },
+  {
+   "id": "socios",
+   "categoria": "clientes",
+   "grupo": "Socios",
+   "titulo": "Ver a los socios y sus puntos",
+   "logras": "La lista de socios con sus puntos y sus compras.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_socios"
+   },
+   "palabras": [
+    "puntos",
+    "fidelidad",
+    "club"
+   ]
+  },
+  {
+   "id": "canjes-socios",
+   "categoria": "clientes",
+   "grupo": "Socios",
+   "titulo": "Entregar un premio que un socio canjeó",
+   "logras": "Buscas el código del canje y lo marcas como entregado.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_canjes"
+   },
+   "palabras": [
+    "premio",
+    "canje",
+    "entregar premio"
+   ]
+  },
+  {
+   "id": "premios",
+   "categoria": "clientes",
+   "grupo": "Socios",
+   "titulo": "Crear o cambiar los premios de Socios",
+   "logras": "Defines qué premios se pueden canjear y por cuántos puntos.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_premios"
+   },
+   "palabras": [
+    "premios",
+    "puntos necesarios",
+    "catalogo de premios"
+   ]
+  },
+  {
+   "id": "pasivo-socios",
+   "categoria": "clientes",
+   "grupo": "Socios",
+   "titulo": "Ver cuántos puntos debe la tienda a los socios",
+   "logras": "El total de puntos acumulados y su valor, para saber cuánto compromiso hay.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_pasivo"
+   },
+   "palabras": [
+    "pasivo",
+    "deuda de puntos",
+    "cuanto cuestan los puntos"
+   ]
+  },
+  {
+   "id": "vendedor-afiliar",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Afiliar a un vendedor",
+   "logras": "Lo registras para que gane puntos cuando alguien compre con su código.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vendedores"
+   },
+   "palabras": [
+    "vendedor nuevo",
+    "afiliar",
+    "codigo ven",
+    "programa de vendedores"
+   ]
+  },
+  {
+   "id": "comisiones",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Ver lo que han ganado los vendedores",
+   "logras": "Cada comisión con su motivo: pagada, recortada o por qué no se pagó.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vend_comisiones"
+   },
+   "palabras": [
+    "comision",
+    "puntos de vendedor",
+    "ganancias de vendedores"
+   ]
+  },
+  {
+   "id": "canjes-vendedores",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Entregar un premio a un vendedor",
+   "logras": "Buscas el código del canje del vendedor y lo marcas como entregado.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vend_canjes"
+   },
+   "palabras": [
+    "canje vendedor",
+    "premio vendedor"
+   ]
+  },
+  {
+   "id": "costo-vendedores",
+   "categoria": "clientes",
+   "grupo": "Vendedores",
+   "titulo": "Ver cuánto me cuesta el programa de vendedores",
+   "logras": "El costo del programa frente a lo que vendió, para decidir si conviene seguir igual.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_vend_costo"
+   },
+   "palabras": [
+    "costo programa",
+    "rentabilidad vendedores",
+    "cuanto gasto en comisiones"
+   ]
+  },
+  {
+   "id": "oportunidades",
+   "categoria": "clientes",
+   "grupo": "Seguimiento",
+   "titulo": "Dar seguimiento a los clientes interesados",
+   "logras": "La lista de personas que preguntaron y todavía no compran, con la próxima acción para cada una.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_oportunidades"
+   },
+   "palabras": [
+    "leads",
+    "prospectos",
+    "seguimiento",
+    "crm",
+    "por cerrar"
+   ]
+  },
+  {
+   "id": "conversaciones",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Contestarles a los clientes (WhatsApp y más)",
+   "logras": "La bandeja donde llegan los mensajes de los clientes. Juan contesta lo básico y tú tomas la conversación cuando hace falta.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "palabras": [
+    "whatsapp",
+    "mensajes",
+    "chat",
+    "juan"
+   ]
+  },
+  {
+   "id": "juan-ajustes",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Cambiar cómo contesta Juan",
+   "logras": "Prendes o apagas a Juan y ajustas lo que puede hacer.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "palabras": [
+    "bot",
+    "asistente",
+    "automatico",
+    "apagar juan"
+   ]
+  },
+  {
+   "id": "juan-conocimiento",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Enseñarle algo nuevo a Juan",
+   "logras": "Agregas información (horarios, políticas, respuestas) para que Juan conteste mejor.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_conocimiento"
+   },
+   "palabras": [
+    "conocimiento",
+    "respuestas",
+    "entrenar",
+    "preguntas frecuentes"
+   ]
+  },
+  {
+   "id": "juan-preguntas",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Ver las preguntas que Juan no supo contestar",
+   "logras": "Las preguntas sin respuesta, para que las contestes tú y Juan aprenda.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_preguntas_pendientes"
+   },
+   "palabras": [
+    "sin respuesta",
+    "no supo",
+    "pendientes"
+   ]
+  },
+  {
+   "id": "pedidos-web",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Ver los pedidos que llegaron por la tienda en línea",
+   "logras": "Los pedidos hechos desde la web, con su pago y su entrega.",
+   "destino": {
+    "menu": "website_sale.menu_orders_orders"
+   },
+   "palabras": [
+    "ecommerce",
+    "compras web",
+    "ordenes web",
+    "pedidos online"
+   ]
+  },
+  {
+   "id": "carritos-abandonados",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Ver los carritos que se quedaron sin comprar",
+   "logras": "Las personas que llenaron el carrito y no terminaron: puedes escribirles.",
+   "destino": {
+    "menu": "website_sale.menu_orders_abandoned_orders"
+   },
+   "palabras": [
+    "carrito",
+    "abandonados",
+    "recuperar venta"
+   ]
+  },
+  {
+   "id": "publicar-producto",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Publicar o quitar un producto de la tienda en línea",
+   "logras": "Eliges qué productos se ven en la web.",
+   "destino": {
+    "menu": "website_sale.menu_catalog_products"
+   },
+   "palabras": [
+    "publicar",
+    "despublicar",
+    "mostrar en web"
+   ]
+  },
+  {
+   "id": "vista-previa",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Ver cómo se ve la tienda en el celular",
+   "logras": "El sitio en un marco de teléfono, de tableta o de computadora.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_vista_previa"
+   },
+   "palabras": [
+    "movil",
+    "responsive",
+    "sitio web",
+    "preview"
+   ]
+  },
+  {
+   "id": "metodos-envio",
+   "categoria": "tienda",
+   "grupo": "Tienda en línea",
+   "titulo": "Configurar los métodos de entrega de la tienda",
+   "logras": "Defines cómo se entrega lo que se vende en línea y cuánto cuesta.",
+   "destino": {
+    "menu": "website_sale.menu_ecommerce_delivery"
+   },
+   "palabras": [
+    "envio",
+    "flete",
+    "delivery",
+    "entrega"
+   ]
+  },
+  {
+   "id": "usuario-nuevo",
+   "categoria": "administrar",
+   "grupo": "Accesos",
+   "titulo": "Darle acceso al sistema a una persona del equipo",
+   "logras": "Creas su usuario y eliges su rol (Vendedora o Gerencia) para que vea solo lo que le toca.",
+   "destino": {
+    "menu": "base.menu_action_res_users"
+   },
+   "palabras": [
+    "crear usuario",
+    "permisos",
+    "roles",
+    "clave",
+    "acceso"
+   ],
+   "nota": "Al guardar un usuario con correo, el sistema le manda solo la invitación para elegir su clave."
+  },
+  {
+   "id": "accesos-panel",
+   "categoria": "administrar",
+   "grupo": "Accesos",
+   "titulo": "Ver quién puede entrar al panel",
+   "logras": "La lista de accesos al panel de administración.",
+   "destino": {
+    "menu": "dcasa_seguridad.dcasa_seguridad_acceso_menu"
+   },
+   "palabras": [
+    "seguridad",
+    "master",
+    "puerta",
+    "cloudflare"
+   ]
+  },
+  {
+   "id": "empresa",
+   "categoria": "administrar",
+   "grupo": "Empresa",
+   "titulo": "Cambiar los datos de la empresa (nombre, RUC, dirección, logo)",
+   "logras": "Lo que aparece en las facturas y documentos.",
+   "destino": {
+    "menu": "base.menu_action_res_company_form"
+   },
+   "palabras": [
+    "ruc",
+    "razon social",
+    "logo",
+    "direccion",
+    "datos de la empresa"
+   ]
+  },
+  {
+   "id": "brian-ajustes",
+   "categoria": "administrar",
+   "grupo": "Brian",
+   "titulo": "Configurar a Brian",
+   "logras": "Su clave de IA, su límite de gasto y qué puede hacer.",
+   "destino": {
+    "menu": "dcasa_brian.menu_brian_ajustes"
+   },
+   "palabras": [
+    "ia",
+    "inteligencia artificial",
+    "clave",
+    "api"
+   ]
+  },
+  {
+   "id": "brian-consumo",
+   "categoria": "administrar",
+   "grupo": "Brian",
+   "titulo": "Ver cuánto gasta la IA",
+   "logras": "El consumo de Brian y de Juan por mes y por persona.",
+   "destino": {
+    "menu": "dcasa_brian.menu_brian_uso"
+   },
+   "palabras": [
+    "costo de ia",
+    "gasto de ia",
+    "tokens"
+   ]
+  },
+  {
+   "id": "brian-registro",
+   "categoria": "administrar",
+   "grupo": "Brian",
+   "titulo": "Ver qué ha hecho Brian por mí",
+   "logras": "Cada acción que Brian hizo o propuso, con quién la confirmó y cuándo.",
+   "destino": {
+    "menu": "dcasa_brian.menu_brian_acciones"
+   },
+   "palabras": [
+    "historial de brian",
+    "auditoria",
+    "acciones"
+   ]
+  }
+ ],
+ "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."
+}

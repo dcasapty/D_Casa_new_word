@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Una tarea: su título, y al tocarla se despliega lo que vas a lograr, los pasos y los botones. -->
+    <t t-name="dcasa_guia.Tarea">
+        <li class="o_dcasa_guia_tarea" t-att-class="{'o_abierta': state.abierta === tarea.id}">
+            <button type="button" class="o_dcasa_guia_tarea_cabeza" t-att-aria-expanded="state.abierta === tarea.id ? 'true' : 'false'"
+                    t-on-click="() => this.alternar(tarea)">
+                <span class="o_dcasa_guia_tarea_titulo" t-out="tarea.titulo"/>
+                <span t-if="mostrarTema" class="o_dcasa_guia_tarea_tema" t-out="nombreDeCategoria(tarea)"/>
+                <i class="fa fa-angle-down o_dcasa_guia_tarea_flecha" aria-hidden="true"/>
+            </button>
+            <div t-if="state.abierta === tarea.id" class="o_dcasa_guia_tarea_cuerpo">
+                <p class="o_dcasa_guia_logras">
+                    <strong>Qué vas a lograr: </strong><t t-out="tarea.logras"/>
+                </p>
+                <ol t-if="tarea.pasos.length" class="o_dcasa_guia_pasos">
+                    <li t-foreach="tarea.pasos" t-as="paso" t-key="paso_index">
+                        <span t-out="paso.texto"/>
+                        <button t-if="paso.destino" type="button" class="btn btn-link btn-sm o_dcasa_guia_paso_ir"
+                                t-on-click="() => this.abrir(paso.destino)">Abrir</button>
+                    </li>
+                </ol>
+                <p t-if="tarea.nota" class="o_dcasa_guia_nota">
+                    <i class="fa fa-info-circle me-1" aria-hidden="true"/><t t-out="tarea.nota"/>
+                </p>
+                <p t-if="tarea.destino" class="o_dcasa_guia_ruta">
+                    Dónde queda: <strong t-out="tarea.destino.ruta"/>
+                </p>
+                <div class="o_dcasa_guia_botones">
+                    <button t-if="tarea.destino" type="button" class="btn btn-primary" t-on-click="() => this.abrir(tarea.destino)">
+                        <t t-if="tarea.destino.tipo === 'nuevo'">Crear ahora</t>
+                        <t t-else="">Ir ahora</t>
+                    </button>
+                    <button t-if="hayBrian" type="button" class="btn btn-secondary"
+                            t-on-click="() => this.preguntarABrian(preguntaDe(tarea))">
+                        <i class="fa fa-comments-o me-2" aria-hidden="true"/>Preguntarle a Brian
+                    </button>
+                </div>
+            </div>
+        </li>
+    </t>
+
+    <t t-name="dcasa_guia.Guia">
+        <div class="o_action o_dcasa_guia">
+            <header class="o_dcasa_guia_hero">
+                <h1>¿Qué necesitas hacer hoy?</h1>
+                <p>Escribe lo que quieres lograr o escoge un tema. Te explico qué vas a lograr y te llevo a la pantalla.</p>
+                <label class="o_dcasa_guia_buscador">
+                    <i class="fa fa-search" aria-hidden="true"/>
+                    <span class="visually-hidden">Buscar qué hacer</span>
+                    <input type="search" class="o_dcasa_guia_buscar" autocomplete="off"
+                           placeholder="Por ejemplo: declaración de renta, cobrar a un cliente, cerrar el mes…"
+                           t-att-value="state.consulta" t-on-input="alEscribir"/>
+                </label>
+            </header>
+
+            <div class="o_dcasa_guia_cuerpo">
+                <div t-if="state.cargando" class="o_dcasa_guia_vacio">Cargando…</div>
+
+                <t t-elif="state.resultados !== null">
+                    <!-- Resultados de buscar -->
+                    <section aria-live="polite">
+                        <h2 t-if="state.resultados.length">Esto es lo que encontré</h2>
+                        <ul t-if="state.resultados.length" class="o_dcasa_guia_lista list-unstyled">
+                            <t t-foreach="state.resultados" t-as="tarea" t-key="tarea.id">
+                                <t t-set="mostrarTema" t-value="true"/>
+                                <t t-call="dcasa_guia.Tarea"/>
+                            </t>
+                        </ul>
+                        <div t-else="" class="o_dcasa_guia_vacio">
+                            <p>No encontré nada con «<t t-out="state.consulta"/>». Prueba con otras palabras
+                                (por ejemplo: <em>factura</em>, <em>nómina</em>, <em>inventario</em>)
+                                o escoge un tema abajo.</p>
+                            <button t-if="hayBrian" type="button" class="btn btn-secondary"
+                                    t-on-click="() => this.preguntarABrian(state.consulta)">
+                                <i class="fa fa-comments-o me-2" aria-hidden="true"/>Preguntarle a Brian
+                            </button>
+                        </div>
+                    </section>
+                    <button type="button" class="btn btn-link o_dcasa_guia_volver" t-on-click="() => this.limpiarBusqueda()">
+                        <i class="fa fa-angle-left me-1" aria-hidden="true"/>Ver todos los temas
+                    </button>
+                </t>
+
+                <t t-elif="categoriaAbierta">
+                    <!-- Un tema abierto -->
+                    <nav class="o_dcasa_guia_migas" aria-label="Dónde estás">
+                        <button type="button" class="btn btn-link" t-on-click="volver">Todos los temas</button>
+                        <span aria-hidden="true">›</span>
+                        <strong t-out="categoriaAbierta.titulo"/>
+                    </nav>
+                    <p class="o_dcasa_guia_detalle" t-out="categoriaAbierta.detalle"/>
+                    <section t-foreach="grupos" t-as="grupo" t-key="grupo_index" class="o_dcasa_guia_grupo">
+                        <h2 t-if="grupo.nombre" t-out="grupo.nombre"/>
+                        <ul class="o_dcasa_guia_lista list-unstyled">
+                            <t t-foreach="grupo.tareas" t-as="tarea" t-key="tarea.id">
+                                <t t-set="mostrarTema" t-value="false"/>
+                                <t t-call="dcasa_guia.Tarea"/>
+                            </t>
+                        </ul>
+                    </section>
+                </t>
+
+                <t t-else="">
+                    <!-- Inicio de la Guía: primero los temas; abajo, lo que más se necesita -->
+                    <section class="o_dcasa_guia_temas">
+                        <h2>Escoge un tema</h2>
+                        <div class="o_dcasa_guia_grilla">
+                            <button t-foreach="categorias" t-as="categoria" t-key="categoria.clave" type="button"
+                                    class="o_dcasa_guia_tema" t-on-click="() => this.abrirCategoria(categoria.clave)">
+                                <span class="o_dcasa_guia_tema_icono"><i t-attf-class="fa {{categoria.icono}}" aria-hidden="true"/></span>
+                                <span class="o_dcasa_guia_tema_texto">
+                                    <strong t-out="categoria.titulo"/>
+                                    <span t-out="categoria.detalle"/>
+                                </span>
+                            </button>
+                        </div>
+                    </section>
+
+                    <section t-if="state.datos.empezar.length" class="o_dcasa_guia_empezar">
+                        <h2>Lo que más se necesita</h2>
+                        <ul class="o_dcasa_guia_lista list-unstyled">
+                            <t t-foreach="state.datos.empezar" t-as="tarea" t-key="tarea.id">
+                                <t t-set="mostrarTema" t-value="true"/>
+                                <t t-call="dcasa_guia.Tarea"/>
+                            </t>
+                        </ul>
+                    </section>
+                </t>
+            </div>
+        </div>
+    </t>
+</templates>

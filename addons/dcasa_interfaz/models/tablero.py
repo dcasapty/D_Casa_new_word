@@ -104,6 +104,8 @@ class DcasaTablero(models.AbstractModel):
             'semana': [],
             'top': [],
             'permisos': self._permisos(),
+            # La Guía («¿Qué necesitas hacer hoy?») vive en otro módulo: si no está instalado, no hay botón.
+            'guia': bool(self.env.ref('dcasa_guia.accion_guia', raise_if_not_found=False)),
         }
         datos['atajos'] = self._atajos(datos['permisos'])
         if self._puede('sale.order'):

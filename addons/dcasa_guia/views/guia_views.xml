@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Guía»: la pantalla «¿Qué necesitas hacer hoy?». La ven todas las personas del equipo; cada una ve solo las
+         tareas cuya pantalla puede abrir (dcasa.guia filtra con los permisos del menú). -->
+    <record id="accion_guia" model="ir.actions.client">
+        <field name="name">Guía</field>
+        <field name="tag">dcasa_guia</field>
+    </record>
+
+    <menuitem id="menu_guia" name="Guía" action="accion_guia" sequence="1"
+              web_icon="dcasa_guia,static/src/img/guia.svg"/>
+</odoo>

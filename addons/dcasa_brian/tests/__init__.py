@@ -13,3 +13,4 @@ from . import test_ronda6
 from . import test_brian_ux
 from . import test_ronda8
 from . import test_vendedores_brian
+from . import test_guia_brian

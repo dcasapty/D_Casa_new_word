@@ -336,6 +336,8 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `oportunidades_abiertas(temperatura?, para_hoy?, limite?)` — las del CRM que nacieron de una conversación, de la más caliente a la más fría: etapa, qué pidió, para cuándo, zona, si esperan respuesta o tienen cotización; `para_hoy` = tibias y calientes sin mensaje de una vendedora en 24 h (módulo `dcasa_conversaciones`) | lectura | Ventas |
 | `resumen_del_crm` — abiertas por temperatura y por etapa, las que esperan respuesta, con cotización enviada, en manos de una persona y lo ganado y archivado en 30 días | lectura | Ventas |
 
+| `buscar_en_guia(consulta)` — busca en la Guía del negocio (módulo `dcasa_guia`, [GUIA.md](GUIA.md)) qué pantalla sirve para lo que la persona quiere hacer (declaración de renta, ITBMS, cerrar el mes, planilla…): qué logra, dónde queda en el menú, los pasos y la nota; solo lo que quien pregunta puede abrir | lectura | Interno |
+
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;

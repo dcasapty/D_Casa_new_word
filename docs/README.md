@@ -28,6 +28,7 @@
 | `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
+| `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |
 | `dcasa_equipo` | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_fe_pa` (factura electrónica, apagado) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |

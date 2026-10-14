@@ -215,6 +215,11 @@ LISTA_BLANCA = {
     # --- dcasa_interfaz -----------------------------------------------------------------
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
+    ('dcasa_guia', 'dcasa.guia', 'obtener'):
+        SIN_SUDO + ' Solo devuelve las tareas de la Guía cuyo menú (y los de arriba) ve quien pregunta; el catálogo '
+        'es un archivo del repositorio, sin datos del negocio.',
+    ('dcasa_guia', 'dcasa.guia', 'buscar'):
+        SIN_SUDO + ' Busca solo entre las tareas que quien pregunta puede abrir; el texto buscado no toca la base.',
     ('dcasa_interfaz', 'dcasa.sitio', 'vista_previa'):
         'Solo devuelve la URL pública del sitio (web.base.url, ya visible en cualquier enlace) y su nombre.',
     # El sitio se edita por código (models/sitio.py): solo AGREGAN un bloqueo, nunca un permiso.
