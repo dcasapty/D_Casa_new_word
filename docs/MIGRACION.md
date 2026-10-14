@@ -179,6 +179,22 @@ avisa y se repite. `pagos.csv` ya trae la columna `numero` (la primera): el carg
 «Antes de cargar»; Cargar hasta que no falte nada; mirar el cuadre. Las facturas nuevas deben salir con el número que
 sigue al último cargado, y ninguna debe aparecer en la cola de la DGI.
 
+**Ensayo en producción con la exportación del 2026-10-12 (2026-10-14, «Revisar», nada se guardó):** contactos, productos,
+precios de proveedor, ventas y compras pendientes y la primera tanda de facturas de clientes salieron sin errores
+inesperados (70 s la última). Lo que dejó para decidir:
+- **4 clientes repetidos por cédula** quedaron enlazados a la ficha que ya existía (antes eran error). Los otros ~120 grupos
+  de repetidos del Excel no chocan por cédula, celular ni correo: se cargarían como fichas separadas; se resuelven antes
+  del corte, marcándolos para la receta (`corte.py`), o se fusionan después con la lista de duplicados de Contactos.
+- **El cliente n.º 1 del sistema anterior no está en `clientes.csv`:** 2 facturas del año y 4 documentos más no entran.
+  Decisión de la dueña y el contador (¿son ventas a la propia empresa?).
+- **Productos que no están en el catálogo:** sobre todo archivados y «Descuento» (168 líneas); esas líneas entran sin
+  producto, con el nombre del archivo. Sin problema de contabilidad; sí hay que mirar los que siguen vendiéndose.
+- **Cobertura del ensayo:** solo la primera tanda (~180 facturas de ~1,005). Los pagos, las facturas de proveedores y el
+  cuadre contra el archivo y el libro **solo se ven con la carga de verdad**. Por eso la primera carga completa conviene
+  hacerla donde se pueda mirar sin consecuencias (staging) o el día del corte.
+- Los 10 pedidos de venta con mercancía por entregar no se cargan (se entregan o se rehacen a mano), y 15 facturas de
+  proveedor en borrador necesitan el número de factura del proveedor antes de publicarse.
+
 **Pendiente con el contador:** la equivalencia de cuentas (viejas → nuevas), qué hacer con los 41 cobros sin conciliar y
 los 7 pagos sin aplicar, la revisión de las facturas raras de arriba y el balance de comprobación al día del corte, contra
 el cual se firma el cuadre.
