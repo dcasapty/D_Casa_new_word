@@ -525,7 +525,7 @@ def combos_por_nombre(env):
     return de_nombre.filtered(lambda p: p.type != 'combo'), de_nombre.filtered(lambda p: p.type == 'combo')
 
 
-def armar_desde_nombre(env, tratados=()):
+def armar_desde_nombre(env, tratados=None):
     """Lee el nombre de cada combo sin estructura, resuelve su cama y su colchón y, de los **claros**, arma el combo.
 
     ``tratados`` son los combos (productos) que ya armó ``combos.csv`` en esta misma carga: no se vuelven a mirar.
@@ -543,6 +543,7 @@ def armar_desde_nombre(env, tratados=()):
 
     Solo los claros se cargan. No hace commit."""
     env = _entorno(env)
+    tratados = env['product.template'] if tratados is None else tratados
     resumen = {k: [] for k in ('cargados', 'dudosos', 'sin_resolver', 'necesitan_revision', 'con_error', 'ya_estaban',
                                'avisos_de_precio', 'con_alternativa', 'no_coinciden')}
     pendientes, ya_combos = combos_por_nombre(env)
