@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -6,6 +7,8 @@ from odoo.exceptions import UserError
 from . import reglas as R
 from . import reglas_vendedores as RV
 from .dcasa_compra import inicio_del_mes_en_panama
+
+_logger = logging.getLogger(__name__)
 
 TIPOS_COMISION = [('directa', 'Venta propia'), ('patrocinio', 'Patrocinio')]
 
@@ -16,6 +19,8 @@ RESULTADOS = [
     ('recortada', 'Pagada, recortada por un tope'),
     ('compra-propia', 'No se paga: es una compra del propio vendedor o de alguien de su misma ficha.'),
     ('dentro-de-la-colmena', 'No se paga: compró alguien de su misma colmena (su patrocinador o uno de sus directos).'),
+    ('comprador-es-vendedor', 'No se paga: quien compró también es vendedor del programa.'),
+    ('registrada-por-el-vendedor', 'No se paga: el propio vendedor registró esta venta en caja.'),
     ('vendedor-suspendido', 'No se paga: el vendedor está suspendido.'),
     ('bajo-el-minimo', 'No se paga: la venta no llegó al mínimo.'),
     ('ya-pago-la-primera', 'No se paga: solo la primera compra del cliente da comisión.'),
@@ -112,11 +117,38 @@ class DcasaVendComision(models.Model):
 
     @api.model
     def _ventas_propias_del_mes(self, vendedor):
-        """Cuántas ventas propias (con comisión pagada) lleva el vendedor en el mes."""
+        """A cuántos clientes DISTINTOS les vendió el vendedor (con comisión pagada) en el mes: cinco ventas al mismo
+        cliente no demuestran que sea un vendedor activo."""
         inicio = inicio_del_mes_en_panama(fields.Datetime.now())
-        return self.sudo().search_count([
+        return len(self.sudo().search([
             ('partner_id', '=', vendedor.id), ('tipo', '=', 'directa'), ('anulada_en', '=', False),
-            ('puntos', '>', 0), ('registrada_en', '>=', inicio)])
+            ('puntos', '>', 0), ('registrada_en', '>=', inicio)]).cliente_id)
+
+    @api.model
+    def _es_cliente_nuevo(self, move):
+        """¿Es de verdad un cliente nuevo? Solo lo es quien se puede identificar (celular, cédula o correo) y no tiene
+        ninguna compra pagada antes, ni él ni otra ficha que comparta esos datos (un duplicado o un número cambiado
+        no vuelve «nuevo» a un cliente de la casa). Sin forma de identificarlo, se trata como cliente existente."""
+        cliente = move.commercial_partner_id.sudo()
+        if cliente._is_public():
+            return False
+        celular = cliente.dcasa_celular or R.celular_normal(cliente.phone)
+        claves = [clave for clave in (
+            ('vat', '=', cliente.vat) if cliente.vat else None,
+            ('email', '=ilike', cliente.email) if cliente.email else None,
+            ('dcasa_celular', '=', celular) if celular else None) if clave]
+        if not claves:
+            return False
+        Partner = self.env['res.partner'].sudo().with_context(active_test=False)
+        mismas = cliente | Partner.search(['|'] * (len(claves) - 1) + claves).commercial_partner_id
+        if self.env['account.move'].sudo().search_count([
+                ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('id', '!=', move.id),
+                ('commercial_partner_id', 'in', mismas.ids),
+                ('payment_state', 'in', ('paid', 'in_payment'))], limit=1):
+            return False
+        # Compras del sistema anterior que se cargaron a mano en Socios (sin factura en Odoo).
+        return not self.env['dcasa.compra'].sudo().search_count([
+            ('partner_id', 'in', mismas.ids), ('anulada_en', '=', False), ('move_id', '!=', move.id)], limit=1)
 
     @api.model
     def _datos_del_freno_global(self):
@@ -166,13 +198,20 @@ class DcasaVendComision(models.Model):
                 'currency_id': move.company_id.currency_id.id}
         autor = (move.invoice_user_id or self.env.user).login
 
-        directa = self._calcular_directa(vendedor, cliente, neto, reglas, via)
-        # El cliente ya recibió sus puntos de Socios: lo que sobra del techo se reparte entre vendedor y patrocinador.
-        puntos_del_cliente = sum(move.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en).mapped('puntos'))
+        nuevo = self._es_cliente_nuevo(move)
+        directa = self._calcular_directa(vendedor, cliente, neto, reglas, via, nuevo,
+                                         move.sudo().dcasa_vendedor_anotado_por.partner_id)
+        # El cliente ya recibió sus puntos de Socios (y el referido que esa compra disparó): lo que sobra del techo se
+        # reparte entre vendedor y patrocinador.
+        compras = move.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)
+        puntos_del_cliente = sum(self.env['dcasa.movimiento'].sudo().search([
+            ('compra_id', 'in', compras.ids), ('tipo', 'in', ('compra', 'referido')), ('puntos', '>', 0)
+        ]).mapped('puntos'))
         patrocinador = vendedor.dcasa_vendedor_patrocinador_id
         # El patrocinio nace de una venta que sí pagó al vendedor directo (sin comisión directa no hay patrocinio) y,
         # salvo que las reglas digan otra cosa, de una venta con código: la recompra de un cliente ligado no lo da.
-        paga_patrocinio = via != 'vinculo' or RV.patrocinio_paga_en_recompras(reglas)
+        paga_patrocinio = (via != 'vinculo' or RV.patrocinio_paga_en_recompras(reglas)) \
+            and (nuevo or not RV.patrocinio_solo_clientes_nuevos(reglas))
         patrocinio = (self._calcular_patrocinio(patrocinador, cliente, neto, reglas)
                       if patrocinador and paga_patrocinio and directa['resultado'] in PAGADOS else None)
         directa_final, patrocinio_final, recorte = directa['puntos'], (patrocinio or {}).get('puntos', 0), None
@@ -208,11 +247,13 @@ class DcasaVendComision(models.Model):
         else:
             puntos_finales = 0
         ahora = fields.Datetime.now()
+        ventas_previas = self.sudo().search_count([
+            ('partner_id', '=', beneficiario.id), ('puntos', '>', 0), ('anulada_en', '=', False)])
         comision = self.sudo().create({
             **base, 'partner_id': beneficiario.id, 'tipo': tipo,
             'puntos_calculados': calculo.get('calculados', calculo['puntos']), 'puntos': puntos_finales,
             'resultado': resultado, 'registrada_en': ahora,
-            'disponible_desde': RV.disponible_desde(ahora, reglas) if puntos_finales else False,
+            'disponible_desde': RV.disponible_desde(ahora, reglas, ventas_previas) if puntos_finales else False,
         })
         if puntos_finales > 0:
             texto = 'Venta {}' if tipo == 'directa' else 'Venta de un vendedor de tu colmena {}'
@@ -222,7 +263,7 @@ class DcasaVendComision(models.Model):
                 motivo=texto.format(comision.name), disponible_desde=comision.disponible_desde)
         return comision
 
-    def _calcular_directa(self, vendedor, cliente, neto, reglas, via=None):
+    def _calcular_directa(self, vendedor, cliente, neto, reglas, via=None, nuevo=True, anotador=None):
         """El resultado de la comisión del vendedor que trajo la venta, antes de los topes de la venta."""
         def sin(resultado):
             return {'puntos': 0, 'resultado': resultado}
@@ -230,16 +271,26 @@ class DcasaVendComision(models.Model):
             return sin('vendedor-suspendido')
         if vendedor._dcasa_es_la_misma_persona(cliente):
             return sin('compra-propia')
+        # Separación de funciones: quien teclea la venta en caja no se paga a sí mismo por su propio trabajo de caja.
+        if anotador and via == 'codigo' and vendedor._dcasa_es_la_misma_persona(anotador):
+            return sin('registrada-por-el-vendedor')
         bloquear = RV.seccion(reglas).get('bloquearComprasDentroDeLaColmena', True)
         if bloquear and vendedor._dcasa_en_la_colmena_de(cliente):
             return sin('dentro-de-la-colmena')
+        # Un vendedor que compra con el código de otro cobra como un descuento disfrazado: las compras de cualquier
+        # vendedor afiliado solo dan puntos de cliente.
+        if cliente.commercial_partner_id.dcasa_vendedor_codigo:
+            return sin('comprador-es-vendedor')
         try:
             puntos = RV.comision_directa(neto, reglas, self._ventas_netas_recientes(vendedor, reglas))
         except R.FaltaConfigurar:
             return sin('sin-configurar')
-        if via == 'vinculo':
-            # El cliente ya era de este vendedor y llegó sin código: la recompra paga una fracción.
-            puntos = RV.aplicar_factor_de_recompra(puntos, reglas)
+        if not nuevo:
+            # Un cliente que ya había comprado no lo trajo el código: se paga una fracción (la recompra de un
+            # cliente ligado a este vendedor, una; la venta con código a un cliente que ya era de la tienda, otra).
+            ligado = cliente.dcasa_vendedor_ligado_id == vendedor
+            puntos = (RV.aplicar_factor_de_recompra(puntos, reglas) if ligado or via == 'vinculo'
+                      else RV.aplicar_factor_de_cliente_existente(puntos, reglas))
         if puntos <= 0:
             return sin('bajo-el-minimo')
         if (RV.seccion(reglas)['comision']['pagaEn'] == 'primera-compra'
@@ -283,6 +334,23 @@ class DcasaVendComision(models.Model):
     # ------------------------------------------------------------------------
     # Anular
     # ------------------------------------------------------------------------
+
+    @api.model
+    def _revisar_pagos(self):
+        """Cada día: una comisión cuya factura dejó de estar pagada (un contracargo, un pago desconciliado, un
+        cheque devuelto) sin nota de crédito pierde sus puntos. Es la red que atrapa lo que ningún evento avisó."""
+        desde = fields.Datetime.now() - timedelta(days=120)
+        comisiones = self.sudo().search([
+            ('anulada_en', '=', False), ('puntos', '>', 0), ('move_id', '!=', False), ('registrada_en', '>=', desde),
+            ('move_id.payment_state', 'in', ('not_paid', 'partial'))])
+        for comision in comisiones:
+            try:
+                with self.env.cr.savepoint():
+                    comision._anular(self.env._(
+                        'El pago de la factura %s se revirtió o ya no está completo.', comision.name), 'sistema')
+            except Exception:  # noqa: BLE001  — una comisión mala no frena a las demás ni al resto del cron
+                _logger.exception('No se pudo revisar la comisión %s', comision.id)
+        return len(comisiones)
 
     def _anular(self, motivo, autor):
         """Anula la comisión y devuelve sus puntos con un asiento contrario (el libro no se edita)."""

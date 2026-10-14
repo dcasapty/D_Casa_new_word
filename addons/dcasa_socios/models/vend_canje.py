@@ -24,12 +24,17 @@ class DcasaPremio(models.Model):
     def _check_vendedores_no_bajo_el_costo(self):
         """Un premio de vendedores nunca se vende por debajo de lo que cuesta: los puntos son un tope de gasto,
         no una forma de regalar mercancía."""
+        reglas = R.cargar_reglas()
+        por_dolar = (reglas.get('canje') or {}).get('puntosPorDolar')
+        if not por_dolar:
+            return
         for premio in self.filtered('para_vendedores'):
-            if premio.costo and premio.puntos < round(premio.costo * 100):
+            minimo = RV.puntos_minimos_de_premio(premio.costo, por_dolar, reglas)
+            if premio.costo and premio.puntos < minimo:
                 raise ValidationError(self.env._(
                     'El premio «%(premio)s» cuesta %(costo)s a D’CASA y pide %(puntos)s puntos: '
-                    'tiene que pedir al menos %(minimo)s (cada 100 puntos valen $1).',
-                    premio=premio.name, costo=premio.costo, puntos=premio.puntos, minimo=round(premio.costo * 100)))
+                    'tiene que pedir al menos %(minimo)s (su costo en puntos, con el margen que exige el programa).',
+                    premio=premio.name, costo=premio.costo, puntos=premio.puntos, minimo=minimo))
 
     @api.model
     def _catalogo(self, tipo=None):
@@ -85,6 +90,10 @@ class DcasaVendCanje(models.Model):
         ficha.invalidate_recordset(['dcasa_vend_saldo', 'dcasa_vend_disponible'])
         if ficha.dcasa_vendedor_estado != 'activo':
             raise UserError(self.env._('Tu cuenta de vendedor no está activa. Escríbenos por WhatsApp y lo revisamos.'))
+        if ficha.dcasa_vendedor_tipo == 'externo' and not canje_reglas.get('externosHabilitado'):
+            raise UserError(self.env._(
+                'El canje para vendedores externos todavía no está habilitado. Tus puntos se siguen acumulando '
+                'y no se pierden: escríbenos por WhatsApp y te avisamos cuando se abra.'))
         if not premio.para_vendedores or not premio._disponible():
             raise UserError(self.env._('Ese premio se agotó o no está disponible para vendedores. Elige otro.'))
         minimo = canje_reglas.get('puntosMinimosParaCanjear')
@@ -170,4 +179,5 @@ class DcasaCanje(models.Model):
     def _cron_programa(self):
         res = super()._cron_programa()
         self.env['dcasa.vend.canje']._vencer_codigos()
+        self.env['dcasa.vend.comision']._revisar_pagos()
         return res

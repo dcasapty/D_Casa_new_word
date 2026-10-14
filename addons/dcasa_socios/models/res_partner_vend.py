@@ -109,7 +109,12 @@ class ResPartner(models.Model):
     # Validaciones
     # ------------------------------------------------------------------------
 
+    def _dcasa_es_gerencia(self):
+        return self.env.su or self.env.user.has_group('sales_team.group_sale_manager')
+
     def write(self, vals):
+        if vals.get('dcasa_vendedor_patrocinador_id') and not self._dcasa_es_gerencia():
+            raise UserError(self.env._('Solo Gerencia escribe quién patrocina a un vendedor.'))
         if vals.get('dcasa_vendedor_patrocinador_id'):
             for partner in self:
                 actual = partner.dcasa_vendedor_patrocinador_id
@@ -197,6 +202,10 @@ class ResPartner(models.Model):
             raise UserError(self.env._('Esta persona está suspendida en Socios: primero se reactiva.'))
         patrocinador = patrocinador.commercial_partner_id.sudo() if patrocinador else self.env['res.partner']
         if patrocinador:
+            # La caja afilia, pero la colmena la arma Gerencia: así un cajero no puede armarse su propia colmena.
+            if not self._dcasa_es_gerencia():
+                raise UserError(self.env._(
+                    'Afiliar en caja no lleva patrocinador: Gerencia lo escribe después en la ficha del vendedor.'))
             self._dcasa_validar_patrocinador(ficha, patrocinador)
         for _intento in range(10):
             codigo = RV.nuevo_codigo_vendedor()
@@ -209,6 +218,8 @@ class ResPartner(models.Model):
             'dcasa_vendedor_codigo': codigo, 'dcasa_vendedor_estado': 'activo', 'dcasa_vendedor_tipo': tipo,
             'dcasa_vendedor_afiliado_en': ahora, 'dcasa_vendedor_afiliado_por': autor or self.env.user.login,
             'dcasa_vend_terminos_version': VERSION_TERMINOS_VENDEDORES, 'dcasa_vend_terminos_en': ahora,
+            # Quien se afilia ya no es un cliente que alguien trajo: se corta su vínculo (si no, seguiría pagando).
+            'dcasa_vendedor_ligado_id': False, 'dcasa_vendedor_ligado_en': False,
             **({'dcasa_vendedor_patrocinador_id': patrocinador.id} if patrocinador else {}),
         })
         ficha._dcasa_dejar_rastro(self.env._(

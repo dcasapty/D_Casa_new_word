@@ -50,10 +50,11 @@ class TestBrianVendedores(TransactionCase):
         self.assertTrue(respuesta.get('ok'), respuesta)
         return respuesta['datos']
 
-    def afiliar(self, persona='Brianzeta Ana', tipo='externo', **extra):
-        respuesta = self.ejecutar(self.caja, 'afiliar_vendedor', {
+    def afiliar(self, persona='Brianzeta Ana', tipo='externo', quien=None, **extra):
+        quien = quien or self.caja
+        respuesta = self.ejecutar(quien, 'afiliar_vendedor', {
             'persona': persona, 'tipo': tipo, 'acepto_terminos': True, **extra})
-        return self.ok(self.confirmar(self.caja, respuesta))
+        return self.ok(self.confirmar(quien, respuesta))
 
     def test_quien_ve_que(self):
         def nombres(usuario):
@@ -96,8 +97,15 @@ class TestBrianVendedores(TransactionCase):
 
     def test_patrocinador_por_codigo_y_consulta(self):
         padrino = self.afiliar('Brianzeta Ana')
-        datos = self.afiliar('Brianzeta Luis', 'empleado', patrocinador=padrino['codigo'])
+        datos = self.afiliar('Brianzeta Luis', 'empleado', quien=self.gerente, patrocinador=padrino['codigo'])
         self.assertEqual(datos['patrocinador'], self.ana.display_name)
+        # En caja no se escribe patrocinador: lo hace Gerencia.
+        self.env['res.partner'].create({'name': 'Brianzeta Nueva', 'vat': '8-730-730', 'phone': '6150-0004'})
+        intento = self.confirmar(self.caja, self.ejecutar(self.caja, 'afiliar_vendedor', {
+            'persona': 'Brianzeta Nueva', 'tipo': 'externo', 'acepto_terminos': True,
+            'patrocinador': padrino['codigo']}))
+        self.assertFalse(intento['ok'])
+        self.assertIn('Gerencia', intento['error'])
         ficha = self.ok(self.ejecutar(self.caja, 'consultar_vendedor', {'vendedor': padrino['codigo']}))
         self.assertEqual((ficha['directos'], ficha['codigo'], ficha['patrocinador']),
                          (1, padrino['codigo'], 'ninguno'))

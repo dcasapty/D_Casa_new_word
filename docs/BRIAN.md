@@ -52,7 +52,7 @@ MCP ────────┘         │                        │  tool cal
 1. Eliminar, archivar o quitarle permisos al administrador, ni a sí mismo (el usuario con quien conversa).
 2. Modificar facturas publicadas o pagadas, asientos publicados ni conciliaciones: eso se corrige con notas de crédito o asientos contrarios, por una persona.
 3. Borrar (unlink) registros contables, del libro de puntos (`dcasa.movimiento`) o del registro de acciones de Brian.
-4. Tocar el programa Socios fuera de sus reglas (cifras solo de `puntos.json`; el libro no se edita).
+4. Tocar el programa Socios o el de vendedores fuera de sus reglas (cifras solo de `puntos.json`; el libro no se edita).
 5. Ver o cambiar contraseñas, claves de API, `DCASA_PIN_PEPPER` ni parámetros técnicos del sistema.
 6. Ejecutar código, SQL o acciones del servidor arbitrarias.
 7. Actuar con más permisos que el usuario: todo corre como él.

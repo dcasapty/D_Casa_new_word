@@ -36,7 +36,8 @@
                         </group>
                         <group string="Colmena (un solo nivel)">
                             <field name="dcasa_vendedor_patrocinador_id" readonly="dcasa_vendedor_patrocinador_id"
-                                   options="{'no_create': True}"/>
+                                   options="{'no_create': True}" groups="sales_team.group_sale_manager"/>
+                            <field name="dcasa_vendedor_patrocinador_id" readonly="1" groups="!sales_team.group_sale_manager"/>
                             <field name="dcasa_vend_directos_count"/>
                             <field name="dcasa_vend_disponible"/>
                             <field name="dcasa_vend_por_liberar"/>
@@ -230,7 +231,7 @@
         <field name="view_mode">pivot,list</field>
         <field name="domain">[('estado', '=', 'activa')]</field>
         <field name="help" type="html">
-            <p>Ventas netas atribuidas y puntos nominales pagados por mes (100 puntos = $1). Mide el costo del
+            <p>Ventas netas atribuidas y puntos nominales pagados por mes. Mide el costo del
                 programa contra lo que de verdad se vendió.</p>
         </field>
     </record>
@@ -300,7 +301,7 @@
         <field name="res_model">dcasa.vend.movimiento</field>
         <field name="view_mode">pivot,list</field>
         <field name="help" type="html">
-            <p>Lo que la empresa debe en puntos de vendedor: suma de los asientos. 100 puntos = $1 nominal.</p>
+            <p>Lo que la empresa debe en puntos de vendedor: suma de los asientos, en puntos nominales.</p>
         </field>
     </record>
 
@@ -418,7 +419,7 @@
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Aún no hay premios para vendedores</p>
             <p>Crea los premios de mercancía (por ejemplo, una cama) con su costo real: un premio nunca puede pedir
-                menos puntos de los que cuesta (100 puntos = $1).</p>
+                menos puntos de los que cuesta.</p>
         </field>
     </record>
 
@@ -460,12 +461,12 @@
                     <field name="partner_id"/>
                     <field name="tipo"/>
                     <field name="patrocinador_id" placeholder="Código VEN… o nombre (opcional)"
-                           options="{'no_create': True}"/>
+                           options="{'no_create': True}" groups="sales_team.group_sale_manager"/>
                     <field name="acepta"/>
                 </group>
                 <p class="text-muted">Léele los términos a la persona (están en dcasapty.com/vendedores/terminos).
-                    El patrocinador se escribe una sola vez y no se cambia jamás. Hace falta su cédula o RUC y un
-                    celular de Panamá en la ficha.</p>
+                    En caja se afilia sin patrocinador: Gerencia lo escribe después, una sola vez, y no se cambia
+                    jamás. Hace falta su cédula o RUC y un celular de Panamá en la ficha.</p>
                 <footer>
                     <button name="action_confirmar" type="object" string="Afiliar" class="btn-primary"/>
                     <button special="cancel" string="Cancelar"/>

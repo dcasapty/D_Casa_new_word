@@ -53,6 +53,33 @@ class TestReglasDeVendedores(BaseCase):
         with self.assertRaises(R.FaltaConfigurar):
             RV.comision_patrocinio(10000, reglas)
 
+    def test_las_cifras_reales_de_puntos_json_estan_completas_y_son_las_decididas(self):
+        """Lo decidido el 2026-10-14 (consenso del debate). Si alguien cambia una cifra, esta prueba obliga a hacerlo
+        a propósito: sube la versión y actualiza docs/VENDEDORES.md."""
+        reales = R.cargar_reglas()
+        self.assertEqual((RV.falta_para_comisionar(reales), RV.falta_para_patrocinar(reales)), ([], []))
+        self.assertGreaterEqual(reales['version'], 4)
+        self.assertEqual(RV.comision_directa(14500, reales), 580)            # 4 % de $145 neto
+        self.assertEqual(RV.comision_patrocinio(14500, reales), 116)         # 0.8 %: un quinto de la comisión
+        self.assertEqual(RV.aplicar_factor_de_recompra(580, reales), 290)
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(580, reales), 290)
+        v = RV.seccion(reales)
+        self.assertEqual((v['retencion']['dias'], v['vinculacion']['meses'], v['patrocinio']['topeDeDirectos']),
+                         (30, 12, 3))
+        self.assertEqual((v['retencion']['primerasVentas'], v['retencion']['diasPrimerasVentas']), (5, 60))
+        self.assertEqual(v['techos']['pesoDelPuntoDeVendedor'], 0.7)
+        self.assertTrue(v['patrocinio']['soloClientesNuevos'] and not v['vinculacion']['pagaPatrocinio'])
+        self.assertEqual((v['patrocinio']['ventasPropiasMinimasAlMes'],
+                          v['patrocinio']['topeComoMultiploDeSuComisionDelMes']), (2, 1))
+        self.assertEqual((v['techos']['porVendedorAlMesPuntos'], v['techos']['frenoGlobalPorcentajeDeLaVentaNeta']),
+                         (20000, 1.5))
+        self.assertEqual((v['canje']['puntosMinimosParaCanjear'], v['canje']['canjesPorVendedorAlMes']), (3000, 2))
+        self.assertIs(v['canje']['efectivoHabilitado'], False, 'Efectivo: no existe hasta el dictamen')
+        self.assertIs(v['canje']['externosHabilitado'], False, 'Externos: esperan la revisión del abogado')
+        self.assertEqual(v['comision']['escalones'], [], 'Fase 1: tasa plana')
+        # El costo máximo de una primera compra normal cabe holgado bajo el techo por factura.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 155, 14500, reales), (580, 116, False))
+
     # --- Los puntos -------------------------------------------------------------------------
 
     def test_comision_directa_redondea_hacia_abajo(self):
@@ -111,6 +138,15 @@ class TestReglasDeVendedores(BaseCase):
         self.assertEqual(RV.aplicar_factor_de_recompra(400, reglas), 200)
         self.assertEqual(RV.aplicar_factor_de_recompra(401, reglas), 200, 'Hacia abajo, como todo')
 
+    def test_el_cliente_existente_paga_una_fraccion_y_sin_cifra_paga_entero(self):
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(400, self.reglas()), 400)
+        reglas = self.reglas(comision__factorClienteExistente=0.25)
+        self.assertEqual(RV.aplicar_factor_de_cliente_existente(400, reglas), 100)
+
+    def test_el_patrocinio_solo_de_clientes_nuevos_viene_apagado(self):
+        self.assertFalse(RV.patrocinio_solo_clientes_nuevos(self.reglas()))
+        self.assertTrue(RV.patrocinio_solo_clientes_nuevos(self.reglas(patrocinio__soloClientesNuevos=True)))
+
     def test_el_patrocinio_en_recompras_y_las_ventas_minimas_vienen_apagados(self):
         self.assertFalse(RV.patrocinio_paga_en_recompras(self.reglas()))
         self.assertTrue(RV.patrocinio_paga_en_recompras(self.reglas(vinculacion__pagaPatrocinio=True)))
@@ -139,6 +175,19 @@ class TestReglasDeVendedores(BaseCase):
     def test_sin_cifra_de_freno_global_no_se_recorta(self):
         self.assertEqual(RV.repartir_bajo_el_freno_global(600, 40, 10**9, 0, self.reglas()), (600, 40, False))
 
+    def test_el_peso_del_punto_de_vendedor_deja_pagar_mas_puntos_bajo_el_mismo_techo(self):
+        reglas = self.reglas(techos__totalPorVentaPorcentajeDelNeto=8.75, techos__pesoDelPuntoDeVendedor=0.65)
+        # neto $145: techo 1,268 de costo real; el cliente ya recibió 155 → caben 1,113 de costo = 1,712 puntos.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 155, 14500, reglas), (580, 116, False))
+        # con referido (905 al cliente): quedan 363 de costo real = 558 puntos de vendedor.
+        self.assertEqual(RV.repartir_bajo_el_techo(580, 116, 905, 14500, reglas), (558, 0, True))
+        self.assertEqual(RV.peso_del_punto_de_vendedor(self.reglas()), 1, 'Sin cifra: lo más estricto')
+
+    def test_minimo_de_puntos_de_un_premio_sube_con_el_peso(self):
+        self.assertEqual(RV.puntos_minimos_de_premio(29.34, 100, self.reglas()), 2934)
+        reglas = self.reglas(techos__pesoDelPuntoDeVendedor=0.65)
+        self.assertEqual(RV.puntos_minimos_de_premio(29.34, 100, reglas), 4514)     # 2934 / 0.65 = 4513.8 → arriba
+
     def test_tope_al_mes(self):
         self.assertEqual(RV.topar_al_mes(100, 0, None), 100)
         self.assertEqual(RV.topar_al_mes(100, 950, 1000), 50)
@@ -151,6 +200,14 @@ class TestReglasDeVendedores(BaseCase):
         hoy = datetime(2026, 10, 14, 12, 0)
         self.assertEqual(RV.disponible_desde(hoy, self.reglas()), datetime(2026, 11, 13, 12, 0))
         self.assertEqual(RV.disponible_desde(hoy, self.reglas(retencion__dias=0)), hoy)
+
+    def test_las_primeras_ventas_esperan_mas(self):
+        hoy = datetime(2026, 10, 14, 12, 0)
+        reglas = self.reglas(retencion__primerasVentas=5, retencion__diasPrimerasVentas=60)
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 0), datetime(2026, 12, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 4), datetime(2026, 12, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas, 5), datetime(2026, 11, 13, 12, 0))
+        self.assertEqual(RV.disponible_desde(hoy, reglas), datetime(2026, 11, 13, 12, 0), 'No se sabe: ventana normal')
 
     def test_vinculacion_en_meses(self):
         self.assertEqual(RV.meses_de_vinculacion(self.reglas(vinculacion__meses=0)), 0)

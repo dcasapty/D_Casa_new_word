@@ -56,6 +56,14 @@ Reglas de DCasa-Referidos (Abrinay), no negociables:
 5. Un cliente y un socio son la misma ficha (`res.partner`), llave = celular.
 6. `DCASA_PIN_PEPPER` jamás se rota.
 
+## Programa de vendedores (`dcasa_socios`, ver `docs/VENDEDORES.md`)
+
+1. Cifras solo en la sección `vendedores` de `puntos.json` (misma regla que Socios); `programaActivo` es el interruptor.
+2. Libro propio e inmutable (`dcasa.vend.movimiento`); el saldo es la suma. Correcciones con asiento contrario.
+3. Nada se paga por afiliar ni por reclutar; solo por ventas **pagadas**; un solo nivel; un solo patrocinador (se escribe una vez).
+4. Un tope o un error del programa **nunca** hace fallar una venta (la comisión corre en un savepoint tras el pago).
+5. Canje de externos y efectivo apagados hasta dictamen del abogado y la contadora (`canje.externosHabilitado`, `efectivoHabilitado`).
+
 ## Datos reales de la empresa
 
 D'CASA Panamá · RUC 155779346-2-2026 DV7 · Frente al Parque Libertadores,

@@ -21,7 +21,7 @@
 | Módulo | Documento |
 |---|---|
 | `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
-| `dcasa_socios` | [SOCIOS.md](SOCIOS.md) |
+| `dcasa_socios` | [SOCIOS.md](SOCIOS.md) · programa de vendedores: [VENDEDORES.md](VENDEDORES.md) |
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |

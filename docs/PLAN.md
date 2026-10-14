@@ -44,6 +44,9 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
   letras en español, pie que no se corta.
 - ✅ `dcasa_socios`: programa de puntos y referidos dentro de Odoo, con puntos automáticos al pagarse la
   factura, canjes cobrados en la venta y app del socio en `/socios` ([SOCIOS.md](SOCIOS.md)).
+- ✅ Programa de **vendedores** (`dcasa_socios`): código `VEN…`, comisión por venta pagada, colmena de un nivel,
+  canje en mercancía y reglas con freno de costo; apagado el canje de externos hasta la revisión del
+  abogado ([VENDEDORES.md](VENDEDORES.md)). Falta: prueba de la dueña en staging y revisión de abogado y contadora.
 - ✅ `website_dcasa`: paleta y fuentes de la marca, inicio, pie, WhatsApp flotante, categorías de la
   tienda, página «Refiere y gana».
 - ✅ Imagen Docker + Worker/Container de Cloudflare + CI/CD con etapas de pruebas.

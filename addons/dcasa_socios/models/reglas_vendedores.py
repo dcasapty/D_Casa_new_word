@@ -7,8 +7,8 @@ NINGUNA CIFRA ESTÁ ESCRITA AQUÍ. Todas vienen de la sección ``vendedores`` de
 versionada en git). Una cifra en ``null`` no se rellena a ojo: el programa se niega a acreditar hasta que alguien la
 decida con un commit.
 
-Unidad: 1 punto = 1 centavo nominal (100 puntos = $1, como en Socios). Por eso, con la venta NETA en centavos, el
-porcentaje nominal que se lleva un vendedor es igual a sus puntos por dólar.
+Unidad: 1 punto = 1 centavo nominal (la misma escala de Socios: ``canje.puntosPorDolar``). Por eso, con la venta NETA
+en centavos, el porcentaje nominal que se lleva un vendedor es igual a sus puntos por dólar.
 """
 
 import secrets
@@ -128,6 +128,21 @@ def aplicar_factor_de_recompra(puntos, reglas):
     return int(Fraction(puntos) * Fraction(str(factor)))
 
 
+def aplicar_factor_de_cliente_existente(puntos, reglas):
+    """La venta con código a un cliente que YA había comprado en D'CASA (no lo trajo el vendedor) paga una fracción
+    (``factorClienteExistente``). Sin cifra, paga entera."""
+    factor = (seccion(reglas).get('comision') or {}).get('factorClienteExistente')
+    if factor is None:
+        return puntos
+    return int(Fraction(puntos) * Fraction(str(factor)))
+
+
+def patrocinio_solo_clientes_nuevos(reglas):
+    """¿El patrocinio solo nace de la primera compra de un cliente nuevo? Así el patrocinador no cobra sobre ventas que
+    la tienda ya tenía. Por defecto no (paga en toda venta que pagó al directo)."""
+    return bool((seccion(reglas).get('patrocinio') or {}).get('soloClientesNuevos', False))
+
+
 def patrocinio_paga_en_recompras(reglas):
     """¿Las recompras de un cliente ligado (sin código) también dan patrocinio? Por defecto no."""
     return bool((seccion(reglas).get('vinculacion') or {}).get('pagaPatrocinio', False))
@@ -166,18 +181,35 @@ def repartir_bajo_el_freno_global(directa, patrocinio, emitido_en_30_dias, venta
 
 
 def techo_total_por_venta(neto_centavos, reglas):
-    """Lo máximo, en puntos, que una venta puede costar entre cliente, vendedor y patrocinador."""
+    """Lo máximo que una venta puede costar entre cliente, vendedor y patrocinador (en puntos de costo real)."""
     pct = seccion(reglas)['techos']['totalPorVentaPorcentajeDelNeto']
     return int(Fraction(neto_centavos) * Fraction(str(pct)) // 100)
+
+
+def peso_del_punto_de_vendedor(reglas):
+    """Cuánto le cuesta de verdad a D'CASA un punto de vendedor, frente a uno de cliente (que vale 1): los puntos de
+    vendedor solo se canjean por mercancía que cuesta una fracción de su precio. Sin cifra, vale 1 (lo más estricto)."""
+    peso = (seccion(reglas).get('techos') or {}).get('pesoDelPuntoDeVendedor')
+    return Fraction(str(peso)) if peso else Fraction(1)
+
+
+def puntos_minimos_de_premio(costo, puntos_por_dolar, reglas):
+    """Lo menos que puede pedir un premio de vendedores: su costo en puntos, dividido entre el peso del punto de
+    vendedor. Así el costo real del punto nunca pasa del peso que el techo da por supuesto."""
+    exacto = Fraction(str(costo)) * Fraction(str(puntos_por_dolar)) / peso_del_punto_de_vendedor(reglas)
+    return -((-exacto.numerator) // exacto.denominator)          # hacia arriba
 
 
 def repartir_bajo_el_techo(directa, patrocinio, puntos_del_cliente, neto_centavos, reglas):
     """Aplica el techo por venta. Devuelve ``(directa, patrocinio, recortado)``.
 
-    El cliente ya recibió sus puntos (Socios): lo que sobra del techo es lo que pueden repartirse el vendedor y
-    su patrocinador, y se recorta primero al patrocinador (quien trajo la venta no pierde antes que el patrocinio).
+    El cliente ya recibió sus puntos (Socios, y el referido que su compra disparó): lo que sobra del techo, medido en
+    costo real, es lo que pueden repartirse el vendedor y su patrocinador, y se recorta primero al patrocinador (quien
+    trajo la venta no pierde antes que el patrocinio).
     """
-    cabe = max(0, techo_total_por_venta(neto_centavos, reglas) - max(0, puntos_del_cliente))
+    peso = peso_del_punto_de_vendedor(reglas)
+    cabe_real = max(0, techo_total_por_venta(neto_centavos, reglas) - max(0, puntos_del_cliente))
+    cabe = int(Fraction(cabe_real) / peso)
     if directa + patrocinio <= cabe:
         return directa, patrocinio, False
     nueva_directa = min(directa, cabe)
@@ -192,9 +224,17 @@ def topar_al_mes(puntos, ya_ganados_en_el_mes, tope):
     return max(0, min(puntos, tope - ya_ganados_en_el_mes))
 
 
-def disponible_desde(cuando, reglas):
-    """Desde cuándo se pueden gastar unos puntos acreditados ``cuando`` (ventana de devoluciones)."""
-    dias = (seccion(reglas).get('retencion') or {}).get('dias') or 0
+def disponible_desde(cuando, reglas, ventas_previas=None):
+    """Desde cuándo se pueden gastar unos puntos acreditados ``cuando`` (ventana de devoluciones).
+
+    A quien apenas empieza (menos de ``retencion.primerasVentas`` ventas con puntos) se le exige más espera
+    (``retencion.diasPrimerasVentas``): «vender, canjear y que el cliente devuelva» es el truco de quien recién llega.
+    ``ventas_previas`` ``None`` = no se sabe, vale la ventana normal."""
+    retencion = seccion(reglas).get('retencion') or {}
+    dias = retencion.get('dias') or 0
+    primeras, dias_nuevo = retencion.get('primerasVentas'), retencion.get('diasPrimerasVentas')
+    if ventas_previas is not None and primeras and dias_nuevo and ventas_previas < primeras:
+        dias = max(dias, dias_nuevo)
     return cuando + timedelta(days=dias)
 
 

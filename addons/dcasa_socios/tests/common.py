@@ -18,7 +18,8 @@ VENDEDORES_DE_PRUEBA = {
     'retencion': {'dias': 30},
     'techos': {'totalPorVentaPorcentajeDelNeto': 8, 'porVendedorAlMesPuntos': None,
                'patrocinioPorPatrocinadorAlMesPuntos': None},
-    'canje': {'puntosMinimosParaCanjear': 500, 'vigenciaDelCodigoHoras': 72, 'canjesPorVendedorAlMes': None},
+    'canje': {'puntosMinimosParaCanjear': 500, 'vigenciaDelCodigoHoras': 72, 'canjesPorVendedorAlMes': None,
+              'externosHabilitado': True},
     'bloquearComprasDentroDeLaColmena': True,
 }
 

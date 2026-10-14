@@ -136,6 +136,29 @@ class TestAfiliacion(VendedoresCommon):
         with self.assertRaises(AccessError):
             persona.with_user(self.mostrador).action_dcasa_ajustar_vendedor()
 
+    def test_la_caja_afilia_sin_patrocinador_y_solo_gerencia_arma_la_colmena(self):
+        persona = self.env['res.partner'].create({'name': 'Con Padrino', 'vat': '8-131-131', 'phone': '6100-0021'})
+        asistente = self.env['dcasa.afiliar.vendedor.wizard'].with_user(self.mostrador).create({
+            'partner_id': persona.id, 'tipo': 'externo', 'acepta': True, 'patrocinador_id': self.ana.id})
+        with self.assertRaisesRegex(UserError, 'Gerencia lo escribe después'):
+            asistente.action_confirmar()
+        asistente.with_user(self.gerente).action_confirmar()
+        self.assertEqual(persona.dcasa_vendedor_patrocinador_id, self.ana)
+        otra = self.env['res.partner'].create({'name': 'Sin Padrino', 'vat': '8-141-141', 'phone': '6100-0022'})
+        otra._dcasa_afiliar_vendedor('externo', autor='prueba', acepto_terminos=True)
+        with self.assertRaisesRegex(UserError, 'Solo Gerencia escribe'):
+            otra.with_user(self.mostrador).write({'dcasa_vendedor_patrocinador_id': self.ana.id})
+        otra.with_user(self.gerente).write({'dcasa_vendedor_patrocinador_id': self.ana.id})
+        self.assertEqual(otra.dcasa_vendedor_patrocinador_id, self.ana)
+
+    def test_afiliar_a_un_cliente_ligado_corta_su_vinculo(self):
+        self.reglas['vendedores']['vinculacion']['meses'] = 12
+        self.factura(vendedor=self.ana)
+        self.assertEqual(self.cliente.dcasa_vendedor_ligado_id, self.ana)
+        self.cliente.vat = '8-151-151'
+        self.cliente._dcasa_afiliar_vendedor('externo', autor='prueba', acepto_terminos=True)
+        self.assertFalse(self.cliente.dcasa_vendedor_ligado_id)
+
     def test_ajuste_de_gerencia_con_motivo_y_sin_saldo_negativo(self):
         Asistente = self.env['dcasa.vend.ajuste.wizard'].with_user(self.gerente)
         Asistente.create({'partner_id': self.ana.id, 'puntos': 300, 'motivo': 'Venta de julio sin registrar'}
@@ -269,6 +292,49 @@ class TestComisiones(VendedoresCommon):
         with self.assertRaisesRegex(ValidationError, 'propias compras'):
             orden.dcasa_vendedor_id = self.ana
 
+    def test_quien_registra_la_venta_en_caja_no_se_paga_a_si_mismo(self):
+        cajera = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Ana en caja', 'login': 'ana_en_caja', 'partner_id': self.ana.id,
+            'group_ids': [(6, 0, [self.env.ref('base.group_user').id,
+                                  self.env.ref('sales_team.group_sale_salesman').id])]})
+        factura = self.factura(vendedor=self.ana, pagar=False)
+        factura.dcasa_vendedor_anotado_por = cajera
+        self.pagar(factura)
+        comision = factura.dcasa_vend_comision_ids
+        self.assertEqual((comision.puntos, comision.resultado), (0, 'registrada-por-el-vendedor'))
+        otra = self.factura(vendedor=self.ana)             # la registra otra persona: sí se paga
+        self.assertEqual(otra.dcasa_vend_comision_ids.puntos, 400)
+
+    def test_la_compra_de_cualquier_vendedor_solo_da_puntos_de_cliente(self):
+        otro = self.vendedor('Otro Vendedor', '8-313-313', '6100-0030')       # sin parentesco con Ana
+        factura = self.factura(partner=otro, vendedor=self.ana)
+        comision = factura.dcasa_vend_comision_ids
+        self.assertEqual((comision.puntos, comision.resultado), (0, 'comprador-es-vendedor'))
+        self.assertTrue(factura.dcasa_compra_ids.puntos, 'Como cliente sí gana sus puntos')
+
+    def test_un_cliente_que_no_se_puede_identificar_no_cuenta_como_nuevo(self):
+        self.reglas['vendedores']['comision']['factorClienteExistente'] = 0.5
+        anonimo = self.env['res.partner'].create({'name': 'Cliente sin datos'})
+        self.assertEqual(self.factura(partner=anonimo, vendedor=self.ana).dcasa_vend_comision_ids.puntos, 200)
+
+    def test_las_primeras_ventas_de_un_vendedor_esperan_mas_dias(self):
+        self.reglas['vendedores']['retencion'].update({'dias': 30, 'primerasVentas': 2, 'diasPrimerasVentas': 60})
+        esperas = []
+        for _i in range(3):
+            comision = self.factura(vendedor=self.ana).dcasa_vend_comision_ids
+            esperas.append((comision.disponible_desde - comision.registrada_en).days)
+        self.assertEqual(esperas, [60, 60, 30])
+
+    def test_un_pago_que_se_revierte_sin_nota_de_credito_quita_los_puntos(self):
+        factura = self.factura(vendedor=self.juan)
+        self.assertEqual((self.juan.dcasa_vend_saldo, self.ana.dcasa_vend_saldo), (400, 40))
+        factura.line_ids.filtered(lambda linea: linea.account_id.account_type == 'asset_receivable') \
+            .remove_move_reconcile()                       # se deshace la conciliación del pago
+        self.assertNotIn(factura.payment_state, ('paid', 'in_payment'))
+        self.assertEqual(self.env['dcasa.vend.comision']._revisar_pagos(), 2)
+        self.assertEqual((self.juan.dcasa_vend_saldo, self.ana.dcasa_vend_saldo), (0, 0))
+        self.assertEqual(self.env['dcasa.vend.comision']._revisar_pagos(), 0, 'Ya no queda nada que revisar')
+
     def test_compras_dentro_de_la_colmena_no_pagan(self):
         # El patrocinador compra con el código de su directo…
         factura = self.factura(partner=self.ana, vendedor=self.juan)
@@ -379,6 +445,40 @@ class TestComisiones(VendedoresCommon):
         self.assertEqual(sorted(con_patrocinio.dcasa_vend_comision_ids.mapped('tipo')), ['directa', 'patrocinio'])
         self.assertEqual(self.ana.dcasa_vend_saldo, 80)
 
+    def cliente_nuevo(self, nombre='Cliente Nuevo', celular='6000-0077'):
+        return self.env['res.partner'].create({'name': nombre, 'phone': celular})
+
+    def test_el_cliente_que_ya_compro_paga_una_fraccion_aunque_traiga_codigo(self):
+        self.reglas['vendedores']['comision']['factorClienteExistente'] = 0.5
+        nuevo = self.factura(partner=self.cliente_nuevo(), vendedor=self.ana).dcasa_vend_comision_ids
+        self.assertEqual((nuevo.puntos, nuevo.resultado), (400, 'pagada'), 'El cliente nuevo paga entero')
+        self.factura(partner=self.cliente)                # ya era cliente de la tienda: compra sin código
+        existente = self.factura(partner=self.cliente, vendedor=self.ana).dcasa_vend_comision_ids
+        self.assertEqual((existente.via, existente.puntos), ('codigo', 200))
+
+    def test_la_primera_factura_sin_pagar_todavia_no_vuelve_existente_al_cliente(self):
+        self.reglas['vendedores']['comision']['factorClienteExistente'] = 0.5
+        cliente = self.cliente_nuevo()
+        self.factura(partner=cliente, pagar=False)        # otra factura abierta, sin pagar
+        self.assertEqual(self.factura(partner=cliente, vendedor=self.ana).dcasa_vend_comision_ids.puntos, 400)
+
+    def test_el_patrocinio_solo_nace_de_clientes_nuevos_si_asi_se_decide(self):
+        self.reglas['vendedores']['patrocinio']['soloClientesNuevos'] = True
+        nueva = self.factura(partner=self.cliente_nuevo(), vendedor=self.juan)
+        self.assertEqual(sorted(nueva.dcasa_vend_comision_ids.mapped('tipo')), ['directa', 'patrocinio'])
+        self.factura(partner=self.cliente)
+        existente = self.factura(partner=self.cliente, vendedor=self.juan)
+        self.assertEqual(existente.dcasa_vend_comision_ids.mapped('tipo'), ['directa'])
+
+    def test_el_techo_cuenta_tambien_el_referido_que_disparo_la_compra(self):
+        # El cliente viene invitado: 107 de su compra + 750 de referido (500 y 250) = 857, más que el techo (800).
+        cliente = self.cliente_nuevo()
+        cliente.dcasa_referido_por_id = self.padrino
+        factura = self.factura(partner=cliente, vendedor=self.ana)
+        comision = factura.dcasa_vend_comision_ids
+        self.assertEqual((comision.puntos, comision.resultado), (0, 'techo-agotado'))
+        self.assertTrue(factura.dcasa_compra_ids.puntos, 'El cliente y su padrino no pierden nada')
+
     def test_el_patrocinador_sin_ventas_propias_este_mes_no_cobra_patrocinio(self):
         self.reglas['vendedores']['patrocinio']['ventasPropiasMinimasAlMes'] = 1
         primera = self.factura(vendedor=self.juan)
@@ -389,6 +489,16 @@ class TestComisiones(VendedoresCommon):
         segunda = self.factura(vendedor=self.juan)
         patrocinio = segunda.dcasa_vend_comision_ids.filtered(lambda c: c.tipo == 'patrocinio')
         self.assertEqual((patrocinio.puntos, patrocinio.resultado), (40, 'pagada'))
+
+    def test_las_ventas_minimas_cuentan_clientes_distintos(self):
+        self.reglas['vendedores']['patrocinio']['ventasPropiasMinimasAlMes'] = 2
+        self.factura(vendedor=self.ana)
+        self.factura(vendedor=self.ana)                   # dos ventas al mismo cliente: cuenta como una
+        sin = self.factura(vendedor=self.juan).dcasa_vend_comision_ids.filtered(lambda c: c.tipo == 'patrocinio')
+        self.assertEqual(sin.resultado, 'patrocinador-sin-ventas')
+        self.factura(partner=self.cliente_nuevo(), vendedor=self.ana)
+        con = self.factura(vendedor=self.juan).dcasa_vend_comision_ids.filtered(lambda c: c.tipo == 'patrocinio')
+        self.assertEqual(con.resultado, 'pagada')
 
     def test_el_patrocinio_se_topa_contra_la_comision_propia_del_patrocinador(self):
         self.reglas['vendedores']['patrocinio']['topeComoMultiploDeSuComisionDelMes'] = 0.1
@@ -519,6 +629,25 @@ class TestCanjeDeVendedores(VendedoresCommon):
         with self.assertRaisesRegex(ValidationError, 'al menos 2000'):
             self.env['dcasa.premio'].create({'name': 'Regalo', 'tipo': 'producto', 'puntos': 1500, 'costo': 20.0,
                                              'para_vendedores': True})
+
+    def test_el_peso_del_punto_de_vendedor_sube_el_minimo_de_puntos_del_premio(self):
+        self.reglas['vendedores']['techos']['pesoDelPuntoDeVendedor'] = 0.5
+        # costo $10 a 100 puntos por dólar son 1,000 puntos; con peso 0.5 el premio pide al menos 2,000.
+        with self.assertRaisesRegex(ValidationError, 'al menos 2000'):
+            self.env['dcasa.premio'].create({'name': 'Regalo', 'tipo': 'producto', 'puntos': 1500, 'costo': 10.0,
+                                             'para_vendedores': True})
+        self.env['dcasa.premio'].create({'name': 'Regalo', 'tipo': 'producto', 'puntos': 2000, 'costo': 10.0,
+                                         'para_vendedores': True})
+
+    def test_el_canje_de_externos_espera_la_revision_del_abogado_y_los_puntos_no_se_pierden(self):
+        self.reglas['vendedores']['canje']['externosHabilitado'] = False
+        self.dar_puntos_disponibles(self.ana, 2000)
+        with self.assertRaisesRegex(UserError, 'externos todavía no está habilitado'):
+            self.env['dcasa.vend.canje']._pedir(self.ana, self.premio)
+        self.assertEqual(self.ana.dcasa_vend_saldo, 2000)
+        empleado = self.vendedor('Elena Empleada', '8-555-555', '6100-0055', tipo='empleado')
+        self.dar_puntos_disponibles(empleado, 2000)
+        self.assertEqual(self.env['dcasa.vend.canje']._pedir(empleado, self.premio).estado, 'solicitado')
 
     def test_los_socios_no_ven_los_premios_de_vendedores_y_viceversa(self):
         self.assertNotIn(self.premio, self.env['dcasa.premio']._catalogo())
