@@ -64,3 +64,7 @@ de efectivo que cuadra con los bancos (también con depreciación y actividad el
 antigüedad a fecha de corte que coincide con el saldo contable, resumen, cierre de mes con
 bloqueo y reapertura, reglas de conciliación (automática, manual, de tercero) y extractos
 CSV con formato, OFX y CAMT sin duplicar.
+Pantallas propias (`tests/test_pantallas.py`): reportes, conciliación y «En desarrollo» comparten la raíz
+`.o_dc_conta.o_action`; Odoo pone a todo `.o_action` en columna con `overflow: hidden`, así que sin la regla propia de
+`contabilidad.scss` la pantalla no baja y la barra de pestañas se aplasta. La prueba vigila esa regla (se comprobó en un
+navegador con una tabla de 2,500 px).
