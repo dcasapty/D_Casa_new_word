@@ -151,7 +151,15 @@ class TestVentaDeCombos(SociosCommon):
     def _texto(self, html):
         html = re.sub(r'<style.*?</style>', '', html, flags=re.S)
         html = unescape(re.sub(r'<[^>]+>', '\n', html)).replace('\xa0', ' ')
-        return [linea.strip() for linea in html.split('\n') if linea.strip()]
+        lineas = []
+        for linea in (x.strip() for x in html.split('\n')):
+            if not linea:
+                continue
+            if lineas and lineas[-1] == '$':   # el signo y la cifra van en etiquetas distintas: se unen
+                lineas[-1] = f'$ {linea}'
+            else:
+                lineas.append(linea)
+        return lineas
 
     def test_el_pdf_de_la_factura_muestra_el_combo_con_sus_piezas_sin_duplicar_importes(self):
         _orden, factura = self.facturar()

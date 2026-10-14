@@ -6,6 +6,7 @@ from . import (
     test_avisos,
     test_bandeja,
     test_celulares,
+    test_combos,
     test_conocimiento,
     test_conocimiento_significado,
     test_conversaciones,

@@ -176,18 +176,29 @@ class TestDisposicionDeEscritorio(DisposicionCase):
             self.sin_errores(browser, 'ficha')
 
     def test_04_sin_almacenamiento_en_el_navegador_todo_funciona(self):
-        """Ventana privada o datos bloqueados: localStorage lanza error; la pantalla abre y responde igual."""
+        """Ventana privada o datos bloqueados: leer o guardar una preferencia lanza error; la pantalla abre igual."""
         self.conversacion_larga()
         with self._chrome(1366, 768, VENDEDORA, reloj_fijo=False) as browser:
+            # Solo se bloquean las claves de esta pantalla (Odoo mismo guarda otras cosas y no es lo que se prueba).
             browser._websocket_request('Page.addScriptToEvaluateOnNewDocument', params={'source': """
-                Object.defineProperty(window, 'localStorage', {
-                    get() { throw new DOMException('bloqueado', 'SecurityError'); } });
+                for (const metodo of ['getItem', 'setItem', 'removeItem']) {
+                    const original = Storage.prototype[metodo];
+                    Storage.prototype[metodo] = function (clave, ...resto) {
+                        if (String(clave).startsWith('dcasa.conversaciones.')) {
+                            throw new DOMException('bloqueado', 'SecurityError');
+                        }
+                        return original.call(this, clave, ...resto);
+                    };
+                }
             """})
             self.abrir(browser)
             self.ficha(browser, True)
             self.assertTrue(self.medir(browser)['fichaAbierta'])
+            self.ficha(browser, False)
+            self.assertFalse(self.medir(browser)['fichaAbierta'])
             self.js(browser, '__disp.alternarLista()')
             self.assertLess(self.medir(browser)['lista']['w'], 100)
+            self.assertEqual(self.js(browser, '__disp.guardado()'), [], 'nada pudo guardarse y nada se rompió')
             self.sin_errores(browser, 'sin almacenamiento')
 
     def test_05_la_lista_se_reduce_a_las_fotos_y_se_recuerda(self):

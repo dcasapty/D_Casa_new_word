@@ -116,6 +116,27 @@ class TestLecturaDeCombosCsv(BaseCase):
             'CB-7,Combo,100,A,COL UNO [opción],1,0', 'CB-7,Combo,100,B,COL DOS [opción],2,0'))
         self.assertIn('misma cantidad', errores[0][1])
 
+    def test_el_ejemplo_de_docs_migracion_se_lee_como_dice_la_documentacion(self):
+        """El mismo texto (inventado) que está en docs/MIGRACION.md › Combos."""
+        queen = 'COMBO CAMA EJEMPLO QUEEN EJ-100-Q + COLCHÓN MARCA UNO'
+        camarote = 'COMBO CAMAROTE EJEMPLO + 2 COLCHONES MARCA UNO'
+        combos, errores = RC.filas_combos(
+            CABECERA + '\n'
+            f',{queen},299.99,EJ-100-Q,CAMA EJEMPLO QUEEN EJ-100-Q,1,0\n'
+            f',{queen},299.99,CO-1-Q,COLCHON MARCA UNO QUEEN [opción],1,0\n'
+            f',{queen},299.99,CO-2-Q,COLCHON MARCA DOS QUEEN [opción],1,20\n'
+            f'CMB-EJ-2,{camarote},350.00,EJ-200,CAMAROTE EJEMPLO EJ-200,1,0\n'
+            f'CMB-EJ-2,{camarote},350.00,CO-1-T,COLCHON MARCA UNO TWIN,2,0\n')
+        self.assertEqual(errores, [])
+        queen, camarote = combos
+        self.assertEqual((queen['clave'], queen['precio']), (queen['nombre'], 299.99))
+        self.assertEqual([[(o['codigo'], o['extra']) for o in g['opciones']] for g in queen['grupos']],
+                         [[('EJ-100-Q', 0.0)], [('CO-1-Q', 0.0), ('CO-2-Q', 20.0)]])
+        self.assertEqual([g['a_escoger'] for g in queen['grupos']], [False, True])
+        self.assertEqual((camarote['clave'], camarote['precio']), ('CMB-EJ-2', 350.0))
+        self.assertEqual([[o['codigo'] for o in g['opciones']] for g in camarote['grupos']],
+                         [['EJ-200'], ['CO-1-T'], ['CO-1-T']], 'Cantidad 2 = dos grupos iguales')
+
     def test_un_archivo_que_no_es_el_de_combos_se_explica(self):
         with self.assertRaisesRegex(reglas.ErrorDeArchivo, 'columna «codigo_componente»'):
             RC.filas_combos('codigo_combo,nombre_combo\nA,B\n')

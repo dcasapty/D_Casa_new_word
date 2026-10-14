@@ -503,7 +503,7 @@ $dcj-amarillo: #FED00F;
         border: 1px dashed var(--dc-azul-600, #1340B1);
         .o_dcj_burbuja_meta { color: var(--dc-azul-700, #0F3591); }
     }
-    .o_dcj_burbuja_acciones { margin-top: 4px; font-size: .76rem; }
+    .o_dcj_burbuja_acciones { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; font-size: .76rem; }
     .o_dcj_burbuja_aviso, .o_dcj_burbuja_estado { margin-top: 4px; font-size: .76rem; font-weight: 600; }
     .o_dcj_estado_envio_fallido { text-decoration: underline; text-underline-offset: 2px; }
 }
@@ -660,7 +660,7 @@ $dcj-amarillo: #FED00F;
         display: flex;
         flex-direction: column;
         gap: 6px;
-        max-height: #{"min(26vh, 200px)"};
+        max-height: #{"min(20vh, 170px)"};
         overflow-y: auto;
         overscroll-behavior: contain;
     }
@@ -1342,7 +1342,6 @@ $dcj-amarillo: #FED00F;
             .o_dcj_herramienta { min-width: 44px; min-height: 44px; }
             .o_dcj_menu_item { min-height: 44px; }
             .o_dcj_menu { width: #{"min(290px, calc(100vw - 20px))"}; }
-            .o_dcj_extras { max-height: 22vh; }
             .o_dcj_texto { min-height: 44px; }
             .o_dcj_enviar { min-height: 44px; min-width: 56px; .o_dcj_enviar_texto { @include dcj-solo-lector; } }
         }

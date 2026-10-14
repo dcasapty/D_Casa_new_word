@@ -1025,6 +1025,49 @@
    ]
   },
   {
+   "id": "combo-cama-colchon",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Crear o cambiar un combo de cama y colchón",
+   "logras": "Un combo junta la cama y el colchón con un solo precio. Al venderlo, la cotización y la factura muestran cada pieza y la entrega descuenta la cama y el colchón del inventario.",
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la lista de productos y toca «Nuevo». Para cambiar un combo que ya existe, búscalo por su nombre: empieza con «COMBO».",
+     "destino": {
+      "menu": "sale.menu_product_template_action"
+     }
+    },
+    {
+     "texto": "Escribe el nombre (por ejemplo «COMBO CAMA KING … + COLCHÓN …») y el precio del combo completo, sin ITBMS: no el de cada pieza.",
+     "destino": null
+    },
+    {
+     "texto": "En «Tipo de producto» escoge «Combo».",
+     "destino": null
+    },
+    {
+     "texto": "En las opciones del combo crea un grupo para la cama y otro para el colchón, y en cada uno agrega el producto que va. Si el cliente puede escoger entre varios colchones, ponlos todos en el mismo grupo; el «Precio extra» es lo que se suma si escoge ese.",
+     "destino": null
+    },
+    {
+     "texto": "Guarda. El combo solo se puede vender si todas sus piezas están a la venta.",
+     "destino": null
+    }
+   ],
+   "nota": "El precio del combo se reparte solo entre la cama y el colchón, así que al venderlo no se cambia a mano: se rebaja con el descuento. Si Cowork te entregó el archivo de combos, se carga en Ajustes › Cargar datos del sistema anterior, sin crear las piezas.",
+   "palabras": [
+    "combo",
+    "cama y colchon",
+    "juego de cama",
+    "cama con colchon",
+    "paquete",
+    "armar combo"
+   ]
+  },
+  {
    "id": "productos-lista",
    "categoria": "productos",
    "grupo": "Catálogo",

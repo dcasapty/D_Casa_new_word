@@ -105,7 +105,12 @@
 
         /** Abre «Devolver al asistente» (el formulario de la nota). */
         async abrirDevolver() {
-            aqui(".o_dcj_barra button", "Devolver").click();
+            const atender = aqui(".o_dcj_barra button", "Atender");
+            if (atender) {
+                atender.click(); // la conversación estaba con el asistente: se toma para poder devolverla
+            }
+            const devolver = await esperar(() => aqui(".o_dcj_barra button", "Devolver"), "el botón Devolver");
+            devolver.click();
             await esperar(() => document.querySelector(".o_dcj_devolver"), "el formulario de devolver");
             await pausa(200);
             return true;

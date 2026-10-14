@@ -71,8 +71,13 @@ class TestCargaDelArchivoReal(TransactionCase):
     def producto(self, nombre):
         return self.env['product.template'].search([('name', '=', nombre)])
 
+    def por_clave(self, clave):
+        """La clave de un combo es su código si el archivo lo trae, y si no, su nombre."""
+        return self.env['product.template'].search(['|', ('name', '=', clave), ('default_code', '=', clave)])
+
     def piezas(self, plantilla):
-        return [[i.product_id.default_code for i in g.combo_item_ids] for g in plantilla.combo_ids.sorted('sequence')]
+        """Los códigos de cada grupo (el orden de los grupos no importa: se comparan ordenados)."""
+        return sorted(sorted(i.product_id.default_code for i in g.combo_item_ids) for g in plantilla.combo_ids)
 
     def test_69_de_los_71_resuelven_contra_el_catalogo_y_2_quedan_con_su_pieza_que_falta(self):
         resumen = self.cargar()
@@ -87,15 +92,17 @@ class TestCargaDelArchivoReal(TransactionCase):
                          ([], [], []))
 
     def test_los_combos_convertidos_conservan_id_nombre_y_precio_y_los_nuevos_no_se_publican(self):
-        antes = {p.name: (p.id, p.list_price) for p in self.env['product.template'].search(
-            [('name', 'like', 'COMBO %'), ('type', '=', 'consu')])}
+        existentes = self.env['product.template'].search([('name', 'like', 'COMBO %'), ('type', '=', 'consu')])
+        antes = {p.id: p.list_price for p in existentes}
         self.assertEqual(len(antes), 49)
         resumen = self.cargar()
-        for nombre in resumen['convertidos']:
-            combo = self.producto(nombre)
-            self.assertEqual((combo.id, combo.list_price, combo.type), (*antes[nombre], 'combo'))
+        self.assertEqual(len(resumen['convertidos']), 47)
+        for clave in resumen['convertidos']:
+            combo = self.por_clave(clave)
+            self.assertEqual(combo.type, 'combo')
+            self.assertEqual(antes[combo.id], combo.list_price, 'Mismo producto (mismo id) y mismo precio')
             self.assertFalse(combo.is_published)
-        nuevos = [self.producto(n) for n in resumen['creados']]
+        nuevos = [self.por_clave(c) for c in resumen['creados']]
         self.assertEqual({(c.type, c.is_published, c.sale_ok) for c in nuevos}, {('combo', False, True)})
         self.assertTrue(all(c.list_price > 0 for c in nuevos), 'Con el precio del archivo')
 
@@ -157,10 +164,10 @@ class TestCargaDelArchivoReal(TransactionCase):
         self.assertEqual(resumen['piezas_faltantes'], [])
         self.assertEqual(self.piezas(self.producto(SOFAS)), [['77090-2'], ['77090-3']])
         camarote = self.producto(CAMAROTE)
-        self.assertEqual(self.piezas(camarote), [['IM-2001', 'T101'], ['IM-2001'], ['IM-2001'], ['W160969418']])
+        self.assertEqual(self.piezas(camarote), [['IM-2001'], ['IM-2001'], ['IM-2001', 'T101'], ['W160969418']])
         self.assertEqual(self.piezas(self.producto(UP_TWIN)), [['IM-2001', 'T101'], ['SKU: HDSF-SF-T-BK']])
         estantes = self.producto('COMBO CAMA KING GREY CON ESTANTES 1062010736N Y 37N + COLCHON FIRST CLASS')
-        self.assertEqual(self.piezas(estantes), [['CSOK-10'], ['1062010736N'], ['1062010736N']])
+        self.assertEqual(self.piezas(estantes), [['1062010736N'], ['1062010736N'], ['CSOK-10']])
         todos = self.env['product.template'].search([('name', 'like', 'COMBO %'), ('type', '=', 'combo')])
         self.assertEqual(len(todos), 71)
         self.assertTrue(all(len(t.combo_ids) >= 2 for t in todos))
@@ -235,10 +242,14 @@ class TestVenderLosCombosDelArchivo(TransactionCase):
         orden = self.env['sale.order'].create({'partner_id': self.cliente.id})
         linea = orden._dcasa_agregar_producto(combo, 1, elecciones={grupo.id: imperial.id})
         piezas = orden.order_line - linea
-        self.assertEqual(sorted(piezas.mapped('product_id.default_code')),
-                         ['IM-2001', 'IM-2001', 'IM-2001', 'W160969418'])
+        self.assertEqual(sorted(p.product_id.default_code for p in piezas),
+                         ['IM-2001', 'IM-2001', 'IM-2001', 'W160969418'], 'Tres colchones y el camarote, una línea c/u')
         self.assertEqual(sum(piezas.mapped('price_subtotal')), 418.99)
         orden.action_confirm()
         (entrega,) = orden.picking_ids
-        self.assertEqual(sorted(entrega.move_ids.mapped('product_id.default_code')),
-                         ['IM-2001', 'IM-2001', 'IM-2001', 'W160969418'])
+        cantidades = {}
+        for movimiento in entrega.move_ids:
+            codigo = movimiento.product_id.default_code
+            cantidades[codigo] = cantidades.get(codigo, 0.0) + movimiento.product_uom_qty
+        self.assertEqual(cantidades, {'IM-2001': 3.0, 'W160969418': 1.0},
+                         'La entrega descuenta las piezas, nunca el combo')

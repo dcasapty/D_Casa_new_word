@@ -6,10 +6,10 @@ Reglas del programa que se respetan aquí (están en ``docs/VENDEDORES.md``):
 * Afiliar exige cédula/RUC, celular válido y que la PERSONA haya aceptado los términos: Brian no acepta por nadie, solo
   anota que quien pide la afiliación confirma que la persona los aceptó.
 * El patrocinador se escribe una vez y no se cambia: Brian no tiene herramienta para cambiarlo.
-* Ninguna cifra vive aquí: salen de la sección ``vendedores`` de ``puntos.json``.
+* Ninguna cifra vive aquí: salen de la sección ``vendedores`` de ``puntos.json`` más los ajustes de Gerencia
+  (``dcasa.vend.reglas._vigentes()``).
 """
 from odoo import fields, models
-from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.dcasa_socios.models import reglas_vendedores as RV
 from odoo.addons.dcasa_socios.models.res_partner_vend import TIPOS_VENDEDOR
 from odoo.addons.dcasa_socios.models.vend_comision import RESULTADOS
@@ -90,7 +90,7 @@ class BrianHerramientasVendedores(models.AbstractModel):
         ejemplos=['cómo va el programa de vendedores', 'cuánto nos cuesta el programa de vendedores'],
     )
     def _h_resumen_programa_vendedores(self):
-        reglas = R.cargar_reglas()
+        reglas = self.env['dcasa.vend.reglas']._vigentes()  # puntos.json más los ajustes de Gerencia que ya rigen
         inicio = fields.Datetime.to_datetime(self._b_mes_en_curso())
         Comision = self.env['dcasa.vend.comision']
         del_mes = Comision.search([('anulada_en', '=', False), ('registrada_en', '>=', inicio)])

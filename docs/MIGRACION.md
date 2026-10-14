@@ -18,6 +18,7 @@ contabilidad del año (todas las facturas emitidas y los pagos).
 | Productos activos (555) | `productos.csv` | Mismas reglas del inventario anterior |
 | Existencias (444 filas) | `inventario.csv` | Se reemplazan por las del archivo |
 | Precios de proveedor (251) | `precios_proveedor.csv` | `id_proveedor_viejo, codigo_producto, precio` y, si hay, `cantidad_minima` |
+| Combos de cama y colchón (71 en la lectura de Cowork) | `combos.csv` (y la acción «Armar los combos desde su nombre») | Producto de tipo **Combo** de Odoo con sus piezas enlazadas; **nunca crea** una cama ni un colchón: ver «Combos» más abajo |
 | Ventas con algo pendiente (27) | `ventas_pendientes.csv` + `ventas_pendientes_lineas.csv` | Las **por facturar** (24) quedan como factura en **borrador**; las **por entregar** (10) solo se listan |
 | Compras con algo pendiente (20) | `compras_pendientes.csv` + `compras_pendientes_lineas.csv` | Las **por recibir** (4) quedan como orden de compra confirmada; las **por facturar** (16), como factura de proveedor en **borrador** |
 
