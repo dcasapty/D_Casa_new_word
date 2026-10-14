@@ -31,7 +31,9 @@
                     <h2 t-out="datos['titulo']"/>
                     <div class="periodo">
                         <t t-if="datos['reporte'] in ('balance_general', 'por_cobrar', 'por_pagar')">Al <t t-out="datos['hasta']"/></t>
+                        <t t-elif="datos['desde'] == datos['hasta']">El <t t-out="datos['hasta']"/></t>
                         <t t-else="">Del <t t-out="datos['desde']"/> al <t t-out="datos['hasta']"/></t>
+                        <t t-if="datos['reporte'] == 'resumen'"> · saldos al <t t-out="datos['hasta']"/></t>
                     </div>
 
                     <t t-if="datos['reporte'] == 'balance_comprobacion'">
@@ -50,6 +52,7 @@
                             </tbody>
                         </table>
                         <p t-if="not datos['cuadra']" class="aviso">El debe y el haber no cuadran: revisa los asientos en borrador o sin cuadrar.</p>
+                        <p t-if="datos.get('cruza_ejercicio')" class="aviso">El periodo cruza el cierre del año fiscal: las cuentas de resultados siguen acumulando desde el inicio del año fiscal de la fecha «Desde».</p>
                     </t>
 
                     <t t-if="datos['reporte'] == 'libro_mayor'">

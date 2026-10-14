@@ -8,6 +8,8 @@ addons/dcasa_base/models/codigo_publico.py) y la dirección de la ficha es la de
 Las direcciones viejas (``/shop/xht022-t-w-cama-…-5``) siguen funcionando: Odoo redirige (301) a la nueva.
 """
 from odoo import api, models
+from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
+from odoo.fields import Domain
 
 PRODUCTOS = ('product.template', 'product.product')
 
@@ -39,6 +41,17 @@ class ProductTemplate(models.Model):
     _inherit = 'product.template'
 
     @api.model
-    def _get_website_sale_search_fields(self, search_in_description=True):
-        """El cuadro de búsqueda de la tienda también encuentra el producto por su código público."""
-        return super()._get_website_sale_search_fields(search_in_description) + ['dcasa_codigo_publico']
+    def _search_get_detail(self, website, order, options):
+        """El cuadro de búsqueda de la tienda también encuentra el producto por su código público completo
+        («DC-K7M4PX», «dck7m4px»). Solo el código entero: es al azar y un pedazo suyo («tv») no significa nada."""
+        detalle = super()._search_get_detail(website, order, options)
+        otra_busqueda = detalle.get('search_extra')
+
+        def por_codigo_publico(env, termino):
+            subdominios = [otra_busqueda(env, termino)] if otra_busqueda else []
+            if codigo := normalizar_codigo_publico(termino):
+                subdominios.append(Domain('dcasa_codigo_publico', '=', codigo))
+            return Domain.OR(subdominios) if subdominios else Domain.FALSE
+
+        detalle['search_extra'] = por_codigo_publico
+        return detalle

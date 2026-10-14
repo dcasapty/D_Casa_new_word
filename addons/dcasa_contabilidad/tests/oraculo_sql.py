@@ -73,7 +73,7 @@ def por_tipo(env, empresas, desde=None, hasta=None, borradores=False):
 
 
 def impuestos(env, empresas, desde, hasta, borradores=False):
-    """{impuesto_id: {'base': Σ balance de las líneas con ese impuesto, 'cuota': Σ balance de sus líneas de impuesto}}."""
+    """{impuesto_id: {'base': Σ balance de las líneas con él, 'cuota': Σ balance de sus líneas de impuesto}}."""
     resultado = defaultdict(lambda: {'base': 0.0, 'cuota': 0.0})
     estados = _estados(borradores)
     env.cr.execute("""
@@ -136,13 +136,19 @@ def tramo(dias):
 
 
 def analitica(env, empresas, columna, desde, hasta):
-    """{cuenta analítica: (ingresos, costos)} del plan cuya cuenta vive en ``columna`` de la línea analítica."""
+    """{cuenta analítica: (ingresos, costos)} del plan cuya cuenta vive en ``columna`` de la línea analítica.
+
+    Se clasifica por el TIPO de la cuenta contable de la línea (no por el signo): una nota de crédito de venta resta de
+    los ingresos y una de proveedor resta de los costos. Solo cuentas de resultados.
+    """
     env.cr.execute(f"""
-        SELECT {columna},
-               COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0),
-               COALESCE(-SUM(amount) FILTER (WHERE amount < 0), 0)
-          FROM account_analytic_line
-         WHERE {columna} IS NOT NULL AND date BETWEEN %s AND %s AND company_id IN %s
-         GROUP BY {columna}
-    """, [desde, hasta, tuple(empresas.ids)])
+        SELECT l.{columna},
+               COALESCE(SUM(l.amount) FILTER (WHERE a.account_type IN ('income', 'income_other')), 0),
+               COALESCE(-SUM(l.amount) FILTER (WHERE a.account_type NOT IN ('income', 'income_other')), 0)
+          FROM account_analytic_line l
+          JOIN account_account a ON a.id = l.general_account_id
+         WHERE l.{columna} IS NOT NULL AND l.date BETWEEN %s AND %s AND l.company_id IN %s
+           AND a.account_type IN %s
+         GROUP BY l.{columna}
+    """, [desde, hasta, tuple(empresas.ids), RESULTADOS])
     return {cuenta: (float(i), float(c)) for cuenta, i, c in env.cr.fetchall()}

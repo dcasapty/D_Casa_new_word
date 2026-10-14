@@ -262,3 +262,21 @@ class ProductProduct(models.Model):
         dominio = super()._search_display_name(operator, value)
         por_codigo = self.env['product.template']._dcasa_dominio_codigo_publico(operator, value)
         return Domain.OR([dominio, por_codigo]) if por_codigo is not None else dominio
+
+    @api.model
+    def name_search(self, name='', domain=None, operator='ilike', limit=100):
+        """El campo «Producto» de una cotización, una compra o un traslado. Odoo busca ahí por referencia, código de
+        barras y nombre (no pasa por ``_search_display_name``): el código público se agrega. El código completo gana
+        (como la referencia exacta); un pedazo («K7M4») se suma al final."""
+        por_codigo = self.env['product.template']._dcasa_dominio_codigo_publico(operator, name)
+        if por_codigo is None:
+            return super().name_search(name, domain, operator, limit)
+        domain = Domain(domain or Domain.TRUE)
+        del_codigo = self.search_fetch(domain & por_codigo, ['display_name'], limit=limit)
+        if del_codigo and normalizar_codigo_publico(name):
+            return [(producto.id, producto.display_name) for producto in del_codigo]
+        resultado = super().name_search(name, domain, operator, limit)
+        if del_codigo and len(resultado) < limit:
+            vistos = {producto_id for producto_id, _nombre in resultado}
+            resultado += [(p.id, p.display_name) for p in del_codigo if p.id not in vistos][:limit - len(resultado)]
+        return resultado

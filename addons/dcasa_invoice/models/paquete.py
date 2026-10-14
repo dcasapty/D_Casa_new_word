@@ -88,7 +88,7 @@ def sellar_copia(contenido, texto=TEXTO_COPIA):
 
     marcas = _paginas(_leer(sello.getvalue()))
     salida = pdf.PdfFileWriter()
-    for pagina, marca in zip(originales, marcas):
+    for pagina, marca in zip(originales, marcas, strict=True):
         nueva = _agregar(salida, pagina)
         if '/Annots' in nueva:  # PyPDF2 se queja de las anotaciones al fusionar
             del nueva['/Annots']

@@ -56,7 +56,8 @@ class Auditoria:
             Socio.create({'name': f'Cliente auditoría {i}'}) for i in range(1, 7))
         self.v1, self.v2, self.v3 = (Socio.create({'name': f'Proveedor auditoría {i}'}) for i in range(1, 4))
         self.capital = Cuenta.search([('account_type', '=', 'equity'), ('company_ids', 'in', empresa.ids)], limit=1)
-        self.mobiliario = Cuenta.create({'name': 'Mobiliario (auditoría)', 'code': '9A0001', 'account_type': 'asset_fixed'})
+        self.mobiliario = Cuenta.create({'name': 'Mobiliario (auditoría)', 'code': '9A0001',
+                                         'account_type': 'asset_fixed'})
         self.depreciacion = Cuenta.create({'name': 'Depreciación (auditoría)', 'code': '9A0002',
                                            'account_type': 'expense_depreciation'})
         self.prestamo = Cuenta.create({'name': 'Préstamo corto plazo (auditoría)', 'code': '9A0003',
@@ -83,7 +84,8 @@ class Auditoria:
             if analitica:
                 valores['analytic_distribution'] = analitica
             comandos.append(Command.create(valores))
-        asiento = self.mov.create({'move_type': 'entry', 'date': fecha, 'journal_id': (diario or self.diario_general).id,
+        diario = diario or self.diario_general
+        asiento = self.mov.create({'move_type': 'entry', 'date': fecha, 'journal_id': diario.id,
                                    'line_ids': comandos})
         if publicar:
             asiento.action_post()
@@ -112,7 +114,7 @@ class Auditoria:
             'partner_id': tercero.id if tercero else False})
 
     def cobrar_con_extracto(self, factura, fecha, monto=None, diario=None):
-        """El banco (o la caja) recibe el dinero y se cruza de una vez con la factura (sin pasar por «Recibos pendientes»)."""
+        """El banco (o la caja) mueve el dinero y se cruza de una vez con la factura (sin «Recibos pendientes»)."""
         compra = factura.move_type in ('in_invoice', 'in_refund')
         total = monto or factura.amount_residual
         linea = self.movimiento_banco(-total if compra else total, fecha, f'PAGO {factura.name}', diario)
@@ -122,7 +124,7 @@ class Auditoria:
         return linea
 
     def pago_registrado(self, factura, fecha, monto=None, diario=None):
-        """«Registrar pago» en la factura: el dinero queda en «Recibos/Pagos pendientes» hasta que el banco lo confirme."""
+        """«Registrar pago» en la factura: queda en «Recibos/Pagos pendientes» hasta que el banco lo confirme."""
         registro = self.env['account.payment.register'].with_context(
             active_model='account.move', active_ids=factura.ids).create({
                 'payment_date': fecha, 'journal_id': (diario or self.banco).id,
@@ -147,7 +149,7 @@ class Auditoria:
     # ------------------------------------------------------------------
 
     def _anio_en_curso(self):
-        y, Y = self.anio, self.anio
+        y = self.anio
         self.e1 = self.factura(self.c1, 800, f(y, 1, 10), vence=f(y, 2, 9))
         self.x1 = self.cobrar_con_extracto(self.e1, f(y, 2, 20))
         self.e2 = self.factura(self.v1, 300, f(y, 3, 5), vence=f(y, 4, 4), tipo='in_invoice')   # gasto con ITBMS
@@ -158,11 +160,11 @@ class Auditoria:
         self.prestamo_largo_plazo = self.asiento(f(y, 7, 2), [(self.cuenta_banco, 2000, 0),
                                                               (self.prestamo_largo, 0, 2000)])
         self.e3 = self.factura(self.c3, 1200, f(y, 8, 20), vence=f(y, 9, 19))                    # vencida
-        self.e4 = self.factura(self.c1, 600, f(y, 9, 3), vence=f(y, 10, 3))                      # vencida, abono en caja
-        self.abono_caja = self.pago_registrado(self.e4, f(y, 10, 6), monto=200, diario=self.efectivo)  # sin conciliar
-        self.nc3 = self.factura(self.c3, 100, f(y, 9, 10), tipo='out_refund')                    # nota de crédito (sin aplicar)
+        self.e4 = self.factura(self.c1, 600, f(y, 9, 3), vence=f(y, 10, 3))                      # vencida, con abono
+        self.abono_caja = self.pago_registrado(self.e4, f(y, 10, 6), monto=200, diario=self.efectivo)  # sin cruzar
+        self.nc3 = self.factura(self.c3, 100, f(y, 9, 10), tipo='out_refund')                    # nota de crédito
         self.e5 = self.factura(self.v2, 500, f(y, 9, 15), vence=f(y, 10, 15), tipo='in_invoice')  # por vencer
-        self.nc_prov = self.factura(self.v1, 50, f(y, 9, 20), tipo='in_refund')                  # nota de crédito de proveedor
+        self.nc_prov = self.factura(self.v1, 50, f(y, 9, 20), tipo='in_refund')                  # nota de proveedor
         self.e6 = self.factura(self.c2, 950, f(y, 10, 1), vence=f(y, 10, 31),
                                analitica={str(self.tienda.id): 60, str(self.web.id): 40})        # canal repartido
         self.pago_conciliado = self.pago_registrado(self.e6, f(y, 10, 8), diario=self.banco)
@@ -171,7 +173,8 @@ class Auditoria:
             self.extracto_pago.id, apunte_ids=self._apunte_pago(self.pago_conciliado).ids)
         self.e7 = self.factura(self.c4, 300, f(y, 10, 5), vence=f(y, 10, 20), impuesto=self.exento,
                                analitica={str(self.tienda.id): 100})
-        self.e8 = self.factura(self.v3, 200, f(y, 10, 7), tipo='in_invoice', impuesto=self.env['account.tax'])  # sin ITBMS
+        sin_itbms = self.env['account.tax']
+        self.e8 = self.factura(self.v3, 200, f(y, 10, 7), tipo='in_invoice', impuesto=sin_itbms)  # sin ITBMS
         self.e9 = self.factura(self.c5, 400, f(y, 10, 9), vence=f(y, 10, 9), analitica={str(self.web.id): 100})
         self.cobrar_con_extracto(self.e9, f(y, 10, 9), diario=self.efectivo)
         self.deposito_suelto = self.movimiento_banco(250, f(y, 10, 12), 'DEPOSITO SIN IDENTIFICAR')

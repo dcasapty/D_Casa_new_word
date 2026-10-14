@@ -8,6 +8,7 @@
                     <h1 t-out="titulo"/>
                     <p t-if="state.datos">
                         <t t-if="alCorte">Al <t t-out="fecha(state.datos.hasta)"/></t>
+                        <t t-elif="unDia">El <t t-out="fecha(state.datos.hasta)"/></t>
                         <t t-else="">Del <t t-out="fecha(state.datos.desde)"/> al <t t-out="fecha(state.datos.hasta)"/></t>
                         · <t t-out="state.datos.empresa"/>
                     </p>
@@ -29,16 +30,17 @@
 
             <div class="o_dc_conta_filtros">
                 <div class="o_dc_conta_chips">
-                    <button t-foreach="periodos" t-as="p" t-key="p.clave"
+                    <button t-foreach="periodos" t-as="p" t-key="p.clave" type="button"
                             t-attf-class="o_dc_chip #{p.clave === state.periodo ? 'o_activa' : ''}"
+                            t-att-title="ayudaPeriodo(p)" t-att-aria-pressed="p.clave === state.periodo ? 'true' : 'false'"
                             t-on-click="() => this.usarPeriodo(p)" t-out="p.nombre"/>
                 </div>
                 <div class="o_dc_conta_fechas">
                     <label t-if="!alCorte">Desde
-                        <input type="date" class="o_input" t-att-value="state.desde" t-on-change="(ev) => this.cambiarFecha('desde', ev)"/>
+                        <input type="date" class="o_input" t-att-value="state.desde" t-att-max="state.hasta" t-on-change="(ev) => this.cambiarFecha('desde', ev)"/>
                     </label>
                     <label><t t-if="alCorte">Al</t><t t-else="">Hasta</t>
-                        <input type="date" class="o_input" t-att-value="state.hasta" t-on-change="(ev) => this.cambiarFecha('hasta', ev)"/>
+                        <input type="date" class="o_input" t-att-value="state.hasta" t-att-min="alCorte ? false : state.desde" t-on-change="(ev) => this.cambiarFecha('hasta', ev)"/>
                     </label>
                     <label t-if="comparable">Comparar con
                         <select class="o_input" t-on-change="cambiarComparar">
@@ -55,6 +57,9 @@
             </div>
 
             <main t-attf-class="o_dc_conta_cuerpo #{state.cargando ? 'o_cargando' : ''}">
+                <div t-if="hastaFutura" class="o_dc_aviso o_dc_aviso_info">
+                    <i class="fa fa-info-circle me-2"/>La fecha «<t t-if="alCorte">Al</t><t t-else="">Hasta</t>» (<t t-out="fecha(state.hasta)"/>) todavía no llega: lo que se debe se mide contra esa fecha y no contra hoy.
+                </div>
                 <t t-if="state.datos and state.datos.reporte === state.reporte">
                     <div t-if="comparando" class="o_dc_nota o_dc_comparado">
                         Comparado con <t t-out="state.datos.comparado.etiqueta.toLowerCase()"/>:
@@ -84,10 +89,12 @@
                     t-on-click="() => this.irA(t.clave)">
                 <span t-out="t.titulo"/>
                 <strong t-attf-class="#{claseMonto(t.valor)}" t-out="dinero(t.valor)"/>
+                <small class="o_dc_kpi_cuando" t-out="cuandoTarjeta(t)"/>
                 <small t-if="t.vencido">Vencido <t t-out="dinero(t.vencido)"/></small>
                 <small t-elif="t.clave === 'itbms'">Ventas <t t-out="dinero(t.debito)"/> − compras <t t-out="dinero(t.credito)"/></small>
                 <small t-elif="t.comparado !== undefined">Antes <t t-out="dinero(t.comparado)"/> · <t t-out="pct(t.variacion_pct)"/></small>
                 <small t-elif="t.nota" t-out="t.nota"/>
+                <small t-if="t.monto_sin_cruzar">Por cruzar con el banco <t t-out="dinero(t.monto_sin_cruzar)"/></small>
             </button>
         </section>
         <div t-foreach="state.datos.alertas" t-as="a" t-key="a_index"
@@ -97,9 +104,9 @@
         <div class="o_dc_columnas">
             <div class="o_dc_tarjeta">
                 <table class="o_dc_tabla">
-                    <thead><tr><th>Bancos y caja</th><th class="o_dc_num">Por conciliar</th><th class="o_dc_num">Saldo</th></tr></thead>
+                    <thead><tr><th>Bancos y caja</th><th class="o_dc_num">Por conciliar</th><th class="o_dc_num">Saldo <t t-out="alFecha()"/></th></tr></thead>
                     <tbody>
-                        <tr t-foreach="state.datos.bancos" t-as="b" t-key="b.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirBanco(b)">
+                        <tr t-foreach="state.datos.bancos" t-as="b" t-key="b.id or b.nombre" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirBanco(b)">
                             <td t-out="b.nombre"/><td class="o_dc_num" t-out="b.por_conciliar or '—'"/>
                             <td t-attf-class="o_dc_num #{claseMonto(b.saldo)}" t-out="dinero(b.saldo)"/>
                         </tr>
@@ -108,7 +115,7 @@
             </div>
             <div class="o_dc_tarjeta">
                 <table class="o_dc_tabla">
-                    <thead><tr><th>Quién te debe más</th><th class="o_dc_num">Vencido</th><th class="o_dc_num">Total</th></tr></thead>
+                    <thead><tr><th>Quién te debe más</th><th class="o_dc_num">Vencido</th><th class="o_dc_num">Total <t t-out="alFecha()"/></th></tr></thead>
                     <tbody>
                         <tr t-foreach="state.datos.deudores" t-as="d" t-key="d.id or d.nombre" class="o_dc_fila o_dc_clic" t-on-click="() => this.irA('por_cobrar')">
                             <td t-out="d.nombre"/><td class="o_dc_num" t-out="d.vencido ? dinero(d.vencido) : '—'"/><td class="o_dc_num" t-out="dinero(d.total)"/>
@@ -119,9 +126,12 @@
             </div>
         </div>
         <p class="o_dc_nota">
-            Ventas y utilidad del <t t-out="fecha(state.datos.desde)"/> al <t t-out="fecha(state.datos.hasta)"/>, comparadas con
+            <strong>Saldos</strong> (dinero en bancos y caja, te deben, debes): <t t-out="alFecha()"/>. Cambian cuando cambias la fecha
+            «Hasta», no la «Desde», y lo vencido se mide contra esa fecha.
+            <strong>Movimientos del periodo</strong> (ventas, utilidad, ITBMS): <t t-out="delPeriodo()"/>; las ventas y la utilidad se comparan con
             el <t t-out="fecha(state.datos.periodo_comparado.desde)"/> al <t t-out="fecha(state.datos.periodo_comparado.hasta)"/>.
-            Bancos, cobros y pagos al <t t-out="fecha(state.datos.hasta)"/>.
+            «Todo conciliado» quiere decir que no queda ningún movimiento del banco sin conciliar ni cobro o pago registrado
+            esperando al banco.
             <t t-if="state.datos.bloqueado_hasta"> Contabilidad cerrada hasta el <t t-out="fecha(state.datos.bloqueado_hasta)"/>.</t>
         </p>
     </t>
@@ -161,11 +171,12 @@
     <t t-name="dcasa_contabilidad.Reportes.flujo">
         <t t-set="r" t-value="state.datos.resumen"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span>Efectivo al inicio</span><strong t-out="dinero(r.efectivo_inicial)"/></div>
+            <div class="o_dc_kpi"><span>Efectivo al inicio</span><strong t-out="dinero(r.efectivo_inicial)"/><small class="o_dc_kpi_cuando" t-out="alFecha(diaAntes(state.datos.desde))"/></div>
             <div t-foreach="state.datos.secciones" t-as="s" t-key="s.clave" class="o_dc_kpi">
                 <span t-out="s.titulo.replace('Actividades de ', 'De ')"/><strong t-attf-class="#{claseMonto(s.total)}" t-out="dinero(s.total)"/>
+                <small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>
             </div>
-            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Efectivo al final</span><strong t-out="dinero(r.efectivo_final)"/></div>
+            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Efectivo al final</span><strong t-out="dinero(r.efectivo_final)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
         </section>
         <div t-if="!state.datos.cuadra" class="o_dc_aviso"><i class="fa fa-exclamation-triangle me-2"/>La variación no coincide con los bancos: revisa los asientos en borrador.</div>
         <div class="o_dc_tarjeta">
@@ -188,9 +199,9 @@
     <t t-name="dcasa_contabilidad.Reportes.antiguedad">
         <t t-set="t" t-value="state.datos.totales"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span t-out="state.reporte === 'por_cobrar' ? 'Te deben' : 'Debes'"/><strong t-out="dinero(t.total)"/></div>
-            <div t-attf-class="o_dc_kpi #{t.vencido > 0 ? 'o_dc_kpi_alerta' : 'o_dc_kpi_ok'}"><span>Vencido</span><strong t-out="dinero(t.vencido)"/></div>
-            <div class="o_dc_kpi"><span>Más de 90 días</span><strong t-out="dinero(t.d91_120 + t.mas_120)"/></div>
+            <div class="o_dc_kpi"><span t-out="state.reporte === 'por_cobrar' ? 'Te deben' : 'Debes'"/><strong t-out="dinero(t.total)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
+            <div t-attf-class="o_dc_kpi #{t.vencido > 0 ? 'o_dc_kpi_alerta' : 'o_dc_kpi_ok'}"><span>Vencido</span><strong t-out="dinero(t.vencido)"/><small class="o_dc_kpi_cuando">vencido <t t-out="alFecha()"/></small></div>
+            <div class="o_dc_kpi"><span>Más de 90 días</span><strong t-out="dinero(t.d91_120 + t.mas_120)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
         </section>
         <div class="o_dc_tarjeta">
             <table class="o_dc_tabla">
@@ -232,11 +243,11 @@
     <t t-name="dcasa_contabilidad.Reportes.resultados">
         <t t-set="r" t-value="state.datos.resumen"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span>Ventas</span><strong t-out="dinero(state.datos.secciones[0].total)"/></div>
-            <div class="o_dc_kpi"><span>Utilidad bruta</span><strong t-out="dinero(r.utilidad_bruta)"/>
+            <div class="o_dc_kpi"><span>Ventas</span><strong t-out="dinero(state.datos.secciones[0].total)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
+            <div class="o_dc_kpi"><span>Utilidad bruta</span><strong t-out="dinero(r.utilidad_bruta)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>
                 <small t-if="r.margen_bruto !== null">Margen <t t-out="r.margen_bruto"/>%</small></div>
-            <div class="o_dc_kpi"><span>Utilidad operativa</span><strong t-out="dinero(r.utilidad_operativa)"/></div>
-            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Utilidad neta</span><strong t-out="dinero(r.utilidad_neta)"/></div>
+            <div class="o_dc_kpi"><span>Utilidad operativa</span><strong t-out="dinero(r.utilidad_operativa)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
+            <div class="o_dc_kpi o_dc_kpi_fuerte"><span>Utilidad neta</span><strong t-out="dinero(r.utilidad_neta)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
         </section>
         <div class="o_dc_tarjeta">
             <table class="o_dc_tabla">
@@ -257,9 +268,9 @@
     <t t-name="dcasa_contabilidad.Reportes.balance">
         <t t-set="t" t-value="state.datos.totales"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span>Activo</span><strong t-out="dinero(t.activo)"/></div>
-            <div class="o_dc_kpi"><span>Pasivo</span><strong t-out="dinero(t.pasivo)"/></div>
-            <div class="o_dc_kpi"><span>Patrimonio</span><strong t-out="dinero(t.patrimonio)"/></div>
+            <div class="o_dc_kpi"><span>Activo</span><strong t-out="dinero(t.activo)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
+            <div class="o_dc_kpi"><span>Pasivo</span><strong t-out="dinero(t.pasivo)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
+            <div class="o_dc_kpi"><span>Patrimonio</span><strong t-out="dinero(t.patrimonio)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
             <div t-attf-class="o_dc_kpi #{state.datos.cuadra ? 'o_dc_kpi_ok' : 'o_dc_kpi_alerta'}">
                 <span>Ecuación contable</span>
                 <strong t-if="state.datos.cuadra"><i class="fa fa-check me-1"/>Cuadra</strong>
@@ -289,6 +300,7 @@
     <!-- Balance de comprobación -->
     <t t-name="dcasa_contabilidad.Reportes.comprobacion">
         <div t-if="!state.datos.cuadra" class="o_dc_aviso"><i class="fa fa-exclamation-triangle me-2"/>El debe y el haber no cuadran. Revisa los asientos en borrador.</div>
+        <div t-if="state.datos.cruza_ejercicio" class="o_dc_aviso o_dc_aviso_info"><i class="fa fa-info-circle me-2"/>Este periodo cruza el cierre del año fiscal: las cuentas de resultados siguen acumulando desde el inicio del año fiscal de la fecha «Desde».</div>
         <div class="o_dc_tarjeta">
             <table class="o_dc_tabla">
                 <thead><tr><th>Código</th><th>Cuenta</th><th class="o_dc_num">Saldo inicial</th><th class="o_dc_num">Debe</th><th class="o_dc_num">Haber</th><th class="o_dc_num">Saldo final</th></tr></thead>
@@ -349,11 +361,12 @@
     <t t-name="dcasa_contabilidad.Reportes.itbms">
         <t t-set="r" t-value="state.datos.resumen"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span>Débito fiscal (ventas)</span><strong t-out="dinero(r.debito_fiscal)"/></div>
-            <div class="o_dc_kpi"><span>Crédito fiscal (compras)</span><strong t-out="dinero(r.credito_fiscal)"/></div>
+            <div class="o_dc_kpi"><span>Débito fiscal (ventas)</span><strong t-out="dinero(r.debito_fiscal)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
+            <div class="o_dc_kpi"><span>Crédito fiscal (compras)</span><strong t-out="dinero(r.credito_fiscal)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
             <div class="o_dc_kpi o_dc_kpi_fuerte">
                 <span t-out="r.a_pagar >= 0 ? 'ITBMS a pagar' : 'Saldo a favor'"/>
                 <strong t-out="dinero(Math.abs(r.a_pagar))"/>
+                <small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>
             </div>
         </section>
         <div class="o_dc_tarjeta">
@@ -377,7 +390,7 @@
             <table class="o_dc_tabla">
                 <thead><tr><th>Plan</th><th>Cuenta analítica</th><th class="o_dc_num">Ingresos</th><th class="o_dc_num">Costos y gastos</th><th class="o_dc_num">Margen</th></tr></thead>
                 <tbody>
-                    <tr t-foreach="state.datos.filas" t-as="f" t-key="f.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirAnalitica(f)">
+                    <tr t-foreach="state.datos.filas" t-as="f" t-key="f.plan + '/' + (f.id or f.nombre)" t-attf-class="o_dc_fila #{f.sin_asignar ? 'o_dc_inicial' : 'o_dc_clic'}" t-on-click="() => this.abrirAnalitica(f)">
                         <td class="o_dc_codigo" t-out="f.plan"/><td t-out="f.nombre"/>
                         <td class="o_dc_num" t-out="dinero(f.ingresos)"/><td class="o_dc_num" t-out="dinero(f.costos)"/>
                         <td t-attf-class="o_dc_num #{claseMonto(f.margen)}" t-out="dinero(f.margen)"/>
@@ -388,5 +401,6 @@
                 </tbody>
             </table>
         </div>
+        <p class="o_dc_nota">Ingresos y costos de las cuentas del estado de resultados <t t-out="delPeriodo()"/>. «Sin asignar» es lo que no se repartió a ninguna cuenta del plan: sumado a las filas del plan da el mismo total del estado de resultados.</p>
     </t>
 </templates>

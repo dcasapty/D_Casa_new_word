@@ -53,6 +53,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.template', 'create'):
         OVERRIDE + ' Solo le pone al producto nuevo su código público (sorteado, único); sin sudo().',
+    ('dcasa_base', 'product.product', 'name_search'):
+        OVERRIDE + ' Solo suma al buscador de «Producto» el código público; busca con los permisos de la persona '
+                   '(sin sudo) y no devuelve más que el nombre.',
     ('dcasa_base', 'product.template', 'action_dcasa_regenerar_codigo_publico'):
         'Botón: exige base.group_system (administrador) y escritura sobre el producto ANTES de cambiar el código; '
         'deja nota en el historial del producto; sin sudo().',
@@ -247,6 +250,24 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
     ('dcasa_invoice', 'account.move.line', 'get_section_total'):
         OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
+    # «Imprimir documentos»: el PDF solo sale por /dcasa/paquete.pdf con los permisos de quien lo pide (sin sudo).
+    ('dcasa_invoice', 'account.move', 'action_dcasa_imprimir_documentos'):
+        ACCION_VENTANA + ' Solo facturas de clientes publicadas; el cuadro corre sin sudo.',
+    ('dcasa_invoice', 'sale.order', 'action_dcasa_imprimir_documentos'):
+        ACCION_VENTANA + ' Solo facturas de clientes publicadas; el cuadro corre sin sudo.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_imprimir'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción que pide el PDF al servidor.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_descargar'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción que pide el PDF al servidor.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_cerrar'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción de cerrar o la del pago.',
+    ('dcasa_invoice', 'account.payment.register', 'action_create_payments'):
+        OVERRIDE + ' Solo ofrece el cuadro «Imprimir documentos» si la factura quedó pagada; un fallo no deshace '
+        'el pago.',
+    ('dcasa_invoice', 'dcasa.facturas.panel', 'obtener_datos'):
+        SIN_SUDO + ' Las tarjetas de proveedores solo salen para contabilidad, Gerencia y administradores.',
+    ('dcasa_invoice', 'dcasa.facturas.panel', 'abrir'):
+        SIN_SUDO + ' Exige contabilidad para proveedores; solo devuelve la acción de la lista con su dominio.',
     # --- dcasa_socios -------------------------------------------------------------------
     ('dcasa_socios', 'res.partner', 'create'): OVERRIDE,
     ('dcasa_socios', 'res.partner', 'write'): OVERRIDE,

@@ -33,7 +33,7 @@ class PaqueteController(http.Controller):
         claves = [clave for clave in docs.split(',') if clave]
         try:
             modelo = request.env['dcasa.impresion.paquete']
-            contenido, nombre = modelo._armar_pdf(request.env['account.move'].browse(ids), claves)
+            contenido, nombre = modelo._armar_pdf(request.env['account.move'].browse(ids).exists(), claves)
         except (AccessError, MissingError):
             return _texto('No tienes permiso para imprimir estos documentos.', 403)
         except UserError as error:

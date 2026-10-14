@@ -8,6 +8,28 @@ from odoo.http import content_disposition, request
 AZUL = '#1340B1'
 
 
+# Reportes que se miden «a una fecha» (saldo al corte) y no «de un periodo».
+AL_CORTE = ('balance_general', 'por_cobrar', 'por_pagar')
+
+
+def _texto_periodo(datos):
+    """«Al 2030-03-31» (saldos), «El 2030-03-14» (un solo día) o «Del 2030-03-01 al 2030-03-31»."""
+    if datos['reporte'] in AL_CORTE:
+        return f"Al {datos['hasta']}"
+    if datos['desde'] == datos['hasta']:
+        return f"El {datos['hasta']}"
+    return f"Del {datos['desde']} al {datos['hasta']}"
+
+
+def _cuando_tarjeta(tarjeta):
+    """De qué fecha o periodo es la cifra de una tarjeta del resumen: un saldo es «al corte», lo demás «del periodo»."""
+    if tarjeta.get('base') == 'saldo':
+        return f"Al {tarjeta['al']}"
+    if tarjeta.get('desde') == tarjeta.get('hasta'):
+        return f"El {tarjeta['hasta']}"
+    return f"Del {tarjeta['desde']} al {tarjeta['hasta']}"
+
+
 def _detalle_tarjeta(tarjeta):
     if 'vencido' in tarjeta:
         return f"Vencido: {tarjeta['vencido']:,.2f}"
@@ -89,12 +111,12 @@ def _plano_antiguedad(datos):
 
 
 def _plano_resumen(datos):
-    enc = ['Concepto', 'Monto', 'Detalle']
-    filas = [([t['titulo'], t['valor'], _detalle_tarjeta(t)], '') for t in datos['tarjetas']]
-    filas.append((['Bancos y caja', '', ''], 'b'))
-    filas += [([b['nombre'], b['saldo'], f"{b['por_conciliar']} por conciliar"], '') for b in datos['bancos']]
-    filas.append((['Quién te debe más', '', ''], 'b'))
-    filas += [([d['nombre'], d['total'], f"Vencido {d['vencido']:,.2f}"], '') for d in datos['deudores']]
+    enc = ['Concepto', 'Monto', 'Fecha o periodo', 'Detalle']
+    filas = [([t['titulo'], t['valor'], _cuando_tarjeta(t), _detalle_tarjeta(t)], '') for t in datos['tarjetas']]
+    filas.append((['Bancos y caja', '', f"Al {datos['hasta']}", ''], 'b'))
+    filas += [([b['nombre'], b['saldo'], '', f"{b['por_conciliar']} por conciliar"], '') for b in datos['bancos']]
+    filas.append((['Quién te debe más', '', f"Al {datos['hasta']}", ''], 'b'))
+    filas += [([d['nombre'], d['total'], '', f"Vencido {d['vencido']:,.2f}"], '') for d in datos['deudores']]
     return enc, filas
 
 
@@ -152,8 +174,9 @@ def libro_excel(datos):
     texto_b = libro.add_format({'bold': True, 'top': 1})
 
     hoja.write_string(0, 0, f"{datos.get('empresa', '')} · {datos['titulo']}", titulo)
-    periodo = (f"Al {datos['hasta']}" if datos['desde'] == datos['hasta'] or datos['reporte'] == 'balance_general'
-               else f"Del {datos['desde']} al {datos['hasta']}")
+    periodo = _texto_periodo(datos)
+    if datos['reporte'] == 'resumen':
+        periodo = f"Saldos al {datos['hasta']} · ventas, utilidad e ITBMS {periodo[0].lower()}{periodo[1:]}"
     if datos.get('comparado'):
         periodo += f" · comparado con {datos['comparado']['desde']} a {datos['comparado']['hasta']}"
     hoja.write_string(1, 0, f"{periodo} · montos en {datos['moneda']['simbolo']}", sub)
@@ -186,8 +209,9 @@ class DcasaContabilidadController(http.Controller):
         cuenta_ids = [int(c) for c in json.loads(cuentas)] if cuentas else None
         datos = request.env['dcasa.reporte.contable'].obtener(
             reporte, desde=desde or None, hasta=hasta or None, borradores=borradores == '1', cuenta_ids=cuenta_ids,
-            comparar=comparar or None)
-        nombre = f"{datos['titulo']} {datos['desde']} a {datos['hasta']}.xlsx"
+            comparar=comparar or None, completo=True)
+        fechas = f"al {datos['hasta']}" if datos['reporte'] in AL_CORTE else f"{datos['desde']} a {datos['hasta']}"
+        nombre = f"{datos['titulo']} {fechas}.xlsx"
         return request.make_response(libro_excel(datos), headers=[
             ('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             ('Content-Disposition', content_disposition(nombre)),

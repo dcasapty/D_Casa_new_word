@@ -173,6 +173,14 @@
     small { color: var(--dc-tinta-3); }
 }
 
+// De qué fecha o periodo es la cifra de una tarjeta («al 14 oct», «del 1 al 14 oct»).
+.o_dc_kpi small.o_dc_kpi_cuando {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
 .o_dc_kpi_fuerte {
     background: var(--dc-azul-600);
     border-color: var(--dc-azul-600);

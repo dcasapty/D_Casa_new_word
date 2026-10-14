@@ -36,7 +36,8 @@ class DcasaFacturasPanel(models.AbstractModel):
         usuario = self.env.user
         if tarjeta == 'clientes':
             return self.env['account.move'].has_access('read') and (
-                usuario.has_group('account.group_account_invoice') or usuario.has_group('account.group_account_readonly'))
+                usuario.has_group('account.group_account_invoice')
+                or usuario.has_group('account.group_account_readonly'))
         return self.env['account.move'].has_access('read') and (
             usuario.has_group('account.group_account_readonly') or usuario.has_group('account.group_account_manager'))
 
@@ -53,7 +54,8 @@ class DcasaFacturasPanel(models.AbstractModel):
 
     @api.model
     def _fila(self, tarjeta, clave, dominio):
-        [(cuenta, residuo)] = self.env['account.move']._read_group(dominio, [], ['__count', 'amount_residual_signed:sum'])
+        [(cuenta, residuo)] = self.env['account.move']._read_group(
+            dominio, [], ['__count', 'amount_residual_signed:sum'])
         fila = {'clave': clave, 'texto': NOMBRES.get(clave) or TARJETAS[tarjeta]['pendientes'], 'cuenta': cuenta,
                 'monto': None, 'alerta': clave == 'vencidas' and cuenta > 0}
         if clave != 'borradores':
@@ -85,6 +87,6 @@ class DcasaFacturasPanel(models.AbstractModel):
         config = TARJETAS[tarjeta]
         accion = self.env['ir.actions.actions']._for_xml_id(config['accion'])
         accion['domain'] = dominios[fila]
-        accion['name'] = accion['display_name'] = config['titulo'] if fila == 'todas' else '%s · %s' % (
-            config['titulo'], NOMBRES.get(fila) or config['pendientes'])
+        accion['name'] = accion['display_name'] = config['titulo'] if fila == 'todas' else (
+            f"{config['titulo']} · {NOMBRES.get(fila) or config['pendientes']}")
         return accion

@@ -77,10 +77,23 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
 * **«Ana está viendo» / «Ana está escribiéndole al cliente…».** Cada pantalla da un pulso cada 20 s con la conversación que tiene abierta
   (y mientras teclea una respuesta, cada 4 s). En la lista aparece un chip con el nombre y en el hilo una franja; desaparece a los ~55 s
   sin pulso. Una nota interna no cuenta como «escribiendo».
-* **Reparto por turnos** (Ajustes de Juan → «Reparto de conversaciones»; apagado por defecto). Cuando el asistente pasa una conversación a una
-  persona y nadie la tenía, le toca a quien lleva más tiempo sin recibir una, entre quienes están **disponibles** (cada quien lo marca arriba
-  de la lista, solo se ve con el reparto por turnos). Se le asigna, se le deja la actividad y el aviso de Telegram va a ella. Si nadie está
-  disponible, todo sigue como siempre (responsable por defecto y aviso a todas).
+* **Reparto de conversaciones** (Ajustes de Juan → «Reparto de conversaciones»; **apagado por defecto**, también en instalaciones nuevas: lo
+  enciende Gerencia desde la pantalla «Reparto» o desde Ajustes). Cuando el asistente pasa una conversación a una persona y nadie la tenía:
+  * **Nadie** (`manual`): no se asigna; la toma quien quiera y la tarea queda con el responsable por defecto.
+  * **Parejo** (`parejo`, el recomendado): entre las **disponibles** (no están marcadas «No disponible» y Gerencia no las sacó del reparto),
+    1) si el cliente habló con una de ellas (o se la asignaron) en los últimos **14 días** (se cambia en Ajustes; 0 = sin memoria), vuelve con
+    ella; 2) si no, le toca a quien **lleva menos conversaciones recibidas hoy** (día de Panamá); con empate, a quien **menos clientes tiene
+    esperándole**; con empate, a quien **lleva más tiempo sin recibir una**. Una misma conversación el mismo día cuenta una sola vez.
+  * **Por turnos** (`turnos`): a quien lleva más tiempo sin recibir una, sin mirar cuántas lleva (el reparto de antes).
+  En los dos últimos se le asigna, se le deja la actividad y el aviso de Telegram va a ella («Te tocó a ti» o «Es un cliente tuyo»), y en el hilo
+  queda por qué le tocó. **Si nadie está disponible**: la conversación queda sin asignar, la tarea va al responsable por defecto y el aviso por
+  Telegram sale a todo el equipo diciendo «Nadie estaba disponible». Cada quien se marca «Disponible / No disponible» arriba de la lista
+  (almuerzo, fin del día); **Gerencia saca a alguien del reparto** (vacaciones, ausencia, quien no atiende clientes) desde «Reparto» sin quitarle
+  permisos ni sus conversaciones, con un día de regreso opcional. Cada decisión queda en el libro `dcasa.reparto` (no se edita).
+* **Pantalla «Reparto».** Cada vendedora ve **solo lo suyo** («Mis conversaciones de hoy»: cuántas le pasó Juan, cuántos clientes le esperan ahora, la
+  última y la lista, con «Abrir»). Gerencia ve además a todo el equipo: estado, recibidas en el periodo (barra), clientes esperando, la última
+  que le tocó, y cuántas conversaciones esperan sin dueña; puede sacar a alguien del reparto, volverla a meter y encender o apagar el reparto.
+  El servidor solo manda los números de las demás a Gerencia.
 * **Resumir.** Botón «Resumir lo que pasó» en conversaciones con 4 mensajes o más: unas viñetas hechas por la IA (modelo económico) con los
   mensajes que viajaron por el canal; las notas internas nunca. Se guarda en la conversación y se vuelve a pedir solo con «Actualizar».
 * **Por persona (Gerencia).** En Resumen: mensajes, conversaciones, cuánto tarda en contestar y cuántas le esperan, por persona.

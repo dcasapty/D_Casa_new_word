@@ -212,3 +212,6 @@ def _dcasa_base_post_init(env):
         env['ir.default'].set('res.partner', 'lang', DCASA_LANG)
     _formato_panama(env)
     _configurar_interfaz(env)
+    # Los productos que otros módulos crearon antes de que existiera el campo (p. ej. «Entrega estándar» de
+    # delivery) también reciben su código público; los demás lo reciben al crearse.
+    env['product.template']._dcasa_rellenar_codigos_publicos()

@@ -58,11 +58,11 @@ class DcasaConversacionReparto(models.Model):
         if antes and antes != elegida:
             razon = f"{razon} {self.env._('Antes la tenía %s.', antes.name)}"
         self.sudo().asignada_a = elegida
-        # El turno también se gasta aquí: es el último desempate, y así quien acaba de recibir pasa al final de la fila.
-        # (Escribirlo además frena a dos conversaciones que eligieran a la misma persona al mismo tiempo: la segunda
-        # espera, vuelve a empezar y ya ve la cuenta al día.)
-        elegida.dcasa_turno = max(Reparto._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
-        Reparto._anotar(self, elegida, regla, razon, hoy)
+        if Reparto._anotar(self, elegida, regla, razon, hoy):
+            # El turno también se gasta aquí: es el último desempate, y así quien acaba de recibir pasa al final de la
+            # fila. (Escribirlo además frena a dos conversaciones que eligieran a la misma persona al mismo tiempo: la
+            # segunda espera, vuelve a empezar y ya ve la cuenta al día.)
+            elegida.dcasa_turno = max(Reparto._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
         return Decision(elegida, razon, regla)
 
     def _registrar_asignacion_a_mano(self, usuario):

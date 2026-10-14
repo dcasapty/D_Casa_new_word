@@ -1,18 +1,21 @@
 """La pantalla «Reparto»: Gerencia ve a todo el equipo y puede sacar a alguien del reparto; cada vendedora ve SOLO lo
 suyo. La API (``dcasa.juan.panel.reparto``) y la pantalla en un navegador de verdad."""
 import json
+import re
 from datetime import date, timedelta
+from pathlib import Path
 
 from freezegun import freeze_time
 
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
-from odoo.tests import tagged
+from odoo.tests import TransactionCase, tagged
 
 from .test_panel_interfaz import GERENTE, VENDEDORA, PanelUiCase
 from .test_reparto_justo import RepartoCase
 
 ACCION_REPARTO = '/odoo/action-dcasa_conversaciones.accion_reparto'
+FUENTES = Path(__file__).resolve().parents[1] / 'static' / 'src'
 
 
 @tagged('post_install', '-at_install')
@@ -337,3 +340,36 @@ class TestRepartoEnElNavegador(PanelUiCase):
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """, login=VENDEDORA)
+
+
+@tagged('post_install', '-at_install')
+class TestContratoDeLaPantallaReparto(TransactionCase):
+    """Lo que no se ve en las otras pruebas: la marca (plano, sin amarillo sobre blanco) y lo accesible."""
+
+    def bloque(self, scss, selector):
+        inicio = scss.index(selector + ' {')
+        profundidad, i = 0, scss.index('{', inicio)
+        for j in range(i, len(scss)):
+            profundidad += {'{': 1, '}': -1}.get(scss[j], 0)
+            if profundidad == 0:
+                return scss[i + 1:j]
+        raise AssertionError('regla sin cerrar')
+
+    def test_el_estilo_es_plano_y_el_amarillo_no_toca_el_blanco(self):
+        reparto = self.bloque((FUENTES / 'scss' / 'panel_pantallas.scss').read_text(encoding='utf-8'), '.o_dcj_reparto')
+        self.assertNotRegex(reparto, r'(linear|radial)-gradient', 'sistema plano: sin degradados')
+        self.assertNotRegex(reparto, r'box-shadow', 'sin sombras')
+        self.assertNotIn('FED00F', reparto.upper(), 'el amarillo solo va sobre azul (el aviso marino ya existente)')
+
+    def test_todo_boton_y_campo_tiene_nombre_para_quien_usa_lector_de_pantalla(self):
+        xml = (FUENTES / 'xml' / 'reparto.xml').read_text(encoding='utf-8')
+        for boton in re.findall(r'<button[^>]*?(?:/>|>.*?</button>)', xml, re.S):
+            con_nombre = 'aria-label' in boton or re.search(r'>\s*[^<\s]', boton)
+            self.assertTrue(con_nombre, f'botón sin texto ni nombre: {boton[:80]}')
+        for campo in re.findall(r'<input[^>]*>', xml):
+            self.assertIn('aria-label', campo)
+
+    def test_la_pantalla_esta_en_el_menu_para_todo_el_equipo_de_ventas(self):
+        menu = self.env.ref('dcasa_conversaciones.menu_dcasa_panel_reparto')
+        self.assertEqual(menu.group_ids, self.env.ref('sales_team.group_sale_salesman'))
+        self.assertEqual(self.env.ref('dcasa_conversaciones.accion_reparto').tag, 'dcasa_juan_reparto')

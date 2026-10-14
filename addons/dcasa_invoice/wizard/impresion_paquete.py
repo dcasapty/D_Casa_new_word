@@ -8,7 +8,7 @@ import logging
 import time
 
 from odoo import Command, api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from ..models import paquete
 
@@ -187,8 +187,9 @@ class DcasaImpresionPaquete(models.TransientModel):
     @api.model
     def _nombre_archivo(self, facturas):
         if len(facturas) == 1:
-            return 'Documentos-%s.pdf' % (facturas.name or 'factura').replace('/', '-').replace(' ', '-')
-        return 'Documentos-%s-facturas.pdf' % len(facturas)
+            nombre = (facturas.name or 'factura').replace('/', '-').replace(' ', '-')
+            return f'Documentos-{nombre}.pdf'
+        return f'Documentos-{len(facturas)}-facturas.pdf'
 
     @api.model
     def _pdfs_por_registro(self, informe, registros):
@@ -204,7 +205,7 @@ class DcasaImpresionPaquete(models.TransientModel):
             except UserError:
                 raise
             except Exception:  # noqa: BLE001 - p. ej. una versión de PyPDF2 que no sabe partir: se hace uno por uno
-                _logger.warning('DCASA_PAQUETE no se pudo partir el PDF por registro; se arma uno por uno', exc_info=True)
+                _logger.warning('DCASA_PAQUETE no se pudo partir el PDF; se arma uno por uno', exc_info=True)
             else:
                 if tipo == 'pdf' and all(flujos.get(r.id) and flujos[r.id].get('stream') for r in registros):
                     return {r.id: flujos[r.id]['stream'].getvalue() for r in registros}
@@ -220,6 +221,11 @@ class DcasaImpresionPaquete(models.TransientModel):
     def _armar_pdf(self, facturas, claves):
         """(contenido del PDF, nombre del archivo) con los documentos de las facturas, factura por factura."""
         inicio = time.monotonic()
+        # Igual que los botones: Facturación o lector contable (un usuario del portal ve sus facturas, pero no esto).
+        usuario = self.env.user
+        if not (usuario.has_group('account.group_account_invoice')
+                or usuario.has_group('account.group_account_readonly')):
+            raise AccessError(self.env._('No tienes permiso para imprimir estos documentos.'))
         facturas, claves = self._preparar(facturas, claves)
         enviar = self.env['account.move.send']
 

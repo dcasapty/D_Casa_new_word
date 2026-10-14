@@ -196,7 +196,6 @@ class BrianHerramientasJuan(models.AbstractModel):
         consulta = str(consulta or '').strip()[:200]
         if not P.palabras(consulta):
             raise BrianError('Dime qué producto buscas, por ejemplo «cama queen» o el código de la ficha (DC-…).')
-        consulta = normalizar_codigo_publico(consulta) or consulta   # «dck7m4px» = «DC-K7M4PX»
         plantillas = self._j_plantillas_publicadas()
         if categoria:
             categorias = self._j_categorias_que_coinciden(str(categoria))

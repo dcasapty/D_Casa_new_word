@@ -330,10 +330,12 @@ class TestCodigoPublico(TransactionCase):
 
     def test_la_busqueda_de_varias_palabras_sigue_funcionando(self):
         producto = self.producto('Zzcolchón ortopédico queen')
-        self.assertIn(producto.product_variant_id.id, [i for i, _ in self.env['product.product'].name_search(
-            'zzcolchón queen')])
-        self.assertIn(producto.product_variant_id.id, [i for i, _ in self.env['product.product'].name_search(
-            f'{producto.dcasa_codigo_publico} zzcolchón')])
+        Variante = self.env['product.product']
+        self.assertEqual(Variante.search([('display_name', 'ilike', 'zzcolchón queen')]), producto.product_variant_id)
+        # El código y una palabra del nombre, juntos, también.
+        self.assertEqual(Variante.search([('display_name', 'ilike', f'{producto.dcasa_codigo_publico} zzcolchón')]),
+                         producto.product_variant_id)
+        self.assertFalse(Variante.search([('display_name', 'ilike', f'{producto.dcasa_codigo_publico} zzmesa')]))
 
     def test_la_busqueda_por_referencia_del_proveedor_sigue_igual(self):
         producto = self.producto('Zzmesa con referencia', default_code='ZZ-PROV-7788')
