@@ -314,13 +314,16 @@ class TestPaquetePdf(PaqueteComun):
         self.assertEqual(len(textos(contenido)), 3)
 
     def test_quien_no_ve_ventas_ni_inventario_obtiene_factura_y_copia(self):
+        """Si quien mira no puede leer ventas o inventario (p. ej. un lector contable en otra instalación), el
+        paquete se arma igual con la factura y su copia: no falla por la entrega."""
         _pedido, factura = self._venta()
         lector = crear_usuario(self.env, 'paq_lector', 'account.group_account_readonly')
-        self.assertFalse(self.env['sale.order'].with_user(lector).has_access('read'))
-        self.assertFalse(factura.with_user(lector)._dcasa_entregas())
-        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
-            contenido, _nombre = self.Paquete.with_user(lector)._armar_pdf(
-                factura.with_user(lector), ['cliente', 'copia', 'entrega'])
+        como_lector = factura.with_user(lector)
+        self.assertTrue(como_lector._dcasa_entregas(), 'en esta instalación el lector sí ve la entrega')
+        sin_acceso = patch.object(type(self.env['stock.picking']), 'has_access', return_value=False)
+        with sin_acceso, patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            self.assertFalse(como_lector._dcasa_entregas())
+            contenido, _nombre = self.Paquete.with_user(lector)._armar_pdf(como_lector, ['cliente', 'copia', 'entrega'])
         self.assertEqual(len(textos(contenido)), 2)
 
 
@@ -478,7 +481,7 @@ class TestPantallasDelPaquete(PaqueteComun):
         arch = self._arch('account.move', 'form', 'account.view_move_form')
         self.assertIn('name="action_dcasa_imprimir_documentos"', arch)
         for conserva in ('name="action_print_pdf"', 'name="action_post"', 'name="action_register_payment"',
-                         'name="action_send_and_print"', 'name="preview_invoice"'):
+                         'name="action_invoice_sent"', 'name="preview_invoice"'):
             self.assertIn(conserva, arch, conserva)
 
     def test_boton_en_la_lista_de_facturas_de_clientes_y_no_en_la_de_proveedores(self):

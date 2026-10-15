@@ -12,8 +12,8 @@ guardadas aparte.
 | **Bancos › Importar extracto** | **CSV** de la banca en línea (Banco General, BAC, Banistmo, Caja de Ahorros, Yappy…), **OFX/QFX** o **CAMT.053**. En CSV reconoce Fecha, Descripción, Monto o Débito/Crédito, Referencia aunque haya filas de título arriba; separador y codificación se detectan; montos `1,234.56`, `1.234,56`, `(45.00)` o `45.00-`. **Vista previa** antes de importar. No duplica lo ya importado (por el identificador del banco en OFX/CAMT), avisa si el saldo final del banco no coincide y concilia solo lo seguro. |
 | **Bancos › Reglas de conciliación** | Las reglas de Odoo (`account.reconcile.model`) con motor propio: si la descripción contiene / no contiene / cumple una expresión, el monto está en un rango, el banco o el tercero coinciden → cuenta(s) con monto fijo, porcentaje o tomado del texto; o solo asignar el tercero. «Automático» = se concilia sola al importar. (Reglas con impuestos: fase 2.) |
 | **Bancos › Formatos de extracto (CSV)** | Para el CSV de un banco que no se reconoce solo: columnas por nombre o número (varias unidas con «+»), filas de título, coma decimal, codificación Windows, cargos/abonos, signo invertido. Se elige solo al importar en ese banco. |
-| **Reportes contables › Resumen contable** | Para la dueña: dinero en cada banco/caja (y cuánto falta conciliar), te deben / debes (con lo vencido), ITBMS del periodo, ventas y utilidad contra el periodo anterior, quién te debe más y alertas. Cada tarjeta lleva a su detalle. |
-| **Reportes contables** | Estado de resultados, Balance general, **Flujo de efectivo** (método indirecto; cuadra con los bancos), **Por cobrar** y **Por pagar** (antigüedad por tramos a una fecha de corte), Balance de comprobación, Libro mayor, Resumen de ITBMS y Rentabilidad analítica. Atajos de periodo, **comparar con el periodo anterior o el año pasado** (ER, balance y flujo), detalle hasta el asiento, «incluir borradores», exportación a Excel y PDF. |
+| **Reportes contables › Resumen contable** | Para la dueña: dinero en cada banco/caja (y cuánto falta conciliar), te deben / debes (con lo vencido), ITBMS del periodo, ventas y utilidad contra el periodo anterior, quién te debe más y alertas. Cada tarjeta lleva a su detalle y **dice de qué fecha es** («al 14 oct» si es un saldo; «del 1 al 14 oct» si es lo que pasó en el periodo). Ver [Cómo leer las fechas](#cómo-leer-las-fechas-saldos-y-movimientos). |
+| **Reportes contables** | Estado de resultados, Balance general, **Flujo de efectivo** (método indirecto; cuadra con los bancos), **Por cobrar** y **Por pagar** (antigüedad por tramos a una fecha de corte), Balance de comprobación, Libro mayor, Resumen de ITBMS y Rentabilidad analítica. Atajos de periodo (**Hoy · Esta semana · Esta quincena · Este mes · Mes pasado · Este trimestre · Este año fiscal**, el que está activo se ve resaltado; al escribir una fecha a mano ninguno queda marcado), **comparar con el periodo anterior o el año pasado** (ER, balance y flujo), detalle hasta el asiento, «incluir borradores», exportación a Excel y PDF. |
 | **Reportes contables › Presupuestos** | Monto planeado por cuenta contable (y cuenta analítica, opcional); lo real y el % ejecutado salen de los asientos. |
 | **Cierre de mes** | Lista de chequeo con datos reales (bancos conciliados, borradores, ventas por facturar, comprobación y balance que cuadran, cobros vencidos, ITBMS, meses anteriores). Si nada lo impide, la gerencia contable **cierra el mes**: fija la fecha de bloqueo de Odoo (y la de ITBMS si se marca) y nadie puede publicar ni cambiar asientos de ese mes. Reabrir pide motivo y queda en el historial. |
 | **Plan contable › cuenta › Actividad en el flujo de efectivo** | Para que el contador ubique una cuenta especial (p. ej. un préstamo de corto plazo → financiamiento). Vacío = según el tipo de cuenta. |
@@ -22,6 +22,35 @@ guardadas aparte.
 
 Los reportes solo los ve quien tiene permisos de contabilidad (grupo «Mostrar
 funciones de contabilidad: solo lectura» o superior).
+
+## Cómo leer las fechas: saldos y movimientos
+
+Toda la barra de periodo es una sola para los diez reportes. Hay **dos clases de cifra** y la pantalla dice cuál es cada una:
+
+| Clase | Qué es | Qué fecha usa | Ejemplos |
+|---|---|---|---|
+| **Saldo** (a una fecha) | Cuánto hay o cuánto se debe en ese día | Solo el **«Hasta»** (en esos reportes se llama «Al»). Mover el «Desde» no lo cambia | Dinero en bancos y caja, Te deben, Debes, Vencido, Balance general, Por cobrar, Por pagar, saldo final del balance de comprobación y del libro mayor |
+| **Movimiento** (de un periodo) | Lo que pasó entre dos fechas | «Desde» y «Hasta» | Ventas, Utilidad, ITBMS, Estado de resultados, Flujo de efectivo, movimiento del libro mayor, Analítica |
+
+Por eso **«Dinero en bancos y caja» no cambia con «Este mes»**: es un saldo y «Este mes», «Este trimestre», «Esta quincena», «Esta semana», «Hoy» y «Este año fiscal» terminan todos hoy. Cambia con «Mes pasado» (al último día de ese mes) o al escribir otra fecha «Hasta». **Lo vencido** se mide contra esa misma fecha: una factura que vence el 3 no está vencida «al 30 del mes anterior».
+
+Los atajos (hora de Panamá, `America/Panama`; la del usuario si tiene otra configurada) **terminan hoy**, menos «Mes pasado»:
+
+| Atajo | Desde → hasta |
+|---|---|
+| Hoy | hoy → hoy |
+| Esta semana | el lunes (la semana va de lunes a domingo) → hoy |
+| Esta quincena | el día 1 (del 1 al 15) o el 16 (del 16 a fin de mes) → hoy |
+| Este mes | día 1 → hoy |
+| Mes pasado | día 1 → último día del mes pasado |
+| Este trimestre | primer día del trimestre del año fiscal → hoy |
+| Este año fiscal | primer día del año fiscal → hoy (el cierre fiscal es el de la empresa, 31 de diciembre) |
+
+Para ver el año completo (o una fecha futura) se escribe el «Hasta» a mano; la pantalla avisa que esa fecha todavía no llega. Una fecha «Desde» posterior a «Hasta» se corrige sola en la pantalla y en el servidor da un error claro. «Comparar» compara «Hoy» con ayer, una semana o quincena con los días justo antes (o, si empieza el día 1, con el mismo tramo del mes anterior) y el balance general, que es de una fecha, con la misma fecha un mes antes (o un año antes).
+
+«**Todo conciliado**» en la tarjeta del banco significa que no queda ningún movimiento del extracto sin conciliar **ni cobro o pago registrado** (en la factura, con «Registrar pago») esperando su movimiento del banco o de la caja: esos cobros y pagos esperan en «Recibos pendientes» / «Pagos pendientes» y no suman al dinero del banco hasta que se cruzan. Cuando hay algo por cruzar, la tarjeta dice cuántos y de cuánto.
+
+La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md).
 
 ## Usuarios
 
@@ -64,6 +93,7 @@ de efectivo que cuadra con los bancos (también con depreciación y actividad el
 antigüedad a fecha de corte que coincide con el saldo contable, resumen, cierre de mes con
 bloqueo y reapertura, reglas de conciliación (automática, manual, de tercero) y extractos
 CSV con formato, OFX y CAMT sin duplicar.
+Auditoría de los reportes (`tests/test_auditoria.py`, con datos de `tests/datos_auditoria.py` y el cálculo independiente en SQL de `tests/oraculo_sql.py`): cada reporte y cada tarjeta se cruza contra los apuntes publicados para un día, la semana, el mes, el año, un periodo que cruza el cierre fiscal y varias fechas de corte; los atajos de fechas se prueban en sus bordes (semana que cruza mes y año, quincena de febrero, año bisiesto, otro cierre fiscal, hora de Panamá contra UTC) y hay una prueba con dos empresas. Cómo repetirlo: `scripts/test.sh dcasa_contabilidad`.
 Pantallas propias (`tests/test_pantallas.py`): reportes, conciliación y «En desarrollo» comparten la raíz
 `.o_dc_conta.o_action`; Odoo pone a todo `.o_action` en columna con `overflow: hidden`, así que sin la regla propia de
 `contabilidad.scss` la pantalla no baja y la barra de pestañas se aplasta. La prueba vigila esa regla (se comprobó en un
