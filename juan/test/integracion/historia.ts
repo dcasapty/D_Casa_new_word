@@ -87,14 +87,15 @@ export function seccionHistoria(e: Escena) {
             { nombre: "buscar_conocimiento", args: { consulta: "horario y dirección" } },
           ],
         },
-        {
+        // La foto se pide con el código que Juan acaba de ver (el público, DC-…), tal cual lo devolvió ver_producto.
+        (c) => ({
           llamadas: [
-            { nombre: "enviar_foto_producto", args: { codigo: "INT-CAMA-Q" } },
+            { nombre: "enviar_foto_producto", args: { codigo: c.resultado("ver_producto")?.resultado?.codigo } },
             { nombre: "etiquetar_conversacion", args: { etiqueta: "Pidió precio" } },
             { nombre: "crear_oportunidad", args: { resumen: "Karen quiere una cama queen para su cuarto.", interes: "Cama queen", presupuesto: 400 } },
             { nombre: "anotar_conversacion", args: { nota: "Prefiere la cama de roble. Pregunta por Socios." } },
           ],
-        },
+        }),
         (c) => {
           const ficha = c.resultado("ver_producto")?.resultado;
           return { texto: `La ${ficha.nombre} mide ${ficha.medidas}. Te mando la foto y ya te dejé anotada con una vendedora.` };

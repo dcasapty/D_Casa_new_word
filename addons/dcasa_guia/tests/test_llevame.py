@@ -269,8 +269,12 @@ class TestPuestoYUso(TransactionCase):
         self.usar(self.vendedora, d, 1)
         self.assertEqual(self.mas_usadas(self.vendedora), [])
         self.usar(self.vendedora, c, 1)
+        # «Última vez» tiene precisión de segundos: se fija a mano para que el desempate no dependa del reloj.
+        filas = self.Uso.sudo().search([('user_id', '=', self.vendedora.id)])
+        filas.filtered(lambda f: f.tarea == a).ultima_vez = '2026-01-01 10:00:00'
+        filas.filtered(lambda f: f.tarea == c).ultima_vez = '2026-01-01 11:00:00'
         usadas = self.mas_usadas(self.vendedora)
-        self.assertEqual([(t['id'], t['veces']) for t in usadas], [(b, 3), (a, 2), (c, 2)],
+        self.assertEqual([(t['id'], t['veces']) for t in usadas], [(b, 3), (c, 2), (a, 2)],
                          'Las más usadas primero; a igual uso, la más reciente primero')
         self.assertTrue(all(t['titulo'] and t['logras'] and t['destino'] for t in usadas))
 
