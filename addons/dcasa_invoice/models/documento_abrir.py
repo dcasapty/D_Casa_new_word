@@ -5,8 +5,9 @@ regla es una sola: se abre SOLO si quien escanea puede leer ese documento con su
 no se entera de nada del documento (ni siquiera de su cliente), solo de que no tiene permiso.
 """
 from odoo import models
+from odoo.tools import SQL
 
-from .documento import LARGO_MAXIMO_REFERENCIA, TIPOS, leer_url, nombre_del_tipo
+from .documento import LARGO_MAXIMO_REFERENCIA, TIPOS, leer_url, leer_url_tolerante, nombre_del_tipo
 
 OK = 'ok'
 SIN_PERMISO = 'sin_permiso'
@@ -38,11 +39,23 @@ class DcasaDocumento(models.AbstractModel):
             dominio.append(('move_type', 'in', ['out_invoice', 'out_refund']))
         return dominio
 
-    def _dcasa_buscar_documento(self, tipo, referencia):
+    def _dcasa_ids_por_clave(self, tipo, clave):
+        """Los documentos (de cualquier empresa) cuyo número, solo con letras y números, es ``clave`` (sin permisos)."""
+        modelo = self.env[TIPOS[tipo][0]]
+        solo_clientes = SQL(" AND move_type IN ('out_invoice', 'out_refund')") if tipo == 'FAC' else SQL()
+        self.env.cr.execute(SQL(
+            "SELECT id FROM %s WHERE regexp_replace(upper(name), '[^0-9A-Z]', '', 'g') = %s%s LIMIT 5",
+            SQL.identifier(modelo._table), clave, solo_clientes))
+        return [fila[0] for fila in self.env.cr.fetchall()]
+
+    def _dcasa_buscar_documento(self, tipo, referencia, tolerante=False):
         """``(estado, registro)``: ``ok`` con el documento, ``sin_permiso`` o ``no_existe`` (registro vacío).
 
         Quien no es del equipo (un cliente con acceso al portal) nunca abre nada por aquí; y quien sí lo es solo abre lo
         que sus permisos le dejan leer. No existir y no poder verlo se distinguen SOLO para el equipo.
+
+        ``tolerante``: ``referencia`` es la clave solo con letras y números (``leer_url_tolerante``): un lector con la
+        distribución del teclado equivocada cambió los símbolos y se busca por lo que sí llegó.
         """
         tipo = (tipo or '').upper()
         if tipo not in TIPOS or not isinstance(referencia, str) or not referencia.strip() \
@@ -53,6 +66,12 @@ class DcasaDocumento(models.AbstractModel):
         if not self.env.user._is_internal() or not modelo.has_access('read'):
             return SIN_PERMISO, vacio
         referencia = referencia.strip()
+        if tolerante:
+            ids = self._dcasa_ids_por_clave(tipo, referencia)
+            registro = modelo.search([('id', 'in', ids)], limit=1) if ids else vacio
+            if registro:
+                return OK, registro
+            return (SIN_PERMISO if ids else NO_EXISTE), vacio
         for operador in ('=', '=ilike'):    # primero igual; si no, sin distinguir mayúsculas (un lector las invierte)
             registro = modelo.search(self._dcasa_dominio_documento(tipo, referencia, operador), limit=1)
             if registro:
@@ -87,10 +106,13 @@ class DcasaDocumento(models.AbstractModel):
         como siempre); si lo es, ``{'estado', 'tipo', 'referencia'}`` más ``mensaje`` o, si se puede abrir, ``accion``
         y ``nombre``."""
         leido = leer_url(texto)
+        tolerante = False
+        if not leido:    # ¿un lector con otra distribución de teclado cambió los símbolos?
+            leido, tolerante = leer_url_tolerante(texto), True
         if not leido:
             return None
         tipo, referencia = leido
-        estado, registro = self._dcasa_buscar_documento(tipo, referencia)
+        estado, registro = self._dcasa_buscar_documento(tipo, referencia, tolerante=tolerante)
         resultado = {'estado': estado, 'tipo': tipo, 'tipo_nombre': nombre_del_tipo(tipo), 'referencia': referencia}
         if estado == OK:
             resultado.update(nombre=registro.display_name, accion=registro.get_formview_action())

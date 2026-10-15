@@ -760,7 +760,8 @@
     "impuesto",
     "impuesto de ventas",
     "iva",
-    "saldo a favor"
+    "saldo a favor",
+    "total"
    ],
    "brian": "¿Cuánto ITBMS debo este mes?"
   },
@@ -2068,7 +2069,7 @@
    "categoria": "bancos",
    "grupo": "Banco",
    "titulo": "Cruzar un cobro o pago que todavía no está en la caja o el banco",
-   "logras": "Los cobros que registraste en una factura con «Registrar pago» y aún no figuran en la caja o el banco salen en una pestaña aparte; con un clic se registra el movimiento y quedan cruzados.",
+   "logras": "Los cobros que registraste en una factura con «Registrar pago» y aún no figuran en la caja o el banco salen en una pestaña aparte; con un clic se registra el movimiento y quedan cruzados. Brian te dice cuántos cobros y pagos esperan su movimiento y de cuánto: pregúntale «¿qué falta conciliar?».",
    "destino": {
     "menu": "dcasa_contabilidad.menu_conciliacion"
    },
@@ -2078,7 +2079,8 @@
     "cobro en efectivo",
     "recibos pendientes",
     "cruzar"
-   ]
+   ],
+   "brian": "¿Hay cobros en efectivo sin cruzar?"
   },
   {
    "id": "consolidacion",

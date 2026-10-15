@@ -39,6 +39,11 @@ QR_NIVEL = 'M'
 
 _CONTROL = re.compile(r'[\x00-\x1f\x7f]')
 _FORMA = re.compile(rf'(?:[\w.\-:@]+)?{RUTA}/(?P<tipo>[A-Za-z]{{3}})/(?P<referencia>.+)', re.IGNORECASE)
+# Un lector que escribe como teclado con la distribución equivocada cambia los símbolos («/» sale «-», «:» sale «Ñ»…),
+# pero no las letras ni los números: «dcasa», «doc», el tipo y la referencia se reconocen por lo que SÍ llega.
+_FORMA_TOLERANTE = re.compile(
+    r'dcasa[^0-9a-z]{1,2}doc[^0-9a-z]{1,2}(?P<tipo>[a-z]{3})[^0-9a-z]{1,2}(?P<referencia>[0-9a-z]\S*)', re.IGNORECASE)
+_NO_ALFANUMERICO = re.compile(r'[^0-9A-Za-z]')
 
 
 def url_del_documento(base, tipo, referencia):
@@ -73,6 +78,27 @@ def leer_url(texto):
     if not referencia or len(referencia) > LARGO_MAXIMO_REFERENCIA or _CONTROL.search(referencia):
         return None
     return reconocido.group('tipo').upper(), referencia
+
+
+def leer_url_tolerante(texto):
+    """``(tipo, clave)`` si el texto parece la dirección de un documento aunque el lector haya cambiado los símbolos.
+
+    La clave es la referencia solo con letras y números, en mayúsculas («INV-2026-00001» → «INV202600001»): así se
+    compara con el nombre de los documentos sin importar qué símbolo escribió el lector. Se usa solo cuando
+    ``leer_url`` no reconoce el texto (ver ``dcasa.documento._dcasa_resolver_texto``).
+    """
+    if not isinstance(texto, str):
+        return None
+    limpio = _CONTROL.sub('', texto).strip()
+    if not limpio or len(limpio) > 400:
+        return None
+    encontrado = _FORMA_TOLERANTE.search(limpio)
+    if not encontrado or encontrado.group('tipo').upper() not in TIPOS:
+        return None
+    clave = _NO_ALFANUMERICO.sub('', encontrado.group('referencia')).upper()
+    if len(clave) < 3 or len(clave) > LARGO_MAXIMO_REFERENCIA:
+        return None
+    return encontrado.group('tipo').upper(), clave
 
 
 def nombre_del_tipo(tipo):

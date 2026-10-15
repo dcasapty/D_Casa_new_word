@@ -42,6 +42,10 @@
 .o_dcasa_guia_cinta_haciendo {
     color: var(--dc-tinta-2);
 
+    .o_dcasa_guia_cinta_paso {
+        white-space: nowrap;
+    }
+
     .o_dcasa_guia_cinta_titulo {
         color: var(--dc-azul-800);
     }
@@ -67,6 +71,10 @@
     flex-wrap: wrap;
     gap: 4px 8px;
 
+    .btn {
+        min-height: 32px;
+        font-weight: 600;
+    }
     .btn-link {
         color: var(--dc-azul-600);
         padding-inline: 4px;
@@ -121,6 +129,9 @@
 }
 
 @media (pointer: coarse) {
+    .o_dcasa_guia_cinta_botones .btn {
+        min-height: 44px;
+    }
     .o_dcasa_guia_cinta_cerrar {
         width: 44px;
         height: 44px;

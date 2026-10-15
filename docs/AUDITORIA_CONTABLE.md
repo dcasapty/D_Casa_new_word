@@ -362,7 +362,9 @@ y la lista tiene los mismos siete filtros.
 * «Lo real» de un presupuesto no se guarda: se calcula al abrir la pantalla (siempre al día).
 * La pantalla de Conciliación solo lista los diarios de banco y caja. Un diario de tipo «tarjeta de crédito» de Odoo no aparece (en
   D'CASA «Tarjeta» es un banco).
-* `movimientos_por_conciliar` de Brian sigue contando solo los movimientos del extracto (la guía y el cierre sí cuentan los cobros).
+* `movimientos_por_conciliar` de Brian ya suma, además de los movimientos del extracto, los cobros y pagos que esperan su movimiento
+  (cuántos y de cuánto, con la misma regla que la tarjeta, el cierre y la pantalla de Conciliación). Brian solo los **muestra**: cruzarlos
+  lo hace una persona en «Cobros y pagos sin movimiento».
 * En el consolidado, las líneas de impuesto no se eliminan nunca; si algún día hay que eliminar algo de ahí, sería una regla nueva.
 
 ## Cómo se probó (segunda revisión)

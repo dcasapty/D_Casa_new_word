@@ -109,7 +109,8 @@ class BrianHerramientasContabilidad(models.AbstractModel):
     @herramienta(
         nombre='reporte_contable',
         descripcion='Reportes contables: estado de resultados, balance general, balance de comprobación, libro mayor '
-                    'de una cuenta, resumen de ITBMS o rentabilidad analítica.',
+                    'de una cuenta, resumen de ITBMS (lo del periodo y el acumulado por pagar o saldo a favor) o '
+                    'rentabilidad analítica.',
         parametros={
             'reporte': {'type': 'string', 'enum': REPORTES, 'description': 'Cuál reporte.'},
             'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
@@ -118,7 +119,8 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         },
         requeridos=['reporte'],
         nivel='lectura', categoria='contabilidad', grupos=LECTOR_CONTABLE,
-        ejemplos=['utilidad del mes pasado → estado_resultados, mes_pasado', 'ITBMS a pagar este mes → itbms'],
+        ejemplos=['utilidad del mes pasado → estado_resultados, mes_pasado', 'ITBMS a pagar este mes → itbms',
+                  '¿cuánto ITBMS debo en total? → itbms (el acumulado va a la fecha final)'],
     )
     def _h_reporte_contable(self, reporte, periodo=None, desde=None, hasta=None, cuenta=None):
         return self._b_reporte(reporte, periodo, desde, hasta, cuenta=cuenta)
@@ -190,11 +192,13 @@ class BrianHerramientasContabilidad(models.AbstractModel):
     @herramienta(
         nombre='resumen_contable',
         descripcion='Resumen del negocio: cuánto ganaste (utilidad y ventas contra el periodo anterior), dinero en '
-                    'bancos y caja, cuánto te deben, cuánto debes e ITBMS por pagar.',
+                    'bancos y caja, cuánto te deben, cuánto debes e ITBMS (del periodo y el acumulado por pagar o '
+                    'saldo a favor a la fecha final).',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
         nivel='lectura', categoria='contabilidad', grupos=LECTOR_CONTABLE,
         ejemplos=['¿cuánto gané este mes? → este_mes', '¿cuánta plata hay en el banco?',
-                  '¿cuánto ITBMS tengo por pagar?'],
+                  '¿cuánto ITBMS tengo por pagar este mes?',
+                  '¿cuánto ITBMS debo en total? → itbms_acumulado'],
     )
     def _h_resumen_contable(self, periodo=None, desde=None, hasta=None):
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
@@ -220,11 +224,14 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             'debes_a_proveedores': c.moneda(tarjetas['por_pagar']['valor']),
             'itbms': f'{tarjetas["itbms"]["titulo"]}: {c.moneda(tarjetas["itbms"]["valor"])} (ventas '
                      f'{c.moneda(tarjetas["itbms"]["debito"])} − compras {c.moneda(tarjetas["itbms"]["credito"])})',
+            **self._b_itbms_acumulado(tarjetas['itbms']['acumulado'], tarjetas['itbms']['acumulado_al']),
             'quien_debe_mas': [{'cliente': d['nombre'], 'total': c.moneda(d['total']),
                                 'vencido': c.moneda(d['vencido'])} for d in datos['deudores']],
             'alertas': [a['texto'] for a in datos['alertas']],
             'cerrado_hasta': c.fecha(datos['bloqueado_hasta']) if datos['bloqueado_hasta'] else 'ningún mes cerrado',
-            'nota': 'Cifras de asientos publicados. El ITBMS es un resumen: confírmalo con el contador.',
+            'nota': 'Cifras de asientos publicados. «itbms» es solo lo del periodo (ventas − compras); '
+                    '«itbms_acumulado» es lo que se debe en total a esa fecha (meses anteriores y pagos a la DGI '
+                    'incluidos). El ITBMS es un resumen: confírmalo con el contador.',
         }
 
     @herramienta(
@@ -313,6 +320,20 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             })
         return {'cuentas': cuentas}
 
+    @staticmethod
+    def _b_itbms_acumulado(acumulado, al):
+        """El ITBMS acumulado A LA FECHA (saldo de las cuentas de ITBMS, como el balance general), dicho claro.
+
+        «Acumulado por pagar al 14/10/2026: $298.90» o «Saldo a favor al 14/10/2026: $12.00»: incluye meses anteriores
+        y lo que ya se pagó a la DGI. No es lo del periodo (ventas − compras), que va aparte.
+        """
+        etiqueta = 'Saldo a favor' if acumulado < 0 else 'Acumulado por pagar'
+        return {
+            'itbms_acumulado': f'{etiqueta} al {c.fecha(al)}: {c.moneda(abs(acumulado))}',
+            'itbms_acumulado_por_pagar': c.moneda(max(acumulado, 0.0)),
+            'itbms_saldo_a_favor': c.moneda(max(-acumulado, 0.0)),
+        }
+
     def _b_compactar_itbms(self, datos):
         r = datos['resumen']
         return {
@@ -321,6 +342,10 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             'debito_fiscal_ventas': c.moneda(r['debito_fiscal']),
             'credito_fiscal_compras': c.moneda(r['credito_fiscal']),
             'a_pagar': c.moneda(r['a_pagar']),
+            'a_pagar_es_del_periodo': 'solo ventas − compras del periodo; el total que se debe está en itbms_acumulado',
+            **self._b_itbms_acumulado(r['acumulado'], r['al']),
+            'cuentas_de_itbms': [{'cuenta': self._b_cuenta_txt(f), 'saldo_acumulado': c.moneda(f['saldo'])}
+                                 for f in datos.get('cuentas', [])[:c.MAX_FILAS]],
         }
 
     def _b_compactar_analitica(self, datos):
@@ -533,12 +558,13 @@ class BrianHerramientasContabilidad(models.AbstractModel):
 
     @herramienta(
         nombre='movimientos_por_conciliar',
-        descripcion='Movimientos del banco (o Yappy, caja) que faltan por conciliar, con la sugerencia de factura o '
-                    'pago cuando hay una clara.',
+        descripcion='Lo que falta por conciliar en el banco (o Yappy, caja): movimientos del extracto, con la '
+                    'sugerencia de factura o pago cuando hay una clara, y cobros o pagos ya registrados en facturas '
+                    'que todavía esperan su movimiento (cuántos y de cuánto).',
         parametros={'banco': {'type': 'string', 'description': 'Nombre del banco o diario. Opcional: todos.'},
                     'limite': c.PARAM_LIMITE},
         nivel='lectura', categoria='contabilidad', grupos=CONTADOR,
-        ejemplos=['¿qué falta conciliar en el banco?'],
+        ejemplos=['¿qué falta conciliar en el banco?', '¿hay cobros en efectivo sin cruzar?'],
     )
     def _h_movimientos_por_conciliar(self, banco=None, limite=10):
         Conciliacion = self.env['dcasa.conciliacion']
@@ -559,8 +585,33 @@ class BrianHerramientasContabilidad(models.AbstractModel):
                                f'{c.moneda(sugeridos[0]["pendiente"])}') if len(sugeridos) == 1 else '',
             })
         return {'por_conciliar': sum(d['pendientes'] for d in diarios),
-                'por_banco': [{'banco': d['nombre'], 'pendientes': d['pendientes']} for d in diarios],
-                'movimientos': filas}
+                'por_banco': [{'banco': d['nombre'], 'pendientes': d['pendientes'],
+                               'cobros_y_pagos_sin_cruzar': d['pagos_sin_cruzar']} for d in diarios],
+                'movimientos': filas,
+                **self._b_pagos_sin_cruzar(diarios, limite)}
+
+    def _b_pagos_sin_cruzar(self, diarios, limite):
+        """Los cobros y pagos registrados con «Registrar pago» que esperan su movimiento, por la misma regla que la
+        tarjeta «Todo conciliado», el cierre de mes y la pestaña «Cobros y pagos sin movimiento» de la Conciliación
+        (``account.payment._dcasa_esperan_su_movimiento``). Cuántos y de cuánto; se cruzan en esa pestaña."""
+        pagos = self.env['account.payment']._dcasa_esperan_su_movimiento(
+            diarios=self.env['account.journal'].browse([d['id'] for d in diarios]))
+        Conciliacion = self.env['dcasa.conciliacion']
+        pares = [(p, Conciliacion._pago_fila(p)) for p in pagos.sorted(lambda p: (p.date, p.id), reverse=True)]
+        cobros = [f for _p, f in pares if f['tipo'] == 'cobro']
+        salidas = [f for _p, f in pares if f['tipo'] == 'pago']
+        resultado = {
+            'cobros_sin_cruzar': {'cantidad': len(cobros), 'monto': c.moneda(sum(f['monto'] for f in cobros))},
+            'pagos_sin_cruzar': {'cantidad': len(salidas), 'monto': c.moneda(-sum(f['monto'] for f in salidas))},
+            'cobros_y_pagos': [{
+                'banco': p.journal_id.name, 'tipo': f['tipo'], 'fecha': c.fecha(f['fecha']),
+                'documento': f['documento'], 'tercero': f['tercero'], 'factura': f['facturas'],
+                'monto': c.moneda(abs(f['monto']))} for p, f in pares[:c.limite(limite)]],
+        }
+        if pares:
+            resultado['como_cruzarlos'] = ('Facturación › Conciliación bancaria › pestaña «Cobros y pagos sin '
+                                           'movimiento» (un clic crea el movimiento de la caja o el banco y lo cruza).')
+        return resultado
 
     @herramienta(
         nombre='conciliar_movimiento',

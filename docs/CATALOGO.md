@@ -293,15 +293,53 @@ proveedores.» Ahora cada producto tiene **dos códigos distintos** y no se mezc
 - **QR:** la dirección `https://dcasapty.com/codigo/DC-K7M4PX` abre la ficha del producto en la tienda. Es lo que debe
   llevar el QR que se imprima para el cliente (cotizaciones, etiquetas): al escanearlo con el celular se abre el
   mueble. Si el producto no está publicado, o el código ya no existe, lleva a la tienda. El método
-  `product.template._dcasa_url_codigo_publico()` da esa dirección completa.
-- **Documentos impresos** (cotización, factura, nota de entrega): su columna «Código» todavía no usa el código público;
-  se cambia aparte.
+  `product.template._dcasa_url_codigo_publico()` da esa dirección completa. (No confundir con el QR de uso interno de los
+  documentos —factura, cotización, compra, entrega—, que abre el documento en el sistema para el equipo: ver la sección
+  «Código QR y código público en la factura y la cotización».)
+- **Documentos impresos** (cotización, factura, nota de entrega): con el interruptor de la empresa **«Mostrar el código
+  público de los productos…»** (apagado de fábrica) su columna «Código» muestra el código público en lugar de la
+  referencia del proveedor. Cómo funciona y qué cambia: la sección siguiente.
 
 Detalle técnico: el campo `dcasa_codigo_publico` y su sorteo viven en `dcasa_base/models/codigo_publico.py` (es el
 único módulo que ven a la vez la tienda y los documentos); lo de la tienda está en `website_dcasa/models/producto.py`;
 el relleno de lo que ya existía, en `dcasa_catalogo/migrations/19.0.1.10.0/`. Pruebas: `dcasa_catalogo/tests/test_codigo_publico.py`,
 `website_dcasa/tests/test_codigo_publico_web.py`, `dcasa_barras/tests/test_codigo_publico.py` y
 `dcasa_conversaciones/tests/test_herramientas.py` (clase `TestCodigoPublicoEnJuan`).
+
+## Código QR y código público en la factura y la cotización
+
+Dos interruptores de la empresa, en *Ajustes › Empresas › D'CASA Panamá › pestaña «Documentos D'CASA»*, sección
+**«Código QR y código público»**. Los dos vienen **apagados** y **apagados no cambian nada**: la factura, la nota de
+crédito, la cotización, el pedido y la nota de entrega salen idénticos, píxel por píxel, a como la dueña los aprobó (un
+test compara el HTML de cada uno contra el aprobado, `dcasa_invoice/tests/aprobado/`, y falla si alguien toca las
+plantillas sin querer). **Se encienden solo después de que la dueña apruebe una imagen del antes y el después.**
+
+| Interruptor | Qué cambia al encenderlo |
+|---|---|
+| **Mostrar el código QR en la factura y la cotización** | Un QR pequeño de **uso interno** (unos 2 cm, plano, azul marino, con la nota «Uso interno») al final de la factura, la nota de crédito, la cotización/pedido y la nota de entrega, a la derecha. El equipo lo escanea y se abre ese documento en el sistema. No lleva datos del cliente. No se mueve nada más. Detalle: [BARRAS.md](BARRAS.md#qr-de-los-documentos-uso-interno). |
+| **Mostrar el código público de los productos en la factura y la cotización, en lugar del código del proveedor** | La columna «Código» de la factura, la cotización/pedido y la nota de entrega muestra el **código público** (`DC-K7M4PX`) en lugar de la referencia del proveedor. Un producto sin código público (flete, servicios) deja la celda **vacía**: nunca se muestra el del proveedor. En la nota de entrega, cada producto sale «[DC-K7M4PX] Nombre» (y se quita la referencia de la descripción de la entrega). Las cotizaciones y facturas **nuevas** dejan de guardar «[referencia] Nombre» en el nombre de la línea (lo que ve el cliente en el portal y en los correos). |
+
+Lo que **no** cambia, a propósito:
+
+* El **pedido de compra** lleva su QR **siempre** (lo pidió la dueña); no tiene interruptor porque no toca la factura. Su
+  texto sigue con la referencia del proveedor (es el documento del proveedor).
+* La **factura electrónica de la DGI** (`dcasa_fe_pa`: CUFE y QR de la DGI) y las **etiquetas en rollo** (`DC0001`) no se
+  tocan. Este QR de uso interno es otra cosa que el QR de la DGI y que el `/codigo/DC-K7M4PX` del producto.
+* Las pantallas de la oficina siguen mostrando y buscando la **referencia del proveedor** («[IM-2001] Colchón…»): el
+  equipo la necesita para pedir, contar y encontrar el producto.
+* Las cotizaciones y facturas **ya hechas** conservan el nombre de línea que guardaron («[IM-2001] Colchón…»). Al
+  **imprimir** se limpia igual (con el interruptor encendido ya no sale la referencia); lo que no se reescribe es el texto
+  guardado, que el cliente vería en el portal de un pedido viejo.
+
+Al encender el segundo interruptor conviene revisar una factura y una cotización de cada tipo (con flete, con combo, con
+un producto sin código público). La nota de entrega toma el nombre del producto de la propia entrega.
+
+Detalle técnico: los interruptores son `res.company.dcasa_mostrar_qr_documentos` y `dcasa_mostrar_codigo_publico`
+(`dcasa_invoice/models/res_company.py`); la columna sale de `lineas.codigo_a_imprimir`; el nombre de la línea, de
+`product.product.get_product_multiline_description_sale` y `account.move.line._compute_name`
+(`models/producto.py`, `models/account_move_line.py`); la nota de entrega, de `stock.picking._dcasa_para_imprimir` y el
+contexto `dcasa_codigo_publico` (`models/stock.py`). Pruebas: `dcasa_invoice/tests/test_documentos_intactos.py` (apagado =
+idéntico), `test_qr_documentos.py`, `test_codigo_publico_documentos.py`, `test_documento_ruta.py` y `test_qr_paquete.py`.
 
 ## Códigos de barras
 

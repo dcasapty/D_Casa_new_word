@@ -75,8 +75,8 @@ no usa.
 ## Brian
 
 Lectura (grupo de contabilidad): `resumen_contable` («¿cuánto gané este mes?», «¿cuánto ITBMS
-debo?»), `antiguedad_saldos` («¿quién me debe?»), `comparar_periodos`, `reporte_contable`
-(incluye el flujo de efectivo) y `guia_cierre_mes` (cuenta también los cobros y pagos que esperan su movimiento). **Sensible** (la gerencia contable confirma
+debo este mes?» y «¿cuánto ITBMS debo en total?»: da lo del periodo y, aparte, el **acumulado por pagar o saldo a favor** a la fecha final), `antiguedad_saldos` («¿quién me debe?»), `comparar_periodos`, `reporte_contable`
+(incluye el flujo de efectivo) y `guia_cierre_mes` (cuenta también los cobros y pagos que esperan su movimiento) y `movimientos_por_conciliar` (movimientos del extracto **y** cobros y pagos sin cruzar, cuántos y de cuánto; solo los muestra). `reporte_contable` con `itbms` trae igual el acumulado y el saldo de cada cuenta de ITBMS. **Sensible** (la gerencia contable confirma
 con un clic): `cerrar_mes`.
 
 ## Plan

@@ -140,6 +140,7 @@ class DocumentosDePrueba(TransactionCase):
             'move_type': 'out_invoice', 'partner_id': cls.cliente.id, 'invoice_date': '2026-10-14',
             'partner_shipping_id': cls.entrega_partner.id, 'invoice_user_id': cls.vendedora.id,
             'delivery_date': '2026-10-14', 'invoice_origin': 'S01004', 'invoice_payment_term_id': cls.condicion.id,
+            'narration': False,   # con el sitio web instalado Odoo propone «Terms & Conditions: …/terms»: se fija vacío
             'invoice_line_ids': [
                 Command.create({'product_id': cls.colchon.id, 'quantity': 2, 'price_unit': 81.99}),
                 Command.create({'product_id': cls.cama.id, 'quantity': 1, 'price_unit': 158.02, 'discount': 10}),
@@ -158,7 +159,7 @@ class DocumentosDePrueba(TransactionCase):
             'partner_id': cls.cliente.id, 'partner_shipping_id': cls.entrega_partner.id,
             'user_id': cls.vendedora.id, 'date_order': datetime(2026, 10, 14, 15, 0, 0),
             'validity_date': fields.Date.to_date('2026-10-31'), 'payment_term_id': cls.condicion.id,
-            'client_order_ref': 'REF-CLIENTE-1',
+            'client_order_ref': 'REF-CLIENTE-1', 'note': False,
             'order_line': [
                 Command.create({'product_id': cls.colchon.id, 'product_uom_qty': 2, 'price_unit': 81.99}),
                 Command.create({'product_id': cls.cama.id, 'product_uom_qty': 1, 'price_unit': 158.02,

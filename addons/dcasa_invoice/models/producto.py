@@ -37,7 +37,7 @@ class ProductProduct(models.Model):
 
     def get_product_multiline_description_sale(self):
         """El nombre de la línea de una cotización: sin la referencia del proveedor si la empresa lo pide."""
-        if self.env.company.dcasa_mostrar_codigo_publico:
+        if self.env.company.sudo().dcasa_mostrar_codigo_publico:   # lo piden también la tienda y el portal
             return super(ProductProduct, self.with_context(display_default_code=False)
                          ).get_product_multiline_description_sale()
         return super().get_product_multiline_description_sale()

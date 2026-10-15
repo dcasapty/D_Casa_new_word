@@ -14,7 +14,8 @@ class AccountMoveLine(models.Model):
     def _compute_name(self):
         """Con «Mostrar el código público…» encendido, el nombre de una línea nueva con producto no lleva la referencia
         del proveedor. Apagado, es el cálculo de Odoo de siempre."""
-        sin_referencia = self.filtered(lambda linea: linea.product_id and linea.company_id.dcasa_mostrar_codigo_publico)
+        sin_referencia = self.filtered(
+            lambda linea: linea.product_id and linea.company_id.sudo().dcasa_mostrar_codigo_publico)
         if sin_referencia:
             super(AccountMoveLine, sin_referencia.with_context(display_default_code=False))._compute_name()
         super(AccountMoveLine, self - sin_referencia)._compute_name()

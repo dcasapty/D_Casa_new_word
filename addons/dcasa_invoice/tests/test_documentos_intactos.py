@@ -34,7 +34,7 @@ class TestDocumentosIntactos(DocumentosDePrueba):
     def test_factura_simple_pagada_igual(self):
         factura = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': '2026-10-14',
-            'partner_shipping_id': self.entrega_partner.id, 'invoice_user_id': self.vendedora.id,
+            'partner_shipping_id': self.entrega_partner.id, 'invoice_user_id': self.vendedora.id, 'narration': False,
             'invoice_line_ids': [(0, 0, {'product_id': self.colchon.id, 'quantity': 1, 'price_unit': 81.99})]})
         factura.action_post()
         self.env['account.payment.register'].with_context(

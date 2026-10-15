@@ -363,11 +363,11 @@ $dcasa-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
 
     .o_dcasa_qr_img {
         display: inline-block;
-        width: 20mm;
-        height: 20mm;
+        width: 22mm;
+        height: 22mm;
     }
     .o_dcasa_qr_texto {
-        margin-top: 2px;
+        margin-top: 6px;   // el texto no se pega al cuadro: la cámara necesita un borde en blanco alrededor
         font-family: $dcasa-subtitulo;
         font-weight: 600;
         font-size: .6rem;

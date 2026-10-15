@@ -233,10 +233,8 @@ const datos = await esperar(async () => {
     const d = await llamar("dcasa.guia", "obtener", []);
     return d.mas_usadas.length === 3 ? d : null;
 }, "que el servidor anote los tres usos");
-const vistos = Object.fromEntries(datos.mas_usadas.map((t) => [t.id, t.veces]));
-if (JSON.stringify(vistos) !== JSON.stringify({ "ventas-hoy": 2, "cliente-nuevo": 2, "cotizacion-nueva": 2 })) {
-    falla("el servidor contó " + JSON.stringify(vistos));
-}
+const vistos = datos.mas_usadas.map((t) => t.id + "=" + t.veces).sort().join(",");
+if (vistos !== "cliente-nuevo=2,cotizacion-nueva=2,ventas-hoy=2") { falla("el servidor contó " + vistos); }
 // La pantalla muestra «Lo que tú más usas» antes de «En tu puesto…».
 await guiaPorLaBarra();
 const mias = await esperar(() => document.querySelector(".o_dcasa_guia_mias"), "la sección «Lo que tú más usas»");
@@ -332,7 +330,7 @@ if (caja.height > innerHeight * 0.25) {
 }
 for (const boton of cinta().querySelectorAll("button")) {
     const b = boton.getBoundingClientRect();
-    if (b.width < 28 || b.height < 28 || b.right > innerWidth + 1 || b.bottom > innerHeight + 1) {
+    if (b.width < 28 || b.height < 30 || b.right > innerWidth + 1 || b.bottom > innerHeight + 1) {
         falla("un botón de la cinta se sale o es chico: " + boton.textContent.trim() + " " + b.width + "x" + b.height);
     }
 }
@@ -383,11 +381,12 @@ class TestLlevameEnElNavegador(HttpCase):
         self.abrir_la_guia(codigo(SE_VA_SOLA, RUTAS=rutas))
 
     def test_el_uso_se_cuenta_por_persona_y_sale_lo_que_tu_mas_usas(self):
+        de_otros = self.Uso.sudo().search_count([('user_id', '!=', self.vendedora.id)])
         self.abrir_la_guia(codigo(USO_POR_PERSONA), login='llevame_vend')
         propio = {f.tarea: f.veces for f in self.Uso.sudo().search([('user_id', '=', self.vendedora.id)])}
         self.assertEqual(propio, {'ventas-hoy': 2, 'cliente-nuevo': 2, 'cotizacion-nueva': 2})
-        admin = self.env.ref('base.user_admin')
-        self.assertFalse(self.Uso.sudo().search([('user_id', '=', admin.id)]), 'El uso de ella no es de nadie más')
+        self.assertEqual(self.Uso.sudo().search_count([('user_id', '!=', self.vendedora.id)]), de_otros,
+                         'El uso de ella no es de nadie más')
 
     def test_sin_uso_propio_solo_sale_lo_curado(self):
         self.abrir_la_guia(codigo(SIN_USO_ES_SOLO_LO_CURADO), login='llevame_vend')
@@ -401,10 +400,11 @@ class TestLlevameEnElNavegador(HttpCase):
             raise UserError('El libro de uso no responde')
 
         rutas = {'cobros-hoy': self.ruta_de_menu('dcasa_base.menu_dcasa_cobros_hoy')}
+        antes = self.Uso.sudo().search_count([])
         with mock.patch.object(type(self.env['dcasa.guia']), 'registrar_uso', fallar), \
                 mute_logger('odoo.http', 'odoo.addons.dcasa_guia.models.guia'):
             self.abrir_la_guia(codigo(CON_UN_FALLO, RUTAS=rutas))
-        self.assertFalse(self.Uso.sudo().search([]), 'Con el fallo no se anotó nada, y nadie lo notó')
+        self.assertEqual(self.Uso.sudo().search_count([]), antes, 'Con el fallo no se anotó nada, y nadie lo notó')
 
     def test_en_el_celular_todo_cabe_y_la_cinta_es_discreta(self):
         self.browser_size = '390x844'

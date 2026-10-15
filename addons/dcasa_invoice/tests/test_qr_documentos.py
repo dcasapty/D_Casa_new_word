@@ -107,6 +107,16 @@ class TestQrDocumentos(DocumentosDePrueba):
                       f'{BASE}/dcasa/doc/FAC/' + 'X' * 100, f'{BASE}/' + 'a' * 500, None, 7, ['x']):
             self.assertIsNone(documento.leer_url(texto), texto)
 
+    def test_leer_la_direccion_con_los_simbolos_cambiados_por_el_lector(self):
+        """Un lector con la distribución equivocada cambia «/» por «-», «:» por «Ñ»…: letras y números llegan."""
+        tolerante = documento.leer_url_tolerante
+        self.assertEqual(tolerante('httpsÑ--erp.example.com-dcasa-doc-FAC-INV-2026-00001'), ('FAC', 'INV202600001'))
+        self.assertEqual(tolerante('https://erp.example.com/dcasa/doc/ent/wh/out/00005'), ('ENT', 'WHOUT00005'))
+        self.assertEqual(tolerante('httpsÑ--x.co-DCASA_DOC_COT_S00007'), ('COT', 'S00007'))
+        for texto in ('', 'DC0001', 'dcasapty.com', 'dcasa doc', 'httpsÑ--x.co-dcasa-doc-XXX-S00007',
+                      'httpsÑ--x.co-dcasa-doc-FAC-', 'dcasa-doc-FAC-' + 'A' * 100, None, 3):
+            self.assertIsNone(tolerante(texto), texto)
+
     # --- Con el interruptor apagado: nada --------------------------------------------------------
 
     def test_apagado_no_hay_qr_en_factura_cotizacion_ni_entrega(self):
