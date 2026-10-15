@@ -342,6 +342,17 @@ class TestCopiaDeLaEmpresa(PaqueteComun):
         self.assertNotIn('COPIA EMPRESA', ''.join(textos(original)))
         self.assertEqual(paquete.paginas(sellado), 2)
 
+    def test_la_fuente_de_la_cinta_queda_bien_enlazada(self):
+        """Si el sello se fusiona DESPUÉS de agregar la página al escritor, la fuente de la cinta apunta a objetos
+        que no son suyos (el texto está en el flujo, pero el visor ve un rectángulo azul sin letras). Se mira lo que
+        ve un visor: cada fuente de la página existe y la de la cinta es Helvetica-Bold."""
+        sellado = paquete.sellar_copia(pdf_falso('FACTURA ORIGINAL', paginas=2))
+        for pagina in pdf.PdfFileReader(io.BytesIO(sellado), strict=False).pages:
+            fuentes = pagina['/Resources']['/Font']
+            nombres = [fuentes[clave].get_object().get('/BaseFont') for clave in fuentes]
+            self.assertNotIn(None, nombres, 'una fuente de la página apunta a un objeto que no es una fuente')
+            self.assertIn('/Helvetica-Bold', nombres, 'la cinta no tiene su fuente')
+
     def test_unir_respeta_el_orden_y_las_paginas(self):
         union = paquete.unir([pdf_falso('A', 2), pdf_falso('B'), b'', pdf_falso('C', 3)])
         letras = [pagina.strip()[:1] for pagina in textos(union)]

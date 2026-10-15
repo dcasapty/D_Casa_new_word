@@ -88,6 +88,8 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'deshacer'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'reglas'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'aplicar_regla'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'pagos_por_cruzar'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'cruzar_pago'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'create'): OVERRIDE + ' Normaliza el mes y arma la lista; sin sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'write'): OVERRIDE + ' Impide mover un mes cerrado; sin sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_revisar'): SIN_SUDO,

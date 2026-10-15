@@ -2,8 +2,13 @@
  * «Conciliación bancaria»: a la izquierda lo que llegó del banco sin explicar; a la
  * derecha las facturas y pagos que lo explican (sugeridos primero) o una cuenta para
  * comisiones y cargos. Un clic concilia; todo se puede deshacer.
+ *
+ * Los cobros y pagos que se registraron en una factura («Registrar pago») y todavía no
+ * tienen su movimiento en la caja o el banco no aparecen como movimiento: se ven en la
+ * pestaña «Cobros y pagos sin movimiento» y desde ahí se cruzan con un clic.
  */
 import { Component, onWillStart, useState } from "@odoo/owl";
+import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { dinero, fecha } from "./formato";
@@ -31,6 +36,9 @@ export class DcasaConciliacion extends Component {
             cuenta: "",
             etiqueta: "",
             modo: "facturas",
+            vista: "movimientos",
+            pagos: [],
+            pago: null,
             cargando: true,
             trabajando: false,
         });
@@ -48,10 +56,34 @@ export class DcasaConciliacion extends Component {
     async cargarDiarios() {
         this.state.diarios = await this.orm.call("dcasa.conciliacion", "diarios", []);
         if (!this.state.diario && this.state.diarios.length) {
-            const conPendientes = this.state.diarios.find((d) => d.pendientes);
+            const conPendientes = this.state.diarios.find((d) => d.pendientes || d.pagos_sin_cruzar);
             this.state.diario = (conPendientes || this.state.diarios[0]).id;
         }
         await this.cargarLineas();
+    }
+
+    async cargarPagos() {
+        this.state.pagos = this.state.diario
+            ? await this.orm.call("dcasa.conciliacion", "pagos_por_cruzar", [this.state.diario])
+            : [];
+        this.state.pago = this.state.pagos.find((p) => p.id === this.state.pago?.id) || this.state.pagos[0] || null;
+    }
+
+    elegirVista(vista) {
+        this.state.vista = vista;
+    }
+
+    elegirPago(pago) {
+        this.state.pago = pago;
+    }
+
+    /** Una pestaña por clase de pendiente; si en esta no queda nada, se pasa a la otra. */
+    ajustarVista() {
+        if (this.state.vista === "cobros" && !this.state.pagos.length) {
+            this.state.vista = "movimientos";
+        } else if (this.state.vista === "movimientos" && !this.state.lineas.length && this.state.pagos.length) {
+            this.state.vista = "cobros";
+        }
     }
 
     async cargarLineas() {
@@ -60,6 +92,8 @@ export class DcasaConciliacion extends Component {
             ? await this.orm.call("dcasa.conciliacion", "pendientes", [this.state.diario])
             : [];
         this.state.cargando = false;
+        await this.cargarPagos();
+        this.ajustarVista();
         const siguiente = this.state.lineas.find((l) => l.id === this.state.linea?.id) || this.state.lineas[0];
         await this.elegirLinea(siguiente || null);
     }
@@ -67,6 +101,7 @@ export class DcasaConciliacion extends Component {
     async elegirDiario(id) {
         this.state.diario = id;
         this.state.linea = null;
+        this.state.pago = null;
         await this.cargarLineas();
     }
 
@@ -179,6 +214,48 @@ export class DcasaConciliacion extends Component {
         } finally {
             this.state.trabajando = false;
         }
+    }
+
+    cruzarPago() {
+        const pago = this.state.pago;
+        if (!pago || this.state.trabajando) {
+            return;
+        }
+        const hacerlo = async () => {
+            this.state.trabajando = true;
+            try {
+                const r = await this.orm.call("dcasa.conciliacion", "cruzar_pago", [pago.id]);
+                this.notification.add(
+                    r.fecha_ajustada
+                        ? `Cruzado. El mes de la fecha del pago está cerrado: el movimiento quedó con fecha ${fecha(r.fecha)}.`
+                        : "Cruzado: el movimiento se creó y el cobro ya no espera.",
+                    { type: r.fecha_ajustada ? "warning" : "success" }
+                );
+                await this.cargarDiarios();
+            } finally {
+                this.state.trabajando = false;
+            }
+        };
+        if (this.diarioActual?.tipo === "bank") {
+            // En un banco lo normal es importar el extracto: crear el movimiento a mano lo repetiría.
+            this.dialog.add(ConfirmationDialog, {
+                title: "¿Crear el movimiento a mano?",
+                body:
+                    "Si vas a importar el extracto del banco, no lo cruces aquí: al importarlo, " +
+                    "ese movimiento se concilia con este pago desde «Por conciliar» y no queda repetido. " +
+                    "Crea el movimiento aquí solo si el banco no te da extracto de esto (por ejemplo Yappy).",
+                confirmLabel: "Crear y cruzar",
+                cancelLabel: "No",
+                confirm: hacerlo,
+                cancel: () => {},
+            });
+        } else {
+            hacerlo();
+        }
+    }
+
+    get totalPagos() {
+        return this.state.pagos.reduce((total, p) => total + p.monto, 0);
     }
 
     async automatico() {

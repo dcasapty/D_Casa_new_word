@@ -89,10 +89,12 @@ def sellar_copia(contenido, texto=TEXTO_COPIA):
     marcas = _paginas(_leer(sello.getvalue()))
     salida = pdf.PdfFileWriter()
     for pagina, marca in zip(originales, marcas, strict=True):
-        nueva = _agregar(salida, pagina)
-        if '/Annots' in nueva:  # PyPDF2 se queja de las anotaciones al fusionar
-            del nueva['/Annots']
-        (getattr(nueva, 'merge_page', None) or nueva.mergePage)(marca)
+        if '/Annots' in pagina:  # PyPDF2 se queja de las anotaciones al fusionar
+            del pagina['/Annots']
+        # Primero se fusiona el sello con la página y DESPUÉS se agrega al escritor (la receta de PyPDF2): al revés,
+        # la fuente del sello queda apuntando a objetos que no son suyos y la cinta sale azul y sin texto.
+        (getattr(pagina, 'merge_page', None) or pagina.mergePage)(marca)
+        _agregar(salida, pagina)
     resultado = io.BytesIO()
     salida.write(resultado)
     return resultado.getvalue()

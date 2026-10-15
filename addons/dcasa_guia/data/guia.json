@@ -121,14 +121,17 @@
    "categoria": "vender",
    "grupo": "Hoy",
    "titulo": "Ver cuánto se vendió hoy",
-   "logras": "La lista de las ventas de hoy, con quién vendió y por cuánto.",
+   "logras": "La lista de las ventas de hoy ya facturadas por completo. Si eres vendedora, solo las tuyas; Gerencia ve las de todas.",
    "destino": {
     "menu": "dcasa_base.menu_dcasa_ventas_hoy"
    },
    "palabras": [
-    "ventas del dia",
     "cierre de caja",
-    "hoy"
+    "facturado",
+    "hoy",
+    "mis ventas",
+    "vendido",
+    "ventas del dia"
    ]
   },
   {
@@ -378,7 +381,7 @@
    "categoria": "facturar",
    "grupo": "Cobrar",
    "titulo": "Saber quién me debe y qué está vencido",
-   "logras": "Ves cada cliente con lo que debe y desde hace cuánto, en tramos (al día, 1–30 días, etc.), para saber a quién llamar.",
+   "logras": "Ves cada cliente con lo que debe y desde hace cuánto, en tramos (al día, 1–30 días, etc.), para saber a quién llamar. Lo vencido se mide contra la fecha «Al» que elijas.",
    "destino": {
     "menu": "dcasa_contabilidad.menu_por_cobrar"
    },
@@ -581,7 +584,7 @@
    "categoria": "reportes",
    "grupo": "Planear",
    "titulo": "Saber si deja más la tienda física o la tienda en línea",
-   "logras": "Ventas y utilidad separadas por canal.",
+   "logras": "Ventas y utilidad separadas por canal. La fila «Sin asignar» muestra lo que no se repartió a ningún canal.",
    "destino": {
     "menu": "dcasa_contabilidad.menu_analitica"
    },
@@ -982,13 +985,15 @@
    "id": "reembolso-pedir",
    "categoria": "personal",
    "grupo": "Gastos",
-   "titulo": "Pedir que me reembolsen un gasto",
-   "logras": "Registras el gasto con su foto para que lo aprueben y te lo paguen.",
+   "titulo": "Pedir que me devuelvan un gasto que pagué yo",
+   "logras": "Si pagaste algo de tu bolsillo para la empresa, lo registras con la foto del recibo y se te devuelve en la próxima planilla.",
    "destino": {
     "menu": "dcasa_nomina.menu_mis_reembolsos"
    },
    "palabras": [
     "mis gastos",
+    "mis gastos por reembolsar",
+    "recibo",
     "reintegro"
    ]
   },
@@ -1530,10 +1535,12 @@
     "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
    },
    "palabras": [
-    "bot",
+    "apagar juan",
     "asistente",
     "automatico",
-    "apagar juan"
+    "bot",
+    "parejo",
+    "reparto"
    ]
   },
   {
@@ -1740,6 +1747,316 @@
     "historial de brian",
     "auditoria",
     "acciones"
+   ]
+  },
+  {
+   "id": "factura-prueba-borrar",
+   "categoria": "facturar",
+   "grupo": "Cambiar el estado de algo",
+   "titulo": "Borrar una factura de prueba que ya dio puntos",
+   "logras": "Abres la factura, tocas «Restablecer a borrador» y luego «Eliminar». Los puntos de esa venta se devuelven solos y el cliente queda como socio con los puntos que ya tenía. El pago no se borra: cancélalo aparte en Pagos si era de prueba.",
+   "destino": {
+    "menu": "account.menu_action_move_out_invoice_type"
+   },
+   "nota": "Una factura publicada no se puede borrar: primero se devuelve a borrador o se hace una nota de crédito.",
+   "palabras": [
+    "borrar factura",
+    "eliminar borrador",
+    "factura de prueba",
+    "puntos"
+   ]
+  },
+  {
+   "id": "puntos-factura-corregida",
+   "categoria": "clientes",
+   "grupo": "Socios",
+   "titulo": "Corregí una factura y la volví a pagar: ¿vuelven los puntos?",
+   "logras": "Sí: si la factura se corrige y queda pagada otra vez, da sus puntos una sola vez. Ves la compra anulada y la nueva, cada una con su motivo.",
+   "destino": {
+    "menu": "dcasa_socios.menu_dcasa_compras"
+   },
+   "nota": "No vuelve a dar puntos una factura anulada por devolución total o a mano por Gerencia.",
+   "palabras": [
+    "puntos",
+    "factura corregida",
+    "compra anulada"
+   ]
+  },
+  {
+   "id": "vendido-hoy-propio",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Ver cuánto he vendido hoy",
+   "logras": "En Inicio, la tarjeta Vendido hoy muestra solo lo que tú vendiste y que ya está facturado por completo.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_inicio"
+   },
+   "palabras": [
+    "mis ventas",
+    "vendido hoy"
+   ]
+  },
+  {
+   "id": "que-cuenta-como-venta",
+   "categoria": "vender",
+   "grupo": "Hoy",
+   "titulo": "Saber qué cuenta como venta",
+   "logras": "Una venta cuenta cuando su factura ya está publicada. Una cotización, un borrador o un pedido por facturar todavía no cuentan.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_hoy"
+   },
+   "palabras": [
+    "vendido",
+    "facturado",
+    "borrador"
+   ]
+  },
+  {
+   "id": "juan-reparto",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Ver cómo reparte Juan las conversaciones entre las vendedoras",
+   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo. Cada vendedora ve solo las suyas.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
+   },
+   "palabras": [
+    "reparto",
+    "equitativo",
+    "justo",
+    "quien atiende",
+    "asignar",
+    "turnos"
+   ]
+  },
+  {
+   "id": "juan-reparto-vacaciones",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Dejar de asignarle conversaciones a alguien (vacaciones o ausencia)",
+   "logras": "Esa persona deja de recibir las conversaciones que pasa Juan, sin perder permisos ni las que ya tiene. Puedes poner el día en que vuelve.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
+   },
+   "palabras": [
+    "vacaciones",
+    "ausente",
+    "no asignar",
+    "gerencia no atiende"
+   ]
+  },
+  {
+   "id": "juan-disponible",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Marcarte como no disponible (almuerzo o fin del día)",
+   "logras": "Juan deja de asignarte conversaciones nuevas hasta que vuelvas a ponerte disponible, arriba de la lista de Conversaciones.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
+   },
+   "palabras": [
+    "disponible",
+    "almuerzo",
+    "pausa"
+   ]
+  },
+  {
+   "id": "dinero-en-bancos-y-caja",
+   "categoria": "reportes",
+   "grupo": "Dinero",
+   "titulo": "Ver cuánto dinero hay en bancos y caja",
+   "logras": "La tarjeta del Resumen dice a qué día corresponde el dinero. Cambia la fecha «Hasta» para verlo en otro día.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_resumen"
+   },
+   "palabras": [
+    "bancos",
+    "caja",
+    "saldo",
+    "cuanto dinero hay"
+   ]
+  },
+  {
+   "id": "periodos-rapidos",
+   "categoria": "reportes",
+   "grupo": "De un vistazo",
+   "titulo": "Ver solo lo de hoy, de esta semana o de esta quincena",
+   "logras": "Arriba de cualquier reporte están los botones «Hoy», «Esta semana», «Esta quincena», «Este mes», «Mes pasado», «Este trimestre» y «Este año fiscal». El botón activo se ve azul. Si escribes una fecha a mano, ninguno queda marcado.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_resumen"
+   },
+   "palabras": [
+    "hoy",
+    "semana",
+    "quincena",
+    "periodo",
+    "fechas",
+    "filtro"
+   ]
+  },
+  {
+   "id": "dinero-banco-no-cambia",
+   "categoria": "reportes",
+   "grupo": "Dinero",
+   "titulo": "¿Por qué el dinero en bancos no cambia cuando cambio de «Este mes» a «Este trimestre»?",
+   "logras": "Porque es un saldo: depende del día «Hasta», no del «Desde». Cambia con «Mes pasado» o escribiendo otra fecha «Hasta».",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_resumen"
+   },
+   "palabras": [
+    "no cambia",
+    "saldo",
+    "hasta",
+    "desde"
+   ]
+  },
+  {
+   "id": "todo-conciliado",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "¿Qué quiere decir «Todo conciliado»?",
+   "logras": "Que no queda ningún movimiento del banco sin conciliar ni cobro o pago registrado esperando su movimiento. Si hay algo, la tarjeta dice cuántos son y de cuánto.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_conciliacion"
+   },
+   "palabras": [
+    "conciliado",
+    "conciliar",
+    "pendiente"
+   ]
+  },
+  {
+   "id": "comparar-periodos",
+   "categoria": "reportes",
+   "grupo": "Ganar o perder",
+   "titulo": "Comparar con el mes pasado o el año pasado",
+   "logras": "En el Estado de resultados, el Balance general y el Flujo de efectivo, el campo «Comparar con» pone al lado el período anterior.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_estado_resultados"
+   },
+   "palabras": [
+    "comparar",
+    "mes pasado",
+    "año pasado",
+    "anterior"
+   ]
+  },
+  {
+   "id": "imprimir-documentos",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Imprimir la factura, la copia de la empresa y la nota de entrega de una vez",
+   "logras": "Sale un solo PDF listo para imprimir, sin archivos sueltos en la computadora.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la factura ya publicada (Ventas › Facturas) y toca «Imprimir documentos».",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Deja marcadas las casillas que quieras y toca «Imprimir todo» (se abre el cuadro de impresión) o «Descargar todo» (guarda el archivo).",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "imprimir",
+    "copia",
+    "nota de entrega",
+    "retiro de bodega",
+    "paquete"
+   ]
+  },
+  {
+   "id": "imprimir-varias-facturas",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Imprimir varias facturas juntas",
+   "logras": "Sale un solo PDF con todo, venta por venta (factura del cliente, copia de la empresa y nota de entrega de cada una).",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "En Ventas › Facturas (o en Pedidos) marca las casillas de la izquierda.",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Toca «Imprimir paquete» y elige «Imprimir todo». Se pueden hasta 20 por vez.",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "lote",
+    "varias facturas",
+    "imprimir todo"
+   ]
+  },
+  {
+   "id": "tablero-facturas",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver de un vistazo las facturas de clientes y de proveedores",
+   "logras": "Dos tarjetas arriba del Tablero muestran borradores, por cobrar o por pagar y vencidas; cada número abre la lista. Las de proveedores solo las ven contabilidad y Gerencia.",
+   "destino": {
+    "menu": "account.menu_board_journal_1"
+   },
+   "palabras": [
+    "tablero",
+    "por cobrar",
+    "por pagar",
+    "vencidas"
+   ]
+  },
+  {
+   "id": "imprimir-al-pagar-apagar",
+   "categoria": "facturar",
+   "grupo": "Pagos",
+   "titulo": "Apagar el cuadro de imprimir al completar un pago",
+   "logras": "Al terminar de pagar ya no sale el cuadro de imprimir documentos.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA»: desmarca «Ofrecer imprimir los documentos al completar el pago».",
+   "palabras": [
+    "cuadro de imprimir",
+    "apagar",
+    "pago completo"
+   ]
+  },
+  {
+   "id": "codigo-publico",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Encontrar un producto por el código que le dio el cliente",
+   "logras": "El cliente ve un código como DC-K7M4PX en la ficha de la tienda y en su mensaje de WhatsApp. Escríbelo en el buscador de Productos (o en el campo Producto de una cotización) y aparece el mueble. Es distinto de la referencia del proveedor, que el cliente no ve.",
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "palabras": [
+    "codigo del cliente",
+    "codigo publico",
+    "DC-",
+    "buscar por codigo",
+    "referencia del cliente"
+   ]
+  },
+  {
+   "id": "codigo-publico-regenerar",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Cambiar el código público de un producto (solo administrador)",
+   "logras": "El código público no cambia solo. Si de verdad hace falta otro, abre el producto y toca «Regenerar» junto al código; el viejo deja de servir y queda anotado en el historial.",
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "palabras": [
+    "regenerar codigo",
+    "cambiar codigo",
+    "codigo publico"
    ]
   }
  ],

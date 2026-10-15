@@ -628,14 +628,12 @@ class BrianHerramientasContabilidad(models.AbstractModel):
                           'estado': 'pendiente' if pendientes else 'listo', 'detalle': detalle,
                           **({'como': como} if pendientes else {})})
 
-        sin_conciliar = self.env['account.bank.statement.line'].search(
-            [('is_reconciled', '=', False), ('date', '<=', fin)])
-        por_banco = {}
-        for linea in sin_conciliar:
-            por_banco[linea.journal_id.name] = por_banco.get(linea.journal_id.name, 0) + 1
-        paso('Conciliar bancos, Yappy y caja', len(sin_conciliar),
-             ', '.join(f'{b}: {n}' for b, n in por_banco.items()) or 'Todo conciliado',
-             'movimientos_por_conciliar y conciliar_movimiento')
+        # Misma fuente que el cierre de mes y la tarjeta «Todo conciliado»: movimientos del extracto sin conciliar Y
+        # cobros/pagos registrados que esperan su movimiento (ver ``dcasa.cierre.mes._bancos_por_cruzar``).
+        bancos = self.env['dcasa.cierre.mes']._bancos_por_cruzar(fin)
+        paso('Conciliar bancos, Yappy y caja', bancos['pendientes'], bancos['detalle'],
+             'movimientos_por_conciliar y conciliar_movimiento para los movimientos del extracto; los cobros y pagos '
+             'sin cruzar se cruzan en Facturación › Conciliación bancaria › «Cobros y pagos sin movimiento».')
         for tipo, nombre in (('out_invoice', 'Facturas de cliente en borrador'),
                              ('in_invoice', 'Facturas de proveedor en borrador')):
             borradores = Move.search_count([('move_type', '=', tipo), ('state', '=', 'draft'),
