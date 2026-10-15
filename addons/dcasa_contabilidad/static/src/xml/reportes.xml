@@ -93,8 +93,7 @@
                 <small t-if="t.vencido">Vencido <t t-out="dinero(t.vencido)"/></small>
                 <small t-elif="t.clave === 'itbms'">Ventas <t t-out="dinero(t.debito)"/> − compras <t t-out="dinero(t.credito)"/></small>
                 <small t-elif="t.comparado !== undefined">Antes <t t-out="dinero(t.comparado)"/> · <t t-out="pct(t.variacion_pct)"/></small>
-                <small t-elif="t.nota" t-out="t.nota"/>
-                <small t-if="t.monto_sin_cruzar">Por cruzar con el banco <t t-out="dinero(t.monto_sin_cruzar)"/></small>
+                <t t-elif="t.notas"><small t-foreach="t.notas" t-as="nota" t-key="nota_index" t-out="nota"/></t>
             </button>
         </section>
         <div t-foreach="state.datos.alertas" t-as="a" t-key="a_index"
@@ -126,12 +125,12 @@
             </div>
         </div>
         <p class="o_dc_nota">
-            <strong>Saldos</strong> (dinero en bancos y caja, te deben, debes): <t t-out="alFecha()"/>. Cambian cuando cambias la fecha
-            «Hasta», no la «Desde», y lo vencido se mide contra esa fecha.
+            <strong>Saldos</strong> (dinero en bancos y caja, te deben, debes): <t t-out="alFecha()"/>. Solo cambian si cambias la fecha
+            «Hasta»; la «Desde» no los mueve. Lo vencido se mide contra esa fecha.
             <strong>Movimientos del periodo</strong> (ventas, utilidad, ITBMS): <t t-out="delPeriodo()"/>; las ventas y la utilidad se comparan con
             el <t t-out="fecha(state.datos.periodo_comparado.desde)"/> al <t t-out="fecha(state.datos.periodo_comparado.hasta)"/>.
             «Todo conciliado» quiere decir que no queda ningún movimiento del banco sin conciliar ni cobro o pago registrado
-            esperando al banco.
+            esperando su movimiento del banco o la caja.
             <t t-if="state.datos.bloqueado_hasta"> Contabilidad cerrada hasta el <t t-out="fecha(state.datos.bloqueado_hasta)"/>.</t>
         </p>
     </t>

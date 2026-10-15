@@ -30,7 +30,7 @@ from odoo.fields import Domain
 PREFIJO = 'DC-'
 ALFABETO = '23456789BCDFGHJKMNPQRSTVWXYZ'
 LARGO = 6
-PATRON = re.compile(rf'^{PREFIJO}[{ALFABETO}]{{{LARGO}}}$')
+PATRON = re.compile(rf'{PREFIJO}[{ALFABETO}]{{{LARGO}}}')
 PATRON_SQL = f'^{PREFIJO}[{ALFABETO}]{{{LARGO}}}$'
 MINIMO_PARCIAL = 4          # una búsqueda por pedazos del código necesita al menos 4 símbolos
 INTENTOS_AL_CREAR = 5       # veces que se vuelve a sortear si otro proceso tomó el mismo código a la vez
@@ -59,7 +59,7 @@ def generar_codigo_publico():
 
 
 def es_codigo_publico(texto):
-    return isinstance(texto, str) and bool(PATRON.match(texto))
+    return isinstance(texto, str) and bool(PATRON.fullmatch(texto))
 
 
 def normalizar_codigo_publico(texto):
@@ -123,10 +123,13 @@ class ProductTemplate(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         vals_list = [dict(vals) for vals in vals_list]
-        dados = {vals['dcasa_codigo_publico'] for vals in vals_list if vals.get('dcasa_codigo_publico')}
+        dados_en_orden = [vals['dcasa_codigo_publico'] for vals in vals_list if vals.get('dcasa_codigo_publico')]
+        dados = set(dados_en_orden)
         if not all(es_codigo_publico(codigo) for codigo in dados):
             raise ValidationError(self.env._(
                 'El código público tiene la forma DC-K7M4PX. Déjalo vacío y el sistema le pone uno.'))
+        if len(dados) != len(dados_en_orden):
+            raise ValidationError(self.env._('Ese código público ya es de otro producto.'))
         if dados:
             self.env.cr.execute(
                 'SELECT dcasa_codigo_publico FROM product_template WHERE dcasa_codigo_publico = ANY(%s)', [list(dados)])

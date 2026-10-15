@@ -1,11 +1,15 @@
 """«Imprimir documentos»: el paquete de factura + copia de la empresa + nota de entrega en un solo PDF.
 
-Lo que se comprueba, en orden: el PDF unido (de verdad, con wkhtmltopdf, en dos pruebas; con PDF de mentira en el
-resto, para no gastar minutos), el orden de las páginas, el tope de facturas, los permisos, el asistente de
+Lo que se comprueba, en orden: el PDF unido (de verdad, con wkhtmltopdf, en test_paquete_http.py; aquí con PDF de
+mentira para no gastar minutos), el orden de las páginas, el tope de facturas, los permisos, el asistente de
 «Pagar» (completo ofrece el cuadro; parcial, apagado o con un fallo, todo como antes) y que lo que ya se
 imprimía no cambió.
 """
 import io
+import re
+import shutil
+import subprocess
+import tempfile
 from unittest.mock import patch
 
 from odoo import Command, fields
@@ -33,10 +37,41 @@ def pdf_falso(texto, paginas=1):
     return salida.getvalue()
 
 
+def _flujo_de_la_pagina(pagina):
+    """Los bytes del flujo de contenido de una página (ya descomprimido)."""
+    flujo = (getattr(pagina, 'get_contents', None) or pagina.getContents)()
+    if flujo is None:
+        return b''
+    return (getattr(flujo, 'get_data', None) or flujo.getData)()
+
+
 def textos(contenido):
-    """El texto de cada página de un PDF."""
+    """El texto de cada página de un PDF hecho con reportlab (los de mentira y la cinta de la copia).
+
+    Se lee del flujo de contenido: la extracción de texto de PyPDF2 falla con el parche que Odoo le pone, y los PDF
+    de wkhtmltopdf guardan el texto en glifos (para esos, ver ``textos_de_pdf_real``).
+    """
     lector = pdf.PdfFileReader(io.BytesIO(contenido), strict=False)
-    return [(getattr(pagina, 'extract_text', None) or pagina.extractText)() for pagina in lector.pages]
+    patron = rb'\(((?:\\.|[^\\)])*)\)\s*Tj'
+    # PyPDF2 vuelve a escribir los espacios como \040 al fusionar la cinta.
+    return [' '.join(t.decode('latin-1') for t in re.findall(patron, _flujo_de_la_pagina(pagina))).replace('\\040', ' ')
+            for pagina in lector.pages]
+
+
+def textos_de_pdf_real(contenido):
+    """El texto de cada página de un PDF de wkhtmltopdf con ``pdftotext`` (poppler); ``None`` si no está instalado."""
+    ejecutable = shutil.which('pdftotext')
+    if not ejecutable:
+        return None
+    with tempfile.NamedTemporaryFile(suffix='.pdf') as archivo:
+        archivo.write(contenido)
+        archivo.flush()
+        salida = subprocess.run([ejecutable, '-layout', archivo.name, '-'], capture_output=True, check=True).stdout
+    return [pagina.decode('utf-8', 'replace') for pagina in salida.split(b'\f') if pagina.strip()]
+
+
+def tiene_la_cinta(flujo_de_la_pagina):
+    return b'COPIA EMPRESA' in flujo_de_la_pagina or b'COPIA\\040EMPRESA' in flujo_de_la_pagina
 
 
 def _renderizar_falso(self, informe, registros):
@@ -88,38 +123,6 @@ class PaqueteComun(TransactionCase):
 
 @tagged('post_install', '-at_install')
 class TestPaquetePdf(PaqueteComun):
-
-    # --- El PDF de verdad (wkhtmltopdf) ---------------------------------------------------------
-
-    def test_pdf_de_una_venta_trae_factura_copia_y_entrega_en_orden(self):
-        pedido, factura = self._venta()
-        entrega = pedido.picking_ids
-        self.assertEqual(entrega.picking_type_code, 'outgoing')
-        contenido, nombre = self.Paquete.with_context(force_report_rendering=True)._armar_pdf(
-            factura, ['cliente', 'copia', 'entrega'])
-        self.assertTrue(contenido.startswith(b'%PDF'))
-        self.assertEqual(nombre, f"Documentos-{factura.name.replace('/', '-')}.pdf")
-        paginas = textos(contenido)
-        self.assertEqual(len(paginas), 3, 'una factura, su copia y la nota de entrega')
-        self.assertIn(factura.name, paginas[0])
-        self.assertNotIn('COPIA EMPRESA', paginas[0], 'la del cliente va sin la cinta')
-        self.assertIn(factura.name, paginas[1])
-        self.assertIn('COPIA EMPRESA', paginas[1], 'la copia de la empresa lleva la cinta')
-        self.assertIn(entrega.name, paginas[2])
-
-    def test_pdf_de_varias_ventas_va_venta_por_venta(self):
-        pedido_a, factura_a = self._venta()
-        pedido_b, factura_b = self._venta(cantidad=2)
-        contenido, nombre = self.Paquete.with_context(force_report_rendering=True)._armar_pdf(
-            factura_a | factura_b, ['cliente', 'copia', 'entrega'])
-        self.assertEqual(nombre, 'Documentos-2-facturas.pdf')
-        paginas = textos(contenido)
-        self.assertEqual(len(paginas), 6)
-        esperado = [(factura_a.name, False), (factura_a.name, True), (pedido_a.picking_ids.name, False),
-                    (factura_b.name, False), (factura_b.name, True), (pedido_b.picking_ids.name, False)]
-        for pagina, (texto, con_cinta) in zip(paginas, esperado, strict=True):
-            self.assertIn(texto, pagina)
-            self.assertEqual('COPIA EMPRESA' in pagina, con_cinta, texto)
 
     # --- Qué entra y en qué orden (PDF de mentira, rápido) --------------------------------------
 

@@ -84,12 +84,14 @@ class ReporteContable(models.AbstractModel):
 
     @api.model
     def _hoy(self):
-        """Hoy en la hora de Panamá (o la de quien mira, si tiene una).
+        """Hoy en la zona de la persona (la de Panamá si no tiene una configurada).
 
         Un servidor en UTC ya está en «mañana» desde las 7 p. m. de Panamá: sin esto, «Hoy» y todo lo que
-        se mide contra hoy (lo vencido, el periodo por defecto) saldrían un día adelantados por la noche.
+        se mide contra hoy (lo vencido, el periodo por defecto) saldrían un día adelantados por la noche. Se usa
+        la zona del usuario y no la del navegador (el contexto): una computadora de la tienda con la hora
+        del sistema en UTC no debe cambiarle el día a la contabilidad.
         """
-        zona = self.env.context.get('tz') or self.env.user.tz or ZONA_PANAMA
+        zona = self.env.user.tz or ZONA_PANAMA
         return fields.Date.context_today(self.with_context(tz=zona))
 
     @api.model
@@ -126,6 +128,14 @@ class ReporteContable(models.AbstractModel):
     def _moneda(self):
         moneda = self.env.company.currency_id
         return {'simbolo': moneda.symbol, 'antes': moneda.position == 'before', 'decimales': moneda.decimal_places}
+
+    @api.model
+    def _dinero(self, valor):
+        """«$1,234.50» (y «($1,234.50)» si es negativo), igual que lo muestra la pantalla."""
+        moneda = self.env.company.currency_id
+        texto = f'{abs(valor):,.{moneda.decimal_places}f}'
+        texto = f'{moneda.symbol}{texto}' if moneda.position == 'before' else f'{texto} {moneda.symbol}'
+        return f'({texto})' if valor < 0 else texto
 
     @api.model
     def _r(self, valor):
@@ -657,29 +667,35 @@ class ReporteContable(models.AbstractModel):
                   'saldo': self._r(sumas.get(d.default_account_id, (0, 0, 0))[2]),
                   'sin_conciliar': Linea.search_count([('journal_id', '=', d.id), ('is_reconciled', '=', False),
                                                        ('date', '<=', hasta)]),
-                  'pagos_sin_cruzar': pagos.get(d.id, {}).get('cantidad', 0),
-                  'monto_sin_cruzar': pagos.get(d.id, {}).get('monto', 0.0)}
+                  **{k: pagos.get(d.id, {}).get(k, 0) for k in ('cobros', 'egresos')},
+                  **{k: pagos.get(d.id, {}).get(k, 0.0) for k in ('monto_cobros', 'monto_egresos')}}
                  for d in diarios]
         for fila in filas:
+            fila['pagos_sin_cruzar'] = fila['cobros'] + fila['egresos']
+            fila['monto_sin_cruzar'] = self._r(fila['monto_cobros'] - fila['monto_egresos'])
             fila['por_conciliar'] = fila['sin_conciliar'] + fila['pagos_sin_cruzar']
         # Una cuenta de efectivo que ningún diario usa también es dinero: el total nunca difiere del balance general.
         resto = self._r(sum(sumas.get(c, (0, 0, 0))[2] for c in efectivo - diarios.default_account_id))
         if resto:
             filas.append({'id': False, 'nombre': 'Otras cuentas de efectivo', 'tipo': 'otro', 'cuenta_id': False,
-                          'saldo': resto, 'sin_conciliar': 0, 'pagos_sin_cruzar': 0, 'monto_sin_cruzar': 0.0,
-                          'por_conciliar': 0})
+                          'saldo': resto, 'sin_conciliar': 0, 'cobros': 0, 'egresos': 0, 'monto_cobros': 0.0,
+                          'monto_egresos': 0.0, 'pagos_sin_cruzar': 0, 'monto_sin_cruzar': 0.0, 'por_conciliar': 0})
         return filas
 
     @api.model
     def _pagos_sin_cruzar(self, hasta):
-        """{diario_id: {'cantidad', 'monto'}}: cobros (+) y pagos (−) registrados con fecha hasta el corte que el banco
-        todavía no confirma (siguen en «Recibos/Pagos pendientes»)."""
+        """{diario_id: cobros y pagos registrados con fecha hasta el corte que el banco todavía no confirma (siguen en
+        «Recibos/Pagos pendientes»)}: cantidad y monto de los cobros (entradas) y de los pagos (salidas)."""
         pagos = self.env['account.payment'].search([
             ('company_id', 'in', self.env.companies.ids), ('date', '<=', hasta), ('is_matched', '=', False),
             ('state', 'in', ('in_process', 'paid')), ('journal_id.type', 'in', ('bank', 'cash'))])
         resultado = {}
         for diario, grupo in pagos.grouped('journal_id').items():
-            resultado[diario.id] = {'cantidad': len(grupo), 'monto': self._r(sum(grupo.mapped('amount_signed')))}
+            cobros = grupo.filtered(lambda p: p.payment_type == 'inbound')
+            salidas = grupo - cobros
+            resultado[diario.id] = {
+                'cobros': len(cobros), 'monto_cobros': self._r(sum(cobros.mapped('amount_signed'))),
+                'egresos': len(salidas), 'monto_egresos': self._r(-sum(salidas.mapped('amount_signed')))}
         return resultado
 
     @staticmethod
@@ -712,6 +728,8 @@ class ReporteContable(models.AbstractModel):
         sin_conciliar = sum(b['sin_conciliar'] for b in bancos)
         pagos_n = sum(b['pagos_sin_cruzar'] for b in bancos)
         pagos_monto = self._r(sum(b['monto_sin_cruzar'] for b in bancos))
+        cobros_n, cobros_monto = sum(b['cobros'] for b in bancos), self._r(sum(b['monto_cobros'] for b in bancos))
+        egresos_n, egresos_monto = sum(b['egresos'] for b in bancos), self._r(sum(b['monto_egresos'] for b in bancos))
         borradores_n = self.env['account.move'].search_count([
             ('state', '=', 'draft'), ('date', '<=', hasta), ('company_id', 'in', self.env.companies.ids)])
         alertas = []
@@ -722,7 +740,7 @@ class ReporteContable(models.AbstractModel):
         if pagos_n:
             alertas.append({'nivel': 'aviso', 'destino': 'conciliacion',
                             'texto': f'{self._plural(pagos_n, "cobro o pago registrado", "cobros o pagos registrados")}'
-                                     ' que el banco aún no confirma: cuando llegue el movimiento, concílialo.'})
+                                     ' sin cruzar con su movimiento del banco o la caja: cuando llegue, concílialo.'})
         if cobrar['totales']['vencido'] > 0:
             alertas.append({'nivel': 'aviso', 'destino': 'por_cobrar',
                             'texto': 'Hay cobros vencidos: mira quién te debe en «Por cobrar».'})
@@ -732,16 +750,18 @@ class ReporteContable(models.AbstractModel):
                             'texto': f'{documentos} en borrador (no cuentan en los reportes).'})
         bloqueo = self.env.company.fiscalyear_lock_date
         # «Todo conciliado» solo si de verdad no queda nada por cruzar: ni movimientos del banco ni cobros/pagos.
-        pendientes = []
+        notas = []
         if sin_conciliar:
-            pendientes.append(f'{self._plural(sin_conciliar, "movimiento por conciliar", "movimientos por conciliar")}')
-        if pagos_n:
-            pendientes.append(f'{self._plural(pagos_n, "cobro o pago", "cobros o pagos")} sin cruzar con el banco')
+            notas.append(f'{self._plural(sin_conciliar, "movimiento", "movimientos")} por conciliar')
+        if cobros_n:
+            notas.append(f'{self._plural(cobros_n, "cobro", "cobros")} sin cruzar: {self._dinero(cobros_monto)}')
+        if egresos_n:
+            notas.append(f'{self._plural(egresos_n, "pago", "pagos")} sin cruzar: {self._dinero(egresos_monto)}')
         base_saldo = {'base': 'saldo', 'al': str(hasta)}
         base_periodo = {'base': 'periodo', 'desde': str(desde), 'hasta': str(hasta)}
         tarjetas = [
             {'clave': 'bancos', 'titulo': 'Dinero en bancos y caja', 'valor': self._r(sum(b['saldo'] for b in bancos)),
-             'nota': ' · '.join(pendientes) if pendientes else 'Todo conciliado',
+             'nota': ' · '.join(notas) if notas else 'Todo conciliado', 'notas': notas or ['Todo conciliado'],
              'sin_conciliar': sin_conciliar, 'pagos_sin_cruzar': pagos_n, 'monto_sin_cruzar': pagos_monto,
              **base_saldo},
             {'clave': 'por_cobrar', 'titulo': 'Te deben', 'valor': cobrar['totales']['total'],

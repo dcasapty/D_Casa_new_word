@@ -278,7 +278,8 @@ proveedores.» Ahora cada producto tiene **dos códigos distintos** y no se mezc
 - **Dónde se ve en la oficina:** en la ficha del producto, junto a la referencia interna; como columna en la lista de
   Productos (se puede esconder desde el selector de columnas); y se **busca** escribiéndolo en el buscador de Productos,
   en el campo «Producto» de una cotización, en el Escáner y en Brian. Sirve en mayúsculas o minúsculas, con o sin guion,
-  y también un pedazo («K7M4»). Así la vendedora encuentra el mueble cuando el cliente le dice el código.
+  y también un pedazo («K7M4»). Así la vendedora encuentra el mueble cuando el cliente le dice el código. (La lista
+  aparte de «Variantes» de Inventario no lo busca todavía: se usa Productos.)
 - **Si de verdad hace falta cambiarlo:** solo un administrador, en la ficha del producto, con el botón **Regenerar**
   junto al código (pide confirmar). El código viejo deja de servir y queda anotado en el historial del producto.
 - **Qué ve el cliente en el sitio:** «Código: DC-K7M4PX» debajo del nombre en la ficha; el botón de WhatsApp de la ficha

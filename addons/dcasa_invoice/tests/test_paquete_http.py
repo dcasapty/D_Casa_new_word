@@ -1,4 +1,6 @@
 """El PDF del «Imprimir documentos» por la web (/dcasa/paquete.pdf) y el botón en el navegador."""
+import shutil
+from unittest import skipUnless
 from unittest.mock import patch
 
 from odoo import Command, fields
@@ -6,7 +8,7 @@ from odoo.tests import HttpCase, tagged
 
 from ..models import paquete
 from ..wizard.impresion_paquete import DcasaImpresionPaquete
-from .test_paquete import _renderizar_falso, textos
+from .test_paquete import _flujo_de_la_pagina, _renderizar_falso, textos, textos_de_pdf_real, tiene_la_cinta
 
 CLAVE = 'Prueba-123456'
 
@@ -197,6 +199,54 @@ class TestPaqueteHttp(PaqueteHttpComun):
         self.assertIn('No hay facturas de clientes publicadas', respuesta.text)
         respuesta = self.url_open('/dcasa/paquete.pdf?facturas=999999999&docs=cliente', allow_redirects=False)
         self.assertEqual(respuesta.status_code, 400)
+
+
+@tagged('post_install', '-at_install')
+@skipUnless(shutil.which('wkhtmltopdf'), 'sin wkhtmltopdf (la imagen Docker lo comprueba en CI)')
+class TestPaquetePdfDeVerdad(PaqueteHttpComun):
+    """Con wkhtmltopdf de verdad (en HttpCase, para que los estilos y las fuentes se carguen del propio Odoo)."""
+
+    def _paginas(self, contenido):
+        lector = paquete._leer(contenido)
+        return [_flujo_de_la_pagina(pagina) for pagina in paquete._paginas(lector)]
+
+    def test_pdf_de_una_venta_trae_factura_copia_y_entrega_en_orden(self):
+        pedido, factura = self._venta()
+        entrega = pedido.picking_ids
+        self.assertEqual(entrega.picking_type_code, 'outgoing')
+        contenido, nombre = self.env['dcasa.impresion.paquete'].with_context(force_report_rendering=True)._armar_pdf(
+            factura, ['cliente', 'copia', 'entrega'])
+        self.assertTrue(contenido.startswith(b'%PDF'))
+        self.assertEqual(nombre, f"Documentos-{factura.name.replace('/', '-')}.pdf")
+        self.assertIn(b'Anton', contenido, 'salió con los estilos de D\'CASA (wkhtmltopdf cargó el CSS)')
+        flujos = self._paginas(contenido)
+        self.assertEqual(len(flujos), 3, 'una factura, su copia y la nota de entrega')
+        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, True, False],
+                         'solo la copia de la empresa lleva la cinta')
+        paginas = textos_de_pdf_real(contenido)
+        if paginas is not None:
+            self.assertEqual(len(paginas), 3)
+            self.assertIn(factura.name, paginas[0])
+            self.assertIn(factura.name, paginas[1])
+            self.assertIn('COPIA EMPRESA', paginas[1])
+            self.assertNotIn('COPIA EMPRESA', paginas[0] + paginas[2])
+            self.assertIn(entrega.name, paginas[2])
+
+    def test_pdf_de_varias_ventas_va_venta_por_venta(self):
+        pedido_a, factura_a = self._venta()
+        pedido_b, factura_b = self._venta()
+        contenido, nombre = self.env['dcasa.impresion.paquete'].with_context(force_report_rendering=True)._armar_pdf(
+            factura_a | factura_b, ['cliente', 'copia', 'entrega'])
+        self.assertEqual(nombre, 'Documentos-2-facturas.pdf')
+        flujos = self._paginas(contenido)
+        self.assertEqual(len(flujos), 6)
+        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, True, False] * 2)
+        paginas = textos_de_pdf_real(contenido)
+        if paginas is not None:
+            esperado = [factura_a.name, factura_a.name, pedido_a.picking_ids.name,
+                        factura_b.name, factura_b.name, pedido_b.picking_ids.name]
+            for pagina, texto in zip(paginas, esperado, strict=True):
+                self.assertIn(texto, pagina)
 
 
 @tagged('post_install', '-at_install')

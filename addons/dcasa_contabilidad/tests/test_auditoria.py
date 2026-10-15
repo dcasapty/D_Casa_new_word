@@ -175,11 +175,13 @@ class TestAtajosDeFechas(ContabilidadCommon):
         Usuario = self.env['res.users']
         sin_zona = Usuario.create({'name': 'Sin zona', 'login': 'sin_zona_rep', 'tz': False})
         madrid = Usuario.create({'name': 'En Madrid', 'login': 'madrid_rep', 'tz': 'Europe/Madrid'})
-        motor = self.env['dcasa.reporte.contable'].with_context(tz=False)
+        motor = self.env['dcasa.reporte.contable']
         with freeze_time('2031-10-15 02:00:00'):
             self.assertEqual(motor.with_user(sin_zona)._hoy(), d('2031-10-14'))
             self.assertEqual(motor.with_user(sin_zona)._atajos(motor.with_user(sin_zona)._hoy())[0]['hasta'],
                              '2031-10-14')
+            # La zona del navegador (contexto) no cambia el día: una computadora con la hora en UTC es la misma Panamá.
+            self.assertEqual(motor.with_user(sin_zona).with_context(tz='UTC')._hoy(), d('2031-10-14'))
             # Con zona propia manda la de la persona (Madrid ya está en el 15).
             self.assertEqual(motor.with_user(madrid)._hoy(), d('2031-10-15'))
 

@@ -88,6 +88,8 @@ class TestHerramientas(TransactionCase):
             'partner_id': self.cliente.id, 'user_id': self.vendedor.id,
             'order_line': [Command.create({'product_id': self.sofa.product_variant_id.id, 'product_uom_qty': 2})]})
         orden.action_confirm()
+        # «Vendido» es lo facturado por completo (2026-10-15): confirmada y por facturar todavía no suma.
+        orden._create_invoices().action_post()
         datos = self.ok(self.ejecutar(self.vendedor, 'reporte_del_dia'))
         tablero = self.env['dcasa.tablero'].with_user(self.vendedor).obtener_datos()
         vendido = next(x for x in tablero['cifras'] if x['clave'] == 'ventas_hoy')
