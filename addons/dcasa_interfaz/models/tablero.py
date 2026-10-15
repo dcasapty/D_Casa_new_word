@@ -84,15 +84,16 @@ class DcasaTablero(models.AbstractModel):
     # ------------------------------------------------------------------
 
     def _atajos(self, permisos):
-        """Los accesos grandes del Inicio, en este orden: Productos, Facturas, Conversaciones, Oportunidades y
-        Resumen contable.
+        """Los accesos grandes del Inicio, en este orden: Productos, Facturas, Conversaciones, Escáner, Oportunidades
+        y Resumen contable.
 
         Solo los que quien mira puede abrir. Conversaciones, Oportunidades y el Resumen contable viven en otros
         módulos: si no están instalados (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista
         con la que abre. Productos es la lista donde se ordena y filtra por stock, precio y categoría
         (dcasa_catalogo): marketing arma ahí las campañas. Facturas es la lista de facturas a clientes (la misma de
         Facturación › Clientes › Facturas). Quien vende sin controlar (``permisos['completo']`` en falso) tiene solo
-        Productos, Facturas y Conversaciones; Oportunidades y el Resumen contable son de quien controla la tienda.
+        Productos, Facturas, Conversaciones y Escáner; Oportunidades y el Resumen contable son de quien controla la
+        tienda.
         """
         atajos = []
         if permisos['catalogo'] and self.env.ref('sale.product_template_action', raise_if_not_found=False):
@@ -113,6 +114,13 @@ class DcasaTablero(models.AbstractModel):
                 'detalle': 'Todo al día' if not sin_leer else f'{sin_leer} sin leer',
                 'icono': 'fa-comments', 'accion': 'dcasa_conversaciones.accion_conversaciones', 'vista': None,
                 'cuenta': sin_leer})
+        # El Escáner (dcasa_barras) es para todos los que mueven mercancía: el mismo permiso que su menú de Inventario.
+        # Vive en otro módulo: si no está instalado, simplemente no sale.
+        if self.env.user.has_group('stock.group_stock_user') \
+                and self.env.ref('dcasa_barras.accion_escaner', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'escaner', 'titulo': 'Escáner', 'detalle': 'Lee un código de barras o QR',
+                'icono': 'fa-barcode', 'accion': 'dcasa_barras.accion_escaner', 'vista': None})
         if not permisos['completo']:
             return atajos
         oportunidades = self.env.get('crm.lead')

@@ -45,6 +45,7 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
         'views/report_qr.xml',
         'views/report_compra.xml',
         'views/report_entrega.xml',
+        'views/report_entrega_facil.xml',
         'views/res_company_views.xml',
         'views/paquete_views.xml',
         'data/report_layout_data.xml',

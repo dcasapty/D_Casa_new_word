@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Nota de entrega FÁCIL DE LEER (la que va a bodega). Solo con «Nota de entrega fácil de leer» encendida en la
+         empresa (apagada, la nota sale exactamente como siempre; ver views/report_entrega.xml).
+
+         Pensada para personas con dislexia, autismo, poca lectura u otro idioma: lo importante se ve, no se lee.
+         * Cada producto: casilla para marcar, FOTO grande, nombre y código en letra grande y la cantidad como
+           número grande y como una fila de dibujitos (uno por pieza). Sin foto: un recuadro que dice «Sin foto».
+         * Todo en el mismo orden y lugar, siempre; frases cortas y literales; nada de mayúsculas largas, cursivas ni
+           subrayados; el color nunca es lo único que dice algo (la casilla y los números también).
+         * Abajo: total de piezas, lo que falta entregar (si hay) y dos rayas: quién sacó y quién recibió.
+         Variables: o (la entrega, ya armada por ``_dcasa_para_imprimir``). -->
+
+    <!-- Una fila de producto. Variables: l (la línea), con_casilla. -->
+    <template id="dcasa_entrega_facil_fila" name="D'CASA: fila de la nota de entrega fácil">
+        <tr class="o_df_linea">
+            <td class="o_df_c_marca">
+                <div t-if="con_casilla" class="o_df_casilla"/>
+            </td>
+            <td class="o_df_c_foto">
+                <img t-if="l['foto']" class="o_df_foto" t-att-src="l['foto']" t-att-alt="l['nombre']"/>
+                <div t-else="" class="o_df_sin_foto"><span>Sin foto</span></div>
+            </td>
+            <td class="o_df_c_producto">
+                <div class="o_df_nombre" t-out="l['nombre']"/>
+                <div t-if="l['codigo']" class="o_df_codigo">
+                    <span class="o_df_etiqueta">Código</span>
+                    <span class="o_df_codigo_valor" t-out="l['codigo']"/>
+                </div>
+                <div t-if="l['descripcion']" class="o_df_detalle" t-out="l['descripcion']"/>
+            </td>
+            <td class="o_df_c_cantidad">
+                <div class="o_df_cantidad">
+                    <span class="o_df_numero" t-out="l['texto_cantidad']"/>
+                    <span t-if="l['unidad']" class="o_df_unidad" t-out="l['unidad']"/>
+                </div>
+                <div t-if="l['iconos']" class="o_df_iconos">
+                    <t t-foreach="range(l['iconos'])" t-as="pieza">
+                        <img t-if="l['foto_chica']" class="o_df_icono" t-att-src="l['foto_chica']" alt=""/>
+                        <span t-else="" class="o_df_icono o_df_icono_caja"/>
+                    </t>
+                    <span t-if="l['hay_mas']" class="o_df_mas">+</span>
+                </div>
+                <div t-if="l['falta']" class="o_df_falta">Faltan <t t-out="l['falta']"/></div>
+            </td>
+        </tr>
+    </template>
+
+    <template id="dcasa_entrega_facil" name="D'CASA: nota de entrega fácil de leer">
+        <t t-set="df_lineas" t-value="o._dcasa_lineas_entrega_facil()"/>
+        <t t-set="df_pendientes" t-value="o._dcasa_lineas_entrega_facil(pendientes=True)"/>
+        <t t-set="df_facturas" t-value="o._dcasa_facturas_para_entrega()"/>
+        <h2 class="o_df_titulo">
+            Nota de entrega <span class="o_df_numero_nota" t-out="o.name"/>
+        </h2>
+        <table class="o_df_datos">
+            <tr>
+                <td><div class="o_df_etiqueta">Pedido</div><div class="o_df_dato" t-out="o.origin or '—'"/></td>
+                <td><div class="o_df_etiqueta">Factura</div><div class="o_df_dato" t-out="', '.join(df_facturas) or '—'"/></td>
+                <td><div class="o_df_etiqueta">Fecha</div><div class="o_df_dato" t-out="o._dcasa_fecha_para_entrega() or '—'"/></td>
+            </tr>
+        </table>
+        <table class="o_df_pasos">
+            <tr>
+                <td><span class="o_df_paso_n">1</span> Busca la foto</td>
+                <td><span class="o_df_paso_n">2</span> Cuenta las piezas</td>
+                <td><span class="o_df_paso_n">3</span> Marca el cuadro</td>
+            </tr>
+        </table>
+        <table class="o_df_lineas" name="dcasa_entrega_facil_lineas">
+            <thead>
+                <tr>
+                    <th class="o_df_c_marca">Listo</th>
+                    <th class="o_df_c_foto">Foto</th>
+                    <th class="o_df_c_producto">Producto</th>
+                    <th class="o_df_c_cantidad">Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                <t t-foreach="df_lineas" t-as="l">
+                    <t t-call="dcasa_invoice.dcasa_entrega_facil_fila"><t t-set="con_casilla" t-value="True"/></t>
+                </t>
+            </tbody>
+        </table>
+        <div class="o_df_cierre">
+        <table t-if="df_lineas" class="o_df_total">
+            <tr>
+                <td class="o_df_total_texto">Total de piezas</td>
+                <td class="o_df_total_numero" t-out="o._dcasa_total_piezas_entrega_facil(df_lineas)"/>
+            </tr>
+        </table>
+        <div t-if="df_pendientes" class="o_df_pendientes">
+            <h3 class="o_df_subtitulo">Falta entregar después</h3>
+            <table class="o_df_lineas">
+                <tbody>
+                    <t t-foreach="df_pendientes" t-as="l">
+                        <t t-call="dcasa_invoice.dcasa_entrega_facil_fila"><t t-set="con_casilla" t-value="False"/></t>
+                    </t>
+                </tbody>
+            </table>
+        </div>
+        <table class="o_df_firmas">
+            <tr>
+                <td><div class="o_df_etiqueta">Sacó de bodega</div><div class="o_df_raya"/></td>
+                <td>
+                    <div class="o_df_etiqueta">Recibió</div>
+                    <img t-if="o.signature" class="o_df_firma" t-att-src="image_data_uri(o.signature)" alt="Firma"/>
+                    <div t-else="" class="o_df_raya"/>
+                </td>
+            </tr>
+        </table>
+        </div>
+    </template>
+
+    <!-- Con el interruptor encendido el cuerpo estándar de la nota de entrega no se imprime (apagado: sale tal cual,
+         con ``t-if`` verdadero); el cuerpo fácil de leer va justo después, con el mismo QR de uso interno. -->
+    <template id="report_delivery_document_dcasa_facil" inherit_id="dcasa_invoice.report_delivery_document_dcasa"
+              priority="20">
+        <xpath expr="//div[hasclass('page')]" position="attributes">
+            <attribute name="t-if">not o._dcasa_entrega_facil_activa()</attribute>
+        </xpath>
+        <xpath expr="//div[hasclass('page')]" position="after">
+            <div t-else="" class="page o_dcasa_entrega_facil" name="dcasa_entrega_facil">
+                <t t-call="dcasa_invoice.dcasa_entrega_facil"/>
+                <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="o"/></t>
+            </div>
+        </xpath>
+    </template>
+</odoo>

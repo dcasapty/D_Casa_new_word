@@ -327,7 +327,7 @@ class TestInicioPorRol(VentasCommon):
         self.assertEqual(claves[:2], ['productos', 'facturas'])
         self.assertNotIn('oportunidades', claves, 'Oportunidades es de quien controla la tienda')
         self.assertNotIn('resumen_contable', claves)
-        self.assertEqual(set(claves) - {'conversaciones'}, {'productos', 'facturas'})
+        self.assertEqual(set(claves) - {'conversaciones', 'escaner'}, {'productos', 'facturas'})
         facturas = next(a for a in atajos if a['clave'] == 'facturas')
         self.assertEqual(facturas['accion'], 'account.action_move_out_invoice_type')
         self.assertEqual(facturas['vista'], 'list')
@@ -340,7 +340,7 @@ class TestInicioPorRol(VentasCommon):
     def test_atajos_de_gerencia_en_el_orden_pedido(self):
         atajos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()['atajos']
         claves = [a['clave'] for a in atajos]
-        esperado = ['productos', 'facturas', 'conversaciones', 'oportunidades', 'resumen_contable']
+        esperado = ['productos', 'facturas', 'conversaciones', 'escaner', 'oportunidades', 'resumen_contable']
         # Conversaciones, Oportunidades y el Resumen contable viven en otros módulos: si falta alguno no sale.
         self.assertEqual(claves, [c for c in esperado if c in claves])
         self.assertEqual(claves[:2], ['productos', 'facturas'])
@@ -373,9 +373,13 @@ class TestInicioPorRol(VentasCommon):
     def test_la_plantilla_oculta_a_la_vendedora_lo_que_no_es_suyo(self):
         with open(file_path('dcasa_interfaz/static/src/xml/inicio.xml'), encoding='utf-8') as plantilla:
             xml = plantilla.read()
+        # Quien vende cotiza: «Nueva cotización» es de todos y es el botón principal; la factura suelta, sin cotización,
+        # solo es de quien controla (no tiene pedido ni nota de entrega).
+        self.assertIn('o_dcasa_nueva_cotizacion', xml)
+        self.assertIn('<button t-if="d.permisos.cotizar" class="btn btn-primary o_dcasa_nueva_cotizacion"', xml)
         self.assertIn('o_dcasa_nueva_factura', xml)
         self.assertIn("'account.move', {default_move_type: 'out_invoice'}", xml)
-        self.assertIn('t-if="d.permisos.cotizar and d.permisos.completo"', xml)
+        self.assertIn('t-if="d.permisos.facturar and d.permisos.completo"', xml)
         self.assertIn('<button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="verTienda">', xml)
         self.assertIn('<div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">', xml)
         self.assertIn('Así va tu día', xml)
@@ -510,11 +514,16 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
                 if (atajos.includes(fuera)) { throw new Error('la vendedora no debe ver el atajo ' + fuera); }
             }
             const botones = textos('.o_dcasa_inicio_accesos .btn');
-            for (const dentro of ['Nueva factura', 'Nuevo cliente']) {
+            for (const dentro of ['Nueva cotización', 'Nuevo cliente']) {
                 if (!botones.includes(dentro)) { throw new Error('falta el botón ' + dentro); }
             }
-            for (const fuera of ['Registrar cobro', 'Nueva cotización', 'Ver la tienda', 'Ver en el celular']) {
+            for (const fuera of ['Nueva factura', 'Registrar cobro', 'Ver la tienda', 'Ver en el celular']) {
                 if (botones.includes(fuera)) { throw new Error('la vendedora no debe ver el botón ' + fuera); }
+            }
+            // El botón principal (azul) es el de cotizar.
+            const principal = document.querySelector('.o_dcasa_inicio_accesos .btn-primary');
+            if (!principal || !principal.textContent.includes('Nueva cotización')) {
+                throw new Error('el botón principal de la vendedora debe ser «Nueva cotización»');
             }
             if (document.querySelector('.o_dcasa_panel')) { throw new Error('sin barras ni paneles de la tienda'); }
             if (document.body.innerText.includes('Cobrado hoy') || document.body.innerText.includes('Por cobrar')) {
@@ -532,7 +541,7 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
     def test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden(self):
         self.probar('gerencia_rol', """
             await esperar(() => document.querySelector('.o_dcasa_inicio .o_dcasa_cifra'), 'las cifras');
-            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Oportunidades', 'Resumen contable'];
+            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Escáner', 'Oportunidades', 'Resumen contable'];
             const atajos = textos('.o_dcasa_atajo strong');
             igual(atajos, orden.filter((t) => atajos.includes(t)), 'orden de los atajos');
             const titulos = textos('.o_dcasa_cifra .o_dcasa_cifra_titulo');

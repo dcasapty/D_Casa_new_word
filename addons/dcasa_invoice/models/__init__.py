@@ -1,5 +1,6 @@
 from . import formato
 from . import lineas
+from . import entrega_facil
 from . import account_move
 from . import account_move_line
 from . import ir_actions_report

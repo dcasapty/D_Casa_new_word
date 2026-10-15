@@ -422,3 +422,29 @@ Se pueden mandar fotos y documentos (hasta 10 MB): se guardan como adjuntos de l
 Las acciones sensibles llegan con el detalle exacto y botones **Permitir / Rechazar** (sin
 «Siempre»); solo el dueño del chat vinculado puede pulsarlos. Un chat no vinculado solo recibe las instrucciones para vincularse.
 Para cortar el acceso: `/desvincular` en el chat, o *Brian → Telegram* → *Desvincular*.
+
+#### Conectar el Telegram de la gerencia (paso a paso)
+
+Para que el jefe (o la dueña) hable con Brian por Telegram y reciba sus avisos. **No hace falta saber el ID de Telegram para
+vincular**: el vínculo es por código. El ID solo se usa en el paso 7.
+
+1. **Su usuario en Odoo** (Ajustes › Usuarios y empresas › Usuarios › Nuevo): nombre, correo, rol **D'CASA: Gerencia**. Para
+   recibir también los avisos de operación y de inicios de sesión de los demás, además **Administrador** (los avisos van a
+   los administradores con Telegram vinculado). Al guardar con correo, Odoo le manda la invitación para elegir clave.
+2. **Cloudflare Access**, solo si su entorno usa la puerta del equipo (hoy staging sí, producción no): su correo en la política
+   «Equipo D'CASA» ([SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) §8.3).
+3. **Él inicia sesión** con su usuario y activa el código de la app (Mis preferencias › Seguridad).
+4. **Él** abre *Mis preferencias* → **Vincular Telegram**: sale un código de 6 números (vence en 10 min, sirve una vez). El botón
+   solo vale para quien tiene la sesión abierta: no se puede hacer por otra persona.
+5. En su Telegram abre el bot de Brian (el @usuario sale en *Brian → Telegram*) y escribe `/vincular 123456`. Brian contesta
+   «Listo, <nombre>: este chat quedó vinculado a tu usuario».
+6. Prueba: escribirle «¿qué pendientes tengo hoy?». Brian responde con los permisos de ese usuario.
+7. **El ID (chat_id)**, para los avisos cuando el contenedor se cae (Odoo está apagado y no puede avisar): un administrador
+   lo lee en *Brian → Telegram* → abrir su fila → «Chat de Telegram» (solo lo ve un administrador). En un chat privado es el
+   mismo número que su ID de usuario de Telegram: también sale escribiéndole `/miid` al bot de Juan. En Cloudflare:
+   *Workers y Pages → dcasa → Settings → Variables and Secrets → Add → Type: Text*, nombre `DCASA_ALERTA_TELEGRAM_CHAT`,
+   valor el número → *Deploy*. (El despliegue usa `--keep-vars`: no se borra.) No va en el repositorio: es un dato de una persona.
+
+Lo que Brian avisa hoy a los administradores vinculados: inicios de sesión del personal, disco/memoria/base al límite, caídas del
+contenedor y las acciones que esperan permiso (con botones Permitir / Rechazar). Un resumen de ventas o de lo vencido por Telegram
+**no existe todavía**.

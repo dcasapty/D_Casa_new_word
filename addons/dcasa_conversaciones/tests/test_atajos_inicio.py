@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from odoo.tests import TransactionCase, new_test_user, tagged
 
-from .test_panel_interfaz import PanelUiCase
+from .test_panel_interfaz import GERENTE, PanelUiCase
 
 CONVERSACION = 'dcasa.conversacion'
 
@@ -103,4 +103,4 @@ class TestAtajosEnElNavegador(PanelUiCase):
             await esperar(() => document.querySelector(".o_search_panel"), "las categorías a la izquierda");
             console.log("test successful");
 })();
-        """, url='/odoo')
+        """, url='/odoo', login=GERENTE)  # Oportunidades es de Gerencia: la vendedora no lo ve

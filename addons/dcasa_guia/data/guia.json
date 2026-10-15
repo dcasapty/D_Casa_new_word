@@ -1192,6 +1192,7 @@
    "grupo": "Inventario",
    "titulo": "Usar el escáner de códigos de barras",
    "logras": "Pasas el lector por el producto y el sistema lo reconoce para contar, recibir o buscar.",
+   "nota": "También lo tienes como acceso directo «Escáner» en el Inicio.",
    "destino": {
     "menu": "dcasa_barras.menu_dcasa_escaner"
    },
@@ -2165,6 +2166,40 @@
     "factura",
     "cotizacion",
     "nota de entrega"
+   ]
+  },
+  {
+   "id": "nota-entrega-facil",
+   "categoria": "facturar",
+   "grupo": "Documentos",
+   "titulo": "Poner la nota de entrega fácil de leer para bodega",
+   "logras": "La nota de entrega sale con la foto de cada producto, la cantidad en número grande y en dibujitos, y una casilla para marcar, para que quien saca la mercancía no se confunda.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA», sección «Nota de entrega para bodega»: marca «Nota de entrega fácil de leer». Viene apagada: apagada, la nota de entrega sale como siempre. Un producto sin foto sale con un recuadro que dice «Sin foto»: ponle su foto al producto para que se vea.",
+   "palabras": [
+    "nota de entrega",
+    "bodega",
+    "foto del producto",
+    "accesibilidad",
+    "dislexia",
+    "imprimir documentos"
+   ]
+  },
+  {
+   "id": "actividad-boton",
+   "categoria": "facturar",
+   "grupo": "Documentos",
+   "titulo": "Ver los mensajes y las notas de un documento (botón Actividad)",
+   "logras": "Las cotizaciones, facturas y fichas abren con más espacio porque los mensajes y las notas arrancan escondidos; los muestras cuando los necesitas.",
+   "destino": null,
+   "nota": "Arriba del documento, junto al engranaje, toca «Actividad» para mostrar o esconder los mensajes, las notas y los seguidores. Cada persona deja lo que prefiere y el sistema lo recuerda en ese navegador. No se borra nada: solo se esconde.",
+   "palabras": [
+    "actividad",
+    "chatter",
+    "mensajes",
+    "notas",
+    "historial",
+    "seguidores"
    ]
   }
  ],
