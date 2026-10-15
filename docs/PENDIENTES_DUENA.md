@@ -85,6 +85,26 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     lanzamiento (Settings › General › Danger Zone › Change visibility); si se deja público, borrar esa factura del
     historial (reescribir historia, con cuidado) y no subir a `up media/` nada con datos de personas.
 
+20. **Ronda del 15 de octubre (qué te toca a ti).**
+    (a) **Reparto de conversaciones:** sigue apagado. Cuando lo pruebes, enciéndelo con el botón de Conversaciones › Reparto
+    (solo reciben las vendedoras; Gerencia y el Administrador intervienen pero no reciben). Ver [JUAN_PANEL.md](JUAN_PANEL.md).
+    (b) **QR y código público en la factura y la cotización:** vienen **apagados** (Ajustes › Empresas › D'CASA Panamá,
+    pestaña «Documentos D'CASA»). Antes de encenderlos, aprobar las imágenes del antes y el después. El QR de la nota de
+    entrega y del pedido de compra no toca la factura.
+    (c) **Imprimir sin cuadro** en la computadora de caja (opcional): abrir Chrome con `--kiosk-printing`; solo en esa
+    computadora. Probar el «Imprimir todo» en la computadora de caja con su navegador.
+    (d) **Cierre de mes:** un cobro sin cruzar lo impide (decisión de la dueña, 2026-10-15). Si el primer cierre se bloquea,
+    cruzar los cobros viejos en Conciliación › «Cobros y pagos sin movimiento».
+    (e) **Guía:** confirmar las listas «En tu puesto lo que más se usa» (se cambian en `addons/dcasa_guia/data/guia_roles.json`).
+    (f) **Después de borrar una factura de prueba que tenía un pago:** cancelar el pago aparte (Facturación › Clientes › Pagos).
+21. **Preguntas para la contadora (reenviarle):** están completas en [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md)
+    (C1 a C21): año fiscal, activo fijo e intangibles (¿largo plazo?), anticipos de cliente, préstamos, ITBMS (saldo a favor
+    que pasa de un mes a otro y retenciones), cobros sin cruzar y dinero en bancos, costo de ventas, ITBMS y dinero en
+    tránsito entre empresas, monedas y años fiscales distintos, presupuesto por mes.
+22. **La puerta `/master` y el «Iniciar sesión» de la web:** pendiente de hacer **con lupa antes de traspasar el dominio**.
+    Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
+    solo por su cuenta en la web y el personal solo por `/master`.
+
 ## Issues abiertos que dependen de ti
 
 | Issue | Qué falta |

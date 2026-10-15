@@ -149,6 +149,20 @@ class TestQrDocumentos(DocumentosDePrueba):
             self.assertEqual(self.html(informe, registro, quitar=('dcasa_qr',)), apagado,
                              f'{informe} {registro.name}: con el QR encendido cambió algo más que el QR')
 
+    def test_donde_va_el_qr(self):
+        """Con textos de garantía/cambios/términos, a su derecha (no pide más alto en la hoja); sin ellos, al final."""
+        self.interruptores(qr=True)
+        for informe, registro in ((INFORME_FACTURA, self.factura_completa()), (INFORME_COTIZACION, self.cotizacion())):
+            arbol = lxml_html.document_fromstring(self.html(informe, registro, normalizado=False))
+            self.assertEqual(len(arbol.xpath("//div[@name='dcasa_legales']//div[@name='dcasa_qr']")), 1, informe)
+            self.assertEqual(len(arbol.xpath("//div[@name='dcasa_qr']")), 1, informe)
+        self.company.write({'dcasa_factura_garantia': False, 'dcasa_factura_cambios': False,
+                            'dcasa_factura_terminos': False})
+        for informe, registro in ((INFORME_FACTURA, self.factura_completa()), (INFORME_COTIZACION, self.cotizacion())):
+            arbol = lxml_html.document_fromstring(self.html(informe, registro, normalizado=False))
+            self.assertFalse(arbol.xpath("//div[@name='dcasa_legales']"), informe)
+            self.assertEqual(len(arbol.xpath("//div[@name='dcasa_qr']")), 1, f'{informe}: sin textos, el QR va al final')
+
     def test_el_qr_es_una_imagen_cuadrada_y_distinta_por_documento(self):
         self.interruptores(qr=True)
         factura, otra = self.factura_completa(), self.factura_completa(abono=0)
