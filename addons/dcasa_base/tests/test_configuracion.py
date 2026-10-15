@@ -128,6 +128,10 @@ class TestConfiguracionTienda(TransactionCase):
         self.assertEqual(fin - inicio, timedelta(days=1))
         # Medianoche de Panamá = 5 a. m. UTC: el día no empieza a la medianoche UTC.
         self.assertEqual(inicio.hour, 5)
+        if 'dcasa_fecha_venta' in self.env['sale.order']._fields:
+            # Con dcasa_interfaz, «Ventas de hoy» cuenta lo facturado por completo en el día de su factura
+            # (dcasa_interfaz/tests/test_inicio_por_rol.py); aquí solo se vigila el día de Panamá.
+            return
         self.assertIn(('date_order', '>=', fields.Datetime.to_string(inicio)), accion['domain'])
         self.assertIn(('date_order', '<', fields.Datetime.to_string(fin)), accion['domain'])
 

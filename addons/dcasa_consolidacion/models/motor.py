@@ -74,6 +74,7 @@ class Armado:
         self.eliminado = defaultdict(lambda: [0.0] * 4)
         self.pares = defaultdict(float)
         self.sin_eliminar = defaultdict(float)
+        self.mapeadas = set()       # filas consolidadas a las que el mapa mandó al menos una cuenta
 
     def clave(self, empresa, cuenta):
         """La fila consolidada de una cuenta: el mapa manda sobre el código propio de la cuenta."""
@@ -83,6 +84,8 @@ class Armado:
         codigo = entrada.codigo_consolidado if entrada else codigo_propio
         nombre = entrada.nombre_consolidado if entrada and entrada.nombre_consolidado else cuenta.name
         clave = (seccion, codigo, '' if codigo else nombre)
+        if entrada:
+            self.mapeadas.add(clave)
         # El nombre de la fila: el del mapa, si lo tiene; si no, el de la primera empresa del grupo que la tiene.
         prioridad = (0 if entrada and entrada.nombre_consolidado else 1, self.posicion[empresa.id], codigo_propio)
         actual = self.filas.get(clave)
@@ -293,6 +296,42 @@ class DcasaConsolidacionMotor(models.AbstractModel):
                     cuenta=f'{cuenta.with_company(empresa).code or ""} {cuenta.name}'.strip()))
         return avisos
 
+    @api.model
+    def _cuentas_sin_equivalente(self, armado, empresas, mapa):
+        """Notas (no advertencias) sobre cuentas con saldo que solo tiene UNA empresa del grupo.
+
+        Una cuenta nunca se pierde: si no está en el mapa se une por su código y, si solo existe en una empresa,
+        aparece sola en su fila. Pero si en realidad es la misma cuenta que otra de otra empresa con otro código,
+        el consolidado las mostraría en dos filas: esta nota lo deja a la vista para que se una en el mapa.
+        No hay nota si la cuenta ya está en el mapa (alguien ya decidió) ni si el código existe en otra empresa.
+        """
+        if len(empresas) < 2:
+            return []
+        Cuenta = self.env['account.account']
+        empresas_del_codigo = defaultdict(set)      # código consolidado -> empresas que tienen una cuenta con él
+        for empresa in empresas:
+            for cuenta in Cuenta.with_company(empresa).search([('company_ids', 'in', empresa.id)]):
+                entrada = mapa.get((empresa.id, cuenta.id))
+                empresas_del_codigo[entrada.codigo_consolidado if entrada else (cuenta.code or '')].add(empresa.id)
+        solas = defaultdict(list)                   # empresa -> ['codigo nombre', ...]
+        for (empresa_id, clave), vector in sorted(armado.celdas.items(), key=lambda item: item[0][1][1:]):
+            seccion, codigo, nombre = clave
+            if not codigo or clave in armado.mapeadas or not any(vector):
+                continue
+            if empresas_del_codigo[codigo] == {empresa_id}:
+                solas[empresa_id].append(f'{codigo} {armado.filas[clave]["nombre"]}')
+        notas = []
+        for empresa in empresas:
+            cuentas = solas.get(empresa.id)
+            if cuentas:
+                lista = ', '.join(cuentas[:8]) + (self.env._(' y %s más', len(cuentas) - 8) if len(cuentas) > 8 else '')
+                notas.append(self.env._(
+                    '%(empresa)s tiene cuentas con saldo que ninguna otra empresa del grupo tiene (ni con ese código '
+                    'ni en el mapa): %(lista)s. Aparecen solas en su fila. Si alguna es la misma cuenta que otra de '
+                    'las demás empresas con otro código, únelas en «Mapa de cuentas (consolidación)»; si no, así '
+                    'está bien.', empresa=empresa.name, lista=lista))
+        return notas
+
     # ------------------------------------------------------------------
     # Cálculo
     # ------------------------------------------------------------------
@@ -322,13 +361,18 @@ class DcasaConsolidacionMotor(models.AbstractModel):
                 armado.sumar(empresa, cuenta, motor._vector(destino, debe, haber, saldo))
         motor._sinteticas(armado, empresas, tipo, desde, hasta)
         if len(empresas) > 1:
-            # Lo que una empresa hizo con otra del grupo: apuntes cuyo tercero es la ficha de la otra empresa.
+            # Lo que una empresa hizo con otra del grupo: apuntes cuyo tercero es la ficha de la otra empresa (o un
+            # contacto de esa ficha: el tercero de un asiento manual puede ser la persona que atiende, no la empresa).
+            # Las líneas de impuesto (ITBMS) llevan el tercero de la factura, pero no son una deuda con la otra
+            # empresa sino con la DGI: ni se eliminan ni se avisan.
             fichas = {empresa.partner_id.id: empresa for empresa in empresas}
             for dominio, destino in partes:
-                entre_empresas = Domain.AND([dominio, [('partner_id', 'in', list(fichas))]])
+                entre_empresas = Domain.AND([dominio, [('partner_id.commercial_partner_id', 'in', list(fichas)),
+                                                       ('tax_line_id', '=', False)]])
                 for empresa, cuenta, tercero, debe, haber, saldo in motor._sumas(entre_empresas, por_tercero=True):
-                    otra = fichas.get(tercero.id)
+                    otra = fichas.get(tercero.commercial_partner_id.id)
                     if otra and otra != empresa:
                         armado.eliminar(empresa, otra, cuenta, motor._vector(destino, debe, haber, saldo))
+        notas = motor._cuentas_sin_equivalente(armado, empresas, mapa)
         return {'filas': armado.filas_calculadas(moneda), 'advertencias': motor._avisos(armado, empresas, moneda),
-                'moneda': moneda}
+                'notas': notas, 'moneda': moneda}

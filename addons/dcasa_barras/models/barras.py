@@ -16,6 +16,7 @@ import math
 import re
 
 from odoo import api, models, tools
+from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.exceptions import AccessError, UserError
 
 LARGO_MAXIMO = 64            # un código más largo no es de un lector: se recorta
@@ -78,6 +79,10 @@ class DcasaBarras(models.AbstractModel):
     def buscar(self, codigo):
         """Lo que leyó el lector → ``{'resultado': 'ok'|'varios'|'no_encontrado'|'vacio', 'productos': [...]}``."""
         self._exigir_inventario()
+        # El QR de un documento (/dcasa/doc/FAC/INV/2026/00001) es largo: se reconoce ANTES de recortar el código.
+        documento = self._documento_de_la_lectura(codigo)
+        if documento:
+            return documento
         codigo = limpiar_codigo(codigo)
         if not codigo:
             return {'resultado': 'vacio', 'codigo': '', 'productos': [], 'forma': False}
@@ -94,17 +99,41 @@ class DcasaBarras(models.AbstractModel):
             'archivado': self._producto_archivado_con_codigo(codigo) if not productos else False,
         }
 
+    def _documento_de_la_lectura(self, texto):
+        """Si lo que leyó el lector es el código QR de un documento (``…/dcasa/doc/<TIPO>/<REFERENCIA>``): la acción
+        para abrirlo, si quien escanea puede verlo; si no, un aviso claro y nada del documento. ``None`` si no lo es.
+
+        ``resultado``: ``documento`` (trae ``accion``), ``documento_sin_permiso`` o ``documento_no_existe`` (traen
+        ``mensaje``). Los permisos son los de siempre: lo comprueba ``dcasa.documento``, no esta pantalla.
+        """
+        encontrado = self.env['dcasa.documento']._dcasa_resolver_texto(texto)
+        if encontrado is None:
+            return None
+        resultado = 'documento' if encontrado['estado'] == 'ok' else f"documento_{encontrado['estado']}"
+        return {'resultado': resultado, 'codigo': encontrado['referencia'], 'productos': [], 'forma': False,
+                'documento': encontrado}
+
     def _productos_por_codigo(self, codigo):
-        """(productos, cómo se encontró): código de barras, referencia, código de empaque o parecido sin símbolos."""
+        """(productos, cómo se encontró): código de barras, código público (DC-K7M4PX), referencia, código de
+        empaque o parecido sin símbolos."""
         Producto = self.env['product.product']
         escapado = codigo.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-        for forma, dominio in (
-                ('codigo_de_barras', [('barcode', '=', codigo)]),
-                # Las etiquetas se guardan en mayúsculas; un lector con las mayúsculas invertidas escribe «dc0001».
-                ('codigo_de_barras', [('barcode', '=ilike', escapado)]),
-                ('referencia', [('default_code', '=ilike', escapado)]),
-                ('empaque', [('product_uom_ids.barcode', '=', codigo)]),
-        ):
+        publico = normalizar_codigo_publico(codigo)   # con o sin guion y en minúsculas, como lo escriba el lector
+        intentos = [
+            ('codigo_de_barras', [('barcode', '=', codigo)]),
+            # Las etiquetas se guardan en mayúsculas; un lector con las mayúsculas invertidas escribe «dc0001».
+            ('codigo_de_barras', [('barcode', '=ilike', escapado)]),
+        ]
+        if publico:
+            # El código que ve el cliente es del producto: lo comparten todas sus medidas y colores, por eso pueden
+            # salir «varios» para elegir. Nunca se confunde con una etiqueta del rollo (DC0001…): lleva guion, 6
+            # símbolos y al menos una letra.
+            intentos.append(('codigo_publico', [('dcasa_codigo_publico', '=', publico)]))
+        intentos += [
+            ('referencia', [('default_code', '=ilike', escapado)]),
+            ('empaque', [('product_uom_ids.barcode', '=', codigo)]),
+        ]
+        for forma, dominio in intentos:
             encontrados = Producto.search(dominio, limit=MAXIMO_CANDIDATOS + 1)
             if encontrados:
                 return encontrados, forma
@@ -175,6 +204,7 @@ class DcasaBarras(models.AbstractModel):
             'id': producto.id,
             'nombre': producto.display_name,
             'referencia': producto.default_code or '',
+            'codigo_publico': producto.dcasa_codigo_publico or '',
             'codigo_de_barras': producto.barcode or '',
             'imagen': f'/web/image/product.product/{producto.id}/image_256',
             'precio': producto.lst_price,

@@ -117,7 +117,8 @@ class TestPantalla(BaseCase):
     def test_la_pantalla_tiene_las_preguntas_y_botones_clave(self):
         with open(file_path('dcasa_guia/static/src/xml/guia.xml'), encoding='utf-8') as archivo:
             xml = archivo.read()
-        for texto in ('¿Qué necesitas hacer hoy?', 'Qué vas a lograr', 'Preguntarle a Brian', 'Ir ahora',
+        # «Ir ahora» pasó a ser «Llévame ahí»; test_llevame.py vigila el botón nuevo.
+        for texto in ('¿Qué necesitas hacer hoy?', 'Qué vas a lograr', 'Preguntarle a Brian', 'Llévame ahí',
                       'Escoge un tema', 'Lo que más se necesita', 'Todos los temas', 'Dónde queda'):
             with self.subTest(texto):
                 self.assertIn(texto, xml)

@@ -3,3 +3,5 @@ from . import test_contar
 from . import test_asignacion
 from . import test_etiquetas
 from . import test_escaner_ui
+from . import test_codigo_publico
+from . import test_documento_qr

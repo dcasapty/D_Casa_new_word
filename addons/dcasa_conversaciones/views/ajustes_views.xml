@@ -98,6 +98,7 @@
                             <field name="pausa_por_defecto_minutos"/>
                             <field name="responsable_id" options="{'no_create': True}"/>
                             <field name="reparto_modo"/>
+                            <field name="reparto_dias_misma_vendedora" invisible="reparto_modo != 'parejo'"/>
                             <field name="resumen_ia_activo"/>
                             <field name="busqueda_semantica"/>
                             <field name="usuarios_aviso_ids" widget="many2many_tags" options="{'no_create': True}"/>

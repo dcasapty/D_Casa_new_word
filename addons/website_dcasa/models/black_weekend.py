@@ -175,7 +175,7 @@ class Website(models.Model):
                 # Producto con colores: el precio de la variante que se muestra (el mismo cálculo de Odoo).
                 precio = variante.with_context(website_id=self.id)._get_combination_info_variant()['price'] \
                     if con_tarifa else variante.lst_price
-            codigo = variante.default_code or producto.default_code or ''
+            codigo = producto.dcasa_codigo_publico or ''   # el del cliente; la referencia del proveedor no sale
             precio_visible = bool(precio or not self.prevent_zero_price_sale)
             directo = acceso and precio_visible and (
                 self._dcasa_compra_directa(producto, precio) or self._dcasa_variante_directa(producto, variante))

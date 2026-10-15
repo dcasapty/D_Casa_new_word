@@ -32,6 +32,8 @@ from . import (
     test_presencia,
     test_publico,
     test_reparto,
+    test_reparto_justo,
+    test_reparto_pantalla,
     test_resumen_ia,
     test_reglas_clientes,
     test_seguimiento,

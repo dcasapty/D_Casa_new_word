@@ -27,10 +27,13 @@ las ventas y la tienda web.
   entran como productos (publicados solo con foto); combos con colchón sin publicar.
 * Stock ordenable en Productos (campo dcasa_stock, guardado en cada producto): la lista de Productos ordena, filtra
   y suma por stock, precio y categoría para elegir qué empujar en una campaña; Productos abre en lista.
+* Código público (DC-K7M4PX) a la vista en la ficha del producto, columna opcional en la lista y buscable en
+  Productos y en las cotizaciones (el campo y el sorteo viven en dcasa_base). Esta versión se lo da a los
+  productos que ya existían. Ver docs/CATALOGO.md.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.9.0',
+    'version': '19.0.1.10.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -40,6 +43,7 @@ las ventas y la tienda web.
         'data/product_category_data.xml',
         'data/product_public_category_data.xml',
         'views/backend_views.xml',
+        'views/codigo_publico_views.xml',
         'views/product_templates.xml',
     ],
     'assets': {

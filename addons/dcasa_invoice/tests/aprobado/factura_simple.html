@@ -1,0 +1,258 @@
+<body class="o_body_html container overflow-x-hidden" dir="ltr">
+<div id="wrapwrap">
+<main>
+<div class="header o_company_1_layout o_dcasa_header">
+<div class="d-flex justify-content-between align-items-start">
+<img class="o_dcasa_logo" alt="Logo" src="data:IMAGEN">
+<ul class="list-unstyled text-end mb-0 o_dcasa_company" name="company_address_list">
+<li class="fw-bold">D'CASA Panamá</li>
+<li>Frente al Parque Libertadores</li>
+<li>Diagonal a la Discoteca Seven</li>
+<li> La Chorrera, Panamá </li>
+<li> RUC: <span>155779346-2-2026 DV7</span>
+</li>
+</ul>
+</div>
+<div class="o_dcasa_band">
+</div>
+</div>
+<div class="article o_report_layout_standard o_report_layout_dcasa o_table_standard o_company_1_layout" data-oe-model="account.move" data-oe-id="N" data-oe-lang="en_US">
+<h2 class="o_dcasa_title">
+<span> Factura</span>
+<span>INV/AAAA/NNNNN</span>
+</h2>
+<div class="o_dcasa_cabecera row mb-3" name="dcasa_cabecera">
+<div name="address" class="col-12">
+<div class="row o_dcasa_rejilla" name="dcasa_rejilla">
+<div class="col-4 o_dcasa_celda" name="dcasa_celda_cliente">
+<div class="o_dcasa_cliente" name="dcasa_cliente">
+<div class="o_dcasa_bloque_titulo">Cliente</div>
+<div class="o_dcasa_cliente_nombre">CLIENTE DE PRUEBA</div>
+<div name="dcasa_cliente_identificacion"> Cédula: <span>8-000-0000</span>
+</div>
+<div name="dcasa_cliente_telefono">Tel.: <span>6123-4567</span>
+</div>
+<div name="dcasa_cliente_correo">cliente@example.com</div>
+<div>Calle 5, Barrio Balboa</div>
+<div>La Chorrera</div>
+<div>Panamá</div>
+</div>
+</div>
+<div class="col-4 o_dcasa_celda" name="dcasa_celda_entrega">
+<div class="o_dcasa_cliente" name="dcasa_cliente">
+<div class="o_dcasa_bloque_titulo">Entrega</div>
+<div class="o_dcasa_cliente_nombre">Casa de Karen</div>
+<div name="dcasa_cliente_telefono">Tel.: <span>6999-0000</span>
+</div>
+<div>Villa Lucre, casa 12</div>
+<div>Arraiján</div>
+<div>Panamá</div>
+</div>
+</div>
+<div class="col-4 o_dcasa_celda o_dcasa_datos" name="dcasa_celda_datos">
+<table class="o_dcasa_tabla_datos">
+<tr>
+<th>Fecha de factura</th>
+<td>14/10/2026</td>
+</tr>
+<tr>
+<th>Vendedor/a</th>
+<td>Ana Vendedora</td>
+</tr>
+<tr>
+<th>Medio de pago</th>
+<td>Banco de prueba</td>
+</tr>
+</table>
+</div>
+</div>
+</div>
+</div>
+<div class="clearfix invoice_main">
+<div class="page mb-4">
+<div class="oe_structure">
+</div>
+<div id="informations" class="row mb-4 d-none">
+<div class="col" name="invoice_date">
+<strong>Invoice Date</strong>
+<div>10/14/2026</div>
+</div>
+<div class="col" name="due_date">
+<strong>Due Date</strong>
+<div>10/14/2026</div>
+</div>
+</div>
+<div class="oe_structure">
+</div>
+<table class="o_has_total_table table o_main_table table-borderless mb-0" name="invoice_line_table">
+<thead style="">
+<tr>
+<th name="th_codigo" class="text-start o_dcasa_th_codigo">
+<span>Código</span>
+</th>
+<th name="th_description" class="text-start">
+<span>Descripción</span>
+</th>
+<th name="th_quantity" class="text-end">
+<span>Cantidad</span>
+</th>
+<th name="th_priceunit" class="text-end text-nowrap d-none d-md-table-cell">
+<span>Precio unitario</span>
+<div class="o_dcasa_th_nota">sin ITBMS</div>
+</th>
+<th name="th_taxes" class="text-end d-none d-md-table-cell">
+<span>ITBMS</span>
+</th>
+<th name="th_subtotal" class="text-end">
+<span>Importe</span>
+<div class="o_dcasa_th_nota">sin ITBMS</div>
+</th>
+</tr>
+</thead>
+<tbody class="invoice_tbody">
+<tr class="">
+<td name="td_codigo" class="o_dcasa_td_codigo">IM-2001</td>
+<td name="account_invoice_line_name" class="">
+<span dir="auto" data-oe-type="text" data-oe-expression="line._dcasa_descripcion()">COLCHON IMPERIAL TWIN 3/4 BUEN SUEÑO</span>
+</td>
+<td name="td_quantity" class="o_td_quantity text-end">
+<span class="text-nowrap">1</span>
+</td>
+<td name="td_price_unit" class="text-end d-none d-md-table-cell">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="line.price_unit">$<span class="oe_currency_value">81.99</span>
+</span>
+</td>
+<td name="td_taxes" class="text-end text-nowrap">
+<span id="line_tax_ids">7%</span>
+</td>
+<td name="td_subtotal" class="text-end o_price_total">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="line.price_total if dcasa_con_itbms else line.price_subtotal">$<span class="oe_currency_value">81.99</span>
+</span>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="overflow-hidden">
+<div id="right-elements" class="col-12 col-md-5 ms-5 d-inline-block float-end">
+<div id="total" class="clearfix row">
+<div class="ms-auto">
+<table class="o_total_table table table-borderless avoid-page-break-inside">
+<tr class="o_subtotal">
+<td>
+<span>Subtotal sin ITBMS</span>
+</td>
+<td class="text-end">
+<span data-oe-type="monetary" data-oe-expression="subtotal['base_amount_currency']">$<span class="oe_currency_value">81.99</span>
+</span>
+</td>
+</tr>
+<tr class="o_taxes">
+<td style="max-width: 200px;">
+<span>ITBMS 7%</span>
+</td>
+<td class="text-end o_price_total">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="tax_group['tax_amount_currency']">$<span class="oe_currency_value">5.74</span>
+</span>
+</td>
+</tr>
+<tr class="o_total">
+<td>
+<strong>Total</strong>
+</td>
+<td class="text-end">
+<strong data-oe-type="monetary" data-oe-expression="tax_totals['total_amount_currency']">$<span class="oe_currency_value">87.73</span>
+</strong>
+</td>
+</tr>
+<tr class="o_dcasa_abono">
+<td>Abono del 14/10/2026 · Banco de prueba</td>
+<td class="text-end">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="abono['monto']">$<span class="oe_currency_value">87.73</span>
+</span>
+</td>
+</tr>
+<tr class="o_dcasa_pagado">
+<td>Pagado</td>
+<td class="text-end">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="o._dcasa_pagado()">$<span class="oe_currency_value">87.73</span>
+</span>
+</td>
+</tr>
+<tr class="fw-bold o_dcasa_por_pagar">
+<td>Por pagar</td>
+<td class="text-end">
+<span class="text-nowrap">$<span class="oe_currency_value">0.00</span>
+</span>
+</td>
+</tr>
+</table>
+</div>
+</div>
+<div class="mb-2">
+<p class="text-end lh-sm o_dcasa_en_letras"> Son: <br>
+<small class="text-muted lh-sm">
+<span>Ochenta y Siete Dólares con 73/100</span>
+</small>
+</p>
+</div>
+<div class="oe_structure">
+</div>
+</div>
+<div class="o_dcasa_pago o_dcasa_izquierda avoid-page-break-inside" name="dcasa_pago">
+<strong>Pagada el 14/10/2026</strong> · Banco de prueba · Saldo <span class="text-nowrap" data-oe-type="monetary" data-oe-expression="o.amount_residual">$<span class="oe_currency_value">0.00</span>
+</span>
+</div>
+<div id="payment_term" class="clearfix mt-3 o_dcasa_izquierda">
+<div class="justify-text">
+</div>
+<div class="justify-text">
+</div>
+<div class="mb-3">
+<br>
+</div>
+<div name="qr_code_placeholder" class="oe_structure">
+</div>
+<div class="oe_structure">
+</div>
+</div>
+</div>
+<div class="o_dcasa_legales avoid-page-break-inside" name="dcasa_legales">
+<div class="o_dcasa_legal">
+<strong>Garantía</strong>
+<span data-oe-type="text" data-oe-expression="bloque[1]">Garantía de prueba.</span>
+</div>
+<div class="o_dcasa_legal">
+<strong>Cambios y devoluciones</strong>
+<span data-oe-type="text" data-oe-expression="bloque[1]">Cambios de prueba.</span>
+</div>
+<div class="o_dcasa_legal">
+<strong>Términos</strong>
+<span data-oe-type="text" data-oe-expression="bloque[1]">Términos de prueba.</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="footer o_company_1_layout o_dcasa_footer mt-auto">
+<div class="d-flex justify-content-between align-items-start">
+<div class="o_dcasa_contact">
+<div>
+<span class="o_dcasa_contact_item">WhatsApp +507 6026-1919</span>
+<span class="o_dcasa_contact_item">info@dcasapty.com</span>
+<span class="o_dcasa_contact_item">dcasapty.com</span>
+</div>
+<div>
+<span class="o_dcasa_contact_item">RUC 155779346-2-2026 DV7</span>
+<span class="o_dcasa_contact_item">Frente al Parque Libertadores, Diagonal a la Discoteca Seven, La Chorrera</span>
+</div>
+</div>
+<div class="text-end">
+<div class="o_dcasa_tagline">
+<p>Tu casa, bien amueblada.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body>

@@ -472,12 +472,15 @@ export function conCookieDePuerta(respuesta: Response, setCookie: string): Respo
 }
 
 /**
- * ¿Es el login PÚBLICO al que Odoo manda a quien perdió la sesión del panel (`/web/login?redirect=/odoo…`)? El
+ * ¿Es el login PÚBLICO al que Odoo manda a quien perdió la sesión del panel (`/web/login?redirect=/odoo…` o
+ * `redirect=/dcasa/doc/…`, el QR de un documento)? El
  * personal ya no inicia sesión ahí: se le lleva a la página del equipo. El segundo paso del código (`/web/login/totp`)
  * y el login de clientes (sin `redirect` hacia el panel) no se tocan.
  */
 export function esLoginPublicoDelPanel(request: Request, rutaNormalizada: string): boolean {
   if (request.method !== "GET" || rutaNormalizada !== "/web/login") return false;
   const destino = new URL(request.url).searchParams.get("redirect") ?? "";
-  return /^\/odoo(?:[/?#]|$)/i.test(destino);
+  // `/dcasa/doc/…` es el QR de un documento (uso interno): quien lo escanea sin sesión llega a este login y, si es del
+  // equipo, debe ir a la página del equipo igual que con `/odoo…`.
+  return /^\/(?:odoo|dcasa\/doc)(?:[/?#]|$)/i.test(destino);
 }

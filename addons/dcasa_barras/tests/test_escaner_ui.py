@@ -303,8 +303,74 @@ CODIGO_SIN_ASIGNAR = """
 """
 
 
+# El lector escribe la dirección del QR de un documento: con permiso se abre el documento; sin permiso, un aviso.
+CODIGO_DOCUMENTO = """
+(async () => {
+    const esperar = async (fn, que, ms = 30000) => {
+        const inicio = Date.now();
+        while (Date.now() - inicio < ms) {
+            const r = fn();
+            if (r) { return r; }
+            await new Promise((ok) => setTimeout(ok, 100));
+        }
+        throw new Error("Escáner (documento): no apareció " + que);
+    };
+    const escribir = (el, valor) => {
+        el.value = valor;
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const campo = await esperar(() => document.querySelector(".o_dcasa_escaner_texto"), "el cuadro del lector");
+    const falla = (texto) => { throw new Error("Escáner (documento): " + texto); };
+    const leer = (url) => {
+        escribir(campo, url);
+        campo.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+    };
+    if (__PERMITIDO__) {
+        leer("__URL__");
+        const formulario = await esperar(() => document.querySelector(".o_form_view"), "el formulario del documento");
+        await esperar(() => formulario.textContent.includes("__NOMBRE__"), "el nombre del documento en el formulario");
+        if (document.querySelector(".o_dcasa_escaner")) { falla("el Escáner debía cerrarse al abrir el documento"); }
+    } else {
+        leer("__URL__");
+        const aviso = await esperar(() => document.querySelector(".o_dcasa_msg_error"), "el aviso de sin permiso");
+        if (!aviso.textContent.includes("No tienes permiso")) { falla("aviso " + aviso.textContent); }
+        if (document.body.textContent.includes("__NOMBRE__")) { falla("salió el número del documento"); }
+        if (document.querySelector(".o_form_view")) { falla("no debía abrir nada"); }
+        // Y un producto se sigue escaneando como siempre.
+        leer("ZZT-CAMA-1");
+        await esperar(() => document.querySelector(".o_dcasa_ficha_nombre"), "la tarjeta del producto");
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+
+
 @tagged('post_install', '-at_install')
 class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
+
+    def _factura_con_qr(self):
+        """Una factura de cliente publicada y la dirección de su QR (Inventario no lee facturas)."""
+        cliente = self.env['res.partner'].create({'name': 'CLIENTE DEL QR'})
+        factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': cliente.id, 'invoice_date': '2026-10-14',
+            'invoice_line_ids': [(0, 0, {'product_id': self.cama.id, 'quantity': 1, 'price_unit': 10.0})]})
+        factura.action_post()
+        base = self.env['ir.config_parameter'].sudo().get_param('web.base.url')
+        return factura, f'{base}/dcasa/doc/FAC/{factura.name}'
+
+    def test_el_qr_de_un_documento_abre_el_documento(self):
+        factura, url = self._factura_con_qr()
+        codigo = CODIGO_DOCUMENTO.replace('__PERMITIDO__', 'true').replace('__URL__', url) \
+            .replace('__NOMBRE__', factura.name)
+        self.browser_js('/odoo/action-dcasa_barras.accion_escaner', codigo, ready='odoo.isReady',
+                        login='admin', timeout=120)
+
+    def test_el_qr_de_un_documento_sin_permiso_solo_avisa(self):
+        factura, url = self._factura_con_qr()
+        codigo = CODIGO_DOCUMENTO.replace('__PERMITIDO__', 'false').replace('__URL__', url) \
+            .replace('__NOMBRE__', factura.name)
+        self.browser_js('/odoo/action-dcasa_barras.accion_escaner', codigo, ready='odoo.isReady',
+                        login='barras_vendedora', timeout=120)
 
     def test_escanear_y_contar(self):
         self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO, ready='odoo.isReady',

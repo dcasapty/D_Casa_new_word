@@ -4,3 +4,4 @@ from . import test_black_weekend
 from . import test_inventario_anterior
 from . import test_producto_stock
 from . import test_combos_venta
+from . import test_codigo_publico

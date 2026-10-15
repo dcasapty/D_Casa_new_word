@@ -9,6 +9,7 @@ publicados y se puede deshacer con «Deshacer conciliación».
 Se asume la moneda de la empresa (USD), que es la de todos los bancos de D'CASA.
 """
 import re
+from datetime import timedelta
 
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError
@@ -267,6 +268,27 @@ class AccountBankStatementLine(models.Model):
         return hechos
 
 
+class AccountPayment(models.Model):
+    _inherit = 'account.payment'
+
+    @api.model
+    def _dcasa_esperan_su_movimiento(self, hasta=None, diarios=None):
+        """Cobros y pagos registrados con «Registrar pago» que el banco o la caja todavía no tienen.
+
+        Quedan en «Recibos/Pagos pendientes» y no suman al dinero del banco hasta que se cruzan con su movimiento. Es la
+        misma regla que usa la tarjeta «Todo conciliado» (``dcasa.reporte.contable._pagos_sin_cruzar``, que da la
+        cuenta y el monto); aquí salen los registros para poder cruzarlos. Una prueba vigila que las dos den siempre
+        lo mismo.
+        """
+        dominio = [('company_id', 'in', self.env.companies.ids), ('is_matched', '=', False),
+                   ('state', 'in', ('in_process', 'paid')), ('journal_id.type', 'in', ('bank', 'cash'))]
+        if hasta:
+            dominio.append(('date', '<=', hasta))
+        if diarios:
+            dominio.append(('journal_id', 'in', diarios.ids))
+        return self.search(dominio, order='date, id')
+
+
 class AccountJournal(models.Model):
     _inherit = 'account.journal'
 
@@ -307,8 +329,10 @@ class DcasaConciliacion(models.AbstractModel):
         diarios = self.env['account.journal'].search([('type', 'in', ('bank', 'cash')),
                                                       ('company_id', 'in', self.env.companies.ids)])
         Linea = self.env['account.bank.statement.line']
+        esperando = self.env['account.payment']._dcasa_esperan_su_movimiento(diarios=diarios).grouped('journal_id')
         return [{'id': d.id, 'nombre': d.name, 'tipo': d.type,
-                 'pendientes': Linea.search_count([('journal_id', '=', d.id), ('is_reconciled', '=', False)])}
+                 'pendientes': Linea.search_count([('journal_id', '=', d.id), ('is_reconciled', '=', False)]),
+                 'pagos_sin_cruzar': len(esperando.get(d, ()))}
                 for d in diarios]
 
     @api.model
@@ -319,6 +343,60 @@ class DcasaConciliacion(models.AbstractModel):
         return [{'id': ln.id, 'fecha': str(ln.date), 'concepto': ln.payment_ref or '', 'monto': ln.amount,
                  'tercero': ln.partner_id.display_name or '', 'tercero_id': ln.partner_id.id,
                  'pendiente': -ln.amount_residual} for ln in lineas]
+
+    @api.model
+    def _pago_fila(self, pago):
+        facturas = (pago.reconciled_invoice_ids | pago.reconciled_bill_ids).mapped('name')
+        return {
+            'id': pago.id, 'fecha': str(pago.date), 'documento': pago.name or '',
+            'tercero': pago.partner_id.display_name or '', 'facturas': ', '.join(n for n in facturas if n),
+            'monto': pago.amount_signed, 'tipo': 'cobro' if pago.payment_type == 'inbound' else 'pago',
+            'metodo': pago.payment_method_line_id.name or '', 'referencia': pago.memo or '',
+        }
+
+    @api.model
+    def pagos_por_cruzar(self, journal_id):
+        """Cobros y pagos registrados («Registrar pago» en una factura) que esperan su movimiento en este diario.
+
+        Sin movimiento de la caja o del banco no tienen con qué cruzarse en la lista de arriba: aquí se ven y se cruzan.
+        """
+        _exigir_contador(self.env)
+        diario = self.env['account.journal'].browse(journal_id)
+        pagos = self.env['account.payment']._dcasa_esperan_su_movimiento(diarios=diario)
+        return [self._pago_fila(p) for p in pagos.sorted(lambda p: (p.date, p.id), reverse=True)[:300]]
+
+    @api.model
+    def cruzar_pago(self, pago_id):
+        """Crea el movimiento de la caja o del banco por lo que dice el cobro o pago y lo cruza con él.
+
+        Es lo mismo que hacer a mano «Movimiento» + «Conciliar»: entra (o sale) el dinero de la cuenta del diario y sale
+        de «Recibos/Pagos pendientes». Si el mes de la fecha del pago ya está cerrado, el movimiento lleva el primer día
+        abierto (no se toca un mes cerrado).
+        """
+        _exigir_contador(self.env)
+        Pago = self.env['account.payment']
+        pago = Pago.browse(pago_id).exists()
+        if not pago or pago not in Pago._dcasa_esperan_su_movimiento(diarios=pago.journal_id):
+            raise UserError(self.env._('Este cobro o pago ya no está esperando su movimiento: actualiza la pantalla.'))
+        empresa = pago.company_id
+        if pago.currency_id != empresa.currency_id:
+            raise UserError(self.env._('Este pago está en otra moneda (%s): cruza su movimiento desde el extracto.',
+                                       pago.currency_id.name))
+        pendientes = pago.move_id.line_ids.filtered(
+            lambda ln: ln.account_id == pago.outstanding_account_id and not ln.reconciled)
+        if not pendientes:
+            raise UserError(self.env._('Este pago no tiene nada pendiente de cruzar.'))
+        fecha = pago.date
+        bloqueos = [d for d in (empresa.fiscalyear_lock_date, empresa.hard_lock_date) if d]
+        if bloqueos and fecha <= max(bloqueos):
+            fecha = max(bloqueos) + timedelta(days=1)
+        detalle = ' · '.join(t for t in (pago.memo, pago.partner_id.name) if t) or pago.name
+        linea = self.env['account.bank.statement.line'].with_company(empresa).create({
+            'journal_id': pago.journal_id.id, 'date': fecha, 'amount': pago.amount_signed,
+            'payment_ref': detalle, 'partner_id': pago.partner_id.id})
+        linea.dcasa_conciliar(apunte_ids=pendientes.ids)
+        return {'conciliado': linea.is_reconciled, 'fecha': str(fecha), 'fecha_ajustada': fecha != pago.date,
+                'movimiento': linea.move_id.name}
 
     @api.model
     def candidatos(self, linea_id, busqueda=None):

@@ -72,6 +72,18 @@ class TestDiagnosticoDeSalud(BaseCase):
             registro.error('error %s', numero)
         self.assertEqual(len(ultimos), diagnostico.MAXIMO_ERRORES)
 
+    def test_una_consulta_fallida_guarda_la_causa_de_postgresql_y_no_la_consulta(self):
+        ultimos = deque(maxlen=5)
+        registro = logging.getLogger('prueba.diagnostico.sql')
+        registro.propagate = False
+        registro.addHandler(diagnostico.GuardarErrores(ultimos))
+        consulta = 'SELECT ' + ', '.join(f'"res_users"."campo_{n}"' for n in range(40)) + ' FROM "res_users"'
+        registro.error('bad query: %s\nERROR: %s', consulta, 'column res_users.dcasa_x does not exist\nLINE 1: SELECT')
+        self.assertEqual(len(ultimos), 1)
+        self.assertIn('column res_users.dcasa_x does not exist', ultimos[0])
+        self.assertNotIn('campo_0', ultimos[0])
+        self.assertLessEqual(len(ultimos[0]), diagnostico.LARGO_MENSAJE + 40)
+
     def test_solo_actua_en_staging(self):
         self.assertFalse(diagnostico.instalar('produccion'))
         self.assertFalse(diagnostico.instalar(''))

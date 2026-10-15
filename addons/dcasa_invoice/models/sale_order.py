@@ -42,7 +42,7 @@ class SaleOrder(models.Model):
             ('Válida hasta', self._dcasa_fecha(self.validity_date) if cotizacion else ''),
             ('Fecha de entrega', self._dcasa_fecha(self.commitment_date)),
             ('Tu referencia', self.client_order_ref),
-            ('Vendedora', self.user_id.name),
+            ('Vendedor/a', self.user_id.name),
             ('Condiciones', self.payment_term_id.name),
         ]
         return [(etiqueta, valor) for etiqueta, valor in datos if valor]
@@ -73,7 +73,8 @@ class SaleOrderLine(models.Model):
 
     def _dcasa_codigo(self):
         self.ensure_one()
-        return lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        codigo = lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        return lineas.codigo_a_imprimir(self.order_id.company_id, self.product_id, codigo)
 
     def _dcasa_descripcion(self):
         self.ensure_one()

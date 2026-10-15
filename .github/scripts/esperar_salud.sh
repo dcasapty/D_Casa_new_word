@@ -46,7 +46,7 @@ while (( $(date +%s) < limite )); do
     cat "$cuerpo"; echo
     exit 0
   fi
-  echo "Todavía no (HTTP ${codigo:-sin respuesta}): $(head -c 300 "$cuerpo" 2>/dev/null || true)"
+  echo "Todavía no (HTTP ${codigo:-sin respuesta}): $(head -c 1500 "$cuerpo" 2>/dev/null || true)"
   sleep 15
 done
 

@@ -77,11 +77,21 @@
          empresa (Ajustes → Empresas → pestaña Documentos D'CASA). Vacíos, no se imprimen. -->
     <template id="dcasa_bloques_legales" name="D'CASA: garantía, cambios y términos">
         <t t-set="dcasa_legales" t-value="empresa._dcasa_bloques_legales()"/>
+        <!-- El QR de uso interno (si la empresa lo enciende) va a la derecha de estos textos, en la misma franja: así no
+             pide más alto en la hoja y no manda un cuadro suelto a una página nueva. Variable: qr_registro (el
+             documento). Sin QR, no se imprime nada y el bloque queda como siempre. -->
+        <t t-set="dcasa_qr_src" t-value="qr_registro._dcasa_qr_src() if qr_registro else ''"/>
         <div t-if="dcasa_legales" class="o_dcasa_legales avoid-page-break-inside" name="dcasa_legales">
+            <div t-if="dcasa_qr_src" class="o_dcasa_qr o_dcasa_qr_flotante" name="dcasa_qr">
+                <img class="o_dcasa_qr_img" t-att-src="dcasa_qr_src" alt="Código QR de uso interno"
+                     style="width: 22mm; height: 22mm;"/>
+                <div class="o_dcasa_qr_texto">Uso interno</div>
+            </div>
             <div t-foreach="dcasa_legales" t-as="bloque" class="o_dcasa_legal">
                 <strong t-out="bloque[0]"/>
                 <span t-out="bloque[1]" t-options="{'widget': 'text'}"/>
             </div>
+            <div t-if="dcasa_qr_src" class="o_dcasa_qr_limpio" name="dcasa_qr_limpio"/>
         </div>
     </template>
 
@@ -265,7 +275,17 @@
 
         <!-- Garantía · Cambios · Términos de la empresa, a todo lo ancho, al final -->
         <xpath expr="//div[@id='payment_term']/.." position="after">
-            <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="o.company_id"/></t>
+            <t t-call="dcasa_invoice.dcasa_bloques_legales">
+                <t t-set="empresa" t-value="o.company_id"/><t t-set="qr_registro" t-value="o"/>
+            </t>
+        </xpath>
+
+        <!-- QR de uso interno: con textos de garantía/cambios/términos va a su derecha (ver arriba); sin ellos, al final
+             de la hoja. Solo si la empresa lo enciende (apagado, no se imprime nada). -->
+        <xpath expr="//div[hasclass('page')]" position="inside">
+            <t t-if="not o.company_id._dcasa_bloques_legales()" t-call="dcasa_invoice.dcasa_qr_documento">
+                <t t-set="registro" t-value="o"/>
+            </t>
         </xpath>
     </template>
 
@@ -371,7 +391,16 @@
             <attribute name="t-out">doc._dcasa_nota()</attribute>
         </xpath>
         <xpath expr="//div[@name='so_total_summary']" position="after">
-            <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="doc.company_id"/></t>
+            <t t-call="dcasa_invoice.dcasa_bloques_legales">
+                <t t-set="empresa" t-value="doc.company_id"/><t t-set="qr_registro" t-value="doc"/>
+            </t>
+        </xpath>
+        <!-- QR de uso interno: a la derecha de los textos de la empresa o, si no hay, al final de la hoja. Solo si la
+             empresa lo enciende. -->
+        <xpath expr="//div[hasclass('page')]" position="inside">
+            <t t-if="not doc.company_id._dcasa_bloques_legales()" t-call="dcasa_invoice.dcasa_qr_documento">
+                <t t-set="registro" t-value="doc"/>
+            </t>
         </xpath>
     </template>
 </odoo>

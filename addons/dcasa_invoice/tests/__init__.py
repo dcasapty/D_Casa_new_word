@@ -2,3 +2,11 @@ from . import test_dcasa_invoice
 from . import test_formato
 from . import test_factura_completa
 from . import test_pdf_con_estilos
+from . import test_paquete
+from . import test_paquete_http
+from . import test_panel_facturas
+from . import test_documentos_intactos
+from . import test_qr_documentos
+from . import test_codigo_publico_documentos
+from . import test_documento_ruta
+from . import test_qr_paquete

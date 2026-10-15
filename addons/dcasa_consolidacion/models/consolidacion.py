@@ -17,7 +17,8 @@ TIPOS_REPORTE = [('resultados', 'Estado de resultados'), ('balance', 'Balance ge
                  ('comprobacion', 'Balance de comprobación')]
 # Solo los cambian «Calcular» y «Volver a borrador»: así nadie puede dejar una consolidación «calculada» con
 # líneas o advertencias a su gusto (por RPC el ``readonly`` de la vista no frena nada).
-CAMPOS_DEL_CALCULO = frozenset({'estado', 'advertencias', 'calculada_por', 'calculada_el', 'linea_ids'})
+CAMPOS_DEL_CALCULO = frozenset({'estado', 'advertencias', 'cuentas_sin_equivalente', 'calculada_por', 'calculada_el',
+                                'linea_ids'})
 # Con la consolidación calculada, lo que la define no se toca (las líneas dejarían de corresponderle).
 CAMPOS_DE_ENTRADA = frozenset({'company_ids', 'tipo_reporte', 'fecha_desde', 'fecha_hasta'})
 # Cómo suma cada sección a la utilidad neta: la utilidad es ingresos − costos − gastos.
@@ -30,7 +31,7 @@ SELECCION_SECCIONES = [(clave, datos['titulo']) for clave, datos in SECCIONES.it
 class DcasaConsolidacion(models.Model):
     _name = 'dcasa.consolidacion'
     _description = 'Consolidación de estados financieros'
-    _inherit = ['mail.thread']
+    _inherit = ['mail.thread', 'dcasa.atajo.fechas']
     _order = 'fecha_hasta desc, id desc'
 
     name = fields.Char('Nombre', required=True, tracking=True,
@@ -41,6 +42,9 @@ class DcasaConsolidacion(models.Model):
         help='Las empresas que se suman. Solo puedes incluir empresas a las que tienes acceso; para elegir otra, '
              'actívala antes en el selector de empresas (arriba a la derecha). Todas deben usar la misma moneda.')
     empresas_resumen = fields.Char('Empresas', compute='_compute_empresas_resumen')
+    periodo_texto = fields.Char('Periodo', compute='_compute_periodo_texto',
+                                help='El balance general es «al» último día (no usa el «Desde»); los demás reportes '
+                                     'son «del» primer día «al» último.')
     tipo_reporte = fields.Selection(TIPOS_REPORTE, 'Reporte', required=True, default='resultados', tracking=True)
     fecha_desde = fields.Date('Desde', required=True, tracking=True,
                               default=lambda self: fields.Date.context_today(self).replace(day=1),
@@ -52,6 +56,10 @@ class DcasaConsolidacion(models.Model):
     calculada_el = fields.Datetime('Calculada el', readonly=True, copy=False)
     advertencias = fields.Text('Advertencias', readonly=True, copy=False,
                                help='Lo que el cálculo encontró y que alguien debe revisar. Una por línea.')
+    cuentas_sin_equivalente = fields.Text(
+        'Cuentas sin equivalente en las otras empresas', readonly=True, copy=False,
+        help='Cuentas con saldo que solo tiene una empresa y no están en el mapa. No es un error: aparecen solas en '
+             'su fila. Sirve para ver si falta unirlas en el mapa de cuentas. Una por línea.')
     linea_ids = fields.One2many('dcasa.consolidacion.linea', 'consolidacion_id', 'Líneas', readonly=True, copy=False)
     currency_id = fields.Many2one('res.currency', compute='_compute_currency_id', store=True)
     monedas_distintas = fields.Boolean(compute='_compute_avisos_de_empresas')
@@ -81,6 +89,22 @@ class DcasaConsolidacion(models.Model):
     def _compute_empresas_resumen(self):
         for consolidacion in self:
             consolidacion.empresas_resumen = ', '.join(consolidacion.sudo().company_ids.sorted('id').mapped('name'))
+
+    @api.depends('tipo_reporte', 'fecha_desde', 'fecha_hasta')
+    def _compute_periodo_texto(self):
+        """«Al 31/03/2030» (balance, un saldo), «El 12/03/2030» (un solo día) o «Del 01/03/2030 al 31/03/2030»."""
+        formato = '%d/%m/%Y'
+        for consolidacion in self:
+            desde, hasta = consolidacion.fecha_desde, consolidacion.fecha_hasta
+            if not (desde and hasta):
+                consolidacion.periodo_texto = False
+            elif consolidacion.tipo_reporte == 'balance':
+                consolidacion.periodo_texto = self.env._('Al %s', hasta.strftime(formato))
+            elif desde == hasta:
+                consolidacion.periodo_texto = self.env._('El %s', hasta.strftime(formato))
+            else:
+                consolidacion.periodo_texto = self.env._('Del %(desde)s al %(hasta)s', desde=desde.strftime(formato),
+                                                         hasta=hasta.strftime(formato))
 
     @api.depends('company_ids.currency_id')
     def _compute_currency_id(self):
@@ -171,7 +195,8 @@ class DcasaConsolidacion(models.Model):
         for consolidacion in self:
             consolidacion.check_access('write')
             consolidacion.sudo().write({'estado': 'borrador', 'linea_ids': [Command.clear()], 'advertencias': False,
-                                        'calculada_por': False, 'calculada_el': False})
+                                        'cuentas_sin_equivalente': False, 'calculada_por': False,
+                                        'calculada_el': False})
             consolidacion.message_post(body=self.env._('Vuelta a borrador: las líneas calculadas se descartaron.'))
         return True
 
@@ -201,6 +226,7 @@ class DcasaConsolidacion(models.Model):
         consolidacion.write({
             'estado': 'calculada', 'calculada_por': self.env.user.id, 'calculada_el': fields.Datetime.now(),
             'advertencias': '\n'.join(advertencias) or False,
+            'cuentas_sin_equivalente': '\n'.join(resultado['notas']) or False,
             'linea_ids': [Command.create(valores) for valores in lineas],
         })
         self.message_post(body=self.env._(
@@ -301,16 +327,12 @@ class DcasaConsolidacion(models.Model):
         titulos = {'resultados': self.env._('Estado de resultados consolidado'),
                    'balance': self.env._('Balance general consolidado'),
                    'comprobacion': self.env._('Balance de comprobación consolidado')}
-        formato = '%d/%m/%Y'
-        if self.tipo_reporte == 'balance':
-            periodo = self.env._('Al %s', self.fecha_hasta.strftime(formato))
-        else:
-            periodo = self.env._('Del %(desde)s al %(hasta)s', desde=self.fecha_desde.strftime(formato),
-                                 hasta=self.fecha_hasta.strftime(formato))
         return {
-            'titulo': titulos[self.tipo_reporte], 'periodo': periodo, 'empresas': ', '.join(empresas.mapped('name')),
+            'titulo': titulos[self.tipo_reporte], 'periodo': self.periodo_texto,
+            'empresas': ', '.join(empresas.mapped('name')),
             'columnas': columnas, 'ancho': 2 + n, 'secciones': secciones, 'resumen': resumen,
-            'advertencias': (self.advertencias or '').splitlines(), 'cuadra': self.cuadra,
+            'advertencias': (self.advertencias or '').splitlines(),
+            'notas': (self.cuentas_sin_equivalente or '').splitlines(), 'cuadra': self.cuadra,
             'diferencia': self.diferencia, 'tipo_reporte': self.tipo_reporte,
         }
 

@@ -38,3 +38,19 @@ class TestPantallasPropias(TransactionCase):
             self.assertTrue(raices, xml)
             for clases in raices:
                 self.assertIn('o_action', clases.split(), f'{xml}: {clases}')
+
+    def test_la_barra_de_periodo_es_una_sola_y_las_tarjetas_dicen_su_fecha(self):
+        """Los diez reportes comparten UNA barra de atajos (la de ``periodos()``), el atajo activo se resalta y escribir
+        una fecha a mano no deja ninguno marcado; cada reporte con tarjetas pone la fecha o el periodo de cada cifra."""
+        xml = (RAIZ / 'xml' / 'reportes.xml').read_text()
+        js = (RAIZ / 'js' / 'reportes.js').read_text()
+        self.assertEqual(xml.count('o_dc_conta_chips'), 1, 'una sola barra de atajos')
+        self.assertEqual(xml.count('t-foreach="periodos"'), 1)
+        self.assertIn("p.clave === state.periodo ? 'o_activa'", xml)
+        editar_a_mano = js[js.index('cambiarFecha(campo, ev) {'):js.index('cambiarReporte(clave) {')]
+        self.assertIn('this.state.periodo = null', editar_a_mano, 'escribir una fecha a mano desmarca el atajo')
+        self.assertIn('p.clave === "mes"', js, 'abre con «Este mes»')
+        patron = r'<t t-name="dcasa_contabilidad\.Reportes\.(\w+)">([\s\S]*?)(?=\n    <t t-name=|\n</templates>)'
+        bloques = dict(re.findall(patron, xml))
+        for tarjetas in ('resumen', 'flujo', 'antiguedad', 'resultados', 'balance', 'itbms'):
+            self.assertIn('o_dc_kpi_cuando', bloques[tarjetas], f'las tarjetas de «{tarjetas}» dicen su fecha')

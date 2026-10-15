@@ -45,6 +45,28 @@ class ResCompany(models.Model):
         string='Términos (factura)',
         help='Texto corto que se imprime en facturas, cotizaciones y pedidos. Vacío: no se imprime.')
 
+    dcasa_ofrecer_impresion_pago = fields.Boolean(
+        string='Ofrecer imprimir los documentos al completar el pago', default=True,
+        help='Al registrar el pago que deja una factura de cliente pagada por completo, sale un cuadro pequeño '
+             'para imprimir (o descargar) la factura, la copia de la empresa y la nota de entrega. Se cierra con '
+             'un clic. Apagado, el pago se registra exactamente como antes.')
+
+    dcasa_mostrar_qr_documentos = fields.Boolean(
+        string='Mostrar el código QR en la factura y la cotización', default=False,
+        help='Pone un cuadro QR pequeño al final de la factura, la nota de crédito, la cotización y la nota de '
+             'entrega. Es de uso interno: tu equipo lo escanea (con el Escáner o con la cámara del teléfono) y se '
+             'abre ese mismo documento en el sistema, pidiendo la clave si hace falta. No lleva datos del cliente y '
+             'no se ofrece al cliente. Apagado, esos documentos salen exactamente como siempre. El pedido de compra '
+             'siempre lleva su QR.')
+    dcasa_mostrar_codigo_publico = fields.Boolean(
+        string='Mostrar el código público de los productos en la factura y la cotización, en lugar del código '
+               'del proveedor', default=False,
+        help='En la columna «Código» de la factura, la nota de crédito, la cotización y la nota de entrega sale el '
+             'código público del producto (DC-K7M4PX, el mismo que ve el cliente en la tienda) en lugar de la '
+             'referencia del proveedor. Los productos sin código público (flete, servicios) quedan en blanco. '
+             'Además, las cotizaciones y facturas NUEVAS ya no guardan la referencia del proveedor en el nombre de '
+             'la línea. Apagado, todo sale exactamente como siempre.')
+
     @api.model
     def _dcasa_poner_textos_iniciales(self):
         """Llena garantía, cambios y términos vacíos con TEXTOS_INICIALES, una sola vez por base."""

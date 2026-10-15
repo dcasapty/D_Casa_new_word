@@ -37,6 +37,20 @@
         <field name="active" eval="True"/>
     </record>
 
+    <!-- Cada hora revisa si ya pasó la hora de corte de hoy (dos horas antes de abrir la tienda: 6:00 a. m. de Panamá con el horario
+         de 8:00) y, si pasó, deja «Disponible» a toda vendedora que se marcó «No disponible» antes de ese corte. Así cada mañana
+         empieza con todo el equipo disponible, aunque se hayan olvidado de volver a marcarse. No toca a quien Gerencia sacó del
+         reparto ni lo que se marcó después del corte (si el contenedor durmió, corre tarde sin borrar pausas recientes). -->
+    <record id="ir_cron_reiniciar_disponibilidad" model="ir.cron">
+        <field name="name">Juan: volver a poner «Disponible» a las vendedoras cada mañana</field>
+        <field name="model_id" ref="model_dcasa_reparto"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_reiniciar_disponibilidad()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+
     <!-- Cada hora: las entradas de conocimiento nuevas o editadas reciben su huella de significado (solo si Gerencia encendió
          la búsqueda por significado; si no, no hace nada). -->
     <record id="ir_cron_calcular_vectores" model="ir.cron">

@@ -24,32 +24,93 @@
                         t-on-click="() => this.elegirDiario(d.id)">
                     <i t-attf-class="fa #{d.tipo === 'cash' ? 'fa-money' : 'fa-university'}"/>
                     <span t-out="d.nombre"/>
-                    <span t-if="d.pendientes" class="o_dc_contador" t-out="d.pendientes"/>
+                    <span t-if="d.pendientes + d.pagos_sin_cruzar" class="o_dc_contador" t-out="d.pendientes + d.pagos_sin_cruzar"/>
                 </button>
             </nav>
 
             <main class="o_dc_conc_cuerpo">
                 <section class="o_dc_conc_lista">
                     <div class="o_dc_conc_lista_titulo">
-                        <span>Por conciliar</span>
-                        <a href="#" t-on-click.prevent="verConciliados">Ver conciliados</a>
+                        <span t-out="state.vista === 'cobros' ? 'Cobros y pagos sin movimiento' : 'Por conciliar'"/>
+                        <a t-if="state.vista === 'movimientos'" href="#" t-on-click.prevent="verConciliados">Ver conciliados</a>
                     </div>
-                    <div t-if="!state.cargando and !state.lineas.length" class="o_dc_conc_vacio">
-                        <i class="fa fa-check-circle"/>
-                        <strong>Todo conciliado</strong>
-                        <span>Importa el extracto del banco para seguir.</span>
+                    <div t-if="state.pagos.length" class="o_dc_conc_vistas" role="tablist">
+                        <button role="tab" t-att-aria-selected="state.vista === 'movimientos' ? 'true' : 'false'"
+                                t-attf-class="#{state.vista === 'movimientos' ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirVista('movimientos')">
+                            Movimientos del extracto <span t-if="state.lineas.length" class="o_dc_contador" t-out="state.lineas.length"/>
+                        </button>
+                        <button role="tab" t-att-aria-selected="state.vista === 'cobros' ? 'true' : 'false'"
+                                t-attf-class="#{state.vista === 'cobros' ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirVista('cobros')">
+                            Cobros y pagos sin movimiento <span class="o_dc_contador" t-out="state.pagos.length"/>
+                        </button>
                     </div>
-                    <button t-foreach="state.lineas" t-as="l" t-key="l.id"
-                            t-attf-class="o_dc_mov #{state.linea and state.linea.id === l.id ? 'o_activa' : ''}"
-                            t-on-click="() => this.elegirLinea(l)">
-                        <span class="o_dc_mov_fecha" t-out="fecha(l.fecha)"/>
-                        <span class="o_dc_mov_concepto" t-out="l.concepto or 'Sin descripción'"/>
-                        <span t-if="l.tercero" class="o_dc_mov_tercero" t-out="l.tercero"/>
-                        <strong t-attf-class="o_dc_mov_monto #{l.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(l.monto)"/>
-                    </button>
+                    <t t-if="state.vista === 'movimientos'">
+                        <div t-if="!state.cargando and !state.lineas.length" class="o_dc_conc_vacio">
+                            <i class="fa fa-check-circle"/>
+                            <strong t-out="state.pagos.length ? 'Ningún movimiento del extracto por conciliar' : 'Todo conciliado'"/>
+                            <span t-if="state.pagos.length">Quedan cobros o pagos registrados esperando su movimiento: míralos en la otra pestaña.</span>
+                            <span t-else="">Importa el extracto del banco para seguir.</span>
+                        </div>
+                        <button t-foreach="state.lineas" t-as="l" t-key="l.id"
+                                t-attf-class="o_dc_mov #{state.linea and state.linea.id === l.id ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirLinea(l)">
+                            <span class="o_dc_mov_fecha" t-out="fecha(l.fecha)"/>
+                            <span class="o_dc_mov_concepto" t-out="l.concepto or 'Sin descripción'"/>
+                            <span t-if="l.tercero" class="o_dc_mov_tercero" t-out="l.tercero"/>
+                            <strong t-attf-class="o_dc_mov_monto #{l.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(l.monto)"/>
+                        </button>
+                    </t>
+                    <t t-else="">
+                        <button t-foreach="state.pagos" t-as="p" t-key="p.id"
+                                t-attf-class="o_dc_mov #{state.pago and state.pago.id === p.id ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirPago(p)">
+                            <span class="o_dc_mov_fecha" t-out="fecha(p.fecha)"/>
+                            <span class="o_dc_mov_concepto" t-out="p.tercero or p.documento"/>
+                            <span class="o_dc_mov_tercero"><t t-out="p.tipo === 'cobro' ? 'Cobro' : 'Pago'"/><t t-if="p.facturas"> de <t t-out="p.facturas"/></t></span>
+                            <strong t-attf-class="o_dc_mov_monto #{p.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(p.monto)"/>
+                        </button>
+                    </t>
                 </section>
 
-                <section class="o_dc_conc_detalle" t-if="state.linea">
+                <section class="o_dc_conc_detalle" t-if="state.vista === 'cobros' and state.pago">
+                    <div class="o_dc_tarjeta o_dc_conc_resumen">
+                        <div>
+                            <span class="o_dc_conta_eyebrow" t-out="state.pago.tipo === 'cobro' ? 'Cobro registrado en la factura' : 'Pago registrado en la factura'"/>
+                            <h2 t-out="state.pago.tercero or state.pago.documento"/>
+                            <span class="text-muted"><t t-out="fecha(state.pago.fecha)"/> · <t t-out="state.pago.documento"/><t t-if="state.pago.metodo"> · <t t-out="state.pago.metodo"/></t></span>
+                            <div t-if="state.pago.facturas" class="o_dc_sub">Factura: <t t-out="state.pago.facturas"/></div>
+                        </div>
+                        <strong t-attf-class="o_dc_conc_monto #{state.pago.monto &lt; 0 ? 'o_dc_sale' : 'o_dc_entra'}" t-out="dinero(state.pago.monto)"/>
+                    </div>
+                    <div class="o_dc_tarjeta o_dc_form">
+                        <p t-if="state.pago.tipo === 'cobro'" class="o_dc_nota">
+                            Este cobro ya está aplicado a la factura, pero el dinero todavía no figura en
+                            <strong t-out="diarioActual and diarioActual.nombre"/>: espera en «Recibos pendientes» y no suma al dinero del
+                            diario. Cuando el dinero ya esté ahí, cruza el cobro: se registra la entrada y el cobro deja de esperar.
+                        </p>
+                        <p t-else="" class="o_dc_nota">
+                            Este pago ya está aplicado a la factura, pero la salida todavía no figura en
+                            <strong t-out="diarioActual and diarioActual.nombre"/>: espera en «Pagos pendientes». Cuando el dinero ya haya salido,
+                            cruza el pago: se registra la salida y el pago deja de esperar.
+                        </p>
+                        <p t-if="diarioActual and diarioActual.tipo === 'bank'" class="o_dc_nota">
+                            En un banco lo normal es importar el extracto y conciliar desde «Movimientos del extracto». Cruza aquí solo lo que
+                            el banco no te va a mostrar.
+                        </p>
+                    </div>
+                    <div class="o_dc_conc_pie">
+                        <div>
+                            Se registra <strong t-out="dinero(state.pago.monto)"/> en <strong t-out="diarioActual and diarioActual.nombre"/>.
+                        </div>
+                        <button class="btn btn-primary" t-att-disabled="state.trabajando" t-on-click="cruzarPago">
+                            <i class="fa fa-check me-2"/>Crear el movimiento y cruzar
+                        </button>
+                    </div>
+                </section>
+
+                <section class="o_dc_conc_detalle" t-elif="state.linea">
                     <div class="o_dc_tarjeta o_dc_conc_resumen">
                         <div>
                             <span class="o_dc_conta_eyebrow" t-out="state.linea.monto &lt; 0 ? 'Salió del banco' : 'Entró al banco'"/>

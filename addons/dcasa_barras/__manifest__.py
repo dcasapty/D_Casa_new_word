@@ -16,13 +16,15 @@ Odoo Community:
 * Escáner › Asignar: etiquetas numeradas de un rollo (DC0001, DC0002…): se escanea la etiqueta, se elige el producto y
   ese número queda como su código de barras. Se puede pasar a otro producto, reemplazar o quitar; el número viejo queda
   retirado y avisa si alguien lo escanea. Cada cambio queda en el historial. Solo Gerencia.
+* El código QR de uso interno de un documento (factura, cotización, pedido de compra, entrega; ver dcasa_invoice): al
+  escanearlo, el Escáner abre ese documento si tienes permiso para verlo. Todo lo demás se escanea como siempre.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Inventory/Inventory',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_catalogo', 'dcasa_interfaz', 'stock'],
+    'depends': ['dcasa_catalogo', 'dcasa_interfaz', 'dcasa_invoice', 'stock'],
     'data': [
         'security/ir.model.access.csv',
         'security/barras_security.xml',

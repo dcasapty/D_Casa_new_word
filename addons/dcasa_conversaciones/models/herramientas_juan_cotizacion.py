@@ -20,6 +20,7 @@ import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 
 from . import adjuntos as A
@@ -82,12 +83,19 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         if not codigo:
             raise BrianError('A cada línea le hace falta el «codigo» del producto (el que devolvió buscar_productos).')
         Variante = self.env['product.product'].sudo()
-        # ``ilike`` solo acota; el código se compara exacto (los «%» y «_» que escriba un cliente no son comodines).
-        de_codigo = Variante.search([('product_tmpl_id', 'in', publicadas.ids), ('default_code', 'ilike', codigo)])
-        exacta = de_codigo.filtered(lambda v: (v.default_code or '').lower() == codigo.lower())[:1]
-        if exacta:
-            return (None, _no_cotizable_combo(exacta.product_tmpl_id)) if exacta.type == 'combo' else (exacta, None)
-        plantilla = publicadas.filtered(lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
+        # El código que conoce el cliente es el público (DC-K7M4PX), del producto; la medida o el color va en «opcion».
+        publico = normalizar_codigo_publico(codigo)
+        plantilla = publicadas.filtered(lambda p: p.dcasa_codigo_publico == publico)[:1] if publico \
+            else publicadas.browse()
+        if not plantilla:
+            # Por si trae la referencia del proveedor (de una foto o una conversación vieja).
+            # ``ilike`` solo acota; el código se compara exacto (los «%» y «_» que escriba un cliente no son comodines).
+            de_codigo = Variante.search([('product_tmpl_id', 'in', publicadas.ids), ('default_code', 'ilike', codigo)])
+            exacta = de_codigo.filtered(lambda v: (v.default_code or '').lower() == codigo.lower())[:1]
+            if exacta:
+                return (None, _no_cotizable_combo(exacta.product_tmpl_id)) if exacta.type == 'combo' \
+                    else (exacta, None)
+            plantilla = publicadas.filtered(lambda p: (p.default_code or '').lower() == codigo.lower())[:1]
         if not plantilla:
             return None, _no_creada(
                 'producto_no_encontrado',
@@ -184,7 +192,7 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             plantilla = linea.product_id.product_tmpl_id
             mas_itbms = self._j_mas_itbms(plantilla)
             lineas.append({
-                'codigo': linea.product_id.default_code or plantilla.default_code or '',
+                'codigo': plantilla.dcasa_codigo_publico or '',   # el del cliente, no la referencia del proveedor
                 'producto': linea.product_id.with_context(display_default_code=False).display_name or linea.name,
                 'cantidad': int(linea.product_uom_qty) if float(linea.product_uom_qty).is_integer()
                 else linea.product_uom_qty,

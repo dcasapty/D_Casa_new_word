@@ -643,6 +643,12 @@ describe("handleRequest con la puerta", () => {
       esLoginPublicoDelPanel(new Request(`https://dcasapty.com${ruta}`, { method }), ruta.split("?")[0]);
     expect(pide("/web/login?redirect=/odoo")).toBe(true);
     expect(pide("/web/login?redirect=/odoo/action-1")).toBe(true);
+    // El QR de un documento (uso interno): el equipo sin sesión va a su página, igual que con /odoo.
+    expect(pide("/web/login?redirect=/dcasa/doc/FAC/INV-2026-00001")).toBe(true);
+    expect(pide("/web/login?redirect=%2Fdcasa%2Fdoc%2FCOT%2FS00007")).toBe(true);
+    expect(pide("/web/login?redirect=/dcasa/docs")).toBe(false);
+    expect(pide("/web/login?redirect=/dcasa/juan/x")).toBe(false);
+    expect(pide("/web/login?redirect=/dcasa/img/a.webp")).toBe(false);
     expect(pide("/web/login?redirect=/shop")).toBe(false);
     expect(pide("/web/login")).toBe(false);
     expect(pide("/web/login?redirect=/odoo", "POST")).toBe(false);

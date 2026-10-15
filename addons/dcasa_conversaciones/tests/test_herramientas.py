@@ -107,7 +107,7 @@ class TestBuscarProductos(HerramientasCase):
         self.assertEqual(cama['precio'], 349.99)
         self.assertEqual(cama['precio_texto'], '$349.99 + ITBMS')
         self.assertTrue(cama['mas_itbms'])
-        self.assertEqual(cama['codigo'], 'ZZ-CAMA')
+        self.assertEqual(cama['codigo'], self.cama.dcasa_codigo_publico, 'el cliente ve el código público')
         self.assertEqual(cama['medidas'], 'Ancho × Largo: 160 × 200 cm')
         self.assertEqual(cama['combo'], {'texto': 'Combo con colchón First Class', 'precio': 469.99,
                                          'precio_texto': '$469.99 + ITBMS'})
@@ -181,6 +181,51 @@ class TestBuscarProductos(HerramientasCase):
         self.env.flush_all()
         (cama,) = self.salida('buscar_productos', {'consulta': 'ZZ-CAMA'})['productos']
         self.assertTrue(cama['foto'].endswith(f'/web/image/product.template/{self.cama.id}/image_1024'))
+
+
+@tagged('post_install', '-at_install')
+class TestCodigoPublicoEnJuan(HerramientasCase):
+    """El cliente conoce el código público (DC-K7M4PX); la referencia del proveedor no sale en lo que Juan dice."""
+
+    def test_buscar_por_el_codigo_publico_aunque_lo_escriba_distinto(self):
+        codigo = self.cama.dcasa_codigo_publico
+        for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), f'  {codigo.lower()} '):
+            (cama,) = self.salida('buscar_productos', {'consulta': escrito})['productos']
+            self.assertEqual((cama['nombre'], cama['codigo']), ('Zzcama Roble Queen', codigo), escrito)
+
+    def test_ver_producto_por_el_codigo_publico_y_todavia_por_la_referencia_del_proveedor(self):
+        """El cliente puede traer la referencia vieja (una foto, una conversación anterior): se le atiende igual."""
+        codigo = self.cama.dcasa_codigo_publico
+        for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), 'ZZ-CAMA'):
+            ficha = self.salida('ver_producto', {'codigo': escrito})
+            self.assertEqual((ficha['nombre'], ficha['codigo']), ('Zzcama Roble Queen', codigo), escrito)
+
+    def test_lo_que_ve_el_cliente_no_trae_la_referencia_del_proveedor(self):
+        for consulta in ('zz', 'colchón'):
+            self.assertNotIn('ZZ-', json.dumps(self.salida('buscar_productos', {'consulta': consulta}),
+                                               ensure_ascii=False))
+        for codigo in (self.cama, self.colchon):
+            ficha = self.salida('ver_producto', {'codigo': codigo.dcasa_codigo_publico})
+            self.assertNotIn('ZZ-', json.dumps(ficha, ensure_ascii=False))
+            self.assertEqual(ficha['codigo'], codigo.dcasa_codigo_publico)
+        for variante in self.salida('ver_producto', {'codigo': self.colchon.dcasa_codigo_publico})['variantes']:
+            self.assertNotIn('codigo', variante, 'el código público es del producto; la medida se elige con «opcion»')
+
+    def test_brian_tambien_encuentra_el_producto_por_su_codigo_publico(self):
+        """La vendedora le dice a Brian el código que le dio el cliente."""
+        codigo = self.cama.dcasa_codigo_publico
+        for escrito in (codigo, codigo.lower(), codigo.replace('-', '')):
+            self.assertEqual(self.env['brian.herramientas']._b_producto(escrito), self.cama.product_variant_id, escrito)
+        self.assertEqual(self.env['brian.herramientas']._b_plantilla(codigo), self.cama)
+
+    def test_un_codigo_publico_de_algo_sin_publicar_responde_como_si_no_existiera(self):
+        sin_publicar = self.error('ver_producto', {'codigo': self.secreto.dcasa_codigo_publico})
+        inexistente = self.error('ver_producto', {'codigo': 'DC-BCDFGH'})
+        self.assertIn('no lo manejamos', sin_publicar)
+        self.assertEqual(sin_publicar.replace(self.secreto.dcasa_codigo_publico, 'X'),
+                         inexistente.replace('DC-BCDFGH', 'X'))
+        self.assertEqual(self.salida('buscar_productos', {'consulta': self.secreto.dcasa_codigo_publico})[
+            'encontrados'], 0)
 
 
 @tagged('post_install', '-at_install')

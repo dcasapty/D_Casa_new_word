@@ -26,7 +26,7 @@
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |
-| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) |
+| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
 | `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |

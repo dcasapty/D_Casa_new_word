@@ -62,10 +62,25 @@ class TestCotizarAutomatica(CotizarCase):
         self.assertEqual(cotizacion['total_texto'], f'${orden.amount_total:,.2f}')
         sofa, cama = cotizacion['lineas']
         self.assertEqual((sofa['codigo'], sofa['cantidad'], sofa['precio_unitario_texto']),
-                         ('ZZ-SOFA', 2, '$800.00 + ITBMS'))
-        self.assertEqual((cama['codigo'], cama['cantidad'], cama['subtotal_texto']), ('ZZ-CAMA', 1, '$349.99'))
+                         (self.sofa.dcasa_codigo_publico, 2, '$800.00 + ITBMS'))
+        self.assertEqual((cama['codigo'], cama['cantidad'], cama['subtotal_texto']),
+                         (self.cama.dcasa_codigo_publico, 1, '$349.99'))
+        self.assertNotIn('ZZ-', json.dumps(cotizacion), 'la referencia del proveedor no sale')
         self.assertEqual((sofa['disponibilidad'], cama['disponibilidad']), ('pocas', 'disponible'))
         self.assertIn('no es una venta', datos['nota'])
+
+    def test_cotiza_con_el_codigo_publico_y_elige_la_medida_con_opcion(self):
+        sofa = self.sofa.dcasa_codigo_publico
+        datos = self.cotizar({'codigo': sofa.lower(), 'cantidad': 1})
+        self.assertEqual(datos['cotizacion']['lineas'][0]['codigo'], sofa)
+        colchon = self.colchon.dcasa_codigo_publico
+        pregunta = self.cotizar({'codigo': colchon})
+        self.assertEqual(pregunta['motivo'], 'elegir_opcion', 'tiene medidas: se pregunta cuál')
+        self.assertNotIn('ZZ-', json.dumps(pregunta))
+        datos = self.cotizar({'codigo': colchon, 'opcion': 'Zzqueen'})
+        (linea,) = datos['cotizacion']['lineas']
+        self.assertEqual(linea['codigo'], colchon)
+        self.assertIn('Zzqueen', linea['producto'])
 
     def test_es_un_borrador_enviado_que_nunca_se_confirma_y_sin_descuentos(self):
         self.cotizar({'codigo': 'ZZ-SOFA', 'cantidad': 1})

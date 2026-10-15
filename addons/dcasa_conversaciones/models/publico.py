@@ -11,6 +11,8 @@ en WhatsApp.
 import re
 import unicodedata
 
+from odoo.addons.dcasa_base.models.codigo_publico import es_codigo_publico, normalizar_codigo_publico
+
 DISPONIBLE, POCAS, AGOTADO = 'disponible', 'pocas', 'agotado'
 ETIQUETAS_EXISTENCIAS = (DISPONIBLE, POCAS, AGOTADO)
 UMBRAL_POCAS_POR_DEFECTO = 5.0
@@ -47,13 +49,18 @@ def puntuar(consulta, nombre, codigo, extra=''):
     if not buscadas:
         return 0
     n_nombre, n_codigo, n_extra = normalizar(nombre), normalizar(codigo), normalizar(extra)
-    if normalizar(consulta).strip() in n_codigo.split() and n_codigo.strip():
+    codigos = n_codigo.split()
+    publico = normalizar_codigo_publico(consulta)   # «dck7m4px» es «DC-K7M4PX»
+    if (normalizar(consulta).strip() in codigos and n_codigo.strip()) or (publico and publico.lower() in codigos):
         return 1000
+    # El código público (DC-K7M4PX) es al azar: solo cuenta entero. Un pedazo suyo («zz», «tv») no significa nada
+    # y se colaría en cualquier búsqueda corta.
+    n_parcial = ' '.join(c for c in codigos if not es_codigo_publico(c.upper()))
     puntos = 0
     for palabra in buscadas:
         if palabra in n_nombre:
             puntos += 10 + (5 if re.search(rf'\b{re.escape(palabra)}', n_nombre) else 0)
-        elif palabra in n_codigo:
+        elif palabra in n_parcial:
             puntos += 8
         elif palabra in n_extra:
             puntos += 4

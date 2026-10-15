@@ -430,6 +430,7 @@ class DcasaConversacionPanel(models.Model):
             if not usuario or usuario.share or not usuario.has_group(GRUPO_VENDEDORA):
                 raise UserError(self.env._('Solo se puede asignar a alguien del equipo de ventas.'))
             conv.sudo().write({'asignada_a': usuario.id})
+            conv._registrar_asignacion_a_mano(usuario)
             conv._aviso(self.env._('%(quien)s asignó la conversación a %(a)s.', quien=self.env.user.name,
                                    a=usuario.name))
         else:

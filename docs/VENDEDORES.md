@@ -157,11 +157,33 @@ de la ganancia** de lo vendido con código; en el peor caso razonable, cerca del
 - **Si un pago se revierte, los puntos se van.** No hace falta una nota de crédito: la revisión nocturna
   los quita.
 - **Un tope nunca hace fallar una venta.** Si algo se pasa, se recorta la comisión, nunca se frena el cobro.
+- **Borrar un borrador no se queda trabado por una comisión.** Ver «Qué pasa con la comisión si se borra un
+  borrador de factura» más abajo.
 - **Varios frenos en capas:** techo por factura, máximo por vendedor al mes, patrocinio contra la comisión
   propia, freno de todo el programa en 30 días.
 - **El código no da descuento.** La comisión sale del precio realmente cobrado.
 - **Atribución firme.** El vendedor de una factura no se cambia sin que Gerencia lo haga, con motivo; el
   código de otro no le quita un cliente ligado.
+
+## Qué pasa con la comisión si se borra un borrador de factura
+
+Igual que con los puntos del cliente (ver [SOCIOS.md](SOCIOS.md)): una factura de prueba o equivocada que ya dio
+comisión se puede **devolver a borrador y eliminar**, sin archivarla.
+
+- Al volver a borrador, la comisión del vendedor (y el patrocinio de su patrocinador) se **anulan con un asiento
+  contrario** en el libro de vendedores. El saldo del vendedor es la suma del libro y no queda inflado: la
+  comisión y su reverso se anulan entre sí.
+- Al eliminar, la comisión anulada se queda en *Socios → Comisiones* (Anulada, con su número y su motivo, sin
+  factura enlazada). El libro no pierde ni una fila.
+- Una comisión anulada **no gasta** ningún tope: ni el del mes del vendedor, ni el del patrocinio, ni el techo
+  de la venta ni el freno global. La siguiente venta real se calcula como si la deshecha no hubiera existido.
+- Si la comisión ya tenía una devolución parcial (nota de crédito), al anularla se deshace también lo que esa
+  devolución había descontado: el vendedor no queda con puntos de menos.
+- Si todavía quedaba una comisión activa al borrar (no es lo normal), el borrado la anula con su asiento
+  contrario («Se eliminó la factura …») antes de seguir. Una factura publicada sigue sin poder borrarse.
+- Nada se paga por afiliar ni por reclutar: esto no cambia. Si la misma factura vuelve a quedar pagada después de
+  haberse corregido, da su comisión **una sola vez** (nunca dos comisiones activas de la misma factura); una
+  anulada por devolución total, por pago revertido o a mano no se reabre.
 
 ## Dónde se ve en Odoo
 

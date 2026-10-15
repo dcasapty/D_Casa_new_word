@@ -635,7 +635,8 @@ class TestPanelEnElNavegador(PanelUiCase):
     const texto = producto.textContent;
     if (!texto.includes("$349.99 + ITBMS")) { throw new Error("precio + ITBMS: " + texto); }
     if (!texto.includes("DISPONIBLE")) { throw new Error("disponibilidad como etiqueta: " + texto); }
-    if (!texto.includes("160 × 200 cm") || !texto.includes("ZZ-CAMA")) { throw new Error("medidas y código: " + texto); }
+    if (!texto.includes("160 × 200 cm") || !texto.includes("__CODIGO_PUBLICO__")) { throw new Error("medidas y código público: " + texto); }
+    if (texto.includes("ZZ-CAMA")) { throw new Error("la referencia del proveedor no sale: " + texto); }
     if (/7777|7,777|123\\.45/.test(dialogo.textContent)) { throw new Error("jamás la cantidad ni el costo"); }
     if (!producto.querySelector("img").getAttribute("src").startsWith("/dcasa/img/")) { throw new Error("miniatura WebP al ancho justo"); }
     aqui(".o_dcj_producto button", "Enviar foto").click();
@@ -647,7 +648,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
-""")
+""".replace("__CODIGO_PUBLICO__", self.cama.dcasa_codigo_publico))
         (envio,) = self.al_worker('/odoo/enviar')
         (adjunto,) = envio['adjuntos']
         self.assertEqual((adjunto['tipo'], adjunto['mime']), ('imagen', 'image/jpeg'))
@@ -1088,7 +1089,7 @@ class TestPantallasDeJuan(PanelUiCase):
     if (document.querySelector(".o_dcj_p_personas")) { throw new Error("la sección «Por persona» es solo de Gerencia"); }
     // Una vendedora no ve Costos ni Conexiones en la barra.
     const nav = [...document.querySelectorAll(".o_dcj_p_nav_boton")].map((e) => e.textContent.trim());
-    if (nav.join("|") !== "Conversaciones|Resumen") { throw new Error("la barra de la vendedora: " + nav.join("|")); }
+    if (nav.join("|") !== "Conversaciones|Resumen|Reparto") { throw new Error("la barra de la vendedora: " + nav.join("|")); }
     aqui(".o_dcj_p_nav_boton", "Conversaciones").click();
     await esperar(() => document.querySelector(".o_dcj_lista"), "volver a Conversaciones desde el Resumen");
     console.log("test successful");

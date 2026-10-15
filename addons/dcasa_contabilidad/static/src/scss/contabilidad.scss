@@ -173,6 +173,27 @@
     small { color: var(--dc-tinta-3); }
 }
 
+// De qué fecha o periodo es la cifra de una tarjeta («al 14 oct», «del 1 al 14 oct»).
+.o_dc_kpi small.o_dc_kpi_cuando {
+    font-size: .72rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+}
+
+// ITBMS: el acumulado (saldo al corte) va aparte del periodo, y un saldo a favor se ve distinto a uno por pagar.
+.o_dc_kpi .o_dc_kpi_acumulado {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--dc-linea);
+    strong { font-size: 1.1rem; color: var(--dc-tinta); }
+}
+.o_dc_a_favor, .o_dc_kpi .o_dc_kpi_acumulado.o_dc_a_favor strong, .o_dc_kpi_ok.o_dc_a_favor strong,
+.o_dc_fila td.o_dc_a_favor { color: #15803D; }
+
 .o_dc_kpi_fuerte {
     background: var(--dc-azul-600);
     border-color: var(--dc-azul-600);
@@ -318,6 +339,32 @@
     top: 0;
     background: var(--dc-blanco);
     z-index: 1;
+}
+
+// Las dos pestañas de la lista: movimientos del extracto / cobros y pagos que esperan su movimiento.
+.o_dc_conc_vistas {
+    display: flex;
+    gap: 4px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--dc-linea);
+    background: var(--dc-niebla);
+    button {
+        flex: 1 1 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        font-size: .78rem;
+        font-weight: 500;
+        line-height: 1.2;
+        color: var(--dc-tinta-2);
+        &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+        &.o_activa { background: var(--dc-blanco); color: var(--dc-azul-700); box-shadow: var(--dc-sombra-1); font-weight: 600; }
+    }
 }
 
 .o_dc_mov {

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lo que cada quien usa en la Guía es suyo: ve y escribe solo sus filas (también Gerencia y los administradores;
+         el servidor, con sudo, no pasa por aquí). Regla global (sin grupos): vale para todos. -->
+    <record id="regla_guia_uso_propio" model="ir.rule">
+        <field name="name">Guía: cada persona ve y anota solo su propio uso</field>
+        <field name="model_id" ref="model_dcasa_guia_uso"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+    </record>
+</odoo>

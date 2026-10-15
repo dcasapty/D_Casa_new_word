@@ -85,6 +85,47 @@ código `DCA…` o el nombre del padrino.
 - Edita premios (*Socios → Configuración → Premios*).
 - Registra a mano facturas del sistema anterior.
 
+## Qué pasa con los puntos si se borra un borrador de factura
+
+Una factura que ya dio puntos se puede borrar, sin archivarla y sin que el borrador quede trabado
+(antes salía «Error de validación: otro modelo usa el registro… Compra con puntos»). El camino:
+
+1. En la factura pagada, **Restablecer a borrador**. Ahí mismo los puntos de esa venta se devuelven con un
+   asiento contrario («La factura … volvió a borrador») y, si esa compra había pagado un referido, también
+   se deshace el bono del padrino y el del invitado.
+2. **Eliminar**. La factura desaparece. La compra anulada se queda en *Socios → Compras* (estado Anulada, con
+   su número y su motivo, sin factura enlazada): es la historia del programa y no se borra.
+
+Qué queda después:
+
+- **El libro no pierde ni una fila.** El saldo sigue siendo la suma del libro: la compra y su reverso se
+  anulan entre sí.
+- **El cliente sigue siendo socio** (su ficha y su código se quedan), con los puntos que ya tenía antes.
+  Si era un cliente nuevo de prueba, queda en 0 puntos netos; si no lo quieres, archiva el contacto
+  (no se borra: su historia está en el libro).
+- **El referido puede volver a pagarse.** Al deshacer el bono se suelta el sello del invitado: su siguiente
+  compra real que dé puntos vuelve a pagar a su padrino (el padrino sigue siendo el mismo, se escribe una
+  sola vez). Un bono deshecho **no gasta** el tope de invitados ni el tope de puntos del mes del padrino.
+- **Una devolución parcial también se deshace.** Si la compra ya tenía una nota de crédito parcial (que había
+  descontado puntos), al anularla se devuelve también ese descuento; el socio no queda con puntos de menos.
+- **Una factura publicada no se puede borrar** (es la protección de Odoo, no cambió). Si hay que deshacerla,
+  primero se devuelve a borrador, o se hace una nota de crédito.
+- **El pago no se borra con la factura.** Al devolver a borrador, el pago sigue ligado a la factura; al
+  eliminarla, queda como un pago sin aplicar al cliente. Odoo te lo avisa en las dos pantallas con un
+  aviso de advertencia que se queda hasta que lo cierras («El pago … sigue ligado… Si era de prueba, cancélalo en
+  Facturación › Clientes › Pagos» y, al borrar, «…quedó sin aplicar…»), y deja la misma nota en el chatter de
+  la factura y de cada pago, así el rastro queda aunque luego se borre el borrador. El aviso nunca cambia ni
+  frena el botón: si algo fallara, solo queda escrito en el registro del servidor.
+- Si en el momento de borrar todavía había una compra activa (no es lo normal), el borrado la anula con su
+  asiento contrario («Se eliminó la factura …») antes de dejarte seguir. Quien no tiene permiso de borrar
+  facturas no puede anular puntos por esta puerta.
+
+**Si la misma factura vuelve a quedar pagada** (se corrigió y se volvió a publicar con su pago puesto, o se
+desconcilió y se pagó de nuevo; o una factura nueva usa un número que quedó libre), da sus puntos otra vez,
+**una sola vez**: nunca hay dos compras activas de la misma factura. No vuelve a dar puntos una factura que se
+anuló por una devolución total, ni una que Gerencia anuló a mano, ni una que ya tiene una nota de crédito
+publicada; y cargar a mano una factura que ya dio puntos sigue prohibido («una factura, una carga»).
+
 ## Cambiar las reglas
 
 Se edita `addons/dcasa_socios/data/puntos.json`, se sube la `version` y se hace un

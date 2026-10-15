@@ -47,8 +47,10 @@ class DcasaVendComision(models.Model):
 
     name = fields.Char(string='Factura', required=True, readonly=True)
     factura_normal = fields.Char(required=True, readonly=True, index=True)
+    # set null: borrar un borrador no se queda trabado por una comisión ya anulada (queda en la historia, con su
+    # número y su motivo). El rastro de qué factura fue sigue en ``name`` y ``factura_normal``.
     move_id = fields.Many2one('account.move', string='Factura de Odoo', readonly=True, index='btree_not_null',
-                              ondelete='restrict')
+                              ondelete='set null')
     partner_id = fields.Many2one('res.partner', string='Vendedor', required=True, readonly=True, index=True,
                                  ondelete='restrict')
     tipo = fields.Selection(TIPOS_COMISION, required=True, readonly=True)
@@ -77,10 +79,18 @@ class DcasaVendComision(models.Model):
     anulada_en = fields.Datetime(readonly=True, copy=False)
     anulada_por = fields.Char(readonly=True, copy=False)
     anulada_motivo = fields.Char(readonly=True, copy=False)
+    anulada_por_factura = fields.Boolean(
+        readonly=True, copy=False,
+        help='Se anuló porque la factura misma se deshizo: volvió a borrador, se canceló o se eliminó. Ese número de '
+             'factura puede volver a dar comisión cuando quede pagado otra vez. Una devolución (nota de crédito), el '
+             'cobro revertido o una anulación a mano no lo reabre.')
     estado = fields.Selection([('activa', 'Activa'), ('anulada', 'Anulada')], compute='_compute_estado', store=True)
 
-    _unica_por_factura = models.Constraint(
-        'UNIQUE(factura_normal, partner_id, tipo)', 'Esa factura ya se registró para ese vendedor.')
+    # Una factura, una comisión ACTIVA por vendedor y tipo. Cuál anulada deja pasar y cuál no, lo decide
+    # ``_factura_libre``.
+    _activa_unica_por_factura = models.UniqueIndex(
+        '(factura_normal, partner_id, tipo) WHERE anulada_en IS NULL',
+        message='Esa factura ya se registró para ese vendedor.')
     _puntos_sin_negativos = models.Constraint('CHECK(puntos >= 0 AND neto_centavos > 0)',
                                               'Una comisión no es negativa y sale de una venta mayor que cero.')
 
@@ -186,6 +196,27 @@ class DcasaVendComision(models.Model):
     # ------------------------------------------------------------------------
 
     @api.model
+    def _factura_libre(self, factura_normal, vendedor, move=None):
+        """¿Esta factura puede dar comisión a este vendedor ahora? Una factura, una comisión.
+
+        Sí, si nunca la dio. También si todo lo que dio se anuló porque la factura misma se deshizo (volvió a
+        borrador, se canceló o se eliminó): el vendedor de una venta real que se corrigió no se queda sin su comisión,
+        ni uno que vende con un número de factura que ya había quedado libre. Nunca hay dos comisiones activas de la
+        misma factura. No, si hay una activa, o si alguna se anuló por otra razón (una devolución, un cobro revertido
+        o a mano). Tampoco una factura que ya tiene una nota de crédito publicada.
+        """
+        # Lo que se anuló en esta misma transacción tiene que estar ya en la base antes de crear la comisión nueva:
+        # el índice único mira la base, no la memoria.
+        self.flush_model(['factura_normal', 'partner_id', 'tipo', 'anulada_en', 'anulada_por_factura'])
+        previas = self.sudo().search([('factura_normal', '=', factura_normal), ('partner_id', '=', vendedor.id),
+                                      ('tipo', '=', 'directa')])
+        if not previas:
+            return True
+        if previas.filtered(lambda c: not c.anulada_en or not c.anulada_por_factura):
+            return False
+        return not (move and move.sudo().reversal_move_ids.filtered(lambda nota: nota.state == 'posted'))
+
+    @api.model
     def _registrar_desde_factura(self, move):
         """Una factura de cliente pagada con vendedor da sus comisiones. Idempotente. Nunca hace fallar el cobro."""
         # Las reglas que rigen AHORA (la venta ya está pagada): puntos.json más los ajustes de Gerencia vigentes.
@@ -196,8 +227,7 @@ class DcasaVendComision(models.Model):
         if not vendedor or not vendedor.dcasa_vendedor_codigo:
             return self.browse()
         factura = R.factura_normal(move.name)
-        if self.sudo().search_count([('factura_normal', '=', factura), ('partner_id', '=', vendedor.id),
-                                     ('tipo', '=', 'directa')], limit=1):
+        if not self._factura_libre(factura, vendedor, move):
             return self.browse()
         neto = R.a_centavos(move.amount_untaxed_signed)
         if neto <= 0:
@@ -363,8 +393,12 @@ class DcasaVendComision(models.Model):
                 _logger.exception('No se pudo revisar la comisión %s', comision.id)
         return len(comisiones)
 
-    def _anular(self, motivo, autor):
-        """Anula la comisión y devuelve sus puntos con un asiento contrario (el libro no se edita)."""
+    def _anular(self, motivo, autor, por_factura=False):
+        """Anula la comisión y devuelve sus puntos con un asiento contrario (el libro no se edita).
+
+        Se contrarresta todo lo que el libro tiene de esta comisión, también lo que una devolución parcial ya había
+        descontado: si no, el vendedor quedaría con puntos de menos. ``por_factura``: la factura misma se deshizo
+        (borrador, cancelada, eliminada) y no una devolución, un cobro revertido o una decisión a mano."""
         motivo = (motivo or '').strip()
         if not motivo:
             raise UserError(self.env._('Escribe por qué se anula: el vendedor lo va a leer en su cuenta.'))
@@ -372,9 +406,10 @@ class DcasaVendComision(models.Model):
         for comision in self.sudo():
             if comision.anulada_en:
                 continue
-            comision.write({'anulada_en': fields.Datetime.now(), 'anulada_por': autor, 'anulada_motivo': motivo})
+            comision.write({'anulada_en': fields.Datetime.now(), 'anulada_por': autor, 'anulada_motivo': motivo,
+                            'anulada_por_factura': por_factura})
             asientos = Movimiento.search([
-                ('comision_id', '=', comision.id), ('tipo', 'in', ('comision', 'patrocinio'))])
+                ('comision_id', '=', comision.id), ('tipo', 'in', ('comision', 'patrocinio', 'ajuste'))])
             ya_reversados = Movimiento.search([('reversa_id', 'in', asientos.ids)]).reversa_id
             for asiento in asientos - ya_reversados:
                 asiento._reversar(motivo, autor)

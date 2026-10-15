@@ -16,6 +16,9 @@ class TestAtajoDeConversaciones(TransactionCase):
         super().setUpClass()
         cls.vendedora = new_test_user(cls.env, login='atajo_vendedora',
                                       groups='base.group_user,sales_team.group_sale_salesman')
+        # Oportunidades es de quien controla la tienda (Gerencia); la vendedora tiene su Inicio «propio».
+        cls.gerencia = new_test_user(cls.env, login='atajo_gerencia',
+                                     groups='base.group_user,sales_team.group_sale_manager')
 
     def atajos(self, usuario):
         datos = self.env['dcasa.tablero'].with_user(usuario).obtener_datos()
@@ -41,8 +44,12 @@ class TestAtajoDeConversaciones(TransactionCase):
         self.assertNotIn('conversaciones', self.atajos(interno))
         self.assertNotIn('oportunidades', self.atajos(interno))
 
+    def test_la_vendedora_no_tiene_el_atajo_de_oportunidades_pero_gerencia_si(self):
+        self.assertNotIn('oportunidades', self.atajos(self.vendedora))
+        self.assertIn('oportunidades', self.atajos(self.gerencia))
+
     def test_el_atajo_de_oportunidades_abre_la_lista(self):
-        atajo = self.atajos(self.vendedora)['oportunidades']
+        atajo = self.atajos(self.gerencia)['oportunidades']
         self.assertEqual(atajo['accion'], 'dcasa_conversaciones.accion_oportunidades_hoy')
         self.assertEqual((atajo['titulo'], atajo['icono'], atajo['cuenta']), ('Oportunidades', 'fa-fire', 0))
         self.assertEqual(atajo['detalle'], 'Nadie por ahora')
@@ -54,8 +61,8 @@ class TestAtajoDeConversaciones(TransactionCase):
             lead = self.env['crm.lead'].create({'name': f'Caliente {i}', 'type': 'opportunity', 'user_id': False})
             conv.oportunidad_id = lead
             lead.with_context(dcasa_auto=True).dcasa_temperatura = '3'
-        self.assertEqual(self.atajos(self.vendedora)['oportunidades']['detalle'], '2 para escribirles hoy')
-        self.assertEqual(self.atajos(self.vendedora)['oportunidades']['cuenta'], 2)
+        self.assertEqual(self.atajos(self.gerencia)['oportunidades']['detalle'], '2 para escribirles hoy')
+        self.assertEqual(self.atajos(self.gerencia)['oportunidades']['cuenta'], 2)
 
 
 @tagged('post_install', '-at_install')

@@ -100,6 +100,48 @@ class DcasaCierreMes(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
+    def _bancos_por_cruzar(self, fin, company=None):
+        """Lo que falta por cruzar en bancos, Yappy, tarjeta y caja con fecha hasta ``fin``. También lo usa Brian.
+
+        Son dos cosas, y las dos cuentan (un cobro registrado con «Registrar pago» no entra al dinero del banco hasta
+        que se cruza con su movimiento, y mirar solo el extracto lo dejaba pasar como «Todo conciliado»):
+
+        * movimientos del extracto del banco sin conciliar;
+        * cobros y pagos registrados en facturas que esperan su movimiento.
+
+        Sale de ``dcasa.reporte.contable._saldos_bancos``, la misma fuente de la tarjeta «Todo conciliado» del Resumen:
+        así el cierre, Brian y la tarjeta nunca se contradicen. Devuelve los totales, el detalle por diario y un texto.
+        """
+        company = company or self.env.company
+        Reporte = self.env['dcasa.reporte.contable'].with_context(allowed_company_ids=[company.id])
+        plural = Reporte._plural
+        por_banco, partes = [], []
+        for banco in Reporte._saldos_bancos(fin):
+            if not banco['por_conciliar']:
+                continue
+            por_banco.append({k: banco[k] for k in ('id', 'nombre', 'sin_conciliar', 'cobros', 'monto_cobros',
+                                                    'egresos', 'monto_egresos')})
+            cosas = []
+            if banco['sin_conciliar']:
+                cosas.append(f'{plural(banco["sin_conciliar"], "movimiento", "movimientos")} sin conciliar')
+            if banco['cobros']:
+                cosas.append(f'{plural(banco["cobros"], "cobro", "cobros")} sin cruzar '
+                             f'({Reporte._dinero(banco["monto_cobros"])})')
+            if banco['egresos']:
+                cosas.append(f'{plural(banco["egresos"], "pago", "pagos")} sin cruzar '
+                             f'({Reporte._dinero(banco["monto_egresos"])})')
+            partes.append(f'{banco["nombre"]}: {" · ".join(cosas)}')
+        movimientos = sum(b['sin_conciliar'] for b in por_banco)
+        cobros, egresos = sum(b['cobros'] for b in por_banco), sum(b['egresos'] for b in por_banco)
+        return {
+            'por_banco': por_banco, 'movimientos': movimientos,
+            'cobros': cobros, 'monto_cobros': Reporte._r(sum(b['monto_cobros'] for b in por_banco)),
+            'egresos': egresos, 'monto_egresos': Reporte._r(sum(b['monto_egresos'] for b in por_banco)),
+            'pendientes': movimientos + cobros + egresos,
+            'detalle': '; '.join(partes) or 'Todo conciliado',
+        }
+
+    @api.model
     def _chequeo(self, inicio, fin, company=None):
         """Pasos del cierre del mes [inicio, fin] con datos reales. También lo usa Brian.
 
@@ -108,7 +150,8 @@ class DcasaCierreMes(models.Model):
         """
         company = company or self.env.company
         Move = self.env['account.move']
-        Reporte = self.env['dcasa.reporte.contable']
+        # Los reportes del paso a paso son los de la empresa que se cierra, no los de todas las empresas activas.
+        Reporte = self.env['dcasa.reporte.contable'].with_context(allowed_company_ids=[company.id])
         moneda = company.currency_id
         pasos = []
 
@@ -119,14 +162,11 @@ class DcasaCierreMes(models.Model):
                 'modelo': modelo if pendiente else False, 'dominio': dominio or [],
             })
 
-        dominio = [('company_id', '=', company.id), ('is_reconciled', '=', False), ('date', '<=', str(fin))]
-        sin_conciliar = self.env['account.bank.statement.line'].search(dominio)
-        por_banco = {}
-        for linea in sin_conciliar:
-            por_banco[linea.journal_id.name] = por_banco.get(linea.journal_id.name, 0) + 1
-        paso('conciliacion', 'Bancos, Yappy, tarjeta y caja conciliados', len(sin_conciliar),
-             ', '.join(f'{b}: {n} sin conciliar' for b, n in por_banco.items()) or 'Todo conciliado',
-             modelo='account.bank.statement.line', dominio=dominio)
+        # Bancos, Yappy, tarjeta y caja: movimientos del extracto sin conciliar Y cobros/pagos registrados que
+        # esperan su movimiento. Una sola fuente con la tarjeta «Todo conciliado» del Resumen (``_saldos_bancos``).
+        bancos = self._bancos_por_cruzar(fin, company)
+        paso('conciliacion', 'Bancos, Yappy, tarjeta y caja conciliados', bancos['pendientes'], bancos['detalle'],
+             modelo='dcasa.conciliacion')
 
         for tipos, nombre in ((('out_invoice', 'out_refund'), 'Facturas de cliente en borrador'),
                               (('in_invoice', 'in_refund'), 'Facturas de proveedor en borrador'),
@@ -278,6 +318,11 @@ class DcasaCierreMesPaso(models.Model):
         self.ensure_one()
         if not self.modelo:
             return False
+        if self.modelo == 'dcasa.conciliacion':
+            # Bancos y caja: la pantalla de conciliación muestra los movimientos del extracto Y los cobros y pagos
+            # registrados que esperan su movimiento, y desde ahí se resuelven.
+            return {'type': 'ir.actions.client', 'tag': 'dcasa_conciliacion',
+                    'name': self.env._('Conciliación bancaria')}
         return {
             'type': 'ir.actions.act_window', 'name': self.name, 'res_model': self.modelo,
             'domain': literal_eval(self.dominio or '[]'), 'views': [[False, 'list'], [False, 'form']],

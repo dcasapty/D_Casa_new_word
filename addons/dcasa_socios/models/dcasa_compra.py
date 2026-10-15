@@ -48,8 +48,10 @@ class DcasaCompra(models.Model):
                                  help="La factura sin guiones ni ceros de relleno: una factura, una carga.")
     partner_id = fields.Many2one('res.partner', string='Socio', required=True, readonly=True, index=True,
                                  ondelete='restrict')
+    # set null: si se borra la factura (solo un borrador se puede borrar) la compra queda en la historia del programa
+    # sin bloquear el borrado. El rastro de qué factura fue sigue en ``name`` y ``factura_normal``.
     move_id = fields.Many2one('account.move', string='Factura de Odoo', readonly=True,
-                              index='btree_not_null', ondelete='restrict')
+                              index='btree_not_null', ondelete='set null')
     currency_id = fields.Many2one('res.currency', readonly=True,
                                   default=lambda self: self.env.company.currency_id)
     monto_centavos = fields.Integer(readonly=True, required=True)
@@ -65,12 +67,19 @@ class DcasaCompra(models.Model):
     anulada_en = fields.Datetime(readonly=True, copy=False)
     anulada_por = fields.Char(readonly=True, copy=False)
     anulada_motivo = fields.Char(readonly=True, copy=False)
+    anulada_por_factura = fields.Boolean(
+        readonly=True, copy=False,
+        help='Se anuló porque la factura misma se deshizo: volvió a borrador, se canceló o se eliminó. Ese número de '
+             'factura puede volver a dar puntos cuando quede pagado otra vez. Una devolución (nota de crédito) o una '
+             'anulación a mano no lo reabre: esas facturas no vuelven a dar puntos.')
     estado = fields.Selection([('activa', 'Activa'), ('anulada', 'Anulada')],
                               compute='_compute_estado', store=True)
 
-    _factura_unica = models.Constraint(
-        'UNIQUE(factura_normal)',
-        'Esa factura ya dio puntos. Una factura, una carga (también si se anuló).')
+    # Una factura, una carga ACTIVA. Una compra anulada porque la factura se deshizo (ver ``_factura_libre``) no
+    # bloquea la siguiente; cualquier otra anulada sigue bloqueando: eso lo cuida ``_factura_libre``.
+    _factura_activa_unica = models.UniqueIndex(
+        '(factura_normal) WHERE anulada_en IS NULL',
+        message='Esa factura ya dio puntos. Una factura, una carga.')
     _monto_positivo = models.Constraint('CHECK(monto_centavos > 0 AND base_centavos > 0 AND puntos >= 0)',
                                         'El monto de una compra es mayor que cero.')
 
@@ -95,6 +104,8 @@ class DcasaCompra(models.Model):
         ficha = partner._dcasa_asegurar_ficha()
         if ficha.dcasa_socio_estado != 'activo':
             return self.browse()
+        if not self._factura_libre(R.factura_normal(factura), move):
+            raise UserError(self.env._('Esa factura ya dio puntos. Una factura, una carga (también si se anuló).'))
         puntos = R.puntos_de_compra(monto_centavos, reglas)
         compra = self.sudo().create({
             'name': factura,
@@ -116,9 +127,29 @@ class DcasaCompra(models.Model):
         return compra
 
     @api.model
+    def _factura_libre(self, factura_normal, move=None):
+        """¿Esta factura puede dar puntos ahora? «Una factura, una carga».
+
+        Sí, si nunca dio puntos. También si todo lo que dio se anuló porque la factura misma se deshizo (volvió a
+        borrador, se canceló o se eliminó): el cliente de una venta real que se corrigió no puede quedarse sin sus
+        puntos, ni uno que compra con un número de factura que ya había quedado libre. Nunca hay dos compras activas
+        de la misma factura. No, si hay una activa, o si alguna se anuló por otra razón (una devolución, o a mano):
+        eso sigue bloqueando como siempre. Tampoco una factura que ya tiene una nota de crédito publicada.
+        """
+        # Lo que se anuló en esta misma transacción tiene que estar ya en la base antes de crear la compra nueva:
+        # el índice único mira la base, no la memoria.
+        self.flush_model(['factura_normal', 'anulada_en', 'anulada_por_factura'])
+        previas = self.sudo().search([('factura_normal', '=', factura_normal)])
+        if not previas:
+            return True
+        if previas.filtered(lambda c: not c.anulada_en or not c.anulada_por_factura):
+            return False
+        return not (move and move.sudo().reversal_move_ids.filtered(lambda nota: nota.state == 'posted'))
+
+    @api.model
     def _registrar_desde_factura(self, move):
         """Una factura de cliente pagada suma puntos. Idempotente: si ya se cargó, no hace nada."""
-        if self.sudo().search_count([('factura_normal', '=', R.factura_normal(move.name))], limit=1):
+        if not self._factura_libre(R.factura_normal(move.name), move):
             return self.browse()
         monto = R.a_centavos(move.amount_total_signed)
         if monto <= 0:
@@ -159,6 +190,8 @@ class DcasaCompra(models.Model):
         Movimiento = self.env['dcasa.movimiento'].sudo()
         cobrados = Movimiento.search([
             ('partner_id', '=', padrino.id), ('tipo', '=', 'referido'), ('origen_partner_id', '!=', False)])
+        # Un bono que se deshizo (la compra se anuló) no gasta ni el tope de ahijados ni el del mes.
+        cobrados -= Movimiento.search([('reversa_id', 'in', cobrados.ids)]).reversa_id
         del_mes = sum(cobrados.filtered(
             lambda m: m.ocurrido_en >= inicio_del_mes_en_panama(fields.Datetime.now())).mapped('puntos'))
         tope_ahijados = ref.get('topeDeAhijadosPorPadrino')
@@ -180,12 +213,16 @@ class DcasaCompra(models.Model):
     # Anular
     # ------------------------------------------------------------------------
 
-    def _anular(self, motivo, autor):
+    def _anular(self, motivo, autor, por_factura=False):
         """Anula la compra: devuelve sus puntos y deshace el referido que disparó.
 
         Sin deshacer el referido, emitir una venta a un conocido, cobrar el bono y
         anularla sería un fraude repetible; y el sello quedaría puesto, así que la
         primera compra DE VERDAD de esa persona ya no pagaría a nadie.
+
+        Todo lo que el libro tiene de esta compra se contrarresta: los puntos, el referido y también lo que una
+        devolución parcial ya había descontado; si no, el socio quedaría con puntos de menos. ``por_factura``: la
+        factura misma se deshizo (borrador, cancelada, eliminada) y no una devolución ni una decisión a mano.
         """
         motivo = (motivo or '').strip()
         if not motivo:
@@ -194,13 +231,19 @@ class DcasaCompra(models.Model):
         for compra in self.sudo():
             if compra.anulada_en:
                 raise UserError(self.env._('La compra %s ya estaba anulada.', compra.name))
-            compra.write({'anulada_en': fields.Datetime.now(), 'anulada_por': autor, 'anulada_motivo': motivo})
+            compra.write({'anulada_en': fields.Datetime.now(), 'anulada_por': autor, 'anulada_motivo': motivo,
+                          'anulada_por_factura': por_factura})
             asientos = Movimiento.search([
-                ('compra_id', '=', compra.id), ('tipo', 'in', ('compra', 'referido')),
+                ('compra_id', '=', compra.id), ('tipo', 'in', ('compra', 'referido', 'ajuste')),
             ])
             ya_reversados = Movimiento.search([('reversa_id', 'in', asientos.ids)]).reversa_id
             for asiento in asientos - ya_reversados:
-                texto = motivo if asiento.tipo == 'compra' else f'Se anuló la compra que lo generó: {motivo}'
+                if asiento.tipo == 'compra':
+                    texto = motivo
+                elif asiento.tipo == 'ajuste':
+                    texto = f'Se anuló la compra: se deshace lo que se había descontado por la devolución. {motivo}'
+                else:
+                    texto = f'Se anuló la compra que lo generó: {motivo}'
                 asiento._reversar(texto, autor)
             if asientos.filtered(lambda a: a.tipo == 'referido'):
                 # Se suelta el sello para que la primera compra de verdad sí pague.

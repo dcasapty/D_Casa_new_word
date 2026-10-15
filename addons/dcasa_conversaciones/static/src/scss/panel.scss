@@ -1255,6 +1255,7 @@ $dcj-amarillo: #FED00F;
     display: inline-flex; align-items: center; gap: 8px; margin: 0 0 8px; padding: 6px 14px; min-height: 44px; border-radius: 999px;
     font-size: .8rem; font-weight: 700; cursor: pointer; background: var(--dc-perla, #ECF0F6); color: var(--dc-tinta-2, #44506A); border: 1px solid var(--dc-perla, #ECF0F6);
     &.o_si { background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-700, #0F3591); border-color: var(--dc-azul-100, #E4ECFD); }
+    &.o_dcj_fuera_del_reparto { cursor: default; }
 }
 
 // Resumen · «Por persona» (solo Gerencia).

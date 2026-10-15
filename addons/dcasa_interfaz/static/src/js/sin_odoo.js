@@ -36,7 +36,9 @@ patch(View.prototype, {
 
 const listaVacia = {
     get showDefaultHelper() {
-        return true;
+        // La ayuda propia de D'CASA (su párrafo lleva la clase `o_dcasa_ayuda`) sí se muestra: dice qué hacer en esa
+        // lista. Todas las demás (videos, «Pruebe con un ejemplo») se cambian por el mensaje sobrio de abajo.
+        return !(this.props.noContentHelp || "").includes("o_dcasa_ayuda");
     },
     get title() {
         return "Aquí todavía no hay nada";

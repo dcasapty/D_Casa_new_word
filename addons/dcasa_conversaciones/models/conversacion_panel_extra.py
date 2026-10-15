@@ -139,10 +139,16 @@ class DcasaConversacionPanelExtra(models.Model):
         """Todo lo que la pantalla necesita al abrir, en UNA llamada: quién es, límites, etiquetas, atajos y equipo."""
         self._exigir_vendedora()
         ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        recibe = self.env.user.sudo() in self.env['dcasa.reparto']._vendedoras()
         return {
             'usuario': {'id': self.env.uid, 'nombre': self.env.user.name,
                         'es_gerencia': self.env.user.has_group('sales_team.group_sale_manager'),
-                        'disponible': bool(self.env.user.sudo().dcasa_disponible)},
+                        'disponible': bool(self.env.user.sudo().dcasa_disponible),
+                        # Gerencia y las administradoras intervienen pero no reciben lo que reparte Juan.
+                        'recibe_reparto': recibe,
+                        # Gerencia la sacó del reparto (vacaciones, ausencia…): no le asignan nuevas, esté como esté.
+                        'fuera_del_reparto': recibe and not self.env.user.sudo()._dcasa_en_el_reparto(
+                            self.env['dcasa.reparto']._hoy())},
             'reparto': ajustes.reparto_modo,
             'resumen_ia': bool(ajustes.resumen_ia_activo),
             'bot': {'conectado': bool(self.env['dcasa.juan.cliente'].configurado()),
@@ -241,11 +247,14 @@ class DcasaConversacionPanelExtra(models.Model):
 
     @api.model
     def fijar_disponible(self, disponible):
-        """«Estoy disponible» / «No estoy»: con el reparto por turnos, solo a quien lo está le tocan conversaciones."""
+        """«Estoy disponible» / «No estoy»: con el reparto encendido, solo a la vendedora que lo está le tocan
+        conversaciones. «No estoy» se reinicia solo cada mañana (``dcasa.reparto._cron_reiniciar_disponibilidad``)."""
         self._exigir_vendedora()
         if not isinstance(disponible, bool):
             raise UserError(self.env._('Disponible es sí o no.'))
-        self.env.user.sudo().dcasa_disponible = disponible
+        self.env.user.sudo().write({
+            'dcasa_disponible': disponible,
+            'dcasa_no_disponible_desde': False if disponible else fields.Datetime.now()})
         return {'disponible': disponible}
 
     @api.model

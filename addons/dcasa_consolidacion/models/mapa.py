@@ -19,6 +19,10 @@ class DcasaConsolidacionMapa(models.Model):
     account_id = fields.Many2one('account.account', 'Cuenta de la empresa', required=True, index=True,
                                  ondelete='cascade', domain="[('company_ids', 'in', company_id)]")
     codigo_cuenta = fields.Char('Código en la empresa', compute='_compute_codigo_cuenta')
+    tipo_cuenta = fields.Selection(related='account_id.account_type', string='Tipo de cuenta', store=True,
+                                   help='Sirve para ver que las cuentas que se unen en un mismo código sean del '
+                                        'mismo tipo: una de ingresos y una de gastos con el mismo código darían un '
+                                        'consolidado sin sentido.')
     codigo_consolidado = fields.Char(
         'Código consolidado', required=True,
         help='Las cuentas de cualquier empresa con este mismo código consolidado se suman en una sola fila.')

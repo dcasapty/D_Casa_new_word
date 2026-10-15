@@ -6,6 +6,9 @@
  * diferencia con lo que dice el sistema y solo se guarda al confirmar. En «Asignar» (Gerencia) se escanea una etiqueta
  * numerada del rollo, se elige el producto y ese número queda como su código de barras. Todo lo que se lee o se guarda
  * lo comprueba el servidor (dcasa.barras); aquí no hay reglas de negocio, solo la pantalla.
+ *
+ * Si lo que se lee es el código QR de un documento (factura, cotización, compra o entrega: …/dcasa/doc/FAC/INV/2026/00001),
+ * el servidor dice si quien escanea puede verlo y, si puede, esta pantalla abre el documento.
  */
 import { Component, onMounted, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -22,6 +25,7 @@ export class DcasaEscaner extends Component {
 
     setup() {
         this.orm = useService("orm");
+        this.action = useService("action");
         this.dialog = useService("dialog");
         this.entrada = useRef("entrada");
         this.state = useState({
@@ -161,7 +165,15 @@ export class DcasaEscaner extends Component {
             if (mia !== this.peticion) {
                 return; // llegó la respuesta de un escaneo viejo: manda el más nuevo
             }
-            if (r.resultado === "ok") {
+            if (r.resultado === "documento") {
+                this.limpiarProducto();
+                this.sonar(true);
+                await this.action.doAction(r.documento.accion);
+            } else if (r.resultado === "documento_sin_permiso" || r.resultado === "documento_no_existe") {
+                this.limpiarProducto();
+                this.avisar("error", r.documento.mensaje);
+                this.sonar(false);
+            } else if (r.resultado === "ok") {
                 this.mostrarFicha(r.productos[0], codigo, r.forma === "parecido");
             } else if (r.resultado === "varios") {
                 this.limpiarProducto();

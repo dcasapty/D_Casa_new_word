@@ -47,6 +47,25 @@ def codigo_y_descripcion(nombre, codigo_producto=None):
     return codigo, texto.strip()
 
 
+def quitar_referencia_delante(texto, referencia):
+    """«[IM-2001] Colchón» → «Colchón» (solo si el texto empieza con la referencia dada, entre corchetes)."""
+    texto = texto or ''
+    referencia = (referencia or '').strip()
+    prefijo = f'[{referencia}]'
+    if referencia and texto.startswith(prefijo):
+        return texto[len(prefijo):].lstrip()
+    return texto
+
+
+def codigo_a_imprimir(empresa, producto, codigo_del_proveedor):
+    """Lo que va en la columna «Código»: el del proveedor de siempre o, si la empresa enciende «Mostrar el código
+    público…», el código público del producto (DC-K7M4PX). Sin código público (flete, servicios, líneas sin producto)
+    queda vacío: nunca se muestra el del proveedor con el interruptor encendido."""
+    if not empresa.dcasa_mostrar_codigo_publico:
+        return codigo_del_proveedor
+    return (producto.dcasa_codigo_publico or '') if producto else ''
+
+
 def es_flete(producto):
     """True si el producto es flete o envío (ver el criterio arriba)."""
     if not producto:

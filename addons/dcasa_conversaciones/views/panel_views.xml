@@ -9,6 +9,10 @@
         <field name="name">Resumen de Juan</field>
         <field name="tag">dcasa_juan_resumen</field>
     </record>
+    <record id="accion_reparto" model="ir.actions.client">
+        <field name="name">Reparto de conversaciones</field>
+        <field name="tag">dcasa_juan_reparto</field>
+    </record>
     <record id="accion_costos" model="ir.actions.client">
         <field name="name">Costos de IA</field>
         <field name="tag">dcasa_juan_costos</field>
@@ -22,6 +26,8 @@
               sequence="5" action="accion_conversaciones" groups="sales_team.group_sale_salesman"/>
     <menuitem id="menu_dcasa_panel_resumen" name="Resumen" parent="menu_dcasa_conversaciones_root"
               sequence="6" action="accion_resumen" groups="sales_team.group_sale_salesman"/>
+    <menuitem id="menu_dcasa_panel_reparto" name="Reparto" parent="menu_dcasa_conversaciones_root"
+              sequence="7" action="accion_reparto" groups="sales_team.group_sale_salesman"/>
     <menuitem id="menu_dcasa_panel_costos" name="Costos de IA" parent="menu_dcasa_conversaciones_root"
               sequence="50" action="accion_costos" groups="sales_team.group_sale_manager"/>
     <menuitem id="menu_dcasa_panel_conexiones" name="Conexiones" parent="menu_dcasa_conversaciones_root"

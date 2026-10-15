@@ -150,10 +150,18 @@ class TestBlackWeekendWeb(HttpCase):
         self.assertRegex(html, r'259[.,]99')
         self.assertIn('Combo con colchón First Class', html)
         self.assertRegex(html, r'469[.,]99')
-        self.assertIn('908K-NEGRO', html, 'La 908K sale en negro')
-        self.assertIn('c%C3%B3digo%20888K', html)
-        self.assertIn('Y0300300-LTSC07', html)
-        self.assertNotIn('Código Y0300300<', html, 'No el Y0300300 anterior de $159.99')
+        def codigo(referencia):
+            return self.env['product.product'].with_context(active_test=False).search(
+                [('default_code', '=', referencia)], limit=1).dcasa_codigo_publico
+
+        # La tarjeta muestra el código público del producto (el que ve el cliente), no la referencia del proveedor.
+        self.assertIn(f'Código {codigo("908K-NEGRO")}<', html, 'La 908K sale en negro, con su código público')
+        self.assertIn(f'c%C3%B3digo%20{codigo("888K")}', html)
+        self.assertIn(f'Código {codigo("Y0300300-LTSC07")}<', html)
+        self.assertNotIn(f'Código {codigo("Y0300300")}<', html, 'No el Y0300300 anterior de $159.99')
+        for referencia in ('908K-NEGRO', '888K', 'Y0300300-LTSC07'):
+            self.assertNotIn(f'c%C3%B3digo%20{referencia}', html, 'la referencia del proveedor no sale')
+            self.assertNotIn(f'Código {referencia}<', html, 'la referencia del proveedor no sale')
         visible = re.sub(r'<script.*?</script>|<style.*?</style>', '', html, flags=re.S).lower()
         for palabra in ('tafi', 'tiempo limitado', 'remate', 'cuotas'):
             self.assertNotIn(palabra, visible)

@@ -15,7 +15,7 @@ class ReporteContablePdf(models.AbstractModel):
         datos = self.env['dcasa.reporte.contable'].obtener(
             data.get('reporte', 'balance_comprobacion'), desde=data.get('desde'), hasta=data.get('hasta'),
             borradores=data.get('borradores', False), cuenta_ids=data.get('cuenta_ids'),
-            comparar=data.get('comparar'))
+            comparar=data.get('comparar'), completo=True)
         moneda = self.env.company.currency_id
         generico = datos['reporte'] not in CON_PLANTILLA or bool(datos.get('comparado'))
         encabezados, filas = _filas_planas(datos) if generico else ([], [])

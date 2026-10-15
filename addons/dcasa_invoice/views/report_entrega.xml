@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Nota de entrega (la ve el cliente al retirar; también sale en «Imprimir documentos»).
+         Con los interruptores de la empresa APAGADOS no cambia nada. Encendidos:
+         * «Mostrar el código QR…»: un QR pequeño de uso interno al final.
+         * «Mostrar el código público…»: cada producto sale como «[DC-K7M4PX] Nombre», sin la referencia del proveedor
+           (ni en el nombre ni en la descripción de la entrega). Se hace una sola vez, al armar ``o``: de ahí cuelgan todos
+           los productos del documento (ver models/product.py y models/stock.py). -->
+    <template id="report_delivery_document_dcasa" inherit_id="stock.report_delivery_document">
+        <xpath expr="//t[@t-set='o']" position="after">
+            <t t-set="o" t-value="o._dcasa_para_imprimir()"/>
+        </xpath>
+        <xpath expr="//div[hasclass('page')]" position="inside">
+            <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="o"/></t>
+        </xpath>
+    </template>
+</odoo>

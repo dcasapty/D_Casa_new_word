@@ -17,6 +17,8 @@ class TestRepartoPorTurnos(JuanCase):
         super().setUpClass()
         cls.beto = new_test_user(cls.env, login='juan_beto', name='Beto Vendedor',
                                  groups='base.group_user,sales_team.group_sale_salesman')
+        cls.carla = new_test_user(cls.env, login='juan_carla', name='Carla Vendedora',
+                                  groups='base.group_user,sales_team.group_sale_salesman')
 
     def setUp(self):
         super().setUp()
@@ -26,9 +28,8 @@ class TestRepartoPorTurnos(JuanCase):
         parche = patch.object(type(self.Enlace), '_enviar', self.enviar)
         parche.start()
         self.addCleanup(parche.stop)
-        # Las personas de prueba: Ana (vendedora), Beto y Gema (gerente). Cualquier otra del grupo (el administrador de
-        # la base de pruebas) no cuenta.
-        self.equipo = self.vendedora | self.beto | self.gerente
+        # Las vendedoras de prueba: Ana, Beto y Carla (Gerencia y administradores no reciben: ver test_reparto_justo).
+        self.equipo = self.vendedora | self.beto | self.carla
         self.Conversacion._usuarios_del_panel().write({'dcasa_disponible': False, 'dcasa_turno': 0})
         self.equipo.write({'dcasa_disponible': True})
 
@@ -45,16 +46,16 @@ class TestRepartoPorTurnos(JuanCase):
     def test_le_toca_a_quien_lleva_mas_tiempo_sin_recibir_y_el_turno_rota(self):
         self.vendedora.dcasa_turno = 30
         self.beto.dcasa_turno = 10
-        self.gerente.dcasa_turno = 20
+        self.carla.dcasa_turno = 20
         orden = [self.pasar(n).asignada_a for n in range(1, 5)]
-        self.assertEqual(orden, [self.beto, self.gerente, self.vendedora, self.beto])
+        self.assertEqual(orden, [self.beto, self.carla, self.vendedora, self.beto])
 
     def test_quien_nunca_recibio_va_primero(self):
         self.vendedora.dcasa_turno = 4
-        self.assertIn(self.pasar(1).asignada_a, (self.beto, self.gerente))
+        self.assertIn(self.pasar(1).asignada_a, (self.beto, self.carla))
 
     def test_solo_entre_quienes_estan_disponibles(self):
-        (self.beto | self.gerente).dcasa_disponible = False
+        (self.beto | self.carla).dcasa_disponible = False
         self.assertEqual([self.pasar(n).asignada_a for n in range(1, 4)], [self.vendedora] * 3)
 
     def test_si_nadie_esta_disponible_sigue_el_camino_de_siempre(self):
@@ -75,7 +76,7 @@ class TestRepartoPorTurnos(JuanCase):
         self.Enlace.create({'user_id': self.beto.id, 'chat_id': '5550003'})
         self.Enlace.create({'user_id': self.vendedora.id, 'chat_id': '5550001'})
         self.vendedora.dcasa_turno = 5
-        self.gerente.dcasa_turno = 6
+        self.carla.dcasa_turno = 6
         conv = self.pasar(1)
         self.assertEqual(conv.asignada_a, self.beto)
         self.assertEqual(conv.activity_ids.user_id, self.beto)
@@ -88,7 +89,7 @@ class TestRepartoPorTurnos(JuanCase):
     def test_si_a_quien_le_toco_no_tiene_telegram_el_aviso_va_a_las_demas(self):
         self.Enlace.create({'user_id': self.vendedora.id, 'chat_id': '5550001'})
         self.beto.dcasa_turno = 7
-        self.gerente.dcasa_turno = 8
+        self.carla.dcasa_turno = 8
         conv = self.pasar(1)
         self.assertEqual(conv.asignada_a, self.vendedora)
         self.assertEqual([c.args[0] for c in self.enviar.call_args_list], ['5550001'])

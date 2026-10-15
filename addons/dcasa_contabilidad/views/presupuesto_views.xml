@@ -9,8 +9,13 @@
                 <field name="fecha_desde"/>
                 <field name="fecha_hasta"/>
                 <field name="currency_id" column_invisible="1"/>
-                <field name="total_planeado" sum="Planeado"/>
-                <field name="total_real" sum="Real"/>
+                <field name="avance_tiempo" widget="progressbar" optional="show"/>
+                <field name="ingresos_planeado" sum="Ingresos planeados" optional="show"/>
+                <field name="ingresos_real" sum="Ingresos reales" optional="show"/>
+                <field name="gastos_planeado" sum="Gastos planeados" optional="show"/>
+                <field name="gastos_real" sum="Gastos reales" optional="show"/>
+                <field name="resultado_planeado" optional="hide"/>
+                <field name="resultado_real" optional="hide"/>
                 <field name="state" widget="badge" decoration-info="state == 'borrador'"
                        decoration-success="state == 'aprobado'"/>
             </list>
@@ -40,30 +45,45 @@
                         <label for="name"/>
                         <h1><field name="name" placeholder="p. ej. Gastos de operación 2026"/></h1>
                     </div>
+                    <div class="alert alert-info" role="alert" invisible="not aviso">
+                        <field name="aviso" readonly="1" nolabel="1"/>
+                    </div>
                     <group>
-                        <group>
+                        <group string="Periodo">
                             <field name="fecha_desde"/>
                             <field name="fecha_hasta"/>
+                            <field name="avance_tiempo" widget="progressbar"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
                         </group>
-                        <group>
+                        <group string="Ingresos y gastos (sin contar cuentas de balance)">
                             <field name="currency_id" invisible="1"/>
-                            <field name="total_planeado"/>
-                            <field name="total_real"/>
+                            <field name="ingresos_planeado"/>
+                            <field name="ingresos_real"/>
+                            <field name="gastos_planeado"/>
+                            <field name="gastos_real"/>
+                            <field name="resultado_planeado"/>
+                            <field name="resultado_real"/>
                         </group>
                     </group>
                     <notebook>
                         <page string="Líneas" name="lineas">
                             <field name="line_ids" readonly="state == 'cerrado'">
-                                <list editable="bottom">
+                                <list editable="bottom" decoration-muted="es_detalle">
                                     <field name="sequence" widget="handle"/>
                                     <field name="account_id" options="{'no_create': True}"/>
                                     <field name="analytic_account_id" optional="show" options="{'no_create': True}"/>
                                     <field name="currency_id" column_invisible="1"/>
-                                    <field name="monto_planeado" sum="Planeado"/>
-                                    <field name="monto_real" sum="Real"/>
-                                    <field name="diferencia" sum="Diferencia"
-                                           decoration-danger="diferencia &lt; 0"/>
-                                    <field name="porcentaje" widget="progressbar"/>
+                                    <field name="naturaleza" optional="hide"/>
+                                    <field name="monto_planeado"/>
+                                    <field name="monto_real"/>
+                                    <field name="diferencia" decoration-danger="situacion == 'excedido'"
+                                           decoration-success="situacion == 'cumplido'"/>
+                                    <field name="porcentaje" widget="progressbar" invisible="monto_planeado == 0"/>
+                                    <field name="situacion" widget="badge" width="130px" decoration-danger="situacion == 'excedido'"
+                                           decoration-warning="situacion == 'sin_plan'"
+                                           decoration-success="situacion in ('dentro', 'cumplido')"
+                                           decoration-info="situacion == 'en_camino'"/>
+                                    <field name="es_detalle" optional="hide"/>
                                     <button name="action_ver_apuntes" type="object" icon="fa-search"
                                             title="Ver movimientos"/>
                                 </list>
@@ -85,7 +105,30 @@
         <field name="arch" type="xml">
             <search>
                 <field name="name"/>
+                <field name="line_ids" string="Cuenta contable" filter_domain="[('line_ids.account_id', 'ilike', self)]"/>
                 <filter name="activos" string="Vigentes" domain="[('state', '!=', 'cerrado')]"/>
+                <separator/>
+                <filter name="en_borrador" string="Borrador" domain="[('state', '=', 'borrador')]"/>
+                <filter name="aprobados" string="Aprobados" domain="[('state', '=', 'aprobado')]"/>
+                <filter name="cerrados" string="Cerrados" domain="[('state', '=', 'cerrado')]"/>
+                <separator/>
+                <filter name="periodo_hoy" string="Hoy" domain="[('periodo_atajo', '=', 'hoy')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_semana" string="Esta semana" domain="[('periodo_atajo', '=', 'semana')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_quincena" string="Esta quincena" domain="[('periodo_atajo', '=', 'quincena')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_mes" string="Este mes" domain="[('periodo_atajo', '=', 'mes')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_mes_pasado" string="Mes pasado" domain="[('periodo_atajo', '=', 'mes_pasado')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_trimestre" string="Este trimestre" domain="[('periodo_atajo', '=', 'trimestre')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <filter name="periodo_ejercicio" string="Este año fiscal" domain="[('periodo_atajo', '=', 'ejercicio')]"
+                        help="Presupuestos cuyo periodo toca esos días"/>
+                <group>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'state'}"/>
+                </group>
             </search>
         </field>
     </record>

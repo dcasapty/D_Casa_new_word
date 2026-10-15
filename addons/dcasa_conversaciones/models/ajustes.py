@@ -212,11 +212,23 @@ class JuanAjustes(models.Model):
              'Cloudflare de D\'CASA (cuesta centavos al mes): el Worker de Juan necesita el binding «AI». Si algo '
              'falla, el asistente sigue buscando por palabras. Solo completa lo que las palabras no encontraron.')
     reparto_modo = fields.Selection(
-        [('manual', 'Nadie: la toma quien quiera'), ('turnos', 'Por turnos entre quienes estén disponibles')],
+        [('manual', 'Nadie: la toma quien quiera'),
+         ('parejo', 'Parejo: a quien lleva menos hoy (recomendado)'),
+         ('turnos', 'Por turnos entre quienes estén disponibles')],
         'Reparto de conversaciones', default='manual', required=True, tracking=True,
-        help='Qué pasa cuando el asistente pasa una conversación a una vendedora y nadie la tenía. «Por turnos»: le '
-             'toca a quien lleva más tiempo sin recibir una (entre quienes marcaron que están disponibles) y se le '
-             'avisa a ella. Si nadie está disponible, la actividad va al responsable por defecto, como siempre.')
+        help='Qué pasa cuando el asistente pasa una conversación a una vendedora. «Nadie»: no se asigna a nadie; la '
+             'toma quien quiera. «Parejo»: se asigna entre las vendedoras disponibles (no marcaron «No disponible» ni '
+             'Gerencia las sacó del reparto): si el cliente ya hablaba con una de ellas hace poco, vuelve con ella; si '
+             'no, le toca a quien lleva menos conversaciones recibidas hoy (y, con empate, a quien tiene menos '
+             'clientes esperándole). «Por turnos»: a quien lleva más tiempo sin recibir una, sin mirar cuántas lleva. '
+             'En los dos últimos se le avisa a ella y solo reciben las vendedoras: Gerencia y los administradores '
+             'pueden intervenir en cualquier conversación, pero no reciben. Si nadie está disponible, la tarea va al '
+             'responsable por defecto y se avisa a todo el equipo, como siempre.')
+    reparto_dias_misma_vendedora = fields.Integer(
+        'Días que un cliente sigue con su vendedora', default=14, tracking=True,
+        help='Con el reparto «parejo»: si el cliente habló con una vendedora (o se la asignaron) en los últimos días '
+             'que pongas aquí y ella está disponible, la conversación vuelve con ella en vez de repartirse de nuevo. '
+             '0 = sin memoria: siempre se reparte parejo. Máximo 365.')
     aviso_espera_minutos = fields.Integer(
         'Avisar si un cliente espera (minutos)', default=10, tracking=True,
         help='Si una persona tiene la conversación y el cliente lleva tantos minutos sin respuesta, se avisa por '
@@ -348,6 +360,13 @@ class JuanAjustes(models.Model):
             if any(len(leccion) > MAX_LARGO_LECCION for leccion in lecciones):
                 raise ValidationError(self.env._(
                     'Cada lección admite hasta %s caracteres. Acórtala.', MAX_LARGO_LECCION))
+
+    @api.constrains('reparto_dias_misma_vendedora')
+    def _check_reparto(self):
+        for registro in self:
+            if not 0 <= registro.reparto_dias_misma_vendedora <= 365:
+                raise ValidationError(self.env._(
+                    'Los días que un cliente sigue con su vendedora van de 0 (sin memoria) a 365.'))
 
     @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos', 'aviso_espera_minutos')
     def _check_numeros(self):

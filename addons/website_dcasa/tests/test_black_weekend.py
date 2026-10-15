@@ -192,7 +192,8 @@ class TestPaginasBlackWeekend(_Base, HttpCase):
         self.assertIn('href="/black-weekend"', html)
         self.assertRegex(html, r'187[.,]99')
         self.assertIn('Agregar al carrito', html)
-        self.assertIn('c%C3%B3digo%20BW-PRUEBA-1', html, 'WhatsApp con el código del producto')
+        self.assertIn(f'c%C3%B3digo%20{self.cama.dcasa_codigo_publico}', html, 'WhatsApp con el código público')
+        self.assertNotIn('BW-PRUEBA-1', html, 'la referencia del proveedor no sale')
         self.assertIn('type="image/webp"', html)
 
     def test_pagina_black_weekend(self):
@@ -262,7 +263,8 @@ class TestPaginasBlackWeekend(_Base, HttpCase):
         self.authenticate(None, None)
         html = self.url_open('/black-weekend').text
         self.assertIn(f'name="product_id" value="{negra.id}"', html)
-        self.assertIn('BW-PRUEBA-1-NEGRO', html)
+        self.assertIn(self.cama.dcasa_codigo_publico, html, 'la tarjeta muestra el código público')
+        self.assertNotIn('BW-PRUEBA-1-NEGRO', html, 'y no la referencia del proveedor de la variante')
         token = re.search(r'name="csrf_token" value=[\'"]([^\'"]+)', html).group(1)
         respuesta = self.url_open('/dcasa/carrito/agregar', data={
             'csrf_token': token, 'product_template_id': self.cama.id, 'product_id': negra.id,

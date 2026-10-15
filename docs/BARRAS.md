@@ -14,6 +14,7 @@ y decidir cómo se imprimen.
 | **Escáner › Asignar** | Escaneas una etiqueta numerada del rollo (`DC0001`…), eliges el producto y ese número queda como su código de barras. Se puede pasar a otro producto, reemplazar o quitar; el número viejo queda *retirado* y avisa si alguien lo escanea. | Gerencia |
 | **Inventario › Configuración › Historial de etiquetas** | Quién asignó, pasó o retiró cada número y cuándo. No se edita ni se borra. | Gerencia |
 | **Inventario › Configuración › Códigos de barras** | Llena el código de barras de los productos que no tienen, a partir de su referencia interna (alternativa a las etiquetas numeradas; ver más abajo). | Gerencia |
+| **Escáner › QR de un documento** | Escaneas el QR de uso interno que lleva un documento impreso (pedido de compra, factura, cotización, nota de entrega) y se abre ese documento en el sistema. Ver «QR de los documentos» más abajo. | Quien tenga permiso para ver ese documento |
 
 ## Los lectores
 
@@ -139,8 +140,77 @@ se puede repetir sin miedo.
   (el precio sale del sistema, con «+ ITBMS»).
 * **Qué código lleva cada producto**: decidido, un **número propio de D'CASA** en etiquetas del rollo (arriba). La
   asignación por referencia queda como alternativa, sin aplicar.
-* **Cámara del celular** como lector: no está (los dos aparatos ya traen lector). Con QR sería fácil de agregar si algún
-  día se quiere leer con el celular.
+* **Cámara del celular** como lector dentro del Escáner: no está (los dos aparatos ya traen lector). Para los **QR de
+  documentos** no hace falta: la cámara normal del teléfono los abre en el navegador (ver «QR de los documentos»).
+
+## QR de los documentos (uso interno)
+
+Decisión de la dueña: el QR de un documento es **para el equipo**, no para el cliente. Lo escaneas y se abre ese mismo
+documento en el sistema. **No lleva ningún dato del cliente** (ni nombre, ni teléfono, ni montos): solo el tipo y el
+número del documento.
+
+**Qué contiene.** Una dirección corta y estable:
+
+```
+<dirección del sistema>/dcasa/doc/<TIPO>/<REFERENCIA>
+
+FAC  factura y nota de crédito de cliente   …/dcasa/doc/FAC/INV/2026/00001
+COT  cotización o pedido de venta           …/dcasa/doc/COT/S00007
+COM  pedido de compra                       …/dcasa/doc/COM/P00012
+ENT  entrega (albarán)                      …/dcasa/doc/ENT/WH/OUT/00005
+```
+
+La «dirección del sistema» es la de *Ajustes › Técnico › Parámetros del sistema › `web.base.url`*. Si algún día cambia
+el dominio, los papeles impresos antes siguen apuntando al dominio viejo (la cámara del teléfono abre esa dirección);
+el Escáner, en cambio, solo mira el tipo y el número, así que lee igual los QR de antes.
+
+**Dónde se imprime.** Pequeño (unos 2 cm), plano, azul marino sobre blanco, con la nota «Uso interno». En la factura y
+la cotización va **a la derecha de los textos de garantía, cambios y términos** (en la misma franja: no pide más alto
+en la hoja); si la empresa no escribió esos textos, va al final de la hoja a la derecha. En la nota de entrega y el
+pedido de compra, al final de la hoja a la derecha. No se mueve nada más (los textos de garantía solo se ensanchan un
+poco menos). Con una factura de muchos renglones, que justo llena la hoja, el QR puede mandar esa franja a la página
+siguiente: pasa con un renglón más o menos del límite.
+
+| Documento | ¿Lleva QR? |
+|---|---|
+| Pedido de compra | **Siempre** (lo pidió la dueña; no toca la factura) |
+| Factura y nota de crédito | Solo si la empresa enciende **«Mostrar el código QR en la factura y la cotización»** |
+| Cotización y pedido de venta | Igual: solo con ese interruptor |
+| Nota de entrega (también la del «Imprimir documentos») | Igual: solo con ese interruptor |
+| Factura en borrador | Nunca (todavía no tiene número) |
+
+El interruptor está en *Ajustes › Empresas › D'CASA Panamá › pestaña «Documentos D'CASA»* y viene **apagado**: apagado, la
+factura, la cotización y la nota de entrega salen **exactamente como siempre** (hay un test que lo vigila). Detalle y
+qué cambia al encenderlo: [CATALOGO.md](CATALOGO.md#código-qr-y-código-público-en-la-factura-y-la-cotización).
+
+**Cómo se lee.**
+
+* **Con el Escáner** (lector que escribe como teclado, o el Android con lector): se escanea igual que un producto y,
+  si tienes permiso para ver ese documento, se abre. Si no, dice «No tienes permiso para ver esta factura…» y no
+  muestra nada del documento; si el número no existe, «No encontramos ese documento». Funciona en *Consultar* y en
+  *Contar*; en *Asignar* se rechaza con «Ese es el código QR de un documento, no una etiqueta de producto» (así un QR
+  de documento nunca queda como código de barras de un producto). Lo que no es un documento (barras de producto,
+  etiquetas `DC0001`, código público `DC-K7M4PX`) se escanea **como siempre**. Como una dirección lleva muchos
+  símbolos (`:` `/` `.`) y un lector con el teclado en otro idioma los cambia (`/` sale `-`, `:` sale `Ñ`…), el Escáner
+  reconoce el documento por lo que sí llega (las letras y los números: `dcasa`, `doc`, el tipo y el número del
+  documento) y lo abre igual.
+* **Con la cámara del teléfono** (la app normal de cámara): abre el navegador en esa dirección. Si no hay sesión, pide
+  la clave y, al entrar, **vuelve al documento**. Con sesión y permiso, lo abre; sin permiso, una pantalla con «No tienes
+  permiso» (403); si el número no existe, «No encontramos el documento» (404).
+
+**Permisos.** Siempre los de la persona: el servidor comprueba que pueda leer ese documento (la vendedora ve sus propias
+cotizaciones, no las de otra; quien no maneja compras no abre un pedido de compra). Un cliente con acceso al portal no
+abre nada por esta ruta. Quien no puede ver un tipo de documento recibe el mismo aviso exista el número o no (no hay
+cómo averiguar si un documento existe).
+
+**Detalles técnicos** (para quien mantiene el sistema). El QR se genera con el generador estándar de Odoo (el de
+`/report/barcode`, reportlab) y se **incrusta en el propio HTML del documento** (`data:image/png`): wkhtmltopdf no tiene
+que pedir nada más al servidor, así que sale igual en el PDF, en la vista previa y en las pruebas. Nivel de corrección
+«M» (aguanta un doblez o una mancha). La ruta es `dcasa_invoice/controllers/documento.py`; la lectura de la dirección y la
+búsqueda con permisos, `dcasa_invoice/models/documento.py` y `documento_abrir.py` (los usa también el Escáner:
+`dcasa_barras` depende de `dcasa_invoice`). El Worker del borde no bloquea `/dcasa/doc/*` y no lo guarda en caché (solo
+guarda assets públicos). Este QR **no** es el de la factura electrónica de la DGI (`dcasa_fe_pa`, que no se toca) ni el
+`/codigo/DC-K7M4PX` del producto para el cliente (ver [CATALOGO.md](CATALOGO.md)): son otras cosas.
 
 ## Seguridad
 
@@ -148,5 +218,6 @@ Todo lo que lee o escribe el Escáner lo comprueba el servidor (no solo el menú
 contar y asignar piden ser administrador de Inventario (Gerencia). El lector **nunca** muestra el costo del producto.
 Asignar etiquetas pide además administrar Productos (el código se escribe en el producto). Los productos se escriben
 con los permisos de la persona; el único `sudo()` es el que anota el historial de etiquetas, después de comprobar el
-permiso. Los permisos de Odoo siguen mandando. La lista de métodos públicos está en
-`addons/dcasa_base/tests/test_superficie_rpc.py`.
+permiso. Abrir un documento desde su QR comprueba, también en el servidor, que quien escanea pueda leerlo (y los
+métodos que lo hacen son privados: no se llaman por RPC). Los permisos de Odoo siguen mandando. La lista de métodos
+públicos está en `addons/dcasa_base/tests/test_superficie_rpc.py`.

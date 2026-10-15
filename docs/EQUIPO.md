@@ -9,6 +9,12 @@ Lo que toca a las personas del equipo (Empleados) y no es de nómina ni de venta
 
 * El menú **Empleados** deja el ícono a colores de Odoo por uno azul D'CASA con trazo blanco (`hr.menu_hr_root`),
   igual que los demás íconos de la marca.
+* El menú **Empleados** (el Directorio de compañeros) lo ven solo Gerencia, administradores, contabilidad y quien
+  administra al personal (Recursos Humanos); **la Vendedora no lo ve** (pedido de la dueña, 2026-10-15). Es solo de menú:
+  los permisos de datos no cambian (ella sigue sin leer fichas ni sueldos, y los chats y menciones muestran los nombres).
+  Lo deja `data/menu_empleados_data.xml` (grupos de `hr.menu_hr_root`); corre en una instalación limpia y cada vez que se
+  actualiza `dcasa_equipo`, `hr` o `dcasa_base`. **Ojo:** actualizar solo `dcasa_interfaz` no lo toca; el despliegue
+  normal actualiza todos los módulos de D'CASA. «Mis gastos por reembolsar» es otra app y no depende de este menú.
 
 ## Lo que se retiró (2026-10-11)
 

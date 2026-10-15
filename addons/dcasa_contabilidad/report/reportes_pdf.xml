@@ -31,7 +31,9 @@
                     <h2 t-out="datos['titulo']"/>
                     <div class="periodo">
                         <t t-if="datos['reporte'] in ('balance_general', 'por_cobrar', 'por_pagar')">Al <t t-out="datos['hasta']"/></t>
+                        <t t-elif="datos['desde'] == datos['hasta']">El <t t-out="datos['hasta']"/></t>
                         <t t-else="">Del <t t-out="datos['desde']"/> al <t t-out="datos['hasta']"/></t>
+                        <t t-if="datos['reporte'] == 'resumen'"> · saldos al <t t-out="datos['hasta']"/></t>
                     </div>
 
                     <t t-if="datos['reporte'] == 'balance_comprobacion'">
@@ -50,6 +52,7 @@
                             </tbody>
                         </table>
                         <p t-if="not datos['cuadra']" class="aviso">El debe y el haber no cuadran: revisa los asientos en borrador o sin cuadrar.</p>
+                        <p t-if="datos.get('cruza_ejercicio')" class="aviso">El periodo cruza el cierre del año fiscal: las cuentas de resultados siguen acumulando desde el inicio del año fiscal de la fecha «Desde».</p>
                     </t>
 
                     <t t-if="datos['reporte'] == 'libro_mayor'">
@@ -103,6 +106,13 @@
                                 <tr class="tot"><td colspan="3">Débito fiscal (ventas)</td><td class="num" t-out="m(datos['resumen']['debito_fiscal'])"/></tr>
                                 <tr class="tot"><td colspan="3">Crédito fiscal (compras)</td><td class="num" t-out="m(datos['resumen']['credito_fiscal'])"/></tr>
                                 <tr class="tot"><td colspan="3">ITBMS a pagar</td><td class="num" t-out="m(datos['resumen']['a_pagar'])"/></tr>
+                                <tr t-foreach="datos.get('cuentas', [])" t-as="c">
+                                    <td colspan="3">Cuenta <t t-out="c['codigo']"/> <t t-out="c['nombre']"/> al <t t-out="datos['resumen']['al']"/></td><td class="num" t-out="m(c['saldo'])"/>
+                                </tr>
+                                <tr t-if="'acumulado' in datos['resumen']" class="tot">
+                                    <td colspan="3"><t t-out="'Saldo a favor' if datos['resumen']['acumulado'] &lt; 0 else 'ITBMS acumulado por pagar'"/> al <t t-out="datos['resumen']['al']"/></td>
+                                    <td class="num" t-out="m(abs(datos['resumen']['acumulado']))"/>
+                                </tr>
                             </tbody>
                         </table>
                     </t>

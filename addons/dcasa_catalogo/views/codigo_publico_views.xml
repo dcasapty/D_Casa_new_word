@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Código público (DC-K7M4PX): el que ve el cliente. Va junto a la referencia interna (la del proveedor),
+         siempre a la vista y sin poder editarse; solo un administrador lo regenera. -->
+    <record id="product_template_form_codigo_publico" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.codigo.publico</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_only_form_view"/>
+        <field name="arch" type="xml">
+            <field name="default_code" position="after">
+                <label for="dcasa_codigo_publico"/>
+                <div class="o_row">
+                    <field name="dcasa_codigo_publico" readonly="1" placeholder="Se pone solo al guardar"/>
+                    <button name="action_dcasa_regenerar_codigo_publico" type="object" string="Regenerar"
+                            class="btn btn-link p-0" groups="base.group_system"
+                            invisible="not id or not dcasa_codigo_publico"
+                            confirm="El código actual dejará de servir: si un cliente lo tiene guardado, ya no encontrará este producto. ¿Seguro?"/>
+                </div>
+            </field>
+        </field>
+    </record>
+
+    <!-- Lista de productos: columna opcional, al lado de la referencia interna. -->
+    <record id="product_template_list_codigo_publico" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.codigo.publico</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_tree_view"/>
+        <field name="arch" type="xml">
+            <field name="default_code" position="after">
+                <field name="dcasa_codigo_publico" optional="show"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Buscar «DC-K7M4PX» (o un pedazo, como «K7M4») en el cuadro de búsqueda de Productos. -->
+    <record id="product_template_search_codigo_publico" model="ir.ui.view">
+        <field name="name">product.template.search.dcasa.codigo.publico</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_search_view"/>
+        <field name="arch" type="xml">
+            <field name="name" position="attributes">
+                <attribute name="filter_domain">['|', '|', '|', '|', ('default_code', 'ilike', self), ('product_variant_ids.default_code', 'ilike', self), ('name', 'ilike', self), ('barcode', 'ilike', self), ('dcasa_codigo_publico', 'ilike', self)]</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>

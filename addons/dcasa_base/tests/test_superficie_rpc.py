@@ -51,6 +51,14 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'product.template', 'create'):
+        OVERRIDE + ' Solo le pone al producto nuevo su código público (sorteado, único); sin sudo().',
+    ('dcasa_base', 'product.product', 'name_search'):
+        OVERRIDE + ' Solo suma al buscador de «Producto» el código público; busca con los permisos de la persona '
+                   '(sin sudo) y no devuelve más que el nombre.',
+    ('dcasa_base', 'product.template', 'action_dcasa_regenerar_codigo_publico'):
+        'Botón: exige base.group_system (administrador) y escritura sobre el producto ANTES de cambiar el código; '
+        'deja nota en el historial del producto; sin sudo().',
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
@@ -80,6 +88,8 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'deshacer'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'reglas'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.conciliacion', 'aplicar_regla'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'pagos_por_cruzar'): CONTADOR,
+    ('dcasa_contabilidad', 'dcasa.conciliacion', 'cruzar_pago'): CONTADOR,
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'create'): OVERRIDE + ' Normaliza el mes y arma la lista; sin sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'write'): OVERRIDE + ' Impide mover un mes cerrado; sin sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_revisar'): SIN_SUDO,
@@ -226,6 +236,10 @@ LISTA_BLANCA = {
         'es un archivo del repositorio, sin datos del negocio.',
     ('dcasa_guia', 'dcasa.guia', 'buscar'):
         SIN_SUDO + ' Busca solo entre las tareas que quien pregunta puede abrir; el texto buscado no toca la base.',
+    ('dcasa_guia', 'dcasa.guia', 'registrar_uso'):
+        SIN_SUDO + ' Anota «+1» solo para quien llama y solo de una tarea que existe y que esa persona puede abrir; '
+        'cualquier otra cosa devuelve False sin error. La regla de registro de dcasa.guia.uso deja a cada quien la '
+        'suya.',
     ('dcasa_interfaz', 'dcasa.sitio', 'vista_previa'):
         'Solo devuelve la URL pública del sitio (web.base.url, ya visible en cualquier enlace) y su nombre.',
     # El sitio se edita por código (models/sitio.py): solo AGREGAN un bloqueo, nunca un permiso.
@@ -242,6 +256,26 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
     ('dcasa_invoice', 'account.move.line', 'get_section_total'):
         OVERRIDE + ' Solo suma los importes de las piezas del título de un combo; lectura, sin sudo().',
+    # «Imprimir documentos»: el PDF solo sale por /dcasa/paquete.pdf con los permisos de quien lo pide (sin sudo).
+    ('dcasa_invoice', 'account.move', 'action_dcasa_imprimir_documentos'):
+        ACCION_VENTANA + ' Solo facturas de clientes publicadas; el cuadro corre sin sudo.',
+    ('dcasa_invoice', 'sale.order', 'action_dcasa_imprimir_documentos'):
+        ACCION_VENTANA + ' Solo facturas de clientes publicadas; el cuadro corre sin sudo.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_imprimir'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción que pide el PDF al servidor.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_descargar'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción que pide el PDF al servidor.',
+    ('dcasa_invoice', 'dcasa.impresion.paquete', 'action_cerrar'):
+        ASISTENTE + ' (Facturación o lector contable). Solo devuelve la acción de cerrar o la del pago.',
+    ('dcasa_invoice', 'account.payment.register', 'action_create_payments'):
+        OVERRIDE + ' Solo ofrece el cuadro «Imprimir documentos» si la factura quedó pagada; un fallo no deshace '
+        'el pago.',
+    ('dcasa_invoice', 'dcasa.facturas.panel', 'obtener_datos'):
+        SIN_SUDO + ' Las tarjetas de proveedores solo salen para contabilidad, Gerencia y administradores.',
+    ('dcasa_invoice', 'dcasa.facturas.panel', 'abrir'):
+        SIN_SUDO + ' Exige contabilidad para proveedores; solo devuelve la acción de la lista con su dominio.',
+    ('dcasa_invoice', 'product.product', 'get_product_multiline_description_sale'):
+        OVERRIDE + ' Solo quita la referencia del proveedor del nombre de la línea si la empresa lo pide; sin sudo().',
     # --- dcasa_socios -------------------------------------------------------------------
     ('dcasa_socios', 'res.partner', 'create'): OVERRIDE,
     ('dcasa_socios', 'res.partner', 'write'): OVERRIDE,
@@ -271,6 +305,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
     ('dcasa_socios', 'account.move', 'button_cancel'):
         OVERRIDE + ' Comprueba check_access("write") antes de anular puntos con sudo.',
+    ('dcasa_socios', 'account.move', 'unlink'):
+        OVERRIDE + ' Comprueba check_access("unlink") antes de anular con sudo los puntos y la comisión de un borrador '
+                   'que se borra, y solo después de que Odoo aceptó borrarlo.',
     ('website_dcasa', 'sale.order', 'action_quotation_sent'): OVERRIDE + ' Solo agrega la fecha del apartado.',
     ('dcasa_socios', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Comprueba check_access("write") antes de sellar premios con sudo.',
@@ -453,6 +490,14 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'resumen'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'costos'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'por_persona'): PANEL_GERENCIA,
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'reparto'):
+        PANEL_VENTAS + ' Cada vendedora recibe solo lo suyo; el equipo completo solo viaja si es de Gerencia.',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'fijar_fuera_del_reparto'):
+        'Solo Gerencia (sales_team.group_sale_manager, comprobado en el servidor antes de escribir con sudo): saca a '
+        'una persona del reparto o la vuelve a meter; no toca permisos y deja nota en el historial de los ajustes.',
+    ('dcasa_conversaciones', 'dcasa.juan.panel', 'fijar_modo_reparto'):
+        'Solo Gerencia (sales_team.group_sale_manager, comprobado en el servidor antes de escribir con sudo): '
+        'enciende o apaga el reparto de Ajustes de Juan; el campo lleva seguimiento (queda quién y cuándo).',
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'conexiones'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'qr'): PANEL_GERENCIA,
     ('dcasa_conversaciones', 'dcasa.juan.panel', 'reiniciar_puente'): PANEL_GERENCIA,

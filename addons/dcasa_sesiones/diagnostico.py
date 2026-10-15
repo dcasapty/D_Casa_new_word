@@ -33,6 +33,16 @@ class GuardarErrores(logging.Handler):
         super().__init__(level=logging.ERROR)
         self.ultimos = ultimos
 
+    @staticmethod
+    def resumir(mensaje):
+        """Odoo escribe las consultas fallidas como «bad query: <consulta>, un salto y ERROR: <lo que dijo PostgreSQL>».
+        La consulta ocupa todo el espacio y la causa (una columna que no existe, un permiso…) quedaba cortada: se
+        guarda la causa."""
+        if mensaje.startswith('bad query:') and '\nERROR:' in mensaje:
+            causa = mensaje.split('\nERROR:', 1)[1].strip().replace('\n', ' ')
+            return f'consulta fallida: {causa}'[:LARGO_MENSAJE]
+        return mensaje[:LARGO_MENSAJE]
+
     def emit(self, record):
         try:
             if record.exc_info and record.exc_info[1] is not None:
@@ -41,7 +51,7 @@ class GuardarErrores(logging.Handler):
                 donde = ' > '.join(f'{os.path.basename(s.filename)}:{s.lineno}' for s in sitios)
                 texto = f'{type(error).__name__}: {str(error)[:LARGO_MENSAJE]} @ {donde}'
             else:
-                texto = f'{record.name}: {record.getMessage()[:LARGO_MENSAJE]}'
+                texto = f'{record.name}: {self.resumir(record.getMessage())}'
             if texto not in self.ultimos and len(self.ultimos) < MAXIMO_ERRORES:
                 self.ultimos.append(texto)
         except Exception:  # noqa: BLE001 - un registro roto nunca debe romper a Odoo

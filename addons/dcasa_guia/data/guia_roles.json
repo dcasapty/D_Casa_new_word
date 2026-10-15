@@ -1,0 +1,34 @@
+{
+  "$comentario": "LO MÁS USADO SEGÚN EL PUESTO. Para cada puesto, la lista (en este orden) de tareas de guia.json que la pantalla de la Guía muestra arriba en «En tu puesto lo que más se usa». Solo salen las que la persona puede abrir (mismos permisos del menú): una vendedora nunca ve aquí lo de Gerencia aunque estuviera en la lista. El puesto de cada persona es el PRIMERO de «roles» al que pertenece alguno de sus «grupos» (por eso Gerencia va primero); si no pertenece a ninguno, se usa «porDefecto». Cada lista lleva de 6 a 8 ids que existen en guia.json (una prueba lo vigila). Esto es lo curado a mano. «Lo que tú más usas» sale del uso real de cada persona y no se escribe aquí; solo se fija aquí cuándo hay datos suficientes para mostrarlo («masUsadas»).",
+  "masUsadas": {
+    "$comentario": "«Lo que tú más usas» sale cuando la persona tiene al menos «minimoTareas» tareas con «minimoVeces» o más «Llévame ahí» cada una; muestra hasta «maximo» tareas, las más usadas primero.",
+    "minimoTareas": 3,
+    "minimoVeces": 2,
+    "maximo": 5
+  },
+  "roles": [
+    {
+      "clave": "gerencia",
+      "titulo": "Gerencia",
+      "grupos": ["dcasa_base.group_gerencia", "base.group_system"],
+      "tareas": ["resumen", "ventas-hoy", "cobros-hoy", "facturas-vencidas", "itbms", "cierre-mes", "banco-conciliar", "ganancias"]
+    },
+    {
+      "clave": "contabilidad",
+      "titulo": "Contabilidad",
+      "grupos": ["account.group_account_user", "account.group_account_manager"],
+      "tareas": ["resumen", "facturas-vencidas", "por-pagar", "factura-proveedor", "banco-conciliar", "itbms", "cierre-mes", "entregar-contador"]
+    },
+    {
+      "clave": "vendedora",
+      "titulo": "Vendedora",
+      "grupos": ["dcasa_base.group_vendedora", "sales_team.group_sale_salesman"],
+      "tareas": ["cotizacion-nueva", "por-facturar", "cobrar-cliente", "ventas-hoy", "codigo-publico", "conversaciones", "cliente-nuevo"]
+    }
+  ],
+  "porDefecto": {
+    "clave": "equipo",
+    "titulo": "",
+    "tareas": ["conversaciones", "clientes-lista", "cliente-nuevo", "productos-lista", "existencias", "reembolso-pedir"]
+  }
+}
