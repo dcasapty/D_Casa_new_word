@@ -129,11 +129,11 @@ class TestFacturaCompleta(TransactionCase):
         for texto in ('CLIENTE DE PRUEBA', 'RUC', '8-000-0000', '6123-4567', 'cliente@example.com',
                       'Calle 5, Barrio Balboa',
                       '>Entrega<', 'Villa Lucre, casa 12', 'Arraiján', '6999-0000',
-                      'Fecha de factura', 'Vence', 'Pedido', 'S01004', 'Vendedora', 'Ana Vendedora', 'Condiciones'):
+                      'Fecha de factura', 'Vence', 'Pedido', 'S01004', 'Vendedor/a', 'Ana Vendedora', 'Condiciones'):
             self.assertIn(texto, html, texto)
         datos = dict(factura._dcasa_datos())
         self.assertEqual(datos['Pedido'], 'S01004')
-        self.assertEqual(datos['Vendedora'], 'Ana Vendedora')
+        self.assertEqual(datos['Vendedor/a'], 'Ana Vendedora')
         self.assertEqual(datos['Fecha de entrega'], factura._dcasa_fecha(fields.Date.today()))
         # La entrega se imprime con su propio nombre y sin repetir la identificación del cliente.
         self.assertIn('>Casa de Karen<', html)
@@ -241,7 +241,7 @@ class TestFacturaCompleta(TransactionCase):
         self.assertAlmostEqual(orden._dcasa_total_descuento(), 8.20)
         html = self.env['ir.actions.report']._render_qweb_html('sale.report_saleorder', orden.ids)[0].decode()
         for texto in ('Cotización', 'Código', '>IM-2001<', 'Flete y envío', '>Entrega<', 'Villa Lucre, casa 12',
-                      'Vendedora', 'Ana Vendedora', 'Descuento', 'Descripción', 'Precio unitario', 'Importe'):
+                      'Vendedor/a', 'Ana Vendedora', 'Descuento', 'Descripción', 'Precio unitario', 'Importe'):
             self.assertIn(texto, html, texto)
         self.assertNotIn('[IM-2001]', html)
         self.assertNotIn('Quotation', html)

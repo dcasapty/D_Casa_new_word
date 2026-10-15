@@ -103,7 +103,7 @@ class AccountMove(models.Model):
             ('Pedido', self.invoice_origin),
             ('Referencia', self.ref if self.ref != self.invoice_origin else ''),
             ('Código de cliente', self.partner_id.ref),
-            ('Vendedora', self.invoice_user_id.name if self.move_type in ('out_invoice', 'out_refund') else ''),
+            ('Vendedor/a', self.invoice_user_id.name if self.move_type in ('out_invoice', 'out_refund') else ''),
             ('Condiciones', self.invoice_payment_term_id.name),
             ('Medio de pago', self._dcasa_medio_de_pago()),
         ]
