@@ -65,6 +65,9 @@ class TestCodigoPublico(TransactionCase):
         self.assertEqual(CP.normalizar_codigo_publico('dc_k7m4px'), 'DC-K7M4PX', 'un lector con otro teclado')
         for malo in ('', None, 'DC-K7M4P', 'DC-K7M4PXX', 'DC-K7M4P0', 'DC-K7M4PA', 'XX-K7M4PX', 'K7M4PX', 123):
             self.assertIsNone(CP.normalizar_codigo_publico(malo), malo)
+        self.assertTrue(CP.es_codigo_publico('DC-K7M4PX'))
+        for malo in ('DC-K7M4PX\n', ' DC-K7M4PX', 'dc-k7m4px', 'DC-K7M4PX ', None):
+            self.assertFalse(CP.es_codigo_publico(malo), repr(malo))
         self.assertEqual(CP.patron_de_busqueda('k7m4'), 'K7M4')
         self.assertEqual(CP.patron_de_busqueda('dc-k7m'), 'DC-K7M')
         self.assertIsNone(CP.patron_de_busqueda('dc'), 'muy corto: traería medio catálogo')
@@ -122,6 +125,10 @@ class TestCodigoPublico(TransactionCase):
             self.producto(dcasa_codigo_publico='DC-ABC123')   # tiene vocal
         with self.assertRaises(ValidationError):
             self.producto(dcasa_codigo_publico=nuevo)       # ya es de otro
+        otro = self.Plantilla._dcasa_codigos_libres(1)[0]
+        with self.assertRaises(ValidationError):            # el mismo código en dos productos del mismo lote
+            self.Plantilla.create([{'name': 'Zza', 'dcasa_codigo_publico': otro},
+                                   {'name': 'Zzb', 'dcasa_codigo_publico': otro}])
 
     # ------------------------------------------------------------------ 600 seguidos
 
