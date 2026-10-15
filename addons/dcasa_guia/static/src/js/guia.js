@@ -8,7 +8,7 @@
  * «Llévame ahí» lo hace el servicio dcasa_guia_ruta (abre, anota el uso y deja la cinta de «Estás haciendo»).
  * «Preguntarle a Brian» abre su panel con la pregunta escrita (sin enviarla).
  */
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onMounted, onWillStart, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { browser } from "@web/core/browser/browser";
@@ -34,9 +34,12 @@ export class DcasaGuia extends Component {
         });
         this.temporizador = null;
         this.envio = 0;
+        this.raiz = useRef("raiz");
+        this.tareaPedida = null;
         // Ya estás en la Guía: la cinta de «Estás haciendo» sobra.
         this.ruta.descartar();
         onWillStart(() => this.cargar());
+        onMounted(() => this.mostrarTareaPedida());
     }
 
     async cargar() {
@@ -56,6 +59,21 @@ export class DcasaGuia extends Component {
         if (tarea) {
             this.state.categoria = tarea.categoria;
             this.state.abierta = tarea.id;
+            this.tareaPedida = tarea.id;
+        }
+    }
+
+    /** La tarea pedida queda a la vista (la lista puede ser larga) y con el foco, para quien usa el teclado. */
+    mostrarTareaPedida() {
+        const raiz = this.raiz.el;
+        const fila = this.tareaPedida && raiz && raiz.querySelector(`[data-tarea="${this.tareaPedida}"]`);
+        this.tareaPedida = null;
+        if (fila) {
+            fila.scrollIntoView({ block: "center" });
+            const cabeza = fila.querySelector(".o_dcasa_guia_tarea_cabeza");
+            if (cabeza) {
+                cabeza.focus({ preventScroll: true });
+            }
         }
     }
 

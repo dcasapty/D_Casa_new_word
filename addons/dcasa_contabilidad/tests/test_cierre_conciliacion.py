@@ -168,13 +168,29 @@ class TestCierreVeLosCobrosSinCruzar(CierreCommon):
         self.assertEqual((accion['type'], accion['tag']), ('ir.actions.client', 'dcasa_conciliacion'))
 
     def test_el_cierre_de_una_empresa_no_mezcla_las_otras(self):
-        """El paso de bancos mira solo la empresa que se cierra, aunque haya otra empresa activa."""
-        otra = self.env['res.company'].create({'name': 'Otra empresa del cierre'})
-        datos = self.Cierre.with_context(allowed_company_ids=[self.company.id, otra.id])._bancos_por_cruzar(
-            HOY, self.company)
-        solo = self.Cierre._bancos_por_cruzar(HOY, self.company)
-        self.assertEqual(datos['pendientes'], solo['pendientes'])
-        self.assertEqual(datos['detalle'], solo['detalle'])
+        """Con dos empresas activas, el cierre de A usa solo lo de A (antes leía los reportes de todas las activas)."""
+        usd = self.env.ref('base.USD')
+        otra = self.env['res.company'].create({'name': 'Otra empresa del cierre', 'currency_id': usd.id})
+        self.env['account.chart.template'].try_loading('pa', otra, install_demo=False)
+        otra.currency_id = usd
+        factura = self.env['account.move'].with_company(otra).create({
+            'move_type': 'out_invoice', 'company_id': otra.id, 'partner_id': self.datos.c1.id,
+            'invoice_date': f(10, 12), 'date': f(10, 12),
+            'invoice_line_ids': [(0, 0, {'name': 'Mueble', 'quantity': 1, 'price_unit': 1000.0,
+                                         'tax_ids': [(6, 0, otra.account_sale_tax_id.ids)]})]})
+        factura.action_post()
+        activas = [self.company.id, otra.id]
+        ambas = self.reportes.with_context(allowed_company_ids=activas).itbms(f(10, 1), f(10, 31))['resumen']
+        solo_a = self.reportes.with_context(allowed_company_ids=[self.company.id]).itbms(f(10, 1), f(10, 31))['resumen']
+        self.assertAlmostEqual(ambas['debito_fiscal'] - solo_a['debito_fiscal'], 70.0, places=2)
+        cierre = self.Cierre.with_context(allowed_company_ids=activas).create({'mes': f'{ANIO}-10-01'})
+        self.assertEqual(cierre.company_id, self.company)
+        itbms = cierre.paso_ids.filtered(lambda p: p.codigo == 'itbms').detalle
+        self.assertIn(self.company.currency_id.format(solo_a['debito_fiscal']), itbms)
+        self.assertNotIn(self.company.currency_id.format(ambas['debito_fiscal']), itbms)
+        # Y lo de los bancos tampoco cambia por tener otra empresa activa.
+        datos = self.Cierre.with_context(allowed_company_ids=activas)._bancos_por_cruzar(HOY, self.company)
+        self.assertEqual(datos['pendientes'], self.Cierre._bancos_por_cruzar(HOY, self.company)['pendientes'])
 
 
 @tagged('post_install', '-at_install')

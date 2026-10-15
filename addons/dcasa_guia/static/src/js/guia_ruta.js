@@ -13,7 +13,7 @@
  * pantalla; si ella fallara, Odoo solo la quita. Se va sola cuando la persona sale de las pantallas de la tarea o
  * vuelve a la Guía, o cuando la cierra con la «x».
  */
-import { Component, markRaw, reactive, useState } from "@odoo/owl";
+import { Component, markRaw, reactive, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -186,6 +186,26 @@ export class GuiaCinta extends Component {
     setup() {
         this.ruta = useService("dcasa_guia_ruta");
         this.estado = useState(this.ruta.estado);
+        this.cintaRef = useRef("cinta");
+        // La cinta va fija abajo: se le avisa a la hoja de estilos cuánto mide para que reserve ese lugar abajo del
+        // contenido y no tape lo último de la pantalla. Es lo único que se escribe fuera del componente.
+        useEffect(
+            (cinta) => {
+                if (!cinta) {
+                    return;
+                }
+                const raiz = document.documentElement;
+                const medir = () => raiz.style.setProperty("--dc-cinta-alto", `${cinta.offsetHeight}px`);
+                medir();
+                const observador = new ResizeObserver(medir);
+                observador.observe(cinta);
+                return () => {
+                    observador.disconnect();
+                    raiz.style.removeProperty("--dc-cinta-alto");
+                };
+            },
+            () => [this.cintaRef.el]
+        );
     }
 
     get cinta() {

@@ -30,8 +30,12 @@ class StockMove(models.Model):
         if not self.env.context.get(CLAVE_CONTEXTO):
             return super()._get_report_description_picking()
         self.ensure_one()
-        descripcion = lineas.quitar_referencia_delante(self.description_picking, self.product_id.default_code)
-        nombre = self.product_id.name or ''
+        producto = self.product_id
+        # La descripción trae el nombre con la referencia del proveedor («[IM-2001] …», si se guardó así) o con el
+        # código público («[DC-K7M4PX] …», si se calculó ahora): se quita lo que haya y después el nombre repetido.
+        descripcion = lineas.quitar_referencia_delante(self.description_picking, producto.default_code)
+        descripcion = lineas.quitar_referencia_delante(descripcion, producto.dcasa_codigo_publico)
+        nombre = producto.name or ''
         if nombre and descripcion.startswith(nombre):
             descripcion = descripcion.removeprefix(nombre).strip()
         return descripcion

@@ -41,12 +41,16 @@ _NUMEROS = [
 ]
 
 
-def normalizar_html(texto):
-    """El ``<body>`` del HTML de un informe, estable entre corridas y entre bases de datos."""
+def normalizar_html(texto, quitar=()):
+    """El ``<body>`` del HTML de un informe, estable entre corridas y entre bases de datos.
+
+    ``quitar``: nombres (``name="…"``) de bloques que además se descartan; así un test puede decir «con el interruptor
+    encendido, salvo el bloque del QR, el documento es idéntico».
+    """
     arbol = lxml_html.document_fromstring(texto)
     cuerpo = arbol.find('body')
     for elemento in list(cuerpo.iter()):
-        if elemento.get('name') in BLOQUES_DE_OTROS_MODULOS and elemento.getparent() is not None:
+        if elemento.get('name') in BLOQUES_DE_OTROS_MODULOS + tuple(quitar) and elemento.getparent() is not None:
             elemento.drop_tree()
     for elemento in cuerpo.iter():
         if 'data-oe-id' in elemento.attrib:
@@ -168,7 +172,14 @@ class DocumentosDePrueba(TransactionCase):
 
     # --- Cómo se pintan ---------------------------------------------------------------------
 
-    def html(self, informe, registros, normalizado=True):
+    def html(self, informe, registros, normalizado=True, quitar=()):
         contenido, _tipo = self.env['ir.actions.report']._render_qweb_html(informe, registros.ids)
         contenido = contenido.decode()
-        return normalizar_html(contenido) if normalizado else contenido
+        return normalizar_html(contenido, quitar) if normalizado else contenido
+
+    def interruptores(self, qr=None, codigo_publico=None):
+        """Enciende o apaga los interruptores de la empresa (lo que no se nombra, no cambia)."""
+        if qr is not None:
+            self.company.dcasa_mostrar_qr_documentos = qr
+        if codigo_publico is not None:
+            self.company.dcasa_mostrar_codigo_publico = codigo_publico

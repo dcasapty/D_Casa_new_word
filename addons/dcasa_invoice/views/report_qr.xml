@@ -9,7 +9,7 @@
         <t t-set="dcasa_qr_src" t-value="registro._dcasa_qr_src()"/>
         <div t-if="dcasa_qr_src" class="o_dcasa_qr avoid-page-break-inside" name="dcasa_qr">
             <img class="o_dcasa_qr_img" t-att-src="dcasa_qr_src" alt="Código QR de uso interno"
-                 style="width: 19mm; height: 19mm;"/>
+                 style="width: 20mm; height: 20mm;"/>
             <div class="o_dcasa_qr_texto">Uso interno</div>
         </div>
     </template>

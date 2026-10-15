@@ -4,11 +4,10 @@
     <!-- La cinta de «Llévame ahí»: pequeña, abajo de la pantalla de destino y fácil de cerrar. Vive en
          main_components: no se mete dentro de ninguna vista de Odoo. -->
     <t t-name="dcasa_guia.Cinta">
-        <div t-if="cinta" class="o_dcasa_guia_cinta" role="region" aria-label="Lo que estás haciendo">
+        <div t-if="cinta" t-ref="cinta" class="o_dcasa_guia_cinta" role="region" aria-label="Lo que estás haciendo">
             <div class="o_dcasa_guia_cinta_texto">
                 <p class="o_dcasa_guia_cinta_haciendo">
-                    <span>Estás haciendo:</span>
-                    <strong class="o_dcasa_guia_cinta_titulo" t-out="cinta.tarea.titulo"/>
+                    <span>Estás haciendo:&#160;</span><strong class="o_dcasa_guia_cinta_titulo" t-out="cinta.tarea.titulo"/>
                     <span t-if="actual !== null and pasos.length > 1" class="o_dcasa_guia_cinta_paso">
                         · Paso <t t-out="actual + 1"/> de <t t-out="pasos.length"/>
                     </span>

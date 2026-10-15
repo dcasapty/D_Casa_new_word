@@ -1,9 +1,21 @@
-// La cinta de «Llévame ahí»: «Estás haciendo: …», el paso siguiente y «Volver a la Guía». Pequeña, plana, abajo de la
-// pantalla de destino (en el flujo de la página: no tapa nada) y fácil de cerrar. Azul clarito con texto oscuro; sin
-// amarillo (no toca el blanco) ni sombras.
+// La cinta de «Llévame ahí»: «Estás haciendo: …», el paso siguiente y «Volver a la Guía». Pequeña, plana, fija abajo de
+// la pantalla de destino y fácil de cerrar. Azul clarito con texto oscuro; sin amarillo (no toca el blanco) ni sombras.
+//
+// Va fija (no en el flujo): el escritorio tiene barra lateral y Odoo cambia el orden de sus piezas, y una cinta «en
+// el flujo» quedaba arriba a la izquierda. Para no tapar lo último de la pantalla, mientras está la cinta su alto
+// (`--dc-cinta-alto`, lo mide guia_ruta.js) se reserva abajo del contenido.
+
+.o_web_client > .o_action_manager {
+    padding-bottom: var(--dc-cinta-alto, 0px);
+}
 
 .o_dcasa_guia_cinta {
-    flex: none;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    // Debajo de los menús desplegables y los diálogos de Odoo (1000 y 1055): si abren uno, lo ven completo.
+    z-index: 990;
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -80,10 +92,31 @@
     }
 }
 
+// Con la barra lateral (escritorio) la cinta empieza donde empieza el contenido.
+@include media-breakpoint-up(lg) {
+    body.o_dcasa_con_barra .o_dcasa_guia_cinta {
+        left: var(--dc-barra-w);
+    }
+    body.o_dcasa_con_barra.o_dcasa_barra_colapsada .o_dcasa_guia_cinta {
+        left: var(--dc-barra-w-colapsada);
+    }
+}
+
 @media (max-width: 575.98px) {
     .o_dcasa_guia_cinta {
+        // En el teléfono el botón redondo de Brian no está abajo (va en la barra de arriba).
+        padding: 6px 1rem 8px;
         padding-right: 1rem;
-        // En el teléfono el botón de Brian está arriba, en la barra: abajo no estorba.
+        font-size: .85rem;
+    }
+    // La «x» sube a la esquina para no gastar una fila de más.
+    .o_dcasa_guia_cinta_cerrar {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+    .o_dcasa_guia_cinta_texto {
+        padding-right: 44px;
     }
 }
 

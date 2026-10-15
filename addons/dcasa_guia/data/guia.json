@@ -486,7 +486,7 @@
    "categoria": "reportes",
    "grupo": "De un vistazo",
    "titulo": "Ver cómo va el negocio (resumen contable)",
-   "logras": "En una pantalla: dinero en bancos y caja, lo que te deben y lo que debes, el ITBMS del periodo y las ventas y la utilidad comparadas con el periodo anterior.",
+   "logras": "En una pantalla: dinero en bancos y caja (con la fecha a la que corresponde), lo que te deben y lo que debes, el ITBMS del periodo y lo acumulado por pagar o a favor, y las ventas y la utilidad comparadas con el periodo anterior.",
    "destino": {
     "menu": "dcasa_contabilidad.menu_resumen"
    },
@@ -746,18 +746,21 @@
    "categoria": "impuestos",
    "grupo": "Cada mes",
    "titulo": "Saber cuánto ITBMS toca declarar",
-   "logras": "Ves cuánto ITBMS cobraste en tus ventas y cuánto pagaste en tus compras en el periodo que elijas: la diferencia es lo que normalmente se declara y se paga a la DGI.",
+   "logras": "Ves cuánto ITBMS cobraste en tus ventas y cuánto pagaste en tus compras en el periodo que elijas (la diferencia es lo de ese periodo). Y, aparte, el acumulado al día que elijas: lo que debes en total a la DGI, contando los meses anteriores y descontando lo que ya pagaste. Si tienes de más, aparece como «Saldo a favor».",
    "destino": {
     "menu": "dcasa_contabilidad.menu_itbms"
    },
-   "nota": "Normalmente se declara cada mes. Confirma con tu contador la fecha y el formulario.",
+   "nota": "Normalmente se declara cada mes. Confirma con tu contador la fecha y el formulario, y cómo manejar el saldo a favor y las retenciones.",
    "palabras": [
-    "impuesto de ventas",
-    "iva",
+    "7%",
+    "acumulado",
+    "cuanto debo en total",
     "declaracion mensual",
     "dgi",
-    "7%",
-    "impuesto"
+    "impuesto",
+    "impuesto de ventas",
+    "iva",
+    "saldo a favor"
    ],
    "brian": "¿Cuánto ITBMS debo este mes?"
   },

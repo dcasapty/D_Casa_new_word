@@ -212,3 +212,173 @@ trimestre. ¿Es correcto?
   anterior y con el nuevo, que es lo que confirma que las cuentas estaban bien.
 * Para repetirlo: `scripts/test.sh dcasa_contabilidad`, o solo estas con
   `TEST_TAGS=/dcasa_contabilidad:TestAuditoriaPeriodo,/dcasa_contabilidad:TestAuditoriaSaldos,/dcasa_contabilidad:TestAuditoriaResumen scripts/test.sh dcasa_contabilidad`.
+
+---
+
+# Presupuestos, consolidación, cierre y conciliación
+
+Segunda revisión (15 de octubre de 2026), con el mismo método de arriba: cada cifra de la pantalla se compara con un cálculo
+hecho aparte, directo en SQL sobre los apuntes publicados, y los errores se prueban con datos de una mueblería. Los números
+de los ejemplos son **datos de prueba**, no de la empresa. La dueña pidió que presupuestos, consolidación y mapa de cuentas
+estén «muy bien hechos a nivel de filtros, lógica, aritmética y contabilidad».
+
+## En pocas palabras (segunda revisión)
+
+* **Las cuentas estaban bien.** «Lo real» de un presupuesto coincide con los apuntes en 9 periodos (un día, la semana, el mes,
+  el mes pasado, el año a hoy, el año, un cruce de año, el año anterior y mitad de mes) para 9 tipos de línea (ingreso, gasto,
+  los dos canales de venta, banco, préstamo, capital y mobiliario). La consolidación suma las empresas y resta lo eliminado, sección
+  por sección, en 7 periodos y 9 fechas de corte, y el balance consolidado cuadra en todas.
+* **Lo que fallaba era lo que la pantalla decía y lo que dejaba pasar.** Se encontraron **14 cosas** (11 de lógica o de lo que la pantalla decía, 3 que faltaban) y las 14 están
+  arregladas (abajo). Los más serios: el cierre de mes y la guía de Brian decían «Todo conciliado» con un cobro en efectivo sin cruzar; un
+  presupuesto mezclaba ventas con gastos en un solo «total»; y una factura normal entre dos empresas del grupo llenaba el
+  consolidado de advertencias falsas de ITBMS.
+* **Quedan 12 preguntas para la contadora** (al final). Ninguna se decidió sin ella.
+
+## Hallazgos y lo que se corrigió
+
+**Q1. El cierre de mes decía «Todo conciliado» con un cobro sin cruzar (igual que la tarjeta H1 de arriba).**
+*Qué estaba mal:* el paso «Bancos, Yappy, tarjeta y caja conciliados» del Cierre de mes y la guía `guia_cierre_mes` de Brian solo
+contaban movimientos del extracto. Un cobro registrado con «Registrar pago» espera en «Recibos pendientes» y no suma al dinero
+de la caja hasta que se cruza con su movimiento. *Ejemplo:* abono de $200 en efectivo en una factura, sin movimiento de caja; el
+extracto del banco al día. El paso decía «Todo conciliado» y la gerencia podía cerrar septiembre con $200 que el cajón tiene y
+la contabilidad no. *Cómo quedó:* el paso (y la guía de Brian) salen de la **misma cuenta** que la tarjeta del Resumen
+(`_saldos_bancos`) y dicen, por diario, cuántos movimientos faltan y cuántos cobros o pagos faltan por cruzar y de cuánto:
+«Efectivo: 1 cobro sin cruzar ($200.00)». Impide cerrar, igual que un movimiento sin conciliar. «Ver» abre la pantalla de
+Conciliación.
+
+**Q2. El cierre de una empresa podía leer los reportes de todas las empresas activas.**
+*Qué estaba mal:* el cierre de la empresa A calculaba «el balance cuadra» y «el ITBMS del mes» con las empresas que estuvieran
+activas en pantalla, no con la que se cierra. *Cómo quedó:* todos los pasos usan solo la empresa del cierre. (Hoy hay una sola
+empresa: esto evita un error el día que haya dos.)
+
+**Q3. Un cobro registrado sin movimiento de caja no tenía dónde cruzarse.**
+*Qué estaba mal:* la pantalla de Conciliación solo parte de los movimientos del extracto. Un cobro en efectivo no trae
+movimiento: no aparecía en ninguna parte. *Cómo quedó:* si un banco o la caja tiene cobros o pagos esperando su movimiento, la
+lista lleva una segunda pestaña, **«Cobros y pagos sin movimiento»**, con el botón **«Crear el movimiento y cruzar»** (registra
+la entrada o la salida en la caja o el banco y la cruza con el cobro; se puede deshacer como cualquier conciliación). En un banco
+pide confirmar, porque si luego se importa el extracto, ese movimiento llegaría repetido. Si el mes del pago ya está cerrado, el
+movimiento lleva el primer día abierto y la pantalla lo dice.
+
+**P1. En un presupuesto, «% ejecutado» decía 0 % con planeado en cero.**
+*Ejemplo:* planeado $0 para ventas y real $1,800 (ventas de octubre al 14). Mostraba 0 % y «Diferencia» −1,800, sin explicar.
+*Cómo quedó:* no inventa el porcentaje; la línea dice **«Sin presupuesto»** (o «Sin movimiento» si tampoco hubo nada).
+
+**P2. Un ingreso por encima de lo planeado salía en rojo.**
+*Ejemplo:* meta de ventas $1,500 y real $1,800: «diferencia» −300 en rojo, como si fuera un problema. En un gasto, planeado $200
+y real $280 (−80) sí es un problema. *Cómo quedó:* el color sale del tipo de línea: gasto contra tope («Dentro» / «Te pasaste») e
+ingreso contra meta («En camino» / «Meta cumplida»). La columna se llama **«Por ejecutar»** (planeado − real) y su ayuda
+explica el signo.
+
+**P3. Los totales sumaban ventas con gastos.**
+*Ejemplo:* ventas planeadas $2,000 y gastos planeados $300 daban «Planeado $2,300», que no significa nada. *Cómo quedó:* tres
+totales: **ingresos, gastos y resultado** (2,000 − 300 = 1,700 planeado; real igual). Las cuentas de balance (banco, préstamos)
+no entran al resultado.
+
+**P4. El detalle por canal se sumaba dos veces.**
+*Ejemplo:* una línea de la cuenta de ventas ($2,000 planeado, $1,800 real) y otra de la misma cuenta solo para la tienda
+física ($1,000 planeado, $870 real): el total sumaba $3,000 y $2,670. *Cómo quedó:* la línea por canal es un **detalle** de la
+general y no se suma otra vez (total $2,000 / $1,800; el presupuesto avisa). La misma cuenta con la misma analítica dos
+veces ya no se permite (mostraría el mismo real dos veces).
+
+**P5. Faltaban filtros de fecha y una forma de comparar contra el tiempo.**
+*Cómo quedó:* en la lista de presupuestos hay filtros de estado y los siete atajos (Hoy · Esta semana · Esta quincena · Este mes
+· Mes pasado · Este trimestre · Este año fiscal) que muestran los presupuestos cuyo periodo **toca** esos días. Y un campo
+**«Tiempo transcurrido»** (45 % el 14 de octubre en un presupuesto de octubre) para comparar con el % ejecutado: gastar 80 % con
+30 % del tiempo es ir muy rápido.
+
+**P6. El botón «Movimientos» del presupuesto no filtraba por empresa.** Ahora sí.
+
+**K1. Una factura normal entre dos empresas del grupo llenaba el consolidado de advertencias falsas de ITBMS.**
+*Ejemplo:* A le factura $1,000 + $70 de ITBMS a B. El consolidado decía «A tiene un saldo acreedor de $70 con B en la cuenta ITBMS
+a pagar, que no es por cobrar ni por pagar» (y lo mismo de B). Salía con **cada** factura: la gente aprende a ignorar las
+advertencias. *Cómo quedó:* las líneas de impuesto no se miran como deuda entre empresas (el ITBMS se debe a la DGI, no a la otra
+empresa). Se siguen eliminando por cobrar/por pagar ($1,070 de cada lado) e ingresos/gastos ($1,000).
+
+**K2. Un asiento a nombre de una persona de la otra empresa no se eliminaba.**
+*Ejemplo:* A registra a mano una venta de $60 a «Contacto de la zona libre» (una persona de la ficha de B). Como el tercero no
+era la ficha, los $60 de ventas (y los $60 de gastos de B) quedaban dentro del consolidado: ventas y gastos $60 más altos.
+*Cómo quedó:* se reconoce como la otra empresa a su ficha **y a sus contactos**.
+
+**K3. Las cuentas que solo tiene una empresa no se perdían, pero nadie lo veía.**
+*Cómo quedó:* una cuenta nunca se pierde (se une por código y, si es única, sale sola). Ahora el formulario y el PDF llevan una
+**nota azul** (no una advertencia) con las cuentas con saldo que ninguna otra empresa tiene ni por código ni en el mapa, para ver
+si falta unirlas. El **Mapa de cuentas** muestra y agrupa por **tipo de cuenta**, para ver que no se junten un ingreso y un
+gasto.
+
+**K4. La lista de consolidaciones mostraba un «Desde» que el balance no usa.** *Cómo quedó:* una columna **Periodo** («Al
+31/03/2030», «El 12/03/2030», «Del 01/03/2030 al 31/03/2030»), igual que en el PDF y que en los reportes.
+
+**K5. Faltaban los atajos de fecha en la consolidación.** El formulario tiene el selector de atajos (llena el «Desde» y el «Hasta»)
+y la lista tiene los mismos siete filtros.
+
+## Lo que se revisó y estaba bien (segunda revisión)
+
+* **Presupuestos:** lo real (borradores y cancelados fuera, una nota de crédito resta, solo del periodo y de la empresa del
+  presupuesto, signo natural de ingresos, gastos, pasivos y patrimonio); la parte de cada apunte que va a un canal (60/40 en una
+  venta repartida) contra las líneas analíticas de Odoo, que es otro camino. *Ejemplos:* ventas de septiembre = $600 − $100 de nota
+  de crédito = $500; compras de septiembre = $500 − $50 = $450; canal tienda física en octubre al 14 = 60 % de $950 + $300 = $870.
+* **Consolidación:** estado de resultados = suma de las empresas − eliminaciones, sección por sección; balance consolidado
+  cuadra (activo = pasivo + patrimonio) y cada empresa por separado también; comprobación con debe = haber, saldos iniciales y
+  finales que suman cero; eliminaciones de por cobrar/por pagar con facturas, notas de crédito, cobros parciales y un año
+  anterior; lo de después del periodo, el borrador y las fechas borde (el mismo día entra; el día de antes y el de después, no);
+  cada empresa con su propio año fiscal; los descuadres se avisan con su monto. *Ejemplo (balance al 31 de marzo de 2030):* por
+  cobrar entre empresas $1,737 (A a B) + $321 (B a A) = $2,058, y lo mismo en por pagar.
+* **Monedas:** si las empresas no usan la misma moneda, el cálculo se detiene con un mensaje claro y el formulario lo avisa; **no
+  convierte ni inventa tipos de cambio**. Con la misma moneda (hoy todas en dólares) cada apunte entra por su importe.
+* **Fechas coherentes con los reportes:** el balance consolidado usa solo el «Hasta» (es un saldo), el estado de resultados usa
+  «Desde» y «Hasta» (movimiento) y los atajos son los mismos de la barra de los reportes.
+
+## Para la contadora (segunda revisión)
+
+* **C10. ITBMS entre empresas del grupo.** Hoy no se elimina (cada empresa lo debe o lo acredita a la DGI). ¿Es lo correcto para el
+  consolidado, o quiere netearlo?
+* **C11. Dinero en tránsito entre empresas.** Si A registró el cobro de B y B registró el pago a A y ninguna lo ha cruzado con su
+  banco, quedan «Recibos pendientes» y «Pagos pendientes» de cada lado (se avisa, no se elimina). ¿Se elimina como lo que se
+  deben entre ellas?
+* **C12. Préstamos y anticipos entre empresas.** Solo se avisan. ¿En qué cuentas se llevarán y cómo se eliminan?
+* **C13. Inventario o activos comprados entre empresas.** Si la compradora lo registra como inventario y no como gasto, sale un
+  descuadre de ingresos contra gastos (la utilidad no realizada). ¿Cómo se trata?
+* **C14. Monedas distintas.** Si algún día una empresa lleva otra moneda: ¿qué tipo de cambio (cierre, promedio) y de dónde sale?
+  Hoy no se convierte.
+* **C15. Años fiscales distintos entre empresas.** Cada empresa pasa sus resultados al patrimonio con su propio año fiscal. ¿Es lo
+  que quiere el consolidado?
+* **C16. Mapa de cuentas.** Cuando una empresa tenga un plan distinto: ¿qué cuenta de una equivale a cuál de la otra? La nota azul de
+  cada cálculo lista las candidatas.
+* **C17. Cuentas de balance en un presupuesto** (préstamos, compra de activos): hoy se miden contra un tope pero no entran al
+  resultado. ¿Las quiere en el presupuesto o solo ingresos y gastos?
+* **C18. Un presupuesto es de un solo periodo.** ¿Quiere uno por mes dentro del año (para ver el avance mes a mes) o le basta con
+  «Tiempo transcurrido»?
+* **C19. Cheques y cobros en tránsito en el cierre.** Hoy un cobro registrado sin cruzar **impide cerrar** el mes (igual que un
+  movimiento del banco sin conciliar). Un cheque depositado el último día que el banco acredita días después se vería así. ¿Prefiere
+  que solo avise (no impida)?
+* **C20. Efectivo.** Para cada cobro en efectivo, ¿quiere llevar un movimiento de caja (ahora se crea con un clic desde
+  «Cobros y pagos sin movimiento») o prefiere el saldo directo?
+* **C21. Pendiente de C5 de arriba:** ¿suma al «Dinero en bancos y caja» lo que está en tránsito?
+
+## Límites conocidos (segunda revisión)
+
+* Los atajos de las listas de Presupuestos y Consolidación terminan hoy (como en los reportes): un presupuesto que empieza
+  mañana no sale en «Este mes». Para ver todos los que siguen abiertos, el filtro «Vigentes».
+* «Lo real» de un presupuesto no se guarda: se calcula al abrir la pantalla (siempre al día).
+* La pantalla de Conciliación solo lista los diarios de banco y caja. Un diario de tipo «tarjeta de crédito» de Odoo no aparece (en
+  D'CASA «Tarjeta» es un banco).
+* `movimientos_por_conciliar` de Brian sigue contando solo los movimientos del extracto (la guía y el cierre sí cuentan los cobros).
+* En el consolidado, las líneas de impuesto no se eliminan nunca; si algún día hay que eliminar algo de ahí, sería una regla nueva.
+
+## Cómo se probó (segunda revisión)
+
+* **50 pruebas nuevas:** `dcasa_contabilidad/tests/test_presupuesto.py` (16, con `tests/oraculo_presupuesto.py`, SQL aparte),
+  `dcasa_contabilidad/tests/test_cierre_conciliacion.py` (12), `dcasa_consolidacion/tests/test_auditoria_consolidacion.py` (21, con
+  `tests/oraculo_consolidacion.py`) y 1 de Brian (`dcasa_brian/tests/test_herramientas_contabilidad.py`). Cifras a mano, fechas borde,
+  dos empresas, hora de Panamá contra UTC.
+* **Resultado con el código nuevo:** `scripts/test.sh dcasa_contabilidad,dcasa_consolidacion,dcasa_brian,dcasa_base` sobre una base
+  limpia: **0 fallas en 219 pruebas** (contabilidad 158, consolidación 78, Brian 27, superficie RPC 6).
+* **Contra el código anterior** (el de antes de esta revisión), de las 50 pruebas nuevas **44 fallan**. Las 6 que pasan son las que
+  comparan contra los apuntes lo real de los presupuestos (4), el presupuesto con dos empresas y las fechas borde de la
+  consolidación: confirman que esas cuentas ya estaban bien. En la consolidación, el cálculo aparte encontró el error K2: ventas
+  consolidadas de marzo $1,560.00 contra $1,500.00 reales, y un «Descuadre de $60.00» que no existía.
+* Para repetirlo: `scripts/test.sh dcasa_contabilidad,dcasa_consolidacion`, y para Brian
+  `TEST_TAGS=/dcasa_brian:TestHerramientasContabilidad scripts/test.sh dcasa_brian`.
+* Capturas de pantalla a 1366×768 con un navegador real (Conciliación con la pestaña nueva y el aviso para el banco, cierre de mes
+  con «Efectivo: 1 cobro sin cruzar ($200.00)», presupuesto con totales y situación, consolidación con la nota azul y el selector
+  de atajos): el botón «Crear el movimiento y cruzar» se probó de punta a punta.

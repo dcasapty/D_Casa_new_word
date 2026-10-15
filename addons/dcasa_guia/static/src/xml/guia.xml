@@ -55,7 +55,7 @@
     </t>
 
     <t t-name="dcasa_guia.Guia">
-        <div class="o_action o_dcasa_guia">
+        <div class="o_action o_dcasa_guia" t-ref="raiz">
             <header class="o_dcasa_guia_hero">
                 <h1>¿Qué necesitas hacer hoy?</h1>
                 <p>Escribe lo que quieres lograr o escoge un tema. Te explico qué vas a lograr y, con «Llévame ahí», te llevo a la pantalla.</p>

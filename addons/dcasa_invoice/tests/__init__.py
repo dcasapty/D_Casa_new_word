@@ -6,3 +6,5 @@ from . import test_paquete
 from . import test_paquete_http
 from . import test_panel_facturas
 from . import test_documentos_intactos
+from . import test_qr_documentos
+from . import test_codigo_publico_documentos
