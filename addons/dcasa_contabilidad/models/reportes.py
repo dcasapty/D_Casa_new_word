@@ -332,10 +332,41 @@ class ReporteContable(models.AbstractModel):
             })
         debito = self._r(sum(f['impuesto'] for f in filas if f['tipo'] == 'venta'))
         credito = self._r(sum(f['impuesto'] for f in filas if f['tipo'] == 'compra'))
+        cuentas, acumulado = self._acumulado_itbms(hasta, borradores)
         return {'reporte': 'itbms', 'titulo': 'Resumen de ITBMS', 'desde': str(desde), 'hasta': str(hasta),
-                'moneda': self._moneda(), 'filas': filas,
+                'moneda': self._moneda(), 'filas': filas, 'cuentas': cuentas,
                 'resumen': {'debito_fiscal': debito, 'credito_fiscal': credito,
-                            'a_pagar': self._r(debito - credito)}}
+                            'a_pagar': self._r(debito - credito),
+                            # Acumulado AL CORTE («Hasta»): saldo de las cuentas de ITBMS, como en el balance general.
+                            'al': str(hasta), 'acumulado': acumulado,
+                            'acumulado_a_pagar': max(acumulado, 0.0), 'acumulado_a_favor': max(-acumulado, 0.0)}}
+
+    @api.model
+    def _cuentas_itbms(self):
+        """Las cuentas del balance donde los impuestos de ventas y compras acumulan lo que se debe (o se tiene a favor).
+
+        Salen de la configuración de los impuestos (la cuenta de su reparto «de impuesto»), no de un código escrito
+        aquí. Se dejan fuera las de resultados (un impuesto que se va al gasto no es una deuda con la DGI).
+        """
+        impuestos = self.env['account.tax'].with_context(active_test=False).search([
+            ('type_tax_use', 'in', ('sale', 'purchase')), ('company_id', 'in', self.env.companies.ids)])
+        impuestos |= impuestos.children_tax_ids
+        reparto = impuestos.repartition_line_ids.filtered(lambda r: r.repartition_type == 'tax')
+        return reparto.account_id.filtered(lambda c: c.account_type not in TIPOS_RESULTADOS)
+
+    @api.model
+    def _acumulado_itbms(self, hasta, borradores=False):
+        """([{cuenta, saldo}], neto): el ITBMS acumulado A LA FECHA ``hasta`` (meses anteriores y pagos incluidos).
+
+        Es el saldo de las cuentas de ITBMS hasta esa fecha, medido igual que el balance general (asientos
+        publicados). Positivo = por pagar; negativo = saldo a favor (el crédito fiscal de las compras es mayor).
+        """
+        cuentas = self._cuentas_itbms()
+        sumas = self._sumas_por_cuenta(Domain.AND([self._dominio(borradores), [
+            ('date', '<=', hasta), ('account_id', 'in', cuentas.ids)]]))
+        filas = [{**self._cuenta(c), 'saldo': self._r(-sumas.get(c, (0.0, 0.0, 0.0))[2])}
+                 for c in sorted(cuentas, key=lambda c: c.code or '')]
+        return filas, self._r(sum(f['saldo'] for f in filas))
 
     # ------------------------------------------------------------------
     # Analítica
@@ -768,8 +799,12 @@ class ReporteContable(models.AbstractModel):
              'vencido': cobrar['totales']['vencido'], **base_saldo},
             {'clave': 'por_pagar', 'titulo': 'Debes a proveedores', 'valor': pagar['totales']['total'],
              'vencido': pagar['totales']['vencido'], **base_saldo},
+            # El valor y el título son los del PERIODO (ventas − compras); el acumulado es un saldo al corte, aparte.
             {'clave': 'itbms', 'titulo': 'ITBMS por pagar' if itbms['a_pagar'] >= 0 else 'ITBMS a favor',
              'valor': abs(itbms['a_pagar']), 'debito': itbms['debito_fiscal'], 'credito': itbms['credito_fiscal'],
+             'acumulado': itbms['acumulado'], 'acumulado_a_pagar': itbms['acumulado_a_pagar'],
+             'acumulado_a_favor': itbms['acumulado_a_favor'], 'acumulado_al': str(hasta),
+             'acumulado_titulo': 'Saldo a favor' if itbms['acumulado'] < 0 else 'Acumulado por pagar',
              **base_periodo},
             {'clave': 'ventas', 'titulo': 'Ventas', 'valor': ventas, 'comparado': ventas_antes,
              'variacion_pct': self._variacion(ventas, ventas_antes)[1], **base_periodo},

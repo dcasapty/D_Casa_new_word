@@ -37,9 +37,13 @@ class AccountMove(models.Model):
 
     def button_draft(self):
         self.check_access('write')  # antes de anular puntos con sudo (método público por RPC)
+        # Los pagos que tenía la factura se miran antes de tocar nada; el aviso sale después, solo si Odoo aceptó.
+        con_pagos = self._dcasa_pagos_ligados()
         for move in self.filtered(lambda m: m.move_type == 'out_invoice'):
             move._dcasa_anular_compras(self.env._('La factura %s volvió a borrador.', move.name))
-        return super().button_draft()
+        res = super().button_draft()
+        self._dcasa_avisar_pagos(con_pagos, borrada=False)
+        return res
 
     def button_cancel(self):
         self.check_access('write')  # antes de anular puntos con sudo (método público por RPC)
@@ -58,10 +62,83 @@ class AccountMove(models.Model):
         self.check_access('unlink')  # antes de anular puntos con sudo (método público por RPC)
         compras = self.sudo().dcasa_compra_ids.filtered(lambda c: not c.anulada_en)
         motivos = {compra.id: self.env._('Se eliminó la factura %s.', compra.name) for compra in compras}
+        con_pagos = self._dcasa_pagos_ligados()
         res = super().unlink()
         for compra in compras:
             compra._anular(motivos[compra.id], self.env.user.login, por_factura=True)
+        self._dcasa_avisar_pagos(con_pagos, borrada=True)
         return res
+
+    # ------------------------------------------------------------------------
+    # El pago de una factura que se deshace no se borra: se avisa dónde cancelarlo
+    # ------------------------------------------------------------------------
+
+    def _dcasa_pagos_ligados(self):
+        """``[(factura, número, pagos)]`` de las facturas de cliente que tienen pagos conciliados. Nunca falla."""
+        ligados = []
+        try:
+            with self.env.cr.savepoint():
+                for move in self.filtered(lambda m: m.move_type == 'out_invoice'):
+                    pagos = move.sudo()._get_reconciled_payments()
+                    if pagos:
+                        ligados.append((move, move.name, pagos))
+        except Exception:  # noqa: BLE001  — un aviso nunca hace fallar la factura
+            _logger.exception('No se pudieron revisar los pagos de las facturas %s', self.ids)
+            return []
+        return ligados
+
+    def _dcasa_ruta_de_pagos(self):
+        """«Facturación › Clientes › Pagos», tal como la ve quien está leyendo (sale del menú real)."""
+        menu = self.env.ref('account.menu_action_account_payments_receivable', raise_if_not_found=False)
+        if not menu:
+            return self.env._('Facturación › Clientes › Pagos')
+        return ' › '.join(menu.sudo().complete_name.split('/'))
+
+    def _dcasa_avisar_pagos(self, con_pagos, borrada):
+        """Avisa a quien lo hizo (aviso emergente que se queda hasta cerrarlo) y deja una nota en la factura y en cada
+        pago. Al volver a borrador el pago sigue ligado a la factura; al borrarla queda sin aplicar. No cambia lo que
+        hace el botón y nunca lo hace fallar: si algo se tuerce, queda en el registro."""
+        if not con_pagos:
+            return
+        try:
+            with self.env.cr.savepoint():
+                ruta = self._dcasa_ruta_de_pagos()
+                for _move, numero, pagos in con_pagos:
+                    lista = ', '.join(pagos[:3].mapped(lambda p: p.name or p.display_name))
+                    if len(pagos) > 3:
+                        lista += self.env._(' y %s más', len(pagos) - 3)
+                    textos = self._dcasa_texto_de_pagos(numero, lista, ruta, len(pagos) > 1, borrada)
+                    if not borrada and _move.exists():
+                        _move.sudo().message_post(body=textos['nota_factura'], message_type='comment',
+                                                  subtype_xmlid='mail.mt_note')
+                    for pago in pagos.sudo():
+                        pago.message_post(body=textos['nota_pago'], message_type='comment',
+                                          subtype_xmlid='mail.mt_note')
+                    persona = self.env.user.partner_id
+                    if persona:
+                        self.env['bus.bus']._sendone(persona, 'simple_notification', {
+                            'type': 'warning', 'sticky': True, 'title': textos['titulo'],
+                            'message': textos['aviso']})
+        except Exception:  # noqa: BLE001  — un aviso nunca hace fallar la factura
+            _logger.exception('No se pudo avisar de los pagos de las facturas %s', self.ids)
+
+    def _dcasa_texto_de_pagos(self, numero, lista, ruta, varios, borrada):
+        _ = self.env._
+        datos = {'factura': numero, 'pagos': lista, 'ruta': ruta}
+        if borrada:
+            aviso = (_('Se eliminó la factura %(factura)s. Los pagos %(pagos)s quedaron sin aplicar. '
+                       'Si eran de prueba, cancélalos en %(ruta)s.', **datos) if varios else
+                     _('Se eliminó la factura %(factura)s. El pago %(pagos)s quedó sin aplicar. '
+                       'Si era de prueba, cancélalo en %(ruta)s.', **datos))
+            return {'titulo': _('Pago sin aplicar'), 'aviso': aviso, 'nota_factura': aviso,
+                    'nota_pago': _('Se eliminó la factura %(factura)s: este pago quedó sin aplicar.', **datos)}
+        aviso = (_('Los pagos %(pagos)s siguen ligados a la factura %(factura)s. Si borras el borrador, esos pagos '
+                   'quedan sin aplicar. Si eran de prueba, cancélalos en %(ruta)s.', **datos) if varios else
+                 _('El pago %(pagos)s sigue ligado a la factura %(factura)s. Si borras el borrador, ese pago '
+                   'queda sin aplicar. Si era de prueba, cancélalo en %(ruta)s.', **datos))
+        return {'titulo': _('La factura tenía pago'), 'aviso': aviso, 'nota_factura': aviso,
+                'nota_pago': _('La factura %(factura)s volvió a borrador: este pago sigue ligado a ella. '
+                               'Si se borra la factura, el pago queda sin aplicar.', **datos)}
 
     def _post(self, soft=True):
         posted = super()._post(soft=soft)

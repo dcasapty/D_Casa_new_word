@@ -103,8 +103,8 @@ class DcasaCierreMes(models.Model):
     def _bancos_por_cruzar(self, fin, company=None):
         """Lo que falta por cruzar en bancos, Yappy, tarjeta y caja con fecha hasta ``fin``. También lo usa Brian.
 
-        Son dos cosas, y las dos cuentan (un cobro registrado con «Registrar pago» no entra al dinero del banco hasta que
-        se cruza con su movimiento, y mirar solo el extracto lo dejaba pasar como «Todo conciliado»):
+        Son dos cosas, y las dos cuentan (un cobro registrado con «Registrar pago» no entra al dinero del banco hasta
+        que se cruza con su movimiento, y mirar solo el extracto lo dejaba pasar como «Todo conciliado»):
 
         * movimientos del extracto del banco sin conciliar;
         * cobros y pagos registrados en facturas que esperan su movimiento.
@@ -162,8 +162,8 @@ class DcasaCierreMes(models.Model):
                 'modelo': modelo if pendiente else False, 'dominio': dominio or [],
             })
 
-        # Bancos, Yappy, tarjeta y caja: movimientos del extracto sin conciliar Y cobros/pagos registrados que esperan su
-        # movimiento. Una sola fuente con la tarjeta «Todo conciliado» del Resumen (``_saldos_bancos``).
+        # Bancos, Yappy, tarjeta y caja: movimientos del extracto sin conciliar Y cobros/pagos registrados que
+        # esperan su movimiento. Una sola fuente con la tarjeta «Todo conciliado» del Resumen (``_saldos_bancos``).
         bancos = self._bancos_por_cruzar(fin, company)
         paso('conciliacion', 'Bancos, Yappy, tarjeta y caja conciliados', bancos['pendientes'], bancos['detalle'],
              modelo='dcasa.conciliacion')
@@ -321,7 +321,8 @@ class DcasaCierreMesPaso(models.Model):
         if self.modelo == 'dcasa.conciliacion':
             # Bancos y caja: la pantalla de conciliación muestra los movimientos del extracto Y los cobros y pagos
             # registrados que esperan su movimiento, y desde ahí se resuelven.
-            return {'type': 'ir.actions.client', 'tag': 'dcasa_conciliacion', 'name': self.env._('Conciliación bancaria')}
+            return {'type': 'ir.actions.client', 'tag': 'dcasa_conciliacion',
+                    'name': self.env._('Conciliación bancaria')}
         return {
             'type': 'ir.actions.act_window', 'name': self.name, 'res_model': self.modelo,
             'domain': literal_eval(self.dominio or '[]'), 'views': [[False, 'list'], [False, 'form']],

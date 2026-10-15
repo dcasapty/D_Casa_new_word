@@ -47,6 +47,8 @@
                             .o_dcasa_consolidacion_pdf .consolidado { font-weight: 700; background: #F4F6FA; }
                             .o_dcasa_consolidacion_pdf .avisos { border: 1px solid #9A3412; color: #9A3412; padding: 6px 10px; margin-bottom: 10px; }
                             .o_dcasa_consolidacion_pdf .avisos p { margin: 2px 0; }
+                            .o_dcasa_consolidacion_pdf .notas-mapa { border: 1px solid #1340B1; color: #0B1F5C; padding: 6px 10px; margin-bottom: 10px; }
+                            .o_dcasa_consolidacion_pdf .notas-mapa p { margin: 2px 0; }
                             .o_dcasa_consolidacion_pdf .nota { color: #5B6478; margin-top: 12px; }
                         </style>
                         <h2 t-out="datos['titulo']"/>
@@ -57,6 +59,10 @@
                         <div t-if="datos['advertencias']" class="avisos">
                             <strong>Advertencias: revísalas antes de usar estas cifras.</strong>
                             <p t-foreach="datos['advertencias']" t-as="aviso" t-out="aviso"/>
+                        </div>
+                        <div t-if="datos['notas']" class="notas-mapa">
+                            <strong>Cuentas que solo tiene una empresa (no es un error):</strong>
+                            <p t-foreach="datos['notas']" t-as="nota" t-out="nota"/>
                         </div>
                         <div t-if="datos['tipo_reporte'] != 'resultados' and not datos['cuadra']" class="avisos">
                             <strong>No cuadra:</strong> la diferencia del consolidado es <t t-out="m(datos['diferencia'])"/>.

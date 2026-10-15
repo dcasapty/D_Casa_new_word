@@ -28,7 +28,7 @@ class CierreCommon(AuditoriaCommon):
     # -- el cálculo de referencia, directo en SQL ------------------------------------------------------------------
 
     def sql_por_cruzar(self, fin):
-        """{diario_id: {'movimientos', 'cobros', 'monto_cobros', 'egresos', 'monto_egresos'}} con fecha hasta ``fin``."""
+        """{diario_id: {'movimientos', 'cobros', 'monto_cobros', 'egresos', 'monto_egresos'}} hasta ``fin``."""
         self.env.flush_all()        # el SQL lee la base: que el ORM escriba antes lo pendiente
         cr = self.env.cr
         resultado = {}

@@ -262,7 +262,8 @@ class TestFase1(ContabilidadCommon):
         self.assertEqual(pasos['conciliacion'].estado, 'pendiente')
         self.assertEqual(pasos['comprobacion'].estado, 'listo')
         self.assertEqual(pasos['itbms'].estado, 'info')
-        self.assertTrue(pasos['conciliacion'].action_ver()['domain'])
+        # «Ver» abre la pantalla de conciliación: ahí se resuelven los movimientos del extracto y los cobros sin cruzar.
+        self.assertEqual(pasos['conciliacion'].action_ver()['tag'], 'dcasa_conciliacion')
         with self.assertRaises(UserError):
             cierre.action_cerrar()
         self.assertEqual(cierre.estado, 'abierto')

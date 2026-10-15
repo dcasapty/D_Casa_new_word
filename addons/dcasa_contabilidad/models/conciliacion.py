@@ -276,8 +276,9 @@ class AccountPayment(models.Model):
         """Cobros y pagos registrados con «Registrar pago» que el banco o la caja todavía no tienen.
 
         Quedan en «Recibos/Pagos pendientes» y no suman al dinero del banco hasta que se cruzan con su movimiento. Es la
-        misma regla que usa la tarjeta «Todo conciliado» (``dcasa.reporte.contable._pagos_sin_cruzar``, que da la cuenta y el
-        monto); aquí salen los registros para poder cruzarlos. Una prueba vigila que las dos den siempre lo mismo.
+        misma regla que usa la tarjeta «Todo conciliado» (``dcasa.reporte.contable._pagos_sin_cruzar``, que da la
+        cuenta y el monto); aquí salen los registros para poder cruzarlos. Una prueba vigila que las dos den siempre
+        lo mismo.
         """
         dominio = [('company_id', 'in', self.env.companies.ids), ('is_matched', '=', False),
                    ('state', 'in', ('in_process', 'paid')), ('journal_id.type', 'in', ('bank', 'cash'))]

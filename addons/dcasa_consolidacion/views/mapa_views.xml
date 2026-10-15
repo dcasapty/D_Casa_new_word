@@ -8,6 +8,7 @@
                 <field name="company_id" options="{'no_create': True}"/>
                 <field name="account_id" options="{'no_create': True}"/>
                 <field name="codigo_cuenta"/>
+                <field name="tipo_cuenta" optional="show"/>
                 <field name="codigo_consolidado"/>
                 <field name="nombre_consolidado"/>
             </list>
@@ -22,8 +23,11 @@
                 <field name="account_id"/>
                 <field name="codigo_consolidado"/>
                 <field name="company_id"/>
+                <filter name="con_nombre" string="Con nombre propio" domain="[('nombre_consolidado', '!=', False)]"/>
+                <filter name="sin_nombre" string="Sin nombre propio" domain="[('nombre_consolidado', '=', False)]"/>
                 <group>
                     <filter name="por_empresa" string="Empresa" context="{'group_by': 'company_id'}"/>
+                    <filter name="por_tipo" string="Tipo de cuenta" context="{'group_by': 'tipo_cuenta'}"/>
                     <filter name="por_codigo" string="Código consolidado" context="{'group_by': 'codigo_consolidado'}"/>
                 </group>
             </search>

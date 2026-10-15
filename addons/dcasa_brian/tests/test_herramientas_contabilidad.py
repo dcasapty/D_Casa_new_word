@@ -90,3 +90,40 @@ class TestHerramientasContabilidad(TransactionCase):
             self.ejecutar(self.gerente, 'cerrar_mes', {'mes': '03/2030'})['accion_id'])
         self.assertFalse(otra['ok'])
         self.assertIn('ya está cerrado', otra['error'])
+
+    def _cobro_en_caja_sin_cruzar(self, monto=50.0):
+        """«Registrar pago» en efectivo: queda en Recibos pendientes hasta que se cruza con el movimiento de la caja."""
+        efectivo = self.env['account.journal'].search([('type', '=', 'cash'),
+                                                       ('company_id', '=', self.env.company.id)], limit=1)
+        pagos = self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=self.factura.ids).create({
+                'payment_date': '2030-03-20', 'journal_id': efectivo.id, 'amount': monto})._create_payments()
+        # Que no quede nada más por conciliar en el extracto: solo el cobro de la caja espera.
+        self.env['account.bank.statement.line'].search(
+            [('is_reconciled', '=', False), ('date', '<=', '2030-03-31')]).unlink()
+        return pagos
+
+    def test_la_guia_de_cierre_ve_los_cobros_registrados_sin_cruzar(self):
+        """Antes solo contaba los movimientos del extracto: con el extracto al día decía «Todo conciliado»."""
+        pago = self._cobro_en_caja_sin_cruzar(50.0)
+        guia = self.ok(self.ejecutar(self.contador, 'guia_cierre_mes', {'mes': '03/2030'}))
+        paso = guia['pasos'][0]
+        self.assertEqual(paso['tarea'], 'Conciliar bancos, Yappy y caja')
+        self.assertEqual(paso['estado'], 'pendiente')
+        self.assertIn('1 cobro sin cruzar ($50.00)', paso['detalle'])
+        self.assertIn('Cobros y pagos sin movimiento', paso['como'])
+        self.assertNotIn('Todo conciliado', paso['detalle'])
+        # Es lo mismo que dice el paso del cierre de mes y la tarjeta del Resumen (una sola fuente).
+        cierre = self.env['dcasa.cierre.mes'].create({'mes': '2030-03-01'})
+        detalle = cierre.paso_ids.filtered(lambda p: p.codigo == 'conciliacion').detalle
+        self.assertEqual(paso['detalle'], detalle)
+        # Cerrar el mes tampoco pasa por alto el cobro.
+        respuesta = self.ejecutar(self.gerente, 'cerrar_mes', {'mes': '03/2030'})
+        resultado = self.env['brian.herramientas'].with_user(self.gerente).confirmar(respuesta['accion_id'])
+        self.assertFalse(resultado['ok'])
+        self.assertIn('1 cobro sin cruzar ($50.00)', resultado['error'])
+        self.assertFalse(self.env.company.fiscalyear_lock_date)
+        # Se cruza con el movimiento de la caja y el paso queda listo.
+        self.env['dcasa.conciliacion'].cruzar_pago(pago.id)
+        guia = self.ok(self.ejecutar(self.contador, 'guia_cierre_mes', {'mes': '03/2030'}))
+        self.assertEqual((guia['pasos'][0]['estado'], guia['pasos'][0]['detalle']), ('listo', 'Todo conciliado'))
