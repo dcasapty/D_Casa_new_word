@@ -372,7 +372,7 @@ class TestPantallaLlevame(BaseCase):
         self.assertNotIn('await orm', self.ruta, 'Ninguna llamada de uso se espera')
         # Se anota antes de abrir la pantalla (no depende de que llegue) y una sola vez por clic.
         llevar = self.ruta[self.ruta.index('async function llevar'):]
-        self.assertLess(llevar.index('anotarUso(tarea.id)'), llevar.index('await abrir(destino)'))
+        self.assertLess(llevar.index('anotarUso(tarea.id)'), llevar.index('await abrir()'))
         self.assertEqual(self.ruta.count('anotarUso(tarea.id)'), 1)
 
     def test_el_uso_solo_se_anota_si_la_persona_pidio_ir_no_desde_la_cinta(self):

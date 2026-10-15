@@ -46,31 +46,31 @@ export const guiaRutaServicio = {
                 .catch((error) => console.warn("Guía: no se pudo anotar el uso", error));
         }
 
-        /** Abre un destino del catálogo. Devuelve true si lo abrió. */
-        async function abrir(destino) {
+        /** Cómo abrir un destino del catálogo (una función), o nada si no se puede (y entonces avisa). */
+        function prepararApertura(destino) {
             if (destino.tipo === "menu") {
                 const elMenu = menu.getMenu(destino.menu_id);
                 if (!elMenu || !elMenu.actionID) {
                     notification.add("Esa pantalla no está disponible ahora.", { type: "warning" });
-                    return false;
+                    return null;
                 }
-                await action.doAction(elMenu.actionID, {
-                    clearBreadcrumbs: true,
-                    additionalContext: destino.contexto || {},
-                    onActionReady: () => menu.setCurrentMenu(elMenu),
-                });
-                return true;
+                return () =>
+                    action.doAction(elMenu.actionID, {
+                        clearBreadcrumbs: true,
+                        additionalContext: destino.contexto || {},
+                        onActionReady: () => menu.setCurrentMenu(elMenu),
+                    });
             }
             if (destino.tipo === "nuevo") {
-                await action.doAction({
-                    type: "ir.actions.act_window",
-                    res_model: destino.modelo,
-                    views: [[false, "form"]],
-                    context: destino.contexto || {},
-                });
-                return true;
+                return () =>
+                    action.doAction({
+                        type: "ir.actions.act_window",
+                        res_model: destino.modelo,
+                        views: [[false, "form"]],
+                        context: destino.contexto || {},
+                    });
             }
-            return false;
+            return null;
         }
 
         /** Las pantallas de la tarea: mientras la persona esté en una de ellas, la cinta se queda. */
@@ -120,7 +120,7 @@ export const guiaRutaServicio = {
                 if (!actual || actual.tag === "dcasa_guia" || !esDeLaTarea(actual, estado.cinta.pantallas)) {
                     descartar();
                 }
-            } catch (error) {
+            } catch {
                 descartar();
             }
         }
@@ -132,17 +132,17 @@ export const guiaRutaServicio = {
          */
         async function llevar(tarea, indice = null, { contar = true } = {}) {
             const destino = indice === null ? destinoPrincipal(tarea) : (tarea.pasos[indice] || {}).destino;
-            if (!destino) {
+            const abrir = destino && prepararApertura(destino);
+            if (!abrir) {
                 return false;
             }
+            // Un clic que sí tiene a dónde ir cuenta como uso; se anota ya, sin esperar a que cargue la pantalla.
             if (contar) {
                 anotarUso(tarea.id);
             }
             navegando = true;
             try {
-                if (!(await abrir(destino))) {
-                    return false;
-                }
+                await abrir();
                 const pantallas = markRaw(pantallasDe(tarea));
                 recordarLlegada(pantallas);
                 estado.cinta = { tarea: markRaw(tarea), indice, pantallas };
