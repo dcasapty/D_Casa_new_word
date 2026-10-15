@@ -1,0 +1,95 @@
+// La cinta de «Llévame ahí»: «Estás haciendo: …», el paso siguiente y «Volver a la Guía». Pequeña, plana, abajo de la
+// pantalla de destino (en el flujo de la página: no tapa nada) y fácil de cerrar. Azul clarito con texto oscuro; sin
+// amarillo (no toca el blanco) ni sombras.
+
+.o_dcasa_guia_cinta {
+    flex: none;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    padding: 8px clamp(1rem, 3vw, 40px);
+    // El botón redondo de Brian vive abajo a la derecha: la cinta le deja su lugar.
+    padding-right: 84px;
+    background: var(--dc-azul-50);
+    border-top: 1px solid var(--dc-azul-200);
+    color: var(--dc-tinta);
+    font-size: .9rem;
+    line-height: 1.35;
+
+    p {
+        margin: 0;
+    }
+}
+
+.o_dcasa_guia_cinta_texto {
+    flex: 1 1 18rem;
+    min-width: 0;
+}
+
+.o_dcasa_guia_cinta_haciendo {
+    color: var(--dc-tinta-2);
+
+    .o_dcasa_guia_cinta_titulo {
+        color: var(--dc-azul-800);
+    }
+}
+
+.o_dcasa_guia_cinta_siguiente {
+    color: var(--dc-tinta-2);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+
+    span {
+        font-weight: 600;
+        color: var(--dc-tinta);
+    }
+}
+
+.o_dcasa_guia_cinta_botones {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+
+    .btn-link {
+        color: var(--dc-azul-600);
+        padding-inline: 4px;
+    }
+}
+
+.o_dcasa_guia_cinta_cerrar {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--dc-tinta-2);
+
+    &:hover {
+        background: var(--dc-azul-100);
+    }
+    &:focus-visible {
+        outline: 0;
+        box-shadow: var(--dc-foco);
+    }
+}
+
+@media (max-width: 575.98px) {
+    .o_dcasa_guia_cinta {
+        padding-right: 1rem;
+        // En el teléfono el botón de Brian está arriba, en la barra: abajo no estorba.
+    }
+}
+
+@media (pointer: coarse) {
+    .o_dcasa_guia_cinta_cerrar {
+        width: 44px;
+        height: 44px;
+    }
+}

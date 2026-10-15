@@ -236,6 +236,10 @@ LISTA_BLANCA = {
         'es un archivo del repositorio, sin datos del negocio.',
     ('dcasa_guia', 'dcasa.guia', 'buscar'):
         SIN_SUDO + ' Busca solo entre las tareas que quien pregunta puede abrir; el texto buscado no toca la base.',
+    ('dcasa_guia', 'dcasa.guia', 'registrar_uso'):
+        SIN_SUDO + ' Anota «+1» solo para quien llama y solo de una tarea que existe y que esa persona puede abrir; '
+        'cualquier otra cosa devuelve False sin error. La regla de registro de dcasa.guia.uso deja a cada quien la '
+        'suya.',
     ('dcasa_interfaz', 'dcasa.sitio', 'vista_previa'):
         'Solo devuelve la URL pública del sitio (web.base.url, ya visible en cualquier enlace) y su nombre.',
     # El sitio se edita por código (models/sitio.py): solo AGREGAN un bloqueo, nunca un permiso.

@@ -26,17 +26,25 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
   impresión sin guardar archivos y «Descargar» lo guarda. Al completar un pago, el asistente lo ofrece (se apaga
   en la empresa). Todo lo que se imprimía antes sigue igual.
 * Facturación › Tablero: tarjetas «Facturas de clientes» y «Facturas de proveedores» con sus conteos.
+* Código QR de uso interno (/dcasa/doc/…): el pedido de compra lo lleva siempre; la factura, la nota de crédito, la
+  cotización y la nota de entrega solo si la empresa enciende «Mostrar el código QR…» (apagado, salen exactamente
+  como siempre). El equipo lo escanea y se abre ese documento en el sistema, si tiene permiso para verlo.
+* «Mostrar el código público de los productos…» (apagado de fábrica): la columna «Código» de la factura, la cotización
+  y la nota de entrega muestra DC-K7M4PX en lugar de la referencia del proveedor.
 """,
-    'version': '19.0.2.2.0',
+    'version': '19.0.2.3.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'account', 'sale', 'stock', 'sale_stock'],
+    'depends': ['dcasa_base', 'account', 'sale', 'stock', 'sale_stock', 'purchase'],
     'data': [
         'security/ir.model.access.csv',
         'views/report_layout.xml',
         'views/report_invoice.xml',
+        'views/report_qr.xml',
+        'views/report_compra.xml',
+        'views/report_entrega.xml',
         'views/res_company_views.xml',
         'views/paquete_views.xml',
         'data/report_layout_data.xml',

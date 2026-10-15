@@ -350,3 +350,29 @@ $dcasa-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Código QR de uso interno (factura, cotización, entrega y compra): pequeño, plano, al final de la hoja.
+// Azul/navy sobre blanco; nada de amarillo. Sin él (interruptor apagado) no existe en el HTML.
+// ---------------------------------------------------------------------------
+.o_dcasa_qr {
+    margin-top: 12px;
+    text-align: right;
+    line-height: 1.1;
+    page-break-inside: avoid;
+
+    .o_dcasa_qr_img {
+        display: inline-block;
+        width: 19mm;
+        height: 19mm;
+    }
+    .o_dcasa_qr_texto {
+        margin-top: 2px;
+        font-family: $dcasa-subtitulo;
+        font-weight: 600;
+        font-size: .6rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: $dcasa-navy;
+    }
+}

@@ -73,7 +73,8 @@ class SaleOrderLine(models.Model):
 
     def _dcasa_codigo(self):
         self.ensure_one()
-        return lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        codigo = lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        return lineas.codigo_a_imprimir(self.order_id.company_id, self.product_id, codigo)
 
     def _dcasa_descripcion(self):
         self.ensure_one()

@@ -189,9 +189,10 @@
     margin-top: 6px;
     padding-top: 8px;
     border-top: 1px solid var(--dc-linea);
-    strong { font-size: 1.1rem; }
+    strong { font-size: 1.1rem; color: var(--dc-tinta); }
 }
-.o_dc_a_favor, .o_dc_kpi .o_dc_kpi_acumulado.o_dc_a_favor strong, .o_dc_kpi_ok.o_dc_a_favor strong { color: #15803D; }
+.o_dc_a_favor, .o_dc_kpi .o_dc_kpi_acumulado.o_dc_a_favor strong, .o_dc_kpi_ok.o_dc_a_favor strong,
+.o_dc_fila td.o_dc_a_favor { color: #15803D; }
 
 .o_dc_kpi_fuerte {
     background: var(--dc-azul-600);

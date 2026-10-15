@@ -8,7 +8,16 @@ class AccountMoveLine(models.Model):
 
     def _dcasa_codigo(self):
         self.ensure_one()
-        return lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        codigo = lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[0]
+        return lineas.codigo_a_imprimir(self.move_id.company_id, self.product_id, codigo)
+
+    def _compute_name(self):
+        """Con «Mostrar el código público…» encendido, el nombre de una línea nueva con producto no lleva la referencia
+        del proveedor. Apagado, es el cálculo de Odoo de siempre."""
+        sin_referencia = self.filtered(lambda linea: linea.product_id and linea.company_id.dcasa_mostrar_codigo_publico)
+        if sin_referencia:
+            super(AccountMoveLine, sin_referencia.with_context(display_default_code=False))._compute_name()
+        super(AccountMoveLine, self - sin_referencia)._compute_name()
 
     def _dcasa_descripcion(self):
         """La descripción sin el código delante ni detrás (el código tiene su columna)."""

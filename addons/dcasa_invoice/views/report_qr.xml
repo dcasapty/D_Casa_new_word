@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El código QR de uso INTERNO de un documento: el equipo lo escanea y se abre ese documento en el sistema.
+         No lleva datos del cliente (solo la dirección corta del documento) y no se ofrece al cliente: por eso no tiene
+         invitación, solo la nota «Uso interno». Plano, azul/navy sobre blanco, al final del documento.
+         Variable: registro (factura, cotización, compra o entrega). Si el documento no debe llevarlo (interruptor de
+         la empresa apagado, factura en borrador), no se imprime NADA. -->
+    <template id="dcasa_qr_documento" name="D'CASA: código QR de uso interno">
+        <t t-set="dcasa_qr_src" t-value="registro._dcasa_qr_src()"/>
+        <div t-if="dcasa_qr_src" class="o_dcasa_qr avoid-page-break-inside" name="dcasa_qr">
+            <img class="o_dcasa_qr_img" t-att-src="dcasa_qr_src" alt="Código QR de uso interno"
+                 style="width: 19mm; height: 19mm;"/>
+            <div class="o_dcasa_qr_texto">Uso interno</div>
+        </div>
+    </template>
+
+    <!-- La página que ve quien abre un QR sin permiso o de un documento que no existe. -->
+    <template id="documento_aviso" name="D'CASA: aviso al abrir un documento">
+        &lt;!DOCTYPE html&gt;
+        <html lang="es">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <meta name="robots" content="noindex"/>
+                <title t-out="titulo"/>
+                <style>
+                    @font-face { font-family: 'DCASA Anton'; src: url('/dcasa_invoice/static/src/fonts/Anton-Regular.ttf') format('truetype'); }
+                    @font-face { font-family: 'DCASA Inter'; font-weight: 400; src: url('/dcasa_invoice/static/src/fonts/Inter-Regular.ttf') format('truetype'); }
+                    body { margin: 0; background: #FFFFFF; color: #0B2A6F; font-family: 'DCASA Inter', 'Helvetica Neue', Arial, sans-serif; border-top: 8px solid #1340B1; }
+                    main { max-width: 32rem; margin: 0 auto; padding: 3.5rem 1.25rem; }
+                    h1 { margin: 0 0 1rem; color: #1340B1; font-family: 'DCASA Anton', Impact, sans-serif; font-weight: 400; font-size: 2rem; text-transform: uppercase; letter-spacing: .02em; }
+                    p { font-size: 1.05rem; line-height: 1.5; margin: 0 0 1.5rem; }
+                    a { display: inline-block; padding: .75rem 1.4rem; background: #1340B1; color: #FFFFFF; font-weight: 700; text-decoration: none; }
+                </style>
+            </head>
+            <body>
+                <main>
+                    <h1 t-out="titulo"/>
+                    <p t-out="mensaje"/>
+                    <a href="/odoo">Ir al sistema</a>
+                </main>
+            </body>
+        </html>
+    </template>
+</odoo>

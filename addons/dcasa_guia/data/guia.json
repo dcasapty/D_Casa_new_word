@@ -1818,7 +1818,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Ver cómo reparte Juan las conversaciones entre las vendedoras",
-   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo. Cada vendedora ve solo las suyas.",
+   "logras": "Ves cuántas conversaciones le pasó Juan a cada vendedora hoy y a quién le esperan clientes, para comprobar que el reparto es parejo. Solo reciben las vendedoras: Gerencia y los administradores pueden intervenir en cualquier conversación, pero Juan no se las pasa. Cada vendedora ve solo las suyas.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
@@ -1835,16 +1835,15 @@
    "id": "juan-reparto-vacaciones",
    "categoria": "tienda",
    "grupo": "Conversaciones",
-   "titulo": "Dejar de asignarle conversaciones a alguien (vacaciones o ausencia)",
-   "logras": "Esa persona deja de recibir las conversaciones que pasa Juan, sin perder permisos ni las que ya tiene. Puedes poner el día en que vuelve.",
+   "titulo": "Dejar de asignarle conversaciones a una vendedora (vacaciones o ausencia)",
+   "logras": "Esa vendedora deja de recibir las conversaciones que pasa Juan, sin perder permisos ni las que ya tiene. Puedes poner el día en que vuelve; si no, sigue así hasta que la vuelvas a meter.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_reparto"
    },
    "palabras": [
     "vacaciones",
     "ausente",
-    "no asignar",
-    "gerencia no atiende"
+    "no asignar"
    ]
   },
   {
@@ -1852,7 +1851,7 @@
    "categoria": "tienda",
    "grupo": "Conversaciones",
    "titulo": "Marcarte como no disponible (almuerzo o fin del día)",
-   "logras": "Juan deja de asignarte conversaciones nuevas hasta que vuelvas a ponerte disponible, arriba de la lista de Conversaciones.",
+   "logras": "Juan deja de asignarte conversaciones nuevas hasta que vuelvas a ponerte disponible, arriba de la lista de Conversaciones. Si te olvidas, se reinicia solo cada mañana, antes de abrir la tienda. Solo aplica a vendedoras: Gerencia y los administradores no reciben conversaciones de Juan.",
    "destino": {
     "menu": "dcasa_conversaciones.menu_dcasa_panel_conversaciones"
    },

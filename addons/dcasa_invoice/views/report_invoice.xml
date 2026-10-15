@@ -267,6 +267,11 @@
         <xpath expr="//div[@id='payment_term']/.." position="after">
             <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="o.company_id"/></t>
         </xpath>
+
+        <!-- QR de uso interno, al final de la hoja: solo si la empresa lo enciende (apagado, no se imprime nada). -->
+        <xpath expr="//div[hasclass('page')]" position="inside">
+            <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="o"/></t>
+        </xpath>
     </template>
 
     <!-- Totales (factura y cotización): subtotal, descuento y redondeo en español -->
@@ -372,6 +377,10 @@
         </xpath>
         <xpath expr="//div[@name='so_total_summary']" position="after">
             <t t-call="dcasa_invoice.dcasa_bloques_legales"><t t-set="empresa" t-value="doc.company_id"/></t>
+        </xpath>
+        <!-- QR de uso interno, al final de la hoja: solo si la empresa lo enciende. -->
+        <xpath expr="//div[hasclass('page')]" position="inside">
+            <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="doc"/></t>
         </xpath>
     </template>
 </odoo>

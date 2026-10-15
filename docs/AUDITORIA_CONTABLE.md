@@ -16,7 +16,7 @@ Hecha el 14 de octubre de 2026. Los números de los ejemplos son **datos de prue
   en borrador o canceladas nunca cuentan.
 * **Lo que fallaba eran los filtros y la forma de nombrar las cifras.** Se encontraron 8 problemas, todos arreglados
   (sección «Hallazgos»). Los dos que la dueña notó están explicados abajo.
-* **Quedan 9 preguntas para la contadora** (sección «Para la contadora»). Ninguna se decidió sin ella.
+* **Quedan 9 preguntas para la contadora** (sección «Para la contadora»; en dos la dueña ya decidió una parte). Ninguna se decidió sin ella.
 
 ## La duda de la dueña: ¿«Dinero en bancos y caja» debería cambiar con «Este mes»?
 
@@ -48,7 +48,8 @@ También cuadra entre pantallas: el dinero de la tarjeta es igual al efectivo de
 | Balance de comprobación | los dos | saldo inicial = antes del «Desde»; debe y haber = del periodo; saldo final = al «Hasta» |
 | Libro mayor | los dos | saldo inicial + movimientos del periodo = saldo final |
 | Estado de resultados · Ventas · Utilidad | movimiento | del «Desde» al «Hasta» |
-| ITBMS (tarjeta y reporte) | movimiento | del periodo: ventas − compras |
+| ITBMS del periodo (tarjeta y reporte) | movimiento | del periodo: ventas − compras |
+| ITBMS acumulado / Saldo a favor (tarjeta y reporte) | saldo | saldo de la cuenta de ITBMS al «Hasta»: meses anteriores y pagos incluidos |
 | Flujo de efectivo | movimiento | variación del efectivo del periodo; inicio = día anterior al «Desde», final = «Hasta» |
 | Analítica | movimiento | del periodo |
 
@@ -124,9 +125,12 @@ que el Estado de resultados. Recomendación: elegir el canal en cada línea de v
 **Mejoras de claridad (no eran errores de cálculo):**
 * Cada tarjeta y cada indicador dice su fecha («AL 14 OCT», «DEL 1 AL 14 OCT», «EL 14 OCT»); el Resumen explica abajo la
   diferencia entre saldos y movimientos.
-* **ITBMS por pagar** es lo del **periodo** (ventas − compras), no lo acumulado: la cuenta «ITBMS a pagar» del Balance
-  puede tener más porque suma meses anteriores sin pagar ($298.90 contra $99.40 del 1 al 14 oct en los datos de prueba).
-  Ahora la tarjeta dice «DEL 1 AL 14 OCT».
+* **ITBMS: periodo y acumulado.** «ITBMS por pagar» era lo del **periodo** (ventas − compras), no lo que se debe en total: la cuenta
+  «ITBMS a pagar» del Balance suma meses anteriores sin pagar ($298.90 contra $99.40 del 1 al 14 oct en los datos de prueba).
+  Por pedido de la dueña, la tarjeta del Resumen y el reporte de ITBMS muestran las dos cosas con su fecha: lo del periodo
+  («DEL 1 AL 14 OCT») y el **acumulado por pagar «AL 14 OCT»**. Si queda a favor se llama **«Saldo a favor»** y se ve en verde.
+  El acumulado se calcula como el Balance general (solo asientos publicados), cambia con «Hasta» y no con «Desde», baja cuando se
+  registra un pago de ITBMS y las notas de crédito restan. Las cuentas salen de los impuestos configurados y el reporte las lista.
 * Excel y PDF: un día solo dice «El 14/10» (antes «Al»); el Resumen lleva una columna «Fecha o periodo».
 * «Hoy» se compara con ayer (también el día 1 del mes).
 * El balance de comprobación avisa si el periodo cruza el cierre del año fiscal (ver «Límites conocidos»).
@@ -149,7 +153,8 @@ completo, un periodo que cruza el cierre del año fiscal, el año anterior y uno
   corte; las notas de crédito restan; los borradores y cancelados no entran; el total es el saldo de las cuentas por cobrar o
   por pagar del Balance; con corte en el futuro coincide con lo que Odoo dice que falta pagar de cada factura.
 * **ITBMS:** base e impuesto por tasa, ventas y compras por separado, las notas de crédito restan, la venta exenta aparece
-  con su base y sin impuesto; se usan los impuestos configurados (no hay tarifas escritas en el código).
+  con su base y sin impuesto; se usan los impuestos configurados (no hay tarifas escritas en el código). El acumulado coincide con
+  el saldo de la cuenta de ITBMS en el Balance general en 11 fechas de corte, con pagos, notas de crédito y saldo a favor.
 * **Libro mayor:** saldo inicial + movimientos = saldo final (con el detalle completo y recortado).
 * **Dos empresas:** cada reporte lee solo las empresas activas; juntas suman y cada una por separado cuadra.
 
@@ -164,12 +169,14 @@ Nada de esto se decidió sin ella; cada una afecta cómo se ve un reporte.
   saldría en «Debes a proveedores». ¿Se usa esa cuenta? ¿Cómo se quiere llevar un anticipo?
 * **C3. Préstamos.** La cuenta 2220000 «Préstamos» es pasivo corriente. ¿Son de corto o de largo plazo? ¿Se marcan como
   «financiamiento» en el flujo (se hace en el plan contable, campo «Actividad en el flujo de efectivo»)?
-* **C4. ITBMS.** Ventas y compras comparten la cuenta 2310000 «ITBMS a pagar». El reporte y la tarjeta muestran el ITBMS **del
-  periodo** (débito − crédito). ¿Prefiere que el Resumen muestre también el **acumulado por pagar al corte**? ¿Cómo se maneja
-  un saldo a favor de meses anteriores y las retenciones de ITBMS (hoy no hay cuenta ni reporte para retenciones)?
-* **C5. Dinero en tránsito.** Los cobros registrados que el banco aún no confirma no suman al «Dinero en bancos y caja»; se
-  muestran aparte («sin cruzar»). ¿Prefiere sumarlos (y restar los pagos pendientes)? Para el efectivo de la caja, ¿se
-  quiere llevar un movimiento de caja por cada cobro o el saldo directo?
+* **C4. ITBMS.** *Decisión de la dueña:* quiere ver, además de lo del periodo, el **acumulado por pagar al «Hasta»** y el **saldo
+  a favor**. Ya está (ver «Mejoras»). Queda por preguntar a la contadora: ¿cómo se maneja el saldo a favor que pasa de un mes
+  al siguiente en la declaración? Las **retenciones de ITBMS** no se tocaron: el plan instalado no trae cuenta ni impuesto de
+  retención de ITBMS (la cuenta «Retenciones a depositar», 2440000, es de salarios). Si la empresa las usa, ¿en qué cuenta
+  se llevan?
+* **C5. Dinero en tránsito.** *Decisión de la dueña:* los cobros registrados que el banco aún no confirma **se quedan aparte**
+  (no suman al «Dinero en bancos y caja»; se muestran como «sin cruzar»). Solo queda saber cómo se quiere llevar el efectivo de
+  la caja: ¿un movimiento de caja por cada cobro o el saldo directo?
 * **C6. Notas de crédito y anticipos sin aplicar.** En «Por cobrar» y «Por pagar» salen en negativo dentro de su tramo y
   restan del vencido. ¿Se muestran aparte, como «a favor»?
 * **C7. Cierre anual.** El cierre de mes solo bloquea fechas. Si algún día se hace un asiento de cierre que pasa los
@@ -194,7 +201,7 @@ trimestre. ¿Es correcto?
 
 ## Cómo se probó
 
-* `tests/test_auditoria.py` (45 pruebas) usa los datos de `tests/datos_auditoria.py` y un cálculo hecho aparte, directo en
+* `tests/test_auditoria.py` (52 pruebas) usa los datos de `tests/datos_auditoria.py` y un cálculo hecho aparte, directo en
   SQL sobre los apuntes publicados, que no usa el motor de los reportes (`tests/oraculo_sql.py`). Cruza cada reporte y cada
   tarjeta en 9 periodos y 11 fechas de corte, tiene cifras calculadas a mano y prueba los atajos de fechas en sus bordes
   (semana que cruza de mes y de año, quincena de febrero, año bisiesto, otro cierre fiscal, hora de Panamá contra UTC) y con
