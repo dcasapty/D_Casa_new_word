@@ -14,6 +14,10 @@ Seguridad
 ---------
 * Solo chats privados: en grupos el bot no responde (cualquiera podría pulsar un botón).
 * Chats no vinculados solo reciben instrucciones para vincularse; nada más.
+* **Lista de chats permitidos** (``BRIAN_TELEGRAM_CHATS``, o el parámetro ``dcasa_brian.telegram_chats``): ids numéricos
+  separados por coma. Con la lista puesta, Brian **solo** atiende (y solo le escribe) a esos chats: a cualquier otro lo
+  ignora en silencio (ni siquiera le contesta las instrucciones para vincularse) y nadie puede vincularse desde otro
+  chat. Sin lista, todo sigue como siempre. Un valor sin ningún número cuenta como lista vacía: no atiende a nadie.
 * Intentos de ``/vincular`` limitados por chat; el código se guarda con hash.
 * El token (``TELEGRAM_BOT_TOKEN``) y el secreto del webhook (``BRIAN_TELEGRAM_SECRETO``)
   se leen de variables de entorno (secretos de Cloudflare); como alternativa, de los
@@ -44,6 +48,7 @@ MAX_INTENTOS = 5                 # /vincular fallidos por chat cada 10 minutos
 MAX_MENSAJES_MINUTO = 20         # mensajes por chat por minuto
 MAX_ADJUNTO = 10 * 1024 * 1024   # 10 MB por archivo
 TIMEOUT = (5, 30)
+CLAVE_CHATS = 'dcasa_brian.telegram_chats'
 
 _candado = threading.Lock()
 _intentos = defaultdict(deque)
@@ -173,8 +178,29 @@ class BrianTelegramEnlace(models.Model):
         return cuerpo.get('result')
 
     @api.model
+    def _chats_permitidos(self):
+        """Los chats a los que Brian atiende: el conjunto de ids de ``BRIAN_TELEGRAM_CHATS`` (o del parámetro
+        ``dcasa_brian.telegram_chats``), o ``None`` si no hay lista (Brian atiende como siempre). Una lista con texto
+        pero sin un solo número (un error al escribirla) es un conjunto VACÍO: nadie, no «cualquiera»."""
+        crudo = (os.environ.get('BRIAN_TELEGRAM_CHATS')
+                 or self.env['ir.config_parameter'].sudo().get_param(CLAVE_CHATS) or '').strip()
+        if not crudo:
+            return None
+        return set(re.findall(r'-?\d+', crudo))
+
+    @api.model
+    def _chat_permitido(self, chat_id):
+        permitidos = self._chats_permitidos()
+        return permitidos is None or str(chat_id) in permitidos
+
+    @api.model
     def _enviar(self, chat_id, texto, botones=None):
-        """Texto plano (sin parse_mode: nada que escapar), partido en trozos de 4096."""
+        """Texto plano (sin parse_mode: nada que escapar), partido en trozos de 4096.
+
+        Con lista de chats permitidos, a un chat que no está en ella no se le manda nada."""
+        if not self._chat_permitido(chat_id):
+            _logger.info('Brian/Telegram: no se envía a un chat que no está en la lista de permitidos.')
+            return None
         trozos = partir_texto(texto)
         resultado = None
         for i, trozo in enumerate(trozos):
@@ -291,11 +317,18 @@ class BrianTelegramEnlace(models.Model):
         yo = self._api('getMe') or {}
         if yo.get('username'):
             Parametros.set_param('dcasa_brian.telegram_bot', yo['username'])
+        mensaje = self.env._('Webhook registrado en %s/brian/telegram/…', base)
+        permitidos = self._chats_permitidos()
+        if permitidos is None:
+            # Sin lista, cualquiera que encuentre el bot recibe las instrucciones para vincularse (y puede intentar un
+            # código): se avisa con todas las letras para que la dueña ponga el chat del jefe.
+            mensaje += ' ' + self.env._('ATENCIÓN: no hay lista de chats permitidos. Pon el ID del jefe en '
+                                        'BRIAN_TELEGRAM_CHATS (Cloudflare) para que Brian solo le responda a él.')
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
-            'params': {'title': 'Telegram', 'type': 'success',
-                       'message': self.env._('Webhook registrado en %s/brian/telegram/…', base)},
+            'params': {'title': 'Telegram', 'type': 'success' if permitidos is not None else 'warning',
+                       'message': mensaje, 'sticky': permitidos is None},
         }
 
     # ------------------------------------------------------------------
@@ -324,6 +357,11 @@ class BrianTelegramEnlace(models.Model):
 
         Privado: por RPC cualquiera podría inventar un update y hablar como otro usuario vinculado.
         """
+        # La lista de chats permitidos manda antes que todo: de otro chat no se responde NADA (ni instrucciones, ni
+        # «/vincular», ni botones) y no se toca la base.
+        if not self._chat_permitido(self._chat_del_update(update)):
+            _logger.info('Brian/Telegram: mensaje ignorado de un chat que no está en la lista de permitidos.')
+            return False
         if update.get('callback_query'):
             return self._procesar_callback(update['callback_query'], update.get('update_id'))
         mensaje = update.get('message')
@@ -338,6 +376,8 @@ class BrianTelegramEnlace(models.Model):
 
         comando, _, resto = texto.partition(' ')
         comando = comando.split('@')[0].lower() if texto.startswith('/') else ''
+        if comando == '/miid':
+            return self._enviar(chat_id, f'Tu chat id es: {chat_id}')
         if comando == '/vincular':
             return self._vincular(chat_id, resto.strip(), mensaje.get('from') or {})
         if not enlace:
@@ -356,6 +396,13 @@ class BrianTelegramEnlace(models.Model):
             enlace.write({'activo': False, 'conversacion_id': False})
             return self._enviar(chat_id, 'Este chat quedó desvinculado. Para volver, pide un código nuevo en el panel.')
         return enlace._conversar(texto, mensaje)
+
+    @staticmethod
+    def _chat_del_update(update):
+        """El id del chat de donde viene el update (mensaje o botón), como texto; vacío si no trae."""
+        mensaje = (update.get('callback_query') or {}).get('message') if update.get('callback_query') \
+            else update.get('message')
+        return str(((mensaje or {}).get('chat') or {}).get('id') or '')
 
     def _vincular(self, chat_id, codigo, remitente):
         if _limitar(_intentos, chat_id, MAX_INTENTOS, VIGENCIA_CODIGO.total_seconds()):

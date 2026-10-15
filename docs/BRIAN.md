@@ -97,6 +97,9 @@ Brian debe funcionar bien con modelos económicos (Claude Haiku, GPT-4o-mini, Ll
   tarifa se cuenta con la más cara que conocemos, así que un modelo nuevo no deja el tope ciego. No es un presupuesto: es la red
   para una clave filtrada o un script que repite mensajes.
 * **Tamaño de lo que se manda**: hasta 8 000 letras por mensaje (un documento largo va como adjunto) y 5 archivos por mensaje.
+* **Telegram, lista de chats permitidos** (`BRIAN_TELEGRAM_CHATS`): con la lista puesta, Brian solo atiende y solo le escribe a esos
+  chats; de cualquier otro **no contesta nada** (ni las instrucciones para vincularse) y nadie puede vincularse desde otro chat.
+  Detalle en «Conectar el Telegram de la gerencia».
 * **Telegram**: el vínculo se revisa en cada mensaje y botón; un usuario archivado (o que ya no es interno) pierde su chat al instante.
 * Límite de pasos por turno y de mensajes por minuto por usuario.
 * Las claves (`BRIAN_API_KEY`, `TELEGRAM_BOT_TOKEN`) viven como secretos de Cloudflare /
@@ -430,21 +433,31 @@ del bot de Juan (el de los clientes): un bot solo tiene un destino y usar el de 
 
 1. **Crear el bot**: en Telegram, @BotFather › `/newbot` › nombre `Brian D'CASA` y un usuario que termine en `bot`. Copiar el
    token (nunca por el chat ni en el repositorio).
-2. **Secretos en Cloudflare**: Workers y Pages › `dcasa` › Settings › Variables and Secrets › **Secret** `TELEGRAM_BOT_TOKEN` (el
-   token) y **Secret** `BRIAN_TELEGRAM_SECRETO` (40 letras y números al azar). Deploy. (Los despliegues no tocan los secretos del panel.)
-3. **Que Odoo los recoja**: el contenedor los lee al arrancar: entran con el próximo despliegue o con un reinicio.
-4. **Registrar el bot** (administrador): Brian › Telegram › **Registrar webhook**. Confirma y muestra el @ del bot. Si dice «Falta
-   TELEGRAM_BOT_TOKEN», el contenedor todavía no recogió el secreto.
-5. **El usuario del jefe**: Ajustes › Usuarios › Nuevo (rol Gerencia; además Administrador si va a recibir los avisos de operación y de
+2. **El ID del jefe** (un número, no es secreto pero es personal): él le escribe `/miid` al bot de Juan (o al de Brian, que también lo
+   dice mientras no haya lista) y recibe «Tu chat id es: 123456789». Es el mismo número en cualquier bot.
+3. **Secretos y variable en Cloudflare**: Workers y Pages › `dcasa` › Settings › Variables and Secrets. **Secret** `TELEGRAM_BOT_TOKEN`
+   (el token), **Secret** `BRIAN_TELEGRAM_SECRETO` (40 letras y números al azar) y **Text** `BRIAN_TELEGRAM_CHATS` con el ID del jefe
+   (varios: separados por coma). Deploy. (Los despliegues no tocan lo que se pone en el panel.)
+4. **Que Odoo los recoja**: el contenedor los lee al arrancar: entran con el próximo despliegue o con un reinicio.
+5. **Registrar el bot** (administrador): Brian › Telegram › **Registrar webhook**. Confirma y muestra el @ del bot. Si dice «Falta
+   TELEGRAM_BOT_TOKEN», el contenedor todavía no recogió el secreto. Si sale **ATENCIÓN: no hay lista de chats permitidos**, falta
+   `BRIAN_TELEGRAM_CHATS`: hasta que se ponga, cualquiera que encuentre el bot recibe las instrucciones para vincularse.
+6. **El usuario del jefe**: Ajustes › Usuarios › Nuevo (rol Gerencia; además Administrador si va a recibir los avisos de operación y de
    inicios de sesión). La clave se la pone un administrador: usuario › Acciones › **Cambiar contraseña** (no llega invitación por
    correo). Si es administrador, al entrar enrola el código de la app (Google Authenticator), que tampoco usa correo.
-6. **Él pide su código**, con su propia sesión: Brian › Telegram › **Vincular mi Telegram** (o Mis preferencias › Vincular Telegram).
+7. **Él pide su código**, con su propia sesión: Brian › Telegram › **Vincular mi Telegram** (o Mis preferencias › Vincular Telegram).
    Sale un aviso con un código de 6 números (vence en 10 min, sirve una vez). El botón solo vale para quien tiene la sesión abierta.
-7. **En su Telegram**, en el bot de Brian: `/vincular 123456`. Brian contesta «Listo, <nombre>: este chat quedó vinculado a tu usuario».
-8. **El ID (chat_id)**, solo para el aviso de «el contenedor se cayó» (Odoo está apagado y avisa el Worker): un administrador lo lee en
-   Brian › Telegram › su fila › «Chat de Telegram». En un chat privado es el mismo número que su ID de usuario de Telegram (también
-   sale con `/miid` en el bot de Juan). En Cloudflare, en el mismo lugar del paso 2 pero como **Text**: `DCASA_ALERTA_TELEGRAM_CHAT`.
-   No va en el repositorio: es un dato de una persona.
+8. **En su Telegram**, en el bot de Brian: `/vincular 123456`. Brian contesta «Listo, <nombre>: este chat quedó vinculado a tu usuario».
+9. **Aviso de «el contenedor se cayó»** (Odoo está apagado y avisa el Worker): en Cloudflare, como **Text**,
+   `DCASA_ALERTA_TELEGRAM_CHAT` con el mismo ID. No va en el repositorio: es un dato de una persona.
+
+**La lista de chats permitidos** (`BRIAN_TELEGRAM_CHATS`, o el parámetro `dcasa_brian.telegram_chats` en Ajustes › Técnico):
+con ella puesta Brian **solo** atiende y solo le escribe a esos chats. De cualquier otro no contesta nada (tampoco las instrucciones
+para vincularse ni `/miid`), no deja vincularse aunque traiga un código válido, ignora sus botones, y los avisos (inicios de sesión,
+disco, caídas) solo salen hacia chats de la lista. Un valor sin ningún número (un error al escribirlo) cuenta como lista vacía:
+nadie. **Sin la variable todo sigue como antes**: por eso el paso 5 lo advierte. Si más adelante vendedoras responden a clientes por
+Telegram (la consola del equipo usa este mismo bot), sus IDs se agregan a la lista. Lo que aún **no** se filtra en el borde: un
+mensaje de un chat no permitido todavía despierta el contenedor (Odoo lo ignora sin contestar).
 
 Lo que Brian avisa hoy a los administradores vinculados: inicios de sesión del personal, disco/memoria/base al límite, caídas del
 contenedor y las acciones que esperan permiso (con botones Permitir / Rechazar). Un resumen de ventas o de lo vencido por Telegram

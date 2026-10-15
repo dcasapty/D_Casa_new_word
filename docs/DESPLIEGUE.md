@@ -124,6 +124,7 @@ Las variables opcionales:
 | Variable | `BRIAN_BASE_URL` | solo para proveedores OpenAI-compatibles propios |
 | Secret | `TELEGRAM_BOT_TOKEN` | token del bot (@BotFather) |
 | Secret | `BRIAN_TELEGRAM_SECRETO` | `openssl rand -hex 32`: ruta y encabezado del webhook de Telegram |
+| Text | `BRIAN_TELEGRAM_CHATS` | IDs de los chats de Telegram a los que Brian atiende (coma); con ella puesta, de cualquier otro chat no contesta nada (docs/BRIAN.md) |
 
 El Worker pasa al contenedor solo los que existen (`OPTIONAL_CONTAINER_VARS` en `edge/src/index.ts`).
 Si se cambia `BRIAN_TELEGRAM_SECRETO`, hay que volver a registrar el webhook (Brian → Telegram →
