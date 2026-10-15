@@ -17,6 +17,7 @@ Reglas (docs/BARRAS.md):
   distingue mayúsculas.
 """
 from odoo import api, fields, models, tools
+from odoo.addons.dcasa_invoice.models.documento import leer_url
 from odoo.exceptions import AccessError, UserError
 
 from .asignacion import _imprimible
@@ -32,7 +33,7 @@ def codigo_de_etiqueta(texto):
     un texto que no es una etiqueta (un nombre de producto).
     """
     codigo = limpiar_codigo(texto)
-    if not codigo or len(codigo) >= LARGO_MAXIMO or not _imprimible(codigo):
+    if not codigo or len(codigo) >= LARGO_MAXIMO or not _imprimible(codigo) or leer_url(texto):
         return None
     return codigo.upper()
 
@@ -72,6 +73,10 @@ class DcasaBarrasEtiquetas(models.AbstractModel):
                 "Solo Gerencia (administradores de Inventario y de Productos) puede asignar etiquetas."))
 
     def _etiqueta_valida(self, texto):
+        if leer_url(texto):
+            raise UserError(self.env._(
+                "Ese es el código QR de un documento, no una etiqueta de producto. "
+                "Escanea la etiqueta que vas a pegar."))
         codigo = codigo_de_etiqueta(texto)
         if not codigo:
             raise UserError(self.env._(

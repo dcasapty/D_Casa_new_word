@@ -11,7 +11,8 @@
  * La cinta es un componente aparte, registrado en `main_components` (la forma normal de Odoo para cosas que viven fuera
  * de las pantallas): NO se mete dentro de ninguna vista ni formulario de Odoo, así que no puede romper ninguna
  * pantalla; si ella fallara, Odoo solo la quita. Se va sola cuando la persona sale de las pantallas de la tarea o
- * vuelve a la Guía, o cuando la cierra con la «x».
+ * vuelve a la Guía, o cuando la cierra con la «x». Lo único que escribe fuera de sí misma es una variable de estilo
+ * (`--dc-cinta-alto`) para que la hoja de estilos le reserve su lugar abajo del contenido.
  */
 import { Component, markRaw, reactive, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";

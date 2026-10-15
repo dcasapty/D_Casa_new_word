@@ -126,3 +126,9 @@
         height: 44px;
     }
 }
+
+@media print {
+    .o_dcasa_guia_cinta {
+        display: none;
+    }
+}

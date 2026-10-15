@@ -569,7 +569,7 @@
    "categoria": "reportes",
    "grupo": "Planear",
    "titulo": "Comparar lo planeado con lo gastado (presupuestos)",
-   "logras": "Pones cuánto piensas gastar por cuenta y el sistema te muestra cuánto llevas y qué porcentaje es.",
+   "logras": "Pones cuánto piensas vender o gastar por cuenta y el sistema te dice cuánto llevas, cuánto queda y si te pasaste (en gastos) o cumpliste la meta (en ventas). Los totales separan ingresos, gastos y resultado, y filtras por Hoy, Este mes, Este trimestre, etc.",
    "destino": {
     "menu": "dcasa_contabilidad.menu_presupuestos"
    },
@@ -648,7 +648,7 @@
    "categoria": "reportes",
    "grupo": "Cerrar",
    "titulo": "Cerrar el mes",
-   "logras": "El sistema revisa una lista (bancos conciliados, facturas en borrador, ventas sin facturar, ITBMS) y, si todo está bien, bloquea el mes para que nadie cambie números viejos.",
+   "logras": "El sistema revisa una lista (bancos conciliados, cobros o pagos registrados que aún esperan su movimiento, facturas en borrador, ventas sin facturar, ITBMS) y, si todo está bien, bloquea el mes para que nadie cambie números viejos.",
    "destino": {
     "menu": "dcasa_contabilidad.menu_cierre_mes"
    },
@@ -2061,6 +2061,54 @@
     "regenerar codigo",
     "cambiar codigo",
     "codigo publico"
+   ]
+  },
+  {
+   "id": "banco-cobros-sin-movimiento",
+   "categoria": "bancos",
+   "grupo": "Banco",
+   "titulo": "Cruzar un cobro o pago que todavía no está en la caja o el banco",
+   "logras": "Los cobros que registraste en una factura con «Registrar pago» y aún no figuran en la caja o el banco salen en una pestaña aparte; con un clic se registra el movimiento y quedan cruzados.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_conciliacion"
+   },
+   "palabras": [
+    "efectivo",
+    "caja",
+    "cobro en efectivo",
+    "recibos pendientes",
+    "cruzar"
+   ]
+  },
+  {
+   "id": "consolidacion",
+   "categoria": "reportes",
+   "grupo": "Para el contador",
+   "titulo": "Juntar los números de varias empresas del grupo (consolidación)",
+   "logras": "Eliges las empresas, el reporte y las fechas (o un atajo como Este mes) y el sistema suma todo, quita lo que se hacen entre ellas y te avisa si algo no cuadra.",
+   "destino": {
+    "menu": "dcasa_consolidacion.menu_consolidacion"
+   },
+   "palabras": [
+    "consolidado",
+    "grupo",
+    "empresas",
+    "eliminaciones"
+   ]
+  },
+  {
+   "id": "consolidacion-mapa",
+   "categoria": "reportes",
+   "grupo": "Para el contador",
+   "titulo": "Decir qué cuenta de una empresa equivale a la de otra (mapa de cuentas)",
+   "logras": "Si dos empresas llaman distinto a la misma cuenta, aquí las unes para que se sumen en una sola fila.",
+   "destino": {
+    "menu": "dcasa_consolidacion.menu_consolidacion_mapa"
+   },
+   "palabras": [
+    "mapa de cuentas",
+    "equivalencia",
+    "consolidacion"
    ]
   }
  ],

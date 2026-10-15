@@ -105,7 +105,11 @@ class DocumentosDePrueba(TransactionCase):
             'dcasa_factura_terminos': 'Términos de prueba.',
             'dcasa_mostrar_qr_documentos': False, 'dcasa_mostrar_codigo_publico': False,
         })
-        # Lo que depende de la base de datos (el sitio web, el idioma instalado) se fija para que el HTML sea el mismo.
+        # Lo que depende de la base de datos (el sitio web, el idioma instalado) se fija para que el HTML sea el mismo:
+        # todo se pinta en inglés de Odoo con los formatos de fecha de una base nueva.
+        cls.env['res.lang']._activate_lang('en_US').write({
+            'date_format': '%m/%d/%Y', 'time_format': '%I:%M:%S %p', 'decimal_point': '.', 'thousands_sep': ',',
+            'grouping': '[3,0]'})
         cls.enterClassContext(patch.object(ResCompany, '_dcasa_whatsapp', lambda self: '+507 6026-1919'))
         cls.enterClassContext(patch.object(ResCompany, '_dcasa_url_publica', lambda self: 'https://dcasapty.com'))
         cls.enterClassContext(patch.object(
@@ -129,43 +133,46 @@ class DocumentosDePrueba(TransactionCase):
 
     # --- Documentos -------------------------------------------------------------------------
 
-    def factura_completa(self, abono=100.0):
+    @classmethod
+    def factura_completa(cls, abono=100.0):
         """Factura de dos muebles con descuento, flete, entrega a otra casa y un abono (la del antes y después)."""
-        factura = self.env['account.move'].create({
-            'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': '2026-10-14',
-            'partner_shipping_id': self.entrega_partner.id, 'invoice_user_id': self.vendedora.id,
-            'delivery_date': '2026-10-14', 'invoice_origin': 'S01004', 'invoice_payment_term_id': self.condicion.id,
+        factura = cls.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': cls.cliente.id, 'invoice_date': '2026-10-14',
+            'partner_shipping_id': cls.entrega_partner.id, 'invoice_user_id': cls.vendedora.id,
+            'delivery_date': '2026-10-14', 'invoice_origin': 'S01004', 'invoice_payment_term_id': cls.condicion.id,
             'invoice_line_ids': [
-                Command.create({'product_id': self.colchon.id, 'quantity': 2, 'price_unit': 81.99}),
-                Command.create({'product_id': self.cama.id, 'quantity': 1, 'price_unit': 158.02, 'discount': 10}),
-                Command.create({'product_id': self.flete.id, 'quantity': 1, 'price_unit': 25.0}),
+                Command.create({'product_id': cls.colchon.id, 'quantity': 2, 'price_unit': 81.99}),
+                Command.create({'product_id': cls.cama.id, 'quantity': 1, 'price_unit': 158.02, 'discount': 10}),
+                Command.create({'product_id': cls.flete.id, 'quantity': 1, 'price_unit': 25.0}),
             ]})
         factura.action_post()
         if abono:
-            self.env['account.payment.register'].with_context(
+            cls.env['account.payment.register'].with_context(
                 active_model='account.move', active_ids=factura.ids,
-            ).create({'payment_date': '2026-10-14', 'amount': abono, 'journal_id': self.banco.id})._create_payments()
+            ).create({'payment_date': '2026-10-14', 'amount': abono, 'journal_id': cls.banco.id})._create_payments()
         return factura
 
-    def cotizacion(self, confirmar=False):
-        pedido = self.env['sale.order'].create({
-            'partner_id': self.cliente.id, 'partner_shipping_id': self.entrega_partner.id,
-            'user_id': self.vendedora.id, 'date_order': datetime(2026, 10, 14, 15, 0, 0),
-            'validity_date': fields.Date.to_date('2026-10-31'), 'payment_term_id': self.condicion.id,
+    @classmethod
+    def cotizacion(cls, confirmar=False):
+        pedido = cls.env['sale.order'].create({
+            'partner_id': cls.cliente.id, 'partner_shipping_id': cls.entrega_partner.id,
+            'user_id': cls.vendedora.id, 'date_order': datetime(2026, 10, 14, 15, 0, 0),
+            'validity_date': fields.Date.to_date('2026-10-31'), 'payment_term_id': cls.condicion.id,
             'client_order_ref': 'REF-CLIENTE-1',
             'order_line': [
-                Command.create({'product_id': self.colchon.id, 'product_uom_qty': 2, 'price_unit': 81.99}),
-                Command.create({'product_id': self.cama.id, 'product_uom_qty': 1, 'price_unit': 158.02,
+                Command.create({'product_id': cls.colchon.id, 'product_uom_qty': 2, 'price_unit': 81.99}),
+                Command.create({'product_id': cls.cama.id, 'product_uom_qty': 1, 'price_unit': 158.02,
                                 'discount': 10}),
-                Command.create({'product_id': self.flete.id, 'product_uom_qty': 1, 'price_unit': 25.0}),
+                Command.create({'product_id': cls.flete.id, 'product_uom_qty': 1, 'price_unit': 25.0}),
             ]})
         if confirmar:
             pedido.action_confirm()
         return pedido
 
-    def entrega(self):
+    @classmethod
+    def entrega(cls):
         """La entrega (albarán de salida) de un pedido confirmado, con fecha fija."""
-        pedido = self.cotizacion(confirmar=True)
+        pedido = cls.cotizacion(confirmar=True)
         entrega = pedido.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing')[:1]
         entrega.scheduled_date = datetime(2026, 10, 14, 12, 0, 0)
         return entrega

@@ -8,3 +8,5 @@ from . import test_panel_facturas
 from . import test_documentos_intactos
 from . import test_qr_documentos
 from . import test_codigo_publico_documentos
+from . import test_documento_ruta
+from . import test_qr_paquete

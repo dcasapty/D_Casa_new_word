@@ -274,6 +274,8 @@ LISTA_BLANCA = {
         SIN_SUDO + ' Las tarjetas de proveedores solo salen para contabilidad, Gerencia y administradores.',
     ('dcasa_invoice', 'dcasa.facturas.panel', 'abrir'):
         SIN_SUDO + ' Exige contabilidad para proveedores; solo devuelve la acción de la lista con su dominio.',
+    ('dcasa_invoice', 'product.product', 'get_product_multiline_description_sale'):
+        OVERRIDE + ' Solo quita la referencia del proveedor del nombre de la línea si la empresa lo pide; sin sudo().',
     # --- dcasa_socios -------------------------------------------------------------------
     ('dcasa_socios', 'res.partner', 'create'): OVERRIDE,
     ('dcasa_socios', 'res.partner', 'write'): OVERRIDE,

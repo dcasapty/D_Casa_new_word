@@ -19,6 +19,7 @@ class DocumentoController(http.Controller):
                 readonly=True)
     def abrir(self, tipo, referencia, **_kw):
         documentos = request.env['dcasa.documento']
+        referencia = referencia.strip('/ ')    # «INV/2026/00001/» (una barra de más) es el mismo documento
         estado, registro = documentos._dcasa_buscar_documento(tipo, referencia)
         if estado == OK:
             respuesta = request.redirect(documentos._dcasa_ruta_odoo(registro), code=302)

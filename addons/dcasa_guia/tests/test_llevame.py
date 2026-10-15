@@ -1,5 +1,6 @@
 """«Llévame ahí» y lo más usado según el puesto: listas curadas válidas, cada quien ve solo lo que puede abrir, el uso
 es de cada persona (nadie ve ni escribe el de otra), el registro nunca falla y la pantalla trae los botones."""
+import re
 from unittest import mock
 
 from psycopg2 import IntegrityError
@@ -381,9 +382,13 @@ class TestPantallaLlevame(BaseCase):
     def test_la_cinta_es_un_componente_aparte_que_no_se_mete_en_las_pantallas_de_odoo(self):
         self.assertIn('registry.category("main_components").add("dcasa_guia.Cinta"', self.ruta)
         self.assertIn('registry.category("services").add("dcasa_guia_ruta"', self.ruta)
-        for prohibido in ('patch(', 'document.querySelector', 'document.body', 'insertAdjacent'):
+        for prohibido in ('patch(', 'querySelector', 'insertAdjacent', 'innerHTML', 'appendChild'):
             self.assertNotIn(prohibido, self.ruta, 'La cinta no toca el DOM ni los componentes de Odoo')
         self.assertNotIn('xpath', self.cinta)
+        # Lo único que escribe fuera de sí misma es la variable de estilo con su propio alto.
+        self.assertEqual(set(re.findall(r'document\.(\w+)', self.ruta)), {'documentElement'})
+        variables = set(re.findall(r'(?:setProperty|removeProperty)\("(--[\w-]+)"', self.ruta))
+        self.assertEqual(variables, {'--dc-cinta-alto'})
 
     def test_la_cinta_dice_que_haces_el_paso_siguiente_y_deja_volver_o_cerrar(self):
         for texto in ('Estás haciendo:', 'Siguiente:', 'Volver a la Guía', 'Llévame ahí', 'Ya lo hice',

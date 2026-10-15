@@ -79,6 +79,10 @@ class DcasaBarras(models.AbstractModel):
     def buscar(self, codigo):
         """Lo que leyó el lector → ``{'resultado': 'ok'|'varios'|'no_encontrado'|'vacio', 'productos': [...]}``."""
         self._exigir_inventario()
+        # El QR de un documento (/dcasa/doc/FAC/INV/2026/00001) es largo: se reconoce ANTES de recortar el código.
+        documento = self._documento_de_la_lectura(codigo)
+        if documento:
+            return documento
         codigo = limpiar_codigo(codigo)
         if not codigo:
             return {'resultado': 'vacio', 'codigo': '', 'productos': [], 'forma': False}
@@ -94,6 +98,20 @@ class DcasaBarras(models.AbstractModel):
             # El código es de un producto archivado: el mueble puede seguir en bodega con su etiqueta.
             'archivado': self._producto_archivado_con_codigo(codigo) if not productos else False,
         }
+
+    def _documento_de_la_lectura(self, texto):
+        """Si lo que leyó el lector es el código QR de un documento (``…/dcasa/doc/<TIPO>/<REFERENCIA>``): la acción
+        para abrirlo, si quien escanea puede verlo; si no, un aviso claro y nada del documento. ``None`` si no lo es.
+
+        ``resultado``: ``documento`` (trae ``accion``), ``documento_sin_permiso`` o ``documento_no_existe`` (traen
+        ``mensaje``). Los permisos son los de siempre: lo comprueba ``dcasa.documento``, no esta pantalla.
+        """
+        encontrado = self.env['dcasa.documento']._dcasa_resolver_texto(texto)
+        if encontrado is None:
+            return None
+        resultado = 'documento' if encontrado['estado'] == 'ok' else f"documento_{encontrado['estado']}"
+        return {'resultado': resultado, 'codigo': encontrado['referencia'], 'productos': [], 'forma': False,
+                'documento': encontrado}
 
     def _productos_por_codigo(self, codigo):
         """(productos, cómo se encontró): código de barras, código público (DC-K7M4PX), referencia, código de
