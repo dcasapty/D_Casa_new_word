@@ -384,3 +384,35 @@ y la lista tiene los mismos siete filtros.
 * Capturas de pantalla a 1366×768 con un navegador real (Conciliación con la pestaña nueva y el aviso para el banco, cierre de mes
   con «Efectivo: 1 cobro sin cruzar ($200.00)», presupuesto con totales y situación, consolidación con la nota azul y el selector
   de atajos): el botón «Crear el movimiento y cruzar» se probó de punta a punta.
+
+---
+
+# Cuestionario para la gerencia y la contadora (15 de octubre de 2026)
+
+A partir de la **auditoría integral del 14 de octubre** (hecha con Chrome, solo lectura) se armó un cuestionario de **73 preguntas**
+en palabras sencillas para la gerencia y la contadora. Sus respuestas definen el **trabajo contable** que hará la extensión de
+Claude dentro de Odoo (cargar saldos, validar compras, conciliar, registrar gastos, cerrar meses): no se programa nada nuevo y el
+plan de implementación se escribe con esas respuestas. Está publicado como página privada (con cajas de respuesta y un botón
+«Copiar respuestas» para devolverlas por el chat); este resumen deja constancia de qué se pregunta.
+
+| Grupo | De qué trata |
+|---|---|
+| A · Reglas del negocio | qué cuenta como «vendido», en qué día, ventas a crédito, apartados, quién factura y cobra, devoluciones |
+| B · El punto de partida | fecha de los saldos iniciales, enero a julio, balance inicial, equivalencia de cuentas, conformidad de la carga, libro oficial |
+| C · Dinero | todas las cuentas reales, extractos y conteo de caja, cierre diario, depósitos, comisiones de tarjeta y Yappy, ACH en negativo |
+| D · Clientes y cobranza | centavos, saldos a favor, política de cobranza, incobrables |
+| E · Proveedores y compras | las 16 compras «por validar», recepciones heredadas, vencidos, importaciones, compras sin factura |
+| F · Inventario y costos | de dónde salen los costos, método de costo, inventario en el balance, duplicados, mermas, consignación |
+| G · Gastos y nómina | lista de gastos, desde cuándo se registran, planilla, tasas, comisiones, adelantos, reembolsos |
+| H · Impuestos | ITBMS, exentos y retenciones, otros impuestos, factura electrónica de la DGI, reportes que se presentan |
+| I · Cierres y control | cierre de mes (agosto y septiembre), año fiscal, roles, segundo factor, plan de cuentas, comprobantes |
+| J · Socios y Vendedores | costo real de los premios y del punto, cómo se anota el costo del programa, dictamen para el canje |
+| K · Qué quiere ver la gerencia | los cinco números del día, presupuesto, otras empresas o monedas, a quién se envían reportes |
+| L · Cómo trabajará la extensión | qué hace sola y qué pide aprobación, quién aprueba, usuario propio, fechas, copia de seguridad, orden, límites, informe final |
+
+Las preguntas «Primero» (14) son las que hacen falta para empezar: A1, B1 a B3, B6, C1, C2, E1, F1, G1, I1, L1, L2 y L6.
+Lo que dice la auditoría y todavía **no** se ha hecho en el sistema (propuestas, a decidir con la dueña): gráfica semanal de
+Inicio según la respuesta A1, «Sin extracto cargado» en lugar de «Todo conciliado», el monto de los borradores en el aviso,
+«Vencido» en lugar de «Debido» y separar lo vencido de los saldos a favor, el aviso de no facturar dos veces en la recepción de
+las compras heredadas y la explicación de «Secuencias irregulares».
+

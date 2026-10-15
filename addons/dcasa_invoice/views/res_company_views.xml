@@ -34,6 +34,14 @@
                         <field name="dcasa_mostrar_qr_documentos"/>
                         <field name="dcasa_mostrar_codigo_publico"/>
                     </group>
+                    <group string="Nota de entrega para bodega">
+                        <div class="text-muted mb-2" colspan="2">
+                            Cada producto sale con su foto, la cantidad en número grande y en dibujitos, y una casilla
+                            para marcarlo, para que quien saca la mercancía no se confunda. Viene apagada: enciéndela
+                            cuando hayas aprobado cómo se ve. Apagada, la nota de entrega sale como siempre.
+                        </div>
+                        <field name="dcasa_entrega_facil"/>
+                    </group>
                 </page>
             </xpath>
         </field>

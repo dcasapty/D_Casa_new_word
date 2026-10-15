@@ -18,13 +18,15 @@
                     <button t-if="d.guia" class="btn btn-secondary o_dcasa_inicio_guia" t-on-click="abrirGuia">
                         <i class="fa fa-compass me-2"/>¿Qué necesito hacer?
                     </button>
-                    <!-- La vendedora solo tiene lo del día a día: nueva factura y nuevo cliente. Nueva cotización,
-                         cobros y la tienda en el celular son de quien controla (d.permisos.completo). -->
-                    <button t-if="d.permisos.cotizar and d.permisos.completo" class="btn btn-primary"
+                    <!-- Quien vende cotiza: «Nueva cotización» es el botón principal de todos (la vendedora arma el
+                         borrador y la factura se hace en caja, desde esa cotización). «Nueva factura» suelta, sin pasar
+                         por una cotización, es de quien controla (d.permisos.completo): una factura directa no tiene
+                         pedido ni nota de entrega. Cobros y la tienda en el celular también son de quien controla. -->
+                    <button t-if="d.permisos.cotizar" class="btn btn-primary o_dcasa_nueva_cotizacion"
                             t-on-click="() => this.nuevo('sale.order')">
                         <i class="fa fa-plus me-2"/>Nueva cotización
                     </button>
-                    <button t-if="d.permisos.facturar" t-attf-class="btn {{ d.permisos.completo ? 'btn-secondary' : 'btn-primary' }} o_dcasa_nueva_factura"
+                    <button t-if="d.permisos.facturar and d.permisos.completo" class="btn btn-secondary o_dcasa_nueva_factura"
                             t-on-click="() => this.nuevo('account.move', {default_move_type: 'out_invoice'})">
                         <i class="fa fa-file-text-o me-2"/>Nueva factura
                     </button>

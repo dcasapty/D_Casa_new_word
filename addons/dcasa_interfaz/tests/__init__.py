@@ -4,3 +4,4 @@ from . import test_inicio_por_rol
 from . import test_sitio
 from . import test_favicon
 from . import test_scroll
+from . import test_actividad

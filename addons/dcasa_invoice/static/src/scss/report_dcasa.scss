@@ -385,3 +385,461 @@ $dcasa-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
 .o_dcasa_qr_limpio {
     clear: both;
 }
+
+// ---------------------------------------------------------------------------
+// Nota de entrega FÁCIL DE LEER (la que va a bodega; solo con el interruptor de la empresa encendido).
+// Para personas con dislexia, autismo, poca lectura u otro idioma: se ve más de lo que se lee.
+// * Letra sin adornos (Inter), grande, alineada a la izquierda, sin cursivas, sin subrayados, sin mayúsculas largas.
+// * Cada producto es una fila con sus cuatro cosas siempre en el mismo lugar: casilla, foto, nombre y cantidad.
+// * La cantidad es un número grande y una fila de dibujitos (uno por pieza); el color nunca es lo único que informa.
+// * Azul sobre blanco; el amarillo solo sobre el azul. Plano, sin sombras. Sin flex ni grid: wkhtmltopdf es antiguo.
+// ---------------------------------------------------------------------------
+.o_dcasa_entrega_facil {
+    color: $dcasa-navy;
+    font-family: $dcasa-cuerpo;
+    font-size: .95rem;
+    line-height: 1.45;
+    letter-spacing: .01em;
+    text-align: left;
+
+    .o_df_titulo {
+        margin: 6px 0 10px;
+        .o_df_numero_nota {
+            margin-left: 10px;
+            color: $dcasa-navy;
+            font-family: $dcasa-cuerpo;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            text-transform: none;
+            white-space: nowrap;
+        }
+    }
+
+    .o_df_etiqueta {
+        color: $dcasa-grafito;
+        font-size: .85rem;
+        font-weight: 700;
+        letter-spacing: .02em;
+    }
+
+    // Pedido | Factura | Fecha
+    .o_df_datos {
+        width: 100%;
+        margin-bottom: 10px;
+        td {
+            width: 33%;
+            padding: 6px 10px 6px 0;
+            border: 0;
+            border-top: 3px solid $dcasa-azul;
+            vertical-align: top;
+        }
+        .o_df_dato {
+            font-size: 1.05rem;
+            font-weight: 700;
+            word-wrap: break-word;
+        }
+    }
+
+    // 1 Busca la foto · 2 Cuenta las piezas · 3 Marca el cuadro
+    .o_df_pasos {
+        width: 100%;
+        margin-bottom: 12px;
+        td {
+            width: 33%;
+            padding: 3px 8px 3px 0;
+            border: 0;
+            font-size: .9rem;
+            font-weight: 600;
+        }
+        .o_df_paso_n {
+            display: inline-block;
+            width: 1.7em;
+            height: 1.7em;
+            margin-right: 6px;
+            border-radius: 50%;
+            background-color: $dcasa-azul;
+            color: #FFFFFF;
+            font-weight: 700;
+            line-height: 1.7em;
+            text-align: center;
+        }
+    }
+
+    // Las filas de producto
+    .o_df_lineas {
+        width: 100%;
+        border-collapse: collapse;
+        thead {
+            display: table-header-group;
+        }
+        th {
+            padding: 4px 8px;
+            color: $dcasa-grafito;
+            font-size: .85rem;
+            font-weight: 700;
+            text-align: left;
+        }
+        tr {
+            page-break-inside: avoid;
+        }
+        td {
+            padding: 5px 8px;
+            border: 0;
+            border-top: 2px solid $dcasa-linea;
+            vertical-align: middle;
+        }
+        tbody tr:last-child td {
+            border-bottom: 2px solid $dcasa-linea;
+        }
+        .o_df_c_marca {
+            width: 9%;
+            text-align: center;
+        }
+        .o_df_c_foto {
+            width: 17%;
+        }
+        .o_df_c_producto {
+            width: 47%;
+        }
+        .o_df_c_cantidad {
+            width: 27%;
+            text-align: center;
+        }
+        th.o_df_c_marca,
+        th.o_df_c_cantidad {
+            text-align: center;
+        }
+    }
+
+    .o_df_casilla {
+        display: inline-block;
+        width: 26px;
+        height: 26px;
+        border: 3px solid $dcasa-azul;
+        background-color: #FFFFFF;
+    }
+
+    .o_df_foto {
+        max-width: 22mm;
+        max-height: 22mm;
+        border: 1px solid $dcasa-linea;
+    }
+    .o_df_sin_foto {
+        width: 22mm;
+        height: 22mm;
+        border: 2px dashed $dcasa-gris;
+        color: $dcasa-grafito;
+        font-size: .85rem;
+        font-weight: 700;
+        line-height: 22mm;
+        text-align: center;
+    }
+
+    .o_df_nombre {
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 1.3;
+    }
+    .o_df_codigo {
+        margin-top: 6px;
+        .o_df_codigo_valor {
+            display: inline-block;
+            padding: 1px 8px;
+            border: 2px solid $dcasa-azul;
+            background-color: $dcasa-fondo;
+            font-size: 1rem;
+            font-weight: 700;
+            letter-spacing: .1em;
+        }
+    }
+    .o_df_detalle {
+        margin-top: 4px;
+        color: $dcasa-grafito;
+        font-size: .95rem;
+    }
+
+    // Cantidad: número grande (blanco sobre azul; la unidad en amarillo, que solo toca el azul) y un dibujito por pieza
+    .o_df_cantidad {
+        display: inline-block;
+        min-width: 15mm;
+        padding: 2px 10px 3px;
+        background-color: $dcasa-azul;
+        color: #FFFFFF;
+        text-align: center;
+        .o_df_numero {
+            display: block;
+            font-size: 1.9rem;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        // Solo si la medida no es la unidad de siempre (metros, por ejemplo): el amarillo solo toca el azul.
+        .o_df_unidad {
+            display: block;
+            color: $dcasa-amarillo;
+            font-size: .8rem;
+            font-weight: 600;
+        }
+    }
+    .o_df_iconos {
+        margin-top: 6px;
+        line-height: 1;
+    }
+    // Un dibujito por pieza: la foto chica sin estirarla (cabe en un cuadro de 9 mm) o, sin foto, una caja.
+    .o_df_icono {
+        display: inline-block;
+        margin: 0 2px 2px 0;
+        vertical-align: middle;
+    }
+    img.o_df_icono {
+        max-width: 7mm;
+        max-height: 7mm;
+        border: 1px solid $dcasa-linea;
+    }
+    span.o_df_icono_caja {
+        width: 6mm;
+        height: 6mm;
+        border: 2px solid $dcasa-azul;
+        background-color: $dcasa-fondo;
+    }
+    .o_df_mas {
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+    .o_df_falta {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 1px 8px;
+        border: 2px solid $dcasa-navy;
+        font-weight: 700;
+    }
+
+    // El total, las dos rayas y (si está encendido) el QR van juntos: no se separan entre hojas.
+    .o_df_cierre {
+        width: 100%;
+        page-break-inside: avoid;
+        > tbody > tr > td {
+            padding: 0;
+            border: 0;
+            vertical-align: bottom;
+        }
+        .o_df_cierre_qr {
+            width: 1%;
+            padding-left: 12px;
+            white-space: nowrap;
+            .o_dcasa_qr {
+                margin-top: 0;
+            }
+        }
+    }
+    .o_df_total {
+        margin: 12px 0 0 auto;
+        td {
+            padding: 4px 10px;
+            border: 0;
+            vertical-align: middle;
+        }
+        .o_df_total_texto {
+            font-size: 1rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .o_df_total_numero {
+            background-color: $dcasa-azul;
+            color: #FFFFFF;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-align: center;
+        }
+    }
+
+    .o_df_pendientes {
+        margin-top: 16px;
+    }
+    .o_df_subtitulo {
+        margin: 0 0 6px;
+        font-family: $dcasa-cuerpo;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    .o_df_firmas {
+        width: 100%;
+        margin-top: 22px;
+        page-break-inside: avoid;
+        td {
+            width: 50%;
+            padding-right: 24px;
+            border: 0;
+            vertical-align: bottom;
+        }
+        .o_df_raya {
+            height: 30px;
+            border-bottom: 2px solid $dcasa-navy;
+        }
+        .o_df_firma {
+            max-height: 4cm;
+            max-width: 8cm;
+        }
+    }
+
+    // Densidades (``entrega_facil.densidad``): es una hoja carta, igual que la factura. Con pocos productos todo se ve más
+    // grande; con 8 o más (hasta 10 caben en una sola hoja, con el QR) cada uno conserva su foto, su número y su casilla.
+    .o_df_n2 {
+        .o_df_lineas td {
+            padding: 3px 8px;
+        }
+        .o_df_casilla {
+            width: 22px;
+            height: 22px;
+        }
+        .o_df_foto {
+            max-width: 16mm;
+            max-height: 16mm;
+        }
+        .o_df_sin_foto {
+            width: 16mm;
+            height: 16mm;
+            font-size: .75rem;
+            line-height: 16mm;
+        }
+        .o_df_nombre {
+            font-size: 1rem;
+        }
+        .o_df_cantidad .o_df_numero {
+            font-size: 1.5rem;
+        }
+        img.o_df_icono {
+            max-width: 6mm;
+            max-height: 6mm;
+        }
+        span.o_df_icono_caja {
+            width: 5mm;
+            height: 5mm;
+        }
+    }
+    .o_df_n3 {
+        .o_df_titulo {
+            margin: 0 0 4px;
+        }
+        .o_df_datos {
+            margin-bottom: 4px;
+            td {
+                padding: 3px 8px 3px 0;
+            }
+            .o_df_dato {
+                font-size: .9rem;
+            }
+        }
+        .o_df_pasos {
+            margin-bottom: 4px;
+            td {
+                padding: 1px 6px 1px 0;
+                font-size: .75rem;
+            }
+        }
+        .o_df_lineas {
+            th {
+                padding: 2px 6px;
+                font-size: .75rem;
+            }
+            td {
+                padding: 3px 6px;
+            }
+            .o_df_c_marca {
+                width: 7%;
+            }
+            .o_df_c_foto {
+                width: 10%;
+            }
+            .o_df_c_producto {
+                width: 48%;
+            }
+            .o_df_c_cantidad {
+                width: 35%;
+            }
+        }
+        .o_df_casilla {
+            width: 18px;
+            height: 18px;
+            border-width: 2px;
+        }
+        .o_df_foto {
+            max-width: 13mm;
+            max-height: 13mm;
+        }
+        .o_df_sin_foto {
+            width: 13mm;
+            height: 13mm;
+            border-width: 1px;
+            font-size: .65rem;
+            line-height: 13mm;
+        }
+        .o_df_nombre {
+            font-size: .92rem;
+            line-height: 1.2;
+        }
+        .o_df_codigo {
+            margin-top: 1px;
+            .o_df_etiqueta {
+                font-size: .7rem;
+            }
+            .o_df_codigo_valor {
+                padding: 0 5px;
+                border-width: 1px;
+                font-size: .8rem;
+            }
+        }
+        .o_df_detalle {
+            display: none;
+        }
+        .o_df_cantidad {
+            min-width: 9mm;
+            padding: 0 7px;
+            .o_df_numero {
+                font-size: 1.3rem;
+                line-height: 1.3;
+            }
+            .o_df_unidad {
+                font-size: .6rem;
+            }
+        }
+        .o_df_iconos {
+            display: inline-block;
+            margin: 0 0 0 6px;
+            vertical-align: middle;
+        }
+        img.o_df_icono {
+            max-width: 5.5mm;
+            max-height: 5.5mm;
+        }
+        span.o_df_icono_caja {
+            width: 4.5mm;
+            height: 4.5mm;
+            border-width: 1px;
+        }
+        .o_df_mas {
+            font-size: .9rem;
+        }
+        .o_df_falta {
+            margin: 0 0 0 6px;
+            padding: 0 5px;
+            font-size: .75rem;
+        }
+        .o_df_total {
+            margin-top: 4px;
+            .o_df_total_texto {
+                font-size: .85rem;
+            }
+            .o_df_total_numero {
+                font-size: 1.1rem;
+            }
+        }
+        .o_df_firmas {
+            margin-top: 8px;
+            .o_df_raya {
+                height: 20px;
+            }
+        }
+    }
+}

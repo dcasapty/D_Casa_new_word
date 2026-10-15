@@ -341,6 +341,43 @@ Detalle técnico: los interruptores son `res.company.dcasa_mostrar_qr_documentos
 contexto `dcasa_codigo_publico` (`models/stock.py`). Pruebas: `dcasa_invoice/tests/test_documentos_intactos.py` (apagado =
 idéntico), `test_qr_documentos.py`, `test_codigo_publico_documentos.py`, `test_documento_ruta.py` y `test_qr_paquete.py`.
 
+## Nota de entrega fácil de leer (la de bodega)
+
+Pedido de la dueña (2026-10-15): en bodega hay personas con dislexia, autismo, dificultad de lectura o que dominan otro
+idioma, y una nota difícil de entender es una mercancía equivocada. Un interruptor de la empresa, en *Ajustes › Empresas
+› D'CASA Panamá › pestaña «Documentos D'CASA»*, sección **«Nota de entrega para bodega»**: **«Nota de entrega fácil de
+leer»**. Viene **apagado**: apagado, la nota de entrega sale idéntica a como la dueña la aprobó (el mismo test del HTML
+aprobado, `test_documentos_intactos.py`). **Se enciende cuando la dueña apruebe una imagen de cómo queda.**
+
+Encendido, el cuerpo de la nota (la cabecera con la placa y el pie no cambian) es otro:
+
+| Qué | Cómo sale |
+|---|---|
+| Arriba | «Nota de entrega» con el número, y en tres cuadros grandes el **pedido**, la **factura** (para compararla) y la **fecha** (dd/mm/aaaa, hora de Panamá). Sin pedido o sin factura, una raya (—). |
+| Tres pasos | «1 Busca la foto · 2 Cuenta las piezas · 3 Marca el cuadro». Siempre los mismos, siempre en el mismo lugar. |
+| Cada producto | Una fila con cuatro cosas siempre en el mismo orden: **casilla** para marcar, **foto**, **nombre** y **código** en letra grande, y la **cantidad**. Un producto sin foto sale con un recuadro punteado que dice «Sin foto». |
+| La cantidad | Un **número** (blanco sobre azul; **solo el número**, sin «unidades»: la medida solo se escribe si no es la unidad, como metros) y **un dibujito por pieza** (la foto chica del producto, o una caja si no hay foto), hasta 10; con más, diez y un «+». Una cantidad con decimales no se dibuja. |
+| Lo que falta | En una entrega ya hecha a medias, la fila dice «Faltan N» y debajo, en «Falta entregar después», lo pendiente (sin casilla). |
+| Abajo | **Total de piezas** y dos rayas grandes: «Sacó de bodega» y «Recibió» (o la firma, si se firmó). |
+
+**Cabe en una hoja carta, igual que la factura.** La nota se aprieta sola según cuántos productos lleva (`entrega_facil.densidad`):
+hasta 4, holgada; de 5 a 7, mediana; de 8 en adelante, compacta. Con **10 productos** (con su foto, su número y su casilla) y el QR
+encendido sigue entrando en una sola hoja (lo vigila `test_diez_productos_con_foto_y_el_qr_caben_en_una_sola_hoja_carta`); con más,
+sigue en la hoja siguiente con el encabezado repetido. El QR de uso interno, si está encendido, va **a la derecha del total y de las
+rayas de firma**, no en una fila aparte, para no quitarle lugar a los productos.
+
+Cuidados de lectura: letra Inter sin adornos y grande, alineada a la izquierda, sin cursivas, subrayados ni mayúsculas
+largas; frases cortas y literales; el color nunca es lo único que informa (la casilla, los números y los dibujitos
+también lo dicen); el amarillo solo toca el azul. El código sale como en la factura: el del proveedor o, con
+«Mostrar el código público…» encendido, el público (`DC-K7M4PX`): la referencia del proveedor nunca se mezcla. El QR de uso
+interno, si está encendido, sigue al final. Sirve igual en «Imprimir documentos» y «Imprimir todo».
+
+Detalle técnico: el campo es `res.company.dcasa_entrega_facil`; las líneas salen de `stock.picking._dcasa_lineas_entrega_facil`
+(`models/stock.py`; lo repetido se suma por producto y unidad) y las reglas puras (cuántos dibujitos, cómo se escribe una
+cantidad) de `models/entrega_facil.py`; la plantilla es `views/report_entrega_facil.xml` y sus estilos están al final de
+`static/src/scss/report_dcasa.scss` (sin flex ni grid: wkhtmltopdf es antiguo). Pruebas: `tests/test_entrega_facil.py`.
+Pendiente: la lectura por QR de la nota (la dueña la quiere más adelante) y, si hace falta, una segunda línea en otro idioma.
+
 ## Códigos de barras
 
 Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las

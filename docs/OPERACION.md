@@ -685,8 +685,8 @@ entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dca
 | | Vendedora | Gerencia, administradores y contabilidad |
 |---|---|---|
 | Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya») y **Mis cotizaciones** (las suyas abiertas) | Vendido hoy, cotizaciones abiertas, pedidos web, cobrado hoy, por cobrar, entregas y socios (de toda la tienda), barras de la semana, caja y lo más vendido |
-| Botones de arriba | ¿Qué necesito hacer?, **Nueva factura**, **Nuevo cliente** | Los mismos y además Nueva cotización, Registrar cobro, Ver la tienda y Ver en el celular |
-| Accesos grandes | Productos · Facturas · Conversaciones | Productos · Facturas · Conversaciones · Oportunidades · Resumen contable |
+| Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Nueva factura (suelta, sin cotización), Registrar cobro, Ver la tienda y Ver en el celular |
+| Accesos grandes | Productos · Facturas · Conversaciones · **Escáner** | Productos · Facturas · Conversaciones · **Escáner** · Oportunidades · Resumen contable |
 
 La vendedora **no** ve lo que está por cobrarse ni lo cobrado hoy: cobra desde la factura, no desde el Inicio. «Panel
 completo» es quien tiene Ventas administrador, contabilidad (lector contable o más) o es administrador técnico; «solo lo
@@ -708,8 +708,28 @@ cambia solo. Una nota de crédito que devuelve todo saca la venta. El día se gu
 que abre, las barras de la semana, «Lo más vendido», el menú **Ventas › Hoy › Ventas de hoy** y el resumen de ventas de
 Brian (`resumen_ventas`). En el menú y en Brian, la vendedora ve solo lo suyo; Gerencia, todo.
 
+**Factura suelta (sin cotización).** Una factura hecha directamente, sin pedido de venta detrás, y las facturas que vinieron
+del sistema anterior **no son una «venta» de este tablero** (no hay pedido que contar) y **no tienen nota de entrega**
+(la entrega nace del pedido): «Imprimir documentos» imprime entonces solo la factura. Por eso la vendedora cotiza y la
+factura se hace desde esa cotización en caja; cobrar y facturar es del personal administrativo. El dinero de una factura
+suelta sí está en Contabilidad (facturas, cobros, Resumen contable); lo que no existe es el pedido. Ver
+`docs/AUDITORIA_CONTABLE.md` (factura vs. venta vs. cobro).
+
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
+
+## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
+
+Odoo pone al lado de cada formulario (cotización, factura, ficha…) el panel de mensajes y notas («Creando un nuevo registro…»),
+que roba un pedazo de la pantalla. Ahora arranca **escondido** y un botón **«Actividad»** (arriba, junto al engranaje) lo muestra
+o lo esconde. Lo que cada persona elige se recuerda en su navegador (`localStorage`, `dcasa.actividad_visible`) y vale igual para
+todos los formularios; sin almacenamiento (ventana privada) vuelve a arrancar escondido. No se borra ni se cambia nada: solo
+cambia dónde se pinta el panel. Los diálogos y el visor de adjuntos (modo «COMBO») no se tocan.
+
+Código: `dcasa_interfaz/static/src/js/actividad.js` (parche de `FormRenderer.mailLayout` y `FormController`) y
+`static/src/xml/actividad.xml` (el botón). Prueba: `dcasa_interfaz/tests/test_actividad.py` (en Chromium: arranca escondida,
+el botón la muestra y la recuerda). Si alguien ve una pantalla vieja (con «Nueva factura» o el panel de actividad abierto), basta
+recargar con **Ctrl + F5**: el navegador guardó la versión anterior de los archivos.
 
 ## El CRM se ajusta solo (acción planificada)
 

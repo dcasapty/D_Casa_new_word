@@ -25,9 +25,17 @@ Para quien programa: cómo está armado y cómo se comprueba. Reglas en
 | El menú **Empleados** (el Directorio de compañeros) | **No** | Sí | Sí | Sí |
 | **Mis gastos por reembolsar** (registrar lo que pagó de su bolsillo; solo ve los suyos) | Sí | Sí | Sí | Sí |
 
+**Quién cotiza, quién factura y quién cobra** (aclaración de la dueña, 2026-10-15): la vendedora **cotiza** (arma el
+borrador); en caja, el personal **administrativo** hace la factura desde esa cotización y es **el único que cobra**. Es
+la forma de trabajar, no un candado: el sistema todavía deja a la vendedora facturar y cobrar (la tabla de arriba),
+porque quitárselo cambiaría permisos de datos y hay que decidirlo aparte con la dueña. Por eso el botón principal de su
+Inicio es **Nueva cotización**; «Nueva factura» (suelta, sin cotización) y «Registrar cobro» solo salen en el Inicio
+completo. Una factura hecha suelta no tiene pedido detrás: no cuenta en «Vendido hoy» ni tiene nota de entrega.
+
 **El Inicio de la vendedora** (pedido de la dueña, 2026-10-14) trae solo lo suyo: lo que **ella** vendió hoy y sus
 cotizaciones abiertas. No ve lo que está por cobrarse, lo cobrado hoy, las barras ni los totales de la tienda; sus
-herramientas son Productos, Facturas, Conversaciones, Nueva factura y Nuevo cliente. Lo mismo vale para **Ventas › Hoy ›
+herramientas son Productos, Facturas, Conversaciones, Escáner, **Nueva cotización** (el botón principal: la vendedora arma el
+borrador y la factura se hace en caja desde esa cotización) y Nuevo cliente. Lo mismo vale para **Ventas › Hoy ›
 Ventas de hoy** y para el resumen de ventas de Brian: ella ve solo sus ventas; Gerencia, administradores y contabilidad
 ven las de toda la tienda. Una venta cuenta cuando está facturada por completo y con la factura publicada (detalle en
 `docs/OPERACION.md`, «Inicio»). La vendedora tampoco ve ninguna pantalla de Nómina: solo **Mis gastos por reembolsar**,

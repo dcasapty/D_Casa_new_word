@@ -76,6 +76,8 @@ export interface Env {
   TELEGRAM_BOT_TOKEN?: string;
   /** Secreto: ruta y encabezado del webhook de Telegram. */
   BRIAN_TELEGRAM_SECRETO?: string;
+  /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
+  BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en
   // el panel de Cloudflare, nunca en el repositorio ni en GitHub. Sin ellos Odoo arranca normal y /dcasa/juan/** da 503.
   /** Secreto (≥ 32): el Worker `juan` lo presenta a Odoo en `Authorization: Bearer`. */

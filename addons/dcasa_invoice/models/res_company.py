@@ -67,6 +67,13 @@ class ResCompany(models.Model):
              'Además, las cotizaciones y facturas NUEVAS ya no guardan la referencia del proveedor en el nombre de '
              'la línea. Apagado, todo sale exactamente como siempre.')
 
+    dcasa_entrega_facil = fields.Boolean(
+        string='Nota de entrega fácil de leer (con fotos y dibujos de cantidad)', default=False,
+        help='La nota de entrega que va a bodega sale pensada para leerse sin errores: cada producto con su foto, '
+             'la cantidad en número grande y en dibujitos (uno por pieza), una casilla para marcar y poco texto. '
+             'Sirve a personas con dislexia, autismo, que leen poco o dominan otro idioma. Apagado, la nota de '
+             'entrega sale exactamente como siempre.')
+
     @api.model
     def _dcasa_poner_textos_iniciales(self):
         """Llena garantía, cambios y términos vacíos con TEXTOS_INICIALES, una sola vez por base."""

@@ -98,6 +98,90 @@ class TestBrianTelegram(HttpCase):
                                                    'text': 'hola'}})
         self.assertFalse(self.textos())
 
+    # --- La lista de chats permitidos (BRIAN_TELEGRAM_CHATS) ------------------------------------------
+
+    def con_lista(self, valor):
+        patcher = patch.dict(os.environ, {'BRIAN_TELEGRAM_CHATS': valor})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_con_lista_otro_chat_no_recibe_nada_ni_siquiera_las_instrucciones(self):
+        self.con_lista('2001, 2002')
+        self.assertEqual(self.mensaje(9001, '¿cómo van las ventas?').status_code, 200, 'a Telegram siempre 200')
+        self.assertEqual(self.llamadas, [], 'de un chat que no está en la lista no se contesta NADA')
+
+    def test_con_lista_el_chat_permitido_si_se_atiende_y_se_vincula(self):
+        self.con_lista('2001')
+        self.mensaje(2001, 'hola')
+        self.assertIn('/vincular', self.textos()[0])
+        self.vincular(2001)
+
+    def test_con_lista_nadie_mas_se_vincula_aunque_tenga_un_codigo_valido(self):
+        self.con_lista('2001')
+        codigo = self.Enlace.with_user(self.usuario).generar_codigo()
+        self.mensaje(9002, f'/vincular {codigo}')
+        self.assertEqual(self.llamadas, [])
+        self.assertFalse(self.Enlace.sudo().search([('chat_id', '=', '9002')]))
+
+    def test_con_lista_un_boton_de_otro_chat_se_ignora_sin_tocar_nada(self):
+        self.con_lista('2001')
+        self.webhook({'update_id': 5, 'callback_query': {
+            'id': 'cb', 'data': 'brian:c:1', 'from': {'id': 9003},
+            'message': {'message_id': 5, 'chat': {'id': 9003, 'type': 'private'}}}})
+        self.assertEqual(self.llamadas, [], 'ni siquiera answerCallbackQuery')
+
+    def test_miid_dice_el_id_del_propio_chat_con_lista_y_sin_ella(self):
+        self.mensaje(8123, '/miid')
+        self.assertEqual(self.textos(), ['Tu chat id es: 8123'])
+        self.llamadas.clear()
+        self.con_lista('8123')
+        self.mensaje(8123, '/miid', update_id=2)
+        self.assertEqual(self.textos(), ['Tu chat id es: 8123'])
+        self.llamadas.clear()
+        self.mensaje(8124, '/miid', update_id=3)
+        self.assertEqual(self.llamadas, [], 'con lista, ni «/miid» le contesta a otro chat')
+
+    def test_una_lista_mal_escrita_no_atiende_a_nadie(self):
+        self.con_lista('el jefe')
+        self.assertEqual(self.Enlace._chats_permitidos(), set(), 'sin un solo número: nadie, no «cualquiera»')
+        self.mensaje(2001, 'hola')
+        self.assertEqual(self.llamadas, [])
+
+    def test_la_lista_acepta_comas_espacios_y_punto_y_coma_y_tambien_un_parametro(self):
+        self.con_lista('11; 22 ,33\n44')
+        self.assertEqual(self.Enlace._chats_permitidos(), {'11', '22', '33', '44'})
+        parche = patch.dict(os.environ)
+        parche.start()
+        self.addCleanup(parche.stop)
+        os.environ.pop('BRIAN_TELEGRAM_CHATS')
+        self.assertIsNone(self.Enlace._chats_permitidos(), 'sin lista en ningún lado: Brian atiende como siempre')
+        self.env['ir.config_parameter'].sudo().set_param('dcasa_brian.telegram_chats', '3001')
+        self.assertEqual(self.Enlace._chats_permitidos(), {'3001'})
+        self.mensaje(3001, 'hola')
+        self.assertIn('/vincular', self.textos()[0])
+        self.llamadas.clear()
+        self.mensaje(3002, 'hola', update_id=2)
+        self.assertEqual(self.llamadas, [])
+
+    def test_el_bot_no_le_escribe_a_un_chat_fuera_de_la_lista(self):
+        """Tampoco los avisos (inicios de sesión, disco, caídas): solo llegan a los chats permitidos."""
+        self.con_lista('2001')
+        self.assertIsNone(self.Enlace._enviar('9004', 'aviso para otro chat'))
+        self.assertEqual(self.llamadas, [])
+        self.Enlace._enviar('2001', 'aviso para el jefe')
+        self.assertEqual(self.textos(), ['aviso para el jefe'])
+
+    def test_al_registrar_el_webhook_sin_lista_advierte_y_con_lista_no(self):
+        admin = new_test_user(self.env, login='brian_tg_admin', groups='base.group_user,base.group_system')
+        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://dcasa.example.com')
+        sin_lista = self.Enlace.with_user(admin).action_registrar_webhook()
+        self.assertEqual(sin_lista['params']['type'], 'warning')
+        self.assertIn('BRIAN_TELEGRAM_CHATS', sin_lista['params']['message'])
+        self.con_lista('2001')
+        con_lista = self.Enlace.with_user(admin).action_registrar_webhook()
+        self.assertEqual(con_lista['params']['type'], 'success')
+        self.assertNotIn('ATENCIÓN', con_lista['params']['message'])
+
     def test_vincular(self):
         codigo = self.Enlace.with_user(self.usuario).generar_codigo()
         self.assertRegex(codigo, r'^\d{6}$')
