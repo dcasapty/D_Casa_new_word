@@ -7,7 +7,9 @@ los comparan con el HTML aprobado que está guardado en ``tests/aprobado/``.
 
 Cómo se hace estable el HTML (nada depende de la fecha, de los ids ni del número del documento):
 
-* Todo lo que se pinta sale de datos fijos que arma ``DocumentosDePrueba`` (cliente, productos, fechas, importes).
+* Todo lo que se pinta sale de datos fijos que arma ``DocumentosDePrueba`` (cliente, productos, fechas, importes) y
+  el reloj está fijo en ``HOY_DE_LAS_PRUEBAS``: lo que Odoo escribe con la fecha de hoy (al confirmar un pedido, al
+  aprobar una compra) sale siempre igual.
 * ``normalizar_html`` se queda con el ``<body>``, cambia los ids de base de datos, los números de documento y las
   imágenes incrustadas por marcas fijas, junta los espacios y quita los bloques que agregan OTROS módulos
   (Socios, factura electrónica): así el mismo archivo vale con uno o con todos los módulos instalados.
@@ -21,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+from freezegun import freeze_time
 from lxml import html as lxml_html
 
 from odoo import Command, fields
@@ -29,6 +32,11 @@ from odoo.tests import TransactionCase
 from ..models.res_company import ResCompany
 
 CARPETA_APROBADA = Path(__file__).parent / 'aprobado'
+
+# «Hoy» de las pruebas: el día en que se aprobaron los documentos (14 oct 2026, 10:00 en Panamá). Confirmar un pedido,
+# aprobar una compra o registrar un pago ponen la fecha de HOY en el documento: sin fijar el reloj, el HTML aprobado
+# fallaba cada vez que cambiaba el día (le pasó a las pruebas de cuando Panamá pasó al 15 de octubre).
+HOY_DE_LAS_PRUEBAS = '2026-10-14 15:00:00'
 
 # Los bloques que otros módulos le suman a la factura (name="…" del <div>): no son de dcasa_invoice.
 BLOQUES_DE_OTROS_MODULOS = ('dcasa_socios', 'dcasa_fe')
@@ -93,6 +101,7 @@ class DocumentosDePrueba(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.enterClassContext(freeze_time(HOY_DE_LAS_PRUEBAS))
         cls.company = cls.env.ref('base.main_company')
         pais = cls.env.ref('base.pa')
         cls.company.partner_id.write({'l10n_pa_dv': '7'})
