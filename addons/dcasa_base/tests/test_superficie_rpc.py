@@ -14,6 +14,8 @@ interfaz, compruébale el grupo en el servidor ANTES de cualquier ``sudo()`` y a
 """
 import inspect
 
+from lxml import etree
+
 from odoo.exceptions import AccessError
 from odoo.service.model import get_public_method
 from odoo.tests import TransactionCase, tagged
@@ -604,6 +606,34 @@ class TestSuperficieRpc(TransactionCase):
     def test_motivo_en_cada_entrada(self):
         for clave, motivo in LISTA_BLANCA.items():
             self.assertTrue(motivo and len(motivo) > 10, f'{clave} necesita un motivo')
+
+    def test_ningun_boton_de_las_vistas_llama_a_un_metodo_api_model(self):
+        """Un botón ``type="object"`` llama con ``[ids]`` (vacía en la cabecera de una lista sin filas marcadas); un
+        método ``@api.model`` no acepta ese argumento y falla con «takes 1 positional argument but 2 were given».
+        Así falló «Vincular mi Telegram» en producción. Los métodos de botón van SIN ``@api.model`` (``self`` puede
+        venir vacío)."""
+        datos = self.env['ir.model.data'].search([
+            ('model', '=', 'ir.ui.view'), '|', ('module', '=like', 'dcasa_%'), ('module', '=', 'website_dcasa')])
+        vistas = self.env['ir.ui.view'].browse(datos.mapped('res_id')).exists()
+        revisados, culpables = 0, []
+        for vista in vistas:
+            if not vista.model or vista.model not in self.env:
+                continue
+            raiz = etree.fromstring(vista.arch_db.encode())
+            for boton in raiz.xpath('//button[@type="object"][@name]'):
+                modelo = vista.model
+                # Un botón dentro de <field name="x"><list>…</list></field> es del modelo relacionado.
+                for campo in reversed([a for a in boton.iterancestors() if a.tag == 'field']):
+                    definicion = self.env[modelo]._fields.get(campo.get('name'))
+                    modelo = definicion.comodel_name if definicion and definicion.comodel_name else modelo
+                metodo = getattr(type(self.env[modelo]), boton.get('name'), None)
+                if metodo is None:
+                    continue
+                revisados += 1
+                if getattr(metodo, '_api_model', False):
+                    culpables.append(f'{modelo}.{boton.get("name")} (vista {vista.get_external_id().get(vista.id)})')
+        self.assertTrue(revisados, 'La prueba no encontró ningún botón: ya no revisa nada')
+        self.assertFalse(culpables, f'Botones ligados a métodos @api.model (quita el decorador): {sorted(culpables)}')
 
     def test_abstractos_sin_acl_no_exponen_nada(self):
         """S-09: brian.herramientas, brian.proveedores y brian.politica: nada propio por RPC."""

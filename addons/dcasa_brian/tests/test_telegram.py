@@ -9,6 +9,7 @@ from odoo import fields
 from odoo.addons.dcasa_brian.models import telegram as modulo_telegram
 from odoo.addons.dcasa_brian.tests.test_mcp import parchar_herramientas
 from odoo.exceptions import UserError
+from odoo.service.model import call_kw
 from odoo.tests import HttpCase, new_test_user, tagged
 
 SECRETO = 'secreto-de-prueba_123'
@@ -181,6 +182,23 @@ class TestBrianTelegram(HttpCase):
         con_lista = self.Enlace.with_user(admin).action_registrar_webhook()
         self.assertEqual(con_lista['params']['type'], 'success')
         self.assertNotIn('ATENCIÓN', con_lista['params']['message'])
+
+    def test_los_botones_de_la_cabecera_se_llaman_como_los_llama_la_pantalla(self):
+        """La cabecera de una lista llama con [ids de las filas marcadas]: vacía sin selección, con ids si hay filas.
+
+        En producción «Vincular mi Telegram» falló con un TypeError porque el método era @api.model; probarlo directo
+        (``Enlace.action_vincular()``) no lo detectaba. Se llama por ``call_kw``, como ``/web/dataset/call_button``.
+        """
+        admin = new_test_user(self.env, login='brian_tg_cabecera', groups='base.group_user,base.group_system')
+        self.env['ir.config_parameter'].sudo().set_param('web.base.url', 'https://dcasa.example.com')
+        enlace = self.Enlace.sudo().create({'user_id': self.usuario.id, 'chat_id': '7001', 'nombre': 'Jefe'})
+        for seleccion in ([], [enlace.id]):
+            with self.subTest(seleccion=seleccion):
+                vincular = call_kw(self.Enlace.with_user(self.usuario), 'action_vincular', [seleccion], {})
+                self.assertEqual(vincular['tag'], 'display_notification')
+                self.assertRegex(vincular['params']['message'], r'/vincular \d{6}')
+                webhook = call_kw(self.Enlace.with_user(admin), 'action_registrar_webhook', [seleccion], {})
+                self.assertEqual(webhook['tag'], 'display_notification')
 
     def test_vincular(self):
         codigo = self.Enlace.with_user(self.usuario).generar_codigo()

@@ -268,8 +268,9 @@ class BrianTelegramEnlace(models.Model):
         })
         return codigo
 
-    @api.model
     def action_vincular(self):
+        # Sin @api.model a propósito: un botón de la cabecera de una lista llama con [ids de las filas marcadas]
+        # (vacía si no hay ninguna) y un método @api.model no los acepta (TypeError). «self» puede venir vacío o no.
         codigo = self.generar_codigo()
         return {
             'type': 'ir.actions.client',
@@ -291,9 +292,11 @@ class BrianTelegramEnlace(models.Model):
         self.sudo().write({'activo': False, 'conversacion_id': False})
         return True
 
-    @api.model
     def action_registrar_webhook(self):
-        """setWebhook con la URL pública (web.base.url) y el secreto. Solo administradores."""
+        """setWebhook con la URL pública (web.base.url) y el secreto. Solo administradores.
+
+        Botón de la cabecera de la lista: sin @api.model (ver ``action_vincular``).
+        """
         if not self.env.user.has_group('base.group_system'):
             raise UserError(self.env._('Solo un administrador puede registrar el webhook.'))
         if not self._token():
