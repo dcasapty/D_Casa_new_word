@@ -45,7 +45,8 @@ class Auditoria:
             ('company_id', '=', empresa.id), ('type_tax_use', '=', 'purchase'), ('amount', '=', 7),
             ('price_include', '=', False)], limit=1)
         self.exento = env['account.tax'].create({
-            'name': 'ITBMS 0% exento (auditoría)', 'amount': 0, 'type_tax_use': 'sale', 'company_id': empresa.id})
+            'name': f'ITBMS 0% exento (auditoría {self.anio})', 'amount': 0, 'type_tax_use': 'sale',
+            'company_id': empresa.id})
         self.banco = env['account.journal'].search([('type', '=', 'bank'), ('company_id', '=', empresa.id)], limit=1)
         self.efectivo = env['account.journal'].search([('type', '=', 'cash'), ('company_id', '=', empresa.id)], limit=1)
         self.diario_general = env['account.journal'].search(
@@ -56,21 +57,25 @@ class Auditoria:
             Socio.create({'name': f'Cliente auditoría {i}'}) for i in range(1, 7))
         self.v1, self.v2, self.v3 = (Socio.create({'name': f'Proveedor auditoría {i}'}) for i in range(1, 4))
         self.capital = Cuenta.search([('account_type', '=', 'equity'), ('company_ids', 'in', empresa.ids)], limit=1)
-        self.mobiliario = Cuenta.create({'name': 'Mobiliario (auditoría)', 'code': '9A0001',
+        self.mobiliario = Cuenta.create({'name': 'Mobiliario (auditoría)', 'code': self._codigo(1),
                                          'account_type': 'asset_fixed'})
-        self.depreciacion = Cuenta.create({'name': 'Depreciación (auditoría)', 'code': '9A0002',
+        self.depreciacion = Cuenta.create({'name': 'Depreciación (auditoría)', 'code': self._codigo(2),
                                            'account_type': 'expense_depreciation'})
-        self.prestamo = Cuenta.create({'name': 'Préstamo corto plazo (auditoría)', 'code': '9A0003',
+        self.prestamo = Cuenta.create({'name': 'Préstamo corto plazo (auditoría)', 'code': self._codigo(3),
                                        'account_type': 'liability_current'})
-        self.prestamo_largo = Cuenta.create({'name': 'Préstamo largo plazo (auditoría)', 'code': '9A0004',
+        self.prestamo_largo = Cuenta.create({'name': 'Préstamo largo plazo (auditoría)', 'code': self._codigo(4),
                                              'account_type': 'liability_non_current'})
-        self.costo = Cuenta.create({'name': 'Costo de ventas (auditoría)', 'code': '9A0005',
+        self.costo = Cuenta.create({'name': 'Costo de ventas (auditoría)', 'code': self._codigo(5),
                                     'account_type': 'expense_direct_cost'})
-        self.gasto_otro = Cuenta.create({'name': 'Otros gastos (auditoría)', 'code': '9A0006',
+        self.gasto_otro = Cuenta.create({'name': 'Otros gastos (auditoría)', 'code': self._codigo(6),
                                          'account_type': 'expense_other' if 'expense_other' in dict(
                                              Cuenta._fields['account_type'].selection) else 'expense'})
         self.cuenta_banco = self.banco.default_account_id
         self.cuenta_caja = self.efectivo.default_account_id
+
+    def _codigo(self, n):
+        """Código de cuenta propio de estos datos (único por año, para no chocar con una base que ya los tenga)."""
+        return f'9A{self.anio % 100:02d}{n:02d}'
 
     def asiento(self, fecha, lineas, publicar=True, diario=None):
         """Asiento manual: ``[(cuenta, debe, haber)]`` o ``[(cuenta, debe, haber, tercero, analitica)]``."""

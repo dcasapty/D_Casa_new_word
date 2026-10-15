@@ -58,11 +58,16 @@ class SaleOrder(models.Model):
 
     @api.model
     def _dcasa_accion_ventas_de_hoy(self):
-        """Ventas › Hoy › Ventas de hoy: lo mismo que «Vendido hoy» del Inicio (solo lo facturado por completo)."""
+        """Ventas › Hoy › Ventas de hoy: lo mismo que «Vendido hoy» del Inicio (solo lo facturado por completo).
+
+        Con el mismo criterio de «panel completo» del Inicio: Gerencia, administradores y contabilidad ven las ventas
+        de toda la tienda; quien vende sin controlar (la Vendedora) ve solo las suyas, como su tarjeta del Inicio."""
         accion = super()._dcasa_accion_ventas_de_hoy()
         hoy = fields.Date.context_today(self.with_context(tz=self.env.user.tz or 'America/Panama'))
-        accion['domain'] = self._dcasa_dominio_vendido(desde=hoy, hasta=hoy)
+        propio = self.env['dcasa.tablero']._solo_lo_propio()
+        accion['domain'] = self._dcasa_dominio_vendido(desde=hoy, hasta=hoy, vendedor=self.env.user if propio else None)
         accion['help'] = (
-            '<p class="o_view_nocontent_smiling_face o_dcasa_ayuda">Todavía no hay ventas facturadas hoy.</p>'
-            '<p>Una venta cuenta cuando su factura ya está publicada.</p>')
+            '<p class="o_view_nocontent_smiling_face o_dcasa_ayuda">'
+            + ('Todavía no hay ventas tuyas facturadas hoy.' if propio else 'Todavía no hay ventas facturadas hoy.')
+            + '</p><p>Una venta cuenta cuando su factura ya está publicada.</p>')
         return accion

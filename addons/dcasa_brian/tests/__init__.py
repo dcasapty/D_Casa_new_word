@@ -15,3 +15,4 @@ from . import test_ronda8
 from . import test_vendedores_brian
 from . import test_guia_brian
 from . import test_combos
+from . import test_resumen_ventas

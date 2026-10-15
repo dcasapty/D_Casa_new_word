@@ -138,16 +138,50 @@ class TestVendidoEsFacturado(VentasCommon):
         self.assertFalse(orden.dcasa_fecha_venta)
 
     def test_ventas_de_hoy_del_menu_es_lo_mismo_que_el_inicio(self):
-        """Ventas › Hoy › Ventas de hoy y la tarjeta «Vendido hoy» comparten el dominio."""
+        """Ventas › Hoy › Ventas de hoy y la tarjeta «Vendido hoy» comparten el dominio (para cada rol)."""
         por_facturar = self.pedido()
         vendido = self.pedido()
         self.facturar(vendido)
-        accion = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir').with_user(self.vendedora).run()
-        del_menu = self.env['sale.order'].search(accion['domain'])
-        self.assertIn(vendido, del_menu)
-        self.assertNotIn(por_facturar, del_menu)
-        tarjeta = self.cifras(self.gerencia)['ventas_hoy']['accion']
-        self.assertEqual(self.env['sale.order'].search(tarjeta['domain']), del_menu)
+        menu = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir')
+        for usuario in (self.gerencia, self.vendedora):
+            accion = menu.with_user(usuario).run()
+            del_menu = self.env['sale.order'].search(accion['domain'])
+            self.assertIn(vendido, del_menu, usuario.login)
+            self.assertNotIn(por_facturar, del_menu, usuario.login)
+            tarjeta = self.cifras(usuario)['ventas_hoy']['accion']
+            self.assertEqual(self.env['sale.order'].search(tarjeta['domain']), del_menu, usuario.login)
+
+    def test_ventas_de_hoy_del_menu_la_vendedora_ve_solo_las_suyas_y_gerencia_todas(self):
+        mia = self.pedido(vendedor=self.vendedora)
+        self.facturar(mia)
+        ajena = self.pedido(vendedor=self.otra)
+        self.facturar(ajena)
+        por_facturar = self.pedido(vendedor=self.vendedora)
+        contador = crear_usuario(self.env, 'contador_menu_hoy', 'account.group_account_user')
+        menu = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir')
+
+        propias = self.env['sale.order'].search(menu.with_user(self.vendedora).run()['domain'])
+        self.assertIn(mia, propias)
+        self.assertNotIn(ajena, propias, 'la vendedora no ve las ventas de otra en el menú')
+        self.assertNotIn(por_facturar, propias)
+        self.assertEqual(propias.user_id, self.vendedora)
+        otra = self.env['sale.order'].search(menu.with_user(self.otra).run()['domain'])
+        self.assertIn(ajena, otra)
+        self.assertNotIn(mia, otra)
+        for usuario in (self.gerencia, contador, self.env.ref('base.user_admin')):
+            todas = self.env['sale.order'].search(menu.with_user(usuario).run()['domain'])
+            self.assertTrue((mia | ajena) <= todas, f'{usuario.login} ve las ventas de toda la tienda')
+            self.assertNotIn(por_facturar, todas)
+
+    def test_ventas_de_hoy_vacia_conserva_su_ayuda(self):
+        menu = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir')
+        propia = menu.with_user(self.vendedora).run()['help']
+        todas = menu.with_user(self.gerencia).run()['help']
+        for ayuda in (propia, todas):
+            self.assertIn('o_dcasa_ayuda', ayuda, 'sin esa clase el Inicio de D\'CASA esconde la ayuda')
+            self.assertIn('Una venta cuenta cuando su factura ya está publicada.', ayuda)
+        self.assertIn('ventas tuyas', propia)
+        self.assertNotIn('ventas tuyas', todas)
 
     def test_la_tarjeta_la_lista_las_barras_y_lo_mas_vendido_dicen_lo_mismo(self):
         producto = self.env['product.product'].create({'name': 'Zzmuy vendido inicio', 'list_price': 10})
@@ -267,6 +301,24 @@ class TestInicioPorRol(VentasCommon):
         self.facturar(ajena)
         lista = self.env['sale.order'].search(self.cifras(self.gerencia)['ventas_hoy']['accion']['domain'])
         self.assertTrue((mia | ajena) <= lista)
+
+    def test_las_apps_que_no_se_usan_se_vuelven_a_ocultar_en_cada_actualizacion(self):
+        """``-u all`` recarga los menús de Odoo con sus grupos de fábrica; el panel los oculta de nuevo."""
+        from odoo.addons.dcasa_base import MENUS_OCULTOS
+        desarrollador = self.env.ref('base.group_no_one')
+        menus = [self.env.ref(x) for x in MENUS_OCULTOS if self.env.ref(x, raise_if_not_found=False)]
+        self.assertTrue(menus)
+        for menu in menus:
+            menu.group_ids = False                      # como los deja una actualización completa de Odoo
+        self.env.ref('base.open_module_tree').domain = '[]'
+        self.env['dcasa.tablero']._dcasa_configurar_panel()   # lo que corre en cada actualización de dcasa_interfaz
+        for menu in menus:
+            self.assertEqual(menu.group_ids, desarrollador, menu.complete_name)
+        self.assertIn('to_buy', self.env.ref('base.open_module_tree').domain)
+        # y la vendedora no ve Discuss, Calendario, Tableros ni Aplicaciones
+        visibles = self.env['ir.ui.menu'].with_user(self.vendedora)._visible_menu_ids()
+        for menu in menus:
+            self.assertNotIn(menu.id, visibles, menu.complete_name)
 
     def test_atajos_de_la_vendedora(self):
         atajos = self.env['dcasa.tablero'].with_user(self.vendedora).obtener_datos()['atajos']

@@ -23,6 +23,15 @@ Para quien programa: cómo está armado y cómo se comprueba. Reglas en
 | Reportes contables, rentabilidad por canal | **No** | Sí | Sí | Sí |
 | Planillas, sueldos, liquidaciones | **No** | (según su grupo) | Sí | Sí |
 
+**El Inicio de la vendedora** (pedido de la dueña, 2026-10-14) trae solo lo suyo: lo que **ella** vendió hoy y sus
+cotizaciones abiertas. No ve lo que está por cobrarse, lo cobrado hoy, las barras ni los totales de la tienda; sus
+herramientas son Productos, Facturas, Conversaciones, Nueva factura y Nuevo cliente. Lo mismo vale para **Ventas › Hoy ›
+Ventas de hoy** y para el resumen de ventas de Brian: ella ve solo sus ventas; Gerencia, administradores y contabilidad
+ven las de toda la tienda. Una venta cuenta cuando está facturada por completo y con la factura publicada (detalle en
+`docs/OPERACION.md`, «Inicio»). La vendedora tampoco ve ninguna pantalla de Nómina: solo **Mis gastos por reembolsar**,
+con sus propios gastos. (Ventas › Pedidos y Cotizaciones siguen mostrando todos los documentos: es el rol, para que
+cualquiera atienda al cliente que vuelve.)
+
 «Contador» es quien tiene Contabilidad en su ficha de usuario. Gerencia ya incluye Contabilidad y Nómina.
 El lector contable (solo lectura) ve todo lo contable pero no cambia nada, igual que antes.
 

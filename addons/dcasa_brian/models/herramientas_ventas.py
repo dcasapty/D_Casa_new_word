@@ -107,18 +107,21 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Total vendido en un periodo (ventas confirmadas): cantidad, ticket promedio, por vendedor y '
-                    'productos más vendidos.',
+        descripcion='Total vendido en un periodo (ventas ya facturadas por completo): cantidad, ticket promedio, '
+                    'por vendedor y productos más vendidos. Quien vende ve solo lo suyo.',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['ventas de este mes → periodo=este_mes', 'ventas del 01/09/2026 al 15/09/2026'],
     )
     def _h_resumen_ventas(self, periodo=None, desde=None, hasta=None):
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
-        d_inicio, d_fin = self._b_limites(inicio, fin)
-        dominio = [('state', '=', 'sale'), ('date_order', '>=', d_inicio), ('date_order', '<', d_fin)]
+        # La misma definición de «vendido» que el Inicio (dcasa_interfaz, de la que depende este módulo): pedido
+        # facturado por completo con sus facturas publicadas, contado el día de su última factura. Y el mismo
+        # criterio de panel: quien vende sin controlar la tienda (la Vendedora) ve solo lo que ella vendió.
         Order = self.env['sale.order']
-        ventas = Order.search(dominio)
+        propio = self.env['dcasa.tablero']._solo_lo_propio()
+        ventas = Order.search(Order._dcasa_dominio_vendido(desde=inicio, hasta=fin,
+                                                           vendedor=self.env.user if propio else None))
         total = sum(ventas.mapped('amount_total'))
         por_vendedor = {}
         for venta in ventas:

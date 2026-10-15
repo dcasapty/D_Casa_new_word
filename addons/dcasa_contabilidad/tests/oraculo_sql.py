@@ -53,6 +53,18 @@ def saldos(env, empresas, desde=None, hasta=None, tipos=None, sin_tipos=None, bo
     return {cuenta: [float(debe), float(haber)] for cuenta, debe, haber in env.cr.fetchall()}
 
 
+def conteo(env, empresas, desde, hasta):
+    """{account_id: cantidad de apuntes publicados con fecha en [desde, hasta]}."""
+    env.cr.execute("""
+        SELECT l.account_id, COUNT(*)
+          FROM account_move_line l
+          JOIN account_move m ON m.id = l.move_id
+         WHERE m.state = 'posted' AND l.company_id IN %s AND l.date BETWEEN %s AND %s
+         GROUP BY l.account_id
+    """, [tuple(empresas.ids), desde, hasta])
+    return dict(env.cr.fetchall())
+
+
 def neto(sumas):
     """Suma de (debe − haber) de un diccionario de ``saldos``."""
     return sum(d - h for d, h in sumas.values())

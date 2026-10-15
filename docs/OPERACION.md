@@ -668,13 +668,48 @@ Las capturas que se le enseñan a la dueña (las ocho pantallas, escritorio y ce
 con `DCASA_CAPTURAS_JUAN=docs/auditoria/ronda7/capturas TEST_TAGS=/dcasa_conversaciones:TestContratoVisualJuan.test_capturas_para_la_duena scripts/test.sh dcasa_conversaciones`
 y se llaman `juan-panel-<pantalla>-<escritorio|celular>.webp`.
 
-## Inicio: accesos directos (pedido de la dueña, 2026-10-10)
+## Inicio: accesos directos, panel por rol y «vendido» (pedidos de la dueña, 2026-10-10 y 2026-10-14)
 
-Al abrir el panel, arriba del tablero hay dos accesos grandes: **Productos** (la lista, con stock, precio y
-categorías ordenables: `docs/CATALOGO.md`) y **Conversaciones** (el chat de Juan; muestra cuántas hay sin leer). Cada
-uno sale solo si la persona tiene permiso y el módulo está instalado (`dcasa_interfaz`, `models/tablero.py › _atajos`).
-Para agregar otro acceso: una entrada más en `_atajos` con el `xml_id` de la acción y un test en
-`addons/dcasa_interfaz/tests/test_interfaz.py`.
+### Los accesos grandes
+
+Al abrir el panel, arriba del tablero hay accesos grandes, **en este orden**: **Productos** (la lista, con stock,
+precio y categorías ordenables: `docs/CATALOGO.md`), **Facturas** (las facturas a clientes: la misma lista de
+Facturación › Clientes › Facturas), **Conversaciones** (el chat de Juan; muestra cuántas hay sin leer),
+**Oportunidades** (a quién escribirle hoy) y **Resumen contable** (dinero, deudas y utilidad; solo para Gerencia,
+administradores y contabilidad: el mismo permiso del menú Reportes contables). Cada uno sale solo si la persona tiene
+permiso y el módulo está instalado (`dcasa_interfaz`, `models/tablero.py › _atajos`). Para agregar otro acceso: una
+entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dcasa_interfaz/tests/`.
+
+### Qué ve cada rol en el Inicio
+
+| | Vendedora | Gerencia, administradores y contabilidad |
+|---|---|---|
+| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya») y **Mis cotizaciones** (las suyas abiertas) | Vendido hoy, cotizaciones abiertas, pedidos web, cobrado hoy, por cobrar, entregas y socios (de toda la tienda), barras de la semana, caja y lo más vendido |
+| Botones de arriba | ¿Qué necesito hacer?, **Nueva factura**, **Nuevo cliente** | Los mismos y además Nueva cotización, Registrar cobro, Ver la tienda y Ver en el celular |
+| Accesos grandes | Productos · Facturas · Conversaciones | Productos · Facturas · Conversaciones · Oportunidades · Resumen contable |
+
+La vendedora **no** ve lo que está por cobrarse ni lo cobrado hoy: cobra desde la factura, no desde el Inicio. «Panel
+completo» es quien tiene Ventas administrador, contabilidad (lector contable o más) o es administrador técnico; «solo lo
+propio» es quien tiene Ventas pero no es de esos (`dcasa.tablero._solo_lo_propio`). Quien no vende (no tiene Ventas)
+no cambia: ve lo que su permiso deje.
+
+### Qué cuenta como «vendido» y en qué día
+
+Una **venta** es un pedido confirmado, **facturado por completo y con todas sus facturas publicadas**. Una cotización,
+un borrador, un pedido «por facturar» (un apartado que aún no se cobra ni se entrega) o uno cuya factura sigue en
+borrador **no** es venta. Odoo da por «facturado» también lo que está en una factura en borrador; por eso se exige,
+además, que ninguna quede sin publicar.
+
+El **día de la venta es el de su última factura publicada**, no el del pedido: el apartado del lunes que se cobra y se
+factura el viernes se vendió el viernes, el mismo día que entra la plata a la caja, y el número de un día que ya pasó no
+cambia solo. Una nota de crédito que devuelve todo saca la venta. El día se guarda en `sale.order.dcasa_fecha_venta`
+(se calcula solo; al actualizar el módulo se calcula para los pedidos que ya existen) y la definición vive en
+`sale.order._dcasa_dominio_vendido`. **Todo lo «vendido» usa esa misma definición**: la tarjeta «Vendido hoy», la lista
+que abre, las barras de la semana, «Lo más vendido», el menú **Ventas › Hoy › Ventas de hoy** y el resumen de ventas de
+Brian (`resumen_ventas`). En el menú y en Brian, la vendedora ve solo lo suyo; Gerencia, todo.
+
+El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
+`o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 
 ## El CRM se ajusta solo (acción planificada)
 

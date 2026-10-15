@@ -2,7 +2,8 @@
 
 Planilla quincenal, décimo tercer mes, vacaciones, prima de antigüedad, liquidación y reembolsos en nómina,
 sobre los empleados de Odoo (`hr`). Menú **Nómina** (lo ven Gerencia y quien tenga el rol «Administra la
-nómina»; cualquier persona del equipo ve **Mis reembolsos**).
+nómina»; cualquier persona del equipo ve **Mis gastos por reembolsar**, un menú aparte, con su propio ícono de recibo,
+que no es de Nómina).
 
 ## La regla de oro: las tasas las valida el contador
 
@@ -94,11 +95,18 @@ cuenta de provisión (243) y la partida se paga contra esa cuenta; sin marcar, e
 
 ## Reembolsos en nómina
 
-Gastos que paga un colaborador de su bolsillo. **Nómina › Mis reembolsos** (cualquier persona del equipo): registra
-el concepto, el monto y la **foto del recibo** y lo envía. Quien administra la nómina lo **aprueba** (elige la cuenta de
-gasto) o lo **rechaza con un motivo**. La siguiente planilla quincenal lo suma al neto de esa persona, **sin pagar
-seguro social, educativo ni ISR**, y al confirmarla queda contabilizado (gasto contra sueldos por pagar). Nadie aprueba
-su propio reembolso ni ve los de otros; un reembolso enviado ya no se edita.
+Gastos que paga un colaborador de su bolsillo. **Mis gastos por reembolsar** (antes «Mis reembolsos»; cualquier persona
+del equipo, es su propio menú y no cuelga de Nómina ni de Facturación): si pagaste algo de tu bolsillo para la empresa
+(un taxi, bolsas, una reparación), registra el concepto, el monto y la **foto del recibo** y lo envía. Quien administra
+la nómina lo ve en **Nómina › Reembolsos** y lo **aprueba** (elige la cuenta de gasto) o lo **rechaza con un motivo**. La
+siguiente planilla quincenal lo suma al neto de esa persona, **sin pagar seguro social, educativo ni ISR**, y al
+confirmarla queda contabilizado (gasto contra sueldos por pagar). Nadie aprueba su propio reembolso ni ve los de otros;
+un reembolso enviado ya no se edita.
+
+Se dejó como menú propio, y no dentro de Nómina o Facturación, porque lo usa todo el equipo y quien solo vende no debe
+abrir la app de Nómina ni necesita permiso de facturar. Tiene un ícono distinto al de Nómina (un recibo) para que no
+parezca que la vendedora tiene la Nómina habilitada. Para registrar gastos hace falta que el usuario esté ligado a su
+ficha de colaborador.
 
 ## Seguridad
 

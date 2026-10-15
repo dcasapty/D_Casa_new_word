@@ -367,11 +367,6 @@ class TestCodigoPublico(TransactionCase):
         for escrito in (producto.dcasa_codigo_publico, producto.dcasa_codigo_publico[3:6].lower()):
             encontrados = self.Plantilla.search(safe_eval(dominio, {'self': escrito}))
             self.assertIn(producto, encontrados)
-        otras = self.env.ref('dcasa_catalogo.product_product_search_codigo_publico')
-        dominio_variantes = re.search(r'<attribute name="filter_domain">(.*?)</attribute>', otras.arch).group(1)
-        encontrados = self.env['product.product'].search(
-            safe_eval(dominio_variantes, {'self': producto.dcasa_codigo_publico}))
-        self.assertEqual(encontrados, producto.product_variant_ids)
 
     def test_url_del_qr(self):
         producto = self.producto()

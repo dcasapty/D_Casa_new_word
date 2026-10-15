@@ -213,7 +213,7 @@ class JuanAjustes(models.Model):
              'falla, el asistente sigue buscando por palabras. Solo completa lo que las palabras no encontraron.')
     reparto_modo = fields.Selection(
         [('manual', 'Nadie: la toma quien quiera'),
-         ('parejo', 'Parejo: a quien lleva menos conversaciones hoy (recomendado)'),
+         ('parejo', 'Parejo: a quien lleva menos hoy (recomendado)'),
          ('turnos', 'Por turnos entre quienes estén disponibles')],
         'Reparto de conversaciones', default='manual', required=True, tracking=True,
         help='Qué pasa cuando el asistente pasa una conversación a una vendedora. «Nadie»: no se asigna a nadie; la '

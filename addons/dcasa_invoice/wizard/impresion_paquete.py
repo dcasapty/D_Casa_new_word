@@ -129,7 +129,7 @@ class DcasaImpresionPaquete(models.TransientModel):
         if not self.pago_ids:
             return {'type': 'ir.actions.act_window_close'}
         accion = {
-            'name': self.env._('Payments'),
+            'name': self.env._('Pagos'),
             'type': 'ir.actions.act_window',
             'res_model': 'account.payment',
             'context': {'create': False},

@@ -22,6 +22,7 @@ from babel.dates import format_date
 from odoo import api, fields, models
 
 DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
+APPS_SIN_PAGO = "[('to_buy', '=', False)]"
 
 
 def _accion(nombre, modelo, dominio, vista='list'):
@@ -304,9 +305,26 @@ class DcasaTablero(models.AbstractModel):
         # Sin recorrido guiado ni conversación de bienvenida de OdooBot.
         usuarios.tour_enabled = False
         usuarios.odoobot_state = 'disabled'
+        self._dcasa_ocultar_lo_que_no_se_usa()
+
+    @api.model
+    def _dcasa_ocultar_lo_que_no_se_usa(self):
+        """Las apps estándar de Odoo que una mueblería no usa (Discuss, Calendario, Tableros, Aplicaciones…) quedan
+        solo en modo desarrollador, y el catálogo de apps sin módulos de pago.
+
+        ``dcasa_base`` ya lo hace al instalarse. Aquí se repite en cada actualización de este módulo porque
+        ``-u all`` (o actualizar ``mail``, ``calendar``…) vuelve a cargar los menús de Odoo con sus grupos de fábrica y
+        la vendedora vería de nuevo esos íconos. El despliegue normal solo actualiza los módulos dcasa_*: no los toca.
+        """
+        from odoo.addons.dcasa_base import MENUS_OCULTOS
+        desarrollador = self.env.ref('base.group_no_one')
+        for xmlid in MENUS_OCULTOS:
+            menu = self.env.ref(xmlid, raise_if_not_found=False)
+            if menu and menu.group_ids != desarrollador:
+                menu.group_ids = [(6, 0, desarrollador.ids)]
         apps = self.env.ref('base.open_module_tree', raise_if_not_found=False)
-        if apps:
-            apps.domain = "[('to_buy', '=', False)]"
+        if apps and apps.domain != APPS_SIN_PAGO:
+            apps.domain = APPS_SIN_PAGO
 
     @api.model
     def _dcasa_configurar_panel(self):
@@ -320,3 +338,4 @@ class DcasaTablero(models.AbstractModel):
         companias = self.env['res.company'].sudo().search([])
         if 'iap_enrich_auto_done' in companias._fields:
             companias.filtered(lambda c: not c.iap_enrich_auto_done).iap_enrich_auto_done = True
+        self._dcasa_ocultar_lo_que_no_se_usa()
