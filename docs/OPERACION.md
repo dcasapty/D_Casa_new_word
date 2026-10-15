@@ -721,6 +721,14 @@ Ajustes de Juan › El CRM se ajusta solo*. Si hay más de 500 oportunidades pen
 las 500 más nuevas.
 
 
+## «No disponible» de las vendedoras se reinicia cada mañana (acción planificada)
+
+Cada hora corre **«Juan: volver a poner «Disponible» a las vendedoras cada mañana»** (`dcasa.reparto._cron_reiniciar_disponibilidad`,
+módulo `dcasa_conversaciones`; detalle en `docs/JUAN_PANEL.md`). Pasado el corte de hoy (dos horas antes de la apertura de Ajustes de Juan: 6:00 a. m. de
+Panamá con el horario de 8:00), deja «Disponible» a quien se marcó «No disponible» antes del corte, sin tocar a quien Gerencia sacó del reparto. Si el
+contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcadas después del corte.
+
+
 ## Apartados: cuánto duran y qué pasa si el cliente no llega (decisión de la dueña, 2026-10-09 y 2026-10-10)
 
 Un «apartado» es un **pedido** de Odoo (no una factura: la factura nace al cobrar o entregar). Hay dos formas:

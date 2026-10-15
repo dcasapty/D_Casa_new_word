@@ -240,7 +240,7 @@ class TestPresupuestoMulticompania(AuditoriaCommon):
 
 @tagged('post_install', '-at_install')
 class TestPresupuestoAtajosDeFechas(AuditoriaCommon):
-    """Los filtros «Periodo: Hoy … Este año fiscal» de la lista de presupuestos, en sus fechas borde."""
+    """Los filtros «Hoy … Este año fiscal» de la lista de presupuestos, en sus fechas borde."""
 
     HOY = f'{ANIO}-10-14'        # martes
 
@@ -319,7 +319,7 @@ class TestPresupuestoAtajosDeFechas(AuditoriaCommon):
                               ('mes', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('trimestre', 'Este trimestre'),
                               ('ejercicio', 'Este año fiscal')):
             self.assertIn(f'name="periodo_{clave}"', arch)
-            self.assertIn(f'string="Periodo: {nombre}"', arch)
+            self.assertIn(f'string="{nombre}"', arch)
             self.assertIn(f"[(&quot;periodo_atajo&quot;, &quot;=&quot;, &quot;{clave}&quot;)]".replace('&quot;', "'"),
                           arch.replace('&quot;', "'"))
         self.assertEqual(d(self.HOY).weekday(), 1, 'el 14 de octubre de ese año es martes')

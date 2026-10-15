@@ -110,8 +110,12 @@ Qué queda después:
   descontado puntos), al anularla se devuelve también ese descuento; el socio no queda con puntos de menos.
 - **Una factura publicada no se puede borrar** (es la protección de Odoo, no cambió). Si hay que deshacerla,
   primero se devuelve a borrador, o se hace una nota de crédito.
-- **El pago no se borra con la factura.** Queda como un pago sin aplicar al cliente. Si el pago también era de
-  prueba, hay que cancelarlo aparte (Facturación → Clientes → Pagos).
+- **El pago no se borra con la factura.** Al devolver a borrador, el pago sigue ligado a la factura; al
+  eliminarla, queda como un pago sin aplicar al cliente. Odoo te lo avisa en las dos pantallas con un
+  aviso de advertencia que se queda hasta que lo cierras («El pago … sigue ligado… Si era de prueba, cancélalo en
+  Facturación › Clientes › Pagos» y, al borrar, «…quedó sin aplicar…»), y deja la misma nota en el chatter de
+  la factura y de cada pago, así el rastro queda aunque luego se borre el borrador. El aviso nunca cambia ni
+  frena el botón: si algo fallara, solo queda escrito en el registro del servidor.
 - Si en el momento de borrar todavía había una compra activa (no es lo normal), el borrado la anula con su
   asiento contrario («Se eliminó la factura …») antes de dejarte seguir. Quien no tiene permiso de borrar
   facturas no puede anular puntos por esta puerta.

@@ -18,6 +18,7 @@ export const ESTADOS_DE_PERSONA = {
     disponible: { clase: "ok", icono: "fa-check-circle", texto: "Disponible" },
     no_disponible: { clase: "apagado", icono: "fa-pause-circle-o", texto: "No disponible" },
     fuera: { clase: "alerta", icono: "fa-plane", texto: "No recibe" },
+    interviene: { clase: "listo", icono: "fa-hand-paper-o", texto: "Interviene, no recibe" },
 };
 
 export class RepartoJuan extends Component {

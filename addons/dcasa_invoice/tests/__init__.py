@@ -5,3 +5,4 @@ from . import test_pdf_con_estilos
 from . import test_paquete
 from . import test_paquete_http
 from . import test_panel_facturas
+from . import test_documentos_intactos

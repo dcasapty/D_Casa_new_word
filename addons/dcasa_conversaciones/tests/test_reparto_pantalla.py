@@ -9,7 +9,7 @@ from freezegun import freeze_time
 
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
-from odoo.tests import TransactionCase, tagged
+from odoo.tests import TransactionCase, new_test_user, tagged
 
 from .test_panel_interfaz import GERENTE, VENDEDORA, PanelUiCase
 from .test_reparto_justo import RepartoCase
@@ -33,15 +33,15 @@ class TestApiDelReparto(RepartoCase):
 
     def test_gerencia_ve_a_cada_persona_con_lo_que_recibio_hoy_lo_que_le_espera_y_la_ultima(self):
         self.dar(self.vendedora, 2)
-        self.dar(self.gerente, 1)
+        self.dar(self.carla, 1)
         self.hacer_esperar(self.beto, 3)
         datos = self.gerencia.reparto('hoy')
         self.assertTrue(datos['es_gerencia'])
         self.assertEqual((datos['modo'], datos['hoy']), ('parejo', '2026-10-09'))
-        ana, beto, gema = (self.fila(datos, u) for u in (self.vendedora, self.beto, self.gerente))
+        ana, beto, carla = (self.fila(datos, u) for u in (self.vendedora, self.beto, self.carla))
         self.assertEqual((ana['recibidas'], ana['abiertas'], ana['estado']), (2, 0, 'disponible'))
         self.assertEqual((beto['recibidas'], beto['abiertas'], beto['ultima']), (0, 3, None))
-        self.assertEqual((gema['recibidas'], gema['ultima']), (1, '2026-10-09T15:00:00Z'))
+        self.assertEqual((carla['recibidas'], carla['ultima']), (1, '2026-10-09T15:00:00Z'))
         self.assertEqual(datos['diferencia'], 2, 'Entre quien más recibió (2) y quien menos (0)')
 
     def test_la_diferencia_dice_si_va_parejo(self):
@@ -55,11 +55,11 @@ class TestApiDelReparto(RepartoCase):
 
     def test_los_estados_de_cada_persona(self):
         self.beto.dcasa_disponible = False
-        self.gerente.write({'dcasa_fuera_del_reparto': True, 'dcasa_fuera_hasta': date(2026, 10, 20)})
+        self.carla.write({'dcasa_fuera_del_reparto': True, 'dcasa_fuera_hasta': date(2026, 10, 20)})
         datos = self.gerencia.reparto('hoy')
-        self.assertEqual([self.fila(datos, u)['estado'] for u in (self.vendedora, self.beto, self.gerente)],
+        self.assertEqual([self.fila(datos, u)['estado'] for u in (self.vendedora, self.beto, self.carla)],
                          ['disponible', 'no_disponible', 'fuera'])
-        self.assertEqual(self.fila(datos, self.gerente)['fuera_hasta'], '2026-10-20')
+        self.assertEqual(self.fila(datos, self.carla)['fuera_hasta'], '2026-10-20')
         self.assertIsNone(self.fila(datos, self.beto)['fuera_hasta'])
 
     def test_las_que_nadie_tiene_aparecen_aparte(self):
@@ -97,8 +97,9 @@ class TestApiDelReparto(RepartoCase):
         self.assertEqual(len(datos['mis_conversaciones']), 2)
         # En ninguna parte de lo que viaja aparece el nombre de otra persona.
         texto = json.dumps(datos)
-        for otra in (self.beto, self.gerente):
+        for otra in (self.beto, self.carla, self.gerente):
             self.assertNotIn(otra.name, texto)
+        self.assertEqual(datos['no_reciben'], [])
 
     def test_sus_conversaciones_son_las_que_juan_le_paso_y_dicen_como_van(self):
         propias = [c for c in (self.pasar() for _n in range(6)) if c.asignada_a == self.vendedora]
@@ -124,9 +125,13 @@ class TestApiDelReparto(RepartoCase):
             filas = self.env['dcasa.juan.panel'].with_user(duena).reparto('7_dias')['mis_conversaciones']
         self.assertEqual([f['conversacion_id'] for f in filas], [conv.id])
 
-    def test_la_gerente_tambien_tiene_lo_suyo(self):
-        self.dar(self.gerente, 1)
-        self.assertEqual(self.gerencia.reparto('hoy')['yo']['recibidas'], 1)
+    def test_gerencia_no_recibe_no_sale_en_la_tabla_y_se_nombra_aparte(self):
+        datos = self.gerencia.reparto('hoy')
+        self.assertEqual(sorted(f['usuario_id'] for f in datos['equipo']), sorted(self.equipo.ids))
+        self.assertEqual(datos['yo']['estado'], 'interviene')
+        self.assertEqual(datos['no_reciben'], sorted([self.gerente.name, self.administrador.name], key=str.lower))
+        self.assertEqual(datos['yo']['recibidas'], 0)
+        self.assertEqual(datos['mis_conversaciones'], [])
 
     # --- Permisos ---------------------------------------------------------------------------------------------
 
@@ -200,6 +205,7 @@ class TestApiDelReparto(RepartoCase):
             ('no', True, None), (True, True, None), (0, True, None), (self.beto.id, 'si', None),
             (self.beto.id, True, '20/10/2026'), (self.beto.id, True, 'mañana'), (self.beto.id, True, '2026-10-09'),
             (self.beto.id, True, '2026-10-01'), (self.interno.id, True, None), (self.juan.id, True, None),
+            (self.gerente.id, True, None), (self.administrador.id, True, None),
             (999999, True, None),
         )
         for usuario_id, fuera, vuelve in malas:
@@ -226,6 +232,12 @@ class TestApiDelReparto(RepartoCase):
         self.vendedora.dcasa_fuera_hasta = date(2026, 10, 9)    # hoy mismo: ya volvió
         self.assertFalse(panel.iniciar_panel()['usuario']['fuera_del_reparto'])
 
+    def test_gerencia_y_administrador_no_ven_el_interruptor_de_disponible_porque_no_reciben(self):
+        self.assertTrue(self.Conversacion.with_user(self.vendedora).iniciar_panel()['usuario']['recibe_reparto'])
+        for usuario in (self.gerente, self.administrador):
+            datos = self.Conversacion.with_user(usuario).iniciar_panel()['usuario']
+            self.assertEqual((datos['recibe_reparto'], datos['fuera_del_reparto']), (False, False))
+
 
 @tagged('post_install', '-at_install')
 class TestRepartoEnElNavegador(PanelUiCase):
@@ -234,9 +246,12 @@ class TestRepartoEnElNavegador(PanelUiCase):
     def setUp(self):
         super().setUp()
         self.ajustes.reparto_modo = 'parejo'
-        equipo = self.vendedora | self.gerente
-        (self.env['dcasa.conversacion']._usuarios_del_panel() - equipo).write({'dcasa_fuera_del_reparto': True})
+        self.carla = new_test_user(self.env, login='juan_ui_carla', name='Carla Vendedora',
+                                   groups='base.group_user,sales_team.group_sale_salesman')
+        equipo = self.vendedora | self.carla
         equipo.write({'dcasa_disponible': True, 'dcasa_fuera_del_reparto': False, 'dcasa_turno': 0})
+        # Gerencia está «disponible» a propósito: aun así no recibe.
+        self.gerente.write({'dcasa_disponible': True})
         for n in range(4):
             conv = self.registrar('Hola, busco una cama', f'5063100{n:04d}', nombre=f'Cliente Reparto {n}')
             conv._pasar_a_vendedora('Quiere una cotización')
@@ -251,7 +266,7 @@ class TestRepartoEnElNavegador(PanelUiCase):
     if (valor(".o_dcj_mis_recibidas") !== "2") { throw new Error("recibidas: " + valor(".o_dcj_mis_recibidas")); }
     if (valor(".o_dcj_mis_abiertas") !== "2") { throw new Error("esperan: " + valor(".o_dcj_mis_abiertas")); }
     if (document.querySelector(".o_dcj_reparto_equipo")) { throw new Error("la vendedora no ve a todo el equipo"); }
-    if (document.body.textContent.includes("Gema Gerente")) { throw new Error("nombre de otra persona a la vista"); }
+    if (document.body.textContent.includes("Carla Vendedora")) { throw new Error("nombre de otra persona a la vista"); }
     const nav = [...document.querySelectorAll(".o_dcj_p_nav_boton")].map((e) => e.textContent.trim());
     if (nav.join("|") !== "Conversaciones|Resumen|Reparto") { throw new Error("la barra: " + nav.join("|")); }
     const filas = document.querySelectorAll(".o_dcj_reparto_mias_tabla tbody tr");
@@ -274,8 +289,10 @@ class TestRepartoEnElNavegador(PanelUiCase):
     if (titulo !== "Reparto") { throw new Error("el título dice: " + titulo); }
     const fila = (nombre) => aqui(".o_dcj_reparto_tabla tbody tr", nombre);
     const ana = fila("Ana Vendedora");
-    const gema = fila("Gema Gerente");
-    if (!ana || !gema) { throw new Error("falta alguien en la tabla"); }
+    if (!ana || !fila("Carla Vendedora")) { throw new Error("faltan las vendedoras en la tabla"); }
+    if (fila("Gema Gerente")) { throw new Error("Gerencia no recibe: no es una fila de la tabla"); }
+    const nota = document.querySelector(".o_dcj_reparto_no_reciben");
+    if (!nota || !nota.textContent.includes("Gema Gerente")) { throw new Error("falta la nota «No reciben»"); }
     const recibidas = ana.querySelector(".o_dcj_reparto_recibidas").textContent.trim();
     if (recibidas !== "2") { throw new Error("Ana recibió 2: " + ana.textContent); }
     if (!ana.textContent.includes("Disponible")) { throw new Error("Ana está disponible: " + ana.textContent); }

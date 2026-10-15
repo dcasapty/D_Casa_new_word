@@ -3,8 +3,10 @@
 Cuando el asistente pasa una conversación a una persona (``dcasa.conversacion._pasar_a_vendedora``), con el reparto
 «parejo» (Ajustes de Juan) la decisión sigue este orden, de lo más importante a lo menos:
 
-1. **Quién puede recibir** (las «disponibles»): personas de ventas que Gerencia no sacó del reparto (vacaciones,
-   ausencias, quien no atiende clientes) y que no se marcaron «No disponible» (almuerzo, fin del día).
+1. **Quién puede recibir** (las «disponibles»): solo las **vendedoras**, es decir, personas internas con el grupo de
+   ventas que NO son Gerencia de ventas ni administradoras (ellas intervienen en cualquier conversación, pero el
+   reparto no se las pasa). De ellas, las que Gerencia no sacó del reparto (vacaciones, ausencias) y que no se
+   marcaron «No disponible» (almuerzo, fin del día). «No disponible» se reinicia solo cada mañana.
 2. **Su vendedora de siempre**: si el cliente habló con una de ellas en los últimos N días
    (``reparto_dias_misma_vendedora``, 14 de fábrica), vuelve con ella. 0 = sin memoria.
 3. **Quien lleva menos hoy**: la que menos conversaciones recibió hoy (día de Panamá); con empate, a quien menos
@@ -14,6 +16,9 @@ Cuando el asistente pasa una conversación a una persona (``dcasa.conversacion._
 
 Cada decisión queda en ``dcasa.reparto`` (un libro que no se edita): de ahí salen las cuentas de la pantalla «Reparto».
 Aquí no hay ningún método público: la pantalla entra por ``dcasa.juan.panel`` (``panel_reparto.py``).
+
+**Borde conocido:** quien tiene el rol de vendedora Y además el de Gerencia (o es administradora) deja de recibir: se
+cuenta como Gerencia. Gerencia lo ve en la pantalla «Reparto», en «No reciben».
 """
 import logging
 from dataclasses import dataclass
@@ -35,6 +40,11 @@ REGLAS = [
 # en el libro porque dice quién atendió al cliente, pero no cuenta como una conversación recibida.
 REGLAS_DE_JUAN = ('parejo', 'turno', 'misma')
 MAX_FILAS_PROPIAS = 100
+GRUPO_VENDEDORA = 'sales_team.group_sale_salesman'
+# Estas personas intervienen en cualquier conversación, pero el reparto no se las pasa.
+GRUPOS_QUE_NO_RECIBEN = ('sales_team.group_sale_manager', 'base.group_system')
+# «No disponible» se reinicia solo: a esta hora ANTES de que abra la tienda (6:00 a. m. con el horario de 8:00).
+MARGEN_ANTES_DE_ABRIR = timedelta(hours=2)
 
 
 @dataclass
@@ -73,14 +83,29 @@ class DcasaReparto(models.Model):
         return H.a_local(fields.Datetime.now(), horario).date()
 
     @api.model
+    def _vendedoras(self):
+        """Quienes pueden recibir lo que reparte Juan por su ROL: personas internas del equipo de ventas que no son
+        Gerencia de ventas ni administradoras. No cambia ``_usuarios_del_panel`` (quién ve, recibe avisos o puede ser
+        mencionada): solo decide a quién se le pasan conversaciones."""
+        Usuarios = self.env['res.users'].sudo()
+        ventas = Usuarios.search([('all_group_ids', 'in', self.env.ref(GRUPO_VENDEDORA).ids), ('share', '=', False)])
+        grupos = [self.env.ref(xmlid).id for xmlid in GRUPOS_QUE_NO_RECIBEN]
+        return ventas - Usuarios.search([('all_group_ids', 'in', grupos)])
+
+    @api.model
     def _equipo(self, hoy=None):
-        """Las personas de ventas que pueden recibir conversaciones: todas menos las que Gerencia sacó del reparto."""
+        """Las vendedoras que pueden recibir conversaciones: todas menos las que Gerencia sacó del reparto."""
         hoy = hoy or self._hoy()
-        return self.env['dcasa.conversacion']._usuarios_del_panel().filtered(lambda u: u._dcasa_en_el_reparto(hoy))
+        return self._vendedoras().filtered(lambda u: u._dcasa_en_el_reparto(hoy))
+
+    @api.model
+    def _no_reciben(self):
+        """Quienes del equipo de ventas intervienen pero no reciben (Gerencia y administradoras)."""
+        return self.env['dcasa.conversacion']._usuarios_del_panel() - self._vendedoras()
 
     @api.model
     def _disponibles(self, hoy=None):
-        """Las que pueden recibir Y no se marcaron «No disponible»: entre ellas se reparte."""
+        """Las vendedoras que pueden recibir Y no se marcaron «No disponible»: entre ellas se reparte."""
         return self._equipo(hoy).filtered('dcasa_disponible')
 
     # ------------------------------------------------------------------
@@ -190,3 +215,41 @@ class DcasaReparto(models.Model):
         # La más reciente; si dos empatan al segundo, la de id más bajo (siempre la misma).
         uid = min(pruebas, key=lambda i: (-pruebas[i].timestamp(), i))
         return candidatas.browse(uid), pruebas[uid]
+
+    # ------------------------------------------------------------------
+    # «No disponible» se reinicia cada mañana
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _corte_de_la_manana(self):
+        """Desde qué momento (UTC) de HOY se reinicia «No disponible»: dos horas antes de abrir la tienda, en la hora de
+        Panamá (6:00 a. m. con el horario de 8:00; nunca antes de medianoche). Sigue al horario de Ajustes de Juan."""
+        horario = self.env['dcasa.juan.ajustes'].obtener().horario()
+        ahora = H.a_local(fields.Datetime.now(), horario)
+        medianoche = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
+        apertura = ahora.replace(hour=horario.inicio.hour, minute=horario.inicio.minute, second=0, microsecond=0)
+        return H.a_utc(max(apertura - MARGEN_ANTES_DE_ABRIR, medianoche))
+
+    @api.model
+    def _cron_reiniciar_disponibilidad(self):
+        """Cada hora (ver el cron): pasada la hora de corte de hoy, deja «Disponible» a toda vendedora que se marcó «No
+        disponible» ANTES de ese corte. Así cada mañana empieza con todo el equipo disponible.
+
+        * No toca a quien Gerencia sacó del reparto (vacaciones, ausencia): sigue como estaba hasta que vuelva.
+        * No toca a Gerencia ni a administradoras (no reciben, su «Disponible» no significa nada).
+        * No toca lo que alguien marcó DESPUÉS del corte: si el contenedor estuvo dormido y el cron corre tarde, una
+          pausa de hace cinco minutos no se borra.
+        Es idempotente. Devuelve cuántas dejó disponibles.
+        """
+        ahora = fields.Datetime.now()
+        corte = self._corte_de_la_manana()
+        if ahora < corte:
+            return 0
+        hoy = self._hoy()
+        pendientes = self._vendedoras().filtered(
+            lambda u: not u.dcasa_disponible and u._dcasa_en_el_reparto(hoy)
+            and (not u.dcasa_no_disponible_desde or u.dcasa_no_disponible_desde < corte))
+        if pendientes:
+            pendientes.write({'dcasa_disponible': True, 'dcasa_no_disponible_desde': False})
+            _logger.info('Juan: %s vendedora(s) vuelven a «Disponible» al empezar el día.', len(pendientes))
+        return len(pendientes)

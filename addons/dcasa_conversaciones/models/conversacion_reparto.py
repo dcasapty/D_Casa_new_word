@@ -26,13 +26,19 @@ class DcasaConversacionReparto(models.Model):
         modo = self.env['dcasa.juan.ajustes'].obtener().reparto_modo
         if modo == 'parejo':
             return self._repartir_parejo()
-        if modo == 'turnos' and not self.asignada_a:
+        if modo == 'turnos' and not self._tiene_duena_que_recibe():
             elegida = self._asignar_por_turno()
             if not elegida:
                 return Decision(vacio, sin_nadie=True)
             self.env['dcasa.reparto']._anotar(self, elegida, 'turno')
             return Decision(elegida, self.env._('Le tocó a %s por turno.', elegida.name), 'turno')
         return Decision(vacio)
+
+    def _tiene_duena_que_recibe(self):
+        """¿Ya la atiende una vendedora (de las que reciben)? Si la tenía Gerencia o una administradora, que intervino y
+        la devolvió al asistente, no cuenta: el reparto no se las pasa a ellas."""
+        self.ensure_one()
+        return bool(self.asignada_a) and self.asignada_a in self.env['dcasa.reparto']._vendedoras()
 
     def _repartir_parejo(self):
         Reparto = self.env['dcasa.reparto']

@@ -18,7 +18,7 @@
                     <!-- Estado del reparto -->
                     <div t-if="d.modo === 'manual'" class="o_dcj_p_aviso o_dcj_p_aviso_alerta o_dcj_reparto_apagado" role="status">
                         <i class="fa fa-power-off" aria-hidden="true"/>
-                        <p t-if="esGerencia"><strong>El reparto está apagado.</strong> Cuando Juan pasa una conversación, nadie la recibe: queda sin dueña hasta que alguien la toma. Al encenderlo, Juan se la da a quien lleva menos hoy entre quienes están disponibles.</p>
+                        <p t-if="esGerencia"><strong>El reparto está apagado.</strong> Cuando Juan pasa una conversación, nadie la recibe: queda sin dueña hasta que alguien la toma. Al encenderlo, Juan se la da a la vendedora que lleva menos hoy entre las disponibles.</p>
                         <p t-else=""><strong>El reparto está apagado.</strong> Juan no te asigna conversaciones: las toma quien quiera desde Conversaciones.</p>
                         <button t-if="esGerencia" type="button" class="btn btn-primary o_dcj_p_boton o_dcj_encender" t-att-disabled="state.ocupado" t-on-click="encender">Encender el reparto parejo</button>
                     </div>
@@ -40,7 +40,7 @@
                         <section class="o_dcj_p_personas o_dcj_reparto_equipo" aria-label="Todo el equipo">
                             <h2>Todo el equipo <span class="o_dcj_p_solo_gerencia">solo Gerencia</span></h2>
                             <p t-if="d.modo === 'parejo'" class="o_dcj_p_detalle">
-                                Juan le da cada conversación a quien lleva menos hoy entre quienes están disponibles; si empatan, a quien menos clientes tiene esperando.
+                                Juan le da cada conversación a la vendedora que lleva menos hoy entre las disponibles; si empatan, a quien menos clientes tiene esperando.
                                 <t t-if="d.dias_misma_vendedora">Si el cliente habló con una vendedora en los últimos <t t-out="d.dias_misma_vendedora"/> días y ella está disponible, vuelve con ella.</t>
                                 <t t-else="">No hay memoria de la vendedora de siempre: todas se reparten parejo.</t>
                             </p>
@@ -79,7 +79,8 @@
                                     </tbody>
                                 </table>
                             </div>
-                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «Dejar de asignarle» sirve para vacaciones, ausencias o quien no atiende clientes: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
+                            <p t-if="d.no_reciben.length" class="o_dcj_p_nota o_dcj_reparto_no_reciben">No reciben conversaciones de Juan (intervienen en cualquiera cuando quieran): <strong t-out="d.no_reciben.join(', ')"/>. Solo reciben las vendedoras; si alguien de ventas aparece aquí y debería recibir, es porque también tiene el rol de Gerencia o de administradora.</p>
+                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda; «No recibe» no se reinicia solo. «Dejar de asignarle» sirve para vacaciones o ausencias: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
                             <p class="o_dcj_p_nota">
                                 <button type="button" class="o_dcj_enlace" t-on-click="abrirAjustes">Ajustes de Juan</button> · Reparto:
                                 <t t-out="d.modo_nombre"/>.
@@ -97,7 +98,7 @@
                         </div>
                         <div t-elif="d.yo.estado === 'no_disponible' and d.modo !== 'manual'" class="o_dcj_p_aviso" role="status">
                             <i class="fa fa-pause-circle-o" aria-hidden="true"/>
-                            <p>Estás como <strong>No disponible</strong>: Juan no te asigna conversaciones nuevas. Vuelve a ponerte disponible arriba de la lista, en Conversaciones.</p>
+                            <p>Estás como <strong>No disponible</strong>: Juan no te asigna conversaciones nuevas. Vuelve a ponerte disponible arriba de la lista, en Conversaciones (si te olvidas, se reinicia solo cada mañana antes de abrir).</p>
                         </div>
                         <section class="o_dcj_p_tarjetas" aria-label="Mis números">
                             <article class="o_dcj_p_dato o_dcj_mis_recibidas">

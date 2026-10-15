@@ -2,9 +2,11 @@
 
 * **Vendedora**: «Mis conversaciones de hoy» — solo lo suyo (cuántas le pasó Juan, cuántos clientes le esperan ahora,
   cuál fue la última y la lista). Nunca ve los números ni los nombres de las demás.
-* **Gerencia**: además, una fila por persona del equipo (recibidas, esperando respuesta, última que le tocó y si hoy
-  recibe o no), cuántas conversaciones esperan sin que nadie las tenga, y los botones para sacar a alguien del reparto
-  (vacaciones, ausencia, quien no atiende clientes) sin quitarle ningún permiso, o para encender el reparto parejo.
+* **Gerencia**: además, una fila por vendedora (recibidas, esperando respuesta, última que le tocó y si hoy recibe
+  o no), cuántas conversaciones esperan sin que nadie las tenga, y los botones para sacar a una vendedora del reparto
+  (vacaciones, ausencia) sin quitarle ningún permiso, o para encender el reparto parejo. Gerencia y las
+  administradoras no reciben conversaciones (intervienen en cualquiera): no son filas de la tabla; sus nombres salen
+  aparte, en «No reciben», para que se note si una vendedora quedó fuera por tener también el rol de Gerencia.
 
 Las cuentas salen del libro ``dcasa.reparto`` (ver ``reparto.py``); no se inventa ninguna cifra.
 """
@@ -54,7 +56,7 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         desde = hoy - timedelta(days=C.DIAS_DEL_PERIODO[periodo] - 1)
         yo = self.env.user.sudo()
         es_gerencia = self.env.user.has_group(GRUPO_GERENCIA)
-        equipo = self.env['dcasa.conversacion']._usuarios_del_panel()
+        equipo = Reparto._vendedoras()
         # Los números de las demás solo se calculan (y viajan) para Gerencia.
         visibles = equipo if es_gerencia else yo
         cuentas = Reparto._cuentas(visibles | yo, desde, hoy)
@@ -63,9 +65,9 @@ class DcasaJuanPanelReparto(models.AbstractModel):
             'es_gerencia': es_gerencia,
             'modo': ajustes.reparto_modo, 'modo_nombre': NOMBRES_DEL_MODO.get(ajustes.reparto_modo, ''),
             'dias_misma_vendedora': ajustes.reparto_dias_misma_vendedora,
-            'yo': self._fila_de(yo, cuentas[yo.id], hoy, horario),
+            'yo': self._fila_de(yo, cuentas[yo.id], hoy, horario, recibe=yo in equipo),
             'mis_conversaciones': self._mis_conversaciones(yo, desde, hoy),
-            'equipo': [], 'sin_dueno': None, 'diferencia': None,
+            'equipo': [], 'no_reciben': [], 'sin_dueno': None, 'diferencia': None,
         }
         if es_gerencia:
             filas = [self._fila_de(u, cuentas[u.id], hoy, horario) for u in
@@ -74,17 +76,24 @@ class DcasaJuanPanelReparto(models.AbstractModel):
             for fila in filas:
                 fila['es_yo'] = fila['usuario_id'] == yo.id
             datos['equipo'] = filas
+            datos['no_reciben'] = sorted((u.name or '' for u in Reparto._no_reciben()), key=str.lower)
             recibiendo = [f['recibidas'] for f in filas if f['estado'] != 'fuera']
             datos['diferencia'] = (max(recibiendo) - min(recibiendo)) if recibiendo else None
             datos['sin_dueno'] = self._sin_dueno()
         return datos
 
     @api.model
-    def _fila_de(self, usuario, cuenta, hoy, horario):
+    def _fila_de(self, usuario, cuenta, hoy, horario, recibe=True):
+        """Una fila de la pantalla. ``estado``: ``disponible``, ``no_disponible``, ``fuera`` (Gerencia la sacó del
+        reparto) o ``interviene`` (Gerencia o administradora: no recibe)."""
         fuera = not usuario._dcasa_en_el_reparto(hoy)
+        if not recibe:
+            estado = 'interviene'
+        else:
+            estado = 'fuera' if fuera else ('disponible' if usuario.dcasa_disponible else 'no_disponible')
+        fuera = fuera and recibe
         return {
-            'usuario_id': usuario.id, 'nombre': usuario.name or '',
-            'estado': 'fuera' if fuera else ('disponible' if usuario.dcasa_disponible else 'no_disponible'),
+            'usuario_id': usuario.id, 'nombre': usuario.name or '', 'estado': estado,
             'fuera_hasta': usuario.dcasa_fuera_hasta.isoformat() if fuera and usuario.dcasa_fuera_hasta else None,
             'recibidas': cuenta['recibidas'], 'abiertas': cuenta['abiertas'],
             'ultima': H.a_iso(cuenta['ultima']),
@@ -131,9 +140,11 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         usuario_id = _entero(usuario_id, 'usuario_id', minimo=1)
         if not isinstance(fuera, bool):
             raise UserError(self.env._('Fuera del reparto es sí o no.'))
-        usuario = self.env['dcasa.conversacion']._usuarios_del_panel().filtered(lambda u: u.id == usuario_id)
+        usuario = self.env['dcasa.reparto']._vendedoras().filtered(lambda u: u.id == usuario_id)
         if not usuario:
-            raise UserError(self.env._('Esa persona no es del equipo de ventas.'))
+            raise UserError(self.env._(
+                'Esa persona no recibe conversaciones del asistente: solo las vendedoras (Gerencia y administradoras '
+                'intervienen en cualquiera, pero no reciben).'))
         hoy = self.env['dcasa.reparto']._hoy()
         fecha = False
         if fuera and vuelve:

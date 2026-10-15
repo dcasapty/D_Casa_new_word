@@ -9,15 +9,23 @@ existe una pantalla (la declaración de renta, el cierre de mes, una nota de cr�
 * Nada se inventa: donde hay una fecha límite de impuestos, la nota manda a confirmarla con el contador.
 * La misma fuente alimenta la pantalla, la herramienta ``buscar_en_guia`` de Brian y las pruebas (cada atajo debe
   existir; si un módulo cambia un menú, la prueba lo dice).
+* «Llévame ahí» lleva a la pantalla justa en un clic y, sin que la persona lo note, anota que lo usó
+  (``registrar_uso``, modelo ``dcasa.guia.uso``): de ahí sale «Lo que tú más usas». Además, la lista curada por
+  puesto (``data/guia_roles.json``) sale como «En tu puesto lo que más se usa».
 """
 import json
+import logging
 import os
 import unicodedata
 from functools import lru_cache
 
 from odoo import api, models
 
-RUTA_CATALOGO = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data', 'guia.json')
+_logger = logging.getLogger(__name__)
+
+CARPETA_DATOS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data')
+RUTA_CATALOGO = os.path.join(CARPETA_DATOS, 'guia.json')
+RUTA_ROLES = os.path.join(CARPETA_DATOS, 'guia_roles.json')
 
 # Palabras que no ayudan a buscar.
 PALABRAS_VACIAS = frozenset(
@@ -41,6 +49,20 @@ def palabras_de(consulta):
 def cargar_catalogo(ruta=RUTA_CATALOGO):
     with open(ruta, encoding='utf-8') as archivo:
         return json.load(archivo)
+
+
+@lru_cache(maxsize=1)
+def cargar_roles(ruta=RUTA_ROLES):
+    """Lo curado por puesto (``data/guia_roles.json``) y cuándo hay datos suficientes de «Lo que tú más usas»."""
+    with open(ruta, encoding='utf-8') as archivo:
+        return json.load(archivo)
+
+
+def buscar_tarea(tarea_id):
+    """La tarea del catálogo con ese id, o ``None`` (sin importar qué le llegue: nunca falla)."""
+    if not isinstance(tarea_id, str):
+        return None
+    return next((t for t in cargar_catalogo()['tareas'] if t['id'] == tarea_id), None)
 
 
 def puntaje(tarea, palabras):
@@ -138,8 +160,9 @@ class DcasaGuia(models.AbstractModel):
 
     @api.model
     def obtener(self):
-        """Todo lo que la pantalla necesita: categorías con sus tareas (las que quien mira puede abrir) y las que
-        conviene mostrar primero. Las categorías sin tareas para esta persona no salen."""
+        """Todo lo que la pantalla necesita: categorías con sus tareas (las que quien mira puede abrir), las que
+        conviene mostrar primero, lo que más se usa en su puesto y lo que ella o él más usa. Las categorías sin tareas
+        para esta persona no salen."""
         catalogo = cargar_catalogo()
         tareas = self._tareas_visibles()
         categorias = []
@@ -150,11 +173,77 @@ class DcasaGuia(models.AbstractModel):
             if propias:
                 categorias.append({**categoria, 'tareas': propias})
         por_id = {t['id']: t for t in tareas}
+        rol = self._rol_de_quien_mira()
         return {
             'categorias': categorias,
             'empezar': [por_id[i] for i in catalogo.get('empezar', []) if i in por_id],
+            'rol': {'clave': rol['clave'], 'titulo': rol.get('titulo') or ''},
+            # Lo curado para su puesto: solo lo que puede abrir, en el orden del archivo.
+            'puesto': [por_id[i] for i in rol['tareas'] if i in por_id],
+            # Lo que ella o él más usa (vacío mientras no haya datos suficientes).
+            'mas_usadas': self._mas_usadas(por_id),
             'total': len(tareas),
         }
+
+    # ------------------------------------------------------------------
+    # Lo más usado: según el puesto (curado) y según cada persona (real)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _rol_de_quien_mira(self):
+        """El puesto de quien mira: el primero de ``guia_roles.json`` al que pertenece alguno de sus grupos
+        (Gerencia va antes que Contabilidad y que Vendedora); si no es de ninguno, la lista por defecto."""
+        roles = cargar_roles()
+        usuario = self.env.user
+        for rol in roles['roles']:
+            for grupo in rol['grupos']:
+                try:
+                    if usuario.has_group(grupo):
+                        return rol
+                except (ValueError, KeyError):  # el grupo no existe en esta instalación: no cuenta
+                    continue
+        return roles['porDefecto']
+
+    @api.model
+    def _mas_usadas(self, por_id):
+        """«Lo que tú más usas»: las tareas con más «Llévame ahí» de esta persona, solo si hay datos suficientes (por
+        ejemplo, 3 tareas con 2 usos o más). Cuenta solo lo que todavía puede abrir. Si algo falla, no hay lista:
+        nunca estorba a la pantalla."""
+        reglas = cargar_roles()['masUsadas']
+        Uso = self.env['dcasa.guia.uso']
+        try:
+            if not Uso.has_access('read'):
+                return []
+            filas = Uso.search_read([('veces', '>=', reglas['minimoVeces'])], ['tarea', 'veces'],
+                                    order='veces desc, ultima_vez desc, id')
+        except Exception:
+            _logger.warning('Guía: no se pudo leer lo que más usa la persona', exc_info=True)
+            return []
+        usadas = [{**por_id[fila['tarea']], 'veces': fila['veces']} for fila in filas if fila['tarea'] in por_id]
+        if len(usadas) < reglas['minimoTareas']:
+            return []
+        return usadas[:reglas['maximo']]
+
+    @api.model
+    def registrar_uso(self, tarea_id):
+        """Anota que quien llama usó «Llévame ahí» en esa tarea (+1 y la hora). La pantalla lo llama sin esperar
+        respuesta: **nunca falla** (un id raro, una tarea que no existe, una que la persona no puede abrir o un error
+        de la base devuelven ``False`` y quedan en el log) para no estorbar al «Llévame ahí».
+
+        Cada quien anota solo lo suyo (``user_id`` siempre es quien llama; además lo exige una regla de registro) y
+        solo de tareas que existen y que puede abrir. No lleva nada de clientes ni de documentos.
+        """
+        try:
+            tarea = buscar_tarea(tarea_id)
+            if not tarea or not self._tarea_para_mostrar(tarea, self._menus_visibles()):
+                return False
+            # Un savepoint: si la base protesta (p. ej. dos pestañas a la vez), solo se pierde este +1.
+            with self.env.cr.savepoint():
+                self.env['dcasa.guia.uso']._sumar(tarea['id'])
+            return True
+        except Exception:
+            _logger.warning('Guía: no se pudo anotar el uso de %r', tarea_id, exc_info=True)
+            return False
 
     @api.model
     def buscar(self, consulta, limite=MAXIMO_RESULTADOS):

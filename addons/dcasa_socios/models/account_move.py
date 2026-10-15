@@ -5,6 +5,7 @@ from odoo import fields, models
 from . import reglas as R
 
 _logger = logging.getLogger(__name__)
+AVISOS_MAXIMOS = 3
 
 
 class AccountMove(models.Model):
@@ -103,19 +104,21 @@ class AccountMove(models.Model):
         try:
             with self.env.cr.savepoint():
                 ruta = self._dcasa_ruta_de_pagos()
-                for _move, numero, pagos in con_pagos:
+                for avisadas, (factura, numero, pagos) in enumerate(con_pagos):
                     lista = ', '.join(pagos[:3].mapped(lambda p: p.name or p.display_name))
                     if len(pagos) > 3:
                         lista += self.env._(' y %s más', len(pagos) - 3)
                     textos = self._dcasa_texto_de_pagos(numero, lista, ruta, len(pagos) > 1, borrada)
-                    if not borrada and _move.exists():
-                        _move.sudo().message_post(body=textos['nota_factura'], message_type='comment',
-                                                  subtype_xmlid='mail.mt_note')
+                    # La nota queda en la factura (si sigue existiendo) y en cada pago: el rastro no se pierde aunque
+                    # luego se borre el borrador.
+                    if not borrada and factura.exists():
+                        factura.sudo().message_post(body=textos['aviso'], message_type='comment',
+                                                    subtype_xmlid='mail.mt_note')
                     for pago in pagos.sudo():
-                        pago.message_post(body=textos['nota_pago'], message_type='comment',
-                                          subtype_xmlid='mail.mt_note')
+                        pago.message_post(body=textos['aviso'], message_type='comment', subtype_xmlid='mail.mt_note')
                     persona = self.env.user.partner_id
-                    if persona:
+                    # Un aviso por factura, con tope: un borrado de muchas facturas no llena la pantalla de avisos.
+                    if persona and avisadas < AVISOS_MAXIMOS:
                         self.env['bus.bus']._sendone(persona, 'simple_notification', {
                             'type': 'warning', 'sticky': True, 'title': textos['titulo'],
                             'message': textos['aviso']})
@@ -130,15 +133,12 @@ class AccountMove(models.Model):
                        'Si eran de prueba, cancélalos en %(ruta)s.', **datos) if varios else
                      _('Se eliminó la factura %(factura)s. El pago %(pagos)s quedó sin aplicar. '
                        'Si era de prueba, cancélalo en %(ruta)s.', **datos))
-            return {'titulo': _('Pago sin aplicar'), 'aviso': aviso, 'nota_factura': aviso,
-                    'nota_pago': _('Se eliminó la factura %(factura)s: este pago quedó sin aplicar.', **datos)}
+            return {'titulo': _('Pago sin aplicar'), 'aviso': aviso}
         aviso = (_('Los pagos %(pagos)s siguen ligados a la factura %(factura)s. Si borras el borrador, esos pagos '
                    'quedan sin aplicar. Si eran de prueba, cancélalos en %(ruta)s.', **datos) if varios else
                  _('El pago %(pagos)s sigue ligado a la factura %(factura)s. Si borras el borrador, ese pago '
                    'queda sin aplicar. Si era de prueba, cancélalo en %(ruta)s.', **datos))
-        return {'titulo': _('La factura tenía pago'), 'aviso': aviso, 'nota_factura': aviso,
-                'nota_pago': _('La factura %(factura)s volvió a borrador: este pago sigue ligado a ella. '
-                               'Si se borra la factura, el pago queda sin aplicar.', **datos)}
+        return {'titulo': _('La factura tenía pago'), 'aviso': aviso}
 
     def _post(self, soft=True):
         posted = super()._post(soft=soft)

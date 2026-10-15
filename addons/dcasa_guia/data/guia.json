@@ -906,7 +906,7 @@
    "categoria": "personal",
    "grupo": "Personas",
    "titulo": "Ver quién trabaja en la empresa",
-   "logras": "El directorio del equipo con cargo, departamento y contacto.",
+   "logras": "El directorio del equipo con cargo, departamento y contacto. Lo ven Gerencia, administradores, contabilidad y quien administra al personal.",
    "destino": {
     "menu": "hr.menu_hr_employee"
    },
@@ -1754,15 +1754,17 @@
    "categoria": "facturar",
    "grupo": "Cambiar el estado de algo",
    "titulo": "Borrar una factura de prueba que ya dio puntos",
-   "logras": "Abres la factura, tocas «Restablecer a borrador» y luego «Eliminar». Los puntos de esa venta se devuelven solos y el cliente queda como socio con los puntos que ya tenía. El pago no se borra: cancélalo aparte en Pagos si era de prueba.",
+   "logras": "Abres la factura, tocas «Restablecer a borrador» y luego «Eliminar». Los puntos de esa venta se devuelven solos y el cliente queda como socio con los puntos que ya tenía. Si la factura tenía un pago, sale un aviso que se queda en pantalla (y una nota en la factura y en el pago): el pago no se borra, queda sin aplicar. Si era de prueba, cancélalo en Facturación › Clientes › Pagos.",
    "destino": {
     "menu": "account.menu_action_move_out_invoice_type"
    },
    "nota": "Una factura publicada no se puede borrar: primero se devuelve a borrador o se hace una nota de crédito.",
    "palabras": [
     "borrar factura",
+    "cancelar pago",
     "eliminar borrador",
     "factura de prueba",
+    "pago sin aplicar",
     "puntos"
    ]
   },

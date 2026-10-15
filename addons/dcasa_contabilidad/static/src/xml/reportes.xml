@@ -94,6 +94,12 @@
                 <small t-elif="t.clave === 'itbms'">Ventas <t t-out="dinero(t.debito)"/> − compras <t t-out="dinero(t.credito)"/></small>
                 <small t-elif="t.comparado !== undefined">Antes <t t-out="dinero(t.comparado)"/> · <t t-out="pct(t.variacion_pct)"/></small>
                 <t t-elif="t.notas"><small t-foreach="t.notas" t-as="nota" t-key="nota_index" t-out="nota"/></t>
+                <!-- ITBMS: arriba lo del periodo; aquí el acumulado (saldo al corte, con meses anteriores y pagos). -->
+                <span t-if="t.clave === 'itbms'" t-attf-class="o_dc_kpi_acumulado #{t.acumulado_a_favor ? 'o_dc_a_favor' : ''}">
+                    <small t-out="t.acumulado_titulo"/>
+                    <strong t-out="dinero(t.acumulado_a_favor or t.acumulado_a_pagar)"/>
+                    <small class="o_dc_kpi_cuando" t-out="alFecha(t.acumulado_al)"/>
+                </span>
             </button>
         </section>
         <div t-foreach="state.datos.alertas" t-as="a" t-key="a_index"
@@ -363,9 +369,14 @@
             <div class="o_dc_kpi"><span>Débito fiscal (ventas)</span><strong t-out="dinero(r.debito_fiscal)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
             <div class="o_dc_kpi"><span>Crédito fiscal (compras)</span><strong t-out="dinero(r.credito_fiscal)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
             <div class="o_dc_kpi o_dc_kpi_fuerte">
-                <span t-out="r.a_pagar >= 0 ? 'ITBMS a pagar' : 'Saldo a favor'"/>
+                <span t-out="r.a_pagar >= 0 ? 'ITBMS por pagar del periodo' : 'ITBMS a favor en el periodo'"/>
                 <strong t-out="dinero(Math.abs(r.a_pagar))"/>
                 <small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>
+            </div>
+            <div t-attf-class="o_dc_kpi #{r.acumulado_a_favor ? 'o_dc_kpi_ok o_dc_a_favor' : ''}">
+                <span t-out="r.acumulado_a_favor ? 'Saldo a favor' : 'ITBMS acumulado por pagar'"/>
+                <strong t-out="dinero(r.acumulado_a_favor or r.acumulado_a_pagar)"/>
+                <small class="o_dc_kpi_cuando" t-out="alFecha(r.al)"/>
             </div>
         </section>
         <div class="o_dc_tarjeta">
@@ -380,7 +391,21 @@
                 </tbody>
             </table>
         </div>
-        <p class="o_dc_nota">Resumen para preparar la declaración mensual de ITBMS. Confírmalo con tu contador antes de presentarla.</p>
+        <div t-if="state.datos.cuentas.length" class="o_dc_tarjeta">
+            <table class="o_dc_tabla">
+                <thead><tr><th>Código</th><th>Cuenta de ITBMS</th><th class="o_dc_num">Saldo <t t-out="alFecha(r.al)"/></th></tr></thead>
+                <tbody>
+                    <tr t-foreach="state.datos.cuentas" t-as="c" t-key="c.id" class="o_dc_fila o_dc_clic" t-on-click="() => this.abrirApuntes(c, [], true)">
+                        <td class="o_dc_codigo" t-out="c.codigo"/><td t-out="c.nombre"/>
+                        <td t-attf-class="o_dc_num #{c.saldo &lt; 0 ? 'o_dc_a_favor' : ''}" t-out="c.saldo &lt; 0 ? dinero(-c.saldo) + ' a favor' : dinero(c.saldo)"/>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <p class="o_dc_nota">Resumen para preparar la declaración mensual de ITBMS. Confírmalo con tu contador antes de presentarla.
+            El <strong>periodo</strong> es lo que pasó <t t-out="delPeriodo()"/> (ventas − compras). El <strong>acumulado</strong> es el saldo
+            de la cuenta de ITBMS <t t-out="alFecha(r.al)"/>, igual que en el Balance general: suma los meses anteriores y descuenta lo que ya
+            se pagó. Cambia con la fecha «Hasta», no con la «Desde». Si las compras superan a las ventas, es un <strong>saldo a favor</strong>.</p>
     </t>
 
     <!-- Analítica -->

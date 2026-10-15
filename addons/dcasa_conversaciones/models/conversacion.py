@@ -1065,11 +1065,12 @@ class DcasaConversacion(models.Model):
 
     def _asignar_por_turno(self):
         """Con el reparto «por turnos», asigna la conversación a quien lleva más tiempo sin recibir una, de entre
-        las personas disponibles (las que Gerencia sacó del reparto tampoco entran). Devuelve a quién le tocó, o vacío
-        si no hay reparto, ya la tenía alguien o no hay nadie disponible (entonces sigue el camino de siempre: el
-        responsable por defecto). El reparto «parejo» no pasa por aquí: ver ``_repartir``."""
+        las vendedoras disponibles (Gerencia, las administradoras y las que Gerencia sacó del reparto no entran).
+        Devuelve a quién le tocó, o vacío si no hay reparto, ya la tenía una vendedora o no hay nadie disponible
+        (entonces sigue el camino de siempre: el responsable por defecto). El reparto «parejo» no pasa por aquí: ver
+        ``_repartir``."""
         self.ensure_one()
-        if self.asignada_a or self.env['dcasa.juan.ajustes'].obtener().reparto_modo != 'turnos':
+        if self._tiene_duena_que_recibe() or self.env['dcasa.juan.ajustes'].obtener().reparto_modo != 'turnos':
             return self.env['res.users']
         disponibles = self.env['dcasa.reparto']._disponibles()
         if not disponibles:

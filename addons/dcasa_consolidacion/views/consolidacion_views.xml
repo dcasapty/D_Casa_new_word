@@ -183,19 +183,19 @@
                 <filter name="borrador" string="Borrador" domain="[('estado', '=', 'borrador')]"/>
                 <filter name="calculada" string="Calculada" domain="[('estado', '=', 'calculada')]"/>
                 <separator/>
-                <filter name="periodo_hoy" string="Periodo: Hoy" domain="[('periodo_atajo', '=', 'hoy')]"
+                <filter name="periodo_hoy" string="Hoy" domain="[('periodo_atajo', '=', 'hoy')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_semana" string="Periodo: Esta semana" domain="[('periodo_atajo', '=', 'semana')]"
+                <filter name="periodo_semana" string="Esta semana" domain="[('periodo_atajo', '=', 'semana')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_quincena" string="Periodo: Esta quincena" domain="[('periodo_atajo', '=', 'quincena')]"
+                <filter name="periodo_quincena" string="Esta quincena" domain="[('periodo_atajo', '=', 'quincena')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_mes" string="Periodo: Este mes" domain="[('periodo_atajo', '=', 'mes')]"
+                <filter name="periodo_mes" string="Este mes" domain="[('periodo_atajo', '=', 'mes')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_mes_pasado" string="Periodo: Mes pasado" domain="[('periodo_atajo', '=', 'mes_pasado')]"
+                <filter name="periodo_mes_pasado" string="Mes pasado" domain="[('periodo_atajo', '=', 'mes_pasado')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_trimestre" string="Periodo: Este trimestre" domain="[('periodo_atajo', '=', 'trimestre')]"
+                <filter name="periodo_trimestre" string="Este trimestre" domain="[('periodo_atajo', '=', 'trimestre')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
-                <filter name="periodo_ejercicio" string="Periodo: Este año fiscal" domain="[('periodo_atajo', '=', 'ejercicio')]"
+                <filter name="periodo_ejercicio" string="Este año fiscal" domain="[('periodo_atajo', '=', 'ejercicio')]"
                         help="Consolidaciones cuyo periodo toca esos días"/>
                 <group>
                     <filter name="por_reporte" string="Reporte" context="{'group_by': 'tipo_reporte'}"/>

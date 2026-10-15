@@ -9,6 +9,9 @@ Lo que se prueba, con la aritmética del libro a la vista:
 * una factura publicada sigue sin poder borrarse, y quien no tiene permiso no anula puntos por esa puerta;
 * la misma factura (o el mismo número en una factura nueva) vuelve a dar puntos si quedó pagada, una sola vez.
 """
+import json
+from unittest.mock import patch
+
 from psycopg2 import IntegrityError
 
 from odoo import fields
@@ -495,3 +498,160 @@ class TestBorrarBorradorConComision(LibroCommon, VendedoresCommon):
         with self.assertRaises(IntegrityError), mute_logger('odoo.sql_db'), self.cr.savepoint():
             self.env['dcasa.vend.comision'].sudo().create(datos)
             self.env.flush_all()
+
+
+@tagged('post_install', '-at_install')
+class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
+    """Al devolver a borrador una factura con pago (y al borrarla) se avisa dónde cancelar el pago. El aviso nunca
+    cambia ni hace fallar lo que hacen los botones."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.contador = new_test_user(cls.env, login='aviso_contador', name='Contadora',
+                                     groups='base.group_user,account.group_account_invoice')
+
+    def avisos(self, desde=0):
+        """Los avisos emergentes que salieron por el bus después de ``desde``: ``[(canal, contenido)]``."""
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        salida = []
+        for fila in self.env['bus.bus'].sudo().search([('id', '>', desde)], order='id'):
+            mensaje = json.loads(fila.message)
+            if mensaje['type'] == 'simple_notification':
+                salida.append((json.loads(fila.channel), mensaje['payload']))
+        return salida
+
+    def cuantos(self):
+        """Hasta qué fila del bus hay hoy (para mirar solo lo que salga después)."""
+        self.env.flush_all()
+        self.env.cr.precommit.run()
+        return max(self.env['bus.bus'].sudo().search([], order='id desc', limit=1).ids or [0])
+
+    def ruta(self):
+        menu = self.env.ref('account.menu_action_account_payments_receivable')
+        return ' › '.join(menu.complete_name.split('/'))
+
+    def test_el_menu_de_pagos_existe_y_la_ruta_sale_de_el(self):
+        menu = self.env.ref('account.menu_action_account_payments_receivable')
+        self.assertEqual(menu.action.res_model, 'account.payment', 'Es la lista de pagos de clientes')
+        self.assertEqual(self.env['account.move']._dcasa_ruta_de_pagos(), self.ruta())
+        self.assertTrue(self.ruta().endswith(menu.name) and ' › ' in self.ruta())
+
+    def test_volver_a_borrador_con_pago_avisa_a_quien_lo_hizo(self):
+        factura = self.factura()
+        pago = factura._get_reconciled_payments()
+        self.assertEqual(len(pago), 1)
+        antes = self.cuantos()
+        resultado = factura.with_user(self.contador).button_draft()
+        self.assertTrue(resultado, 'El botón hace lo de siempre')
+        self.assertEqual(factura.state, 'draft')
+        self.assertEqual(factura.dcasa_compra_ids.estado, 'anulada')
+        # Al volver a borrador el pago sigue ligado: el aviso lo dice así, no promete lo que aún no pasó.
+        self.assertEqual(factura._get_reconciled_payments(), pago)
+        (canal, contenido), = self.avisos(antes)
+        self.assertEqual(canal[1:], ['res.partner', self.contador.partner_id.id], 'Le llega a quien lo hizo')
+        self.assertEqual((contenido['type'], contenido['sticky']), ('warning', True))
+        for texto in (pago.name, factura.name, self.ruta(), 'sigue ligado', 'queda sin aplicar', 'Si era de prueba'):
+            self.assertIn(texto, contenido['message'])
+        # El rastro queda en la factura y en el pago.
+        for nota in (factura.message_ids[:1], pago.message_ids[:1]):
+            for texto in (pago.name, factura.name, self.ruta()):
+                self.assertIn(texto, nota.body)
+
+    def test_sin_pago_no_hay_aviso(self):
+        factura = self.factura(pagar=False)
+        notas = len(factura.message_ids)
+        antes = self.cuantos()
+        self.assertTrue(factura.button_draft())
+        self.assertFalse(self.avisos(antes))
+        self.assertEqual(len(factura.message_ids), notas, 'Tampoco deja nota')
+
+    def test_dos_pagos_se_listan_en_el_mismo_aviso(self):
+        factura = self.factura(pagar=False)
+        for monto in (50.0, 57.0):
+            self.env['account.payment.register'].with_context(
+                active_model='account.move', active_ids=factura.ids,
+            ).create({'payment_date': factura.invoice_date, 'amount': monto})._create_payments()
+        pagos = factura._get_reconciled_payments()
+        self.assertEqual(len(pagos), 2)
+        antes = self.cuantos()
+        factura.button_draft()
+        (_canal, contenido), = self.avisos(antes)
+        for pago in pagos:
+            self.assertIn(pago.name, contenido['message'])
+        self.assertIn('Los pagos', contenido['message'])
+        self.assertIn('cancélalos', contenido['message'])
+
+    def test_un_borrado_de_muchas_facturas_no_llena_la_pantalla_de_avisos(self):
+        facturas = self.factura() | self.factura() | self.factura() | self.factura()
+        antes = self.cuantos()
+        facturas.button_draft()
+        self.assertEqual(len(self.avisos(antes)), 3, 'Hay un tope de avisos por acción')
+        for factura in facturas:
+            self.assertIn('sigue ligado', factura.message_ids[:1].body, 'Pero cada factura deja su nota')
+
+    def test_si_el_aviso_falla_el_boton_hace_lo_de_siempre(self):
+        factura = self.factura()
+        antes = self.cuantos()
+        with patch.object(type(self.env['account.move']), '_dcasa_ruta_de_pagos', side_effect=RuntimeError('boom')), \
+                self.assertLogs('odoo.addons.dcasa_socios.models.account_move', 'ERROR'):
+            self.assertTrue(factura.button_draft())
+        self.assertEqual(factura.state, 'draft')
+        self.assertEqual(factura.dcasa_compra_ids.estado, 'anulada')
+        self.assertEqual(self.cliente.dcasa_saldo, 0)
+        self.assertFalse(self.avisos(antes))
+        # ...y la factura sigue pudiéndose borrar.
+        factura.unlink()
+        self.assertFalse(factura.exists())
+
+    def test_si_no_se_pueden_ver_los_pagos_el_boton_tampoco_falla(self):
+        factura = self.factura()
+        with patch.object(type(self.env['account.move']), '_get_reconciled_payments',
+                          side_effect=RuntimeError('boom')), \
+                self.assertLogs('odoo.addons.dcasa_socios.models.account_move', 'ERROR'):
+            self.assertTrue(factura.button_draft())
+        self.assertEqual(factura.state, 'draft')
+
+    def test_cancelar_una_factura_sin_pago_o_con_el_boton_de_siempre_no_cambia(self):
+        factura = self.factura(pagar=False)
+        antes = self.cuantos()
+        factura.button_cancel()
+        self.assertEqual(factura.state, 'cancel')
+        self.assertFalse(self.avisos(antes))
+
+    def test_borrar_el_borrador_despues_sigue_funcionando_y_avisa_que_el_pago_quedo_sin_aplicar(self):
+        factura = self.factura()
+        pago = factura._get_reconciled_payments()
+        nombre = factura.name
+        factura.button_draft()
+        antes = self.cuantos()
+        libro_antes = self.ids_del_libro()
+        factura.with_user(self.contador).unlink()
+        self.assertFalse(factura.exists())
+        self.assertEqual(self.cliente.dcasa_saldo, 0)
+        self.assertTrue(libro_antes <= self.ids_del_libro())
+        # El pago existe y ya no está aplicado a ninguna factura.
+        self.assertTrue(pago.exists())
+        self.assertFalse(pago.reconciled_invoice_ids)
+        (canal, contenido), = self.avisos(antes)
+        self.assertEqual(canal[1:], ['res.partner', self.contador.partner_id.id])
+        self.assertEqual((contenido['type'], contenido['sticky']), ('warning', True))
+        for texto in (pago.name, nombre, self.ruta(), 'quedó sin aplicar'):
+            self.assertIn(texto, contenido['message'])
+        self.assertIn('quedó sin aplicar', pago.message_ids[:1].body)
+
+    def test_borrar_un_borrador_sin_pago_no_avisa(self):
+        borrador = self.borrador_sin_pagar()
+        antes = self.cuantos()
+        borrador.unlink()
+        self.assertFalse(borrador.exists())
+        self.assertFalse(self.avisos(antes))
+
+    def test_la_factura_publicada_y_pagada_sigue_sin_borrarse_y_sin_aviso(self):
+        factura = self.factura()
+        antes = self.cuantos()
+        with self.assertRaises(UserError):
+            factura.unlink()
+        self.assertTrue(factura.exists())
+        self.assertFalse(self.avisos(antes))

@@ -79,7 +79,7 @@
                                     <field name="diferencia" decoration-danger="situacion == 'excedido'"
                                            decoration-success="situacion == 'cumplido'"/>
                                     <field name="porcentaje" widget="progressbar" invisible="monto_planeado == 0"/>
-                                    <field name="situacion" widget="badge" decoration-danger="situacion == 'excedido'"
+                                    <field name="situacion" widget="badge" width="130px" decoration-danger="situacion == 'excedido'"
                                            decoration-warning="situacion == 'sin_plan'"
                                            decoration-success="situacion in ('dentro', 'cumplido')"
                                            decoration-info="situacion == 'en_camino'"/>
@@ -112,19 +112,19 @@
                 <filter name="aprobados" string="Aprobados" domain="[('state', '=', 'aprobado')]"/>
                 <filter name="cerrados" string="Cerrados" domain="[('state', '=', 'cerrado')]"/>
                 <separator/>
-                <filter name="periodo_hoy" string="Periodo: Hoy" domain="[('periodo_atajo', '=', 'hoy')]"
+                <filter name="periodo_hoy" string="Hoy" domain="[('periodo_atajo', '=', 'hoy')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_semana" string="Periodo: Esta semana" domain="[('periodo_atajo', '=', 'semana')]"
+                <filter name="periodo_semana" string="Esta semana" domain="[('periodo_atajo', '=', 'semana')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_quincena" string="Periodo: Esta quincena" domain="[('periodo_atajo', '=', 'quincena')]"
+                <filter name="periodo_quincena" string="Esta quincena" domain="[('periodo_atajo', '=', 'quincena')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_mes" string="Periodo: Este mes" domain="[('periodo_atajo', '=', 'mes')]"
+                <filter name="periodo_mes" string="Este mes" domain="[('periodo_atajo', '=', 'mes')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_mes_pasado" string="Periodo: Mes pasado" domain="[('periodo_atajo', '=', 'mes_pasado')]"
+                <filter name="periodo_mes_pasado" string="Mes pasado" domain="[('periodo_atajo', '=', 'mes_pasado')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_trimestre" string="Periodo: Este trimestre" domain="[('periodo_atajo', '=', 'trimestre')]"
+                <filter name="periodo_trimestre" string="Este trimestre" domain="[('periodo_atajo', '=', 'trimestre')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
-                <filter name="periodo_ejercicio" string="Periodo: Este año fiscal" domain="[('periodo_atajo', '=', 'ejercicio')]"
+                <filter name="periodo_ejercicio" string="Este año fiscal" domain="[('periodo_atajo', '=', 'ejercicio')]"
                         help="Presupuestos cuyo periodo toca esos días"/>
                 <group>
                     <filter name="por_estado" string="Estado" context="{'group_by': 'state'}"/>

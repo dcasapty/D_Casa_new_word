@@ -205,7 +205,7 @@ class TestIniciarPanel(PanelCase):
         datos = self.panel.iniciar_panel()
         self.assertEqual(datos['usuario'],
                          {'id': self.vendedora.id, 'nombre': 'Vendedora Prueba', 'es_gerencia': False,
-                          'disponible': True, 'fuera_del_reparto': False})
+                          'disponible': True, 'recibe_reparto': True, 'fuera_del_reparto': False})
         self.assertEqual(datos['limites'], {
             'adjuntos': 5, 'bytes': 10 * 1024 * 1024, 'respuesta': 4000, 'nota': 1000, 'nota_para_el_bot': 500,
             'pausa_minutos': 120, 'espera_aviso_minutos': 10})

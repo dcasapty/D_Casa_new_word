@@ -250,14 +250,17 @@ class TestBalanceConsolidado(AuditoriaConsolidacion):
         consolidacion = self.consolidacion('balance', fecha_desde='2030-01-01', fecha_hasta='2030-03-31')
         self.assertTrue(consolidacion.cuadra)
         filas = {(ln.nombre, ln.columna): ln.importe for ln in consolidacion.linea_ids
-                 if ln.nombre in ('Resultado del ejercicio', 'Resultados de ejercicios anteriores')}
+                 if ln.nombre in ('Resultado del ejercicio', 'Resultados de ejercicios anteriores')
+                 and ln.tipo_columna == 'empresa'}
         b = self.empresa_b
         del_ejercicio_b = -O.neto(O.por_empresa_y_tipo(self.env, b, '2029-07-01', '2030-03-31', O.RESULTADOS))
         anteriores_b = -O.neto(O.por_empresa_y_tipo(self.env, b, None, '2029-06-30', O.RESULTADOS))
-        self.assertCifra(filas[('Resultado del ejercicio', b.name)], del_ejercicio_b, 'B: ejercicio desde el 1 de julio')
-        self.assertCifra(filas[('Resultados de ejercicios anteriores', b.name)], anteriores_b, 'B: hasta el 30 de junio')
+        self.assertCifra(filas.get(('Resultado del ejercicio', b.name), 0.0), del_ejercicio_b,
+                         'B: ejercicio desde el 1 de julio')
+        self.assertCifra(filas.get(('Resultados de ejercicios anteriores', b.name), 0.0), anteriores_b,
+                         'B: hasta el 30 de junio (para B no hay nada anterior)')
         a = self.empresa_a                     # A cierra el 31 de diciembre
-        self.assertCifra(filas[('Resultado del ejercicio', a.name)],
+        self.assertCifra(filas.get(('Resultado del ejercicio', a.name), 0.0),
                          -O.neto(O.por_empresa_y_tipo(self.env, a, '2030-01-01', '2030-03-31', O.RESULTADOS)),
                          'A: ejercicio desde el 1 de enero')
         # Lo de B del 1 de julio al 31 de diciembre de 2029 es «ejercicio» para B y «anterior» para A: el total

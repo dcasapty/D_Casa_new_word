@@ -17,7 +17,7 @@ def panama(anio, mes, dia, hora=0, minuto=0):
 
 
 class RepartoCase(JuanCase):
-    """Un equipo de tres (Ana, Beto y Gema), el reparto parejo encendido y el reloj quieto un viernes por la mañana."""
+    """Un equipo de tres vendedoras (Ana, Beto y Carla), el reparto parejo encendido y el reloj quieto un viernes."""
 
     AHORA = panama(2026, 10, 9, 10, 0)    # viernes 9 de octubre, 10:00 a. m. en Panamá
 
@@ -26,6 +26,8 @@ class RepartoCase(JuanCase):
         super().setUpClass()
         cls.beto = new_test_user(cls.env, login='juan_beto_justo', name='Beto Vendedor',
                                  groups='base.group_user,sales_team.group_sale_salesman')
+        cls.carla = new_test_user(cls.env, login='juan_carla_justo', name='Carla Vendedora',
+                                  groups='base.group_user,sales_team.group_sale_salesman')
         cls.Reparto = cls.env['dcasa.reparto']
 
     def setUp(self):
@@ -39,12 +41,12 @@ class RepartoCase(JuanCase):
         parche = patch.object(type(self.Enlace), '_enviar', self.enviar)
         parche.start()
         self.addCleanup(parche.stop)
-        # El equipo de la prueba: Ana (vendedora), Beto y Gema (gerente). Cualquier otra persona de ventas (el
-        # administrador de la base de pruebas) queda fuera del reparto para no meterse en las cuentas.
-        self.equipo = self.vendedora | self.beto | self.gerente
-        (self.Conversacion._usuarios_del_panel() - self.equipo).write({'dcasa_fuera_del_reparto': True})
+        # El equipo de la prueba: las vendedoras Ana, Beto y Carla. Gema (Gerencia) y el administrador de la base están
+        # «disponibles» a propósito: aun así no reciben nada (solo reciben las vendedoras).
+        self.equipo = self.vendedora | self.beto | self.carla
+        self.administrador = self.env.ref('base.user_admin')
         self.Conversacion._usuarios_del_panel().write({'dcasa_turno': 0})
-        self.equipo.write({'dcasa_disponible': True})
+        (self.equipo | self.gerente | self.administrador).write({'dcasa_disponible': True})
         self.numero = 0
 
     # --- Ayudas -----------------------------------------------------------------------------------------------
@@ -106,7 +108,7 @@ class TestRepartoParejo(RepartoCase):
 
     def test_gana_quien_lleva_menos_hoy(self):
         self.dar(self.vendedora, 2)
-        self.dar(self.gerente, 2)
+        self.dar(self.carla, 2)
         conv = self.pasar()
         self.assertEqual(conv.asignada_a, self.beto)
         self.assertIn(f'Le tocó a {self.beto.name}', self.avisos(conv))
@@ -117,27 +119,27 @@ class TestRepartoParejo(RepartoCase):
         asignadas = [self.pasar().asignada_a for _n in range(10)]
         self.assertNotIn(self.beto, asignadas)
         self.assertEqual(self.recibidas(self.vendedora), 5)
-        self.assertEqual(self.recibidas(self.gerente), 5)
+        self.assertEqual(self.recibidas(self.carla), 5)
 
     def test_quien_esta_fuera_del_reparto_no_recibe_aunque_este_disponible_y_conserva_sus_permisos(self):
-        self.gerente.write({'dcasa_fuera_del_reparto': True})
-        self.assertTrue(self.gerente.dcasa_disponible)
+        self.carla.write({'dcasa_fuera_del_reparto': True})
+        self.assertTrue(self.carla.dcasa_disponible)
         asignadas = [self.pasar().asignada_a for _n in range(8)]
-        self.assertNotIn(self.gerente, asignadas)
-        self.assertTrue(self.gerente.has_group('sales_team.group_sale_manager'), 'No le quita ningún permiso')
+        self.assertNotIn(self.carla, asignadas)
+        self.assertTrue(self.carla.has_group('sales_team.group_sale_salesman'), 'No le quita ningún permiso')
 
     def test_la_fecha_de_regreso_la_devuelve_al_reparto_sola(self):
-        self.gerente.write({'dcasa_fuera_del_reparto': True, 'dcasa_fuera_hasta': date(2026, 10, 12)})
-        self.assertNotIn(self.gerente, [self.pasar().asignada_a for _n in range(6)])
+        self.carla.write({'dcasa_fuera_del_reparto': True, 'dcasa_fuera_hasta': date(2026, 10, 12)})
+        self.assertNotIn(self.carla, [self.pasar().asignada_a for _n in range(6)])
         with freeze_time(panama(2026, 10, 11, 23, 59)):
-            self.assertNotIn(self.gerente, self.Reparto._equipo(), 'Todavía no es el día')
+            self.assertNotIn(self.carla, self.Reparto._equipo(), 'Todavía no es el día')
         with freeze_time(panama(2026, 10, 12, 0, 1)):
-            self.assertIn(self.gerente, self.Reparto._equipo(), 'Ya llegó el día en que vuelve')
+            self.assertIn(self.carla, self.Reparto._equipo(), 'Ya llegó el día en que vuelve')
 
     def test_sin_fecha_de_regreso_sigue_fuera_hasta_que_gerencia_la_vuelva_a_meter(self):
-        self.gerente.write({'dcasa_fuera_del_reparto': True})
+        self.carla.write({'dcasa_fuera_del_reparto': True})
         with freeze_time(panama(2027, 10, 9, 10, 0)):
-            self.assertNotIn(self.gerente, self.Reparto._equipo())
+            self.assertNotIn(self.carla, self.Reparto._equipo())
 
     def test_una_persona_que_no_es_de_ventas_nunca_entra(self):
         self.interno.write({'dcasa_disponible': True})
@@ -147,9 +149,9 @@ class TestRepartoParejo(RepartoCase):
     # --- Desempates ----------------------------------------------------------------------------------------
 
     def test_con_empate_gana_quien_tiene_menos_clientes_esperando(self):
-        # Las tres tienen 0 hoy. A Ana y a Gema les espera un cliente; a Beto, ninguno.
+        # Las tres tienen 0 hoy. A Ana y a Carla les espera un cliente; a Beto, ninguno.
         self.hacer_esperar(self.vendedora, 1)
-        self.hacer_esperar(self.gerente, 1)
+        self.hacer_esperar(self.carla, 1)
         self.assertEqual(sorted(self.recibidas().values()), [0, 0, 0])
         conv = self.pasar()
         self.assertEqual(conv.asignada_a, self.beto)
@@ -158,7 +160,7 @@ class TestRepartoParejo(RepartoCase):
     def test_con_empate_total_gana_quien_lleva_mas_tiempo_sin_recibir(self):
         self.vendedora.dcasa_turno = 30
         self.beto.dcasa_turno = 10
-        self.gerente.dcasa_turno = 20
+        self.carla.dcasa_turno = 20
         conv = self.pasar()
         self.assertEqual(conv.asignada_a, self.beto)
         self.assertIn('más tiempo sin recibir', self.avisos(conv))
@@ -292,11 +294,11 @@ class TestRepartoParejo(RepartoCase):
 
     def test_una_asignacion_a_mano_tambien_cuenta_y_no_suma_a_las_recibidas(self):
         conv = self.cliente()
-        self.Conversacion.with_user(self.vendedora).asignar(conv.id, self.gerente.id)
-        self.assertEqual(self.recibidas(self.gerente), 0, 'La eligió una persona, no Juan')
+        self.Conversacion.with_user(self.vendedora).asignar(conv.id, self.carla.id)
+        self.assertEqual(self.recibidas(self.carla), 0, 'La eligió una persona, no Juan')
         conv.sudo().write({'estado': 'bot', 'asignada_a': False})
         conv._pasar_a_vendedora('Duda')
-        self.assertEqual(conv.asignada_a, self.gerente, 'Pero sí es «su» cliente')
+        self.assertEqual(conv.asignada_a, self.carla, 'Pero sí es «su» cliente')
 
     # --- Nadie disponible -----------------------------------------------------------------------------------
 
@@ -342,7 +344,7 @@ class TestRepartoParejo(RepartoCase):
     def test_un_dia_nuevo_empieza_de_cero(self):
         self.beto.dcasa_disponible = False
         for _n in range(4):
-            self.pasar()    # entre Ana y Gema
+            self.pasar()    # entre Ana y Carla
         self.beto.dcasa_disponible = True
         with freeze_time(panama(2026, 10, 10, 9, 0)):
             self.assertEqual(sorted(self.recibidas().values()), [0, 0, 0])
@@ -359,10 +361,10 @@ class TestRepartoParejo(RepartoCase):
         self.ajustes.reparto_modo = 'turnos'
         self.vendedora.dcasa_turno = 30
         self.beto.dcasa_turno = 10
-        self.gerente.dcasa_turno = 20
+        self.carla.dcasa_turno = 20
         self.beto.dcasa_fuera_del_reparto = True
         orden = [self.pasar().asignada_a for _n in range(3)]
-        self.assertEqual(orden, [self.gerente, self.vendedora, self.gerente])
+        self.assertEqual(orden, [self.carla, self.vendedora, self.carla])
         self.assertEqual(self.Reparto.search_count([('regla', '=', 'turno')]), 3, 'También queda en el libro')
 
     def test_el_juan_tecnico_no_entra_al_reparto(self):
@@ -389,3 +391,190 @@ class TestAjustesDelReparto(JuanCase):
         self.assertEqual(list(opciones), ['manual', 'parejo', 'turnos'])
         self.ajustes.reparto_modo = 'parejo'
         self.assertEqual(self.ajustes.reparto_modo, 'parejo')
+
+
+@tagged('post_install', '-at_install')
+class TestSoloLasVendedorasRecibenReparto(RepartoCase):
+    """Gerencia y los administradores intervienen en cualquier conversación, pero el reparto no se las pasa."""
+
+    def test_gerencia_y_administrador_nunca_reciben_aunque_esten_disponibles(self):
+        self.assertTrue(self.gerente.dcasa_disponible and self.administrador.dcasa_disponible)
+        asignadas = [self.pasar().asignada_a for _n in range(12)]
+        self.assertFalse({self.gerente, self.administrador} & set(asignadas))
+        self.assertEqual(sorted(self.recibidas().values()), [4, 4, 4])
+        self.assertEqual(self.Reparto._disponibles(), self.equipo)
+
+    def test_lo_mismo_con_el_reparto_por_turnos(self):
+        self.ajustes.reparto_modo = 'turnos'
+        asignadas = [self.pasar().asignada_a for _n in range(9)]
+        self.assertFalse({self.gerente, self.administrador} & set(asignadas))
+        self.assertEqual(sorted(self.recibidas().values()), [3, 3, 3])
+
+    def test_el_reparto_no_cambia_quien_ve_ni_a_quien_se_le_avisa(self):
+        panel = self.Conversacion._usuarios_del_panel()
+        self.assertIn(self.gerente, panel)
+        self.assertIn(self.administrador, panel)
+        self.assertIn(self.gerente.id, [u['id'] for u in self.Conversacion.with_user(self.vendedora).equipo()],
+                      'Se les puede asignar a mano y mencionar')
+        self.assertEqual(self.Reparto._no_reciben(), self.gerente | self.administrador)
+
+    def test_si_solo_hay_gerencia_y_administrador_queda_como_hoy(self):
+        self.Enlace = self.env['brian.telegram.enlace'].sudo()
+        self.Enlace.create({'user_id': self.gerente.id, 'chat_id': '5550777'})
+        self.equipo.write({'dcasa_disponible': False})
+        conv = self.pasar()
+        self.assertFalse(conv.asignada_a)
+        self.assertEqual(conv.activity_ids.user_id, self.ajustes.responsable_id)
+        destinos = [c.args[0] for c in self.enviar.call_args_list]
+        self.assertEqual(destinos, ['5550777'], 'El aviso sí le llega a Gerencia')
+        self.assertIn('Nadie estaba disponible', self.avisos(conv))
+
+    def test_borde_una_vendedora_que_ademas_es_gerente_deja_de_recibir(self):
+        manager = self.env.ref('sales_team.group_sale_manager')
+        self.carla.write({'group_ids': [(4, manager.id)]})
+        self.assertNotIn(self.carla, self.Reparto._vendedoras())
+        self.assertIn(self.carla, self.Reparto._no_reciben(), 'Gerencia lo ve en la pantalla, en «No reciben»')
+        asignadas = [self.pasar().asignada_a for _n in range(6)]
+        self.assertNotIn(self.carla, asignadas)
+        self.assertEqual(self.carla.dcasa_disponible, True)
+        # Quitándole el rol de Gerencia vuelve a recibir.
+        self.carla.write({'group_ids': [(3, manager.id)]})
+        self.assertIn(self.carla, self.Reparto._vendedoras())
+        self.assertEqual(self.pasar().asignada_a, self.carla, 'Es quien menos lleva')
+
+    def test_gerencia_conserva_lo_que_ve_y_puede_tomar_y_escribir(self):
+        conv = self.pasar()
+        panel = self.Conversacion.with_user(self.gerente)
+        self.assertIn(conv.id, [c['id'] for c in panel.lista()['conversaciones']])
+        otra = self.cliente()
+        panel.tomar(otra.id)
+        self.assertEqual((otra.estado, otra.asignada_a), ('humano', self.gerente))
+        otra.with_user(self.gerente)._crear_mensaje_de_odoo('Yo te ayudo', usuario=self.gerente)
+        self.assertEqual(otra.asignada_a, self.gerente)
+
+    def test_si_la_tenia_gerencia_y_la_devolvio_al_asistente_el_reparto_la_pasa_a_una_vendedora(self):
+        for modo in ('parejo', 'turnos'):
+            with self.subTest(modo=modo):
+                self.ajustes.reparto_modo = modo
+                conv = self.cliente()
+                conv.sudo().asignada_a = self.gerente
+                conv._pasar_a_vendedora('Duda')
+                self.assertIn(conv.asignada_a, self.equipo)
+
+    def test_una_conversacion_asignada_a_una_vendedora_que_recibe_se_queda_con_ella_en_turnos(self):
+        self.ajustes.reparto_modo = 'turnos'
+        conv = self.cliente()
+        conv.sudo().asignada_a = self.vendedora
+        conv._pasar_a_vendedora('Duda')
+        self.assertEqual(conv.asignada_a, self.vendedora)
+
+
+@tagged('post_install', '-at_install')
+class TestReinicioDeLaManana(RepartoCase):
+    """«No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda."""
+
+    AHORA = panama(2026, 10, 9, 10, 0)    # ya pasó el corte de hoy (6:00 a. m. con el horario de 8:00)
+
+    def marcar(self, usuario, desde=None):
+        usuario.write({'dcasa_disponible': False, 'dcasa_no_disponible_desde': desde or False})
+
+    def reiniciar(self):
+        return self.Reparto._cron_reiniciar_disponibilidad()
+
+    def test_deja_disponibles_a_las_que_se_marcaron_antes_del_corte(self):
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        self.marcar(self.carla, panama(2026, 10, 9, 5, 0))
+        self.assertEqual(self.reiniciar(), 2)
+        self.assertTrue(self.beto.dcasa_disponible and self.carla.dcasa_disponible)
+        self.assertFalse(self.beto.dcasa_no_disponible_desde)
+
+    def test_una_marca_vieja_sin_fecha_tambien_se_reinicia(self):
+        self.marcar(self.beto)
+        self.assertEqual(self.reiniciar(), 1)
+        self.assertTrue(self.beto.dcasa_disponible)
+
+    def test_no_borra_lo_que_se_marco_despues_del_corte(self):
+        """Si el contenedor durmió y el cron corre tarde, la pausa de hace un rato se respeta."""
+        self.marcar(self.beto, panama(2026, 10, 9, 9, 40))
+        self.assertEqual(self.reiniciar(), 0)
+        self.assertFalse(self.beto.dcasa_disponible)
+
+    def test_antes_del_corte_no_hace_nada(self):
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        with freeze_time(panama(2026, 10, 9, 5, 59)):
+            self.assertEqual(self.reiniciar(), 0)
+            self.assertFalse(self.beto.dcasa_disponible)
+        with freeze_time(panama(2026, 10, 9, 6, 0)):
+            self.assertEqual(self.reiniciar(), 1)
+            self.assertTrue(self.beto.dcasa_disponible)
+
+    def test_el_corte_sigue_al_horario_de_la_tienda_dos_horas_antes_de_abrir(self):
+        self.ajustes.horario_inicio = 10.0     # abre a las 10:00 → corte a las 8:00
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        with freeze_time(panama(2026, 10, 9, 7, 30)):
+            self.assertEqual(self.reiniciar(), 0)
+        with freeze_time(panama(2026, 10, 9, 8, 0)):
+            self.assertEqual(self.reiniciar(), 1)
+
+    def test_si_abren_de_madrugada_el_corte_nunca_es_antes_de_medianoche(self):
+        self.ajustes.horario_inicio = 1.0
+        self.marcar(self.beto, panama(2026, 10, 8, 23, 0))
+        with freeze_time(panama(2026, 10, 9, 0, 5)):
+            self.assertEqual(self.reiniciar(), 1)
+
+    def test_no_toca_a_quien_gerencia_saco_del_reparto(self):
+        self.carla.write({'dcasa_fuera_del_reparto': True})
+        self.marcar(self.carla, panama(2026, 10, 8, 17, 30))
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        self.assertEqual(self.reiniciar(), 1)
+        self.assertFalse(self.carla.dcasa_disponible, 'Sigue como estaba mientras esté de vacaciones')
+        self.assertTrue(self.carla.dcasa_fuera_del_reparto)
+        self.assertEqual(self.carla.dcasa_no_disponible_desde, panama(2026, 10, 8, 17, 30))
+
+    def test_el_dia_que_vuelve_de_vacaciones_tambien_se_reinicia(self):
+        self.carla.write({'dcasa_fuera_del_reparto': True, 'dcasa_fuera_hasta': date(2026, 10, 9)})
+        self.marcar(self.carla, panama(2026, 10, 1, 17, 30))
+        self.assertEqual(self.reiniciar(), 1)
+        self.assertTrue(self.carla.dcasa_disponible)
+
+    def test_no_toca_a_gerencia_ni_a_administradores(self):
+        for usuario in (self.gerente, self.administrador):
+            self.marcar(usuario, panama(2026, 10, 8, 17, 30))
+        self.assertEqual(self.reiniciar(), 0)
+        self.assertFalse(self.gerente.dcasa_disponible or self.administrador.dcasa_disponible)
+
+    def test_es_idempotente_y_no_toca_a_las_que_ya_estan_disponibles(self):
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        self.assertEqual((self.reiniciar(), self.reiniciar()), (1, 0))
+        self.assertTrue(self.vendedora.dcasa_disponible)
+
+    def test_marcarse_no_disponible_anota_cuando_y_volver_a_disponible_lo_borra(self):
+        panel = self.Conversacion.with_user(self.vendedora)
+        panel.fijar_disponible(False)
+        self.assertEqual((self.vendedora.dcasa_disponible, self.vendedora.dcasa_no_disponible_desde),
+                         (False, self.AHORA))
+        panel.fijar_disponible(True)
+        self.assertEqual((self.vendedora.dcasa_disponible, self.vendedora.dcasa_no_disponible_desde), (True, False))
+
+    def test_de_punta_a_punta_se_marca_de_tarde_y_a_la_manana_siguiente_vuelve(self):
+        panel = self.Conversacion.with_user(self.beto)
+        with freeze_time(panama(2026, 10, 9, 17, 5)):
+            panel.fijar_disponible(False)
+            self.assertNotIn(self.beto, [self.pasar().asignada_a for _n in range(4)])
+        with freeze_time(panama(2026, 10, 10, 6, 30)):
+            self.assertEqual(self.reiniciar(), 1)
+            self.assertIn(self.beto, [self.pasar().asignada_a for _n in range(3)])
+        with freeze_time(panama(2026, 10, 10, 12, 0)):
+            panel.fijar_disponible(False)       # el almuerzo de hoy
+        with freeze_time(panama(2026, 10, 10, 13, 0)):
+            self.assertEqual(self.reiniciar(), 0, 'Lo de hoy se respeta hasta mañana')
+
+    def test_el_cron_existe_corre_cada_hora_y_llama_a_lo_correcto(self):
+        cron = self.env.ref('dcasa_conversaciones.ir_cron_reiniciar_disponibilidad')
+        self.assertTrue(cron.active)
+        self.assertEqual((cron.interval_number, cron.interval_type), (1, 'hours'))
+        self.assertEqual(cron.model_id.model, 'dcasa.reparto')
+        self.assertEqual(cron.code.strip(), 'model._cron_reiniciar_disponibilidad()')
+        self.marcar(self.beto, panama(2026, 10, 8, 17, 30))
+        cron.ir_actions_server_id.sudo().run()     # lo mismo que corre el planificador, en esta transacción
+        self.assertTrue(self.beto.dcasa_disponible, 'El cron de verdad hace el reinicio')

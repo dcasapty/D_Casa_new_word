@@ -217,12 +217,13 @@ class JuanAjustes(models.Model):
          ('turnos', 'Por turnos entre quienes estén disponibles')],
         'Reparto de conversaciones', default='manual', required=True, tracking=True,
         help='Qué pasa cuando el asistente pasa una conversación a una vendedora. «Nadie»: no se asigna a nadie; la '
-             'toma quien quiera. «Parejo»: se asigna entre quienes están disponibles (no marcaron «No disponible» ni '
+             'toma quien quiera. «Parejo»: se asigna entre las vendedoras disponibles (no marcaron «No disponible» ni '
              'Gerencia las sacó del reparto): si el cliente ya hablaba con una de ellas hace poco, vuelve con ella; si '
              'no, le toca a quien lleva menos conversaciones recibidas hoy (y, con empate, a quien tiene menos '
              'clientes esperándole). «Por turnos»: a quien lleva más tiempo sin recibir una, sin mirar cuántas lleva. '
-             'En los dos últimos se le avisa a ella; si nadie está disponible, la tarea va al responsable por defecto '
-             'y se avisa a todo el equipo, como siempre.')
+             'En los dos últimos se le avisa a ella y solo reciben las vendedoras: Gerencia y los administradores '
+             'pueden intervenir en cualquier conversación, pero no reciben. Si nadie está disponible, la tarea va al '
+             'responsable por defecto y se avisa a todo el equipo, como siempre.')
     reparto_dias_misma_vendedora = fields.Integer(
         'Días que un cliente sigue con su vendedora', default=14, tracking=True,
         help='Con el reparto «parejo»: si el cliente habló con una vendedora (o se la asignaron) en los últimos días '

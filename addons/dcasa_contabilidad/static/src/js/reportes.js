@@ -274,7 +274,8 @@ export class DcasaReportesContables extends Component {
         this.state.abiertas[id] = !this.state.abiertas[id];
     }
 
-    abrirApuntes(fila, extra = []) {
+    /** Abre los apuntes de una cuenta. ``acumulado``: todo lo anterior al «Hasta» (un saldo), no solo el periodo. */
+    abrirApuntes(fila, extra = [], acumulado = false) {
         if (!fila.id) {
             return;
         }
@@ -284,7 +285,7 @@ export class DcasaReportesContables extends Component {
             ["date", "<=", this.state.datos.hasta],
             ...extra,
         ];
-        if (!this.alCorte) {
+        if (!this.alCorte && !acumulado) {
             dominio.push(["date", ">=", this.state.datos.desde]);
         }
         this.action.doAction({

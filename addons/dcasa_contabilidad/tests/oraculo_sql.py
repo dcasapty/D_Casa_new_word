@@ -110,6 +110,38 @@ def impuestos(env, empresas, desde, hasta, borradores=False):
     return dict(resultado)
 
 
+def itbms_acumulado(env, empresas, hasta, borradores=False):
+    """{account_id: saldo por pagar (haber − debe) a la fecha ``hasta``} de las cuentas de ITBMS.
+
+    Las cuentas de ITBMS son las que los impuestos de ventas y de compras tienen en su reparto «de impuesto» (que no
+    sean de resultados). Positivo = se debe; negativo = saldo a favor. Cuenta TODO lo anterior (meses pasados y pagos).
+    """
+    env.cr.execute("""
+        SELECT l.account_id, COALESCE(SUM(l.credit - l.debit), 0)
+          FROM account_move_line l
+          JOIN account_move m ON m.id = l.move_id
+         WHERE m.state IN %s AND l.company_id IN %s AND l.date <= %s
+           AND l.account_id IN (
+                SELECT DISTINCT r.account_id
+                  FROM account_tax_repartition_line r
+                  JOIN account_tax t ON t.id = r.tax_id
+                  JOIN account_account a ON a.id = r.account_id
+                 WHERE r.repartition_type = 'tax' AND t.type_tax_use IN ('sale', 'purchase')
+                   AND t.company_id IN %s AND a.account_type NOT IN %s)
+         GROUP BY l.account_id
+    """, [_estados(borradores), tuple(empresas.ids), hasta, tuple(empresas.ids), RESULTADOS])
+    saldos = {cuenta: float(v) for cuenta, v in env.cr.fetchall()}
+    env.cr.execute("""
+        SELECT DISTINCT r.account_id
+          FROM account_tax_repartition_line r
+          JOIN account_tax t ON t.id = r.tax_id
+          JOIN account_account a ON a.id = r.account_id
+         WHERE r.repartition_type = 'tax' AND t.type_tax_use IN ('sale', 'purchase')
+           AND t.company_id IN %s AND a.account_type NOT IN %s
+    """, [tuple(empresas.ids), RESULTADOS])
+    return {cuenta: saldos.get(cuenta, 0.0) for (cuenta,) in env.cr.fetchall()}
+
+
 def pendientes(env, empresas, tipo_cuenta, corte, borradores=False):
     """Lo pendiente de cada apunte de cobrar/pagar A LA FECHA ``corte``.
 

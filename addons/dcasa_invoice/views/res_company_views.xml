@@ -25,6 +25,15 @@
                         </div>
                         <field name="dcasa_ofrecer_impresion_pago"/>
                     </group>
+                    <group string="Código QR y código público">
+                        <div class="text-muted mb-2" colspan="2">
+                            Cambian cómo se ve la factura, la cotización y la nota de entrega. Vienen apagados:
+                            enciéndelos solo cuando hayas aprobado cómo queda. Apagados, esos documentos salen
+                            exactamente como siempre.
+                        </div>
+                        <field name="dcasa_mostrar_qr_documentos"/>
+                        <field name="dcasa_mostrar_codigo_publico"/>
+                    </group>
                 </page>
             </xpath>
         </field>

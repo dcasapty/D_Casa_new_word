@@ -12,6 +12,7 @@ from odoo import Command, fields
 from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, TransactionCase, tagged
 from odoo.tools.misc import file_path
+from odoo.tools.safe_eval import safe_eval
 
 
 def crear_usuario(env, login, grupo):
@@ -422,6 +423,27 @@ class TestGastosPorReembolsar(VentasCommon):
         gerencia = self._menus(self.gerencia)
         self.assertIn('dcasa_nomina.menu_reembolsos', gerencia)
         self.assertIn('dcasa_nomina.menu_planillas', gerencia)
+
+    def test_sin_el_menu_empleados_la_vendedora_sigue_usando_sus_gastos(self):
+        """«Empleados» ya no es de la vendedora (dcasa_equipo), pero «Mis gastos por reembolsar» es otra app: no cuelga
+        de ese menú ni de Nómina, y lo registra y lo ve sin tocar fichas de empleados."""
+        raiz = self.env.ref('hr.menu_hr_root')
+        self.assertFalse(self.menu.parent_id)
+        self.assertNotIn(self.menu.id, raiz.child_id.ids)
+        visibles = self._menus(self.vendedora)
+        self.assertEqual(visibles.get('dcasa_nomina.menu_mis_reembolsos'), 'Mis gastos por reembolsar')
+        equipo = self.env['ir.module.module'].sudo().search_count(
+            [('name', '=', 'dcasa_equipo'), ('state', '=', 'installed')])
+        if equipo:
+            self.assertNotIn('hr.menu_hr_root', visibles)
+        ficha = self.env['hr.employee'].create({'name': 'Ficha de la vendedora gastos', 'user_id': self.vendedora.id})
+        Reembolso = self.env['dcasa.nomina.reembolso'].with_user(self.vendedora)
+        gasto = Reembolso.create({'empleado_id': ficha.id, 'concepto': 'Taxi a la bodega', 'monto': 6.5})
+        self.assertEqual(gasto.estado, 'borrador')
+        # la lista del menú (su dominio, con ``uid`` de ella) trae su gasto
+        dominio = safe_eval(self.menu.action.domain, {'uid': self.vendedora.id})
+        self.assertEqual(Reembolso.search(dominio), gasto)
+        self.assertEqual(Reembolso.default_get(['empleado_id'])['empleado_id'], ficha.id)
 
     def test_cada_quien_ve_solo_sus_gastos(self):
         Empleado = self.env['hr.employee']

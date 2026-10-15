@@ -106,6 +106,13 @@
                                 <tr class="tot"><td colspan="3">Débito fiscal (ventas)</td><td class="num" t-out="m(datos['resumen']['debito_fiscal'])"/></tr>
                                 <tr class="tot"><td colspan="3">Crédito fiscal (compras)</td><td class="num" t-out="m(datos['resumen']['credito_fiscal'])"/></tr>
                                 <tr class="tot"><td colspan="3">ITBMS a pagar</td><td class="num" t-out="m(datos['resumen']['a_pagar'])"/></tr>
+                                <tr t-foreach="datos.get('cuentas', [])" t-as="c">
+                                    <td colspan="3">Cuenta <t t-out="c['codigo']"/> <t t-out="c['nombre']"/> al <t t-out="datos['resumen']['al']"/></td><td class="num" t-out="m(c['saldo'])"/>
+                                </tr>
+                                <tr t-if="'acumulado' in datos['resumen']" class="tot">
+                                    <td colspan="3"><t t-out="'Saldo a favor' if datos['resumen']['acumulado'] &lt; 0 else 'ITBMS acumulado por pagar'"/> al <t t-out="datos['resumen']['al']"/></td>
+                                    <td class="num" t-out="m(abs(datos['resumen']['acumulado']))"/>
+                                </tr>
                             </tbody>
                         </table>
                     </t>

@@ -70,6 +70,7 @@ export class Almacen {
         this.resumenActivo = false; // Ajustes de Juan: ¿se ofrece el botón «Resumir»?
         this.presencia = {}; // conversación → quiénes más la tienen abierta [{usuario_id, escribiendo, hasta}]
         this.disponible = true; // con el reparto encendido: ¿me tocan conversaciones nuevas?
+        this.recibeReparto = true; // Gerencia y administradoras intervienen en cualquier conversación, pero no reciben
         this.fueraDelReparto = false; // Gerencia me sacó del reparto (vacaciones, ausencia…)
         this.reparto = "manual";
         this._ultimoAvisoEscribe = 0;
@@ -139,6 +140,7 @@ export class Almacen {
                 resumenActivo: !!datos.resumen_ia,
             });
             this.disponible = datos.usuario.disponible !== false;
+            this.recibeReparto = datos.usuario.recibe_reparto !== false;
             this.fueraDelReparto = !!datos.usuario.fuera_del_reparto;
             this.cargarPreferencias();
             this.iniciado = true;

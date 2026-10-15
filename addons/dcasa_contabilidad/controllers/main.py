@@ -34,7 +34,11 @@ def _detalle_tarjeta(tarjeta):
     if 'vencido' in tarjeta:
         return f"Vencido: {tarjeta['vencido']:,.2f}"
     if 'debito' in tarjeta:
-        return f"Ventas {tarjeta['debito']:,.2f} − compras {tarjeta['credito']:,.2f}"
+        texto = f"Ventas {tarjeta['debito']:,.2f} − compras {tarjeta['credito']:,.2f}"
+        if 'acumulado' in tarjeta:
+            titulo = 'Saldo a favor' if tarjeta['acumulado'] < 0 else 'Acumulado por pagar'
+            texto += f" · {titulo} al {tarjeta['acumulado_al']}: {abs(tarjeta['acumulado']):,.2f}"
+        return texto
     if 'comparado' in tarjeta:
         return f"Periodo anterior: {tarjeta['comparado']:,.2f}"
     return tarjeta.get('nota', '')
@@ -128,6 +132,12 @@ def _plano_itbms(datos):
     filas += [(['Débito fiscal (ventas)', '', '', r['debito_fiscal']], 'b'),
               (['Crédito fiscal (compras)', '', '', r['credito_fiscal']], 'b'),
               (['ITBMS a pagar', '', '', r['a_pagar']], 'b')]
+    # El acumulado es un saldo al corte (con meses anteriores y pagos), no del periodo: va aparte y con su fecha.
+    for cuenta in datos.get('cuentas', []):
+        filas.append(([f"Cuenta {cuenta['codigo']} {cuenta['nombre']} al {r['al']}", '', '', cuenta['saldo']], ''))
+    if 'acumulado' in r:
+        titulo = 'Saldo a favor' if r['acumulado'] < 0 else 'ITBMS acumulado por pagar'
+        filas.append(([f"{titulo} al {r['al']}", '', '', abs(r['acumulado'])], 'b'))
     return enc, filas
 
 

@@ -2,14 +2,17 @@
  * «Guía»: ¿Qué necesitas hacer hoy?
  *
  * Una pantalla para quien administra el negocio sin saber en qué menú está cada cosa: escribe lo que quiere lograr
- * o escoge un tema, lee en palabras sencillas qué va a lograr al llegar a la pantalla y la abre con un botón.
+ * o escoge un tema, lee en palabras sencillas qué va a lograr al llegar a la pantalla y la abre con «Llévame ahí».
  * El catálogo viene de dcasa.guia.obtener (ya filtrado por lo que la persona puede abrir) y el buscador de
- * dcasa.guia.buscar (sin tildes). «Preguntarle a Brian» abre su panel con la pregunta escrita (sin enviarla).
+ * dcasa.guia.buscar (sin tildes). Arriba van «Lo que tú más usas» (si hay datos) y «En tu puesto lo que más se usa».
+ * «Llévame ahí» lo hace el servicio dcasa_guia_ruta (abre, anota el uso y deja la cinta de «Estás haciendo»).
+ * «Preguntarle a Brian» abre su panel con la pregunta escrita (sin enviarla).
  */
 import { Component, onWillStart, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { browser } from "@web/core/browser/browser";
+import { destinoPrincipal } from "./guia_ruta";
 
 const ESPERA_BUSQUEDA = 200;
 
@@ -19,9 +22,7 @@ export class DcasaGuia extends Component {
 
     setup() {
         this.orm = useService("orm");
-        this.action = useService("action");
-        this.menu = useService("menu");
-        this.notification = useService("notification");
+        this.ruta = useService("dcasa_guia_ruta");
         this.state = useState({
             cargando: true,
             datos: null,
@@ -33,12 +34,29 @@ export class DcasaGuia extends Component {
         });
         this.temporizador = null;
         this.envio = 0;
+        // Ya estás en la Guía: la cinta de «Estás haciendo» sobra.
+        this.ruta.descartar();
         onWillStart(() => this.cargar());
     }
 
     async cargar() {
         this.state.datos = await this.orm.call("dcasa.guia", "obtener", []);
         this.state.cargando = false;
+        this.abrirTareaPedida();
+    }
+
+    /** «Volver a la Guía» desde la cinta: la Guía llega con la tarea que la persona estaba haciendo ya abierta. */
+    abrirTareaPedida() {
+        const contexto = (this.props.action && this.props.action.context) || {};
+        const pedida = contexto.dcasa_guia_tarea;
+        if (!pedida) {
+            return;
+        }
+        const tarea = this.categorias.flatMap((c) => c.tareas).find((t) => t.id === pedida);
+        if (tarea) {
+            this.state.categoria = tarea.categoria;
+            this.state.abierta = tarea.id;
+        }
     }
 
     // ------------------------------------------------------------------
@@ -69,6 +87,17 @@ export class DcasaGuia extends Component {
             grupo.tareas.push(tarea);
         }
         return grupos;
+    }
+
+    /** Lo que la persona más usa: solo cuando hay datos suficientes (lo decide el servidor). */
+    get masUsadas() {
+        return this.state.datos.mas_usadas || [];
+    }
+
+    /** Lo curado para su puesto, sin repetir lo que ya sale arriba en «Lo que tú más usas». */
+    get delPuesto() {
+        const usadas = new Set(this.masUsadas.map((t) => t.id));
+        return (this.state.datos.puesto || []).filter((t) => !usadas.has(t.id));
     }
 
     get hayBrian() {
@@ -144,30 +173,18 @@ export class DcasaGuia extends Component {
     // Llegar a la pantalla
     // ------------------------------------------------------------------
 
-    /** Abre el destino de una tarea o de un paso: un menú (con filtros opcionales) o un formulario nuevo. */
-    abrir(destino) {
-        if (!destino) {
-            return;
-        }
-        if (destino.tipo === "menu") {
-            const menu = this.menu.getMenu(destino.menu_id);
-            if (!menu || !menu.actionID) {
-                this.notification.add("Esa pantalla no está disponible ahora.", { type: "warning" });
-                return;
-            }
-            this.action.doAction(menu.actionID, {
-                clearBreadcrumbs: true,
-                additionalContext: destino.contexto || {},
-                onActionReady: () => this.menu.setCurrentMenu(menu),
-            });
-        } else if (destino.tipo === "nuevo") {
-            this.action.doAction({
-                type: "ir.actions.act_window",
-                res_model: destino.modelo,
-                views: [[false, "form"]],
-                context: destino.contexto || {},
-            });
-        }
+    /** A dónde lleva el «Llévame ahí» de una tarea (su pantalla, o la del primer paso que tenga una). */
+    destinoDe(tarea) {
+        return destinoPrincipal(tarea);
+    }
+
+    /** «Llévame ahí»: abre la pantalla justa en un clic. `indice`: nulo = la tarea; un número = ese paso. */
+    llevame(tarea, indice = null) {
+        return this.ruta.llevar(tarea, indice);
+    }
+
+    textoVeces(veces) {
+        return veces === 1 ? "Lo usaste 1 vez" : `Lo usaste ${veces} veces`;
     }
 
     /** Abre el panel de Brian con la pregunta escrita; la persona decide si la envía. */

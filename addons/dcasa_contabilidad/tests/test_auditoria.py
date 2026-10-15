@@ -80,6 +80,7 @@ class AuditoriaCommon(ContabilidadCommon):
             'efectivo_hoy': O.neto(O.saldos(cls.env, empresa, hasta=HOY, tipos=['asset_cash'])),
             'balance': {k: balance[k] for k in ('activo', 'pasivo', 'patrimonio')},
             'anteriores': -O.neto(O.saldos(cls.env, empresa, hasta=f'{ANIO - 1}-12-31', tipos=O.RESULTADOS)),
+            'itbms_hoy': sum(O.itbms_acumulado(cls.env, empresa, HOY).values()),
             'cobrar': reportes.por_cobrar(hasta=HOY)['totales'],
             'pagar': reportes.por_pagar(hasta=HOY)['totales'],
             'bancos': next(t for t in reportes.obtener('resumen', mes_de(HOY), HOY)['tarjetas']
@@ -786,3 +787,130 @@ class TestAuditoriaMulticompania(AuditoriaCommon):
         dinero_a = solo_a.obtener('resumen', f'{ANIO}-10-01', HOY)['tarjetas'][0]['valor']
         self.assertAlmostEqual(dinero_a - self.antes['efectivo_hoy'], 26742.5, places=2)
         self.assertEqual(solo_b.obtener('resumen', f'{ANIO}-10-01', HOY)['tarjetas'][0]['valor'], 0.0)
+        # El ITBMS acumulado también es de cada empresa: la otra no tiene ninguno.
+        itbms_a = solo_a.itbms(f'{ANIO}-10-01', HOY)['resumen']['acumulado']
+        self.assertAlmostEqual(itbms_a - self.antes['itbms_hoy'], 298.9, places=2)
+        self.assertEqual(solo_b.itbms(f'{ANIO}-10-01', HOY)['resumen']['acumulado'], 0.0)
+
+
+@tagged('post_install', '-at_install')
+class TestAuditoriaItbmsAcumulado(AuditoriaCommon):
+    """ITBMS: lo del PERIODO (ventas − compras) y, aparte, el ACUMULADO por pagar o a favor al «Hasta»."""
+
+    def acumulado(self, corte, **kw):
+        return O.itbms_acumulado(self.env, self.company, corte, **kw)
+
+    def tarjeta(self, desde, hasta):
+        return next(t for t in self.reportes.obtener('resumen', desde, hasta)['tarjetas'] if t['clave'] == 'itbms')
+
+    def cuenta_itbms(self):
+        return self.env['account.account'].browse(sorted(self.acumulado(HOY))[0])
+
+    def test_acumulado_contra_los_apuntes_y_el_balance_general(self):
+        for corte in CORTES:
+            esperado = self.acumulado(corte)
+            neto = sum(esperado.values())
+            reporte = self.reportes.itbms(mes_de(corte), corte)
+            r = reporte['resumen']
+            self.assertEqual(r['al'], corte)
+            self.assertCifra(r['acumulado'], neto, f'{corte} acumulado')
+            self.assertCifra(r['acumulado_a_pagar'], max(neto, 0.0), f'{corte} por pagar')
+            self.assertCifra(r['acumulado_a_favor'], max(-neto, 0.0), f'{corte} a favor')
+            cuentas = {c['id']: c['saldo'] for c in reporte['cuentas']}
+            self.assertEqual(set(cuentas), set(esperado), corte)
+            for cuenta, saldo in esperado.items():
+                self.assertCifra(cuentas[cuenta], saldo, f'{corte} cuenta {cuenta}')
+            # «Medido igual que el balance general»: la cuenta de ITBMS (pasivo) es la misma cifra allí.
+            bg = self.reportes.balance_general(corte)
+            en_balance = sum(f['monto'] for s in bg['secciones'] if s['grupo'] == 'pasivo' for f in s['filas']
+                             if f['id'] in esperado)
+            self.assertCifra(en_balance, neto, f'{corte}: igual al balance general')
+
+    def test_cifras_a_mano_notas_de_credito_y_pagos(self):
+        # Al 14 de octubre: ventas 392 (de 5,600 gravados) − nota de crédito 7 − compras 86.10
+        # (28 + 21 + 35 + 5.60 − 3.50 de la nota del proveedor) = 298.90 acumulado, contra 99.40 del 1 al 14 de octubre.
+        card = self.tarjeta(f'{ANIO}-10-01', HOY)
+        self.assertCifra(card['acumulado'] - self.antes['itbms_hoy'], 298.9, 'acumulado al 14 de octubre')
+        self.assertEqual(card['valor'], 99.4)                                  # el periodo sigue igual
+        self.assertEqual((card['debito'], card['credito']), (105.0, 5.6))
+        self.assertEqual(card['acumulado_al'], HOY)
+        self.assertEqual(card['acumulado_titulo'], 'Acumulado por pagar' if card['acumulado'] >= 0 else 'Saldo a favor')
+        # Septiembre trae dos notas de crédito (cliente −7, proveedor +3.50 a lo por pagar): el acumulado sube 3.50 en
+        # el mes, que es lo mismo que dice el periodo cuando nadie pagó ITBMS en medio.
+        sep = sum(self.acumulado(f'{ANIO}-09-30').values()) - sum(self.acumulado(f'{ANIO}-08-31').values())
+        self.assertCifra(sep, 3.5, 'acumulado de septiembre')
+        self.assertEqual(self.reportes.itbms(f'{ANIO}-09-01', f'{ANIO}-09-30')['resumen']['a_pagar'], 3.5)
+
+    def test_pagar_el_itbms_baja_el_acumulado_y_no_toca_el_periodo(self):
+        antes = self.reportes.itbms(f'{ANIO}-10-01', HOY)['resumen']
+        banco, cuenta = self.datos.cuenta_banco, self.cuenta_itbms()
+        self.datos.asiento(f'{ANIO}-10-13', [(cuenta, 100, 0), (banco, 0, 100)])         # se paga a la DGI
+        despues = self.reportes.itbms(f'{ANIO}-10-01', HOY)['resumen']
+        self.assertCifra(despues['acumulado'], antes['acumulado'] - 100.0, 'el pago baja lo que se debe')
+        for clave in ('debito_fiscal', 'credito_fiscal', 'a_pagar'):
+            self.assertEqual(despues[clave], antes[clave], f'{clave} es del periodo y no cambia con un pago')
+        self.assertCifra(despues['acumulado'], sum(self.acumulado(HOY).values()), 'sigue igual a los apuntes')
+        # Un pago de más deja saldo a favor, con ese nombre, y el periodo sigue «por pagar».
+        grande = sum(self.acumulado(HOY).values())
+        self.datos.asiento(f'{ANIO}-10-14', [(cuenta, grande + 25, 0), (banco, 0, grande + 25)])
+        card = self.tarjeta(f'{ANIO}-10-01', HOY)
+        self.assertCifra(card['acumulado_a_favor'], 25.0)
+        self.assertEqual((card['acumulado_a_pagar'], card['acumulado_titulo']), (0.0, 'Saldo a favor'))
+        self.assertEqual((card['titulo'], card['valor']), ('ITBMS por pagar', 99.4))
+
+    def test_saldo_a_favor_cuando_las_compras_superan_a_las_ventas(self):
+        # Una compra grande de 1,000,000 deja 70,000 de crédito fiscal antes de cualquier venta.
+        self.datos.factura(self.datos.v2, 1_000_000, f'{ANIO - 1}-10-01', tipo='in_invoice')
+        corte = f'{ANIO - 1}-10-15'
+        esperado = sum(self.acumulado(corte).values())
+        self.assertLess(esperado, 0)
+        r = self.reportes.itbms(f'{ANIO - 1}-10-01', corte)
+        self.assertCifra(r['resumen']['acumulado_a_favor'], -esperado)
+        self.assertEqual(r['resumen']['acumulado_a_pagar'], 0.0)
+        self.assertEqual(self.tarjeta(f'{ANIO - 1}-10-01', corte)['acumulado_titulo'], 'Saldo a favor')
+        # Años después, con ventas encima, sigue siendo lo que dicen los apuntes (aquí todavía a favor).
+        hoy = self.tarjeta(f'{ANIO}-10-01', HOY)
+        neto = sum(self.acumulado(HOY).values())
+        self.assertCifra(hoy['acumulado_a_favor'], max(-neto, 0.0))
+        self.assertCifra(hoy['acumulado_a_pagar'], max(neto, 0.0))
+        self.assertEqual(hoy['acumulado_titulo'], 'Saldo a favor')
+        bg = self.reportes.balance_general(HOY)
+        en_balance = sum(f['monto'] for s in bg['secciones'] if s['grupo'] == 'pasivo' for f in s['filas']
+                         if f['id'] in self.acumulado(HOY))
+        self.assertLess(en_balance, 0, 'en el balance, un saldo deudor de un pasivo sale negativo')
+        self.assertCifra(en_balance, neto)
+
+    def test_el_acumulado_cambia_con_hasta_y_no_con_desde(self):
+        for desde in (HOY, f'{ANIO}-10-13', f'{ANIO}-10-01', f'{ANIO}-01-01'):
+            card = self.tarjeta(desde, HOY)
+            self.assertCifra(card['acumulado'], sum(self.acumulado(HOY).values()), f'desde {desde}')
+        self.assertNotEqual(self.tarjeta(f'{ANIO}-09-01', f'{ANIO}-09-30')['acumulado'],
+                            self.tarjeta(f'{ANIO}-10-01', HOY)['acumulado'])
+        # El periodo, en cambio, sí depende del «Desde».
+        self.assertNotEqual(self.tarjeta(HOY, HOY)['valor'], self.tarjeta(f'{ANIO}-10-01', HOY)['valor'])
+
+    def test_borradores_solo_si_se_piden(self):
+        sin = self.reportes.itbms(f'{ANIO}-10-01', HOY)['resumen']['acumulado']
+        con = self.reportes.itbms(f'{ANIO}-10-01', HOY, borradores=True)['resumen']['acumulado']
+        self.assertCifra(sin, sum(self.acumulado(HOY).values()))
+        self.assertCifra(con, sum(self.acumulado(HOY, borradores=True).values()))
+        self.assertCifra(con - sin, 700 * 0.07 - 90 * 0.07, 'el borrador de venta suma y el de compra resta')
+
+    def test_exportaciones_y_claves_de_siempre(self):
+        card = self.tarjeta(f'{ANIO}-10-01', HOY)
+        for clave in ('titulo', 'valor', 'debito', 'credito', 'base', 'desde', 'hasta'):    # lo que Brian y Excel leen
+            self.assertIn(clave, card)
+        datos = self.reportes.obtener('itbms', f'{ANIO}-10-01', HOY)
+        _enc, filas = _filas_planas(datos)
+        textos = [fila[0][0] for fila in filas]
+        esperados = ('ITBMS acumulado por pagar al ' + HOY, 'Saldo a favor al ' + HOY)
+        self.assertTrue(any(t.startswith(esperados) for t in textos), textos)
+        self.assertTrue(libro_excel(datos).startswith(b'PK'))
+        html, _formato = self.env['ir.actions.report']._render_qweb_html(
+            'dcasa_contabilidad.reporte_contable', self.company.ids,
+            data={'reporte': 'itbms', 'desde': f'{ANIO}-10-01', 'hasta': HOY})
+        self.assertIn('acumulado por pagar al ' + HOY, html.decode())
+        resumen = self.reportes.obtener('resumen', f'{ANIO}-10-01', HOY)
+        _enc, filas = _filas_planas(resumen)
+        detalle = next(fila[0][3] for fila in filas if fila[0][0] == 'ITBMS por pagar')
+        self.assertIn('Acumulado por pagar al ' + HOY, detalle)

@@ -29,9 +29,9 @@ TIPOS_GASTO = ('expense', 'expense_other', 'expense_depreciation', 'expense_dire
 SITUACIONES = [
     ('sin_movimiento', 'Sin movimiento'),
     ('sin_plan', 'Sin presupuesto'),
-    ('dentro', 'Dentro de lo planeado'),
+    ('dentro', 'Dentro'),
     ('excedido', 'Te pasaste'),
-    ('en_camino', 'Falta para la meta'),
+    ('en_camino', 'En camino'),
     ('cumplido', 'Meta cumplida'),
 ]
 
@@ -49,7 +49,8 @@ class DcasaPresupuesto(models.Model):
                               default=lambda self: fields.Date.context_today(self).replace(month=12, day=31))
     state = fields.Selection([('borrador', 'Borrador'), ('aprobado', 'Aprobado'), ('cerrado', 'Cerrado')],
                              string='Estado', default='borrador', required=True, tracking=True)
-    company_id = fields.Many2one('res.company', required=True, default=lambda self: self.env.company)
+    company_id = fields.Many2one('res.company', string='Empresa', required=True,
+                                 default=lambda self: self.env.company)
     currency_id = fields.Many2one(related='company_id.currency_id')
     line_ids = fields.One2many('dcasa.presupuesto.linea', 'presupuesto_id', string='Líneas', copy=True)
     ingresos_planeado = fields.Monetary(compute='_compute_totales', string='Ingresos planeados')
@@ -148,7 +149,10 @@ class DcasaPresupuestoLinea(models.Model):
                                       'gasto, te pasaste; en un ingreso, superaste la meta.')
     porcentaje = fields.Float(string='% ejecutado', compute='_compute_real', digits=(16, 1),
                               help='Real ÷ planeado. Sin planeado no hay porcentaje: mira la situación.')
-    situacion = fields.Selection(SITUACIONES, string='Situación', compute='_compute_real')
+    situacion = fields.Selection(
+        SITUACIONES, string='Situación', compute='_compute_real',
+        help='Un gasto se vigila contra un tope: «Dentro» o «Te pasaste». Un ingreso, contra una meta: «En camino» o '
+             '«Meta cumplida». «Sin presupuesto»: hay movimiento pero no planeaste nada.')
     es_detalle = fields.Boolean(
         string='Detalle de otra línea', compute='_compute_es_detalle',
         help='Tiene cuenta analítica y hay otra línea de la misma cuenta sin analítica: ya está incluida en esa y no '
