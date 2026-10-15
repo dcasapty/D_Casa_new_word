@@ -94,6 +94,10 @@ class StockPicking(models.Model):
     def _dcasa_total_piezas_entrega_facil(lineas_de_la_nota):
         return entrega_facil.total_de_piezas(lineas_de_la_nota)
 
+    @staticmethod
+    def _dcasa_densidad_entrega_facil(lineas_de_la_nota):
+        return entrega_facil.densidad(len(lineas_de_la_nota))
+
     def _dcasa_fecha_para_entrega(self):
         """«14/10/2026»: el día de salida (si ya salió) o el programado, a la hora de Panamá."""
         self.ensure_one()

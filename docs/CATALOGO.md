@@ -360,6 +360,12 @@ Encendido, el cuerpo de la nota (la cabecera con la placa y el pie no cambian) e
 | Lo que falta | En una entrega ya hecha a medias, la fila dice «Faltan N» y debajo, en «Falta entregar después», lo pendiente (sin casilla). |
 | Abajo | **Total de piezas** y dos rayas grandes: «Sacó de bodega» y «Recibió» (o la firma, si se firmó). |
 
+**Cabe en una hoja carta, igual que la factura.** La nota se aprieta sola según cuántos productos lleva (`entrega_facil.densidad`):
+hasta 4, holgada; de 5 a 7, mediana; de 8 en adelante, compacta. Con **10 productos** (con su foto, su número y su casilla) y el QR
+encendido sigue entrando en una sola hoja (lo vigila `test_diez_productos_con_foto_y_el_qr_caben_en_una_sola_hoja_carta`); con más,
+sigue en la hoja siguiente con el encabezado repetido. El QR de uso interno, si está encendido, va **a la derecha del total y de las
+rayas de firma**, no en una fila aparte, para no quitarle lugar a los productos.
+
 Cuidados de lectura: letra Inter sin adornos y grande, alineada a la izquierda, sin cursivas, subrayados ni mayúsculas
 largas; frases cortas y literales; el color nunca es lo único que informa (la casilla, los números y los dibujitos
 también lo dicen); el amarillo solo toca el azul. El código sale como en la factura: el del proveedor o, con

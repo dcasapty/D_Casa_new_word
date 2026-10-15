@@ -26,6 +26,17 @@ def iconos_de_cantidad(cantidad):
     return min(piezas, MAX_ICONOS), piezas > MAX_ICONOS
 
 
+def densidad(cuantas_lineas):
+    """Qué tan apretada sale la nota: 1 (hasta 4 productos, holgada), 2 (5 a 7) o 3 (8 o más).
+
+    Es una hoja carta, igual que la factura: con 10 productos cada uno conserva su foto, su número y su casilla, pero la
+    letra y los dibujos se achican para que todo entre en la misma hoja. Con pocos productos se ve más grande.
+    """
+    if cuantas_lineas <= 4:
+        return 1
+    return 2 if cuantas_lineas <= 7 else 3
+
+
 def texto_unidad(es_la_unidad, nombre):
     """Lo que va junto al número: nada si la medida es la unidad de siempre (basta el número); si es otra (metros, por
     ejemplo), su nombre, para que «2» no se lea como dos piezas."""

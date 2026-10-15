@@ -13,6 +13,7 @@ from PIL import Image
 
 from odoo import Command
 from odoo.tests import HttpCase, tagged
+from odoo.tools.pdf import PdfFileReader
 
 from ..models import entrega_facil
 from .documentos import DocumentosDePrueba
@@ -60,6 +61,12 @@ class TestReglasDeLaNotaFacil(DocumentosDePrueba):
     def test_junto_al_numero_solo_va_la_medida_si_no_es_la_unidad(self):
         self.assertEqual(entrega_facil.texto_unidad(True, 'Units'), '', 'unidades: basta el número')
         self.assertEqual(entrega_facil.texto_unidad(False, 'm'), 'm')
+
+    def test_la_densidad_depende_de_cuantos_productos_hay(self):
+        """Es una hoja carta: con pocos productos todo grande; con 8 o más (hasta 10 caben en una hoja) más apretado."""
+        self.assertEqual([entrega_facil.densidad(n) for n in (0, 1, 4)], [1, 1, 1])
+        self.assertEqual([entrega_facil.densidad(n) for n in (5, 6, 7)], [2, 2, 2])
+        self.assertEqual([entrega_facil.densidad(n) for n in (8, 10, 14)], [3, 3, 3])
 
     def test_el_total_cuenta_piezas_y_no_metros(self):
         lineas = [{'cantidad': 2.0}, {'cantidad': 1.0}, {'cantidad': 2.5}]
@@ -173,6 +180,37 @@ class TestNotaDeEntregaFacil(DocumentosDePrueba):
         datos = texto(arbol(contenido).xpath("//table[contains(@class, 'o_df_datos')]")[0], 'o_df_dato')
         self.assertEqual(datos.count('—'), 2, 'sin pedido ni factura: dos rayas')
 
+    def entrega_con(self, cuantos):
+        """Una entrega de ``cuantos`` productos distintos (uno de cada)."""
+        productos = [self.env['product.product'].create({'name': f'Mueble {i:02d}', 'type': 'consu'})
+                     for i in range(cuantos)]
+        pedido = self.env['sale.order'].create({
+            'partner_id': self.cliente.id,
+            'order_line': [Command.create({'product_id': p.id, 'product_uom_qty': 1, 'price_unit': 10})
+                           for p in productos]})
+        pedido.action_confirm()
+        return pedido.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing')[:1]
+
+    def test_la_nota_se_aprieta_segun_cuantos_productos_lleva(self):
+        for cuantos, clase in ((2, 'o_df_n1'), (6, 'o_df_n2'), (10, 'o_df_n3')):
+            contenido = self.nota(self.entrega_con(cuantos))
+            self.assertEqual(len(filas(contenido)), cuantos)
+            self.assertEqual(len(arbol(contenido).xpath(f"//div[contains(@class, '{clase}')]")), 1, (cuantos, clase))
+
+    def test_con_diez_productos_todos_traen_casilla_numero_y_su_lugar_para_la_foto(self):
+        contenido = self.nota(self.entrega_con(10))
+        for fila in filas(contenido):
+            self.assertEqual(len(fila.xpath(".//div[contains(@class, 'o_df_casilla')]")), 1)
+            self.assertEqual(texto(fila, 'o_df_numero'), '1')
+            self.assertEqual(texto(fila, 'o_df_sin_foto'), 'Sin foto')
+
+    def test_el_qr_va_junto_al_total_y_no_en_una_fila_aparte(self):
+        contenido = self.nota(qr=True)
+        self.assertEqual(len(arbol(contenido).xpath(
+            "//td[contains(@class, 'o_df_cierre_qr')]//div[@name='dcasa_qr']")), 1)
+        sin_qr = self.nota(qr=False)
+        self.assertFalse(arbol(sin_qr).xpath("//td[contains(@class, 'o_df_cierre_qr')]"), 'sin QR no hay celda')
+
     # --- Código público y QR ---------------------------------------------------------------------
 
     def test_con_el_codigo_publico_encendido_nunca_sale_la_referencia_del_proveedor(self):
@@ -234,3 +272,23 @@ class TestNotaFacilEnPdf(HttpCase):
             INFORME_ENTREGA, entrega.ids)
         self.assertTrue(pdf.startswith(b'%PDF'))
         self.assertIn(b'Inter', pdf, 'la nota salió sin estilos (wkhtmltopdf no cargó el CSS)')
+
+    @skipUnless(shutil.which('wkhtmltopdf'), 'sin wkhtmltopdf (la imagen Docker lo comprueba en CI)')
+    def test_diez_productos_con_foto_y_el_qr_caben_en_una_sola_hoja_carta(self):
+        self.env['ir.config_parameter'].sudo().set_param('report.url', False)
+        empresa = self.env.company
+        empresa.write({'dcasa_entrega_facil': True, 'dcasa_mostrar_qr_documentos': True})
+        cliente = self.env['res.partner'].create({'name': 'Cliente de las diez'})
+        lineas = []
+        for i in range(10):
+            producto = self.env['product.product'].create({
+                'name': f'MUEBLE DE PRUEBA NUMERO {i + 1} CON UN NOMBRE BASTANTE LARGO', 'type': 'consu',
+                'image_1920': foto_de_prueba() if i % 2 else False})
+            lineas.append(Command.create({'product_id': producto.id, 'product_uom_qty': i + 1, 'price_unit': 10}))
+        pedido = self.env['sale.order'].create({'partner_id': cliente.id, 'order_line': lineas})
+        pedido.action_confirm()
+        entrega = pedido.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing')[:1]
+        pdf, _tipo = self.env['ir.actions.report'].with_context(force_report_rendering=True)._render_qweb_pdf(
+            INFORME_ENTREGA, entrega.ids)
+        self.assertEqual(len(PdfFileReader(io.BytesIO(pdf)).pages), 1,
+                         'diez productos (con su foto, su número y su casilla) más el QR deben caber en una hoja')

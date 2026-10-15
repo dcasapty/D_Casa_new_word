@@ -50,6 +50,8 @@
         <t t-set="df_lineas" t-value="o._dcasa_lineas_entrega_facil()"/>
         <t t-set="df_pendientes" t-value="o._dcasa_lineas_entrega_facil(pendientes=True)"/>
         <t t-set="df_facturas" t-value="o._dcasa_facturas_para_entrega()"/>
+        <t t-set="df_densidad" t-value="o._dcasa_densidad_entrega_facil(df_lineas)"/>
+        <div t-attf-class="o_df_cuerpo o_df_n#{df_densidad}">
         <h2 class="o_df_titulo">
             Nota de entrega <span class="o_df_numero_nota" t-out="o.name"/>
         </h2>
@@ -82,30 +84,40 @@
                 </t>
             </tbody>
         </table>
-        <div class="o_df_cierre">
-        <table t-if="df_lineas" class="o_df_total">
+        <table class="o_df_cierre">
             <tr>
-                <td class="o_df_total_texto">Total de piezas</td>
-                <td class="o_df_total_numero" t-out="o._dcasa_total_piezas_entrega_facil(df_lineas)"/>
-            </tr>
-        </table>
-        <div t-if="df_pendientes" class="o_df_pendientes">
-            <h3 class="o_df_subtitulo">Falta entregar después</h3>
-            <table class="o_df_lineas">
-                <tbody>
-                    <t t-foreach="df_pendientes" t-as="l">
-                        <t t-call="dcasa_invoice.dcasa_entrega_facil_fila"><t t-set="con_casilla" t-value="False"/></t>
-                    </t>
-                </tbody>
-            </table>
-        </div>
-        <table class="o_df_firmas">
-            <tr>
-                <td><div class="o_df_etiqueta">Sacó de bodega</div><div class="o_df_raya"/></td>
-                <td>
-                    <div class="o_df_etiqueta">Recibió</div>
-                    <img t-if="o.signature" class="o_df_firma" t-att-src="image_data_uri(o.signature)" alt="Firma"/>
-                    <div t-else="" class="o_df_raya"/>
+                <td class="o_df_cierre_texto">
+                    <table t-if="df_lineas" class="o_df_total">
+                        <tr>
+                            <td class="o_df_total_texto">Total de piezas</td>
+                            <td class="o_df_total_numero" t-out="o._dcasa_total_piezas_entrega_facil(df_lineas)"/>
+                        </tr>
+                    </table>
+                    <div t-if="df_pendientes" class="o_df_pendientes">
+                        <h3 class="o_df_subtitulo">Falta entregar después</h3>
+                        <table class="o_df_lineas">
+                            <tbody>
+                                <t t-foreach="df_pendientes" t-as="l">
+                                    <t t-call="dcasa_invoice.dcasa_entrega_facil_fila"><t t-set="con_casilla" t-value="False"/></t>
+                                </t>
+                            </tbody>
+                        </table>
+                    </div>
+                    <table class="o_df_firmas">
+                        <tr>
+                            <td><div class="o_df_etiqueta">Sacó de bodega</div><div class="o_df_raya"/></td>
+                            <td>
+                                <div class="o_df_etiqueta">Recibió</div>
+                                <img t-if="o.signature" class="o_df_firma" t-att-src="image_data_uri(o.signature)" alt="Firma"/>
+                                <div t-else="" class="o_df_raya"/>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                <!-- El QR de uso interno (si la empresa lo enciende) va aquí, a la derecha, y no en una fila aparte:
+                     así no le quita lugar a los productos en la hoja carta. -->
+                <td t-if="o._dcasa_qr_src()" class="o_df_cierre_qr">
+                    <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="o"/></t>
                 </td>
             </tr>
         </table>
@@ -122,7 +134,6 @@
         <xpath expr="//div[hasclass('page')]" position="after">
             <div t-else="" class="page o_dcasa_entrega_facil" name="dcasa_entrega_facil">
                 <t t-call="dcasa_invoice.dcasa_entrega_facil"/>
-                <t t-call="dcasa_invoice.dcasa_qr_documento"><t t-set="registro" t-value="o"/></t>
             </div>
         </xpath>
     </template>
