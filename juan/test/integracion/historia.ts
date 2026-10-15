@@ -19,14 +19,16 @@ export function seccionHistoria(e: Escena) {
       ventas = e.ventas;
     });
 
-    const producto = (c: ContextoIA, codigo: string) => (c.resultado("buscar_productos")?.resultado?.productos ?? []).find((p: any) => p.codigo === codigo);
+    // El `codigo` que Juan ve y le dice al cliente es el CÓDIGO PÚBLICO (DC-…), no la referencia del proveedor; el producto
+    // de la prueba se reconoce por su nombre. Las herramientas siguen entendiendo la referencia vieja (INT-CAMA-Q).
+    const producto = (c: ContextoIA, nombre: string) => (c.resultado("buscar_productos")?.resultado?.productos ?? []).find((p: any) => p.nombre === nombre);
 
     it("bienvenida y pregunta por camas queen: el bot busca en el catálogo REAL de Odoo y contesta con el precio «+ ITBMS»", async () => {
       const w = e.w;
       w.ia.guionar([
         { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cama queen" } }] },
         (c) => {
-          const p = producto(c, "INT-CAMA-Q");
+          const p = producto(c, "Cama Roble Queen Integración");
           return { texto: `Sí, tenemos la ${p.nombre}, a ${p.precio_texto}. ¿Quieres que te cuente más de esa cama?` };
         },
       ]);
