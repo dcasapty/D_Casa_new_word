@@ -2112,6 +2112,59 @@
     "equivalencia",
     "consolidacion"
    ]
+  },
+  {
+   "id": "escaner-documento",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Abrir un documento escaneando su código QR",
+   "logras": "Escaneas el QR de un pedido de compra, una factura, una cotización o una entrega y se abre ese documento en el sistema.",
+   "destino": {
+    "menu": "dcasa_barras.menu_dcasa_escaner"
+   },
+   "nota": "Solo abre lo que tu usuario puede ver. También sirve la cámara del teléfono: abre el navegador en ese documento y pide tu clave si hace falta.",
+   "palabras": [
+    "qr",
+    "codigo qr",
+    "escanear documento",
+    "abrir factura",
+    "abrir pedido de compra",
+    "abrir entrega"
+   ]
+  },
+  {
+   "id": "qr-documentos-encender",
+   "categoria": "facturar",
+   "grupo": "Documentos",
+   "titulo": "Poner el código QR en la factura y la cotización",
+   "logras": "La factura, la nota de crédito, la cotización y la nota de entrega llevan un QR pequeño de uso interno que abre ese documento en el sistema.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA»: marca «Mostrar el código QR en la factura y la cotización». Viene apagado: apagado, los documentos salen exactamente como siempre. El pedido de compra lleva su QR siempre. Enciéndelo solo después de aprobar cómo se ve.",
+   "palabras": [
+    "qr",
+    "codigo qr",
+    "factura",
+    "cotizacion",
+    "nota de entrega",
+    "documentos"
+   ]
+  },
+  {
+   "id": "codigo-publico-documentos",
+   "categoria": "facturar",
+   "grupo": "Documentos",
+   "titulo": "Mostrar el código público de los productos en la factura y la cotización",
+   "logras": "En la columna «Código» sale el código que ve el cliente (DC-K7M4PX) en lugar del código del proveedor.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA»: marca «Mostrar el código público de los productos en la factura y la cotización, en lugar del código del proveedor». Viene apagado: apagado, todo sale como siempre. Los productos sin código público (flete, servicios) quedan en blanco.",
+   "palabras": [
+    "codigo publico",
+    "codigo del proveedor",
+    "referencia",
+    "factura",
+    "cotizacion",
+    "nota de entrega"
+   ]
   }
  ],
  "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."

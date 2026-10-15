@@ -164,8 +164,12 @@ La «dirección del sistema» es la de *Ajustes › Técnico › Parámetros del
 el dominio, los papeles impresos antes siguen apuntando al dominio viejo (la cámara del teléfono abre esa dirección);
 el Escáner, en cambio, solo mira el tipo y el número, así que lee igual los QR de antes.
 
-**Dónde se imprime.** Pequeño (unos 2 cm), plano, azul marino sobre blanco, **al final de la hoja** a la derecha, con la nota
-«Uso interno». En la factura y la cotización no se mueve nada más.
+**Dónde se imprime.** Pequeño (unos 2 cm), plano, azul marino sobre blanco, con la nota «Uso interno». En la factura y
+la cotización va **a la derecha de los textos de garantía, cambios y términos** (en la misma franja: no pide más alto
+en la hoja); si la empresa no escribió esos textos, va al final de la hoja a la derecha. En la nota de entrega y el
+pedido de compra, al final de la hoja a la derecha. No se mueve nada más (los textos de garantía solo se ensanchan un
+poco menos). Con una factura de muchos renglones, que justo llena la hoja, el QR puede mandar esa franja a la página
+siguiente: pasa con un renglón más o menos del límite.
 
 | Documento | ¿Lleva QR? |
 |---|---|

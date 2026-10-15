@@ -16,6 +16,7 @@ from .documentos import DocumentosDePrueba
 from .test_documentos_intactos import INFORME_COMPRA, INFORME_COTIZACION, INFORME_ENTREGA, INFORME_FACTURA
 
 BASE = 'https://erp.example.com'
+QR_Y_SU_LIMPIEZA = ('dcasa_qr', 'dcasa_qr_limpio')   # los dos bloques que agrega el interruptor
 
 
 def qr_del_html(contenido):
@@ -146,7 +147,7 @@ class TestQrDocumentos(DocumentosDePrueba):
             self.assertEqual(len(fuentes), 1, f'{informe} {registro.name}: debe haber un solo QR')
             self.assertEqual(self.png(fuentes[0]), self.esperado(registro._dcasa_qr_url()))
             self.assertIn('Uso interno', encendido_crudo)
-            self.assertEqual(self.html(informe, registro, quitar=('dcasa_qr',)), apagado,
+            self.assertEqual(self.html(informe, registro, quitar=QR_Y_SU_LIMPIEZA), apagado,
                              f'{informe} {registro.name}: con el QR encendido cambió algo más que el QR')
 
     def test_donde_va_el_qr(self):
@@ -161,7 +162,7 @@ class TestQrDocumentos(DocumentosDePrueba):
         for informe, registro in ((INFORME_FACTURA, self.factura_completa()), (INFORME_COTIZACION, self.cotizacion())):
             arbol = lxml_html.document_fromstring(self.html(informe, registro, normalizado=False))
             self.assertFalse(arbol.xpath("//div[@name='dcasa_legales']"), informe)
-            self.assertEqual(len(arbol.xpath("//div[@name='dcasa_qr']")), 1, f'{informe}: sin textos, el QR va al final')
+            self.assertEqual(len(arbol.xpath("//div[@name='dcasa_qr']")), 1, f'{informe}: sin textos va al final')
 
     def test_el_qr_es_una_imagen_cuadrada_y_distinta_por_documento(self):
         self.interruptores(qr=True)

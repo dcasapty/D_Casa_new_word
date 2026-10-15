@@ -91,7 +91,7 @@
                 <strong t-out="bloque[0]"/>
                 <span t-out="bloque[1]" t-options="{'widget': 'text'}"/>
             </div>
-            <div t-if="dcasa_qr_src" class="o_dcasa_qr_limpio"/>
+            <div t-if="dcasa_qr_src" class="o_dcasa_qr_limpio" name="dcasa_qr_limpio"/>
         </div>
     </template>
 

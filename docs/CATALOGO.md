@@ -316,7 +316,7 @@ plantillas sin querer). **Se encienden solo después de que la dueña apruebe un
 
 | Interruptor | Qué cambia al encenderlo |
 |---|---|
-| **Mostrar el código QR en la factura y la cotización** | Un QR pequeño de **uso interno** (unos 2 cm, plano, azul marino, con la nota «Uso interno») al final de la factura, la nota de crédito, la cotización/pedido y la nota de entrega, a la derecha. El equipo lo escanea y se abre ese documento en el sistema. No lleva datos del cliente. No se mueve nada más. Detalle: [BARRAS.md](BARRAS.md#qr-de-los-documentos-uso-interno). |
+| **Mostrar el código QR en la factura y la cotización** | Un QR pequeño de **uso interno** (unos 2 cm, plano, azul marino, con la nota «Uso interno») en la factura, la nota de crédito, la cotización/pedido (a la derecha de los textos de garantía, cambios y términos) y la nota de entrega (al final, a la derecha). El equipo lo escanea y se abre ese documento en el sistema. No lleva datos del cliente. No se mueve nada más. Detalle: [BARRAS.md](BARRAS.md#qr-de-los-documentos-uso-interno). |
 | **Mostrar el código público de los productos en la factura y la cotización, en lugar del código del proveedor** | La columna «Código» de la factura, la cotización/pedido y la nota de entrega muestra el **código público** (`DC-K7M4PX`) en lugar de la referencia del proveedor. Un producto sin código público (flete, servicios) deja la celda **vacía**: nunca se muestra el del proveedor. En la nota de entrega, cada producto sale «[DC-K7M4PX] Nombre» (y se quita la referencia de la descripción de la entrega). Las cotizaciones y facturas **nuevas** dejan de guardar «[referencia] Nombre» en el nombre de la línea (lo que ve el cliente en el portal y en los correos). |
 
 Lo que **no** cambia, a propósito:
