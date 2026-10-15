@@ -128,7 +128,7 @@ class TestPaqueteHttp(PaqueteHttpComun):
             self.assertTrue(respuesta.content.startswith(b'%PDF'))
             paginas = textos(respuesta.content)
             self.assertEqual(len(paginas), 3)
-            self.assertIn(pedido.picking_ids.name, paginas[2])
+            self.assertIn(pedido.picking_ids.name, paginas[0], 'la nota de entrega va primero')
             # Varias ventas: tres documentos por cada una.
             lote = self._pedir(factura | factura2)
             self.assertEqual((lote.status_code, len(textos(lote.content))), (200, 6))
@@ -210,7 +210,7 @@ class TestPaquetePdfDeVerdad(PaqueteHttpComun):
         lector = paquete._leer(contenido)
         return [_flujo_de_la_pagina(pagina) for pagina in paquete._paginas(lector)]
 
-    def test_pdf_de_una_venta_trae_factura_copia_y_entrega_en_orden(self):
+    def test_pdf_de_una_venta_trae_entrega_factura_y_copia_en_orden(self):
         pedido, factura = self._venta()
         entrega = pedido.picking_ids
         self.assertEqual(entrega.picking_type_code, 'outgoing')
@@ -220,17 +220,17 @@ class TestPaquetePdfDeVerdad(PaqueteHttpComun):
         self.assertEqual(nombre, f"Documentos-{factura.name.replace('/', '-')}.pdf")
         self.assertIn(b'Anton', contenido, 'salió con los estilos de D\'CASA (wkhtmltopdf cargó el CSS)')
         flujos = self._paginas(contenido)
-        self.assertEqual(len(flujos), 3, 'una factura, su copia y la nota de entrega')
-        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, True, False],
-                         'solo la copia de la empresa lleva la cinta')
+        self.assertEqual(len(flujos), 3, 'la nota de entrega, la factura y su copia')
+        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, False, True],
+                         'solo la copia de la empresa (la última) lleva la cinta')
         paginas = textos_de_pdf_real(contenido)
         if paginas is not None:
             self.assertEqual(len(paginas), 3)
-            self.assertIn(factura.name, paginas[0])
+            self.assertIn(entrega.name, paginas[0])
             self.assertIn(factura.name, paginas[1])
-            self.assertIn('COPIA EMPRESA', paginas[1])
-            self.assertNotIn('COPIA EMPRESA', paginas[0] + paginas[2])
-            self.assertIn(entrega.name, paginas[2])
+            self.assertIn(factura.name, paginas[2])
+            self.assertIn('COPIA EMPRESA', paginas[2])
+            self.assertNotIn('COPIA EMPRESA', paginas[0] + paginas[1])
 
     def test_pdf_de_varias_ventas_va_venta_por_venta(self):
         pedido_a, factura_a = self._venta()
@@ -240,11 +240,11 @@ class TestPaquetePdfDeVerdad(PaqueteHttpComun):
         self.assertEqual(nombre, 'Documentos-2-facturas.pdf')
         flujos = self._paginas(contenido)
         self.assertEqual(len(flujos), 6)
-        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, True, False] * 2)
+        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, False, True] * 2)
         paginas = textos_de_pdf_real(contenido)
         if paginas is not None:
-            esperado = [factura_a.name, factura_a.name, pedido_a.picking_ids.name,
-                        factura_b.name, factura_b.name, pedido_b.picking_ids.name]
+            esperado = [pedido_a.picking_ids.name, factura_a.name, factura_a.name,
+                        pedido_b.picking_ids.name, factura_b.name, factura_b.name]
             for pagina, texto in zip(paginas, esperado, strict=True):
                 self.assertIn(texto, pagina)
 

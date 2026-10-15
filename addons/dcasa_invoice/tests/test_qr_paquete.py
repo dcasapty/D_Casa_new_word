@@ -28,15 +28,15 @@ class TestPaqueteConQr(PaqueteHttpComun):
         contenido = self._armar(factura)
         flujos = [_flujo_de_la_pagina(pagina) for pagina in paquete._paginas(paquete._leer(contenido))]
         self.assertEqual(len(flujos), 3)
-        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, True, False],
-                         'la cinta COPIA EMPRESA sigue solo en la copia')
+        self.assertEqual([tiene_la_cinta(flujo) for flujo in flujos], [False, False, True],
+                         'la cinta COPIA EMPRESA sigue solo en la copia (la última)')
         paginas = textos_de_pdf_real(contenido)
         if paginas is not None:
             self.assertEqual(len(paginas), 3, 'el QR no agrega páginas')
             for pagina in paginas:
                 self.assertIn('USO INTERNO', pagina)
-            self.assertIn('COPIA EMPRESA', paginas[1])
-            self.assertNotIn('COPIA EMPRESA', paginas[0] + paginas[2])
+            self.assertIn('COPIA EMPRESA', paginas[2])
+            self.assertNotIn('COPIA EMPRESA', paginas[0] + paginas[1])
 
     def test_apagado_el_paquete_sale_sin_qr(self):
         _pedido, factura = self._venta()

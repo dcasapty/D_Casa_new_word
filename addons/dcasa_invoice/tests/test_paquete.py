@@ -1,4 +1,4 @@
-"""«Imprimir documentos»: el paquete de factura + copia de la empresa + nota de entrega en un solo PDF.
+"""«Imprimir documentos»: el paquete de nota de entrega + factura + copia de la empresa en un solo PDF.
 
 Lo que se comprueba, en orden: el PDF unido (de verdad, con wkhtmltopdf, en test_paquete_http.py; aquí con PDF de
 mentira para no gastar minutos), el orden de las páginas, el tope de facturas, los permisos, el asistente de
@@ -53,8 +53,12 @@ def textos(contenido):
     """
     lector = pdf.PdfFileReader(io.BytesIO(contenido), strict=False)
     patron = rb'\(((?:\\.|[^\\)])*)\)\s*Tj'
-    # PyPDF2 vuelve a escribir los espacios como \040 al fusionar la cinta.
-    return [' '.join(t.decode('latin-1') for t in re.findall(patron, _flujo_de_la_pagina(pagina))).replace('\\040', ' ')
+    # PyPDF2 vuelve a escribir los espacios, puntos, guiones bajos y barras como códigos octales (\040, \056, \137,
+    # \057…) al fusionar la cinta de la copia: se decodifican todos para que el texto se lea igual en cualquier página.
+    def decodificar(texto):
+        return re.sub(r'\\([0-7]{3})', lambda m: chr(int(m.group(1), 8)), texto)
+
+    return [decodificar(' '.join(t.decode('latin-1') for t in re.findall(patron, _flujo_de_la_pagina(pagina))))
             for pagina in lector.pages]
 
 
@@ -137,16 +141,46 @@ class TestPaquetePdf(PaqueteComun):
                 contenido, _nombre = self.Paquete._armar_pdf(factura, list(claves))
                 self.assertEqual(len(textos(contenido)), paginas, claves)
 
-    def test_el_orden_es_cliente_empresa_entrega_aunque_se_pida_al_reves(self):
+    def test_el_orden_es_entrega_cliente_empresa_aunque_se_pida_al_reves(self):
+        """Primero la nota de entrega (la hoja que se despacha), luego la factura del cliente y al final la copia."""
         pedido, factura = self._venta()
         with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
-            contenido, _nombre = self.Paquete._armar_pdf(factura, ['entrega', 'copia', 'cliente'])
+            for claves in (['copia', 'cliente', 'entrega'], ['cliente', 'copia', 'entrega'],
+                           ['entrega', 'cliente', 'copia']):
+                contenido, _nombre = self.Paquete._armar_pdf(factura, claves)
+                paginas = textos(contenido)
+                self.assertEqual(len(paginas), 3, claves)
+                self.assertIn('stock.report_deliveryslip', paginas[0], claves)
+                self.assertIn(pedido.picking_ids.name, paginas[0], claves)
+                self.assertIn('account.report_invoice_with_payments', paginas[1], claves)
+                self.assertNotIn('COPIA EMPRESA', paginas[1], claves)
+                self.assertIn('account.report_invoice_with_payments', paginas[2], claves)
+                self.assertIn('COPIA EMPRESA', paginas[2], claves)
+
+    def test_con_varias_ventas_el_orden_se_repite_en_cada_una(self):
+        pedido_a, factura_a = self._venta()
+        pedido_b, factura_b = self._venta()
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            contenido, _nombre = self.Paquete._armar_pdf(factura_a | factura_b, ['cliente', 'copia', 'entrega'])
         paginas = textos(contenido)
-        self.assertIn('account.report_invoice_with_payments', paginas[0])
+        self.assertEqual(len(paginas), 6)
+        for inicio, pedido, factura in ((0, pedido_a, factura_a), (3, pedido_b, factura_b)):
+            self.assertIn(pedido.picking_ids.name, paginas[inicio])
+            self.assertIn(factura.name, paginas[inicio + 1])
+            self.assertNotIn('COPIA EMPRESA', paginas[inicio + 1])
+            self.assertIn(factura.name, paginas[inicio + 2])
+            self.assertIn('COPIA EMPRESA', paginas[inicio + 2])
+
+    def test_sin_marcar_la_entrega_el_paquete_empieza_por_la_factura(self):
+        """Con la casilla de la nota de entrega sin marcar: factura del cliente y luego su copia."""
+        _pedido, factura = self._venta()
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            contenido, _nombre = self.Paquete._armar_pdf(factura, ['copia', 'cliente'])
+        paginas = textos(contenido)
+        self.assertEqual(len(paginas), 2)
         self.assertNotIn('COPIA EMPRESA', paginas[0])
         self.assertIn('COPIA EMPRESA', paginas[1])
-        self.assertIn('stock.report_deliveryslip', paginas[2])
-        self.assertIn(pedido.picking_ids.name, paginas[2])
+        self.assertFalse(any('stock.report_deliveryslip' in pagina for pagina in paginas))
 
     def test_dos_facturas_del_mismo_pedido_no_repiten_la_entrega(self):
         pedido, factura = self._venta(cantidad=2)
@@ -211,13 +245,13 @@ class TestPaquetePdf(PaqueteComun):
         self.assertEqual((accion['res_model'], accion['target'], accion['view_mode']), (MODELO, 'new', 'form'))
         cuadro = self.Paquete.browse(accion['res_id'])
         self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia and cuadro.incluir_entrega)
-        self.assertEqual(cuadro._claves_marcadas(), ['cliente', 'copia', 'entrega'])
+        self.assertEqual(cuadro._claves_marcadas(), ['entrega', 'cliente', 'copia'])
         self.assertFalse(cuadro.tras_pago)
         self.assertIn(factura.name, cuadro.resumen)
         self.assertIn(pedido.picking_ids.name, cuadro.entregas_texto)
         self.assertFalse(cuadro.aviso)
         cuadro.incluir_copia = False
-        self.assertEqual(cuadro._claves_marcadas(), ['cliente', 'entrega'])
+        self.assertEqual(cuadro._claves_marcadas(), ['entrega', 'cliente'])
 
     def test_imprimir_y_descargar_piden_el_pdf_al_servidor_sin_guardar_nada(self):
         _pedido, factura = self._venta()
@@ -228,7 +262,7 @@ class TestPaquetePdf(PaqueteComun):
             self.assertEqual((accion['type'], accion['tag']), ('ir.actions.client', 'dcasa_paquete_pdf'))
             params = accion['params']
             self.assertEqual(params['modo'], modo)
-            self.assertEqual(params['url'], f'/dcasa/paquete.pdf?facturas={factura.id}&docs=cliente,copia,entrega')
+            self.assertEqual(params['url'], f'/dcasa/paquete.pdf?facturas={factura.id}&docs=entrega,cliente,copia')
             self.assertEqual(params['nombre'], f"Documentos-{factura.name.replace('/', '-')}.pdf")
             self.assertEqual(params['next'], {'type': 'ir.actions.act_window_close'})
         self.assertEqual(self.env['ir.attachment'].search_count([]), adjuntos, 'el PDF no se guarda en la base')
@@ -515,6 +549,9 @@ class TestPantallasDelPaquete(PaqueteComun):
         for texto in ('name="action_imprimir"', 'name="action_descargar"', 'name="action_cerrar"', 'special="cancel"',
                       'name="incluir_cliente"', 'name="incluir_copia"', 'name="incluir_entrega"'):
             self.assertIn(texto, arch, texto)
+        # Las casillas salen en el orden del PDF: entrega, factura del cliente y copia de la empresa.
+        self.assertLess(arch.index('name="incluir_entrega"'), arch.index('name="incluir_cliente"'))
+        self.assertLess(arch.index('name="incluir_cliente"'), arch.index('name="incluir_copia"'))
 
     def test_el_interruptor_esta_en_la_ficha_de_la_empresa(self):
         arch = self._arch('res.company', 'form', 'base.view_company_form')

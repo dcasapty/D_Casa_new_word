@@ -19,7 +19,7 @@ class PaqueteController(http.Controller):
 
     @http.route('/dcasa/paquete.pdf', type='http', auth='user', methods=['GET'])
     def paquete(self, facturas='', docs='', **_kw):
-        """PDF unido de las facturas (``facturas=1,2``) y los documentos (``docs=cliente,copia,entrega``).
+        """PDF unido de las facturas (``facturas=1,2``) y los documentos (``docs=entrega,cliente,copia``).
 
         Corre con los permisos de quien lo pide: quien no puede leer una factura (por ejemplo, la vendedora con la
         de un proveedor) recibe un 403, y solo salen facturas de clientes publicadas.

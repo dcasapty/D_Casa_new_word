@@ -18,13 +18,14 @@
                 </div>
                 <p class="fw-bold mb-1"><field name="resumen" nolabel="1"/></p>
                 <p class="text-muted mb-2">
-                    Se junta en un solo PDF lo que dejes marcado, por cada factura y en este orden.
+                    Se junta en un solo PDF lo que dejes marcado, por cada factura y en este orden: primero la nota de
+                    entrega, luego la factura del cliente y al final la copia de la empresa.
                     «Imprimir todo» abre el cuadro de impresión sin guardar ningún archivo.
                 </p>
                 <group>
+                    <field name="incluir_entrega"/>
                     <field name="incluir_cliente"/>
                     <field name="incluir_copia"/>
-                    <field name="incluir_entrega"/>
                 </group>
                 <div class="text-muted small mb-2"><field name="entregas_texto" nolabel="1"/></div>
                 <div class="alert alert-warning" role="alert" invisible="not aviso"><field name="aviso" nolabel="1"/></div>
@@ -51,7 +52,7 @@
                 <button name="action_dcasa_imprimir_documentos" type="object" string="Imprimir documentos"
                         groups="account.group_account_invoice,account.group_account_readonly"
                         invisible="state != 'posted' or move_type != 'out_invoice'"
-                        help="Junta en un solo PDF la factura del cliente, la copia de la empresa y la nota de entrega."/>
+                        help="Junta en un solo PDF la nota de entrega, la factura del cliente y la copia de la empresa."/>
             </xpath>
         </field>
     </record>
@@ -80,7 +81,7 @@
                 <button name="action_dcasa_imprimir_documentos" type="object" string="Imprimir documentos"
                         groups="account.group_account_invoice,account.group_account_readonly"
                         invisible="not dcasa_tiene_factura_publicada"
-                        help="Junta en un solo PDF la factura del cliente, la copia de la empresa y la nota de entrega."/>
+                        help="Junta en un solo PDF la nota de entrega, la factura del cliente y la copia de la empresa."/>
             </xpath>
         </field>
     </record>
