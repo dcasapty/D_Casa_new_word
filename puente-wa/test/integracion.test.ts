@@ -81,6 +81,16 @@ async function montar(juan = juanFalso(200)) {
 const asentar = async () => {
   for (let i = 0; i < 500; i++) await Promise.resolve();
 };
+// Espera (con tope) a que algo se cumpla. El cifrado de la sesión usa WebCrypto, que se resuelve en un hilo de Node y no
+// en la cola de microtareas: contar vueltas con `asentar()` no basta con la máquina cargada (un runner de CI), y esa
+// carrera hacía fallar de vez en cuando la prueba de «vinculado» (sesion.vinculado: false).
+const esperarA = async (cond: () => boolean | Promise<boolean>, tope = 5000) => {
+  const limite = Date.now() + tope;
+  while (!(await cond())) {
+    if (Date.now() > limite) throw new Error("tiempo agotado esperando que se guardara la sesión");
+    await new Promise((r) => setTimeout(r, 5));
+  }
+};
 let activos: { nucleo: { detener(): void } }[] = [];
 afterEach(() => {
   for (const a of activos) a.nucleo.detener();
@@ -125,6 +135,7 @@ describe("emparejar y reconectar: la sesión vive cifrada en el Durable Object",
     Object.assign(creds, { me: { id: "50760269999:3@s.whatsapp.net" }, nextPreKeyId: 813, firstUnuploadedPreKeyId: 813 });
     sock.ev.emit("creds.update", {});
     await asentar();
+    await esperarA(async () => ((await m.d.kvGet("creds")) ?? "").includes("813"));
     sock.conexion({ connection: "open" });
     await m.d.vigilar();
 
@@ -143,6 +154,7 @@ describe("emparejar y reconectar: la sesión vive cifrada en el Durable Object",
     Object.assign(creds, { registrationId: 4242, nextPreKeyId: 10, firstUnuploadedPreKeyId: 10 });
     m.baileys.ultimo.ev.emit("creds.update", {});
     await asentar();
+    await esperarA(async () => ((await m.d.kvGet("creds")) ?? "").includes("4242"));
 
     await m.d.matar(); // se destruye y vuelve con época nueva
     const puente2 = m.arrancarContenedor();
@@ -161,6 +173,7 @@ describe("emparejar y reconectar: la sesión vive cifrada en el Durable Object",
     Object.assign(credsViejas, { registrationId: 1111 });
     m.baileys.ultimo.ev.emit("creds.update", {});
     await asentar();
+    await esperarA(async () => ((await m.d.kvGet("creds")) ?? "").includes("1111"));
 
     await m.d.matar(); // arranca el contenedor nuevo; el viejo quedó «zombi»
     const nuevoPuente = m.arrancarContenedor();
@@ -169,6 +182,7 @@ describe("emparejar y reconectar: la sesión vive cifrada en el Durable Object",
     // El zombi intenta guardar lo suyo: se rechaza, y la sesión sigue siendo la del contenedor vigente.
     m.baileys.ultimo.ev.emit("creds.update", {});
     await asentar();
+    await esperarA(() => (m.nucleo.estado.ultimoError ?? "").includes("saveCreds"));
     expect(m.nucleo.estado.ultimoError).toContain("saveCreds");
     expect(m.nucleo.estado.ultimoError).toContain("409");
     expect(await m.d.kvGet("creds")).toBe(JSON.stringify({ registrationId: 2222 }));
