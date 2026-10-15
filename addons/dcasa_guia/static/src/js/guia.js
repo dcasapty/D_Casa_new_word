@@ -8,7 +8,7 @@
  * «Llévame ahí» lo hace el servicio dcasa_guia_ruta (abre, anota el uso y deja la cinta de «Estás haciendo»).
  * «Preguntarle a Brian» abre su panel con la pregunta escrita (sin enviarla).
  */
-import { Component, onMounted, onWillStart, useRef, useState } from "@odoo/owl";
+import { Component, onMounted, onWillDestroy, onWillStart, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { browser } from "@web/core/browser/browser";
@@ -40,6 +40,14 @@ export class DcasaGuia extends Component {
         this.ruta.descartar();
         onWillStart(() => this.cargar());
         onMounted(() => this.mostrarTareaPedida());
+        // Salir de la Guía (p. ej. con «Llévame ahí» desde un resultado) con una búsqueda pendiente no debe dejar un
+        // aviso suelto: ni el temporizador ni la respuesta que llega tarde hacen nada.
+        this.destruido = false;
+        onWillDestroy(() => {
+            this.destruido = true;
+            this.envio++;
+            browser.clearTimeout(this.temporizador);
+        });
     }
 
     async cargar() {
@@ -170,8 +178,13 @@ export class DcasaGuia extends Component {
                 this.state.resultados = resultados;
                 this.state.abierta = resultados.length === 1 ? resultados[0].id : null;
             }
+        } catch (error) {
+            // La pantalla ya no está: la respuesta (o su rechazo) llega a nadie.
+            if (!this.destruido) {
+                throw error;
+            }
         } finally {
-            if (mio === this.envio) {
+            if (mio === this.envio && !this.destruido) {
                 this.state.buscando = false;
             }
         }
