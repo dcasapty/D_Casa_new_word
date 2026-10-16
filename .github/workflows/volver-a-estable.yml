@@ -1,0 +1,87 @@
+name: Volver a una versión estable
+
+# Un botón para volver a una versión que funciona (pedido de la dueña, 2026-10-16): si algo se rompe o no se ve,
+# mientras se busca el arreglo. Actions → «Volver a una versión estable» → Run workflow → entorno y versión.
+#
+# Las versiones están en .github/versiones_estables.json (commit e imagen ya probados; no se reconstruye nada) y la
+# explicación, con lo que pasa con los datos, en docs/VERSIONES_ESTABLES.md. Usa el mismo despliegue que todo lo
+# demás (desplegar.yml): respaldo previo, la imagen ya subida y la espera estricta de salud.
+#
+# Para agregar una versión: su entrada en el JSON y su nombre en `version.options` (la prueba
+# .github/scripts/probar_versiones_estables.py, que corre en CI, exige que coincidan).
+
+on:
+  workflow_dispatch:
+    inputs:
+      entorno:
+        description: "Dónde (staging para ensayar; production para volver de verdad)"
+        type: choice
+        options: [staging, production]
+        required: true
+      version:
+        description: "A qué versión estable volver (ver docs/VERSIONES_ESTABLES.md)"
+        type: choice
+        options: [estable-1]
+        required: true
+      respaldo_previo:
+        description: "Respaldo completo de la base antes (desmarcar solo si el sitio está caído)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  elegir:
+    name: Datos de la versión estable
+    runs-on: ubuntu-24.04
+    outputs:
+      app_version: ${{ steps.datos.outputs.app_version }}
+      imagen_digest: ${{ steps.datos.outputs.imagen_digest }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+        with:
+          sparse-checkout: .github
+      - name: Producción solo desde main
+        if: inputs.entorno == 'production' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::A producción se vuelve solo con este botón lanzado desde main (está en ${GITHUB_REF})."
+          exit 1
+      - name: Leer la versión
+        id: datos
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          versiones = json.load(open('.github/versiones_estables.json', encoding='utf-8'))
+          nombre = os.environ['VERSION']
+          if nombre not in versiones:
+              raise SystemExit(f'::error::No existe la versión estable «{nombre}» en .github/versiones_estables.json')
+          datos = versiones[nombre]
+          if not re.fullmatch(r'[0-9a-f]{40}', datos['app_version']):
+              raise SystemExit('::error::app_version tiene que ser el SHA completo (40)')
+          if not re.fullmatch(r'sha256:[0-9a-f]{64}', datos['imagen_digest']):
+              raise SystemExit('::error::imagen_digest tiene que ser sha256:<64>')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as salida:
+              salida.write(f"app_version={datos['app_version']}\n")
+              salida.write(f"imagen_digest={datos['imagen_digest']}\n")
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as resumen:
+              resumen.write(f"## Volver a {nombre}\n\n{datos['que_trae']} (desde {datos['desde']}).\n\n")
+              resumen.write(f"`app_version` `{datos['app_version']}` · `imagen_digest` `{datos['imagen_digest']}`\n")
+          print(f"Vuelvo a {nombre}: {datos['app_version']} con {datos['imagen_digest']}")
+          PY
+
+  desplegar:
+    name: Volver a ${{ inputs.version }} en ${{ inputs.entorno }}
+    needs: elegir
+    uses: ./.github/workflows/desplegar.yml
+    with:
+      entorno: ${{ inputs.entorno }}
+      app_version: ${{ needs.elegir.outputs.app_version }}
+      imagen_digest: ${{ needs.elegir.outputs.imagen_digest }}
+      respaldo_previo: ${{ inputs.respaldo_previo }}
+    secrets: inherit

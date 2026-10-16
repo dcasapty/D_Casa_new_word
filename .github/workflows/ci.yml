@@ -49,6 +49,8 @@ jobs:
       - run: ruff check addons scripts --output-format=github
       - name: Tests del procesador de «up media» (sin Odoo)
         run: python -m unittest discover -s scripts/tests -v
+      - name: Las versiones estables tienen datos válidos (botón «Volver a una versión estable»)
+        run: python .github/scripts/probar_versiones_estables.py
       - name: XML bien formado
         run: |
           python - <<'PY'

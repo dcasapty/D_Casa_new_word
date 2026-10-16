@@ -23,13 +23,21 @@ Qué se guarda de cada una:
 
 ## Cómo volver a una versión estable
 
-Actions → **Desplegar** → *Run workflow*, en `main`, con:
+**Con el botón** (sin copiar nada): Actions → **Volver a una versión estable** → *Run workflow*, en `main`:
 
 - `entorno`: `production` (o `staging` para ensayar primero);
-- `app_version` e `imagen_digest`: los de la tabla;
+- `version`: la de la tabla (p. ej. `estable-1`);
 - `respaldo_previo`: marcado (desmarcarlo solo si el sitio está caído y el respaldo no puede hacerse).
 
-Tarda unos 3 minutos más el arranque; el último paso espera a que responda esa versión con la base al día.
+Tarda unos 3 minutos más el arranque; el último paso espera a que responda esa versión con la base al día. Los datos
+de cada versión viven en `.github/versiones_estables.json` (una prueba de CI revisa que estén bien escritos).
+
+**A mano** (si el botón todavía no está en `main`): Actions → **Desplegar** → *Run workflow*, en `main`, con el mismo
+`entorno` y `respaldo_previo` y el `app_version` y el `imagen_digest` de la tabla.
+
+**Si un día Cloudflare ya no tuviera la imagen:** lanzar **CI/CD** sobre la rama `estable-AAAA-MM-DD` con
+`desplegar_en = staging` (reconstruye y prueba la misma versión) y después desplegar a producción ese commit con el
+digest de su resumen, como siempre.
 
 **Qué pasa con los datos.** Hay dos maneras, y se elige según el problema:
 
@@ -51,5 +59,6 @@ la vieja no conoce).
 Cuando un despliegue a producción queda «Confirmado» y la dueña dice que se ve bien:
 
 1. Crear la rama `estable-AAAA-MM-DD` desde `main` (ya con el PR unido).
-2. Agregar la fila a la tabla con el `app_version` y el `imagen_digest` del resumen del despliegue.
-3. Anotarlo en la bitácora (`docs/LEEME_PRIMERO.md`).
+2. Agregar la versión a `.github/versiones_estables.json` (con el `app_version` y el `imagen_digest` del resumen del
+   despliegue) y su nombre a las opciones de `version` en `.github/workflows/volver-a-estable.yml`.
+3. Agregar la fila a la tabla de arriba y anotarlo en la bitácora (`docs/LEEME_PRIMERO.md`).

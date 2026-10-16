@@ -24,13 +24,17 @@ on:
         type: string
         required: true
       artefacto:
-        description: "Artefacto de esta ejecución con la imagen probada (docker save | zstd)"
+        description: "Artefacto de esta ejecución con la imagen probada (docker save | zstd); vacío = usar imagen_digest"
         type: string
-        required: true
+        default: ""
       imagen_id:
-        description: "ID (sha256) de la imagen que pasó la prueba de humo"
+        description: "ID (sha256) de la imagen que pasó la prueba de humo (con artefacto)"
         type: string
-        required: true
+        default: ""
+      imagen_digest:
+        description: "Digest de una imagen ya subida (sin artefacto): volver a una versión estable (volver-a-estable.yml)"
+        type: string
+        default: ""
       app_version:
         description: "SHA del commit desplegado"
         type: string

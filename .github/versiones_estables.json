@@ -1,0 +1,9 @@
+{
+  "estable-1": {
+    "desde": "2026-10-16 07:27 UTC (Desplegar 9)",
+    "que_trae": "Etapas 1 y 2 y el arreglo del arranque (#97); la dueña confirmó Inicio y conversaciones",
+    "codigo": "estable-2026-10-16",
+    "app_version": "3570c3a12e5563621be5ef835837a223904b06c5",
+    "imagen_digest": "sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3"
+  }
+}
