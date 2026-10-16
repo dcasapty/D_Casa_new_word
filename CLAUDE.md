@@ -5,6 +5,13 @@
 ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
 **Odoo 19 Community**, desplegado en **Cloudflare** (Worker + Container).
 
+## Al empezar una sesión
+
+Antes de contestar o programar nada, leer `docs/LEEME_PRIMERO.md` (cómo se trabaja con la dueña, qué cambio necesita su
+«sí» explícito, la receta de producción, las trampas ya conocidas y la bitácora de sesiones) y `docs/PRIORIDADES.md`
+(el orden vigente de lo que sigue). Al terminar la sesión, agregar su entrada a la bitácora y poner al día las
+prioridades: lo que no queda escrito se pierde cuando el contexto se reinicia.
+
 ## Estructura
 
 - `vendor/odoo` — Odoo 19.0 como submódulo. **No se modifica nunca.** Para
