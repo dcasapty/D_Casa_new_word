@@ -199,19 +199,21 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 6 | 2026-10-16 02:29 | `bf40605e` | PR #42 orden de impresión: entrega → factura → copia | **Sí**: campo `incluir_entrega` en el asistente de impresión, 2 vistas, datos | Sano (~2,4 min) | Si el primer arranque no actualizó, abrir «Imprimir documentos» fallaría (sin confirmar). digest `2912bb69…` |
 | Desplegar 7 | 2026-10-16 05:47 | `fbf375b0` | PR #43 Etapas 1 y 2 | **Sí**: ~12 campos (`dcasa_utilidad`, `dcasa_sin_costo`…), 4 vistas, datos, seguridad | «Sano» **en falso** (7 s tras el corte) | Incidente 1 a las 06:07. digest `f61b9adf…` |
 | Desplegar 8 | 2026-10-16 06:16 | `5fa33f4c` | PR #44 (solo docs): SHA del *squash* de `main` | — | **Falló**: `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` | Respaldo previo hecho; el Worker nuevo quedó activo; la app seguía en `bf40605e` |
+| Desplegar 9 | 2026-10-16 07:20 | `3570c3a1` | Arreglo #97 (imagen con commit y huella; chequeo estricto) | **Sí**: la huella de la base no existía, así que actualizó todo (aplicó por fin las Etapas 1 y 2) | **Sano y confirmado** 07:22 → 07:27 (versión `3570c3a12e55`, `base_al_dia` true, 5 min de vigilancia) | El primer minuto respondía la instancia anterior (sin versión) y el chequeo nuevo **no** la dio por sana. La dueña confirmó Inicio y conversaciones. Staging igual en CI #171. digest `4e9b9155…` |
 
 **Qué puede no haberse aplicado nunca en producción:**
 
-1. **PR #43 (Etapas 1 y 2): no está aplicado** (columnas inexistentes a las 06:07-06:16 e imagen revertida a
-   `bf40605e`). PR #44 es solo documentación.
+1. **PR #43 (Etapas 1 y 2): aplicado desde Desplegar 9** (07:22). Entre las 05:47 y las 07:22 no lo estuvo
+   (columnas inexistentes a las 06:07-06:16 e imagen revertida a `bf40605e`). PR #44 es solo documentación.
 2. **PR #42, #40, #36 y #30:** necesitaban `-u`; ningún registro de GitHub prueba si el primer arranque lo hizo. El
    chequeo viejo solo fallaba si la columna que falta la usa `/dcasa/salud` (p. ej. `res_users`), así que un «sano» no
    lo garantiza (sin confirmar). Los despliegues siguientes cambiaron `APP_VERSION` y probablemente pusieron la base al
    día en algún reinicio; el primer despliegue con #97 hará `-u` completo y debería cerrar cualquier hueco.
 3. **Reversiones (incidente 5):** el código de PR #35 (CI #138→#147), PR #36 (CI #147→#150) y PR #40 (Desplegar 4→5)
    pudo dejar de correr durante horas; quedó cubierto por el despliegue siguiente, que lo incluía.
-4. Cómo comprobarlo sin adivinar: con el arreglo #97 desplegado, `/__edge/health` dirá `version` y `base_al_dia`;
-   además abrir el Inicio, Conversaciones e «Imprimir documentos» después de cada despliegue.
+4. Desde Desplegar 9 (arreglo #97) `/__edge/health` dice `version` y `base_al_dia`, y ese primer arranque actualizó
+   **todos** los módulos (no había huella en la base): lo que hubiera quedado sin aplicar de PR #42, #40, #36 y #30
+   quedó aplicado ahí. Igual, después de cada despliegue se abren el Inicio, Conversaciones e «Imprimir documentos».
 
 ---
 

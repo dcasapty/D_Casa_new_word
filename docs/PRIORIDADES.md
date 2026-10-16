@@ -7,7 +7,11 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-10-16:** el código de las Etapas 1 y 2 está en `main` (PR #43), pero su despliegue de las 05:47 UTC **no actualizó la base** y producción falló (Inicio, cotizaciones, conversaciones: ver el incidente 1 de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md)). Llegan de verdad a producción con el arreglo #97 (la imagen actualiza la base cuando cambia su código y el despliegue exige la versión nueva con la base al día). Lo que sigue: la etapa 1 (lo que le falta), después 1b y la 3.
+**Estado al 2026-10-16, 07:27 UTC:** las Etapas 1 y 2 están **en producción y funcionando** desde el arreglo #97
+(Desplegar 9; la dueña confirmó Inicio y conversaciones). Su primer despliegue (05:47) no había actualizado la base:
+ver el incidente 1 de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md). Lo que sigue: subir a staging la entrega ya
+probada en local (Etapa 3, prueba de humo del arranque, permisos de Conversaciones #25), después lo que falta de la
+etapa 1 (topes de Brian: esperan cifras de la dueña) y la 1b.
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
@@ -97,6 +101,7 @@ Cerrados: #11, #13 y #14 (códigos de barras, conteo con lector, pantalla de bod
 ## Pendientes viejos que siguen en pie
 
 - **#92** (antes de traspasar el dominio): que `/master` funcione y que «Iniciar sesión» de la web no lleve al panel.
-- **#97**: por qué el primer despliegue de una versión deja la base sin actualizar.
+- ~~**#97**: por qué el primer despliegue de una versión deja la base sin actualizar.~~ Resuelto el 2026-10-16
+  (Desplegar 9): la imagen decide por la huella de su código, no por la variable `APP_VERSION`.
 - Estudio de envíos para La Chorrera: entregado; esperan sus respuestas (ver el documento en Claude Docs).
 - Lo que le toca a la dueña: [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md).
