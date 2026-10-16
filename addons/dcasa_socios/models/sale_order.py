@@ -1,5 +1,5 @@
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from . import reglas as R
 
@@ -254,9 +254,35 @@ class SaleOrderLine(models.Model):
     dcasa_canje_id = fields.Many2one('dcasa.canje', string='Premio cobrado', readonly=True, copy=False,
                                      index='btree_not_null', ondelete='restrict')
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        if any(vals.get('dcasa_canje_id') for vals in vals_list):
+            self._dcasa_exigir_servidor_para_el_premio()
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if vals.get('dcasa_canje_id'):
+            self._dcasa_exigir_servidor_para_el_premio()
+        return super().write(vals)
+
+    @api.model
+    def _dcasa_exigir_servidor_para_el_premio(self):
+        """La marca «premio cobrado» exime a la línea del tope de descuento: solo la pone el servidor al aplicar un
+        canje (``dcasa.canje._aplicar_en_venta``) o Gerencia. Si la vendedora pudiera escribirla a mano, bastaría con
+        apuntar a cualquier canje para meter una rebaja sin tope (revisión adversarial, 2026-10-16)."""
+        usuario = self.env.user
+        if (self.env.su or self.env.context.get('dcasa_aplicando_premio')
+                or usuario.has_group('sales_team.group_sale_manager') or usuario.has_group('base.group_system')):
+            return
+        raise AccessError(self.env._(
+            'El premio canjeado lo pone el sistema al aplicar el código, no se escribe a mano.'))
+
     def _dcasa_exenta_tope_descuento(self):
         # La línea de premio es negativa por diseño: la pagan los puntos, no la vendedora.
         return super()._dcasa_exenta_tope_descuento() or bool(self.dcasa_canje_id)
+
+    def _dcasa_pagada_por_el_programa(self):
+        return super()._dcasa_pagada_por_el_programa() or bool(self.dcasa_canje_id)
 
     def _is_sellable(self):
         # En el carrito, la línea del premio no enlaza a ningún producto ni cambia de cantidad.

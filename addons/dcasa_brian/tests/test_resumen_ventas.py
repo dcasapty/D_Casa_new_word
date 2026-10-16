@@ -71,13 +71,13 @@ class TestResumenVentasFacturadas(TransactionCase):
         self.pedido(self.ana)                                           # por facturar: no cuenta
         de_ana = self.resumen(self.ana)
         self.assertEqual(de_ana['ventas'], 1)
-        self.assertEqual([v['vendedor'] for v in de_ana['por_vendedor']], [self.ana.name])
-        self.assertIn(f'{mia.amount_total:,.2f}', de_ana['total'])
+        self.assertEqual([v['vendedor'] for v in de_ana['por_vendedor_sin_itbms']], [self.ana.name])
+        self.assertIn(f'{mia.amount_untaxed:,.2f}', de_ana['ventas_sin_itbms'])
         de_luis = self.resumen(self.luis)
         self.assertEqual(de_luis['ventas'], 1)
-        self.assertEqual([v['vendedor'] for v in de_luis['por_vendedor']], [self.luis.name])
+        self.assertEqual([v['vendedor'] for v in de_luis['por_vendedor_sin_itbms']], [self.luis.name])
         todas = self.resumen(self.gerente)
-        nombres = {v['vendedor'] for v in todas['por_vendedor']}
+        nombres = {v['vendedor'] for v in todas['por_vendedor_sin_itbms']}
         self.assertTrue({self.ana.name, self.luis.name} <= nombres)
         self.assertGreaterEqual(todas['ventas'], 2)
         self.assertGreater(ajena.amount_total, mia.amount_total)
@@ -90,3 +90,67 @@ class TestResumenVentasFacturadas(TransactionCase):
         self.assertTrue(datos.get('ok'), datos)
         titulos = {c['titulo'] for c in datos['datos']['cifras']}
         self.assertEqual(titulos, {'Vendido hoy', 'Mis cotizaciones'})
+
+    # --- ITBMS claro y ganancia (criterio contable del 2026-10-16) ----------------------------------------
+
+    def test_las_ventas_van_sin_itbms_y_el_itbms_y_el_total_aparte(self):
+        venta = self.pedido(self.ana, cantidad=2, facturar=True)
+        datos = self.resumen(self.ana)
+        self.assertEqual(datos['ventas_sin_itbms'], f'${venta.amount_untaxed:,.2f}')
+        self.assertEqual(datos['itbms'], f'${venta.amount_tax:,.2f}')
+        self.assertEqual(datos['total_con_itbms'], f'${venta.amount_total:,.2f}')
+        self.assertEqual(datos['ticket_promedio_sin_itbms'], f'${venta.amount_untaxed:,.2f}')
+        self.assertNotIn('total', datos, 'una llave «total» sin decir si lleva ITBMS confunde')
+        self.assertIn(f'${venta.amount_untaxed:,.2f}', {p['total_sin_itbms'] for p in datos['productos_mas_vendidos']})
+
+    def test_la_ganancia_la_recibe_solo_gerencia(self):
+        self.producto.standard_price = 50.0
+        venta = self.pedido(self.ana, cantidad=2, facturar=True)
+        self.assertEqual(venta.dcasa_utilidad, 2 * (80.0 - 50.0))
+        de_gerencia = self.resumen(self.gerente)
+        self.assertIn('ganancia_sin_itbms', de_gerencia)
+        self.assertGreaterEqual(de_gerencia['ganancia_sin_itbms']['ventas_con_costo'], 1)
+        self.assertNotIn('ganancia_sin_itbms', self.resumen(self.ana), 'la vendedora no ve costos ni ganancia')
+        # el reporte del día: lo mismo
+        reporte = self.env['brian.herramientas'].with_user(self.gerente).ejecutar('reporte_del_dia', {})
+        self.assertTrue(reporte.get('ok'), reporte)
+        self.assertIn('ganancia_de_hoy_sin_itbms', reporte['datos'])
+        reporte = self.env['brian.herramientas'].with_user(self.ana).ejecutar('reporte_del_dia', {})
+        self.assertNotIn('ganancia_de_hoy_sin_itbms', reporte['datos'])
+
+    def test_la_ganancia_avisa_de_lo_que_no_tiene_costo(self):
+        sin_costo = self.env['product.product'].create({'name': 'Zzsilla sin costo', 'list_price': 60.0})
+        orden = self.env['sale.order'].create({
+            'partner_id': self.cliente.id, 'user_id': self.ana.id,
+            'order_line': [Command.create({'product_id': sin_costo.id, 'product_uom_qty': 1})]})
+        orden.action_confirm()
+        orden._create_invoices().action_post()
+        ganancia = self.resumen(self.gerente)['ganancia_sin_itbms']
+        self.assertIn('aviso', ganancia, 'una venta sin costo no inventa ganancia: se avisa')
+
+    def test_el_reporte_del_dia_explica_el_itbms_de_lo_vendido_hoy(self):
+        venta = self.pedido(self.ana, facturar=True)
+        reporte = self.env['brian.herramientas'].with_user(self.gerente).ejecutar('reporte_del_dia', {})
+        fila = next(f for f in reporte['datos']['cifras'] if f['titulo'] == 'Vendido hoy')
+        self.assertEqual(fila['nota'], 'sin ITBMS')
+        self.assertIn('itbms', fila)
+        self.assertIn('total_con_itbms', fila)
+        self.assertGreater(venta.amount_tax, 0)
+
+    def test_los_mas_vendidos_de_brian_no_cuentan_el_flete_ni_los_descuentos(self):
+        flete = self.env['product.product'].create({'name': 'Zzflete resumen', 'type': 'service', 'list_price': 25.0})
+        orden = self.env['sale.order'].create({
+            'partner_id': self.cliente.id, 'user_id': self.ana.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1}),
+                           Command.create({'product_id': flete.id, 'product_uom_qty': 5})]})
+        orden.action_confirm()
+        orden._create_invoices().action_post()
+        nombres = {p['producto'] for p in self.resumen(self.ana)['productos_mas_vendidos']}
+        self.assertIn(self.producto.display_name, nombres)
+        self.assertNotIn(flete.display_name, nombres, 'el flete es un servicio, no un producto vendido')
+
+    def test_el_por_cobrar_de_las_cotizaciones_dice_que_es_con_itbms(self):
+        self.pedido(self.ana, confirmar=False)
+        reporte = self.env['brian.herramientas'].with_user(self.ana).ejecutar('reporte_del_dia', {})
+        detalle = next(f['detalle'] for f in reporte['datos']['cifras'] if f['titulo'] == 'Mis cotizaciones')
+        self.assertIn('con ITBMS', detalle)

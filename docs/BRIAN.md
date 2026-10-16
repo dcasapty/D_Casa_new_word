@@ -341,6 +341,11 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 
 | `buscar_en_guia(consulta)` — busca en la Guía del negocio (módulo `dcasa_guia`, [GUIA.md](GUIA.md)) qué pantalla sirve para lo que la persona quiere hacer (declaración de renta, ITBMS, cerrar el mes, planilla…): qué logra, dónde queda en el menú, los pasos y la nota; solo lo que quien pregunta puede abrir | lectura | Interno |
 
+**Ventas, ITBMS y ganancia (2026-10-16).** `resumen_ventas` y `reporte_del_dia` dan las ventas **sin ITBMS** (la cifra
+principal), con el ITBMS y el total con ITBMS aparte; lo cobrado va con ITBMS. Solo para Gerencia y administradores
+agregan la **ganancia** (venta menos costo, sin ITBMS); a la Vendedora nunca le llega el costo ni la ganancia. Si hay
+ventas con productos sin costo cargado, lo avisan en vez de inventar la ganancia. Son las mismas cifras del Inicio.
+
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;

@@ -1,0 +1,221 @@
+"""Estadísticas del negocio, íconos con color y categoría Envíos (pedido del jefe, 2026-10-16)."""
+import base64
+import json
+import re
+
+from odoo.exceptions import AccessError, UserError
+from odoo.tests import HttpCase, tagged
+from odoo.tools.misc import file_path
+from odoo.tools.safe_eval import safe_eval
+
+from .test_inicio_por_rol import ESPERAR_JS, VentasCommon, VentasMixin
+
+# Un color por familia (decisión de la dueña, 2026-10-16). El amarillo de la marca nunca es de fondo.
+FAMILIAS = {
+    'azul': '#1340B1', 'verde': '#0B6E6E', 'naranja': '#B4531A', 'cielo': '#1E6FC0', 'indigo': '#4B3FA8',
+}
+ICONOS = {
+    'dcasa_interfaz/static/src/img/iconos/ventas.svg': 'azul',
+    'dcasa_interfaz/static/src/img/iconos/crm.svg': 'azul',
+    'dcasa_interfaz/static/src/img/iconos/contactos.svg': 'azul',
+    'dcasa_interfaz/static/src/img/iconos/estadisticas.svg': 'azul',
+    'dcasa_interfaz/static/src/img/iconos/facturacion.svg': 'verde',
+    'dcasa_interfaz/static/src/img/iconos/contabilidad.svg': 'verde',
+    'dcasa_nomina/static/src/img/nomina.svg': 'verde',
+    'dcasa_interfaz/static/src/img/iconos/inventario.svg': 'naranja',
+    'dcasa_interfaz/static/src/img/iconos/compras.svg': 'naranja',
+    'dcasa_interfaz/static/src/img/iconos/envios.svg': 'naranja',
+    'dcasa_interfaz/static/src/img/iconos/sitio_web.svg': 'cielo',
+    'dcasa_conversaciones/static/description/icon.svg': 'cielo',
+    'dcasa_interfaz/static/src/img/iconos/socios.svg': 'indigo',
+    'dcasa_equipo/static/src/img/empleados.svg': 'indigo',
+}
+
+
+@tagged('post_install', '-at_install')
+class TestEstadisticas(VentasCommon):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.vendida = cls.env['product.product'].create({
+            'name': 'Cama estadística vendida', 'list_price': 200.0, 'standard_price': 120.0, 'is_storable': True})
+        cls.sin_costo = cls.env['product.product'].create({
+            'name': 'Silla estadística sin costo', 'list_price': 50.0, 'standard_price': 0.0})
+        cls.parada = cls.env['product.product'].create({
+            'name': 'Mesa estadística parada', 'list_price': 90.0, 'standard_price': 40.0, 'is_storable': True})
+        almacen = cls.env['stock.warehouse'].search([('company_id', '=', cls.env.company.id)], limit=1)
+        cls.env['stock.quant']._update_available_quantity(cls.parada, almacen.lot_stock_id, 4.0)
+        cls.env['stock.quant']._update_available_quantity(cls.vendida, almacen.lot_stock_id, 50.0)
+
+    def _menus(self, usuario):
+        menus = self.env['ir.ui.menu'].with_user(usuario).load_menus(False)
+        return {m['xmlid'] for m in menus.values() if isinstance(m, dict) and m.get('xmlid')}
+
+    def test_el_menu_de_estadisticas_es_solo_de_gerencia(self):
+        propios = {'dcasa_interfaz.menu_estadisticas', 'dcasa_interfaz.menu_estadisticas_mas_vendido',
+                   'dcasa_interfaz.menu_estadisticas_margen', 'dcasa_interfaz.menu_estadisticas_sin_movimiento'}
+        self.assertTrue(propios <= self._menus(self.gerencia))
+        self.assertFalse(propios & self._menus(self.vendedora))
+
+    def test_lo_mas_vendido_cuenta_lo_facturado_y_no_las_cotizaciones(self):
+        vendido = self.pedido(producto=self.vendida, cantidad=3)
+        self.facturar(vendido)
+        cotizacion = self.pedido(producto=self.vendida, cantidad=9, confirmar=False)
+        accion = self.env.ref('dcasa_interfaz.accion_mas_vendido')
+        lineas = self.env['sale.order.line'].with_user(self.gerencia).search(safe_domain(accion.domain))
+        self.assertIn(vendido.order_line, lineas)
+        self.assertNotIn(cotizacion.order_line, lineas)
+        grupos = self.env['sale.order.line'].with_user(self.gerencia)._read_group(
+            safe_domain(accion.domain) + [('product_id', '=', self.vendida.id)], [], ['product_uom_qty:sum'])
+        self.assertGreaterEqual(grupos[0][0], 3)
+
+    def test_mejor_margen_deja_fuera_la_mercancia_sin_costo(self):
+        con_costo = self.pedido(producto=self.vendida)
+        self.facturar(con_costo)
+        sin_costo = self.pedido(producto=self.sin_costo)
+        self.facturar(sin_costo)
+        accion = self.env.ref('dcasa_interfaz.accion_mejor_margen')
+        lineas = self.env['sale.order.line'].with_user(self.gerencia).search(safe_domain(accion.domain))
+        self.assertIn(con_costo.order_line, lineas)
+        self.assertNotIn(sin_costo.order_line, lineas)
+        self.assertAlmostEqual(
+            sum(lineas.filtered(lambda linea: linea == con_costo.order_line).mapped('dcasa_utilidad')),
+            con_costo.order_line.price_subtotal - 120.0, places=2)
+
+    def test_lo_que_no_se_mueve_lista_lo_que_tiene_existencias_y_no_se_vende(self):
+        vendido = self.pedido(producto=self.vendida)
+        self.facturar(vendido)
+        accion = self.env['product.product'].with_user(self.gerencia).dcasa_accion_sin_movimiento()
+        productos = self.env['product.product'].with_user(self.gerencia).search(accion['domain'])
+        self.assertIn(self.parada, productos)
+        self.assertNotIn(self.vendida, productos, 'se vendió: sí se mueve')
+
+    def test_lo_que_no_se_mueve_no_se_cae_con_dias_raros(self):
+        Producto = self.env['product.product'].with_user(self.gerencia)
+        self.assertTrue(Producto.dcasa_accion_sin_movimiento(10 ** 12)['domain'], 'un número enorme se acota')
+        self.assertTrue(Producto.dcasa_accion_sin_movimiento(-5)['domain'])
+        with self.assertRaises(UserError):
+            Producto.dcasa_accion_sin_movimiento('muchos')
+
+    def test_lo_que_no_se_mueve_es_solo_de_gerencia(self):
+        with self.assertRaises(AccessError):
+            self.env['product.product'].with_user(self.vendedora).dcasa_accion_sin_movimiento()
+
+    def test_el_menu_de_estadisticas_abre_sin_errores_para_gerencia(self):
+        """Cada acción del menú se abre con sus tres vistas y su búsqueda sin error de campo ni de permiso."""
+        Linea = self.env['sale.order.line'].with_user(self.gerencia)
+        for xmlid in ('accion_mas_vendido', 'accion_mejor_margen'):
+            with self.subTest(accion=xmlid):
+                accion = self.env.ref(f'dcasa_interfaz.{xmlid}')   # el cliente web la lee sin ser administrador
+                self.assertEqual(accion.res_model, 'sale.order.line')
+                propias = {v.view_mode: v.view_id.id for v in accion.view_ids}
+                modos = accion.view_mode.split(',')
+                self.assertEqual(set(modos), {'pivot', 'graph', 'list'})
+                vistas = Linea.get_views([(propias.get(modo, False), modo) for modo in modos] + [(False, 'search')])
+                self.assertEqual(set(vistas['views']), {'pivot', 'graph', 'list', 'search'}, xmlid)
+                filas = Linea.search_read(safe_domain(accion.domain), ['product_id', 'price_subtotal',
+                                                                       'dcasa_utilidad'], limit=5)
+                self.assertIsInstance(filas, list)
+
+    # --- Revisión adversarial del 2026-10-16: que las cifras cuadren y digan lo que son ---------------------------
+
+    def test_la_caja_de_hoy_no_cuenta_cobros_en_borrador(self):
+        diario = self.env['account.journal'].search([('type', 'in', ('cash', 'bank'))], limit=1)
+        if not diario:
+            self.skipTest('Sin diarios de caja o banco')
+        Tablero = self.env['dcasa.tablero'].with_user(self.gerencia)
+        antes = Tablero.obtener_datos()['total_cobrado']
+        pago = self.env['account.payment'].create({
+            'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
+            'amount': 33.0, 'journal_id': diario.id})
+        self.assertEqual(pago.state, 'draft')
+        self.assertAlmostEqual(Tablero.obtener_datos()['total_cobrado'], antes, places=2,
+                               msg='un cobro sin confirmar todavía no es dinero que entró')
+        pago.action_post()
+        self.assertAlmostEqual(Tablero.obtener_datos()['total_cobrado'] - antes, 33.0, places=2)
+
+    def test_mejor_margen_suma_lo_mismo_que_la_ganancia_del_inicio_con_descuento_global(self):
+        descuento = self.env['product.product'].create({
+            'name': 'Descuento estadística', 'type': 'service', 'list_price': 0.0, 'taxes_id': [(5, 0, 0)]})
+        self.env.company.sale_discount_product_id = descuento
+        orden = self.pedido(producto=self.vendida, confirmar=False)
+        asistente = self.env['sale.order.discount'].with_user(self.gerencia).with_context(
+            active_id=orden.id, active_model='sale.order').create({
+                'sale_order_id': orden.id, 'discount_type': 'so_discount', 'discount_percentage': 0.10})
+        asistente.action_apply_discount()
+        orden.action_confirm()
+        self.facturar(orden)
+        accion = self.env.ref('dcasa_interfaz.accion_mejor_margen')
+        lineas = self.env['sale.order.line'].with_user(self.gerencia).search(
+            safe_domain(accion.domain) + [('order_id', '=', orden.id)])
+        self.assertEqual(len(lineas), 2, 'la cama y la fila del descuento global')
+        self.assertAlmostEqual(sum(lineas.mapped('dcasa_utilidad')), orden.sudo().dcasa_utilidad, places=2)
+
+    def test_las_listas_de_pedidos_traen_sin_itbms_y_total_con_itbms_con_su_nombre(self):
+        vista = self.env['sale.order'].with_user(self.gerencia).get_views(
+            [(self.env.ref('sale.view_order_tree').id, 'list')])['views']['list']['arch']
+        self.assertRegex(vista, r'<field name="amount_untaxed"[^>]*string="Sin ITBMS"')
+        self.assertNotRegex(vista, r'<field name="amount_untaxed"[^>]*optional="hide"')
+        self.assertRegex(vista, r'<field name="amount_total"[^>]*string="Total con ITBMS"')
+
+    # --- Íconos con color ---------------------------------------------------------------------
+
+    def test_cada_icono_lleva_el_color_de_su_familia(self):
+        for ruta, familia in ICONOS.items():
+            with open(file_path(ruta), encoding='utf-8') as archivo:
+                fondo = re.search(r'<rect[^>]*fill="(#[0-9A-Fa-f]{6})"', archivo.read()).group(1).upper()
+            with self.subTest(ruta=ruta):
+                self.assertEqual(fondo, FAMILIAS[familia], 'el fondo es el color de la familia')
+                self.assertNotEqual(fondo, '#FED00F', 'el amarillo nunca es de fondo: tocaría el blanco de la barra')
+
+    def test_actualizar_vuelve_a_leer_el_archivo_del_icono(self):
+        """Odoo solo guarda la imagen al escribir ``web_icon``: un ícono recoloreado seguiría igual sin este paso."""
+        menu = self.env.ref('dcasa_interfaz.menu_estadisticas')
+        menu.web_icon_data = base64.b64encode(b'<svg>viejo</svg>')
+        self.env['dcasa.tablero']._dcasa_refrescar_iconos()
+        menu.invalidate_recordset()
+        esperado = self.env['ir.ui.menu']._compute_web_icon_data(menu.web_icon)
+        self.assertEqual(base64.b64decode(menu.web_icon_data), base64.b64decode(esperado))
+
+
+def safe_domain(dominio):
+    return safe_eval(dominio) if isinstance(dominio, str) else dominio
+
+
+
+@tagged('post_install', '-at_install')
+class TestEstadisticasEnElNavegador(VentasMixin, HttpCase):
+    """Los filtros se evalúan en el navegador con el intérprete de Python que Odoo trae en JavaScript, que no sabe todo
+    lo que sabe el del servidor: un filtro que solo prueba el servidor puede reventar al hacer clic (revisión
+    adversarial, 2026-10-16: «Esta semana» usaba ``weekday()``, que ese intérprete no tiene)."""
+
+    def probar(self, accion, codigo):
+        js = '(async () => {' + ESPERAR_JS + codigo + "console.log('test successful'); })();"
+        self.browser_js(f'/odoo/action-dcasa_interfaz.{accion}', js, login='gerencia_rol')
+
+    def test_cada_filtro_de_las_estadisticas_se_aplica_sin_error_en_el_navegador(self):
+        pedido = self.pedido(vendedor=self.vendedora)
+        self.facturar(pedido)
+        filtros = ['Esta semana', 'Este mes', 'Últimos 30 días', 'Últimos 90 días']
+        for accion in ('accion_mas_vendido', 'accion_mejor_margen'):
+            with self.subTest(accion=accion):
+                self.probar(accion, """
+                    await esperar(() => document.querySelector('.o_control_panel .o_searchview'), 'el buscador');
+                    const hayError = () => document.querySelector('.o_error_dialog, .modal .o_error_dialog');
+                    const filtro = (texto) => [...document.querySelectorAll('.dropdown-item, .o-dropdown-item')]
+                        .find((e) => e.textContent.trim() === texto);
+                    document.querySelector('.o_searchview_dropdown_toggler').click();
+                    for (const texto of __FILTROS__) {
+                        const item = await esperar(() => filtro(texto), 'el filtro «' + texto + '»');
+                        for (let vez = 0; vez < 2; vez++) {      // encender y apagar: una de las dos lo evalúa
+                            item.click();
+                            await new Promise((ok) => setTimeout(ok, 700));
+                            if (hayError()) {
+                                const causa = hayError().textContent;
+                                throw new Error('el filtro «' + texto + '» rompió la pantalla: ' + causa);
+                            }
+                        }
+                    }
+                    await esperar(() => document.querySelector('.o_content'), 'el contenido');
+                """.replace('__FILTROS__', json.dumps(filtros)))

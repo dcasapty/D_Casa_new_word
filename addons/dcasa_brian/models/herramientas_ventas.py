@@ -82,8 +82,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='reporte_del_dia',
-        descripcion='Cómo va el día: vendido y cobrado hoy (por forma de pago), cotizaciones abiertas, '
-                    'pedidos web, por cobrar, entregas y lo más vendido del mes. Las mismas cifras del tablero Inicio.',
+        descripcion='Cómo va el día, como el tablero Inicio: vendido hoy (sin ITBMS; el ITBMS y el total aparte; la '
+                    'ganancia solo a Gerencia), cobrado hoy por forma de pago, cotizaciones, pedidos web, por cobrar, '
+                    'entregas y lo más vendido.',
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['¿cómo vamos hoy?', 'reporte del día', '¿cuánto se ha vendido hoy?'],
     )
@@ -93,55 +94,91 @@ class BrianHerramientasVentas(models.AbstractModel):
         for cifra in datos['cifras']:
             valor = c.moneda(cifra['valor']) if cifra['formato'] == 'moneda' else cifra['valor']
             fila = {'titulo': cifra['titulo'], 'valor': valor}
+            if cifra.get('nota'):
+                fila['nota'] = cifra['nota']
+            if cifra.get('itbms') is not None:
+                fila['itbms'] = c.moneda(cifra['itbms'])
+                fila['total_con_itbms'] = c.moneda(cifra['total_con_itbms'])
             if cifra.get('detalle_moneda') is not None:
-                fila['detalle'] = f'por {c.moneda(cifra["detalle_moneda"])}'
+                fila['detalle'] = f'por {c.moneda(cifra["detalle_moneda"])} con ITBMS'
             elif cifra.get('detalle'):
                 fila['detalle'] = cifra['detalle']
             cifras.append(fila)
-        return {
+        respuesta = {
             'fecha': c.fecha(self._b_hoy()),
             'cifras': cifras,
             'cobros_por_forma_de_pago': [{'forma': x['forma'], 'monto': c.moneda(x['monto'])} for x in datos['cobros']],
             'mas_vendidos_30_dias': [{'producto': t['nombre'], 'unidades': t['cantidad']} for t in datos['top']],
         }
+        if datos['cobros']:
+            respuesta['total_cobrado_con_itbms'] = c.moneda(datos['total_cobrado'])
+        ganancia = datos['ventas'] and datos['ve_utilidad'] and datos['ventas']['actual'].get('ganancia')
+        if ganancia:
+            respuesta['ganancia_de_hoy_sin_itbms'] = self._b_ganancia(ganancia)
+        return respuesta
+
+    @api.model
+    def _b_ganancia(self, ganancia):
+        """La ganancia tal como la calcula el Inicio (venta neta menos costo, sin ITBMS); lo que no tiene costo cargado
+        se avisa, no se inventa."""
+        fila = {'ganancia': c.moneda(ganancia['valor']),
+                'porcentaje': f'{ganancia["porcentaje"]} %' if ganancia['porcentaje'] is not None else None,
+                'ventas_con_costo': ganancia['ventas_con_costo']}
+        if ganancia['ventas_sin_costo']:
+            fila['aviso'] = (f'{ganancia["ventas_sin_costo"]} venta(s) con productos sin costo cargado no cuentan en '
+                             'la ganancia; cargar el costo en el producto.')
+        return fila
 
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Total vendido en un periodo (ventas ya facturadas por completo): cantidad, ticket promedio, '
-                    'por vendedor y productos más vendidos. Quien vende ve solo lo suyo.',
+        descripcion='Lo vendido en un periodo (facturado por completo): cantidad, ventas SIN ITBMS, ITBMS y total '
+                    'aparte, ticket promedio, por vendedor, más vendidos y, solo Gerencia, la ganancia (sin ITBMS). '
+                    'Quien vende ve solo lo suyo.',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
-        ejemplos=['ventas de este mes → periodo=este_mes', 'ventas del 01/09/2026 al 15/09/2026'],
+        ejemplos=['ventas de este mes → periodo=este_mes', 'ventas del 01/09/2026 al 15/09/2026',
+                  '¿cuánto ganamos este mes? → periodo=este_mes (la ganancia solo la ve Gerencia)'],
     )
     def _h_resumen_ventas(self, periodo=None, desde=None, hasta=None):
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
         # La misma definición de «vendido» que el Inicio (dcasa_interfaz, de la que depende este módulo): pedido
         # facturado por completo con sus facturas publicadas, contado el día de su última factura. Y el mismo
         # criterio de panel: quien vende sin controlar la tienda (la Vendedora) ve solo lo que ella vendió.
+        # Criterio contable (2026-10-16): las ventas van sin ITBMS; el ITBMS y el total se dan aparte.
         Order = self.env['sale.order']
-        propio = self.env['dcasa.tablero']._solo_lo_propio()
-        ventas = Order.search(Order._dcasa_dominio_vendido(desde=inicio, hasta=fin,
-                                                           vendedor=self.env.user if propio else None))
-        total = sum(ventas.mapped('amount_total'))
+        Tablero = self.env['dcasa.tablero']
+        propio = Tablero._solo_lo_propio()
+        vendedor = self.env.user if propio else None
+        con_ganancia = not propio and Tablero._ve_utilidad()
+        totales = Tablero._totales_de_ventas(inicio, fin, vendedor.id if vendedor else None, con_ganancia)
+        ventas = Order.search(Order._dcasa_dominio_vendido(desde=inicio, hasta=fin, vendedor=vendedor))
         por_vendedor = {}
         for venta in ventas:
             nombre = venta.user_id.name or 'Sin vendedor'
-            por_vendedor[nombre] = por_vendedor.get(nombre, 0.0) + venta.amount_total
+            por_vendedor[nombre] = por_vendedor.get(nombre, 0.0) + venta.amount_untaxed
         grupos = self.env['sale.order.line']._read_group(
-            [('order_id', 'in', ventas.ids), ('display_type', '=', False), ('is_downpayment', '=', False)],
-            ['product_id'], ['product_uom_qty:sum', 'price_total:sum'])
+            [('order_id', 'in', ventas.ids), ('display_type', '=', False), ('is_downpayment', '=', False),
+             ('product_id.type', '!=', 'service')],
+            ['product_id'], ['product_uom_qty:sum', 'price_subtotal:sum'])
         top = sorted(grupos, key=lambda g: -g[1])[:5]
-        return {
+        respuesta = {
             'periodo': etiqueta,
             'desde': c.fecha(inicio), 'hasta': c.fecha(fin),
-            'ventas': len(ventas),
-            'total': c.moneda(total),
-            'ticket_promedio': c.moneda(total / len(ventas)) if ventas else c.moneda(0),
-            'por_vendedor': [{'vendedor': n, 'total': c.moneda(m)}
-                             for n, m in sorted(por_vendedor.items(), key=lambda nm: -nm[1])[:10]],
-            'productos_mas_vendidos': [{'producto': p.display_name, 'unidades': c.cantidad(q), 'total': c.moneda(t)}
-                                       for p, q, t in top if p],
+            'ventas': totales['cuantas'],
+            'ventas_sin_itbms': c.moneda(totales['sin_itbms']),
+            'itbms': c.moneda(totales['itbms']),
+            'total_con_itbms': c.moneda(totales['total']),
+            'ticket_promedio_sin_itbms': c.moneda(
+                totales['sin_itbms'] / totales['cuantas'] if totales['cuantas'] else 0),
+            'por_vendedor_sin_itbms': [{'vendedor': n, 'total': c.moneda(m)}
+                                       for n, m in sorted(por_vendedor.items(), key=lambda nm: -nm[1])[:10]],
+            'productos_mas_vendidos': [
+                {'producto': p.display_name, 'unidades': c.cantidad(q), 'total_sin_itbms': c.moneda(t)}
+                for p, q, t in top if p],
         }
+        if con_ganancia:
+            respuesta['ganancia_sin_itbms'] = self._b_ganancia(totales['ganancia'])
+        return respuesta
 
     @herramienta(
         nombre='buscar_ventas',

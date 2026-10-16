@@ -37,3 +37,10 @@ Toda función nueva de la plataforma tiene que poder usarla Brian (ver `docs/BRI
 - [ ] Tests
 - [ ] Sin secretos en el repo (claves, tokens, contraseñas: solo como secretos de Cloudflare / GitHub)
 - [ ] Reglas de marca y de Socios de `CLAUDE.md` (sin cifras ni contenido inventado)
+- [ ] Si toca dinero, permisos, contabilidad o Socios: pasó por una **revisión adversarial independiente** (alguien o un revisor que intentó romperlo sin saber qué se esperaba); abajo, qué se intentó y qué se corrigió
+
+## Revisión adversarial
+
+<!-- Solo si el cambio toca dinero, permisos, contabilidad o Socios. Qué se intentó romper, qué se encontró, qué quedó abierto y por qué. -->
+
+-

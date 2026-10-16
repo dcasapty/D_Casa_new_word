@@ -107,3 +107,106 @@ class TestTopeDescuento(TransactionCase):
             Command.create({'display_type': 'line_note', 'name': 'Entrega el sábado'}),
         ]})
         self.assertEqual(len(orden.order_line), 2)
+
+
+@tagged('post_install', '-at_install')
+class TestTopeDescuentoGlobal(TransactionCase):
+    """Hallazgo del 2026-10-16: el botón «Descuento» (global en % y de importe fijo) crea líneas negativas con un
+    producto de precio cero y se saltaba el tope de la vendedora. Ahora el tope se mide sobre el pedido entero."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env['ir.config_parameter'].sudo().set_param('dcasa.descuento_max_vendedora', '10')
+        cls.vendedora = crear_usuario(cls.env, 'global_vendedora', 'dcasa_base.group_vendedora')
+        cls.gerencia = crear_usuario(cls.env, 'global_gerencia', 'dcasa_base.group_gerencia')
+        cls.itbms = cls.env['account.tax'].create({
+            'name': 'ITBMS prueba 7%', 'amount': 7.0, 'amount_type': 'percent', 'type_tax_use': 'sale',
+            'company_id': cls.env.company.id})
+        cls.cama = cls.env['product.product'].create({
+            'name': 'Cama tope global', 'list_price': 200.0, 'taxes_id': [Command.set(cls.itbms.ids)]})
+        cls.mesa = cls.env['product.product'].create({
+            'name': 'Mesa tope global', 'list_price': 100.0, 'taxes_id': [Command.set(cls.itbms.ids)]})
+        # El producto de descuento que Odoo crea la primera vez que Gerencia usa el botón.
+        cls.producto_descuento = cls.env['product.product'].create({
+            'name': 'Descuento', 'type': 'service', 'list_price': 0.0, 'taxes_id': [Command.clear()]})
+        cls.env.company.sale_discount_product_id = cls.producto_descuento
+        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente tope global'})
+
+    # assertRaises (no assertRaisesRegex) deshace lo que alcanzó a escribir la operación rechazada, como hace la
+    # petición real al fallar: sin eso, la línea de descuento rechazada seguiría en el pedido.
+
+    def _orden(self, usuario, productos=None, **linea):
+        productos = productos or [self.cama]
+        return self.env['sale.order'].with_user(usuario).create({
+            'partner_id': self.cliente.id,
+            'order_line': [Command.create({'product_id': p.id, **linea}) for p in productos],
+        })
+
+    def _descuento(self, usuario, orden, tipo, porcentaje=0.0, importe=0.0):
+        """Lo mismo que hace el botón «Descuento» de la cotización."""
+        asistente = self.env['sale.order.discount'].with_user(usuario).with_context(
+            active_id=orden.id, active_model='sale.order').create({
+                'sale_order_id': orden.id, 'discount_type': tipo,
+                'discount_percentage': porcentaje, 'discount_amount': importe})
+        asistente.action_apply_discount()
+
+    def test_descuento_global_dentro_del_tope_pasa(self):
+        orden = self._orden(self.vendedora)
+        self._descuento(self.vendedora, orden, 'so_discount', porcentaje=0.10)
+        self.assertAlmostEqual(orden.amount_untaxed, 180.0, places=2)
+
+    def test_descuento_global_sobre_el_tope_se_bloquea(self):
+        orden = self._orden(self.vendedora)
+        with self.assertRaises(ValidationError) as bloqueo:
+            self._descuento(self.vendedora, orden, 'so_discount', porcentaje=0.50)
+        self.assertIn('Gerencia', str(bloqueo.exception))
+
+    def test_descuento_de_importe_fijo_sobre_el_tope_se_bloquea(self):
+        orden = self._orden(self.vendedora)
+        with self.assertRaises(ValidationError):
+            self._descuento(self.vendedora, orden, 'amount', importe=80.0)
+        self._descuento(self.vendedora, orden, 'amount', importe=10.0)  # ~5 % del neto: dentro del tope
+
+    def test_el_descuento_por_linea_y_el_global_se_suman(self):
+        orden = self._orden(self.vendedora, discount=6)  # 6 % por línea
+        with self.assertRaises(ValidationError):
+            self._descuento(self.vendedora, orden, 'so_discount', porcentaje=0.06)  # 6 % más: 11,64 % en total
+
+    def test_no_se_puede_dejar_la_rebaja_fija_sobre_un_pedido_mas_chico(self):
+        orden = self.env['sale.order'].with_user(self.vendedora).create({
+            'partner_id': self.cliente.id,
+            'order_line': [Command.create({'product_id': self.cama.id}),
+                           Command.create({'product_id': self.mesa.id, 'product_uom_qty': 2})],
+        })  # 400 de tarifa: el tope de 10 % deja rebajar hasta 40
+        self._descuento(self.vendedora, orden, 'amount', importe=40.0)  # 40 con ITBMS = 37,38 sin él: dentro del tope
+        linea_mesa = orden.order_line.filtered(lambda linea: linea.product_id == self.mesa)
+        with self.assertRaises(ValidationError):
+            linea_mesa.write({'product_uom_qty': 1})  # los mismos 37,38 sobre 300 de tarifa pasarían de 10 %
+        with self.assertRaises(ValidationError):
+            linea_mesa.unlink()  # y sobre 200 también
+
+    def test_una_linea_negativa_de_un_producto_sin_precio_tampoco_se_salta_el_tope(self):
+        servicio = self.env['product.product'].create({'name': 'Ajuste libre', 'type': 'service', 'list_price': 0.0})
+        orden = self._orden(self.vendedora)
+        with self.assertRaises(ValidationError):
+            orden.with_user(self.vendedora).write({'order_line': [
+                Command.create({'product_id': servicio.id, 'price_unit': -100.0})]})
+
+    def test_gerencia_no_tiene_tope_global(self):
+        orden = self._orden(self.gerencia)
+        self._descuento(self.gerencia, orden, 'so_discount', porcentaje=0.50)
+        self.assertAlmostEqual(orden.amount_untaxed, 100.0, places=2)
+
+    def test_el_itbms_se_calcula_sobre_el_precio_ya_rebajado(self):
+        """Los tres tipos de descuento bajan la base y el ITBMS (7 %) sale del neto, no del precio de lista."""
+        casos = (('sol_discount', {'porcentaje': 0.10}, 180.0),
+                 ('so_discount', {'porcentaje': 0.10}, 180.0),
+                 ('amount', {'importe': 21.40}, 180.0))  # el importe fijo incluye el ITBMS: 21,40 = 20 + 7 %
+        for tipo, valores, neto in casos:
+            with self.subTest(tipo=tipo):
+                orden = self._orden(self.gerencia)
+                self._descuento(self.gerencia, orden, tipo, **valores)
+                self.assertAlmostEqual(orden.amount_untaxed, neto, places=2)
+                self.assertAlmostEqual(orden.amount_tax, round(neto * 0.07, 2), places=2)
+                self.assertAlmostEqual(orden.amount_total, round(neto * 1.07, 2), places=2)

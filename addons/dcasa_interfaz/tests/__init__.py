@@ -5,3 +5,5 @@ from . import test_sitio
 from . import test_favicon
 from . import test_scroll
 from . import test_actividad
+from . import test_ventas_periodo
+from . import test_estadisticas

@@ -11,8 +11,9 @@ class TestTablero(TransactionCase):
     def test_datos_del_tablero(self):
         datos = self.env['dcasa.tablero'].obtener_datos()
         claves = {c['clave'] for c in datos['cifras']}
-        self.assertTrue({'ventas_hoy', 'cobrado_hoy', 'cotizaciones', 'web', 'por_cobrar', 'entregas', 'socios'}
+        self.assertTrue({'ventas_hoy', 'cotizaciones', 'web', 'por_cobrar', 'entregas', 'socios'}
                         <= claves)
+        self.assertNotIn('cobrado_hoy', claves, '«Cobrado hoy» salió: Caja de hoy ya lo dice (2026-10-16)')
         self.assertEqual(len(datos['semana']), 7)
         self.assertTrue(datos['semana'][-1]['hoy'])
         for cifra in datos['cifras']:
@@ -35,7 +36,7 @@ class TestTablero(TransactionCase):
         factura = orden._create_invoices()
         self.assertAlmostEqual(vendido(), antes, places=2)   # factura en borrador: tampoco
         factura.action_post()
-        self.assertAlmostEqual(vendido() - antes, orden.amount_total, places=2)
+        self.assertAlmostEqual(vendido() - antes, orden.amount_untaxed, places=2)
 
     def test_vendedora_sin_contabilidad_ve_su_tablero(self):
         vendedora = self.env['res.users'].create({
@@ -72,7 +73,8 @@ class TestTablero(TransactionCase):
         })
         datos = self.env['dcasa.tablero'].with_user(gerencia).obtener_datos()
         self.assertTrue(all(datos['permisos'].values()), datos['permisos'])
-        self.assertIn('cobrado_hoy', {c['clave'] for c in datos['cifras']})
+        self.assertIn('por_cobrar', {c['clave'] for c in datos['cifras']})
+        self.assertIn('total_cobrado', datos)
 
     def test_inicio_condiciona_accesos_y_caja(self):
         """La plantilla solo dibuja «Registrar cobro» y «Caja de hoy» con permiso."""

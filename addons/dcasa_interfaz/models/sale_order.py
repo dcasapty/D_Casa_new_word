@@ -71,3 +71,11 @@ class SaleOrder(models.Model):
             + ('Todavía no hay ventas tuyas facturadas hoy.' if propio else 'Todavía no hay ventas facturadas hoy.')
             + '</p><p>Una venta cuenta cuando su factura ya está publicada.</p>')
         return accion
+
+
+class SaleOrderLine(models.Model):
+    _inherit = 'sale.order.line'
+
+    # El día de la venta, también en la línea: es lo que permite agrupar y filtrar las estadísticas por semana o mes.
+    dcasa_fecha_venta = fields.Date(
+        'Día de la venta', related='order_id.dcasa_fecha_venta', store=True, index=True, readonly=True)

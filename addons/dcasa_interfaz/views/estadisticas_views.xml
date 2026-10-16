@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Estadísticas del negocio (pedido del jefe, 2026-10-16): lo más vendido, el mejor margen y lo que no se mueve.
+         Solo Gerencia y administradores. Las ventas son sin ITBMS y cuentan lo mismo que «Vendido hoy»: pedidos
+         facturados por completo, en el día de su última factura. -->
+
+    <record id="estadisticas_busqueda" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.busqueda</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <search string="Ventas por producto">
+                <field name="product_id"/>
+                <field name="salesman_id"/>
+                <filter name="semana" string="Esta semana"
+                        domain="[('dcasa_fecha_venta', '&gt;=', (context_today() + relativedelta(days=-6, weekday=0)).strftime('%Y-%m-%d'))]"/>
+                <filter name="este_mes" string="Este mes"
+                        domain="[('dcasa_fecha_venta', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
+                <filter name="ultimos_30" string="Últimos 30 días"
+                        domain="[('dcasa_fecha_venta', '&gt;=', (context_today() - datetime.timedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <filter name="ultimos_90" string="Últimos 90 días"
+                        domain="[('dcasa_fecha_venta', '&gt;=', (context_today() - datetime.timedelta(days=90)).strftime('%Y-%m-%d'))]"/>
+                <group>
+                    <filter name="por_producto" string="Producto" context="{'group_by': 'product_id'}"/>
+                    <filter name="por_vendedora" string="Vendedora" context="{'group_by': 'salesman_id'}"/>
+                    <filter name="por_mes" string="Mes de la venta" context="{'group_by': 'dcasa_fecha_venta:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Lo más vendido -->
+    <record id="estadisticas_mas_vendido_pivote" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.mas_vendido.pivote</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <pivot string="Lo más vendido" sample="1">
+                <field name="product_id" type="row"/>
+                <field name="product_uom_qty" type="measure" string="Unidades"/>
+                <field name="price_subtotal" type="measure" string="Vendido sin ITBMS"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="estadisticas_mas_vendido_grafico" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.mas_vendido.grafico</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <graph string="Lo más vendido" type="bar" order="DESC" sample="1">
+                <field name="product_id"/>
+                <field name="product_uom_qty" type="measure" string="Unidades"/>
+            </graph>
+        </field>
+    </record>
+    <record id="estadisticas_mas_vendido_lista" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.mas_vendido.lista</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <list string="Lo vendido" create="0" edit="0" delete="0" default_order="dcasa_fecha_venta desc, id desc">
+                <field name="dcasa_fecha_venta" string="Día de la venta"/>
+                <field name="order_id"/>
+                <field name="product_id"/>
+                <field name="product_uom_qty" string="Unidades" sum="Unidades"/>
+                <field name="price_subtotal" string="Sin ITBMS" sum="Sin ITBMS"/>
+                <field name="salesman_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+    <record id="accion_mas_vendido" model="ir.actions.act_window">
+        <field name="name">Lo más vendido</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
+        <field name="res_model">sale.order.line</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="search_view_id" ref="estadisticas_busqueda"/>
+        <field name="domain">[('dcasa_fecha_venta', '!=', False), ('product_id.type', '!=', 'service'), ('is_downpayment', '=', False), ('display_type', '=', False)]</field>
+        <field name="context">{'search_default_este_mes': 1, 'search_default_por_producto': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay ventas en este periodo</p>
+            <p>Cuenta los pedidos ya facturados por completo, sin ITBMS y solo mercancía (no el flete ni los descuentos): las unidades salen de aquí, el total de dinero de «Vendido hoy» lo trae completo.</p>
+        </field>
+    </record>
+    <record id="accion_mas_vendido_v1" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mas_vendido"/><field name="sequence">1</field>
+        <field name="view_mode">pivot</field><field name="view_id" ref="estadisticas_mas_vendido_pivote"/>
+    </record>
+    <record id="accion_mas_vendido_v2" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mas_vendido"/><field name="sequence">2</field>
+        <field name="view_mode">graph</field><field name="view_id" ref="estadisticas_mas_vendido_grafico"/>
+    </record>
+    <record id="accion_mas_vendido_v3" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mas_vendido"/><field name="sequence">3</field>
+        <field name="view_mode">list</field><field name="view_id" ref="estadisticas_mas_vendido_lista"/>
+    </record>
+
+    <!-- Mejor margen: solo líneas con costo cargado; la ganancia y el costo son de Gerencia. -->
+    <record id="estadisticas_margen_pivote" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.margen.pivote</field>
+        <field name="model">sale.order.line</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
+        <field name="arch" type="xml">
+            <pivot string="Mejor margen" sample="1">
+                <field name="product_id" type="row"/>
+                <field name="dcasa_utilidad" type="measure" string="Ganancia"/>
+                <field name="dcasa_venta_neta" type="measure" string="Venta sin ITBMS"/>
+                <field name="product_uom_qty" type="measure" string="Unidades"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="estadisticas_margen_grafico" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.margen.grafico</field>
+        <field name="model">sale.order.line</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
+        <field name="arch" type="xml">
+            <graph string="Mejor margen" type="bar" order="DESC" sample="1">
+                <field name="product_id"/>
+                <field name="dcasa_utilidad" type="measure" string="Ganancia"/>
+            </graph>
+        </field>
+    </record>
+    <record id="estadisticas_margen_lista" model="ir.ui.view">
+        <field name="name">dcasa.estadisticas.margen.lista</field>
+        <field name="model">sale.order.line</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
+        <field name="arch" type="xml">
+            <list string="Margen por línea" create="0" edit="0" delete="0" default_order="dcasa_utilidad desc">
+                <field name="dcasa_fecha_venta" string="Día de la venta"/>
+                <field name="order_id"/>
+                <field name="product_id"/>
+                <field name="product_uom_qty" string="Unidades"/>
+                <field name="dcasa_venta_neta" string="Venta sin ITBMS" sum="Venta sin ITBMS"/>
+                <field name="dcasa_costo_unitario" string="Costo unitario"/>
+                <field name="dcasa_utilidad" string="Ganancia" sum="Ganancia"/>
+            </list>
+        </field>
+    </record>
+    <record id="accion_mejor_margen" model="ir.actions.act_window">
+        <field name="name">Mejor margen</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
+        <field name="res_model">sale.order.line</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="search_view_id" ref="estadisticas_busqueda"/>
+        <field name="domain">[('dcasa_fecha_venta', '!=', False), ('dcasa_es_ganancia', '=', True), ('dcasa_sin_costo', '=', False)]</field>
+        <field name="context">{'search_default_ultimos_90': 1, 'search_default_por_producto': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay ventas con costo cargado en este periodo</p>
+            <p>La ganancia es la venta sin ITBMS menos el costo del producto. Las líneas de mercancía sin costo no cuentan. El descuento global o de importe fijo sale como su propia fila («Descuento»), para que el total cuadre con el Inicio.</p>
+        </field>
+    </record>
+    <record id="accion_mejor_margen_v1" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mejor_margen"/><field name="sequence">1</field>
+        <field name="view_mode">pivot</field><field name="view_id" ref="estadisticas_margen_pivote"/>
+    </record>
+    <record id="accion_mejor_margen_v2" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mejor_margen"/><field name="sequence">2</field>
+        <field name="view_mode">graph</field><field name="view_id" ref="estadisticas_margen_grafico"/>
+    </record>
+    <record id="accion_mejor_margen_v3" model="ir.actions.act_window.view">
+        <field name="act_window_id" ref="accion_mejor_margen"/><field name="sequence">3</field>
+        <field name="view_mode">list</field><field name="view_id" ref="estadisticas_margen_lista"/>
+    </record>
+
+    <!-- Lo que no se mueve: productos con existencias y sin ventas en 90 días. -->
+    <record id="accion_sin_movimiento" model="ir.actions.server">
+        <field name="name">Lo que no se mueve</field>
+        <field name="model_id" ref="product.model_product_product"/>
+        <field name="state">code</field>
+        <field name="code">action = env['product.product'].dcasa_accion_sin_movimiento()</field>
+    </record>
+
+    <menuitem id="menu_estadisticas" name="Estadísticas" sequence="25"
+              groups="sales_team.group_sale_manager,base.group_system"
+              web_icon="dcasa_interfaz,static/src/img/iconos/estadisticas.svg"/>
+    <menuitem id="menu_estadisticas_mas_vendido" name="Lo más vendido" parent="menu_estadisticas"
+              action="accion_mas_vendido" sequence="1"/>
+    <menuitem id="menu_estadisticas_margen" name="Mejor margen" parent="menu_estadisticas"
+              action="accion_mejor_margen" sequence="2"/>
+    <menuitem id="menu_estadisticas_sin_movimiento" name="Lo que no se mueve" parent="menu_estadisticas"
+              action="accion_sin_movimiento" sequence="3"/>
+</odoo>

@@ -684,14 +684,60 @@ entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dca
 
 | | Vendedora | Gerencia, administradores y contabilidad |
 |---|---|---|
-| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya») y **Mis cotizaciones** (las suyas abiertas) | Vendido hoy, cotizaciones abiertas, pedidos web, cobrado hoy, por cobrar, entregas y socios (de toda la tienda), barras de la semana, caja y lo más vendido |
-| Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Nueva factura (suelta, sin cotización), Registrar cobro, Ver la tienda y Ver en el celular |
+| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose y su comparación), **ganancia** (solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
+| Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Registrar cobro y Ver la tienda (solo ícono). Todos azules |
 | Accesos grandes | Productos · Facturas · Conversaciones · **Escáner** | Productos · Facturas · Conversaciones · **Escáner** · Oportunidades · Resumen contable |
 
 La vendedora **no** ve lo que está por cobrarse ni lo cobrado hoy: cobra desde la factura, no desde el Inicio. «Panel
 completo» es quien tiene Ventas administrador, contabilidad (lector contable o más) o es administrador técnico; «solo lo
 propio» es quien tiene Ventas pero no es de esos (`dcasa.tablero._solo_lo_propio`). Quien no vende (no tiene Ventas)
 no cambia: ve lo que su permiso deje.
+
+### ITBMS, costo y ganancia en el Inicio (criterio contable, 2026-10-16)
+
+- **Ventas, costo y ganancia van sin ITBMS**: el ITBMS no es ingreso de la tienda, es plata que se le entrega a la DGI. El
+  **dinero que se mueve** (por cobrar, cobrado, caja) va **con** ITBMS porque es lo que de verdad entra o se debe.
+  Cada cifra lo dice en su etiqueta («sin ITBMS» / «con ITBMS») y la tarjeta de ventas trae el desglose
+  *sin ITBMS · ITBMS · total*.
+- **Ganancia = venta neta − costo**, ambas sin ITBMS. El costo de cada línea se **guarda al confirmar la venta**
+  (`sale.order.line.dcasa_costo_unitario`, `dcasa_base/models/utilidad.py`): si el costo del producto cambia después, las
+  ventas ya hechas no se mueven. Solo cuentan las líneas de mercancía (el flete no) y los descuentos. Un pedido con
+  mercancía **sin costo cargado** no inventa ganancia: queda fuera y el Inicio lo avisa («N productos vendibles no
+  tienen costo cargado»). Las ventas anteriores a este cambio toman el costo de hoy del producto al actualizar el módulo.
+- **Quién la ve:** Gerencia y administradores (`GRUPOS_UTILIDAD`). La Vendedora no ve el costo ni la ganancia de las
+  ventas (ni en el Inicio, ni en Estadísticas, ni en las líneas de venta, ni en Brian). El campo «Costo» **de la ficha del
+  producto** es de Odoo y sigue visible para el personal interno: ver el último párrafo de «Costos y ganancia» en
+  [PERMISOS.md](PERMISOS.md). No se instaló `sale_margin` a propósito: mostraría el costo a todo el personal.
+- **Selector de periodo:** Hoy (contra ayer), Esta semana (lunes a hoy, contra los mismos días de la semana pasada),
+  Este mes (contra los mismos días del mes pasado) o un rango de hasta un año (contra el rango anterior de igual
+  largo). Servidor: `dcasa.tablero.ventas_del_periodo`.
+- **Estadísticas** (menú aparte, solo Gerencia y administradores): *Lo más vendido*, *Mejor margen* y *Lo que no se
+  mueve* (con existencias y sin ventas en 90 días).
+- **Stock bajo:** la franja de atención avisa de los productos con 5 unidades o menos (parámetro
+  `dcasa.stock_bajo_umbral`).
+- **Envíos** aparece en el menú como «En desarrollo» mientras se define el servicio (`dcasa_contabilidad`,
+  `static/src/js/en_desarrollo.js`).
+
+### Límites conocidos de las cifras del Inicio (revisión del 2026-10-16)
+
+- **«Vendido» y la ganancia salen de los importes del pedido**, no de las líneas de la factura. Si en caja se corrige el
+  precio o el descuento de la factura en borrador, el pedido no cambia y el Inicio muestra el importe del pedido. Cuadra
+  con Contabilidad cuando la factura es igual al pedido (lo normal). Pendiente: sumar desde las facturas publicadas.
+- **Una nota de crédito parcial o de precio** hace que el pedido salga completo de «vendido» (deja de estar «facturado»),
+  también en días pasados. La devolución total sí es correcta. Pendiente, junto con el punto anterior.
+- **La ganancia es una cifra de gestión**: venta menos el costo guardado de cada producto cuando se confirmó la venta. No es
+  el costo de ventas contable (que se registra al entregar y puede usar otro método de costo); no se compara con el estado de
+  resultados.
+- **Ventas anteriores a esta pantalla:** al estrenarla tomaron el costo de hoy del producto, y las nuevas guardan el del día. La
+  comparación con el mes pasado mezcla los dos criterios durante uno o dos meses.
+- **Cobrado / Caja de hoy:** cuenta los pagos recibidos y confirmados (en proceso o pagados) con ITBMS; no cuenta borradores,
+  cancelados ni rechazados.
+- **«Esta semana»** va de lunes a hoy y se compara con los mismos días de la semana pasada; «Este mes», igual con el mes
+  pasado (un mes de 31 días contra uno de 28 infla la variación los últimos días). **«Hoy»** contra «Ayer» baja durante el día
+  porque hoy aún no termina.
+- **Lo más vendido** son los últimos 30 días corridos (no el mes calendario) y no cuenta servicios (flete, descuentos).
+- **Mejor margen** incluye el descuento global como su propia fila, para que el total cuadre con el Inicio. No cuenta la
+  mercancía sin costo cargado.
 
 ### Qué cuenta como «vendido» y en qué día
 

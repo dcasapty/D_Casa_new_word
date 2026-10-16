@@ -1,5 +1,11 @@
 # Estado del sistema: evaluación y prioridades
 
+> **Foto del 2026-10-11, no el estado de hoy.** Varias cosas cambiaron desde entonces: ya hay producción (primer
+> despliegue el 2026-10-13 y varios desde entonces), el programa de vendedores, la Guía, el importador de facturas y la
+> nómina están construidos. Lo vigente es [LEEME_PRIMERO.md](LEEME_PRIMERO.md) (cómo se trabaja y la bitácora de
+> sesiones) y [PRIORIDADES.md](PRIORIDADES.md) (el orden de lo que sigue). Las 20 fallas de abajo sirven de lista de
+> riesgos; revisar cuál sigue en pie antes de citarla.
+
 Evaluación hecha el 2026-10-11 (con el Escáner de códigos de barras ya en staging) a partir de lo que hay
 en el repositorio, las auditorías y los resultados de las pruebas. **Es un juicio, no una medición**: no
 corrió una auditoría nueva y lo que dice «no vi» puede estar resuelto sin que conste aquí. Lo que se
