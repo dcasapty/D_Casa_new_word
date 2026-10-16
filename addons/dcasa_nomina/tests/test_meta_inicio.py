@@ -51,5 +51,9 @@ class TestMetaEnElInicio(HttpCase):
             if (dice !== '25 %') { throw new Error('el porcentaje de la meta dice «' + dice + '» y no «25 %»'); }
             const barra = document.querySelector('.o_dcasa_meta .o_dcasa_meta_barra');
             if (barra.getAttribute('aria-valuenow') !== '25') { throw new Error('la barra no va en 25'); }
+            const animo = document.querySelector('.o_dcasa_meta .o_dcasa_meta_animo');
+            if (!animo || !animo.textContent.includes('Paso a paso')) {
+                throw new Error('faltan las palabras de ánimo junto a la barra');
+            }
             console.log('test successful');
         })();""", login='meta_inicio_vera')

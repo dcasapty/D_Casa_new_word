@@ -77,6 +77,7 @@
                             <span t-attf-style="width: {{ d.meta.avance }}%"/>
                         </div>
                     </div>
+                    <p t-if="d.meta.animo" class="o_dcasa_meta_animo" t-out="d.meta.animo"/>
                     <div class="o_dcasa_meta_cifras">
                         <span class="o_dcasa_meta_cobrado">Cobrado: <strong t-out="dinero(d.meta.cobrado)"/> de
                             <t t-out="dinero(d.meta.meta)"/></span>

@@ -712,6 +712,14 @@
     span { display: block; height: 100%; background: var(--dc-azul-600); border-radius: 6px; }
 }
 
+// Palabras de ánimo según lo que lleva (pedido de la dueña, 2026-10-16): azul sobre blanco, sin gritos.
+.o_dcasa_meta_animo {
+    margin: 10px 0 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--dc-azul-700);
+}
+
 .o_dcasa_meta_cifras {
     display: flex;
     flex-wrap: wrap;
