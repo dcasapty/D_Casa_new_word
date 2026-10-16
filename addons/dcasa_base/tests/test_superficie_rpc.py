@@ -59,6 +59,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Solo vuelve a tomar el costo de cada línea al confirmar (la ganancia de esa venta); corre como el '
+                   'usuario, sin sudo().',
     ('dcasa_base', 'product.template', 'create'):
         OVERRIDE + ' Solo le pone al producto nuevo su código público (sorteado, único); sin sudo().',
     ('dcasa_base', 'product.product', 'name_search'):
@@ -239,6 +242,12 @@ LISTA_BLANCA = {
     # --- dcasa_interfaz -----------------------------------------------------------------
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_periodo'):
+        'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo, y la ganancia solo '
+        'sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo).',
+    ('dcasa_interfaz', 'product.product', 'dcasa_accion_sin_movimiento'):
+        'Lectura: exige Gerencia o administrador en el servidor (AccessError si no) y solo devuelve una acción de '
+        'ventana con un filtro; no escribe ni usa sudo().',
     ('dcasa_guia', 'dcasa.guia', 'obtener'):
         SIN_SUDO + ' Solo devuelve las tareas de la Guía cuyo menú (y los de arriba) ve quien pregunta; el catálogo '
         'es un archivo del repositorio, sin datos del negocio.',

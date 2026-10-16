@@ -55,8 +55,8 @@ flujo del CRM» que querían crear y el «sí» para unir estos documentos a `ma
 
 | Pedido | Estado | Etapa |
 |---|---|---|
-| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Por construir | 2 |
-| Rediseño del Inicio | Por construir | 2 |
+| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Hecho en la rama, en staging (falta el «sí» para producción) | 2 |
+| Rediseño del Inicio | Hecho en la rama, en staging | 2 |
 | Contabilidad con menú y tablero propios | Por construir | 5 |
 | Que el contexto no se pierda entre sesiones | Hecho (este archivo y `LEEME_PRIMERO.md`) | 0 |
 | Estado de los issues y prioridades | Hecho (ver abajo) | 0 |
@@ -69,10 +69,10 @@ flujo del CRM» que querían crear y el «sí» para unir estos documentos a `ma
 | Brian sin limitaciones | Auditado; huecos listados | 8 |
 | Menos fallas y más seguridad (la velocidad de las pruebas no es prioridad) | Por construir | 1 |
 | Descuentos (por línea, global, importe fijo) | Revisado: por línea y «a todas las líneas» funcionan y respetan el tope; global e importe fijo calculan bien el ITBMS pero se saltan el tope (hueco a cerrar) | 2 |
-| ITBMS claro en los resúmenes | Decidido por mejor práctica contable (ver arriba); por construir | 2 y 5 |
-| Estadísticas del negocio (menú) | Por construir | 2 |
-| Íconos del menú con color | Por construir (falta paleta) | 2 |
-| Categoría «Envíos — En desarrollo» | Por construir | 2 |
+| ITBMS claro en los resúmenes | Decidido por mejor práctica contable. Inicio y Brian hechos (etapa 2); falta Contabilidad (etapa 5) | 2 y 5 |
+| Estadísticas del negocio (menú) | Hecho en la rama, en staging | 2 |
+| Íconos del menú con color | Hecho en la rama, en staging (paleta aceptada) | 2 |
+| Categoría «Envíos — En desarrollo» | Hecho en la rama, en staging | 2 |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 

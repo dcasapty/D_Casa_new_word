@@ -5,3 +5,4 @@ from . import test_pantallas
 from . import test_auditoria
 from . import test_cierre_conciliacion
 from . import test_presupuesto
+from . import test_envios

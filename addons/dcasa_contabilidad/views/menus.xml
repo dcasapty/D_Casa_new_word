@@ -68,6 +68,14 @@
         <field name="params" eval="{'clave': 'fe'}"/>
     </record>
 
+    <!-- Envíos: una categoría del menú marcada «En desarrollo» (pedido del jefe, 2026-10-16) hasta que se decida el modelo
+         de envío (docs/PRIORIDADES.md). Usa la misma pantalla «En desarrollo» de la factura electrónica. -->
+    <record id="accion_envios" model="ir.actions.client">
+        <field name="name">Envíos — En desarrollo</field>
+        <field name="tag">dcasa_en_desarrollo</field>
+        <field name="params" eval="{'clave': 'envios'}"/>
+    </record>
+
     <!-- Menús dentro de Facturación / Contabilidad -->
     <menuitem id="menu_bancos" name="Bancos" parent="account.menu_finance" sequence="5"
               groups="account.group_account_user"/>
@@ -96,6 +104,11 @@
               sequence="10"/>
     <menuitem id="menu_cierre_mes" name="Cierre de mes" parent="account.menu_finance" sequence="19"
               action="accion_cierre_mes" groups="account.group_account_user"/>
+
+    <menuitem id="menu_envios_root" name="Envíos" sequence="75" groups="base.group_user"
+              web_icon="dcasa_interfaz,static/src/img/iconos/envios.svg"/>
+    <menuitem id="menu_envios_en_desarrollo" name="En desarrollo" parent="menu_envios_root" action="accion_envios"
+              sequence="1"/>
 
     <menuitem id="menu_en_desarrollo" name="En desarrollo" parent="account.menu_finance" sequence="30"
               groups="account.group_account_manager"/>

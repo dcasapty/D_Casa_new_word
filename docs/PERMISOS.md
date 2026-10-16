@@ -48,6 +48,11 @@ deja a `hr.menu_hr_root` con ese conjunto de grupos): los permisos de datos no c
 mostrando los nombres, y «Mis gastos por reembolsar» es otra app que no depende de ese menú. (Ventas › Pedidos y Cotizaciones siguen mostrando todos los documentos: es el rol, para que
 cualquiera atienda al cliente que vuelve.)
 
+**Costos y ganancia** (decidido con la dueña, 2026-10-16): el costo de lo vendido y la ganancia (en el Inicio, en el menú
+**Estadísticas**, en las líneas de venta y en Brian) los ven solo **Gerencia y administradores**. La Vendedora no los ve en
+ninguna pantalla ni los puede pedir por la conexión de datos (los campos tienen el grupo en el servidor). El menú
+Estadísticas completo (lo más vendido, mejor margen, lo que no se mueve) es solo de esos dos grupos.
+
 «Contador» es quien tiene Contabilidad en su ficha de usuario. Gerencia ya incluye Contabilidad y Nómina.
 El lector contable (solo lectura) ve todo lo contable pero no cambia nada, igual que antes.
 

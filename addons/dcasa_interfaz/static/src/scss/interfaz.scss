@@ -451,3 +451,259 @@
 @media (prefers-reduced-motion: reduce) {
     .o_dcasa_cifra, .o_dcasa_atajo, .o_dcasa_app, .o_dcasa_grafico_barra * { transition: none; &:hover { transform: none; } }
 }
+
+// --- Inicio de Gerencia: ventas por periodo, listas lado a lado y avisos (2026-10-16) -----------------------------
+// Sistema plano: bordes finos, sin sombras. El amarillo no se usa aquí (el fondo es blanco).
+
+.o_dcasa_sin_itbms {
+    font-weight: 500;
+    font-size: .72rem;
+    color: var(--dc-tinta-3);
+    margin-left: 6px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.o_dcasa_atencion {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.o_dcasa_aviso {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 40px;
+    padding: 0 14px;
+    background: var(--dc-blanco);
+    color: var(--dc-azul-800);
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-md);
+    font-size: .88rem;
+    font-weight: 500;
+    text-align: left;
+
+    .fa { color: var(--dc-azul-600); }
+    &:hover { background: var(--dc-azul-50); border-color: var(--dc-azul-300); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_ventas {
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-lg);
+    padding: 20px 24px;
+    margin-bottom: 16px;
+}
+
+.o_dcasa_ventas_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+
+    h2 { margin: 0; }
+}
+
+.o_dcasa_periodos {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    background: var(--dc-niebla);
+    border-radius: var(--dc-r-md);
+    padding: 4px;
+}
+
+.o_dcasa_periodo {
+    min-height: 34px;
+    padding: 0 14px;
+    border-radius: var(--dc-r-sm);
+    background: transparent;
+    color: var(--dc-tinta-2);
+    font-size: .85rem;
+    font-weight: 500;
+
+    &:hover { color: var(--dc-azul-700); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_activo { background: var(--dc-azul-600); color: var(--dc-blanco); }
+}
+
+.o_dcasa_rango {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 12px;
+
+    label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: .85rem;
+        color: var(--dc-tinta-2);
+        margin: 0;
+    }
+    .form-control { width: auto; min-height: 38px; }
+    .o_dcasa_error { color: #b3261e; font-size: .85rem; }
+}
+
+.o_dcasa_ventas_cuerpo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    transition: opacity var(--dc-transicion);
+
+    &.o_cargando { opacity: .5; }
+}
+
+.o_dcasa_ventas_columna {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.o_dcasa_ventas_etiqueta {
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_ventas_valor {
+    align-self: flex-start;
+    background: none;
+    border: 0;
+    padding: 0;
+    text-align: left;
+    font-size: clamp(1.7rem, 3vw, 2.3rem);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1.1;
+    color: var(--dc-azul-700);
+
+    &:hover { text-decoration: underline; }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); border-radius: 4px; }
+}
+
+.o_dcasa_ganancia_valor { color: var(--dc-azul-900); }
+
+.o_dcasa_ventas_nota {
+    font-size: .85rem;
+    color: var(--dc-tinta-2);
+}
+
+.o_dcasa_ventas_aviso {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: .82rem;
+    color: var(--dc-azul-800);
+    background: var(--dc-azul-50);
+    border-radius: var(--dc-r-sm);
+    padding: 6px 10px;
+}
+
+.o_dcasa_desglose {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    font-size: .85rem;
+    color: var(--dc-tinta-3);
+
+    strong { color: var(--dc-tinta); font-weight: 600; }
+}
+
+.o_dcasa_variacion {
+    font-size: .85rem;
+    font-weight: 500;
+    color: var(--dc-tinta-2);
+
+    &.o_sube .fa { color: var(--dc-azul-600); }
+    &.o_baja .fa { color: #b3261e; }
+}
+
+.o_dcasa_listas {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+
+    @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.o_dcasa_lista_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    h2 { margin: 0; }
+}
+
+.o_dcasa_lista_cuenta {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-size: .85rem;
+    color: var(--dc-azul-600);
+    font-weight: 500;
+
+    &:hover { text-decoration: underline; }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); border-radius: 4px; }
+}
+
+.o_dcasa_lista li + li { border-top: 1px solid var(--dc-perla); }
+
+.o_dcasa_lista_fila {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 6px;
+    background: none;
+    border: 0;
+    border-radius: var(--dc-r-sm);
+    text-align: left;
+
+    &:hover { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_lista_texto,
+.o_dcasa_lista_dato {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+
+    strong { font-weight: 600; color: var(--dc-tinta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    small { color: var(--dc-tinta-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+.o_dcasa_lista_dato { align-items: flex-end; flex: none; }
+
+.o_dcasa_lista_pie {
+    margin: 8px 0 0;
+    font-size: .82rem;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_vacio { color: var(--dc-tinta-3); margin: 0; }
+
+.o_dcasa_caja_total {
+    margin: 0 0 8px;
+    color: var(--dc-tinta-2);
+    font-size: .88rem;
+
+    strong { color: var(--dc-tinta); }
+}
+
+.o_dcasa_ver_tienda { min-width: 40px; justify-content: center; }

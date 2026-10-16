@@ -2201,6 +2201,58 @@
     "historial",
     "seguidores"
    ]
+  },
+  {
+   "id": "mas-vendido",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Ver lo más vendido",
+   "logras": "Los productos que más se venden en el mes o en la semana, por unidades y por dinero sin ITBMS. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_estadisticas_mas_vendido"
+   },
+   "palabras": [
+    "estadisticas",
+    "mas vendido",
+    "top",
+    "productos que se venden",
+    "ranking"
+   ]
+  },
+  {
+   "id": "mejor-margen",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Ver qué producto deja más ganancia",
+   "logras": "La ganancia de cada producto vendido (venta sin ITBMS menos su costo). Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_estadisticas_margen"
+   },
+   "palabras": [
+    "margen",
+    "ganancia por producto",
+    "utilidad",
+    "costo",
+    "estadisticas"
+   ]
+  },
+  {
+   "id": "no-se-mueve",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Ver lo que no se está vendiendo",
+   "logras": "Los productos con existencias que no tuvieron ninguna venta en los últimos 90 días. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_estadisticas_sin_movimiento"
+   },
+   "palabras": [
+    "no se vende",
+    "no gusta",
+    "sin ventas",
+    "estancado",
+    "estadisticas",
+    "inventario parado"
+   ]
   }
  ],
  "$empezar": "Las tareas de «Empieza por aquí», en este orden (solo salen las que la persona puede abrir)."

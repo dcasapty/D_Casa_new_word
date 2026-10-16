@@ -684,14 +684,37 @@ entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dca
 
 | | Vendedora | Gerencia, administradores y contabilidad |
 |---|---|---|
-| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya») y **Mis cotizaciones** (las suyas abiertas) | Vendido hoy, cotizaciones abiertas, pedidos web, cobrado hoy, por cobrar, entregas y socios (de toda la tienda), barras de la semana, caja y lo más vendido |
-| Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Nueva factura (suelta, sin cotización), Registrar cobro, Ver la tienda y Ver en el celular |
+| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose y su comparación), **ganancia** (solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
+| Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Registrar cobro y Ver la tienda (solo ícono). Todos azules |
 | Accesos grandes | Productos · Facturas · Conversaciones · **Escáner** | Productos · Facturas · Conversaciones · **Escáner** · Oportunidades · Resumen contable |
 
 La vendedora **no** ve lo que está por cobrarse ni lo cobrado hoy: cobra desde la factura, no desde el Inicio. «Panel
 completo» es quien tiene Ventas administrador, contabilidad (lector contable o más) o es administrador técnico; «solo lo
 propio» es quien tiene Ventas pero no es de esos (`dcasa.tablero._solo_lo_propio`). Quien no vende (no tiene Ventas)
 no cambia: ve lo que su permiso deje.
+
+### ITBMS, costo y ganancia en el Inicio (criterio contable, 2026-10-16)
+
+- **Ventas, costo y ganancia van sin ITBMS**: el ITBMS no es ingreso de la tienda, es plata que se le entrega a la DGI. El
+  **dinero que se mueve** (por cobrar, cobrado, caja) va **con** ITBMS porque es lo que de verdad entra o se debe.
+  Cada cifra lo dice en su etiqueta («sin ITBMS» / «con ITBMS») y la tarjeta de ventas trae el desglose
+  *sin ITBMS · ITBMS · total*.
+- **Ganancia = venta neta − costo**, ambas sin ITBMS. El costo de cada línea se **guarda al confirmar la venta**
+  (`sale.order.line.dcasa_costo_unitario`, `dcasa_base/models/utilidad.py`): si el costo del producto cambia después, las
+  ventas ya hechas no se mueven. Solo cuentan las líneas de mercancía (el flete no) y los descuentos. Un pedido con
+  mercancía **sin costo cargado** no inventa ganancia: queda fuera y el Inicio lo avisa («N productos vendibles no
+  tienen costo cargado»). Las ventas anteriores a este cambio toman el costo de hoy del producto al actualizar el módulo.
+- **Quién la ve:** Gerencia y administradores (`GRUPOS_UTILIDAD`). La Vendedora no ve costo ni ganancia en ninguna
+  pantalla ni en Brian. No se instaló `sale_margin` a propósito: mostraría el costo a todo el personal.
+- **Selector de periodo:** Hoy (contra ayer), Esta semana (lunes a hoy, contra los mismos días de la semana pasada),
+  Este mes (contra los mismos días del mes pasado) o un rango de hasta un año (contra el rango anterior de igual
+  largo). Servidor: `dcasa.tablero.ventas_del_periodo`.
+- **Estadísticas** (menú aparte, solo Gerencia y administradores): *Lo más vendido*, *Mejor margen* y *Lo que no se
+  mueve* (con existencias y sin ventas en 90 días).
+- **Stock bajo:** la franja de atención avisa de los productos con 5 unidades o menos (parámetro
+  `dcasa.stock_bajo_umbral`).
+- **Envíos** aparece en el menú como «En desarrollo» mientras se define el servicio (`dcasa_contabilidad`,
+  `static/src/js/en_desarrollo.js`).
 
 ### Qué cuenta como «vendido» y en qué día
 

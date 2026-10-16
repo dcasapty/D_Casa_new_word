@@ -199,7 +199,8 @@ class TestVendidoEsFacturado(VentasCommon):
         self.assertIn(vendido, lista)
         for fuera in (pendiente, borrador, con_borrador):
             self.assertNotIn(fuera, lista, fuera.name)
-        self.assertAlmostEqual(cifras['ventas_hoy']['valor'], sum(lista.mapped('amount_total')), places=2)
+        self.assertAlmostEqual(cifras['ventas_hoy']['valor'], sum(lista.mapped('amount_untaxed')), places=2)
+        self.assertAlmostEqual(cifras['ventas_hoy']['total_con_itbms'], sum(lista.mapped('amount_total')), places=2)
         self.assertEqual(cifras['ventas_hoy']['detalle'], f'{len(lista)} venta' + ('' if len(lista) == 1 else 's'))
         # barras
         self.assertTrue(datos['semana'][-1]['hoy'])
@@ -218,6 +219,8 @@ class TestVendidoEsFacturado(VentasCommon):
         self.facturar(despues_orden, fecha=self.hoy - timedelta(days=1))
         despues = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
         self.assertAlmostEqual(despues['semana'][-2]['monto'] - antes['semana'][-2]['monto'],
+                               despues_orden.amount_untaxed, places=2)
+        self.assertAlmostEqual(despues['semana'][-2]['total'] - antes['semana'][-2]['total'],
                                despues_orden.amount_total, places=2)
         self.assertAlmostEqual(despues['semana'][-1]['monto'], antes['semana'][-1]['monto'], places=2)
 
@@ -242,7 +245,9 @@ class TestInicioPorRol(VentasCommon):
         hoy = cifras['ventas_hoy']
         lista = self.env['sale.order'].with_user(self.vendedora).search(hoy['accion']['domain'])
         self.assertEqual(lista, mia)
-        self.assertAlmostEqual(hoy['valor'], mia.amount_total, places=2)
+        self.assertAlmostEqual(hoy['valor'], mia.amount_untaxed, places=2, msg='el valor es sin ITBMS')
+        self.assertAlmostEqual(hoy['total_con_itbms'], mia.amount_total, places=2)
+        self.assertAlmostEqual(hoy['itbms'], mia.amount_tax, places=2)
         self.assertEqual(hoy['detalle'], '1 venta tuya')
         self.assertIn(('user_id', '=', self.vendedora.id), hoy['accion']['domain'])
         # Mis cotizaciones: solo las abiertas de ella (la confirmada sin facturar ya no es cotización)
@@ -264,7 +269,9 @@ class TestInicioPorRol(VentasCommon):
         self.assertFalse(permisos['cobrar'], 'ni «Registrar cobro» en el Inicio')
         self.assertFalse(permisos['ver_cobros'])
         claves = {c['clave'] for c in datos['cifras']}
-        self.assertFalse(claves & {'cobrado_hoy', 'por_cobrar', 'cotizaciones', 'web', 'entregas', 'socios'}, claves)
+        self.assertFalse(claves & {'por_cobrar', 'cotizaciones', 'web', 'entregas', 'socios'}, claves)
+        self.assertIsNone(datos['ventas'], 'ni el panel de ventas por periodo, ni la ganancia')
+        self.assertFalse(datos['ve_utilidad'])
         # Lo que sí tiene
         self.assertTrue(permisos['facturar'])
         self.assertTrue(permisos['crear_cliente'])
@@ -275,26 +282,29 @@ class TestInicioPorRol(VentasCommon):
         self.assertEqual(datos['alcance'], 'tienda')
         self.assertTrue(all(datos['permisos'].values()), datos['permisos'])
         claves = {c['clave'] for c in datos['cifras']}
-        self.assertTrue({'ventas_hoy', 'cobrado_hoy', 'cotizaciones', 'web', 'por_cobrar', 'entregas', 'socios'}
-                        <= claves, claves)
+        self.assertTrue({'ventas_hoy', 'cotizaciones', 'web', 'por_cobrar', 'entregas', 'socios'} <= claves, claves)
+        self.assertNotIn('cobrado_hoy', claves, '«Cobrado hoy» salió: Caja de hoy ya lo dice (2026-10-16)')
         self.assertEqual(len(datos['semana']), 7)
+        self.assertEqual(datos['ventas']['periodo'], 'hoy')
+        self.assertTrue(datos['ve_utilidad'])
+        self.assertIsNotNone(datos['cotizaciones'])
+        self.assertIsNotNone(datos['entregas'])
 
     def test_gerencia_ve_lo_cobrado_hoy_por_forma_de_pago_y_la_vendedora_no(self):
         diario = self.env['account.journal'].search([('type', 'in', ('cash', 'bank'))], limit=1)
         if not diario:
             self.skipTest('Sin diarios de caja o banco')
         antes = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
-        cobrado_antes = next(c['valor'] for c in antes['cifras'] if c['clave'] == 'cobrado_hoy')
+        cobrado_antes = antes['total_cobrado']
         self.env['account.payment'].create({
             'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
             'amount': 12.5, 'journal_id': diario.id}).action_post()
         datos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
-        cifras = {c['clave']: c for c in datos['cifras']}
-        self.assertAlmostEqual(cifras['cobrado_hoy']['valor'] - cobrado_antes, 12.5, places=2)
+        self.assertAlmostEqual(datos['total_cobrado'] - cobrado_antes, 12.5, places=2)
         self.assertIn(diario.display_name, {c['forma'] for c in datos['cobros']})
         propio = self.env['dcasa.tablero'].with_user(self.vendedora).obtener_datos()
         self.assertFalse(propio['cobros'])
-        self.assertNotIn('cobrado_hoy', {c['clave'] for c in propio['cifras']})
+        self.assertEqual(propio['total_cobrado'], 0.0)
 
     def test_el_vendido_de_gerencia_incluye_a_todas_las_vendedoras(self):
         mia, ajena = self.pedido(vendedor=self.vendedora), self.pedido(vendedor=self.otra)
@@ -377,10 +387,10 @@ class TestInicioPorRol(VentasCommon):
         # solo es de quien controla (no tiene pedido ni nota de entrega).
         self.assertIn('o_dcasa_nueva_cotizacion', xml)
         self.assertIn('<button t-if="d.permisos.cotizar" class="btn btn-primary o_dcasa_nueva_cotizacion"', xml)
-        self.assertIn('o_dcasa_nueva_factura', xml)
-        self.assertIn("'account.move', {default_move_type: 'out_invoice'}", xml)
-        self.assertIn('t-if="d.permisos.facturar and d.permisos.completo"', xml)
-        self.assertIn('<button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="verTienda">', xml)
+        # 2026-10-16: «Nueva factura» y «Ver en el celular» se retiraron; «Ver la tienda» queda solo con ícono.
+        self.assertNotIn('o_dcasa_nueva_factura', xml)
+        self.assertNotIn('Ver en el celular', xml)
+        self.assertIn('<button t-if="d.permisos.completo" class="btn btn-primary o_dcasa_ver_tienda"', xml)
         self.assertIn('<div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">', xml)
         self.assertIn('Así va tu día', xml)
 
@@ -545,14 +555,30 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             const atajos = textos('.o_dcasa_atajo strong');
             igual(atajos, orden.filter((t) => atajos.includes(t)), 'orden de los atajos');
             const titulos = textos('.o_dcasa_cifra .o_dcasa_cifra_titulo');
-            for (const dentro of ['Vendido hoy', 'Cobrado hoy', 'Por cobrar']) {
-                if (!titulos.includes(dentro)) { throw new Error('Gerencia debe ver ' + dentro); }
+            if (!titulos.includes('Por cobrar')) { throw new Error('Gerencia debe ver Por cobrar'); }
+            for (const fuera of ['Cobrado hoy', 'Vendido hoy', 'Cotizaciones abiertas', 'Entregas pendientes']) {
+                if (titulos.includes(fuera)) { throw new Error('esa cifra ahora va en su panel: ' + fuera); }
             }
+            await esperar(() => document.querySelector('.o_dcasa_ventas'), 'el panel de ventas');
+            await esperar(() => document.querySelector('.o_dcasa_lista_cotizaciones'), 'las cotizaciones abiertas');
+            await esperar(() => document.querySelector('.o_dcasa_lista_entregas'), 'las entregas pendientes');
             await esperar(() => document.querySelector('.o_dcasa_semana'), 'las barras de la semana');
             const botones = textos('.o_dcasa_inicio_accesos .btn');
-            for (const dentro of ['Nueva cotización', 'Nueva factura', 'Nuevo cliente', 'Registrar cobro']) {
+            for (const dentro of ['Nueva cotización', 'Nuevo cliente', 'Registrar cobro']) {
                 if (!botones.includes(dentro)) { throw new Error('falta el botón ' + dentro); }
             }
+            for (const fuera of ['Nueva factura', 'Ver en el celular']) {
+                if (botones.includes(fuera)) { throw new Error('ya no debe estar el botón ' + fuera); }
+            }
+            if (!document.querySelector('.o_dcasa_ver_tienda[aria-label="Ver la tienda"]')) {
+                throw new Error('falta «Ver la tienda» (solo con ícono)');
+            }
+            // Los periodos de las ventas: Hoy ya está activo; Esta semana cambia la etiqueta.
+            if (!document.querySelector('.o_dcasa_periodo_hoy.o_activo')) { throw new Error('Hoy debe estar activo'); }
+            document.querySelector('.o_dcasa_periodo_semana').click();
+            await esperar(() => document.querySelector('.o_dcasa_periodo_semana.o_activo'), 'la semana activa');
+            await esperar(
+                () => document.querySelector('.o_dcasa_ventas_etiqueta')?.textContent === 'Esta semana', 'la etiqueta');
             // El Inicio baja con scroll (regla fuerte de interfaz.scss).
             const accion = document.querySelector('.o_dcasa_inicio');
             if (getComputedStyle(accion).overflowY !== 'auto') { throw new Error('el Inicio debe tener scroll'); }

@@ -13,16 +13,29 @@ Dos paneles según el rol (pedido de la dueña, 2026-10-14):
 
 «Vendido» siempre significa lo mismo: pedidos facturados por completo, con todas sus facturas publicadas
 (``sale.order._dcasa_dominio_vendido``). Una cotización, un borrador o un pedido por facturar no es una venta.
+
+ITBMS (decisión por mejor práctica contable, 2026-10-16): las ventas, el costo y la ganancia se miden **sin ITBMS**
+(es un impuesto de la DGI, no ingreso ni costo); el dinero que se mueve (por cobrar, cobrado) va **con** ITBMS. Cada
+cifra de ventas trae sus tres números (sin ITBMS · ITBMS · total) y la etiqueta dice cuál es cuál.
+
+La ganancia (``dcasa_base/models/utilidad.py``) solo la ven Gerencia y los administradores.
 """
+import base64
 from datetime import datetime, time, timedelta
 
 import pytz
 from babel.dates import format_date
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
 APPS_SIN_PAGO = "[('to_buy', '=', False)]"
+PERIODOS = ('hoy', 'semana', 'mes', 'rango')
+MAXIMO_DIAS_DE_RANGO = 366
+PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
+STOCK_BAJO_DEFECTO = 5
+FILAS_DE_LISTA = 5
 
 
 def _accion(nombre, modelo, dominio, vista='list'):
@@ -142,6 +155,11 @@ class DcasaTablero(models.AbstractModel):
                 'icono': 'fa-line-chart', 'accion': 'dcasa_contabilidad.accion_resumen', 'vista': None})
         return atajos
 
+    def _ve_utilidad(self):
+        """Los costos son sensibles: la ganancia la ven solo Gerencia y los administradores."""
+        usuario = self.env.user
+        return usuario.has_group('sales_team.group_sale_manager') or usuario.has_group('base.group_system')
+
     @api.model
     def obtener_datos(self):
         hoy = fields.Date.context_today(self)
@@ -155,8 +173,14 @@ class DcasaTablero(models.AbstractModel):
             'alcance': 'propio' if propio else 'tienda',
             'cifras': [],
             'cobros': [],
+            'total_cobrado': 0.0,
             'semana': [],
             'top': [],
+            'ventas': None,
+            'cotizaciones': None,
+            'entregas': None,
+            'atencion': [],
+            've_utilidad': False,
             'permisos': self._permisos(propio),
             # La Guía («¿Qué necesitas hacer hoy?») vive en otro módulo: si no está instalado, no hay botón.
             'guia': bool(self.env.ref('dcasa_guia.accion_guia', raise_if_not_found=False)),
@@ -164,6 +188,10 @@ class DcasaTablero(models.AbstractModel):
         datos['atajos'] = self._atajos(datos['permisos'])
         if self._puede('sale.order'):
             self._cifras_de_ventas(datos, hoy, propio)
+            if not propio:
+                datos['ve_utilidad'] = self._ve_utilidad()
+                datos['ventas'] = self.ventas_del_periodo('hoy')
+                datos['cotizaciones'] = self._lista_de_cotizaciones(hoy)
         # Lo que quien vende sin controlar no ve: lo cobrado y lo por cobrar, las entregas y los socios.
         if datos['permisos']['ver_cobros']:
             self._cobros_de_hoy(datos, hoy)
@@ -172,15 +200,147 @@ class DcasaTablero(models.AbstractModel):
             if self._puede('account.move'):
                 self._por_cobrar(datos)
         if not propio and self._puede('stock.picking'):
-            self._entregas(datos)
+            self._entregas(datos, hoy)
         if not propio and self._puede('res.partner'):
             self._socios(datos, hoy)
+        if not propio:
+            self._atencion(datos, hoy)
         return datos
+
+    # ------------------------------------------------------------------
+    # Ventas por periodo (Hoy · Semana · Mes · rango)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _rango_del_periodo(self, periodo, desde=None, hasta=None, hoy=None):
+        """Los días del periodo y los del periodo con que se compara, ambos incluidos.
+
+        Hoy se compara con ayer; la semana (de lunes a hoy) con los mismos días de la semana pasada; el mes (del 1 a
+        hoy) con los mismos días del mes pasado; un rango, con el rango de igual largo justo antes."""
+        hoy = hoy or fields.Date.context_today(self)
+        if periodo not in PERIODOS:
+            raise UserError(self.env._('Elige Hoy, Esta semana, Este mes o un rango de fechas.'))
+        if periodo == 'hoy':
+            d0 = d1 = hoy
+            p0 = p1 = hoy - timedelta(days=1)
+            nombres = ('Hoy', 'Ayer')
+        elif periodo == 'semana':
+            d0, d1 = hoy - timedelta(days=hoy.weekday()), hoy
+            p0 = d0 - timedelta(days=7)
+            p1 = p0 + (d1 - d0)
+            nombres = ('Esta semana', 'La semana pasada')
+        elif periodo == 'mes':
+            d0, d1 = hoy.replace(day=1), hoy
+            p1_fin = d0 - timedelta(days=1)
+            p0 = p1_fin.replace(day=1)
+            p1 = min(p0 + (d1 - d0), p1_fin)
+            nombres = ('Este mes', 'El mes pasado')
+        else:
+            d0, d1 = fields.Date.to_date(desde), fields.Date.to_date(hasta)
+            if not d0 or not d1 or d0 > d1:
+                raise UserError(self.env._('Escribe un rango válido: «desde» no puede ser después de «hasta».'))
+            if (d1 - d0).days + 1 > MAXIMO_DIAS_DE_RANGO:
+                raise UserError(self.env._('El rango puede ser de hasta un año.'))
+            d1 = min(d1, hoy)
+            d0 = min(d0, d1)
+            largo = (d1 - d0).days + 1
+            p1 = d0 - timedelta(days=1)
+            p0 = p1 - timedelta(days=largo - 1)
+            nombres = (f'Del {format_date(d0, "d MMM", locale="es")} al {format_date(d1, "d MMM", locale="es")}',
+                       'El rango anterior de igual largo')
+        return {'periodo': periodo, 'desde': d0, 'hasta': d1, 'etiqueta': nombres[0],
+                'anterior_desde': p0, 'anterior_hasta': p1, 'anterior_etiqueta': nombres[1]}
+
+    def _totales_de_ventas(self, d0, d1, vendedor=None, con_ganancia=False):
+        """Lo vendido entre dos días: las tres cifras (sin ITBMS · ITBMS · total) y, si se pide, la ganancia."""
+        Order = self.env['sale.order']
+        dominio = Order._dcasa_dominio_vendido(desde=d0, hasta=d1, vendedor=vendedor)
+        ordenes = Order.search_read(dominio, ['amount_untaxed', 'amount_tax', 'amount_total'])
+        totales = {
+            'cuantas': len(ordenes),
+            'sin_itbms': sum(o['amount_untaxed'] for o in ordenes),
+            'itbms': sum(o['amount_tax'] for o in ordenes),
+            'total': sum(o['amount_total'] for o in ordenes),
+            'ganancia': None,
+        }
+        if con_ganancia:
+            totales['ganancia'] = self._ganancia_de(dominio)
+        return totales
+
+    def _ganancia_de(self, dominio):
+        """La ganancia de las ventas del dominio: venta neta menos costo, sin ITBMS.
+
+        Un pedido con mercancía sin costo cargado no inventa ganancia: queda fuera y se cuenta aparte."""
+        Order = self.env['sale.order'].sudo()
+        con_costo = Order._read_group(dominio + [('dcasa_sin_costo', '=', False)], [],
+                                      ['dcasa_utilidad:sum', 'dcasa_venta_neta:sum', '__count'])
+        utilidad, neta, cuantas = con_costo[0] if con_costo else (0.0, 0.0, 0)
+        return {
+            'valor': utilidad or 0.0,
+            'porcentaje': round((utilidad or 0.0) / neta * 100, 1) if neta else None,
+            'ventas_con_costo': cuantas or 0,
+            'ventas_sin_costo': Order.search_count(dominio + [('dcasa_sin_costo', '=', True)]),
+        }
+
+    @api.model
+    def ventas_del_periodo(self, periodo='hoy', desde=None, hasta=None):
+        """La tarjeta de ventas del Inicio para un periodo, con su comparación y (solo Gerencia) la ganancia.
+
+        Quien vende sin controlar ve solo lo que vendió ella misma, sin ganancia."""
+        if not self._puede('sale.order'):
+            return None
+        propio = self._solo_lo_propio()
+        vendedor = self.env.uid if propio else None
+        rango = self._rango_del_periodo(periodo, desde, hasta)
+        con_ganancia = not propio and self._ve_utilidad()
+        actual = self._totales_de_ventas(rango['desde'], rango['hasta'], vendedor, con_ganancia)
+        anterior = self._totales_de_ventas(rango['anterior_desde'], rango['anterior_hasta'], vendedor, con_ganancia)
+        variacion = None
+        if anterior['sin_itbms']:
+            variacion = round((actual['sin_itbms'] - anterior['sin_itbms']) / anterior['sin_itbms'] * 100, 1)
+        Order = self.env['sale.order']
+        return {
+            'periodo': rango['periodo'], 'etiqueta': rango['etiqueta'],
+            'desde': str(rango['desde']), 'hasta': str(rango['hasta']),
+            'actual': actual, 'anterior': {**anterior, 'etiqueta': rango['anterior_etiqueta'],
+                                           'desde': str(rango['anterior_desde']),
+                                           'hasta': str(rango['anterior_hasta'])},
+            'variacion_pct': variacion,
+            'accion': _accion(f'Ventas · {rango["etiqueta"]}', 'sale.order',
+                              Order._dcasa_dominio_vendido(desde=rango['desde'], hasta=rango['hasta'],
+                                                           vendedor=vendedor)),
+        }
+
+    # ------------------------------------------------------------------
+    # Cotizaciones abiertas y entregas pendientes: las dos listas lado a lado
+    # ------------------------------------------------------------------
+
+    def _lista_de_cotizaciones(self, hoy):
+        """Las cotizaciones abiertas de la tienda (no las de la web), con las más antiguas primero para cerrarlas."""
+        Order = self.env['sale.order']
+        abiertas = [('state', 'in', ('draft', 'sent')), ('website_id', '=', False)]
+        total = Order.search_read(abiertas, ['amount_untaxed', 'amount_total'])
+        filas = Order.search_read(abiertas, ['name', 'partner_id', 'amount_total', 'user_id', 'date_order'],
+                                  order='date_order asc, id asc', limit=FILAS_DE_LISTA)
+        return {
+            'cantidad': len(total),
+            'sin_itbms': sum(o['amount_untaxed'] for o in total),
+            'total': sum(o['amount_total'] for o in total),
+            'accion': _accion('Cotizaciones abiertas', 'sale.order', abiertas),
+            'filas': [{
+                'id': o['id'], 'nombre': o['name'], 'cliente': o['partner_id'] and o['partner_id'][1] or '',
+                'total': o['amount_total'], 'vendedora': o['user_id'] and o['user_id'][1] or '',
+                'dias': max((hoy - fields.Datetime.context_timestamp(self, o['date_order']).date()).days, 0)
+                if o['date_order'] else 0,
+            } for o in filas],
+        }
 
     def _cifras_de_ventas(self, datos, hoy, propio=False):
         """Las cifras de ventas. «Vendido» = pedidos facturados por completo (``_dcasa_dominio_vendido``), contados
         en el día de su última factura: la tarjeta, la lista que abre, las barras y «lo más vendido» salen todos de
-        ese mismo dominio. ``propio``: solo los pedidos de quien mira (y nada de barras ni totales de la tienda)."""
+        ese mismo dominio. ``propio``: solo los pedidos de quien mira (y nada de barras ni totales de la tienda).
+
+        El valor de las ventas es **sin ITBMS**; el ITBMS y el total van aparte en la misma cifra."""
         Order = self.env['sale.order']
         vendedor = self.env.uid if propio else None
         # Una sola lectura para «Vendido hoy» y las barras de la semana. El día de la venta ya es una fecha de
@@ -188,14 +348,16 @@ class DcasaTablero(models.AbstractModel):
         ventas = Order.search_read(
             Order._dcasa_dominio_vendido(desde=hoy if propio else hoy - timedelta(days=6), hasta=hoy,
                                          vendedor=vendedor),
-            ['dcasa_fecha_venta', 'amount_total'])
+            ['dcasa_fecha_venta', 'amount_untaxed', 'amount_tax', 'amount_total'])
         por_dia = {}
         for venta in ventas:
-            cuenta, monto = por_dia.get(venta['dcasa_fecha_venta'], (0, 0.0))
-            por_dia[venta['dcasa_fecha_venta']] = (cuenta + 1, monto + venta['amount_total'])
-        cuantas, vendido = por_dia.get(hoy, (0, 0.0))
+            cuenta, base, itbms, total = por_dia.get(venta['dcasa_fecha_venta'], (0, 0.0, 0.0, 0.0))
+            por_dia[venta['dcasa_fecha_venta']] = (cuenta + 1, base + venta['amount_untaxed'],
+                                                   itbms + venta['amount_tax'], total + venta['amount_total'])
+        cuantas, base, itbms, total = por_dia.get(hoy, (0, 0.0, 0.0, 0.0))
         datos['cifras'].append({
-            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'valor': vendido, 'formato': 'moneda',
+            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'valor': base, 'formato': 'moneda',
+            'nota': 'sin ITBMS', 'itbms': itbms, 'total_con_itbms': total,
             'detalle': f'{cuantas} venta' + (('' if cuantas == 1 else 's') if not propio else
                                              (' tuya' if cuantas == 1 else 's tuyas')),
             'accion': _accion('Ventas de hoy', 'sale.order',
@@ -222,7 +384,7 @@ class DcasaTablero(models.AbstractModel):
         web = [('website_id', '!=', False), ('state', '=', 'sale'), ('delivery_status', '!=', 'full')]
         datos['cifras'].append({
             'clave': 'web', 'titulo': 'Pedidos web por atender', 'valor': Order.search_count(web),
-            'formato': 'numero', 'detalle': 'Confírmalos por WhatsApp',
+            'formato': 'numero', 'detalle': 'Compraron en la web y aún no se entregan',
             'accion': _accion('Pedidos web por atender', 'sale.order', web),
         })
         self._barras_y_lo_mas_vendido(datos, hoy, por_dia)
@@ -235,11 +397,12 @@ class DcasaTablero(models.AbstractModel):
         }
 
     def _barras_y_lo_mas_vendido(self, datos, hoy, por_dia):
-        """Las barras de los últimos 7 días y lo más vendido del mes (solo en el panel de la tienda)."""
+        """Las barras de los últimos 7 días (sin ITBMS) y lo más vendido del mes (solo en el panel de la tienda)."""
         for atras in range(6, -1, -1):
             dia = hoy - timedelta(days=atras)
-            monto = por_dia.get(dia, (0, 0.0))[1]
-            datos['semana'].append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': monto, 'hoy': atras == 0})
+            dia_total = por_dia.get(dia, (0, 0.0, 0.0, 0.0))
+            datos['semana'].append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': dia_total[1],
+                                    'total': dia_total[3], 'hoy': atras == 0})
         # Las líneas de las ventas de los últimos 30 días: el mismo dominio de «vendido», visto desde la línea.
         vendido = self.env['sale.order']._dcasa_dominio_vendido(desde=hoy - timedelta(days=30), hasta=hoy)
         lineas = self.env['sale.order.line']._read_group(
@@ -257,16 +420,14 @@ class DcasaTablero(models.AbstractModel):
             })
 
     def _cobros_de_hoy(self, datos, hoy):
+        """Lo cobrado hoy por forma de pago (con ITBMS: es el dinero que entró). Va en «Caja de hoy»."""
         dominio = [('payment_type', '=', 'inbound'), ('state', '!=', 'canceled'), ('date', '=', hoy)]
         grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum'])
         for diario, monto in grupos:
             if diario:
                 datos['cobros'].append({'forma': diario.display_name, 'monto': monto})
-        datos['cifras'].append({
-            'clave': 'cobrado_hoy', 'titulo': 'Cobrado hoy', 'valor': sum(c['monto'] for c in datos['cobros']),
-            'formato': 'moneda', 'detalle': ' · '.join(c['forma'] for c in datos['cobros']) or 'Sin cobros todavía',
-            'accion': _accion('Cobros de hoy', 'account.payment', dominio),
-        })
+        datos['total_cobrado'] = sum(c['monto'] for c in datos['cobros'])
+        datos['accion_cobros'] = _accion('Cobros de hoy', 'account.payment', dominio)
 
     def _por_cobrar(self, datos):
         dominio = [('move_type', '=', 'out_invoice'), ('state', '=', 'posted'),
@@ -274,18 +435,65 @@ class DcasaTablero(models.AbstractModel):
         facturas = self.env['account.move'].search_read(dominio, ['amount_residual'])
         datos['cifras'].append({
             'clave': 'por_cobrar', 'titulo': 'Por cobrar', 'valor': sum(f['amount_residual'] for f in facturas),
-            'formato': 'moneda', 'detalle': f'{len(facturas)} factura' + ('' if len(facturas) == 1 else 's'),
+            'formato': 'moneda', 'nota': 'con ITBMS',
+            'detalle': f'{len(facturas)} factura' + ('' if len(facturas) == 1 else 's'),
             'accion': _accion('Facturas por cobrar', 'account.move', dominio),
         })
 
-    def _entregas(self, datos):
+    def _entregas(self, datos, hoy):
+        """Entregas por despachar o retirar: la cifra y la lista de las más antiguas, para entregarlas en orden."""
+        Picking = self.env['stock.picking']
         dominio = [('picking_type_code', '=', 'outgoing'), ('state', 'in', ('confirmed', 'waiting', 'assigned'))]
+        cantidad = Picking.search_count(dominio)
         datos['cifras'].append({
-            'clave': 'entregas', 'titulo': 'Entregas pendientes',
-            'valor': self.env['stock.picking'].search_count(dominio),
+            'clave': 'entregas', 'titulo': 'Entregas pendientes', 'valor': cantidad,
             'formato': 'numero', 'detalle': 'Por despachar o retirar',
             'accion': _accion('Entregas pendientes', 'stock.picking', dominio),
         })
+        filas = Picking.search_read(dominio, ['name', 'partner_id', 'origin', 'scheduled_date', 'state'],
+                                    order='scheduled_date asc, id asc', limit=FILAS_DE_LISTA)
+        datos['entregas'] = {
+            'cantidad': cantidad,
+            'accion': _accion('Entregas pendientes', 'stock.picking', dominio),
+            'filas': [{
+                'id': p['id'], 'nombre': p['name'], 'cliente': p['partner_id'] and p['partner_id'][1] or '',
+                'origen': p['origin'] or '', 'listo': p['state'] == 'assigned',
+                'dias': max((hoy - fields.Datetime.context_timestamp(self, p['scheduled_date']).date()).days, 0)
+                if p['scheduled_date'] else 0,
+            } for p in filas],
+        }
+
+    def _umbral_de_stock_bajo(self):
+        valor = self.env['ir.config_parameter'].sudo().get_param(PARAM_STOCK_BAJO, STOCK_BAJO_DEFECTO)
+        try:
+            return max(int(float(valor)), 0)
+        except (TypeError, ValueError):
+            return STOCK_BAJO_DEFECTO
+
+    def _atencion(self, datos, hoy):
+        """La franja de avisos: lo que conviene mirar hoy. Solo lo que quien mira puede abrir."""
+        avisos = datos['atencion']
+        if self._puede('product.product'):
+            Producto = self.env['product.product']
+            umbral = self._umbral_de_stock_bajo()
+            bajo = [('is_storable', '=', True), ('sale_ok', '=', True), ('qty_available', '<=', umbral)]
+            cuantos = Producto.search_count(bajo)
+            if cuantos:
+                avisos.append({
+                    'clave': 'stock_bajo', 'icono': 'fa-exclamation-triangle', 'cuenta': cuantos,
+                    'texto': f'{cuantos} producto' + (' se está' if cuantos == 1 else 's se están')
+                             + f' agotando ({umbral} unidades o menos)',
+                    'accion': _accion('Productos por agotarse', 'product.product', bajo)})
+        if datos['ve_utilidad']:
+            Producto = self.env['product.product']
+            sin_costo = [('is_storable', '=', True), ('sale_ok', '=', True), ('standard_price', '<=', 0)]
+            cuantos = Producto.search_count(sin_costo)
+            if cuantos:
+                avisos.append({
+                    'clave': 'productos_sin_costo', 'icono': 'fa-tag', 'cuenta': cuantos,
+                    'texto': f'{cuantos} producto' + (' vendible no tiene' if cuantos == 1 else 's vendibles no tienen')
+                             + ' costo cargado: sus ventas no cuentan en la ganancia',
+                    'accion': _accion('Productos sin costo', 'product.product', sin_costo)})
 
     def _socios(self, datos, hoy):
         Partner = self.env['res.partner']
@@ -333,6 +541,18 @@ class DcasaTablero(models.AbstractModel):
         apps = self.env.ref('base.open_module_tree', raise_if_not_found=False)
         if apps and apps.domain != APPS_SIN_PAGO:
             apps.domain = APPS_SIN_PAGO
+        self._dcasa_refrescar_iconos()
+
+    @api.model
+    def _dcasa_refrescar_iconos(self):
+        """Odoo guarda la imagen del ícono de cada menú cuando se escribe su ``web_icon``, no cuando cambia el archivo:
+        un ícono que se recolorea o se rediseña seguiría viéndose como antes. En cada actualización se vuelve a leer el
+        archivo y se guarda si cambió (2026-10-16: un color por familia)."""
+        Menu = self.env['ir.ui.menu'].with_context(active_test=False)
+        for menu in Menu.search([('web_icon', '!=', False)]):
+            nuevo = Menu._compute_web_icon_data(menu.web_icon)
+            if nuevo and base64.b64decode(nuevo) != base64.b64decode(menu.web_icon_data or b''):
+                menu.web_icon_data = nuevo
 
     @api.model
     def _dcasa_configurar_panel(self):

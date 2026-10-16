@@ -15,34 +15,29 @@
                 </div>
                 <!-- Solo los accesos que quien mira puede usar (permisos de obtener_datos). -->
                 <div class="o_dcasa_inicio_accesos">
-                    <button t-if="d.guia" class="btn btn-secondary o_dcasa_inicio_guia" t-on-click="abrirGuia">
+                    <button t-if="d.guia" class="btn btn-outline-primary o_dcasa_inicio_guia" t-on-click="abrirGuia">
                         <i class="fa fa-compass me-2"/>¿Qué necesito hacer?
                     </button>
-                    <!-- Quien vende cotiza: «Nueva cotización» es el botón principal de todos (la vendedora arma el
-                         borrador y la factura se hace en caja, desde esa cotización). «Nueva factura» suelta, sin pasar
-                         por una cotización, es de quien controla (d.permisos.completo): una factura directa no tiene
-                         pedido ni nota de entrega. Cobros y la tienda en el celular también son de quien controla. -->
+                    <!-- Todos los botones del encabezado son azules (pedido del jefe, 2026-10-16). Quien vende cotiza:
+                         «Nueva cotización» es el botón principal de todos (la vendedora arma el borrador y la factura se
+                         hace en caja, desde esa cotización). la «Nueva factura» suelta y la vista previa del celular se retiraron:
+                         una factura directa no tiene pedido ni nota de entrega, y la vista del celular sigue en el menú
+                         Sitio web. Cobros y la tienda son de quien controla (d.permisos.completo). -->
                     <button t-if="d.permisos.cotizar" class="btn btn-primary o_dcasa_nueva_cotizacion"
                             t-on-click="() => this.nuevo('sale.order')">
                         <i class="fa fa-plus me-2"/>Nueva cotización
                     </button>
-                    <button t-if="d.permisos.facturar and d.permisos.completo" class="btn btn-secondary o_dcasa_nueva_factura"
-                            t-on-click="() => this.nuevo('account.move', {default_move_type: 'out_invoice'})">
-                        <i class="fa fa-file-text-o me-2"/>Nueva factura
-                    </button>
-                    <button t-if="d.permisos.crear_cliente" class="btn btn-secondary"
+                    <button t-if="d.permisos.crear_cliente" class="btn btn-primary o_dcasa_nuevo_cliente"
                             t-on-click="() => this.nuevo('res.partner')">
                         <i class="fa fa-user-plus me-2"/>Nuevo cliente
                     </button>
-                    <button t-if="d.permisos.cobrar" class="btn btn-secondary"
+                    <button t-if="d.permisos.cobrar" class="btn btn-primary o_dcasa_registrar_cobro"
                             t-on-click="() => this.nuevo('account.payment', {default_payment_type: 'inbound', default_partner_type: 'customer'})">
                         <i class="fa fa-money me-2"/>Registrar cobro
                     </button>
-                    <button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="verTienda">
-                        <i class="fa fa-external-link me-2"/>Ver la tienda
-                    </button>
-                    <button t-if="d.permisos.completo" class="btn btn-secondary" t-on-click="vistaPrevia" title="El sitio como se ve en un teléfono">
-                        <i class="fa fa-mobile me-2"/>Ver en el celular
+                    <button t-if="d.permisos.completo" class="btn btn-primary o_dcasa_ver_tienda" t-on-click="verTienda"
+                            title="Ver la tienda" aria-label="Ver la tienda">
+                        <i class="fa fa-external-link"/>
                     </button>
                 </div>
             </header>
@@ -61,28 +56,170 @@
                     </button>
                 </section>
 
-                <!-- Cifras del día -->
-                <section class="o_dcasa_cifras" aria-label="Cifras del día">
-                    <button t-foreach="d.cifras" t-as="c" t-key="c.clave" type="button"
-                            t-attf-class="o_dcasa_cifra o_dcasa_cifra_{{c.clave}}" t-on-click="() => this.abrirCifra(c)">
-                        <span class="o_dcasa_cifra_icono"><i t-attf-class="fa {{icono(c)}}"/></span>
-                        <span class="o_dcasa_cifra_titulo" t-out="c.titulo"/>
-                        <span class="o_dcasa_cifra_valor" t-out="cifra(c)"/>
-                        <span class="o_dcasa_cifra_detalle">
-                            <t t-if="c.detalle_moneda !== undefined">Por <t t-out="dinero(c.detalle_moneda)"/></t>
-                            <t t-else="" t-out="c.detalle"/>
-                        </span>
+                <!-- Atención: lo que conviene mirar hoy (productos por agotarse, sin costo cargado…). -->
+                <section t-if="d.atencion.length" class="o_dcasa_atencion" aria-label="Atención">
+                    <button t-foreach="d.atencion" t-as="aviso" t-key="aviso.clave" type="button"
+                            t-attf-class="o_dcasa_aviso o_dcasa_aviso_{{aviso.clave}}"
+                            t-on-click="() => this.abrirLista(aviso.accion)">
+                        <i t-attf-class="fa {{aviso.icono}}" aria-hidden="true"/>
+                        <span t-out="aviso.texto"/>
                     </button>
+                </section>
+
+                <!-- Ventas por periodo: Hoy · Esta semana · Este mes · un rango. Las cifras de ventas van SIN ITBMS (el
+                     ITBMS es de la DGI); el ITBMS y el total van al lado. La ganancia solo la ve Gerencia. -->
+                <section t-if="d.ventas and d.permisos.completo" class="o_dcasa_ventas" aria-label="Ventas">
+                    <div class="o_dcasa_ventas_cabeza">
+                        <h2>Ventas</h2>
+                        <div class="o_dcasa_periodos" role="tablist" aria-label="Periodo de las ventas">
+                            <button t-foreach="periodos" t-as="per" t-key="per.clave" type="button" role="tab"
+                                    t-attf-class="o_dcasa_periodo o_dcasa_periodo_{{per.clave}}"
+                                    t-att-class="{'o_activo': state.periodo === per.clave}"
+                                    t-att-aria-selected="state.periodo === per.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.cambiarPeriodo(per.clave)" t-out="per.nombre"/>
+                        </div>
+                    </div>
+                    <form t-if="state.periodo === 'rango'" class="o_dcasa_rango" t-on-submit.prevent="aplicarRango">
+                        <label>Del <input type="date" class="form-control o_dcasa_rango_desde" t-model="state.desde"
+                                          t-att-max="hoyIso"/></label>
+                        <label>al <input type="date" class="form-control o_dcasa_rango_hasta" t-model="state.hasta"
+                                         t-att-max="hoyIso"/></label>
+                        <button type="submit" class="btn btn-primary">Ver</button>
+                        <span t-if="state.errorRango" class="o_dcasa_error" role="alert" t-out="state.errorRango"/>
+                    </form>
+                    <div t-attf-class="o_dcasa_ventas_cuerpo {{state.cargandoVentas ? 'o_cargando' : ''}}">
+                        <div class="o_dcasa_ventas_columna o_dcasa_ventas_principal">
+                            <span class="o_dcasa_ventas_etiqueta" t-out="d.ventas.etiqueta"/>
+                            <button type="button" class="o_dcasa_ventas_valor o_dcasa_cifra_ventas_hoy"
+                                    t-on-click="() => this.abrirLista(d.ventas.accion)">
+                                <span t-out="dinero(d.ventas.actual.sin_itbms)"/>
+                            </button>
+                            <span class="o_dcasa_ventas_nota">Ventas sin ITBMS ·
+                                <t t-out="d.ventas.actual.cuantas"/>
+                                <t t-out="d.ventas.actual.cuantas === 1 ? ' venta' : ' ventas'"/></span>
+                            <span class="o_dcasa_desglose">
+                                <span>ITBMS <strong t-out="dinero(d.ventas.actual.itbms)"/></span>
+                                <span>Total con ITBMS <strong t-out="dinero(d.ventas.actual.total)"/></span>
+                            </span>
+                            <span t-if="d.ventas.variacion_pct !== null"
+                                  t-attf-class="o_dcasa_variacion {{d.ventas.variacion_pct >= 0 ? 'o_sube' : 'o_baja'}}">
+                                <i t-attf-class="fa {{d.ventas.variacion_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
+                                <t t-out="variacion(d.ventas.variacion_pct)"/> contra <t t-out="d.ventas.anterior.etiqueta.toLowerCase()"/>
+                                (<t t-out="dinero(d.ventas.anterior.sin_itbms)"/>)
+                            </span>
+                        </div>
+                        <div t-if="d.ve_utilidad and d.ventas.actual.ganancia" class="o_dcasa_ventas_columna o_dcasa_ganancia">
+                            <span class="o_dcasa_ventas_etiqueta">Ganancia</span>
+                            <span class="o_dcasa_ventas_valor o_dcasa_ganancia_valor"
+                                  t-out="dinero(d.ventas.actual.ganancia.valor)"/>
+                            <span class="o_dcasa_ventas_nota">
+                                <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de lo vendido, </t>
+                                sin ITBMS: venta menos costo
+                            </span>
+                            <span t-if="d.ventas.actual.ganancia.ventas_sin_costo" class="o_dcasa_ventas_aviso">
+                                <i class="fa fa-info-circle" aria-hidden="true"/>
+                                <t t-out="d.ventas.actual.ganancia.ventas_sin_costo"/>
+                                <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' venta tiene' : ' ventas tienen'"/>
+                                mercancía sin costo cargado y no cuentan aquí
+                            </span>
+                            <span t-if="d.ventas.anterior.ganancia and d.ventas.anterior.ganancia.valor" class="o_dcasa_desglose">
+                                <span><t t-out="d.ventas.anterior.etiqueta"/> <strong t-out="dinero(d.ventas.anterior.ganancia.valor)"/></span>
+                            </span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Cotizaciones abiertas y entregas pendientes, lado a lado: lo que hay que cerrar en caja. -->
+                <div t-if="d.permisos.completo and (d.cotizaciones or d.entregas)" class="o_dcasa_listas">
+                    <section t-if="d.cotizaciones" class="o_dcasa_panel o_dcasa_lista o_dcasa_lista_cotizaciones">
+                        <div class="o_dcasa_lista_cabeza">
+                            <h2>Cotizaciones abiertas</h2>
+                            <button type="button" class="o_dcasa_lista_cuenta o_dcasa_cifra_cotizaciones"
+                                    t-on-click="() => this.abrirLista(d.cotizaciones.accion)">
+                                <strong t-out="d.cotizaciones.cantidad"/> · <t t-out="dinero(d.cotizaciones.sin_itbms)"/> sin ITBMS
+                            </button>
+                        </div>
+                        <ul t-if="d.cotizaciones.filas.length" class="list-unstyled mb-0">
+                            <li t-foreach="d.cotizaciones.filas" t-as="fila" t-key="fila.id">
+                                <button type="button" class="o_dcasa_lista_fila"
+                                        t-on-click="() => this.abrirRegistro('sale.order', fila.id)">
+                                    <span class="o_dcasa_lista_texto">
+                                        <strong t-out="fila.cliente or fila.nombre"/>
+                                        <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t></small>
+                                    </span>
+                                    <span class="o_dcasa_lista_dato">
+                                        <strong t-out="dinero(fila.total)"/>
+                                        <small t-out="espera(fila.dias)"/>
+                                    </span>
+                                </button>
+                            </li>
+                        </ul>
+                        <p t-else="" class="o_dcasa_vacio">No hay cotizaciones abiertas.</p>
+                        <p t-if="d.cotizaciones.cantidad > d.cotizaciones.filas.length" class="o_dcasa_lista_pie">
+                            Las más antiguas primero. <button type="button" class="btn btn-link p-0"
+                                t-on-click="() => this.abrirLista(d.cotizaciones.accion)">Ver las <t t-out="d.cotizaciones.cantidad"/></button>
+                        </p>
+                    </section>
+                    <section t-if="d.entregas" class="o_dcasa_panel o_dcasa_lista o_dcasa_lista_entregas">
+                        <div class="o_dcasa_lista_cabeza">
+                            <h2>Entregas pendientes</h2>
+                            <button type="button" class="o_dcasa_lista_cuenta o_dcasa_cifra_entregas"
+                                    t-on-click="() => this.abrirLista(d.entregas.accion)">
+                                <strong t-out="d.entregas.cantidad"/> por despachar o retirar
+                            </button>
+                        </div>
+                        <ul t-if="d.entregas.filas.length" class="list-unstyled mb-0">
+                            <li t-foreach="d.entregas.filas" t-as="fila" t-key="fila.id">
+                                <button type="button" class="o_dcasa_lista_fila"
+                                        t-on-click="() => this.abrirRegistro('stock.picking', fila.id)">
+                                    <span class="o_dcasa_lista_texto">
+                                        <strong t-out="fila.cliente or fila.nombre"/>
+                                        <small><t t-out="fila.nombre"/><t t-if="fila.origen"> · <t t-out="fila.origen"/></t></small>
+                                    </span>
+                                    <span class="o_dcasa_lista_dato">
+                                        <strong t-out="fila.listo ? 'Lista' : 'Falta mercancía'"/>
+                                        <small t-out="espera(fila.dias)"/>
+                                    </span>
+                                </button>
+                            </li>
+                        </ul>
+                        <p t-else="" class="o_dcasa_vacio">No hay entregas pendientes.</p>
+                        <p t-if="d.entregas.cantidad > d.entregas.filas.length" class="o_dcasa_lista_pie">
+                            Las más antiguas primero. <button type="button" class="btn btn-link p-0"
+                                t-on-click="() => this.abrirLista(d.entregas.accion)">Ver las <t t-out="d.entregas.cantidad"/></button>
+                        </p>
+                    </section>
+                </div>
+
+                <!-- Cifras del día. Quien controla ya ve Ventas, Cotizaciones y Entregas en sus paneles de arriba. -->
+                <section class="o_dcasa_cifras" aria-label="Cifras del día">
+                    <t t-foreach="d.cifras" t-as="c" t-key="c.clave">
+                        <button t-if="!(d.permisos.completo and ['ventas_hoy', 'cotizaciones', 'entregas'].includes(c.clave))"
+                                type="button" t-attf-class="o_dcasa_cifra o_dcasa_cifra_{{c.clave}}"
+                                t-on-click="() => this.abrirCifra(c)">
+                            <span class="o_dcasa_cifra_icono"><i t-attf-class="fa {{icono(c)}}"/></span>
+                            <span class="o_dcasa_cifra_titulo" t-out="c.titulo"/>
+                            <span class="o_dcasa_cifra_valor" t-out="cifra(c)"/>
+                            <span class="o_dcasa_cifra_detalle">
+                                <t t-if="c.nota"><t t-out="c.nota"/> · </t>
+                                <t t-if="c.detalle_moneda !== undefined">Por <t t-out="dinero(c.detalle_moneda)"/></t>
+                                <t t-else="" t-out="c.detalle"/>
+                            </span>
+                            <span t-if="c.itbms !== undefined and d.alcance === 'propio'" class="o_dcasa_cifra_detalle">
+                                ITBMS <t t-out="dinero(c.itbms)"/> · con ITBMS <t t-out="dinero(c.total_con_itbms)"/>
+                            </span>
+                        </button>
+                    </t>
                 </section>
 
                 <div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">
                     <!-- Semana -->
                     <section t-if="d.semana.length" class="o_dcasa_panel o_dcasa_semana">
-                        <h2>Ventas de la semana</h2>
+                        <h2>Ventas de la semana <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
                         <div class="o_dcasa_grafico">
                             <div t-foreach="d.semana" t-as="dia" t-key="dia_index" role="img" tabindex="0"
                                  t-attf-class="o_dcasa_grafico_barra {{dia.hoy ? 'o_dcasa_grafico_hoy' : ''}}"
-                                 t-att-aria-label="dia.dia + ': ' + dinero(dia.monto)"
+                                 t-att-aria-label="dia.dia + ': ' + dinero(dia.monto) + ' sin ITBMS'"
                                  t-attf-style="--alto: {{ Math.max(3, dia.monto / maxSemana * 82) }}%">
                                 <span class="o_dcasa_grafico_monto" aria-hidden="true" t-out="dinero(dia.monto)"/>
                                 <span class="o_dcasa_grafico_relleno"
@@ -97,7 +234,10 @@
 
                     <!-- Cobros por forma de pago -->
                     <section t-if="d.permisos.ver_cobros" class="o_dcasa_panel o_dcasa_caja">
-                        <h2>Caja de hoy</h2>
+                        <h2>Caja de hoy <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+                        <p t-if="d.cobros.length" class="o_dcasa_caja_total">
+                            Cobrado hoy <strong t-out="dinero(d.total_cobrado)"/>
+                        </p>
                         <ul t-if="d.cobros.length" class="list-unstyled mb-0">
                             <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.forma">
                                 <span t-out="cobro.forma"/>

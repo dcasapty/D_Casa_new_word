@@ -65,7 +65,7 @@ class TestPanel(TransactionCase):
             return next(c['valor'] for c in datos['cifras'] if c['clave'] == 'ventas_hoy')
         self.assertAlmostEqual(cifra(despues), cifra(antes), places=2)
         self.assertAlmostEqual(despues['semana'][-2]['monto'] - antes['semana'][-2]['monto'],
-                               orden.amount_total, places=2)
+                               orden.amount_untaxed, places=2)
         self.assertEqual(despues['semana'][-1]['monto'], antes['semana'][-1]['monto'])
 
     # --- Inicio de la vendedora ---------------------------------------------------------------
