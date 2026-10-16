@@ -77,7 +77,7 @@ Meta). El par es único.
    conversación, no envía.
 3. `GET /dcasa/juan/v1/config` — configuración editable por la dueña en Odoo:
    (La forma exacta y verificada está en «Contrato verificado», al final; `dias`: 0 = domingo.)
-   `{nombre_publico, bot_activo_global, canales_activos:{...}, horario:{inicio:"08:00",fin:"17:00",dias:[0..6],zona:"America/Panama"},
+   `{nombre_publico, bot_activo_global, canales_activos:{...}, horario:{inicio:"08:00",fin:"17:00",dias:[0..6],zona:"America/Panama",fin_domingo?:"17:00"},
     seguimiento:{primero_horas:5,segundo_dias:5,solo_horario_laboral:true,maximo:2},
     presupuesto_ia_mensual_usd:30, modelo_rapido:"claude-haiku-4-5", modelo_inteligente:"claude-sonnet-5-5",
     mensaje_bienvenida, texto_privacidad_corto, palabras_prohibidas:[...], pausa_por_defecto_minutos:120}`.
@@ -193,8 +193,12 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
 2. **Nunca inventa**: precio, existencia, medida, color, plazo, descuento ni promesa. Todo lo
    dice una herramienta; si no aparece, «no lo manejamos» o «te lo confirma una vendedora».
    Precios con «+ ITBMS». Existencias solo como etiqueta.
-3. Entregas, flete, financiamiento, apartados y descuentos: **siempre** «te lo confirma una
-   vendedora» (se crea la oportunidad).
+3. Entregas, flete, financiamiento, apartados y descuentos (decisión de la dueña, 2026-10-16): explica **solo lo que
+   diga `buscar_conocimiento`**, con sus mismas cifras y condiciones; lo que no esté ahí, y el caso concreto del
+   cliente (costo y fecha de su entrega, si le aprueban el crédito), «te lo confirma una vendedora». El bot no hace
+   apartados, no aprueba créditos, no da descuentos ni fija entregas (se crea la oportunidad). Las salvaguardas siguen
+   quitando toda promesa («te lo apartamos», «llega mañana», «envío gratis») y toda cifra que no traiga una herramienta.
+   Mientras una entrada de conocimiento esté inactiva (hoy, «Apartados», hasta que lo revise el abogado), el bot no la ve.
 4. Socios: explica con `reglas_socios`; saldo solo con PIN; **nunca** «acredita» ni promete puntos
    de una compra no facturada.
 5. Fotos de comprobantes de pago o de documentos de identidad **no se le envían al modelo**: se
@@ -219,7 +223,10 @@ Heredado del CRM de Baby Caleb y **ampliado con medios**. Service binding `PUENT
     los **5 días**. **Ninguno** si no hay oportunidad viva, si la persona **ya es cliente** (alguna
     factura pagada, de antes o de después de empezar la conversación) o si pidió que no la contacten.
     Odoo decide; el Worker redacta y envía.
-11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles.
+11. Español de Panamá, tuteo, breve (2–4 líneas por burbuja), sin emojis, sin signos dobles. Si el cliente escribe en
+    **inglés**, contesta en inglés con las mismas reglas (decisión de la dueña, 2026-10-16); las salvaguardas revisan
+    también las promesas, las cifras de política y el «soy humano» en inglés, y «human», «agent» o «real person» pasan a
+    una vendedora igual que «persona». El saludo y los textos fijos de Odoo siguen en español.
 12. **Fotos solo si las piden.** No ofrece ni pregunta «¿te mando la foto?». Si el cliente pide ver el
     producto, manda la principal; si pide **más fotos**, manda hasta 3 más de la galería por pedido,
     sin repetir ninguna que ya recibió (`enviar_foto_producto` con `adicionales=true`).
@@ -313,6 +320,9 @@ Entrada: `env.DCASA.fetch("https://dcasa/dcasa/juan/v1/…")` por **service bind
  "lecciones": ["una frase por elemento"], "mensaje_bienvenida": "…", "texto_privacidad_corto": "…",
  "palabras_prohibidas": ["remate", "corre", "¡¡", "!!"]}
 ```
+
+`horario.fin_domingo` («HH:MM») solo viene si en Ajustes de Juan el domingo cierra a otra hora («El domingo cierran a
+las», 0:00 = igual que los demás días). Sin él, el domingo cierra a la hora de `fin`.
 
 `precios_ia` es **por nombre de modelo** (lo que lee el Worker) y solo trae los modelos con precio de entrada **y** de salida; `precios` es
 lo mismo por nivel (con `null` donde no hay precio). Odoo **no** publica los modelos del proveedor de respaldo

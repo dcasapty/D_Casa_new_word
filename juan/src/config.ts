@@ -43,6 +43,8 @@ export interface Horario {
    */
   dias: number[];
   zona: string;
+  /** "HH:MM": el domingo cierra a otra hora (decisión de la dueña, 2026-10-16: hasta las 17:00). Sin él, la de `fin`. */
+  fin_domingo?: string;
 }
 
 export interface Config {
@@ -196,12 +198,15 @@ export function normalizarConfig(crudo: unknown): Config {
     nombre_publico: texto(c.nombre_publico, d.nombre_publico),
     bot_activo_global: typeof c.bot_activo_global === "boolean" ? c.bot_activo_global : d.bot_activo_global,
     canales_activos: canales,
-    horario: {
-      inicio: hora(h.inicio, d.horario.inicio),
-      fin: hora(h.fin, d.horario.fin),
-      dias: dias.length ? dias : d.horario.dias,
-      zona: texto(h.zona, d.horario.zona),
-    },
+    horario: horarioCon(
+      {
+        inicio: hora(h.inicio, d.horario.inicio),
+        fin: hora(h.fin, d.horario.fin),
+        dias: dias.length ? dias : d.horario.dias,
+        zona: texto(h.zona, d.horario.zona),
+      },
+      hora(h.fin_domingo, ""),
+    ),
     seguimiento: {
       primero_horas: numero(s.primero_horas, d.seguimiento.primero_horas, 0, 24 * 30),
       segundo_dias: numero(s.segundo_dias, d.seguimiento.segundo_dias, 0, 365),
@@ -296,10 +301,20 @@ export function relojDelNegocio(zona: string, ms: number): { minutosDelDia: numb
   return { minutosDelDia: Number(get("hour")) * 60 + Number(get("minute")), dia: Math.max(0, DIAS_CORTOS.indexOf(get("weekday"))) };
 }
 
+/** La hora de cierre del domingo solo vale si el domingo se atiende y cierra después de abrir; si no, no se publica. */
+function horarioCon(base: Horario, finDomingo: string): Horario {
+  return finDomingo && base.dias.includes(0) && minutos(finDomingo) > minutos(base.inicio) ? { ...base, fin_domingo: finDomingo } : base;
+}
+
+/** La hora a la que cierra ese día (0 = domingo). */
+export function finDelDia(horario: Horario, dia: number): string {
+  return dia === 0 && horario.fin_domingo ? horario.fin_domingo : horario.fin;
+}
+
 /** ¿Estamos dentro del horario de atención de las vendedoras? */
 export function dentroDeHorario(horario: Horario, ms: number): boolean {
   const { minutosDelDia, dia } = relojDelNegocio(horario.zona, ms);
-  return horario.dias.includes(dia) && minutosDelDia >= minutos(horario.inicio) && minutosDelDia < minutos(horario.fin);
+  return horario.dias.includes(dia) && minutosDelDia >= minutos(horario.inicio) && minutosDelDia < minutos(finDelDia(horario, dia));
 }
 
 /** "2026-10" según la zona del negocio: el mes del tope de IA. */

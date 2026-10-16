@@ -6,8 +6,6 @@ el horario de los ajustes de Juan. Si la dueña cambia cualquiera de ellos, el a
 """
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
 
-from . import horario as H
-
 
 def website_publico(env):
     return env['website'].sudo().search([], order='sequence, id', limit=1)
@@ -27,7 +25,6 @@ def datos_tienda(env):
     website = website_publico(env)
     base = url_base(env, website)
     direccion = ', '.join(p for p in (empresa.street, empresa.street2, empresa.city, 'Panamá Oeste') if p)
-    dias = 'Todos los días' if len(horario.dias) == 7 else ', '.join(H.NOMBRES_DIA[d] for d in sorted(horario.dias))
     telefono = (website.dcasa_whatsapp_number if website and website.dcasa_whatsapp_number else empresa.phone) or ''
     mapa = f'https://www.google.com/maps/dir/?api=1&destination={LATITUD}%2C{LONGITUD}'
     return {
@@ -35,8 +32,7 @@ def datos_tienda(env):
         'direccion': direccion,
         'como_llegar': f'{direccion}. Ruta en Google Maps: {mapa}. Más datos en {base}/visitanos.',
         'horario': {
-            'texto': f'{dias}, de {H.texto_hora_amable(horario.inicio)} a {H.texto_hora_amable(horario.fin)} '
-                     '(hora de Panamá)',
+            'texto': f'{horario.texto()} (hora de Panamá)',
             **horario.como_json(),
         },
         'whatsapp': telefono,

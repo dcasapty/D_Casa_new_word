@@ -116,7 +116,8 @@ export function asegurarItbms(texto: string, preciosProducto: ReadonlySet<number
 // «Los cambios son en 30 días», «2 años de garantía», «10 % de recargo»: si la cifra no salió de una herramienta
 // (la base de conocimiento, Socios, el catálogo), es un invento. Lo que escribe el cliente tampoco la respalda.
 
-const CIFRA_DE_POLITICA = /\b(\d+(?:[.,]\d+)?)\s*(?:%|por ciento|dias?|horas?|semanas?|meses|mes|a[nñ]os?|cuotas?|pagos)(?![a-z])/g;
+// En inglés también (la dueña aceptó que Juan conteste en inglés, 2026-10-16): «30 days», «12 months», «10 percent».
+const CIFRA_DE_POLITICA = /\b(\d+(?:[.,]\d+)?)\s*(?:%|por ciento|percent|dias?|days?|horas?|hours?|semanas?|weeks?|meses|mes|months?|a[nñ]os?|years?|cuotas?|installments?|pagos|payments)(?![a-z])/g;
 
 const respaldada = (ctx: ContextoRevision, v: number) => cercano(ctx.cifrasConocidas, v) || (!!ctx.numerosEnTexto && cercano(ctx.numerosEnTexto, v));
 
@@ -154,6 +155,7 @@ export function detectarExistencias(texto: string): string[] {
 // ── Promesas (regla 3): entregas, flete, financiamiento, apartados y descuentos ──
 
 const DIA = "(?:lunes|martes|miercoles|jueves|viernes|sabado|domingo)";
+const DIA_EN = "(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)";
 const PROMESAS: { r: RegExp; que: string }[] = [
   { r: /\b(?:entrega|envio|flete|delivery|despacho|transporte|instalacion|armado)\s+(?:es\s+|va a ser\s+|seria\s+|sera\s+)?(?:gratis|gratuit[oa]|sin costo|sin cargo|incluid[oa])\b/, que: "entrega o flete gratis" },
   { r: new RegExp(`\\b(?:te|se|le)\\s+(?:lo|la|los|las)?\\s*(?:entregamos|enviamos|mandamos|despachamos|llevamos|instalamos)\\s+(?:hoy|ma[nñ]ana|pasado ma[nñ]ana|en\\s+\\d+|el\\s+${DIA}|esta\\s+semana|ya)\\b`), que: "plazo de entrega" },
@@ -176,6 +178,16 @@ const PROMESAS: { r: RegExp; que: string }[] = [
   { r: /\b(?:te|le)\s+(?:sumo|sumamos|sumaremos|damos|daremos|doy|regalo|regalamos|abono|abonamos)\s+(?:\d+\s+)?puntos\b/, que: "puntos prometidos" },
   { r: /\bcon\s+(?:esta|esa|tu|su)\s+compra\s+(?:ganas|ganaras|acumulas|acumularas|sumas|sumaras|recibes|recibiras|te llevas)\b/, que: "puntos prometidos" },
   { r: /\b(?:ganaras|acumularas|sumaras|recibiras|ganaria|acumularia)\s+\d+\s+puntos\b/, que: "puntos prometidos" },
+  // Lo mismo en inglés: Juan contesta en inglés a quien le escribe en inglés (decisión de la dueña, 2026-10-16).
+  { r: /\b(?:delivery|shipping|assembly|installation)\s+(?:is\s+|will be\s+|would be\s+)?(?:free|included|at no (?:extra )?cost)\b|\bfree\s+(?:delivery|shipping)\b/, que: "entrega o flete gratis" },
+  { r: new RegExp(`\\bwe(?:['’]ll| will| can)?\\s+(?:deliver|ship|send|bring)\\s+(?:it|them|your \\w+)?\\s*(?:today|tomorrow|on\\s+${DIA_EN}|in\\s+\\d+|this\\s+week|right away)\\b`), que: "plazo de entrega" },
+  { r: new RegExp(`\\b(?:it(?:['’]ll| will)?\\s+(?:arrive|get there)|you(?:['’]ll| will)\\s+(?:get|receive)\\s+(?:it|them))\\s+(?:today|tomorrow|on\\s+${DIA_EN}|in\\s+\\d+|this\\s+week)\\b`), que: "plazo de entrega" },
+  { r: /\b(?:delivery|shipping)\b[^.!?\n]{0,40}\b(?:costs?|is|will be)\s+(?:\$|\d)/, que: "costo de entrega" },
+  { r: /\bwe(?:['’]ll| will| can)?\s+(?:hold|reserve|put aside|set aside|save)\s+(?:it|them|this|that|the \w+)\s+for\s+you\b|\b(?:it|this|that)(?:['’]s| is)\s+(?:reserved|on hold|set aside)\s+for\s+you\b/, que: "apartado" },
+  { r: /\b(?:i|we)(?:['’]ll| will| can)?\s+(?:give|offer|apply|get)\s+you\s+(?:a\s+|an\s+)?(?:\d+\s*%\s*)?(?:discount|special price|deal)\b/, que: "descuento" },
+  { r: /\bwe\s+(?:finance|offer financing)\b|\b(?:interest[- ]free|no[- ]interest|zero[- ]interest)\s+(?:installments|payments|months|financing)\b/, que: "financiamiento" },
+  { r: /\bwe(?:['’]ll| will| can)?\s+approve\s+(?:you|your)\b|\byou(?:['’]re| are)\s+(?:pre-?)?approved\b/, que: "crédito" },
+  { r: /\b(?:payment|transfer|deposit|receipt)\s+(?:has been\s+|was\s+|is\s+)?(?:received|confirmed|approved|verified)\b|\bwe\s+(?:received|got|confirmed|verified)\s+your\s+(?:payment|transfer|deposit|receipt)\b/, que: "pago confirmado" },
 ];
 
 /** «20% de descuento» solo es una promesa si el 20 NO salió de una herramienta (p. ej. el catálogo). */
@@ -203,6 +215,7 @@ const MANDA_A_LEER = [
   /\b(?:mas|todo)\s+(?:en|sobre)\s+(?:nuestras?\s+)?(?:politicas?|terminos|aviso de privacidad|privacidad)\b/,
   /\b(?:en|segun|ver|vea|ve)\s+(?:nuestras?|las|los|la|el)\s+(?:politicas?|terminos(?: y condiciones)?|aviso de privacidad|politica de privacidad)\b/,
   /dcasapty\.com\/(?:privacidad|terminos|politica)/,
+  /\b(?:read|check|see|review|visit|look at)\b[^.!?\n]{0,70}\b(?:policy|policies|terms and conditions|terms of (?:use|service|sale)|our terms|privacy notice)\b/,
 ];
 
 /**
@@ -217,6 +230,10 @@ const SER_HUMANO = [
   /(?<!\bno )\b(?:hablas?|esta hablando|estas hablando) con (?:una |un )?(?:persona|humano|humana)(?: real| de verdad)?\b/,
   /\bsoy (?:un |una )?(?:vendedor|vendedora|asesor|asesora) (?:de|en) /,
   /\bsoy (?:el |la |un |una )?(?:vendedor|vendedora)\b/,
+  /\bi(?:['’]m| am) (?:an? )?(?:real )?(?:human(?: being)?|person)\b/,
+  /\bi(?:['’]m| am) not (?:an? )?(?:bot|chatbot|robot|ai|machine|program|(?:virtual )?assistant)\b/,
+  /\byou(?:['’]re| are) (?:talking|chatting|speaking) (?:to|with) (?:an? )?(?:real )?(?:human|person)\b/,
+  /\bi(?:['’]m| am) (?:an? |the )?(?:salesperson|sales rep|sales representative|saleswoman|salesman|seller)\b/,
 ];
 
 export function detectarSerHumano(texto: string): string[] {
@@ -232,7 +249,7 @@ export function detectarMandaALeer(texto: string): string[] {
 // ── Voz de marca ────────────────────────────────────────────────────────────
 
 /** Siempre prohibidas (CLAUDE.md, regla 6). Las de Odoo se suman. */
-export const PALABRAS_PROHIBIDAS_DE_MARCA: readonly string[] = ["remate", "remates", "corre", "corran", "liquidacion total", "ultima oportunidad", "no te lo pierdas"];
+export const PALABRAS_PROHIBIDAS_DE_MARCA: readonly string[] = ["remate", "remates", "corre", "corran", "liquidacion total", "ultima oportunidad", "no te lo pierdas", "last chance"];
 
 function palabraProhibida(texto: string, palabras: readonly string[]): string | null {
   const t = ` ${normalizar(texto)} `;

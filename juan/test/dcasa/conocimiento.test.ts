@@ -81,11 +81,11 @@ describe("para políticas, garantía, pagos y cómo comprar, PRIMERO la base de 
   it("el prompt lo manda y dice qué hacer si no hay respuesta", () => {
     const p = promptEstable(CONFIG_POR_DEFECTO);
     expect(p).toMatch(/PRIMERO llama a buscar_conocimiento/);
-    expect(p).toMatch(/políticas, zonas, formas de pago, garantía, cambios, horario, cómo comprar o Socios/);
+    expect(p).toMatch(/políticas, zonas, entregas, apartados, financiamiento, descuentos, formas de pago, garantía, cambios, horario, cómo comprar o Socios/);
     expect(p).toMatch(/NO la inventes/);
     expect(p).toContain("registrar_pregunta_sin_respuesta");
     expect(p).toContain("crear_oportunidad");
-    expect(p).toMatch(/ninguna herramienta te da tarifas de envío, fletes ni plazos de entrega/);
+    expect(p).toMatch(/tarifas de envío, fletes y plazos de entrega, solo si buscar_conocimiento los trae escritos/);
   });
 
   it("con respuesta: el bot contesta con lo que trajo la herramienta, tal cual", async () => {
@@ -230,3 +230,36 @@ describe("cuándo una búsqueda en la base de conocimiento salió floja", () => 
     expect(busquedaFlojaDe("Los cambios se aceptan en 8 días.")).toBe(false);
   });
 });
+
+describe("entregas, apartados, financiamiento y descuentos: lo que escribió el equipo, nada más (decisión de la dueña, 2026-10-16)", () => {
+  const buscarApartados = { llamadas: [{ nombre: "buscar_conocimiento", args: { consulta: "apartados" } }] };
+
+  it("el bot explica la política tal como la trae la base de conocimiento, con sus cifras", async () => {
+    const m = crearMundo();
+    m.guion([buscarApartados, { texto: "Sí, puedes apartarlo con un abono mínimo del 50 % de su valor y tienes un mes para pagar el saldo." }]);
+    await m.conversar("¿se puede apartar un mueble?");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).toContain("50 %");
+    expect(texto).toContain("un mes");
+  });
+
+  it("una cifra que la base de conocimiento no trae sigue sin salir", async () => {
+    const m = crearMundo();
+    m.guion([buscarApartados, { texto: "Puedes apartarlo con el 30 % y tienes 60 días." }, { texto: "Puedes apartarlo con un abono mínimo del 50 % de su valor." }]);
+    await m.conversar("¿con cuánto lo aparto?");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).not.toContain("30 %");
+    expect(texto).not.toContain("60 días");
+    expect(texto).toContain("50 %");
+  });
+
+  it("hacer el apartado o fijar la entrega sigue siendo de una vendedora: «te lo apartamos» no sale", async () => {
+    const m = crearMundo();
+    m.guion([buscarApartados, { texto: "Listo, te lo apartamos con el 50 %." }, { texto: "Se aparta con un abono mínimo del 50 %; una vendedora lo hace contigo." }]);
+    await m.conversar("apártamelo");
+    const texto = m.canal.textos.join("\n");
+    expect(texto).not.toMatch(/te lo apartamos/i);
+    expect(texto).toContain("una vendedora lo hace contigo");
+  });
+});
+

@@ -50,7 +50,7 @@
                         </group>
                     </group>
                     <field name="contenido" invisible="fuente != 'manual'"
-                           placeholder="Escribe aquí lo que el asistente puede decir, con tuteo y sin inventar. Si algo depende de una vendedora (entregas, financiamiento, apartados, descuentos), dilo así: «te lo confirma una vendedora»."/>
+                           placeholder="Escribe aquí lo que el asistente puede decir, con tuteo y sin inventar. Lo que dependa de cada caso (el costo o la fecha de una entrega, si aprueban un crédito), dilo así: «te lo confirma una vendedora»."/>
                     <group string="Lo que dice el asistente (se arma solo con los datos vivos)"
                            invisible="fuente == 'manual'">
                         <field name="contenido_vigente" nolabel="1" colspan="2" readonly="1"/>

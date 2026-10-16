@@ -52,6 +52,7 @@
                             <field name="dia_viernes"/>
                             <field name="dia_sabado"/>
                             <field name="dia_domingo"/>
+                            <field name="horario_fin_domingo" widget="float_time" invisible="not dia_domingo"/>
                         </group>
                         <group string="Seguimiento a quien no volvió a escribir">
                             <field name="seguimiento_primero_horas"/>

@@ -167,3 +167,17 @@ describe("se presenta como Juan, de D'CASA", () => {
     expect(m.odoo.de("pasar_a_vendedora")).toHaveLength(1);
   });
 });
+
+describe("pedir una persona en inglés también pasa a una vendedora", () => {
+  it.each(["human", "a real person please", "I want to talk to a human", "Can I speak with an agent?", "I need a representative", "hi, person please"])(
+    "%s",
+    (t) => {
+      expect(pideUnaPersona(t)).toBe(true);
+    },
+  );
+
+  it.each(["Do you have queen beds?", "Is delivery available to Arraiján?", "personal loan?"])("no: %s", (t) => {
+    expect(pideUnaPersona(t)).toBe(false);
+  });
+});
+
