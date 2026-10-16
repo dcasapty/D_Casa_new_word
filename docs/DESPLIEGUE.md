@@ -290,7 +290,15 @@ Regla: `db_maxconn` + conexiones de mantenimiento (respaldos, `psql`, el arranqu
 - **`GET /dcasa/salud`** es la salud de Odoo: 200 `{"ok": true}` si Odoo y la base responden, 503 si
   no; sin sesión ni cookie. La consulta el Worker (timeout 5 s, sin despertar el contenedor) para
   responder **`GET /__edge/health`**, que es lo que miran el despliegue y el dueño
-  (`docs/OPERACION.md` → «Si el sitio se cae»).
+  (`docs/OPERACION.md` → «Si el sitio se cae»). En la imagen de producción además trae `version` (12
+  primeros del commit de la imagen que responde) y `base_al_dia` (la base se actualizó con el código de
+  esa imagen). El despliegue (`.github/scripts/esperar_salud.sh`) exige `version` = `app_version` y
+  `base_al_dia` = true, y lo vuelve a mirar a los 5 min; un 200 de otra imagen no cuenta (#97).
+- **Cuándo se actualiza la base.** La imagen guarda su commit (`/opt/dcasa/COMMIT`, del CI) y la huella de
+  su código (`/opt/dcasa/CODIGO`). El arranque actualiza los módulos si la huella no coincide con
+  `dcasa.codigo_desplegado` de la base o si la versión cambió; la versión que manda es la de la imagen,
+  no la variable `APP_VERSION` (Cloudflare puede arrancar la imagen nueva con las variables del arranque
+  anterior: así quedó la base sin actualizar el 2026-10-16).
 
 ## Cron del Worker
 

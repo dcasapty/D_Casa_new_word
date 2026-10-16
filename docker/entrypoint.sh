@@ -175,7 +175,26 @@ DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
 ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_socios,website_dcasa,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde,dcasa_seguridad,dcasa_conversaciones,dcasa_nomina,dcasa_contactos,dcasa_consolidacion,dcasa_equipo,dcasa_barras,dcasa_migracion,dcasa_guia}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
-APP_VERSION="${APP_VERSION:-dev}"
+# Versión: manda la de la IMAGEN (/opt/dcasa/COMMIT, del Dockerfile), no la variable. Cloudflare puede
+# arrancar la imagen nueva con las variables del arranque anterior; con APP_VERSION atrasada la base no
+# se actualizaba y el código nuevo corría sobre la base vieja (incidente del 2026-10-16, #97).
+# Sin el archivo (imágenes viejas, desarrollo) se usa APP_VERSION como antes.
+DCASA_INFO_IMAGEN="${DCASA_INFO_IMAGEN:-/opt/dcasa}"
+VERSION_VARIABLE="${APP_VERSION:-dev}"
+COMMIT_IMAGEN="$(head -n1 "$DCASA_INFO_IMAGEN/COMMIT" 2>/dev/null || true)"
+CODIGO="$(head -n1 "$DCASA_INFO_IMAGEN/CODIGO" 2>/dev/null || true)"
+if [[ "$COMMIT_IMAGEN" =~ ^[0-9a-f]{40}$ ]]; then
+  APP_VERSION="$COMMIT_IMAGEN"
+  if [[ "$VERSION_VARIABLE" != "$APP_VERSION" ]]; then
+    echo "⚠ APP_VERSION ($VERSION_VARIABLE) no es el commit de esta imagen ($APP_VERSION): manda la imagen." >&2
+  fi
+else
+  COMMIT_IMAGEN=""
+  APP_VERSION="$VERSION_VARIABLE"
+fi
+[[ "$CODIGO" =~ ^[0-9a-f]{64}$ ]] || CODIGO=""
+# Odoo los lee: /dcasa/salud dice qué versión responde y si la base está al día con este código.
+export APP_VERSION DCASA_COMMIT_IMAGEN="$COMMIT_IMAGEN" DCASA_CODIGO="$CODIGO"
 CONF="${ODOO_RC:-/var/lib/odoo/odoo.conf}"
 ODOO_BIN="${ODOO_BIN:-/opt/odoo/odoo-bin}"
 ODOO_ADDONS_PATH="${ODOO_ADDONS_PATH:-/opt/odoo/addons,/opt/odoo/odoo/addons,/opt/dcasa/addons}"
@@ -341,15 +360,23 @@ if [[ "$estado" != "installed" ]]; then
   echo "▶ Base nueva ($estado): instalando $ODOO_MODULES ($ODOO_LANG)"
   odoo -d "$DB_NAME" -i "$ODOO_MODULES" --load-language="$ODOO_LANG" --stop-after-init
   set_param dcasa.deployed_version "$APP_VERSION"
+  [[ -z "$CODIGO" ]] || set_param dcasa.codigo_desplegado "$CODIGO"
   INSTALADA=1
 else
   deployed="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.deployed_version'")"
-  if [[ "$deployed" != "$APP_VERSION" ]]; then
-    echo "▶ Nueva versión ($deployed → $APP_VERSION): actualizando $ODOO_MODULES"
+  # Huella del código con que se actualizó la base por última vez. Si no coincide con la de esta
+  # imagen se actualiza, aunque la versión diga lo mismo: es lo que de verdad decide (#97).
+  codigo_base="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.codigo_desplegado'")"
+  if [[ "$deployed" != "$APP_VERSION" || (-n "$CODIGO" && "$codigo_base" != "$CODIGO") ]]; then
+    echo "▶ Nueva versión (base: ${deployed:-?}, código ${codigo_base:0:12} → imagen: $APP_VERSION, código ${CODIGO:0:12}): actualizando $ODOO_MODULES"
     # -i instala los módulos nuevos de la lista (p. ej. dcasa_catalogo); en los ya
     # instalados no hace nada. -u actualiza los instalados.
     odoo -d "$DB_NAME" -i "$ODOO_MODULES" -u "$ODOO_MODULES" --stop-after-init
     set_param dcasa.deployed_version "$APP_VERSION"
+    [[ -z "$CODIGO" ]] || set_param dcasa.codigo_desplegado "$CODIGO"
+    echo "✔ Base actualizada a $APP_VERSION (código ${CODIGO:0:12})"
+  else
+    echo "▶ La base ya está al día con esta imagen ($APP_VERSION, código ${CODIGO:0:12})"
   fi
 fi
 
