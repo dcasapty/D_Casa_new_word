@@ -19,6 +19,25 @@ Son los trámites largos; empiezan ya aunque el código llegue después.
 4. **Decisiones de diseño**: paleta de colores de los íconos del menú, umbral de «stock bajo» (2 o 5), quién ve la
    bitácora de bodega, si la Contabilidad la ve solo Gerencia.
 
+## Decisiones tomadas el 2026-10-16 (la dueña aceptó las recomendaciones)
+
+1. La ganancia y los costos los ven solo Gerencia y los administradores (contabilidad ya los ve en sus reportes).
+2. Ventas, costo y ganancia **sin ITBMS**; el dinero que se mueve (por cobrar, cobrado, caja) **con ITBMS**; cada
+   etiqueta lo dice y trae el desglose sin ITBMS · ITBMS · total (mejor práctica contable).
+3. Íconos del menú con un color por familia: azul de la marca (Ventas, CRM, Contactos), verde petróleo (Facturación,
+   Contabilidad, Nómina), naranja quemado (Inventario, Compras, Envíos), azul cielo (Sitio web, Conversaciones), índigo
+   (Socios y equipo). Nunca amarillo de fondo (tocaría el blanco de la barra).
+4. «Por agotarse» = 5 unidades o menos para todos al principio (parámetro, después por producto).
+5. La bitácora de bodega la ve Gerencia; la Vendedora no.
+6. La Vendedora no ajusta existencias a mano (hecho).
+7. Encender el QR de la nota de entrega, primero en staging.
+8. El tope de descuento de la Vendedora (10 %) vale también para el descuento global y el de importe fijo (hecho).
+9. El tope de gasto de IA de Brian se pone con una cifra mensual por persona y otra para todos. **Falta la cifra.**
+10. El texto de «Pedidos web por atender» pasa a «Compraron en la web y aún no se entregan».
+
+**Siguen abiertas:** las tres cifras de los topes de dinero de Brian, qué trae impreso una caja de mueble, cuál es «el
+flujo del CRM» que querían crear y el «sí» para unir estos documentos a `main`.
+
 ## Orden de trabajo
 
 | # | Etapa | Qué incluye | Depende de |
