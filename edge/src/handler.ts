@@ -431,6 +431,11 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "APP_VERSION",
   "CANONICAL_HOST",
   "DCASA_ENTORNO",
+  // Salidas de emergencia del arranque (docker/entrypoint.sh, incidente #97; docs/OPERACION.md): bajar la base a
+  // propósito con una imagen más vieja (= el commit de esa imagen) y apagar la prueba de humo ("0") si diera un
+  // falso problema. Se pegan en el panel de Cloudflare solo mientras hagan falta.
+  "DCASA_PERMITIR_BAJAR",
+  "DCASA_HUMO",
   // Existencias de prueba (solo staging; en producción el entrypoint fuerza 0)
   "DCASA_STOCK_PRUEBA",
   // Black Weekend: "1" = visible sin mirar fechas (staging); ventana AAAA-MM-DD en hora de Panamá

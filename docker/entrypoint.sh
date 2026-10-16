@@ -385,8 +385,9 @@ else
   # huella, la huella quedó vieja y no prueba nada (revisión adversarial del 2026-10-16).
   huella_vieja="$(sql "$SQL_HUELLA_VIEJA")"
   orden_base="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.codigo_orden'")"
-  if [[ -n "$ORDEN_IMAGEN" && "$orden_base" =~ ^[0-9]+$ ]] && ((ORDEN_IMAGEN < orden_base)) \
-    && [[ "${DCASA_PERMITIR_BAJAR:-}" != "$APP_VERSION" ]]; then
+  # Solo si el código cambia: con el mismo código (p. ej. volver atrás solo el Worker) no hay nada que bajar.
+  if [[ -n "$ORDEN_IMAGEN" && "$orden_base" =~ ^[0-9]+$ && -n "$CODIGO" && "$codigo_base" != "$CODIGO" ]] \
+    && ((ORDEN_IMAGEN < 10#$orden_base)) && [[ "${DCASA_PERMITIR_BAJAR:-}" != "$APP_VERSION" ]]; then
     # Nunca hacia atrás: con el código viejo, `-u` borraría las columnas y tablas nuevas y sus datos.
     # Para volver atrás de verdad: restaurar la base primero (docs/OPERACION.md «Volver atrás un despliegue»)
     # o, si se decide bajar igual, DCASA_PERMITIR_BAJAR=<este commit>.
@@ -446,7 +447,8 @@ if [[ ! "$stock_prueba" =~ ^[0-9]+$ ]]; then
   stock_prueba=0
 fi
 set_param dcasa_catalogo.stock_prueba "$stock_prueba"
-if ((stock_prueba > 0)) \
+# Una imagen que no actualizó la base (más vieja que ella, NO_BAJAR) no la toca: ni existencias ni módulos (§5).
+if ((stock_prueba > 0)) && [[ "${NO_BAJAR:-0}" != "1" ]] \
   && [[ "$(sql "SELECT state FROM ir_module_module WHERE name = 'dcasa_catalogo'")" == "installed" ]] \
   && [[ "$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa_catalogo.stock_prueba_version'")" != "$APP_VERSION" ]]; then
   echo "▶ Existencias de prueba ($entorno): $stock_prueba unidades a los productos sin existencias ni movimientos"
@@ -694,7 +696,7 @@ fi
 # Una vez por versión (también si el arranque anterior murió a mitad). Un fallo se
 # registra y no impide arrancar: se reintenta en el siguiente arranque.
 revisados="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.sobrantes_version'")"
-if [[ "${ODOO_DESINSTALAR_SOBRANTES:-1}" != "0" && "$revisados" != "$APP_VERSION" ]]; then
+if [[ "${ODOO_DESINSTALAR_SOBRANTES:-1}" != "0" && "$revisados" != "$APP_VERSION" && "${NO_BAJAR:-0}" != "1" ]]; then
   echo "▶ Revisando módulos sobrantes"
   if DCASA_SOBRANTES="$DCASA_SOBRANTES" DCASA_PROTEGIDOS="$DCASA_PROTEGIDOS" \
     odoo_shell DCASA_SOBRANTES_OK <<'PY'; then
@@ -787,8 +789,16 @@ else
   if revisar_humo; then
     humo="$(leer_humo)"
     if [[ "$humo" != *'"columnas_faltantes": []'* && "${NO_BAJAR:-0}" != "1" ]]; then
-      echo "⚠ Faltan columnas en la base para este código: actualizo los módulos otra vez." >&2
-      if odoo -d "$DB_NAME" -u "$ODOO_MODULES" --stop-after-init; then
+      # Los módulos de D'CASA y, además, los que definen los campos sin columna (p. ej. `sale` tras cambiar la
+      # versión de Odoo: `-u dcasa_*` no actualiza los módulos de los que depende).
+      extra="$(python3 -c 'import json, re, sys
+try:
+    modulos = json.loads(sys.stdin.read()).get("modulos") or []
+except ValueError:
+    modulos = []
+print(",".join(m for m in modulos if isinstance(m, str) and re.fullmatch(r"[a-z0-9_]+", m)))' <<<"$humo" || true)"
+      echo "⚠ Faltan columnas en la base para este código: actualizo los módulos otra vez${extra:+ (y $extra)}." >&2
+      if odoo -d "$DB_NAME" -u "$ODOO_MODULES${extra:+,$extra}" --stop-after-init; then
         marcar_base_actualizada
       else
         echo "✖ La actualización de los módulos falló: revisa el log de arriba." >&2

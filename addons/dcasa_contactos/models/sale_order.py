@@ -43,13 +43,17 @@ class ResPartner(models.Model):
         """``[(dato, valor legible, otras fichas)]`` que comparten celular, correo o RUC con esta ficha."""
         self.ensure_one()
         ficha = self.commercial_partner_id
-        if not ficha._dcasa_es_ficha():
+        # Las mismas fichas que ofrece el selector: también quien se registró en la tienda (usuario del portal),
+        # que es un cliente; no el equipo ni las empresas propias (revisión adversarial, 2026-10-16).
+        clientes = self._dcasa_dominio_clientes_al_cotizar()
+        Partner = self.sudo().with_context(active_test=False)
+        if not Partner.search_count([('id', '=', ficha.id)] + clientes):
             return []
         encontrados = []
         for etiqueta, llaves in ficha._dcasa_claves().items():
             for clave in sorted(llaves):
-                otras = self.sudo().with_context(active_test=False).search(
-                    ficha._dcasa_dominio_fichas() + [('id', '!=', ficha.id)]
+                otras = Partner.search(
+                    clientes + [('id', '!=', ficha.id)]
                     + ficha._dcasa_dominio_de_la_llave(etiqueta, clave), order='id', limit=MAXIMO_EN_EL_AVISO)
                 if otras:
                     valor = claves.telefono_legible(clave) if etiqueta == 'celular' else clave

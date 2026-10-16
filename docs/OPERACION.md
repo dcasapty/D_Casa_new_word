@@ -188,18 +188,29 @@ quien mantiene el sistema: es la regla de salida de la Fase 1.
 
 ## Volver atrás un despliegue
 
-Se hace en dos pasos, siempre en este orden:
+Es **una sola operación** (restaurar la base y desplegar la versión anterior en el mismo arranque):
 
-1. **Restaurar la base al momento anterior al despliegue.** El resumen del despliegue malo (Actions →
-   la ejecución → *Summary*) dice la hora del «Respaldo previo». Para arrancar restaurando a esa hora,
-   ver «Restaurar a un punto en el tiempo».
+1. **Preparar la restauración:** en el Worker, la variable `DCASA_RESTAURAR_HASTA` con la hora del «Respaldo
+   previo» del despliegue malo (Actions → la ejecución → *Summary*); ver «Restaurar a un punto en el tiempo».
+   **No reiniciar todavía.**
 2. **Desplegar la versión anterior:** abrir el resumen del último despliegue **bueno** y copiar
    `app_version` e `imagen_digest`. Actions → **Desplegar** → *Run workflow* → entorno, esos dos
    valores, y desmarcar *respaldo_previo* si el sitio está caído. No se reconstruye nada: se usa la
-   misma imagen que ya funcionó.
+   misma imagen que ya funcionó. Ese arranque restaura la base y la encuentra como la dejó esa imagen.
 
-**Nunca** hacer solo el paso 2: la versión vieja de Odoo sobre una base ya actualizada puede romper
-datos.
+**Por qué juntos (#97, 2026-10-16):** si la base se restaura con la imagen nueva todavía puesta, esa imagen la
+vuelve a actualizar al arrancar; y una imagen **más vieja** que la que actualizó la base se niega a «bajarla»
+(con el código viejo, `odoo -u` borraría columnas y tablas nuevas con sus datos): el sitio no queda sano y el
+log dice «NO la actualizo hacia atrás». **Nunca** desplegar la versión vieja sin restaurar.
+
+**Salidas de emergencia** (se pegan en el panel de Cloudflare del Worker solo mientras hagan falta, y se
+quitan después):
+
+- `DCASA_PERMITIR_BAJAR=<commit de 40 caracteres de la imagen vieja>`: deja que esa imagen actualice la base
+  hacia atrás a sabiendas (se pierden las columnas y tablas que solo tiene la versión nueva). Solo con
+  decisión de quien mantiene el sistema.
+- `DCASA_HUMO=0`: apaga la prueba de humo del arranque si diera un problema falso. El despliegue igual exige
+  la versión nueva con la base al día.
 
 ## Restaurar a un punto en el tiempo
 

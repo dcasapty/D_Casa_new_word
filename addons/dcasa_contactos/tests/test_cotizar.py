@@ -65,6 +65,16 @@ class TestCotizar(TransactionCase):
         orden = self.env['sale.order'].new({'partner_id': self.entrega.id})
         self.assertIn(otra.name, orden._onchange_dcasa_cliente_duplicado()['warning']['message'])
 
+    def test_avisa_entre_la_ficha_de_la_tienda_y_la_del_portal(self):
+        """Quien se registró en la tienda (portal) también es cliente: si comparte el celular con una ficha, se avisa
+        de ida y de vuelta (revisión adversarial, 2026-10-16)."""
+        self.portal.partner_id.with_context(**SIN).phone = '6555-0201'
+        for elegida, otra in ((self.ficha, self.portal.partner_id), (self.portal.partner_id, self.ficha)):
+            with self.subTest(elegida=elegida.name):
+                aviso = self.env['sale.order'].new({'partner_id': elegida.id})._onchange_dcasa_cliente_duplicado()
+                self.assertTrue(aviso and aviso.get('warning'))
+                self.assertIn(otra.name, aviso['warning']['message'])
+
     def test_sin_repetidos_no_avisa(self):
         orden = self.env['sale.order'].new({'partner_id': self.ficha.id})
         self.assertIsNone(orden._onchange_dcasa_cliente_duplicado())

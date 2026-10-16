@@ -417,10 +417,15 @@ jobs:
           echo "== 3) Una imagen más vieja que la que actualizó la base no la baja"
           psql_odoo "UPDATE ir_config_parameter SET value = '9999999999' WHERE key = 'dcasa.codigo_orden'"
           psql_odoo "UPDATE ir_config_parameter SET value = 'codigo-de-una-imagen-nueva' WHERE key = 'dcasa.codigo_desplegado'"
+          # Tampoco toca los módulos: con su lista vieja de sobrantes desinstalaría lo que la nueva instaló.
+          psql_odoo "UPDATE ir_config_parameter SET value = 'otra-version' WHERE key = 'dcasa.sobrantes_version'"
           reiniciar
           en_el_log 'NO la actualizo hacia atrás' 'Una imagen más vieja que la base la actualizó hacia atrás.'
           if docker logs --since "$inicio" odoo 2>&1 | grep -qF '✔ Base actualizada'; then
             echo "::error::Una imagen más vieja que la base la actualizó hacia atrás."; exit 1
+          fi
+          if docker logs --since "$inicio" odoo 2>&1 | grep -qF 'Revisando módulos sobrantes'; then
+            echo "::error::Una imagen más vieja que la base revisó (y pudo desinstalar) módulos."; exit 1
           fi
           comprobar false ok
           psql_odoo "UPDATE ir_config_parameter SET value = '1' WHERE key = 'dcasa.codigo_orden'"

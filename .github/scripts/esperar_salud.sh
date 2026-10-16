@@ -115,7 +115,9 @@ if ((confirmar_s > 0)); then
   echo "Vigilo ${confirmar_s} s que siga la versión ${version_esperada} (Cloudflare podría volver a la imagen anterior)."
   fin=$(($(date +%s) + confirmar_s))
   caido_desde=0
-  while (($(date +%s) < fin)); do
+  # Si al cerrar la ventana el sitio está caído, se sigue mirando hasta que vuelva (pasa), responda otra cosa o se
+  # pase la tolerancia (falla): un corte justo al final no se confirma como sano (revisión adversarial, 2026-10-16).
+  while (($(date +%s) < fin)) || ((caido_desde > 0)); do
     sleep "$pausa_s"
     rc=0
     version_nueva_y_al_dia >"$cuerpo.motivo" || rc=$?

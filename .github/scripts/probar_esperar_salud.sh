@@ -90,6 +90,10 @@ caso "con la prueba de humo en ok está sana" 0 "[[200, $CON_HUMO]]"
 caso "un corte breve durante la vigilancia (reinicio) se tolera" 0 \
   "[[200, $CON_HUMO], [503, {}], [200, $CON_HUMO]]" 2 1
 caso "un corte largo durante la vigilancia falla" 1 "[[200, $CON_HUMO], [503, {}]]" 3 0
+caso "caído justo al cerrar la vigilancia y no vuelve: falla (no se confirma un sitio caído)" 1 \
+  "[[200, $CON_HUMO], [503, {}]]" 1 2
+caso "caído justo al cerrar la vigilancia y vuelve dentro de la tolerancia: pasa" 0 \
+  "[[200, $CON_HUMO], [200, $CON_HUMO], [200, $CON_HUMO], [200, $CON_HUMO], [503, {}], [503, {}], [503, {}], [503, {}], [503, {}], [200, $CON_HUMO]]" 1 5
 caso "si a mitad de la vigilancia la prueba de humo dice fallo, falla" 1 \
   "[[200, $CON_HUMO], [200, $CON_HUMO], [200, {\"ok\": true, \"version\": \"0123456789ab\", \"base_al_dia\": true, \"humo\": \"fallo\"}]]" 2
 
