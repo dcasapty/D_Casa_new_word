@@ -710,9 +710,19 @@
     span { display: block; height: 100%; background: var(--dc-azul-600); border-radius: 6px; }
 }
 
-// Palabras de ánimo según lo que lleva (pedido de la dueña, 2026-10-16): azul sobre blanco, sin gritos.
+// Palabras de ánimo según lo que lleva y el botón «Ver mis ventas» (pedido de la dueña, 2026-10-16): azul sobre
+// blanco, sin gritos; el botón, azul como los del encabezado.
+.o_dcasa_meta_pie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 12px;
+}
+
 .o_dcasa_meta_animo {
-    margin: 10px 0 0;
+    margin: 0;
     font-size: 1.05rem;
     font-weight: 600;
     color: var(--dc-azul-700);

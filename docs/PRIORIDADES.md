@@ -93,6 +93,8 @@ unidos con el PR #43.)
 | Estadísticas del negocio (menú) | Hecho (PR #43; en producción con el arreglo #97) | 2 |
 | Íconos del menú con color | Hecho, en producción (2026-10-16, PR #43; paleta aceptada) | 2 |
 | Categoría «Envíos — En desarrollo» | Hecho (PR #43; en producción con el arreglo #97) | 2 |
+| Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | Porcentaje y frases en producción (Desplegar 13). Sin cifras de dinero y con «Ver mis ventas»: hecho y probado, va en el próximo despliegue | — |
+| Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | Hecho y probado; va en el próximo despliegue (Odoo y Worker de Juan). Luego la dueña carga el conocimiento con la extensión de Chrome. «Apartados» espera al abogado | 6 |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 

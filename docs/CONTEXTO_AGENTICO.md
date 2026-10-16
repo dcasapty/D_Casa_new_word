@@ -208,6 +208,7 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 10 | 2026-10-16 13:12 | `d37af4fd` | Etapa 3, prueba de humo del arranque, «nunca hacia atrás», Conversaciones #25 punto 1, botón «Volver a una versión estable» (PR #46) | **Sí** (Etapa 3 y Conversaciones; la huella cambió y actualizó) | **Sano y confirmado** 13:25 (versión `d37af4fde5b2`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña. Staging igual en CI #174. digest `015dbd40…` |
 | Desplegar 11 | 2026-10-16 14:57 | `9be426a4` | Inicio: cotizaciones y entregas arriba con acento, «Ganancia bruta», cuadre exacto con Contabilidad; Contabilidad: aviso de utilidad sin costo de ventas, «Vencido» sin negativos | No (vistas, plantillas y estilos; sin campos nuevos) | **Sano y confirmado** 15:11 (versión `9be426a46e15`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («tan pronto puedas subir las correcciones a producción hazlo»). Staging igual en CI #178. digest `876ca5f5…` |
 | Desplegar 12 | 2026-10-16 19:25 | `431cbfe8` | Bono por meta de ventas (1 % si se llega a la meta; a la primera planilla del mes siguiente), aviso de pedidos repetidos, avisos del chat «En Odoo» y contador en rojo | **Sí** (modelos y campos nuevos de Nómina, `comision_meta` en la línea; la huella cambió y actualizó) | **Sano y confirmado** 19:38 (versión `431cbfe80d88`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («avísame cuando esté y si tienen mi si») y, tras las correcciones de la revisión, «Sí, termina». Staging igual en CI #182. digest `3894d505…` |
+| Desplegar 13 | 2026-10-16 21:49 | `60803c6d` | Inicio de la vendedora: porcentaje de la meta grande, barra y palabras de ánimo (PR #50) | No (plantilla, estilos y datos del Inicio; sin campos nuevos) | **Sano y confirmado** ~22:02 (versión `60803c6d50e3`, base al día, tras 10 min de vigilancia) | Con el pedido de la dueña («sube … a producción en cuanto puedas»). Staging igual en CI #184. Todavía mostraba la meta en dinero y el 1 %: la dueña pidió quitarlos (va en el despliegue siguiente). digest `0818f42a…` |
 
 **Qué puede no haberse aplicado nunca en producción:**
 
@@ -310,6 +311,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 ---
 
 ## Trampas de Odoo 19 / Cloudflare / GitHub ya conocidas
+
+### Esta máquina (sesiones de Claude)
+
+- `pkill -f "<patrón>"` mata también la propia shell si el patrón aparece en el comando (sale con código 144 y se
+  pierden las tareas en segundo plano de esa llamada). Matar por PID (`ps -eo pid,args | grep odoo-bin`).
+- Las pruebas de navegador de Odoo se saltan en local («Chrome executable not found»). Para correrlas: un enlace
+  `chromium` → `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` en una carpeta del `PATH` del comando.
+- Un `scripts/test.sh` que arrancó antes de editar el código prueba una mezcla (Python viejo, plantillas nuevas): si se
+  edita durante la corrida, se vuelve a correr.
 
 ### Odoo 19
 

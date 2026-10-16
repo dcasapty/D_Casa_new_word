@@ -367,14 +367,31 @@ class DcasaNominaMetaBono(models.Model):
         cobrado = max(total_sin_itbms(facturas, notas), 0.0)
         cumplio = cobrado >= regla.meta_mensual
         avance_real = int(round(cobrado / regla.meta_mensual * 100.0))
+        nombre_mes = format_date(mes, 'MMMM', locale='es')
         return {
-            'mes': format_date(mes, 'MMMM', locale='es'),
+            'mes': nombre_mes,
             # La barra se llena hasta el 100 %; el número dice cuánto lleva de verdad (puede pasar del 100 %).
             'avance': round(min(cobrado / regla.meta_mensual * 100.0, 100.0), 1),
             'avance_real': avance_real,
             'cumplio': cumplio,
             'animo': self._animo(avance_real, cumplio),
+            'ventas': self._mis_ventas(facturas, notas, nombre_mes),
         }
+
+    def _mis_ventas(self, facturas, notas, nombre_mes):
+        """El botón «Ver mis ventas» de la tarjeta (pedido de la dueña, 2026-10-16): abre las ventas que suman al
+        porcentaje de este mes (las facturas cobradas completas y las notas de crédito que restan), solo las suyas.
+        Sin permiso para ver facturas, no hay botón."""
+        Move = self.env['account.move']
+        if not Move.has_access('read'):
+            return None
+        vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
+        return {'accion': {
+            'name': self.env._('Mis ventas de %s', nombre_mes),
+            'res_model': 'account.move',
+            'domain': [('id', 'in', sorted(m.id for m in (*facturas, *notas)))],
+            'vista_lista': vista.id if vista else False,
+        }}
 
     def _animo(self, avance, cumplio):
         """Unas palabras de ánimo según lo que lleva de la meta (pedido de la dueña, 2026-10-16). Con la voz de la

@@ -307,7 +307,13 @@ class TestMetaVentas(NominaCommon):
         meta = self.Bono.with_user(self.u_vera)._para_inicio(self.u_vera, date(2030, 3, 20))
         # Decisión de la dueña (2026-10-16): la vendedora ve solo cuánto lleva en porcentaje y unas palabras de ánimo.
         # Ninguna cifra de dinero sale del servidor: ni la meta, ni el porcentaje del bono, ni lo cobrado.
-        self.assertEqual(set(meta), {'mes', 'avance', 'avance_real', 'cumplio', 'animo'})
+        self.assertEqual(set(meta), {'mes', 'avance', 'avance_real', 'cumplio', 'animo', 'ventas'})
+        # «Ver mis ventas» abre justo las ventas que suman a su porcentaje: las dos suyas, nunca la de Otto.
+        accion = meta['ventas']['accion']
+        self.assertEqual((accion['res_model'], accion['name']), ('account.move', 'Mis ventas de marzo'))
+        vendidas = self.env['account.move'].search(accion['domain'])
+        self.assertEqual(len(vendidas), 2)
+        self.assertEqual(vendidas.invoice_user_id, self.u_vera)
         self.assertTrue(meta['cumplio'])
         self.assertEqual(meta['avance'], 100.0)
         self.assertEqual(meta['avance_real'], 150, 'el número dice cuánto lleva de verdad; la barra se llena hasta 100')
@@ -323,5 +329,5 @@ class TestMetaVentas(NominaCommon):
         tablero = self.env.get('dcasa.tablero')
         if tablero is not None:
             datos = tablero.with_user(self.u_vera).obtener_datos()
-            self.assertEqual(set(datos['meta']), {'mes', 'avance', 'avance_real', 'cumplio', 'animo'})
+            self.assertEqual(set(datos['meta']), {'mes', 'avance', 'avance_real', 'cumplio', 'animo', 'ventas'})
             self.assertEqual(datos['meta']['avance_real'], 30)

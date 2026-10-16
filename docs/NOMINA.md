@@ -136,7 +136,9 @@ ventas** (con vigencia por mes).
   confirmada lo deja **pagado**; si se reversa, vuelve a quedar por pagar (la planilla cancelada no cambia sus
   montos). Un bono que ya está en una planilla no se recalcula solo: se pone al día al volver a calcular la planilla.
 * **Lo que ve cada vendedora:** en su Inicio, «Tu meta del mes»: **solo** el porcentaje que lleva, en grande junto a
-  la barra (la barra se llena hasta el 100 %; el número puede pasar), y unas palabras de ánimo según lo que lleva.
+  la barra (la barra se llena hasta el 100 %; el número puede pasar), unas palabras de ánimo según lo que lleva y el
+  botón **«Ver mis ventas»**, que abre las ventas que suman a su porcentaje del mes (facturas cobradas completas y las
+  notas de crédito que restan).
   Decisión de la dueña (2026-10-16): **ninguna cifra de dinero** (ni la meta, ni el porcentaje del bono, ni lo
   cobrado, ni lo que falta, ni el ritmo del día); el servidor tampoco las manda al navegador. Solo lo suyo; nunca lo
   de la tienda ni lo de otra persona. Las cifras las ve Gerencia en Nómina › Bono por meta.
