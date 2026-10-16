@@ -350,8 +350,11 @@ class DcasaNominaMetaBono(models.Model):
 
     @api.model
     def _para_inicio(self, user, hoy):
-        """La tarjeta «Tu meta del mes» de ``user``, o None si no participa. Solo sus cifras: nunca las de la
-        tienda ni las de otra vendedora."""
+        """La tarjeta «Tu meta del mes» de ``user``, o None si no participa.
+
+        Decisión de la dueña (2026-10-16): la vendedora ve SOLO cuánto lleva en porcentaje y unas palabras de ánimo.
+        Nada de dinero: ni la meta, ni el porcentaje del bono, ni lo cobrado, ni lo que falta, ni el ritmo del día. Por
+        eso esas cifras ni siquiera salen del servidor (no se pueden ver tampoco en las herramientas del navegador)."""
         company = self.env.company
         empleado = self._participantes(company).filtered(lambda e: e.user_id == user)[:1]
         if not empleado:
@@ -361,24 +364,16 @@ class DcasaNominaMetaBono(models.Model):
         if not regla:
             return None
         facturas, notas = self._del_mes(empleado, user, mes, company, hasta=hoy)
-        cobrado = total_sin_itbms(facturas, notas)
-        de_hoy = total_sin_itbms([f for f, dia in facturas.items() if dia == hoy],
-                                 [n for n, dia in notas.items() if dia == hoy])
+        cobrado = max(total_sin_itbms(facturas, notas), 0.0)
         cumplio = cobrado >= regla.meta_mensual
+        avance_real = int(round(cobrado / regla.meta_mensual * 100.0))
         return {
             'mes': format_date(mes, 'MMMM', locale='es'),
-            'meta': regla.meta_mensual,
-            'porcentaje': f'{regla.porcentaje:g}',
-            'cobrado': cobrado,
-            'faltan': calculo.r2(max(regla.meta_mensual - cobrado, 0.0)),
             # La barra se llena hasta el 100 %; el número dice cuánto lleva de verdad (puede pasar del 100 %).
-            'avance': round(min(max(cobrado, 0.0) / regla.meta_mensual * 100.0, 100.0), 1),
-            'avance_real': int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)),
+            'avance': round(min(cobrado / regla.meta_mensual * 100.0, 100.0), 1),
+            'avance_real': avance_real,
             'cumplio': cumplio,
-            'bono': calculo.porcentaje(cobrado, regla.porcentaje) if cumplio else 0.0,
-            'hoy': de_hoy,
-            'meta_diaria': regla.meta_diaria,
-            'animo': self._animo(int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)), cumplio),
+            'animo': self._animo(avance_real, cumplio),
         }
 
     def _animo(self, avance, cumplio):

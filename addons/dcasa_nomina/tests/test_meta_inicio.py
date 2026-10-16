@@ -55,5 +55,11 @@ class TestMetaEnElInicio(HttpCase):
             if (!animo || !animo.textContent.includes('Paso a paso')) {
                 throw new Error('faltan las palabras de ánimo junto a la barra');
             }
+            // La vendedora no ve ninguna cifra de dinero: ni la meta, ni el porcentaje del bono, ni lo cobrado. El
+            // único número de la tarjeta es el porcentaje que lleva (decisión de la dueña, 2026-10-16).
+            const numeros = document.querySelector('.o_dcasa_meta').textContent.match(/[0-9]+/g) || [];
+            if (numeros.join(',') !== '25') {
+                throw new Error('la tarjeta de la meta muestra cifras de más: ' + numeros.join(', '));
+            }
             console.log('test successful');
         })();""", login='meta_inicio_vera')
