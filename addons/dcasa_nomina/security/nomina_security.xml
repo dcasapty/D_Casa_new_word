@@ -37,6 +37,16 @@
         <field name="model_id" ref="model_dcasa_nomina_planilla"/>
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="regla_meta_regla_empresa" model="ir.rule">
+        <field name="name">Nómina, meta de ventas: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_meta_regla"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_meta_bono_empresa" model="ir.rule">
+        <field name="name">Nómina, bono por meta: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_meta_bono"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="regla_linea_empresa" model="ir.rule">
         <field name="name">Nómina, líneas: empresas permitidas</field>
         <field name="model_id" ref="model_dcasa_nomina_linea"/>

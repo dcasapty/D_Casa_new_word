@@ -56,6 +56,30 @@
                     </button>
                 </section>
 
+                <!-- Tu meta del mes (bono por meta de ventas, solo quien está en el departamento de Ventas): solo sus
+                     cifras, nunca las de la tienda. Cuenta lo cobrado completo, sin ITBMS. -->
+                <section t-if="d.meta" class="o_dcasa_meta" aria-label="Tu meta del mes">
+                    <div class="o_dcasa_meta_cabeza">
+                        <h2><i class="fa fa-bullseye" aria-hidden="true"/>Tu meta de <t t-out="d.meta.mes"/></h2>
+                        <span class="o_dcasa_meta_regla">Si cobras <t t-out="dinero(d.meta.meta)"/> o más en el mes, tu bono
+                            es el <t t-out="d.meta.porcentaje"/> % de todo lo que cobres.</span>
+                    </div>
+                    <div class="o_dcasa_meta_barra" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+                         t-att-aria-valuenow="d.meta.avance" t-att-aria-label="'Avance de la meta: ' + d.meta.avance + ' %'">
+                        <span t-attf-style="width: {{ d.meta.avance }}%"/>
+                    </div>
+                    <div class="o_dcasa_meta_cifras">
+                        <span class="o_dcasa_meta_cobrado">Cobrado: <strong t-out="dinero(d.meta.cobrado)"/> de
+                            <t t-out="dinero(d.meta.meta)"/></span>
+                        <span t-if="!d.meta.cumplio" class="o_dcasa_meta_faltan">Te faltan <strong t-out="dinero(d.meta.faltan)"/></span>
+                        <span t-else="" class="o_dcasa_meta_bono">Meta cumplida: tu bono va en <strong t-out="dinero(d.meta.bono)"/></span>
+                        <span t-if="d.meta.meta_diaria" class="o_dcasa_meta_hoy">Hoy: <strong t-out="dinero(d.meta.hoy)"/> de
+                            <t t-out="dinero(d.meta.meta_diaria)"/></span>
+                    </div>
+                    <p class="o_dcasa_meta_nota">Cuenta lo que el cliente ya pagó completo, sin ITBMS, en el mes en que se
+                        completó el pago. Las devoluciones se restan. El bono se paga en la primera quincena del mes siguiente.</p>
+                </section>
+
                 <!-- Cotizaciones abiertas y entregas pendientes, lado a lado y justo debajo de los accesos azules: lo
                      que más se usa para cerrar en caja (pedido de la dueña, 2026-10-16). Cabecera azul con el número
                      en amarillo: el amarillo solo toca el azul. -->

@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Meta de ventas (las cifras del bono, con vigencia por mes) -->
+    <record id="meta_regla_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.meta.regla.list</field>
+        <field name="model">dcasa.nomina.meta.regla</field>
+        <field name="arch" type="xml">
+            <list string="Meta de ventas">
+                <field name="fecha_desde"/>
+                <field name="meta_mensual"/>
+                <field name="porcentaje"/>
+                <field name="meta_diaria"/>
+                <field name="notas" optional="show"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="meta_regla_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.meta.regla.form</field>
+        <field name="model">dcasa.nomina.meta.regla</field>
+        <field name="arch" type="xml">
+            <form string="Meta de ventas">
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="alert alert-info" role="status">
+                        Quien está en un departamento que participa en la meta (el de Ventas) y cobra en el mes por lo
+                        menos la meta, gana este porcentaje de TODO lo que cobró (sin ITBMS). El bono entra solo en la
+                        primera planilla del mes siguiente. Para cambiar las cifras, crea una meta nueva que rija desde
+                        un mes: los meses ya pagados no cambian.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="fecha_desde"/>
+                            <field name="meta_mensual"/>
+                            <field name="porcentaje"/>
+                        </group>
+                        <group>
+                            <field name="meta_diaria"/>
+                            <field name="notas"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_meta_reglas" model="ir.actions.act_window">
+        <field name="name">Meta de ventas</field>
+        <field name="res_model">dcasa.nomina.meta.regla</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- El bono de cada vendedora, mes a mes -->
+    <record id="meta_bono_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.meta.bono.list</field>
+        <field name="model">dcasa.nomina.meta.bono</field>
+        <field name="arch" type="xml">
+            <list string="Bono por meta" create="0" delete="0" decoration-muted="not cumplio">
+                <field name="mes" widget="date" options="{'format': 'MM/yyyy'}"/>
+                <field name="empleado_id"/>
+                <field name="cobrado" sum="Cobrado"/>
+                <field name="meta"/>
+                <field name="cumplio"/>
+                <field name="porcentaje" optional="hide"/>
+                <field name="monto" sum="Bonos"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'pagado'"
+                       decoration-info="estado == 'en_planilla'"/>
+                <field name="actualizado" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="meta_bono_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.meta.bono.form</field>
+        <field name="model">dcasa.nomina.meta.bono</field>
+        <field name="arch" type="xml">
+            <form string="Bono por meta" create="0" delete="0" edit="0">
+                <header>
+                    <field name="estado" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <group>
+                        <group>
+                            <field name="empleado_id"/>
+                            <field name="mes" widget="date" options="{'format': 'MM/yyyy'}"/>
+                            <field name="regla_id"/>
+                            <field name="linea_id" invisible="not linea_id"/>
+                        </group>
+                        <group>
+                            <field name="cobrado"/>
+                            <field name="meta"/>
+                            <field name="cumplio"/>
+                            <field name="porcentaje"/>
+                            <field name="monto"/>
+                            <field name="actualizado"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Facturas que cuentan" name="facturas">
+                            <field name="factura_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="partner_id"/>
+                                    <field name="invoice_date"/>
+                                    <field name="amount_untaxed_signed" string="Sin ITBMS" sum="Total"/>
+                                    <field name="payment_state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Notas de crédito que restan" name="notas" invisible="not nota_ids">
+                            <field name="nota_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="partner_id"/>
+                                    <field name="date"/>
+                                    <field name="amount_untaxed_signed" string="Sin ITBMS" sum="Total"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="meta_bono_search" model="ir.ui.view">
+        <field name="name">dcasa.nomina.meta.bono.search</field>
+        <field name="model">dcasa.nomina.meta.bono</field>
+        <field name="arch" type="xml">
+            <search string="Bono por meta">
+                <field name="empleado_id"/>
+                <filter name="cumplieron" string="Llegaron a la meta" domain="[('cumplio', '=', True)]"/>
+                <filter name="por_pagar" string="Por pagar" domain="[('estado', '=', 'abierto'), ('monto', '>', 0)]"/>
+                <separator/>
+                <filter name="por_mes" string="Mes" context="{'group_by': 'mes:month'}"/>
+                <filter name="por_persona" string="Colaborador" context="{'group_by': 'empleado_id'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_meta_bonos_lista" model="ir.actions.act_window">
+        <field name="name">Bono por meta</field>
+        <field name="res_model">dcasa.nomina.meta.bono</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="meta_bono_search"/>
+        <field name="context">{'search_default_por_mes': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay bonos por meta.</p>
+            <p>Participa quien está en un departamento marcado «Participa en la meta de ventas» (Empleados ›
+               Departamentos) y tiene usuario. Cuenta lo que cobró completo en el mes, sin ITBMS.</p>
+        </field>
+    </record>
+
+    <!-- El menú pone al día el mes en curso y el anterior antes de abrir la lista. -->
+    <record id="accion_meta_bonos" model="ir.actions.server">
+        <field name="name">Bono por meta</field>
+        <field name="model_id" ref="model_dcasa_nomina_meta_bono"/>
+        <field name="state">code</field>
+        <field name="code">action = model._accion_bonos()</field>
+        <field name="group_ids" eval="[(4, ref('group_nomina'))]"/>
+    </record>
+
+    <!-- El departamento: participa o no en la meta -->
+    <record id="hr_department_form_meta_ventas" model="ir.ui.view">
+        <field name="name">hr.department.form.dcasa.meta.ventas</field>
+        <field name="model">hr.department</field>
+        <field name="inherit_id" ref="hr.view_department_form"/>
+        <field name="arch" type="xml">
+            <field name="manager_id" position="after">
+                <field name="dcasa_meta_ventas" groups="dcasa_nomina.group_nomina"/>
+            </field>
+        </field>
+    </record>
+</odoo>

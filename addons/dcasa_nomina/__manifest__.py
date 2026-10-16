@@ -15,6 +15,8 @@ La nómina de D'CASA, hecha para Panamá sobre los empleados de Odoo (módulo ``
   contador.
 * Reembolsos en nómina: el colaborador registra el gasto con la foto del recibo, la administración lo aprueba y
   la siguiente planilla se lo suma.
+* Bono por meta de ventas: quien está en el departamento de Ventas gana el porcentaje de lo que cobró en el mes si
+  llega a la meta; entra solo en la primera planilla del mes siguiente y cada vendedora ve su avance en el Inicio.
 """,
     'version': '19.0.1.0.0',
     'category': 'Human Resources/Payroll',
@@ -26,6 +28,7 @@ La nómina de D'CASA, hecha para Panamá sobre los empleados de Odoo (módulo ``
         'security/nomina_security.xml',
         'security/ir.model.access.csv',
         'data/nomina_data.xml',
+        'data/meta_ventas_data.xml',
         'report/nomina_reportes.xml',
         'views/parametros_views.xml',
         'views/config_views.xml',
@@ -34,6 +37,7 @@ La nómina de D'CASA, hecha para Panamá sobre los empleados de Odoo (módulo ``
         'views/vacacion_views.xml',
         'views/liquidacion_views.xml',
         'views/hr_employee_views.xml',
+        'views/meta_ventas_views.xml',
         'views/menus.xml',
     ],
     'installable': True,

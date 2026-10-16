@@ -180,12 +180,14 @@ class DcasaTablero(models.AbstractModel):
             'cotizaciones': None,
             'entregas': None,
             'atencion': [],
+            'meta': None,
             've_utilidad': False,
             'permisos': self._permisos(propio),
             # La Guía («¿Qué necesitas hacer hoy?») vive en otro módulo: si no está instalado, no hay botón.
             'guia': bool(self.env.ref('dcasa_guia.accion_guia', raise_if_not_found=False)),
         }
         datos['atajos'] = self._atajos(datos['permisos'])
+        datos['meta'] = self._meta_del_mes(hoy)
         if self._puede('sale.order'):
             self._cifras_de_ventas(datos, hoy, propio)
             if not propio:
@@ -206,6 +208,15 @@ class DcasaTablero(models.AbstractModel):
         if not propio:
             self._atencion(datos, hoy)
         return datos
+
+    def _meta_del_mes(self, hoy):
+        """«Tu meta del mes» de quien mira, si participa en el bono por meta de ventas (departamento de Ventas).
+        Solo sus cifras, nunca las de la tienda. Vive en Nómina (``dcasa.nomina.meta.bono``): sin ese módulo, no
+        sale."""
+        Bono = self.env.get('dcasa.nomina.meta.bono')
+        if Bono is None:
+            return None
+        return Bono._para_inicio(self.env.user, hoy)
 
     # ------------------------------------------------------------------
     # Ventas por periodo (Hoy · Semana · Mes · rango)
