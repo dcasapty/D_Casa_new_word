@@ -74,7 +74,11 @@ RUN chmod 755 /usr/local/bin/dcasa-entrypoint /usr/local/bin/dcasa-respaldo \
 # y así la base quedaba sin actualizar (incidente del 2026-10-16, #97). /dcasa/salud lo informa y el
 # despliegue no da por sano un sitio con otra versión o con la base atrasada.
 ARG DCASA_COMMIT=dev
+# Fecha del commit (segundos desde 1970): el arranque nunca «actualiza hacia atrás» la base con una imagen más vieja
+# que la que la actualizó (perdería columnas y datos; revisión adversarial del 2026-10-16).
+ARG DCASA_COMMIT_FECHA=0
 RUN printf '%s\n' "$DCASA_COMMIT" > /opt/dcasa/COMMIT \
+    && printf '%s\n' "$DCASA_COMMIT_FECHA" > /opt/dcasa/ORDEN \
     && find /opt/odoo /opt/dcasa/addons -type f ! -name '*.pyc' -print0 | LC_ALL=C sort -z \
        | xargs -0 sha256sum | sha256sum | cut -c1-64 > /opt/dcasa/CODIGO \
     && grep -Eq '^[0-9a-f]{64}$' /opt/dcasa/CODIGO

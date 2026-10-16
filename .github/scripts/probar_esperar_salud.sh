@@ -55,12 +55,12 @@ for _ in $(seq 1 50); do [[ -s "$tmp/puerto" ]] && break; sleep 0.1; done
 URL="http://127.0.0.1:$(cat "$tmp/puerto")"
 
 fallos=0
-# caso <descripción> <código de salida esperado> <respuestas JSON> [CONFIRMAR_S]
+# caso <descripción> <código de salida esperado> <respuestas JSON> [CONFIRMAR_S] [TOLERANCIA_S]
 caso() {
   printf '%s' "$3" >"$tmp/respuestas.json"
   rm -f "$tmp/vueltas"
   local rc=0
-  URL_SITIO="$URL" APP_VERSION="$VERSION" ESPERA_SEGUNDOS=2 PAUSA_S=0.2 CONFIRMAR_S="${4:-0}" \
+  URL_SITIO="$URL" APP_VERSION="$VERSION" ESPERA_SEGUNDOS=2 PAUSA_S=0.2 CONFIRMAR_S="${4:-0}" TOLERANCIA_S="${5:-60}" \
     "$SCRIPT" >"$tmp/salida" 2>&1 || rc=$?
   if [[ "$rc" == "$2" ]]; then
     echo "ok   $1"
@@ -83,6 +83,15 @@ caso "primero responde la anterior y después la nueva: espera y pasa" 0 \
 caso "sana al principio pero a la confirmación responde la anterior: falla" 1 \
   "[[200, $NUEVA], [200, {\"ok\": true}]]" 1
 caso "sana al principio y sigue sana a la confirmación: pasa" 0 "[[200, $NUEVA]]" 1
+caso "la prueba de humo del arranque falló: NO es sano aunque la versión y la base coincidan" 1 \
+  '[[200, {"ok": true, "version": "0123456789ab", "base_al_dia": true, "humo": "fallo"}]]'
+CON_HUMO='{"ok": true, "version": "0123456789ab", "base_al_dia": true, "humo": "ok"}'
+caso "con la prueba de humo en ok está sana" 0 "[[200, $CON_HUMO]]"
+caso "un corte breve durante la vigilancia (reinicio) se tolera" 0 \
+  "[[200, $CON_HUMO], [503, {}], [200, $CON_HUMO]]" 2 1
+caso "un corte largo durante la vigilancia falla" 1 "[[200, $CON_HUMO], [503, {}]]" 3 0
+caso "si a mitad de la vigilancia la prueba de humo dice fallo, falla" 1 \
+  "[[200, $CON_HUMO], [200, $CON_HUMO], [200, {\"ok\": true, \"version\": \"0123456789ab\", \"base_al_dia\": true, \"humo\": \"fallo\"}]]" 2
 
 rc=0
 URL_SITIO="$URL" "$SCRIPT" >"$tmp/salida" 2>&1 || rc=$?

@@ -92,7 +92,15 @@ class TestSesionesHttp(HttpCase):
     # /dcasa/salud
     # ------------------------------------------------------------------
 
+    def sin_datos_de_la_imagen(self):
+        """Como fuera de la imagen de producción: sin sus variables ni la prueba de humo del arranque."""
+        self.startPatcher(patch.dict(os.environ))
+        for variable in ('DCASA_COMMIT_IMAGEN', 'DCASA_CODIGO'):
+            os.environ.pop(variable, None)
+        self.env['ir.config_parameter'].sudo().search([('key', '=', salud.PARAM_HUMO)]).unlink()
+
     def test_salud_ok_sin_cookie_ni_sesion(self):
+        self.sin_datos_de_la_imagen()
         respuesta = self.url_open('/dcasa/salud')
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json(), {'ok': True})
@@ -131,6 +139,7 @@ class TestSesionesHttp(HttpCase):
             return self.url_open('/dcasa/salud')
 
     def test_salud_dice_la_version_de_la_imagen_y_que_la_base_esta_al_dia(self):
+        self.env['ir.config_parameter'].sudo().search([('key', '=', salud.PARAM_HUMO)]).unlink()
         respuesta = self.salud_con_la_imagen(self.CODIGO)
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.json(), {'ok': True, 'version': '0123456789ab', 'base_al_dia': True})
@@ -144,6 +153,23 @@ class TestSesionesHttp(HttpCase):
 
     def test_salud_avisa_si_la_base_nunca_se_actualizo_con_la_huella(self):
         self.assertIs(self.salud_con_la_imagen(None).json()['base_al_dia'], False)
+
+    def test_salud_no_se_fia_de_una_huella_que_quedo_vieja(self):
+        """Una imagen anterior a la huella marcó la versión DESPUÉS: la huella ya no prueba que la base esté al día."""
+        Parametros = self.env['ir.config_parameter'].sudo()
+        Parametros.set_param(salud.PARAM_VERSION, 'version-de-una-imagen-vieja')
+        self.env.cr.execute("UPDATE ir_config_parameter SET write_date = now() + interval '1 minute' WHERE key = %s",
+                            [salud.PARAM_VERSION])
+        self.assertIs(self.salud_con_la_imagen(self.CODIGO).json()['base_al_dia'], False)
+
+    def test_salud_dice_como_salio_la_prueba_de_humo(self):
+        Parametros = self.env['ir.config_parameter'].sudo()
+        Parametros.set_param(salud.PARAM_HUMO, '{"ok": true, "columnas_faltantes": [], "errores": []}')
+        self.assertEqual(self.salud_con_la_imagen(self.CODIGO).json()['humo'], 'ok')
+        Parametros.set_param(salud.PARAM_HUMO, '{"ok": false, "columnas_faltantes": ["sale.order.x"], "errores": []}')
+        self.assertEqual(self.salud_con_la_imagen(self.CODIGO).json()['humo'], 'fallo')
+        Parametros.set_param(salud.PARAM_HUMO, 'no es json')
+        self.assertEqual(self.salud_con_la_imagen(self.CODIGO).json()['humo'], 'fallo', 'ilegible no es «ok»')
 
     def test_salud_sin_base_no_dice_version(self):
         with patch.object(salud, 'base_responde', return_value=False), \

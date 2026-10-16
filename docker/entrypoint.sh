@@ -183,6 +183,9 @@ DCASA_INFO_IMAGEN="${DCASA_INFO_IMAGEN:-/opt/dcasa}"
 VERSION_VARIABLE="${APP_VERSION:-dev}"
 COMMIT_IMAGEN="$(head -n1 "$DCASA_INFO_IMAGEN/COMMIT" 2>/dev/null || true)"
 CODIGO="$(head -n1 "$DCASA_INFO_IMAGEN/CODIGO" 2>/dev/null || true)"
+# Fecha del commit de la imagen: una imagen más vieja que la que actualizó la base no la baja.
+ORDEN_IMAGEN="$(head -n1 "$DCASA_INFO_IMAGEN/ORDEN" 2>/dev/null || true)"
+[[ "$ORDEN_IMAGEN" =~ ^[1-9][0-9]*$ ]] || ORDEN_IMAGEN=""
 if [[ "$COMMIT_IMAGEN" =~ ^[0-9a-f]{40}$ ]]; then
   APP_VERSION="$COMMIT_IMAGEN"
   if [[ "$VERSION_VARIABLE" != "$APP_VERSION" ]]; then
@@ -334,6 +337,18 @@ set_param() {
        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, write_date = now()" >/dev/null
 }
 
+# Tras instalar o actualizar: la versión primero; la huella del código y el orden de la imagen después (las
+# imágenes anteriores a este control solo marcan la versión: así se nota cuándo la huella quedó vieja).
+marcar_base_actualizada() {
+  set_param dcasa.deployed_version "$APP_VERSION"
+  [[ -z "$CODIGO" ]] || set_param dcasa.codigo_desplegado "$CODIGO"
+  [[ -z "$ORDEN_IMAGEN" ]] || set_param dcasa.codigo_orden "$ORDEN_IMAGEN"
+}
+# 't' si la versión se marcó después que la huella (la marcó una imagen que no sabe de huellas).
+SQL_HUELLA_VIEJA="SELECT COALESCE(
+  (SELECT write_date FROM ir_config_parameter WHERE key = 'dcasa.codigo_desplegado')
+  < (SELECT write_date FROM ir_config_parameter WHERE key = 'dcasa.deployed_version'), false)"
+
 # --- ¿Qué hay en la base? ----------------------------------------------------
 # «sin_base»: la base no existe (Odoo la crea); «vacia»: existe sin tablas de Odoo;
 # si no, el estado de dcasa_base («installed», «ausente», «to install»…).
@@ -359,21 +374,31 @@ fi
 if [[ "$estado" != "installed" ]]; then
   echo "▶ Base nueva ($estado): instalando $ODOO_MODULES ($ODOO_LANG)"
   odoo -d "$DB_NAME" -i "$ODOO_MODULES" --load-language="$ODOO_LANG" --stop-after-init
-  set_param dcasa.deployed_version "$APP_VERSION"
-  [[ -z "$CODIGO" ]] || set_param dcasa.codigo_desplegado "$CODIGO"
+  marcar_base_actualizada
   INSTALADA=1
 else
   deployed="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.deployed_version'")"
   # Huella del código con que se actualizó la base por última vez. Si no coincide con la de esta
   # imagen se actualiza, aunque la versión diga lo mismo: es lo que de verdad decide (#97).
   codigo_base="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.codigo_desplegado'")"
-  if [[ "$deployed" != "$APP_VERSION" || (-n "$CODIGO" && "$codigo_base" != "$CODIGO") ]]; then
+  # Una imagen anterior a este control solo marca la versión: si la versión se marcó DESPUÉS que la
+  # huella, la huella quedó vieja y no prueba nada (revisión adversarial del 2026-10-16).
+  huella_vieja="$(sql "$SQL_HUELLA_VIEJA")"
+  orden_base="$(sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.codigo_orden'")"
+  if [[ -n "$ORDEN_IMAGEN" && "$orden_base" =~ ^[0-9]+$ ]] && ((ORDEN_IMAGEN < orden_base)) \
+    && [[ "${DCASA_PERMITIR_BAJAR:-}" != "$APP_VERSION" ]]; then
+    # Nunca hacia atrás: con el código viejo, `-u` borraría las columnas y tablas nuevas y sus datos.
+    # Para volver atrás de verdad: restaurar la base primero (docs/OPERACION.md «Volver atrás un despliegue»)
+    # o, si se decide bajar igual, DCASA_PERMITIR_BAJAR=<este commit>.
+    NO_BAJAR=1
+    echo "✖ Esta imagen ($APP_VERSION) es más vieja que la que actualizó la base: NO la actualizo hacia atrás." >&2
+    echo "  El despliegue no la dará por sana (base_al_dia=false). Ver docs/OPERACION.md «Volver atrás un despliegue»." >&2
+  elif [[ "$deployed" != "$APP_VERSION" || (-n "$CODIGO" && ("$codigo_base" != "$CODIGO" || "$huella_vieja" == "t")) ]]; then
     echo "▶ Nueva versión (base: ${deployed:-?}, código ${codigo_base:0:12} → imagen: $APP_VERSION, código ${CODIGO:0:12}): actualizando $ODOO_MODULES"
     # -i instala los módulos nuevos de la lista (p. ej. dcasa_catalogo); en los ya
     # instalados no hace nada. -u actualiza los instalados.
     odoo -d "$DB_NAME" -i "$ODOO_MODULES" -u "$ODOO_MODULES" --stop-after-init
-    set_param dcasa.deployed_version "$APP_VERSION"
-    [[ -z "$CODIGO" ]] || set_param dcasa.codigo_desplegado "$CODIGO"
+    marcar_base_actualizada
     echo "✔ Base actualizada a $APP_VERSION (código ${CODIGO:0:12})"
   else
     echo "▶ La base ya está al día con esta imagen ($APP_VERSION, código ${CODIGO:0:12})"
@@ -735,6 +760,49 @@ PY
     set_param dcasa.sobrantes_version "$APP_VERSION"
   else
     echo "⚠ No se pudieron desinstalar los módulos sobrantes: Odoo arranca igual y se reintenta." >&2
+  fi
+fi
+
+# --- 5b. Prueba de humo: ¿el código y la base coinciden? (#97) ------------------
+# Cada campo guardado con su columna y el Inicio, las cotizaciones y las conversaciones armados de
+# verdad (dcasa_base/models/humo.py). Si faltan columnas se actualiza una vez más. El resultado queda
+# en dcasa.humo: /dcasa/salud lo dice y el despliegue lo exige. Nunca impide arrancar.
+revisar_humo() {
+  odoo_shell DCASA_HUMO_HECHO <<'PY'
+import json
+resultado = env['dcasa.humo']._revisar()
+env.cr.commit()
+print('· humo: ' + json.dumps(resultado, ensure_ascii=False)[:1500])
+print('DCASA_HUMO_HECHO')
+PY
+}
+leer_humo() { sql "SELECT value FROM ir_config_parameter WHERE key = 'dcasa.humo'" || true; }
+if [[ "${DCASA_HUMO:-1}" == "0" ]]; then
+  echo "⚠ DCASA_HUMO=0: sin prueba de humo en este arranque." >&2
+  sql "DELETE FROM ir_config_parameter WHERE key = 'dcasa.humo'" >/dev/null || true
+else
+  echo "▶ Prueba de humo (columnas de la base y pantallas principales)"
+  # Si la prueba no llega a terminar, que no quede el «ok» de un arranque anterior.
+  set_param dcasa.humo '{"ok": false, "columnas_faltantes": [], "errores": ["la prueba de humo no terminó"]}'
+  if revisar_humo; then
+    humo="$(leer_humo)"
+    if [[ "$humo" != *'"columnas_faltantes": []'* && "${NO_BAJAR:-0}" != "1" ]]; then
+      echo "⚠ Faltan columnas en la base para este código: actualizo los módulos otra vez." >&2
+      if odoo -d "$DB_NAME" -u "$ODOO_MODULES" --stop-after-init; then
+        marcar_base_actualizada
+      else
+        echo "✖ La actualización de los módulos falló: revisa el log de arriba." >&2
+      fi
+      revisar_humo || true
+      humo="$(leer_humo)"
+    fi
+    if [[ "$humo" == *'"ok": true'* ]]; then
+      echo "✔ Humo: la base coincide con el código y las pantallas principales abren"
+    else
+      echo "✖ Humo con problemas (el despliegue no lo dará por sano): ${humo:0:1500}" >&2
+    fi
+  else
+    echo "⚠ No pude correr la prueba de humo: el despliegue no lo dará por sano." >&2
   fi
 fi
 
