@@ -21,7 +21,7 @@
                     <group string="Imprimir documentos">
                         <div class="text-muted mb-2" colspan="2">
                             El botón «Imprimir documentos» de la factura y del pedido junta en un solo PDF la
-                            factura del cliente, la copia de la empresa y la nota de entrega.
+                            nota de entrega, la factura del cliente y la copia de la empresa, en ese orden.
                         </div>
                         <field name="dcasa_ofrecer_impresion_pago"/>
                     </group>

@@ -715,6 +715,11 @@ factura se hace desde esa cotización en caja; cobrar y facturar es del personal
 suelta sí está en Contabilidad (facturas, cobros, Resumen contable); lo que no existe es el pedido. Ver
 `docs/AUDITORIA_CONTABLE.md` (factura vs. venta vs. cobro).
 
+**Orden de «Imprimir documentos».** El PDF junta, venta por venta y en este orden: **nota de entrega** (la hoja que se
+despacha en bodega) → **factura del cliente** → **copia de la empresa**. Con varias ventas, el mismo orden se repite en
+cada una. El orden vive en `DOCUMENTOS` (`addons/dcasa_invoice/wizard/impresion_paquete.py`) y no depende del orden en que
+se marquen las casillas; una venta sin entrega (factura suelta) lleva solo la factura y la copia.
+
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 

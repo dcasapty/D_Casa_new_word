@@ -2,7 +2,8 @@
 
 Es una facilidad, no un sistema nuevo: reutiliza los informes que ya existen (la factura que imprime el botón
 «Imprimir» de siempre y la «Nota de entrega» de Inventario) y nada de lo de antes cambia.
-Por cada factura, en este orden: factura del cliente → copia de la empresa → nota de entrega / retiro de bodega.
+Por cada factura, en este orden: nota de entrega / retiro de bodega → factura del cliente → copia de la empresa.
+La entrega va primero porque es la hoja que se despacha en bodega; la factura y su copia quedan juntas al final.
 """
 import logging
 import time
@@ -16,9 +17,9 @@ _logger = logging.getLogger(__name__)
 
 # (clave, nombre que ve la usuaria). El orden de esta lista es el orden del PDF.
 DOCUMENTOS = [
+    ('entrega', 'Nota de entrega / retiro de bodega'),
     ('cliente', 'Factura del cliente'),
     ('copia', 'Copia de la empresa'),
-    ('entrega', 'Nota de entrega / retiro de bodega'),
 ]
 CLAVES = [clave for clave, _nombre in DOCUMENTOS]
 # El informe de Inventario que se imprime como nota de entrega (el mismo de «Imprimir» en la entrega).
@@ -37,9 +38,9 @@ class DcasaImpresionPaquete(models.TransientModel):
     tras_pago = fields.Boolean(help='El cuadro salió al completar un pago: se ofrece y se puede cerrar sin imprimir.')
     omitidas = fields.Integer(
         help='Cuántos de lo elegido se dejó fuera por no ser una factura de cliente ya publicada.')
+    incluir_entrega = fields.Boolean('Nota de entrega / retiro de bodega', default=True)
     incluir_cliente = fields.Boolean('Factura del cliente', default=True)
     incluir_copia = fields.Boolean('Copia de la empresa', default=True)
-    incluir_entrega = fields.Boolean('Nota de entrega / retiro de bodega', default=True)
     resumen = fields.Char(compute='_compute_informacion')
     entregas_texto = fields.Char(compute='_compute_informacion')
     aviso = fields.Char(compute='_compute_informacion')
@@ -253,12 +254,14 @@ class DcasaImpresionPaquete(models.TransientModel):
 
         partes = []
         for factura in facturas:
+            # Venta por venta, en el orden de DOCUMENTOS: la nota de entrega (si va y la venta tiene), la factura del
+            # cliente y al final la copia de la empresa.
+            for entrega in entregas_por_factura.get(factura.id, ()):
+                partes.append(entregas_pdf[entrega.id])
             if 'cliente' in claves:
                 partes.append(facturas_pdf[factura.id])
             if 'copia' in claves:
                 partes.append(paquete.sellar_copia(facturas_pdf[factura.id]))
-            for entrega in entregas_por_factura.get(factura.id, ()):
-                partes.append(entregas_pdf[entrega.id])
         if not partes:
             raise UserError(self.env._('Las facturas elegidas no tienen una entrega ligada: no hay nada que imprimir.'))
         contenido = paquete.unir(partes)

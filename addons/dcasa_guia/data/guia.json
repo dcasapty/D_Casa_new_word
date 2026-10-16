@@ -1952,8 +1952,8 @@
    "id": "imprimir-documentos",
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
-   "titulo": "Imprimir la factura, la copia de la empresa y la nota de entrega de una vez",
-   "logras": "Sale un solo PDF listo para imprimir, sin archivos sueltos en la computadora.",
+   "titulo": "Imprimir la nota de entrega, la factura y la copia de la empresa de una vez",
+   "logras": "Sale un solo PDF listo para imprimir, sin archivos sueltos en la computadora. Primero va la nota de entrega, luego la factura del cliente y al final la copia de la empresa.",
    "destino": {
     "menu": "dcasa_base.menu_dcasa_ventas_facturas"
    },
@@ -1982,7 +1982,7 @@
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
    "titulo": "Imprimir varias facturas juntas",
-   "logras": "Sale un solo PDF con todo, venta por venta (factura del cliente, copia de la empresa y nota de entrega de cada una).",
+   "logras": "Sale un solo PDF con todo, venta por venta (de cada una: nota de entrega, factura del cliente y copia de la empresa).",
    "destino": {
     "menu": "dcasa_base.menu_dcasa_ventas_facturas"
    },
