@@ -548,6 +548,17 @@ class DcasaTablero(models.AbstractModel):
                     'texto': f'{cuantos} producto' + (' se está' if cuantos == 1 else 's se están')
                              + f' agotando ({umbral} unidades o menos)',
                     'accion': _accion('Productos por agotarse', 'product.product', bajo)})
+        if self._puede('sale.order'):
+            # Pedidos confirmados que parecen la misma venta (mismo cliente, día y total): uno sobra y engorda los
+            # pedidos (capturas de la dueña, 2026-10-16).
+            repetidos = self.env['sale.order']._dcasa_pedidos_repetidos(hoy - timedelta(days=30))
+            if repetidos:
+                cuantos = len(repetidos)
+                avisos.append({
+                    'clave': 'pedidos_repetidos', 'icono': 'fa-clone', 'cuenta': cuantos,
+                    'texto': f'{cuantos} pedidos parecen repetidos (mismo cliente, mismo día y mismo total): '
+                             'revisa si alguno sobra',
+                    'accion': _accion('Pedidos que parecen repetidos', 'sale.order', [('id', 'in', repetidos.ids)])})
         if datos['ve_utilidad']:
             Producto = self.env['product.product']
             # Toda la mercancía (no solo la que lleva inventario): es la misma que deja una venta fuera de la ganancia.

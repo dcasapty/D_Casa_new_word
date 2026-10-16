@@ -16,6 +16,9 @@ vuelta en staging, la alerta por Telegram del arranque (rama local `alertas-loca
 de Brian: esperan cifras de la dueña) y la 1b. **Para la contadora** (de las capturas del 15–16 oct): costo de ventas en
 cero, ACH Banco Nacional en negativo, saldos de Punto de venta y Yappy sin traspasar al banco, ITBMS acumulado.
 
+**Prioridad del 2026-10-16, tarde (la dueña: «esto se superpone al resto»):** el bono por meta de ventas y los
+pedidos repetidos (ver la bitácora) van primero a staging y, con su «sí», a producción. Lo demás espera.
+
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
 Son los trámites largos; empiezan ya aunque el código llegue después.

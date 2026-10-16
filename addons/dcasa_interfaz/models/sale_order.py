@@ -9,11 +9,30 @@ pedido que se apartó el lunes y se cobró y facturó el viernes se vendió el v
 la caja. Así «Vendido hoy», las barras de la semana, «lo más vendido» y la lista que abre «Ventas de hoy» cuentan lo
 mismo, y el número de un día que ya pasó no cambia solo.
 """
+from collections import defaultdict
+from datetime import datetime, time, timedelta
+
+import pytz
+
 from odoo import api, fields, models
+from odoo.tools import float_round
+
+ZONA_PANAMA = 'America/Panama'
+
+
+def _dia_en_panama(momento):
+    """El día de Panamá de un ``datetime`` guardado en UTC sin zona (como guarda Odoo)."""
+    return pytz.utc.localize(momento).astimezone(pytz.timezone(ZONA_PANAMA)).date()
 
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
+
+    # Pedido repetido (capturas de la dueña, 2026-10-16: S00062 y S00063 de la misma clienta, el mismo día, por el
+    # mismo total y con 5 minutos de diferencia; uno quedó sin facturar y aparecía como venta de más en los pedidos).
+    dcasa_posible_repetido = fields.Char(
+        'Pedido que parece repetido', compute='_compute_dcasa_posible_repetido',
+        help='Otros pedidos de este cliente, del mismo día y por el mismo total, que no están cancelados.')
 
     dcasa_fecha_venta = fields.Date(
         'Día de la venta', compute='_compute_dcasa_fecha_venta', store=True, index=True, copy=False,
@@ -55,6 +74,44 @@ class SaleOrder(models.Model):
         if vendedor:
             dominio.append(('user_id', '=', getattr(vendedor, 'id', vendedor)))
         return dominio
+
+    @api.depends('partner_id', 'amount_total', 'date_order', 'state')
+    def _compute_dcasa_posible_repetido(self):
+        for orden in self:
+            orden.dcasa_posible_repetido = ', '.join(orden._dcasa_repetidos().mapped('name')) or False
+
+    def _dcasa_repetidos(self):
+        """Los otros pedidos que parecen la misma venta: mismo cliente (o su empresa), mismo día de Panamá y mismo
+        total, sin cancelar. Se buscan con sudo (para avisar aunque sea de otra vendedora): solo sale su número."""
+        self.ensure_one()
+        if self.state == 'cancel' or not self.partner_id or not self.amount_total or not self.date_order:
+            return self.browse()
+        dia = _dia_en_panama(self.date_order)
+        inicio = pytz.timezone(ZONA_PANAMA).localize(datetime.combine(dia, time.min)).astimezone(
+            pytz.utc).replace(tzinfo=None)
+        otros = self.sudo().search([
+            ('id', '!=', self._origin.id or 0), ('state', '!=', 'cancel'),
+            ('partner_id.commercial_partner_id', '=', self.partner_id.commercial_partner_id.id),
+            ('date_order', '>=', inicio), ('date_order', '<', inicio + timedelta(days=1))])
+        total = float_round(self.amount_total, precision_digits=2)
+        return otros.filtered(lambda o: float_round(o.amount_total, precision_digits=2) == total)
+
+    @api.model
+    def _dcasa_pedidos_repetidos(self, desde):
+        """Los pedidos CONFIRMADOS desde ``desde`` (fecha) que parecen repetidos entre sí: mismo cliente, mismo día de
+        Panamá y mismo total. Para el aviso del Inicio de quien controla la tienda."""
+        inicio = pytz.timezone(ZONA_PANAMA).localize(datetime.combine(desde, time.min)).astimezone(
+            pytz.utc).replace(tzinfo=None)
+        grupos = defaultdict(self.browse)
+        for orden in self.search([('state', '=', 'sale'), ('date_order', '>=', inicio)]):
+            clave = (orden.partner_id.commercial_partner_id.id, _dia_en_panama(orden.date_order),
+                     float_round(orden.amount_total, precision_digits=2))
+            grupos[clave] |= orden
+        repetidos = self.browse()
+        for pedidos in grupos.values():
+            if len(pedidos) > 1:
+                repetidos |= pedidos
+        return repetidos
 
     @api.model
     def _dcasa_accion_ventas_de_hoy(self):

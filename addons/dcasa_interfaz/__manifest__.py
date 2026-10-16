@@ -40,6 +40,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
         'views/panel_views.xml',
         'views/sitio_views.xml',
         'views/estadisticas_views.xml',
+        'views/sale_order_views.xml',
         'views/login_templates.xml',
         'views/layout_templates.xml',
         'data/iconos_data.xml',
