@@ -5,11 +5,17 @@ La regla, en palabras del jefe:
 * Participa quien está en un departamento marcado «Participa en la meta de ventas» (el de Ventas) y tiene usuario
   en el sistema. Lo marca Gerencia en la ficha del departamento; al instalar se marca solo el que se llama «Ventas».
 * Cuenta lo que esa persona vendió (el «Vendedor» de la factura) y el cliente **ya pagó completo**: la venta cuenta en
-  el mes en que caja recibió el último pago (también en los apartados), **sin ITBMS**. Las notas de crédito restan.
+  el mes en que caja recibió el último pago (también en los apartados), **sin ITBMS**. Las notas de crédito de esas
+  ventas restan (la que la revierte y la que se aplicó a la factura, aunque no esté enlazada); la de una venta que nunca
+  contó (pagada antes de que rigiera la primera meta) no resta.
+* Cada venta y cada nota cuenta **una sola vez**: si su mes ya entró en una planilla, cuenta en el primer mes abierto
+  después (un pago que llega tarde con fecha atrasada no se pierde), y lo que ya está en un bono cerrado no vuelve a
+  contar (un pago anulado y registrado de nuevo otro mes no paga dos veces).
 * Si lo cobrado del mes **llega a la meta** (30,000), el bono es el **1 % de todo** lo cobrado (con 60,000, 600). Si no
   llega, no hay bono.
 * Se paga en la **primera planilla quincenal del mes siguiente**, como comisión: paga seguro social, seguro educativo
-  e ISR como el salario (la contadora lo confirma, docs/NOMINA.md).
+  e ISR como el salario (la contadora lo confirma, docs/NOMINA.md). Si esa planilla no la incluye (le falta salario o
+  fecha de ingreso), el bono queda por pagar y entra en la siguiente primera quincena que sí la incluya.
 * Cada vendedora ve **solo lo suyo** en su Inicio; nunca lo que vendió la tienda ni sus gastos.
 
 Las cifras (meta, porcentaje y el ritmo diario de guía) viven en «Meta de ventas» (Nómina › Configuración), con
@@ -33,6 +39,11 @@ PARAM_INICIALIZADA = 'dcasa_nomina.meta_ventas_inicializada'
 
 def fin_de_mes(mes):
     return mes + relativedelta(day=31)
+
+
+def total_sin_itbms(*grupos):
+    """Lo cobrado sin ITBMS de unas facturas y notas (las notas restan: su monto ya viene en negativo)."""
+    return calculo.r2(sum(movimiento.amount_untaxed_signed for grupo in grupos for movimiento in grupo))
 
 
 class HrDepartment(models.Model):
@@ -101,14 +112,21 @@ class DcasaNominaMetaRegla(models.Model):
 
     @api.ondelete(at_uninstall=False)
     def _no_borrar_usadas(self):
-        if self.env['dcasa.nomina.meta.bono'].sudo().search_count([
-                ('regla_id', 'in', self.ids), ('estado', 'in', ('en_planilla', 'pagado'))]):
+        Bono = self.env['dcasa.nomina.meta.bono'].sudo()
+        if Bono.search_count([('regla_id', 'in', self.ids), ('estado', 'in', ('en_planilla', 'pagado'))]):
             raise UserError(self.env._('Esa meta ya se usó para pagar bonos: no se borra.'))
+        # Los bonos por pagar que la usaban se vuelven a calcular con la meta que quede (cada día, o al abrir el menú).
+        Bono.search([('regla_id', 'in', self.ids)]).unlink()
 
     @api.model
     def _vigente(self, mes, company):
         return self.sudo().search([('company_id', '=', company.id), ('fecha_desde', '<=', mes)],
                                   order='fecha_desde desc', limit=1)
+
+    @api.model
+    def _inicio(self, company):
+        """El primer día en que rigió una meta en ``company`` (antes no hay programa), o False."""
+        return self.sudo().search([('company_id', '=', company.id)], order='fecha_desde', limit=1).fecha_desde
 
 
 class DcasaNominaMetaBono(models.Model):
@@ -178,42 +196,96 @@ class DcasaNominaMetaBono(models.Model):
             ('user_id', '!=', False)])
 
     @api.model
-    def _cobro_completo(self, factura):
-        """El día en que la factura quedó pagada completa (el último pago, y nunca antes de la factura), o False si
-        todavía debe algo."""
-        if factura.payment_state not in ('paid', 'in_payment'):
-            return False
-        fechas = [fields.Date.to_date(pago['date'])
-                  for pago in (factura.sudo().invoice_payments_widget or {}).get('content', [])
-                  if pago.get('date') and not pago.get('is_exchange')]
-        if not fechas:
-            return False
-        return max([*fechas, factura.invoice_date or date.min])
+    def _dias_de_cobro(self, facturas):
+        """``({factura_id: día}, {nota_id: {factura_id}})``.
+
+        El día en que cada factura quedó pagada completa: su última conciliación (pago o nota de crédito), nunca antes
+        de la factura; las que todavía deben algo no salen. Y las notas de crédito que se aplicaron a cada una. Sale de
+        una sola lectura de las conciliaciones (no del cuadro de pagos factura por factura)."""
+        pagadas = facturas.filtered(lambda f: f.payment_state in ('paid', 'in_payment'))
+        if not pagadas:
+            return {}, {}
+        parciales = self.env['account.partial.reconcile'].sudo().search_fetch(
+            ['|', ('debit_move_id.move_id', 'in', pagadas.ids), ('credit_move_id.move_id', 'in', pagadas.ids)],
+            ['debit_move_id', 'credit_move_id', 'max_date', 'exchange_move_id'])
+        diferencias_de_cambio = parciales.exchange_move_id
+        dias, notas = {}, {}
+        for parcial in parciales:
+            for propia, otra in ((parcial.debit_move_id, parcial.credit_move_id),
+                                 (parcial.credit_move_id, parcial.debit_move_id)):
+                factura, contraparte = propia.move_id, otra.move_id
+                if factura not in pagadas or contraparte in diferencias_de_cambio:
+                    continue
+                dia = max(parcial.max_date, factura.invoice_date or date.min)
+                dias[factura.id] = max(dias.get(factura.id, date.min), dia)
+                if contraparte.move_type == 'out_refund':
+                    notas.setdefault(contraparte.id, set()).add(factura.id)
+        return dias, notas
 
     @api.model
-    def _cobrado(self, user, desde, hasta, company):
-        """``(total, facturas, notas)``: lo que ``user`` vendió y quedó pagado completo entre ``desde`` y ``hasta``,
-        sin ITBMS, menos sus notas de crédito (una nota resta en el mes de la nota o, si llegó antes de completarse el
-        pago, en el mes en que se completó)."""
+    def _lo_que_cuenta(self, user, company, hasta):
+        """Lo de ``user`` que ya cuenta hasta ``hasta`` (incluido): ``({factura: día}, {nota: día})``.
+
+        * Factura: suya (el «Vendedor»), publicada, no histórica y pagada completa desde que rige la primera meta; su
+          día es el del pago completo. Se mira hasta MESES_ATRAS atrás (un apartado puede tardar).
+        * Nota de crédito: la que revierte una de esas facturas o se aplicó a ella. Su día es el de la nota o, si llegó
+          antes de completarse el pago, el del pago completo. La de una venta que nunca contó no resta."""
+        inicio = self.env['dcasa.nomina.meta.regla']._inicio(company)
+        if not inicio or hasta < inicio:
+            return {}, {}
         Move = self.env['account.move'].sudo()
-        tope = desde - relativedelta(months=MESES_ATRAS)
+        tope = hasta.replace(day=1) - relativedelta(months=MESES_ATRAS)
         comun = [('state', '=', 'posted'), ('company_id', '=', company.id)]
         facturas = Move.search(comun + [
             ('move_type', '=', 'out_invoice'), ('invoice_user_id', '=', user.id), ('dcasa_historica', '=', False),
             ('payment_state', 'in', ('paid', 'in_payment')),
             ('invoice_date', '>=', tope), ('invoice_date', '<=', hasta)])
-        cuentan = facturas.filtered(lambda f: desde <= (self._cobro_completo(f) or date.min) <= hasta)
+        directas = Move.search(comun + [
+            ('move_type', '=', 'out_refund'), ('reversed_entry_id.invoice_user_id', '=', user.id),
+            ('reversed_entry_id.dcasa_historica', '=', False), ('date', '>=', tope), ('date', '<=', hasta)])
+        dias, aplicadas = self._dias_de_cobro(facturas | directas.reversed_entry_id)
 
-        def resta(nota):
-            completo = self._cobro_completo(nota.reversed_entry_id)
-            return bool(completo) and desde <= max(nota.date, completo) <= hasta
+        def contada(factura):
+            dia = dias.get(factura.id)
+            return dia if dia and inicio <= dia else False
 
-        notas = Move.search(comun + [
-            ('move_type', '=', 'out_refund'), ('reversed_entry_id', '!=', False),
-            ('reversed_entry_id.invoice_user_id', '=', user.id), ('reversed_entry_id.dcasa_historica', '=', False),
-            ('date', '>=', tope), ('date', '<=', hasta)]).filtered(resta)
-        total = calculo.r2(sum(cuentan.mapped('amount_untaxed_signed')) + sum(notas.mapped('amount_untaxed_signed')))
-        return total, cuentan, notas
+        cuentan = {f: dias[f.id] for f in facturas if contada(f) and dias[f.id] <= hasta}
+        notas = {}
+        for nota in directas | Move.browse(list(aplicadas)):
+            if nota.state != 'posted' or nota.company_id != company or nota.date > hasta:
+                continue
+            ventas = nota.reversed_entry_id or Move.browse(aplicadas.get(nota.id, ()))
+            completas = [contada(v) for v in ventas if contada(v)]
+            if not completas:
+                continue
+            dia = max(nota.date, *completas)
+            if dia <= hasta:
+                notas[nota] = dia
+        return cuentan, notas
+
+    @api.model
+    def _del_mes(self, empleado, user, mes, company, hasta=None):
+        """Lo que cuenta para el bono de ``empleado`` en ``mes`` (hasta ``hasta``): ``({factura: día}, {nota: día})``.
+
+        Cada venta y cada nota cuenta una sola vez: en el mes de su día o, si ese mes ya está cerrado para esta persona
+        (su bono ya entró en una planilla), en el primer mes abierto después. Lo que ya está en un bono cerrado no
+        vuelve a contar (un pago anulado y registrado de nuevo otro mes, por ejemplo)."""
+        fin = fin_de_mes(mes)
+        hasta = min(hasta or fin, fin)
+        cerrados = self.sudo().search([('empleado_id', '=', empleado.id), ('mes', '!=', mes),
+                                       ('estado', 'in', ('en_planilla', 'pagado'))])
+        meses_cerrados = set(cerrados.mapped('mes'))
+        ya_contado = cerrados.factura_ids | cerrados.nota_ids
+
+        def de_este_mes(dia):
+            cuenta_en = dia.replace(day=1)
+            while cuenta_en in meses_cerrados:
+                cuenta_en += relativedelta(months=1)
+            return cuenta_en == mes
+
+        cuentan, notas = self._lo_que_cuenta(user, company, hasta)
+        return ({f: d for f, d in cuentan.items() if f not in ya_contado and de_este_mes(d)},
+                {n: d for n, d in notas.items() if n not in ya_contado and de_este_mes(d)})
 
     # ------------------------------------------------------------------
     # El bono de un mes
@@ -221,22 +293,25 @@ class DcasaNominaMetaBono(models.Model):
 
     @api.model
     def _calcular(self, empleado, mes, company):
-        """El bono de ``empleado`` en ``mes`` (se crea o se pone al día). Un bono ya pagado no cambia. Sin meta que
-        rija ese mes, no hay bono."""
+        """El bono de ``empleado`` en ``mes`` (se crea o se pone al día). Un bono que ya entró en una planilla no
+        cambia (se recalcula solo al volver a calcular esa planilla). Sin meta que rija ese mes, no hay bono."""
         mes = mes.replace(day=1)
         bono = self.sudo().search([('empleado_id', '=', empleado.id), ('mes', '=', mes)], limit=1)
-        if bono.estado == 'pagado':
+        if bono.estado in ('en_planilla', 'pagado'):
             return bono
         regla = self.env['dcasa.nomina.meta.regla']._vigente(mes, company)
-        if not regla or not empleado.user_id:
+        user = empleado.user_id or bono.user_id
+        if not regla or not user:
             return bono
-        total, facturas, notas = self._cobrado(empleado.user_id, mes, fin_de_mes(mes), company)
+        facturas, notas = self._del_mes(empleado, user, mes, company)
+        total = total_sin_itbms(facturas, notas)
         cumplio = total >= regla.meta_mensual
         valores = {
-            'user_id': empleado.user_id.id, 'regla_id': regla.id, 'meta': regla.meta_mensual,
+            'user_id': user.id, 'regla_id': regla.id, 'meta': regla.meta_mensual,
             'porcentaje': regla.porcentaje, 'cobrado': total, 'cumplio': cumplio,
             'monto': calculo.porcentaje(total, regla.porcentaje) if cumplio else 0.0,
-            'factura_ids': [fields.Command.set(facturas.ids)], 'nota_ids': [fields.Command.set(notas.ids)],
+            'factura_ids': [fields.Command.set([f.id for f in facturas])],
+            'nota_ids': [fields.Command.set([n.id for n in notas])],
             'actualizado': fields.Datetime.now(),
         }
         if bono:
@@ -278,14 +353,17 @@ class DcasaNominaMetaBono(models.Model):
         """La tarjeta «Tu meta del mes» de ``user``, o None si no participa. Solo sus cifras: nunca las de la
         tienda ni las de otra vendedora."""
         company = self.env.company
-        if not self._participantes(company).filtered(lambda e: e.user_id == user):
+        empleado = self._participantes(company).filtered(lambda e: e.user_id == user)[:1]
+        if not empleado:
             return None
         mes = hoy.replace(day=1)
         regla = self.env['dcasa.nomina.meta.regla']._vigente(mes, company)
         if not regla:
             return None
-        cobrado, _facturas, _notas = self._cobrado(user, mes, hoy, company)
-        de_hoy, _facturas, _notas = self._cobrado(user, hoy, hoy, company)
+        facturas, notas = self._del_mes(empleado, user, mes, company, hasta=hoy)
+        cobrado = total_sin_itbms(facturas, notas)
+        de_hoy = total_sin_itbms([f for f, dia in facturas.items() if dia == hoy],
+                                 [n for n, dia in notas.items() if dia == hoy])
         cumplio = cobrado >= regla.meta_mensual
         return {
             'mes': format_date(mes, 'MMMM', locale='es'),

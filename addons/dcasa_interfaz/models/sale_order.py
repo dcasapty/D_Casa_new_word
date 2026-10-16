@@ -90,7 +90,7 @@ class SaleOrder(models.Model):
         inicio = pytz.timezone(ZONA_PANAMA).localize(datetime.combine(dia, time.min)).astimezone(
             pytz.utc).replace(tzinfo=None)
         otros = self.sudo().search([
-            ('id', '!=', self._origin.id or 0), ('state', '!=', 'cancel'),
+            ('id', '!=', self._origin.id or 0), ('state', '!=', 'cancel'), ('company_id', '=', self.company_id.id),
             ('partner_id.commercial_partner_id', '=', self.partner_id.commercial_partner_id.id),
             ('date_order', '>=', inicio), ('date_order', '<', inicio + timedelta(days=1))])
         total = float_round(self.amount_total, precision_digits=2)
@@ -103,7 +103,10 @@ class SaleOrder(models.Model):
         inicio = pytz.timezone(ZONA_PANAMA).localize(datetime.combine(desde, time.min)).astimezone(
             pytz.utc).replace(tzinfo=None)
         grupos = defaultdict(self.browse)
-        for orden in self.search([('state', '=', 'sale'), ('date_order', '>=', inicio)]):
+        # Una sola lectura con lo que hace falta (el Inicio no repite búsquedas de pedidos).
+        confirmados = self.search_fetch([('state', '=', 'sale'), ('date_order', '>=', inicio)],
+                                        ['partner_id', 'date_order', 'amount_total'])
+        for orden in confirmados:
             clave = (orden.partner_id.commercial_partner_id.id, _dia_en_panama(orden.date_order),
                      float_round(orden.amount_total, precision_digits=2))
             grupos[clave] |= orden

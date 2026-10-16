@@ -9,10 +9,18 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
                 <div class="alert alert-warning mb-0 o_dcasa_pedido_repetido" role="alert"
-                     invisible="not dcasa_posible_repetido or state == 'cancel'">
+                     invisible="not dcasa_posible_repetido or state not in ('draft', 'sent')">
                     <i class="fa fa-clone me-2" aria-hidden="true"/>
                     Parece repetido: este cliente ya tiene el pedido <field name="dcasa_posible_repetido" readonly="1"
-                    class="fw-bold"/> de hoy por el mismo total. Si es la misma venta, no confirmes este: cancélalo.
+                    class="fw-bold"/> del mismo día por el mismo total. Si es la misma venta, no confirmes este:
+                    cancélalo.
+                </div>
+                <div class="alert alert-warning mb-0 o_dcasa_pedido_repetido" role="alert"
+                     invisible="not dcasa_posible_repetido or state != 'sale'">
+                    <i class="fa fa-clone me-2" aria-hidden="true"/>
+                    Parece repetido: este cliente también tiene el pedido <field name="dcasa_posible_repetido"
+                    readonly="1" class="fw-bold"/> del mismo día por el mismo total. Si es la misma venta, cancela el
+                    que sobra (el que no se facturó ni se cobró).
                 </div>
             </xpath>
         </field>

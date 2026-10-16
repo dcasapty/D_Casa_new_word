@@ -37,6 +37,8 @@
                                     <td class="text-end"><span t-field="o.salario"/></td><td/></tr>
                                 <tr t-if="o.otros_ingresos"><td>Otros ingresos</td>
                                     <td class="text-end"><span t-field="o.otros_ingresos"/></td><td/></tr>
+                                <tr t-if="o.comision_meta and o.tipo != 'decimo'"><td>Bono por meta de ventas</td>
+                                    <td class="text-end"><span t-field="o.comision_meta"/></td><td/></tr>
                                 <tr t-if="o.css_trabajador"><td>Seguro social</td><td/>
                                     <td class="text-end"><span t-field="o.css_trabajador"/></td></tr>
                                 <tr t-if="o.se_trabajador"><td>Seguro educativo</td><td/>
