@@ -371,7 +371,9 @@ class DcasaNominaMetaBono(models.Model):
             'porcentaje': f'{regla.porcentaje:g}',
             'cobrado': cobrado,
             'faltan': calculo.r2(max(regla.meta_mensual - cobrado, 0.0)),
+            # La barra se llena hasta el 100 %; el número dice cuánto lleva de verdad (puede pasar del 100 %).
             'avance': round(min(max(cobrado, 0.0) / regla.meta_mensual * 100.0, 100.0), 1),
+            'avance_real': int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)),
             'cumplio': cumplio,
             'bono': calculo.porcentaje(cobrado, regla.porcentaje) if cumplio else 0.0,
             'hoy': de_hoy,
