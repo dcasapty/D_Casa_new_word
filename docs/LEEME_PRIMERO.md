@@ -81,6 +81,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 | Quiero saber… | Voy a… |
 |---|---|
+| Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
 | Qué se pidió y en qué orden se hace | [PRIORIDADES.md](PRIORIDADES.md) |
 | Cómo está todo (nota y fallas) | [ESTADO.md](ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
 | Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
