@@ -251,6 +251,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `juan/test/integracion/historia.ts` («la foto de Juan se pide con el código público»). Relación exacta entre
   síntomas y arreglo: sin confirmar.
 
+- **CI #173 (2026-10-16)** · 6 de 40 fallaron con «Eso de la conversación no se cambia a mano (seguimiento_proximo)»: el
+  candado nuevo de Conversaciones (#25) bloqueaba a las pruebas, que preparan sus casos escribiendo como **admin**
+  por RPC. Al revisarlo apareció un hueco del candado: se saltaba con la clave del sistema en el contexto, y el
+  contexto lo manda el cliente. Arreglo `6e031e9`: solo sudo o el administrador del sistema cambian esos campos.
+  **Regla:** una clave en el contexto no es seguridad en un modelo donde el usuario tiene permiso de escritura (sí
+  lo es donde el permiso de escritura es 0, como `dcasa.mensaje` y `brian.accion`). Antes de un candado nuevo,
+  buscar quién escribe ese modelo en `juan/test/integracion/`.
+- En local, 2 pruebas de «cotización automática» fallan por la versión de PyPDF2 de esta máquina (3.0.1; Odoo usa
+  2.12.1 en CI): no es del código.
+
 ### Lint
 
 - `7b3aef2` (2026-10-03): shellcheck SC2015 («A && B || C») en `archivar_fuentes.sh`.
