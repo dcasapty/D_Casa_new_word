@@ -65,9 +65,9 @@ class TestEstadisticas(VentasCommon):
         lineas = self.env['sale.order.line'].with_user(self.gerencia).search(safe_domain(accion.domain))
         self.assertIn(vendido.order_line, lineas)
         self.assertNotIn(cotizacion.order_line, lineas)
-        grupos = self.env['sale.order.line'].with_user(self.gerencia).read_group(
-            safe_domain(accion.domain) + [('product_id', '=', self.vendida.id)], ['product_uom_qty:sum'], [])
-        self.assertGreaterEqual(grupos[0]['product_uom_qty'], 3)
+        grupos = self.env['sale.order.line'].with_user(self.gerencia)._read_group(
+            safe_domain(accion.domain) + [('product_id', '=', self.vendida.id)], [], ['product_uom_qty:sum'])
+        self.assertGreaterEqual(grupos[0][0], 3)
 
     def test_mejor_margen_deja_fuera_la_mercancia_sin_costo(self):
         con_costo = self.pedido(producto=self.vendida)
@@ -95,12 +95,20 @@ class TestEstadisticas(VentasCommon):
             self.env['product.product'].with_user(self.vendedora).dcasa_accion_sin_movimiento()
 
     def test_el_menu_de_estadisticas_abre_sin_errores_para_gerencia(self):
+        """Cada acción del menú se abre con sus tres vistas y su búsqueda sin error de campo ni de permiso."""
+        Linea = self.env['sale.order.line'].with_user(self.gerencia)
         for xmlid in ('accion_mas_vendido', 'accion_mejor_margen'):
-            accion = self.env.ref(f'dcasa_interfaz.{xmlid}').with_user(self.gerencia)
-            vistas = self.env['sale.order.line'].with_user(self.gerencia).get_views(
-                [(False, 'pivot'), (False, 'graph'), (False, 'list'), (False, 'search')])
-            self.assertTrue(vistas['views'], xmlid)
-            self.assertEqual(accion.res_model, 'sale.order.line')
+            with self.subTest(accion=xmlid):
+                accion = self.env.ref(f'dcasa_interfaz.{xmlid}')   # el cliente web la lee sin ser administrador
+                self.assertEqual(accion.res_model, 'sale.order.line')
+                propias = {v.view_mode: v.view_id.id for v in accion.view_ids}
+                modos = accion.view_mode.split(',')
+                self.assertEqual(set(modos), {'pivot', 'graph', 'list'})
+                vistas = Linea.get_views([(propias.get(modo, False), modo) for modo in modos] + [(False, 'search')])
+                self.assertEqual(set(vistas['views']), {'pivot', 'graph', 'list', 'search'}, xmlid)
+                filas = Linea.search_read(safe_domain(accion.domain), ['product_id', 'price_subtotal',
+                                                                       'dcasa_utilidad'], limit=5)
+                self.assertIsInstance(filas, list)
 
     # --- Íconos con color ---------------------------------------------------------------------
 
