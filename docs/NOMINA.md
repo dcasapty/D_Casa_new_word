@@ -135,8 +135,10 @@ ventas** (con vigencia por mes).
   **por pagar** hasta la próxima primera quincena que la incluya. El bono sale en el comprobante de pago. Una planilla
   confirmada lo deja **pagado**; si se reversa, vuelve a quedar por pagar (la planilla cancelada no cambia sus
   montos). Un bono que ya está en una planilla no se recalcula solo: se pone al día al volver a calcular la planilla.
-* **Lo que ve cada vendedora:** en su Inicio, «Tu meta del mes»: lo cobrado, cuánto le falta, cuánto lleva hoy contra
-  el ritmo diario y su bono si ya llegó. Solo sus cifras; nunca lo de la tienda ni lo de otra persona.
+* **Lo que ve cada vendedora:** en su Inicio, «Tu meta del mes»: el porcentaje de la meta en grande junto a la barra
+  (la barra se llena hasta el 100 %; el número puede pasar), unas palabras de ánimo según lo que lleva, lo cobrado,
+  cuánto le falta, cuánto lleva hoy contra el ritmo diario y su bono si ya llegó. Solo sus cifras; nunca lo de la
+  tienda ni lo de otra persona.
 * **Lo que ve Gerencia:** **Nómina › Bono por meta** (cada persona, mes a mes, con las facturas que cuentan y las
   notas que restan). Al abrirlo se pone al día el mes en curso y el anterior; también se pone al día solo cada día.
 * **Cambiar las cifras:** se crea una meta nueva que rija desde un mes. Un mes con bonos ya en una planilla no cambia.

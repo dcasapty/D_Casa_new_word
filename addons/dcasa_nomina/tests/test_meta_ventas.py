@@ -287,6 +287,18 @@ class TestMetaVentas(NominaCommon):
     # Lo que ve la vendedora (solo lo suyo)
     # ------------------------------------------------------------------
 
+    def test_palabras_de_animo_segun_lo_que_lleva(self):
+        animo = self.Bono._animo
+        self.assertIn('Arranca el mes', animo(0, False))
+        self.assertIn('Paso a paso', animo(1, False))
+        self.assertIn('Paso a paso', animo(49, False))
+        self.assertIn('la mitad', animo(50, False))
+        self.assertIn('la mitad', animo(89, False))
+        self.assertIn('Ya casi', animo(90, False))
+        self.assertIn('Ya casi', animo(100, False), 'redondeado a 100 pero sin llegar: todavía no se felicita')
+        self.assertIn('Meta cumplida', animo(100, True))
+        self.assertIn('Meta cumplida', animo(250, True))
+
     @freeze_time('2030-03-20 15:00:00')
     def test_la_vendedora_ve_solo_su_meta(self):
         self.factura(1300, '2030-03-05', pagar_en='2030-03-10')
@@ -296,8 +308,16 @@ class TestMetaVentas(NominaCommon):
         self.assertEqual((meta['cobrado'], meta['meta'], meta['faltan'], meta['hoy']), (1500.0, 1000.0, 0.0, 200.0))
         self.assertTrue(meta['cumplio'])
         self.assertEqual((meta['bono'], meta['porcentaje'], meta['avance']), (15.0, '1', 100.0))
+        self.assertEqual(meta['avance_real'], 150, 'el número dice cuánto lleva de verdad; la barra se llena hasta 100')
+        self.assertIn('Meta cumplida', meta['animo'])
         self.assertEqual(meta['mes'], 'marzo')
         self.assertIsNone(self.Bono._para_inicio(self.u_otto, date(2030, 3, 20)), 'Otto no está en Ventas')
+        # La meta la pone Gerencia: si la sube a 5,000, el porcentaje se calcula contra la nueva meta.
+        self.regla.meta_mensual = 5000
+        meta = self.Bono.with_user(self.u_vera)._para_inicio(self.u_vera, date(2030, 3, 20))
+        self.assertEqual((meta['avance_real'], meta['avance'], meta['faltan'], meta['cumplio']),
+                         (30, 30.0, 3500.0, False))
+        self.assertIn('Paso a paso', meta['animo'])
         tablero = self.env.get('dcasa.tablero')
         if tablero is not None:
             datos = tablero.with_user(self.u_vera).obtener_datos()

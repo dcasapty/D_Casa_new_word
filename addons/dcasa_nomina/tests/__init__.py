@@ -6,3 +6,4 @@ from . import test_reembolsos
 from . import test_seguridad
 from . import test_vistas
 from . import test_meta_ventas
+from . import test_meta_inicio

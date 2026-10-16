@@ -371,9 +371,25 @@ class DcasaNominaMetaBono(models.Model):
             'porcentaje': f'{regla.porcentaje:g}',
             'cobrado': cobrado,
             'faltan': calculo.r2(max(regla.meta_mensual - cobrado, 0.0)),
+            # La barra se llena hasta el 100 %; el número dice cuánto lleva de verdad (puede pasar del 100 %).
             'avance': round(min(max(cobrado, 0.0) / regla.meta_mensual * 100.0, 100.0), 1),
+            'avance_real': int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)),
             'cumplio': cumplio,
             'bono': calculo.porcentaje(cobrado, regla.porcentaje) if cumplio else 0.0,
             'hoy': de_hoy,
             'meta_diaria': regla.meta_diaria,
+            'animo': self._animo(int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)), cumplio),
         }
+
+    def _animo(self, avance, cumplio):
+        """Unas palabras de ánimo según lo que lleva de la meta (pedido de la dueña, 2026-10-16). Con la voz de la
+        marca: tuteo, sin gritos ni cifras inventadas."""
+        if cumplio:
+            return self.env._('¡Lo lograste! Meta cumplida: lo que sigas cobrando este mes también suma a tu bono.')
+        if avance >= 90:
+            return self.env._('¡Ya casi! Te falta muy poco para tu bono.')
+        if avance >= 50:
+            return self.env._('¡Vas muy bien! Ya cruzaste la mitad del camino.')
+        if avance > 0:
+            return self.env._('Vas sumando. Paso a paso se llega a la meta.')
+        return self.env._('Arranca el mes: cada venta cobrada te acerca a tu bono.')

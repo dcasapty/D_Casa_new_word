@@ -64,10 +64,20 @@
                         <span class="o_dcasa_meta_regla">Si cobras <t t-out="dinero(d.meta.meta)"/> o más en el mes, tu bono
                             es el <t t-out="d.meta.porcentaje"/> % de todo lo que cobres.</span>
                     </div>
-                    <div class="o_dcasa_meta_barra" role="progressbar" aria-valuemin="0" aria-valuemax="100"
-                         t-att-aria-valuenow="d.meta.avance" t-att-aria-label="'Avance de la meta: ' + d.meta.avance + ' %'">
-                        <span t-attf-style="width: {{ d.meta.avance }}%"/>
+                    <!-- El porcentaje de la meta, grande y a la vista (pedido de la dueña, 2026-10-16): cuánto lleva de la
+                         meta que puso Gerencia. La barra se llena hasta el 100 %; el número puede pasar del 100 %. -->
+                    <div class="o_dcasa_meta_progreso">
+                        <div class="o_dcasa_meta_porcentaje">
+                            <strong t-out="d.meta.avance_real + ' %'"/>
+                            <span>de tu meta</span>
+                        </div>
+                        <div class="o_dcasa_meta_barra" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+                             t-att-aria-valuenow="d.meta.avance"
+                             t-att-aria-label="'Llevas el ' + d.meta.avance_real + ' % de tu meta'">
+                            <span t-attf-style="width: {{ d.meta.avance }}%"/>
+                        </div>
                     </div>
+                    <p t-if="d.meta.animo" class="o_dcasa_meta_animo" t-out="d.meta.animo"/>
                     <div class="o_dcasa_meta_cifras">
                         <span class="o_dcasa_meta_cobrado">Cobrado: <strong t-out="dinero(d.meta.cobrado)"/> de
                             <t t-out="dinero(d.meta.meta)"/></span>

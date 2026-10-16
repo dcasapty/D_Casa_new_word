@@ -677,6 +677,32 @@
 
 .o_dcasa_meta_regla { font-size: .85rem; color: var(--dc-tinta-2); }
 
+// El porcentaje de la meta, a la izquierda de la barra. Azul sobre blanco (el amarillo nunca toca el blanco).
+.o_dcasa_meta_progreso {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .o_dcasa_meta_barra { flex: 1; min-width: 0; }
+}
+
+.o_dcasa_meta_porcentaje {
+    display: flex;
+    flex-direction: column;
+    min-width: 84px;
+    line-height: 1;
+
+    strong {
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -.02em;
+        font-variant-numeric: tabular-nums;
+        color: var(--dc-azul-700);
+    }
+
+    span { margin-top: 3px; font-size: .75rem; color: var(--dc-tinta-3); }
+}
+
 .o_dcasa_meta_barra {
     height: 12px;
     border-radius: 6px;
@@ -684,6 +710,14 @@
     overflow: hidden;
 
     span { display: block; height: 100%; background: var(--dc-azul-600); border-radius: 6px; }
+}
+
+// Palabras de ánimo según lo que lleva (pedido de la dueña, 2026-10-16): azul sobre blanco, sin gritos.
+.o_dcasa_meta_animo {
+    margin: 10px 0 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--dc-azul-700);
 }
 
 .o_dcasa_meta_cifras {
