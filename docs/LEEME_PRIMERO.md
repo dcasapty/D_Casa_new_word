@@ -88,20 +88,27 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
-- **En producción** (02:32 UTC, `baf8975`): «Imprimir documentos» sale en el orden nota de entrega → factura del
-  cliente → copia de la empresa (PR #42). Antes (20:01 UTC, `d709cfb`): los botones «Vincular mi Telegram» y «Registrar
+- **En producción** (05:49 UTC, `f7e8f14`, PR #43): las **Etapas 1 y 2 completas** (abajo). Salió con el «sí» de la
+  dueña para este paquete («cuando todo esté sano»): suite completa de Odoo en verde (CI #168), staging sano, dos
+  revisiones adversariales (lo que quedó abierto está dicho en la etapa 1b de PRIORIDADES.md), respaldo previo hecho y
+  chequeo de salud pasado (imagen `sha256:f61b9adf…`, `app_version` `fbf375b0…`). Ese «sí» **no** vale para ningún otro
+  cambio. Para volver atrás: `docs/OPERACION.md` («Volver atrás un despliegue»).
+- **En producción antes** (02:32 UTC, `baf8975`): «Imprimir documentos» sale en el orden nota de entrega → factura del
+  cliente → copia de la empresa (PR #42). Y (20:01 UTC, `d709cfb`): los botones «Vincular mi Telegram» y «Registrar
   webhook» de Brian ya no fallan (PR #41).
 - **Pasó:** el jefe pidió una tanda grande de mejoras (utilidad en el Inicio, rediseño del Inicio, menú de Contabilidad,
   verificación con escáner en bodega, contactos duplicados, alertas, bitácora de bodega, estadísticas, colores del menú,
   categoría «Envíos»). Quedó ordenada en [PRIORIDADES.md](PRIORIDADES.md) y explicada en el documento «Plan de mejoras
   del jefe» de Claude Docs.
-- **Hallazgos verificados ese día** (no corregidos todavía): el botón de descuento global y de importe fijo de las
-  cotizaciones se salta el tope de descuento de la Vendedora cuando existe el producto de descuento (prueba real en una
-  base local); la Vendedora puede corregir existencias a mano en Inventario físico; «Vendido hoy» incluye ITBMS y el
-  «Ventas» del Resumen contable no; el tope de gasto de IA de Brian viene en 0 (sin tope); no hay ninguna alerta de
-  stock bajo ni de cierre de mes; el asistente de fusión de contactos no le sirve a Gerencia (falta el grupo «Creación») y no copia los datos de Socios de la ficha que se borra (no fusionar socios con él).
-- **En la rama `claude/merge-rama-to-main-ty3koz`, probado en local y mandado a staging (sin «sí» para producción todavía):** tope de descuento sobre el pedido entero (`dcasa_base/models/sale_order_line.py`), fusión de contactos segura (`dcasa_contactos/models/excepciones.py`: permiso de Gerencia, datos de Socios que pasan a la ficha que queda, dos socios no se funden) y existencias solo por Gerencia (`dcasa_base/models/stock_quant.py`). Cada hueco tiene su prueba, que falla con el código viejo.
-- **Etapa 2 en la rama (Inicio nuevo con ganancia), probada en local y mandada a staging:** costo guardado por línea al
+- **Hallazgos verificados ese día:** el botón de descuento global y de importe fijo de las cotizaciones se saltaba el
+  tope de descuento de la Vendedora (prueba real en una base local); la Vendedora podía corregir existencias a mano en
+  Inventario físico; «Vendido hoy» incluía ITBMS y el «Ventas» del Resumen contable no; el asistente de fusión de
+  contactos no le servía a Gerencia (faltaba el grupo «Creación») y no copiaba los datos de Socios de la ficha que se
+  borra. **Los cuatro quedaron corregidos en producción** (Etapas 1 y 2). **Siguen sin corregir:** el tope de gasto de
+  IA de Brian viene en 0 (sin tope; falta la cifra de la dueña) y no hay alertas de cierre de mes ni de stock bajo por
+  Telegram (la franja «por agotarse» del Inicio sí existe).
+- **Etapa 1, ya en producción:** tope de descuento sobre el pedido entero (`dcasa_base/models/sale_order_line.py`), fusión de contactos segura (`dcasa_contactos/models/excepciones.py`: permiso de Gerencia, datos de Socios que pasan a la ficha que queda, dos socios no se funden) y existencias solo por Gerencia (`dcasa_base/models/stock_quant.py`). Cada hueco tiene su prueba, que falla con el código viejo.
+- **Etapa 2 (Inicio nuevo con ganancia), ya en producción:** costo guardado por línea al
   confirmar y ganancia sin ITBMS solo para Gerencia y administradores (`dcasa_base/models/utilidad.py`); Inicio con
   selector Hoy · Semana · Mes · rango y su comparación, desglose sin ITBMS · ITBMS · total, Cotizaciones y Entregas lado
   a lado, franja de atención (stock bajo = 5 unidades o menos; productos sin costo), botones azules (sin «Nueva factura»
@@ -116,5 +123,14 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   navegador; la Caja contaba pagos en borrador; Brian daba el costo del proveedor a quien no es Gerencia. **Regla nueva:** todo
   cambio que toque dinero, permisos, contabilidad o Socios pasa por una revisión así antes de proponerlo a producción. Lo
   que quedó abierto y dicho con franqueza está en [PRIORIDADES.md](PRIORIDADES.md) (etapa 1b).
-- **Sigue:** empezar por lo primero de PRIORIDADES.md. Estudio de envíos para La Chorrera entregado como documento en
-  Claude Docs (a la espera de sus respuestas).
+- **No se tocó (dicho a la dueña):** el campo «Costo» de la ficha del producto sigue visible para el personal interno, y
+  «Vendido» sale de los pedidos, no de las facturas publicadas (etapa 1b de PRIORIDADES.md).
+- **Falta revisar en producción** (pruebas de humo a mano, el sandbox no llega a workers.dev): entrar como Gerencia y
+  como Vendedora, mirar el Inicio (la Vendedora no ve ganancia), probar un descuento del 10 % y uno mayor en una
+  cotización, y que el menú Estadísticas abre. El chequeo de salud del despliegue pasó, pero ese chequeo solo dice que
+  Odoo responde. Su campo `tienda` del `/__edge/health` salió «falta» en `/`, `/shop` y `/black-weekend`; es
+  informativo (no cambia el código HTTP) y no se comparó con el despliegue anterior: mirarlo antes de dar por buena la
+  portada durante un reinicio.
+- **Sigue:** empezar por lo primero de PRIORIDADES.md (etapa 1: topes de dinero de Brian, permisos de Conversaciones y
+  pruebas de humo; después 1b y la etapa 3). Estudio de envíos para La Chorrera entregado como documento en Claude Docs
+  (a la espera de sus respuestas).
