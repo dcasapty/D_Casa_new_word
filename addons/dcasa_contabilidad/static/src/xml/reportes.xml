@@ -94,6 +94,11 @@
                 <small t-elif="t.clave === 'itbms'">Ventas <t t-out="dinero(t.debito)"/> − compras <t t-out="dinero(t.credito)"/></small>
                 <small t-elif="t.comparado !== undefined">Antes <t t-out="dinero(t.comparado)"/> · <t t-out="pct(t.variacion_pct)"/></small>
                 <t t-elif="t.notas"><small t-foreach="t.notas" t-as="nota" t-key="nota_index" t-out="nota"/></t>
+                <!-- Lo que queda a favor de clientes o proveedores (cobros sin aplicar, anticipos, notas de crédito) va
+                     aparte: no resta de lo vencido de otros. -->
+                <small t-if="t.a_favor" class="o_dc_kpi_a_favor"><t t-out="t.a_favor_titulo"/> <t t-out="dinero(t.a_favor)"/></small>
+                <!-- Utilidad con el costo de ventas en cero: no es ganancia y la tarjeta lo dice. -->
+                <small t-if="t.aviso" class="o_dc_kpi_aviso"><i class="fa fa-exclamation-triangle me-1" aria-hidden="true"/><t t-out="t.aviso"/></small>
                 <!-- ITBMS: arriba lo del periodo; aquí el acumulado (saldo al corte, con meses anteriores y pagos). -->
                 <span t-if="t.clave === 'itbms'" t-attf-class="o_dc_kpi_acumulado #{t.acumulado_a_favor ? 'o_dc_a_favor' : ''}">
                     <small t-out="t.acumulado_titulo"/>
@@ -204,7 +209,8 @@
     <t t-name="dcasa_contabilidad.Reportes.antiguedad">
         <t t-set="t" t-value="state.datos.totales"/>
         <section class="o_dc_kpis">
-            <div class="o_dc_kpi"><span t-out="state.reporte === 'por_cobrar' ? 'Te deben' : 'Debes'"/><strong t-out="dinero(t.total)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
+            <div class="o_dc_kpi"><span t-out="state.reporte === 'por_cobrar' ? 'Te deben' : 'Debes'"/><strong t-out="dinero(t.total)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/>
+                <small t-if="t.a_favor" class="o_dc_kpi_a_favor"><t t-out="state.reporte === 'por_cobrar' ? 'A favor de clientes' : 'A tu favor con proveedores'"/> <t t-out="dinero(t.a_favor)"/></small></div>
             <div t-attf-class="o_dc_kpi #{t.vencido > 0 ? 'o_dc_kpi_alerta' : 'o_dc_kpi_ok'}"><span>Vencido</span><strong t-out="dinero(t.vencido)"/><small class="o_dc_kpi_cuando">vencido <t t-out="alFecha()"/></small></div>
             <div class="o_dc_kpi"><span>Más de 90 días</span><strong t-out="dinero(t.d91_120 + t.mas_120)"/><small class="o_dc_kpi_cuando" t-out="alFecha()"/></div>
         </section>
@@ -247,6 +253,7 @@
     <!-- Estado de resultados -->
     <t t-name="dcasa_contabilidad.Reportes.resultados">
         <t t-set="r" t-value="state.datos.resumen"/>
+        <div t-if="r.aviso_costo" class="o_dc_aviso o_dc_aviso_sin_costo"><i class="fa fa-exclamation-triangle me-2"/><t t-out="r.aviso_costo"/></div>
         <section class="o_dc_kpis">
             <div class="o_dc_kpi"><span>Ventas</span><strong t-out="dinero(state.datos.secciones[0].total)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
             <div class="o_dc_kpi"><span>Utilidad bruta</span><strong t-out="dinero(r.utilidad_bruta)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>

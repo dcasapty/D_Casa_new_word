@@ -139,6 +139,31 @@ class TestVentasPorPeriodo(VentasCommon):
             esperado = (datos['actual']['sin_itbms'] - datos['anterior']['sin_itbms']) / datos['anterior']['sin_itbms']
             self.assertAlmostEqual(datos['variacion_pct'], round(esperado * 100, 1), places=1)
 
+    def test_dice_que_facturas_suma_contabilidad_y_aqui_no_son_venta(self):
+        """Capturas de la dueña (2026-10-16): el Inicio decía $1,301.04 y Contabilidad $1,522.42 para los mismos días;
+        la diferencia era una factura sin pedido. El Inicio dice cuántas son, por cuánto, y abre justo esas."""
+        vendido = self._venta(0)
+        antes = self._ventas(self.gerencia)['fuera'] or {'cuantas': 0, 'sin_itbms': 0.0}
+        suelta = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': self.hoy,
+            'invoice_line_ids': [Command.create({'product_id': self.cama.id, 'quantity': 1, 'price_unit': 100.0,
+                                                 'tax_ids': [Command.set(self.itbms.ids)]})]})
+        suelta.action_post()
+        datos = self._ventas(self.gerencia)
+        fuera = datos['fuera']
+        self.assertEqual(fuera['cuantas'] - antes['cuantas'], 1)
+        self.assertAlmostEqual(fuera['sin_itbms'] - antes['sin_itbms'], 100.0, places=2)
+        encontradas = self.env['account.move'].search(fuera['accion']['domain'])
+        self.assertIn(suelta, encontradas)
+        self.assertNotIn(vendido.invoice_ids, encontradas, 'la factura de un pedido vendido ya cuenta en el Inicio')
+        # Cuadran: lo vendido del Inicio más esas facturas es lo que Contabilidad llama ventas.
+        reportes = self.env.get('dcasa.reporte.contable')
+        if reportes is not None:
+            contables = reportes.estado_resultados(str(self.hoy), str(self.hoy))['secciones'][0]['total']
+            self.assertAlmostEqual(datos['actual']['sin_itbms'] + fuera['sin_itbms'], contables, places=2)
+        # La vendedora no ve facturas ajenas ni esta línea.
+        self.assertIsNone(self._ventas(self.vendedora)['fuera'])
+
     # --- Las listas de cotizaciones y entregas, y los avisos -----------------------------------
 
     def test_cotizaciones_abiertas_y_entregas_pendientes_van_en_listas(self):

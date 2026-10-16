@@ -208,7 +208,9 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         def con_comparacion(clave):
             t = tarjetas[clave]
             pct = f'{t["variacion_pct"]:+} %' if t['variacion_pct'] is not None else 'sin base para comparar'
-            return {'monto': c.moneda(t['valor']), 'periodo_anterior': c.moneda(t['comparado']), 'cambio': pct}
+            cifra = {'monto': c.moneda(t['valor']), 'periodo_anterior': c.moneda(t['comparado']), 'cambio': pct}
+            # Utilidad con el costo de ventas en cero: Brian no la presenta como ganancia.
+            return {**cifra, 'aviso': t['aviso']} if t.get('aviso') else cifra
 
         return {
             'periodo': f'{etiqueta} ({c.fecha(datos["desde"])} al {c.fecha(datos["hasta"])})',
@@ -221,6 +223,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
                        for b in datos['bancos']],
             'te_deben': c.moneda(tarjetas['por_cobrar']['valor']),
             'te_deben_vencido': c.moneda(tarjetas['por_cobrar']['vencido']),
+            'a_favor_de_clientes': c.moneda(tarjetas['por_cobrar']['a_favor']),
             'debes_a_proveedores': c.moneda(tarjetas['por_pagar']['valor']),
             'itbms': f'{tarjetas["itbms"]["titulo"]}: {c.moneda(tarjetas["itbms"]["valor"])} (ventas '
                      f'{c.moneda(tarjetas["itbms"]["debito"])} − compras {c.moneda(tarjetas["itbms"]["credito"])})',
@@ -256,7 +259,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         return {
             'tipo': 'te deben (por cobrar)' if tipo == 'por_cobrar' else 'debes (por pagar)',
             'al': c.fecha(corte),
-            'total': c.moneda(t['total']), 'vencido': c.moneda(t['vencido']),
+            'total': c.moneda(t['total']), 'vencido': c.moneda(t['vencido']), 'a_favor': c.moneda(t['a_favor']),
             'por_tramo': {nombres[k]: c.moneda(t[k]) for k in nombres if t[k]},
             'terceros': len(datos['filas']),
             'detalle': [{
@@ -283,6 +286,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             'utilidad_operativa': c.moneda(r['utilidad_operativa']),
             'utilidad_neta': c.moneda(r['utilidad_neta']),
             'margen_bruto': f'{r["margen_bruto"]} %' if r['margen_bruto'] is not None else 'sin ventas',
+            **({'aviso': r['aviso_costo']} if r.get('aviso_costo') else {}),
         }
 
     def _b_compactar_balance_general(self, datos):

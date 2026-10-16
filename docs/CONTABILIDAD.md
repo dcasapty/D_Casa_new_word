@@ -52,6 +52,27 @@ Para ver el año completo (o una fecha futura) se escribe el «Hasta» a mano; l
 
 «**Todo conciliado**» en la tarjeta del banco —y el paso «Bancos, Yappy, tarjeta y caja conciliados» del Cierre de mes y la guía de cierre de Brian, que usan la misma cuenta (`dcasa.cierre.mes._bancos_por_cruzar`, sobre `_saldos_bancos`)— significa que no queda ningún movimiento del extracto sin conciliar **ni cobro o pago registrado** (en la factura, con «Registrar pago») esperando su movimiento del banco o de la caja: esos cobros y pagos esperan en «Recibos pendientes» / «Pagos pendientes» y no suman al dinero del banco hasta que se cruzan. Cuando hay algo por cruzar, la tarjeta dice cuántos y de cuánto.
 
+**Vencido y a favor.** «Vencido» (en el Resumen, en Por cobrar y en Por pagar) es lo vencido que **de verdad se debe**: el
+cobro sin aplicar o la nota de crédito de un cliente baja lo vencido de **ese** cliente, nunca lo de otro. Lo que queda
+a favor de clientes (cobros registrados sin escoger su factura, anticipos, notas de crédito) o a tu favor con
+proveedores va aparte, con ese nombre. Antes se sumaba todo junto y salía en negativo («Vencido ($1,579.79)» en las
+capturas de la dueña del 2026-10-16), y el aviso «Hay cobros vencidos» se escondía aunque hubiera facturas vencidas.
+«Te deben» sigue siendo el saldo neto de la cuenta por cobrar (cuadra con el Balance general).
+
+**Utilidad sin costo de ventas.** Si en el periodo hay ventas y el **costo de ventas está en cero**, la mercancía vendida
+no descontó su costo en la contabilidad y la «utilidad» sale igual a las ventas (margen 100 %): no es ganancia. La
+tarjeta «Utilidad» del Resumen lo dice («Sin costo de ventas: no es ganancia»), el Resumen lo pone en sus alertas y el
+Estado de resultados (pantalla, Excel y PDF) y Brian lo avisan. Cómo registrar el costo (valoración del inventario o
+asiento de cierre) lo decide la contadora; mientras tanto, la **ganancia bruta** estimada (venta menos costo del
+producto, sin restar gastos) está en el Inicio.
+
+**Por qué las ventas del Inicio y las de Contabilidad no son iguales.** El Inicio cuenta **pedidos vendidos** (facturados
+por completo, el día de su última factura). Contabilidad cuenta **todas las facturas** del periodo: también las que no
+tienen pedido, los abonos de un apartado y las de pedidos que aún no están facturados por completo (y resta las notas
+de crédito). El Inicio dice cuántas de esas facturas hay y por cuánto («Contabilidad suma además…»), y al tocarlo las
+abre: lo vendido del Inicio más esas facturas es la cifra de «Ventas» de Contabilidad. En las capturas del 15 y 16 de
+octubre de 2026 la diferencia ($221.38 sin ITBMS) era una sola factura sin pedido.
+
 La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md).
 
 ## Usuarios

@@ -4,7 +4,7 @@ OFX y CAMT)."""
 import base64
 from datetime import date
 
-from odoo.addons.dcasa_contabilidad.controllers.main import libro_excel
+from odoo.addons.dcasa_contabilidad.controllers.main import _filas_planas, libro_excel
 from odoo.addons.dcasa_contabilidad.wizard.importar_extracto import leer_camt, leer_csv, leer_ofx
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import new_test_user, tagged
@@ -204,6 +204,65 @@ class TestFase1(ContabilidadCommon):
         # Al 30/04 el abono ya cuenta.
         abril = self._fila(self.reportes.por_cobrar(hasta='2030-04-30'), self.cliente)
         self.assertAlmostEqual(abril['total'], 170.5 - 57.0)
+
+    def test_vencido_no_lo_resta_el_saldo_a_favor_de_otro(self):
+        """Capturas de la dueña (2026-10-16): «Vencido ($1,579.79)» en negativo. El saldo a favor de un cliente (un
+        cobro sin aplicar, una nota de crédito) no resta lo vencido de otro: va aparte, en «a favor»."""
+        antes = self.reportes.por_cobrar(hasta=HASTA)['totales']
+        debe = self.env['res.partner'].create({'name': 'Cliente que debe'})
+        a_favor = self.env['res.partner'].create({'name': 'Cliente con saldo a favor'})
+        vencida = self._factura(100.0, fecha='2030-01-10')
+        vencida.button_draft()
+        vencida.partner_id = debe
+        vencida.action_post()
+        nota = self._factura(500.0, fecha='2030-01-05', tipo='out_refund')
+        nota.button_draft()
+        nota.partner_id = a_favor
+        nota.action_post()
+        datos = self.reportes.por_cobrar(hasta=HASTA)
+        t = datos['totales']
+        self.assertAlmostEqual(self._fila(datos, debe)['vencido'], 107.0)
+        self.assertAlmostEqual(self._fila(datos, a_favor)['vencido'], -535.0)
+        self.assertAlmostEqual(t['vencido'] - antes['vencido'], 107.0)      # antes salía 107 − 535 = −428
+        self.assertAlmostEqual(t['a_favor'] - antes['a_favor'], 535.0)
+        self.assertAlmostEqual(t['total'] - antes['total'], 107.0 - 535.0)  # el total sigue siendo el saldo neto
+        resumen = self.reportes.resumen(DESDE, HASTA)
+        tarjeta = next(x for x in resumen['tarjetas'] if x['clave'] == 'por_cobrar')
+        self.assertAlmostEqual(tarjeta['vencido'], t['vencido'])
+        self.assertAlmostEqual(tarjeta['a_favor'], t['a_favor'])
+        self.assertEqual(tarjeta['a_favor_titulo'], 'A favor de clientes')
+        self.assertIn('Hay cobros vencidos', ' '.join(a['texto'] for a in resumen['alertas']))
+        self.assertIn('A favor de clientes', ' '.join(str(c) for fila, _e in _filas_planas(resumen)[1] for c in fila))
+
+    def test_utilidad_sin_costo_de_ventas_avisa(self):
+        """Capturas de la dueña (2026-10-16): ventas $1,522.42, costo de ventas $0, «Utilidad» $1,522.42 y margen
+        100 %. Con ventas y el costo en cero, la utilidad lo dice en la pantalla, el resumen, el Excel y el PDF."""
+        self._factura(100.0)
+        resultados = self.reportes.estado_resultados(DESDE, HASTA)
+        self.assertTrue(resultados['resumen']['sin_costo_de_ventas'])
+        self.assertIn('no es la ganancia real', resultados['resumen']['aviso_costo'])
+        resumen = self.reportes.resumen(DESDE, HASTA)
+        utilidad = next(x for x in resumen['tarjetas'] if x['clave'] == 'utilidad')
+        self.assertEqual(utilidad['aviso'], 'Sin costo de ventas: no es ganancia')
+        self.assertIn('utilidad', [a['destino'] for a in resumen['alertas']])
+        self.assertIn('no es ganancia', ' '.join(str(c) for fila, _e in _filas_planas(resumen)[1] for c in fila))
+        self.assertIn(resultados['resumen']['aviso_costo'],
+                      [c for fila, _e in _filas_planas(resultados)[1] for c in fila])
+        pdf = self.env['report.dcasa_contabilidad.reporte_contable']._get_report_values(
+            [], {'reporte': 'estado_resultados', 'desde': DESDE, 'hasta': HASTA})
+        self.assertEqual(pdf['datos']['resumen']['aviso_costo'], resultados['resumen']['aviso_costo'])
+        # Con el costo de lo vendido registrado, el aviso se va.
+        costo = self.env['account.account'].create({
+            'name': 'Costo de ventas prueba', 'code': '9T0003', 'account_type': 'expense_direct_cost'})
+        inventario = self.env['account.account'].create({
+            'name': 'Inventario prueba', 'code': '9T0004', 'account_type': 'asset_current'})
+        self._asiento('2030-03-10', [(costo, 60.0, 0.0), (inventario, 0.0, 60.0)])
+        resultados = self.reportes.estado_resultados(DESDE, HASTA)
+        self.assertFalse(resultados['resumen']['sin_costo_de_ventas'])
+        self.assertIsNone(resultados['resumen']['aviso_costo'])
+        resumen = self.reportes.resumen(DESDE, HASTA)
+        self.assertNotIn('utilidad', [a['destino'] for a in resumen['alertas']])
+        self.assertIsNone(next(x for x in resumen['tarjetas'] if x['clave'] == 'utilidad')['aviso'])
 
     def test_antiguedad_por_pagar(self):
         self._factura(50.0, fecha='2030-03-01', tipo='in_invoice')

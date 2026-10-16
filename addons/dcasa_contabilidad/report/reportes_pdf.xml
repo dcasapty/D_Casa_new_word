@@ -93,6 +93,8 @@
                                 </t>
                             </tbody>
                         </table>
+                        <p t-if="datos['reporte'] == 'estado_resultados' and datos['resumen'].get('aviso_costo')" class="aviso"
+                           t-out="datos['resumen']['aviso_costo']"/>
                     </t>
 
                     <t t-if="datos['reporte'] == 'itbms'">
