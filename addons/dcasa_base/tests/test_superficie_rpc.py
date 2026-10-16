@@ -49,6 +49,12 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
     ('dcasa_base', 'sale.order.line', 'write'):
         OVERRIDE + ' Agrega el tope de descuento de la vendedora; sin sudo().',
+    ('dcasa_base', 'sale.order.line', 'unlink'):
+        OVERRIDE + ' Vuelve a medir el tope de descuento del pedido entero al quitar una línea; sin sudo().',
+    ('dcasa_base', 'stock.quant', 'create'):
+        OVERRIDE + ' Solo Gerencia crea o edita un conteo de existencias (ajuste a mano); sin sudo().',
+    ('dcasa_base', 'stock.quant', 'write'):
+        OVERRIDE + ' Solo Gerencia crea o edita un conteo de existencias (ajuste a mano); sin sudo().',
     ('dcasa_base', 'product.template', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):

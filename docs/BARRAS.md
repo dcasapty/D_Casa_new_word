@@ -44,6 +44,7 @@ tienen referencia, así que ya sirve desde el primer día) · código del empaqu
 
 * Usa el *Inventario físico* de Odoo: el ajuste queda en el historial de movimientos con el nombre «Conteo con lector (quien
   contó)» y el stock del producto (`dcasa_stock`, lo que dice Juan y lo que ordena Marketing) se actualiza solo.
+* **Solo Gerencia ajusta existencias a mano**, también en Inventario › Inventario físico (desde el 2026-10-16 el modelo lo exige: la Vendedora recibe un aviso si intenta editar o aplicar un conteo). Validar entregas y recepciones no cambia.
 * Si coincide con lo que decía el sistema, no se crea ningún movimiento.
 * **Si mientras contabas el sistema cambió** (una venta, una entrada), no se guarda: dice «cambió de X a Y» y hay que
   escanear y contar de nuevo. Contar sobre un número viejo dejaría el inventario mal.

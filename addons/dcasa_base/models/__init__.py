@@ -7,3 +7,4 @@ from . import mantenimiento
 from . import product
 from . import codigo_publico
 from . import campos_contables
+from . import stock_quant

@@ -14,6 +14,9 @@ Para quien programa: cómo está armado y cómo se comprueba. Reglas en
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí |
 | Crear facturas y notas de crédito **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí |
 | Registrar el cobro de una factura de cliente | Sí | Sí | Sí | Sí |
+| Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
+| Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | Sí | Sí |
+| Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | Sí | Sí |
 | Factura electrónica (DGI) | Sí | Sí | Sí | Sí |
 | Facturas y notas **de proveedores** | **No** | Sí | Sí | Sí |
 | Pagar a proveedores, devolver dinero a un cliente, pagos de nómina | **No** | Sí | Sí | Sí |

@@ -100,5 +100,6 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   base local); la Vendedora puede corregir existencias a mano en Inventario físico; «Vendido hoy» incluye ITBMS y el
   «Ventas» del Resumen contable no; el tope de gasto de IA de Brian viene en 0 (sin tope); no hay ninguna alerta de
   stock bajo ni de cierre de mes; el asistente de fusión de contactos no le sirve a Gerencia (falta el grupo «Creación») y no copia los datos de Socios de la ficha que se borra (no fusionar socios con él).
+- **En la rama `claude/merge-rama-to-main-ty3koz`, probado en local y mandado a staging (sin «sí» para producción todavía):** tope de descuento sobre el pedido entero (`dcasa_base/models/sale_order_line.py`), fusión de contactos segura (`dcasa_contactos/models/excepciones.py`: permiso de Gerencia, datos de Socios que pasan a la ficha que queda, dos socios no se funden) y existencias solo por Gerencia (`dcasa_base/models/stock_quant.py`). Cada hueco tiene su prueba, que falla con el código viejo.
 - **Sigue:** empezar por lo primero de PRIORIDADES.md. Estudio de envíos para La Chorrera entregado como documento en
   Claude Docs (a la espera de sus respuestas).

@@ -43,11 +43,15 @@ más fichas, con sus nombres. Por fila:
 * **Fusionar:** abre el asistente de fusión de Odoo con esas fichas (hasta 3 a la vez). Por defecto queda la ficha
   **activa más vieja** (no la de más movimiento; se puede cambiar el destino en el asistente) y se lleva facturas,
   puntos, conversaciones y notas de las otras. Con más de 3, se repite.
-* **Dos cuidados (revisados el 2026-10-16, pendientes de arreglo):** (1) el asistente exige el grupo «Creación» de
-  Contactos, que hoy solo tiene el administrador del sistema, así que Gerencia recibe un error de permiso; (2) los
-  datos de Socios de la ficha que se borra (código, celular de socio, PIN y quién la invitó) **no se copian** a la que
-  queda. Los puntos y los asientos sí se mueven, pero si la ficha que se borra era la socia, se pierde su código.
-  **No fusionar fichas de socios con este asistente** hasta que se corrija (ver `docs/PRIORIDADES.md`, etapa 3).
+* **Qué se cuida al fusionar (arreglado el 2026-10-16):**
+  * Gerencia puede usar el asistente (antes solo lo abría el administrador del sistema).
+  * Por defecto queda la ficha que **ya está en un programa** (socio o vendedor) y, entre esas, la de más puntos
+    movidos; si ninguna lo está, la activa más vieja. El destino se puede cambiar en el asistente.
+  * Lo de Socios y de vendedores que Odoo no copia solo (código, celular del programa, PIN, quién la invitó y si ya
+    se pagó el referido, patrocinador…) **pasa a la ficha que queda** si esa no lo tenía. Lo que ya tiene manda.
+  * **Dos fichas con código de socio (o de vendedor) no se fusionan:** se perdería uno de los dos códigos. El
+    asistente avisa y no borra nada; se revisa con la dueña.
+  * Si los correos son distintos, solo el administrador del sistema puede fusionar (regla de Odoo, se mantiene).
 
 Si el contador de duplicados no baja a cero, se limpia por tandas; el candado ya impide que vuelvan a crecer.
 

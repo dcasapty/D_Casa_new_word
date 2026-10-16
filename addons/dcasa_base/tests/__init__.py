@@ -5,3 +5,4 @@ from . import test_roles
 from . import test_mantenimiento
 from . import test_permisos_vendedora
 from . import test_permisos_contables
+from . import test_ajuste_existencias
