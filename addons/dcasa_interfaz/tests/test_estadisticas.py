@@ -118,6 +118,47 @@ class TestEstadisticas(VentasCommon):
                                                                        'dcasa_utilidad'], limit=5)
                 self.assertIsInstance(filas, list)
 
+    # --- Revisión adversarial del 2026-10-16: que las cifras cuadren y digan lo que son ---------------------------
+
+    def test_la_caja_de_hoy_no_cuenta_cobros_en_borrador(self):
+        diario = self.env['account.journal'].search([('type', 'in', ('cash', 'bank'))], limit=1)
+        if not diario:
+            self.skipTest('Sin diarios de caja o banco')
+        Tablero = self.env['dcasa.tablero'].with_user(self.gerencia)
+        antes = Tablero.obtener_datos()['total_cobrado']
+        pago = self.env['account.payment'].create({
+            'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
+            'amount': 33.0, 'journal_id': diario.id})
+        self.assertEqual(pago.state, 'draft')
+        self.assertAlmostEqual(Tablero.obtener_datos()['total_cobrado'], antes, places=2,
+                               msg='un cobro sin confirmar todavía no es dinero que entró')
+        pago.action_post()
+        self.assertAlmostEqual(Tablero.obtener_datos()['total_cobrado'] - antes, 33.0, places=2)
+
+    def test_mejor_margen_suma_lo_mismo_que_la_ganancia_del_inicio_con_descuento_global(self):
+        descuento = self.env['product.product'].create({
+            'name': 'Descuento estadística', 'type': 'service', 'list_price': 0.0, 'taxes_id': [(5, 0, 0)]})
+        self.env.company.sale_discount_product_id = descuento
+        orden = self.pedido(producto=self.vendida, confirmar=False)
+        asistente = self.env['sale.order.discount'].with_user(self.gerencia).with_context(
+            active_id=orden.id, active_model='sale.order').create({
+                'sale_order_id': orden.id, 'discount_type': 'so_discount', 'discount_percentage': 0.10})
+        asistente.action_apply_discount()
+        orden.action_confirm()
+        self.facturar(orden)
+        accion = self.env.ref('dcasa_interfaz.accion_mejor_margen')
+        lineas = self.env['sale.order.line'].with_user(self.gerencia).search(
+            safe_domain(accion.domain) + [('order_id', '=', orden.id)])
+        self.assertEqual(len(lineas), 2, 'la cama y la fila del descuento global')
+        self.assertAlmostEqual(sum(lineas.mapped('dcasa_utilidad')), orden.sudo().dcasa_utilidad, places=2)
+
+    def test_las_listas_de_pedidos_traen_sin_itbms_y_total_con_itbms_con_su_nombre(self):
+        vista = self.env['sale.order'].with_user(self.gerencia).get_views(
+            [(self.env.ref('sale.view_order_tree').id, 'list')])['views']['list']['arch']
+        self.assertRegex(vista, r'<field name="amount_untaxed"[^>]*string="Sin ITBMS"')
+        self.assertNotRegex(vista, r'<field name="amount_untaxed"[^>]*optional="hide"')
+        self.assertRegex(vista, r'<field name="amount_total"[^>]*string="Total con ITBMS"')
+
     # --- Íconos con color ---------------------------------------------------------------------
 
     def test_cada_icono_lleva_el_color_de_su_familia(self):

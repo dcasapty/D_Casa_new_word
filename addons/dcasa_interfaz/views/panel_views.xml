@@ -65,6 +65,24 @@
         </field>
     </record>
 
+    <!-- ITBMS claro en las listas de pedidos (criterio contable, 2026-10-16): la tarjeta «Vendido hoy» dice «sin ITBMS» y
+         la lista que abre traía solo el total con ITBMS, así que las sumas no coincidían. Ahora salen las dos columnas con
+         su nombre. -->
+    <record id="sale_order_tree_dcasa_itbms" model="ir.ui.view">
+        <field name="name">sale.order.list.dcasa.itbms</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <field name="amount_untaxed" position="attributes">
+                <attribute name="optional">show</attribute>
+                <attribute name="string">Sin ITBMS</attribute>
+            </field>
+            <field name="amount_total" position="attributes">
+                <attribute name="string">Total con ITBMS</attribute>
+            </field>
+        </field>
+    </record>
+
     <!-- Ventas › Cotizaciones abre las cotizaciones abiertas de toda la tienda, no «Mis cotizaciones»:
          la dueña no cotiza (veía la lista vacía) y en una sola tienda la que atiende retoma la
          cotización de otra. «Mis cotizaciones» sigue a un clic en los filtros. -->

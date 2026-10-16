@@ -136,3 +136,21 @@ class TestResumenVentasFacturadas(TransactionCase):
         self.assertIn('itbms', fila)
         self.assertIn('total_con_itbms', fila)
         self.assertGreater(venta.amount_tax, 0)
+
+    def test_los_mas_vendidos_de_brian_no_cuentan_el_flete_ni_los_descuentos(self):
+        flete = self.env['product.product'].create({'name': 'Zzflete resumen', 'type': 'service', 'list_price': 25.0})
+        orden = self.env['sale.order'].create({
+            'partner_id': self.cliente.id, 'user_id': self.ana.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1}),
+                           Command.create({'product_id': flete.id, 'product_uom_qty': 5})]})
+        orden.action_confirm()
+        orden._create_invoices().action_post()
+        nombres = {p['producto'] for p in self.resumen(self.ana)['productos_mas_vendidos']}
+        self.assertIn(self.producto.display_name, nombres)
+        self.assertNotIn(flete.display_name, nombres, 'el flete es un servicio, no un producto vendido')
+
+    def test_el_por_cobrar_de_las_cotizaciones_dice_que_es_con_itbms(self):
+        self.pedido(self.ana, confirmar=False)
+        reporte = self.env['brian.herramientas'].with_user(self.ana).ejecutar('reporte_del_dia', {})
+        detalle = next(f['detalle'] for f in reporte['datos']['cifras'] if f['titulo'] == 'Mis cotizaciones')
+        self.assertIn('con ITBMS', detalle)

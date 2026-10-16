@@ -40,8 +40,11 @@ class TestEquipo(TransactionCase):
         ruta = os.path.join(os.path.dirname(__file__), '..', 'static', 'src', 'img', 'empleados.svg')
         with open(ruta, encoding='utf-8') as f:
             svg = f.read()
-        self.assertIn('#1340B1', svg)
+        # Índigo: el color de la familia «Socios y equipo» del menú (decisión de la dueña, 2026-10-16); el amarillo
+        # de la marca queda de acento, nunca de fondo (tocaría el blanco de la barra).
+        self.assertIn('#4B3FA8', svg)
         self.assertIn('#FED00F', svg)
+        self.assertRegex(svg, r'<rect[^>]*fill="#4B3FA8"')
         self.assertNotIn('gradient', svg.lower())
 
     def test_no_hay_alta_de_personas_por_texto(self):
