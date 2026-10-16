@@ -23,6 +23,8 @@ class TestPedidosRepetidos(VentasCommon):
             'order_line': [(0, 0, {'product_id': self.producto.id, 'product_uom_qty': 2})]})
         self.assertFalse(otro_cliente.dcasa_posible_repetido, 'otro cliente no es repetido')
         segundo.action_cancel()
+        # El aviso se calcula al abrir el pedido (no se guarda): se vuelve a leer como lo haría la pantalla.
+        (primero | segundo).invalidate_recordset(['dcasa_posible_repetido'])
         self.assertFalse(segundo.dcasa_posible_repetido, 'un pedido cancelado no avisa')
         self.assertNotIn(segundo.name, primero.dcasa_posible_repetido or '', 'ni cuenta para los demás')
 

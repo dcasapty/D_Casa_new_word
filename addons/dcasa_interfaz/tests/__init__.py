@@ -8,3 +8,4 @@ from . import test_actividad
 from . import test_ventas_periodo
 from . import test_estadisticas
 from . import test_pedidos_repetidos
+from . import test_avisos

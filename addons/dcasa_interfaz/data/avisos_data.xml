@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Los avisos del equipo llegan EN ODOO, no al correo (pedido de la dueña, 2026-10-16: «los vendedores no contestan
+         mis chats»). Odoo trae a cada usuario nuevo con «Notificación: por correo»: los mensajes y las menciones (@) en
+         un pedido o una ficha se iban al correo y el contador del chat no los mostraba. Todo usuario interno queda «En
+         Odoo» (el grupo de Odoo que lo decide); los clientes del portal siguen por correo. -->
+    <record id="base.group_user" model="res.groups">
+        <field name="implied_ids" eval="[(4, ref('mail.group_mail_notification_type_inbox'))]"/>
+    </record>
+</odoo>
