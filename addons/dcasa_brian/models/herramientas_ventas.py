@@ -82,9 +82,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='reporte_del_dia',
-        descripcion='Cómo va el día: vendido hoy (sin ITBMS, con su ITBMS y total aparte; y la ganancia si quien '
-                    'pregunta es Gerencia), cobrado hoy por forma de pago (con ITBMS), cotizaciones abiertas, pedidos '
-                    'web, por cobrar, entregas y lo más vendido. Las mismas cifras del tablero Inicio.',
+        descripcion='Cómo va el día, como el tablero Inicio: vendido hoy (sin ITBMS; el ITBMS y el total aparte; la '
+                    'ganancia solo a Gerencia), cobrado hoy por forma de pago, cotizaciones, pedidos web, por cobrar, '
+                    'entregas y lo más vendido.',
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['¿cómo vamos hoy?', 'reporte del día', '¿cuánto se ha vendido hoy?'],
     )
@@ -131,10 +131,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Lo vendido en un periodo (ventas ya facturadas por completo): cantidad, ventas SIN ITBMS (la '
-                    'cifra principal), el ITBMS y el total con ITBMS aparte, ticket promedio, por vendedor, productos '
-                    'más vendidos y, solo para Gerencia, la ganancia (venta menos costo, sin ITBMS). Quien vende ve '
-                    'solo lo suyo.',
+        descripcion='Lo vendido en un periodo (facturado por completo): cantidad, ventas SIN ITBMS, ITBMS y total '
+                    'aparte, ticket promedio, por vendedor, más vendidos y, solo Gerencia, la ganancia (sin ITBMS). '
+                    'Quien vende ve solo lo suyo.',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['ventas de este mes → periodo=este_mes', 'ventas del 01/09/2026 al 15/09/2026',
