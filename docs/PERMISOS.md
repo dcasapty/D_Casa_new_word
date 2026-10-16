@@ -10,6 +10,7 @@ Para quien programa: cómo está armado y cómo se comprueba. Reglas en
 | | Vendedora / Cajero | Contador | Gerencia | Administrador |
 |---|:---:|:---:|:---:|:---:|
 | Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí |
+| En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí |
 | Crear facturas y notas de crédito **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí |

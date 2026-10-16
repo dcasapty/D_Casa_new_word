@@ -8,6 +8,7 @@
 |---|---|
 | Retomar el trabajo sin empezar de cero (cómo se trabaja, qué necesita mi «sí», bitácora de sesiones) | [LEEME_PRIMERO.md](LEEME_PRIMERO.md) |
 | Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
+| A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Saber qué sigue y en qué orden | [PRIORIDADES.md](PRIORIDADES.md) |
 | Saber qué falta decidir o hacer yo | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
 | Saber cómo estaba todo el 11 de octubre, con nota y fallas (es una foto, no el estado de hoy) | [ESTADO.md](ESTADO.md) |

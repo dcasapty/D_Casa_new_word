@@ -82,6 +82,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 | Quiero saber… | Voy a… |
 |---|---|
 | Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
+| A qué versión segura volver si algo se rompe, y cómo | [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md) |
 | Qué se pidió y en qué orden se hace | [PRIORIDADES.md](PRIORIDADES.md) |
 | Cómo está todo (nota y fallas) | [ESTADO.md](ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
 | Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
@@ -104,6 +105,9 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   las Etapas 1 y 2. Antes: suite completa de Odoo en verde (CI #171), staging sano y confirmado (07:19), respaldo
   previo. **La dueña confirmó que el Inicio y las conversaciones cargan.** Autorización: «soluciona todos los problemas
   que rompen la interfaz… y lanza a producción» y «sigue y avísame cuando esté en producción».
+- **Versión estable 1 guardada** (pedido de la dueña): rama `estable-2026-10-16` (= `main` con el arreglo) y, para
+  volver, `app_version` `3570c3a1…` + `imagen_digest` `sha256:4e9b9155…`. Cómo volver y qué pasa con los datos:
+  [VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md). Falta ensayar la vuelta en staging.
 - **Entrega siguiente, probada en local y sin subir** (ramas locales `rb-fixes` y `conv-local`): Etapa 3 (aviso al
   cotizar si el cliente parece repetido, selector solo de clientes), prueba de humo del arranque, «nunca hacia atrás»,
   vigilancia de 10 minutos y los seis arreglos de la segunda revisión adversarial; y Conversaciones #25 punto 1 (lo

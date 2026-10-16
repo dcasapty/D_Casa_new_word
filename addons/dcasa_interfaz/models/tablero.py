@@ -386,11 +386,12 @@ class DcasaTablero(models.AbstractModel):
         if not self.env.user.has_group('sales_team.group_sale_manager'):
             mias = [c for c in cotizaciones if c['user_id'] and c['user_id'][0] == self.env.uid]
             datos['cifras'].append(self._cifra_mis_cotizaciones(abiertas, mias))
+        # Decisión 10 de la dueña (2026-10-16): el título dice qué es, sin jerga («por atender»).
         web = [('website_id', '!=', False), ('state', '=', 'sale'), ('delivery_status', '!=', 'full')]
         datos['cifras'].append({
-            'clave': 'web', 'titulo': 'Pedidos web por atender', 'valor': Order.search_count(web),
-            'formato': 'numero', 'detalle': 'Compraron en la web y aún no se entregan',
-            'accion': _accion('Pedidos web por atender', 'sale.order', web),
+            'clave': 'web', 'titulo': 'Compraron en la web y aún no se entregan', 'valor': Order.search_count(web),
+            'formato': 'numero', 'detalle': 'Pedidos confirmados de la tienda en línea',
+            'accion': _accion('Compraron en la web y aún no se entregan', 'sale.order', web),
         })
         self._barras_y_lo_mas_vendido(datos, hoy, por_dia)
 

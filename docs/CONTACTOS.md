@@ -26,6 +26,20 @@ igual.
   su dirección queda como dirección de esa persona, así que suma sus puntos en la misma ficha y la compra no falla. Sus
   datos no se modifican.
 
+## Al cotizar (etapa 3, 2026-10-16)
+
+Una misma persona salía hasta cinco veces al elegir el cliente de una cotización: su ficha, su usuario del sistema, su
+contacto de empleado y sus direcciones de entrega o de factura, todos con el mismo nombre.
+
+* **El selector de «Cliente» muestra solo fichas de clientes:** contactos principales que no son del equipo (usuario
+  interno o empleado) ni una empresa propia. Las direcciones se eligen donde siempre, en «Dirección de factura» y
+  «Dirección de entrega». Quien se registró en la tienda (usuario del portal) sí sale: es cliente.
+* **Los usuarios y empleados no se tocan:** solo dejan de ofrecerse como cliente. Si alguien del equipo compra, se
+  cotiza en su ficha de cliente.
+* **Aviso de posible repetido:** si la ficha elegida comparte celular, correo o RUC/cédula con otra ficha (lo viejo, de
+  antes del candado), sale un aviso con el nombre de la otra para cotizar en la correcta y fusionarlas después.
+* Lo ya guardado no cambia: una cotización vieja con una dirección como cliente se sigue abriendo igual.
+
 ## Puntos por WhatsApp
 
 Juan responde el saldo de puntos del **número de esa conversación** (nadie puede pedir el de otro número) y **pide el
@@ -62,5 +76,7 @@ Si el contador de duplicados no baja a cero, se limpia por tandas; el candado ya
 * Se revisa en `create` y `write` (no con un índice único de base de datos, que impediría instalar si hay repetidos
   viejos). `with_context(dcasa_sin_duplicados=True)` salta la revisión: la usan la fusión de contactos y la creación de
   usuarios, empleados y empresas.
-* Pruebas: `scripts/test.sh dcasa_contactos` (llaves, candado, excepciones, lista de duplicados, fusión), más
+* Al cotizar: `models/sale_order.py` (dominio de `sale.order.partner_id` armado con `sudo` como lista de ids, así la
+  Vendedora, que no ve empleados, busca sin error; aviso en el `onchange` del cliente).
+* Pruebas: `scripts/test.sh dcasa_contactos` (llaves, candado, excepciones, lista de duplicados, fusión, al cotizar), más
   `TestFichasUnicasEnElChat` (conversaciones) y `TestDireccionDelVisitante` (tienda).

@@ -12,11 +12,12 @@
 # corría otra imagen o la base sin actualizar). El `detalle` (lo que contesta /dcasa/salud) trae
 # `version` (commit de la imagen que responde) y `base_al_dia` (la base se actualizó con el código de
 # esa imagen). Se exige que `version` sea APP_VERSION y `base_al_dia` sea true; un 200 de la
-# instancia anterior (o de una imagen sin esos datos) no cuenta. Y se vuelve a comprobar a los
-# CONFIRMAR_S segundos: si para entonces responde otra versión (Cloudflare volvió a la imagen
-# anterior), el despliegue falla en vez de quedar en verde.
+# instancia anterior (o de una imagen sin esos datos) no cuenta. `humo` (la prueba de humo del arranque),
+# si viene, tiene que ser «ok». Después se vigila CONFIRMAR_S segundos: si en algún momento responde otra
+# versión (Cloudflare volvió a la imagen anterior), el despliegue falla en vez de quedar en verde.
 #
-# Entradas: URL_SITIO, APP_VERSION (SHA de 40), ESPERA_MINUTOS (por defecto 20), CONFIRMAR_S (300).
+# Entradas: URL_SITIO, APP_VERSION (SHA de 40), ESPERA_MINUTOS (por defecto 20), CONFIRMAR_S (600),
+# TOLERANCIA_S (120: corte seguido que se tolera durante la vigilancia).
 # Para las pruebas (probar_esperar_salud.sh): ESPERA_SEGUNDOS y PAUSA_S.
 set -euo pipefail
 
@@ -25,10 +26,14 @@ set -euo pipefail
 minutos="${ESPERA_MINUTOS:-20}"
 espera_s="${ESPERA_SEGUNDOS:-$((minutos * 60))}"
 pausa_s="${PAUSA_S:-15}"
-confirmar_s="${CONFIRMAR_S:-300}"
+confirmar_s="${CONFIRMAR_S:-600}"
+tolerancia_s="${TOLERANCIA_S:-120}"
 version_esperada="${APP_VERSION:0:12}"
+for numero in "$espera_s" "$confirmar_s" "$tolerancia_s"; do
+  [[ "$numero" =~ ^[0-9]+$ ]] || { echo "::error::Los tiempos van en segundos enteros («$numero»)."; exit 2; }
+done
 cuerpo="$(mktemp)"
-trap 'rm -f "$cuerpo"' EXIT
+trap 'rm -f "$cuerpo" "$cuerpo.motivo"' EXIT
 
 salud() {
   curl -sS --max-time 20 -o /dev/null "${URL_SITIO}/web/login" 2>/dev/null || true
@@ -36,7 +41,7 @@ salud() {
   curl -sS --max-time 20 -o "$cuerpo" -w '%{http_code}' "${URL_SITIO}/__edge/health" 2>/dev/null || true
 }
 
-# «version al_dia» del detalle de /__edge/health («-» si no viene: imagen anterior a este control).
+# «version al_dia humo» del detalle de /__edge/health («-» si no viene: imagen anterior a este control).
 leer_detalle() {
   python3 - "$cuerpo" <<'PY'
 import json
@@ -49,27 +54,39 @@ except (ValueError, OSError, AttributeError):
     detalle = {}
 if not isinstance(detalle, dict):
     detalle = {}
-al_dia = {True: 'si', False: 'no'}.get(detalle.get('base_al_dia'), '-')
-print(detalle.get('version') or '-', al_dia)
+base_al_dia = detalle.get('base_al_dia')
+al_dia = 'si' if base_al_dia is True else ('no' if base_al_dia is False else '-')
+humo = detalle.get('humo') if detalle.get('humo') in ('ok', 'fallo') else '-'
+print(detalle.get('version') or '-', al_dia, humo)
 PY
 }
 
-# 0 si responde la versión desplegada con la base al día; si no, explica qué responde.
+# 0: responde la versión desplegada con la base al día. 1: todavía no responde (no es 200).
+# 2: responde, pero otra versión, la base atrasada o la prueba de humo fallida. Explica qué ve.
 version_nueva_y_al_dia() {
-  local codigo version al_dia
+  local codigo version al_dia humo
   codigo="$(salud)"
   if [[ "$codigo" != "200" ]]; then
     echo "Todavía no (HTTP ${codigo:-sin respuesta}): $(head -c 1500 "$cuerpo" 2>/dev/null || true)"
     return 1
   fi
-  read -r version al_dia <<<"$(leer_detalle)"
+  read -r version al_dia humo <<<"$(leer_detalle)"
   if [[ "$version" != "$version_esperada" ]]; then
     echo "Responde la versión ${version} y espero ${version_esperada}: sigue la instancia anterior o Cloudflare aún no cambia la imagen."
-    return 1
+    return 2
   fi
   if [[ "$al_dia" != "si" ]]; then
     echo "Responde la versión ${version}, pero la base no está al día con su código (base_al_dia=${al_dia})."
-    return 1
+    return 2
+  fi
+  # La prueba de humo del arranque (columnas de la base y pantallas principales). Las imágenes anteriores a
+  # ella no la traen («-»): se acepta con un aviso; si viene, tiene que ser «ok».
+  if [[ "$humo" == "fallo" ]]; then
+    echo "Responde la versión ${version} con la base al día, pero la prueba de humo del arranque falló (ver logs: DCASA_HUMO)."
+    return 2
+  fi
+  if [[ "$humo" == "-" ]]; then
+    echo "::warning::La versión ${version} no informa la prueba de humo del arranque."
   fi
   return 0
 }
@@ -91,13 +108,34 @@ while true; do
   sleep "$pausa_s"
 done
 
+# Vigilancia durante CONFIRMAR_S: si en algún momento responde otra versión, la base atrasada o la prueba de humo
+# fallida (Cloudflare pudo volver a la imagen anterior), falla en el acto. Un corte breve (reinicio, 503) se tolera
+# hasta TOLERANCIA_S seguidos; uno más largo también falla.
 if ((confirmar_s > 0)); then
-  echo "Confirmo en ${confirmar_s} s que sigue la versión nueva (Cloudflare podría volver a la imagen anterior)."
-  sleep "$confirmar_s"
-  if ! version_nueva_y_al_dia; then
-    echo "::error::A los ${confirmar_s} s ${URL_SITIO} ya no responde la versión ${version_esperada} con la base al día."
-    echo "Cloudflare pudo volver a la imagen anterior: revisa los logs del contenedor antes de reintentar."
-    exit 1
-  fi
-  echo "Confirmado: sigue la versión ${version_esperada} con la base al día."
+  echo "Vigilo ${confirmar_s} s que siga la versión ${version_esperada} (Cloudflare podría volver a la imagen anterior)."
+  fin=$(($(date +%s) + confirmar_s))
+  caido_desde=0
+  # Si al cerrar la ventana el sitio está caído, se sigue mirando hasta que vuelva (pasa), responda otra cosa o se
+  # pase la tolerancia (falla): un corte justo al final no se confirma como sano (revisión adversarial, 2026-10-16).
+  while (($(date +%s) < fin)) || ((caido_desde > 0)); do
+    sleep "$pausa_s"
+    rc=0
+    version_nueva_y_al_dia >"$cuerpo.motivo" || rc=$?
+    if ((rc == 2)); then
+      cat "$cuerpo.motivo"
+      echo "::error::Durante la vigilancia ${URL_SITIO} dejó de responder la versión ${version_esperada} con la base al día."
+      echo "Cloudflare pudo volver a la imagen anterior: revisa los logs del contenedor antes de reintentar."
+      exit 1
+    elif ((rc == 1)); then
+      ((caido_desde > 0)) || caido_desde=$(date +%s)
+      if (($(date +%s) - caido_desde > tolerancia_s)); then
+        cat "$cuerpo.motivo"
+        echo "::error::Durante la vigilancia ${URL_SITIO} dejó de responder más de ${tolerancia_s} s seguidos."
+        exit 1
+      fi
+    else
+      caido_desde=0
+    fi
+  done
+  echo "Confirmado: durante ${confirmar_s} s siguió la versión ${version_esperada} con la base al día."
 fi

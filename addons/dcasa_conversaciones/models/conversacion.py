@@ -48,6 +48,12 @@ MAX_NOTA = 1000
 PIE_DE_AVISO = '↩ Responde a este mensaje para escribirle al cliente. (Conversación n.º %s)'
 REFERENCIA_DE_AVISO = r'Conversación n\.º (\d+)'
 MAX_NOTA_PARA_EL_BOT = 500
+# Lo único que el equipo (vendedoras y Gerencia) cambia a mano (formulario o RPC) en una conversación. Lo demás (estado,
+# pausa por los botones, nota para el asistente, seguimiento, último mensaje, resumen) lo escribe el sistema con sudo,
+# por los métodos que aplican sus reglas, o un administrador del sistema (issue #25). Una clave en el contexto NO
+# alcanza: el contexto lo manda el cliente por RPC.
+CAMPOS_DE_LA_VENDEDORA = frozenset({
+    'partner_id', 'asignada_a', 'etiqueta_ids', 'pausada_hasta', 'borrador', 'borrador_adjunto_ids'})
 CANAL_BUS = 'dcasa_conversaciones/evento'
 MOTIVOS_DE_BAJA = ('no_contactar', 'no contactar', 'baja', 'opt_out', 'opt-out', 'pidio_no', 'pidió no')
 
@@ -71,14 +77,14 @@ class DcasaConversacion(models.Model):
     asignada_a = fields.Many2one('res.users', 'Atiende', domain=[('share', '=', False)], tracking=True,
                                  index='btree_not_null')
     bot_atiende = fields.Boolean('Contesta el asistente', compute='_compute_bot_atiende')
-    ultima_actividad = fields.Datetime('Última actividad', index=True)
+    ultima_actividad = fields.Datetime('Última actividad', index=True, readonly=True)
     ultimo_mensaje_cliente = fields.Datetime('Último mensaje del cliente')
     ultimo_mensaje_texto = fields.Char('Último mensaje', readonly=True)
     ultimo_mensaje_autor = fields.Selection([('cliente', 'Cliente'), ('bot', 'Asistente'), ('vendedora', 'Vendedora')],
                                             readonly=True)
     inicio = fields.Datetime('Empezó', readonly=True, default=fields.Datetime.now)
     oportunidad_id = fields.Many2one('crm.lead', 'Oportunidad', copy=False, index='btree_not_null',
-                                     ondelete='set null')
+                                     ondelete='set null', readonly=True)
     mensaje_ids = fields.One2many('dcasa.mensaje', 'conversacion_id', string='Mensajes')
     mensajes_count = fields.Integer('Cantidad de mensajes', compute='_compute_contadores')
     por_enviar_count = fields.Integer('Por enviar', compute='_compute_contadores')
@@ -239,8 +245,17 @@ class DcasaConversacion(models.Model):
             raise AccessError(self.env._('Solo el equipo de ventas puede atender conversaciones.'))
 
     def write(self, vals):
-        if not self.env.su and {'canal', 'id_externo'} & set(vals):
-            raise AccessError(self.env._('El canal y la persona de una conversación no se cambian.'))
+        if not self.env.su:
+            if {'canal', 'id_externo'} & set(vals):
+                raise AccessError(self.env._('El canal y la persona de una conversación no se cambian.'))
+            ajenos = set(vals) - CAMPOS_DE_LA_VENDEDORA
+            if ajenos and not self.env.user.has_group('base.group_system'):
+                raise AccessError(self.env._(
+                    'Eso de la conversación no se cambia a mano (%s): usa los botones de la pantalla.',
+                    ', '.join(sorted(ajenos))))
+        if vals.get('nota_para_el_bot'):
+            # El asistente la lee en cada respuesta: nunca más larga que lo que permite la pantalla.
+            vals = dict(vals, nota_para_el_bot=str(vals['nota_para_el_bot'])[:MAX_NOTA_PARA_EL_BOT])
         resultado = super().write(vals)
         if 'oportunidad_id' in vals:
             # La intención de compra habilita el seguimiento: al ligar o soltar la oportunidad se recalcula.

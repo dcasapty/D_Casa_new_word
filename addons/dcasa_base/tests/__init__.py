@@ -8,3 +8,4 @@ from . import test_permisos_contables
 from . import test_ajuste_existencias
 from . import test_utilidad
 from . import test_tope_rutas
+from . import test_humo

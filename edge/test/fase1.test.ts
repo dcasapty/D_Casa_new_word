@@ -300,6 +300,14 @@ describe("contenedor único con PostgreSQL local", () => {
     expect(variablesDelContenedor({ DCASA_ADJUNTOS: "db" }).DCASA_ADJUNTOS).toBe("db");
     expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_ADJUNTOS");
     expect(variablesDelContenedor({ DCASA_STOCK_PRUEBA: "10" }).DCASA_STOCK_PRUEBA).toBe("10");
+    // Salidas de emergencia del arranque (#97): sin ellas en la lista, pegarlas en el panel no servía de nada.
+    const commit = "0123456789abcdef0123456789abcdef01234567";
+    expect(variablesDelContenedor({ DCASA_PERMITIR_BAJAR: commit, DCASA_HUMO: "0" })).toMatchObject({
+      DCASA_PERMITIR_BAJAR: commit,
+      DCASA_HUMO: "0",
+    });
+    expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_PERMITIR_BAJAR");
+    expect(variablesDelContenedor({})).not.toHaveProperty("DCASA_HUMO");
     expect(
       variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
     ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });

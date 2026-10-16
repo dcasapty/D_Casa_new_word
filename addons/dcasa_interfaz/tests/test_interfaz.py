@@ -18,6 +18,8 @@ class TestTablero(TransactionCase):
         self.assertTrue(datos['semana'][-1]['hoy'])
         for cifra in datos['cifras']:
             self.assertIn('res_model', cifra['accion'])
+        web = next(c for c in datos['cifras'] if c['clave'] == 'web')
+        self.assertEqual(web['titulo'], 'Compraron en la web y aún no se entregan', 'decisión 10 de la dueña')
 
     def test_venta_de_hoy_suma_en_el_tablero(self):
         """Una venta suma en «Vendido hoy» cuando está facturada por completo, no antes."""

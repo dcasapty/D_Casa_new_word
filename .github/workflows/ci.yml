@@ -49,6 +49,8 @@ jobs:
       - run: ruff check addons scripts --output-format=github
       - name: Tests del procesador de «up media» (sin Odoo)
         run: python -m unittest discover -s scripts/tests -v
+      - name: Las versiones estables tienen datos válidos (botón «Volver a una versión estable»)
+        run: python .github/scripts/probar_versiones_estables.py
       - name: XML bien formado
         run: |
           python - <<'PY'
@@ -243,6 +245,9 @@ jobs:
         with:
           submodules: true
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+      - name: Fecha del commit (orden de las imágenes)
+        id: commit
+        run: echo "fecha=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
       - name: Construir imagen
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
         with:
@@ -250,9 +255,11 @@ jobs:
           file: docker/Dockerfile
           tags: dcasa-odoo:ci
           load: true
-          # La imagen guarda su commit (/opt/dcasa/COMMIT): /dcasa/salud lo informa y el despliegue lo exige.
+          # La imagen guarda su commit (/opt/dcasa/COMMIT): /dcasa/salud lo informa y el despliegue lo exige. Y su
+          # fecha (/opt/dcasa/ORDEN): una imagen más vieja que la base no la «actualiza hacia atrás».
           build-args: |
             DCASA_COMMIT=${{ github.sha }}
+            DCASA_COMMIT_FECHA=${{ steps.commit.outputs.fecha }}
           cache-from: type=gha,scope=imagen
           cache-to: type=gha,mode=max,scope=imagen
       - name: ID de la imagen probada
@@ -359,37 +366,92 @@ jobs:
             exit 1
           fi
           echo "PDF con fuentes de marca ($(wc -c < "$RUNNER_TEMP/cotizacion.pdf") bytes)."
-      - name: La base se actualiza cuando cambia el código de la imagen, aunque APP_VERSION no cambie (#97)
+      - name: La base queda al día con el código de la imagen, pase lo que pase (#97)
         # Incidente del 2026-10-16: producción corrió código nuevo sobre la base sin actualizar porque el
-        # arranque solo miraba APP_VERSION. Aquí la base queda «actualizada con otro código» y la misma
-        # versión: al reiniciar, la imagen tiene que actualizarla y /dcasa/salud decirlo.
+        # arranque solo miraba APP_VERSION, y el despliegue dijo «sano». Aquí se reproducen los casos con la
+        # imagen real: la huella de otro código, una columna que falta con los marcadores «al día», una imagen
+        # más vieja que la base (no se baja) y APP_VERSION atrasada en un contenedor nuevo (restaura del S3 local).
         env:
           ESPERADO: ${{ github.sha }}
         run: |
           salud() { curl -fsS http://localhost:8069/dcasa/salud; }
-          comprobar() { # true|false: lo que debe decir base_al_dia
-            salud | ESPERA_AL_DIA="$1" python3 -c 'import json, os, sys
+          comprobar() { # base_al_dia esperado (true|false) y humo esperado (ok|fallo)
+            salud | ESPERA_AL_DIA="$1" ESPERA_HUMO="$2" python3 -c 'import json, os, sys
           d = json.load(sys.stdin)
           assert d.get("version") == os.environ["ESPERADO"][:12], f"version: {d}"
           assert d.get("base_al_dia") is (os.environ["ESPERA_AL_DIA"] == "true"), f"base_al_dia: {d}"
+          assert d.get("humo") == os.environ["ESPERA_HUMO"], f"humo: {d}"
           print("salud:", d)'
           }
           psql_odoo() { docker exec odoo psql -h /var/lib/odoo/pg/run -U dcasa -d dcasa -tAqc "$1"; }
-          comprobar true
+          esperar() {
+            for _ in $(seq 1 120); do
+              if curl -fsS http://localhost:8069/web/health >/dev/null 2>&1; then return 0; fi
+              sleep 5
+            done
+            echo "::error::Odoo no volvió a arrancar."; docker logs --since "$inicio" odoo 2>&1 | tail -80; exit 1
+          }
+          reiniciar() { inicio="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; docker restart -t 120 odoo; esperar; }
+          en_el_log() { # texto, mensaje si no está
+            if ! docker logs --since "$inicio" odoo 2>&1 | grep -qF "$1"; then
+              echo "::error::$2"; docker logs --since "$inicio" odoo 2>&1 | tail -80; exit 1
+            fi
+          }
+
+          echo "== 0) Recién instalada: versión de la imagen, base al día y prueba de humo en orden"
+          comprobar true ok
+
+          echo "== 1) La base «actualizada con otro código» y la misma versión: se actualiza"
           psql_odoo "UPDATE ir_config_parameter SET value = 'codigo-anterior' WHERE key = 'dcasa.codigo_desplegado'"
-          comprobar false
-          inicio="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          docker restart -t 120 odoo
-          for _ in $(seq 1 120); do
-            if curl -fsS http://localhost:8069/web/health >/dev/null 2>&1; then break; fi
-            sleep 5
-          done
-          if ! docker logs --since "$inicio" odoo 2>&1 | grep -q '✔ Base actualizada'; then
-            echo "::error::La imagen no actualizó la base con el código cambiado (misma APP_VERSION)."
-            docker logs --since "$inicio" odoo 2>&1 | tail -60
-            exit 1
+          comprobar false ok
+          reiniciar
+          en_el_log '✔ Base actualizada' 'La imagen no actualizó la base con el código cambiado (misma APP_VERSION).'
+          comprobar true ok
+
+          echo "== 2) Lo de producción: falta una columna y los marcadores dicen «al día»"
+          psql_odoo "ALTER TABLE sale_order DROP COLUMN dcasa_utilidad"
+          reiniciar
+          en_el_log 'Faltan columnas en la base' 'La prueba de humo no vio la columna que falta.'
+          en_el_log '✔ Humo' 'Tras actualizar, la prueba de humo no quedó en orden.'
+          psql_odoo "SELECT count(*) FROM information_schema.columns WHERE table_name = 'sale_order' AND column_name = 'dcasa_utilidad'" | grep -qx 1
+          comprobar true ok
+
+          echo "== 3) Una imagen más vieja que la que actualizó la base no la baja"
+          psql_odoo "UPDATE ir_config_parameter SET value = '9999999999' WHERE key = 'dcasa.codigo_orden'"
+          psql_odoo "UPDATE ir_config_parameter SET value = 'codigo-de-una-imagen-nueva' WHERE key = 'dcasa.codigo_desplegado'"
+          # Tampoco toca los módulos: con su lista vieja de sobrantes desinstalaría lo que la nueva instaló.
+          psql_odoo "UPDATE ir_config_parameter SET value = 'otra-version' WHERE key = 'dcasa.sobrantes_version'"
+          reiniciar
+          en_el_log 'NO la actualizo hacia atrás' 'Una imagen más vieja que la base la actualizó hacia atrás.'
+          if docker logs --since "$inicio" odoo 2>&1 | grep -qF '✔ Base actualizada'; then
+            echo "::error::Una imagen más vieja que la base la actualizó hacia atrás."; exit 1
           fi
-          comprobar true
+          if docker logs --since "$inicio" odoo 2>&1 | grep -qF 'Revisando módulos sobrantes'; then
+            echo "::error::Una imagen más vieja que la base revisó (y pudo desinstalar) módulos."; exit 1
+          fi
+          comprobar false ok
+          psql_odoo "UPDATE ir_config_parameter SET value = '1' WHERE key = 'dcasa.codigo_orden'"
+          reiniciar
+          en_el_log '✔ Base actualizada' 'Con el orden en regla, la imagen no actualizó la base.'
+          comprobar true ok
+
+          echo "== 4) APP_VERSION atrasada en un contenedor nuevo: manda el commit de la imagen (restaura del S3 local)"
+          docker stop -t 120 odoo >/dev/null
+          docker rm odoo >/dev/null
+          inicio="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Mismos datos que «Arrancar la imagen con su base interna vacía», con otra APP_VERSION.
+          docker run -d --name odoo --network host \
+            -e ADMIN_PASSWORD=ci-admin -e ODOO_MASTER_PASSWORD=ci-maestra-distinta \
+            -e APP_VERSION=0000000000000000000000000000000000000000 -e DCASA_PIN_PEPPER=ci \
+            -e R2_ENDPOINT=https://127.0.0.1:9100 -e R2_BUCKET=dcasa-ci \
+            -e R2_ACCESS_KEY_ID=ci -e R2_SECRET_ACCESS_KEY=ci \
+            -e PGBACKREST_CIPHER_PASS=ci-cifrado-de-prueba-no-real \
+            -e PGBACKREST_REPO1_STORAGE_VERIFY_TLS=n \
+            -e RESPALDO_TOKEN=ci-token-de-respaldo -e CANONICAL_HOST=localhost \
+            dcasa-odoo:ci >/dev/null
+          esperar
+          en_el_log 'no es el commit de esta imagen' 'La imagen no avisó que APP_VERSION venía atrasada.'
+          comprobar true ok
       - if: always()
         run: docker logs odoo 2>&1 | tail -200
 
