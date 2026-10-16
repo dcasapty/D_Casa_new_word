@@ -96,6 +96,6 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   cotizaciones se salta el tope de descuento de la Vendedora cuando existe el producto de descuento (prueba real en una
   base local); la Vendedora puede corregir existencias a mano en Inventario físico; «Vendido hoy» incluye ITBMS y el
   «Ventas» del Resumen contable no; el tope de gasto de IA de Brian viene en 0 (sin tope); no hay ninguna alerta de
-  stock bajo ni de cierre de mes.
+  stock bajo ni de cierre de mes; el asistente de fusión de contactos no le sirve a Gerencia (falta el grupo «Creación») y no copia los datos de Socios de la ficha que se borra (no fusionar socios con él).
 - **Sigue:** empezar por lo primero de PRIORIDADES.md. Estudio de envíos para La Chorrera entregado como documento en
   Claude Docs (a la espera de sus respuestas).

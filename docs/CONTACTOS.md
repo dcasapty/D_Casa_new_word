@@ -40,8 +40,14 @@ quiere que baste el número: una línea en `saldo_puntos` de Juan.
 más fichas, con sus nombres. Por fila:
 
 * **Ver las fichas:** abre las fichas repetidas (incluidas las archivadas).
-* **Fusionar:** abre el asistente de fusión de Odoo con esas fichas (hasta 3 a la vez). La ficha con más movimiento
-  queda y se lleva facturas, puntos, conversaciones y notas de las otras. Con más de 3, se repite.
+* **Fusionar:** abre el asistente de fusión de Odoo con esas fichas (hasta 3 a la vez). Por defecto queda la ficha
+  **activa más vieja** (no la de más movimiento; se puede cambiar el destino en el asistente) y se lleva facturas,
+  puntos, conversaciones y notas de las otras. Con más de 3, se repite.
+* **Dos cuidados (revisados el 2026-10-16, pendientes de arreglo):** (1) el asistente exige el grupo «Creación» de
+  Contactos, que hoy solo tiene el administrador del sistema, así que Gerencia recibe un error de permiso; (2) los
+  datos de Socios de la ficha que se borra (código, celular de socio, PIN y quién la invitó) **no se copian** a la que
+  queda. Los puntos y los asientos sí se mueven, pero si la ficha que se borra era la socia, se pierde su código.
+  **No fusionar fichas de socios con este asistente** hasta que se corrija (ver `docs/PRIORIDADES.md`, etapa 3).
 
 Si el contador de duplicados no baja a cero, se limpia por tandas; el candado ya impide que vuelvan a crecer.
 

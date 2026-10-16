@@ -25,7 +25,7 @@ Son los trámites largos; empiezan ya aunque el código llegue después.
 |---|---|---|---|
 | 1 | **Pruebas más rápidas** | Repartir las pruebas de Odoo en grupos, cortar al primer fallo, no correr Odoo si solo cambió `docs/`, pruebas de humo después de producción, revisión de enlaces de `docs/` | Nada |
 | 2 | **Inicio nuevo con utilidad** | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS siempre claro (sin ITBMS · ITBMS · total); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
-| 3 | **Contactos limpios** | Encontrar por qué hay 5 «Brian Carvajal» con el mismo correo y celular pese a los candados; fusionarlos; evitar que se repita (buscar antes de crear desde conversación o Telegram) | Revisión de la causa |
+| 3 | **Contactos limpios** | Encontrar por qué una misma persona aparece 5 veces al cotizar, con el mismo correo y celular, pese a los candados (el candado no cuenta usuarios, empleados ni direcciones hijas; hay que mirar «Posibles duplicados»); **arreglar la fusión** (Gerencia no tiene permiso para el asistente; no copia los datos de Socios de la ficha que se borra; destino = la más vieja); avisar al cotizar cuando hay otros contactos con el mismo correo o celular y mostrarlos en el selector; buscar antes de crear una ficha desde una conversación o Telegram | Mirar los datos reales |
 | 4 | **Bodega** | Escáner › Despachar (QR de la nota → verificar cada artículo); Bitácora de bodega (antes → después, motivo); alertas diarias por Telegram (stock bajo, ajustes grandes, cierre de mes); cerrar el hueco del Inventario físico para la Vendedora | Etiquetas o códigos en cajas; umbral |
 | 5 | **Contabilidad propia** | Menú raíz «Contabilidad» (reportes, bancos, cierre de mes), tablero, arqueo de diarios con comprobantes, toma de inventario, ITBMS claro en todos los resúmenes | Respuestas de la contadora |
 | 6 | **Conversaciones** | Encender Messenger e Instagram (el código ya existe), probar en staging con mensajes reales; después las ideas de CRM fase 2 que elijan | Meta: verificación, app y tres secretos |
@@ -43,7 +43,7 @@ Son los trámites largos; empiezan ya aunque el código llegue después.
 | Estado de los issues y prioridades | Hecho (ver abajo) | 0 |
 | Conversaciones: Instagram, Messenger, WhatsApp | Código listo; falta Meta | 6 |
 | Error de despacho en bodega (verificar con escáner) | Por construir | 4 |
-| Contactos duplicados | En revisión | 3 |
+| Contactos duplicados | Causas probables halladas; la herramienta de fusión tiene dos fallas (permiso y datos de Socios) | 3 |
 | ~1000 facturas del sistema anterior | Importador listo; falta la contadora | 7 |
 | Alertas de fin de mes y de mercancía agotándose | Por construir | 4 |
 | Bitácora de bodega | Por construir | 4 |
