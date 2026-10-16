@@ -139,9 +139,11 @@ class TestVentasPorPeriodo(VentasCommon):
             esperado = (datos['actual']['sin_itbms'] - datos['anterior']['sin_itbms']) / datos['anterior']['sin_itbms']
             self.assertAlmostEqual(datos['variacion_pct'], round(esperado * 100, 1), places=1)
 
-    def test_dice_que_facturas_suma_contabilidad_y_aqui_no_son_venta(self):
-        """Capturas de la dueña (2026-10-16): el Inicio decía $1,301.04 y Contabilidad $1,522.42 para los mismos días;
-        la diferencia era una factura sin pedido. El Inicio dice cuántas son, por cuánto, y abre justo esas."""
+    def test_dice_en_que_se_aparta_de_contabilidad_y_que_facturas_lo_explican(self):
+        """Capturas de la dueña (2026-10-16): el Inicio decía $1,301.04 y Contabilidad $1,522.42 para los mismos días.
+        El Inicio dice la diferencia exacta, con su signo, y abre las facturas que la explican: una factura sin pedido
+        (Contabilidad suma más) y el abono de un apartado facturado otro día (el Inicio cuenta el pedido completo el
+        día del saldo; Contabilidad, solo el saldo)."""
         # El ITBMS de prueba necesita su cuenta: sin ella, Odoo deja el impuesto en la cuenta de ingresos y las ventas
         # contables lo incluirían (en producción el ITBMS va a su cuenta por pagar).
         cuenta_itbms = self.env['account.account'].create({
@@ -149,27 +151,45 @@ class TestVentasPorPeriodo(VentasCommon):
         for linea in self.itbms.invoice_repartition_line_ids | self.itbms.refund_repartition_line_ids:
             if linea.repartition_type == 'tax':
                 linea.account_id = cuenta_itbms
-        vendido = self._venta(0)
-        antes = self._ventas(self.gerencia)['fuera'] or {'cuantas': 0, 'sin_itbms': 0.0}
+
+        def diferencia():
+            return (self._ventas(self.gerencia)['cuadre'] or {}).get('diferencia', 0.0)
+
+        base = diferencia()
+        vendido = self._venta(0)                      # pedido y factura del mismo día: cuadra
+        self.assertAlmostEqual(diferencia() - base, 0.0, places=2)
         suelta = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': self.hoy,
             'invoice_line_ids': [Command.create({'product_id': self.cama.id, 'quantity': 1, 'price_unit': 100.0,
                                                  'tax_ids': [Command.set(self.itbms.ids)]})]})
         suelta.action_post()
+        apartado = self.pedido(producto=self.cama, cantidad=2)    # 2 × 200 sin ITBMS
+        abono = apartado._create_invoices()
+        abono.invoice_line_ids.quantity = 1
+        abono.invoice_date = self.hoy - timedelta(days=1)
+        abono.action_post()
+        saldo = self.facturar(apartado)
+        self.assertEqual(apartado.dcasa_fecha_venta, self.hoy)
+
         datos = self._ventas(self.gerencia)
-        fuera = datos['fuera']
-        self.assertEqual(fuera['cuantas'] - antes['cuantas'], 1)
-        self.assertAlmostEqual(fuera['sin_itbms'] - antes['sin_itbms'], 100.0, places=2)
-        encontradas = self.env['account.move'].search(fuera['accion']['domain'])
-        self.assertIn(suelta, encontradas)
-        self.assertNotIn(vendido.invoice_ids, encontradas, 'la factura de un pedido vendido ya cuenta en el Inicio')
-        # Cuadran: lo vendido del Inicio más esas facturas es lo que Contabilidad llama ventas.
+        cuadre = datos['cuadre']
+        self.assertAlmostEqual(cuadre['diferencia'] - base, 100.0 - 200.0, places=2,
+                               msg='+100 de la factura sin pedido, −200 del abono facturado ayer')
+        lista = self.env['account.move'].search(cuadre['accion']['domain'])
+        self.assertIn(suelta, lista)
+        self.assertIn(abono, lista)
+        for ya_cuadra in (saldo, vendido.invoice_ids):
+            self.assertNotIn(ya_cuadra, lista, ya_cuadra.name)
+        self.assertEqual(cuadre['cuantas'], len(lista))
+        self.assertEqual(cuadre['accion']['vista_lista'], self.env.ref('account.view_out_invoice_tree').id)
+        # La resta es exacta: lo vendido del Inicio más la diferencia es lo que Contabilidad llama ventas.
         reportes = self.env.get('dcasa.reporte.contable')
         if reportes is not None:
             contables = reportes.estado_resultados(str(self.hoy), str(self.hoy))['secciones'][0]['total']
-            self.assertAlmostEqual(datos['actual']['sin_itbms'] + fuera['sin_itbms'], contables, places=2)
-        # La vendedora no ve facturas ajenas ni esta línea.
-        self.assertIsNone(self._ventas(self.vendedora)['fuera'])
+            self.assertAlmostEqual(cuadre['contables'], contables, places=2)
+            self.assertAlmostEqual(datos['actual']['sin_itbms'] + cuadre['diferencia'], contables, places=2)
+        # La vendedora no ve la contabilidad ni esta línea.
+        self.assertIsNone(self._ventas(self.vendedora)['cuadre'])
 
     # --- Las listas de cotizaciones y entregas, y los avisos -----------------------------------
 

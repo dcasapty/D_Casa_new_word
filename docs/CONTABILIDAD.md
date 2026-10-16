@@ -66,12 +66,22 @@ Estado de resultados (pantalla, Excel y PDF) y Brian lo avisan. Cómo registrar 
 asiento de cierre) lo decide la contadora; mientras tanto, la **ganancia bruta** estimada (venta menos costo del
 producto, sin restar gastos) está en el Inicio.
 
-**Por qué las ventas del Inicio y las de Contabilidad no son iguales.** El Inicio cuenta **pedidos vendidos** (facturados
-por completo, el día de su última factura). Contabilidad cuenta **todas las facturas** del periodo: también las que no
-tienen pedido, los abonos de un apartado y las de pedidos que aún no están facturados por completo (y resta las notas
-de crédito). El Inicio dice cuántas de esas facturas hay y por cuánto («Contabilidad suma además…»), y al tocarlo las
-abre: lo vendido del Inicio más esas facturas es la cifra de «Ventas» de Contabilidad. En las capturas del 15 y 16 de
+**Por qué las ventas del Inicio y las de Contabilidad no son iguales.** El Inicio cuenta **pedidos vendidos**: el pedido
+completo, el día de su última factura. Contabilidad cuenta los **apuntes de ingresos** con fecha en el periodo. Se
+apartan por dos razones:
+
+- facturas sin pedido o de pedidos que aún no están facturados por completo: Contabilidad las suma, el Inicio no;
+- pedidos vendidos en esas fechas con abonos o facturas de otros días, como el **abono de un apartado**: el Inicio cuenta
+  el pedido completo el día del saldo, Contabilidad solo lo facturado en esas fechas.
+
+Cuando no cuadran, el Inicio lo dice con la resta exacta y su signo («Contabilidad dice $X sin ITBMS para estas fechas: $Y
+más/menos que aquí»), y al tocarlo abre las facturas de esos dos grupos (con la lista de facturas, montos sin ITBMS). Lo
+vendido del Inicio más esa diferencia es siempre la cifra de «Ventas» de Contabilidad. En las capturas del 15 y 16 de
 octubre de 2026 la diferencia ($221.38 sin ITBMS) era una sola factura sin pedido.
+
+**«Vencido» nunca pasa de lo que el tercero debe.** Si un cliente pagó hoy y el cobro todavía no se aplicó a su factura
+vencida, no debe nada: no sale como vencido, y lo que pagó de más sale «a favor». El cierre de mes dice también lo que
+queda a favor de clientes.
 
 La auditoría completa (qué se revisó, qué se encontró y qué le preguntamos a la contadora) está en [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md).
 

@@ -233,6 +233,19 @@ class TestFase1(ContabilidadCommon):
         self.assertEqual(tarjeta['a_favor_titulo'], 'A favor de clientes')
         self.assertIn('Hay cobros vencidos', ' '.join(a['texto'] for a in resumen['alertas']))
         self.assertIn('A favor de clientes', ' '.join(str(c) for fila, _e in _filas_planas(resumen)[1] for c in fila))
+        # Un cobro que todavía no se aplicó a su factura vencida: el cliente no debe nada y nada está vencido.
+        pagado = self.env['res.partner'].create({'name': 'Cliente que ya pagó'})
+        vieja = self._factura(100.0, fecha='2030-01-10')
+        vieja.button_draft()
+        vieja.partner_id = pagado
+        vieja.action_post()
+        cobro = self._factura(300.0, fecha=HASTA, tipo='out_refund')
+        cobro.button_draft()
+        cobro.partner_id = pagado
+        cobro.action_post()
+        despues = self.reportes.por_cobrar(hasta=HASTA)['totales']
+        self.assertAlmostEqual(despues['vencido'] - t['vencido'], 0.0, msg='debe −214 en total: nada vencido')
+        self.assertAlmostEqual(despues['a_favor'] - t['a_favor'], 214.0)
 
     def test_utilidad_sin_costo_de_ventas_avisa(self):
         """Capturas de la dueña (2026-10-16): ventas $1,522.42, costo de ventas $0, «Utilidad» $1,522.42 y margen
@@ -248,9 +261,12 @@ class TestFase1(ContabilidadCommon):
         self.assertIn('no es ganancia', ' '.join(str(c) for fila, _e in _filas_planas(resumen)[1] for c in fila))
         self.assertIn(resultados['resumen']['aviso_costo'],
                       [c for fila, _e in _filas_planas(resultados)[1] for c in fila])
-        pdf = self.env['report.dcasa_contabilidad.reporte_contable']._get_report_values(
-            [], {'reporte': 'estado_resultados', 'desde': DESDE, 'hasta': HASTA})
-        self.assertEqual(pdf['datos']['resumen']['aviso_costo'], resultados['resumen']['aviso_costo'])
+        html, _formato = self.env['ir.actions.report']._render_qweb_html(
+            'dcasa_contabilidad.reporte_contable', self.company.ids,
+            data={'reporte': 'estado_resultados', 'desde': DESDE, 'hasta': HASTA})
+        self.assertIn('no es la ganancia real', html.decode())
+        comparado = self.reportes.obtener('estado_resultados', DESDE, HASTA, comparar='periodo_anterior')
+        self.assertEqual(comparado['resumen']['aviso_costo'], resultados['resumen']['aviso_costo'])
         # Con el costo de lo vendido registrado, el aviso se va.
         costo = self.env['account.account'].create({
             'name': 'Costo de ventas prueba', 'code': '9T0003', 'account_type': 'expense_direct_cost'})

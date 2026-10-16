@@ -113,9 +113,12 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   saldos grandes en Punto de venta y Yappy (¿falta registrar el traspaso al banco?), ITBMS acumulado de $9,160.29.
 - **Entrega siguiente (rama de trabajo, va a staging):** en el Inicio, «Cotizaciones abiertas» y «Entregas pendientes»
   justo debajo de los accesos azules, con cabecera azul marino y el número en amarillo (pedido de la dueña);
-  «Ganancia bruta» (no resta gastos); la línea «Contabilidad suma además N facturas…» que abre esas facturas. En
-  Contabilidad: la utilidad con el costo de ventas en cero lo avisa (Resumen, Estado de resultados, Excel, PDF y Brian);
-  «Vencido» ya no resta el saldo a favor de un cliente a la deuda de otro, y lo «a favor» va aparte.
+  «Ganancia bruta» (no resta gastos); la línea «Contabilidad dice $X… $Y más/menos que aquí» con la resta exacta y las
+  facturas que la explican (también el abono de un apartado facturado otro día, que halló la revisión adversarial). En
+  Contabilidad: la utilidad con el costo de ventas en cero lo avisa (Resumen, Estado de resultados —también al comparar—,
+  Excel, PDF y Brian); «Vencido» ya no resta el saldo a favor de un cliente a la deuda de otro ni pasa de lo que el
+  cliente debe, y lo «a favor» va aparte (también en el cierre de mes). La dueña autorizó llevarlo a producción en
+  cuanto estuviera («tan pronto puedas subir las correcciones a producción hazlo»).
 - **Producción arreglada** (07:27 UTC, Desplegar 9, `app_version` `3570c3a1…`, imagen `sha256:4e9b9155…`): el arreglo
   #97. La imagen sabe su commit y la huella de su código y actualiza la base si no coinciden; el despliegue exige la
   versión nueva con la base al día y la vigila 5 minutos. Ese arranque actualizó todos los módulos y aplicó por fin

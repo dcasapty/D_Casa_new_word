@@ -668,11 +668,12 @@ class ReporteContable(models.AbstractModel):
         totales = {k: self._r(sum(f['tramos'][k] for f in filas)) for k in claves}
         totales['total'] = self._r(sum(f['total'] for f in filas))
         # «Vencido» es lo vencido que de verdad se debe: el cobro sin aplicar o la nota de crédito de un cliente baja
-        # lo vencido de ESE cliente, nunca lo de otro. Antes se sumaba todo junto y salía en negativo («Vencido
+        # lo vencido de ESE cliente, nunca lo de otro, y nadie tiene más vencido que lo que debe en total (un cobro de
+        # hoy todavía sin aplicar a su factura vencida). Antes se sumaba todo junto y salía en negativo («Vencido
         # ($1,579.79)», capturas de la dueña del 2026-10-16), y el aviso «Hay cobros vencidos» se escondía aunque
         # hubiera facturas vencidas. Lo que queda a favor de terceros (cobros sin aplicar, anticipos, notas de crédito)
         # va aparte en ``a_favor``.
-        totales['vencido'] = self._r(sum(max(f['vencido'], 0.0) for f in filas))
+        totales['vencido'] = self._r(sum(min(max(f['vencido'], 0.0), max(f['total'], 0.0)) for f in filas))
         totales['a_favor'] = self._r(-sum(min(f['total'], 0.0) for f in filas))
         cobrar = tipo == 'por_cobrar'
         return {'reporte': tipo, 'titulo': 'Cuentas por cobrar' if cobrar else 'Cuentas por pagar',

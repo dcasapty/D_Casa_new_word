@@ -173,15 +173,18 @@
                                 <t t-out="variacion(d.ventas.variacion_pct)"/> contra <t t-out="d.ventas.anterior.etiqueta.toLowerCase()"/>
                                 (<t t-out="dinero(d.ventas.anterior.sin_itbms)"/>)
                             </span>
-                            <!-- Lo que Contabilidad suma en estas fechas y aquí no: así las dos pantallas cuadran. -->
-                            <button t-if="d.ventas.fuera" type="button" class="o_dcasa_ventas_aviso o_dcasa_ventas_fuera"
-                                    t-on-click="() => this.abrirLista(d.ventas.fuera.accion)">
+                            <!-- En qué se aparta de las «Ventas» de Contabilidad para estas fechas, y por qué: así las dos
+                                 pantallas cuadran a la vista. Al tocarla abre las facturas que lo explican. -->
+                            <button t-if="d.ventas.cuadre" type="button" class="o_dcasa_ventas_aviso o_dcasa_ventas_cuadre"
+                                    t-on-click="() => this.abrirLista(d.ventas.cuadre.accion)">
                                 <i class="fa fa-info-circle" aria-hidden="true"/>
-                                <span>Contabilidad suma además <t t-out="d.ventas.fuera.cuantas"/>
-                                    <t t-out="d.ventas.fuera.cuantas === 1 ? ' factura' : ' facturas'"/> de estas fechas por
-                                    <strong t-out="dinero(d.ventas.fuera.sin_itbms)"/> sin ITBMS que aquí no cuentan como
-                                    venta (sin pedido, abonos de apartados o pedidos aún no facturados por completo).
-                                    Tócala para verlas.</span>
+                                <span>Contabilidad dice <strong t-out="dinero(d.ventas.cuadre.contables)"/> sin ITBMS para estas
+                                    fechas: <strong t-out="dinero(Math.abs(d.ventas.cuadre.diferencia))"/>
+                                    <t t-out="d.ventas.cuadre.diferencia > 0 ? ' más' : ' menos'"/> que aquí. Aquí se cuentan
+                                    pedidos vendidos; allá, facturas (sin pedido, abonos de apartados, pedidos facturados en
+                                    partes o en otras fechas).
+                                    <t t-if="d.ventas.cuadre.cuantas">Tócalo para ver
+                                        <t t-out="d.ventas.cuadre.cuantas === 1 ? 'esa factura' : 'esas ' + d.ventas.cuadre.cuantas + ' facturas'"/>.</t></span>
                             </button>
                         </div>
                         <div t-if="d.ve_utilidad and d.ventas.actual.ganancia" class="o_dcasa_ventas_columna o_dcasa_ganancia">

@@ -66,6 +66,9 @@
                         <t t-if="alCorte">al <t t-out="fecha(state.datos.comparado.hasta)"/></t>
                         <t t-else="">del <t t-out="fecha(state.datos.comparado.desde)"/> al <t t-out="fecha(state.datos.comparado.hasta)"/></t>
                     </div>
+                    <!-- Utilidad con el costo de ventas en cero: el aviso sale también al comparar periodos. -->
+                    <div t-if="state.reporte === 'estado_resultados' and state.datos.resumen and state.datos.resumen.aviso_costo"
+                         class="o_dc_aviso o_dc_aviso_sin_costo"><i class="fa fa-exclamation-triangle me-2"/><t t-out="state.datos.resumen.aviso_costo"/></div>
                     <t t-if="state.reporte === 'resumen'" t-call="dcasa_contabilidad.Reportes.resumen"/>
                     <t t-elif="comparando" t-call="dcasa_contabilidad.Reportes.comparativo"/>
                     <t t-elif="state.reporte === 'flujo_efectivo'" t-call="dcasa_contabilidad.Reportes.flujo"/>
@@ -253,7 +256,6 @@
     <!-- Estado de resultados -->
     <t t-name="dcasa_contabilidad.Reportes.resultados">
         <t t-set="r" t-value="state.datos.resumen"/>
-        <div t-if="r.aviso_costo" class="o_dc_aviso o_dc_aviso_sin_costo"><i class="fa fa-exclamation-triangle me-2"/><t t-out="r.aviso_costo"/></div>
         <section class="o_dc_kpis">
             <div class="o_dc_kpi"><span>Ventas</span><strong t-out="dinero(state.datos.secciones[0].total)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/></div>
             <div class="o_dc_kpi"><span>Utilidad bruta</span><strong t-out="dinero(r.utilidad_bruta)"/><small class="o_dc_kpi_cuando" t-out="delPeriodo()"/>
