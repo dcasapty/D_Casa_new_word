@@ -12,7 +12,7 @@
                 <field name="product_id"/>
                 <field name="salesman_id"/>
                 <filter name="semana" string="Esta semana"
-                        domain="[('dcasa_fecha_venta', '&gt;=', (context_today() - datetime.timedelta(days=context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                        domain="[('dcasa_fecha_venta', '&gt;=', (context_today() + relativedelta(days=-6, weekday=0)).strftime('%Y-%m-%d'))]"/>
                 <filter name="este_mes" string="Este mes"
                         domain="[('dcasa_fecha_venta', '&gt;=', context_today().strftime('%Y-%m-01'))]"/>
                 <filter name="ultimos_30" string="Últimos 30 días"
@@ -66,6 +66,7 @@
     </record>
     <record id="accion_mas_vendido" model="ir.actions.act_window">
         <field name="name">Lo más vendido</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
         <field name="res_model">sale.order.line</field>
         <field name="view_mode">pivot,graph,list</field>
         <field name="search_view_id" ref="estadisticas_busqueda"/>
@@ -73,7 +74,7 @@
         <field name="context">{'search_default_este_mes': 1, 'search_default_por_producto': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Todavía no hay ventas en este periodo</p>
-            <p>Cuenta lo mismo que «Vendido hoy»: pedidos ya facturados por completo, sin ITBMS.</p>
+            <p>Cuenta los pedidos ya facturados por completo, sin ITBMS y solo mercancía (no el flete ni los descuentos): las unidades salen de aquí, el total de dinero de «Vendido hoy» lo trae completo.</p>
         </field>
     </record>
     <record id="accion_mas_vendido_v1" model="ir.actions.act_window.view">
@@ -132,14 +133,15 @@
     </record>
     <record id="accion_mejor_margen" model="ir.actions.act_window">
         <field name="name">Mejor margen</field>
+        <field name="group_ids" eval="[(6, 0, [ref('sales_team.group_sale_manager'), ref('base.group_system')])]"/>
         <field name="res_model">sale.order.line</field>
         <field name="view_mode">pivot,graph,list</field>
         <field name="search_view_id" ref="estadisticas_busqueda"/>
-        <field name="domain">[('dcasa_fecha_venta', '!=', False), ('dcasa_es_ganancia', '=', True), ('dcasa_sin_costo', '=', False), ('product_id.type', '!=', 'service')]</field>
+        <field name="domain">[('dcasa_fecha_venta', '!=', False), ('dcasa_es_ganancia', '=', True), ('dcasa_sin_costo', '=', False)]</field>
         <field name="context">{'search_default_ultimos_90': 1, 'search_default_por_producto': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No hay ventas con costo cargado en este periodo</p>
-            <p>La ganancia es la venta sin ITBMS menos el costo del producto. Las líneas de mercancía sin costo no cuentan.</p>
+            <p>La ganancia es la venta sin ITBMS menos el costo del producto. Las líneas de mercancía sin costo no cuentan. El descuento global o de importe fijo sale como su propia fila («Descuento»), para que el total cuadre con el Inicio.</p>
         </field>
     </record>
     <record id="accion_mejor_margen_v1" model="ir.actions.act_window.view">

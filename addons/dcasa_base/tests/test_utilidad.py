@@ -106,3 +106,48 @@ class TestUtilidad(TransactionCase):
         self.assertEqual(orden.with_user(self.gerencia).dcasa_utilidad, orden.dcasa_utilidad)
         # lo demás del pedido lo sigue viendo
         self.assertAlmostEqual(orden.with_user(self.vendedora).amount_total, 203.29, places=2)
+
+    # --- Revisión adversarial del 2026-10-16 ----------------------------------------------------------------
+
+    def test_una_venta_con_costo_cero_recupera_el_costo_cuando_se_carga(self):
+        """El aviso dice «carga el costo»: la venta que quedó fuera de la ganancia tiene que volver a entrar."""
+        silla = self.env['product.product'].create({
+            'name': 'Silla costo tardío', 'list_price': 50.0, 'standard_price': 0.0,
+            'taxes_id': [Command.set(self.itbms.ids)]})
+        orden = self._orden({'product_id': silla.id, 'product_uom_qty': 3})
+        orden.action_confirm()
+        self.assertTrue(orden.dcasa_sin_costo)
+        self.assertEqual(orden.dcasa_utilidad, 0.0)
+        silla.standard_price = 30.0
+        orden.invalidate_recordset()
+        self.assertFalse(orden.dcasa_sin_costo, 'ya tiene costo')
+        self.assertAlmostEqual(orden.dcasa_utilidad, 3 * (50.0 - 30.0), places=2)
+
+    def test_cargar_el_costo_no_mueve_las_ventas_que_ya_tenian_costo(self):
+        orden = self._orden({'product_id': self.cama.id})
+        orden.action_confirm()
+        self.cama.standard_price = 200.0
+        orden.invalidate_recordset()
+        self.assertAlmostEqual(orden.order_line.dcasa_costo_unitario, 107.77, places=2)
+
+    def test_la_cotizacion_sin_confirmar_no_se_toca_al_cargar_el_costo(self):
+        silla = self.env['product.product'].create({
+            'name': 'Silla cotización', 'list_price': 50.0, 'standard_price': 0.0,
+            'taxes_id': [Command.set(self.itbms.ids)]})
+        cotizacion = self._orden({'product_id': silla.id})
+        silla.standard_price = 30.0
+        cotizacion.invalidate_recordset()
+        self.assertEqual(cotizacion.order_line.dcasa_costo_unitario, 0.0, 'se toma al confirmar')
+        cotizacion.action_confirm()
+        self.assertAlmostEqual(cotizacion.order_line.dcasa_costo_unitario, 30.0, places=2)
+
+    def test_la_vendedora_crea_y_confirma_un_pedido_aunque_no_vea_la_ganancia(self):
+        """Los campos de ganancia son solo de Gerencia, pero se calculan por dentro: quien vende no choca con ellos."""
+        orden = self._orden({'product_id': self.cama.id}, {'product_id': self.flete.id}, usuario=self.vendedora)
+        orden.action_confirm()
+        self.assertEqual(orden.state, 'sale')
+        with self.assertRaises(AccessError):
+            orden.read(['dcasa_utilidad'])
+        self.assertAlmostEqual(orden.sudo().dcasa_utilidad, 82.22, places=2)
+        orden.order_line.with_user(self.vendedora).write({'product_uom_qty': 2})
+        self.assertAlmostEqual(orden.sudo().dcasa_utilidad, 2 * 82.22, places=2)

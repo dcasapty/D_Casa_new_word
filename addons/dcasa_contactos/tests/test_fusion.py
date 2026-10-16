@@ -90,3 +90,42 @@ class TestFusion(TransactionCase):
         b = Partner.create({'name': 'Pedro Normal', 'email': 'pedro@x.com'})
         self._fusionar(self.gerencia, a + b)
         self.assertEqual(len((a + b).exists()), 1)
+
+    # --- Revisión adversarial del 2026-10-16 -------------------------------------------------------------------
+
+    def test_dos_fichas_que_se_apuntan_entre_si_no_hacen_que_odoo_borre_la_que_queda(self):
+        """Odoo, al pasar las referencias a la ficha que queda, deja a esta apuntándose a sí misma; el CHECK de la base
+        lo rechaza y su plan B es BORRAR las filas que apuntaban a la que se va (incluida la que queda)."""
+        otra = self.env['res.partner'].with_context(**SIN).create(
+            {'name': 'Rosa Fusión', 'phone': '6555-0003', 'email': 'fusion@x.com'})
+        # «otra» fue invitada por la socia (la que se va si el destino es «otra»): un duplicado mal registrado.
+        self.env.cr.execute('UPDATE res_partner SET dcasa_referido_por_id = %s WHERE id = %s',
+                            [self.socia.id, otra.id])
+        otra.invalidate_recordset(['dcasa_referido_por_id'])
+        self._fusionar(self.gerencia, otra + self.socia, destino=otra)
+        self.assertTrue(otra.exists(), 'la ficha que queda no se borra')
+        self.assertFalse(self.socia.exists())
+        otra = otra.sudo()
+        self.assertEqual(otra.dcasa_socio_codigo, self.codigo)
+        self.assertEqual(otra.dcasa_referido_por_id, self.padrino, 'recibe el padrino de la que se fue, no a sí misma')
+
+    def test_la_fusion_deja_una_nota_con_lo_que_se_unio(self):
+        saldo = self.socia.sudo().dcasa_saldo
+        viejo_id = self.vieja.id
+        self._fusionar(self.gerencia, self.vieja + self.socia)
+        nota = self.socia.sudo().message_ids.filtered(lambda m: 'Contactos unidos' in (m.body or ''))
+        self.assertTrue(nota, 'la ficha que queda cuenta qué se le unió')
+        self.assertIn(f'ficha {viejo_id}', nota[0].body)
+        self.assertIn(self.gerencia.name, nota[0].body)
+        self.assertEqual(self.socia.sudo().dcasa_saldo, saldo)
+
+    def test_unir_muchos_contactos_de_una_vez_es_solo_del_administrador(self):
+        for metodo in ('action_start_automatic_process', 'action_update_all_process', 'parent_migration_process_cb'):
+            with self.subTest(metodo=metodo):
+                asistente = self.env['base.partner.merge.automatic.wizard'].with_user(self.gerencia).create({})
+                with self.assertRaises(UserError):
+                    getattr(asistente, metodo)()
+        # La revisión caso por caso sí es de Gerencia.
+        asistente = self.env['base.partner.merge.automatic.wizard'].with_user(self.gerencia).create(
+            {'group_by_email': True})
+        asistente.action_start_manual_process()

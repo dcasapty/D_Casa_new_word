@@ -1,4 +1,5 @@
 from odoo import Command
+from odoo.exceptions import AccessError
 from odoo.tests import tagged
 
 from .common import SociosCommon
@@ -54,3 +55,23 @@ class TestRolesSocios(SociosCommon):
             'order_id': orden.id, 'codigo': canje.codigo}).action_confirmar()
         self.assertTrue(orden.order_line.filtered('dcasa_canje_id'))
         self.assertAlmostEqual(orden.amount_total, 107.0 - 10.0)
+
+    def test_la_vendedora_no_puede_escribir_a_mano_la_marca_de_premio(self):
+        """La marca «premio cobrado» exime a la línea del tope de descuento: solo la pone el sistema al aplicar el
+        canje. Si la vendedora la escribiera a mano, una rebaja cualquiera pasaría por premio (revisión adversarial)."""
+        self.env['dcasa.movimiento']._asentar(self.padrino, 'ajuste', 1500, 'test', motivo='Saldo de prueba')
+        canje = self.env['dcasa.canje']._pedir(self.padrino, self.env.ref('dcasa_socios.premio_desc_10'))
+        orden = self.env['sale.order'].with_user(self.vendedora).create({
+            'partner_id': self.padrino.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1})],
+        })
+        Linea = self.env['sale.order.line'].with_user(self.vendedora)
+        with self.assertRaises(AccessError):
+            Linea.create({'order_id': orden.id, 'product_id': self.producto.id, 'price_unit': -500.0,
+                          'dcasa_canje_id': canje.id})
+        with self.assertRaises(AccessError):
+            orden.order_line[:1].with_user(self.vendedora).write({'dcasa_canje_id': canje.id})
+        # Y el camino de verdad sigue andando para ella: el asistente de cobrar premios.
+        self.env['dcasa.cobrar.premio.wizard'].with_user(self.vendedora).create({
+            'order_id': orden.id, 'codigo': canje.codigo}).action_confirmar()
+        self.assertTrue(orden.order_line.filtered('dcasa_canje_id'))

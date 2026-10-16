@@ -314,8 +314,11 @@ class TestHerramientasRonda6(TransactionCase):
         self.assertEqual(fila['comprometidas'], 5)
         self.assertEqual(fila['pedir'], 10)
         self.assertEqual(fila['proveedor'], 'Ronda6 Proveedor Muebles')
-        self.assertEqual(fila['costo_proveedor'], '$150.00')
+        self.assertNotIn('costo_proveedor', fila, 'el costo del proveedor es solo de Gerencia (2026-10-16)')
         self.assertIn('R6-CAMA x 10', datos['lineas_para_compra'])
+        de_gerencia = self.ok(self.ejecutar(self.gerente, 'sugerir_reabastecimiento', {'dias_cobertura': '30'}))
+        fila = next(f for f in de_gerencia['productos'] if f['codigo'] == 'R6-CAMA')
+        self.assertEqual(fila['costo_proveedor'], '$150.00')
         self.assertFalse([f for f in datos['productos'] if f['codigo'] == 'R6-MESA'], 'Sin ventas ni faltante: nada')
 
     def test_crear_pedido_compra_y_buscar(self):

@@ -3,7 +3,7 @@ fichas (fusión) no pasan por el candado: su contacto todavía no tiene su vínc
 va a borrar."""
 from odoo import api, models
 from odoo.exceptions import UserError
-from odoo.tools import SQL
+from odoo.tools import SQL, html_escape
 
 from .res_partner import SIN_DUPLICADOS
 
@@ -12,6 +12,10 @@ CODIGOS_DE_PROGRAMA = (
     ('dcasa_socio_codigo', 'socios'),
     ('dcasa_vendedor_codigo', 'vendedores'),
 )
+# Referencias de una ficha a otra (padrino, patrocinador, cliente ligado al vendedor). Si dos fichas que se fusionan se
+# apuntan entre sí, al unirlas una ficha quedaría apuntándose a sí misma: el CHECK de la base lo rechaza y Odoo, al
+# fallar, BORRA las filas que apuntaban a la ficha que se va (incluida la que queda). Se sueltan antes de fusionar.
+REFERENCIAS_ENTRE_FICHAS = ('dcasa_referido_por_id', 'dcasa_vendedor_patrocinador_id', 'dcasa_vendedor_ligado_id')
 
 
 class ResUsers(models.Model):
@@ -98,6 +102,55 @@ class BasePartnerMergeAutomaticWizard(models.TransientModel):
                                         SQL.identifier(nombre), valor, destino.id))
             (origen | destino).invalidate_recordset(nombres + ['dcasa_socio_estado'])
 
+    def _dcasa_exigir_administrador(self):
+        if self.env.su or self.env.user.has_group('base.group_system'):
+            return
+        raise UserError(self.env._(
+            'Unir muchos contactos de una sola vez es cosa del administrador del sistema: no deja ver ni deshacer '
+            'cada caso. Gerencia une de a una persona, revisando cada ficha.'))
+
+    def action_start_automatic_process(self):
+        self._dcasa_exigir_administrador()
+        return super().action_start_automatic_process()
+
+    def action_update_all_process(self):
+        self._dcasa_exigir_administrador()
+        return super().action_update_all_process()
+
+    def parent_migration_process_cb(self):
+        self._dcasa_exigir_administrador()
+        return super().parent_migration_process_cb()
+
+    def _dcasa_soltar_referencias_entre_fichas(self, fichas):
+        """Quita las referencias de padrino, patrocinador y cliente ligado que se apuntan entre las fichas de la
+        fusión. La que queda puede recibir después el padrino de la que se va (``_dcasa_traer_datos_del_programa``)."""
+        ids = tuple(fichas.ids)
+        campos = self.env['res.partner']._fields
+        for columna in REFERENCIAS_ENTRE_FICHAS:
+            if columna in campos:
+                self.env.cr.execute(SQL(
+                    'UPDATE res_partner SET %s = NULL WHERE id IN %s AND %s IN %s',
+                    SQL.identifier(columna), ids, SQL.identifier(columna), ids))
+        fichas.invalidate_recordset(list(REFERENCIAS_ENTRE_FICHAS))
+
+    def _log_merge_operation(self, src_partners, dst_partner):
+        """Además del registro del servidor, deja una nota en la ficha que queda: qué fichas se unieron, quién lo hizo y
+        con cuántos puntos. Los puntos pasan completos a esta ficha; sin la nota nadie sabría de dónde salieron."""
+        super()._log_merge_operation(src_partners, dst_partner)
+        lineas = []
+        for ficha in src_partners.sudo():
+            detalle = [self.env._('ficha %s', ficha.id)]
+            if ficha.dcasa_socio_codigo:
+                detalle.append(self.env._('socio %(codigo)s, %(puntos)s puntos',
+                                          codigo=ficha.dcasa_socio_codigo, puntos=ficha.dcasa_saldo))
+            if ficha.dcasa_vendedor_codigo:
+                detalle.append(self.env._('vendedor %s', ficha.dcasa_vendedor_codigo))
+            lineas.append(f'<li>{html_escape(ficha.display_name)} ({html_escape(", ".join(detalle))})</li>')
+        dst_partner.sudo().message_post(
+            body=self.env._('Contactos unidos a esta ficha por %(quien)s:', quien=html_escape(self.env.user.name))
+            + f'<ul>{"".join(lineas)}</ul>',
+            subtype_xmlid='mail.mt_note', author_id=self.env.user.partner_id.id)
+
     def _merge(self, partner_ids, dst_partner=None, extra_checks=True):
         fichas = self.env['res.partner'].browse(partner_ids).exists().sudo()
         for campo, quienes in CODIGOS_DE_PROGRAMA:
@@ -106,6 +159,8 @@ class BasePartnerMergeAutomaticWizard(models.TransientModel):
                     'Hay más de una ficha con código de %(quienes)s entre las que quieres fusionar. Dos personas '
                     'del programa no se fusionan aquí: se perdería uno de los dos códigos. Revísalo con la dueña '
                     'antes de unirlas.', quienes=quienes))
+        if len(fichas) > 1:
+            self._dcasa_soltar_referencias_entre_fichas(fichas | dst_partner.sudo() if dst_partner else fichas)
         # La ficha que queda llega ya leída por el asistente (sin esta excepción): se le pone también a ella, porque es
         # la que recibe los datos de la que se va mientras esa todavía existe.
         contexto = {SIN_DUPLICADOS: True}

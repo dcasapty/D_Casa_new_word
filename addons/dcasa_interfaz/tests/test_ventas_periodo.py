@@ -56,7 +56,8 @@ class TestVentasPorPeriodo(VentasCommon):
         self.assertEqual((libre['anterior_desde'], libre['anterior_hasta']), (date(2026, 9, 21), date(2026, 9, 30)))
 
     def test_un_rango_invalido_se_rechaza_con_un_mensaje_claro(self):
-        for desde, hasta in (('2026-10-10', '2026-10-01'), (None, None), ('2024-01-01', '2026-10-01')):
+        for desde, hasta in (('2026-10-10', '2026-10-01'), (None, None), ('2024-01-01', '2026-10-01'),
+                             ('no es fecha', '2026-10-01'), ('2030-01-01', '2030-02-01')):
             with self.subTest(desde=desde, hasta=hasta), self.assertRaises(UserError):
                 self._ventas(self.gerencia, 'rango', desde, hasta)
         with self.assertRaises(UserError):

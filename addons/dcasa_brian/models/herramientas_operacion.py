@@ -77,6 +77,8 @@ class BrianHerramientasOperacion(models.AbstractModel):
             dominio.append(('categ_id', 'child_of', self._b_resolver(
                 'product.category', categoria, 'categoría', buscar=[('complete_name', 'ilike', categoria)]).id))
         variantes = self.env['product.product'].search(dominio)
+        # El costo del proveedor es costo: solo para Gerencia y administradores (decisión de la dueña, 2026-10-16).
+        ve_costo = self.env['dcasa.tablero']._ve_utilidad()
         filas = []
         for variante in variantes:
             vendido = vendidos.get(variante.id, 0.0)
@@ -100,7 +102,7 @@ class BrianHerramientasOperacion(models.AbstractModel):
             proveedor = variante.seller_ids[:1]
             if proveedor:
                 fila['proveedor'] = proveedor.partner_id.display_name
-                if proveedor.price:
+                if proveedor.price and ve_costo:
                     fila['costo_proveedor'] = c.moneda(proveedor.price)
             filas.append(fila)
         filas.sort(key=lambda f: (f['alcanza_dias'], -f['pedir']))

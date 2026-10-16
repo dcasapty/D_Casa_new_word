@@ -113,7 +113,7 @@
                             <span class="o_dcasa_ventas_valor o_dcasa_ganancia_valor"
                                   t-out="dinero(d.ventas.actual.ganancia.valor)"/>
                             <span class="o_dcasa_ventas_nota">
-                                <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de lo vendido, </t>
+                                <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de la venta de mercancía, </t>
                                 sin ITBMS: venta menos costo
                             </span>
                             <span t-if="d.ventas.actual.ganancia.ventas_sin_costo" class="o_dcasa_ventas_aviso">
@@ -124,6 +124,10 @@
                             </span>
                             <span t-if="d.ventas.anterior.ganancia and d.ventas.anterior.ganancia.valor" class="o_dcasa_desglose">
                                 <span><t t-out="d.ventas.anterior.etiqueta"/> <strong t-out="dinero(d.ventas.anterior.ganancia.valor)"/></span>
+                            </span>
+                            <span class="o_dcasa_ventas_aviso o_dcasa_ganancia_antigua">
+                                <i class="fa fa-info-circle" aria-hidden="true"/>
+                                Las ventas hechas antes de que existiera esta pantalla usan el costo de hoy del producto; las nuevas guardan el costo del día en que se confirman.
                             </span>
                         </div>
                     </div>
@@ -148,7 +152,7 @@
                                         <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t></small>
                                     </span>
                                     <span class="o_dcasa_lista_dato">
-                                        <strong t-out="dinero(fila.total)"/>
+                                        <strong t-out="dinero(fila.total)"/> <small>con ITBMS</small>
                                         <small t-out="espera(fila.dias)"/>
                                     </span>
                                 </button>
@@ -202,7 +206,7 @@
                             <span class="o_dcasa_cifra_valor" t-out="cifra(c)"/>
                             <span class="o_dcasa_cifra_detalle">
                                 <t t-if="c.nota"><t t-out="c.nota"/> · </t>
-                                <t t-if="c.detalle_moneda !== undefined">Por <t t-out="dinero(c.detalle_moneda)"/></t>
+                                <t t-if="c.detalle_moneda !== undefined">Por <t t-out="dinero(c.detalle_moneda)"/> con ITBMS</t>
                                 <t t-else="" t-out="c.detalle"/>
                             </span>
                             <span t-if="c.itbms !== undefined and d.alcance === 'propio'" class="o_dcasa_cifra_detalle">
@@ -249,7 +253,7 @@
 
                     <!-- Lo más vendido -->
                     <section class="o_dcasa_panel o_dcasa_top">
-                        <h2>Lo más vendido del mes</h2>
+                        <h2>Lo más vendido <small class="o_dcasa_sin_itbms">últimos 30 días</small></h2>
                         <ol t-if="d.top.length" class="list-unstyled mb-0">
                             <li t-foreach="d.top" t-as="p" t-key="p.id" tabindex="0" role="button" t-on-click="() => this.abrirProducto(p)" t-on-keydown="(ev) => ev.key === 'Enter' and this.abrirProducto(p)">
                                 <img t-att-src="p.imagen" alt="" loading="lazy"/>

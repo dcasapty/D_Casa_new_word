@@ -1,13 +1,14 @@
 """Estadísticas del negocio, íconos con color y categoría Envíos (pedido del jefe, 2026-10-16)."""
 import base64
+import json
 import re
 
-from odoo.exceptions import AccessError
-from odoo.tests import tagged
+from odoo.exceptions import AccessError, UserError
+from odoo.tests import HttpCase, tagged
 from odoo.tools.misc import file_path
 from odoo.tools.safe_eval import safe_eval
 
-from .test_inicio_por_rol import VentasCommon
+from .test_inicio_por_rol import ESPERAR_JS, VentasCommon, VentasMixin
 
 # Un color por familia (decisión de la dueña, 2026-10-16). El amarillo de la marca nunca es de fondo.
 FAMILIAS = {
@@ -90,6 +91,13 @@ class TestEstadisticas(VentasCommon):
         self.assertIn(self.parada, productos)
         self.assertNotIn(self.vendida, productos, 'se vendió: sí se mueve')
 
+    def test_lo_que_no_se_mueve_no_se_cae_con_dias_raros(self):
+        Producto = self.env['product.product'].with_user(self.gerencia)
+        self.assertTrue(Producto.dcasa_accion_sin_movimiento(10 ** 12)['domain'], 'un número enorme se acota')
+        self.assertTrue(Producto.dcasa_accion_sin_movimiento(-5)['domain'])
+        with self.assertRaises(UserError):
+            Producto.dcasa_accion_sin_movimiento('muchos')
+
     def test_lo_que_no_se_mueve_es_solo_de_gerencia(self):
         with self.assertRaises(AccessError):
             self.env['product.product'].with_user(self.vendedora).dcasa_accion_sin_movimiento()
@@ -133,3 +141,40 @@ class TestEstadisticas(VentasCommon):
 def safe_domain(dominio):
     return safe_eval(dominio) if isinstance(dominio, str) else dominio
 
+
+
+@tagged('post_install', '-at_install')
+class TestEstadisticasEnElNavegador(VentasMixin, HttpCase):
+    """Los filtros se evalúan en el navegador con el intérprete de Python que Odoo trae en JavaScript, que no sabe todo
+    lo que sabe el del servidor: un filtro que solo prueba el servidor puede reventar al hacer clic (revisión
+    adversarial, 2026-10-16: «Esta semana» usaba ``weekday()``, que ese intérprete no tiene)."""
+
+    def probar(self, accion, codigo):
+        js = '(async () => {' + ESPERAR_JS + codigo + "console.log('test successful'); })();"
+        self.browser_js(f'/odoo/action-dcasa_interfaz.{accion}', js, login='gerencia_rol')
+
+    def test_cada_filtro_de_las_estadisticas_se_aplica_sin_error_en_el_navegador(self):
+        pedido = self.pedido(vendedor=self.vendedora)
+        self.facturar(pedido)
+        filtros = ['Esta semana', 'Este mes', 'Últimos 30 días', 'Últimos 90 días']
+        for accion in ('accion_mas_vendido', 'accion_mejor_margen'):
+            with self.subTest(accion=accion):
+                self.probar(accion, """
+                    await esperar(() => document.querySelector('.o_control_panel .o_searchview'), 'el buscador');
+                    const hayError = () => document.querySelector('.o_error_dialog, .modal .o_error_dialog');
+                    const filtro = (texto) => [...document.querySelectorAll('.dropdown-item, .o-dropdown-item')]
+                        .find((e) => e.textContent.trim() === texto);
+                    document.querySelector('.o_searchview_dropdown_toggler').click();
+                    for (const texto of __FILTROS__) {
+                        const item = await esperar(() => filtro(texto), 'el filtro «' + texto + '»');
+                        for (let vez = 0; vez < 2; vez++) {      // encender y apagar: una de las dos lo evalúa
+                            item.click();
+                            await new Promise((ok) => setTimeout(ok, 700));
+                            if (hayError()) {
+                                const causa = hayError().textContent;
+                                throw new Error('el filtro «' + texto + '» rompió la pantalla: ' + causa);
+                            }
+                        }
+                    }
+                    await esperar(() => document.querySelector('.o_content'), 'el contenido');
+                """.replace('__FILTROS__', json.dumps(filtros)))

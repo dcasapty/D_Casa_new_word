@@ -227,6 +227,16 @@ class TestVentaDeCombos(SociosCommon):
         with self.assertRaisesRegex(ValidationError, 'puedes rebajar hasta 10'):
             piezas[:1].with_user(self.vendedora).write({'discount': 0, 'price_unit': piezas[:1].price_unit * 0.8})
 
+    def test_soltar_una_pieza_de_su_combo_o_ponerle_precio_negativo_al_combo_no_salta_el_tope(self):
+        """Revisión adversarial del 2026-10-16: una pieza «huérfana» quedaba exenta y la línea del combo (exenta por
+        diseño) podía llevar un precio negativo que no contaba como rebaja."""
+        self.env['ir.config_parameter'].sudo().set_param('dcasa.descuento_max_vendedora', '10')
+        _orden, combo, piezas = self.orden(usuario=self.vendedora)
+        with self.assertRaises(ValidationError):
+            piezas[:1].with_user(self.vendedora).write({'linked_line_id': False, 'price_unit': 1.0})
+        with self.assertRaises(ValidationError):
+            combo.with_user(self.vendedora).write({'price_unit': -200.0})
+
     def test_gerencia_si_puede_dar_mas_descuento_en_un_combo(self):
         _orden, combo, piezas = self.orden(usuario=self.gerente)
         (combo | piezas).with_user(self.gerente).write({'discount': 40})

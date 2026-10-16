@@ -16,6 +16,10 @@ Reglas (mejor práctica contable, decididas el 2026-10-16):
   ``sale_margin`` porque muestra el costo a todo el personal.
 
 Las ventas hechas antes de esta versión toman el costo del producto **de hoy** al actualizar el módulo.
+
+Si una venta quedó con costo cero (el producto todavía no tenía costo cargado) y después se carga, esa venta
+**recupera** su costo: al pasar el costo del producto de cero a un valor, las líneas confirmadas que estaban en cero
+lo toman. Las que ya tenían un costo no se mueven nunca (revisión adversarial, 2026-10-16).
 """
 from odoo import api, fields, models
 
@@ -80,6 +84,16 @@ class SaleOrderLine(models.Model):
             linea.write({'dcasa_costo_unitario': linea._dcasa_costo_actual()})
         return True
 
+    @api.model
+    def _dcasa_recuperar_costo_faltante(self, productos):
+        """Las ventas confirmadas de estos productos que quedaron con costo cero lo toman ahora que ya hay costo.
+        No toca las líneas que ya tenían costo: el costo de una venta hecha no se mueve."""
+        lineas = self.sudo().search([
+            ('product_id', 'in', productos.ids), ('dcasa_costo_unitario', '<=', 0),
+            ('order_id.state', 'in', ('sale', 'done')), ('display_type', '=', False)])
+        lineas._dcasa_fijar_costo()
+        return lineas
+
 
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
@@ -110,3 +124,13 @@ class SaleOrder(models.Model):
         # El costo de la venta es el de este momento, no el de cuando se armó la cotización.
         self.order_line._dcasa_fijar_costo()
         return super().action_confirm()
+
+
+class ProductProduct(models.Model):
+    _inherit = 'product.product'
+
+    def write(self, vals):
+        resultado = super().write(vals)
+        if vals.get('standard_price'):
+            self.env['sale.order.line']._dcasa_recuperar_costo_faltante(self)
+        return resultado

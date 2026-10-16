@@ -108,5 +108,13 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   ni «Ver en el celular»); menú **Estadísticas** (lo más vendido, mejor margen, lo que no se mueve); íconos del menú con
   un color por familia; categoría **Envíos** «En desarrollo»; Brian da las ventas sin ITBMS con el ITBMS aparte y la
   ganancia solo a Gerencia. Detalle en `docs/OPERACION.md` («ITBMS, costo y ganancia en el Inicio»).
+- **Revisión adversarial (2026-10-16, dos revisores independientes que no sabían qué se esperaba):** encontraron y se cerraron
+  antes de producción: el tope de descuento se saltaba con un precio por contexto, con banderas de anticipo/combo/premio que
+  la Vendedora podía escribir y al cambiar de producto o de unidad; la cantidad de una existencia se podía escribir sin el
+  modo inventario; la fusión podía borrar la ficha que queda si dos fichas se apuntaban entre sí; las fusiones masivas eran
+  de Gerencia; una venta con costo cero no recuperaba su costo al cargarlo; el filtro «Esta semana» de Estadísticas fallaba en el
+  navegador; la Caja contaba pagos en borrador; Brian daba el costo del proveedor a quien no es Gerencia. **Regla nueva:** todo
+  cambio que toque dinero, permisos, contabilidad o Socios pasa por una revisión así antes de proponerlo a producción. Lo
+  que quedó abierto y dicho con franqueza está en [PRIORIDADES.md](PRIORIDADES.md) (etapa 1b).
 - **Sigue:** empezar por lo primero de PRIORIDADES.md. Estudio de envíos para La Chorrera entregado como documento en
   Claude Docs (a la espera de sus respuestas).

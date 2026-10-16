@@ -265,7 +265,7 @@ class DcasaCanje(models.Model):
         impuestos = producto.taxes_id or order.company_id.account_sale_tax_id
         base = canje.valor if all(impuestos.mapped('price_include')) else \
             impuestos._get_tax_details(canje.valor, 1.0, special_mode='total_included')['total_excluded']
-        order.write({'order_line': [(0, 0, {
+        order.with_context(dcasa_aplicando_premio=True).write({'order_line': [(0, 0, {
             'product_id': producto.id,
             'name': self.env._('Premio %(codigo)s: %(premio)s', codigo=canje.codigo, premio=canje.premio_nombre),
             'product_uom_qty': 1,

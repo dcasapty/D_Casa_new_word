@@ -49,9 +49,28 @@ mostrando los nombres, y «Mis gastos por reembolsar» es otra app que no depend
 cualquiera atienda al cliente que vuelve.)
 
 **Costos y ganancia** (decidido con la dueña, 2026-10-16): el costo de lo vendido y la ganancia (en el Inicio, en el menú
-**Estadísticas**, en las líneas de venta y en Brian) los ven solo **Gerencia y administradores**. La Vendedora no los ve en
-ninguna pantalla ni los puede pedir por la conexión de datos (los campos tienen el grupo en el servidor). El menú
-Estadísticas completo (lo más vendido, mejor margen, lo que no se mueve) es solo de esos dos grupos.
+**Estadísticas › Mejor margen**, en las líneas de venta y en Brian) los ven solo **Gerencia y administradores**. La
+Vendedora no los ve en ninguna pantalla y el servidor se los niega si los pide por la conexión de datos (esos campos
+llevan el grupo). Brian tampoco le da a quien no es Gerencia la ganancia ni el costo del proveedor.
+
+**Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
+Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
+del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo
+mal rompe entregas o recepciones. Queda como la siguiente tarea de seguridad (con pruebas de esos flujos); está en
+[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (lo más vendido, mejor margen, lo que no se mueve) es de
+Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve los pedidos.
+
+**Tope de descuento (10 % para la Vendedora)** — cerrado en esta revisión: se mide siempre al crear la línea (aunque el precio
+llegue por el contexto de la llamada), al cambiar de producto o de unidad de medida, y al tocar las banderas de anticipo o
+combo; esas banderas ya no eximen por sí solas (un anticipo de Odoo no lleva producto; la marca de premio canjeado solo la
+pone el sistema). Si Gerencia ya autorizó un descuento mayor en un pedido, la Vendedora puede seguir agregando notas, flete
+o quitando líneas: se le bloquea solo lo que **empeora** el descuento, no lo que ya estaba.
+
+**Existencias:** la cantidad (y lo reservado) de una existencia no la escribe a mano nadie que no sea Gerencia o el sistema,
+con o sin el modo inventario. Recibir y entregar siguen igual (Odoo los corre por dentro con permisos del sistema).
+
+**Fusión de contactos:** solo Gerencia, de a una persona; las fusiones masivas automáticas son del administrador del
+sistema. Los puntos y el código de socio pasan completos a la ficha que queda y ésta deja una nota con lo que se le unió.
 
 «Contador» es quien tiene Contabilidad en su ficha de usuario. Gerencia ya incluye Contabilidad y Nómina.
 El lector contable (solo lectura) ve todo lo contable pero no cambia nada, igual que antes.

@@ -179,6 +179,12 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
     ('dcasa_contactos', 'res.partner', 'write'):
         OVERRIDE + ' Solo agrega el candado de duplicados (sudo para buscar, nunca para escribir).',
+    ('dcasa_contactos', 'base.partner.merge.automatic.wizard', 'action_start_automatic_process'):
+        OVERRIDE + ' Exige base.group_system en el servidor antes de fusionar en masa; sin sudo().',
+    ('dcasa_contactos', 'base.partner.merge.automatic.wizard', 'action_update_all_process'):
+        OVERRIDE + ' Exige base.group_system en el servidor antes de fusionar en masa; sin sudo().',
+    ('dcasa_contactos', 'base.partner.merge.automatic.wizard', 'parent_migration_process_cb'):
+        OVERRIDE + ' Exige base.group_system en el servidor antes de tocar los padres de los contactos; sin sudo().',
     ('dcasa_contactos', 'res.users', 'create'): OVERRIDE + ' Solo crea el usuario sin el candado de su contacto.',
     ('dcasa_contactos', 'res.company', 'create'): OVERRIDE + ' Solo crea la empresa sin el candado de su contacto.',
     # --- dcasa_barras -------------------------------------------------------------------------
@@ -311,6 +317,12 @@ LISTA_BLANCA = {
     ('dcasa_socios', 'dcasa.compra', 'action_anular'): ACCION_VENTANA + ' El asistente es solo de gerencia.',
     ('dcasa_socios', 'dcasa.movimiento', 'write'): 'Bloquea: el libro de puntos no se edita.',
     ('dcasa_socios', 'dcasa.movimiento', 'unlink'): 'Bloquea: el libro de puntos no se borra.',
+    ('dcasa_socios', 'sale.order.line', 'create'):
+        OVERRIDE + ' Rechaza (AccessError) que quien no sea Gerencia ni el sistema escriba la marca de premio '
+                   'canjeado; sin sudo().',
+    ('dcasa_socios', 'sale.order.line', 'write'):
+        OVERRIDE + ' Rechaza (AccessError) que quien no sea Gerencia ni el sistema escriba la marca de premio '
+                   'canjeado; sin sudo().',
     ('dcasa_socios', 'sale.order.line', 'unlink'):
         OVERRIDE + ' Al quitar la línea del premio de un carrito web devuelve los puntos (sudo solo sobre el '
                    'canje de esa línea, ya autorizada por el ACL de la línea).',

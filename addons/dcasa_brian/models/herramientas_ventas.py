@@ -100,7 +100,7 @@ class BrianHerramientasVentas(models.AbstractModel):
                 fila['itbms'] = c.moneda(cifra['itbms'])
                 fila['total_con_itbms'] = c.moneda(cifra['total_con_itbms'])
             if cifra.get('detalle_moneda') is not None:
-                fila['detalle'] = f'por {c.moneda(cifra["detalle_moneda"])}'
+                fila['detalle'] = f'por {c.moneda(cifra["detalle_moneda"])} con ITBMS'
             elif cifra.get('detalle'):
                 fila['detalle'] = cifra['detalle']
             cifras.append(fila)
@@ -157,7 +157,8 @@ class BrianHerramientasVentas(models.AbstractModel):
             nombre = venta.user_id.name or 'Sin vendedor'
             por_vendedor[nombre] = por_vendedor.get(nombre, 0.0) + venta.amount_untaxed
         grupos = self.env['sale.order.line']._read_group(
-            [('order_id', 'in', ventas.ids), ('display_type', '=', False), ('is_downpayment', '=', False)],
+            [('order_id', 'in', ventas.ids), ('display_type', '=', False), ('is_downpayment', '=', False),
+             ('product_id.type', '!=', 'service')],
             ['product_id'], ['product_uom_qty:sum', 'price_subtotal:sum'])
         top = sorted(grupos, key=lambda g: -g[1])[:5]
         respuesta = {

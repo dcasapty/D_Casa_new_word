@@ -236,9 +236,14 @@ class DcasaTablero(models.AbstractModel):
             p1 = min(p0 + (d1 - d0), p1_fin)
             nombres = ('Este mes', 'El mes pasado')
         else:
-            d0, d1 = fields.Date.to_date(desde), fields.Date.to_date(hasta)
+            try:
+                d0, d1 = fields.Date.to_date(desde), fields.Date.to_date(hasta)
+            except (TypeError, ValueError, OverflowError):
+                raise UserError(self.env._('Escribe las fechas completas, por ejemplo 2026-10-01.')) from None
             if not d0 or not d1 or d0 > d1:
                 raise UserError(self.env._('Escribe un rango válido: «desde» no puede ser después de «hasta».'))
+            if d0 > hoy:
+                raise UserError(self.env._('Ese rango todavía no llega: elige fechas de hoy hacia atrás.'))
             if (d1 - d0).days + 1 > MAXIMO_DIAS_DE_RANGO:
                 raise UserError(self.env._('El rango puede ser de hasta un año.'))
             d1 = min(d1, hoy)
@@ -421,7 +426,7 @@ class DcasaTablero(models.AbstractModel):
 
     def _cobros_de_hoy(self, datos, hoy):
         """Lo cobrado hoy por forma de pago (con ITBMS: es el dinero que entró). Va en «Caja de hoy»."""
-        dominio = [('payment_type', '=', 'inbound'), ('state', '!=', 'canceled'), ('date', '=', hoy)]
+        dominio = [('payment_type', '=', 'inbound'), ('state', 'in', ('in_process', 'paid')), ('date', '=', hoy)]
         grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum'])
         for diario, monto in grupos:
             if diario:
@@ -486,7 +491,8 @@ class DcasaTablero(models.AbstractModel):
                     'accion': _accion('Productos por agotarse', 'product.product', bajo)})
         if datos['ve_utilidad']:
             Producto = self.env['product.product']
-            sin_costo = [('is_storable', '=', True), ('sale_ok', '=', True), ('standard_price', '<=', 0)]
+            # Toda la mercancía (no solo la que lleva inventario): es la misma que deja una venta fuera de la ganancia.
+            sin_costo = [('type', '=', 'consu'), ('sale_ok', '=', True), ('standard_price', '<=', 0)]
             cuantos = Producto.search_count(sin_costo)
             if cuantos:
                 avisos.append({
