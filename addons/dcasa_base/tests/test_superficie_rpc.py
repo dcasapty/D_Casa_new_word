@@ -197,6 +197,9 @@ LISTA_BLANCA = {
     ('dcasa_barras', 'dcasa.barras', 'contar'):
         'API del Escáner: exige stock.group_stock_manager (Gerencia) en el servidor ANTES de escribir; valida cada '
         'argumento y usa el Inventario físico de Odoo con los permisos de la persona (sin sudo).',
+    ('dcasa_barras', 'dcasa.barras', 'cambiar_precio'):
+        'API del Escáner: exige la regla de precios de dcasa_base (Gerencia: product.group_product_manager) en el '
+        'servidor ANTES de escribir; valida el precio, rechaza variantes y escribe con los permisos de la persona.',
     ('dcasa_barras', 'dcasa.barras', 'etiqueta'):
         'API del Escáner › Asignar: exige stock.group_stock_manager y product.group_product_manager en el servidor '
         'ANTES de leer; solo lee con los permisos de la persona (sin sudo).',

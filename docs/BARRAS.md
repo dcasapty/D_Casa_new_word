@@ -10,7 +10,8 @@ y decidir cómo se imprimen.
 | Dónde | Qué hace | Quién |
 |---|---|---|
 | **Inventario › Escáner** | Escaneas (o escribes) un código y sale la foto, el nombre, la referencia, el precio «+ ITBMS», las existencias por ubicación y si está *disponible*, con *pocas* o *agotado*. | Quien usa Inventario (la Vendedora lo es) |
-| **Escáner › Contar** | Escribes lo contado, ves la diferencia con lo que dice el sistema y confirmas. Se registra el ajuste de inventario de Odoo. | Gerencia |
+| **Escáner › Contar** | Escribes lo contado, ves la diferencia con lo que dice el sistema y confirmas. Se registra el ajuste de inventario de Odoo. Ahí mismo, Gerencia puede **cambiar el precio** (sin ITBMS, con confirmación «antes → nuevo»; queda anotado en el producto). | Gerencia |
+| **Escáner › botón «Cámara»** | Lee el código con la cámara del celular, igual que la pistola (la primera vez el navegador pide permiso para usar la cámara). | Quien usa el Escáner |
 | **Escáner › Asignar** | Escaneas una etiqueta numerada del rollo (`DC0001`…), eliges el producto y ese número queda como su código de barras. Se puede pasar a otro producto, reemplazar o quitar; el número viejo queda *retirado* y avisa si alguien lo escanea. | Gerencia |
 | **Inventario › Configuración › Historial de etiquetas** | Quién asignó, pasó o retiró cada número y cuándo. No se edita ni se borra. | Gerencia |
 | **Inventario › Configuración › Códigos de barras** | Llena el código de barras de los productos que no tienen, a partir de su referencia interna (alternativa a las etiquetas numeradas; ver más abajo). | Gerencia |
@@ -35,6 +36,25 @@ sin aparato.
 
 En este orden: código de barras · referencia interna (hoy **ningún** producto tiene código de barras pero casi todos
 tienen referencia, así que ya sirve desde el primer día) · código del empaque · el mismo código sin símbolos.
+
+## Cámara del celular
+
+Junto a «Buscar» sale el botón **Cámara** (solo si el navegador deja usar la cámara; el sitio es HTTPS). Se enfoca el
+código y sigue igual que con la pistola. Usa el lector de Odoo (`@web/core/barcode`): si el navegador no trae
+`BarcodeDetector`, carga la librería ZXing de Odoo. La pistola sigue siendo lo más rápido para contar muchos productos.
+
+## Cambiar el precio desde «Contar» (pedido de la dueña, 2026-10-16)
+
+1. Escáner › **Contar**, escaneas el producto.
+2. En **Precio nuevo, sin ITBMS** escribes el precio (solo números y punto: `399.99`) y pulsas **Revisar precio**.
+3. Sale «Precio actual $X + ITBMS · Precio nuevo $Y + ITBMS». Solo al **Guardar precio** se cambia.
+
+* Lo puede hacer **Gerencia**: la misma regla de precios de Productos (`dcasa_base/models/product.py`, administrador de
+  Productos). La Vendedora no ve el campo y el servidor lo rechaza aunque alguien lo mande.
+* Si mientras lo revisabas otra persona cambió el precio, no se guarda («cambió de X a Y»).
+* Un producto con **variantes** (tamaños o colores) se cambia en Productos: su precio base es el de todas.
+* Queda una nota en el producto: «Precio cambiado desde el Escáner por (quien): $X → $Y». Cambia para las cotizaciones
+  y ventas nuevas y la tienda web; lo ya vendido no cambia.
 
 ## Contar
 
