@@ -9,8 +9,10 @@ ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
 
 Antes de contestar o programar nada, leer `docs/LEEME_PRIMERO.md` (cómo se trabaja con la dueña, qué cambio necesita su
 «sí» explícito, la receta de producción, las trampas ya conocidas y la bitácora de sesiones) y `docs/PRIORIDADES.md`
-(el orden vigente de lo que sigue). Al terminar la sesión, agregar su entrada a la bitácora y poner al día las
-prioridades: lo que no queda escrito se pierde cuando el contexto se reinicia.
+(el orden vigente de lo que sigue). Antes de desplegar o tocar el arranque, el borde o los flujos de GitHub, leer
+`docs/CONTEXTO_AGENTICO.md` (cada incidente y falla con su causa y su arreglo). Al terminar la sesión, agregar su
+entrada a la bitácora, poner al día las prioridades y sumar al contexto agéntico lo aprendido: lo que no queda escrito
+se pierde cuando el contexto se reinicia.
 
 ## Estructura
 

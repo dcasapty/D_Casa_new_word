@@ -7,8 +7,11 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-10-16 (05:49 UTC): las Etapas 1 y 2 están en producción** (`f7e8f14`, PR #43). Lo que sigue empieza en
-la etapa 1 (lo que le falta), después 1b y la 3.
+**Estado al 2026-10-16, 07:27 UTC:** las Etapas 1 y 2 están **en producción y funcionando** desde el arreglo #97
+(Desplegar 9; la dueña confirmó Inicio y conversaciones). Su primer despliegue (05:47) no había actualizado la base:
+ver el incidente 1 de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md). Lo que sigue: subir a staging la entrega ya
+probada en local (Etapa 3, prueba de humo del arranque, permisos de Conversaciones #25), después lo que falta de la
+etapa 1 (topes de Brian: esperan cifras de la dueña) y la 1b.
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
@@ -48,9 +51,9 @@ unidos con el PR #43.)
 
 | # | Etapa | Qué incluye | Depende de |
 |---|---|---|---|
-| 1 | **Seguridad y control primero** | Cerrar los huecos hallados el 2026-10-16: tope de descuento también para el descuento global y el de importe fijo (y al quitar o cambiar líneas después); fusión de contactos segura; que la Vendedora no ajuste existencias a mano sin motivo; topes de dinero de Brian (#26); permisos de escritura de Conversaciones (#25). Más protecciones: pruebas de humo después de producción, revisión adversarial obligatoria si el cambio toca dinero, permisos, contabilidad o Socios, una prueba por cada hueco, revisión de secretos. **Las pruebas se mantienen completas: no se recortan ni se aceleran a costa de cobertura** | Decisiones 6, 8 y 9. **Hecho y en producción (2026-10-16, `f7e8f14`, PR #43):** tope de descuento del pedido entero (global, importe fijo y líneas negativas; también con precio por contexto, al cambiar de producto o unidad), fusión de contactos segura (fusiones masivas solo del administrador), existencias solo por Gerencia, regla de revisión adversarial (plantilla del PR y `LEEME_PRIMERO.md`). **Falta:** topes de dinero de Brian (esperan las cifras de la dueña), permisos de Conversaciones (#25), pruebas de humo después de producción, revisión de secretos |
+| 1 | **Seguridad y control primero** | Cerrar los huecos hallados el 2026-10-16: tope de descuento también para el descuento global y el de importe fijo (y al quitar o cambiar líneas después); fusión de contactos segura; que la Vendedora no ajuste existencias a mano sin motivo; topes de dinero de Brian (#26); permisos de escritura de Conversaciones (#25). Más protecciones: pruebas de humo después de producción, revisión adversarial obligatoria si el cambio toca dinero, permisos, contabilidad o Socios, una prueba por cada hueco, revisión de secretos. **Las pruebas se mantienen completas: no se recortan ni se aceleran a costa de cobertura** | Decisiones 6, 8 y 9. **Hecho (PR #43; en producción con el arreglo #97):** tope de descuento del pedido entero (global, importe fijo y líneas negativas; también con precio por contexto, al cambiar de producto o unidad), fusión de contactos segura (fusiones masivas solo del administrador), existencias solo por Gerencia, regla de revisión adversarial (plantilla del PR y `LEEME_PRIMERO.md`). **Falta:** topes de dinero de Brian (esperan las cifras de la dueña), permisos de Conversaciones (#25), pruebas de humo después de producción, revisión de secretos |
 | 1b | **Costo y «vendido» más firmes** (salió de la revisión adversarial del 2026-10-16) | (a) Cerrar de verdad el campo «Costo» de la ficha del producto, el margen de los reportes de factura (`account.invoice.report`) y el precio del proveedor: solo Gerencia, administradores, contabilidad, compras e inventario; con pruebas de que recibir, entregar y comprar siguen andando para la Vendedora y para bodega. (b) Que «Vendido» y la ganancia salgan de las líneas de las **facturas publicadas** y no del pedido (así cuadran con Contabilidad si se corrige la factura en caja y las notas de crédito parciales restan solo lo devuelto). (c) Pendientes menores: fusión (`company_ids` de usuarios si hay varias empresas; fichas de usuarios/empleados), `_ganancia_de` con `sudo` si algún día hay varias empresas | Pruebas de Inventario, Compras y Contabilidad |
-| 2 | **Inicio nuevo con utilidad** (**hecho y en producción** desde 2026-10-16, `f7e8f14`, PR #43) | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS claro por mejor práctica contable (ventas, costo y ganancia sin ITBMS; dinero que se mueve con ITBMS; cada etiqueta lo dice y trae el desglose); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
+| 2 | **Inicio nuevo con utilidad** (**hecho**, PR #43; en producción con el arreglo #97) | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS claro por mejor práctica contable (ventas, costo y ganancia sin ITBMS; dinero que se mueve con ITBMS; cada etiqueta lo dice y trae el desglose); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
 | 3 | **Clientes y proveedores limpios** (los usuarios y empleados del sistema no se tocan) | Encontrar por qué una misma persona aparece 5 veces al cotizar, con el mismo correo y celular, pese a los candados (el candado no cuenta usuarios, empleados ni direcciones hijas; hay que mirar «Posibles duplicados»); **arreglar la fusión** (Gerencia no tiene permiso para el asistente; no copia los datos de Socios de la ficha que se borra; destino = la más vieja); avisar al cotizar cuando hay otros contactos con el mismo correo o celular y mostrarlos en el selector; buscar antes de crear una ficha desde una conversación o Telegram | Mirar los datos reales |
 | 4 | **Bodega** | Escáner › Despachar (QR de la nota → verificar cada artículo); Bitácora de bodega (antes → después, motivo); alertas diarias por Telegram (stock bajo, ajustes grandes, cierre de mes); cerrar el hueco del Inventario físico para la Vendedora | Etiquetas o códigos en cajas; umbral |
 | 5 | **Contabilidad propia** | Menú raíz «Contabilidad» (reportes, bancos, cierre de mes), tablero, arqueo de diarios con comprobantes, toma de inventario, ITBMS claro en todos los resúmenes | Respuestas de la contadora |
@@ -62,8 +65,8 @@ unidos con el PR #43.)
 
 | Pedido | Estado | Etapa |
 |---|---|---|
-| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Hecho, en producción (2026-10-16, PR #43). Ganancia sin ITBMS solo para Gerencia y administradores | 2 |
-| Rediseño del Inicio | Hecho, en producción (2026-10-16, PR #43) | 2 |
+| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Hecho (PR #43; en producción con el arreglo #97). Ganancia sin ITBMS solo para Gerencia y administradores | 2 |
+| Rediseño del Inicio | Hecho (PR #43; en producción con el arreglo #97) | 2 |
 | Contabilidad con menú y tablero propios | Por construir | 5 |
 | Que el contexto no se pierda entre sesiones | Hecho (este archivo y `LEEME_PRIMERO.md`) | 0 |
 | Estado de los issues y prioridades | Hecho (ver abajo) | 0 |
@@ -77,9 +80,9 @@ unidos con el PR #43.)
 | Menos fallas y más seguridad (la velocidad de las pruebas no es prioridad) | En marcha: la etapa 1 está en producción con revisión adversarial y pruebas completas; falta lo que dice la etapa 1 | 1 |
 | Descuentos (por línea, global, importe fijo) | Cerrado el hueco del tope en producción (PR #43): global, importe fijo y líneas negativas también respetan el 10 % de la Vendedora. Brian aún no los maneja (etapa 8) | 2 |
 | ITBMS claro en los resúmenes | Decidido por mejor práctica contable. Inicio y Brian hechos y en producción (etapa 2); falta Contabilidad (etapa 5) | 2 y 5 |
-| Estadísticas del negocio (menú) | Hecho, en producción (2026-10-16, PR #43) | 2 |
+| Estadísticas del negocio (menú) | Hecho (PR #43; en producción con el arreglo #97) | 2 |
 | Íconos del menú con color | Hecho, en producción (2026-10-16, PR #43; paleta aceptada) | 2 |
-| Categoría «Envíos — En desarrollo» | Hecho, en producción (2026-10-16, PR #43) | 2 |
+| Categoría «Envíos — En desarrollo» | Hecho (PR #43; en producción con el arreglo #97) | 2 |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 
@@ -98,6 +101,7 @@ Cerrados: #11, #13 y #14 (códigos de barras, conteo con lector, pantalla de bod
 ## Pendientes viejos que siguen en pie
 
 - **#92** (antes de traspasar el dominio): que `/master` funcione y que «Iniciar sesión» de la web no lleve al panel.
-- **#97**: por qué el primer despliegue de una versión deja la base sin actualizar.
+- ~~**#97**: por qué el primer despliegue de una versión deja la base sin actualizar.~~ Resuelto el 2026-10-16
+  (Desplegar 9): la imagen decide por la huella de su código, no por la variable `APP_VERSION`.
 - Estudio de envíos para La Chorrera: entregado; esperan sus respuestas (ver el documento en Claude Docs).
 - Lo que le toca a la dueña: [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md).

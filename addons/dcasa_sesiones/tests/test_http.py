@@ -117,6 +117,41 @@ class TestSesionesHttp(HttpCase):
     def test_salud_solo_get(self):
         self.assertEqual(self.url_open('/dcasa/salud', data={'x': '1'}).status_code, 405)
 
+    # Incidente del 2026-10-16 (#97): «sano» tiene que ser la versión nueva con la base actualizada.
+
+    COMMIT = '0123456789abcdef0123456789abcdef01234567'
+    CODIGO = 'f' * 64
+
+    def salud_con_la_imagen(self, codigo_en_base):
+        if codigo_en_base is None:
+            self.env['ir.config_parameter'].sudo().search([('key', '=', salud.PARAM_CODIGO)]).unlink()
+        else:
+            self.env['ir.config_parameter'].sudo().set_param(salud.PARAM_CODIGO, codigo_en_base)
+        with patch.dict(os.environ, {'DCASA_COMMIT_IMAGEN': self.COMMIT, 'DCASA_CODIGO': self.CODIGO}):
+            return self.url_open('/dcasa/salud')
+
+    def test_salud_dice_la_version_de_la_imagen_y_que_la_base_esta_al_dia(self):
+        respuesta = self.salud_con_la_imagen(self.CODIGO)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.json(), {'ok': True, 'version': '0123456789ab', 'base_al_dia': True})
+        self.assertNotIn('Set-Cookie', respuesta.headers)
+
+    def test_salud_avisa_si_la_base_quedo_con_otro_codigo(self):
+        """Lo que pasó en producción: la imagen nueva sobre la base sin actualizar. Odoo contesta, pero no está sano."""
+        respuesta = self.salud_con_la_imagen('e' * 64)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertIs(respuesta.json()['base_al_dia'], False)
+
+    def test_salud_avisa_si_la_base_nunca_se_actualizo_con_la_huella(self):
+        self.assertIs(self.salud_con_la_imagen(None).json()['base_al_dia'], False)
+
+    def test_salud_sin_base_no_dice_version(self):
+        with patch.object(salud, 'base_responde', return_value=False), \
+                patch.dict(os.environ, {'DCASA_COMMIT_IMAGEN': self.COMMIT, 'DCASA_CODIGO': self.CODIGO}):
+            respuesta = self.url_open('/dcasa/salud')
+        self.assertEqual(respuesta.status_code, 503)
+        self.assertEqual(respuesta.json(), {'ok': False})
+
     def test_base_responde_sin_registro(self):
         """Modo sin base (la base no carga): conexión directa con SELECT 1."""
         with patch.object(salud, 'request', SimpleNamespace(env=None, db=self.env.cr.dbname)):

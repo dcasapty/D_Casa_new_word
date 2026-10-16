@@ -53,6 +53,15 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ## 4. Trampas ya conocidas (no volver a tropezar)
 
+- **«Sano» no es «Odoo contesta» (#97, incidente del 2026-10-16).** El arranque decidía actualizar la base solo
+  por la variable `APP_VERSION`, que puede llegar atrasada, y el despliegue daba por sano cualquier 200: producción
+  quedó con el código nuevo sobre la base vieja (o con la imagen vieja) y el Inicio y otras pantallas fallaron. Ahora
+  la imagen sabe su commit y la huella de su código, actualiza la base si no coinciden y el despliegue exige
+  `version` y `base_al_dia` (ver `docs/DESPLIEGUE.md`). Después de cada despliegue igual se abre el Inicio.
+- **`app_version` tiene que tener imagen en el registro.** El despliegue usa la etiqueta `dcasa-odoo:<app_version>`,
+  que solo existe para los commits que construyó el CI (el de la rama, no el del *squash* en `main`). Con otro SHA
+  falla con `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE`, y aun así el Worker nuevo ya quedó activo (Cloudflare activa el
+  Worker antes que la imagen).
 - **Nunca inventar un SHA** (ni "completar" uno corto): se lee del PR o del run. Ya falló un merge por eso.
 - `rerun_failed_jobs` da 403 mientras el run sigue en curso: esperar a que termine. Una prueba que falló en CI no se
   "pausa": se espera o se cancela el run y se corrige.
@@ -72,6 +81,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 | Quiero saber… | Voy a… |
 |---|---|
+| Qué falló antes, por qué y cómo se arregló (incidentes, despliegues, CI, trampas) | [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md) |
 | Qué se pidió y en qué orden se hace | [PRIORIDADES.md](PRIORIDADES.md) |
 | Cómo está todo (nota y fallas) | [ESTADO.md](ESTADO.md) *(fecha en su primera línea; si es vieja, manda este archivo)* |
 | Qué le toca decidir o hacer a la dueña | [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) |
@@ -88,11 +98,29 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
+- **Producción arreglada** (07:27 UTC, Desplegar 9, `app_version` `3570c3a1…`, imagen `sha256:4e9b9155…`): el arreglo
+  #97. La imagen sabe su commit y la huella de su código y actualiza la base si no coinciden; el despliegue exige la
+  versión nueva con la base al día y la vigila 5 minutos. Ese arranque actualizó todos los módulos y aplicó por fin
+  las Etapas 1 y 2. Antes: suite completa de Odoo en verde (CI #171), staging sano y confirmado (07:19), respaldo
+  previo. **La dueña confirmó que el Inicio y las conversaciones cargan.** Autorización: «soluciona todos los problemas
+  que rompen la interfaz… y lanza a producción» y «sigue y avísame cuando esté en producción».
+- **Entrega siguiente, probada en local y sin subir** (ramas locales `rb-fixes` y `conv-local`): Etapa 3 (aviso al
+  cotizar si el cliente parece repetido, selector solo de clientes), prueba de humo del arranque, «nunca hacia atrás»,
+  vigilancia de 10 minutos y los seis arreglos de la segunda revisión adversarial; y Conversaciones #25 punto 1 (lo
+  del sistema no se escribe a mano; nota para el asistente con tope). Va a staging antes de pedir producción.
 - **En producción** (05:49 UTC, `f7e8f14`, PR #43): las **Etapas 1 y 2 completas** (abajo). Salió con el «sí» de la
   dueña para este paquete («cuando todo esté sano»): suite completa de Odoo en verde (CI #168), staging sano, dos
   revisiones adversariales (lo que quedó abierto está dicho en la etapa 1b de PRIORIDADES.md), respaldo previo hecho y
   chequeo de salud pasado (imagen `sha256:f61b9adf…`, `app_version` `fbf375b0…`). Ese «sí» **no** vale para ningún otro
   cambio. Para volver atrás: `docs/OPERACION.md` («Volver atrás un despliegue»).
+- **Incidente (06:07 UTC): producción NO quedó sana.** La dueña vio «Error de servidor» en el Inicio (`dcasa.tablero`) y
+  muchas pantallas rotas. El chequeo del despliegue solo miraba que Odoo contestara. A las 06:16 la aplicación de
+  contenedores de Cloudflare volvía a tener la imagen anterior (`bf40605e`), aunque el despliegue de las 05:47 la había
+  cambiado a `fbf375b0`: código y base desparejos. Un redespliegue con `app_version` = `5fa33f4` (el *squash* de `main`)
+  falló porque esa etiqueta no existe en el registro (el respaldo previo sí se hizo; el Worker nuevo quedó activo). Arreglo
+  de raíz (#97): la imagen sabe su commit y su huella y actualiza la base si no coinciden; `/dcasa/salud` dice `version`
+  y `base_al_dia`; `esperar_salud.sh` los exige y confirma a los 5 min; pruebas nuevas en CI (sitio falso y la imagen
+  real con la base «actualizada con otro código»).
 - **En producción antes** (02:32 UTC, `baf8975`): «Imprimir documentos» sale en el orden nota de entrega → factura del
   cliente → copia de la empresa (PR #42). Y (20:01 UTC, `d709cfb`): los botones «Vincular mi Telegram» y «Registrar
   webhook» de Brian ya no fallan (PR #41).

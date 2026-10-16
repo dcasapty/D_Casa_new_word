@@ -68,6 +68,17 @@ COPY scripts/respaldo.sh /usr/local/bin/dcasa-respaldo
 RUN chmod 755 /usr/local/bin/dcasa-entrypoint /usr/local/bin/dcasa-respaldo \
     && chmod 644 /usr/local/lib/dcasa/pg.sh
 
+# La imagen sabe quién es: el commit con que se construyó y la huella de su código (Odoo + addons).
+# El arranque actualiza la base cuando la huella no coincide con la de la base, aunque APP_VERSION
+# llegue atrasada: Cloudflare puede arrancar la imagen nueva con las variables del arranque anterior
+# y así la base quedaba sin actualizar (incidente del 2026-10-16, #97). /dcasa/salud lo informa y el
+# despliegue no da por sano un sitio con otra versión o con la base atrasada.
+ARG DCASA_COMMIT=dev
+RUN printf '%s\n' "$DCASA_COMMIT" > /opt/dcasa/COMMIT \
+    && find /opt/odoo /opt/dcasa/addons -type f ! -name '*.pyc' -print0 | LC_ALL=C sort -z \
+       | xargs -0 sha256sum | sha256sum | cut -c1-64 > /opt/dcasa/CODIGO \
+    && grep -Eq '^[0-9a-f]{64}$' /opt/dcasa/CODIGO
+
 # Tamaño estimado por capas (sin daemon de Docker para medirlo; tamaños instalados de
 # apt-cache y du sobre el mismo contenido, 2026-10-01). Límite: disco de basic = 4 GB,
 # que además debe alojar la base (~0,2 GB), el WAL (max_wal_size 256 MB) y los volcados.
