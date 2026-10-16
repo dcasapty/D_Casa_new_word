@@ -41,8 +41,8 @@ jobs:
     runs-on: ubuntu-24.04
     if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - run: pip install ruff actionlint-py==1.7.12.25 openpyxl Pillow
@@ -93,10 +93,10 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: true
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -120,7 +120,7 @@ jobs:
       - if: failure()
         # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe tapar el resultado de las pruebas.
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: odoo-test-log
           path: .test.log
@@ -134,8 +134,8 @@ jobs:
       run:
         working-directory: edge
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -161,8 +161,8 @@ jobs:
       run:
         working-directory: juan
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -186,15 +186,15 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: true
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: vendor/odoo/requirements.txt
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -220,8 +220,8 @@ jobs:
       run:
         working-directory: puente-wa
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 22
           cache: npm
@@ -241,15 +241,15 @@ jobs:
       # artefacto para que el despliegue suba EXACTAMENTE esta (I-08).
       SE_DESPLIEGA: ${{ github.event_name == 'workflow_dispatch' && (inputs.desplegar_en == 'staging' || (inputs.desplegar_en == 'produccion' && github.ref == 'refs/heads/main')) }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: true
-      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069  # v4.4.1
       - name: Fecha del commit (orden de las imágenes)
         id: commit
         run: echo "fecha=$(git log -1 --format=%ct)" >> "$GITHUB_OUTPUT"
       - name: Construir imagen
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc  # v7.4.0
         with:
           context: .
           file: docker/Dockerfile
@@ -274,7 +274,7 @@ jobs:
       # Variables según edge/CONTRATO_CONTENEDOR.md §3. VERIFICAR AL INTEGRAR (f1-imagen): que la
       # imagen acepte un R2_ENDPOINT con puerto y que pgBackRest lea del entorno
       # PGBACKREST_REPO1_STORAGE_VERIFY_TLS=n (certificado autofirmado del S3 local).
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - name: S3 local en lugar de R2
@@ -462,7 +462,7 @@ jobs:
           docker save dcasa-odoo:ci | zstd -T0 -3 -q -o "$RUNNER_TEMP/imagen.tar.zst"
           ls -lh "$RUNNER_TEMP/imagen.tar.zst"
       - if: env.SE_DESPLIEGA == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: imagen-odoo-${{ github.sha }}
           path: ${{ runner.temp }}/imagen.tar.zst
@@ -478,7 +478,7 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.desplegar_en != 'solo-juan-staging'
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           sparse-checkout: |
             scripts
@@ -491,7 +491,7 @@ jobs:
           # El clúster que instala apt no se usa: el simulacro levanta los suyos.
           sudo systemctl stop postgresql || true
           echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
       - name: S3 local (moto)
@@ -507,7 +507,7 @@ jobs:
       - if: always()
         # Solo diagnóstico: si GitHub no tiene espacio para guardarlo, no debe poner el simulacro en rojo.
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: simulacro-restauracion
           path: ${{ runner.temp }}/simulacro
