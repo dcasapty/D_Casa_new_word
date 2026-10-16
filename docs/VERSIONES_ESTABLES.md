@@ -8,6 +8,7 @@ confirma que se ve bien, se agrega aquí.
 
 | Versión | Desde | Qué trae | Código | `app_version` | `imagen_digest` |
 |---|---|---|---|---|---|
+| **Estable 2** | 2026-10-16, 15:11 UTC (Desplegar 11) | Todo lo de la Estable 1 más: Etapa 3 (cliente una sola vez al cotizar), prueba de humo del arranque y «nunca hacia atrás», Conversaciones #25, el botón para volver, y el Inicio con cotizaciones y entregas arriba y cifras que cuadran con Contabilidad. La dueña confirmó que se ve bien. | rama `estable-2026-10-16-2` (y PR #47) | `9be426a46e15ac124f991648289b41643cf2bfee` | `sha256:876ca5f5c7f14a6fea91d4b0fb0e4f88be485aba5b167cc3566289fb1ac4f078` |
 | **Estable 1** | 2026-10-16, 07:27 UTC (Desplegar 9) | Etapas 1 y 2 (Inicio con ganancia, tope de descuento, fusión segura, existencias solo por Gerencia, Estadísticas, íconos de color) y el arreglo del arranque (#97). La dueña confirmó Inicio y conversaciones. | rama `estable-2026-10-16` (y PR #45) | `3570c3a12e5563621be5ef835837a223904b06c5` | `sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3` |
 
 Qué se guarda de cada una:
@@ -26,7 +27,7 @@ Qué se guarda de cada una:
 **Con el botón** (sin copiar nada): Actions → **Volver a una versión estable** → *Run workflow*, en `main`:
 
 - `entorno`: `production` (o `staging` para ensayar primero);
-- `version`: la de la tabla (p. ej. `estable-1`);
+- `version`: la de la tabla (la más nueva arriba: `estable-2`);
 - `respaldo_previo`: marcado (desmarcarlo solo si el sitio está caído y el respaldo no puede hacerse).
 
 Tarda unos 3 minutos más el arranque; el último paso espera a que responda esa versión con la base al día. Los datos
@@ -44,7 +45,8 @@ digest de su resumen, como siempre.
 1. **Volver solo el programa (lo normal):** las ventas, facturas, clientes y todo lo que se hizo después **se quedan**.
    Lo que solo existía en las versiones nuevas (campos o pantallas que la estable no tiene) deja de verse y sus datos
    se pierden. Si la versión estable es **anterior** al candado «nunca hacia atrás» (la Estable 1 lo es), la base se
-   ajusta sola al arrancar. Si es **posterior**, el arranque se niega a bajar la base y hay que pegar en el panel de
+   ajusta sola al arrancar. La Estable 2 ya trae el candado: volver a ella desde una versión más nueva pide
+   `DCASA_PERMITIR_BAJAR`. Si es **posterior**, el arranque se niega a bajar la base y hay que pegar en el panel de
    Cloudflare del Worker `DCASA_PERMITIR_BAJAR=<su app_version>` antes de desplegar (y quitarla después).
 2. **Volver todo a un momento (programa y datos):** solo si un cambio **dañó datos**. Se pierde todo lo hecho después
    de ese momento: decisión de la dueña. Es una sola operación: `DCASA_RESTAURAR_HASTA` con la hora y, en el mismo
