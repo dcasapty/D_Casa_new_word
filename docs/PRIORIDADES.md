@@ -16,8 +16,12 @@ vuelta en staging, la alerta por Telegram del arranque (rama local `alertas-loca
 de Brian: esperan cifras de la dueña) y la 1b. **Para la contadora** (de las capturas del 15–16 oct): costo de ventas en
 cero, ACH Banco Nacional en negativo, saldos de Punto de venta y Yappy sin traspasar al banco, ITBMS acumulado.
 
-**Prioridad del 2026-10-16, tarde (la dueña: «esto se superpone al resto»):** el bono por meta de ventas y los
-pedidos repetidos (ver la bitácora) van primero a staging y, con su «sí», a producción. Lo demás espera.
+**Prioridad del 2026-10-16, tarde (la dueña: «esto se superpone al resto»): hecha.** El bono por meta de ventas, los
+pedidos repetidos y los avisos del chat están en producción (Desplegar 12). Siguen: (1) el equipo responde el
+cuestionario «Preguntas para Juan» y, con la revisión de la dueña, se carga en la base de conocimiento (cambiar la regla
+3 de Juan para entregas, flete, apartados, crédito o descuentos necesita su «sí»); (2) la dueña conecta Messenger e
+Instagram con [JUAN_META.md](JUAN_META.md) (empieza por la verificación del negocio); (3) salario y fecha de inicio de
+las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer bono (octubre).
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 

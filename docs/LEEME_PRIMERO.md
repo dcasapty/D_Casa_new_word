@@ -99,7 +99,19 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
-- **Bono por meta de ventas (en la rama de trabajo, camino a staging):** decisión del jefe con las respuestas de la
+- **En producción** (19:38 UTC, Desplegar 12, `app_version` `431cbfe8…`, imagen `sha256:3894d505…`; CI #182 verde y
+  staging confirmado): **bono por meta de ventas**, **aviso de pedidos repetidos** y **avisos del chat que se notan**
+  (todo el equipo «En Odoo», contador en rojo que late). Con el «sí» de la dueña («avísame cuando esté y si tienen mi
+  si»; y, tras las correcciones de la revisión, «Sí, termina»). CI #181 había fallado (3 pruebas: el grupo implícito
+  no cambia «Notificación» en Odoo 19 y una búsqueda de más en el Inicio); la revisión independiente encontró además
+  5 problemas de dinero del bono (nota de crédito suelta que no restaba, venta contada en dos meses, bonos que no se
+  pagaban nunca, comprobante sin el bono, montos de una planilla cancelada que cambiaban): todo corregido con pruebas.
+- **Para Juan:** cuestionario «Preguntas para Juan» (página de Claude, 125 preguntas en 14 temas; 12 llenas y 12
+  incompletas con el manual de marca de la agencia, los términos del sitio y los datos de la empresa; el resto lo
+  responde el equipo) y guía paso a paso para conectar Messenger e Instagram ([JUAN_META.md](JUAN_META.md)). Las
+  respuestas se cargan en la base de conocimiento de Juan solo con la revisión de la dueña; dejar que Juan hable de
+  entregas, flete, apartados, crédito o descuentos cambia su regla 3 y necesita su «sí».
+- **Bono por meta de ventas (en producción desde Desplegar 12):** decisión del jefe con las respuestas de la
   dueña: 1 % de TODO lo cobrado en el mes si se llega a 30,000 (si no, nada); solo facturas cobradas completas, sin
   ITBMS, en el mes del último pago; las devoluciones restan; participa el departamento de Ventas con usuario; se paga
   en la primera planilla del mes siguiente como comisión; cada vendedora ve solo lo suyo en el Inicio. Ver
