@@ -142,6 +142,13 @@ class TestVentasPorPeriodo(VentasCommon):
     def test_dice_que_facturas_suma_contabilidad_y_aqui_no_son_venta(self):
         """Capturas de la dueña (2026-10-16): el Inicio decía $1,301.04 y Contabilidad $1,522.42 para los mismos días;
         la diferencia era una factura sin pedido. El Inicio dice cuántas son, por cuánto, y abre justo esas."""
+        # El ITBMS de prueba necesita su cuenta: sin ella, Odoo deja el impuesto en la cuenta de ingresos y las ventas
+        # contables lo incluirían (en producción el ITBMS va a su cuenta por pagar).
+        cuenta_itbms = self.env['account.account'].create({
+            'name': 'ITBMS por pagar prueba', 'code': '9T0101', 'account_type': 'liability_current'})
+        for linea in self.itbms.invoice_repartition_line_ids | self.itbms.refund_repartition_line_ids:
+            if linea.repartition_type == 'tax':
+                linea.account_id = cuenta_itbms
         vendido = self._venta(0)
         antes = self._ventas(self.gerencia)['fuera'] or {'cuantas': 0, 'sin_itbms': 0.0}
         suelta = self.env['account.move'].create({
