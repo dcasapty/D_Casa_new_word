@@ -48,9 +48,10 @@ MAX_NOTA = 1000
 PIE_DE_AVISO = '↩ Responde a este mensaje para escribirle al cliente. (Conversación n.º %s)'
 REFERENCIA_DE_AVISO = r'Conversación n\.º (\d+)'
 MAX_NOTA_PARA_EL_BOT = 500
-# Lo único que una vendedora cambia a mano (formulario o RPC) en una conversación. Lo demás (estado, pausa por los
-# botones, nota para el asistente, seguimiento, último mensaje, resumen) lo escribe el sistema: con sudo o con
-# CLAVE_SISTEMA, por los métodos que aplican sus reglas (issue #25).
+# Lo único que el equipo (vendedoras y Gerencia) cambia a mano (formulario o RPC) en una conversación. Lo demás (estado,
+# pausa por los botones, nota para el asistente, seguimiento, último mensaje, resumen) lo escribe el sistema con sudo,
+# por los métodos que aplican sus reglas, o un administrador del sistema (issue #25). Una clave en el contexto NO
+# alcanza: el contexto lo manda el cliente por RPC.
 CAMPOS_DE_LA_VENDEDORA = frozenset({
     'partner_id', 'asignada_a', 'etiqueta_ids', 'pausada_hasta', 'borrador', 'borrador_adjunto_ids'})
 CANAL_BUS = 'dcasa_conversaciones/evento'
@@ -244,11 +245,11 @@ class DcasaConversacion(models.Model):
             raise AccessError(self.env._('Solo el equipo de ventas puede atender conversaciones.'))
 
     def write(self, vals):
-        if not self.env.su and not self.env.context.get(CLAVE_SISTEMA):
+        if not self.env.su:
             if {'canal', 'id_externo'} & set(vals):
                 raise AccessError(self.env._('El canal y la persona de una conversación no se cambian.'))
             ajenos = set(vals) - CAMPOS_DE_LA_VENDEDORA
-            if ajenos:
+            if ajenos and not self.env.user.has_group('base.group_system'):
                 raise AccessError(self.env._(
                     'Eso de la conversación no se cambia a mano (%s): usa los botones de la pantalla.',
                     ', '.join(sorted(ajenos))))

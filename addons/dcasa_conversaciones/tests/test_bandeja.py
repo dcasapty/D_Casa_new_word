@@ -144,9 +144,20 @@ class TestPermisos(BandejaCase):
             for usuario in (self.vendedora, self.gerente):
                 with self.subTest(campo=next(iter(valores)), usuario=usuario.login), self.assertRaises(AccessError):
                     self.conv.with_user(usuario).write(valores)
+        # Ni con la clave del sistema en el contexto: el contexto lo manda el cliente por RPC.
+        with self.assertRaises(AccessError):
+            self.conv.with_user(self.vendedora).with_context(dcasa_mensaje_sistema=True).write({'estado': 'cerrada'})
         self.assertEqual(self.conv.estado, 'bot')
         self.assertFalse(self.conv.nota_para_el_bot)
         self.assertEqual(self.conv.seguimientos_enviados, 0)
+
+    def test_el_administrador_del_sistema_si_puede(self):
+        """El administrador del sistema (que igual puede cambiar cualquier permiso) arregla lo que haga falta."""
+        admin = self.env.ref('base.user_admin')
+        self.conv.with_user(admin).write({'seguimiento_proximo': fields.Datetime.now()})
+        self.assertTrue(self.conv.seguimiento_proximo)
+        with self.assertRaises(AccessError):
+            self.conv.with_user(admin).write({'canal': 'telegram'})
 
     def test_lo_que_la_vendedora_si_cambia_a_mano(self):
         """Lo del formulario: la ficha del cliente, quién atiende, la pausa y su respuesta."""
