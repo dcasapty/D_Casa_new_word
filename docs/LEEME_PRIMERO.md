@@ -99,6 +99,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
+- **Versión estable 2 guardada** (la dueña: «se ve bien, guárdala como versión estable 2»): rama `estable-2026-10-16-2` (= `main` con el PR #47), `app_version` `9be426a4…`, imagen `sha256:876ca5f5…`; ya está en el botón «Volver a una versión estable» ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)).
 - **En producción** (13:25 UTC, Desplegar 10, `app_version` `d37af4fd…`, imagen `sha256:015dbd40…`; en `main` con el
   PR #46, *squash* `38c3512`): Etapa 3 (selector solo de clientes, aviso de ficha repetida), prueba de humo del
   arranque, «nunca hacia atrás», vigilancia de 10 minutos, Conversaciones #25 punto 1 y el botón **«Volver a una

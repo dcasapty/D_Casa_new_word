@@ -5,5 +5,12 @@
     "codigo": "estable-2026-10-16",
     "app_version": "3570c3a12e5563621be5ef835837a223904b06c5",
     "imagen_digest": "sha256:4e9b915580dd3d346c2d8ec7f3b2b02809c13172e02fd6e9c392b34c239bc2e3"
+  },
+  "estable-2": {
+    "desde": "2026-10-16 15:11 UTC (Desplegar 11)",
+    "que_trae": "Etapa 3, prueba de humo del arranque, Conversaciones #25, botón para volver, Inicio con cotizaciones y entregas arriba y cifras que cuadran con Contabilidad; la dueña confirmó que se ve bien",
+    "codigo": "estable-2026-10-16-2",
+    "app_version": "9be426a46e15ac124f991648289b41643cf2bfee",
+    "imagen_digest": "sha256:876ca5f5c7f14a6fea91d4b0fb0e4f88be485aba5b167cc3566289fb1ac4f078"
   }
 }
