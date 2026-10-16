@@ -12,9 +12,9 @@ confirma que se ve bien, se agrega aquí.
 
 Qué se guarda de cada una:
 
-- **El código:** una rama con su nombre (`estable-AAAA-MM-DD`) que no se toca. Esa rama tiene el código del *squash*
-  en `main` (la rama no permite empujar etiquetas desde aquí); el commit exacto con que se construyó la imagen es el
-  `app_version` y queda en el PR.
+- **El código:** una rama con su nombre (`estable-AAAA-MM-DD`) que no se toca, hecha desde `main` con el PR ya unido
+  (mismo código; desde las sesiones de Claude no se pueden crear etiquetas de git). El commit exacto con que se
+  construyó la imagen es el `app_version` y queda guardado en su PR.
 - **La imagen ya construida y probada:** en el registro de Cloudflare, con la etiqueta `dcasa-odoo:<app_version>`.
   No se reconstruye nada para volver. Ningún flujo de este repositorio la borra; cuánto la guarda Cloudflare por su
   cuenta **no está confirmado**.
