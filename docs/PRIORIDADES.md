@@ -7,6 +7,9 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-16 (05:49 UTC): las Etapas 1 y 2 están en producción** (`f7e8f14`, PR #43). Lo que sigue empieza en
+la etapa 1 (lo que le falta), después 1b y la 3.
+
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
 Son los trámites largos; empiezan ya aunque el código llegue después.
@@ -35,16 +38,19 @@ Son los trámites largos; empiezan ya aunque el código llegue después.
 9. El tope de gasto de IA de Brian se pone con una cifra mensual por persona y otra para todos. **Falta la cifra.**
 10. El texto de «Pedidos web por atender» pasa a «Compraron en la web y aún no se entregan».
 
-**Siguen abiertas:** las tres cifras de los topes de dinero de Brian, qué trae impreso una caja de mueble, cuál es «el
-flujo del CRM» que querían crear y el «sí» para unir estos documentos a `main`.
+**Siguen abiertas:** las tres cifras de los topes de dinero de Brian (puntos máximos por ajuste, monto máximo de una
+factura que arma Brian, unidades máximas por ajuste de existencias), la cifra mensual del tope de gasto de IA, qué trae
+impreso una caja de mueble, cuál es «el flujo del CRM» que querían crear, encender el QR de la nota de entrega en
+staging, las cinco preguntas para la contadora y las respuestas del plan de envíos. (Estos documentos ya están en `main`,
+unidos con el PR #43.)
 
 ## Orden de trabajo
 
 | # | Etapa | Qué incluye | Depende de |
 |---|---|---|---|
-| 1 | **Seguridad y control primero** | Cerrar los huecos hallados el 2026-10-16: tope de descuento también para el descuento global y el de importe fijo (y al quitar o cambiar líneas después); fusión de contactos segura; que la Vendedora no ajuste existencias a mano sin motivo; topes de dinero de Brian (#26); permisos de escritura de Conversaciones (#25). Más protecciones: pruebas de humo después de producción, revisión adversarial obligatoria si el cambio toca dinero, permisos, contabilidad o Socios, una prueba por cada hueco, revisión de secretos. **Las pruebas se mantienen completas: no se recortan ni se aceleran a costa de cobertura** | Decisiones 6, 8 y 9. **Hecho en la rama (2026-10-16, probado, a staging):** tope de descuento del pedido entero (global, importe fijo y líneas negativas), fusión de contactos segura, existencias solo por Gerencia. **Falta:** topes de dinero de Brian (esperan las cifras de la dueña), permisos de Conversaciones (#25), pruebas de humo, regla de revisión adversarial |
+| 1 | **Seguridad y control primero** | Cerrar los huecos hallados el 2026-10-16: tope de descuento también para el descuento global y el de importe fijo (y al quitar o cambiar líneas después); fusión de contactos segura; que la Vendedora no ajuste existencias a mano sin motivo; topes de dinero de Brian (#26); permisos de escritura de Conversaciones (#25). Más protecciones: pruebas de humo después de producción, revisión adversarial obligatoria si el cambio toca dinero, permisos, contabilidad o Socios, una prueba por cada hueco, revisión de secretos. **Las pruebas se mantienen completas: no se recortan ni se aceleran a costa de cobertura** | Decisiones 6, 8 y 9. **Hecho y en producción (2026-10-16, `f7e8f14`, PR #43):** tope de descuento del pedido entero (global, importe fijo y líneas negativas; también con precio por contexto, al cambiar de producto o unidad), fusión de contactos segura (fusiones masivas solo del administrador), existencias solo por Gerencia, regla de revisión adversarial (plantilla del PR y `LEEME_PRIMERO.md`). **Falta:** topes de dinero de Brian (esperan las cifras de la dueña), permisos de Conversaciones (#25), pruebas de humo después de producción, revisión de secretos |
 | 1b | **Costo y «vendido» más firmes** (salió de la revisión adversarial del 2026-10-16) | (a) Cerrar de verdad el campo «Costo» de la ficha del producto, el margen de los reportes de factura (`account.invoice.report`) y el precio del proveedor: solo Gerencia, administradores, contabilidad, compras e inventario; con pruebas de que recibir, entregar y comprar siguen andando para la Vendedora y para bodega. (b) Que «Vendido» y la ganancia salgan de las líneas de las **facturas publicadas** y no del pedido (así cuadran con Contabilidad si se corrige la factura en caja y las notas de crédito parciales restan solo lo devuelto). (c) Pendientes menores: fusión (`company_ids` de usuarios si hay varias empresas; fichas de usuarios/empleados), `_ganancia_de` con `sudo` si algún día hay varias empresas | Pruebas de Inventario, Compras y Contabilidad |
-| 2 | **Inicio nuevo con utilidad** | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS claro por mejor práctica contable (ventas, costo y ganancia sin ITBMS; dinero que se mueve con ITBMS; cada etiqueta lo dice y trae el desglose); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
+| 2 | **Inicio nuevo con utilidad** (**hecho y en producción** desde 2026-10-16, `f7e8f14`, PR #43) | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS claro por mejor práctica contable (ventas, costo y ganancia sin ITBMS; dinero que se mueve con ITBMS; cada etiqueta lo dice y trae el desglose); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
 | 3 | **Clientes y proveedores limpios** (los usuarios y empleados del sistema no se tocan) | Encontrar por qué una misma persona aparece 5 veces al cotizar, con el mismo correo y celular, pese a los candados (el candado no cuenta usuarios, empleados ni direcciones hijas; hay que mirar «Posibles duplicados»); **arreglar la fusión** (Gerencia no tiene permiso para el asistente; no copia los datos de Socios de la ficha que se borra; destino = la más vieja); avisar al cotizar cuando hay otros contactos con el mismo correo o celular y mostrarlos en el selector; buscar antes de crear una ficha desde una conversación o Telegram | Mirar los datos reales |
 | 4 | **Bodega** | Escáner › Despachar (QR de la nota → verificar cada artículo); Bitácora de bodega (antes → después, motivo); alertas diarias por Telegram (stock bajo, ajustes grandes, cierre de mes); cerrar el hueco del Inventario físico para la Vendedora | Etiquetas o códigos en cajas; umbral |
 | 5 | **Contabilidad propia** | Menú raíz «Contabilidad» (reportes, bancos, cierre de mes), tablero, arqueo de diarios con comprobantes, toma de inventario, ITBMS claro en todos los resúmenes | Respuestas de la contadora |
@@ -56,24 +62,24 @@ flujo del CRM» que querían crear y el «sí» para unir estos documentos a `ma
 
 | Pedido | Estado | Etapa |
 |---|---|---|
-| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Hecho en la rama, en staging (falta el «sí» para producción) | 2 |
-| Rediseño del Inicio | Hecho en la rama, en staging | 2 |
+| Utilidad en el Inicio (Hoy / Semana / Mes con rango) | Hecho, en producción (2026-10-16, PR #43). Ganancia sin ITBMS solo para Gerencia y administradores | 2 |
+| Rediseño del Inicio | Hecho, en producción (2026-10-16, PR #43) | 2 |
 | Contabilidad con menú y tablero propios | Por construir | 5 |
 | Que el contexto no se pierda entre sesiones | Hecho (este archivo y `LEEME_PRIMERO.md`) | 0 |
 | Estado de los issues y prioridades | Hecho (ver abajo) | 0 |
 | Conversaciones: Instagram, Messenger, WhatsApp | Código listo; falta Meta | 6 |
 | Error de despacho en bodega (verificar con escáner) | Por construir | 4 |
-| Contactos duplicados | Causas probables halladas; la herramienta de fusión tiene dos fallas (permiso y datos de Socios) | 3 |
+| Contactos duplicados | La herramienta de fusión ya sirve a Gerencia y no pierde los datos de Socios (en producción, PR #43). Falta lo de la etapa 3: por qué una persona sale 5 veces al cotizar, avisar al cotizar y limpiar los duplicados viejos de clientes y proveedores | 3 |
 | ~1000 facturas del sistema anterior | Importador listo; falta la contadora | 7 |
 | Alertas de fin de mes y de mercancía agotándose | Por construir | 4 |
 | Bitácora de bodega | Por construir | 4 |
 | Brian sin limitaciones | Auditado; huecos listados | 8 |
-| Menos fallas y más seguridad (la velocidad de las pruebas no es prioridad) | Por construir | 1 |
-| Descuentos (por línea, global, importe fijo) | Revisado: por línea y «a todas las líneas» funcionan y respetan el tope; global e importe fijo calculan bien el ITBMS pero se saltan el tope (hueco a cerrar) | 2 |
-| ITBMS claro en los resúmenes | Decidido por mejor práctica contable. Inicio y Brian hechos (etapa 2); falta Contabilidad (etapa 5) | 2 y 5 |
-| Estadísticas del negocio (menú) | Hecho en la rama, en staging | 2 |
-| Íconos del menú con color | Hecho en la rama, en staging (paleta aceptada) | 2 |
-| Categoría «Envíos — En desarrollo» | Hecho en la rama, en staging | 2 |
+| Menos fallas y más seguridad (la velocidad de las pruebas no es prioridad) | En marcha: la etapa 1 está en producción con revisión adversarial y pruebas completas; falta lo que dice la etapa 1 | 1 |
+| Descuentos (por línea, global, importe fijo) | Cerrado el hueco del tope en producción (PR #43): global, importe fijo y líneas negativas también respetan el 10 % de la Vendedora. Brian aún no los maneja (etapa 8) | 2 |
+| ITBMS claro en los resúmenes | Decidido por mejor práctica contable. Inicio y Brian hechos y en producción (etapa 2); falta Contabilidad (etapa 5) | 2 y 5 |
+| Estadísticas del negocio (menú) | Hecho, en producción (2026-10-16, PR #43) | 2 |
+| Íconos del menú con color | Hecho, en producción (2026-10-16, PR #43; paleta aceptada) | 2 |
+| Categoría «Envíos — En desarrollo» | Hecho, en producción (2026-10-16, PR #43) | 2 |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 
