@@ -50,21 +50,31 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
    ese de `main` no existe en el registro. El Worker nuevo igual quedó activo (Cloudflare activa el Worker antes que
    la imagen) y el registro de la aplicación mostraba otra vez la imagen anterior (`bf40605e…`).
 
-**Cómo se resolvió (de raíz):**
+**Cómo se resolvió (de raíz), en dos entregas:**
 
-* La imagen sabe quién es: guarda su commit (`/opt/dcasa/COMMIT`), la fecha del commit (`/opt/dcasa/ORDEN`) y la
-  huella de su código (`/opt/dcasa/CODIGO`, Odoo + addons). El arranque usa la versión de la **imagen**, no la
-  variable, y actualiza si la huella no coincide con la de la base (`dcasa.codigo_desplegado`).
-* Nunca hacia atrás: una imagen más vieja que la que actualizó la base no la «actualiza» (con `-u` del código viejo
-  Odoo borra columnas y tablas nuevas con sus datos). Para volver atrás de verdad se restaura la base primero.
-* Prueba de humo en cada arranque (`dcasa_base/models/humo.py`): cada campo guardado con su columna y el Inicio,
-  las cotizaciones y las conversaciones armados de verdad. Si faltan columnas, actualiza otra vez.
-* `/dcasa/salud` dice `version`, `base_al_dia` y `humo`; `.github/scripts/esperar_salud.sh` exige la versión
-  desplegada con la base al día y el humo en orden, y vigila 10 minutos (si Cloudflare vuelve a la imagen anterior,
-  el despliegue falla en vez de quedar verde).
-* Pruebas: `probar_esperar_salud.sh` (el chequeo viejo daba «sano» en falso en 5 casos), `/dcasa/salud`,
-  `test_humo.py`, y en CI la imagen real con: huella de otro código, columna borrada con los marcadores «al día»,
-  imagen más vieja que la base y `APP_VERSION` atrasada en un contenedor nuevo.
+*Arreglo `3570c3a` (el que arregló producción el 2026-10-16, «Desplegar 9»):*
+
+* La imagen sabe quién es: guarda su commit (`/opt/dcasa/COMMIT`) y la huella de su código (`/opt/dcasa/CODIGO`,
+  Odoo + addons). El arranque usa la versión de la **imagen**, no la variable, y actualiza si la huella no coincide
+  con la de la base (`dcasa.codigo_desplegado`).
+* `/dcasa/salud` dice `version` y `base_al_dia`; `.github/scripts/esperar_salud.sh` exige la versión desplegada con
+  la base al día y vuelve a mirar a los 5 minutos (si Cloudflare vuelve a la imagen anterior, el despliegue falla).
+* Pruebas: `probar_esperar_salud.sh` (el chequeo viejo daba «sano» en falso en 5 casos), `/dcasa/salud`, y en CI la
+  imagen real con la base «actualizada con otro código».
+
+*Entrega siguiente (revisión adversarial del arreglo; en pruebas, todavía no en producción):*
+
+* Nunca hacia atrás: con otro código, una imagen más vieja (fecha del commit, `/opt/dcasa/ORDEN`) que la que
+  actualizó la base no la «actualiza» (con `-u` del código viejo Odoo borra columnas y tablas nuevas con sus datos)
+  ni toca sus módulos. Para volver atrás: restaurar y desplegar la versión vieja en **una sola operación**
+  (`docs/OPERACION.md`); salidas de emergencia `DCASA_PERMITIR_BAJAR` y `DCASA_HUMO=0`.
+* Huella vieja: si una imagen anterior a este control marcó la versión después de la huella, la huella no vale.
+* Prueba de humo en cada arranque (`dcasa_base/models/humo.py`): cada campo guardado con su columna y el Inicio y
+  las listas de cotizaciones y conversaciones armados de verdad. Si faltan columnas, actualiza otra vez (también el
+  módulo de Odoo que define el campo).
+* `/dcasa/salud` suma `humo`; el despliegue lo exige y vigila 10 minutos sin dar por sano un sitio caído al final.
+* Pruebas: `test_humo.py` y en CI la imagen real con una columna borrada con los marcadores «al día», una imagen
+  más vieja que la base y `APP_VERSION` atrasada en un contenedor nuevo.
 
 **Lo que hay que recordar:**
 
