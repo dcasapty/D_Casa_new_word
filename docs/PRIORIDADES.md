@@ -9,9 +9,9 @@ Cada etapa sale a staging para que la dueña la vea; a producción solo con su �
 
 **Estado al 2026-10-16, tarde:** en producción desde las 13:25 UTC (Desplegar 10, `d37af4fd…`, PR #46 en `main`) las
 Etapas 1, 2 y 3, la prueba de humo del arranque, Conversaciones #25 punto 1 y el botón «Volver a una versión estable».
-En la rama de trabajo, camino a staging: Inicio con las listas de cotizaciones y entregas arriba y con acento,
-«Ganancia bruta», la línea que cuadra el Inicio con Contabilidad, el aviso de utilidad sin costo de ventas y «Vencido»
-sin negativos (ver la bitácora). Lo que sigue: guardar la Estable 2 cuando la dueña confirme producción, ensayar la
+Desde las 15:11 UTC (Desplegar 11, `9be426a4…`) también: Inicio con las listas de cotizaciones y entregas arriba y con
+acento, «Ganancia bruta», la línea que cuadra el Inicio con Contabilidad, el aviso de utilidad sin costo de ventas y
+«Vencido» sin negativos (ver la bitácora). Lo que sigue: guardar la Estable 2 cuando la dueña confirme producción, ensayar la
 vuelta en staging, la alerta por Telegram del arranque (rama local `alertas-local`), lo que falta de la etapa 1 (topes
 de Brian: esperan cifras de la dueña) y la 1b. **Para la contadora** (de las capturas del 15–16 oct): costo de ventas en
 cero, ACH Banco Nacional en negativo, saldos de Punto de venta y Yappy sin traspasar al banco, ITBMS acumulado.

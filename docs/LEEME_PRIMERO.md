@@ -111,7 +111,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   «Vencido» en negativo y el periodo anterior al revés (+170.8 % en el Inicio, −34.6 % en Contabilidad: el 13–14 oct
   tiene $1,848.80 en facturas que el Inicio no cuenta como venta). Para la contadora: ACH Banco Nacional en negativo,
   saldos grandes en Punto de venta y Yappy (¿falta registrar el traspaso al banco?), ITBMS acumulado de $9,160.29.
-- **Entrega siguiente (rama de trabajo, va a staging):** en el Inicio, «Cotizaciones abiertas» y «Entregas pendientes»
+- **En producción** (15:11 UTC, Desplegar 11, `app_version` `9be426a4…`, imagen `sha256:876ca5f5…`; CI #178 y staging confirmados antes): en el Inicio, «Cotizaciones abiertas» y «Entregas pendientes»
   justo debajo de los accesos azules, con cabecera azul marino y el número en amarillo (pedido de la dueña);
   «Ganancia bruta» (no resta gastos); la línea «Contabilidad dice $X… $Y más/menos que aquí» con la resta exacta y las
   facturas que la explican (también el abono de un apartado facturado otro día, que halló la revisión adversarial). En
