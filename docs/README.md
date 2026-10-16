@@ -16,6 +16,7 @@
 | Usar el Escáner de códigos de barras y las etiquetas | [BARRAS.md](BARRAS.md) |
 | Atender conversaciones con Juan (bandeja, traspaso a una vendedora) | [JUAN_ODOO.md](JUAN_ODOO.md) |
 | Entender o vincular el WhatsApp de Juan (puente QR) y el plan B oficial | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_PLAN_B.md](JUAN_PLAN_B.md) |
+| Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_META.md) |
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |

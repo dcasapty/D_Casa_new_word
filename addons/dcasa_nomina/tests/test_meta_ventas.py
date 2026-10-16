@@ -126,7 +126,8 @@ class TestMetaVentas(NominaCommon):
         self.assertEqual((bono.factura_ids, bono.nota_ids), (factura, nota))
 
     def test_la_devolucion_de_una_venta_que_nunca_conto_no_resta(self):
-        vieja = self.factura(800, '2029-12-10', pagar_en='2029-12-11')    # antes de que rija la meta (enero 2030)
+        # Pagada antes de que rigiera la primera meta de la empresa (la de fábrica rige desde octubre de 2026).
+        vieja = self.factura(800, '2026-09-10', pagar_en='2026-09-11')
         self.factura(1100, '2030-03-05', pagar_en='2030-03-06')
         nota = vieja._reverse_moves([{'date': '2030-03-15', 'invoice_date': '2030-03-15'}])
         nota.action_post()
@@ -241,8 +242,8 @@ class TestMetaVentas(NominaCommon):
         bono = self.bono()
         self.assertEqual(bono.estado, 'en_planilla')
         planilla.action_borrador()
-        planilla.write({'tipo': 'decimo'})
-        planilla._enlazar_bonos()
+        planilla.write({'fecha_desde': '2030-04-16', 'fecha_hasta': '2030-04-30', 'fecha_pago': '2030-04-30'})
+        planilla.action_calcular()
         self.assertEqual((bono.estado, self._linea(planilla, self.vera).comision_meta), ('abierto', 0.0))
 
     def test_el_comprobante_de_pago_muestra_el_bono(self):
