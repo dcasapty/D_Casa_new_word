@@ -1,6 +1,13 @@
-from odoo import models
+from dateutil.relativedelta import relativedelta
+
+from odoo import fields, models
 
 from . import formato, lineas
+
+# Plazo para terminar de pagar una factura con abonos, en meses desde el primer abono. La dueña (cuestionario de
+# Juan, 2026-10-16): «un mes para pagar el saldo completo». 0 = no se imprime ni se muestra vencimiento.
+PARAMETRO_MESES_ABONO = 'dcasa_invoice.abono_meses'
+MESES_ABONO_POR_DEFECTO = 1
 
 
 class AccountMove(models.Model):
@@ -61,6 +68,46 @@ class AccountMove(models.Model):
     def _dcasa_pagado(self):
         self.ensure_one()
         return self.currency_id.round(self.amount_total - self.amount_residual)
+
+    # ------------------------------------------------------------------------
+    # Abonos: el cliente paga por partes la misma factura (nada cambia en la contabilidad)
+    # ------------------------------------------------------------------------
+
+    def _dcasa_es_abono(self):
+        """Factura de cliente publicada con algo pagado y algo por pagar: se imprime como ABONO."""
+        self.ensure_one()
+        return self.move_type == 'out_invoice' and self.state == 'posted' and self.payment_state == 'partial'
+
+    def _dcasa_meses_abono(self):
+        valor = self.env['ir.config_parameter'].sudo().get_param(PARAMETRO_MESES_ABONO)
+        try:
+            return max(int(valor), 0) if valor not in (None, False, '') else MESES_ABONO_POR_DEFECTO
+        except (TypeError, ValueError):
+            return MESES_ABONO_POR_DEFECTO
+
+    def _dcasa_estado_abono(self):
+        """Lo pagado y lo que falta de esta factura, para el papel y para «Mi cuenta» (una sola fuente de cifras).
+
+        ``{'es_abono', 'total', 'pagado', 'saldo', 'abonos', 'inicio', 'vence', 'vencido'}``: ``abonos`` es
+        ``_dcasa_abonos()``; ``inicio`` la fecha del primer pago (no cuenta una nota de crédito); ``vence`` = inicio +
+        los meses de plazo, solo mientras falte pagar. Solo lee: no escribe nada ni toca asientos.
+        """
+        self.ensure_one()
+        fechas = [pago['date'] for pago in self._dcasa_pagos() if pago.get('date') and not pago.get('is_refund')]
+        inicio = min(fechas) if fechas else False
+        saldo = self.currency_id.round(self.amount_residual) if self.state == 'posted' else self.amount_total
+        meses = self._dcasa_meses_abono()
+        vence = inicio + relativedelta(months=meses) if inicio and meses and saldo > 0 else False
+        return {
+            'es_abono': self._dcasa_es_abono(),
+            'total': self.amount_total,
+            'pagado': self._dcasa_pagado() if self.state == 'posted' else 0.0,
+            'saldo': saldo,
+            'abonos': self._dcasa_abonos() if self.state == 'posted' else [],
+            'inicio': inicio,
+            'vence': vence,
+            'vencido': bool(vence and vence < fields.Date.context_today(self)),
+        }
 
     def _dcasa_mostrar_pagos(self):
         """Los abonos y el saldo se imprimen en toda factura publicada que tenga algún pago."""
