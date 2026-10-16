@@ -54,6 +54,14 @@ SECCIONES_FLUJO = [
     ('financiamiento', 'Actividades de financiamiento', ('liability_non_current', 'equity', 'equity_unaffected')),
 ]
 
+# Hay ventas y el costo de ventas quedó en cero (la mercancía vendida no descontó su costo): la «utilidad» sale igual
+# a las ventas y no es ganancia (capturas de la dueña, 2026-10-16: ventas $1,522.42, utilidad $1,522.42, margen 100 %).
+# Cómo registrar el costo lo decide la contadora; mientras tanto, los reportes lo dicen claro.
+AVISO_SIN_COSTO = ('Hay ventas y el costo de ventas está en cero: la mercancía vendida no descontó su costo en la '
+                   'contabilidad, así que la utilidad sale igual a las ventas y no es la ganancia real. Cómo registrar '
+                   'el costo lo decide la contadora; la ganancia bruta estimada (venta menos costo del producto) está '
+                   'en el Inicio.')
+
 # Antigüedad de saldos: (clave, nombre, hasta cuántos días vencido; None = sin tope)
 TRAMOS = [
     ('por_vencer', 'Por vencer', 0),
@@ -262,11 +270,14 @@ class ReporteContable(models.AbstractModel):
     def estado_resultados(self, desde=None, hasta=None, borradores=False):
         desde, hasta = self._periodo(desde, hasta)
         secciones, resumen = self._resultado(desde, hasta, borradores)
-        ventas = next(s['total'] for s in secciones if s['clave'] == 'ventas')
+        totales = {s['clave']: s['total'] for s in secciones}
+        ventas = totales['ventas']
         margen = round(resumen['utilidad_bruta'] / ventas * 100, 1) if ventas else None
+        sin_costo = ventas > 0 and not totales['costo']
         return {'reporte': 'estado_resultados', 'titulo': 'Estado de resultados', 'desde': str(desde),
                 'hasta': str(hasta), 'moneda': self._moneda(), 'secciones': secciones,
-                'resumen': {**resumen, 'margen_bruto': margen}}
+                'resumen': {**resumen, 'margen_bruto': margen, 'sin_costo_de_ventas': sin_costo,
+                            'aviso_costo': AVISO_SIN_COSTO if sin_costo else None}}
 
     # ------------------------------------------------------------------
     # Balance general
@@ -656,7 +667,14 @@ class ReporteContable(models.AbstractModel):
             fila['vencido'] = self._r(fila['vencido'])
         totales = {k: self._r(sum(f['tramos'][k] for f in filas)) for k in claves}
         totales['total'] = self._r(sum(f['total'] for f in filas))
-        totales['vencido'] = self._r(sum(f['vencido'] for f in filas))
+        # «Vencido» es lo vencido que de verdad se debe: el cobro sin aplicar o la nota de crédito de un cliente baja
+        # lo vencido de ESE cliente, nunca lo de otro, y nadie tiene más vencido que lo que debe en total (un cobro de
+        # hoy todavía sin aplicar a su factura vencida). Antes se sumaba todo junto y salía en negativo («Vencido
+        # ($1,579.79)», capturas de la dueña del 2026-10-16), y el aviso «Hay cobros vencidos» se escondía aunque
+        # hubiera facturas vencidas. Lo que queda a favor de terceros (cobros sin aplicar, anticipos, notas de crédito)
+        # va aparte en ``a_favor``.
+        totales['vencido'] = self._r(sum(min(max(f['vencido'], 0.0), max(f['total'], 0.0)) for f in filas))
+        totales['a_favor'] = self._r(-sum(min(f['total'], 0.0) for f in filas))
         cobrar = tipo == 'por_cobrar'
         return {'reporte': tipo, 'titulo': 'Cuentas por cobrar' if cobrar else 'Cuentas por pagar',
                 'desde': str(corte), 'hasta': str(corte), 'moneda': self._moneda(),
@@ -775,6 +793,8 @@ class ReporteContable(models.AbstractModel):
         if cobrar['totales']['vencido'] > 0:
             alertas.append({'nivel': 'aviso', 'destino': 'por_cobrar',
                             'texto': 'Hay cobros vencidos: mira quién te debe en «Por cobrar».'})
+        if resultados['resumen']['sin_costo_de_ventas']:
+            alertas.append({'nivel': 'aviso', 'destino': 'utilidad', 'texto': AVISO_SIN_COSTO})
         if borradores_n:
             documentos = self._plural(borradores_n, 'factura o asiento', 'facturas o asientos')
             alertas.append({'nivel': 'info', 'destino': 'borradores',
@@ -796,9 +816,11 @@ class ReporteContable(models.AbstractModel):
              'sin_conciliar': sin_conciliar, 'pagos_sin_cruzar': pagos_n, 'monto_sin_cruzar': pagos_monto,
              **base_saldo},
             {'clave': 'por_cobrar', 'titulo': 'Te deben', 'valor': cobrar['totales']['total'],
-             'vencido': cobrar['totales']['vencido'], **base_saldo},
+             'vencido': cobrar['totales']['vencido'], 'a_favor': cobrar['totales']['a_favor'],
+             'a_favor_titulo': 'A favor de clientes', **base_saldo},
             {'clave': 'por_pagar', 'titulo': 'Debes a proveedores', 'valor': pagar['totales']['total'],
-             'vencido': pagar['totales']['vencido'], **base_saldo},
+             'vencido': pagar['totales']['vencido'], 'a_favor': pagar['totales']['a_favor'],
+             'a_favor_titulo': 'A tu favor con proveedores', **base_saldo},
             # El valor y el título son los del PERIODO (ventas − compras); el acumulado es un saldo al corte, aparte.
             {'clave': 'itbms', 'titulo': 'ITBMS por pagar' if itbms['a_pagar'] >= 0 else 'ITBMS a favor',
              'valor': abs(itbms['a_pagar']), 'debito': itbms['debito_fiscal'], 'credito': itbms['credito_fiscal'],
@@ -809,7 +831,9 @@ class ReporteContable(models.AbstractModel):
             {'clave': 'ventas', 'titulo': 'Ventas', 'valor': ventas, 'comparado': ventas_antes,
              'variacion_pct': self._variacion(ventas, ventas_antes)[1], **base_periodo},
             {'clave': 'utilidad', 'titulo': 'Utilidad', 'valor': utilidad, 'comparado': utilidad_antes,
-             'variacion_pct': self._variacion(utilidad, utilidad_antes)[1], **base_periodo},
+             'variacion_pct': self._variacion(utilidad, utilidad_antes)[1],
+             'aviso': 'Sin costo de ventas: no es ganancia' if resultados['resumen']['sin_costo_de_ventas'] else None,
+             **base_periodo},
         ]
         return {
             'reporte': 'resumen', 'titulo': 'Resumen contable', 'desde': str(desde), 'hasta': str(hasta),

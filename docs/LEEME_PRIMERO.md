@@ -99,6 +99,26 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
+- **En producción** (13:25 UTC, Desplegar 10, `app_version` `d37af4fd…`, imagen `sha256:015dbd40…`; en `main` con el
+  PR #46, *squash* `38c3512`): Etapa 3 (selector solo de clientes, aviso de ficha repetida), prueba de humo del
+  arranque, «nunca hacia atrás», vigilancia de 10 minutos, Conversaciones #25 punto 1 y el botón **«Volver a una
+  versión estable»**. Con el «sí» de la dueña («Si»); CI #174 verde, staging sano y revisado por ella.
+- **Las cifras de Contabilidad y del Inicio, revisadas con las capturas de la dueña** (15–16 oct): las sumas cuadran
+  (ventas + ITBMS = total de las 13 facturas; 7 % exacto), y la diferencia entre el Inicio ($1,301.04) y Contabilidad
+  ($1,522.42) era **una sola factura sin pedido** ($236.88 con ITBMS). **Corrección:** antes se le dijo que los pedidos
+  viejos S00016–S00021 no estaban en el Inicio; sí están (el Inicio cuenta el día de la factura). Lo incoherente: la
+  «Utilidad» igual a las ventas (costo de ventas en cero, margen 100 %), «Ganancia» y «Utilidad» que no miden lo mismo,
+  «Vencido» en negativo y el periodo anterior al revés (+170.8 % en el Inicio, −34.6 % en Contabilidad: el 13–14 oct
+  tiene $1,848.80 en facturas que el Inicio no cuenta como venta). Para la contadora: ACH Banco Nacional en negativo,
+  saldos grandes en Punto de venta y Yappy (¿falta registrar el traspaso al banco?), ITBMS acumulado de $9,160.29.
+- **En producción** (15:11 UTC, Desplegar 11, `app_version` `9be426a4…`, imagen `sha256:876ca5f5…`; CI #178 y staging confirmados antes): en el Inicio, «Cotizaciones abiertas» y «Entregas pendientes»
+  justo debajo de los accesos azules, con cabecera azul marino y el número en amarillo (pedido de la dueña);
+  «Ganancia bruta» (no resta gastos); la línea «Contabilidad dice $X… $Y más/menos que aquí» con la resta exacta y las
+  facturas que la explican (también el abono de un apartado facturado otro día, que halló la revisión adversarial). En
+  Contabilidad: la utilidad con el costo de ventas en cero lo avisa (Resumen, Estado de resultados —también al comparar—,
+  Excel, PDF y Brian); «Vencido» ya no resta el saldo a favor de un cliente a la deuda de otro ni pasa de lo que el
+  cliente debe, y lo «a favor» va aparte (también en el cierre de mes). La dueña autorizó llevarlo a producción en
+  cuanto estuviera («tan pronto puedas subir las correcciones a producción hazlo»).
 - **Producción arreglada** (07:27 UTC, Desplegar 9, `app_version` `3570c3a1…`, imagen `sha256:4e9b9155…`): el arreglo
   #97. La imagen sabe su commit y la huella de su código y actualiza la base si no coinciden; el despliegue exige la
   versión nueva con la base al día y la vigila 5 minutos. Ese arranque actualizó todos los módulos y aplicó por fin

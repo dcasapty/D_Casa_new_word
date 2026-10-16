@@ -53,6 +53,13 @@ class TestHerramientasContabilidad(TransactionCase):
                                                                            'hasta': '31/03/2030'}))
         self.assertEqual(datos['ventas']['monto'], '$100.00')
         self.assertEqual(datos['utilidad']['periodo_anterior'], '$0.00')
+        # Ventas sin costo de ventas registrado: Brian no presenta la utilidad como ganancia.
+        self.assertIn('no es ganancia', datos['utilidad']['aviso'])
+        self.assertTrue(any('costo de ventas está en cero' in a for a in datos['alertas']), datos['alertas'])
+        self.assertIn('a_favor_de_clientes', datos)
+        resultados = self.ok(self.ejecutar(self.contador, 'reporte_contable', {
+            'reporte': 'estado_resultados', 'desde': '01/03/2030', 'hasta': '31/03/2030'}))
+        self.assertIn('no es la ganancia real', resultados['aviso'])
         self.assertIn('ITBMS por pagar: $7.00', datos['itbms'])
         self.assertIn('Brianzeta Deudor', [d['cliente'] for d in datos['quien_debe_mas']])
         deuda = self.ok(self.ejecutar(self.contador, 'antiguedad_saldos', {'fecha': '30/04/2030'}))

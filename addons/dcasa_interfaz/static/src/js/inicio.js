@@ -140,8 +140,9 @@ export class DcasaInicio extends Component {
             name: a.name,
             res_model: a.res_model,
             domain: a.domain,
+            // Una lista puede pedir su vista (p. ej. la de facturas, con los montos sin ITBMS).
             views: [
-                [false, "list"],
+                [a.vista_lista || false, "list"],
                 [false, "form"],
             ],
         });

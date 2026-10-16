@@ -23,6 +23,10 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
    anterior: la versión que manda es la de la imagen (`/opt/dcasa/COMMIT`).
 5. **Toda prueba con fechas congela el reloj** (Panamá es UTC−5: el día cambia a las 05:00 UTC).
 6. **Todo método público nuevo va a la lista blanca** de `addons/dcasa_base/tests/test_superficie_rpc.py` con su motivo.
+7. **Antes de explicarle a la dueña por qué dos cifras no cuadran, hacer la cuenta con los números de sus capturas y con
+   el código que las calcula.** El 2026-10-16 se le dijo que el Inicio no contaba los pedidos viejos S00016–S00021; la
+   cuenta (total de facturas − total del Inicio = $236.88, una sola factura sin pedido) mostró que sí los contaba, y hubo
+   que corregirlo. Una explicación «razonable» sin la resta es una suposición.
 
 ---
 
@@ -200,6 +204,8 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 7 | 2026-10-16 05:47 | `fbf375b0` | PR #43 Etapas 1 y 2 | **Sí**: ~12 campos (`dcasa_utilidad`, `dcasa_sin_costo`…), 4 vistas, datos, seguridad | «Sano» **en falso** (7 s tras el corte) | Incidente 1 a las 06:07. digest `f61b9adf…` |
 | Desplegar 8 | 2026-10-16 06:16 | `5fa33f4c` | PR #44 (solo docs): SHA del *squash* de `main` | — | **Falló**: `IMAGE_REGISTRY_DOESNT_CONTAIN_IMAGE` | Respaldo previo hecho; el Worker nuevo quedó activo; la app seguía en `bf40605e` |
 | Desplegar 9 | 2026-10-16 07:20 | `3570c3a1` | Arreglo #97 (imagen con commit y huella; chequeo estricto) | **Sí**: la huella de la base no existía, así que actualizó todo (aplicó por fin las Etapas 1 y 2) | **Sano y confirmado** 07:22 → 07:27 (versión `3570c3a12e55`, `base_al_dia` true, 5 min de vigilancia) | El primer minuto respondía la instancia anterior (sin versión) y el chequeo nuevo **no** la dio por sana. La dueña confirmó Inicio y conversaciones. Staging igual en CI #171. digest `4e9b9155…` |
+| Desplegar 10 | 2026-10-16 13:12 | `d37af4fd` | Etapa 3, prueba de humo del arranque, «nunca hacia atrás», Conversaciones #25 punto 1, botón «Volver a una versión estable» (PR #46) | **Sí** (Etapa 3 y Conversaciones; la huella cambió y actualizó) | **Sano y confirmado** 13:25 (versión `d37af4fde5b2`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña. Staging igual en CI #174. digest `015dbd40…` |
+| Desplegar 11 | 2026-10-16 14:57 | `9be426a4` | Inicio: cotizaciones y entregas arriba con acento, «Ganancia bruta», cuadre exacto con Contabilidad; Contabilidad: aviso de utilidad sin costo de ventas, «Vencido» sin negativos | No (vistas, plantillas y estilos; sin campos nuevos) | **Sano y confirmado** 15:11 (versión `9be426a46e15`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («tan pronto puedas subir las correcciones a producción hazlo»). Staging igual en CI #178. digest `876ca5f5…` |
 
 **Qué puede no haberse aplicado nunca en producción:**
 

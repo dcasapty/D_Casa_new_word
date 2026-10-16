@@ -7,11 +7,14 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-10-16, 07:27 UTC:** las Etapas 1 y 2 están **en producción y funcionando** desde el arreglo #97
-(Desplegar 9; la dueña confirmó Inicio y conversaciones). Su primer despliegue (05:47) no había actualizado la base:
-ver el incidente 1 de [CONTEXTO_AGENTICO.md](CONTEXTO_AGENTICO.md). Lo que sigue: subir a staging la entrega ya
-probada en local (Etapa 3, prueba de humo del arranque, permisos de Conversaciones #25), después lo que falta de la
-etapa 1 (topes de Brian: esperan cifras de la dueña) y la 1b.
+**Estado al 2026-10-16, tarde:** en producción desde las 13:25 UTC (Desplegar 10, `d37af4fd…`, PR #46 en `main`) las
+Etapas 1, 2 y 3, la prueba de humo del arranque, Conversaciones #25 punto 1 y el botón «Volver a una versión estable».
+Desde las 15:11 UTC (Desplegar 11, `9be426a4…`) también: Inicio con las listas de cotizaciones y entregas arriba y con
+acento, «Ganancia bruta», la línea que cuadra el Inicio con Contabilidad, el aviso de utilidad sin costo de ventas y
+«Vencido» sin negativos (ver la bitácora). Lo que sigue: guardar la Estable 2 cuando la dueña confirme producción, ensayar la
+vuelta en staging, la alerta por Telegram del arranque (rama local `alertas-local`), lo que falta de la etapa 1 (topes
+de Brian: esperan cifras de la dueña) y la 1b. **Para la contadora** (de las capturas del 15–16 oct): costo de ventas en
+cero, ACH Banco Nacional en negativo, saldos de Punto de venta y Yappy sin traspasar al banco, ITBMS acumulado.
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 

@@ -609,6 +609,17 @@
     padding: 6px 10px;
 }
 
+// La diferencia con Contabilidad: se toca y abre esas facturas.
+.o_dcasa_ventas_cuadre {
+    border: 1px solid var(--dc-azul-100);
+    text-align: left;
+    margin-top: 6px;
+
+    .fa { margin-top: 2px; }
+    &:hover { border-color: var(--dc-azul-300); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
 .o_dcasa_desglose {
     display: flex;
     flex-wrap: wrap;
@@ -637,27 +648,67 @@
     @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); }
 }
 
+// Cotizaciones abiertas y entregas pendientes: lo que más se usa, con acento (pedido de la dueña, 2026-10-16).
+// Cabecera azul marino de borde a borde con el número en amarillo (el amarillo solo toca el azul); la lista, en blanco.
+.o_dcasa_lista {
+    padding: 0;
+    overflow: hidden;
+    border-color: var(--dc-azul-200);
+
+    > ul { padding: 4px 14px 6px; }
+    > .o_dcasa_vacio { padding: 16px 20px; }
+    > .o_dcasa_lista_pie { padding: 0 20px 14px; }
+}
+
 .o_dcasa_lista_cabeza {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 8px 12px;
+    background: var(--dc-azul-800);
+    padding: 12px 14px 12px 20px;
+}
 
-    h2 { margin: 0; }
+.o_dcasa_inicio .o_dcasa_lista_cabeza h2 {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--dc-blanco);
+    font-size: 1.05rem;
+    font-weight: 700;
+
+    .fa { color: var(--dc-amarillo); }
 }
 
 .o_dcasa_lista_cuenta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
     background: none;
     border: 0;
-    padding: 0;
+    padding: 4px 6px;
+    border-radius: var(--dc-r-sm);
     font-size: .85rem;
-    color: var(--dc-azul-600);
     font-weight: 500;
+    color: var(--dc-azul-100);
 
-    &:hover { text-decoration: underline; }
-    &:focus-visible { outline: none; box-shadow: var(--dc-foco); border-radius: 4px; }
+    &:hover { background: rgba(255, 255, 255, .12); color: var(--dc-blanco); }
+    &:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--dc-amarillo); }
+}
+
+.o_dcasa_lista_numero {
+    min-width: 30px;
+    height: 30px;
+    padding: 0 9px;
+    border-radius: 15px;
+    display: inline-grid;
+    place-items: center;
+    background: var(--dc-amarillo);
+    color: var(--dc-azul-900);
+    font-weight: 800;
+    font-size: .95rem;
 }
 
 .o_dcasa_lista li + li { border-top: 1px solid var(--dc-perla); }

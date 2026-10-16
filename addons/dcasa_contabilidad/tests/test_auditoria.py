@@ -536,20 +536,26 @@ class TestAuditoriaSaldos(AuditoriaCommon):
                 esperado = O.pendientes(self.env, self.company, cuenta, corte)
                 datos = getattr(self.reportes, tipo)(hasta=corte)
                 por_tramo = dict.fromkeys(('por_vencer', 'd1_30', 'd31_60', 'd61_90', 'd91_120', 'mas_120'), 0.0)
-                vencido = 0.0
+                vencido_por_tercero = {}
                 esperados = {}
                 for _apunte, tercero, vence, pendiente in esperado:
                     dias = (d(corte) - vence).days
                     por_tramo[O.tramo(dias)] += pendiente
-                    if dias > 0:
-                        vencido += pendiente
                     socio = self.env['res.partner'].browse(tercero).commercial_partner_id.id or False
+                    if dias > 0:
+                        vencido_por_tercero[socio] = vencido_por_tercero.get(socio, 0.0) + pendiente
                     esperados[socio] = esperados.get(socio, 0.0) + pendiente
+                # Lo vencido de cada tercero, sin que el saldo a favor de uno reste lo que debe otro ni pase de lo que
+                # ese tercero debe en total.
+                vencido = sum(min(max(round(v, 2), 0.0), max(round(esperados[s], 2), 0.0))
+                              for s, v in vencido_por_tercero.items())
+                a_favor = -sum(min(round(v, 2), 0.0) for v in esperados.values())
                 msg = f'{tipo} al {corte}'
                 for tramo, valor in por_tramo.items():
                     self.assertCifra(datos['totales'][tramo], valor, f'{msg} {tramo}')
                 self.assertCifra(datos['totales']['total'], sum(por_tramo.values()), f'{msg} total')
                 self.assertCifra(datos['totales']['vencido'], vencido, f'{msg} vencido')
+                self.assertCifra(datos['totales']['a_favor'], a_favor, f'{msg} a favor')
                 reales = {f['id'] or False: f['total'] for f in datos['filas']}
                 self.assertEqual(set(reales), {k for k, v in esperados.items() if round(v, 2)}, msg)
                 for socio, valor in esperados.items():

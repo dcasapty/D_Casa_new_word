@@ -196,7 +196,8 @@ class DcasaCierreMes(models.Model):
 
         cobrar = Reporte._antiguedad('por_cobrar', fin)['totales']
         paso('cobros', 'Cobros vencidos revisados', cobrar['vencido'] > 0,
-             f'Vencido al cierre: {moneda.format(cobrar["vencido"])} de {moneda.format(cobrar["total"])}',
+             f'Vencido al cierre: {moneda.format(cobrar["vencido"])} de {moneda.format(cobrar["total"])}'
+             + (f' (a favor de clientes: {moneda.format(cobrar["a_favor"])})' if cobrar['a_favor'] else ''),
              bloquea=False)
         itbms = Reporte.itbms(inicio, fin)['resumen']
         paso('itbms', 'ITBMS del mes para declarar', False,

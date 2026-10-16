@@ -32,7 +32,10 @@ def _cuando_tarjeta(tarjeta):
 
 def _detalle_tarjeta(tarjeta):
     if 'vencido' in tarjeta:
-        return f"Vencido: {tarjeta['vencido']:,.2f}"
+        texto = f"Vencido: {tarjeta['vencido']:,.2f}"
+        if tarjeta.get('a_favor'):
+            texto += f" · {tarjeta['a_favor_titulo']}: {tarjeta['a_favor']:,.2f}"
+        return texto
     if 'debito' in tarjeta:
         texto = f"Ventas {tarjeta['debito']:,.2f} − compras {tarjeta['credito']:,.2f}"
         if 'acumulado' in tarjeta:
@@ -40,7 +43,8 @@ def _detalle_tarjeta(tarjeta):
             texto += f" · {titulo} al {tarjeta['acumulado_al']}: {abs(tarjeta['acumulado']):,.2f}"
         return texto
     if 'comparado' in tarjeta:
-        return f"Periodo anterior: {tarjeta['comparado']:,.2f}"
+        texto = f"Periodo anterior: {tarjeta['comparado']:,.2f}"
+        return f"{texto} · {tarjeta['aviso']}" if tarjeta.get('aviso') else texto
     return tarjeta.get('nota', '')
 
 
@@ -97,6 +101,8 @@ def _plano_secciones(datos):
         totales = [('Efectivo al inicio', 'efectivo_inicial'), ('Variación del efectivo', 'variacion'),
                    ('Efectivo al final', 'efectivo_final')]
     filas += [(fila('', nombre, cifras[clave], cifras_ant.get(clave)), 'b') for nombre, clave in totales]
+    if cifras.get('aviso_costo'):  # utilidad con el costo de ventas en cero: el Excel también lo dice
+        filas.append((['', cifras['aviso_costo']] + [''] * (len(enc) - 2), 'b'))
     return enc, filas
 
 

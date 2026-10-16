@@ -203,6 +203,11 @@
 .o_dc_kpi_ok strong { color: #15803D; }
 .o_dc_kpi_alerta strong { color: #B91C1C; }
 
+// «Sin costo de ventas: no es ganancia» (la utilidad con el costo en cero). En la tarjeta azul va en amarillo: el
+// amarillo solo toca el azul.
+.o_dc_kpi .o_dc_kpi_aviso { color: #B91C1C; font-weight: 600; }
+.o_dc_kpi_fuerte .o_dc_kpi_aviso { color: var(--dc-amarillo); font-weight: 700; }
+
 // Tarjeta y tabla
 .o_dc_tarjeta {
     background: var(--dc-blanco);

@@ -305,6 +305,9 @@ class DcasaTablero(models.AbstractModel):
             variacion = round((actual['sin_itbms'] - anterior['sin_itbms']) / anterior['sin_itbms'] * 100, 1)
         Order = self.env['sale.order']
         return {
+            # En qué se aparta de las «Ventas» de Contabilidad (solo quien controla y ve la contabilidad).
+            'cuadre': None if propio else self._cuadre_con_contabilidad(rango['desde'], rango['hasta'],
+                                                                         actual['sin_itbms']),
             'periodo': rango['periodo'], 'etiqueta': rango['etiqueta'],
             'desde': str(rango['desde']), 'hasta': str(rango['hasta']),
             'actual': actual, 'anterior': {**anterior, 'etiqueta': rango['anterior_etiqueta'],
@@ -314,6 +317,50 @@ class DcasaTablero(models.AbstractModel):
             'accion': _accion(f'Ventas · {rango["etiqueta"]}', 'sale.order',
                               Order._dcasa_dominio_vendido(desde=rango['desde'], hasta=rango['hasta'],
                                                            vendedor=vendedor)),
+        }
+
+    def _cuadre_con_contabilidad(self, d0, d1, vendido_sin_itbms):
+        """En qué se aparta lo vendido del Inicio de las «Ventas» de Contabilidad para esas fechas, y qué facturas lo
+        explican (capturas de la dueña, 2026-10-16: $1,301.04 en el Inicio contra $1,522.42 en Contabilidad; la
+        diferencia era una factura sin pedido).
+
+        Las dos pantallas miden distinto a propósito: el Inicio cuenta **pedidos vendidos** (el pedido completo, el día
+        de su última factura); Contabilidad, los **apuntes de ingresos** con fecha en el periodo. Se apartan por:
+
+        * facturas sin pedido o de pedidos aún no facturados por completo (Contabilidad las suma, el Inicio no);
+        * pedidos vendidos en estas fechas con abonos o facturas de otros días, como el abono de un apartado
+          (el Inicio cuenta el pedido completo; Contabilidad, solo lo facturado en estas fechas).
+
+        ``diferencia`` es la resta exacta (Contabilidad − Inicio), con su signo; la lista trae las facturas de esos dos
+        grupos para revisarlas. ``None`` si cuadran o si quien mira no ve la contabilidad.
+        """
+        if not self._puede('account.move.line'):
+            return None
+        ingresos = self.env['account.move.line']._read_group(
+            [('parent_state', '=', 'posted'), ('account_id.account_type', '=', 'income'),
+             ('date', '>=', fields.Date.to_string(d0)), ('date', '<=', fields.Date.to_string(d1)),
+             ('company_id', 'in', self.env.companies.ids)], [], ['balance:sum'])
+        contables = -(ingresos[0][0] or 0.0) if ingresos else 0.0
+        diferencia = round(contables - vendido_sin_itbms, 2)
+        if abs(diferencia) < 0.01:
+            return None
+        vendido = self.env['sale.order']._dcasa_dominio_vendido(desde=d0, hasta=d1)
+        de_un_vendido = [('sale_line_ids', 'any', [('order_id', 'any', vendido)])]
+        desde, hasta = fields.Date.to_string(d0), fields.Date.to_string(d1)
+        dominio = [
+            ('move_type', 'in', ('out_invoice', 'out_refund')), ('state', '=', 'posted'),
+            ('company_id', 'in', self.env.companies.ids),
+            '|',
+            '&', '&', ('date', '>=', desde), ('date', '<=', hasta), ('invoice_line_ids', 'not any', de_un_vendido),
+            '&', '|', ('date', '<', desde), ('date', '>', hasta), ('invoice_line_ids', 'any', de_un_vendido),
+        ]
+        vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
+        return {
+            'contables': contables,
+            'diferencia': diferencia,
+            'cuantas': self.env['account.move'].search_count(dominio),
+            'accion': {**_accion('Facturas que explican la diferencia con Contabilidad', 'account.move', dominio),
+                       'vista_lista': vista.id if vista else False},
         }
 
     # ------------------------------------------------------------------

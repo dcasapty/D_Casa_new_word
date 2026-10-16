@@ -562,6 +562,16 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             await esperar(() => document.querySelector('.o_dcasa_ventas'), 'el panel de ventas');
             await esperar(() => document.querySelector('.o_dcasa_lista_cotizaciones'), 'las cotizaciones abiertas');
             await esperar(() => document.querySelector('.o_dcasa_lista_entregas'), 'las entregas pendientes');
+            // Cotizaciones y entregas, justo debajo de los accesos azules y con cabecera de acento (2026-10-16).
+            const listas = document.querySelector('.o_dcasa_listas');
+            if (document.querySelector('.o_dcasa_atajos').nextElementSibling !== listas) {
+                throw new Error('las cotizaciones y las entregas van justo debajo de los accesos azules');
+            }
+            const fondo = getComputedStyle(listas.querySelector('.o_dcasa_lista_cabeza')).backgroundColor;
+            igual(fondo, 'rgb(14, 42, 107)', 'la cabecera de las listas va en azul marino');
+            const numero = getComputedStyle(listas.querySelector('.o_dcasa_lista_numero')).backgroundColor;
+            igual(numero, 'rgb(254, 208, 15)', 'el número va en amarillo, sobre el azul');
+            igual(textos('.o_dcasa_ganancia .o_dcasa_ventas_etiqueta'), ['Ganancia bruta'], 'el nombre de la ganancia');
             await esperar(() => document.querySelector('.o_dcasa_semana'), 'las barras de la semana');
             const botones = textos('.o_dcasa_inicio_accesos .btn');
             for (const dentro of ['Nueva cotización', 'Nuevo cliente', 'Registrar cobro']) {
