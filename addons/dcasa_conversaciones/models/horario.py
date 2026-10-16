@@ -34,22 +34,45 @@ def cargar_zona(nombre=ZONA_PANAMA):
         raise
 
 
+DOMINGO = 0
+
+
 @dataclass(frozen=True)
 class Horario:
     inicio: time = time(8, 0)
     fin: time = time(17, 0)
     dias: frozenset = frozenset(DIAS)
     zona: str = ZONA_PANAMA
+    # El domingo puede cerrar más temprano que los demás días (decisión de la dueña, 2026-10-16: de lunes a sábado
+    # hasta las 6:00 p. m. y el domingo hasta las 5:00 p. m.). ``None`` = la misma hora que los demás días.
+    fin_domingo: time | None = None
 
     def __post_init__(self):
         if not self.inicio < self.fin:
             raise ValueError('La hora de inicio tiene que ser anterior a la de fin.')
+        if self.fin_domingo is not None and not self.inicio < self.fin_domingo:
+            raise ValueError('El domingo tiene que cerrar después de la hora de inicio.')
         if not set(self.dias) <= set(DIAS):
             raise ValueError('Los días van de 0 (domingo) a 6 (sábado).')
 
+    def fin_del_dia(self, dia):
+        """La hora de cierre de ese día (0 = domingo)."""
+        return self.fin_domingo if dia == DOMINGO and self.fin_domingo is not None else self.fin
+
     def como_json(self):
-        return {'inicio': texto_hora(self.inicio), 'fin': texto_hora(self.fin),
-                'dias': sorted(self.dias), 'zona': self.zona}
+        datos = {'inicio': texto_hora(self.inicio), 'fin': texto_hora(self.fin),
+                 'dias': sorted(self.dias), 'zona': self.zona}
+        if self.fin_domingo is not None and DOMINGO in self.dias:
+            datos['fin_domingo'] = texto_hora(self.fin_domingo)
+        return datos
+
+    def texto(self):
+        """«Todos los días, de 9:00 a. m. a 6:00 p. m. (el domingo hasta las 5:00 p. m.)», para el cliente."""
+        dias = 'Todos los días' if len(self.dias) == 7 else ', '.join(NOMBRES_DIA[d] for d in sorted(self.dias))
+        texto = f'{dias[:1].upper()}{dias[1:]}, de {texto_hora_amable(self.inicio)} a {texto_hora_amable(self.fin)}'
+        if self.fin_domingo is not None and DOMINGO in self.dias and self.fin_domingo != self.fin:
+            texto += f' (el domingo hasta las {texto_hora_amable(self.fin_domingo)})'
+        return texto
 
 
 @dataclass(frozen=True)
@@ -139,7 +162,8 @@ def de_iso(texto):
 def dentro_de_horario(utc, horario):
     """¿Esta hora (UTC ingenuo) cae dentro del horario laboral? El fin no cuenta (17:00 ya es fuera)."""
     local = a_local(utc, horario)
-    return dia_js(local) in horario.dias and horario.inicio <= local.time() < horario.fin
+    dia = dia_js(local)
+    return dia in horario.dias and horario.inicio <= local.time() < horario.fin_del_dia(dia)
 
 
 def siguiente_horario_laboral(utc, horario):

@@ -327,3 +327,57 @@ describe("Juan nunca dice que es una persona ni que «no es un bot»", () => {
     expect(notaDeCorreccion([{ tipo: "se_hace_pasar_por_persona", detalle: "soy una persona" }])).toMatch(/decir que eres una persona o que no eres un bot/);
   });
 });
+
+describe("en inglés también (Juan contesta en inglés a quien le escribe en inglés; decisión de la dueña, 2026-10-16)", () => {
+  it.each([
+    ["We'll deliver it tomorrow.", "plazo de entrega"],
+    ["We can ship it on Friday.", "plazo de entrega"],
+    ["It will arrive in 3 days.", "plazo de entrega"],
+    ["Delivery is free.", "entrega o flete gratis"],
+    ["Free shipping to all of Panama.", "entrega o flete gratis"],
+    ["Delivery costs $25.", "costo de entrega"],
+    ["We'll hold it for you until Saturday.", "apartado"],
+    ["It's reserved for you.", "apartado"],
+    ["I can give you a 10% discount.", "descuento"],
+    ["We offer financing with no-interest installments.", "financiamiento"],
+    ["You're approved.", "crédito"],
+    ["Your payment has been received.", "pago confirmado"],
+    ["We received your transfer.", "pago confirmado"],
+  ])("%s → %s", (frase, que) => {
+    expect(detectarPromesas(frase)).toContain(que);
+  });
+
+  it("explicar la política sin prometer nada no es una promesa", () => {
+    for (const frase of [
+      "We deliver to La Chorrera, Arraiján, Capira, Panama City and Colón. A salesperson confirms the cost and the date.",
+      "You can put it on layaway with a minimum 50% deposit; a salesperson does it with you.",
+      "Financing is through Tafi: you apply with your ID.",
+      "We don't have cash discounts.",
+    ]) {
+      expect(detectarPromesas(frase), frase).toEqual([]);
+    }
+  });
+
+  it("las cifras de política en inglés se revisan igual que en español", () => {
+    const sin = analizar("You have 30 days to exchange it.", ctx());
+    expect(sin.graves.map((g) => g.tipo)).toContain("cifra_inventada");
+    const con = analizar("You have 30 days to exchange it.", ctx({ numerosEnTexto: new Set([30]) }));
+    expect(con.graves).toEqual([]);
+  });
+
+  it("nunca dice en inglés que es humano ni que no es un bot", () => {
+    for (const frase of ["I'm a real person.", "I am human.", "I'm not a bot.", "I am not an AI.", "You're talking to a real person.", "I'm a salesperson."]) {
+      expect(detectarSerHumano(frase), frase).not.toEqual([]);
+    }
+    for (const frase of ["I'm Juan, D'CASA's virtual assistant.", "I'm not a person, I'm a virtual assistant."]) {
+      expect(detectarSerHumano(frase), frase).toEqual([]);
+    }
+  });
+
+  it("no manda a leer las políticas en inglés", () => {
+    expect(detectarMandaALeer("Please read our return policy on the website.")).not.toEqual([]);
+    expect(detectarMandaALeer("Check our terms and conditions.")).not.toEqual([]);
+    expect(detectarMandaALeer("The months and the payment depend on what you agree with Tafi.")).toEqual([]);
+  });
+});
+

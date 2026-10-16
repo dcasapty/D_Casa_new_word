@@ -305,21 +305,29 @@ class TestMetaVentas(NominaCommon):
         self.factura(200, '2030-03-20', pagar_en='2030-03-20')
         self.factura(9000, '2030-03-05', usuario=self.u_otto, pagar_en='2030-03-10')
         meta = self.Bono.with_user(self.u_vera)._para_inicio(self.u_vera, date(2030, 3, 20))
-        self.assertEqual((meta['cobrado'], meta['meta'], meta['faltan'], meta['hoy']), (1500.0, 1000.0, 0.0, 200.0))
+        # Decisión de la dueña (2026-10-16): la vendedora ve solo cuánto lleva en porcentaje y unas palabras de ánimo.
+        # Ninguna cifra de dinero sale del servidor: ni la meta, ni el porcentaje del bono, ni lo cobrado.
+        self.assertEqual(set(meta), {'mes', 'avance', 'avance_real', 'cumplio', 'animo', 'ventas'})
+        # «Ver mis ventas» abre justo las ventas que suman a su porcentaje: las dos suyas, nunca la de Otto.
+        accion = meta['ventas']['accion']
+        self.assertEqual((accion['res_model'], accion['name']), ('account.move', 'Mis ventas de marzo'))
+        vendidas = self.env['account.move'].search(accion['domain'])
+        self.assertEqual(len(vendidas), 2)
+        self.assertEqual(vendidas.invoice_user_id, self.u_vera)
         self.assertTrue(meta['cumplio'])
-        self.assertEqual((meta['bono'], meta['porcentaje'], meta['avance']), (15.0, '1', 100.0))
+        self.assertEqual(meta['avance'], 100.0)
         self.assertEqual(meta['avance_real'], 150, 'el número dice cuánto lleva de verdad; la barra se llena hasta 100')
         self.assertIn('Meta cumplida', meta['animo'])
         self.assertEqual(meta['mes'], 'marzo')
         self.assertIsNone(self.Bono._para_inicio(self.u_otto, date(2030, 3, 20)), 'Otto no está en Ventas')
-        # La meta la pone Gerencia: si la sube a 5,000, el porcentaje se calcula contra la nueva meta.
+        # La meta la pone Gerencia: si la sube a 5,000, el porcentaje se calcula contra la nueva meta. Lo que vendió
+        # Otto (9,000) no cuenta para Vera.
         self.regla.meta_mensual = 5000
         meta = self.Bono.with_user(self.u_vera)._para_inicio(self.u_vera, date(2030, 3, 20))
-        self.assertEqual((meta['avance_real'], meta['avance'], meta['faltan'], meta['cumplio']),
-                         (30, 30.0, 3500.0, False))
+        self.assertEqual((meta['avance_real'], meta['avance'], meta['cumplio']), (30, 30.0, False))
         self.assertIn('Paso a paso', meta['animo'])
         tablero = self.env.get('dcasa.tablero')
         if tablero is not None:
             datos = tablero.with_user(self.u_vera).obtener_datos()
-            self.assertEqual(datos['meta']['cobrado'], 1500.0)
-            self.assertNotIn(9000.0, [datos['meta'][k] for k in ('cobrado', 'hoy', 'bono')])
+            self.assertEqual(set(datos['meta']), {'mes', 'avance', 'avance_real', 'cumplio', 'animo', 'ventas'})
+            self.assertEqual(datos['meta']['avance_real'], 30)

@@ -23,12 +23,20 @@ const DENTRO_DE_FRASE = [
   new RegExp(`\\bun humano\\b`),
 ];
 
+/** Lo mismo en inglés: Juan atiende en inglés a quien le escribe en inglés (decisión de la dueña, 2026-10-16). */
+const QUIEN_EN = "(?:human|person|real person|agent|representative|salesperson|someone|somebody|a real human)";
+const EN_INGLES = [
+  new RegExp(`^(?:hi |hello |hey )?(?:i want |i need |can i talk to |can i speak to |let me talk to )?(?:a |an )?(?:human|person|real person|agent|representative|salesperson)(?: please| pls)?$`),
+  new RegExp(`\\b(?:talk|speak|chat) (?:to|with) (?:a |an )?${QUIEN_EN}\\b`),
+  new RegExp(`\\b(?:i want|i need|i d like|i would like|can i get|get me) (?:a |an )?(?:human|real person|agent|representative|salesperson)\\b`),
+];
+
 /** «persona», «vendedora» o «humano» pasan SIEMPRE a una vendedora (regla 1). */
 export function pideUnaPersona(texto: string): boolean {
   const t = normalizar(texto);
   if (!t || t.length > 140) return false;
   if (SOLO_PETICION.test(t)) return true;
-  return DENTRO_DE_FRASE.some((r) => r.test(t));
+  return DENTRO_DE_FRASE.some((r) => r.test(t)) || EN_INGLES.some((r) => r.test(t));
 }
 
 /**

@@ -291,6 +291,23 @@ describe("horario y mes del negocio (America/Panama = UTC-5)", () => {
     expect(dentroDeHorario({ ...h, dias: [0] }, panama(12, 10, 0))).toBe(false);
   });
 
+  it("el domingo puede cerrar más temprano (decisión de la dueña, 2026-10-16)", () => {
+    const todos: Horario = { inicio: "09:00", fin: "18:00", dias: [0, 1, 2, 3, 4, 5, 6], zona: "America/Panama", fin_domingo: "17:00" };
+    expect(dentroDeHorario(todos, panama(11, 16, 59))).toBe(true); // domingo
+    expect(dentroDeHorario(todos, panama(11, 17, 30))).toBe(false); // domingo, ya cerró
+    expect(dentroDeHorario(todos, panama(12, 17, 30))).toBe(true); // lunes
+    expect(dentroDeHorario(todos, panama(12, 18, 0))).toBe(false);
+  });
+
+  it("la hora del domingo llega de Odoo; mal formada, antes de abrir o sin domingo, no se usa", () => {
+    const base = { inicio: "09:00", fin: "18:00", dias: [0, 1, 2, 3, 4, 5, 6], zona: "America/Panama" };
+    expect(normalizarConfig({ horario: { ...base, fin_domingo: "17:00" } }).horario.fin_domingo).toBe("17:00");
+    expect(normalizarConfig({ horario: base }).horario).not.toHaveProperty("fin_domingo");
+    expect(normalizarConfig({ horario: { ...base, fin_domingo: "temprano" } }).horario).not.toHaveProperty("fin_domingo");
+    expect(normalizarConfig({ horario: { ...base, fin_domingo: "08:00" } }).horario).not.toHaveProperty("fin_domingo");
+    expect(normalizarConfig({ horario: { ...base, dias: [1, 2, 3], fin_domingo: "17:00" } }).horario).not.toHaveProperty("fin_domingo");
+  });
+
   it("una zona inválida no rompe: cae en Panamá", () => {
     expect(relojDelNegocio("Marte/Olympus", panama(9, 10)).minutosDelDia).toBe(600);
   });

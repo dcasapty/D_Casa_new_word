@@ -157,6 +157,44 @@ class TestFechasDeSeguimiento(BaseCase):
 
 
 @tagged('post_install', '-at_install')
+class TestDomingoCierraMasTemprano(BaseCase):
+    """Decisión de la dueña (2026-10-16): de lunes a sábado de 9:00 a. m. a 6:00 p. m.; el domingo, hasta las 5:00."""
+
+    HORARIO = H.Horario(inicio=time(9, 0), fin=time(18, 0), fin_domingo=time(17, 0))
+
+    def test_el_domingo_cierra_a_las_5_y_los_demas_dias_a_las_6(self):
+        # Domingo 11 y lunes 12 de octubre de 2026.
+        self.assertTrue(H.dentro_de_horario(panama(2026, 10, 11, 16, 59), self.HORARIO))
+        self.assertFalse(H.dentro_de_horario(panama(2026, 10, 11, 17, 0), self.HORARIO))
+        self.assertFalse(H.dentro_de_horario(panama(2026, 10, 11, 17, 30), self.HORARIO))
+        self.assertTrue(H.dentro_de_horario(panama(2026, 10, 12, 17, 30), self.HORARIO))
+        self.assertFalse(H.dentro_de_horario(panama(2026, 10, 12, 18, 0), self.HORARIO))
+
+    def test_el_domingo_despues_de_las_5_la_vendedora_atiende_el_lunes(self):
+        self.assertEqual(H.siguiente_horario_laboral(panama(2026, 10, 11, 17, 30), self.HORARIO),
+                         panama(2026, 10, 12, 9))
+        self.assertEqual(H.cuando_atienden(panama(2026, 10, 11, 17, 30), self.HORARIO),
+                         'mañana a primera hora, desde las 9:00 a. m.')
+
+    def test_el_texto_para_el_cliente_y_el_contrato_del_worker(self):
+        self.assertEqual(self.HORARIO.texto(),
+                         'Todos los días, de 9:00 a. m. a 6:00 p. m. (el domingo hasta las 5:00 p. m.)')
+        self.assertEqual(self.HORARIO.como_json()['fin_domingo'], '17:00')
+        # Sin hora propia del domingo, todo queda como antes (el contrato no cambia).
+        self.assertNotIn('fin_domingo', TODOS.como_json())
+        self.assertEqual(TODOS.texto(), 'Todos los días, de 8:00 a. m. a 5:00 p. m.')
+        # Si el domingo no se atiende, su hora no se menciona.
+        sin_domingo = H.Horario(inicio=time(9, 0), fin=time(18, 0), fin_domingo=time(17, 0),
+                                dias=frozenset({1, 2, 3, 4, 5, 6}))
+        self.assertNotIn('domingo', sin_domingo.texto())
+        self.assertNotIn('fin_domingo', sin_domingo.como_json())
+
+    def test_el_domingo_no_puede_cerrar_antes_de_abrir(self):
+        with self.assertRaises(ValueError):
+            H.Horario(inicio=time(9, 0), fin=time(18, 0), fin_domingo=time(8, 0))
+
+
+@tagged('post_install', '-at_install')
 class TestPideNoContactar(BaseCase):
 
     def test_pedidos_claros(self):

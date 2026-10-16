@@ -35,8 +35,9 @@ MAX_LINEAS_AUTOMATICAS = 10
 TOPE_NUEVAS_POR_DIA = 5
 VIGENCIA_PARA_REUTILIZAR = timedelta(hours=2)
 NOTA_DE_COTIZACION = ('Es una cotización: no es una venta ni reserva nada. Los precios son sin ITBMS y el 7 % se suma '
-                      'en el total. Entrega, flete, financiamiento, apartado y descuento siempre los confirma una '
-                      'vendedora. El PDF sale junto con tu respuesta: no lo anuncies como enviado, di que va adjunto.')
+                      'en el total. La entrega, el flete, el financiamiento, el apartado o un descuento de esta compra '
+                      'los confirma una vendedora. El PDF sale junto con tu respuesta: no lo anuncies como enviado, di '
+                      'que va adjunto.')
 A_VENDEDORA = 'Una vendedora se la prepara: llama a pasar_a_vendedora y dile al cliente lo que esa herramienta indique.'
 
 

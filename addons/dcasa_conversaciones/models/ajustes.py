@@ -103,6 +103,10 @@ class JuanAjustes(models.Model):
     # --- Horario laboral (hora de Panamá) -------------------------------------------------------
     horario_inicio = fields.Float('Desde', default=8.0, tracking=True, help='Hora a la que empieza el horario laboral.')
     horario_fin = fields.Float('Hasta', default=17.0, tracking=True, help='Hora a la que termina el horario laboral.')
+    horario_fin_domingo = fields.Float(
+        'El domingo cierran a las', default=0.0, tracking=True,
+        help='Si el domingo cierran más temprano (o más tarde) que los demás días. 0:00 = a la misma hora que los '
+             'demás días.')
     dia_domingo = fields.Boolean('Domingo', default=True)
     dia_lunes = fields.Boolean('Lunes', default=True)
     dia_martes = fields.Boolean('Martes', default=True)
@@ -299,8 +303,8 @@ class JuanAjustes(models.Model):
     # Validaciones
     # ------------------------------------------------------------------
 
-    @api.constrains('horario_inicio', 'horario_fin', 'dia_domingo', 'dia_lunes', 'dia_martes', 'dia_miercoles',
-                    'dia_jueves', 'dia_viernes', 'dia_sabado')
+    @api.constrains('horario_inicio', 'horario_fin', 'horario_fin_domingo', 'dia_domingo', 'dia_lunes', 'dia_martes',
+                    'dia_miercoles', 'dia_jueves', 'dia_viernes', 'dia_sabado')
     def _check_horario(self):
         for registro in self:
             if not 0 <= registro.horario_inicio < 24 or not 0 < registro.horario_fin <= 24:
@@ -309,6 +313,10 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._('El horario termina antes de las 24:00 (por ejemplo, 23:59).'))
             if not registro.horario_inicio < registro.horario_fin:
                 raise ValidationError(self.env._('La hora de inicio tiene que ser anterior a la hora de fin.'))
+            if registro.horario_fin_domingo and not registro.horario_inicio < registro.horario_fin_domingo < 24:
+                raise ValidationError(self.env._(
+                    'El domingo tiene que cerrar después de la hora de inicio y antes de las 24:00 (o deja 0:00 para '
+                    'que cierre a la misma hora que los demás días).'))
             if not registro._dias():
                 raise ValidationError(self.env._('Marca al menos un día de atención.'))
 
@@ -392,7 +400,8 @@ class JuanAjustes(models.Model):
         self.ensure_one()
         return H.Horario(
             inicio=H.float_a_hora(self.horario_inicio), fin=H.float_a_hora(self.horario_fin),
-            dias=self._dias(), zona=self.zona_horaria or H.ZONA_PANAMA)
+            dias=self._dias(), zona=self.zona_horaria or H.ZONA_PANAMA,
+            fin_domingo=H.float_a_hora(self.horario_fin_domingo) if self.horario_fin_domingo else None)
 
     @api.private
     def regla_seguimiento(self):

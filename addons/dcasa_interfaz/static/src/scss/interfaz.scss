@@ -675,8 +675,6 @@
     }
 }
 
-.o_dcasa_meta_regla { font-size: .85rem; color: var(--dc-tinta-2); }
-
 // El porcentaje de la meta, a la izquierda de la barra. Azul sobre blanco (el amarillo nunca toca el blanco).
 .o_dcasa_meta_progreso {
     display: flex;
@@ -712,27 +710,24 @@
     span { display: block; height: 100%; background: var(--dc-azul-600); border-radius: 6px; }
 }
 
-// Palabras de ánimo según lo que lleva (pedido de la dueña, 2026-10-16): azul sobre blanco, sin gritos.
+// Palabras de ánimo según lo que lleva y el botón «Ver mis ventas» (pedido de la dueña, 2026-10-16): azul sobre
+// blanco, sin gritos; el botón, azul como los del encabezado.
+.o_dcasa_meta_pie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-top: 12px;
+}
+
 .o_dcasa_meta_animo {
-    margin: 10px 0 0;
+    margin: 0;
     font-size: 1.05rem;
     font-weight: 600;
     color: var(--dc-azul-700);
 }
 
-.o_dcasa_meta_cifras {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 20px;
-    margin-top: 10px;
-    font-size: .92rem;
-    color: var(--dc-tinta-2);
-
-    strong { color: var(--dc-tinta); }
-    .o_dcasa_meta_bono strong { color: var(--dc-azul-700); }
-}
-
-.o_dcasa_meta_nota { margin: 8px 0 0; font-size: .8rem; color: var(--dc-tinta-3); }
 
 // Cotizaciones abiertas y entregas pendientes: lo que más se usa, con acento (pedido de la dueña, 2026-10-16).
 // Cabecera azul marino de borde a borde con el número en amarillo (el amarillo solo toca el azul); la lista, en blanco.

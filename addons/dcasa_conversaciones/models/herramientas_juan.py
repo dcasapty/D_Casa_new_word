@@ -405,8 +405,12 @@ class BrianHerramientasJuan(models.AbstractModel):
                 'etiquetas': entrada.etiquetas or '',
                 'actualizado': entrada.ultima_revision.isoformat() if entrada.ultima_revision else None,
             } for entrada, _puntos in encontrados],
-            'nota': 'Contesta solo con lo que dice el equipo. Entregas, flete, financiamiento, apartados y descuentos '
-                    'siempre los confirma una vendedora.',
+            # Decisión de la dueña (2026-10-16): Juan explica entregas, financiamiento, apartados y descuentos con lo
+            # que escribió el equipo; el caso concreto del cliente y hacer el trámite siguen siendo de una vendedora.
+            'nota': 'Contesta solo con lo que dice el equipo, con sus mismas cifras y sin agregar nada. De entregas, '
+                    'flete, financiamiento, apartados y descuentos explica solo lo que diga aquí; el caso concreto '
+                    'del cliente (costo y fecha de su entrega, si le aprueban el crédito) y hacer el apartado, el '
+                    'crédito o el descuento los confirma una vendedora.',
         }
 
     @herramienta(

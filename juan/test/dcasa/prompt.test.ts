@@ -105,10 +105,12 @@ describe("las 11 reglas de comportamiento del contrato (docs/JUAN.md)", () => {
     expect(r).toMatch(/Existencias solo como etiqueta/);
   });
 
-  it("3 · entregas, flete, financiamiento, apartados y descuentos: siempre «te lo confirma una vendedora»", () => {
+  it("3 · entregas, flete, financiamiento, apartados y descuentos: solo lo que diga la base de conocimiento; lo demás, una vendedora", () => {
     const r = regla(3);
     for (const x of ["Entregas", "flete", "financiamiento", "apartados", "descuentos"]) expect(r).toContain(x);
+    expect(r).toContain("SOLO lo que diga buscar_conocimiento");
     expect(r).toContain("eso te lo confirma una vendedora");
+    expect(r).toMatch(/no haces apartados, ni apruebas créditos, ni das descuentos, ni fijas entregas/);
     expect(r).toContain("crear_oportunidad");
   });
 
@@ -160,9 +162,10 @@ describe("las 11 reglas de comportamiento del contrato (docs/JUAN.md)", () => {
     expect(r).toMatch(/no se le escribe más/);
   });
 
-  it("11 · español de Panamá, tuteo, 2 a 4 líneas, sin emojis ni signos dobles", () => {
+  it("11 · español de Panamá, tuteo, 2 a 4 líneas, sin emojis ni signos dobles; en inglés si el cliente escribe en inglés", () => {
     const r = regla(11);
     expect(r).toMatch(/Español de Panamá/);
+    expect(r).toMatch(/te escribe en inglés, contéstale en inglés/);
     expect(r).toMatch(/tuteo/);
     expect(r).toMatch(/2 a 4 líneas/);
     expect(r).toMatch(/sin emojis/);
@@ -320,6 +323,12 @@ describe("el bloque dinámico (no se cachea)", () => {
     expect(contextoDelChat(lunesAViernes, base)).toContain("lunes, martes, miércoles, jueves, viernes, de 8:00 a. m.");
     const finDeSemana = { ...cfg, horario: { ...cfg.horario, dias: [0, 6] } };
     expect(contextoDelChat(finDeSemana, base)).toContain("domingo, sábado, de 8:00 a. m.");
+  });
+
+  it("si el domingo cierran más temprano, lo dice", () => {
+    const conDomingo = { ...cfg, horario: { ...cfg.horario, inicio: "09:00", fin: "18:00", fin_domingo: "17:00" } };
+    expect(contextoDelChat(conDomingo, base)).toContain("todos los días, de 9:00 a. m. a 6:00 p. m. (el domingo hasta las 5:00 p. m.). Ahora:");
+    expect(contextoDelChat(cfg, base)).not.toContain("domingo hasta");
   });
 
   it("dice si es horario de atención de las vendedoras", () => {

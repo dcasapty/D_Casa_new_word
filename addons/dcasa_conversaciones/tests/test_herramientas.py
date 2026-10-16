@@ -540,6 +540,16 @@ class TestHorarioYTienda(HerramientasCase):
         with freeze_time(panama(2026, 10, 9, 20, 0)):
             self.assertFalse(self.salida('horario_y_tienda')['abierto_ahora'])
 
+    def test_el_domingo_cierra_mas_temprano(self):
+        self.ajustes.write({'horario_inicio': 9.0, 'horario_fin': 18.0, 'horario_fin_domingo': 17.0})
+        with freeze_time(panama(2026, 10, 11, 17, 30)):   # domingo, 5:30 p. m.
+            datos = self.salida('horario_y_tienda')
+        self.assertFalse(datos['abierto_ahora'])
+        self.assertEqual(datos['horario']['texto'], 'Todos los días, de 9:00 a. m. a 6:00 p. m. '
+                                                    '(el domingo hasta las 5:00 p. m.) (hora de Panamá)')
+        with freeze_time(panama(2026, 10, 12, 17, 30)):   # lunes, 5:30 p. m.
+            self.assertTrue(self.salida('horario_y_tienda')['abierto_ahora'])
+
     def test_el_horario_es_el_de_los_ajustes(self):
         self.ajustes.write({'horario_inicio': 9.0, 'horario_fin': 18.0, 'dia_domingo': False})
         datos = self.salida('horario_y_tienda')
@@ -654,7 +664,10 @@ class TestConocimientoYAprendizaje(HerramientasCase):
         self.assertEqual(primero['titulo'], 'Dónde estamos, horario y WhatsApp')
         self.assertIn('Frente al Parque Libertadores', primero['contenido'])
         self.assertIn('+507 6026-1919', primero['contenido'])
-        self.assertIn('siempre los confirma una vendedora', datos['nota'])
+        # Juan explica entregas, financiamiento, apartados y descuentos con lo que escribió el equipo; el caso concreto,
+        # una vendedora (decisión de la dueña, 2026-10-16).
+        self.assertIn('explica solo lo que diga aquí', datos['nota'])
+        self.assertIn('los confirma una vendedora', datos['nota'])
 
     def test_las_reglas_de_socios_salen_de_puntos_json(self):
         datos = self.salida('buscar_conocimiento', {'consulta': 'puntos y premios'})

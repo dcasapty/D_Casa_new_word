@@ -350,8 +350,11 @@ class DcasaNominaMetaBono(models.Model):
 
     @api.model
     def _para_inicio(self, user, hoy):
-        """La tarjeta «Tu meta del mes» de ``user``, o None si no participa. Solo sus cifras: nunca las de la
-        tienda ni las de otra vendedora."""
+        """La tarjeta «Tu meta del mes» de ``user``, o None si no participa.
+
+        Decisión de la dueña (2026-10-16): la vendedora ve SOLO cuánto lleva en porcentaje y unas palabras de ánimo.
+        Nada de dinero: ni la meta, ni el porcentaje del bono, ni lo cobrado, ni lo que falta, ni el ritmo del día. Por
+        eso esas cifras ni siquiera salen del servidor (no se pueden ver tampoco en las herramientas del navegador)."""
         company = self.env.company
         empleado = self._participantes(company).filtered(lambda e: e.user_id == user)[:1]
         if not empleado:
@@ -361,25 +364,34 @@ class DcasaNominaMetaBono(models.Model):
         if not regla:
             return None
         facturas, notas = self._del_mes(empleado, user, mes, company, hasta=hoy)
-        cobrado = total_sin_itbms(facturas, notas)
-        de_hoy = total_sin_itbms([f for f, dia in facturas.items() if dia == hoy],
-                                 [n for n, dia in notas.items() if dia == hoy])
+        cobrado = max(total_sin_itbms(facturas, notas), 0.0)
         cumplio = cobrado >= regla.meta_mensual
+        avance_real = int(round(cobrado / regla.meta_mensual * 100.0))
+        nombre_mes = format_date(mes, 'MMMM', locale='es')
         return {
-            'mes': format_date(mes, 'MMMM', locale='es'),
-            'meta': regla.meta_mensual,
-            'porcentaje': f'{regla.porcentaje:g}',
-            'cobrado': cobrado,
-            'faltan': calculo.r2(max(regla.meta_mensual - cobrado, 0.0)),
+            'mes': nombre_mes,
             # La barra se llena hasta el 100 %; el número dice cuánto lleva de verdad (puede pasar del 100 %).
-            'avance': round(min(max(cobrado, 0.0) / regla.meta_mensual * 100.0, 100.0), 1),
-            'avance_real': int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)),
+            'avance': round(min(cobrado / regla.meta_mensual * 100.0, 100.0), 1),
+            'avance_real': avance_real,
             'cumplio': cumplio,
-            'bono': calculo.porcentaje(cobrado, regla.porcentaje) if cumplio else 0.0,
-            'hoy': de_hoy,
-            'meta_diaria': regla.meta_diaria,
-            'animo': self._animo(int(round(max(cobrado, 0.0) / regla.meta_mensual * 100.0)), cumplio),
+            'animo': self._animo(avance_real, cumplio),
+            'ventas': self._mis_ventas(facturas, notas, nombre_mes),
         }
+
+    def _mis_ventas(self, facturas, notas, nombre_mes):
+        """El botón «Ver mis ventas» de la tarjeta (pedido de la dueña, 2026-10-16): abre las ventas que suman al
+        porcentaje de este mes (las facturas cobradas completas y las notas de crédito que restan), solo las suyas.
+        Sin permiso para ver facturas, no hay botón."""
+        Move = self.env['account.move']
+        if not Move.has_access('read'):
+            return None
+        vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
+        return {'accion': {
+            'name': self.env._('Mis ventas de %s', nombre_mes),
+            'res_model': 'account.move',
+            'domain': [('id', 'in', sorted(m.id for m in (*facturas, *notas)))],
+            'vista_lista': vista.id if vista else False,
+        }}
 
     def _animo(self, avance, cumplio):
         """Unas palabras de ánimo según lo que lleva de la meta (pedido de la dueña, 2026-10-16). Con la voz de la

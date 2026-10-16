@@ -1,5 +1,7 @@
 """La vendedora ve en su Inicio qué porcentaje de la meta lleva (pedido de la dueña, 2026-10-16): «si el administrador
 pone que la meta al mes son 30 mil, que ellos vayan viendo un porcentaje para llegar a esa meta»."""
+import json
+
 from odoo import Command, fields
 from odoo.tests import HttpCase, new_test_user, tagged
 
@@ -44,7 +46,8 @@ class TestMetaEnElInicio(HttpCase):
         self.env['account.payment.register'].with_context(
             active_model='account.move', active_ids=factura.ids).create({'payment_date': hoy})._create_payments()
 
-        self.browser_js('/odoo/action-dcasa_interfaz.action_dcasa_inicio', '(async () => {' + ESPERAR_JS + """
+        self.browser_js('/odoo/action-dcasa_interfaz.action_dcasa_inicio', '(async () => {' + ESPERAR_JS
+                        + f'const FACTURA = {json.dumps(factura.name)};' + """
             const numero = await esperar(() => document.querySelector('.o_dcasa_meta .o_dcasa_meta_porcentaje strong'),
                                          'el porcentaje de la meta');
             const dice = numero.textContent.trim();
@@ -55,5 +58,17 @@ class TestMetaEnElInicio(HttpCase):
             if (!animo || !animo.textContent.includes('Paso a paso')) {
                 throw new Error('faltan las palabras de ánimo junto a la barra');
             }
+            // La vendedora no ve ninguna cifra de dinero: ni la meta, ni el porcentaje del bono, ni lo cobrado. El
+            // único número de la tarjeta es el porcentaje que lleva (decisión de la dueña, 2026-10-16).
+            const numeros = document.querySelector('.o_dcasa_meta').textContent.match(/[0-9]+/g) || [];
+            if (numeros.join(',') !== '25') {
+                throw new Error('la tarjeta de la meta muestra cifras de más: ' + numeros.join(', '));
+            }
+            // «Ver mis ventas» abre la lista con la venta que suma a su porcentaje.
+            const boton = document.querySelector('.o_dcasa_meta .o_dcasa_meta_ventas');
+            if (!boton || !boton.textContent.includes('Ver mis ventas')) { throw new Error('falta «Ver mis ventas»'); }
+            boton.click();
+            await esperar(() => [...document.querySelectorAll('.o_list_renderer .o_data_row')]
+                .some((fila) => fila.textContent.includes(FACTURA)), 'la venta en «Mis ventas»');
             console.log('test successful');
         })();""", login='meta_inicio_vera')

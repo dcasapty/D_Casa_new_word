@@ -173,9 +173,19 @@ class TestAjustesEditables(JuanCase):
         self.assertEqual(datos['fin'], '18:00')
         self.assertEqual(datos['dias'], [1, 2, 3, 4, 5, 6])   # sin el domingo (0)
 
+    def test_el_domingo_puede_cerrar_mas_temprano(self):
+        self.ajustes.write({'horario_inicio': 9.0, 'horario_fin': 18.0, 'horario_fin_domingo': 17.0})
+        datos = self.ajustes.como_json()['horario']
+        self.assertEqual((datos['inicio'], datos['fin'], datos['fin_domingo']), ('09:00', '18:00', '17:00'))
+        self.assertEqual(self.ajustes.horario().fin_del_dia(0).hour, 17)
+        self.assertEqual(self.ajustes.horario().fin_del_dia(1).hour, 18)
+        self.ajustes.horario_fin_domingo = 0.0
+        self.assertNotIn('fin_domingo', self.ajustes.como_json()['horario'], '0:00 = la misma hora que los demás días')
+
     def test_horario_invalido(self):
         for valores in ({'horario_inicio': 17.0, 'horario_fin': 8.0}, {'horario_inicio': -1.0},
-                        {'horario_fin': 24.0},
+                        {'horario_fin': 24.0}, {'horario_inicio': 9.0, 'horario_fin_domingo': 8.0},
+                        {'horario_fin_domingo': 24.0},
                         {'dia_lunes': False, 'dia_martes': False, 'dia_miercoles': False, 'dia_jueves': False,
                          'dia_viernes': False, 'dia_sabado': False, 'dia_domingo': False}):
             with self.subTest(valores=valores), self.assertRaises(ValidationError):

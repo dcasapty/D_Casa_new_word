@@ -40,6 +40,7 @@ export const HERRAMIENTAS_DE_PRUEBA: DefHerramienta[] = [
 export const CONOCIMIENTO = [
   { titulo: "Garantía y cambios", texto: "Los cambios se aceptan dentro de 8 días con la factura y el producto sin uso.", score: 0.82, palabras: ["garantia", "cambio", "cambios", "devolucion", "devolver"] },
   { titulo: "Formas de pago", texto: "Aceptamos efectivo, Yappy, transferencia y tarjeta.", score: 0.77, palabras: ["pago", "pagar", "yappy", "tarjeta", "efectivo", "transferencia"] },
+  { titulo: "Apartados", texto: "Puedes apartar un mueble con un abono mínimo del 50 % de su valor. Tienes un mes para pagar el saldo completo.", score: 0.8, palabras: ["apartado", "apartar"] },
 ];
 
 export const CATALOGO = [

@@ -10,8 +10,9 @@
 
 Reglas:
 * **No se inventan políticas**: las entradas de garantía y de cómo se hace una compra vienen **inactivas** y marcadas
-  «pendiente de aprobación de la dueña»; nada de entregas, flete, financiamiento ni apartados (siempre lo
-  confirma una vendedora).
+  «pendiente de aprobación de la dueña». Entregas, financiamiento, apartados y descuentos: el asistente explica solo lo
+  que escriba el equipo aquí (decisión de la dueña, 2026-10-16); el caso concreto del cliente lo confirma una
+  vendedora.
 * **Ninguna cifra duplicada**: las entradas «automáticas» no guardan texto: lo arman al consultarse con los datos
   vivos de la tienda y con las reglas de Socios de ``puntos.json``. Así no pueden quedarse viejas.
 """

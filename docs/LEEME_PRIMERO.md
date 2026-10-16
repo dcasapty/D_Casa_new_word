@@ -99,6 +99,20 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
+- **En producción** (~22:02 UTC, Desplegar 13, `app_version` `60803c6d…`, imagen `sha256:0818f42a…`; CI #184 verde y
+  staging confirmado; PR #50 en `main`): la tarjeta «Tu meta del mes» de la vendedora con el **porcentaje grande, la
+  barra y palabras de ánimo**. La dueña pidió después que la vendedora **no vea ninguna cifra de dinero** (ni la
+  meta, ni el 1 %, ni lo cobrado ni lo que falta: solo el porcentaje y las frases) y un botón **«Ver mis ventas»**
+  (las ventas que suman a su porcentaje). Hecho con pruebas; va en el siguiente despliegue junto con lo de Juan.
+- **Juan (decisiones de la dueña):** explica entregas, crédito (Tafi) y descuentos con lo que escribió el equipo en
+  su conocimiento (regla 3 cambiada; el caso concreto y hacer el trámite siguen siendo de una vendedora; las
+  salvaguardas siguen quitando promesas y cifras inventadas); **«Apartados» queda inactiva** hasta que el abogado
+  revise «los abonos no se devuelven» y el 10 %; contesta en **inglés** a quien escribe en inglés (salvaguardas
+  también en inglés); **el domingo cierra a las 5** (campo nuevo «El domingo cierran a las» en Ajustes de Juan). No
+  quiere el aviso «te aviso cuando llegue». Las camas aguantan 400 kilos (confirmado). Las respuestas del cuestionario
+  se cargan en Odoo con la extensión de Claude en Chrome (instrucciones entregadas a la dueña; quedan 29 preguntas
+  sin respuesta, casi todas de entregas). Despliegue: Odoo (Desplegar) y **Worker de Juan** (Desplegar Juan,
+  `entorno=production`; el último era del 2026-10-13 con el mismo código de `juan/` que `main`).
 - **En producción** (19:38 UTC, Desplegar 12, `app_version` `431cbfe8…`, imagen `sha256:3894d505…`; CI #182 verde y
   staging confirmado): **bono por meta de ventas**, **aviso de pedidos repetidos** y **avisos del chat que se notan**
   (todo el equipo «En Odoo», contador en rojo que late). Con el «sí» de la dueña («avísame cuando esté y si tienen mi
