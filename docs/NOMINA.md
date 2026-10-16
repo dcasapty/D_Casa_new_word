@@ -108,6 +108,40 @@ abrir la app de Nómina ni necesita permiso de facturar. Tiene un ícono distint
 parezca que la vendedora tiene la Nómina habilitada. Para registrar gastos hace falta que el usuario esté ligado a su
 ficha de colaborador.
 
+## Bono por meta de ventas
+
+Decisión del jefe (2026-10-16). Vive en `models/meta_ventas.py`; las cifras, en **Nómina › Configuración › Meta de
+ventas** (con vigencia por mes).
+
+* **Quién participa:** quien está en un departamento marcado **«Participa en la meta de ventas»** (Empleados ›
+  Departamentos; al instalar se marca solo el que se llama «Ventas») y tiene su **usuario relacionado** en la ficha.
+  Las ventas son las facturas donde esa persona es el «Vendedor».
+* **Qué cuenta:** solo las facturas **cobradas completas** (caja recibió todo, también en los apartados), **sin
+  ITBMS**, en el **mes en que se completó el pago** (la última conciliación de la factura). Las notas de crédito de
+  esas ventas restan: la que revierte la factura y también la que se aplicó a ella aunque se haya hecho suelta (en su
+  mes, o en el mes en que se completó el pago si llegaron antes). La devolución de una venta que nunca contó (pagada
+  antes de que rigiera la primera meta) no resta. Las facturas cargadas del sistema viejo no cuentan.
+* **Una sola vez:** cada factura y cada nota cuenta en un solo bono. Si su mes ya entró en una planilla (aunque haya
+  dado cero), cuenta en el primer mes abierto después: un pago que se registra tarde con fecha atrasada no se pierde.
+  Lo que ya está en un bono cerrado no vuelve a contar: un pago anulado y registrado de nuevo otro mes no paga dos
+  veces. Lo ya pagado no se descuenta después (si una venta pagada se queda sin cobrar, lo decide Gerencia).
+* **El bono:** si lo cobrado del mes **llega a la meta** (30,000 desde octubre de 2026), es el **1 % de todo** lo
+  cobrado (60,000 → 600). Si no llega, no hay bono. El ritmo diario (1,000) es solo una guía que ve la vendedora.
+* **El pago:** entra solo en la **primera planilla quincenal del mes siguiente** (del 1 al 15), en la columna «Bono
+  por meta» de la línea: suma a lo devengado y paga seguro social, seguro educativo e ISR como lo extra (REQUIERE
+  CONTADOR: confirmar que la comisión se trata así y si entra en el promedio de vacaciones y la prima). Esa planilla
+  enlaza el bono del mes anterior y cualquiera que haya quedado por pagar de antes, aunque la persona ya no esté en
+  Ventas. Quien ganó bono y no entra en la planilla (sin salario o fecha de ingreso) sale en los avisos y su bono queda
+  **por pagar** hasta la próxima primera quincena que la incluya. El bono sale en el comprobante de pago. Una planilla
+  confirmada lo deja **pagado**; si se reversa, vuelve a quedar por pagar (la planilla cancelada no cambia sus
+  montos). Un bono que ya está en una planilla no se recalcula solo: se pone al día al volver a calcular la planilla.
+* **Lo que ve cada vendedora:** en su Inicio, «Tu meta del mes»: lo cobrado, cuánto le falta, cuánto lleva hoy contra
+  el ritmo diario y su bono si ya llegó. Solo sus cifras; nunca lo de la tienda ni lo de otra persona.
+* **Lo que ve Gerencia:** **Nómina › Bono por meta** (cada persona, mes a mes, con las facturas que cuentan y las
+  notas que restan). Al abrirlo se pone al día el mes en curso y el anterior; también se pone al día solo cada día.
+* **Cambiar las cifras:** se crea una meta nueva que rija desde un mes. Un mes con bonos ya en una planilla no cambia.
+  Una meta que todavía no pagó bonos se puede borrar: sus bonos por pagar se vuelven a calcular con la que quede.
+
 ## Seguridad
 
 Los sueldos son datos delicados: solo los ve el rol **Administra la nómina**, que **Gerencia incluye**. La vendedora no

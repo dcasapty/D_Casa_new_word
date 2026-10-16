@@ -99,6 +99,29 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-16
 
+- **En producción** (19:38 UTC, Desplegar 12, `app_version` `431cbfe8…`, imagen `sha256:3894d505…`; CI #182 verde y
+  staging confirmado): **bono por meta de ventas**, **aviso de pedidos repetidos** y **avisos del chat que se notan**
+  (todo el equipo «En Odoo», contador en rojo que late). Con el «sí» de la dueña («avísame cuando esté y si tienen mi
+  si»; y, tras las correcciones de la revisión, «Sí, termina»). CI #181 había fallado (3 pruebas: el grupo implícito
+  no cambia «Notificación» en Odoo 19 y una búsqueda de más en el Inicio); la revisión independiente encontró además
+  5 problemas de dinero del bono (nota de crédito suelta que no restaba, venta contada en dos meses, bonos que no se
+  pagaban nunca, comprobante sin el bono, montos de una planilla cancelada que cambiaban): todo corregido con pruebas.
+- **Para Juan:** cuestionario «Preguntas para Juan» (página de Claude, 125 preguntas en 14 temas; 12 llenas y 12
+  incompletas con el manual de marca de la agencia, los términos del sitio y los datos de la empresa; el resto lo
+  responde el equipo) y guía paso a paso para conectar Messenger e Instagram ([JUAN_META.md](JUAN_META.md)). Las
+  respuestas se cargan en la base de conocimiento de Juan solo con la revisión de la dueña; dejar que Juan hable de
+  entregas, flete, apartados, crédito o descuentos cambia su regla 3 y necesita su «sí».
+- **Bono por meta de ventas (en producción desde Desplegar 12):** decisión del jefe con las respuestas de la
+  dueña: 1 % de TODO lo cobrado en el mes si se llega a 30,000 (si no, nada); solo facturas cobradas completas, sin
+  ITBMS, en el mes del último pago; las devoluciones restan; participa el departamento de Ventas con usuario; se paga
+  en la primera planilla del mes siguiente como comisión; cada vendedora ve solo lo suyo en el Inicio. Ver
+  [NOMINA.md](NOMINA.md). La dueña revisó con la extensión de Chrome las fichas: las 3 vendedoras ya están en Ventas
+  con su usuario; faltan salario, fecha de inicio (campo «Contrato»), cédula y seguro social (los pondrá cuando se
+  pague por planilla; el bono no los necesita). Juan Arrieta está en Marketing (puesto «Ventas»): decide el jefe.
+- **«Ventas duplicadas»:** era un pedido repetido (S00062 y S00063, misma clienta, mismo día y total, 5 minutos de
+  diferencia; S00062 quedó sin facturar). No infla el Inicio, Contabilidad ni el bono (cuentan facturas), sí la lista
+  de pedidos. Arreglo: aviso «Parece repetido» en el pedido antes de confirmar y en el Inicio de Gerencia; la dueña
+  cancela S00062 tras confirmarlo con el vendedor. La zona horaria de una vendedora era Etc/GMT+8 (se pasa a Panamá).
 - **Versión estable 2 guardada** (la dueña: «se ve bien, guárdala como versión estable 2»): rama `estable-2026-10-16-2` (= `main` con el PR #47), `app_version` `9be426a4…`, imagen `sha256:876ca5f5…`; ya está en el botón «Volver a una versión estable» ([VERSIONES_ESTABLES.md](VERSIONES_ESTABLES.md)).
 - **En producción** (13:25 UTC, Desplegar 10, `app_version` `d37af4fd…`, imagen `sha256:015dbd40…`; en `main` con el
   PR #46, *squash* `38c3512`): Etapa 3 (selector solo de clientes, aviso de ficha repetida), prueba de humo del

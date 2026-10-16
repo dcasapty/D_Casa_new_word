@@ -987,6 +987,60 @@
    ]
   },
   {
+   "id": "bono-meta-ventas",
+   "categoria": "personal",
+   "grupo": "Bono por meta",
+   "titulo": "Ver el bono por meta de ventas de cada vendedora",
+   "logras": "Ves cuánto cobró cada vendedora en el mes, si llegó a la meta y cuánto le toca de bono; el bono entra solo en la primera planilla del mes siguiente.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_meta_bonos"
+   },
+   "palabras": [
+    "bono",
+    "comision",
+    "meta de ventas",
+    "vendedoras",
+    "uno por ciento",
+    "incentivo"
+   ],
+   "tambien": [
+    "vender"
+   ]
+  },
+  {
+   "id": "meta-ventas-cifras",
+   "categoria": "personal",
+   "grupo": "Bono por meta",
+   "titulo": "Cambiar la meta de ventas o el porcentaje del bono",
+   "logras": "Pones la meta del mes, el porcentaje del bono y el ritmo diario desde el mes que elijas; los meses ya pagados no cambian.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_meta_reglas"
+   },
+   "palabras": [
+    "meta",
+    "objetivo de ventas",
+    "porcentaje del bono",
+    "30 mil",
+    "ritmo diario"
+   ]
+  },
+  {
+   "id": "meta-ventas-departamento",
+   "categoria": "personal",
+   "grupo": "Bono por meta",
+   "titulo": "Elegir qué departamento participa en la meta de ventas",
+   "logras": "Marcas en el departamento «Participa en la meta de ventas»; quien esté ahí y tenga usuario entra solo en el bono.",
+   "nota": "Para que cuente lo que vende una persona, su ficha de empleado tiene que tener su usuario (pestaña Ajustes, «Usuario relacionado»).",
+   "destino": {
+    "menu": "hr.menu_hr_department_kanban"
+   },
+   "palabras": [
+    "departamento de ventas",
+    "quien participa",
+    "vendedoras del bono"
+   ]
+  },
+  {
    "id": "reembolso-pedir",
    "categoria": "personal",
    "grupo": "Gastos",

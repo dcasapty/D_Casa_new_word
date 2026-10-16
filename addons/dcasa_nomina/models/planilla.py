@@ -8,6 +8,8 @@ borrador para ver cómo queda.
 from collections import defaultdict
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
+
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -201,6 +203,7 @@ class DcasaNominaPlanilla(models.Model):
         elegibles, avisos = self._elegibles()
         existentes = {ln.empleado_id: ln for ln in self.linea_ids}
         self.linea_ids.filtered(lambda ln: ln.empleado_id not in elegibles)._liberar_reembolsos()
+        self.linea_ids.filtered(lambda ln: ln.empleado_id not in elegibles)._liberar_bonos()
         self.linea_ids.filtered(lambda ln: ln.empleado_id not in elegibles).unlink()
         crear = []
         for empleado in elegibles:
@@ -225,6 +228,7 @@ class DcasaNominaPlanilla(models.Model):
                 crear.append({**valores, 'planilla_id': self.id, 'empleado_id': empleado.id})
         if crear:
             self.env['dcasa.nomina.linea'].create(crear)
+        avisos += self._enlazar_bonos()
         self.sudo().write({'parametros_id': vigencia.id, 'avisos': '\n'.join(avisos) or False, 'estado': 'calculada'})
         if self.tipo == 'quincenal':
             self._enlazar_reembolsos()
@@ -237,6 +241,45 @@ class DcasaNominaPlanilla(models.Model):
         for planilla in self:
             planilla._calcular()
         return True
+
+    def _enlazar_bonos(self):
+        """El bono por meta de ventas entra en la PRIMERA planilla quincenal del mes (del 1 al 15), como comisión
+        (decisión del jefe, 2026-10-16; ``meta_ventas.py``): el del mes anterior y cualquiera que haya quedado por pagar
+        de antes. Cada bono se pone al día y se enlaza a la línea de su colaborador, también el que dio cero: así su mes
+        queda cerrado y lo que llegue tarde cuenta en el mes siguiente. Devuelve los avisos: quien ganó bono y no está
+        en esta planilla (le falta salario o fecha de ingreso) sigue con su bono por pagar para la próxima.
+
+        Cualquier otra planilla (segunda quincena, décimo) suelta los bonos que tuviera y no lleva comisión."""
+        self.ensure_one()
+        self.linea_ids._liberar_bonos()
+        avisos = []
+        if self.tipo == 'quincenal' and self.fecha_desde.day == 1:
+            Bono = self.env['dcasa.nomina.meta.bono'].sudo()
+            mes_anterior = self.fecha_desde - relativedelta(months=1)
+            Bono._actualizar(self.company_id, [mes_anterior])
+            lineas = {ln.empleado_id: ln for ln in self.linea_ids}
+            abiertos = Bono.search([('company_id', '=', self.company_id.id), ('mes', '<=', mes_anterior),
+                                    ('estado', '=', 'abierto')], order='mes, id')
+            for bono in abiertos:
+                Bono._calcular(bono.empleado_id, bono.mes, self.company_id)    # lo pone al día (es el mismo registro)
+                if bono.empleado_id in lineas:
+                    bono.write({'linea_id': lineas[bono.empleado_id].id})
+                elif bono.monto:
+                    avisos.append(self.env._(
+                        '%(nombre)s ganó %(monto)s de bono por la meta de ventas de %(mes)s, pero no entra en esta '
+                        'planilla (le falta salario o fecha de ingreso en su ficha): el bono queda por pagar y entra '
+                        'en la próxima primera quincena que la incluya.',
+                        nombre=bono.empleado_id.name, monto=f'{bono.monto:,.2f}', mes=bono.mes.strftime('%m/%Y')))
+            for bono in Bono.search([('empleado_id', 'in', [e.id for e in lineas]), ('mes', '<=', mes_anterior),
+                                     ('estado', '=', 'en_planilla'), ('linea_id.planilla_id', '!=', self.id)]):
+                avisos.append(self.env._('%(nombre)s: su bono por meta de %(mes)s ya está en la planilla %(otra)s.',
+                                         nombre=bono.empleado_id.name, mes=bono.mes.strftime('%m/%Y'),
+                                         otra=bono.linea_id.planilla_id.name))
+        for linea in self.linea_ids:
+            comision = calculo.r2(sum(linea.bono_ids.mapped('monto')))
+            if linea.comision_meta != comision:
+                linea.comision_meta = comision
+        return avisos
 
     def _enlazar_reembolsos(self):
         """Los reembolsos aprobados de cada colaborador entran en su línea de esta planilla quincenal."""
@@ -422,6 +465,7 @@ class DcasaNominaPlanilla(models.Model):
                 planilla.linea_ids.reembolso_ids.sudo().write({'estado': 'aprobado', 'linea_id': False})
             else:
                 planilla.linea_ids._liberar_reembolsos()
+            planilla.linea_ids._liberar_bonos()
             planilla.sudo().write({'estado': 'cancelada'})
             planilla.message_post(body=self.env._('Planilla cancelada por %s.', self.env.user.name))
         return True
@@ -446,6 +490,10 @@ class DcasaNominaLinea(models.Model):
     salario = fields.Monetary('Salario / décimo', compute='_compute_salario', store=True, readonly=False)
     otros_ingresos = fields.Monetary('Otros ingresos', help='Horas extras, bonos, comisiones: pagan seguro social, '
                                                            'educativo e ISR como el salario.')
+    # Lo escribe la planilla al enlazar los bonos (no se recalcula solo: una planilla cancelada no cambia).
+    comision_meta = fields.Monetary('Bono por meta', readonly=True,
+                                    help='El bono por meta de ventas del mes anterior (Nómina › Bono por meta): '
+                                         'paga seguro social, educativo e ISR como el salario.')
     devengado = fields.Monetary(compute='_compute_importes', store=True)
     css_trabajador = fields.Monetary('Seguro social', compute='_compute_importes', store=True)
     se_trabajador = fields.Monetary('Seguro educativo', compute='_compute_importes', store=True)
@@ -458,6 +506,7 @@ class DcasaNominaLinea(models.Model):
     riesgo_profesional = fields.Monetary('Riesgo profesional (patrono)', compute='_compute_importes', store=True)
     costo_patronal = fields.Monetary('Aportes del patrono', compute='_compute_importes', store=True)
     reembolso_ids = fields.One2many('dcasa.nomina.reembolso', 'linea_id', readonly=True)
+    bono_ids = fields.One2many('dcasa.nomina.meta.bono', 'linea_id', 'Bonos por meta', readonly=True)
     payment_id = fields.Many2one('account.payment', 'Pago', readonly=True, copy=False)
     notas = fields.Char()
 
@@ -482,13 +531,17 @@ class DcasaNominaLinea(models.Model):
                 linea.salario = calculo.salario_del_periodo(linea.salario_mensual, linea.dias_pagados,
                                                             linea.dias_periodo)
 
-    @api.depends('salario', 'otros_ingresos', 'otros_descuentos', 'reembolso_ids.monto', 'planilla_id.parametros_id',
-                 'planilla_id.tipo', 'dias_pagados', 'dias_periodo', 'empleado_id.dcasa_deduccion_isr_anual')
+    @api.depends('salario', 'otros_ingresos', 'otros_descuentos', 'reembolso_ids.monto', 'comision_meta',
+                 'planilla_id.parametros_id', 'planilla_id.tipo', 'dias_pagados', 'dias_periodo',
+                 'empleado_id.dcasa_deduccion_isr_anual')
     def _compute_importes(self):
         for linea in self:
             vigencia = linea.planilla_id.parametros_id
             decimo = linea.planilla_id.tipo == 'decimo'
-            devengado = calculo.r2(linea.salario + (0.0 if decimo else linea.otros_ingresos))
+            # El bono por meta de ventas es una comisión: suma a lo devengado y paga aportes e ISR como lo extra.
+            bono = 0.0 if decimo else linea.comision_meta
+            extras = calculo.r2(linea.otros_ingresos + bono)
+            devengado = calculo.r2(linea.salario + (0.0 if decimo else extras))
             reembolsos = calculo.r2(sum(linea.reembolso_ids.mapped('monto')))
             tasas = {
                 'css_t': vigencia.css_trabajador_decimo if decimo else vigencia.css_trabajador,
@@ -510,7 +563,7 @@ class DcasaNominaLinea(models.Model):
                 fraccion = linea.dias_pagados / linea.dias_periodo
                 completa = linea.salario / fraccion if fraccion else 0.0
                 linea.isr = calculo.isr_del_periodo(
-                    completa, fraccion, linea.otros_ingresos, vigencia._tramos(),
+                    completa, fraccion, extras, vigencia._tramos(),
                     (vigencia.css_trabajador + vigencia.se_trabajador) if vigencia.isr_descuenta_css_se else 0.0,
                     linea.empleado_id.sudo().dcasa_deduccion_isr_anual)
             linea.reembolsos = reembolsos
@@ -519,6 +572,10 @@ class DcasaNominaLinea(models.Model):
 
     def _liberar_reembolsos(self):
         self.reembolso_ids.sudo().write({'estado': 'aprobado', 'linea_id': False})
+
+    def _liberar_bonos(self):
+        """Los bonos por meta de estas líneas vuelven a quedar por pagar (la línea sale o la planilla se cancela)."""
+        self.bono_ids.sudo().write({'linea_id': False})
 
     @api.constrains('otros_ingresos', 'otros_descuentos', 'dias_pagados')
     def _check_valores(self):

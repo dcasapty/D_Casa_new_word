@@ -5,4 +5,5 @@ from . import hr_employee
 from . import vacacion
 from . import reembolso
 from . import planilla
+from . import meta_ventas
 from . import liquidacion

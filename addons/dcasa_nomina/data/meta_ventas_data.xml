@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+    <!--
+        Bono por meta de ventas (decisión del jefe, 2026-10-16; models/meta_ventas.py). Las cifras son las que dio el
+        jefe: meta de 30,000 al mes (sin ITBMS), bono del 1 % de TODO lo cobrado si se llega, y 1,000 al día como guía
+        del ritmo. Rige desde octubre de 2026. Gerencia las cambia hacia adelante en Nómina › Configuración › Meta de
+        ventas (una meta nueva que rija desde un mes).
+    -->
+    <record id="meta_ventas_2026_10" model="dcasa.nomina.meta.regla">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="fecha_desde">2026-10-01</field>
+        <field name="meta_mensual">30000</field>
+        <field name="porcentaje">1</field>
+        <field name="meta_diaria">1000</field>
+        <field name="notas">Decisión del jefe, 2026-10-16: 1 % de todo lo cobrado si se llega a la meta del mes.</field>
+    </record>
+    </data>
+
+    <!-- Participa quien está en el departamento «Ventas»: se marca solo una vez; después lo decide Gerencia. -->
+    <function model="hr.department" name="_dcasa_marcar_ventas"/>
+
+    <record id="cron_meta_ventas" model="ir.cron">
+        <field name="name">Nómina: poner al día el bono por meta de ventas</field>
+        <field name="model_id" ref="model_dcasa_nomina_meta_bono"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_actualizar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

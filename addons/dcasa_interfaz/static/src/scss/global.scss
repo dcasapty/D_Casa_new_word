@@ -17,6 +17,34 @@
     .o_menu_systray { gap: 2px; }
 }
 
+// --- Mensajes sin leer: que se note -----------------------------------------------
+// El contador del chat (arriba a la derecha) era azul como todo lo demás y no llamaba la atención (la dueña,
+// 2026-10-16: «los vendedores no contestan mis chats»). Con mensajes sin leer, el ícono y el contador van en rojo de
+// alerta y el contador late suave; sin mensajes, vuelve a lo normal. Sin animación para quien la tiene apagada.
+$dcasa-alerta: #D92D20;
+
+.o_main_navbar .o-mail-MessagingMenu-counter {
+    background-color: $dcasa-alerta !important;
+    color: #fff !important;
+    text-shadow: none !important;
+    font-weight: 700;
+    min-width: 20px;
+    animation: dcasa-pulso-alerta 1.6s ease-out infinite;
+}
+
+.o_main_navbar button:has(.o-mail-MessagingMenu-counter) .fa-comments { color: $dcasa-alerta; }
+
+// Late creciendo un poco (sin sombras: el sistema de la marca es plano). Conserva el corrimiento con que Odoo pone el
+// contador sobre el ícono (navbar.scss: translate(-0.6em, -30%)).
+@keyframes dcasa-pulso-alerta {
+    0%, 60%, 100% { transform: translate(-0.6em, -30%) scale(1); }
+    30% { transform: translate(-0.6em, -30%) scale(1.25); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .o_main_navbar .o-mail-MessagingMenu-counter { animation: none; }
+}
+
 // --- Panel de control (título, botones, búsqueda) -----------------------------------
 .o_control_panel {
     background: var(--dc-blanco);

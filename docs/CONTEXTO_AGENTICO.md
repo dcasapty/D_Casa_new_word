@@ -27,6 +27,7 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
    el código que las calcula.** El 2026-10-16 se le dijo que el Inicio no contaba los pedidos viejos S00016–S00021; la
    cuenta (total de facturas − total del Inicio = $236.88, una sola factura sin pedido) mostró que sí los contaba, y hubo
    que corregirlo. Una explicación «razonable» sin la resta es una suposición.
+8. **Si después del «sí» de la dueña cambia el código (por ejemplo, por una revisión), decírselo antes de unir a `main`.** El 2026-10-16 el «sí» fue antes de que la revisión independiente encontrara 5 fallas de dinero del bono; se desplegó lo corregido y se le explicó qué cambió antes de cerrar («Sí, termina»).
 
 ---
 
@@ -206,6 +207,7 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 9 | 2026-10-16 07:20 | `3570c3a1` | Arreglo #97 (imagen con commit y huella; chequeo estricto) | **Sí**: la huella de la base no existía, así que actualizó todo (aplicó por fin las Etapas 1 y 2) | **Sano y confirmado** 07:22 → 07:27 (versión `3570c3a12e55`, `base_al_dia` true, 5 min de vigilancia) | El primer minuto respondía la instancia anterior (sin versión) y el chequeo nuevo **no** la dio por sana. La dueña confirmó Inicio y conversaciones. Staging igual en CI #171. digest `4e9b9155…` |
 | Desplegar 10 | 2026-10-16 13:12 | `d37af4fd` | Etapa 3, prueba de humo del arranque, «nunca hacia atrás», Conversaciones #25 punto 1, botón «Volver a una versión estable» (PR #46) | **Sí** (Etapa 3 y Conversaciones; la huella cambió y actualizó) | **Sano y confirmado** 13:25 (versión `d37af4fde5b2`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña. Staging igual en CI #174. digest `015dbd40…` |
 | Desplegar 11 | 2026-10-16 14:57 | `9be426a4` | Inicio: cotizaciones y entregas arriba con acento, «Ganancia bruta», cuadre exacto con Contabilidad; Contabilidad: aviso de utilidad sin costo de ventas, «Vencido» sin negativos | No (vistas, plantillas y estilos; sin campos nuevos) | **Sano y confirmado** 15:11 (versión `9be426a46e15`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («tan pronto puedas subir las correcciones a producción hazlo»). Staging igual en CI #178. digest `876ca5f5…` |
+| Desplegar 12 | 2026-10-16 19:25 | `431cbfe8` | Bono por meta de ventas (1 % si se llega a la meta; a la primera planilla del mes siguiente), aviso de pedidos repetidos, avisos del chat «En Odoo» y contador en rojo | **Sí** (modelos y campos nuevos de Nómina, `comision_meta` en la línea; la huella cambió y actualizó) | **Sano y confirmado** 19:38 (versión `431cbfe80d88`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («avísame cuando esté y si tienen mi si») y, tras las correcciones de la revisión, «Sí, termina». Staging igual en CI #182. digest `3894d505…` |
 
 **Qué puede no haberse aplicado nunca en producción:**
 
@@ -224,6 +226,8 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 ---
 
 ## Fallas de CI y cómo se arreglaron
+
+- **CI #181** (`05be252`, 2026-10-16) · 3 FAIL en `dcasa_interfaz`: (a) `test_avisos` ×2: hacer que `base.group_user` implique `mail.group_mail_notification_type_inbox` no cambia `notification_type` (Odoo 19 lo calcula con `group_ids`, los grupos asignados directo, no con `all_group_ids`). Arreglo `132c5ec`: `res.users.create` deja «En Odoo» al usuario interno nuevo y una función de una sola vez pasa a los que ya existían. (b) `test_tablero_lee_la_semana_de_una_vez`: los pedidos repetidos del Inicio hacían un `search` de `sale.order`; ahora `search_fetch` con los campos que usa (una lectura). El log de la API llega cortado (las ~3,000 últimas líneas son del PostgreSQL de servicio): reproducir en local con `scripts/test.sh <módulo>` es más rápido que buscar el traceback.
 
 Últimos 60 runs de CI/CD (#112 a #171). Fallaron: #112, #139, #140, #151, #152, #153, #155, #156, #158, #167
 (cancelados: #109, #116, motivo sin confirmar). Truco para leer los registros de «Tests de Odoo»: las últimas ~500 líneas
@@ -309,6 +313,7 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- `notification_type` («Por correo» / «En Odoo») sale del grupo `mail.group_mail_notification_type_inbox` asignado **directo** al usuario (`group_ids`); un grupo implícito no lo cambia. Para cambiarlo se escribe `notification_type` (su inverso pone el grupo).
 - Campo, vista o dato nuevo sin `odoo -u` = `UndefinedColumn` y pantallas rotas: nunca dar por buena una versión sin
   comprobar que la base se actualizó con **ese** código.
 - `-u` con código más viejo que la base borra columnas y tablas nuevas y sus datos: nunca desplegar una imagen vieja

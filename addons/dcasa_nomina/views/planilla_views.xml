@@ -82,6 +82,8 @@
                             <field name="salario" readonly="parent.estado not in ('borrador', 'calculada')"/>
                             <field name="otros_ingresos" column_invisible="parent.tipo == 'decimo'"
                                    readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="comision_meta" column_invisible="parent.tipo == 'decimo'" readonly="1"
+                                   optional="show"/>
                             <field name="css_trabajador" readonly="1"/>
                             <field name="se_trabajador" readonly="1"/>
                             <field name="isr" readonly="1"/>

@@ -648,6 +648,58 @@
     @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); }
 }
 
+// Tu meta del mes (bono por meta de ventas): barra azul sobre azul claro; nada de amarillo sobre blanco.
+.o_dcasa_meta {
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-md);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+}
+
+.o_dcasa_meta_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 12px;
+
+    h2 {
+        margin: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        &::first-letter { text-transform: uppercase; }
+        .fa { color: var(--dc-azul-600); }
+    }
+}
+
+.o_dcasa_meta_regla { font-size: .85rem; color: var(--dc-tinta-2); }
+
+.o_dcasa_meta_barra {
+    height: 12px;
+    border-radius: 6px;
+    background: var(--dc-azul-100);
+    overflow: hidden;
+
+    span { display: block; height: 100%; background: var(--dc-azul-600); border-radius: 6px; }
+}
+
+.o_dcasa_meta_cifras {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    margin-top: 10px;
+    font-size: .92rem;
+    color: var(--dc-tinta-2);
+
+    strong { color: var(--dc-tinta); }
+    .o_dcasa_meta_bono strong { color: var(--dc-azul-700); }
+}
+
+.o_dcasa_meta_nota { margin: 8px 0 0; font-size: .8rem; color: var(--dc-tinta-3); }
+
 // Cotizaciones abiertas y entregas pendientes: lo que más se usa, con acento (pedido de la dueña, 2026-10-16).
 // Cabecera azul marino de borde a borde con el número en amarillo (el amarillo solo toca el azul); la lista, en blanco.
 .o_dcasa_lista {

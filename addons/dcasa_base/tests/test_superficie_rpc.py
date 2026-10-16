@@ -273,6 +273,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Devuelve la acción de la vista previa propia con la URL de la página; sin sudo().',
     ('dcasa_interfaz', 'website.page', 'write'):
         'Bloquea: de una página de D\'CASA solo se cambia publicar y SEO; el contenido viene del código.',
+    ('dcasa_interfaz', 'res.users', 'create'):
+        OVERRIDE + ' Solo deja «Notificación: En Odoo» al usuario interno recién creado, con los mismos permisos de '
+        'quien lo crea; sin sudo().',
     # --- dcasa_invoice -------------------------------------------------------------------
     ('dcasa_invoice', 'ir.qweb.field.monetary', 'value_to_html'): OVERRIDE + ' Solo formatea un valor.',
     ('dcasa_invoice', 'account.move.line', 'get_section_subtotal'):
