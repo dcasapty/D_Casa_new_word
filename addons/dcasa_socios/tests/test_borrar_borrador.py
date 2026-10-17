@@ -508,8 +508,10 @@ class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.contador = new_test_user(cls.env, login='aviso_contador', name='Contadora',
-                                     groups='base.group_user,account.group_account_invoice')
+        # Pasar a borrador una factura publicada es solo de Gerencia desde el 2026-10-17 (decisión de la gerencia A6),
+        # y deshacer el cruce con su pago (borrar el borrador) es de quien cobra: quien lo hace aquí es Gerencia.
+        cls.contador = new_test_user(cls.env, login='aviso_contador', name='Gerencia Aviso',
+                                     groups='base.group_user,dcasa_base.group_gerencia')
 
     def avisos(self, desde=0):
         """Los avisos emergentes que salieron por el bus después de ``desde``: ``[(canal, contenido)]``."""
@@ -539,7 +541,7 @@ class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
         self.assertTrue(self.ruta().endswith(menu.name) and ' › ' in self.ruta())
 
     def test_volver_a_borrador_con_pago_avisa_a_quien_lo_hizo(self):
-        factura = self.factura(vendedora=self.contador)  # su factura: con Facturación se ve y se toca solo lo suyo
+        factura = self.factura(vendedora=self.contador)
         pago = factura._get_reconciled_payments()
         self.assertEqual(len(pago), 1)
         antes = self.cuantos()
@@ -621,7 +623,7 @@ class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
         self.assertFalse(self.avisos(antes))
 
     def test_borrar_el_borrador_despues_sigue_funcionando_y_avisa_que_el_pago_quedo_sin_aplicar(self):
-        factura = self.factura(vendedora=self.contador)  # su factura: con Facturación se ve y se toca solo lo suyo
+        factura = self.factura(vendedora=self.contador)
         pago = factura._get_reconciled_payments()
         nombre = factura.name
         factura.button_draft()

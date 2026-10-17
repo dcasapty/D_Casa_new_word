@@ -105,8 +105,8 @@ class TestPedidosWebSinVendedora(TransactionCase):
     def test_la_vendedora_factura_un_pedido_ya_pagado_en_linea(self):
         """Al publicar la factura de un pedido pagado en la web, Odoo cruza solo ese pago con la factura (sale
         ``_post``): eso no es «registrar un cobro» y la vendedora sigue pudiendo facturar. (Con el interruptor
-        apagado: encendido, la vendedora no puede leer un pago en línea que no está unido a una factura suya; ver
-        docs/PERMISOS.md.)"""
+        apagado: encendido, la vendedora no ve ese pago, la factura se publica por cobrar y Caja le aplica el cobro;
+        ver docs/PERMISOS.md.)"""
         self.env['res.users']._dcasa_poner_restriccion(False)
         pedido = self._pedido_web()
         pedido.action_quotation_sent()
@@ -120,7 +120,7 @@ class TestPedidosWebSinVendedora(TransactionCase):
             'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
             'amount': pedido.amount_total, 'journal_id': banco.id})
         pago.action_post()
-        transaccion.payment_id = pago
+        transaccion.write({'state': 'done', 'payment_id': pago.id})   # pagado en línea (lo hace la tienda sola)
         pedido.with_user(self.a).action_confirm()
         factura = pedido.with_user(self.a)._create_invoices()
         self.assertIn(transaccion, factura.transaction_ids)

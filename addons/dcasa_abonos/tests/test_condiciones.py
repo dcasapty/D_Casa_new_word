@@ -269,7 +269,7 @@ class TestHojaDeCondiciones(DocumentosDePrueba):
                 self.assertEqual(datos, {
                     'Número de factura': factura.name,
                     'Fecha de inicio del abono': '14/10/2026',
-                    'Fecha de vencimiento': '14/11/2026',
+                    'Fecha de vencimiento': '13/11/2026',   # 30 días continuos (decisión de la gerencia A3)
                 })
                 self.assertEqual(totales, {
                     'Total de la factura': _monto(estado['total']),

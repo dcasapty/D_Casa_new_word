@@ -26,6 +26,7 @@ class TestFeSoloLoSuyo(FeComun):
         cls.a = usuario('fe_sls_a', 'dcasa_base.group_vendedora')
         cls.b = usuario('fe_sls_b', 'dcasa_base.group_vendedora')
         cls.caja = usuario('fe_sls_caja', 'dcasa_base.group_caja')
+        cls.gerencia = usuario('fe_sls_gerencia', 'dcasa_base.group_gerencia')
 
     def _cerrado(self, registros, usuario):
         self.assertTrue(registros)
@@ -60,15 +61,17 @@ class TestFeSoloLoSuyo(FeComun):
         libre = self._factura(self.contribuyente, invoice_user_id=False).l10n_pa_fe_documento_ids
         self._visible(libre, self.a)
 
-    def test_caja_publica_la_nota_de_una_factura_de_b(self):
+    def test_gerencia_publica_la_nota_de_una_factura_de_b(self):
+        """La nota de crédito la hace Gerencia desde el 2026-10-17 (decisión de la gerencia A7); su documento
+        electrónico sigue siendo de B."""
         self._activar()
         factura = self._factura(self.contribuyente, invoice_user_id=self.b.id)
         factura.l10n_pa_fe_documento_ids._procesar()
-        reverso = self.env['account.move.reversal'].with_user(self.caja).with_context(
+        reverso = self.env['account.move.reversal'].with_user(self.gerencia).with_context(
             active_model='account.move', active_ids=factura.ids).create({
                 'reason': 'Devolución', 'journal_id': factura.journal_id.id})
         nota = self.env['account.move'].browse(reverso.refund_moves()['res_id'])
-        nota.with_user(self.caja).action_post()
+        nota.with_user(self.gerencia).action_post()
         self.assertEqual(nota.state, 'posted')
         self.assertEqual(nota.invoice_user_id, self.b, 'la nota sigue siendo de B')
         self.assertEqual(len(nota.l10n_pa_fe_documento_ids), 1)
