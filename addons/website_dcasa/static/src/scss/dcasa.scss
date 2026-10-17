@@ -262,6 +262,23 @@ html {
         .fa {
             margin-right: .35rem !important;
         }
+
+        // Con las zonas de entrega el aviso es largo: en celular WhatsApp queda solo con su ícono (el botón flotante
+        // también está) y, si aun así no cabe (320 px), el aviso se corta con «…» en vez de ensanchar la página.
+        .o_dcasa_anuncio_entregas {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .o_dcasa_anuncio_wa {
+            flex-shrink: 0;
+            font-size: 1rem;
+
+            .fa {
+                margin-right: 0 !important;
+            }
+        }
     }
 }
 
