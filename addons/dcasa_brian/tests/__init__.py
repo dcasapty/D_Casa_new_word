@@ -17,3 +17,4 @@ from . import test_guia_brian
 from . import test_combos
 from . import test_resumen_ventas
 from . import test_solo_lo_suyo
+from . import test_reglas_gerencia
