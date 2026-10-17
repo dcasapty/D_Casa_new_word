@@ -84,7 +84,7 @@ PROMESAS_RETIRADAS = [
 TEXTOS_CORREGIDOS = [
     ('Transferencia bancaria, Yappy, o pagas al recibir o en la tienda. Escríbenos y te explicamos '
      'la que mejor te sirve.',
-     'Transferencia bancaria, Yappy o en la tienda (efectivo, Yappy o tarjeta). El mueble se entrega cuando está '
+     'Transferencia bancaria, Yappy o en la tienda (efectivo o Yappy). El mueble se entrega cuando está '
      'pagado completo. Escríbenos y te explicamos la que mejor te sirve.'),
     ('Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha de entrega.',
      'Hacemos entregas en La Chorrera, Arraiján, Capira, Panamá y Colón; al interior todavía no. El costo y la '

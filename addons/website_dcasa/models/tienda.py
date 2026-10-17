@@ -22,7 +22,7 @@ PAGOS = [
      'Te escribimos por WhatsApp con el número de Yappy para que pagues. '
      'Apenas veamos el pago, confirmamos tu pedido y coordinamos la entrega.'),
     ('delivery.payment_provider_cod', 'Pago en la tienda', 'cash_on_delivery',
-     'Te lo apartamos por la página web: pasa a pagarlo en la tienda (efectivo, Yappy o tarjeta) antes de que venza '
+     'Te lo apartamos por la página web: pasa a pagarlo en la tienda (efectivo o Yappy) antes de que venza '
      'el apartado; la fecha la ves en Mi cuenta. El mueble se entrega cuando está pagado completo: el envío o el '
      'retiro en la tienda lo coordinas con tu vendedora por WhatsApp.'),
 ]
