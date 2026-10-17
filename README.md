@@ -17,6 +17,7 @@ código fuente en este repositorio y desplegado en **Cloudflare**.
 | `vendor/odoo` | Código fuente de Odoo 19.0 (submódulo git, fijado a un commit). |
 | `addons/dcasa_base` | Empresa, Panamá (ITBMS 7 %, plan contable), RUC con DV, USD, apps del ERP. |
 | `addons/dcasa_invoice` | Formato de factura D'CASA: marca, RUC+DV, sello **PAGADO**, monto en letras. |
+| `addons/dcasa_abonos` | Hoja «Condiciones de abono» en dos copias (COPIA CLIENTE, que firma y se lleva el cliente, y COPIA EMPRESA), una hoja cada una con la marca de las facturas; el texto se cambia en Ajustes › Empresas › «Documentos D'CASA». Sale en «Imprimir documentos», marcada en el primer abono. Solo imprime: la contabilidad no cambia. |
 | `addons/dcasa_socios` | Socios D'CASA: puntos automáticos al pagarse la factura, referidos, premios, canjes, cumpleaños y app del socio (celular + PIN) en `/socios`. Reglas de [DCasa-Referidos](https://github.com/abrinay1997-stack/DCasa-Referidos). |
 | `addons/website_dcasa` | Sitio web y tienda con la marca, **mantenido desde el código** (el constructor de páginas de Odoo está apagado a propósito: [docs/OPERACION.md](docs/OPERACION.md) › «El sitio se edita por código»). |
 | `addons/dcasa_interfaz` | La cara de Odoo por dentro: «Inicio» con el tablero del día, íconos propios, sin avisos de Enterprise (salen como «En desarrollo»), sin recorrido guiado, OdooBot ni datos de ejemplo. |

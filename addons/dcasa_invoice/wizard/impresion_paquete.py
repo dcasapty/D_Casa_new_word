@@ -149,9 +149,18 @@ class DcasaImpresionPaquete(models.TransientModel):
     # Botones
     # ------------------------------------------------------------------
 
+    @api.model
+    def _claves_documentos(self):
+        """Las claves de los documentos, en el orden del PDF.
+
+        Otro módulo agrega un documento con su clave aquí, su casilla ``incluir_<clave>`` y su PDF en
+        ``_pdfs_adicionales`` (dcasa_abonos: las condiciones de abono, justo después de la factura del cliente).
+        """
+        return list(CLAVES)
+
     def _claves_marcadas(self):
         self.ensure_one()
-        return [clave for clave in CLAVES if self[f'incluir_{clave}']]
+        return [clave for clave in self._claves_documentos() if self[f'incluir_{clave}']]
 
     def _accion_siguiente(self):
         """Qué pasa al terminar o al cerrar el cuadro: si salió al completar un pago, el pago, como siempre."""
@@ -209,7 +218,7 @@ class DcasaImpresionPaquete(models.TransientModel):
             raise UserError(self.env._(
                 'Elegiste %(cuantas)s facturas y el máximo por paquete es %(maximo)s. '
                 'Elige menos y vuelve a intentar.', cuantas=len(validas), maximo=paquete.MAX_FACTURAS))
-        elegidas = [clave for clave in CLAVES if clave in set(claves)]
+        elegidas = [clave for clave in self._claves_documentos() if clave in set(claves)]
         if not elegidas:
             raise UserError(self.env._('Marca al menos un documento para imprimir.'))
         return validas, elegidas
@@ -257,40 +266,24 @@ class DcasaImpresionPaquete(models.TransientModel):
                 or usuario.has_group('account.group_account_readonly')):
             raise AccessError(self.env._('No tienes permiso para imprimir estos documentos.'))
         facturas, claves = self._preparar(facturas, claves)
-        enviar = self.env['account.move.send']
-
-        # Factura del cliente: el mismo informe que usa el botón «Imprimir» de cada factura.
-        facturas_pdf = {}
-        if 'cliente' in claves or 'copia' in claves:
-            por_informe = {}
-            for factura in facturas:
-                informe = enviar._get_default_pdf_report_id(factura)
-                por_informe.setdefault(informe, self.env['account.move'])
-                por_informe[informe] |= factura
-            for informe, grupo in por_informe.items():
-                facturas_pdf.update(self._pdfs_por_registro(informe, grupo))
-
-        # Nota de entrega: las entregas de salida de la venta; si dos facturas comparten entrega, sale una vez.
-        entregas_por_factura, entregas_pdf = {}, {}
-        if 'entrega' in claves:
-            vistas = self.env['stock.picking']
-            for factura in facturas:
-                nuevas = factura._dcasa_entregas() - vistas
-                entregas_por_factura[factura.id] = nuevas.sorted('id')
-                vistas |= nuevas
-            if vistas:
-                entregas_pdf = self._pdfs_por_registro(self.env.ref(INFORME_ENTREGA), vistas)
+        facturas_pdf = self._pdfs_de_facturas(facturas) if {'cliente', 'copia'} & set(claves) else {}
+        entregas_pdf = self._pdfs_de_entregas(facturas) if 'entrega' in claves else {}
+        # Lo que agregan otros módulos (dcasa_abonos: las condiciones de abono): {clave: {id de la factura: PDF}}.
+        adicionales = self._pdfs_adicionales(facturas, claves)
 
         partes = []
         for factura in facturas:
-            # Venta por venta, en el orden de DOCUMENTOS: la nota de entrega (si va y la venta tiene), la factura del
-            # cliente y al final la copia de la empresa.
-            for entrega in entregas_por_factura.get(factura.id, ()):
-                partes.append(entregas_pdf[entrega.id])
-            if 'cliente' in claves:
-                partes.append(facturas_pdf[factura.id])
-            if 'copia' in claves:
-                partes.append(paquete.sellar_copia(facturas_pdf[factura.id]))
+            # Venta por venta, en el orden de las claves (``_claves_documentos``): la nota de entrega (si va y la venta
+            # tiene), la factura del cliente, lo que agreguen otros módulos y al final la copia de la empresa.
+            for clave in claves:
+                if clave == 'entrega':
+                    partes.extend(entregas_pdf.get(factura.id, ()))
+                elif clave == 'cliente':
+                    partes.append(facturas_pdf[factura.id])
+                elif clave == 'copia':
+                    partes.append(paquete.sellar_copia(facturas_pdf[factura.id]))
+                elif adicionales.get(clave, {}).get(factura.id):
+                    partes.append(adicionales[clave][factura.id])
         if not partes:
             raise UserError(self.env._('Las facturas elegidas no tienen una entrega ligada: no hay nada que imprimir.'))
         contenido = paquete.unir(partes)
@@ -298,3 +291,39 @@ class DcasaImpresionPaquete(models.TransientModel):
         _logger.info('DCASA_PAQUETE facturas=%s documentos=%s paginas=%s segundos=%.1f',
                      len(facturas), len(partes), paquete.paginas(contenido), time.monotonic() - inicio)
         return contenido, self._nombre_archivo(facturas)
+
+    @api.model
+    def _pdfs_de_facturas(self, facturas):
+        """{id de la factura: PDF} con el mismo informe que usa el botón «Imprimir» de cada factura."""
+        enviar = self.env['account.move.send']
+        por_informe = {}
+        for factura in facturas:
+            informe = enviar._get_default_pdf_report_id(factura)
+            por_informe.setdefault(informe, self.env['account.move'])
+            por_informe[informe] |= factura
+        resultado = {}
+        for informe, grupo in por_informe.items():
+            resultado.update(self._pdfs_por_registro(informe, grupo))
+        return resultado
+
+    @api.model
+    def _pdfs_de_entregas(self, facturas):
+        """{id de la factura: [PDF de cada nota de entrega]}: las entregas de salida de la venta. Si dos facturas
+        comparten entrega, sale una vez (con la primera)."""
+        por_factura, vistas = {}, self.env['stock.picking']
+        for factura in facturas:
+            nuevas = factura._dcasa_entregas() - vistas
+            por_factura[factura.id] = nuevas.sorted('id')
+            vistas |= nuevas
+        if not vistas:
+            return {}
+        pdfs = self._pdfs_por_registro(self.env.ref(INFORME_ENTREGA), vistas)
+        return {factura_id: [pdfs[entrega.id] for entrega in entregas] for factura_id, entregas in por_factura.items()}
+
+    @api.model
+    def _pdfs_adicionales(self, facturas, claves):
+        """{clave: {id de la factura: PDF}} de los documentos que agregan otros módulos (``_claves_documentos``).
+
+        Aquí no hay ninguno. Una factura que no lleva ese documento simplemente no aparece en su diccionario.
+        """
+        return {}

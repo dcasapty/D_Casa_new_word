@@ -198,7 +198,7 @@
      "destino": null
     },
     {
-     "texto": "Sale el cuadro «Imprimir documentos»: imprime el papel de ABONO con el saldo por pagar. La nota de entrega se imprime cuando termine de pagar.",
+     "texto": "Sale el cuadro «Imprimir documentos»: imprime el papel de ABONO con el saldo por pagar y, en el primer abono, las «Condiciones de abono» en dos hojas: la COPIA CLIENTE se la lleva el cliente y la COPIA EMPRESA se queda en la tienda (las dos con la raya para la firma y la cédula del cliente). La nota de entrega se imprime cuando termine de pagar.",
      "destino": null
     }
    ],
@@ -208,7 +208,9 @@
     "pago parcial",
     "pagar por partes",
     "saldo",
-    "cuanto le falta"
+    "cuanto le falta",
+    "condiciones de abono",
+    "copia cliente"
    ],
    "nota": "Cuando el cliente termina de pagar, la factura vuelve a salir como factura pagada, con todos sus abonos."
   },
@@ -2276,6 +2278,25 @@
     "accesibilidad",
     "dislexia",
     "imprimir documentos"
+   ]
+  },
+  {
+   "id": "condiciones-abono",
+   "categoria": "facturar",
+   "tambien": [
+    "vender"
+   ],
+   "grupo": "Documentos",
+   "titulo": "Cambiar las condiciones de abono que se imprimen (solo administrador)",
+   "logras": "Cambias el texto de la hoja «Condiciones de abono» que sale con el primer abono en dos copias: una para el cliente y otra para la tienda.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA», sección «Condiciones de abono»: escribe una condición por renglón (la hoja las numera sola). Si lo dejas vacío, la hoja no se imprime. El sistema no calcula ni cobra lo que digan las condiciones: solo las imprime. Para volver a imprimirla en otro abono, marca «Condiciones de abono (2 copias)» en el cuadro «Imprimir documentos».",
+   "palabras": [
+    "condiciones de abono",
+    "hoja de abono",
+    "copia cliente",
+    "copia empresa",
+    "firma del cliente"
    ]
   },
   {
