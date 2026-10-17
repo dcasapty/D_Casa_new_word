@@ -69,7 +69,7 @@ export interface EntornoPuerta {
 const RUTA_VALIDA = /^\/[a-z0-9][a-z0-9-]{2,63}$/;
 /** Rutas que ya son del sitio o de Odoo: la entrada no puede taparlas. */
 const RESERVADAS = new Set([
-  "odoo", "web", "shop", "my", "socios", "brian", "dcasa", "website", "mail", "auth", "report", "contactus",
+  "odoo", "web", "shop", "my", "mi-cuenta", "socios", "brian", "dcasa", "website", "mail", "auth", "report", "contactus",
   "privacidad", "terminos", "visitanos", "whatsapp", "sitemap", "robots", "favicon", "longpolling", "websocket",
   "calendar", "survey", "blog", "forum", "event", "slides", "helpdesk", "api", "json", "jsonrpc", "xmlrpc",
 ]);

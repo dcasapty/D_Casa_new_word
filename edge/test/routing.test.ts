@@ -75,6 +75,8 @@ describe("route", () => {
       "/shop",
       "/es/shop",
       "/socios",
+      "/mi-cuenta",
+      "/mi-cuenta/compras/12",
       "/web/login",
       "/web/dataset/call_kw/res.partner/read",
       "/web/session/get_session_info",
