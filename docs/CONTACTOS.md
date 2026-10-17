@@ -22,9 +22,14 @@ igual.
 * **El chat.** Cuando alguien escribe por WhatsApp, Juan busca su ficha por la llave del teléfono (el celular de
   Socios, el teléfono de la ficha o el del contacto de trabajo del equipo); si existe, la usa; si no, la crea. Dos
   mensajes a la vez de un número nuevo no crean dos fichas (la conversación de cada número es única en la base).
-* **La tienda.** Quien compra **sin cuenta** con un celular, correo o RUC que ya son de una ficha cae en **esa** ficha:
-  su dirección queda como dirección de esa persona, así que suma sus puntos en la misma ficha y la compra no falla. Sus
-  datos no se modifican.
+* **La tienda.** Quien compra **sin cuenta** con un celular, correo o RUC que ya son de una ficha **no** entra en esa
+  ficha: un dato escrito en la tienda no prueba quién es la persona. Antes (hasta el 2026-10-17) su dirección se colgaba
+  de esa ficha por la ruta del pago exprés, y Odoo le enseñaba en el checkout las direcciones, teléfonos y correos de
+  esa persona, le dejaba editarlas y le ponía la compra en su «Mi cuenta» (revisión independiente; pruebas en
+  `website_dcasa/tests/test_privacidad_checkout.py`). El formulario normal de Odoo 19 nunca pasó por ese atajo: le
+  responde «Ese celular ya está registrado… escríbenos por WhatsApp» (sin decir de quién) y la compra no sigue.
+  **Pendiente de la dueña:** cómo compra en la web quien ya es cliente de la tienda (entrar con su cuenta, o una ficha
+  aparte que el equipo une después).
 
 ## Al cotizar (etapa 3, 2026-10-16)
 
@@ -115,4 +120,4 @@ Si el contador de duplicados no baja a cero, se limpia por tandas; el candado ya
 * Al cotizar: `models/sale_order.py` (dominio de `sale.order.partner_id` armado con `sudo` como lista de ids, así la
   Vendedora, que no ve empleados, busca sin error; aviso en el `onchange` del cliente).
 * Pruebas: `scripts/test.sh dcasa_contactos` (llaves, candado, excepciones, lista de duplicados, fusión, al cotizar), más
-  `TestFichasUnicasEnElChat` (conversaciones) y `TestDireccionDelVisitante` (tienda).
+  `TestFichasUnicasEnElChat` (conversaciones), `TestDireccionDelVisitante` y `TestCheckoutSinDatosAjenos` (tienda).

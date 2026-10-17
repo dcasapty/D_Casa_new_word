@@ -39,7 +39,7 @@ SEO_PORTADA = {
     'website_meta_title': "Mueblería en La Chorrera | D'CASA Panamá",
     'website_meta_description': (
         'Recámaras, colchones, zapateras, muebles de TV, estantes y escritorios con precios claros '
-        'en La Chorrera. Entrega a todo Panamá. Escríbenos por WhatsApp.'),
+        'en La Chorrera. Entregas en Panamá Oeste, Panamá y Colón. Escríbenos por WhatsApp.'),
 }
 # Valores que se pueden pisar: vacíos, los de ejemplo de Odoo y los anteriores de D'CASA.
 # Lo que la dueña escriba desde el editor (Sitio web > SEO) no se toca.
@@ -52,6 +52,8 @@ SEO_PORTADA_REEMPLAZABLES = {
         'Esta es la página de inicio del sitio web',
         'Salas, recámaras, colchones y comedores con precios claros en La Chorrera. '
         'Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.',
+        'Recámaras, colchones, zapateras, muebles de TV, estantes y escritorios con precios claros '
+        'en La Chorrera. Entrega a todo Panamá. Escríbenos por WhatsApp.',
     },
 }
 
@@ -89,6 +91,9 @@ TEXTOS_CORREGIDOS = [
     ('Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha de entrega.',
      'Hacemos entregas en La Chorrera, Arraiján, Capira, Panamá y Colón; al interior todavía no. El costo y la '
      'fecha dependen de tu zona: te los confirma una vendedora por WhatsApp.'),
+    # Al interior todavía no se entrega (decisión de la dueña, 2026-10-17): la portada, la barra de arriba y el pie.
+    ('¿Hacen entregas a todo Panamá?', '¿A dónde hacen entregas?'),
+    ('Entrega a todo Panamá', 'Entregas en Panamá Oeste, Panamá y Colón'),
 ]
 
 # Categorías de la portada: (xmlid, nombre, texto alternativo). La foto es static/src/img/cat-<xmlid>.webp.

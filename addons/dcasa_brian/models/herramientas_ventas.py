@@ -1,11 +1,31 @@
-"""Herramientas de ventas: reporte del día, resúmenes, cotizaciones y ventas."""
+"""Herramientas de ventas: reporte del día, resúmenes, la comparación del Inicio, cotizaciones y ventas."""
+import re
+from datetime import date
+
 from odoo import api, models
+from odoo.addons.dcasa_interfaz.models.comparar import COMPARACIONES, MESES
+from odoo.addons.dcasa_interfaz.models.tablero import BASE_CON_ABONOS, BASE_VENDIDO, BASES_DE_GERENCIA, SIN_VENDEDORA
 from odoo.exceptions import UserError
 
 from . import herramientas_comun as c
 from .registro import BrianError, herramienta
 
 VENDEDOR = ('sales_team.group_sale_salesman',)
+GERENCIA = ('sales_team.group_sale_manager',)
+# Las mismas palabras del interruptor del Inicio de Gerencia (decisión de la dueña, 2026-10-17).
+PARAM_BASE = {
+    'type': 'string', 'enum': list(BASES_DE_GERENCIA),
+    'description': 'Solo Gerencia: qué ventas contar. «completadas» (por defecto, como abre el Inicio): pagadas al '
+                   '100 %, el día del último pago. «con_abonos»: con al menos un abono, por su valor total, el día de '
+                   'la venta (trae lo que falta por cobrar). Una venta facturada sin ningún pago no cuenta en ninguna.',
+}
+PARAM_VENDEDORA = {
+    'type': 'string',
+    'description': 'Solo Gerencia: el nombre de una vendedora, o «sin vendedora» (ventas de la web o de Juan que '
+                   'nadie tomó). Vacío: todo el equipo. Su cobrado es lo que se cobró de SUS ventas, lo haya '
+                   'registrado quien sea.',
+}
+SIN_VENDEDORA_TEXTOS = ('sin vendedora', 'sin vendedor', 'sin', 'nadie', 'ninguna', 'ninguno')
 PARAM_VENTA = {'type': 'string', 'description': 'Número de la cotización o venta («S00012») o nombre del cliente.'}
 PARAM_PRODUCTO = {'type': 'string', 'description': 'Nombre o código del producto, p. ej. «SOF-001» o «colchón queen».'}
 PARAM_CANTIDAD = {'type': 'number', 'description': 'Cantidad. Por defecto 1.'}
@@ -91,7 +111,10 @@ class BrianHerramientasVentas(models.AbstractModel):
     def _h_reporte_del_dia(self):
         datos = self.env['dcasa.tablero'].obtener_datos()
         cifras = []
+        panel = datos['ventas'] if datos['permisos']['completo'] else None
         for cifra in datos['cifras']:
+            if panel and cifra['clave'] == 'ventas_hoy':
+                continue      # el Inicio de Gerencia no la muestra: cuenta con el interruptor (abajo, «ventas_de_hoy»)
             valor = c.moneda(cifra['valor']) if cifra['formato'] == 'moneda' else cifra['valor']
             fila = {'titulo': cifra['titulo'], 'valor': valor}
             if cifra.get('nota'):
@@ -112,6 +135,15 @@ class BrianHerramientasVentas(models.AbstractModel):
         }
         if datos['cobros']:
             respuesta['total_cobrado_con_itbms'] = c.moneda(datos['total_cobrado'])
+        if panel:
+            actual = panel['actual']
+            respuesta['ventas_de_hoy'] = {
+                'cuenta': self._b_base(panel['base']),
+                'ventas': actual['cuantas'],
+                'ventas_sin_itbms': c.moneda(actual['sin_itbms']),
+                'itbms': c.moneda(actual['itbms']),
+                'total_con_itbms': c.moneda(actual['total']),
+            }
         ganancia = datos['ventas'] and datos['ve_utilidad'] and datos['ventas']['actual'].get('ganancia')
         if ganancia:
             respuesta['ganancia_de_hoy_sin_itbms'] = self._b_ganancia(ganancia)
@@ -129,29 +161,78 @@ class BrianHerramientasVentas(models.AbstractModel):
                              'la ganancia; cargar el costo en el producto.')
         return fila
 
+    @api.model
+    def _b_base(self, base):
+        """«Completadas: pagadas al 100 %, el día del último pago» (las palabras del interruptor del Inicio)."""
+        for opcion in self.env['dcasa.tablero']._bases_de_ventas():
+            if opcion['clave'] == base:
+                return f'{opcion["nombre"]}: {opcion["detalle"].lower()}'
+        return 'Facturadas por completo, el día de la factura'
+
+    @api.model
+    def _b_vendedora(self, texto):
+        """``None`` (todo el equipo), ``'sin'`` o el id del usuario que dice ``texto``."""
+        texto = str(texto or '').strip()
+        if not texto or c.normalizar_texto(texto) in ('todo el equipo', 'todas', 'todos', 'equipo'):
+            return None
+        if c.normalizar_texto(texto) in SIN_VENDEDORA_TEXTOS:
+            return SIN_VENDEDORA
+        return self._b_usuario(texto).id
+
+    @api.model
+    def _b_mes_completo(self, texto):
+        """«septiembre», «septiembre 2025», «09/2026», «2026-09» → «2026-09». Sin año: el último que ya terminó."""
+        texto = c.normalizar_texto(texto)
+        hoy = self._b_hoy()
+        if re.fullmatch(r'\d{4}-\d{1,2}', texto):
+            anio, mes = (int(x) for x in texto.split('-'))
+        elif re.fullmatch(r'\d{1,2}/\d{4}', texto):
+            mes, anio = (int(x) for x in texto.split('/'))
+        else:
+            nombres = [c.normalizar_texto(m) for m in MESES]
+            partes = texto.replace(' de ', ' ').split()
+            numero = next((nombres.index(p) + 1 for p in partes if p in nombres), None)
+            numero = numero or next((i + 1 for i, n in enumerate(nombres) for p in partes if len(p) >= 3
+                                     and n.startswith(p)), None)
+            if not numero:
+                raise BrianError(f'No entendí el mes «{texto}». Dilo como «septiembre» o «09/2026».')
+            anio = next((int(p) for p in partes if p.isdigit() and len(p) == 4), None)
+            mes = numero
+            if anio is None:
+                anio = hoy.year if mes < hoy.month else hoy.year - 1
+        if not 1 <= mes <= 12:
+            raise BrianError(f'No entendí el mes «{texto}». Dilo como «septiembre» o «09/2026».')
+        return date(anio, mes, 1).strftime('%Y-%m')
+
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Lo vendido en un periodo (facturado por completo): cantidad, ventas SIN ITBMS, ITBMS y total '
-                    'aparte, ticket promedio, por vendedor, más vendidos y, solo Gerencia, la ganancia (sin ITBMS). '
-                    'Quien vende ve solo lo suyo.',
-        parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA},
+        descripcion='Lo vendido en un periodo: cantidad, ventas sin ITBMS (ITBMS y total aparte), ticket promedio, por '
+                    'vendedor, más vendidos y (Gerencia) ganancia. Gerencia cuenta «completadas» o «con_abonos» y '
+                    'puede pedir una vendedora; quien vende ve solo lo suyo.',
+        parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
+                    'base': PARAM_BASE, 'vendedora': PARAM_VENDEDORA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['ventas de este mes → periodo=este_mes', 'ventas del 01/09/2026 al 15/09/2026',
-                  '¿cuánto ganamos este mes? → periodo=este_mes (la ganancia solo la ve Gerencia)'],
+                  '¿cuánto ganamos este mes? → periodo=este_mes (la ganancia solo la ve Gerencia)',
+                  '¿cuánto vendió Ana este mes con abonos? → periodo=este_mes, vendedora=Ana, base=con_abonos'],
     )
-    def _h_resumen_ventas(self, periodo=None, desde=None, hasta=None):
+    def _h_resumen_ventas(self, periodo=None, desde=None, hasta=None, base=None, vendedora=None):
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
-        # La misma definición de «vendido» que el Inicio (dcasa_interfaz, de la que depende este módulo): pedido
-        # facturado por completo con sus facturas publicadas, contado el día de su última factura. Y el mismo
-        # criterio de panel: quien vende sin controlar la tienda (la Vendedora) ve solo lo que ella vendió.
-        # Criterio contable (2026-10-16): las ventas van sin ITBMS; el ITBMS y el total se dan aparte.
-        Order = self.env['sale.order']
+        # Las mismas cifras del Inicio (dcasa_interfaz, de la que depende este módulo) y el mismo criterio de panel:
+        # quien vende sin controlar la tienda (la Vendedora) ve solo lo que ella vendió, facturado por completo, el día
+        # de su última factura; Gerencia cuenta según el interruptor del Inicio y puede pedir una vendedora (el
+        # servidor del Inicio rechaza una vendedora ajena a quien no es Gerencia). Criterio contable (2026-10-16): las
+        # ventas van sin ITBMS; el ITBMS y el total se dan aparte.
         Tablero = self.env['dcasa.tablero']
         propio = Tablero._solo_lo_propio()
-        vendedor = self.env.user if propio else None
+        filtro = Tablero._vendedor_pedido(self._b_vendedora(vendedora))
+        if propio:
+            base, filtro = BASE_VENDIDO, self.env.uid
+        else:
+            base = Tablero._base_pedida(base)
         con_ganancia = not propio and Tablero._ve_utilidad()
-        totales = Tablero._totales_de_ventas(inicio, fin, vendedor.id if vendedor else None, con_ganancia)
-        ventas = Order.search(Order._dcasa_dominio_vendido(desde=inicio, hasta=fin, vendedor=vendedor))
+        totales = Tablero._medir(inicio, fin, base, filtro, con_ganancia=con_ganancia)
+        ventas = totales['pedidos']
         por_vendedor = {}
         for venta in ventas:
             nombre = venta.user_id.name or 'Sin vendedor'
@@ -176,8 +257,124 @@ class BrianHerramientasVentas(models.AbstractModel):
                 {'producto': p.display_name, 'unidades': c.cantidad(q), 'total_sin_itbms': c.moneda(t)}
                 for p, q, t in top if p],
         }
+        if not propio:
+            respuesta['cuenta'] = self._b_base(base)
+            if filtro:
+                respuesta['vendedora'] = ('Sin vendedora' if filtro == SIN_VENDEDORA
+                                          else self.env['res.users'].sudo().browse(filtro).name)
+        if base == BASE_CON_ABONOS:
+            respuesta['falta_por_cobrar_con_itbms'] = c.moneda(totales['falta_por_cobrar'])
         if con_ganancia:
             respuesta['ganancia_sin_itbms'] = self._b_ganancia(totales['ganancia'])
+        return respuesta
+
+    @staticmethod
+    def _b_cambio(cambio):
+        """«▲ 27.6 %», «▼ 5.4 pts», «▲ 1», «llevas 58.3 %»; sin base positiva, «—»."""
+        if not cambio or cambio['valor'] is None:
+            return '—'
+        if cambio['tipo'] == 'llevas':
+            return f'llevas {cambio["valor"]:,.1f} %'
+        flecha = {'sube': '▲ ', 'baja': '▼ '}.get(cambio['sentido'], '')
+        valor = abs(cambio['valor'])
+        if cambio['tipo'] == 'num':
+            return f'{flecha}{valor:,.0f}'
+        return f'{flecha}{valor:,.1f}' + (' pts' if cambio['tipo'] == 'pts' else ' %')
+
+    @staticmethod
+    def _b_fechas(texto, nombre):
+        """«01/10/2026-07/10/2026», «del 01/10/2026 al 07/10/2026» o una sola fecha → [fechas] (1 o 2)."""
+        encontradas = re.findall(r'\d{1,2}/\d{1,2}/\d{2,4}|\d{4}-\d{1,2}-\d{1,2}', str(texto or ''))
+        if not 1 <= len(encontradas) <= 2:
+            raise BrianError(f'No entendí las fechas de {nombre} «{texto}». Escríbelas como «01/10/2026-07/10/2026».')
+        return [c.leer_fecha(fecha, f'fecha de {nombre}') for fecha in encontradas]
+
+    @herramienta(
+        nombre='comparar_ventas',
+        descripcion='Compara ventas como «Comparar» del Inicio de Gerencia (mismas cifras): ventas, ganancia, margen, '
+                    'n.º de ventas, cobrado y, con abonos, falta por cobrar. Si A termina hoy, hoy va hasta la hora '
+                    'actual y el otro día hasta la misma hora.',
+        parametros={
+            'comparacion': {
+                'type': 'string', 'enum': list(COMPARACIONES),
+                'description': '«ayer»: hoy contra ayer. «dia_mes_pasado»: hoy contra el mismo día del mes pasado. '
+                               '«semana_pasada»: hoy contra el mismo día de la semana pasada. «mes_a_la_fecha»: del 1 '
+                               'a hoy contra los mismos días del mes pasado. «mes»: lo que va del mes contra un mes '
+                               'completo (en «b»). «rango»: las fechas de «a» contra las de «b».'},
+            'a': {'type': 'string',
+                  'description': 'Solo con «rango»: las fechas de A, p. ej. «01/10/2026-07/10/2026».'},
+            'b': {'type': 'string',
+                  'description': 'Con «rango»: dónde empieza B («01/09/2026»: dura lo mismo que A) o B entero si es de '
+                                 'otro largo («01/09/2026-30/09/2026»: el % va por día). Con «mes»: el mes completo, '
+                                 'p. ej. «septiembre» o «09/2026» (por defecto, el mes pasado).'},
+            'base': PARAM_BASE,
+            'vendedora': {**PARAM_VENDEDORA,
+                          'description': PARAM_VENDEDORA['description'] + ' «por vendedora»: agrega una fila por '
+                                                                          'cada una (ventas A, B y el cambio).'},
+        },
+        requeridos=['comparacion'],
+        nivel='lectura', categoria='ventas', grupos=GERENCIA,
+        ejemplos=['¿cómo vamos contra septiembre? → comparacion=mes, b=septiembre',
+                  '¿cómo vamos hoy contra ayer? → comparacion=ayer',
+                  '¿cómo va el mes contra el mes pasado? → comparacion=mes_a_la_fecha',
+                  '¿cómo va Ana este mes? → comparacion=mes_a_la_fecha, vendedora=Ana',
+                  '¿quién vendió más este mes? → comparacion=mes_a_la_fecha, vendedora=por vendedora',
+                  'del 1 al 7 de octubre contra el 1 al 7 de septiembre → comparacion=rango, '
+                  'a=01/10/2026-07/10/2026, b=01/09/2026'],
+    )
+    def _h_comparar_ventas(self, comparacion, a=None, b=None, base=None, vendedora=None):
+        argumentos = {}
+        if comparacion == 'mes' and b:
+            argumentos['mes'] = self._b_mes_completo(b)
+        if comparacion == 'rango':
+            if not a or not b:
+                raise BrianError('Con «rango» dime las fechas de A («a») y dónde empieza B («b»).')
+            fechas_a, fechas_b = self._b_fechas(a, 'A'), self._b_fechas(b, 'B')
+            if len(fechas_a) != 2:
+                raise BrianError('A necesita dos fechas, p. ej. «01/10/2026-07/10/2026».')
+            argumentos.update(a_desde=str(fechas_a[0]), a_hasta=str(fechas_a[1]), b_desde=str(fechas_b[0]),
+                              b_hasta=str(fechas_b[1]) if len(fechas_b) == 2 else None, libre=len(fechas_b) == 2)
+        por_vendedora = c.normalizar_texto(vendedora or '') in ('por vendedora', 'cada una', 'todas una por una')
+        resultado = self.env['dcasa.tablero'].comparar_ventas(
+            comparacion, base=base, vendedor=None if por_vendedora else self._b_vendedora(vendedora),
+            por_vendedora=por_vendedora, **argumentos)
+
+        def valor(fila, numero):
+            if numero is None:
+                return '—'
+            if fila['formato'] == 'moneda':
+                return c.moneda(numero)
+            return f'{numero:,.1f} %' if fila['formato'] == 'porcentaje' else numero
+
+        def lado(cual):
+            datos = resultado[cual]
+            return f'{datos["etiqueta"]} ({c.fecha(datos["desde"])} al {c.fecha(datos["hasta"])})'
+
+        respuesta = {
+            'a': lado('a'),
+            'b': lado('b'),
+            'cuenta': self._b_base(resultado['base']),
+            'filas': [{'cifra': fila['nombre'] + (f' ({fila["nota"]})' if fila['nota'] else ''),
+                       'a': valor(fila, fila['a']), 'b': valor(fila, fila['b']),
+                       'cambio': self._b_cambio(fila['cambio'])}
+                      for fila in resultado['filas']],
+        }
+        if resultado['vendedor']:
+            respuesta['vendedora'] = ('Sin vendedora' if resultado['vendedor'] == SIN_VENDEDORA
+                                      else self.env['res.users'].sudo().browse(resultado['vendedor']).name)
+        if resultado['hora']:
+            respuesta['hasta_la_hora'] = (f'Hoy cuenta hasta las {resultado["hora"]} y el otro día hasta la misma '
+                                          'hora.')
+        if resultado['modo'] == 'por_dia':
+            respuesta['por_dia'] = 'A y B no tienen los mismos días: el % es sobre el promedio por día.'
+        if resultado['llevas']:
+            pct = resultado['llevas']['pct']
+            respuesta['llevas'] = (f'Llevas {pct:,.0f} % de {resultado["llevas"]["mes"]}' if pct is not None
+                                   else f'Llevas — de {resultado["llevas"]["mes"]} (ese mes no tuvo ventas)')
+        if resultado['por_vendedora'] is not None:
+            respuesta['por_vendedora'] = [
+                {'vendedora': fila['nombre'], 'a': c.moneda(fila['a']), 'b': c.moneda(fila['b']),
+                 'cambio': self._b_cambio(fila['cambio'])} for fila in resultado['por_vendedora']]
         return respuesta
 
     @herramienta(

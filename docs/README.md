@@ -19,6 +19,7 @@
 | Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_META.md) |
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
+| Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
 | Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia): nómina y contabilidad de un jefe | [PERMISOS.md](PERMISOS.md) |
@@ -33,7 +34,7 @@
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |
-| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md) |
+| `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md) · respuestas de la gerencia: [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |
 | `dcasa_guia` | [GUIA.md](GUIA.md) · «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas para quien administra |
@@ -41,6 +42,7 @@
 | `dcasa_migracion` | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_fe_pa` (factura electrónica, apagado) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
 | `dcasa_brian` | [BRIAN.md](BRIAN.md) |
+| `dcasa_correo` (correo a clientes por Resend, apagado de fábrica) | [CORREO.md](CORREO.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN_WORKER.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
 | `puente-wa/` | [JUAN_PUENTE.md](JUAN_PUENTE.md) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |

@@ -240,6 +240,8 @@ describe("rutas que pueden salir de la caché (mismas URL que Odoo)", () => {
       "/shop/cart/update_json",
       "/my",
       "/my/orders",
+      "/mi-cuenta",
+      "/mi-cuenta/compras/12",
       "/odoo",
       "/web",
       "/web/login",

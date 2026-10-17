@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- El correo de D'CASA (reglas de marca de CLAUDE.md y lo que pidió la dueña el 17/10/2026: corto, limpio y con un solo
+     botón). Tablas de 600 px con estilos en línea (sin <style>, sin JS, sin degradados ni sombras): logo arriba con la
+     dirección pública del sitio, el titular en azul, el texto, UN botón azul #1340B1 con letra blanca («Entrar a Mi
+     cuenta», «Ver en Mi cuenta» o «Escríbenos por WhatsApp», según el correo), debajo, si el botón no es el de WhatsApp,
+     solo el enlace de texto «¿Dudas? Escríbenos por WhatsApp», y un pie corto (nombre, dirección y WhatsApp de la
+     empresa). Sin amarillo: así nunca toca el blanco. No usa el botón de acceso de Odoo: ningún enlace lleva
+     access_token. -->
+<odoo>
+    <template id="layout_correo" name="D'CASA: correo con la marca">
+<t t-set="dcasa" t-value="dcasa or company.env['dcasa.correo'].sudo()._contexto_layout(record, message, company)"/>
+<t t-set="pie" t-value="dcasa['pie']"/>
+<html lang="es">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <meta name="color-scheme" content="light"/>
+    <meta name="supported-color-schemes" content="light"/>
+</head>
+<body style="margin:0;padding:0;background-color:#F4F1EA;">
+<div style="display:none;max-height:0;overflow:hidden;font-size:1px;line-height:1px;color:#F4F1EA;opacity:0;" t-out="dcasa['preencabezado']"/>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;background-color:#F4F1EA;">
+    <tr>
+        <td align="center" style="padding:24px 12px;">
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;border-collapse:separate;background-color:#FFFFFF;border-radius:12px;">
+                <tr>
+                    <td align="center" style="padding:28px 24px 4px 24px;">
+                        <a t-att-href="dcasa['enlaces']['base'] or None" style="text-decoration:none;"><img t-att-src="dcasa['enlaces']['logo']" width="150" alt="D'CASA" style="display:block;width:150px;max-width:150px;height:auto;border:0;"/></a>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding:18px 28px 0 28px;">
+                        <h1 style="margin:0;font-family:Anton, Impact, 'Arial Narrow Bold', Arial, sans-serif;font-size:26px;line-height:1.2;font-weight:normal;letter-spacing:0.5px;text-transform:uppercase;color:#1340B1;" t-out="dcasa['titular']"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:18px 28px 4px 28px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;line-height:1.55;color:#1B2233;">
+                        <t t-out="message.body"/>
+                    </td>
+                </tr>
+                <tr>
+                    <td align="center" style="padding:20px 28px 8px 28px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate;">
+                            <tr>
+                                <td align="center" bgcolor="#1340B1" style="background-color:#1340B1;border-radius:8px;">
+                                    <a t-att-href="dcasa['boton']['url']" target="_blank" style="display:inline-block;padding:14px 32px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:16px;font-weight:bold;line-height:1.2;color:#FFFFFF;text-decoration:none;border-radius:8px;" t-out="dcasa['boton']['texto']"/>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr t-if="dcasa['whatsapp_aparte']">
+                    <td align="center" style="padding:6px 28px 28px 28px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:14px;line-height:1.5;">
+                        <a t-att-href="dcasa['whatsapp']" target="_blank" style="color:#1340B1;text-decoration:underline;">¿Dudas? Escríbenos por WhatsApp</a>
+                    </td>
+                </tr>
+                <tr t-else="">
+                    <td style="padding:0 0 20px 0;font-size:1px;line-height:1px;">&#160;</td>
+                </tr>
+            </table>
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
+                <tr>
+                    <td align="center" style="padding:18px 24px 4px 24px;font-family:Inter, Arial, Helvetica, sans-serif;font-size:12px;line-height:1.6;color:#4A5163;">
+                        <span style="font-weight:bold;color:#1B2233;" t-out="pie['nombre']"/>
+                        <t t-if="pie['direccion']"><br/><t t-out="pie['direccion']"/></t>
+                        <t t-if="pie['whatsapp']"><br/>WhatsApp <t t-out="pie['whatsapp']"/></t>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>
+    </template>
+</odoo>

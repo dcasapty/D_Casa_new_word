@@ -83,21 +83,32 @@ class DcasaCheckout(WebsiteSale):
         llegan su factura y cómo ver sus puntos (dcasa_contactos, 2026-10-16)."""
         invalidos, faltantes, mensajes = super()._validate_address_values(
             address_values, partner_sudo, address_type, use_delivery_as_billing, required_fields, **kwargs)
-        errores = request.env['res.partner'].sudo()._dcasa_errores_de_contacto(
-            address_values.get('phone'), address_values.get('email'))
+        Partner = request.env['res.partner'].sudo()
+        errores = Partner._dcasa_errores_de_contacto(address_values.get('phone'), address_values.get('email'))
         for campo, mensaje in errores.items():
             if campo not in invalidos:
                 invalidos.add(campo)
                 mensajes.append(mensaje)
+        # Sin cuenta, un celular, correo o RUC que ya es de una ficha no crea otra (una persona, una ficha) ni cae en
+        # la de esa persona (revisión adversarial, 2026-10-17). Se avisa en el formulario, sin decir de quién es; si no,
+        # el candado de dcasa_contactos fallaba al crear y «Confirmar» no avanzaba sin decir nada.
+        cart = request.cart
+        if not partner_sudo and cart and cart._is_anonymous_cart():
+            for campo, etiqueta in (('phone', 'celular'), ('email', 'correo'), ('vat', 'ruc')):
+                valor = address_values.get(campo)
+                if not valor or campo in invalidos:
+                    continue
+                ficha = Partner._dcasa_buscar_ficha(**{etiqueta: valor})
+                if ficha:
+                    invalidos.add(campo)
+                    mensajes.append(Partner._dcasa_mensaje_duplicado(etiqueta, valor, ficha))
         return invalidos, faltantes, mensajes
 
-    def _create_new_address(self, address_values, address_type, use_delivery_as_billing, order_sudo):
-        """Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha: su dirección
-        queda como dirección de esa persona (una persona, una ficha; así suma sus puntos), sin tocar sus datos."""
-        if order_sudo._is_anonymous_cart():
-            address_values = request.env['res.partner'].sudo()._dcasa_valores_de_direccion(
-                address_values, address_type)
-        return super()._create_new_address(address_values, address_type, use_delivery_as_billing, order_sudo)
+    # Sin ``_create_new_address`` propio (revisión adversarial, 2026-10-17): colgar la dirección de un visitante sin
+    # cuenta de la ficha que ya tenía ese celular, correo o RUC le daba en el checkout las direcciones, los teléfonos y
+    # los correos de ESA persona (Odoo enseña y deja usar todas las de la ficha comercial), le dejaba editarlas y le
+    # ponía la compra en su «Mi cuenta». Un dato escrito en la tienda no prueba quién es la persona.
+    # Ver tests/test_privacidad_checkout.py.
 
 
 def _sitemap_black_weekend(env, rule, qs):

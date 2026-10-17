@@ -102,19 +102,10 @@ class ResPartner(models.Model):
                     return ficha
         return Partner.browse()
 
-    @api.model
-    def _dcasa_valores_de_direccion(self, valores, address_type):
-        """Valores para crear la dirección que escribe un visitante en la tienda.
-
-        Si el celular, el correo o el RUC ya son de una ficha, la dirección nueva cuelga de ELLA (dirección de entrega
-        o de facturación): la compra suma en la misma ficha y no se crea otra persona. No se toca ningún dato de la
-        ficha. Si no hay ficha, se devuelve lo mismo.
-        """
-        ficha = self._dcasa_buscar_ficha(celular=valores.get('phone'), correo=valores.get('email'),
-                                         ruc=valores.get('vat'))
-        if not ficha:
-            return valores
-        return {**valores, 'parent_id': ficha.id, 'type': 'delivery' if address_type == 'delivery' else 'invoice'}
+    # Ya no existe ``_dcasa_valores_de_direccion`` (colgar de una ficha la dirección que escribe un visitante sin cuenta
+    # con su celular, correo o RUC): le daba a cualquiera las direcciones de esa persona en el checkout (revisión
+    # adversarial, 2026-10-17; website_dcasa/tests/test_privacidad_checkout.py). Un dato escrito en la tienda no prueba
+    # quién es: lo que se encuentre con ``_dcasa_buscar_ficha`` no se le enseña ni se le entrega a quien lo escribió.
 
     # ------------------------------------------------------------------
     # El candado

@@ -166,6 +166,29 @@
                 <!-- Ventas por periodo: Hoy · Esta semana · Este mes · un rango. Las cifras de ventas van SIN ITBMS (el
                      ITBMS es de la DGI); el ITBMS y el total van al lado. La ganancia solo la ve Gerencia. -->
                 <section t-if="d.ventas and d.permisos.completo" class="o_dcasa_ventas" aria-label="Ventas">
+                    <!-- Qué ventas contar (decisión de la dueña, 2026-10-17): «Completadas» (pagadas al 100 %, el día del
+                         último pago) o «Con abonos» (con al menos un abono, por su valor total). Abre en «Completadas».
+                         Cambia las tarjetas y todo «Comparar». Al lado, la vendedora (solo Gerencia). -->
+                    <div t-if="d.bases and d.bases.length" class="o_dcasa_base_ventas">
+                        <div class="o_dcasa_base_fila">
+                            <div class="o_dcasa_interruptor" role="radiogroup" aria-label="Qué ventas contar">
+                                <button t-foreach="d.bases" t-as="b" t-key="b.clave" type="button" role="radio"
+                                        t-attf-class="o_dcasa_interruptor_opcion o_dcasa_base_{{b.clave}}"
+                                        t-att-class="{'o_activo': state.base === b.clave}"
+                                        t-att-aria-checked="state.base === b.clave ? 'true' : 'false'"
+                                        t-on-click="() => this.cambiarBase(b.clave)" t-out="b.nombre"/>
+                            </div>
+                            <label t-if="d.comparar" class="o_dcasa_vendedora">
+                                <span class="visually-hidden">Vendedora</span>
+                                <select class="form-select o_dcasa_vendedora_select" t-on-change="cambiarVendedor">
+                                    <option value="" t-att-selected="state.vendedor === ''">Todo el equipo</option>
+                                    <option t-foreach="d.comparar.vendedoras" t-as="v" t-key="v.id" t-att-value="v.id"
+                                            t-att-selected="vendedorElegido(v)" t-out="v.nombre"/>
+                                </select>
+                            </label>
+                        </div>
+                        <p class="o_dcasa_base_detalle" t-out="detalleBase"/>
+                    </div>
                     <div class="o_dcasa_ventas_cabeza">
                         <h2>Ventas</h2>
                         <div class="o_dcasa_periodos" role="tablist" aria-label="Periodo de las ventas">
@@ -197,22 +220,9 @@
                             <span class="o_dcasa_desglose">
                                 <span>ITBMS <strong t-out="dinero(d.ventas.actual.itbms)"/></span>
                                 <span>Total con ITBMS <strong t-out="dinero(d.ventas.actual.total)"/></span>
+                                <span t-if="d.ventas.actual.falta_por_cobrar !== null and d.ventas.actual.falta_por_cobrar !== undefined"
+                                      class="o_dcasa_falta">Falta por cobrar <strong t-out="dinero(d.ventas.actual.falta_por_cobrar)"/> con ITBMS</span>
                             </span>
-                            <!-- Contra ayer y contra el mismo día del mes pasado; el mes, contra los mismos días del mes
-                                 pasado (pedido del jefe, 2026-10-16). -->
-                            <ul t-if="d.ventas.comparaciones and d.ventas.comparaciones.length" class="o_dcasa_comparaciones">
-                                <li t-foreach="d.ventas.comparaciones" t-as="cmp" t-key="cmp.clave"
-                                    t-attf-class="o_dcasa_comparacion o_dcasa_comparacion_{{cmp.clave}}">
-                                    <t t-if="cmp.variacion_pct !== null">
-                                        <span t-attf-class="o_dcasa_variacion {{cmp.variacion_pct >= 0 ? 'o_sube' : 'o_baja'}}">
-                                            <i t-attf-class="fa {{cmp.variacion_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
-                                            <t t-out="variacion(cmp.variacion_pct)"/>
-                                        </span>
-                                        contra <t t-out="cmp.etiqueta"/> (<t t-out="dinero(cmp.sin_itbms)"/>)
-                                    </t>
-                                    <t t-else="">Sin ventas <t t-out="cmp.etiqueta"/> para comparar</t>
-                                </li>
-                            </ul>
                             <!-- En qué se aparta de las «Ventas» de Contabilidad para estas fechas, y por qué: así las dos
                                  pantallas cuadran a la vista. Al tocarla abre las facturas que lo explican. -->
                             <button t-if="d.ventas.cuadre" type="button" class="o_dcasa_ventas_aviso o_dcasa_ventas_cuadre"
@@ -220,9 +230,10 @@
                                 <i class="fa fa-info-circle" aria-hidden="true"/>
                                 <span>Contabilidad dice <strong t-out="dinero(d.ventas.cuadre.contables)"/> sin ITBMS para estas
                                     fechas: <strong t-out="dinero(Math.abs(d.ventas.cuadre.diferencia))"/>
-                                    <t t-out="d.ventas.cuadre.diferencia > 0 ? ' más' : ' menos'"/> que aquí. Aquí se cuentan
-                                    pedidos vendidos; allá, facturas (sin pedido, abonos de apartados, pedidos facturados en
-                                    partes o en otras fechas).
+                                    <t t-out="d.ventas.cuadre.diferencia > 0 ? ' más' : ' menos'"/> que aquí.
+                                    <t t-if="d.ventas.base === 'con_abonos'">Aquí se cuentan las ventas con al menos un abono, el día de la venta;</t>
+                                    <t t-else="">Aquí se cuentan las ventas pagadas al 100 %, el día del último pago;</t>
+                                    allá, todas las facturas por su fecha.
                                     <t t-if="d.ventas.cuadre.cuantas">Tócalo para ver
                                         <t t-out="d.ventas.cuadre.cuantas === 1 ? 'esa factura' : 'esas ' + d.ventas.cuadre.cuantas + ' facturas'"/>.</t></span>
                             </button>
@@ -241,24 +252,120 @@
                                 <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' venta tiene' : ' ventas tienen'"/>
                                 mercancía sin costo cargado y no cuentan aquí
                             </span>
-                            <!-- La ganancia contra los mismos periodos que las ventas (pedido del jefe, 2026-10-16). -->
-                            <ul t-if="d.ventas.comparaciones and d.ventas.comparaciones.length" class="o_dcasa_comparaciones">
-                                <li t-foreach="d.ventas.comparaciones" t-as="cmp" t-key="cmp.clave"
-                                    t-attf-class="o_dcasa_comparacion o_dcasa_comparacion_ganancia_{{cmp.clave}}">
-                                    <t t-if="cmp.variacion_ganancia_pct !== null">
-                                        <span t-attf-class="o_dcasa_variacion {{cmp.variacion_ganancia_pct >= 0 ? 'o_sube' : 'o_baja'}}">
-                                            <i t-attf-class="fa {{cmp.variacion_ganancia_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
-                                            <t t-out="variacion(cmp.variacion_ganancia_pct)"/>
-                                        </span>
-                                        contra <t t-out="cmp.etiqueta"/> (<t t-out="dinero(cmp.ganancia)"/>)
-                                    </t>
-                                    <t t-else="">Sin ganancia <t t-out="cmp.etiqueta"/> para comparar</t>
-                                </li>
-                            </ul>
                             <span class="o_dcasa_ventas_aviso o_dcasa_ganancia_antigua">
                                 <i class="fa fa-info-circle" aria-hidden="true"/>
                                 Las ventas hechas antes de que existiera esta pantalla usan el costo de hoy del producto; las nuevas guardan el costo del día en que se confirman.
                             </span>
+                        </div>
+                    </div>
+
+                    <!-- Comparar (pedido del jefe, aprobado por la dueña, 2026-10-17): números, no frases. Cada botón es
+                         una comparación completa (A contra B); al tocarlo sale una tabla. Si A termina hoy, hoy cuenta
+                         hasta la hora actual y el otro día hasta la misma hora (el reloj de la tabla lo dice). -->
+                    <div t-if="d.comparar" class="o_dcasa_comparar" role="region" aria-label="Comparar">
+                        <div class="o_dcasa_comparar_cabeza">
+                            <h3>Comparar</h3>
+                            <button t-if="state.cmp.datos" type="button" class="btn btn-outline-primary o_dcasa_por_vendedora_boton"
+                                    t-att-aria-pressed="state.cmp.porVendedora ? 'true' : 'false'"
+                                    t-on-click="alternarPorVendedora">
+                                <i class="fa fa-users me-2" aria-hidden="true"/>Por vendedora
+                            </button>
+                        </div>
+                        <div class="o_dcasa_chips" role="tablist" aria-label="Con qué comparar">
+                            <button t-foreach="d.comparar.chips" t-as="chip" t-key="chip.clave" type="button" role="tab"
+                                    t-attf-class="o_dcasa_chip o_dcasa_chip_{{chip.clave}}"
+                                    t-att-class="{'o_activo': state.cmp.clave === chip.clave}"
+                                    t-att-aria-selected="state.cmp.clave === chip.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirComparacion(chip.clave)">
+                                <t t-out="chip.etiqueta"/><i t-if="chip.clave === 'mes'" class="fa fa-caret-down ms-1" aria-hidden="true"/>
+                            </button>
+                        </div>
+                        <!-- «Mes ▾»: lo que va del mes contra un mes completo (por defecto el pasado; los últimos 24). -->
+                        <label t-if="state.cmp.clave === 'mes'" class="o_dcasa_comparar_mes">
+                            <span class="visually-hidden">Mes completo para comparar</span>
+                            <select class="form-select o_dcasa_comparar_mes_select" t-on-change="cambiarMes">
+                                <option t-foreach="d.comparar.meses" t-as="m" t-key="m.valor" t-att-value="m.valor"
+                                        t-att-selected="state.cmp.mes === m.valor" t-out="m.nombre"/>
+                            </select>
+                        </label>
+                        <!-- «A vs B»: B se propone del mismo largo que A (solo se elige dónde empieza); «Libre», cualquier largo. -->
+                        <form t-if="state.cmp.clave === 'rango'" class="o_dcasa_comparar_rango" t-on-submit.prevent="aplicarRangoComparar">
+                            <fieldset class="o_dcasa_comparar_lado">
+                                <legend>A</legend>
+                                <input type="date" class="form-control o_dcasa_cmp_a_desde" aria-label="A desde"
+                                       t-model="state.cmp.aDesde" t-att-max="hoyComparar"/>
+                                <span aria-hidden="true">–</span>
+                                <input type="date" class="form-control o_dcasa_cmp_a_hasta" aria-label="A hasta"
+                                       t-model="state.cmp.aHasta" t-att-max="hoyComparar"/>
+                            </fieldset>
+                            <fieldset class="o_dcasa_comparar_lado">
+                                <legend>B</legend>
+                                <input type="date" class="form-control o_dcasa_cmp_b_desde" aria-label="B desde"
+                                       t-model="state.cmp.bDesde" t-att-max="hoyComparar"/>
+                                <span aria-hidden="true">–</span>
+                                <input t-if="state.cmp.libre" type="date" class="form-control o_dcasa_cmp_b_hasta"
+                                       aria-label="B hasta" t-model="state.cmp.bHasta" t-att-max="hoyComparar"/>
+                                <span t-else="" class="o_dcasa_cmp_b_propuesto" t-out="state.cmp.datos ? state.cmp.datos.b.etiqueta : ''"/>
+                            </fieldset>
+                            <label class="o_dcasa_libre form-check form-switch">
+                                <input type="checkbox" class="form-check-input o_dcasa_cmp_libre" role="switch"
+                                       t-att-checked="state.cmp.libre" t-on-change="alternarLibre"/>
+                                <span class="form-check-label">Libre</span>
+                            </label>
+                            <button type="submit" class="btn btn-primary o_dcasa_cmp_ver">Ver</button>
+                        </form>
+                        <p t-if="state.cmp.error" class="o_dcasa_error o_dcasa_comparar_error" role="alert" t-out="state.cmp.error"/>
+                        <t t-set="cd" t-value="state.cmp.datos"/>
+                        <div t-if="cd and state.cmp.clave" t-attf-class="o_dcasa_comparar_cuerpo {{state.cmp.cargando ? 'o_cargando' : ''}}"
+                             t-att-data-comparacion="cd.comparacion" t-att-data-base="cd.base">
+                            <p t-if="cd.llevas" class="o_dcasa_llevas" t-out="llevasTexto"/>
+                            <p t-if="cd.hora" class="o_dcasa_comparar_hora"
+                               t-att-title="'Hoy y el día con que se compara, hasta las ' + cd.hora">
+                                <i class="fa fa-clock-o" aria-hidden="true"/>
+                                <span class="visually-hidden">Hasta las </span><t t-out="cd.hora"/>
+                            </p>
+                            <table class="o_dcasa_comparar_tabla">
+                                <thead>
+                                    <tr>
+                                        <th scope="col"><span class="visually-hidden">Cifra</span></th>
+                                        <th scope="col" class="o_dcasa_cmp_a" t-out="cd.a.etiqueta"/>
+                                        <th scope="col" class="o_dcasa_cmp_b" t-out="cd.b.etiqueta"/>
+                                        <th scope="col" class="o_dcasa_cmp_cambio">
+                                            <t t-if="cabeceraCambio" t-out="cabeceraCambio"/>
+                                            <span t-else="" class="visually-hidden">Cambio</span>
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="cd.filas" t-as="fila" t-key="fila.clave" t-attf-class="o_dcasa_cmp_fila_{{fila.clave}}">
+                                        <th scope="row"><t t-out="fila.nombre"/><small t-if="fila.nota" t-out="fila.nota"/></th>
+                                        <td class="o_dcasa_cmp_a" t-out="valorFila(fila, fila.a)"/>
+                                        <td class="o_dcasa_cmp_b" t-out="valorFila(fila, fila.b)"/>
+                                        <td t-attf-class="o_dcasa_cmp_cambio {{cambioClase(fila.cambio)}}" t-out="cambioTexto(fila.cambio)"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <!-- Una fila por vendedora: ventas A, ventas B y el cambio; al tocarla, el selector queda en ella. -->
+                            <div t-if="state.cmp.porVendedora and cd.por_vendedora" class="o_dcasa_por_vendedora">
+                                <div class="o_dcasa_pv_cabeza" aria-hidden="true">
+                                    <span/>
+                                    <span t-out="cd.a.etiqueta"/>
+                                    <span t-out="cd.b.etiqueta"/>
+                                    <span t-out="cabeceraCambio"/>
+                                </div>
+                                <ul class="list-unstyled mb-0">
+                                    <li t-foreach="cd.por_vendedora" t-as="pv" t-key="pv.vendedor">
+                                        <button type="button" class="o_dcasa_pv_fila" t-on-click="() => this.elegirVendedora(pv)"
+                                                t-att-aria-label="pv.nombre + ': ' + dinero(pv.a) + ' contra ' + dinero(pv.b) + ', ' + cambioTexto(pv.cambio)">
+                                            <span class="o_dcasa_pv_nombre" t-out="pv.nombre"/>
+                                            <span class="o_dcasa_pv_a" t-out="dinero(pv.a)"/>
+                                            <span class="o_dcasa_pv_b" t-out="dinero(pv.b)"/>
+                                            <span t-attf-class="o_dcasa_pv_cambio {{cambioClase(pv.cambio)}}" t-out="cambioTexto(pv.cambio)"/>
+                                        </button>
+                                    </li>
+                                </ul>
+                                <p t-if="!cd.por_vendedora.length" class="o_dcasa_vacio">Sin ventas en estas fechas.</p>
+                            </div>
                         </div>
                     </div>
                 </section>

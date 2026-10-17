@@ -29,9 +29,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 | Acción | ¿Hace falta su «sí»? |
 |---|---|
-| Programar, probar, subir a la rama de trabajo, desplegar a **staging** | No (autorizado de forma permanente) |
+| Programar, probar y subir a la rama de trabajo | No (autorizado de forma permanente) |
+| Desplegar a **staging** | **Antes, capturas a la dueña y su visto bueno** (regla del 2026-10-17: capturas → su filtro → pruebas → staging → producción). Capturas con datos de prueba, en computadora y celular, revisadas antes de mandarlas |
 | Crear el PR hacia `main` | Solo cuando lo pide o ya dijo «pásalo a producción» |
-| Unir a `main` y desplegar a **producción** | **Sí, un «sí» explícito por cada cambio.** Un «sí» no se arrastra al siguiente cambio |
+| Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») **para lo que ella ya vio en capturas** y pasó pruebas y revisión. Si el código cambia después de su visto bueno, se le avisa antes |
 | Borrar datos, ramas, respaldos, secretos | Sí, y mirando primero qué se borra |
 | Cifras de dinero, puntos, comisiones, impuestos | Nunca se inventan (ver `CLAUDE.md`: `puntos.json`, reglas de marca) |
 
@@ -99,6 +100,18 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-17
 
+- **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
+  staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
+  cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
+  «Cliente no tiene correo electrónico», **comparador de ventas** del Inicio de Gerencia («Completadas» / «Con abonos»,
+  por vendedora, hasta la misma hora), **correos con Resend apagados** (sin `RESEND_API_KEY` no sale nada), y la tienda:
+  hueco de privacidad del checkout cerrado (estaba en producción desde `ac1610b`), dato repetido avisado en el
+  formulario, «¡Gracias por tu compra!», «¿Ya tienes cuenta?» y «Entregas en Panamá Oeste, Panamá y Colón». La dueña vio
+  las capturas de todo antes (regla nueva: capturas → su visto bueno → pruebas → staging → producción).
+- **Sigue (tanda 2):** permisos de vendedoras (`permisos-vendedoras`, revisado sin fugas): faltan sus respuestas sobre
+  los pedidos de la web (¿sin vendedora?) y si las vendedoras siguen cobrando lo suyo, y darle Caja al jefe
+  administrativo antes de encenderlo. Después: notas del Inicio a un ícono ⓘ, la gráfica de la semana con el interruptor,
+  Meta.
 - **En producción** (00:36 UTC, Desplegar 15, `app_version` `256d1222…`, imagen `sha256:37f59b2e…`; CI #189 y la
   revisión del PR #52 en verde): el **Inicio de Gerencia compara con el mes pasado** (hoy contra el mismo día y el mes
   contra los mismos días, en % azul o rojo) y el **Escáner › Contar** cambia el precio (con permiso de Productos, con
@@ -119,6 +132,12 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   cliente en `/mi-cuenta` (compras, lo que le falta de cada abono, entregas, puntos y datos; reclamar una cuenta con
   compras exige el código de la factura), «Pago en la tienda» en lugar de «al recibir», la portada con las zonas de
   entrega reales, «Apartado por página web» y `/terms` → `/terminos`.
+- **En la rama `comparar-ventas` (probado en local, sin subir):** el **comparador de ventas** del Inicio de Gerencia
+  (pedido del jefe; la dueña aprobó): el interruptor **Completadas / Con abonos** (abre en Completadas; una venta
+  facturada sin ningún pago ya no cuenta), el selector de **vendedora** con «Por vendedora», y el bloque **Comparar**
+  (Ayer · mismo día del mes pasado · mismo día de la semana pasada · lo que va del mes · contra un mes completo con
+  «Llevas N %» · A vs B), solo números, hoy contra el otro día **hasta la misma hora** (lo registrado a esa hora). Brian
+  `comparar_ventas`, Guía «Comparar las ventas» y `docs/OPERACION.md` («Completadas o Con abonos, y Comparar»).
 - **Trabajando (agentes):** condiciones de abono en dos hojas (cliente y empresa), permisos de vendedoras con
   interruptor y rol Caja, teléfono y correo obligatorios, correos con Resend; luego Meta (catálogo, píxel y
   Conversions API). Instrucciones v2 de Juan para la extensión entregadas (correrlas después de este despliegue).

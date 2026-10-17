@@ -76,7 +76,9 @@ Leyenda: ✅ hecho · 🟡 hecho en parte · ⬜ pendiente.
   Falta: el ensayo en staging con los archivos reales, la equivalencia de cuentas con el contador y la carga el día del
   corte.
 - ⬜ Mover el DNS de `dcasapty.com` a Cloudflare y activar el dominio en `edge/wrangler.jsonc`.
-- ⬜ Correo saliente (SMTP) para enviar facturas y cotizaciones (hoy no hay servidor de correo saliente).
+- 🟡 Correo a clientes: **en construcción: `dcasa_correo`** (Resend en vez de SMTP; factura o abono al registrar un pago,
+  bienvenida a clientes nuevos, «Enviar» de la factura y de la cotización). Apagado de fábrica; falta la cuenta de
+  Resend, la clave y verificar el dominio ([CORREO.md](CORREO.md)).
 - ⬜ Pasarela de pago para la tienda (Yappy / tarjeta) y métodos de entrega.
 - ✅ Respaldos: WAL continuo y `pg_dump` diario cifrados a R2, con simulacro de restauración en cada
   ejecución de CI ([OPERACION.md](OPERACION.md)). *(Reemplaza el «PITR de Neon» del plan original.)*

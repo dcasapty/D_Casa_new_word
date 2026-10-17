@@ -291,9 +291,10 @@ describe("contenedor único con PostgreSQL local", () => {
       RESPALDO_TOKEN: TOKEN,
       DCASA_PIN_PEPPER: "pimienta",
       BRIAN_API_KEY: "",
+      RESEND_API_KEY: "",
     });
     expect(vars).toMatchObject({ ...SECRETOS, DCASA_PIN_PEPPER: "pimienta", APP_VERSION: "dev", DCASA_ENTORNO: "produccion" });
-    for (const nombre of ["DB_HOST", "DB_PASSWORD", "DB_SSLMODE", "RESPALDO_TOKEN", "BRIAN_API_KEY"]) {
+    for (const nombre of ["DB_HOST", "DB_PASSWORD", "DB_SSLMODE", "RESPALDO_TOKEN", "BRIAN_API_KEY", "RESEND_API_KEY"]) {
       expect(vars).not.toHaveProperty(nombre);
     }
     expect(variablesDelContenedor({ DCASA_ENTORNO: "staging" }).DCASA_ENTORNO).toBe("staging");
@@ -312,6 +313,8 @@ describe("contenedor único con PostgreSQL local", () => {
       variablesDelContenedor({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05", DCASA_BLACK_WEEKEND_FIN: "" }),
     ).toMatchObject({ DCASA_BLACK_WEEKEND: "1", DCASA_BLACK_WEEKEND_INICIO: "2026-10-05" });
     expect(variablesDelContenedor({ DCASA_BLACK_WEEKEND_FIN: "" })).not.toHaveProperty("DCASA_BLACK_WEEKEND_FIN");
+    // La clave de Resend (correo a clientes, docs/CORREO.md) llega al contenedor cuando existe; vacía, no.
+    expect(variablesDelContenedor({ RESEND_API_KEY: "re_clave_de_prueba" }).RESEND_API_KEY).toBe("re_clave_de_prueba");
     // Las opciones de Brian documentadas como variables (docs/BRIAN.md) llegan al contenedor.
     expect(variablesDelContenedor({ BRIAN_ESFUERZO: "medium", BRIAN_CACHE: "0" })).toMatchObject({
       BRIAN_ESFUERZO: "medium",

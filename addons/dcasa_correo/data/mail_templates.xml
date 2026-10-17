@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Las plantillas de los correos de D'CASA: cortas, con tuteo y sin género (la dueña, 17/10/2026). Ninguna cifra
+     escrita a mano: los montos y fechas salen de la factura (_dcasa_estado_abono) y los puntos, del libro de Socios.
+     El botón, el enlace de WhatsApp y el pie los pone el layout (views/layout_correo.xml). Se actualizan con el módulo
+     (noupdate="0"): se cambian aquí, con su prueba, no en la pantalla. -->
+<odoo>
+    <data noupdate="0">
+
+        <!-- ================= Factura o abono ================= -->
+        <record id="plantilla_factura" model="mail.template">
+            <field name="name">D'CASA: factura o abono por correo</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="email_from">{{ object.company_id.email_formatted }}</field>
+            <field name="use_default_to" eval="True"/>
+            <field name="subject">{{ object._dcasa_correo_valores()['asunto'] }}</field>
+            <field name="description">Factura de cliente con la marca D'CASA: pagada, o como abono (lo pagado y lo que falta).</field>
+            <field name="email_layout_xmlid">dcasa_correo.layout_correo</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div>
+    <t t-set="v" t-value="object._dcasa_correo_valores()"/>
+    <t t-if="v['con_saldo']">
+        <p style="margin:0 0 16px 0;">Gracias por tu pago<t t-if="v['nombre']">, <t t-out="v['nombre']"/></t>. Así va tu compra:</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;">
+            <tr>
+                <td style="padding:8px 0;border-bottom:1px solid #E3E6EE;color:#4A5163;">Total de tu compra</td>
+                <td align="right" style="padding:8px 0;border-bottom:1px solid #E3E6EE;" t-out="v['total']"/>
+            </tr>
+            <tr>
+                <td style="padding:8px 0;border-bottom:1px solid #E3E6EE;color:#4A5163;">Ya pagaste</td>
+                <td align="right" style="padding:8px 0;border-bottom:1px solid #E3E6EE;" t-out="v['pagado']"/>
+            </tr>
+            <tr>
+                <td style="padding:12px 0 8px 0;font-weight:bold;">Te falta</td>
+                <td align="right" style="padding:12px 0 8px 0;font-size:24px;font-weight:bold;color:#1340B1;" t-out="v['saldo']"/>
+            </tr>
+            <tr t-if="v['vence']">
+                <td style="padding:4px 0;color:#4A5163;">Tienes hasta el</td>
+                <td align="right" style="padding:4px 0;font-weight:bold;" t-out="v['vence']"/>
+            </tr>
+        </table>
+        <p t-if="v['vencido']" style="margin:0 0 12px 0;font-weight:bold;">Esa fecha ya pasó: escríbenos por WhatsApp.</p>
+        <p style="margin:0;color:#4A5163;">Tu abono de la factura <t t-out="v['numero']"/> va adjunto en PDF.</p>
+    </t>
+    <t t-elif="v['pagada']">
+        <p style="margin:0 0 12px 0;">Gracias por tu compra<t t-if="v['nombre']">, <t t-out="v['nombre']"/></t>. Tu factura <strong t-out="v['numero']"/> quedó pagada por completo.</p>
+        <p t-if="v['puntos_compra']" style="margin:0 0 12px 0;">Con esta compra sumaste <strong><t t-out="v['puntos_compra']"/> puntos</strong>.</p>
+        <p style="margin:0;color:#4A5163;">Tu factura va adjunta en PDF.</p>
+    </t>
+    <t t-else="">
+        <p style="margin:0 0 12px 0;">Hola<t t-if="v['nombre']"> <t t-out="v['nombre']"/></t>: te enviamos tu factura <strong t-out="v['numero']"/> por <strong t-out="v['total']"/>.</p>
+        <p style="margin:0;color:#4A5163;">Va adjunta en PDF.</p>
+    </t>
+</div>
+            </field>
+        </record>
+
+        <!-- ================= Cotización ================= -->
+        <record id="plantilla_cotizacion" model="mail.template">
+            <field name="name">D'CASA: cotización por correo</field>
+            <field name="model_id" ref="sale.model_sale_order"/>
+            <field name="email_from">{{ object.company_id.email_formatted }}</field>
+            <field name="use_default_to" eval="True"/>
+            <field name="subject">Tu cotización {{ object.name }} de D'CASA</field>
+            <field name="description">Cotización con la marca D'CASA y su PDF.</field>
+            <field name="email_layout_xmlid">dcasa_correo.layout_correo</field>
+            <field name="report_template_ids" eval="[(6, 0, [ref('sale.action_report_saleorder')])]"/>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div>
+    <t t-set="v" t-value="object._dcasa_correo_valores()"/>
+    <p style="margin:0 0 12px 0;">Hola<t t-if="v['nombre']"> <t t-out="v['nombre']"/></t>: te enviamos la cotización <strong t-out="v['numero']"/> por <strong t-out="v['total']"/><t t-if="v['con_itbms']"> (con ITBMS)</t>.</p>
+    <p t-if="v['valida_hasta']" style="margin:0 0 12px 0;">Es válida hasta el <t t-out="v['valida_hasta']"/>.</p>
+    <p style="margin:0;color:#4A5163;">Va adjunta en PDF. Para confirmarla o cambiar algo, escríbenos por WhatsApp.</p>
+</div>
+            </field>
+        </record>
+
+        <!-- ================= Bienvenida (una sola vez por cliente nuevo) =================
+             Corta y amigable: sin reglas de puntos, sin abonos y sin cifras. Cómo entra la primera vez sale de
+             _acceso_primera_vez (lo que hacen de verdad /mi-cuenta y /socios/registro). -->
+        <record id="plantilla_bienvenida" model="mail.template">
+            <field name="name">D'CASA: bienvenida a un cliente nuevo</field>
+            <field name="model_id" ref="base.model_res_partner"/>
+            <field name="email_from">{{ user.company_id.email_formatted }}</field>
+            <field name="subject">Te damos la bienvenida a D'CASA</field>
+            <field name="description">Una sola vez, cuando el cliente nuevo ya puede entrar a Mi cuenta.</field>
+            <field name="email_layout_xmlid">dcasa_correo.layout_correo</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="text-align:center;">
+    <t t-set="v" t-value="object.env['dcasa.correo']._valores_bienvenida(object)"/>
+    <p style="margin:0 0 12px 0;">Gracias por tu compra. En Mi cuenta ves tus compras, tus pagos y tus puntos.</p>
+    <p t-if="v['acceso'] == 'pin'" style="margin:0;color:#4A5163;">Entra con tu celular y tu PIN.</p>
+    <p t-elif="v['acceso'] == 'tienda'" style="margin:0;color:#4A5163;">Entra con el correo y la contraseña de tu cuenta de la tienda en línea.</p>
+    <p t-elif="v['acceso'] == 'registro'" style="margin:0;color:#4A5163;">La primera vez, toca «¿Primera vez? Hazte socio» y regístrate con tu celular, el código de socio que viene en tu factura y un PIN que tú eliges.</p>
+    <p t-else="" style="margin:0;color:#4A5163;">Para entrar la primera vez, escríbenos por WhatsApp y te ayudamos.</p>
+</div>
+            </field>
+        </record>
+
+        <!-- ================= Prueba (botón de Ajustes) ================= -->
+        <record id="plantilla_prueba" model="mail.template">
+            <field name="name">D'CASA: correo de prueba</field>
+            <field name="model_id" ref="base.model_res_users"/>
+            <field name="email_from">{{ object.company_id.email_formatted }}</field>
+            <field name="subject">Correo de prueba de D'CASA</field>
+            <field name="description">Lo manda el botón «Enviar correo de prueba» de Ajustes, a quien lo pulsa.</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div>
+    <t t-set="v" t-value="object.env['dcasa.correo']._valores_prueba(object)"/>
+    <p style="margin:0 0 12px 0;">Hola<t t-if="v['nombre']"> <t t-out="v['nombre']"/></t>:</p>
+    <p style="margin:0;">Este es un correo de prueba de D'CASA. Si lo ves con el logo, el azul y el botón, el correo funciona.</p>
+</div>
+            </field>
+        </record>
+
+    </data>
+</odoo>

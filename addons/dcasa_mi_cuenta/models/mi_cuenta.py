@@ -41,6 +41,8 @@ CANCELADAS_A_LA_VISTA = 5
 
 TEXTO_SIN_FACTURA = 'Tu factura y tus pagos aparecen aquí cuando se emita.'
 TEXTO_COMO = 'Retiro en la tienda o entrega a domicilio: lo coordinamos por WhatsApp.'
+# El mueble se entrega pagado completo (decisión de la dueña, 2026-10-17): con saldo, nunca «Listo».
+TEXTO_AL_TERMINAR = 'Cuando termines de pagar, te escribimos para coordinar la entrega o el retiro.'
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +326,9 @@ class DcasaMiCuenta(models.AbstractModel):
     # ------------------------------------------------------------------------
 
     @staticmethod
-    def _mc_entrega(pedido):
+    def _mc_entrega(pedido, por_pagar=False):
+        """``por_pagar``: la compra todavía tiene saldo. El mueble no se entrega hasta pagarlo completo, así que aunque
+        ya esté apartado en la bodega no se anuncia como listo."""
         transportista = pedido.carrier_id.name if pedido.carrier_id else ''
         salidas = pedido.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing' and p.state != 'cancel')
         entrega = {'estado': None, 'texto': '', 'como': transportista or TEXTO_COMO, 'transportista': transportista}
@@ -334,6 +338,8 @@ class DcasaMiCuenta(models.AbstractModel):
             fechas = [p.date_done for p in salidas if p.date_done]
             entrega.update(estado='entregado', fecha=fecha_corta(max(fechas)) if fechas else '',
                            texto=f'Entregado el {fecha_corta(max(fechas))}' if fechas else 'Entregado')
+        elif por_pagar:
+            entrega.update(estado='al_pagar', texto=TEXTO_AL_TERMINAR)
         elif any(p.state == 'assigned' for p in salidas):
             entrega.update(estado='listo', texto='Listo: te escribimos para coordinar la entrega o el retiro.')
         else:
@@ -378,7 +384,7 @@ class DcasaMiCuenta(models.AbstractModel):
         mueble, foto, mas = self._mc_principal(items, website)
         facturas = pedido.invoice_ids.filtered(lambda f: f.move_type == 'out_invoice' and f.state == 'posted')
         pago = self._mc_pago(facturas)
-        entrega = self._mc_entrega(pedido)
+        entrega = self._mc_entrega(pedido, por_pagar=bool(pago and pago['por_pagar']))
         apartado = pedido.dcasa_apartado_vence if pedido.state in ('sent', 'sale') and not facturas else False
         mensaje = ''
         tono = 'neutro'

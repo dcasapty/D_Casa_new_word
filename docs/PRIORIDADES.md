@@ -103,6 +103,7 @@ unidos con el PR #43.)
 | Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | En producción (Desplegar 14) | — |
 | Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | En producción (Desplegar 14 y Worker de Juan). Falta que la dueña corra las instrucciones v2 con la extensión de Chrome | — |
 | Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner | En producción (Desplegar 15) | — |
+| Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | Hecho y probado en la rama `comparar-ventas` (sin subir). Falta staging, que la dueña lo mire y su «sí» para producción. Cambio a propósito: una venta facturada sin ningún pago ya no cuenta en el Inicio de Gerencia | — |
 | Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | Papel y Mi cuenta hechos y probados (próximo despliegue); condiciones de abono en construcción | — |
 | Panel del cliente «Mi cuenta» | Hecho y probado (próximo despliegue); falta la ronda de pulido de la auditoría visual | — |
 | Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción | — |

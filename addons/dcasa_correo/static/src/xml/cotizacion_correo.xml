@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="dcasa_conversaciones.Cotizacion" t-inherit-mode="extension">
+        <xpath expr="//button[@t-on-click='enviar']" position="before">
+            <button type="button" class="btn btn-secondary o_dcj_boton o_dcasa_correo_enviar"
+                    t-att-disabled="local.ocupado or local.enviandoCorreo or !cotizacion or !correo.puede"
+                    t-att-title="tituloCorreo" t-att-aria-label="tituloCorreo" t-on-click="enviarPorCorreo">
+                <t t-if="local.enviandoCorreo">Enviando…</t><t t-else=""><i class="fa fa-envelope-o" aria-hidden="true"/> Enviar por correo</t>
+            </button>
+        </xpath>
+    </t>
+</templates>

@@ -100,6 +100,11 @@ mostrando los nombres, y «Mis gastos por reembolsar» es otra app que no depend
 Vendedora no los ve en ninguna pantalla y el servidor se los niega si los pide por la conexión de datos (esos campos
 llevan el grupo). Brian tampoco le da a quien no es Gerencia la ganancia ni el costo del proveedor.
 
+**Comparar y ventas por vendedora** (2026-10-17): el bloque **Comparar** del Inicio, el selector de **vendedora** y
+«Por vendedora» son solo de **Gerencia y administradores** (los mismos que ven la ganancia). El servidor lo exige en
+`dcasa.tablero.comparar_ventas` y rechaza que cualquier otro pida las ventas de otra persona (`ventas_del_periodo` con
+un `vendedor` ajeno), también por Brian. La vendedora no ve el interruptor «Completadas / Con abonos»: su Inicio no cambió.
+
 **Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
 Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
 del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo

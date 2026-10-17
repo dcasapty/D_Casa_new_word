@@ -463,6 +463,9 @@ export const VARIABLES_DEL_CONTENEDOR = [
   "BRIAN_TELEGRAM_SECRETO",
   // Ids de los chats de Telegram a los que Brian atiende (separados por coma); vacío = sin lista (docs/BRIAN.md).
   "BRIAN_TELEGRAM_CHATS",
+  // Correo a clientes por Resend (addons/dcasa_correo, docs/CORREO.md). Opcional: sin la clave Odoo no manda ningún
+  // correo. Viaja desde el secreto de GitHub con cada despliegue (.github/scripts/secretos_despliegue.sh).
+  "RESEND_API_KEY",
   // Juan, el asistente de clientes (addons/dcasa_conversaciones; docs/JUAN_ODOO.md). Opcionales: la dueña
   // los pega en el panel de Cloudflare del Worker (no pasan por GitHub). Sin ellos Odoo arranca igual y la
   // API de Juan responde 503. JUAN_URL es la dirección (no secreta) del Worker «juan» para que Odoo lo llame.

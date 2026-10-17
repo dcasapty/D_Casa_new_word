@@ -562,6 +562,10 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
                 throw new Error('el botón principal de la vendedora debe ser «Nueva cotización»');
             }
             if (document.querySelector('.o_dcasa_panel')) { throw new Error('sin barras ni paneles de la tienda'); }
+            // Ni el interruptor, ni el selector de vendedora, ni «Comparar»: su Inicio no cambia (2026-10-17).
+            for (const fuera of ['.o_dcasa_interruptor', '.o_dcasa_vendedora_select', '.o_dcasa_comparar']) {
+                if (document.querySelector(fuera)) { throw new Error('la vendedora no debe ver ' + fuera); }
+            }
             if (document.body.innerText.includes('Cobrado hoy') || document.body.innerText.includes('Por cobrar')) {
                 throw new Error('la vendedora no ve lo cobrado ni lo por cobrar');
             }
@@ -611,14 +615,14 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             }
             // Los periodos de las ventas: Hoy ya está activo; Esta semana cambia la etiqueta.
             if (!document.querySelector('.o_dcasa_periodo_hoy.o_activo')) { throw new Error('Hoy debe estar activo'); }
-            // Hoy se compara contra ayer y contra el mismo día del mes pasado, en ventas y en ganancia (jefe, 16 oct).
-            const contra = textos('.o_dcasa_ventas_principal .o_dcasa_comparacion');
-            if (contra.length !== 2 || !/ayer/.test(contra[0]) || !/ de [a-z]+/.test(contra[1])) {
-                throw new Error('Hoy se compara con ayer y con el mismo día del mes pasado: ' + contra.join(' | '));
+            // Las frases de comparación se reemplazaron por el bloque «Comparar» (jefe, 2026-10-17) y el interruptor
+            // «Completadas» / «Con abonos» abre en «Completadas».
+            if (document.querySelector('.o_dcasa_comparacion')) { throw new Error('ya no hay frases de comparación'); }
+            igual(textos('.o_dcasa_interruptor_opcion'), ['Completadas', 'Con abonos'], 'el interruptor');
+            if (!document.querySelector('.o_dcasa_base_completadas.o_activo')) {
+                throw new Error('el Inicio abre en «Completadas»');
             }
-            if (textos('.o_dcasa_ganancia .o_dcasa_comparacion').length !== 2) {
-                throw new Error('la ganancia también se compara con ayer y con el mes pasado');
-            }
+            igual(textos('.o_dcasa_chip').length, 6, 'los botones de Comparar');
             document.querySelector('.o_dcasa_periodo_semana').click();
             await esperar(() => document.querySelector('.o_dcasa_periodo_semana.o_activo'), 'la semana activa');
             await esperar(
