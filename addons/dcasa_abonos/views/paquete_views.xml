@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Imprimir documentos»: la casilla de las condiciones de abono, entre la factura del cliente y la copia de la
+         empresa (el orden del PDF). Solo se ve si alguna factura del cuadro puede llevar la hoja. -->
+    <record id="dcasa_impresion_paquete_form_abonos" model="ir.ui.view">
+        <field name="name">dcasa.impresion.paquete.form.abonos</field>
+        <field name="model">dcasa.impresion.paquete</field>
+        <field name="inherit_id" ref="dcasa_invoice.dcasa_impresion_paquete_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='con_saldo']" position="after">
+                <field name="condiciones_disponibles" invisible="1"/>
+            </xpath>
+            <xpath expr="//field[@name='incluir_cliente']" position="after">
+                <field name="incluir_condiciones" invisible="not condiciones_disponibles"/>
+            </xpath>
+            <xpath expr="//div[hasclass('alert-warning')]" position="before">
+                <div class="text-muted small mb-2" invisible="not condiciones_disponibles" name="dcasa_condiciones_nota">
+                    Las condiciones de abono salen justo después de la factura del cliente, en dos hojas: una para el
+                    cliente y otra para la tienda. En el primer abono vienen marcadas.
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- La hoja que ya entrega la tienda (una sola vez; el administrador la cambia en Ajustes › Empresas › pestaña
+         «Documentos D'CASA» y no se vuelve a pisar). -->
+    <function model="res.company" name="_dcasa_abonos_poner_condiciones_iniciales"/>
+</odoo>

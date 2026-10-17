@@ -1,0 +1,128 @@
+// Hoja «Condiciones de abono» (copia cliente y copia empresa). La placa, la banda, el pie, la rejilla del cliente, la
+// tabla de los muebles y los títulos salen de dcasa_invoice (report_dcasa.scss); aquí solo lo propio de la hoja.
+// Marca: azul y navy sobre blanco; el amarillo nunca toca el blanco (aquí no se usa). Plano: sin degradados ni sombras.
+$dcasa-abono-azul: #1340B1;
+$dcasa-abono-navy: #0B2A6F;
+$dcasa-abono-grafito: #3A3A3A;
+$dcasa-abono-gris: #6B6B6B;
+$dcasa-abono-linea: #D9DEEA;
+$dcasa-abono-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
+
+.o_report_layout_dcasa {
+    // El rótulo de la copia, a la derecha del título: azul con letra blanca.
+    .o_dcasa_copia_rotulo {
+        float: right;
+        margin-top: 6px;
+        padding: 3px 12px;
+        font-family: $dcasa-abono-subtitulo;
+        font-weight: 600;
+        font-size: .82rem;
+        letter-spacing: .08em;
+        line-height: 1.4;
+        white-space: nowrap;  // «COPIA CLIENTE» en un solo renglón, nunca partido en dos
+        color: #FFFFFF;
+        background-color: $dcasa-abono-azul;
+    }
+
+    .o_dcasa_condiciones_hoja {
+        // La copia de la empresa empieza siempre en su propia hoja.
+        .o_dcasa_condiciones_salto {
+            page-break-before: always;
+            height: 0;
+        }
+
+        .o_dcasa_condiciones .o_dcasa_rejilla {
+            margin-bottom: 10px;
+        }
+
+        .o_dcasa_en_blanco {
+            display: inline-block;
+            width: 30mm;
+            border-bottom: 1px solid $dcasa-abono-grafito;
+        }
+
+        .o_dcasa_condiciones_muebles {
+            margin-bottom: 6px;
+        }
+
+        // «Y N muebles más…»: solo en una factura enorme (la lista entera está en la factura).
+        .o_dcasa_condiciones_faltan {
+            font-style: italic;
+            color: $dcasa-abono-gris;
+        }
+
+        // Bootstrap deja «border-style: solid; border-width: 0» en tr, th y td y el QtWebKit de wkhtmltopdf lo pinta como
+        // un hilo gris (igual que en la factura): en los totales y las firmas no hay más rayas que las de abajo.
+        .o_dcasa_condiciones_totales,
+        .o_dcasa_firmas {
+            &, tbody, tr, th, td {
+                border: 0 none !important;
+                background: none !important;
+            }
+        }
+
+        // Total, abonado y saldo: a la derecha, el saldo en navy y con su raya azul.
+        .o_dcasa_condiciones_totales {
+            width: 45%;
+            margin: 0 0 10px auto;
+            page-break-inside: avoid;
+
+            td {
+                padding: 2px 0 2px 10px;
+                color: $dcasa-abono-grafito;
+            }
+            .o_dcasa_condiciones_saldo td {
+                padding-top: 4px;
+                font-weight: 700;
+                color: $dcasa-abono-navy;
+                border-top: 2px solid $dcasa-abono-azul !important;
+            }
+        }
+
+        .o_dcasa_condiciones_texto {
+            clear: both;
+            padding-top: 6px;
+            border-top: 1px solid $dcasa-abono-linea;
+            font-size: .82rem;
+            line-height: 1.4;
+            page-break-inside: avoid;
+
+            ol {
+                margin: 4px 0 0;
+                padding-left: 20px;
+            }
+            li {
+                margin-bottom: 3px;
+            }
+        }
+
+        // Firma y cédula: dos rayas con su nombre debajo, con espacio para escribir a mano.
+        .o_dcasa_firmas {
+            width: 100%;
+            margin-top: 18mm;
+            page-break-inside: avoid;
+
+            .o_dcasa_firma {
+                width: 44%;
+                padding: 0;
+                vertical-align: bottom;
+            }
+            .o_dcasa_raya {
+                height: 1px;
+                border-bottom: 1px solid $dcasa-abono-grafito;
+            }
+            .o_dcasa_firma_nombre {
+                padding-top: 4px;
+                text-align: center;
+                font-family: $dcasa-abono-subtitulo;
+                font-weight: 600;
+                font-size: .72rem;
+                letter-spacing: .06em;
+                color: $dcasa-abono-azul;
+            }
+            .o_dcasa_firmas_espacio {
+                width: 12%;
+            }
+        }
+    }
+}

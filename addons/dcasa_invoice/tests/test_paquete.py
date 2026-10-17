@@ -19,9 +19,16 @@ from odoo.tests import TransactionCase, tagged
 from odoo.tools import pdf
 
 from ..models import paquete
-from ..wizard.impresion_paquete import DcasaImpresionPaquete
+from ..wizard.impresion_paquete import CLAVES, DcasaImpresionPaquete
 
 MODELO = 'dcasa.impresion.paquete'
+
+
+def propias(claves):
+    """Solo las claves de los documentos de este módulo. Otros módulos agregan las suyas al cuadro y al PDF
+    (dcasa_abonos: las condiciones de abono, marcadas en el primer abono) y estas pruebas valen con uno o con todos
+    los módulos instalados, como en CI."""
+    return [clave for clave in claves if clave in CLAVES]
 
 
 def pdf_falso(texto, paginas=1):
@@ -471,13 +478,14 @@ class TestOfertaAlPagar(PaqueteComun):
             self.assertTrue(cuadro.tras_pago)
             self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia)
             self.assertFalse(cuadro.incluir_entrega, 'la nota de entrega se imprime al terminar de pagar')
-            self.assertEqual(cuadro._claves_marcadas(), ['cliente', 'copia'])
+            self.assertEqual(propias(cuadro._claves_marcadas()), ['cliente', 'copia'])
             self.assertTrue(cuadro.con_saldo)
             saldo = factura._dcasa_estado_abono()['saldo']
             self.assertIn(f'Todavía falta pagar ${saldo:,.2f}.', cuadro.saldo_texto)
             self.assertIn('La nota de entrega se imprime al terminar de pagar', cuadro.saldo_texto)
-            self.assertEqual(cuadro.action_imprimir()['params']['url'],
-                             f'/dcasa/paquete.pdf?facturas={factura.id}&docs=cliente,copia')
+            url = cuadro.action_imprimir()['params']['url']
+            self.assertTrue(url.startswith(f'/dcasa/paquete.pdf?facturas={factura.id}&docs='), url)
+            self.assertEqual(propias(url.split('&docs=', 1)[1].split(',')), ['cliente', 'copia'])
             if contexto:
                 self.assertEqual(cuadro.action_cerrar(), {'type': 'ir.actions.act_window_close'},
                                  'como siempre: se queda en la factura')
@@ -491,9 +499,9 @@ class TestOfertaAlPagar(PaqueteComun):
         _pedido, factura = self._venta()
         cuadro = self.Paquete.browse(self._pagar(factura, monto=10.0)['res_id'])
         cuadro.incluir_entrega = True
-        self.assertEqual(cuadro._claves_marcadas(), ['entrega', 'cliente', 'copia'], 'no es un candado')
+        self.assertEqual(propias(cuadro._claves_marcadas()), ['entrega', 'cliente', 'copia'], 'no es un candado')
         with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
-            contenido, _nombre = self.Paquete._armar_pdf(factura, cuadro._claves_marcadas())
+            contenido, _nombre = self.Paquete._armar_pdf(factura, propias(cuadro._claves_marcadas()))
         self.assertEqual(len(textos(contenido)), 3)
 
     def test_abierto_a_mano_desde_una_factura_en_abono_la_nota_viene_sin_marcar(self):
