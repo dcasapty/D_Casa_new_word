@@ -222,7 +222,7 @@
                         </div>
                         <div class="o_dcasa_container o_dcasa_hero_inner">
                             <div class="o_dcasa_hero_texto" data-anim-entrada="">
-                                <p class="o_dcasa_kicker o_dcasa_kicker_light">Mueblería en La Chorrera · Entrega a todo Panamá</p>
+                                <p class="o_dcasa_kicker o_dcasa_kicker_light">Mueblería en La Chorrera · Entregas en Panamá Oeste, Panamá y Colón</p>
                                 <h1 class="o_dcasa_display">Tu casa, bien amueblada.</h1>
                                 <p class="o_dcasa_hero_sub">Salas, recámaras, colchones y zapateras con precios claros.
                                     Muchos vienen en caja: te los llevas hoy mismo.</p>
@@ -244,7 +244,7 @@
                             <ul class="o_dcasa_beneficios_list" role="list" data-anim-cascada="">
                                 <li>
                                     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9h16v13H3zM19 13h6l4 5v4h-10z"/><circle cx="8" cy="24" r="2.5"/><circle cx="23" cy="24" r="2.5"/></svg>
-                                    <div><strong>Entrega a todo Panamá</strong><span>Te decimos costo y fecha por WhatsApp.</span></div>
+                                    <div><strong>Entregas en Panamá Oeste, Panamá y Colón</strong><span>Te decimos costo y fecha por WhatsApp.</span></div>
                                 </li>
                                 <li>
                                     <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 12l11-6 11 6v12l-11 6-11-6z"/><path d="M5 12l11 6 11-6M16 18v12"/></svg>
@@ -352,7 +352,7 @@
                                 <h2 class="o_dcasa_h2" data-titular="">Lo que más nos preguntan</h2>
                                 <div class="o_dcasa_faq" data-anim-cascada="">
                                     <details>
-                                        <summary>¿Hacen entregas a todo Panamá?</summary>
+                                        <summary>¿A dónde hacen entregas?</summary>
                                         <p>Hacemos entregas en La Chorrera, Arraiján, Capira, Panamá y Colón; al interior todavía no. El costo y la fecha dependen de tu zona: te los confirma una vendedora por WhatsApp.</p>
                                     </details>
                                     <details>

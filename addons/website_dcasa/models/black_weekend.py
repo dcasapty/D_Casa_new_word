@@ -221,7 +221,7 @@ class Website(models.Model):
         fechas = self._dcasa_bw_fechas()
         return (f"Black Weekend en D'CASA Panamá{(' ' + fechas) if fechas else ''}: {len(items)} camas y bases "
                 'seleccionadas, con el precio de la cama sola y el del combo con colchón (+ ITBMS). '
-                'Entrega a todo Panamá desde La Chorrera. Escríbenos por WhatsApp.')
+                'Entregas en Panamá Oeste, Panamá y Colón, desde La Chorrera. Escríbenos por WhatsApp.')
 
     def _dcasa_bw_json_ld(self, items):
         """``ItemList`` de /black-weekend: la URL y el nombre de cada producto, en orden."""

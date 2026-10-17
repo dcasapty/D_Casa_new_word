@@ -10,7 +10,7 @@ from dateutil.relativedelta import relativedelta
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.tests import HttpCase, new_test_user, tagged
 
-from ..models.mi_cuenta import correo_tapado, dia_mes, fecha_corta, monto
+from ..models.mi_cuenta import TEXTO_AL_TERMINAR, correo_tapado, dia_mes, fecha_corta, monto
 from .common import CALLE, CELULAR, CLAVE, CORREO, PIN, MiCuentaComun
 
 
@@ -178,6 +178,23 @@ class TestMiCuentaHttp(MiCuentaComun, HttpCase):
         self.assertTrue(all(s.state == 'done' for s in salidas))
         html = self.url_open(f'/mi-cuenta/compras/{self.pedido.id}').text
         self.assertIn(f'Entregado el {fecha_corta(max(salidas.mapped("date_done")))}', html)
+
+    def test_con_saldo_no_se_anuncia_lista_hasta_pagar_completo(self):
+        """El mueble se entrega pagado completo (decisión de la dueña, 2026-10-17): aunque ya esté apartado en la
+        bodega, con saldo la compra no dice «Listo» ni marca el paso «Lista»."""
+        salidas = self.pedido.picking_ids.filtered(lambda p: p.picking_type_code == 'outgoing')
+        self.assertTrue(salidas.filtered(lambda p: p.state == 'assigned'), 'la mercancía ya está apartada en bodega')
+        self.entrar()
+        html = self.url_open(f'/mi-cuenta/compras/{self.pedido.id}').text
+        self.assertIn(TEXTO_AL_TERMINAR, html)
+        self.assertNotIn('Listo: te escribimos', html)
+        resumen = self.env['dcasa.mi.cuenta']._mc_resumen_pedido(self.pedido, self.website)
+        self.assertEqual([paso['estado'] for paso in resumen['pasos']], ['hecho', 'actual', 'pendiente', 'pendiente'])
+
+        self._pagar(self.factura, self.factura.amount_residual, self.inicio_abono)
+        html = self.url_open(f'/mi-cuenta/compras/{self.pedido.id}').text
+        self.assertIn('Listo: te escribimos para coordinar la entrega o el retiro.', html)
+        self.assertNotIn(TEXTO_AL_TERMINAR, html)
 
     # --- Usuario de la tienda ----------------------------------------------------------------------
 
