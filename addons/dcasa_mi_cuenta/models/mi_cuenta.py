@@ -388,8 +388,9 @@ class DcasaMiCuenta(models.AbstractModel):
             mensaje = (f'Se anuló porque venció el apartado el {dia_mes(vence)}.' if vence and vence < hoy
                        else 'Esta compra se canceló.')
         elif apartado:
-            grupo, etiqueta, tono = 'por_pagar', f'Apartado hasta el {dia_mes(apartado)}', 'alerta'
-            mensaje = (f'Apartado hasta el {dia_mes(apartado)}: pasa a pagarlo antes de esa fecha.' if apartado >= hoy
+            tipo = 'Apartado por página web' if pedido.website_id else 'Apartado'
+            grupo, etiqueta, tono = 'por_pagar', f'{tipo} hasta el {dia_mes(apartado)}', 'alerta'
+            mensaje = (f'{tipo} hasta el {dia_mes(apartado)}: pasa a pagarlo antes de esa fecha.' if apartado >= hoy
                        else f'Tu apartado venció el {dia_mes(apartado)}. Escríbenos por WhatsApp.')
         elif pedido.state == 'sent':
             grupo, etiqueta = 'por_pagar', 'Cotización'

@@ -92,6 +92,16 @@ class TestMiCuentaHttp(MiCuentaComun, HttpCase):
         self.assertIn('SOFÁ MILÁN DE PRUEBA', html)
         self.assertIn('y 1 cosa más', html, 'el mueble principal y el resto')
 
+    def test_el_apartado_de_la_web_dice_que_es_por_pagina_web(self):
+        """Decisión de la dueña (2026-10-17): un apartado de la tienda en línea se llama así en todo el sistema."""
+        self.apartado.website_id = self.website
+        self.entrar()
+        html = self.url_open('/mi-cuenta/compras').text
+        self.assertIn(f'Apartado por página web hasta el {dia_mes(self.apartado.dcasa_apartado_vence)}', html)
+        self.assertEqual(self.apartado.dcasa_apartado_origen, 'Apartado por página web')
+        self.apartado.website_id = False
+        self.assertEqual(self.apartado.dcasa_apartado_origen, 'Apartado en la tienda')
+
     def test_detalle_con_abonos_sin_pdf_ni_datos_personales_para_pin(self):
         self.entrar()
         respuesta = self.url_open(f'/mi-cuenta/compras/{self.pedido.id}')

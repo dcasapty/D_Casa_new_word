@@ -1,7 +1,9 @@
 """Checkout de la tienda: cómo paga y recibe un cliente de D'CASA.
 
 Sin pasarela de tarjeta todavía: se cobra con Yappy o transferencia (los datos se mandan
-por WhatsApp; nunca se escriben aquí números de cuenta) o al recibir / en la tienda.
+por WhatsApp; nunca se escriben aquí números de cuenta) o en la tienda. No hay pago contra entrega: el mueble se
+entrega cuando está pagado completo (decisión de la dueña, 2026-10-17); «Pago en la tienda» aparta el pedido por la
+página web los días de apartado (models/sale_order.py) para que pase a pagarlo.
 La entrega a domicilio se cotiza por WhatsApp, como promete el sitio; no hay «envío gratis».
 """
 from markupsafe import Markup
@@ -19,9 +21,10 @@ PAGOS = [
     (None, 'Yappy', 'wire_transfer',
      'Te escribimos por WhatsApp con el número de Yappy para que pagues. '
      'Apenas veamos el pago, confirmamos tu pedido y coordinamos la entrega.'),
-    ('delivery.payment_provider_cod', 'Pago al recibir o en tienda', 'cash_on_delivery',
-     'Pagas al recibir o en la tienda: efectivo o Yappy. '
-     'Te escribimos por WhatsApp para confirmar la fecha.'),
+    ('delivery.payment_provider_cod', 'Pago en la tienda', 'cash_on_delivery',
+     'Te lo apartamos por la página web: pasa a pagarlo en la tienda (efectivo, Yappy o tarjeta) antes de que venza '
+     'el apartado; la fecha la ves en Mi cuenta. El mueble se entrega cuando está pagado completo: el envío o el '
+     'retiro en la tienda lo coordinas con tu vendedora por WhatsApp.'),
 ]
 
 ENTREGAS = [
