@@ -350,6 +350,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   del candado; y si dos fichas se apuntan entre sí, Odoo borraba la que queda.
 - `read_group` está deprecado: usar `_read_group`.
 - Enviar por Telegram hace `COMMIT` y destruye los savepoints.
+- `with cr.savepoint():` primero hace `cr.flush()`, que **corre** los `precommit` pendientes (seguimiento del chatter,
+  avisos del bus); si después se deshace, `cr.clear()` borra solo lo que se agregó adentro. No es una pérdida (una
+  revisión del 2026-10-17 lo creyó y su propia prueba lo desmintió); sí es que esos `precommit` corren antes del commit.
+  `savepoint(flush=False)` no corre nada pero tampoco limpia la caché: no usarlo para «que esto nunca falle».
+- `/mail/message/post` (chatter, también del portal) publica con `sudo()` y deja pasar el `context` del navegador: un
+  permiso que mire `env.su` ahí lo tiene cualquiera; se mira `env.uid`/`env.user`.
 - `limit_memory_soft` mide memoria virtual (VMS), no RSS: no dimensionarlo con el tamaño del contenedor.
 
 ### Cloudflare

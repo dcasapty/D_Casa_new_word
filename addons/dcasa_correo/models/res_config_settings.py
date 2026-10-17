@@ -35,8 +35,9 @@ class ResConfigSettings(models.TransientModel):
         help='En cuanto se registra un pago, al cliente le llega su factura en PDF (si queda saldo, como abono).')
     dcasa_correo_bienvenida = fields.Boolean(
         'Bienvenida a clientes nuevos', config_parameter=P_BIENVENIDA,
-        help='Una sola vez, con su primer pago: cómo entrar a Mi cuenta y ver sus compras y sus puntos. Solo a '
-             'clientes creados desde que se instaló el correo; a los de antes no se les manda.')
+        help='Una sola vez, cuando ya puede entrar a Mi cuenta (con su primera compra pagada): cómo entrar a ver sus '
+             'compras, sus pagos y sus puntos. Solo a clientes creados desde que se instaló el correo; a los de antes '
+             'no se les manda.')
     dcasa_correo_estado = fields.Char('Estado del correo', compute='_compute_dcasa_correo_estado')
     dcasa_correo_bienvenida_desde = fields.Char('Clientes nuevos desde', compute='_compute_dcasa_correo_estado')
 

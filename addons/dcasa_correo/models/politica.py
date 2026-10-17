@@ -15,7 +15,8 @@ odoo       Todo lo demás: confirmaciones automáticas de Odoo, pago recibido, c
 Y ``puede_salir`` decide:
 
 * ``prueba`` sale solo si TODOS los destinatarios son correos del equipo, aunque el interruptor esté apagado;
-* con el interruptor apagado, o en staging, no sale nada más;
+* con el interruptor apagado, o fuera de producción (staging, o un servidor sin ``DCASA_ENTORNO=produccion``), no
+  sale nada más;
 * encendido salen las clases de ``CLASES_A_CLIENTES``; ``odoo`` nunca (lo decide la dueña).
 """
 
@@ -30,6 +31,8 @@ MODELOS_DOCUMENTO = ('account.move', 'sale.order')
 
 MOTIVO_APAGADO = 'Correos a clientes apagados.'
 MOTIVO_STAGING = 'Staging: nunca se envía a clientes.'
+MOTIVO_NO_PRODUCCION = 'Sin DCASA_ENTORNO=produccion: nunca se envía a clientes.'
+ENTORNO_PRODUCCION = 'produccion'
 MOTIVO_ODOO = 'Correo automático de Odoo sin permiso.'
 MOTIVO_PRUEBA = 'La prueba solo va a correos del equipo.'
 MOTIVO_SIN_DESTINO = 'Sin destinatarios.'
@@ -55,8 +58,8 @@ def puede_salir(clase, a_clientes, entorno, destinatarios, correos_internos):
     internos = {(c or '').strip().lower() for c in correos_internos or [] if c}
     if clase == CLASE_PRUEBA:
         return (True, '') if destinos <= internos else (False, MOTIVO_PRUEBA)
-    if entorno == 'staging':
-        return False, MOTIVO_STAGING
+    if entorno != ENTORNO_PRODUCCION:   # solo producción le escribe a clientes (sin el dato, tampoco)
+        return False, MOTIVO_STAGING if entorno == 'staging' else MOTIVO_NO_PRODUCCION
     if not a_clientes:
         return False, MOTIVO_APAGADO
     if clase in CLASES_A_CLIENTES:

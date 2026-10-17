@@ -39,6 +39,7 @@
                             <field name="estado"/>
                             <field name="entrega" invisible="not entrega"/>
                             <field name="motivo" invisible="not motivo"/>
+                            <field name="intentos" invisible="not intentos"/>
                             <field name="create_uid" string="Lo encoló"/>
                         </group>
                     </group>

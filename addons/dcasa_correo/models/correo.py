@@ -16,7 +16,7 @@ from odoo.exceptions import UserError
 from odoo.tools import email_normalize, format_amount, format_date, str2bool
 from odoo.tools.mail import single_email_re
 
-from . import resend
+from . import politica, resend
 
 _logger = logging.getLogger(__name__)
 
@@ -85,7 +85,9 @@ class DcasaCorreo(models.AbstractModel):
 
     @api.model
     def _entorno(self):
-        return (os.environ.get('DCASA_ENTORNO') or 'produccion').strip() or 'produccion'
+        """``DCASA_ENTORNO`` tal cual (vacío si no está). Solo ``produccion`` le escribe a clientes: un servidor que no
+        lo dice (una copia en una máquina, un staging mal configurado) no le manda nada a nadie más que al equipo."""
+        return (os.environ.get('DCASA_ENTORNO') or '').strip().lower()
 
     @api.model
     def _config(self):
@@ -105,9 +107,10 @@ class DcasaCorreo(models.AbstractModel):
 
     @api.model
     def _activo_para_clientes(self):
-        """¿Sale correo a clientes? Hace falta la clave, el interruptor encendido y no estar en staging."""
+        """¿Sale correo a clientes? Hace falta la clave, el interruptor encendido y ser producción."""
         config = self._config()
-        return bool(config['hay_clave'] and config['enviar_a_clientes'] and config['entorno'] != 'staging')
+        return bool(config['hay_clave'] and config['enviar_a_clientes']
+                    and config['entorno'] == politica.ENTORNO_PRODUCCION)
 
     @api.model
     def _motivo_apagado(self):
@@ -117,6 +120,8 @@ class DcasaCorreo(models.AbstractModel):
             return self.env._('Todavía no hay clave de Resend: no sale ningún correo.')
         if config['entorno'] == 'staging':
             return self.env._('En staging nunca se envía correo a clientes.')
+        if config['entorno'] != politica.ENTORNO_PRODUCCION:
+            return self.env._('Este servidor no dice que es producción (DCASA_ENTORNO): no se envía correo a clientes.')
         if not config['enviar_a_clientes']:
             return self.env._('Los correos a clientes están apagados (Ajustes › Correo a clientes).')
         return ''
@@ -168,7 +173,12 @@ class DcasaCorreo(models.AbstractModel):
 
     @api.model
     def _base(self):
-        return (self.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
+        """La dirección pública del sitio para los enlaces y el logo: el dominio del sitio web, ``web.base.url`` (en
+        producción, https://CANONICAL_HOST, congelada por el arranque) o la web de la empresa, nunca una local
+        (``res.company._dcasa_url_publica`` de dcasa_invoice). Sin ninguna pública (una prueba, una copia en una
+        máquina), ``web.base.url`` tal cual."""
+        publica = self.env.company.sudo()._dcasa_url_publica()
+        return (publica or self.env['ir.config_parameter'].sudo().get_param('web.base.url') or '').rstrip('/')
 
     @api.model
     def _mi_cuenta_instalado(self):
@@ -214,37 +224,56 @@ class DcasaCorreo(models.AbstractModel):
             return self.env._('TU DOCUMENTO')
         if modelo == 'sale.order' and registro:
             return self.env._('TU COTIZACIÓN') if registro[:1].state in ('draft', 'sent') else self.env._('TU PEDIDO')
-        if modelo == 'res.partner':
-            return self.env._('¡TE DAMOS LA BIENVENIDA!')
+        if modelo == 'res.partner' and registro:
+            nombre = self._primer_nombre(registro[:1].sudo())
+            if nombre:
+                return self.env._('¡Te damos la bienvenida, %s!', nombre)
+            return self.env._('¡Te damos la bienvenida!')
         if modelo == 'res.users':
             return self.env._('CORREO DE PRUEBA')
         return "D'CASA"
 
     @api.model
+    def _boton(self, registro):
+        """El único botón del correo: ``{texto, url}``. La bienvenida lleva a Mi cuenta; la factura y el abono, a
+        verlos en Mi cuenta; lo demás (la cotización, la prueba), a WhatsApp. Sale del tipo de documento, nunca del
+        contexto."""
+        modelo = getattr(registro, '_name', '') if registro is not None else ''
+        enlaces = self._enlaces()
+        if modelo == 'res.partner':
+            return {'texto': self.env._('Entrar a Mi cuenta'), 'url': enlaces['cuenta']}
+        if (modelo == 'account.move' and registro and registro[:1].sudo().move_type == 'out_invoice'
+                and enlaces['compras']):
+            return {'texto': self.env._('Ver en Mi cuenta'), 'url': enlaces['cuenta']}
+        return {'texto': self.env._('Escríbenos por WhatsApp'), 'url': self._whatsapp()}
+
+    @api.model
     def _pie(self, company):
-        """El pie sale de la empresa (nombre, dirección, teléfono, correo): nada escrito a mano."""
+        """El pie corto sale de la empresa y del sitio (nombre, dirección y WhatsApp): nada escrito a mano."""
         company = (company or self.env.company).sudo()
-        ficha = company.partner_id
-        direccion = ', '.join(p for p in (
-            ficha.street, ficha.street2, ficha.city, ficha.state_id.name, ficha.country_id.name) if p)
+        website = self.env['website'].sudo().search([], order='sequence, id', limit=1)
         return {
             'nombre': company.name or '',
-            'direccion': direccion,
-            'telefono': company.phone or ficha.phone or '',
-            'correo': company.email or ficha.email or '',
+            'direccion': company._dcasa_direccion_corta(),
+            'whatsapp': (website.dcasa_whatsapp_number or company.phone or company.partner_id.phone or '').strip(),
         }
 
     @api.model
     def _contexto_layout(self, registro=None, message=None, company=None):
-        """Lo que pinta ``layout_correo``: titular, enlaces, logo, WhatsApp y pie."""
+        """Lo que pinta ``layout_correo``: titular, enlaces, logo, el botón, WhatsApp y pie."""
         contexto = self.env.context
         titular = contexto.get('dcasa_correo_titular') or self._titular(registro)
         asunto = (message.subject or '') if message is not None else ''
+        boton = self._boton(registro)
+        whatsapp = self._whatsapp()
         return {
             'titular': titular,
             'preencabezado': contexto.get('dcasa_correo_preencabezado') or asunto or titular,
             'enlaces': self._enlaces(),
-            'whatsapp': self._whatsapp(),
+            'boton': boton,
+            'whatsapp': whatsapp,
+            # «¿Dudas? Escríbenos por WhatsApp» como enlace de texto, solo si el botón no es ya el de WhatsApp.
+            'whatsapp_aparte': boton['url'] != whatsapp,
             'pie': self._pie(company),
             'azul': AZUL,
         }
@@ -320,26 +349,45 @@ class DcasaCorreo(models.AbstractModel):
 
     @api.model
     def _valores_bienvenida(self, ficha):
-        """Lo que dice la bienvenida. Las cifras del programa salen SOLO de ``puntos.json`` (``redactar`` deja fuera lo
-        que está en ``null``/``PENDIENTE``)."""
-        from odoo.addons.dcasa_conversaciones.models.reglas_clientes import redactar
-        from odoo.addons.dcasa_socios.models import reglas as R
+        """Lo que dice la bienvenida (la dueña, 17/10/2026: corta y amigable, sin reglas de puntos, sin abonos y sin
+        cifras): el nombre y cómo entra a Mi cuenta la primera vez."""
+        return {'nombre': self._primer_nombre(ficha.sudo()), 'acceso': self._acceso_primera_vez(ficha),
+                'enlaces': self._enlaces()}
 
-        ficha = ficha.sudo()
-        enlaces = self._enlaces()
-        try:
-            resumen = redactar(R.cargar_reglas(), enlaces['base'])['resumen']
-        except Exception:  # noqa: BLE001 - sin reglas legibles no se inventa nada: solo el enlace a los puntos
-            _logger.exception('DCASA_CORREO no se pudieron leer las reglas de Socios para la bienvenida')
-            resumen = []
-        portal = ficha.with_context(active_test=False).user_ids.filtered(lambda u: u.active and u.share)
-        return {
-            'nombre': self._primer_nombre(ficha),
-            'reclamada': bool(ficha.dcasa_reclamada),
-            'portal': bool(portal),
-            'puntos': resumen,
-            'enlaces': enlaces,
-        }
+    @api.model
+    def _portal(self, ficha):
+        """¿Tiene cuenta de la tienda en línea (usuario portal activo)? Con ella entra a Mi cuenta con su correo."""
+        ficha = ficha.sudo().commercial_partner_id
+        personas = ficha | ficha.child_ids
+        return bool(personas.with_context(active_test=False).user_ids.filtered(lambda u: u.active and u.share))
+
+    @api.model
+    def _acceso_primera_vez(self, ficha):
+        """Cómo entra a Mi cuenta, sin prometer lo que el sistema no hace (``dcasa_mi_cuenta`` y ``/socios/registro``):
+
+        * ``pin``: ya tiene PIN → «entra con tu celular y tu PIN»;
+        * ``tienda``: tiene cuenta de la tienda en línea → entra con su correo y su contraseña («¿Compraste en la web
+          con tu correo?» de /mi-cuenta);
+        * ``registro``: tiene código de socio y celular en su ficha. Con compras, /socios/registro solo le deja
+          reclamar su ficha con ese celular y el código impreso en la factura (``SociosDcasa._reclamar``) → «regístrate
+          con tu celular, el código de tu factura y un PIN que tú eliges»;
+        * ``whatsapp``: lo demás (sin celular que sirva) → «escríbenos y te ayudamos».
+        """
+        ficha = ficha.sudo().commercial_partner_id
+        if ficha.dcasa_reclamada:
+            return 'pin'
+        if self._portal(ficha):
+            return 'tienda'
+        if ficha.dcasa_socio_codigo and ficha.dcasa_celular:
+            return 'registro'
+        return 'whatsapp'
+
+    @api.model
+    def _lista_para_bienvenida(self, ficha):
+        """¿Puede entrar ya a Mi cuenta? Si no (su primera compra va en abono y el código de socio llega con la factura
+        pagada), la bienvenida espera al pago que la termina: así nunca dice algo que todavía no puede hacer."""
+        ficha = ficha.sudo().commercial_partner_id
+        return bool(ficha.dcasa_reclamada or ficha.dcasa_socio_codigo or self._portal(ficha))
 
     @api.model
     def _valores_prueba(self, usuario):
@@ -404,6 +452,8 @@ class DcasaCorreo(models.AbstractModel):
         partes = []
         if config['entorno'] == 'staging':
             partes.append(self.env._('Staging: nunca se envía a clientes (la prueba sí sale).'))
+        elif config['entorno'] != politica.ENTORNO_PRODUCCION:
+            partes.append(self.env._('Sin DCASA_ENTORNO=produccion: nunca se envía a clientes (la prueba sí sale).'))
         clave = self._clave()
         if not clave:
             partes.append(self.env._('Sin clave: no sale ningún correo.'))
@@ -411,7 +461,7 @@ class DcasaCorreo(models.AbstractModel):
         partes.append(self.env._('Clave cargada (…%s)', clave[-4:]))
         if self._activo_para_clientes():
             partes.append(self.env._('Encendido'))
-        elif config['entorno'] != 'staging':
+        elif config['entorno'] == politica.ENTORNO_PRODUCCION:
             partes.append(self.env._('Apagado: solo sale el correo de prueba'))
         ultimo = self.env['mail.mail'].sudo().search(
             [('state', '=', 'exception'), ('failure_reason', 'ilike', 'Resend')], order='id desc', limit=1)

@@ -1,70 +1,123 @@
-"""La bienvenida: solo a clientes nuevos, una sola vez, con las cifras de puntos.json (nunca a ojo)."""
-import copy
+"""La bienvenida: corta y amigable (la dueña, 17/10/2026), solo a clientes nuevos, una sola vez, cuando ya pueden entrar
+a Mi cuenta, y diciendo cómo se entra de verdad. Sin reglas de puntos, sin abonos y sin cifras."""
+import re
 from unittest.mock import patch
 
-from odoo.addons.dcasa_socios.models import reglas as R
-from odoo.tests import tagged
+from lxml import html
+
+from odoo.tests import new_test_user, tagged
 
 from ..models.correo import P_BIENVENIDA_DESDE
 from .common import CorreoCase
 
 CARGAR_REGLAS = 'odoo.addons.dcasa_socios.models.reglas.cargar_reglas'
+REDACTAR = 'odoo.addons.dcasa_conversaciones.models.reglas_clientes.redactar'
 MI_CUENTA = 'odoo.addons.dcasa_correo.models.correo.DcasaCorreo._mi_cuenta_instalado'
+IMPRESO = 'el código de socio que viene en tu factura'
 
 
 @tagged('post_install', '-at_install')
 class TestBienvenida(CorreoCase):
 
     def cuerpo(self, ficha=None):
+        """El texto de la plantilla (sin el layout)."""
         ficha = ficha or self.ana
         plantilla = self.env.ref('dcasa_correo.plantilla_bienvenida')
         return plantilla._generate_template([ficha.id], ('subject', 'body_html'))[ficha.id]['body_html']
 
-    def test_las_cifras_salen_de_puntos_json(self):
-        reglas = copy.deepcopy(R.cargar_reglas())
-        reglas['acumulacion']['puntosPorDolar'] = 7
-        reglas['referido']['puntosAlPadrino'] = 4321
-        with patch(CARGAR_REGLAS, return_value=reglas):
-            cuerpo = self.cuerpo()
-        self.assertIn('Ganas 7 puntos por cada dólar', cuerpo)
-        self.assertIn('4,321 puntos', cuerpo)
-        reglas['referido']['puntosAlPadrino'] = 'PENDIENTE'
-        with patch(CARGAR_REGLAS, return_value=reglas):
-            cuerpo = self.cuerpo()
-        self.assertNotIn('Si invitas a alguien', cuerpo, 'Una cifra PENDIENTE no se escribe')
-        self.assertNotIn('PENDIENTE', cuerpo)
+    def correo_completo(self, ficha=None):
+        """La bienvenida como queda en la cola, con el layout (botón, WhatsApp, pie)."""
+        ficha = ficha or self.ana
+        self.env['dcasa.correo'].sudo()._postear(ficha, self.env.ref('dcasa_correo.plantilla_bienvenida'), ficha,
+                                                 tipo='bienvenida')
+        return self.correos_de(ficha)[-1]
 
-    def test_sin_reglas_legibles_no_se_inventa_nada(self):
-        with patch(CARGAR_REGLAS, side_effect=OSError('no hay archivo')), \
-                self.assertLogs('odoo.addons.dcasa_correo.models.correo', level='ERROR'):
-            cuerpo = self.cuerpo()
-        self.assertNotIn('Ganas', cuerpo)
-        self.assertIn('Mira tus puntos en', cuerpo)
+    def socia(self, ficha=None):
+        """La ficha con su código de socio y su celular (como queda al terminar de pagar su primera compra)."""
+        ficha = ficha or self.ana
+        ficha.sudo()._dcasa_asegurar_ficha()
+        self.assertTrue(ficha.dcasa_socio_codigo and ficha.dcasa_celular)
+        return ficha
 
-    def test_los_enlaces_cambian_con_mi_cuenta(self):
-        base = self.ICP.get_param('web.base.url').rstrip('/')
+    def tienda(self, ficha):
+        """La cuenta de la tienda en línea (usuario portal) de esa ficha."""
+        return new_test_user(self.env, login=f'tienda_{ficha.id}', groups='base.group_portal', partner_id=ficha.id,
+                             name=ficha.name, email=ficha.email)
+
+    def test_sin_reglas_de_puntos_sin_abonos_y_sin_cifras(self):
+        self.socia()
+        with patch(CARGAR_REGLAS, side_effect=AssertionError('la bienvenida no lee puntos.json')), \
+                patch(REDACTAR, side_effect=AssertionError('la bienvenida no explica los puntos')):
+            cuerpo = self.cuerpo()
+            asunto = self.env.ref('dcasa_correo.plantilla_bienvenida')._generate_template(
+                [self.ana.id], ('subject',))[self.ana.id]['subject']
+        texto = html.fromstring(cuerpo).text_content()
+        self.assertNotIn('abono', (texto + asunto).lower())
+        self.assertNotIn('Ganas', texto)
+        self.assertNotIn('$', texto)
+        self.assertFalse(re.search(r'\d', texto), f'Ni una cifra: {texto}')
+        self.assertIn('Gracias por tu compra. En Mi cuenta ves tus compras, tus pagos y tus puntos.', texto)
+        self.assertLessEqual(len(texto.split()), 60, 'Corta')
+
+    def test_un_boton_a_mi_cuenta_y_whatsapp_de_texto(self):
+        self.encender()
+        base = self.env['dcasa.correo']._base()
         with patch(MI_CUENTA, return_value=True):
-            cuerpo = self.cuerpo()
-        self.assertIn(f'{base}/mi-cuenta', cuerpo)
-        self.assertIn(f'{base}/mi-cuenta/puntos', cuerpo)
-        self.assertIn('En Mi cuenta › Compras ves cuánto has pagado, cuánto te falta y hasta cuándo.', cuerpo)
+            correo = self.correo_completo()
+        arbol = html.fromstring(correo.body_html)
+        (boton,) = [a for a in arbol.iter('a') if a.text_content().strip() == 'Entrar a Mi cuenta']
+        self.assertEqual(boton.get('href'), f'{base}/mi-cuenta')
+        (whatsapp,) = [a for a in arbol.iter('a') if 'WhatsApp' in a.text_content()]
+        self.assertEqual(whatsapp.text_content().strip(), '¿Dudas? Escríbenos por WhatsApp')
+        (titular,) = arbol.iter('h1')
+        self.assertEqual(titular.text_content().strip(), '¡Te damos la bienvenida, Ana!')
         with patch(MI_CUENTA, return_value=False):
-            cuerpo = self.cuerpo()
-        self.assertNotIn('/mi-cuenta', cuerpo)
-        self.assertIn(f'{base}/socios/cuenta', cuerpo)
-        self.assertIn('Pídenos tu estado de cuenta por WhatsApp.', cuerpo)
-        self.assertIn(f'{base}/socios/premios', cuerpo)
+            correo = self.correo_completo()
+        (boton,) = [a for a in html.fromstring(correo.body_html).iter('a')
+                    if a.text_content().strip() == 'Entrar a Mi cuenta']
+        self.assertEqual(boton.get('href'), f'{base}/socios')
 
-    def test_el_texto_cambia_si_la_ficha_ya_tiene_pin(self):
+    def test_dice_como_entra_cada_quien_sin_prometer_de_mas(self):
+        # Código de socio y celular: se registra con el código de su factura (el código no va en el correo).
+        self.socia()
         cuerpo = self.cuerpo()
-        self.assertIn('regístrate en', cuerpo)
-        self.assertIn('el código de socio que viene impreso en tu factura', cuerpo)
-        self.assertNotIn(self.ana.dcasa_socio_codigo or 'DCA-sin-codigo', cuerpo, 'El código no va en el correo')
+        self.assertIn(IMPRESO, cuerpo)
+        self.assertIn('«¿Primera vez? Hazte socio»', cuerpo)
+        self.assertNotIn(self.ana.dcasa_socio_codigo, cuerpo)
+        # Con PIN: entra con su celular y su PIN.
         self.ana.sudo().write({'dcasa_pin_hash': 'x'})
         self.ana.invalidate_recordset(['dcasa_reclamada'])
         cuerpo = self.cuerpo()
         self.assertIn('Entra con tu celular y tu PIN.', cuerpo)
-        self.assertNotIn('regístrate en', cuerpo)
+        self.assertNotIn(IMPRESO, cuerpo)
+        # Con cuenta de la tienda en línea: entra con su correo.
+        self.tienda(self.beto)
+        self.assertIn('Entra con el correo y la contraseña de tu cuenta de la tienda en línea.', self.cuerpo(self.beto))
+        # Sin un celular que sirva (no lo encontraría al registrarse): que escriba por WhatsApp.
+        rara = self.env['res.partner'].create({
+            'name': 'Rara Sin Celular', 'phone': '123', 'email': 'rara@example.com'})
+        rara.sudo()._dcasa_asegurar_ficha()
+        self.assertTrue(rara.dcasa_socio_codigo)
+        self.assertFalse(rara.dcasa_celular)
+        cuerpo = self.cuerpo(rara)
+        self.assertNotIn('regístrate', cuerpo)
+        self.assertIn('Para entrar la primera vez, escríbenos por WhatsApp y te ayudamos.', cuerpo)
+
+    def test_espera_a_que_pueda_entrar(self):
+        """Si su primera compra va en abono, el código de socio llega con la factura pagada: la bienvenida, también."""
+        self.encender()
+        factura = self.factura()
+        self.pagar(factura, 80.0)
+        self.assertFalse(self.ana.dcasa_socio_codigo)
+        self.assertFalse(self.envios(tipo='bienvenida'), 'Todavía no puede entrar: no se le escribe que entre')
+        self.pagar(factura)
+        self.assertTrue(self.ana.dcasa_socio_codigo)
+        (bienvenida,) = self.envios(tipo='bienvenida')
+        self.assertEqual(bienvenida.partner_id, self.ana)
+        # Con cuenta de la tienda en línea ya puede entrar: la bienvenida va con el primer abono.
+        self.tienda(self.beto)
+        self.pagar(self.factura(self.beto), 50.0)
+        self.assertEqual(self.envios(tipo='bienvenida', partner_id=self.beto.id).tipo, 'bienvenida')
 
     def test_a_un_cliente_viejo_no_le_llega(self):
         self.encender()

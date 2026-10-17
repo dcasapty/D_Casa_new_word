@@ -12,8 +12,8 @@ Correo a clientes por Resend
 * **Al registrar un pago** de una factura de cliente («Pagar», Brian, la conciliación del banco): al cliente le llega
   su factura en PDF nueva. Si queda saldo, el correo dice cuánto pagó, cuánto le falta y hasta cuándo
   (``_dcasa_estado_abono``). Se encola dentro del pago, en un savepoint: nunca hace fallar el pago y no se duplica.
-* **Bienvenida** con la marca D'CASA, una sola vez, solo a clientes nuevos (creados desde que se instaló el módulo):
-  cómo entrar a Mi cuenta, ver lo que le falta de un abono y sus puntos (cifras solo de ``puntos.json``).
+* **Bienvenida** corta con la marca D'CASA, una sola vez, solo a clientes nuevos (creados desde que se instaló el
+  módulo) y cuando ya pueden entrar: cómo entran a Mi cuenta y el botón «Entrar a Mi cuenta». Sin cifras.
 * **«Enviar» de la factura** (la casilla de correo de Odoo) y de la cotización con la plantilla D'CASA, y «Enviar por
   correo» en el diálogo de la cotización del panel de Conversaciones. Brian: ``enviar_factura_por_correo`` y
   ``enviar_cotizacion_por_correo``.

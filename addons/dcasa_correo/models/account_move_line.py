@@ -3,7 +3,8 @@
 Cubre todas las rutas que concilian un cobro con una factura de cliente: el asistente «Pagar», ``registrar_pago`` de
 Brian (``_create_payments``), la conciliación del banco y cada abono. Dentro de la transacción del pago solo se escribe
 la fila de la cola (``dcasa.correo.envio``) y se despierta el cron: ni HTTP ni PDF. Todo va en un savepoint: si algo
-falla, el pago sigue igual y queda el error en el log (mismo patrón que la comisión de vendedores).
+falla, el pago sigue igual y queda el error en el log (mismo patrón que la comisión de vendedores). Apagado (sin clave o
+con el interruptor apagado) el pago no hace nada del correo: ni lee saldos ni abre el savepoint.
 """
 import logging
 
@@ -21,6 +22,9 @@ class AccountMoveLine(models.Model):
         if self.env.context.get('dcasa_sin_correo_auto'):
             return data
         try:   # solo lee (sin savepoint: no adelanta ninguna escritura del pago)
+            correo = self.env['dcasa.correo'].sudo()
+            if not (correo._activo_para_clientes() and correo._config()['al_pagar']):
+                return data   # apagado (como hoy): el pago no hace nada más que lo de siempre
             facturas = self.move_id.filtered(lambda m: m.move_type == 'out_invoice' and m.state == 'posted')
             data[CLAVE] = {m.id: m.amount_residual for m in facturas}
         except Exception:  # noqa: BLE001 - el correo nunca hace fallar un pago
@@ -31,6 +35,9 @@ class AccountMoveLine(models.Model):
         res = super()._reconcile_post_hook(data)   # primero lo de Odoo (y los puntos de Socios)
         antes = data.get(CLAVE)
         if antes and not self.env.context.get('dcasa_sin_correo_auto'):
+            # Lo pendiente del pago se guarda (y sus precommit corren) FUERA del try: si eso fallara, el error es del
+            # pago y sale como tal, en vez de esconderse como «no se pudo encolar el correo».
+            self.env.cr.flush()
             try:
                 with self.env.cr.savepoint():
                     self.env['dcasa.correo.envio'].sudo()._encolar_pagos(antes, self)

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 from odoo.tests import tagged
 
+from ..models.correo_envio import MAX_ARMAR
 from .common import PDF, RUTA_PDF, CorreoCase
 
 
@@ -28,7 +29,7 @@ class TestCola(CorreoCase):
         self.assertEqual(mensaje.partner_ids, self.ana)
         (adjunto,) = mensaje.attachment_ids
         self.assertTrue(adjunto.raw.startswith(b'%PDF'))
-        self.assertEqual(adjunto.name, f"Factura {factura.name.replace('/', '-')}.pdf")
+        self.assertEqual(adjunto.name, f"{factura.name.replace('/', '_')}.pdf", 'El mismo nombre que «Imprimir»')
         (correo,) = self.correos_de(factura)
         self.assertEqual(correo.recipient_ids, self.ana)
         self.assertIn("'X-Dcasa-Correo': 'factura'", correo.headers)
@@ -85,9 +86,9 @@ class TestCola(CorreoCase):
                 self.assertIn(correo_modelo._monto(estado[clave], factura.currency_id), cuerpo)
         self.assertIn('$120.00', cuerpo)
         self.assertIn(correo_modelo._fecha(estado['vence']), cuerpo)
-        self.assertIn('Los puntos de esta compra se suman cuando termines de pagarla.', cuerpo)
+        self.assertNotIn('puntos', cuerpo.lower(), 'Lo esencial: total, pagado, lo que falta y hasta cuándo')
         (adjunto,) = self.envios(move_id=factura.id).message_id.attachment_ids
-        self.assertTrue(adjunto.name.startswith(f"Abono {factura.name.replace('/', '-')} "))
+        self.assertEqual(adjunto.name, f"Abono {factura.name.replace('/', '_')}.pdf", 'Como el papel de ABONO')
 
     def test_un_correo_viejo_no_sale(self):
         self.encender()
@@ -137,12 +138,13 @@ class TestCola(CorreoCase):
         self.pagar(primera)
         self.procesar()
         envios = self.envios()
-        self.assertEqual(envios.mapped('tipo'), ['abono', 'bienvenida', 'factura'])
+        # La bienvenida espera a que pueda entrar a Mi cuenta: con el pago que termina su primera compra.
+        self.assertEqual(envios.mapped('tipo'), ['abono', 'factura', 'bienvenida'])
         bienvenida = envios.filtered(lambda e: e.tipo == 'bienvenida')
         self.assertEqual(bienvenida.estado, 'enviado')
         self.assertEqual(bienvenida.message_id.model, 'res.partner')
         (correo,) = self.correos_de(self.ana)
-        self.assertIn('¡TE DAMOS LA BIENVENIDA!', correo.body_html)
+        self.assertIn('¡Te damos la bienvenida, Ana!', correo.body_html)
         segunda = self.pagada()
         self.procesar()
         self.assertEqual(len(self.envios(tipo='bienvenida')), 1)
@@ -172,8 +174,9 @@ class TestCola(CorreoCase):
             return PDF
 
         with patch(RUTA_PDF, side_effect=pdf), \
-                self.assertLogs('odoo.addons.dcasa_correo.models.correo_envio', level='ERROR'):
-            self.env['dcasa.correo.envio'].sudo()._procesar()
+                self.assertLogs('odoo.addons.dcasa_correo.models.correo_envio', level='WARNING'):
+            for _vuelta in range(MAX_ARMAR):   # se reintenta en cada vuelta del cron; al tercero, «Falló»
+                self.env['dcasa.correo.envio'].sudo()._procesar()
         self.assertEqual(self.envios(move_id=mala.id).estado, 'fallido')
         self.assertEqual(self.envios(move_id=buena.id).estado, 'enviado')
         self.assertEqual((mala.state, mala.payment_state), ('posted', 'paid'))

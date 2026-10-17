@@ -107,10 +107,10 @@ class TestAjustes(CorreoCase):
         with self.assertLogs('odoo', level=logging.DEBUG) as logs:
             logging.getLogger('odoo.addons.dcasa_correo').debug('inicio de la prueba de la clave')
             factura = self.factura()
-            self.pagar(factura, 50.0)
+            self.pagar(factura)
             self.procesar()
             correos = self.correos_de(factura) | self.correos_de(self.ana)
-            self.assertEqual(len(correos), 2, 'El abono y la bienvenida')
+            self.assertEqual(len(correos), 2, 'La factura pagada y la bienvenida')
             with self.transporte(*([eco] * len(correos))):
                 correos.send()
             self.ajustes().dcasa_correo_estado  # noqa: B018 - también lo que se muestra en Ajustes

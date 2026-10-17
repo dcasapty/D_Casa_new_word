@@ -25,6 +25,12 @@ ESTADOS = [('pendiente', 'Por enviar'), ('enviado', 'Enviado'), ('omitido', 'No 
 INFORME_COTIZACION = 'sale.action_report_saleorder'
 # Por qué se omitió (técnico). Una bienvenida omitida por estas causas se vuelve a armar con el siguiente pago.
 CAUSAS_QUE_SE_REARMAN = ('sin_correo', 'apagado')
+# El correo de un pago que se omitió porque la factura cambió antes de armarlo (se desconcilió, llegó otro pago) vuelve
+# a la cola si un pago deja esa factura otra vez con ese mismo saldo: nunca salió, así que no se duplica.
+CAUSAS_DE_PAGO_QUE_SE_REARMAN = ('cambio', 'reciente')
+# Veces que el cron intenta armar un correo (PDF, plantilla) antes de darlo por fallido: un tropiezo pasajero de
+# wkhtmltopdf no deja al cliente sin su factura.
+MAX_ARMAR = 3
 LOTE = 20
 
 
@@ -48,6 +54,8 @@ class DcasaCorreoEnvio(models.Model):
     motivo = fields.Char(readonly=True)
     correo = fields.Char('Enviado a', readonly=True)
     message_id = fields.Many2one('mail.message', string='Mensaje', readonly=True, ondelete='set null')
+    intentos = fields.Integer('Intentos de armarlo', default=0, readonly=True, copy=False,
+                              help='Veces que no se pudo armar el correo (p. ej. el PDF). Al tercero queda «Falló».')
     entrega = fields.Char('Entrega', compute='_compute_entrega',
                           help='Lo que dice la cola de correo de Odoo: por enviar, enviado o el error de Resend.')
 
@@ -72,9 +80,15 @@ class DcasaCorreoEnvio(models.Model):
     # ------------------------------------------------------------------
 
     @api.model
-    def _crear_si_no_existe(self, valores):
-        """Crea el envío si su ``(tipo, huella)`` no existe todavía. Devuelve el envío nuevo o un vacío."""
-        if self.search_count([('tipo', '=', valores['tipo']), ('huella', '=', valores['huella'])], limit=1):
+    def _crear_si_no_existe(self, valores, rearmar=()):
+        """Crea el envío si su ``(tipo, huella)`` no existe todavía. Devuelve el envío nuevo o un vacío.
+
+        ``rearmar``: si ya existe pero quedó omitido por una de esas causas (nunca salió), vuelve a «Por enviar»."""
+        existente = self.search([('tipo', '=', valores['tipo']), ('huella', '=', valores['huella'])], limit=1)
+        if existente:
+            if existente.estado == 'omitido' and existente.causa in rearmar:
+                existente.write({'estado': 'pendiente', 'causa': False, 'motivo': False, 'intentos': 0})
+                return existente
             return self.browse()
         try:
             with self.env.cr.savepoint():
@@ -119,7 +133,7 @@ class DcasaCorreoEnvio(models.Model):
             nuevos |= self._crear_si_no_existe({
                 'tipo': tipo, 'huella': f'{move.id}:{centavos(saldo)}', 'saldo_centavos': centavos(saldo),
                 'move_id': move.id, 'partner_id': move.commercial_partner_id.id,
-            })
+            }, rearmar=CAUSAS_DE_PAGO_QUE_SE_REARMAN)
             if config['bienvenida']:
                 nuevos |= self._encolar_bienvenida(move.commercial_partner_id)
         if nuevos:
@@ -129,34 +143,47 @@ class DcasaCorreoEnvio(models.Model):
     @api.model
     def _es_cliente_nuevo(self, ficha):
         """La bienvenida es SOLO para clientes nuevos (la dueña, 17/10/2026). Nuevo es la ficha que se creó después de
-        instalar este módulo (``dcasa_correo.bienvenida_desde``), que no vino del sistema anterior y que no tiene
-        facturas históricas. Sin esa fecha guardada, nadie es nuevo."""
+        instalar este módulo (``dcasa_correo.bienvenida_desde``), que no vino del sistema anterior (ni ella ni sus
+        contactos), que no tiene facturas históricas y que no tiene nada de antes de esa fecha: una ficha nueva a la que
+        se le fusionó la de un cliente de antes trae sus facturas, sus ventas o sus puntos viejos, y no es nueva. Sin
+        esa fecha guardada, nadie es nuevo."""
         desde = self.env['dcasa.correo']._bienvenida_desde()
         if not ficha or not desde or not ficha.create_date or ficha.create_date < desde:
             return False
+        fichas = self.env['res.partner'].sudo().with_context(active_test=False).search([('id', 'child_of', ficha.id)])
         if self.env['ir.model.data'].sudo().search_count([
-                ('model', '=', 'res.partner'), ('res_id', '=', ficha.id), ('module', '=', '__import__'),
+                ('model', '=', 'res.partner'), ('res_id', 'in', fichas.ids), ('module', '=', '__import__'),
                 ('name', '=like', 'dcasa\\_contacto\\_%')], limit=1):
             return False
-        return not self.env['account.move'].sudo().search_count([
-            ('move_type', 'in', ('out_invoice', 'out_refund')), ('commercial_partner_id', '=', ficha.id),
-            ('dcasa_historica', '=', True)], limit=1)
+        if fichas.filtered(lambda f: f.create_date and f.create_date < desde):
+            return False
+        Move = self.env['account.move'].sudo()
+        if Move.search_count([
+                ('move_type', 'in', ('out_invoice', 'out_refund')), ('commercial_partner_id', '=', ficha.id),
+                '|', ('dcasa_historica', '=', True), ('create_date', '<', desde)], limit=1):
+            return False
+        if self.env['sale.order'].sudo().search_count([
+                ('partner_id', 'in', fichas.ids), ('create_date', '<', desde)], limit=1):
+            return False
+        return not self.env['dcasa.movimiento'].sudo().search_count([
+            ('partner_id', '=', ficha.id), ('create_date', '<', desde)], limit=1)
 
     @api.model
     def _encolar_bienvenida(self, ficha):
-        """Una sola bienvenida por ficha comercial. Si la anterior no salió por falta de correo (o porque se apagaron
-        los correos), se vuelve a armar ahora."""
+        """Una sola bienvenida por ficha comercial, cuando ya puede entrar a Mi cuenta (``_lista_para_bienvenida``:
+        si su primera compra va en abono, con el pago que la termina). Si la anterior no salió por falta de correo (o
+        porque se apagaron los correos), se vuelve a armar ahora."""
         ficha = ficha.commercial_partner_id
-        if not self._es_cliente_nuevo(ficha):
+        if not self._es_cliente_nuevo(ficha) or not self.env['dcasa.correo']._lista_para_bienvenida(ficha):
             return self.browse()
         huella = f'bienvenida:{ficha.id}'
-        existente = self.search([('tipo', '=', 'bienvenida'), ('huella', '=', huella)], limit=1)
-        if existente:
-            if existente.estado == 'omitido' and existente.causa in CAUSAS_QUE_SE_REARMAN:
-                existente.write({'estado': 'pendiente', 'causa': False, 'motivo': False})
-                return existente
+        # Al fusionar dos fichas, Odoo pasa los envíos de la que se borra a la que queda (partner_id), con su huella:
+        # si alguna ya tuvo su bienvenida (o la tiene en camino), esta ficha no recibe otra.
+        if self.search_count([('tipo', '=', 'bienvenida'), ('partner_id', '=', ficha.id), ('huella', '!=', huella),
+                              ('estado', 'in', ('pendiente', 'enviado'))], limit=1):
             return self.browse()
-        return self._crear_si_no_existe({'tipo': 'bienvenida', 'huella': huella, 'partner_id': ficha.id})
+        return self._crear_si_no_existe({'tipo': 'bienvenida', 'huella': huella, 'partner_id': ficha.id},
+                                        rearmar=CAUSAS_QUE_SE_REARMAN)
 
     # ------------------------------------------------------------------
     # Procesar (cron, como superusuario)
@@ -165,7 +192,8 @@ class DcasaCorreoEnvio(models.Model):
     @api.model
     def _procesar(self, limite=LOTE):
         """Cron: arma y deja en la cola de Odoo los correos pendientes, del más viejo al más nuevo. Cada uno en su
-        savepoint y confirmado aparte: uno que falla no frena a los demás ni toca la factura."""
+        savepoint y confirmado aparte: uno que falla no frena a los demás ni toca la factura. El que no se pudo armar
+        se vuelve a intentar en la siguiente vuelta, hasta ``MAX_ARMAR`` veces."""
         pendientes = self.sudo().search([('estado', '=', 'pendiente')], order='id', limit=limite)
         en_prueba = modules.module.current_test
         for envio in pendientes:
@@ -173,9 +201,16 @@ class DcasaCorreoEnvio(models.Model):
                 with self.env.cr.savepoint():
                     envio._procesar_uno()
             except Exception as error:  # noqa: BLE001 - un correo nunca rompe la cola ni la factura
-                _logger.exception('DCASA_CORREO no se pudo preparar el envío %s', envio.id)
-                envio.write({'estado': 'fallido', 'causa': 'error',
-                             'motivo': (str(error) or type(error).__name__)[:250]})
+                intentos = envio.intentos + 1
+                valores = {'intentos': intentos, 'motivo': (str(error) or type(error).__name__)[:250]}
+                if intentos >= MAX_ARMAR:
+                    _logger.exception('DCASA_CORREO no se pudo preparar el envío %s (intento %s, se da por fallido)',
+                                      envio.id, intentos)
+                    valores.update({'estado': 'fallido', 'causa': 'error'})
+                else:
+                    _logger.warning('DCASA_CORREO no se pudo preparar el envío %s (intento %s de %s): se reintenta',
+                                    envio.id, intentos, MAX_ARMAR, exc_info=True)
+                envio.write(valores)
             if not en_prueba:
                 self.env['ir.cron']._commit_progress(1)
         if len(pendientes) == limite:
@@ -190,9 +225,17 @@ class DcasaCorreoEnvio(models.Model):
         correo = self.env['dcasa.correo']
         if not correo._activo_para_clientes():
             return self._omitir('apagado', self.env._('Se apagaron los correos antes de enviarlo.'))
+        config = correo._config()
         if self.tipo in ('factura', 'abono'):
+            # Lo que pidió una persona («mándasela», Brian) sale; lo automático del pago, solo si sigue encendido.
+            if not (self.huella or '').startswith('manual:') and not config['al_pagar']:
+                return self._omitir('apagado', self.env._(
+                    'Se apagó «Mandar la factura al registrar un pago» antes de enviarlo.'))
             return self._procesar_factura()
         if self.tipo == 'bienvenida':
+            if not config['bienvenida']:
+                return self._omitir('apagado', self.env._(
+                    'Se apagó «Bienvenida a clientes nuevos» antes de enviarla.'))
             return self._procesar_bienvenida()
         return self._omitir('tipo', self.env._('Este tipo de correo no pasa por la cola.'))
 
@@ -221,17 +264,15 @@ class DcasaCorreoEnvio(models.Model):
         return True
 
     def _pdf_factura(self, move):
-        """El PDF NUEVO de la factura (con lo pagado hasta hoy). No reemplaza el PDF guardado de la factura."""
+        """El PDF NUEVO de la factura (con lo pagado hasta hoy): el mismo papel y el mismo nombre que «Imprimir» y
+        «Enviar». Con saldo es el papel de ABONO (dcasa_invoice: título «Abono», SALDO POR PAGAR) y se llama
+        «Abono INV_…pdf». No reemplaza el PDF guardado de la factura."""
         informe = self.env['account.move.send']._get_default_pdf_report_id(move)
         contenido, tipo = self.env['ir.actions.report'].with_company(move.company_id).with_context(
             force_report_rendering=True)._render_qweb_pdf(informe, [move.id])
         if tipo != 'pdf' or not contenido:
             raise UserError(self.env._('No se pudo armar el PDF de la factura %s.', move.name))
-        numero = (move.name or '').replace('/', '-')
-        if self.tipo == 'abono':
-            hoy = fields.Date.context_today(self).strftime('%d-%m-%Y')
-            return contenido, f'Abono {numero} {hoy}.pdf'
-        return contenido, f'Factura {numero}.pdf'
+        return contenido, move._get_invoice_report_filename(report=informe)
 
     def _procesar_bienvenida(self):
         correo = self.env['dcasa.correo']
@@ -244,6 +285,11 @@ class DcasaCorreoEnvio(models.Model):
         if not destino:
             return self._omitir('sin_correo', self.env._(
                 'Falta el correo de %s o está mal escrito.', ficha.display_name))
+        if self.search_count([('tipo', '=', 'bienvenida'), ('estado', '=', 'enviado'), ('id', '!=', self.id),
+                              ('correo', '=', destino.email_normalized)], limit=1):
+            # Otra ficha de la misma persona (repetida) ya se la llevó: una sola bienvenida por persona.
+            return self._omitir('repetida', self.env._(
+                'Ese correo ya recibió la bienvenida con otra ficha (¿cliente repetido?).'))
         mensaje = correo._postear(ficha, self.env.ref('dcasa_correo.plantilla_bienvenida'), destino,
                                   tipo='bienvenida')
         self.write({'estado': 'enviado', 'message_id': mensaje.id, 'correo': destino.email_normalized,

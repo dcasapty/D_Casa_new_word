@@ -8,14 +8,19 @@ Cuando esté encendido, a cada cliente le llega:
 
 | Correo | Cuándo | Qué lleva |
 |---|---|---|
-| **Su factura** | En cuanto alguien registra un pago de su factura (el botón «Pagar», Brian o la conciliación del banco) | El PDF de la factura con lo pagado hasta ese momento. Si todavía debe algo, el correo dice **«pagaste $X, te falta $Y, vence el …»** y cada abono con su fecha. Si quedó pagada, cuántos puntos sumó |
-| **La bienvenida** | Una sola vez, con el primer pago, **solo a clientes nuevos** | Cómo entrar a Mi cuenta (con su celular y su PIN, o con su correo si compró en la tienda en línea), dónde ver lo que le falta de un abono y cómo funcionan sus puntos. Las cifras de los puntos salen solo de `puntos.json` |
+| **Su factura o su abono** | En cuanto alguien registra un pago de su factura (el botón «Pagar», Brian o la conciliación del banco) | El PDF nuevo, el mismo papel y el mismo nombre que «Imprimir». **Si todavía debe algo es el correo del abono**: el asunto dice «Recibimos tu abono», el correo dice el total, lo que ya pagó, **lo que le falta** y hasta cuándo tiene, y va el papel de ABONO («Abono INV_…pdf», con SALDO POR PAGAR). **Si quedó pagada es el de la factura pagada** (nunca dice «abono») y, si la compra sumó puntos, cuántos (del libro de Socios). Un botón «Ver en Mi cuenta» |
+| **La bienvenida** | Una sola vez por persona, **solo a clientes nuevos**, cuando ya puede entrar a Mi cuenta (si su primera compra va en abono, con el pago que la termina: su código de socio llega con la factura pagada) | Corta: «¡Te damos la bienvenida, Ana!», «Gracias por tu compra. En Mi cuenta ves tus compras, tus pagos y tus puntos», una línea de cómo entra la primera vez (con PIN: celular y PIN; con cuenta de la tienda en línea: su correo; si no: «¿Primera vez? Hazte socio» con su celular, el código de socio de su factura y un PIN que elige; si su celular no sirve: que escriba por WhatsApp) y el botón «Entrar a Mi cuenta». **Sin reglas de puntos, sin abonos y sin cifras** |
 | **La factura cuando la mandas tú** | Abres la factura › «Enviar» › dejas marcada la casilla de correo | La factura con la marca D'CASA |
 | **La cotización** | Abres la venta › «Enviar», o en Conversaciones › Cotización › **«Enviar por correo»** | La cotización en PDF |
 | **El correo de prueba** | Ajustes › Correo a clientes › «Enviar correo de prueba» | Te llega a ti, para ver cómo se ve |
 
-Todos salen con el logo, la banda azul y un solo botón amarillo **«Escríbenos por WhatsApp»**, desde
-**D'CASA Panamá &lt;ventas@dcasapty.com&gt;**. Si el cliente contesta, la respuesta llega a **info@dcasapty.com**.
+Todos salen limpios (lo pidió la dueña el 17/10/2026): el logo arriba con la dirección pública del sitio, el titular en
+azul, pocas líneas, **un solo botón azul con letra blanca** («Entrar a Mi cuenta» en la bienvenida, «Ver en Mi cuenta» en
+la factura y el abono, «Escríbenos por WhatsApp» en la cotización y la prueba), debajo, si el botón no es el de WhatsApp,
+solo el enlace de texto **«¿Dudas? Escríbenos por WhatsApp»**, y un pie corto (nombre, dirección y WhatsApp de la
+empresa). Sin amarillo, sin degradados ni sombras. Salen desde **D'CASA Panamá &lt;ventas@dcasapty.com&gt;**; si el cliente
+contesta, la respuesta llega a **info@dcasapty.com**. (En el correo, el botón principal lleva a Mi cuenta por pedido de
+la dueña; WhatsApp sigue siendo el CTA único del sitio.)
 
 Lo que **no** hace:
 
@@ -23,10 +28,14 @@ Lo que **no** hace:
 - **Nunca hace fallar un pago.** El correo se prepara después; si Resend no responde, el pago queda igual y el correo se
   reintenta solo.
 - **No manda la bienvenida a los clientes de antes.** Cuentan como nuevos los clientes que se crean desde que se instaló
-  el correo (la fecha se ve en Ajustes). Los que vinieron del sistema anterior o tienen facturas viejas cargadas, nunca.
+  el correo (la fecha se ve en Ajustes). Los que vinieron del sistema anterior o tienen facturas viejas cargadas, nunca;
+  tampoco una ficha nueva a la que se le fusionó la de un cliente de antes (trae sus facturas, ventas o contactos
+  viejos). Y si la misma persona tiene dos fichas (repetida o fusionada), le llega una sola.
 - **No manda los correos automáticos de Odoo** (confirmación de un pedido web, pago recibido, carrito abandonado). Están
   bloqueados hasta que tú digas que sí.
-- **Staging nunca le escribe a un cliente**, aunque sea una copia con todo encendido. Ahí solo sale la prueba.
+- **Staging nunca le escribe a un cliente**, aunque sea una copia con todo encendido. Ahí solo sale la prueba. Lo mismo
+  cualquier servidor que no diga que es producción (`DCASA_ENTORNO=produccion`, que el Worker siempre pone): una copia
+  en otra máquina no le escribe a nadie más que al equipo.
 - Ningún enlace del correo abre la factura sin permiso: el cliente entra a Mi cuenta con su celular y su PIN.
 
 ## 2. La cuenta de Resend y la clave
@@ -118,7 +127,9 @@ llega de verdad la invitación para elegir su clave, y «Cambiar contraseña» o
 (Mi cuenta los necesita para quien entra con su correo). Hoy, sin correo, no le llega nada a nadie (docs/EQUIPO.md).
 
 Para apagarlo todo de un golpe: desmarca **«Enviar correos a clientes»**. Lo que estaba por salir ya no sale (queda
-anotado «Se apagaron los correos antes de enviarlo»).
+anotado «Se apagaron los correos antes de enviarlo»). Si desmarcas solo **«Mandar la factura al registrar un pago»** o
+**«Bienvenida a clientes nuevos»**, lo de eso que estaba por salir tampoco sale; lo que alguien pide a mano («Enviar»,
+Brian) sí.
 
 ## 7. Si algo falla
 
@@ -127,6 +138,8 @@ anotado «Se apagaron los correos antes de enviarlo»).
 - **«Falta el correo de … o está mal escrito»**: corrige el correo en la ficha del cliente. Queda también una nota en la
   factura. La bienvenida se vuelve a intentar con su siguiente pago.
 - **Resend no respondió o pidió esperar**: Odoo lo reintenta solo (a los 5, 15, 60 y 240 minutos, hasta 5 veces).
+- **No se pudo armar el PDF**: se vuelve a intentar en las siguientes vueltas (cada 10 minutos); al tercer intento queda
+  «Falló» con el motivo, y se manda a mano desde la factura con «Enviar».
 - **Resend lo rechazó** (por ejemplo, un correo que no existe): no se reintenta; corrige el correo y mándalo de nuevo
   desde la factura con «Enviar».
 - **En staging** nunca le llega nada a un cliente: es a propósito.
@@ -141,11 +154,14 @@ anotado «Se apagaron los correos antes de enviarlo»).
   https://api.resend.com/emails` con `Idempotency-Key`. 429, 5xx y sin red → `DCASA_REINTENTAR:` (cron cada 15 min);
   la política → `DCASA_NO_ENVIADO:`. Nunca lanza `SMTPServerDisconnected`.
 - **Política** (`models/politica.py`): cada `mail.mail` lleva `X-Dcasa-Clase` (factura, abono, bienvenida, cotizacion,
-  documento, acceso, prueba u odoo). La prueba solo sale a correos del equipo; apagado o en staging no sale nada más;
+  documento, acceso, prueba u odoo). El contexto `dcasa_correo_tipo` solo lo respeta si quien publica es del equipo
+  (`env.uid`, no `env.su`): `/mail/message/post` publica con `sudo()` y deja pasar el `context` del navegador. La prueba solo sale a correos del equipo; apagado o en staging no sale nada más;
   `odoo` nunca. Lo que la política frena se marca «no enviado» (`DCASA_NO_ENVIADO:`) en `mail.mail.send` antes de
   intentarlo: no se llama a Resend ni se llena el log de errores; el transporte vuelve a revisar lo mismo.
 - **Gancho del pago** (`models/account_move_line.py`): `_reconcile_pre_hook`/`_reconcile_post_hook`, en un savepoint,
-  solo encola en `dcasa.correo.envio` (único por `(tipo, huella)`; huella `factura:saldo en centavos`). El cron
+  solo encola en `dcasa.correo.envio` (único por `(tipo, huella)`; huella `factura:saldo en centavos`). Apagado, el
+  pago no hace nada del correo. Si el saldo vuelve a quedar igual por un pago (desconciliar y volver a conciliar) y el
+  correo de ese saldo se había omitido sin salir, vuelve a la cola; uno que ya salió, nunca. El cron
   `ir_cron_dcasa_correo_cola` arma el PDF nuevo y publica en el chatter con `layout_correo`; la cola de Odoo lo manda.
   Contexto `dcasa_sin_correo_auto`: no encola. Contexto `dcasa_correo_sin_token`: sin `access_token`.
 - **Parámetros**: `dcasa_correo.remitente`, `.nombre`, `.responder_a`, `.enviar_a_clientes` (apagado),

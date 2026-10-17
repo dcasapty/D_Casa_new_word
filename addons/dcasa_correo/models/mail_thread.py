@@ -3,9 +3,12 @@
 * ``_notify_by_email_prepare_rendering_context``: agrega ``dcasa`` (titular, enlaces, logo, WhatsApp, pie) solo cuando
   el correo usa ``dcasa_correo.layout_correo``.
 * ``_notify_by_email_get_headers``: los envíos que abre D'CASA (p. ej. el asistente de la cotización) marcan su tipo
-  con el contexto ``dcasa_correo_tipo``; solo una persona del equipo (o el sistema) puede marcarlo.
+  con el contexto ``dcasa_correo_tipo``; solo una persona del equipo (o el superusuario del cron) puede marcarlo. Mirar
+  ``env.su`` no basta: ``/mail/message/post`` (el chatter del portal) publica con ``sudo()`` y deja pasar el ``context``
+  que manda el navegador, así que un cliente del portal podía marcar su mensaje como «factura» y saltarse la política.
+  Se mira quién es de verdad (``env.uid``), que ``sudo()`` no cambia.
 """
-from odoo import models
+from odoo import SUPERUSER_ID, models
 
 from . import politica
 from .correo import LAYOUT
@@ -34,6 +37,6 @@ class MailThread(models.AbstractModel):
         headers = super()._notify_by_email_get_headers(headers=headers)
         tipo = self.env.context.get('dcasa_correo_tipo')
         if (tipo in TIPOS_POR_CONTEXTO and politica.CABECERA_CORREO not in headers
-                and (self.env.su or self.env.user._is_internal())):
+                and (self.env.uid == SUPERUSER_ID or self.env.user._is_internal())):
             headers[politica.CABECERA_CORREO] = tipo
         return headers

@@ -37,6 +37,10 @@ class TestPolitica(BaseCase):
             (('prueba', True, 'produccion', ['duena@dcasapty.com', 'ana@example.com']), (False, P.MOTIVO_PRUEBA)),
             (('factura', False, 'produccion', cliente), (False, P.MOTIVO_APAGADO)),
             (('factura', True, 'staging', cliente), (False, P.MOTIVO_STAGING)),
+            # Un servidor que no dice que es producción no le escribe a nadie más que al equipo.
+            (('factura', True, '', cliente), (False, P.MOTIVO_NO_PRODUCCION)),
+            (('factura', True, 'desarrollo', cliente), (False, P.MOTIVO_NO_PRODUCCION)),
+            (('prueba', False, '', ['duena@dcasapty.com']), (True, '')),
             (('odoo', True, 'produccion', cliente), (False, P.MOTIVO_ODOO)),
             (('odoo', False, 'produccion', cliente), (False, P.MOTIVO_APAGADO)),
             (('factura', True, 'produccion', []), (False, P.MOTIVO_SIN_DESTINO)),

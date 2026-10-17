@@ -40,7 +40,10 @@ class AccountMove(models.Model):
 
     def _dcasa_correo_valores(self):
         """Asunto, titular y cifras del correo de la factura. Las cifras son las de ``_dcasa_estado_abono`` (la misma
-        fuente que el papel y «Mi cuenta») y los puntos, los del libro de Socios. Solo lee."""
+        fuente que el papel y «Mi cuenta») y los puntos, los del libro de Socios. Solo lee.
+
+        Con saldo es el correo de abono (total, lo pagado, lo que falta y hasta cuándo); pagada por completo, el de la
+        factura pagada: una venta pagada completa nunca recibe el texto del abono."""
         self.ensure_one()
         correo = self.env['dcasa.correo']
         move = self.sudo()
@@ -59,7 +62,6 @@ class AccountMove(models.Model):
             asunto = self.env._("Tu factura %s de D'CASA", numero)
             titular = self.env._('TU FACTURA')
         puntos_compra = sum(move.dcasa_compra_ids.filtered(lambda c: not c.anulada_en).mapped('puntos'))
-        saldo_puntos = move.commercial_partner_id.dcasa_saldo or 0
         return {
             'numero': numero,
             'asunto': asunto,
@@ -72,10 +74,8 @@ class AccountMove(models.Model):
             'saldo': correo._monto(estado['saldo'], moneda),
             'vence': correo._fecha(estado['vence']),
             'vencido': bool(estado['vencido']),
-            'abonos': [{'fecha': a['fecha'], 'monto': correo._monto(a['monto'], moneda)}
-                       for a in estado['abonos'] if not a['es_reverso']],
+            # Los puntos que dio esta compra, del libro de Socios (solo cuando quedó pagada).
             'puntos_compra': correo._puntos(puntos_compra) if puntos_compra > 0 else '',
-            'puntos_saldo': correo._puntos(saldo_puntos) if saldo_puntos > 0 else '',
             'enlaces': correo._enlaces(),
         }
 
