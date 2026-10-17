@@ -29,9 +29,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 | Acción | ¿Hace falta su «sí»? |
 |---|---|
-| Programar, probar, subir a la rama de trabajo, desplegar a **staging** | No (autorizado de forma permanente) |
+| Programar, probar y subir a la rama de trabajo | No (autorizado de forma permanente) |
+| Desplegar a **staging** | **Antes, capturas a la dueña y su visto bueno** (regla del 2026-10-17: capturas → su filtro → pruebas → staging → producción). Capturas con datos de prueba, en computadora y celular, revisadas antes de mandarlas |
 | Crear el PR hacia `main` | Solo cuando lo pide o ya dijo «pásalo a producción» |
-| Unir a `main` y desplegar a **producción** | **Sí, un «sí» explícito por cada cambio.** Un «sí» no se arrastra al siguiente cambio |
+| Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») **para lo que ella ya vio en capturas** y pasó pruebas y revisión. Si el código cambia después de su visto bueno, se le avisa antes |
 | Borrar datos, ramas, respaldos, secretos | Sí, y mirando primero qué se borra |
 | Cifras de dinero, puntos, comisiones, impuestos | Nunca se inventan (ver `CLAUDE.md`: `puntos.json`, reglas de marca) |
 
