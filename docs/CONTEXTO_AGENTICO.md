@@ -307,6 +307,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   la sesión; pasó al repetir. Arreglo: `ac76ef40` → `puente-wa/test/integracion.test.ts` (espera con sondeo).
 - Pruebas que dependen del reloj: `c2fd4a9` (pasar_a_vendedora, fallaba solo un día después de las 17:00 UTC),
   `2c6e978e` y `b8b03c0` (arriba). Regla: congelar el reloj en toda prueba con fechas.
+- **Local, 2026-10-17** · `dcasa_conversaciones` `TestContratoVisualJuan.test_03_capturas_de_referencia` (pantalla
+  «conexiones» a 390 px) falla en esta máquina con 13.52 % de píxeles distintos **también en `3b678a6`** (sin cambios):
+  es del entorno local (Chromium/fuentes), no del código. La de «hilo» a 390 px dio 2.02 % una vez y pasó en la
+  siguiente corrida. Antes de culpar a un cambio, correrla en la base sin el cambio.
 
 ---
 
@@ -341,6 +345,22 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - `read_group` está deprecado: usar `_read_group`.
 - Enviar por Telegram hace `COMMIT` y destruye los savepoints.
 - `limit_memory_soft` mide memoria virtual (VMS), no RSS: no dimensionarlo con el tamaño del contenedor.
+- **Quitar una implicación de grupo en una base que ya existe**: borrar la línea `(4, ref(…))` del XML no la quita (el
+  `-u` solo agrega); hace falta `(3, ref(…))` o una migración. Y si esa implicación es un **interruptor de Ajustes**
+  (como «Cada vendedora ve solo sus documentos», 2026-10-17), el XML del rol **no la nombra nunca** (ni `(4)` ni `(3)`):
+  cada despliegue la volvería a poner o a quitar. Se quita una sola vez en la migración (`dcasa_base` 19.0.1.8.0).
+- `res.groups._remove_group(g)` (lo que usan los campos `group_*` de Ajustes) quita `g` de **todos** los grupos que el
+  grupo implica y que lo tengan directo: para mover la implicación de un solo rol, escribir `implied_ids` de ese rol
+  con `Command.unlink`/`Command.link`. Odoo 19 calcula los grupos implícitos al vuelo (`all_group_ids`): cambiar lo que
+  implica un rol cambia al instante lo que ve cada persona, sin tocar su ficha.
+- Las reglas de registro de grupo se suman con «o»: una sola `[(1, '=', 1)]` (las de Facturación) abre todo. Para
+  «solo lo suyo» hay que estrechar las de fábrica (`<function … write>`, son `noupdate`) y colgar las de «toda la
+  tienda» de otro grupo (`sales_team.group_sale_salesman_all_leads`).
+- Con «solo sus documentos», si la ficha del cliente dice «Vendedor: B», Odoo pone a B como dueña de la cotización o
+  factura que crea A y la creación **falla por permisos** (A no puede leer lo que acaba de crear): `dcasa_base` fija como
+  dueña a quien crea si solo ve lo suyo. Despachar la entrega del pedido de otra vendedora sí funciona (comprobado).
+- Las pruebas que crean pedidos o facturas como superusuario y luego los leen **como vendedora** fallan con «solo lo
+  suyo» (quedan a nombre del superusuario): crearlos con `user_id` / `invoice_user_id` de ella.
 
 ### Cloudflare
 

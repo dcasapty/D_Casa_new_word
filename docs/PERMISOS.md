@@ -1,40 +1,79 @@
 # Qué ve cada rol (permisos de la tienda)
 
-Para la dueña: **quien vende no ve nómina ni la contabilidad de un jefe**, ni por el menú ni por un enlace.
+Para la dueña: **quien vende no ve nómina ni la contabilidad de un jefe**, ni por el menú ni por un enlace, y
+**cada vendedora ve solo sus cotizaciones, pedidos, facturas, notas de crédito y cobros** (más lo que no tiene
+vendedora); **Caja** y **Gerencia** ven todo. Esto último tiene un interruptor para volver atrás (abajo).
 Para quien programa: cómo está armado y cómo se comprueba. Reglas en
-`addons/dcasa_base/security/dcasa_reglas_contables.xml`; pruebas en
-`addons/dcasa_base/tests/test_permisos_contables.py` y `test_permisos_vendedora.py` (menús).
+`addons/dcasa_base/security/dcasa_reglas_contables.xml` y `dcasa_reglas_ventas.xml` (más las de Socios y de factura
+electrónica); pruebas en `addons/dcasa_base/tests/test_permisos_contables.py`, `test_solo_lo_suyo.py` y
+`test_permisos_vendedora.py` (menús).
 
 ## En palabras sencillas
 
-| | Vendedora / Cajero | Contador | Gerencia | Administrador |
-|---|:---:|:---:|:---:|:---:|
-| Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí |
-| En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí |
-| Crear y editar clientes | Sí | Sí | Sí | Sí |
-| Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí |
-| Crear facturas y notas de crédito **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí |
-| Registrar el cobro de una factura de cliente | Sí | Sí | Sí | Sí |
-| Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
-| Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | Sí | Sí |
-| Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | Sí | Sí |
-| Factura electrónica (DGI) | Sí | Sí | Sí | Sí |
-| Facturas y notas **de proveedores** | **No** | Sí | Sí | Sí |
-| Pagar a proveedores, devolver dinero a un cliente, pagos de nómina | **No** | Sí | Sí | Sí |
-| Asientos contables varios (aquí se contabiliza la nómina) | **No** | Sí | Sí | Sí |
-| Extractos y movimientos del banco, conciliación bancaria | **No** | Sí | Sí | Sí |
-| Cuentas bancarias de los empleados | **No** | Sí | Sí | Sí |
-| Reportes contables, rentabilidad por canal | **No** | Sí | Sí | Sí |
-| Planillas, sueldos, liquidaciones | **No** | (según su grupo) | Sí | Sí |
-| El menú **Empleados** (el Directorio de compañeros) | **No** | Sí | Sí | Sí |
-| **Mis gastos por reembolsar** (registrar lo que pagó de su bolsillo; solo ve los suyos) | Sí | Sí | Sí | Sí |
+| | Vendedora | Caja | Contador | Gerencia | Administrador |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Ver cotizaciones y pedidos** | **Los suyos** y los que no tienen vendedora* | Todos | (según su rol de Ventas) | Todos | Todos |
+| **Ver facturas y notas de crédito de clientes** | **Las suyas** y las que no tienen vendedora* | Todas | Todas | Todas | Todas |
+| **Ver cobros de clientes** | **Los suyos** (los que registró y los de sus facturas)* | Todos | Todos | Todos | Todos |
+| Facturar, cobrar y hacer la nota de crédito de la cotización de otra vendedora | **No*** | Sí | Sí | Sí | Sí |
+| «Cobros de hoy (caja)» (Ventas › Hoy), la caja de toda la tienda | **No*** | Sí | Sí | Sí | Sí |
+| Notas de entrega: despachar lo de cualquier vendedora (no lleva precios) | Sí | Sí | (según Inventario) | Sí | Sí |
+| Oportunidades (CRM): siguen compartidas | Todas | Todas | — | Todas | Todas |
+| Encender o apagar «Cada vendedora ve solo sus documentos» | No | No | No | Sí | Sí |
+| Ver el chatbot y las conversaciones, atender clientes | Sí | Sí | Sí | Sí | Sí |
+| En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
+| Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
+| Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
+| Crear facturas y notas de crédito **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
+| Registrar el cobro de una factura de cliente | Sí | Sí | Sí | Sí | Sí |
+| Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
+| Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | **No** | Sí | Sí |
+| Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | **No** | Sí | Sí |
+| Factura electrónica (DGI) | Sí | Sí | Sí | Sí | Sí |
+| Facturas y notas **de proveedores** | **No** | **No** | Sí | Sí | Sí |
+| Pagar a proveedores, devolver dinero a un cliente, pagos de nómina | **No** | **No** | Sí | Sí | Sí |
+| Asientos contables varios (aquí se contabiliza la nómina) | **No** | **No** | Sí | Sí | Sí |
+| Extractos y movimientos del banco, conciliación bancaria | **No** | **No** | Sí | Sí | Sí |
+| Cuentas bancarias de los empleados | **No** | **No** | Sí | Sí | Sí |
+| Reportes contables, rentabilidad por canal | **No** | **No** | Sí | Sí | Sí |
+| Planillas, sueldos, liquidaciones | **No** | **No** | (según su grupo) | Sí | Sí |
+| El menú **Empleados** (el Directorio de compañeros) | **No** | **No** | Sí | Sí | Sí |
+| **Mis gastos por reembolsar** (registrar lo que pagó de su bolsillo; solo ve los suyos) | Sí | Sí | Sí | Sí | Sí |
 
-**Quién cotiza, quién factura y quién cobra** (aclaración de la dueña, 2026-10-15): la vendedora **cotiza** (arma el
-borrador); en caja, el personal **administrativo** hace la factura desde esa cotización y es **el único que cobra**. Es
-la forma de trabajar, no un candado: el sistema todavía deja a la vendedora facturar y cobrar (la tabla de arriba),
-porque quitárselo cambiaría permisos de datos y hay que decidirlo aparte con la dueña. Por eso el botón principal de su
-Inicio es **Nueva cotización**; «Nueva factura» (suelta, sin cotización) y «Registrar cobro» solo salen en el Inicio
-completo. Una factura hecha suelta no tiene pedido detrás: no cuenta en «Vendido hoy» ni tiene nota de entrega.
+\* Con **«Cada vendedora ve solo sus documentos» encendido**, que es como viene. Apagado, la Vendedora ve todo, como
+antes del 2026-10-17 (la columna de Caja).
+
+**Quién cotiza, quién factura y quién cobra** (aclaración de la dueña, 2026-10-15; rol Caja desde el 2026-10-17): la
+vendedora **cotiza** (arma el borrador); en caja, el **jefe administrativo** («él hace y deshace») hace la factura desde
+esa cotización, cobra y hace las notas de crédito. Para eso necesita el rol **Caja**: ve, factura y cobra las
+cotizaciones, pedidos, facturas, notas y cobros de clientes de toda la tienda, sin contabilidad, sin costos ni ganancia y
+con el tope de descuento de la vendedora. Lo que Caja factura desde la cotización de una vendedora **sigue siendo de
+esa vendedora** (su «Vendedor» no cambia): ella lo ve, le cuenta para su meta y sale en «Ver mis ventas». La vendedora
+también puede facturar y cobrar lo suyo (la tabla de arriba). El botón principal de su Inicio es **Nueva cotización**;
+«Registrar cobro» y «Caja de hoy» salen en el Inicio de Caja y en el completo. Una factura hecha suelta no tiene
+pedido detrás: no cuenta en «Vendido hoy» ni tiene nota de entrega.
+
+## Cada vendedora ve solo lo suyo (y cómo volver atrás)
+
+Pedido de la dueña (2026-10-16: «los vendedores deberían solo poder ver las facturas que ellos hacen»; 2026-10-17:
+«que esta opción se pueda habilitar o deshabilitar… si el día de mañana esto genera algún problema operativo se puede
+retroceder fácilmente»).
+
+- **Qué ve la vendedora:** sus cotizaciones, pedidos, facturas, notas de crédito y cobros, y los que **no tienen
+  vendedora** (un pedido de la web o de Juan sin asignar), para que alguien los atienda. Cuando una vendedora confirma
+  uno sin vendedora, pasa a ser suyo y las demás ya no lo ven. Lo que ella crea queda siempre a su nombre, aunque la
+  ficha del cliente diga otra vendedora.
+- **Qué ven Caja y Gerencia:** todo.
+- **Lo que no cambia:** las notas de entrega (todas despachan), las oportunidades del CRM (compartidas), la
+  contabilidad (contador y lector ven todo, como antes) y Juan.
+- **Dar el rol Caja** (no se le pone solo a nadie): *Ajustes › Usuarios y compañías › Usuarios* › abrir a la persona
+  que cobra › en **D'CASA** elegir **Caja** › Guardar. Vale al momento. También con Brian (un administrador): «ponle el
+  rol cajero a …». La Guía lo explica en «Darle acceso al sistema a una persona del equipo».
+- **El interruptor «Cada vendedora ve solo sus documentos»** (viene **encendido**): Gerencia lo tiene en *Ventas ›
+  Configuración › Permisos de las vendedoras*; los administradores, también en *Ajustes › Ventas*; y Brian
+  («que las vendedoras vuelvan a ver todo»). **Apagado, todas las vendedoras vuelven a ver todo como antes**, al
+  momento, sin tocar la ficha de nadie; se vuelve a encender igual. La Guía: «Elegir si cada vendedora ve solo sus
+  documentos».
 
 **El Inicio de la vendedora** (pedido de la dueña, 2026-10-14) trae solo lo suyo: lo que **ella** vendió hoy y sus
 cotizaciones abiertas. No ve lo que está por cobrarse, lo cobrado hoy, las barras ni los totales de la tienda; sus
@@ -46,8 +85,7 @@ ven las de toda la tienda. Una venta cuenta cuando está facturada por completo 
 con sus propios gastos. Ya no ve tampoco la app **Empleados** (el Directorio de compañeros): la ven Gerencia,
 administradores, contabilidad y quien administra al personal. Es solo de menú (`dcasa_equipo/data/menu_empleados_data.xml`
 deja a `hr.menu_hr_root` con ese conjunto de grupos): los permisos de datos no cambian, los chats y las menciones siguen
-mostrando los nombres, y «Mis gastos por reembolsar» es otra app que no depende de ese menú. (Ventas › Pedidos y Cotizaciones siguen mostrando todos los documentos: es el rol, para que
-cualquiera atienda al cliente que vuelve.)
+mostrando los nombres, y «Mis gastos por reembolsar» es otra app que no depende de ese menú.
 
 **Costos y ganancia** (decidido con la dueña, 2026-10-16): el costo de lo vendido y la ganancia (en el Inicio, en el menú
 **Estadísticas › Mejor margen**, en las líneas de venta y en Brian) los ven solo **Gerencia y administradores**. La
@@ -87,7 +125,7 @@ contabilidad. La vendedora sí crea y publica la nota de crédito.
 
 ### El problema de Odoo
 
-Odoo da a quien tiene Facturación (`account.group_account_invoice`, que la Vendedora y el Cajero incluyen para
+Odoo da a quien tiene Facturación (`account.group_account_invoice`, que la Vendedora y la Caja incluyen para
 poder cobrar) reglas de registro con dominio `[(1, '=', 1)]` sobre `account.move` y `account.move.line`:
 todos los asientos y todos los apuntes, sean de clientes, de proveedores o varios. Las reglas de grupo se
 suman con «o», así que con una sola que abra todo, las otras no sirven. `account.payment`, los extractos
@@ -103,12 +141,16 @@ bastaba el permiso del modelo. Por el menú no se veían, pero por un enlace, `/
    `account.ir_rule_res_partner_bank_billing_officers` (cuentas bancarias; sin las de empleados cuando Recursos
    Humanos está instalado) y `sale.account_invoice_report_rule_see_all` / `..._see_personal` (el análisis de
    facturas, que incluye compras y sus costos).
-   Asientos: `out_invoice`, `out_refund`, `out_receipt` **o** el asiento de un cobro de cliente
-   (`origin_payment_id.payment_type = 'inbound'`). Apuntes: los de esos asientos.
-2. **Agrega reglas** de grupo para Facturación: pagos solo entrantes (`payment_type = 'inbound'`),
-   extractos y movimientos bancarios ninguno (`id = 0`), conciliaciones solo si las dos puntas son apuntes que
-   Facturación ya ve, y líneas analíticas solo de facturas de clientes (para todo empleado: con
+   Asientos (desde el 2026-10-16, **lo suyo**): su factura, nota o recibo de cliente (`invoice_user_id` = ella, o
+   sin vendedora) **o** el asiento de su cobro de cliente (`origin_payment_id`: entrante y registrado por ella o de
+   sus facturas). Apuntes: los de esos asientos. Analítica: la de sus facturas de clientes.
+2. **Agrega reglas** de grupo para Facturación: sus pagos entrantes (los que registró, `create_uid`, o los de sus
+   facturas, `invoice_ids`), extractos y movimientos bancarios ninguno (`id = 0`), conciliaciones solo si las dos
+   puntas son apuntes que ella ya ve, y líneas analíticas solo de sus facturas de clientes (para todo empleado: con
    `dcasa_contabilidad` todos entran a la analítica).
+2b. **«Toda la tienda, solo de clientes»** para `sales_team.group_sale_salesman_all_leads` (Caja, Gerencia y, con el
+   interruptor apagado, la Vendedora) y `account.group_account_readonly`: asientos, apuntes, cobros, conciliaciones
+   y analítica de clientes de toda la tienda, el mismo dominio que Facturación tenía antes del 2026-10-16.
 3. **Devuelve todo** a quien tiene contabilidad: reglas `[(1, '=', 1)]` para `account.group_account_user` y
    `account.group_account_manager` (lectura y escritura), y para `account.group_account_readonly` solo lectura.
    El manager se pone aparte porque, sin `dcasa_contabilidad`, no implica al contador.
@@ -141,6 +183,49 @@ se instalen `dcasa_base` y Recursos Humanos.
   corre el archivo en modo `update`); y una exploración del código propio comprueba que ningún `sudo()` sobre
   asientos entregue algo que no sea de clientes.
 - En una base existente: `odoo-bin -d <base> -u dcasa_base` y mirar *Ajustes › Técnico › Reglas de registro*.
+
+### «Solo lo suyo», Caja y el interruptor (2026-10-16 y 2026-10-17)
+
+- **Roles** (`security/dcasa_roles.xml`): la Vendedora implica «Ventas: solo sus documentos»
+  (`sales_team.group_sale_salesman`), Facturación e Inventario. **Caja** (`dcasa_base.group_caja`) = Vendedora +
+  «Ventas: todos los documentos» (`sales_team.group_sale_salesman_all_leads`), sin contabilidad, costos ni descuento
+  sin tope; Gerencia incluye Caja. Un solo selector «D'CASA»: Vendedora → Caja → Gerencia. Caja no se asigna sola.
+- **Qué es «suyo»:** pedidos y cotizaciones, `sale.order.user_id`; facturas, notas y recibos, `account.move.invoice_user_id`
+  (nunca quién lo creó: Caja crea la factura desde la cotización de la vendedora); cobros, los que registró o los de sus
+  facturas. Lo sin vendedora lo ven todas (lo que hace Odoo).
+- **Reglas:** Odoo ya cierra pedidos, líneas, análisis de ventas y de facturas a «solo sus documentos». Las facturas,
+  cobros, apuntes, conciliaciones y analítica las cierra `dcasa_reglas_contables.xml`; `dcasa_reglas_ventas.xml` deja
+  las oportunidades compartidas y estrecha la regla de `sale_stock` que le dejaba a Inventario leer todas las líneas de
+  pedido; `dcasa_socios/security/dcasa_reglas_socios.xml` (compras con puntos y comisiones) y
+  `dcasa_fe_pa/security/dcasa_reglas_fe.xml` (documento electrónico e intentos) hacen lo mismo en sus módulos.
+- **Dueña del documento** (`models/sale_order.py`, `models/account_move.py`): quien solo ve lo suyo
+  (`res.users._dcasa_solo_lo_suyo`) queda siempre como vendedora de lo que crea y de lo sin vendedora que confirma. Si
+  no, Odoo pondría a la vendedora de la ficha del cliente (o la de `default_user_id`) y la creación fallaría porque ella
+  no podría ver lo que acaba de crear. Juan, la web y los procesos automáticos corren con `sudo` y no cambian.
+- **Lo que se leía con `sudo`:** la ficha y los documentos para adjuntar de Conversaciones ahora buscan como quien mira.
+  Brian corre como el usuario y agrega `alcance` a sus cifras de facturas (docs/BRIAN.md).
+- **El interruptor** (`models/res_users.py`, `models/solo_lo_suyo.py`, `views/solo_lo_suyo_views.xml`): su estado ES
+  si el rol Vendedora implica «Ventas: todos los documentos». Encendido no la implica; apagado, sí, y todas las reglas
+  «toda la tienda» le vuelven a aplicar a la Vendedora (es lo de antes, sin tocar ninguna ficha: Odoo 19 calcula los
+  grupos implícitos al vuelo). `_dcasa_poner_restriccion` exige Gerencia o administrador **en el servidor**.
+  `dcasa_roles.xml` **no nombra** esa implicación (ni `(4, …)` ni `(3, …)`): si la nombrara, cada despliegue (`-u`)
+  movería el interruptor. La base de antes (que la tenía) la pierde **una vez** en la migración `19.0.1.8.0`, que
+  además le quita «todos los documentos» puesto a mano a la Vendedora sin Caja, Ventas administrador ni lectura
+  contable, y avisa en el registro si nadie tiene Caja. El menú «Cobros de hoy (caja)» cuelga de «todos los
+  documentos», así que también vuelve a la Vendedora con el interruptor apagado.
+- **Pruebas** (`tests/test_solo_lo_suyo.py`): la Vendedora A no encuentra nada de B por `search`, `search_count`,
+  `search_read`, `_read_group`, `name_search`, leer por número, `_render_qweb_pdf`, `/report/pdf`, `/web/content`
+  (adjunto) ni `mail.message`; sí ve lo suyo y lo sin vendedora; confirmar lo sin vendedora es tomarlo; la ficha que
+  dice B no traba a A; A despacha lo de B; Caja ve, factura, cobra, hace notas e imprime todo y la vendedora no
+  cambia; Gerencia, contador y lector ven todo; las dos posiciones del interruptor, el ida y vuelta (sin cambiar el
+  grupo de ninguna persona), que guardar otro ajuste o desplegar no lo mueve, y que la Vendedora y Caja no pueden
+  moverlo; la migración. Además en `dcasa_socios`, `dcasa_fe_pa`, `dcasa_conversaciones`, `dcasa_interfaz`,
+  `dcasa_invoice`, `dcasa_brian` y `dcasa_nomina` (`test_solo_lo_suyo.py` o junto a sus pruebas).
+- **Lo que queda fuera a propósito:** las notas de entrega (todas despachan; no llevan precios), las transacciones de
+  pago en línea (casi todas son de la web, sin vendedora), los enlaces del portal con `access_token` (son del cliente)
+  y las facturas cargadas del sistema anterior (`dcasa_migracion` no les pone vendedora: Odoo les pone la de la ficha
+  del cliente o a quien hizo la carga, así que en general las ven Caja y Gerencia; no se comprobó con la base de
+  producción).
 
 ### Campos que Odoo calcula con SQL directo (`models/campos_contables.py`)
 

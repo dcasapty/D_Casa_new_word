@@ -104,6 +104,13 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 22. **La puerta `/master` y el «Iniciar sesión» de la web:** pendiente de hacer **con lupa antes de traspasar el dominio**.
     Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
     solo por su cuenta en la web y el personal solo por `/master`.
+23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
+    darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
+    «ponle el rol cajero a …»). Sin Caja, quien cobra solo vería lo suyo; Gerencia puede hacerlo todo mientras tanto. Dos
+    efectos a saber: al confirmar una venta de Juan o de la web, la vendedora que la confirma se la queda (cuenta para su
+    meta), y una vendedora ya no ve la cotización de otra para el cliente que vuelve (Caja o Gerencia le cambian el
+    «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración › Permisos de las vendedoras* › apagar
+    (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
 
 ## Issues abiertos que dependen de ti
 

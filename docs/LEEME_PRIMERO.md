@@ -97,6 +97,25 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-17
+
+- **Rama `permisos-vendedoras` (local, sin subir ni desplegar; base `3b678a6`):** cada vendedora ve solo sus
+  cotizaciones, pedidos, facturas, notas de crédito y cobros, y lo que no tiene vendedora (pedido de la dueña del
+  2026-10-16); rol nuevo **Caja** (para el jefe administrativo, que factura y cobra: ve y hace todo lo de clientes, sin
+  contabilidad ni costos; no se le asigna solo a nadie); Gerencia ve todo; la contabilidad no cambia. Y lo que la dueña
+  pidió el 17: el interruptor **«Cada vendedora ve solo sus documentos»** (encendido de fábrica) en *Ventas ›
+  Configuración › Permisos de las vendedoras* (Gerencia), *Ajustes › Ventas* (administradores) y Brian
+  (`cambiar_restriccion_vendedoras`): apagado, todas ven todo como antes, al momento y sin tocar ninguna ficha. Detalle
+  y tabla en [PERMISOS.md](PERMISOS.md); Brian en [BRIAN.md](BRIAN.md); Guía: «Elegir si cada vendedora ve solo sus
+  documentos» y la nota de «Darle acceso…». `dcasa_base` pasa a 19.0.1.8.0 (migración: quita una vez «todos los
+  documentos» al rol Vendedora y a quien lo tenía puesto a mano, y avisa si nadie tiene Caja).
+- **Pruebas:** suite completa local (todos los módulos): 3,526 pruebas, 1 falla: la captura de referencia
+  `TestContratoVisualJuan` (pantalla «conexiones» a 390 px, 13.52 % de píxeles distintos), que falla **igual en
+  `3b678a6`** en esta máquina (no es de este cambio; en CI no se ha visto). `ruff` limpio.
+- **Sigue:** revisión adversarial (toca permisos y contabilidad: regla de `LEEME_PRIMERO` §4), CI y staging; con el «sí»
+  de la dueña (ya dijo que sube en cuanto pasen pruebas y revisión), producción. **El día del despliegue:** darle Caja
+  al jefe administrativo antes de abrir ([PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 23).
+
 ### 2026-10-16
 
 - **En producción** (~22:02 UTC, Desplegar 13, `app_version` `60803c6d…`, imagen `sha256:0818f42a…`; CI #184 verde y

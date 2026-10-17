@@ -23,6 +23,11 @@ cuestionario «Preguntas para Juan» y, con la revisión de la dueña, se carga 
 Instagram con [JUAN_META.md](JUAN_META.md) (empieza por la verificación del negocio); (3) salario y fecha de inicio de
 las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer bono (octubre).
 
+**Pedido del 2026-10-16/17 (permisos): hecho en la rama local `permisos-vendedoras`, sin subir.** Cada vendedora ve solo
+lo suyo, rol Caja y el interruptor «Cada vendedora ve solo sus documentos» para volver atrás (ver
+[PERMISOS.md](PERMISOS.md)). Falta: revisión adversarial, CI y staging; producción con el «sí» de la dueña; ese día,
+darle Caja al jefe administrativo antes de abrir.
+
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
 Son los trámites largos; empiezan ya aunque el código llegue después.

@@ -352,6 +352,22 @@ Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propós
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
+## Roles y «Cada vendedora ve solo sus documentos» (2026-10-17)
+
+* **Roles** de `listar_usuarios`, `cambiar_rol_usuario` y `crear_usuario` (`herramientas_usuarios.py`, `ROLES`):
+  `vendedor` = «D'CASA / Vendedora», `cajero` = «D'CASA / Caja» (factura y cobra lo de toda la tienda), `gerencia` =
+  «D'CASA / Gerencia» (solo la da un administrador del sistema, igual que `administrador`), `contador` y
+  `administrador`. Un cambio de rol quita antes los tres roles D'CASA y «Ventas: todos los documentos»: pasar de Caja a
+  Vendedora no deja a la persona viendo lo de sus compañeras. Antes Brian llamaba «Cajero/a» a la Vendedora y a Gerencia.
+* **Brian corre como quien le habla**: con el interruptor encendido, a la Vendedora no le encuentra la venta, la
+  factura de otra (`ver_venta` y `ver_factura` responden que no la encuentran: las reglas filtran). Las herramientas que dan
+  cifras de facturas o cotizaciones (`clientes_que_deben`, la deuda de un cliente, `facturas_pendientes`,
+  `pendientes_de_hoy`) agregan la clave **`alcance`** («solo tus facturas y las que no tienen vendedora») para que no
+  presente una cifra parcial como si fuera la de toda la tienda. A Caja, contabilidad y Gerencia no se les agrega.
+* **`cambiar_restriccion_vendedoras(encender)`** (sensible, Gerencia o administrador): enciende o apaga «Cada vendedora
+  ve solo sus documentos» (lo mismo que *Ventas › Configuración › Permisos de las vendedoras*). `listar_usuarios` dice
+  cómo está (`cada_vendedora_ve_solo_lo_suyo`). Ejemplo: «que las vendedoras vuelvan a ver todo».
+
 ## Para cada función nueva
 
 Toda función nueva de la plataforma debe poder usarla Brian (ver la plantilla de PR):
