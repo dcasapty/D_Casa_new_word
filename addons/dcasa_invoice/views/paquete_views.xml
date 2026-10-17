@@ -13,8 +13,14 @@
                 <field name="tras_pago" invisible="1"/>
                 <field name="excede" invisible="1"/>
                 <field name="omitidas" invisible="1"/>
-                <div class="alert alert-success" role="status" invisible="not tras_pago">
+                <field name="con_saldo" invisible="1"/>
+                <div class="alert alert-success" role="status" invisible="not tras_pago or con_saldo">
                     <strong>Pago completo.</strong> Si quieres, imprime o descarga los documentos ahora; si no, ciérralo.
+                </div>
+                <!-- Abono: la factura sale como ABONO con su saldo; la nota de entrega viene sin marcar. -->
+                <div class="alert alert-info" role="status" invisible="not con_saldo" name="dcasa_abono">
+                    <strong invisible="not tras_pago">Abono registrado.</strong>
+                    <field name="saldo_texto" nolabel="1"/>
                 </div>
                 <p class="fw-bold mb-1"><field name="resumen" nolabel="1"/></p>
                 <p class="text-muted mb-2">

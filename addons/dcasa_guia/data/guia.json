@@ -158,7 +158,7 @@
    "categoria": "vender",
    "grupo": "Cobrar",
    "titulo": "Registrar el cobro de un cliente",
-   "logras": "Anotas que el cliente pagó y de qué forma. El sistema lo une a su factura y la deja como pagada.",
+   "logras": "Anotas que el cliente te dio dinero y de qué forma. Ojo: un cobro anotado aquí no se une solo a su factura. Si el cliente paga una factura o hace un abono, mejor abre la factura y toca «Pagar» (mira «Registrar un abono de un cliente»).",
    "destino": {
     "nuevo": "account.payment",
     "contexto": {
@@ -168,10 +168,49 @@
    },
    "palabras": [
     "pago",
-    "abono",
     "recibir plata",
-    "cobrar factura"
+    "cobrar factura",
+    "cobro suelto"
    ]
+  },
+  {
+   "id": "registrar-abono",
+   "categoria": "vender",
+   "grupo": "Cobrar",
+   "titulo": "Registrar un abono de un cliente",
+   "logras": "El cliente paga su factura por partes: cada abono queda unido a su factura y el papel sale como ABONO, con lo que ya pagó y el saldo que le falta. La factura es la misma de siempre: solo cambia el papel.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la factura del cliente (si es su primer abono, primero publica la factura completa).",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Toca «Pagar».",
+     "destino": null
+    },
+    {
+     "texto": "Escribe el monto del abono (lo que el cliente te dio hoy), elige cómo pagó y toca «Crear pago».",
+     "destino": null
+    },
+    {
+     "texto": "Sale el cuadro «Imprimir documentos»: imprime el papel de ABONO con el saldo por pagar. La nota de entrega se imprime cuando termine de pagar.",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "abono",
+    "abonar",
+    "pago parcial",
+    "pagar por partes",
+    "saldo",
+    "cuanto le falta"
+   ],
+   "nota": "Cuando el cliente termina de pagar, la factura vuelve a salir como factura pagada, con todos sus abonos."
   },
   {
    "id": "apartados",

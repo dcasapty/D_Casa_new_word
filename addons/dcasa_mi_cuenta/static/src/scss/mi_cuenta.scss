@@ -1,0 +1,934 @@
+// Mi cuenta D'CASA (/mi-cuenta). Sistema plano de la marca: tarjetas blancas sobre hueso, el azul manda y el amarillo
+// SOLO va sobre azul (el saldo de puntos, el botón de premios, la sección activa de la barra). Móvil primero: letra de
+// 17 px, botones de 48 px, nada se sale del ancho de la pantalla.
+
+$mc-azul: #1340B1;
+$mc-azul-osc: #0F3591;
+$mc-amarillo: #FED00F;
+$mc-navy: #0E2A6B;
+$mc-tinta: #1B2233;
+$mc-gris: #4A5163;      // 7.9:1 sobre blanco
+$mc-hueso: #F4F1EA;
+$mc-verde: #1E7B34;     // 5.4:1 sobre blanco
+$mc-rojo: #B42318;      // 6.0:1 sobre blanco
+$mc-borde: rgba($mc-azul, .12);
+$mc-barra-alto: 4.25rem;
+$mc-escritorio: 992px;
+
+// ---------------------------------------------------------------------------
+// Marco
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc {
+    background: $mc-hueso;
+    color: $mc-tinta;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+
+    // Cabecera más baja que la de /socios: aquí se viene a ver lo propio, no la foto.
+    .o_dcasa_cabecera_pagina .o_dcasa_hero_inner {
+        padding-block: 1.25rem 1.75rem;
+    }
+
+    .o_dcasa_cabecera_pagina .o_dcasa_display {
+        font-size: clamp(2rem, 7vw, 3.25rem);
+        overflow-wrap: anywhere;
+    }
+
+    // Enlaces dentro del texto: subrayados (el azul solo no basta, WCAG 1.4.1).
+    p a:not(.btn),
+    li a:not(.btn):not(.o_dcasa_mc_compra),
+    .o_dcasa_mc_volver {
+        color: $mc-azul;
+        text-decoration: underline;
+        text-underline-offset: .15em;
+    }
+}
+
+.o_dcasa_mc_cuerpo {
+    max-width: 76rem;
+    padding-block: 1.5rem 2.5rem;
+
+    @media (min-width: $mc-escritorio) {
+        padding-block: 2.5rem 4rem;
+
+        &.o_dcasa_mc_con_nav {
+            display: grid;
+            grid-template-columns: 14rem minmax(0, 1fr);
+            gap: 2rem;
+            align-items: start;
+        }
+    }
+}
+
+.o_dcasa_mc_contenido {
+    min-width: 0;
+    max-width: 60rem;
+}
+
+// ---------------------------------------------------------------------------
+// Navegación: en el celular, barra fija abajo con icono y texto; en la computadora, columna izquierda.
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 1031;   // sobre el contenido fijo de Odoo (1030), bajo el menú del celular (1045) y los modales
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    background: $mc-azul;
+    border-top: 1px solid rgba(#FFFFFF, .25);
+    padding-bottom: env(safe-area-inset-bottom);
+
+    @media (min-width: $mc-escritorio) {
+        position: sticky;
+        top: 7.5rem;
+        z-index: auto;
+        display: flex;
+        flex-direction: column;
+        gap: .25rem;
+        background: #FFFFFF;
+        border: 2px solid $mc-borde;
+        border-radius: 1rem;
+        padding: .5rem;
+    }
+}
+
+.o_dcasa_mc_nav_item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .15rem;
+    min-height: $mc-barra-alto;
+    padding: .35rem .25rem;
+    color: #FFFFFF;
+    text-decoration: none;
+    font-family: 'Oswald', sans-serif;
+    font-size: .9375rem;
+    letter-spacing: .02em;
+    line-height: 1.2;
+    text-align: center;
+
+    .fa {
+        font-size: 1.35rem;
+    }
+
+    &:hover,
+    &:focus-visible {
+        color: $mc-amarillo;
+        background: $mc-azul-osc;
+    }
+
+    // La sección abierta: amarillo sobre navy (nunca sobre blanco).
+    &[aria-current='page'] {
+        color: $mc-amarillo;
+        background: $mc-navy;
+    }
+
+    &:focus-visible {
+        outline: 3px solid #FFFFFF;
+        outline-offset: -3px;
+    }
+
+    @media (min-width: $mc-escritorio) {
+        flex-direction: row;
+        justify-content: flex-start;
+        gap: .75rem;
+        min-height: 3rem;
+        padding: .5rem 1rem;
+        border-radius: .75rem;
+        color: $mc-azul;
+        font-size: 1.05rem;
+        text-transform: uppercase;
+        text-align: left;
+
+        .fa {
+            width: 1.5rem;
+            font-size: 1.15rem;
+            text-align: center;
+        }
+
+        &:hover,
+        &:focus-visible {
+            color: $mc-navy;
+            background: rgba($mc-azul, .08);
+        }
+
+        &[aria-current='page'] {
+            color: #FFFFFF;
+            background: $mc-azul;
+        }
+
+        &:focus-visible {
+            outline-color: $mc-navy;
+        }
+    }
+}
+
+// En el celular la barra va abajo: el contenido y el pie no quedan debajo de ella, y el botón flotante de WhatsApp no
+// la tapa (cada pantalla de Mi cuenta ya tiene su «Escríbenos por WhatsApp»).
+@media (max-width: $mc-escritorio - .02px) {
+    #wrapwrap.o_dcasa_mc_activa {
+        padding-bottom: calc(#{$mc-barra-alto} + env(safe-area-inset-bottom));
+
+        .o_dcasa_wa_float {
+            display: none;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Bloques, títulos y botones
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_bloque {
+    margin-bottom: 1.5rem;
+}
+
+.o_dcasa_mc_tarjeta,
+.o_dcasa_mc_pendiente,
+.o_dcasa_mc_estado {
+    background: #FFFFFF;
+    border: 2px solid $mc-borde;
+    border-radius: 1rem;
+    padding: 1.25rem;
+
+    @media (min-width: 576px) {
+        padding: 1.5rem;
+    }
+}
+
+.o_dcasa_mc_pendiente {
+    border-color: rgba($mc-azul, .4);
+}
+
+.o_dcasa_mc_h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    color: $mc-navy;
+    margin-bottom: .75rem;
+}
+
+.o_dcasa_mc_h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: $mc-navy;
+    margin: 1.25rem 0 .5rem;
+}
+
+.o_dcasa_mc_kicker {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: $mc-gris;
+    margin-bottom: .5rem;
+}
+
+.o_dcasa_mc_cuantas {
+    color: $mc-gris;
+    font-size: 1rem;
+}
+
+.o_dcasa_mc_nota {
+    color: $mc-gris;
+    font-size: 1rem;
+}
+
+.o_dcasa_mc_mensaje {
+    font-weight: 600;
+    color: $mc-navy;
+}
+
+.o_dcasa_mc_vacio {
+    background: #FFFFFF;
+    border: 2px dashed $mc-borde;
+    border-radius: 1rem;
+    padding: 1.25rem;
+}
+
+.o_dcasa_mc_btn {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    text-align: center;
+}
+
+.o_dcasa_mc_volver {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    margin-bottom: .5rem;
+    font-weight: 600;
+}
+
+.o_dcasa_mc_aviso {
+    border-radius: .75rem;
+}
+
+// ---------------------------------------------------------------------------
+// Lo que falta pagar
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_falta {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.15rem;
+    color: $mc-navy;
+    margin-bottom: .5rem;
+
+    strong {
+        display: block;
+        font-family: 'Anton', 'Oswald', sans-serif;
+        font-weight: 400;
+        font-size: clamp(2.5rem, 11vw, 3.5rem);
+        line-height: 1.05;
+        color: $mc-azul;
+        overflow-wrap: anywhere;
+    }
+}
+
+.o_dcasa_mc_pagada {
+    font-family: 'Oswald', sans-serif;
+    font-size: 1.35rem;
+    text-transform: uppercase;
+    color: $mc-verde;
+}
+
+// Barra de pago: <progress> nativo, plano (pista azul clara, avance azul).
+.o_dcasa_mc_barra {
+    appearance: none;
+    -webkit-appearance: none;
+    display: block;
+    width: 100%;
+    height: .875rem;
+    border: 0;
+    border-radius: 999px;
+    background: rgba($mc-azul, .14);
+    color: $mc-azul;
+    overflow: hidden;
+    margin: .5rem 0 .35rem;
+
+    &::-webkit-progress-bar {
+        background: rgba($mc-azul, .14);
+        border-radius: 999px;
+    }
+
+    &::-webkit-progress-value {
+        background: $mc-azul;
+        border-radius: 999px;
+    }
+
+    &::-moz-progress-bar {
+        background: $mc-azul;
+        border-radius: 999px;
+    }
+}
+
+// Dentro de la placa azul: pista blanca translúcida, avance amarillo (amarillo sobre azul).
+.o_dcasa_mc_barra_azul {
+    background: rgba(#FFFFFF, .25);
+    color: $mc-amarillo;
+
+    &::-webkit-progress-bar {
+        background: rgba(#FFFFFF, .25);
+    }
+
+    &::-webkit-progress-value {
+        background: $mc-amarillo;
+    }
+
+    &::-moz-progress-bar {
+        background: $mc-amarillo;
+    }
+}
+
+.o_dcasa_mc_barra_texto {
+    margin-bottom: .5rem;
+}
+
+.o_dcasa_mc_vence {
+    margin: .25rem 0 1rem;
+}
+
+.o_dcasa_mc_vence_pasado {
+    color: $mc-rojo;
+    font-weight: 600;
+}
+
+// ---------------------------------------------------------------------------
+// Línea de tiempo: Compra hecha · Pagada · Lista · Entregada
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_pasos {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .25rem;
+
+    &.o_dcasa_mc_pasos_2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.o_dcasa_mc_paso {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: .35rem;
+    text-align: center;
+    font-size: .9375rem;
+    line-height: 1.25;
+    color: $mc-gris;
+    overflow-wrap: anywhere;
+
+    // La raya que une un punto con el anterior.
+    &::before {
+        content: '';
+        position: absolute;
+        top: .8rem;
+        left: calc(-50% + 1rem);
+        right: calc(50% + 1rem);
+        height: 3px;
+        background: rgba($mc-azul, .18);
+    }
+
+    &:first-child::before {
+        display: none;
+    }
+}
+
+.o_dcasa_mc_paso_punto {
+    position: relative;
+    z-index: 1;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    border: 3px solid rgba($mc-azul, .3);
+    background: #FFFFFF;
+    color: #FFFFFF;
+    font-size: .8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.o_dcasa_mc_paso_hecho {
+    color: $mc-navy;
+
+    &::before {
+        background: $mc-azul;
+    }
+
+    .o_dcasa_mc_paso_punto {
+        background: $mc-azul;
+        border-color: $mc-azul;
+    }
+}
+
+.o_dcasa_mc_paso_actual {
+    color: $mc-navy;
+    font-weight: 700;
+
+    .o_dcasa_mc_paso_punto {
+        border-color: $mc-azul;
+        outline: 3px solid rgba($mc-azul, .18);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tarjetas de compra
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_lista {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: .75rem;
+}
+
+.o_dcasa_mc_compra {
+    display: flex;
+    align-items: center;
+    gap: .875rem;
+    min-height: 48px;
+    background: #FFFFFF;
+    border: 2px solid $mc-borde;
+    border-radius: 1rem;
+    padding: .875rem;
+    color: $mc-tinta;
+    text-decoration: none;
+
+    &:hover,
+    &:focus-visible {
+        color: $mc-tinta;
+        border-color: $mc-azul;
+    }
+
+    &:focus-visible {
+        outline: 3px solid $mc-navy;
+        outline-offset: 2px;
+    }
+}
+
+.o_dcasa_mc_compra_alerta {
+    border-color: rgba($mc-azul, .45);
+}
+
+.o_dcasa_mc_compra_cancelada {
+    background: rgba(#FFFFFF, .6);
+}
+
+.o_dcasa_mc_foto {
+    flex: 0 0 auto;
+    width: 4.5rem;
+    height: 4.5rem;
+    border-radius: .75rem;
+    background: rgba($mc-azul, .08);
+    color: $mc-azul;
+    font-size: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+}
+
+.o_dcasa_mc_compra_texto {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .25rem;
+}
+
+.o_dcasa_mc_compra_nombre {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+
+    small {
+        font-weight: 400;
+        font-size: 1rem;
+        color: $mc-gris;
+    }
+}
+
+.o_dcasa_mc_compra_meta,
+.o_dcasa_mc_compra_total {
+    color: $mc-gris;
+    font-size: 1rem;
+}
+
+.o_dcasa_mc_compra_total strong {
+    color: $mc-tinta;
+}
+
+.o_dcasa_mc_compra_flecha {
+    flex: 0 0 auto;
+    color: $mc-azul;
+}
+
+.o_dcasa_mc_compra_pago {
+    padding: .25rem .875rem 0;
+}
+
+.o_dcasa_mc_etiqueta {
+    display: inline-block;
+    padding: .15rem .65rem;
+    border-radius: 999px;
+    font-size: .9375rem;
+    font-weight: 600;
+    line-height: 1.4;
+    background: rgba($mc-tinta, .08);
+    color: $mc-tinta;
+}
+
+.o_dcasa_mc_etiqueta_alerta {
+    background: $mc-azul;
+    color: #FFFFFF;
+}
+
+.o_dcasa_mc_etiqueta_ok {
+    background: rgba($mc-azul, .1);
+    color: $mc-navy;
+}
+
+.o_dcasa_mc_etiqueta_cancelada {
+    color: $mc-gris;
+}
+
+// Detalle: foto, nombre y estado arriba.
+.o_dcasa_mc_estado_cabeza {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .o_dcasa_mc_foto {
+        width: 5.5rem;
+        height: 5.5rem;
+    }
+
+    .o_dcasa_mc_h2 {
+        text-transform: none;
+        font-size: 1.25rem;
+        overflow-wrap: anywhere;
+
+        small {
+            font-family: 'Inter', sans-serif;
+            font-size: 1rem;
+            color: $mc-gris;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Listas de dos columnas (abonos, líneas, actividad) y cuentas
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_abonos,
+.o_dcasa_mc_filas,
+.o_dcasa_mc_lineas {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+
+    li {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: .75rem 0;
+        border-bottom: 1px solid rgba($mc-azul, .1);
+
+        > :first-child {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        > :last-child {
+            flex: 0 0 auto;
+            text-align: right;
+        }
+    }
+}
+
+.o_dcasa_mc_abono_fecha {
+    font-weight: 600;
+}
+
+.o_dcasa_mc_mas {
+    color: $mc-verde;
+}
+
+.o_dcasa_mc_menos {
+    color: $mc-rojo;
+}
+
+.o_dcasa_mc_cuentas {
+    margin: 0 0 1rem;
+
+    > div {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .35rem 0;
+    }
+
+    dt {
+        font-weight: 400;
+        color: $mc-gris;
+    }
+
+    dd {
+        margin: 0;
+        font-weight: 600;
+        text-align: right;
+    }
+}
+
+.o_dcasa_mc_cuentas_saldo {
+    border-top: 2px solid rgba($mc-azul, .15);
+    margin-top: .25rem;
+    padding-top: .6rem !important;
+
+    dt,
+    dd {
+        color: $mc-navy;
+        font-weight: 700;
+        font-size: 1.1rem;
+    }
+}
+
+.o_dcasa_mc_datos {
+    margin: 0 0 1rem;
+
+    > div {
+        padding: .6rem 0;
+        border-bottom: 1px solid rgba($mc-azul, .1);
+    }
+
+    dt {
+        font-weight: 400;
+        font-size: 1rem;
+        color: $mc-gris;
+    }
+
+    dd {
+        margin: 0;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+    }
+}
+
+.o_dcasa_mc_enlaces {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 48px;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Puntos: la placa azul (el amarillo solo aquí dentro)
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_puntos {
+    background: $mc-azul;
+    color: #FFFFFF;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+
+    .o_dcasa_mc_kicker {
+        color: rgba(#FFFFFF, .88);
+    }
+
+    p a:not(.btn) {
+        color: #FFFFFF;
+    }
+}
+
+.o_dcasa_mc_puntos_n {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-size: clamp(3rem, 14vw, 4.5rem);
+    line-height: 1;
+    color: $mc-amarillo;
+    margin: .25rem 0 .5rem;
+}
+
+.o_dcasa_mc_puntos_activa {
+    font-family: 'Anton', 'Oswald', sans-serif;
+    font-size: 2rem;
+    line-height: 1.1;
+    text-transform: uppercase;
+    color: $mc-amarillo;
+}
+
+.o_dcasa_mc_puntos .o_dcasa_mc_codigo_claro {
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: .12em;
+    color: $mc-amarillo;
+}
+
+.o_dcasa_mc_puntos_ctas {
+    display: grid;
+    gap: .75rem;
+    margin-top: 1rem;
+
+    @media (min-width: 576px) {
+        grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    }
+}
+
+.o_dcasa_mc_btn_amarillo {
+    background: $mc-amarillo;
+    color: $mc-navy;
+    border: 0;
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $mc-azul;
+    }
+
+    &:focus-visible {
+        outline: 3px solid #FFFFFF;
+        outline-offset: 2px;
+    }
+}
+
+.o_dcasa_mc_btn_claro {
+    background: transparent;
+    color: #FFFFFF;
+    border: 2px solid rgba(#FFFFFF, .8);
+    font-family: 'Oswald', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+
+    &:hover,
+    &:focus-visible {
+        background: #FFFFFF;
+        color: $mc-azul;
+    }
+}
+
+.o_dcasa_mc_canje {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid rgba($mc-azul, .15);
+    border-radius: .75rem;
+    padding: 1rem;
+
+    & + & {
+        margin-top: .75rem;
+    }
+}
+
+.o_dcasa_mc_codigo {
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.o_dcasa_mc_copiar {
+    display: flex;
+    gap: .5rem;
+
+    .form-control {
+        flex: 1 1 auto;
+        min-width: 0;
+        min-height: 48px;
+        font-size: 1rem;
+    }
+
+    .btn {
+        flex: 0 0 auto;
+    }
+}
+
+.o_dcasa_mc_qr {
+    summary {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        cursor: pointer;
+        color: $mc-azul;
+        font-weight: 600;
+    }
+
+    img {
+        display: block;
+        margin: .5rem auto 0;
+        max-width: 100%;
+        height: auto;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Entrar
+// ---------------------------------------------------------------------------
+
+.o_dcasa_mc_entrar {
+    display: grid;
+    gap: 1.5rem;
+
+    @media (min-width: $mc-escritorio) {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+        align-items: start;
+    }
+
+    .btn {
+        white-space: normal;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Páginas de Odoo que siguen en /my (detalle del pedido y de la factura, direcciones, seguridad): el «secundario» del
+// tema es el amarillo y ahí cae sobre blanco («Volver a pedir», «Pagar ahora», «Descartar», la etiqueta de devolución,
+// el indicador de carga). Se vuelve azul: el amarillo nunca toca el blanco.
+// ---------------------------------------------------------------------------
+
+#wrapwrap.o_portal {
+    .btn-secondary {
+        --bs-btn-color: #FFFFFF;
+        --bs-btn-bg: #{$mc-azul};
+        --bs-btn-border-color: #{$mc-azul};
+        --bs-btn-hover-color: #FFFFFF;
+        --bs-btn-hover-bg: #{$mc-navy};
+        --bs-btn-hover-border-color: #{$mc-navy};
+        --bs-btn-active-color: #FFFFFF;
+        --bs-btn-active-bg: #{$mc-navy};
+        --bs-btn-active-border-color: #{$mc-navy};
+        --bs-btn-disabled-color: #FFFFFF;
+        --bs-btn-disabled-bg: #{$mc-azul};
+        --bs-btn-disabled-border-color: #{$mc-azul};
+        color: #FFFFFF;
+        background-color: $mc-azul;
+        border-color: $mc-azul;
+
+        &:hover,
+        &:focus-visible,
+        &:active {
+            color: #FFFFFF;
+            background-color: $mc-navy;
+            border-color: $mc-navy;
+        }
+    }
+
+    .btn-outline-secondary {
+        --bs-btn-color: #{$mc-azul};
+        --bs-btn-border-color: #{$mc-azul};
+        --bs-btn-hover-color: #FFFFFF;
+        --bs-btn-hover-bg: #{$mc-azul};
+        --bs-btn-hover-border-color: #{$mc-azul};
+        color: $mc-azul;
+        border-color: $mc-azul;
+    }
+
+    .text-o-color-2,
+    .text-secondary {
+        color: $mc-azul !important;
+    }
+
+    .text-bg-secondary,
+    .bg-secondary {
+        background-color: $mc-azul !important;
+        color: #FFFFFF !important;
+    }
+
+    .alert-secondary {
+        --bs-alert-color: #{$mc-navy};
+        --bs-alert-bg: #{rgba($mc-azul, .08)};
+        --bs-alert-border-color: #{rgba($mc-azul, .25)};
+        color: $mc-navy;
+        background-color: rgba($mc-azul, .08);
+        border-color: rgba($mc-azul, .25);
+    }
+}

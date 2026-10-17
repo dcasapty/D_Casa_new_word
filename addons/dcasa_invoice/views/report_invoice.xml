@@ -124,8 +124,9 @@
             <attribute name="class" add="d-none" separator=" "/>
         </xpath>
 
-        <!-- Títulos -->
-        <xpath expr="//t[@name='invoice_title']" position="replace"><t name="invoice_title">Factura</t></xpath>
+        <!-- Títulos. Una factura de cliente con algo pagado y algo por pagar sale como ABONO (con su número): lo que
+             se cobra, los impuestos y los asientos son los de la misma factura; solo cambia el papel. -->
+        <xpath expr="//t[@name='invoice_title']" position="replace"><t name="invoice_title"><t t-if="o._dcasa_es_abono()">Abono</t><t t-else="">Factura</t></t></xpath>
         <xpath expr="//t[@name='draft_invoice_title']" position="replace"><t name="draft_invoice_title">Factura en borrador</t></xpath>
         <xpath expr="//t[@name='cancelled_invoice_title']" position="replace"><t name="cancelled_invoice_title">Factura anulada</t></xpath>
         <xpath expr="//t[@name='credit_note_title']" position="replace"><t name="credit_note_title">Nota de crédito</t></xpath>
@@ -230,6 +231,28 @@
                 Son: <br/>
                 <small class="text-muted lh-sm"><span t-out="o._dcasa_monto_en_letras()"/></small>
             </p>
+        </xpath>
+
+        <!-- ABONO: debajo de los totales, lo que le falta pagar al cliente, en grande. Las cifras salen de
+             _dcasa_estado_abono (la misma fuente que «Mi cuenta»). El plazo vencido solo se dice: el sistema no
+             calcula ni cobra nada por eso. -->
+        <xpath expr="//div[@id='right-elements']" position="inside">
+            <t t-if="o._dcasa_es_abono()">
+                <t t-set="dcasa_abono" t-value="o._dcasa_estado_abono()"/>
+                <div class="o_dcasa_saldo avoid-page-break-inside" name="dcasa_saldo">
+                    <div class="o_dcasa_saldo_titulo">SALDO POR PAGAR</div>
+                    <div class="o_dcasa_saldo_monto">
+                        <span class="text-nowrap" t-out="dcasa_abono['saldo']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                    </div>
+                    <div class="o_dcasa_saldo_detalle">
+                        Pagado <span class="text-nowrap" t-out="dcasa_abono['pagado']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                        de <span class="text-nowrap" t-out="dcasa_abono['total']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+                    </div>
+                    <div t-if="dcasa_abono['vencido']" class="o_dcasa_saldo_vencido" name="dcasa_saldo_vencido">
+                        El plazo venció el <t t-out="o._dcasa_fecha(dcasa_abono['vence'])"/>
+                    </div>
+                </div>
+            </t>
         </xpath>
 
         <!-- Cómo se pagó. Reemplaza al sello de «PAGADO» que imitaba el de goma:

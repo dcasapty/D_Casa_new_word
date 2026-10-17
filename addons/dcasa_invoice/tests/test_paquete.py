@@ -2,8 +2,8 @@
 
 Lo que se comprueba, en orden: el PDF unido (de verdad, con wkhtmltopdf, en test_paquete_http.py; aquí con PDF de
 mentira para no gastar minutos), el orden de las páginas, el tope de facturas, los permisos, el asistente de
-«Pagar» (completo ofrece el cuadro; parcial, apagado o con un fallo, todo como antes) y que lo que ya se
-imprimía no cambió.
+«Pagar» (completo ofrece el cuadro; un abono también, con la nota de entrega sin marcar; apagado o con un fallo,
+todo como antes) y que lo que ya se imprimía no cambió.
 """
 import io
 import re
@@ -412,7 +412,8 @@ class TestCopiaDeLaEmpresa(PaqueteComun):
 
 @tagged('post_install', '-at_install')
 class TestOfertaAlPagar(PaqueteComun):
-    """El asistente de «Pagar»: pago completo ofrece el cuadro; todo lo demás, como antes."""
+    """El asistente de «Pagar»: pago completo ofrece el cuadro; un abono también (la factura sale como ABONO y la nota
+    de entrega viene sin marcar); todo lo demás, como antes."""
 
     def _es_el_cuadro(self, accion):
         return isinstance(accion, dict) and accion.get('res_model') == MODELO and accion.get('target') == 'new'
@@ -429,6 +430,8 @@ class TestOfertaAlPagar(PaqueteComun):
         self.assertEqual(cuadro.move_ids, factura)
         self.assertTrue(cuadro.tras_pago)
         self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia and cuadro.incluir_entrega)
+        self.assertFalse(cuadro.con_saldo)
+        self.assertFalse(cuadro.saldo_texto)
 
     def test_desde_la_factura_odoo_no_redirige_al_pago_y_tambien_se_ofrece(self):
         """El botón «Pagar» de la factura trae dont_redirect_to_payments: Odoo cierra el asistente y se queda en la
@@ -453,22 +456,115 @@ class TestOfertaAlPagar(PaqueteComun):
         # Y al imprimir o descargar, al terminar se muestra lo mismo.
         self.assertEqual(cuadro.action_imprimir()['params']['next'], siguiente)
 
-    def test_pago_parcial_no_ofrece_nada(self):
+    def test_un_abono_ofrece_el_cuadro_sin_la_nota_de_entrega(self):
+        """La dueña (16 oct 2026): el papel en cada abono. Antes un pago parcial no ofrecía nada; ahora ofrece el
+        mismo cuadro con la factura (sale como ABONO) y su copia marcadas, y la nota de entrega SIN marcar: se
+        imprime al terminar de pagar. Al cerrar, lo de siempre (el pago, o quedarse en la factura)."""
         _pedido, factura = self._venta()
         for contexto in ({}, {'dont_redirect_to_payments': True}):
             accion = self._pagar(factura, monto=10.0, contexto=contexto)
             self.assertEqual(factura.payment_state, 'partial')
-            self.assertFalse(self._es_el_cuadro(accion))
+            self.assertTrue(factura._dcasa_es_abono())
+            self.assertTrue(self._es_el_cuadro(accion), contexto)
+            cuadro = self.Paquete.browse(accion['res_id'])
+            self.assertEqual(cuadro.move_ids, factura)
+            self.assertTrue(cuadro.tras_pago)
+            self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia)
+            self.assertFalse(cuadro.incluir_entrega, 'la nota de entrega se imprime al terminar de pagar')
+            self.assertEqual(cuadro._claves_marcadas(), ['cliente', 'copia'])
+            self.assertTrue(cuadro.con_saldo)
+            saldo = factura._dcasa_estado_abono()['saldo']
+            self.assertIn(f'Todavía falta pagar ${saldo:,.2f}.', cuadro.saldo_texto)
+            self.assertIn('La nota de entrega se imprime al terminar de pagar', cuadro.saldo_texto)
+            self.assertEqual(cuadro.action_imprimir()['params']['url'],
+                             f'/dcasa/paquete.pdf?facturas={factura.id}&docs=cliente,copia')
             if contexto:
-                self.assertIs(accion, True, 'como siempre: el asistente se cierra')
+                self.assertEqual(cuadro.action_cerrar(), {'type': 'ir.actions.act_window_close'},
+                                 'como siempre: se queda en la factura')
             else:
-                self.assertEqual(accion['res_model'], 'account.payment', 'como siempre: se muestra el pago')
+                pago = cuadro.pago_ids
+                self.assertEqual(len(pago), 1)
+                self.assertEqual((cuadro.action_cerrar()['res_model'], cuadro.action_cerrar()['res_id']),
+                                 ('account.payment', pago.id), 'como siempre: se muestra el pago')
+
+    def test_la_nota_de_entrega_se_puede_marcar_a_mano_en_un_abono(self):
+        _pedido, factura = self._venta()
+        cuadro = self.Paquete.browse(self._pagar(factura, monto=10.0)['res_id'])
+        cuadro.incluir_entrega = True
+        self.assertEqual(cuadro._claves_marcadas(), ['entrega', 'cliente', 'copia'], 'no es un candado')
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            contenido, _nombre = self.Paquete._armar_pdf(factura, cuadro._claves_marcadas())
+        self.assertEqual(len(textos(contenido)), 3)
+
+    def test_abierto_a_mano_desde_una_factura_en_abono_la_nota_viene_sin_marcar(self):
+        _pedido, factura = self._venta()
+        self._pagar(factura, monto=10.0, contexto={'dcasa_sin_oferta_impresion': True})
+        self.assertTrue(factura._dcasa_es_abono())
+        cuadro = self.Paquete.browse(factura.action_dcasa_imprimir_documentos()['res_id'])
+        self.assertFalse(cuadro.tras_pago)
+        self.assertFalse(cuadro.incluir_entrega)
+        self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia)
+        self.assertTrue(cuadro.con_saldo)
+        self.assertIn('Todavía falta pagar', cuadro.saldo_texto)
+        # Desde el pedido, igual.
+        pedido = factura.line_ids.sale_line_ids.order_id
+        self.assertFalse(self.Paquete.browse(pedido.action_dcasa_imprimir_documentos()['res_id']).incluir_entrega)
+
+    def test_varias_facturas_con_saldo_lo_dicen_sin_sumar_monedas(self):
+        _p1, en_abono = self._venta()
+        _p2, otra_en_abono = self._venta()
+        _p3, sin_pagos = self._venta()
+        for factura in (en_abono, otra_en_abono):
+            self._pagar(factura, monto=10.0, contexto={'dcasa_sin_oferta_impresion': True})
+        varias = en_abono | otra_en_abono | sin_pagos
+        cuadro = self.Paquete.browse(varias.action_dcasa_imprimir_documentos()['res_id'])
+        self.assertFalse(cuadro.incluir_entrega)
+        self.assertTrue(cuadro.saldo_texto.startswith('2 de estas facturas todavía tienen saldo por pagar.'))
+        # Sin abonos: la nota de entrega marcada, como siempre (una factura sin pagos no es un abono).
+        solo = self.Paquete.browse(sin_pagos.action_dcasa_imprimir_documentos()['res_id'])
+        self.assertTrue(solo.incluir_entrega)
+        self.assertFalse(solo.con_saldo)
 
     def test_el_pago_que_la_completa_ofrece_el_cuadro(self):
         _pedido, factura = self._venta()
         self._pagar(factura, monto=10.0)
         self.assertEqual(factura.payment_state, 'partial')
-        self.assertTrue(self._es_el_cuadro(self._pagar(factura)))
+        accion = self._pagar(factura)
+        self.assertTrue(self._es_el_cuadro(accion))
+        cuadro = self.Paquete.browse(accion['res_id'])
+        self.assertTrue(cuadro.incluir_cliente and cuadro.incluir_copia and cuadro.incluir_entrega,
+                        'al terminar de pagar, la nota de entrega vuelve a venir marcada')
+        self.assertFalse(cuadro.con_saldo)
+
+    def test_ofrecer_el_papel_no_cambia_ni_un_asiento(self):
+        """Dos facturas iguales con el mismo abono: con el cuadro ofrecido y con el interruptor apagado, los
+        asientos de las facturas y de los pagos son idénticos. Y abrir el cuadro e imprimir no escribe nada."""
+        def asientos(factura):
+            pagos = factura._get_reconciled_payments()
+            lineas = (factura | pagos.move_id).line_ids.sorted(
+                lambda linea: (linea.move_id.move_type, linea.account_id.code, linea.debit, linea.credit))
+            return [(linea.move_id.move_type, linea.account_id.id, linea.debit, linea.credit, linea.amount_residual,
+                     linea.reconciled) for linea in lineas], (factura.payment_state, factura.amount_residual)
+
+        _p1, con_oferta = self._venta()
+        _p2, sin_oferta = self._venta()
+        self.assertTrue(self._es_el_cuadro(self._pagar(con_oferta, monto=30.0)))
+        self.company.dcasa_ofrecer_impresion_pago = False
+        self.assertFalse(self._es_el_cuadro(self._pagar(sin_oferta, monto=30.0)))
+        self.assertEqual(asientos(con_oferta), asientos(sin_oferta))
+
+        self.company.dcasa_ofrecer_impresion_pago = True
+        antes = (asientos(con_oferta), self.env['account.move.line'].search_count([]),
+                 self.env['account.partial.reconcile'].search_count([]))
+        cuadro = self.Paquete.browse(con_oferta.action_dcasa_imprimir_documentos()['res_id'])
+        cuadro.action_imprimir()
+        cuadro.action_cerrar()
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            self.Paquete._armar_pdf(con_oferta, cuadro._claves_marcadas())
+        self.env.flush_all()
+        self.env.invalidate_all()
+        self.assertEqual((asientos(con_oferta), self.env['account.move.line'].search_count([]),
+                          self.env['account.partial.reconcile'].search_count([])), antes)
 
     def test_apagado_el_interruptor_todo_es_como_antes(self):
         self.company.dcasa_ofrecer_impresion_pago = False
@@ -479,6 +575,12 @@ class TestOfertaAlPagar(PaqueteComun):
         self.assertEqual(accion['res_model'], 'account.payment')
         _otro, factura2 = self._venta()
         self.assertIs(self._pagar(factura2, contexto={'dont_redirect_to_payments': True}), True)
+        # Un abono con el interruptor apagado: tampoco.
+        _tercero, factura3 = self._venta()
+        accion = self._pagar(factura3, monto=10.0)
+        self.assertEqual(factura3.payment_state, 'partial')
+        self.assertFalse(self._es_el_cuadro(accion))
+        self.assertEqual(accion['res_model'], 'account.payment')
 
     def test_cobros_por_codigo_no_abren_ventanas(self):
         """Brian, Juan y las integraciones llaman a _create_payments: devuelve los pagos y nada más."""
@@ -494,6 +596,10 @@ class TestOfertaAlPagar(PaqueteComun):
         proveedor = self._factura_proveedor()
         accion = self._pagar(proveedor)
         self.assertFalse(self._es_el_cuadro(accion))
+        parcial = self._factura_proveedor()
+        accion = self._pagar(parcial, monto=10.0)
+        self.assertEqual(parcial.payment_state, 'partial')
+        self.assertFalse(self._es_el_cuadro(accion), 'un pago parcial a un proveedor no es un abono de cliente')
 
     def test_un_fallo_del_ofrecimiento_nunca_estorba_el_pago(self):
         _pedido, factura = self._venta()
@@ -547,7 +653,8 @@ class TestPantallasDelPaquete(PaqueteComun):
     def test_el_cuadro_tiene_imprimir_descargar_y_cerrar(self):
         arch = self._arch(MODELO, 'form')
         for texto in ('name="action_imprimir"', 'name="action_descargar"', 'name="action_cerrar"', 'special="cancel"',
-                      'name="incluir_cliente"', 'name="incluir_copia"', 'name="incluir_entrega"'):
+                      'name="incluir_cliente"', 'name="incluir_copia"', 'name="incluir_entrega"',
+                      'name="saldo_texto"', 'Abono registrado.', 'Pago completo.'):
             self.assertIn(texto, arch, texto)
         # Las casillas salen en el orden del PDF: entrega, factura del cliente y copia de la empresa.
         self.assertLess(arch.index('name="incluir_entrega"'), arch.index('name="incluir_cliente"'))
