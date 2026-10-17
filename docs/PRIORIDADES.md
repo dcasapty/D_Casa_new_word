@@ -7,6 +7,14 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
+correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
+que sigue, cada cosa con capturas para la dueña **antes** de staging: (1) el error de Ajustes, si se confirma (afecta
+producción); (2) las reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); antes de encenderlas,
+darle el rol Caja al jefe administrativo; (3) el Inicio de Gerencia sobre facturas; (4) Meta unido, que espera las
+decisiones de la dueña y el visto bueno del abogado para la política de privacidad. Tareas de la dueña: la cuenta de
+Resend con `RESEND_API_KEY` en GitHub, y las instrucciones v2 de Juan en Chrome.
+
 **Estado al 2026-10-16, tarde:** en producción desde las 13:25 UTC (Desplegar 10, `d37af4fd…`, PR #46 en `main`) las
 Etapas 1, 2 y 3, la prueba de humo del arranque, Conversaciones #25 punto 1 y el botón «Volver a una versión estable».
 Desde las 15:11 UTC (Desplegar 11, `9be426a4…`) también: Inicio con las listas de cotizaciones y entregas arriba y con

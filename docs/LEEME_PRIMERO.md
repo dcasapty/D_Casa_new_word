@@ -100,6 +100,15 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-17
 
+- **En producción** (22:38 UTC, Desplegar 18, `app_version` `c3a69f52…`, imagen `sha256:67459887…`; CI #196 verde y
+  staging sano 600 s; PR #54 `ce8b0a7`): la **barra azul de arriba ya no desborda el celular** (el texto de entregas se
+  recorta con «…» y WhatsApp queda como ícono; a 360/390 px la página medía 426 px de ancho desde Desplegar 17) y el
+  **menú de arriba es un rectángulo con esquinas suaves** como el logo (antes, píldora). La dueña vio las capturas
+  antes y dijo «Si me gustó».
+- **En curso (cada cosa con capturas para la dueña antes de staging):** Meta unido (catálogo + píxel/CAPI, apagado) con
+  revisión adversarial; reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); Inicio de Gerencia
+  sobre facturas; y un posible error en producción: un administrador no podría guardar Ajustes (ver CONTEXTO_AGENTICO,
+  «(sin confirmar)» hasta reproducirlo).
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla

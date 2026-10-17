@@ -364,6 +364,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - `/mail/message/post` (chatter, también del portal) publica con `sudo()` y deja pasar el `context` del navegador: un
   permiso que mire `env.su` ahí lo tiene cualquiera; se mira `env.uid`/`env.user`.
 - `limit_memory_soft` mide memoria virtual (VMS), no RSS: no dimensionarlo con el tamaño del contenedor.
+- Un `xpath` que busca por texto (`//h3[text()='…']`) falla con el sitio en `es_419` (el texto ya viene traducido) y
+  rompe la página: anclar por estructura (`//a[@href='/shop/print']/preceding-sibling::h3[1]`). En la prueba,
+  `_get_combined_arch()` devuelve un `Element`: compararlo con `etree.tostring(...)` (2026-10-17).
+- **(sin confirmar)** Un administrador sin «Editor y diseñador» del sitio (`dcasa_interfaz` se lo quita a todos) no
+  podría guardar **ninguna** pantalla de Ajustes: `group_gmc_feed` de `website_sale` es grupo y a la vez `related` a
+  `website.enabled_gmc_src`, viaja en cada guardado y `_inverse_related` escribe en `website` sin mirar si cambió.
+  Lo vio el agente de Meta en una base sin su módulo; se está reproduciendo y arreglando (2026-10-17).
+- Un texto más largo en la barra de anuncios desbordó el celular en producción (426 px a 360/390) con CI #194 en verde;
+  la misma `TestMovilSinDesborde` falla en local con ese código. **(sin confirmar)** la diferencia es el entorno del
+  CI (fuentes); mientras tanto, todo cambio de texto en la cabecera se prueba en local a 360 y 390 antes de subir
+  (2026-10-17).
 
 ### Cloudflare
 
