@@ -2080,6 +2080,56 @@
    ]
   },
   {
+   "id": "comparar-ventas",
+   "categoria": "reportes",
+   "tambien": [
+    "vender"
+   ],
+   "grupo": "Ventas",
+   "titulo": "Comparar las ventas",
+   "logras": "En el Inicio, el bloque Comparar pone lado a lado, solo en números, las ventas, la ganancia, el margen, el número de ventas y lo cobrado: hoy contra ayer, contra el mismo día del mes pasado o de la semana pasada, lo que va del mes contra los mismos días del mes pasado o contra un mes completo, o dos rangos de fechas que tú eliges. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_inicio"
+   },
+   "grupos": [
+    "sales_team.group_sale_manager",
+    "base.group_system"
+   ],
+   "pasos": [
+    {
+     "texto": "Arriba de las ventas elige qué contar: «Completadas» (pagadas al 100 %, el día del último pago) o «Con abonos» (con al menos un abono, por su valor total; trae lo que falta por cobrar). Al lado puedes elegir una vendedora.",
+     "destino": {
+      "menu": "dcasa_interfaz.menu_dcasa_inicio"
+     }
+    },
+    {
+     "texto": "En Comparar, toca un botón: sale la tabla. Cuando se compara con hoy, hoy cuenta hasta la hora de ahora y el otro día hasta la misma hora, para que no se vea todo en rojo en la mañana.",
+     "destino": null
+    },
+    {
+     "texto": "Con «Mes» eliges el mes completo y ves cuánto llevas de él. Con «A vs B» eliges dos rangos en el calendario; si no tienen los mismos días, el porcentaje se calcula por día.",
+     "destino": null
+    },
+    {
+     "texto": "«Por vendedora» muestra una fila por persona; al tocar una, todo el Inicio queda en esa vendedora.",
+     "destino": null
+    }
+   ],
+   "nota": "Las ventas y la ganancia van sin ITBMS; lo cobrado y lo que falta por cobrar, con ITBMS. Si no hay con qué comparar (cero), sale una raya en vez de un porcentaje.",
+   "brian": "¿Cómo vamos contra el mes pasado?",
+   "palabras": [
+    "comparar ventas",
+    "contra el mes pasado",
+    "como vamos",
+    "por vendedora",
+    "completadas",
+    "con abonos",
+    "falta por cobrar",
+    "margen",
+    "ayer"
+   ]
+  },
+  {
    "id": "imprimir-documentos",
    "categoria": "facturar",
    "grupo": "Facturas de clientes",

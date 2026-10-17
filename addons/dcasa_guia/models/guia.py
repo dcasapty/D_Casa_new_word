@@ -5,7 +5,7 @@ y qué logra al llegar a la pantalla, y lleva un atajo hasta ella. Quien adminis
 existe una pantalla (la declaración de renta, el cierre de mes, una nota de crédito): aquí la ve, la entiende y llega.
 
 * Una tarea solo se muestra si la persona puede abrir su pantalla (los mismos permisos que el menú de la izquierda):
-  una vendedora no ve contabilidad, Gerencia sí.
+  una vendedora no ve contabilidad, Gerencia sí. Si la tarea trae ``grupos``, además hace falta tener alguno.
 * Nada se inventa: donde hay una fecha límite de impuestos, la nota manda a confirmarla con el contador.
 * La misma fuente alimenta la pantalla, la herramienta ``buscar_en_guia`` de Brian y las pruebas (cada atajo debe
   existir; si un módulo cambia un menú, la prueba lo dice).
@@ -133,8 +133,24 @@ class DcasaGuia(models.AbstractModel):
         return None
 
     @api.model
+    def _tiene_algun_grupo(self, grupos):
+        """``grupos`` (opcional en una tarea): la tarea sale solo a quien tiene alguno. Sirve cuando la pantalla la
+        abren todos pero lo que la tarea explica no (el bloque «Comparar» del Inicio es solo de Gerencia)."""
+        usuario = self.env.user
+        for grupo in grupos or ():
+            try:
+                if usuario.has_group(grupo):
+                    return True
+            except (ValueError, KeyError):      # el grupo no existe en esta instalación: no cuenta
+                continue
+        return not grupos
+
+    @api.model
     def _tarea_para_mostrar(self, tarea, visibles):
-        """La tarea lista para la pantalla, o ``None`` si la persona no puede abrir su destino."""
+        """La tarea lista para la pantalla, o ``None`` si la persona no puede abrir su destino (o no tiene ninguno de
+        sus ``grupos``)."""
+        if not self._tiene_algun_grupo(tarea.get('grupos')):
+            return None
         destino = self._resolver_destino(tarea.get('destino'), visibles)
         if tarea.get('destino') and not destino:
             return None

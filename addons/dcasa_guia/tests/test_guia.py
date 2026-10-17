@@ -217,6 +217,21 @@ class TestServidor(TransactionCase):
         self.assertLess(len(interno), len(vendedora))
         self.assertLess(len(vendedora), len(gerencia))
 
+    def test_comparar_las_ventas_es_solo_de_gerencia(self):
+        """La pantalla (el Inicio) la abren todos, pero el bloque «Comparar» es de Gerencia: la tarea trae
+        ``grupos``."""
+        self.assertIn('comparar-ventas', self.ids_de(self.gerencia))
+        for usuario in (self.vendedora, self.interno):
+            with self.subTest(usuario.login):
+                self.assertNotIn('comparar-ventas', self.ids_de(usuario))
+                self.assertNotIn('comparar-ventas', self.buscar('comparar ventas', usuario))
+        self.assertEqual(self.buscar('cómo vamos contra el mes pasado')[0], 'comparar-ventas')
+        self.assertFalse(self.env['dcasa.guia'].with_user(self.vendedora).registrar_uso('comparar-ventas'))
+        # Un grupo que no existe en esta instalación no abre la tarea a nadie más.
+        Guia = self.env['dcasa.guia'].with_user(self.vendedora)
+        self.assertFalse(Guia._tiene_algun_grupo(['modulo_que_no_esta.grupo']))
+        self.assertTrue(Guia._tiene_algun_grupo([]))
+
     def test_las_tareas_traen_destino_ruta_y_pasos_resueltos(self):
         tareas = {t['id']: t for c in self.obtener(self.gerencia)['categorias'] for t in c['tareas']}
         itbms = tareas['itbms']

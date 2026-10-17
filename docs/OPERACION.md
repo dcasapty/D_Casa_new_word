@@ -695,7 +695,7 @@ entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dca
 
 | | Vendedora | Gerencia, administradores y contabilidad |
 |---|---|---|
-| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose y su comparación), **ganancia** (solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
+| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con el interruptor **Completadas · Con abonos** y el selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose), **ganancia**, el bloque **Comparar** y el selector de **vendedora** (estos tres, solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
 | Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Registrar cobro y Ver la tienda (solo ícono). Todos azules |
 | Accesos grandes | Productos · Facturas · Conversaciones · **Escáner** | Productos · Facturas · Conversaciones · **Escáner** · Oportunidades · Resumen contable |
 
@@ -719,15 +719,90 @@ no cambia: ve lo que su permiso deje.
   ventas (ni en el Inicio, ni en Estadísticas, ni en las líneas de venta, ni en Brian). El campo «Costo» **de la ficha del
   producto** es de Odoo y sigue visible para el personal interno: ver el último párrafo de «Costos y ganancia» en
   [PERMISOS.md](PERMISOS.md). No se instaló `sale_margin` a propósito: mostraría el costo a todo el personal.
-- **Selector de periodo:** Hoy (contra ayer), Esta semana (lunes a hoy, contra los mismos días de la semana pasada),
-  Este mes (contra los mismos días del mes pasado) o un rango de hasta un año (contra el rango anterior de igual
-  largo). Servidor: `dcasa.tablero.ventas_del_periodo`.
+- **Selector de periodo:** Hoy, Esta semana (lunes a hoy), Este mes (del 1 a hoy) o un rango de hasta un año. Las
+  comparaciones ya no van en frases debajo de la tarjeta: viven en el bloque **Comparar** (abajo). Servidor:
+  `dcasa.tablero.ventas_del_periodo(periodo, desde, hasta, base, vendedor)`.
 - **Estadísticas** (menú aparte, solo Gerencia y administradores): *Lo más vendido*, *Mejor margen* y *Lo que no se
   mueve* (con existencias y sin ventas en 90 días).
 - **Stock bajo:** la franja de atención avisa de los productos con 5 unidades o menos (parámetro
   `dcasa.stock_bajo_umbral`).
 - **Envíos** aparece en el menú como «En desarrollo» mientras se define el servicio (`dcasa_contabilidad`,
   `static/src/js/en_desarrollo.js`).
+
+### Completadas o Con abonos, y Comparar (Inicio de Gerencia, 2026-10-17)
+
+Pedido del jefe, aprobado por la dueña: la administración quiere **números, no texto**. Código:
+`addons/dcasa_interfaz/models/ventas_bases.py` (qué ventas cuentan y cuándo) y `models/comparar.py` (el bloque);
+pruebas en `tests/test_comparar.py`.
+
+**El interruptor «Completadas» / «Con abonos»** (arriba de Ventas; abre siempre en «Completadas»). Cambia a la vez la
+tarjeta de Ventas y la de Ganancia (con su número de ventas y la lista que abren, que es exactamente el mismo conjunto)
+y todo el bloque Comparar. Las dos parten de lo vendido de siempre (pedido confirmado, facturado por completo y con sus
+facturas publicadas; montos del pedido sin ITBMS):
+
+| | Qué cuenta | En qué día |
+|---|---|---|
+| **Completadas** | Las ventas cuyas facturas quedaron **pagadas al 100 %** (también «en proceso de pago») | El del pago que dejó el saldo en cero (nunca antes del día de la venta) |
+| **Con abonos** | Las ventas con **al menos un pago**, completas o a medias, **por su valor total**. Trae **Falta por cobrar**: el saldo de esas facturas, con ITBMS, como el que ve el cliente, al cierre del periodo | El de la venta (su última factura) |
+
+- **Una venta facturada sin ningún pago no cuenta en ninguna de las dos** (antes sí contaba en el Inicio de Gerencia:
+  es un cambio a propósito). Una venta devuelta entera con nota de crédito tampoco.
+- Ejemplo de la dueña (está en las pruebas): venta de $1,000 el 5 de octubre, abono de $200 ese día y el resto el 20
+  de noviembre. Completadas: octubre $0, noviembre $1,000. Con abonos: octubre $1,000 con $800 por cobrar; noviembre
+  $0. Cobrado: octubre $200, noviembre $800.
+- El día del último pago sale de las conciliaciones de cada factura (las mismas que lista su cuadro de pagos,
+  `account.move._dcasa_pagos()` de `dcasa_invoice`), leídas de una vez para todo el periodo.
+- La línea «Contabilidad dice…» sigue cuadrando: ahora explica también las facturas sin pago y las de ventas que se
+  terminaron de pagar en otro periodo. Solo sale con «Todo el equipo».
+- **La vendedora no cambia:** su Inicio sigue con lo facturado por completo, el día de la factura, sin interruptor.
+  También la tarjeta «Vendido hoy», las barras de la semana, «Lo más vendido» y el menú «Ventas de hoy» siguen con lo
+  facturado (no son del interruptor).
+
+**El selector de vendedora** (al lado del interruptor; abre en «Todo el equipo»): cada vendedora (quien tiene el rol
+Vendedora sin ser Gerencia, o tuvo ventas en los últimos 24 meses) y «Sin vendedora» (ventas de la web o de Juan que
+nadie tomó). Filtra las tarjetas y todo Comparar. Cada venta es del «Vendedor» del pedido. El **Cobrado** de una
+vendedora son los pagos aplicados a las facturas de **sus** ventas, no los que ella registró (Caja registra muchos); un
+anticipo suelto o un pago de una factura sin pedido cuenta en el equipo, pero no es de nadie. Falta por cobrar, igual:
+el saldo de sus ventas.
+
+**Comparar** (debajo de las tarjetas). Una fila de botones; cada uno es una comparación completa, A contra B:
+
+| Botón | A | B |
+|---|---|---|
+| **Ayer** | Hoy | Ayer |
+| **17 sep** (el mismo número de día del mes pasado) | Hoy | Ese día; el 31 contra el último día del mes pasado; el 29 o 30 de marzo, contra el último de febrero |
+| **Sáb. 10 oct** (el mismo día, 7 días atrás) | Hoy | Ese día |
+| **1–17 sep** | Del 1 a hoy | Los mismos días del mes pasado (hasta su último día si es más corto) |
+| **Mes ▾** | Del 1 a hoy | Un mes completo que se elige (por defecto el pasado; los últimos 24). Arriba, un número grande: «Llevas 58 % de septiembre» (ventas de este mes ÷ ventas de ese mes), y la última columna es «Llevas» |
+| **A vs B** | Un rango del calendario | Del mismo largo que A (solo se elige dónde empieza B); con «Libre», de cualquier largo |
+
+- Al tocar un botón sale una tabla con solo números; las cabeceras son las fechas («17 oct», «1–17 oct», «Sep
+  completo»). Filas: **Ventas** y **Ganancia** (sin ITBMS; las mismas de las tarjetas), **Margen** (ganancia ÷ venta de
+  mercancía de esas mismas ventas: el porcentaje que ya muestra la tarjeta de Ganancia; su cambio va en puntos, «pts»),
+  **N.º de ventas** (su cambio, en unidades), **Falta por cobrar** (solo «Con abonos»; con ITBMS; que suba se pinta en
+  rojo) y **Cobrado** (con ITBMS; igual en las dos posiciones: el dinero que entró).
+- **Azul si sube, rojo si baja.** Sin base positiva (cero o negativa) el porcentaje es «—»: nunca se inventa uno.
+- **Distinto largo:** si A y B no tienen los mismos días (A vs B con «Libre», o el 31 contra un mes de 30), el
+  porcentaje se calcula sobre el **promedio por día** y la cabecera dice «% por día».
+- **«Por vendedora»:** una fila por vendedora con ventas A, ventas B y el cambio, de mayor a menor en A. Al tocar una,
+  el selector queda en esa vendedora. En el celular se lee sin moverse de costado.
+- **Hasta la misma hora (hora de Panamá):** si A termina hoy, hoy cuenta hasta la hora actual y el último día de B
+  hasta la misma hora (el relojito de la tabla dice cuál). Así a las 11 de la mañana no sale todo en rojo. En «Mes ▾»
+  B es un mes completo y no se corta. Los días anteriores al último cuentan completos.
+- **Decisión sobre la hora (lo más honesto con lo que guarda el sistema):** una factura y un pago tienen fecha (el día
+  del negocio), no hora. La hora que sí existe es la de **registro** (`create_date`: cuándo se anotó en el sistema). El
+  corte cuenta **lo que a esa hora ya estaba registrado**, es decir, lo que el Inicio habría mostrado ese día a esa
+  hora: una venta, si sus facturas ya estaban registradas (con abonos, también su primer abono); una venta completada,
+  si el pago que la completó ya se había aplicado (`account.partial.reconcile.create_date`); un cobro, si ya estaba
+  registrado (`account.payment.create_date`). Lo que se anota tarde (un pago de ayer registrado hoy, o lo que se cargue
+  del sistema anterior) no tiene hora de ese día: cuenta en los días completos, pero no en el corte. En la tienda la
+  factura y el cobro se hacen en caja al momento, así que la hora de registro es la de la venta.
+- **Permisos:** el bloque, el selector de vendedora y la ganancia son de Gerencia y administradores
+  (`_ve_utilidad`). El servidor lo exige en `dcasa.tablero.comparar_ventas` (AccessError) y rechaza un `vendedor`
+  ajeno en `ventas_del_periodo` a cualquier otro, aunque lo mande a mano. Valida también la comparación, la base, el
+  mes, las fechas (no futuras, «desde» ≤ «hasta», hasta un año por rango).
+- Brian responde «¿cómo vamos contra septiembre?» con las mismas cifras (`comparar_ventas`, [BRIAN.md](BRIAN.md)) y la
+  Guía lo explica en «Comparar las ventas».
 
 ### Límites conocidos de las cifras del Inicio (revisión del 2026-10-16)
 
@@ -743,9 +818,8 @@ no cambia: ve lo que su permiso deje.
   comparación con el mes pasado mezcla los dos criterios durante uno o dos meses.
 - **Cobrado / Caja de hoy:** cuenta los pagos recibidos y confirmados (en proceso o pagados) con ITBMS; no cuenta borradores,
   cancelados ni rechazados.
-- **«Esta semana»** va de lunes a hoy y se compara con los mismos días de la semana pasada; «Este mes», igual con el mes
-  pasado (un mes de 31 días contra uno de 28 infla la variación los últimos días). **«Hoy»** contra «Ayer» baja durante el día
-  porque hoy aún no termina.
+- **«Esta semana»** va de lunes a hoy y «Este mes» del 1 a hoy. Las comparaciones (bloque Comparar) cortan el otro
+  día a la misma hora y, si los periodos no tienen los mismos días, comparan el promedio por día (2026-10-17).
 - **Lo más vendido** son los últimos 30 días corridos (no el mes calendario) y no cuenta servicios (flete, descuentos).
 - **Mejor margen** incluye el descuento global como su propia fila, para que el total cuadre con el Inicio. No cuenta la
   mercancía sin costo cargado.

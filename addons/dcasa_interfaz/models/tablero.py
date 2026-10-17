@@ -12,7 +12,9 @@ Dos paneles según el rol (pedido de la dueña, 2026-10-14):
   cotizaciones abiertas. Sin lo que falta por cobrar, lo cobrado hoy, las barras ni los totales de la tienda.
 
 «Vendido» siempre significa lo mismo: pedidos facturados por completo, con todas sus facturas publicadas
-(``sale.order._dcasa_dominio_vendido``). Una cotización, un borrador o un pedido por facturar no es una venta.
+(``sale.order._dcasa_dominio_vendido``). Una cotización, un borrador o un pedido por facturar no es una venta. Encima de
+eso, las tarjetas de Ventas y Ganancia de Gerencia siguen el interruptor «Completadas» / «Con abonos»
+(``ventas_bases.py``, 2026-10-17) y el bloque «Comparar» pone periodos lado a lado (``comparar.py``).
 
 ITBMS (decisión por mejor práctica contable, 2026-10-16): las ventas, el costo y la ganancia se miden **sin ITBMS**
 (es un impuesto de la DGI, no ingreso ni costo); el dinero que se mueve (por cobrar, cobrado) va **con** ITBMS. Cada
@@ -25,7 +27,6 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from babel.dates import format_date
-from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -37,14 +38,12 @@ MAXIMO_DIAS_DE_RANGO = 366
 PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
 STOCK_BAJO_DEFECTO = 5
 FILAS_DE_LISTA = 5
-
-
-def _variacion(actual, antes):
-    """Cuánto subió o bajó ``actual`` contra ``antes``, en porcentaje con un decimal. Sin base positiva no hay
-    porcentaje que tenga sentido (de 0 a algo, o contra una ganancia negativa): ``None``."""
-    if actual is None or not antes or antes <= 0:
-        return None
-    return round((actual - antes) / antes * 100, 1)
+# Las bases de las ventas (``ventas_bases.py``): la de siempre y las dos del interruptor del Inicio de Gerencia.
+BASE_VENDIDO = 'vendido'
+BASE_COMPLETADAS = 'completadas'
+BASE_CON_ABONOS = 'con_abonos'
+BASES_DE_GERENCIA = (BASE_COMPLETADAS, BASE_CON_ABONOS)
+SIN_VENDEDORA = 'sin'
 
 
 def _accion(nombre, modelo, dominio, vista='list'):
@@ -191,6 +190,8 @@ class DcasaTablero(models.AbstractModel):
             'atencion': [],
             'meta': None,
             've_utilidad': False,
+            'bases': [],
+            'comparar': None,
             'permisos': self._permisos(propio),
             # La Guía («¿Qué necesitas hacer hoy?») vive en otro módulo: si no está instalado, no hay botón.
             'guia': bool(self.env.ref('dcasa_guia.accion_guia', raise_if_not_found=False)),
@@ -201,8 +202,13 @@ class DcasaTablero(models.AbstractModel):
             self._cifras_de_ventas(datos, hoy, propio)
             if not propio:
                 datos['ve_utilidad'] = self._ve_utilidad()
+                # El interruptor «Completadas» / «Con abonos» (abre en «Completadas»).
+                datos['bases'] = self._bases_de_ventas()
                 datos['ventas'] = self.ventas_del_periodo('hoy')
                 datos['cotizaciones'] = self._lista_de_cotizaciones(hoy)
+                # El bloque «Comparar» y el selector de vendedora: solo Gerencia y administradores.
+                if datos['ve_utilidad']:
+                    datos['comparar'] = self._opciones_de_comparar()
         # Lo que quien vende sin controlar no ve: lo cobrado y lo por cobrar, las entregas y los socios.
         if datos['permisos']['ver_cobros']:
             self._cobros_de_hoy(datos, hoy)
@@ -233,28 +239,20 @@ class DcasaTablero(models.AbstractModel):
 
     @api.model
     def _rango_del_periodo(self, periodo, desde=None, hasta=None, hoy=None):
-        """Los días del periodo y los del periodo con que se compara, ambos incluidos.
-
-        Hoy se compara con ayer; la semana (de lunes a hoy) con los mismos días de la semana pasada; el mes (del 1 a
-        hoy) con los mismos días del mes pasado; un rango, con el rango de igual largo justo antes."""
+        """Los días del periodo, ambos incluidos: hoy, la semana (de lunes a hoy), el mes (del 1 a hoy) o un rango de
+        hasta un año (que no pasa de hoy). Las comparaciones viven aparte, en el bloque «Comparar» (``comparar.py``)."""
         hoy = hoy or fields.Date.context_today(self)
         if periodo not in PERIODOS:
             raise UserError(self.env._('Elige Hoy, Esta semana, Este mes o un rango de fechas.'))
         if periodo == 'hoy':
             d0 = d1 = hoy
-            p0 = p1 = hoy - timedelta(days=1)
-            nombres = ('Hoy', 'Ayer')
+            etiqueta = 'Hoy'
         elif periodo == 'semana':
             d0, d1 = hoy - timedelta(days=hoy.weekday()), hoy
-            p0 = d0 - timedelta(days=7)
-            p1 = p0 + (d1 - d0)
-            nombres = ('Esta semana', 'La semana pasada')
+            etiqueta = 'Esta semana'
         elif periodo == 'mes':
             d0, d1 = hoy.replace(day=1), hoy
-            p1_fin = d0 - timedelta(days=1)
-            p0 = p1_fin.replace(day=1)
-            p1 = min(p0 + (d1 - d0), p1_fin)
-            nombres = ('Este mes', 'El mes pasado')
+            etiqueta = 'Este mes'
         else:
             try:
                 d0, d1 = fields.Date.to_date(desde), fields.Date.to_date(hasta)
@@ -268,70 +266,15 @@ class DcasaTablero(models.AbstractModel):
                 raise UserError(self.env._('El rango puede ser de hasta un año.'))
             d1 = min(d1, hoy)
             d0 = min(d0, d1)
-            largo = (d1 - d0).days + 1
-            p1 = d0 - timedelta(days=1)
-            p0 = p1 - timedelta(days=largo - 1)
-            nombres = (f'Del {format_date(d0, "d MMM", locale="es")} al {format_date(d1, "d MMM", locale="es")}',
-                       'El rango anterior de igual largo')
-        return {'periodo': periodo, 'desde': d0, 'hasta': d1, 'etiqueta': nombres[0],
-                'anterior_desde': p0, 'anterior_hasta': p1, 'anterior_etiqueta': nombres[1]}
-
-    @api.model
-    def _comparaciones_del_periodo(self, rango):
-        """Con qué se compara cada periodo, en el orden en que se muestra (pedido del jefe, 2026-10-16: «ver el
-        porcentaje contra el 16 del mes anterior, y lo que lleva este mes contra los mismos días del mes pasado»).
-
-        * Hoy: contra ayer y contra el mismo día del mes pasado (el 31 contra el último día del mes pasado).
-        * Esta semana: contra los mismos días de la semana pasada y contra las mismas fechas del mes pasado.
-        * Este mes: contra los mismos días del mes pasado (del 1 al mismo día).
-        * Un rango: contra las mismas fechas del mes pasado (si dura hasta un mes) y contra el rango anterior de igual
-          largo.
-
-        Devuelve ``[(clave, frase, desde, hasta)]``; la frase va después de «contra» («contra el 16 de septiembre»)."""
-        periodo, d0, d1 = rango['periodo'], rango['desde'], rango['hasta']
-        anterior = (rango['anterior_desde'], rango['anterior_hasta'])
-        m0, m1 = d0 - relativedelta(months=1), d1 - relativedelta(months=1)
-        mes_pasado = ('mes_pasado', self._frase_del_mes_pasado(periodo, m0, m1), m0, m1)
-        if periodo == 'hoy':
-            return [('anterior', self.env._('ayer'), *anterior), mes_pasado]
-        if periodo == 'semana':
-            return [('anterior', self.env._('los mismos días de la semana pasada'), *anterior), mes_pasado]
-        if periodo == 'mes':
-            return [('mes_pasado', self._frase_del_mes_pasado(periodo, *anterior), *anterior)]
-        lista = [mes_pasado] if (d1 - d0).days < 31 else []
-        return [*lista, ('anterior', self.env._('el rango anterior de igual largo'), *anterior)]
-
-    def _frase_del_mes_pasado(self, periodo, m0, m1):
-        """«el 16 de septiembre» · «los mismos días de septiembre (del 1 al 16)» · «las mismas fechas de septiembre
-        (del 12 al 16)» · «las mismas fechas del mes pasado (del 29 de agosto al 2 de septiembre)»."""
-        def mes(dia):
-            return format_date(dia, 'MMMM', locale='es')
-
-        if m0 == m1:
-            return self.env._('el %(dia)s de %(mes)s', dia=m0.day, mes=mes(m0))
-        if (m0.year, m0.month) == (m1.year, m1.month):
-            fechas = self.env._('del %(desde)s al %(hasta)s', desde=m0.day, hasta=m1.day)
-            if periodo == 'mes':
-                return self.env._('los mismos días de %(mes)s (%(fechas)s)', mes=mes(m0), fechas=fechas)
-            return self.env._('las mismas fechas de %(mes)s (%(fechas)s)', mes=mes(m0), fechas=fechas)
-        fechas = self.env._('del %(d0)s de %(m0)s al %(d1)s de %(m1)s', d0=m0.day, m0=mes(m0), d1=m1.day, m1=mes(m1))
-        return self.env._('las mismas fechas del mes pasado (%(fechas)s)', fechas=fechas)
+            etiqueta = f'Del {format_date(d0, "d MMM", locale="es")} al {format_date(d1, "d MMM", locale="es")}'
+        return {'periodo': periodo, 'desde': d0, 'hasta': d1, 'etiqueta': etiqueta}
 
     def _totales_de_ventas(self, d0, d1, vendedor=None, con_ganancia=False):
-        """Lo vendido entre dos días: las tres cifras (sin ITBMS · ITBMS · total) y, si se pide, la ganancia."""
-        Order = self.env['sale.order']
-        dominio = Order._dcasa_dominio_vendido(desde=d0, hasta=d1, vendedor=vendedor)
-        ordenes = Order.search_read(dominio, ['amount_untaxed', 'amount_tax', 'amount_total'])
-        totales = {
-            'cuantas': len(ordenes),
-            'sin_itbms': sum(o['amount_untaxed'] for o in ordenes),
-            'itbms': sum(o['amount_tax'] for o in ordenes),
-            'total': sum(o['amount_total'] for o in ordenes),
-            'ganancia': None,
-        }
-        if con_ganancia:
-            totales['ganancia'] = self._ganancia_de(dominio)
-        return totales
+        """Lo vendido entre dos días (la base de siempre: facturado por completo, el día de su última factura): las
+        tres cifras (sin ITBMS · ITBMS · total) y, si se pide, la ganancia. Sale de ``_medir`` (``ventas_bases``), el
+        mismo cálculo del Inicio de Gerencia y del bloque «Comparar»."""
+        medida = self._medir(d0, d1, BASE_VENDIDO, vendedor, con_ganancia=con_ganancia)
+        return {clave: medida[clave] for clave in ('cuantas', 'sin_itbms', 'itbms', 'total', 'ganancia')}
 
     def _ganancia_de(self, dominio):
         """La ganancia de las ventas del dominio: venta neta menos costo, sin ITBMS.
@@ -344,69 +287,71 @@ class DcasaTablero(models.AbstractModel):
         return {
             'valor': utilidad or 0.0,
             'porcentaje': round((utilidad or 0.0) / neta * 100, 1) if neta else None,
+            # La venta de mercancía de esas mismas ventas: el margen sin redondear (Comparar lo da en puntos).
+            'neta': neta or 0.0,
             'ventas_con_costo': cuantas or 0,
             'ventas_sin_costo': Order.search_count(dominio + [('dcasa_sin_costo', '=', True)]),
         }
 
     @api.model
-    def ventas_del_periodo(self, periodo='hoy', desde=None, hasta=None):
-        """La tarjeta de ventas del Inicio para un periodo, con su comparación y (solo Gerencia) la ganancia.
+    def ventas_del_periodo(self, periodo='hoy', desde=None, hasta=None, base=None, vendedor=None):
+        """La tarjeta de ventas del Inicio para un periodo y (solo Gerencia) la ganancia.
 
-        Quien vende sin controlar ve solo lo que vendió ella misma, sin ganancia."""
+        * Quien vende sin controlar (la Vendedora) ve solo lo que vendió ella misma, con la base de siempre (lo
+          facturado por completo, el día de la factura) y sin ganancia. No elige base ni vendedora: un ``vendedor``
+          ajeno se rechaza (``AccessError``).
+        * El panel completo cuenta según el interruptor ``base``: ``completadas`` (por defecto: pagadas al 100 %, el
+          día del último pago) o ``con_abonos`` (con al menos un abono, por su valor total, el día de la venta; trae
+          ``falta_por_cobrar``). Gerencia y los administradores pueden filtrar por ``vendedor`` (id o ``'sin'``).
+
+        La lista que abre la cifra (``accion``) es exactamente el mismo conjunto de pedidos."""
         if not self._puede('sale.order'):
             return None
         propio = self._solo_lo_propio()
-        vendedor = self.env.uid if propio else None
+        filtro = self._vendedor_pedido(vendedor)
+        if propio:
+            base, filtro = BASE_VENDIDO, self.env.uid
+        else:
+            base = self._base_pedida(base)
         rango = self._rango_del_periodo(periodo, desde, hasta)
+        d0, d1 = rango['desde'], rango['hasta']
         con_ganancia = not propio and self._ve_utilidad()
-        actual = self._totales_de_ventas(rango['desde'], rango['hasta'], vendedor, con_ganancia)
-        anterior = self._totales_de_ventas(rango['anterior_desde'], rango['anterior_hasta'], vendedor, con_ganancia)
-        variacion = _variacion(actual['sin_itbms'], anterior['sin_itbms'])
-        comparaciones = []
-        for clave, frase, c0, c1 in self._comparaciones_del_periodo(rango):
-            if (c0, c1) == (rango['anterior_desde'], rango['anterior_hasta']):
-                otro = anterior
-            else:
-                otro = self._totales_de_ventas(c0, c1, vendedor, con_ganancia)
-            ganancia_actual = actual['ganancia']['valor'] if actual['ganancia'] else None
-            ganancia_otra = otro['ganancia']['valor'] if otro['ganancia'] else None
-            comparaciones.append({
-                'clave': clave, 'etiqueta': frase, 'desde': str(c0), 'hasta': str(c1),
-                'sin_itbms': otro['sin_itbms'], 'cuantas': otro['cuantas'],
-                'variacion_pct': _variacion(actual['sin_itbms'], otro['sin_itbms']),
-                'ganancia': ganancia_otra,
-                'variacion_ganancia_pct': (_variacion(ganancia_actual, ganancia_otra)
-                                           if ganancia_actual is not None else None),
-            })
+        medida = self._medir(d0, d1, base, filtro, con_ganancia=con_ganancia)
+        pedidos = medida.pop('pedidos')
         Order = self.env['sale.order']
+        if base == BASE_VENDIDO:
+            dominio = Order._dcasa_dominio_vendido(desde=d0, hasta=d1, vendedor=filtro)
+        else:
+            dominio = [('id', 'in', pedidos.ids)]
+        nombre = {BASE_COMPLETADAS: 'Ventas completadas', BASE_CON_ABONOS: 'Ventas con abonos'}.get(base, 'Ventas')
+        if filtro and not propio:
+            nombre += ' · ' + (self.env._('Sin vendedora') if filtro == SIN_VENDEDORA
+                               else self.env['res.users'].sudo().browse(filtro).name)
         return {
-            # Contra qué se compara, en porcentaje de ventas y de ganancia (pedido del jefe, 2026-10-16).
-            'comparaciones': comparaciones,
-            # En qué se aparta de las «Ventas» de Contabilidad (solo quien controla y ve la contabilidad).
-            'cuadre': None if propio else self._cuadre_con_contabilidad(rango['desde'], rango['hasta'],
-                                                                         actual['sin_itbms']),
+            'base': base,
+            'vendedor': None if propio else filtro,
+            # En qué se aparta de las «Ventas» de Contabilidad (quien controla y ve la contabilidad; todo el equipo).
+            'cuadre': None if (propio or filtro) else self._cuadre_con_contabilidad(d0, d1, medida['sin_itbms'],
+                                                                                   pedidos),
             'periodo': rango['periodo'], 'etiqueta': rango['etiqueta'],
-            'desde': str(rango['desde']), 'hasta': str(rango['hasta']),
-            'actual': actual, 'anterior': {**anterior, 'etiqueta': rango['anterior_etiqueta'],
-                                           'desde': str(rango['anterior_desde']),
-                                           'hasta': str(rango['anterior_hasta'])},
-            'variacion_pct': variacion,
-            'accion': _accion(f'Ventas · {rango["etiqueta"]}', 'sale.order',
-                              Order._dcasa_dominio_vendido(desde=rango['desde'], hasta=rango['hasta'],
-                                                           vendedor=vendedor)),
+            'desde': str(d0), 'hasta': str(d1),
+            'actual': medida,
+            'accion': _accion(f'{nombre} · {rango["etiqueta"]}', 'sale.order', dominio),
         }
 
-    def _cuadre_con_contabilidad(self, d0, d1, vendido_sin_itbms):
-        """En qué se aparta lo vendido del Inicio de las «Ventas» de Contabilidad para esas fechas, y qué facturas lo
+    def _cuadre_con_contabilidad(self, d0, d1, vendido_sin_itbms, pedidos):
+        """En qué se aparta lo que cuenta el Inicio de las «Ventas» de Contabilidad para esas fechas, y qué facturas lo
         explican (capturas de la dueña, 2026-10-16: $1,301.04 en el Inicio contra $1,522.42 en Contabilidad; la
         diferencia era una factura sin pedido).
 
-        Las dos pantallas miden distinto a propósito: el Inicio cuenta **pedidos vendidos** (el pedido completo, el día
-        de su última factura); Contabilidad, los **apuntes de ingresos** con fecha en el periodo. Se apartan por:
+        Las dos pantallas miden distinto a propósito: el Inicio cuenta **ventas** (``pedidos``: el pedido completo, el
+        día que dice el interruptor: el del último pago en «Completadas», el de la venta en «Con abonos»);
+        Contabilidad, los **apuntes de ingresos** con fecha en el periodo. Se apartan por:
 
-        * facturas sin pedido o de pedidos aún no facturados por completo (Contabilidad las suma, el Inicio no);
-        * pedidos vendidos en estas fechas con abonos o facturas de otros días, como el abono de un apartado
-          (el Inicio cuenta el pedido completo; Contabilidad, solo lo facturado en estas fechas).
+        * facturas con fecha en el periodo que el Inicio no cuenta aquí: sin pedido, de pedidos aún no facturados por
+          completo, sin pago o todavía sin pagar completas;
+        * facturas de otras fechas de ventas que el Inicio sí cuenta aquí, como el abono de un apartado o la factura de
+          una venta que se terminó de pagar en el periodo.
 
         ``diferencia`` es la resta exacta (Contabilidad − Inicio), con su signo; la lista trae las facturas de esos dos
         grupos para revisarlas. ``None`` si cuadran o si quien mira no ve la contabilidad.
@@ -421,15 +366,14 @@ class DcasaTablero(models.AbstractModel):
         diferencia = round(contables - vendido_sin_itbms, 2)
         if abs(diferencia) < 0.01:
             return None
-        vendido = self.env['sale.order']._dcasa_dominio_vendido(desde=d0, hasta=d1)
-        de_un_vendido = [('sale_line_ids', 'any', [('order_id', 'any', vendido)])]
+        de_una_venta = [('sale_line_ids', 'any', [('order_id', 'in', pedidos.ids)])]
         desde, hasta = fields.Date.to_string(d0), fields.Date.to_string(d1)
         dominio = [
             ('move_type', 'in', ('out_invoice', 'out_refund')), ('state', '=', 'posted'),
             ('company_id', 'in', self.env.companies.ids),
             '|',
-            '&', '&', ('date', '>=', desde), ('date', '<=', hasta), ('invoice_line_ids', 'not any', de_un_vendido),
-            '&', '|', ('date', '<', desde), ('date', '>', hasta), ('invoice_line_ids', 'any', de_un_vendido),
+            '&', '&', ('date', '>=', desde), ('date', '<=', hasta), ('invoice_line_ids', 'not any', de_una_venta),
+            '&', '|', ('date', '<', desde), ('date', '>', hasta), ('invoice_line_ids', 'any', de_una_venta),
         ]
         vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
         return {
@@ -551,7 +495,7 @@ class DcasaTablero(models.AbstractModel):
 
     def _cobros_de_hoy(self, datos, hoy):
         """Lo cobrado hoy por forma de pago (con ITBMS: es el dinero que entró). Va en «Caja de hoy»."""
-        dominio = [('payment_type', '=', 'inbound'), ('state', 'in', ('in_process', 'paid')), ('date', '=', hoy)]
+        dominio = self._dominio_de_cobros(hoy, hoy)
         grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum'])
         for diario, monto in grupos:
             if diario:

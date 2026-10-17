@@ -349,6 +349,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - El asistente de fusión copia datos mientras la ficha que se borra existe: la que queda también necesita la excepción
   del candado; y si dos fichas se apuntan entre sí, Odoo borraba la que queda.
 - `read_group` está deprecado: usar `_read_group`.
+- Owl solo deja usar en las plantillas los globales `Math`, `Array`, `Object`, `Date`, `RegExp`, `console` y `window`:
+  `String(x)` en un `t-att-*` falla en el navegador. Hacerlo en un método del componente (2026-10-17).
+- Un archivo que hereda un modelo (`_inherit`) se importa después del que lo define: si `tablero.py` importa constantes
+  de `ventas_bases.py` (que hereda `dcasa.tablero`), el registro dice «Model 'dcasa.tablero' does not exist». Las
+  constantes van en el archivo que define el modelo (2026-10-17).
+- Para probar algo «hasta la misma hora», la hora de registro (`create_date`) se pone por SQL en la prueba (Odoo no deja
+  escribirla) y el reloj se pasa como argumento (`_comparar(..., ahora=...)`): nada depende de la hora real.
 - Enviar por Telegram hace `COMMIT` y destruye los savepoints.
 - `limit_memory_soft` mide memoria virtual (VMS), no RSS: no dimensionarlo con el tamaño del contenedor.
 
