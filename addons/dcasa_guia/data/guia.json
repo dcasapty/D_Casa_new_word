@@ -1887,6 +1887,58 @@
    ]
   },
   {
+   "id": "correo-clientes-ajustes",
+   "categoria": "administrar",
+   "grupo": "Correo a clientes",
+   "titulo": "Encender o apagar los correos a clientes",
+   "logras": "Ves si el correo está listo, mandas un correo de prueba a tu propio correo y enciendes o apagas lo que les llega a los clientes: la factura al registrar un pago y la bienvenida a los clientes nuevos.",
+   "nota": "Viene apagado. La clave de Resend no se pega aquí: el paso a paso está en la guía del correo (docs/CORREO.md).",
+   "destino": {
+    "menu": "dcasa_correo.menu_dcasa_correo_ajustes"
+   },
+   "palabras": [
+    "correo",
+    "email",
+    "resend",
+    "correo de prueba",
+    "factura por correo",
+    "bienvenida"
+   ]
+  },
+  {
+   "id": "correos-enviados",
+   "categoria": "administrar",
+   "grupo": "Correo a clientes",
+   "titulo": "Ver qué correos les llegaron a los clientes",
+   "logras": "La lista de facturas, abonos, bienvenidas y cotizaciones que salieron por correo, y las que no salieron con el motivo (por ejemplo, que al cliente le falta el correo).",
+   "destino": {
+    "menu": "dcasa_correo.menu_dcasa_correo_envios"
+   },
+   "palabras": [
+    "correos enviados",
+    "no le llego el correo",
+    "correo rebotado",
+    "historial de correos"
+   ]
+  },
+  {
+   "id": "factura-por-correo",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Mandarle la factura a un cliente por correo",
+   "logras": "Abres la factura, tocas «Enviar» y dejas marcada la casilla de correo. Sale con el PDF y la marca de D'CASA.",
+   "nota": "Si el cliente no tiene correo, escríbelo en su ficha.",
+   "destino": {
+    "menu": "account.menu_action_move_out_invoice_type"
+   },
+   "palabras": [
+    "enviar factura",
+    "factura por correo",
+    "mandar factura",
+    "email factura"
+   ]
+  },
+  {
    "id": "factura-prueba-borrar",
    "categoria": "facturar",
    "grupo": "Cambiar el estado de algo",
