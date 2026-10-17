@@ -128,3 +128,24 @@
     .o_dcasa_asignar_texto { margin: 0; font-size: 1.15rem; }
     .o_dcasa_asignar_confirmar { display: flex; flex-direction: column; gap: 10px; border-top: 2px solid var(--dc-azul-600, #1340B1); padding-top: 14px; }
 }
+
+// El botón de la cámara junto a «Buscar» (pedido de la dueña, 2026-10-16) y el bloque del precio en «Contar».
+.o_dcasa_escaner {
+    .o_dcasa_camara {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .o_dcasa_precio {
+        margin-top: 16px;
+        padding-top: 14px;
+        border-top: 1px solid var(--dc-azul-100, #dfe6f7);
+    }
+}
+
+@media (max-width: 420px) {
+    .o_dcasa_escaner .o_dcasa_camara_texto { display: none; }
+}
+

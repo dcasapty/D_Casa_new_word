@@ -25,6 +25,7 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from babel.dates import format_date
+from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -36,6 +37,14 @@ MAXIMO_DIAS_DE_RANGO = 366
 PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
 STOCK_BAJO_DEFECTO = 5
 FILAS_DE_LISTA = 5
+
+
+def _variacion(actual, antes):
+    """Cuánto subió o bajó ``actual`` contra ``antes``, en porcentaje con un decimal. Sin base positiva no hay
+    porcentaje que tenga sentido (de 0 a algo, o contra una ganancia negativa): ``None``."""
+    if actual is None or not antes or antes <= 0:
+        return None
+    return round((actual - antes) / antes * 100, 1)
 
 
 def _accion(nombre, modelo, dominio, vista='list'):
@@ -267,6 +276,47 @@ class DcasaTablero(models.AbstractModel):
         return {'periodo': periodo, 'desde': d0, 'hasta': d1, 'etiqueta': nombres[0],
                 'anterior_desde': p0, 'anterior_hasta': p1, 'anterior_etiqueta': nombres[1]}
 
+    @api.model
+    def _comparaciones_del_periodo(self, rango):
+        """Con qué se compara cada periodo, en el orden en que se muestra (pedido del jefe, 2026-10-16: «ver el
+        porcentaje contra el 16 del mes anterior, y lo que lleva este mes contra los mismos días del mes pasado»).
+
+        * Hoy: contra ayer y contra el mismo día del mes pasado (el 31 contra el último día del mes pasado).
+        * Esta semana: contra los mismos días de la semana pasada y contra las mismas fechas del mes pasado.
+        * Este mes: contra los mismos días del mes pasado (del 1 al mismo día).
+        * Un rango: contra las mismas fechas del mes pasado (si dura hasta un mes) y contra el rango anterior de igual
+          largo.
+
+        Devuelve ``[(clave, frase, desde, hasta)]``; la frase va después de «contra» («contra el 16 de septiembre»)."""
+        periodo, d0, d1 = rango['periodo'], rango['desde'], rango['hasta']
+        anterior = (rango['anterior_desde'], rango['anterior_hasta'])
+        m0, m1 = d0 - relativedelta(months=1), d1 - relativedelta(months=1)
+        mes_pasado = ('mes_pasado', self._frase_del_mes_pasado(periodo, m0, m1), m0, m1)
+        if periodo == 'hoy':
+            return [('anterior', self.env._('ayer'), *anterior), mes_pasado]
+        if periodo == 'semana':
+            return [('anterior', self.env._('los mismos días de la semana pasada'), *anterior), mes_pasado]
+        if periodo == 'mes':
+            return [('mes_pasado', self._frase_del_mes_pasado(periodo, *anterior), *anterior)]
+        lista = [mes_pasado] if (d1 - d0).days < 31 else []
+        return [*lista, ('anterior', self.env._('el rango anterior de igual largo'), *anterior)]
+
+    def _frase_del_mes_pasado(self, periodo, m0, m1):
+        """«el 16 de septiembre» · «los mismos días de septiembre (del 1 al 16)» · «las mismas fechas de septiembre
+        (del 12 al 16)» · «las mismas fechas del mes pasado (del 29 de agosto al 2 de septiembre)»."""
+        def mes(dia):
+            return format_date(dia, 'MMMM', locale='es')
+
+        if m0 == m1:
+            return self.env._('el %(dia)s de %(mes)s', dia=m0.day, mes=mes(m0))
+        if (m0.year, m0.month) == (m1.year, m1.month):
+            fechas = self.env._('del %(desde)s al %(hasta)s', desde=m0.day, hasta=m1.day)
+            if periodo == 'mes':
+                return self.env._('los mismos días de %(mes)s (%(fechas)s)', mes=mes(m0), fechas=fechas)
+            return self.env._('las mismas fechas de %(mes)s (%(fechas)s)', mes=mes(m0), fechas=fechas)
+        fechas = self.env._('del %(d0)s de %(m0)s al %(d1)s de %(m1)s', d0=m0.day, m0=mes(m0), d1=m1.day, m1=mes(m1))
+        return self.env._('las mismas fechas del mes pasado (%(fechas)s)', fechas=fechas)
+
     def _totales_de_ventas(self, d0, d1, vendedor=None, con_ganancia=False):
         """Lo vendido entre dos días: las tres cifras (sin ITBMS · ITBMS · total) y, si se pide, la ganancia."""
         Order = self.env['sale.order']
@@ -311,11 +361,27 @@ class DcasaTablero(models.AbstractModel):
         con_ganancia = not propio and self._ve_utilidad()
         actual = self._totales_de_ventas(rango['desde'], rango['hasta'], vendedor, con_ganancia)
         anterior = self._totales_de_ventas(rango['anterior_desde'], rango['anterior_hasta'], vendedor, con_ganancia)
-        variacion = None
-        if anterior['sin_itbms']:
-            variacion = round((actual['sin_itbms'] - anterior['sin_itbms']) / anterior['sin_itbms'] * 100, 1)
+        variacion = _variacion(actual['sin_itbms'], anterior['sin_itbms'])
+        comparaciones = []
+        for clave, frase, c0, c1 in self._comparaciones_del_periodo(rango):
+            if (c0, c1) == (rango['anterior_desde'], rango['anterior_hasta']):
+                otro = anterior
+            else:
+                otro = self._totales_de_ventas(c0, c1, vendedor, con_ganancia)
+            ganancia_actual = actual['ganancia']['valor'] if actual['ganancia'] else None
+            ganancia_otra = otro['ganancia']['valor'] if otro['ganancia'] else None
+            comparaciones.append({
+                'clave': clave, 'etiqueta': frase, 'desde': str(c0), 'hasta': str(c1),
+                'sin_itbms': otro['sin_itbms'], 'cuantas': otro['cuantas'],
+                'variacion_pct': _variacion(actual['sin_itbms'], otro['sin_itbms']),
+                'ganancia': ganancia_otra,
+                'variacion_ganancia_pct': (_variacion(ganancia_actual, ganancia_otra)
+                                           if ganancia_actual is not None else None),
+            })
         Order = self.env['sale.order']
         return {
+            # Contra qué se compara, en porcentaje de ventas y de ganancia (pedido del jefe, 2026-10-16).
+            'comparaciones': comparaciones,
             # En qué se aparta de las «Ventas» de Contabilidad (solo quien controla y ve la contabilidad).
             'cuadre': None if propio else self._cuadre_con_contabilidad(rango['desde'], rango['hasta'],
                                                                          actual['sin_itbms']),

@@ -13,6 +13,8 @@
 import { Component, onMounted, onWillStart, useEffect, useRef, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { ConfirmationDialog } from "@web/core/confirmation_dialog/confirmation_dialog";
+import { scanBarcode } from "@web/core/barcode/barcode_dialog";
+import { isBarcodeScannerSupported } from "@web/core/barcode/barcode_video_scanner";
 import { user } from "@web/core/user";
 import { useService } from "@web/core/utils/hooks";
 
@@ -38,12 +40,17 @@ export class DcasaEscaner extends Component {
             ubicacion: null,
             cantidad: "",
             confirmando: null, // { antes, cantidad, diferencia } mientras se espera el visto bueno
+            precio: "", // el precio nuevo que se escribe en «Contar» (sin ITBMS)
+            confirmandoPrecio: null, // { antes, nuevo } mientras se espera el visto bueno del precio
             parecido: false, // el producto salió de un código «parecido», no igual: hay que confirmarlo
             // Asignar: la etiqueta escaneada y lo que se va decidiendo. paso: dueno | producto | confirmar.
             asig: null,
             historial: [],
         });
         this.confirmar = useRef("confirmar");
+        this.confirmarPrecio = useRef("confirmarPrecio");
+        // La cámara del celular como lector (pedido de la dueña, 2026-10-16): solo si el navegador deja usar la cámara.
+        this.camaraDisponible = isBarcodeScannerSupported();
         this.busquedaProducto = useRef("busquedaProducto");
         // Asignar etiquetas es de Gerencia: a quien no lo es no se le muestra la pestaña (el servidor lo exige igual).
         this.puedeAsignar = false;
@@ -79,6 +86,14 @@ export class DcasaEscaner extends Component {
             },
             () => [!!this.state.confirmando]
         );
+        useEffect(
+            () => {
+                if (this.state.confirmandoPrecio && this.confirmarPrecio.el) {
+                    this.confirmarPrecio.el.focus();
+                }
+            },
+            () => [!!this.state.confirmandoPrecio]
+        );
     }
 
     // --- Entrada ----------------------------------------------------------------------------------------------
@@ -105,7 +120,7 @@ export class DcasaEscaner extends Component {
     alPerderFoco() {
         // Si el foco se fue al fondo de la página (un toque en blanco), el lector escribiría en el vacío: se recupera.
         setTimeout(() => {
-            if (document.activeElement === document.body && !this.state.confirmando) {
+            if (document.activeElement === document.body && !this.state.confirmando && !this.state.confirmandoPrecio) {
                 this.enfocar();
             }
         }, 60);
@@ -150,6 +165,21 @@ export class DcasaEscaner extends Component {
             this.entrada.el.value = "";
         }
         await this.procesarCodigo(codigo);
+    }
+
+    /** Lee el código con la cámara del celular y sigue igual que si lo hubiera escrito la pistola. */
+    async escanearConCamara() {
+        let codigo;
+        try {
+            codigo = await scanBarcode(this.env, "environment");
+        } catch {
+            this.avisar("error", "No se pudo usar la cámara. Revisa que el navegador tenga permiso para usarla.");
+            return;
+        }
+        codigo = String(codigo || "").trim();
+        if (codigo) {
+            await this.procesarCodigo(codigo);
+        }
     }
 
     async procesarCodigo(codigo) {
@@ -252,6 +282,8 @@ export class DcasaEscaner extends Component {
         this.state.confirmando = null;
         this.state.ubicacion = ficha.ubicacion_habitual;
         this.state.cantidad = "";
+        this.state.precio = "";
+        this.state.confirmandoPrecio = null;
         this.sonar(!parecido);
         this.anotar("consulta", ficha, `Escaneado ${codigo}`);
     }
@@ -266,6 +298,7 @@ export class DcasaEscaner extends Component {
         this.state.parecido = false;
         this.state.opciones = [];
         this.state.confirmando = null;
+        this.state.confirmandoPrecio = null;
     }
 
     cambiarModo(modo) {
@@ -273,6 +306,7 @@ export class DcasaEscaner extends Component {
         this.state.cargando = false;
         this.state.modo = modo;
         this.state.confirmando = null;
+        this.state.confirmandoPrecio = null;
         this.state.mensaje = null;
         this.state.asig = null;
         this.enfocar();
@@ -359,6 +393,60 @@ export class DcasaEscaner extends Component {
             this.state.cargando = false;
             this.enfocar();
         }
+    }
+
+    // --- Precio (en «Contar», Gerencia) -----------------------------------------------------------------------
+    alTeclearPrecio(ev) {
+        if (ev.key === "Enter") {
+            ev.preventDefault();
+            this.revisarPrecio();
+        }
+    }
+
+    revisarPrecio() {
+        const texto = String(this.state.precio).trim().replace(/^\$/, "");
+        // Solo dígitos y, si hace falta, un punto y dos decimales: «1,299» se leería como 1.299.
+        if (!/^\d+(\.\d{1,2})?$/.test(texto)) {
+            this.avisar("error", "Escribe el precio sin ITBMS, solo con números y punto para los centavos (por ejemplo 399.99).");
+            return;
+        }
+        this.state.confirmandoPrecio = { antes: this.state.ficha.precio, nuevo: Number(texto) };
+        this.state.mensaje = null;
+    }
+
+    cancelarPrecio() {
+        this.state.confirmandoPrecio = null;
+        this.enfocar();
+    }
+
+    async guardarPrecio() {
+        const p = this.state.confirmandoPrecio;
+        if (!p || this.state.cargando) {
+            return;
+        }
+        this.state.cargando = true;
+        try {
+            const r = await this.orm.call("dcasa.barras", "cambiar_precio", [this.state.ficha.id, p.nuevo, p.antes]);
+            this.state.ficha = r.ficha;
+            this.state.confirmandoPrecio = null;
+            this.state.precio = "";
+            if (r.cambio) {
+                this.avisar("ok", `Precio guardado: antes ${this.dinero(r.antes)}, ahora ${this.dinero(r.despues)} + ITBMS.`);
+                this.anotar("precio", r.ficha, `Precio: ${this.dinero(r.antes)} → ${this.dinero(r.despues)}`);
+            } else {
+                this.avisar("aviso", "Es el mismo precio que ya tenía: no hubo nada que cambiar.");
+            }
+            this.sonar(true);
+        } catch (e) {
+            this.fallo(e);
+        } finally {
+            this.state.cargando = false;
+            this.enfocar();
+        }
+    }
+
+    dinero(valor) {
+        return "$" + new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(valor || 0);
     }
 
     // --- Asignar etiqueta ---------------------------------------------------------------------------------------

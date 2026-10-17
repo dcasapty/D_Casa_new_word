@@ -1,6 +1,8 @@
 """Ventas del Inicio por periodo (Hoy · semana · mes · rango), ITBMS claro, ganancia y las listas de Gerencia."""
 from datetime import date, timedelta
 
+from dateutil.relativedelta import relativedelta
+
 from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import tagged
@@ -54,6 +56,56 @@ class TestVentasPorPeriodo(VentasCommon):
         libre = rango('rango', '2026-10-01', '2026-10-10', hoy=miercoles)
         self.assertEqual((libre['desde'], libre['hasta']), (date(2026, 10, 1), date(2026, 10, 10)))
         self.assertEqual((libre['anterior_desde'], libre['anterior_hasta']), (date(2026, 9, 21), date(2026, 9, 30)))
+
+    def test_con_que_se_compara_cada_periodo_tambien_el_mes_pasado(self):
+        """Pedido del jefe (2026-10-16): el 16 de octubre contra el 16 de septiembre, y lo que va del mes contra los
+        mismos días del mes pasado."""
+        def comparaciones(periodo, hoy, desde=None, hasta=None):
+            rango = self.tablero._rango_del_periodo(periodo, desde, hasta, hoy=hoy)
+            return [(c, f, d0, d1) for c, f, d0, d1 in self.tablero._comparaciones_del_periodo(rango)]
+
+        viernes = date(2026, 10, 16)
+        self.assertEqual(comparaciones('hoy', viernes), [
+            ('anterior', 'ayer', date(2026, 10, 15), date(2026, 10, 15)),
+            ('mes_pasado', 'el 16 de septiembre', date(2026, 9, 16), date(2026, 9, 16))])
+        # El 31 contra el último día del mes pasado (septiembre tiene 30; febrero, 28).
+        self.assertEqual(comparaciones('hoy', date(2026, 10, 31))[1][2:], (date(2026, 9, 30), date(2026, 9, 30)))
+        self.assertEqual(comparaciones('hoy', date(2027, 3, 31))[1][1], 'el 28 de febrero')
+        self.assertEqual(comparaciones('mes', viernes), [
+            ('mes_pasado', 'los mismos días de septiembre (del 1 al 16)', date(2026, 9, 1), date(2026, 9, 16))])
+        semana = comparaciones('semana', viernes)
+        self.assertEqual(semana[0][:2], ('anterior', 'los mismos días de la semana pasada'))
+        self.assertEqual(semana[1], ('mes_pasado', 'las mismas fechas de septiembre (del 12 al 16)',
+                                     date(2026, 9, 12), date(2026, 9, 16)))
+        # Una semana que cruza de mes nombra los dos meses.
+        cruza = comparaciones('semana', date(2026, 10, 2))[1]
+        self.assertEqual(cruza[1], 'las mismas fechas del mes pasado (del 28 de agosto al 2 de septiembre)')
+        libre = comparaciones('rango', viernes, '2026-10-01', '2026-10-10')
+        self.assertEqual(libre[0], ('mes_pasado', 'las mismas fechas de septiembre (del 1 al 10)',
+                                    date(2026, 9, 1), date(2026, 9, 10)))
+        self.assertEqual(libre[1][:2], ('anterior', 'el rango anterior de igual largo'))
+        # Un rango de más de un mes no se compara con «el mes pasado» (se pisaría consigo mismo).
+        self.assertEqual([c[0] for c in comparaciones('rango', viernes, '2026-08-01', '2026-10-10')], ['anterior'])
+
+    def test_hoy_contra_el_mismo_dia_del_mes_pasado_en_ventas_y_en_ganancia(self):
+        antes = {c['clave']: c for c in self._ventas(self.gerencia, 'hoy')['comparaciones']}
+        self._venta(0)
+        self._venta(0)
+        hace_un_mes = self.pedido(producto=self.cama)
+        self.facturar(hace_un_mes, fecha=self.hoy - relativedelta(months=1))
+        datos = self._ventas(self.gerencia, 'hoy')
+        mes_pasado = {c['clave']: c for c in datos['comparaciones']}['mes_pasado']
+        self.assertEqual(mes_pasado['hasta'], str(self.hoy - relativedelta(months=1)))
+        self.assertAlmostEqual(mes_pasado['sin_itbms'] - antes['mes_pasado']['sin_itbms'], 200.0, places=2)
+        esperado = (datos['actual']['sin_itbms'] - mes_pasado['sin_itbms']) / mes_pasado['sin_itbms'] * 100
+        self.assertAlmostEqual(mes_pasado['variacion_pct'], round(esperado, 1), places=1)
+        ganancia = datos['actual']['ganancia']['valor']
+        esperado = (ganancia - mes_pasado['ganancia']) / mes_pasado['ganancia'] * 100
+        self.assertAlmostEqual(mes_pasado['variacion_ganancia_pct'], round(esperado, 1), places=1)
+        # La vendedora compara solo lo suyo y sin ganancia.
+        propio = {c['clave']: c for c in self._ventas(self.vendedora, 'hoy')['comparaciones']}['mes_pasado']
+        self.assertIsNone(propio['ganancia'])
+        self.assertIsNone(propio['variacion_ganancia_pct'])
 
     def test_un_rango_invalido_se_rechaza_con_un_mensaje_claro(self):
         for desde, hasta in (('2026-10-10', '2026-10-01'), (None, None), ('2024-01-01', '2026-10-01'),
