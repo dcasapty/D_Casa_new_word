@@ -57,7 +57,7 @@ VIDRIO_CLARO = {'fondo': 'rgba(255, 255, 255, 0.62)', 'borde': 'rgba(255, 255, 2
                 'texto': 'rgb(27, 34, 51)'}
 VIDRIO_AHUMADO = {'fondo': 'rgba(0, 0, 0, 0.26)', 'borde': 'rgba(255, 255, 255, 0.38)',
                   'texto': 'rgb(255, 255, 255)'}
-RADIO_PILDORA = '16px'                             # 1rem: rectángulo con esquinas suaves como el logo (dueña, 2026-10-17)
+RADIO_PILDORA = '16px'                             # 1rem: esquinas suaves como el logo (dueña, 2026-10-17)
 VELO_MIN, VELO_MAX = .35, .50
 # Fondos que jamás van detrás del titular de la portada (placa navy/azul, decisión de la dueña).
 AZUL, NAVY = (19, 64, 177), (14, 42, 107)
