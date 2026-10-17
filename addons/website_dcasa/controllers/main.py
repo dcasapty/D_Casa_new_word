@@ -91,13 +91,11 @@ class DcasaCheckout(WebsiteSale):
                 mensajes.append(mensaje)
         return invalidos, faltantes, mensajes
 
-    def _create_new_address(self, address_values, address_type, use_delivery_as_billing, order_sudo):
-        """Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha: su dirección
-        queda como dirección de esa persona (una persona, una ficha; así suma sus puntos), sin tocar sus datos."""
-        if order_sudo._is_anonymous_cart():
-            address_values = request.env['res.partner'].sudo()._dcasa_valores_de_direccion(
-                address_values, address_type)
-        return super()._create_new_address(address_values, address_type, use_delivery_as_billing, order_sudo)
+    # Sin ``_create_new_address`` propio (revisión adversarial, 2026-10-17): colgar la dirección de un visitante sin
+    # cuenta de la ficha que ya tenía ese celular, correo o RUC le daba en el checkout las direcciones, los teléfonos y
+    # los correos de ESA persona (Odoo enseña y deja usar todas las de la ficha comercial), le dejaba editarlas y le
+    # ponía la compra en su «Mi cuenta». Un dato escrito en la tienda no prueba quién es la persona.
+    # Ver tests/test_privacidad_checkout.py.
 
 
 def _sitemap_black_weekend(env, rule, qs):

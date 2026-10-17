@@ -129,6 +129,7 @@ describe("configPuerta", () => {
     ["ruta que ya es del sitio (el panel)", { DCASA_PUERTA_RUTA: "/odoo" }],
     ["ruta que ya es del sitio (la tienda)", { DCASA_PUERTA_RUTA: "/shop" }],
     ["ruta que ya es del sitio (el login)", { DCASA_PUERTA_RUTA: "/web" }],
+    ["ruta que ya es del sitio (Mi cuenta del cliente)", { DCASA_PUERTA_RUTA: "/mi-cuenta" }],
     ["ruta con barras", { DCASA_PUERTA_RUTA: "/web/login-largo" }],
     ["ruta con caracteres raros", { DCASA_PUERTA_RUTA: "/entrada_k7q2m9x4" }],
     ["equipo que no es de Cloudflare Access", { DCASA_ACCESS_EQUIPO: "https://evil.example.com" }],
