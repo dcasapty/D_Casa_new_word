@@ -38,9 +38,10 @@ class SociosCommon(TransactionCase):
             'list_price': 100.0, 'taxes_id': [(6, 0, cls.itbms.ids)],
         })
         Partner = cls.env['res.partner']
-        cls.padrino = Partner.create({'name': 'Ana Pérez', 'phone': '+507 6000-0001'})
+        # Con celular y correo: sin ellos la vendedora no confirma la venta (dcasa_contactos, 2026-10-16).
+        cls.padrino = Partner.create({'name': 'Ana Pérez', 'phone': '+507 6000-0001', 'email': 'ana.perez@example.com'})
         cls.padrino._dcasa_asegurar_ficha()
-        cls.cliente = Partner.create({'name': 'Eric Gómez', 'phone': '6000-0002'})
+        cls.cliente = Partner.create({'name': 'Eric Gómez', 'phone': '6000-0002', 'email': 'eric.gomez@example.com'})
 
     def setUp(self):
         super().setUp()

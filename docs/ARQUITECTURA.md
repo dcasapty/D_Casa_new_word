@@ -88,7 +88,7 @@ Todos con prefijo `dcasa_` (o `website_dcasa`); `vendor/odoo` nunca se modifica.
 
 | Área | Módulos |
 |---|---|
-| Base y marca | `dcasa_base` (empresa, Panamá, ITBMS, RUC con DV), `dcasa_invoice` (factura con la marca), `dcasa_interfaz` (la cara del panel: inicio, íconos, favicon, sin avisos de pago) |
+| Base y marca | `dcasa_base` (empresa, Panamá, ITBMS, RUC con DV), `dcasa_invoice` (factura con la marca), `dcasa_abonos` (hoja «Condiciones de abono» en dos copias), `dcasa_interfaz` (la cara del panel: inicio, íconos, favicon, sin avisos de pago) |
 | Ventas y clientes | `dcasa_socios` (puntos y referidos), `dcasa_contactos` (una persona, una ficha), `dcasa_conversaciones` (bandeja y API de Juan, CRM automático) |
 | Tienda y catálogo | `website_dcasa` (sitio y tienda), `dcasa_catalogo` (productos y fotos reales), `dcasa_tienda_borde` (avisa al Worker qué páginas cambiaron) |
 | Inventario | `dcasa_barras` (Escáner, conteo y etiquetas numeradas) |
@@ -102,7 +102,8 @@ Dependencias principales entre módulos propios (resumen de cada `__manifest__.p
 dcasa_base ─┬─► dcasa_invoice ─┬─► dcasa_socios ─┬─► website_dcasa ─► dcasa_catalogo ─► dcasa_interfaz
             │                  │                 └─► dcasa_contactos      │                   │
             │                  ├─► dcasa_contabilidad ─► dcasa_consolidacion                   ├─► dcasa_barras
-            │                  └─► dcasa_fe_pa                           └─► dcasa_tienda_borde
+            │                  ├─► dcasa_fe_pa                           └─► dcasa_tienda_borde
+            │                  └─► dcasa_abonos (condiciones de abono)
             ├─► dcasa_nomina (también de dcasa_contabilidad)
             └─► dcasa_equipo
 dcasa_brian (de interfaz, contabilidad, catálogo y socios) ─► dcasa_conversaciones (también de contactos)

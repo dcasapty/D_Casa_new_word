@@ -1,3 +1,5 @@
+from lxml import etree
+
 from odoo.exceptions import ValidationError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
@@ -17,13 +19,74 @@ class TestTiendaConfigurada(TransactionCase):
 
     def test_pagos_sin_pasarela(self):
         pagos = self.env['payment.provider'].search([('state', '=', 'enabled'), ('is_published', '=', True)])
-        self.assertEqual(set(pagos.mapped('name')), {'Transferencia bancaria', 'Yappy', 'Pago al recibir o en tienda'})
+        self.assertEqual(set(pagos.mapped('name')), {'Transferencia bancaria', 'Yappy', 'Pago en la tienda'})
         for pago in pagos:
             self.assertIn('WhatsApp', str(pago.with_context(lang='es_419').pending_msg))
         # Cada uno con su propio método: si no, la tienda juntaría Yappy y transferencia en una opción.
         self.assertEqual(len(pagos.payment_method_ids), 3)
         self.assertEqual(set(pagos.payment_method_ids.mapped('name')),
-                         {'Transferencia bancaria', 'Yappy', 'Pago al recibir o en tienda'})
+                         {'Transferencia bancaria', 'Yappy', 'Pago en la tienda'})
+
+    def test_no_hay_pago_contra_entrega(self):
+        """Decisión de la dueña (2026-10-17): el mueble se entrega pagado completo; se paga en la tienda."""
+        cod = self.env.ref('delivery.payment_provider_cod')
+        mensaje = str(cod.with_context(lang='es_419').pending_msg)
+        self.assertEqual(cod.with_context(lang='es_419').name, 'Pago en la tienda')
+        self.assertNotIn('al recibir', mensaje)
+        self.assertIn('pagado completo', mensaje)
+
+    def test_el_pedido_hecho_agradece_con_tuteo(self):
+        """La voz de la marca es de tú: «¡Gracias por tu compra!», no «Gracias por su orden.» de Odoo."""
+        vista = self.env.ref('website_sale.confirmation')
+        for idioma in ('es_419', 'en_US'):
+            arco = etree.tostring(vista.with_context(lang=idioma)._get_combined_arch(), encoding='unicode')
+            self.assertIn('¡Gracias por tu compra!', arco)
+            self.assertNotIn('Gracias por su orden.', arco)
+            self.assertNotIn('Thank you for your order.', arco)
+
+    def test_copias_viejas_de_la_portada_se_corrigen(self):
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Copia vieja FAQ', 'type': 'qweb', 'key': 'website_dcasa.prueba_faq_vieja',
+            'website_id': self.website.id,
+            'arch_db': '<t t-name="website_dcasa.prueba_faq_vieja"><div>'
+                       '<p>Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha '
+                       'de entrega.</p><p>Transferencia bancaria, Yappy, o pagas al recibir o en la tienda. '
+                       'Escríbenos y te explicamos la que mejor te sirve.</p></div></t>',
+        })
+        self.assertEqual(self.env['website']._dcasa_corregir_textos(), 1)
+        arch = vista.with_context(lang='es_419').arch_db
+        self.assertNotIn('todo el país', arch)
+        self.assertNotIn('al recibir', arch)
+        self.assertIn('La Chorrera, Arraiján, Capira, Panamá y Colón', arch)
+        self.assertEqual(self.env['website']._dcasa_corregir_textos(), 0, 'Se puede volver a correr')
+
+    def test_no_promete_entregas_a_todo_panama(self):
+        """Al interior todavía no se entrega (decisión de la dueña, 2026-10-17): ni la barra de arriba, ni la portada,
+        ni el pie, ni las copias viejas de la portada prometen «todo Panamá»."""
+        zonas = 'Entregas en Panamá Oeste, Panamá y Colón'
+        for xmlid in ('website.layout', 'website.homepage'):
+            arco = etree.tostring(self.env.ref(xmlid).with_context(lang='es_419')._get_combined_arch(),
+                                  encoding='unicode')
+            with self.subTest(vista=xmlid):
+                self.assertNotIn('todo Panamá', arco)
+                self.assertIn(zonas, arco)
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Copia vieja portada', 'type': 'qweb', 'key': 'website_dcasa.prueba_portada_vieja',
+            'website_id': self.website.id,
+            'arch_db': '<t t-name="website_dcasa.prueba_portada_vieja"><div><strong>Entrega a todo Panamá</strong>'
+                       '<summary>¿Hacen entregas a todo Panamá?</summary></div></t>',
+        })
+        self.env['website']._dcasa_corregir_textos()
+        arch = vista.with_context(lang='es_419').arch_db
+        self.assertNotIn('todo Panamá', arch)
+        self.assertIn(f'<strong>{zonas}</strong>', arch)
+        self.assertIn('¿A dónde hacen entregas?', arch)
+
+    def test_el_checkout_pregunta_de_tu_por_la_cuenta(self):
+        arco = etree.tostring(self.env.ref('website_sale.address').with_context(lang='es_419')._get_combined_arch(),
+                              encoding='unicode')
+        self.assertIn('¿Ya tienes cuenta?', arco)
+        self.assertNotIn('Already have an account?', arco)
 
     def test_entregas_sin_envio_gratis_inventado(self):
         entregas = self.env['delivery.carrier'].search([('is_published', '=', True)])

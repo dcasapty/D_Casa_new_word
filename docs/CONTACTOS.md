@@ -22,9 +22,14 @@ igual.
 * **El chat.** Cuando alguien escribe por WhatsApp, Juan busca su ficha por la llave del teléfono (el celular de
   Socios, el teléfono de la ficha o el del contacto de trabajo del equipo); si existe, la usa; si no, la crea. Dos
   mensajes a la vez de un número nuevo no crean dos fichas (la conversación de cada número es única en la base).
-* **La tienda.** Quien compra **sin cuenta** con un celular, correo o RUC que ya son de una ficha cae en **esa** ficha:
-  su dirección queda como dirección de esa persona, así que suma sus puntos en la misma ficha y la compra no falla. Sus
-  datos no se modifican.
+* **La tienda.** Quien compra **sin cuenta** con un celular, correo o RUC que ya son de una ficha **no** entra en esa
+  ficha: un dato escrito en la tienda no prueba quién es la persona. Antes (hasta el 2026-10-17) su dirección se colgaba
+  de esa ficha por la ruta del pago exprés, y Odoo le enseñaba en el checkout las direcciones, teléfonos y correos de
+  esa persona, le dejaba editarlas y le ponía la compra en su «Mi cuenta» (revisión independiente; pruebas en
+  `website_dcasa/tests/test_privacidad_checkout.py`). El formulario normal de Odoo 19 nunca pasó por ese atajo: le
+  responde «Ese celular ya está registrado… escríbenos por WhatsApp» (sin decir de quién) y la compra no sigue.
+  **Pendiente de la dueña:** cómo compra en la web quien ya es cliente de la tienda (entrar con su cuenta, o una ficha
+  aparte que el equipo une después).
 
 ## Al cotizar (etapa 3, 2026-10-16)
 
@@ -39,6 +44,42 @@ contacto de empleado y sus direcciones de entrega o de factura, todos con el mis
 * **Aviso de posible repetido:** si la ficha elegida comparte celular, correo o RUC/cédula con otra ficha (lo viejo, de
   antes del candado), sale un aviso con el nombre de la otra para cotizar en la correcta y fusionarlas después.
 * Lo ya guardado no cambia: una cotización vieja con una dirección como cliente se sigue abriendo igual.
+
+## Celular y correo bien escritos y obligatorios (2026-10-16 y 2026-10-17)
+
+Pedido de la dueña: «el vendedor siempre, obligatoriamente, debe capturar el número de teléfono y correo electrónico,
+pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos.
+
+* **Qué es «bien escrito»** (`dcasa_socios/models/bien_escrito.py`, funciones puras):
+  * Correo con una sola `@`, sin espacios ni comas y con un dominio completo. Los errores de dedo de los correos más
+    usados traen sugerencia: `ana@gmial.com` → «¿Quisiste decir ana@gmail.com?»; también `hotmail.con`, `gmail.co`,
+    `yahoo.cmo`… (`hotmail.es` y `yahoo.es` sí valen; `algo.co` también). Lo de relleno (`no@no.com`,
+    `sincorreo@gmail.com`) no es un correo. Se guarda limpio y en minúsculas.
+  * Celular de Panamá de 8 números (`6026-1919`, con o sin +507) o de otro país **con +** y su código
+    (`+1 305 555 1234`). Se guarda como `+507 6026-1919` o `+13055551234`; la llave de contactos no cambia. Un fijo de
+    7 números no pasa (lo decide la dueña).
+  * El correo de alguien del equipo o de la empresa no sirve como correo del cliente.
+* **Cuándo se exige** (solo a quien trabaja en Odoo y sin `sudo`; Juan, la tienda, Socios, el importador, la fusión
+  y los crons no pasan por aquí; Brian sí, porque corre como la vendedora):
+  * **Al escribir** un correo o un celular en la ficha de un cliente: si está mal escrito no se guarda (al salir del
+    campo ya sale el «¿Quisiste decir…?»). Lo viejo no se toca: solo se revisa lo que cambia.
+  * **Al crear una persona como cliente** (Ventas › Clientes, «Crear y editar» en la cotización, «Nuevo cliente» del
+    Inicio): celular y correo obligatorios. La creación rápida (escribir el nombre y Enter) y las empresas no se frenan
+    al crear: los pide la venta.
+  * **Al confirmar la venta** (puerta A) y **al publicar la factura** (puerta B), con un mensaje que dice qué falta y
+    dónde se escribe. Mientras se cotiza, un aviso amarillo lo adelanta. **«Pagar» nunca se bloquea.**
+  * Nada de esto frena el guardado automático (la nube): una cotización o una ficha vieja a medias se guarda igual.
+* **«Cliente no tiene correo electrónico»** (decisión de la dueña, 2026-10-17): es la única excepción y **solo exime
+  del correo** (el celular sigue obligatorio). La marca la vendedora junto al cliente en la cotización (se guarda en la
+  ficha al guardar la cotización) o en la ficha, debajo del correo. Solo se ve mientras el correo está vacío; si
+  después se le escribe un correo, **se desmarca sola**. Queda en el historial de la ficha quién la marcó. Por Brian:
+  `crear_cliente` o `actualizar_cliente` con el correo «no tiene».
+* **Clientes viejos:** **Socios › Configuración › Clientes sin correo o sin celular** (Gerencia) los lista para
+  completarlos antes de su próxima venta.
+* No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.
+* Código: `dcasa_contactos/models/contacto.py` (ficha y mensajes), `sale_order.py` (puerta A y la casilla de la
+  cotización), `account_move.py` (puerta B). Pruebas: `test_bien_escrito.py`, `test_exigir_contacto.py` y
+  `test_sin_correo_navegador.py` (la casilla en el navegador, guardando con la nube).
 
 ## Puntos por WhatsApp
 
@@ -79,4 +120,4 @@ Si el contador de duplicados no baja a cero, se limpia por tandas; el candado ya
 * Al cotizar: `models/sale_order.py` (dominio de `sale.order.partner_id` armado con `sudo` como lista de ids, así la
   Vendedora, que no ve empleados, busca sin error; aviso en el `onchange` del cliente).
 * Pruebas: `scripts/test.sh dcasa_contactos` (llaves, candado, excepciones, lista de duplicados, fusión, al cotizar), más
-  `TestFichasUnicasEnElChat` (conversaciones) y `TestDireccionDelVisitante` (tienda).
+  `TestFichasUnicasEnElChat` (conversaciones), `TestDireccionDelVisitante` y `TestCheckoutSinDatosAjenos` (tienda).

@@ -253,7 +253,14 @@ LISTA_BLANCA = {
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
     ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_periodo'):
         'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo, y la ganancia solo '
-        'sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo).',
+        'sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo). Valida la base '
+        '(«completadas»/«con_abonos») y rechaza con AccessError un «vendedor» ajeno a quien no es Gerencia ni '
+        'administrador, ANTES de leer.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
+        'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
+        'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '
+        '«desde» ≤ «hasta» y hasta un año por rango. Las facturas y conciliaciones las lee con sudo ya comprobado '
+        'el grupo; no escribe nada.',
     ('dcasa_interfaz', 'product.product', 'dcasa_accion_sin_movimiento'):
         'Lectura: exige Gerencia o administrador en el servidor (AccessError si no) y solo devuelve una acción de '
         'ventana con un filtro; no escribe ni usa sudo().',
@@ -492,6 +499,11 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'hilo'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'refrescar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'ficha'): PANEL_VENTAS,
+    # --- Celular y correo bien escritos y obligatorios (dcasa_contactos, 2026-10-17) ---------------------------
+    ('dcasa_contactos', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Botón Confirmar de Odoo; solo revisa celular y correo del cliente antes de super(); sin sudo.',
+    ('dcasa_contactos', 'res.partner', 'name_create'):
+        OVERRIDE + ' Creación rápida de Odoo; solo marca el contexto para no exigir celular y correo al crear.',
     ('dcasa_conversaciones', 'dcasa.conversacion', 'marcar_leida'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'enviar_respuesta'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'tomar'): PANEL_VENTAS,
@@ -586,11 +598,24 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'lista'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'texto_para'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'res.partner', 'action_dcasa_ver_conversaciones'): ACCION_VENTANA,
+    # --- dcasa_correo (correo a clientes por Resend) ----------------------------------------------------
+    ('dcasa_correo', 'dcasa.conversacion', 'correo_de_cotizacion'):
+        PANEL_VENTAS + ' Solo lee si «Enviar por correo» se puede usar (sin la clave ni datos de otro cliente).',
+    ('dcasa_correo', 'dcasa.conversacion', 'enviar_cotizacion_correo'):
+        PANEL_VENTAS + ' Solo cotizaciones abiertas del cliente de esa conversación; antidoble clic de 2 minutos.',
+    ('dcasa_correo', 'sale.order', 'action_quotation_send'):
+        OVERRIDE + ' Botón nativo «Enviar»: solo revisa el interruptor y el correo del cliente antes de super(); '
+                   'sin sudo().',
+    ('dcasa_correo', 'mail.mail', 'send'):
+        OVERRIDE + ' Con la clave de Resend solo marca «no enviado» lo que la política no deja salir antes de super(); '
+                   'mail.mail es solo de administradores (ACL).',
+    ('dcasa_correo', 'res.config.settings', 'action_dcasa_correo_prueba'):
+        'Exige base.group_system en el servidor; manda la prueba solo al correo de quien la pide.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
 SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento',
-                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado')
+                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado', 'dcasa.correo')
 
 
 def es_publico(modelo, nombre):

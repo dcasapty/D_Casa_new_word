@@ -1,0 +1,539 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Mi cuenta D'CASA (/mi-cuenta). Móvil primero: se usa de pie en el mostrador. Letra de 17 px, botones de
+         48 px, un solo h1 (el de la cabecera) y fechas «16 oct 2026». Las cifras de pago vienen de
+         models/mi_cuenta.py, que solo lee _dcasa_estado_abono() de cada factura. -->
+
+    <!-- ===================================================================== marco -->
+    <template id="marco" name="Mi cuenta: marco">
+        <t t-call="website.layout">
+            <!-- La pestaña no lleva el nombre de la persona (se ve en la barra de tareas de un equipo compartido). -->
+            <t t-set="additional_title" t-value="pestana or 'Mi cuenta'"/>
+            <t t-set="dcasa_header_overlay" t-value="True"/>
+            <t t-set="dcasa_mi_cuenta" t-value="bool(ficha)"/>
+            <div id="wrap" class="o_dcasa_mc">
+                <t t-call="website_dcasa.cabecera_pagina">
+                    <t t-set="cabecera_kicker" t-value="kicker or 'Mi cuenta D’CASA'"/>
+                    <t t-set="cabecera_titulo" t-value="titulo"/>
+                    <t t-set="cabecera_imagen" t-value="'/website_dcasa/static/src/img/split-hoy.webp'"/>
+                    <t t-set="cabecera_ancho" t-value="793"/>
+                    <t t-set="cabecera_alto" t-value="595"/>
+                </t>
+                <div t-attf-class="o_dcasa_container o_dcasa_mc_cuerpo #{'o_dcasa_mc_con_nav' if ficha else ''}">
+                    <nav t-if="ficha" class="o_dcasa_mc_nav" aria-label="Secciones de tu cuenta">
+                        <a href="/mi-cuenta" class="o_dcasa_mc_nav_item" t-att-aria-current="'page' if seccion == 'inicio' else None">
+                            <i class="fa fa-home" aria-hidden="true"/><span>Inicio</span>
+                        </a>
+                        <a href="/mi-cuenta/compras" class="o_dcasa_mc_nav_item" t-att-aria-current="'page' if seccion == 'compras' else None">
+                            <i class="fa fa-shopping-bag" aria-hidden="true"/><span>Compras</span>
+                        </a>
+                        <a href="/mi-cuenta/puntos" class="o_dcasa_mc_nav_item" t-att-aria-current="'page' if seccion == 'puntos' else None">
+                            <i class="fa fa-star" aria-hidden="true"/><span>Puntos</span>
+                        </a>
+                        <a href="/mi-cuenta/datos" class="o_dcasa_mc_nav_item" t-att-aria-current="'page' if seccion == 'datos' else None">
+                            <i class="fa fa-user" aria-hidden="true"/><span>Mis datos</span>
+                        </a>
+                    </nav>
+                    <div class="o_dcasa_mc_contenido">
+                        <div t-if="aviso" t-attf-class="alert alert-#{aviso.get('tipo', 'info')} o_dcasa_mc_aviso" role="status" t-out="aviso['texto']"/>
+                        <div t-if="error" class="alert alert-danger o_dcasa_mc_aviso" role="alert" t-out="error"/>
+                        <t t-out="0"/>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <!-- ===================================================================== piezas -->
+
+    <!-- La línea de tiempo: Compra hecha · Pagada (o «Pagando: te falta $X») · Lista · Entregada. -->
+    <template id="pasos" name="Mi cuenta: línea de tiempo">
+        <ol t-if="pasos" t-attf-class="o_dcasa_mc_pasos o_dcasa_mc_pasos_#{len(pasos)}" aria-label="En qué va tu compra">
+            <li t-foreach="pasos" t-as="paso" t-attf-class="o_dcasa_mc_paso o_dcasa_mc_paso_#{paso['estado']}"
+                t-att-aria-current="'step' if paso['estado'] == 'actual' else None">
+                <span class="o_dcasa_mc_paso_punto" aria-hidden="true">
+                    <i t-if="paso['estado'] == 'hecho'" class="fa fa-check"/>
+                </span>
+                <span class="o_dcasa_mc_paso_nombre" t-out="paso['nombre']"/>
+                <span class="visually-hidden" t-out="{'hecho': '(listo)', 'actual': '(en curso)'}.get(paso['estado'], '(falta)')"/>
+            </li>
+        </ol>
+    </template>
+
+    <!-- Barra de pago: «Pagaste $A de $T». Un <progress> nativo (sin estilos en línea). -->
+    <template id="barra_pago" name="Mi cuenta: barra de pago">
+        <progress class="o_dcasa_mc_barra" max="100" t-att-value="pago['porcentaje']"
+                  t-att-aria-label="'Pagaste %s de %s' % (pago['pagado_fmt'], pago['total_fmt'])"/>
+        <p class="o_dcasa_mc_barra_texto">Pagaste <strong t-out="pago['pagado_fmt']"/> de <strong t-out="pago['total_fmt']"/></p>
+    </template>
+
+    <template id="vence" name="Mi cuenta: hasta cuándo">
+        <p t-if="pago['vence'] and pago['vencido']" class="o_dcasa_mc_vence o_dcasa_mc_vence_pasado">
+            <i class="fa fa-exclamation-circle me-1" aria-hidden="true"/>El plazo para terminar de pagar venció el
+            <strong t-out="pago['vence']"/>. Escríbenos por WhatsApp.
+        </p>
+        <p t-elif="pago['vence']" class="o_dcasa_mc_vence">
+            <i class="fa fa-calendar me-1" aria-hidden="true"/>Tienes hasta el <strong t-out="pago['vence']"/> para terminar de pagar.
+        </p>
+    </template>
+
+    <!-- Foto del mueble (si está publicado en la tienda) o un icono. -->
+    <template id="foto" name="Mi cuenta: foto del mueble">
+        <span class="o_dcasa_mc_foto">
+            <img t-if="compra['foto']" t-att-src="compra['foto']" alt="" width="256" height="256" loading="lazy"/>
+            <i t-else="" class="fa fa-cube" aria-hidden="true"/>
+        </span>
+    </template>
+
+    <!-- Tarjeta de una compra en la lista (toda la tarjeta lleva al detalle). -->
+    <template id="tarjeta" name="Mi cuenta: tarjeta de compra">
+        <a t-att-href="compra['url']" t-attf-class="o_dcasa_mc_compra o_dcasa_mc_compra_#{compra['tono']}">
+            <t t-call="dcasa_mi_cuenta.foto"/>
+            <span class="o_dcasa_mc_compra_texto">
+                <span class="o_dcasa_mc_compra_nombre"><t t-out="compra['mueble']"/><small t-if="compra['mas']"> <t t-out="compra['mas']"/></small></span>
+                <span class="o_dcasa_mc_compra_meta"><t t-out="compra['nombre']"/> · <t t-out="compra['fecha']"/></span>
+                <span t-attf-class="o_dcasa_mc_etiqueta o_dcasa_mc_etiqueta_#{compra['tono']}" t-out="compra['etiqueta']"/>
+                <span class="o_dcasa_mc_compra_total">Total <strong t-out="compra['total_fmt']"/></span>
+            </span>
+            <i class="fa fa-chevron-right o_dcasa_mc_compra_flecha" aria-hidden="true"/>
+        </a>
+    </template>
+
+    <!-- ===================================================================== entrar -->
+    <template id="entrar" name="Mi cuenta: entrar">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo">Entra a tu cuenta</t>
+            <div class="o_dcasa_mc_entrar">
+                <section class="o_dcasa_mc_tarjeta" aria-labelledby="mc_entrar_pin">
+                    <h2 id="mc_entrar_pin" class="o_dcasa_mc_h2">Con tu celular y tu PIN</h2>
+                    <p>Ves tus compras, cuánto te falta pagar y tus puntos.</p>
+                    <form action="/socios/entrar" method="post" class="o_dcasa_socios_form o_dcasa_mc_form" data-captcha="socios_entrar">
+                        <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                        <input type="hidden" name="origen" value="mi-cuenta"/>
+                        <label for="mc_celular">Tu celular</label>
+                        <input id="mc_celular" name="celular" type="tel" inputmode="numeric" autocomplete="tel"
+                               class="form-control" placeholder="6000-0000" required="required" t-att-value="celular"/>
+                        <label for="mc_pin">Tu PIN (6 números)</label>
+                        <input id="mc_pin" name="pin" type="password" inputmode="numeric" maxlength="6"
+                               autocomplete="current-password" class="form-control" required="required"/>
+                        <button type="submit" class="btn btn-primary btn-lg w-100 mt-3 o_dcasa_mc_btn">Entrar</button>
+                    </form>
+                    <p class="mt-3 mb-0"><a t-att-href="olvide" target="_blank" rel="noopener">¿Olvidaste tu PIN? Escríbenos por WhatsApp</a></p>
+                </section>
+                <section class="o_dcasa_mc_tarjeta" aria-labelledby="mc_entrar_otros">
+                    <h2 id="mc_entrar_otros" class="o_dcasa_mc_h2">¿Otra forma?</h2>
+                    <a href="/web/login?redirect=/mi-cuenta" class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
+                        <i class="fa fa-envelope-o me-2" aria-hidden="true"/>¿Compraste en la web con tu correo? Entra con tu correo</a>
+                    <a href="/socios/registro" class="btn btn-outline-primary w-100 mt-3 o_dcasa_mc_btn">
+                        <i class="fa fa-star-o me-2" aria-hidden="true"/>¿Primera vez? Hazte socio</a>
+                    <p class="mt-3 mb-0 o_dcasa_mc_nota">Si ya compraste en D'CASA, al hacerte socio escribe el código de
+                        socio que trae tu factura: así ves tus compras y tus puntos.</p>
+                </section>
+            </div>
+        </t>
+    </template>
+
+    <!-- ===================================================================== inicio -->
+    <template id="inicio" name="Mi cuenta: inicio">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo" t-value="'Hola, %s' % nombre"/>
+
+            <!-- 1. Lo pendiente -->
+            <section t-if="pendiente" class="o_dcasa_mc_bloque o_dcasa_mc_pendiente" aria-labelledby="mc_pendiente">
+                <t t-if="pendiente['tipo'] == 'saldo'">
+                    <t t-set="compra" t-value="pendiente['compra']"/>
+                    <t t-set="pago" t-value="compra['pago']"/>
+                    <h2 id="mc_pendiente" class="o_dcasa_mc_kicker">Por pagar · <t t-out="compra['nombre']"/></h2>
+                    <p class="o_dcasa_mc_falta">Te falta <strong t-out="pago['saldo_fmt']"/></p>
+                    <t t-call="dcasa_mi_cuenta.barra_pago"/>
+                    <t t-call="dcasa_mi_cuenta.vence"/>
+                    <a t-att-href="compra['url']" class="btn btn-primary w-100 o_dcasa_mc_btn">Ver mis abonos</a>
+                    <p t-if="pendiente['otras']" class="o_dcasa_mc_nota mt-2 mb-0">Y tienes saldo en
+                        <t t-out="pendiente['otras']"/> <t t-out="'compra más' if pendiente['otras'] == 1 else 'compras más'"/>:
+                        <a href="/mi-cuenta/compras">míralas en Compras</a>.</p>
+                </t>
+                <t t-elif="pendiente['tipo'] == 'apartado'">
+                    <t t-set="compra" t-value="pendiente['compra']"/>
+                    <h2 id="mc_pendiente" class="o_dcasa_mc_kicker">Apartado · <t t-out="compra['nombre']"/></h2>
+                    <p class="o_dcasa_mc_mensaje" t-out="compra['mensaje']"/>
+                    <a t-att-href="compra['url']" class="btn btn-primary w-100 o_dcasa_mc_btn">Ver mi apartado</a>
+                </t>
+                <t t-elif="pendiente['tipo'] == 'entrega'">
+                    <t t-set="compra" t-value="pendiente['compra']"/>
+                    <h2 id="mc_pendiente" class="o_dcasa_mc_kicker">Tu compra está lista · <t t-out="compra['nombre']"/></h2>
+                    <p class="o_dcasa_mc_mensaje" t-out="compra['entrega']['texto']"/>
+                    <a t-att-href="compra['url']" class="btn btn-primary w-100 o_dcasa_mc_btn">Ver mi compra</a>
+                </t>
+                <t t-elif="pendiente['tipo'] == 'premios'">
+                    <h2 id="mc_pendiente" class="o_dcasa_mc_kicker">Premios por recoger</h2>
+                    <div t-foreach="pendiente['canjes']" t-as="canje" class="o_dcasa_mc_canje">
+                        <div>
+                            <div class="o_dcasa_socios_codigo o_dcasa_mc_codigo" t-out="canje['codigo']"/>
+                            <div t-out="canje['premio']"/>
+                            <div class="o_dcasa_mc_nota">
+                                <t t-if="canje['web']">Aplicado en tu carrito de la tienda web.</t>
+                                <t t-else="">Enséñalo en la tienda antes del <t t-out="canje['vence']"/></t>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/mi-cuenta/puntos" class="btn btn-primary w-100 mt-3 o_dcasa_mc_btn">Ver mis puntos</a>
+                </t>
+            </section>
+
+            <!-- 2. La última compra -->
+            <section class="o_dcasa_mc_bloque" aria-labelledby="mc_ultima">
+                <h2 id="mc_ultima" class="o_dcasa_mc_h2">Tu última compra</h2>
+                <t t-if="ultima">
+                    <t t-call="dcasa_mi_cuenta.tarjeta"><t t-set="compra" t-value="ultima"/></t>
+                    <t t-call="dcasa_mi_cuenta.pasos"><t t-set="pasos" t-value="ultima['pasos']"/></t>
+                </t>
+                <p t-else="" class="o_dcasa_mc_vacio">Todavía no vemos compras en tu cuenta. Cuando compres en la tienda o
+                    en la web, aquí ves cuánto pagaste, cuánto te falta y cuándo te llega.</p>
+                <a t-if="hay_compras" href="/mi-cuenta/compras" class="btn btn-outline-primary w-100 o_dcasa_mc_btn mt-3">Ver todas mis compras</a>
+                <a t-else="" href="/shop" class="btn btn-outline-primary w-100 o_dcasa_mc_btn mt-3">Ver el catálogo</a>
+            </section>
+
+            <!-- 3. Los puntos (placa azul: el amarillo solo sobre azul) -->
+            <section class="o_dcasa_mc_puntos" aria-labelledby="mc_puntos">
+                <h2 id="mc_puntos" class="o_dcasa_mc_kicker">Socios D'CASA · tus puntos</h2>
+                <t t-if="puntos['es_socio']">
+                    <p class="o_dcasa_mc_puntos_n" t-out="puntos['saldo_fmt']"/>
+                    <p t-if="puntos['equivale']" class="mb-1">equivalen a <strong t-out="puntos['equivale']"/> en premios</p>
+                    <p class="mb-1">Tu código: <strong class="o_dcasa_mc_codigo_claro" t-out="puntos['codigo']"/></p>
+                    <p t-if="puntos['por_recoger']" class="mb-1"><strong t-out="len(puntos['por_recoger'])"/>
+                        <t t-out="'premio por recoger' if len(puntos['por_recoger']) == 1 else 'premios por recoger'"/></p>
+                    <p t-if="puntos['siguiente']" class="mb-1">Te faltan <strong t-out="puntos['siguiente']['faltan']"/> puntos para
+                        <t t-out="puntos['siguiente']['premio']"/>.</p>
+                    <p t-if="puntos['alcanza']" class="mb-1">Ya te alcanza para <strong t-out="puntos['alcanza']"/>.</p>
+                    <div class="o_dcasa_mc_puntos_ctas">
+                        <a href="/socios/premios" class="btn o_dcasa_mc_btn_amarillo o_dcasa_mc_btn">Ver premios</a>
+                        <a href="/mi-cuenta/puntos#invitar" class="btn o_dcasa_mc_btn_claro o_dcasa_mc_btn">Invitar a un amigo</a>
+                    </div>
+                </t>
+                <t t-elif="puntos['suspendido']">
+                    <p>Tu cuenta de puntos está suspendida. Escríbenos por WhatsApp y lo revisamos.</p>
+                </t>
+                <t t-else="">
+                    <p class="o_dcasa_mc_puntos_activa">Activa tus puntos</p>
+                    <p t-if="puntos['saldo'] &gt; 0">Ya tienes <strong t-out="puntos['saldo_fmt']"/> puntos esperándote.</p>
+                    <p>Cada compra suma puntos que cambias por premios en la tienda.</p>
+                    <div class="o_dcasa_mc_puntos_ctas">
+                        <a href="/socios" class="btn o_dcasa_mc_btn_amarillo o_dcasa_mc_btn">Activar mis puntos</a>
+                    </div>
+                </t>
+            </section>
+
+            <!-- 4. WhatsApp -->
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_ayuda" aria-labelledby="mc_ayuda">
+                <h2 id="mc_ayuda" class="o_dcasa_mc_h2">¿Dudas?</h2>
+                <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-primary w-100 o_dcasa_mc_btn">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp</a>
+            </section>
+        </t>
+    </template>
+
+    <!-- ===================================================================== compras -->
+    <template id="compras" name="Mi cuenta: compras">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo">Mis compras</t>
+            <t t-set="pestana">Mis compras · Mi cuenta</t>
+            <p t-if="not grupos" class="o_dcasa_mc_vacio">Todavía no vemos compras en tu cuenta. Si compraste y no aparece,
+                escríbenos por WhatsApp con el número de tu factura.</p>
+            <section t-foreach="grupos" t-as="grupo" class="o_dcasa_mc_bloque" t-attf-aria-labelledby="mc_grupo_#{grupo['clave']}">
+                <h2 t-attf-id="mc_grupo_#{grupo['clave']}" class="o_dcasa_mc_h2"><t t-out="grupo['titulo']"/>
+                    <span class="o_dcasa_mc_cuantas" t-out="'(%s)' % (len(grupo['compras']) + grupo['ocultas'])"/></h2>
+                <ul class="o_dcasa_mc_lista" role="list">
+                    <li t-foreach="grupo['compras']" t-as="compra">
+                        <t t-call="dcasa_mi_cuenta.tarjeta"/>
+                        <t t-if="compra['pago'] and compra['pago']['por_pagar']">
+                            <t t-set="pago" t-value="compra['pago']"/>
+                            <div class="o_dcasa_mc_compra_pago"><t t-call="dcasa_mi_cuenta.barra_pago"/></div>
+                        </t>
+                    </li>
+                </ul>
+                <p t-if="grupo['ocultas']" class="o_dcasa_mc_nota">Y <t t-out="grupo['ocultas']"/> más. Si necesitas una,
+                    escríbenos por WhatsApp.</p>
+            </section>
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_ayuda">
+                <a t-att-href="whatsapp" target="_blank" rel="noopener" class="btn btn-primary w-100 o_dcasa_mc_btn">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>¿Dudas? Escríbenos por WhatsApp</a>
+            </section>
+        </t>
+    </template>
+
+    <!-- ===================================================================== detalle de una compra -->
+    <template id="detalle" name="Mi cuenta: una compra">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo" t-value="('Compra %s' if compra['tipo'] == 'pedido' else 'Factura %s') % compra['nombre']"/>
+            <t t-set="pestana" t-value="'%s · Mi cuenta' % compra['nombre']"/>
+            <t t-set="pago" t-value="compra['pago']"/>
+            <a href="/mi-cuenta/compras" class="o_dcasa_mc_volver"><i class="fa fa-arrow-left me-2" aria-hidden="true"/>Mis compras</a>
+
+            <!-- Estado -->
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_estado" aria-labelledby="mc_estado">
+                <div class="o_dcasa_mc_estado_cabeza">
+                    <t t-call="dcasa_mi_cuenta.foto"/>
+                    <div>
+                        <h2 id="mc_estado" class="o_dcasa_mc_h2 mb-1"><t t-out="compra['mueble']"/><small t-if="compra['mas']"> <t t-out="compra['mas']"/></small></h2>
+                        <p class="o_dcasa_mc_compra_meta mb-2"><t t-out="compra['nombre']"/> · <t t-out="compra['fecha']"/></p>
+                        <span t-attf-class="o_dcasa_mc_etiqueta o_dcasa_mc_etiqueta_#{compra['tono']}" t-out="compra['etiqueta']"/>
+                    </div>
+                </div>
+                <p t-if="compra['mensaje']" class="o_dcasa_mc_mensaje mt-3 mb-0" t-out="compra['mensaje']"/>
+                <t t-call="dcasa_mi_cuenta.pasos"><t t-set="pasos" t-value="compra['pasos']"/></t>
+            </section>
+
+            <!-- Pagos: cada abono, lo pagado y lo que falta (de la factura publicada) -->
+            <section t-if="compra['estado'] != 'cancel'" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_pagos">
+                <h2 id="mc_pagos" class="o_dcasa_mc_h2">Tus pagos</h2>
+                <t t-if="pago">
+                    <p t-if="pago['por_pagar']" class="o_dcasa_mc_falta">Te falta <strong t-out="pago['saldo_fmt']"/></p>
+                    <p t-else="" class="o_dcasa_mc_pagada"><i class="fa fa-check-circle me-2" aria-hidden="true"/>Pagada completa</p>
+                    <t t-call="dcasa_mi_cuenta.barra_pago"/>
+                    <t t-call="dcasa_mi_cuenta.vence"/>
+                    <h3 class="o_dcasa_mc_h3"><t t-out="'Tus abonos' if pago['es_abono'] or len(pago['abonos']) &gt; 1 else 'Tu pago'"/></h3>
+                    <ul t-if="pago['abonos']" class="o_dcasa_mc_abonos" role="list">
+                        <li t-foreach="pago['abonos']" t-as="abono">
+                            <span><span class="o_dcasa_mc_abono_fecha" t-out="abono['fecha']"/>
+                                <span class="o_dcasa_mc_nota d-block" t-out="abono['medio']"/></span>
+                            <strong t-out="abono['monto']"/>
+                        </li>
+                    </ul>
+                    <p t-else="" class="o_dcasa_mc_nota">Todavía no hay pagos registrados en esta factura.</p>
+                    <dl class="o_dcasa_mc_cuentas">
+                        <div><dt>Total de tu factura</dt><dd t-out="pago['total_fmt']"/></div>
+                        <div><dt>Pagado</dt><dd t-out="pago['pagado_fmt']"/></div>
+                        <div class="o_dcasa_mc_cuentas_saldo"><dt>Saldo</dt><dd t-out="pago['saldo_fmt']"/></div>
+                    </dl>
+                    <p t-if="compra['parcial']" class="o_dcasa_mc_nota">Esto es lo de tu factura. El resto de la compra
+                        aparece aquí cuando se facture.</p>
+                    <p t-if="pago['por_pagar']" class="o_dcasa_mc_nota mb-0">Para abonar, pasa por la tienda o escríbenos por
+                        WhatsApp con el número <strong t-out="compra['nombre']"/>.</p>
+                </t>
+                <t t-elif="compra['estado'] == 'sale'">
+                    <p class="mb-1">Total <strong t-out="compra['total_fmt']"/></p>
+                    <p class="o_dcasa_mc_nota mb-0" t-out="compra['texto_sin_factura']"/>
+                </t>
+                <t t-else="">
+                    <p class="mb-0">Total <strong t-out="compra['total_fmt']"/></p>
+                </t>
+            </section>
+
+            <!-- Entrega: solo lo que ya pasó, nunca la fecha prevista como promesa -->
+            <section t-if="compra['entrega'] and compra['estado'] == 'sale'" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_entrega">
+                <h2 id="mc_entrega" class="o_dcasa_mc_h2">Entrega</h2>
+                <p t-if="compra['entrega']['texto']" class="o_dcasa_mc_mensaje" t-out="compra['entrega']['texto']"/>
+                <p class="mb-0"><i class="fa fa-truck me-2" aria-hidden="true"/><t t-out="compra['entrega']['como']"/></p>
+            </section>
+
+            <!-- Lo que compraste -->
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_lineas">
+                <h2 id="mc_lineas" class="o_dcasa_mc_h2">Lo que compraste</h2>
+                <ul class="o_dcasa_mc_lineas" role="list">
+                    <li t-foreach="compra['items']" t-as="item">
+                        <span>
+                            <span t-out="item['nombre']"/>
+                            <span class="o_dcasa_mc_nota d-block">Cantidad: <t t-out="item['cantidad']"/></span>
+                            <span t-if="item['piezas']" class="o_dcasa_mc_nota d-block">Incluye: <t t-out="', '.join(item['piezas'])"/></span>
+                        </span>
+                        <strong t-if="item['por_cotizar']" class="o_dcasa_mc_nota">Costo por WhatsApp</strong>
+                        <strong t-else="" t-out="item['importe_fmt']"/>
+                    </li>
+                </ul>
+                <dl class="o_dcasa_mc_cuentas">
+                    <div><dt>Subtotal</dt><dd t-out="compra['subtotal_fmt']"/></div>
+                    <div><dt>ITBMS</dt><dd t-out="compra['itbms_fmt']"/></div>
+                    <div class="o_dcasa_mc_cuentas_saldo"><dt>Total</dt><dd t-out="compra['total_fmt']"/></div>
+                </dl>
+                <p t-if="compra['puntos'] != '0'" class="o_dcasa_mc_nota mb-0">Esta compra te sumó <strong t-out="compra['puntos']"/> puntos.</p>
+            </section>
+
+            <!-- La factura: el PDF solo con la cuenta de la tienda (trae datos personales) -->
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_factura">
+                <h2 id="mc_factura" class="o_dcasa_mc_h2">Tu factura</h2>
+                <t t-if="tienda and (compra['pdf'] or compra['pdf_facturas'])">
+                    <a t-foreach="compra['pdf_facturas']" t-as="pdf" t-att-href="pdf['url']" class="btn btn-outline-primary w-100 mb-2 o_dcasa_mc_btn">
+                        <i class="fa fa-download me-2" aria-hidden="true"/>Descargar la factura <t t-out="pdf['nombre']"/></a>
+                    <a t-if="compra['pdf']" t-att-href="compra['pdf']" class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
+                        <i class="fa fa-download me-2" aria-hidden="true"/><t t-out="'Descargar la cotización' if compra['estado'] == 'sent' else 'Descargar el pedido'"/></a>
+                </t>
+                <a t-else="" t-att-href="compra['whatsapp_factura']" target="_blank" rel="noopener" class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>¿Necesitas tu factura? Escríbenos por WhatsApp</a>
+            </section>
+
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_ayuda">
+                <a t-att-href="compra['whatsapp']" target="_blank" rel="noopener" class="btn btn-primary w-100 o_dcasa_mc_btn">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>¿Dudas con esta compra? Escríbenos por WhatsApp</a>
+            </section>
+        </t>
+    </template>
+
+    <!-- ===================================================================== puntos -->
+    <template id="puntos" name="Mi cuenta: puntos">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo">Mis puntos</t>
+            <t t-set="pestana">Mis puntos · Mi cuenta</t>
+            <t t-if="not puntos['es_socio']">
+                <section class="o_dcasa_mc_puntos">
+                    <h2 class="o_dcasa_mc_kicker">Socios D'CASA</h2>
+                    <t t-if="puntos['suspendido']">
+                        <p class="mb-0">Tu cuenta de puntos está suspendida. Escríbenos por WhatsApp y lo revisamos.</p>
+                    </t>
+                    <t t-else="">
+                        <p class="o_dcasa_mc_puntos_activa">Activa tus puntos</p>
+                        <p t-if="puntos['saldo'] &gt; 0">Ya tienes <strong t-out="puntos['saldo_fmt']"/> puntos esperándote.</p>
+                        <p>Elige un PIN y entra al programa: cada compra suma puntos que cambias por premios.</p>
+                        <div class="o_dcasa_mc_puntos_ctas">
+                            <a href="/socios" class="btn o_dcasa_mc_btn_amarillo o_dcasa_mc_btn">Activar mis puntos</a>
+                        </div>
+                    </t>
+                </section>
+            </t>
+            <t t-else="">
+                <!-- Premios por recoger, ARRIBA: es lo que se enseña en la caja -->
+                <section t-if="puntos['por_recoger']" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_recoger">
+                    <h2 id="mc_recoger" class="o_dcasa_mc_h2">Premios por recoger</h2>
+                    <div t-foreach="puntos['por_recoger']" t-as="canje" class="o_dcasa_mc_canje">
+                        <div>
+                            <div class="o_dcasa_socios_codigo o_dcasa_mc_codigo" t-out="canje['codigo']"/>
+                            <div t-out="canje['premio']"/>
+                            <div class="o_dcasa_mc_nota">
+                                <t t-if="canje['web']">Aplicado en tu carrito de la tienda web.</t>
+                                <t t-elif="canje['producto']">Recógelo en la tienda antes del <t t-out="canje['vence']"/></t>
+                                <t t-else="">Enséñalo al pagar antes del <t t-out="canje['vence']"/></t>
+                            </div>
+                        </div>
+                        <form t-if="not canje['web']" t-attf-action="/socios/canjes/#{canje['codigo']}/cancelar" method="post"
+                              class="o_dcasa_mc_confirmar" data-confirmar="¿Cancelar este premio? Los puntos vuelven a tu saldo.">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <button type="submit" class="btn btn-link o_dcasa_mc_btn">Cancelar</button>
+                        </form>
+                    </div>
+                </section>
+
+                <!-- Saldo y meta -->
+                <section class="o_dcasa_mc_puntos" aria-labelledby="mc_saldo">
+                    <h2 id="mc_saldo" class="o_dcasa_mc_kicker">Tus puntos</h2>
+                    <p class="o_dcasa_mc_puntos_n" t-out="puntos['saldo_fmt']"/>
+                    <p t-if="puntos['equivale']" class="mb-1">equivalen a <strong t-out="puntos['equivale']"/> en premios</p>
+                    <p class="mb-3">Tu código de socio: <strong class="o_dcasa_mc_codigo_claro" t-out="puntos['codigo']"/></p>
+                    <t t-if="puntos['siguiente']">
+                        <progress class="o_dcasa_mc_barra o_dcasa_mc_barra_azul" max="100" t-att-value="puntos['siguiente']['porcentaje']"
+                                  t-att-aria-label="'Te faltan %s puntos para %s' % (puntos['siguiente']['faltan'], puntos['siguiente']['premio'])"/>
+                        <p class="mb-1">Te faltan <strong t-out="puntos['siguiente']['faltan']"/> puntos para
+                            <t t-out="puntos['siguiente']['premio']"/>.</p>
+                    </t>
+                    <p t-if="puntos['alcanza']" class="mb-1">Ya te alcanza para <strong t-out="puntos['alcanza']"/>.</p>
+                    <div class="o_dcasa_mc_puntos_ctas">
+                        <a href="/socios/premios" class="btn o_dcasa_mc_btn_amarillo o_dcasa_mc_btn">Ver y pedir premios</a>
+                    </div>
+                </section>
+
+                <!-- Vendedor: su panel -->
+                <section t-if="puntos['vendedor']" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta">
+                    <h2 class="o_dcasa_mc_h2">Eres vendedor D’CASA</h2>
+                    <a href="/socios/vendedor" class="btn btn-primary w-100 o_dcasa_mc_btn">Mi panel de vendedor</a>
+                </section>
+
+                <!-- Invitar -->
+                <section id="invitar" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_invitar">
+                    <h2 id="mc_invitar" class="o_dcasa_mc_h2">Invita y gana</h2>
+                    <p>Cuando alguien se registra con tu enlace y hace su primera compra, tú ganas
+                        <strong t-out="puntos['al_padrino']"/> puntos.</p>
+                    <a t-att-href="puntos['invitar']" target="_blank" rel="noopener" class="btn btn-primary w-100 o_dcasa_mc_btn">
+                        <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Invitar por WhatsApp</a>
+                    <label for="mc_link" class="o_dcasa_mc_nota mt-3 d-block">Tu enlace</label>
+                    <div class="o_dcasa_mc_copiar">
+                        <input id="mc_link" type="text" class="form-control" readonly="readonly" t-att-value="puntos['link']"/>
+                        <button type="button" class="btn btn-outline-primary o_dcasa_mc_btn" t-att-data-dcasa-copiar="puntos['link']">Copiar enlace</button>
+                    </div>
+                    <details class="o_dcasa_mc_qr mt-3">
+                        <summary>Ver mi código QR</summary>
+                        <img t-att-src="puntos['qr']" width="200" height="200" alt="Código QR con tu enlace de invitación" loading="lazy"/>
+                    </details>
+                    <t t-if="puntos['ahijados']">
+                        <h3 class="o_dcasa_mc_h3">Tus invitados</h3>
+                        <ul class="o_dcasa_mc_filas" role="list">
+                            <li t-foreach="puntos['ahijados']" t-as="ahijado">
+                                <span t-out="ahijado['nombre']"/>
+                                <span t-attf-class="o_dcasa_mc_etiqueta o_dcasa_mc_etiqueta_#{'ok' if ahijado['compro'] else 'neutro'}"
+                                      t-out="'Ya compró' if ahijado['compro'] else 'Aún no compra'"/>
+                            </li>
+                        </ul>
+                    </t>
+                </section>
+
+                <!-- Historial de premios -->
+                <section t-if="puntos['historial']" class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_historial">
+                    <h2 id="mc_historial" class="o_dcasa_mc_h2">Tus premios anteriores</h2>
+                    <ul class="o_dcasa_mc_filas" role="list">
+                        <li t-foreach="puntos['historial']" t-as="h">
+                            <span><t t-out="h['premio']"/><span class="o_dcasa_mc_nota d-block"><t t-out="h['codigo']"/> · <t t-out="h['fecha']"/></span></span>
+                            <span t-attf-class="o_dcasa_mc_etiqueta o_dcasa_mc_etiqueta_#{'ok' if h['entregado'] else 'neutro'}" t-out="h['estado']"/>
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- Actividad -->
+                <section class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_actividad">
+                    <h2 id="mc_actividad" class="o_dcasa_mc_h2">Tu actividad</h2>
+                    <p t-if="not puntos['movimientos']" class="o_dcasa_mc_nota mb-0">Todavía no hay movimientos. Tu primera compra suma puntos.</p>
+                    <ul t-else="" class="o_dcasa_mc_filas" role="list">
+                        <li t-foreach="puntos['movimientos']" t-as="m">
+                            <span><t t-out="m['motivo']"/><span class="o_dcasa_mc_nota d-block" t-out="m['fecha']"/></span>
+                            <strong t-attf-class="#{'o_dcasa_mc_mas' if m['positivo'] else 'o_dcasa_mc_menos'}" t-out="m['puntos']"/>
+                        </li>
+                    </ul>
+                </section>
+                <p class="o_dcasa_mc_nota"><a href="/socios/terminos">Reglas del programa</a></p>
+            </t>
+        </t>
+    </template>
+
+    <!-- ===================================================================== mis datos -->
+    <template id="datos" name="Mi cuenta: mis datos">
+        <t t-call="dcasa_mi_cuenta.marco">
+            <t t-set="titulo">Mis datos</t>
+            <t t-set="pestana">Mis datos · Mi cuenta</t>
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_datos">
+                <h2 id="mc_datos" class="o_dcasa_mc_h2">Así te tenemos</h2>
+                <dl class="o_dcasa_mc_datos">
+                    <div><dt>Nombre</dt><dd t-out="datos['nombre'] or '—'"/></div>
+                    <div><dt>Celular</dt><dd t-out="datos['celular'] or '—'"/></div>
+                    <div><dt>Correo</dt><dd t-out="datos['correo'] or '—'"/></div>
+                    <div t-if="datos['codigo']"><dt>Código de socio</dt><dd class="o_dcasa_socios_codigo" t-out="datos['codigo']"/></div>
+                    <div><dt>Cumpleaños</dt><dd t-out="datos['cumple'] or '—'"/></div>
+                </dl>
+                <a t-att-href="website._dcasa_whatsapp_url('Hola D’CASA, quiero cambiar mis datos de Mi cuenta.')" target="_blank" rel="noopener"
+                   class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
+                    <i class="fa fa-whatsapp me-2" aria-hidden="true"/>Para cambiar tus datos escríbenos por WhatsApp</a>
+            </section>
+
+            <section class="o_dcasa_mc_bloque o_dcasa_mc_tarjeta" aria-labelledby="mc_seguridad">
+                <h2 id="mc_seguridad" class="o_dcasa_mc_h2">Tu acceso</h2>
+                <a t-if="datos['es_socio']" href="/socios/pin" class="btn btn-outline-primary w-100 mb-2 o_dcasa_mc_btn">
+                    <i class="fa fa-key me-2" aria-hidden="true"/>Cambiar mi PIN</a>
+                <t t-if="tienda">
+                    <a href="/my/security" class="btn btn-outline-primary w-100 mb-2 o_dcasa_mc_btn">
+                        <i class="fa fa-lock me-2" aria-hidden="true"/>Cambiar mi contraseña</a>
+                    <a href="/my/addresses" class="btn btn-outline-primary w-100 mb-2 o_dcasa_mc_btn">
+                        <i class="fa fa-map-marker me-2" aria-hidden="true"/>Mis direcciones</a>
+                </t>
+                <form action="/socios/salir" method="post" class="mt-2">
+                    <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                    <button type="submit" class="btn btn-primary w-100 o_dcasa_mc_btn">
+                        <i class="fa fa-sign-out me-2" aria-hidden="true"/>Salir</button>
+                </form>
+            </section>
+
+            <section class="o_dcasa_mc_bloque" aria-labelledby="mc_reglas">
+                <h2 id="mc_reglas" class="o_dcasa_mc_h2">Reglas y privacidad</h2>
+                <ul class="o_dcasa_mc_enlaces" role="list">
+                    <li><a href="/socios/terminos">Reglas del programa de socios</a></li>
+                    <li><a href="/privacidad">Política de privacidad</a></li>
+                    <li><a href="/terminos">Términos y condiciones</a></li>
+                </ul>
+            </section>
+        </t>
+    </template>
+</odoo>

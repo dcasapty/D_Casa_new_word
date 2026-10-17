@@ -101,6 +101,9 @@ Todo está en `addons/dcasa_guia/data/guia.json` (no hay código por tarea). Una
 - `destino`: `{"menu": "modulo.xmlid"}` abre ese menú (con `"contexto": {"search_default_draft": 1}` para filtrar);
   `{"nuevo": "modelo"}` abre un formulario nuevo; `null` = solo explicación (entonces lleva `nota` o `brian`).
 - `palabras`: cómo lo dice la gente («isr» para la renta). Una palabra que la tarea declara tal cual pesa más en la búsqueda.
+- `grupos` (opcional): la tarea sale solo a quien tiene alguno de esos grupos, además del permiso del menú. Sirve
+  cuando todos abren la pantalla pero lo que la tarea explica es de unos pocos («Comparar las ventas»: el Inicio lo
+  abren todos; el bloque Comparar es de Gerencia y administradores).
 - `tambien`: otras categorías donde también aparece. `empezar` (arriba del archivo) es la lista ordenada de «Lo que más
   se necesita» (máximo 10).
 - Para encontrar el xmlid de un menú: Ajustes › Técnico › Menús (modo desarrollador), o el nombre externo en la base.

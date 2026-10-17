@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_dcasa_correo_envio_list" model="ir.ui.view">
+        <field name="name">dcasa.correo.envio.list</field>
+        <field name="model">dcasa.correo.envio</field>
+        <field name="arch" type="xml">
+            <list string="Correos a clientes" create="0" edit="0" delete="0"
+                  decoration-success="estado == 'enviado'" decoration-muted="estado == 'omitido'"
+                  decoration-danger="estado == 'fallido'" decoration-info="estado == 'pendiente'">
+                <field name="create_date" string="Cuándo"/>
+                <field name="tipo"/>
+                <field name="partner_id"/>
+                <field name="move_id" optional="show"/>
+                <field name="order_id" optional="hide"/>
+                <field name="correo"/>
+                <field name="estado"/>
+                <field name="entrega" optional="show"/>
+                <field name="motivo" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_dcasa_correo_envio_form" model="ir.ui.view">
+        <field name="name">dcasa.correo.envio.form</field>
+        <field name="model">dcasa.correo.envio</field>
+        <field name="arch" type="xml">
+            <form string="Correo a un cliente" create="0" edit="0" delete="0">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="tipo"/>
+                            <field name="partner_id"/>
+                            <field name="move_id" invisible="not move_id"/>
+                            <field name="order_id" invisible="not order_id"/>
+                            <field name="correo"/>
+                        </group>
+                        <group>
+                            <field name="create_date" string="Cuándo"/>
+                            <field name="estado"/>
+                            <field name="entrega" invisible="not entrega"/>
+                            <field name="motivo" invisible="not motivo"/>
+                            <field name="intentos" invisible="not intentos"/>
+                            <field name="create_uid" string="Lo encoló"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_dcasa_correo_envio_search" model="ir.ui.view">
+        <field name="name">dcasa.correo.envio.search</field>
+        <field name="model">dcasa.correo.envio</field>
+        <field name="arch" type="xml">
+            <search string="Correos a clientes">
+                <field name="partner_id"/>
+                <field name="move_id"/>
+                <field name="correo"/>
+                <filter name="pendientes" string="Por enviar" domain="[('estado', '=', 'pendiente')]"/>
+                <filter name="enviados" string="Enviados" domain="[('estado', '=', 'enviado')]"/>
+                <filter name="no_enviados" string="No enviados" domain="[('estado', 'in', ('omitido', 'fallido'))]"/>
+                <separator/>
+                <filter name="tipo_factura" string="Facturas y abonos" domain="[('tipo', 'in', ('factura', 'abono'))]"/>
+                <filter name="tipo_bienvenida" string="Bienvenidas" domain="[('tipo', '=', 'bienvenida')]"/>
+                <filter name="tipo_cotizacion" string="Cotizaciones" domain="[('tipo', '=', 'cotizacion')]"/>
+                <group>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                    <filter name="por_tipo" string="Tipo" context="{'group_by': 'tipo'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_correo_envios" model="ir.actions.act_window">
+        <field name="name">Correos a clientes</field>
+        <field name="res_model">dcasa.correo.envio</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_dcasa_correo_envio_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no ha salido ningún correo a clientes</p>
+            <p>Aquí aparece cada factura, abono, bienvenida y cotización que se le mandó a un cliente por correo, y si
+               no salió, por qué (por ejemplo: le falta el correo o los correos a clientes están apagados).</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_correo_envios" name="Correos a clientes (enviados)" parent="sale.menu_sale_config"
+              action="action_dcasa_correo_envios" sequence="96" groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

@@ -21,7 +21,8 @@ class TestApartadosDeLaTienda(TransactionCase):
         super().setUpClass()
         cls.website = cls.env.ref('website.default_website')
         cls.Orden = cls.env['sale.order']
-        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente de la tienda', 'phone': '+507 6000-0000'})
+        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente de la tienda', 'phone': '+507 6000-0000',
+                                                     'email': 'cliente.tienda@example.com'})
         cls.producto = cls.env['product.product'].create({
             'name': 'Cama de prueba (apartados)', 'type': 'consu', 'is_storable': True, 'list_price': 100.0,
             'taxes_id': [Command.clear()]})

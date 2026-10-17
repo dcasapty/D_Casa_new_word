@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ajustes › Empresas › pestaña «Documentos D'CASA», junto a garantía, cambios y términos de la factura. Solo lo
+         ve (y lo cambia) un administrador. -->
+    <record id="view_company_form_dcasa_abonos" model="ir.ui.view">
+        <field name="name">res.company.form.dcasa.abonos</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="dcasa_invoice.view_company_form_dcasa_invoice"/>
+        <field name="arch" type="xml">
+            <xpath expr="//page[@name='dcasa_documentos']/group[1]" position="after">
+                <group string="Condiciones de abono" name="dcasa_condiciones_abono" groups="base.group_system">
+                    <div class="text-muted mb-2" colspan="2">
+                        La hoja que se entrega con el abono, en dos copias: una para el cliente y otra para la tienda,
+                        con el código de cada mueble, lo abonado y el saldo; cada copia en una sola hoja. Escribe una
+                        condición por renglón: la hoja las numera sola. Si lo dejas vacío, la hoja no se imprime. El
+                        sistema no calcula ni cobra penalidades ni recargos: solo imprime lo que escribas aquí.
+                    </div>
+                    <field name="dcasa_abono_condiciones_titulo" placeholder="Condiciones de abono"/>
+                    <field name="dcasa_abono_condiciones" placeholder="Una condición por renglón."/>
+                    <field name="dcasa_abono_condiciones_larga" invisible="1"/>
+                    <div class="alert alert-warning mb-0" role="alert" colspan="2" name="dcasa_condiciones_larga"
+                         invisible="not dcasa_abono_condiciones_larga">
+                        Este texto es largo para una sola hoja: cada copia (la del cliente y la de la tienda) tiene que
+                        caber en una hoja, así que la lista de muebles saldrá más pequeña o cortada. Acórtalo si puedes.
+                    </div>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

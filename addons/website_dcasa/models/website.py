@@ -39,7 +39,7 @@ SEO_PORTADA = {
     'website_meta_title': "Mueblería en La Chorrera | D'CASA Panamá",
     'website_meta_description': (
         'Recámaras, colchones, zapateras, muebles de TV, estantes y escritorios con precios claros '
-        'en La Chorrera. Entrega a todo Panamá. Escríbenos por WhatsApp.'),
+        'en La Chorrera. Entregas en Panamá Oeste, Panamá y Colón. Escríbenos por WhatsApp.'),
 }
 # Valores que se pueden pisar: vacíos, los de ejemplo de Odoo y los anteriores de D'CASA.
 # Lo que la dueña escriba desde el editor (Sitio web > SEO) no se toca.
@@ -52,6 +52,8 @@ SEO_PORTADA_REEMPLAZABLES = {
         'Esta es la página de inicio del sitio web',
         'Salas, recámaras, colchones y comedores con precios claros en La Chorrera. '
         'Entrega a todo Panamá y financiamiento. Escríbenos por WhatsApp.',
+        'Recámaras, colchones, zapateras, muebles de TV, estantes y escritorios con precios claros '
+        'en La Chorrera. Entrega a todo Panamá. Escríbenos por WhatsApp.',
     },
 }
 
@@ -77,6 +79,21 @@ PROMESAS_RETIRADAS = [
      'la que mejor te sirve.'),
     ('Pagas al recibir o en la tienda: efectivo, Yappy o tarjeta.',
      'Pagas al recibir o en la tienda: efectivo o Yappy.'),
+]
+
+# Textos de la portada que ya no son ciertos (decisión de la dueña, 2026-10-17: no hay pago contra entrega y las
+# entregas son por zona). Se corrigen en las copias por sitio; solo coincidencias exactas.
+TEXTOS_CORREGIDOS = [
+    ('Transferencia bancaria, Yappy, o pagas al recibir o en la tienda. Escríbenos y te explicamos '
+     'la que mejor te sirve.',
+     'Transferencia bancaria, Yappy o en la tienda (efectivo o Yappy). El mueble se entrega cuando está '
+     'pagado completo. Escríbenos y te explicamos la que mejor te sirve.'),
+    ('Sí, llegamos a todo el país. Cuéntanos tu zona por WhatsApp y te decimos costo y fecha de entrega.',
+     'Hacemos entregas en La Chorrera, Arraiján, Capira, Panamá y Colón; al interior todavía no. El costo y la '
+     'fecha dependen de tu zona: te los confirma una vendedora por WhatsApp.'),
+    # Al interior todavía no se entrega (decisión de la dueña, 2026-10-17): la portada, la barra de arriba y el pie.
+    ('¿Hacen entregas a todo Panamá?', '¿A dónde hacen entregas?'),
+    ('Entrega a todo Panamá', 'Entregas en Panamá Oeste, Panamá y Colón'),
 ]
 
 # Categorías de la portada: (xmlid, nombre, texto alternativo). La foto es static/src/img/cat-<xmlid>.webp.
@@ -452,3 +469,28 @@ class Website(models.Model):
                     tocado = True
             cambiados += tocado
         return cambiados
+
+    @api.model
+    def _dcasa_corregir_textos(self):
+        """Corrige TEXTOS_CORREGIDOS en las copias por sitio de la portada (todas las lenguas). Devuelve cuántas
+        vistas cambió; se puede volver a correr."""
+        idiomas = list(dict.fromkeys(['en_US', *(c for c, _n in self.env['res.lang'].get_installed())]))
+        self.env['ir.ui.view'].flush_model(['arch_db', 'website_id', 'type'])
+        condiciones = ' OR '.join(['arch_db::text ILIKE %s'] * len(TEXTOS_CORREGIDOS))
+        self.env.cr.execute(
+            f"SELECT id FROM ir_ui_view WHERE website_id IS NOT NULL AND type = 'qweb' AND ({condiciones})",
+            [f'%{viejo[:60]}%' for viejo, _nuevo in TEXTOS_CORREGIDOS])
+        View = self.env['ir.ui.view'].sudo().with_context(active_test=False, no_cow=True)
+        cambiadas = 0
+        for vista in View.browse(r[0] for r in self.env.cr.fetchall()):
+            tocada = False
+            for idioma in idiomas:
+                texto = vista.with_context(lang=idioma).arch_db or ''
+                nuevo = texto
+                for viejo, reemplazo in TEXTOS_CORREGIDOS:
+                    nuevo = nuevo.replace(viejo, reemplazo)
+                if nuevo != texto:
+                    vista.with_context(lang=idioma).write({'arch_db': nuevo})
+                    tocada = True
+            cambiadas += tocada
+        return cambiadas

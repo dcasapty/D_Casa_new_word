@@ -429,6 +429,10 @@ class TestPuertaHttp(HttpCase):
         with entorno():
             self._entrar('puerta_cliente', ruta='/web/login')
             mi_cuenta = self.url_open('/my', headers=self._cabeceras(), allow_redirects=False)
+            if mi_cuenta.status_code in (301, 302, 303) and mi_cuenta.headers['Location'].endswith('/mi-cuenta'):
+                # Con dcasa_mi_cuenta, /my del cliente es /mi-cuenta: la sesión tiene que seguir valiendo ahí.
+                mi_cuenta = self.url_open('/mi-cuenta', headers=self._cabeceras(), allow_redirects=False)
+                self.assertIn('o_dcasa_mc_nav', mi_cuenta.text, 'Sigue dentro de su cuenta')
         self.assertEqual(mi_cuenta.status_code, 200)
 
     # --- la sesión vencida de los administradores (mismo arreglo, otro motivo) --------------------------------

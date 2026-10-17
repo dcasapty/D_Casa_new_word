@@ -100,7 +100,8 @@ class TestVendedoresWeb(HttpCase):
         persona._dcasa_guardar_pin(PIN)
         self.post('/socios/entrar', celular='6100-0099', pin=PIN)
         respuesta = self.url_open('/socios/vendedor')
-        self.assertTrue(respuesta.url.rstrip('/').endswith('/socios/cuenta'))
+        # /socios/cuenta, o /mi-cuenta/puntos si dcasa_mi_cuenta está instalado (la cuenta del socio vive ahí).
+        self.assertTrue(respuesta.url.rstrip('/').endswith(('/socios/cuenta', '/mi-cuenta/puntos')), respuesta.url)
 
     def test_mi_cuenta_de_socio_enlaza_al_panel_de_vendedor(self):
         self.entrar()

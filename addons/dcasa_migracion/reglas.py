@@ -12,6 +12,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from odoo.addons.dcasa_catalogo.reglas import clase_de_fila_inventario
+from odoo.addons.dcasa_socios.models import bien_escrito
 from odoo.tools import email_normalize
 
 COLUMNAS_CLIENTES = ('id_viejo', 'nombre')
@@ -161,8 +162,16 @@ def filas_contactos(texto, nombre_del_archivo):
         if otros:
             notas.append('Otros teléfonos en el sistema anterior: ' + ', '.join(otros))
         correo = celdas.get('correo', '')
+        problema, sugerencia = bien_escrito.problema_del_correo(correo) if correo else (None, None)
         if correo and not email_normalize(correo, strict=False):
             notas.append(f'Correo mal escrito en el sistema anterior: {correo}')
+            correo = ''
+        elif problema == 'dedo':
+            # Un error de dedo («gmial.com») no se carga como si fuera bueno: se anota y se le pide al cliente.
+            notas.append(f'Correo mal escrito en el sistema anterior: {correo} (¿{sugerencia}?)')
+            correo = ''
+        elif problema == 'relleno':
+            notas.append(f'Correo de relleno en el sistema anterior: {correo}')
             correo = ''
         dv = celdas.get('dv', '')
         if dv and not dv.isdigit():

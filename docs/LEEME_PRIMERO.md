@@ -29,9 +29,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 | Acción | ¿Hace falta su «sí»? |
 |---|---|
-| Programar, probar, subir a la rama de trabajo, desplegar a **staging** | No (autorizado de forma permanente) |
+| Programar, probar y subir a la rama de trabajo | No (autorizado de forma permanente) |
+| Desplegar a **staging** | **Antes, capturas a la dueña y su visto bueno** (regla del 2026-10-17: capturas → su filtro → pruebas → staging → producción). Capturas con datos de prueba, en computadora y celular, revisadas antes de mandarlas |
 | Crear el PR hacia `main` | Solo cuando lo pide o ya dijo «pásalo a producción» |
-| Unir a `main` y desplegar a **producción** | **Sí, un «sí» explícito por cada cambio.** Un «sí» no se arrastra al siguiente cambio |
+| Unir a `main` y desplegar a **producción** | Permiso general desde el 2026-10-17 («súbelo en cuanto vayas terminando») **para lo que ella ya vio en capturas** y pasó pruebas y revisión. Si el código cambia después de su visto bueno, se le avisa antes |
 | Borrar datos, ramas, respaldos, secretos | Sí, y mirando primero qué se borra |
 | Cifras de dinero, puntos, comisiones, impuestos | Nunca se inventan (ver `CLAUDE.md`: `puntos.json`, reglas de marca) |
 
@@ -96,6 +97,38 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
+
+### 2026-10-17
+
+- **En producción** (00:36 UTC, Desplegar 15, `app_version` `256d1222…`, imagen `sha256:37f59b2e…`; CI #189 y la
+  revisión del PR #52 en verde): el **Inicio de Gerencia compara con el mes pasado** (hoy contra el mismo día y el mes
+  contra los mismos días, en % azul o rojo) y el **Escáner › Contar** cambia el precio (con permiso de Productos, con
+  rastro en el producto) y lee códigos con la **cámara**. El primer intento se frenó solo: el respaldo previo recibió
+  un 429 de R2 («reduce your concurrent request rate»); el segundo pasó (ver CONTEXTO_AGENTICO).
+- **En producción** (16 oct, 23:20 UTC, Desplegar 14, `7b534ad7…`; y el Worker de Juan a las 23:23 desde `3b678a6`):
+  la tarjeta de la vendedora sin cifras de dinero y con «Ver mis ventas»; Juan en inglés, domingo hasta las 5, y
+  crédito/entregas/descuentos desde su conocimiento.
+- **Decisiones de la dueña (17 oct, 17 respuestas):** permiso para subir a producción cada cosa apenas pase las
+  pruebas y la revisión; quien cobra es el jefe administrativo; la restricción de permisos debe poder **apagarse**;
+  remitente `ventas@dcasapty.com`; correo obligatorio salvo la casilla «Cliente no tiene correo electrónico»;
+  bienvenida solo a clientes nuevos; **sin pago contra entrega** (el mueble se entrega pagado completo); el apartado
+  web sigue en 7 días y se llama **«Apartado por página web»**; en cambios y garantía **manda la factura**; el código
+  público es para el público; imprimir las condiciones de abono **versión 1** tal cual (editables en Ajustes). El
+  dominio se traslada cuando el jefe responda lo contable. No hay píxel de Meta: se crea con la extensión de Chrome.
+- **En la rama (próximo despliegue):** el **papel del abono** (título «Abono», SALDO POR PAGAR grande, inicio y
+  vencimiento a un mes; se ofrece imprimir en cada abono con la nota de entrega desmarcada), **«Mi cuenta»** del
+  cliente en `/mi-cuenta` (compras, lo que le falta de cada abono, entregas, puntos y datos; reclamar una cuenta con
+  compras exige el código de la factura), «Pago en la tienda» en lugar de «al recibir», la portada con las zonas de
+  entrega reales, «Apartado por página web» y `/terms` → `/terminos`.
+- **En la rama `comparar-ventas` (probado en local, sin subir):** el **comparador de ventas** del Inicio de Gerencia
+  (pedido del jefe; la dueña aprobó): el interruptor **Completadas / Con abonos** (abre en Completadas; una venta
+  facturada sin ningún pago ya no cuenta), el selector de **vendedora** con «Por vendedora», y el bloque **Comparar**
+  (Ayer · mismo día del mes pasado · mismo día de la semana pasada · lo que va del mes · contra un mes completo con
+  «Llevas N %» · A vs B), solo números, hoy contra el otro día **hasta la misma hora** (lo registrado a esa hora). Brian
+  `comparar_ventas`, Guía «Comparar las ventas» y `docs/OPERACION.md` («Completadas o Con abonos, y Comparar»).
+- **Trabajando (agentes):** condiciones de abono en dos hojas (cliente y empresa), permisos de vendedoras con
+  interruptor y rol Caja, teléfono y correo obligatorios, correos con Resend; luego Meta (catálogo, píxel y
+  Conversions API). Instrucciones v2 de Juan para la extensión entregadas (correrlas después de este despliegue).
 
 ### 2026-10-16
 
