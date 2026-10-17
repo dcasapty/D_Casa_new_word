@@ -1,5 +1,7 @@
 """El sitio se edita por código (models/sitio.py; docs/auditoria/ronda7/constructor-web.md)."""
 from odoo import Command
+from odoo.addons.dcasa_socios.models import reglas_vendedores as RV
+from odoo.addons.website_dcasa.tests.ajustes_navegador import GuardarAjustesComoElNavegador
 from odoo.exceptions import AccessError, UserError
 from odoo.tests import TransactionCase, tagged
 from odoo.tools.misc import file_path
@@ -186,3 +188,21 @@ class TestSitioPorCodigo(TransactionCase):
             codigo = archivo.read()
         self.assertNotIn('enable_editor', codigo)
         self.assertNotIn('website_builder', codigo)
+
+
+@tagged('post_install', '-at_install')
+class TestAjustesSinDisenador(GuardarAjustesComoElNavegador):
+    """Sin el grupo de diseñador (aquí lo retira de verdad ``_sitio_por_codigo``) la administradora guarda Ajustes.
+
+    Antes ninguna pantalla de Ajustes se podía guardar: «No tienes permiso para modificar registros "Sitio web"»
+    (website_dcasa, models/res_config_settings.py).
+    """
+
+    def test_la_duena_guarda_el_programa_de_vendedores(self):
+        for xmlid in GRUPOS_EDITOR:
+            self.assertFalse(self.duena.has_group(xmlid), xmlid)
+        Reglas = self.env['dcasa.vend.reglas']
+        self.guardar_ajustes('ajustes_duena', {'dcasa_vend_comision_base': 4.5, 'dcasa_vend_motivo': 'Desde Ajustes'})
+        version = Reglas.search([], order='numero desc', limit=1)
+        self.assertEqual((version.motivo, version.autor), ('Desde Ajustes', 'Dueña de Prueba'))
+        self.assertEqual(RV.seccion(Reglas._vigentes())['comision']['puntosPorDolarNeto'], 4.5)

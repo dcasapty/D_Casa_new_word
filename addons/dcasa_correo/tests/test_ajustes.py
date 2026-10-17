@@ -3,9 +3,11 @@ import logging
 import os
 from unittest.mock import patch
 
+from odoo.addons.website_dcasa.tests.ajustes_navegador import GuardarAjustesComoElNavegador
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import new_test_user, tagged
 
+from ..models.correo import P_NOMBRE
 from .common import CLAVE, CorreoCase, respuesta
 
 # Lugares de la base donde podría colarse un texto: si la clave aparece en alguno, la prueba falla.
@@ -122,3 +124,19 @@ class TestAjustes(CorreoCase):
                 self.env.cr.execute(f'SELECT COUNT(*) FROM {tabla} WHERE {columna}::text LIKE %s',  # noqa: S608
                                     [f'%{CLAVE}%'])
                 self.assertEqual(self.env.cr.fetchone()[0], 0)
+
+
+@tagged('post_install', '-at_install')
+class TestGuardarDesdeElNavegador(GuardarAjustesComoElNavegador):
+    """La dueña (administradora sin el grupo de diseñador del sitio) guarda Ajustes › Correo a clientes con «Guardar».
+
+    Antes fallaba con «No tienes permiso para modificar registros "Sitio web"» (website_dcasa,
+    models/res_config_settings.py).
+    """
+
+    def test_la_duena_guarda_correo_a_clientes(self):
+        nunca = patch('requests.post', side_effect=AssertionError('Guardar no le habla a Resend'))
+        nunca.start()
+        self.addCleanup(nunca.stop)
+        self.guardar_ajustes('ajustes_duena', {'dcasa_correo_nombre': "D'CASA Prueba"})
+        self.assertEqual(self.env['ir.config_parameter'].sudo().get_param(P_NOMBRE), "D'CASA Prueba")

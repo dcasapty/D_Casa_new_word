@@ -367,14 +367,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - Un `xpath` que busca por texto (`//h3[text()='…']`) falla con el sitio en `es_419` (el texto ya viene traducido) y
   rompe la página: anclar por estructura (`//a[@href='/shop/print']/preceding-sibling::h3[1]`). En la prueba,
   `_get_combined_arch()` devuelve un `Element`: compararlo con `etree.tostring(...)` (2026-10-17).
-- **(sin confirmar)** Un administrador sin «Editor y diseñador» del sitio (`dcasa_interfaz` se lo quita a todos) no
-  podría guardar **ninguna** pantalla de Ajustes: `group_gmc_feed` de `website_sale` es grupo y a la vez `related` a
-  `website.enabled_gmc_src`, viaja en cada guardado y `_inverse_related` escribe en `website` sin mirar si cambió.
-  Lo vio el agente de Meta en una base sin su módulo; se está reproduciendo y arreglando (2026-10-17).
 - Un texto más largo en la barra de anuncios desbordó el celular en producción (426 px a 360/390) con CI #194 en verde;
   la misma `TestMovilSinDesborde` falla en local con ese código. **(sin confirmar)** la diferencia es el entorno del
   CI (fuentes); mientras tanto, todo cambio de texto en la cabecera se prueba en local a 360 y 390 antes de subir
   (2026-10-17).
+- Sin el grupo «Editor y diseñador» del sitio (nadie lo tiene: el sitio se edita por código) **ninguna** pantalla de
+  Ajustes se guardaba («No tienes permiso para modificar registros "Sitio web"»): `group_gmc_feed` de website_sale es
+  campo de grupo (recibe valor de `default_get`) y related a `website_id.enabled_gmc_src`; ese valor por defecto entra
+  después del filtro de `res.config.settings.create()` y el ORM lo escribe en el sitio como el usuario aunque no cambie.
+  Arreglo en `website_dcasa/models/res_config_settings.py` (si no cambia no se escribe; no abre permisos). Las pruebas
+  de Ajustes como superusuario (`self.env['res.config.settings'].create({})`) no lo ven: probar como administrador sin
+  diseñador y por el camino del navegador (`website_dcasa/tests/ajustes_navegador.py`) (2026-10-17).
 
 ### Cloudflare
 

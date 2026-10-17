@@ -107,8 +107,8 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   antes y dijo «Si me gustó».
 - **En curso (cada cosa con capturas para la dueña antes de staging):** Meta unido (catálogo + píxel/CAPI, apagado) con
   revisión adversarial; reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); Inicio de Gerencia
-  sobre facturas; y un posible error en producción: un administrador no podría guardar Ajustes (ver CONTEXTO_AGENTICO,
-  «(sin confirmar)» hasta reproducirlo).
+  sobre facturas; y un error **confirmado en producción**: ningún administrador puede guardar Ajustes (arreglado en
+  `website_dcasa/models/res_config_settings.py`, con pruebas por el camino del navegador; ver CONTEXTO_AGENTICO).
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
