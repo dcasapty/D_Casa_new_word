@@ -489,6 +489,11 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.conversacion', 'hilo'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'refrescar'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'ficha'): PANEL_VENTAS,
+    # --- Celular y correo bien escritos y obligatorios (dcasa_contactos, 2026-10-17) ---------------------------
+    ('dcasa_contactos', 'sale.order', 'action_confirm'):
+        OVERRIDE + ' Botón Confirmar de Odoo; solo revisa celular y correo del cliente antes de super(); sin sudo.',
+    ('dcasa_contactos', 'res.partner', 'name_create'):
+        OVERRIDE + ' Creación rápida de Odoo; solo marca el contexto para no exigir celular y correo al crear.',
     ('dcasa_conversaciones', 'dcasa.conversacion', 'marcar_leida'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'enviar_respuesta'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.conversacion', 'tomar'): PANEL_VENTAS,

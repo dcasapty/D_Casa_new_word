@@ -30,7 +30,9 @@ class TestHerramientas(TransactionCase):
                                     'list_price': 107.0, 'dcasa_medidas': '200 × 90 × 85 cm'})
         cls.mesa_a = Template.create({**base, 'name': 'Brianzeta Mesa Roble', 'list_price': 50.0})
         cls.mesa_b = Template.create({**base, 'name': 'Brianzeta Mesa Pino', 'list_price': 40.0})
-        cls.cliente = cls.env['res.partner'].create({'name': 'Brianzeta Cliente Uno', 'phone': '6123-4501'})
+        # Con celular y correo: sin ellos no se confirma la venta ni se publica la factura (dcasa_contactos).
+        cls.cliente = cls.env['res.partner'].create({'name': 'Brianzeta Cliente Uno', 'phone': '6123-4501',
+                                                     'email': 'brianzeta.uno@example.com'})
 
     def ejecutar(self, usuario, nombre, argumentos=None):
         return self.env['brian.herramientas'].with_user(usuario).ejecutar(nombre, argumentos or {})
@@ -207,17 +209,73 @@ class TestHerramientas(TransactionCase):
 
     def test_crear_cliente_no_duplica_celular(self):
         for celular in ('6123-4501', '+507 6123 4501'):
-            respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Duplicado', 'celular': celular})
+            respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Duplicado', 'celular': celular,
+                                                                       'correo': 'duplicado@example.com'})
             self.assertFalse(respuesta['ok'])
             self.assertIn('Brianzeta Cliente Uno', respuesta['error'])
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Nueva',
-                                                                       'celular': '61234502'}))
+                                                                       'celular': '61234502',
+                                                                       'correo': 'brianzeta.nueva@example.com'}))
         self.assertEqual(datos['celular'], '6123-4502')
         respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
             'cliente': 'Brianzeta Nueva', 'campo': 'celular', 'valor': '6123-4501'})
         self.assertFalse(respuesta['ok'])
-        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Y', 'celular': '123'})
-        self.assertIn('celular de Panamá', respuesta['error'])
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Y', 'celular': '123',
+                                                                   'correo': 'y@example.com'})
+        self.assertIn('en Panamá son 8 números', respuesta['error'])
+
+    def test_crear_cliente_con_celular_y_correo_bien_escritos(self):
+        """Celular y correo obligatorios y bien escritos (pedido de la dueña, 2026-10-16), como en la ficha."""
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Correo',
+                                                                   'celular': '6123-4503'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('correo', respuesta['error'])
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Dedo', 'celular': '6123-4503',
+                                                                   'correo': 'dedo@gmial.com'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('¿Quisiste decir dedo@gmail.com?', respuesta['error'])
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Limpia',
+                                                                       'celular': '6123 4503',
+                                                                       'correo': ' Limpia@Example.com '}))
+        ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Limpia')])
+        self.assertEqual((ficha.phone, ficha.email), ('+507 6123-4503', 'limpia@example.com'))
+        self.assertEqual(datos['correo'], 'limpia@example.com')
+        extranjero = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+            'nombre': 'Brianzeta Miami', 'celular': '+1 305 555 1234', 'correo': 'miami@example.com'}))
+        self.assertEqual(extranjero['celular'], '+13055551234')
+        respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Limpia', 'campo': 'correo', 'valor': 'limpia@hotmail.con'})
+        self.assertIn('¿Quisiste decir limpia@hotmail.com?', respuesta['error'])
+
+    def test_cliente_que_no_tiene_correo(self):
+        """«no tiene» en el correo marca «Cliente no tiene correo electrónico» (decisión de la dueña, 2026-10-17)."""
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+            'nombre': 'Brianzeta Abuela', 'celular': '6123-4504', 'correo': 'No tiene'}))
+        self.assertTrue(datos['no_tiene_correo'])
+        ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Abuela')])
+        self.assertTrue(ficha.dcasa_sin_correo)
+        self.assertFalse(ficha.email)
+        # El celular sigue siendo obligatorio.
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Nada', 'celular': '',
+                                                                   'correo': 'no tiene'})
+        self.assertFalse(respuesta['ok'])
+        # A una ficha que ya existe: con un correo bueno no se borra; con uno de relleno, sí.
+        respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Cliente Uno', 'campo': 'correo', 'valor': 'uno@example.com'})
+        self.assertTrue(respuesta['ok'], respuesta)
+        respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Cliente Uno', 'campo': 'correo', 'valor': 'sin correo'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('ya tiene el correo uno@example.com', respuesta['error'])
+        self.cliente.with_context(dcasa_sin_exigir_contacto=True).email = 'no@no.com'
+        datos = self.ok(self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Cliente Uno', 'campo': 'correo', 'valor': 'sin correo'}))
+        self.assertTrue(datos['no_tiene_correo'])
+        self.assertFalse(self.cliente.email)
+        # Y si después le escriben un correo, la casilla se desmarca sola.
+        self.ok(self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Cliente Uno', 'campo': 'correo', 'valor': 'uno.nuevo@example.com'}))
+        self.assertFalse(self.cliente.dcasa_sin_correo)
 
     def test_puntos_se_leen_del_libro_y_se_ajustan_con_el_asistente(self):
         ficha = self.cliente._dcasa_asegurar_ficha()

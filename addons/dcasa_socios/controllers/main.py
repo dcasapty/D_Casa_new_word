@@ -17,6 +17,7 @@ from odoo import fields, http
 from odoo.exceptions import UserError
 from odoo.http import request
 
+from ..models import bien_escrito
 from ..models import reglas as R
 from ..models.dcasa_canje import ESTADOS_CANJE
 from ..models.ir_http import SESSION_PADRINO
@@ -208,8 +209,14 @@ class SociosDcasa(http.Controller):
         pin = self._pin_nuevo(datos, celular)
         cumple = self._cumple(datos)
         correo = (datos.get('correo') or '').strip()
-        if correo and '@' not in correo:
+        problema, sugerencia = bien_escrito.problema_del_correo(correo) if correo else (None, None)
+        if problema == 'dedo':
+            raise UserError(f'Ese correo parece mal escrito. ¿Quisiste decir {sugerencia}? Revísalo o déjalo vacío.')
+        if problema == 'relleno':
+            raise UserError('Si no tienes correo, deja ese campo vacío.')
+        if problema:
             raise UserError('Ese correo no parece un correo. Revísalo o déjalo vacío.')
+        correo = bien_escrito.correo_limpio(correo) if correo else ''
 
         ahora = fields.Datetime.now()
         existente = Partner._dcasa_por_celular(celular)

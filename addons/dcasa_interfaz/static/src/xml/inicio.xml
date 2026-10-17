@@ -28,7 +28,7 @@
                         <i class="fa fa-plus me-2"/>Nueva cotización
                     </button>
                     <button t-if="d.permisos.crear_cliente" class="btn btn-primary o_dcasa_nuevo_cliente"
-                            t-on-click="() => this.nuevo('res.partner')">
+                            t-on-click="() => this.nuevo('res.partner', {res_partner_search_mode: 'customer', default_customer_rank: 1})">
                         <i class="fa fa-user-plus me-2"/>Nuevo cliente
                     </button>
                     <button t-if="d.permisos.cobrar" class="btn btn-primary o_dcasa_registrar_cobro"
