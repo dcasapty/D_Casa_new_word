@@ -181,7 +181,10 @@ class SociosDcasa(http.Controller):
         if request.httprequest.method != 'POST':
             return self._render('dcasa_socios.socios_registro', valores)
         try:
-            socio = self._registrar(datos, padrino)
+            # Todo o nada: si algo lo rechaza a mitad (p. ej. el candado de fichas únicas de dcasa_contactos, que
+            # salta DESPUÉS de crear la ficha), no queda una ficha a medias con ese celular como llave del programa.
+            with request.env.cr.savepoint():
+                socio = self._registrar(datos, padrino)
         except UserError as error:
             valores['error'] = error.args[0]
             return self._render('dcasa_socios.socios_registro', valores)

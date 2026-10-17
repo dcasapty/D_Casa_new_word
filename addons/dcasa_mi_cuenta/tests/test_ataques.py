@@ -156,6 +156,34 @@ class TestMiCuentaAtaques(MiCuentaComun, HttpCase):
         self.assertIn(del_hijo.name, compras)
         self.assertNotIn(ajeno_hijo.name, compras)
 
+    def test_un_registro_rechazado_no_deja_una_ficha_a_medias(self):
+        """Una clienta que paga a abonos todavía no tiene ficha de Socios (el código y el celular del programa llegan
+        con la primera factura pagada completa). Si otra persona intenta registrarse con su celular, el candado de
+        fichas únicas lo rechaza; pero el registro ya había creado la ficha nueva y el rechazo no la deshacía: quedaba
+        una ficha con el celular de la clienta como llave, que el siguiente intento reclamaba sin código, y que al
+        fusionarla con la de ella le daba a la intrusa sus compras en «Mi cuenta»."""
+        clienta = self.env['res.partner'].create({'name': 'CLIENTA A ABONOS', 'phone': '6100-4004'})
+        pedido = self._pedido(clienta, [(self.sofa, 1)])
+        pedido.action_confirm()
+        factura = pedido._create_invoices()
+        factura.action_post()
+        self._pagar(factura, 100.0, fields.Date.today())
+        self.assertEqual(factura.payment_state, 'partial')
+        self.assertFalse(clienta.dcasa_celular or clienta.dcasa_socio_codigo, 'Todavía sin ficha de Socios')
+        Partner = self.env['res.partner'].with_context(active_test=False)
+        antes = Partner.search_count([])
+        for _intento in range(2):
+            respuesta = self.post('/socios/registro', nombre='Intrusa', apellido='Vecina', celular='6100-4004',
+                                  pin='739164', pin2='739164', acepta='on')
+            self.assertIn('ya está registrado', respuesta.text)
+            self.assertNotIn('CLIENTA A ABONOS', respuesta.text, 'Sin decir de quién es el celular')
+            self.assertNotIn('Ya eres socio', respuesta.text)
+            self.env.invalidate_all()
+            self.assertFalse(Partner.search([('dcasa_celular', '=', '61004004')]),
+                             'Ninguna ficha a medias con el celular de la clienta')
+            self.assertEqual(Partner.search_count([]), antes)
+        self.assertNotIn(pedido.name, self.url_open('/mi-cuenta/compras').text)
+
     def test_con_pin_nunca_cedula_direcciones_telefonos_ni_pdf(self):
         self.socia.write({'vat': CEDULA, 'phone': TELEFONO_FIJO})
         entrega = self.env['res.partner'].create({
@@ -246,3 +274,42 @@ class TestMiCuentaAtaques(MiCuentaComun, HttpCase):
         self.assertIn('Entra a tu cuenta', respuesta.text)
         self.assertNotIn('<script>alert(1)</script>', respuesta.text)
         self.assertEqual(respuesta.headers.get('Cache-Control'), 'no-store')
+
+    # --- Lo de /socios y la contabilidad siguen igual con Mi cuenta instalada ---------------------------------------
+
+    def test_turnstile_sigue_en_entrar_y_registro(self):
+        """Mi cuenta hereda /socios/entrar y /socios/registro: la ruta que sirve Odoo sigue pidiendo Turnstile."""
+        rutas = {regla.rule: regla.endpoint for regla in self.env['ir.http'].routing_map().iter_rules()}
+        for ruta, accion in (('/socios/entrar', 'socios_entrar'), ('/socios/registro', 'socios_registro')):
+            with self.subTest(ruta=ruta):
+                self.assertEqual(rutas[ruta].routing.get('captcha'), accion)
+
+    def test_el_candado_del_pin_sigue_desde_mi_cuenta(self):
+        for _intento in range(5):
+            self.entrar(pin='111222', origen='mi-cuenta')
+        self.socia.invalidate_recordset()
+        self.assertTrue(self.socia._dcasa_bloqueada(), 'Cinco PIN equivocados desde Mi cuenta ponen el candado')
+        bloqueada = self.entrar(origen='mi-cuenta')   # aun con el PIN bueno
+        self.assertIn('Por seguridad, espera', bloqueada.text)
+        self.assertIn('Entra a tu cuenta', bloqueada.text)
+        self.assertNotIn(self.pedido.name, self.url_open('/mi-cuenta/compras').text)
+
+    def test_mirar_mi_cuenta_no_cambia_la_contabilidad_ni_los_puntos(self):
+        def foto():
+            return (
+                [(linea.id, linea.debit, linea.credit, linea.amount_residual, linea.reconciled)
+                 for linea in self.env['account.move.line'].search([], order='id')],
+                self.env['account.partial.reconcile'].search_count([]),
+                [(m.id, m.state, m.payment_state, m.amount_residual)
+                 for m in self.env['account.move'].search([], order='id')],
+                self.env['dcasa.movimiento'].search_count([]), self.env['dcasa.compra'].search_count([]),
+                [(p.id, p.state) for p in self.env['sale.order'].search([], order='id')],
+            )
+
+        antes = foto()
+        self.entrar()
+        for ruta in self.paginas_de():
+            self.assertEqual(self.url_open(ruta).status_code, 200)
+        self.env.flush_all()
+        self.env.invalidate_all()
+        self.assertEqual(foto(), antes)
