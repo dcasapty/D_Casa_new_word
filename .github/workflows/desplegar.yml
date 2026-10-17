@@ -236,6 +236,8 @@ jobs:
           BRIAN_API_KEY: ${{ secrets.BRIAN_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           BRIAN_TELEGRAM_SECRETO: ${{ secrets.BRIAN_TELEGRAM_SECRETO }}
+          # Opcional: correo a clientes por Resend (docs/CORREO.md). Sin él no sale ningún correo.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           # Opcional: caché de páginas (edge/CONTRATO_CONTENEDOR.md → «Caché de páginas»).
           TIENDA_FEED_TOKEN: ${{ secrets.TIENDA_FEED_TOKEN }}
           # Opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md). Sin él, Turnstile apagado.

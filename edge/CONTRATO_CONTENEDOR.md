@@ -81,6 +81,7 @@ propio valor por defecto (`dcasa`).
 | `DCASA_PIN_PEPPER` | secreto | — | nunca se rota |
 | `ODOO_MASTER_PASSWORD` | secreto | — | opcional |
 | `BRIAN_*`, `TELEGRAM_BOT_TOKEN` | var/secreto | — | opcionales |
+| `RESEND_API_KEY` | secreto | — | opcional. Clave de Resend para el correo a clientes (`addons/dcasa_correo`, docs/CORREO.md). Sin ella Odoo no manda ningún correo (todo queda como antes). Viene del secreto de GitHub con cada despliegue; Odoo la lee solo del entorno y nunca la guarda |
 | `TIENDA_FEED_TOKEN` | secreto | — | ≥ 32 caracteres. Odoo lo exige en `GET /dcasa/tienda/feed` (cabecera `X-Dcasa-Tienda-Token`) y lo manda como `Bearer` al avisar `POST /__edge/tienda/regenerar` (§5) |
 | `TIENDA_AVISO_URL` | var | — | opcional; por defecto `https://<CANONICAL_HOST>/__edge/tienda/regenerar` |
 | `DCASA_2FA_OBLIGATORIO` | var | — | `0` (por defecto). `1` = quien está en el alcance enrola la app de códigos al entrar (addons/dcasa_seguridad). Encender solo cuando la dueña ya enroló la suya (docs/SEGURIDAD_ACCESO.md). Staging: `1` desde 2026-10-10; producción: `0` |

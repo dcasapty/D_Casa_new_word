@@ -96,6 +96,7 @@ clave de cifrado con producción):
 | Secret | `ODOO_MASTER_PASSWORD` | sí | contraseña maestra (`admin_passwd`), **distinta** de la anterior |
 | Secret | `DCASA_PIN_PEPPER` | sí | pimienta del PIN de socios (ver abajo); **jamás se rota** |
 | Secret | `BRIAN_API_KEY` | sí | clave del proveedor de IA de Brian (en staging, una clave de pruebas con tope de gasto) |
+| Secret | `RESEND_API_KEY` | no | clave de Resend (permiso «solo envío»; otra para staging): sin ella no sale ningún correo. Se sube con cada despliegue. Ver [CORREO.md](CORREO.md) |
 | Secret | `TELEGRAM_BOT_TOKEN`, `BRIAN_TELEGRAM_SECRETO` | no | ver «Brian» |
 | Secret | `TIENDA_FEED_TOKEN` | no (sí para la caché de páginas) | `openssl rand -hex 32` (≥ 32 caracteres), **distinto por entorno**. Lo comparten el Worker y Odoo: con él Odoo certifica las páginas anónimas que el borde guarda y protege el aviso de invalidación. Se puede rotar (se sube en cada despliegue). Ver edge/CONTRATO_CONTENEDOR.md §5 |
 | Secret | `DCASA_PUERTA_RUTA`, `DCASA_PUERTA_SECRETO`, `DCASA_ACCESS_EQUIPO`, `DCASA_ACCESS_AUD` | no (las cuatro juntas para la puerta del equipo) | Ver docs/SEGURIDAD_ACCESO.md §8.4: la ruta secreta de la entrada (`/entrada-…`), `openssl rand -hex 32` (≥ 32, **distinto por entorno**), `https://<equipo>.cloudflareaccess.com` y el *AUD Tag* de la aplicación de Cloudflare Access. Si falta alguna, la puerta queda apagada |
