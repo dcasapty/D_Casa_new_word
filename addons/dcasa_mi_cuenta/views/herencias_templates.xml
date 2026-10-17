@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lo que cambia fuera de /mi-cuenta para que todos los caminos lleven ahí. -->
+
+    <!-- La página sabe que es Mi cuenta: en el celular la barra de abajo reemplaza al botón flotante de WhatsApp. -->
+    <template id="layout_mi_cuenta" inherit_id="website.layout" name="Mi cuenta: clase de la página">
+        <xpath expr="//div[@id='wrapwrap']" position="attributes">
+            <attribute name="t-attf-class" add="#{'o_dcasa_mc_activa' if dcasa_mi_cuenta else ''}" separator=" "/>
+        </xpath>
+    </template>
+
+    <!-- Cabecera: «Inicia sesión» pasa a ser «Mi cuenta» (/mi-cuenta), igual para todos los visitantes: el borde guarda
+         las páginas anónimas, así que el enlace no puede depender de la sesión del PIN. Allí se elige cómo entrar. -->
+    <template id="cabecera_mi_cuenta" inherit_id="portal.user_sign_in" name="Mi cuenta: enlace de la cabecera">
+        <xpath expr="//a" position="replace">
+            <a href="/mi-cuenta" t-attf-class="#{_link_class}">Mi cuenta</a>
+        </xpath>
+    </template>
+
+    <!-- Menú del usuario con sesión: «Mi cuenta» lleva a /mi-cuenta (el equipo sigue yendo a /my). -->
+    <template id="menu_usuario_mi_cuenta" inherit_id="portal.my_account_link" name="Mi cuenta: menú del usuario">
+        <xpath expr="//a[@href='/my/home']" position="replace">
+            <a t-att-href="'/mi-cuenta' if user_id.share else '/my/home'" role="menuitem" class="dropdown-item ps-3">
+                <i class="fa fa-fw fa-id-card-o me-1 small text-primary-emphasis"/> Mi cuenta
+            </a>
+        </xpath>
+    </template>
+
+    <!-- Pie de página: «Mi cuenta». -->
+    <template id="pie_mi_cuenta" inherit_id="website_dcasa.footer_dcasa" name="Mi cuenta: pie de página">
+        <xpath expr="//a[@href='/my']" position="attributes">
+            <attribute name="href">/mi-cuenta</attribute>
+        </xpath>
+    </template>
+
+    <!-- Socios: «Mi cuenta» del menú de /socios y el regreso desde el panel del vendedor. -->
+    <template id="socios_nav_mi_cuenta" inherit_id="dcasa_socios.socios_layout" name="Mi cuenta: menú de socios">
+        <xpath expr="//nav[hasclass('o_dcasa_socios_nav')]/a[@href='/socios/cuenta']" position="attributes">
+            <attribute name="href">/mi-cuenta</attribute>
+        </xpath>
+    </template>
+
+    <template id="vendedor_panel_mi_cuenta" inherit_id="dcasa_socios.vendedor_panel" name="Mi cuenta: regreso desde el panel de vendedor">
+        <xpath expr="//a[@href='/socios/cuenta']" position="attributes">
+            <attribute name="href">/mi-cuenta/puntos</attribute>
+        </xpath>
+    </template>
+
+    <template id="portal_socios_mi_cuenta" inherit_id="dcasa_socios.portal_my_home_socios" name="Mi cuenta: tarjeta de socios en /my">
+        <xpath expr="//a[@href='/socios/cuenta']" position="attributes">
+            <attribute name="href">/mi-cuenta/puntos</attribute>
+        </xpath>
+    </template>
+
+    <!-- Detalle del pedido y de la factura en /my (siguen existiendo): sin «Con la tecnología de Odoo». -->
+    <template id="portal_sin_credito_odoo" inherit_id="portal.portal_record_sidebar" name="Mi cuenta: sin crédito de Odoo en el portal">
+        <xpath expr="//a[contains(@href, 'utm_medium=portal')]/.." position="replace"/>
+    </template>
+</odoo>

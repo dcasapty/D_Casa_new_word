@@ -368,6 +368,10 @@ class TestPuntosEnCarrito(CarritoCommon):
                 self.assertIsNone(patron.search(archivo.read_text(encoding='utf-8')), archivo)
 
 
+# Dónde termina la cuenta del socio: /socios/cuenta, o /mi-cuenta/puntos si dcasa_mi_cuenta está instalado.
+CUENTAS_DEL_SOCIO = ('/socios/cuenta', '/mi-cuenta/puntos')
+
+
 @tagged('post_install', '-at_install')
 class TestSociosWebHttp(HttpCase):
     """De punta a punta, como el navegador: catálogo, carrito y la cuenta unificada."""
@@ -532,10 +536,12 @@ class TestSociosWebHttp(HttpCase):
     def test_socios_reconoce_la_sesion_de_la_tienda(self):
         self.authenticate('web_socia_http', CLAVE)
         cuenta = self.url_open('/socios')
-        self.assertIn('/socios/cuenta', cuenta.url)
+        # Con dcasa_mi_cuenta instalado, la cuenta del socio vive en /mi-cuenta/puntos (la misma cuenta unificada).
+        self.assertTrue(cuenta.url.endswith(CUENTAS_DEL_SOCIO), cuenta.url)
         self.assertIn(self.socia.dcasa_socio_codigo, cuenta.text)
         self.assertIn('1,500', cuenta.text)
-        self.assertIn('Mi cuenta de la tienda', cuenta.text)
+        if cuenta.url.endswith('/socios/cuenta'):
+            self.assertIn('Mi cuenta de la tienda', cuenta.text)
         self.assertEqual(self.env['res.partner'].search_count([('dcasa_celular', '=', '60000004')]), 1,
                          'Una sola ficha: la del usuario de la tienda')
 
@@ -554,7 +560,7 @@ class TestSociosWebHttp(HttpCase):
         facil = self.post('/socios/activar', pin='123456', pin2='123456', acepta='on')
         self.assertIn('fácil de adivinar', facil.text)
         cuenta = self.post('/socios/activar', pin=PIN, pin2=PIN, acepta='on', cumple_dia='14', cumple_mes='2')
-        self.assertIn('/socios/cuenta', cuenta.url)
+        self.assertTrue(cuenta.url.endswith(CUENTAS_DEL_SOCIO), cuenta.url)
         self.assertIn('353', cuenta.text, 'Sus puntos ya estaban en su misma ficha: no hace falta el código')
         self.refrescar()
         self.assertTrue(ficha.dcasa_reclamada)
@@ -562,11 +568,11 @@ class TestSociosWebHttp(HttpCase):
         self.assertEqual(ficha.dcasa_cumple, '02-14')
         self.assertEqual(ficha.dcasa_terminos_version, R.VERSION_TERMINOS)
         self.assertEqual(self.env['res.partner'].search_count([('dcasa_celular', '=', '60000005')]), 1)
-        # /my enseña el programa.
+        # /my enseña el programa (con dcasa_mi_cuenta, /my del cliente es /mi-cuenta y enlaza a sus puntos).
         my = self.url_open('/my').text
         self.assertIn('Socios D', my)
         self.assertIn('353', my)
-        self.assertIn('/socios/cuenta', my)
+        self.assertTrue('/socios/cuenta' in my or '/mi-cuenta/puntos' in my)
 
     def test_usuario_de_la_tienda_sin_celular_valido(self):
         usuario = new_test_user(self.env, login='web_sin_cel', password=CLAVE, groups='base.group_portal',
