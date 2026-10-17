@@ -467,3 +467,17 @@ mensaje de un chat no permitido todavía despierta el contenedor (Odoo lo ignora
 Lo que Brian avisa hoy a los administradores vinculados: inicios de sesión del personal, disco/memoria/base al límite, caídas del
 contenedor y las acciones que esperan permiso (con botones Permitir / Rechazar). Un resumen de ventas o de lo vencido por Telegram
 **no existe todavía**.
+
+## Correo
+
+Con el correo a clientes encendido ([CORREO.md](CORREO.md)), Brian también manda documentos por correo, con la marca
+D'CASA y el PDF:
+
+| Herramienta | Nivel | Quién | Qué hace |
+|---|---|---|---|
+| `enviar_factura_por_correo` | construcción | Facturación | Encola la factura publicada de un cliente; sale con su PDF nuevo (si todavía debe algo, como abono: lo pagado, lo que falta y hasta cuándo) |
+| `enviar_cotizacion_por_correo` | construcción | Ventas | Manda la cotización (borrador o enviada) con su PDF; si estaba en borrador, pasa a «Enviada». No la confirma |
+
+Si los correos están apagados, o el cliente no tiene un correo bien escrito, Brian lo dice con las mismas palabras que la
+pantalla («… no tiene correo. Escríbelo en su ficha o envíasela por WhatsApp.»). Registrar un pago con `registrar_pago`
+ya manda la factura sola: no hace falta pedírselo aparte.
