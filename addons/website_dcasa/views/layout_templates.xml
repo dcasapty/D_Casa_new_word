@@ -23,9 +23,10 @@
         <xpath expr="//header/*[1]" position="before">
             <div t-if="website" class="o_dcasa_anuncios o_header_hide_on_scroll" role="region" aria-label="Avisos de D'CASA">
                 <div class="o_dcasa_container o_dcasa_anuncios_inner">
-                    <span><i class="fa fa-truck me-2" aria-hidden="true"/>Entregas en Panamá Oeste, Panamá y Colón</span>
+                    <span class="o_dcasa_anuncio_entregas"><i class="fa fa-truck me-2" aria-hidden="true"/>Entregas en Panamá Oeste, Panamá y Colón</span>
                     <span class="d-none d-md-inline"><i class="fa fa-map-marker me-2" aria-hidden="true"/>Tienda en La Chorrera</span>
-                    <a t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"><i class="fa fa-whatsapp me-2" aria-hidden="true"/>Escríbenos por WhatsApp<span class="visually-hidden"> (se abre en una pestaña nueva)</span></a>
+                    <a class="o_dcasa_anuncio_wa" t-att-href="website._dcasa_whatsapp_url()" target="_blank" rel="noopener"
+                       aria-label="Escríbenos por WhatsApp (se abre en una pestaña nueva)"><i class="fa fa-whatsapp me-2" aria-hidden="true"/><span class="d-none d-sm-inline">Escríbenos por WhatsApp</span></a>
                 </div>
             </div>
         </xpath>

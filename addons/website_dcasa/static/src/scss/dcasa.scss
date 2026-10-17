@@ -262,6 +262,23 @@ html {
         .fa {
             margin-right: .35rem !important;
         }
+
+        // Con las zonas de entrega el aviso es largo: en celular WhatsApp queda solo con su ícono (el botón flotante
+        // también está) y, si aun así no cabe (320 px), el aviso se corta con «…» en vez de ensanchar la página.
+        .o_dcasa_anuncio_entregas {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .o_dcasa_anuncio_wa {
+            flex-shrink: 0;
+            font-size: 1rem;
+
+            .fa {
+                margin-right: 0 !important;
+            }
+        }
     }
 }
 
@@ -292,7 +309,8 @@ html {
         position: relative;
         isolation: isolate;
         max-width: 1320px;
-        border-radius: 2rem;
+        // Rectángulo con esquinas suaves, como el logo (decisión de la dueña, 2026-10-17; antes, píldora de 2rem).
+        border-radius: $dcasa-radius;
         padding: .45rem .75rem .45rem 1.25rem;
         transform-origin: top center;
         transition: transform $dcasa-t-media $dcasa-curva;
