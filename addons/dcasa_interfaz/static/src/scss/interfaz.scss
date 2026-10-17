@@ -496,6 +496,9 @@
     border-radius: var(--dc-r-lg);
     padding: 20px 24px;
     margin-bottom: 16px;
+    min-width: 0;
+
+    @media (max-width: 575.98px) { padding: 16px 14px; }
 }
 
 .o_dcasa_ventas_cabeza {
@@ -630,30 +633,293 @@
     strong { color: var(--dc-tinta); font-weight: 600; }
 }
 
-.o_dcasa_variacion {
-    font-size: .85rem;
-    font-weight: 500;
-    color: var(--dc-tinta-2);
-
-    &.o_sube .fa { color: var(--dc-azul-600); }
-    &.o_baja .fa { color: #b3261e; }
+// «Completadas» / «Con abonos» (decisión de la dueña, 2026-10-17): dos píldoras; la activa en azul con texto blanco y
+// la otra con borde. Debajo, una sola línea corta que dice qué se cuenta.
+.o_dcasa_base_ventas {
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--dc-linea);
 }
 
-// Contra ayer, contra el mismo día del mes pasado… (pedido del jefe, 2026-10-16): una línea por comparación, con el
-// porcentaje resaltado en azul (sube) o rojo (baja) y el resto en gris.
-.o_dcasa_comparaciones {
-    list-style: none;
-    margin: 6px 0 0;
-    padding: 0;
+.o_dcasa_base_fila {
     display: flex;
-    flex-direction: column;
-    gap: 3px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.o_dcasa_interruptor {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.o_dcasa_interruptor_opcion {
+    min-height: 38px;
+    padding: 0 18px;
+    border-radius: 999px;
+    border: 1px solid var(--dc-azul-600);
+    background: var(--dc-blanco);
+    color: var(--dc-azul-700);
+    font-size: .9rem;
+    font-weight: 600;
+
+    &:hover { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_activo { background: var(--dc-azul-600); color: var(--dc-blanco); }
+}
+
+.o_dcasa_vendedora {
+    margin: 0;
+    min-width: 0;
+
+    .form-select {
+        min-height: 38px;
+        width: auto;
+        max-width: 100%;
+        border-color: var(--dc-linea-fuerte);
+        border-radius: var(--dc-r-sm);
+        color: var(--dc-tinta);
+        font-size: .9rem;
+    }
+}
+
+.o_dcasa_base_detalle {
+    margin: 8px 0 0;
     font-size: .85rem;
     color: var(--dc-tinta-2);
+}
 
-    .o_dcasa_variacion { font-weight: 700; }
-    .o_dcasa_variacion.o_sube { color: var(--dc-azul-700); }
-    .o_dcasa_variacion.o_baja { color: #b3261e; }
+.o_dcasa_desglose .o_dcasa_falta strong { color: var(--dc-azul-800); }
+
+// Comparar (pedido del jefe, 2026-10-17): una fila de botones y, al tocar uno, una tabla solo de números. Azul si sube,
+// rojo si baja; sin sombras ni degradados; el amarillo no aparece (nunca sobre blanco).
+.o_dcasa_comparar {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--dc-linea);
+    min-width: 0;
+}
+
+.o_dcasa_comparar_cabeza {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    h3 {
+        margin: 0;
+        font-size: .95rem;
+        font-weight: 600;
+        color: var(--dc-tinta);
+    }
+    .btn { min-height: 34px; font-size: .85rem; }
+}
+
+.o_dcasa_chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 10px 0 12px;
+}
+
+.o_dcasa_chip {
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 999px;
+    border: 1px solid var(--dc-linea-fuerte);
+    background: var(--dc-blanco);
+    color: var(--dc-azul-800);
+    font-size: .85rem;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &:hover { border-color: var(--dc-azul-300); background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_activo { background: var(--dc-azul-600); border-color: var(--dc-azul-600); color: var(--dc-blanco); }
+}
+
+.o_dcasa_comparar_mes {
+    display: block;
+    margin: 0 0 12px;
+
+    .form-select { width: auto; max-width: 100%; min-height: 38px; font-size: .9rem; }
+}
+
+.o_dcasa_comparar_rango {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    margin-bottom: 12px;
+
+    .form-control { width: auto; min-height: 38px; min-width: 0; }
+    .o_dcasa_cmp_b_propuesto { font-size: .85rem; color: var(--dc-tinta-2); white-space: nowrap; }
+    .o_dcasa_libre {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        font-size: .9rem;
+
+        // El interruptor de Odoo sale verde: aquí va en el azul de la marca.
+        .form-check-input:checked { background-color: var(--dc-azul-600); border-color: var(--dc-azul-600); }
+        .form-check-input:focus { box-shadow: var(--dc-foco); border-color: var(--dc-azul-300); }
+    }
+    .btn { min-height: 38px; }
+}
+
+.o_dcasa_comparar_lado {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+
+    legend {
+        float: none;
+        width: auto;
+        margin: 0 2px 0 0;
+        padding: 0;
+        font-size: .85rem;
+        font-weight: 700;
+        color: var(--dc-azul-700);
+    }
+}
+
+.o_dcasa_comparar_error { margin: 0 0 10px; color: #b3261e; font-size: .85rem; }
+
+.o_dcasa_comparar_cuerpo {
+    max-width: 860px;
+    transition: opacity var(--dc-transicion);
+    &.o_cargando { opacity: .5; }
+}
+
+// «Llevas 58 % de septiembre»: el único texto del bloque, en grande.
+.o_dcasa_llevas {
+    margin: 2px 0 10px;
+    font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    color: var(--dc-azul-700);
+}
+
+.o_dcasa_comparar_hora {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 6px;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_comparar_tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-variant-numeric: tabular-nums;
+
+    th, td {
+        padding: 9px 10px;
+        border-bottom: 1px solid var(--dc-linea);
+        text-align: right;
+        white-space: nowrap;
+    }
+    thead th {
+        font-size: .78rem;
+        font-weight: 700;
+        color: var(--dc-tinta-3);
+        border-bottom-color: var(--dc-linea-fuerte);
+    }
+    tbody th {
+        text-align: left;
+        font-weight: 600;
+        color: var(--dc-tinta);
+        white-space: normal;
+
+        small { margin-left: 6px; font-size: .72rem; font-weight: 400; color: var(--dc-tinta-3); }
+    }
+    td { font-size: .95rem; color: var(--dc-tinta); }
+    .o_dcasa_cmp_cambio { font-weight: 700; }
+
+    // En el celular, cada cifra en su renglón y debajo las tres columnas: nada se sale por el costado.
+    @media (max-width: 575.98px) {
+        display: block;
+
+        thead, tbody { display: block; }
+        tr {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            column-gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--dc-linea);
+        }
+        thead tr { border-bottom-color: var(--dc-linea-fuerte); }
+        th, td { padding: 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+        thead th:first-child { display: none; }
+        tbody th { grid-column: 1 / -1; margin-bottom: 2px; }
+        td { font-size: .9rem; }
+    }
+}
+
+.o_dcasa_comparar_tabla .o_bien, .o_dcasa_pv_cambio.o_bien { color: var(--dc-azul-600); }
+.o_dcasa_comparar_tabla .o_mal, .o_dcasa_pv_cambio.o_mal { color: #b3261e; }
+.o_dcasa_comparar_tabla .o_igual, .o_dcasa_pv_cambio.o_igual { color: var(--dc-tinta-2); }
+
+// Por vendedora: una fila por persona (de mayor a menor en A); al tocarla, el selector queda en ella.
+.o_dcasa_por_vendedora {
+    margin-top: 16px;
+    border-top: 1px solid var(--dc-linea-fuerte);
+}
+
+.o_dcasa_pv_cabeza, .o_dcasa_pv_fila {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(0, 1fr)) minmax(0, .8fr);
+    gap: 8px;
+    align-items: center;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.o_dcasa_pv_cabeza {
+    padding: 8px 10px;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_pv_fila {
+    width: 100%;
+    padding: 9px 10px;
+    background: none;
+    border: 0;
+    border-bottom: 1px solid var(--dc-linea);
+    color: var(--dc-tinta);
+    font-size: .92rem;
+
+    &:hover { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_pv_nombre {
+    text-align: left;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_dcasa_pv_cambio { font-weight: 700; }
+
+@media (max-width: 575.98px) {
+    .o_dcasa_pv_cabeza, .o_dcasa_pv_fila { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 2px; }
+    .o_dcasa_pv_cabeza > span:first-child { display: none; }
+    .o_dcasa_pv_nombre { grid-column: 1 / -1; }
+    .o_dcasa_comparar_lado .form-control { flex: 1 1 0; }
+    .o_dcasa_comparar_lado { flex: 1 1 100%; }
 }
 
 .o_dcasa_listas {
