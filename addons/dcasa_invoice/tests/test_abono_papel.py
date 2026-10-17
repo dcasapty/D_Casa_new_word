@@ -19,7 +19,7 @@ from lxml import html as lxml_html
 from odoo import Command, fields
 from odoo.tests import HttpCase, tagged
 
-from ..models.account_move import PARAMETRO_MESES_ABONO
+from ..models.account_move import PARAMETRO_DIAS_ABONO
 from ..wizard.impresion_paquete import DcasaImpresionPaquete
 from .documentos import DocumentosDePrueba
 from .test_paquete import _renderizar_falso, textos, textos_de_pdf_real
@@ -82,7 +82,7 @@ class TestPapelDelAbono(DocumentosDePrueba):
 
         # Datos: el plazo del abono en lugar del «Vence» de la condición de pago.
         self.assertEqual(datos['Inicio del abono'], '14/10/2026')
-        self.assertEqual(datos['El abono vence'], '14/11/2026', 'un mes desde el primer abono (parámetro de la dueña)')
+        self.assertEqual(datos['El abono vence'], '13/11/2026', '30 días continuos desde el primer abono (A3)')
         self.assertNotIn('Vence', datos)
         self.assertIn('Condiciones', datos, 'lo demás de los datos sigue')
 
@@ -103,15 +103,15 @@ class TestPapelDelAbono(DocumentosDePrueba):
         self.assertTrue(estado['vencido'])
         residuo = factura.amount_residual
         _titulo, recuadro, datos, _hoja = self._papel(factura)
-        self.assertIn('El plazo venció el 01/09/2026', _texto(recuadro))
-        self.assertEqual(datos['El abono vence'], '01/09/2026')
+        self.assertIn('El plazo venció el 31/08/2026', _texto(recuadro))
+        self.assertEqual(datos['El abono vence'], '31/08/2026', '30 días después del 1 de agosto')
         self.assertIn(_monto(residuo), _texto(recuadro), 'el saldo es el mismo: no se suma nada por vencer')
         self.assertEqual(factura.amount_residual, residuo)
         for palabra in ('multa', 'recargo', 'interés', 'penalidad'):
             self.assertNotIn(palabra, _texto(recuadro).lower())
 
     def test_sin_plazo_configurado_no_dice_cuando_vence(self):
-        self.env['ir.config_parameter'].sudo().set_param(PARAMETRO_MESES_ABONO, '0')
+        self.env['ir.config_parameter'].sudo().set_param(PARAMETRO_DIAS_ABONO, '0')
         factura = self.factura_completa(abono=100.0)
         titulo, recuadro, datos, _hoja = self._papel(factura)
         self.assertTrue(titulo.startswith('Abono'))

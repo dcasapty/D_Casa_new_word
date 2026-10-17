@@ -16,3 +16,4 @@ from . import documento
 from . import documento_abrir
 from . import producto
 from . import stock
+from . import primer_abono
