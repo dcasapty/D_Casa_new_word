@@ -13,3 +13,4 @@ from . import test_movil
 from . import test_carrito_feedback
 from . import test_direccion_visitante
 from . import test_codigo_publico_web
+from . import test_privacidad_checkout

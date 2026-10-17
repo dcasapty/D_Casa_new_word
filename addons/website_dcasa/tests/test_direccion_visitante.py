@@ -1,6 +1,10 @@
-"""Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha (dcasa_contactos)."""
+"""Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha NO cae en esa ficha: un dato escrito
+en la tienda no prueba quién es la persona, y colgarse de su ficha le daba en el checkout las direcciones de ella
+(revisión adversarial, 2026-10-17; de punta a punta en test_privacidad_checkout.py). El candado de dcasa_contactos
+sigue: una persona, una ficha; la compra con datos ajenos no sigue y el aviso al visitante no dice de quién son."""
 from odoo.addons.http_routing.tests.common import MockRequest
 from odoo.addons.website_dcasa.controllers.main import DcasaCheckout
+from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
 
 
@@ -14,7 +18,6 @@ class TestDireccionDelVisitante(TransactionCase):
         cls.panama = cls.env.ref('base.pa')
         cls.ficha = cls.env['res.partner'].create({
             'name': 'Clienta Fiel Tienda', 'phone': '+507 6777-0101', 'email': 'fiel@correo.com', 'vat': '8-777-101'})
-        cls.antes = cls.env['res.partner'].with_context(active_test=False).search_count([])
 
     def _direccion(self, **extra):
         return {'name': 'Quien compra', 'phone': '', 'email': '', 'street': 'Calle 1', 'city': 'La Chorrera',
@@ -27,23 +30,16 @@ class TestDireccionDelVisitante(TransactionCase):
         with MockRequest(self.env, website=self.website):
             return DcasaCheckout()._create_new_address(self._direccion(**extra), tipo, True, orden.sudo())
 
-    def test_el_mismo_celular_cuelga_la_direccion_de_la_ficha(self):
-        nueva = self._crear('delivery', phone='6777-0101')
-        self.assertEqual(nueva.parent_id, self.ficha)
-        self.assertEqual(nueva.commercial_partner_id, self.ficha)
+    def test_un_dato_de_una_ficha_no_cuelga_la_direccion_de_ella(self):
+        for extra in ({'phone': '6777-0101'}, {'email': 'FIEL@correo.com'}, {'vat': '8 777 101'},
+                      {'phone': '+507 6777-0101', 'email': 'fiel@correo.com', 'vat': '8-777-101'}):
+            with self.subTest(**extra), self.assertRaises(ValidationError), self.env.cr.savepoint():
+                self._crear('delivery', **extra)
+        self.ficha.invalidate_recordset()
+        self.assertFalse(self.ficha.child_ids, 'Nada del visitante cuelga de la ficha')
         self.assertEqual(self.ficha.name, 'Clienta Fiel Tienda')  # sus datos no se tocan
-
-    def test_el_mismo_correo_o_ruc_tambien(self):
-        self.assertEqual(self._crear('billing', email='FIEL@correo.com').parent_id, self.ficha)
-        self.assertEqual(self._crear('billing', vat='8 777 101').parent_id, self.ficha)
 
     def test_quien_es_nuevo_se_crea_como_siempre(self):
         nueva = self._crear('billing', phone='6777-9999', email='nueva@correo.com')
         self.assertFalse(nueva.parent_id)
         self.assertEqual(nueva.phone, '6777-9999')
-
-    def test_un_cliente_nuevo_con_datos_ajenos_no_rompe_la_compra(self):
-        # sin la reutilización esto fallaría con «ese correo ya está registrado»
-        nueva = self._crear('delivery', phone='+507 6777-0101', email='fiel@correo.com', vat='8-777-101')
-        self.assertTrue(nueva.id)
-        self.assertEqual(nueva.parent_id, self.ficha)
