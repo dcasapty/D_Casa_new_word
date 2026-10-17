@@ -135,7 +135,19 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **Pruebas:** suite completa local (todos los módulos): 3,526 pruebas, 1 falla: la captura de referencia
   `TestContratoVisualJuan` (pantalla «conexiones» a 390 px, 13.52 % de píxeles distintos), que falla **igual en
   `3b678a6`** en esta máquina (no es de este cambio; en CI no se ha visto). `ruff` limpio.
-- **Sigue:** revisión adversarial (toca permisos y contabilidad: regla de `LEEME_PRIMERO` §4), CI y staging; con el «sí»
+- **Revisión adversarial de la rama unida (`d154970`), hecha:** como vendedora A se intentó ver o tocar lo de B por
+  ORM, RPC, informes, adjuntos, mensajes, portal, Mi cuenta, Conversaciones, Inicio, Brian, Escáner, Socios, abonos y
+  su papel; nada se filtró salvo lo que se comparte a propósito (lista en PERMISOS.md). Escalar (interruptor, Caja,
+  todos los documentos, robar o reasignar un pedido) bloqueado. Contabilidad igual para Gerencia, contador y lector
+  (los 10 reportes idénticos al superusuario). La migración, probada en una base hecha con `3b678a6`; el `-u` no mueve
+  el interruptor (probado encendido y apagado); el ida y vuelta deja todo igual. **Arreglado:** la nota de entrega
+  fácil del pedido de otra no se imprimía (`13839ac`); «Ventas atribuidas» de Conversaciones sumaba toda la tienda
+  (`13839ac`); cinco pruebas que la unión con `main` había roto, entre ellas las dos clases principales de «solo lo
+  suyo» que no corrían (`7a89d89`). **Para la dueña:** los pedidos de la web quedan a nombre del «Vendedor» del sitio
+  (el administrador): las vendedoras no los ven; la vendedora sigue cobrando sus facturas (PENDIENTES_DUENA 23).
+  Suite completa: 3,661 pruebas, 1 falla (la misma captura `conexiones` 390 px de esta máquina). Capturas para la
+  dueña en el scratchpad de la sesión (`capturas_permisos/`).
+- **Sigue:** que la dueña vea las capturas y decida el punto 23, CI y staging; con el «sí»
   de la dueña (ya dijo que sube en cuanto pasen pruebas y revisión), producción. **El día del despliegue:** darle Caja
   al jefe administrativo antes de abrir ([PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 23).
 

@@ -371,6 +371,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   dueña a quien crea si solo ve lo suyo. Despachar la entrega del pedido de otra vendedora sí funciona (comprobado).
 - Las pruebas que crean pedidos o facturas como superusuario y luego los leen **como vendedora** fallan con «solo lo
   suyo» (quedan a nombre del superusuario): crearlos con `user_id` / `invoice_user_id` de ella.
+- **Una rama unida con `main` se vuelve a probar entera, no se hereda el verde de antes de unir** (revisión del
+  2026-10-17): la suite de `permisos-vendedoras` estaba verde *antes* de unir `main`; después de la unión (celular y
+  correo obligatorios, `dcasa_contactos`) `TestSoloLoSuyo` y `TestInterruptorSoloLoSuyo` fallaban en `setUpClass` —
+  las pruebas principales de permisos no corrían— y otras tres de las dos ramas chocaban (clientes sin celular ni
+  correo; una vendedora cobrando o imprimiendo una factura que no era suya). Arreglo `7a89d89` (solo datos de prueba).
 - **Lo compartido que lee lo restringido** (revisión adversarial del 2026-10-17): una plantilla o un cálculo de algo que
   ven todas (la entrega) que lee el pedido o la factura **sin `sudo`** revienta con «solo lo suyo» para la vendedora que
   no es la dueña. Pasó con la nota de entrega fácil (`stock.picking._dcasa_facturas_para_entrega`): imprimir la nota del

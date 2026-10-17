@@ -25,8 +25,10 @@ las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer
 
 **Pedido del 2026-10-16/17 (permisos): hecho en la rama local `permisos-vendedoras`, sin subir.** Cada vendedora ve solo
 lo suyo, rol Caja y el interruptor «Cada vendedora ve solo sus documentos» para volver atrás (ver
-[PERMISOS.md](PERMISOS.md)). Falta: revisión adversarial, CI y staging; producción con el «sí» de la dueña; ese día,
-darle Caja al jefe administrativo antes de abrir.
+[PERMISOS.md](PERMISOS.md)). Revisión adversarial hecha el 17 oct (dos arreglos y cinco pruebas de la rama unida; ver la
+bitácora). Falta: que la dueña apruebe las capturas y decida lo de [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) punto 23
+(pedidos de la web, si la vendedora sigue cobrando), CI y staging; producción con su «sí»; ese día, darle Caja al jefe
+administrativo antes de abrir.
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
