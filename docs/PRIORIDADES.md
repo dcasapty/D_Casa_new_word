@@ -104,12 +104,12 @@ unidos con el PR #43.)
 | Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | En producción (Desplegar 14) | — |
 | Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | En producción (Desplegar 14 y Worker de Juan). Falta que la dueña corra las instrucciones v2 con la extensión de Chrome | — |
 | Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner | En producción (Desplegar 15) | — |
-| Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | Hecho y probado en la rama `comparar-ventas` (sin subir). Falta staging, que la dueña lo mire y su «sí» para producción. Cambio a propósito: una venta facturada sin ningún pago ya no cuenta en el Inicio de Gerencia | — |
-| Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | Papel y Mi cuenta hechos y probados (próximo despliegue); condiciones de abono en construcción | — |
-| Panel del cliente «Mi cuenta» | Hecho y probado (próximo despliegue); falta la ronda de pulido de la auditoría visual | — |
-| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción | — |
-| Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En construcción; apagado hasta que la dueña cree la cuenta y se traslade el dominio | — |
-| Meta: catálogo, píxel y Conversions API | Investigación y diseño hechos; construcción en cola; el píxel lo crea la dueña con la extensión de Chrome | — |
+| Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | En producción (Desplegar 17). Sigue: el Inicio de Gerencia sobre facturas (Facturado · Con abonos · Completadas) y las notas a un ícono ⓘ | — |
+| Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | En producción (Desplegar 17): papel «ABONO» y condiciones en dos hojas. Sigue: abono mínimo 50 % y 30 días (reglas del jefe, `DECISIONES_CONTABLES.md`) | — |
+| Panel del cliente «Mi cuenta» | En producción (Desplegar 17); falta la ronda de pulido de la auditoría visual | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción junto con las reglas contables del jefe (cobro solo en Caja; anular y notas de crédito solo Gerencia; Tafi y Crediviva; pedidos web sin vendedora). Antes de encender: rol Caja al jefe administrativo | — |
+| Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
+| Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 
