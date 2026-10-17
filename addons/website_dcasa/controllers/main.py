@@ -1,6 +1,7 @@
 import json
 
 from odoo import http
+from odoo.addons.account.controllers.terms import TermsController
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
@@ -186,3 +187,12 @@ class DcasaTienda(http.Controller):
         """
         url = request.website._dcasa_whatsapp_url((texto or '')[:300])
         return request.redirect(url, code=302, local=url.startswith('/'))
+
+
+class TerminosDcasa(TermsController):
+    """/terms de Odoo es una plantilla con términos inventados (en inglés: «payable within 21 days… interest») y la
+    factura y el portal la enlazan. Lleva a los términos reales de D'CASA (/terminos)."""
+
+    @http.route('/terms', type='http', auth='public', website=True, sitemap=False)
+    def terms_conditions(self, **kwargs):
+        return request.redirect('/terminos', code=301, local=True)
