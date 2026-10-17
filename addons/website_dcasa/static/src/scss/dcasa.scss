@@ -309,7 +309,8 @@ html {
         position: relative;
         isolation: isolate;
         max-width: 1320px;
-        border-radius: 2rem;
+        // Rectángulo con esquinas suaves, como el logo (decisión de la dueña, 2026-10-17; antes, píldora de 2rem).
+        border-radius: $dcasa-radius;
         padding: .45rem .75rem .45rem 1.25rem;
         transform-origin: top center;
         transition: transform $dcasa-t-media $dcasa-curva;

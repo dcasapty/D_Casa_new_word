@@ -3,7 +3,7 @@ vuelva a dañar»). Fija, medido en Chrome y a dos anchos (1440 y 390), el dise�
 (docs/auditoria/ronda6/diseno.md §8):
 
 * Píldora de vidrio líquido (`.o_main_nav::before`): desenfoque + saturación, tinte blanco al 62 %
-  (claro, sobre fondo claro) o negro al 26 % (ahumado, sobre foto), filos de luz, radio de píldora;
+  (claro, sobre fondo claro) o negro al 26 % (ahumado, sobre foto), filos de luz, esquinas suaves (16 px);
   los mismos valores en TODAS las páginas del mismo tipo; hamburguesa visible en el celular.
 * Portada sin placa: texto blanco directo sobre la foto, velo negro plano del 35-50 %, halo fino en
   el texto y ningún elemento con fondo detrás del titular.
@@ -57,7 +57,7 @@ VIDRIO_CLARO = {'fondo': 'rgba(255, 255, 255, 0.62)', 'borde': 'rgba(255, 255, 2
                 'texto': 'rgb(27, 34, 51)'}
 VIDRIO_AHUMADO = {'fondo': 'rgba(0, 0, 0, 0.26)', 'borde': 'rgba(255, 255, 255, 0.38)',
                   'texto': 'rgb(255, 255, 255)'}
-RADIO_PILDORA = '32px'                             # 2rem
+RADIO_PILDORA = '16px'                             # 1rem: rectángulo con esquinas suaves como el logo (dueña, 2026-10-17)
 VELO_MIN, VELO_MAX = .35, .50
 # Fondos que jamás van detrás del titular de la portada (placa navy/azul, decisión de la dueña).
 AZUL, NAVY = (19, 64, 177), (14, 42, 107)
@@ -360,8 +360,8 @@ class TestContratoVisual(HttpCase):
         self.assertEqual(p['fondoImagen'], 'none', 'sin degradados (sistema plano)')
         self.assertEqual(p['borde'], esperado['borde'])
         self.assertEqual(p['bordeAncho'], '1px')
-        self.assertEqual(p['radio'], RADIO_PILDORA, 'radio de píldora del vidrio')
-        self.assertEqual(p['radioNav'], RADIO_PILDORA, 'radio de píldora del nav')
+        self.assertEqual(p['radio'], RADIO_PILDORA, 'esquinas suaves del vidrio')
+        self.assertEqual(p['radioNav'], RADIO_PILDORA, 'esquinas suaves del nav')
         self.assertGreaterEqual(p['filos'], 2, f'filos de luz (inset): {p["sombra"]}')
         self.assertEqual(m['menu']['color'], esperado['texto'], f'color del menú sobre el vidrio {tipo}')
         # Sobre foto o fondo oscuro, la cabecera nace y queda ahumada (medida por el observador).
