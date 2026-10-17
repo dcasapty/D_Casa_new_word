@@ -50,7 +50,9 @@ class PermisosContablesCommon(TransactionCase):
         cls.sin_contabilidad = (cls.vendedora, cls.cajero)
 
         # Negocio
-        cls.cliente = env['res.partner'].create({'name': 'Cliente Prueba Permisos'})
+        # Con celular y correo: sin ellos no se publica la factura (dcasa_contactos, 2026-10-16).
+        cls.cliente = env['res.partner'].create({'name': 'Cliente Prueba Permisos', 'phone': '6000-0011',
+                                                 'email': 'cliente.permisos@example.com'})
         cls.proveedor = env['res.partner'].create({'name': 'Proveedor Prueba Permisos'})
         cls.producto = env['product.product'].create({'name': 'Mueble Prueba Permisos', 'list_price': 100.0})
         Diario = env['account.journal']

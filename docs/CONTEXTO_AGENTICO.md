@@ -209,6 +209,8 @@ módulos nuevos (o sea, si necesitaba `odoo -u`). Conteos hechos con `git diff` 
 | Desplegar 11 | 2026-10-16 14:57 | `9be426a4` | Inicio: cotizaciones y entregas arriba con acento, «Ganancia bruta», cuadre exacto con Contabilidad; Contabilidad: aviso de utilidad sin costo de ventas, «Vencido» sin negativos | No (vistas, plantillas y estilos; sin campos nuevos) | **Sano y confirmado** 15:11 (versión `9be426a46e15`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («tan pronto puedas subir las correcciones a producción hazlo»). Staging igual en CI #178. digest `876ca5f5…` |
 | Desplegar 12 | 2026-10-16 19:25 | `431cbfe8` | Bono por meta de ventas (1 % si se llega a la meta; a la primera planilla del mes siguiente), aviso de pedidos repetidos, avisos del chat «En Odoo» y contador en rojo | **Sí** (modelos y campos nuevos de Nómina, `comision_meta` en la línea; la huella cambió y actualizó) | **Sano y confirmado** 19:38 (versión `431cbfe80d88`, base al día, humo ok, tras 10 min de vigilancia) | Con el «sí» de la dueña («avísame cuando esté y si tienen mi si») y, tras las correcciones de la revisión, «Sí, termina». Staging igual en CI #182. digest `3894d505…` |
 | Desplegar 13 | 2026-10-16 21:49 | `60803c6d` | Inicio de la vendedora: porcentaje de la meta grande, barra y palabras de ánimo (PR #50) | No (plantilla, estilos y datos del Inicio; sin campos nuevos) | **Sano y confirmado** ~22:02 (versión `60803c6d50e3`, base al día, tras 10 min de vigilancia) | Con el pedido de la dueña («sube … a producción en cuanto puedas»). Staging igual en CI #184. Todavía mostraba la meta en dinero y el 1 %: la dueña pidió quitarlos (va en el despliegue siguiente). digest `0818f42a…` |
+| Desplegar 14 | 2026-10-16 23:07 | `7b534ad7` | Vendedora sin cifras de dinero y «Ver mis ventas»; Juan: domingo hasta las 5, inglés, crédito/entregas/descuentos (PR #51) | Sí: campo del domingo en Ajustes de Juan | **Sano y confirmado** 23:20. El Worker de Juan se desplegó aparte (Desplegar Juan, `entorno=production`) a las 23:23 desde `3b678a6` | digest `165e71c3…` |
+| Desplegar 15 | 2026-10-17 00:21 | `256d1222` | Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner (PR #52) | No (métodos, plantillas, estilos) | **Falló sin tocar nada**: el respaldo previo recibió un 429 de R2 («Reduce your concurrent request rate for the same object») en pgBackRest; el volcado lógico sí se hizo. **Segundo intento sano y confirmado** 00:36 | El script de respaldo previo no reintenta un 500; ante un 429 de R2 basta volver a lanzar «Desplegar». digest `37f59b2e…` |
 
 **Qué puede no haberse aplicado nunca en producción:**
 
@@ -324,6 +326,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `chromium` → `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` en una carpeta del `PATH` del comando.
 - Un `scripts/test.sh` que arrancó antes de editar el código prueba una mezcla (Python viejo, plantillas nuevas): si se
   edita durante la corrida, se vuelve a correr.
+- **Disco compartido:** los worktrees viejos (`.claude/worktrees/agent-*`, `/home/user/wt-*`) y las bases de prueba
+  llenan el disco (llegó al 97 % y cortó corridas de agentes con «No space left on device»). Antes de lanzar varios
+  agentes: `df -h /`, quitar worktrees limpios (`git worktree remove`; las ramas quedan) y borrar bases
+  (`PGPASSWORD=odoo dropdb -h localhost -U odoo <base>`).
+- **PostgreSQL local puede quedar apagado** tras una pausa larga de la sesión: `service postgresql start`.
+- **Varios agentes a la vez** comparten 4 CPU y el límite de uso de la sesión: si el límite corta a los agentes, su
+  trabajo queda SIN commit en sus worktrees; se retoma con un agente nuevo que continúe ese worktree (no se borra).
+- **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
 
 ### Odoo 19
 

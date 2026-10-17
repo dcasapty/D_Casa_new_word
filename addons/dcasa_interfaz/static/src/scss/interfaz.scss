@@ -639,6 +639,23 @@
     &.o_baja .fa { color: #b3261e; }
 }
 
+// Contra ayer, contra el mismo día del mes pasado… (pedido del jefe, 2026-10-16): una línea por comparación, con el
+// porcentaje resaltado en azul (sube) o rojo (baja) y el resto en gris.
+.o_dcasa_comparaciones {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: .85rem;
+    color: var(--dc-tinta-2);
+
+    .o_dcasa_variacion { font-weight: 700; }
+    .o_dcasa_variacion.o_sube { color: var(--dc-azul-700); }
+    .o_dcasa_variacion.o_baja { color: #b3261e; }
+}
+
 .o_dcasa_listas {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

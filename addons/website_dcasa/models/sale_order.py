@@ -28,6 +28,8 @@ PARAMETRO_DIAS = 'website_dcasa.apartado_dias'
 DIAS_POR_DEFECTO = 7
 DIAS_DE_AVISO = 2
 RESUMEN_DEL_AVISO = 'Apartado por vencer: avisa al cliente'
+APARTADO_WEB = 'Apartado por página web'
+APARTADO_TIENDA = 'Apartado en la tienda'
 
 
 class SaleOrder(models.Model):
@@ -44,12 +46,22 @@ class SaleOrder(models.Model):
     dcasa_apartado_dias = fields.Integer(
         'Días que le quedan', compute='_compute_dcasa_apartado_dias',
         help='Días que faltan para que se anule el apartado (0 = vence hoy, negativo = ya pasó la fecha).')
+    dcasa_apartado_origen = fields.Char(
+        'Tipo de apartado', compute='_compute_dcasa_apartado_origen',
+        help='«Apartado por página web» si el pedido llegó por la tienda en línea; «Apartado en la tienda» si lo '
+             'apartó una vendedora con el botón «Apartar» (decisión de la dueña, 2026-10-17: que siempre se vea).')
 
     @api.depends('dcasa_apartado_vence')
     def _compute_dcasa_apartado_dias(self):
         hoy = fields.Date.context_today(self)
         for orden in self:
             orden.dcasa_apartado_dias = (orden.dcasa_apartado_vence - hoy).days if orden.dcasa_apartado_vence else 0
+
+    @api.depends('dcasa_apartado_vence', 'website_id')
+    def _compute_dcasa_apartado_origen(self):
+        for orden in self:
+            orden.dcasa_apartado_origen = (
+                (APARTADO_WEB if orden.website_id else APARTADO_TIENDA) if orden.dcasa_apartado_vence else False)
 
     @api.model
     def _dcasa_dias_de_apartado(self):

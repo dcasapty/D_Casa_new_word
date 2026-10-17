@@ -60,6 +60,23 @@ class TestCargaDeClientes(TransactionCase):
                 self.assertEqual(ficha.dcasa_saldo, 0)
                 self.assertFalse(ficha.dcasa_movimiento_ids)
 
+    def test_quien_carga_desde_la_pantalla_no_choca_con_celular_y_correo_obligatorios(self):
+        """La carga corre como la persona de la pantalla (no como superusuario): lo viejo entra como estaba, sin correo
+        o con un número incompleto, y el celular y el correo se piden en su próxima venta (2026-10-16)."""
+        texto = ejemplos.BOM + '\n'.join([
+            'id_viejo,nombre,tipo,cedula_ruc,dv,celular,correo,direccion,ciudad',
+            '92001,Cliente Viejo Sin Correo,persona,,,6000-0201,,,',
+            '92002,Cliente Viejo Corto,persona,,,345-678,,,',
+            '',
+        ])
+        filas, errores = reglas.filas_clientes(texto)
+        self.assertFalse(errores)
+        administrador = self.env.ref('base.user_admin')
+        resumen = C.cargar_clientes(self.env(user=administrador), filas)
+        self.assertEqual(resumen['con_error'], [])
+        self.assertEqual([i for i, _n in resumen['creados']], [92001, 92002])
+        self.assertEqual(self._ficha(92002).phone, '345-678', 'lo viejo entra como estaba')
+
     def test_no_llena_el_chatter_de_cada_ficha(self):
         C.cargar_clientes(self.env, _filas())
         self.assertFalse(self._ficha(90001).message_ids)

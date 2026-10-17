@@ -65,7 +65,8 @@ class TestDisenoUniforme(HttpCase):
                     self.assertRegex(menu, rf'href="{re.escape(enlace)}"[^>]*>\s*<span>{texto}</span>')
                 self.assertIn('o_wsale_my_cart', cabecera, 'Carrito')
                 self.assertIn('o_search_modal', cabecera, 'Búsqueda')
-                self.assertIn('href="/web/login"', cabecera, 'Cuenta')
+                # «Inicia sesión» de Odoo, o «Mi cuenta» (/mi-cuenta) si dcasa_mi_cuenta está instalado.
+                self.assertRegex(cabecera, r'href="/(?:web/login|mi-cuenta)"', 'Cuenta')
                 self.assertRegex(cabecera, r'class="[^"]*btn_cta[^"]*"[^>]*>.*?Escríbenos</a>',
                                  'Botón azul «Escríbenos» (CTA único)')
                 self.assertEqual(cabecera.count('id="top_menu"'), 1)

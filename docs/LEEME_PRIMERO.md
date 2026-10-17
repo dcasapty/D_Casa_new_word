@@ -99,6 +99,29 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-17
 
+- **En producción** (00:36 UTC, Desplegar 15, `app_version` `256d1222…`, imagen `sha256:37f59b2e…`; CI #189 y la
+  revisión del PR #52 en verde): el **Inicio de Gerencia compara con el mes pasado** (hoy contra el mismo día y el mes
+  contra los mismos días, en % azul o rojo) y el **Escáner › Contar** cambia el precio (con permiso de Productos, con
+  rastro en el producto) y lee códigos con la **cámara**. El primer intento se frenó solo: el respaldo previo recibió
+  un 429 de R2 («reduce your concurrent request rate»); el segundo pasó (ver CONTEXTO_AGENTICO).
+- **En producción** (16 oct, 23:20 UTC, Desplegar 14, `7b534ad7…`; y el Worker de Juan a las 23:23 desde `3b678a6`):
+  la tarjeta de la vendedora sin cifras de dinero y con «Ver mis ventas»; Juan en inglés, domingo hasta las 5, y
+  crédito/entregas/descuentos desde su conocimiento.
+- **Decisiones de la dueña (17 oct, 17 respuestas):** permiso para subir a producción cada cosa apenas pase las
+  pruebas y la revisión; quien cobra es el jefe administrativo; la restricción de permisos debe poder **apagarse**;
+  remitente `ventas@dcasapty.com`; correo obligatorio salvo la casilla «Cliente no tiene correo electrónico»;
+  bienvenida solo a clientes nuevos; **sin pago contra entrega** (el mueble se entrega pagado completo); el apartado
+  web sigue en 7 días y se llama **«Apartado por página web»**; en cambios y garantía **manda la factura**; el código
+  público es para el público; imprimir las condiciones de abono **versión 1** tal cual (editables en Ajustes). El
+  dominio se traslada cuando el jefe responda lo contable. No hay píxel de Meta: se crea con la extensión de Chrome.
+- **En la rama (próximo despliegue):** el **papel del abono** (título «Abono», SALDO POR PAGAR grande, inicio y
+  vencimiento a un mes; se ofrece imprimir en cada abono con la nota de entrega desmarcada), **«Mi cuenta»** del
+  cliente en `/mi-cuenta` (compras, lo que le falta de cada abono, entregas, puntos y datos; reclamar una cuenta con
+  compras exige el código de la factura), «Pago en la tienda» en lugar de «al recibir», la portada con las zonas de
+  entrega reales, «Apartado por página web» y `/terms` → `/terminos`.
+- **Trabajando (agentes):** condiciones de abono en dos hojas (cliente y empresa), permisos de vendedoras con
+  interruptor y rol Caja, teléfono y correo obligatorios, correos con Resend; luego Meta (catálogo, píxel y
+  Conversions API). Instrucciones v2 de Juan para la extensión entregadas (correrlas después de este despliegue).
 - **Rama `permisos-vendedoras` (local, sin subir ni desplegar; base `3b678a6`):** cada vendedora ve solo sus
   cotizaciones, pedidos, facturas, notas de crédito y cobros, y lo que no tiene vendedora (pedido de la dueña del
   2026-10-16); rol nuevo **Caja** (para el jefe administrativo, que factura y cobra: ve y hace todo lo de clientes, sin

@@ -106,9 +106,11 @@ def cargar_contactos(env, filas, rol):
     quien llama."""
     # no_vat_validation: el RUC o la cédula se guardan como estaban (un proveedor del extranjero no sigue el formato de
     # Panamá). El candado de contactos sigue comparando el RUC con el de las demás fichas.
+    # dcasa_sin_exigir_contacto: lo viejo entra como estaba (el celular y el correo los exige la venta nueva); los
+    # correos mal escritos ya quedaron vacíos y anotados al leer el archivo.
     Partner = env['res.partner'].with_context(
         tracking_disable=True, mail_create_nolog=True, mail_notrack=True, no_reset_password=True,
-        no_vat_validation=True)
+        no_vat_validation=True, dcasa_sin_exigir_contacto=True)
     panama = env.ref('base.pa', raise_if_not_found=False)
     etiqueta = _etiqueta_de_origen(env)
     campo_rol = ROLES[rol][0]

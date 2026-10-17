@@ -11,3 +11,5 @@ from . import test_codigo_publico_documentos
 from . import test_documento_ruta
 from . import test_qr_paquete
 from . import test_entrega_facil
+from . import test_estado_abono
+from . import test_abono_papel

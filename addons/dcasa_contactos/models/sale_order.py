@@ -10,8 +10,11 @@ usuario, su contacto de empleado y sus direcciones de entrega o de factura, todo
   lista de ids, así la Vendedora (que no ve empleados) puede buscar sin error.
 * Si la ficha elegida comparte celular, correo o RUC con otra ficha (lo viejo, de antes del candado), se avisa con el
   nombre de la otra para fusionarlas en Socios › Configuración › Posibles duplicados.
+* Puerta A (2026-10-16): no se confirma una venta si al cliente le falta el celular o el correo, o están mal escritos
+  (ver ``contacto.py``). Mientras se cotiza, un aviso amarillo lo adelanta.
 """
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from . import claves
 from .res_partner import DATOS
@@ -65,6 +68,70 @@ class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
     partner_id = fields.Many2one(domain=_dominio_del_cliente)
+    dcasa_cliente_sin_correo = fields.Boolean(
+        'Cliente no tiene correo electrónico', compute='_compute_dcasa_cliente_sin_correo',
+        inverse='_inverse_dcasa_cliente_sin_correo',
+        help='Márcalo solo si el cliente de verdad no tiene correo: así se puede confirmar la venta sin él (el '
+             'celular sigue siendo obligatorio). Se guarda en la ficha del cliente.')
+    dcasa_cliente_tiene_correo = fields.Boolean(
+        'El cliente tiene correo', compute='_compute_dcasa_falta_contacto')
+    dcasa_falta_contacto = fields.Char(
+        'Le falta al cliente', compute='_compute_dcasa_falta_contacto',
+        help='Lo que le falta al cliente (celular o correo bien escritos) para poder confirmar la venta.')
+
+    @api.depends('partner_id', 'partner_id.commercial_partner_id.dcasa_sin_correo')
+    def _compute_dcasa_cliente_sin_correo(self):
+        for orden in self:
+            orden.dcasa_cliente_sin_correo = orden.partner_id.commercial_partner_id.dcasa_sin_correo
+
+    def _inverse_dcasa_cliente_sin_correo(self):
+        """La casilla vive en la ficha del cliente. Se escribe como quien edita la cotización (sin sudo: queda su
+        nombre en el historial de la ficha) y solo si cambió: guardar la cotización no toca la ficha de balde."""
+        for orden in self:
+            ficha = orden.partner_id.commercial_partner_id
+            if ficha and bool(ficha.dcasa_sin_correo) != bool(orden.dcasa_cliente_sin_correo):
+                ficha.write({'dcasa_sin_correo': orden.dcasa_cliente_sin_correo})
+
+    def _dcasa_sin_correo(self):
+        """La casilla como está en la cotización (aunque todavía no se haya guardado) o, si la dirección de factura
+        es de otra ficha, la de esa ficha."""
+        self.ensure_one()
+        factura = (self.partner_invoice_id or self.partner_id).commercial_partner_id
+        otra = factura != self.partner_id.commercial_partner_id and factura.sudo().dcasa_sin_correo
+        return bool(self.dcasa_cliente_sin_correo or otra)
+
+    @api.depends('partner_id', 'partner_invoice_id', 'dcasa_cliente_sin_correo',
+                 'partner_id.email', 'partner_id.phone', 'partner_id.commercial_partner_id.email',
+                 'partner_id.commercial_partner_id.phone', 'partner_id.commercial_partner_id.dcasa_celular',
+                 'partner_invoice_id.email', 'partner_invoice_id.phone',
+                 'partner_invoice_id.commercial_partner_id.dcasa_sin_correo')
+    def _compute_dcasa_falta_contacto(self):
+        Partner = self.env['res.partner']
+        for orden in self:
+            cliente = orden.partner_invoice_id or orden.partner_id
+            if not cliente:
+                orden.dcasa_cliente_tiene_correo = False
+                orden.dcasa_falta_contacto = False
+                continue
+            datos = Partner._dcasa_contacto_del_documento(cliente, sin_correo=orden._dcasa_sin_correo())
+            orden.dcasa_cliente_tiene_correo = bool(datos['correo'])
+            orden.dcasa_falta_contacto = {
+                ('celular',): self.env._('el celular'),
+                ('correo',): self.env._('el correo'),
+                ('celular', 'correo'): self.env._('el celular y el correo'),
+            }.get(tuple(Partner._dcasa_lo_que_falta(datos)), False)
+
+    def action_confirm(self):
+        """Puerta A: sin un celular y un correo bien escritos del cliente (o «Cliente no tiene correo electrónico»
+        marcada), la venta no se confirma. Solo el equipo, sin sudo: la tienda en línea y Juan no pasan por aquí."""
+        Partner = self.env['res.partner']
+        if Partner._dcasa_exige_contacto():
+            for orden in self:
+                mensaje = Partner._dcasa_mensaje_faltantes(
+                    orden.partner_invoice_id or orden.partner_id, 'venta', sin_correo=orden._dcasa_sin_correo())
+                if mensaje:
+                    raise UserError(mensaje)
+        return super().action_confirm()
 
     @api.onchange('partner_id')
     def _onchange_dcasa_cliente_duplicado(self):

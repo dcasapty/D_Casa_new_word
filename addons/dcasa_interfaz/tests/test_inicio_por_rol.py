@@ -611,6 +611,14 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             }
             // Los periodos de las ventas: Hoy ya está activo; Esta semana cambia la etiqueta.
             if (!document.querySelector('.o_dcasa_periodo_hoy.o_activo')) { throw new Error('Hoy debe estar activo'); }
+            // Hoy se compara contra ayer y contra el mismo día del mes pasado, en ventas y en ganancia (jefe, 16 oct).
+            const contra = textos('.o_dcasa_ventas_principal .o_dcasa_comparacion');
+            if (contra.length !== 2 || !/ayer/.test(contra[0]) || !/ de [a-z]+/.test(contra[1])) {
+                throw new Error('Hoy se compara con ayer y con el mismo día del mes pasado: ' + contra.join(' | '));
+            }
+            if (textos('.o_dcasa_ganancia .o_dcasa_comparacion').length !== 2) {
+                throw new Error('la ganancia también se compara con ayer y con el mes pasado');
+            }
             document.querySelector('.o_dcasa_periodo_semana').click();
             await esperar(() => document.querySelector('.o_dcasa_periodo_semana.o_activo'), 'la semana activa');
             await esperar(

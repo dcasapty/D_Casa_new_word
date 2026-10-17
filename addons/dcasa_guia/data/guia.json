@@ -158,7 +158,7 @@
    "categoria": "vender",
    "grupo": "Cobrar",
    "titulo": "Registrar el cobro de un cliente",
-   "logras": "Anotas que el cliente pagó y de qué forma. El sistema lo une a su factura y la deja como pagada.",
+   "logras": "Anotas que el cliente te dio dinero y de qué forma. Ojo: un cobro anotado aquí no se une solo a su factura. Si el cliente paga una factura o hace un abono, mejor abre la factura y toca «Pagar» (mira «Registrar un abono de un cliente»).",
    "destino": {
     "nuevo": "account.payment",
     "contexto": {
@@ -168,10 +168,51 @@
    },
    "palabras": [
     "pago",
-    "abono",
     "recibir plata",
-    "cobrar factura"
+    "cobrar factura",
+    "cobro suelto"
    ]
+  },
+  {
+   "id": "registrar-abono",
+   "categoria": "vender",
+   "grupo": "Cobrar",
+   "titulo": "Registrar un abono de un cliente",
+   "logras": "El cliente paga su factura por partes: cada abono queda unido a su factura y el papel sale como ABONO, con lo que ya pagó y el saldo que le falta. La factura es la misma de siempre: solo cambia el papel.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la factura del cliente (si es su primer abono, primero publica la factura completa).",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Toca «Pagar».",
+     "destino": null
+    },
+    {
+     "texto": "Escribe el monto del abono (lo que el cliente te dio hoy), elige cómo pagó y toca «Crear pago».",
+     "destino": null
+    },
+    {
+     "texto": "Sale el cuadro «Imprimir documentos»: imprime el papel de ABONO con el saldo por pagar y, en el primer abono, las «Condiciones de abono» en dos hojas: la COPIA CLIENTE se la lleva el cliente y la COPIA EMPRESA se queda en la tienda (las dos con la raya para la firma y la cédula del cliente). La nota de entrega se imprime cuando termine de pagar.",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "abono",
+    "abonar",
+    "pago parcial",
+    "pagar por partes",
+    "saldo",
+    "cuanto le falta",
+    "condiciones de abono",
+    "copia cliente"
+   ],
+   "nota": "Cuando el cliente termina de pagar, la factura vuelve a salir como factura pagada, con todos sus abonos."
   },
   {
    "id": "apartados",
@@ -1356,14 +1397,15 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Agregar un cliente",
-   "logras": "Lo registras con su celular y su cédula o RUC. El celular es su llave en Socios.",
+   "logras": "Lo registras con su celular y su correo: sin ellos no se puede confirmar la venta. Si de verdad no tiene correo, marca «Cliente no tiene correo electrónico» (el celular siempre va). El celular es su llave en Socios.",
    "destino": {
     "nuevo": "res.partner"
    },
    "palabras": [
     "crear cliente",
     "alta de cliente",
-    "contacto nuevo"
+    "contacto nuevo",
+    "celular y correo"
    ]
   },
   {
@@ -1394,6 +1436,41 @@
     "repetidos",
     "fusionar",
     "duplicado"
+   ]
+  },
+  {
+   "id": "cliente-no-tiene-correo",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Vender a un cliente que no tiene correo electrónico",
+   "logras": "En la cotización, junto al cliente, marcas «Cliente no tiene correo electrónico» y ya puedes confirmar la venta sin su correo.",
+   "nota": "Úsala solo si de verdad no tiene: primero pídele su correo, ahí le llegan su factura y sus puntos. El celular sigue siendo obligatorio. La misma casilla está en su ficha, debajo del correo, y queda anotado quién la marcó. Si después le escribes un correo, la casilla se desmarca sola.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "palabras": [
+    "no tiene correo",
+    "sin correo",
+    "cliente sin email",
+    "correo obligatorio",
+    "no tiene email"
+   ]
+  },
+  {
+   "id": "clientes-sin-correo",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Completar los clientes a los que les falta el correo o el celular",
+   "logras": "Ves los clientes sin correo o sin celular y los completas antes de su próxima venta: sin ellos no se confirma la venta ni le llega su factura.",
+   "nota": "No salen los que tienen marcada «Cliente no tiene correo electrónico» y ya tienen su celular.",
+   "destino": {
+    "menu": "dcasa_contactos.menu_clientes_sin_contacto"
+   },
+   "palabras": [
+    "falta el correo",
+    "falta el celular",
+    "completar clientes",
+    "clientes incompletos"
    ]
   },
   {
@@ -2262,6 +2339,25 @@
     "accesibilidad",
     "dislexia",
     "imprimir documentos"
+   ]
+  },
+  {
+   "id": "condiciones-abono",
+   "categoria": "facturar",
+   "tambien": [
+    "vender"
+   ],
+   "grupo": "Documentos",
+   "titulo": "Cambiar las condiciones de abono que se imprimen (solo administrador)",
+   "logras": "Cambias el texto de la hoja «Condiciones de abono» que sale con el primer abono en dos copias: una para el cliente y otra para la tienda.",
+   "destino": null,
+   "nota": "Ajustes › Empresas › D'CASA Panamá, pestaña «Documentos D'CASA», sección «Condiciones de abono»: escribe una condición por renglón (la hoja las numera sola). Si lo dejas vacío, la hoja no se imprime. El sistema no calcula ni cobra lo que digan las condiciones: solo las imprime. Para volver a imprimirla en otro abono, marca «Condiciones de abono (2 copias)» en el cuadro «Imprimir documentos».",
+   "palabras": [
+    "condiciones de abono",
+    "hoja de abono",
+    "copia cliente",
+    "copia empresa",
+    "firma del cliente"
    ]
   },
   {

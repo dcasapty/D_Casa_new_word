@@ -1,6 +1,7 @@
 import json
 
 from odoo import http
+from odoo.addons.account.controllers.terms import TermsController
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
 from odoo.addons.website_dcasa.models.black_weekend import RUTA as RUTA_BLACK_WEEKEND
 from odoo.addons.website_dcasa.models.website import LATITUD, LONGITUD
@@ -75,6 +76,20 @@ class DcasaCheckout(WebsiteSale):
     def _get_default_country(self, order_sudo=False, **kwargs):
         pais = super()._get_default_country(order_sudo=order_sudo, **kwargs)
         return pais or request.website.company_id.country_id
+
+    def _validate_address_values(self, address_values, partner_sudo, address_type, use_delivery_as_billing,
+                                 required_fields, **kwargs):
+        """Además de lo de Odoo: el celular bien escrito y el correo sin errores de dedo («¿quisiste decir…?»). Ahí le
+        llegan su factura y cómo ver sus puntos (dcasa_contactos, 2026-10-16)."""
+        invalidos, faltantes, mensajes = super()._validate_address_values(
+            address_values, partner_sudo, address_type, use_delivery_as_billing, required_fields, **kwargs)
+        errores = request.env['res.partner'].sudo()._dcasa_errores_de_contacto(
+            address_values.get('phone'), address_values.get('email'))
+        for campo, mensaje in errores.items():
+            if campo not in invalidos:
+                invalidos.add(campo)
+                mensajes.append(mensaje)
+        return invalidos, faltantes, mensajes
 
     def _create_new_address(self, address_values, address_type, use_delivery_as_billing, order_sudo):
         """Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha: su dirección
@@ -186,3 +201,12 @@ class DcasaTienda(http.Controller):
         """
         url = request.website._dcasa_whatsapp_url((texto or '')[:300])
         return request.redirect(url, code=302, local=url.startswith('/'))
+
+
+class TerminosDcasa(TermsController):
+    """/terms de Odoo es una plantilla con términos inventados (en inglés: «payable within 21 days… interest») y la
+    factura y el portal la enlazan. Lleva a los términos reales de D'CASA (/terminos)."""
+
+    @http.route('/terms', type='http', auth='public', website=True, sitemap=False)
+    def terms_conditions(self, **kwargs):
+        return request.redirect('/terminos', code=301, local=True)

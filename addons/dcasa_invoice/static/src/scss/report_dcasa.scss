@@ -223,6 +223,43 @@ $dcasa-subtitulo: 'DCASA Oswald', 'Oswald', 'Arial Narrow', sans-serif;
         border-top: 1px solid $dcasa-azul;
     }
 
+    // ABONO: lo que le falta pagar al cliente, en grande, bajo los totales. Azul y navy sobre blanco (nunca
+    // amarillo sobre blanco), plano: un marco azul, sin fondo de color ni sombra.
+    .o_dcasa_saldo {
+        margin: 4px 0 8px;
+        padding: 8px 12px;
+        border: 2px solid $dcasa-azul;
+        background-color: #FFFFFF;
+        text-align: right;
+        line-height: 1.2;
+
+        .o_dcasa_saldo_titulo {
+            font-family: $dcasa-subtitulo;
+            font-weight: 600;
+            letter-spacing: .06em;
+            font-size: .8rem;
+            color: $dcasa-azul;
+        }
+        .o_dcasa_saldo_monto {
+            font-family: $dcasa-titular;
+            font-size: 2rem;
+            line-height: 1.15;
+            color: $dcasa-navy;
+        }
+        .o_dcasa_saldo_detalle {
+            font-size: .82rem;
+            color: $dcasa-grafito;
+        }
+        .o_dcasa_saldo_vencido {
+            margin-top: 4px;
+            padding-top: 4px;
+            border-top: 1px solid $dcasa-linea;
+            font-size: .8rem;
+            font-weight: 600;
+            color: $dcasa-navy;
+        }
+    }
+
     // Etiquetas de fecha/origen: Odoo usa el color secundario (amarillo);
     // el amarillo nunca va sobre blanco.
     #informations strong,
