@@ -1,3 +1,5 @@
+from lxml import etree
+
 from odoo.exceptions import ValidationError
 from odoo.tests import HttpCase, TransactionCase, tagged
 
@@ -32,6 +34,15 @@ class TestTiendaConfigurada(TransactionCase):
         self.assertEqual(cod.with_context(lang='es_419').name, 'Pago en la tienda')
         self.assertNotIn('al recibir', mensaje)
         self.assertIn('pagado completo', mensaje)
+
+    def test_el_pedido_hecho_agradece_con_tuteo(self):
+        """La voz de la marca es de tú: «¡Gracias por tu compra!», no «Gracias por su orden.» de Odoo."""
+        vista = self.env.ref('website_sale.confirmation')
+        for idioma in ('es_419', 'en_US'):
+            arco = etree.tostring(vista.with_context(lang=idioma)._get_combined_arch(), encoding='unicode')
+            self.assertIn('¡Gracias por tu compra!', arco)
+            self.assertNotIn('Gracias por su orden.', arco)
+            self.assertNotIn('Thank you for your order.', arco)
 
     def test_copias_viejas_de_la_portada_se_corrigen(self):
         vista = self.env['ir.ui.view'].create({

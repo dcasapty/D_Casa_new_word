@@ -105,4 +105,12 @@
             </p>
         </xpath>
     </template>
+
+    <!-- La página de «pedido hecho» en la voz de la marca (tuteo), no la de Odoo («Gracias por su orden.»). El título
+         se ubica por el botón de imprimir y no por su texto: el texto llega traducido y el xpath no lo encontraría. -->
+    <template id="confirmacion_tuteo" inherit_id="website_sale.confirmation" name="D'CASA: gracias por tu compra">
+        <xpath expr="//a[@href='/shop/print']/preceding-sibling::h3[1]" position="replace">
+            <h3>¡Gracias por tu compra!</h3>
+        </xpath>
+    </template>
 </odoo>
