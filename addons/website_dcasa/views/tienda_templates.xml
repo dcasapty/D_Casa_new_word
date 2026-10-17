@@ -113,4 +113,10 @@
             <h3>¡Gracias por tu compra!</h3>
         </xpath>
     </template>
+    <!-- El checkout de quien compra sin cuenta, de tú: «¿Ya tienes cuenta?», no «¿Ya tiene una cuenta?» de Odoo. -->
+    <template id="checkout_tuteo_cuenta" inherit_id="website_sale.address" name="D'CASA: ¿ya tienes cuenta?">
+        <xpath expr="//div[hasclass('o_address_signin')]/span" position="replace">
+            <span class="align-middle">¿Ya tienes cuenta?</span>
+        </xpath>
+    </template>
 </odoo>

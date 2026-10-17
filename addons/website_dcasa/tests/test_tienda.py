@@ -60,6 +60,34 @@ class TestTiendaConfigurada(TransactionCase):
         self.assertIn('La Chorrera, Arraiján, Capira, Panamá y Colón', arch)
         self.assertEqual(self.env['website']._dcasa_corregir_textos(), 0, 'Se puede volver a correr')
 
+    def test_no_promete_entregas_a_todo_panama(self):
+        """Al interior todavía no se entrega (decisión de la dueña, 2026-10-17): ni la barra de arriba, ni la portada,
+        ni el pie, ni las copias viejas de la portada prometen «todo Panamá»."""
+        zonas = 'Entregas en Panamá Oeste, Panamá y Colón'
+        for xmlid in ('website.layout', 'website.homepage'):
+            arco = etree.tostring(self.env.ref(xmlid).with_context(lang='es_419')._get_combined_arch(),
+                                  encoding='unicode')
+            with self.subTest(vista=xmlid):
+                self.assertNotIn('todo Panamá', arco)
+                self.assertIn(zonas, arco)
+        vista = self.env['ir.ui.view'].create({
+            'name': 'Copia vieja portada', 'type': 'qweb', 'key': 'website_dcasa.prueba_portada_vieja',
+            'website_id': self.website.id,
+            'arch_db': '<t t-name="website_dcasa.prueba_portada_vieja"><div><strong>Entrega a todo Panamá</strong>'
+                       '<summary>¿Hacen entregas a todo Panamá?</summary></div></t>',
+        })
+        self.env['website']._dcasa_corregir_textos()
+        arch = vista.with_context(lang='es_419').arch_db
+        self.assertNotIn('todo Panamá', arch)
+        self.assertIn(f'<strong>{zonas}</strong>', arch)
+        self.assertIn('¿A dónde hacen entregas?', arch)
+
+    def test_el_checkout_pregunta_de_tu_por_la_cuenta(self):
+        arco = etree.tostring(self.env.ref('website_sale.address').with_context(lang='es_419')._get_combined_arch(),
+                              encoding='unicode')
+        self.assertIn('¿Ya tienes cuenta?', arco)
+        self.assertNotIn('Already have an account?', arco)
+
     def test_entregas_sin_envio_gratis_inventado(self):
         entregas = self.env['delivery.carrier'].search([('is_published', '=', True)])
         self.assertEqual(len(entregas), 2)
