@@ -105,7 +105,9 @@ class DcasaCorreoEnvio(models.Model):
         if not correo._activo_para_clientes() or not config['al_pagar']:
             return self.browse()
         nuevos = self.browse()
-        for move in self.env['account.move'].sudo().browse(list(antes)).exists():
+        facturas = self.env['account.move'].sudo().browse(list(antes)).exists().filtered(
+            lambda m: m.move_type == 'out_invoice')   # solo facturas de cliente (sudo: nunca se devuelven a nadie)
+        for move in facturas:
             if not self._factura_cuenta(move):
                 continue
             if move.currency_id.compare_amounts(move.amount_residual, antes[move.id]) >= 0:
@@ -136,8 +138,9 @@ class DcasaCorreoEnvio(models.Model):
                 ('model', '=', 'res.partner'), ('res_id', '=', ficha.id), ('module', '=', '__import__'),
                 ('name', '=like', 'dcasa\\_contacto\\_%')], limit=1):
             return False
-        return not self.env['account.move'].sudo().search_count(
-            [('commercial_partner_id', '=', ficha.id), ('dcasa_historica', '=', True)], limit=1)
+        return not self.env['account.move'].sudo().search_count([
+            ('move_type', 'in', ('out_invoice', 'out_refund')), ('commercial_partner_id', '=', ficha.id),
+            ('dcasa_historica', '=', True)], limit=1)
 
     @api.model
     def _encolar_bienvenida(self, ficha):

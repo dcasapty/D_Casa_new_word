@@ -142,7 +142,8 @@ anotado «Se apagaron los correos antes de enviarlo»).
   la política → `DCASA_NO_ENVIADO:`. Nunca lanza `SMTPServerDisconnected`.
 - **Política** (`models/politica.py`): cada `mail.mail` lleva `X-Dcasa-Clase` (factura, abono, bienvenida, cotizacion,
   documento, acceso, prueba u odoo). La prueba solo sale a correos del equipo; apagado o en staging no sale nada más;
-  `odoo` nunca.
+  `odoo` nunca. Lo que la política frena se marca «no enviado» (`DCASA_NO_ENVIADO:`) en `mail.mail.send` antes de
+  intentarlo: no se llama a Resend ni se llena el log de errores; el transporte vuelve a revisar lo mismo.
 - **Gancho del pago** (`models/account_move_line.py`): `_reconcile_pre_hook`/`_reconcile_post_hook`, en un savepoint,
   solo encola en `dcasa.correo.envio` (único por `(tipo, huella)`; huella `factura:saldo en centavos`). El cron
   `ir_cron_dcasa_correo_cola` arma el PDF nuevo y publica en el chatter con `layout_correo`; la cola de Odoo lo manda.

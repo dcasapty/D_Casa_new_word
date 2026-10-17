@@ -591,6 +591,9 @@ LISTA_BLANCA = {
     ('dcasa_correo', 'sale.order', 'action_quotation_send'):
         OVERRIDE + ' Botón nativo «Enviar»: solo revisa el interruptor y el correo del cliente antes de super(); '
                    'sin sudo().',
+    ('dcasa_correo', 'mail.mail', 'send'):
+        OVERRIDE + ' Con la clave de Resend solo marca «no enviado» lo que la política no deja salir antes de super(); '
+                   'mail.mail es solo de administradores (ACL).',
     ('dcasa_correo', 'res.config.settings', 'action_dcasa_correo_prueba'):
         'Exige base.group_system en el servidor; manda la prueba solo al correo de quien la pide.',
 }
