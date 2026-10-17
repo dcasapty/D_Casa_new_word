@@ -218,7 +218,8 @@ class TestServidor(TransactionCase):
         self.assertLess(len(vendedora), len(gerencia))
 
     def test_comparar_las_ventas_es_solo_de_gerencia(self):
-        """La pantalla (el Inicio) la abren todos, pero el bloque «Comparar» es de Gerencia: la tarea trae ``grupos``."""
+        """La pantalla (el Inicio) la abren todos, pero el bloque «Comparar» es de Gerencia: la tarea trae
+        ``grupos``."""
         self.assertIn('comparar-ventas', self.ids_de(self.gerencia))
         for usuario in (self.vendedora, self.interno):
             with self.subTest(usuario.login):

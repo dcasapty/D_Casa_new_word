@@ -217,8 +217,10 @@ class DcasaTableroBases(models.AbstractModel):
 
     @api.model
     def _todas(self, facturas_por_pedido):
+        """Todas las facturas de cliente de los pedidos, en un solo recordset (solo ``out_invoice``: el ``sudo`` nunca
+        devuelve facturas de proveedor ni asientos; aquí además solo se suman montos)."""
         ids = {factura_id for facturas in facturas_por_pedido.values() for factura_id in facturas.ids}
-        return self.env['account.move'].sudo().browse(sorted(ids))
+        return self.env['account.move'].sudo().browse(sorted(ids)).filtered(lambda m: m.move_type == 'out_invoice')
 
     # ------------------------------------------------------------------
     # Las cifras de un periodo
