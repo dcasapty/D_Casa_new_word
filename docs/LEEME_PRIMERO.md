@@ -100,6 +100,18 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-17
 
+- **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
+  staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
+  cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
+  «Cliente no tiene correo electrónico», **comparador de ventas** del Inicio de Gerencia («Completadas» / «Con abonos»,
+  por vendedora, hasta la misma hora), **correos con Resend apagados** (sin `RESEND_API_KEY` no sale nada), y la tienda:
+  hueco de privacidad del checkout cerrado (estaba en producción desde `ac1610b`), dato repetido avisado en el
+  formulario, «¡Gracias por tu compra!», «¿Ya tienes cuenta?» y «Entregas en Panamá Oeste, Panamá y Colón». La dueña vio
+  las capturas de todo antes (regla nueva: capturas → su visto bueno → pruebas → staging → producción).
+- **Sigue (tanda 2):** permisos de vendedoras (`permisos-vendedoras`, revisado sin fugas): faltan sus respuestas sobre
+  los pedidos de la web (¿sin vendedora?) y si las vendedoras siguen cobrando lo suyo, y darle Caja al jefe
+  administrativo antes de encenderlo. Después: notas del Inicio a un ícono ⓘ, la gráfica de la semana con el interruptor,
+  Meta.
 - **En producción** (00:36 UTC, Desplegar 15, `app_version` `256d1222…`, imagen `sha256:37f59b2e…`; CI #189 y la
   revisión del PR #52 en verde): el **Inicio de Gerencia compara con el mes pasado** (hoy contra el mismo día y el mes
   contra los mismos días, en % azul o rojo) y el **Escáner › Contar** cambia el precio (con permiso de Productos, con
