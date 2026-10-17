@@ -10,3 +10,4 @@ from . import test_estadisticas
 from . import test_pedidos_repetidos
 from . import test_avisos
 from . import test_comparar
+from . import test_facturado

@@ -4,7 +4,7 @@
  * Las cifras vienen de dcasa.tablero.obtener_datos (respetan los permisos de quien mira)
  * y cada una abre la lista que la explica. Debajo, los accesos del día a día y las apps.
  */
-import { Component, onWillStart, useState } from "@odoo/owl";
+import { Component, onWillStart, useExternalListener, useState } from "@odoo/owl";
 import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 
@@ -42,10 +42,14 @@ export class DcasaInicio extends Component {
             hasta: "",
             errorRango: "",
             cargandoVentas: false,
-            // El interruptor «Completadas» / «Con abonos» y la vendedora (Gerencia): abren en «Completadas» y
-            // «Todo el equipo» ("" en el selector; "sin" = sin vendedora; si no, el id).
-            base: "completadas",
+            cargandoGrafica: false,
+            // El interruptor «Facturado» · «Con abonos» · «Completadas» y la vendedora (Gerencia). La base con que abre
+            // la dice el servidor (datos.base); la vendedora abre en «Todo el equipo» ("" en el selector; "sin" = sin
+            // vendedora; si no, el id).
+            base: null,
             vendedor: "",
+            // El ícono ⓘ abierto: "" (ninguno), "ventas" (en qué se aparta de Contabilidad) o "ganancia".
+            ayuda: "",
             // El bloque «Comparar» (solo Gerencia): el botón elegido y lo que devolvió el servidor.
             cmp: {
                 clave: null,
@@ -62,10 +66,17 @@ export class DcasaInicio extends Component {
             },
         });
         onWillStart(() => this.cargar());
+        // Tocar fuera de la ayuda abierta (o de su ícono) la cierra: en el celular no hay «pasar el mouse».
+        useExternalListener(window, "click", (ev) => {
+            if (this.state.ayuda && !ev.target.closest(".o_dcasa_ayuda_boton, .o_dcasa_ayuda_texto")) {
+                this.state.ayuda = "";
+            }
+        });
     }
 
     async cargar() {
         this.state.datos = await this.orm.call("dcasa.tablero", "obtener_datos", []);
+        this.state.base = this.state.datos.base || null;
     }
 
     get apps() {
@@ -148,17 +159,83 @@ export class DcasaInicio extends Component {
         return base ? base.detalle : "";
     }
 
+    get nombreBase() {
+        const base = (this.state.datos.bases || []).find((b) => b.clave === this.state.base);
+        return base ? base.nombre : "";
+    }
+
+    /** El nombre de la vendedora elegida («» si es todo el equipo), para las etiquetas de la gráfica. */
+    get nombreVendedora() {
+        const v = this.state.vendedor;
+        if (!v || !this.state.datos.comparar) {
+            return "";
+        }
+        const opcion = this.state.datos.comparar.vendedoras.find((o) => String(o.id) === v);
+        return opcion ? opcion.nombre : "";
+    }
+
+    /** «3 de 5 salieron de un pedido de una vendedora» (solo en «Facturado»). */
+    get deUnPedidoTexto() {
+        const actual = this.state.datos.ventas?.actual;
+        if (!actual || this.state.datos.ventas.base !== "facturado" || !actual.cuantas) {
+            return "";
+        }
+        const verbo = actual.cuantas === 1 ? "salió" : "salieron";
+        return `${actual.de_pedido} de ${actual.cuantas} ${verbo} de un pedido de una vendedora`;
+    }
+
+    /** Todo lo que habla de ventas sigue la base y la vendedora: tarjetas, Comparar y la gráfica. */
     async cambiarBase(clave) {
         if (clave === this.state.base) {
             return;
         }
         this.state.base = clave;
-        await Promise.all([this.recargarVentas(), this.recargarComparacion()]);
+        this.state.ayuda = "";
+        await Promise.all([this.recargarVentas(), this.recargarComparacion(), this.recargarGrafica()]);
     }
 
     async cambiarVendedor(ev) {
         this.state.vendedor = ev.target.value;
-        await Promise.all([this.recargarVentas(), this.recargarComparacion()]);
+        this.state.ayuda = "";
+        await Promise.all([this.recargarVentas(), this.recargarComparacion(), this.recargarGrafica()]);
+    }
+
+    /** Las barras de la semana y lo más vendido, con la base y la vendedora elegidas. */
+    async recargarGrafica() {
+        if (!this.state.datos.permisos.completo || !this.state.base) {
+            return;
+        }
+        this.state.cargandoGrafica = true;
+        try {
+            const grafica = await this.orm.call("dcasa.tablero", "grafica_de_ventas", [], {
+                base: this.state.base,
+                vendedor: this.vendedorParaElServidor,
+            });
+            if (grafica.base === this.state.base) {
+                this.state.datos.semana = grafica.semana;
+                this.state.datos.top = grafica.top;
+            }
+        } finally {
+            this.state.cargandoGrafica = false;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Ayuda ⓘ: el texto largo se abre al tocar el ícono (también con el teclado y en el celular)
+    // ------------------------------------------------------------------
+
+    alternarAyuda(clave) {
+        this.state.ayuda = this.state.ayuda === clave ? "" : clave;
+    }
+
+    /** «Escape» cierra la ayuda y deja el foco en su ícono. */
+    teclaEnAyuda(ev, clave) {
+        if (ev.key === "Escape" && this.state.ayuda === clave) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            this.state.ayuda = "";
+            document.querySelector(`.o_dcasa_ayuda_boton_${clave}`)?.focus();
+        }
     }
 
     // ------------------------------------------------------------------

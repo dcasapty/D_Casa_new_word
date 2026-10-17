@@ -11,10 +11,15 @@ Dos paneles según el rol (pedido de la dueña, 2026-10-14):
 * **Propio** (quien vende pero no controla, p. ej. la Vendedora): solo lo que esa persona vendió hoy y sus
   cotizaciones abiertas. Sin lo que falta por cobrar, lo cobrado hoy, las barras ni los totales de la tienda.
 
-«Vendido» siempre significa lo mismo: pedidos facturados por completo, con todas sus facturas publicadas
-(``sale.order._dcasa_dominio_vendido``). Una cotización, un borrador o un pedido por facturar no es una venta. Encima de
-eso, las tarjetas de Ventas y Ganancia de Gerencia siguen el interruptor «Completadas» / «Con abonos»
-(``ventas_bases.py``, 2026-10-17) y el bloque «Comparar» pone periodos lado a lado (``comparar.py``).
+Dos maneras de contar las ventas, una por panel:
+
+* **La vendedora** (panel propio): lo que ella vendió, pedidos facturados por completo con todas sus facturas publicadas
+  (``sale.order._dcasa_dominio_vendido``), el día de su última factura. Una cotización, un borrador o un pedido por
+  facturar no es una venta. No cambió.
+* **Gerencia** (panel completo): las **facturas de cliente publicadas**, como Contabilidad (decisión del jefe, A1/A2 del
+  2026-10-17). El interruptor «Facturado» · «Con abonos» · «Completadas» (``ventas_bases.py``) manda en TODO lo que
+  habla de ventas en su Inicio: las tarjetas de Ventas y Ganancia, el bloque «Comparar» (``comparar.py``), «Por
+  vendedora», las barras de la semana, «Lo más vendido» y «Vendido hoy».
 
 ITBMS (decisión por mejor práctica contable, 2026-10-16): las ventas, el costo y la ganancia se miden **sin ITBMS**
 (es un impuesto de la DGI, no ingreso ni costo); el dinero que se mueve (por cobrar, cobrado) va **con** ITBMS. Cada
@@ -29,7 +34,7 @@ import pytz
 from babel.dates import format_date
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom']
 APPS_SIN_PAGO = "[('to_buy', '=', False)]"
@@ -38,11 +43,18 @@ MAXIMO_DIAS_DE_RANGO = 366
 PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
 STOCK_BAJO_DEFECTO = 5
 FILAS_DE_LISTA = 5
-# Las bases de las ventas (``ventas_bases.py``): la de siempre y las dos del interruptor del Inicio de Gerencia.
+# «Lo más vendido»: los últimos 30 días corridos (más hoy).
+DIAS_DE_LO_MAS_VENDIDO = 30
+# Las bases de las ventas (``ventas_bases.py``). ``vendido`` es la de la vendedora (pedidos facturados por completo). El
+# Inicio de Gerencia cuenta sobre las FACTURAS (decisión del jefe A1/A2, 2026-10-17, docs/DECISIONES_CONTABLES.md): las
+# tres posiciones del interruptor, en este orden.
 BASE_VENDIDO = 'vendido'
-BASE_COMPLETADAS = 'completadas'
+BASE_FACTURADO = 'facturado'
 BASE_CON_ABONOS = 'con_abonos'
-BASES_DE_GERENCIA = (BASE_COMPLETADAS, BASE_CON_ABONOS)
+BASE_COMPLETADAS = 'completadas'
+BASES_DE_GERENCIA = (BASE_FACTURADO, BASE_CON_ABONOS, BASE_COMPLETADAS)
+# Con la que abre el Inicio de Gerencia (y la que usa Brian si no se pide otra). Si la dueña pide otra, es esta línea.
+BASE_POR_DEFECTO = BASE_FACTURADO
 SIN_VENDEDORA = 'sin'
 
 
@@ -190,7 +202,9 @@ class DcasaTablero(models.AbstractModel):
             'atencion': [],
             'meta': None,
             've_utilidad': False,
+            # El interruptor de Gerencia: sus posiciones y con cuál abre (``BASE_POR_DEFECTO``).
             'bases': [],
+            'base': None,
             'comparar': None,
             'permisos': self._permisos(propio),
             # La Guía («¿Qué necesitas hacer hoy?») vive en otro módulo: si no está instalado, no hay botón.
@@ -202,9 +216,10 @@ class DcasaTablero(models.AbstractModel):
             self._cifras_de_ventas(datos, hoy, propio)
             if not propio:
                 datos['ve_utilidad'] = self._ve_utilidad()
-                # El interruptor «Completadas» / «Con abonos» (abre en «Completadas»).
+                # El interruptor «Facturado» · «Con abonos» · «Completadas» (abre en BASE_POR_DEFECTO).
                 datos['bases'] = self._bases_de_ventas()
-                datos['ventas'] = self.ventas_del_periodo('hoy')
+                datos['base'] = BASE_POR_DEFECTO
+                datos['ventas'] = self.ventas_del_periodo('hoy', base=BASE_POR_DEFECTO)
                 datos['cotizaciones'] = self._lista_de_cotizaciones(hoy)
                 # El bloque «Comparar» y el selector de vendedora: solo Gerencia y administradores.
                 if datos['ve_utilidad']:
@@ -269,17 +284,11 @@ class DcasaTablero(models.AbstractModel):
             etiqueta = f'Del {format_date(d0, "d MMM", locale="es")} al {format_date(d1, "d MMM", locale="es")}'
         return {'periodo': periodo, 'desde': d0, 'hasta': d1, 'etiqueta': etiqueta}
 
-    def _totales_de_ventas(self, d0, d1, vendedor=None, con_ganancia=False):
-        """Lo vendido entre dos días (la base de siempre: facturado por completo, el día de su última factura): las
-        tres cifras (sin ITBMS · ITBMS · total) y, si se pide, la ganancia. Sale de ``_medir`` (``ventas_bases``), el
-        mismo cálculo del Inicio de Gerencia y del bloque «Comparar»."""
-        medida = self._medir(d0, d1, BASE_VENDIDO, vendedor, con_ganancia=con_ganancia)
-        return {clave: medida[clave] for clave in ('cuantas', 'sin_itbms', 'itbms', 'total', 'ganancia')}
-
     def _ganancia_de(self, dominio):
-        """La ganancia de las ventas del dominio: venta neta menos costo, sin ITBMS.
+        """La ganancia de los pedidos del dominio (la base ``vendido``): venta neta menos costo, sin ITBMS.
 
-        Un pedido con mercancía sin costo cargado no inventa ganancia: queda fuera y se cuenta aparte."""
+        Un pedido con mercancía sin costo cargado no inventa ganancia: queda fuera y se cuenta aparte. La ganancia de
+        las bases de facturas sale de ``_ganancia_de_filas`` (``ventas_bases.py``) con la misma regla."""
         Order = self.env['sale.order'].sudo()
         con_costo = Order._read_group(dominio + [('dcasa_sin_costo', '=', False)], [],
                                       ['dcasa_utilidad:sum', 'dcasa_venta_neta:sum', '__count'])
@@ -300,11 +309,14 @@ class DcasaTablero(models.AbstractModel):
         * Quien vende sin controlar (la Vendedora) ve solo lo que vendió ella misma, con la base de siempre (lo
           facturado por completo, el día de la factura) y sin ganancia. No elige base ni vendedora: un ``vendedor``
           ajeno se rechaza (``AccessError``).
-        * El panel completo cuenta según el interruptor ``base``: ``completadas`` (por defecto: pagadas al 100 %, el
-          día del último pago) o ``con_abonos`` (con al menos un abono, por su valor total, el día de la venta; trae
-          ``falta_por_cobrar``). Gerencia y los administradores pueden filtrar por ``vendedor`` (id o ``'sin'``).
+        * El panel completo cuenta las **facturas de cliente publicadas** según el interruptor ``base``: ``facturado``
+          (por defecto: todas, por su fecha, como Contabilidad; trae cuántas salieron de un pedido de una vendedora),
+          ``con_abonos`` (con al menos un abono, por su valor total; trae ``falta_por_cobrar``) o ``completadas``
+          (pagadas al 100 %, el día del último pago). Las notas de crédito restan. Gerencia y los administradores
+          pueden filtrar por ``vendedor`` (id o ``'sin'``).
 
-        La lista que abre la cifra (``accion``) es exactamente el mismo conjunto de pedidos."""
+        La lista que abre la cifra (``accion``) es exactamente el mismo conjunto: los pedidos de la vendedora o las
+        facturas (y notas de crédito) que suman en la tarjeta."""
         if not self._puede('sale.order'):
             return None
         propio = self._solo_lo_propio()
@@ -317,71 +329,80 @@ class DcasaTablero(models.AbstractModel):
         d0, d1 = rango['desde'], rango['hasta']
         con_ganancia = not propio and self._ve_utilidad()
         medida = self._medir(d0, d1, base, filtro, con_ganancia=con_ganancia)
-        pedidos = medida.pop('pedidos')
-        Order = self.env['sale.order']
-        if base == BASE_VENDIDO:
-            dominio = Order._dcasa_dominio_vendido(desde=d0, hasta=d1, vendedor=filtro)
-        else:
-            dominio = [('id', 'in', pedidos.ids)]
-        nombre = {BASE_COMPLETADAS: 'Ventas completadas', BASE_CON_ABONOS: 'Ventas con abonos'}.get(base, 'Ventas')
+        nombre = {BASE_FACTURADO: 'Facturado', BASE_CON_ABONOS: 'Facturas con abonos',
+                  BASE_COMPLETADAS: 'Facturas completadas'}.get(base, 'Ventas')
         if filtro and not propio:
-            nombre += ' · ' + (self.env._('Sin vendedora') if filtro == SIN_VENDEDORA
-                               else self.env['res.users'].sudo().browse(filtro).name)
+            nombre += ' · ' + self._nombre_de_vendedora(filtro)
+        nombre = f'{nombre} · {rango["etiqueta"]}'
+        filas = None
+        if base == BASE_VENDIDO:
+            medida.pop('pedidos')
+            accion = _accion(nombre, 'sale.order',
+                             self.env['sale.order']._dcasa_dominio_vendido(desde=d0, hasta=d1, vendedor=filtro))
+        else:
+            filas = medida.pop('filas')
+            accion = self._accion_de_facturas(nombre, [fila['id'] for fila in filas])
         return {
             'base': base,
             'vendedor': None if propio else filtro,
-            # En qué se aparta de las «Ventas» de Contabilidad (quien controla y ve la contabilidad; todo el equipo).
-            'cuadre': None if (propio or filtro) else self._cuadre_con_contabilidad(d0, d1, medida['sin_itbms'],
-                                                                                   pedidos),
+            # En qué se aparta de las «Ventas» de Contabilidad (quien controla y ve la contabilidad; todo el equipo). En
+            # «Facturado» es lo mismo: solo saldría si algo que no es una factura de cliente tocara los ingresos.
+            'cuadre': None if (propio or filtro) else self._cuadre_con_contabilidad(d0, d1, medida['sin_itbms'], filas),
             'periodo': rango['periodo'], 'etiqueta': rango['etiqueta'],
             'desde': str(d0), 'hasta': str(d1),
             'actual': medida,
-            'accion': _accion(f'{nombre} · {rango["etiqueta"]}', 'sale.order', dominio),
+            'accion': accion,
         }
 
-    def _cuadre_con_contabilidad(self, d0, d1, vendido_sin_itbms, pedidos):
-        """En qué se aparta lo que cuenta el Inicio de las «Ventas» de Contabilidad para esas fechas, y qué facturas lo
-        explican (capturas de la dueña, 2026-10-16: $1,301.04 en el Inicio contra $1,522.42 en Contabilidad; la
-        diferencia era una factura sin pedido).
+    def _nombre_de_vendedora(self, vendedor):
+        if vendedor == SIN_VENDEDORA:
+            return self.env._('Sin vendedora')
+        return self.env['res.users'].sudo().with_context(active_test=False).browse(vendedor).name or ''
 
-        Las dos pantallas miden distinto a propósito: el Inicio cuenta **ventas** (``pedidos``: el pedido completo, el
-        día que dice el interruptor: el del último pago en «Completadas», el de la venta en «Con abonos»);
-        Contabilidad, los **apuntes de ingresos** con fecha en el periodo. Se apartan por:
+    def _accion_de_facturas(self, nombre, ids):
+        """La lista de facturas (con las notas de crédito) que explica una cifra, en la vista de facturas de cliente."""
+        vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
+        return {**_accion(nombre, 'account.move', [('id', 'in', sorted(set(ids)))]),
+                'vista_lista': vista.id if vista else False}
 
-        * facturas con fecha en el periodo que el Inicio no cuenta aquí: sin pedido, de pedidos aún no facturados por
-          completo, sin pago o todavía sin pagar completas;
-        * facturas de otras fechas de ventas que el Inicio sí cuenta aquí, como el abono de un apartado o la factura de
-          una venta que se terminó de pagar en el periodo.
+    def _cuadre_con_contabilidad(self, d0, d1, sin_itbms, filas):
+        """En qué se aparta lo que cuenta el Inicio de las «Ventas» de Contabilidad para esas fechas, y qué documentos
+        lo explican (capturas de la dueña, 2026-10-16: $1,301.04 en el Inicio contra $1,522.42 en Contabilidad).
 
-        ``diferencia`` es la resta exacta (Contabilidad − Inicio), con su signo; la lista trae las facturas de esos dos
-        grupos para revisarlas. ``None`` si cuadran o si quien mira no ve la contabilidad.
-        """
-        if not self._puede('account.move.line'):
+        Contabilidad suma los **apuntes de ingresos** con fecha en el periodo; el Inicio, las facturas que dice el
+        interruptor (``filas``: cada una con lo que suma aquí, sin ITBMS, y las notas de crédito en negativo). Se
+        comparan documento por documento: lo que Contabilidad le cuenta a cada asiento en esas fechas contra lo que el
+        Inicio le cuenta a la misma factura. Los que no coinciden explican la diferencia, y su suma es exactamente esa
+        diferencia:
+
+        * en «Facturado» no hay ninguno mientras todo lo que entra a ingresos venga de facturas de cliente (es lo mismo
+          que Contabilidad); saldría un asiento manual a una cuenta de ingresos, por ejemplo;
+        * en «Con abonos», las facturas sin ningún abono;
+        * en «Completadas», las que aún deben algo y las de otras fechas que se terminaron de pagar en el periodo.
+
+        ``diferencia`` es la resta exacta (Contabilidad − Inicio), con su signo. ``None`` si cuadran o si quien mira no
+        ve la contabilidad."""
+        if filas is None or not self._puede('account.move.line'):
             return None
-        ingresos = self.env['account.move.line']._read_group(
+        grupos = self.env['account.move.line']._read_group(
             [('parent_state', '=', 'posted'), ('account_id.account_type', '=', 'income'),
              ('date', '>=', fields.Date.to_string(d0)), ('date', '<=', fields.Date.to_string(d1)),
-             ('company_id', 'in', self.env.companies.ids)], [], ['balance:sum'])
-        contables = -(ingresos[0][0] or 0.0) if ingresos else 0.0
-        diferencia = round(contables - vendido_sin_itbms, 2)
+             ('company_id', 'in', self.env.companies.ids)], ['move_id'], ['balance:sum'])
+        de_contabilidad = {asiento.id: -(saldo or 0.0) for asiento, saldo in grupos}
+        contables = round(sum(de_contabilidad.values()), 2)
+        diferencia = round(contables - sin_itbms, 2)
         if abs(diferencia) < 0.01:
             return None
-        de_una_venta = [('sale_line_ids', 'any', [('order_id', 'in', pedidos.ids)])]
-        desde, hasta = fields.Date.to_string(d0), fields.Date.to_string(d1)
-        dominio = [
-            ('move_type', 'in', ('out_invoice', 'out_refund')), ('state', '=', 'posted'),
-            ('company_id', 'in', self.env.companies.ids),
-            '|',
-            '&', '&', ('date', '>=', desde), ('date', '<=', hasta), ('invoice_line_ids', 'not any', de_una_venta),
-            '&', '|', ('date', '<', desde), ('date', '>', hasta), ('invoice_line_ids', 'any', de_una_venta),
-        ]
-        vista = self.env.ref('account.view_out_invoice_tree', raise_if_not_found=False)
+        del_inicio = {}
+        for fila in filas:
+            del_inicio[fila['id']] = del_inicio.get(fila['id'], 0.0) + fila['sin_itbms']
+        explican = sorted(asiento for asiento in set(de_contabilidad) | set(del_inicio)
+                          if abs(de_contabilidad.get(asiento, 0.0) - del_inicio.get(asiento, 0.0)) >= 0.005)
         return {
             'contables': contables,
             'diferencia': diferencia,
-            'cuantas': self.env['account.move'].search_count(dominio),
-            'accion': {**_accion('Facturas que explican la diferencia con Contabilidad', 'account.move', dominio),
-                       'vista_lista': vista.id if vista else False},
+            'cuantas': len(explican),
+            'accion': self._accion_de_facturas('Facturas que explican la diferencia con Contabilidad', explican),
         }
 
     # ------------------------------------------------------------------
@@ -409,40 +430,45 @@ class DcasaTablero(models.AbstractModel):
         }
 
     def _cifras_de_ventas(self, datos, hoy, propio=False):
-        """Las cifras de ventas. «Vendido» = pedidos facturados por completo (``_dcasa_dominio_vendido``), contados
-        en el día de su última factura: la tarjeta, la lista que abre, las barras y «lo más vendido» salen todos de
-        ese mismo dominio. ``propio``: solo los pedidos de quien mira (y nada de barras ni totales de la tienda).
+        """Las cifras de ventas, cada una con la lista que la explica. El valor es **sin ITBMS**; el ITBMS y el total
+        van aparte en la misma cifra.
 
-        El valor de las ventas es **sin ITBMS**; el ITBMS y el total van aparte en la misma cifra."""
+        * ``propio`` (la vendedora): «Vendido hoy» son sus pedidos facturados por completo, el día de su última
+          factura (``_dcasa_dominio_vendido``), y «Mis cotizaciones». Nada de la tienda. No cambió.
+        * Panel completo: «Vendido hoy», las barras de la semana y «Lo más vendido» salen de UNA lectura de las
+          facturas, con la base con la que abre el Inicio (``BASE_POR_DEFECTO``): «Vendido hoy» es la tarjeta de Ventas
+          en «Hoy». Al mover el interruptor o la vendedora, la pantalla vuelve a pedir la gráfica
+          (``grafica_de_ventas``)."""
         Order = self.env['sale.order']
-        vendedor = self.env.uid if propio else None
-        # Una sola lectura para «Vendido hoy» y las barras de la semana. El día de la venta ya es una fecha de
-        # Panamá (la de la factura): no hay conversión de horas.
-        ventas = Order.search_read(
-            Order._dcasa_dominio_vendido(desde=hoy if propio else hoy - timedelta(days=6), hasta=hoy,
-                                         vendedor=vendedor),
-            ['dcasa_fecha_venta', 'amount_untaxed', 'amount_tax', 'amount_total'])
-        por_dia = {}
-        for venta in ventas:
-            cuenta, base, itbms, total = por_dia.get(venta['dcasa_fecha_venta'], (0, 0.0, 0.0, 0.0))
-            por_dia[venta['dcasa_fecha_venta']] = (cuenta + 1, base + venta['amount_untaxed'],
-                                                   itbms + venta['amount_tax'], total + venta['amount_total'])
-        cuantas, base, itbms, total = por_dia.get(hoy, (0, 0.0, 0.0, 0.0))
-        datos['cifras'].append({
-            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'valor': base, 'formato': 'moneda',
-            'nota': 'sin ITBMS', 'itbms': itbms, 'total_con_itbms': total,
-            'detalle': f'{cuantas} venta' + (('' if cuantas == 1 else 's') if not propio else
-                                             (' tuya' if cuantas == 1 else 's tuyas')),
-            'accion': _accion('Ventas de hoy', 'sale.order',
-                              Order._dcasa_dominio_vendido(desde=hoy, hasta=hoy, vendedor=vendedor)),
-        })
-
         abiertas = [('state', 'in', ('draft', 'sent')), ('website_id', '=', False)]
         if propio:
+            vendido = Order._dcasa_dominio_vendido(desde=hoy, hasta=hoy, vendedor=self.env.uid)
+            ventas = Order.search_read(vendido, ['amount_untaxed', 'amount_tax', 'amount_total'])
+            cuantas = len(ventas)
+            datos['cifras'].append({
+                'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'formato': 'moneda', 'nota': 'sin ITBMS',
+                'valor': sum(v['amount_untaxed'] for v in ventas), 'itbms': sum(v['amount_tax'] for v in ventas),
+                'total_con_itbms': sum(v['amount_total'] for v in ventas),
+                'detalle': f'{cuantas} venta' + (' tuya' if cuantas == 1 else 's tuyas'),
+                'accion': _accion('Ventas de hoy', 'sale.order', vendido),
+            })
             # Solo las suyas: las que le toca seguir por WhatsApp. Nada más de la tienda.
             mias = Order.search_read(abiertas + [('user_id', '=', self.env.uid)], ['amount_total'])
             datos['cifras'].append(self._cifra_mis_cotizaciones(abiertas, mias))
             return
+        # Una sola lectura de facturas para «Vendido hoy», las barras y lo más vendido (los últimos 30 días).
+        filas = self._filas(hoy - timedelta(days=DIAS_DE_LO_MAS_VENDIDO), hoy, BASE_POR_DEFECTO)
+        de_hoy = [fila for fila in filas if fila['dia'] == hoy]
+        cuantas = sum(1 for fila in de_hoy if not fila['es_nota'])
+        redondear = self.env.company.currency_id.round
+        datos['cifras'].append({
+            'clave': 'ventas_hoy', 'titulo': 'Vendido hoy', 'formato': 'moneda', 'nota': 'sin ITBMS',
+            'valor': redondear(sum(f['sin_itbms'] for f in de_hoy)),
+            'itbms': redondear(sum(f['itbms'] for f in de_hoy)),
+            'total_con_itbms': redondear(sum(f['total'] for f in de_hoy)),
+            'detalle': f'{cuantas} factura' + ('' if cuantas == 1 else 's'),
+            'accion': self._accion_de_facturas('Facturado hoy', [fila['id'] for fila in de_hoy]),
+        })
         cotizaciones = Order.search_read(abiertas, ['amount_total', 'user_id'])
         datos['cifras'].append({
             'clave': 'cotizaciones', 'titulo': 'Cotizaciones abiertas', 'valor': len(cotizaciones),
@@ -461,7 +487,7 @@ class DcasaTablero(models.AbstractModel):
             'formato': 'numero', 'detalle': 'Pedidos confirmados de la tienda en línea',
             'accion': _accion('Compraron en la web y aún no se entregan', 'sale.order', web),
         })
-        self._barras_y_lo_mas_vendido(datos, hoy, por_dia)
+        datos['semana'], datos['top'] = self._semana_y_top(hoy, filas)
 
     def _cifra_mis_cotizaciones(self, abiertas, mias):
         return {
@@ -470,28 +496,45 @@ class DcasaTablero(models.AbstractModel):
             'accion': _accion('Mis cotizaciones abiertas', 'sale.order', abiertas + [('user_id', '=', self.env.uid)]),
         }
 
-    def _barras_y_lo_mas_vendido(self, datos, hoy, por_dia):
-        """Las barras de los últimos 7 días (sin ITBMS) y lo más vendido del mes (solo en el panel de la tienda)."""
+    def _semana_y_top(self, hoy, filas):
+        """Las barras de los últimos 7 días (sin ITBMS, con el total con ITBMS al lado) y lo más vendido de los últimos
+        30 días, de las mismas ``filas`` de facturas (la base del interruptor). Las notas de crédito restan, también
+        unidades."""
+        por_dia = {}
+        for fila in filas:
+            sin_itbms, total = por_dia.get(fila['dia'], (0.0, 0.0))
+            por_dia[fila['dia']] = (sin_itbms + fila['sin_itbms'], total + fila['total'])
+        redondear = self.env.company.currency_id.round
+        semana = []
         for atras in range(6, -1, -1):
             dia = hoy - timedelta(days=atras)
-            dia_total = por_dia.get(dia, (0, 0.0, 0.0, 0.0))
-            datos['semana'].append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': dia_total[1],
-                                    'total': dia_total[3], 'hoy': atras == 0})
-        # Las líneas de las ventas de los últimos 30 días: el mismo dominio de «vendido», visto desde la línea.
-        vendido = self.env['sale.order']._dcasa_dominio_vendido(desde=hoy - timedelta(days=30), hasta=hoy)
-        lineas = self.env['sale.order.line']._read_group(
-            [(f'order_id.{campo}', operador, valor) for campo, operador, valor in vendido]
-            + [('product_id.type', '!=', 'service'), ('is_downpayment', '=', False)],
-            ['product_id'], ['product_uom_qty:sum'])
+            sin_itbms, total = por_dia.get(dia, (0.0, 0.0))
+            semana.append({'dia': DIAS_CORTOS[dia.weekday()], 'monto': redondear(sin_itbms), 'total': redondear(total),
+                           'hoy': atras == 0})
         por_plantilla = {}
-        for producto, cantidad in lineas:
-            if producto:
-                por_plantilla[producto.product_tmpl_id] = por_plantilla.get(producto.product_tmpl_id, 0) + cantidad
-        for plantilla, cantidad in sorted(por_plantilla.items(), key=lambda pc: -pc[1])[:5]:
-            datos['top'].append({
-                'id': plantilla.id, 'nombre': plantilla.name, 'cantidad': int(cantidad),
-                'imagen': f'/web/image/product.template/{plantilla.id}/image_128',
-            })
+        for producto, (cantidad, _sin_itbms) in self._unidades_por_producto(filas).items():
+            plantilla = producto.product_tmpl_id
+            por_plantilla[plantilla] = por_plantilla.get(plantilla, 0.0) + cantidad
+        top = [{'id': plantilla.id, 'nombre': plantilla.name, 'cantidad': int(cantidad),
+                'imagen': f'/web/image/product.template/{plantilla.id}/image_128'}
+               for plantilla, cantidad in sorted(por_plantilla.items(), key=lambda pc: (-pc[1], pc[0].id))
+               if cantidad > 0][:5]
+        return semana, top
+
+    @api.model
+    def grafica_de_ventas(self, base=None, vendedor=None):
+        """Las barras de la semana y «Lo más vendido» del Inicio de quien controla la tienda, con la base del
+        interruptor y la vendedora elegidas (la pantalla las pide otra vez al moverlos). Solo lectura; valida la base y
+        la vendedora (una ajena a quien no es Gerencia: ``AccessError``) antes de leer. La vendedora no tiene
+        gráfica."""
+        if not self._puede('sale.order') or self._solo_lo_propio():
+            raise AccessError(self.env._('La gráfica de las ventas de la tienda es de quien controla la tienda.'))
+        base = self._base_pedida(base)
+        vendedor = self._vendedor_pedido(vendedor)
+        hoy = fields.Date.context_today(self)
+        filas = self._filas(hoy - timedelta(days=DIAS_DE_LO_MAS_VENDIDO), hoy, base, vendedor)
+        semana, top = self._semana_y_top(hoy, filas)
+        return {'base': base, 'vendedor': vendedor, 'semana': semana, 'top': top}
 
     def _cobros_de_hoy(self, datos, hoy):
         """Lo cobrado hoy por forma de pago (con ITBMS: es el dinero que entró). Va en «Caja de hoy»."""

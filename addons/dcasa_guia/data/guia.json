@@ -2139,7 +2139,7 @@
    ],
    "grupo": "Ventas",
    "titulo": "Comparar las ventas",
-   "logras": "En el Inicio, el bloque Comparar pone lado a lado, solo en números, las ventas, la ganancia, el margen, el número de ventas y lo cobrado: hoy contra ayer, contra el mismo día del mes pasado o de la semana pasada, lo que va del mes contra los mismos días del mes pasado o contra un mes completo, o dos rangos de fechas que tú eliges. Solo Gerencia.",
+   "logras": "En el Inicio, el bloque Comparar pone lado a lado, solo en números, las ventas (las facturas, igual que en Contabilidad), la ganancia, el margen, el número de ventas y lo cobrado: hoy contra ayer, contra el mismo día del mes pasado o de la semana pasada, lo que va del mes contra los mismos días del mes pasado o contra un mes completo, o dos rangos de fechas que tú eliges. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_inicio"
    },
@@ -2149,7 +2149,7 @@
    ],
    "pasos": [
     {
-     "texto": "Arriba de las ventas elige qué contar: «Completadas» (pagadas al 100 %, el día del último pago) o «Con abonos» (con al menos un abono, por su valor total; trae lo que falta por cobrar). Al lado puedes elegir una vendedora.",
+     "texto": "Arriba de las ventas elige qué facturas contar: «Facturado» (todas, por su fecha, igual que en Contabilidad; debajo dice cuántas salieron de un pedido de una vendedora), «Con abonos» (las que tienen al menos un abono, por su valor total; trae lo que falta por cobrar) o «Completadas» (las pagadas al 100 %, el día del último pago). Al lado puedes elegir una vendedora. La gráfica de la semana y lo más vendido cambian igual.",
      "destino": {
       "menu": "dcasa_interfaz.menu_dcasa_inicio"
      }
@@ -2163,17 +2163,23 @@
      "destino": null
     },
     {
-     "texto": "«Por vendedora» muestra una fila por persona; al tocar una, todo el Inicio queda en esa vendedora.",
+     "texto": "«Por vendedora» muestra una fila por persona; al tocar una, todo el Inicio queda en esa vendedora. Una factura es de la vendedora de su pedido; si se hizo sin pedido, de quien diga la factura como vendedor.",
+     "destino": null
+    },
+    {
+     "texto": "Si ves el ícono ⓘ junto a «Ventas» o a «Ganancia bruta», tócalo: explica la cifra. Junto a «Ventas» sale solo cuando no es igual a Contabilidad (dice cuánto y abre esas facturas); en «Facturado» es igual.",
      "destino": null
     }
    ],
-   "nota": "Las ventas y la ganancia van sin ITBMS; lo cobrado y lo que falta por cobrar, con ITBMS. Si no hay con qué comparar (cero), sale una raya en vez de un porcentaje.",
+   "nota": "Las ventas y la ganancia van sin ITBMS; lo cobrado y lo que falta por cobrar, con ITBMS. Las notas de crédito restan, como en Contabilidad. Si no hay con qué comparar (cero), sale una raya en vez de un porcentaje.",
    "brian": "¿Cómo vamos contra el mes pasado?",
    "palabras": [
     "comparar ventas",
     "contra el mes pasado",
     "como vamos",
     "por vendedora",
+    "facturado",
+    "igual que contabilidad",
     "completadas",
     "con abonos",
     "falta por cobrar",

@@ -2,8 +2,9 @@
 
 ``resumen_ventas`` no cuenta cotizaciones, pedidos «por facturar» ni facturas en borrador. Quien vende sin controlar la
 tienda (la Vendedora) ve solo lo suyo, facturado por completo y el día de su última factura, como su tarjeta del Inicio.
-Gerencia cuenta como su Inicio (2026-10-17): «completadas» por defecto (pagadas al 100 %, el día del último pago) o
-«con_abonos», y puede pedir una vendedora. ``comparar_ventas`` da las cifras del bloque «Comparar»."""
+Gerencia cuenta como su Inicio, sobre las facturas (2026-10-17): «facturado» por defecto (todas las publicadas, por su
+fecha, igual que Contabilidad), «con_abonos» o «completadas», y puede pedir una vendedora. ``comparar_ventas`` da las
+cifras del bloque «Comparar»."""
 from datetime import date, timedelta
 
 from odoo import Command, fields
@@ -66,14 +67,21 @@ class TestResumenVentasFacturadas(ResumenVentasCommon):
 
     def test_solo_cuentan_los_pedidos_facturados_por_completo(self):
         antes = self.resumen(self.gerente)['ventas']
+        completadas_antes = self.resumen(self.gerente, base='completadas')['ventas']
         self.pedido(self.ana, confirmar=False)                          # cotización
         self.pedido(self.ana)                                           # por facturar (apartado)
         self.pedido(self.ana, facturar=True, publicar=False)            # factura en borrador
         sin_pago = self.pedido(self.ana, facturar=True)                 # facturada sin pago: no es «completada»
         vendido = self.pagar(self.pedido(self.ana, cantidad=2, facturar=True))      # esta sí
         datos = self.resumen(self.gerente)
-        self.assertEqual(datos['ventas'], antes + 1)
-        self.assertEqual(datos['cuenta'], 'Completadas: pagadas al 100 %, el día del último pago')
+        self.assertEqual(datos['ventas'], antes + 2, '«Facturado»: las dos facturas publicadas')
+        self.assertEqual(datos['cuenta'], 'Facturado: todas las facturas, igual que Contabilidad')
+        self.assertEqual(datos['de_un_pedido'], f'{datos["ventas"]} de {datos["ventas"]} salieron de un pedido de una '
+                                                'vendedora')
+        completadas = self.resumen(self.gerente, base='completadas')
+        self.assertEqual(completadas['ventas'], completadas_antes + 1)
+        self.assertEqual(completadas['cuenta'], 'Completadas: pagadas al 100 %, el día del último pago')
+        self.assertNotIn('de_un_pedido', completadas)
         self.assertGreater(vendido.amount_total, 0)
         # La vendedora sigue contando lo facturado por completo (también lo que no tiene pago).
         self.assertEqual(self.resumen(self.ana)['ventas'], 2)
@@ -162,11 +170,16 @@ class TestResumenVentasFacturadas(ResumenVentasCommon):
         self.assertIn('itbms', fila)
         self.assertIn('total_con_itbms', fila)
         self.assertGreater(venta.amount_tax, 0)
-        # Gerencia: las ventas de hoy como su Inicio (Completadas), con las mismas palabras del interruptor.
+        # Gerencia: las ventas de hoy como su Inicio («Facturado»), con las mismas palabras del interruptor.
         reporte = self.env['brian.herramientas'].with_user(self.gerente).ejecutar('reporte_del_dia', {})
         self.assertNotIn('Vendido hoy', {f['titulo'] for f in reporte['datos']['cifras']})
         hoy = reporte['datos']['ventas_de_hoy']
-        self.assertEqual(hoy['cuenta'], 'Completadas: pagadas al 100 %, el día del último pago')
+        self.assertEqual(hoy['cuenta'], 'Facturado: todas las facturas, igual que Contabilidad')
+        self.assertTrue(hoy['de_un_pedido'].endswith('de un pedido de una vendedora'))
+        # Lo más vendido de Brian es el del Inicio de Gerencia.
+        inicio_completo = self.env['dcasa.tablero'].with_user(self.gerente).obtener_datos()
+        self.assertEqual(reporte['datos']['mas_vendidos_30_dias'],
+                         [{'producto': t['nombre'], 'unidades': t['cantidad']} for t in inicio_completo['top']])
         inicio = self.env['dcasa.tablero'].with_user(self.gerente).ventas_del_periodo('hoy')['actual']
         self.assertEqual(hoy['ventas_sin_itbms'], f'${inicio["sin_itbms"]:,.2f}')
         self.assertEqual(hoy['ventas'], inicio['cuantas'])
@@ -206,7 +219,7 @@ class TestCompararVentasBrian(ResumenVentasCommon):
         inicio = self.env['dcasa.tablero'].with_user(self.gerente).comparar_ventas('mes', mes=septiembre)
         self.assertTrue(datos['llevas'].startswith('Llevas '))
         self.assertIn(' de septiembre', datos['llevas'])
-        self.assertEqual(datos['cuenta'], 'Completadas: pagadas al 100 %, el día del último pago')
+        self.assertEqual(datos['cuenta'], 'Facturado: todas las facturas, igual que Contabilidad')
         ventas = next(f for f in datos['filas'] if f['cifra'] == 'Ventas (sin ITBMS)')
         self.assertEqual(ventas['a'], f'${next(f for f in inicio["filas"] if f["clave"] == "ventas")["a"]:,.2f}')
         self.assertEqual([f['cifra'] for f in datos['filas']][:4],
@@ -279,5 +292,7 @@ class TestCompararVentasBrian(ResumenVentasCommon):
         self.assertEqual(datos['vendedora'], self.ana.name)
         self.assertEqual(datos['cuenta'], 'Con abonos: con al menos un abono, por su valor total')
         self.assertIn('falta_por_cobrar_con_itbms', datos)
-        self.assertEqual(self.resumen(self.gerente, vendedora=self.ana.name)['ventas'], 0,
+        self.assertEqual(self.resumen(self.gerente, vendedora=self.ana.name, base='completadas')['ventas'], 0,
                          'en «completadas» todavía no: falta pagarla')
+        self.assertEqual(self.resumen(self.gerente, vendedora=self.ana.name)['ventas'], 1,
+                         'en «facturado» sí: la factura está publicada')

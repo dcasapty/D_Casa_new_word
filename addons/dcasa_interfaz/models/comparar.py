@@ -17,11 +17,12 @@ Una fila de botones; cada uno es una comparación completa (A contra B):
 hora de Panamá (``ventas_bases``: «lo que a esa hora ya estaba registrado»). En ``mes`` B es un mes completo: no se
 corta.
 
-Las filas salen de una sola función (``_filas_de_comparacion``) y siguen la base del interruptor (``completadas`` o
-``con_abonos``) y la vendedora elegida: Ventas y Ganancia (sin ITBMS, las mismas de las tarjetas del Inicio), Margen
-(ganancia ÷ venta de mercancía de esas mismas ventas, el porcentaje que ya muestra la tarjeta de Ganancia; su cambio en
-puntos), N.º de ventas, Falta por cobrar (solo «Con abonos», con ITBMS) y Cobrado (con ITBMS). Sin base positiva no hay
-porcentaje («—»): nunca se inventa uno.
+Las filas salen de una sola función (``_filas_de_comparacion``) y siguen la base del interruptor (``facturado``,
+``con_abonos`` o ``completadas``: las facturas de cliente, ``ventas_bases.py``) y la vendedora elegida: Ventas y
+Ganancia (sin ITBMS, las mismas de las tarjetas del Inicio), Margen (ganancia ÷ venta de mercancía de esas mismas
+facturas, el porcentaje que ya muestra la tarjeta de Ganancia; su cambio en puntos), N.º de ventas (facturas; una nota
+de crédito resta del monto, no del número), Falta por cobrar (solo «Con abonos», con ITBMS) y Cobrado (con ITBMS). Sin
+base positiva no hay porcentaje («—»): nunca se inventa uno.
 
 Solo Gerencia y los administradores (los que ven la ganancia); el servidor lo exige en cada llamada.
 """
@@ -30,7 +31,7 @@ from datetime import date, datetime, timedelta
 import pytz
 from dateutil.relativedelta import relativedelta
 
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from .tablero import BASE_CON_ABONOS, SIN_VENDEDORA
@@ -149,18 +150,28 @@ class DcasaTableroComparar(models.AbstractModel):
 
     @api.model
     def _vendedoras_para_elegir(self, hoy):
-        """Quien tiene el rol Vendedora (Gerencia lo incluye: no por eso sale) y quien tuvo ventas confirmadas en los
-        últimos 24 meses, por nombre; al final, «Sin vendedora» (ventas de la web o de Juan que nadie tomó)."""
+        """Quien tiene el rol Vendedora (Gerencia lo incluye: no por eso sale), quien tuvo ventas confirmadas en los
+        últimos 24 meses y quien figura como «Vendedor» de una factura sin pedido de esos meses (su vendedora,
+        ``ventas_bases._duenas``), por nombre; al final, «Sin vendedora» (ventas de la web o de Juan que nadie tomó, y
+        facturas sin vendedor)."""
         ids = set()
         grupo = self.env.ref('dcasa_base.group_vendedora', raise_if_not_found=False)
         if grupo:
             ids |= set(grupo.sudo().all_user_ids.filtered(
                 lambda u: u.active and not u.share and not u.has_group('sales_team.group_sale_manager')
                 and not u.has_group('base.group_system')).ids)
-        desde = datetime.combine(hoy.replace(day=1) - relativedelta(months=MESES_PARA_ELEGIR), datetime.min.time())
+        primero = hoy.replace(day=1) - relativedelta(months=MESES_PARA_ELEGIR)
+        desde = datetime.combine(primero, datetime.min.time())
         grupos = self.env['sale.order']._read_group(
             [('state', '=', 'sale'), ('user_id', '!=', False), ('date_order', '>=', desde)], ['user_id'])
         ids |= {usuario.id for (usuario,) in grupos}
+        if self._puede('account.move'):
+            sin_pedido = self.env['account.move']._read_group(
+                [('move_type', 'in', ('out_invoice', 'out_refund')), ('state', '=', 'posted'),
+                 ('invoice_user_id', 'not in', (False, SUPERUSER_ID)), ('dcasa_historica', '=', False),
+                 ('date', '>=', primero), ('line_ids', 'not any', [('sale_line_ids', '!=', False)])],
+                ['invoice_user_id'])
+            ids |= {usuario.id for (usuario,) in sin_pedido}
         usuarios = self.env['res.users'].sudo().with_context(active_test=False).browse(sorted(ids)).exists()
         filas = [{'id': u.id, 'nombre': u.name} for u in usuarios.sorted(lambda u: (u.name or '').lower())]
         return filas + [{'id': SIN_VENDEDORA, 'nombre': self.env._('Sin vendedora')}]
@@ -395,8 +406,8 @@ class DcasaTableroComparar(models.AbstractModel):
     @api.model
     def _lista_por_vendedora(self, equipo_a, equipo_b, modo, dias_a, dias_b):
         """Una fila por vendedora (y «Sin vendedora»): ventas A, ventas B y el cambio, de mayor a menor en A."""
-        suma_a = self._por_vendedora(equipo_a['pedidos'])
-        suma_b = self._por_vendedora(equipo_b['pedidos'])
+        suma_a = self._por_vendedora(equipo_a)
+        suma_b = self._por_vendedora(equipo_b)
         claves = set(suma_a) | set(suma_b)
         ids = [clave for clave in claves if clave != SIN_VENDEDORA]
         nombres = {u.id: u.name for u in self.env['res.users'].sudo().with_context(active_test=False).browse(ids)}

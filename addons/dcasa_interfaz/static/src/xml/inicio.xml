@@ -166,12 +166,14 @@
                 <!-- Ventas por periodo: Hoy · Esta semana · Este mes · un rango. Las cifras de ventas van SIN ITBMS (el
                      ITBMS es de la DGI); el ITBMS y el total van al lado. La ganancia solo la ve Gerencia. -->
                 <section t-if="d.ventas and d.permisos.completo" class="o_dcasa_ventas" aria-label="Ventas">
-                    <!-- Qué ventas contar (decisión de la dueña, 2026-10-17): «Completadas» (pagadas al 100 %, el día del
-                         último pago) o «Con abonos» (con al menos un abono, por su valor total). Abre en «Completadas».
-                         Cambia las tarjetas y todo «Comparar». Al lado, la vendedora (solo Gerencia). -->
+                    <!-- Qué facturas contar (decisión del jefe, 2026-10-17: el Inicio cuenta las facturas, como
+                         Contabilidad): «Facturado» (todas, por su fecha), «Con abonos» (con al menos un abono, por su valor
+                         total) o «Completadas» (pagadas al 100 %, el día del último pago). Abre en la que diga el servidor
+                         (d.base). Cambia las tarjetas, Comparar, la gráfica de la semana y lo más vendido. Al lado, la
+                         vendedora (solo Gerencia). -->
                     <div t-if="d.bases and d.bases.length" class="o_dcasa_base_ventas">
                         <div class="o_dcasa_base_fila">
-                            <div class="o_dcasa_interruptor" role="radiogroup" aria-label="Qué ventas contar">
+                            <div class="o_dcasa_interruptor" role="radiogroup" aria-label="Qué facturas contar">
                                 <button t-foreach="d.bases" t-as="b" t-key="b.clave" type="button" role="radio"
                                         t-attf-class="o_dcasa_interruptor_opcion o_dcasa_base_{{b.clave}}"
                                         t-att-class="{'o_activo': state.base === b.clave}"
@@ -190,7 +192,17 @@
                         <p class="o_dcasa_base_detalle" t-out="detalleBase"/>
                     </div>
                     <div class="o_dcasa_ventas_cabeza">
-                        <h2>Ventas</h2>
+                        <!-- El ⓘ: en qué se aparta de Contabilidad (solo si se aparta: en «Facturado» es lo mismo). -->
+                        <h2 class="o_dcasa_con_ayuda">Ventas
+                            <button t-if="d.ventas.cuadre" type="button"
+                                    class="o_dcasa_ayuda_boton o_dcasa_ayuda_boton_ventas"
+                                    aria-label="Por qué no es igual a Contabilidad" aria-controls="o_dcasa_ayuda_ventas"
+                                    t-att-aria-expanded="state.ayuda === 'ventas' ? 'true' : 'false'"
+                                    t-on-click="() => this.alternarAyuda('ventas')"
+                                    t-on-keydown="(ev) => this.teclaEnAyuda(ev, 'ventas')">
+                                <i class="fa fa-info-circle" aria-hidden="true"/>
+                            </button>
+                        </h2>
                         <div class="o_dcasa_periodos" role="tablist" aria-label="Periodo de las ventas">
                             <button t-foreach="periodos" t-as="per" t-key="per.clave" type="button" role="tab"
                                     t-attf-class="o_dcasa_periodo o_dcasa_periodo_{{per.clave}}"
@@ -198,6 +210,23 @@
                                     t-att-aria-selected="state.periodo === per.clave ? 'true' : 'false'"
                                     t-on-click="() => this.cambiarPeriodo(per.clave)" t-out="per.nombre"/>
                         </div>
+                    </div>
+                    <div t-if="state.ayuda === 'ventas' and d.ventas.cuadre" id="o_dcasa_ayuda_ventas"
+                         class="o_dcasa_ayuda_texto o_dcasa_ayuda_texto_ventas" role="note" tabindex="-1"
+                         t-on-keydown="(ev) => this.teclaEnAyuda(ev, 'ventas')">
+                        <p>Contabilidad dice <strong t-out="dinero(d.ventas.cuadre.contables)"/> sin ITBMS para estas
+                            fechas: <strong t-out="dinero(Math.abs(d.ventas.cuadre.diferencia))"/>
+                            <t t-out="d.ventas.cuadre.diferencia > 0 ? ' más' : ' menos'"/> que aquí.</p>
+                        <p t-if="d.ventas.base === 'con_abonos'">Aquí se cuentan las facturas con al menos un abono; allá,
+                            todas las facturas por su fecha.</p>
+                        <p t-elif="d.ventas.base === 'completadas'">Aquí se cuentan las facturas pagadas al 100 %, el día
+                            del último pago; allá, todas las facturas por su fecha.</p>
+                        <p t-else="">Algo que no es una factura de cliente tocó los ingresos de esas fechas (por ejemplo, un
+                            asiento a mano).</p>
+                        <button t-if="d.ventas.cuadre.cuantas" type="button" class="btn btn-link p-0 o_dcasa_ayuda_ver"
+                                t-on-click="() => this.abrirLista(d.ventas.cuadre.accion)">
+                            Ver <t t-out="d.ventas.cuadre.cuantas === 1 ? 'esa factura' : 'esas ' + d.ventas.cuadre.cuantas + ' facturas'"/>
+                        </button>
                     </div>
                     <form t-if="state.periodo === 'rango'" class="o_dcasa_rango" t-on-submit.prevent="aplicarRango">
                         <label>Del <input type="date" class="form-control o_dcasa_rango_desde" t-model="state.desde"
@@ -216,45 +245,47 @@
                             </button>
                             <span class="o_dcasa_ventas_nota">Ventas sin ITBMS ·
                                 <t t-out="d.ventas.actual.cuantas"/>
-                                <t t-out="d.ventas.actual.cuantas === 1 ? ' venta' : ' ventas'"/></span>
+                                <t t-if="d.ventas.base === 'vendido'" t-out="d.ventas.actual.cuantas === 1 ? ' venta' : ' ventas'"/>
+                                <t t-else="" t-out="d.ventas.actual.cuantas === 1 ? ' factura' : ' facturas'"/>
+                                <t t-if="d.ventas.actual.notas"> · <t t-out="d.ventas.actual.notas"/>
+                                    <t t-out="d.ventas.actual.notas === 1 ? ' nota de crédito' : ' notas de crédito'"/></t></span>
+                            <!-- «Facturado»: cuántas de esas facturas salieron de un pedido de una vendedora (decisión A1). -->
+                            <span t-if="deUnPedidoTexto" class="o_dcasa_de_pedido" t-out="deUnPedidoTexto"/>
                             <span class="o_dcasa_desglose">
                                 <span>ITBMS <strong t-out="dinero(d.ventas.actual.itbms)"/></span>
                                 <span>Total con ITBMS <strong t-out="dinero(d.ventas.actual.total)"/></span>
                                 <span t-if="d.ventas.actual.falta_por_cobrar !== null and d.ventas.actual.falta_por_cobrar !== undefined"
                                       class="o_dcasa_falta">Falta por cobrar <strong t-out="dinero(d.ventas.actual.falta_por_cobrar)"/> con ITBMS</span>
                             </span>
-                            <!-- En qué se aparta de las «Ventas» de Contabilidad para estas fechas, y por qué: así las dos
-                                 pantallas cuadran a la vista. Al tocarla abre las facturas que lo explican. -->
-                            <button t-if="d.ventas.cuadre" type="button" class="o_dcasa_ventas_aviso o_dcasa_ventas_cuadre"
-                                    t-on-click="() => this.abrirLista(d.ventas.cuadre.accion)">
-                                <i class="fa fa-info-circle" aria-hidden="true"/>
-                                <span>Contabilidad dice <strong t-out="dinero(d.ventas.cuadre.contables)"/> sin ITBMS para estas
-                                    fechas: <strong t-out="dinero(Math.abs(d.ventas.cuadre.diferencia))"/>
-                                    <t t-out="d.ventas.cuadre.diferencia > 0 ? ' más' : ' menos'"/> que aquí.
-                                    <t t-if="d.ventas.base === 'con_abonos'">Aquí se cuentan las ventas con al menos un abono, el día de la venta;</t>
-                                    <t t-else="">Aquí se cuentan las ventas pagadas al 100 %, el día del último pago;</t>
-                                    allá, todas las facturas por su fecha.
-                                    <t t-if="d.ventas.cuadre.cuantas">Tócalo para ver
-                                        <t t-out="d.ventas.cuadre.cuantas === 1 ? 'esa factura' : 'esas ' + d.ventas.cuadre.cuantas + ' facturas'"/>.</t></span>
-                            </button>
                         </div>
                         <div t-if="d.ve_utilidad and d.ventas.actual.ganancia" class="o_dcasa_ventas_columna o_dcasa_ganancia">
-                            <span class="o_dcasa_ventas_etiqueta">Ganancia bruta</span>
+                            <span class="o_dcasa_ventas_etiqueta o_dcasa_con_ayuda">Ganancia bruta
+                                <button type="button" class="o_dcasa_ayuda_boton o_dcasa_ayuda_boton_ganancia"
+                                        aria-label="Qué es la ganancia bruta" aria-controls="o_dcasa_ayuda_ganancia"
+                                        t-att-aria-expanded="state.ayuda === 'ganancia' ? 'true' : 'false'"
+                                        t-on-click="() => this.alternarAyuda('ganancia')"
+                                        t-on-keydown="(ev) => this.teclaEnAyuda(ev, 'ganancia')">
+                                    <i class="fa fa-info-circle" aria-hidden="true"/>
+                                </button>
+                            </span>
                             <span class="o_dcasa_ventas_valor o_dcasa_ganancia_valor"
                                   t-out="dinero(d.ventas.actual.ganancia.valor)"/>
                             <span class="o_dcasa_ventas_nota">
-                                <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de la venta de mercancía, </t>
-                                sin ITBMS: venta menos costo de la mercancía. No resta gastos (alquiler, planilla, luz).
+                                <t t-if="d.ventas.actual.ganancia.porcentaje !== null"><t t-out="d.ventas.actual.ganancia.porcentaje"/> % de la venta de mercancía · </t>sin ITBMS
                             </span>
-                            <span t-if="d.ventas.actual.ganancia.ventas_sin_costo" class="o_dcasa_ventas_aviso">
-                                <i class="fa fa-info-circle" aria-hidden="true"/>
+                            <!-- Lo que explica la cifra (la regla del costo) va en el ⓘ, no a la vista. -->
+                            <div t-if="state.ayuda === 'ganancia'" id="o_dcasa_ayuda_ganancia"
+                                 class="o_dcasa_ayuda_texto o_dcasa_ayuda_texto_ganancia" role="note" tabindex="-1"
+                                 t-on-keydown="(ev) => this.teclaEnAyuda(ev, 'ganancia')">
+                                <p>Venta menos el costo de la mercancía, sin ITBMS. No resta gastos (alquiler, planilla,
+                                    luz).</p>
+                                <p>Cada venta de un pedido usa el costo guardado el día en que se confirmó. Las facturas sin
+                                    pedido y las ventas hechas antes de esta pantalla usan el costo de hoy del producto.</p>
+                            </div>
+                            <span t-if="d.ventas.actual.ganancia.ventas_sin_costo" class="o_dcasa_ventas_aviso o_dcasa_sin_costo">
+                                <i class="fa fa-exclamation-circle" aria-hidden="true"/>
                                 <t t-out="d.ventas.actual.ganancia.ventas_sin_costo"/>
-                                <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' venta tiene' : ' ventas tienen'"/>
-                                mercancía sin costo cargado y no cuentan aquí
-                            </span>
-                            <span class="o_dcasa_ventas_aviso o_dcasa_ganancia_antigua">
-                                <i class="fa fa-info-circle" aria-hidden="true"/>
-                                Las ventas hechas antes de que existiera esta pantalla usan el costo de hoy del producto; las nuevas guardan el costo del día en que se confirman.
+                                <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' factura tiene mercancía sin costo y no cuenta aquí' : ' facturas tienen mercancía sin costo y no cuentan aquí'"/>
                             </span>
                         </div>
                     </div>
@@ -393,8 +424,9 @@
 
                 <div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">
                     <!-- Semana -->
-                    <section t-if="d.semana.length" class="o_dcasa_panel o_dcasa_semana">
-                        <h2>Ventas de la semana <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
+                    <!-- La semana y lo más vendido siguen el interruptor y la vendedora (2026-10-17): la etiqueta dice cuáles. -->
+                    <section t-if="d.semana.length" t-attf-class="o_dcasa_panel o_dcasa_semana {{state.cargandoGrafica ? 'o_cargando' : ''}}">
+                        <h2>Ventas de la semana <small class="o_dcasa_sin_itbms"><t t-if="nombreBase"><t t-out="nombreBase"/> · </t>sin ITBMS<t t-if="nombreVendedora"> · <t t-out="nombreVendedora"/></t></small></h2>
                         <div class="o_dcasa_grafico">
                             <div t-foreach="d.semana" t-as="dia" t-key="dia_index" role="img" tabindex="0"
                                  t-attf-class="o_dcasa_grafico_barra {{dia.hoy ? 'o_dcasa_grafico_hoy' : ''}}"
@@ -427,8 +459,8 @@
                     </section>
 
                     <!-- Lo más vendido -->
-                    <section class="o_dcasa_panel o_dcasa_top">
-                        <h2>Lo más vendido <small class="o_dcasa_sin_itbms">últimos 30 días</small></h2>
+                    <section t-attf-class="o_dcasa_panel o_dcasa_top {{state.cargandoGrafica ? 'o_cargando' : ''}}">
+                        <h2>Lo más vendido <small class="o_dcasa_sin_itbms">últimos 30 días<t t-if="nombreBase"> · <t t-out="nombreBase"/></t><t t-if="nombreVendedora"> · <t t-out="nombreVendedora"/></t></small></h2>
                         <ol t-if="d.top.length" class="list-unstyled mb-0">
                             <li t-foreach="d.top" t-as="p" t-key="p.id" tabindex="0" role="button" t-on-click="() => this.abrirProducto(p)" t-on-keydown="(ev) => ev.key === 'Enter' and this.abrirProducto(p)">
                                 <img t-att-src="p.imagen" alt="" loading="lazy"/>

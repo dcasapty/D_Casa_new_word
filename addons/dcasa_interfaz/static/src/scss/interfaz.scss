@@ -612,15 +612,68 @@
     padding: 6px 10px;
 }
 
-// La diferencia con Contabilidad: se toca y abre esas facturas.
-.o_dcasa_ventas_cuadre {
-    border: 1px solid var(--dc-azul-100);
-    text-align: left;
-    margin-top: 6px;
+// «N de M salieron de un pedido de una vendedora» (solo en «Facturado»): una línea corta debajo del número.
+.o_dcasa_de_pedido {
+    font-size: .82rem;
+    color: var(--dc-azul-800);
+}
 
-    .fa { margin-top: 2px; }
-    &:hover { border-color: var(--dc-azul-300); }
+// El ícono ⓘ junto a un título (2026-10-17): el texto largo se abre al tocarlo, también con el teclado (es un botón:
+// Enter o Espacio lo abren, Escape lo cierra) y en el celular. Azul de la marca sobre blanco, sin sombras.
+.o_dcasa_con_ayuda {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.o_dcasa_ayuda_boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    margin: -6px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--dc-azul-600);
+    font-size: 1.05rem;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: 0;
+
+    &:hover { background: var(--dc-azul-50); }
     &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &[aria-expanded="true"] { background: var(--dc-azul-100); color: var(--dc-azul-800); }
+}
+
+.o_dcasa_ayuda_texto {
+    margin: 0 0 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-900);
+    font-size: .85rem;
+    line-height: 1.45;
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+
+    p { margin: 0 0 6px; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--dc-azul-900); font-weight: 600; }
+    &:focus { outline: none; }
+    .btn-link { font-size: .85rem; font-weight: 600; color: var(--dc-azul-700); }
+}
+
+.o_dcasa_ganancia .o_dcasa_ayuda_texto { margin: 2px 0 0; }
+
+.o_dcasa_semana, .o_dcasa_top {
+    transition: opacity var(--dc-transicion);
+
+    &.o_cargando { opacity: .5; }
 }
 
 .o_dcasa_desglose {
@@ -633,8 +686,9 @@
     strong { color: var(--dc-tinta); font-weight: 600; }
 }
 
-// «Completadas» / «Con abonos» (decisión de la dueña, 2026-10-17): dos píldoras; la activa en azul con texto blanco y
-// la otra con borde. Debajo, una sola línea corta que dice qué se cuenta.
+// «Facturado» · «Con abonos» · «Completadas» (decisión del jefe, 2026-10-17): tres píldoras; la activa en azul con
+// texto blanco y las otras con borde. Debajo, una sola línea corta que dice qué se cuenta. En el celular, las tres en
+// una fila del mismo ancho.
 .o_dcasa_base_ventas {
     padding-bottom: 14px;
     margin-bottom: 14px;
@@ -685,9 +739,25 @@
     }
 }
 
+@media (max-width: 575.98px) {
+    .o_dcasa_interruptor {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+        gap: 4px;
+    }
+    .o_dcasa_interruptor_opcion {
+        padding: 0 6px;
+        font-size: .82rem;
+        white-space: nowrap;
+    }
+    .o_dcasa_vendedora { width: 100%; .form-select { width: 100%; } }
+}
+
 .o_dcasa_base_detalle {
     margin: 8px 0 0;
     font-size: .85rem;
+    line-height: 1.4;
     color: var(--dc-tinta-2);
 }
 

@@ -139,18 +139,24 @@ class TestVendidoEsFacturado(VentasCommon):
         self.assertFalse(orden.dcasa_fecha_venta)
 
     def test_ventas_de_hoy_del_menu_es_lo_mismo_que_el_inicio(self):
-        """Ventas › Hoy › Ventas de hoy y la tarjeta «Vendido hoy» comparten el dominio (para cada rol)."""
+        """Ventas › Hoy › Ventas de hoy (pedidos) y la tarjeta «Vendido hoy» de la vendedora comparten el dominio. La de
+        Gerencia cuenta las facturas («Facturado», 2026-10-17): abre las facturas de esos mismos pedidos."""
         por_facturar = self.pedido()
         vendido = self.pedido()
-        self.facturar(vendido)
+        factura = self.facturar(vendido)
         menu = self.env.ref('dcasa_base.action_dcasa_ventas_hoy_abrir')
         for usuario in (self.gerencia, self.vendedora):
             accion = menu.with_user(usuario).run()
             del_menu = self.env['sale.order'].search(accion['domain'])
             self.assertIn(vendido, del_menu, usuario.login)
             self.assertNotIn(por_facturar, del_menu, usuario.login)
-            tarjeta = self.cifras(usuario)['ventas_hoy']['accion']
-            self.assertEqual(self.env['sale.order'].search(tarjeta['domain']), del_menu, usuario.login)
+        tarjeta = self.cifras(self.vendedora)['ventas_hoy']['accion']
+        del_menu = self.env['sale.order'].search(menu.with_user(self.vendedora).run()['domain'])
+        self.assertEqual(self.env['sale.order'].search(tarjeta['domain']), del_menu)
+        de_gerencia = self.cifras(self.gerencia)['ventas_hoy']['accion']
+        self.assertEqual(de_gerencia['res_model'], 'account.move')
+        self.assertIn(factura, self.env['account.move'].search(de_gerencia['domain']))
+        self.assertFalse(por_facturar.invoice_ids)
 
     def test_ventas_de_hoy_del_menu_la_vendedora_ve_solo_las_suyas_y_gerencia_todas(self):
         mia = self.pedido(vendedor=self.vendedora)
@@ -194,14 +200,16 @@ class TestVendidoEsFacturado(VentasCommon):
         self.facturar(vendido)
         datos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
         cifras = {c['clave']: c for c in datos['cifras']}
-        # tarjeta y lista
-        lista = self.env['sale.order'].search(cifras['ventas_hoy']['accion']['domain'])
-        self.assertIn(vendido, lista)
+        # tarjeta y lista: las facturas publicadas de hoy («Facturado»)
+        lista = self.env['account.move'].search(cifras['ventas_hoy']['accion']['domain'])
+        self.assertIn(vendido.invoice_ids, lista)
         for fuera in (pendiente, borrador, con_borrador):
-            self.assertNotIn(fuera, lista, fuera.name)
-        self.assertAlmostEqual(cifras['ventas_hoy']['valor'], sum(lista.mapped('amount_untaxed')), places=2)
-        self.assertAlmostEqual(cifras['ventas_hoy']['total_con_itbms'], sum(lista.mapped('amount_total')), places=2)
-        self.assertEqual(cifras['ventas_hoy']['detalle'], f'{len(lista)} venta' + ('' if len(lista) == 1 else 's'))
+            self.assertFalse(fuera.invoice_ids & lista, fuera.name)
+        self.assertAlmostEqual(cifras['ventas_hoy']['valor'], sum(lista.mapped('amount_untaxed_signed')), places=2)
+        self.assertAlmostEqual(cifras['ventas_hoy']['total_con_itbms'], sum(lista.mapped('amount_total_signed')),
+                               places=2)
+        facturas = len(lista.filtered(lambda f: f.move_type == 'out_invoice'))
+        self.assertEqual(cifras['ventas_hoy']['detalle'], f'{facturas} factura' + ('' if facturas == 1 else 's'))
         # barras
         self.assertTrue(datos['semana'][-1]['hoy'])
         self.assertAlmostEqual(datos['semana'][-1]['monto'], cifras['ventas_hoy']['valor'], places=2)
@@ -310,8 +318,8 @@ class TestInicioPorRol(VentasCommon):
         mia, ajena = self.pedido(vendedor=self.vendedora), self.pedido(vendedor=self.otra)
         self.facturar(mia)
         self.facturar(ajena)
-        lista = self.env['sale.order'].search(self.cifras(self.gerencia)['ventas_hoy']['accion']['domain'])
-        self.assertTrue((mia | ajena) <= lista)
+        lista = self.env['account.move'].search(self.cifras(self.gerencia)['ventas_hoy']['accion']['domain'])
+        self.assertTrue((mia.invoice_ids | ajena.invoice_ids) <= lista)
 
     def test_las_apps_que_no_se_usan_se_vuelven_a_ocultar_en_cada_actualizacion(self):
         """``-u all`` recarga los menús de Odoo con sus grupos de fábrica; el panel los oculta de nuevo."""
@@ -536,8 +544,10 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
                 throw new Error('el botón principal de la vendedora debe ser «Nueva cotización»');
             }
             if (document.querySelector('.o_dcasa_panel')) { throw new Error('sin barras ni paneles de la tienda'); }
-            // Ni el interruptor, ni el selector de vendedora, ni «Comparar»: su Inicio no cambia (2026-10-17).
-            for (const fuera of ['.o_dcasa_interruptor', '.o_dcasa_vendedora_select', '.o_dcasa_comparar']) {
+            // Ni el interruptor, ni el selector de vendedora, ni «Comparar», ni los ⓘ, ni «N de M salieron de un
+            // pedido»: su Inicio no cambia (2026-10-17).
+            for (const fuera of ['.o_dcasa_interruptor', '.o_dcasa_vendedora_select', '.o_dcasa_comparar',
+                                 '.o_dcasa_ayuda_boton', '.o_dcasa_de_pedido', '.o_dcasa_ventas']) {
                 if (document.querySelector(fuera)) { throw new Error('la vendedora no debe ver ' + fuera); }
             }
             if (document.body.innerText.includes('Cobrado hoy') || document.body.innerText.includes('Por cobrar')) {
@@ -590,11 +600,11 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
             // Los periodos de las ventas: Hoy ya está activo; Esta semana cambia la etiqueta.
             if (!document.querySelector('.o_dcasa_periodo_hoy.o_activo')) { throw new Error('Hoy debe estar activo'); }
             // Las frases de comparación se reemplazaron por el bloque «Comparar» (jefe, 2026-10-17) y el interruptor
-            // «Completadas» / «Con abonos» abre en «Completadas».
+            // «Facturado» · «Con abonos» · «Completadas» abre en «Facturado» (las facturas, como Contabilidad).
             if (document.querySelector('.o_dcasa_comparacion')) { throw new Error('ya no hay frases de comparación'); }
-            igual(textos('.o_dcasa_interruptor_opcion'), ['Completadas', 'Con abonos'], 'el interruptor');
-            if (!document.querySelector('.o_dcasa_base_completadas.o_activo')) {
-                throw new Error('el Inicio abre en «Completadas»');
+            igual(textos('.o_dcasa_interruptor_opcion'), ['Facturado', 'Con abonos', 'Completadas'], 'el interruptor');
+            if (!document.querySelector('.o_dcasa_base_facturado.o_activo')) {
+                throw new Error('el Inicio abre en «Facturado»');
             }
             igual(textos('.o_dcasa_chip').length, 6, 'los botones de Comparar');
             document.querySelector('.o_dcasa_periodo_semana').click();

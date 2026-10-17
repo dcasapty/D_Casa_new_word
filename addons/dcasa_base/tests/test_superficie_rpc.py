@@ -252,10 +252,15 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
     ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_periodo'):
-        'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo, y la ganancia solo '
-        'sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo). Valida la base '
-        '(«completadas»/«con_abonos») y rechaza con AccessError un «vendedor» ajeno a quien no es Gerencia ni '
-        'administrador, ANTES de leer.',
+        'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo (sus pedidos), y la '
+        'ganancia solo sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo). '
+        'Valida la base («facturado»/«con_abonos»/«completadas») y rechaza con AccessError un «vendedor» ajeno a quien '
+        'no es Gerencia ni administrador, ANTES de leer. Las facturas las suma con sudo filtrado a out_invoice/'
+        'out_refund; la lista que abre la ve cada quien con sus permisos.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'grafica_de_ventas'):
+        'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
+        'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
+        'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '

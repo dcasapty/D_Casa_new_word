@@ -4,7 +4,13 @@ from datetime import date
 
 from odoo import api, models
 from odoo.addons.dcasa_interfaz.models.comparar import COMPARACIONES, MESES
-from odoo.addons.dcasa_interfaz.models.tablero import BASE_CON_ABONOS, BASE_VENDIDO, BASES_DE_GERENCIA, SIN_VENDEDORA
+from odoo.addons.dcasa_interfaz.models.tablero import (
+    BASE_CON_ABONOS,
+    BASE_FACTURADO,
+    BASE_VENDIDO,
+    BASES_DE_GERENCIA,
+    SIN_VENDEDORA,
+)
 from odoo.exceptions import UserError
 
 from . import herramientas_comun as c
@@ -12,18 +18,19 @@ from .registro import BrianError, herramienta
 
 VENDEDOR = ('sales_team.group_sale_salesman',)
 GERENCIA = ('sales_team.group_sale_manager',)
-# Las mismas palabras del interruptor del Inicio de Gerencia (decisión de la dueña, 2026-10-17).
+# Las mismas palabras del interruptor del Inicio de Gerencia: cuenta sobre las facturas (decisión del jefe, 2026-10-17).
 PARAM_BASE = {
     'type': 'string', 'enum': list(BASES_DE_GERENCIA),
-    'description': 'Solo Gerencia: qué ventas contar. «completadas» (por defecto, como abre el Inicio): pagadas al '
-                   '100 %, el día del último pago. «con_abonos»: con al menos un abono, por su valor total, el día de '
-                   'la venta (trae lo que falta por cobrar). Una venta facturada sin ningún pago no cuenta en ninguna.',
+    'description': 'Solo Gerencia: qué facturas contar. «facturado» (por defecto, como abre el Inicio): todas las '
+                   'facturas publicadas, por su fecha, igual que Contabilidad (las notas de crédito restan). '
+                   '«con_abonos»: con al menos un abono, por su valor total, el día de la factura (trae lo que falta '
+                   'por cobrar). «completadas»: pagadas al 100 %, el día del último pago.',
 }
 PARAM_VENDEDORA = {
     'type': 'string',
     'description': 'Solo Gerencia: el nombre de una vendedora, o «sin vendedora» (ventas de la web o de Juan que '
-                   'nadie tomó). Vacío: todo el equipo. Su cobrado es lo que se cobró de SUS ventas, lo haya '
-                   'registrado quien sea.',
+                   'nadie tomó, facturas sin vendedor). Vacío: todo el equipo. Una factura es de la vendedora de su '
+                   'pedido o, sin pedido, de su «Vendedor». Su cobrado es lo que se cobró de SUS facturas.',
 }
 SIN_VENDEDORA_TEXTOS = ('sin vendedora', 'sin vendedor', 'sin', 'nadie', 'ninguna', 'ninguno')
 PARAM_VENTA = {'type': 'string', 'description': 'Número de la cotización o venta («S00012») o nombre del cliente.'}
@@ -102,9 +109,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='reporte_del_dia',
-        descripcion='Cómo va el día, como el tablero Inicio: vendido hoy (sin ITBMS; el ITBMS y el total aparte; la '
-                    'ganancia solo a Gerencia), cobrado hoy por forma de pago, cotizaciones, pedidos web, por cobrar, '
-                    'entregas y lo más vendido.',
+        descripcion='Cómo va el día, como el tablero Inicio: vendido hoy (Gerencia: lo facturado, como '
+                    'Contabilidad; sin ITBMS, con el ITBMS y el total aparte; la ganancia solo a Gerencia), cobrado '
+                    'por forma de pago, cotizaciones, por cobrar, entregas y lo más vendido.',
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
         ejemplos=['¿cómo vamos hoy?', 'reporte del día', '¿cuánto se ha vendido hoy?'],
     )
@@ -144,6 +151,10 @@ class BrianHerramientasVentas(models.AbstractModel):
                 'itbms': c.moneda(actual['itbms']),
                 'total_con_itbms': c.moneda(actual['total']),
             }
+            if panel['base'] == BASE_FACTURADO:
+                respuesta['ventas_de_hoy']['de_un_pedido'] = self._b_de_un_pedido(actual)
+            if actual.get('notas'):
+                respuesta['ventas_de_hoy']['notas_de_credito'] = actual['notas']
         ganancia = datos['ventas'] and datos['ve_utilidad'] and datos['ventas']['actual'].get('ganancia')
         if ganancia:
             respuesta['ganancia_de_hoy_sin_itbms'] = self._b_ganancia(ganancia)
@@ -157,17 +168,24 @@ class BrianHerramientasVentas(models.AbstractModel):
                 'porcentaje': f'{ganancia["porcentaje"]} %' if ganancia['porcentaje'] is not None else None,
                 'ventas_con_costo': ganancia['ventas_con_costo']}
         if ganancia['ventas_sin_costo']:
-            fila['aviso'] = (f'{ganancia["ventas_sin_costo"]} venta(s) con productos sin costo cargado no cuentan en '
-                             'la ganancia; cargar el costo en el producto.')
+            fila['aviso'] = (f'{ganancia["ventas_sin_costo"]} factura(s) o venta(s) con productos sin costo cargado no '
+                             'cuentan en la ganancia; cargar el costo en el producto.')
         return fila
+
+    @staticmethod
+    def _b_de_un_pedido(actual):
+        """«3 de 5 salieron de un pedido de una vendedora» (la línea corta de «Facturado» en el Inicio)."""
+        n, m = actual['de_pedido'], actual['cuantas']
+        return f'{n} de {m} ' + ('salió' if m == 1 else 'salieron') + ' de un pedido de una vendedora'
 
     @api.model
     def _b_base(self, base):
-        """«Completadas: pagadas al 100 %, el día del último pago» (las palabras del interruptor del Inicio)."""
+        """«Facturado: todas las facturas, igual que Contabilidad» (las palabras del interruptor)."""
         for opcion in self.env['dcasa.tablero']._bases_de_ventas():
             if opcion['clave'] == base:
-                return f'{opcion["nombre"]}: {opcion["detalle"].lower()}'
-        return 'Facturadas por completo, el día de la factura'
+                detalle = opcion['detalle']
+                return f'{opcion["nombre"]}: {detalle[:1].lower()}{detalle[1:]}'
+        return 'Pedidos facturados por completo, el día de la factura'
 
     @api.model
     def _b_vendedora(self, texto):
@@ -206,9 +224,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Lo vendido en un periodo: cantidad, ventas sin ITBMS (ITBMS y total aparte), ticket promedio, por '
-                    'vendedor, más vendidos y (Gerencia) ganancia. Gerencia cuenta «completadas» o «con_abonos» y '
-                    'puede pedir una vendedora; quien vende ve solo lo suyo.',
+        descripcion='Lo vendido en un periodo: cantidad, ventas sin ITBMS (ITBMS y total aparte), ticket promedio, '
+                    'por vendedora, más vendidos y (Gerencia) ganancia. Gerencia cuenta facturas (facturado, '
+                    'con_abonos o completadas) y elige vendedora; quien vende, solo lo suyo.',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
                     'base': PARAM_BASE, 'vendedora': PARAM_VENDEDORA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
@@ -220,9 +238,9 @@ class BrianHerramientasVentas(models.AbstractModel):
         inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
         # Las mismas cifras del Inicio (dcasa_interfaz, de la que depende este módulo) y el mismo criterio de panel:
         # quien vende sin controlar la tienda (la Vendedora) ve solo lo que ella vendió, facturado por completo, el día
-        # de su última factura; Gerencia cuenta según el interruptor del Inicio y puede pedir una vendedora (el
-        # servidor del Inicio rechaza una vendedora ajena a quien no es Gerencia). Criterio contable (2026-10-16): las
-        # ventas van sin ITBMS; el ITBMS y el total se dan aparte.
+        # de su última factura; Gerencia cuenta las facturas según el interruptor del Inicio («facturado» por defecto)
+        # y puede pedir una vendedora (el servidor del Inicio rechaza una vendedora ajena a quien no es Gerencia).
+        # Criterio contable (2026-10-16): las ventas van sin ITBMS; el ITBMS y el total se dan aparte.
         Tablero = self.env['dcasa.tablero']
         propio = Tablero._solo_lo_propio()
         filtro = Tablero._vendedor_pedido(self._b_vendedora(vendedora))
@@ -232,16 +250,11 @@ class BrianHerramientasVentas(models.AbstractModel):
             base = Tablero._base_pedida(base)
         con_ganancia = not propio and Tablero._ve_utilidad()
         totales = Tablero._medir(inicio, fin, base, filtro, con_ganancia=con_ganancia)
-        ventas = totales['pedidos']
         por_vendedor = {}
-        for venta in ventas:
-            nombre = venta.user_id.name or 'Sin vendedor'
-            por_vendedor[nombre] = por_vendedor.get(nombre, 0.0) + venta.amount_untaxed
-        grupos = self.env['sale.order.line']._read_group(
-            [('order_id', 'in', ventas.ids), ('display_type', '=', False), ('is_downpayment', '=', False),
-             ('product_id.type', '!=', 'service')],
-            ['product_id'], ['product_uom_qty:sum', 'price_subtotal:sum'])
-        top = sorted(grupos, key=lambda g: -g[1])[:5]
+        for clave, (_cuantas, monto) in Tablero._por_vendedora(totales).items():
+            nombre = Tablero._nombre_de_vendedora(clave) if clave else 'Sin vendedora'
+            por_vendedor[nombre] = por_vendedor.get(nombre, 0.0) + monto
+        top = Tablero._productos_mas_vendidos(totales, 5)
         respuesta = {
             'periodo': etiqueta,
             'desde': c.fecha(inicio), 'hasta': c.fecha(fin),
@@ -259,6 +272,10 @@ class BrianHerramientasVentas(models.AbstractModel):
         }
         if not propio:
             respuesta['cuenta'] = self._b_base(base)
+            if base == BASE_FACTURADO:
+                respuesta['de_un_pedido'] = self._b_de_un_pedido(totales)
+            if totales['notas']:
+                respuesta['notas_de_credito'] = totales['notas']
             if filtro:
                 respuesta['vendedora'] = ('Sin vendedora' if filtro == SIN_VENDEDORA
                                           else self.env['res.users'].sudo().browse(filtro).name)
