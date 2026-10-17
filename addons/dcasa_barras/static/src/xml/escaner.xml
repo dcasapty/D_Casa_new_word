@@ -32,6 +32,12 @@
                                t-att-placeholder="textoDeEjemplo"/>
                         <button type="submit" class="o_dcasa_boton o_dcasa_boton_primario"
                                 t-att-disabled="state.cargando or !state.texto.trim()">Buscar</button>
+                        <!-- La cámara del celular como lector, además de la pistola (pedido de la dueña, 2026-10-16). -->
+                        <button t-if="camaraDisponible" type="button" class="o_dcasa_boton o_dcasa_camara"
+                                title="Escanear con la cámara" aria-label="Escanear con la cámara"
+                                t-att-disabled="state.cargando" t-on-click="escanearConCamara">
+                            <i class="fa fa-camera" aria-hidden="true"/><span class="o_dcasa_camara_texto">Cámara</span>
+                        </button>
                     </div>
                 </form>
 
@@ -130,6 +136,37 @@
                                     <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-ref="confirmar"
                                             t-att-disabled="state.cargando" t-on-click="confirmarConteo">Confirmar conteo</button>
                                     <button type="button" class="o_dcasa_boton" t-on-click="cancelarConteo">Cancelar</button>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Precio: en «Contar», Gerencia lo cambia ahí mismo (pedido de la dueña, 2026-10-16). -->
+                    <div t-if="state.modo === 'contar' and !state.parecido and state.ficha.puede_cambiar_precio"
+                         class="o_dcasa_precio">
+                        <p t-if="state.ficha.precio_con_variantes" class="o_dcasa_nota">
+                            Este producto tiene variantes (tamaños o colores): su precio se cambia en Productos.
+                        </p>
+                        <t t-else="">
+                            <div t-if="!state.confirmandoPrecio" class="o_dcasa_contar_campos">
+                                <label>
+                                    <span>Precio nuevo, sin ITBMS</span>
+                                    <input type="text" inputmode="decimal" class="o_dcasa_precio_nuevo" autocomplete="off"
+                                           t-att-placeholder="state.ficha.precio ? dinero(state.ficha.precio) : '0.00'"
+                                           t-model="state.precio" t-on-keydown="alTeclearPrecio"/>
+                                </label>
+                                <button type="button" class="o_dcasa_boton o_dcasa_boton_primario o_dcasa_revisar_precio"
+                                        t-on-click="revisarPrecio">Revisar precio</button>
+                            </div>
+                            <div t-else="" class="o_dcasa_confirmar" role="alertdialog" aria-label="Confirmar el precio">
+                                <p>Precio actual <strong t-esc="dinero(state.confirmandoPrecio.antes)"/> + ITBMS.
+                                    Precio nuevo <strong t-esc="dinero(state.confirmandoPrecio.nuevo)"/> + ITBMS.</p>
+                                <p class="o_dcasa_diferencia">Cambia para las cotizaciones y ventas nuevas y en la tienda web.
+                                    Lo ya vendido no cambia. Queda anotado quién lo cambió.</p>
+                                <div class="o_dcasa_botones">
+                                    <button type="button" class="o_dcasa_boton o_dcasa_boton_primario" t-ref="confirmarPrecio"
+                                            t-att-disabled="state.cargando" t-on-click="guardarPrecio">Guardar precio</button>
+                                    <button type="button" class="o_dcasa_boton" t-on-click="cancelarPrecio">Cancelar</button>
                                 </div>
                             </div>
                         </t>

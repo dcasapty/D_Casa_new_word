@@ -20,6 +20,7 @@
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
+| Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
 | Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia): nómina y contabilidad de un jefe | [PERMISOS.md](PERMISOS.md) |
 
@@ -29,6 +30,7 @@
 |---|---|
 | `dcasa_base`, `dcasa_invoice` | [PLAN.md](PLAN.md) (decisiones) · roles y permisos: [PERMISOS.md](PERMISOS.md) · factura de muestra en [auditoria/ronda7/factura.md](auditoria/ronda7/factura.md) |
 | `dcasa_socios` | [SOCIOS.md](SOCIOS.md) · programa de vendedores: [VENDEDORES.md](VENDEDORES.md) |
+| `dcasa_mi_cuenta` | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta): el panel del cliente en `/mi-cuenta` (compras, lo que falta de cada abono, entregas, puntos y datos) |
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |

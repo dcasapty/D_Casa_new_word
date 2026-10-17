@@ -54,6 +54,15 @@ class TestWebsitePages(HttpCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('https://wa.me/50760261919', response.text, 'La app del socio usa el mismo sitio y pie')
 
+    def test_terminos_de_odoo_llevan_a_los_reales(self):
+        """La factura y el portal enlazan /terms: la plantilla de Odoo trae términos inventados en inglés."""
+        self.env['ir.config_parameter'].sudo().set_param('account.use_invoice_terms', True)
+        self.env.company.terms_type = 'html'
+        respuesta = self.url_open('/terms', allow_redirects=False)
+        self.assertEqual(respuesta.status_code, 301)
+        self.assertTrue(respuesta.headers['Location'].endswith('/terminos'))
+        self.assertNotIn('Odoo S.A.', self.url_open('/terms').text)
+
     def test_shop(self):
         self.assertEqual(self.url_open('/shop').status_code, 200)
 

@@ -109,6 +109,13 @@ class AccountMove(models.Model):
             'vencido': bool(vence and vence < fields.Date.context_today(self)),
         }
 
+    def _get_report_base_filename(self):
+        """El PDF de una factura en abono se llama «Abono INV/…»; el de las demás, como siempre."""
+        nombre = super()._get_report_base_filename()
+        if len(self) == 1 and self._dcasa_es_abono():
+            return f'Abono {nombre}'.strip()
+        return nombre
+
     def _dcasa_mostrar_pagos(self):
         """Los abonos y el saldo se imprimen en toda factura publicada que tenga algún pago."""
         self.ensure_one()
@@ -139,13 +146,26 @@ class AccountMove(models.Model):
         return bool(self.invoice_date_due and self.move_type == 'out_invoice' and self.state == 'posted'
                     and not self._dcasa_is_paid())
 
+    def _dcasa_fechas_de_pago(self):
+        """[(etiqueta, valor)] de cuándo hay que pagar, para la columna de datos.
+
+        En una factura en abono no manda la condición de pago sino el plazo del abono (``_dcasa_estado_abono``):
+        «Inicio del abono» (el primer pago) y «El abono vence». En las demás, «Vence» como siempre.
+        """
+        self.ensure_one()
+        if self._dcasa_es_abono():
+            estado = self._dcasa_estado_abono()
+            return [('Inicio del abono', self._dcasa_fecha(estado['inicio'])),
+                    ('El abono vence', self._dcasa_fecha(estado['vence']))]
+        return [('Vence', self._dcasa_fecha(self.invoice_date_due) if self._dcasa_mostrar_vencimiento() else '')]
+
     def _dcasa_datos(self):
         """[(etiqueta, valor)] de la columna de datos del documento; solo lo que tiene valor."""
         self.ensure_one()
         etiqueta_fecha = 'Fecha de la nota' if self.move_type == 'out_refund' else 'Fecha de factura'
         datos = [
             (etiqueta_fecha, self._dcasa_fecha(self.invoice_date)),
-            ('Vence', self._dcasa_fecha(self.invoice_date_due) if self._dcasa_mostrar_vencimiento() else ''),
+            *self._dcasa_fechas_de_pago(),
             ('Fecha de entrega', self._dcasa_fecha(self.delivery_date)),
             ('Pedido', self.invoice_origin),
             ('Referencia', self.ref if self.ref != self.invoice_origin else ''),

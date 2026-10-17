@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Condiciones de abono»: la hoja que la tienda entrega con el abono, en DOS páginas (COPIA CLIENTE y COPIA
+         EMPRESA) con la misma placa, banda y pie de las facturas (web.external_layout → layout D'CASA).
+         Solo lee la factura: las cifras salen de _dcasa_estado_abono (la misma fuente del papel de ABONO y de
+         «Mi cuenta»). Una sola cabecera <h2> por factura (la de la primera copia) para que Odoo sepa partir el PDF
+         de varias facturas; el título de la segunda copia es un <div> con el mismo estilo. -->
+
+    <record id="action_report_condiciones_abono" model="ir.actions.report">
+        <field name="name">Condiciones de abono</field>
+        <field name="model">account.move</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_abonos.report_condiciones_abono</field>
+        <field name="report_file">dcasa_abonos.report_condiciones_abono</field>
+        <field name="print_report_name">'Condiciones de abono %s' % (object.name or '').replace('/', '-')</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_type">report</field>
+        <!-- En el menú «Imprimir» solo de las facturas de cliente publicadas con algún pago (el informe lo vuelve a
+             revisar con un mensaje claro). -->
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('state', '=', 'posted'), ('payment_state', 'in', ('partial', 'in_payment', 'paid'))]</field>
+        <field name="group_ids" eval="[Command.set([ref('account.group_account_invoice'), ref('account.group_account_readonly')])]"/>
+    </record>
+
+    <!-- El pie de las facturas, igual, salvo «Página X / Y» cuando el informe pone dcasa_sin_numero_de_pagina (solo
+         esta hoja: sus dos copias van en un mismo PDF, pero cada una es una hoja que se entrega sola). Sin la
+         variable, el pie de todos los demás documentos queda exactamente como siempre. -->
+    <template id="external_layout_dcasa_sin_numero_de_pagina" inherit_id="dcasa_invoice.external_layout_dcasa"
+              name="D'CASA: pie sin número de página en las condiciones de abono">
+        <xpath expr="//div[@t-if=&quot;report_type == 'pdf'&quot;][hasclass('text-nowrap')]" position="attributes">
+            <attribute name="t-if">report_type == 'pdf' and not dcasa_sin_numero_de_pagina</attribute>
+        </xpath>
+    </template>
+
+    <!-- Una copia: el rótulo va en el título (variable «copia»: 'cliente' o 'empresa'). -->
+    <template id="condiciones_rotulo" name="D'CASA: rótulo de la copia">
+        <span t-out="dcasa_titulo"/>
+        <span class="o_dcasa_copia_rotulo" name="dcasa_rotulo"><t t-if="copia == 'empresa'">COPIA EMPRESA</t><t t-else="">COPIA CLIENTE</t></span>
+    </template>
+
+    <template id="condiciones_copia" name="D'CASA: una copia de las condiciones de abono">
+        <div t-attf-class="o_dcasa_condiciones o_dcasa_condiciones_#{copia}" t-att-name="'dcasa_copia_' + copia">
+            <!-- Cliente | Factura y fechas -->
+            <div class="row o_dcasa_rejilla" name="dcasa_condiciones_cabecera">
+                <div class="col-6 o_dcasa_celda" name="dcasa_condiciones_cliente">
+                    <div class="o_dcasa_bloque_titulo">Cliente</div>
+                    <div class="o_dcasa_cliente">
+                        <div class="o_dcasa_cliente_nombre" t-out="o.partner_id.display_name"/>
+                        <div t-if="o.partner_id.commercial_partner_id.vat" name="dcasa_condiciones_identificacion">
+                            <t t-out="o.partner_id._dcasa_etiqueta_identificacion()"/>:
+                            <span t-out="o.partner_id.commercial_partner_id.dcasa_ruc_display"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 o_dcasa_celda o_dcasa_datos" name="dcasa_condiciones_factura">
+                    <table class="o_dcasa_tabla_datos">
+                        <tr><th>Número de factura</th><td t-out="o.name"/></tr>
+                        <tr><th>Fecha de inicio del abono</th><td t-out="o._dcasa_fecha(dcasa_estado['inicio'])"/></tr>
+                        <tr>
+                            <th>Fecha de vencimiento</th>
+                            <td>
+                                <t t-if="dcasa_estado['vence']" t-out="o._dcasa_fecha(dcasa_estado['vence'])"/>
+                                <span t-else="" class="o_dcasa_en_blanco"/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Los muebles abonados: el código público (DC-…) en las dos; la referencia del proveedor, solo en la de la
+                 empresa (el cliente no tiene por qué conocerla). Con muchos muebles solo esta tabla se achica lo justo
+                 para que la copia quepa en UNA hoja (_dcasa_condiciones_hoja); las condiciones, nunca. -->
+            <table class="table table-sm table-borderless o_main_table o_dcasa_condiciones_muebles" name="dcasa_condiciones_muebles"
+                   t-att-style="('zoom: %s;' % dcasa_hoja['escala']) if dcasa_hoja['escala'] &lt; 1 else None">
+                <thead>
+                    <tr>
+                        <th class="text-start o_dcasa_th_codigo">Código</th>
+                        <th t-if="copia == 'empresa'" class="text-start o_dcasa_th_codigo" name="dcasa_th_referencia">Ref. interna</th>
+                        <th class="text-start">Descripción</th>
+                        <th class="text-end">Cantidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr t-foreach="dcasa_muebles" t-as="mueble">
+                        <td class="o_dcasa_td_codigo" name="dcasa_td_codigo" t-out="mueble['codigo_publico']"/>
+                        <td t-if="copia == 'empresa'" class="o_dcasa_td_codigo" name="dcasa_td_referencia" t-out="mueble['referencia']"/>
+                        <td><span t-out="mueble['descripcion'] if copia == 'empresa' else mueble['descripcion_cliente']" t-options="{'widget': 'text'}"/></td>
+                        <td class="text-end"><span class="text-nowrap" t-out="mueble['cantidad']" t-options="{'widget': 'float', 'decimal_precision': 'Product Unit'}"/></td>
+                    </tr>
+                    <!-- Solo si ni achicada cabe la lista entera: cuántos faltan (todos están en la factura). -->
+                    <tr t-if="dcasa_hoja['faltan']" name="dcasa_condiciones_faltan">
+                        <td t-att-colspan="4 if copia == 'empresa' else 3" class="o_dcasa_condiciones_faltan">
+                            Y <t t-out="dcasa_hoja['faltan']"/> muebles más de esta factura: están todos en la factura
+                            <t t-out="o.name"/>.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <!-- Total, abonado y saldo -->
+            <table class="o_dcasa_condiciones_totales" name="dcasa_condiciones_totales">
+                <tr>
+                    <td>Total de la factura</td>
+                    <td class="text-end"><span class="text-nowrap" t-out="dcasa_estado['total']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                </tr>
+                <tr>
+                    <td>Abonado</td>
+                    <td class="text-end"><span class="text-nowrap" t-out="dcasa_estado['pagado']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                </tr>
+                <tr class="o_dcasa_condiciones_saldo">
+                    <td>Saldo por pagar</td>
+                    <td class="text-end"><span class="text-nowrap" t-out="dcasa_estado['saldo']" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                </tr>
+            </table>
+
+            <!-- Las condiciones que escribió la dueña, numeradas -->
+            <div class="o_dcasa_condiciones_texto" name="dcasa_condiciones_lista">
+                <div class="o_dcasa_bloque_titulo">Condiciones</div>
+                <ol>
+                    <li t-foreach="dcasa_condiciones" t-as="condicion" t-out="condicion"/>
+                </ol>
+            </div>
+
+            <!-- Firma y cédula del cliente: la raya para escribir a mano y su nombre debajo. -->
+            <table class="o_dcasa_firmas" name="dcasa_firmas">
+                <tr>
+                    <td class="o_dcasa_firma"><div class="o_dcasa_raya"/><div class="o_dcasa_firma_nombre">FIRMA DEL CLIENTE</div></td>
+                    <td class="o_dcasa_firmas_espacio"/>
+                    <td class="o_dcasa_firma"><div class="o_dcasa_raya"/><div class="o_dcasa_firma_nombre">NÚMERO DE CÉDULA</div></td>
+                </tr>
+            </table>
+        </div>
+    </template>
+
+    <template id="report_condiciones_abono_documento" name="D'CASA: condiciones de abono (una factura)">
+        <t t-set="o" t-value="o.with_context(lang=lang)"/>
+        <t t-set="dcasa_estado" t-value="o._dcasa_estado_abono()"/>
+        <t t-set="dcasa_titulo" t-value="o.company_id._dcasa_abono_condiciones_titulo()"/>
+        <t t-set="dcasa_condiciones" t-value="o.company_id._dcasa_abono_condiciones_lista()"/>
+        <t t-set="dcasa_hoja" t-value="o._dcasa_condiciones_hoja()"/>
+        <t t-set="dcasa_muebles" t-value="dcasa_hoja['muebles']"/>
+        <!-- Cada copia es una hoja suelta (el cliente se lleva la suya): sin «Página 1 / 2» en el pie. -->
+        <t t-set="dcasa_sin_numero_de_pagina" t-value="True"/>
+        <t t-set="layout_document_title">
+            <t t-call="dcasa_abonos.condiciones_rotulo"><t t-set="copia" t-value="'cliente'"/></t>
+        </t>
+        <t t-call="web.external_layout">
+            <div class="page o_dcasa_condiciones_hoja">
+                <t t-call="dcasa_abonos.condiciones_copia"><t t-set="copia" t-value="'cliente'"/></t>
+                <div class="o_dcasa_condiciones_salto" name="dcasa_salto"/>
+                <div class="o_dcasa_title" name="dcasa_titulo_empresa">
+                    <t t-call="dcasa_abonos.condiciones_rotulo"><t t-set="copia" t-value="'empresa'"/></t>
+                </div>
+                <t t-call="dcasa_abonos.condiciones_copia"><t t-set="copia" t-value="'empresa'"/></t>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_condiciones_abono" name="D'CASA: condiciones de abono">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <!-- En español aunque el contacto tenga otro idioma, igual que la factura. -->
+                <t t-set="lang" t-value="o._dcasa_idioma_factura()"/>
+                <t t-call="dcasa_abonos.report_condiciones_abono_documento" t-lang="lang"/>
+            </t>
+        </t>
+    </template>
+</odoo>

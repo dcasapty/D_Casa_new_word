@@ -17,11 +17,13 @@ import re
 
 from odoo import api, models, tools
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
+from odoo.addons.dcasa_base.models.product import _puede_cambiar_precios
 from odoo.exceptions import AccessError, UserError
 
 LARGO_MAXIMO = 64            # un código más largo no es de un lector: se recorta
 MAXIMO_CANDIDATOS = 8
 MAXIMO_CANTIDAD = 100000     # una cantidad mayor es un error de dedo, no un conteo
+MAXIMO_PRECIO = 1000000      # un precio mayor es un error de dedo
 UMBRAL_POCAS = 5.0           # igual que Juan, el asistente de clientes (conversaciones/publico.py): ≤ 5 → «pocas»
 
 _CONTROL = re.compile(r'[\x00-\x1f\x7f]')
@@ -71,6 +73,10 @@ class DcasaBarras(models.AbstractModel):
     def _exigir_conteo(self):
         if not self.env.user.has_group('stock.group_stock_manager'):
             raise AccessError(self.env._("Solo Gerencia (administradores de Inventario) puede registrar conteos."))
+
+    def _puede_cambiar_precio(self):
+        """Cambiar el precio de venta es de Gerencia: la misma regla que en Productos (dcasa_base)."""
+        return _puede_cambiar_precios(self.env)
 
     # ------------------------------------------------------------------
     # Buscar
@@ -218,6 +224,10 @@ class DcasaBarras(models.AbstractModel):
             'ubicaciones': [{'id': u.id, 'nombre': u.complete_name, 'cantidad': c} for u, c in existencias],
             'puede_contar': controla and producto.tracking == 'none'
                             and self.env.user.has_group('stock.group_stock_manager'),
+            # Cambiar el precio desde «Contar» (pedido de la dueña, 2026-10-16): Gerencia, y solo en productos
+            # sin variantes (en uno con tamaños o colores el precio base es de todas: se cambia en Productos).
+            'puede_cambiar_precio': self._puede_cambiar_precio(),
+            'precio_con_variantes': producto.product_tmpl_id.product_variant_count > 1,
             'lugares_para_contar': [
                 {'id': u.id, 'nombre': u.complete_name} for u in self._ubicaciones_internas()
             ] if controla else [],
@@ -279,6 +289,41 @@ class DcasaBarras(models.AbstractModel):
         despues = sum(c for u, c in self._existencias(producto) if u == ubicacion)
         return {'cambio': True, 'antes': antes, 'despues': despues, 'diferencia': despues - antes,
                 'ficha': self._ficha_de(producto)}
+
+    @api.model
+    def cambiar_precio(self, producto_id, precio, esperado):
+        """El precio de venta nuevo (sin ITBMS) de un producto, desde «Contar» del Escáner (pedido de la dueña,
+        2026-10-16). ``esperado`` es el precio que la pantalla mostró: si mientras tanto cambió, no se guarda. Queda
+        anotado en el producto quién lo cambió, de cuánto a cuánto y desde dónde."""
+        self._exigir_inventario()
+        if not self._puede_cambiar_precio():
+            raise AccessError(self.env._("Solo Gerencia cambia los precios de los productos."))
+        producto = self._producto(producto_id)
+        plantilla = producto.product_tmpl_id
+        if plantilla.product_variant_count > 1:
+            raise UserError(self.env._(
+                "«%s» tiene variantes (tamaños o colores): su precio se cambia en Productos.", plantilla.display_name))
+        precio = self._precio_valido(precio)
+        esperado = self._precio_valido(esperado)
+        antes = producto.lst_price
+        if tools.float_compare(antes, esperado, precision_digits=2) != 0:
+            raise UserError(self.env._(
+                "Mientras lo revisabas, el precio cambió de %(visto)s a %(ahora)s. Escanea el producto otra vez.",
+                visto=precio_texto(esperado), ahora=precio_texto(antes)))
+        if tools.float_compare(precio, antes, precision_digits=2) == 0:
+            return {'cambio': False, 'antes': antes, 'despues': antes, 'ficha': self._ficha_de(producto)}
+        plantilla.list_price = precio
+        plantilla.message_post(body=self.env._(
+            "Precio cambiado desde el Escáner por %(quien)s: %(antes)s → %(despues)s.",
+            quien=self.env.user.name, antes=precio_texto(antes), despues=precio_texto(precio)))
+        return {'cambio': True, 'antes': antes, 'despues': producto.lst_price, 'ficha': self._ficha_de(producto)}
+
+    def _precio_valido(self, valor):
+        if isinstance(valor, bool) or not isinstance(valor, int | float) or not math.isfinite(valor):
+            raise UserError(self.env._("El precio debe ser un número, por ejemplo 399.99."))
+        if valor < 0 or valor > MAXIMO_PRECIO:
+            raise UserError(self.env._("El precio debe estar entre 0 y %s.", f'{MAXIMO_PRECIO:,}'))
+        return round(float(valor), 2)
 
     def _numero(self, valor):
         if isinstance(valor, bool) or not isinstance(valor, int | float) or not math.isfinite(valor):

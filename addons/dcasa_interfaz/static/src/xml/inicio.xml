@@ -198,12 +198,21 @@
                                 <span>ITBMS <strong t-out="dinero(d.ventas.actual.itbms)"/></span>
                                 <span>Total con ITBMS <strong t-out="dinero(d.ventas.actual.total)"/></span>
                             </span>
-                            <span t-if="d.ventas.variacion_pct !== null"
-                                  t-attf-class="o_dcasa_variacion {{d.ventas.variacion_pct >= 0 ? 'o_sube' : 'o_baja'}}">
-                                <i t-attf-class="fa {{d.ventas.variacion_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
-                                <t t-out="variacion(d.ventas.variacion_pct)"/> contra <t t-out="d.ventas.anterior.etiqueta.toLowerCase()"/>
-                                (<t t-out="dinero(d.ventas.anterior.sin_itbms)"/>)
-                            </span>
+                            <!-- Contra ayer y contra el mismo día del mes pasado; el mes, contra los mismos días del mes
+                                 pasado (pedido del jefe, 2026-10-16). -->
+                            <ul t-if="d.ventas.comparaciones and d.ventas.comparaciones.length" class="o_dcasa_comparaciones">
+                                <li t-foreach="d.ventas.comparaciones" t-as="cmp" t-key="cmp.clave"
+                                    t-attf-class="o_dcasa_comparacion o_dcasa_comparacion_{{cmp.clave}}">
+                                    <t t-if="cmp.variacion_pct !== null">
+                                        <span t-attf-class="o_dcasa_variacion {{cmp.variacion_pct >= 0 ? 'o_sube' : 'o_baja'}}">
+                                            <i t-attf-class="fa {{cmp.variacion_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
+                                            <t t-out="variacion(cmp.variacion_pct)"/>
+                                        </span>
+                                        contra <t t-out="cmp.etiqueta"/> (<t t-out="dinero(cmp.sin_itbms)"/>)
+                                    </t>
+                                    <t t-else="">Sin ventas <t t-out="cmp.etiqueta"/> para comparar</t>
+                                </li>
+                            </ul>
                             <!-- En qué se aparta de las «Ventas» de Contabilidad para estas fechas, y por qué: así las dos
                                  pantallas cuadran a la vista. Al tocarla abre las facturas que lo explican. -->
                             <button t-if="d.ventas.cuadre" type="button" class="o_dcasa_ventas_aviso o_dcasa_ventas_cuadre"
@@ -232,9 +241,20 @@
                                 <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' venta tiene' : ' ventas tienen'"/>
                                 mercancía sin costo cargado y no cuentan aquí
                             </span>
-                            <span t-if="d.ventas.anterior.ganancia and d.ventas.anterior.ganancia.valor" class="o_dcasa_desglose">
-                                <span><t t-out="d.ventas.anterior.etiqueta"/> <strong t-out="dinero(d.ventas.anterior.ganancia.valor)"/></span>
-                            </span>
+                            <!-- La ganancia contra los mismos periodos que las ventas (pedido del jefe, 2026-10-16). -->
+                            <ul t-if="d.ventas.comparaciones and d.ventas.comparaciones.length" class="o_dcasa_comparaciones">
+                                <li t-foreach="d.ventas.comparaciones" t-as="cmp" t-key="cmp.clave"
+                                    t-attf-class="o_dcasa_comparacion o_dcasa_comparacion_ganancia_{{cmp.clave}}">
+                                    <t t-if="cmp.variacion_ganancia_pct !== null">
+                                        <span t-attf-class="o_dcasa_variacion {{cmp.variacion_ganancia_pct >= 0 ? 'o_sube' : 'o_baja'}}">
+                                            <i t-attf-class="fa {{cmp.variacion_ganancia_pct >= 0 ? 'fa-arrow-up' : 'fa-arrow-down'}}" aria-hidden="true"/>
+                                            <t t-out="variacion(cmp.variacion_ganancia_pct)"/>
+                                        </span>
+                                        contra <t t-out="cmp.etiqueta"/> (<t t-out="dinero(cmp.ganancia)"/>)
+                                    </t>
+                                    <t t-else="">Sin ganancia <t t-out="cmp.etiqueta"/> para comparar</t>
+                                </li>
+                            </ul>
                             <span class="o_dcasa_ventas_aviso o_dcasa_ganancia_antigua">
                                 <i class="fa fa-info-circle" aria-hidden="true"/>
                                 Las ventas hechas antes de que existiera esta pantalla usan el costo de hoy del producto; las nuevas guardan el costo del día en que se confirman.

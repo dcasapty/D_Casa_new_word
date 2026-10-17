@@ -258,12 +258,16 @@ class SociosDcasa(http.Controller):
         if ficha.dcasa_reclamada:
             raise UserError('Ese número ya tiene cuenta. Entra con tu PIN, o pídenos en la tienda que '
                             'te lo reiniciemos.')
-        # Con puntos esperando, reclamarla exige el código impreso en la factura:
-        # sin eso, quien supiera el celular de un vecino se quedaría con sus puntos.
-        if ficha.dcasa_saldo > 0 and R.codigo_normal(datos.get('codigo')) != ficha.dcasa_socio_codigo:
+        # Con puntos esperando o con compras, reclamarla exige el código impreso en la factura: sin eso, quien
+        # supiera el celular de un vecino se quedaría con sus puntos o vería sus compras en «Mi cuenta».
+        codigo_ok = R.codigo_normal(datos.get('codigo')) == ficha.dcasa_socio_codigo
+        if ficha.dcasa_saldo > 0 and not codigo_ok:
             raise UserError('Ya tienes compras registradas con ese número, así que tus puntos te esperan. '
                             'Para reclamarlos escribe el código de socio que aparece en tu factura, o pasa '
                             'por la tienda y te ayudamos.')
+        if not codigo_ok and ficha._dcasa_tiene_compras():
+            raise UserError('Ya tienes compras registradas con ese número. Para entrar, escribe el código de socio '
+                            'que aparece en tu factura, o escríbenos por WhatsApp y te ayudamos.')
         if ficha.dcasa_socio_estado == 'suspendido':
             raise UserError('Tu cuenta está suspendida. Escríbenos por WhatsApp y lo revisamos.')
         valores = {

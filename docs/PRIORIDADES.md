@@ -93,8 +93,14 @@ unidos con el PR #43.)
 | Estadísticas del negocio (menú) | Hecho (PR #43; en producción con el arreglo #97) | 2 |
 | Íconos del menú con color | Hecho, en producción (2026-10-16, PR #43; paleta aceptada) | 2 |
 | Categoría «Envíos — En desarrollo» | Hecho (PR #43; en producción con el arreglo #97) | 2 |
-| Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | Porcentaje y frases en producción (Desplegar 13). Sin cifras de dinero y con «Ver mis ventas»: hecho y probado, va en el próximo despliegue | — |
-| Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | Hecho y probado; va en el próximo despliegue (Odoo y Worker de Juan). Luego la dueña carga el conocimiento con la extensión de Chrome. «Apartados» espera al abogado | 6 |
+| Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | En producción (Desplegar 14) | — |
+| Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | En producción (Desplegar 14 y Worker de Juan). Falta que la dueña corra las instrucciones v2 con la extensión de Chrome | — |
+| Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner | En producción (Desplegar 15) | — |
+| Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | Papel y Mi cuenta hechos y probados (próximo despliegue); condiciones de abono en construcción | — |
+| Panel del cliente «Mi cuenta» | Hecho y probado (próximo despliegue); falta la ronda de pulido de la auditoría visual | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción | — |
+| Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En construcción; apagado hasta que la dueña cree la cuenta y se traslade el dominio | — |
+| Meta: catálogo, píxel y Conversions API | Investigación y diseño hechos; construcción en cola; el píxel lo crea la dueña con la extensión de Chrome | — |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 

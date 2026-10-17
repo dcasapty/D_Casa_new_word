@@ -56,6 +56,24 @@ CODIGO = """
     if (document.querySelector(".o_dcasa_total_cifra").textContent.trim() !== "9") {
         falla("no se actualizó la cifra");
     }
+
+    // Precio (pedido de la dueña, 2026-10-16): en «Contar», Gerencia de Ventas lo cambia ahí mismo y confirma.
+    const precioNuevo = await esperar(() => document.querySelector(".o_dcasa_precio_nuevo"), "el campo del precio");
+    escribir(precioNuevo, "399.5");
+    boton("Revisar precio").click();
+    const verPrecio = await esperar(() => document.querySelector(".o_dcasa_precio .o_dcasa_confirmar"),
+                                    "la confirmación del precio");
+    if (!verPrecio.textContent.includes("$349.99") || !verPrecio.textContent.includes("$399.50")) {
+        falla("la confirmación del precio debe decir antes y después: " + verPrecio.textContent);
+    }
+    boton("Guardar precio").click();
+    await esperar(() => document.querySelector(".o_dcasa_ficha_precio")?.textContent.includes("$399.50 + ITBMS"),
+                  "el precio nuevo en la tarjeta");
+    // La cámara del celular, además de la pistola: el botón sale si el navegador deja usar la cámara.
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+            && !document.querySelector(".o_dcasa_camara")) {
+        falla("falta el botón de la cámara");
+    }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """
@@ -376,6 +394,8 @@ class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
         self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO, ready='odoo.isReady',
                         login='admin', timeout=120)
         self.assertEqual(self.existencia(self.cama), 9)
+        self.cama.invalidate_recordset()
+        self.assertEqual(self.cama.list_price, 399.5, 'el precio cambiado desde «Contar»')
 
     def test_el_menu_esta_en_inventario_para_quien_lo_usa(self):
         menu = self.env.ref('dcasa_barras.menu_dcasa_escaner')

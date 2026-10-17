@@ -777,6 +777,32 @@ despacha en bodega) → **factura del cliente** → **copia de la empresa**. Con
 cada una. El orden vive en `DOCUMENTOS` (`addons/dcasa_invoice/wizard/impresion_paquete.py`) y no depende del orden en que
 se marquen las casillas; una venta sin entrega (factura suelta) lleva solo la factura y la copia.
 
+**El papel del abono (pedido de la dueña, 2026-10-16).** La contabilidad no cambia: en el primer abono se publica la
+factura completa (con ITBMS) y cada abono es un pago parcial con **«Pagar»** de esa factura. Mientras la factura tenga
+algo pagado y algo por pagar (`account.move._dcasa_es_abono`), el papel sale con el título **ABONO** (y el número de la
+factura), un recuadro **SALDO POR PAGAR** bajo los totales con «Pagado $X de $Y», «Inicio del abono» y «El abono vence»
+en los datos (en lugar del «Vence» de la condición de pago) y, si el plazo pasó, «El plazo venció el …» (solo se dice:
+el sistema no calcula ni cobra nada). Las cifras salen de `_dcasa_estado_abono` (la misma fuente que «Mi cuenta»); el
+plazo es el parámetro `dcasa_invoice.abono_meses`. Pagada por completo vuelve a decir **Factura** con todos sus abonos;
+las notas de crédito y las facturas de proveedor no cambian. El PDF se llama «Abono INV/…». Cada abono registrado con
+«Pagar» ofrece el cuadro «Imprimir documentos» (si la empresa tiene encendido ofrecerlo) con la factura y su copia
+marcadas y la **nota de entrega sin marcar**: se imprime al terminar de pagar (se puede marcar a mano). Un cobro anotado
+suelto en Pagos no se une solo a la factura: los abonos se registran desde la factura. Código: `views/report_invoice.xml`
+y `wizard/impresion_paquete.py`; pruebas: `tests/test_abono_papel.py` y `TestOfertaAlPagar` en `tests/test_paquete.py`.
+
+**Condiciones de abono (`dcasa_abonos`, pedido de la dueña, 2026-10-17).** La hoja que la tienda ya entregaba en papel,
+impresa con la marca de las facturas en **dos hojas por factura**: **COPIA CLIENTE** (la firma y se la lleva el cliente)
+y **COPIA EMPRESA** (se queda la tienda; además del código público DC-… lleva la referencia interna). Cada una con el
+cliente y su cédula/RUC si la ficha la tiene, el número de factura, inicio y vencimiento del abono, los muebles, total,
+abonado y saldo (de `_dcasa_estado_abono`), las condiciones numeradas y las rayas de FIRMA DEL CLIENTE y NÚMERO DE
+CÉDULA. El texto es la versión 1 de la hoja (7 condiciones) y se cambia en Ajustes › Empresas › «Documentos D'CASA»,
+sección «Condiciones de abono» (una por renglón; vacío no se imprime; puesto una sola vez sin pisar cambios). En
+«Imprimir documentos» es la casilla **«Condiciones de abono (2 copias)»**, marcada solo en el **primer** abono; el PDF va
+ABONO → condiciones cliente → condiciones empresa → copia de la factura. **Cada copia cabe en UNA hoja**: con muchos
+muebles solo se achica la tabla (`condiciones.ajuste_a_una_hoja`, medido sobre el PDF real) y en una factura enorme la
+lista se corta con «Y N muebles más…»; el pie no lleva «Página 1 / 2». Solo imprime: la contabilidad no cambia.
+Código y pruebas: `addons/dcasa_abonos/` (`tests/test_condiciones.py`, con el PDF de wkhtmltopdf).
+
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 
