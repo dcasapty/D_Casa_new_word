@@ -350,6 +350,19 @@ principal), con el ITBMS y el total con ITBMS aparte; lo cobrado va con ITBMS. S
 agregan la **ganancia** (venta menos costo, sin ITBMS); a la Vendedora nunca le llega el costo ni la ganancia. Si hay
 ventas con productos sin costo cargado, lo avisan en vez de inventar la ganancia. Son las mismas cifras del Inicio.
 
+**Completadas o Con abonos, por vendedora, y comparar (2026-10-17).** Para Gerencia, Brian cuenta las ventas como su
+Inicio, con las mismas palabras del interruptor ([OPERACION.md](OPERACION.md), «Completadas o Con abonos, y Comparar»):
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `resumen_ventas(periodo?, desde?, hasta?, base?, vendedora?)` | Lo de siempre y, para Gerencia, `base` = `completadas` (por defecto: pagadas al 100 %, el día del último pago) o `con_abonos` (con al menos un abono, por su valor total; agrega `falta_por_cobrar_con_itbms`), y `vendedora` (un nombre o «sin vendedora»). La respuesta dice qué cuenta (`cuenta`). Quien vende sin controlar ve solo lo suyo, facturado por completo; si pide otra vendedora, se le niega | lectura | Ventas |
+| `comparar_ventas(comparacion, a?, b?, base?, vendedora?)` | Las cifras del bloque **Comparar**: `ayer`, `dia_mes_pasado`, `semana_pasada`, `mes_a_la_fecha`, `mes` (contra el mes completo que diga `b`: «septiembre», «09/2026» o «2026-09»; responde «Llevas 58 % de septiembre») o `rango` (`a` = «01/10/2026-07/10/2026»; `b` = dónde empieza B, del mismo largo, o B entero si es de otro largo, y entonces el % va por día). Filas: ventas, ganancia, margen (en puntos), número de ventas, falta por cobrar (con abonos) y cobrado, con su cambio («▲ 27.6 %», «▼ 5.4 pts», «—» sin base). Si A termina hoy, dice hasta qué hora se cortó. `vendedora=por vendedora` agrega una fila por vendedora (5 parámetros: el contrato de los modelos pequeños) | lectura | Gerencia |
+
+`reporte_del_dia` le da a Gerencia las ventas de hoy como su Inicio (`ventas_de_hoy`, en «Completadas») en lugar de
+«Vendido hoy», que sigue siendo la cifra de la vendedora. Ejemplos: «¿cómo vamos contra septiembre?» →
+`comparar_ventas(comparacion=mes, b=septiembre)`; «¿cómo va Ana este mes?» →
+`comparar_ventas(comparacion=mes_a_la_fecha, vendedora=Ana)`.
+
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;

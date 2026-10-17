@@ -119,6 +119,12 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   cliente en `/mi-cuenta` (compras, lo que le falta de cada abono, entregas, puntos y datos; reclamar una cuenta con
   compras exige el código de la factura), «Pago en la tienda» en lugar de «al recibir», la portada con las zonas de
   entrega reales, «Apartado por página web» y `/terms` → `/terminos`.
+- **En la rama `comparar-ventas` (probado en local, sin subir):** el **comparador de ventas** del Inicio de Gerencia
+  (pedido del jefe; la dueña aprobó): el interruptor **Completadas / Con abonos** (abre en Completadas; una venta
+  facturada sin ningún pago ya no cuenta), el selector de **vendedora** con «Por vendedora», y el bloque **Comparar**
+  (Ayer · mismo día del mes pasado · mismo día de la semana pasada · lo que va del mes · contra un mes completo con
+  «Llevas N %» · A vs B), solo números, hoy contra el otro día **hasta la misma hora** (lo registrado a esa hora). Brian
+  `comparar_ventas`, Guía «Comparar las ventas» y `docs/OPERACION.md` («Completadas o Con abonos, y Comparar»).
 - **Trabajando (agentes):** condiciones de abono en dos hojas (cliente y empresa), permisos de vendedoras con
   interruptor y rol Caja, teléfono y correo obligatorios, correos con Resend; luego Meta (catálogo, píxel y
   Conversions API). Instrucciones v2 de Juan para la extensión entregadas (correrlas después de este despliegue).
