@@ -383,7 +383,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         Move = self.env['account.move']
         facturas = Move.search(dominio, order='invoice_date_due, id')
         hoy = self._b_hoy()
-        return {
+        resultado = {
             'tipo': 'por pagar' if tipo == 'por_pagar' else 'por cobrar',
             'facturas_abiertas': len(facturas),
             'total_pendiente': c.moneda(sum(facturas.mapped('amount_residual'))),
@@ -394,6 +394,9 @@ class BrianHerramientasContabilidad(models.AbstractModel):
                 'vencida': bool(f.invoice_date_due and f.invoice_date_due < hoy),
             } for f in facturas[:c.limite(limite)]],
         }
+        if nota := c.alcance(self.env):
+            resultado['alcance'] = nota
+        return resultado
 
     @herramienta(
         nombre='ver_factura',

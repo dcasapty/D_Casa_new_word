@@ -539,7 +539,7 @@ class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
         self.assertTrue(self.ruta().endswith(menu.name) and ' › ' in self.ruta())
 
     def test_volver_a_borrador_con_pago_avisa_a_quien_lo_hizo(self):
-        factura = self.factura()
+        factura = self.factura(vendedora=self.contador)  # su factura: con Facturación se ve y se toca solo lo suyo
         pago = factura._get_reconciled_payments()
         self.assertEqual(len(pago), 1)
         antes = self.cuantos()
@@ -621,7 +621,7 @@ class TestAvisoDelPagoSinAplicar(LibroCommon, SociosCommon):
         self.assertFalse(self.avisos(antes))
 
     def test_borrar_el_borrador_despues_sigue_funcionando_y_avisa_que_el_pago_quedo_sin_aplicar(self):
-        factura = self.factura()
+        factura = self.factura(vendedora=self.contador)  # su factura: con Facturación se ve y se toca solo lo suyo
         pago = factura._get_reconciled_payments()
         nombre = factura.name
         factura.button_draft()

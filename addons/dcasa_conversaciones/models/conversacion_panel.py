@@ -530,7 +530,9 @@ class DcasaConversacionPanel(models.Model):
         oportunidades = self.env['crm.lead'].sudo().search([
             ('partner_id', '=', partner.id), ('type', '=', 'opportunity'), ('won_status', '=', 'pending'),
         ], limit=5, order='id desc') if partner else self.env['crm.lead']
-        compras = self.env['account.move'].sudo().search([
+        # Las compras, como quien mira (sin sudo): la vendedora ve solo sus facturas y las sin vendedora; Caja y
+        # Gerencia, todas (docs/PERMISOS.md). Todo el que usa el panel puede leer facturas (ACL del vendedor).
+        compras = self.env['account.move'].search([
             ('move_type', '=', 'out_invoice'), ('state', '=', 'posted'),
             ('commercial_partner_id', '=', comercial.id)], limit=5, order='invoice_date desc, id desc') \
             if partner else self.env['account.move']

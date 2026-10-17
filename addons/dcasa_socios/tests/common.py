@@ -56,15 +56,19 @@ class SociosCommon(TransactionCase):
             reglas[seccion][clave] = valor
         return patch('odoo.addons.dcasa_socios.models.reglas.cargar_reglas', return_value=reglas)
 
-    def factura(self, partner=None, precio=100.0, pagar=True, vendedor=None):
-        """Factura de cliente con ITBMS; pagada por defecto. Con ``vendedor``, el código va en la venta."""
-        factura = self.env['account.move'].create({
+    def factura(self, partner=None, precio=100.0, pagar=True, vendedor=None, vendedora=None):
+        """Factura de cliente con ITBMS; pagada por defecto. Con ``vendedor``, el código va en la venta. Con
+        ``vendedora`` (un usuario), la factura es suya («Vendedor» de la factura, ``invoice_user_id``)."""
+        valores = {
             'move_type': 'out_invoice',
             'partner_id': (partner or self.cliente).id,
             'invoice_date': fields.Date.today(),
             'dcasa_vendedor_id': vendedor.id if vendedor else False,
             'invoice_line_ids': [(0, 0, {'product_id': self.producto.id, 'quantity': 1, 'price_unit': precio})],
-        })
+        }
+        if vendedora:
+            valores['invoice_user_id'] = vendedora.id
+        factura = self.env['account.move'].create(valores)
         factura.action_post()
         if pagar:
             self.pagar(factura)

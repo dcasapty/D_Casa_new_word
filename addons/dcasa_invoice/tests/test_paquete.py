@@ -99,9 +99,10 @@ class PaqueteComun(TransactionCase):
         cls.Paquete = cls.env[MODELO]
 
     def _venta(self, publicar=True, cantidad=1):
-        """(pedido, factura) de un pedido confirmado: trae su entrega de salida."""
+        """(pedido, factura) de un pedido confirmado: trae su entrega de salida. La venta es de la vendedora (ella ve
+        solo lo suyo: «Cada vendedora ve solo sus documentos»)."""
         pedido = self.env['sale.order'].create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, 'user_id': self.vendedora.id,
             'order_line': [Command.create({'product_id': self.mueble.id, 'product_uom_qty': cantidad})]})
         pedido.action_confirm()
         factura = pedido._create_invoices()

@@ -300,6 +300,29 @@ class TestMetaVentas(NominaCommon):
         self.assertIn('Meta cumplida', animo(250, True))
 
     @freeze_time('2030-03-20 15:00:00')
+    def test_ver_mis_ventas_trae_la_factura_que_hizo_caja_desde_su_pedido(self):
+        """Con «Cada vendedora ve solo sus documentos», la factura que Caja hace desde la cotización de Vera es de Vera:
+        sale en su «Ver mis ventas» y ella la abre; otra vendedora no la ve ni con la misma lista."""
+        caja = new_test_user(self.env, login='meta_caja', name='Caja Meta',
+                             groups='base.group_user,dcasa_base.group_caja')
+        otra = new_test_user(self.env, login='meta_otra', name='Otra Meta',
+                             groups='base.group_user,dcasa_base.group_vendedora')
+        producto = self.env['product.product'].create({'name': 'Mueble meta caja', 'list_price': 1500.0})
+        pedido = self.env['sale.order'].with_user(self.u_vera).create({
+            'partner_id': self.cliente.id,
+            'order_line': [Command.create({'product_id': producto.id, 'product_uom_qty': 1})]})
+        pedido.action_confirm()
+        factura = pedido.with_user(caja)._create_invoices()
+        factura.with_user(caja).write({'invoice_date': '2030-03-15'})
+        factura.with_user(caja).action_post()
+        self.pagar(factura, '2030-03-16')
+        self.assertEqual(factura.invoice_user_id, self.u_vera, 'la vendedora no cambia porque facture Caja')
+        meta = self.Bono.with_user(self.u_vera)._para_inicio(self.u_vera, date(2030, 3, 20))
+        dominio = meta['ventas']['accion']['domain']
+        self.assertIn(factura, self.env['account.move'].with_user(self.u_vera).search(dominio))
+        self.assertFalse(self.env['account.move'].with_user(otra).search(dominio))
+
+    @freeze_time('2030-03-20 15:00:00')
     def test_la_vendedora_ve_solo_su_meta(self):
         self.factura(1300, '2030-03-05', pagar_en='2030-03-10')
         self.factura(200, '2030-03-20', pagar_en='2030-03-20')

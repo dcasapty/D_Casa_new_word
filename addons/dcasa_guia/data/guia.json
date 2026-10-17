@@ -241,7 +241,7 @@
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
    "titulo": "Ver las facturas de los clientes",
-   "logras": "La lista de todas las facturas de ventas, con su estado (borrador, publicada, pagada) y lo que falta por cobrar.",
+   "logras": "Las facturas de ventas, con su estado (borrador, publicada, pagada) y lo que falta por cobrar.",
    "destino": {
     "menu": "dcasa_base.menu_dcasa_ventas_facturas"
    },
@@ -249,7 +249,8 @@
     "facturas",
     "ventas facturadas",
     "buscar factura"
-   ]
+   ],
+   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas."
   },
   {
    "id": "factura-borrador",
@@ -1717,7 +1718,7 @@
    "categoria": "administrar",
    "grupo": "Accesos",
    "titulo": "Darle acceso al sistema a una persona del equipo",
-   "logras": "Creas su usuario y eliges su rol (Vendedora o Gerencia) para que vea solo lo que le toca.",
+   "logras": "Creas su usuario y eliges su rol (Vendedora, Caja o Gerencia) para que vea solo lo que le toca.",
    "destino": {
     "menu": "base.menu_action_res_users"
    },
@@ -1726,9 +1727,33 @@
     "permisos",
     "roles",
     "clave",
-    "acceso"
+    "acceso",
+    "caja",
+    "cajero",
+    "rol"
    ],
-   "nota": "Al guardar un usuario con correo, el sistema le manda solo la invitación para elegir su clave."
+   "nota": "El rol se elige en la ficha de la persona, en «D'CASA»: Vendedora (ve solo sus cotizaciones, pedidos y facturas), Caja (para quien cobra en caja: factura y cobra las de todas) o Gerencia (además controla la tienda). Caja no se le pone sola a nadie: elígela tú para quien cobra. Al guardar un usuario con correo, el sistema le manda solo la invitación para elegir su clave."
+  },
+  {
+   "id": "vendedoras-solo-lo-suyo",
+   "categoria": "administrar",
+   "grupo": "Accesos",
+   "titulo": "Elegir si cada vendedora ve solo sus documentos",
+   "logras": "Enciendes o apagas «Cada vendedora ve solo sus documentos»: encendido, cada vendedora ve solo sus cotizaciones, pedidos, facturas, notas de crédito y cobros; apagado, todas ven todo, como antes.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_permisos_vendedoras"
+   },
+   "nota": "Viene encendido. Lo que no tiene vendedora (la web, Juan) lo ven todas para que alguien lo atienda. Caja y Gerencia ven todo siempre. Si la restricción trae un problema en la tienda, apágalo aquí: vale al momento y no cambia el rol de nadie. Los administradores también lo tienen en Ajustes, en Ventas.",
+   "palabras": [
+    "solo sus documentos",
+    "ver todo",
+    "restriccion",
+    "permisos de las vendedoras",
+    "facturas de otra vendedora",
+    "cotizaciones de otra",
+    "volver como antes",
+    "interruptor"
+   ]
   },
   {
    "id": "accesos-panel",

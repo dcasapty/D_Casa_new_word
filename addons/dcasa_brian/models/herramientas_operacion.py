@@ -244,6 +244,8 @@ class BrianHerramientasOperacion(models.AbstractModel):
                 'cuantas': Venta.search_count(dominio),
                 'mayores': [{'numero': o.name, 'cliente': o.partner_id.display_name, 'total': c.moneda(o.amount_total),
                              'desde': c.fecha(o.date_order)} for o in viejas]}
+            if nota := c.alcance(self.env, 'cotizaciones'):
+                pendientes['cotizaciones_sin_respuesta_7_dias']['alcance'] = nota
 
         Compra = self.env['purchase.order']
         if Compra.has_access('read'):
@@ -257,6 +259,8 @@ class BrianHerramientasOperacion(models.AbstractModel):
             grupos = Factura._read_group(dominio, [], ['amount_residual:sum', '__count'])
             monto, cuantas = grupos[0] if grupos else (0.0, 0)
             pendientes['facturas_vencidas'] = {'cuantas': cuantas, 'por_cobrar': c.moneda(monto)}
+            if nota := c.alcance(self.env):
+                pendientes['facturas_vencidas']['alcance'] = nota
 
         Plantilla = self.env['product.template']
         agotados = Plantilla.search([('is_published', '=', True), ('is_storable', '=', True),
