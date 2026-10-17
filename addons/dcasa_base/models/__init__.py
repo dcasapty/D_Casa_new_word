@@ -12,3 +12,4 @@ from . import campos_contables
 from . import stock_quant
 from . import utilidad
 from . import humo
+from . import cobros

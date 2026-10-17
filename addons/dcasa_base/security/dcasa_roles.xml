@@ -14,15 +14,16 @@
 
     <record id="res_groups_privilege_dcasa" model="res.groups.privilege">
         <field name="name">D'CASA</field>
-        <field name="description">Rol en la tienda: Vendedora (lo suyo), Caja (factura y cobra todo) o Gerencia (además controla).</field>
+        <field name="description">Rol en la tienda: Vendedora (vende y factura lo suyo), Caja (factura y cobra todo) o Gerencia (además anula, devuelve dinero y controla).</field>
         <field name="placeholder">Sin rol</field>
         <field name="sequence">1</field>
         <field name="category_id" ref="module_category_dcasa"/>
     </record>
 
     <!--
-        Vendedora: vende, cobra y despacha LO SUYO (pedido de la dueña, 2026-10-16: «los vendedores deberían solo
-        poder ver las facturas que ellos hacen»).
+        Vendedora: vende, factura y despacha LO SUYO (pedido de la dueña, 2026-10-16: «los vendedores deberían solo
+        poder ver las facturas que ellos hacen»). NO cobra (decisión de la gerencia A5, 2026-10-17: «el cobro solo en
+        Caja»; models/cobros.py lo niega en el servidor, con el interruptor encendido o apagado).
         * Ventas «solo sus documentos» (sales_team.group_sale_salesman): sus cotizaciones y pedidos (user_id) y los
           que no tienen vendedora (web, Juan sin asignar), el análisis de ventas y el de facturas, igual que Odoo.
           Las facturas, notas, cobros y conciliaciones se cierran a «lo suyo» en dcasa_reglas_contables.xml
@@ -32,8 +33,9 @@
           y Ventas › Configuración › Permisos de las vendedoras; models/res_users.py). Apagado, el rol la implica y
           todas ven todo como antes. Si este archivo la nombrara, cada despliegue (-u) movería el interruptor. En la
           base de antes la quita una vez la migración 19.0.1.8.0 (quitar la línea (4, …) no la borra).
-        * Facturación (account.group_account_invoice): la única forma de registrar cobros
-          (ACL de account.payment). No da asientos, conciliación ni reportes contables.
+        * Facturación (account.group_account_invoice): para facturar (y antes para cobrar: ACL de account.payment).
+          Registrar cobros ya no le alcanza: models/cobros.py exige Caja, Gerencia o contabilidad. No da asientos,
+          conciliación ni reportes contables.
         * Inventario usuario: entregas y existencias (despacha también lo de otra: la nota no lleva precios).
           CRM y Socios cuelgan de los grupos de Ventas.
     -->
@@ -41,7 +43,7 @@
         <field name="name">Vendedora</field>
         <field name="sequence">10</field>
         <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
-        <field name="comment">Vende, cobra y despacha. Con «Cada vendedora ve solo sus documentos» encendido (Ajustes de Ventas), ve solo sus cotizaciones, pedidos, facturas, notas y cobros (y los que no tienen vendedora). Descuentos hasta el tope configurado en Ajustes de Ventas.</field>
+        <field name="comment">Vende, factura y despacha; el cobro lo registra Caja. Con «Cada vendedora ve solo sus documentos» encendido (Ajustes de Ventas), ve solo sus cotizaciones, pedidos, facturas, notas y cobros (y los que no tienen vendedora). Descuentos hasta el tope configurado en Ajustes de Ventas.</field>
         <field name="implied_ids" eval="[
             (4, ref('sales_team.group_sale_salesman')),
             (4, ref('account.group_account_invoice')),
@@ -51,7 +53,9 @@
 
     <!--
         Caja: todo lo de Vendedora y además ve, factura y cobra los documentos de clientes de TODA la tienda
-        (las cotizaciones de las vendedoras se facturan y se cobran en caja). Es «Ventas: todos los documentos»
+        (las cotizaciones de las vendedoras se facturan y se cobran en caja: el cobro solo en Caja, decisión de la
+        gerencia A5). Anular o pasar a borrador una factura publicada, notas de crédito, devolver dinero y dejar saldo a
+        favor son de Gerencia (A6, A7; models/cobros.py). Es «Ventas: todos los documentos»
         (sales_team.group_sale_salesman_all_leads, el mismo grupo con el que Odoo abre todos los pedidos); las
         reglas «toda la tienda, solo de clientes» cuelgan de ese grupo. Sin contabilidad, sin costos ni ganancia y
         con el tope de descuento de la vendedora. No se le asigna a nadie al instalar: lo da un administrador.
@@ -60,7 +64,7 @@
         <field name="name">Caja</field>
         <field name="sequence">15</field>
         <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
-        <field name="comment">Todo lo de Vendedora y además ve, factura y cobra todas las cotizaciones, pedidos, facturas, notas y cobros de clientes. Sin contabilidad ni costos; descuento con tope.</field>
+        <field name="comment">Todo lo de Vendedora y además ve, factura y cobra todas las cotizaciones, pedidos, facturas, notas y cobros de clientes. Sin contabilidad ni costos; descuento con tope. Anular, notas de crédito y devoluciones: Gerencia.</field>
         <field name="implied_ids" eval="[
             (4, ref('group_vendedora')),
             (4, ref('sales_team.group_sale_salesman_all_leads')),
@@ -79,7 +83,7 @@
         <field name="name">Gerencia</field>
         <field name="sequence">20</field>
         <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
-        <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario.</field>
+        <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario. Anula o pasa a borrador facturas publicadas, hace notas de crédito, devuelve dinero y autoriza un primer abono menor a la mitad.</field>
         <field name="implied_ids" eval="[
             (4, ref('group_vendedora')),
             (4, ref('group_caja')),

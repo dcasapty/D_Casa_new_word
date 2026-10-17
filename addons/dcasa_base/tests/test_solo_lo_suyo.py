@@ -2,7 +2,8 @@
 
 Pruebas «de ataque»: la Vendedora A intenta ver lo de la Vendedora B por todos los caminos que da Odoo (search,
 search_count, read_group, name_search, leer por número, imprimir, adjuntos, mensajes) y no encuentra nada; sí ve lo
-suyo y lo que no tiene vendedora. Caja ve, factura y cobra todo; Gerencia y contabilidad ven todo. Y el interruptor
+suyo y lo que no tiene vendedora. Caja ve, factura y cobra todo; Gerencia y contabilidad ven todo (desde el 2026-10-17
+la nota de crédito la hace Gerencia y el cobro solo Caja: test_reglas_gerencia.py). Y el interruptor
 «Cada vendedora ve solo sus documentos»: encendido de fábrica; apagado, todas ven todo como antes, sin tocar a nadie;
 y el ida y vuelta deja todo como estaba. Explicación: docs/PERMISOS.md.
 """
@@ -21,8 +22,9 @@ CLAVE = 'Prueba-solo-lo-suyo-123'
 class SoloLoSuyoComun(TransactionCase):
     """Una tienda de prueba: A y B Vendedoras, C Caja, G Gerencia, K contador y un lector contable.
 
-    B vende; C (Caja) le factura el pedido, lo cobra y le hace una nota de crédito: todo eso es de B, aunque lo haya
-    hecho C. Hay además un pedido sin vendedora (como uno de la web o de Juan) y un cliente cuya ficha dice «B»."""
+    B vende; C (Caja) le factura el pedido y lo cobra, y Gerencia le hace una nota de crédito: todo eso es de B,
+    aunque lo hayan hecho otros. Hay además un pedido sin vendedora (como uno de la web o de Juan) y un cliente cuya
+    ficha dice «B»."""
 
     @classmethod
     def setUpClass(cls):
@@ -50,13 +52,13 @@ class SoloLoSuyoComun(TransactionCase):
         plan = env['account.analytic.plan'].create({'name': 'Plan Solo Lo Suyo'})
         cls.canal = env['account.analytic.account'].create({'name': 'Canal Solo Lo Suyo', 'plan_id': plan.id})
 
-        # Lo de B: ella cotiza y confirma; Caja factura, publica, cobra y hace la nota.
+        # Lo de B: ella cotiza y confirma; Caja factura, publica y cobra; la nota la hace Gerencia (A7).
         cls.pedido_b = cls._pedido(cls.b, cls.cliente)
         cls.pedido_b.action_confirm()
         cls.factura_b = cls.pedido_b.with_user(cls.caja)._create_invoices()
         cls.factura_b.with_user(cls.caja).action_post()
         cls.cobro_b = cls._cobrar(cls.caja, cls.factura_b, cls.efectivo)
-        cls.nota_b = cls._nota(cls.caja, cls.factura_b)
+        cls.nota_b = cls._nota(cls.gerencia, cls.factura_b)
         cls.factura_b.message_post(body='Mensaje interno de la factura de B')
         cls.pedido_b.message_post(body='Mensaje interno del pedido de B')
         cls.adjunto_b = env['ir.attachment'].create({
@@ -224,7 +226,7 @@ class TestSoloLoSuyo(SoloLoSuyoComun):
         de_caja = self._pedido(self.caja, self.cliente_de_b)
         self.assertEqual(de_caja.user_id, self.b)
 
-    def test_a_factura_cobra_y_concilia_lo_suyo_y_b_no_lo_ve(self):
+    def test_a_factura_caja_cobra_y_b_no_lo_ve(self):
         for diario in (self.efectivo, self.banco):
             with self.subTest(diario=diario.name):
                 pedido = self._pedido(self.a, self.cliente)
@@ -232,7 +234,7 @@ class TestSoloLoSuyo(SoloLoSuyoComun):
                 factura = pedido._create_invoices()
                 factura.action_post()
                 self.assertEqual(factura.invoice_user_id, self.a)
-                cobro = self._cobrar(self.a, factura, diario)
+                cobro = self._cobrar(self.caja, factura, diario)  # el cobro solo en Caja (A5)
                 self.assertIn(factura.payment_state, ('paid', 'in_payment'))
                 por_cobrar = factura.with_user(self.a).line_ids.filtered(
                     lambda linea: linea.account_id.account_type == 'asset_receivable')
@@ -252,7 +254,7 @@ class TestSoloLoSuyo(SoloLoSuyoComun):
         # Despachar no le abrió el pedido.
         self._cerrado(self.pedido_b, self.a, 'pedido de B después de despachar')
 
-    def test_caja_ve_factura_cobra_y_hace_notas_de_todas(self):
+    def test_caja_ve_factura_y_cobra_de_todas_y_gerencia_hace_la_nota(self):
         for etiqueta, registros in self._de_b():
             with self.subTest(etiqueta):
                 self._visible(registros, self.caja, etiqueta)
@@ -261,7 +263,9 @@ class TestSoloLoSuyo(SoloLoSuyoComun):
         factura = pedido.with_user(self.caja)._create_invoices()
         factura.with_user(self.caja).action_post()
         self._cobrar(self.caja, factura, self.banco)
-        nota = self._nota(self.caja, factura)
+        with self.assertRaises(AccessError, msg='la nota de crédito es de Gerencia (A7)'):
+            self._nota(self.caja, factura)
+        nota = self._nota(self.gerencia, factura)
         self.assertEqual((factura.invoice_user_id, nota.invoice_user_id), (self.a, self.a), 'la vendedora no cambia')
         Informe = self.env['ir.actions.report'].with_user(self.caja)
         self.assertTrue(Informe._render_qweb_pdf('account.report_invoice', factura.ids)[0])
@@ -400,7 +404,7 @@ class TestInterruptorSoloLoSuyo(SoloLoSuyoComun):
         self.assertEqual(menus_visibles(self.env, self.caja), menus_caja)
         self.assertNotIn(self.env.ref(TODOS), self.env.ref('dcasa_base.group_vendedora').implied_ids)
         self.assertIn(self.env.ref(TODOS), self.env.ref('dcasa_base.group_caja').implied_ids)
-        # Y la vendedora sigue cotizando, cobrando y quedando como dueña de lo suyo.
+        # Y la vendedora sigue cotizando y quedando como dueña de lo suyo (cobrar, no: eso es de Caja).
         pedido = self._pedido(self.a, self.cliente_de_b)
         self.assertEqual(pedido.user_id, self.a)
 

@@ -95,8 +95,10 @@ class DcasaTablero(models.AbstractModel):
             'cotizar': self._puede('sale.order', 'create'),
             'crear_cliente': self._puede('res.partner', 'create'),
             'facturar': self._puede('account.move', 'create'),
-            # Registrar un cobro exige Facturación (ACL de account.payment).
-            'cobrar': (not propio or caja) and self._puede('account.payment', 'create'),
+            # Registrar un cobro: Caja, Gerencia, contabilidad y administradores (decisión de la gerencia A5, «el cobro
+            # solo en Caja»; dcasa_base/models/cobros.py lo exige también en el servidor).
+            'cobrar': ((not propio or caja) and self.env.user._dcasa_puede_cobrar()
+                       and self._puede('account.payment', 'create')),
             'ver_cobros': (not propio or caja) and self._puede('account.payment'),
             'catalogo': self._puede('product.template'),
             # El panel completo de la tienda (cifras de todos, barras, lo más vendido) y los botones de la dueña.

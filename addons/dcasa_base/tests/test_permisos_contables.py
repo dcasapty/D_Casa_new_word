@@ -1,5 +1,8 @@
 """Lo contable «de un jefe» no se ve por datos: la Vendedora (y la Caja) solo tocan lo del flujo de venta.
 
+Desde el 2026-10-17 (decisiones contables de la gerencia) cobra solo Caja y las notas de crédito son de Gerencia:
+las reglas de cada camino están en test_reglas_gerencia.py.
+
 La dueña pidió que quien vende no vea nada de nómina ni de la contabilidad de un jefe. Por el menú ya no lo
 ve; este archivo fija que tampoco lo vea por datos (URL, enlace o RPC): facturas y pagos de proveedores,
 asientos varios (la nómina se contabiliza ahí), pagos salientes y movimientos bancarios. Y fija lo contrario:
@@ -186,7 +189,9 @@ class PermisosContablesCommon(TransactionCase):
 
 @tagged('post_install', '-at_install')
 class TestVendedoraVendeYCobra(PermisosContablesCommon):
-    """Lo que SÍ sigue pudiendo la vendedora (y la Caja): todo el flujo de venta."""
+    """Lo que SÍ sigue pudiendo la vendedora (y la Caja): todo el flujo de venta. Desde el 2026-10-17 el cobro lo
+    registra Caja y la nota de crédito, Gerencia (decisiones de la gerencia A5 y A7; detalle en
+    test_reglas_gerencia.py): la vendedora factura y ve el cobro de su factura."""
 
     def _facturar(self, usuario):
         factura = self.env['account.move'].with_user(usuario).create({
@@ -202,14 +207,23 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
             {'payment_date': fields.Date.today(), 'journal_id': self.efectivo.id, **valores})
         return registro._create_payments()
 
+    def _nota(self, usuario, factura):
+        reversa = self.env['account.move.reversal'].with_user(usuario).with_context(
+            active_model='account.move', active_ids=factura.ids).create(
+            {'reason': 'Devolución de prueba', 'journal_id': factura.journal_id.id})
+        nota = self.env['account.move'].with_user(usuario).browse(reversa.refund_moves()['res_id'])
+        nota.action_post()
+        return nota
+
     def test_factura_cobro_y_conciliacion(self):
-        # Efectivo (caja) y banco (Yappy, tarjeta): las dos formas de cobro de la tienda.
+        # Efectivo (caja) y banco (Yappy, tarjeta): las dos formas de cobro de la tienda. Factura quien vende;
+        # cobra Caja.
         for usuario, diario in [(u, d) for u in self.sin_contabilidad for d in (self.efectivo, self.banco)]:
             with self.subTest(usuario=usuario.login, diario=diario.name):
                 factura = self._facturar(usuario)
                 self.assertEqual(factura.state, 'posted')
                 self.assertAlmostEqual(factura.amount_total, 214.0)
-                pago = self._cobrar(usuario, factura, journal_id=diario.id)
+                pago = self._cobrar(self.cajero, factura, journal_id=diario.id)
                 self.assertEqual(pago.payment_type, 'inbound')
                 self.assertIn(factura.payment_state, ('paid', 'in_payment'))
                 # El asiento del cobro y su conciliación con la factura son visibles para ella.
@@ -229,15 +243,14 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
         for usuario in self.sin_contabilidad:
             with self.subTest(usuario=usuario.login):
                 factura = self._facturar(usuario)
-                self._cobrar(usuario, factura, amount=100.0)
+                self._cobrar(self.cajero, factura, amount=110.0)  # el primer abono: al menos la mitad de 214
                 self.assertEqual(factura.payment_state, 'partial')
-                reversa = self.env['account.move.reversal'].with_user(usuario).with_context(
-                    active_model='account.move', active_ids=factura.ids).create(
-                    {'reason': 'Devolución de prueba', 'journal_id': factura.journal_id.id})
-                nota = self.env['account.move'].with_user(usuario).browse(reversa.refund_moves()['res_id'])
+                with self.assertRaises(AccessError, msg='la nota de crédito es de Gerencia'):
+                    self._nota(usuario, factura)
+                nota = self._nota(self.gerencia, factura)
                 self.assertEqual(nota.move_type, 'out_refund')
-                nota.action_post()
                 self.assertEqual(nota.state, 'posted')
+                self.assertEqual(nota.invoice_user_id, factura.invoice_user_id, 'sigue siendo de quien vendió')
                 self.assertTrue(nota.line_ids)
 
     def test_facturar_desde_una_orden_de_venta(self):
@@ -255,7 +268,7 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
 
     def test_imprimir_y_enviar_la_factura(self):
         factura = self._facturar(self.vendedora)
-        self._cobrar(self.vendedora, factura)
+        self._cobrar(self.cajero, factura)
         html, _formato = self.env['ir.actions.report'].with_user(self.vendedora)._render_qweb_html(
             'account.report_invoice', factura.ids)
         self.assertIn(factura.name, html.decode())
