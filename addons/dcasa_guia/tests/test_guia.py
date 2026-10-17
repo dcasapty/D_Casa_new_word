@@ -91,6 +91,23 @@ class TestCatalogo(BaseCase):
             with self.subTest(clave):
                 self.assertIn('contador', (tarea.get('nota') or '') + tarea['logras'])
 
+    def test_un_abono_se_registra_desde_la_factura(self):
+        """El abono se anota con «Pagar» en la factura (así queda unido y sale el papel de ABONO); un cobro suelto no
+        se une solo a la factura, y la Guía ya no dice que sí."""
+        tareas = {t['id']: t for t in self.tareas}
+        abono = tareas['registrar-abono']
+        self.assertEqual(abono['titulo'], 'Registrar un abono de un cliente')
+        self.assertEqual(abono['categoria'], 'vender')
+        pasos = ' '.join(p['texto'] for p in abono['pasos'])
+        for texto in ('Abre la factura', '«Pagar»', 'monto del abono', 'ABONO', 'saldo'):
+            self.assertIn(texto, pasos)
+        self.assertIn('La factura es la misma de siempre', abono['logras'])
+        self.assertIn('abono', abono['palabras'])
+        cobrar = tareas['cobrar-cliente']
+        self.assertNotIn('lo une a su factura', cobrar['logras'])
+        self.assertIn('no se une solo a su factura', cobrar['logras'])
+        self.assertIn('«Pagar»', cobrar['logras'])
+
     def test_la_declaracion_de_renta_lleva_pasos_con_pantallas(self):
         renta = next(t for t in self.tareas if t['id'] == 'renta')
         self.assertGreaterEqual(len(renta['pasos']), 5)
@@ -256,6 +273,14 @@ class TestServidor(TransactionCase):
         for consulta, esperada in casos.items():
             with self.subTest(consulta):
                 self.assertIn(esperada, self.buscar(consulta)[:3], self.buscar(consulta))
+
+    def test_buscar_abono_lleva_a_registrar_un_abono(self):
+        for consulta in ('abono', 'registrar un abono', 'el cliente pagó una parte'):
+            with self.subTest(consulta):
+                self.assertIn('registrar-abono', self.buscar(consulta)[:3], self.buscar(consulta))
+        self.assertEqual(self.buscar('abono')[0], 'registrar-abono')
+        self.assertIn('registrar-abono', self.ids_de(self.gerencia))
+        self.assertNotIn('registrar-abono', self.ids_de(self.interno), 'sin permiso de facturas no sale')
 
     def test_las_palabras_de_la_gente_pesan_mas_que_una_coincidencia_suelta(self):
         """«ISR» es lo que se dice por «impuesto sobre la renta»: la declaración de renta va primero que la nómina."""
