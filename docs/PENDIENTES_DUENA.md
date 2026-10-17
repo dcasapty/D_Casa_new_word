@@ -107,10 +107,16 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
 23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
     darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
     «ponle el rol cajero a …»). Sin Caja, quien cobra solo vería lo suyo; Gerencia puede hacerlo todo mientras tanto. Dos
-    efectos a saber: al confirmar una venta de Juan o de la web, la vendedora que la confirma se la queda (cuenta para su
-    meta), y una vendedora ya no ve la cotización de otra para el cliente que vuelve (Caja o Gerencia le cambian el
-    «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración › Permisos de las vendedoras* › apagar
-    (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
+    efectos a saber: al confirmar una cotización de Juan sin vendedora, la vendedora que la confirma se la queda (cuenta
+    para su meta; si la confirma Caja, no es de nadie), y una vendedora ya no ve la cotización de otra para el cliente
+    que vuelve (Caja o Gerencia le cambian el «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración ›
+    Permisos de las vendedoras* › apagar (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
+    **Tres decisiones tuyas** (revisión del 17 oct): (a) **los pedidos de la web** quedan a nombre del «Vendedor» del
+    sitio web (*Ajustes › Sitio web*); si es el administrador, las vendedoras no los ven (Caja y Gerencia sí): si
+    quieres que los vean todas, deja ese campo vacío. (b) **La vendedora todavía puede cobrar** (y registrar abonos de)
+    sus propias facturas; si solo debe cobrar Caja, se le quita «Facturación» al rol Vendedora. (c) Lo que se comparte a
+    propósito (la nota de entrega, Conversaciones, los puntos de Socios, el CRM) deja ver números de pedido o factura de
+    otra vendedora: la lista está en [PERMISOS.md](PERMISOS.md).
 
 ## Issues abiertos que dependen de ti
 

@@ -1820,7 +1820,7 @@
    "destino": {
     "menu": "dcasa_base.menu_dcasa_permisos_vendedoras"
    },
-   "nota": "Viene encendido. Lo que no tiene vendedora (la web, Juan) lo ven todas para que alguien lo atienda. Caja y Gerencia ven todo siempre. Si la restricción trae un problema en la tienda, apágalo aquí: vale al momento y no cambia el rol de nadie. Los administradores también lo tienen en Ajustes, en Ventas.",
+   "nota": "Viene encendido. Lo que no tiene vendedora (una cotización de Juan sin asignar) lo ven todas para que alguien lo atienda; los pedidos de la web van al «Vendedor» del sitio web (Ajustes, Sitio web): si está vacío, quedan sin vendedora (salvo que la ficha del cliente tenga una) y también los ven todas. Caja y Gerencia ven todo siempre. Si la restricción trae un problema en la tienda, apágalo aquí: vale al momento y no cambia el rol de nadie. Los administradores también lo tienen en Ajustes, en Ventas.",
    "palabras": [
     "solo sus documentos",
     "ver todo",

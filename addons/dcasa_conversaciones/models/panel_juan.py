@@ -253,12 +253,18 @@ class DcasaJuanPanel(models.AbstractModel):
 
         Es atribución por conversación, no causalidad: una compra que el cliente habría hecho igual también cuenta.
         El monto va sin ITBMS (el precio de D'CASA es sin ITBMS).
+
+        Quien ve solo lo suyo («Cada vendedora ve solo sus documentos», ``res.users._dcasa_solo_lo_suyo``) cuenta solo
+        sus facturas y las que no tienen vendedora, como en el resto del sistema: la suma de la tienda es de Caja y
+        Gerencia (revisión adversarial, 2026-10-17; la consulta va por SQL y no pasa por las reglas de registro).
         """
+        solo_lo_suyo = self.env.user._dcasa_solo_lo_suyo()
         self.env.cr.execute("""
             SELECT COUNT(*), COALESCE(SUM(m.amount_untaxed_signed), 0)
               FROM account_move m
              WHERE m.move_type = 'out_invoice' AND m.state = 'posted' AND m.payment_state IN ('paid', 'in_payment')
                AND m.invoice_date >= %(d)s AND m.invoice_date < %(h)s AND m.company_id = %(compania)s
+               AND (NOT %(solo_lo_suyo)s OR m.invoice_user_id = %(uid)s OR m.invoice_user_id IS NULL)
                AND EXISTS (
                    SELECT 1 FROM dcasa_conversacion c
                      JOIN res_partner p ON p.id = c.partner_id
@@ -266,7 +272,8 @@ class DcasaJuanPanel(models.AbstractModel):
                       AND EXISTS (SELECT 1 FROM dcasa_mensaje b
                                    WHERE b.conversacion_id = c.id AND b.tipo = 'mensaje' AND b.autor = 'bot'
                                      AND b.ts < (m.invoice_date + 1)::timestamp + interval '5 hours'))""",
-                            {'d': desde, 'h': hasta, 'compania': self.env.company.id})
+                            {'d': desde, 'h': hasta, 'compania': self.env.company.id, 'solo_lo_suyo': solo_lo_suyo,
+                             'uid': self.env.uid})
         facturas, monto = self.env.cr.fetchone()
         return {'facturas': facturas, 'monto': round(float(monto), 2), 'moneda': self.env.company.currency_id.symbol}
 

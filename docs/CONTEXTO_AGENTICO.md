@@ -371,6 +371,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   dueña a quien crea si solo ve lo suyo. Despachar la entrega del pedido de otra vendedora sí funciona (comprobado).
 - Las pruebas que crean pedidos o facturas como superusuario y luego los leen **como vendedora** fallan con «solo lo
   suyo» (quedan a nombre del superusuario): crearlos con `user_id` / `invoice_user_id` de ella.
+- **Lo compartido que lee lo restringido** (revisión adversarial del 2026-10-17): una plantilla o un cálculo de algo que
+  ven todas (la entrega) que lee el pedido o la factura **sin `sudo`** revienta con «solo lo suyo» para la vendedora que
+  no es la dueña. Pasó con la nota de entrega fácil (`stock.picking._dcasa_facturas_para_entrega`): imprimir la nota del
+  pedido de otra daba error de permisos. Se lee con `sudo` **solo** lo que se imprime (como hace Odoo con
+  `o.sudo().sale_id.client_order_ref`). Probarlo siempre *como la otra vendedora*, no como superusuario.
+- **Una suma por SQL (`cr.execute`) no pasa por las reglas de registro**: «Ventas atribuidas» del Resumen de
+  Conversaciones le daba a la vendedora la suma de toda la tienda. Toda suma nueva por SQL de facturas o pedidos se
+  acota a mano con `res.users._dcasa_solo_lo_suyo()` (lo suyo y lo sin vendedora).
+- **Los pedidos de la web no quedan «sin vendedora»**: `website_sale` los asigna al confirmarse (o al quedar el pago
+  pendiente) al `website.salesperson_id`, que en una base nueva es `base.user_admin` (dato de `website_sale`); si está
+  vacío, a la vendedora de la ficha del cliente. Una prueba con `user_id: False` no imita la web.
 
 ### Cloudflare
 

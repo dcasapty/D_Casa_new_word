@@ -60,9 +60,17 @@ Pedido de la dueña (2026-10-16: «los vendedores deberían solo poder ver las f
 retroceder fácilmente»).
 
 - **Qué ve la vendedora:** sus cotizaciones, pedidos, facturas, notas de crédito y cobros, y los que **no tienen
-  vendedora** (un pedido de la web o de Juan sin asignar), para que alguien los atienda. Cuando una vendedora confirma
-  uno sin vendedora, pasa a ser suyo y las demás ya no lo ven. Lo que ella crea queda siempre a su nombre, aunque la
-  ficha del cliente diga otra vendedora.
+  vendedora** (una cotización de Juan sin asignar), para que alguien los atienda. Cuando una vendedora confirma
+  uno sin vendedora, pasa a ser suyo y las demás ya no lo ven; si lo confirma Caja, sigue sin vendedora (lo ven todas y
+  no cuenta para la meta de nadie). Lo que ella crea queda siempre a su nombre, aunque la ficha del cliente diga otra
+  vendedora. **Cobrar:** la vendedora sigue pudiendo registrar el cobro y los abonos de **sus** facturas (y de las sin
+  vendedora) desde la factura; no los de otra. Si la dueña quiere que solo Caja cobre, hay que quitarle Facturación al
+  rol Vendedora (no está hecho: es decisión suya).
+- **Los pedidos de la web** (revisión adversarial, 2026-10-17): Odoo los asigna al confirmarse al **«Vendedor» del sitio
+  web** (*Ajustes › Sitio web*, sección de la tienda), que en una base nueva es el administrador; si está vacío, a la
+  vendedora de la ficha del cliente, y si tampoco hay, quedan sin vendedora. Con el administrador puesto, **las
+  vendedoras no ven los pedidos de la web** (Caja y Gerencia sí). Para que entren a la bolsa común hay que dejar vacío
+  ese «Vendedor»: es decisión de la dueña ([PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 23).
 - **Qué ven Caja y Gerencia:** todo.
 - **Lo que no cambia:** las notas de entrega (todas despachan), las oportunidades del CRM (compartidas), la
   contabilidad (contador y lector ven todo, como antes) y Juan.
@@ -222,10 +230,22 @@ se instalen `dcasa_base` y Recursos Humanos.
   moverlo; la migración. Además en `dcasa_socios`, `dcasa_fe_pa`, `dcasa_conversaciones`, `dcasa_interfaz`,
   `dcasa_invoice`, `dcasa_brian` y `dcasa_nomina` (`test_solo_lo_suyo.py` o junto a sus pruebas).
 - **Lo que queda fuera a propósito:** las notas de entrega (todas despachan; no llevan precios), las transacciones de
-  pago en línea (casi todas son de la web, sin vendedora), los enlaces del portal con `access_token` (son del cliente)
+  pago en línea (Odoo se las abre a todo el que vende; casi todas son de la web), los enlaces del portal con `access_token` (son del cliente)
   y las facturas cargadas del sistema anterior (`dcasa_migracion` no les pone vendedora: Odoo les pone la de la ficha
-  del cliente o a quien hizo la carga, así que en general las ven Caja y Gerencia; no se comprobó con la base de
-  producción).
+  del cliente o a quien hizo la carga, así que en general las ven Caja y Gerencia; comprobado en una base de prueba
+  migrada desde `3b678a6`, no con la de producción).
+- **Lo que una vendedora todavía alcanza a ver de lo de otra, porque se comparte a propósito** (revisión adversarial,
+  2026-10-17; decisión de la dueña si alguno molesta): el número del pedido y de la factura en la **nota de entrega**
+  (también en la fácil de leer, que lee la factura con `sudo` para que cualquiera la imprima); lo que se habló y los
+  PDF que se le mandaron al cliente en **Conversaciones** (las conversaciones son de todo el equipo); las notas
+  automáticas de la **oportunidad** del CRM («se envió S0…», «se pagó la factura INV/…»); los **puntos de Socios** del
+  cliente y los del **programa de vendedores** (cada movimiento dice «Compra INV/…» y los puntos, que siguen al monto);
+  el aviso **«Parece repetido»** (da el número del otro pedido del mismo cliente, día y total); y el **«Total por
+  cobrar»** del cliente y el «Facturado este mes» del equipo de ventas (cifras de Odoo que suman toda la tienda; no
+  salen en las pantallas de la vendedora, solo pidiéndolas por la conexión de datos).
+- **Cifras que se suman por SQL** (no pasan por las reglas): «Ventas atribuidas» del Resumen de Conversaciones se acota a
+  mano a lo suyo para quien ve solo lo suyo (`dcasa.juan.panel._ventas_atribuidas`, revisión adversarial 2026-10-17).
+  Cualquier suma nueva por SQL de facturas o pedidos tiene que hacer lo mismo.
 
 ### Campos que Odoo calcula con SQL directo (`models/campos_contables.py`)
 
