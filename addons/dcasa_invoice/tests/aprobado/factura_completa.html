@@ -18,7 +18,7 @@
 </div>
 <div class="article o_report_layout_standard o_report_layout_dcasa o_table_standard o_company_1_layout" data-oe-model="account.move" data-oe-id="N" data-oe-lang="en_US">
 <h2 class="o_dcasa_title">
-<span> Factura</span>
+<span> Abono</span>
 <span>INV/AAAA/NNNNN</span>
 </h2>
 <div class="o_dcasa_cabecera row mb-3" name="dcasa_cabecera">
@@ -56,8 +56,12 @@
 <td>14/10/2026</td>
 </tr>
 <tr>
-<th>Vence</th>
+<th>Inicio del abono</th>
 <td>14/10/2026</td>
+</tr>
+<tr>
+<th>El abono vence</th>
+<td>14/11/2026</td>
 </tr>
 <tr>
 <th>Fecha de entrega</th>
@@ -287,6 +291,17 @@
 </p>
 </div>
 <div class="oe_structure">
+</div>
+<div class="o_dcasa_saldo avoid-page-break-inside" name="dcasa_saldo">
+<div class="o_dcasa_saldo_titulo">SALDO POR PAGAR</div>
+<div class="o_dcasa_saldo_monto">
+<span class="text-nowrap" data-oe-type="monetary" data-oe-expression="dcasa_abono['saldo']">$<span class="oe_currency_value">252.63</span>
+</span>
+</div>
+<div class="o_dcasa_saldo_detalle"> Pagado <span class="text-nowrap" data-oe-type="monetary" data-oe-expression="dcasa_abono['pagado']">$<span class="oe_currency_value">100.00</span>
+</span> de <span class="text-nowrap" data-oe-type="monetary" data-oe-expression="dcasa_abono['total']">$<span class="oe_currency_value">352.63</span>
+</span>
+</div>
 </div>
 </div>
 <div class="o_dcasa_pago o_dcasa_izquierda avoid-page-break-inside" name="dcasa_pago">

@@ -10,6 +10,7 @@ import time
 
 from odoo import Command, api, fields, models
 from odoo.exceptions import AccessError, UserError
+from odoo.tools.misc import format_amount
 
 from ..models import paquete
 
@@ -35,7 +36,8 @@ class DcasaImpresionPaquete(models.TransientModel):
     pago_ids = fields.Many2many(
         'account.payment', 'dcasa_impresion_paquete_pago_rel', 'paquete_id', 'pago_id', string='Pagos',
         help='Solo cuando el cuadro sale al completar un pago: al cerrarlo se muestra el pago como siempre.')
-    tras_pago = fields.Boolean(help='El cuadro salió al completar un pago: se ofrece y se puede cerrar sin imprimir.')
+    tras_pago = fields.Boolean(
+        help='El cuadro salió al registrar un pago o un abono: se ofrece y se puede cerrar sin imprimir.')
     omitidas = fields.Integer(
         help='Cuántos de lo elegido se dejó fuera por no ser una factura de cliente ya publicada.')
     incluir_entrega = fields.Boolean('Nota de entrega / retiro de bodega', default=True)
@@ -45,6 +47,10 @@ class DcasaImpresionPaquete(models.TransientModel):
     entregas_texto = fields.Char(compute='_compute_informacion')
     aviso = fields.Char(compute='_compute_informacion')
     excede = fields.Boolean(compute='_compute_informacion')
+    con_saldo = fields.Boolean(
+        compute='_compute_informacion',
+        help='Alguna factura está en abono (algo pagado y algo por pagar): la nota de entrega viene sin marcar.')
+    saldo_texto = fields.Char(compute='_compute_informacion')
 
     # ------------------------------------------------------------------
     # Lo que muestra el cuadro
@@ -77,6 +83,26 @@ class DcasaImpresionPaquete(models.TransientModel):
                 aviso = (f'Se dejaron fuera {paquete_.omitidas} de lo que elegiste: '
                          'solo van las facturas de clientes ya publicadas.')
             paquete_.aviso = aviso
+            en_abono = facturas.filtered(lambda factura: factura._dcasa_es_abono())
+            paquete_.con_saldo = bool(en_abono)
+            paquete_.saldo_texto = paquete_._texto_saldo(en_abono) if en_abono else ''
+
+    @api.model
+    def _monto(self, monto, moneda):
+        """«$239.12», como se escribe en Panamá (Odoo separa el símbolo con un espacio duro)."""
+        texto = format_amount(self.env, monto, moneda)
+        return texto.replace(f'{moneda.symbol}\N{NO-BREAK SPACE}', moneda.symbol, 1) if moneda.symbol else texto
+
+    @api.model
+    def _texto_saldo(self, en_abono):
+        """Lo que falta pagar de las facturas en abono (cifras de ``_dcasa_estado_abono``) y por qué la nota de
+        entrega viene sin marcar."""
+        if len(en_abono) == 1:
+            falta = f"Todavía falta pagar {self._monto(en_abono._dcasa_estado_abono()['saldo'], en_abono.currency_id)}."
+        else:
+            falta = f'{len(en_abono)} de estas facturas todavía tienen saldo por pagar.'
+        return (f'{falta} La nota de entrega se imprime al terminar de pagar: por eso viene sin marcar '
+                '(si la necesitas, márcala).')
 
     # ------------------------------------------------------------------
     # Cómo se abre
@@ -92,8 +118,10 @@ class DcasaImpresionPaquete(models.TransientModel):
     def _accion_dialogo(self, facturas, pagos=None, sin_factura=0, tras_pago=False):
         """La acción que abre el cuadro para estas facturas.
 
-        ``tras_pago``: sale al completar un pago (``pagos``: los que se acaban de registrar, para mostrarlos al cerrar).
+        ``tras_pago``: sale al registrar un pago (``pagos``: los que se acaban de registrar, para mostrarlos al cerrar).
         ``sin_factura``: cuántos pedidos elegidos no tenían factura.
+        Si alguna factura está en abono, la nota de entrega viene sin marcar (se imprime al terminar de pagar); se
+        puede marcar a mano: no es un candado.
         """
         validas, omitidas = self._separar_validas(facturas)
         if not validas:
@@ -105,6 +133,7 @@ class DcasaImpresionPaquete(models.TransientModel):
             'pago_ids': [Command.set(pagos.ids)] if pagos else [],
             'tras_pago': tras_pago,
             'omitidas': len(omitidas) + sin_factura,
+            'incluir_entrega': not any(factura._dcasa_es_abono() for factura in validas),
         })
         return {
             'type': 'ir.actions.act_window',

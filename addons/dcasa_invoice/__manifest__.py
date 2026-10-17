@@ -13,6 +13,9 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
   cotización que en la factura.
 * Una factura pagada dice cuándo, con qué y que el saldo es $0.00 (sin sellos
   de imitación); una parcial, lo pagado y lo que queda.
+* Abonos: mientras una factura de cliente tenga algo pagado y algo por pagar, el papel
+  sale como ABONO (con su número), con el recuadro «SALDO POR PAGAR», «Pagado $X de $Y»,
+  inicio y vencimiento del abono. La contabilidad no cambia (misma factura, pagos parciales).
 * Enlaces al sitio público, nunca a localhost.
 * Cabecera Cliente | Entrega | Datos: identificación, teléfono, correo, dirección de
   entrega si es otra, fechas, pedido, vendedora, condiciones y medio de pago.
@@ -23,8 +26,8 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
 * Hoja carta con la placa, la banda y un pie de dos líneas que no se corta.
 * «Imprimir documentos»: botón extra en la factura y en el pedido (y «Imprimir paquete» en sus listas) que junta en
   un solo PDF la factura del cliente, la copia de la empresa y la nota de entrega; «Imprimir» abre el cuadro de
-  impresión sin guardar archivos y «Descargar» lo guarda. Al completar un pago, el asistente lo ofrece (se apaga
-  en la empresa). Todo lo que se imprimía antes sigue igual.
+  impresión sin guardar archivos y «Descargar» lo guarda. Al completar un pago o registrar un abono, el asistente
+  lo ofrece (se apaga en la empresa); en un abono la nota de entrega viene sin marcar. Todo lo demás sigue igual.
 * Facturación › Tablero: tarjetas «Facturas de clientes» y «Facturas de proveedores» con sus conteos.
 * Código QR de uso interno (/dcasa/doc/…): el pedido de compra lo lleva siempre; la factura, la nota de crédito, la
   cotización y la nota de entrega solo si la empresa enciende «Mostrar el código QR…» (apagado, salen exactamente
