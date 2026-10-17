@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lo normal es que el pago lo despierte al momento (_trigger); este horario es el respaldo. -->
+    <record id="ir_cron_dcasa_correo_cola" model="ir.cron">
+        <field name="name">Correo a clientes: armar los correos pendientes</field>
+        <field name="model_id" ref="model_dcasa_correo_envio"/>
+        <field name="state">code</field>
+        <field name="code">model._procesar()</field>
+        <field name="interval_number">10</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_dcasa_correo_reintentar" model="ir.cron">
+        <field name="name">Correo a clientes: reintentar lo que Resend no pudo recibir</field>
+        <field name="model_id" ref="mail.model_mail_mail"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_reintentar()</field>
+        <field name="interval_number">15</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

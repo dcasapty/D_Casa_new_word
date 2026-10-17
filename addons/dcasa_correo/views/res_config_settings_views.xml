@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_dcasa_correo" model="ir.ui.view">
+        <field name="name">res.config.settings.form.dcasa.correo</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="Correo a clientes" string="Correo a clientes" name="dcasa_correo" groups="base.group_system">
+                    <block title="Correo a clientes (Resend)" name="dcasa_correo_bloque">
+                        <setting id="dcasa_correo_estado" string="Estado"
+                                 help="La clave de Resend vive solo en el servidor (variable RESEND_API_KEY): no se pega aquí. Paso a paso en docs/CORREO.md.">
+                            <field name="dcasa_correo_estado" readonly="1"/>
+                            <div class="mt8">
+                                <button name="action_dcasa_correo_prueba" type="object" string="Enviar correo de prueba"
+                                        class="btn-secondary" icon="fa-envelope-o"/>
+                            </div>
+                            <div class="text-muted mt4">Le llega a tu propio correo (el de tu usuario), aunque el interruptor esté apagado.</div>
+                        </setting>
+                        <setting id="dcasa_correo_a_clientes"
+                                 help="Apagado (así viene): no sale ningún correo a clientes. Enciéndelo cuando el dominio esté verificado en Resend y la prueba se vea bien.">
+                            <field name="dcasa_correo_a_clientes"/>
+                        </setting>
+                        <setting id="dcasa_correo_al_pagar"
+                                 help="En cuanto se registra un pago, al cliente le llega su factura en PDF. Si queda saldo, el correo dice cuánto pagó, cuánto le falta y hasta cuándo.">
+                            <field name="dcasa_correo_al_pagar"/>
+                        </setting>
+                        <setting id="dcasa_correo_bienvenida"
+                                 help="Una sola vez, con su primer pago: cómo entrar a Mi cuenta, ver lo que le falta de un abono y sus puntos. Solo a clientes nuevos; a los de antes no se les manda nunca.">
+                            <field name="dcasa_correo_bienvenida"/>
+                            <div class="text-muted mt4" invisible="not dcasa_correo_bienvenida_desde">
+                                Cuentan como nuevos los clientes creados desde el <field name="dcasa_correo_bienvenida_desde" class="oe_inline" readonly="1"/>.
+                            </div>
+                        </setting>
+                        <setting id="dcasa_correo_remitente" string="Remitente"
+                                 help="Desde dónde salen los correos. Tiene que ser del dominio verificado en Resend (no necesita buzón).">
+                            <div class="content-group">
+                                <div class="row mt8">
+                                    <label for="dcasa_correo_nombre" class="col-lg-4 o_light_label"/>
+                                    <field name="dcasa_correo_nombre"/>
+                                </div>
+                                <div class="row">
+                                    <label for="dcasa_correo_remitente" class="col-lg-4 o_light_label"/>
+                                    <field name="dcasa_correo_remitente" placeholder="ventas@dcasapty.com"/>
+                                </div>
+                                <div class="row">
+                                    <label for="dcasa_correo_responder_a" class="col-lg-4 o_light_label"/>
+                                    <field name="dcasa_correo_responder_a" placeholder="info@dcasapty.com"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_dcasa_correo_ajustes" model="ir.actions.act_window">
+        <field name="name">Correo a clientes</field>
+        <field name="res_model">res.config.settings</field>
+        <field name="view_mode">form</field>
+        <field name="context">{'module': 'dcasa_correo', 'bin_size': False}</field>
+    </record>
+
+    <menuitem id="menu_dcasa_correo_ajustes" name="Correo a clientes" parent="sale.menu_sale_config"
+              action="action_dcasa_correo_ajustes" sequence="95" groups="base.group_system"/>
+</odoo>
