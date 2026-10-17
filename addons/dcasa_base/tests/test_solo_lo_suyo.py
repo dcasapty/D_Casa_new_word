@@ -36,8 +36,12 @@ class SoloLoSuyoComun(TransactionCase):
         cls.contador = crear_usuario(env, 'sls_contador', 'account.group_account_user')
         cls.lector = crear_usuario(env, 'sls_lector', 'account.group_account_readonly')
 
-        cls.cliente = env['res.partner'].create({'name': 'Cliente Solo Lo Suyo'})
-        cls.cliente_de_b = env['res.partner'].create({'name': 'Cliente Ficha De B', 'user_id': cls.b.id})
+        # Celular y correo: sin ellos la vendedora no confirma ni publica (puertas de dcasa_contactos).
+        cls.cliente = env['res.partner'].create({
+            'name': 'Cliente Solo Lo Suyo', 'phone': '+507 6555-0101', 'email': 'cliente.solo.lo.suyo@example.com'})
+        cls.cliente_de_b = env['res.partner'].create({
+            'name': 'Cliente Ficha De B', 'user_id': cls.b.id, 'phone': '+507 6555-0102',
+            'email': 'cliente.ficha.de.b@example.com'})
         cls.producto = env['product.product'].create({
             'name': 'Mesa Solo Lo Suyo', 'type': 'consu', 'list_price': 100.0})
         Diario = env['account.journal']

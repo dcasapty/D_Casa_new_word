@@ -35,7 +35,8 @@ class TestMetaVentas(NominaCommon):
         cls.vera = cls._empleado('Vera Meta', 1200, '2029-01-01', department_id=cls.ventas.id, user_id=cls.u_vera.id)
         cls.otto = cls._empleado('Otto Meta', 1200, '2029-01-01', department_id=cls.otro_depto.id,
                                  user_id=cls.u_otto.id)
-        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente meta de ventas'})
+        cls.cliente = cls.env['res.partner'].create({
+            'name': 'Cliente meta de ventas', 'phone': '+507 6555-0201', 'email': 'cliente.meta.ventas@example.com'})
         cls.itbms = cls.company.account_sale_tax_id
         cls.Bono = cls.env['dcasa.nomina.meta.bono']
 

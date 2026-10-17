@@ -143,8 +143,10 @@ class TestPuertas(ContactoCommon):
         self.assertEqual(suya.state, 'posted')
 
     def test_pagar_nunca_se_bloquea(self):
-        """Una factura ya publicada de un cliente sin correo ni celular se cobra igual (la vendedora es caja)."""
-        factura = self.factura(self.sin_nada)
+        """Una factura ya publicada de un cliente sin correo ni celular se cobra igual (la vendedora es caja).
+
+        La factura es de ella: con «Cada vendedora ve solo sus documentos» cobra las suyas (y las sin vendedora)."""
+        factura = self.factura(self.sin_nada, invoice_user_id=self.vendedora.id)
         factura.action_post()
         efectivo = self.env['account.journal'].search(
             [('type', '=', 'cash'), ('company_id', '=', self.env.company.id)], limit=1)
