@@ -21,7 +21,7 @@ se teclean dos veces.
 | Canjes con código de 72 h; puntos reservados al pedir; un pendiente por premio; stock; se devuelven al vencer o cancelar | Los premios de descuento se **cobran dentro de la venta** («Cobrar premio»): el importe lo pone el premio y el código se sella al confirmar. En la tienda web, el socio los aplica él mismo en el carrito («Usar mis puntos») y el pedido cancelado los devuelve solo |
 | Cumpleaños automático (hora de Panamá, una vez al año, con compra previa) | Reportes con pivotes y gráficos de Odoo: puntos por vendedora, pasivo del programa, canjes por premio |
 | App del socio con **celular + PIN** (sin correo), candado 5 fallos → 15 min, 10 → 24 h, PIN con pimienta fuera de la base, mensajes que no revelan quién es cliente | Menú **Socios** propio para las vendedoras; ficha del socio como pestaña del contacto |
-| Reclamar una ficha con puntos exige el código de la factura | Compra manual solo para facturas del sistema anterior (transición) |
+| Reclamar una ficha con puntos exige el código de la factura (desde el 2026-10-16, también una ficha con compras aunque tenga 0 puntos: ver [Mi cuenta](#mi-cuenta)) | Compra manual solo para facturas del sistema anterior (transición) |
 | Términos generados desde las reglas reales (Ley 81 de 2019) | |
 
 ## Cómo se usa
@@ -36,7 +36,8 @@ código `DCA…` o el nombre del padrino.
 **El cliente:**
 1. Entra a `dcasapty.com/socios` y se registra con su celular y un PIN.
 2. Si ya compró, escribe el código de socio impreso en su factura para reclamar sus puntos.
-3. Ve su saldo, invita por WhatsApp o con su QR, pide premios y ve su actividad.
+3. Ve su saldo, invita por WhatsApp o con su QR, pide premios y ve su actividad en **Mi cuenta**
+   (`/mi-cuenta/puntos`), junto con sus compras y lo que le falta pagar (ver [Mi cuenta](#mi-cuenta)).
 
 **Premios:**
 - **De descuento:** en la cotización se pulsa **Cobrar premio** y se escribe el código que enseña el cliente.
@@ -67,13 +68,78 @@ código `DCA…` o el nombre del padrino.
   que de verdad pagó (ya con el premio descontado).
 
 **Cuenta unificada:**
-- El usuario de la tienda ve en `/my` su saldo, premios por recoger e invitados, con enlace a
-  `/socios/cuenta`. `/socios` reconoce su sesión sin pedir PIN si su ficha ya es socio.
+- El usuario de la tienda entra a **Mi cuenta** (`/mi-cuenta`; su `/my` lleva ahí) y ve su saldo, premios por
+  recoger e invitados junto con sus compras. `/socios` reconoce su sesión sin pedir PIN si su ficha ya es socio.
 - Si tiene celular de Panamá pero todavía no entró al programa, `/socios` le invita a **activar sus
   puntos** eligiendo un PIN (misma ficha; no se le pide el código de la factura porque la sesión de la
   tienda ya prueba quién es). Si su celular ya es la llave de otra ficha, se le manda a entrar con PIN.
 - Quien solo tiene sesión por PIN (sin cuenta de la tienda) ve en el carrito su saldo y cómo usarlo:
   entrar con su cuenta de la tienda o pedir un premio y dictar el código al coordinar el pedido.
+
+## Mi cuenta
+
+El panel del cliente, en **`/mi-cuenta`** (módulo `dcasa_mi_cuenta`, desde el 2026-10-16). Lo pidió la dueña: «que el
+cliente pueda ver cuánto le falta» de sus abonos y un panel «sencillo, muy bien organizado, amigable». Móvil primero
+(se usa de pie en el mostrador): letra de 17 px, botones de 48 px, barra fija abajo en el celular
+(Inicio · Compras · Puntos · Mis datos) y columna a la izquierda en la computadora.
+
+**Quién entra.**
+- Con **celular + PIN** (la sesión de Socios; si el PIN es temporal, primero se cambia en `/socios/pin`).
+- Con la **cuenta de la tienda** (correo y contraseña; usuario portal): su ficha es la del usuario (la comercial).
+- Sin sesión, `/mi-cuenta` es «Entra a tu cuenta»: el mismo formulario de `/socios` (con Turnstile), «Entra con tu
+  correo», «Hazte socio» y «¿Olvidaste tu PIN? Escríbenos por WhatsApp». Un PIN equivocado se avisa ahí mismo.
+
+**Qué ve.**
+- **Inicio:** lo pendiente primero (la compra con saldo: «Te falta $X», «Pagaste $A de $T» con su barra y hasta
+  cuándo tiene; o un apartado; o una entrega lista; o los premios por recoger con su código), su última compra con
+  la línea de tiempo (Compra hecha · Pagada o «Pagando: te falta $X» · Lista · Entregada), sus puntos en la placa
+  azul (saldo, código, cuánto le falta para el premio más barato que aún no alcanza) y WhatsApp.
+- **Compras:** pedidos (cotización enviada, confirmados y cancelados; **nunca borradores**: los carritos de la web
+  son borradores) y facturas que no vienen de ningún pedido, en grupos: «Por pagar», «Por entregar o retirar»,
+  «Ya las tienes» y «Canceladas» (las últimas 5). Cada compra lleva foto del mueble principal (si está publicado en
+  la tienda) y «y N cosas más».
+- **Detalle de una compra:** cada abono con su fecha, su medio y su monto; total de la factura, pagado y saldo;
+  hasta cuándo tiene para terminar de pagar (`dcasa_invoice.abono_meses`, 1 mes desde el primer abono); la entrega
+  (solo lo que ya pasó: «Entregado el …», «Listo: te escribimos para coordinar…», «Lo estamos preparando»; la fecha
+  prevista de Odoo **nunca** se enseña como promesa); lo que compró con su ITBMS; los puntos que le sumó.
+  - Un pedido confirmado sin factura publicada dice «Tu factura y tus pagos aparecen aquí cuando se emita»: no se
+    inventa un saldo.
+  - Apartado: «Apartado hasta el 23 oct: pasa a pagarlo antes de esa fecha». Anulado por el cron: «Se anuló porque
+    venció el apartado el 14 oct».
+- **Puntos:** lo que antes estaba en `/socios/cuenta`, ordenado para el mostrador: los premios por recoger con su
+  código **arriba**, el saldo («equivalen a $X» sale de `canje.puntosPorDolar` de `puntos.json`), la meta, invitar
+  (WhatsApp, copiar el enlace, el QR plegado), invitados, premios anteriores y actividad. Si es vendedor, el acceso
+  a su panel.
+- **Mis datos:** nombre, celular, correo, código de socio y cumpleaños, solo lectura («Para cambiar tus datos
+  escríbenos por WhatsApp»); cambiar el PIN; con la cuenta de la tienda, cambiar la contraseña y sus direcciones;
+  reglas, privacidad y «Salir».
+
+**De dónde salen las cifras.** Solo de `account.move._dcasa_estado_abono()` (`dcasa_invoice`), la misma función que
+imprime el papel. Mi cuenta **solo lee**: no toca asientos, impuestos, cuentas ni pagos. Los abonos se siguen
+registrando como siempre: la factura completa (con ITBMS) se publica en el primer abono y cada abono es un pago
+parcial con «Pagar».
+
+**Privacidad.**
+- Todo se lee con permisos de sistema pero **siempre filtrado por la ficha comercial del cliente**. Un pedido o una
+  factura de otra persona responde 404, igual que uno que no existe.
+- A quien entra con **PIN** no se le enseñan cédula, dirección, teléfonos (solo el celular con que entra), el correo
+  entero ni PDF (los PDF traen datos personales): «¿Necesitas tu factura? Escríbenos por WhatsApp» con el número de
+  la compra ya escrito.
+- Al usuario de la **tienda** sí se le dan los PDF del portal de Odoo (`/my/orders/…`, `/my/invoices/…`), que ya le
+  permiten las reglas del portal. Nunca se crean enlaces con `access_token`.
+- **Hueco cerrado (2026-10-16):** antes una ficha con 0 puntos se reclamaba en `/socios/registro` sin el código de
+  la factura. Con las compras a la vista eso dejaba ver compras ajenas sabiendo un celular. Ahora también se exige el
+  código si la ficha tiene una factura de cliente publicada o un pedido que no es borrador
+  (`res.partner._dcasa_tiene_compras`); el mensaje pide el código de la factura o escribir por WhatsApp.
+
+**Los caminos viejos llevan aquí.**
+- `/socios/cuenta` → `/mi-cuenta/puntos`; `/socios` con sesión → `/mi-cuenta/puntos`.
+- Entrar o registrarse en `/socios` → `/mi-cuenta`; guardar el PIN → `/mi-cuenta/datos`; «Salir» → `/mi-cuenta`.
+- `/my` y `/my/home` del cliente de la tienda → `/mi-cuenta` (el equipo sigue yendo a su `/my`).
+- La cabecera del sitio dice «Mi cuenta» (antes «Inicia sesión») y lleva a `/mi-cuenta` para todos: el borde guarda
+  las páginas anónimas, así que el enlace no depende de la sesión. El pie también.
+- Las páginas de Odoo que siguen en `/my` (detalle del pedido y de la factura) ya no dicen «Con la tecnología de
+  Odoo» y sus botones «secundarios» (que el tema pinta amarillos sobre blanco) son azules.
 
 **Gerencia:**
 - Hace ajustes con motivo.
