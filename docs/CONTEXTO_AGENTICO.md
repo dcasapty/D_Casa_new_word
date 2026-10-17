@@ -316,6 +316,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- `$!` después de `nohup cd … && python3 odoo-bin … &` es el PID de la subshell, no el de Odoo: al «matarlo» Odoo sigue
+  vivo en el puerto y el siguiente arranque falla con «Address already in use» (y las capturas salen con el código
+  viejo). Arrancar con un script que haga `exec python3 odoo-bin …` o matar por el PID real (`ps -eo pid,args | grep
+  <puerto>`) (2026-10-17).
 - `pkill -f "<patrón>"` mata también la propia shell si el patrón aparece en el comando (sale con código 144 y se
   pierden las tareas en segundo plano de esa llamada). Matar por PID (`ps -eo pid,args | grep odoo-bin`).
 - Las pruebas de navegador de Odoo se saltan en local («Chrome executable not found»). Para correrlas: un enlace
@@ -332,6 +336,17 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
 
 ### Odoo 19
+
+- **Al revertir una factura** (`_reverse_moves`), Odoo no copia el «Vendedor» (`invoice_user_id` es `copy=False`): la nota
+  de crédito queda a nombre de quien la hace (Gerencia). Para saber de quién es una nota, mirar la factura que revierte
+  (`reversed_entry_id`). `_reverse_moves(valores)` deja la nota en borrador y **sin conciliar**; con `cancel=True` la
+  publica y la concilia (la factura queda `reversed`). Las líneas de la nota sí copian `sale_line_ids` (2026-10-17).
+- **Una factura sin «Vendedor» elegido** toma el vendedor del cliente o, si no tiene, a quien la crea
+  (`_compute_invoice_default_sale_person`): lo cargado por un script queda a nombre de quien lo corre (OdooBot en un
+  `odoo-bin shell`). Por eso el Inicio manda las facturas del sistema anterior (`dcasa_historica`) a «Sin vendedora».
+- **«Ventas» de Contabilidad = apuntes de cuentas de tipo `income`**, por su fecha contable (`date`). Las facturas lo igualan
+  con `amount_untaxed_signed` solo si todas sus líneas van a ingresos y el ITBMS tiene su cuenta: en una prueba, un
+  impuesto sin cuenta deja el ITBMS en ingresos y Contabilidad «suma» el impuesto.
 
 - `notification_type` («Por correo» / «En Odoo») sale del grupo `mail.group_mail_notification_type_inbox` asignado **directo** al usuario (`group_ids`); un grupo implícito no lo cambia. Para cambiarlo se escribe `notification_type` (su inverso pone el grupo).
 - Campo, vista o dato nuevo sin `odoo -u` = `UndefinedColumn` y pantallas rotas: nunca dar por buena una versión sin

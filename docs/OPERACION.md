@@ -695,7 +695,7 @@ entrada más en `_atajos` con el `xml_id` de la acción y un test en `addons/dca
 
 | | Vendedora | Gerencia, administradores y contabilidad |
 |---|---|---|
-| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con el interruptor **Completadas · Con abonos** y el selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose), **ganancia**, el bloque **Comparar** y el selector de **vendedora** (estos tres, solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
+| Cifras | **Vendido hoy** (solo lo que ella vendió: «1 venta tuya», sin ITBMS) y **Mis cotizaciones** (las suyas abiertas). Sin ganancia ni costos | Franja de atención, **Ventas** con el interruptor **Facturado · Con abonos · Completadas** (sobre las facturas, como Contabilidad) y el selector Hoy · Semana · Mes · rango (sin ITBMS, con su desglose), **ganancia**, el bloque **Comparar** y el selector de **vendedora** (estos tres, solo Gerencia y administradores), Cotizaciones y Entregas lado a lado, pedidos web, por cobrar, socios (de toda la tienda), barras de la semana, caja y lo más vendido |
 | Botones de arriba | ¿Qué necesito hacer?, **Nueva cotización** (el principal), **Nuevo cliente** | Los mismos y además Registrar cobro y Ver la tienda (solo ícono). Todos azules |
 | Accesos grandes | Productos · Facturas · Conversaciones · **Escáner** | Productos · Facturas · Conversaciones · **Escáner** · Oportunidades · Resumen contable |
 
@@ -729,41 +729,74 @@ no cambia: ve lo que su permiso deje.
 - **Envíos** aparece en el menú como «En desarrollo» mientras se define el servicio (`dcasa_contabilidad`,
   `static/src/js/en_desarrollo.js`).
 
-### Completadas o Con abonos, y Comparar (Inicio de Gerencia, 2026-10-17)
+### Facturado, Con abonos o Completadas, y Comparar (Inicio de Gerencia, 2026-10-17)
 
-Pedido del jefe, aprobado por la dueña: la administración quiere **números, no texto**. Código:
-`addons/dcasa_interfaz/models/ventas_bases.py` (qué ventas cuentan y cuándo) y `models/comparar.py` (el bloque);
-pruebas en `tests/test_comparar.py`.
+Pedido del jefe, aprobado por la dueña: la administración quiere **números, no texto**, y el Inicio cuenta las ventas
+**sobre las facturas, igual que Contabilidad** (decisiones A1 y A2 de [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md):
+«vendido» son todas las facturas publicadas, el día de la factura, y debajo cuántas salieron de un pedido de una
+vendedora). Código: `addons/dcasa_interfaz/models/ventas_bases.py` (qué facturas cuentan y cuándo) y `models/comparar.py`
+(el bloque); pruebas en `tests/test_facturado.py` y `tests/test_comparar.py`.
 
-**El interruptor «Completadas» / «Con abonos»** (arriba de Ventas; abre siempre en «Completadas»). Cambia a la vez la
-tarjeta de Ventas y la de Ganancia (con su número de ventas y la lista que abren, que es exactamente el mismo conjunto)
-y todo el bloque Comparar. Las dos parten de lo vendido de siempre (pedido confirmado, facturado por completo y con sus
-facturas publicadas; montos del pedido sin ITBMS):
+**El interruptor «Facturado» · «Con abonos» · «Completadas»** (arriba de Ventas; abre en **Facturado**). Las tres parten
+del **mismo conjunto: las facturas de cliente publicadas**, con las facturas hechas directo (sin pedido) y las del
+sistema anterior. Las **notas de crédito restan**, como en Contabilidad. Montos sin ITBMS, con el ITBMS y el total
+aparte. Debajo, una línea corta dice qué se cuenta. Cambia a la vez **todo lo que habla de ventas en el Inicio de
+Gerencia**: las tarjetas de Ventas y de Ganancia (con su número de facturas y la lista que abren, que es exactamente el
+mismo conjunto), todo el bloque Comparar (también «Mes ▾»), «Por vendedora», la gráfica **Ventas de la semana**, **Lo
+más vendido** y **Vendido hoy** (es la tarjeta de Ventas en «Hoy»). La gráfica y lo más vendido dicen en su título qué
+posición y qué vendedora muestran.
 
 | | Qué cuenta | En qué día |
 |---|---|---|
-| **Completadas** | Las ventas cuyas facturas quedaron **pagadas al 100 %** (también «en proceso de pago») | El del pago que dejó el saldo en cero (nunca antes del día de la venta) |
-| **Con abonos** | Las ventas con **al menos un pago**, completas o a medias, **por su valor total**. Trae **Falta por cobrar**: el saldo de esas facturas, con ITBMS, como el que ve el cliente, al cierre del periodo | El de la venta (su última factura) |
+| **Facturado** | **Todas** las facturas publicadas; las notas de crédito restan. Es lo mismo que las «Ventas» de Contabilidad (el Estado de resultados) para esas fechas. Debajo: «N de M salieron de un pedido de una vendedora» | El de la factura (su fecha contable, la misma que usa Contabilidad) |
+| **Con abonos** | Las facturas con **al menos un pago** (completas o a medias), **por su valor total**. Trae **Falta por cobrar**: el saldo de esas facturas, con ITBMS (el dinero real que falta), como el que ve el cliente, al cierre del periodo | El de la factura |
+| **Completadas** | Las facturas **pagadas al 100 %** (también «en proceso de pago») | El del pago que dejó el saldo en cero (nunca antes de la factura) |
 
-- **Una venta facturada sin ningún pago no cuenta en ninguna de las dos** (antes sí contaba en el Inicio de Gerencia:
-  es un cambio a propósito). Una venta devuelta entera con nota de crédito tampoco.
-- Ejemplo de la dueña (está en las pruebas): venta de $1,000 el 5 de octubre, abono de $200 ese día y el resto el 20
-  de noviembre. Completadas: octubre $0, noviembre $1,000. Con abonos: octubre $1,000 con $800 por cobrar; noviembre
-  $0. Cobrado: octubre $200, noviembre $800.
+- **Para que la dueña cambie con cuál abre** es una línea: `BASE_POR_DEFECTO` en `addons/dcasa_interfaz/models/tablero.py`
+  (Brian usa la misma si no se le pide otra).
+- **Notas de crédito.** En «Facturado» restan el día de la nota, como en Contabilidad. En las otras dos restan solo si su
+  factura cuenta ahí (en «Con abonos», si su factura tiene un abono; en «Completadas», si está pagada al 100 %, el día más
+  tardío entre el de la nota y el que se completó la factura). Así una devolución entera saca la venta (una factura
+  anulada con su nota queda «revertida»: no tiene pagos) y una parcial resta solo lo devuelto. Su factura es la que
+  revierte o, si la nota se hizo aparte, la factura con que se concilió; una nota sin factura solo resta en «Facturado».
+- Ejemplo de la dueña (está en las pruebas): sofá de $1,000 facturado el 5 de octubre, abono de $200 ese día y el resto
+  el 20 de noviembre. Facturado: octubre $1,000. Con abonos: octubre $1,000 con $800 por cobrar; noviembre $0.
+  Completadas: octubre $0, noviembre $1,000. Cobrado: octubre $200, noviembre $800. Una factura sin pedido entra igual,
+  según su caso.
 - El día del último pago sale de las conciliaciones de cada factura (las mismas que lista su cuadro de pagos,
   `account.move._dcasa_pagos()` de `dcasa_invoice`), leídas de una vez para todo el periodo.
-- La línea «Contabilidad dice…» sigue cuadrando: ahora explica también las facturas sin pago y las de ventas que se
-  terminaron de pagar en otro periodo. Solo sale con «Todo el equipo».
-- **La vendedora no cambia:** su Inicio sigue con lo facturado por completo, el día de la factura, sin interruptor.
-  También la tarjeta «Vendido hoy», las barras de la semana, «Lo más vendido» y el menú «Ventas de hoy» siguen con lo
-  facturado (no son del interruptor).
+- **«Contabilidad dice…»** ya no es una línea larga a la vista: es un ícono **ⓘ** junto al título «Ventas» que solo sale
+  cuando el Inicio se aparta de Contabilidad, y al tocarlo dice la resta exacta, por qué y abre las facturas que la
+  explican. En «Facturado» no sale, porque es lo mismo (saldría solo si algo que no es una factura de cliente tocara los
+  ingresos, por ejemplo un asiento a mano: entonces lo dice y lo abre). En «Con abonos» explica las facturas sin ningún
+  abono; en «Completadas», las que aún deben algo y las de otras fechas que se terminaron de pagar en el periodo. Solo
+  con «Todo el equipo».
+- **La explicación de la ganancia** («venta menos el costo de la mercancía, no resta gastos» y qué costo usa cada venta)
+  también pasó a un **ⓘ** junto a «Ganancia bruta». A la vista quedan el monto, el porcentaje y, si hay, el aviso corto
+  «N facturas tienen mercancía sin costo y no cuentan aquí». Los ⓘ son botones: se abren tocándolos (también con el
+  teclado y en el celular), «Escape» o tocar fuera los cierra.
+- **La vendedora no cambia:** su Inicio sigue con lo facturado por completo de sus pedidos, el día de la factura, sin
+  interruptor, sin ⓘ y sin gráfica. Tampoco cambian el bono por meta de ventas (usa lo cobrado) ni el menú **Ventas ›
+  Hoy › Ventas de hoy**, que es una lista de pedidos de la app Ventas (no es del Inicio).
 
 **El selector de vendedora** (al lado del interruptor; abre en «Todo el equipo»): cada vendedora (quien tiene el rol
-Vendedora sin ser Gerencia, o tuvo ventas en los últimos 24 meses) y «Sin vendedora» (ventas de la web o de Juan que
-nadie tomó). Filtra las tarjetas y todo Comparar. Cada venta es del «Vendedor» del pedido. El **Cobrado** de una
-vendedora son los pagos aplicados a las facturas de **sus** ventas, no los que ella registró (Caja registra muchos); un
-anticipo suelto o un pago de una factura sin pedido cuenta en el equipo, pero no es de nadie. Falta por cobrar, igual:
-el saldo de sus ventas.
+Vendedora sin ser Gerencia, tuvo ventas en los últimos 24 meses o figura como «Vendedor» de una factura sin pedido de esos
+meses) y «Sin vendedora». Filtra las tarjetas, todo Comparar, la gráfica de la semana y lo más vendido. **De quién es
+cada factura:** si salió de un pedido, del «Vendedor» del pedido (como siempre); si se hizo directo, del «Vendedor» de la
+factura; sin ninguno, de «Sin vendedora» (ventas de la web o de Juan que nadie tomó). Una nota de crédito es de la
+vendedora de la factura que devuelve (Odoo le pone a quien la hace, que es Gerencia). Ojo: si no se elige otro, Odoo pone
+como «Vendedor» de una factura directa al vendedor del cliente o, si no tiene, a quien la crea (por ejemplo, Caja). Las
+facturas del **sistema anterior** van a «Sin vendedora»: el archivo no trae la vendedora y Odoo les pondría a quien las
+cargó (lo mismo si el «Vendedor» es el usuario del sistema, OdooBot). El **Cobrado** de una vendedora son los pagos
+aplicados a **sus** facturas, no los que ella registró (Caja registra muchos); un anticipo suelto cuenta en el equipo,
+pero no es de nadie. Falta por cobrar, igual: el saldo de sus facturas.
+
+**La ganancia de una factura** es la venta sin ITBMS menos el costo de la mercancía, línea por línea, con la misma regla
+de los pedidos: la mercancía y las rebajas (descuento global, de importe fijo) cuentan; el flete y los demás servicios no.
+El costo de una venta que salió de un pedido es el que el pedido guardó al confirmarse; el de una **factura sin pedido**
+(también las del sistema anterior) es el **costo de hoy del producto**, la misma regla que ya usaban las ventas hechas antes
+de esta pantalla. Una factura con mercancía sin costo (o con una línea sin producto que suma) no inventa ganancia: queda
+fuera y se avisa; la franja de atención sigue avisando «N productos vendibles no tienen costo cargado».
 
 **Comparar** (debajo de las tarjetas). Una fila de botones; cada uno es una comparación completa, A contra B:
 
@@ -778,9 +811,10 @@ el saldo de sus ventas.
 
 - Al tocar un botón sale una tabla con solo números; las cabeceras son las fechas («17 oct», «1–17 oct», «Sep
   completo»). Filas: **Ventas** y **Ganancia** (sin ITBMS; las mismas de las tarjetas), **Margen** (ganancia ÷ venta de
-  mercancía de esas mismas ventas: el porcentaje que ya muestra la tarjeta de Ganancia; su cambio va en puntos, «pts»),
-  **N.º de ventas** (su cambio, en unidades), **Falta por cobrar** (solo «Con abonos»; con ITBMS; que suba se pinta en
-  rojo) y **Cobrado** (con ITBMS; igual en las dos posiciones: el dinero que entró).
+  mercancía de esas mismas facturas: el porcentaje que ya muestra la tarjeta de Ganancia; su cambio va en puntos, «pts»),
+  **N.º de ventas** (facturas; su cambio, en unidades; una nota de crédito resta del monto, no del número), **Falta por
+  cobrar** (solo «Con abonos»; con ITBMS; que suba se pinta en rojo) y **Cobrado** (con ITBMS; igual en las tres
+  posiciones: el dinero que entró).
 - **Azul si sube, rojo si baja.** Sin base positiva (cero o negativa) el porcentaje es «—»: nunca se inventa uno.
 - **Distinto largo:** si A y B no tienen los mismos días (A vs B con «Libre», o el 31 contra un mes de 30), el
   porcentaje se calcula sobre el **promedio por día** y la cabecera dice «% por día».
@@ -792,25 +826,28 @@ el saldo de sus ventas.
 - **Decisión sobre la hora (lo más honesto con lo que guarda el sistema):** una factura y un pago tienen fecha (el día
   del negocio), no hora. La hora que sí existe es la de **registro** (`create_date`: cuándo se anotó en el sistema). El
   corte cuenta **lo que a esa hora ya estaba registrado**, es decir, lo que el Inicio habría mostrado ese día a esa
-  hora: una venta, si sus facturas ya estaban registradas (con abonos, también su primer abono); una venta completada,
-  si el pago que la completó ya se había aplicado (`account.partial.reconcile.create_date`); un cobro, si ya estaba
-  registrado (`account.payment.create_date`). Lo que se anota tarde (un pago de ayer registrado hoy, o lo que se cargue
-  del sistema anterior) no tiene hora de ese día: cuenta en los días completos, pero no en el corte. En la tienda la
-  factura y el cobro se hacen en caja al momento, así que la hora de registro es la de la venta.
+  hora: una factura o nota, si ya estaba registrada (con abonos, también su primer abono); una factura completada, si el
+  pago que la completó ya se había aplicado (`account.partial.reconcile.create_date`); un cobro, si ya estaba registrado
+  (`account.payment.create_date`). Lo que se anota tarde (un pago de ayer registrado hoy, o lo que se cargue del sistema
+  anterior) no tiene hora de ese día: cuenta en los días completos, pero no en el corte. En la tienda la factura y el
+  cobro se hacen en caja al momento, así que la hora de registro es la de la venta.
 - **Permisos:** el bloque, el selector de vendedora y la ganancia son de Gerencia y administradores
   (`_ve_utilidad`). El servidor lo exige en `dcasa.tablero.comparar_ventas` (AccessError) y rechaza un `vendedor`
-  ajeno en `ventas_del_periodo` a cualquier otro, aunque lo mande a mano. Valida también la comparación, la base, el
-  mes, las fechas (no futuras, «desde» ≤ «hasta», hasta un año por rango).
+  ajeno en `ventas_del_periodo` y en `grafica_de_ventas` a cualquier otro, aunque lo mande a mano. Valida también la
+  comparación, la base, el mes, las fechas (no futuras, «desde» ≤ «hasta», hasta un año por rango). Las facturas se
+  suman con `sudo` siempre filtrado a facturas y notas de crédito de cliente; la lista que abre cada cifra la ve cada
+  quien con sus permisos.
 - Brian responde «¿cómo vamos contra septiembre?» con las mismas cifras (`comparar_ventas`, [BRIAN.md](BRIAN.md)) y la
   Guía lo explica en «Comparar las ventas».
 
 ### Límites conocidos de las cifras del Inicio (revisión del 2026-10-16)
 
-- **«Vendido» y la ganancia salen de los importes del pedido**, no de las líneas de la factura. Si en caja se corrige el
-  precio o el descuento de la factura en borrador, el pedido no cambia y el Inicio muestra el importe del pedido. Cuadra
-  con Contabilidad cuando la factura es igual al pedido (lo normal). Pendiente: sumar desde las facturas publicadas.
-- **Una nota de crédito parcial o de precio** hace que el pedido salga completo de «vendido» (deja de estar «facturado»),
-  también en días pasados. La devolución total sí es correcta. Pendiente, junto con el punto anterior.
+- **En el Inicio de Gerencia ya no quedan estos dos (2026-10-17):** cuenta las facturas publicadas, así que si en caja se
+  corrige el precio de la factura cuenta lo de la factura, y una nota de crédito parcial resta solo lo devuelto.
+  **Siguen en el Inicio de la vendedora** (que no cambió): «vendido» sale de los importes del pedido (cuadra cuando la
+  factura es igual al pedido, lo normal) y una nota de crédito parcial saca el pedido entero de «vendido».
+- **Ganancia de una factura sin pedido:** usa el costo de hoy del producto (no hay un costo guardado del día de la
+  venta). Si el costo del producto cambia, cambia la ganancia de esas facturas.
 - **La ganancia es una cifra de gestión**: venta menos el costo guardado de cada producto cuando se confirmó la venta. No es
   el costo de ventas contable (que se registra al entregar y puede usar otro método de costo); no se compara con el estado de
   resultados.
@@ -820,7 +857,8 @@ el saldo de sus ventas.
   cancelados ni rechazados.
 - **«Esta semana»** va de lunes a hoy y «Este mes» del 1 a hoy. Las comparaciones (bloque Comparar) cortan el otro
   día a la misma hora y, si los periodos no tienen los mismos días, comparan el promedio por día (2026-10-17).
-- **Lo más vendido** son los últimos 30 días corridos (no el mes calendario) y no cuenta servicios (flete, descuentos).
+- **Lo más vendido** son los últimos 30 días corridos (no el mes calendario), de la posición del interruptor, y no cuenta
+  servicios (flete, descuentos) ni anticipos; las notas de crédito restan las unidades devueltas.
 - **Mejor margen** incluye el descuento global como su propia fila, para que el total cuadre con el Inicio. No cuenta la
   mercancía sin costo cargado.
 
@@ -835,13 +873,15 @@ El **día de la venta es el de su última factura publicada**, no el del pedido:
 factura el viernes se vendió el viernes, el mismo día que entra la plata a la caja, y el número de un día que ya pasó no
 cambia solo. Una nota de crédito que devuelve todo saca la venta. El día se guarda en `sale.order.dcasa_fecha_venta`
 (se calcula solo; al actualizar el módulo se calcula para los pedidos que ya existen) y la definición vive en
-`sale.order._dcasa_dominio_vendido`. **Todo lo «vendido» usa esa misma definición**: la tarjeta «Vendido hoy», la lista
-que abre, las barras de la semana, «Lo más vendido», el menú **Ventas › Hoy › Ventas de hoy** y el resumen de ventas de
-Brian (`resumen_ventas`). En el menú y en Brian, la vendedora ve solo lo suyo; Gerencia, todo.
+`sale.order._dcasa_dominio_vendido`. **Es la definición de la vendedora**: su tarjeta «Vendido hoy» y la lista que abre,
+el menú **Ventas › Hoy › Ventas de hoy** y lo que Brian le responde (`resumen_ventas`). El **Inicio de Gerencia** cuenta
+desde el 2026-10-17 las **facturas publicadas**, como Contabilidad (sección «Facturado, Con abonos o Completadas»), y
+Brian le responde a Gerencia lo mismo.
 
 **Factura suelta (sin cotización).** Una factura hecha directamente, sin pedido de venta detrás, y las facturas que vinieron
-del sistema anterior **no son una «venta» de este tablero** (no hay pedido que contar) y **no tienen nota de entrega**
-(la entrega nace del pedido): «Imprimir documentos» imprime entonces solo la factura. Por eso la vendedora cotiza y la
+del sistema anterior **no son una «venta» del Inicio de la vendedora** (no hay pedido que contar), pero **sí cuentan en el
+Inicio de Gerencia** (que cuenta las facturas, como Contabilidad, y dice cuántas salieron de un pedido). Tampoco **tienen
+nota de entrega** (la entrega nace del pedido): «Imprimir documentos» imprime entonces solo la factura. Por eso la vendedora cotiza y la
 factura se hace desde esa cotización en caja; cobrar y facturar es del personal administrativo. El dinero de una factura
 suelta sí está en Contabilidad (facturas, cobros, Resumen contable); lo que no existe es el pedido. Ver
 `docs/AUDITORIA_CONTABLE.md` (factura vs. venta vs. cobro).

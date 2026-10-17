@@ -56,8 +56,11 @@ llevan el grupo). Brian tampoco le da a quien no es Gerencia la ganancia ni el c
 
 **Comparar y ventas por vendedora** (2026-10-17): el bloque **Comparar** del Inicio, el selector de **vendedora** y
 «Por vendedora» son solo de **Gerencia y administradores** (los mismos que ven la ganancia). El servidor lo exige en
-`dcasa.tablero.comparar_ventas` y rechaza que cualquier otro pida las ventas de otra persona (`ventas_del_periodo` con
-un `vendedor` ajeno), también por Brian. La vendedora no ve el interruptor «Completadas / Con abonos»: su Inicio no cambió.
+`dcasa.tablero.comparar_ventas` y rechaza que cualquier otro pida las ventas de otra persona (`ventas_del_periodo` o
+`grafica_de_ventas` con un `vendedor` ajeno), también por Brian. La vendedora no ve el interruptor «Facturado · Con abonos
+· Completadas» ni los íconos ⓘ, y la gráfica de la tienda se le niega en el servidor: su Inicio no cambió (sigue con sus
+pedidos facturados por completo). Las facturas del Inicio de Gerencia se suman con `sudo` siempre filtrado a facturas y
+notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con sus permisos.
 
 **Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
 Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio

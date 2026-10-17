@@ -109,6 +109,17 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   revisión adversarial; reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); Inicio de Gerencia
   sobre facturas; y un error **confirmado en producción**: ningún administrador puede guardar Ajustes (arreglado en
   `website_dcasa/models/res_config_settings.py`, con pruebas por el camino del navegador; ver CONTEXTO_AGENTICO).
+- **En la rama `inicio-facturado` (local, sin subir; base `0f370b8`):** el **Inicio de Gerencia cuenta las ventas sobre
+  las facturas**, como Contabilidad (respuestas A1 y A2 del jefe, [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)).
+  Interruptor de tres posiciones **Facturado · Con abonos · Completadas** (abre en Facturado; cambiarlo es
+  `BASE_POR_DEFECTO` en `dcasa_interfaz/models/tablero.py`); Facturado = el Estado de resultados para esas fechas (con
+  facturas sin pedido, notas de crédito y facturas del sistema anterior) y dice «N de M salieron de un pedido de una
+  vendedora»; las notas de crédito restan en las tres; la ganancia de una factura sin pedido usa el costo de hoy del
+  producto; la semana, lo más vendido, Comparar, «Por vendedora» y «Vendido hoy» siguen la misma base; «Contabilidad
+  dice…» y la explicación de la ganancia pasaron a un ícono ⓘ. Las facturas del sistema anterior y las de OdooBot van a
+  «Sin vendedora»; una nota de crédito es de la vendedora de su factura. Brian (`resumen_ventas`, `reporte_del_dia`,
+  `comparar_ventas`) cuenta igual, con `facturado` por defecto. La vendedora, la Caja y el bono no cambian. **Sigue:**
+  capturas a la dueña (`inicio_facturado/` del scratchpad de la sesión) → su visto bueno → staging.
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
