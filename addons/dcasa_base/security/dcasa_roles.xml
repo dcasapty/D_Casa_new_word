@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Roles de la tienda: 4 vendedoras y 2 administradores (UI-02, UI-03, ronda 3 §4.1).
-        En la ficha del usuario aparecen como un solo selector «D'CASA»: Vendedora o Gerencia.
-        Cada rol se arma con grupos estándar de Odoo; aquí no se crean permisos nuevos.
+        Roles de la tienda (UI-02, UI-03, ronda 3 §4.1; Caja desde el 2026-10-17).
+        En la ficha del usuario aparecen como un solo selector «D'CASA»: Vendedora, Caja o Gerencia.
+        Cada rol se arma con grupos estándar de Odoo; las reglas de «solo lo suyo» están en
+        dcasa_reglas_contables.xml y dcasa_reglas_ventas.xml (ver docs/PERMISOS.md).
     -->
     <record id="module_category_dcasa" model="ir.module.category">
         <field name="name">D'CASA</field>
@@ -13,36 +14,61 @@
 
     <record id="res_groups_privilege_dcasa" model="res.groups.privilege">
         <field name="name">D'CASA</field>
-        <field name="description">Rol en la tienda: Vendedora (vende y cobra) o Gerencia (además controla).</field>
+        <field name="description">Rol en la tienda: Vendedora (lo suyo), Caja (factura y cobra todo) o Gerencia (además controla).</field>
         <field name="placeholder">Sin rol</field>
         <field name="sequence">1</field>
         <field name="category_id" ref="module_category_dcasa"/>
     </record>
 
     <!--
-        Vendedora: vende, cobra y despacha.
-        * Ventas «todos los documentos» (no «solo los suyos»): en una sola tienda el cliente vuelve
-          y lo atiende la que esté; la que cobra o entrega tiene que encontrar la cotización de otra.
-          Además, con Facturación ve todas las facturas y cobros: limitar solo las cotizaciones no
-          aísla nada y estorba. El control antifraude (puntos por vendedora) queda en Gerencia.
+        Vendedora: vende, cobra y despacha LO SUYO (pedido de la dueña, 2026-10-16: «los vendedores deberían solo
+        poder ver las facturas que ellos hacen»).
+        * Ventas «solo sus documentos» (sales_team.group_sale_salesman): sus cotizaciones y pedidos (user_id) y los
+          que no tienen vendedora (web, Juan sin asignar), el análisis de ventas y el de facturas, igual que Odoo.
+          Las facturas, notas, cobros y conciliaciones se cierran a «lo suyo» en dcasa_reglas_contables.xml
+          (Facturación las abría todas). Las oportunidades siguen compartidas (dcasa_reglas_ventas.xml).
+        * «Ventas: todos los documentos» (sales_team.group_sale_salesman_all_leads) NO se nombra aquí, ni con (4, …)
+          ni con (3, …): esa implicación es el interruptor «Cada vendedora ve solo sus documentos» (Ajustes de Ventas
+          y Ventas › Configuración › Permisos de las vendedoras; models/res_users.py). Apagado, el rol la implica y
+          todas ven todo como antes. Si este archivo la nombrara, cada despliegue (-u) movería el interruptor. En la
+          base de antes la quita una vez la migración 19.0.1.8.0 (quitar la línea (4, …) no la borra).
         * Facturación (account.group_account_invoice): la única forma de registrar cobros
           (ACL de account.payment). No da asientos, conciliación ni reportes contables.
-        * Inventario usuario: entregas y existencias. CRM y Socios cuelgan de los grupos de Ventas.
+        * Inventario usuario: entregas y existencias (despacha también lo de otra: la nota no lleva precios).
+          CRM y Socios cuelgan de los grupos de Ventas.
     -->
     <record id="group_vendedora" model="res.groups">
         <field name="name">Vendedora</field>
         <field name="sequence">10</field>
         <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
-        <field name="comment">Vende, cobra y despacha. Descuentos hasta el tope configurado en Ajustes de Ventas.</field>
+        <field name="comment">Vende, cobra y despacha. Con «Cada vendedora ve solo sus documentos» encendido (Ajustes de Ventas), ve solo sus cotizaciones, pedidos, facturas, notas y cobros (y los que no tienen vendedora). Descuentos hasta el tope configurado en Ajustes de Ventas.</field>
         <field name="implied_ids" eval="[
-            (4, ref('sales_team.group_sale_salesman_all_leads')),
+            (4, ref('sales_team.group_sale_salesman')),
             (4, ref('account.group_account_invoice')),
             (4, ref('stock.group_stock_user')),
         ]"/>
     </record>
 
     <!--
-        Gerencia: todo lo de Vendedora más el control de la tienda: Ventas administrador
+        Caja: todo lo de Vendedora y además ve, factura y cobra los documentos de clientes de TODA la tienda
+        (las cotizaciones de las vendedoras se facturan y se cobran en caja). Es «Ventas: todos los documentos»
+        (sales_team.group_sale_salesman_all_leads, el mismo grupo con el que Odoo abre todos los pedidos); las
+        reglas «toda la tienda, solo de clientes» cuelgan de ese grupo. Sin contabilidad, sin costos ni ganancia y
+        con el tope de descuento de la vendedora. No se le asigna a nadie al instalar: lo da un administrador.
+    -->
+    <record id="group_caja" model="res.groups">
+        <field name="name">Caja</field>
+        <field name="sequence">15</field>
+        <field name="privilege_id" ref="res_groups_privilege_dcasa"/>
+        <field name="comment">Todo lo de Vendedora y además ve, factura y cobra todas las cotizaciones, pedidos, facturas, notas y cobros de clientes. Sin contabilidad ni costos; descuento con tope.</field>
+        <field name="implied_ids" eval="[
+            (4, ref('group_vendedora')),
+            (4, ref('sales_team.group_sale_salesman_all_leads')),
+        ]"/>
+    </record>
+
+    <!--
+        Gerencia: todo lo de Caja (y por lo tanto de Vendedora) más el control de la tienda: Ventas administrador
         (reportes antifraude, descuentos sin tope, ajustes de puntos), contabilidad completa
         (sin la configuración avanzada de account.group_account_manager), Inventario y Compras
         administrador, y crear productos (product.group_product_manager: el catálogo y la
@@ -56,6 +82,7 @@
         <field name="comment">Controla la tienda: reportes antifraude, descuentos sin tope, contabilidad, compras e inventario.</field>
         <field name="implied_ids" eval="[
             (4, ref('group_vendedora')),
+            (4, ref('group_caja')),
             (4, ref('sales_team.group_sale_manager')),
             (4, ref('account.group_account_user')),
             (4, ref('stock.group_stock_manager')),

@@ -59,6 +59,20 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'res.config.settings', 'get_values'):
+        OVERRIDE + ' Solo agrega si «Cada vendedora ve solo sus documentos» está encendido; res.config.settings es '
+                   'solo de administradores.',
+    ('dcasa_base', 'res.config.settings', 'set_values'):
+        OVERRIDE + ' Mueve el interruptor con res.users._dcasa_poner_restriccion, que exige Gerencia o administrador '
+                   'antes del sudo; res.config.settings es solo de administradores.',
+    ('dcasa_base', 'dcasa.permisos.vendedoras', 'action_guardar'):
+        ASISTENTE + ' Además, res.users._dcasa_poner_restriccion exige Gerencia o administrador en el servidor antes '
+                    'del sudo.',
+    ('dcasa_base', 'sale.order', 'create'):
+        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
+    ('dcasa_base', 'account.move', 'create'):
+        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
+                   'sin sudo().',
     ('dcasa_base', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo vuelve a tomar el costo de cada línea al confirmar (la ganancia de esa venta); corre como el '
                    'usuario, sin sudo().',

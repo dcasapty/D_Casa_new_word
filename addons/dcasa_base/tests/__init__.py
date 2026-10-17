@@ -5,6 +5,7 @@ from . import test_roles
 from . import test_mantenimiento
 from . import test_permisos_vendedora
 from . import test_permisos_contables
+from . import test_solo_lo_suyo
 from . import test_ajuste_existencias
 from . import test_utilidad
 from . import test_tope_rutas
