@@ -2,6 +2,7 @@ import os
 import re
 from unittest.mock import patch
 
+from odoo import Command
 from odoo.tests import HttpCase, TransactionCase, tagged
 
 
@@ -106,6 +107,45 @@ class TestAppSocio(HttpCase):
         self.assertIn('353', con_codigo.text)
         self.assertEqual(self.Partner.search_count([('dcasa_celular', '=', '61234567')]), 1, 'Una sola ficha')
         self.assertTrue(ficha.dcasa_reclamada)
+
+    def test_reclamar_una_ficha_con_compras_pide_el_codigo_aunque_no_tenga_puntos(self):
+        """Hueco cerrado: con 0 puntos una ficha se reclamaba sin el código de la factura. Con sus compras a la vista
+        en «Mi cuenta», eso dejaba ver las compras de otra persona a quien solo supiera su celular."""
+        cliente = self.Partner.create({'name': 'Eric Gómez', 'phone': '6123-4567'})
+        ficha = cliente._dcasa_asegurar_ficha()
+        producto = self.env['product.product'].create({'name': 'Cojín de prueba', 'type': 'consu', 'list_price': 15.0})
+        factura = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': cliente.id,
+            'invoice_line_ids': [Command.create({'product_id': producto.id, 'quantity': 1, 'price_unit': 15.0})]})
+        factura.action_post()
+        self.assertEqual(ficha.dcasa_saldo, 0, 'Sin puntos: antes se reclamaba sin código')
+        sin_codigo = self.registrar()
+        self.assertIn('Ya tienes compras registradas con ese número', sin_codigo.text)
+        self.assertIn('código de socio', sin_codigo.text)
+        ficha.invalidate_recordset()
+        self.assertFalse(ficha.dcasa_reclamada)
+        mal_codigo = self.registrar(codigo='DCA222222')
+        self.assertIn('Ya tienes compras registradas con ese número', mal_codigo.text)
+        con_codigo = self.registrar(codigo=ficha.dcasa_socio_codigo.lower())
+        self.assertIn(ficha.dcasa_socio_codigo, con_codigo.text)
+        ficha.invalidate_recordset()
+        self.assertTrue(ficha.dcasa_reclamada)
+        self.assertEqual(self.Partner.search_count([('dcasa_celular', '=', '61234567')]), 1, 'Una sola ficha')
+
+    def test_que_cuenta_como_compra_para_reclamar(self):
+        cliente = self.Partner.create({'name': 'Rosa Díaz', 'phone': '6123-9876'})
+        ficha = cliente._dcasa_asegurar_ficha()
+        self.assertFalse(ficha._dcasa_tiene_compras())
+        producto = self.env['product.product'].create({'name': 'Mesa de prueba', 'type': 'consu', 'list_price': 40.0})
+        pedido = self.env['sale.order'].create({
+            'partner_id': cliente.id, 'order_line': [Command.create({'product_id': producto.id})]})
+        self.assertFalse(ficha._dcasa_tiene_compras(), 'Un borrador (o un carrito de la web) no cuenta')
+        pedido.action_quotation_sent()
+        self.assertTrue(ficha._dcasa_tiene_compras(), 'Una cotización enviada sí: «Mi cuenta» la enseña')
+        contacto = self.Partner.create({'name': 'Rosa en la oficina', 'parent_id': ficha.id, 'type': 'invoice'})
+        otra = self.env['res.partner'].create({'name': 'Otra persona', 'phone': '6123-1111'})
+        self.assertFalse(otra._dcasa_tiene_compras())
+        self.assertTrue(contacto._dcasa_tiene_compras(), 'La ficha comercial manda')
 
     def test_pedir_un_premio_desde_la_app(self):
         self.registrar()

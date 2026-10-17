@@ -271,6 +271,21 @@ class ResPartner(models.Model):
             ('puntos', '>', 0),
         ])
 
+    def _dcasa_tiene_compras(self):
+        """¿Esta ficha tiene algo que «Mi cuenta» le enseñaría? Una factura de cliente publicada o un pedido que no
+        es borrador (cotización enviada, confirmado o cancelado). Reclamarla sin el código de la factura dejaría ver
+        compras ajenas a quien solo sepa el celular."""
+        self.ensure_one()
+        ficha = self.commercial_partner_id
+        if not ficha.id:
+            return False
+        dominio = [('partner_id', 'child_of', ficha.id)]
+        if self.env['account.move'].sudo().search_count(
+                dominio + [('move_type', '=', 'out_invoice'), ('state', '=', 'posted')], limit=1):
+            return True
+        return bool(self.env['sale.order'].sudo().search_count(
+            dominio + [('state', 'in', ('sent', 'sale', 'cancel'))], limit=1))
+
     def _dcasa_asignar_padrino(self, padrino, cuando=None):
         """Registra quién lo invitó si todavía se puede. Nunca falla: devuelve si se asignó."""
         self.ensure_one()
