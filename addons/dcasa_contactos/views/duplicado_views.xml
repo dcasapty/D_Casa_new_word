@@ -41,4 +41,22 @@
 
     <menuitem id="menu_duplicados" name="Posibles duplicados" parent="dcasa_socios.menu_dcasa_config"
               action="accion_duplicados" sequence="30" groups="sales_team.group_sale_manager"/>
+
+    <!-- Celular y correo obligatorios (2026-10-16): los clientes viejos a los que les falta alguno, para completarlos
+         antes de su próxima venta (sin ellos no se confirma ni le llega su factura). -->
+    <record id="accion_clientes_sin_contacto" model="ir.actions.act_window">
+        <field name="name">Clientes sin correo o sin celular</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('customer_rank', '>', 0), ('parent_id', '=', False), '|', '&amp;', ('email', '=', False), ('dcasa_sin_correo', '=', False), ('phone', '=', False)]</field>
+        <field name="context">{'res_partner_search_mode': 'customer'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todos los clientes tienen celular y correo</p>
+            <p>Sin ellos no se puede confirmar una venta ni le llega su factura al cliente.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_clientes_sin_contacto" name="Clientes sin correo o sin celular"
+              parent="dcasa_socios.menu_dcasa_config" action="accion_clientes_sin_contacto" sequence="31"
+              groups="sales_team.group_sale_manager"/>
 </odoo>

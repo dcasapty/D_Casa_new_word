@@ -265,6 +265,7 @@ class TestCotizacion(CatalogoCase):
     def test_la_abierta_mas_reciente_va_primero_y_las_confirmadas_no_cuentan(self):
         vieja = self.orden()
         confirmada = self.orden()
+        self.partner.sudo().email = 'zzcliente1@example.com'  # sin correo no se confirma (dcasa_contactos)
         confirmada.action_confirm()
         nueva = self.orden()
         resultado = self.panel.cotizaciones_abiertas(self.conv.id)
@@ -331,6 +332,7 @@ class TestCotizacion(CatalogoCase):
             self.panel.enviar_cotizacion(self.conv.id)
         self.assertIn('cotización abierta', str(error.exception))
         confirmada = self.orden()
+        self.partner.sudo().email = 'zzcliente1@example.com'  # sin correo no se confirma (dcasa_contactos)
         confirmada.action_confirm()
         with self.assertRaises(UserError):
             self.panel.enviar_cotizacion(self.conv.id, confirmada.id)

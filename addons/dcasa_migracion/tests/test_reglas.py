@@ -92,6 +92,20 @@ class TestFilasDeClientes(BaseCase):
         self.assertEqual(filas[0]['notas'], ['Correo mal escrito en el sistema anterior: no-es-correo',
                                              'DV mal escrito en el sistema anterior: 9X'])
 
+    def test_correo_de_dedo_o_de_relleno_va_a_las_notas(self):
+        """Lo que la ficha nueva no aceptaría («gmial.com», «sincorreo@…») no se carga como si fuera bueno: queda en
+        las notas para pedírselo al cliente, y la fila se carga igual (2026-10-16)."""
+        # Partidos en dos: el módulo no lleva correos que parezcan reales (test_sin_datos_personales).
+        dedo, sugerido = 'ana@' + 'gmial.com', 'ana@' + 'gmail.com'
+        filas, errores = R.filas_clientes(
+            f'id_viejo,nombre,correo\n1,Ana de Prueba,{dedo}\n2,Luis de Prueba,sincorreo@ejemplo.com\n'
+            '3,Eva de Prueba,eva@ejemplo.com\n')
+        self.assertFalse(errores)
+        self.assertEqual([f['correo'] for f in filas], ['', '', 'eva@ejemplo.com'])
+        self.assertEqual(filas[0]['notas'], [f'Correo mal escrito en el sistema anterior: {dedo} (¿{sugerido}?)'])
+        self.assertEqual(filas[1]['notas'], ['Correo de relleno en el sistema anterior: sincorreo@ejemplo.com'])
+        self.assertEqual(filas[2]['notas'], [])
+
     def test_espacios_de_mas_en_el_nombre(self):
         filas, _ = R.filas_clientes('id_viejo,nombre\n1,  Ana   de   Prueba \n')
         self.assertEqual(filas[0]['nombre'], 'Ana de Prueba')

@@ -40,6 +40,42 @@ contacto de empleado y sus direcciones de entrega o de factura, todos con el mis
   antes del candado), sale un aviso con el nombre de la otra para cotizar en la correcta y fusionarlas después.
 * Lo ya guardado no cambia: una cotización vieja con una dirección como cliente se sigue abriendo igual.
 
+## Celular y correo bien escritos y obligatorios (2026-10-16 y 2026-10-17)
+
+Pedido de la dueña: «el vendedor siempre, obligatoriamente, debe capturar el número de teléfono y correo electrónico,
+pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos.
+
+* **Qué es «bien escrito»** (`dcasa_socios/models/bien_escrito.py`, funciones puras):
+  * Correo con una sola `@`, sin espacios ni comas y con un dominio completo. Los errores de dedo de los correos más
+    usados traen sugerencia: `ana@gmial.com` → «¿Quisiste decir ana@gmail.com?»; también `hotmail.con`, `gmail.co`,
+    `yahoo.cmo`… (`hotmail.es` y `yahoo.es` sí valen; `algo.co` también). Lo de relleno (`no@no.com`,
+    `sincorreo@gmail.com`) no es un correo. Se guarda limpio y en minúsculas.
+  * Celular de Panamá de 8 números (`6026-1919`, con o sin +507) o de otro país **con +** y su código
+    (`+1 305 555 1234`). Se guarda como `+507 6026-1919` o `+13055551234`; la llave de contactos no cambia. Un fijo de
+    7 números no pasa (lo decide la dueña).
+  * El correo de alguien del equipo o de la empresa no sirve como correo del cliente.
+* **Cuándo se exige** (solo a quien trabaja en Odoo y sin `sudo`; Juan, la tienda, Socios, el importador, la fusión
+  y los crons no pasan por aquí; Brian sí, porque corre como la vendedora):
+  * **Al escribir** un correo o un celular en la ficha de un cliente: si está mal escrito no se guarda (al salir del
+    campo ya sale el «¿Quisiste decir…?»). Lo viejo no se toca: solo se revisa lo que cambia.
+  * **Al crear una persona como cliente** (Ventas › Clientes, «Crear y editar» en la cotización, «Nuevo cliente» del
+    Inicio): celular y correo obligatorios. La creación rápida (escribir el nombre y Enter) y las empresas no se frenan
+    al crear: los pide la venta.
+  * **Al confirmar la venta** (puerta A) y **al publicar la factura** (puerta B), con un mensaje que dice qué falta y
+    dónde se escribe. Mientras se cotiza, un aviso amarillo lo adelanta. **«Pagar» nunca se bloquea.**
+  * Nada de esto frena el guardado automático (la nube): una cotización o una ficha vieja a medias se guarda igual.
+* **«Cliente no tiene correo electrónico»** (decisión de la dueña, 2026-10-17): es la única excepción y **solo exime
+  del correo** (el celular sigue obligatorio). La marca la vendedora junto al cliente en la cotización (se guarda en la
+  ficha al guardar la cotización) o en la ficha, debajo del correo. Solo se ve mientras el correo está vacío; si
+  después se le escribe un correo, **se desmarca sola**. Queda en el historial de la ficha quién la marcó. Por Brian:
+  `crear_cliente` o `actualizar_cliente` con el correo «no tiene».
+* **Clientes viejos:** **Socios › Configuración › Clientes sin correo o sin celular** (Gerencia) los lista para
+  completarlos antes de su próxima venta.
+* No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.
+* Código: `dcasa_contactos/models/contacto.py` (ficha y mensajes), `sale_order.py` (puerta A y la casilla de la
+  cotización), `account_move.py` (puerta B). Pruebas: `test_bien_escrito.py`, `test_exigir_contacto.py` y
+  `test_sin_correo_navegador.py` (la casilla en el navegador, guardando con la nube).
+
 ## Puntos por WhatsApp
 
 Juan responde el saldo de puntos del **número de esa conversación** (nadie puede pedir el de otro número) y **pide el

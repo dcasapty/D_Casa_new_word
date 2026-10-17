@@ -8,6 +8,8 @@
 * Quien ve el aviso es de la casa: dice de quién es el dato. Quien viene del sitio o del chat no ve nombres ajenos.
 * ``with_context(dcasa_sin_duplicados=True)`` salta la revisión (lo usan la fusión de contactos y la creación de
   usuarios, empleados y empresas, cuyos contactos todavía no tienen su vínculo).
+
+Celular y correo bien escritos y obligatorios (pedido de la dueña, 2026-10-16): ver ``contacto.py``.
 """
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
@@ -15,6 +17,7 @@ from odoo.exceptions import ValidationError
 from . import claves
 
 SIN_DUPLICADOS = 'dcasa_sin_duplicados'
+SIN_EXIGIR_CONTACTO = 'dcasa_sin_exigir_contacto'
 CAMPOS_QUE_IDENTIFICAN = frozenset({'phone', 'email', 'vat', 'dcasa_celular', 'parent_id'})
 DATOS = {'celular': 'celular', 'correo': 'correo', 'ruc': 'RUC o cédula'}
 
@@ -142,12 +145,14 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        self._dcasa_revisar_contacto_al_crear(vals_list)
         partners = super().create(vals_list)
         if not self.env.context.get(SIN_DUPLICADOS):
             partners._dcasa_revisar_duplicados({})
         return partners
 
     def write(self, vals):
+        vals = self._dcasa_revisar_contacto_al_editar(vals)
         if self.env.context.get(SIN_DUPLICADOS) or not CAMPOS_QUE_IDENTIFICAN.intersection(vals):
             return super().write(vals)
         antes = {partner.id: partner._dcasa_claves() for partner in self}
@@ -155,9 +160,10 @@ class ResPartner(models.Model):
         self._dcasa_revisar_duplicados(antes)
         return resultado
 
-    @api.onchange('email', 'vat')
+    @api.onchange('email', 'vat', 'phone')
     def _onchange_dcasa_duplicado(self):
-        """Avisa ANTES de guardar (solo al personal) si el correo o el RUC ya son de otra ficha."""
+        """Avisa ANTES de guardar (solo al personal) si el correo o el RUC ya son de otra ficha; si no, si el correo o
+        el celular que se acaban de escribir están mal escritos («¿Quisiste decir…?»). Un solo aviso."""
         if not self.env.user.has_group('base.group_user'):
             return None
         propias = self._origin.ids
@@ -171,4 +177,7 @@ class ResPartner(models.Model):
                 return {'warning': {
                     'title': self.env._('Ya existe esa persona'),
                     'message': self._dcasa_mensaje_duplicado(etiqueta, clave, otra)}}
+        mensaje = self._dcasa_aviso_bien_escrito()
+        if mensaje:
+            return {'warning': {'title': self.env._('Revisa lo que escribiste'), 'message': mensaje}}
         return None

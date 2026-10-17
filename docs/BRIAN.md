@@ -44,6 +44,10 @@ MCP ────────┘         │                        │  tool cal
 |---|---|---|
 | lectura | reporte del día, buscar productos, balance, clientes que deben | Directo |
 | construcción | crear producto, cliente, cotización, factura en borrador; editar precio; mover stock | Directo, auditado |
+
+`crear_cliente` pide el celular y el correo, los dos bien escritos (los mismos «¿Quisiste decir…?» de la ficha); si
+el cliente de verdad no tiene correo, se escribe «no tiene» y queda marcada «Cliente no tiene correo electrónico».
+`actualizar_cliente` revisa igual el celular y el correo (y acepta el correo «no tiene»).
 | sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
 | prohibido | ver abajo | No existe herramienta para eso |
 

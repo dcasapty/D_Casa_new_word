@@ -77,6 +77,20 @@ class DcasaCheckout(WebsiteSale):
         pais = super()._get_default_country(order_sudo=order_sudo, **kwargs)
         return pais or request.website.company_id.country_id
 
+    def _validate_address_values(self, address_values, partner_sudo, address_type, use_delivery_as_billing,
+                                 required_fields, **kwargs):
+        """Además de lo de Odoo: el celular bien escrito y el correo sin errores de dedo («¿quisiste decir…?»). Ahí le
+        llegan su factura y cómo ver sus puntos (dcasa_contactos, 2026-10-16)."""
+        invalidos, faltantes, mensajes = super()._validate_address_values(
+            address_values, partner_sudo, address_type, use_delivery_as_billing, required_fields, **kwargs)
+        errores = request.env['res.partner'].sudo()._dcasa_errores_de_contacto(
+            address_values.get('phone'), address_values.get('email'))
+        for campo, mensaje in errores.items():
+            if campo not in invalidos:
+                invalidos.add(campo)
+                mensajes.append(mensaje)
+        return invalidos, faltantes, mensajes
+
     def _create_new_address(self, address_values, address_type, use_delivery_as_billing, order_sudo):
         """Quien compra sin cuenta con un celular, correo o RUC que ya son de una ficha cae en ESA ficha: su dirección
         queda como dirección de esa persona (una persona, una ficha; así suma sus puntos), sin tocar sus datos."""

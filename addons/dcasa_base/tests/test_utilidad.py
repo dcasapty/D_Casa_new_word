@@ -27,7 +27,9 @@ class TestUtilidad(TransactionCase):
         cls.flete = cls.env['product.product'].create({
             'name': 'Flete utilidad', 'type': 'service', 'list_price': 20.0, 'standard_price': 0.0,
             'taxes_id': [Command.set(cls.itbms.ids)]})
-        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente utilidad'})
+        # Con celular y correo: sin ellos la vendedora no confirma la venta (dcasa_contactos, 2026-10-16).
+        cls.cliente = cls.env['res.partner'].create({'name': 'Cliente utilidad', 'phone': '6000-0021',
+                                                     'email': 'cliente.utilidad@example.com'})
 
     def _orden(self, *lineas, usuario=None):
         return self.env['sale.order'].with_user(usuario or self.env.user).create({
