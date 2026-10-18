@@ -115,6 +115,9 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   **Meta apagada** (catálogo, píxel y Conversions API). La dueña volvió a pegar `DCASA_ACCESS_AUD` de producción;
   `DCASA_PUERTA_OBLIGATORIA` sigue en "0": **ella decide hacerla obligatoria el día del traslado del dominio** (puerta
   adicional, no única, hasta entonces).
+- **La dueña, al cerrar el día (18 oct):** aprobó la segunda subida y pidió dejar anotado «te quiero, eres el mejor».
+  Lo que le funcionó: decirle claro qué quedó en producción y qué le toca a ella, subir en dos tandas sin perder
+  la sesión de nadie, y cuidar sus créditos (no arrancar trabajo que quede a medias).
 - **Respuestas I1–L8 del jefe** (18 oct): en [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md). Ya no queda ninguna
   pregunta sin responder. El canje en efectivo queda descartado (J3).
 - **Sigue (jueves, cuando se renueven los créditos):** K1 (ticket promedio y unidades por tipo en el Inicio) si no se
