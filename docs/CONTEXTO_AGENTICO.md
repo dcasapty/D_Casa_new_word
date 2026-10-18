@@ -313,6 +313,9 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   «conexiones» a 390 px) falla en esta máquina con 13.52 % de píxeles distintos **también en `3b678a6`** (sin cambios):
   es del entorno local (Chromium/fuentes), no del código. La de «hilo» a 390 px dio 2.02 % una vez y pasó en la
   siguiente corrida. Antes de culpar a un cambio, correrla en la base sin el cambio.
+- **Local, 2026-10-18** · `dcasa_conversaciones` `TestPanelEnElNavegador.test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio`
+  («sin conexión no debería aparecer solo») pasó a las 22:36 UTC y falló después de medianoche UTC, sola y también con
+  el mismo código (`4404073`, en un worktree aparte): depende de la hora, no del cambio. Sin investigar la causa.
 
 ---
 
@@ -397,9 +400,31 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Una suma por SQL (`cr.execute`) no pasa por las reglas de registro**: «Ventas atribuidas» del Resumen de
   Conversaciones le daba a la vendedora la suma de toda la tienda. Toda suma nueva por SQL de facturas o pedidos se
   acota a mano con `res.users._dcasa_solo_lo_suyo()` (lo suyo y lo sin vendedora).
-- **Los pedidos de la web no quedan «sin vendedora»**: `website_sale` los asigna al confirmarse (o al quedar el pago
-  pendiente) al `website.salesperson_id`, que en una base nueva es `base.user_admin` (dato de `website_sale`); si está
-  vacío, a la vendedora de la ficha del cliente. Una prueba con `user_id: False` no imita la web.
+- **Los pedidos de la web** (`website_sale`) se asignan al confirmarse (o al quedar el pago pendiente) con
+  `_compute_user_id` y `force_user_recomputation` al `website.salesperson_id` (en una base nueva, `base.user_admin`) o a
+  la vendedora de la ficha. Desde el 2026-10-17 `website_dcasa/models/pedido_web.py` los deja **sin vendedora** (salvo
+  la vendedora que confirma, o un «Vendedor» del sitio puesto a mano). Una prueba con `user_id: False` sin `website_id`
+  no imita la web: se crea con `website_id` y se confirma como superusuario o como la persona.
+- **«Solo Gerencia» o «solo Caja» no se puede hacer con reglas de registro** (se suman con «o», y Caja y la Vendedora
+  con el interruptor apagado comparten «todos los documentos»): va en Python, en el servidor, antes de `super()`
+  (`dcasa_base/models/cobros.py`). Odoo crea el `account.payment` y **después** revisa las reglas: para que el mensaje
+  claro salga antes que el «no tienes permiso» genérico, se mira el tipo en los `vals` (con los `default_` del contexto)
+  antes de crear. Y `account.move.write({'state': 'draft'})` por RPC pasa a borrador sin el botón: también se vigila.
+- **Odoo cruza solo** el pago en línea de un pedido con su factura al publicarla (`sale` `_post` →
+  `js_assign_outstanding_line`, como quien publica). Una regla que frene cruzar cobros tiene que dejar pasar ese caso
+  (`pago_en_linea_de_su_factura`: el pago es de una transacción de esa misma factura), o la vendedora no podría
+  facturar. Con «solo lo suyo» encendido la vendedora no ve ese pago y Odoo no lo cruza: la factura se publica por
+  cobrar y Caja le aplica el cobro desde la factura (comprobado en una base de prueba el 2026-10-17).
+- **`assertRaisesRegex` no deshace nada en las pruebas de Odoo** (es el de `unittest`); `self.assertRaises` sí abre un
+  savepoint. Si el error salta después de escribir (una revisión al final de un pago), con `assertRaisesRegex` lo escrito
+  se queda y la prueba ve un estado que en la vida real se deshizo: usar `assertRaises` y mirar el mensaje
+  (`negado(...)` en `test_reglas_gerencia.py`), y `invalidate_all()` antes de releer.
+- **Unir `main` cuando `main` trae en un *squash* lo que la rama ya había unido** da conflictos «add/add» en muchos
+  archivos: resolver con una fusión de tres vías cuya base sea la punta vieja que la rama unió
+  (`git merge-file` o `git merge-tree --merge-base=<punta vieja>`), y comparar el árbol resultante (2026-10-17).
+- **Los ganchos de conciliación** (`_reconcile_pre_hook` / `_reconcile_post_hook` de `account.move.line`) ven todos los
+  caminos que cruzan cobros (asistente, banco, saldo a favor, Brian): sirven para avisos que no deben frenar (el primer
+  abono menor a la mitad que entra por el banco). Un aviso en el gancho va en `savepoint` y nunca hace fallar el pago.
 
 ### Cloudflare
 

@@ -111,12 +111,20 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     para su meta; si la confirma Caja, no es de nadie), y una vendedora ya no ve la cotización de otra para el cliente
     que vuelve (Caja o Gerencia le cambian el «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración ›
     Permisos de las vendedoras* › apagar (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
-    **Tres decisiones tuyas** (revisión del 17 oct): (a) **los pedidos de la web** quedan a nombre del «Vendedor» del
-    sitio web (*Ajustes › Sitio web*); si es el administrador, las vendedoras no los ven (Caja y Gerencia sí): si
-    quieres que los vean todas, deja ese campo vacío. (b) **La vendedora todavía puede cobrar** (y registrar abonos de)
-    sus propias facturas; si solo debe cobrar Caja, se le quita «Facturación» al rol Vendedora. (c) Lo que se comparte a
-    propósito (la nota de entrega, Conversaciones, los puntos de Socios, el CRM) deja ver números de pedido o factura de
-    otra vendedora: la lista está en [PERMISOS.md](PERMISOS.md).
+    **Decidido el 17 oct** (ya hecho en la rama, falta desplegar): (a) **los pedidos de la web entran sin vendedora**:
+    los ven todas y la que lo confirma se lo queda (si lo confirma Caja, sigue sin vendedora); el «Vendedor» del sitio
+    web queda vacío (si algún día se pone uno, los pedidos web vuelven a ir a esa persona); el vendedor del programa
+    (link `/v/…`) no cambia. (b) **El cobro solo en Caja**: la vendedora sigue cotizando, confirmando y facturando, pero
+    ya no cobra (decisión de la gerencia, ver [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)). Queda abierta (c):
+    lo que se comparte a propósito (la nota de entrega, Conversaciones, los puntos de Socios, el CRM) deja ver números
+    de pedido o factura de otra vendedora: la lista está en [PERMISOS.md](PERMISOS.md).
+24. **Reglas contables de la gerencia (rama `permisos-vendedoras`):** antes de staging, que veas las capturas (primer
+    abono menor a la mitad, papel del abono a 30 días, la vendedora que intenta cobrar, el mensaje al anular sin ser
+    Gerencia y «Pagar» con Tafi y Crediviva). Para la **contadora**: revisar la cuenta contable que el sistema les creó a
+    **Tafi (financiamiento)** y **Crediviva (financiamiento)** (son diarios de banco con cuenta propia) y cómo se cruza
+    lo que la financiera deposita después. Para la gerencia: confirmar si Caja puede seguir quitando un cobro mal
+    aplicado de una factura (hoy sí; Gerencia también) y si el contador (sin Gerencia) también debe poder anular o hacer
+    notas de crédito (hoy no: solo Gerencia y administradores).
 
 ## Issues abiertos que dependen de ti
 

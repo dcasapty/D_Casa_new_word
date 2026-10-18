@@ -26,9 +26,13 @@ las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer
 **Pedido del 2026-10-16/17 (permisos): hecho en la rama local `permisos-vendedoras`, sin subir.** Cada vendedora ve solo
 lo suyo, rol Caja y el interruptor «Cada vendedora ve solo sus documentos» para volver atrás (ver
 [PERMISOS.md](PERMISOS.md)). Revisión adversarial hecha el 17 oct (dos arreglos y cinco pruebas de la rama unida; ver la
-bitácora). Falta: que la dueña apruebe las capturas y decida lo de [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md) punto 23
-(pedidos de la web, si la vendedora sigue cobrando), CI y staging; producción con su «sí»; ese día, darle Caja al jefe
-administrativo antes de abrir.
+bitácora). **Encima, las reglas contables de la gerencia** (17 oct, [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md):
+A3, A5, A6, A7 y C1, hechas) y las respuestas de la dueña del punto 23 (pedidos web sin vendedora; la vendedora sigue
+facturando pero no cobra). Falta: que la dueña apruebe las capturas (`capturas_permisos/` y `capturas_reglas/`), CI y
+staging; producción con su visto bueno; ese día, darle Caja al jefe administrativo antes de abrir. De las
+decisiones contables, esta rama no toca: crédito solo a autorizados por Gerencia (A3), «Vendido» como facturas publicadas (A1),
+correo 5 días antes del vencimiento del abono (D3), comisiones del punto de venta del banco por lote (B1/C6), fondo fijo
+de caja (C4), aportes y retiros de los dueños (C8), mermas con aviso del 0.5 % (F6).
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
@@ -106,7 +110,8 @@ unidos con el PR #43.)
 | Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | Hecho y probado en la rama `comparar-ventas` (sin subir). Falta staging, que la dueña lo mire y su «sí» para producción. Cambio a propósito: una venta facturada sin ningún pago ya no cuenta en el Inicio de Gerencia | — |
 | Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | Papel y Mi cuenta hechos y probados (próximo despliegue); condiciones de abono en construcción | — |
 | Panel del cliente «Mi cuenta» | Hecho y probado (próximo despliegue); falta la ronda de pulido de la auditoría visual | — |
-| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Hecho y revisado en la rama `permisos-vendedoras` (sin subir); faltan capturas aprobadas, CI y staging | — |
+| Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Hecho en la misma rama (2026-10-17); faltan capturas aprobadas, CI y staging | — |
 | Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En construcción; apagado hasta que la dueña cree la cuenta y se traslade el dominio | — |
 | Meta: catálogo, píxel y Conversions API | Investigación y diseño hechos; construcción en cola; el píxel lo crea la dueña con la extensión de Chrome | — |
 

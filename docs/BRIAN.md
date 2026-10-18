@@ -385,6 +385,26 @@ máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el 
   ve solo sus documentos» (lo mismo que *Ventas › Configuración › Permisos de las vendedoras*). `listar_usuarios` dice
   cómo está (`cada_vendedora_ve_solo_lo_suyo`). Ejemplo: «que las vendedoras vuelvan a ver todo».
 
+## Reglas contables de la gerencia (2026-10-17)
+
+Brian corre como quien le habla, así que las reglas del servidor ([PERMISOS.md](PERMISOS.md), «Reglas contables de la
+gerencia») le valen igual; además:
+
+* **`registrar_pago`** solo sale a quien cobra: Caja, Gerencia, contabilidad o administrador. `grupos` acepta ahora un
+  elemento «alguno de» (una tupla dentro de la tupla: `('account.group_account_invoice', (Caja, contador, …))`). A la
+  Vendedora no se le ofrece; si de todos modos llega a la herramienta, responde «Los cobros los registra Caja…». Con
+  el interruptor «ver solo lo suyo» apagado, tampoco.
+* El **primer abono** menor a la mitad del total: `registrar_pago` usa el asistente «Pagar», así que a Caja y a
+  contabilidad les contesta «El primer abono debe ser de al menos la mitad: $X. Si es menos, lo registra Gerencia.»;
+  Gerencia sí lo registra (queda una nota en la factura). Los abonos siguientes y el pago completo son libres.
+* `forma_pago` acepta **Tafi** y **Crediviva** (diarios «Tafi (financiamiento)» y «Crediviva (financiamiento)»).
+* **El vencimiento del abono** sale de `_dcasa_estado_abono` (30 días continuos desde el primer abono): `ver_factura` y
+  `facturas_pendientes` agregan, en una factura de cliente en abono, `abono` = `{inicio, pagado, saldo, vence,
+  vencido}`. El `vence` de siempre sigue siendo el de la condición de pago de la factura.
+* **El prompt**: a quien no cobra, Brian sabe que «los cobros los registra Caja (o Gerencia)»; a quien no es Gerencia,
+  que anular, pasar a borrador, notas de crédito y devolver dinero son solo de Gerencia. Brian no tiene herramientas
+  para anular, pasar a borrador ni hacer notas de crédito (sigue siendo de una persona).
+
 ## Para cada función nueva
 
 Toda función nueva de la plataforma debe poder usarla Brian (ver la plantilla de PR):

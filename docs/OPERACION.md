@@ -856,8 +856,11 @@ factura completa (con ITBMS) y cada abono es un pago parcial con **«Pagar»** d
 algo pagado y algo por pagar (`account.move._dcasa_es_abono`), el papel sale con el título **ABONO** (y el número de la
 factura), un recuadro **SALDO POR PAGAR** bajo los totales con «Pagado $X de $Y», «Inicio del abono» y «El abono vence»
 en los datos (en lugar del «Vence» de la condición de pago) y, si el plazo pasó, «El plazo venció el …» (solo se dice:
-el sistema no calcula ni cobra nada). Las cifras salen de `_dcasa_estado_abono` (la misma fuente que «Mi cuenta»); el
-plazo es el parámetro `dcasa_invoice.abono_meses`. Pagada por completo vuelve a decir **Factura** con todos sus abonos;
+el sistema no calcula ni cobra nada). Las cifras salen de `_dcasa_estado_abono` (la misma fuente que «Mi cuenta», las
+Condiciones, los correos y Brian); el plazo son **30 días continuos** desde el primer abono (decisión de la gerencia
+A3, 2026-10-17; parámetro `dcasa_invoice.abono_dias`, 0 = no vence; antes era `abono_meses`, «un mes», y la migración
+19.0.2.4.0 lo pasa a días). El **primer abono** es al menos la mitad del total: si es menos, solo Gerencia lo registra
+(el asistente «Pagar» lo avisa; ver [PERMISOS.md](PERMISOS.md)). Pagada por completo vuelve a decir **Factura** con todos sus abonos;
 las notas de crédito y las facturas de proveedor no cambian. El PDF se llama «Abono INV/…». Cada abono registrado con
 «Pagar» ofrece el cuadro «Imprimir documentos» (si la empresa tiene encendido ofrecerlo) con la factura y su copia
 marcadas y la **nota de entrega sin marcar**: se imprime al terminar de pagar (se puede marcar a mano). Un cobro anotado

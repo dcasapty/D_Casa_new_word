@@ -100,6 +100,32 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-17
 
+- **Reglas contables de la gerencia, en la rama `permisos-vendedoras` (local, sin subir ni desplegar)**, sobre la unión
+  con `claude/merge-rama-to-main-ty3koz` (lo de Desplegar 17 y las decisiones contables; los conflictos «add/add» se
+  resolvieron con base en la punta vieja `22dcd97`) y con `main` `ce8b0a7` (PR #54, barra del celular): **el cobro solo
+  en Caja** (la Vendedora sigue cotizando,
+  confirmando y facturando; ya no cobra por ningún camino, con el interruptor encendido o apagado); **anular o pasar a
+  borrador** una factura publicada, **notas de crédito**, **devolver dinero** y dejar **saldo a favor**: solo Gerencia;
+  **abonos a 30 días continuos** (`dcasa_invoice.abono_dias`; migración del viejo `abono_meses`) y **primer abono de al
+  menos la mitad** (menos, Gerencia; el banco no se frena y deja nota); **Tafi y Crediviva** como formas de pago (la
+  contadora revisa su cuenta). Y lo que la dueña respondió: **los pedidos de la web entran sin vendedora** (la que
+  confirma se lo queda; el aviso de apartado sin vendedora va a Caja). Detalle en [PERMISOS.md](PERMISOS.md) y
+  [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md); Brian en [BRIAN.md](BRIAN.md). Versiones: `dcasa_base`
+  19.0.1.9.0, `dcasa_invoice` 19.0.2.4.0, `website_dcasa` 19.0.1.15.0 (tres migraciones nuevas).
+- **Pruebas:** `ruff` limpio. Suite completa local (todos los módulos, como CI), sobre la rama unida con `main`
+  `ce8b0a7`: **3,876 pruebas, 2 fallas**, ninguna de este cambio: la captura de referencia `TestContratoVisualJuan`
+  («conexiones» a 390 px, la de siempre en esta máquina) y `TestPanelEnElNavegador.test_en_vivo_es_honesto_…` de
+  Conversaciones («sin conexión no debería aparecer solo»), que pasó en la corrida de las 22:36 UTC y falla después de
+  medianoche UTC también con el código de esa corrida (`4404073`, comprobado aparte): depende de la hora, no del
+  código (queda por mirar). La primera corrida completa (antes de unir `ce8b0a7`) halló las pruebas de otros módulos
+  que suponían «un mes», una vendedora o alguien con solo Facturación cobrando, o Caja haciendo notas: corregidas
+  (`c9ebcf9`); las de cabecera y celular del sitio eran de `main` y se fueron al unir `ce8b0a7`.
+- **Capturas para la dueña** (antes de staging, regla nueva): en el scratchpad de la sesión, `capturas_reglas/` (primer
+  abono menor a la mitad, papel del abono a 30 días, la vendedora que intenta cobrar, anular sin ser Gerencia, «Pagar»
+  con Tafi y Crediviva).
+- **Sigue:** que la dueña vea las capturas; CI y staging; producción con su visto bueno. El día del despliegue, antes de
+  abrir: darle **Caja** al jefe administrativo (sin Caja nadie salvo Gerencia cobra). Preguntas abiertas en
+  [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24.
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
