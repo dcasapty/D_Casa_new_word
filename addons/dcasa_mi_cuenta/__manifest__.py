@@ -27,7 +27,7 @@ con PIN no se le enseñan cédula, dirección, teléfonos ni PDF.
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['website_dcasa', 'dcasa_socios', 'dcasa_invoice', 'sale_stock', 'website_sale'],
+    'depends': ['website_dcasa', 'dcasa_socios', 'dcasa_invoice', 'sale_stock', 'website_sale', 'auth_signup'],
     'data': [
         'views/mi_cuenta_templates.xml',
         'views/herencias_templates.xml',

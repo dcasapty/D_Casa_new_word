@@ -28,6 +28,14 @@ DATOS = '/mi-cuenta/datos'
 # Lo que pasaba antes al terminar en /socios: la cuenta del socio vivía en /socios/cuenta.
 CUENTA_VIEJA = '/socios/cuenta'
 TEXTO_OLVIDE = "Hola D'CASA, olvidé mi PIN de Mi cuenta. ¿Me ayudan a cambiarlo?"
+# A dónde puede volver quien entra desde la tienda («Entra a tu cuenta» del checkout o del carrito). Solo estas rutas:
+# nada de otro dominio ni del panel (/odoo), que es solo del equipo por /master.
+REGRESOS = ('/shop/checkout', '/shop/cart', '/shop/address', '/shop/payment')
+
+
+def _redirect_seguro(redirect):
+    """``redirect`` si es una ruta de la tienda de ``REGRESOS``; si no, Mi cuenta."""
+    return redirect if isinstance(redirect, str) and redirect in REGRESOS else INICIO
 
 
 def _destino(respuesta):
@@ -81,6 +89,7 @@ class MiCuenta(http.Controller):
         """«Entra a tu cuenta»: celular + PIN (el mismo formulario de /socios), o el correo de la tienda."""
         valores = dict(valores or {})
         valores.setdefault('olvide', request.website._dcasa_whatsapp_url(TEXTO_OLVIDE))
+        valores['redirect'] = _redirect_seguro(valores.get('redirect'))
         return self._mc_render('dcasa_mi_cuenta.entrar', valores)
 
     def _mc_con_sesion(self):
@@ -104,7 +113,7 @@ class MiCuenta(http.Controller):
     def mi_cuenta(self, **kwargs):
         ficha, persona, tienda = sesion_del_cliente()
         if not ficha:
-            return self._mc_entrar()
+            return self._mc_entrar({'redirect': kwargs.get('redirect')})
         if not tienda and ficha.dcasa_pin_temporal:
             return request.redirect('/socios/pin')
         datos = self._mc()._mc_inicio(ficha, request.website, request.httprequest.host_url, tienda)
@@ -192,6 +201,7 @@ class SociosMiCuenta(SociosDcasa):
             respuesta.qcontext.setdefault('ficha', request.env['res.partner'])
             respuesta.qcontext.setdefault('whatsapp', request.website._dcasa_whatsapp_url())
             respuesta.qcontext.setdefault('olvide', request.website._dcasa_whatsapp_url(TEXTO_OLVIDE))
+            respuesta.qcontext['redirect'] = _redirect_seguro(respuesta.qcontext.get('redirect'))
             respuesta.headers['Cache-Control'] = 'no-store'
         return respuesta
 
