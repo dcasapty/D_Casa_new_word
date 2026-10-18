@@ -7,6 +7,8 @@ ERP + sitio web de **D'CASA Panamá** (retail de muebles, La Chorrera) sobre
 
 ## Al empezar una sesión
 
+Si vas a instalar este sistema para otro negocio, sigue docs/REPLICAR.md.
+
 Antes de contestar o programar nada, leer `docs/LEEME_PRIMERO.md` (cómo se trabaja con la dueña, qué cambio necesita su
 «sí» explícito, la receta de producción, las trampas ya conocidas y la bitácora de sesiones) y `docs/PRIORIDADES.md`
 (el orden vigente de lo que sigue). Antes de desplegar o tocar el arranque, el borde o los flujos de GitHub, leer
