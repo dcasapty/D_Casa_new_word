@@ -37,7 +37,9 @@ puesto** y, cuando ya hay costumbre, **lo que ella o él más usa**.
 
 Hay tareas con **pasos**: **Preparar la declaración de renta**, **Pasarle los números a mi contador**, imprimir un
 cheque, el combo de cama y colchón, imprimir documentos. Y tareas **para cambiar el estado de algo**: confirmar una
-factura en borrador, corregir o anular una factura publicada, reabrir un mes cerrado.
+factura en borrador, corregir o anular una factura publicada (solo Gerencia desde el 2026-10-17), reabrir un mes
+cerrado. Las de cobrar (registrar un cobro, un abono, cobrar con Tafi o Crediviva) salen solo a quien cobra (Caja,
+Gerencia, contabilidad); las de notas de crédito y anular, solo a Gerencia: llevan `grupos`.
 
 ### La cinta «Estás haciendo»
 
@@ -119,7 +121,8 @@ Todo está en `addons/dcasa_guia/data/guia_roles.json` (una lista de ids de `gui
 |---|---|---|
 | Gerencia | grupo Gerencia o administrador del sistema | resumen · ventas de hoy · cobros de hoy · quién me debe · ITBMS · cerrar el mes · conciliar el banco · ¿gané o perdí? |
 | Contabilidad | grupo Contabilidad (`account.group_account_user`) | resumen · quién me debe · a quién le debo · factura de proveedor · conciliar el banco · ITBMS · cerrar el mes · pasarle los números al contador |
-| Vendedora | grupo Vendedora (o vendedor de Ventas) | cotizar · por facturar · cobrar · ventas de hoy · encontrar un producto por su código · conversaciones · agregar un cliente |
+| Caja | grupo Caja (desde el 2026-10-17; va antes que Vendedora porque Caja también es Vendedora) | registrar un abono · registrar un cobro · cobrar con Tafi o Crediviva · cobros de hoy · por facturar · facturas de clientes · ventas de hoy |
+| Vendedora | grupo Vendedora (o vendedor de Ventas) | cotizar · por facturar · facturas de clientes · ventas de hoy · encontrar un producto por su código · conversaciones · agregar un cliente (cobrar ya no: el cobro solo en Caja) |
 | Equipo (por defecto) | cualquier otra persona de adentro | conversaciones · buscar un cliente · agregar un cliente · productos · existencias · pedir un reembolso |
 
 - El puesto de cada persona es **el primero de la lista al que pertenece** (Gerencia incluye a Vendedora y a Contabilidad,

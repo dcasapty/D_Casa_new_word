@@ -15,7 +15,11 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
   de imitación); una parcial, lo pagado y lo que queda.
 * Abonos: mientras una factura de cliente tenga algo pagado y algo por pagar, el papel
   sale como ABONO (con su número), con el recuadro «SALDO POR PAGAR», «Pagado $X de $Y»,
-  inicio y vencimiento del abono. La contabilidad no cambia (misma factura, pagos parciales).
+  inicio y vencimiento del abono (30 días continuos desde el primer abono, ``dcasa_invoice.abono_dias``).
+  La contabilidad no cambia (misma factura, pagos parciales).
+* Primer abono: al menos la mitad del total; si es menos, solo Gerencia lo registra (el asistente
+  «Pagar» lo avisa). Los abonos siguientes y el pago completo son libres; la conciliación bancaria
+  no se frena (deja una nota en la factura).
 * Enlaces al sitio público, nunca a localhost.
 * Cabecera Cliente | Entrega | Datos: identificación, teléfono, correo, dirección de
   entrega si es otra, fechas, pedido, vendedora, condiciones y medio de pago.
@@ -35,7 +39,7 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
 * «Mostrar el código público de los productos…» (apagado de fábrica): la columna «Código» de la factura, la cotización
   y la nota de entrega muestra DC-K7M4PX en lugar de la referencia del proveedor.
 """,
-    'version': '19.0.2.3.0',
+    'version': '19.0.2.4.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -51,6 +55,7 @@ pie de página que no se corta y tipografía de marca alojada en el módulo.
         'views/report_entrega_facil.xml',
         'views/res_company_views.xml',
         'views/paquete_views.xml',
+        'views/abono_views.xml',
         'data/report_layout_data.xml',
         'data/paperformat_data.xml',
         'data/product_data.xml',

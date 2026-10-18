@@ -267,7 +267,8 @@ await enLaGuia();
 const rol = document.querySelector(".o_dcasa_guia_rol");
 if (!rol || !rol.textContent.includes("Vendedora")) { falla("el puesto debe decir Vendedora"); }
 const ids = [...document.querySelectorAll(".o_dcasa_guia_puesto .o_dcasa_guia_tarea")].map((t) => t.dataset.tarea);
-if (!ids.includes("cotizacion-nueva") || !ids.includes("cobrar-cliente")) { falla("faltan sus tareas: " + ids); }
+if (!ids.includes("cotizacion-nueva") || !ids.includes("facturas-clientes")) { falla("faltan sus tareas: " + ids); }
+if (ids.includes("cobrar-cliente") || tarea("cobrar-cliente")) { falla("el cobro es de Caja: la vendedora no lo ve"); }
 for (const ajena of ["resumen", "itbms", "cierre-mes", "banco-conciliar", "ganancias", "facturas-vencidas", "renta"]) {
     if (ids.includes(ajena) || tarea(ajena)) { falla("una vendedora no ve " + ajena); }
 }

@@ -98,6 +98,7 @@ class PaqueteComun(TransactionCase):
         cls.company = cls.env.ref('base.main_company')
         cls.gerencia = crear_usuario(cls.env, 'paq_gerencia', 'dcasa_base.group_gerencia')
         cls.vendedora = crear_usuario(cls.env, 'paq_vendedora', 'dcasa_base.group_vendedora')
+        cls.caja = crear_usuario(cls.env, 'paq_caja', 'dcasa_base.group_caja')
         cls.cliente = cls.env['res.partner'].create({
             'name': 'CLIENTE PAQUETE', 'vat': '8-000-0000', 'country_id': cls.env.ref('base.pa').id})
         cls.mueble = cls.env['product.product'].create({
@@ -106,9 +107,10 @@ class PaqueteComun(TransactionCase):
         cls.Paquete = cls.env[MODELO]
 
     def _venta(self, publicar=True, cantidad=1):
-        """(pedido, factura) de un pedido confirmado: trae su entrega de salida."""
+        """(pedido, factura) de un pedido confirmado: trae su entrega de salida. La venta es de la vendedora (ella ve
+        solo lo suyo: «Cada vendedora ve solo sus documentos»)."""
         pedido = self.env['sale.order'].create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, 'user_id': self.vendedora.id,
             'order_line': [Command.create({'product_id': self.mueble.id, 'product_uom_qty': cantidad})]})
         pedido.action_confirm()
         factura = pedido._create_invoices()
@@ -618,14 +620,20 @@ class TestOfertaAlPagar(PaqueteComun):
         self.assertFalse(self._es_el_cuadro(accion))
         self.assertEqual(accion['res_model'], 'account.payment')
 
-    def test_la_vendedora_paga_y_ve_el_cuadro(self):
+    def test_caja_cobra_la_factura_de_la_vendedora_y_ve_el_cuadro(self):
+        """El cobro solo en Caja (decisión de la gerencia, 2026-10-17): Caja cobra la factura de la vendedora y le sale
+        el cuadro; la vendedora ya no cobra."""
         _pedido, factura = self._venta()
-        factura_vendedora = factura.with_user(self.vendedora)
-        asistente = self.env['account.payment.register'].with_user(self.vendedora).with_context(
-            active_model='account.move', active_ids=factura_vendedora.ids).create({'payment_date': fields.Date.today()})
+        with self.assertRaises(AccessError) as negado:
+            self.env['account.payment.register'].with_user(self.vendedora).with_context(
+                active_model='account.move', active_ids=factura.ids).create(
+                {'payment_date': fields.Date.today()}).action_create_payments()
+        self.assertIn('Los cobros los registra Caja', str(negado.exception))
+        asistente = self.env['account.payment.register'].with_user(self.caja).with_context(
+            active_model='account.move', active_ids=factura.ids).create({'payment_date': fields.Date.today()})
         accion = asistente.action_create_payments()
         self.assertTrue(self._es_el_cuadro(accion))
-        self.assertEqual(self.Paquete.with_user(self.vendedora).browse(accion['res_id']).move_ids, factura_vendedora)
+        self.assertEqual(self.Paquete.with_user(self.caja).browse(accion['res_id']).move_ids, factura)
 
 
 @tagged('post_install', '-at_install')

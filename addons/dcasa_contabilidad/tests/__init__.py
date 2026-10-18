@@ -6,3 +6,5 @@ from . import test_auditoria
 from . import test_cierre_conciliacion
 from . import test_presupuesto
 from . import test_envios
+from . import test_primer_abono_banco
+from . import test_abono_en_el_inicio

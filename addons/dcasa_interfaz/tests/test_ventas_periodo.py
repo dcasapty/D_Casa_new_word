@@ -1,8 +1,9 @@
 """Ventas del Inicio por periodo (Hoy · semana · mes · rango), ITBMS claro, ganancia y las listas de Gerencia.
 
-Gerencia ve las ventas «Completadas» por defecto (pagadas al 100 %, el día del último pago; 2026-10-17): la venta de
-estas pruebas se paga completa el mismo día de su factura, así cuenta igual que antes. Las comparaciones viven en el
-bloque «Comparar» (``test_comparar.py``)."""
+Gerencia cuenta las facturas («Facturado» por defecto: todas las publicadas, por su fecha, igual que Contabilidad;
+2026-10-17): la venta de estas pruebas se paga completa el mismo día de su factura, así cuenta igual en las tres
+posiciones. Las comparaciones viven en el bloque «Comparar» (``test_comparar.py``) y lo de las facturas en
+``test_facturado.py``."""
 from datetime import date, timedelta
 
 from odoo import Command
@@ -90,11 +91,12 @@ class TestVentasPorPeriodo(VentasCommon):
         datos = self._ventas(self.gerencia, 'hoy')
         self.assertAlmostEqual(datos['actual']['sin_itbms'] - base, hoy.amount_untaxed, places=2)
         semana = self._ventas(self.gerencia, 'semana')
-        self.assertNotIn(pasada, self.env['sale.order'].search(semana['accion']['domain']),
+        facturas_de_la_semana = self.env['account.move'].search(semana['accion']['domain'])
+        self.assertFalse(pasada.invoice_ids & facturas_de_la_semana,
                          'la venta de la semana pasada no entra en «esta semana»')
-        self.assertIn(hoy, self.env['sale.order'].search(semana['accion']['domain']))
+        self.assertIn(hoy.invoice_ids, facturas_de_la_semana)
         mes = self._ventas(self.gerencia, 'mes')
-        self.assertIn(hoy, self.env['sale.order'].search(mes['accion']['domain']))
+        self.assertIn(hoy.invoice_ids, self.env['account.move'].search(mes['accion']['domain']))
 
     # --- ITBMS claro --------------------------------------------------------------------------
 
@@ -144,10 +146,12 @@ class TestVentasPorPeriodo(VentasCommon):
         self.assertFalse(self.tablero.with_user(contador).obtener_datos()['ve_utilidad'])
 
     def test_dice_en_que_se_aparta_de_contabilidad_y_que_facturas_lo_explican(self):
-        """Capturas de la dueña (2026-10-16): el Inicio decía $1,301.04 y Contabilidad $1,522.42 para los mismos días.
-        El Inicio dice la diferencia exacta, con su signo, y abre las facturas que la explican: una factura sin pedido
-        (Contabilidad suma más) y el abono de un apartado facturado otro día (el Inicio cuenta el pedido completo el
-        día del saldo; Contabilidad, solo el saldo)."""
+        """Capturas de la dueña (2026-10-16): el Inicio y Contabilidad no decían lo mismo para los mismos días; la
+        diferencia era una factura sin pedido. Desde 2026-10-17 el Inicio cuenta las facturas: en «Facturado» es lo
+        mismo que Contabilidad (no hay nota). En «Con abonos» y «Completadas» el ⓘ dice la diferencia exacta, con su
+        signo, y abre las facturas que la explican: la sin pedido y sin pago (Contabilidad la suma) y, en
+        «Completadas», la del abono de ayer que se terminó de pagar hoy (el Inicio la cuenta hoy; Contabilidad,
+        ayer)."""
         # El ITBMS de prueba necesita su cuenta: sin ella, Odoo deja el impuesto en la cuenta de ingresos y las ventas
         # contables lo incluirían (en producción el ITBMS va a su cuenta por pagar).
         cuenta_itbms = self.env['account.account'].create({
@@ -155,54 +159,54 @@ class TestVentasPorPeriodo(VentasCommon):
         for linea in self.itbms.invoice_repartition_line_ids | self.itbms.refund_repartition_line_ids:
             if linea.repartition_type == 'tax':
                 linea.account_id = cuenta_itbms
+        Tablero = self.tablero.with_user(self.gerencia)
 
-        def diferencia():
-            return (self._ventas(self.gerencia)['cuadre'] or {}).get('diferencia', 0.0)
+        def cuadre(base):
+            return Tablero.ventas_del_periodo('hoy', base=base)['cuadre'] or {}
 
-        base = diferencia()
-        vendido = self._venta(0)                      # pedido y factura del mismo día: cuadra
-        self.assertAlmostEqual(diferencia() - base, 0.0, places=2)
+        base = {clave: cuadre(clave).get('diferencia', 0.0) for clave in ('con_abonos', 'completadas')}
+        self.assertIsNone(Tablero.ventas_del_periodo('hoy')['cuadre'], '«Facturado» es lo que dice Contabilidad')
+        vendido = self._venta(0)                      # pedido y factura del mismo día, pagada: cuadra en las tres
         suelta = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': self.hoy,
             'invoice_line_ids': [Command.create({'product_id': self.cama.id, 'quantity': 1, 'price_unit': 100.0,
                                                  'tax_ids': [Command.set(self.itbms.ids)]})]})
-        suelta.action_post()
+        suelta.action_post()                          # sin pedido y sin pago
         apartado = self.pedido(producto=self.cama, cantidad=2)    # 2 × 200 sin ITBMS
         abono = apartado._create_invoices()
         abono.invoice_line_ids.quantity = 1
         abono.invoice_date = self.hoy - timedelta(days=1)
         abono.action_post()
-        self._pagar(abono)
+        self._pagar(abono, self.hoy - timedelta(days=1), monto=10.0)
+        self._pagar(abono, self.hoy)                  # se terminó de pagar hoy: «completada» hoy, facturada ayer
         saldo = self.facturar(apartado)
-        self._pagar(saldo, self.hoy)                              # se terminó de pagar hoy: es «completada» hoy
-        self.assertEqual(apartado.dcasa_fecha_venta, self.hoy)
-
-        datos = self._ventas(self.gerencia)
-        cuadre = datos['cuadre']
-        self.assertAlmostEqual(cuadre['diferencia'] - base, 100.0 - 200.0, places=2,
-                               msg='+100 de la factura sin pedido, −200 del abono facturado ayer')
-        lista = self.env['account.move'].search(cuadre['accion']['domain'])
+        self._pagar(saldo, self.hoy)
+        facturado = Tablero.ventas_del_periodo('hoy')
+        self.assertIsNone(facturado['cuadre'], 'con facturas sin pedido y de otros días, sigue siendo lo mismo')
+        completadas = cuadre('completadas')
+        self.assertAlmostEqual(completadas['diferencia'] - base['completadas'], 100.0 - 200.0, places=2,
+                               msg='+100 de la factura sin pago, −200 del abono facturado ayer y completado hoy')
+        lista = self.env['account.move'].search(completadas['accion']['domain'])
         self.assertIn(suelta, lista)
         self.assertIn(abono, lista)
         for ya_cuadra in (saldo, vendido.invoice_ids):
             self.assertNotIn(ya_cuadra, lista, ya_cuadra.name)
-        self.assertEqual(cuadre['cuantas'], len(lista))
-        self.assertEqual(cuadre['accion']['vista_lista'], self.env.ref('account.view_out_invoice_tree').id)
-        # La resta es exacta: lo vendido del Inicio más la diferencia es lo que Contabilidad llama ventas.
+        self.assertEqual(completadas['cuantas'], len(lista))
+        self.assertEqual(completadas['accion']['vista_lista'], self.env.ref('account.view_out_invoice_tree').id)
+        con_abonos = cuadre('con_abonos')
+        self.assertAlmostEqual(con_abonos['diferencia'] - base['con_abonos'], 100.0, places=2,
+                               msg='en «Con abonos» solo falta la factura sin ningún abono')
+        self.assertIn(suelta, self.env['account.move'].search(con_abonos['accion']['domain']))
+        # La resta es exacta: lo del Inicio más la diferencia es lo que Contabilidad llama ventas.
         reportes = self.env.get('dcasa.reporte.contable')
         if reportes is not None:
             contables = reportes.estado_resultados(str(self.hoy), str(self.hoy))['secciones'][0]['total']
-            self.assertAlmostEqual(cuadre['contables'], contables, places=2)
-            self.assertAlmostEqual(datos['actual']['sin_itbms'] + cuadre['diferencia'], contables, places=2)
-        # «Con abonos» cuenta el día de la venta: aquí da lo mismo (todas tienen pago y son de hoy).
-        con_abonos = self.tablero.with_user(self.gerencia).ventas_del_periodo('hoy', base='con_abonos')['cuadre']
-        self.assertAlmostEqual(con_abonos['diferencia'], cuadre['diferencia'], places=2)
-        # Una venta facturada sin pago no cuenta en el Inicio de Gerencia: Contabilidad la suma y la lista la trae.
-        sin_pago = self.pedido(producto=self.cama)
-        factura_sin_pago = self.facturar(sin_pago)
-        despues = self._ventas(self.gerencia)['cuadre']
-        self.assertAlmostEqual(despues['diferencia'] - cuadre['diferencia'], 200.0, places=2)
-        self.assertIn(factura_sin_pago, self.env['account.move'].search(despues['accion']['domain']))
+            self.assertAlmostEqual(facturado['actual']['sin_itbms'], contables, places=2)
+            for clave in ('con_abonos', 'completadas'):
+                tarjeta = Tablero.ventas_del_periodo('hoy', base=clave)
+                self.assertAlmostEqual(tarjeta['cuadre']['contables'], contables, places=2)
+                self.assertAlmostEqual(tarjeta['actual']['sin_itbms'] + tarjeta['cuadre']['diferencia'], contables,
+                                       places=2)
         # La vendedora no ve la contabilidad ni esta línea.
         self.assertIsNone(self._ventas(self.vendedora)['cuadre'])
 

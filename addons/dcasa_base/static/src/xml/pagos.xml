@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- El globito de un pago en la factura: «Desconciliar» solo a quien puede quitar cobros (models/cobros.py marca
+         cada pago con dcasa_sin_desconciliar para los demás; el servidor lo vuelve a mirar). -->
+    <t t-inherit="account.AccountPaymentPopOver" t-inherit-mode="extension">
+        <xpath expr="//button[hasclass('js_unreconcile_payment')]" position="attributes">
+            <attribute name="t-if">!props.is_exchange and !props.dcasa_sin_desconciliar</attribute>
+        </xpath>
+    </t>
+</templates>

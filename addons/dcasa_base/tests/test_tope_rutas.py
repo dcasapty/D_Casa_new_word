@@ -26,11 +26,17 @@ class TestTopeRutas(TransactionCase):
         cls.env.company.sale_discount_product_id = cls.descuento
         cls.cliente = cls.env['res.partner'].create({'name': 'Cliente rutas'})
 
-    def _orden(self, usuario, productos=None):
+    def _orden(self, usuario, productos=None, **valores):
         return self.env['sale.order'].with_user(usuario).create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, **valores,
             'order_line': [Command.create({'product_id': p.id}) for p in (productos or [self.cama])],
         })
+
+    def _orden_autorizada(self):
+        """El pedido de la vendedora (ella ve solo lo suyo) con el 50 % que Gerencia le autorizó."""
+        orden = self._orden(self.gerencia, user_id=self.vendedora.id)
+        self._descuento_global(self.gerencia, orden, 0.50)
+        return orden
 
     def _descuento_global(self, usuario, orden, porcentaje):
         asistente = self.env['sale.order.discount'].with_user(usuario).with_context(
@@ -104,8 +110,7 @@ class TestTopeRutas(TransactionCase):
     # --- Lo que Gerencia ya autorizó no se le cobra a la vendedora --------------------------------------
 
     def test_en_un_pedido_con_descuento_autorizado_la_vendedora_puede_agregar_notas_y_flete(self):
-        orden = self._orden(self.gerencia)
-        self._descuento_global(self.gerencia, orden, 0.50)  # Gerencia autoriza el 50 %
+        orden = self._orden_autorizada()
         como_vendedora = orden.with_user(self.vendedora)
         como_vendedora.write({'order_line': [
             Command.create({'display_type': 'line_note', 'name': 'Entregar en la tarde'})]})
@@ -115,8 +120,7 @@ class TestTopeRutas(TransactionCase):
         self.assertEqual(len(orden.order_line.filtered(lambda linea: linea.product_id == self.flete)), 1)
 
     def test_en_un_pedido_con_descuento_autorizado_la_vendedora_no_puede_empeorarlo(self):
-        orden = self._orden(self.gerencia)
-        self._descuento_global(self.gerencia, orden, 0.50)
+        orden = self._orden_autorizada()
         cama = orden.order_line.filtered(lambda linea: linea.product_id == self.cama).with_user(self.vendedora)
         with self.assertRaises(ValidationError):
             cama.write({'price_unit': 180.0})  # dentro del tope por línea, pero suma al descuento del pedido
@@ -128,8 +132,7 @@ class TestTopeRutas(TransactionCase):
         self.assertTrue(nueva.exists())
 
     def test_en_un_pedido_con_descuento_autorizado_la_vendedora_si_puede_mejorarlo(self):
-        orden = self._orden(self.gerencia)
-        self._descuento_global(self.gerencia, orden, 0.50)
+        orden = self._orden_autorizada()
         orden.with_user(self.vendedora).order_line.filtered(
             lambda linea: linea.product_id == self.descuento).unlink()  # quitar el descuento mejora el pedido
         self.assertFalse(orden.order_line.filtered(lambda linea: linea.product_id == self.descuento))

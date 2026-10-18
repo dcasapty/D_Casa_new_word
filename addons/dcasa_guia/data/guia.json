@@ -171,6 +171,13 @@
     "recibir plata",
     "cobrar factura",
     "cobro suelto"
+   ],
+   "nota": "Los cobros los registra Caja (y Gerencia o contabilidad). Una vendedora no cobra: lleva la factura a Caja.",
+   "grupos": [
+    "dcasa_base.group_caja",
+    "account.group_account_user",
+    "account.group_account_manager",
+    "base.group_system"
    ]
   },
   {
@@ -194,7 +201,7 @@
      "destino": null
     },
     {
-     "texto": "Escribe el monto del abono (lo que el cliente te dio hoy), elige cómo pagó y toca «Crear pago».",
+     "texto": "Escribe el monto del abono (lo que el cliente te dio hoy), elige cómo pagó y toca «Crear pago». El primer abono debe ser de al menos la mitad del total: si es menos, lo registra Gerencia (el cuadro te lo avisa).",
      "destino": null
     },
     {
@@ -210,9 +217,59 @@
     "saldo",
     "cuanto le falta",
     "condiciones de abono",
-    "copia cliente"
+    "copia cliente",
+    "primer abono",
+    "anticipo",
+    "mitad"
    ],
-   "nota": "Cuando el cliente termina de pagar, la factura vuelve a salir como factura pagada, con todos sus abonos."
+   "nota": "El cliente tiene un plazo para terminar de pagar que cuenta desde su primer abono: la fecha exacta la pone el sistema en el papel de ABONO, en las «Condiciones de abono» y en «Mi cuenta». Cuando termina de pagar, la factura vuelve a salir como factura pagada, con todos sus abonos.",
+   "grupos": [
+    "dcasa_base.group_caja",
+    "account.group_account_user",
+    "account.group_account_manager",
+    "base.group_system"
+   ]
+  },
+  {
+   "id": "cobro-financiera",
+   "categoria": "vender",
+   "grupo": "Cobrar",
+   "titulo": "Cobrar una compra que financia Tafi o Crediviva",
+   "logras": "Anotas en la factura que la compra la paga una financiera (Tafi o Crediviva), igual que un cobro en efectivo o con Yappy, para que la factura quede pagada o en abono.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la factura del cliente.",
+     "destino": {
+      "menu": "dcasa_base.menu_dcasa_ventas_facturas"
+     }
+    },
+    {
+     "texto": "Toca «Pagar».",
+     "destino": null
+    },
+    {
+     "texto": "En «Diario» elige «Tafi (financiamiento)» o «Crediviva (financiamiento)», escribe lo que financia y toca «Crear pago».",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "tafi",
+    "crediviva",
+    "financiamiento",
+    "financiera",
+    "credito",
+    "a plazos"
+   ],
+   "nota": "La cuenta contable de estas dos formas de pago la revisa la contadora.",
+   "grupos": [
+    "dcasa_base.group_caja",
+    "account.group_account_user",
+    "account.group_account_manager",
+    "base.group_system"
+   ]
   },
   {
    "id": "apartados",
@@ -250,7 +307,7 @@
    "categoria": "vender",
    "grupo": "Corregir",
    "titulo": "Devolverle el dinero a un cliente (nota de crédito)",
-   "logras": "Registras la devolución sin borrar la factura original: queda una nota de crédito que descuenta la venta y devuelve el ITBMS.",
+   "logras": "Registras la devolución sin borrar la factura original: queda una nota de crédito que descuenta la venta y devuelve el ITBMS. Las notas de crédito, devolver dinero y dejar saldo a favor los hace solo Gerencia.",
    "destino": {
     "menu": "account.menu_action_move_out_refund_type"
    },
@@ -260,7 +317,11 @@
     "cliente devuelve",
     "anular venta"
    ],
-   "nota": "Una factura ya publicada no se borra: se corrige con una nota de crédito."
+   "nota": "Una factura ya publicada no se borra: se corrige con una nota de crédito.",
+   "grupos": [
+    "dcasa_base.group_gerencia",
+    "base.group_system"
+   ]
   },
   {
    "id": "listas-precios",
@@ -282,7 +343,7 @@
    "categoria": "facturar",
    "grupo": "Facturas de clientes",
    "titulo": "Ver las facturas de los clientes",
-   "logras": "La lista de todas las facturas de ventas, con su estado (borrador, publicada, pagada) y lo que falta por cobrar.",
+   "logras": "Las facturas de ventas, con su estado (borrador, publicada, pagada) y lo que falta por cobrar.",
    "destino": {
     "menu": "dcasa_base.menu_dcasa_ventas_facturas"
    },
@@ -290,7 +351,8 @@
     "facturas",
     "ventas facturadas",
     "buscar factura"
-   ]
+   ],
+   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas."
   },
   {
    "id": "factura-borrador",
@@ -329,7 +391,11 @@
     "restablecer a borrador",
     "cambiar estado"
    ],
-   "nota": "Si el mes ya está cerrado, primero hay que reabrirlo en «Cerrar el mes»."
+   "nota": "Solo Gerencia pasa a borrador o anula una factura publicada (a los demás el sistema se lo niega). Si el mes ya está cerrado, primero hay que reabrirlo en «Cerrar el mes».",
+   "grupos": [
+    "dcasa_base.group_gerencia",
+    "base.group_system"
+   ]
   },
   {
    "id": "factura-proveedor",
@@ -1794,7 +1860,7 @@
    "categoria": "administrar",
    "grupo": "Accesos",
    "titulo": "Darle acceso al sistema a una persona del equipo",
-   "logras": "Creas su usuario y eliges su rol (Vendedora o Gerencia) para que vea solo lo que le toca.",
+   "logras": "Creas su usuario y eliges su rol (Vendedora, Caja o Gerencia) para que vea solo lo que le toca.",
    "destino": {
     "menu": "base.menu_action_res_users"
    },
@@ -1803,9 +1869,33 @@
     "permisos",
     "roles",
     "clave",
-    "acceso"
+    "acceso",
+    "caja",
+    "cajero",
+    "rol"
    ],
-   "nota": "Al guardar un usuario con correo, el sistema le manda solo la invitación para elegir su clave."
+   "nota": "El rol se elige en la ficha de la persona, en «D'CASA»: Vendedora (cotiza y factura lo suyo; no cobra), Caja (para quien cobra en caja: factura y cobra las de todas) o Gerencia (además anula facturas, hace notas de crédito, devuelve dinero y controla la tienda). Caja no se le pone sola a nadie: elígela tú para quien cobra. Al guardar un usuario con correo, el sistema le manda solo la invitación para elegir su clave."
+  },
+  {
+   "id": "vendedoras-solo-lo-suyo",
+   "categoria": "administrar",
+   "grupo": "Accesos",
+   "titulo": "Elegir si cada vendedora ve solo sus documentos",
+   "logras": "Enciendes o apagas «Cada vendedora ve solo sus documentos»: encendido, cada vendedora ve solo sus cotizaciones, pedidos, facturas, notas de crédito y cobros; apagado, todas ven todo, como antes.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_permisos_vendedoras"
+   },
+   "nota": "Viene encendido. Lo que no tiene vendedora lo ven todas para que alguien lo atienda: una cotización de Juan sin asignar y los pedidos de la página web, que entran sin vendedora; la vendedora que lo confirma se lo queda (si lo confirma Caja, sigue sin vendedora). Caja y Gerencia ven todo siempre. Si la restricción trae un problema en la tienda, apágalo aquí: vale al momento y no cambia el rol de nadie. Los administradores también lo tienen en Ajustes, en Ventas.",
+   "palabras": [
+    "solo sus documentos",
+    "ver todo",
+    "restriccion",
+    "permisos de las vendedoras",
+    "facturas de otra vendedora",
+    "cotizaciones de otra",
+    "volver como antes",
+    "interruptor"
+   ]
   },
   {
    "id": "accesos-panel",
@@ -1955,6 +2045,10 @@
     "factura de prueba",
     "pago sin aplicar",
     "puntos"
+   ],
+   "grupos": [
+    "dcasa_base.group_gerencia",
+    "base.group_system"
    ]
   },
   {
@@ -2139,7 +2233,7 @@
    ],
    "grupo": "Ventas",
    "titulo": "Comparar las ventas",
-   "logras": "En el Inicio, el bloque Comparar pone lado a lado, solo en números, las ventas, la ganancia, el margen, el número de ventas y lo cobrado: hoy contra ayer, contra el mismo día del mes pasado o de la semana pasada, lo que va del mes contra los mismos días del mes pasado o contra un mes completo, o dos rangos de fechas que tú eliges. Solo Gerencia.",
+   "logras": "En el Inicio, el bloque Comparar pone lado a lado, solo en números, las ventas (las facturas, igual que en Contabilidad), la ganancia, el margen, el número de ventas y lo cobrado: hoy contra ayer, contra el mismo día del mes pasado o de la semana pasada, lo que va del mes contra los mismos días del mes pasado o contra un mes completo, o dos rangos de fechas que tú eliges. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_inicio"
    },
@@ -2149,7 +2243,7 @@
    ],
    "pasos": [
     {
-     "texto": "Arriba de las ventas elige qué contar: «Completadas» (pagadas al 100 %, el día del último pago) o «Con abonos» (con al menos un abono, por su valor total; trae lo que falta por cobrar). Al lado puedes elegir una vendedora.",
+     "texto": "Arriba de las ventas elige qué facturas contar: «Facturado» (todas, por su fecha, igual que en Contabilidad; debajo dice cuántas salieron de un pedido de una vendedora), «Con abonos» (las que tienen al menos un abono, por su valor total; trae lo que falta por cobrar) o «Completadas» (las pagadas al 100 %, el día del último pago). Al lado puedes elegir una vendedora. La gráfica de la semana y lo más vendido cambian igual.",
      "destino": {
       "menu": "dcasa_interfaz.menu_dcasa_inicio"
      }
@@ -2163,17 +2257,23 @@
      "destino": null
     },
     {
-     "texto": "«Por vendedora» muestra una fila por persona; al tocar una, todo el Inicio queda en esa vendedora.",
+     "texto": "«Por vendedora» muestra una fila por persona; al tocar una, todo el Inicio queda en esa vendedora. Una factura es de la vendedora de su pedido; si se hizo sin pedido, de quien diga la factura como vendedor.",
+     "destino": null
+    },
+    {
+     "texto": "Si ves el ícono ⓘ junto a «Ventas» o a «Ganancia bruta», tócalo: explica la cifra. Junto a «Ventas» sale solo cuando no es igual a Contabilidad (dice cuánto y abre esas facturas); en «Facturado» es igual.",
      "destino": null
     }
    ],
-   "nota": "Las ventas y la ganancia van sin ITBMS; lo cobrado y lo que falta por cobrar, con ITBMS. Si no hay con qué comparar (cero), sale una raya en vez de un porcentaje.",
+   "nota": "Las ventas y la ganancia van sin ITBMS; lo cobrado y lo que falta por cobrar, con ITBMS. Las notas de crédito restan, como en Contabilidad. Si no hay con qué comparar (cero), sale una raya en vez de un porcentaje.",
    "brian": "¿Cómo vamos contra el mes pasado?",
    "palabras": [
     "comparar ventas",
     "contra el mes pasado",
     "como vamos",
     "por vendedora",
+    "facturado",
+    "igual que contabilidad",
     "completadas",
     "con abonos",
     "falta por cobrar",

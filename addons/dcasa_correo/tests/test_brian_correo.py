@@ -13,9 +13,11 @@ class TestBrianCorreo(CorreoCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        # La cajera es el rol Caja (factura y cobra lo de toda la tienda; desde el 2026-10-17 solo Caja cobra y una
+        # persona con solo «Facturación» ve solo lo suyo).
         cls.cajera = new_test_user(
             cls.env, login='correo_cajera', name='Cajera Brian', email='cajera.brian@example.com',
-            groups='base.group_user,account.group_account_invoice,sales_team.group_sale_salesman')
+            groups='base.group_user,dcasa_base.group_caja')
         cls.cama = cls.env['product.product'].create({'name': 'CAMA BRIAN', 'type': 'consu', 'list_price': 300.0})
 
     def brian(self, usuario, nombre, argumentos):

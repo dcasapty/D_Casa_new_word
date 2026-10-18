@@ -15,6 +15,15 @@ DIARIOS_COBRO = [
     ('TARJ', 'Tarjeta', 'bank'),
 ]
 
+# Financieras que le prestan al cliente y le pagan a la tienda (decisión de la gerencia C1, 2026-10-17): formas de pago
+# de clientes en el asistente «Pagar». (código, nombre, palabra con que se reconoce una que ya exista). La cuenta
+# contable de cada una la revisa la contadora (docs/DECISIONES_CONTABLES.md).
+DIARIOS_FINANCIAMIENTO = [
+    ('TAFI', 'Tafi (financiamiento)', 'tafi'),
+    ('CRVIV', 'Crediviva (financiamiento)', 'crediviva'),
+]
+PARAMETRO_FINANCIAMIENTO = 'dcasa_base.diarios_financiamiento_creados'
+
 # Menús raíz que una mueblería no usa en el día a día: quedan solo en modo desarrollador.
 MENUS_OCULTOS = [
     'mail.menu_root_discuss',
@@ -79,6 +88,32 @@ def _configurar_ventas_panama(env):
     for codigo, nombre, tipo in DIARIOS_COBRO:
         if not Journal.search_count([('company_id', '=', company.id), ('code', '=', codigo)]):
             Journal.create({'name': nombre, 'code': codigo, 'type': tipo, 'company_id': company.id})
+    crear_diarios_financiamiento(env)
+
+
+def crear_diarios_financiamiento(env):
+    """Tafi y Crediviva como formas de pago de clientes (diarios de banco, activos, con cobro manual).
+
+    Una sola vez por base (``dcasa_base.diarios_financiamiento_creados``): si después alguien los archiva o los borra,
+    no vuelven. Sin pisar lo que exista: si ya hay un diario con ese código o con ese nombre (alguien lo creó a mano),
+    se deja como está. Corre al instalar y en la migración 19.0.1.9.0. Devuelve los diarios que creó.
+    """
+    icp = env['ir.config_parameter'].sudo()
+    Journal = env['account.journal'].sudo().with_context(active_test=False)
+    if icp.get_param(PARAMETRO_FINANCIAMIENTO):
+        return Journal.browse()
+    company = env.ref('base.main_company')
+    creados = Journal.browse()
+    for codigo, nombre, palabra in DIARIOS_FINANCIAMIENTO:
+        if Journal.search_count([('company_id', '=', company.id),
+                                 '|', ('code', '=ilike', codigo), ('name', 'ilike', palabra)], limit=1):
+            continue
+        creados |= Journal.create({'name': nombre, 'code': codigo, 'type': 'bank', 'company_id': company.id})
+    icp.set_param(PARAMETRO_FINANCIAMIENTO, '1')
+    if creados:
+        _logger.info("D'CASA formas de pago nuevas: %s (la contadora revisa su cuenta contable).",
+                     ', '.join(creados.mapped('name')))
+    return creados
 
 
 def itbms_de_venta(env, company):

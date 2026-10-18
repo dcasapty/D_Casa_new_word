@@ -7,6 +7,18 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-18:** la tanda 2 (Inicio de Gerencia sobre facturas + reglas contables de la gerencia y permisos
+de vendedoras + pedidos web sin vendedora) está unida y con la revisión cruzada en la rama `tanda2`; sigue CI, staging y
+producción. Antes de abrir: rol Caja al jefe administrativo.
+
+**Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
+correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
+que sigue, cada cosa con capturas para la dueña **antes** de staging: (1) el error de Ajustes, si se confirma (afecta
+producción); (2) las reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); antes de encenderlas,
+darle el rol Caja al jefe administrativo; (3) el Inicio de Gerencia sobre facturas; (4) Meta unido, que espera las
+decisiones de la dueña y el visto bueno del abogado para la política de privacidad. Tareas de la dueña: la cuenta de
+Resend con `RESEND_API_KEY` en GitHub, y las instrucciones v2 de Juan en Chrome.
+
 **Estado al 2026-10-16, tarde:** en producción desde las 13:25 UTC (Desplegar 10, `d37af4fd…`, PR #46 en `main`) las
 Etapas 1, 2 y 3, la prueba de humo del arranque, Conversaciones #25 punto 1 y el botón «Volver a una versión estable».
 Desde las 15:11 UTC (Desplegar 11, `9be426a4…`) también: Inicio con las listas de cotizaciones y entregas arriba y con
@@ -22,6 +34,17 @@ cuestionario «Preguntas para Juan» y, con la revisión de la dueña, se carga 
 3 de Juan para entregas, flete, apartados, crédito o descuentos necesita su «sí»); (2) la dueña conecta Messenger e
 Instagram con [JUAN_META.md](JUAN_META.md) (empieza por la verificación del negocio); (3) salario y fecha de inicio de
 las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer bono (octubre).
+
+**Pedido del 2026-10-16/17 (permisos): hecho en la rama local `permisos-vendedoras`, sin subir.** Cada vendedora ve solo
+lo suyo, rol Caja y el interruptor «Cada vendedora ve solo sus documentos» para volver atrás (ver
+[PERMISOS.md](PERMISOS.md)). Revisión adversarial hecha el 17 oct (dos arreglos y cinco pruebas de la rama unida; ver la
+bitácora). **Encima, las reglas contables de la gerencia** (17 oct, [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md):
+A3, A5, A6, A7 y C1, hechas) y las respuestas de la dueña del punto 23 (pedidos web sin vendedora; la vendedora sigue
+facturando pero no cobra). Falta: que la dueña apruebe las capturas (`capturas_permisos/` y `capturas_reglas/`), CI y
+staging; producción con su visto bueno; ese día, darle Caja al jefe administrativo antes de abrir. De las
+decisiones contables, esta rama no toca: crédito solo a autorizados por Gerencia (A3), «Vendido» como facturas publicadas (A1),
+correo 5 días antes del vencimiento del abono (D3), comisiones del punto de venta del banco por lote (B1/C6), fondo fijo
+de caja (C4), aportes y retiros de los dueños (C8), mermas con aviso del 0.5 % (F6).
 
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
@@ -62,7 +85,7 @@ unidos con el PR #43.)
 | # | Etapa | Qué incluye | Depende de |
 |---|---|---|---|
 | 1 | **Seguridad y control primero** | Cerrar los huecos hallados el 2026-10-16: tope de descuento también para el descuento global y el de importe fijo (y al quitar o cambiar líneas después); fusión de contactos segura; que la Vendedora no ajuste existencias a mano sin motivo; topes de dinero de Brian (#26); permisos de escritura de Conversaciones (#25). Más protecciones: pruebas de humo después de producción, revisión adversarial obligatoria si el cambio toca dinero, permisos, contabilidad o Socios, una prueba por cada hueco, revisión de secretos. **Las pruebas se mantienen completas: no se recortan ni se aceleran a costa de cobertura** | Decisiones 6, 8 y 9. **Hecho (PR #43; en producción con el arreglo #97):** tope de descuento del pedido entero (global, importe fijo y líneas negativas; también con precio por contexto, al cambiar de producto o unidad), fusión de contactos segura (fusiones masivas solo del administrador), existencias solo por Gerencia, regla de revisión adversarial (plantilla del PR y `LEEME_PRIMERO.md`). **Falta:** topes de dinero de Brian (esperan las cifras de la dueña), permisos de Conversaciones (#25), pruebas de humo después de producción, revisión de secretos |
-| 1b | **Costo y «vendido» más firmes** (salió de la revisión adversarial del 2026-10-16) | (a) Cerrar de verdad el campo «Costo» de la ficha del producto, el margen de los reportes de factura (`account.invoice.report`) y el precio del proveedor: solo Gerencia, administradores, contabilidad, compras e inventario; con pruebas de que recibir, entregar y comprar siguen andando para la Vendedora y para bodega. (b) Que «Vendido» y la ganancia salgan de las líneas de las **facturas publicadas** y no del pedido (así cuadran con Contabilidad si se corrige la factura en caja y las notas de crédito parciales restan solo lo devuelto). (c) Pendientes menores: fusión (`company_ids` de usuarios si hay varias empresas; fichas de usuarios/empleados), `_ganancia_de` con `sudo` si algún día hay varias empresas | Pruebas de Inventario, Compras y Contabilidad |
+| 1b | **Costo y «vendido» más firmes** (salió de la revisión adversarial del 2026-10-16) | (a) Cerrar de verdad el campo «Costo» de la ficha del producto, el margen de los reportes de factura (`account.invoice.report`) y el precio del proveedor: solo Gerencia, administradores, contabilidad, compras e inventario; con pruebas de que recibir, entregar y comprar siguen andando para la Vendedora y para bodega. (b) Que «Vendido» y la ganancia salgan de las líneas de las **facturas publicadas** y no del pedido (así cuadran con Contabilidad si se corrige la factura en caja y las notas de crédito parciales restan solo lo devuelto). **En el Inicio de Gerencia y en Brian para Gerencia, hecho en la rama `inicio-facturado`** (2026-10-17); el Inicio de la vendedora y Estadísticas siguen con los pedidos. (c) Pendientes menores: fusión (`company_ids` de usuarios si hay varias empresas; fichas de usuarios/empleados), `_ganancia_de` con `sudo` si algún día hay varias empresas | Pruebas de Inventario, Compras y Contabilidad |
 | 2 | **Inicio nuevo con utilidad** (**hecho**, PR #43; en producción con el arreglo #97) | Costo guardado al confirmar la venta y ganancia (solo Gerencia); selector Hoy / Semana / Mes / rango; ITBMS claro por mejor práctica contable (ventas, costo y ganancia sin ITBMS; dinero que se mueve con ITBMS; cada etiqueta lo dice y trae el desglose); Cotizaciones y Entregas lado a lado; botones azules (quitar «Nueva factura» y «Ver en el celular»); franja de atención; Estadísticas del negocio; íconos del menú con color; categoría «Envíos — En desarrollo»; **cerrar el hueco del tope de descuento** (el botón Descuento global y de importe fijo no pasa por el tope de la vendedora una vez que existe el producto de descuento; verificado el 2026-10-16) | Costos cargados; paleta de colores |
 | 3 | **Clientes y proveedores limpios** (los usuarios y empleados del sistema no se tocan) | Encontrar por qué una misma persona aparece 5 veces al cotizar, con el mismo correo y celular, pese a los candados (el candado no cuenta usuarios, empleados ni direcciones hijas; hay que mirar «Posibles duplicados»); **arreglar la fusión** (Gerencia no tiene permiso para el asistente; no copia los datos de Socios de la ficha que se borra; destino = la más vieja); avisar al cotizar cuando hay otros contactos con el mismo correo o celular y mostrarlos en el selector; buscar antes de crear una ficha desde una conversación o Telegram | Mirar los datos reales |
 | 4 | **Bodega** | Escáner › Despachar (QR de la nota → verificar cada artículo); Bitácora de bodega (antes → después, motivo); alertas diarias por Telegram (stock bajo, ajustes grandes, cierre de mes); cerrar el hueco del Inventario físico para la Vendedora | Etiquetas o códigos en cajas; umbral |
@@ -96,12 +119,14 @@ unidos con el PR #43.)
 | Meta de la vendedora en el Inicio: solo porcentaje, barra, frases y «Ver mis ventas» (sin cifras de dinero) | En producción (Desplegar 14) | — |
 | Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | En producción (Desplegar 14 y Worker de Juan). Falta que la dueña corra las instrucciones v2 con la extensión de Chrome | — |
 | Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner | En producción (Desplegar 15) | — |
-| Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | Hecho y probado en la rama `comparar-ventas` (sin subir). Falta staging, que la dueña lo mire y su «sí» para producción. Cambio a propósito: una venta facturada sin ningún pago ya no cuenta en el Inicio de Gerencia | — |
-| Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | Papel y Mi cuenta hechos y probados (próximo despliegue); condiciones de abono en construcción | — |
-| Panel del cliente «Mi cuenta» | Hecho y probado (próximo despliegue); falta la ronda de pulido de la auditoría visual | — |
-| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción | — |
-| Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En construcción; apagado hasta que la dueña cree la cuenta y se traslade el dominio | — |
-| Meta: catálogo, píxel y Conversions API | Investigación y diseño hechos; construcción en cola; el píxel lo crea la dueña con la extensión de Chrome | — |
+| Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | En producción (Desplegar 17). Sigue: el Inicio de Gerencia sobre facturas (Facturado · Con abonos · Completadas) y las notas a un ícono ⓘ | — |
+| Inicio de Gerencia sobre las **facturas** (A1/A2 del jefe): interruptor Facturado · Con abonos · Completadas, «N de M salieron de un pedido», notas de crédito que restan, ganancia de facturas sin pedido con el costo de hoy, la semana y lo más vendido con la misma base, notas largas en un ícono ⓘ; Brian igual | Unido en la rama `tanda2` con las reglas de la gerencia (2026-10-18). Falta: CI, staging y producción | — |
+| Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | En producción (Desplegar 17): papel «ABONO» y condiciones en dos hojas. Sigue: abono mínimo 50 % y 30 días (reglas del jefe, `DECISIONES_CONTABLES.md`) | — |
+| Panel del cliente «Mi cuenta» | En producción (Desplegar 17); falta la ronda de pulido de la auditoría visual | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción. Antes de encender: Caja al jefe administrativo | — |
+| Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción | — |
+| Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
+| Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 

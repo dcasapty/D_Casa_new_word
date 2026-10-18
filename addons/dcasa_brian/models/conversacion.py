@@ -834,6 +834,12 @@ class BrianConversacion(models.Model):
             f"Conversas con {usuario.name} ({self.env.company.name}) por el canal {self.canal}; "
             f"todo lo haces con los permisos de {usuario.name}.",
         ]
+        if not usuario._dcasa_puede_cobrar():
+            variable.append(f'{usuario.name} no registra cobros: si te pide cobrar una factura o un abono, dile que '
+                            'los cobros los registra Caja (o Gerencia).')
+        if not usuario._dcasa_es_gerencia():
+            variable.append('Pasar a borrador o anular una factura publicada, las notas de crédito y devolverle '
+                            'dinero a un cliente son solo de Gerencia: si te lo piden, dilo.')
         pantalla = self._describir_pantalla(contexto)
         if pantalla:
             variable.append(pantalla)

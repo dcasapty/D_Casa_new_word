@@ -309,6 +309,20 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   la sesión; pasó al repetir. Arreglo: `ac76ef40` → `puente-wa/test/integracion.test.ts` (espera con sondeo).
 - Pruebas que dependen del reloj: `c2fd4a9` (pasar_a_vendedora, fallaba solo un día después de las 17:00 UTC),
   `2c6e978e` y `b8b03c0` (arriba). Regla: congelar el reloj en toda prueba con fechas.
+- **Local, 2026-10-17** · `dcasa_conversaciones` `TestContratoVisualJuan.test_03_capturas_de_referencia` (pantalla
+  «conexiones» a 390 px) falla en esta máquina con 13.52 % de píxeles distintos **también en `3b678a6`** (sin cambios):
+  es del entorno local (Chromium/fuentes), no del código. La de «hilo» a 390 px dio 2.02 % una vez y pasó en la
+  siguiente corrida. Antes de culpar a un cambio, correrla en la base sin el cambio.
+- 2026-10-18 · `test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio` («sin conexión no debería aparecer
+  solo») parecía «falla después de medianoche UTC» y no era la hora: era una carrera de la prueba. Al suscribirse por
+  primera vez, el bus de Odoo repite los avisos de los últimos 50 s (`bus.bus._poll` con `last=0`), y las filas de
+  `bus.bus` de los datos de ejemplo llevan la hora de inicio de la transacción de la CLASE: corrida sola (o entre las
+  primeras de la clase) la pantalla recibía esos 7 avisos ~30 ms antes o después de `bus.stop()` y su refresco (350
+  ms) caía después del POST; en la suite, casi nunca. Arreglo: `PanelUiCase.avisos_anteriores_ya_viejos()` (lo llama
+  `navegador()`) envejece esas filas un día, y `test_al_abrir_la_pantalla_el_bus_no_repite_…` lo comprueba con el reloj
+  congelado 5 s y 10 min después. Regla: una prueba con navegador que afirma que algo NO aparece no puede dejar avisos
+  del bus de antes de abrir la página; y «pasó a una hora y falla a otra» con el mismo commit se repite 3–5 veces
+  antes de culpar al reloj (aquí, sin el arreglo, falló 4 de 10 corridas seguidas entre 01:06 y 01:49 UTC).
 
 ---
 
@@ -316,6 +330,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Esta máquina (sesiones de Claude)
 
+- `$!` después de `nohup cd … && python3 odoo-bin … &` es el PID de la subshell, no el de Odoo: al «matarlo» Odoo sigue
+  vivo en el puerto y el siguiente arranque falla con «Address already in use» (y las capturas salen con el código
+  viejo). Arrancar con un script que haga `exec python3 odoo-bin …` o matar por el PID real (`ps -eo pid,args | grep
+  <puerto>`) (2026-10-17).
 - `pkill -f "<patrón>"` mata también la propia shell si el patrón aparece en el comando (sale con código 144 y se
   pierden las tareas en segundo plano de esa llamada). Matar por PID (`ps -eo pid,args | grep odoo-bin`).
 - Las pruebas de navegador de Odoo se saltan en local («Chrome executable not found»). Para correrlas: un enlace
@@ -332,6 +350,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
 
 ### Odoo 19
+
+- **Unir dos ramas que no se veían** (tanda 2, 2026-10-18): una rama cuya base es de la historia vieja (antes del
+  *squash* a `main`) se trae con `git cherry-pick` de sus commits, no con `merge`. Y después de unir, revisar lo que
+  cruza: las notas de crédito, que ahora hace solo Gerencia, llevan a Gerencia como «Vendedor» (Odoo pone a quien la
+  hace si la ficha del cliente no dice otra, `_compute_invoice_default_sale_person`). Todo lo que reparte ventas por
+  vendedora mira el pedido y, en una nota, su factura (la que revierte o la conciliada), nunca el «Vendedor» de la nota
+  (`ventas_bases._duenas`).
+- **Al revertir una factura** (`_reverse_moves`), Odoo no copia el «Vendedor» (`invoice_user_id` es `copy=False`): la nota
+  de crédito queda a nombre de quien la hace (Gerencia). Para saber de quién es una nota, mirar la factura que revierte
+  (`reversed_entry_id`). `_reverse_moves(valores)` deja la nota en borrador y **sin conciliar**; con `cancel=True` la
+  publica y la concilia (la factura queda `reversed`). Las líneas de la nota sí copian `sale_line_ids` (2026-10-17).
+- **Una factura sin «Vendedor» elegido** toma el vendedor del cliente o, si no tiene, a quien la crea
+  (`_compute_invoice_default_sale_person`): lo cargado por un script queda a nombre de quien lo corre (OdooBot en un
+  `odoo-bin shell`). Por eso el Inicio manda las facturas del sistema anterior (`dcasa_historica`) a «Sin vendedora».
+- **«Ventas» de Contabilidad = apuntes de cuentas de tipo `income`**, por su fecha contable (`date`). Las facturas lo igualan
+  con `amount_untaxed_signed` solo si todas sus líneas van a ingresos y el ITBMS tiene su cuenta: en una prueba, un
+  impuesto sin cuenta deja el ITBMS en ingresos y Contabilidad «suma» el impuesto.
 
 - `notification_type` («Por correo» / «En Odoo») sale del grupo `mail.group_mail_notification_type_inbox` asignado **directo** al usuario (`group_ids`); un grupo implícito no lo cambia. Para cambiarlo se escribe `notification_type` (su inverso pone el grupo).
 - Campo, vista o dato nuevo sin `odoo -u` = `UndefinedColumn` y pantallas rotas: nunca dar por buena una versión sin
@@ -364,6 +399,86 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - `/mail/message/post` (chatter, también del portal) publica con `sudo()` y deja pasar el `context` del navegador: un
   permiso que mire `env.su` ahí lo tiene cualquiera; se mira `env.uid`/`env.user`.
 - `limit_memory_soft` mide memoria virtual (VMS), no RSS: no dimensionarlo con el tamaño del contenedor.
+- Un `xpath` que busca por texto (`//h3[text()='…']`) falla con el sitio en `es_419` (el texto ya viene traducido) y
+  rompe la página: anclar por estructura (`//a[@href='/shop/print']/preceding-sibling::h3[1]`). En la prueba,
+  `_get_combined_arch()` devuelve un `Element`: compararlo con `etree.tostring(...)` (2026-10-17).
+- Un texto más largo en la barra de anuncios desbordó el celular en producción (426 px a 360/390) con CI #194 en verde;
+  la misma `TestMovilSinDesborde` falla en local con ese código. **(sin confirmar)** la diferencia es el entorno del
+  CI (fuentes); mientras tanto, todo cambio de texto en la cabecera se prueba en local a 360 y 390 antes de subir
+  (2026-10-17).
+- Sin el grupo «Editor y diseñador» del sitio (nadie lo tiene: el sitio se edita por código) **ninguna** pantalla de
+  Ajustes se guardaba («No tienes permiso para modificar registros "Sitio web"»): `group_gmc_feed` de website_sale es
+  campo de grupo (recibe valor de `default_get`) y related a `website_id.enabled_gmc_src`; ese valor por defecto entra
+  después del filtro de `res.config.settings.create()` y el ORM lo escribe en el sitio como el usuario aunque no cambie.
+  Arreglo en `website_dcasa/models/res_config_settings.py` (si no cambia no se escribe; no abre permisos). Las pruebas
+  de Ajustes como superusuario (`self.env['res.config.settings'].create({})`) no lo ven: probar como administrador sin
+  diseñador y por el camino del navegador (`website_dcasa/tests/ajustes_navegador.py`) (2026-10-17).
+- **Quitar una implicación de grupo en una base que ya existe**: borrar la línea `(4, ref(…))` del XML no la quita (el
+  `-u` solo agrega); hace falta `(3, ref(…))` o una migración. Y si esa implicación es un **interruptor de Ajustes**
+  (como «Cada vendedora ve solo sus documentos», 2026-10-17), el XML del rol **no la nombra nunca** (ni `(4)` ni `(3)`):
+  cada despliegue la volvería a poner o a quitar. Se quita una sola vez en la migración (`dcasa_base` 19.0.1.8.0).
+- `res.groups._remove_group(g)` (lo que usan los campos `group_*` de Ajustes) quita `g` de **todos** los grupos que el
+  grupo implica y que lo tengan directo: para mover la implicación de un solo rol, escribir `implied_ids` de ese rol
+  con `Command.unlink`/`Command.link`. Odoo 19 calcula los grupos implícitos al vuelo (`all_group_ids`): cambiar lo que
+  implica un rol cambia al instante lo que ve cada persona, sin tocar su ficha.
+- Las reglas de registro de grupo se suman con «o»: una sola `[(1, '=', 1)]` (las de Facturación) abre todo. Para
+  «solo lo suyo» hay que estrechar las de fábrica (`<function … write>`, son `noupdate`) y colgar las de «toda la
+  tienda» de otro grupo (`sales_team.group_sale_salesman_all_leads`).
+- Con «solo sus documentos», si la ficha del cliente dice «Vendedor: B», Odoo pone a B como dueña de la cotización o
+  factura que crea A y la creación **falla por permisos** (A no puede leer lo que acaba de crear): `dcasa_base` fija como
+  dueña a quien crea si solo ve lo suyo. Despachar la entrega del pedido de otra vendedora sí funciona (comprobado).
+- Las pruebas que crean pedidos o facturas como superusuario y luego los leen **como vendedora** fallan con «solo lo
+  suyo» (quedan a nombre del superusuario): crearlos con `user_id` / `invoice_user_id` de ella.
+- **Una rama unida con `main` se vuelve a probar entera, no se hereda el verde de antes de unir** (revisión del
+  2026-10-17): la suite de `permisos-vendedoras` estaba verde *antes* de unir `main`; después de la unión (celular y
+  correo obligatorios, `dcasa_contactos`) `TestSoloLoSuyo` y `TestInterruptorSoloLoSuyo` fallaban en `setUpClass` —
+  las pruebas principales de permisos no corrían— y otras tres de las dos ramas chocaban (clientes sin celular ni
+  correo; una vendedora cobrando o imprimiendo una factura que no era suya). Arreglo `7a89d89` (solo datos de prueba).
+- **Lo compartido que lee lo restringido** (revisión adversarial del 2026-10-17): una plantilla o un cálculo de algo que
+  ven todas (la entrega) que lee el pedido o la factura **sin `sudo`** revienta con «solo lo suyo» para la vendedora que
+  no es la dueña. Pasó con la nota de entrega fácil (`stock.picking._dcasa_facturas_para_entrega`): imprimir la nota del
+  pedido de otra daba error de permisos. Se lee con `sudo` **solo** lo que se imprime (como hace Odoo con
+  `o.sudo().sale_id.client_order_ref`). Probarlo siempre *como la otra vendedora*, no como superusuario.
+- **Una suma por SQL (`cr.execute`) no pasa por las reglas de registro**: «Ventas atribuidas» del Resumen de
+  Conversaciones le daba a la vendedora la suma de toda la tienda. Toda suma nueva por SQL de facturas o pedidos se
+  acota a mano con `res.users._dcasa_solo_lo_suyo()` (lo suyo y lo sin vendedora).
+- **Los pedidos de la web** (`website_sale`) se asignan al confirmarse (o al quedar el pago pendiente) con
+  `_compute_user_id` y `force_user_recomputation` al `website.salesperson_id` (en una base nueva, `base.user_admin`) o a
+  la vendedora de la ficha. Desde el 2026-10-17 `website_dcasa/models/pedido_web.py` los deja **sin vendedora** (salvo
+  la vendedora que confirma, o un «Vendedor» del sitio puesto a mano). Una prueba con `user_id: False` sin `website_id`
+  no imita la web: se crea con `website_id` y se confirma como superusuario o como la persona.
+- **«Solo Gerencia» o «solo Caja» no se puede hacer con reglas de registro** (se suman con «o», y Caja y la Vendedora
+  con el interruptor apagado comparten «todos los documentos»): va en Python, en el servidor, antes de `super()`
+  (`dcasa_base/models/cobros.py`). Odoo crea el `account.payment` y **después** revisa las reglas: para que el mensaje
+  claro salga antes que el «no tienes permiso» genérico, se mira el tipo en los `vals` (con los `default_` del contexto)
+  antes de crear. Y `account.move.write({'state': 'draft'})` por RPC pasa a borrador sin el botón: también se vigila.
+- **Odoo cruza solo** el pago en línea de un pedido con su factura al publicarla (`sale` `_post` →
+  `js_assign_outstanding_line`, como quien publica). Una regla que frene cruzar cobros tiene que dejar pasar ese caso
+  (`pago_en_linea_de_su_factura`: el pago es de una transacción de esa misma factura), o la vendedora no podría
+  facturar. Con «solo lo suyo» encendido la vendedora no ve ese pago y Odoo no lo cruza: la factura se publica por
+  cobrar y Caja le aplica el cobro desde la factura (comprobado en una base de prueba el 2026-10-17).
+- **`assertRaisesRegex` no deshace nada en las pruebas de Odoo** (es el de `unittest`); `self.assertRaises` sí abre un
+  savepoint. Si el error salta después de escribir (una revisión al final de un pago), con `assertRaisesRegex` lo escrito
+  se queda y la prueba ve un estado que en la vida real se deshizo: usar `assertRaises` y mirar el mensaje
+  (`negado(...)` en `test_reglas_gerencia.py`), y `invalidate_all()` antes de releer.
+- **Unir `main` cuando `main` trae en un *squash* lo que la rama ya había unido** da conflictos «add/add» en muchos
+  archivos: resolver con una fusión de tres vías cuya base sea la punta vieja que la rama unió
+  (`git merge-file` o `git merge-tree --merge-base=<punta vieja>`), y comparar el árbol resultante (2026-10-17).
+- **Los ganchos de conciliación** (`_reconcile_pre_hook` / `_reconcile_post_hook` de `account.move.line`) ven todos los
+  caminos que cruzan cobros (asistente, banco, saldo a favor, Brian): sirven para avisos que no deben frenar (el primer
+  abono menor a la mitad que entra por el banco). Un aviso en el gancho va en `savepoint` y nunca hace fallar el pago.
+- **Esconder un botón según quién mira** (2026-10-18): la caché de vistas de Odoo es la misma para todos los usuarios
+  (`_get_view_cache`), así que no se decide en el XML con Python: se usa un campo calculado con
+  `@api.depends_context('uid')` (`dcasa_es_gerencia`, `dcasa_puede_cobrar`, `account.payment.dcasa_puede_tocar`) en
+  `invisible`, `groups` en el botón o en la acción (`group_ids` saca la acción del menú «Acción»), o se cambia el arch
+  **después** de la caché en `get_view` (`account.payment`: `create="0"` para quien no cobra). En la prueba se mira como
+  el navegador: el nodo tiene que venir en `get_views` y ni él ni lo que lo contiene pueden estar invisibles con los
+  valores del registro vistos por ese usuario (`TestBotonesSoloAQuienPuede._se_ve`).
+- **Un cobro de Odoo 19 sin cuenta de cobros por depositar no deja asiento** (`payment_method_line_id.payment_account_id`
+  vacío): no queda como «Créditos pendientes» y el asistente «Pagar» no muestra la diferencia
+  (`show_payment_difference`). En una prueba que necesite eso, ponerle la cuenta al método del diario.
+  `invoice_has_outstanding` se calcula con las reglas de quien mira: con «solo lo suyo» encendido la vendedora no ve el
+  cobro de otro y le da `False`.
 
 ### Cloudflare
 

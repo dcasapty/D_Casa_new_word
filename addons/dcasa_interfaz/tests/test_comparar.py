@@ -1,4 +1,5 @@
-"""«Comparar» del Inicio de Gerencia y el interruptor «Completadas» / «Con abonos» (2026-10-17).
+"""«Comparar» del Inicio de Gerencia y el interruptor «Facturado» · «Con abonos» · «Completadas» (2026-10-17; desde el
+mismo día, sobre las facturas: ``test_facturado.py``).
 
 Todo con fechas y horas fijas (``_comparar(..., ahora=...)`` y los ``create_date`` puestos a mano): nada depende del
 reloj real. Las ventas de datos son de 2025 y, para no mezclarse con otras, casi todas se miden con el filtro de
@@ -214,6 +215,13 @@ class CompararCommon(VentasCommon):
     def filas(resultado):
         return {fila['clave']: fila for fila in resultado['filas']}
 
+    @staticmethod
+    def ids(medida):
+        """Los documentos que contó una medida: facturas (y notas) o, en ``vendido``, pedidos."""
+        if 'filas' in medida:
+            return sorted(fila['id'] for fila in medida['filas'])
+        return sorted(medida['pedidos'].ids)
+
 
 @tagged('post_install', '-at_install')
 class TestCompletadasYConAbonos(CompararCommon):
@@ -230,7 +238,7 @@ class TestCompletadasYConAbonos(CompararCommon):
         self.assertEqual(self.medir(oct0, oct1, 'completadas', ana)['sin_itbms'], 0)
         noviembre = self.medir(nov0, nov1, 'completadas', ana)
         self.assertEqual((noviembre['sin_itbms'], noviembre['cuantas']), (1000.0, 1))
-        self.assertEqual(noviembre['pedidos'], orden)
+        self.assertEqual(self.ids(noviembre), factura.ids, 'se cuenta la factura (2026-10-17: sobre facturas)')
         self.assertIsNone(noviembre['falta_por_cobrar'], 'Falta por cobrar es solo de «Con abonos»')
         # Con abonos: octubre $1,000 con $800 por cobrar (al cierre de octubre); noviembre $0.
         octubre = self.medir(oct0, oct1, 'con_abonos', ana)
@@ -242,8 +250,11 @@ class TestCompletadasYConAbonos(CompararCommon):
             self.assertEqual(self.medir(nov0, nov1, base, ana)['cobrado'], 800.0)
         self.assertAlmostEqual(self.medir(oct0, oct1, 'completadas')['cobrado'] - equipo_antes[(oct0, oct1)], 200.0)
         self.assertAlmostEqual(self.medir(nov0, nov1, 'completadas')['cobrado'] - equipo_antes[(nov0, nov1)], 800.0)
-        # La venta sigue siendo del 5 de octubre en lo vendido de siempre (la vendedora no cambia).
+        # La venta sigue siendo del 5 de octubre en lo vendido de siempre (la vendedora no cambia) y en «Facturado».
         self.assertEqual(self.medir(oct0, oct1, 'vendido', ana)['sin_itbms'], 1000.0)
+        self.assertEqual(self.ids(self.medir(oct0, oct1, 'vendido', ana)), orden.ids)
+        self.assertEqual(self.medir(oct0, oct1, 'facturado', ana)['sin_itbms'], 1000.0)
+        self.assertEqual(self.medir(nov0, nov1, 'facturado', ana)['sin_itbms'], 0.0)
         # El día de los pagos sale de las mismas conciliaciones que el cuadro de pagos de la factura.
         if hasattr(factura, '_dcasa_pagos'):
             pagos = self.tablero._pagos_de_facturas(factura)[factura.id]
@@ -254,18 +265,20 @@ class TestCompletadasYConAbonos(CompararCommon):
         noviembre_25 = datetime(2025, 11, 25, 10, 0)
         llevas = self.comparar('mes', noviembre_25, mes='2025-10', base='con_abonos', vendedor=ana)['llevas']
         self.assertEqual(llevas, {'pct': 0.0, 'mes': 'octubre'})
-        completadas = self.comparar('mes', noviembre_25, mes='2025-10', vendedor=ana)
+        completadas = self.comparar('mes', noviembre_25, mes='2025-10', vendedor=ana, base='completadas')
         self.assertIsNone(completadas['llevas']['pct'])
         self.assertEqual(completadas['b']['etiqueta'], 'Oct completo')
         self.assertEqual(self.filas(completadas)['ventas']['cambio']['tipo'], 'llevas')
 
-    def test_una_venta_sin_pago_no_entra_en_ninguna(self):
+    def test_una_venta_sin_pago_solo_entra_en_facturado(self):
         dia = date(2025, 10, 6)
-        orden, _factura = self.vender(dia)
+        orden, factura = self.vender(dia)
         for base in ('completadas', 'con_abonos'):
             with self.subTest(base):
-                self.assertNotIn(orden, self.medir(dia, dia, base, self.vendedora.id)['pedidos'])
-        self.assertIn(orden, self.medir(dia, dia, 'vendido', self.vendedora.id)['pedidos'],
+                self.assertNotIn(factura.id, self.ids(self.medir(dia, dia, base, self.vendedora.id)))
+        self.assertIn(factura.id, self.ids(self.medir(dia, dia, 'facturado', self.vendedora.id)),
+                      'en «Facturado» cuenta: es una factura publicada')
+        self.assertIn(orden.id, self.ids(self.medir(dia, dia, 'vendido', self.vendedora.id)),
                       'en lo vendido de siempre (la vendedora) sí cuenta')
 
     def test_una_nota_de_credito_total_la_saca(self):
@@ -274,24 +287,28 @@ class TestCompletadasYConAbonos(CompararCommon):
         self.pagar(factura_pagada, 1000.0, dia)
         abonada, factura_abonada = self.vender(dia)
         self.pagar(factura_abonada, 100.0, dia)
-        antes = self.medir(dia, dia, 'con_abonos', self.vendedora.id)['pedidos']
-        self.assertTrue(pagada | abonada <= antes)
+        antes = self.ids(self.medir(dia, dia, 'con_abonos', self.vendedora.id))
+        self.assertTrue({factura_pagada.id, factura_abonada.id} <= set(antes))
+        documentos = {factura_pagada.id, factura_abonada.id}
         for factura in (factura_pagada, factura_abonada):
-            nota = factura._reverse_moves([{'invoice_date': dia, 'ref': 'Devolución total'}])
+            nota = factura._reverse_moves([{'invoice_date': dia, 'date': dia, 'ref': 'Devolución total'}])
             nota.action_post()
-        for base in ('completadas', 'con_abonos'):
+            documentos.add(nota.id)
+        for base in ('facturado', 'completadas', 'con_abonos'):
             with self.subTest(base):
-                pedidos = self.medir(dia, date(2025, 10, 31), base, self.vendedora.id)['pedidos']
-                self.assertFalse(pedidos & (pagada | abonada), 'una venta devuelta entera no cuenta')
+                filas = self.medir(dia, date(2025, 10, 31), base, self.vendedora.id)['filas']
+                self.assertEqual(sum(fila['sin_itbms'] for fila in filas if fila['id'] in documentos), 0.0,
+                                 'una venta devuelta entera no suma: su nota de crédito la resta')
+        self.assertTrue(pagada and abonada)
 
     def test_con_abonos_cuenta_el_dia_de_la_venta_y_completadas_el_del_ultimo_pago(self):
-        orden, factura = self.vender(date(2025, 10, 8))
+        _orden, factura = self.vender(date(2025, 10, 8))
         self.pagar(factura, 400.0, date(2025, 10, 9))
         self.pagar(factura, 600.0, date(2025, 10, 12))
         ana = self.vendedora.id
-        self.assertIn(orden, self.medir(date(2025, 10, 8), date(2025, 10, 8), 'con_abonos', ana)['pedidos'])
-        self.assertNotIn(orden, self.medir(date(2025, 10, 8), date(2025, 10, 11), 'completadas', ana)['pedidos'])
-        self.assertIn(orden, self.medir(date(2025, 10, 12), date(2025, 10, 12), 'completadas', ana)['pedidos'])
+        self.assertIn(factura.id, self.ids(self.medir(date(2025, 10, 8), date(2025, 10, 8), 'con_abonos', ana)))
+        self.assertNotIn(factura.id, self.ids(self.medir(date(2025, 10, 8), date(2025, 10, 11), 'completadas', ana)))
+        self.assertIn(factura.id, self.ids(self.medir(date(2025, 10, 12), date(2025, 10, 12), 'completadas', ana)))
         # Al cierre del 10 faltaban $600; al del 12, nada.
         self.assertEqual(self.medir(date(2025, 10, 1), date(2025, 10, 10), 'con_abonos', ana)['falta_por_cobrar'],
                          600.0)
@@ -300,11 +317,11 @@ class TestCompletadasYConAbonos(CompararCommon):
 
     def test_un_pago_anticipado_no_completa_la_venta_antes_de_que_exista(self):
         """Un pago con fecha anterior a la factura completa la venta el día de la venta, no antes."""
-        orden, factura = self.vender(date(2025, 10, 14))
+        _orden, factura = self.vender(date(2025, 10, 14))
         self.pagar(factura, 1000.0, date(2025, 10, 10))
         ana = self.vendedora.id
-        self.assertNotIn(orden, self.medir(date(2025, 10, 10), date(2025, 10, 13), 'completadas', ana)['pedidos'])
-        self.assertIn(orden, self.medir(date(2025, 10, 14), date(2025, 10, 14), 'completadas', ana)['pedidos'])
+        self.assertNotIn(factura.id, self.ids(self.medir(date(2025, 10, 10), date(2025, 10, 13), 'completadas', ana)))
+        self.assertIn(factura.id, self.ids(self.medir(date(2025, 10, 14), date(2025, 10, 14), 'completadas', ana)))
 
 
 @tagged('post_install', '-at_install')
@@ -324,14 +341,17 @@ class TestHastaLaMismaHora(CompararCommon):
         self.pagar(f2, 1000.0, ayer, time(10, 0))
         _s3, f3 = self.vender(ayer, time(15, 0), v)                       # después de las 11: no entra en el corte
         self.pagar(f3, 1000.0, ayer, time(15, 0))
-        self.s4, f4 = self.vender(ayer, time(9, 0), v)                    # abono antes de las 11, resto después
-        self.pagar(f4, 300.0, ayer, time(9, 0))
-        self.pagar(f4, 700.0, ayer, time(14, 0))
-        self.s5, f5 = self.vender(ayer, time(9, 30), v)                   # pago de ayer anotado hoy
-        self.pagar(f5, 1000.0, ayer, registrado=(hoy, time(8, 0)))
+        _s4, self.f4 = self.vender(ayer, time(9, 0), v)                   # abono antes de las 11, resto después
+        self.pagar(self.f4, 300.0, ayer, time(9, 0))
+        self.pagar(self.f4, 700.0, ayer, time(14, 0))
+        _s5, self.f5 = self.vender(ayer, time(9, 30), v)                  # pago de ayer anotado hoy
+        self.pagar(self.f5, 1000.0, ayer, registrado=(hoy, time(8, 0)))
 
     def test_ayer_cuenta_solo_lo_registrado_hasta_la_misma_hora(self):
-        resultado = self.comparar('ayer', self.AHORA, vendedor=self.otra.id)
+        # «Facturado»: las facturas registradas hasta las 11 (ayer, las de las 9, 9:30 y 10; hoy, la de las 9).
+        facturado = self.filas(self.comparar('ayer', self.AHORA, vendedor=self.otra.id))
+        self.assertEqual((facturado['ventas']['a'], facturado['ventas']['b']), (1000.0, 3000.0))
+        resultado = self.comparar('ayer', self.AHORA, vendedor=self.otra.id, base='completadas')
         self.assertEqual(resultado['hora'], '11:00 a. m.')
         self.assertEqual((resultado['a']['etiqueta'], resultado['b']['etiqueta']), ('17 oct', '16 oct'))
         filas = self.filas(resultado)
@@ -356,17 +376,21 @@ class TestHastaLaMismaHora(CompararCommon):
         self.assertEqual(self.medir(ayer, ayer, 'con_abonos', self.otra.id)['falta_por_cobrar'], 0.0)
         corte = self.en_utc(ayer, time(11, 0))
         cortado = self.medir(ayer, ayer, 'completadas', self.otra.id, corte)
-        self.assertNotIn(self.s4, cortado['pedidos'], 'a las 11 todavía debía $700')
-        self.assertNotIn(self.s5, cortado['pedidos'], 'su pago se anotó hoy: ayer a las 11 no estaba')
+        self.assertNotIn(self.f4.id, self.ids(cortado), 'a las 11 todavía debía $700')
+        self.assertNotIn(self.f5.id, self.ids(cortado), 'su pago se anotó hoy: ayer a las 11 no estaba')
 
     def test_los_dias_anteriores_al_corte_cuentan_completos(self):
         """En «1–17 oct» contra «1–17 sep» solo se corta el último día; el resto del rango va completo."""
         resultado = self.comparar('rango', self.AHORA, vendedor=self.otra.id, a_desde='2025-10-16',
-                                  a_hasta='2025-10-17', b_desde='2025-10-15')
+                                  a_hasta='2025-10-17', b_desde='2025-10-15', base='completadas')
         filas = self.filas(resultado)
         self.assertEqual(resultado['hora'], '11:00 a. m.')
         self.assertEqual(filas['ventas']['a'], 5000.0, 'el 16 completo (4) y el 17 hasta las 11 (1)')
         self.assertEqual(filas['ventas']['b'], 1000.0, 'B termina el 16 a las 11: nada el 15 y una sola el 16')
+        facturado = self.filas(self.comparar('rango', self.AHORA, vendedor=self.otra.id, a_desde='2025-10-16',
+                                             a_hasta='2025-10-17', b_desde='2025-10-15'))
+        self.assertEqual((facturado['ventas']['a'], facturado['ventas']['b']), (5000.0, 3000.0),
+                         'en «Facturado», el 16 a las 11 ya había tres facturas')
 
     def test_a_vs_b_que_no_termina_hoy_no_se_corta(self):
         resultado = self.comparar('rango', self.AHORA, vendedor=self.otra.id, a_desde='2025-10-16',
@@ -461,23 +485,23 @@ class TestPorVendedora(CompararCommon):
     def test_el_filtro_y_la_lista_por_vendedora(self):
         dia = date(2025, 10, 21)
         Tablero = self.tablero.with_user(self.gerencia)
-        suyas = self.env['sale.order']
+        suyas = self.env['account.move']
         for _ in range(2):
-            orden, factura = self.vender(dia, time(8, 0), self.vendedora)
+            _orden, factura = self.vender(dia, time(8, 0), self.vendedora)
             self.pagar(factura, 1000.0, dia, time(8, 0))
-            suyas |= orden
-        de_otra, factura = self.vender(dia, time(8, 0), self.otra)
-        self.pagar(factura, 1000.0, dia, time(8, 0))
-        sin, factura = self.vender(dia, time(8, 0), sin_vendedora=True)
-        self.pagar(factura, 500.0, dia, time(8, 0))
+            suyas |= factura
+        _orden, de_otra = self.vender(dia, time(8, 0), self.otra)
+        self.pagar(de_otra, 1000.0, dia, time(8, 0))
+        _orden, sin = self.vender(dia, time(8, 0), sin_vendedora=True)
+        self.pagar(sin, 500.0, dia, time(8, 0))
         tarjeta = Tablero.ventas_del_periodo('rango', '2025-10-21', '2025-10-21', vendedor=self.vendedora.id)
         self.assertEqual(tarjeta['actual']['sin_itbms'], 2000.0)
-        self.assertEqual(self.env['sale.order'].search(tarjeta['accion']['domain']), suyas,
+        self.assertEqual(self.env['account.move'].search(tarjeta['accion']['domain']), suyas,
                          'la lista abre el mismo conjunto de la tarjeta')
         self.assertIsNone(tarjeta['cuadre'], 'con una vendedora no se cuadra contra toda la contabilidad')
         con_abonos = Tablero.ventas_del_periodo('rango', '2025-10-21', '2025-10-21', base='con_abonos',
                                                 vendedor='sin')
-        self.assertEqual(self.env['sale.order'].search(con_abonos['accion']['domain']), sin)
+        self.assertEqual(self.env['account.move'].search(con_abonos['accion']['domain']), sin)
         self.assertEqual(con_abonos['actual']['falta_por_cobrar'], 500.0)
         # En «Con abonos» entra también la venta sin vendedora (tiene un abono; no está pagada completa).
         resultado = self.comparar('rango', datetime(2025, 10, 25, 10, 0), vendedor=self.otra.id, base='con_abonos',
@@ -492,7 +516,7 @@ class TestPorVendedora(CompararCommon):
         self.assertEqual(mias[-1]['nombre'], 'Sin vendedora')
         self.assertEqual((mias[0]['a'], mias[0]['b']), (2000.0, 0.0))
         self.assertIsNone(mias[0]['cambio']['valor'])
-        self.assertIn(de_otra, self.medir(dia, dia, 'completadas', self.otra.id)['pedidos'])
+        self.assertIn(de_otra.id, self.ids(self.medir(dia, dia, 'completadas', self.otra.id)))
 
     def test_las_vendedoras_del_selector(self):
         ex = crear_usuario(self.env, 'ex_vendedora_comparar', 'base.group_user')
@@ -522,7 +546,7 @@ class TestCompararPermisosYValidaciones(CompararCommon):
         with self.assertRaises(AccessError):
             self.tablero.with_user(contador).ventas_del_periodo('hoy', vendedor=self.vendedora.id)
         resultado = self.tablero.with_user(self.gerencia).comparar_ventas('ayer')
-        self.assertEqual(resultado['base'], 'completadas')
+        self.assertEqual(resultado['base'], 'facturado', 'abre en «Facturado» (decisión del jefe, 2026-10-17)')
         self.assertEqual([f['clave'] for f in resultado['filas']][:4], ['ventas', 'ganancia', 'margen', 'cuantas'])
 
     def test_la_vendedora_no_ve_el_bloque_ni_lo_de_otras(self):
@@ -539,10 +563,14 @@ class TestCompararPermisosYValidaciones(CompararCommon):
         self.assertIsNone(propio['vendedor'])
         self.assertIsNone(propio['actual']['ganancia'])
 
-    def test_gerencia_recibe_el_bloque_y_abre_en_completadas(self):
+    def test_gerencia_recibe_el_bloque_y_abre_en_facturado(self):
         datos = self.tablero.with_user(self.gerencia).obtener_datos()
-        self.assertEqual([b['clave'] for b in datos['bases']], ['completadas', 'con_abonos'])
-        self.assertEqual(datos['ventas']['base'], 'completadas')
+        self.assertEqual([b['clave'] for b in datos['bases']], ['facturado', 'con_abonos', 'completadas'])
+        self.assertEqual([b['nombre'] for b in datos['bases']], ['Facturado', 'Con abonos', 'Completadas'])
+        self.assertEqual([b['detalle'] for b in datos['bases']], [
+            'Todas las facturas, igual que Contabilidad', 'Con al menos un abono, por su valor total',
+            'Pagadas al 100 %, el día del último pago'])
+        self.assertEqual((datos['base'], datos['ventas']['base']), ('facturado', 'facturado'))
         self.assertEqual(len(datos['comparar']['chips']), 6)
         self.assertEqual(len(datos['comparar']['meses']), 24)
         self.assertEqual(datos['comparar']['vendedoras'][-1]['id'], 'sin')
@@ -572,7 +600,7 @@ class TestCompararEnElNavegador(VentasMixin, HttpCase):
             'name': 'Mueble navegador', 'list_price': 300.0, 'standard_price': 180.0, 'taxes_id': [Command.clear()]})
         for vendedor, pago in ((self.vendedora, 1.0), (self.vendedora, 1.0), (self.otra, 0.5)):
             orden = self.pedido(vendedor=vendedor, producto=producto)
-            factura = self.facturar(orden)
+            factura = self.facturar(orden, fecha=self.hoy)            # el «hoy» de Panamá, el del Inicio
             self.env['account.payment.register'].with_context(
                 active_model='account.move', active_ids=factura.ids).create({
                     'payment_date': factura.invoice_date, 'amount': factura.amount_total * pago,
@@ -589,19 +617,22 @@ class TestCompararEnElNavegador(VentasMixin, HttpCase):
             const cuerpo = (clave, base) => document.querySelector(
                 `.o_dcasa_comparar_cuerpo[data-comparacion="${clave}"][data-base="${base}"]:not(.o_cargando)`);
             await esperar(() => document.querySelector('.o_dcasa_comparar'), 'el bloque Comparar');
-            igual(textos('.o_dcasa_interruptor_opcion'), ['Completadas', 'Con abonos'], 'el interruptor');
-            const activa = document.querySelector('.o_dcasa_base_completadas.o_activo');
-            if (!activa) { throw new Error('abre en «Completadas»'); }
+            igual(textos('.o_dcasa_interruptor_opcion'), ['Facturado', 'Con abonos', 'Completadas'], 'el interruptor');
+            const activa = document.querySelector('.o_dcasa_base_facturado.o_activo');
+            if (!activa) { throw new Error('abre en «Facturado»'); }
             igual(getComputedStyle(activa).backgroundColor, 'rgb(19, 64, 177)', 'la píldora activa, azul de la marca');
             igual(getComputedStyle(activa).color, 'rgb(255, 255, 255)', 'con texto blanco');
             igual(document.querySelector('.o_dcasa_base_detalle').textContent.trim(),
-                  'Pagadas al 100 %, el día del último pago', 'la línea corta');
+                  'Todas las facturas, igual que Contabilidad', 'la línea corta');
+            // Las tres en una sola fila (también en el celular).
+            const arriba = [...document.querySelectorAll('.o_dcasa_interruptor_opcion')].map((b) => b.offsetTop);
+            if (new Set(arriba).size !== 1) { throw new Error('las tres posiciones van en una fila: ' + arriba); }
             igual(document.querySelector('.o_dcasa_vendedora_select').value, '', 'abre en «Todo el equipo»');
             igual(textos('.o_dcasa_chip').length, 6, 'seis botones');
             sinScrollDeCostado('al abrir');
             for (const clave of ['ayer', 'dia_mes_pasado', 'semana_pasada', 'mes_a_la_fecha', 'mes', 'rango']) {
                 document.querySelector('.o_dcasa_chip_' + clave).click();
-                await esperar(() => cuerpo(clave, 'completadas'), 'la tabla de ' + clave);
+                await esperar(() => cuerpo(clave, 'facturado'), 'la tabla de ' + clave);
                 const filas = textos('.o_dcasa_comparar_tabla tbody th');
                 for (const fila of ['Ventas', 'Ganancia', 'Margen', 'N.º de ventas', 'Cobrado']) {
                     if (!filas.some((t) => t.startsWith(fila))) { throw new Error(`${clave}: falta la fila ${fila}`); }
@@ -629,9 +660,9 @@ class TestCompararEnElNavegador(VentasMixin, HttpCase):
                     if (!document.querySelector('.o_dcasa_comparar_hora')) {
                         throw new Error('hoy cuenta hasta la hora');
                     }
-                    // Hoy 2 completadas (la tercera está a medias) contra ninguna ayer: sube, en azul.
+                    // Hoy 3 facturas contra ninguna ayer: sube, en azul.
                     const cambio = document.querySelector('.o_dcasa_cmp_fila_cuantas .o_dcasa_cmp_cambio');
-                    igual(cambio.textContent.trim(), '▲ 2', 'el cambio del número de ventas');
+                    igual(cambio.textContent.trim(), '▲ 3', 'el cambio del número de ventas');
                     igual(getComputedStyle(cambio).color, 'rgb(19, 64, 177)', 'sube en azul');
                     const ventas = document.querySelector('.o_dcasa_cmp_fila_ventas .o_dcasa_cmp_cambio');
                     igual(ventas.textContent.trim(), '—', 'contra $0 no hay porcentaje');

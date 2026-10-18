@@ -713,8 +713,10 @@ class TestFicha(PanelCase):
             'name': 'Cama queen', 'type': 'opportunity', 'partner_id': self.conv.partner_id.id,
             'expected_revenue': 350})
         self.env['crm.lead'].create({'name': 'De otra persona', 'type': 'opportunity'})
+        # La factura es de la vendedora: cada una ve solo sus facturas (y las sin vendedora) en la ficha.
         factura = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': self.conv.partner_id.id, 'invoice_date': fields.Date.today(),
+            'invoice_user_id': self.vendedora.id,
             'invoice_line_ids': [Command.create({'name': 'Cama', 'quantity': 1, 'price_unit': 349.99})]})
         factura.action_post()
         ficha = self.ficha()
@@ -1155,8 +1157,10 @@ class TestComprobanteAUnDocumento(PanelCase):
         self.pedido = self.env['sale.order'].create({
             'partner_id': self.partner.id, 'user_id': self.vendedora.id,
             'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1})]})
+        # La factura es de la vendedora: cada una ve solo sus facturas (y las sin vendedora).
         self.factura = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': self.partner.id, 'invoice_date': fields.Date.today(),
+            'invoice_user_id': self.vendedora.id,
             'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': 100.0})]})
         self.ajeno = self.env['res.partner'].create({'name': 'Otro cliente'})
         self.pedido_ajeno = self.env['sale.order'].create({
@@ -1196,6 +1200,7 @@ class TestComprobanteAUnDocumento(PanelCase):
         # El rol real «Vendedora» de D'CASA incluye Facturación (account.group_account_invoice).
         facturadora = new_test_user(self.env, login='juan_facturadora', name='Facturadora Prueba',
                                     groups='base.group_user,dcasa_base.group_vendedora')
+        self.factura.invoice_user_id = facturadora  # su factura: cada vendedora ve y toca solo lo suyo
         self.adjuntar('account.move', self.factura, usuario=facturadora)
         self.assertEqual(self.env['ir.attachment'].search_count([
             ('res_model', '=', 'account.move'), ('res_id', '=', self.factura.id), ('name', '=', 'yappy.png')]), 1)
@@ -1270,3 +1275,75 @@ class TestComprobanteAUnDocumento(PanelCase):
             for metodo, args in (('documentos_del_cliente', [self.conv.id]), ('adjuntar_a_documento', adjuntar)):
                 with self.subTest(usuario=usuario.login, metodo=metodo), self.assertRaises(AccessError):
                     call_kw(self.env(user=usuario)['dcasa.conversacion'], metodo, list(args), {})
+
+
+@tagged('post_install', '-at_install')
+class TestPanelSoloLoSuyo(PanelCase):
+    """«Cada vendedora ve solo sus documentos»: la ficha y los documentos para adjuntar un comprobante traen, para la
+    Vendedora A, solo lo suyo y lo sin vendedora, nunca lo de B (antes se buscaban con sudo); Caja ve todo."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        grupos = 'base.group_user,dcasa_base.group_vendedora'
+        cls.a = new_test_user(cls.env, login='juan_sls_a', name='Vendedora A', groups=grupos)
+        cls.b = new_test_user(cls.env, login='juan_sls_b', name='Vendedora B', groups=grupos)
+        cls.caja = new_test_user(cls.env, login='juan_sls_caja', name='Caja',
+                                 groups='base.group_user,dcasa_base.group_caja')
+
+    def setUp(self):
+        super().setUp()
+        self.conv = self.cliente(1, 'Quiero una cama', nombre='Karen Solo Lo Suyo')
+        partner = self.conv.partner_id
+        producto = self.env['product.product'].create({'name': 'Cama sls', 'type': 'consu', 'list_price': 100.0})
+
+        def venta(vendedora):
+            pedido = self.env['sale.order'].create({
+                'partner_id': partner.id, 'user_id': vendedora.id if vendedora else False,
+                'order_line': [Command.create({'product_id': producto.id, 'product_uom_qty': 1})]})
+            pedido.action_confirm()
+            factura = pedido._create_invoices()
+            factura.action_post()
+            return pedido, factura
+
+        self.pedido_a, self.factura_a = venta(self.a)
+        self.pedido_b, self.factura_b = venta(self.b)
+        self.pedido_libre, self.factura_libre = venta(None)
+
+    def _ficha_y_documentos(self, usuario):
+        panel = self.Conversacion.with_user(usuario)
+        ficha = panel.ficha(self.conv.id)
+        documentos = panel.documentos_del_cliente(self.conv.id)
+        return ({c['id'] for c in ficha['compras']}, {p['id'] for p in documentos['pedidos']},
+                {f['id'] for f in documentos['facturas']})
+
+    def test_a_no_ve_lo_de_b_ni_por_la_ficha_ni_por_los_documentos(self):
+        compras, pedidos, facturas = self._ficha_y_documentos(self.a)
+        self.assertEqual(compras, {self.factura_a.id, self.factura_libre.id})
+        self.assertEqual(facturas, {self.factura_a.id, self.factura_libre.id})
+        self.assertEqual(pedidos, {self.pedido_a.id, self.pedido_libre.id})
+        # Ni adjuntándole un archivo a la factura de B.
+        mensaje = self.conv.mensaje_ids.filtered(lambda m: m.autor == 'cliente')[:1]
+        adjunto = self.env['ir.attachment'].create({
+            'name': 'yappy.png', 'raw': b'comprobante', 'mimetype': 'image/png',
+            'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        mensaje.sudo().adjunto_ids = [Command.link(adjunto.id)]
+        with self.assertRaises(UserError) as error:  # el AccessError llega como mensaje claro (es un UserError)
+            self.Conversacion.with_user(self.a).adjuntar_a_documento(
+                self.conv.id, adjunto.id, 'account.move', self.factura_b.id)
+        self.assertIn('No tienes permiso', str(error.exception))
+        self.assertFalse(self.env['ir.attachment'].search_count(
+            [('res_model', '=', 'account.move'), ('res_id', '=', self.factura_b.id)]))
+
+    def test_caja_ve_todo(self):
+        compras, pedidos, facturas = self._ficha_y_documentos(self.caja)
+        todas = {self.factura_a.id, self.factura_b.id, self.factura_libre.id}
+        self.assertEqual(compras, todas)
+        self.assertEqual(facturas, todas)
+        self.assertEqual(pedidos, {self.pedido_a.id, self.pedido_b.id, self.pedido_libre.id})
+
+    def test_con_el_interruptor_apagado_a_ve_todo_como_antes(self):
+        self.env['res.users']._dcasa_poner_restriccion(False)
+        compras, pedidos, _facturas = self._ficha_y_documentos(self.a)
+        self.assertIn(self.factura_b.id, compras)
+        self.assertIn(self.pedido_b.id, pedidos)

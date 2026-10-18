@@ -20,10 +20,16 @@
       "tareas": ["resumen", "facturas-vencidas", "por-pagar", "factura-proveedor", "banco-conciliar", "itbms", "cierre-mes", "entregar-contador"]
     },
     {
+      "clave": "caja",
+      "titulo": "Caja",
+      "grupos": ["dcasa_base.group_caja"],
+      "tareas": ["registrar-abono", "cobrar-cliente", "cobro-financiera", "cobros-hoy", "por-facturar", "facturas-clientes", "ventas-hoy"]
+    },
+    {
       "clave": "vendedora",
       "titulo": "Vendedora",
       "grupos": ["dcasa_base.group_vendedora", "sales_team.group_sale_salesman"],
-      "tareas": ["cotizacion-nueva", "por-facturar", "cobrar-cliente", "ventas-hoy", "codigo-publico", "conversaciones", "cliente-nuevo"]
+      "tareas": ["cotizacion-nueva", "por-facturar", "facturas-clientes", "ventas-hoy", "codigo-publico", "conversaciones", "cliente-nuevo"]
     }
   ],
   "porDefecto": {

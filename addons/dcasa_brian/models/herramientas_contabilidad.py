@@ -7,11 +7,14 @@ corrige con nota de crédito, y eso lo hace una persona.
 from datetime import timedelta
 
 from odoo import Command, api, models
+from odoo.addons.dcasa_base.models.cobros import COBRAN
 
 from . import herramientas_comun as c
 from .registro import BrianError, herramienta
 
 FACTURACION = ('account.group_account_invoice',)
+# Registrar cobros: Caja, Gerencia, contabilidad o administrador (decisión de la gerencia A5, «el cobro solo en Caja»).
+QUIEN_COBRA = ('account.group_account_invoice', tuple(COBRAN))
 LECTOR_CONTABLE = ('account.group_account_readonly',)
 CONTADOR = ('account.group_account_user',)
 PARAM_FACTURA = {'type': 'string', 'description': 'Número («INV/2026/00012»), borrador («#45») o cliente/proveedor.'}
@@ -54,7 +57,22 @@ class BrianHerramientasContabilidad(models.AbstractModel):
             'itbms': c.moneda(factura.amount_tax),
             'total': c.moneda(factura.amount_total),
             'pendiente': c.moneda(factura.amount_residual),
+            **self._b_abono(factura),
         }
+
+    @api.model
+    def _b_abono(self, factura):
+        """Una factura de cliente en abono: lo pagado, lo que falta y hasta cuándo, de ``_dcasa_estado_abono`` (la
+        misma fuente del papel de ABONO, las Condiciones, «Mi cuenta» y los correos). Las demás: nada."""
+        if factura.move_type != 'out_invoice' or not factura._dcasa_es_abono():
+            return {}
+        estado = factura._dcasa_estado_abono()
+        abono = {'inicio': c.fecha(estado['inicio']), 'pagado': c.moneda(estado['pagado']),
+                 'saldo': c.moneda(estado['saldo'])}
+        if estado['vence']:
+            abono['vence'] = c.fecha(estado['vence'])
+            abono['vencido'] = estado['vencido']
+        return {'abono': abono}
 
     @api.model
     def _b_valores_linea(self, factura, producto, cantidad, precio):
@@ -383,7 +401,7 @@ class BrianHerramientasContabilidad(models.AbstractModel):
         Move = self.env['account.move']
         facturas = Move.search(dominio, order='invoice_date_due, id')
         hoy = self._b_hoy()
-        return {
+        resultado = {
             'tipo': 'por pagar' if tipo == 'por_pagar' else 'por cobrar',
             'facturas_abiertas': len(facturas),
             'total_pendiente': c.moneda(sum(facturas.mapped('amount_residual'))),
@@ -392,8 +410,12 @@ class BrianHerramientasContabilidad(models.AbstractModel):
                 'vence': c.fecha(f.invoice_date_due), 'total': c.moneda(f.amount_total),
                 'pendiente': c.moneda(f.amount_residual),
                 'vencida': bool(f.invoice_date_due and f.invoice_date_due < hoy),
+                **self._b_abono(f),
             } for f in facturas[:c.limite(limite)]],
         }
+        if nota := c.alcance(self.env):
+            resultado['alcance'] = nota
+        return resultado
 
     @herramienta(
         nombre='ver_factura',
@@ -524,18 +546,24 @@ class BrianHerramientasContabilidad(models.AbstractModel):
 
     @herramienta(
         nombre='registrar_pago',
-        descripcion='Registra un cobro o pago de una factura publicada (total o parcial) con su forma de pago.',
+        descripcion='Registra un cobro o pago de una factura publicada (total o parcial) con su forma de pago. El '
+                    'primer abono de un cliente es al menos la mitad del total (si es menos, solo Gerencia).',
         parametros={
             'factura': PARAM_FACTURA,
             'monto': {'type': 'number', 'description': 'Monto pagado. Si no lo das, el saldo pendiente completo.'},
-            'forma_pago': {'type': 'string', 'description': 'Diario: «Efectivo», «Yappy», «Tarjeta», banco…'},
+            'forma_pago': {'type': 'string', 'description': 'Diario: «Efectivo», «Yappy», «Tarjeta», «Tafi», '
+                                                           '«Crediviva», banco…'},
             'fecha': {'type': 'string', 'description': 'Fecha del pago dd/mm/aaaa. Por defecto hoy.'},
         },
         requeridos=['factura'],
-        nivel='sensible', categoria='contabilidad', grupos=FACTURACION,
-        ejemplos=['Ana pagó INV/2026/00012 por Yappy'],
+        nivel='sensible', categoria='contabilidad', grupos=QUIEN_COBRA,
+        ejemplos=['Ana pagó INV/2026/00012 por Yappy',
+                  'Tafi financió la compra de Ana, INV/2026/00013 → forma_pago=Tafi'],
     )
     def _h_registrar_pago(self, factura, monto=None, forma_pago=None, fecha=None):
+        if not self.env.user._dcasa_puede_cobrar():  # la herramienta ni sale; esto es por si acaso
+            raise BrianError(self.env._('Los cobros los registra Caja. Pídele a Caja (o a Gerencia) que cobre esta '
+                                        'factura.'))
         movimiento = self._b_factura(factura)
         if movimiento.state != 'posted':
             raise BrianError(f'{self._b_numero_factura(movimiento)} está {self._b_estado_factura(movimiento)}: '

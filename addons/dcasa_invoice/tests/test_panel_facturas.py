@@ -26,13 +26,16 @@ class TestPanelFacturas(TransactionCase):
         cls.lector = crear_usuario(cls.env, 'panel_lector', 'account.group_account_readonly')
         cls.administrador = crear_usuario(cls.env, 'panel_admin_contable', 'account.group_account_manager')
 
-    def _factura(self, tipo, publicar=True, vence_en=0, precio=100.0):
-        """vence_en: días desde hoy (negativo = ya venció)."""
-        factura = self.env['account.move'].create({
+    def _factura(self, tipo, publicar=True, vence_en=0, precio=100.0, vendedora=None):
+        """vence_en: días desde hoy (negativo = ya venció). vendedora: de quién es la factura."""
+        valores = {
             'move_type': tipo, 'partner_id': (self.cliente if tipo == 'out_invoice' else self.proveedor).id,
             'invoice_date': self.hoy - timedelta(days=60), 'invoice_date_due': self.hoy + timedelta(days=vence_en),
             'invoice_line_ids': [
-                Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': precio})]})
+                Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': precio})]}
+        if vendedora:
+            valores['invoice_user_id'] = vendedora.id
+        factura = self.env['account.move'].create(valores)
         if publicar:
             factura.action_post()
         return factura
@@ -173,3 +176,27 @@ class TestPanelFacturas(TransactionCase):
             panel.abrir('proveedores', 'vencidas')
         with self.assertRaises(AccessError):
             panel.abrir('cosa_inventada')
+
+    def test_la_vendedora_ve_tus_facturas_y_cuenta_solo_las_suyas(self):
+        """Con «Cada vendedora ve solo sus documentos» encendido, sus cifras no son las de la tienda: la tarjeta se
+        titula «Tus facturas de clientes» y cuenta solo las suyas. Caja y Gerencia ven la tarjeta de siempre."""
+        caja = crear_usuario(self.env, 'panel_caja', 'dcasa_base.group_caja')
+        otra = crear_usuario(self.env, 'panel_otra_vendedora', 'dcasa_base.group_vendedora')
+        antes = {u: self._cuentas(u, 'clientes')['pendientes'] for u in (self.vendedora, caja, self.gerencia)}
+        self._factura('out_invoice', vence_en=5, vendedora=self.vendedora)
+        self._factura('out_invoice', vence_en=5, vendedora=otra)
+        despues = {u: self._cuentas(u, 'clientes')['pendientes'] for u in (self.vendedora, caja, self.gerencia)}
+        self.assertEqual(despues[self.vendedora] - antes[self.vendedora], 1, 'solo la suya')
+        self.assertEqual(despues[caja] - antes[caja], 2)
+        self.assertEqual(despues[self.gerencia] - antes[self.gerencia], 2)
+        titulo = self.env[PANEL].with_user(self.vendedora).obtener_datos()['tarjetas'][0]['titulo']
+        self.assertEqual(titulo, 'Tus facturas de clientes')
+        self.assertIn('Tus facturas de clientes', self.env[PANEL].with_user(self.vendedora).abrir('clientes')['name'])
+        for usuario in (caja, self.gerencia):
+            self.assertEqual(self.env[PANEL].with_user(usuario).obtener_datos()['tarjetas'][0]['titulo'],
+                             'Facturas de clientes', usuario.login)
+        # Apagado el interruptor, la vendedora vuelve a ver la tarjeta de siempre, con todas.
+        self.env['res.users']._dcasa_poner_restriccion(False)
+        self.assertEqual(self.env[PANEL].with_user(self.vendedora).obtener_datos()['tarjetas'][0]['titulo'],
+                         'Facturas de clientes')
+        self.assertEqual(self._cuentas(self.vendedora, 'clientes')['pendientes'], despues[caja])

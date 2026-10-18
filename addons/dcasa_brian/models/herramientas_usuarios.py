@@ -11,29 +11,36 @@ from .registro import BrianError, herramienta
 GESTION_USUARIOS = ('base.group_erp_manager',)
 
 # EL mapeo rol → grupos de Odoo (único lugar). Orden: del más alto al más bajo (así se detecta el rol).
+# Gerencia, Caja y Vendedora son los roles D'CASA (dcasa_base/security/dcasa_roles.xml): la Vendedora ve solo lo
+# suyo; Caja factura y cobra lo de toda la tienda; Gerencia además controla (solo un administrador del sistema la da).
 ROLES = {
     'administrador': ('base.group_system', 'sales_team.group_sale_manager', 'account.group_account_manager',
                       'stock.group_stock_manager'),
+    'gerencia': ('dcasa_base.group_gerencia',),
     'contador': ('account.group_account_manager', 'sales_team.group_sale_salesman_all_leads',
                  'stock.group_stock_user'),
-    'cajero': ('account.group_account_invoice', 'sales_team.group_sale_salesman_all_leads',
-               'stock.group_stock_user'),
-    'vendedor': ('sales_team.group_sale_salesman', 'stock.group_stock_user'),
+    'cajero': ('dcasa_base.group_caja',),
+    'vendedor': ('dcasa_base.group_vendedora',),
 }
-NOMBRES_ROL = {'administrador': 'Administrador/a', 'contador': 'Contador/a', 'cajero': 'Cajero/a',
-               'vendedor': 'Vendedor/a'}
-# Grupos que un cambio de rol quita antes de poner los del rol nuevo (los de estas mismas áreas).
+NOMBRES_ROL = {'administrador': 'Administrador/a', 'gerencia': 'Gerencia', 'contador': 'Contador/a',
+               'cajero': 'Caja', 'vendedor': 'Vendedor/a'}
+# Roles que solo da un administrador del sistema.
+SOLO_ADMIN = ('administrador', 'gerencia')
+# Grupos que un cambio de rol quita antes de poner los del rol nuevo (los de estas mismas áreas). Incluye los tres
+# roles D'CASA y «todos los documentos»: si no, pasar de Caja a Vendedora dejaría ver lo de las compañeras.
 GESTIONADOS = {
     'base.group_system', 'base.group_erp_manager',
     'sales_team.group_sale_salesman', 'sales_team.group_sale_salesman_all_leads', 'sales_team.group_sale_manager',
     'account.group_account_invoice', 'account.group_account_basic', 'account.group_account_readonly',
     'account.group_account_user', 'account.group_account_manager',
     'stock.group_stock_user', 'stock.group_stock_manager',
+    'dcasa_base.group_vendedora', 'dcasa_base.group_caja', 'dcasa_base.group_gerencia',
 }
 PARAM_USUARIO = {'type': 'string', 'description': 'Nombre o correo (login) del usuario, p. ej. «maria@dcasapty.com».'}
 PARAM_ROL = {'type': 'string', 'enum': list(ROLES),
-             'description': 'vendedor (ventas), cajero (ventas + facturas y cobros), contador (contabilidad) '
-                            'o administrador (todo).'}
+             'description': 'vendedor (vende y factura lo suyo, no cobra: ve solo sus cotizaciones, pedidos y '
+                            'facturas), cajero (Caja: factura y cobra lo de toda la tienda), gerencia (controla la '
+                            'tienda; solo la da un administrador), contador (contabilidad) o administrador (todo).'}
 
 
 class BrianHerramientasUsuarios(models.AbstractModel):
@@ -57,8 +64,8 @@ class BrianHerramientasUsuarios(models.AbstractModel):
 
     @api.model
     def _b_exigir_admin_para(self, rol):
-        if rol == 'administrador' and not self.env.user.has_group('base.group_system'):
-            raise BrianError('Solo un administrador del sistema puede dar el rol de administrador.')
+        if rol in SOLO_ADMIN and not self.env.user.has_group('base.group_system'):
+            raise BrianError(f'Solo un administrador del sistema puede dar el rol de {NOMBRES_ROL[rol]}.')
 
     @api.model
     def _b_fila_usuario(self, usuario):
@@ -67,7 +74,8 @@ class BrianHerramientasUsuarios(models.AbstractModel):
 
     @herramienta(
         nombre='listar_usuarios',
-        descripcion='Usuarios internos con su rol (vendedor, cajero, contador, administrador) y último acceso.',
+        descripcion='Usuarios internos con su rol (vendedor, caja, gerencia, contador, administrador) y último '
+                    'acceso.',
         parametros={'incluir_inactivos': {'type': 'boolean', 'description': 'true para ver también los '
                                                                             'desactivados.'}},
         nivel='lectura', categoria='usuarios', grupos=GESTION_USUARIOS,
@@ -77,11 +85,36 @@ class BrianHerramientasUsuarios(models.AbstractModel):
         Users = self.env['res.users'].with_context(active_test=not incluir_inactivos)
         usuarios = Users.search([('share', '=', False)], order='name')
         return {'usuarios': [self._b_fila_usuario(u) for u in usuarios[:50]], 'total': len(usuarios),
-                'roles_disponibles': NOMBRES_ROL}
+                'roles_disponibles': NOMBRES_ROL,
+                'cada_vendedora_ve_solo_lo_suyo': self.env['res.users']._dcasa_restriccion_activa()}
+
+    @api.model
+    def _b_exigir_quien_cambia_la_restriccion(self):
+        if not any(self.env.user.has_group(g) for g in ('dcasa_base.group_gerencia', 'base.group_system')):
+            raise BrianError('Solo Gerencia o un administrador eligen qué documentos ve cada vendedora.')
+
+    @herramienta(
+        nombre='cambiar_restriccion_vendedoras',
+        descripcion='Enciende o apaga «Cada vendedora ve solo sus documentos». Apagado, todas las vendedoras ven '
+                    'todos los documentos, como antes; no cambia el rol de nadie. Caja y Gerencia ven todo siempre.',
+        parametros={'encender': {'type': 'boolean', 'description': 'true: cada vendedora ve solo lo suyo (y lo sin '
+                                                                   'vendedora); false: todas ven todo.'}},
+        requeridos=['encender'], nivel='sensible', categoria='usuarios', grupos=('sales_team.group_sale_manager',),
+        ejemplos=['que las vendedoras vuelvan a ver todo → encender=false',
+                  'que cada vendedora vea solo lo suyo → encender=true'],
+    )
+    def _h_cambiar_restriccion_vendedoras(self, encender):
+        self._b_exigir_quien_cambia_la_restriccion()
+        encender = bool(encender)
+        cambio = self.env['res.users']._dcasa_poner_restriccion(encender)
+        estado = ('cada vendedora ve solo sus documentos (y los que no tienen vendedora)' if encender
+                  else 'todas las vendedoras ven todos los documentos, como antes')
+        return {'mensaje': f'Listo: {estado}.' if cambio else f'Ya estaba así: {estado}.',
+                'cada_vendedora_ve_solo_lo_suyo': encender}
 
     @herramienta(
         nombre='cambiar_rol_usuario',
-        descripcion='Cambia el rol de un usuario: vendedor, cajero, contador o administrador.',
+        descripcion='Cambia el rol de un usuario: vendedor, cajero (Caja), gerencia, contador o administrador.',
         parametros={'usuario': PARAM_USUARIO, 'rol': PARAM_ROL}, requeridos=['usuario', 'rol'],
         nivel='sensible', categoria='usuarios', grupos=GESTION_USUARIOS,
         ejemplos=['María ahora es cajera → rol=cajero'],
@@ -162,3 +195,7 @@ class BrianPoliticaUsuarios(models.AbstractModel):
     @api.model
     def _verificar_crear_usuario(self, argumentos):
         self.env['brian.herramientas']._b_exigir_admin_para(argumentos.get('rol'))
+
+    @api.model
+    def _verificar_cambiar_restriccion_vendedoras(self, argumentos):
+        self.env['brian.herramientas']._b_exigir_quien_cambia_la_restriccion()

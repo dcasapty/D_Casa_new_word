@@ -169,10 +169,11 @@ class TestPago(CorreoCase):
 
     def test_la_cajera_registra_el_pago_y_tambien_encola(self):
         self.encender()
+        # El rol Caja: desde el 2026-10-17 solo Caja (y Gerencia o contabilidad) registra cobros.
         cajera = self.env['res.users'].create({
             'name': 'Cajera Correo', 'login': 'cajera_correo', 'email': 'cajera.correo@example.com',
             'group_ids': [Command.set([self.env.ref('base.group_user').id,
-                                       self.env.ref('account.group_account_invoice').id])]})
+                                       self.env.ref('dcasa_base.group_caja').id])]})
         factura = self.factura()
         self.pagar(factura, usuario=cajera)
         self.assertEqual(factura.payment_state, 'paid')

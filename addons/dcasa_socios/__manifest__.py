@@ -34,6 +34,7 @@ a Odoo para que haya un solo sistema:
     'depends': ['dcasa_base', 'dcasa_invoice', 'sale_management', 'account', 'website_sale'],
     'data': [
         'security/ir.model.access.csv',
+        'security/dcasa_reglas_socios.xml',
         'data/product_data.xml',
         'data/premios_data.xml',
         'data/ir_cron_data.xml',

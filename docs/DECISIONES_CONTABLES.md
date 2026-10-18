@@ -4,17 +4,22 @@ Respuestas del jefe a las preguntas contables (A1–H5). Aquí van **las reglas*
 negocio (el repositorio es público): los montos y los casos uno a uno se ven en Odoo con la gerencia. Las preguntas
 I1–L8 siguen sin respuesta.
 
+**Ya en el sistema** (rama `permisos-vendedoras`, 2026-10-17, probada en local; falta que la dueña vea las capturas,
+staging y producción): A3 (30 días y anticipo del 50 %), A5 (el cobro solo en Caja), A6 (anular o pasar a borrador
+solo Gerencia), A7 (notas de crédito, devoluciones y saldo a favor solo Gerencia) y C1 (Tafi y Crediviva). Cómo quedó
+cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
+
 ## Ventas y cobro (A)
 
 | # | Decisión | Qué cambia en el sistema |
 |---|---|---|
 | A1 | «Vendido» = **todas las facturas publicadas** y, debajo, cuántas salieron de un pedido de una vendedora (opción C). | Choca con el comparador en producción (cuenta pedidos): se le pregunta a la dueña cómo quedan «Completadas / Con abonos». |
 | A2 | La venta se cuenta **el día de la factura** (como hoy). | Igual que «Con abonos»; «Completadas» cuenta el día del último pago (decisión de la dueña del 17 oct): confirmar. |
-| A3 | Crédito solo a clientes que abonan o a personas o empresas **autorizadas por Gerencia**. Abono: **anticipo mínimo del 50 %** y **30 días continuos** para completar el pago; ese vencimiento lo ve el cliente. Menos del 50 %: lo autoriza Gerencia. | El vencimiento del abono pasa de «un mes» a 30 días; el primer abono menor al 50 % solo lo registra Gerencia. |
+| A3 | Crédito solo a clientes que abonan o a personas o empresas **autorizadas por Gerencia**. Abono: **anticipo mínimo del 50 %** y **30 días continuos** para completar el pago; ese vencimiento lo ve el cliente. Menos del 50 %: lo autoriza Gerencia. | **Hecho.** El abono vence a los **30 días continuos** del primer abono (parámetro `dcasa_invoice.abono_dias`, 30 de fábrica, 0 = no vence; la migración pasa el viejo `abono_meses`: 1 mes → 30 días). El papel de ABONO, las Condiciones, «Mi cuenta», los correos y Brian leen la misma función (`_dcasa_estado_abono`). El **primer abono** (factura sin pagos) es al menos **la mitad del total**; menos, solo Gerencia o un administrador (el asistente «Pagar» lo avisa; Brian y el Inicio pasan por lo mismo). Los abonos siguientes y el pago completo son libres. La conciliación bancaria no se frena: deja una nota en la factura para que Gerencia la revise. Crédito a personas o empresas autorizadas: **falta** (no hay regla en el sistema). |
 | A4 | Igual que A3. | — |
-| A5 | **El cobro solo en Caja** por ahora. | Las vendedoras no registran cobros (con el paquete de permisos). Falta confirmar si también dejan de facturar. |
-| A6 | Pasar a borrador o anular una factura publicada: **solo Gerencia**. | Regla en el servidor. |
-| A7 | Devolver dinero, dar saldo a favor o cambiar el producto, según el caso; **lo autoriza en el sistema Gerencia**. | Notas de crédito y reembolsos solo Gerencia. |
+| A5 | **El cobro solo en Caja** por ahora. | **Hecho.** Registran cobros de clientes **Caja, Gerencia, contabilidad y los administradores**. La Vendedora ya no cobra por ningún camino (asistente, botón, cobro suelto, aplicar un cobro que ya estaba, Brian, Inicio, RPC), con «ver solo lo suyo» encendido o apagado; su factura dice «El cobro lo registra Caja». **Sigue facturando y cotizando** (confirmado por la dueña el 17 oct). |
+| A6 | Pasar a borrador o anular una factura publicada: **solo Gerencia**. | **Hecho.** Regla en el servidor para facturas, notas y recibos de clientes publicados (botones y escritura directa del estado): solo Gerencia y administradores; a Caja, contabilidad y la Vendedora les sale «… lo hace solo Gerencia. Pídeselo a Gerencia.». Lo de proveedores no cambia. |
+| A7 | Devolver dinero, dar saldo a favor o cambiar el producto, según el caso; **lo autoriza en el sistema Gerencia**. | **Hecho.** Notas de crédito de clientes (crearlas o publicarlas), devolverle dinero a un cliente (cobro saliente o «Pagar» una nota), cobrar de más dejando saldo a favor y dar una factura por pagada con una diferencia: solo Gerencia y administradores. |
 
 ## Saldos iniciales e historia (B)
 
@@ -31,7 +36,10 @@ I1–L8 siguen sin respuesta.
 
 ## Bancos y caja (C)
 
-- C1: faltan **Tafi** y **Crediviva** (financian directo al cliente): formas de pago nuevas.
+- C1: faltan **Tafi** y **Crediviva** (financian directo al cliente): formas de pago nuevas. **Hecho:** diarios de banco
+  «Tafi (financiamiento)» y «Crediviva (financiamiento)», activos y en el asistente «Pagar» (una vez por base, sin pisar
+  uno que ya exista). **La contadora debe revisar su cuenta contable** (el sistema les creó una cuenta de banco propia
+  a cada una) y cómo se cruza lo que la financiera deposita después.
 - C2/C3: los extractos se bajan del banco y de Yappy. El efectivo casi nunca se deposita (C5).
 - C4: **fondo fijo de caja** al inicio y cierre de cada turno; hoy se cuadra en un formato propio (físico, documentos
   contra sistema) que la gerencia mostrará.

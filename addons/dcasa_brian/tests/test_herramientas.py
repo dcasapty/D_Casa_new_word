@@ -377,16 +377,22 @@ class TestHerramientas(TransactionCase):
     def test_roles_simples(self):
         datos = self.ok(self.ejecutar(self.gerente, 'listar_usuarios'))
         fila = next(u for u in datos['usuarios'] if u['login'] == self.vendedor.login)
-        self.assertEqual(fila['rol'], 'Vendedor/a')
+        # Ventas puesto a mano, sin el rol «D'CASA / Vendedora»: Brian no lo llama Vendedor/a (2026-10-17).
+        self.assertEqual(fila['rol'], 'Otro (permisos a medida)')
         respuesta = self.ejecutar(self.gerente, 'cambiar_rol_usuario', {'usuario': self.vendedor.login,
                                                                         'rol': 'cajero'})
         self.assertFalse(self.vendedor.has_group('account.group_account_invoice'))
         self.ok(self.confirmar(self.gerente, respuesta))
         self.assertTrue(self.vendedor.has_group('account.group_account_invoice'))
+        self.assertTrue(self.vendedor.has_group('dcasa_base.group_caja'))
+        fila = next(u for u in self.ok(self.ejecutar(self.gerente, 'listar_usuarios'))['usuarios']
+                    if u['login'] == self.vendedor.login)
+        self.assertEqual(fila['rol'], 'Caja')
         self.ok(self.confirmar(self.gerente, self.ejecutar(self.gerente, 'crear_usuario', {
             'nombre': 'Brianzeta Nueva Usuaria', 'correo': 'brianzeta@example.com', 'rol': 'vendedor'})))
         nueva = self.env['res.users'].search([('login', '=', 'brianzeta@example.com')])
         self.assertTrue(nueva.has_group('sales_team.group_sale_salesman'))
+        self.assertTrue(nueva.has_group('dcasa_base.group_vendedora'))
         self.assertFalse(nueva.has_group('base.group_system'))
         self.ok(self.confirmar(self.gerente, self.ejecutar(self.gerente, 'desactivar_usuario', {
             'usuario': 'brianzeta@example.com'})))

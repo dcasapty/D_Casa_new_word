@@ -1,4 +1,6 @@
 from . import res_partner
+from . import res_users
+from . import solo_lo_suyo
 from . import res_company
 from . import account_move
 from . import sale_order
@@ -10,3 +12,4 @@ from . import campos_contables
 from . import stock_quant
 from . import utilidad
 from . import humo
+from . import cobros
