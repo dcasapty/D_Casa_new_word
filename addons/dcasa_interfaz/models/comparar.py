@@ -153,7 +153,8 @@ class DcasaTableroComparar(models.AbstractModel):
         """Quien tiene el rol Vendedora (Gerencia lo incluye: no por eso sale), quien tuvo ventas confirmadas en los
         últimos 24 meses y quien figura como «Vendedor» de una factura sin pedido de esos meses (su vendedora,
         ``ventas_bases._duenas``), por nombre; al final, «Sin vendedora» (ventas de la web o de Juan que nadie tomó, y
-        facturas sin vendedor)."""
+        facturas sin vendedor). Las notas de crédito no hacen vendedora a nadie: son de la vendedora de su factura y
+        las hace solo Gerencia (su «Vendedor» suele ser quien la autorizó)."""
         ids = set()
         grupo = self.env.ref('dcasa_base.group_vendedora', raise_if_not_found=False)
         if grupo:
@@ -167,7 +168,7 @@ class DcasaTableroComparar(models.AbstractModel):
         ids |= {usuario.id for (usuario,) in grupos}
         if self._puede('account.move'):
             sin_pedido = self.env['account.move']._read_group(
-                [('move_type', 'in', ('out_invoice', 'out_refund')), ('state', '=', 'posted'),
+                [('move_type', '=', 'out_invoice'), ('state', '=', 'posted'),
                  ('invoice_user_id', 'not in', (False, SUPERUSER_ID)), ('dcasa_historica', '=', False),
                  ('date', '>=', primero), ('line_ids', 'not any', [('sale_line_ids', '!=', False)])],
                 ['invoice_user_id'])

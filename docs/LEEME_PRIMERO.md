@@ -98,6 +98,24 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-18
+
+- **Tanda 2 unida en la rama local `tanda2`** (para un solo despliegue): `d08ad28` (Ajustes sin diseñador) + el Inicio
+  de Gerencia sobre facturas (`inicio-facturado`, aplicado con *cherry-pick* de `4e3ad43` y `252ebc0`: su base `0f370b8`
+  es de la historia vieja, de antes del *squash* a `main`) + unión de `permisos-vendedoras` (`ecf5c97`: reglas
+  contables de la gerencia y pedidos web sin vendedora) + la prueba de «En vivo» de Conversaciones (`5d08ed3`, rama
+  `reconexion-hora`). Conflictos solo en documentación y en `website_dcasa/tests/__init__.py` (se dejaron los dos lados).
+- **Revisión cruzada** (lo que ninguna rama veía): «Registrar cobro» del Inicio sale justo a quien el servidor deja
+  cobrar (probado por rol, con el interruptor encendido y apagado); «Con abonos» del Inicio y la regla del primer abono
+  dicen lo mismo que `_dcasa_estado_abono` (prueba en `dcasa_contabilidad`); los pedidos web sin vendedora salen en
+  «Sin vendedora» aunque los facture Caja. **Arreglado:** como las notas de crédito las hace solo Gerencia, Odoo les pone
+  a Gerencia como «Vendedor»: una nota hecha aparte y aplicada a una factura restaba de Gerencia en «Por vendedora» y
+  ponía a Gerencia en el selector de vendedoras; ahora es de la vendedora de su factura y las notas no hacen vendedora
+  a nadie (`ventas_bases._duenas`, `comparar._vendedoras_para_elegir`). Brian ya no describe a la vendedora como «vende
+  y cobra lo suyo».
+- **Sigue:** CI y staging de `tanda2`; producción con el visto bueno de la dueña. El día del despliegue, antes de abrir:
+  darle **Caja** al jefe administrativo.
+
 ### 2026-10-17
 
 - **En producción** (22:38 UTC, Desplegar 18, `app_version` `c3a69f52…`, imagen `sha256:67459887…`; CI #196 verde y

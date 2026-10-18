@@ -38,9 +38,9 @@ GESTIONADOS = {
 }
 PARAM_USUARIO = {'type': 'string', 'description': 'Nombre o correo (login) del usuario, p. ej. «maria@dcasapty.com».'}
 PARAM_ROL = {'type': 'string', 'enum': list(ROLES),
-             'description': 'vendedor (vende y cobra lo suyo: ve solo sus cotizaciones, pedidos y facturas), '
-                            'cajero (Caja: factura y cobra lo de toda la tienda), gerencia (controla la tienda; solo '
-                            'la da un administrador), contador (contabilidad) o administrador (todo).'}
+             'description': 'vendedor (vende y factura lo suyo, no cobra: ve solo sus cotizaciones, pedidos y '
+                            'facturas), cajero (Caja: factura y cobra lo de toda la tienda), gerencia (controla la '
+                            'tienda; solo la da un administrador), contador (contabilidad) o administrador (todo).'}
 
 
 class BrianHerramientasUsuarios(models.AbstractModel):

@@ -25,7 +25,8 @@ factura solo cuenta en «Facturado».
 
 **La vendedora de una factura**: si salió de un pedido, el «Vendedor» del pedido (el más antiguo si fueran varios), como
 siempre; si no, el «Vendedor» de la factura (``invoice_user_id``). Sin ninguno, «Sin vendedora», igual que las facturas
-del sistema anterior (no traen la vendedora). Una nota de crédito es de la vendedora de la factura que revierte.
+del sistema anterior (no traen la vendedora). Una nota de crédito es de la vendedora de su factura (la que revierte
+o, si se hizo aparte, con la que se concilió), no de quien la hizo: las notas las hace solo Gerencia.
 **Cobrado** es el mismo en las tres: los cobros de clientes registrados (en proceso o pagados), con ITBMS, por su fecha;
 para una vendedora, los cobros aplicados a SUS facturas (no los que ella registró: Caja registra muchos).
 
@@ -174,9 +175,19 @@ class DcasaTableroBases(models.AbstractModel):
         factura. Una nota de crédito es de la vendedora de la factura que revierte: Odoo no le copia el «Vendedor» y le
         pone a quien la hizo (Gerencia, que es quien autoriza las devoluciones). Las facturas del sistema anterior
         (``dcasa_historica``) van a «Sin vendedora»: el archivo no trae la vendedora y Odoo les pone a quien las
-        cargó; lo mismo si el «Vendedor» es el usuario del sistema (OdooBot)."""
-        originales = documentos.filtered(lambda m: m.move_type == 'out_refund').reversed_entry_id.filtered(
-            lambda m: m.move_type == 'out_invoice')
+        cargó; lo mismo si el «Vendedor» es el usuario del sistema (OdooBot).
+
+        Una nota hecha aparte (sin factura que revierta) y aplicada después a una factura es de la vendedora de esa
+        factura (la misma de ``_factura_de_cada_nota``): las notas de crédito las hace solo Gerencia (A7, 2026-10-17),
+        así que su «Vendedor» casi siempre es quien la autorizó, no quien vendió. Una nota sin ninguna factura sigue
+        siendo de su «Vendedor»."""
+        notas = documentos.filtered(lambda m: m.move_type == 'out_refund')
+        de_la_nota = {nota.id: nota.reversed_entry_id for nota in notas
+                      if nota.reversed_entry_id.move_type == 'out_invoice'}
+        aparte = notas.filtered(lambda m: m.id not in de_la_nota)
+        if aparte:
+            de_la_nota.update(self._factura_de_cada_nota(aparte, self._pagos_de_facturas(aparte)))
+        originales = self.env['account.move'].sudo().union(*de_la_nota.values())
         duenas = {}
         for documento in documentos | originales:
             pedidos = documento.line_ids.sale_line_ids.order_id
@@ -188,8 +199,8 @@ class DcasaTableroBases(models.AbstractModel):
                 if documento.dcasa_historica or usuario.id == SUPERUSER_ID:
                     usuario = usuario.browse()
                 duenas[documento.id] = (usuario.id or SIN_VENDEDORA, False)
-        for nota in documentos.filtered(lambda m: m.move_type == 'out_refund' and m.reversed_entry_id in originales):
-            duenas[nota.id] = duenas[nota.reversed_entry_id.id]
+        for nota_id, factura in de_la_nota.items():
+            duenas[nota_id] = duenas[factura.id]
         return duenas
 
     @api.model

@@ -351,6 +351,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Unir dos ramas que no se veían** (tanda 2, 2026-10-18): una rama cuya base es de la historia vieja (antes del
+  *squash* a `main`) se trae con `git cherry-pick` de sus commits, no con `merge`. Y después de unir, revisar lo que
+  cruza: las notas de crédito, que ahora hace solo Gerencia, llevan a Gerencia como «Vendedor» (Odoo pone a quien la
+  hace si la ficha del cliente no dice otra, `_compute_invoice_default_sale_person`). Todo lo que reparte ventas por
+  vendedora mira el pedido y, en una nota, su factura (la que revierte o la conciliada), nunca el «Vendedor» de la nota
+  (`ventas_bases._duenas`).
 - **Al revertir una factura** (`_reverse_moves`), Odoo no copia el «Vendedor» (`invoice_user_id` es `copy=False`): la nota
   de crédito queda a nombre de quien la hace (Gerencia). Para saber de quién es una nota, mirar la factura que revierte
   (`reversed_entry_id`). `_reverse_moves(valores)` deja la nota en borrador y **sin conciliar**; con `cancel=True` la

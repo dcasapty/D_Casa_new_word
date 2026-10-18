@@ -7,6 +7,10 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-18:** la tanda 2 (Inicio de Gerencia sobre facturas + reglas contables de la gerencia y permisos
+de vendedoras + pedidos web sin vendedora) está unida y con la revisión cruzada en la rama `tanda2`; sigue CI, staging y
+producción. Antes de abrir: rol Caja al jefe administrativo.
+
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
 que sigue, cada cosa con capturas para la dueña **antes** de staging: (1) el error de Ajustes, si se confirma (afecta
@@ -116,11 +120,11 @@ unidos con el PR #43.)
 | Juan: crédito, entregas y descuentos desde su conocimiento; inglés; domingo hasta las 5 | En producción (Desplegar 14 y Worker de Juan). Falta que la dueña corra las instrucciones v2 con la extensión de Chrome | — |
 | Inicio de Gerencia contra el mes pasado; precio y cámara en el Escáner | En producción (Desplegar 15) | — |
 | Comparador de ventas del Inicio de Gerencia (números, no frases), interruptor «Completadas / Con abonos», selector y lista por vendedora; Brian `comparar_ventas` | En producción (Desplegar 17). Sigue: el Inicio de Gerencia sobre facturas (Facturado · Con abonos · Completadas) y las notas a un ícono ⓘ | — |
-| Inicio de Gerencia sobre las **facturas** (A1/A2 del jefe): interruptor Facturado · Con abonos · Completadas, «N de M salieron de un pedido», notas de crédito que restan, ganancia de facturas sin pedido con el costo de hoy, la semana y lo más vendido con la misma base, notas largas en un ícono ⓘ; Brian igual | Hecho y probado en la rama `inicio-facturado` (local, sin subir). Falta: capturas → visto bueno de la dueña → staging → su «sí» | — |
+| Inicio de Gerencia sobre las **facturas** (A1/A2 del jefe): interruptor Facturado · Con abonos · Completadas, «N de M salieron de un pedido», notas de crédito que restan, ganancia de facturas sin pedido con el costo de hoy, la semana y lo más vendido con la misma base, notas largas en un ícono ⓘ; Brian igual | Unido en la rama `tanda2` con las reglas de la gerencia (2026-10-18). Falta: CI, staging y producción | — |
 | Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | En producción (Desplegar 17): papel «ABONO» y condiciones en dos hojas. Sigue: abono mínimo 50 % y 30 días (reglas del jefe, `DECISIONES_CONTABLES.md`) | — |
 | Panel del cliente «Mi cuenta» | En producción (Desplegar 17); falta la ronda de pulido de la auditoría visual | — |
-| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Hecho y revisado en la rama `permisos-vendedoras` (sin subir); faltan capturas aprobadas, CI y staging | — |
-| Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Hecho en la misma rama (2026-10-17); faltan capturas aprobadas, CI y staging | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción. Antes de encender: Caja al jefe administrativo | — |
+| Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción | — |
 | Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
 | Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
 
