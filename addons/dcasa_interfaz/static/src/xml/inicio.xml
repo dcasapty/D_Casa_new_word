@@ -249,6 +249,9 @@
                                 <t t-else="" t-out="d.ventas.actual.cuantas === 1 ? ' factura' : ' facturas'"/>
                                 <t t-if="d.ventas.actual.notas"> · <t t-out="d.ventas.actual.notas"/>
                                     <t t-out="d.ventas.actual.notas === 1 ? ' nota de crédito' : ' notas de crédito'"/></t></span>
+                            <!-- Ticket promedio (K1): ventas sin ITBMS ÷ N.º de ventas, el mismo de Comparar; sin ventas, «—». -->
+                            <span class="o_dcasa_ticket">Ticket promedio <strong
+                                    t-out="d.ventas.actual.ticket === null ? '—' : dinero(d.ventas.actual.ticket)"/></span>
                             <!-- «Facturado»: cuántas de esas facturas salieron de un pedido de una vendedora (decisión A1). -->
                             <span t-if="deUnPedidoTexto" class="o_dcasa_de_pedido" t-out="deUnPedidoTexto"/>
                             <span class="o_dcasa_desglose">
@@ -287,6 +290,22 @@
                                 <t t-out="d.ventas.actual.ganancia.ventas_sin_costo"/>
                                 <t t-out="d.ventas.actual.ganancia.ventas_sin_costo === 1 ? ' factura tiene mercancía sin costo y no cuenta aquí' : ' facturas tienen mercancía sin costo y no cuentan aquí'"/>
                             </span>
+                        </div>
+                        <!-- Unidades vendidas por tipo (K1, 2026-10-18): de las mismas facturas, por la categoría de
+                             primer nivel; las notas de crédito restan; pasados 8 tipos, «Otros». -->
+                        <div t-if="d.ventas.unidades" class="o_dcasa_ventas_columna o_dcasa_tipos">
+                            <span class="o_dcasa_ventas_etiqueta">Unidades vendidas</span>
+                            <ul t-if="d.ventas.unidades.tipos.length" class="list-unstyled mb-0">
+                                <li t-foreach="d.ventas.unidades.tipos" t-as="t" t-key="t_index" class="o_dcasa_tipo">
+                                    <span class="o_dcasa_tipo_nombre" t-out="t.tipo"/>
+                                    <span class="o_dcasa_tipo_unidades" t-out="unidades(t.unidades)"/>
+                                </li>
+                                <li class="o_dcasa_tipo o_dcasa_tipo_total">
+                                    <span class="o_dcasa_tipo_nombre">Total</span>
+                                    <span class="o_dcasa_tipo_unidades" t-out="unidades(d.ventas.unidades.total)"/>
+                                </li>
+                            </ul>
+                            <p t-else="" class="o_dcasa_vacio mb-0">Sin unidades vendidas en estas fechas.</p>
                         </div>
                     </div>
 

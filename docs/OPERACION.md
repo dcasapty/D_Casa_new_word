@@ -815,6 +815,11 @@ fuera y se avisa; la franja de atención sigue avisando «N productos vendibles 
   **N.º de ventas** (facturas; su cambio, en unidades; una nota de crédito resta del monto, no del número), **Falta por
   cobrar** (solo «Con abonos»; con ITBMS; que suba se pinta en rojo) y **Cobrado** (con ITBMS; igual en las tres
   posiciones: el dinero que entró).
+- **Ticket promedio y unidades por tipo (K1, 2026-10-18):** debajo de Ventas, «Ticket promedio $X» (ventas sin ITBMS ÷
+  N.º de ventas; «—» sin ventas) y al lado **Unidades vendidas** por tipo (la categoría de primer nivel del producto,
+  p. ej. Salas, Recámaras, Colchones; sin flete, anticipos ni descuentos; las notas de crédito restan; de más a menos,
+  pasados 8 tipos «Otros», y el Total). Siguen el interruptor, el periodo y la vendedora. En Comparar, la fila
+  **Ticket promedio** con su % (con distinto largo no va por día; en «Mes ▾», «—»).
 - **Azul si sube, rojo si baja.** Sin base positiva (cero o negativa) el porcentaje es «—»: nunca se inventa uno.
 - **Distinto largo:** si A y B no tienen los mismos días (A vs B con «Libre», o el 31 contra un mes de 30), el
   porcentaje se calcula sobre el **promedio por día** y la cabecera dice «% por día».

@@ -296,3 +296,13 @@ class TestCompararVentasBrian(ResumenVentasCommon):
                          'en «completadas» todavía no: falta pagarla')
         self.assertEqual(self.resumen(self.gerente, vendedora=self.ana.name)['ventas'], 1,
                          'en «facturado» sí: la factura está publicada')
+        # Ticket promedio y unidades por tipo (K1): los mismos del Inicio, con la misma base y la misma vendedora.
+        inicio = self.env['dcasa.tablero'].with_user(self.gerente).ventas_del_periodo(
+            'hoy', base='con_abonos', vendedor=self.ana.id)
+        self.assertEqual(datos['ticket_promedio_sin_itbms'], f"${inicio['actual']['ticket']:,.2f}")
+        self.assertEqual(datos['unidades_por_tipo'], [{'tipo': t['tipo'], 'unidades': 2}
+                                                      for t in inicio['unidades']['tipos']])
+        self.assertEqual(datos['unidades_total'], 2)
+        vacio = self.resumen(self.gerente, vendedora=self.ana.name, base='completadas')
+        self.assertEqual((vacio['ticket_promedio_sin_itbms'], vacio['unidades_por_tipo'], vacio['unidades_total']),
+                         ('—', [], 0), 'sin ventas, «—»: no se divide entre cero')

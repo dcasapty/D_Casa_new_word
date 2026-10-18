@@ -11,6 +11,13 @@ Cada etapa sale a staging para que la dueña la vea; a producción solo con su �
 de vendedoras + pedidos web sin vendedora) está unida y con la revisión cruzada en la rama `tanda2`; sigue CI, staging y
 producción. Antes de abrir: rol Caja al jefe administrativo.
 
+**Estado al 2026-10-18, tarde:** en producción la tanda 2 (Desplegar 19: Ajustes, Inicio sobre facturas, reglas
+contables) y el lote 3 (Desplegar 20: `/master` con diagnóstico, Mi cuenta, documentación para replicar, Meta apagada).
+Todas las preguntas contables respondidas. Orden de lo que sigue: (1) K1 en el Inicio; (2) bodega (Etapa 4) y datos
+limpios (Etapas 3 y 1b(a), F5), ramas locales apenas empezadas; (3) D1 código de descuento al celular, D3 recordatorio
+de abono, F6 mermas, G4/G7 comprobantes y adelantos, I6 ZIP de comprobantes; (4) el trabajo contable con la gerencia
+según L1–L8; (5) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
 que sigue, cada cosa con capturas para la dueña **antes** de staging: (1) el error de Ajustes, si se confirma (afecta

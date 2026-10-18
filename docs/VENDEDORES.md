@@ -379,7 +379,8 @@ contables separadas para los puntos y datos de costo cargados para al menos el 8
    mercancía tendría que revender para comer. Si trabaja a tiempo completo solo para D'CASA se parece mucho a un
    empleado: el abogado y la contadora deben decir si va con **sueldo base más comisión** (como pagan las mueblerías)
    o como **agente independiente con comisión en efectivo**. El interruptor de efectivo ya existe
-   (`canje.efectivoHabilitado`), apagado hasta ese dictamen.
+   (`canje.efectivoHabilitado`), apagado hasta ese dictamen. **2026-10-18, la gerencia:** el canje en efectivo queda
+   descartado; el canje es en producto (ver [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md), J3).
 4. **Cuántos vendedores de tiempo completo.** 60 ventas nuevas al mes por vendedor son el 16 % de lo que vende hoy toda
    la tienda: caben 2 o 3 a la vez. Más vendedores así piden más tráfico, y el freno de 3 % corta cerca de ahí.
 

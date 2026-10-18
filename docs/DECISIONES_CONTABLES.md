@@ -1,11 +1,10 @@
-# Decisiones contables de la gerencia (respuestas del 17 oct 2026)
+# Decisiones contables de la gerencia (respuestas del 17 y del 18 oct 2026)
 
-Respuestas del jefe a las preguntas contables (A1–H5). Aquí van **las reglas**, sin nombres de personas ni cifras del
-negocio (el repositorio es público): los montos y los casos uno a uno se ven en Odoo con la gerencia. Las preguntas
-I1–L8 siguen sin respuesta.
+Respuestas del jefe a las preguntas contables (A1–H5 el 17 oct; I1–L8 el 18 oct: ya no queda ninguna sin responder).
+Aquí van **las reglas**, sin nombres de personas ni cifras del negocio (el repositorio es público): los montos y los
+casos uno a uno se ven en Odoo con la gerencia. Donde la respuesta dice una persona, aquí va su cargo (Gerencia).
 
-**Ya en el sistema** (rama `permisos-vendedoras`, 2026-10-17, probada en local; falta que la dueña vea las capturas,
-staging y producción): A3 (30 días y anticipo del 50 %), A5 (el cobro solo en Caja), A6 (anular o pasar a borrador
+**En producción desde el 2026-10-18** (Desplegar 19, PR #55): A3 (30 días y anticipo del 50 %), A5 (el cobro solo en Caja), A6 (anular o pasar a borrador
 solo Gerencia), A7 (notas de crédito, devoluciones y saldo a favor solo Gerencia) y C1 (Tafi y Crediviva). Cómo quedó
 cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
 
@@ -89,3 +88,45 @@ cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
   validar con los contadores para el estado de resultados.
 - H4: ya tienen **máquina fiscal**: hace falta una integración selectiva.
 - H5: la gerencia mostrará el reporte que lleva para los socios.
+
+## Cierres y control (I)
+
+- I1: los meses de agosto y septiembre **no se han cerrado** porque no se sabía cómo se hace en el sistema. El cierre lo
+  hace Gerencia (o alguien que ella autorice), **nunca después del día 5 del mes siguiente** (idealmente el mismo día
+  del fin de mes). Antes, explicarle a la gerencia qué abarca un cierre (pantalla de cierre de `dcasa_contabilidad`).
+- I2: el año fiscal termina el **31 de diciembre** (lo que ya usa el sistema).
+- I3: validar compras, anular facturas, registrar cobros, ver toda la contabilidad y cerrar meses: **Gerencia**.
+- I4: la gerencia pidió entender el segundo factor y la cuenta genérica «admin» antes de decidir (explicado en el chat
+  del 18 oct; pendiente su respuesta).
+- I5: el plan de cuentas se revisa juntos; hace falta un **inventario de bienes muebles** (mobiliario, equipos, marca).
+  Anticipos de clientes: la gerencia propone «Bancos y efectivo» o una similar; **lo decide la contadora** (en Odoo la
+  cuenta de anticipos de clientes es un pasivo, no un banco).
+- I6: los comprobantes se guardan durante el año fiscal y después se mandan **todos en un ZIP** de respaldo por **5
+  años** (lo que exige la DGI).
+
+## Socios y Vendedores (J)
+
+- J1: el costo real de cada premio y el valor del punto en dólares están **por desarrollar** con los productos a
+  otorgar (`puntos.json` no cambia hasta tener las cifras).
+- J2: los puntos y las comisiones se anotan como **gasto de marketing al acreditarse** (afectan el estado de resultados).
+- J3: **el canje por efectivo queda descartado**: en efectivo el costo es el 100 %; en producto, lo que el socio percibe
+  vale más que lo que le cuesta a D'CASA. `canje.efectivoHabilitado` sigue apagado y ya no se espera un dictamen
+  para encenderlo (el de los negocios externos, `canje.externosHabilitado`, sigue esperando al abogado).
+
+## Lo que quiere ver la gerencia (K)
+
+- K1: además de los números ya acordados, el **ticket promedio** y las **unidades vendidas por tipo** (camas,
+  colchones, etc.) hasta un total.
+- K2: arrancar **2027 con presupuesto** (plan contra real) de ventas y de gastos operativos.
+- K3: por ahora no hay otra empresa ni otra moneda (se contemplan a futuro).
+- K4: los reportes van al **socio** de la empresa.
+
+## Cómo trabajará la extensión contable (L)
+
+- L1/L2: la extensión puede dejar cosas **en borrador** sola; publicar, validar, pagar, cerrar un mes o conciliar lo
+  **aprueba solo Gerencia** (una sola persona aprueba por ahora).
+- L3: entra con un **usuario propio**, de permisos limitados y con **segundo factor**: todo queda a su nombre.
+- L4: puede corregir durante todo el ejercicio fiscal y **hasta 4 meses después** del cierre fiscal.
+- L5: **copia de seguridad antes de cada tanda**, siempre.
+- L6: de acuerdo con el orden de trabajo propuesto. L7: sin cuentas, clientes ni proveedores vedados, sin tope por día.
+- L8: al terminar cada tanda, un **resumen corto con el antes y el después** de cada cifra importante.

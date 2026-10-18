@@ -11,4 +11,5 @@ from . import test_pedidos_repetidos
 from . import test_avisos
 from . import test_comparar
 from . import test_facturado
+from . import test_ticket_y_tipos
 from . import test_inicio_reglas_gerencia
