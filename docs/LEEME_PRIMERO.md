@@ -126,6 +126,12 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   F6, G4/G7, I6; el trabajo contable con la gerencia (saldos iniciales, compras por validar, cobros sin cruzar). **La
   dueña:** darle Caja a quien cobra; probar `/master`; decidir I4 (segundo factor obligatorio y apagar «admin»).
 
+- **K1 hecho en la rama local `k1-ticket`** (sin subir, sobre `1bc0f51`): **ticket promedio** junto a Ventas y fila
+  «Ticket promedio» en Comparar, y **unidades vendidas por tipo** (categoría de primer nivel, «Otros» pasados 8, Total)
+  en el Inicio de Gerencia, con la misma base, periodo y vendedora (`ventas_bases._ticket_promedio` y
+  `_unidades_por_tipo`, sobre `_medir` y `_unidades_por_producto`); Brian `resumen_ventas` y `comparar_ventas` dan lo
+  mismo. Sigue: CI, capturas a la dueña, staging y producción.
+
 - **Rama `master-puerta` (sin subir):** diagnóstico de `/master` en producción (código, variables y nombres de secretos
   iguales a staging; la diferencia está en Access o en el AUD de `production`), `/master` dice por qué no abre y
   `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, el carrito y crear cuenta lleva a Mi cuenta; guías

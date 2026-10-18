@@ -618,6 +618,29 @@
     color: var(--dc-azul-800);
 }
 
+// Ticket promedio (K1, 2026-10-18): una línea corta debajo del número de Ventas.
+.o_dcasa_ticket {
+    font-size: .85rem;
+    color: var(--dc-tinta-2);
+    strong { color: var(--dc-azul-800); font-weight: 600; }
+}
+
+// Unidades vendidas por tipo (K1): una fila por tipo con el número a la derecha y «Total» en azul. Sin sombras.
+.o_dcasa_tipo {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--dc-perla);
+    font-size: .88rem;
+}
+.o_dcasa_tipo_nombre { min-width: 0; overflow-wrap: anywhere; color: var(--dc-tinta-2); }
+.o_dcasa_tipo_unidades { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--dc-tinta); }
+.o_dcasa_tipo_total {
+    border-bottom: 0;
+    .o_dcasa_tipo_nombre, .o_dcasa_tipo_unidades { font-weight: 700; color: var(--dc-azul-800); }
+}
+
 // El ícono ⓘ junto a un título (2026-10-17): el texto largo se abre al tocarlo, también con el teclado (es un botón:
 // Enter o Espacio lo abren, Escape lo cierra) y en el celular. Azul de la marca sobre blanco, sin sombras.
 .o_dcasa_con_ayuda {

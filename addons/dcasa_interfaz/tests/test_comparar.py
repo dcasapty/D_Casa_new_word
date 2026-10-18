@@ -421,7 +421,7 @@ class TestCompararFilas(CompararCommon):
         self.assertIsNone(filas['margen']['b'])
         self.assertIsNone(filas['margen']['cambio']['valor'])
         self.assertEqual(filas['cuantas']['cambio'], {'tipo': 'num', 'valor': 1, 'sentido': 'sube', 'invertido': False})
-        self.assertEqual([f for f in filas], ['ventas', 'ganancia', 'margen', 'cuantas', 'cobrado'])
+        self.assertEqual([f for f in filas], ['ventas', 'ganancia', 'margen', 'cuantas', 'ticket', 'cobrado'])
 
     def test_margen_en_puntos(self):
         a, b = date(2025, 10, 17), date(2025, 10, 10)
@@ -629,12 +629,17 @@ class TestCompararEnElNavegador(VentasMixin, HttpCase):
             if (new Set(arriba).size !== 1) { throw new Error('las tres posiciones van en una fila: ' + arriba); }
             igual(document.querySelector('.o_dcasa_vendedora_select').value, '', 'abre en «Todo el equipo»');
             igual(textos('.o_dcasa_chip').length, 6, 'seis botones');
+            // K1: el ticket promedio junto a Ventas y las unidades por tipo con su total.
+            igual(document.querySelector('.o_dcasa_ticket').textContent.trim(), 'Ticket promedio $300.00',
+                  'el ticket promedio');
+            igual(document.querySelector('.o_dcasa_tipo_total .o_dcasa_tipo_unidades').textContent.trim(), '3',
+                  'las unidades por tipo: el total');
             sinScrollDeCostado('al abrir');
             for (const clave of ['ayer', 'dia_mes_pasado', 'semana_pasada', 'mes_a_la_fecha', 'mes', 'rango']) {
                 document.querySelector('.o_dcasa_chip_' + clave).click();
                 await esperar(() => cuerpo(clave, 'facturado'), 'la tabla de ' + clave);
                 const filas = textos('.o_dcasa_comparar_tabla tbody th');
-                for (const fila of ['Ventas', 'Ganancia', 'Margen', 'N.º de ventas', 'Cobrado']) {
+                for (const fila of ['Ventas', 'Ganancia', 'Margen', 'N.º de ventas', 'Ticket promedio', 'Cobrado']) {
                     if (!filas.some((t) => t.startsWith(fila))) { throw new Error(`${clave}: falta la fila ${fila}`); }
                 }
                 // Las cabeceras son solo fechas («17 oct», «1–17 oct», «Sep completo»): nada de frases.

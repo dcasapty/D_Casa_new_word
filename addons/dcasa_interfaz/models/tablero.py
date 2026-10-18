@@ -356,6 +356,8 @@ class DcasaTablero(models.AbstractModel):
             'periodo': rango['periodo'], 'etiqueta': rango['etiqueta'],
             'desde': str(d0), 'hasta': str(d1),
             'actual': medida,
+            # Unidades vendidas por tipo (K1): de las mismas facturas, solo en el panel completo.
+            'unidades': None if filas is None else self._unidades_por_tipo(filas),
             'accion': accion,
         }
 

@@ -21,8 +21,9 @@ Las filas salen de una sola función (``_filas_de_comparacion``) y siguen la bas
 ``con_abonos`` o ``completadas``: las facturas de cliente, ``ventas_bases.py``) y la vendedora elegida: Ventas y
 Ganancia (sin ITBMS, las mismas de las tarjetas del Inicio), Margen (ganancia ÷ venta de mercancía de esas mismas
 facturas, el porcentaje que ya muestra la tarjeta de Ganancia; su cambio en puntos), N.º de ventas (facturas; una nota
-de crédito resta del monto, no del número), Falta por cobrar (solo «Con abonos», con ITBMS) y Cobrado (con ITBMS). Sin
-base positiva no hay porcentaje («—»): nunca se inventa uno.
+de crédito resta del monto, no del número), Ticket promedio (ventas ÷ N.º de ventas; sin ventas, «—»; en «Mes», sin
+«llevas»), Falta por cobrar (solo «Con abonos», con ITBMS) y Cobrado (con ITBMS). Sin base positiva no hay
+porcentaje («—»): nunca se inventa uno.
 
 Solo Gerencia y los administradores (los que ven la ganancia); el servidor lo exige en cada llamada.
 """
@@ -372,8 +373,8 @@ class DcasaTableroComparar(models.AbstractModel):
 
     @api.model
     def _filas_de_comparacion(self, a, b, modo, base, dias_a, dias_b):
-        """Las filas de la tabla, en orden, para cualquier base: Ventas, Ganancia, Margen, N.º de ventas, Falta por
-        cobrar (solo «Con abonos») y Cobrado (si quien mira ve los cobros)."""
+        """Las filas de la tabla, en orden, para cualquier base: Ventas, Ganancia, Margen, N.º de ventas, Ticket
+        promedio, Falta por cobrar (solo «Con abonos») y Cobrado (si quien mira ve los cobros)."""
         filas = []
 
         def fila(clave, nombre, nota, formato, actual, antes, cambio):
@@ -393,6 +394,12 @@ class DcasaTableroComparar(models.AbstractModel):
              self._cambio(margen_a, margen_b, modo, dias_a, dias_b, tipo='pts'))
         fila('cuantas', self.env._('N.º de ventas'), None, 'numero', a['cuantas'], b['cuantas'],
              self._cambio(a['cuantas'], b['cuantas'], modo, dias_a, dias_b, tipo='num'))
+        # El ticket ya es un promedio por venta: con días distintos no se divide otra vez por día, y «llevas» de un
+        # promedio no dice nada.
+        cambio = self._cambio(a['ticket'], b['ticket'], 'variacion' if modo == 'por_dia' else modo, dias_a, dias_b)
+        if modo == 'llevas':
+            cambio = {'tipo': 'llevas', 'valor': None, 'sentido': None, 'invertido': False}
+        fila('ticket', self.env._('Ticket promedio'), sin, 'moneda', a['ticket'], b['ticket'], cambio)
         if base == BASE_CON_ABONOS:
             cambio = self._cambio(a['falta_por_cobrar'], b['falta_por_cobrar'], modo, dias_a, dias_b, invertido=True)
             if modo == 'llevas':      # «llevas» de una deuda no dice nada
