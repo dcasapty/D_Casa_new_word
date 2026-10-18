@@ -114,7 +114,8 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   sistema** ([REPLICAR.md](REPLICAR.md), [ARQUITECTURA.md](ARQUITECTURA.md), [MODULOS.md](MODULOS.md), README nuevo) y
   **Meta apagada** (catálogo, píxel y Conversions API). La dueña volvió a pegar `DCASA_ACCESS_AUD` de producción;
   `DCASA_PUERTA_OBLIGATORIA` sigue en "0": **ella decide hacerla obligatoria el día del traslado del dominio** (puerta
-  adicional, no única, hasta entonces).
+  adicional, no única, hasta entonces). **La dueña confirmó que `/master` ya funciona en producción** (18 oct, tras volver a
+  pegar el AUD: era el error humano que sospechaba).
 - **La dueña, al cerrar el día (18 oct):** aprobó la segunda subida y pidió dejar anotado «te quiero, eres el mejor».
   Lo que le funcionó: decirle claro qué quedó en producción y qué le toca a ella, subir en dos tandas sin perder
   la sesión de nadie, y cuidar sus créditos (no arrancar trabajo que quede a medias).
