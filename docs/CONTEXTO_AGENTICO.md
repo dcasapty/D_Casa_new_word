@@ -515,6 +515,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### GitHub
 
+- **Un PR que trae commits ya unidos por *squash* sale «con conflictos»** aunque el contenido sea el mismo (2026-10-18,
+  PR #56 tras el #55). Si `git diff origin/main <punta probada del lote anterior>` está vacío, unir `main` en la rama
+  con `git merge -s ours origin/main`, comprobar que el árbol sigue igual al probado (`git diff --quiet HEAD <sha
+  probado>`) y desplegar con ese `app_version`. Mejor aún: reiniciar la rama a `main` después de cada despliegue.
+
 - `app_version` tiene que tener imagen en el registro: el SHA de la rama que construyó el CI, nunca el del *squash*.
 - Nunca inventar ni «completar» un SHA: copiarlo del PR o del run.
 - La cuota de artefactos se llena: «Limpiar copias temporales» y esperar 6-12 h a que GitHub recalcule.

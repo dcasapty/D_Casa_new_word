@@ -100,6 +100,28 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-18
 
+- **En producción** (13:46 Panamá, Desplegar 19, `app_version` `c552d652…`, imagen `sha256:aeeb0721…`; CI #198 verde y
+  staging sano; PR #55 `8671851`): **Ajustes se guarda** (estaba roto en producción para todo administrador), el
+  **Inicio de Gerencia sobre facturas** (Facturado · Con abonos · Completadas; abre en Facturado), las **reglas
+  contables de la gerencia** (cobro solo en Caja; anular, notas de crédito y devoluciones solo Gerencia; abono a 30
+  días con primer abono ≥ 50 %; Tafi y Crediviva; pedidos web sin vendedora; botones que solo darían error ocultos) y
+  la prueba de «En vivo» de Conversaciones sin carrera. La dueña autorizó producción sin esperar su filtro de capturas
+  («lo que vayas teniendo, tíralo a producción»): le quedaban pocos créditos.
+- **En producción** (14:43 Panamá, Desplegar 20, `app_version` `ccf7d187…`, imagen `sha256:2396e9f2…`; CI #200 verde y
+  staging sano; PR #56 `c938c2e`): `/master` dice por qué no abre (403 con el motivo, 503 con lo que falta) y
+  `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, carrito y registro lleva a Mi cuenta; guías
+  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md); documentación para **replicar el
+  sistema** ([REPLICAR.md](REPLICAR.md), [ARQUITECTURA.md](ARQUITECTURA.md), [MODULOS.md](MODULOS.md), README nuevo) y
+  **Meta apagada** (catálogo, píxel y Conversions API). La dueña volvió a pegar `DCASA_ACCESS_AUD` de producción;
+  `DCASA_PUERTA_OBLIGATORIA` sigue en "0": **ella decide hacerla obligatoria el día del traslado del dominio** (puerta
+  adicional, no única, hasta entonces).
+- **Respuestas I1–L8 del jefe** (18 oct): en [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md). Ya no queda ninguna
+  pregunta sin responder. El canje en efectivo queda descartado (J3).
+- **Sigue (jueves, cuando se renueven los créditos):** K1 (ticket promedio y unidades por tipo en el Inicio) si no se
+  hizo antes; bodega (rama `bodega`, apenas empezada) y datos limpios (rama `datos-limpios`, apenas empezada); D1, D3,
+  F6, G4/G7, I6; el trabajo contable con la gerencia (saldos iniciales, compras por validar, cobros sin cruzar). **La
+  dueña:** darle Caja a quien cobra; probar `/master`; decidir I4 (segundo factor obligatorio y apagar «admin»).
+
 - **Rama `master-puerta` (sin subir):** diagnóstico de `/master` en producción (código, variables y nombres de secretos
   iguales a staging; la diferencia está en Access o en el AUD de `production`), `/master` dice por qué no abre y
   `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, el carrito y crear cuenta lleva a Mi cuenta; guías
