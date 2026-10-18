@@ -1856,6 +1856,113 @@
    ]
   },
   {
+   "id": "meta-catalogo",
+   "categoria": "tienda",
+   "grupo": "Anuncios en Meta",
+   "titulo": "Anunciar tus productos en Facebook e Instagram",
+   "logras": "Ves la dirección del catálogo que Meta lee, qué productos van y cuáles quedan fuera y por qué.",
+   "destino": {
+    "menu": "dcasa_meta_catalogo.menu_meta_catalogo"
+   },
+   "nota": "Viene apagado: lo enciendes cuando vayas a pegar la dirección en Meta (Commerce Manager › Orígenes de datos). Los precios salen igual que en la página, sin ITBMS, y los productos que marques «No anunciar en Facebook e Instagram» no van.",
+   "palabras": [
+    "facebook",
+    "instagram",
+    "anuncios",
+    "catalogo",
+    "meta",
+    "publicidad",
+    "commerce manager",
+    "feed",
+    "catalogo de productos"
+   ]
+  },
+  {
+   "id": "meta-campana",
+   "categoria": "productos",
+   "grupo": "Anuncios en Meta",
+   "titulo": "Marcar productos para una campaña de anuncios",
+   "logras": "Creas una campaña (por ejemplo «Navidad»), la pones en varios productos a la vez y en Meta armas con ella el grupo de productos que se anuncia.",
+   "destino": {
+    "menu": "dcasa_meta_catalogo.menu_meta_campanas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre «Campañas para anuncios» y crea la campaña con su nombre. El sistema le pone un código sin tildes ni espacios (por ejemplo «navidad») que no cambia aunque después le cambies el nombre.",
+     "destino": {
+      "menu": "dcasa_meta_catalogo.menu_meta_campanas"
+     }
+    },
+    {
+     "texto": "En la lista de Productos marca los productos que van y, en la columna «Campaña (Meta)», escoge la campaña: se pone en todos los marcados.",
+     "destino": {
+      "menu": "sale.menu_product_template_action"
+     }
+    },
+    {
+     "texto": "En Meta, en tu catálogo › Conjuntos de productos, crea el conjunto con «Etiqueta personalizada 1» igual al código de la campaña.",
+     "destino": null
+    }
+   ],
+   "nota": "Para que un producto no salga en ningún anuncio, ábrelo y marca «No anunciar en Facebook e Instagram»: sigue en la tienda en línea.",
+   "palabras": [
+    "campana",
+    "anuncios",
+    "facebook",
+    "instagram",
+    "meta",
+    "publicidad",
+    "conjunto de productos",
+    "etiqueta",
+    "promocion"
+   ]
+  },
+  {
+   "id": "meta-eventos",
+   "categoria": "tienda",
+   "grupo": "Anuncios en Meta",
+   "titulo": "Ver qué ventas se reportaron a Meta",
+   "logras": "Ves las compras pagadas que el sistema le avisó a Meta para medir tus anuncios, y las que no se enviaron y por qué.",
+   "destino": {
+    "menu": "dcasa_meta_eventos.menu_meta_eventos"
+   },
+   "palabras": [
+    "meta",
+    "facebook",
+    "instagram",
+    "anuncios",
+    "publicidad",
+    "conversiones",
+    "ventas reportadas",
+    "pixel",
+    "medir anuncios"
+   ]
+  },
+  {
+   "id": "meta-pixel",
+   "categoria": "tienda",
+   "grupo": "Anuncios en Meta",
+   "titulo": "Conectar el píxel de Meta y mandar un evento de prueba",
+   "logras": "Pegas el número del píxel y el código de prueba que te da Meta, ves si la clave de Meta ya está cargada y mandas un evento de prueba para confirmar que Meta lo recibe.",
+   "destino": {
+    "menu": "dcasa_meta_eventos.menu_dcasa_meta_ajustes"
+   },
+   "nota": "Todo viene apagado y no se puede encender hasta que el abogado apruebe la parte de Meta de la política de privacidad y la publiquemos. La clave de Meta (el token) nunca se pega aquí ni se manda por el chat: se guarda como secreto META_CAPI_TOKEN. Esta pantalla es del administrador.",
+   "palabras": [
+    "pixel",
+    "pixel de meta",
+    "meta",
+    "facebook",
+    "instagram",
+    "anuncios",
+    "evento de prueba",
+    "conversions api",
+    "token de meta",
+    "medir anuncios",
+    "cookies"
+   ]
+  },
+  {
    "id": "usuario-nuevo",
    "categoria": "administrar",
    "grupo": "Accesos",

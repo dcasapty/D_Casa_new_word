@@ -251,6 +251,9 @@ el precio vigente antes de contratar algo de pago.
 
 ## 8. La puerta del equipo (Cloudflare Access + clave + código de la app)
 
+> **2026-10-18:** el paso a paso para producción y los códigos que ahora muestra `/master` cuando no abre están en
+> [PUERTA_MASTER.md](PUERTA_MASTER.md).
+>
 > **Estado (2026-10-13):** **staging está en modo `"1"`** (el personal solo entra por `/master`; por `/web/login` ya no;
 > la puerta en «1» todavía no se probó de punta a punta allí). **Producción volvió a `"0"`**: con «1», `/master` respondía
 > «Not Found» después del PIN de Access (el borde rechazó el pase) y el personal se quedó sin entrada. Antes de volver a
@@ -326,7 +329,8 @@ Los valores secretos los pegas tú en GitHub; nunca se escriben en el chat ni en
    Debe aparecer como «ADDED».
 3. Zero Trust › **Access controls › Applications › Add an application › Self-hosted**:
    - **Application name:** «Master (staging)».
-   - **Public hostname:** el del sitio (staging: `dcasa-staging.dcasapty.workers.dev`; producción: `dcasapty.com`) y
+   - **Public hostname:** donde el sitio responde HOY (staging: `dcasa-staging.dcasapty.workers.dev`; producción:
+     `dcasa.dcasapty.workers.dev`; `dcasapty.com` se **agrega** el día del traslado, docs/TRASLADO_DOMINIO.md) y
      **Path:** `master*`.
    - **Policy:** nombre «Equipo D'CASA», acción **Allow**, regla **Include › Emails** y los correos del equipo.
    - **Login methods:** desmarca «aceptar todos» y deja **solo One-time PIN**.

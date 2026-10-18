@@ -173,7 +173,7 @@ fi
 DB_PORT="${DB_PORT:-5432}"
 DB_SSLMODE="${DB_SSLMODE:-prefer}"
 DB_REINTENTOS="${DB_REINTENTOS:-20}"
-ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_abonos,dcasa_socios,website_dcasa,dcasa_mi_cuenta,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde,dcasa_seguridad,dcasa_conversaciones,dcasa_nomina,dcasa_contactos,dcasa_consolidacion,dcasa_equipo,dcasa_barras,dcasa_migracion,dcasa_guia,dcasa_correo}"
+ODOO_MODULES="${ODOO_MODULES:-dcasa_base,dcasa_invoice,dcasa_abonos,dcasa_socios,website_dcasa,dcasa_mi_cuenta,dcasa_catalogo,dcasa_interfaz,dcasa_contabilidad,dcasa_brian,dcasa_sesiones,dcasa_adjuntos_r2,dcasa_tienda_borde,dcasa_seguridad,dcasa_conversaciones,dcasa_nomina,dcasa_contactos,dcasa_consolidacion,dcasa_equipo,dcasa_barras,dcasa_migracion,dcasa_guia,dcasa_correo,dcasa_meta_catalogo,dcasa_meta_eventos}"
 ODOO_LANG="${ODOO_LANG:-es_419}"
 # Versión: manda la de la IMAGEN (/opt/dcasa/COMMIT, del Dockerfile), no la variable. Cloudflare puede
 # arrancar la imagen nueva con las variables del arranque anterior; con APP_VERSION atrasada la base no

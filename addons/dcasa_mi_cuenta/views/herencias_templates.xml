@@ -52,6 +52,33 @@
         </xpath>
     </template>
 
+    <!-- «Iniciar sesión» del sitio: el cliente entra por Mi cuenta (celular y PIN, o su correo), nunca por la puerta del
+         panel; el equipo entra solo por /master (docs/PUERTA_MASTER.md). `redirect` lo devuelve a donde estaba: solo
+         rutas de la tienda (controllers/main.py, _redirect_seguro). -->
+    <template id="checkout_entrar_mi_cuenta" inherit_id="website_sale.address" name="Mi cuenta: entrar desde el checkout">
+        <xpath expr="//div[hasclass('o_address_signin')]/a" position="replace">
+            <a role="button" href="/mi-cuenta?redirect=/shop/checkout" class="btn btn-primary ms-2">Entra a tu cuenta</a>
+        </xpath>
+    </template>
+
+    <!-- El carrito (Socios: usar mis puntos): «entra con tu cuenta de la tienda», también por Mi cuenta. Son dos enlaces
+         iguales: cada xpath cambia el primero que queda. -->
+    <template id="carrito_entrar_mi_cuenta" inherit_id="dcasa_socios.carrito_puntos" name="Mi cuenta: entrar desde el carrito">
+        <xpath expr="//a[@t-attf-href='/web/login?redirect=/shop/cart']" position="attributes">
+            <attribute name="t-attf-href">/mi-cuenta?redirect=/shop/cart</attribute>
+        </xpath>
+        <xpath expr="//a[@t-attf-href='/web/login?redirect=/shop/cart']" position="attributes">
+            <attribute name="t-attf-href">/mi-cuenta?redirect=/shop/cart</attribute>
+        </xpath>
+    </template>
+
+    <!-- Crear cuenta: «¿Ya tienes cuenta?» lleva a Mi cuenta (con el mismo destino, si venía de la tienda). -->
+    <template id="registro_entrar_mi_cuenta" inherit_id="auth_signup.signup" name="Mi cuenta: ya tengo cuenta">
+        <xpath expr="//a[@t-attf-href='/web/login?{{ keep_query() }}']" position="replace">
+            <a t-attf-href="/mi-cuenta?{{ keep_query('redirect') }}" class="btn btn-link btn-sm mt-2" role="button">¿Ya tienes cuenta?</a>
+        </xpath>
+    </template>
+
     <!-- Detalle del pedido y de la factura en /my (siguen existiendo): sin «Con la tecnología de Odoo». -->
     <template id="portal_sin_credito_odoo" inherit_id="portal.portal_record_sidebar" name="Mi cuenta: sin crédito de Odoo en el portal">
         <xpath expr="//a[contains(@href, 'utm_medium=portal')]/.." position="replace"/>

@@ -294,6 +294,36 @@ class TestMiCuentaHttp(MiCuentaComun, HttpCase):
         self.assertEqual(self.ruta(nuevo), '/mi-cuenta')
         self.assertIn('Ya eres socio', nuevo.text)
 
+    def test_iniciar_sesion_del_sitio_lleva_a_mi_cuenta_y_nunca_al_panel(self):
+        """«Iniciar sesión» (cabecera, pie, checkout, carrito, crear cuenta) lleva a Mi cuenta; el equipo entra por
+        /master (docs/PUERTA_MASTER.md). Ninguna página pública enlaza al login del panel ni a /odoo."""
+        for ruta in ('/', '/shop', '/socios', '/web/signup', '/web/signup?redirect=/shop/checkout', '/mi-cuenta'):
+            with self.subTest(ruta=ruta):
+                html = self.url_open(ruta).text
+                self.assertNotRegex(html, r'href="/odoo', 'Ninguna página pública enlaza al panel')
+                enlaces = re.findall(r'href="(/web/login[^"]*)"', html)
+                permitidos = ('/web/login?redirect=/mi-cuenta', '/web/login?redirect=/shop/')
+                self.assertTrue(all(e.startswith(permitidos) for e in enlaces), enlaces)
+        registro = self.url_open('/web/signup?redirect=/shop/checkout').text
+        self.assertIn('href="/mi-cuenta?redirect=%2Fshop%2Fcheckout"', registro)
+        self.assertIn('¿Ya tienes cuenta?', registro)
+        # Desde la tienda, «Entra con tu correo» devuelve a la tienda; cualquier otro destino, a Mi cuenta.
+        for pedido, destino in (('/shop/checkout', '/shop/checkout'), ('/shop/cart', '/shop/cart'),
+                                ('/odoo', '/mi-cuenta'), ('https://malo.example/x', '/mi-cuenta'),
+                                ('//malo.example', '/mi-cuenta'), ('/web/login', '/mi-cuenta')):
+            with self.subTest(redirect=pedido):
+                html = self.url_open(f'/mi-cuenta?redirect={quote(pedido, safe="")}').text
+                self.assertIn(f'href="/web/login?redirect={destino}"', html)
+        # El checkout y el carrito (plantillas: piden un carrito con productos para dibujarse).
+        from lxml import etree
+        checkout = etree.tostring(self.env.ref('website_sale.address')._get_combined_arch(), encoding='unicode')
+        self.assertIn('/mi-cuenta?redirect=/shop/checkout', checkout)
+        self.assertIn('Entra a tu cuenta', checkout)
+        self.assertNotIn('/web/login', checkout)
+        carrito = etree.tostring(self.env.ref('dcasa_socios.carrito_puntos')._get_combined_arch(), encoding='unicode')
+        self.assertEqual(carrito.count('/mi-cuenta?redirect=/shop/cart'), 2)
+        self.assertNotIn('/web/login', carrito)
+
     def test_cabecera_y_pie_enlazan_mi_cuenta(self):
         html = self.url_open('/shop').text
         cabecera = _cabecera(html)

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Consentimiento B en la ficha del cliente (diseño §5.4.2 y §9.3): la Vendedora lo marca después de preguntarle
+         a la persona; queda con fecha, dónde y quién lo registró (con historial). Retirarlo es de Gerencia (botón).
+         Solo aparece con «Ventas de la tienda» o «de la web» encendido, o si la persona ya aceptó. -->
+    <record id="view_partner_form_dcasa_meta" model="ir.ui.view">
+        <field name="name">res.partner.form.dcasa.meta</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet/group//field[@name='category_id']" position="after">
+                <field name="dcasa_meta_casilla_visible" invisible="1"/>
+                <label for="dcasa_meta_consentimiento" string="Anuncios en Meta"
+                       invisible="parent_id or not dcasa_meta_casilla_visible"/>
+                <div class="o_dcasa_meta_consentimiento" invisible="parent_id or not dcasa_meta_casilla_visible">
+                    <div class="d-flex align-items-baseline">
+                        <field name="dcasa_meta_consentimiento" nolabel="1" class="w-auto me-2"
+                               readonly="dcasa_meta_consentimiento"/>
+                        <span>Aceptó que compartamos sus compras con Meta (anuncios)</span>
+                    </div>
+                    <div class="text-muted small" invisible="dcasa_meta_consentimiento">
+                        Pregúntale: «¿Aceptas que D'CASA comparta tus compras con Meta (Facebook e Instagram), con tu
+                        correo y celular cifrados, para medir sus anuncios? Puedes retirarlo cuando quieras.» Márcalo
+                        solo si dice que sí.
+                    </div>
+                    <div class="text-muted small" invisible="not dcasa_meta_consentimiento">
+                        Aceptó el <field name="dcasa_meta_consentimiento_fecha" class="oe_inline" readonly="1"/>
+                        · <field name="dcasa_meta_consentimiento_origen" class="oe_inline" readonly="1"/>
+                        <span invisible="not dcasa_meta_consentimiento_usuario_id">
+                            · lo registró <field name="dcasa_meta_consentimiento_usuario_id" class="oe_inline"
+                                                 readonly="1" options="{'no_open': True}"/>
+                        </span>
+                    </div>
+                    <button name="action_dcasa_meta_retirar_consentimiento" type="object" string="Retirar consentimiento"
+                            class="btn-link px-0" icon="fa-times-circle-o"
+                            invisible="not dcasa_meta_consentimiento"
+                            groups="sales_team.group_sale_manager,base.group_system"
+                            confirm="Sus compras dejarán de reportarse a Meta y lo que todavía no salió se cancela. ¿Retirar el consentimiento?"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Eventos enviados a Meta»: qué compras se reportaron, cuáles no y por qué. Solo lectura, para Gerencia y
+         administradores. Nadie crea ni escribe filas a mano: las crea el cobro (sudo) y las cambia el cron. El JSON
+         que sale (con el correo y el celular ya cifrados) no aparece en ninguna vista. -->
+    <record id="dcasa_meta_evento_view_list" model="ir.ui.view">
+        <field name="name">dcasa.meta.evento.list</field>
+        <field name="model">dcasa.meta.evento</field>
+        <field name="arch" type="xml">
+            <list string="Eventos enviados a Meta" create="0" edit="0" delete="0"
+                  decoration-success="estado == 'enviado'" decoration-danger="estado == 'error'"
+                  decoration-muted="estado in ('omitido', 'descartado', 'cancelado')">
+                <header>
+                    <button name="action_dcasa_meta_reintentar" type="object" string="Reintentar ahora"
+                            display="always" icon="fa-refresh"/>
+                </header>
+                <field name="event_time" string="Cuándo"/>
+                <field name="event_name"/>
+                <field name="origen"/>
+                <field name="move_id"/>
+                <field name="valor"/>
+                <field name="moneda" optional="hide"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'enviado'"
+                       decoration-danger="estado == 'error'" decoration-warning="estado == 'pendiente'"/>
+                <field name="motivo"/>
+                <field name="intentos" optional="hide"/>
+                <field name="ultimo_error" optional="hide"/>
+                <field name="fbtrace_id" optional="hide"/>
+                <field name="event_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_meta_evento_view_form" model="ir.ui.view">
+        <field name="name">dcasa.meta.evento.form</field>
+        <field name="model">dcasa.meta.evento</field>
+        <field name="arch" type="xml">
+            <form string="Evento enviado a Meta" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_dcasa_meta_reintentar" type="object" string="Reintentar ahora"
+                            invisible="estado not in ('error', 'pendiente') or es_prueba" icon="fa-refresh"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="pendiente,enviado"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="event_name"/></h1>
+                        <div class="text-muted"><field name="event_id"/></div>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="origen"/>
+                            <field name="action_source"/>
+                            <field name="event_time"/>
+                            <field name="move_id"/>
+                            <field name="order_id"/>
+                            <field name="valor"/>
+                            <field name="moneda"/>
+                            <field name="es_prueba" invisible="not es_prueba"/>
+                        </group>
+                        <group>
+                            <field name="motivo"/>
+                            <field name="intentos"/>
+                            <field name="proximo_intento"/>
+                            <field name="enviado_en"/>
+                            <field name="fbtrace_id"/>
+                            <field name="ultimo_error"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dcasa_meta_evento_view_search" model="ir.ui.view">
+        <field name="name">dcasa.meta.evento.search</field>
+        <field name="model">dcasa.meta.evento</field>
+        <field name="arch" type="xml">
+            <search string="Eventos enviados a Meta">
+                <field name="move_id"/>
+                <field name="event_id"/>
+                <filter name="enviado" string="Enviados" domain="[('estado', '=', 'enviado')]"/>
+                <filter name="pendiente" string="Pendientes" domain="[('estado', '=', 'pendiente')]"/>
+                <filter name="error" string="Con error" domain="[('estado', '=', 'error')]"/>
+                <filter name="no_enviados" string="No se envían"
+                        domain="[('estado', 'in', ('omitido', 'descartado', 'cancelado'))]"/>
+                <separator/>
+                <filter name="web" string="Ventas de la web" domain="[('origen', '=', 'web')]"/>
+                <filter name="tienda" string="Ventas de la tienda" domain="[('origen', '=', 'tienda')]"/>
+                <filter name="pruebas" string="Pruebas" domain="[('es_prueba', '=', True)]"/>
+                <group>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                    <filter name="por_origen" string="Origen" context="{'group_by': 'origen'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- En el celular la lista no deja ver el estado ni el motivo (se salen de lado): ahí abre en tarjetas
+         (mobile_view_mode de Odoo, «kanban» de fábrica). «Reintentar ahora» está en la ficha de cada evento. -->
+    <record id="dcasa_meta_evento_view_kanban" model="ir.ui.view">
+        <field name="name">dcasa.meta.evento.kanban</field>
+        <field name="model">dcasa.meta.evento</field>
+        <field name="arch" type="xml">
+            <kanban create="0" class="o_kanban_mobile">
+                <templates>
+                    <t t-name="card">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <field name="event_name" class="fw-bold"/>
+                                <field name="move_id" class="ms-1"/>
+                            </div>
+                            <field name="estado" widget="badge" decoration-success="estado == 'enviado'"
+                                   decoration-danger="estado == 'error'" decoration-warning="estado == 'pendiente'"/>
+                        </div>
+                        <div class="text-muted small">
+                            <field name="origen"/> · <field name="event_time"/>
+                        </div>
+                        <div>Valor sin ITBMS: <field name="valor"/> <field name="moneda"/></div>
+                        <field name="motivo" class="text-muted" invisible="not motivo"/>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="action_dcasa_meta_eventos" model="ir.actions.act_window">
+        <field name="name">Eventos enviados a Meta</field>
+        <field name="res_model">dcasa.meta.evento</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="mobile_view_mode">kanban</field>
+        <field name="search_view_id" ref="dcasa_meta_evento_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Todavía no hay ventas reportadas a Meta</p>
+            <p>Cuando «Ventas de la web» o «Ventas de la tienda» estén encendidas (Sitio web › Configuración › Meta: píxel y ventas), cada
+                factura pagada aparece aquí: si salió, si no salió y por qué (por ejemplo, el cliente no aceptó).</p>
+        </field>
+    </record>
+
+    <!-- En Sitio web › eCommerce (y no en Sitio web › Configuración, que Odoo deja solo a los administradores):
+         así Gerencia también lo ve. -->
+    <menuitem id="menu_meta_eventos" name="Eventos enviados a Meta" parent="website_sale.menu_ecommerce"
+              action="action_dcasa_meta_eventos" sequence="60"
+              groups="sales_team.group_sale_manager,base.group_system"/>
+</odoo>

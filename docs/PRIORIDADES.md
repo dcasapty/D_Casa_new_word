@@ -126,7 +126,7 @@ unidos con el PR #43.)
 | Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción. Antes de encender: Caja al jefe administrativo | — |
 | Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Unido en la rama `tanda2` (2026-10-18); falta CI, staging y producción | — |
 | Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
-| Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
+| Meta: catálogo, píxel y Conversions API | Construido, unido y revisado en la rama local `meta-unido` (todo apagado de fábrica; revisión adversarial con 10 arreglos y sus pruebas). Siguen: capturas y decisiones de la dueña, CI a staging, el abogado (sección de privacidad), el arreglo de guardar Ajustes (`ajustes-guardar`) y, al trasladar el dominio, conectar en Meta (`META_CATALOGO.md`, `META_EVENTOS.md`) | — |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 
@@ -144,7 +144,7 @@ Cerrados: #11, #13 y #14 (códigos de barras, conteo con lector, pantalla de bod
 
 ## Pendientes viejos que siguen en pie
 
-- **#92** (antes de traspasar el dominio): que `/master` funcione y que «Iniciar sesión» de la web no lleve al panel.
+- **#92** (antes de traspasar el dominio): «Iniciar sesión» de la web ya lleva a Mi cuenta (2026-10-18, rama `master-puerta`). `/master` en producción: espera que la dueña revise la aplicación de Access y `DCASA_ACCESS_AUD` ([PUERTA_MASTER.md](PUERTA_MASTER.md)); `/master` ya dice el motivo. Traslado: [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
 - ~~**#97**: por qué el primer despliegue de una versión deja la base sin actualizar.~~ Resuelto el 2026-10-16
   (Desplegar 9): la imagen decide por la huella de su código, no por la variable `APP_VERSION`.
 - Estudio de envíos para La Chorrera: entregado; esperan sus respuestas (ver el documento en Claude Docs).

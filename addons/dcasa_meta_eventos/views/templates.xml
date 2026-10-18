@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ===================================================================
+         Meta en el sitio público (docs/META_EVENTOS.md). Con todo apagado, ninguna página lleva nada de Meta.
+
+         El layout solo lleva data-dcasa-meta-pixel="<id>" (website._dcasa_meta_pixel_html: píxel encendido,
+         producción, sección de Meta en la política, aviso de cookies y visita que no es del personal). Nada de
+         <script src="connect.facebook.net"> ni <noscript>: static/src/js/meta_pixel.js carga el píxel solo después
+         de que la persona acepta las cookies. Los data-* de la ficha y de las tarjetas son iguales para todos los
+         visitantes: sirven también con la página guardada en el borde.
+         =================================================================== -->
+
+    <template id="layout_meta_pixel" inherit_id="website.layout" name="D'CASA Meta: píxel (atributo del layout)">
+        <xpath expr="//div[@id='wrapwrap']" position="attributes">
+            <attribute name="t-att-data-dcasa-meta-pixel">website._dcasa_meta_pixel_html() if website else None</attribute>
+        </xpath>
+        <!-- Páginas con datos de la persona en la dirección o a la vista (cuenta, portal con access_token, inicio de
+             sesión, dirección del checkout, búsqueda con un correo o un celular): sin píxel y, con el píxel encendido,
+             la página siguiente solo recibe «vino de dcasapty.com», nunca esa dirección (website._dcasa_meta_referer_corto). -->
+        <xpath expr="//head/*[1]" position="before">
+            <meta t-if="website and website._dcasa_meta_referer_corto()" name="referrer" content="origin"/>
+        </xpath>
+    </template>
+
+    <!-- Ficha: ViewContent con el id de la variante mostrada, el precio de la página (sin ITBMS) y la moneda. -->
+    <template id="ficha_meta" inherit_id="website_sale.product" name="D'CASA Meta: datos de la ficha">
+        <xpath expr="//section[@id='product_detail']" position="attributes">
+            <attribute name="t-att">website._dcasa_meta_ficha(combination_info)</attribute>
+        </xpath>
+    </template>
+
+    <!-- «Agregar» de un clic de la portada (formulario /dcasa/carrito/agregar): el id de la variante que el
+         formulario agrega (la única del producto), para AddToCart. -->
+    <template id="tarjeta_meta" inherit_id="website_dcasa.tarjeta_producto" name="D'CASA Meta: id en la tarjeta">
+        <xpath expr="//form[@action='/dcasa/carrito/agregar']" position="before">
+            <t t-set="dcasa_meta_activo" t-value="bool(item['directo'] and website._dcasa_meta_pixel_html())"/>
+        </xpath>
+        <xpath expr="//form[@action='/dcasa/carrito/agregar']" position="attributes">
+            <attribute name="t-att-data-dcasa-meta-id">str(producto.product_variant_id.id) if dcasa_meta_activo else None</attribute>
+            <attribute name="t-att-data-dcasa-meta-valor">('%.2f' % (item['precio'] or 0.0)) if dcasa_meta_activo else None</attribute>
+            <attribute name="t-att-data-dcasa-meta-moneda">item['moneda'].name if dcasa_meta_activo and item.get('moneda') else None</attribute>
+        </xpath>
+    </template>
+
+    <!-- Lo mismo en las tarjetas de Black Weekend (la variante destacada). -->
+    <template id="tarjeta_bw_meta" inherit_id="website_dcasa.tarjeta_black_weekend" name="D'CASA Meta: id en Black Weekend">
+        <xpath expr="//form[@action='/dcasa/carrito/agregar']" position="before">
+            <t t-set="dcasa_meta_activo" t-value="bool(item['directo'] and website._dcasa_meta_pixel_html())"/>
+        </xpath>
+        <xpath expr="//form[@action='/dcasa/carrito/agregar']" position="attributes">
+            <attribute name="t-att-data-dcasa-meta-id">str(variante.id) if dcasa_meta_activo else None</attribute>
+            <attribute name="t-att-data-dcasa-meta-valor">('%.2f' % (item['precio'] or 0.0)) if dcasa_meta_activo else None</attribute>
+            <attribute name="t-att-data-dcasa-meta-moneda">item['moneda'].name if dcasa_meta_activo and item.get('moneda') else None</attribute>
+        </xpath>
+    </template>
+
+    <!-- Checkout: InitiateCheckout (ids, cantidad y valor sin ITBMS) y la casilla B, desmarcada, solo con
+         «Ventas de la web» encendido. El texto de la casilla es un borrador para el abogado (diseño §9.3). -->
+    <template id="checkout_meta" inherit_id="website_sale.checkout" name="D'CASA Meta: checkout">
+        <xpath expr="//div[@id='shop_checkout']" position="inside">
+            <script t-if="dcasa_meta_datos" type="application/json" id="dcasa-meta-datos" t-out="dcasa_meta_datos"/>
+            <div t-if="dcasa_meta_casilla" class="form-check mt-3 o_dcasa_meta_casilla">
+                <input class="form-check-input" type="checkbox" id="dcasa_meta_consentimiento_compra"
+                       t-att-checked="'checked' if dcasa_meta_casilla_marcada else None"/>
+                <label class="form-check-label small" for="dcasa_meta_consentimiento_compra">
+                    Acepto que D'CASA comparta mis compras con Meta (Facebook e Instagram), con mi correo y celular
+                    cifrados, para medir sus anuncios. Puedo retirarlo cuando quiera.
+                    <a href="/privacidad#privacidad-meta">Más información</a>
+                </label>
+            </div>
+        </xpath>
+    </template>
+
+    <!-- Confirmación: AddPaymentInfo. El píxel NUNCA manda Purchase: la compra la reporta el servidor cuando la
+         factura queda pagada. -->
+    <template id="confirmacion_meta" inherit_id="website_sale.confirmation" name="D'CASA Meta: confirmación">
+        <xpath expr="//t[@t-set='tx_sudo']" position="after">
+            <script t-if="dcasa_meta_datos" type="application/json" id="dcasa-meta-datos" t-out="dcasa_meta_datos"/>
+        </xpath>
+    </template>
+
+    <!-- Aviso de cookies de Odoo en español y con tuteo (borrador para el abogado, diseño §9.3), con la política de
+         privacidad. Colores de la marca: azul sobre blanco (static/src/scss/meta.scss); nunca amarillo sobre
+         blanco. Solo aparece con el aviso encendido (lo enciende el píxel). Lo de Meta se dice en TODAS las páginas
+         cuando el píxel del sitio de verdad se dibuja (en staging, por ejemplo, no): también en las páginas sin píxel
+         (la cuenta, la dirección), porque lo que la persona acepta ahí vale para las demás. -->
+    <template id="aviso_cookies_meta" inherit_id="website.cookies_bar" name="D'CASA Meta: aviso de cookies">
+        <xpath expr="//div[@id='website_cookies_bar']" position="attributes">
+            <attribute name="class" add="o_dcasa_aviso_cookies" separator=" "/>
+        </xpath>
+        <xpath expr="//span[hasclass('pe-1')]" position="replace">
+            <span class="pe-1">Usamos cookies propias para que la tienda funcione.<t t-if="website._dcasa_meta_pixel_del_sitio()"> Si
+                aceptas, también usamos las de Meta (Facebook e Instagram) para medir y mostrarte anuncios de nuestros
+                muebles.</t></span>
+        </xpath>
+        <xpath expr="//a[hasclass('o_cookies_bar_text_policy')]" position="replace">
+            <a href="/privacidad#cookies" class="o_cookies_bar_text_policy btn btn-link btn-sm px-0">Política de privacidad</a>
+        </xpath>
+        <xpath expr="//a[@id='cookies-consent-essential']" position="replace">
+            <a href="#" id="cookies-consent-essential" role="button"
+               class="js_close_popup btn btn-outline-primary btn-sm px-3 mb-2 me-2">Solo las necesarias</a>
+        </xpath>
+        <xpath expr="//a[@id='cookies-consent-all']" position="replace">
+            <a href="#" id="cookies-consent-all" role="button" class="js_close_popup btn btn-primary btn-sm px-3 mb-2">Aceptar</a>
+        </xpath>
+    </template>
+
+    <!-- Pie: «Preferencias de cookies» borra la elección y vuelve a abrir el aviso (sin JS, lleva a la política). -->
+    <template id="pie_preferencias_cookies" inherit_id="website_dcasa.footer_dcasa" name="D'CASA Meta: preferencias de cookies">
+        <xpath expr="//a[@href='/terminos']/.." position="after">
+            <li t-if="website and website.cookies_bar">
+                <a href="/privacidad#cookies" class="o_dcasa_cookies_preferencias">Preferencias de cookies</a>
+            </li>
+        </xpath>
+    </template>
+</odoo>

@@ -1,0 +1,47 @@
+// Aviso de cookies con la marca (CLAUDE.md, reglas de marca): azul y navy sobre blanco, sistema plano (sin sombras
+// dramáticas) y nunca amarillo sobre blanco. Solo se ve con el aviso encendido (lo enciende el píxel de Meta).
+$dcasa-meta-azul: #1340B1;
+$dcasa-meta-navy: #0E2A6B;
+
+#website_cookies_bar.o_dcasa_aviso_cookies {
+    .modal-content {
+        background-color: #FFFFFF;
+        color: $dcasa-meta-navy;
+        border-top: 2px solid $dcasa-meta-azul;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .o_cookies_bar_text_policy {
+        color: $dcasa-meta-azul;
+        text-decoration: underline;
+    }
+
+    .btn-primary {
+        background-color: $dcasa-meta-azul;
+        border-color: $dcasa-meta-azul;
+        color: #FFFFFF;
+    }
+
+    .btn-outline-primary {
+        background-color: #FFFFFF;
+        border-color: $dcasa-meta-azul;
+        color: $dcasa-meta-azul;
+    }
+}
+
+.o_dcasa_meta_casilla a {
+    color: $dcasa-meta-azul;
+}
+
+// En el celular los dos botones del aviso se tocan con el dedo: al menos 44 px de alto (la medida de Apple y Google),
+// sin cambiar sus colores. La prueba test_aviso_celular mide que el aviso entero (texto, política y botones) quepa en la
+// pantalla a 360 y 390 px sin salirse de lado.
+@media (max-width: 575.98px) {
+    #website_cookies_bar.o_dcasa_aviso_cookies .js_close_popup {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}

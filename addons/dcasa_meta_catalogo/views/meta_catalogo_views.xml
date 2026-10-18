@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ================= Catálogo para Meta (product.feed con target = meta) ================= -->
+    <record id="product_feed_meta_list" model="ir.ui.view">
+        <field name="name">product.feed.list.dcasa.meta</field>
+        <field name="model">product.feed</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Catálogo para Meta" create="false" delete="false">
+                <field name="name"/>
+                <field name="website_id" groups="website.group_multi_website"/>
+                <field name="dcasa_activo" widget="boolean_toggle" readonly="1"/>
+                <field name="dcasa_meta_en_catalogo"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="product_feed_meta_form" model="ir.ui.view">
+        <field name="name">product.feed.form.dcasa.meta</field>
+        <field name="model">product.feed</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <form string="Catálogo para Meta" create="false" delete="false">
+                <header>
+                    <button name="action_invalidate_cache" type="object" string="Regenerar ahora"
+                            help="Meta recibe el catálogo armado de nuevo la próxima vez que lo pida. Normalmente no hace falta: se arma solo cuando cambia algo."/>
+                    <button name="action_dcasa_meta_ver_fuera" type="object" string="Ver los que quedan fuera"/>
+                    <button name="action_dcasa_meta_nueva_direccion" type="object" string="Cambiar la dirección secreta"
+                            confirm="La dirección actual deja de funcionar y Meta no podrá leer el catálogo hasta que pegues la nueva en Commerce Manager › Orígenes de datos. ¿La cambio?"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <field name="target" invisible="1"/>
+                    <div class="alert alert-warning" role="alert" invisible="dcasa_activo">
+                        <strong>Apagado.</strong> La dirección no entrega nada y Meta no puede leer el catálogo.
+                        Enciéndelo cuando vayas a pegar la dirección en Meta.
+                    </div>
+                    <div class="alert alert-info" role="status" invisible="not dcasa_activo">
+                        <strong>Encendido.</strong> Meta (Facebook e Instagram) lee esta dirección cada hora o cada día
+                        y arma con ella los anuncios de tus productos.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="url">
+                        Todavía no hay dirección: el sitio aún no tiene su dominio público con https (se fija al
+                        trasladar el dominio). Mientras tanto Meta no puede leer el catálogo.
+                    </div>
+                    <group>
+                        <group string="Dirección para Meta">
+                            <field name="dcasa_activo" widget="boolean_toggle"/>
+                            <field name="url" string="Dirección" widget="CopyClipboardChar" readonly="1"
+                                   invisible="not url"/>
+                            <field name="website_id" groups="website.group_multi_website" readonly="1"/>
+                        </group>
+                        <group string="Cuántos van">
+                            <field name="dcasa_meta_en_catalogo"/>
+                            <field name="dcasa_meta_fuera_sin_foto"/>
+                            <field name="dcasa_meta_fuera_sin_precio"/>
+                            <field name="dcasa_meta_fuera_marcados"/>
+                        </group>
+                        <group string="Qué productos van">
+                            <field name="product_category_ids" string="Solo estas categorías" widget="many2many_tags"
+                                   placeholder="Todas" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Cómo se describen">
+                            <field name="dcasa_marca"/>
+                            <field name="dcasa_condicion"/>
+                            <field name="dcasa_disponibilidad" widget="radio"/>
+                        </group>
+                    </group>
+                    <p class="text-muted">
+                        Va todo lo publicado en la tienda en línea, menos lo que marques «No anunciar en Facebook e
+                        Instagram», lo que no tiene foto y lo que tiene precio cero. El precio es el mismo de la página
+                        (sin ITBMS, como se ve en la web). Cada medida o color de un producto cuenta como una línea.
+                        Para armar un grupo de productos en Meta (Catálogo › Conjuntos de productos) usa las etiquetas
+                        personalizadas: 0 = categoría, 1 = campaña, 2 = existencias (disponible, pocas, agotado),
+                        3 = franja de precio, 4 = código DC del producto.
+                    </p>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_meta_catalogo" model="ir.actions.act_window">
+        <field name="name">Catálogo para Meta</field>
+        <field name="res_model">product.feed</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('target', '=', 'meta')]</field>
+        <field name="context">{'default_target': 'meta'}</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('product_feed_meta_list')}),
+            Command.create({'view_mode': 'form', 'view_id': ref('product_feed_meta_form')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay catálogo para Meta.</p>
+            <p>Se crea al instalar el módulo; si lo borraron, pídele a quien administra el sistema que lo vuelva a crear.</p>
+        </field>
+    </record>
+
+    <!-- ================= Campañas para anuncios ================= -->
+    <record id="meta_campana_list" model="ir.ui.view">
+        <field name="name">dcasa.meta.campana.list</field>
+        <field name="model">dcasa.meta.campana</field>
+        <field name="arch" type="xml">
+            <list string="Campañas para anuncios" editable="bottom">
+                <field name="name"/>
+                <field name="codigo"/>
+                <field name="producto_count"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="meta_campana_search" model="ir.ui.view">
+        <field name="name">dcasa.meta.campana.search</field>
+        <field name="model">dcasa.meta.campana</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="codigo"/>
+                <filter name="archivadas" string="Archivadas" domain="[('active', '=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_meta_campanas" model="ir.actions.act_window">
+        <field name="name">Campañas para anuncios</field>
+        <field name="res_model">dcasa.meta.campana</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Crea tu primera campaña (por ejemplo «Navidad»).</p>
+            <p>Después, en Productos, marca los productos y escoge la campaña en la columna «Campaña (Meta)». En Meta,
+               arma el conjunto de productos con «Etiqueta personalizada 1» igual al código de la campaña.</p>
+        </field>
+    </record>
+
+    <!-- ================= Menú: Sitio web › Anuncios en Meta =================
+         El diseño pedía «Sitio web › Configuración», pero en Odoo 19 ese menú es solo de administradores
+         (base.group_system) y Gerencia no lo vería. Va como sección propia del Sitio web (que en D'CASA es de
+         Gerencia, dcasa_interfaz), para Gerencia y administradores. La Vendedora no. -->
+    <menuitem id="menu_meta_raiz" name="Anuncios en Meta" parent="website.menu_website_configuration" sequence="40"
+              groups="sales_team.group_sale_manager,base.group_system"/>
+    <menuitem id="menu_meta_catalogo" name="Catálogo para Meta" parent="menu_meta_raiz" action="action_meta_catalogo"
+              sequence="10" groups="sales_team.group_sale_manager,base.group_system"/>
+    <menuitem id="menu_meta_campanas" name="Campañas para anuncios" parent="menu_meta_raiz"
+              action="action_meta_campanas" sequence="20" groups="sales_team.group_sale_manager,base.group_system"/>
+</odoo>

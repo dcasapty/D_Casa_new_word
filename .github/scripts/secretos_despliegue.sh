@@ -10,6 +10,7 @@
 #   R2_ENDPOINT   opcional; por defecto https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 #   TELEGRAM_BOT_TOKEN, BRIAN_TELEGRAM_SECRETO            opcionales: solo si existen
 #   RESEND_API_KEY      opcional: correo a clientes por Resend (docs/CORREO.md). Vacío: no se sube y no sale correo
+#   META_CAPI_TOKEN     opcional: Conversions API de Meta (docs/META_EVENTOS.md). Vacío: no se sube y no sale nada a Meta
 #   TIENDA_FEED_TOKEN   opcional: caché de páginas (Odoo certifica las anónimas + aviso, ≥ 32)
 #   TURNSTILE_SECRET    opcional: Cloudflare Turnstile (docs/SEGURIDAD_ACCESO.md)
 #   DCASA_PUERTA_RUTA, DCASA_PUERTA_SECRETO, DCASA_ACCESS_EQUIPO, DCASA_ACCESS_AUD
@@ -94,6 +95,7 @@ UNA_VEZ="${una_vez[*]:-}" jq -n '
       TELEGRAM_BOT_TOKEN: $e.TELEGRAM_BOT_TOKEN,
       BRIAN_TELEGRAM_SECRETO: $e.BRIAN_TELEGRAM_SECRETO,
       RESEND_API_KEY: $e.RESEND_API_KEY,
+      META_CAPI_TOKEN: $e.META_CAPI_TOKEN,
       TIENDA_FEED_TOKEN: $e.TIENDA_FEED_TOKEN,
       TURNSTILE_SECRET: $e.TURNSTILE_SECRET,
       DCASA_PUERTA_RUTA: $e.DCASA_PUERTA_RUTA,

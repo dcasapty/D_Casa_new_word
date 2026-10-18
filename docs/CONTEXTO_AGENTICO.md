@@ -351,6 +351,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Una prueba que cruza dos módulos solo corre en la unión** (`skipUnless` del otro módulo): la de los ids de Meta
+  (`TestContratoId`) falló la primera vez que corrió, en la unión, porque el otro paquete había agregado después un
+  interruptor apagado de fábrica. Al unir paquetes, mirar qué pruebas dejan de saltarse (2026-10-17).
+- **El píxel de Meta manda la dirección completa de la página** (y la anterior como «de dónde vino»): un enlace del
+  portal lleva `?access_token=`. Las páginas con datos de la persona no llevan píxel y, con el píxel encendido, llevan
+  `<meta name="referrer" content="origin">` (`dcasa_meta_eventos/models/website.py`, 2026-10-17).
+- **Algo que se evalúa en el layout de todas las páginas no puede lanzar**: si falla, cae todo el sitio. La compuerta
+  de la política de privacidad de Meta renderiza una plantilla; si no se puede, responde «no está lista» (2026-10-17).
+- **Al fusionar fichas, Contactos copia campo por campo** los datos `dcasa_*` con `copy=False`: un registro de varios
+  campos que deben ir juntos (fecha, dónde y quién) se saca de esa lista y se pasa entero (`partner_merge.py` de Meta).
+- Los *bundles* de assets no se vuelven a armar con el servidor andando: tras cambiar SCSS o JS, reiniciar Odoo antes
+  de mirar o capturar (2026-10-17).
 - **Unir dos ramas que no se veían** (tanda 2, 2026-10-18): una rama cuya base es de la historia vieja (antes del
   *squash* a `main`) se trae con `git cherry-pick` de sus commits, no con `merge`. Y después de unir, revisar lo que
   cruza: las notas de crédito, que ahora hace solo Gerencia, llevan a Gerencia como «Vendedor» (Odoo pone a quien la
@@ -493,6 +505,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - Las variables del panel se aplican al reiniciar; desplegar con `--keep-vars` para no borrarlas.
 - `DCASA_PIN_PEPPER` y `PGBACKREST_CIPHER_PASS` nunca se rotan; si la consulta de secretos falla, abortar.
 - Puerta del equipo en «1» dejó `/master` en «Not Found»: subir por pasos «0» → «avisar» → «1».
+- **`/master` de producción (incidente 4), revisado el 2026-10-18:** código, variables y nombres de los cuatro secretos
+  iguales en staging y producción (registros «Secretos a subir…» de Desplegar 18 y CI #196), y la ruta de producción es
+  `/master` (GitHub tapó «/master» con `***` en el título del commit del CI #132: el enmascarado de secretos sirve de
+  prueba sin leer el valor). Lo distinto solo puede ser la aplicación de Access de producción (dirección) o su AUD en
+  `production` (lo más probable: el de staging, o la app puesta en `dcasapty.com` como decía SEGURIDAD_ACCESO §8.4). El
+  rechazo del borde era el mismo 404 en «0» y en «1». Desde `a7725a2` `/master` dice el motivo (código `audiencia`,
+  `sin token`…) y `/__edge/health` trae `puerta`. Guía: docs/PUERTA_MASTER.md.
 
 ### GitHub
 

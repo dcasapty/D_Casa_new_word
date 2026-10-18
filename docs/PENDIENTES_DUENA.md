@@ -103,7 +103,9 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     tránsito entre empresas, monedas y años fiscales distintos, presupuesto por mes.
 22. **La puerta `/master` y el «Iniciar sesión» de la web:** pendiente de hacer **con lupa antes de traspasar el dominio**.
     Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
-    solo por su cuenta en la web y el personal solo por `/master`.
+    solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
+    cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
+    `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
 23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
     darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
     «ponle el rol cajero a …»). Sin Caja, quien cobra solo vería lo suyo; Gerencia puede hacerlo todo mientras tanto. Dos
@@ -125,6 +127,12 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     lo que la financiera deposita después. Para la gerencia: confirmar si Caja puede seguir quitando un cobro mal
     aplicado de una factura (hoy sí; Gerencia también) y si el contador (sin Gerencia) también debe poder anular o hacer
     notas de crédito (hoy no: solo Gerencia y administradores).
+25. **Anuncios en Meta (catálogo, píxel y ventas reportadas), todo apagado hasta que digas:** decidir precio sin ITBMS
+    en el anuncio, disponibilidad, marca, condición, qué productos entran, cuándo se reporta la compra web, las ventas
+    de la tienda y staging (cada una con su recomendación en [META_CATALOGO.md](META_CATALOGO.md) y
+    [META_EVENTOS.md](META_EVENTOS.md), «Decisiones de la dueña»); llevar al abogado el borrador de privacidad y sus
+    7 preguntas; en Meta, crear el píxel con la «Coincidencia avanzada automática» **apagada** y guardar el token
+    solo como secreto `META_CAPI_TOKEN` en GitHub (nunca por el chat).
 
 ## Issues abiertos que dependen de ti
 

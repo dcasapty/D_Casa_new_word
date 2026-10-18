@@ -122,7 +122,7 @@
                 </section>
                 <section class="o_dcasa_mc_tarjeta" aria-labelledby="mc_entrar_otros">
                     <h2 id="mc_entrar_otros" class="o_dcasa_mc_h2">¿Otra forma?</h2>
-                    <a href="/web/login?redirect=/mi-cuenta" class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
+                    <a t-att-href="'/web/login?redirect=%s' % (redirect or '/mi-cuenta')" class="btn btn-outline-primary w-100 o_dcasa_mc_btn">
                         <i class="fa fa-envelope-o me-2" aria-hidden="true"/>¿Compraste en la web con tu correo? Entra con tu correo</a>
                     <a href="/socios/registro" class="btn btn-outline-primary w-100 mt-3 o_dcasa_mc_btn">
                         <i class="fa fa-star-o me-2" aria-hidden="true"/>¿Primera vez? Hazte socio</a>

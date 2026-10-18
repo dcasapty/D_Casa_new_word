@@ -100,6 +100,11 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-18
 
+- **Rama `master-puerta` (sin subir):** diagnóstico de `/master` en producción (código, variables y nombres de secretos
+  iguales a staging; la diferencia está en Access o en el AUD de `production`), `/master` dice por qué no abre y
+  `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, el carrito y crear cuenta lleva a Mi cuenta; guías
+  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md). Sigue: capturas a la dueña →
+  staging → producción, y que ella revise Access y `DCASA_ACCESS_AUD`.
 - **Tanda 2 unida en la rama local `tanda2`** (para un solo despliegue): `d08ad28` (Ajustes sin diseñador) + el Inicio
   de Gerencia sobre facturas (`inicio-facturado`, aplicado con *cherry-pick* de `4e3ad43` y `252ebc0`: su base `0f370b8`
   es de la historia vieja, de antes del *squash* a `main`) + unión de `permisos-vendedoras` (`ecf5c97`: reglas
@@ -127,6 +132,19 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   revisión adversarial; reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); Inicio de Gerencia
   sobre facturas; y un error **confirmado en producción**: ningún administrador puede guardar Ajustes (arreglado en
   `website_dcasa/models/res_config_settings.py`, con pruebas por el camino del navegador; ver CONTEXTO_AGENTICO).
+- **Meta unido en la rama local `meta-unido`** (sobre `c3a69f5`, sin subir ni desplegar; todo apagado de fábrica): el
+  catálogo para Meta (`dcasa_meta_catalogo`) y el píxel con consentimiento y las ventas pagadas por la Conversions API
+  (`dcasa_meta_eventos`), unidos por *merge* sin conflictos de texto. La prueba del contrato de ids (`TestContratoId`)
+  corrió por primera vez y falló solo porque el catálogo viene apagado (arreglada). La **revisión adversarial** de los
+  dos juntos encontró y arregló, cada uno con su prueba: retirar el consentimiento no alcanzaba lo «con error», lo ya
+  enviado ni la casilla de un pedido web sin pagar; una factura anulada dejaba lo «con error» para reintentar; el
+  píxel se dibujaba en páginas con datos de la persona en la dirección (portal con `access_token`, búsquedas con un
+  correo o un celular, cuenta, inicio de sesión) y Meta recibe la dirección completa; retirar las cookies después del
+  checkout no borraba lo tomado del navegador; un fallo de Meta podía tumbar el checkout o (con la política rota) todo
+  el sitio; la fusión de fichas mezclaba el registro del consentimiento; faltaba en la Guía la pantalla de Ajustes de
+  Meta; la «configuración automática» del píxel quedó apagada y los botones del aviso de cookies miden 44 px en el
+  celular. **Sigue:** capturas a la dueña, sus decisiones (ver `META_CATALOGO.md` y `META_EVENTOS.md`, «Decisiones de
+  la dueña»), CI hacia staging y el arreglo de guardar Ajustes sin «Editor y diseñador» (otra rama, `ajustes-guardar`).
 - **En la rama `inicio-facturado` (local, sin subir; base `0f370b8`):** el **Inicio de Gerencia cuenta las ventas sobre
   las facturas**, como Contabilidad (respuestas A1 y A2 del jefe, [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)).
   Interruptor de tres posiciones **Facturado · Con abonos · Completadas** (abre en Facturado; cambiarlo es
