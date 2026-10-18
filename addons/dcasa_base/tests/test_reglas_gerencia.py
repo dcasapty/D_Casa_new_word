@@ -6,10 +6,14 @@
 * A6 · Pasar a borrador o anular una factura de cliente publicada: solo Gerencia (y administradores).
 * A7 · Notas de crédito, devolverle dinero a un cliente y dejarle saldo a favor: solo Gerencia (y administradores).
 * C1 · Tafi y Crediviva como formas de pago de clientes, una vez por base y sin pisar lo que exista.
+* La pantalla: a quien no puede usar un botón no se le ofrece (la factura, la lista, el menú «Acción», el pago, el
+  asistente «Pagar» y el globito del pago); el servidor lo sigue negando por RPC.
 
 El primer abono mínimo y el plazo de 30 días están en dcasa_invoice (test_primer_abono.py, test_estado_abono.py).
 """
 from contextlib import contextmanager
+
+from lxml import etree
 
 from odoo import Command, fields
 from odoo.addons.dcasa_base import (
@@ -18,7 +22,10 @@ from odoo.addons.dcasa_base import (
     crear_diarios_financiamiento,
 )
 from odoo.exceptions import AccessError
+from odoo.service.model import call_kw
 from odoo.tests import TransactionCase, tagged
+from odoo.tools.safe_eval import safe_eval
+from odoo.tools.view_validation import get_expression_field_names
 
 from .test_roles import crear_usuario
 
@@ -374,3 +381,223 @@ class TestTafiYCrediviva(ReglasGerenciaComun):
         self.assertTrue(self._diario('TAFI') and self._diario('CRVIV'))
         migracion.migrate(self.env.cr, '19.0.1.8.0')
         self.assertEqual(len(self._diario('TAFI')), 1, 'repetirla no duplica')
+
+
+@tagged('post_install', '-at_install')
+class TestBotonesSoloAQuienPuede(ReglasGerenciaComun):
+    """La pantalla no ofrece lo que solo daría error: a quien no es Gerencia (Caja incluida) no le salen «Nota de
+    crédito» ni «Restablecer a borrador» en una factura de cliente publicada, y a la Vendedora tampoco «Pagar». Se mira
+    como el navegador: el botón tiene que llegarle (``groups``) y ni él ni lo que lo contiene pueden estar invisibles
+    con los valores de esa factura vista por ese usuario. El servidor lo sigue negando por RPC."""
+
+    NOTA = "//header/button[@name='action_reverse']"
+    BORRADOR = "//header/button[@name='button_draft']"
+    PAGAR = "//header/button[@name='action_register_payment']"
+    REVERTIR = "//header/button[@data-hotkey='z']"
+
+    # --- ayudas ---------------------------------------------------------------------------------------------
+    def _arch(self, usuario, modelo, tipo='form', vista=None, contexto=None):
+        Modelo = self.env[modelo].with_user(usuario).with_context(**(contexto or {}))
+        return etree.fromstring(Modelo.get_views([(vista, tipo)])['views'][tipo]['arch'])
+
+    def _vale(self, registro, expresion, contexto):
+        valores = {'context': dict(contexto), 'id': registro.id, 'uid': registro.env.uid}
+        for nombre in get_expression_field_names(expresion):
+            if nombre in registro._fields and nombre not in valores:
+                campo, valor = registro._fields[nombre], registro[nombre]
+                if campo.type == 'many2one':
+                    valor = valor.id
+                elif campo.type in ('one2many', 'many2many'):
+                    valor = valor.ids
+                valores[nombre] = valor
+        return bool(safe_eval(expresion, valores))
+
+    def _se_ve(self, usuario, registro, xpath, tipo='form', vista=None, contexto=None):
+        """¿Le sale a ``usuario`` algún nodo ``xpath`` de la vista de ``registro``? (Vacío: la lista, solo contexto.)"""
+        contexto = contexto or {}
+        registro = registro.with_user(usuario).with_context(**contexto)
+        for nodo in self._arch(usuario, registro._name, tipo, vista, contexto).xpath(xpath):
+            condiciones = [n.get('invisible') for n in (nodo, *nodo.iterancestors()) if n.get('invisible')]
+            if not any(self._vale(registro, condicion, contexto) for condicion in condiciones):
+                return True
+        return False
+
+    def _cobros_con_asiento(self):
+        """Como en la base de D'CASA: el efectivo lleva su cuenta de cobros por depositar, así un cobro deja asiento
+        (un cobro suelto queda como crédito pendiente) y el asistente muestra la diferencia."""
+        cuenta = self.env['account.account'].create({
+            'name': 'Cobros por depositar (prueba)', 'code': 'PRB1010', 'account_type': 'asset_current',
+            'reconcile': True})
+        self.efectivo.inbound_payment_method_line_ids.payment_account_id = cuenta
+
+    def _por_rpc(self, usuario, modelo, metodo, ids, *args):
+        return call_kw(self.env[modelo].with_user(usuario), metodo, [ids, *args], {})
+
+    # --- la factura publicada -------------------------------------------------------------------------------
+    def test_factura_publicada_solo_gerencia_ve_nota_y_borrador(self):
+        factura = self._factura(self.vendedora)
+        for usuario in (self.vendedora, self.caja, self.contador):
+            with self.subTest(usuario.login):
+                self.assertFalse(self._se_ve(usuario, factura, self.NOTA), 'sin «Nota de crédito»')
+                self.assertFalse(self._se_ve(usuario, factura, self.BORRADOR), 'sin «Restablecer a borrador»')
+        for usuario in (self.gerencia, self.admin):
+            with self.subTest(usuario.login):
+                self.assertTrue(self._se_ve(usuario, factura, self.NOTA))
+                self.assertTrue(self._se_ve(usuario, factura, self.BORRADOR))
+                self.assertTrue(self._se_ve(usuario, factura, self.PAGAR))
+
+    def test_pagar_sigue_escondido_para_la_vendedora(self):
+        factura = self._factura(self.vendedora)
+        self.assertFalse(self._se_ve(self.vendedora, factura, self.PAGAR))
+        self.assertTrue(self._se_ve(self.vendedora, factura, "//div[contains(@class, 'o_dcasa_cobro_en_caja')]"),
+                        'la factura le dice que el cobro es en Caja')
+        for usuario in (self.caja, self.contador):
+            with self.subTest(usuario.login):
+                self.assertTrue(self._se_ve(usuario, factura, self.PAGAR), 'Caja cobra')
+                self.assertFalse(self._se_ve(usuario, factura, "//div[contains(@class, 'o_dcasa_cobro_en_caja')]"))
+        # Con un cobro que ya estaba («Créditos pendientes: Agregar») tampoco se lo ofrece. Con el interruptor
+        # apagado, para que la vendedora vea ese cobro (encendido, ni siquiera lo ve).
+        self._apagar_interruptor()
+        self._cobros_con_asiento()
+        self._cobro_suelto(self.caja).action_post()
+        factura.invalidate_recordset()
+        self.assertTrue(factura.with_user(self.vendedora).invoice_has_outstanding)
+        pendientes = "//field[@name='invoice_outstanding_credits_debits_widget']"
+        self.assertFalse(self._se_ve(self.vendedora, factura, pendientes))
+        self.assertFalse(self._se_ve(self.vendedora, factura, self.PAGAR))
+        self.assertTrue(self._se_ve(self.caja, factura, pendientes))
+        self.assertTrue(self._se_ve(self.caja, factura, self.PAGAR))
+
+    def test_nota_de_credito_publicada(self):
+        """En una nota, «Pagar» es devolver dinero y «Restablecer a borrador» deshacerla: solo Gerencia."""
+        factura = self._factura(self.vendedora)
+        self._cobrar(self.caja, factura)
+        nota = self._nota(self.gerencia, factura)
+        for usuario in (self.vendedora, self.caja):
+            with self.subTest(usuario.login):
+                self.assertFalse(self._se_ve(usuario, nota, self.PAGAR))
+                self.assertFalse(self._se_ve(usuario, nota, self.BORRADOR))
+        self.assertTrue(self._se_ve(self.gerencia, nota, self.PAGAR))
+        self.assertTrue(self._se_ve(self.gerencia, nota, self.BORRADOR))
+
+    def test_lo_que_no_es_de_gerencia_sigue_a_la_vista(self):
+        """Se esconde exactamente lo que el servidor niega: una factura cancelada vuelve a borrador con Caja, y en un
+        borrador «Cancelar» le sigue saliendo a quien factura."""
+        cancelada = self._factura(self.vendedora)
+        cancelada.with_user(self.gerencia).button_cancel()
+        self.assertTrue(self._se_ve(self.caja, cancelada, self.BORRADOR))
+        cancelada.with_user(self.caja).button_draft()
+        self.assertEqual(cancelada.state, 'draft')
+        self.assertTrue(self._se_ve(self.vendedora, cancelada, "//header/button[@name='button_cancel']"))
+
+    def test_revertir_un_asiento_no_le_llega(self):
+        for usuario in (self.vendedora, self.caja):
+            with self.subTest(usuario.login):
+                self.assertFalse(self._arch(usuario, 'account.move').xpath(self.REVERTIR))
+        for usuario in (self.gerencia, self.contador, self.admin):
+            with self.subTest(usuario.login):
+                self.assertTrue(self._arch(usuario, 'account.move').xpath(self.REVERTIR))
+
+    # --- la lista y el menú «Acción» -------------------------------------------------------------------------
+    def test_lista_pagar_solo_a_quien_puede(self):
+        Move = self.env['account.move']
+        facturas = self.env.ref('account.view_out_invoice_tree').id
+        notas = self.env.ref('account.view_out_credit_note_tree').id
+        pagar = "//header/button[@name='action_force_register_payment']"
+        en_facturas = {'default_move_type': 'out_invoice'}
+        en_notas = {'default_move_type': 'out_refund'}
+        self.assertFalse(self._se_ve(self.vendedora, Move, pagar, 'list', facturas, en_facturas))
+        self.assertFalse(self._se_ve(self.vendedora, Move, pagar, 'list', notas, en_notas))
+        self.assertTrue(self._se_ve(self.caja, Move, pagar, 'list', facturas, en_facturas))
+        self.assertFalse(self._se_ve(self.caja, Move, pagar, 'list', notas, en_notas), 'devolver dinero')
+        self.assertTrue(self._se_ve(self.gerencia, Move, pagar, 'list', facturas, en_facturas))
+        self.assertTrue(self._se_ve(self.gerencia, Move, pagar, 'list', notas, en_notas))
+
+    def test_menu_accion_sin_lo_de_gerencia(self):
+        de_gerencia = {self.env.ref(x).id for x in (
+            'account.action_move_force_register_payment', 'account.action_view_account_move_reversal',
+            'account.action_move_switch_move_type')}
+        for usuario, las_ve in ((self.vendedora, False), (self.caja, False), (self.gerencia, True),
+                                (self.contador, True), (self.admin, True)):
+            with self.subTest(usuario.login):
+                enlaces = self.env['ir.actions.actions'].with_user(usuario).get_bindings('account.move')
+                ids = {accion['id'] for accion in enlaces.get('action', ())}
+                if las_ve:
+                    self.assertLessEqual(de_gerencia, ids)
+                else:
+                    self.assertFalse(de_gerencia & ids)
+
+    # --- el pago y el asistente «Pagar» ------------------------------------------------------------------------
+    def test_pagos_sin_nuevo_ni_botones_para_quien_no_cobra(self):
+        self._apagar_interruptor()  # para que la vendedora pueda abrir el cobro y ver qué le sale
+        for tipo in ('list', 'form', 'kanban'):
+            with self.subTest(tipo):
+                self.assertEqual(self._arch(self.vendedora, 'account.payment', tipo).get('create'), '0')
+        for tipo in ('list', 'form'):  # el kanban (celular) ya viene sin «Nuevo» para todos
+            with self.subTest(tipo):
+                self.assertNotEqual(self._arch(self.caja, 'account.payment', tipo).get('create'), '0')
+        publicar, cancelar = "//header/button[@name='action_post']", "//header/button[@name='action_cancel']"
+        self.assertFalse(self._arch(self.vendedora, 'account.payment', 'list').xpath(publicar))
+        self.assertTrue(self._arch(self.caja, 'account.payment', 'list').xpath(publicar))
+        cobro = self._cobro_suelto(self.caja)
+        self.assertFalse(self._se_ve(self.vendedora, cobro, publicar))
+        self.assertFalse(self._se_ve(self.vendedora, cobro, cancelar))
+        self.assertTrue(self._se_ve(self.caja, cobro, publicar))
+        cobro.action_post()
+        self.assertFalse(self._se_ve(self.vendedora, cobro, "//header/button[@name='action_draft']"))
+        self.assertTrue(self._se_ve(self.caja, cobro, "//header/button[@name='action_draft']"))
+        devolucion = self.env['account.payment'].with_user(self.gerencia).create({
+            'payment_type': 'outbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
+            'amount': 10.0, 'journal_id': self.efectivo.id})
+        self.assertFalse(self._se_ve(self.caja, devolucion, publicar), 'devolver dinero es de Gerencia')
+        self.assertTrue(self._se_ve(self.gerencia, devolucion, publicar))
+
+    def test_asistente_sin_saldo_a_favor_ni_diferencia_para_caja(self):
+        self._cobros_con_asiento()
+        factura = self._factura(monto=100.0)
+        manejo = "//field[@name='payment_difference_handling']"
+        aviso = "//div[contains(@class, 'o_dcasa_saldo_a_favor')]"
+        de_mas = self._asistente(self.caja, factura, amount=150.0)
+        self.assertEqual(de_mas.dcasa_aviso_saldo_a_favor,
+                         'Estás cobrando más de lo que falta ($100.00). Dejarle saldo a favor lo autoriza solo '
+                         'Gerencia: cobra hasta $100.00.')
+        self.assertTrue(self._se_ve(self.caja, de_mas, aviso))
+        self.assertFalse(self._se_ve(self.caja, de_mas, manejo))
+        exacto = self._asistente(self.caja, factura, amount=100.0)
+        self.assertFalse(exacto.dcasa_aviso_saldo_a_favor)
+        self.assertFalse(self._se_ve(self.caja, exacto, aviso))
+        de_gerencia = self._asistente(self.gerencia, factura, amount=150.0)
+        self.assertFalse(de_gerencia.dcasa_aviso_saldo_a_favor)
+        self.assertFalse(self._se_ve(self.gerencia, de_gerencia, aviso))
+        self.assertTrue(self._se_ve(self.gerencia, de_gerencia, manejo), 'Gerencia elige qué hacer con la diferencia')
+
+    def test_globito_del_pago_sin_desconciliar(self):
+        factura = self._factura(self.vendedora)
+        self._cobrar(self.caja, factura, amount=120.0)  # un abono (con dcasa_invoice, al menos la mitad)
+        for usuario, sin in ((self.vendedora, True), (self.caja, None), (self.gerencia, None)):
+            with self.subTest(usuario.login):
+                contenido = factura.with_user(usuario).invoice_payments_widget['content']
+                self.assertEqual(len(contenido), 1)
+                self.assertEqual(contenido[0].get('dcasa_sin_desconciliar'), sin)
+        rutas = [ruta for ruta, *_resto in self.env['ir.asset']._get_asset_paths('web.assets_backend', {})]
+        self.assertTrue(any(ruta.endswith('dcasa_base/static/src/xml/pagos.xml') for ruta in rutas))
+
+    # --- y el servidor lo sigue negando ------------------------------------------------------------------------
+    def test_el_servidor_sigue_negando_por_rpc(self):
+        factura = self._factura(self.vendedora)
+        for usuario in (self.vendedora, self.caja):
+            for metodo in ('button_draft', 'button_cancel', 'action_reverse'):
+                with self.subTest(usuario=usuario.login, metodo=metodo), negado(self, AccessError, GERENCIA):
+                    self._por_rpc(usuario, 'account.move', metodo, factura.ids)
+            with self.subTest(usuario=usuario.login, metodo='write'), negado(self, AccessError, GERENCIA):
+                self._por_rpc(usuario, 'account.move', 'write', factura.ids, {'state': 'draft'})
+        with negado(self, AccessError, COBRO):
+            self._por_rpc(self.vendedora, 'account.move', 'action_register_payment', factura.ids)
+        with negado(self, AccessError, COBRO):
+            call_kw(self.env['account.payment'].with_user(self.vendedora), 'create', [{
+                'payment_type': 'inbound', 'partner_type': 'customer', 'partner_id': self.cliente.id,
+                'amount': 10.0, 'journal_id': self.efectivo.id}], {})
+        self.assertEqual((factura.state, factura.payment_state), ('posted', 'not_paid'))
+        self.assertFalse(factura.reversal_move_ids)
+        self._por_rpc(self.gerencia, 'account.move', 'button_draft', factura.ids)
+        self.assertEqual(factura.state, 'draft')

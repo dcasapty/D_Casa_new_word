@@ -67,6 +67,7 @@ Módulo raíz del ERP de D'CASA Panamá.
         ],
         'web.assets_backend': [
             'dcasa_base/static/src/scss/backend.scss',
+            'dcasa_base/static/src/xml/pagos.xml',
         ],
     },
     'post_init_hook': '_dcasa_base_post_init',

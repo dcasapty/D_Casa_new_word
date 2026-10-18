@@ -107,6 +107,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Pasar a borrador un cobro de cliente: la misma regla (A5, A7); sin sudo().',
     ('dcasa_base', 'account.payment', 'action_cancel'):
         OVERRIDE + ' Cancelar un cobro de cliente: la misma regla (A5, A7); sin sudo().',
+    ('dcasa_base', 'account.payment', 'get_view'):
+        OVERRIDE + ' Solo quita «Nuevo» de las vistas de pagos a quien no registra cobros (la Vendedora); no lee ni '
+                   'escribe datos, sin sudo().',
     ('dcasa_base', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo vuelve a tomar el costo de cada línea al confirmar (la ganancia de esa venta); corre como el '
                    'usuario, sin sudo().',

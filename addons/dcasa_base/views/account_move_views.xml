@@ -16,9 +16,9 @@
 
     <!-- El cobro solo en Caja (decisión de la gerencia A5, 2026-10-17; models/cobros.py): a quien no cobra (la
          Vendedora) «Pagar» no le sale y la factura dice dónde se cobra; el servidor se lo niega por cualquier camino.
-         «Pagar» en una nota de crédito es devolverle dinero al cliente: solo Gerencia. «Restablecer a borrador» y
-         «Nota de crédito» siguen a la vista: si quien los pulsa no es Gerencia, el servidor contesta con un mensaje
-         claro de a quién pedírselo. -->
+         «Pagar» en una nota de crédito es devolverle dinero al cliente: solo Gerencia. Lo que solo da error no se
+         ofrece: a quien no es Gerencia (Caja incluida) no le salen «Nota de crédito» ni «Restablecer a borrador» en
+         una factura de cliente publicada; si llega por otro camino (RPC, Brian), el servidor lo niega igual. -->
     <record id="view_move_form_dcasa_cobro_en_caja" model="ir.ui.view">
         <field name="name">account.move.form.dcasa.cobro.en.caja</field>
         <field name="model">account.move</field>
@@ -39,6 +39,21 @@
             <xpath expr="//button[@id='account_invoice_payment_secondary_btn']" position="attributes">
                 <attribute name="invisible" add="(move_type in ('out_invoice', 'out_receipt') and not dcasa_puede_cobrar) or (move_type == 'out_refund' and not dcasa_es_gerencia)" separator=" or "/>
             </xpath>
+            <!-- Lo que es solo de Gerencia (A6, A7) no se le ofrece a nadie más en una factura de cliente: «Nota de
+                 crédito», «Restablecer a borrador» (publicada; una cancelada sí vuelve a borrador) y «Revertir». -->
+            <xpath expr="//button[@name='action_reverse']" position="attributes">
+                <attribute name="invisible" add="(move_type in ('out_invoice', 'out_refund', 'out_receipt') and not dcasa_es_gerencia)" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@name='button_draft']" position="attributes">
+                <attribute name="invisible" add="(state == 'posted' and move_type in ('out_invoice', 'out_refund', 'out_receipt') and not dcasa_es_gerencia)" separator=" or "/>
+            </xpath>
+            <xpath expr="//button[@data-hotkey='z']" position="attributes">
+                <attribute name="groups">dcasa_base.group_gerencia,account.group_account_user,account.group_account_manager,base.group_system</attribute>
+            </xpath>
+            <!-- «Créditos pendientes: Agregar» es aplicar un cobro: solo a quien cobra (en una nota, solo Gerencia). -->
+            <xpath expr="//field[@name='invoice_outstanding_credits_debits_widget']/.." position="attributes">
+                <attribute name="invisible" add="(move_type in ('out_invoice', 'out_receipt') and not dcasa_puede_cobrar) or (move_type == 'out_refund' and not dcasa_es_gerencia)" separator=" or "/>
+            </xpath>
         </field>
     </record>
 
@@ -49,8 +64,88 @@
         <field name="arch" type="xml">
             <xpath expr="//header/button[@name='action_force_register_payment']" position="attributes">
                 <attribute name="groups">dcasa_base.group_caja,account.group_account_user,account.group_account_manager,base.group_system</attribute>
+                <attribute name="invisible" add="context.get('default_move_type') == 'out_refund'" separator=" or "/>
+            </xpath>
+            <!-- En la lista de notas de crédito de clientes «Pagar» es devolver dinero: solo Gerencia (A7). -->
+            <xpath expr="//header/button[@name='action_force_register_payment']" position="after">
+                <button name="action_force_register_payment" type="object" string="Pagar"
+                        groups="dcasa_base.group_gerencia,base.group_system"
+                        invisible="context.get('default_move_type') != 'out_refund'"/>
             </xpath>
         </field>
+    </record>
+
+    <!-- El cobro de un cliente: los botones del pago solo a quien puede usarlos (models/cobros.py). La Vendedora no
+         registra cobros (sin «Nuevo»: AccountPayment.get_view) ni los toca; una devolución a un cliente es de Gerencia. -->
+    <record id="view_account_payment_form_dcasa_cobro_en_caja" model="ir.ui.view">
+        <field name="name">account.payment.form.dcasa.cobro.en.caja</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <field name="dcasa_puede_tocar" invisible="1"/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_post']" position="attributes">
+                <attribute name="invisible" add="not dcasa_puede_tocar" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_validate']" position="attributes">
+                <attribute name="invisible" add="not dcasa_puede_tocar" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_reject']" position="attributes">
+                <attribute name="invisible" add="not dcasa_puede_tocar" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_draft']" position="attributes">
+                <attribute name="invisible" add="not dcasa_puede_tocar" separator=" or "/>
+            </xpath>
+            <xpath expr="//header/button[@name='action_cancel']" position="attributes">
+                <attribute name="invisible" add="not dcasa_puede_tocar" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_account_payment_tree_dcasa_cobro_en_caja" model="ir.ui.view">
+        <field name="name">account.payment.list.dcasa.cobro.en.caja</field>
+        <field name="model">account.payment</field>
+        <field name="inherit_id" ref="account.view_account_payment_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header/button[@name='action_post']" position="attributes">
+                <attribute name="groups">dcasa_base.group_caja,account.group_account_user,account.group_account_manager,base.group_system</attribute>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- El asistente «Pagar»: dejar saldo a favor o dar la factura por pagada con una diferencia es de Gerencia (A7).
+         A los demás no se les ofrece elegir qué hacer con la diferencia (queda abierta) y, si cobran de más, el
+         asistente se lo avisa antes de pulsar. -->
+    <record id="view_account_payment_register_form_dcasa_gerencia" model="ir.ui.view">
+        <field name="name">account.payment.register.form.dcasa.gerencia</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/group[1]" position="before">
+                <field name="dcasa_es_gerencia" invisible="1"/>
+                <div role="alert" class="alert alert-warning o_dcasa_saldo_a_favor" invisible="not dcasa_aviso_saldo_a_favor">
+                    <i class="fa fa-exclamation-triangle me-1" aria-hidden="true"/>
+                    <field name="dcasa_aviso_saldo_a_favor" class="oe_inline" readonly="1"/>
+                </div>
+            </xpath>
+            <xpath expr="//field[@name='payment_difference_handling']" position="attributes">
+                <attribute name="invisible" add="partner_type == 'customer' and not dcasa_es_gerencia" separator=" or "/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Las acciones del menú «Acción» (⚙) y de la lista que hacen lo mismo que esos botones: «Pagar» (desde la
+         factura), «Revertir» y «Cambiar a factura/nota de crédito» quedan para Gerencia, contabilidad y
+         administradores (Caja tiene su botón «Pagar»; la Vendedora no cobra). -->
+    <record id="account.action_move_force_register_payment" model="ir.actions.server">
+        <field name="group_ids" eval="[(6, 0, [ref('dcasa_base.group_gerencia'), ref('account.group_account_user'), ref('account.group_account_manager'), ref('base.group_system')])]"/>
+    </record>
+    <record id="account.action_view_account_move_reversal" model="ir.actions.act_window">
+        <field name="group_ids" eval="[(6, 0, [ref('dcasa_base.group_gerencia'), ref('account.group_account_user'), ref('account.group_account_manager'), ref('base.group_system')])]"/>
+    </record>
+    <record id="account.action_move_switch_move_type" model="ir.actions.server">
+        <field name="group_ids" eval="[(6, 0, [ref('dcasa_base.group_gerencia'), ref('account.group_account_user'), ref('account.group_account_manager'), ref('base.group_system')])]"/>
     </record>
 
     <record id="view_account_invoice_filter_dcasa_historica" model="ir.ui.view">

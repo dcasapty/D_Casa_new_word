@@ -2045,6 +2045,10 @@
     "factura de prueba",
     "pago sin aplicar",
     "puntos"
+   ],
+   "grupos": [
+    "dcasa_base.group_gerencia",
+    "base.group_system"
    ]
   },
   {

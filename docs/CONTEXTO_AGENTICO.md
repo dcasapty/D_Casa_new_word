@@ -425,6 +425,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Los ganchos de conciliación** (`_reconcile_pre_hook` / `_reconcile_post_hook` de `account.move.line`) ven todos los
   caminos que cruzan cobros (asistente, banco, saldo a favor, Brian): sirven para avisos que no deben frenar (el primer
   abono menor a la mitad que entra por el banco). Un aviso en el gancho va en `savepoint` y nunca hace fallar el pago.
+- **Esconder un botón según quién mira** (2026-10-18): la caché de vistas de Odoo es la misma para todos los usuarios
+  (`_get_view_cache`), así que no se decide en el XML con Python: se usa un campo calculado con
+  `@api.depends_context('uid')` (`dcasa_es_gerencia`, `dcasa_puede_cobrar`, `account.payment.dcasa_puede_tocar`) en
+  `invisible`, `groups` en el botón o en la acción (`group_ids` saca la acción del menú «Acción»), o se cambia el arch
+  **después** de la caché en `get_view` (`account.payment`: `create="0"` para quien no cobra). En la prueba se mira como
+  el navegador: el nodo tiene que venir en `get_views` y ni él ni lo que lo contiene pueden estar invisibles con los
+  valores del registro vistos por ese usuario (`TestBotonesSoloAQuienPuede._se_ve`).
+- **Un cobro de Odoo 19 sin cuenta de cobros por depositar no deja asiento** (`payment_method_line_id.payment_account_id`
+  vacío): no queda como «Créditos pendientes» y el asistente «Pagar» no muestra la diferencia
+  (`show_payment_difference`). En una prueba que necesite eso, ponerle la cuenta al método del diario.
+  `invoice_has_outstanding` se calcula con las reglas de quien mira: con «solo lo suyo» encendido la vendedora no ve el
+  cobro de otro y le da `False`.
 
 ### Cloudflare
 

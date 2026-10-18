@@ -293,6 +293,18 @@ sistema anterior) no cambian; lo de proveedores tampoco.
   el asistente, cobrar de más dejando la diferencia abierta (saldo a favor) o «marcar como pagada» con una diferencia.
   El contador sin Gerencia queda fuera de estas (la decisión dice «solo Gerencia»); está en
   [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24, por si la gerencia quiere otra cosa.
+- **Lo que solo daría error no se ofrece** (2026-10-18; `dcasa_base/views/account_move_views.xml`, campos
+  `dcasa_es_gerencia` y `dcasa_puede_cobrar`): en una factura, nota o recibo de cliente publicado, a quien no es Gerencia
+  (Caja y el contador incluidos) no le salen «Nota de crédito» ni «Restablecer a borrador» (una cancelada sí vuelve a
+  borrador, como deja el servidor); en una nota, «Pagar» solo a Gerencia; «Créditos pendientes: Agregar» solo a quien
+  cobra. Del menú «Acción» salen «Pagar», «Revertir» y «Cambiar a factura/nota de crédito» para quien no es Gerencia,
+  contabilidad ni administrador (también el botón «Revertir» de un asiento). En los pagos de clientes, «Publicar»,
+  «Restablecer a borrador» y «Cancelar» solo a quien puede (`account.payment.dcasa_puede_tocar`) y la Vendedora no ve
+  «Nuevo» (`account.payment.get_view`); en el globito de un pago de la factura, «Desconciliar» solo a quien cobra
+  (`static/src/xml/pagos.xml`). En «Pagar», a quien no es Gerencia no se le ofrece qué hacer con la diferencia (queda
+  abierta) y, si cobra de más, el asistente lo avisa antes («Estás cobrando más de lo que falta…»). La Guía muestra
+  «Borrar una factura de prueba que ya dio puntos» (pasa por «Restablecer a borrador») solo a Gerencia. El servidor lo
+  sigue negando igual por RPC o Brian (`TestBotonesSoloAQuienPuede`).
 - **Pagos en línea** (si algún día la tienda cobra en línea): al publicar la factura de un pedido ya pagado en la web,
   Odoo cruza solo ese pago con la factura; eso no es «registrar un cobro» y se deja pasar
   (`pago_en_linea_de_su_factura`). Con «ver solo lo suyo» encendido la vendedora no ve ese pago: la factura se publica

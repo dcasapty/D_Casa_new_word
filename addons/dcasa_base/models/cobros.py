@@ -17,6 +17,8 @@ Todo se comprueba aquí, en el servidor (esconder un botón no basta): asistente
 llegan a los mismos métodos. El superusuario y lo que corre con ``sudo`` (la tienda web, Juan, el cron, la carga del
 sistema anterior) no cambian. Lo de proveedores tampoco: sigue siendo de contabilidad, como antes.
 """
+from lxml import etree
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
 
@@ -171,6 +173,25 @@ class AccountMove(models.Model):
         self._dcasa_exigir_quien_toca_cobros()
         return super().js_remove_outstanding_partial(partial_id)
 
+    def _dcasa_puede_tocar_cobros(self):
+        """¿Quien mira puede aplicar o quitar cobros en esta factura? (la pantalla; el servidor lo vuelve a mirar)"""
+        self.ensure_one()
+        if self.move_type == 'out_refund':
+            return self.env.user._dcasa_es_gerencia()
+        if self.move_type in CLIENTE:
+            return self.env.user._dcasa_puede_cobrar()
+        return True
+
+    @api.depends_context('uid')
+    def _compute_payments_widget_reconciled_info(self):
+        """Los pagos de la factura: a quien no puede quitarlos, el botón «Desconciliar» del globito no le sale."""
+        super()._compute_payments_widget_reconciled_info()
+        for move in self:
+            widget = move.invoice_payments_widget
+            if widget and widget.get('content') and not move._dcasa_puede_tocar_cobros():
+                for linea in widget['content']:
+                    linea['dcasa_sin_desconciliar'] = True
+
 
 class AccountMoveLine(models.Model):
     _inherit = 'account.move.line'
@@ -208,6 +229,36 @@ class AccountPartialReconcile(models.Model):
 
 class AccountPayment(models.Model):
     _inherit = 'account.payment'
+
+    dcasa_puede_tocar = fields.Boolean(
+        compute='_compute_dcasa_puede_tocar',
+        help='Quien mira puede publicar, pasar a borrador o cancelar este cobro (de un cliente: quien cobra; una '
+             'devolución a un cliente: Gerencia). Los botones se esconden a los demás; el servidor lo vuelve a mirar.')
+
+    @api.depends_context('uid')
+    @api.depends('payment_type', 'partner_type')
+    def _compute_dcasa_puede_tocar(self):
+        puede_cobrar = self.env.user._dcasa_puede_cobrar()
+        es_gerencia = self.env.user._dcasa_es_gerencia()
+        for pago in self:
+            if pago.partner_type != 'customer':
+                pago.dcasa_puede_tocar = True
+            elif pago.payment_type == 'outbound':
+                pago.dcasa_puede_tocar = es_gerencia
+            else:
+                pago.dcasa_puede_tocar = puede_cobrar
+
+    @api.model
+    def get_view(self, view_id=None, view_type='form', **options):
+        """A quien no registra cobros (la Vendedora) las listas y el formulario de pagos no le ofrecen «Nuevo»: un
+        botón que solo daría error. Se hace después de la caché de vistas (que es la misma para todos), como Odoo
+        hace con los permisos del modelo."""
+        resultado = super().get_view(view_id, view_type, **options)
+        if view_type in ('list', 'form', 'kanban') and not self.env.su and not self.env.user._dcasa_puede_cobrar():
+            nodo = etree.fromstring(resultado['arch'])
+            nodo.set('create', '0')
+            resultado = dict(resultado, arch=etree.tostring(nodo, encoding='unicode'))
+        return resultado
 
     @api.model
     def _dcasa_exigir_por_tipos(self, tipos):
@@ -263,6 +314,30 @@ class AccountPayment(models.Model):
 
 class AccountPaymentRegister(models.TransientModel):
     _inherit = 'account.payment.register'
+
+    dcasa_es_gerencia = fields.Boolean(
+        compute='_compute_dcasa_es_gerencia',
+        help='Quien cobra es Gerencia: puede dejar saldo a favor o dar la factura por pagada con una diferencia.')
+    dcasa_aviso_saldo_a_favor = fields.Char(
+        'Aviso del saldo a favor', compute='_compute_dcasa_aviso_saldo_a_favor',
+        help='Cobrar más de lo que falta deja saldo a favor: lo autoriza solo Gerencia.')
+
+    @api.depends_context('uid')
+    def _compute_dcasa_es_gerencia(self):
+        self.dcasa_es_gerencia = self.env.user._dcasa_es_gerencia()
+
+    @api.depends('amount', 'payment_difference', 'can_edit_wizard', 'partner_type', 'payment_type')
+    @api.depends_context('uid')
+    def _compute_dcasa_aviso_saldo_a_favor(self):
+        gerencia = self.env.user._dcasa_es_gerencia()
+        for wizard in self:
+            de_mas = (not gerencia and wizard.partner_type == 'customer' and wizard.payment_type == 'inbound'
+                      and wizard.can_edit_wizard and wizard.currency_id
+                      and wizard.currency_id.compare_amounts(wizard.payment_difference, 0) < 0)
+            falta = monto(wizard.amount + wizard.payment_difference) if de_mas else ''
+            wizard.dcasa_aviso_saldo_a_favor = self.env._(
+                'Estás cobrando más de lo que falta (%s). Dejarle saldo a favor lo autoriza solo Gerencia: cobra '
+                'hasta %s.', falta, falta) if de_mas else False
 
     def _dcasa_exigir_permiso(self):
         """El asistente «Pagar» de un cliente: quien cobra; devolver dinero, dejar saldo a favor o dar la factura por

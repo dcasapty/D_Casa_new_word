@@ -121,8 +121,14 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   que suponían «un mes», una vendedora o alguien con solo Facturación cobrando, o Caja haciendo notas: corregidas
   (`c9ebcf9`); las de cabecera y celular del sitio eran de `main` y se fueron al unir `ce8b0a7`.
 - **Capturas para la dueña** (antes de staging, regla nueva): en el scratchpad de la sesión, `capturas_reglas/` (primer
-  abono menor a la mitad, papel del abono a 30 días, la vendedora que intenta cobrar, anular sin ser Gerencia, «Pagar»
-  con Tafi y Crediviva).
+  abono menor a la mitad, papel del abono a 30 días, la factura como la ve la vendedora, Caja y Gerencia, «Pagar» con
+  Tafi y Crediviva).
+- **Ajuste de usabilidad (2026-10-18), mismo día y rama:** lo que solo daría error ya no se ofrece. En una factura de
+  cliente publicada, quien no es Gerencia (Caja y el contador incluidos) no ve «Nota de crédito» ni «Restablecer a
+  borrador»; la vendedora sigue sin «Pagar» y con el aviso de Caja; «Pagar» de una nota, «Agregar» un crédito
+  pendiente, «Desconciliar» en el globito del pago, «Nuevo» y los botones de un cobro, las acciones del menú «Acción»
+  («Pagar», «Revertir», «Cambiar a factura/nota») y qué hacer con la diferencia en «Pagar», solo a quien puede. El
+  servidor lo sigue negando por RPC (`TestBotonesSoloAQuienPuede`). Detalle en [PERMISOS.md](PERMISOS.md).
 - **Sigue:** que la dueña vea las capturas; CI y staging; producción con su visto bueno. El día del despliegue, antes de
   abrir: darle **Caja** al jefe administrativo (sin Caja nadie salvo Gerencia cobra). Preguntas abiertas en
   [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24.
