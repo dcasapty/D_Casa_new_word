@@ -103,7 +103,9 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     tránsito entre empresas, monedas y años fiscales distintos, presupuesto por mes.
 22. **La puerta `/master` y el «Iniciar sesión» de la web:** pendiente de hacer **con lupa antes de traspasar el dominio**.
     Hoy el «Iniciar sesión» de la web lleva al panel administrativo; más adelante, por seguridad, no debe: los clientes entran
-    solo por su cuenta en la web y el personal solo por `/master`.
+    solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
+    cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
+    `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
 
 ## Issues abiertos que dependen de ti
 
