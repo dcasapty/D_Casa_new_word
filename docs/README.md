@@ -1,6 +1,8 @@
 # Documentación de D'CASA
 
-Índice de todo lo que está en `docs/`. Puesto al día el 2026-10-12.
+Índice de todo lo que está en `docs/`. Puesto al día el 2026-10-18.
+
+> **¿Vas a instalar este sistema para otro negocio?** Sigue [REPLICAR.md](REPLICAR.md).
 
 ## Si eres la dueña o parte del equipo
 
@@ -22,9 +24,13 @@
 | Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
-| Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia): nómina y contabilidad de un jefe | [PERMISOS.md](PERMISOS.md) |
+| Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia), los interruptores y dónde viven las políticas del sitio | [PERMISOS.md](PERMISOS.md) |
+| Copiar el sistema para otro negocio | [REPLICAR.md](REPLICAR.md) |
 
 ## Por módulo (`addons/`)
+
+Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramientas de Brian, qué viene apagado):
+[MODULOS.md](MODULOS.md).
 
 | Módulo | Documento |
 |---|---|
@@ -52,10 +58,14 @@
 ## Si programas u operas el sistema
 
 0. [LEEME_PRIMERO.md](LEEME_PRIMERO.md) y [PRIORIDADES.md](PRIORIDADES.md): lo primero que se lee al empezar una sesión.
-1. [ARQUITECTURA.md](ARQUITECTURA.md): las piezas, cómo se hablan y por qué así.
-2. [DESPLIEGUE.md](DESPLIEGUE.md): CI/CD, secretos y variables, cómo se despliega y cómo se vuelve atrás.
-3. [PLAN.md](PLAN.md): decisiones y en qué va cada fase.
-4. Las reglas del repositorio están en [`CLAUDE.md`](../CLAUDE.md).
+1. [ARQUITECTURA.md](ARQUITECTURA.md): cada pieza de Cloudflare (Workers, Containers, Durable Objects, KV, R2), sus
+   tablas, la base de Odoo, las variables y secretos por entorno y los flujos de despliegue.
+2. [MODULOS.md](MODULOS.md): cada módulo de `addons/`.
+3. [PERMISOS.md](PERMISOS.md): roles, interruptores, superficie RPC, privacidad y políticas del sitio.
+4. [DESPLIEGUE.md](DESPLIEGUE.md): CI/CD, secretos y variables, cómo se despliega y cómo se vuelve atrás.
+5. [REPLICAR.md](REPLICAR.md): instalar el sistema para otro negocio, de punta a punta.
+6. [PLAN.md](PLAN.md): decisiones y en qué va cada fase.
+7. Las reglas del repositorio están en [`CLAUDE.md`](../CLAUDE.md); la portada, en el [README](../README.md).
 
 ## Registros históricos (no se editan: se cierran con fecha)
 
