@@ -55,6 +55,8 @@ from .tablero import (
 
 PAGADA = ('paid', 'in_payment')
 CAMPOS_DEL_PEDIDO = ['dcasa_fecha_venta', 'amount_untaxed', 'amount_tax', 'amount_total', 'user_id']
+# «Unidades vendidas por tipo» (K1, 2026-10-18): cuántos tipos se ven; los demás van juntos en «Otros».
+TIPOS_A_LA_VISTA = 8
 CAMPOS_DE_LA_FACTURA = ['move_type', 'date', 'amount_untaxed_signed', 'amount_tax_signed', 'amount_total_signed',
                         'payment_state', 'invoice_user_id', 'reversed_entry_id', 'create_date', 'dcasa_historica']
 
@@ -367,9 +369,10 @@ class DcasaTableroBases(models.AbstractModel):
     def _medir(self, d0, d1, base, vendedor=None, corte=None, con_ganancia=False, con_cobrado=False):
         """Las cifras de un periodo en una base: ``cuantas`` (facturas; en ``vendido``, pedidos), ``notas`` (notas de
         crédito que restan), ``de_pedido`` (cuántas de esas facturas salieron de un pedido de una vendedora),
-        ``sin_itbms``, ``itbms``, ``total``, ``ganancia`` (si se pide), ``falta_por_cobrar`` (solo «Con abonos», con
-        ITBMS) y ``cobrado`` (si se pide y quien mira ve los cobros; con ITBMS). Trae también lo que se contó: ``filas``
-        (facturas) o ``pedidos`` (``vendido``, sin corte), para la lista que lo explica."""
+        ``sin_itbms``, ``itbms``, ``total``, ``ticket`` (``_ticket_promedio``), ``ganancia`` (si se pide),
+        ``falta_por_cobrar`` (solo «Con abonos», con ITBMS) y ``cobrado`` (si se pide y quien mira ve los cobros; con
+        ITBMS). Trae también lo que se contó: ``filas`` (facturas) o ``pedidos`` (``vendido``, sin corte), para la
+        lista que lo explica."""
         if base == BASE_VENDIDO:
             pedidos = self._pedidos_vendidos(d0, d1, vendedor)
             medida = {
@@ -397,6 +400,7 @@ class DcasaTableroBases(models.AbstractModel):
             }
             if base == BASE_CON_ABONOS:
                 medida['falta_por_cobrar'] = self._falta_por_cobrar(facturas, pagos, d1, corte)
+        medida['ticket'] = self._ticket_promedio(medida['sin_itbms'], medida['cuantas'])
         if con_cobrado and self._puede('account.payment'):
             medida['cobrado'] = self._cobrado(d0, d1, vendedor, corte)
         return medida
@@ -512,6 +516,35 @@ class DcasaTableroBases(models.AbstractModel):
             unidades, sin_itbms = suma.get(linea.product_id, (0.0, 0.0))
             suma[linea.product_id] = (unidades + signo * linea.quantity, sin_itbms - linea.balance)
         return suma
+
+    @staticmethod
+    def _ticket_promedio(sin_itbms, cuantas):
+        """Ticket promedio: ventas sin ITBMS ÷ N.º de ventas (el de Comparar: facturas; una nota de crédito resta del
+        monto, no del número). Sin ventas, ``None`` (la pantalla pone «—»): nunca se divide entre cero."""
+        return round(sin_itbms / cuantas, 2) if cuantas else None
+
+    @api.model
+    def _unidades_por_tipo(self, filas, limite=TIPOS_A_LA_VISTA):
+        """``{'tipos': [{'tipo', 'unidades'}], 'total'}``: las unidades de esas facturas (las de «Lo más vendido»,
+        ``_unidades_por_producto``: sin servicios, flete, descuentos ni anticipos; las notas de crédito restan) por
+        tipo, la categoría de producto de primer nivel bajo la raíz (``Muebles / Salas / …`` → «Salas»; una categoría
+        raíz, como «Colchones», es su propio tipo). De más a menos unidades; pasados ``limite`` tipos, los demás van
+        juntos en «Otros». Un tipo que queda en 0 (vendido y devuelto) no sale."""
+        por_tipo = defaultdict(float)
+        for producto, (unidades, _monto) in self._unidades_por_producto(filas).items():
+            camino = [int(i) for i in (producto.sudo().categ_id.parent_path or '').split('/') if i]
+            por_tipo[camino[1] if len(camino) > 1 else (camino[0] if camino else False)] += unidades
+        nombres = {categoria.id: categoria.name for categoria in
+                   self.env['product.category'].sudo().browse([clave for clave in por_tipo if clave])}
+        tipos = sorted(
+            ({'tipo': nombres.get(clave) or self.env._('Sin categoría'), 'unidades': round(unidades, 2)}
+             for clave, unidades in por_tipo.items() if round(unidades, 2)),
+            key=lambda fila: (-fila['unidades'], fila['tipo'].lower()))
+        total = round(sum(fila['unidades'] for fila in tipos), 2)
+        if len(tipos) > limite:
+            otros = round(sum(fila['unidades'] for fila in tipos[limite:]), 2)
+            tipos = tipos[:limite] + [{'tipo': self.env._('Otros'), 'unidades': otros}]
+        return {'tipos': tipos, 'total': total}
 
     @api.model
     def _dominio_de_cobros(self, d0, d1):

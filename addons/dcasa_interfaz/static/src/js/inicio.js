@@ -385,6 +385,11 @@ export class DcasaInicio extends Component {
         return this.numero(valor, 0);
     }
 
+    /** Unidades vendidas: «12» o «1.5» (hasta dos decimales). */
+    unidades(valor) {
+        return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(valor);
+    }
+
     numero(valor, decimales) {
         return new Intl.NumberFormat("en-US", {
             minimumFractionDigits: decimales,

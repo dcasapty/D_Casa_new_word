@@ -224,9 +224,9 @@ class BrianHerramientasVentas(models.AbstractModel):
 
     @herramienta(
         nombre='resumen_ventas',
-        descripcion='Lo vendido en un periodo: cantidad, ventas sin ITBMS (ITBMS y total aparte), ticket promedio, '
-                    'por vendedora, más vendidos y (Gerencia) ganancia. Gerencia cuenta facturas (facturado, '
-                    'con_abonos o completadas) y elige vendedora; quien vende, solo lo suyo.',
+        descripcion='Ventas de un periodo: n.º, sin ITBMS (ITBMS y total aparte), ticket promedio, '
+                    'unidades por tipo, por vendedora, más vendidos y (Gerencia) ganancia. Gerencia cuenta facturas '
+                    '(facturado, con_abonos o completadas) y elige vendedora; quien vende, solo lo suyo.',
         parametros={'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
                     'base': PARAM_BASE, 'vendedora': PARAM_VENDEDORA},
         nivel='lectura', categoria='ventas', grupos=VENDEDOR,
@@ -262,8 +262,8 @@ class BrianHerramientasVentas(models.AbstractModel):
             'ventas_sin_itbms': c.moneda(totales['sin_itbms']),
             'itbms': c.moneda(totales['itbms']),
             'total_con_itbms': c.moneda(totales['total']),
-            'ticket_promedio_sin_itbms': c.moneda(
-                totales['sin_itbms'] / totales['cuantas'] if totales['cuantas'] else 0),
+            # El mismo ticket del Inicio y de Comparar (``_ticket_promedio``); sin ventas, «—».
+            'ticket_promedio_sin_itbms': '—' if totales['ticket'] is None else c.moneda(totales['ticket']),
             'por_vendedor_sin_itbms': [{'vendedor': n, 'total': c.moneda(m)}
                                        for n, m in sorted(por_vendedor.items(), key=lambda nm: -nm[1])[:10]],
             'productos_mas_vendidos': [
@@ -276,6 +276,11 @@ class BrianHerramientasVentas(models.AbstractModel):
                 respuesta['de_un_pedido'] = self._b_de_un_pedido(totales)
             if totales['notas']:
                 respuesta['notas_de_credito'] = totales['notas']
+            # Las unidades por tipo del Inicio de Gerencia (K1): de las mismas facturas, «Otros» pasados 8 tipos.
+            unidades = Tablero._unidades_por_tipo(totales['filas'])
+            respuesta['unidades_por_tipo'] = [{'tipo': fila['tipo'], 'unidades': c.cantidad(fila['unidades'])}
+                                              for fila in unidades['tipos']]
+            respuesta['unidades_total'] = c.cantidad(unidades['total'])
             if filtro:
                 respuesta['vendedora'] = ('Sin vendedora' if filtro == SIN_VENDEDORA
                                           else self.env['res.users'].sudo().browse(filtro).name)
@@ -309,8 +314,8 @@ class BrianHerramientasVentas(models.AbstractModel):
     @herramienta(
         nombre='comparar_ventas',
         descripcion='Compara ventas como «Comparar» del Inicio de Gerencia (mismas cifras): ventas, ganancia, margen, '
-                    'n.º de ventas, cobrado y, con abonos, falta por cobrar. Si A termina hoy, hoy va hasta la hora '
-                    'actual y el otro día hasta la misma hora.',
+                    'n.º de ventas, ticket promedio, cobrado y, con abonos, falta por cobrar. Si A termina hoy, hoy '
+                    'va hasta la hora actual y el otro día hasta la misma hora.',
         parametros={
             'comparacion': {
                 'type': 'string', 'enum': list(COMPARACIONES),
