@@ -313,9 +313,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   «conexiones» a 390 px) falla en esta máquina con 13.52 % de píxeles distintos **también en `3b678a6`** (sin cambios):
   es del entorno local (Chromium/fuentes), no del código. La de «hilo» a 390 px dio 2.02 % una vez y pasó en la
   siguiente corrida. Antes de culpar a un cambio, correrla en la base sin el cambio.
-- **Local, 2026-10-18** · `dcasa_conversaciones` `TestPanelEnElNavegador.test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio`
-  («sin conexión no debería aparecer solo») pasó a las 22:36 UTC y falló después de medianoche UTC, sola y también con
-  el mismo código (`4404073`, en un worktree aparte): depende de la hora, no del cambio. Sin investigar la causa.
+- 2026-10-18 · `test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio` («sin conexión no debería aparecer
+  solo») parecía «falla después de medianoche UTC» y no era la hora: era una carrera de la prueba. Al suscribirse por
+  primera vez, el bus de Odoo repite los avisos de los últimos 50 s (`bus.bus._poll` con `last=0`), y las filas de
+  `bus.bus` de los datos de ejemplo llevan la hora de inicio de la transacción de la CLASE: corrida sola (o entre las
+  primeras de la clase) la pantalla recibía esos 7 avisos ~30 ms antes o después de `bus.stop()` y su refresco (350
+  ms) caía después del POST; en la suite, casi nunca. Arreglo: `PanelUiCase.avisos_anteriores_ya_viejos()` (lo llama
+  `navegador()`) envejece esas filas un día, y `test_al_abrir_la_pantalla_el_bus_no_repite_…` lo comprueba con el reloj
+  congelado 5 s y 10 min después. Regla: una prueba con navegador que afirma que algo NO aparece no puede dejar avisos
+  del bus de antes de abrir la página; y «pasó a una hora y falla a otra» con el mismo commit se repite 3–5 veces
+  antes de culpar al reloj (aquí, sin el arreglo, falló 4 de 10 corridas seguidas entre 01:06 y 01:49 UTC).
 
 ---
 
