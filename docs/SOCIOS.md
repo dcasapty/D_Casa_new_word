@@ -99,7 +99,7 @@ cliente pueda ver cuánto le falta» de sus abonos y un panel «sencillo, muy bi
   «Ya las tienes» y «Canceladas» (las últimas 5). Cada compra lleva foto del mueble principal (si está publicado en
   la tienda) y «y N cosas más».
 - **Detalle de una compra:** cada abono con su fecha, su medio y su monto; total de la factura, pagado y saldo;
-  hasta cuándo tiene para terminar de pagar (`dcasa_invoice.abono_meses`, 1 mes desde el primer abono); la entrega
+  hasta cuándo tiene para terminar de pagar (`dcasa_invoice.abono_dias`, 30 días continuos desde el primer abono); la entrega
   (solo lo que ya pasó: «Entregado el …», «Listo: te escribimos para coordinar…», «Lo estamos preparando»; la fecha
   prevista de Odoo **nunca** se enseña como promesa); lo que compró con su ITBMS; los puntos que le sumó.
   - Un pedido confirmado sin factura publicada dice «Tu factura y tus pagos aparecen aquí cuando se emita»: no se

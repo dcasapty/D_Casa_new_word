@@ -89,9 +89,10 @@ class PaqueteHttpComun(HttpCase):
             'group_ids': [Command.set(
                 [self.env.ref(g).id for g in ('base.group_user', 'dcasa_base.group_vendedora')])]})
 
-    def _venta(self):
+    def _venta(self, vendedora=None):
+        """La venta es de la vendedora (ella ve solo lo suyo: «Cada vendedora ve solo sus documentos»)."""
         pedido = self.env['sale.order'].create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, 'user_id': (vendedora or self.vendedora).id,
             'order_line': [Command.create({'product_id': self.mueble.id, 'product_uom_qty': 1})]})
         pedido.action_confirm()
         factura = pedido._create_invoices()
@@ -144,6 +145,23 @@ class TestPaqueteHttp(PaqueteHttpComun):
         self.assertNotEqual(respuesta.headers['Content-Type'], 'application/pdf')
         self.assertIn('No tienes permiso', respuesta.text)
 
+    def test_la_vendedora_no_recibe_el_paquete_de_una_factura_de_otra_vendedora(self):
+        otra = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Otra Vendedora Http', 'login': 'paq_http_otra', 'password': CLAVE,
+            'group_ids': [Command.set(
+                [self.env.ref(g).id for g in ('base.group_user', 'dcasa_base.group_vendedora')])]})
+        _pedido, factura = self._venta(vendedora=otra)
+        self.authenticate('paq_http_vendedora', CLAVE)
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            respuesta = self._pedir(factura)
+        self.assertEqual(respuesta.status_code, 403)
+        self.assertNotEqual(respuesta.headers['Content-Type'], 'application/pdf')
+        self.assertNotIn(factura.name, respuesta.text)
+        # La dueña de la factura sí lo recibe.
+        self.authenticate('paq_http_otra', CLAVE)
+        with patch.object(DcasaImpresionPaquete, '_pdfs_por_registro', _renderizar_falso):
+            self.assertEqual(self._pedir(factura).status_code, 200)
+
     def test_un_usuario_del_portal_no_obtiene_el_paquete_ni_de_su_propia_factura(self):
         _pedido, factura = self._venta()
         self.env['res.users'].with_context(no_reset_password=True).create({
@@ -189,7 +207,7 @@ class TestPaqueteHttp(PaqueteHttpComun):
 
     def test_una_factura_en_borrador_o_inexistente_no_se_imprime(self):
         pedido = self.env['sale.order'].create({
-            'partner_id': self.cliente.id,
+            'partner_id': self.cliente.id, 'user_id': self.vendedora.id,
             'order_line': [Command.create({'product_id': self.mueble.id, 'product_uom_qty': 1})]})
         pedido.action_confirm()
         borrador = pedido._create_invoices()

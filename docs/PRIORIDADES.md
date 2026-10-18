@@ -31,6 +31,17 @@ cuestionario «Preguntas para Juan» y, con la revisión de la dueña, se carga 
 Instagram con [JUAN_META.md](JUAN_META.md) (empieza por la verificación del negocio); (3) salario y fecha de inicio de
 las vendedoras antes de la planilla del 1 al 15 de noviembre, que paga el primer bono (octubre).
 
+**Pedido del 2026-10-16/17 (permisos): hecho en la rama local `permisos-vendedoras`, sin subir.** Cada vendedora ve solo
+lo suyo, rol Caja y el interruptor «Cada vendedora ve solo sus documentos» para volver atrás (ver
+[PERMISOS.md](PERMISOS.md)). Revisión adversarial hecha el 17 oct (dos arreglos y cinco pruebas de la rama unida; ver la
+bitácora). **Encima, las reglas contables de la gerencia** (17 oct, [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md):
+A3, A5, A6, A7 y C1, hechas) y las respuestas de la dueña del punto 23 (pedidos web sin vendedora; la vendedora sigue
+facturando pero no cobra). Falta: que la dueña apruebe las capturas (`capturas_permisos/` y `capturas_reglas/`), CI y
+staging; producción con su visto bueno; ese día, darle Caja al jefe administrativo antes de abrir. De las
+decisiones contables, esta rama no toca: crédito solo a autorizados por Gerencia (A3), «Vendido» como facturas publicadas (A1),
+correo 5 días antes del vencimiento del abono (D3), comisiones del punto de venta del banco por lote (B1/C6), fondo fijo
+de caja (C4), aportes y retiros de los dueños (C8), mermas con aviso del 0.5 % (F6).
+
 ## Lo que solo la dueña y el jefe pueden empezar hoy
 
 Son los trámites largos; empiezan ya aunque el código llegue después.
@@ -108,7 +119,8 @@ unidos con el PR #43.)
 | Inicio de Gerencia sobre las **facturas** (A1/A2 del jefe): interruptor Facturado · Con abonos · Completadas, «N de M salieron de un pedido», notas de crédito que restan, ganancia de facturas sin pedido con el costo de hoy, la semana y lo más vendido con la misma base, notas largas en un ícono ⓘ; Brian igual | Hecho y probado en la rama `inicio-facturado` (local, sin subir). Falta: capturas → visto bueno de la dueña → staging → su «sí» | — |
 | Abonos: el papel dice «Abono» con el saldo; condiciones en dos hojas; el cliente ve lo que le falta | En producción (Desplegar 17): papel «ABONO» y condiciones en dos hojas. Sigue: abono mínimo 50 % y 30 días (reglas del jefe, `DECISIONES_CONTABLES.md`) | — |
 | Panel del cliente «Mi cuenta» | En producción (Desplegar 17); falta la ronda de pulido de la auditoría visual | — |
-| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción junto con las reglas contables del jefe (cobro solo en Caja; anular y notas de crédito solo Gerencia; Tafi y Crediviva; pedidos web sin vendedora). Antes de encender: rol Caja al jefe administrativo | — |
+| Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | Hecho y revisado en la rama `permisos-vendedoras` (sin subir); faltan capturas aprobadas, CI y staging | — |
+| Reglas contables de la gerencia: cobro solo en Caja, anular/notas/devoluciones solo Gerencia, abono a 30 días y primer abono del 50 %, Tafi y Crediviva; pedidos web sin vendedora | Hecho en la misma rama (2026-10-17); faltan capturas aprobadas, CI y staging | — |
 | Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
 | Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
 

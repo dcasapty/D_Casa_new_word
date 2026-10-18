@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- El primer abono: al menos la mitad del total (decisión de la gerencia A3, 2026-10-17; models/primer_abono.py).
+         El asistente «Pagar» lo avisa mientras se escribe el monto; el servidor lo vuelve a revisar al crear el pago. -->
+    <record id="view_account_payment_register_form_dcasa_primer_abono" model="ir.ui.view">
+        <field name="name">account.payment.register.form.dcasa.primer.abono</field>
+        <field name="model">account.payment.register</field>
+        <field name="inherit_id" ref="account.view_account_payment_register_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/group[1]" position="before">
+                <div role="alert" class="alert alert-warning o_dcasa_primer_abono" invisible="not dcasa_aviso_primer_abono">
+                    <i class="fa fa-exclamation-triangle me-1" aria-hidden="true"/>
+                    <field name="dcasa_aviso_primer_abono" class="oe_inline" readonly="1"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

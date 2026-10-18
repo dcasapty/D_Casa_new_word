@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Factura electrónica: cada vendedora ve solo lo de sus facturas (pedido de la dueña, 2026-10-16).
+
+        Quien tiene Facturación (la Vendedora) ve el documento electrónico y sus intentos solo de sus facturas y de
+        las que no tienen vendedora; Caja (Ventas «todos los documentos»), el lector contable y contabilidad, todos.
+        Mandar a la DGI lo hace el sistema con sudo al publicar: no cambia. Ver docs/PERMISOS.md.
+    -->
+    <record id="regla_fe_documento_facturacion" model="ir.rule">
+        <field name="name">Factura electrónica: documentos de sus facturas (o sin vendedora)</field>
+        <field name="model_id" ref="model_dcasa_fe_documento"/>
+        <field name="domain_force">['|', ('move_id.invoice_user_id', '=', user.id), ('move_id.invoice_user_id', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice'))]"/>
+    </record>
+
+    <record id="regla_fe_documento_toda_la_tienda" model="ir.rule">
+        <field name="name">Factura electrónica: documentos de toda la tienda (Caja y contabilidad)</field>
+        <field name="model_id" ref="model_dcasa_fe_documento"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman_all_leads')), (4, ref('account.group_account_readonly')), (4, ref('account.group_account_manager'))]"/>
+    </record>
+
+    <record id="regla_fe_intento_facturacion" model="ir.rule">
+        <field name="name">Factura electrónica: intentos de sus facturas (o sin vendedora)</field>
+        <field name="model_id" ref="model_dcasa_fe_intento"/>
+        <field name="domain_force">['|', ('documento_id.move_id.invoice_user_id', '=', user.id), ('documento_id.move_id.invoice_user_id', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('account.group_account_invoice'))]"/>
+    </record>
+
+    <record id="regla_fe_intento_toda_la_tienda" model="ir.rule">
+        <field name="name">Factura electrónica: intentos de toda la tienda (Caja y contabilidad)</field>
+        <field name="model_id" ref="model_dcasa_fe_intento"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman_all_leads')), (4, ref('account.group_account_readonly')), (4, ref('account.group_account_manager'))]"/>
+    </record>
+</odoo>

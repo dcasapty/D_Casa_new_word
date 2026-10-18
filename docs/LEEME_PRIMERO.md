@@ -120,6 +120,38 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   «Sin vendedora»; una nota de crédito es de la vendedora de su factura. Brian (`resumen_ventas`, `reporte_del_dia`,
   `comparar_ventas`) cuenta igual, con `facturado` por defecto. La vendedora, la Caja y el bono no cambian. **Sigue:**
   capturas a la dueña (`inicio_facturado/` del scratchpad de la sesión) → su visto bueno → staging.
+- **Reglas contables de la gerencia, en la rama `permisos-vendedoras` (local, sin subir ni desplegar)**, sobre la unión
+  con `claude/merge-rama-to-main-ty3koz` (lo de Desplegar 17 y las decisiones contables; los conflictos «add/add» se
+  resolvieron con base en la punta vieja `22dcd97`) y con `main` `ce8b0a7` (PR #54, barra del celular): **el cobro solo
+  en Caja** (la Vendedora sigue cotizando,
+  confirmando y facturando; ya no cobra por ningún camino, con el interruptor encendido o apagado); **anular o pasar a
+  borrador** una factura publicada, **notas de crédito**, **devolver dinero** y dejar **saldo a favor**: solo Gerencia;
+  **abonos a 30 días continuos** (`dcasa_invoice.abono_dias`; migración del viejo `abono_meses`) y **primer abono de al
+  menos la mitad** (menos, Gerencia; el banco no se frena y deja nota); **Tafi y Crediviva** como formas de pago (la
+  contadora revisa su cuenta). Y lo que la dueña respondió: **los pedidos de la web entran sin vendedora** (la que
+  confirma se lo queda; el aviso de apartado sin vendedora va a Caja). Detalle en [PERMISOS.md](PERMISOS.md) y
+  [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md); Brian en [BRIAN.md](BRIAN.md). Versiones: `dcasa_base`
+  19.0.1.9.0, `dcasa_invoice` 19.0.2.4.0, `website_dcasa` 19.0.1.15.0 (tres migraciones nuevas).
+- **Pruebas:** `ruff` limpio. Suite completa local (todos los módulos, como CI), sobre la rama unida con `main`
+  `ce8b0a7`: **3,876 pruebas, 2 fallas**, ninguna de este cambio: la captura de referencia `TestContratoVisualJuan`
+  («conexiones» a 390 px, la de siempre en esta máquina) y `TestPanelEnElNavegador.test_en_vivo_es_honesto_…` de
+  Conversaciones («sin conexión no debería aparecer solo»), que pasó en la corrida de las 22:36 UTC y falla después de
+  medianoche UTC también con el código de esa corrida (`4404073`, comprobado aparte): depende de la hora, no del
+  código (queda por mirar). La primera corrida completa (antes de unir `ce8b0a7`) halló las pruebas de otros módulos
+  que suponían «un mes», una vendedora o alguien con solo Facturación cobrando, o Caja haciendo notas: corregidas
+  (`c9ebcf9`); las de cabecera y celular del sitio eran de `main` y se fueron al unir `ce8b0a7`.
+- **Capturas para la dueña** (antes de staging, regla nueva): en el scratchpad de la sesión, `capturas_reglas/` (primer
+  abono menor a la mitad, papel del abono a 30 días, la factura como la ve la vendedora, Caja y Gerencia, «Pagar» con
+  Tafi y Crediviva).
+- **Ajuste de usabilidad (2026-10-18), mismo día y rama:** lo que solo daría error ya no se ofrece. En una factura de
+  cliente publicada, quien no es Gerencia (Caja y el contador incluidos) no ve «Nota de crédito» ni «Restablecer a
+  borrador»; la vendedora sigue sin «Pagar» y con el aviso de Caja; «Pagar» de una nota, «Agregar» un crédito
+  pendiente, «Desconciliar» en el globito del pago, «Nuevo» y los botones de un cobro, las acciones del menú «Acción»
+  («Pagar», «Revertir», «Cambiar a factura/nota») y qué hacer con la diferencia en «Pagar», solo a quien puede. El
+  servidor lo sigue negando por RPC (`TestBotonesSoloAQuienPuede`). Detalle en [PERMISOS.md](PERMISOS.md).
+- **Sigue:** que la dueña vea las capturas; CI y staging; producción con su visto bueno. El día del despliegue, antes de
+  abrir: darle **Caja** al jefe administrativo (sin Caja nadie salvo Gerencia cobra). Preguntas abiertas en
+  [PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 24.
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla
@@ -161,6 +193,34 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **Trabajando (agentes):** condiciones de abono en dos hojas (cliente y empresa), permisos de vendedoras con
   interruptor y rol Caja, teléfono y correo obligatorios, correos con Resend; luego Meta (catálogo, píxel y
   Conversions API). Instrucciones v2 de Juan para la extensión entregadas (correrlas después de este despliegue).
+- **Rama `permisos-vendedoras` (local, sin subir ni desplegar; base `3b678a6`):** cada vendedora ve solo sus
+  cotizaciones, pedidos, facturas, notas de crédito y cobros, y lo que no tiene vendedora (pedido de la dueña del
+  2026-10-16); rol nuevo **Caja** (para el jefe administrativo, que factura y cobra: ve y hace todo lo de clientes, sin
+  contabilidad ni costos; no se le asigna solo a nadie); Gerencia ve todo; la contabilidad no cambia. Y lo que la dueña
+  pidió el 17: el interruptor **«Cada vendedora ve solo sus documentos»** (encendido de fábrica) en *Ventas ›
+  Configuración › Permisos de las vendedoras* (Gerencia), *Ajustes › Ventas* (administradores) y Brian
+  (`cambiar_restriccion_vendedoras`): apagado, todas ven todo como antes, al momento y sin tocar ninguna ficha. Detalle
+  y tabla en [PERMISOS.md](PERMISOS.md); Brian en [BRIAN.md](BRIAN.md); Guía: «Elegir si cada vendedora ve solo sus
+  documentos» y la nota de «Darle acceso…». `dcasa_base` pasa a 19.0.1.8.0 (migración: quita una vez «todos los
+  documentos» al rol Vendedora y a quien lo tenía puesto a mano, y avisa si nadie tiene Caja).
+- **Pruebas:** suite completa local (todos los módulos): 3,526 pruebas, 1 falla: la captura de referencia
+  `TestContratoVisualJuan` (pantalla «conexiones» a 390 px, 13.52 % de píxeles distintos), que falla **igual en
+  `3b678a6`** en esta máquina (no es de este cambio; en CI no se ha visto). `ruff` limpio.
+- **Revisión adversarial de la rama unida (`d154970`), hecha:** como vendedora A se intentó ver o tocar lo de B por
+  ORM, RPC, informes, adjuntos, mensajes, portal, Mi cuenta, Conversaciones, Inicio, Brian, Escáner, Socios, abonos y
+  su papel; nada se filtró salvo lo que se comparte a propósito (lista en PERMISOS.md). Escalar (interruptor, Caja,
+  todos los documentos, robar o reasignar un pedido) bloqueado. Contabilidad igual para Gerencia, contador y lector
+  (los 10 reportes idénticos al superusuario). La migración, probada en una base hecha con `3b678a6`; el `-u` no mueve
+  el interruptor (probado encendido y apagado); el ida y vuelta deja todo igual. **Arreglado:** la nota de entrega
+  fácil del pedido de otra no se imprimía (`13839ac`); «Ventas atribuidas» de Conversaciones sumaba toda la tienda
+  (`13839ac`); cinco pruebas que la unión con `main` había roto, entre ellas las dos clases principales de «solo lo
+  suyo» que no corrían (`7a89d89`). **Para la dueña:** los pedidos de la web quedan a nombre del «Vendedor» del sitio
+  (el administrador): las vendedoras no los ven; la vendedora sigue cobrando sus facturas (PENDIENTES_DUENA 23).
+  Suite completa: 3,661 pruebas, 1 falla (la misma captura `conexiones` 390 px de esta máquina). Capturas para la
+  dueña en el scratchpad de la sesión (`capturas_permisos/`).
+- **Sigue:** que la dueña vea las capturas y decida el punto 23, CI y staging; con el «sí»
+  de la dueña (ya dijo que sube en cuanto pasen pruebas y revisión), producción. **El día del despliegue:** darle Caja
+  al jefe administrativo antes de abrir ([PENDIENTES_DUENA.md](PENDIENTES_DUENA.md), punto 23).
 
 ### 2026-10-16
 

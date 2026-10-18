@@ -98,15 +98,20 @@ class DcasaTablero(models.AbstractModel):
         """Qué accesos y paneles del Inicio puede usar quien mira.
 
         ``propio``: el panel de quien vende sin controlar. Ahí no hay cobros ni «Registrar cobro», ni «Nueva
-        cotización», ni «Ver la tienda»: solo las herramientas del día (UI-02, 2026-10-14).
+        cotización», ni «Ver la tienda»: solo las herramientas del día (UI-02, 2026-10-14). Caja (rol D'CASA, ve y
+        cobra lo de toda la tienda) sí tiene «Registrar cobro», «Cobros de hoy» y «Por cobrar», pero sigue sin el
+        panel completo ni la ganancia (2026-10-17).
         """
+        caja = self.env.user.has_group('dcasa_base.group_caja')
         return {
             'cotizar': self._puede('sale.order', 'create'),
             'crear_cliente': self._puede('res.partner', 'create'),
             'facturar': self._puede('account.move', 'create'),
-            # Registrar un cobro exige Facturación (ACL de account.payment).
-            'cobrar': not propio and self._puede('account.payment', 'create'),
-            'ver_cobros': not propio and self._puede('account.payment'),
+            # Registrar un cobro: Caja, Gerencia, contabilidad y administradores (decisión de la gerencia A5, «el cobro
+            # solo en Caja»; dcasa_base/models/cobros.py lo exige también en el servidor).
+            'cobrar': ((not propio or caja) and self.env.user._dcasa_puede_cobrar()
+                       and self._puede('account.payment', 'create')),
+            'ver_cobros': (not propio or caja) and self._puede('account.payment'),
             'catalogo': self._puede('product.template'),
             # El panel completo de la tienda (cifras de todos, barras, lo más vendido) y los botones de la dueña.
             'completo': not propio,

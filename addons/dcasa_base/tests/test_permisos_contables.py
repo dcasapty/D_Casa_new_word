@@ -1,10 +1,14 @@
-"""Lo contable «de un jefe» no se ve por datos: la Vendedora (y el Cajero) solo tocan lo del flujo de venta.
+"""Lo contable «de un jefe» no se ve por datos: la Vendedora (y la Caja) solo tocan lo del flujo de venta.
+
+Desde el 2026-10-17 (decisiones contables de la gerencia) cobra solo Caja y las notas de crédito son de Gerencia:
+las reglas de cada camino están en test_reglas_gerencia.py.
 
 La dueña pidió que quien vende no vea nada de nómina ni de la contabilidad de un jefe. Por el menú ya no lo
 ve; este archivo fija que tampoco lo vea por datos (URL, enlace o RPC): facturas y pagos de proveedores,
 asientos varios (la nómina se contabiliza ahí), pagos salientes y movimientos bancarios. Y fija lo contrario:
 contabilidad, Gerencia y el administrador siguen viendo y haciendo todo, y la venta sigue entera.
-Reglas: security/dcasa_reglas_contables.xml. Explicación: docs/PERMISOS.md.
+Desde 2026-10-16 la Vendedora ve solo lo suyo (sus facturas, notas y cobros); la Caja, lo de clientes de toda la tienda
+(el detalle está en test_solo_lo_suyo.py). Reglas: security/dcasa_reglas_contables.xml. Explicación: docs/PERMISOS.md.
 """
 import re
 from pathlib import Path
@@ -38,9 +42,8 @@ class PermisosContablesCommon(TransactionCase):
         cls.company = env.ref('base.main_company')
         # Personas
         cls.vendedora = crear_usuario(env, 'perm_cont_vendedora', 'dcasa_base.group_vendedora')
-        cls.cajero = crear_usuario(  # el rol «cajero» de Brian: Facturación + Ventas todo + Inventario
-            env, 'perm_cont_cajero', 'account.group_account_invoice', 'sales_team.group_sale_salesman_all_leads',
-            'stock.group_stock_user')
+        cls.cajero = crear_usuario(env, 'perm_cont_cajero', 'dcasa_base.group_caja')  # el rol «Caja» (y de Brian)
+        cls.otra_vendedora = crear_usuario(env, 'perm_cont_otra_vendedora', 'dcasa_base.group_vendedora')
         cls.gerencia = crear_usuario(env, 'perm_cont_gerencia', 'dcasa_base.group_gerencia')
         cls.contador = crear_usuario(env, 'perm_cont_contador', 'account.group_account_user')
         cls.gerente_contable = crear_usuario(env, 'perm_cont_gerente_cont', 'account.group_account_manager')
@@ -64,9 +67,14 @@ class PermisosContablesCommon(TransactionCase):
         cls.cuenta_analitica = env['account.analytic.account'].create(
             {'name': 'Canal Prueba Permisos', 'plan_id': plan.id})
 
-        # Lo de CLIENTE (la vendedora lo ve y lo usa)
-        cls.factura_cliente = cls._factura('out_invoice', cls.cliente, 100.0, analitica=True)
+        # Lo de CLIENTE de la vendedora (lo ve y lo usa). Se crea como superusuario, a nombre de ella: si no, la
+        # factura quedaría a nombre del superusuario y ella ya no la vería (solo ve lo suyo).
+        cls.factura_cliente = cls._factura('out_invoice', cls.cliente, 100.0, analitica=True, vendedora=cls.vendedora)
         cls.cobro_cliente = cls._pagar(cls.factura_cliente, cls.efectivo)
+        # Lo de cliente de OTRA vendedora: la Caja lo ve; la vendedora no.
+        cls.factura_de_otra = cls._factura('out_invoice', cls.cliente, 70.0, analitica=True,
+                                           vendedora=cls.otra_vendedora)
+        cls.cobro_de_otra = cls._pagar(cls.factura_de_otra, cls.efectivo)
         # Lo «de un jefe» (la vendedora no lo ve)
         cls.factura_proveedor = cls._factura('in_invoice', cls.proveedor, 200.0, analitica=True)
         cls.nota_proveedor = cls._factura('in_refund', cls.proveedor, 30.0)
@@ -86,17 +94,20 @@ class PermisosContablesCommon(TransactionCase):
 
     # --- ayudas de datos (siempre como superusuario) -------------------------------------------------------
     @classmethod
-    def _factura(cls, tipo, socio, monto, analitica=False):
+    def _factura(cls, tipo, socio, monto, analitica=False, vendedora=None):
         compra = tipo.startswith('in_')
         linea = {'product_id': cls.producto.id, 'quantity': 1, 'price_unit': monto}
         if compra:
             linea['tax_ids'] = [Command.clear()]
         if analitica:
             linea['analytic_distribution'] = {str(cls.cuenta_analitica.id): 100}
-        factura = cls.env['account.move'].create({
+        valores = {
             'move_type': tipo, 'partner_id': socio.id, 'invoice_date': fields.Date.today(),
             'invoice_line_ids': [Command.create(linea)],
-        })
+        }
+        if vendedora:
+            valores['invoice_user_id'] = vendedora.id
+        factura = cls.env['account.move'].create(valores)
         factura.action_post()
         return factura
 
@@ -178,7 +189,9 @@ class PermisosContablesCommon(TransactionCase):
 
 @tagged('post_install', '-at_install')
 class TestVendedoraVendeYCobra(PermisosContablesCommon):
-    """Lo que SÍ sigue pudiendo la vendedora (y el cajero): todo el flujo de venta."""
+    """Lo que SÍ sigue pudiendo la vendedora (y la Caja): todo el flujo de venta. Desde el 2026-10-17 el cobro lo
+    registra Caja y la nota de crédito, Gerencia (decisiones de la gerencia A5 y A7; detalle en
+    test_reglas_gerencia.py): la vendedora factura y ve el cobro de su factura."""
 
     def _facturar(self, usuario):
         factura = self.env['account.move'].with_user(usuario).create({
@@ -194,14 +207,23 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
             {'payment_date': fields.Date.today(), 'journal_id': self.efectivo.id, **valores})
         return registro._create_payments()
 
+    def _nota(self, usuario, factura):
+        reversa = self.env['account.move.reversal'].with_user(usuario).with_context(
+            active_model='account.move', active_ids=factura.ids).create(
+            {'reason': 'Devolución de prueba', 'journal_id': factura.journal_id.id})
+        nota = self.env['account.move'].with_user(usuario).browse(reversa.refund_moves()['res_id'])
+        nota.action_post()
+        return nota
+
     def test_factura_cobro_y_conciliacion(self):
-        # Efectivo (caja) y banco (Yappy, tarjeta): las dos formas de cobro de la tienda.
+        # Efectivo (caja) y banco (Yappy, tarjeta): las dos formas de cobro de la tienda. Factura quien vende;
+        # cobra Caja.
         for usuario, diario in [(u, d) for u in self.sin_contabilidad for d in (self.efectivo, self.banco)]:
             with self.subTest(usuario=usuario.login, diario=diario.name):
                 factura = self._facturar(usuario)
                 self.assertEqual(factura.state, 'posted')
                 self.assertAlmostEqual(factura.amount_total, 214.0)
-                pago = self._cobrar(usuario, factura, journal_id=diario.id)
+                pago = self._cobrar(self.cajero, factura, journal_id=diario.id)
                 self.assertEqual(pago.payment_type, 'inbound')
                 self.assertIn(factura.payment_state, ('paid', 'in_payment'))
                 # El asiento del cobro y su conciliación con la factura son visibles para ella.
@@ -221,15 +243,14 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
         for usuario in self.sin_contabilidad:
             with self.subTest(usuario=usuario.login):
                 factura = self._facturar(usuario)
-                self._cobrar(usuario, factura, amount=100.0)
+                self._cobrar(self.cajero, factura, amount=110.0)  # el primer abono: al menos la mitad de 214
                 self.assertEqual(factura.payment_state, 'partial')
-                reversa = self.env['account.move.reversal'].with_user(usuario).with_context(
-                    active_model='account.move', active_ids=factura.ids).create(
-                    {'reason': 'Devolución de prueba', 'journal_id': factura.journal_id.id})
-                nota = self.env['account.move'].with_user(usuario).browse(reversa.refund_moves()['res_id'])
+                with self.assertRaises(AccessError, msg='la nota de crédito es de Gerencia'):
+                    self._nota(usuario, factura)
+                nota = self._nota(self.gerencia, factura)
                 self.assertEqual(nota.move_type, 'out_refund')
-                nota.action_post()
                 self.assertEqual(nota.state, 'posted')
+                self.assertEqual(nota.invoice_user_id, factura.invoice_user_id, 'sigue siendo de quien vendió')
                 self.assertTrue(nota.line_ids)
 
     def test_facturar_desde_una_orden_de_venta(self):
@@ -247,7 +268,7 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
 
     def test_imprimir_y_enviar_la_factura(self):
         factura = self._facturar(self.vendedora)
-        self._cobrar(self.vendedora, factura)
+        self._cobrar(self.cajero, factura)
         html, _formato = self.env['ir.actions.report'].with_user(self.vendedora)._render_qweb_html(
             'account.report_invoice', factura.ids)
         self.assertIn(factura.name, html.decode())
@@ -264,6 +285,15 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
                 self.assertIn(self.cobro_cliente.move_id, visibles, 'el asiento del cobro de cliente')
                 self.assertTrue(self.factura_cliente.line_ids.with_user(usuario).read(['name', 'debit', 'credit']))
                 self.assertIn(self.cobro_cliente, self.env['account.payment'].with_user(usuario).search([]))
+                # Lo de la otra vendedora: la Caja sí lo ve; la vendedora no (solo lo suyo).
+                ajeno = (self.factura_de_otra, self.cobro_de_otra.move_id)
+                for registro in ajeno:
+                    if usuario == self.cajero:
+                        self.assertIn(registro, visibles)
+                    else:
+                        self.assertNotIn(registro, visibles)
+                pagos_visibles = self.env['account.payment'].with_user(usuario).search([])
+                self.assertEqual(self.cobro_de_otra in pagos_visibles, usuario == self.cajero)
                 # Y todo lo que ve es de cliente o cobro de cliente: nada más se cuela.
                 ajenos = visibles.filtered(lambda m: m.move_type not in CLIENTE and not (
                     m.move_type == 'entry' and m.origin_payment_id.payment_type == 'inbound'))
@@ -275,10 +305,15 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
                 self.assertEqual(set(pagos.mapped('payment_type')), {'inbound'})
 
     def test_ve_sus_lineas_analiticas_de_cliente(self):
-        propias = self.env['account.analytic.line'].search([('move_line_id', 'in', self.factura_cliente.line_ids.ids)])
-        self.assertTrue(propias, 'la factura de cliente con canal debe dejar su línea analítica')
-        self.assertEqual(self.env['account.analytic.line'].with_user(self.vendedora).search(
-            [('id', 'in', propias.ids)]), propias)
+        Analitica = self.env['account.analytic.line']
+        propias = Analitica.search([('move_line_id', 'in', self.factura_cliente.line_ids.ids)])
+        de_otra = Analitica.search([('move_line_id', 'in', self.factura_de_otra.line_ids.ids)])
+        self.assertTrue(propias and de_otra, 'la factura de cliente con canal debe dejar su línea analítica')
+        self.assertEqual(Analitica.with_user(self.vendedora).search([('id', 'in', (propias | de_otra).ids)]), propias)
+        # La Caja y el lector contable ven las de toda la tienda (de clientes).
+        for usuario in (self.cajero, self.lector):
+            self.assertEqual(Analitica.with_user(usuario).search([('id', 'in', (propias | de_otra).ids)]),
+                             propias | de_otra, usuario.login)
 
     def test_reportes_de_ventas_de_clientes(self):
         informe = self.env['account.invoice.report']
@@ -295,7 +330,7 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
 
 @tagged('post_install', '-at_install')
 class TestVendedoraNoVeLoContable(PermisosContablesCommon):
-    """Lo que la vendedora (y el cajero) NO pueden ver ni tocar por datos."""
+    """Lo que la vendedora (y la Caja) NO pueden ver ni tocar por datos."""
 
     def test_nada_de_proveedores_ni_asientos_varios_ni_bancos(self):
         for usuario in self.sin_contabilidad:
@@ -547,7 +582,9 @@ class TestReglasContables(PermisosContablesCommon):
         for nombre in ('regla_asientos_contabilidad', 'regla_apuntes_contabilidad', 'regla_pagos_contabilidad',
                        'regla_extractos_contabilidad', 'regla_lineas_extracto_contabilidad',
                        'regla_pagos_facturacion', 'regla_extractos_facturacion', 'regla_lineas_extracto_facturacion',
-                       'regla_conciliaciones_facturacion', 'regla_analitica_empleados'):
+                       'regla_conciliaciones_facturacion', 'regla_analitica_empleados',
+                       'regla_asientos_toda_la_tienda', 'regla_apuntes_toda_la_tienda', 'regla_pagos_toda_la_tienda',
+                       'regla_conciliaciones_toda_la_tienda', 'regla_analitica_toda_la_tienda'):
             regla = self.env.ref(f'dcasa_base.{nombre}')
             self.assertTrue(regla.active, nombre)
             self.assertTrue(regla.groups, f'{nombre} es de grupo, no global')

@@ -12,25 +12,53 @@ def crear_usuario(env, login, *grupos):
 
 @tagged('post_install', '-at_install')
 class TestRoles(TransactionCase):
-    """Roles «D'CASA / Vendedora» y «D'CASA / Gerencia» (UI-02, UI-03)."""
+    """Roles «D'CASA / Vendedora», «D'CASA / Caja» y «D'CASA / Gerencia» (UI-02, UI-03; Caja desde 2026-10-17)."""
 
     def test_vendedora_vende_cobra_y_despacha(self):
+        """La Vendedora es «Ventas: solo sus documentos» (ve solo lo suyo), no «todos los documentos»."""
         vendedora = self.env.ref('dcasa_base.group_vendedora')
         self.assertEqual(vendedora.full_name, "D'CASA / Vendedora")
         implicados = vendedora.all_implied_ids
-        for xmlid in ('sales_team.group_sale_salesman', 'sales_team.group_sale_salesman_all_leads',
+        for xmlid in ('sales_team.group_sale_salesman', 'account.group_account_invoice', 'stock.group_stock_user'):
+            self.assertIn(self.env.ref(xmlid), implicados, xmlid)
+        for xmlid in ('sales_team.group_sale_salesman_all_leads', 'sales_team.group_sale_manager',
+                      'account.group_account_user', 'account.group_account_readonly',
+                      'stock.group_stock_manager', 'purchase.group_purchase_user', 'base.group_system',
+                      'base.group_erp_manager', 'dcasa_base.group_gerencia', 'dcasa_base.group_caja'):
+            self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)
+
+    def test_caja_factura_y_cobra_todo_sin_contabilidad(self):
+        caja = self.env.ref('dcasa_base.group_caja')
+        self.assertEqual(caja.full_name, "D'CASA / Caja")
+        self.assertEqual(caja.privilege_id, self.env.ref('dcasa_base.res_groups_privilege_dcasa'))
+        implicados = caja.all_implied_ids
+        for xmlid in ('dcasa_base.group_vendedora', 'sales_team.group_sale_salesman_all_leads',
                       'account.group_account_invoice', 'stock.group_stock_user'):
             self.assertIn(self.env.ref(xmlid), implicados, xmlid)
         for xmlid in ('sales_team.group_sale_manager', 'account.group_account_user', 'account.group_account_readonly',
-                      'stock.group_stock_manager', 'purchase.group_purchase_user', 'base.group_system',
-                      'base.group_erp_manager', 'dcasa_base.group_gerencia'):
+                      'account.group_account_manager', 'stock.group_stock_manager', 'purchase.group_purchase_user',
+                      'base.group_system', 'dcasa_base.group_gerencia'):
             self.assertNotIn(self.env.ref(xmlid), implicados, xmlid)
+        # No se le asigna a nadie al instalar: lo decide la dueña (Gerencia la incluye, pero no cuenta).
+        gerencia = self.env.ref('dcasa_base.group_gerencia')
+        self.assertFalse(caja.user_ids, 'Caja no se asigna a nadie al instalar')
+        self.assertIn(caja, gerencia.all_implied_ids, 'Gerencia incluye Caja')
+
+    def test_un_solo_selector_vendedora_caja_gerencia(self):
+        privilegio = self.env.ref('dcasa_base.res_groups_privilege_dcasa')
+        roles = [self.env.ref(x) for x in ('dcasa_base.group_vendedora', 'dcasa_base.group_caja',
+                                           'dcasa_base.group_gerencia')]
+        self.assertEqual(set(privilegio.group_ids), set(roles))
+        # Odoo ordena el selector por cuántos roles del mismo selector implica cada uno: Vendedora → Caja → Gerencia.
+        orden = privilegio.group_ids.sorted(lambda g: (len(g.all_implied_ids & privilegio.group_ids), g.sequence))
+        self.assertEqual(orden.mapped('name'), ['Vendedora', 'Caja', 'Gerencia'])
 
     def test_gerencia_controla_sin_ser_admin_tecnico(self):
         gerencia = self.env.ref('dcasa_base.group_gerencia')
         self.assertEqual(gerencia.full_name, "D'CASA / Gerencia")
         implicados = gerencia.all_implied_ids
-        for xmlid in ('dcasa_base.group_vendedora', 'sales_team.group_sale_manager', 'account.group_account_user',
+        for xmlid in ('dcasa_base.group_vendedora', 'dcasa_base.group_caja', 'sales_team.group_sale_manager',
+                      'account.group_account_user',
                       'account.group_account_invoice', 'stock.group_stock_manager',
                       'purchase.group_purchase_manager', 'product.group_product_manager'):
             self.assertIn(self.env.ref(xmlid), implicados, xmlid)

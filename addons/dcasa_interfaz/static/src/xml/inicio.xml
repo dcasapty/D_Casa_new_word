@@ -422,6 +422,23 @@
                     </t>
                 </section>
 
+                <!-- Caja (rol D'CASA, 2026-10-17): la caja de hoy de toda la tienda, sin el panel completo de quien
+                     controla. Quien controla la ve dentro de su fila, más abajo. -->
+                <section t-if="d.permisos.ver_cobros and !d.permisos.completo"
+                         class="o_dcasa_panel o_dcasa_caja o_dcasa_caja_rol" aria-label="Caja de hoy">
+                    <h2>Caja de hoy <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+                    <p t-if="d.cobros.length" class="o_dcasa_caja_total">
+                        Cobrado hoy <strong t-out="dinero(d.total_cobrado)"/>
+                    </p>
+                    <ul t-if="d.cobros.length" class="list-unstyled mb-0">
+                        <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.forma">
+                            <span t-out="cobro.forma"/>
+                            <strong t-out="dinero(cobro.monto)"/>
+                        </li>
+                    </ul>
+                    <p t-else="" class="o_dcasa_vacio">Todavía no hay cobros registrados hoy.</p>
+                </section>
+
                 <div t-if="d.permisos.completo" class="o_dcasa_inicio_fila">
                     <!-- Semana -->
                     <!-- La semana y lo más vendido siguen el interruptor y la vendedora (2026-10-17): la etiqueta dice cuáles. -->

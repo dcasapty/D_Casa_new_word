@@ -1192,3 +1192,8 @@
 }
 
 .o_dcasa_ver_tienda { min-width: 40px; justify-content: center; }
+
+// Caja (rol D'CASA, 2026-10-17): su «Caja de hoy» va sola, debajo de las cifras del día.
+.o_dcasa_caja_rol {
+    margin-bottom: 1rem;
+}

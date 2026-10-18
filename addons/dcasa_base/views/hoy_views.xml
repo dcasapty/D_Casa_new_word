@@ -37,6 +37,12 @@
     <menuitem id="menu_dcasa_hoy" name="Hoy" parent="sale.sale_menu_root" sequence="1"/>
     <menuitem id="menu_dcasa_ventas_hoy" name="Ventas de hoy" parent="menu_dcasa_hoy"
               action="action_dcasa_ventas_hoy_abrir" sequence="10"/>
+    <!-- «Cobros de hoy (caja)» es la caja de toda la tienda: quien ve los documentos de toda la tienda («Ventas: todos
+         los documentos»: Caja, Gerencia y, con el interruptor «Cada vendedora ve solo sus documentos» apagado, también
+         la Vendedora, como antes) y contabilidad. Con el interruptor encendido, la vendedora solo vería sus propios
+         cobros, una cifra parcial con nombre de caja. El «-» quita en una base existente el grupo de antes
+         (Facturación): <menuitem groups> solo agrega. -->
     <menuitem id="menu_dcasa_cobros_hoy" name="Cobros de hoy (caja)" parent="menu_dcasa_hoy"
-              action="action_dcasa_cobros_hoy" sequence="20" groups="account.group_account_invoice"/>
+              action="action_dcasa_cobros_hoy" sequence="20"
+              groups="-account.group_account_invoice,sales_team.group_sale_salesman_all_leads,account.group_account_readonly,account.group_account_manager"/>
 </odoo>

@@ -371,6 +371,42 @@ Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propós
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
+## Roles y «Cada vendedora ve solo sus documentos» (2026-10-17)
+
+* **Roles** de `listar_usuarios`, `cambiar_rol_usuario` y `crear_usuario` (`herramientas_usuarios.py`, `ROLES`):
+  `vendedor` = «D'CASA / Vendedora», `cajero` = «D'CASA / Caja» (factura y cobra lo de toda la tienda), `gerencia` =
+  «D'CASA / Gerencia» (solo la da un administrador del sistema, igual que `administrador`), `contador` y
+  `administrador`. Un cambio de rol quita antes los tres roles D'CASA y «Ventas: todos los documentos»: pasar de Caja a
+  Vendedora no deja a la persona viendo lo de sus compañeras. Antes Brian llamaba «Cajero/a» a la Vendedora y a Gerencia.
+* **Brian corre como quien le habla**: con el interruptor encendido, a la Vendedora no le encuentra la venta, la
+  factura de otra (`ver_venta` y `ver_factura` responden que no la encuentran: las reglas filtran). Las herramientas que dan
+  cifras de facturas o cotizaciones (`clientes_que_deben`, la deuda de un cliente, `facturas_pendientes`,
+  `pendientes_de_hoy`) agregan la clave **`alcance`** («solo tus facturas y las que no tienen vendedora») para que no
+  presente una cifra parcial como si fuera la de toda la tienda. A Caja, contabilidad y Gerencia no se les agrega.
+* **`cambiar_restriccion_vendedoras(encender)`** (sensible, Gerencia o administrador): enciende o apaga «Cada vendedora
+  ve solo sus documentos» (lo mismo que *Ventas › Configuración › Permisos de las vendedoras*). `listar_usuarios` dice
+  cómo está (`cada_vendedora_ve_solo_lo_suyo`). Ejemplo: «que las vendedoras vuelvan a ver todo».
+
+## Reglas contables de la gerencia (2026-10-17)
+
+Brian corre como quien le habla, así que las reglas del servidor ([PERMISOS.md](PERMISOS.md), «Reglas contables de la
+gerencia») le valen igual; además:
+
+* **`registrar_pago`** solo sale a quien cobra: Caja, Gerencia, contabilidad o administrador. `grupos` acepta ahora un
+  elemento «alguno de» (una tupla dentro de la tupla: `('account.group_account_invoice', (Caja, contador, …))`). A la
+  Vendedora no se le ofrece; si de todos modos llega a la herramienta, responde «Los cobros los registra Caja…». Con
+  el interruptor «ver solo lo suyo» apagado, tampoco.
+* El **primer abono** menor a la mitad del total: `registrar_pago` usa el asistente «Pagar», así que a Caja y a
+  contabilidad les contesta «El primer abono debe ser de al menos la mitad: $X. Si es menos, lo registra Gerencia.»;
+  Gerencia sí lo registra (queda una nota en la factura). Los abonos siguientes y el pago completo son libres.
+* `forma_pago` acepta **Tafi** y **Crediviva** (diarios «Tafi (financiamiento)» y «Crediviva (financiamiento)»).
+* **El vencimiento del abono** sale de `_dcasa_estado_abono` (30 días continuos desde el primer abono): `ver_factura` y
+  `facturas_pendientes` agregan, en una factura de cliente en abono, `abono` = `{inicio, pagado, saldo, vence,
+  vencido}`. El `vence` de siempre sigue siendo el de la condición de pago de la factura.
+* **El prompt**: a quien no cobra, Brian sabe que «los cobros los registra Caja (o Gerencia)»; a quien no es Gerencia,
+  que anular, pasar a borrador, notas de crédito y devolver dinero son solo de Gerencia. Brian no tiene herramientas
+  para anular, pasar a borrador ni hacer notas de crédito (sigue siendo de una persona).
+
 ## Para cada función nueva
 
 Toda función nueva de la plataforma debe poder usarla Brian (ver la plantilla de PR):

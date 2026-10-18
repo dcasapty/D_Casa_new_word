@@ -11,7 +11,7 @@ from freezegun import freeze_time
 from odoo import Command, fields
 from odoo.exceptions import AccessError, UserError
 from odoo.service.model import call_kw
-from odoo.tests import BaseCase, tagged
+from odoo.tests import BaseCase, new_test_user, tagged
 
 from ..models import panel_calculos as C
 from .common import COSTOS, SALUD, TOKEN_WORKER, URL_WORKER, JuanCase, respuesta_http
@@ -220,9 +220,28 @@ class TestResumen(JuanCase):
         self.factura(conv.partner_id, 100.0, pagar=True, fecha=date(2026, 10, 3))
         self.assertEqual(self.panel.resumen('30_dias')['ventas']['facturas'], 0)
 
-    def factura(self, partner, precio, pagar=True, fecha=None):
+    def test_la_vendedora_solo_suma_sus_ventas_atribuidas_y_gerencia_las_de_toda_la_tienda(self):
+        """«Cada vendedora ve solo sus documentos»: la suma va por SQL (sin reglas), así que se acota a mano."""
+        conv = self.hablan('50761000001', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1), nombre='Ana')
+        ana = new_test_user(self.env, login='juan_rol_vendedora', name='Ana Rol Vendedora',
+                            groups='base.group_user,dcasa_base.group_vendedora')
+        self.assertTrue(ana._dcasa_solo_lo_suyo())
+        self.factura(conv.partner_id, 100.0, vendedora=ana)                       # suya
+        self.factura(conv.partner_id, 40.0, vendedora=self.env['res.users'])      # sin vendedora: de todas
+        self.factura(conv.partner_id, 250.0, vendedora=self.gerente)              # de otra persona
+        panel = self.env['dcasa.juan.panel'].with_user(ana)
+        r = panel.resumen('7_dias')['ventas']
+        self.assertEqual((r['facturas'], r['monto']), (2, 140.0), 'la de otra persona no se le suma')
+        r = self.env['dcasa.juan.panel'].with_user(self.gerente).resumen('7_dias')['ventas']
+        self.assertEqual((r['facturas'], r['monto']), (3, 390.0), 'Gerencia ve la suma de toda la tienda')
+        self.env['res.users']._dcasa_poner_restriccion(False)
+        r = panel.resumen('7_dias')['ventas']
+        self.assertEqual((r['facturas'], r['monto']), (3, 390.0), 'con el interruptor apagado, como antes')
+
+    def factura(self, partner, precio, pagar=True, fecha=None, vendedora=None):
         factura = self.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': partner.id, 'invoice_date': fecha or fields.Date.today(),
+            'invoice_user_id': (self.vendedora if vendedora is None else vendedora).id,
             'invoice_line_ids': [Command.create({'name': 'Cama', 'quantity': 1, 'price_unit': precio,
                                                  'tax_ids': [Command.clear()]})]})
         factura.action_post()

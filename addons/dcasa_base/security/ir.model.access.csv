@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_product_template_vendedora,product template vendedora,product.model_product_template,dcasa_base.group_vendedora,1,1,0,0
 access_product_product_vendedora,product product vendedora,product.model_product_product,dcasa_base.group_vendedora,1,1,0,0
+access_dcasa_permisos_vendedoras_gerencia,dcasa permisos vendedoras gerencia,model_dcasa_permisos_vendedoras,dcasa_base.group_gerencia,1,1,1,0
+access_dcasa_permisos_vendedoras_admin,dcasa permisos vendedoras admin,model_dcasa_permisos_vendedoras,base.group_system,1,1,1,0

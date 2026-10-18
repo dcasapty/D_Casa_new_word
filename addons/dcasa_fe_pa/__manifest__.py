@@ -29,6 +29,7 @@ Fuentes, lo verificado y lo pendiente: docs/FACTURA_ELECTRONICA.md.
     'depends': ['dcasa_base', 'dcasa_invoice', 'account', 'l10n_pa'],
     'data': [
         'security/ir.model.access.csv',
+        'security/dcasa_reglas_fe.xml',
         'data/ir_cron_data.xml',
         'views/fe_documento_views.xml',
         'views/configuracion_views.xml',

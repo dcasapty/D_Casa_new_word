@@ -314,6 +314,32 @@ class TestInicioPorRol(VentasCommon):
         self.assertFalse(propio['cobros'])
         self.assertEqual(propio['total_cobrado'], 0.0)
 
+    def test_caja_cobra_y_ve_la_caja_de_hoy_sin_el_panel_completo(self):
+        """Caja (rol D'CASA, 2026-10-17) cobra lo de toda la tienda: tiene «Registrar cobro», «Caja de hoy» y «Por
+        cobrar» de todas, pero no el panel completo ni la ganancia. La vendedora sigue igual."""
+        caja = crear_usuario(self.env, 'caja_rol', 'dcasa_base.group_caja')
+        diario = self.env['account.journal'].search([('type', 'in', ('cash', 'bank'))], limit=1)
+        if not diario:
+            self.skipTest('Sin diarios de caja o banco')
+        factura = self.facturar(self.pedido(vendedor=self.otra))
+        self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=factura.ids).create(
+            {'payment_date': self.hoy, 'journal_id': diario.id, 'amount': 12.5})._create_payments()
+        datos = self.env['dcasa.tablero'].with_user(caja).obtener_datos()
+        permisos = datos['permisos']
+        self.assertTrue(permisos['cobrar'])
+        self.assertTrue(permisos['ver_cobros'])
+        self.assertFalse(permisos['completo'])
+        self.assertFalse(datos['ve_utilidad'])
+        self.assertIsNone(datos['ventas'])
+        de_gerencia = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()
+        self.assertAlmostEqual(datos['total_cobrado'], de_gerencia['total_cobrado'], places=2,
+                               msg='la caja de hoy de Caja es la de toda la tienda')
+        self.assertGreaterEqual(datos['total_cobrado'], 12.5)
+        self.assertIn('por_cobrar', {c['clave'] for c in datos['cifras']})
+        propio = self.env['dcasa.tablero'].with_user(self.vendedora).obtener_datos()['permisos']
+        self.assertFalse(propio['cobrar'] or propio['ver_cobros'], 'la vendedora sigue sin cobros en su Inicio')
+
     def test_el_vendido_de_gerencia_incluye_a_todas_las_vendedoras(self):
         mia, ajena = self.pedido(vendedor=self.vendedora), self.pedido(vendedor=self.otra)
         self.facturar(mia)

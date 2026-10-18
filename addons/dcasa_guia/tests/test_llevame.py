@@ -54,10 +54,19 @@ class TestListasPorPuesto(BaseCase):
 
     def test_la_vendedora_trae_lo_que_pidio_la_duena(self):
         vendedora = next(r for r in self.roles['roles'] if r['clave'] == 'vendedora')
-        # cotizar · facturar · cobrar · ver mis ventas · buscar producto por código · conversaciones · cliente nuevo
-        self.assertEqual(vendedora['tareas'], ['cotizacion-nueva', 'por-facturar', 'cobrar-cliente', 'ventas-hoy',
+        # cotizar · facturar · sus facturas · ver mis ventas · buscar producto por código · conversaciones · cliente
+        # nuevo. Cobrar ya no: el cobro solo en Caja (decisión de la gerencia, 2026-10-17).
+        self.assertEqual(vendedora['tareas'], ['cotizacion-nueva', 'por-facturar', 'facturas-clientes', 'ventas-hoy',
                                                'codigo-publico', 'conversaciones', 'cliente-nuevo'])
         self.assertFalse(SOLO_CONTROL & set(vendedora['tareas']), 'La lista de la vendedora no lleva lo de Gerencia')
+        self.assertFalse({'cobrar-cliente', 'registrar-abono', 'cobro-financiera'} & set(vendedora['tareas']))
+
+    def test_caja_trae_los_cobros_antes_que_la_vendedora(self):
+        claves = [r['clave'] for r in self.roles['roles']]
+        self.assertLess(claves.index('caja'), claves.index('vendedora'), 'Caja también es Vendedora: va antes')
+        caja = next(r for r in self.roles['roles'] if r['clave'] == 'caja')
+        for tarea in ('registrar-abono', 'cobrar-cliente', 'cobro-financiera', 'cobros-hoy'):
+            self.assertIn(tarea, caja['tareas'])
 
     def test_gerencia_y_contabilidad_traen_resumen_cobros_impuestos_cierre_y_banco(self):
         for clave in ('gerencia', 'contabilidad'):
