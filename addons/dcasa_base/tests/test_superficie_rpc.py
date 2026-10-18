@@ -109,6 +109,44 @@ LISTA_BLANCA = {
     ('dcasa_contabilidad', 'dcasa.cierre.mes', 'action_reabrir'):
         'Botón: exige account.group_account_manager y motivo ANTES de bajar la fecha de bloqueo con sudo.',
     ('dcasa_contabilidad', 'dcasa.cierre.mes.paso', 'action_ver'): ACCION_VENTANA,
+    # --- dcasa_meta_catalogo (catálogo para Meta, apagado de fábrica) ----------------------------------------
+    ('dcasa_meta_catalogo', 'product.feed', 'write'):
+        OVERRIDE + ' Solo impide convertir un catálogo de Meta en otro tipo y un token débil; sin sudo(). El ACL deja '
+                   'escribir solo a Gerencia y administradores.',
+    ('dcasa_meta_catalogo', 'product.feed', 'action_dcasa_meta_nueva_direccion'):
+        'Botón «Cambiar la dirección secreta»: exige sales_team.group_sale_manager o base.group_system en el servidor '
+        '(_dcasa_meta_exigir_gerencia); escribe el token nuevo con los permisos de la persona, sin sudo(), y no lo '
+        'anota en el historial.',
+    ('dcasa_meta_catalogo', 'dcasa.meta.campana', 'create'):
+        OVERRIDE + ' Solo calcula el código para Meta a partir del nombre; sin sudo(). El ACL deja crear solo a '
+                   'Gerencia y administradores.',
+    ('dcasa_meta_catalogo', 'product.feed', 'action_dcasa_meta_ver_fuera'):
+        'Botón «Ver los que quedan fuera»: exige Gerencia o administrador en el servidor ANTES del sudo() con que '
+        'reparte los productos; solo devuelve una acción de ventana con los ids.',
+    # --- dcasa_meta_eventos ---------------------------------------------------------------
+    ('dcasa_meta_eventos', 'res.config.settings', 'set_values'):
+        OVERRIDE + ' Valida las compuertas de Meta (ID, sección de privacidad publicada, token) ANTES de guardar y '
+                   'después solo enciende el aviso de cookies y marca las páginas del borde; res.config.settings es '
+                   'solo de administradores.',
+    ('dcasa_meta_eventos', 'res.config.settings', 'action_dcasa_meta_enviar_prueba'):
+        'Exige base.group_system en el servidor (también con ids=[]); manda UN evento de prueba con el código de '
+        'prueba y sin datos de personas; el token nunca sale en la respuesta.',
+    ('dcasa_meta_eventos', 'dcasa.meta.evento', 'action_dcasa_meta_reintentar'):
+        'Botón «Reintentar ahora»: exige Gerencia o administrador en el servidor ANTES del sudo; solo vuelve a poner '
+        'en la cola lo que tiene error (no revive lo omitido, descartado ni cancelado).',
+    ('dcasa_meta_eventos', 'res.partner', 'action_dcasa_meta_retirar_consentimiento'):
+        'Botón «Retirar consentimiento»: exige Gerencia o administrador en el servidor ANTES del sudo que borra el '
+        'consentimiento y cancela lo pendiente de esa persona.',
+    ('dcasa_meta_eventos', 'res.partner', 'write'):
+        OVERRIDE + ' Solo IMPIDE escribir a mano (sin sudo) los campos del consentimiento de Meta.',
+    ('dcasa_meta_eventos', 'res.partner', 'create'):
+        OVERRIDE + ' Solo IMPIDE crear una ficha con el consentimiento de Meta escrito a mano.',
+    ('dcasa_meta_eventos', 'account.move', 'button_draft'):
+        OVERRIDE + ' Comprueba check_access("write") antes de cancelar con sudo lo pendiente de Meta de la factura.',
+    ('dcasa_meta_eventos', 'account.move', 'button_cancel'):
+        OVERRIDE + ' Comprueba check_access("write") antes de cancelar con sudo lo pendiente de Meta de la factura.',
+    ('dcasa_meta_eventos', 'website', 'write'):
+        OVERRIDE + ' Si cambia el aviso de cookies marca «regenerar todo» del borde; sin sudo.',
     # --- dcasa_migracion ----------------------------------------------------------------
     ('dcasa_migracion', 'dcasa.migracion.carga', 'action_revisar'):
         ASISTENTE + ' (base.group_system); además exige administrador en el servidor (_exigir_administrador) y '

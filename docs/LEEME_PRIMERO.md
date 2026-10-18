@@ -117,6 +117,19 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   revisión adversarial; reglas contables del jefe sobre permisos (`docs/DECISIONES_CONTABLES.md`); Inicio de Gerencia
   sobre facturas; y un error **confirmado en producción**: ningún administrador puede guardar Ajustes (arreglado en
   `website_dcasa/models/res_config_settings.py`, con pruebas por el camino del navegador; ver CONTEXTO_AGENTICO).
+- **Meta unido en la rama local `meta-unido`** (sobre `c3a69f5`, sin subir ni desplegar; todo apagado de fábrica): el
+  catálogo para Meta (`dcasa_meta_catalogo`) y el píxel con consentimiento y las ventas pagadas por la Conversions API
+  (`dcasa_meta_eventos`), unidos por *merge* sin conflictos de texto. La prueba del contrato de ids (`TestContratoId`)
+  corrió por primera vez y falló solo porque el catálogo viene apagado (arreglada). La **revisión adversarial** de los
+  dos juntos encontró y arregló, cada uno con su prueba: retirar el consentimiento no alcanzaba lo «con error», lo ya
+  enviado ni la casilla de un pedido web sin pagar; una factura anulada dejaba lo «con error» para reintentar; el
+  píxel se dibujaba en páginas con datos de la persona en la dirección (portal con `access_token`, búsquedas con un
+  correo o un celular, cuenta, inicio de sesión) y Meta recibe la dirección completa; retirar las cookies después del
+  checkout no borraba lo tomado del navegador; un fallo de Meta podía tumbar el checkout o (con la política rota) todo
+  el sitio; la fusión de fichas mezclaba el registro del consentimiento; faltaba en la Guía la pantalla de Ajustes de
+  Meta; la «configuración automática» del píxel quedó apagada y los botones del aviso de cookies miden 44 px en el
+  celular. **Sigue:** capturas a la dueña, sus decisiones (ver `META_CATALOGO.md` y `META_EVENTOS.md`, «Decisiones de
+  la dueña»), CI hacia staging y el arreglo de guardar Ajustes sin «Editor y diseñador» (otra rama, `ajustes-guardar`).
 - **En producción** (19:10 UTC, Desplegar 17, `app_version` `09302c41…`, imagen `sha256:add0e025…`; CI #194 verde y
   staging sano 600 s; PR #53 `531f717`): **abonos** (papel «ABONO» con saldo y vence + «Condiciones de abono» copia
   cliente/empresa), **«Mi cuenta»** del cliente (`/mi-cuenta`), **celular y correo obligatorios** con la casilla

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- El catálogo que Meta lee (Commerce Manager › Orígenes de datos › Feed programado). Nace APAGADO
+         (dcasa_activo = False): la dirección no entrega nada hasta que Gerencia lo enciende. El token sale del valor
+         por defecto de Odoo (uuid4); «Cambiar la dirección secreta» lo cambia. -->
+    <record id="feed_meta_principal" model="product.feed">
+        <field name="name">Catálogo para Meta</field>
+        <field name="target">meta</field>
+        <field name="website_id" ref="website.default_website"/>
+        <field name="dcasa_activo" eval="False"/>
+    </record>
+</odoo>

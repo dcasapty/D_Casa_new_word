@@ -106,6 +106,12 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
     cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
     `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
+23. **Anuncios en Meta (catálogo, píxel y ventas reportadas), todo apagado hasta que digas:** decidir precio sin ITBMS
+    en el anuncio, disponibilidad, marca, condición, qué productos entran, cuándo se reporta la compra web, las ventas
+    de la tienda y staging (cada una con su recomendación en [META_CATALOGO.md](META_CATALOGO.md) y
+    [META_EVENTOS.md](META_EVENTOS.md), «Decisiones de la dueña»); llevar al abogado el borrador de privacidad y sus
+    7 preguntas; en Meta, crear el píxel con la «Coincidencia avanzada automática» **apagada** y guardar el token
+    solo como secreto `META_CAPI_TOKEN` en GitHub (nunca por el chat).
 
 ## Issues abiertos que dependen de ti
 

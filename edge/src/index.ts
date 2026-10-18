@@ -78,6 +78,8 @@ export interface Env {
   BRIAN_TELEGRAM_SECRETO?: string;
   /** Secreto opcional: clave de Resend (correo a clientes, addons/dcasa_correo). Sin ella no sale ningún correo. */
   RESEND_API_KEY?: string;
+  /** Secreto opcional: token de la Conversions API de Meta (addons/dcasa_meta_eventos). Sin él no sale nada a Meta. */
+  META_CAPI_TOKEN?: string;
   /** Ids de los chats de Telegram a los que Brian atiende (coma); sin ella atiende a cualquier chat vinculado. */
   BRIAN_TELEGRAM_CHATS?: string;
   // Juan, el asistente de clientes (addons/dcasa_conversaciones, docs/JUAN_ODOO.md). Opcionales: se cargan en

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Lo normal es que el cobro lo despierte al momento (_trigger, al confirmar la transacción); este horario es
+         la red de seguridad. Sin token, sin la sección de Meta en la política o con los interruptores apagados no
+         manda nada. -->
+    <record id="cron_enviar_eventos" model="ir.cron">
+        <field name="name">Meta: enviar las ventas pagadas (Conversions API)</field>
+        <field name="model_id" ref="model_dcasa_meta_evento"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_cron_enviar()</field>
+        <field name="interval_number">10</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- Retención: el JSON de lo ya enviado a los 7 días, las filas a los 180 y los datos del navegador de los
+         pedidos que nunca se pagaron a los 30 (docs/META_EVENTOS.md, «Qué se guarda y cuánto»). -->
+    <record id="cron_retencion_eventos" model="ir.cron">
+        <field name="name">Meta: borrar lo que ya no hace falta</field>
+        <field name="model_id" ref="model_dcasa_meta_evento"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_cron_retencion()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

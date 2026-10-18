@@ -333,6 +333,18 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Una prueba que cruza dos módulos solo corre en la unión** (`skipUnless` del otro módulo): la de los ids de Meta
+  (`TestContratoId`) falló la primera vez que corrió, en la unión, porque el otro paquete había agregado después un
+  interruptor apagado de fábrica. Al unir paquetes, mirar qué pruebas dejan de saltarse (2026-10-17).
+- **El píxel de Meta manda la dirección completa de la página** (y la anterior como «de dónde vino»): un enlace del
+  portal lleva `?access_token=`. Las páginas con datos de la persona no llevan píxel y, con el píxel encendido, llevan
+  `<meta name="referrer" content="origin">` (`dcasa_meta_eventos/models/website.py`, 2026-10-17).
+- **Algo que se evalúa en el layout de todas las páginas no puede lanzar**: si falla, cae todo el sitio. La compuerta
+  de la política de privacidad de Meta renderiza una plantilla; si no se puede, responde «no está lista» (2026-10-17).
+- **Al fusionar fichas, Contactos copia campo por campo** los datos `dcasa_*` con `copy=False`: un registro de varios
+  campos que deben ir juntos (fecha, dónde y quién) se saca de esa lista y se pasa entero (`partner_merge.py` de Meta).
+- Los *bundles* de assets no se vuelven a armar con el servidor andando: tras cambiar SCSS o JS, reiniciar Odoo antes
+  de mirar o capturar (2026-10-17).
 - `notification_type` («Por correo» / «En Odoo») sale del grupo `mail.group_mail_notification_type_inbox` asignado **directo** al usuario (`group_ids`); un grupo implícito no lo cambia. Para cambiarlo se escribe `notification_type` (su inverso pone el grupo).
 - Campo, vista o dato nuevo sin `odoo -u` = `UndefinedColumn` y pantallas rotas: nunca dar por buena una versión sin
   comprobar que la base se actualizó con **ese** código.

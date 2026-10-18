@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_meta_evento_gerencia,dcasa.meta.evento gerencia (solo lectura),model_dcasa_meta_evento,sales_team.group_sale_manager,1,0,0,0
+access_dcasa_meta_evento_admin,dcasa.meta.evento administrador (solo lectura),model_dcasa_meta_evento,base.group_system,1,0,0,0

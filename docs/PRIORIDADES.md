@@ -109,7 +109,7 @@ unidos con el PR #43.)
 | Panel del cliente «Mi cuenta» | En producción (Desplegar 17); falta la ronda de pulido de la auditoría visual | — |
 | Permisos: cada vendedora ve solo lo suyo, con interruptor; rol Caja | En construcción junto con las reglas contables del jefe (cobro solo en Caja; anular y notas de crédito solo Gerencia; Tafi y Crediviva; pedidos web sin vendedora). Antes de encender: rol Caja al jefe administrativo | — |
 | Correos con Resend (factura/abono al pagar, bienvenida, cotizaciones) y teléfono+correo obligatorios | En producción y apagado (Desplegar 17): falta que la dueña cree la cuenta de Resend y ponga `RESEND_API_KEY` en GitHub | — |
-| Meta: catálogo, píxel y Conversions API | Construido y apagado (ramas `meta-catalogo` y `meta-eventos`); se están uniendo con revisión adversarial y capturas. Falta: decisiones de la dueña, texto de privacidad aprobado por el abogado, píxel y token en Meta Business | — |
+| Meta: catálogo, píxel y Conversions API | Construido, unido y revisado en la rama local `meta-unido` (todo apagado de fábrica; revisión adversarial con 10 arreglos y sus pruebas). Siguen: capturas y decisiones de la dueña, CI a staging, el abogado (sección de privacidad), el arreglo de guardar Ajustes (`ajustes-guardar`) y, al trasladar el dominio, conectar en Meta (`META_CATALOGO.md`, `META_EVENTOS.md`) | — |
 
 ## Issues abiertos (revisados el 2026-10-16: 16 abiertos, 3 cerrados)
 

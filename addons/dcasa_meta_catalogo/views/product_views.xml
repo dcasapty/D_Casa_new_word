@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Ficha del producto: «Anuncios en Meta» en la pestaña de Ventas, junto a lo de la tienda en línea. -->
+    <record id="product_template_form_meta" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.meta</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="website_sale.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <group name="extra_info" position="after">
+                <group name="dcasa_meta" string="Anuncios en Meta" groups="sales_team.group_sale_manager,base.group_system">
+                    <field name="dcasa_meta_campana_id" options="{'no_create': True}"/>
+                    <field name="dcasa_meta_no_anunciar"/>
+                </group>
+            </group>
+        </field>
+    </record>
+
+    <!-- «Productos para campañas» (la lista de Productos, que edita varios a la vez): la campaña a la vista. -->
+    <record id="product_template_list_meta" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.meta</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="dcasa_catalogo.product_template_list_dcasa"/>
+        <field name="arch" type="xml">
+            <field name="dcasa_stock" position="after">
+                <field name="dcasa_meta_campana_id" optional="show" options="{'no_create': True}"
+                       groups="sales_team.group_sale_manager,base.group_system"/>
+                <field name="dcasa_meta_no_anunciar" optional="hide" widget="boolean_toggle"
+                       groups="sales_team.group_sale_manager,base.group_system"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="producto_buscar_meta" model="ir.ui.view">
+        <field name="name">product.template.search.dcasa.meta</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="dcasa_catalogo.producto_buscar_dcasa"/>
+        <field name="arch" type="xml">
+            <filter name="dcasa_sin_foto" position="after">
+                <filter string="Con campaña" name="dcasa_meta_con_campana"
+                        domain="[('dcasa_meta_campana_id', '!=', False)]"
+                        groups="sales_team.group_sale_manager,base.group_system"/>
+                <filter string="No va a Meta" name="dcasa_meta_no_va" domain="[('dcasa_meta_no_anunciar', '=', True)]"
+                        groups="sales_team.group_sale_manager,base.group_system"/>
+            </filter>
+            <xpath expr="//search" position="inside">
+                <field name="dcasa_meta_campana_id" groups="sales_team.group_sale_manager,base.group_system"/>
+                <group>
+                    <filter string="Campaña (Meta)" name="dcasa_meta_por_campana"
+                            context="{'group_by': 'dcasa_meta_campana_id'}"
+                            groups="sales_team.group_sale_manager,base.group_system"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+</odoo>

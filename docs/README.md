@@ -22,6 +22,8 @@
 | Activar el doble factor y la puerta del equipo | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
 | Usar Brian, el asistente del panel | [BRIAN.md](BRIAN.md) |
 | Mandarles a los clientes su factura, su abono y la bienvenida por correo (Resend): crear la clave, dónde pegarla y cómo encenderlo | [CORREO.md](CORREO.md) |
+| Anunciar los productos en Facebook e Instagram: el catálogo que lee Meta, las campañas y qué productos quedan fuera | [META_CATALOGO.md](META_CATALOGO.md) |
+| Medir los anuncios de Meta: el píxel, las ventas que se le reportan, el consentimiento del cliente y el borrador de privacidad | [META_EVENTOS.md](META_EVENTOS.md) |
 | Saber qué ve un cliente en «Mi cuenta» (sus compras, cuánto le falta de un abono, sus puntos) | [SOCIOS.md › Mi cuenta](SOCIOS.md#mi-cuenta) |
 | Crear o ubicar al equipo en Odoo (sin invitaciones por error) | [EQUIPO.md](EQUIPO.md) |
 | Saber qué ve y qué no ve cada rol (vendedora, contador, Gerencia), los interruptores y dónde viven las políticas del sitio | [PERMISOS.md](PERMISOS.md) |
@@ -49,6 +51,8 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `dcasa_fe_pa` (factura electrónica, apagado) | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
 | `dcasa_brian` | [BRIAN.md](BRIAN.md) |
 | `dcasa_correo` (correo a clientes por Resend, apagado de fábrica) | [CORREO.md](CORREO.md) |
+| `dcasa_meta_catalogo` (catálogo para Meta por URL, apagado de fábrica) | [META_CATALOGO.md](META_CATALOGO.md) |
+| `dcasa_meta_eventos` (píxel y Conversions API de Meta, apagados de fábrica) | [META_EVENTOS.md](META_EVENTOS.md) |
 | `dcasa_conversaciones` y el Worker `juan/` | [JUAN.md](JUAN.md) (contrato) · [JUAN_ODOO.md](JUAN_ODOO.md) · [JUAN_WORKER.md](JUAN_WORKER.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
 | `puente-wa/` | [JUAN_PUENTE.md](JUAN_PUENTE.md) |
 | `dcasa_seguridad`, `dcasa_sesiones` | [SEGURIDAD_ACCESO.md](SEGURIDAD_ACCESO.md) |
