@@ -2,6 +2,7 @@
 los puntos, sus datos), qué no ve (lo de otra persona, los carritos, el PDF y la dirección si entró con PIN) y a dónde
 llevan ahora los caminos viejos (/socios, /my, la cabecera y el pie)."""
 import re
+from datetime import timedelta
 from unittest.mock import patch
 from urllib.parse import quote
 
@@ -66,7 +67,8 @@ class TestMiCuentaHttp(MiCuentaComun, HttpCase):
         self.assertIn(monto(estado['saldo']), html)
         pagaste = f"Pagaste <strong>{monto(estado['pagado'])}</strong> de <strong>{monto(estado['total'])}</strong>"
         self.assertIn(pagaste, html)
-        self.assertIn(fecha_corta(self.inicio_abono + relativedelta(months=1)), html, 'un mes desde el primer abono')
+        self.assertIn(fecha_corta(self.inicio_abono + timedelta(days=30)), html,
+                      '30 días continuos desde el primer abono (decisión de la gerencia A3)')
         self.assertIn(self.socia.dcasa_socio_codigo, html, 'Su código de socio, para la caja')
         self.assertIn('Socios D', html)
         self.assertIn('Escríbenos por WhatsApp', html)

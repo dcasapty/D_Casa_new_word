@@ -402,16 +402,34 @@ class TestApartadosDeLaTienda(TransactionCase):
         with self.despues(5):
             self.assertEqual(self.Orden._dcasa_avisar_apartados_por_vencer(), 0)
 
-    def test_sin_vendedora_no_hay_aviso_pero_el_pedido_sigue_en_la_lista(self):
+    def test_sin_vendedora_el_aviso_va_a_caja_y_el_pedido_sigue_en_la_lista(self):
+        """Los pedidos de la web entran sin vendedora (2026-10-17): el aviso lo recibe Caja (Gerencia no)."""
+        caja = new_test_user(self.env, login='apartados_caja', name='Caja Apartados',
+                             groups='base.group_user,dcasa_base.group_caja')
         with freeze_time(HOY):
             orden = self.pedido()
             orden.action_quotation_sent()
-            orden.user_id = False
+            self.assertFalse(orden.user_id, 'el pedido de la web entra sin vendedora')
         with self.despues(5):
-            self.assertEqual(self.Orden._dcasa_avisar_apartados_por_vencer(), 0)
-            self.assertFalse(orden.activity_ids)
+            self.assertEqual(self.Orden._dcasa_avisar_apartados_por_vencer(), 1)
+            self.assertEqual(self.avisos(orden).user_id, caja)
             encontrados = self.Orden.search(safe_eval(self.env.ref('website_dcasa.action_dcasa_apartados').domain))
             self.assertIn(orden, encontrados)
+        with self.despues(6):
+            self.assertEqual(self.Orden._dcasa_avisar_apartados_por_vencer(), 0, 'una vez por fecha')
+
+    def test_sin_vendedora_ni_caja_el_aviso_va_a_gerencia(self):
+        gerencia = self.env['res.users'].search([('all_group_ids', 'in', self.env.ref('dcasa_base.group_gerencia').ids),
+                                                 ('share', '=', False)])
+        caja = self.env['res.users'].search([('all_group_ids', 'in', self.env.ref('dcasa_base.group_caja').ids),
+                                             ('share', '=', False)])
+        self.assertFalse(caja - gerencia, 'en la base de prueba nadie tiene solo Caja')
+        with freeze_time(HOY):
+            orden = self.pedido()
+            orden.action_quotation_sent()
+        with self.despues(5):
+            self.assertEqual(self.Orden._dcasa_avisar_apartados_por_vencer(), 1)
+            self.assertEqual(self.avisos(orden).user_id, gerencia)
 
     def test_un_fallo_en_los_avisos_no_impide_anular_los_vencidos(self):
         with freeze_time(HOY):

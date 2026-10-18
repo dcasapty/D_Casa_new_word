@@ -13,7 +13,9 @@ apartado para siempre y el equipo creía que esa venta iba a ocurrir.
 * Cada noche, los pedidos con fecha vencida que nadie reclamó se anulan: se cancela la entrega (el inventario vuelve
   a quedar libre) y queda una nota en el pedido.
 * Cuando faltan ``DIAS_DE_AVISO`` días o menos, la vendedora del pedido recibe una actividad para avisarle al cliente
-  (el aviso al cliente lo manda ella, no el sistema). Se crea una vez por fecha de vencimiento.
+  (el aviso al cliente lo manda ella, no el sistema). Se crea una vez por fecha de vencimiento. Un pedido sin
+  vendedora (los de la web entran así desde el 2026-10-17, ver pedido_web.py) le avisa a Caja (si no hay nadie con
+  Caja, a Gerencia).
 * «Reclamado» = hay una factura publicada, un pago hecho o autorizado, o una entrega ya hecha. Eso nunca se anula solo.
 """
 import logging
@@ -175,9 +177,18 @@ class SaleOrder(models.Model):
             ('res_model', '=', 'sale.order'), ('summary', '=', RESUMEN_DEL_AVISO)])
         avisos.filtered(lambda a: vigentes.get(a.res_id) != a.date_deadline).unlink()
         creados = 0
+        sin_vendedora = None
         for orden in (pedidos - reclamados).filtered(
                 lambda o: hoy <= o.dcasa_apartado_vence <= hoy + timedelta(days=DIAS_DE_AVISO)):
-            if orden.dcasa_apartado_aviso == orden.dcasa_apartado_vence or not orden.user_id:
+            if orden.dcasa_apartado_aviso == orden.dcasa_apartado_vence:
+                continue
+            if orden.user_id:
+                destinos = orden.user_id
+            else:
+                if sin_vendedora is None:
+                    sin_vendedora = self._dcasa_atienden_lo_sin_vendedora()
+                destinos = sin_vendedora
+            if not destinos:
                 continue
             cliente = orden.partner_id
             nota = self.env._(
@@ -185,9 +196,24 @@ class SaleOrder(models.Model):
                 'WhatsApp. Si lo quiere más días, mueve la fecha en el pedido; si ya es una venta firme, bórrala.',
                 pedido=orden.name, cliente=cliente.name or '',
                 telefono=f' ({cliente.phone})' if cliente.phone else '', fecha=orden.dcasa_apartado_vence)
-            orden.activity_schedule(
-                'mail.mail_activity_data_todo', date_deadline=orden.dcasa_apartado_vence,
-                summary=RESUMEN_DEL_AVISO, note=nota, user_id=orden.user_id.id)
+            for destino in destinos:
+                orden.activity_schedule(
+                    'mail.mail_activity_data_todo', date_deadline=orden.dcasa_apartado_vence,
+                    summary=RESUMEN_DEL_AVISO, note=nota, user_id=destino.id)
             orden.dcasa_apartado_aviso = orden.dcasa_apartado_vence
             creados += 1
         return creados
+
+    @api.model
+    def _dcasa_atienden_lo_sin_vendedora(self):
+        """Quién recibe el aviso de un apartado sin vendedora: Caja (sin contar Gerencia); si nadie tiene Caja,
+        Gerencia. Solo usuarios internos activos."""
+        caja = self.env.ref('dcasa_base.group_caja', raise_if_not_found=False)
+        gerencia = self.env.ref('dcasa_base.group_gerencia', raise_if_not_found=False)
+        Usuarios = self.env['res.users'].sudo()
+        internos = [('share', '=', False), ('active', '=', True)]
+        en_caja = Usuarios.search(internos + [('all_group_ids', 'in', caja.ids)]) if caja else Usuarios
+        if gerencia:
+            solo_caja = en_caja.filtered(lambda u: gerencia not in u.all_group_ids)
+            return solo_caja or Usuarios.search(internos + [('all_group_ids', 'in', gerencia.ids)])
+        return en_caja

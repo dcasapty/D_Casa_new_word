@@ -269,7 +269,7 @@ class TestHojaDeCondiciones(DocumentosDePrueba):
                 self.assertEqual(datos, {
                     'Número de factura': factura.name,
                     'Fecha de inicio del abono': '14/10/2026',
-                    'Fecha de vencimiento': '14/11/2026',
+                    'Fecha de vencimiento': '13/11/2026',   # 30 días continuos (decisión de la gerencia A3)
                 })
                 self.assertEqual(totales, {
                     'Total de la factura': _monto(estado['total']),
@@ -404,8 +404,12 @@ class TestHojaDeCondiciones(DocumentosDePrueba):
     def test_solo_quien_factura_la_imprime_y_no_un_cliente_del_portal(self):
         factura = self.factura_completa(abono=100.0)
         vendedora = crear_usuario(self.env, 'abono_vendedora_hoja', 'dcasa_base.group_vendedora')
+        factura.invoice_user_id = vendedora   # «Cada vendedora ve solo sus documentos»: imprime la de ella
         _arbol, copias = self._hoja(factura.with_user(vendedora), usuario=vendedora)
         self.assertIn(self.colchon.dcasa_codigo_publico, _texto(copias['cliente']))
+        otra = crear_usuario(self.env, 'abono_otra_vendedora_hoja', 'dcasa_base.group_vendedora')
+        with self.assertRaises(AccessError, msg='la hoja de la factura de otra vendedora no se imprime'):
+            self._hoja(factura, usuario=otra)
         portal = self.env['res.users'].with_context(no_reset_password=True).create({
             'name': 'Portal abonos', 'login': 'abono_portal_hoja', 'partner_id': self.cliente.id,
             'group_ids': [Command.set([self.env.ref('base.group_portal').id])]})

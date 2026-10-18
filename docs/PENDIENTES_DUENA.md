@@ -106,7 +106,28 @@ cómo está todo y qué atender primero está en [ESTADO.md](ESTADO.md); lo que 
     solo por su cuenta en la web y el personal solo por `/master`. **2026-10-18:** los enlaces de la web ya llevan a Mi
     cuenta (rama `master-puerta`); lo que te toca para `/master` está en [PUERTA_MASTER.md](PUERTA_MASTER.md) (Access y
     `DCASA_ACCESS_AUD` de producción) y el traslado en [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
-23. **Anuncios en Meta (catálogo, píxel y ventas reportadas), todo apagado hasta que digas:** decidir precio sin ITBMS
+23. **«Cada vendedora ve solo sus documentos» (cuando salga a producción):** apenas quede el despliegue, y antes de abrir,
+    darle el rol **Caja** al jefe administrativo (*Ajustes › Usuarios* › la persona › en «D'CASA» elegir «Caja»; o Brian:
+    «ponle el rol cajero a …»). Sin Caja, quien cobra solo vería lo suyo; Gerencia puede hacerlo todo mientras tanto. Dos
+    efectos a saber: al confirmar una cotización de Juan sin vendedora, la vendedora que la confirma se la queda (cuenta
+    para su meta; si la confirma Caja, no es de nadie), y una vendedora ya no ve la cotización de otra para el cliente
+    que vuelve (Caja o Gerencia le cambian el «Vendedor»). Si trae problemas en la tienda: *Ventas › Configuración ›
+    Permisos de las vendedoras* › apagar (todas vuelven a ver todo, como antes). Detalle en [PERMISOS.md](PERMISOS.md).
+    **Decidido el 17 oct** (ya hecho en la rama, falta desplegar): (a) **los pedidos de la web entran sin vendedora**:
+    los ven todas y la que lo confirma se lo queda (si lo confirma Caja, sigue sin vendedora); el «Vendedor» del sitio
+    web queda vacío (si algún día se pone uno, los pedidos web vuelven a ir a esa persona); el vendedor del programa
+    (link `/v/…`) no cambia. (b) **El cobro solo en Caja**: la vendedora sigue cotizando, confirmando y facturando, pero
+    ya no cobra (decisión de la gerencia, ver [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)). Queda abierta (c):
+    lo que se comparte a propósito (la nota de entrega, Conversaciones, los puntos de Socios, el CRM) deja ver números
+    de pedido o factura de otra vendedora: la lista está en [PERMISOS.md](PERMISOS.md).
+24. **Reglas contables de la gerencia (rama `permisos-vendedoras`):** antes de staging, que veas las capturas (primer
+    abono menor a la mitad, papel del abono a 30 días, la vendedora que intenta cobrar, el mensaje al anular sin ser
+    Gerencia y «Pagar» con Tafi y Crediviva). Para la **contadora**: revisar la cuenta contable que el sistema les creó a
+    **Tafi (financiamiento)** y **Crediviva (financiamiento)** (son diarios de banco con cuenta propia) y cómo se cruza
+    lo que la financiera deposita después. Para la gerencia: confirmar si Caja puede seguir quitando un cobro mal
+    aplicado de una factura (hoy sí; Gerencia también) y si el contador (sin Gerencia) también debe poder anular o hacer
+    notas de crédito (hoy no: solo Gerencia y administradores).
+25. **Anuncios en Meta (catálogo, píxel y ventas reportadas), todo apagado hasta que digas:** decidir precio sin ITBMS
     en el anuncio, disponibilidad, marca, condición, qué productos entran, cuándo se reporta la compra web, las ventas
     de la tienda y staging (cada una con su recomendación en [META_CATALOGO.md](META_CATALOGO.md) y
     [META_EVENTOS.md](META_EVENTOS.md), «Decisiones de la dueña»); llevar al abogado el borrador de privacidad y sus

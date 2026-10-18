@@ -82,6 +82,12 @@ def monto_en_letras(monto, singular='Dólar', plural='Dólares'):
     return f'{_titulo(letras)} {moneda} con {centavos:02d}/100'
 
 
+def dinero(monto):
+    """107.5 → «$107.50»; -12 → «-$12.00» (dólares, como se escriben en Panamá)."""
+    monto = round(float(monto or 0.0), 2)
+    return f'{"-" if monto < 0 else ""}${abs(monto):,.2f}'
+
+
 # Cédula panameña: provincia (1-13), o E / N / PE, con AV o PI opcionales: 2-723-510, 8-888-8888, PE-9-123.
 _CEDULA = re.compile(r'^(?:PE|E|N|1[0-3]|[1-9])(?:AV|PI)?-\d{1,4}-\d{1,6}$', re.IGNORECASE)
 

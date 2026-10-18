@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Ventas: cada vendedora ve solo lo suyo (pedido de la dueña, 2026-10-16).
+
+        La Vendedora es «Ventas: solo sus documentos» (sales_team.group_sale_salesman): Odoo ya le cierra las
+        cotizaciones, los pedidos, sus líneas y los análisis de ventas y de facturas a lo suyo y a lo que no tiene
+        vendedora. Este archivo arregla los dos lugares donde eso no alcanza o estorba:
+
+        1. Oportunidades (CRM): siguen compartidas, como antes. La dueña no lo pidió, y Conversaciones reutiliza y
+           abre la oportunidad del cliente aunque la lleve otra vendedora; cerrarlas rompería esos botones.
+        2. Líneas de pedido vistas desde Inventario: la regla de sale_stock le deja leer a todo «Inventario
+           usuario» TODAS las líneas de pedido (precio y cliente). Se estrecha solo para quien vende con «solo
+           sus documentos»; bodega pura y quien ve todos los documentos siguen igual. Despachar lo de otra
+           vendedora sigue funcionando (la entrega no depende de leer el pedido).
+
+        Caja y Gerencia ven todo por «Ventas: todos los documentos» (las reglas de Odoo). Ver docs/PERMISOS.md.
+    -->
+    <record id="regla_oportunidades_vendedora" model="ir.rule">
+        <field name="name">Vendedora: todas las oportunidades (el CRM es compartido)</field>
+        <field name="model_id" ref="crm.model_crm_lead"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('dcasa_base.group_vendedora'))]"/>
+    </record>
+
+    <!-- sale_stock.sale_order_line_rule_stock_user es «noupdate»: se cambia con <function> para que valga
+         también en una base que ya existe (igual que en dcasa_reglas_contables.xml). -->
+    <data noupdate="0">
+        <function model="ir.rule" name="write" eval="[
+            [ref('sale_stock.sale_order_line_rule_stock_user')],
+            {'domain_force': &quot;[(1, '=', 1)] if user.has_group('sales_team.group_sale_salesman_all_leads') or not user.has_group('sales_team.group_sale_salesman') else ['|', ('salesman_id', '=', user.id), ('salesman_id', '=', False)]&quot;},
+        ]"/>
+    </data>
+</odoo>

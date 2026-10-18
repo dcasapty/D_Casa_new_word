@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        El interruptor «Cada vendedora ve solo sus documentos» (pedido de la dueña, 2026-10-17; models/solo_lo_suyo.py).
+        Administradores: Ajustes › Ventas. Gerencia (no entra a los Ajustes de Odoo): Ventas › Configuración ›
+        Permisos de las vendedoras. Las dos pantallas mueven el mismo dato y el servidor vuelve a pedir el permiso.
+    -->
+    <record id="res_config_settings_view_form_dcasa_solo_lo_suyo" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.dcasa.solo.lo.suyo</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//setting[@id='discount_sale_order_lines']" position="before">
+                <setting id="dcasa_solo_lo_suyo" string="Cada vendedora ve solo sus documentos"
+                         help="Encendido: cada vendedora ve solo sus cotizaciones, pedidos, facturas, notas de crédito y cobros, y los que no tienen vendedora. Caja y Gerencia ven todo. Apagado: todas ven todo, como antes.">
+                    <field name="dcasa_solo_lo_suyo"/>
+                </setting>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="dcasa_permisos_vendedoras_view_form" model="ir.ui.view">
+        <field name="name">dcasa.permisos.vendedoras.form</field>
+        <field name="model">dcasa.permisos.vendedoras</field>
+        <field name="arch" type="xml">
+            <form string="Permisos de las vendedoras">
+                <group>
+                    <field name="solo_lo_suyo"/>
+                </group>
+                <div class="text-muted">
+                    <p>
+                        <strong>Encendido</strong> (así viene): cada vendedora ve solo sus cotizaciones, pedidos,
+                        facturas, notas de crédito y cobros, y los que no tienen vendedora (para que alguien los
+                        atienda). Quien tiene el rol <strong>Caja</strong> y Gerencia ven todo.
+                    </p>
+                    <p>
+                        <strong>Apagado</strong>: todas las vendedoras ven todo, como antes. Úsalo si la restricción
+                        trae un problema en la tienda; se vuelve a encender cuando quieras.
+                    </p>
+                    <p class="mb-0">El cambio vale al momento y no cambia el rol de nadie.</p>
+                </div>
+                <footer>
+                    <button name="action_guardar" type="object" string="Guardar" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_permisos_vendedoras" model="ir.actions.act_window">
+        <field name="name">Permisos de las vendedoras</field>
+        <field name="res_model">dcasa.permisos.vendedoras</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_dcasa_permisos_vendedoras" name="Permisos de las vendedoras" parent="sale.menu_sale_config"
+              action="action_dcasa_permisos_vendedoras" sequence="12"
+              groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

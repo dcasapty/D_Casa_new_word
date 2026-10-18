@@ -15,3 +15,4 @@ from . import test_direccion_visitante
 from . import test_codigo_publico_web
 from . import test_privacidad_checkout
 from . import test_ajustes_sin_disenador
+from . import test_pedidos_web_sin_vendedora

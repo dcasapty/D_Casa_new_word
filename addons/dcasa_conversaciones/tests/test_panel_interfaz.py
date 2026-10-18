@@ -8,12 +8,14 @@ import os
 from datetime import timedelta
 from unittest.mock import patch
 
+from freezegun import freeze_time
 from PIL import Image
 
 from odoo import Command, fields
 from odoo.exceptions import AccessError
 from odoo.tests import HttpCase, new_test_user, tagged
 
+from ..models.conversacion import CANAL_BUS
 from .common import COSTOS, SALUD, TOKEN_ODOO, TOKEN_WORKER, URL_WORKER, respuesta_http
 
 ACCION = '/odoo/action-dcasa_conversaciones.accion_conversaciones'
@@ -155,7 +157,23 @@ class PanelUiCase(HttpCase):
         self.env['stock.quant']._update_available_quantity(cama.product_variant_id, almacen.lot_stock_id, 7777)
         return cama
 
+    def avisos_anteriores_ya_viejos(self):
+        """Los avisos del bus que dejaron los datos de ejemplo quedan tan viejos como esos mensajes (de hace minutos).
+
+        Al suscribirse por primera vez, el bus de Odoo repite los avisos de los últimos ``bus.TIMEOUT`` (50 s) según
+        el reloj (``bus.bus._poll`` con ``last=0``), y estas filas llevan la hora en que empezó la transacción de la
+        clase. Sin esto, la pantalla recibía los avisos de los datos de ejemplo solo si la clase había empezado hace
+        menos de 50 s (la prueba corrida sola, sí; en la suite, casi nunca), y el refresco que provocaban (350 ms
+        después) caía en cualquier momento: p. ej. justo después de cortar la conexión en la prueba de «En vivo».
+        """
+        self.env.cr.flush()   # crea ya las filas de bus.bus (browser_js lo hace igual antes de abrir el navegador)
+        # Un día antes que el reloj del bus y que la propia fila: fuera de la ventana con el reloj real o congelado.
+        self.env.cr.execute("UPDATE bus_bus SET create_date = LEAST(create_date, %s) - INTERVAL '1 day'",
+                            [fields.Datetime.now()])
+        self.env['bus.bus'].invalidate_model(['create_date'])
+
     def navegador(self, codigo, url=ACCION, login=VENDEDORA, timeout=120):
+        self.avisos_anteriores_ya_viejos()
         self.browser_js(url, ESPERAR + codigo, ready='odoo.isReady', login=login, timeout=timeout)
 
 
@@ -760,6 +778,21 @@ class TestPanelEnElNavegador(PanelUiCase):
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """.replace("__TOKEN__", TOKEN_ODOO))
+
+    def test_al_abrir_la_pantalla_el_bus_no_repite_los_avisos_de_los_datos_de_ejemplo(self):
+        """Lo que hace determinista la prueba de «En vivo» (y a todas las de esta pantalla): abrirla 5 s después de
+        crear los datos (la prueba corrida sola) o 10 min después (en la suite) da lo mismo, a cualquier hora. Antes,
+        5 s después el bus repetía los 7 avisos de los datos de ejemplo y su refresco traía el mensaje «perdido»."""
+        self.datos_de_ejemplo()
+        self.avisos_anteriores_ya_viejos()
+        canales = [self.vendedora._bus_channel()]
+        creados = self.env.cr.now()   # la hora de las filas de bus.bus: el inicio de la transacción
+        for despues in (timedelta(seconds=5), timedelta(minutes=10)):
+            with self.subTest(despues=despues), freeze_time(creados + despues):
+                repetidos = [n for n in self.env['bus.bus'].sudo()._poll(canales, 0)
+                             if n['message']['type'] == CANAL_BUS]
+                self.assertEqual(repetidos, [], 'La pantalla no debe recibir al abrir los avisos de antes')
+
     def test_en_vivo_es_honesto_y_al_reconectar_se_trae_lo_que_se_perdio(self):
         """El punto «En vivo» solo está encendido si la conexión lo está; y al volver la conexión la pantalla se pone al día
         (los avisos que llegaron mientras estuvo caída no se repiten)."""

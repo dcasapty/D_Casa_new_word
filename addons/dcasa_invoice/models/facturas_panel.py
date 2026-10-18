@@ -5,7 +5,8 @@ filtrada, a un clic. Los números y la lista salen del MISMO dominio (``_dominio
 
 Permisos: las facturas de clientes, para quien ya puede verlas; las de proveedores, solo contabilidad, Gerencia y
 administradores (docs/PERMISOS.md). La vendedora ni ve la tarjeta ni puede pedirla por RPC. Los conteos se hacen
-como quien mira, sin ``sudo()``: las reglas de registro también cierran el paso.
+como quien mira, sin ``sudo()``: las reglas de registro también cierran el paso. Por eso, a quien ve solo lo suyo
+(la Vendedora) la tarjeta se le titula «Tus facturas de clientes»: sus cifras no son las de toda la tienda.
 """
 from odoo import api, fields, models
 from odoo.exceptions import AccessError
@@ -42,6 +43,13 @@ class DcasaFacturasPanel(models.AbstractModel):
             usuario.has_group('account.group_account_readonly') or usuario.has_group('account.group_account_manager'))
 
     @api.model
+    def _titulo(self, tarjeta):
+        """El título de la tarjeta: «Tus facturas de clientes» para quien ve solo lo suyo (no es toda la tienda)."""
+        if tarjeta == 'clientes' and self.env.user._dcasa_solo_lo_suyo():
+            return self.env._('Tus facturas de clientes')
+        return TARJETAS[tarjeta]['titulo']
+
+    @api.model
     def _dominios(self, tarjeta):
         base = [('move_type', '=', TARJETAS[tarjeta]['tipo'])]
         pendientes = base + [('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial'))]
@@ -71,7 +79,7 @@ class DcasaFacturasPanel(models.AbstractModel):
                 continue
             dominios = self._dominios(clave)
             tarjetas.append({
-                'clave': clave, 'titulo': config['titulo'], 'icono': config['icono'],
+                'clave': clave, 'titulo': self._titulo(clave), 'icono': config['icono'],
                 'filas': [self._fila(clave, fila, dominios[fila]) for fila in config['orden']],
             })
         return {'tarjetas': tarjetas}
@@ -87,6 +95,7 @@ class DcasaFacturasPanel(models.AbstractModel):
         config = TARJETAS[tarjeta]
         accion = self.env['ir.actions.actions']._for_xml_id(config['accion'])
         accion['domain'] = dominios[fila]
-        accion['name'] = accion['display_name'] = config['titulo'] if fila == 'todas' else (
-            f"{config['titulo']} · {NOMBRES.get(fila) or config['pendientes']}")
+        titulo = self._titulo(tarjeta)
+        accion['name'] = accion['display_name'] = titulo if fila == 'todas' else (
+            f"{titulo} · {NOMBRES.get(fila) or config['pendientes']}")
         return accion

@@ -165,6 +165,27 @@ class TestNotaDeEntregaFacil(DocumentosDePrueba):
         self.assertIn(pedido.invoice_ids[0].name, datos)
         self.assertIn('14/10/2026', datos, 'dd/mm/aaaa, a la hora de Panamá')
 
+    def test_la_vendedora_imprime_la_nota_facil_del_pedido_de_otra(self):
+        """«Cada vendedora ve solo sus documentos»: la entrega la despacha cualquiera. La vendedora que no puede leer
+        el pedido (ni la factura) de otra igual imprime su nota fácil, con el número de la factura arriba."""
+        entrega = self.entrega()
+        pedido = entrega.sale_id
+        pedido._create_invoices()
+        pedido.invoice_ids.action_post()
+        otra = self.env['res.users'].with_context(no_reset_password=True).create({
+            'name': 'Otra Vendedora Nota Facil', 'login': 'otra.vendedora.nota.facil',
+            'group_ids': [Command.set([self.env.ref('base.group_user').id,
+                                       self.env.ref('dcasa_base.group_vendedora').id])]})
+        self.assertTrue(self.env['res.users']._dcasa_restriccion_activa())
+        self.assertFalse(self.env['sale.order'].with_user(otra).search_count([('id', '=', pedido.id)]),
+                         'el pedido es de Ana Vendedora: la otra no lo ve')
+        self.company.dcasa_entrega_facil = True
+        contenido, _tipo = self.env['ir.actions.report'].with_user(otra)._render_qweb_html(
+            INFORME_ENTREGA, entrega.ids)
+        datos = texto(arbol(contenido.decode()).xpath("//table[contains(@class, 'o_df_datos')]")[0], 'o_df_dato')
+        self.assertIn(pedido.invoice_ids[0].name, datos)
+        self.assertEqual(len(filas(contenido.decode())), 2)
+
     def test_sin_pedido_ni_factura_las_casillas_dicen_raya(self):
         entrega = self.env['stock.picking'].create({
             'picking_type_id': self.env.ref('stock.warehouse0').out_type_id.id,

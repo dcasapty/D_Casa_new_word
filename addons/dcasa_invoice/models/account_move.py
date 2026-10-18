@@ -1,13 +1,21 @@
-from dateutil.relativedelta import relativedelta
+import logging
+from datetime import timedelta
 
-from odoo import fields, models
+from odoo import api, fields, models
 
 from . import formato, lineas
 
-# Plazo para terminar de pagar una factura con abonos, en meses desde el primer abono. La dueña (cuestionario de
-# Juan, 2026-10-16): «un mes para pagar el saldo completo». 0 = no se imprime ni se muestra vencimiento.
-PARAMETRO_MESES_ABONO = 'dcasa_invoice.abono_meses'
-MESES_ABONO_POR_DEFECTO = 1
+_logger = logging.getLogger(__name__)
+
+# Plazo para terminar de pagar una factura con abonos, en DÍAS CONTINUOS desde el primer abono. Decisión de la gerencia
+# (A3, 2026-10-17, docs/DECISIONES_CONTABLES.md): «30 días continuos para completar el pago; ese vencimiento lo ve el
+# cliente». 0 = no vence (no se imprime ni se muestra vencimiento). Antes era ``dcasa_invoice.abono_meses`` («un mes»):
+# la migración 19.0.2.4.0 lo pasa a días y lo borra.
+PARAMETRO_DIAS_ABONO = 'dcasa_invoice.abono_dias'
+DIAS_ABONO_POR_DEFECTO = 30
+PARAMETRO_MESES_VIEJO = 'dcasa_invoice.abono_meses'
+# El primer abono (la factura todavía sin pagos) es al menos la mitad del total (A3). Menos, solo Gerencia.
+ANTICIPO_MINIMO = 0.5
 
 
 class AccountMove(models.Model):
@@ -78,26 +86,74 @@ class AccountMove(models.Model):
         self.ensure_one()
         return self.move_type == 'out_invoice' and self.state == 'posted' and self.payment_state == 'partial'
 
-    def _dcasa_meses_abono(self):
-        valor = self.env['ir.config_parameter'].sudo().get_param(PARAMETRO_MESES_ABONO)
+    def _dcasa_dias_abono(self):
+        """Días continuos para terminar de pagar un abono (``dcasa_invoice.abono_dias``; 30 de fábrica, 0 = no vence).
+        Un valor que no es un número entero vale lo de fábrica (y queda en el registro)."""
+        valor = self.env['ir.config_parameter'].sudo().get_param(PARAMETRO_DIAS_ABONO)
+        if valor in (None, False, ''):
+            return DIAS_ABONO_POR_DEFECTO
         try:
-            return max(int(valor), 0) if valor not in (None, False, '') else MESES_ABONO_POR_DEFECTO
+            return max(int(str(valor).strip()), 0)
         except (TypeError, ValueError):
-            return MESES_ABONO_POR_DEFECTO
+            _logger.warning('DCASA_ABONO el parámetro %s no es un número de días (%r): se usan %s.',
+                            PARAMETRO_DIAS_ABONO, valor, DIAS_ABONO_POR_DEFECTO)
+            return DIAS_ABONO_POR_DEFECTO
+
+    @api.model
+    def _dcasa_migrar_plazo_abono(self):
+        """Migración 19.0.2.4.0: el plazo del abono pasa de meses (``abono_meses``) a días (``abono_dias``).
+
+        Sin el parámetro viejo no hace nada (vale lo de fábrica: 30 días). Con él, y si todavía no hay días escritos:
+        «1» (un mes, lo de antes) pasa a 30 días, la decisión de la gerencia; «0» (alguien lo apagó a mano) sigue sin
+        vencer; N meses pasan a N × 30 días; algo que no es un número, a 30. Después borra el parámetro viejo para que
+        no queden dos. Se puede repetir. Devuelve los días que quedaron, o ``None`` si no había nada que pasar.
+        """
+        icp = self.env['ir.config_parameter'].sudo()
+        viejo = icp.get_param(PARAMETRO_MESES_VIEJO)
+        if viejo in (None, False, ''):
+            return None
+        dias = icp.get_param(PARAMETRO_DIAS_ABONO)
+        if dias in (None, False, ''):
+            try:
+                meses = max(int(str(viejo).strip()), 0)
+            except (TypeError, ValueError):
+                meses = None
+            dias = DIAS_ABONO_POR_DEFECTO if meses is None else DIAS_ABONO_POR_DEFECTO * meses
+            icp.set_param(PARAMETRO_DIAS_ABONO, str(dias))
+            _logger.info('DCASA_ABONO plazo del abono: %r mes(es) → %s día(s) continuos.', viejo, dias)
+        icp.set_param(PARAMETRO_MESES_VIEJO, False)
+        return int(dias)
+
+    def _dcasa_tiene_pagos(self):
+        """¿La factura ya tiene algún pago (sin contar las notas de crédito aplicadas)?"""
+        self.ensure_one()
+        return any(not pago.get('is_refund') for pago in self._dcasa_pagos())
+
+    def _dcasa_minimo_primer_abono(self):
+        """Lo mínimo del primer abono: la mitad del total (A3), redondeado a centavos."""
+        self.ensure_one()
+        return self.currency_id.round(self.amount_total * ANTICIPO_MINIMO)
+
+    def _dcasa_mensaje_primer_abono(self):
+        self.ensure_one()
+        return self.env._('El primer abono debe ser de al menos la mitad: %s. Si es menos, lo registra Gerencia.',
+                          formato.dinero(self._dcasa_minimo_primer_abono()))
 
     def _dcasa_estado_abono(self):
         """Lo pagado y lo que falta de esta factura, para el papel y para «Mi cuenta» (una sola fuente de cifras).
 
         ``{'es_abono', 'total', 'pagado', 'saldo', 'abonos', 'inicio', 'vence', 'vencido'}``: ``abonos`` es
         ``_dcasa_abonos()``; ``inicio`` la fecha del primer pago (no cuenta una nota de crédito); ``vence`` = inicio +
-        los meses de plazo, solo mientras falte pagar. Solo lee: no escribe nada ni toca asientos.
+        los días de plazo (``_dcasa_dias_abono``: días continuos, también si cambia el mes), solo mientras falte
+        pagar. Todo lo que muestra el vencimiento de un abono (el papel de ABONO, las «Condiciones de abono», «Mi
+        cuenta», los correos y Brian) sale de aquí. Solo lee: no escribe nada ni toca asientos.
         """
         self.ensure_one()
         fechas = [pago['date'] for pago in self._dcasa_pagos() if pago.get('date') and not pago.get('is_refund')]
         inicio = min(fechas) if fechas else False
         saldo = self.currency_id.round(self.amount_residual) if self.state == 'posted' else self.amount_total
-        meses = self._dcasa_meses_abono()
-        vence = inicio + relativedelta(months=meses) if inicio and meses and saldo > 0 else False
+        dias = self._dcasa_dias_abono()
+        vence = inicio + timedelta(days=dias) if inicio and dias and saldo > 0 else False
         return {
             'es_abono': self._dcasa_es_abono(),
             'total': self.amount_total,

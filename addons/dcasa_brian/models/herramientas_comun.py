@@ -52,6 +52,17 @@ def cantidad(valor):
     return int(valor) if valor.is_integer() else round(valor, 2)
 
 
+def alcance(env, que='facturas'):
+    """Nota para quien ve solo lo suyo (la Vendedora): sus cifras no son las de toda la tienda.
+
+    Se agrega como clave ``alcance`` a lo que cuenta facturas o cotizaciones, para que Brian no presente una cifra
+    parcial como si fuera el total. Para Caja, contabilidad y Gerencia devuelve None (no se agrega nada).
+    """
+    if env.user._dcasa_solo_lo_suyo():
+        return f'solo tus {que} y las que no tienen vendedora'
+    return None
+
+
 def plural(n, singular, plural_=None):
     return f'{n} {singular if n == 1 else (plural_ or singular + "s")}'
 

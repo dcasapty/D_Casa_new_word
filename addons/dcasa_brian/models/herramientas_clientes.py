@@ -83,9 +83,12 @@ class BrianHerramientasClientes(models.AbstractModel):
             ('state', '=', 'posted'), ('payment_state', 'in', ('not_paid', 'partial'))])
         hoy = self._b_hoy()
         vencidas = facturas.filtered(lambda f: f.invoice_date_due and f.invoice_date_due < hoy)
-        return {'por_cobrar': c.moneda(sum(facturas.mapped('amount_residual'))),
-                'vencido': c.moneda(sum(vencidas.mapped('amount_residual'))),
-                'facturas_abiertas': len(facturas)}
+        deuda = {'por_cobrar': c.moneda(sum(facturas.mapped('amount_residual'))),
+                 'vencido': c.moneda(sum(vencidas.mapped('amount_residual'))),
+                 'facturas_abiertas': len(facturas)}
+        if nota := c.alcance(self.env):
+            deuda['alcance'] = nota
+        return deuda
 
     @api.model
     def _b_ficha_contacto(self, partner):
@@ -183,13 +186,16 @@ class BrianHerramientasClientes(models.AbstractModel):
                                                       ['amount_residual:sum', '__count'])
         grupos.sort(key=lambda g: -g[1])
         total = sum(g[1] for g in grupos)
-        return {
+        resultado = {
             'criterio': 'vencido' if solo_vencido or solo_vencido is None else 'todo lo pendiente',
             'clientes_con_deuda': len(grupos),
             'total': c.moneda(total),
             'clientes': [{'cliente': p.display_name, 'debe': c.moneda(m), 'facturas': n}
                          for p, m, n in grupos[:c.limite(limite)]],
         }
+        if nota := c.alcance(self.env):
+            resultado['alcance'] = nota
+        return resultado
 
     @herramienta(
         nombre='saldo_puntos',

@@ -59,6 +59,57 @@ LISTA_BLANCA = {
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
     ('dcasa_base', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio y el costo solo los cambia Gerencia; sin sudo().',
+    ('dcasa_base', 'res.config.settings', 'get_values'):
+        OVERRIDE + ' Solo agrega si «Cada vendedora ve solo sus documentos» está encendido; res.config.settings es '
+                   'solo de administradores.',
+    ('dcasa_base', 'res.config.settings', 'set_values'):
+        OVERRIDE + ' Mueve el interruptor con res.users._dcasa_poner_restriccion, que exige Gerencia o administrador '
+                   'antes del sudo; res.config.settings es solo de administradores.',
+    ('dcasa_base', 'dcasa.permisos.vendedoras', 'action_guardar'):
+        ASISTENTE + ' Además, res.users._dcasa_poner_restriccion exige Gerencia o administrador en el servidor antes '
+                    'del sudo.',
+    ('dcasa_base', 'sale.order', 'create'):
+        OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
+    ('dcasa_base', 'account.move', 'create'):
+        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; y '
+                   'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); sin sudo().',
+    # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
+    # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
+    ('dcasa_base', 'account.move', 'write'):
+        OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); sin sudo().',
+    ('dcasa_base', 'account.move', 'button_draft'):
+        OVERRIDE + ' Exige Gerencia para una factura de cliente publicada (A6); sin sudo().',
+    ('dcasa_base', 'account.move', 'button_cancel'):
+        OVERRIDE + ' Exige Gerencia para una factura de cliente publicada (A6); sin sudo().',
+    ('dcasa_base', 'account.move', 'action_reverse'):
+        OVERRIDE + ' La nota de crédito de un cliente exige Gerencia (A7); sin sudo().',
+    ('dcasa_base', 'account.move', 'js_assign_outstanding_line'):
+        OVERRIDE + ' Aplicar un cobro a la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.move', 'js_remove_outstanding_partial'):
+        OVERRIDE + ' Quitar un cobro de la factura de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.move.line', 'action_register_payment'):
+        OVERRIDE + ' El botón «Pagar» de un cliente exige Caja, Gerencia o contabilidad (A5); solo devuelve la acción.',
+    ('dcasa_base', 'account.move.line', 'reconcile'):
+        OVERRIDE + ' Cruzar lo que debe un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.partial.reconcile', 'create'):
+        OVERRIDE + ' Una conciliación con lo que debe un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.partial.reconcile', 'unlink'):
+        OVERRIDE + ' Deshacer una conciliación de un cliente exige Caja, Gerencia o contabilidad (A5); sin sudo().',
+    ('dcasa_base', 'account.payment', 'create'):
+        OVERRIDE + ' Un cobro de cliente exige Caja, Gerencia o contabilidad (A5); devolverle dinero, Gerencia (A7).',
+    ('dcasa_base', 'account.payment', 'write'):
+        OVERRIDE + ' Cambiar el monto, el cliente, el diario o el estado de un cobro de cliente: la misma regla.',
+    ('dcasa_base', 'account.payment', 'unlink'):
+        OVERRIDE + ' Borrar un cobro de cliente: la misma regla (A5, A7); sin sudo().',
+    ('dcasa_base', 'account.payment', 'action_post'):
+        OVERRIDE + ' Publicar un cobro de cliente: la misma regla (A5, A7); sin sudo().',
+    ('dcasa_base', 'account.payment', 'action_draft'):
+        OVERRIDE + ' Pasar a borrador un cobro de cliente: la misma regla (A5, A7); sin sudo().',
+    ('dcasa_base', 'account.payment', 'action_cancel'):
+        OVERRIDE + ' Cancelar un cobro de cliente: la misma regla (A5, A7); sin sudo().',
+    ('dcasa_base', 'account.payment', 'get_view'):
+        OVERRIDE + ' Solo quita «Nuevo» de las vistas de pagos a quien no registra cobros (la Vendedora); no lee ni '
+                   'escribe datos, sin sudo().',
     ('dcasa_base', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo vuelve a tomar el costo de cada línea al confirmar (la ganancia de esa venta); corre como el '
                    'usuario, sin sudo().',
@@ -290,10 +341,15 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'dcasa.tablero', 'obtener_datos'):
         SIN_SUDO + ' Cada bloque del tablero pregunta has_access antes de leer.',
     ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_periodo'):
-        'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo, y la ganancia solo '
-        'sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo). Valida la base '
-        '(«completadas»/«con_abonos») y rechaza con AccessError un «vendedor» ajeno a quien no es Gerencia ni '
-        'administrador, ANTES de leer.',
+        'Lectura. Pregunta has_access de pedidos; quien vende sin controlar ve solo lo suyo (sus pedidos), y la '
+        'ganancia solo sale con el grupo de Gerencia o de administrador (la lee con sudo ya comprobado ese grupo). '
+        'Valida la base («facturado»/«con_abonos»/«completadas») y rechaza con AccessError un «vendedor» ajeno a quien '
+        'no es Gerencia ni administrador, ANTES de leer. Las facturas las suma con sudo filtrado a out_invoice/'
+        'out_refund; la lista que abre la ve cada quien con sus permisos.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'grafica_de_ventas'):
+        'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
+        'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
+        'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '

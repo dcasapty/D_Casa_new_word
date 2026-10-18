@@ -100,6 +100,16 @@ class TestPermisosVendedora(TransactionCase):
             if raiz.id in [int(i) for i in menu.parent_path.split('/') if i]:
                 self.assertIn(xmlid, permitidos, f'«{menu.complete_name}» no es del lado de clientes')
 
+    def test_cobros_de_hoy_es_de_caja_no_de_la_vendedora(self):
+        """«Cobros de hoy (caja)» es la caja de toda la tienda: con «Cada vendedora ve solo sus documentos» encendido,
+        la vendedora vería solo sus cobros (una cifra parcial con nombre de caja), así que no lo ve; Caja y Gerencia
+        sí. Apagado, la vendedora lo vuelve a ver, como antes (test_solo_lo_suyo.py)."""
+        caja = crear_usuario(self.env, 'perm_caja', 'dcasa_base.group_caja')
+        self.assertNotIn('dcasa_base.menu_dcasa_cobros_hoy', self.visibles)
+        self.assertIn('dcasa_base.menu_dcasa_cobros_hoy', menus_visibles(self.env, caja))
+        self.assertIn('dcasa_base.menu_dcasa_cobros_hoy', self.visibles_gerencia)
+        self.assertIn('dcasa_base.menu_dcasa_ventas_hoy', self.visibles, '«Ventas de hoy» (las suyas) sí la ve')
+
     def test_gerencia_sigue_viendo_todo_lo_suyo(self):
         for xmlid in ('dcasa_nomina.menu_planillas', 'dcasa_nomina.menu_reembolsos', 'crm.crm_menu_forecast',
                       'dcasa_brian.menu_brian_importaciones', 'dcasa_contabilidad.menu_estado_resultados',

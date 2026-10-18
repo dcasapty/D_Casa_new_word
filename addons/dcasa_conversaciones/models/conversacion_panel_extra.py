@@ -175,10 +175,12 @@ class DcasaConversacionPanelExtra(models.Model):
             return {'cliente': False, 'pedidos': [], 'facturas': []}
         comercial = conv.partner_id.sudo().commercial_partner_id
         estados_pedido = dict(self.env['sale.order']._fields['state']._description_selection(self.env))
-        pedidos = self.env['sale.order'].sudo().search([
+        # Como quien mira (sin sudo): la vendedora solo puede adjuntar a sus pedidos y facturas (y a los sin
+        # vendedora); Caja y Gerencia, a todos. Las reglas de registro filtran solas (docs/PERMISOS.md).
+        pedidos = self.env['sale.order'].search([
             ('partner_id.commercial_partner_id', '=', comercial.id), ('state', '!=', 'cancel')],
             order='date_order desc, id desc', limit=8)
-        facturas = self.env['account.move'].sudo().search([
+        facturas = self.env['account.move'].search([
             ('commercial_partner_id', '=', comercial.id), ('move_type', '=', 'out_invoice'),
             ('state', '!=', 'cancel')], order='invoice_date desc, id desc', limit=8)
         estados_factura = dict(self.env['account.move']._fields['state']._description_selection(self.env))

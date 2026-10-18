@@ -28,6 +28,9 @@ Contrato de una herramienta::
     def _h_buscar_productos(self, texto, limite=10):
         return {'productos': [...]}            # dict serializable a JSON
 
+``grupos`` pide TODOS los grupos de la lista; un elemento que es a su vez una tupla pide ALGUNO de ellos
+(``grupos=(('dcasa_base.group_caja', 'account.group_account_user'),)`` = Caja o contador).
+
 La función devuelve un ``dict``. Para errores de uso levanta ``BrianError`` con un mensaje
 en español que el modelo pueda entender y corregir.
 
@@ -201,7 +204,9 @@ class BrianHerramientas(models.AbstractModel):
 
     @api.model
     def _disponible(self, spec):
-        return all(self.env.user.has_group(grupo) for grupo in spec['grupos'])
+        usuario = self.env.user
+        return all(any(usuario.has_group(g) for g in grupo) if isinstance(grupo, (tuple, list))
+                   else usuario.has_group(grupo) for grupo in spec['grupos'])
 
     @api.private
     @api.model

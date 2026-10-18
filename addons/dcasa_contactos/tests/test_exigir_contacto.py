@@ -132,7 +132,8 @@ class TestPuertas(ContactoCommon):
         self.assertEqual(factura.state, 'posted')
 
     def test_nota_de_credito_historica_y_superusuario_pasan(self):
-        nota = self.factura(self.sin_nada, usuario=self.vendedora, move_type='out_refund')
+        # La nota de crédito la hace Gerencia desde el 2026-10-17 (decisión de la gerencia A7).
+        nota = self.factura(self.sin_nada, usuario=self.gerencia, move_type='out_refund')
         nota.action_post()
         self.assertEqual(nota.state, 'posted')
         historica = self.factura(self.sin_nada, dcasa_historica=True)
@@ -143,12 +144,16 @@ class TestPuertas(ContactoCommon):
         self.assertEqual(suya.state, 'posted')
 
     def test_pagar_nunca_se_bloquea(self):
-        """Una factura ya publicada de un cliente sin correo ni celular se cobra igual (la vendedora es caja)."""
-        factura = self.factura(self.sin_nada)
+        """Una factura ya publicada de un cliente sin correo ni celular se cobra igual.
+
+        La factura es de la vendedora; la cobra Caja (el cobro solo en Caja, decisión de la gerencia del 2026-10-17)."""
+        caja = new_test_user(self.env, login='caja_contacto', name='Caja Contacto',
+                             groups='base.group_user,dcasa_base.group_caja')
+        factura = self.factura(self.sin_nada, invoice_user_id=self.vendedora.id)
         factura.action_post()
         efectivo = self.env['account.journal'].search(
             [('type', '=', 'cash'), ('company_id', '=', self.env.company.id)], limit=1)
-        registro = self.env['account.payment.register'].with_user(self.vendedora).with_context(
+        registro = self.env['account.payment.register'].with_user(caja).with_context(
             active_model='account.move', active_ids=factura.ids).create(
             {'payment_date': fields.Date.today(), 'journal_id': efectivo.id})
         registro._create_payments()

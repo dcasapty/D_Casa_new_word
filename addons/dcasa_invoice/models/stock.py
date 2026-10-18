@@ -107,9 +107,14 @@ class StockPicking(models.Model):
         return fields.Datetime.context_timestamp(self.with_context(tz='America/Panama'), fecha).strftime('%d/%m/%Y')
 
     def _dcasa_facturas_para_entrega(self):
-        """Los números de las facturas publicadas del pedido de esta entrega (para compararla con la factura)."""
+        """Los números de las facturas publicadas del pedido de esta entrega (para compararla con la factura).
+
+        Con ``sudo`` y solo el número, como hace Odoo con la referencia del cliente en la nota de siempre: la entrega
+        la despacha cualquiera, también la vendedora que no puede leer el pedido de otra («Cada vendedora ve solo sus
+        documentos»). Sin ``sudo`` la nota fácil de ese pedido no se imprimía (revisión adversarial, 2026-10-17).
+        """
         self.ensure_one()
-        pedido = self.sale_id
+        pedido = self.sudo().sale_id
         if not pedido:
             return []
         return [factura.name for factura in pedido.invoice_ids.filtered(
