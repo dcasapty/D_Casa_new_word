@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { handleRequest, variablesDelContenedor } from "../src/handler";
+import { handleRequest, respuestaSalud, variablesDelContenedor } from "../src/handler";
 import {
   aBase64Url,
   abrirPuerta,
@@ -13,6 +13,7 @@ import {
   esEntrada,
   esLoginPublicoDelPanel,
   esPanel,
+  estadoPuerta,
   leerCookie,
   NOMBRE_COOKIE,
   reiniciarCacheJwks,
@@ -493,20 +494,78 @@ describe("handleRequest con la puerta", () => {
     expect(res.headers.get("Set-Cookie")).toBeNull();
   });
 
-  it("la entrada sin token, con token malo o con otro método es un 404 sin cookie", async () => {
+  it("la entrada sin token o con token malo no abre: 403 que dice por qué, sin cookie; otro método es un 404", async () => {
     const forward = vi.fn();
     const malo = await firmar(otroPar, cargaBuena());
-    const casos: Request[] = [
-      new Request(`https://dcasapty.com${RUTA}`),
-      new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": malo } }),
-      new Request(`https://dcasapty.com${RUTA}`, { method: "DELETE", headers: { "Cf-Access-Jwt-Assertion": await firmar(par, cargaBuena()) } }),
+    const casos: Array<[Request, number, string]> = [
+      [new Request(`https://dcasapty.com${RUTA}`), 403, "sin token"],
+      [new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": malo } }), 403, "firma"],
+      [new Request(`https://dcasapty.com${RUTA}`, { method: "DELETE", headers: { "Cf-Access-Jwt-Assertion": await firmar(par, cargaBuena()) } }), 404, ""],
     ];
-    for (const caso of casos) {
+    for (const [caso, status, codigo] of casos) {
       const res = await handleRequest(caso, { forward, puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } });
-      expect(res.status).toBe(404);
+      expect(res.status, codigo).toBe(status);
       expect(res.headers.get("Set-Cookie")).toBeNull();
+      if (codigo) {
+        expect(res.headers.get("Cache-Control")).toBe("no-store");
+        expect(await res.text()).toContain(`<code>${codigo}</code>`);
+      }
     }
     expect(forward).not.toHaveBeenCalled();
+  });
+
+  it("sin el PIN (Access no protege esta dirección) la entrada lo dice con el dominio y la ruta que hay que poner en Access", async () => {
+    const res = await handleRequest(new Request("https://dcasa.ejemplo.workers.dev/master"), {
+      forward: vi.fn(), entorno: "produccion",
+      puerta: { config: { ...cfg, ruta: "/master" }, jwt: deps(), modo: "0", exigirCorreo: false },
+    });
+    expect(res.status).toBe(403);
+    const html = await res.text();
+    expect(html).toContain("Cloudflare Access no protege esta dirección");
+    expect(html).toContain("<b>dcasa.ejemplo.workers.dev</b>");
+    expect(html).toContain("<b>master</b>");
+    expect(html).toContain("Master (producción)");
+    expect(html).toContain("el equipo entra al panel como hasta ahora");
+    expect(html).not.toContain(SECRETO);
+    expect(html).not.toContain(AUD);
+  });
+
+  it("con el PIN de OTRA aplicación (otro AUD) dice cuál cambiar y compara solo los 6 últimos caracteres", async () => {
+    const otraAud = "f".repeat(58) + "0aa0bb";
+    const token = await firmar(par, cargaBuena({ aud: [otraAud] }));
+    const res = await handleRequest(
+      new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
+      { forward: vi.fn(), entorno: "produccion", puerta: { config: cfg, jwt: deps(), modo: "1", exigirCorreo: false } },
+    );
+    expect(res.status).toBe(403);
+    const html = await res.text();
+    expect(html).toContain("El PIN lo pidió otra aplicación de Access");
+    expect(html).toContain("DCASA_ACCESS_AUD");
+    expect(html).toContain("<b>production</b>");
+    expect(html).toContain("…0aa0bb");
+    expect(html).toContain(`…${AUD.slice(-6)}`);
+    expect(html).not.toContain(AUD);
+    expect(html).not.toContain(otraAud);
+    // Con el interruptor en «1», la página dice cómo rescatar.
+    expect(html).toContain("DCASA_PUERTA_OBLIGATORIA");
+  });
+
+  it("con el pase de otro equipo de Zero Trust lo nombra (solo si tiene forma de equipo) y apunta a DCASA_ACCESS_EQUIPO", async () => {
+    const token = await firmar(par, cargaBuena({ iss: "https://otro-equipo.cloudflareaccess.com" }));
+    const res = await handleRequest(
+      new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": token } }),
+      { forward: vi.fn(), puerta: { config: cfg, jwt: deps(), modo: "0", exigirCorreo: false } },
+    );
+    const html = await res.text();
+    expect(html).toContain("<b>https://otro-equipo.cloudflareaccess.com</b>");
+    expect(html).toContain("DCASA_ACCESS_EQUIPO");
+    // Un emisor con HTML no se refleja.
+    const raro = await firmar(otroPar, cargaBuena({ iss: "<script>alert(1)</script>" }));
+    const res2 = await handleRequest(
+      new Request(`https://dcasapty.com${RUTA}`, { headers: { "Cf-Access-Jwt-Assertion": raro } }),
+      { forward: vi.fn(), puerta: { config: cfg, jwt: deps(), modo: "0", exigirCorreo: false } },
+    );
+    expect(await res2.text()).not.toContain("<script>");
   });
 
   it("con la cookie: /odoo llega a Odoo con la cabecera firmada y sin la cookie de la puerta", async () => {
@@ -654,5 +713,47 @@ describe("handleRequest con la puerta", () => {
     expect(pide("/web/login")).toBe(false);
     expect(pide("/web/login?redirect=/odoo", "POST")).toBe(false);
     expect(pide("/web/login/totp?redirect=/odoo")).toBe(false);
+  });
+});
+
+describe("configuración incompleta: se dice, no se calla", () => {
+  it("estadoPuerta: apagada sin nada, incompleta con los NOMBRES que faltan (nunca valores), lista con las cuatro", () => {
+    expect(estadoPuerta({})).toMatchObject({ estado: "apagada", modo: "0" });
+    const incompleta = estadoPuerta({ ...ENV_VALIDO, DCASA_ACCESS_AUD: "", DCASA_PUERTA_OBLIGATORIA: "1" });
+    expect(incompleta.estado).toBe("incompleta");
+    expect(incompleta.faltan?.join(" ")).toContain("DCASA_ACCESS_AUD");
+    expect(incompleta.aviso).toContain("no se exige nada");
+    expect(JSON.stringify(incompleta)).not.toContain(SECRETO);
+    expect(estadoPuerta(ENV_VALIDO)).toMatchObject({ estado: "lista", modo: "0", ruta: RUTA });
+    // Ruta mal escrita: la entrada que se explica es /master.
+    expect(estadoPuerta({ ...ENV_VALIDO, DCASA_PUERTA_RUTA: "/odoo" }).ruta).toBe("/master");
+  });
+
+  it("con la puerta incompleta, /master explica qué falta (503) y no llega a Odoo; el resto del sitio sigue igual", async () => {
+    const forward = vi.fn(async () => new Response("odoo"));
+    const estado = estadoPuerta({ DCASA_PUERTA_RUTA: "/master", DCASA_PUERTA_SECRETO: SECRETO, DCASA_ACCESS_EQUIPO: EQUIPO });
+    const res = await handleRequest(new Request("https://dcasapty.com/master"), { forward, puertaEstado: estado, entorno: "staging" });
+    expect(res.status).toBe(503);
+    const html = await res.text();
+    expect(html).toContain("La puerta del equipo está apagada");
+    expect(html).toContain("DCASA_ACCESS_AUD");
+    expect(html).toContain("<b>staging</b>");
+    expect(html).not.toContain(SECRETO);
+    expect(forward).not.toHaveBeenCalled();
+    expect(await (await handleRequest(new Request("https://dcasapty.com/shop"), { forward, puertaEstado: estado })).text()).toBe("odoo");
+    // Apagada del todo (sin ninguna variable): /master lo sigue sirviendo Odoo, como siempre.
+    const apagada = await handleRequest(new Request("https://dcasapty.com/master"), { forward, puertaEstado: estadoPuerta({}) });
+    expect(await apagada.text()).toBe("odoo");
+  });
+
+  it("/__edge/health dice cómo está la puerta, sin la ruta ni los valores", async () => {
+    const salud = respuestaSalud({ contenedor: "healthy", odoo: { status: 200, cuerpo: "{}" } }, undefined,
+      estadoPuerta({ ...ENV_VALIDO, DCASA_ACCESS_AUD: "con-guiones-no", DCASA_PUERTA_OBLIGATORIA: "avisar" }));
+    const cuerpo = (await salud.json()) as { puerta: Record<string, unknown> };
+    expect(salud.status).toBe(200);
+    expect(cuerpo.puerta).toMatchObject({ estado: "incompleta", modo: "avisar" });
+    expect(String(cuerpo.puerta.faltan)).toContain("DCASA_ACCESS_AUD");
+    expect(JSON.stringify(cuerpo)).not.toContain(RUTA);
+    expect(JSON.stringify(cuerpo)).not.toContain(SECRETO);
   });
 });

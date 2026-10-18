@@ -98,6 +98,14 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-18
+
+- **Rama `master-puerta` (sin subir):** diagnóstico de `/master` en producción (código, variables y nombres de secretos
+  iguales a staging; la diferencia está en Access o en el AUD de `production`), `/master` dice por qué no abre y
+  `/__edge/health` trae `puerta`; «Iniciar sesión» del checkout, el carrito y crear cuenta lleva a Mi cuenta; guías
+  [PUERTA_MASTER.md](PUERTA_MASTER.md) y [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md). Sigue: capturas a la dueña →
+  staging → producción, y que ella revise Access y `DCASA_ACCESS_AUD`.
+
 ### 2026-10-17
 
 - **En producción** (22:38 UTC, Desplegar 18, `app_version` `c3a69f52…`, imagen `sha256:67459887…`; CI #196 verde y

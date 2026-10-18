@@ -127,7 +127,7 @@ Cerrados: #11, #13 y #14 (códigos de barras, conteo con lector, pantalla de bod
 
 ## Pendientes viejos que siguen en pie
 
-- **#92** (antes de traspasar el dominio): que `/master` funcione y que «Iniciar sesión» de la web no lleve al panel.
+- **#92** (antes de traspasar el dominio): «Iniciar sesión» de la web ya lleva a Mi cuenta (2026-10-18, rama `master-puerta`). `/master` en producción: espera que la dueña revise la aplicación de Access y `DCASA_ACCESS_AUD` ([PUERTA_MASTER.md](PUERTA_MASTER.md)); `/master` ya dice el motivo. Traslado: [TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md).
 - ~~**#97**: por qué el primer despliegue de una versión deja la base sin actualizar.~~ Resuelto el 2026-10-16
   (Desplegar 9): la imagen decide por la huella de su código, no por la variable `APP_VERSION`.
 - Estudio de envíos para La Chorrera: entregado; esperan sus respuestas (ver el documento en Claude Docs).
