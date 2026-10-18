@@ -100,6 +100,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-18
 
+- **En producción** (Desplegar 21, `app_version` `a23113ec…`, imagen `sha256:f01fce0f…`; CI #202 verde y staging sano;
+  PR #57 `27f3541`): **K1** en el Inicio de Gerencia: ticket promedio (y su fila en Comparar) y unidades vendidas por
+  tipo con su total, siguiendo base, periodo y vendedora; Brian lo dice igual. Último despliegue de la semana (la dueña
+  cuida sus créditos hasta el jueves).
 - **En producción** (13:46 Panamá, Desplegar 19, `app_version` `c552d652…`, imagen `sha256:aeeb0721…`; CI #198 verde y
   staging sano; PR #55 `8671851`): **Ajustes se guarda** (estaba roto en producción para todo administrador), el
   **Inicio de Gerencia sobre facturas** (Facturado · Con abonos · Completadas; abre en Facturado), las **reglas
