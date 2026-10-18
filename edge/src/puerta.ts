@@ -83,40 +83,113 @@ function limpio(valor: unknown): string {
   return typeof valor === "string" ? valor.trim() : "";
 }
 
-/**
- * La configuración de la puerta, o `null` si está apagada. Apagada = faltan variables (todas son necesarias).
- * Incompleta o inválida = también `null`, pero con un aviso en los logs: así un error de copiar y pegar no
- * deja a medias una puerta que parece encendida.
- */
-export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
+/** La entrada que se usa cuando `DCASA_PUERTA_RUTA` falta o está mal escrita (la de la documentación). */
+export const RUTA_POR_DEFECTO = "/master";
+
+interface RevisionConfig {
+  config: ConfigPuerta | null;
+  /** Ninguna de las cuatro variables está puesta: la puerta está apagada a propósito (sin ruido). */
+  vacia: boolean;
+  /** Qué está mal, con el NOMBRE de la variable y una pista; nunca su valor. */
+  problemas: string[];
+  /** La entrada: la de `DCASA_PUERTA_RUTA` si es válida; si no, `/master`. */
+  ruta: string;
+}
+
+function revisarConfig(env: EntornoPuerta): RevisionConfig {
   const rutaCruda = limpio(env.DCASA_PUERTA_RUTA);
   const secreto = limpio(env.DCASA_PUERTA_SECRETO);
   const equipoCrudo = limpio(env.DCASA_ACCESS_EQUIPO);
   const aud = limpio(env.DCASA_ACCESS_AUD);
-  if (!rutaCruda && !secreto && !equipoCrudo && !aud) return null;
+  if (!rutaCruda && !secreto && !equipoCrudo && !aud) return { config: null, vacia: true, problemas: [], ruta: RUTA_POR_DEFECTO };
 
   const ruta = ("/" + rutaCruda.replace(/^\/+/, "")).toLowerCase();
   const equipo = equipoCrudo.replace(/\/+$/, "").toLowerCase();
   const problemas: string[] = [];
-  if (RESERVADAS.has(ruta.slice(1))) problemas.push(`DCASA_PUERTA_RUTA (${ruta} ya es una ruta del sitio: elige otra, p. ej. /master)`);
+  let rutaValida = false;
+  if (!rutaCruda) problemas.push("DCASA_PUERTA_RUTA (falta: /master)");
+  else if (RESERVADAS.has(ruta.slice(1))) problemas.push(`DCASA_PUERTA_RUTA (${ruta} ya es una ruta del sitio: elige otra, p. ej. /master)`);
   else if (!RUTA_VALIDA.test(ruta)) problemas.push("DCASA_PUERTA_RUTA (3 a 64 letras minúsculas, números o guiones, p. ej. /master)");
-  if (secreto.length < LARGO_MINIMO_SECRETO) problemas.push(`DCASA_PUERTA_SECRETO (mínimo ${LARGO_MINIMO_SECRETO} caracteres)`);
-  if (!EQUIPO_VALIDO.test(equipo)) problemas.push("DCASA_ACCESS_EQUIPO (https://<equipo>.cloudflareaccess.com)");
-  if (!AUD_VALIDA.test(aud)) problemas.push("DCASA_ACCESS_AUD (el «AUD tag» de la aplicación de Access)");
-  if (problemas.length) {
-    const aviso = JSON.stringify({ evento: "puerta_incompleta", detalle: "La puerta queda APAGADA", faltan: problemas });
-    if (!avisados.has(aviso)) {
-      avisados.add(aviso);
-      console.warn(aviso);
-    }
-    return null;
-  }
+  else rutaValida = true;
+  if (!secreto) problemas.push("DCASA_PUERTA_SECRETO (falta)");
+  else if (secreto.length < LARGO_MINIMO_SECRETO) problemas.push(`DCASA_PUERTA_SECRETO (mínimo ${LARGO_MINIMO_SECRETO} caracteres)`);
+  if (!equipoCrudo) problemas.push("DCASA_ACCESS_EQUIPO (falta: https://<equipo>.cloudflareaccess.com)");
+  else if (!EQUIPO_VALIDO.test(equipo)) problemas.push("DCASA_ACCESS_EQUIPO (https://<equipo>.cloudflareaccess.com)");
+  if (!aud) problemas.push("DCASA_ACCESS_AUD (falta: el «AUD tag» de la aplicación de Access)");
+  else if (!AUD_VALIDA.test(aud)) problemas.push("DCASA_ACCESS_AUD (el «AUD tag» de la aplicación de Access: solo letras y números)");
+  const rutaEntrada = rutaValida ? ruta : RUTA_POR_DEFECTO;
+  if (problemas.length) return { config: null, vacia: false, problemas, ruta: rutaEntrada };
   const horasPedidas = Number.parseInt(limpio(env.DCASA_PUERTA_HORAS), 10);
   const horas = Number.isFinite(horasPedidas) && horasPedidas >= 1 ? Math.min(horasPedidas, HORAS_MAXIMAS) : HORAS_POR_DEFECTO;
-  return { ruta, secreto, equipo, aud, horas };
+  return { config: { ruta, secreto, equipo, aud, horas }, vacia: false, problemas, ruta };
+}
+
+function avisarUnaVez(nivel: "warn" | "error", registro: Record<string, unknown>): void {
+  const linea = JSON.stringify(registro);
+  if (avisados.has(linea)) return;
+  avisados.add(linea);
+  if (nivel === "error") console.error(linea);
+  else console.warn(linea);
+}
+
+/**
+ * La configuración de la puerta, o `null` si está apagada. Apagada = faltan variables (todas son necesarias).
+ * Incompleta o inválida = también `null`, pero con un aviso en los logs, en `/__edge/health` y en la propia entrada
+ * (`estadoPuerta`): así un error de copiar y pegar no deja a medias una puerta que parece encendida.
+ */
+export function configPuerta(env: EntornoPuerta): ConfigPuerta | null {
+  const revision = revisarConfig(env);
+  if (revision.problemas.length) {
+    avisarUnaVez("warn", { evento: "puerta_incompleta", detalle: "La puerta queda APAGADA", faltan: revision.problemas });
+  }
+  return revision.config;
 }
 
 export type ModoPuerta = "0" | "avisar" | "1";
+
+function modoPedido(env: EntornoPuerta): ModoPuerta {
+  const pedido = limpio(env.DCASA_PUERTA_OBLIGATORIA).toLowerCase();
+  return pedido === "1" || pedido === "avisar" ? pedido : "0";
+}
+
+/**
+ * Cómo está la puerta, en palabras que se pueden mostrar (nombres de variables, nunca valores):
+ *
+ * - `apagada`: ninguna de las cuatro variables. El borde no hace nada (y `/master`, si existe, lo sirve Odoo).
+ * - `incompleta`: alguna puesta y otra que falta o está mal escrita. La puerta queda APAGADA y la entrada lo dice.
+ * - `lista`: las cuatro bien escritas. Que abra depende además de Cloudflare Access (se ve al entrar por la ruta).
+ *
+ * `aviso`: el interruptor pide «avisar» o «1» pero la puerta no está lista, así que NO se exige nada.
+ */
+export interface EstadoPuerta {
+  estado: "apagada" | "incompleta" | "lista";
+  modo: ModoPuerta;
+  faltan?: string[];
+  aviso?: string;
+  /** La entrada (para el borde; no se publica en `/__edge/health`). */
+  ruta: string;
+}
+
+export function estadoPuerta(env: EntornoPuerta): EstadoPuerta {
+  const revision = revisarConfig(env);
+  const modo = modoPedido(env);
+  const estado: EstadoPuerta["estado"] = revision.config ? "lista" : revision.vacia ? "apagada" : "incompleta";
+  const resultado: EstadoPuerta = { estado, modo, ruta: revision.ruta };
+  if (revision.problemas.length) resultado.faltan = revision.problemas;
+  if (estado !== "lista" && modo !== "0") {
+    resultado.aviso =
+      `DCASA_PUERTA_OBLIGATORIA pide «${modo}», pero la puerta está ${estado}: no se exige nada hasta completar los cuatro ` +
+      "secretos (docs/PUERTA_MASTER.md).";
+    avisarUnaVez("error", { evento: "puerta_modo_sin_puerta", modo, estado, faltan: revision.problemas });
+  }
+  return resultado;
+}
+
+/** Lo que `/__edge/health` publica de la puerta: sin la ruta (puede ser una palabra que solo conoce el equipo). */
+export function saludDePuerta(estado: EstadoPuerta): Omit<EstadoPuerta, "ruta"> {
+  const { ruta: _ruta, ...publico } = estado;
+  return publico;
+}
 
 /** Lo que el borde necesita para trabajar con la puerta (o `undefined` si está apagada: sigue como siempre). */
 export interface DepsPuerta {
@@ -131,9 +204,7 @@ export interface DepsPuerta {
 export function depsPuerta(env: EntornoPuerta): Pick<DepsPuerta, "config" | "modo" | "exigirCorreo"> | undefined {
   const config = configPuerta(env);
   if (!config) return undefined;
-  const pedido = limpio(env.DCASA_PUERTA_OBLIGATORIA).toLowerCase();
-  const modo: ModoPuerta = pedido === "1" || pedido === "avisar" ? pedido : "0";
-  return { config, modo, exigirCorreo: limpio(env.DCASA_PUERTA_EXIGIR_CORREO) === "1" };
+  return { config, modo: modoPedido(env), exigirCorreo: limpio(env.DCASA_PUERTA_EXIGIR_CORREO) === "1" };
 }
 
 /** Valor de `X-Dcasa-Puerta-Modo`: el modo y el amarre del correo, firmados y con vencimiento corto. */
@@ -278,9 +349,52 @@ async function claveParaKid(equipo: string, kid: string, deps: DepsJwt, ahora: n
   }
 }
 
-function rechazo(motivo: string): null {
-  console.warn(JSON.stringify({ evento: "puerta_token_rechazado", motivo }));
-  return null;
+/**
+ * Por qué no abrió la puerta. Los primeros pasan ANTES de comprobar la firma (el pase puede venir de cualquiera); desde
+ * `emisor` en adelante el pase ya está firmado por nuestro equipo de Zero Trust: quien lo trae pasó un PIN nuestro.
+ */
+export type MotivoRechazo =
+  | "sin token"
+  | "forma"
+  | "ilegible"
+  | "algoritmo"
+  | "sin kid"
+  | "llaves no disponibles"
+  | "llave desconocida"
+  | "firma"
+  | "emisor"
+  | "audiencia"
+  | "vencido"
+  | "todavía no vale"
+  | "emitido en el futuro"
+  | "sin correo";
+
+export interface RechazoAccess {
+  motivo: MotivoRechazo;
+  /** El equipo que dice haber emitido el pase (solo si tiene forma de `https://<equipo>.cloudflareaccess.com`). */
+  emisor?: string;
+  /** Últimos 6 caracteres de la audiencia del pase y de la que espera el sitio (solo con la firma ya comprobada). */
+  audRecibida?: string;
+  audEsperada?: string;
+}
+
+export type ResultadoJwt = { identidad: IdentidadAccess } | { rechazo: RechazoAccess };
+
+const final6 = (texto: string) => texto.slice(-6);
+
+function rechazo(datos: RechazoAccess): ResultadoJwt {
+  const registro: Record<string, unknown> = { evento: "puerta_token_rechazado", motivo: datos.motivo };
+  if (datos.emisor) registro.emisor = datos.emisor;
+  if (datos.audRecibida) registro.aud_recibida_termina = datos.audRecibida;
+  if (datos.audEsperada) registro.aud_esperada_termina = datos.audEsperada;
+  console.warn(JSON.stringify(registro));
+  return { rechazo: datos };
+}
+
+/** El `iss` del pase, solo si tiene la forma de un equipo de Access (así se puede mostrar sin riesgo). */
+function emisorLegible(carga: Record<string, unknown> | null): string | undefined {
+  const iss = typeof carga?.iss === "string" ? carga.iss.replace(/\/+$/, "").toLowerCase() : "";
+  return EQUIPO_VALIDO.test(iss) ? iss : undefined;
 }
 
 function objetoJson(parte: string): Record<string, unknown> | null {
@@ -298,46 +412,73 @@ function objetoJson(parte: string): Record<string, unknown> | null {
 const CORREO_VALIDO = /^[\x21-\x3f\x41-\x7b\x7d-\x7e]{1,64}@[\x21-\x3f\x41-\x7b\x7d-\x7e]{1,190}$/;
 
 /**
- * Verifica el token que Access pone en `Cf-Access-Jwt-Assertion`. Falla CERRADO: cualquier duda = `null`.
- * Solo RS256 (nunca `none` ni HS256), emisor y audiencia exactos, vigente, con un correo bien formado.
+ * Verifica el token que Access pone en `Cf-Access-Jwt-Assertion` y, si no sirve, dice POR QUÉ. Falla CERRADO:
+ * cualquier duda es un rechazo. Solo RS256 (nunca `none` ni HS256), emisor y audiencia exactos, vigente, con un
+ * correo bien formado.
  */
-export async function verificarJwtAccess(
+export async function revisarJwtAccess(
   token: string | null,
   cfg: Pick<ConfigPuerta, "equipo" | "aud">,
   deps: DepsJwt = {},
-): Promise<IdentidadAccess | null> {
-  if (!token) return rechazo("sin token");
+): Promise<ResultadoJwt> {
+  if (!token) return rechazo({ motivo: "sin token" });
   const ahoraMs = (deps.ahora ?? Date.now)();
   const partes = token.split(".");
-  if (partes.length !== 3 || partes.some((parte) => parte === "")) return rechazo("forma");
+  if (partes.length !== 3 || partes.some((parte) => parte === "")) return rechazo({ motivo: "forma" });
   const cabecera = objetoJson(partes[0]);
   const carga = objetoJson(partes[1]);
   const firma = deBase64Url(partes[2]);
-  if (!cabecera || !carga || !firma) return rechazo("ilegible");
-  if (cabecera.alg !== "RS256") return rechazo("algoritmo");
-  if (typeof cabecera.kid !== "string" || cabecera.kid === "") return rechazo("sin kid");
+  if (!cabecera || !carga || !firma) return rechazo({ motivo: "ilegible" });
+  if (cabecera.alg !== "RS256") return rechazo({ motivo: "algoritmo" });
+  if (typeof cabecera.kid !== "string" || cabecera.kid === "") return rechazo({ motivo: "sin kid" });
 
   const clave = await claveParaKid(cfg.equipo, cabecera.kid, deps, ahoraMs);
-  if (!clave) return rechazo("llave desconocida");
+  if (!clave) {
+    // Sin firma comprobada: el emisor que trae el pase se muestra solo si tiene forma de equipo (pista para la dueña:
+    // «el PIN lo pidió otro equipo»). Sin llaves guardadas = no se pudieron bajar las del equipo configurado.
+    const motivo: MotivoRechazo = cacheJwks.has(cfg.equipo) ? "llave desconocida" : "llaves no disponibles";
+    return rechazo({ motivo, emisor: emisorLegible(carga) });
+  }
   const valida = await crypto.subtle.verify(
     "RSASSA-PKCS1-v1_5",
     clave,
     firma as unknown as BufferSource,
     codificador.encode(`${partes[0]}.${partes[1]}`),
   );
-  if (!valida) return rechazo("firma");
+  if (!valida) return rechazo({ motivo: "firma" });
 
   const ahoraS = Math.floor(ahoraMs / 1000);
-  if (typeof carga.iss !== "string" || carga.iss.replace(/\/+$/, "").toLowerCase() !== cfg.equipo) return rechazo("emisor");
+  if (typeof carga.iss !== "string" || carga.iss.replace(/\/+$/, "").toLowerCase() !== cfg.equipo) {
+    return rechazo({ motivo: "emisor", emisor: emisorLegible(carga) });
+  }
   const audiencia = carga.aud;
   const coincide = Array.isArray(audiencia) ? audiencia.includes(cfg.aud) : audiencia === cfg.aud;
-  if (!coincide) return rechazo("audiencia");
-  if (typeof carga.exp !== "number" || !Number.isFinite(carga.exp) || carga.exp <= ahoraS - MARGEN_RELOJ_S) return rechazo("vencido");
-  if (typeof carga.nbf === "number" && carga.nbf > ahoraS + MARGEN_RELOJ_S) return rechazo("todavía no vale");
-  if (typeof carga.iat === "number" && carga.iat > ahoraS + MARGEN_RELOJ_S) return rechazo("emitido en el futuro");
+  if (!coincide) {
+    const recibida = Array.isArray(audiencia) ? audiencia.find((a) => typeof a === "string") : audiencia;
+    return rechazo({
+      motivo: "audiencia",
+      audRecibida: typeof recibida === "string" && AUD_VALIDA.test(recibida) ? final6(recibida) : undefined,
+      audEsperada: final6(cfg.aud),
+    });
+  }
+  if (typeof carga.exp !== "number" || !Number.isFinite(carga.exp) || carga.exp <= ahoraS - MARGEN_RELOJ_S) {
+    return rechazo({ motivo: "vencido" });
+  }
+  if (typeof carga.nbf === "number" && carga.nbf > ahoraS + MARGEN_RELOJ_S) return rechazo({ motivo: "todavía no vale" });
+  if (typeof carga.iat === "number" && carga.iat > ahoraS + MARGEN_RELOJ_S) return rechazo({ motivo: "emitido en el futuro" });
   const email = typeof carga.email === "string" ? carga.email.trim().toLowerCase() : "";
-  if (!CORREO_VALIDO.test(email)) return rechazo("sin correo");
-  return { email, exp: carga.exp };
+  if (!CORREO_VALIDO.test(email)) return rechazo({ motivo: "sin correo" });
+  return { identidad: { email, exp: carga.exp } };
+}
+
+/** Como `revisarJwtAccess`, pero solo la identidad o `null` (sin el motivo). */
+export async function verificarJwtAccess(
+  token: string | null,
+  cfg: Pick<ConfigPuerta, "equipo" | "aud">,
+  deps: DepsJwt = {},
+): Promise<IdentidadAccess | null> {
+  const resultado = await revisarJwtAccess(token, cfg, deps);
+  return "identidad" in resultado ? resultado.identidad : null;
 }
 
 // ------------------------------------------------------------------ cookie propia y cabecera hacia Odoo
@@ -414,7 +555,7 @@ export const COOKIE_BORRADA = cookieDePuerta("", 0);
 // ------------------------------------------------------------------ rutas
 
 /** ¿Esta petición es la entrada de la puerta (la ruta secreta)? */
-export function esEntrada(pathname: string, cfg: ConfigPuerta): boolean {
+export function esEntrada(pathname: string, cfg: Pick<ConfigPuerta, "ruta">): boolean {
   const ruta = pathname.toLowerCase().replace(/\/+$/, "");
   return ruta === cfg.ruta;
 }
@@ -446,20 +587,37 @@ export interface PasoPorLaPuerta {
   setCookie: string;
 }
 
+/** La entrada no abrió y se sabe por qué (el que llama lo explica: `src/puerta_aviso.ts`). */
+export interface PuertaRechazada {
+  rechazo: RechazoAccess;
+}
+
 /**
  * La entrada (`DCASA_PUERTA_RUTA`): Access ya pidió el PIN; aquí se VERIFICA el token que dejó. Si es bueno, la
- * persona pasó: se devuelve su identidad y la cookie, y el borde le entrega la página de login de Odoo. Cualquier
- * otra cosa (sin token, token malo, método raro) es `null` y el que llama responde 404.
+ * persona pasó: se devuelve su identidad y la cookie, y el borde le entrega la página de login de Odoo. Si no, el
+ * motivo (sin token = Access no protege esta dirección; audiencia = el PIN lo pidió otra aplicación…). Un método
+ * raro (PUT, DELETE…) es `null` y el que llama responde 404.
  */
-export async function abrirPuerta(request: Request, cfg: ConfigPuerta, deps: DepsJwt = {}): Promise<PasoPorLaPuerta | null> {
+export async function intentarPuerta(
+  request: Request,
+  cfg: ConfigPuerta,
+  deps: DepsJwt = {},
+): Promise<PasoPorLaPuerta | PuertaRechazada | null> {
   if (request.method !== "GET" && request.method !== "POST" && request.method !== "HEAD") return null;
-  const identidad = await verificarJwtAccess(request.headers.get("Cf-Access-Jwt-Assertion"), cfg, deps);
-  if (!identidad) return null;
+  const resultado = await revisarJwtAccess(request.headers.get("Cf-Access-Jwt-Assertion"), cfg, deps);
+  if ("rechazo" in resultado) return { rechazo: resultado.rechazo };
+  const { identidad } = resultado;
   const ahoraMs = (deps.ahora ?? Date.now)();
   const cookie = await crearCookie(cfg, identidad, ahoraMs);
-  if (cookie.maxAge <= 0) return null;
+  if (cookie.maxAge <= 0) return { rechazo: { motivo: "vencido" } };
   console.log(JSON.stringify({ evento: "puerta_abierta", correo: identidad.email, vence: cookie.exp }));
   return { abierta: { email: identidad.email, exp: cookie.exp }, setCookie: cookieDePuerta(cookie.valor, cookie.maxAge) };
+}
+
+/** Como `intentarPuerta`, sin el motivo: el paso o `null`. */
+export async function abrirPuerta(request: Request, cfg: ConfigPuerta, deps: DepsJwt = {}): Promise<PasoPorLaPuerta | null> {
+  const intento = await intentarPuerta(request, cfg, deps);
+  return intento && "setCookie" in intento ? intento : null;
 }
 
 /** La respuesta de Odoo para la entrada, con la cookie de la puerta y sin guardarse en ninguna caché. */

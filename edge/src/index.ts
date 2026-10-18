@@ -20,7 +20,7 @@ import {
   type SaludContenedor,
 } from "./handler";
 import { atenderJuan } from "./juan";
-import { depsPuerta } from "./puerta";
+import { depsPuerta, estadoPuerta } from "./puerta";
 import { type AlmacenTienda, tiendaActiva } from "./tienda/paginas";
 
 export interface Env {
@@ -441,6 +441,7 @@ export default {
       odooListo: () => odoo(env).listo().catch(() => false),
       entorno: env.DCASA_ENTORNO,
       puerta: depsPuerta(env),
+      puertaEstado: estadoPuerta(env),
       limitadores: { acceso: env.LIMITE_ACCESO, formulario: env.LIMITE_FORMULARIOS, carrito: env.LIMITE_CARRITO },
     });
   },

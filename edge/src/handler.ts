@@ -15,19 +15,22 @@ import {
 import { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 import { type Cubeta, filtrarAutomatizados, type Limitador } from "./bots";
 import {
-  abrirPuerta,
   cabeceraDeModo,
   cabeceraParaOdoo,
   conCookieDePuerta,
   COOKIE_BORRADA,
   type DepsPuerta,
   esEntrada,
+  type EstadoPuerta,
   esLoginPublicoDelPanel,
   esPanel,
+  intentarPuerta,
   leerCookie,
   respuestaNoExiste,
   rutasConYSinIdioma,
+  saludDePuerta,
 } from "./puerta";
+import { respuestaPuertaIncompleta, respuestaPuertaNoAbre } from "./puerta_aviso";
 import { type DepsAssets, servirAsset } from "./tienda/assets";
 import {
   type AlmacenTienda,
@@ -93,6 +96,11 @@ export interface EdgeDeps {
    * lo decide el Worker en cada petición: cambiarlo y desplegar surte efecto al instante, sin reiniciar a Odoo.
    */
   puerta?: DepsPuerta;
+  /**
+   * Cómo está la puerta (`estadoPuerta`): con la configuración incompleta, la entrada explica qué falta en vez de
+   * fallar en silencio, y `/__edge/health` lo dice (sin valores ni la ruta).
+   */
+  puertaEstado?: EstadoPuerta;
 }
 
 export async function handleRequest(request: Request, deps: EdgeDeps): Promise<Response> {
@@ -127,7 +135,7 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
         })),
         estadoTiendaParaSalud(url, deps),
       ]);
-      return respuestaSalud(salud, tienda);
+      return respuestaSalud(salud, tienda, deps.puertaEstado);
     }
     case "respaldo":
       if (!deps.respaldo) return new Response("Not Found", { status: 404 });
@@ -154,8 +162,16 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
     let abierta;
     if (esEntrada(url.pathname, config)) {
       // La entrada es la página de login del equipo: Access ya pidió el PIN; aquí se verifica y se abre la puerta.
-      const paso = await abrirPuerta(request, config, jwt);
+      // Si no abre, se dice por qué (Access en otra dirección, el AUD de otra aplicación…): nunca deja pasar.
+      const paso = await intentarPuerta(request, config, jwt);
       if (!paso) return withSecurityHeaders(respuestaNoExiste());
+      if ("rechazo" in paso) {
+        return withSecurityHeaders(
+          respuestaPuertaNoAbre(request, paso.rechazo, {
+            ruta: config.ruta, modo, entorno: deps.entorno, equipo: config.equipo, ahora: jwt?.ahora,
+          }),
+        );
+      }
       abierta = paso.abierta;
       cookieNueva = paso.setCookie;
     } else {
@@ -171,6 +187,9 @@ async function atender(request: Request, deps: EdgeDeps): Promise<Response> {
       acceso: abierta ? await cabeceraParaOdoo(config, abierta) : undefined,
       modo: await cabeceraDeModo(config, modo, exigirCorreo, ahora),
     };
+  } else if (deps.puertaEstado?.estado === "incompleta" && esEntrada(url.pathname, deps.puertaEstado)) {
+    // A la puerta le falta configuración: la entrada lo dice (qué nombres faltan) en vez de abrir el login sin el PIN.
+    return withSecurityHeaders(respuestaPuertaIncompleta(request, deps.puertaEstado, { entorno: deps.entorno }));
   }
 
   const upstream = new Request(request, { headers: forwardedHeaders(request, puertaHaciaOdoo) });
@@ -654,7 +673,11 @@ export interface SaludContenedor {
  * `tienda` (si hay caché de páginas): qué páginas principales saldrían enteras del borde
  * durante un reinicio (`sobrevive_reinicio`). No cambia el código HTTP: informa.
  */
-export function respuestaSalud(salud: SaludContenedor, tienda?: EstadoTienda | { error: string }): Response {
+export function respuestaSalud(
+  salud: SaludContenedor,
+  tienda?: EstadoTienda | { error: string },
+  puerta?: EstadoPuerta,
+): Response {
   let odoo: "ok" | "arrancando" | "detenido" | "error" | "sin_configurar";
   if (salud.faltan?.length) odoo = "sin_configurar";
   else if (salud.odoo && "status" in salud.odoo)
@@ -671,6 +694,8 @@ export function respuestaSalud(salud: SaludContenedor, tienda?: EstadoTienda | {
   }
   if (salud.odoo && "error" in salud.odoo) cuerpo.detalle = salud.odoo.error.slice(0, 200);
   if (tienda) cuerpo.tienda = tienda;
+  // Informativo (no cambia el código HTTP): «apagada», «incompleta» (con los nombres que faltan) o «lista», y el modo.
+  if (puerta) cuerpo.puerta = saludDePuerta(puerta);
 
   const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
   if (odoo !== "ok") headers.set("Retry-After", String(REINTENTO_SEGUNDOS));
