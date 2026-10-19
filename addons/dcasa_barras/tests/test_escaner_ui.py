@@ -424,6 +424,26 @@ CODIGO_CAMARA = """
             === "rgb(255, 255, 255)") {
         falla("el fondo del lector no debe ser blanco");
     }
+    // En el iPhone el video no se pinta aunque le lleguen los cuadros: camara.js los copia a un lienzo encima, del
+    // mismo tamaño, debajo del recuadro y sin recibir toques. Tiene que mostrar la imagen (el verde de la cámara).
+    const lienzo = await esperar(() => document.querySelector(".o-barcode-modal .o_dcasa_camara_lienzo"),
+                                 "el lienzo de la cámara");
+    await new Promise((ok) => setTimeout(ok, 300));
+    const cajaLienzo = lienzo.getBoundingClientRect();
+    for (const lado of ["left", "top", "width", "height"]) {
+        if (Math.abs(cajaLienzo[lado] - caja[lado]) > 1) {
+            falla(`el lienzo no calza con el video (${lado}: ${cajaLienzo[lado]} y ${caja[lado]})`);
+        }
+    }
+    if (getComputedStyle(lienzo).pointerEvents !== "none") { falla("el lienzo no debe recibir toques"); }
+    if (lienzo.compareDocumentPosition(recuadro) !== Node.DOCUMENT_POSITION_FOLLOWING) {
+        falla("el recuadro debe quedar encima del lienzo");
+    }
+    const [rojo, verde, azul] = lienzo.getContext("2d").getImageData(
+        Math.floor(lienzo.width / 2), Math.floor(lienzo.height / 2), 1, 1).data;
+    if (!(verde > 120 && rojo < 60 && azul < 120)) {
+        falla(`el lienzo no muestra la imagen de la cámara: ${rojo}, ${verde}, ${azul}`);
+    }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """

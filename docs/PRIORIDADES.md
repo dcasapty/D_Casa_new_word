@@ -17,7 +17,12 @@ preguntas para el jefe están en Claude Docs: «Preguntas que faltan, en palabra
 facturó tu venta S00139 (INV/2026/01117)»** en lugar de «Te asignaron… Borrador de factura» (y, si es sencillo, «Tu
 venta S00139 ya está cobrada»); (5) cabos del lote 4: la vendedora todavía ve «Subir» en Facturas (el servidor lo
 rechaza, pero conviene esconderlo), y exportar Reponer a Excel solo lo hacen los administradores (Odoo lo trae así);
-(6) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+(6) **Reponer con el tiempo de llegada** (la dueña, 19 oct: todo viene de China y pide con 3 a 4 meses de anticipación;
+le hablaron de Profit): en Compras › Reponer, por producto, el **ritmo de venta** (unidades por mes de los últimos N
+meses, p. ej. 5, elegible), **en cuánto se agota** con la existencia y lo pedido, el **tiempo de llegada** del
+proveedor (el campo de días de entrega del precio de proveedor de Odoo, que llenan ellos; nunca uno inventado) y
+**cuánto pedir** para cubrir la llegada más los meses de reserva que ellos elijan; con aviso de lo que hay que pedir
+ya; (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 Lo de abajo (18 oct) queda como historia: K1, cámara, Reponer y vendedoras ya están hechos.
 
 **Estado al 2026-10-18:** la tanda 2 (Inicio de Gerencia sobre facturas + reglas contables de la gerencia y permisos
