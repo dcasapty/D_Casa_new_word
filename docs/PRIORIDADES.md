@@ -19,7 +19,11 @@ de abono, F6 mermas, G4/G7 comprobantes y adelantos, I6 ZIP de comprobantes; (4)
 según L1–L8; (5) cambiar el aviso automático de Odoo «Te asignaron… Borrador de factura» (le llega a la vendedora
 cada vez que Caja o Gerencia factura su pedido y confunde: la factura nace en borrador un instante) por uno claro,
 **«Se facturó tu venta S00139 (INV/2026/01117)»** (decisión de la dueña, 19 oct); y, si es sencillo, al cobrarse:
-«Tu venta S00139 ya está cobrada»; (6) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+«Tu venta S00139 ya está cobrada»; (6) **cámara del lector de códigos en blanco** (la dueña, 19 oct, en su celular): el diálogo «Lector de
+códigos de barras» de Odoo (recuadro de recorte y barra de zoom) se ve todo blanco; sí lee códigos, pero no se ve
+la imagen para apuntar. Reproducir en Chrome móvil y Safari de iPhone; sospechas: un estilo propio que tapa o
+esconde el `<video>`, o el video sin reproducirse en línea en iOS (`playsinline`/`muted`/`autoplay`); probarlo con
+captura del video vivo (Escáner › Contar, y la cámara de los campos de código); (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
