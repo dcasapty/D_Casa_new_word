@@ -928,6 +928,24 @@ Código y pruebas: `addons/dcasa_abonos/` (`tests/test_condiciones.py`, con el P
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 
+## Reponer: qué pedirle al proveedor (pedido del jefe, 2026-10-19)
+
+**Compras › Reponer** (solo Gerencia y administradores; la Vendedora no la ve). Se eligen **Desde / Hasta** (de
+fábrica, los últimos 30 días, hoy incluido) y, si se quiere, un **Proveedor**; el botón **Ver** abre una fila por
+producto, de más vendido a menos:
+
+| Columna | De dónde sale |
+|---|---|
+| Vendido | Unidades de las **facturas publicadas** del periodo menos las notas de crédito, las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
+| En existencia hoy | Lo que hay en las ubicaciones internas. |
+| Pedido sin llegar | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
+| Faltaría | Vendido − En existencia hoy − Pedido sin llegar, solo si da más de 0. Ninguna otra cifra. |
+| Proveedor principal | El primero de los precios de proveedor del producto; el filtro «Proveedor» usa este. |
+
+En la lista: **Agrupar por › Proveedor**, y para Excel se marcan las filas y **Acciones › Exportar** (el exportar de Odoo
+lo ven quienes tienen permiso de exportar: los administradores; a otra persona se lo da un administrador en su
+usuario). Brian responde lo mismo con `que_reponer`. Código: `addons/dcasa_interfaz/models/reponer.py`.
+
 ## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
 
 Odoo pone al lado de cada formulario (cotización, factura, ficha…) el panel de mensajes y notas («Creando un nuevo registro…»),

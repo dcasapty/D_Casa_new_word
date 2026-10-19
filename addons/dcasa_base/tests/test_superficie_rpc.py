@@ -350,6 +350,9 @@ LISTA_BLANCA = {
         'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
         'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
         'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
+    ('dcasa_interfaz', 'dcasa.reponer', 'action_ver'):
+        ASISTENTE + ' (Gerencia y administradores). Además exige esos grupos en el servidor (_exigir_gerencia) '
+                    'ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '

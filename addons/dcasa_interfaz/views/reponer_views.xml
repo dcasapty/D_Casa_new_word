@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «Reponer» (Compras › Reponer): qué se vendió y cuánto faltaría pedirle al proveedor. Solo Gerencia y administradores. -->
+<odoo>
+    <record id="dcasa_reponer_view_form" model="ir.ui.view">
+        <field name="name">dcasa.reponer.form</field>
+        <field name="model">dcasa.reponer</field>
+        <field name="arch" type="xml">
+            <form string="Reponer">
+                <p class="text-muted">
+                    Lo que se vendió entre esas fechas (facturas publicadas menos notas de crédito), lo que hay hoy y
+                    lo que ya pediste y no ha llegado.
+                    <strong>Faltaría = Vendido − En existencia hoy − Pedido sin llegar</strong>, solo si da más de 0.
+                </p>
+                <group>
+                    <group>
+                        <field name="fecha_desde"/>
+                        <field name="fecha_hasta"/>
+                    </group>
+                    <group>
+                        <field name="proveedor_id" placeholder="Todos" options="{'no_create': True}"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_ver" type="object" string="Ver" class="btn-primary" data-hotkey="q"/>
+                    <button string="Cerrar" special="cancel" class="btn-secondary" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="dcasa_reponer_linea_view_list" model="ir.ui.view">
+        <field name="name">dcasa.reponer.linea.list</field>
+        <field name="model">dcasa.reponer.linea</field>
+        <field name="arch" type="xml">
+            <list string="Reponer" create="0" edit="0" delete="0">
+                <field name="product_id"/>
+                <field name="referencia"/>
+                <field name="proveedor_id"/>
+                <field name="vendido" sum="Vendido" width="90px"/>
+                <field name="existencia" width="150px"/>
+                <field name="pedido" width="150px"/>
+                <field name="faltaria" sum="Faltaría" decoration-bf="faltaria &gt; 0" width="290px"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_reponer_linea_view_search" model="ir.ui.view">
+        <field name="name">dcasa.reponer.linea.search</field>
+        <field name="model">dcasa.reponer.linea</field>
+        <field name="arch" type="xml">
+            <search string="Reponer">
+                <field name="product_id"/>
+                <field name="referencia"/>
+                <field name="proveedor_id"/>
+                <group>
+                    <filter name="agrupar_proveedor" string="Proveedor" context="{'group_by': 'proveedor_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="dcasa_reponer_action" model="ir.actions.act_window">
+        <field name="name">Reponer</field>
+        <field name="res_model">dcasa.reponer</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_dcasa_reponer" name="Reponer" parent="purchase.menu_purchase_root"
+              action="dcasa_reponer_action" sequence="4" groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>
