@@ -1,0 +1,48 @@
+// La cámara del lector de códigos: el diálogo «Lector de códigos de barras» de Odoo (web/core/barcode), que abren el
+// Escáner y los campos con cámara. En el iPhone de la dueña (Chrome en iOS, motor WebKit) salía todo blanco aunque leía
+// los códigos (2026-10-19). Odoo deja dos cosas a merced del motor:
+//  1. El tamaño del video: la grilla del recorte centra una fila y una columna que miden lo que mida el video
+//     (`align-content-center justify-content-center`), y el video pide el 100 % de ellas (`w-100 h-100`): un tamaño
+//     que depende de sí mismo. WebKit puede resolverlo a cero de alto: el video no se ve y queda el fondo blanco.
+//  2. Fuera de iOS, el recuadro se marca con una capa negra y un `::after` BLANCO mezclados con `mix-blend-mode`;
+//     WebKit no mezcla capas con el video de la cámara, así que el blanco tapa la imagen si `isIOS()` no lo detecta.
+// Aquí, para todos los navegadores: el video toma su tamaño natural y el alto sale de su proporción, sin un 100 % que
+// dependa de sí mismo (cabe a lo ancho y a lo alto y el recuadro sigue cayendo donde Odoo lo lee), fondo oscuro
+// alrededor, y el recuadro con un borde y una sombra que oscurece lo de fuera, sin mezclas. La capa no recibe toques:
+// el ícono para mover el recuadro sí.
+.modal .o-barcode-modal {
+    .modal-body {
+        background-color: #000;
+    }
+
+    .o_crop_container {
+        video {
+            display: block;
+            width: auto !important;    // en lugar de w-100 / h-100 de Odoo
+            height: auto !important;
+            max-width: 100%;
+            max-height: 80vh;
+            object-fit: contain;
+        }
+
+        .o_crop_overlay {
+            position: relative;
+            overflow: hidden;
+            background-color: transparent;
+            mix-blend-mode: normal;
+            pointer-events: none;
+
+            &::after {
+                position: absolute;
+                inset: var(--o-crop-y, 0px) var(--o-crop-x, 0px);
+                width: auto;
+                height: auto;
+                clip-path: none;
+                background-color: transparent;
+                border: 2px solid #fff;
+                border-radius: 8px;
+                box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .55);
+            }
+        }
+    }
+}

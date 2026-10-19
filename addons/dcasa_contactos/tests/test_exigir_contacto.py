@@ -40,11 +40,12 @@ class ContactoCommon(TransactionCase):
 
     def factura(self, cliente, usuario=None, **valores):
         Factura = self.env['account.move'].with_user(usuario) if usuario else self.env['account.move']
-        return Factura.create({
+        # La factura de una vendedora sale de su pedido y Odoo la crea con sudo (dcasa_base, facturas sueltas): igual.
+        return Factura.sudo().create({
             'move_type': 'out_invoice', 'partner_id': cliente.id, 'invoice_date': fields.Date.today(),
             'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': 100.0})],
             **valores,
-        })
+        }).sudo(False)
 
     def rastro_de(self, partner, campo):
         """Los cambios de ``campo`` que quedaron en el historial de la ficha, como ``(autor, antes, después)``."""

@@ -209,9 +209,9 @@ class TestSoloLoSuyo(SoloLoSuyoComun):
     def test_ficha_que_dice_b_a_cotiza_y_factura_a_su_nombre(self):
         cotizacion = self._pedido(self.a, self.cliente_de_b)
         self.assertEqual(cotizacion.user_id, self.a)
-        factura = self.env['account.move'].with_user(self.a).create({
-            'move_type': 'out_invoice', 'partner_id': self.cliente_de_b.id,
-            'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1})]})
+        # Factura desde su pedido (una factura suelta no la hace: cotiza, test_reglas_gerencia.TestFacturasSueltas).
+        cotizacion.action_confirm()
+        factura = cotizacion._create_invoices().with_user(self.a)
         self.assertEqual(factura.invoice_user_id, self.a)
         factura.action_post()
         # Desde la oportunidad de B («Nueva cotización» trae default_user_id = B): igual queda a nombre de A.

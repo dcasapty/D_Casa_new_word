@@ -21,6 +21,8 @@ COMPRAS = ('purchase.group_purchase_user',)
 GERENTE_VENTAS = ('sales_team.group_sale_manager',)
 GERENTE_INVENTARIO = ('stock.group_stock_manager',)
 ADMIN = ('base.group_system',)
+GERENCIA_O_ADMIN = ('dcasa_base.group_gerencia', 'base.group_system')
+DIAS_REPONER = 30
 MAX_BLOQUE = 200
 MAX_BLOQUE_EXISTENCIAS = 1000
 CAMPOS_EN_BLOQUE = ('precio', 'categoria', 'vendible')
@@ -207,6 +209,44 @@ class BrianHerramientasOperacion(models.AbstractModel):
                 fila['recepcion'] = RECEPCION.get(orden.receipt_status, orden.receipt_status)
             filas.append(fila)
         return {'encontradas': Compra.search_count(dominio), 'compras': filas}
+
+    @herramienta(
+        nombre='que_reponer',
+        descripcion='Qué reponerle a un proveedor (como Compras › Reponer): por producto, lo vendido en el periodo '
+                    '(facturas menos notas de crédito), lo que hay hoy, lo pedido sin llegar y lo que faltaría '
+                    '(vendido − existencia − pedido).',
+        parametros={
+            'proveedor': {'type': 'string', 'description': 'Proveedor principal. Opcional: sin él, todos.'},
+            'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
+            'limite': c.PARAM_LIMITE,
+        },
+        nivel='lectura', categoria='catalogo', grupos=(GERENCIA_O_ADMIN,),
+        ejemplos=['¿qué le repongo a Muebles XYZ? → proveedor=«Muebles XYZ»',
+                  'lo vendido el mes pasado para reponer → periodo=mes_pasado'],
+    )
+    def _h_que_reponer(self, proveedor=None, periodo=None, desde=None, hasta=None, limite=20):
+        if periodo or desde or hasta:
+            inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
+        else:
+            fin = self._b_hoy()
+            inicio, etiqueta = fin - timedelta(days=DIAS_REPONER - 1), f'los últimos {DIAS_REPONER} días'
+        socio = self._b_contacto(proveedor, 'proveedor') if proveedor else None
+        filas = self.env['dcasa.reponer']._calcular(inicio, fin, socio)
+        productos = [{'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or '—',
+                      'vendido': c.cantidad(f['vendido']), 'en_existencia': c.cantidad(f['existencia']),
+                      'pedido_sin_llegar': c.cantidad(f['pedido']), 'faltaria': c.cantidad(f['faltaria'])}
+                     for f in filas]
+        return {
+            'periodo': etiqueta,
+            'proveedor': socio.display_name if socio else 'todos',
+            'criterio': 'vendido = facturas publicadas menos notas de crédito (sin servicios, flete ni anticipos); '
+                        'faltaría = vendido − en existencia − pedido sin llegar, solo si da más de 0',
+            'productos_vendidos': len(productos),
+            'productos': productos[:c.limite(limite, 20)],
+            'nota': 'La lista completa, agrupable por proveedor y para exportar, está en Compras › Reponer.'
+                    if productos else 'En ese periodo no hay productos vendidos'
+                                      + (f' de {socio.display_name}.' if socio else '.'),
+        }
 
     # ------------------------------------------------------------------
     # Pendientes del día

@@ -34,6 +34,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
+| Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos) | Sí | Sí | Sí | Sí |
 | **Registrar el cobro** de una factura de cliente (o un abono), un cobro suelto, o aplicarle un cobro que ya estaba («el cobro solo en Caja», 2026-10-17) | **No** (con el interruptor encendido o apagado) | Sí | Sí | Sí | Sí |
 | Cobrar con **Tafi** o **Crediviva** (financieras: formas de pago en «Pagar») | No | Sí | Sí | Sí | Sí |
 | Registrar un **primer abono menor a la mitad** del total | No | **No** | **No** | Sí | Sí |

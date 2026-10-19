@@ -352,7 +352,7 @@
     "ventas facturadas",
     "buscar factura"
    ],
-   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas."
+   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas. La vendedora no hace facturas sueltas: hace una cotización (Ventas › Nueva cotización) y la factura sale del pedido, así Caja la encuentra para cobrar."
   },
   {
    "id": "factura-borrador",
@@ -1412,6 +1412,25 @@
     "pedido a proveedor",
     "reponer"
    ]
+  },
+  {
+   "id": "reponer-proveedor",
+   "categoria": "compras",
+   "grupo": "Pedir",
+   "titulo": "Ver qué reponerle a un proveedor",
+   "logras": "Eliges las fechas (y, si quieres, un proveedor) y ves cada producto que se vendió, cuánto hay hoy en la tienda, cuánto ya pediste y no ha llegado, y cuánto faltaría pedir: lo vendido menos lo que hay menos lo que viene en camino.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_reponer"
+   },
+   "palabras": [
+    "reponer",
+    "reposicion",
+    "articulos vendidos",
+    "lo que se vendio",
+    "que le pido al proveedor",
+    "listado de ventas por producto"
+   ],
+   "brian": "¿Qué le repongo a mi proveedor?"
   },
   {
    "id": "proveedores",

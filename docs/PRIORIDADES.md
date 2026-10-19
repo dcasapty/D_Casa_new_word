@@ -16,7 +16,18 @@ contables) y el lote 3 (Desplegar 20: `/master` con diagnóstico, Mi cuenta, doc
 Todas las preguntas contables respondidas. Orden de lo que sigue: (1) K1 en el Inicio; (2) bodega (Etapa 4) y datos
 limpios (Etapas 3 y 1b(a), F5), ramas locales apenas empezadas; (3) D1 código de descuento al celular, D3 recordatorio
 de abono, F6 mermas, G4/G7 comprobantes y adelantos, I6 ZIP de comprobantes; (4) el trabajo contable con la gerencia
-según L1–L8; (5) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+según L1–L8; (5) cambiar el aviso automático de Odoo «Te asignaron… Borrador de factura» (le llega a la vendedora
+cada vez que Caja o Gerencia factura su pedido y confunde: la factura nace en borrador un instante) por uno claro,
+**«Se facturó tu venta S00139 (INV/2026/01117)»** (decisión de la dueña, 19 oct); y, si es sencillo, al cobrarse:
+«Tu venta S00139 ya está cobrada»; (6) **cámara del lector de códigos en blanco** (la dueña, 19 oct, en su celular): el diálogo «Lector de
+códigos de barras» de Odoo (recuadro de recorte y barra de zoom) se ve todo blanco; sí lee códigos, pero no se ve
+la imagen para apuntar. La dueña usa **iPhone con Google Chrome** (en iOS, Chrome usa el motor de Safari: probar en WebKit). Reproducir ahí y en Android; sospechas: un estilo propio que tapa o
+esconde el `<video>`, o el video sin reproducirse en línea en iOS (`playsinline`/`muted`/`autoplay`); probarlo con
+captura del video vivo (Escáner › Contar, y la cámara de los campos de código); (7) **lista de lo vendido para reponer con el proveedor** (pedido del jefe, 19 oct: «cómo puedo pedir un listado de
+los artículos vendidos para hacer reposiciones con el proveedor de manera más acertada»): una pantalla «Reponer» para
+Gerencia con, por producto y por proveedor, lo vendido en un periodo (con la misma base del Inicio), lo que hay hoy en
+existencia y lo pedido que aún no llega; exportable a Excel y agrupable por proveedor, y que Brian la diga
+(«¿qué tengo que reponerle a X?»). Sin cifras inventadas: la sugerencia sale solo de esos datos; (8) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo

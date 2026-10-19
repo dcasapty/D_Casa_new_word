@@ -334,6 +334,7 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `sugerir_reabastecimiento` — vendido en N días, hay, en camino, comprometido, cuánto pedir para cubrir N días, proveedor y costo | lectura | Inventario |
 | `crear_pedido_compra(proveedor, lineas)` — solicitud de compra en borrador | construcción | Compras |
 | `buscar_compras` — borradores, confirmadas, por recibir | lectura | Compras |
+| `que_reponer(proveedor?, periodo? / desde?, hasta?)` — lo mismo que Compras › Reponer: por producto, vendido (facturas menos notas de crédito), en existencia, pedido sin llegar y faltaría (vendido − existencia − pedido); de fábrica, los últimos 30 días | lectura | Gerencia y administradores |
 | `pendientes_de_hoy` — entregas, cotizaciones dormidas, compras por recibir, vencidas, publicados agotados, acciones por confirmar | lectura | Interno |
 | `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
 | `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |

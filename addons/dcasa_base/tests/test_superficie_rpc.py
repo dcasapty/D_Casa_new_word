@@ -71,12 +71,16 @@ LISTA_BLANCA = {
     ('dcasa_base', 'sale.order', 'create'):
         OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
     ('dcasa_base', 'account.move', 'create'):
-        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; y '
-                   'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); sin sudo().',
+        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
+                   'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); y quien no cobra no hace '
+                   'una factura de cliente suelta (cotiza); sin sudo() para escribir.',
     # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
     # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
     ('dcasa_base', 'account.move', 'write'):
         OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); sin sudo().',
+    ('dcasa_base', 'account.move', 'get_view'):
+        OVERRIDE + ' Solo quita «Nuevo» de las vistas de facturas de cliente a quien no cobra (la Vendedora); no lee '
+                   'ni escribe datos, sin sudo().',
     ('dcasa_base', 'account.move', 'button_draft'):
         OVERRIDE + ' Exige Gerencia para una factura de cliente publicada (A6); sin sudo().',
     ('dcasa_base', 'account.move', 'button_cancel'):
@@ -350,6 +354,9 @@ LISTA_BLANCA = {
         'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
         'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
         'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
+    ('dcasa_interfaz', 'dcasa.reponer', 'action_ver'):
+        ASISTENTE + ' (Gerencia y administradores). Además exige esos grupos en el servidor (_exigir_gerencia) '
+                    'ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '
