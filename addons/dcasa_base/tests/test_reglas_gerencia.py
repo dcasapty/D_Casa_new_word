@@ -40,6 +40,7 @@ def negado(prueba, excepcion, texto):
 
 
 COBRO = 'Los cobros los registra Caja'
+COTIZAR = 'Las ventas se hacen como cotización: Ventas › Nueva cotización'
 GERENCIA = 'solo Gerencia'
 
 
@@ -67,11 +68,12 @@ class ReglasGerenciaComun(TransactionCase):
     def _factura(self, usuario=None, monto=200.0, vendedora=None):
         """Una factura de cliente publicada de ``monto`` (sin ITBMS), creada y publicada por ``usuario``."""
         Move = self.env['account.move'].with_user(usuario) if usuario else self.env['account.move']
-        factura = Move.create({
+        # La factura de una vendedora sale de su pedido, y Odoo la crea con sudo (TestFacturasSueltas): aquí, igual.
+        factura = Move.sudo().create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': fields.Date.today(),
             'invoice_user_id': (vendedora or usuario or self.vendedora).id,
             'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': monto,
-                                                 'tax_ids': [Command.clear()]})]})
+                                                 'tax_ids': [Command.clear()]})]}).sudo(False)
         factura.action_post()
         return factura
 
@@ -249,9 +251,9 @@ class TestDeshacerYDevolverEsDeGerencia(ReglasGerenciaComun):
 
     def test_un_borrador_lo_cancela_quien_factura(self):
         """La regla es para lo publicado: un borrador que nunca se publicó lo cancela quien lo hizo."""
-        borrador = self.env['account.move'].with_user(self.vendedora).create({
+        borrador = self.env['account.move'].with_user(self.vendedora).sudo().create({   # como sale del pedido
             'move_type': 'out_invoice', 'partner_id': self.cliente.id,
-            'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1})]})
+            'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1})]}).sudo(False)
         borrador.button_cancel()
         self.assertEqual(borrador.state, 'cancel')
 
@@ -601,3 +603,93 @@ class TestBotonesSoloAQuienPuede(ReglasGerenciaComun):
         self.assertFalse(factura.reversal_move_ids)
         self._por_rpc(self.gerencia, 'account.move', 'button_draft', factura.ids)
         self.assertEqual(factura.state, 'draft')
+
+
+@tagged('post_install', '-at_install')
+class TestFacturasSueltas(ReglasGerenciaComun):
+    """Quien no cobra (la Vendedora) no hace facturas de cliente sueltas: cotiza y factura desde el pedido, para que
+    Caja la encuentre. Caja, Gerencia y los administradores sí hacen una suelta."""
+
+    def _valores(self):
+        return {'move_type': 'out_invoice', 'partner_id': self.cliente.id,
+                'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 1,
+                                                     'price_unit': 100.0, 'tax_ids': [Command.clear()]})]}
+
+    def _pedido(self):
+        """Un pedido confirmado de la vendedora, como lo hace ella en Ventas."""
+        pedido = self.env['sale.order'].with_user(self.vendedora).create({
+            'partner_id': self.cliente.id, 'user_id': self.vendedora.id,
+            'order_line': [Command.create({'product_id': self.producto.id, 'product_uom_qty': 1, 'price_unit': 100.0,
+                                           'tax_ids': [Command.clear()]})]})
+        pedido.action_confirm()
+        return pedido
+
+    def _facturar(self, pedido, **valores):
+        """El asistente «Crear factura» del pedido (normal o anticipo), como la vendedora."""
+        asistente = self.env['sale.advance.payment.inv'].with_user(self.vendedora).with_context(
+            active_model='sale.order', active_ids=pedido.ids, active_id=pedido.id).create(valores)
+        asistente.create_invoices()
+        return pedido.sudo().invoice_ids.sorted('id')[-1:].with_user(self.vendedora)
+
+    def test_la_vendedora_no_hace_una_factura_suelta(self):
+        Move = self.env['account.move'].with_user(self.vendedora)
+        with negado(self, AccessError, COTIZAR):
+            Move.create(self._valores())
+        with negado(self, AccessError, COTIZAR):
+            Move.with_context(default_move_type='out_invoice').create(
+                {k: v for k, v in self._valores().items() if k != 'move_type'})
+        with negado(self, AccessError, COTIZAR):   # por RPC, igual
+            call_kw(Move, 'create', [self._valores()], {})
+        self.assertFalse(self.env['account.move'].search([('partner_id', '=', self.cliente.id)]))
+
+    def test_la_vendedora_factura_desde_su_pedido(self):
+        factura = self._facturar(self._pedido(), advance_payment_method='delivered')
+        self.assertTrue(factura.sudo().line_ids.sale_line_ids)
+        factura.action_post()
+        self.assertEqual((factura.state, factura.invoice_user_id), ('posted', self.vendedora))
+
+    def test_la_vendedora_factura_un_anticipo_desde_su_pedido(self):
+        factura = self._facturar(self._pedido(), advance_payment_method='percentage', amount=50)
+        lineas_del_pedido = factura.sudo().line_ids.sale_line_ids
+        self.assertTrue(lineas_del_pedido and all(lineas_del_pedido.mapped('is_downpayment')))
+        factura.action_post()
+        self.assertEqual(factura.amount_total, 50.0)
+
+    def test_no_le_saca_las_lineas_del_pedido(self):
+        factura = self._facturar(self._pedido(), advance_payment_method='delivered')
+        linea = factura.invoice_line_ids
+        with negado(self, AccessError, COTIZAR):
+            factura.write({'invoice_line_ids': [
+                Command.delete(linea.id),
+                Command.create({'product_id': self.producto.id, 'quantity': 1, 'price_unit': 10.0})]})
+        self.assertEqual(factura.invoice_line_ids, linea)
+        factura.write({'invoice_line_ids': [Command.update(linea.id, {'price_unit': 90.0})]})  # editarla, sí
+        self.assertEqual(factura.amount_total, 90.0)
+
+    def test_caja_gerencia_y_administrador_hacen_una_suelta(self):
+        for usuario in (self.caja, self.gerencia, self.contador, self.admin):
+            with self.subTest(usuario=usuario.login):
+                factura = self.env['account.move'].with_user(usuario).create(self._valores())
+                factura.action_post()
+                self.assertEqual(factura.state, 'posted')
+        # Y la vendedora sigue trabajando en una suelta que hizo Caja.
+        suelta = self.env['account.move'].with_user(self.caja).create(dict(self._valores(),
+                                                                          invoice_user_id=self.vendedora.id))
+        suelta.with_user(self.vendedora).write({'invoice_line_ids': [Command.create(
+            {'product_id': self.producto.id, 'quantity': 1, 'price_unit': 5.0, 'tax_ids': [Command.clear()]})]})
+
+    def test_a_la_vendedora_no_le_sale_nuevo_en_facturas(self):
+        def arch(usuario, tipo, contexto=None, accion=False):
+            Modelo = self.env['account.move'].with_user(usuario).with_context(**(contexto or {}))
+            vistas = Modelo.get_views([(False, tipo)], {'action_id': accion})
+            return etree.fromstring(vistas['views'][tipo]['arch'])
+        # Como la pide la pantalla (Facturación › Facturas): sin el contexto de la acción, con su action_id.
+        facturas = self.env.ref('account.action_move_out_invoice_type').id
+        proveedores = self.env.ref('account.action_move_in_invoice_type').id
+        for tipo in ('list', 'form', 'kanban'):
+            with self.subTest(tipo=tipo):
+                self.assertEqual(arch(self.vendedora, tipo, accion=facturas).get('create'), '0')
+                self.assertEqual(arch(self.vendedora, tipo, {'default_move_type': 'out_invoice'}).get('create'), '0')
+                self.assertNotEqual(arch(self.caja, tipo, accion=facturas).get('create'), '0')
+                # Lo demás (facturas de proveedor, asientos) no cambia.
+                self.assertNotEqual(arch(self.vendedora, tipo, accion=proveedores).get('create'), '0')

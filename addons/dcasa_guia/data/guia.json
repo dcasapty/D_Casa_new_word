@@ -352,7 +352,7 @@
     "ventas facturadas",
     "buscar factura"
    ],
-   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas."
+   "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas. La vendedora no hace facturas sueltas: hace una cotización (Ventas › Nueva cotización) y la factura sale del pedido, así Caja la encuentra para cobrar."
   },
   {
    "id": "factura-borrador",

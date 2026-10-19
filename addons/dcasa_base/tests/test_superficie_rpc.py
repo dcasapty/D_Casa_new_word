@@ -71,12 +71,16 @@ LISTA_BLANCA = {
     ('dcasa_base', 'sale.order', 'create'):
         OVERRIDE + ' Fija como dueña (vendedora) a quien crea si solo ve lo suyo; sin sudo().',
     ('dcasa_base', 'account.move', 'create'):
-        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; y '
-                   'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); sin sudo().',
+        OVERRIDE + ' Fija como dueña (vendedora) de la factura de cliente a quien la crea si solo ve lo suyo; '
+                   'una nota de crédito de cliente exige Gerencia (models/cobros.py, A7); y quien no cobra no hace '
+                   'una factura de cliente suelta (cotiza); sin sudo() para escribir.',
     # Reglas contables de la gerencia (2026-10-17, models/cobros.py): solo AGREGAN una comprobación de grupo antes de
     # llamar a Odoo; ninguna usa sudo() para escribir (solo para leer el tipo y dar el mensaje claro).
     ('dcasa_base', 'account.move', 'write'):
         OVERRIDE + ' Pasar una factura de cliente publicada a borrador o anulada exige Gerencia (A6); sin sudo().',
+    ('dcasa_base', 'account.move', 'get_view'):
+        OVERRIDE + ' Solo quita «Nuevo» de las vistas de facturas de cliente a quien no cobra (la Vendedora); no lee '
+                   'ni escribe datos, sin sudo().',
     ('dcasa_base', 'account.move', 'button_draft'):
         OVERRIDE + ' Exige Gerencia para una factura de cliente publicada (A6); sin sudo().',
     ('dcasa_base', 'account.move', 'button_cancel'):
