@@ -100,7 +100,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-19
 
-- **En producción** (Desplegar 23, `app_version` `a57796a5…`, imagen `sha256:91aaf19e…`; CI #209 verde y staging sano;
+- **En producción** (17:42 Panamá, Desplegar 23 confirmado 600 s, `app_version` `a57796a5…`, imagen `sha256:91aaf19e…`; CI #209 verde y staging sano;
   PR #59 `8cd21bf`): **la cámara del lector se pinta en un lienzo encima del video**. Con Desplegar 22 la dueña siguió
   sin ver la imagen en su iPhone (Chrome): pasó de blanco a negro, pero leía los códigos. El video recibe los cuadros y
   WebKit no lo pinta; `dcasa_barras/static/src/js/camara.js` copia cada cuadro a un lienzo del mismo tamaño. Falta que
