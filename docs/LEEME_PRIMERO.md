@@ -100,7 +100,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 ### 2026-10-19
 
-- **En producción** (Desplegar 22, `app_version` `d3b36132…`, imagen `sha256:5c561ff6…`; CI #207 verde y staging sano;
+- **En producción** (14:06 Panamá, Desplegar 22 confirmado 600 s, `app_version` `d3b36132…`, imagen `sha256:5c561ff6…`; CI #207 verde y staging sano;
   PR #58 `59c1795`): **las vendedoras cotizan, no facturan sueltas** (una factura de cliente sin pedido la rechaza el
   servidor si quien la crea no cobra, con el mensaje que la manda a Ventas › Nueva cotización; «Nuevo» escondido en
   Facturas): así la venta aparece como cotización abierta y Caja la cobra. **La cámara del lector de códigos se ve**
