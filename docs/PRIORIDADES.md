@@ -21,7 +21,7 @@ cada vez que Caja o Gerencia factura su pedido y confunde: la factura nace en bo
 **«Se facturó tu venta S00139 (INV/2026/01117)»** (decisión de la dueña, 19 oct); y, si es sencillo, al cobrarse:
 «Tu venta S00139 ya está cobrada»; (6) **cámara del lector de códigos en blanco** (la dueña, 19 oct, en su celular): el diálogo «Lector de
 códigos de barras» de Odoo (recuadro de recorte y barra de zoom) se ve todo blanco; sí lee códigos, pero no se ve
-la imagen para apuntar. Reproducir en Chrome móvil y Safari de iPhone; sospechas: un estilo propio que tapa o
+la imagen para apuntar. La dueña usa **iPhone con Google Chrome** (en iOS, Chrome usa el motor de Safari: probar en WebKit). Reproducir ahí y en Android; sospechas: un estilo propio que tapa o
 esconde el `<video>`, o el video sin reproducirse en línea en iOS (`playsinline`/`muted`/`autoplay`); probarlo con
 captura del video vivo (Escáner › Contar, y la cámara de los campos de código); (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 
