@@ -98,6 +98,20 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-19
+
+- **En producción** (Desplegar 22, `app_version` `d3b36132…`, imagen `sha256:5c561ff6…`; CI #207 verde y staging sano;
+  PR #58 `59c1795`): **las vendedoras cotizan, no facturan sueltas** (una factura de cliente sin pedido la rechaza el
+  servidor si quien la crea no cobra, con el mensaje que la manda a Ventas › Nueva cotización; «Nuevo» escondido en
+  Facturas): así la venta aparece como cotización abierta y Caja la cobra. **La cámara del lector de códigos se ve**
+  (en iPhone con Chrome salía en blanco: el video va a su tamaño natural sobre negro y el recuadro de recorte sin
+  `mix-blend-mode`). **Compras › Reponer** (pedido del jefe): por producto y proveedor, lo vendido en el periodo, la
+  existencia de hoy, lo pedido sin llegar y lo que faltaría; agrupable por proveedor y Brian lo dice («¿qué le
+  repongo a X?»). La dueña pidió capturas y producción directa («adelántalo, procede… despliega a producción»).
+  Pendiente: que ella pruebe la cámara en su iPhone.
+- **Preguntas para el jefe:** las 14 que faltaban de la contadora quedaron en palabras sencillas en Claude Docs
+  («Preguntas que faltan, en palabras sencillas»), con opciones a/b y la recomendada marcada.
+
 ### 2026-10-18
 
 - **En producción** (Desplegar 21, `app_version` `a23113ec…`, imagen `sha256:f01fce0f…`; CI #202 verde y staging sano;
