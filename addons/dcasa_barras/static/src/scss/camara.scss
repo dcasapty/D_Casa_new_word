@@ -10,6 +10,8 @@
 // dependa de sí mismo (cabe a lo ancho y a lo alto y el recuadro sigue cayendo donde Odoo lo lee), fondo oscuro
 // alrededor, y el recuadro con un borde y una sombra que oscurece lo de fuera, sin mezclas. La capa no recibe toques:
 // el ícono para mover el recuadro sí.
+// Con eso, en el iPhone pasó de blanco a negro: ese motor no pinta el video aunque le llegan los cuadros. La imagen
+// se ve gracias al lienzo de camara.js (`.o_dcasa_camara_lienzo`), que copia cada cuadro encima del video.
 .modal .o-barcode-modal {
     .modal-body {
         background-color: #000;
@@ -23,6 +25,15 @@
             max-width: 100%;
             max-height: 80vh;
             object-fit: contain;
+        }
+
+        // Encima del video, del mismo tamaño (camara.js pone la posición) y sin recibir toques.
+        .o_dcasa_camara_lienzo {
+            position: absolute;
+            grid-row: auto;
+            grid-column: auto;
+            display: block;
+            pointer-events: none;
         }
 
         .o_crop_overlay {

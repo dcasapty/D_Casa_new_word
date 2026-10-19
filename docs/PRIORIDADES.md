@@ -7,6 +7,24 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-19:** en producción el lote 4 (Desplegar 22): las vendedoras ya no hacen facturas sueltas
+(cotizan; la factura sale del pedido y Caja la encuentra), la cámara del lector de códigos se ve en el celular, y
+Compras › Reponer para el jefe. Falta que la dueña pruebe la cámara en su iPhone con Chrome y lo confirme. Orden de lo
+que sigue (jueves, cuando se renuevan los créditos): (1) bodega (Etapa 4) y datos limpios (Etapas 3 y 1b(a), F5),
+ramas locales apenas empezadas; (2) D1 código de descuento al celular, D3 recordatorio de abono, F6 mermas, G4/G7
+comprobantes y adelantos, I6 ZIP de comprobantes; (3) el trabajo contable con la gerencia según L1–L8 (las 14
+preguntas para el jefe están en Claude Docs: «Preguntas que faltan, en palabras sencillas»); (4) el aviso **«Se
+facturó tu venta S00139 (INV/2026/01117)»** en lugar de «Te asignaron… Borrador de factura» (y, si es sencillo, «Tu
+venta S00139 ya está cobrada»); (5) cabos del lote 4: la vendedora todavía ve «Subir» en Facturas (el servidor lo
+rechaza, pero conviene esconderlo), y exportar Reponer a Excel solo lo hacen los administradores (Odoo lo trae así);
+(6) **Reponer con el tiempo de llegada** (la dueña, 19 oct: todo viene de China y pide con 3 a 4 meses de anticipación;
+le hablaron de Profit): en Compras › Reponer, por producto, el **ritmo de venta** (unidades por mes de los últimos N
+meses, p. ej. 5, elegible), **en cuánto se agota** con la existencia y lo pedido, el **tiempo de llegada** del
+proveedor (el campo de días de entrega del precio de proveedor de Odoo, que llenan ellos; nunca uno inventado) y
+**cuánto pedir** para cubrir la llegada más los meses de reserva que ellos elijan; con aviso de lo que hay que pedir
+ya; (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+Lo de abajo (18 oct) queda como historia: K1, cámara, Reponer y vendedoras ya están hechos.
+
 **Estado al 2026-10-18:** la tanda 2 (Inicio de Gerencia sobre facturas + reglas contables de la gerencia y permisos
 de vendedoras + pedidos web sin vendedora) está unida y con la revisión cruzada en la rama `tanda2`; sigue CI, staging y
 producción. Antes de abrir: rol Caja al jefe administrativo.

@@ -351,6 +351,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **La cámara del lector de códigos de Odoo puede salir en blanco en iOS** (Chrome en iPhone es WebKit): el video pide
+  el 100 % de una grilla que mide lo que mide el video (WebKit lo resuelve a cero de alto) y, fuera de `isIOS()`, el
+  recuadro usa un `::after` blanco con `mix-blend-mode`, que WebKit no mezcla con la cámara. Arreglo en
+  `dcasa_barras/static/src/scss/camara.scss`: video a su tamaño natural, fondo negro y recuadro con borde y sombra, sin
+  mezclas. Para probarlo, Playwright con WebKit o el agente de usuario de un iPhone (2026-10-19).
+- **Una factura de cliente creada sin pedido no aparece como cotización abierta** y Caja no la encuentra para cobrar:
+  `account.move.create` rechaza una `out_invoice` sin `sale_line_ids` si quien la crea no cobra
+  (`_dcasa_puede_cobrar`), y «Nuevo» se esconde en Facturas con `get_view` (2026-10-19). Las pruebas o datos que crean
+  facturas sueltas tienen que hacerlo como alguien que cobra.
 - **Una prueba que cruza dos módulos solo corre en la unión** (`skipUnless` del otro módulo): la de los ids de Meta
   (`TestContratoId`) falló la primera vez que corrió, en la unión, porque el otro paquete había agregado después un
   interruptor apagado de fábrica. Al unir paquetes, mirar qué pruebas dejan de saltarse (2026-10-17).
