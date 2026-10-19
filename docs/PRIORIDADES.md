@@ -16,7 +16,8 @@ contables) y el lote 3 (Desplegar 20: `/master` con diagnóstico, Mi cuenta, doc
 Todas las preguntas contables respondidas. Orden de lo que sigue: (1) K1 en el Inicio; (2) bodega (Etapa 4) y datos
 limpios (Etapas 3 y 1b(a), F5), ramas locales apenas empezadas; (3) D1 código de descuento al celular, D3 recordatorio
 de abono, F6 mermas, G4/G7 comprobantes y adelantos, I6 ZIP de comprobantes; (4) el trabajo contable con la gerencia
-según L1–L8; (5) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+según L1–L8; (5) silenciar el aviso automático de Odoo «Te asignaron… Borrador de factura» que le llega a la
+vendedora cada vez que Caja o Gerencia factura su pedido (ruido, no es un error; la dueña lo vio el 19 oct); (6) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
