@@ -194,10 +194,11 @@ class TestVendedoraVendeYCobra(PermisosContablesCommon):
     test_reglas_gerencia.py): la vendedora factura y ve el cobro de su factura."""
 
     def _facturar(self, usuario):
-        factura = self.env['account.move'].with_user(usuario).create({
+        # La vendedora factura desde su pedido y Odoo la crea con sudo (test_reglas_gerencia.TestFacturasSueltas).
+        factura = self.env['account.move'].with_user(usuario).sudo().create({
             'move_type': 'out_invoice', 'partner_id': self.cliente.id, 'invoice_date': fields.Date.today(),
             'invoice_line_ids': [Command.create({'product_id': self.producto.id, 'quantity': 2, 'price_unit': 100.0})],
-        })
+        }).sudo(False)
         factura.action_post()
         return factura
 

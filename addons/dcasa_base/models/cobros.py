@@ -46,6 +46,11 @@ def mensaje_nota(env):
     return env._('Las notas de crédito de clientes las hace solo Gerencia. Pídesela a Gerencia.')
 
 
+def mensaje_cotizar(env):
+    return env._('Las ventas se hacen como cotización: Ventas › Nueva cotización. Al confirmarla, la factura sale del '
+                 'pedido y Caja la encuentra para cobrar.')
+
+
 def mensaje_anular(env, nombre):
     return env._('La factura %s ya está publicada: pasarla a borrador o anularla lo hace solo Gerencia. '
                  'Pídeselo a Gerencia.', nombre)
@@ -84,6 +89,13 @@ def pago_en_linea_de_su_factura(lineas):
     if not pagos or not facturas or 'transaction_ids' not in facturas._fields:
         return False
     return pagos <= facturas.transaction_ids.payment_id
+
+
+def sin_nuevo(resultado):
+    """El resultado de ``get_view`` sin el botón «Nuevo» (``create="0"`` en la raíz)."""
+    nodo = etree.fromstring(resultado['arch'])
+    nodo.set('create', '0')
+    return dict(resultado, arch=etree.tostring(nodo, encoding='unicode'))
 
 
 class ResUsers(models.Model):
@@ -125,7 +137,20 @@ class AccountMove(models.Model):
             por_defecto = self.env.context.get('default_move_type')
             if any(vals.get('move_type', por_defecto) == 'out_refund' for vals in vals_list):
                 exigir_gerencia(self.env, mensaje_nota(self.env))
-        return super().create(vals_list)
+        moves = super().create(vals_list)
+        moves._dcasa_exigir_que_salga_del_pedido()
+        return moves
+
+    # --- Facturas sueltas: quien no cobra, cotiza ------------------------------------------------------------------
+    def _dcasa_sueltas(self):
+        """Las facturas de cliente que no salieron de un pedido de venta (ninguna línea con ``sale_line_ids``)."""
+        return self.sudo().filtered(lambda m: m.move_type == 'out_invoice' and not m.line_ids.sale_line_ids)
+
+    def _dcasa_exigir_que_salga_del_pedido(self):
+        """Quien no cobra solo tiene facturas de cliente que salen de un pedido. Odoo las crea desde el pedido (y los
+        anticipos) con ``sudo``: ese camino no cambia."""
+        if not self.env.su and not self.env.user._dcasa_puede_cobrar() and self._dcasa_sueltas():
+            raise AccessError(mensaje_cotizar(self.env))
 
     def _post(self, soft=True):
         if not self.env.su and self.filtered(lambda m: m.move_type == 'out_refund'):
@@ -136,6 +161,20 @@ class AccountMove(models.Model):
         if self.filtered(lambda m: m.move_type in CLIENTE):
             exigir_gerencia(self.env, mensaje_nota(self.env))
         return super().action_reverse()
+
+    @api.model
+    def get_view(self, view_id=None, view_type='form', **options):
+        """Facturas de cliente (Facturación › Facturas y las facturas de un pedido, que abren la misma acción): a quien
+        no cobra no le sale «Nuevo», que solo daría el aviso de cotizar. La pantalla no manda el contexto de la acción
+        al pedir las vistas (solo ``lang`` y ``*_view_ref``), sí su ``action_id``. Después de la caché de vistas, como
+        en los pagos."""
+        resultado = super().get_view(view_id, view_type, **options)
+        if view_type in ('list', 'form', 'kanban') and not self.env.su and not self.env.user._dcasa_puede_cobrar():
+            facturas = self.env.ref('account.action_move_out_invoice_type', raise_if_not_found=False)
+            if (self.env.context.get('default_move_type') == 'out_invoice'
+                    or (facturas and options.get('action_id') == facturas.id)):
+                resultado = sin_nuevo(resultado)
+        return resultado
 
     # --- A6: pasar a borrador o anular -------------------------------------------------------------------------
     def _dcasa_exigir_gerencia_para_deshacer(self):
@@ -155,7 +194,13 @@ class AccountMove(models.Model):
         # Por RPC alguien podría escribir el estado a mano: la misma regla que los botones.
         if not self.env.su and vals.get('state') in ('draft', 'cancel'):
             self._dcasa_exigir_gerencia_para_deshacer()
-        return super().write(vals)
+        # Quitarle las líneas del pedido a una factura que salió de uno la dejaría suelta: la misma regla que al crear.
+        del_pedido = self.browse()
+        if not self.env.su and {'invoice_line_ids', 'line_ids'} & set(vals):
+            del_pedido = self - self._dcasa_sueltas()
+        resultado = super().write(vals)
+        del_pedido._dcasa_exigir_que_salga_del_pedido()
+        return resultado
 
     # --- A5: aplicar o quitar cobros desde la factura --------------------------------------------------------------
     def _dcasa_exigir_quien_toca_cobros(self):
@@ -255,9 +300,7 @@ class AccountPayment(models.Model):
         hace con los permisos del modelo."""
         resultado = super().get_view(view_id, view_type, **options)
         if view_type in ('list', 'form', 'kanban') and not self.env.su and not self.env.user._dcasa_puede_cobrar():
-            nodo = etree.fromstring(resultado['arch'])
-            nodo.set('create', '0')
-            resultado = dict(resultado, arch=etree.tostring(nodo, encoding='unicode'))
+            resultado = sin_nuevo(resultado)
         return resultado
 
     @api.model

@@ -71,6 +71,15 @@ class TestBrianReglasGerencia(TransactionCase):
         self.assertIn('los cobros los registra Caja', conversacion._sistema({})[1])
         self.assertIn('solo de Gerencia', conversacion._sistema({})[1])
 
+    def test_la_vendedora_no_hace_una_factura_suelta_por_brian(self):
+        """La misma regla que en la pantalla: quien no cobra cotiza; Caja sí hace una factura suelta."""
+        argumentos = {'tipo': 'cliente', 'tercero': self.cliente.name, 'producto': self.mueble.name, 'precio': 200.0}
+        respuesta = self.ejecutar(self.vendedora, 'crear_factura', argumentos)
+        self.assertFalse(respuesta['ok'], respuesta)
+        self.assertIn('Las ventas se hacen como cotización', respuesta['error'])
+        self.assertFalse(self.env['account.move'].search([('partner_id', '=', self.cliente.id)]))
+        self.assertTrue(self.ejecutar(self.caja, 'crear_factura', argumentos)['ok'])
+
     def test_caja_cobra_por_brian_y_el_primer_abono_bajo_lo_niega(self):
         factura = self._factura()
         self.assertIn('registrar_pago',

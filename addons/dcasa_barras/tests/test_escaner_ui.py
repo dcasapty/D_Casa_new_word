@@ -363,6 +363,72 @@ CODIGO_DOCUMENTO = """
 """
 
 
+# La cámara (2026-10-19): en el iPhone el diálogo de Odoo salía en blanco. Una cámara de mentira (un lienzo verde) y
+# se mira que el video se ve: tiene tamaño, nada lo tapa en el centro y nada lo esconde.
+CODIGO_CAMARA = """
+(async () => {
+    const esperar = async (fn, que, ms = 20000) => {
+        const inicio = Date.now();
+        while (Date.now() - inicio < ms) {
+            const r = fn();
+            if (r) { return r; }
+            await new Promise((ok) => setTimeout(ok, 100));
+        }
+        throw new Error("Cámara: no apareció " + que);
+    };
+    const falla = (texto) => { throw new Error("Cámara: " + texto); };
+    const lienzo = document.createElement("canvas");
+    lienzo.width = 640;
+    lienzo.height = 480;
+    const pincel = lienzo.getContext("2d");
+    const pintar = () => {
+        pincel.fillStyle = "rgb(0, 170, 70)";
+        pincel.fillRect(0, 0, 640, 480);
+        pincel.fillStyle = "rgb(" + (Date.now() % 255) + ", 0, 0)";
+        pincel.fillRect(0, 0, 8, 8);
+    };
+    pintar();
+    setInterval(pintar, 50);
+    navigator.mediaDevices.getUserMedia = async () => lienzo.captureStream(20);
+
+    (await esperar(() => document.querySelector(".o_dcasa_escaner .o_dcasa_camara"), "el botón de la cámara")).click();
+    const video = await esperar(() => document.querySelector(".o-barcode-modal video"), "el video");
+    await esperar(() => document.querySelector(".o-barcode-modal .o_crop_overlay") && video.readyState >= 2
+                  && !video.paused, "la imagen de la cámara");
+    await new Promise((ok) => setTimeout(ok, 300));
+    const caja = video.getBoundingClientRect();
+    const cuerpo = document.querySelector(".o-barcode-modal .modal-body").getBoundingClientRect();
+    // Guarda su proporción: llena el diálogo a lo ancho o a lo alto, nunca queda en cero.
+    if (caja.width < 100 || caja.height < 100
+            || (caja.width < 0.9 * cuerpo.width && caja.height < 0.9 * cuerpo.height)) {
+        falla(`el video no se ve: ${caja.width}×${caja.height} de ${cuerpo.width}×${cuerpo.height}`);
+    }
+    const encima = document.elementFromPoint(caja.left + caja.width / 2, caja.top + caja.height / 2);
+    if (encima !== video) { falla("algo tapa el centro del video: " + (encima && encima.outerHTML.slice(0, 120))); }
+    for (let el = video; el && el !== document.body; el = el.parentElement) {
+        const estilo = getComputedStyle(el);
+        if (estilo.opacity === "0" || estilo.visibility === "hidden" || estilo.display === "none") {
+            falla("escondido por " + el.className);
+        }
+    }
+    for (const atributo of ["playsinline", "muted", "autoplay"]) {
+        if (!video.hasAttribute(atributo)) { falla("al video le falta " + atributo); }
+    }
+    if (!video.muted || !video.playsInline) { falla("el video debe estar silenciado y dentro de la página (iOS)"); }
+    const recuadro = document.querySelector(".o-barcode-modal .o_crop_overlay");
+    const despues = getComputedStyle(recuadro, "::after");
+    if (getComputedStyle(recuadro).mixBlendMode !== "normal" || despues.backgroundColor !== "rgba(0, 0, 0, 0)") {
+        falla("el recuadro no debe pintar blanco encima de la imagen");
+    }
+    if (getComputedStyle(document.querySelector(".o-barcode-modal .modal-body")).backgroundColor
+            === "rgb(255, 255, 255)") {
+        falla("el fondo del lector no debe ser blanco");
+    }
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+"""
+
+
 @tagged('post_install', '-at_install')
 class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
 
@@ -428,3 +494,10 @@ class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
     def test_la_vendedora_no_ve_la_pestana_de_asignar(self):
         self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_SIN_ASIGNAR, ready='odoo.isReady',
                         login='barras_vendedora', timeout=120)
+
+    def test_la_camara_se_ve_en_el_celular_y_en_la_compu(self):
+        for ancho in ('390x844', '1440x900'):
+            with self.subTest(ancho=ancho):
+                self.browser_size = ancho
+                self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_CAMARA, ready='odoo.isReady',
+                                login='admin', timeout=120)
