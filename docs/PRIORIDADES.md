@@ -23,7 +23,11 @@ cada vez que Caja o Gerencia factura su pedido y confunde: la factura nace en bo
 códigos de barras» de Odoo (recuadro de recorte y barra de zoom) se ve todo blanco; sí lee códigos, pero no se ve
 la imagen para apuntar. La dueña usa **iPhone con Google Chrome** (en iOS, Chrome usa el motor de Safari: probar en WebKit). Reproducir ahí y en Android; sospechas: un estilo propio que tapa o
 esconde el `<video>`, o el video sin reproducirse en línea en iOS (`playsinline`/`muted`/`autoplay`); probarlo con
-captura del video vivo (Escáner › Contar, y la cámara de los campos de código); (7) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
+captura del video vivo (Escáner › Contar, y la cámara de los campos de código); (7) **lista de lo vendido para reponer con el proveedor** (pedido del jefe, 19 oct: «cómo puedo pedir un listado de
+los artículos vendidos para hacer reposiciones con el proveedor de manera más acertada»): una pantalla «Reponer» para
+Gerencia con, por producto y por proveedor, lo vendido en un periodo (con la misma base del Inicio), lo que hay hoy en
+existencia y lo pedido que aún no llega; exportable a Excel y agrupable por proveedor, y que Brian la diga
+(«¿qué tengo que reponerle a X?»). Sin cifras inventadas: la sugerencia sale solo de esos datos; (8) el traslado del dominio, con la puerta `/master` obligatoria ese día ([TRASLADO_DOMINIO.md](TRASLADO_DOMINIO.md)).
 
 **Estado al 2026-10-17, noche:** en producción la tanda 1 (Desplegar 17: abonos, Mi cuenta, contactos, comparador,
 correos apagados, tienda) y la barra del celular más el menú con esquinas suaves (Desplegar 18, PR #54). Orden de lo
