@@ -13,3 +13,4 @@ from . import test_comparar
 from . import test_facturado
 from . import test_ticket_y_tipos
 from . import test_inicio_reglas_gerencia
+from . import test_reponer
