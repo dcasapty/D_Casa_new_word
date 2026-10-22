@@ -161,9 +161,12 @@ class StockScrap(models.Model):
                 continue
             nombre = f'{scrap.name} · {motivos.get(scrap.dcasa_motivo, "")} · {scrap.product_id.display_name}'
             fecha = fields.Date.context_today(scrap, scrap.date_done) if scrap.date_done else fields.Date.today()
+            # Solo CREA el asiento de la merma (ya comprobado que es Gerencia): no lee asientos ni los devuelve a quien
+            # vende (la regla de dcasa_base vigila los sudo() que leen asientos).
+            Asiento = self.env['account.move']
             try:
                 with self.env.cr.savepoint():
-                    asiento = self.env['account.move'].sudo().create({
+                    asiento = Asiento.sudo().create({
                         'move_type': 'entry', 'journal_id': config._diario_mermas().id, 'date': fecha,
                         'company_id': scrap.company_id.id, 'ref': nombre,
                         'line_ids': [

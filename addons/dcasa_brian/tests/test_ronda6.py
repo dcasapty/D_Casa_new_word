@@ -435,12 +435,12 @@ class TestHerramientasRonda6(TransactionCase):
         self._con_existencias(self.cama, 5)
         self._con_existencias(self.mesa, 3)
         malo = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
-            'todos': True, 'cantidad': 2, 'almacen': self._almacen(), 'motivo': 'prueba'})
+            'productos': 'todos', 'cantidad': 2, 'almacen': self._almacen(), 'motivo': 'prueba'})
         self.assertTrue(malo.get('requiere_confirmacion'))
         self.assertFalse(self.confirmar(self.gerente, malo)['ok'])
         self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (5, 3))
         propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
-            'todos': 'true', 'cantidad': 0, 'almacen': self._almacen(), 'motivo': 'arranque'})
+            'productos': 'Todos', 'cantidad': 0, 'almacen': self._almacen(), 'motivo': 'arranque'})
         self.assertIn('Dejar en 0 las existencias de', propuesta['resumen'])
         hecho = self.confirmar(self.gerente, propuesta)
         self.assertTrue(hecho['ok'], hecho)
