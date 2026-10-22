@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- La foto del producto: un botón que la abre en grande. Sin guardar el producto, el cargador de Odoo. -->
+    <t t-name="dcasa_marketing.FotoProducto">
+        <t t-if="!puedeAbrir">
+            <t t-call="web.ImageField"/>
+        </t>
+        <button t-else="" type="button" class="o_dcasa_foto_boton" t-att-class="{ o_dcasa_foto_boton_vacia: !conFoto }"
+                t-att-title="etiqueta" t-att-aria-label="etiqueta" t-on-click.stop.prevent="abrir">
+            <img loading="lazy" t-att-class="imgClass" t-att-alt="imgAlt" t-att-name="props.name"
+                 t-att-src="this.getUrl(props.previewImage or props.name)" t-att-style="sizeStyle"
+                 t-att-height="props.height" t-att-width="props.width" t-on-error.stop="onLoadFailed"/>
+            <span class="o_dcasa_foto_lupa" aria-hidden="true">
+                <i t-attf-class="fa {{ conFoto ? 'fa-search-plus' : 'fa-plus' }}"/>
+            </span>
+        </button>
+    </t>
+
+    <!-- Pestaña Ventas: la galería del producto. -->
+    <t t-name="dcasa_marketing.GaleriaFotos">
+        <div class="o_dcasa_galeria_boton">
+            <button type="button" class="btn btn-primary" t-att-disabled="!props.record.resId" t-on-click="abrir">
+                <i class="fa fa-th-large me-1" aria-hidden="true"/>
+                Fotos del producto (<t t-esc="cuantas"/>)
+            </button>
+            <span class="o_dcasa_galeria_ayuda" t-if="props.record.resId">
+                Sube varias a la vez, ordénalas arrastrando y elige la principal.
+            </span>
+            <span class="o_dcasa_galeria_ayuda" t-else="">Guarda el producto para subirle sus fotos.</span>
+        </div>
+    </t>
+
+</templates>

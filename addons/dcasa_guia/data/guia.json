@@ -1255,6 +1255,73 @@
    ]
   },
   {
+   "id": "marketing",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver qué se vende, qué está quieto y qué fotos faltan (Marketing)",
+   "logras": "En una sola pantalla: los productos con más y menos stock por categoría, los más vendidos, los que más se movieron y los más quietos en la semana, 15 días o el mes, y los que no tienen foto. Sirve para decidir qué empujar en una campaña.",
+   "palabras": [
+    "marketing",
+    "campaña",
+    "mas vendidos",
+    "quietos",
+    "no se vende",
+    "movimiento",
+    "rotacion",
+    "productos sin foto",
+    "publicidad",
+    "que empujar"
+   ],
+   "destino": {
+    "menu": "dcasa_marketing.menu_marketing"
+   },
+   "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia."
+  },
+  {
+   "id": "fotos-producto",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver, subir, ordenar o recortar las fotos de un producto",
+   "logras": "Tocas la foto del producto y se abre en grande: la cambias, la recortas, la giras o eliges cuál es la principal. En «Todas» subes varias a la vez y las ordenas arrastrando.",
+   "palabras": [
+    "foto",
+    "fotos",
+    "imagen",
+    "imagenes",
+    "subir fotos",
+    "recortar",
+    "galeria",
+    "foto principal",
+    "cambiar foto",
+    "ordenar fotos",
+    "camara"
+   ],
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la lista de productos y busca el producto por su nombre o su código.",
+     "destino": {
+      "menu": "sale.menu_product_template_action"
+     }
+    },
+    {
+     "texto": "Toca su foto (en la lista o dentro del producto): se abre en grande. Pasas a las demás con las flechas o deslizando el dedo, y la acercas pellizcando.",
+     "destino": null
+    },
+    {
+     "texto": "Para cambiarla usa «Reemplazar» (o «Tomar otra» con la cámara del celular), «Recortar», «Girar» o «Hacer principal».",
+     "destino": null
+    },
+    {
+     "texto": "Para subir varias toca «Todas» y luego «Elegir fotos» (puedes marcar varias) o arrástralas desde la computadora. Ordénalas arrastrando o con las flechas: la primera es la principal.",
+     "destino": null
+    }
+   ],
+   "nota": "En Marketing › Fotos encuentras rápido los productos sin foto o con una sola, y les subes las fotos ahí mismo."
+  },
+  {
    "id": "precios-en-bloque",
    "categoria": "productos",
    "grupo": "Catálogo",

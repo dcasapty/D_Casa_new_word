@@ -40,6 +40,9 @@ TITULOS = {
     'pendientes_de_hoy': 'Armando los pendientes de hoy',
     'productos_incompletos': 'Buscando productos incompletos',
     'consumo_de_brian': 'Calculando mi consumo de IA',
+    # dcasa_marketing
+    'movimiento_de_productos': 'Revisando qué se mueve y qué está quieto',
+    'fotos_que_faltan': 'Buscando productos sin fotos',
 }
 
 # Argumentos que identifican lo que se está tocando (el primero que aparezca va en el título).

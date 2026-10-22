@@ -33,6 +33,9 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
+| Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
+| **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (quien puede editar el producto) | Sí | (si edita productos) | Sí | Sí |
+| La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
 | Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos) | Sí | Sí | Sí | Sí |
 | **Registrar el cobro** de una factura de cliente (o un abono), un cobro suelto, o aplicarle un cobro que ya estaba («el cobro solo en Caja», 2026-10-17) | **No** (con el interruptor encendido o apagado) | Sí | Sí | Sí | Sí |
@@ -143,6 +146,17 @@ o quitando líneas: se le bloquea solo lo que **empeora** el descuento, no lo qu
 
 **Existencias:** la cantidad (y lo reservado) de una existencia no la escribe a mano nadie que no sea Gerencia o el sistema,
 con o sin el modo inventario. Recibir y entregar siguen igual (Odoo los corre por dentro con permisos del sistema).
+
+**Fotos del producto y Marketing** (2026-10-22, `dcasa_marketing`, [MARKETING.md](MARKETING.md)): las fotos las
+cambia **quien puede editar ese producto** (`check_access('write')` en `product.template`, comprobado en el servidor en
+cada método `dcasa_fotos_*`): hoy Gerencia, administradores y la Vendedora (que ya editaba la foto principal; Odoo le
+negaba las «Imágenes extra» porque `product.image` solo lo escriben Ventas administrador y los editores del sitio, y
+aquí se escriben con `sudo` después de esa comprobación). Quien solo ve productos (p. ej. bodega sin Ventas) las ve y
+las descarga; el servidor le niega los cambios aunque los pida a mano (`AccessError`). Si la dueña prefiere que la
+Vendedora solo vea, es una línea: `_dcasa_exigir_editar_fotos` en `dcasa_marketing/models/fotos.py`. **Marketing** es
+de Ventas administrador (Gerencia) y administradores, como Estadísticas: lee las ventas de toda la tienda; el
+servidor lo exige (`dcasa.marketing._exigir`). No hay un rol «Marketing» propio: si se crea, se agrega a `GRUPOS` de
+`dcasa_marketing/models/marketing.py` y al menú.
 
 **Fusión de contactos:** solo Gerencia, de a una persona; las fusiones masivas automáticas son del administrador del
 sistema. Los puntos y el código de socio pasan completos a la ficha que queda y ésta deja una nota con lo que se le unió.
@@ -438,8 +452,9 @@ Odoo deja llamar por `/web/dataset/call_kw` (y `/json/2`) a **todo método públ
 despachar. Un método público que usa `sudo()` sin exigir grupo sería una puerta abierta. Por eso:
 
 - `addons/dcasa_base/tests/test_superficie_rpc.py` recorre todos los modelos y **falla** si un método público definido en
-  `addons/` no está en `LISTA_BLANCA` con su motivo (331 entradas en este commit; las que más: `dcasa_conversaciones`
-  80, `dcasa_socios` 54, `dcasa_nomina` 28, `dcasa_contabilidad` 26, `dcasa_brian` 25). También falla si una entrada ya
+  `addons/` no está en `LISTA_BLANCA` con su motivo (380 entradas al 2026-10-22; las que más: `dcasa_conversaciones`
+  80, `dcasa_socios` 54, `dcasa_base` 34, `dcasa_nomina` 28, `dcasa_contabilidad` 26, `dcasa_brian` 25; las 11 de
+  `dcasa_marketing` exigen editar el producto o ser Gerencia antes de cualquier `sudo`). También falla si una entrada ya
   no es pública, si falta un motivo, o si un botón de vista apunta a un método `@api.model`.
 - Los modelos abstractos `brian.herramientas`, `brian.proveedores`, `brian.politica`, `dcasa.mantenimiento`,
   `dcasa.fe.pac`, `dcasa.fe.pac.simulado` y `dcasa.correo` no exponen **nada**.

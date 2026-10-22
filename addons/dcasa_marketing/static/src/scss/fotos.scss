@@ -1,0 +1,411 @@
+// Fotos del producto en grande y su galería. Plano: azul de la marca, blancos fríos; la foto se ve sobre azul muy
+// oscuro (como en cualquier visor). El amarillo solo como borde de la miniatura elegida, sobre ese fondo oscuro.
+
+$dc-azul: var(--dc-azul-600, #1340B1);
+$dc-navy: var(--dc-azul-900, #0B1F52);
+$dc-oscuro: var(--dc-azul-950, #081640);
+$dc-linea: var(--dc-linea, #E2E7F0);
+$dc-tinta: var(--dc-tinta, #0E1A33);
+$dc-tinta-3: var(--dc-tinta-3, #6B7690);
+
+// --- La foto que se toca (ficha, lista, tarjetas, Escáner) --------------------------------------------------------
+.o_dcasa_foto_boton,
+.o_dcasa_ficha_foto_boton {
+    position: relative;
+    display: inline-block;
+    border: 0;
+    padding: 0;
+    background: none;
+    cursor: zoom-in;
+    line-height: 0;
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco, 0 0 0 3px #C3D2F6); border-radius: 8px; }
+    &.o_dcasa_foto_boton_vacia { cursor: pointer; }
+}
+.o_dcasa_foto_lupa {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: $dc-azul;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 1;
+}
+// En la lista (40 px) y en las tarjetas la lupa no cabe: el cursor y la etiqueta bastan.
+.o_list_renderer .o_dcasa_foto_lupa,
+.o_kanban_record .o_dcasa_foto_lupa { display: none; }
+.o_kanban_record .o_dcasa_foto_boton { width: 100%; }
+
+.o_dcasa_galeria_boton {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 4px 0 12px;
+    .btn { min-height: 44px; font-weight: 600; }
+    .o_dcasa_galeria_ayuda { color: $dc-tinta-3; }
+}
+
+// --- La ventana de las fotos -------------------------------------------------------------------------------------
+.o_dcasa_fotos.modal-content {
+    background: var(--dc-nieve, #FAFBFD);
+    font-family: "Inter", sans-serif;
+    color: $dc-tinta;
+    height: 100%;
+}
+.o_dcasa_fotos .o_dcasa_fotos_cuerpo {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+}
+.o_dcasa_fotos_raiz {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    &.o_dcasa_fotos_soltando .o_dcasa_fotos_subir {
+        border-color: $dc-azul;
+        background: var(--dc-azul-100, #E4ECFD);
+    }
+}
+
+.o_dcasa_fotos_cabeza {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid $dc-linea;
+    background: #fff;
+    .o_dcasa_fotos_titulo {
+        flex: 1;
+        min-width: 0;
+        h2 {
+            margin: 0;
+            font-family: "Oswald", "Inter", sans-serif;
+            font-weight: 500;
+            font-size: 1.25rem;
+            color: $dc-navy;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        p { margin: 0; color: $dc-tinta-3; font-size: .875rem; }
+    }
+}
+.o_dcasa_fotos_modos {
+    display: inline-flex;
+    border: 1px solid $dc-azul;
+    border-radius: 999px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.o_dcasa_fotos_modo {
+    border: 0;
+    background: #fff;
+    color: $dc-azul;
+    padding: 0 16px;
+    min-height: 44px;
+    font-weight: 600;
+    &[aria-pressed="true"] { background: $dc-azul; color: #fff; }
+    &:disabled { opacity: .5; }
+}
+.o_dcasa_fotos_cerrar {
+    border: 1px solid $dc-linea;
+    background: #fff;
+    color: $dc-navy;
+    border-radius: 12px;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0 14px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.o_dcasa_fotos_mensaje {
+    margin: 8px 16px 0;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 500;
+    &.o_dcasa_fotos_mensaje_ok { background: var(--dc-azul-50, #F2F6FE); color: var(--dc-azul-800, #0E2A6B); }
+    &.o_dcasa_fotos_mensaje_error { background: #FDECEC; color: #8A1C1C; }
+}
+.o_dcasa_fotos_cargando { padding: 32px 16px; text-align: center; color: $dc-tinta-3; }
+
+// Ver
+.o_dcasa_fotos_visor {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+.o_dcasa_fotos_escenario {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    background: $dc-oscuro;
+    overflow: hidden;
+    touch-action: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    .o_dcasa_fotos_grande {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        transition: transform 80ms ease-out;
+        transform-origin: center center;
+        -webkit-user-drag: none;
+        pointer-events: none;
+    }
+    .o_dcasa_fotos_insignia { top: 12px; left: 12px; }
+}
+.o_dcasa_fotos_insignia {
+    position: absolute;
+    background: $dc-azul;
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-family: "Oswald", "Inter", sans-serif;
+    font-size: .8rem;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+.o_dcasa_fotos_flecha {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(255, 255, 255, .92);
+    color: $dc-navy;
+    font-size: 18px;
+    &.o_dcasa_fotos_flecha_izq { left: 12px; }
+    &.o_dcasa_fotos_flecha_der { right: 12px; }
+}
+.o_dcasa_fotos_zoom {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, .92);
+    border-radius: 999px;
+    padding: 4px;
+    button {
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: $dc-navy;
+        font-size: 16px;
+        &:disabled { opacity: .35; }
+    }
+    .o_dcasa_fotos_contador { padding: 0 8px; font-weight: 600; color: $dc-navy; white-space: nowrap; }
+}
+.o_dcasa_fotos_tira {
+    display: flex;
+    gap: 8px;
+    margin: 0;
+    padding: 8px 12px;
+    list-style: none;
+    overflow-x: auto;
+    background: $dc-navy;
+    flex-shrink: 0;
+    .o_dcasa_fotos_mini {
+        width: 56px;
+        height: 56px;
+        padding: 0;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #fff;
+        img { width: 100%; height: 100%; object-fit: cover; }
+        &[aria-current="true"] { border-color: var(--dc-amarillo, #FED00F); }
+    }
+}
+.o_dcasa_fotos_acciones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border-top: 1px solid $dc-linea;
+    flex-shrink: 0;
+}
+.o_dcasa_fotos_accion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 1px solid $dc-linea;
+    border-radius: 12px;
+    background: #fff;
+    color: $dc-navy;
+    font-weight: 600;
+    text-decoration: none;
+    &:hover { border-color: $dc-azul; color: $dc-azul; text-decoration: none; }
+    &:disabled { opacity: .45; }
+    &.o_dcasa_fotos_accion_quitar { color: #8A1C1C; }
+    &.o_dcasa_fotos_accion_principal { background: $dc-azul; border-color: $dc-azul; color: #fff; }
+}
+
+// Recortar
+.o_dcasa_fotos_recorte {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    .o_dcasa_fotos_ayuda { margin: 8px 16px 0; color: $dc-tinta-3; }
+    .o_dcasa_fotos_proporciones { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 16px; }
+    .o_dcasa_fotos_lienzo {
+        flex: 1;
+        min-height: 0;
+        background: $dc-oscuro;
+        img { display: block; max-width: 100%; max-height: 100%; }
+    }
+}
+.o_dcasa_fotos_chip {
+    border: 1px solid $dc-azul;
+    background: #fff;
+    color: $dc-azul;
+    border-radius: 999px;
+    min-height: 40px;
+    padding: 0 14px;
+    font-weight: 600;
+    &[aria-pressed="true"] { background: $dc-azul; color: #fff; }
+}
+
+// Todas (galería)
+.o_dcasa_fotos_galeria {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px;
+}
+.o_dcasa_fotos_subir {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    padding: 16px;
+    border: 2px dashed var(--dc-azul-300, #93AEEE);
+    border-radius: 16px;
+    background: var(--dc-azul-50, #F2F6FE);
+    color: var(--dc-azul-800, #0E2A6B);
+    margin-bottom: 16px;
+    > .fa { font-size: 32px; color: $dc-azul; }
+    .o_dcasa_fotos_subir_texto { flex: 1; min-width: 200px; margin: 0; }
+    .o_dcasa_fotos_subir_botones { display: flex; flex-wrap: wrap; gap: 8px; }
+}
+.o_dcasa_fotos_vacio { color: $dc-tinta-3; text-align: center; padding: 16px; }
+.o_dcasa_fotos_cuadricula {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.o_dcasa_fotos_tarjeta {
+    position: relative;
+    border: 1px solid $dc-linea;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden;
+    touch-action: manipulation;
+    .o_dcasa_fotos_tarjeta_foto {
+        display: block;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        padding: 0;
+        border: 0;
+        background: #fff;
+        cursor: zoom-in;
+        img { width: 100%; height: 100%; object-fit: contain; -webkit-user-drag: none; }
+    }
+    .o_dcasa_fotos_numero {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        min-width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        background: $dc-navy;
+        color: #fff;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 8px;
+    }
+    .o_dcasa_fotos_insignia { top: 8px; left: 8px; }
+    .o_dcasa_fotos_tarjeta_botones {
+        display: flex;
+        justify-content: space-between;
+        border-top: 1px solid $dc-linea;
+        button {
+            flex: 1;
+            min-height: 44px;
+            border: 0;
+            background: #fff;
+            color: $dc-navy;
+            font-size: 16px;
+            &:hover:not(:disabled) { color: $dc-azul; background: var(--dc-azul-50, #F2F6FE); }
+            &:disabled { opacity: .3; }
+        }
+    }
+    // La que se arrastra: borde azul (plano, sin sombra dramática).
+    &.o_dragged { border: 2px solid $dc-azul; box-shadow: 0 8px 24px rgba(14, 26, 51, .12); }
+}
+.o_dcasa_fotos_cuadricula .o_sortable_placeholder,
+.o_dcasa_fotos_cuadricula .o_dcasa_fotos_tarjeta.o_dragged + .o_dcasa_fotos_tarjeta { transition: none; }
+
+@media (max-width: 575.98px) {
+    .o_dcasa_fotos_cabeza {
+        flex-wrap: wrap;
+        padding: 8px 12px;
+        .o_dcasa_fotos_titulo { flex-basis: calc(100% - 60px); }
+        .o_dcasa_fotos_titulo h2 { font-size: 1.1rem; }
+    }
+    .o_dcasa_fotos_cerrar span { display: none; }
+    .o_dcasa_fotos_modos { order: 3; width: 100%; .o_dcasa_fotos_modo { flex: 1; } }
+    .o_dcasa_fotos_flecha { width: 44px; height: 44px; }
+    .o_dcasa_fotos_acciones {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        padding: 8px;
+        gap: 6px;
+        .o_dcasa_fotos_accion {
+            flex-direction: column;
+            gap: 2px;
+            padding: 6px 4px;
+            min-height: 56px;
+            font-size: .8rem;
+            .fa { font-size: 18px; }
+        }
+        &.o_dcasa_fotos_acciones_recorte { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        &.o_dcasa_fotos_acciones_solo_ver { display: flex; justify-content: center; }
+    }
+    .o_dcasa_fotos_galeria { padding: 12px; }
+    .o_dcasa_fotos_cuadricula { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .o_dcasa_fotos_subir_botones { width: 100%; .o_dcasa_fotos_accion { flex: 1; } }
+}

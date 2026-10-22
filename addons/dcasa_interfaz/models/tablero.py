@@ -122,16 +122,16 @@ class DcasaTablero(models.AbstractModel):
     # ------------------------------------------------------------------
 
     def _atajos(self, permisos):
-        """Los accesos grandes del Inicio, en este orden: Productos, Facturas, Conversaciones, Escáner, Oportunidades
-        y Resumen contable.
+        """Los accesos grandes del Inicio, en este orden: Productos, Facturas, Conversaciones, Escáner, Marketing,
+        Oportunidades y Resumen contable.
 
         Solo los que quien mira puede abrir. Conversaciones, Oportunidades y el Resumen contable viven en otros
         módulos: si no están instalados (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista
         con la que abre. Productos es la lista donde se ordena y filtra por stock, precio y categoría
         (dcasa_catalogo): marketing arma ahí las campañas. Facturas es la lista de facturas a clientes (la misma de
         Facturación › Clientes › Facturas). Quien vende sin controlar (``permisos['completo']`` en falso) tiene solo
-        Productos, Facturas, Conversaciones y Escáner; Oportunidades y el Resumen contable son de quien controla la
-        tienda.
+        Productos, Facturas, Conversaciones y Escáner; Marketing, Oportunidades y el Resumen contable son de quien
+        controla la tienda.
         """
         atajos = []
         if permisos['catalogo'] and self.env.ref('sale.product_template_action', raise_if_not_found=False):
@@ -161,6 +161,12 @@ class DcasaTablero(models.AbstractModel):
                 'icono': 'fa-barcode', 'accion': 'dcasa_barras.accion_escaner', 'vista': None})
         if not permisos['completo']:
             return atajos
+        # Marketing (dcasa_marketing, pedido de la dueña del 2026-10-22): lo que se vende, lo quieto, el stock por
+        # categoría y las fotos que faltan. El mismo permiso que su menú: Gerencia y administradores.
+        if self._ve_utilidad() and self.env.ref('dcasa_marketing.accion_marketing', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'marketing', 'titulo': 'Marketing', 'detalle': 'Lo que se mueve, lo quieto y las fotos',
+                'icono': 'fa-bullhorn', 'accion': 'dcasa_marketing.accion_marketing', 'vista': None})
         oportunidades = self.env.get('crm.lead')
         if oportunidades is not None and 'dcasa_temperatura' in oportunidades._fields \
                 and oportunidades.has_access('read') \
