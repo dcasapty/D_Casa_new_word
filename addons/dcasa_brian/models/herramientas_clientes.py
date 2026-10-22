@@ -18,8 +18,8 @@ INTERNO = ('base.group_user',)
 FACTURACION = ('account.group_account_invoice',)
 PARAM_CLIENTE = {'type': 'string', 'description': 'Nombre, celular, RUC/cédula o código de socio, '
                                                    'p. ej. «Ana Gómez» o «6123-4567».'}
-CAMPOS_CONTACTO = {'nombre': 'name', 'celular': 'phone', 'correo': 'email', 'direccion': 'street',
-                   'ruc': 'vat', 'dv': 'l10n_pa_dv'}
+CAMPOS_CONTACTO = {'nombre': 'name', 'celular': 'phone', 'telefono_fijo': 'dcasa_telefono_fijo', 'correo': 'email',
+                   'direccion': 'street', 'ruc': 'vat', 'dv': 'l10n_pa_dv'}
 # Lo que se escribe en «correo» cuando el cliente de verdad no tiene: marca «Cliente no tiene correo electrónico»
 # (decisión de la dueña, 2026-10-17). Solo exime del correo; el celular sigue obligatorio.
 SIN_CORREO = frozenset({'no tiene', 'no tiene correo', 'no tiene correo electronico', 'no tiene correo electrónico',
@@ -61,6 +61,15 @@ class BrianHerramientasClientes(models.AbstractModel):
         return guardar, (R.celular_normal(guardar) if guardar.startswith(f'+{B.PANAMA} ') else None)
 
     @api.model
+    def _b_fijo(self, texto):
+        """El teléfono fijo como se guarda («+507 234-5678»), o BrianError con lo que está mal escrito (las mismas
+        reglas que la ficha del cliente). No es una llave: no se busca si ya lo tiene otra ficha."""
+        codigo = B.problema_del_fijo(texto)
+        if codigo:
+            raise BrianError(B.mensaje_del_fijo(self.env, texto, codigo))
+        return B.fijo_para_guardar(texto)
+
+    @api.model
     def _b_duplicado_celular(self, celular, excepto=None):
         """¿Ya hay una ficha con ese celular? Búsqueda con sudo solo para NO duplicar: devuelve el nombre.
 
@@ -100,6 +109,7 @@ class BrianHerramientasClientes(models.AbstractModel):
         ficha = {
             'nombre': partner.display_name,
             'celular': celular,
+            'telefono_fijo': partner.dcasa_telefono_fijo or '',
             'correo': partner.email or '',
             'no_tiene_correo': bool(partner.commercial_partner_id.dcasa_sin_correo),
             'ruc_o_cedula': partner.dcasa_ruc_display or '',
@@ -114,7 +124,7 @@ class BrianHerramientasClientes(models.AbstractModel):
 
     @herramienta(
         nombre='buscar_clientes',
-        descripcion='Busca clientes o proveedores por nombre, celular, RUC/cédula o correo.',
+        descripcion='Busca clientes o proveedores por nombre, celular, teléfono fijo, RUC/cédula o correo.',
         parametros={
             'texto': {'type': 'string', 'description': 'Lo que sepas: «Ana», «6123-4567», «8-888-888».'},
             'tipo': {'type': 'string', 'enum': ['clientes', 'proveedores', 'todos'],
@@ -138,6 +148,7 @@ class BrianHerramientasClientes(models.AbstractModel):
         return {'encontrados': total, 'contactos': [{
             'nombre': p.display_name,
             'celular': R.celular_fmt(R.celular_normal(p.phone)) if p.phone else '',
+            'telefono_fijo': p.dcasa_telefono_fijo or '',
             'ruc_o_cedula': p.dcasa_ruc_display or '',
             'tipo': ', '.join(t for t, ok in (('cliente', p.customer_rank), ('proveedor', p.supplier_rank)) if ok)
                     or 'contacto',
@@ -222,25 +233,35 @@ class BrianHerramientasClientes(models.AbstractModel):
     @herramienta(
         nombre='crear_cliente',
         descripcion='Crea un cliente con su celular y su correo (obligatorios y bien escritos: ahí le llegan su '
-                    'factura y sus puntos). El celular es la llave: si ya existe una ficha con ese celular, no se '
-                    'duplica y te digo de quién es.',
+                    'factura y sus puntos). Si no tiene celular, su teléfono fijo (7 números) en lugar del celular. '
+                    'El celular es la llave: si ya existe una ficha con ese celular, no se duplica y te digo de quién '
+                    'es. El fijo no es llave (una casa o una empresa lo comparten).',
         parametros={
             'nombre': {'type': 'string', 'description': 'Nombre completo o razón social, p. ej. «Ana Gómez».'},
-            'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567».'},
+            'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567». Si no tiene, '
+                                                         'déjalo vacío y pon el teléfono fijo.'},
+            'telefono_fijo': {'type': 'string', 'description': 'Teléfono fijo de Panamá (7 números), p. ej. '
+                                                               '«234-5678». Opcional si tiene celular.'},
             'correo': {'type': 'string', 'description': 'Correo, obligatorio, p. ej. «ana@gmail.com». Solo si el '
                                                         'cliente dice que NO tiene correo: «no tiene».'},
             'ruc': {'type': 'string', 'description': 'RUC o cédula, p. ej. «8-888-888». Opcional.'},
             'es_empresa': {'type': 'boolean', 'description': 'true si es una empresa. Por defecto false.'},
         },
-        requeridos=['nombre', 'celular', 'correo'],
+        requeridos=['nombre', 'correo'],
         nivel='construccion', categoria='clientes', grupos=INTERNO,
-        ejemplos=['crea a Ana Gómez, 6123-4567, ana@gmail.com'],
+        ejemplos=['crea a Ana Gómez, 6123-4567, ana@gmail.com',
+                  'crea a Pedro Pérez, no tiene celular, su fijo es 234-5678, pedro@gmail.com'],
     )
-    def _h_crear_cliente(self, nombre, celular, correo=None, ruc=None, es_empresa=False):
+    def _h_crear_cliente(self, nombre, celular=None, correo=None, ruc=None, es_empresa=False, telefono_fijo=None):
         nombre = (nombre or '').strip()
         if not nombre:
             raise BrianError('El cliente necesita un nombre.')
-        telefono, normal = self._b_celular(celular)
+        if not (telefono_fijo or '').strip() and B.problema_del_telefono(celular) == 'fijo':
+            celular, telefono_fijo = None, celular  # 7 números: es su teléfono fijo, no un celular incompleto
+        fijo = self._b_fijo(telefono_fijo) if (telefono_fijo or '').strip() else False
+        if not (celular or '').strip() and not fijo:
+            raise BrianError('Falta el celular del cliente: pídeselo. Si de verdad no tiene, dime su teléfono fijo.')
+        telefono, normal = self._b_celular(celular) if (celular or '').strip() else (False, None)
         sin_correo = self._b_dice_sin_correo(correo)
         correo = False if sin_correo else self._b_correo(correo)
         otro = self._b_duplicado_celular(normal) if normal else None
@@ -248,15 +269,16 @@ class BrianHerramientasClientes(models.AbstractModel):
             raise BrianError(f'El {R.celular_fmt(normal)} ya es de {otro.display_name}: un celular, un cliente. '
                              'Usa esa ficha (ver_cliente) o actualízala en vez de crear otra.')
         partner = self.env['res.partner'].create({
-            'name': nombre, 'phone': telefono, 'email': correo, 'dcasa_sin_correo': sin_correo,
+            'name': nombre, 'phone': telefono, 'dcasa_telefono_fijo': fijo, 'email': correo,
+            'dcasa_sin_correo': sin_correo,
             'vat': (ruc or '').strip() or False, 'is_company': bool(es_empresa), 'customer_rank': 1,
         })
         return {'mensaje': f'Cliente «{partner.name}» creado.', **self._b_ficha_contacto(partner)}
 
     @herramienta(
         nombre='actualizar_cliente',
-        descripcion='Cambia un dato de contacto de un cliente o proveedor: nombre, celular, correo, dirección, '
-                    'RUC o DV.',
+        descripcion='Cambia un dato de contacto de un cliente o proveedor: nombre, celular, teléfono fijo, correo, '
+                    'dirección, RUC o DV.',
         parametros={
             'cliente': PARAM_CLIENTE,
             'campo': {'type': 'string', 'enum': list(CAMPOS_CONTACTO), 'description': 'Qué dato cambiar.'},
@@ -265,13 +287,16 @@ class BrianHerramientasClientes(models.AbstractModel):
         },
         requeridos=['cliente', 'campo', 'valor'],
         nivel='construccion', categoria='clientes', grupos=INTERNO,
-        ejemplos=['el correo de Ana Gómez es ana@correo.com → campo=correo'],
+        ejemplos=['el correo de Ana Gómez es ana@correo.com → campo=correo',
+                  'el teléfono de la casa de Pedro es 234-5678 → campo=telefono_fijo'],
     )
     def _h_actualizar_cliente(self, cliente, campo, valor):
         if campo not in CAMPOS_CONTACTO:
             raise BrianError(f'Solo puedo cambiar: {", ".join(CAMPOS_CONTACTO)}.')
         partner = self._b_contacto(cliente)
         valor = (valor or '').strip()
+        if campo == 'celular' and B.problema_del_telefono(valor) == 'fijo':
+            campo = 'telefono_fijo'  # 7 números: es su teléfono fijo, no un celular incompleto
         if campo == 'nombre' and not valor:
             raise BrianError('El nombre no puede quedar vacío.')
         if campo == 'celular':
@@ -296,8 +321,11 @@ class BrianHerramientasClientes(models.AbstractModel):
                     **self._b_ficha_contacto(partner)}
         if campo == 'correo':
             valor = self._b_correo(valor)
+        if campo == 'telefono_fijo' and valor:
+            valor = self._b_fijo(valor)
         partner.write({CAMPOS_CONTACTO[campo]: valor or False})
-        return {'mensaje': f'Actualicé {campo} de {partner.display_name}.', **self._b_ficha_contacto(partner)}
+        que = 'el teléfono fijo' if campo == 'telefono_fijo' else campo
+        return {'mensaje': f'Actualicé {que} de {partner.display_name}.', **self._b_ficha_contacto(partner)}
 
     # ------------------------------------------------------------------
     # Sensibles

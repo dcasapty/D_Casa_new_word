@@ -11,7 +11,8 @@ usuario, su contacto de empleado y sus direcciones de entrega o de factura, todo
 * Si la ficha elegida comparte celular, correo o RUC con otra ficha (lo viejo, de antes del candado), se avisa con el
   nombre de la otra para fusionarlas en Socios › Configuración › Posibles duplicados.
 * Puerta A (2026-10-16): no se confirma una venta si al cliente le falta el celular o el correo, o están mal escritos
-  (ver ``contacto.py``). Mientras se cotiza, un aviso amarillo lo adelanta.
+  (ver ``contacto.py``). Mientras se cotiza, un aviso amarillo lo adelanta. Un teléfono fijo sirve en lugar del
+  celular (2026-10-22).
 """
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -103,7 +104,9 @@ class SaleOrder(models.Model):
     @api.depends('partner_id', 'partner_invoice_id', 'dcasa_cliente_sin_correo',
                  'partner_id.email', 'partner_id.phone', 'partner_id.commercial_partner_id.email',
                  'partner_id.commercial_partner_id.phone', 'partner_id.commercial_partner_id.dcasa_celular',
-                 'partner_invoice_id.email', 'partner_invoice_id.phone',
+                 'partner_id.dcasa_telefono_fijo', 'partner_id.commercial_partner_id.dcasa_telefono_fijo',
+                 'partner_invoice_id.email', 'partner_invoice_id.phone', 'partner_invoice_id.dcasa_telefono_fijo',
+                 'partner_invoice_id.commercial_partner_id.dcasa_telefono_fijo',
                  'partner_invoice_id.commercial_partner_id.dcasa_sin_correo')
     def _compute_dcasa_falta_contacto(self):
         Partner = self.env['res.partner']
@@ -115,11 +118,8 @@ class SaleOrder(models.Model):
                 continue
             datos = Partner._dcasa_contacto_del_documento(cliente, sin_correo=orden._dcasa_sin_correo())
             orden.dcasa_cliente_tiene_correo = bool(datos['correo'])
-            orden.dcasa_falta_contacto = {
-                ('celular',): self.env._('el celular'),
-                ('correo',): self.env._('el correo'),
-                ('celular', 'correo'): self.env._('el celular y el correo'),
-            }.get(tuple(Partner._dcasa_lo_que_falta(datos)), False)
+            faltan = Partner._dcasa_lo_que_falta(datos)
+            orden.dcasa_falta_contacto = Partner._dcasa_que_falta(faltan) if faltan else False
 
     def action_confirm(self):
         """Puerta A: sin un celular y un correo bien escritos del cliente (o «Cliente no tiene correo electrónico»

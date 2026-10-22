@@ -1481,7 +1481,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Agregar un cliente",
-   "logras": "Lo registras con su celular y su correo: sin ellos no se puede confirmar la venta. Si de verdad no tiene correo, marca «Cliente no tiene correo electrónico» (el celular siempre va). El celular es su llave en Socios.",
+   "logras": "Lo registras con su celular y su correo: sin ellos no se puede confirmar la venta. Si no tiene celular, escribe su teléfono fijo (7 números) en «Teléfono fijo», debajo del celular. Si de verdad no tiene correo, marca «Cliente no tiene correo electrónico». El celular es su llave en Socios.",
    "destino": {
     "nuevo": "res.partner"
    },
@@ -1489,7 +1489,9 @@
     "crear cliente",
     "alta de cliente",
     "contacto nuevo",
-    "celular y correo"
+    "celular y correo",
+    "telefono fijo",
+    "no tiene celular"
    ]
   },
   {
@@ -1497,7 +1499,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Buscar a un cliente",
-   "logras": "Encuentras su ficha por nombre, celular o cédula, con sus ventas y sus puntos.",
+   "logras": "Encuentras su ficha por nombre, celular, teléfono fijo o cédula, con sus ventas y sus puntos.",
    "destino": {
     "menu": "contacts.res_partner_menu_contacts"
    },
@@ -1528,7 +1530,7 @@
    "grupo": "Clientes",
    "titulo": "Vender a un cliente que no tiene correo electrónico",
    "logras": "En la cotización, junto al cliente, marcas «Cliente no tiene correo electrónico» y ya puedes confirmar la venta sin su correo.",
-   "nota": "Úsala solo si de verdad no tiene: primero pídele su correo, ahí le llegan su factura y sus puntos. El celular sigue siendo obligatorio. La misma casilla está en su ficha, debajo del correo, y queda anotado quién la marcó. Si después le escribes un correo, la casilla se desmarca sola.",
+   "nota": "Úsala solo si de verdad no tiene: primero pídele su correo, ahí le llegan su factura y sus puntos. El celular (o, si no tiene, un teléfono fijo) sigue siendo obligatorio. La misma casilla está en su ficha, debajo del correo, y queda anotado quién la marcó. Si después le escribes un correo, la casilla se desmarca sola.",
    "destino": {
     "menu": "sale.menu_sale_quotations"
    },
@@ -1545,7 +1547,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Completar los clientes a los que les falta el correo o el celular",
-   "logras": "Ves los clientes sin correo o sin celular y los completas antes de su próxima venta: sin ellos no se confirma la venta ni le llega su factura.",
+   "logras": "Ves los clientes sin correo o sin celular (ni teléfono fijo) y los completas antes de su próxima venta: sin ellos no se confirma la venta ni le llega su factura.",
    "nota": "No salen los que tienen marcada «Cliente no tiene correo electrónico» y ya tienen su celular.",
    "destino": {
     "menu": "dcasa_contactos.menu_clientes_sin_contacto"

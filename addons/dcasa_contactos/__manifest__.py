@@ -14,13 +14,15 @@ Una persona, una ficha:
 * Celular y correo bien escritos y obligatorios: la vendedora no confirma una venta ni publica una factura si al
   cliente le falta alguno o están mal escritos («¿Quisiste decir ana@gmail.com?»). Si de verdad no tiene correo, se
   marca «Cliente no tiene correo electrónico» en su ficha o en la cotización (el celular sigue obligatorio).
+* Teléfono fijo (7 números en Panamá) en su propio campo, debajo del celular: sirve en lugar del celular para quien no
+  tiene. No se compara entre fichas (una casa o una empresa lo comparten).
 """,
     'version': '19.0.1.0.0',
     'category': 'Sales/CRM',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_base', 'dcasa_socios', 'hr', 'mail', 'sale_management', 'account'],
+    'depends': ['dcasa_base', 'dcasa_socios', 'hr', 'mail', 'phone_validation', 'sale_management', 'account'],
     'data': [
         'security/ir.model.access.csv',
         'views/duplicado_views.xml',

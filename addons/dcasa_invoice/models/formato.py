@@ -104,9 +104,10 @@ def etiqueta_identificacion(numero, dv=None, es_empresa=False):
 
 
 def telefono_fmt(telefono):
-    """'+507 61234567' → '6123-4567'. Lo que no es un número de Panamá se deja tal cual."""
+    """'+507 61234567' → '6123-4567' · '+507 234-5678' (fijo) → '234-5678'. Lo que no es un número de Panamá se deja
+    tal cual."""
     digitos = re.sub(r'\D', '', telefono or '')
-    if len(digitos) == 11 and digitos.startswith('507'):
+    if len(digitos) in (10, 11) and digitos.startswith('507'):
         digitos = digitos[3:]
     if len(digitos) == 8:
         return f'{digitos[:4]}-{digitos[4:]}'

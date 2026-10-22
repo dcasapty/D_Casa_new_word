@@ -57,7 +57,10 @@ pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos
     `sincorreo@gmail.com`) no es un correo. Se guarda limpio y en minúsculas.
   * Celular de Panamá de 8 números (`6026-1919`, con o sin +507) o de otro país **con +** y su código
     (`+1 305 555 1234`). Se guarda como `+507 6026-1919` o `+13055551234`; la llave de contactos no cambia. Un fijo de
-    7 números no pasa (lo decide la dueña).
+    7 números escrito en «Celular» no se guarda: el mensaje dice que va en «Teléfono fijo».
+  * **Teléfono fijo** (2026-10-22, abajo): en Panamá 7 números que no empiezan por 0, 1 ni 6 (`234-5678`, con o sin
+    +507), o de otro país con +. Se guarda como `+507 234-5678`; si se escribe un celular ahí, dice que va en
+    «Celular».
   * El correo de alguien del equipo o de la empresa no sirve como correo del cliente.
 * **Cuándo se exige** (solo a quien trabaja en Odoo y sin `sudo`; Juan, la tienda, Socios, el importador, la fusión
   y los crons no pasan por aquí; Brian sí, porque corre como la vendedora):
@@ -74,8 +77,16 @@ pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos
   ficha al guardar la cotización) o en la ficha, debajo del correo. Solo se ve mientras el correo está vacío; si
   después se le escribe un correo, **se desmarca sola**. Queda en el historial de la ficha quién la marcó. Por Brian:
   `crear_cliente` o `actualizar_cliente` con el correo «no tiene».
+* **Teléfono fijo** (pedido de la dueña, 2026-10-22: «hubo un cliente que no tenía WhatsApp sino teléfono fijo de 7
+  números»): campo propio, «Teléfono fijo», debajo del celular en la ficha y en «Crear y editar» de la cotización o la
+  factura. **Sirve en lugar del celular** para crear al cliente, confirmar su venta y publicar su factura (el correo
+  sigue igual). **No es una llave**: no se compara con otras fichas (una casa o una empresa con varios contactos
+  comparten el fijo), no entra en «Posibles duplicados» y no sirve para Socios ni para WhatsApp, cuya llave sigue
+  siendo el celular (regla 5). Se encuentra al cliente escribiendo su fijo en el buscador o en el selector de cliente;
+  la fusión lo conserva como cualquier dato; sale en la factura junto al celular. Por Brian: `telefono_fijo` en
+  `crear_cliente` y `actualizar_cliente`. La carga del sistema anterior pone el primer fijo de Panamá en su campo.
 * **Clientes viejos:** **Socios › Configuración › Clientes sin correo o sin celular** (Gerencia) los lista para
-  completarlos antes de su próxima venta.
+  completarlos antes de su próxima venta (no salen los que tienen un teléfono fijo en lugar del celular).
 * No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.
 * Código: `dcasa_contactos/models/contacto.py` (ficha y mensajes), `sale_order.py` (puerta A y la casilla de la
   cotización), `account_move.py` (puerta B). Pruebas: `test_bien_escrito.py`, `test_exigir_contacto.py` y

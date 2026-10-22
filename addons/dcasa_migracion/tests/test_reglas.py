@@ -47,6 +47,18 @@ class TestTelefonos(BaseCase):
         self.assertEqual(R.separar_telefonos('6000-0001 y 2000002'), ('6000-0001', ['2000002']))
         self.assertEqual(R.separar_telefonos('2000002, 6000-0001'), ('2000002', ['6000-0001']))
 
+    def test_el_telefono_fijo_va_aparte(self):
+        """Un fijo de Panamá (7 números) va a su propio campo, ya limpio (2026-10-22)."""
+        self.assertEqual(R.repartir_telefonos('60000005/2000005'), ('60000005', '+507 200-0005', []))
+        self.assertEqual(R.repartir_telefonos('2000002, 6000-0001'), ('6000-0001', '+507 200-0002', []))
+        self.assertEqual(R.repartir_telefonos('200-0003'), ('', '+507 200-0003', []))
+        self.assertEqual(R.repartir_telefonos('6000-0001 / 2000004 / 2000005'),
+                         ('6000-0001', '+507 200-0004', ['2000005']))
+        for texto in ('6000-0001', '+86 000 0000 0002', '345-678', 'sin telefono', ''):
+            with self.subTest(texto=texto):
+                principal, otros = R.separar_telefonos(texto)
+                self.assertEqual(R.repartir_telefonos(texto), (principal, '', otros))
+
     def test_vacio_o_sin_cifras(self):
         self.assertEqual(R.separar_telefonos(''), ('', []))
         self.assertEqual(R.separar_telefonos(None), ('', []))
@@ -70,7 +82,9 @@ class TestFilasDeClientes(BaseCase):
         self.assertEqual((empresa['dv'], empresa['direccion']), ('99', 'Edificio Prueba, Local 3'))
         self.assertEqual((vacio['vat'], vacio['telefono'], vacio['correo']), ('', '', ''))
         self.assertEqual(dos_telefonos['telefono'], '60000005')
-        self.assertEqual(dos_telefonos['notas'], ['Otros teléfonos en el sistema anterior: 2000005'])
+        self.assertEqual(dos_telefonos['fijo'], '+507 200-0005', 'el fijo va a su campo (2026-10-22)')
+        self.assertEqual(dos_telefonos['notas'], [], 'y no se repite en las notas')
+        self.assertEqual(persona['fijo'], '')
 
     def test_filas_que_no_se_cargan(self):
         texto = ('id_viejo,nombre\n'

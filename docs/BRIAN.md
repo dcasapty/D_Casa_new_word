@@ -47,7 +47,9 @@ MCP ────────┘         │                        │  tool cal
 
 `crear_cliente` pide el celular y el correo, los dos bien escritos (los mismos «¿Quisiste decir…?» de la ficha); si
 el cliente de verdad no tiene correo, se escribe «no tiene» y queda marcada «Cliente no tiene correo electrónico».
-`actualizar_cliente` revisa igual el celular y el correo (y acepta el correo «no tiene»).
+Si no tiene celular, su **teléfono fijo** (`telefono_fijo`, 7 números) va en lugar del celular (2026-10-22); un fijo
+escrito como celular se guarda en su campo. `actualizar_cliente` revisa igual el celular, el teléfono fijo y el correo
+(y acepta el correo «no tiene»).
 | sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
 | prohibido | ver abajo | No existe herramienta para eso |
 

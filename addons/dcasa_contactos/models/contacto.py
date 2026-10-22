@@ -22,16 +22,25 @@ ahí le llegan al cliente su factura y cómo ver sus puntos. Qué es «bien escr
 * Nada de esto se revisa mientras se escribe: el formulario guarda solo (la nube) y un borrador a medias se guarda
   igual. Lo único que se avisa al salir de un campo es el «¿Quisiste decir…?».
 * No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.
+* **Teléfono fijo** (pedido de la dueña, 2026-10-22: «hubo un cliente que no tenía WhatsApp sino teléfono fijo de 7
+  números»): su propio campo, «Teléfono fijo», al lado del celular. Sirve en lugar del celular para crear al cliente,
+  confirmar su venta y publicar su factura (el correo sigue igual). Se guarda limpio («+507 234-5678»); si se escribe
+  un celular ahí, o un fijo en «Celular», se dice dónde va. **No es una llave**: no se compara con otras fichas (una
+  casa o una empresa con varios contactos comparten el mismo fijo) y no sirve para Socios ni para WhatsApp, cuya llave
+  sigue siendo el celular. Se encuentra al cliente escribiendo su fijo en el buscador.
 """
 from odoo import api, fields, models
 from odoo.addons.dcasa_socios.models import bien_escrito as B
+from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.exceptions import ValidationError
+from odoo.fields import Domain
 
 from .res_partner import SIN_DUPLICADOS, SIN_EXIGIR_CONTACTO
 
 # La creación rápida desde un campo (escribir el nombre y Enter): no exige el celular ni el correo al crear.
 ALTA_RAPIDA = 'dcasa_alta_rapida'
 SIN_CORREO = 'dcasa_sin_correo'
+FIJO = 'dcasa_telefono_fijo'
 
 
 class ResPartner(models.Model):
@@ -42,6 +51,49 @@ class ResPartner(models.Model):
         help='Márcalo solo si el cliente de verdad no tiene correo: así se puede confirmar su venta y publicar su '
              'factura sin él. El celular sigue siendo obligatorio. Si después le escribes un correo, se desmarca '
              'solo. En el historial de la ficha queda quién lo marcó.')
+    dcasa_telefono_fijo = fields.Char(
+        'Teléfono fijo',
+        help='El teléfono de la casa o de la oficina: en Panamá son 7 números, como 234-5678. Sirve en lugar del '
+             'celular si el cliente no tiene. No es su llave: varias personas de una casa o de una empresa pueden '
+             'tener el mismo.')
+    dcasa_fijo_digitos = fields.Char(
+        'Teléfono fijo (solo números)', compute='_compute_dcasa_fijo_digitos', store=True, index='btree_not_null',
+        help='Para encontrar al cliente escribiendo su teléfono fijo con o sin guion.')
+
+    @api.depends('dcasa_telefono_fijo')
+    def _compute_dcasa_fijo_digitos(self):
+        for partner in self:
+            digitos = R.solo_digitos(partner.dcasa_telefono_fijo)
+            if len(digitos) == 10 and digitos.startswith(B.PANAMA):
+                digitos = digitos[len(B.PANAMA):]
+            partner.dcasa_fijo_digitos = digitos or False
+
+    @staticmethod
+    def _dcasa_digitos_de_fijo_buscado(value):
+        """Los números de lo que se busca, sin el 507 de un fijo de Panamá («+507 234-5678» → «2345678»), o ''
+        si lo buscado no parece un teléfono (menos de 4 números, o con letras)."""
+        digitos = R.solo_digitos(value) if isinstance(value, str) else ''
+        if len(digitos) < 4 or len(digitos) < len(value.replace(' ', '')) - 2:
+            return ''
+        return digitos[len(B.PANAMA):] if len(digitos) == 10 and digitos.startswith(B.PANAMA) else digitos
+
+    @api.model
+    def _search_display_name(self, operator, value):
+        """«234-5678» o «2345678» también encuentran al cliente por su teléfono fijo (el cuadro de búsqueda y el
+        selector de cliente de la cotización)."""
+        dominio = super()._search_display_name(operator, value)
+        digitos = self._dcasa_digitos_de_fijo_buscado(value) if operator == 'ilike' else ''
+        if digitos:
+            dominio = Domain.OR([dominio, [('dcasa_fijo_digitos', 'ilike', digitos)]])
+        return dominio
+
+    def _search_phone_mobile_search(self, operator, value):
+        """El filtro «Número de teléfono» de Contactos también encuentra el teléfono fijo."""
+        dominio = super()._search_phone_mobile_search(operator, value)
+        digitos = self._dcasa_digitos_de_fijo_buscado(value) if operator in ('ilike', 'like') else ''
+        if digitos:
+            dominio = Domain.OR([dominio, [('dcasa_fijo_digitos', 'ilike', digitos)]])
+        return dominio
 
     # ------------------------------------------------------------------
     # Quién pasa por la puerta
@@ -93,6 +145,12 @@ class ResPartner(models.Model):
             if codigo:
                 raise ValidationError(B.mensaje_del_telefono(self.env, escrito, codigo))
             vals['phone'] = B.telefono_para_guardar(escrito)
+        if vals.get(FIJO):
+            escrito = vals[FIJO]
+            codigo = B.problema_del_fijo(escrito)
+            if codigo:
+                raise ValidationError(B.mensaje_del_fijo(self.env, escrito, codigo))
+            vals[FIJO] = B.fijo_para_guardar(escrito)
         return vals
 
     @staticmethod
@@ -132,7 +190,7 @@ class ResPartner(models.Model):
             if modo != 'customer' or con_padre or contexto.get(ALTA_RAPIDA) or self._dcasa_es_empresa_al_crear(vals):
                 continue
             faltan = [campo for campo, falta in (
-                ('celular', not vals.get('phone')),
+                ('celular', not vals.get('phone') and not vals.get(FIJO)),
                 ('correo', not vals.get('email') and not vals.get(SIN_CORREO)),
             ) if falta]
             if faltan:
@@ -144,7 +202,7 @@ class ResPartner(models.Model):
         vals = dict(vals)
         if SIN_CORREO in vals or self.sudo().filtered(SIN_CORREO):
             self._dcasa_correo_desmarca(vals)
-        if not (vals.get('email') or vals.get('phone')) or not self._dcasa_exige_contacto():
+        if not (vals.get('email') or vals.get('phone') or vals.get(FIJO)) or not self._dcasa_exige_contacto():
             return vals
         sujetas = self._dcasa_sujetas_al_contacto()
         if not sujetas:
@@ -164,11 +222,16 @@ class ResPartner(models.Model):
             self.dcasa_sin_correo = False
 
     @api.model
-    def _dcasa_mensaje_al_crear(self, faltan):
-        que = {
-            ('celular',): self.env._('el celular'),
+    def _dcasa_que_falta(self, faltan):
+        """«el celular (o un teléfono fijo)», «el correo» o los dos, para los mensajes."""
+        return {
+            ('celular',): self.env._('el celular (o un teléfono fijo)'),
             ('correo',): self.env._('el correo'),
-        }.get(tuple(faltan), self.env._('el celular y el correo'))
+        }.get(tuple(faltan), self.env._('el celular (o un teléfono fijo) y el correo'))
+
+    @api.model
+    def _dcasa_mensaje_al_crear(self, faltan):
+        que = self._dcasa_que_falta(faltan)
         mensaje = self.env._(
             'Escribe %(que)s del cliente: sin eso no se puede confirmar su venta ni le llega su factura.', que=que)
         if 'correo' in faltan:
@@ -196,6 +259,10 @@ class ResPartner(models.Model):
             codigo = B.problema_del_telefono(self.phone)
             if codigo:
                 return B.mensaje_del_telefono(self.env, self.phone, codigo)
+        if self.dcasa_telefono_fijo and self.dcasa_telefono_fijo != origen.dcasa_telefono_fijo:
+            codigo = B.problema_del_fijo(self.dcasa_telefono_fijo)
+            if codigo:
+                return B.mensaje_del_fijo(self.env, self.dcasa_telefono_fijo, codigo)
         return None
 
     # ------------------------------------------------------------------
@@ -207,8 +274,9 @@ class ResPartner(models.Model):
         """El correo y el celular que sirven para el cliente de un documento (la venta o la factura).
 
         Correo: el primero bien escrito entre la dirección del documento, su ficha y la ficha comercial. Celular: el
-        primero bien escrito entre el teléfono de la dirección, el de la ficha comercial y el celular de Socios.
-        Devuelve ``{'correo', 'celular', 'sin_correo', 'malos'}``; ``malos`` guarda lo que existe pero está mal
+        primero bien escrito entre el teléfono de la dirección, el de la ficha comercial y el celular de Socios. Fijo
+        (solo si no hay celular): el de la dirección o el de la ficha comercial, bien escrito.
+        Devuelve ``{'correo', 'celular', 'fijo', 'sin_correo', 'malos'}``; ``malos`` guarda lo que existe pero está mal
         escrito (``{'correo': (valor, código, sugerencia), 'celular': (valor, código, None)}``). ``sin_correo``: la
         casilla «Cliente no tiene correo electrónico» de alguna de esas fichas, o el valor que se le pase (el de la
         cotización, que puede estar cambiando en pantalla antes de guardarse)."""
@@ -221,7 +289,7 @@ class ResPartner(models.Model):
         equipo = self._dcasa_correos_del_equipo(excepto=propias)
         if sin_correo is None:
             sin_correo = any(partner.dcasa_sin_correo for partner in cadena)
-        datos = {'correo': None, 'celular': None, 'malos': {}, 'sin_correo': bool(sin_correo)}
+        datos = {'correo': None, 'celular': None, 'fijo': None, 'malos': {}, 'sin_correo': bool(sin_correo)}
         for partner in cadena:
             if not partner.email:
                 continue
@@ -243,12 +311,24 @@ class ResPartner(models.Model):
                 continue
             datos['celular'] = B.telefono_para_guardar(telefono)
             break
+        if not datos['celular']:
+            datos['fijo'] = self._dcasa_fijo_que_sirve(documento, comercial)
         return datos
+
+    @api.model
+    def _dcasa_fijo_que_sirve(self, *fichas):
+        """El primer teléfono fijo bien escrito de estas fichas, limpio («+507 234-5678»), o ``None``."""
+        for ficha in fichas:
+            fijo = ficha.dcasa_telefono_fijo
+            if fijo and not B.problema_del_fijo(fijo):
+                return B.fijo_para_guardar(fijo)
+        return None
 
     @staticmethod
     def _dcasa_lo_que_falta(datos):
+        """El celular no falta si hay un teléfono fijo (2026-10-22)."""
         return [campo for campo, falta in (
-            ('celular', not datos['celular']),
+            ('celular', not datos['celular'] and not datos.get('fijo')),
             ('correo', not datos['correo'] and not datos['sin_correo']),
         ) if falta]
 
@@ -272,10 +352,7 @@ class ResPartner(models.Model):
         partes = []
         vacios = [campo for campo in faltan if campo not in datos['malos']]
         if vacios:
-            que = {
-                ('celular',): self.env._('el celular'),
-                ('correo',): self.env._('el correo'),
-            }.get(tuple(vacios), self.env._('el celular y el correo'))
+            que = self._dcasa_que_falta(vacios)
             escribelo = self.env._('Escríbelos') if len(vacios) > 1 else self.env._('Escríbelo')
             partes.append(self.env._(
                 '%(inicio)s, a «%(cliente)s» le falta %(que)s. %(escribelo)s en su ficha y vuelve a %(accion)s: ahí '
@@ -316,6 +393,9 @@ class ResPartner(models.Model):
             codigo = B.problema_del_telefono(celular)
             if codigo == 'varios':
                 errores['phone'] = self.env._('Escribe un solo número de celular.')
+            elif codigo == 'fijo':
+                errores['phone'] = self.env._(
+                    'Ese parece un teléfono fijo: escribe tu celular, son 8 números, como 6123-4567.')
             elif codigo:
                 errores['phone'] = self.env._(
                     'Revisa tu celular: en Panamá son 8 números, como 6123-4567. Si es de otro país, escríbelo con + '
