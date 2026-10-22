@@ -362,6 +362,29 @@ LISTA_BLANCA = {
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '
         '«desde» ≤ «hasta» y hasta un año por rango. Las facturas y conciliaciones las lee con sudo ya comprobado '
         'el grupo; no escribe nada.',
+    # «Por día», «Estadísticas» y «Movimientos» (2026-10-22): solo lectura, el grupo exigido ANTES de leer.
+    ('dcasa_interfaz', 'dcasa.tablero', 'por_dia'):
+        'Lectura del mes día por día: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
+        'ANTES de leer; valida la base (una de las cuatro), el mes (este o uno de los últimos 24) y la vendedora. Las '
+        'facturas las suma con sudo filtrado a out_invoice/out_refund (las mismas de _medir); los pedidos, sin sudo.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_dia'):
+        'Lectura de lo que se hizo un día: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida la '
+        'base, la vendedora y el día (no futuro, de los últimos 24 meses). No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'estadisticas'):
+        'Lectura de las gráficas: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida el periodo '
+        '(uno de los botones o un rango de hasta un año, no futuro) y la base. Devuelve solo totales.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'opciones_por_dia'):
+        'Lectura de las opciones de «Por día» y «Estadísticas» (bases, meses, vendedoras): exige Gerencia o '
+        'administrador (_exigir_gerencia) ANTES de leer; no escribe nada.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'movimientos'):
+        'Lectura de la línea de tiempo de inventario: exige Gerencia (administra Inventario) o administrador '
+        '(_exigir_permiso, AccessError) ANTES de leer con sudo, siempre filtrado a las empresas de quien mira; valida '
+        'producto, fechas, tipo y página. No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'buscar_productos'):
+        'Lectura: exige Gerencia o administrador (_exigir_permiso) ANTES de buscar con sudo productos de mercancía de '
+        'las empresas de quien mira; devuelve nombre, código, código de barras y existencia.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'opciones'):
+        'Lectura de los tipos de movimiento para los filtros: exige Gerencia o administrador (_exigir_permiso).',
     ('dcasa_interfaz', 'product.product', 'dcasa_accion_sin_movimiento'):
         'Lectura: exige Gerencia o administrador en el servidor (AccessError si no) y solo devuelve una acción de '
         'ventana con un filtro; no escribe ni usa sudo().',

@@ -32,7 +32,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
     'license': 'LGPL-3',
     'depends': [
         'dcasa_base', 'dcasa_catalogo', 'website', 'sale_management', 'stock', 'stock_delivery', 'account', 'web_tour',
-        'mail_bot',
+        'mail_bot', 'purchase_stock',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -40,6 +40,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
         'views/panel_views.xml',
         'views/sitio_views.xml',
         'views/estadisticas_views.xml',
+        'views/por_dia_views.xml',
         'views/sale_order_views.xml',
         'views/reponer_views.xml',
         'views/login_templates.xml',

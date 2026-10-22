@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Estadísticas › Resumen»: gráficas planas en azul de la marca; cada número con una frase que dice qué es. Lo que
+         el Inicio ya muestra bien (comparar periodos, la ganancia) se enlaza, no se repite. -->
+    <t t-name="dcasa_interfaz.Estadisticas">
+        <div class="o_action o_dcasa_inicio o_dcasa_estadisticas">
+            <header class="o_dcasa_pantalla_cabeza">
+                <div>
+                    <h1>Estadísticas</h1>
+                    <p class="o_dcasa_pantalla_frase">Cómo van las ventas, en gráficas simples. Todo es sin ITBMS.</p>
+                </div>
+            </header>
+            <div class="o_dcasa_inicio_cuerpo">
+                <section class="o_dcasa_ventas o_dcasa_es_controles" aria-label="Qué periodo y qué contar">
+                    <div class="o_dcasa_periodos o_dcasa_es_periodos" role="tablist" aria-label="Periodo">
+                        <button t-foreach="periodos" t-as="per" t-key="per.clave" type="button" role="tab"
+                                t-attf-class="o_dcasa_periodo o_dcasa_es_periodo_{{per.clave}}"
+                                t-att-class="{'o_activo': state.periodo === per.clave}"
+                                t-att-aria-selected="state.periodo === per.clave ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarPeriodo(per.clave)" t-out="per.nombre"/>
+                    </div>
+                    <form t-if="state.periodo === 'rango'" class="o_dcasa_rango o_dcasa_es_rango" t-on-submit.prevent="aplicarRango">
+                        <label>Del <input type="date" class="form-control o_dcasa_es_desde" t-model="state.desde" t-att-max="hoy"/></label>
+                        <label>al <input type="date" class="form-control o_dcasa_es_hasta" t-model="state.hasta" t-att-max="hoy"/></label>
+                        <button type="submit" class="btn btn-primary">Ver</button>
+                    </form>
+                    <div class="o_dcasa_interruptor o_dcasa_pd_bases" role="radiogroup" aria-label="Qué contar">
+                        <button t-foreach="state.opciones.bases" t-as="b" t-key="b.clave" type="button" role="radio"
+                                t-attf-class="o_dcasa_interruptor_opcion o_dcasa_es_base_{{b.clave}}"
+                                t-att-class="{'o_activo': state.base === b.clave}"
+                                t-att-aria-checked="state.base === b.clave ? 'true' : 'false'"
+                                t-on-click="() => this.cambiarBase(b.clave)" t-out="b.nombre"/>
+                    </div>
+                    <p class="o_dcasa_base_detalle" t-out="detalleBase"/>
+                    <p t-if="state.error" class="o_dcasa_error" role="alert" t-out="state.error"/>
+                </section>
+
+                <t t-set="d" t-value="state.datos"/>
+                <div t-if="d" t-attf-class="o_dcasa_es_cuerpo {{state.cargando ? 'o_cargando' : ''}}">
+                    <!-- Los cuatro números del periodo, cada uno con su frase. -->
+                    <section class="o_dcasa_es_numeros" aria-label="Resumen del periodo">
+                        <button type="button" class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_ventas"
+                                t-on-click="() => this.abrirLista(d.accion)">
+                            <span class="o_dcasa_pd_etiqueta">Ventas · <t t-out="d.etiqueta"/></span>
+                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.resumen.sin_itbms)"/>
+                            <span class="o_dcasa_es_frase">
+                                <t t-if="esPedido">Lo que suman los pedidos confirmados del periodo, sin ITBMS.</t>
+                                <t t-else="">Lo que suman las facturas del periodo, sin ITBMS; las notas de crédito restan.</t>
+                                Con ITBMS: <t t-out="dinero(d.resumen.total)"/>.
+                            </span>
+                        </button>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_cuantas">
+                            <span class="o_dcasa_pd_etiqueta"><t t-out="esPedido ? 'Pedidos' : 'Facturas'"/></span>
+                            <strong class="o_dcasa_pd_valor" t-out="numero(d.resumen.cuantas)"/>
+                            <span class="o_dcasa_es_frase">
+                                <t t-if="esPedido">Cuántos pedidos se confirmaron.</t>
+                                <t t-else="">Cuántas facturas se hicieron<t t-if="d.resumen.notas"> (y <t t-out="notasTexto(d.resumen.notas)"/> que restan)</t>.</t>
+                            </span>
+                        </div>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_ticket">
+                            <span class="o_dcasa_pd_etiqueta">Ticket promedio</span>
+                            <strong class="o_dcasa_pd_valor" t-out="d.resumen.ticket === null ? '—' : dinero(d.resumen.ticket)"/>
+                            <span class="o_dcasa_es_frase">Lo que deja cada venta en promedio, sin ITBMS.</span>
+                        </div>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_es_unidades">
+                            <span class="o_dcasa_pd_etiqueta">Unidades</span>
+                            <strong class="o_dcasa_pd_valor" t-out="unidades(d.resumen.unidades)"/>
+                            <span class="o_dcasa_es_frase">Muebles y artículos que salieron (sin flete ni servicios).</span>
+                        </div>
+                    </section>
+
+                    <!-- Barras por día (o por mes en periodos largos). Tocar una abre «Por día». -->
+                    <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_dias">
+                        <h2><t t-out="d.barras.por === 'dia' ? 'Ventas por día' : 'Ventas por mes'"/>
+                            <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
+                        <p class="o_dcasa_es_frase">
+                            Cada barra es lo que se <t t-out="esPedido ? 'vendió' : 'facturó'"/> ese <t t-out="d.barras.por === 'dia' ? 'día' : 'mes'"/>.
+                            <t t-if="mejorBarra">El mejor fue <strong t-out="mejorBarra.detalle"/> con <strong t-out="dinero(mejorBarra.sin_itbms)"/>.</t>
+                            Toca una barra para ver sus <t t-out="esPedido ? 'pedidos' : 'facturas'"/>.
+                        </p>
+                        <t t-set="maxBarra" t-value="maximo(d.barras.filas)"/>
+                        <div class="o_dcasa_es_barras" t-attf-style="--columnas: {{ d.barras.filas.length }}">
+                            <button t-foreach="d.barras.filas" t-as="fila" t-key="fila.clave" type="button"
+                                    t-attf-class="o_dcasa_es_barra {{fila.hoy ? 'o_hoy' : ''}}"
+                                    t-att-data-clave="fila.clave"
+                                    t-att-aria-label="fila.detalle + ': ' + dinero(fila.sin_itbms) + ' sin ITBMS, ' + cuantasTexto(fila.cuantas, d.base)"
+                                    t-att-title="fila.detalle + ': ' + dinero(fila.sin_itbms)"
+                                    t-on-click="() => this.abrirBarra(fila)">
+                                <span class="o_dcasa_es_barra_relleno" t-attf-style="height: {{ medida(fila.sin_itbms, maxBarra) }}%"/>
+                            </button>
+                        </div>
+                        <div class="o_dcasa_es_barras_etiquetas" aria-hidden="true" t-attf-style="--columnas: {{ d.barras.filas.length }}">
+                            <span t-foreach="d.barras.filas" t-as="fila" t-key="fila.clave"
+                                  t-out="etiquetaVisible(fila_index, d.barras.filas.length) ? fila.etiqueta : ''"/>
+                        </div>
+                    </section>
+
+                    <div class="o_dcasa_es_fila">
+                        <!-- Por tipo de producto -->
+                        <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_tipos">
+                            <h2>Por tipo de producto <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
+                            <p class="o_dcasa_es_frase">Cuánto se vendió de cada tipo de mueble y cuántas unidades. Solo
+                                mercancía: el flete y los descuentos generales no entran.</p>
+                            <t t-set="maxTipo" t-value="maximo(d.tipos)"/>
+                            <ol t-if="d.tipos.length" class="list-unstyled mb-0 o_dcasa_es_filas">
+                                <li t-foreach="d.tipos" t-as="t" t-key="t.nombre" class="o_dcasa_es_hfila">
+                                    <span class="o_dcasa_es_nombre" t-out="t.nombre"/>
+                                    <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(t.sin_itbms, maxTipo) }}%"/></span>
+                                    <span class="o_dcasa_es_valor"><strong t-out="dinero(t.sin_itbms)"/><small><t t-out="unidades(t.unidades)"/> u.</small></span>
+                                </li>
+                            </ol>
+                            <p t-else="" class="o_dcasa_vacio">No hay mercancía vendida en este periodo.</p>
+                        </section>
+
+                        <!-- Por vendedora -->
+                        <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_vendedoras">
+                            <h2>Por vendedora <small class="o_dcasa_sin_itbms">sin ITBMS</small></h2>
+                            <p class="o_dcasa_es_frase">
+                                <t t-if="esPedido">Lo que confirmó cada vendedora (el «Vendedor» del pedido).</t>
+                                <t t-else="">Las facturas de cada vendedora: la del pedido o, sin pedido, la de la factura.</t>
+                                Suman el total.
+                            </p>
+                            <t t-set="maxVend" t-value="maximo(d.vendedoras)"/>
+                            <ol t-if="d.vendedoras.length" class="list-unstyled mb-0 o_dcasa_es_filas">
+                                <li t-foreach="d.vendedoras" t-as="v" t-key="v.vendedor" class="o_dcasa_es_hfila">
+                                    <span class="o_dcasa_es_nombre" t-out="v.nombre"/>
+                                    <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(v.sin_itbms, maxVend) }}%"/></span>
+                                    <span class="o_dcasa_es_valor"><strong t-out="dinero(v.sin_itbms)"/><small t-out="cuantasTexto(v.cuantas, d.base)"/></span>
+                                </li>
+                            </ol>
+                            <p t-else="" class="o_dcasa_vacio">No hay ventas en este periodo.</p>
+                        </section>
+                    </div>
+
+                    <!-- Lo más vendido (por unidades) -->
+                    <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_productos">
+                        <h2>Lo más vendido <small class="o_dcasa_sin_itbms">por unidades</small></h2>
+                        <p class="o_dcasa_es_frase">Los <t t-out="d.productos.length || 10"/> productos que más unidades vendieron en el periodo y lo que dejaron, sin ITBMS. Toca uno para abrirlo.</p>
+                        <t t-set="maxProd" t-value="maximo(d.productos, 'unidades')"/>
+                        <ol t-if="d.productos.length" class="list-unstyled mb-0 o_dcasa_es_filas">
+                            <li t-foreach="d.productos" t-as="p" t-key="p.id">
+                                <button type="button" class="o_dcasa_es_hfila o_dcasa_es_producto" t-on-click="() => this.abrirProducto(p)">
+                                    <span class="o_dcasa_es_nombre"><img t-att-src="p.imagen" alt="" loading="lazy"/><t t-out="p.nombre"/></span>
+                                    <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(p.unidades, maxProd) }}%"/></span>
+                                    <span class="o_dcasa_es_valor"><strong><t t-out="unidades(p.unidades)"/> u.</strong><small t-out="dinero(p.sin_itbms)"/></span>
+                                </button>
+                            </li>
+                        </ol>
+                        <p t-else="" class="o_dcasa_vacio">No hay productos vendidos en este periodo.</p>
+                    </section>
+
+                    <!-- Lo que ya existe y se ve bien en otra pantalla: se enlaza. -->
+                    <section class="o_dcasa_es_enlaces" aria-label="Más">
+                        <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_por_dia" t-on-click="abrirPorDia">
+                            <span class="o_dcasa_atajo_icono"><i class="fa fa-calendar"/></span>
+                            <span class="o_dcasa_atajo_texto"><strong>Por día</strong><span>El mes día por día y lo que se hizo cada día</span></span>
+                        </button>
+                        <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_comparar" t-on-click="abrirInicio">
+                            <span class="o_dcasa_atajo_icono"><i class="fa fa-exchange"/></span>
+                            <span class="o_dcasa_atajo_texto"><strong>Comparar periodos</strong><span>En el Inicio: hoy contra ayer, el mes contra otro</span></span>
+                        </button>
+                        <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_margen" t-on-click="() => this.abrirAccion('dcasa_interfaz.accion_mejor_margen')">
+                            <span class="o_dcasa_atajo_icono"><i class="fa fa-line-chart"/></span>
+                            <span class="o_dcasa_atajo_texto"><strong>Mejor margen</strong><span>Qué producto deja más ganancia</span></span>
+                        </button>
+                        <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_parado" t-on-click="() => this.abrirAccion('dcasa_interfaz.accion_sin_movimiento')">
+                            <span class="o_dcasa_atajo_icono"><i class="fa fa-pause-circle"/></span>
+                            <span class="o_dcasa_atajo_texto"><strong>Lo que no se mueve</strong><span>Con existencias y sin ventas en 90 días</span></span>
+                        </button>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

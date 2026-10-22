@@ -513,6 +513,13 @@ export class DcasaInicio extends Component {
         });
     }
 
+    /** «Ver por día»: el mes día por día, con la base y la vendedora que están elegidas (solo Gerencia). */
+    abrirPorDia() {
+        this.action.doAction("dcasa_interfaz.accion_facturado_por_dia", {
+            additionalContext: { dcasa_base: this.state.base, dcasa_vendedor: this.state.vendedor || false },
+        });
+    }
+
     /** «¿Qué necesito hacer?»: la Guía del negocio (módulo dcasa_guia). */
     abrirGuia() {
         // Por su menú, para que la barra de arriba y la de la izquierda digan «Guía» y no «Inicio».

@@ -1,0 +1,682 @@
+// «Por día», «Estadísticas» y «Movimientos» (2026-10-22). Mismo sistema del Inicio (tokens.scss): azules de la marca,
+// blancos fríos, plano, sin degradados ni sombras dramáticas. El amarillo solo toca el azul. En el celular, nada de
+// desplazamiento de costado: el calendario se vuelve una lista de días.
+
+$dc-verde: #1B7F3B;
+$dc-rojo: #B3261E;
+
+// --- Cabecera de las pantallas -------------------------------------------------------
+.o_dcasa_pantalla_cabeza {
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+    padding: 22px clamp(1rem, 3vw, 40px) 18px;
+
+    h1 {
+        font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+        font-weight: 700;
+        letter-spacing: -.02em;
+        line-height: 1.15;
+        margin: 0 0 4px;
+        color: var(--dc-tinta);
+    }
+}
+
+.o_dcasa_pantalla_frase {
+    margin: 0;
+    max-width: 70ch;
+    color: var(--dc-tinta-2);
+    font-size: .92rem;
+    line-height: 1.45;
+}
+
+.o_dcasa_por_dia, .o_dcasa_estadisticas, .o_dcasa_movimientos {
+    overflow-x: hidden;
+    .o_dcasa_error { color: $dc-rojo; font-size: .85rem; margin: 10px 0 0; }
+}
+
+// --- Por día: controles ----------------------------------------------------------------
+.o_dcasa_pd_controles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.o_dcasa_pd_mes {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+
+    .o_dcasa_pd_mes_elegir { margin: 0; flex: 0 1 260px; min-width: 0; }
+    .form-select {
+        min-height: 42px;
+        font-weight: 700;
+        font-size: 1rem;
+        color: var(--dc-azul-800);
+        border-color: var(--dc-linea-fuerte);
+        border-radius: var(--dc-r-sm);
+    }
+}
+
+.o_dcasa_pd_mes_boton {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--dc-r-sm);
+    border: 1px solid var(--dc-linea-fuerte);
+    background: var(--dc-blanco);
+    color: var(--dc-azul-700);
+
+    &:hover:not(:disabled) { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &:disabled { opacity: .35; }
+}
+
+// Cuatro bases: en el celular, de a dos por fila (botones grandes).
+@media (max-width: 575.98px) {
+    .o_dcasa_interruptor.o_dcasa_pd_bases { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+// --- Por día: resumen del mes -------------------------------------------------------------
+.o_dcasa_pd_resumen, .o_dcasa_es_numeros {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+    transition: opacity var(--dc-transicion);
+
+    &.o_cargando { opacity: .5; }
+    @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.o_dcasa_es_numeros {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    @media (max-width: 1199.98px) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    // En el celular, de a dos (más compacto): el número un poco más chico.
+    @media (max-width: 575.98px) {
+        gap: 8px;
+        .o_dcasa_es_numero { padding: 12px; }
+        .o_dcasa_pd_valor { font-size: 1.25rem; }
+        .o_dcasa_es_frase { font-size: .78rem; }
+    }
+}
+
+.o_dcasa_pd_tarjeta, .o_dcasa_es_numero {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    text-align: left;
+}
+
+@media (max-width: 575.98px) {
+    .o_dcasa_pd_resumen { gap: 8px; .o_dcasa_pd_tarjeta { padding: 12px 14px; } }
+}
+
+button.o_dcasa_pd_tarjeta, button.o_dcasa_es_numero {
+    &:hover { border-color: var(--dc-azul-300); background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_pd_etiqueta {
+    font-size: .78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_pd_valor {
+    font-size: clamp(1.5rem, 2.6vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+    color: var(--dc-azul-700);
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_pd_nota, .o_dcasa_es_frase {
+    font-size: .85rem;
+    line-height: 1.4;
+    color: var(--dc-tinta-2);
+}
+
+.o_dcasa_pd_cambio.o_bien { color: var(--dc-azul-600); }
+.o_dcasa_pd_cambio.o_mal { color: $dc-rojo; }
+.o_dcasa_pd_cambio.o_igual { color: var(--dc-tinta-2); }
+
+// --- Por día: calendario y día elegido -----------------------------------------------------
+.o_dcasa_pd_cuerpo {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    transition: opacity var(--dc-transicion);
+
+    &.o_cargando { opacity: .5; }
+    @media (max-width: 1199.98px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+.o_dcasa_pd_semana, .o_dcasa_pd_grilla {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.o_dcasa_pd_semana {
+    margin-bottom: 6px;
+    span {
+        text-align: center;
+        font-size: .75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: var(--dc-tinta-3);
+    }
+}
+
+.o_dcasa_pd_celda {
+    min-width: 0;
+    min-height: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 8px 8px 10px;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-blanco);
+    text-align: left;
+    color: var(--dc-tinta);
+    position: relative;
+
+    &:hover:not(:disabled) { border-color: var(--dc-azul-300); background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    &.o_sin_ventas .o_dcasa_pd_monto { color: var(--dc-tinta-3); font-weight: 500; }
+    &.o_futuro { background: var(--dc-niebla); border-style: dashed; color: var(--dc-tinta-3); }
+    &.o_hoy { border-color: var(--dc-azul-600); border-width: 2px; padding: 7px 7px 9px; }
+    &.o_activo, &.o_activo:hover {
+        background: var(--dc-azul-600);
+        border-color: var(--dc-azul-600);
+        color: var(--dc-blanco);
+        .o_dcasa_pd_monto, .o_dcasa_pd_cuantas, .o_dcasa_pd_numero small { color: var(--dc-blanco); }
+        .o_dcasa_pd_barra { background: rgba(255, 255, 255, .25); }
+        // El amarillo, solo sobre azul.
+        .o_dcasa_pd_barra span { background: var(--dc-amarillo); }
+    }
+}
+
+.o_dcasa_pd_numero {
+    font-size: .85rem;
+    font-weight: 700;
+    small { font-weight: 600; color: var(--dc-azul-600); font-size: .72rem; }
+}
+
+.o_dcasa_pd_monto {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--dc-azul-800);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.o_dcasa_pd_cuantas {
+    font-size: .72rem;
+    color: var(--dc-tinta-3);
+    white-space: nowrap;
+}
+
+.o_dcasa_pd_barra {
+    display: block;
+    width: 100%;
+    height: 5px;
+    margin-top: auto;
+    border-radius: 3px;
+    background: var(--dc-perla);
+    overflow: hidden;
+
+    span { display: block; height: 100%; border-radius: 3px; background: var(--dc-azul-500); }
+}
+
+.o_dcasa_pd_hueco { min-height: 96px; }
+
+.o_dcasa_pd_lado {
+    position: sticky;
+    top: 12px;
+    min-width: 0;
+}
+
+.o_dcasa_pd_detalle {
+    transition: opacity var(--dc-transicion);
+    &.o_cargando { opacity: .5; }
+}
+
+.o_dcasa_pd_detalle_cabeza {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    h2 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--dc-azul-800); }
+}
+
+.o_dcasa_pd_detalle_total {
+    margin: 6px 0 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--dc-perla);
+    font-size: .9rem;
+    color: var(--dc-tinta-2);
+    strong { color: var(--dc-tinta); font-size: 1.05rem; }
+    small { color: var(--dc-tinta-3); }
+}
+
+.o_dcasa_pd_documentos li + li { border-top: 1px solid var(--dc-perla); }
+
+.o_dcasa_pd_documento {
+    align-items: flex-start;
+    &.o_nota strong { color: $dc-rojo; }
+    // El número, la vendedora y el pedido se leen enteros (en el celular bajan de línea).
+    .o_dcasa_lista_texto small { white-space: normal; overflow-wrap: anywhere; }
+}
+
+.o_dcasa_pd_estado {
+    margin-top: 2px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-800);
+    font-size: .72rem;
+    font-weight: 600;
+    white-space: nowrap;
+    &.o_nota { background: #FBEAEA; color: $dc-rojo; }
+}
+
+// Celular: lista de días; en computadora, el calendario.
+.o_dcasa_pd_lista { display: none; margin: 0; }
+
+@media (max-width: 767.98px) {
+    .o_dcasa_pd_calendario, .o_dcasa_pd_lado { display: none; }
+    .o_dcasa_pd_lista {
+        display: block;
+        background: var(--dc-blanco);
+        border: 1px solid var(--dc-linea);
+        border-radius: var(--dc-r-md);
+        overflow: hidden;
+    }
+}
+
+.o_dcasa_pd_item + .o_dcasa_pd_item { border-top: 1px solid var(--dc-perla); }
+.o_dcasa_pd_item.o_activo { background: var(--dc-azul-50); }
+
+.o_dcasa_pd_fila {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 78px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 10px;
+    min-height: 60px;
+    padding: 10px 14px;
+    background: none;
+    border: 0;
+    text-align: left;
+    color: var(--dc-tinta);
+
+    &:focus-visible { outline: none; box-shadow: inset var(--dc-foco); }
+    &.o_sin_ventas .o_dcasa_pd_fila_datos strong { color: var(--dc-tinta-3); font-weight: 500; }
+}
+
+.o_dcasa_pd_fila_dia {
+    display: flex;
+    flex-direction: column;
+    strong { font-size: .95rem; }
+    small { color: var(--dc-azul-600); font-weight: 700; font-size: .72rem; }
+}
+
+.o_dcasa_pd_fila_datos {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 2px 8px;
+    min-width: 0;
+    strong { font-size: 1rem; color: var(--dc-azul-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    small { color: var(--dc-tinta-3); font-size: .78rem; white-space: nowrap; }
+    .o_dcasa_pd_barra { grid-column: 1 / -1; }
+}
+
+.o_dcasa_pd_flecha { color: var(--dc-tinta-3); }
+
+.o_dcasa_pd_dentro {
+    padding: 4px 14px 14px;
+    background: var(--dc-blanco);
+    border-top: 1px solid var(--dc-azul-100);
+}
+
+// --- Estadísticas -----------------------------------------------------------------------------
+.o_dcasa_es_controles {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    .o_dcasa_periodos { align-self: flex-start; }
+    .o_dcasa_rango { margin: 0; }
+    .o_dcasa_base_detalle { margin: 0; }
+}
+
+// Los botones del periodo, planos (sin el borde que el navegador le pone a un botón).
+.o_dcasa_es_periodos .o_dcasa_periodo { border: 0; }
+
+@media (max-width: 575.98px) {
+    .o_dcasa_es_periodos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+}
+
+.o_dcasa_es_cuerpo {
+    transition: opacity var(--dc-transicion);
+    &.o_cargando { opacity: .5; }
+}
+
+.o_dcasa_es_grafica {
+    margin-bottom: 16px;
+    min-width: 0;
+    h2 { margin-bottom: 4px; }
+    > .o_dcasa_es_frase { margin: 0 0 14px; }
+}
+
+.o_dcasa_es_barras, .o_dcasa_es_barras_etiquetas {
+    display: grid;
+    grid-template-columns: repeat(var(--columnas, 7), minmax(0, 1fr));
+    gap: clamp(1px, .4vw, 6px);
+}
+
+.o_dcasa_es_barras {
+    height: 200px;
+    align-items: end;
+    border-bottom: 1px solid var(--dc-linea);
+}
+
+.o_dcasa_es_barra {
+    height: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: none;
+
+    &:hover .o_dcasa_es_barra_relleno { background: var(--dc-azul-400); }
+    &:focus-visible { outline: none; .o_dcasa_es_barra_relleno { box-shadow: var(--dc-foco); } }
+    &.o_hoy .o_dcasa_es_barra_relleno { background: var(--dc-azul-800); }
+}
+
+.o_dcasa_es_barra_relleno {
+    display: block;
+    width: 100%;
+    max-width: 36px;
+    border-radius: 3px 3px 0 0;
+    background: var(--dc-azul-600);
+    transition: background var(--dc-transicion);
+}
+
+.o_dcasa_es_barras_etiquetas {
+    margin-top: 6px;
+    span {
+        min-width: 0;
+        text-align: center;
+        font-size: .7rem;
+        color: var(--dc-tinta-3);
+        white-space: nowrap;
+        overflow: visible;
+    }
+}
+
+.o_dcasa_es_fila {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+.o_dcasa_es_filas li + li { border-top: 1px solid var(--dc-perla); }
+
+.o_dcasa_es_hfila {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 112px;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 2px;
+    background: none;
+    border: 0;
+    text-align: left;
+    color: var(--dc-tinta);
+
+    @media (max-width: 575.98px) {
+        grid-template-columns: minmax(0, 1fr) auto;
+        .o_dcasa_es_hbarra { grid-column: 1 / -1; grid-row: 2; }
+    }
+}
+
+button.o_dcasa_es_hfila {
+    border-radius: var(--dc-r-sm);
+    &:hover { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+}
+
+.o_dcasa_es_nombre {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: .9rem;
+    overflow-wrap: anywhere;
+    img { width: 34px; height: 34px; flex: none; object-fit: cover; border-radius: 6px; background: var(--dc-niebla); }
+}
+
+.o_dcasa_es_hbarra {
+    display: block;
+    height: 10px;
+    border-radius: 5px;
+    background: var(--dc-perla);
+    overflow: hidden;
+    span { display: block; height: 100%; border-radius: 5px; background: var(--dc-azul-600); }
+}
+
+.o_dcasa_es_valor {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    strong { font-size: .92rem; color: var(--dc-azul-800); white-space: nowrap; }
+    small { font-size: .75rem; color: var(--dc-tinta-3); white-space: nowrap; }
+}
+
+.o_dcasa_es_enlaces {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    @media (max-width: 575.98px) { grid-template-columns: minmax(0, 1fr); }
+}
+
+// --- Movimientos ------------------------------------------------------------------------------
+.o_dcasa_mv_controles {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.o_dcasa_mv_buscar {
+    position: relative;
+    .o_dcasa_mv_lupa { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--dc-tinta-3); }
+    .form-control {
+        min-height: 48px;
+        padding-left: 40px;
+        font-size: 1rem;
+        border-color: var(--dc-linea-fuerte);
+        border-radius: var(--dc-r-md);
+    }
+}
+
+.o_dcasa_mv_resultados {
+    margin: 0;
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-md);
+    overflow: hidden;
+    li + li { border-top: 1px solid var(--dc-perla); }
+}
+
+.o_dcasa_mv_resultado {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--dc-blanco);
+    border: 0;
+    text-align: left;
+    &:hover { background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: inset var(--dc-foco); }
+    img { width: 40px; height: 40px; flex: none; object-fit: cover; border-radius: 6px; background: var(--dc-niebla); }
+    .o_dcasa_lista_texto { flex: 1 1 auto; }
+}
+
+.o_dcasa_mv_hay {
+    flex: none;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--dc-azul-700);
+}
+
+.o_dcasa_mv_filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 10px;
+    .o_dcasa_chips { margin: 0; }
+}
+
+.o_dcasa_mv_fechas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: .85rem; color: var(--dc-tinta-2); }
+    .form-control { width: auto; min-height: 38px; }
+
+    @media (max-width: 575.98px) {
+        width: 100%;
+        label { flex: 1 1 140px; }
+        .form-control { flex: 1 1 auto; min-width: 0; width: 100%; }
+    }
+}
+
+.o_dcasa_mv_producto {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 12px;
+    img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--dc-r-sm); background: var(--dc-niebla); }
+    h2 { margin: 0 0 2px; font-size: 1.1rem; font-weight: 700; color: var(--dc-azul-800); }
+    p { margin: 0; color: var(--dc-tinta-2); font-size: .88rem; }
+    .o_dcasa_mv_producto_texto { flex: 1 1 220px; min-width: 0; }
+    .o_dcasa_mv_hoy { margin-top: 4px; font-size: .95rem; color: var(--dc-tinta); strong { color: var(--dc-azul-700); } }
+    @media (max-width: 575.98px) { .o_dcasa_mv_quitar { width: 100%; } }
+}
+
+.o_dcasa_mv_aviso {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--dc-azul-200);
+    border-radius: var(--dc-r-sm);
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-900);
+    font-size: .88rem;
+}
+
+.o_dcasa_mv_tiempo {
+    transition: opacity var(--dc-transicion);
+    &.o_cargando { opacity: .5; }
+}
+
+.o_dcasa_mv_fila {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 12px;
+    padding: 12px 0;
+    & + & { border-top: 1px solid var(--dc-perla); }
+}
+
+.o_dcasa_mv_icono {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--dc-azul-50);
+    color: var(--dc-azul-700);
+    &.o_compra { background: #E6F3EA; color: $dc-verde; }
+    &.o_venta { background: var(--dc-azul-100); color: var(--dc-azul-800); }
+    &.o_devolucion { background: #FBEFE6; color: #8A4A12; }
+    &.o_ajuste { background: var(--dc-perla); color: var(--dc-tinta-2); }
+    &.o_traslado { background: var(--dc-azul-50); color: var(--dc-azul-600); }
+}
+
+.o_dcasa_mv_texto {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+}
+
+.o_dcasa_mv_ver_producto {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--dc-azul-600);
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_mv_frase {
+    padding: 0;
+    border: 0;
+    background: none;
+    text-align: left;
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--dc-tinta);
+    overflow-wrap: anywhere;
+}
+
+button.o_dcasa_mv_frase {
+    color: var(--dc-azul-800);
+    text-decoration: underline;
+    text-decoration-color: var(--dc-azul-200);
+    text-underline-offset: 3px;
+    &:hover { text-decoration-color: var(--dc-azul-600); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); border-radius: 4px; }
+}
+
+.o_dcasa_mv_meta { color: var(--dc-tinta-3); font-size: .8rem; overflow-wrap: anywhere; }
+
+.o_dcasa_mv_numeros {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+}
+
+.o_dcasa_mv_cantidad {
+    font-size: 1.1rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    &.o_entra { color: $dc-verde; }
+    &.o_sale { color: $dc-rojo; }
+    &.o_mueve { color: var(--dc-tinta-2); }
+}
+
+.o_dcasa_mv_queda { color: var(--dc-tinta-2); font-size: .8rem; white-space: nowrap; }
+
+.o_dcasa_mv_mas { margin-top: 12px; width: 100%; min-height: 44px; }

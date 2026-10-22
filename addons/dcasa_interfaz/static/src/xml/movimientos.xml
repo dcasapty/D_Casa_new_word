@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Movimientos»: una línea de tiempo en palabras. Lo que entra en verde (+), lo que sale en rojo (−), los traslados
+         sin signo (no cambian lo que hay en total). -->
+    <t t-name="dcasa_interfaz.Movimientos">
+        <div class="o_action o_dcasa_inicio o_dcasa_movimientos">
+            <header class="o_dcasa_pantalla_cabeza">
+                <div>
+                    <h1>Movimientos de inventario</h1>
+                    <p class="o_dcasa_pantalla_frase">Busca un producto y mira, en palabras, todo lo que entró y salió:
+                        compras, ventas, devoluciones, ajustes y traslados.</p>
+                </div>
+            </header>
+            <div class="o_dcasa_inicio_cuerpo">
+                <section class="o_dcasa_ventas o_dcasa_mv_controles" aria-label="Buscar y filtrar">
+                    <div class="o_dcasa_mv_buscar">
+                        <label class="visually-hidden" for="o_dcasa_mv_texto">Producto</label>
+                        <i class="fa fa-search o_dcasa_mv_lupa" aria-hidden="true"/>
+                        <input id="o_dcasa_mv_texto" type="search" class="form-control o_dcasa_mv_texto"
+                               placeholder="Nombre, código o barras" autocomplete="off"
+                               t-att-value="state.texto" t-on-input="alEscribir" t-on-keydown="teclaEnBuscar"/>
+                    </div>
+                    <ul t-if="state.resultados.length" class="list-unstyled o_dcasa_mv_resultados" aria-label="Productos encontrados">
+                        <li t-foreach="state.resultados" t-as="r" t-key="r.id">
+                            <button type="button" class="o_dcasa_mv_resultado" t-on-click="() => this.elegir(r)">
+                                <img t-att-src="r.imagen" alt="" loading="lazy"/>
+                                <span class="o_dcasa_lista_texto">
+                                    <strong t-out="r.nombre"/>
+                                    <small><t t-if="r.codigo" t-out="r.codigo"/><t t-if="r.codigo and r.barras"> · </t><t t-if="r.barras" t-out="r.barras"/></small>
+                                </span>
+                                <span t-if="r.existencia !== null" class="o_dcasa_mv_hay">Hay <t t-out="cantidad(r.existencia)"/></span>
+                            </button>
+                        </li>
+                    </ul>
+                    <p t-elif="state.buscado and !state.buscando" class="o_dcasa_vacio o_dcasa_mv_nada">No encontré ningún
+                        producto con «<t t-out="state.texto"/>». Prueba con otra palabra o el código.</p>
+
+                    <div class="o_dcasa_mv_filtros">
+                        <div class="o_dcasa_chips o_dcasa_mv_tipos" role="group" aria-label="Tipo de movimiento">
+                            <button type="button" t-attf-class="o_dcasa_chip o_dcasa_mv_tipo_todos {{!state.tipo ? 'o_activo' : ''}}"
+                                    t-att-aria-pressed="!state.tipo ? 'true' : 'false'"
+                                    t-on-click="() => this.cambiarTipo('')">Todos</button>
+                            <button t-foreach="state.tipos" t-as="t" t-key="t.clave" type="button"
+                                    t-attf-class="o_dcasa_chip o_dcasa_mv_tipo_{{t.clave}} {{state.tipo === t.clave ? 'o_activo' : ''}}"
+                                    t-att-aria-pressed="state.tipo === t.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.cambiarTipo(t.clave)" t-out="t.nombre"/>
+                        </div>
+                        <div class="o_dcasa_mv_fechas">
+                            <label>Desde <input type="date" class="form-control o_dcasa_mv_desde" t-model="state.desde" t-on-change="cambiarFechas"/></label>
+                            <label>Hasta <input type="date" class="form-control o_dcasa_mv_hasta" t-model="state.hasta" t-on-change="cambiarFechas"/></label>
+                            <button t-if="state.desde or state.hasta" type="button" class="btn btn-link p-0 o_dcasa_mv_sin_fechas"
+                                    t-on-click="limpiarFechas">Quitar fechas</button>
+                        </div>
+                    </div>
+                    <p t-if="state.error" class="o_dcasa_error" role="alert" t-out="state.error"/>
+                </section>
+
+                <!-- El producto elegido -->
+                <section t-if="state.datos and state.datos.producto" class="o_dcasa_panel o_dcasa_mv_producto">
+                    <t t-set="p" t-value="state.datos.producto"/>
+                    <img t-att-src="p.imagen" alt="" loading="lazy"/>
+                    <div class="o_dcasa_mv_producto_texto">
+                        <h2 t-out="p.nombre"/>
+                        <p>
+                            <t t-if="p.codigo">Código <t t-out="p.codigo"/></t>
+                            <t t-if="p.codigo and p.barras"> · </t>
+                            <t t-if="p.barras">Código de barras <t t-out="p.barras"/></t>
+                        </p>
+                        <p t-if="p.lleva_inventario" class="o_dcasa_mv_hoy">Hay hoy: <strong t-out="cantidad(state.datos.existencia)"/></p>
+                        <p t-else="" class="o_dcasa_mv_hoy">Este producto no lleva control de existencias.</p>
+                    </div>
+                    <button type="button" class="btn btn-outline-primary o_dcasa_mv_quitar" t-on-click="quitarProducto">
+                        <i class="fa fa-list me-2" aria-hidden="true"/>Ver todos los productos
+                    </button>
+                </section>
+                <p t-if="state.datos and state.datos.producto and state.datos.cuadra === false" class="o_dcasa_mv_aviso" role="note">
+                    No se muestra lo que quedó después de cada movimiento: hay <t t-out="cantidad(Math.abs(state.datos.diferencia))"/>
+                    <t t-out="state.datos.diferencia > 0 ? ' unidades que se cargaron' : ' unidades que se quitaron'"/> sin un
+                    movimiento registrado (por ejemplo, la carga inicial), y la cuenta no saldría exacta.
+                </p>
+
+                <section t-if="state.datos" t-attf-class="o_dcasa_panel o_dcasa_mv_tiempo {{state.cargando ? 'o_cargando' : ''}}"
+                         aria-label="Movimientos">
+                    <h2 t-if="state.datos.producto">Lo que pasó con este producto <small class="o_dcasa_sin_itbms">lo más nuevo arriba</small></h2>
+                    <h2 t-else="">Últimos movimientos de todos los productos <small class="o_dcasa_sin_itbms">toca un producto para ver su historia</small></h2>
+                    <ol t-if="state.filas.length" class="list-unstyled mb-0 o_dcasa_mv_lista">
+                        <li t-foreach="state.filas" t-as="fila" t-key="fila.id" t-attf-class="o_dcasa_mv_fila o_dcasa_mv_{{fila.tipo}}">
+                            <span t-attf-class="o_dcasa_mv_icono o_{{fila.tipo}}" t-att-title="fila.tipo_nombre"><i t-attf-class="fa {{iconos[fila.tipo]}}" aria-hidden="true"/></span>
+                            <div class="o_dcasa_mv_texto">
+                                <button t-if="!state.datos.producto and fila.producto" type="button" class="btn btn-link p-0 o_dcasa_mv_ver_producto"
+                                        t-on-click="() => this.verProducto(fila)" t-out="fila.producto.nombre"/>
+                                <button t-if="fila.documento" type="button" class="o_dcasa_mv_frase o_dcasa_mv_abrir"
+                                        t-att-title="'Abrir ' + fila.documento.nombre" t-on-click="() => this.abrirDocumento(fila)"
+                                        t-out="fila.texto"/>
+                                <span t-else="" class="o_dcasa_mv_frase" t-out="fila.texto"/>
+                                <small class="o_dcasa_mv_meta"><t t-out="fila.cuando"/> · <t t-out="fila.quien"/><t t-if="fila.operacion"> · <t t-out="fila.operacion"/></t></small>
+                            </div>
+                            <div class="o_dcasa_mv_numeros">
+                                <strong t-attf-class="o_dcasa_mv_cantidad o_{{fila.sentido}}" t-out="fila.cantidad_texto"
+                                        t-att-aria-label="fila.sentido === 'entra' ? 'Entraron ' + fila.cantidad_texto : fila.sentido === 'sale' ? 'Salieron ' + fila.cantidad_texto : 'Se movieron ' + fila.cantidad_texto"/>
+                                <small t-if="fila.queda !== null and fila.queda !== undefined" class="o_dcasa_mv_queda">Quedan <t t-out="cantidad(fila.queda)"/></small>
+                            </div>
+                        </li>
+                    </ol>
+                    <p t-else="" class="o_dcasa_vacio">No hay movimientos<t t-if="state.tipo or state.desde or state.hasta"> con esos filtros</t>.</p>
+                    <button t-if="state.datos.hay_mas" type="button" class="btn btn-outline-primary o_dcasa_mv_mas" t-on-click="verMas">Ver más</button>
+                </section>
+            </div>
+        </div>
+    </t>
+</templates>
