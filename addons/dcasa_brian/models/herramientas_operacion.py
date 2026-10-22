@@ -372,8 +372,8 @@ class BrianHerramientasOperacion(models.AbstractModel):
                 'atrasada': tarjeta['atrasada'], 'como': tarjeta['como_texto'], 'estado': tarjeta['estado_texto'],
                 'productos': productos,
             }
-            if tarjeta['pago'] in ('falta_pagar', 'sin_factura'):
-                resultado['pago'] = f"{tarjeta['pago_texto']}: confirmarlo con Caja antes de entregar"
+            if tarjeta['pago'] == 'abono':
+                resultado['pago'] = 'Con abono: le falta una parte por pagar'
             if tarjeta['pendiente_de']:
                 resultado['es_el_resto_de'] = tarjeta['pendiente_de']
             return resultado
@@ -390,6 +390,7 @@ class BrianHerramientasOperacion(models.AbstractModel):
             'filtro': {'como': como, 'estado': estado, 'cuantas': len(elegidas)},
             'entregas': [fila(t) for t in elegidas[:limite]],
             'abrir': {'url': '/odoo/bodega', 'titulo': 'Abrir el panel de Bodega'},
+            'regla': 'Solo salen las de pedidos con pago o abono: sin pago ni abono no se entrega.',
         }
         if datos['recortada']:
             respuesta['nota'] = (f"Hay {datos['cuantas']} pendientes; las cifras cuentan las "

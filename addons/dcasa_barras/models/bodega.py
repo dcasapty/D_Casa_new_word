@@ -13,6 +13,13 @@ Lo que la pantalla «Bodega» (acción de cliente OWL, ``static/src/js/bodega.js
 * ``validar(entrega_id, marcas, parcial)``: entrega lo marcado. Si falta algo y no se confirmó, no toca nada y dice
   qué falta; confirmado, Odoo deja lo que falta en una entrega pendiente (la de siempre de Odoo).
 
+Solo pedidos con pago o abono (decisión de la dueña, 2026-10-22: «solo pueden ver el pedido si pagaron o abonaron»):
+la lista muestra y el panel abre y valida solo las entregas cuyo pedido tiene al menos un pago de verdad (un cobro
+conciliado con su factura, sin contar notas de crédito) o una transacción de pago confirmada o autorizada de la tienda
+web. Las demás no salen; si alguien escanea su QR, el panel dice «Este pedido todavía no tiene pago ni abono: no se
+entrega». Una entrega que no viene de un pedido de venta tampoco se despacha aquí (no hay pago que mirar). El crédito
+autorizado por Gerencia no está registrado en el sistema (docs/DECISIONES_CONTABLES.md, A3): no se adivina.
+
 Envío o retiro: lo dice el método de entrega del pedido (``delivery.carrier``; el que tiene marcado «Es retiro en la
 tienda» es retiro, cualquier otro es envío) o, sin método, una línea de flete en el pedido (envío). Si no hay ninguna de
 las dos cosas no se adivina: sale «Sin definir».
@@ -53,9 +60,10 @@ ESTADO = {
 }
 PAGO = {
     'pagada': 'Pagada',
-    'falta_pagar': 'Falta pagar',
-    'sin_factura': 'Sin factura',
+    'abono': 'Con abono: falta una parte',
 }
+CON_PAGO = tuple(PAGO)
+LIMITE_BUSQUEDA = 2000       # pendientes que se revisan para saber cuáles tienen pago (una tienda tiene decenas)
 
 
 def dominio_pendientes():
@@ -174,20 +182,49 @@ class DcasaBodega(models.AbstractModel):
 
     @staticmethod
     def _pago(pedido):
-        """``pagada``, ``falta_pagar``, ``sin_factura`` o ``False`` (sin pedido). Solo sí o no: ni un monto.
+        """``pagada``, ``abono`` (pagó una parte), ``sin_pago`` o ``False`` (la entrega no viene de un pedido).
 
-        El mueble se entrega cuando está pagado completo (decisión de la dueña, 2026-10-17): bodega lo ve para
-        confirmarlo con Caja antes de entregar; el panel no lo impide.
+        Cuenta un pago de verdad: un cobro conciliado con una factura publicada del pedido (las notas de crédito no
+        son pago) o una transacción de la tienda web confirmada o autorizada. Solo sí o no: nunca un monto.
+        ``pedido`` viene con ``sudo`` (bodega no lee facturas): de aquí solo sale esta palabra.
         """
         if not pedido:
             return False
         facturas = pedido.invoice_ids.filtered(lambda f: f.move_type == 'out_invoice' and f.state == 'posted')
-        if not facturas or pedido.invoice_status == 'to invoice':
-            return 'sin_factura'
-        moneda = facturas[0].currency_id
-        if not moneda.is_zero(sum(facturas.mapped('amount_residual'))):
-            return 'falta_pagar'
-        return 'pagada'
+        cobrado = any(not pago.get('is_refund') for factura in facturas for pago in factura._dcasa_pagos())
+        transacciones = pedido.transaction_ids.filtered(lambda t: t.state in ('authorized', 'done'))
+        if not cobrado and not transacciones:
+            return 'sin_pago'
+        moneda = pedido.currency_id
+        if facturas and pedido.invoice_status != 'to invoice' \
+                and moneda.is_zero(sum(facturas.mapped('amount_residual'))):
+            return 'pagada'
+        if not facturas and moneda.compare_amounts(sum(transacciones.mapped('amount')), pedido.amount_total) >= 0:
+            return 'pagada'
+        return 'abono'
+
+    def _sin_pago_mensaje(self, entrega, pedido):
+        if pedido:
+            return self.env._("Este pedido (%(pedido)s) todavía no tiene pago ni abono: no se entrega.",
+                              pedido=pedido.name)
+        return self.env._(
+            "%(nombre)s no viene de un pedido de venta: aquí solo se despachan pedidos con pago o abono. Si hay que "
+            "entregarla, que la valide Gerencia desde Inventario › Entregas.", nombre=entrega.name)
+
+    def _con_pago(self, entrega):
+        return self._pago(entrega.sudo().sale_id) in CON_PAGO
+
+    def _exigir_pago(self, entrega):
+        """Una entrega pendiente sin pago ni abono no se abre ni se valida aquí (la ya hecha sí se puede ver)."""
+        if entrega.state in ESTADOS_PENDIENTES and not self._con_pago(entrega):
+            raise UserError(self._sin_pago_mensaje(entrega, entrega.sudo().sale_id))
+
+    def _despachables(self):
+        """Las entregas pendientes que el panel muestra: las de pedidos con pago o abono, de la más antigua a la más
+        nueva (con los permisos de la persona)."""
+        entregas = self.env['stock.picking'].search(
+            dominio_pendientes(), order='scheduled_date asc, id asc', limit=LIMITE_BUSQUEDA)
+        return entregas.filtered(self._con_pago)
 
     def _texto_fecha(self, fecha):
         return fecha.strftime('%d/%m/%Y') if fecha else ''
@@ -202,11 +239,9 @@ class DcasaBodega(models.AbstractModel):
     def pendientes(self):
         """Las entregas pendientes para las tarjetas, de la más antigua a la más nueva."""
         self._exigir_bodega()
-        Entrega = self.env['stock.picking']
-        dominio = dominio_pendientes()
-        cuantas = Entrega.search_count(dominio)
-        entregas = Entrega.search(dominio, order='scheduled_date asc, id asc', limit=LIMITE_LISTA)
-        tarjetas = self._tarjetas(entregas)
+        despachables = self._despachables()
+        cuantas = len(despachables)
+        tarjetas = self._tarjetas(despachables[:LIMITE_LISTA])
         tarjetas.sort(key=lambda t: (t['fecha_orden'] or '9999', t['id']))
         ahora = fields.Datetime.context_timestamp(self.with_context(tz=ZONA), fields.Datetime.now())
         return {
@@ -265,9 +300,12 @@ class DcasaBodega(models.AbstractModel):
     # ------------------------------------------------------------------
     @api.model
     def abrir(self, entrega_id):
-        """La entrega para marcar lo que sale. Una ya hecha o cancelada se ve, pero no se valida."""
+        """La entrega para marcar lo que sale. Una ya hecha o cancelada se ve, pero no se valida. Una pendiente sin
+        pago ni abono no se abre: el aviso lo dice."""
         self._exigir_bodega()
-        return self._detalle(self._entrega(entrega_id))
+        entrega = self._entrega(entrega_id)
+        self._exigir_pago(entrega)
+        return self._detalle(entrega)
 
     def _direccion(self, contacto):
         partes = [contacto.street, contacto.street2, contacto.city, contacto.state_id.name]
@@ -417,6 +455,9 @@ class DcasaBodega(models.AbstractModel):
         if entrega.state == 'draft':
             return {'resultado': 'aviso', 'mensaje': self.env._(
                 "%(nombre)s todavía no está confirmada: no se puede despachar.", nombre=entrega.name)}
+        if not self._con_pago(entrega):
+            return {'resultado': 'aviso', 'sin_pago': True,
+                    'mensaje': self._sin_pago_mensaje(entrega, entrega.sudo().sale_id)}
         if abierta and entrega.id == abierta:
             return {'resultado': 'misma', 'mensaje': self.env._("Ya estás en %(nombre)s.", nombre=entrega.name)}
         return {'resultado': 'entrega', 'entrega': self._detalle(entrega)}
@@ -432,11 +473,14 @@ class DcasaBodega(models.AbstractModel):
             return {'resultado': 'aviso', 'mensaje': self.env._(
                 "%(documento)s no tiene entregas pendientes: ya salió todo o todavía no hay entrega.",
                 documento=referencia)}
-        if len(entregas) == 1:
-            return self._resultado_de_entrega(entregas, abierta)
-        return {'resultado': 'entregas', 'ids': entregas.ids, 'mensaje': self.env._(
+        con_pago = entregas.filtered(self._con_pago)
+        if len(entregas) == 1 or not con_pago:
+            return self._resultado_de_entrega(entregas[:1], abierta)
+        if len(con_pago) == 1:
+            return self._resultado_de_entrega(con_pago, abierta)
+        return {'resultado': 'entregas', 'ids': con_pago.ids, 'mensaje': self.env._(
             "%(documento)s tiene %(cuantas)s entregas pendientes: elige la que vas a despachar.",
-            documento=referencia, cuantas=len(entregas))}
+            documento=referencia, cuantas=len(con_pago))}
 
     def _leer_numero(self, texto, abierta=False):
         """El número de una entrega (WH/OUT/00005, el código de barras de la nota de Odoo) o de un pedido (S00007)."""
@@ -447,12 +491,15 @@ class DcasaBodega(models.AbstractModel):
             return self._resultado_de_entrega(entrega, abierta)
         entregas = self.env['stock.picking'].search(
             [('origin', '=ilike', escapado)] + dominio_pendientes(), order='scheduled_date asc, id asc')
-        if len(entregas) == 1:
-            return self._resultado_de_entrega(entregas, abierta)
-        if entregas:
-            return {'resultado': 'entregas', 'ids': entregas.ids, 'mensaje': self.env._(
+        con_pago = entregas.filtered(self._con_pago)
+        if len(entregas) == 1 or (entregas and not con_pago):
+            return self._resultado_de_entrega(entregas[:1], abierta)
+        if len(con_pago) == 1:
+            return self._resultado_de_entrega(con_pago, abierta)
+        if con_pago:
+            return {'resultado': 'entregas', 'ids': con_pago.ids, 'mensaje': self.env._(
                 "El pedido %(pedido)s tiene %(cuantas)s entregas pendientes: elige la que vas a despachar.",
-                pedido=texto.upper(), cuantas=len(entregas))}
+                pedido=texto.upper(), cuantas=len(con_pago))}
         return None
 
     # ------------------------------------------------------------------
@@ -521,6 +568,7 @@ class DcasaBodega(models.AbstractModel):
         if entrega.state not in ESTADOS_PENDIENTES:
             raise UserError(self.env._("%(nombre)s no se puede despachar (está cancelada o sin confirmar).",
                                        nombre=entrega.name))
+        self._exigir_pago(entrega)
         cantidades = self._marcas(entrega, marcas)
         if not any(cantidades.values()):
             raise UserError(self.env._("Marca lo que sale antes de validar."))

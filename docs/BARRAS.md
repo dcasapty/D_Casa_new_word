@@ -257,9 +257,15 @@ cantidad (los tres primeros y «y N más») y el botón grande **Abrir**. Nunca 
   cualquier otro es envío. Sin método, una línea de **flete** en el pedido la hace «envío». Si no hay ninguna de las dos
   cosas, **no se adivina**: sale «Sin definir» (la vendedora lo arregla poniendo el método de entrega en el pedido).
 * **Estado.** «Listas para salir» (todo apartado en bodega) o «Esperando producto» (falta todo o una parte).
-* **Pago.** Si el pedido todavía no está pagado completo, la tarjeta dice **Falta pagar** (o **Sin factura**) y la
-  entrega abierta pide confirmarlo con Caja: el mueble se entrega pagado (decisión del 2026-10-17). Solo sí o no, sin
-  montos. **El panel no lo impide** (puede haber un crédito autorizado por Gerencia).
+* **Solo pedidos con pago o abono** (decisión de la dueña, 2026-10-22: «solo pueden ver el pedido si pagaron o
+  abonaron»). La lista muestra, y el panel abre y valida, solo las entregas cuyo pedido tiene al menos un **cobro de
+  verdad** conciliado con su factura (las notas de crédito no cuentan) o un pago de la tienda web confirmado o
+  autorizado. Las demás no salen; si escanean su QR, el panel dice en rojo **«Este pedido (S0…) todavía no tiene pago ni
+  abono: no se entrega»**, y el servidor también se niega a abrirla o validarla. Si tiene abono y le falta una parte,
+  la tarjeta lo dice (**Con abono: falta una parte**), sin montos. Una entrega que **no viene de un pedido** de venta
+  tampoco se despacha aquí (la valida Gerencia en *Inventario › Entregas*). El **crédito autorizado por Gerencia** no
+  está registrado en el sistema (A3 en [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md)): un pedido a crédito sin
+  ningún abono no sale hasta que exista esa regla.
 * **Buscar** por cliente, número de entrega, pedido o producto (sin tildes ni mayúsculas). Enter abre la entrega si
   queda una sola. Escanear el **código de un producto** deja solo las entregas que lo llevan.
 * Se **actualiza sola** cada minuto (y al volver a la pantalla); el botón **Actualizar** lo hace ya.
@@ -269,7 +275,10 @@ el arreglo del iPhone de `camara.js`): el QR de la nota abre **esa entrega** en 
 **factura** o de la **cotización/pedido** (abren su entrega pendiente; si tiene varias, deja solo esas en la lista) y el
 número de la entrega o del pedido escrito a mano. Los permisos son los del Escáner (`dcasa.documento`): quien no puede
 ver facturas recibe «No tienes permiso…» y nada del documento. Una entrega ya hecha avisa «ya se entregó el …» y dónde
-quedó lo que faltó. El QR leído con la **cámara normal del teléfono** sigue abriendo el formulario de Odoo, como antes.
+quedó lo que faltó. **Fuera del panel también** (decisión de la dueña, 2026-10-22): el QR de la nota leído con la
+**cámara normal del teléfono** (`/dcasa/doc/ENT/…`) o con el **Escáner** abre la entrega en Bodega (`/odoo/bodega/<id>`)
+para quien usa Inventario; quien no lo usa, una recepción, la factura y el pedido siguen abriendo su formulario de
+Odoo.
 
 **Abrir una entrega.** Cliente, teléfono (se toca para llamar), dirección, pedido, fecha, envío o retiro, la nota de la
 entrega y la lista de productos con **foto**, código y cantidad pedida. Se marca lo que sale:

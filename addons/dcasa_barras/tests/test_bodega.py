@@ -1,7 +1,7 @@
 """El panel de Bodega en el servidor: la lista, abrir una entrega (también con el QR de su nota) y validarla."""
 from odoo import Command
 from odoo.exceptions import AccessError
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 
 from .bodega_comun import BASE, BodegaCommon
 
@@ -84,16 +84,61 @@ class TestBodegaLista(BodegaCommon):
         tarjeta = self.tarjetas()[entrega.id]
         self.assertEqual((len(tarjeta['productos']), tarjeta['mas']), (3, 1))
 
-    def test_dice_si_falta_pagar_sin_decir_cuanto(self):
-        self.assertEqual(self.tarjetas()[self.entrega_envio.id]['pago'], 'sin_factura')
-        factura = self.pedido_envio._create_invoices()
+    def test_solo_salen_los_pedidos_con_pago_o_abono(self):
+        """Decisión de la dueña (2026-10-22): «solo pueden ver el pedido si pagaron o abonaron»."""
+        _sin, sin_pago = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
+        con_abono_pedido, con_abono = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0.6)
+        sin_cobro_pedido, sin_cobro = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
+        sin_cobro_pedido._create_invoices().action_post()   # facturada pero sin ningún cobro: tampoco
+        tarjetas = self.tarjetas()
+        self.assertNotIn(sin_pago.id, tarjetas)
+        self.assertNotIn(sin_cobro.id, tarjetas)
+        self.assertEqual((tarjetas[con_abono.id]['pago'], tarjetas[con_abono.id]['pago_texto']),
+                         ('abono', 'Con abono: falta una parte'))
+        self.assertEqual(tarjetas[self.entrega_envio.id]['pago'], 'pagada')
+        self.assertNotIn(str(con_abono_pedido.amount_total), str(tarjetas[con_abono.id]), 'sin montos')
+        self.assertEqual(self.Bodega.with_user(self.bodeguero).pendientes()['cuantas'], len(tarjetas))
+        atajo = next(a for a in self.env['dcasa.tablero'].with_user(self.bodeguero).obtener_datos()['atajos']
+                     if a['clave'] == 'bodega')
+        self.assertEqual(atajo['cuenta'], len(tarjetas), 'el Inicio cuenta las mismas')
+
+    def test_una_nota_de_credito_no_es_un_pago(self):
+        pedido, entrega = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
+        factura = pedido._create_invoices()
         factura.action_post()
-        tarjeta = self.tarjetas()[self.entrega_envio.id]
-        self.assertEqual((tarjeta['pago'], tarjeta['pago_texto']), ('falta_pagar', 'Falta pagar'))
-        self.assertNotIn(str(factura.amount_total), str(tarjeta))
-        self.env['account.payment.register'].with_context(
-            active_model='account.move', active_ids=factura.ids).create({})._create_payments()
-        self.assertEqual(self.tarjetas()[self.entrega_envio.id]['pago'], 'pagada')
+        # La nota de crédito se publica y se concilia con la factura (cancel=True): queda «pagada», pero no es dinero.
+        factura._reverse_moves([{'invoice_date': factura.invoice_date, 'date': factura.date}], cancel=True)
+        self.assertEqual(factura.amount_residual, 0)
+        self.assertNotIn(entrega.id, self.tarjetas())
+
+    def test_sin_pago_no_se_abre_ni_se_valida_y_el_qr_lo_dice(self):
+        pedido, entrega = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
+        Bodega = self.Bodega.with_user(self.bodeguero)
+        aviso = f'Este pedido ({pedido.name}) todavía no tiene pago ni abono: no se entrega.'
+        with self.assertUserError(aviso):
+            Bodega.abrir(entrega.id)
+        with self.assertUserError(aviso):
+            Bodega.validar(entrega.id, self.marcas(entrega, {self.mesa: 1}))
+        for texto in (f'{BASE}/dcasa/doc/ENT/{entrega.name}', entrega.name, pedido.name):
+            r = Bodega.leer(texto)
+            self.assertEqual((r['resultado'], r['mensaje'], r.get('sin_pago')), ('aviso', aviso, True), texto)
+        factura = self.cobrar(pedido, 0.6)   # con un abono ya se abre
+        r = self.Bodega.with_user(self.caja).leer(f'{BASE}/dcasa/doc/FAC/{factura.name}')
+        self.assertEqual((r['resultado'], r['entrega']['id'], r['entrega']['pago']), ('entrega', entrega.id, 'abono'))
+        self.assertEqual(Bodega.validar(entrega.id, self.marcas(entrega, {self.mesa: 1}))['resultado'], 'hecha')
+
+    def test_una_entrega_que_no_viene_de_un_pedido_no_se_despacha_aqui(self):
+        clientes = self.env.ref('stock.stock_location_customers')
+        suelta = self.env['stock.picking'].create({
+            'picking_type_id': self.almacen.out_type_id.id, 'partner_id': self.cliente_sin.id,
+            'location_id': self.bodega.id, 'location_dest_id': clientes.id,
+            'move_ids': [Command.create({
+                'product_id': self.mesa.id, 'product_uom_qty': 1, 'product_uom': self.mesa.uom_id.id,
+                'location_id': self.bodega.id, 'location_dest_id': clientes.id})]})
+        suelta.action_confirm()
+        self.assertNotIn(suelta.id, self.tarjetas())
+        with self.assertUserError('no viene de un pedido de venta'):
+            self.Bodega.with_user(self.bodeguero).abrir(suelta.id)
 
     def test_sin_inventario_no_puede_nada(self):
         Bodega = self.Bodega.with_user(self.sin_inventario)
@@ -195,8 +240,7 @@ class TestBodegaAbrirYLeer(BodegaCommon):
         self.assertIn('No encontramos', r['mensaje'])
 
     def test_el_qr_de_la_factura_abre_su_entrega_si_puedes_ver_la_factura(self):
-        factura = self.pedido_flete._create_invoices()
-        factura.action_post()
+        factura = self.pedido_flete.invoice_ids[:1]   # la factura ya cobrada de la venta de prueba
         url = f'{BASE}/dcasa/doc/FAC/{factura.name}'
         r = self.leer(url, usuario=self.caja)
         self.assertEqual((r['resultado'], r['entrega']['id']), ('entrega', self.entrega_flete.id))
@@ -206,6 +250,30 @@ class TestBodegaAbrirYLeer(BodegaCommon):
         self.assertNotIn('CLIENTE', str(r))
         r = self.leer(f'{BASE}/dcasa/doc/COT/{self.pedido_retiro.name}', usuario=self.caja)
         self.assertEqual((r['resultado'], r['entrega']['id']), ('entrega', self.entrega_retiro.id))
+
+    def test_el_qr_con_la_camara_del_telefono_o_el_escaner_abre_bodega(self):
+        """Decisión de la dueña (2026-10-22): el QR de la nota de entrega abre esa entrega en el panel de Bodega para
+        quien usa Inventario (la cámara normal del teléfono y el Escáner). Quien no usa Inventario, una recepción y
+        los demás documentos siguen abriendo su formulario de Odoo."""
+        Documento = self.env['dcasa.documento']
+        entrega = self.entrega_envio
+        self.assertEqual(Documento.with_user(self.bodeguero)._dcasa_ruta_odoo(entrega), f'/odoo/bodega/{entrega.id}')
+        solo_ventas = new_test_user(self.env, login='bodega_solo_ventas', groups='sales_team.group_sale_salesman')
+        self.assertTrue(Documento.with_user(solo_ventas)._dcasa_ruta_odoo(entrega).startswith('/odoo/action-'))
+        recepcion = self.env['stock.picking'].create({
+            'picking_type_id': self.almacen.in_type_id.id,
+            'location_id': self.env.ref('stock.stock_location_suppliers').id,
+            'location_dest_id': self.almacen.lot_stock_id.id})
+        self.assertTrue(Documento.with_user(self.bodeguero)._dcasa_ruta_odoo(recepcion).startswith('/odoo/action-'))
+        r = self.env['dcasa.barras'].with_user(self.bodeguero).buscar(f'{BASE}/dcasa/doc/ENT/{entrega.name}')
+        accion = r['documento']['accion']
+        self.assertEqual((r['resultado'], accion['type'], accion['tag'], accion['path'], accion['params']),
+                         ('documento', 'ir.actions.client', 'dcasa_barras_bodega', 'bodega',
+                          {'entrega_id': entrega.id}))
+        factura = self.pedido_envio.invoice_ids[:1]
+        r = self.env['dcasa.barras'].with_user(self.caja).buscar(f'{BASE}/dcasa/doc/FAC/{factura.name}')
+        self.assertEqual((r['documento']['accion']['res_model'], r['documento']['accion']['res_id']),
+                         ('account.move', factura.id), 'la factura sigue abriendo la factura')
 
     def test_el_numero_de_la_entrega_o_del_pedido_la_abre(self):
         self.assertEqual(self.leer(self.entrega_sin.name)['entrega']['id'], self.entrega_sin.id)

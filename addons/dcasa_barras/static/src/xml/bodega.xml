@@ -141,8 +141,8 @@
                     <span t-attf-class="o_dcasa_bodega_como o_dcasa_bodega_como_{{ e.como }}">
                         <i t-attf-class="fa {{ iconosComo[e.como] }}" aria-hidden="true"/> <t t-esc="e.como_texto"/>
                     </span>
-                    <span t-if="e.pago === 'falta_pagar' or e.pago === 'sin_factura'" class="o_dcasa_bodega_pago">
-                        <i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="e.pago_texto"/>
+                    <span t-if="e.pago === 'abono'" class="o_dcasa_bodega_pago">
+                        <i class="fa fa-adjust" aria-hidden="true"/> <t t-esc="e.pago_texto"/>
                     </span>
                     <span t-if="e.pendiente_de" class="o_dcasa_bodega_resto">Resto de <t t-esc="e.pendiente_de"/></span>
                 </div>
@@ -201,9 +201,9 @@
                     </span>
                     <span t-if="e.pendiente_de" class="o_dcasa_bodega_resto">Es lo que faltó de <t t-esc="e.pendiente_de"/></span>
                 </div>
-                <p t-if="e.pago === 'falta_pagar' or e.pago === 'sin_factura'" class="o_dcasa_bodega_alerta" role="alert">
-                    <i class="fa fa-exclamation-circle" aria-hidden="true"/>
-                    <span t-esc="(e.pago === 'falta_pagar' ? 'Falta pagar este pedido.' : 'Este pedido todavía no tiene factura.') + ' Antes de entregar, confírmalo con Caja.'"/>
+                <p t-if="e.pago === 'abono'" class="o_dcasa_bodega_alerta">
+                    <i class="fa fa-adjust" aria-hidden="true"/>
+                    <span>Este pedido tiene abono: le falta una parte por pagar.</span>
                 </p>
                 <p t-if="e.nota" class="o_dcasa_bodega_nota_entrega"><strong>Nota:</strong> <span t-esc="e.nota"/></p>
                 <p t-if="e.estado === 'hecha'" class="o_dcasa_bodega_msg o_dcasa_bodega_msg_ok">

@@ -58,9 +58,12 @@ class TestDocumentoRuta(DocumentosDePrueba, HttpCase):
         for tipo, registro in self.todos.items():
             respuesta = self.ir(tipo, registro.name)
             self.assertEqual(respuesta.status_code, 302, tipo)
-            accion = self.env.ref(ACCIONES[tipo])
-            self.assertEqual(urlsplit(respuesta.headers['Location']).path,
-                             f'/odoo/action-{accion.id}/{registro.id}', tipo)
+            destino = f'/odoo/action-{self.env.ref(ACCIONES[tipo]).id}/{registro.id}'
+            if tipo == 'ENT' and 'dcasa.bodega' in self.env:
+                # Con dcasa_barras instalado, la nota de entrega se abre en el panel de Bodega para quien usa
+                # Inventario (decisión de la dueña, 2026-10-22); qr_equipo lo usa. Sin dcasa_barras, su formulario.
+                destino = f'/odoo/bodega/{registro.id}'
+            self.assertEqual(urlsplit(respuesta.headers['Location']).path, destino, tipo)
             self.assertIn('no-store', respuesta.headers['Cache-Control'])
 
     def test_las_referencias_con_barras_y_distintas_formas_de_escribirlas(self):

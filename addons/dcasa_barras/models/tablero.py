@@ -1,8 +1,6 @@
 """El acceso «Bodega» del Inicio: para quien despacha (el mismo permiso que su menú de Inventario)."""
 from odoo import models
 
-from .bodega import dominio_pendientes
-
 
 class DcasaTablero(models.AbstractModel):
     _inherit = 'dcasa.tablero'
@@ -13,7 +11,7 @@ class DcasaTablero(models.AbstractModel):
         if not self.env.user.has_group('stock.group_stock_user') \
                 or not self.env.ref('dcasa_barras.accion_bodega', raise_if_not_found=False):
             return atajos
-        cuantas = self.env['stock.picking'].search_count(dominio_pendientes())
+        cuantas = len(self.env['dcasa.bodega']._despachables())   # las mismas del panel: con pago o abono
         if not cuantas:
             detalle = 'Nada por despachar'
         else:

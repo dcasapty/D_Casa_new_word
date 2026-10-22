@@ -67,6 +67,16 @@ TABLET = """
     campo.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await esperar(() => tarjetas().length >= 3, "la lista sin búsqueda");
 
+    // Un pedido sin pago ni abono no sale en la lista y su QR lo dice (decisión de la dueña, 2026-10-22).
+    if (tarjeta(D.sin_pago)) { falla("salió una entrega sin pago ni abono"); }
+    escribir(campo, D.qr_sin_pago);
+    enter(campo);
+    const sinPago = await esperar(() => document.querySelector(".o_dcasa_bodega_msg_error"), "el aviso sin pago");
+    if (!sinPago.textContent.includes("todavía no tiene pago ni abono: no se entrega")) {
+        falla("aviso sin pago: " + sinPago.textContent);
+    }
+    if (document.querySelector(".o_dcasa_bodega_titulo_entrega")) { falla("abrió una entrega sin pago"); }
+
     // El QR de la nota de entrega (lector tipo teclado: escribe la dirección y Enter) abre esa entrega.
     escribir(campo, D.qr_envio);
     enter(campo);
@@ -152,9 +162,13 @@ class TestBodegaEnElNavegador(HttpCase, BodegaCommon):
             'pedido_envio': self.pedido_envio.name,
             'qr_envio': f'{self.base_url()}/dcasa/doc/ENT/{self.entrega_envio.name}',
         }
+        if getattr(self, 'entrega_sin_pago', None):
+            datos.update(sin_pago=self.entrega_sin_pago.name,
+                         qr_sin_pago=f'{self.base_url()}/dcasa/doc/ENT/{self.entrega_sin_pago.name}')
         return plantilla.replace('__AYUDAS__', AYUDAS).replace('__DATOS__', json.dumps(datos))
 
     def test_en_la_tablet_busca_abre_por_qr_marca_y_valida(self):
+        _pedido, self.entrega_sin_pago = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
         self.browser_size = '820x1180'
         self.touch_enabled = True
         self.browser_js('/odoo/bodega', self.codigo(TABLET), ready='odoo.isReady', login='bodega_trabajador',
@@ -174,7 +188,9 @@ class TestBodegaEnElNavegador(HttpCase, BodegaCommon):
                 self.browser_js('/odoo/bodega', self.codigo(TAMANOS), ready='odoo.isReady',
                                 login='bodega_trabajador', timeout=120)
 
-    def test_la_direccion_de_una_entrega_la_abre(self):
+    def test_el_qr_con_la_camara_del_telefono_abre_la_entrega_en_bodega(self):
+        """La cámara normal del teléfono abre /dcasa/doc/ENT/… y, para quien usa Inventario, llega al panel con esa
+        entrega abierta (decisión de la dueña, 2026-10-22)."""
         codigo = """
         (async () => {
             __AYUDAS__
@@ -184,5 +200,5 @@ class TestBodegaEnElNavegador(HttpCase, BodegaCommon):
             console.log("test successful");
         })().catch((e) => console.error(e.message || e));
         """.replace('__AYUDAS__', AYUDAS).replace('__DATOS__', json.dumps({'retiro': self.entrega_retiro.name}))
-        self.browser_js(f'/odoo/bodega/{self.entrega_retiro.id}', codigo, ready='odoo.isReady',
+        self.browser_js(f'/dcasa/doc/ENT/{self.entrega_retiro.name}', codigo, ready='odoo.isReady',
                         login='bodega_trabajador', timeout=120)

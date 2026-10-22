@@ -168,7 +168,7 @@ $dc-rojo-fondo: #FDECEC;
         background: var(--dc-blanco, #fff); color: var(--dc-tinta-2, #44506A);
         border: 1px dashed var(--dc-tinta-3, #6B7690);
     }
-    .o_dcasa_bodega_pago { background: $dc-rojo-fondo; color: $dc-rojo-tinta; border-color: #EBC1C1; }
+    .o_dcasa_bodega_pago { background: $dc-ambar-fondo; color: $dc-ambar-tinta; border-color: #F0D29A; }
     .o_dcasa_bodega_resto { background: var(--dc-perla, #ECF0F6); color: var(--dc-tinta-2, #44506A); }
     .o_dcasa_bodega_resumen {
         list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;
@@ -205,8 +205,8 @@ $dc-rojo-fondo: #FDECEC;
         .fa { width: 18px; color: var(--dc-azul-600, #1340B1); }
     }
     .o_dcasa_bodega_alerta {
-        margin: 0; padding: 10px 12px; border-radius: 10px; background: $dc-rojo-fondo; color: $dc-rojo-tinta;
-        border: 1px solid #EBC1C1; font-weight: 600; display: flex; gap: 8px; align-items: baseline;
+        margin: 0; padding: 10px 12px; border-radius: 10px; background: $dc-ambar-fondo; color: $dc-ambar-tinta;
+        border: 1px solid #F0D29A; font-weight: 600; display: flex; gap: 8px; align-items: baseline;
     }
     .o_dcasa_bodega_dato_fila { display: flex; flex-wrap: wrap; gap: 2px 14px; }
     .o_dcasa_bodega_nota_entrega {
