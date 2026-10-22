@@ -1,0 +1,543 @@
+// «Reponer» (Compras › Reponer) con el sistema de diseño (tokens.scss): plano, bordes finos, sin sombras ni
+// degradados; el amarillo solo sobre azul oscuro («Pedir ya»). Debajo de 992 px cada fila es una tarjeta: nada de
+// scroll de costado en el celular ni en la tableta.
+
+.o_web_client > .o_action_manager > .o_dcasa_reponer.o_action {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    > * { flex-shrink: 0; }
+}
+
+.o_dcasa_reponer {
+    height: 100%;
+    background: var(--dc-niebla);
+    color: var(--dc-tinta);
+    font-variant-numeric: tabular-nums;
+}
+
+.o_dcasa_reponer_cabeza {
+    background: var(--dc-blanco);
+    border-bottom: 1px solid var(--dc-linea);
+    padding: 24px clamp(1rem, 3vw, 40px) 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+
+    h1 {
+        font-family: "Anton", sans-serif;
+        font-weight: 400;
+        text-transform: uppercase;
+        letter-spacing: .02em;
+        font-size: clamp(1.8rem, 3vw, 2.4rem);
+        line-height: 1.1;
+        color: var(--dc-azul-600);
+        margin: 0 0 4px;
+    }
+    p {
+        margin: 0;
+        color: var(--dc-tinta-2);
+    }
+}
+
+.o_dcasa_reponer_excel {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.o_dcasa_reponer_cuerpo {
+    padding: 20px clamp(1rem, 3vw, 40px) 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 1440px;
+}
+
+// --- Cómo se calcula ---------------------------------------------------------------------------------------------
+
+.o_dcasa_reponer_como {
+    background: var(--dc-azul-50);
+    border: 1px solid var(--dc-azul-100);
+    border-radius: var(--dc-r-md);
+    padding: 12px 16px;
+    color: var(--dc-tinta);
+
+    summary {
+        font-weight: 700;
+        color: var(--dc-azul-700);
+        cursor: pointer;
+        min-height: 32px;
+        line-height: 32px;
+    }
+    ul {
+        margin: 6px 0 8px;
+        padding-left: 1.2rem;
+    }
+    li {
+        margin-bottom: 4px;
+    }
+}
+
+.o_dcasa_reponer_ejemplo {
+    background: var(--dc-blanco);
+    border: 1px dashed var(--dc-azul-300);
+    border-radius: var(--dc-r-sm);
+    padding: 10px 12px;
+    margin: 0;
+}
+
+// --- Los pasos ---------------------------------------------------------------------------------------------------
+
+.o_dcasa_reponer_paso {
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-lg);
+    padding: 16px clamp(12px, 2vw, 24px);
+    min-width: 0;
+
+    h2 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.05rem;
+        font-weight: 700;
+        margin: 0 0 12px;
+        color: var(--dc-tinta);
+    }
+}
+
+.o_dcasa_reponer_numero {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--dc-azul-600);
+    color: var(--dc-blanco);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .9rem;
+}
+
+.o_dcasa_reponer_instruccion {
+    display: block;
+    color: var(--dc-tinta-2);
+    margin-bottom: 8px;
+    font-weight: 400;
+}
+
+.o_dcasa_reponer_etiqueta {
+    font-size: .75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_reponer_nota {
+    color: var(--dc-tinta-3);
+    font-size: .85rem;
+    margin: 6px 0 0;
+}
+
+.o_dcasa_reponer_nada {
+    color: var(--dc-tinta-2);
+    margin: 8px 0 0;
+}
+
+.o_falta {
+    color: var(--dc-azul-900);
+    font-weight: 600;
+}
+
+// --- Paso 1: el buscador -----------------------------------------------------------------------------------------
+
+.o_dcasa_reponer_buscar {
+    position: relative;
+    max-width: 560px;
+
+    > .fa-search {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--dc-tinta-3);
+        pointer-events: none;
+    }
+    input {
+        min-height: 48px;
+        padding-left: 40px;
+        padding-right: 48px;
+        font-size: 1rem;
+        border-radius: var(--dc-r-md);
+        &::-webkit-search-cancel-button { -webkit-appearance: none; }
+    }
+}
+
+.o_dcasa_reponer_borrar {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    min-width: 40px;
+    min-height: 40px;
+    color: var(--dc-tinta-2);
+}
+
+.o_dcasa_reponer_resultados {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px;
+}
+
+.o_dcasa_reponer_opcion {
+    width: 100%;
+    height: 100%;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    padding: 12px 14px;
+    text-align: left;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea-fuerte);
+    border-radius: var(--dc-r-md);
+    color: var(--dc-tinta);
+
+    strong {
+        color: var(--dc-azul-700);
+        font-size: 1rem;
+    }
+    > span {
+        font-size: .85rem;
+        color: var(--dc-tinta-2);
+    }
+    &:hover {
+        border-color: var(--dc-azul-400);
+        background: var(--dc-azul-50);
+    }
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--dc-foco);
+    }
+    &.o_activo {
+        border: 2px solid var(--dc-azul-600);
+        background: var(--dc-azul-50);
+    }
+}
+
+.o_dcasa_reponer_tarda {
+    color: var(--dc-tinta-2);
+    &.o_falta { color: var(--dc-azul-900); font-weight: 600; }
+}
+
+.o_dcasa_reponer_coincide {
+    font-style: italic;
+}
+
+.o_dcasa_reponer_elegido,
+.o_dcasa_reponer_llegada {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
+    > div {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1 1 260px;
+    }
+    strong {
+        font-size: 1.1rem;
+        color: var(--dc-tinta);
+    }
+    .btn {
+        min-height: 44px;
+    }
+}
+
+.o_dcasa_reponer_llegada {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--dc-linea);
+    &.o_falta strong { color: var(--dc-azul-900); }
+}
+
+// --- Paso 2: meses y reserva -------------------------------------------------------------------------------------
+
+.o_dcasa_reponer_controles {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+}
+
+.o_dcasa_reponer_control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-weight: 600;
+    color: var(--dc-tinta-2);
+
+    select {
+        min-height: 44px;
+        min-width: 200px;
+        font-size: 1rem;
+    }
+}
+
+// --- Paso 3: la lista --------------------------------------------------------------------------------------------
+
+.o_dcasa_reponer_resumen {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.o_dcasa_reponer_cuenta {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--dc-linea);
+    background: var(--dc-niebla);
+    color: var(--dc-tinta-2);
+    font-size: .9rem;
+
+    &.o_cuenta_ya { background: var(--dc-azul-900); border-color: var(--dc-azul-900); color: var(--dc-amarillo); }
+    &.o_cuenta_pedir { background: var(--dc-azul-100); border-color: var(--dc-azul-200); color: var(--dc-azul-800); }
+    &.o_cuenta_falta { border-style: dashed; border-color: var(--dc-linea-fuerte); color: var(--dc-azul-900); }
+    &.o_cuenta_total { background: var(--dc-blanco); color: var(--dc-azul-700); }
+}
+
+.o_dcasa_reponer_vista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+    .btn { min-height: 40px; }
+}
+
+.o_dcasa_reponer_aviso {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    font-size: .78rem;
+    font-weight: 700;
+    white-space: nowrap;
+
+    &.o_aviso_ya { background: var(--dc-azul-900); color: var(--dc-amarillo); }
+    &.o_aviso_pedir { background: var(--dc-azul-100); color: var(--dc-azul-800); }
+    &.o_aviso_falta,
+    &.o_aviso_sin_proveedor { background: var(--dc-niebla); color: var(--dc-azul-900); border: 1px dashed var(--dc-linea-fuerte); }
+    &.o_aviso_alcanza { color: var(--dc-tinta-3); border-color: var(--dc-linea); }
+}
+
+.o_dcasa_reponer_tabla {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: .92rem;
+
+    th,
+    td {
+        padding: 10px;
+        border-bottom: 1px solid var(--dc-linea);
+        vertical-align: middle;
+    }
+    thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--dc-blanco);
+        border-bottom: 2px solid var(--dc-linea-fuerte);
+        font-size: .76rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .03em;
+        color: var(--dc-tinta-3);
+    }
+    .o_num {
+        text-align: right;
+        white-space: nowrap;
+    }
+    &.o_cargando {
+        opacity: .55;
+    }
+}
+
+.o_dcasa_reponer_fila.o_estado_ya > td:first-child {
+    border-left: 4px solid var(--dc-azul-900);
+}
+
+.o_dcasa_reponer_producto {
+    min-width: 220px;
+    .o_dcasa_reponer_aviso { margin-right: 8px; }
+}
+
+.o_dcasa_reponer .btn.o_dcasa_reponer_nombre {
+    padding: 0;
+    border: 0;
+    text-align: left;
+    white-space: normal;
+    font-weight: 600;
+    color: var(--dc-azul-700);
+    vertical-align: baseline;
+}
+
+.o_dcasa_reponer_ref {
+    display: block;
+    color: var(--dc-tinta-3);
+}
+
+.o_dcasa_reponer_pedir {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--dc-azul-700);
+}
+
+.o_dcasa_reponer_llega .btn {
+    margin-left: 6px;
+}
+
+.o_dcasa_reponer_grupo_cabeza th {
+    background: var(--dc-azul-50);
+    border-top: 2px solid var(--dc-azul-200);
+    padding: 12px 10px;
+}
+
+.o_dcasa_reponer_grupo_titulo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    font-weight: 400;
+
+    strong {
+        font-size: 1.05rem;
+        color: var(--dc-azul-800);
+    }
+}
+
+.o_dcasa_reponer_total {
+    th,
+    td {
+        font-weight: 700;
+        background: var(--dc-nieve);
+    }
+}
+
+// --- La ventana del tiempo de llegada ----------------------------------------------------------------------------
+
+.o_dcasa_reponer_llegada_quien {
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+}
+
+.o_dcasa_reponer_llegada_campos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+
+    input {
+        max-width: 160px;
+        min-height: 48px;
+        font-size: 1.2rem;
+    }
+    .btn {
+        min-height: 48px;
+        min-width: 88px;
+    }
+}
+
+.o_dcasa_reponer_equivale {
+    color: var(--dc-azul-700);
+    font-weight: 600;
+    margin: 8px 0 0;
+}
+
+// --- Celular y tableta: cada fila, una tarjeta -------------------------------------------------------------------
+
+@media (max-width: 991.98px) {
+    .o_dcasa_reponer_tabla {
+        thead { display: none; }
+        tbody,
+        tr,
+        th,
+        td { display: block; }
+
+        tr.o_dcasa_reponer_fila,
+        tr.o_dcasa_reponer_total {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            background: var(--dc-blanco);
+            border: 1px solid var(--dc-linea);
+            border-radius: var(--dc-r-md);
+        }
+        tr.o_dcasa_reponer_total { background: var(--dc-nieve); }
+        tr.o_estado_ya { border-left: 4px solid var(--dc-azul-900); }
+
+        th,
+        td {
+            padding: 0;
+            border: 0;
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+        .o_dcasa_reponer_fila.o_estado_ya > td:first-child { border-left: 0; }
+        td.o_dcasa_reponer_producto,
+        td.o_dcasa_reponer_prov,
+        tr.o_dcasa_reponer_total > th { grid-column: 1 / -1; }
+        td.o_dcasa_reponer_producto {
+            min-width: 0;
+            .o_dcasa_reponer_aviso { display: flex; width: fit-content; margin: 0 0 6px; }
+            .o_dcasa_reponer_nombre { display: block; }
+        }
+        td.o_vacia { display: none; }
+        td[data-label]::before {
+            content: attr(data-label);
+            display: block;
+            font-size: .7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+            color: var(--dc-tinta-3);
+        }
+        .o_num { text-align: left; }
+        td.o_dcasa_reponer_pedir { font-size: 1.25rem; }
+
+        tr.o_dcasa_reponer_grupo_cabeza th {
+            margin: 16px 0 8px;
+            padding: 12px;
+            border: 1px solid var(--dc-azul-200);
+            border-radius: var(--dc-r-md);
+        }
+    }
+}
+
+@media (max-width: 575.98px) {
+    .o_dcasa_reponer_cabeza .o_dcasa_reponer_excel { width: 100%; min-height: 48px; }
+    .o_dcasa_reponer_resultados { grid-template-columns: 1fr; }
+    .o_dcasa_reponer_control { width: 100%; select { width: 100%; min-width: 0; } }
+    .o_dcasa_reponer_elegido .btn,
+    .o_dcasa_reponer_llegada .btn { width: 100%; }
+    .o_dcasa_reponer_vista .btn { flex: 1 1 0; }
+    .o_dcasa_reponer_tabla {
+        tr.o_dcasa_reponer_fila,
+        tr.o_dcasa_reponer_total { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        td.o_dcasa_reponer_pedir { grid-column: 1 / -1; }
+    }
+}
