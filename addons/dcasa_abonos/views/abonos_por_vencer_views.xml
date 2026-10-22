@@ -8,8 +8,8 @@
         <field name="arch" type="xml">
             <list string="Abonos por vencer" create="0" delete="0" default_order="dcasa_abono_vence asc"
                   decoration-danger="dcasa_abono_dias &lt; 0" decoration-warning="dcasa_abono_dias &gt;= 0 and dcasa_abono_pronto">
-                <field name="dcasa_abono_vence"/>
-                <field name="dcasa_abono_dias"/>
+                <field name="dcasa_abono_vence" string="Vence"/>
+                <field name="dcasa_abono_dias" string="Días"/>
                 <field name="dcasa_abono_pronto" column_invisible="1"/>
                 <field name="partner_id" string="Cliente"/>
                 <field name="name" string="Factura"/>

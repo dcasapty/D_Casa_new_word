@@ -34,11 +34,11 @@
                 </group>
                 <field name="linea_ids" readonly="1" invisible="not cantidad">
                     <list>
-                        <field name="fecha"/>
                         <field name="documento"/>
+                        <field name="saldo" sum="Total"/>
                         <field name="partner_id"/>
                         <field name="tipo"/>
-                        <field name="saldo" sum="Total"/>
+                        <field name="fecha"/>
                         <field name="move_line_id" column_invisible="1"/>
                     </list>
                 </field>

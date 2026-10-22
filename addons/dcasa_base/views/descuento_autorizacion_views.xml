@@ -55,7 +55,7 @@
                     <div class="alert alert-danger" role="alert" invisible="not aviso">
                         <field name="aviso" readonly="1"/>
                     </div>
-                    <group>
+                    <group invisible="not enviada_a">
                         <field name="vence" readonly="1" string="La clave vence"/>
                         <field name="clave" placeholder="6 números"/>
                     </group>
@@ -64,7 +64,7 @@
                     <button string="Pedir la clave a Gerencia" name="action_pedir" type="object" class="btn-primary"
                             invisible="paso != 'pedir'"/>
                     <button string="Aplicar el descuento" name="action_aplicar" type="object" class="btn-primary"
-                            invisible="paso != 'clave'"/>
+                            invisible="paso != 'clave' or not enviada_a"/>
                     <button string="Cerrar" special="cancel" class="btn-secondary"/>
                 </footer>
             </form>

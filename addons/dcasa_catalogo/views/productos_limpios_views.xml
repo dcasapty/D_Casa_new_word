@@ -48,7 +48,7 @@
         <field name="model">dcasa.producto.repetido</field>
         <field name="arch" type="xml">
             <list string="Productos que parecen repetidos" create="0" edit="0" delete="0">
-                <field name="tipo"/>
+                <field name="tipo" width="170px"/>
                 <field name="valor"/>
                 <field name="cantidad"/>
                 <field name="nombres"/>

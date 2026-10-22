@@ -47,11 +47,14 @@ class TestSaldosDeCentavos(ContabilidadCommon):
         self.assertEqual(documentos[redondeo].tipo, 'factura')
         self.assertNotIn(de_verdad, documentos)
         self.assertNotIn(sin_pago, documentos)
-        cobro = asistente.linea_ids.filtered(lambda linea: linea.tipo == 'cobro')
+        # Solo las de este cliente: la base puede traer otros saldos de centavos.
+        mias = asistente.linea_ids.filtered(lambda linea: linea.partner_id == self.cliente)
+        cobro = mias.filtered(lambda linea: linea.tipo == 'cobro')
         self.assertEqual(len(cobro), 1)
         self.assertAlmostEqual(cobro.saldo, -0.03)
-        self.assertAlmostEqual(asistente.pierde, 0.02)
-        self.assertAlmostEqual(asistente.gana, 0.03)
+        self.assertAlmostEqual(sum(s for s in mias.mapped('saldo') if s > 0), 0.02)
+        self.assertGreaterEqual(asistente.pierde, 0.02)
+        self.assertGreaterEqual(asistente.gana, 0.03)
         self.assertTrue(all(abs(linea.saldo) <= MAX_CENTAVOS for linea in asistente.linea_ids))
 
         asistente.action_cerrar()
@@ -62,7 +65,8 @@ class TestSaldosDeCentavos(ContabilidadCommon):
         self.assertIn('por redondeo', redondeo.message_ids[0].body)
         perdida = self.company.default_cash_difference_expense_account_id
         ganancia = self.company.default_cash_difference_income_account_id
-        ajustes = self.env['account.move.line'].search([('name', 'like', 'Ajuste por redondeo%')])
+        ajustes = self.env['account.move.line'].search([('name', 'like', 'Ajuste por redondeo%'),
+                                                        ('partner_id', '=', self.cliente.id)])
         self.assertAlmostEqual(sum(ajustes.filtered(lambda a: a.account_id == perdida).mapped('debit')), 0.02)
         self.assertAlmostEqual(sum(ajustes.filtered(lambda a: a.account_id == ganancia).mapped('credit')), 0.03)
         # Ya no queda nada que cerrar de esas dos.
