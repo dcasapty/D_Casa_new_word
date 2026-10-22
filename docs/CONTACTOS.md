@@ -87,6 +87,12 @@ pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos
   `crear_cliente` y `telefono_fijo` en `actualizar_cliente`. La carga del sistema anterior pone el primer fijo de Panamá en su campo.
 * **Clientes viejos:** **Socios › Configuración › Clientes sin correo o sin celular** (Gerencia) los lista para
   completarlos antes de su próxima venta (no salen los que tienen un teléfono fijo en lugar del celular).
+* **Los fijos viejos guardados en «Celular»** (la dueña, 2026-10-22: «Sí, hazlo si puedes»): al actualizar
+  `dcasa_contactos` a 19.0.1.1.0 pasan **una sola vez** a «Teléfono fijo» (`models/mover_fijos.py`). Solo fichas de
+  clientes y proveedores (no usuarios, empleados ni empresas propias), solo si el celular es un fijo de Panamá bien
+  escrito y el fijo está vacío; el celular queda vacío y la ficha lleva la nota «Se pasó el número X de Celular a
+  Teléfono fijo». Si el fijo ya tenía otro número, no se toca. **Socios y vendedores del programa no se tocan** (su
+  llave es el celular): el registro del servidor dice cuántos quedaron así, sin nombres, para que la dueña decida.
 * No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.
 * Código: `dcasa_contactos/models/contacto.py` (ficha y mensajes), `sale_order.py` (puerta A y la casilla de la
   cotización), `account_move.py` (puerta B). Pruebas: `test_bien_escrito.py`, `test_exigir_contacto.py` y

@@ -7,3 +7,4 @@ from . import test_bien_escrito
 from . import test_exigir_contacto
 from . import test_sin_correo_navegador
 from . import test_fijo_y_copiar_navegador
+from . import test_mover_fijos

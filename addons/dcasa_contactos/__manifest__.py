@@ -17,7 +17,7 @@ Una persona, una ficha:
 * Teléfono fijo (7 números en Panamá) en su propio campo, debajo del celular: sirve en lugar del celular para quien no
   tiene. No se compara entre fichas (una casa o una empresa lo comparten).
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Sales/CRM',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
