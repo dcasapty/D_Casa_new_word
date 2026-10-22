@@ -45,8 +45,9 @@ class BodegaCommon(BarrasCommon):
             'name': nombre, 'phone': telefono, 'street': calle, 'city': 'La Chorrera' if calle else False})
 
     @classmethod
-    def venta(cls, cliente, lineas, metodo=False):
-        """Un pedido confirmado y su entrega."""
+    def venta(cls, cliente, lineas, metodo=False, pago=1.0):
+        """Un pedido confirmado y su entrega. ``pago``: qué parte de la factura se cobra (1 = todo, 0.6 = un abono,
+        0 = nada: el panel no la muestra; «solo pueden ver el pedido si pagaron o abonaron»)."""
         pedido = cls.env['sale.order'].create({
             'partner_id': cliente.id,
             'carrier_id': metodo.id if metodo else False,
@@ -54,7 +55,19 @@ class BodegaCommon(BarrasCommon):
                            for producto, cantidad in lineas],
         })
         pedido.action_confirm()
+        if pago:
+            cls.cobrar(pedido, pago)
         return pedido, pedido.picking_ids.filtered(lambda e: e.picking_type_code == 'outgoing')
+
+    @classmethod
+    def cobrar(cls, pedido, parte=1.0):
+        """Factura el pedido y registra el cobro (todo o una parte) con el asistente «Pagar» de siempre."""
+        factura = pedido._create_invoices()
+        factura.action_post()
+        valores = {'amount': factura.currency_id.round(factura.amount_total * parte)} if parte < 1 else {}
+        cls.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=factura.ids).create(valores)._create_payments()
+        return factura
 
     def tarjetas(self, usuario=None):
         return {t['id']: t for t in self.Bodega.with_user(usuario or self.bodeguero).pendientes()['entregas']}

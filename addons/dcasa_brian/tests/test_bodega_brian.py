@@ -25,6 +25,16 @@ class TestBrianEntregasPorDespachar(TransactionCase):
             'order_line': [Command.create({'product_id': cls.cama.id, 'product_uom_qty': 2, 'price_unit': 321.0})]})
         cls.pedido.action_confirm()
         cls.entrega = cls.pedido.picking_ids
+        # Con un abono (el panel solo muestra pedidos con pago o abono: decisión de la dueña, 2026-10-22).
+        factura = cls.pedido._create_invoices()
+        factura.action_post()
+        cls.env['account.payment.register'].with_context(active_model='account.move', active_ids=factura.ids).create(
+            {'amount': factura.currency_id.round(factura.amount_total * 0.6)})._create_payments()
+        sin_pago = cls.env['sale.order'].create({
+            'partner_id': cliente.id,
+            'order_line': [Command.create({'product_id': cls.cama.id, 'product_uom_qty': 1, 'price_unit': 321.0})]})
+        sin_pago.action_confirm()
+        cls.entrega_sin_pago = sin_pago.picking_ids
 
     def ejecutar(self, usuario, argumentos=None):
         return self.env['brian.herramientas'].with_user(usuario).ejecutar('entregas_por_despachar', argumentos or {})
@@ -40,7 +50,9 @@ class TestBrianEntregasPorDespachar(TransactionCase):
                          ('CLIENTE DE PRUEBA BRIAN BODEGA', self.pedido.name, 'Lista para salir',
                           'Sin definir: envío o retiro'))
         self.assertEqual(fila['productos'], '2 × Zzcama Brian bodega')
-        self.assertIn('Caja', fila['pago'], 'sin factura todavía: que lo confirme con Caja')
+        self.assertEqual(fila['pago'], 'Con abono: le falta una parte por pagar')
+        self.assertNotIn(self.entrega_sin_pago.name, [f['entrega'] for f in datos['entregas']], 'sin pago no sale')
+        self.assertIn('pago o abono', datos['regla'])
         self.assertEqual(datos['abrir']['url'], '/odoo/bodega')
         self.assertNotIn('321', str(datos), 'nunca precios')
         self.assertGreaterEqual(datos['por_tipo']['sin_definir'], 1)

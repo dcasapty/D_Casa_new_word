@@ -377,7 +377,7 @@ export class DcasaBodega extends Component {
             this.sonar(true);
         } else if (r.resultado === "aviso") {
             this.limpiarCuadro();
-            this.avisar("aviso", r.mensaje);
+            this.avisar(r.sin_pago ? "error" : "aviso", r.mensaje);
             this.sonar(false);
         } else if (!this.tarjetas.length) {
             this.avisar("aviso", `No hay entregas pendientes con «${codigo}».`);
@@ -398,7 +398,7 @@ export class DcasaBodega extends Component {
             this.avisar("aviso", r.mensaje);
             this.sonar(true);
         } else if (r.resultado === "entregas" || r.resultado === "aviso") {
-            this.avisar("aviso", r.mensaje);
+            this.avisar(r.sin_pago ? "error" : "aviso", r.mensaje);
             this.sonar(false);
         } else {
             this.avisar("error", `«${codigo}» no es un producto de esta entrega ni el QR de una nota de entrega.`);

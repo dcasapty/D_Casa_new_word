@@ -36,6 +36,14 @@ class TestEscanerDocumentos(BarrasCommon):
             'order_line': [Command.create({'product_id': cls.cama.id, 'product_qty': 5, 'price_unit': 60.0})]})
         cls.compra.button_confirm()
 
+    @staticmethod
+    def abierto(accion):
+        """El id del documento que abre la acción. La nota de entrega se abre en el panel de Bodega para quien usa
+        Inventario (decisión de la dueña, 2026-10-22): una acción de cliente con ``params.entrega_id``."""
+        if accion['type'] == 'ir.actions.client':
+            return accion['params']['entrega_id']
+        return accion['res_id']
+
     def leer(self, tipo, registro, usuario=None):
         return self.como(usuario or self.equipo).buscar(f'{BASE}/dcasa/doc/{tipo}/{registro.name}')
 
@@ -43,13 +51,23 @@ class TestEscanerDocumentos(BarrasCommon):
 
     def test_cada_tipo_de_documento_abre_su_formulario(self):
         for tipo, registro, modelo in (('FAC', self.factura, 'account.move'), ('COT', self.pedido, 'sale.order'),
-                                       ('COM', self.compra, 'purchase.order'), ('ENT', self.entrega, 'stock.picking')):
+                                       ('COM', self.compra, 'purchase.order')):
             r = self.leer(tipo, registro)
             self.assertEqual(r['resultado'], 'documento', tipo)
             accion = r['documento']['accion']
             self.assertEqual((accion['type'], accion['res_model'], accion['res_id']),
                              ('ir.actions.act_window', modelo, registro.id), tipo)
             self.assertEqual(accion['views'], [(False, 'form')])
+            self.assertEqual(r['documento']['nombre'], registro.display_name)
+            self.assertEqual((r['productos'], r['forma']), ([], False))
+        # La nota de entrega, para quien usa Inventario, se abre en el panel de Bodega (decisión de la dueña,
+        # 2026-10-22); antes abría el formulario de la entrega.
+        for tipo, registro in (('ENT', self.entrega),):
+            r = self.leer(tipo, registro)
+            self.assertEqual(r['resultado'], 'documento', tipo)
+            accion = r['documento']['accion']
+            self.assertEqual((accion['type'], accion['tag'], self.abierto(accion)),
+                             ('ir.actions.client', 'dcasa_barras_bodega', registro.id), tipo)
             self.assertEqual(r['documento']['nombre'], registro.display_name)
             self.assertEqual((r['productos'], r['forma']), ([], False))
 
@@ -67,7 +85,7 @@ class TestEscanerDocumentos(BarrasCommon):
         for texto in (f'{BASE}/dcasa/doc/ENT/{nombre}\r\n', f'{BASE}/dcasa/doc/ent/{nombre.lower()}',
                       f'/dcasa/doc/ENT/{nombre}', f'{BASE}/dcasa/doc/ENT/{nombre}?x=1'):
             r = self.como(self.equipo).buscar(texto)
-            self.assertEqual((r['resultado'], r['documento']['accion']['res_id']), ('documento', self.entrega.id),
+            self.assertEqual((r['resultado'], self.abierto(r['documento']['accion'])), ('documento', self.entrega.id),
                              texto)
 
     def test_con_los_simbolos_cambiados_por_el_lector(self):
@@ -76,7 +94,7 @@ class TestEscanerDocumentos(BarrasCommon):
         r = self.como(self.equipo).buscar(garabateado)
         self.assertEqual((r['resultado'], r['documento']['accion']['res_id']), ('documento', self.factura.id))
         r = self.como(self.equipo).buscar(f'httpsÑ--x.co-dcasa-doc-ENT-{self.entrega.name.replace("/", "_")}')
-        self.assertEqual((r['resultado'], r['documento']['accion']['res_id']), ('documento', self.entrega.id))
+        self.assertEqual((r['resultado'], self.abierto(r['documento']['accion'])), ('documento', self.entrega.id))
         # Sin permiso o inexistente, como siempre.
         self.assertEqual(self.como(self.vendedora).buscar(garabateado)['resultado'], 'documento_sin_permiso')
         self.assertEqual(self.como(self.equipo).buscar('httpsÑ--x.co-dcasa-doc-FAC-INV-2099-99999')['resultado'],

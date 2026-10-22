@@ -1644,7 +1644,7 @@
      "destino": null
     },
     {
-     "texto": "Marca cada producto que sale: tócalo o escanea su código. Si la entrega dice «Falta pagar» o «Sin factura», confírmalo con Caja antes de entregar.",
+     "texto": "Marca cada producto que sale: tócalo o escanea su código.",
      "destino": null
     },
     {
@@ -1656,7 +1656,7 @@
      "destino": null
     }
    ],
-   "nota": "Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido.",
+   "nota": "Solo salen los pedidos que ya tienen pago o abono: si escaneas el QR de uno sin pago, el panel te dice que no se entrega. Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido.",
    "palabras": [
     "bodega",
     "despachar",
