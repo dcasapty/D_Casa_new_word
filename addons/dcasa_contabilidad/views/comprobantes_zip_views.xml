@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="regla_comprobantes_paquete_empresa" model="ir.rule">
+        <field name="name">ZIP de comprobantes: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_comprobantes_paquete"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="comprobantes_paquete_list" model="ir.ui.view">
+        <field name="name">dcasa.comprobantes.paquete.list</field>
+        <field name="model">dcasa.comprobantes.paquete</field>
+        <field name="arch" type="xml">
+            <list string="Comprobantes en ZIP">
+                <field name="name"/>
+                <field name="total"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'listo'"
+                       decoration-info="estado == 'preparando'" decoration-danger="estado == 'error'"/>
+                <field name="create_uid" string="Lo pidió"/>
+                <field name="create_date" string="El"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="comprobantes_paquete_form" model="ir.ui.view">
+        <field name="name">dcasa.comprobantes.paquete.form</field>
+        <field name="model">dcasa.comprobantes.paquete</field>
+        <field name="arch" type="xml">
+            <form string="Comprobantes en ZIP">
+                <header>
+                    <button name="action_preparar" type="object" string="Preparar el ZIP" class="btn-primary"
+                            invisible="estado in ('preparando', 'listo')"/>
+                    <button name="action_preparar" type="object" string="Volver a prepararlo"
+                            invisible="estado != 'listo'"
+                            confirm="Se vuelve a armar con lo que hay hoy en el sistema. ¿Seguir?"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,preparando,listo"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong>La DGI pide guardar los comprobantes durante 5 años.</strong> Aquí bajas en un ZIP todos
+                        los de un año (o de un rango): facturas y notas de crédito en PDF, recibos de cobros y abonos,
+                        las facturas de los proveedores, los pagos a proveedores y los recibos de los gastos, cada cosa
+                        en su carpeta y con un índice que se abre en Excel. Guárdalo con copia (un disco externo y la nube).
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="estado != 'preparando'">
+                        Se está preparando (puede tardar unos minutos si son muchos): llega un aviso cuando esté listo.
+                        Puedes seguir trabajando. Van <field name="hechos" class="oe_inline" readonly="1"/> de
+                        <field name="total" class="oe_inline" readonly="1"/>.
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="estado != 'error'">
+                        No se pudo preparar: <field name="error" class="oe_inline" readonly="1"/>
+                        Vuelve a intentarlo; si se repite, avísale a soporte.
+                    </div>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="periodo" widget="radio" readonly="estado == 'preparando'"/>
+                            <field name="anio" invisible="periodo != 'anio'" readonly="estado == 'preparando'"
+                                   options="{'format': false}"/>
+                            <field name="desde" invisible="periodo != 'rango'" required="periodo == 'rango'"
+                                   readonly="estado == 'preparando'"/>
+                            <field name="hasta" invisible="periodo != 'rango'" required="periodo == 'rango'"
+                                   readonly="estado == 'preparando'"/>
+                        </group>
+                        <group invisible="estado == 'borrador'">
+                            <field name="progreso" widget="progressbar" invisible="estado != 'preparando'"/>
+                            <field name="total"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Descarga" invisible="estado != 'listo'">
+                        <field name="adjunto_ids" widget="many2many_binary" nolabel="1" colspan="2" readonly="1"/>
+                        <field name="resumen" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_comprobantes_zip" model="ir.actions.act_window">
+        <field name="name">Comprobantes en ZIP</field>
+        <field name="res_model">dcasa.comprobantes.paquete</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Baja todos los comprobantes del año en un ZIP</p>
+            <p>La DGI pide guardarlos 5 años. Elige el año (o un rango de fechas) y pulsa «Preparar el ZIP»: llegan
+                ordenados por carpetas y con un índice.</p>
+        </field>
+    </record>
+
+    <!-- Prepara los ZIP pedidos, por tandas (si son muchos, sigue en la siguiente vuelta). -->
+    <record id="cron_comprobantes_zip" model="ir.cron">
+        <field name="name">D'CASA: preparar los ZIP de comprobantes</field>
+        <field name="model_id" ref="model_dcasa_comprobantes_paquete"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_preparar()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <menuitem id="menu_comprobantes_zip" name="Comprobantes en ZIP (respaldo DGI)" parent="menu_reportes"
+              action="accion_comprobantes_zip" sequence="11" groups="account.group_account_user"/>
+</odoo>
