@@ -144,6 +144,30 @@ class TestCostosCerrados(TransactionCase):
         arbol = etree.fromstring(lista['views']['list']['arch'])
         self.assertFalse({n.get('name') for n in arbol.iter('field')} & {'price_margin', 'inventory_value'})
 
+    def test_ninguna_vista_de_productos_ni_proveedores_muestra_el_costo(self):
+        """Todas las vistas (también las que abre una acción con su propia vista, de cualquier módulo)."""
+        cerrados = {
+            'product.template': set(CAMPOS_PRODUCTO), 'product.product': set(CAMPOS_PRODUCTO),
+            'product.supplierinfo': {'price', 'price_discounted', 'discount'},
+            'account.invoice.report': {'price_margin', 'inventory_value'},
+        }
+        for modelo, campos in cerrados.items():
+            vistas = self.env['ir.ui.view'].search([('model', '=', modelo), ('mode', '=', 'primary'),
+                                                    ('type', 'in', ('list', 'form', 'kanban', 'search', 'pivot',
+                                                                    'graph'))])
+            self.assertTrue(vistas, modelo)
+            for vista in vistas:
+                for usuario in (self.vendedora, self.bodega):
+                    if not self.env[modelo].with_user(usuario).has_access('read'):
+                        continue   # ni siquiera abre ese modelo
+                    with self.subTest(modelo=modelo, vista=vista.xml_id or vista.name, usuario=usuario.login):
+                        arbol = etree.fromstring(self.env[modelo].with_user(usuario).get_view(
+                            vista.id, vista.type)['arch'])
+                        # Los campos del modelo mismo (no los de una lista de otro modelo dentro de un campo).
+                        propios = {nodo.get('name') for nodo in arbol.iter('field')
+                                   if not any(a.tag == 'field' for a in nodo.iterancestors())}
+                        self.assertFalse(propios & campos, propios & campos)
+
     def test_el_formulario_del_producto_se_abre_para_la_vendedora(self):
         """Lo que pide el formulario (sus campos) se puede leer: abrir la ficha no da error."""
         vistas = self.env['product.template'].with_user(self.vendedora).get_views([(False, 'form')])
