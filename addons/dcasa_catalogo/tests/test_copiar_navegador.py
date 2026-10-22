@@ -55,7 +55,7 @@ class TestCopiarEnElProducto(HttpCase):
                       groups='base.group_user,dcasa_base.group_vendedora')
         cls.producto = cls.env['product.template'].create({
             'name': 'SOFÁ DE PRUEBA COPIAR', 'default_code': 'COPIA-001', 'barcode': '7700000000017',
-            'type': 'consu', 'list_price': 10.0})
+            'type': 'consu', 'list_price': 10.0, 'is_favorite': True})  # favorito: sale primero en la lista
 
     def probar(self, url, cuerpo):
         codigo = ('(async () => {' + COMUN + cuerpo.replace('CODIGO_PUBLICO', repr(self.producto.dcasa_codigo_publico))

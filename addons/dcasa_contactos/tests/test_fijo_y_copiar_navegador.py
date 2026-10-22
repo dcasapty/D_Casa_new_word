@@ -149,6 +149,10 @@ class TestFijoYCopiarEnElNavegador(HttpCase):
             sinErrores();
             await esperar(() => document.querySelector('.o_form_view div[name="partner_id"] input')?.value
                                   .includes('SOLO FIJO'), 'el cliente nuevo en la cotización');
+            // La cotización de prueba no se guarda (el cliente ya quedó guardado).
+            document.querySelector('.o_form_status_indicator .o_form_button_cancel').click();
+            await esperar(() => !document.querySelector('.o_form_status_indicator_buttons:not(.invisible)'),
+                          'descartar la cotización');
         """)
         cliente = self.env['res.partner'].search([('name', '=', 'CLIENTE DE PRUEBA SOLO FIJO')])
         self.assertEqual((cliente.phone, cliente.dcasa_telefono_fijo, cliente.email),

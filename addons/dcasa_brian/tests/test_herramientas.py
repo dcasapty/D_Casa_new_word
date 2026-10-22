@@ -251,19 +251,18 @@ class TestHerramientas(TransactionCase):
         """Un cliente sin celular, con teléfono fijo de 7 números (la dueña, 2026-10-22): Brian lo crea igual que la
         ficha, y un fijo escrito como «celular» va a su campo."""
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
-            'nombre': 'Brianzeta Fijo', 'telefono_fijo': '234 5678', 'correo': 'fijo@example.com'}))
+            'nombre': 'Brianzeta Fijo', 'celular': '234 5678', 'correo': 'fijo@example.com'}))
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5678'))
         ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Fijo')])
         self.assertEqual((ficha.phone, ficha.dcasa_telefono_fijo), (False, '+507 234-5678'))
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
             'nombre': 'Brianzeta Fijo Dos', 'celular': '2345679', 'correo': 'fijo2@example.com'}))
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5679'))
-        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Números',
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Números', 'celular': '',
                                                                    'correo': 'sinnumeros@example.com'})
         self.assertFalse(respuesta['ok'])
-        self.assertIn('Falta el celular', respuesta['error'])
-        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {
-            'nombre': 'Brianzeta Fijo Malo', 'telefono_fijo': '6123-4567', 'correo': 'fijomalo@example.com'})
+        respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Fijo', 'campo': 'telefono_fijo', 'valor': '6123-4567'})
         self.assertIn('es un celular', respuesta['error'])
         datos = self.ok(self.ejecutar(self.vendedor, 'actualizar_cliente', {
             'cliente': 'Brianzeta Cliente Uno', 'campo': 'telefono_fijo', 'valor': '734-5678'}))

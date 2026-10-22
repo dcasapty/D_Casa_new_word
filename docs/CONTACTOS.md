@@ -83,8 +83,8 @@ pero bien escrito». Ahí le llegan al cliente su factura y cómo ver sus puntos
   sigue igual). **No es una llave**: no se compara con otras fichas (una casa o una empresa con varios contactos
   comparten el fijo), no entra en «Posibles duplicados» y no sirve para Socios ni para WhatsApp, cuya llave sigue
   siendo el celular (regla 5). Se encuentra al cliente escribiendo su fijo en el buscador o en el selector de cliente;
-  la fusión lo conserva como cualquier dato; sale en la factura junto al celular. Por Brian: `telefono_fijo` en
-  `crear_cliente` y `actualizar_cliente`. La carga del sistema anterior pone el primer fijo de Panamá en su campo.
+  la fusión lo conserva como cualquier dato; sale en la factura junto al celular. Por Brian: el fijo en «celular» de
+  `crear_cliente` y `telefono_fijo` en `actualizar_cliente`. La carga del sistema anterior pone el primer fijo de Panamá en su campo.
 * **Clientes viejos:** **Socios › Configuración › Clientes sin correo o sin celular** (Gerencia) los lista para
   completarlos antes de su próxima venta (no salen los que tienen un teléfono fijo en lugar del celular).
 * No aplica a fichas solo de proveedor, ni a las de usuarios, empleados o empresas propias.

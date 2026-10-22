@@ -232,36 +232,33 @@ class BrianHerramientasClientes(models.AbstractModel):
 
     @herramienta(
         nombre='crear_cliente',
-        descripcion='Crea un cliente con su celular y su correo (obligatorios y bien escritos: ahí le llegan su '
-                    'factura y sus puntos). Si no tiene celular, su teléfono fijo (7 números) en lugar del celular. '
-                    'El celular es la llave: si ya existe una ficha con ese celular, no se duplica y te digo de quién '
-                    'es. El fijo no es llave (una casa o una empresa lo comparten).',
+        descripcion='Crea un cliente con su celular y su correo (obligatorios y bien escritos). Sin celular: su '
+                    'teléfono fijo de 7 números en «celular». El celular es la llave: si ya es de otra ficha, no se '
+                    'duplica y te digo de quién es.',
         parametros={
             'nombre': {'type': 'string', 'description': 'Nombre completo o razón social, p. ej. «Ana Gómez».'},
-            'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567». Si no tiene, '
-                                                         'déjalo vacío y pon el teléfono fijo.'},
-            'telefono_fijo': {'type': 'string', 'description': 'Teléfono fijo de Panamá (7 números), p. ej. '
-                                                               '«234-5678». Opcional si tiene celular.'},
+            'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567». Si no tiene '
+                                                         'celular: su teléfono fijo, p. ej. «234-5678».'},
             'correo': {'type': 'string', 'description': 'Correo, obligatorio, p. ej. «ana@gmail.com». Solo si el '
                                                         'cliente dice que NO tiene correo: «no tiene».'},
             'ruc': {'type': 'string', 'description': 'RUC o cédula, p. ej. «8-888-888». Opcional.'},
             'es_empresa': {'type': 'boolean', 'description': 'true si es una empresa. Por defecto false.'},
         },
-        requeridos=['nombre', 'correo'],
+        requeridos=['nombre', 'celular', 'correo'],
         nivel='construccion', categoria='clientes', grupos=INTERNO,
         ejemplos=['crea a Ana Gómez, 6123-4567, ana@gmail.com',
                   'crea a Pedro Pérez, no tiene celular, su fijo es 234-5678, pedro@gmail.com'],
     )
-    def _h_crear_cliente(self, nombre, celular=None, correo=None, ruc=None, es_empresa=False, telefono_fijo=None):
+    def _h_crear_cliente(self, nombre, celular=None, correo=None, ruc=None, es_empresa=False):
         nombre = (nombre or '').strip()
         if not nombre:
             raise BrianError('El cliente necesita un nombre.')
-        if not (telefono_fijo or '').strip() and B.problema_del_telefono(celular) == 'fijo':
-            celular, telefono_fijo = None, celular  # 7 números: es su teléfono fijo, no un celular incompleto
-        fijo = self._b_fijo(telefono_fijo) if (telefono_fijo or '').strip() else False
-        if not (celular or '').strip() and not fijo:
+        if not (celular or '').strip():
             raise BrianError('Falta el celular del cliente: pídeselo. Si de verdad no tiene, dime su teléfono fijo.')
-        telefono, normal = self._b_celular(celular) if (celular or '').strip() else (False, None)
+        fijo = False
+        if B.problema_del_telefono(celular) == 'fijo':  # 7 números: su teléfono fijo, no un celular incompleto
+            fijo, celular = self._b_fijo(celular), None
+        telefono, normal = self._b_celular(celular) if celular else (False, None)
         sin_correo = self._b_dice_sin_correo(correo)
         correo = False if sin_correo else self._b_correo(correo)
         otro = self._b_duplicado_celular(normal) if normal else None
