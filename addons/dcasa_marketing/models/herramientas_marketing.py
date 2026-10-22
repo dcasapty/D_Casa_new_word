@@ -41,9 +41,9 @@ class BrianHerramientasMarketing(models.AbstractModel):
 
     @herramienta(
         nombre='movimiento_de_productos',
-        descripcion='Lo mismo que la pantalla Marketing: los productos con más movimiento (lo vendido o entregado), '
-                    'los más quietos (con stock y sin ventas ni entregas) y los más vendidos (unidades facturadas) '
-                    'en la semana, 15 días o el mes (días corridos, hoy incluido). Opcional: una categoría.',
+        descripcion='Como la pantalla Marketing: productos con más movimiento (vendido o entregado), los más quietos '
+                    '(con stock, sin ventas ni entregas) y los más vendidos en la semana, 15 días o el mes. Opcional: '
+                    'una categoría.',
         parametros={
             'periodo': {'type': 'string', 'enum': list(PERIODOS),
                         'description': '«semana» (7 días, por defecto), «15_dias» o «mes» (30 días).'},
