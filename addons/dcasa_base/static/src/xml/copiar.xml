@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Copiar con un toque (js/copiar.js): el ícono va al lado del dato, fuera del campo, así no cambia cómo se escribe
+         ni el enlace de llamar o escribir. -->
+    <t t-name="dcasa_base.Copiar">
+        <button type="button" t-ref="boton" class="btn btn-link o_dcasa_copiar_boton" tabindex="-1"
+                title="Copiar" aria-label="Copiar" t-on-click.stop.prevent="copiar">
+            <i class="fa fa-clone" aria-hidden="true"/>
+        </button>
+    </t>
+
+    <t t-inherit="web.Field" t-inherit-mode="extension">
+        <xpath expr="//t[@t-component='field.component']" position="after">
+            <DcasaCopiar t-if="dcasaCopiar" texto="dcasaCopiar"/>
+        </xpath>
+    </t>
+</templates>

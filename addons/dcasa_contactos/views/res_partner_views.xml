@@ -4,7 +4,8 @@
          «Cliente no tiene correo electrónico» (2026-10-17): la marca cualquiera del equipo, justo debajo del correo, y
          solo se ve mientras el correo está vacío (si se escribe un correo, se desmarca sola).
          Obligatorios solo al CREAR una persona como cliente: una ficha vieja se sigue editando y guardando (la nube)
-         aunque le falte algo; la venta y la factura lo piden después. -->
+         aunque le falte algo; la venta y la factura lo piden después.
+         Teléfono fijo (2026-10-22): debajo del celular, siempre a la vista; sirve en lugar del celular. -->
     <record id="view_partner_form_contacto_obligatorio" model="ir.ui.view">
         <field name="name">res.partner.form.dcasa.contacto.obligatorio</field>
         <field name="model">res.partner</field>
@@ -12,9 +13,9 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
                 <div class="alert alert-warning mb-0 o_dcasa_falta_contacto" role="alert"
-                     invisible="not id or parent_id or customer_rank &lt;= 0 or (phone and (email or dcasa_sin_correo))">
+                     invisible="not id or parent_id or customer_rank &lt;= 0 or ((phone or dcasa_telefono_fijo) and (email or dcasa_sin_correo))">
                     <i class="fa fa-address-card-o me-2" aria-hidden="true"/>
-                    Falta <span invisible="phone">el celular</span><span invisible="phone or email or dcasa_sin_correo"> y </span><span invisible="email or dcasa_sin_correo">el correo</span>:
+                    Falta <span invisible="phone or dcasa_telefono_fijo">el celular (o un teléfono fijo)</span><span invisible="phone or dcasa_telefono_fijo or email or dcasa_sin_correo"> y </span><span invisible="email or dcasa_sin_correo">el correo</span>:
                     sin eso no se puede confirmar una venta ni le llega su factura.
                 </div>
             </xpath>
@@ -30,8 +31,20 @@
                 </div>
             </xpath>
             <xpath expr="//div[hasclass('mb8')]//field[@name='phone']" position="attributes">
-                <attribute name="required">not id and not parent_id and not is_company and context.get('res_partner_search_mode') == 'customer'</attribute>
+                <attribute name="required">not id and not parent_id and not is_company and context.get('res_partner_search_mode') == 'customer' and not dcasa_telefono_fijo</attribute>
                 <attribute name="placeholder">Celular, p. ej. 6123-4567 (de otro país, con +)</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('mb8')]//field[@name='phone']/../i" position="attributes">
+                <attribute name="class">fa fa-fw me-1 fa-mobile text-primary</attribute>
+                <attribute name="title">Celular</attribute>
+            </xpath>
+            <xpath expr="//div[hasclass('mb8')]//field[@name='phone']/.." position="after">
+                <div class="d-flex align-items-baseline w-md-50 o_dcasa_fijo">
+                    <i class="fa fa-fw me-1 fa-phone text-primary" title="Teléfono fijo"/>
+                    <!-- Sin «SMS»: un teléfono fijo no recibe mensajes de texto (sí «Llamar»). -->
+                    <field name="dcasa_telefono_fijo" class="w-100 o_dcasa_copiar" widget="phone"
+                           options="{'enable_sms': false}" placeholder="Teléfono fijo, p. ej. 234-5678 (si tiene)"/>
+                </div>
             </xpath>
         </field>
     </record>

@@ -50,9 +50,10 @@ def _valores(fila, pais, etiqueta, rol):
         'category_id': [(4, etiqueta.id)],
         'comment': plaintext2html('\n'.join(notas)),
     }
-    for campo, clave in (('vat', 'vat'), ('l10n_pa_dv', 'dv'), ('phone', 'telefono'), ('email', 'correo'),
-                         ('street', 'direccion'), ('city', 'ciudad')):
-        if fila[clave]:
+    for campo, clave in (('vat', 'vat'), ('l10n_pa_dv', 'dv'), ('phone', 'telefono'),
+                         ('dcasa_telefono_fijo', 'fijo'), ('email', 'correo'), ('street', 'direccion'),
+                         ('city', 'ciudad')):
+        if fila.get(clave):
             valores[campo] = fila[clave]
     if pais:
         valores['country_id'] = pais.id

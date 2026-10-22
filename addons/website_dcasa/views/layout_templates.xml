@@ -54,6 +54,19 @@
         <xpath expr="//link[@rel='preload'][contains(@href, 'fontawesome-webfont')]" position="replace"/>
     </template>
 
+    <!-- Ícono al guardar el sitio, la tienda o el acceso del equipo (/web/login, /master) en la pantalla de inicio del
+         celular: estrictamente el logo (pedido de la dueña, 2026-10-22; scripts/iconos_de_la_marca.py). Odoo usaba el
+         favicon del sitio (un .ico), que el iPhone no acepta y reemplaza por una foto de la página. El iPhone toma
+         apple-touch-icon (logo sobre blanco, sin transparencia); Android, el ícono más grande de la página. Sin
+         manifiesto a propósito: el acceso directo abre la misma página que se guardó (/master sigue siendo /master). -->
+    <template id="layout_icono_inicio" inherit_id="website.layout" name="D'CASA: ícono de la pantalla de inicio">
+        <xpath expr="//link[@rel='apple-touch-icon']" position="replace">
+            <link rel="apple-touch-icon" sizes="180x180" href="/dcasa_base/static/img/icono/apple-touch-icon.png"/>
+            <link rel="icon" type="image/png" sizes="192x192" href="/dcasa_base/static/img/icono/logo-192.png"/>
+            <link rel="icon" type="image/png" sizes="512x512" href="/dcasa_base/static/img/icono/logo-512.png"/>
+        </xpath>
+    </template>
+
     <!-- Foto de la portada (LCP) pedida desde el <head>, antes de que el CSS de Odoo (136 KB)
          termine de bajar: en 4G lenta llegaba ~0,6 s tarde. Si se cambia la foto del hero desde el
          editor, hay que quitar esta vista (Sitio web > Personalizar) o actualizar las rutas. -->

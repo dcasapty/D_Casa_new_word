@@ -10,7 +10,8 @@
             <field name="default_code" position="after">
                 <label for="dcasa_codigo_publico"/>
                 <div class="o_row">
-                    <field name="dcasa_codigo_publico" readonly="1" placeholder="Se pone solo al guardar"/>
+                    <field name="dcasa_codigo_publico" readonly="1" placeholder="Se pone solo al guardar"
+                           class="o_dcasa_copiar"/>
                     <button name="action_dcasa_regenerar_codigo_publico" type="object" string="Regenerar"
                             class="btn btn-link p-0" groups="base.group_system"
                             invisible="not id or not dcasa_codigo_publico"
@@ -27,7 +28,7 @@
         <field name="inherit_id" ref="product.product_template_tree_view"/>
         <field name="arch" type="xml">
             <field name="default_code" position="after">
-                <field name="dcasa_codigo_publico" optional="show"/>
+                <field name="dcasa_codigo_publico" optional="show" class="o_dcasa_copiar" widget="char"/>
             </field>
         </field>
     </record>

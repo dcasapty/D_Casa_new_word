@@ -49,6 +49,7 @@ las ventas y la tienda web.
         'data/product_public_category_data.xml',
         'views/backend_views.xml',
         'views/codigo_publico_views.xml',
+        'views/copiar_views.xml',
         'views/product_templates.xml',
         'views/combos_views.xml',
         'views/report_combos.xml',

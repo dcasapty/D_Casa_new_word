@@ -114,6 +114,28 @@ def separar_telefonos(texto):
     return principal, piezas[:donde] + piezas[donde + 1:]
 
 
+def repartir_telefonos(texto):
+    """``(principal, fijo, otros)``: como ``separar_telefonos``, pero el primer teléfono fijo de Panamá (7 números) va
+    aparte, ya limpio («+507 234-5678»), para su propio campo (2026-10-22). Si el principal era ese fijo, el principal
+    pasa a ser el siguiente número; un número que va a su campo no se repite en las notas.
+
+    ``'60000005/2000005'`` → ``('60000005', '+507 200-0005', [])`` · ``'2000002'`` → ``('', '+507 200-0002', [])``.
+    """
+    principal, otros = separar_telefonos(texto)
+    numeros = [principal, *otros] if principal else []
+    for posicion, numero in enumerate(numeros):
+        fijo = bien_escrito.fijo_para_guardar(numero) or ''
+        if not fijo.startswith(f'+{bien_escrito.PANAMA} '):
+            continue
+        resto = numeros[:posicion] + numeros[posicion + 1:]
+        if posicion == 0:
+            principal, otros = separar_telefonos('/'.join(resto))
+        else:
+            otros = resto[1:]
+        return principal, fijo, otros
+    return principal, '', otros
+
+
 def _primero(celdas, *nombres):
     """La primera celda con dato entre varias columnas posibles (clientes.csv y proveedores.csv no las llaman igual)."""
     for nombre in nombres:
@@ -136,7 +158,8 @@ def filas_contactos(texto, nombre_del_archivo):
     """``(filas, errores)`` de clientes.csv o proveedores.csv. Las columnas son casi las mismas: el RUC puede llamarse
     ``cedula_ruc`` o ``ruc`` y el teléfono ``celular`` o ``telefono``; ``pais`` solo lo trae proveedores.csv.
 
-    Cada fila: ``id_viejo`` (entero), ``nombre``, ``es_empresa``, ``vat``, ``dv``, ``telefono``, ``correo``,
+    Cada fila: ``id_viejo`` (entero), ``nombre``, ``es_empresa``, ``vat``, ``dv``, ``telefono``, ``fijo`` (el teléfono
+    fijo de Panamá, ya limpio, o vacío), ``correo``,
     ``direccion``, ``ciudad``, ``pais`` (el nombre, si el archivo lo trae) y ``notas`` (datos que no caben en su
     campo y se guardan en la nota de la ficha).
     Una fila sin nombre, con un número viejo que no es entero o repetido en el archivo, no se carga: va a ``errores``
@@ -158,7 +181,7 @@ def filas_contactos(texto, nombre_del_archivo):
             continue
         vistos.add(id_viejo)
         notas = []
-        telefono, otros = separar_telefonos(_primero(celdas, 'celular', 'telefono'))
+        telefono, fijo, otros = repartir_telefonos(_primero(celdas, 'celular', 'telefono'))
         if otros:
             notas.append('Otros teléfonos en el sistema anterior: ' + ', '.join(otros))
         correo = celdas.get('correo', '')
@@ -184,6 +207,7 @@ def filas_contactos(texto, nombre_del_archivo):
             'vat': _primero(celdas, 'cedula_ruc', 'ruc'),
             'dv': dv,
             'telefono': telefono,
+            'fijo': fijo,
             'correo': correo,
             'direccion': celdas.get('direccion', ''),
             'ciudad': celdas.get('ciudad', ''),

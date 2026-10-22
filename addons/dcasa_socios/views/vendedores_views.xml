@@ -27,7 +27,7 @@
                     </div>
                     <group invisible="not dcasa_vendedor_codigo">
                         <group string="Vendedor">
-                            <field name="dcasa_vendedor_codigo"/>
+                            <field name="dcasa_vendedor_codigo" class="o_dcasa_copiar"/>
                             <field name="dcasa_vendedor_estado"/>
                             <field name="dcasa_vendedor_tipo"/>
                             <field name="dcasa_vendedor_afiliado_en"/>

@@ -151,10 +151,12 @@ class ResPartner(models.Model):
         self._dcasa_revisar_duplicados(antes)
         return resultado
 
-    @api.onchange('email', 'vat', 'phone')
+    @api.onchange('email', 'vat', 'phone', 'dcasa_telefono_fijo')
     def _onchange_dcasa_duplicado(self):
-        """Avisa ANTES de guardar (solo al personal) si el correo o el RUC ya son de otra ficha; si no, si el correo o
-        el celular que se acaban de escribir están mal escritos («¿Quisiste decir…?»). Un solo aviso."""
+        """Avisa ANTES de guardar (solo al personal) si el correo o el RUC ya son de otra ficha; si no, si el correo,
+        el celular o el teléfono fijo que se acaban de escribir están mal escritos («¿Quisiste decir…?»). Un solo
+        aviso. El teléfono fijo no se compara con otras fichas: no es una llave (una casa o una empresa lo
+        comparten)."""
         if not self.env.user.has_group('base.group_user'):
             return None
         propias = self._origin.ids

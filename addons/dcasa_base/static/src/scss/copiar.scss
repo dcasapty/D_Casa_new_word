@@ -1,0 +1,67 @@
+// Copiar con un toque (js/copiar.js): un ícono chico y discreto al lado del dato; azul de la marca al tocarlo.
+// El campo y su ícono van en una fila: el dato se achica (con «…» si no cabe) y el ícono siempre queda a la vista.
+.o_field_widget.o_dcasa_copiar {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+
+    > :not(.o_dcasa_copiar_boton) {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    // Un campo que ocupa todo el ancho (el nombre en el título de la ficha): el ícono a su lado, no debajo.
+    &.d-block {
+        display: flex !important;
+    }
+}
+
+.o_dcasa_copiar_boton.btn {
+    flex: 0 0 auto;
+    padding: 0.125rem 0.375rem;
+    margin-left: 0.125rem;
+    border: 0;
+    line-height: 1;
+    font-size: 0.875rem;
+    color: $gray-500;
+    text-decoration: none;
+    box-shadow: none;
+
+    &:hover,
+    &:focus-visible,
+    &:active {
+        color: #1340b1;
+    }
+}
+
+// En el celular y la tableta el dedo necesita más espacio para tocarlo (sin quitarle mucho ancho al dato).
+.o_touch_device .o_dcasa_copiar_boton.btn {
+    padding: 0.5rem 0.375rem;
+    margin-left: 0;
+    font-size: 1rem;
+}
+
+// En las listas Odoo pinta el dato «en línea» y la celda corta lo que no cabe (se llevaría el ícono): aquí el dato se
+// achica con «…» y el ícono queda. La fila no se hace más alta.
+.o_list_renderer .o_data_cell .o_field_widget.o_dcasa_copiar {
+    display: inline-flex !important;
+    max-width: 100%;
+    vertical-align: middle;
+
+    > span {
+        display: block !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .o_dcasa_copiar_boton.btn {
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+}
+
+// En la computadora, en las listas, el ícono sale solo en la fila que tiene el mouse encima: menos ruido.
+body:not(.o_touch_device) .o_list_renderer .o_data_row:not(:hover) .o_dcasa_copiar_boton {
+    visibility: hidden;
+}
