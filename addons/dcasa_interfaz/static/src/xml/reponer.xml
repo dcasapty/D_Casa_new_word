@@ -23,10 +23,13 @@
                     <ul>
                         <li><strong>Se vende al mes</strong>: lo vendido en los meses que elijas (facturas menos notas
                             de crédito), dividido entre esos meses.</li>
-                        <li><strong>Alcanza para</strong>: lo que hay hoy más lo que viene en camino, dividido entre lo
-                            que se vende al mes.</li>
+                        <li><strong>Disponible hoy</strong>: lo que hay en bodega menos lo ya vendido que espera
+                            entrega (eso ya no está disponible; si se devuelve, vuelve a contar solo). Si se vendió más
+                            de lo que hay, sale en negativo.</li>
+                        <li><strong>Alcanza para</strong>: lo disponible hoy más lo que viene en camino, dividido entre
+                            lo que se vende al mes.</li>
                         <li><strong>Pedir</strong> = se vende al mes × (meses que tarda en llegar + meses de reserva) −
-                            hay hoy − viene en camino. Si no alcanza para lo que tarda en llegar, sale
+                            disponible hoy − viene en camino. Si no alcanza para lo que tarda en llegar, sale
                             <span class="o_dcasa_reponer_aviso o_aviso_ya">Pedir ya</span>.</li>
                         <li>Sin el tiempo de llegada del proveedor no se calcula cuánto pedir: tócale «Poner». Solo
                             salen los productos que se vendieron en esos meses; si uno estuvo agotado, vendió menos y
@@ -34,7 +37,7 @@
                     </ul>
                     <p class="o_dcasa_reponer_ejemplo">
                         <strong>Ejemplo</strong> <em>(números inventados, solo para entender)</em>: se vendieron 50 en
-                        5 meses → se vende 10 al mes. Hay 12 y vienen 8 → alcanza para 2 meses. Tarda 3 meses en llegar
+                        5 meses → se vende 10 al mes. Hay 12 disponibles y vienen 8 → alcanza para 2 meses. Tarda 3 meses en llegar
                         y quieres 1 mes de reserva → pedir 10 × (3 + 1) − 12 − 8 = <strong>20</strong>. Como 2 meses no
                         cubren los 3 que tarda: <strong>Pedir ya</strong>.
                     </p>
@@ -184,7 +187,7 @@
                                         <th t-if="mostrarProveedor" scope="col">Proveedor</th>
                                         <th scope="col" class="o_num">Vendido en <t t-out="d.meses"/> <t t-out="d.meses === 1 ? 'mes' : 'meses'"/></th>
                                         <th scope="col" class="o_num">Se vende al mes</th>
-                                        <th scope="col" class="o_num">Hay hoy</th>
+                                        <th scope="col" class="o_num">Disponible hoy</th>
                                         <th scope="col" class="o_num">Viene en camino</th>
                                         <th scope="col">Alcanza para</th>
                                         <th scope="col">Tarda en llegar</th>
@@ -225,7 +228,7 @@
                                             <th scope="row">Total</th>
                                             <td class="o_num" t-att-data-label="'Vendido en ' + d.meses + (d.meses === 1 ? ' mes' : ' meses')" t-out="numero(g.vendido)"/>
                                             <td class="o_num" data-label="Se vende al mes" t-out="numero(g.ritmo)"/>
-                                            <td class="o_num" data-label="Hay hoy" t-out="numero(g.existencia)"/>
+                                            <td class="o_num" data-label="Disponible hoy" t-out="numero(g.existencia)"/>
                                             <td class="o_num" data-label="Viene en camino" t-out="numero(g.pedido)"/>
                                             <td class="o_vacia"/>
                                             <td class="o_vacia"/>
@@ -261,7 +264,12 @@
             <td t-if="mostrarProveedor" class="o_dcasa_reponer_prov" data-label="Proveedor" t-out="f.proveedor or 'Sin proveedor'"/>
             <td class="o_num" t-att-data-label="'Vendido en ' + d.meses + (d.meses === 1 ? ' mes' : ' meses')" t-out="numero(f.vendido)"/>
             <td class="o_num" data-label="Se vende al mes" t-out="numero(f.ritmo)"/>
-            <td class="o_num" data-label="Hay hoy" t-out="numero(f.existencia)"/>
+            <td class="o_num o_dcasa_reponer_disponible" data-label="Disponible hoy">
+                <span t-att-class="f.existencia &lt; 0 ? 'o_falta' : ''" t-out="numero(f.existencia)"/>
+                <small t-if="f.por_entregar" class="o_dcasa_reponer_detalle">
+                    en bodega <t t-out="numero(f.en_bodega)"/> · vendido por entregar <t t-out="numero(f.por_entregar)"/>
+                </small>
+            </td>
             <td class="o_num" data-label="Viene en camino" t-out="numero(f.pedido)"/>
             <td data-label="Alcanza para" class="o_dcasa_reponer_alcanza" t-out="f.alcanza"/>
             <td data-label="Tarda en llegar" class="o_dcasa_reponer_llega">

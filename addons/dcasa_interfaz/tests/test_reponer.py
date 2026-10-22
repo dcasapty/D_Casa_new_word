@@ -144,6 +144,47 @@ class TestReponer(ReponerDatos, FacturadoCommon):
         mesa = self.fila(self.calcular(), self.mesa)
         self.assertEqual((mesa['llegada_dias'], mesa['llegada'], mesa['pedir']), (1, '1 día', 1))
 
+    def test_lo_vendido_que_espera_entrega_no_esta_disponible(self):
+        """Decisión de la dueña (2026-10-22): lo vendido que sigue en bodega «no está disponible a no ser que se
+        revierta la entrega». Disponible = en bodega − lo que falta entregar a clientes; al entregar no se cuenta dos
+        veces y al devolver vuelve solo."""
+        self.venta_facturada(date(2024, 3, 1), self.sofa, 10)                     # 2 al mes, tarda 3
+        self.poner_existencia(self.sofa, 5)
+        pedido = self.env['sale.order'].create({'partner_id': self.cliente_rep.id, 'order_line': [
+            Command.create({'product_id': self.sofa.id, 'product_uom_qty': 3})]})
+        pedido.action_confirm()
+        sofa = self.fila(self.calcular(), self.sofa)
+        self.assertEqual((sofa['en_bodega'], sofa['por_entregar'], sofa['existencia'], sofa['alcanza'], sofa['pedir']),
+                         (5.0, 3.0, 2.0, '1 mes', 4), 'disponible 5 − 3 = 2; pedir 2 × 3 − 2')
+        # Un pedido sin confirmar no compromete nada; uno cancelado tampoco.
+        borrador = self.env['sale.order'].create({'partner_id': self.cliente_rep.id, 'order_line': [
+            Command.create({'product_id': self.sofa.id, 'product_uom_qty': 9})]})
+        self.assertEqual(self.fila(self.calcular(), self.sofa)['por_entregar'], 3.0)
+        borrador.action_confirm()
+        borrador._action_cancel()
+        self.assertEqual(self.fila(self.calcular(), self.sofa)['por_entregar'], 3.0)
+        # Entregado: sale de la bodega y deja de estar por entregar (no se resta dos veces).
+        entrega = pedido.picking_ids
+        entrega.move_ids.quantity = 3
+        entrega.button_validate()
+        sofa = self.fila(self.calcular(), self.sofa)
+        self.assertEqual((sofa['en_bodega'], sofa['por_entregar'], sofa['existencia']), (2.0, 0.0, 2.0))
+        # Devuelto: vuelve a la bodega y cuenta solo.
+        devolucion = self.env['stock.return.picking'].with_context(
+            active_id=entrega.id, active_model='stock.picking').create({})
+        devolucion.product_return_moves.quantity = 3
+        regreso = devolucion._create_return()
+        regreso.move_ids.quantity = 3
+        regreso.button_validate()
+        self.assertEqual(self.fila(self.calcular(), self.sofa)['existencia'], 5.0, 'la devolución vuelve a contar')
+        # Vendido más de lo que hay: sale en negativo y suma a lo que hay que pedir.
+        mas = self.env['sale.order'].create({'partner_id': self.cliente_rep.id, 'order_line': [
+            Command.create({'product_id': self.sofa.id, 'product_uom_qty': 7})]})
+        mas.action_confirm()
+        sofa = self.fila(self.calcular(), self.sofa)
+        self.assertEqual((sofa['existencia'], sofa['alcanza'], sofa['pedir'], sofa['pedir_ya']),
+                         (-2.0, 'Ya no hay', 8, True), '2 × 3 − (−2) = 8')
+
     def test_la_ventana_de_meses_que_se_elige(self):
         self.venta_facturada(date(2023, 12, 31), self.lampara, 6)                 # fuera de 5 meses, dentro de 6
         self.venta_facturada(date(2024, 1, 1), self.lampara, 4)                   # primer día de la ventana de 5
@@ -306,15 +347,16 @@ class TestReponer(ReponerDatos, FacturadoCommon):
         self.assertEqual(hoja['A1'].value, 'Reponer · PROVEEDOR DE PRUEBA Ásia')
         self.assertIn('Reserva: 1 meses', hoja['A2'].value)
         self.assertEqual([celda.value for celda in hoja[5]], [
-            'Aviso', 'Producto', 'Referencia', 'Proveedor', 'Vendido en 5 meses', 'Se vende al mes', 'Hay hoy',
-            'Viene en camino', 'Alcanza para (meses)', 'Tarda en llegar (días)', 'Pedir'])
+            'Aviso', 'Producto', 'Referencia', 'Proveedor', 'Vendido en 5 meses', 'Se vende al mes', 'En bodega',
+            'Vendido por entregar', 'Disponible hoy (sin lo ya vendido)', 'Viene en camino', 'Alcanza para (meses)',
+            'Tarda en llegar (días)', 'Pedir'])
         filas = [[celda.value for celda in fila] for fila in hoja.iter_rows(min_row=6)]
         self.assertEqual([fila[1] for fila in filas],
                          [fila['producto'] for fila in Reponer._calcular(5, 1, self.prov_a)], 'el mismo orden')
-        self.assertEqual(filas[0], ['Pedir ya', 'Sofá reponer', 'REP-SOFA', self.prov_a.name, 10, 2, 0, 0, 0, 90, 8],
-                         '2 × (3 + 1) − 0 − 0 = 8')
-        self.assertEqual(filas[1], ['Alcanza', 'Lámpara reponer', 'REP-LAMP', self.prov_a.name, 5, 1, 10, 0, 10, 90,
-                                    0], '1 × (3 + 1) − 10 < 0')
+        self.assertEqual(filas[0], ['Pedir ya', 'Sofá reponer', 'REP-SOFA', self.prov_a.name, 10, 2, 0, 0, 0, 0, 0,
+                                    90, 8], '2 × (3 + 1) − 0 − 0 = 8')
+        self.assertEqual(filas[1], ['Alcanza', 'Lámpara reponer', 'REP-LAMP', self.prov_a.name, 5, 1, 10, 0, 10, 0, 10,
+                                    90, 0], '1 × (3 + 1) − 10 < 0')
         resumen = libro['Por proveedor']
         self.assertEqual([celda.value for celda in resumen[2]], [self.prov_a.name, '3 meses', 2, 1, 15, 3, 10, 0, 8])
         self.assertEqual((resumen['A3'].value, resumen['I3'].value), ('Total', '=SUM(I2:I2)'))

@@ -45,7 +45,7 @@ class TestQueReponer(TransactionCase):
         self.assertIn('(5 meses)', datos['ventana'])
         colchon = datos['productos'][0]
         self.assertEqual(
-            (colchon['codigo'], colchon['vendido'], colchon['se_vende_al_mes'], colchon['hay_hoy'],
+            (colchon['codigo'], colchon['vendido'], colchon['se_vende_al_mes'], colchon['disponible_hoy'],
              colchon['viene_en_camino'], colchon['tarda_en_llegar'], colchon['pedir'], colchon['pedir_ya']),
             ('BR-REP-1', 10, 2, 0, 0, 'Falta', 'no se calcula: falta el tiempo de llegada', False),
             'sin el tiempo de llegada no inventa cuánto pedir')

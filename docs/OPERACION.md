@@ -950,11 +950,11 @@ costado), en tres pasos:
 |---|---|
 | Vendido en N meses | Unidades de las **facturas publicadas** de los últimos N meses (hasta hoy) menos las notas de crédito: las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
 | Se vende al mes | Vendido ÷ N. |
-| Hay hoy | Lo que hay en las ubicaciones internas. |
+| Disponible hoy | Lo que hay en las ubicaciones internas **menos lo ya vendido que espera entrega** (movimientos hacia un cliente ni hechos, ni cancelados, ni en borrador; en una entrega en varios pasos solo el que sale al cliente, así nada cuenta dos veces). Decisión de la dueña, 2026-10-22: «no está disponible a no ser que se revierta la entrega»; si se devuelve, vuelve a la bodega y cuenta solo. Si se vendió más de lo que hay sale en negativo (y suma a lo que hay que pedir). Debajo, en chico, «en bodega X · vendido por entregar Y». |
 | Viene en camino | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
-| Alcanza para | (Hay hoy + Viene en camino) ÷ Se vende al mes, en meses o días (un mes = 30 días). |
+| Alcanza para | (Disponible hoy + Viene en camino) ÷ Se vende al mes, en meses o días (un mes = 30 días); «Ya no hay» si da 0 o menos. |
 | Tarda en llegar | Los días de entrega del **precio de proveedor principal** (el primero de los precios del producto; campo `delay` de Odoo). |
-| Pedir | Se vende al mes × (meses que tarda + meses de reserva) − Hay hoy − Viene en camino, hacia arriba, solo si da más de 0. |
+| Pedir | Se vende al mes × (meses que tarda + meses de reserva) − Disponible hoy − Viene en camino, hacia arriba, solo si da más de 0. |
 | Aviso | **Pedir ya** si lo que hay y lo que viene no alcanza para lo que tarda en llegar; **Pedir**; **Falta el tiempo de llegada**; **Sin proveedor**; **Alcanza**. La lista va en ese orden y, dentro, lo que se acaba antes primero. |
 
 - **Nunca se inventa el tiempo de llegada.** Odoo pone **1 día** solo en cada precio de proveedor (y la carga del

@@ -1877,7 +1877,7 @@
    "categoria": "compras",
    "grupo": "Pedir",
    "titulo": "Ver cuánto pedirle a un proveedor y qué pedir ya",
-   "logras": "Buscas el proveedor escribiendo parte de su nombre, su teléfono, su RUC o un producto que te vende, y eliges cuántos meses de ventas mirar (de fábrica, 5) y los meses de reserva. Por cada producto ves cuánto se vende al mes, para cuánto alcanza lo que hay y lo que viene en camino, cuánto tarda en llegar y cuánto pedir; lo urgente sale primero como «Pedir ya». Lo puedes ver por proveedor y bajar en Excel.",
+   "logras": "Buscas el proveedor escribiendo parte de su nombre, su teléfono, su RUC o un producto que te vende, y eliges cuántos meses de ventas mirar (de fábrica, 5) y los meses de reserva. Por cada producto ves cuánto se vende al mes, para cuánto alcanza lo disponible (sin lo ya vendido que espera entrega) y lo que viene en camino, cuánto tarda en llegar y cuánto pedir; lo urgente sale primero como «Pedir ya». Lo puedes ver por proveedor y bajar en Excel.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_reponer"
    },
