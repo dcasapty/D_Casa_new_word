@@ -158,6 +158,11 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo agrega que un combo sin sus piezas no se confirma; corre como el usuario, sin sudo().',
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
+    ('dcasa_contabilidad', 'dcasa.saldos.centavos', 'action_cerrar'):
+        ASISTENTE + ' (account.group_account_user). Además exige Gerencia o contabilidad en el servidor; sin sudo(): '
+                    'crea y cruza el asiento de redondeo con los permisos de la persona.',
+    ('dcasa_contabilidad', 'dcasa.saldos.centavos', 'default_get'):
+        OVERRIDE + ' Arma la vista previa de saldos de centavos; exige Gerencia o contabilidad; sin sudo().',
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_aprobar'): SIN_SUDO,
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_cerrar'): SIN_SUDO,
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_borrador'): SIN_SUDO,

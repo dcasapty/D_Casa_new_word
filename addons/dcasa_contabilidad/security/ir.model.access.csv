@@ -11,3 +11,5 @@ access_cierre_mes_contador,cierre mes contador,model_dcasa_cierre_mes,account.gr
 access_cierre_mes_gerencia,cierre mes gerencia,model_dcasa_cierre_mes,account.group_account_manager,1,1,1,1
 access_cierre_mes_paso_lectura,cierre mes paso lectura,model_dcasa_cierre_mes_paso,account.group_account_readonly,1,0,0,0
 access_cierre_mes_paso_contador,cierre mes paso contador,model_dcasa_cierre_mes_paso,account.group_account_user,1,1,1,1
+access_saldos_centavos_contador,saldos centavos contador,model_dcasa_saldos_centavos,account.group_account_user,1,1,1,1
+access_saldos_centavos_linea_contador,saldos centavos linea contador,model_dcasa_saldos_centavos_linea,account.group_account_user,1,1,1,1

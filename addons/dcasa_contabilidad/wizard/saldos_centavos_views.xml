@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- D1: cerrar los saldos de 1 a 5 centavos con su ajuste por redondeo (wizard/saldos_centavos.py). -->
+    <record id="dcasa_saldos_centavos_view_form" model="ir.ui.view">
+        <field name="name">dcasa.saldos.centavos.form</field>
+        <field name="model">dcasa.saldos.centavos</field>
+        <field name="arch" type="xml">
+            <form string="Saldos de centavos">
+                <field name="currency_id" invisible="1"/>
+                <field name="company_id" invisible="1"/>
+                <p>
+                    Facturas y cobros de clientes que quedaron abiertos por <strong>1 a 5 centavos</strong> de redondeo
+                    (el ITBMS línea por línea, el vuelto en monedas). Revisa la lista: al cerrarlos, cada uno lleva su
+                    asiento de ajuste por redondeo y una nota en el documento. Más de 5 centavos no es redondeo y no
+                    sale aquí.
+                </p>
+                <div class="alert alert-warning" role="alert" invisible="not falta">
+                    <field name="falta"/>
+                </div>
+                <div class="alert alert-info" role="status" invisible="cantidad">
+                    No hay saldos de centavos por cerrar.
+                </div>
+                <group invisible="not cantidad">
+                    <group>
+                        <field name="cantidad"/>
+                        <field name="pierde"/>
+                        <field name="gana"/>
+                    </group>
+                    <group>
+                        <field name="diario_id"/>
+                        <field name="cuenta_perdida_id"/>
+                        <field name="cuenta_ganancia_id"/>
+                    </group>
+                </group>
+                <field name="linea_ids" readonly="1" invisible="not cantidad">
+                    <list>
+                        <field name="fecha"/>
+                        <field name="documento"/>
+                        <field name="partner_id"/>
+                        <field name="tipo"/>
+                        <field name="saldo" sum="Total"/>
+                        <field name="move_line_id" column_invisible="1"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_cerrar" type="object" class="btn-primary" icon="fa-check"
+                            string="Cerrar estos saldos con su ajuste" invisible="not cantidad or falta"
+                            confirm="Se crea un asiento de ajuste por redondeo para cada saldo de la lista y se cruza con el documento. ¿Sigues?"/>
+                    <button string="Cerrar ventana" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_saldos_centavos" model="ir.actions.act_window">
+        <field name="name">Saldos de centavos</field>
+        <field name="res_model">dcasa.saldos.centavos</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_saldos_centavos" name="Saldos de centavos" parent="account.menu_finance_receivables"
+              action="action_dcasa_saldos_centavos" sequence="90" groups="account.group_account_user"/>
+</odoo>

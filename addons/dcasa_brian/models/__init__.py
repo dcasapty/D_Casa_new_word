@@ -3,4 +3,5 @@ from . import registro, politica, accion, uso, proveedores, conversacion, ajuste
 # Herramientas por área (cada archivo agrega métodos @herramienta a brian.herramientas).
 from . import herramientas_generales, herramientas_ventas, herramientas_catalogo, \
     herramientas_contabilidad, herramientas_clientes, herramientas_usuarios, herramientas_importacion, \
-    herramientas_fe, herramientas_operacion, herramientas_vendedores, herramientas_guia
+    herramientas_fe, herramientas_operacion, herramientas_vendedores, herramientas_guia, \
+    herramientas_autorizaciones
