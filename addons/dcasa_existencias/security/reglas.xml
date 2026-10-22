@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="regla_config_empresa" model="ir.rule">
+        <field name="name">Ajustes de bodega: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_existencias_config"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_bitacora_empresa" model="ir.rule">
+        <field name="name">Bitácora de bodega: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_bitacora_bodega"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

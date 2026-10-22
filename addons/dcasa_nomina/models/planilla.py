@@ -64,6 +64,8 @@ class DcasaNominaPlanilla(models.Model):
     total_devengado = fields.Monetary(compute='_compute_totales', store=True)
     total_descuentos = fields.Monetary('Descuentos', compute='_compute_totales', store=True)
     total_reembolsos = fields.Monetary('Reembolsos', compute='_compute_totales', store=True)
+    total_prestamos = fields.Monetary('Adelantos y préstamos', compute='_compute_totales', store=True,
+                                      help='Lo que se descuenta en esta planilla de adelantos y préstamos.')
     total_neto = fields.Monetary('Neto a pagar', compute='_compute_totales', store=True)
     total_patronal = fields.Monetary('Aportes del patrono', compute='_compute_totales', store=True)
     colaboradores = fields.Integer('N.º de colaboradores', compute='_compute_totales', store=True)
@@ -100,7 +102,8 @@ class DcasaNominaPlanilla(models.Model):
             planilla.parametros_validados = planilla.parametros_id.estado == 'validado'
 
     @api.depends('linea_ids.devengado', 'linea_ids.css_trabajador', 'linea_ids.se_trabajador', 'linea_ids.isr',
-                 'linea_ids.otros_descuentos', 'linea_ids.reembolsos', 'linea_ids.neto', 'linea_ids.costo_patronal')
+                 'linea_ids.otros_descuentos', 'linea_ids.reembolsos', 'linea_ids.neto', 'linea_ids.costo_patronal',
+                 'linea_ids.prestamos')
     def _compute_totales(self):
         for planilla in self:
             lineas = planilla.linea_ids
@@ -109,6 +112,7 @@ class DcasaNominaPlanilla(models.Model):
             planilla.total_descuentos = sum(
                 ln.css_trabajador + ln.se_trabajador + ln.isr + ln.otros_descuentos for ln in lineas)
             planilla.total_reembolsos = sum(lineas.mapped('reembolsos'))
+            planilla.total_prestamos = sum(lineas.mapped('prestamos'))
             planilla.total_neto = sum(lineas.mapped('neto'))
             planilla.total_patronal = sum(lineas.mapped('costo_patronal'))
 
@@ -232,6 +236,9 @@ class DcasaNominaPlanilla(models.Model):
         self.sudo().write({'parametros_id': vigencia.id, 'avisos': '\n'.join(avisos) or False, 'estado': 'calculada'})
         if self.tipo == 'quincenal':
             self._enlazar_reembolsos()
+        avisos_prestamos = self._enlazar_prestamos()
+        if avisos_prestamos:
+            self.sudo().avisos = '\n'.join(filter(None, [self.avisos, *avisos_prestamos]))
         # Recalcular también revierte un salario escrito a mano y toma los reembolsos recién enlazados.
         self.linea_ids._compute_salario()
         self.linea_ids._compute_importes()
@@ -291,6 +298,36 @@ class DcasaNominaPlanilla(models.Model):
         for reembolso in pendientes:
             reembolso.sudo().write({'linea_id': lineas[reembolso.empleado_id.id].id, 'estado': 'en_planilla'})
 
+    def _enlazar_prestamos(self):
+        """Los adelantos y préstamos entregados de cada colaborador descuentan su cuota en esta planilla quincenal
+        (G7). Se rehace en cada cálculo: la cuota nunca pasa de lo que le queda por descontar, contando lo reservado
+        en otras planillas sin confirmar. El décimo tercer mes no descuenta adelantos. Devuelve avisos."""
+        self.ensure_one()
+        self.linea_ids.prestamo_descuento_ids.sudo().unlink()
+        if self.tipo != 'quincenal':
+            return []
+        lineas = {ln.empleado_id.id: ln for ln in self.linea_ids}
+        prestamos = self.env['dcasa.nomina.prestamo'].sudo().search([
+            ('estado', '=', 'entregado'), ('company_id', '=', self.company_id.id),
+            ('empleado_id', 'in', list(lineas)), ('primera_quincena', '<=', self.fecha_hasta)], order='fecha, id')
+        crear, avisos = [], []
+        for prestamo in prestamos:
+            cuota = prestamo._cuota_para(self)
+            if cuota > 0:
+                crear.append({'prestamo_id': prestamo.id, 'linea_id': lineas[prestamo.empleado_id.id].id,
+                              'monto': cuota})
+        if crear:
+            self.env['dcasa.nomina.prestamo.descuento'].sudo().create(crear)
+        sin_planilla = self.env['dcasa.nomina.prestamo'].sudo().search([
+            ('estado', '=', 'entregado'), ('company_id', '=', self.company_id.id),
+            ('empleado_id', 'not in', list(lineas)), ('primera_quincena', '<=', self.fecha_hasta)])
+        for prestamo in sin_planilla:
+            avisos.append(self.env._(
+                '%(nombre)s tiene un adelanto por descontar (saldo %(saldo)s) pero no entra en esta planilla: se '
+                'descuenta en la próxima que lo incluya.', nombre=prestamo.empleado_id.name,
+                saldo=f'{prestamo.saldo:,.2f}'))
+        return avisos
+
     # ------------------------------------------------------------------
     # Contabilidad
     # ------------------------------------------------------------------
@@ -302,6 +339,7 @@ class DcasaNominaPlanilla(models.Model):
             'se': sum(lineas.mapped('se_trabajador')), 'isr': sum(lineas.mapped('isr')),
             'otros': sum(lineas.mapped('otros_descuentos')), 'css_p': sum(lineas.mapped('css_patronal')),
             'se_p': sum(lineas.mapped('se_patronal')), 'rp': sum(lineas.mapped('riesgo_profesional')),
+            'prestamos': sum(lineas.mapped('prestamos')),
         }
 
     def _cuentas_necesarias(self, sumas, provisiona):
@@ -314,6 +352,7 @@ class DcasaNominaPlanilla(models.Model):
             (sumas['css_p'] or sumas['se_p'] or sumas['rp'], 'cuenta_gasto_cargas_id'),
             (sumas['isr'], 'cuenta_isr_pagar_id'),
             (sumas['otros'], 'cuenta_otros_descuentos_id'),
+            (sumas['prestamos'], 'cuenta_prestamos_id'),
             (provisiona, 'cuenta_decimo_id'),
         )
         return necesarias + [cuenta for hace_falta, cuenta in condiciones if hace_falta]
@@ -360,6 +399,10 @@ class DcasaNominaPlanilla(models.Model):
         apunte(config.cuenta_rp_pagar_id, haber=s['rp'], nombre=texto(self.env._('riesgo profesional')))
         apunte(config.cuenta_isr_pagar_id, haber=s['isr'], nombre=texto(self.env._('ISR retenido')))
         apunte(config.cuenta_otros_descuentos_id, haber=s['otros'], nombre=texto(self.env._('otros descuentos')))
+        # Cada cuota baja lo que esa persona le debe a la empresa (a su nombre, para seguir su saldo en contabilidad).
+        for ln in self.linea_ids.filtered('prestamos'):
+            apunte(config.cuenta_prestamos_id, haber=ln.prestamos, socio=ln._socio(),
+                   nombre=texto(self.env._('adelanto de %s', ln.empleado_id.name)))
         if self.tipo == 'quincenal' and provisiona:
             parte = moneda.round(s['devengado'] / calculo.DIVISOR_DECIMO)
             apunte(config.cuenta_gasto_sueldos_id, debe=parte, nombre=texto(self.env._('provisión del décimo')))
@@ -393,6 +436,7 @@ class DcasaNominaPlanilla(models.Model):
             asiento.action_post()
             planilla.linea_ids.reembolso_ids.sudo().write({'estado': 'contabilizado'})
             planilla.sudo().write({'estado': 'confirmada', 'move_id': asiento.id})
+            planilla.linea_ids.prestamo_descuento_ids.prestamo_id._marcar_pagados()
             planilla.message_post(body=self.env._('Planilla confirmada. Asiento %s.', asiento.name))
         return True
 
@@ -466,7 +510,13 @@ class DcasaNominaPlanilla(models.Model):
             else:
                 planilla.linea_ids._liberar_reembolsos()
             planilla.linea_ids._liberar_bonos()
+            prestamos = planilla.linea_ids.prestamo_descuento_ids.prestamo_id
+            if planilla.estado != 'confirmada':
+                # Sin asiento: la reserva se suelta. Con asiento, las cuotas quedan como historia (no cuentan: la
+                # planilla está cancelada y su asiento, reversado).
+                planilla.linea_ids.prestamo_descuento_ids.sudo().unlink()
             planilla.sudo().write({'estado': 'cancelada'})
+            prestamos._marcar_pagados()
             planilla.message_post(body=self.env._('Planilla cancelada por %s.', self.env.user.name))
         return True
 
@@ -498,7 +548,9 @@ class DcasaNominaLinea(models.Model):
     css_trabajador = fields.Monetary('Seguro social', compute='_compute_importes', store=True)
     se_trabajador = fields.Monetary('Seguro educativo', compute='_compute_importes', store=True)
     isr = fields.Monetary('ISR', compute='_compute_importes', store=True)
-    otros_descuentos = fields.Monetary('Otros descuentos', help='Préstamos, adelantos. Hay que configurar su cuenta.')
+    otros_descuentos = fields.Monetary(
+        'Otros descuentos', help='Descuentos escritos a mano (hay que configurar su cuenta). Los adelantos y préstamos '
+                                 'registrados en Nómina › Adelantos y préstamos se descuentan solos.')
     reembolsos = fields.Monetary(compute='_compute_importes', store=True)
     neto = fields.Monetary('Neto a pagar', compute='_compute_importes', store=True)
     css_patronal = fields.Monetary('Seguro social (patrono)', compute='_compute_importes', store=True)
@@ -506,6 +558,12 @@ class DcasaNominaLinea(models.Model):
     riesgo_profesional = fields.Monetary('Riesgo profesional (patrono)', compute='_compute_importes', store=True)
     costo_patronal = fields.Monetary('Aportes del patrono', compute='_compute_importes', store=True)
     reembolso_ids = fields.One2many('dcasa.nomina.reembolso', 'linea_id', readonly=True)
+    prestamo_descuento_ids = fields.One2many('dcasa.nomina.prestamo.descuento', 'linea_id', 'Cuotas de adelantos',
+                                             readonly=True)
+    prestamos = fields.Monetary('Adelantos y préstamos', compute='_compute_importes', store=True,
+                                help='La cuota de los adelantos y préstamos que se descuenta en esta planilla.')
+    comprobante_enviado_el = fields.Datetime('Comprobante enviado el', readonly=True, copy=False)
+    comprobante_enviado_a = fields.Char('Comprobante enviado a', readonly=True, copy=False)
     bono_ids = fields.One2many('dcasa.nomina.meta.bono', 'linea_id', 'Bonos por meta', readonly=True)
     payment_id = fields.Many2one('account.payment', 'Pago', readonly=True, copy=False)
     notas = fields.Char()
@@ -532,6 +590,7 @@ class DcasaNominaLinea(models.Model):
                                                             linea.dias_periodo)
 
     @api.depends('salario', 'otros_ingresos', 'otros_descuentos', 'reembolso_ids.monto', 'comision_meta',
+                 'prestamo_descuento_ids.monto',
                  'planilla_id.parametros_id', 'planilla_id.tipo', 'dias_pagados', 'dias_periodo',
                  'empleado_id.dcasa_deduccion_isr_anual')
     def _compute_importes(self):
@@ -567,8 +626,9 @@ class DcasaNominaLinea(models.Model):
                     (vigencia.css_trabajador + vigencia.se_trabajador) if vigencia.isr_descuenta_css_se else 0.0,
                     linea.empleado_id.sudo().dcasa_deduccion_isr_anual)
             linea.reembolsos = reembolsos
+            linea.prestamos = calculo.r2(sum(linea.prestamo_descuento_ids.mapped('monto')))
             linea.neto = calculo.r2(devengado - linea.css_trabajador - linea.se_trabajador - linea.isr
-                                    - linea.otros_descuentos + reembolsos)
+                                    - linea.otros_descuentos - linea.prestamos + reembolsos)
 
     def _liberar_reembolsos(self):
         self.reembolso_ids.sudo().write({'estado': 'aprobado', 'linea_id': False})

@@ -4,6 +4,8 @@ from . import config
 from . import hr_employee
 from . import vacacion
 from . import reembolso
+from . import prestamo
 from . import planilla
 from . import meta_ventas
 from . import liquidacion
+from . import comprobante

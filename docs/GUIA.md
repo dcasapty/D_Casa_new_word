@@ -60,7 +60,7 @@ imprime y cede el lugar a los menús desplegables y diálogos de Odoo.
 
 ## Qué contiene hoy
 
-Unas 90 tareas. Las de **Impuestos y obligaciones** (declaración de renta, ITBMS, seguro social y seguro educativo,
+Unas 150 tareas. Las de **Impuestos y obligaciones** (declaración de renta, ITBMS, seguro social y seguro educativo,
 décimo tercer mes, facturación electrónica de la DGI y un recordatorio de otras obligaciones) existen para que el
 administrador *se entere* de que están. **No presentan nada por él**: el sistema deja los números listos y la
 presentación la hace el contador (o él en el portal de la DGI).

@@ -1058,6 +1058,28 @@
    ]
   },
   {
+   "id": "zip-comprobantes",
+   "categoria": "impuestos",
+   "grupo": "Una vez al año",
+   "titulo": "Guardar todos los comprobantes del año en un ZIP",
+   "logras": "Bajas en un ZIP, por carpetas y con un índice, las facturas, notas de crédito, recibos, compras y gastos del año, para guardarlos los 5 años que pide la DGI.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_comprobantes_zip"
+   },
+   "palabras": [
+    "zip",
+    "comprobantes",
+    "respaldo",
+    "dgi",
+    "cinco años",
+    "guardar facturas",
+    "archivo"
+   ],
+   "tambien": [
+    "reportes"
+   ]
+  },
+  {
    "id": "colaborador-nuevo",
    "categoria": "personal",
    "grupo": "Personas",
@@ -1152,6 +1174,42 @@
     "reintegro",
     "comprobante",
     "aprobar gasto"
+   ]
+  },
+  {
+   "id": "adelanto-empleado",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Darle un adelanto o un préstamo a un colaborador",
+   "logras": "Registras cuánto se le da y en cuántas quincenas lo paga; Gerencia lo autoriza y cada planilla le descuenta la cuota sola, sin pasar nunca de lo que debe.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_prestamos"
+   },
+   "palabras": [
+    "adelanto",
+    "prestamo",
+    "anticipo",
+    "vale",
+    "descuento de planilla",
+    "cuanto debe"
+   ]
+  },
+  {
+   "id": "comprobante-pago",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Imprimir o mandar por correo el comprobante de pago de cada colaborador",
+   "logras": "Cada colaborador recibe su comprobante de pago en PDF con lo que ganó, lo que se le descontó y lo que recibe.",
+   "nota": "Por correo solo sale con los correos de D'CASA encendidos; si no, imprímelo y entrégalo en mano.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_planillas"
+   },
+   "palabras": [
+    "comprobante",
+    "talonario",
+    "colilla",
+    "volante de pago",
+    "recibo de pago"
    ]
   },
   {
@@ -1534,7 +1592,7 @@
    "categoria": "productos",
    "grupo": "Inventario",
    "titulo": "Contar el inventario y corregir diferencias",
-   "logras": "Cuentas lo que hay en la bodega, el sistema te muestra la diferencia y corrige las existencias.",
+   "logras": "Cuentas lo que hay en la bodega, el sistema te muestra la diferencia y corrige las existencias; te pide el motivo y queda en la bitácora de bodega.",
    "destino": {
     "menu": "stock.menu_action_inventory_tree"
    },
@@ -1543,6 +1601,125 @@
     "ajuste de inventario",
     "inventario ciclico",
     "faltantes"
+   ],
+   "nota": "Lo hace Gerencia."
+  },
+  {
+   "id": "mermas",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Dar de baja una merma, un daño, una muestra o un regalo",
+   "logras": "Lo que sale de la bodega sin venderse baja de las existencias con su código y su costo, y queda listo para reclamarle al proveedor si fue un daño.",
+   "nota": "Lo da de baja Gerencia. Las cuentas contables de las mermas las elige la contadora en Ajustes de bodega y mermas.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_mermas"
+   },
+   "palabras": [
+    "merma",
+    "dañado",
+    "roto",
+    "muestra",
+    "regalo",
+    "desecho",
+    "dar de baja",
+    "perdida"
+   ],
+   "tambien": [
+    "compras"
+   ],
+   "brian": "Se rompió un producto al bajarlo del camión, ¿cómo lo doy de baja?"
+  },
+  {
+   "id": "mermas-mes",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver las mermas del mes y si pasan del tope de la gerencia",
+   "logras": "Ves cuánto suman las mermas, daños, muestras y regalos del mes y del año, contra lo comprado, y si pasan del tope que puso la gerencia.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_resumen_mermas"
+   },
+   "palabras": [
+    "mermas del mes",
+    "tope",
+    "medio por ciento",
+    "perdidas",
+    "cuanto se daño"
+   ],
+   "tambien": [
+    "reportes"
+   ]
+  },
+  {
+   "id": "reclamo-proveedor",
+   "categoria": "compras",
+   "grupo": "Proveedores",
+   "titulo": "Reclamarle a un proveedor la mercancía que llegó dañada",
+   "logras": "Sacas en PDF, con la marca, la lista de lo dañado o perdido de un proveedor para mandársela, y después lo marcas como reclamado.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_resumen_mermas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre las mermas del mes y pulsa «Reclamo a un proveedor (PDF)».",
+     "destino": {
+      "menu": "dcasa_existencias.menu_resumen_mermas"
+     }
+    },
+    {
+     "texto": "Elige el proveedor y las fechas, imprime el PDF y mándaselo.",
+     "destino": null
+    },
+    {
+     "texto": "Cuando se lo mandes, pulsa «Marcar como reclamadas».",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "reclamo",
+    "proveedor",
+    "dañado",
+    "nota de credito proveedor",
+    "reposicion"
+   ]
+  },
+  {
+   "id": "bitacora-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver quién cambió las existencias y por qué",
+   "logras": "La bitácora de bodega muestra cada ajuste de existencias: cuánto había, cuánto quedó, el motivo y quién lo hizo.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_bitacora"
+   },
+   "palabras": [
+    "bitacora",
+    "quien movio",
+    "ajustes",
+    "historial de ajustes",
+    "faltante",
+    "sobrante"
+   ]
+  },
+  {
+   "id": "ajustes-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Elegir las cuentas de las mermas y encender las alertas de bodega",
+   "logras": "Pones las cuentas contables de las mermas y, si quieres, enciendes las alertas diarias por Telegram (productos por agotarse, ajustes grandes, mes sin cerrar) con tus propios umbrales.",
+   "nota": "Las alertas vienen apagadas y sin umbrales: llegan solo las que enciendas.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_config"
+   },
+   "palabras": [
+    "alertas",
+    "telegram",
+    "stock bajo",
+    "umbral",
+    "cuenta de mermas",
+    "avisos de bodega"
+   ],
+   "tambien": [
+    "administrar"
    ]
   },
   {

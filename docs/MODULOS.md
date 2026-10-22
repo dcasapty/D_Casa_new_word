@@ -36,11 +36,12 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_interfaz` | Inicio por rol, Estadísticas, íconos, sin avisos de Enterprise | base, catalogo | — | No | [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
 | `dcasa_contabilidad` | Reportes contables, bancos, conciliación, cierre de mes, presupuestos, cheques | base, invoice, interfaz | — | No | [CONTABILIDAD.md](CONTABILIDAD.md) |
 | `dcasa_consolidacion` | Estados financieros de varias empresas en uno | contabilidad | — | No | [CONSOLIDACION.md](CONSOLIDACION.md) |
-| `dcasa_nomina` | Planilla de Panamá, décimo, vacaciones, liquidación, reembolsos, bono por meta | base, contabilidad | — | No | [NOMINA.md](NOMINA.md) |
+| `dcasa_nomina` | Planilla de Panamá, décimo, vacaciones, liquidación, reembolsos, adelantos y préstamos, comprobante de pago, bono por meta | base, contabilidad | (3 en `dcasa_brian`) | El correo del comprobante sigue el interruptor de `dcasa_correo` | [NOMINA.md](NOMINA.md) |
 | `dcasa_contactos` | Una persona, una ficha (celular, correo y RUC no se repiten) | base, socios | — | No | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_equipo` | Ícono y visibilidad del menú Empleados | base | — | No | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | Carga única desde el sistema anterior | base, contactos, catalogo | — | No (solo administradores) | [MIGRACION.md](MIGRACION.md) |
 | `dcasa_barras` | Escáner de códigos de barras y etiquetas; panel de Bodega (despachar entregas) | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
+| `dcasa_existencias` | Mermas, daños, muestras y regalos (F6); bitácora de bodega; alertas diarias por Telegram; el hueco del Inventario físico | base, brian, contabilidad, interfaz | (3 en `dcasa_brian`) | Alertas **sí** (y sin umbrales); cuentas de mermas vacías | [EXISTENCIAS.md](EXISTENCIAS.md) |
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
@@ -82,6 +83,8 @@ flowchart TD
   catalogo --> barras[dcasa_barras]
   interfaz --> barras
   invoice --> barras
+  brian --> existencias[dcasa_existencias]
+  conta --> existencias
   interfaz --> brian[dcasa_brian]
   conta --> brian
   catalogo --> brian
@@ -293,6 +296,19 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Modelos:** `dcasa.migracion.carga`.
 - **Pantallas y menús:** *Ajustes › Cargar datos del sistema anterior* (solo administradores).
 - **Apagado de fábrica:** no, pero solo lo ve el administrador.
+
+## `dcasa_existencias` — Control de existencias
+
+- **Para qué:** mermas, daños, muestras y regalos con su código, su costo, su cuenta (la elige la contadora) y el aviso
+  del 0.5 % de lo comprado; reclamo al proveedor en PDF; bitácora de bodega (antes → después, motivo y quién); alertas
+  diarias por Telegram a Gerencia; menús, «Deshacer el ajuste», el desecho y los movimientos hacia «Ajuste de
+  inventario» solo para Gerencia.
+- **Depende de (Odoo):** `stock_account`, `purchase_stock`.
+- **Modelos:** `dcasa.existencias.config`, `dcasa.bitacora.bodega`, `dcasa.merma.resumen` y `dcasa.merma.reclamo`
+  (asistentes), `dcasa.existencias.alertas` (cron); campos `dcasa_*` en `stock.scrap`.
+- **Pantallas y menús:** Inventario › Ajustes › Mermas, daños, muestras y regalos; Inventario › Reportes › Mermas del mes
+  y Bitácora de bodega; Inventario › Configuración › Ajustes de bodega y mermas.
+- **Apagado de fábrica:** las alertas (y sin umbrales); las cuentas de las mermas vienen vacías.
 
 ## `dcasa_barras` — Lector de códigos de barras
 

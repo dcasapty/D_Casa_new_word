@@ -19,7 +19,9 @@ class TestAjusteDeExistencias(TransactionCase):
         cls.ubicacion = almacen.lot_stock_id
 
     def _quants(self, usuario):
-        return self.env['stock.quant'].with_user(usuario).with_context(inventory_mode=True)
+        # Con motivo: desde dcasa_existencias (2026-10-22) un ajuste sin motivo abre la ventana que lo pide.
+        return self.env['stock.quant'].with_user(usuario).with_context(inventory_mode=True,
+                                                                       inventory_name='Conteo de prueba')
 
     def test_gerencia_ajusta_las_existencias(self):
         quant = self._quants(self.gerencia).create({

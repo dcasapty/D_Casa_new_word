@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Alertas diarias de bodega por Telegram a Gerencia: corre cada mañana (7:00 de Panamá = 12:00 UTC) y solo manda
+         algo si la dueña las encendió y puso sus umbrales (Ajustes de bodega y mermas). -->
+    <record id="cron_alertas_diarias" model="ir.cron">
+        <field name="name">D'CASA: alertas diarias de bodega (Telegram)</field>
+        <field name="model_id" ref="model_dcasa_existencias_alertas"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_alertas_diarias()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now() + relativedelta(days=1)).strftime('%Y-%m-%d 12:00:00')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

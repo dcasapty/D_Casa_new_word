@@ -611,28 +611,36 @@ class BrianHerramientasOperacion(models.AbstractModel):
         parametros={
             'cantidad': {'type': 'number', 'description': 'Cantidad que debe quedar en cada uno, p. ej. 0.'},
             'productos': {'type': 'string', 'description': 'Códigos o nombres separados por «;», p. ej. '
-                                                           '«SOF-001; SOF-002». Opcional si das categoría o todos.'},
+                                                           '«SOF-001; SOF-002», o «todos» (todos los que hoy tienen '
+                                                           'existencias; solo con cantidad 0).'},
             'categoria': {'type': 'string', 'description': 'Toda una categoría, p. ej. «Salas». Opcional.'},
-            'todos': {'type': 'boolean', 'description': 'true = todos los productos que hoy tienen existencias en el '
-                                                        'almacén (solo con cantidad 0).'},
             'almacen': {'type': 'string', 'description': 'Nombre del almacén. Opcional si solo hay uno.'},
+            'motivo': {'type': 'string', 'description': 'Por qué se ajusta (queda en la bitácora de bodega), p. ej. '
+                                                        '«arranque del inventario». Pregúntalo.'},
         },
-        requeridos=['cantidad'],
+        requeridos=['cantidad', 'motivo'],
         nivel='sensible', categoria='catalogo', grupos=GERENTE_INVENTARIO,
-        ejemplos=['pon todos los productos en cero stock → todos=true, cantidad=0',
+        ejemplos=['pon todos los productos en cero stock → productos=todos, cantidad=0',
                   'deja en cero la categoría Salas → categoria=Salas, cantidad=0',
                   'deja en 3 el SOF-001 y el SOF-002 → productos=«SOF-001; SOF-002», cantidad=3'],
     )
-    def _h_ajustar_existencias_en_bloque(self, cantidad, productos=None, categoria=None, todos=False, almacen=None):
+    def _h_ajustar_existencias_en_bloque(self, cantidad, productos=None, categoria=None, todos=False, almacen=None,
+                                         motivo=None):
+        # «todos» va dentro de «productos» (el contrato pide 5 parámetros o menos); ``todos`` queda por compatibilidad.
+        if str(productos or '').strip().lower() == 'todos':
+            productos, todos = None, True
         if not (productos or categoria or todos):
             raise BrianError('Dime cuáles: «productos» (códigos separados por «;»), una «categoria» o «todos».')
+        motivo = (motivo or '').strip()
+        if not motivo:
+            raise BrianError('Dime el motivo del ajuste (p. ej. «arranque del inventario»): queda en la bitácora.')
         bodega, cambian, iguales, sin_inventario = self._b_variantes_para_ajustar(
             cantidad, productos, categoria, todos, almacen)
         ubicacion = bodega.lot_stock_id
         if cambian:
             quants = self.env['stock.quant'].with_context(inventory_mode=True).create([
                 {'product_id': v.id, 'location_id': ubicacion.id, 'inventory_quantity': cantidad} for v in cambian])
-            quants.action_apply_inventory()
+            quants.with_context(inventory_name=motivo, dcasa_origen='brian').action_apply_inventory()
         return {
             'mensaje': f'Dejé {c.cantidad(cantidad)} en {c.plural(len(cambian), "producto")} ({bodega.name})'
                        + (f'; {len(iguales)} ya estaban así.' if iguales else '.'),
@@ -775,9 +783,11 @@ class BrianPoliticaOperacion(models.AbstractModel):
         Herramientas = self.env['brian.herramientas']
         try:
             cantidad = float(argumentos.get('cantidad'))
+            productos, todos = argumentos.get('productos'), bool(argumentos.get('todos'))
+            if str(productos or '').strip().lower() == 'todos':
+                productos, todos = None, True
             bodega, cambian, iguales, sin_inventario = Herramientas._b_variantes_para_ajustar(
-                cantidad, argumentos.get('productos'), argumentos.get('categoria'),
-                bool(argumentos.get('todos')), argumentos.get('almacen'))
+                cantidad, productos, argumentos.get('categoria'), todos, argumentos.get('almacen'))
         except (BrianError, TypeError, ValueError):
             return ''
         lineas = [f'Dejar en {c.cantidad(cantidad)} las existencias de {c.plural(len(cambian), "producto")} '
@@ -789,6 +799,8 @@ class BrianPoliticaOperacion(models.AbstractModel):
             lineas.append(f'Ya están así: {len(iguales)}.')
         if sin_inventario:
             lineas.append(f'Se saltan {len(sin_inventario)} (no llevan inventario).')
+        if (argumentos.get('motivo') or '').strip():
+            lineas.append(f'Motivo (queda en la bitácora de bodega): {argumentos["motivo"].strip()}')
         return '\n'.join(lineas)
 
     @api.model

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Inventario › Operaciones › Ajustes › Mermas, daños, muestras y regalos (Gerencia). -->
+    <menuitem id="menu_mermas" name="Mermas, daños, muestras y regalos" parent="stock.menu_stock_adjustments"
+              action="accion_mermas" sequence="20" groups="stock.group_stock_manager"/>
+
+    <!-- Inventario › Reportes (de Odoo, ya es solo de Gerencia) -->
+    <menuitem id="menu_resumen_mermas" name="Mermas del mes" parent="stock.menu_warehouse_report"
+              action="accion_resumen" sequence="1" groups="stock.group_stock_manager"/>
+    <menuitem id="menu_bitacora" name="Bitácora de bodega" parent="stock.menu_warehouse_report"
+              action="accion_bitacora" sequence="2" groups="stock.group_stock_manager"/>
+
+    <!-- Inventario › Configuración -->
+    <menuitem id="menu_config" name="Ajustes de bodega y mermas" parent="stock.menu_stock_config_settings"
+              action="accion_config" sequence="0" groups="dcasa_base.group_gerencia,base.group_system"/>
+</odoo>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="config_form" model="ir.ui.view">
+        <field name="name">dcasa.existencias.config.form</field>
+        <field name="model">dcasa.existencias.config</field>
+        <field name="arch" type="xml">
+            <form string="Ajustes de bodega y mermas" create="0" delete="0">
+                <header>
+                    <button name="action_contabilizar_pendientes" type="object" string="Contabilizar las mermas pendientes"
+                            groups="dcasa_base.group_gerencia,base.group_system"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="oe_title"><h1>Ajustes de bodega y mermas</h1></div>
+                    <group string="Mermas, daños, muestras y regalos">
+                        <div colspan="2" class="alert alert-warning" role="alert"
+                             invisible="mermas_cuenta_gasto_id and mermas_cuenta_contra_id">
+                            <strong>Faltan las cuentas contables.</strong> Las elige la contadora (el plan de cuentas
+                            de Panamá no trae una cuenta de mermas y no la inventamos). Mientras tanto cada merma queda
+                            registrada con su costo, pero no aparece en el estado de resultados.
+                        </div>
+                        <field name="mermas_cuenta_gasto_id" options="{'no_create': True}"/>
+                        <field name="mermas_cuenta_contra_id" options="{'no_create': True}"/>
+                        <field name="mermas_diario_id" options="{'no_create': True}"/>
+                        <field name="mermas_tope_pct"/>
+                    </group>
+                    <group string="Alertas diarias por Telegram a Gerencia">
+                        <div colspan="2" class="text-muted">
+                            Vienen apagadas. Cada alerta sale solo si la enciendes y pones tu umbral; si un día no hay
+                            nada que avisar, no llega nada. Llegan al Telegram de cada persona de Gerencia que vinculó
+                            su Telegram con Brian.
+                        </div>
+                        <field name="alertas_activas"/>
+                    </group>
+                    <group invisible="not alertas_activas">
+                        <group string="Productos por agotarse">
+                            <field name="alerta_stock_bajo" string="Avisar"/>
+                            <field name="alerta_stock_bajo_unidades" invisible="not alerta_stock_bajo"/>
+                        </group>
+                        <group string="Ajustes grandes">
+                            <field name="alerta_ajustes" string="Avisar"/>
+                            <field name="alerta_ajustes_unidades" invisible="not alerta_ajustes"/>
+                            <field name="alerta_ajustes_monto" invisible="not alerta_ajustes"/>
+                        </group>
+                        <group string="Cierre de mes">
+                            <field name="alerta_cierre" string="Avisar"/>
+                            <field name="alerta_cierre_dia" invisible="not alerta_cierre" required="alerta_cierre"/>
+                        </group>
+                        <group string="Mermas">
+                            <field name="alerta_mermas" string="Avisar si pasan del tope"/>
+                        </group>
+                    </group>
+                    <group string="Lo último que se avisó" invisible="not alertas_ultima">
+                        <field name="alertas_ultima"/>
+                        <field name="alertas_ultimo_envio"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_config" model="ir.actions.server">
+        <field name="name">Ajustes de bodega y mermas</field>
+        <field name="model_id" ref="model_dcasa_existencias_config"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+    </record>
+</odoo>

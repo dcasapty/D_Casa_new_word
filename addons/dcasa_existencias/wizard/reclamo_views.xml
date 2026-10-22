@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="reclamo_form" model="ir.ui.view">
+        <field name="name">dcasa.merma.reclamo.form</field>
+        <field name="model">dcasa.merma.reclamo</field>
+        <field name="arch" type="xml">
+            <form string="Reclamo a un proveedor">
+                <field name="currency_id" invisible="1"/>
+                <p class="text-muted">Las mermas y los daños de la mercancía de un proveedor, en PDF con la marca, para
+                    mandárselos. Después márcalas como reclamadas.</p>
+                <group>
+                    <group>
+                        <field name="proveedor_id" options="{'no_create': True}"/>
+                        <field name="solo_por_reclamar"/>
+                    </group>
+                    <group>
+                        <field name="desde"/>
+                        <field name="hasta"/>
+                        <field name="total"/>
+                    </group>
+                </group>
+                <field name="merma_ids" readonly="1">
+                    <list>
+                        <field name="date_done" string="Fecha"/>
+                        <field name="product_id"/>
+                        <field name="scrap_qty" string="Cantidad"/>
+                        <field name="dcasa_motivo"/>
+                        <field name="dcasa_costo"/>
+                        <field name="dcasa_reclamo"/>
+                        <field name="dcasa_currency_id" column_invisible="1"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_imprimir" type="object" string="Imprimir el reclamo (PDF)" class="btn-primary"/>
+                    <button name="action_marcar_reclamadas" type="object" string="Marcar como reclamadas"
+                            confirm="Quedan marcadas como reclamadas a este proveedor. ¿Seguir?"/>
+                    <button string="Cerrar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

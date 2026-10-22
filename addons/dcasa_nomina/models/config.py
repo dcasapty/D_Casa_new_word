@@ -2,7 +2,8 @@
 
 Las cuentas se proponen buscando por código en el plan contable de Panamá (``l10n_pa``): 514 gastos en
 salarios, 515 gastos en cargas sociales, 241 sueldos a pagar, 242 cargas sociales a pagar, 232 impuesto sobre
-la renta a pagar y 243 provisión para sueldo anual complementario. Son una propuesta: **las confirma el
+la renta a pagar, 243 provisión para sueldo anual complementario y 134 anticipo al personal (adelantos y
+préstamos). Son una propuesta: **las confirma el
 contador** (Nómina › Configuración). Una cuenta vacía impide confirmar la planilla que la necesita.
 """
 from odoo import api, fields, models
@@ -18,6 +19,7 @@ CUENTAS = {
     'cuenta_rp_pagar_id': ('242', 'Riesgo profesional por pagar'),
     'cuenta_isr_pagar_id': ('232', 'ISR retenido por pagar'),
     'cuenta_decimo_id': ('243', 'Provisión del décimo tercer mes'),
+    'cuenta_prestamos_id': ('134', 'Adelantos y préstamos al personal (por cobrar)'),
 }
 
 
@@ -41,9 +43,14 @@ class DcasaNominaConfig(models.Model):
     cuenta_isr_pagar_id = fields.Many2one('account.account', CUENTAS['cuenta_isr_pagar_id'][1], check_company=True)
     cuenta_decimo_id = fields.Many2one('account.account', CUENTAS['cuenta_decimo_id'][1], check_company=True)
     cuenta_otros_descuentos_id = fields.Many2one(
-        'account.account', 'Otros descuentos (préstamos, adelantos)', check_company=True,
-        help='Cuenta contra la que se acreditan los descuentos manuales de la planilla. Sin ella no se pueden '
-             'usar descuentos manuales.')
+        'account.account', 'Otros descuentos (los escritos a mano)', check_company=True,
+        help='Cuenta contra la que se acreditan los descuentos que se escriben a mano en la planilla. Los adelantos '
+             'y préstamos registrados en Nómina › Adelantos y préstamos usan su propia cuenta.')
+    cuenta_prestamos_id = fields.Many2one(
+        'account.account', CUENTAS['cuenta_prestamos_id'][1], check_company=True,
+        help='Lo que los colaboradores le deben a la empresa por adelantos y préstamos: sube al entregarlos y baja '
+             'con cada cuota de la planilla. El plan de cuentas de Panamá trae la 134 «Anticipo al Personal»; '
+             'el contador la confirma.')
     cuenta_reembolsos_id = fields.Many2one(
         'account.account', 'Gasto por defecto de los reembolsos', check_company=True,
         help='Cuenta de gasto que se propone al registrar un reembolso (se puede cambiar en cada uno).')
@@ -70,7 +77,10 @@ class DcasaNominaConfig(models.Model):
         Cuenta = self.env['account.account'].sudo().with_company(company)
         valores = {}
         for campo, (codigo, _nombre) in CUENTAS.items():
-            cuenta = Cuenta.search([('code', '=', codigo)], limit=1)
+            # El plan de Panamá guarda los códigos con 7 dígitos («134» → «1340000»): exacto o, si no, el primero
+            # que empieza así.
+            cuenta = Cuenta.search([('code', '=', codigo)], limit=1) or \
+                Cuenta.search([('code', '=like', f'{codigo}%')], order='code', limit=1)
             if cuenta:
                 valores[campo] = cuenta.id
         diario = self.env['account.journal'].sudo().search(

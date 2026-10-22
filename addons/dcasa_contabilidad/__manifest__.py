@@ -20,10 +20,13 @@ El sistema contable de D'CASA, construido sobre la contabilidad de Odoo Communit
 * Contabilidad analítica: planes y cuentas (canal de venta) y rentabilidad por cuenta.
 * Presupuestos por cuenta contable (y cuenta analítica) con lo real y el % ejecutado.
 * Cheques con formato propio, monto en letras en español.
+* Comprobantes en ZIP (I6): todos los de un año fiscal o un rango (facturas y notas en PDF, recibos de cobros,
+  facturas y pagos de proveedores, recibos de gastos), por carpetas y con índice, para guardarlos los 5 años que pide
+  la DGI. Se prepara en segundo plano, en piezas, sin cargar todo en memoria.
 * «En desarrollo»: facturación electrónica DGI. La nómina (dcasa_nomina) y la consolidación
   (dcasa_consolidacion) son módulos aparte.
 """,
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Accounting/Accounting',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -40,6 +43,7 @@ El sistema contable de D'CASA, construido sobre la contabilidad de Odoo Communit
         'views/cuenta_views.xml',
         'views/presupuesto_views.xml',
         'views/menus.xml',
+        'views/comprobantes_zip_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
