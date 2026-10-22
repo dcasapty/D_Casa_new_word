@@ -11,3 +11,4 @@ from . import test_utilidad
 from . import test_tope_rutas
 from . import test_humo
 from . import test_reglas_gerencia
+from . import test_aviso_vendedora

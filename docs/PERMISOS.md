@@ -34,7 +34,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
-| Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos) | Sí | Sí | Sí | Sí |
+| Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo o Subir, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos). Tampoco le salen «Nuevo» ni «Subir» (2026-10-22) | Sí | Sí | Sí | Sí |
 | **Registrar el cobro** de una factura de cliente (o un abono), un cobro suelto, o aplicarle un cobro que ya estaba («el cobro solo en Caja», 2026-10-17) | **No** (con el interruptor encendido o apagado) | Sí | Sí | Sí | Sí |
 | Cobrar con **Tafi** o **Crediviva** (financieras: formas de pago en «Pagar») | No | Sí | Sí | Sí | Sí |
 | Registrar un **primer abono menor a la mitad** del total | No | **No** | **No** | Sí | Sí |
@@ -68,6 +68,12 @@ cambia): ella lo ve, le cuenta para su meta y sale en «Ver mis ventas». El bot
 es **Nueva cotización**; «Registrar cobro» y «Caja de hoy» salen en el Inicio de Caja y en el completo. En la factura,
 a la vendedora no le sale «Pagar»: le sale «El cobro de esta factura lo registra Caja». Una factura hecha suelta no
 tiene pedido detrás: no cuenta en «Vendido hoy» ni tiene nota de entrega.
+
+**El aviso a la vendedora** (decisión de la dueña, 2026-10-22; `dcasa_base/models/aviso_vendedora.py`): cuando Caja o
+Gerencia publican la factura de su pedido, a su bandeja de Odoo (el chat) le llega «Se facturó tu venta S00139
+(INV/2026/01117)», y cuando la venta queda cobrada (todas sus facturas pagadas y nada más por facturar; un abono no),
+«Tu venta S00139 ya está cobrada». Ya no le llega el «Te asignaron Asiento contable Borrador de factura» de Odoo. Una
+sola vez por factura y por venta, y nunca por lo que ella misma hizo.
 
 ## Cada vendedora ve solo lo suyo (y cómo volver atrás)
 
