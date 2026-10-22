@@ -16,6 +16,7 @@
 | Saber cómo estaba todo el 11 de octubre, con nota y fallas (es una foto, no el estado de hoy) | [ESTADO.md](ESTADO.md) |
 | Operar el sitio: costos, respaldos, qué hacer si se cae, cómo subir fotos | [OPERACION.md](OPERACION.md) |
 | Usar el Escáner de códigos de barras y las etiquetas | [BARRAS.md](BARRAS.md) |
+| Dar de baja mermas, daños, muestras y regalos; ver la bitácora de bodega; encender las alertas de bodega por Telegram | [EXISTENCIAS.md](EXISTENCIAS.md) |
 | Atender conversaciones con Juan (bandeja, traspaso a una vendedora) | [JUAN_ODOO.md](JUAN_ODOO.md) |
 | Entender o vincular el WhatsApp de Juan (puente QR) y el plan B oficial | [JUAN_PUENTE.md](JUAN_PUENTE.md) · [JUAN_PLAN_B.md](JUAN_PLAN_B.md) |
 | Conectar Facebook (Messenger) e Instagram a Juan | [JUAN_META.md](JUAN_META.md) |
@@ -42,6 +43,7 @@ Resumen de los 24 módulos (para qué, dependencias, modelos, menús, herramient
 | `dcasa_contactos` | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_catalogo` | [CATALOGO.md](CATALOGO.md) · [CATALOGO_REVISAR.md](CATALOGO_REVISAR.md) *(generado)* |
 | `dcasa_barras` | [BARRAS.md](BARRAS.md) |
+| `dcasa_existencias` | [EXISTENCIAS.md](EXISTENCIAS.md) · mermas (F6), bitácora de bodega, alertas por Telegram y el hueco del Inventario físico |
 | `dcasa_contabilidad` | [CONTABILIDAD.md](CONTABILIDAD.md) · auditoría de los reportes (hallazgos y preguntas para la contadora): [AUDITORIA_CONTABLE.md](AUDITORIA_CONTABLE.md) · respuestas de la gerencia: [DECISIONES_CONTABLES.md](DECISIONES_CONTABLES.md) |
 | `dcasa_consolidacion` | [CONSOLIDACION.md](CONSOLIDACION.md) |
 | `dcasa_nomina` | [NOMINA.md](NOMINA.md) |

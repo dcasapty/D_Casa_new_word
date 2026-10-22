@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_config_inventario,ajustes de bodega inventario,model_dcasa_existencias_config,stock.group_stock_manager,1,0,0,0
+access_config_gerencia,ajustes de bodega gerencia,model_dcasa_existencias_config,dcasa_base.group_gerencia,1,1,0,0
+access_config_admin,ajustes de bodega admin,model_dcasa_existencias_config,base.group_system,1,1,0,0
+access_bitacora_gerencia,bitacora de bodega gerencia,model_dcasa_bitacora_bodega,stock.group_stock_manager,1,0,0,0
+access_resumen_gerencia,resumen de mermas gerencia,model_dcasa_merma_resumen,stock.group_stock_manager,1,1,1,0
+access_reclamo_gerencia,reclamo de mermas gerencia,model_dcasa_merma_reclamo,stock.group_stock_manager,1,1,1,0

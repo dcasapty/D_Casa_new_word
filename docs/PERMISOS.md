@@ -41,7 +41,15 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Pasar a borrador o anular** una factura de cliente publicada | **No** | **No** | **No** | Sí | Sí |
 | **Notas de crédito** de clientes; **devolverle dinero** a un cliente; cobrar de más dejándole **saldo a favor**; dar una factura por pagada con una diferencia | **No** | **No** | **No** | Sí | Sí |
 | Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
-| Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | **No** | Sí | Sí |
+| Ajustar las existencias a mano (Inventario físico, Escáner › Contar); el motivo es obligatorio y queda en la bitácora | **No** | **No** | **No** | Sí | Sí |
+| Ver el menú «Inventario físico», «Desechos» y «Deshacer el ajuste»; mover mercancía hacia o desde «Ajuste de inventario» (también por RPC), 2026-10-22 | **No** | **No** | **No** | Sí | Sí |
+| Dejar en borrador una merma, un daño, una muestra o un regalo (no mueve nada) | **No** (no ve los menús) | **No** | **No** | Sí | Sí |
+| **Dar de baja** una merma, daño, muestra o regalo; Mermas del mes; reclamo al proveedor | **No** | **No** | **No** | Sí | Sí |
+| **Bitácora de bodega** (solo lectura; nadie la edita) | **No** | **No** | **No** | Sí | Sí |
+| Ajustes de bodega y mermas (cuentas de mermas, tope, alertas por Telegram) | **No** | **No** | **No** | Sí | Sí |
+| Registrar adelantos y préstamos a colaboradores; enviar comprobantes de pago | **No** | **No** | (según su grupo de nómina) | Sí | Sí |
+| **Autorizar** un adelanto o un préstamo | **No** | **No** | **No** | Sí | Sí |
+| Comprobantes en ZIP (respaldo DGI) | **No** | **No** | Sí | Sí | Sí |
 | Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | **No** | Sí | Sí |
 | Factura electrónica (DGI) | Sí | Sí | Sí | Sí | Sí |
 | Facturas y notas **de proveedores** | **No** | **No** | Sí | Sí | Sí |

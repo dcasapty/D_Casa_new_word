@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="accion_reclamo_pdf" model="ir.actions.report">
+        <field name="name">Reclamo al proveedor</field>
+        <field name="model">dcasa.merma.reclamo</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">dcasa_existencias.reclamo_pdf</field>
+        <field name="report_file">dcasa_existencias.reclamo_pdf</field>
+        <field name="print_report_name">'Reclamo - %s' % object.proveedor_id.name</field>
+    </record>
+
+    <template id="reclamo_pdf">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="layout_document_title">Mercancía dañada o perdida</t>
+                <t t-set="moneda" t-value="o.currency_id"/>
+                <t t-set="address">
+                    <div class="row o_dcasa_rejilla">
+                        <div class="col-6 o_dcasa_celda">
+                            <div class="o_dcasa_bloque_titulo">Proveedor</div>
+                            <div class="o_dcasa_cliente">
+                                <div class="o_dcasa_cliente_nombre" t-out="o.proveedor_id.name"/>
+                                <div t-if="o.proveedor_id.vat">RUC: <t t-out="o.proveedor_id.vat"/></div>
+                                <div t-if="o.proveedor_id.email" t-out="o.proveedor_id.email"/>
+                            </div>
+                        </div>
+                        <div class="col-6 o_dcasa_celda o_dcasa_datos">
+                            <table class="o_dcasa_tabla_datos">
+                                <tr><th>Desde</th><td><span t-field="o.desde"/></td></tr>
+                                <tr><th>Hasta</th><td><span t-field="o.hasta"/></td></tr>
+                                <tr><th>Registros</th><td t-out="len(o.merma_ids)"/></tr>
+                            </table>
+                        </div>
+                    </div>
+                </t>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <p>Detalle de la mercancía de su empresa que se registró como dañada o perdida en este
+                            periodo, para su revisión.</p>
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr><th>Fecha</th><th>Producto</th><th class="text-end">Cantidad</th><th>Qué pasó</th>
+                                    <th class="text-end">Costo</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="o.merma_ids" t-as="m">
+                                    <td><span t-field="m.date_done" t-options="{'widget': 'date'}"/></td>
+                                    <td t-out="m.product_id.display_name"/>
+                                    <td class="text-end"><span t-field="m.scrap_qty"/></td>
+                                    <td><span t-field="m.dcasa_motivo"/><t t-if="m.dcasa_nota">: <t t-out="m.dcasa_nota"/></t></td>
+                                    <td class="text-end" t-out="m.dcasa_costo" t-options="{'widget': 'monetary', 'display_currency': moneda}"/>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr><th colspan="4">Total a costo</th>
+                                    <th class="text-end" t-out="o.total" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
+                            </tfoot>
+                        </table>
+                        <p class="text-muted">Montos a costo, sin ITBMS.</p>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+</odoo>
