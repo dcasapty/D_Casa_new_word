@@ -128,6 +128,12 @@ llevan el grupo). Brian tampoco le da a quien no es Gerencia la ganancia ni el c
 pedidos facturados por completo). Las facturas del Inicio de Gerencia se suman con `sudo` siempre filtrado a facturas y
 notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con sus permisos.
 
+**Compras › Reponer** (2026-10-19 y 22): verla, bajar su **Excel** y poner o cambiar el **tiempo de llegada** de un
+proveedor es solo de **Gerencia y administradores**. El servidor lo exige en cada llamada (`dcasa.reponer`, también el
+Excel en `/dcasa/reponer/excel` y las herramientas `que_reponer` y `poner_tiempo_llegada` de Brian); la Vendedora no ve
+el menú y, si lo pide por la conexión de datos, se le niega. El Excel lo arma el servidor: el «Exportar» general de Odoo
+sigue siendo solo de administradores.
+
 **Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
 Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
 del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo

@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- «Reponer» (Compras › Reponer): reponer.js. Las cifras vienen del servidor (dcasa.reponer.obtener). -->
+<templates xml:space="preserve">
+    <t t-name="dcasa_interfaz.Reponer">
+        <div class="o_action o_dcasa_reponer">
+            <t t-set="d" t-value="state.datos"/>
+            <header class="o_dcasa_reponer_cabeza">
+                <div>
+                    <h1>Reponer</h1>
+                    <p>Cuánto pedirle a cada proveedor según lo que se vende y lo que tarda en llegar.</p>
+                </div>
+                <!-- El Excel lo arma el servidor (Gerencia y administradores; a nadie más le abre el «Exportar» de
+                     Odoo). Es un enlace normal: en el celular también descarga. -->
+                <a t-if="d and d.filas.length" class="btn btn-primary o_dcasa_reponer_excel" t-att-href="urlExcel"
+                   download="">
+                    <i class="fa fa-file-excel-o me-2" aria-hidden="true"/>Descargar Excel
+                </a>
+            </header>
+
+            <div class="o_dcasa_reponer_cuerpo">
+                <details class="o_dcasa_reponer_como" t-att-open="explicacionAbierta">
+                    <summary>¿Cómo se calcula?</summary>
+                    <ul>
+                        <li><strong>Se vende al mes</strong>: lo vendido en los meses que elijas (facturas menos notas
+                            de crédito), dividido entre esos meses.</li>
+                        <li><strong>Alcanza para</strong>: lo que hay hoy más lo que viene en camino, dividido entre lo
+                            que se vende al mes.</li>
+                        <li><strong>Pedir</strong> = se vende al mes × (meses que tarda en llegar + meses de reserva) −
+                            hay hoy − viene en camino. Si no alcanza para lo que tarda en llegar, sale
+                            <span class="o_dcasa_reponer_aviso o_aviso_ya">Pedir ya</span>.</li>
+                        <li>Sin el tiempo de llegada del proveedor no se calcula cuánto pedir: tócale «Poner». Solo
+                            salen los productos que se vendieron en esos meses; si uno estuvo agotado, vendió menos y
+                            aquí sale más bajo. Un mes = 30 días.</li>
+                    </ul>
+                    <p class="o_dcasa_reponer_ejemplo">
+                        <strong>Ejemplo</strong> <em>(números inventados, solo para entender)</em>: se vendieron 50 en
+                        5 meses → se vende 10 al mes. Hay 12 y vienen 8 → alcanza para 2 meses. Tarda 3 meses en llegar
+                        y quieres 1 mes de reserva → pedir 10 × (3 + 1) − 12 − 8 = <strong>20</strong>. Como 2 meses no
+                        cubren los 3 que tarda: <strong>Pedir ya</strong>.
+                    </p>
+                </details>
+
+                <!-- Paso 1: el buscador de proveedores. -->
+                <section class="o_dcasa_reponer_paso o_dcasa_reponer_paso_proveedor" aria-labelledby="o_dcasa_reponer_t1">
+                    <h2 id="o_dcasa_reponer_t1"><span class="o_dcasa_reponer_numero">1</span>Elige el proveedor</h2>
+                    <t t-if="state.buscadorAbierto">
+                        <label for="o_dcasa_reponer_buscar" class="o_dcasa_reponer_instruccion">
+                            Escribe una parte del nombre, el teléfono, el RUC, o el nombre o código de un producto
+                            que te vende. Después toca el proveedor.
+                        </label>
+                        <div class="o_dcasa_reponer_buscar">
+                            <i class="fa fa-search" aria-hidden="true"/>
+                            <input id="o_dcasa_reponer_buscar" type="search" class="form-control"
+                                   placeholder="Buscar proveedor o producto" autocomplete="off"
+                                   t-att-value="state.texto" t-on-input="alEscribir"/>
+                            <button t-if="state.texto" type="button" class="btn o_dcasa_reponer_borrar"
+                                    aria-label="Borrar lo escrito" t-on-click="borrarTexto">
+                                <i class="fa fa-times" aria-hidden="true"/>
+                            </button>
+                        </div>
+                        <ul class="o_dcasa_reponer_resultados" aria-live="polite">
+                            <li>
+                                <button type="button" t-att-aria-pressed="!state.proveedor ? 'true' : 'false'"
+                                        t-attf-class="o_dcasa_reponer_opcion o_dcasa_reponer_todos {{ !state.proveedor ? 'o_activo' : '' }}"
+                                        t-on-click="() => this.elegir(null)">
+                                    <strong>Todos los proveedores</strong>
+                                    <span>Todo lo que se vendió, de todos.</span>
+                                </button>
+                            </li>
+                            <li t-foreach="state.resultados" t-as="p" t-key="p.id">
+                                <t t-set="elegido" t-value="state.proveedor and state.proveedor.id === p.id"/>
+                                <button type="button" t-att-aria-pressed="elegido ? 'true' : 'false'"
+                                        t-attf-class="o_dcasa_reponer_opcion {{ elegido ? 'o_activo' : '' }}"
+                                        t-att-data-proveedor="p.id" t-on-click="() => this.elegir(p)">
+                                    <strong t-out="p.nombre"/>
+                                    <span>
+                                        <t t-out="p.productos === 1 ? '1 producto' : p.productos + ' productos'"/> ·
+                                        <t t-if="p.ultima_compra">última compra <t t-out="p.ultima_compra"/></t>
+                                        <t t-else="">todavía sin compras</t>
+                                    </span>
+                                    <span t-attf-class="o_dcasa_reponer_tarda {{ p.llegada.falta ? 'o_falta' : '' }}">
+                                        <i class="fa fa-ship me-1" aria-hidden="true"/>
+                                        <t t-if="p.llegada.precios and !p.llegada.falta">Tarda <t t-out="p.llegada.texto"/></t>
+                                        <t t-else="" t-out="p.llegada.texto"/>
+                                    </span>
+                                    <span t-if="p.coincide" class="o_dcasa_reponer_coincide" t-out="p.coincide"/>
+                                </button>
+                            </li>
+                        </ul>
+                        <p t-if="state.texto and !state.buscando and !state.resultados.length" class="o_dcasa_reponer_nada">
+                            No encontré un proveedor con «<t t-out="state.texto"/>». Prueba con menos letras o con el
+                            código de un producto.
+                        </p>
+                        <p t-if="state.total > state.resultados.length" class="o_dcasa_reponer_nota">
+                            Hay <t t-out="state.total"/> proveedores: escribe para encontrar el tuyo.
+                        </p>
+                    </t>
+                    <t t-else="">
+                        <div class="o_dcasa_reponer_elegido">
+                            <div>
+                                <span class="o_dcasa_reponer_etiqueta">Proveedor</span>
+                                <strong t-out="state.proveedor ? state.proveedor.nombre : 'Todos los proveedores'"/>
+                                <span t-if="detalleProveedor" class="o_dcasa_reponer_nota" t-out="detalleProveedor"/>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary o_dcasa_reponer_cambiar"
+                                    t-on-click="cambiarProveedor">Cambiar</button>
+                        </div>
+                        <div t-if="state.proveedor" t-attf-class="o_dcasa_reponer_llegada {{ state.proveedor.llegada.falta ? 'o_falta' : '' }}">
+                            <div>
+                                <span class="o_dcasa_reponer_etiqueta">Tarda en llegar</span>
+                                <strong t-out="state.proveedor.llegada.texto"/>
+                                <span class="o_dcasa_reponer_nota">Desde que le haces el pedido hasta que llega a la
+                                    tienda. Se guarda en sus precios de proveedor y vale para todos sus productos.</span>
+                            </div>
+                            <button t-if="state.proveedor.llegada.precios" type="button"
+                                    class="btn btn-primary o_dcasa_reponer_poner"
+                                    t-on-click="() => this.ponerLlegada(state.proveedor.id)"
+                                    t-out="state.proveedor.llegada.falta ? 'Poner tiempo de llegada' : 'Cambiar tiempo de llegada'"/>
+                        </div>
+                    </t>
+                </section>
+
+                <!-- Paso 2: cuántos meses de ventas mirar y cuántos de reserva. -->
+                <section class="o_dcasa_reponer_paso" aria-labelledby="o_dcasa_reponer_t2">
+                    <h2 id="o_dcasa_reponer_t2"><span class="o_dcasa_reponer_numero">2</span>Elige cuánto mirar</h2>
+                    <div class="o_dcasa_reponer_controles">
+                        <label class="o_dcasa_reponer_control">
+                            <span>Mirar las ventas de los últimos</span>
+                            <select class="form-select o_dcasa_reponer_meses" t-on-change="cambiarMeses">
+                                <option t-foreach="opcionesMeses" t-as="m" t-key="m" t-att-value="m"
+                                        t-att-selected="m === state.meses" t-out="m === 1 ? '1 mes' : m + ' meses'"/>
+                            </select>
+                        </label>
+                        <label class="o_dcasa_reponer_control">
+                            <span>Reserva: meses extra por si acaso</span>
+                            <select class="form-select o_dcasa_reponer_reserva" t-on-change="cambiarReserva">
+                                <option t-foreach="opcionesReserva" t-as="r" t-key="r" t-att-value="r"
+                                        t-att-selected="r === state.reserva" t-out="textoReserva(r)"/>
+                            </select>
+                        </label>
+                    </div>
+                    <p t-if="d" class="o_dcasa_reponer_nota">
+                        Ventas del <t t-out="d.desde"/> al <t t-out="d.hasta"/>.
+                    </p>
+                </section>
+
+                <!-- Paso 3: qué pedir. -->
+                <section class="o_dcasa_reponer_paso o_dcasa_reponer_paso_lista" aria-labelledby="o_dcasa_reponer_t3"
+                         t-att-aria-busy="state.cargando ? 'true' : 'false'">
+                    <h2 id="o_dcasa_reponer_t3"><span class="o_dcasa_reponer_numero">3</span>Qué pedir</h2>
+                    <p t-if="state.error" class="alert alert-danger" role="alert" t-out="state.error"/>
+                    <p t-if="state.cargando" class="o_dcasa_reponer_nota"><i class="fa fa-circle-o-notch fa-spin me-2" aria-hidden="true"/>Calculando…</p>
+                    <t t-if="d">
+                        <p t-if="!d.filas.length" class="o_dcasa_reponer_nada">
+                            <t t-if="d.proveedor">No se vendió nada de <t t-out="d.proveedor.nombre"/> en estos <t t-out="d.meses"/> meses.</t>
+                            <t t-else="">No se vendió nada en estos <t t-out="d.meses"/> meses.</t>
+                        </p>
+                        <t t-else="">
+                            <div class="o_dcasa_reponer_resumen">
+                                <span class="o_dcasa_reponer_cuenta o_cuenta_ya"><strong t-out="d.resumen.ya"/> para pedir ya</span>
+                                <span t-if="d.resumen.pedir" class="o_dcasa_reponer_cuenta o_cuenta_pedir"><strong t-out="d.resumen.pedir"/> para pedir</span>
+                                <span t-if="d.resumen.falta" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong t-out="d.resumen.falta"/> sin tiempo de llegada</span>
+                                <span t-if="d.resumen.sin_proveedor" class="o_dcasa_reponer_cuenta o_cuenta_falta"><strong t-out="d.resumen.sin_proveedor"/> sin proveedor</span>
+                                <span t-if="d.resumen.alcanza" class="o_dcasa_reponer_cuenta"><strong t-out="d.resumen.alcanza"/> <t t-out="d.resumen.alcanza === 1 ? 'alcanza' : 'alcanzan'"/></span>
+                                <span class="o_dcasa_reponer_cuenta o_cuenta_total">En total, pedir <strong t-out="numero(d.unidades)"/> unidades</span>
+                            </div>
+                            <div class="o_dcasa_reponer_vista" role="group" aria-label="Cómo ver la lista">
+                                <button type="button" aria-pressed="true" t-if="state.vista === 'urgencia'"
+                                        class="btn btn-primary o_vista_urgencia">Por urgencia</button>
+                                <button type="button" aria-pressed="false" t-else=""
+                                        class="btn btn-outline-primary o_vista_urgencia"
+                                        t-on-click="() => this.cambiarVista('urgencia')">Por urgencia</button>
+                                <button type="button" aria-pressed="true" t-if="state.vista === 'proveedor'"
+                                        class="btn btn-primary o_vista_proveedor">Por proveedor</button>
+                                <button type="button" aria-pressed="false" t-else=""
+                                        class="btn btn-outline-primary o_vista_proveedor"
+                                        t-on-click="() => this.cambiarVista('proveedor')">Por proveedor</button>
+                            </div>
+                            <t t-set="mostrarProveedor" t-value="state.vista === 'urgencia' and !d.proveedor"/>
+                            <table t-attf-class="o_dcasa_reponer_tabla {{ state.cargando ? 'o_cargando' : '' }}">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Producto</th>
+                                        <th t-if="mostrarProveedor" scope="col">Proveedor</th>
+                                        <th scope="col" class="o_num">Vendido en <t t-out="d.meses"/> <t t-out="d.meses === 1 ? 'mes' : 'meses'"/></th>
+                                        <th scope="col" class="o_num">Se vende al mes</th>
+                                        <th scope="col" class="o_num">Hay hoy</th>
+                                        <th scope="col" class="o_num">Viene en camino</th>
+                                        <th scope="col">Alcanza para</th>
+                                        <th scope="col">Tarda en llegar</th>
+                                        <th scope="col" class="o_num">Pedir</th>
+                                    </tr>
+                                </thead>
+                                <tbody t-if="state.vista === 'urgencia'">
+                                    <t t-foreach="d.filas" t-as="f" t-key="f.producto_id">
+                                        <t t-call="dcasa_interfaz.ReponerFila"/>
+                                    </t>
+                                </tbody>
+                                <t t-else="">
+                                    <tbody t-foreach="d.grupos" t-as="g" t-key="g.proveedor_id or 0" class="o_dcasa_reponer_grupo">
+                                        <tr class="o_dcasa_reponer_grupo_cabeza">
+                                            <th colspan="8" scope="colgroup">
+                                                <div class="o_dcasa_reponer_grupo_titulo">
+                                                    <strong t-out="g.proveedor"/>
+                                                    <span t-if="g.ya" class="o_dcasa_reponer_aviso o_aviso_ya">
+                                                        <t t-out="g.ya === 1 ? '1 para pedir ya' : g.ya + ' para pedir ya'"/>
+                                                    </span>
+                                                    <span t-attf-class="o_dcasa_reponer_tarda {{ g.llegada and g.llegada.falta ? 'o_falta' : '' }}">
+                                                        <i t-attf-class="fa {{ g.llegada ? 'fa-ship' : 'fa-info-circle' }} me-1" aria-hidden="true"/>
+                                                        <t t-if="g.llegada and g.llegada.precios and !g.llegada.falta">Tarda <t t-out="g.llegada.texto"/></t>
+                                                        <t t-elif="g.llegada" t-out="g.llegada.texto"/>
+                                                        <t t-else="">Ponle su proveedor en el producto (pestaña Compra)</t>
+                                                    </span>
+                                                    <button t-if="g.llegada and g.llegada.precios" type="button"
+                                                            class="btn btn-sm btn-outline-primary o_dcasa_reponer_poner"
+                                                            t-on-click="() => this.ponerLlegada(g.proveedor_id)"
+                                                            t-out="g.llegada.falta ? 'Poner tiempo de llegada' : 'Cambiar'"/>
+                                                </div>
+                                            </th>
+                                        </tr>
+                                        <t t-foreach="filasDelGrupo(g)" t-as="f" t-key="f.producto_id">
+                                            <t t-call="dcasa_interfaz.ReponerFila"/>
+                                        </t>
+                                        <tr class="o_dcasa_reponer_total">
+                                            <th scope="row">Total</th>
+                                            <td class="o_num" t-att-data-label="'Vendido en ' + d.meses + (d.meses === 1 ? ' mes' : ' meses')" t-out="numero(g.vendido)"/>
+                                            <td class="o_num" data-label="Se vende al mes" t-out="numero(g.ritmo)"/>
+                                            <td class="o_num" data-label="Hay hoy" t-out="numero(g.existencia)"/>
+                                            <td class="o_num" data-label="Viene en camino" t-out="numero(g.pedido)"/>
+                                            <td class="o_vacia"/>
+                                            <td class="o_vacia"/>
+                                            <td class="o_num o_dcasa_reponer_pedir" data-label="Pedir" t-out="g.calculables ? numero(g.pedir) : '—'"/>
+                                        </tr>
+                                    </tbody>
+                                </t>
+                            </table>
+                        </t>
+                        <p t-if="d.sin_ventas" class="o_dcasa_reponer_nota o_dcasa_reponer_sin_ventas">
+                            <t t-if="d.sin_ventas === 1">Además, 1 producto de este proveedor no se vendió</t>
+                            <t t-else="">Además, <t t-out="d.sin_ventas"/> productos de este proveedor no se vendieron</t>
+                            en estos <t t-out="d.meses"/> meses: no salen en la lista.
+                        </p>
+                    </t>
+                </section>
+            </div>
+        </div>
+    </t>
+
+    <!-- Una fila (en el celular, una tarjeta). Usa f, d y mostrarProveedor. -->
+    <t t-name="dcasa_interfaz.ReponerFila">
+        <tr t-attf-class="o_dcasa_reponer_fila o_estado_{{ f.estado }}" t-att-data-producto="f.producto_id">
+            <td class="o_dcasa_reponer_producto">
+                <span t-attf-class="o_dcasa_reponer_aviso o_aviso_{{ f.estado }}">
+                    <i t-if="f.pedir_ya" class="fa fa-exclamation-triangle me-1" aria-hidden="true"/>
+                    <t t-out="f.aviso"/>
+                </span>
+                <button type="button" class="btn btn-link o_dcasa_reponer_nombre" t-on-click="() => this.abrirProducto(f)"
+                        t-out="f.producto"/>
+                <small t-if="f.referencia" class="o_dcasa_reponer_ref" t-out="f.referencia"/>
+            </td>
+            <td t-if="mostrarProveedor" class="o_dcasa_reponer_prov" data-label="Proveedor" t-out="f.proveedor or 'Sin proveedor'"/>
+            <td class="o_num" t-att-data-label="'Vendido en ' + d.meses + (d.meses === 1 ? ' mes' : ' meses')" t-out="numero(f.vendido)"/>
+            <td class="o_num" data-label="Se vende al mes" t-out="numero(f.ritmo)"/>
+            <td class="o_num" data-label="Hay hoy" t-out="numero(f.existencia)"/>
+            <td class="o_num" data-label="Viene en camino" t-out="numero(f.pedido)"/>
+            <td data-label="Alcanza para" class="o_dcasa_reponer_alcanza" t-out="f.alcanza"/>
+            <td data-label="Tarda en llegar" class="o_dcasa_reponer_llega">
+                <t t-if="f.llegada_dias !== null" t-out="f.llegada"/>
+                <t t-elif="f.proveedor_id">
+                    <span class="o_falta">Falta</span>
+                    <button type="button" class="btn btn-sm btn-primary o_dcasa_reponer_poner_fila"
+                            t-on-click="() => this.ponerLlegada(f.proveedor_id)">Poner</button>
+                </t>
+                <span t-else="" class="o_falta">Sin proveedor</span>
+            </td>
+            <td class="o_num o_dcasa_reponer_pedir" data-label="Pedir">
+                <t t-if="f.pedir === null">—</t>
+                <t t-else="" t-out="numero(f.pedir)"/>
+            </td>
+        </tr>
+    </t>
+
+    <!-- La ventana del tiempo de llegada de un proveedor. -->
+    <t t-name="dcasa_interfaz.ReponerLlegada">
+        <Dialog title="'Tiempo de llegada'" size="'md'">
+            <form class="o_dcasa_reponer_llegada_form" t-on-submit="guardar">
+                <p class="o_dcasa_reponer_llegada_quien"><strong t-out="props.proveedor.nombre"/></p>
+                <p class="o_dcasa_reponer_nota">
+                    Cuánto tarda desde que le haces el pedido hasta que llega a la tienda. Se guarda en sus precios de
+                    proveedor y vale para todos sus productos. Un mes = 30 días.
+                </p>
+                <label for="o_dcasa_reponer_cantidad" class="o_dcasa_reponer_etiqueta">Tarda</label>
+                <div class="o_dcasa_reponer_llegada_campos">
+                    <input id="o_dcasa_reponer_cantidad" type="number" inputmode="decimal" min="0" step="any"
+                           class="form-control o_dcasa_reponer_cantidad" t-model="state.cantidad"/>
+                    <div class="btn-group" role="group" aria-label="En meses o en días">
+                        <button type="button" t-att-aria-pressed="state.unidad === 'meses' ? 'true' : 'false'"
+                                t-attf-class="btn o_unidad_meses {{ state.unidad === 'meses' ? 'btn-primary' : 'btn-outline-primary' }}"
+                                t-on-click="() => this.cambiarUnidad('meses')">Meses</button>
+                        <button type="button" t-att-aria-pressed="state.unidad === 'dias' ? 'true' : 'false'"
+                                t-attf-class="btn o_unidad_dias {{ state.unidad === 'dias' ? 'btn-primary' : 'btn-outline-primary' }}"
+                                t-on-click="() => this.cambiarUnidad('dias')">Días</button>
+                    </div>
+                </div>
+                <p t-if="equivale" class="o_dcasa_reponer_equivale" t-out="equivale"/>
+                <p t-if="state.error" class="alert alert-danger mt-2" role="alert" t-out="state.error"/>
+            </form>
+            <t t-set-slot="footer">
+                <button type="button" class="btn btn-primary o_dcasa_reponer_guardar" t-att-disabled="state.guardando"
+                        t-on-click="guardar">Guardar</button>
+                <button type="button" class="btn btn-secondary" t-on-click="() => this.props.close()">Cancelar</button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

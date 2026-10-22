@@ -1,15 +1,34 @@
-"""«Reponer» (Compras › Reponer): qué se vendió en un periodo y cuánto faltaría pedirle al proveedor.
+"""«Reponer» (Compras › Reponer): cuánto pedirle a cada proveedor según el ritmo de venta y lo que tarda en llegar.
 
-Una fila por producto vendido en las **facturas publicadas** del periodo (las notas de crédito restan), con las mismas
-unidades que «Lo más vendido» del Inicio de Gerencia (``dcasa.tablero._unidades_por_producto`` sobre la base
-«Facturado»): sin servicios, flete, anticipos ni líneas sin producto. Al lado, lo que hay hoy en las ubicaciones
-internas y lo pedido en compras confirmadas que todavía no llega. «Faltaría» es una cuenta a la vista:
-vendido − existencia − pedido sin llegar, solo si da más de 0. No hay ninguna otra cifra.
+Pedido de la dueña (2026-10-19 y 22): todo viene de China y tarda de 3 a 4 meses; quiere saber, por producto, en
+cuánto tiempo se queda sin él y cuánto pedir para cubrir la llegada. Una fila por producto vendido en las **facturas
+publicadas** de los últimos N meses (1 a 12; de fábrica 5); las notas de crédito restan. Son las mismas unidades que
+«Lo más vendido» del Inicio (``dcasa.tablero._unidades_por_producto`` sobre la base «Facturado»): sin servicios,
+flete, anticipos ni líneas sin producto. Lo que no se vendió en la ventana no sale (la pantalla lo dice).
 
-Solo Gerencia y los administradores (ir.model.access, el menú y ``_exigir_gerencia`` en el servidor). La herramienta
-``que_reponer`` de Brian lee lo mismo (``_calcular``).
+* **Se vende al mes** = vendido ÷ N.
+* **Hay hoy**: ubicaciones internas. **Viene en camino**: compras confirmadas que todavía no se reciben.
+* **Alcanza para** = (hay + en camino) ÷ se vende al mes, en meses (un mes = 30 días).
+* **Tarda en llegar**: los días de entrega (``delay``) del precio de proveedor principal (el primero del producto, el
+  orden de Odoo). Odoo pone **1 día** de fábrica a todo precio de proveedor y la carga del sistema anterior pone 0 si
+  no venía: por eso 0 o 1 día cuentan como **falta**, salvo que alguien lo haya puesto a propósito desde esta pantalla
+  o desde Brian (``dcasa_llegada_puesta``). Sin el dato, la fila lo dice y **no** calcula cuánto pedir.
+* **Pedir** = se vende al mes × (meses que tarda + meses de reserva) − hay − en camino, hacia arriba, solo si da
+  más de 0. **Pedir ya**: lo que hay y lo que viene no alcanza para lo que tarda en llegar un pedido nuevo.
+
+Ninguna otra cifra: nada se rellena a ojo. Solo Gerencia y los administradores: cada método exige el grupo en el
+servidor (``_exigir_gerencia``) ANTES de leer con sudo, y todo se filtra a las empresas de quien mira. La pantalla es
+la acción cliente ``dcasa_reponer`` (``static/src/js/reponer.js``); el Excel lo arma el servidor
+(``controllers/reponer.py``); Brian lee lo mismo (``que_reponer``) y pone el tiempo de llegada
+(``poner_tiempo_llegada``).
 """
+import io
+import math
+import re
+import unicodedata
 from datetime import timedelta
+
+from dateutil.relativedelta import relativedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
@@ -17,20 +36,74 @@ from odoo.exceptions import AccessError, UserError
 from .tablero import BASE_FACTURADO
 
 GRUPOS_REPONER = ('dcasa_base.group_gerencia', 'base.group_system')
-DIAS_POR_DEFECTO = 30
+MESES_POR_DEFECTO = 5
+MESES_MAXIMO = 12
+RESERVA_MAXIMA = 12
+DIAS_POR_MES = 30
+LLEGADA_MAXIMA_DIAS = 730            # 24 meses
+DIA_DE_FABRICA = 1                   # lo que Odoo pone solo en cada precio de proveedor
+PROVEEDORES_A_LA_VISTA = 40
+
+# De más urgente a menos: el orden de la lista y de los grupos.
+ESTADOS = ('ya', 'pedir', 'falta', 'sin_proveedor', 'alcanza')
+AVISOS = {
+    'ya': 'Pedir ya',
+    'pedir': 'Pedir',
+    'falta': 'Falta el tiempo de llegada',
+    'sin_proveedor': 'Sin proveedor',
+    'alcanza': 'Alcanza',
+}
 
 
-class DcasaReponer(models.TransientModel):
+def normalizar(texto):
+    """Minúsculas y sin tildes, para buscar «Panamá» con «panama»."""
+    texto = unicodedata.normalize('NFKD', str(texto or '').lower())
+    return ''.join(letra for letra in texto if not unicodedata.combining(letra)).strip()
+
+
+def cifra(valor):
+    """``3`` → «3», ``2.5`` → «2.5» (punto decimal, como en Panamá)."""
+    valor = round(valor, 1)
+    return str(int(valor)) if valor == int(valor) else f'{valor:.1f}'
+
+
+def tiempo_de_llegada(dias):
+    """``90`` → «3 meses», ``45`` → «45 días», ``30`` → «1 mes», ``1`` → «1 día»."""
+    if dias and dias % DIAS_POR_MES == 0:
+        meses = dias // DIAS_POR_MES
+        return '1 mes' if meses == 1 else f'{meses} meses'
+    return '1 día' if dias == 1 else f'{dias} días'
+
+
+def tiempo_que_alcanza(meses):
+    """Para cuánto alcanza: «Ya no hay», «12 días», «1 mes», «2.5 meses», «más de 24 meses»."""
+    if meses <= 0:
+        return 'Ya no hay'
+    if meses > 24:
+        return 'más de 24 meses'
+    dias = round(meses * DIAS_POR_MES)
+    if dias < DIAS_POR_MES:
+        return 'menos de 1 día' if dias < 1 else ('1 día' if dias == 1 else f'{dias} días')
+    texto = cifra(meses)
+    return '1 mes' if texto == '1' else f'{texto} meses'
+
+
+class ProductSupplierinfo(models.Model):
+    _inherit = 'product.supplierinfo'
+
+    dcasa_llegada_puesta = fields.Boolean(
+        'Tiempo de llegada puesto a propósito', copy=False,
+        help='Lo marca Compras › Reponer (o Brian) al guardar el tiempo de llegada del proveedor. Sin esta marca, '
+             '0 o 1 día cuenta como «falta»: es lo que Odoo pone solo.')
+
+
+class DcasaReponer(models.AbstractModel):
     _name = 'dcasa.reponer'
-    _description = 'Reponer: qué pedirle al proveedor'
+    _description = 'Reponer: cuánto pedirle al proveedor'
 
-    fecha_desde = fields.Date(
-        'Desde', required=True,
-        default=lambda self: fields.Date.context_today(self) - timedelta(days=DIAS_POR_DEFECTO - 1))
-    fecha_hasta = fields.Date('Hasta', required=True, default=fields.Date.context_today)
-    proveedor_id = fields.Many2one(
-        'res.partner', 'Proveedor', help='Opcional: solo los productos cuyo proveedor principal es este.')
-    linea_ids = fields.One2many('dcasa.reponer.linea', 'reponer_id')
+    # ------------------------------------------------------------------
+    # Permisos y parámetros
+    # ------------------------------------------------------------------
 
     @api.model
     def _exigir_gerencia(self):
@@ -38,48 +111,119 @@ class DcasaReponer(models.TransientModel):
             raise AccessError(self.env._('«Reponer» es solo de Gerencia y los administradores.'))
 
     @api.model
-    def _calcular(self, desde, hasta, proveedor=None):
-        """Las filas de «Reponer», de más vendido a menos: ``[{'producto_id', 'producto', 'referencia',
-        'proveedor_id', 'proveedor', 'vendido', 'existencia', 'pedido', 'faltaria'}]``.
+    def _validar(self, meses, reserva):
+        """``(meses, reserva)`` ya revisados: de 1 a 12 meses de ventas y de 0 a 12 meses de reserva."""
+        try:
+            meses = int(MESES_POR_DEFECTO if meses is None or meses is False or meses == '' else meses)
+            reserva = float(str(0 if reserva is None or reserva is False or reserva == '' else reserva).replace(
+                ',', '.'))
+        except (TypeError, ValueError):
+            raise UserError(self.env._('Revisa los meses: van en números.')) from None
+        if not 1 <= meses <= MESES_MAXIMO:
+            raise UserError(self.env._('Elige de 1 a %(maximo)s meses de ventas.', maximo=MESES_MAXIMO))
+        if not math.isfinite(reserva) or not 0 <= reserva <= RESERVA_MAXIMA:
+            raise UserError(self.env._('La reserva va de 0 a %(maximo)s meses.', maximo=RESERVA_MAXIMA))
+        return meses, reserva
+
+    @api.model
+    def _ventana(self, meses, hasta=None):
+        """Los últimos ``meses`` meses hasta ``hasta`` (hoy si no se dice), los dos días incluidos."""
+        hasta = hasta or fields.Date.context_today(self)
+        return hasta - relativedelta(months=meses) + timedelta(days=1), hasta
+
+    @api.model
+    def _proveedor(self, proveedor_id):
+        """El proveedor elegido (``res.partner`` con sudo) o ``None`` («Todos»)."""
+        if not proveedor_id:
+            return None
+        try:
+            socio = self.env['res.partner'].sudo().browse(int(proveedor_id)).exists()
+        except (TypeError, ValueError):
+            socio = None
+        if not socio:
+            raise UserError(self.env._('Ese proveedor ya no existe: búscalo otra vez.'))
+        return socio
+
+    @api.model
+    def _a_dias(self, cantidad, unidad):
+        """``(3, 'meses')`` → 90; ``(45, 'dias')`` → 45. De 1 día a 24 meses."""
+        try:
+            numero = float(str(cantidad).replace(',', '.'))
+        except (TypeError, ValueError):
+            numero = float('nan')
+        if unidad not in ('dias', 'meses') or not math.isfinite(numero) or numero <= 0:
+            raise UserError(self.env._('Escribe cuánto tarda en llegar: un número de días o de meses.'))
+        dias = round(numero * DIAS_POR_MES) if unidad == 'meses' else round(numero)
+        if not 1 <= dias <= LLEGADA_MAXIMA_DIAS:
+            raise UserError(self.env._('El tiempo de llegada va de 1 día a 24 meses.'))
+        return dias
+
+    @staticmethod
+    def _dias_de_llegada(precio):
+        """Los días que tarda en llegar según ese precio de proveedor, o ``None`` si falta (ver el docstring)."""
+        if precio.dcasa_llegada_puesta or precio.delay > DIA_DE_FABRICA:
+            return precio.delay
+        return None
+
+    # ------------------------------------------------------------------
+    # El cálculo
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _empresas(self):
+        return self.env.companies.ids
+
+    @api.model
+    def _principales(self, productos):
+        """``{product.product id: product.supplierinfo}``: el precio de proveedor principal de cada variante, el
+        primero de sus precios (el orden de Odoo), el de esa variante o el de todo el producto; proveedor activo."""
+        variantes = {}
+        for producto in productos:
+            variantes.setdefault(producto.product_tmpl_id.id, []).append(producto)
+        principal = {}
+        precios = self.env['product.supplierinfo'].sudo().search(
+            [('product_tmpl_id', 'in', list(variantes)), ('company_id', 'in', [False] + self._empresas()),
+             ('partner_id.active', '=', True)])
+        for precio in precios:
+            for producto in variantes[precio.product_tmpl_id.id]:
+                if producto.id not in principal and (not precio.product_id or precio.product_id == producto):
+                    principal[producto.id] = precio
+        return principal
+
+    @api.model
+    def _vendidos(self, meses, hasta=None):
+        """``{product.product id: unidades}`` de las facturas publicadas de la ventana menos las notas de crédito
+        (las de «Lo más vendido»); solo lo que da más de 0."""
+        desde, hasta = self._ventana(meses, hasta)
+        tablero = self.env['dcasa.tablero']
+        unidades = tablero._unidades_por_producto(tablero._filas(desde, hasta, BASE_FACTURADO))
+        return {producto.id: cantidad for producto, (cantidad, _monto) in unidades.items() if round(cantidad, 2) > 0}
+
+    @api.model
+    def _calcular(self, meses=MESES_POR_DEFECTO, reserva=0, proveedor=None, hasta=None):
+        """Las filas de «Reponer», de más urgente a menos: ``[{'producto_id', 'producto', 'referencia',
+        'proveedor_id', 'proveedor', 'vendido', 'ritmo', 'existencia', 'pedido', 'alcanza_meses', 'alcanza',
+        'llegada_dias', 'llegada', 'pedir', 'pedir_ya', 'estado', 'aviso'}]``. ``llegada_dias`` y ``pedir`` son
+        ``None`` cuando falta el tiempo de llegada (o el proveedor).
 
         Lecturas agrupadas (una por tipo de dato, nunca una por producto), con ``sudo`` tras comprobar el grupo y
         siempre filtradas a las empresas de quien mira."""
         self._exigir_gerencia()
-        if not desde or not hasta or desde > hasta:
-            raise UserError(self.env._('Revisa las fechas: «Desde» va antes que «Hasta».'))
-        tablero = self.env['dcasa.tablero']
-        unidades = tablero._unidades_por_producto(tablero._filas(desde, hasta, BASE_FACTURADO))
-        vendidos = {producto.id: cantidad for producto, (cantidad, _monto) in unidades.items()
-                    if round(cantidad, 2) > 0}
+        meses, reserva = self._validar(meses, reserva)
+        vendidos = self._vendidos(meses, hasta)
         if not vendidos:
             return []
-        empresas = self.env.companies.ids
+        empresas = self._empresas()
         productos = self.env['product.product'].sudo().with_context(active_test=False).browse(list(vendidos))
-
-        # Proveedor principal: el primero de sus precios de proveedor (el orden de Odoo), el de esa variante o el de
-        # todo el producto.
-        principal = {}
-        variantes = {}
-        for producto in productos:
-            variantes.setdefault(producto.product_tmpl_id.id, []).append(producto)
-        precios = self.env['product.supplierinfo'].sudo().search_fetch(
-            [('product_tmpl_id', 'in', list(variantes)), ('company_id', 'in', [False] + empresas)],
-            ['partner_id', 'product_tmpl_id', 'product_id'])
-        for precio in precios:
-            for producto in variantes[precio.product_tmpl_id.id]:
-                if producto.id not in principal and (not precio.product_id or precio.product_id == producto):
-                    principal[producto.id] = precio.partner_id
+        principal = self._principales(productos)
         if proveedor:
-            vendidos = {pid: cantidad for pid, cantidad in vendidos.items()
-                        if principal.get(pid) and principal[pid].id == proveedor.id}
-            productos = productos.filtered(lambda p: p.id in vendidos)
-            if not vendidos:
+            productos = productos.filtered(lambda p: p.id in principal and principal[p.id].partner_id == proveedor)
+            if not productos:
                 return []
 
         existencia = {producto.id: cantidad for producto, cantidad in self.env['stock.quant'].sudo()._read_group(
             [('product_id', 'in', productos.ids), ('location_id.usage', '=', 'internal'),
              ('company_id', 'in', empresas)], ['product_id'], ['quantity:sum'])}
-
         pedido = dict.fromkeys(productos.ids, 0.0)
         for linea in self.env['purchase.order.line'].sudo().search_fetch(
                 [('product_id', 'in', productos.ids), ('order_id.state', '=', 'purchase'),
@@ -91,64 +235,363 @@ class DcasaReponer(models.TransientModel):
             pedido[linea.product_id.id] += falta
 
         filas = []
-        for producto in productos:
+        for producto in productos.with_context(display_default_code=False):
             vendido = round(vendidos[producto.id], 2)
+            ritmo = vendido / meses
             hay = round(existencia.get(producto.id, 0.0), 2)
             en_camino = round(pedido[producto.id], 2)
-            socio = principal.get(producto.id)
+            alcanza = max(hay + en_camino, 0.0) / ritmo
+            precio = principal.get(producto.id)
+            dias = self._dias_de_llegada(precio) if precio else None
+            if dias is None:
+                pedir, pedir_ya = None, False
+                estado = 'falta' if precio else 'sin_proveedor'
+            else:
+                llegada = dias / DIAS_POR_MES
+                pedir = max(math.ceil(round(ritmo * (llegada + reserva) - hay - en_camino, 6)), 0)
+                pedir_ya = round(alcanza, 6) < round(llegada, 6)
+                estado = 'ya' if pedir_ya else ('pedir' if pedir else 'alcanza')
+            socio = precio.partner_id if precio else None
             filas.append({
                 'producto_id': producto.id, 'producto': producto.display_name,
                 'referencia': producto.default_code or '',
                 'proveedor_id': socio.id if socio else False, 'proveedor': socio.display_name if socio else '',
-                'vendido': vendido, 'existencia': hay, 'pedido': en_camino,
-                'faltaria': round(max(vendido - hay - en_camino, 0.0), 2),
+                'vendido': vendido, 'ritmo': round(ritmo, 2), 'existencia': hay, 'pedido': en_camino,
+                'alcanza_meses': round(alcanza, 2), 'alcanza': tiempo_que_alcanza(alcanza),
+                'llegada_dias': dias,
+                'llegada': tiempo_de_llegada(dias) if dias is not None else (
+                    self.env._('Falta') if precio else self.env._('Sin proveedor')),
+                'pedir': pedir, 'pedir_ya': pedir_ya, 'estado': estado, 'aviso': AVISOS[estado],
             })
-        filas.sort(key=lambda fila: (-fila['vendido'], fila['producto'].lower()))
+        filas.sort(key=lambda fila: (ESTADOS.index(fila['estado']), fila['alcanza_meses'], -(fila['pedir'] or 0),
+                                     fila['producto'].lower()))
         return filas
 
-    def action_ver(self):
-        """Botón «Ver»: llena las filas de este pedido de filtros y abre la lista (agrupable y exportable)."""
-        self.ensure_one()
-        filas = self._calcular(self.fecha_desde, self.fecha_hasta, self.proveedor_id)
-        self.linea_ids.unlink()
-        self.env['dcasa.reponer.linea'].create([
-            {'reponer_id': self.id, 'secuencia': orden, 'product_id': fila['producto_id'],
-             'referencia': fila['referencia'], 'proveedor_id': fila['proveedor_id'], 'vendido': fila['vendido'],
-             'existencia': fila['existencia'], 'pedido': fila['pedido'], 'faltaria': fila['faltaria']}
-            for orden, fila in enumerate(filas)])
-        titulo = self.env._('Reponer: %(desde)s a %(hasta)s', desde=self.fecha_desde.strftime('%d/%m/%Y'),
-                            hasta=self.fecha_hasta.strftime('%d/%m/%Y'))
-        if self.proveedor_id:
-            titulo = f'{titulo} · {self.proveedor_id.display_name}'
+    @api.model
+    def _grupos(self, filas):
+        """Las filas por proveedor principal, con sus totales: ``[{'proveedor_id', 'proveedor', 'filas', 'ya',
+        'vendido', 'ritmo', 'existencia', 'pedido', 'pedir', 'calculables'}]`` (``calculables``: cuántas filas tienen
+        cuánto pedir; sin ninguna, el total de «Pedir» es «—»). Primero el que tiene más «Pedir ya» y lo más
+        urgente; «Sin proveedor» al final."""
+        grupos = {}
+        for fila in filas:
+            grupo = grupos.setdefault(fila['proveedor_id'], {
+                'proveedor_id': fila['proveedor_id'], 'proveedor': fila['proveedor'] or self.env._('Sin proveedor'),
+                'filas': [], 'ya': 0, 'vendido': 0.0, 'ritmo': 0.0, 'existencia': 0.0, 'pedido': 0.0, 'pedir': 0,
+                'calculables': 0})
+            grupo['filas'].append(fila)
+            grupo['ya'] += int(fila['pedir_ya'])
+            grupo['calculables'] += fila['pedir'] is not None
+            grupo['pedir'] += fila['pedir'] or 0
+            for clave in ('vendido', 'ritmo', 'existencia', 'pedido'):
+                grupo[clave] = round(grupo[clave] + fila[clave], 2)
+        return sorted(grupos.values(), key=lambda g: (
+            not g['proveedor_id'], -g['ya'], min(ESTADOS.index(f['estado']) for f in g['filas']),
+            min(f['alcanza_meses'] for f in g['filas']), g['proveedor'].lower()))
+
+    @api.model
+    def _sin_ventas(self, proveedor, filas):
+        """Cuántos productos activos tienen a ``proveedor`` de principal y no salen en ``filas`` (no se vendieron)."""
+        plantillas = self.env['product.supplierinfo'].sudo().search(
+            [('partner_id', '=', proveedor.id), ('company_id', 'in', [False] + self._empresas())]).product_tmpl_id
+        variantes = plantillas.filtered('active').product_variant_ids
+        principal = self._principales(variantes)
+        vistos = {fila['producto_id'] for fila in filas}
+        return sum(1 for variante in variantes
+                   if variante.id not in vistos and variante.id in principal
+                   and principal[variante.id].partner_id == proveedor)
+
+    # ------------------------------------------------------------------
+    # Proveedores: ficha, buscador y tiempo de llegada
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _fichas(self, ids):
+        """``{id: {'id', 'nombre', 'telefono', 'ruc', 'productos', 'ultima_compra', 'llegada'}}`` de esos
+        proveedores (``llegada``: ``_resumen_llegada``)."""
+        socios = self.env['res.partner'].sudo().browse(ids).exists()
+        if not socios:
+            return {}
+        empresas = self._empresas()
+        precios = self.env['product.supplierinfo'].sudo().search_fetch(
+            [('partner_id', 'in', socios.ids), ('company_id', 'in', [False] + empresas),
+             ('product_tmpl_id.active', '=', True)],
+            ['partner_id', 'product_tmpl_id', 'delay', 'dcasa_llegada_puesta'])
+        productos, dias = {}, {}
+        for precio in precios:
+            productos.setdefault(precio.partner_id.id, set()).add(precio.product_tmpl_id.id)
+            dias.setdefault(precio.partner_id.id, []).append(self._dias_de_llegada(precio))
+        ultima = {}
+        for socio, aprobada, ordenada in self.env['purchase.order'].sudo()._read_group(
+                [('partner_id', 'child_of', socios.ids), ('state', '=', 'purchase'), ('company_id', 'in', empresas)],
+                ['partner_id'], ['date_approve:max', 'date_order:max']):
+            duenio = socio.id if socio.id in socios.ids else socio.commercial_partner_id.id
+            momento = aprobada or ordenada
+            if momento and (duenio not in ultima or momento > ultima[duenio]):
+                ultima[duenio] = momento
+        fichas = {}
+        for socio in socios:
+            momento = ultima.get(socio.id)
+            fichas[socio.id] = {
+                'id': socio.id, 'nombre': socio.display_name, 'telefono': socio.phone or '',
+                'ruc': socio.vat or '', 'productos': len(productos.get(socio.id, ())),
+                'ultima_compra': (fields.Datetime.context_timestamp(self, momento).strftime('%d/%m/%Y')
+                                  if momento else ''),
+                'llegada': self._resumen_llegada(dias.get(socio.id, [])),
+            }
+        return fichas
+
+    @api.model
+    def _resumen_llegada(self, dias):
+        """``{'dias', 'texto', 'falta', 'precios'}`` del tiempo de llegada de un proveedor, a partir de los días de
+        cada uno de sus precios (``None`` = falta): ``dias`` solo si todos tardan lo mismo; ``falta``, a cuántos
+        precios les falta; ``precios``, cuántos tiene."""
+        conocidos = sorted({d for d in dias if d is not None})
+        falta = sum(1 for d in dias if d is None)
+        if not dias:
+            texto = self.env._('Todavía no tiene productos con su precio de proveedor')
+        elif not conocidos:
+            texto = self.env._('Falta el tiempo de llegada')
+        else:
+            if len(conocidos) == 1:
+                texto = tiempo_de_llegada(conocidos[0])
+            else:
+                texto = self.env._('De %(menos)s a %(mas)s', menos=tiempo_de_llegada(conocidos[0]),
+                                   mas=tiempo_de_llegada(conocidos[-1]))
+            if falta == 1:
+                texto += ' · ' + self.env._('a 1 producto le falta')
+            elif falta:
+                texto += ' · ' + self.env._('a %(n)s productos les falta', n=falta)
+        return {'dias': conocidos[0] if len(conocidos) == 1 and not falta else None, 'texto': texto,
+                'falta': falta, 'precios': len(dias)}
+
+    @api.model
+    def _ids_proveedores(self):
+        """Los proveedores: quien tiene precios de proveedor, quien ya recibió una compra confirmada y quien está
+        marcado como proveedor; activos y de las empresas de quien mira, por nombre."""
+        empresas = self._empresas()
+        ids = set(self.env['product.supplierinfo'].sudo().search(
+            [('company_id', 'in', [False] + empresas)]).partner_id.ids)
+        compras = self.env['purchase.order'].sudo().search([('state', '=', 'purchase'), ('company_id', 'in', empresas)])
+        ids |= set(compras.partner_id.commercial_partner_id.ids)
+        ids |= set(self.env['res.partner'].sudo().search([('supplier_rank', '>', 0)]).ids)
+        return self.env['res.partner'].sudo().search(
+            [('id', 'in', list(ids)), ('company_id', 'in', [False] + empresas)], order='name, id')
+
+    def _motivo(self, socio, clave, digitos, ruc):
+        """Por qué ``socio`` coincide con lo escrito (``''`` = por su nombre) o ``None`` si no coincide."""
+        if clave in normalizar(socio.name) or (socio.ref and clave in normalizar(socio.ref)):
+            return ''
+        telefono = re.sub(r'\D', '', socio.phone or '')
+        if digitos and telefono and digitos in telefono:
+            return self.env._('Teléfono %(telefono)s', telefono=socio.phone)
+        if ruc and socio.vat and ruc in re.sub(r'[\s.\-]', '', socio.vat).lower():
+            return self.env._('RUC %(ruc)s', ruc=socio.vat)
+        return None
+
+    @api.model
+    def buscar_proveedores(self, texto=''):
+        """El buscador de proveedores de la pantalla: lo escrito puede ser parte del nombre, el teléfono, el RUC o
+        el nombre o código de un producto que vende. ``{'proveedores': [ficha + 'coincide'], 'total', 'texto'}``;
+        sin texto, todos (los primeros 40 por nombre)."""
+        self._exigir_gerencia()
+        texto = str(texto or '').strip()[:80]
+        socios = self._ids_proveedores()
+        coincide = {}
+        if texto:
+            clave = normalizar(texto)
+            sin_signos = re.sub(r'[\s.\-+()/]', '', texto)
+            digitos = sin_signos if sin_signos.isdigit() and len(sin_signos) >= 3 else ''
+            ruc = sin_signos.lower() if len(sin_signos) >= 3 else ''
+            for socio in socios:
+                motivo = self._motivo(socio, clave, digitos, ruc)
+                if motivo is not None:
+                    coincide[socio.id] = motivo
+            # Por un producto que vende (nombre, código, código de barras o su código/nombre en el proveedor).
+            productos = self.env['product.product'].sudo().search(
+                ['|', '|', ('name', 'ilike', texto), ('default_code', 'ilike', texto), ('barcode', 'ilike', texto)],
+                limit=200)
+            precios = self.env['product.supplierinfo'].sudo().search(
+                [('company_id', 'in', [False] + self._empresas()), ('partner_id', 'in', socios.ids), '|', '|',
+                 ('product_tmpl_id', 'in', productos.product_tmpl_id.ids), ('product_code', 'ilike', texto),
+                 ('product_name', 'ilike', texto)])
+            for precio in precios:
+                if precio.partner_id.id not in coincide:
+                    coincide[precio.partner_id.id] = self.env._(
+                        'Vende «%(producto)s»', producto=precio.product_tmpl_id.with_context(
+                            display_default_code=False).display_name)
+            socios = socios.filtered(lambda s: s.id in coincide).sorted(
+                lambda s: (bool(coincide[s.id]), normalizar(s.name)))
+        total = len(socios)
+        socios = socios[:PROVEEDORES_A_LA_VISTA]
+        fichas = self._fichas(socios.ids)
+        return {'proveedores': [dict(fichas[s.id], coincide=coincide.get(s.id, '')) for s in socios],
+                'total': total, 'texto': texto}
+
+    @api.model
+    def _poner_llegada(self, proveedor, dias):
+        """Guarda ``dias`` como el tiempo de llegada de todos los precios de ``proveedor`` (los de las empresas de
+        quien mira) y lo anota en su ficha. Devuelve cuántos precios cambió."""
+        self._exigir_gerencia()
+        precios = self.env['product.supplierinfo'].sudo().search(
+            [('partner_id', '=', proveedor.id), ('company_id', 'in', [False] + self._empresas())])
+        if not precios:
+            raise UserError(self.env._(
+                '%(proveedor)s todavía no tiene productos con su precio de proveedor: agrégaselo en la ficha del '
+                'producto, pestaña «Compra».', proveedor=proveedor.display_name))
+        precios.write({'delay': dias, 'dcasa_llegada_puesta': True})
+        proveedor.sudo().message_post(
+            body=self.env._('Tiempo de llegada: %(tiempo)s (%(dias)s días), puesto desde Compras › Reponer por '
+                            '%(quien)s.', tiempo=tiempo_de_llegada(dias), dias=dias, quien=self.env.user.name),
+            subtype_xmlid='mail.mt_note', author_id=self.env.user.partner_id.id)
+        return len(precios)
+
+    @api.model
+    def poner_llegada(self, proveedor_id, cantidad, unidad='meses'):
+        """Botón «Guardar» del tiempo de llegada: ``cantidad`` días o meses (un mes = 30 días). Devuelve la ficha
+        del proveedor al día."""
+        self._exigir_gerencia()
+        proveedor = self._proveedor(proveedor_id)
+        if not proveedor:
+            raise UserError(self.env._('Elige un proveedor.'))
+        self._poner_llegada(proveedor, self._a_dias(cantidad, unidad))
+        return self._fichas(proveedor.ids)[proveedor.id]
+
+    # ------------------------------------------------------------------
+    # La pantalla y el Excel
+    # ------------------------------------------------------------------
+
+    @api.model
+    def obtener(self, meses=MESES_POR_DEFECTO, reserva=0, proveedor_id=False):
+        """Todo lo que pinta la pantalla: la ventana, el proveedor elegido, las filas, los grupos y el resumen."""
+        self._exigir_gerencia()
+        meses, reserva = self._validar(meses, reserva)
+        proveedor = self._proveedor(proveedor_id)
+        filas = self._calcular(meses, reserva, proveedor)
+        desde, hasta = self._ventana(meses)
+        grupos = self._grupos(filas)
+        fichas = self._fichas([g['proveedor_id'] for g in grupos if g['proveedor_id']]
+                              + ([proveedor.id] if proveedor else []))
+        for grupo in grupos:
+            grupo['llegada'] = fichas[grupo['proveedor_id']]['llegada'] if grupo['proveedor_id'] else None
+            grupo['producto_ids'] = [fila['producto_id'] for fila in grupo.pop('filas')]
+        resumen = dict.fromkeys(ESTADOS, 0)
+        for fila in filas:
+            resumen[fila['estado']] += 1
         return {
-            'type': 'ir.actions.act_window',
-            'name': titulo,
-            'res_model': 'dcasa.reponer.linea',
-            'view_mode': 'list',
-            'views': [(self.env.ref('dcasa_interfaz.dcasa_reponer_linea_view_list').id, 'list')],
-            'search_view_id': self.env.ref('dcasa_interfaz.dcasa_reponer_linea_view_search').id,
-            'domain': [('reponer_id', '=', self.id)],
-            'context': {'create': False, 'edit': False, 'delete': False},
-            'target': 'current',
+            'meses': meses, 'reserva': reserva,
+            'desde': desde.strftime('%d/%m/%Y'), 'hasta': hasta.strftime('%d/%m/%Y'),
+            'proveedor': fichas[proveedor.id] if proveedor else None,
+            'sin_ventas': self._sin_ventas(proveedor, filas) if proveedor else None,
+            'filas': filas, 'grupos': grupos, 'resumen': resumen,
+            'unidades': sum(fila['pedir'] or 0 for fila in filas),
         }
 
+    @api.model
+    def _excel(self, meses=MESES_POR_DEFECTO, reserva=0, proveedor_id=False):
+        """``(nombre, contenido)`` del Excel: la hoja «Reponer» (lo mismo que la pantalla, de más urgente a menos) y
+        «Por proveedor» (sus totales)."""
+        import xlsxwriter  # noqa: PLC0415 (como el exportar de Odoo: solo se carga al usarlo)
 
-class DcasaReponerLinea(models.TransientModel):
-    _name = 'dcasa.reponer.linea'
-    _description = 'Reponer: una fila por producto'
-    _order = 'secuencia, id'
+        self._exigir_gerencia()
+        meses, reserva = self._validar(meses, reserva)
+        proveedor = self._proveedor(proveedor_id)
+        filas = self._calcular(meses, reserva, proveedor)
+        desde, hasta = self._ventana(meses)
+        salida = io.BytesIO()
+        libro = xlsxwriter.Workbook(salida, {'in_memory': True})
+        formatos = {
+            'titulo': libro.add_format({'bold': True, 'font_size': 14, 'font_color': '#1340B1'}),
+            'nota': libro.add_format({'italic': True, 'font_color': '#44506A'}),
+            'cabeza': libro.add_format({'bold': True, 'bg_color': '#1340B1', 'font_color': '#FFFFFF',
+                                        'text_wrap': True, 'valign': 'vcenter', 'border': 1}),
+            'entero': libro.add_format({'num_format': '#,##0'}),
+            'decimal': libro.add_format({'num_format': '#,##0.0#'}),
+            'urgente': libro.add_format({'bold': True, 'font_color': '#0B1F52'}),
+            'total': libro.add_format({'bold': True, 'num_format': '#,##0.##', 'top': 1}),
+        }
+        quien = proveedor.display_name if proveedor else self.env._('Todos los proveedores')
+        encabezado = [
+            (self.env._('Reponer · %(quien)s', quien=quien), formatos['titulo']),
+            (self.env._('Ventas del %(desde)s al %(hasta)s (%(meses)s meses, facturas menos notas de crédito) · '
+                        'Reserva: %(reserva)s meses · Un mes = 30 días.', desde=desde.strftime('%d/%m/%Y'),
+                        hasta=hasta.strftime('%d/%m/%Y'), meses=meses, reserva=cifra(reserva)), formatos['nota']),
+            (self.env._('Pedir = se vende al mes × (meses que tarda + reserva) − hay hoy − viene en camino. '
+                        '«Pedir ya»: lo que hay y lo que viene no alcanza para lo que tarda en llegar.'),
+             formatos['nota']),
+        ]
+        self._hoja_reponer(libro.add_worksheet(self.env._('Reponer')), formatos, encabezado, filas, meses)
+        self._hoja_proveedores(libro.add_worksheet(self.env._('Por proveedor')), formatos, self._grupos(filas), meses)
+        libro.close()
+        sufijo = f'_{re.sub(r"[^a-z0-9]+", "-", normalizar(proveedor.display_name)).strip("-")}' if proveedor else ''
+        return f'reponer{sufijo}_{hasta.isoformat()}.xlsx', salida.getvalue()
 
-    reponer_id = fields.Many2one('dcasa.reponer', required=True, ondelete='cascade', index=True)
-    secuencia = fields.Integer(default=0)
-    product_id = fields.Many2one('product.product', 'Producto', readonly=True)
-    referencia = fields.Char('Referencia', readonly=True)
-    proveedor_id = fields.Many2one('res.partner', 'Proveedor principal', readonly=True,
-                                   help='El primero de los precios de proveedor del producto.')
-    vendido = fields.Float('Vendido', digits='Product Unit', readonly=True,
-                           help='Unidades de las facturas publicadas del periodo menos las notas de crédito.')
-    existencia = fields.Float('En existencia hoy', digits='Product Unit', readonly=True,
-                              help='Lo que hay hoy en las ubicaciones internas.')
-    pedido = fields.Float('Pedido sin llegar', digits='Product Unit', readonly=True,
-                          help='Compras confirmadas que todavía no se reciben.')
-    faltaria = fields.Float('Faltaría (vendido − existencia − pedido)', digits='Product Unit', readonly=True,
-                            help='Vendido − En existencia hoy − Pedido sin llegar, solo si da más de 0.')
+    def _columnas_comunes(self, meses):
+        return [(self.env._('Vendido en %(meses)s meses', meses=meses), 12), (self.env._('Se vende al mes'), 11),
+                (self.env._('Hay hoy'), 10), (self.env._('Viene en camino'), 11)]
+
+    @staticmethod
+    def _cabecera(hoja, fila, columnas, formato):
+        for columna, (nombre, ancho) in enumerate(columnas):
+            hoja.write(fila, columna, nombre, formato)
+            hoja.set_column(columna, columna, ancho)
+        hoja.set_row(fila, 32)
+
+    def _hoja_reponer(self, hoja, formatos, encabezado, filas, meses):
+        """La hoja «Reponer»: una fila por producto, como en la pantalla (números como números, para sumar)."""
+        for numero, (texto, formato) in enumerate(encabezado):
+            hoja.write(numero, 0, texto, formato)
+        columnas = ([(self.env._('Aviso'), 14), (self.env._('Producto'), 40), (self.env._('Referencia'), 14),
+                     (self.env._('Proveedor'), 28)] + self._columnas_comunes(meses)
+                    + [(self.env._('Alcanza para (meses)'), 12), (self.env._('Tarda en llegar (días)'), 12),
+                       (self.env._('Pedir'), 10)])
+        cabecera = len(encabezado) + 1
+        self._cabecera(hoja, cabecera, columnas, formatos['cabeza'])
+        for numero, fila in enumerate(filas, start=cabecera + 1):
+            hoja.write(numero, 0, fila['aviso'], formatos['urgente'] if fila['pedir_ya'] else None)
+            hoja.write(numero, 1, fila['producto'])
+            hoja.write(numero, 2, fila['referencia'])
+            hoja.write(numero, 3, fila['proveedor'] or self.env._('Sin proveedor'))
+            for columna, clave in enumerate(('vendido', 'ritmo', 'existencia', 'pedido', 'alcanza_meses'), start=4):
+                hoja.write_number(numero, columna, fila[clave], formatos['decimal'])
+            if fila['llegada_dias'] is None:
+                hoja.write(numero, 9, fila['llegada'])
+                hoja.write(numero, 10, '—')
+            else:
+                hoja.write_number(numero, 9, fila['llegada_dias'], formatos['entero'])
+                hoja.write_number(numero, 10, fila['pedir'], formatos['entero'])
+        if filas:
+            hoja.autofilter(cabecera, 0, cabecera + len(filas), len(columnas) - 1)
+        else:
+            hoja.write(cabecera + 1, 0, self.env._('No se vendió nada en esos meses.'), formatos['nota'])
+        hoja.freeze_panes(cabecera + 1, 2)
+
+    def _hoja_proveedores(self, hoja, formatos, grupos, meses):
+        """La hoja «Por proveedor»: sus totales y, abajo, el total de todos (con fórmula, para que cuadre)."""
+        from xlsxwriter.utility import xl_col_to_name  # noqa: PLC0415
+
+        fichas = self._fichas([grupo['proveedor_id'] for grupo in grupos if grupo['proveedor_id']])
+        columnas = ([(self.env._('Proveedor'), 32), (self.env._('Tarda en llegar'), 24), (self.env._('Productos'), 10),
+                     (self.env._('Pedir ya'), 10)] + self._columnas_comunes(meses) + [(self.env._('Pedir'), 10)])
+        self._cabecera(hoja, 0, columnas, formatos['cabeza'])
+        valores = []
+        for numero, grupo in enumerate(grupos, start=1):
+            ficha = fichas.get(grupo['proveedor_id'])
+            hoja.write(numero, 0, grupo['proveedor'])
+            hoja.write(numero, 1, ficha['llegada']['texto'] if ficha else self.env._('Sin proveedor'))
+            fila = [len(grupo['filas']), grupo['ya'], grupo['vendido'], grupo['ritmo'], grupo['existencia'],
+                    grupo['pedido'], grupo['pedir']]
+            for columna, valor in enumerate(fila, start=2):
+                formato = formatos['entero'] if columna in (2, 3, 8) else formatos['decimal']
+                hoja.write_number(numero, columna, valor, formato)
+            if not grupo['calculables']:
+                hoja.write(numero, 8, '—')
+            valores.append(fila)
+        if grupos:
+            ultima = len(grupos) + 1
+            hoja.write(ultima, 0, self.env._('Total'), formatos['total'])
+            for indice, columna in enumerate(range(2, len(columnas))):
+                letra = xl_col_to_name(columna)
+                hoja.write_formula(ultima, columna, f'=SUM({letra}2:{letra}{ultima})', formatos['total'],
+                                   round(sum(fila[indice] for fila in valores), 2))
+        hoja.freeze_panes(1, 1)

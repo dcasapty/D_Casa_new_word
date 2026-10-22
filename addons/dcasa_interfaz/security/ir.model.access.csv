@@ -1,6 +1,2 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 "access_website_page_dcasa_gerencia","website.page: Gerencia ve y publica (el contenido se mantiene desde el código)","website.model_website_page","dcasa_base.group_gerencia",1,1,0,0
-"access_dcasa_reponer_gerencia","dcasa.reponer: Gerencia","model_dcasa_reponer","dcasa_base.group_gerencia",1,1,1,1
-"access_dcasa_reponer_admin","dcasa.reponer: administradores","model_dcasa_reponer","base.group_system",1,1,1,1
-"access_dcasa_reponer_linea_gerencia","dcasa.reponer.linea: Gerencia","model_dcasa_reponer_linea","dcasa_base.group_gerencia",1,1,1,1
-"access_dcasa_reponer_linea_admin","dcasa.reponer.linea: administradores","model_dcasa_reponer_linea","base.group_system",1,1,1,1

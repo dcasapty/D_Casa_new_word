@@ -928,23 +928,49 @@ Código y pruebas: `addons/dcasa_abonos/` (`tests/test_condiciones.py`, con el P
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 
-## Reponer: qué pedirle al proveedor (pedido del jefe, 2026-10-19)
+## Reponer: cuánto pedirle al proveedor (pedido del jefe 2026-10-19; ritmo y llegada, la dueña 2026-10-22)
 
-**Compras › Reponer** (solo Gerencia y administradores; la Vendedora no la ve). Se eligen **Desde / Hasta** (de
-fábrica, los últimos 30 días, hoy incluido) y, si se quiere, un **Proveedor**; el botón **Ver** abre una fila por
-producto, de más vendido a menos:
+**Compras › Reponer** (solo Gerencia y administradores; la Vendedora no la ve y el servidor se lo niega). Todo viene de
+China y tarda meses: la pantalla dice, por producto, en cuánto tiempo se acaba y cuánto pedir para cubrir la llegada.
+Es una pantalla propia (acción cliente `dcasa_reponer`), cómoda en el celular (cada fila es una tarjeta, sin scroll de
+costado), en tres pasos:
+
+1. **Elige el proveedor**: un buscador donde se escribe parte del nombre, el teléfono, el RUC o el nombre o código de
+   un producto que vende (también su código en el proveedor). Cada resultado dice cuántos productos le compras, la
+   última compra confirmada y cuánto tarda en llegar; se toca para elegirlo. «Todos los proveedores» siempre está.
+2. **Elige cuánto mirar**: los meses de ventas (1 a 12; de fábrica **5**, el ejemplo de la dueña) y la **reserva**
+   (meses extra por si acaso; de fábrica 0).
+3. **Qué pedir**: la lista, **Por urgencia** (de fábrica) o **Por proveedor** (cada uno con su tiempo de llegada,
+   su botón para ponerlo o cambiarlo y su total).
 
 | Columna | De dónde sale |
 |---|---|
-| Vendido | Unidades de las **facturas publicadas** del periodo menos las notas de crédito, las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
-| En existencia hoy | Lo que hay en las ubicaciones internas. |
-| Pedido sin llegar | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
-| Faltaría | Vendido − En existencia hoy − Pedido sin llegar, solo si da más de 0. Ninguna otra cifra. |
-| Proveedor principal | El primero de los precios de proveedor del producto; el filtro «Proveedor» usa este. |
+| Vendido en N meses | Unidades de las **facturas publicadas** de los últimos N meses (hasta hoy) menos las notas de crédito: las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
+| Se vende al mes | Vendido ÷ N. |
+| Hay hoy | Lo que hay en las ubicaciones internas. |
+| Viene en camino | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
+| Alcanza para | (Hay hoy + Viene en camino) ÷ Se vende al mes, en meses o días (un mes = 30 días). |
+| Tarda en llegar | Los días de entrega del **precio de proveedor principal** (el primero de los precios del producto; campo `delay` de Odoo). |
+| Pedir | Se vende al mes × (meses que tarda + meses de reserva) − Hay hoy − Viene en camino, hacia arriba, solo si da más de 0. |
+| Aviso | **Pedir ya** si lo que hay y lo que viene no alcanza para lo que tarda en llegar; **Pedir**; **Falta el tiempo de llegada**; **Sin proveedor**; **Alcanza**. La lista va en ese orden y, dentro, lo que se acaba antes primero. |
 
-En la lista: **Agrupar por › Proveedor**, y para Excel se marcan las filas y **Acciones › Exportar** (el exportar de Odoo
-lo ven quienes tienen permiso de exportar: los administradores; a otra persona se lo da un administrador en su
-usuario). Brian responde lo mismo con `que_reponer`. Código: `addons/dcasa_interfaz/models/reponer.py`.
+- **Nunca se inventa el tiempo de llegada.** Odoo pone **1 día** solo en cada precio de proveedor (y la carga del
+  sistema anterior, 0 si no venía el plazo): 0 o 1 día cuentan como **falta**, salvo que alguien lo haya puesto a
+  propósito desde Reponer o Brian (marca `dcasa_llegada_puesta` del precio). Un plazo de más de 1 día puesto en la
+  ficha del producto (pestaña Compra) sí cuenta. Sin el dato, la fila dice «Falta» y **no** calcula cuánto pedir.
+- **Poner o cambiar el tiempo de llegada:** botón «Poner tiempo de llegada» (o «Cambiar») del proveedor elegido, de
+  su grupo o «Poner» en la fila. Se escribe en **meses o días**; se guarda en **todos sus precios de proveedor** y queda
+  anotado en la ficha del proveedor (quién y cuánto). De 1 día a 24 meses.
+- **Producto sin precio de proveedor:** sale como «Sin proveedor», con su ritmo, pero sin cuánto pedir. Se arregla en la
+  ficha del producto, pestaña **Compra** (agregar el proveedor con su precio); un proveedor sin ningún precio no puede
+  tener tiempo de llegada (la pantalla lo dice).
+- **Lo que no se vendió** en la ventana no sale (con un proveedor elegido, la pantalla dice cuántos productos suyos no
+  se vendieron). Si un producto estuvo agotado, vendió menos y su ritmo sale más bajo: conviene mirarlo a ojo.
+- **Descargar Excel** (Gerencia y administradores): el servidor arma el archivo (`/dcasa/reponer/excel`) con la hoja
+  «Reponer» (lo mismo que la pantalla) y «Por proveedor» (totales). No hace falta abrirle a nadie el «Exportar» general
+  de Odoo.
+- Brian: `que_reponer(proveedor?, meses?, reserva?)` y `poner_tiempo_llegada(proveedor, dias? / meses?)`.
+  Código: `addons/dcasa_interfaz/models/reponer.py`, `controllers/reponer.py`, `static/src/js/reponer.js`.
 
 ## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
 

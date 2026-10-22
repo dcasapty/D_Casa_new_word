@@ -2,8 +2,9 @@
 catálogo incompleto, editar varios productos a la vez (publicar, existencias, precio, categoría) y consumo de
 Brian.
 
-Todo corre como el usuario (sin sudo). Las cifras las calcula Odoo y se devuelven ya
-formateadas; ninguna se estima con el modelo de IA. La sugerencia de compra es aritmética
+Todo corre como el usuario (sin sudo), salvo Reponer (``que_reponer``, ``poner_tiempo_llegada``): ``dcasa.reponer``
+exige Gerencia o administrador en el servidor antes de leer o escribir con sudo. Las cifras las calcula Odoo y se
+devuelven ya formateadas; ninguna se estima con el modelo de IA. La sugerencia de compra es aritmética
 visible (ventas del periodo ÷ días × días de cobertura − proyectado), sin «inteligencia» oculta.
 """
 import math
@@ -22,7 +23,7 @@ GERENTE_VENTAS = ('sales_team.group_sale_manager',)
 GERENTE_INVENTARIO = ('stock.group_stock_manager',)
 ADMIN = ('base.group_system',)
 GERENCIA_O_ADMIN = ('dcasa_base.group_gerencia', 'base.group_system')
-DIAS_REPONER = 30
+SIN_PEDIR = {True: 'no se calcula: falta el tiempo de llegada', False: 'no se calcula: no tiene proveedor'}
 MAX_BLOQUE = 200
 MAX_BLOQUE_EXISTENCIAS = 1000
 CAMPOS_EN_BLOQUE = ('precio', 'categoria', 'vendible')
@@ -212,40 +213,78 @@ class BrianHerramientasOperacion(models.AbstractModel):
 
     @herramienta(
         nombre='que_reponer',
-        descripcion='Qué reponerle a un proveedor (como Compras › Reponer): por producto, lo vendido en el periodo '
-                    '(facturas menos notas de crédito), lo que hay hoy, lo pedido sin llegar y lo que faltaría '
-                    '(vendido − existencia − pedido).',
+        descripcion='Cuánto pedirle al proveedor (Compras › Reponer): por producto, vendido en N meses, se vende al '
+                    'mes, hay, en camino, alcanza para, tarda en llegar, pedir y pedir_ya. Sin tiempo de llegada no '
+                    'calcula pedir: ofrece poner_tiempo_llegada.',
         parametros={
-            'proveedor': {'type': 'string', 'description': 'Proveedor principal. Opcional: sin él, todos.'},
-            'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
+            'proveedor': {'type': 'string', 'description': 'Proveedor principal (nombre, teléfono o RUC). Opcional: '
+                                                           'sin él, todos.'},
+            'meses': {'type': 'integer', 'description': 'Cuántos meses de ventas mirar (1 a 12). Por defecto 5.'},
+            'reserva': {'type': 'number', 'description': 'Meses extra de reserva (0 a 12). Por defecto 0.'},
             'limite': c.PARAM_LIMITE,
         },
         nivel='lectura', categoria='catalogo', grupos=(GERENCIA_O_ADMIN,),
-        ejemplos=['¿qué le repongo a Muebles XYZ? → proveedor=«Muebles XYZ»',
-                  'lo vendido el mes pasado para reponer → periodo=mes_pasado'],
+        ejemplos=['¿qué le pido a Muebles XYZ? → proveedor=«Muebles XYZ»',
+                  '¿qué tengo que pedir ya, mirando 6 meses y con 1 mes de reserva? → meses=6, reserva=1'],
     )
-    def _h_que_reponer(self, proveedor=None, periodo=None, desde=None, hasta=None, limite=20):
-        if periodo or desde or hasta:
-            inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
-        else:
-            fin = self._b_hoy()
-            inicio, etiqueta = fin - timedelta(days=DIAS_REPONER - 1), f'los últimos {DIAS_REPONER} días'
+    def _h_que_reponer(self, proveedor=None, meses=None, reserva=None, limite=20):
+        Reponer = self.env['dcasa.reponer']
         socio = self._b_contacto(proveedor, 'proveedor') if proveedor else None
-        filas = self.env['dcasa.reponer']._calcular(inicio, fin, socio)
-        productos = [{'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or '—',
-                      'vendido': c.cantidad(f['vendido']), 'en_existencia': c.cantidad(f['existencia']),
-                      'pedido_sin_llegar': c.cantidad(f['pedido']), 'faltaria': c.cantidad(f['faltaria'])}
-                     for f in filas]
+        filas = Reponer._calcular(meses, reserva, socio)
+        meses, reserva = Reponer._validar(meses, reserva)
+        desde, hasta = Reponer._ventana(meses)
+        productos = [{
+            'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or 'sin proveedor',
+            'vendido': c.cantidad(f['vendido']), 'se_vende_al_mes': c.cantidad(f['ritmo']),
+            'hay_hoy': c.cantidad(f['existencia']), 'viene_en_camino': c.cantidad(f['pedido']),
+            'alcanza_para': f['alcanza'], 'tarda_en_llegar': f['llegada'],
+            'pedir': f['pedir'] if f['pedir'] is not None else SIN_PEDIR[bool(f['proveedor_id'])],
+            'pedir_ya': f['pedir_ya'], 'aviso': f['aviso'],
+        } for f in filas]
+        cuenta = {estado: sum(1 for f in filas if f['estado'] == estado) for estado in ('ya', 'pedir', 'falta')}
         return {
-            'periodo': etiqueta,
+            'ventana': f'ventas del {desde:%d/%m/%Y} al {hasta:%d/%m/%Y} ({meses} meses)',
+            'reserva_meses': c.cantidad(reserva),
             'proveedor': socio.display_name if socio else 'todos',
-            'criterio': 'vendido = facturas publicadas menos notas de crédito (sin servicios, flete ni anticipos); '
-                        'faltaría = vendido − en existencia − pedido sin llegar, solo si da más de 0',
+            'criterio': 'se vende al mes = vendido ÷ meses; alcanza para = (hay + en camino) ÷ se vende al mes; '
+                        'pedir = se vende al mes × (meses que tarda + reserva) − hay − en camino, hacia arriba, solo '
+                        'si da más de 0; pedir ya = lo que hay y viene no alcanza para lo que tarda en llegar. Un mes '
+                        '= 30 días. Sin el tiempo de llegada del proveedor no se calcula cuánto pedir.',
             'productos_vendidos': len(productos),
+            'pedir_ya': cuenta['ya'], 'para_pedir': cuenta['pedir'], 'sin_tiempo_de_llegada': cuenta['falta'],
+            'unidades_a_pedir': sum(f['pedir'] or 0 for f in filas),
             'productos': productos[:c.limite(limite, 20)],
-            'nota': 'La lista completa, agrupable por proveedor y para exportar, está en Compras › Reponer.'
-                    if productos else 'En ese periodo no hay productos vendidos'
-                                      + (f' de {socio.display_name}.' if socio else '.'),
+            'nota': ('La lista completa, por proveedor y en Excel, está en Compras › Reponer.' if productos else
+                     'En esos meses no hay productos vendidos' + (f' de {socio.display_name}.' if socio else '.')),
+        }
+
+    @herramienta(
+        nombre='poner_tiempo_llegada',
+        descripcion='Pone o cambia cuánto tarda en llegar un proveedor (del pedido a la tienda), en días o meses (1 '
+                    'mes = 30 días). Se guarda en sus precios de proveedor; Reponer lo usa para calcular cuánto pedir. '
+                    'Nunca lo inventes: pregúntalo.',
+        parametros={
+            'proveedor': {'type': 'string', 'description': 'Nombre, teléfono o RUC del proveedor.'},
+            'dias': {'type': 'integer', 'description': 'Cuántos días tarda (1 a 730). Usa esto o «meses».'},
+            'meses': {'type': 'number', 'description': 'Cuántos meses tarda (p. ej. 3 o 3.5). Usa esto o «dias».'},
+        },
+        requeridos=['proveedor'],
+        nivel='construccion', categoria='catalogo', grupos=(GERENCIA_O_ADMIN,),
+        ejemplos=['lo de Muebles XYZ tarda 4 meses en llegar → proveedor=«Muebles XYZ», meses=4'],
+    )
+    def _h_poner_tiempo_llegada(self, proveedor, dias=None, meses=None):
+        if (dias in (None, '')) == (meses in (None, '')):
+            raise BrianError('Dime cuánto tarda en llegar, en días o en meses (uno de los dos).')
+        Reponer = self.env['dcasa.reponer']
+        socio = self._b_contacto(proveedor, 'proveedor')
+        total = Reponer._a_dias(meses, 'meses') if dias in (None, '') else Reponer._a_dias(dias, 'dias')
+        cambiados = Reponer._poner_llegada(socio, total)
+        return {
+            'proveedor': socio.display_name,
+            'tarda_en_llegar': Reponer._fichas(socio.ids)[socio.id]['llegada']['texto'],
+            'dias': total,
+            'precios_actualizados': cambiados,
+            'nota': 'Listo: Compras › Reponer ya calcula cuánto pedirle con este tiempo.',
         }
 
     # ------------------------------------------------------------------

@@ -1417,20 +1417,50 @@
    "id": "reponer-proveedor",
    "categoria": "compras",
    "grupo": "Pedir",
-   "titulo": "Ver qué reponerle a un proveedor",
-   "logras": "Eliges las fechas (y, si quieres, un proveedor) y ves cada producto que se vendió, cuánto hay hoy en la tienda, cuánto ya pediste y no ha llegado, y cuánto faltaría pedir: lo vendido menos lo que hay menos lo que viene en camino.",
+   "titulo": "Ver cuánto pedirle a un proveedor y qué pedir ya",
+   "logras": "Buscas el proveedor escribiendo parte de su nombre, su teléfono, su RUC o un producto que te vende, y eliges cuántos meses de ventas mirar (de fábrica, 5) y los meses de reserva. Por cada producto ves cuánto se vende al mes, para cuánto alcanza lo que hay y lo que viene en camino, cuánto tarda en llegar y cuánto pedir; lo urgente sale primero como «Pedir ya». Lo puedes ver por proveedor y bajar en Excel.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_reponer"
    },
    "palabras": [
     "reponer",
     "reposicion",
+    "cuanto pedir",
+    "que pedir",
+    "pedir ya",
+    "ritmo de venta",
+    "cuando se me acaba",
+    "en cuanto tiempo me quedo sin",
+    "consumo de los ultimos meses",
+    "pedido a china",
     "articulos vendidos",
     "lo que se vendio",
     "que le pido al proveedor",
-    "listado de ventas por producto"
+    "listado de ventas por producto",
+    "excel de reponer"
    ],
-   "brian": "¿Qué le repongo a mi proveedor?"
+   "nota": "Sin el tiempo de llegada del proveedor no calcula cuánto pedir: la fila dice «Falta» y le tocas «Poner». Solo salen los productos que se vendieron en esos meses.",
+   "brian": "¿Qué le tengo que pedir ya a mi proveedor?"
+  },
+  {
+   "id": "tiempo-llegada-proveedor",
+   "categoria": "compras",
+   "grupo": "Pedir",
+   "titulo": "Poner cuánto tarda en llegar lo de un proveedor",
+   "logras": "En Compras › Reponer eliges el proveedor y tocas «Poner tiempo de llegada» (o «Cambiar»): escribes los meses o los días que tarda desde que le haces el pedido hasta que llega a la tienda. Se guarda para todos sus productos y con eso se calcula cuánto pedir y cuándo pedir ya.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_reponer"
+   },
+   "palabras": [
+    "tiempo de llegada",
+    "cuanto tarda en llegar",
+    "dias de entrega",
+    "plazo de entrega",
+    "demora del proveedor",
+    "tiempo de entrega",
+    "cuanto se demora el pedido"
+   ],
+   "brian": "Ponle el tiempo de llegada a mi proveedor"
   },
   {
    "id": "proveedores",

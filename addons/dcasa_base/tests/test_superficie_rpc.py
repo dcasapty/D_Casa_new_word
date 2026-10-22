@@ -354,9 +354,19 @@ LISTA_BLANCA = {
         'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
         'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
         'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
-    ('dcasa_interfaz', 'dcasa.reponer', 'action_ver'):
-        ASISTENTE + ' (Gerencia y administradores). Además exige esos grupos en el servidor (_exigir_gerencia) '
-                    'ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.',
+    # Compras › Reponer (2026-10-22): cada uno exige Gerencia o administrador en el servidor (_exigir_gerencia,
+    # AccessError) ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.
+    ('dcasa_interfaz', 'dcasa.reponer', 'obtener'):
+        'Lectura de la pantalla Reponer: exige Gerencia o administrador ANTES de leer; valida meses (1 a 12), reserva '
+        '(0 a 12) y el proveedor; devuelve solo cifras por producto y por proveedor.',
+    ('dcasa_interfaz', 'dcasa.reponer', 'buscar_proveedores'):
+        'Buscador de proveedores de Reponer: exige Gerencia o administrador ANTES de leer; el texto se corta a 80 '
+        'caracteres y solo se compara (ilike/Python); devuelve a lo sumo 40 fichas (nombre, teléfono, RUC, productos, '
+        'última compra, tiempo de llegada).',
+    ('dcasa_interfaz', 'dcasa.reponer', 'poner_llegada'):
+        'Guarda el tiempo de llegada de un proveedor: exige Gerencia o administrador ANTES del sudo; valida de 1 día '
+        'a 24 meses; solo escribe delay y dcasa_llegada_puesta en los precios de ese proveedor de las empresas de '
+        'quien mira, y lo anota en su ficha.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '
