@@ -391,7 +391,7 @@ Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada l
 
 | Herramienta | Qué hace | Nivel | Quién |
 |---|---|---|---|
-| `movimiento_de_productos(periodo?, que?, categoria?, limite?)` | `periodo` = `semana` (7 días corridos, por defecto), `15_dias` o `mes` (30 días); `que` = `mas_movimiento` (lo vendido o entregado; una venta facturada y entregada cuenta una vez), `quietos` (con stock y sin ventas ni entregas; primero los que nunca se vendieron, con la última venta y los días sin vender), `mas_vendidos` (unidades facturadas, las notas de crédito restan, la base del Inicio) o `todo`; `categoria` = el tipo (p. ej. «Salas»). Responde cómo se cuenta (`como_se_cuenta`) | lectura | Gerencia y administradores |
+| `movimiento_de_productos(periodo?, que?, categoria?, limite?)` | `periodo` = `semana` (7 días corridos, por defecto), `15_dias` o `mes` (30 días); `que` = `mas_movimiento` (lo vendido o entregado; una venta facturada y entregada cuenta una vez), `quietos` (con stock y sin ventas ni entregas; primero los que nunca se vendieron, con la última venta y los días sin vender), `mas_vendidos` (unidades facturadas, las notas de crédito restan, la base del Inicio) o `todo`; `categoria` = el tipo (p. ej. «Salas»). Responde cómo se cuenta (`como_se_cuenta`) | lectura | Gerencia, administradores y el rol Marketing |
 | `fotos_que_faltan(estado?, texto?, categoria?, limite?)` | Productos a la venta sin foto (`sin_foto`), con una sola (`una_foto`) o los dos (`faltan`, por defecto); con cuántas tiene cada uno, los conteos y dónde subirlas (Marketing › Fotos o tocando la foto del producto) | lectura | Interno |
 
 Ejemplos: «¿qué productos están más quietos esta semana?» → `movimiento_de_productos(que=quietos)`; «¿qué se movió más

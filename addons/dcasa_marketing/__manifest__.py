@@ -27,6 +27,7 @@ Ver docs/MARKETING.md.
     'license': 'LGPL-3',
     'depends': ['dcasa_catalogo', 'dcasa_interfaz', 'dcasa_barras', 'dcasa_brian', 'website_sale', 'html_editor'],
     'data': [
+        'security/marketing_security.xml',
         'views/marketing_views.xml',
         'views/product_views.xml',
     ],

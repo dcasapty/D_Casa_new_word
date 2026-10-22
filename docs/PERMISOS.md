@@ -34,8 +34,14 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
 | Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
-| **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (quien puede editar el producto) | Sí | (si edita productos) | Sí | Sí |
+| **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
 | La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
+
+**Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a
+cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
+acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás) y
+usa las herramientas de Brian de marketing. **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
+Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de Ventas, Contabilidad ni Inventario).
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
 | Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos) | Sí | Sí | Sí | Sí |
 | **Registrar el cobro** de una factura de cliente (o un abono), un cobro suelto, o aplicarle un cobro que ya estaba («el cobro solo en Caja», 2026-10-17) | **No** (con el interruptor encendido o apagado) | Sí | Sí | Sí | Sí |
@@ -175,12 +181,14 @@ con o sin el modo inventario. Recibir y entregar siguen igual (Odoo los corre po
 cambia **quien puede editar ese producto** (`check_access('write')` en `product.template`, comprobado en el servidor en
 cada método `dcasa_fotos_*`): hoy Gerencia, administradores y la Vendedora (que ya editaba la foto principal; Odoo le
 negaba las «Imágenes extra» porque `product.image` solo lo escriben Ventas administrador y los editores del sitio, y
-aquí se escriben con `sudo` después de esa comprobación). Quien solo ve productos (p. ej. bodega sin Ventas) las ve y
-las descarga; el servidor le niega los cambios aunque los pida a mano (`AccessError`). Si la dueña prefiere que la
-Vendedora solo vea, es una línea: `_dcasa_exigir_editar_fotos` en `dcasa_marketing/models/fotos.py`. **Marketing** es
-de Ventas administrador (Gerencia) y administradores, como Estadísticas: lee las ventas de toda la tienda; el
-servidor lo exige (`dcasa.marketing._exigir`). No hay un rol «Marketing» propio: si se crea, se agrega a `GRUPOS` de
-`dcasa_marketing/models/marketing.py` y al menú.
+aquí se escriben con `sudo` después de esa comprobación). **Decisión de la dueña (2026-10-22): las vendedoras sí
+cambian fotos.** Además, el rol **Marketing** (`dcasa_marketing.group_marketing`) cambia las fotos de cualquier
+producto que ve aunque no edite el producto (`_dcasa_puede_editar_fotos`; la foto principal se le escribe con `sudo`
+tras la comprobación y el cambio queda a su nombre). Quien solo ve productos (p. ej. bodega sin Ventas) las ve y las
+descarga; el servidor le niega los cambios aunque los pida a mano (`AccessError`). **Marketing** es de Ventas
+administrador (Gerencia), administradores y el rol Marketing (`GRUPOS` en `dcasa_marketing/models/marketing.py`: el
+servidor lo exige en `dcasa.marketing._exigir`, y el menú, el acceso del Inicio y la herramienta
+`movimiento_de_productos` de Brian usan los mismos grupos). Sus cifras son unidades, no dinero.
 
 **Fusión de contactos:** solo Gerencia, de a una persona; las fusiones masivas automáticas son del administrador del
 sistema. Los puntos y el código de socio pasan completos a la ficha que queda y ésta deja una nota con lo que se le unió.

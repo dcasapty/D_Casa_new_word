@@ -1394,7 +1394,7 @@
    "destino": {
     "menu": "dcasa_marketing.menu_marketing"
    },
-   "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia."
+   "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia y de quien tiene el rol Marketing."
   },
   {
    "id": "fotos-producto",

@@ -24,7 +24,7 @@ marcar varias de una vez (en la computadora también puedes arrastrarlas desde u
 ordénalas arrastrando (en el celular, deja el dedo un momento sobre la foto y muévela) o con las flechitas de cada foto.
 En la pestaña **Ventas** del producto está el mismo acceso: **Fotos del producto**.
 
-**Marketing** (app propia y acceso en el Inicio; es de Gerencia). Arriba eliges **Semana**, **15 días** o **Mes** y, si
+**Marketing** (app propia y acceso en el Inicio; es de Gerencia, administradores y el rol «Marketing»). Arriba eliges **Semana**, **15 días** o **Mes** y, si
 quieres, una **categoría**; todo se filtra con eso:
 
 - **Stock**: los que más y los que menos tienen (los agotados se cuentan aparte: no se pueden empujar).
@@ -81,13 +81,17 @@ botón de la pestaña Ventas es el widget `dcasa_galeria_fotos`, y el Escáner s
 
 - **Ver** las fotos en grande y descargarlas: cualquier usuario interno que vea el producto.
 - **Cambiarlas**: quien puede **editar ese producto** (`has_access('write')` en `product.template`, comprobado en el
-  servidor en cada método antes de cualquier `sudo`): hoy Gerencia, administradores y la Vendedora. Las extra se
+  servidor en cada método antes de cualquier `sudo`): hoy Gerencia, administradores y la Vendedora (decisión de la
+  dueña, 2026-10-22: las vendedoras sí cambian fotos); y el rol **Marketing**, que cambia solo las fotos de cualquier
+  producto que ve (`_dcasa_puede_editar_fotos`). Las extra se
   escriben con `sudo` después de esa comprobación, porque Odoo solo deja escribir `product.image` a Ventas
   administrador y a los editores del sitio. Quien solo ve productos (p. ej. bodega sin Ventas) recibe `AccessError`
   aunque llame a mano. La regla está en un solo lugar: `_dcasa_exigir_editar_fotos`.
-- **Marketing**: Ventas administrador (Gerencia) y administradores, igual que Estadísticas (son las ventas de toda la
-  tienda). El servidor lo exige (`dcasa.marketing._exigir`); el menú y el acceso del Inicio usan los mismos grupos. No
-  existe un rol «Marketing»: si se crea, se agrega a `GRUPOS` en `marketing.py` y al menú.
+- **Marketing**: Ventas administrador (Gerencia), administradores y el rol **Marketing** (`dcasa_marketing.group_marketing`,
+  selector «Marketing» en la sección D'CASA de la ficha del usuario; decisión de la dueña, 2026-10-22: «marketing ve
+  todo al igual que Gerencia y administración»). El servidor lo exige (`dcasa.marketing._exigir`, `GRUPOS`); el menú,
+  el acceso del Inicio y `movimiento_de_productos` de Brian usan los mismos grupos. El rol no trae dinero, costos,
+  facturas, pedidos ni otras pantallas de Gerencia.
 - Lista blanca RPC: las 11 entradas de `dcasa_marketing` en `dcasa_base/tests/test_superficie_rpc.py`.
 
 ## Brian
@@ -111,7 +115,6 @@ pantalla. Detalle y ejemplos en [BRIAN.md](BRIAN.md) › «Marketing y fotos».
 
 ## Lo que no hace (todavía)
 
-- No hay un rol «Marketing»: lo ven Gerencia y administradores.
 - Brian lee Marketing y las fotos que faltan, pero no sube ni cambia fotos (eso se hace en la pantalla).
 - Las fotos propias de una variante (un color con su foto) se siguen cambiando en la variante, como en Odoo; el visor
   muestra las del producto.

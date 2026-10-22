@@ -2,7 +2,7 @@
 no tienen foto?».
 
 Las mismas cifras de la pantalla Marketing (``dcasa.marketing``): nada se calcula con el modelo de IA. Solo lectura.
-``movimiento_de_productos`` es de Gerencia y administradores (las ventas de toda la tienda, como la pantalla);
+``movimiento_de_productos`` es de Gerencia, administradores y el rol Marketing (los mismos de la pantalla);
 ``fotos_que_faltan`` es de cualquiera que vea productos.
 """
 from odoo import models
