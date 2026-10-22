@@ -409,7 +409,8 @@ class TestHerramientasRonda6(TransactionCase):
     def test_existencias_en_bloque_dejan_en_cero_varios_productos_con_una_sola_confirmacion(self):
         self._con_existencias(self.cama, 5)
         self._con_existencias(self.mesa, 3)
-        argumentos = {'productos': 'R6-CAMA; R6-MESA; R6-CERO', 'cantidad': 0, 'almacen': self._almacen()}
+        argumentos = {'productos': 'R6-CAMA; R6-MESA; R6-CERO', 'cantidad': 0, 'almacen': self._almacen(),
+                      'motivo': 'arranque de prueba'}
         propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', argumentos)
         self.assertTrue(propuesta.get('requiere_confirmacion'))
         self.assertIn('Dejar en 0 las existencias de 2 productos', propuesta['resumen'])
@@ -426,7 +427,7 @@ class TestHerramientasRonda6(TransactionCase):
     def test_existencias_en_bloque_con_una_cantidad_distinta_de_cero(self):
         self._con_existencias(self.cama, 5)
         propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
-            'productos': 'R6-CAMA; R6-MESA', 'cantidad': '3', 'almacen': self._almacen()})
+            'productos': 'R6-CAMA; R6-MESA', 'cantidad': '3', 'almacen': self._almacen(), 'motivo': 'conteo'})
         self.assertTrue(self.confirmar(self.gerente, propuesta)['ok'])
         self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (3, 3))
 
@@ -434,12 +435,12 @@ class TestHerramientasRonda6(TransactionCase):
         self._con_existencias(self.cama, 5)
         self._con_existencias(self.mesa, 3)
         malo = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
-            'todos': True, 'cantidad': 2, 'almacen': self._almacen()})
+            'todos': True, 'cantidad': 2, 'almacen': self._almacen(), 'motivo': 'prueba'})
         self.assertTrue(malo.get('requiere_confirmacion'))
         self.assertFalse(self.confirmar(self.gerente, malo)['ok'])
         self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (5, 3))
         propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {
-            'todos': 'true', 'cantidad': 0, 'almacen': self._almacen()})
+            'todos': 'true', 'cantidad': 0, 'almacen': self._almacen(), 'motivo': 'arranque'})
         self.assertIn('Dejar en 0 las existencias de', propuesta['resumen'])
         hecho = self.confirmar(self.gerente, propuesta)
         self.assertTrue(hecho['ok'], hecho)
@@ -448,12 +449,12 @@ class TestHerramientasRonda6(TransactionCase):
         self.assertFalse(quants, 'Ningún producto queda con existencias')
 
     def test_existencias_en_bloque_pide_decir_cuales_y_exige_el_permiso(self):
-        sin_nada = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {'cantidad': 0})
+        sin_nada = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', {'cantidad': 0, 'motivo': 'prueba'})
         self.assertTrue(sin_nada.get('requiere_confirmacion') or not sin_nada['ok'])
         if sin_nada.get('requiere_confirmacion'):
             self.assertFalse(self.confirmar(self.gerente, sin_nada)['ok'])
         no_puede = self.ejecutar(self.vendedor, 'ajustar_existencias_en_bloque', {
-            'productos': 'R6-CAMA', 'cantidad': 0})
+            'productos': 'R6-CAMA', 'cantidad': 0, 'motivo': 'prueba'})
         self.assertFalse(no_puede['ok'])
         self.assertIn('no tienes permiso', no_puede['error'])
 

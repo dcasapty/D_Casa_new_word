@@ -408,6 +408,24 @@ gerencia») le valen igual; además:
   que anular, pasar a borrador, notas de crédito y devolver dinero son solo de Gerencia. Brian no tiene herramientas
   para anular, pasar a borrador ni hacer notas de crédito (sigue siendo de una persona).
 
+## Bodega, nómina y el ZIP de comprobantes (2026-10-22)
+
+Archivo `models/herramientas_bodega_nomina.py` (usan modelos de `dcasa_existencias`, `dcasa_nomina` y
+`dcasa_contabilidad`; si uno no está instalado, la herramienta lo dice). Pruebas: `tests/test_bodega_nomina_brian.py`.
+
+| Herramienta | Nivel | Quién | Qué hace |
+|---|---|---|---|
+| `resumen_de_mermas` | lectura | gerente de Inventario (Gerencia) | Mermas del mes por código, contra lo comprado y el tope del 0.5 % |
+| `registrar_merma` | sensible | gerente de Inventario | Da de baja una merma, daño, muestra o regalo (pide «qué pasó») |
+| `bitacora_de_bodega` | lectura | gerente de Inventario | Últimos ajustes: antes → después, motivo y quién |
+| `adelantos_y_prestamos` | lectura | Administra la nómina | Adelantos con su saldo y cuota por quincena |
+| `registrar_adelanto` | construcción | Administra la nómina | Lo deja «por autorizar» (lo autoriza Gerencia en la pantalla) |
+| `enviar_comprobantes_de_pago` | sensible | Administra la nómina | Manda los comprobantes de una planilla confirmada (respeta el interruptor de correos) |
+| `preparar_zip_de_comprobantes` | construcción | contabilidad | Prepara el ZIP de un año o un rango; avisa cuando está listo |
+
+Además, **`ajustar_existencias` y `ajustar_existencias_en_bloque` piden ahora el `motivo`** (obligatorio): queda en la
+bitácora de bodega con origen «Brian». La tarjeta de confirmación del bloque lo muestra.
+
 ## Para cada función nueva
 
 Toda función nueva de la plataforma debe poder usarla Brian (ver la plantilla de PR):

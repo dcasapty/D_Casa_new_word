@@ -200,7 +200,7 @@ class TestHerramientas(TransactionCase):
         self.assertTrue(silla.is_published)
         almacenes = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)])
         self.ok(self.confirmar(self.gerente, self.ejecutar(self.gerente, 'ajustar_existencias', {
-            'producto': 'BRN-SIL', 'cantidad': 4, 'almacen': almacenes[:1].name})))
+            'producto': 'BRN-SIL', 'cantidad': 4, 'almacen': almacenes[:1].name, 'motivo': 'conteo de prueba'})))
         self.assertEqual(silla.qty_available, 4)
 
     # ------------------------------------------------------------------

@@ -712,11 +712,86 @@ LISTA_BLANCA = {
                    'mail.mail es solo de administradores (ACL).',
     ('dcasa_correo', 'res.config.settings', 'action_dcasa_correo_prueba'):
         'Exige base.group_system en el servidor; manda la prueba solo al correo de quien la pide.',
+    # --- dcasa_nomina: adelantos y préstamos (G7) y comprobante de pago por correo (G4), 2026-10-22 ----------------
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'create'):
+        'Exige «Administra la nómina» en el servidor y solo deja escribir los datos del borrador (el estado, la '
+        'autorización y el pago, nunca); sin sudo().',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'write'):
+        'Exige «Administra la nómina»; el estado, la autorización y el pago solo cambian con los botones (sudo ya '
+        'comprobado); un adelanto autorizado no cambia de monto ni de cuotas.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_aprobar'):
+        'Autorizar exige Gerencia o administrador en el servidor (G7) ANTES del sudo que cambia el estado.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_entregar'):
+        NOMINA_BOTON + ' El pago se crea como el usuario (sin sudo), contra la cuenta de adelantos configurada.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_cancelar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_borrador'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.linea', 'action_enviar_comprobante'):
+        'Exige «Administra la nómina» y check_access(write) en el servidor ANTES del sudo que arma el PDF y el correo; '
+        'solo de planillas confirmadas y con el interruptor de correos de D\'CASA encendido.',
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_enviar_comprobantes'):
+        'Exige «Administra la nómina» y check_access(write) en el servidor ANTES del sudo que arma los PDF y los '
+        'correos; solo de planillas confirmadas y con el interruptor de correos de D\'CASA encendido.',
+    # --- dcasa_contabilidad: ZIP de comprobantes (I6) ------------------------------------------------------------
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'create'):
+        'Exige contabilidad, Gerencia o administrador en el servidor; solo el periodo (la lista de documentos y los '
+        'archivos los pone el sistema); sin sudo().',
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'write'):
+        'Exige contabilidad, Gerencia o administrador y solo deja cambiar el periodo: la lista de documentos que el '
+        'cron mete al ZIP (con sudo) nunca se escribe por RPC.',
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'action_preparar'):
+        'Exige contabilidad, Gerencia o administrador; la lista de documentos se busca COMO el usuario (sin sudo): '
+        'solo entra lo que esa persona puede ver.',
+    # --- dcasa_existencias: mermas (F6), bitácora de bodega y alertas (etapa 4), 2026-10-22 ------------------------
+    ('dcasa_existencias', 'dcasa.existencias.config', 'write'):
+        'Exige Gerencia o administrador en el servidor (además del ACL); sin sudo().',
+    ('dcasa_existencias', 'dcasa.existencias.config', 'action_abrir'):
+        'Exige Gerencia o administrador en el servidor; solo crea (vacío) y abre el ajuste de la empresa activa.',
+    ('dcasa_existencias', 'dcasa.existencias.config', 'action_contabilizar_pendientes'):
+        'Exige Gerencia o administrador en el servidor ANTES del sudo que busca y contabiliza las mermas pendientes.',
+    ('dcasa_existencias', 'dcasa.bitacora.bodega', 'create'):
+        'Solo el sistema (sudo) escribe la bitácora: cualquier otro create falla.',
+    ('dcasa_existencias', 'dcasa.bitacora.bodega', 'write'):
+        'Siempre falla: la bitácora no se edita.',
+    ('dcasa_existencias', 'stock.quant', 'action_apply_inventory'):
+        OVERRIDE + ' Sin motivo exige Gerencia y devuelve la ventana del motivo; con motivo, Odoo; sin sudo().',
+    ('dcasa_existencias', 'stock.quant', 'create'):
+        OVERRIDE + ' Agrega: «A la mano» directo sin motivo no se escribe (hay que contar y aplicar); sin sudo().',
+    ('dcasa_existencias', 'stock.quant', 'write'):
+        OVERRIDE + ' Agrega: «A la mano» directo sin motivo no se escribe (hay que contar y aplicar); sin sudo().',
+    ('dcasa_existencias', 'stock.inventory.adjustment.name', 'action_apply'):
+        ASISTENTE + ' Además exige el motivo escrito; el ajuste pasa por el candado de Gerencia de stock.quant.',
+    ('dcasa_existencias', 'stock.move.line', 'action_revert_inventory'):
+        OVERRIDE + ' Deshacer un ajuste exige el gerente de Inventario (Gerencia); queda en la bitácora.',
+    ('dcasa_existencias', 'stock.move.line', 'create'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move.line', 'write'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move', 'create'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move', 'write'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.scrap', 'action_validate'):
+        OVERRIDE + ' Dar de baja una merma exige el gerente de Inventario (Gerencia), el código y el costo; el asiento '
+                   'y la bitácora se escriben con sudo después de comprobarlo.',
+    ('dcasa_existencias', 'stock.scrap', 'do_scrap'):
+        OVERRIDE + ' La misma regla que «Dar de baja» (Gerencia, código y costo) antes de super().',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_ver_mermas'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo devuelve la acción de la lista.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_reclamo'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo abre el asistente del reclamo.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_contabilizar'):
+        ASISTENTE + ' Llama a action_contabilizar_pendientes, que exige Gerencia o administrador.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_abrir'):
+        'Exige el gerente de Inventario; crea el resumen del mes (sin datos que guardar) y lo abre.',
+    ('dcasa_existencias', 'dcasa.merma.reclamo', 'action_imprimir'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo devuelve el PDF del reclamo.',
+    ('dcasa_existencias', 'dcasa.merma.reclamo', 'action_marcar_reclamadas'):
+        ASISTENTE + ' Exige el gerente de Inventario en el servidor ANTES del sudo que marca las mermas.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
 SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento',
-                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado', 'dcasa.correo')
+                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado', 'dcasa.correo', 'dcasa.existencias.alertas')
 
 
 def es_publico(modelo, nombre):
