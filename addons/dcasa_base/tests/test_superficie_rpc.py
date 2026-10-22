@@ -35,6 +35,10 @@ PANEL_GERENCIA = ('API de la pantalla de Juan solo para Gerencia: exige sales_te
 PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
                 '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
+COSTO_CERRADO = (OVERRIDE + ' Costo cerrado (models/costos_cerrados.py): solo NIEGA o quita los campos de costo, '
+                            'precio del proveedor y margen a quien no es Gerencia, contabilidad, compras o inventario; '
+                            'sin sudo().')
+
 NOMINA_BOTON = ('Botón de nómina: check_access("write") (grupo «Administra la nómina») ANTES de cualquier sudo(); el '
                 'sudo solo cambia el estado, que nunca se escribe por RPC (write lo exige).')
 NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia (solo con sudo desde sus botones); '
@@ -125,6 +129,24 @@ LISTA_BLANCA = {
     ('dcasa_base', 'product.template', 'action_dcasa_regenerar_codigo_publico'):
         'Botón: exige base.group_system (administrador) y escritura sobre el producto ANTES de cambiar el código; '
         'deja nota en el historial del producto; sin sudo().',
+    **{('dcasa_base', modelo, metodo): COSTO_CERRADO
+       for modelo in ('dcasa.costo.cerrado', 'product.template', 'product.product', 'product.supplierinfo',
+                      'account.invoice.report')
+       for metodo in ('read', 'search_read', 'fields_get')},
+    # D1: descuento mayor al tope con la clave de Gerencia (models/descuento_autorizacion.py).
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_aprobar'):
+        'Botón «Aprobar y aplicar»: exige sales_team.group_sale_manager o administrador en el servidor '
+        '(_dcasa_exigir_gerencia) ANTES de aplicar el descuento con sudo.',
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_rechazar'):
+        'Botón «Rechazar»: exige sales_team.group_sale_manager o administrador en el servidor ANTES del sudo.',
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_ver_cotizacion'): ACCION_VENTANA,
+    ('dcasa_base', 'dcasa.descuento.pedir', 'action_pedir'):
+        ASISTENTE + ' _dcasa_pedir exige que quien pide tenga tope y check_access("write") de la cotización ANTES de '
+                    'crear la solicitud con sudo.',
+    ('dcasa_base', 'dcasa.descuento.pedir', 'action_aplicar'):
+        ASISTENTE + ' _dcasa_usar_clave exige que sea quien pidió, check_access("write") de la cotización, que siga '
+                    'vigente y la huella de la clave de Gerencia ANTES de aplicar con sudo; los intentos se cuentan.',
+    ('dcasa_base', 'sale.order', 'action_dcasa_pedir_descuento'): ACCION_VENTANA,
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',

@@ -60,6 +60,7 @@ Módulo raíz del ERP de D'CASA Panamá.
         'views/hoy_views.xml',
         'views/res_config_settings_views.xml',
         'views/solo_lo_suyo_views.xml',
+        'views/descuento_autorizacion_views.xml',
     ],
     'assets': {
         'web._assets_primary_variables': [

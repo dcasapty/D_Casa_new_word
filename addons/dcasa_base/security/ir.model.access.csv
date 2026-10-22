@@ -3,3 +3,7 @@ access_product_template_vendedora,product template vendedora,product.model_produ
 access_product_product_vendedora,product product vendedora,product.model_product_product,dcasa_base.group_vendedora,1,1,0,0
 access_dcasa_permisos_vendedoras_gerencia,dcasa permisos vendedoras gerencia,model_dcasa_permisos_vendedoras,dcasa_base.group_gerencia,1,1,1,0
 access_dcasa_permisos_vendedoras_admin,dcasa permisos vendedoras admin,model_dcasa_permisos_vendedoras,base.group_system,1,1,1,0
+access_dcasa_descuento_autorizacion_vendedor,dcasa descuento autorizacion vendedor,model_dcasa_descuento_autorizacion,sales_team.group_sale_salesman,1,0,0,0
+access_dcasa_descuento_autorizacion_gerencia,dcasa descuento autorizacion gerencia,model_dcasa_descuento_autorizacion,sales_team.group_sale_manager,1,0,0,0
+access_dcasa_descuento_clave_sistema,dcasa descuento clave sistema,model_dcasa_descuento_clave,base.group_system,1,0,0,0
+access_dcasa_descuento_pedir_vendedor,dcasa descuento pedir vendedor,model_dcasa_descuento_pedir,sales_team.group_sale_salesman,1,1,1,0
