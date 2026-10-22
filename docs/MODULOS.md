@@ -40,7 +40,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_contactos` | Una persona, una ficha (celular, correo y RUC no se repiten) | base, socios | — | No | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_equipo` | Ícono y visibilidad del menú Empleados | base | — | No | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | Carga única desde el sistema anterior | base, contactos, catalogo | — | No (solo administradores) | [MIGRACION.md](MIGRACION.md) |
-| `dcasa_barras` | Escáner de códigos de barras y etiquetas | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
+| `dcasa_barras` | Escáner de códigos de barras y etiquetas; panel de Bodega (despachar entregas) | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
@@ -294,8 +294,11 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Para qué:** *Inventario › Escáner*: busca por código, referencia o empaque, muestra foto, precio «+ ITBMS» y
   existencias, con la cámara del celular. Gerencia cuenta el inventario, cambia el precio con rastro y asigna etiquetas
   numeradas de un rollo. *Inventario › Configuración › Códigos de barras* llena los códigos desde la referencia.
-- **Depende de (Odoo):** `stock`.
-- **Modelos:** `dcasa.barras`, `dcasa.barras.asignacion` (+ línea), `dcasa.barras.etiqueta` (historial).
+  *Inventario › Bodega* (y el acceso del Inicio): las entregas pendientes para despachar o retirar, para tablet; se
+  abren con el QR de la nota, se marca lo que sale y se validan.
+- **Depende de (Odoo):** `stock`, `stock_delivery`.
+- **Modelos:** `dcasa.barras`, `dcasa.barras.asignacion` (+ línea), `dcasa.barras.etiqueta` (historial),
+  `dcasa.bodega` (abstracto: el panel de Bodega); campo `delivery.carrier.dcasa_es_retiro`.
 - **Apagado de fábrica:** no.
 
 ## `dcasa_brian` — Brian, el asistente del panel
@@ -311,8 +314,9 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Pantallas y menús:** app **Brian** (Conversaciones, Telegram, Importaciones de productos para Gerencia; Registro de
   acciones, Consumo de IA y Ajustes para administradores).
 - **Rutas web:** `/brian/mcp` y `/brian/telegram/<secreto>` (el borde no las guarda en caché).
-- **Herramientas (70):** catálogo 8, clientes 7, contabilidad 16, factura electrónica 1, generales 4, guía 1,
-  importación 3, operación (compras, inventario, consumo) 9, usuarios 4, vendedores 6, ventas 11. Niveles: lectura,
+- **Herramientas (73):** catálogo 8, clientes 7, contabilidad 16, factura electrónica 1, generales 4, guía 1,
+  importación 3, operación (compras, inventario, entregas por despachar, consumo) 11, usuarios 5, vendedores 6,
+  ventas 11. Niveles: lectura,
   construcción, sensible. Lista viva: `grep -rn "@herramienta" addons/dcasa_brian/models`.
 - **Crons:** borrar conversaciones viejas y adjuntos huérfanos (mensual).
 - **Apagado de fábrica:** el tope de gasto de IA viene en 0 (sin tope) hasta que la dueña ponga la cifra.

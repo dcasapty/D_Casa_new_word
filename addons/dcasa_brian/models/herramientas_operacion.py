@@ -36,6 +36,10 @@ PROBLEMAS = {
 ESTADOS_COMPRA = {'draft': 'solicitud (borrador)', 'sent': 'solicitud enviada', 'to approve': 'por aprobar',
                   'purchase': 'pedido confirmado', 'cancel': 'cancelado'}
 RECEPCION = {'pending': 'por recibir', 'partial': 'recibido en parte', 'full': 'recibido'}
+BODEGA_COMO = ('todas', 'envio', 'retiro', 'sin_definir')
+BODEGA_ESTADO = ('todas', 'listas', 'esperando')
+BODEGA_LIMITE = 10
+BODEGA_MAXIMO = 30
 
 
 class BrianHerramientasOperacion(models.AbstractModel):
@@ -313,6 +317,84 @@ class BrianHerramientasOperacion(models.AbstractModel):
         if por_confirmar:
             pendientes['acciones_de_brian_por_confirmar'] = por_confirmar
         return pendientes
+
+    # ------------------------------------------------------------------
+    # Entregas por despachar (las del panel de Bodega, dcasa_barras)
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='entregas_por_despachar',
+        descripcion='Entregas a clientes que faltan por despachar o retirar (las del panel de Bodega): cuántas son '
+                    'de envío, de retiro en tienda o sin definir, cuántas están listas o esperan producto, y las más '
+                    'antiguas con cliente, pedido, fecha y productos. Sin precios.',
+        parametros={
+            'como': {'type': 'string', 'enum': list(BODEGA_COMO),
+                     'description': 'todas (de fábrica), envio (para despachar), retiro (para retirar en la tienda) '
+                                    'o sin_definir.'},
+            'estado': {'type': 'string', 'enum': list(BODEGA_ESTADO),
+                       'description': 'todas (de fábrica), listas (listas para salir) o esperando (esperando '
+                                      'producto).'},
+            'limite': {'type': 'integer', 'description': f'Cuántas listar, de la más antigua (de fábrica '
+                                                         f'{BODEGA_LIMITE}, máximo {BODEGA_MAXIMO}).'},
+        },
+        nivel='lectura', categoria='catalogo', grupos=INVENTARIO,
+        ejemplos=['¿qué entregas faltan por despachar?', '¿qué hay para retirar en la tienda?',
+                  '¿cuántas entregas están listas para salir?', 'entregas pendientes de bodega'],
+    )
+    def _h_entregas_por_despachar(self, como='todas', estado='todas', limite=BODEGA_LIMITE):
+        bodega = self.env.get('dcasa.bodega')
+        if bodega is None:
+            raise BrianError('El panel de Bodega no está instalado en este sistema.')
+        if como not in BODEGA_COMO:
+            raise BrianError(f'«como» debe ser uno de: {", ".join(BODEGA_COMO)}.')
+        if estado not in BODEGA_ESTADO:
+            raise BrianError(f'«estado» debe ser uno de: {", ".join(BODEGA_ESTADO)}.')
+        try:
+            limite = max(1, min(int(limite or BODEGA_LIMITE), BODEGA_MAXIMO))
+        except (TypeError, ValueError):
+            limite = BODEGA_LIMITE
+        datos = bodega.pendientes()
+        todas = datos['entregas']
+        elegidas = [t for t in todas if como == 'todas' or t['como'] == como]
+        if estado == 'listas':
+            elegidas = [t for t in elegidas if t['estado'] == 'lista']
+        elif estado == 'esperando':
+            elegidas = [t for t in elegidas if t['estado'] != 'lista']
+
+        def fila(tarjeta):
+            productos = '; '.join(f"{p['cantidad']} × {p['nombre']}" for p in tarjeta['productos'])
+            if tarjeta['mas']:
+                productos += f" (y {tarjeta['mas']} más)"
+            resultado = {
+                'entrega': tarjeta['nombre'], 'cliente': tarjeta['cliente'], 'pedido': tarjeta['pedido'],
+                'fecha': f"{'Prometida' if tarjeta['fecha_tipo'] == 'prometida' else 'Programada'} "
+                         f"{tarjeta['fecha']}".strip(),
+                'atrasada': tarjeta['atrasada'], 'como': tarjeta['como_texto'], 'estado': tarjeta['estado_texto'],
+                'productos': productos,
+            }
+            if tarjeta['pago'] in ('falta_pagar', 'sin_factura'):
+                resultado['pago'] = f"{tarjeta['pago_texto']}: confirmarlo con Caja antes de entregar"
+            if tarjeta['pendiente_de']:
+                resultado['es_el_resto_de'] = tarjeta['pendiente_de']
+            return resultado
+
+        respuesta = {
+            'total_pendientes': datos['cuantas'],
+            'por_tipo': {
+                'para_despachar_envio': sum(1 for t in todas if t['como'] == 'envio'),
+                'para_retirar_en_tienda': sum(1 for t in todas if t['como'] == 'retiro'),
+                'sin_definir': sum(1 for t in todas if t['como'] == 'sin_definir'),
+            },
+            'listas_para_salir': sum(1 for t in todas if t['estado'] == 'lista'),
+            'esperando_producto': sum(1 for t in todas if t['estado'] != 'lista'),
+            'filtro': {'como': como, 'estado': estado, 'cuantas': len(elegidas)},
+            'entregas': [fila(t) for t in elegidas[:limite]],
+            'abrir': {'url': '/odoo/bodega', 'titulo': 'Abrir el panel de Bodega'},
+        }
+        if datos['recortada']:
+            respuesta['nota'] = (f"Hay {datos['cuantas']} pendientes; las cifras cuentan las "
+                                 f"{len(todas)} más antiguas.")
+        return respuesta
 
     # ------------------------------------------------------------------
     # Catálogo incompleto y publicación en bloque

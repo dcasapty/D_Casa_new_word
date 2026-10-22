@@ -371,7 +371,8 @@ class TestInicioPorRol(VentasCommon):
         self.assertEqual(claves[:2], ['productos', 'facturas'])
         self.assertNotIn('oportunidades', claves, 'Oportunidades es de quien controla la tienda')
         self.assertNotIn('resumen_contable', claves)
-        self.assertEqual(set(claves) - {'conversaciones', 'escaner'}, {'productos', 'facturas'})
+        # Conversaciones, Bodega y Escáner viven en otros módulos (dcasa_conversaciones, dcasa_barras).
+        self.assertEqual(set(claves) - {'conversaciones', 'bodega', 'escaner'}, {'productos', 'facturas'})
         facturas = next(a for a in atajos if a['clave'] == 'facturas')
         self.assertEqual(facturas['accion'], 'account.action_move_out_invoice_type')
         self.assertEqual(facturas['vista'], 'list')
@@ -384,8 +385,10 @@ class TestInicioPorRol(VentasCommon):
     def test_atajos_de_gerencia_en_el_orden_pedido(self):
         atajos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()['atajos']
         claves = [a['clave'] for a in atajos]
-        esperado = ['productos', 'facturas', 'conversaciones', 'escaner', 'oportunidades', 'resumen_contable']
-        # Conversaciones, Oportunidades y el Resumen contable viven en otros módulos: si falta alguno no sale.
+        esperado = ['productos', 'facturas', 'conversaciones', 'bodega', 'escaner', 'oportunidades',
+                    'resumen_contable']
+        # Conversaciones, Bodega, Escáner, Oportunidades y el Resumen contable viven en otros módulos: si falta alguno
+        # no sale.
         self.assertEqual(claves, [c for c in esperado if c in claves])
         self.assertEqual(claves[:2], ['productos', 'facturas'])
         if 'resumen_contable' in claves:
@@ -591,7 +594,8 @@ class TestInicioEnElNavegador(VentasMixin, HttpCase):
     def test_gerencia_ve_el_panel_completo_con_los_atajos_en_su_orden(self):
         self.probar('gerencia_rol', """
             await esperar(() => document.querySelector('.o_dcasa_inicio .o_dcasa_cifra'), 'las cifras');
-            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Escáner', 'Oportunidades', 'Resumen contable'];
+            const orden = ['Productos', 'Facturas', 'Conversaciones', 'Bodega', 'Escáner', 'Oportunidades',
+                           'Resumen contable'];
             const atajos = textos('.o_dcasa_atajo strong');
             igual(atajos, orden.filter((t) => atajos.includes(t)), 'orden de los atajos');
             const titulos = textos('.o_dcasa_cifra .o_dcasa_cifra_titulo');
