@@ -11,6 +11,10 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
+                <div class="alert alert-warning mb-0 o_dcasa_parecidas" role="alert" invisible="not dcasa_parecidas_aviso">
+                    <i class="fa fa-users me-2" aria-hidden="true" title="Fichas parecidas"/>
+                    <field name="dcasa_parecidas_aviso" readonly="1" class="d-inline"/>
+                </div>
                 <div class="alert alert-warning mb-0 o_dcasa_falta_contacto" role="alert"
                      invisible="not id or parent_id or customer_rank &lt;= 0 or (phone and (email or dcasa_sin_correo))">
                     <i class="fa fa-address-card-o me-2" aria-hidden="true"/>

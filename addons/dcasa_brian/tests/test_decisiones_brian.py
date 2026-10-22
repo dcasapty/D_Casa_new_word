@@ -114,6 +114,20 @@ class TestAutorizacionesBrian(TransactionCase):
         self.assertFalse(sale.product_tmpl_id.active)
         self.assertEqual(sale.product_tmpl_id.dcasa_unido_a_id, queda.product_tmpl_id)
 
+    def test_crear_cliente_busca_antes_de_crear(self):
+        respuesta = self.ejecutar(self.vendedora, 'crear_cliente', {
+            'nombre': 'Cliente de Prueba Autoriza', 'celular': '6000-0052', 'correo': 'otro.autoriza@example.com'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('nombre parecido', respuesta['error'])
+        self.assertIn('CLIENTE DE PRUEBA AUTORIZA', respuesta['error'])
+        respuesta = self.ejecutar(self.vendedora, 'crear_cliente', {
+            'nombre': 'Persona Distinta Brian', 'celular': '6000-0053', 'correo': 'cliente.autoriza@example.com'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('Ese correo o RUC ya es de', respuesta['error'])
+        datos = self.ok(self.ejecutar(self.vendedora, 'crear_cliente_distinto', {
+            'nombre': 'Cliente de Prueba Autoriza', 'celular': '6000-0054', 'correo': 'otra.persona@example.com'}))
+        self.assertIn('creado', datos['mensaje'])
+
     def test_saldos_de_centavos_solo_gerencia_o_contabilidad(self):
         nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
         self.assertNotIn('saldos_de_centavos', nombres)
