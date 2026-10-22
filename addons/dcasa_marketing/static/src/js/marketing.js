@@ -56,7 +56,8 @@ export class DcasaMarketing extends Component {
     }
 
     get categoriaElegida() {
-        return (this.datos?.categorias || []).find((c) => c.id === this.state.categoria) || null;
+        // La de los datos que se ven (no la recién tocada, que todavía puede estar cargando).
+        return (this.datos?.categorias || []).find((c) => c.id === this.datos.categoria) || null;
     }
 
     // --- Lo de arriba: periodo y categoría -----------------------------------------------------------------------

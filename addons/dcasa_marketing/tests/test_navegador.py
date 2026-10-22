@@ -245,8 +245,8 @@ MARKETING_JS = """
     const chip = await esperar(() => [...document.querySelectorAll(".o_dcasa_mk_categorias .o_dcasa_mk_chip")]
         .find((c) => c.textContent.includes("ZZMK Categoría de prueba")), "la categoría de la prueba");
     chip.click();
-    await esperar(() => document.querySelector(".o_dcasa_mk_stock h2").textContent.includes("ZZMK Categoría de prueba"),
-                  "el stock de la categoría");
+    await esperar(() => document.querySelector(".o_dcasa_mk_stock h2").textContent.includes("ZZMK Categoría de prueba")
+                  && !document.querySelector(".o_dcasa_mk_actualizando"), "el stock de la categoría");
     await esperar(() => document.querySelector(".o_dcasa_mk_vendidos").textContent.includes("ZZMK Sofá del navegador"),
                   "lo más vendido de la categoría");
     if (!document.querySelector(".o_dcasa_mk_quietos").textContent.includes("ZZMK Silla sin foto")) {
