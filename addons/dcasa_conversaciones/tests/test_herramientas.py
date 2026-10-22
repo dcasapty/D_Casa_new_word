@@ -617,7 +617,7 @@ class TestUsuarioTecnicoYAuditoria(HerramientasCase):
         self.assertEqual(accion.create_uid, self.juan)
         self.assertEqual(accion.dcasa_conversacion_id, self.conv)
         self.assertIn('zz', accion.argumentos)
-        self.assertIn('Zzcama', accion.resultado)
+        self.assertIn('ZZCAMA', accion.resultado)
 
     def test_los_errores_tambien_quedan_en_la_auditoria(self):
         self.error('ver_producto', {'codigo': 'NO-EXISTE'})

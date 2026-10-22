@@ -335,7 +335,7 @@ class ProductFeed(models.Model):
             'link': f'{base}{idioma}{variante.website_url}',
             'image_link': f'{base}{fotos[0]}',
             'additional_image_link': ','.join(f'{base}{ruta}' for ruta in fotos[1]),
-            'brand': R.titulo(self.dcasa_marca or '', 100),
+            'brand': R.titulo(self.dcasa_marca or '', 100, oracion=False),
             'product_type': ' > '.join(categoria.parents_and_self.mapped('name')) if categoria else '',
             'custom_label_0': R.etiqueta_ascii(categoria.name) if categoria else '',
             'custom_label_1': campana.codigo if campana.active else '',

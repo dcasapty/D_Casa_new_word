@@ -681,7 +681,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await abrirConversacion("Karen");
     aqui(".o_dcj_herramienta", "Foto del catálogo").click();
     await escribir(await esperar(() => document.querySelector(".o_dcj_hoja input[type=search]"), "el buscador"), "ZZ-CAMA");
-    await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     aqui(".o_dcj_producto button", "Galería (3)").click();
     await esperar(() => document.querySelectorAll(".o_dcj_galeria_foto").length === 3, "las tres fotos de la galería");
     const fotos = [...document.querySelectorAll(".o_dcj_galeria_foto")];
@@ -690,7 +690,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await esperar(() => aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos"), "el botón de enviar tres fotos");
     aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "la galería cerrada");
-    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "Zzcama"), "las fotos en el hilo");
+    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "ZZCAMA"), "las fotos en el hilo");
     await esperar(() => burbuja.querySelectorAll(".o_dcj_foto_boton img").length === 3, "las tres imágenes");
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
@@ -706,7 +706,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await abrirConversacion("Karen");
     aqui(".o_dcj_herramienta", "Foto del catálogo").click();
     await escribir(await esperar(() => document.querySelector(".o_dcj_hoja input[type=search]"), "el buscador"), "zzcama");
-    await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     aqui(".o_dcj_producto .o_dcj_enlace", "Revisar antes").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "el buscador cerrado");
     const caja = document.querySelector("#o_dcj_texto");
@@ -746,10 +746,10 @@ class TestPanelEnElNavegador(PanelUiCase):
     aqui(".o_dcj_herramienta", "Cotización").click();
     await esperar(() => aqui(".o_dcj_hoja", "no tiene una cotización abierta"), "no hay cotización abierta");
     await escribir(document.querySelector(".o_dcj_hoja input[type=search]"), "zzcama");
-    const producto = await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    const producto = await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     producto.querySelector("button").click();
     producto.querySelector("button").click();
-    await esperar(() => aqui(".o_dcj_linea", "Zzcama") && aqui(".o_dcj_linea output").textContent === "2", "la línea con cantidad 2");
+    await esperar(() => aqui(".o_dcj_linea", "ZZCAMA") && aqui(".o_dcj_linea output").textContent === "2", "la línea con cantidad 2");
     aqui(".o_dcj_hoja_pie button", "Crear el borrador").click();
     await esperar(() => aqui(".o_dcj_hoja", "Enviar el PDF"), "el borrador creado, listo para enviar");
     if (!aqui(".o_dcj_hoja", "Borrador")) { throw new Error("la cotización dice Borrador"); }
