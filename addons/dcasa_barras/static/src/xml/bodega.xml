@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="dcasa_barras.Bodega">
+        <div class="o_dcasa_bodega" t-att-class="{'o_dcasa_bodega_en_entrega': state.vista === 'entrega'}">
+            <div class="o_dcasa_bodega_cuerpo">
+                <t t-if="state.vista === 'entrega' and state.entrega" t-call="dcasa_barras.BodegaEntrega"/>
+                <t t-else="" t-call="dcasa_barras.BodegaLista"/>
+            </div>
+            <t t-if="state.confirmar" t-call="dcasa_barras.BodegaConfirmar"/>
+        </div>
+    </t>
+
+    <!-- El aviso de lo último que pasó (lo que leyó el lector, un error del servidor…). -->
+    <t t-name="dcasa_barras.BodegaAviso">
+        <div class="o_dcasa_bodega_aviso" role="status" aria-live="polite">
+            <p t-if="state.mensaje" t-attf-class="o_dcasa_bodega_msg o_dcasa_bodega_msg_{{ state.mensaje.tipo }}"
+               t-esc="state.mensaje.texto"/>
+        </div>
+    </t>
+
+    <!-- ============================================================ Lista -->
+    <t t-name="dcasa_barras.BodegaLista">
+        <header class="o_dcasa_bodega_cabecera">
+            <div class="o_dcasa_bodega_titulos">
+                <h1>Bodega</h1>
+                <p class="o_dcasa_bodega_subtitulo">Entregas pendientes por despachar o retirar</p>
+            </div>
+            <div class="o_dcasa_bodega_refresco">
+                <span t-if="state.hora" class="o_dcasa_bodega_hora">Actualizado a las <t t-esc="state.hora"/></span>
+                <button type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_actualizar" t-att-disabled="state.cargando"
+                        t-on-click="actualizar">
+                    <i class="fa fa-refresh" t-att-class="{'fa-spin': state.cargando}" aria-hidden="true"/> Actualizar
+                </button>
+            </div>
+        </header>
+
+        <!-- Éxito de la última validación: claro, con la nota para imprimir. -->
+        <section t-if="state.exito" class="o_dcasa_bodega_exito" role="alert">
+            <i class="fa fa-check-circle o_dcasa_bodega_exito_icono" aria-hidden="true"/>
+            <div class="o_dcasa_bodega_exito_texto">
+                <strong t-esc="state.exito.mensaje"/>
+                <div class="o_dcasa_bodega_exito_botones">
+                    <button t-if="state.exito.imprimir" type="button" class="o_dcasa_bodega_boton"
+                            t-on-click="() => this.imprimir(state.exito.imprimir)">
+                        <i class="fa fa-print" aria-hidden="true"/> Imprimir nota de entrega
+                    </button>
+                    <button t-if="state.exito.pendienteId" type="button" class="o_dcasa_bodega_boton"
+                            t-on-click="abrirPendiente">Abrir lo pendiente (<t t-esc="state.exito.pendiente"/>)</button>
+                </div>
+            </div>
+            <button type="button" class="o_dcasa_bodega_cerrar" aria-label="Cerrar" t-on-click="cerrarExito">
+                <i class="fa fa-times" aria-hidden="true"/>
+            </button>
+        </section>
+
+        <!-- Aquí cae lo que escribe el lector (y aquí se busca). -->
+        <form class="o_dcasa_bodega_entrada" t-on-submit.prevent="buscarEnLista">
+            <label for="o_dcasa_bodega_buscar" class="o_dcasa_bodega_etiqueta">
+                Escanea el QR de la nota de entrega o busca por cliente, número o pedido
+            </label>
+            <div class="o_dcasa_bodega_fila">
+                <input id="o_dcasa_bodega_buscar" type="search" class="o_dcasa_bodega_texto" t-ref="entrada"
+                       t-model="state.texto" t-on-keydown="alTeclearEnLista" t-on-blur="alPerderFoco"
+                       t-on-pointerdown="alTocarCampo" t-att-inputmode="modoDeEntrada"
+                       enterkeyhint="search" autocomplete="off" autocapitalize="off" autocorrect="off"
+                       spellcheck="false" placeholder="Cliente, WH/OUT/…, S0…"/>
+                <button t-if="camaraDisponible" type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_camara"
+                        title="Escanear con la cámara" aria-label="Escanear con la cámara"
+                        t-att-disabled="state.cargando" t-on-click="escanearConCamara">
+                    <i class="fa fa-camera" aria-hidden="true"/><span class="o_dcasa_bodega_camara_texto">Cámara</span>
+                </button>
+            </div>
+        </form>
+
+        <t t-call="dcasa_barras.BodegaAviso"/>
+
+        <!-- Envío o retiro. -->
+        <div class="o_dcasa_bodega_pestanas" role="group" aria-label="Envío o retiro">
+            <button t-foreach="comosVisibles" t-as="c" t-key="c.clave" type="button"
+                    t-attf-class="o_dcasa_bodega_pestana o_dcasa_bodega_pestana_{{ c.clave }} {{ state.como === c.clave ? 'o_dcasa_bodega_activa' : '' }}"
+                    t-att-aria-pressed="state.como === c.clave ? 'true' : 'false'"
+                    t-on-click="() => this.elegirComo(c.clave)">
+                <i t-if="iconosComo[c.clave]" t-attf-class="fa {{ iconosComo[c.clave] }}" aria-hidden="true"/>
+                <span class="o_dcasa_bodega_largo" t-esc="c.texto"/><span class="o_dcasa_bodega_corto" t-esc="c.corto"/>
+                <span class="o_dcasa_bodega_cuenta" t-esc="cuantasPorComo(c.clave)"/>
+            </button>
+        </div>
+
+        <!-- Listas para salir o esperando producto. -->
+        <div class="o_dcasa_bodega_filtros" role="group" aria-label="Estado">
+            <button type="button" class="o_dcasa_bodega_filtro" t-att-class="{'o_dcasa_bodega_activo': state.filtroEstado === 'todas'}"
+                    t-att-aria-pressed="state.filtroEstado === 'todas' ? 'true' : 'false'"
+                    t-on-click="() => this.elegirEstado('todas')">Todas</button>
+            <button type="button" class="o_dcasa_bodega_filtro o_dcasa_bodega_filtro_listas"
+                    t-att-class="{'o_dcasa_bodega_activo': state.filtroEstado === 'listas'}"
+                    t-att-aria-pressed="state.filtroEstado === 'listas' ? 'true' : 'false'"
+                    t-on-click="() => this.elegirEstado('listas')">
+                <span class="o_dcasa_bodega_largo">Listas para salir</span><span class="o_dcasa_bodega_corto">Listas</span>
+                <span class="o_dcasa_bodega_cuenta" t-esc="cuantasPorEstado('listas')"/>
+            </button>
+            <button type="button" class="o_dcasa_bodega_filtro o_dcasa_bodega_filtro_esperando"
+                    t-att-class="{'o_dcasa_bodega_activo': state.filtroEstado === 'esperando'}"
+                    t-att-aria-pressed="state.filtroEstado === 'esperando' ? 'true' : 'false'"
+                    t-on-click="() => this.elegirEstado('esperando')">
+                <span class="o_dcasa_bodega_largo">Esperando producto</span><span class="o_dcasa_bodega_corto">Esperando</span>
+                <span class="o_dcasa_bodega_cuenta" t-esc="cuantasPorEstado('esperando')"/>
+            </button>
+        </div>
+
+        <!-- Lo que está filtrando la lista además de las pestañas: un producto escaneado o un pedido con varias. -->
+        <div t-if="state.conProducto or state.soloIds" class="o_dcasa_bodega_filtrando">
+            <span t-if="state.conProducto">Entregas con «<strong t-esc="state.conProducto.nombre"/>»</span>
+            <span t-else="" t-esc="state.soloIds.mensaje"/>
+            <button type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_quitar" t-on-click="quitarFiltros">
+                <i class="fa fa-times" aria-hidden="true"/> Ver todas
+            </button>
+        </div>
+
+        <p t-if="state.recortada" class="o_dcasa_bodega_nota">
+            Hay <t t-esc="state.cuantas"/> entregas pendientes: aquí salen las <t t-esc="state.lista.length"/> más antiguas.
+        </p>
+
+        <div t-if="tarjetas.length" class="o_dcasa_bodega_tarjetas">
+            <article t-foreach="tarjetas" t-as="e" t-key="e.id"
+                     t-attf-class="o_dcasa_bodega_tarjeta o_dcasa_bodega_tarjeta_{{ e.estado }}"
+                     t-att-data-entrega="e.nombre" t-on-click="() => this.abrir(e.id)">
+                <div class="o_dcasa_bodega_tarjeta_arriba">
+                    <span class="o_dcasa_bodega_numero" t-esc="e.nombre"/>
+                    <span t-attf-class="o_dcasa_bodega_estado o_dcasa_bodega_estado_{{ e.estado }}" t-esc="e.estado_texto"/>
+                </div>
+                <h2 class="o_dcasa_bodega_cliente" t-esc="e.cliente or 'Sin cliente'"/>
+                <p class="o_dcasa_bodega_datos">
+                    <span t-if="e.pedido">Pedido <strong t-esc="e.pedido"/></span>
+                    <span t-if="e.fecha" t-att-class="{'o_dcasa_bodega_atrasada': e.atrasada}">
+                        <t t-esc="e.fecha_tipo === 'prometida' ? 'Prometida ' : 'Programada '"/><strong t-esc="e.fecha"/>
+                        <t t-if="e.atrasada" t-esc="' · atrasada'"/>
+                    </span>
+                </p>
+                <div class="o_dcasa_bodega_marcas">
+                    <span t-attf-class="o_dcasa_bodega_como o_dcasa_bodega_como_{{ e.como }}">
+                        <i t-attf-class="fa {{ iconosComo[e.como] }}" aria-hidden="true"/> <t t-esc="e.como_texto"/>
+                    </span>
+                    <span t-if="e.pago === 'falta_pagar' or e.pago === 'sin_factura'" class="o_dcasa_bodega_pago">
+                        <i class="fa fa-exclamation-circle" aria-hidden="true"/> <t t-esc="e.pago_texto"/>
+                    </span>
+                    <span t-if="e.pendiente_de" class="o_dcasa_bodega_resto">Resto de <t t-esc="e.pendiente_de"/></span>
+                </div>
+                <ul class="o_dcasa_bodega_resumen">
+                    <li t-foreach="e.productos" t-as="p" t-key="p_index">
+                        <strong class="o_dcasa_bodega_resumen_cant"><t t-esc="p.cantidad"/> ×</strong> <span t-esc="p.nombre"/>
+                    </li>
+                    <li t-if="e.mas" class="o_dcasa_bodega_mas">y <t t-esc="e.mas"/> producto<t t-if="e.mas > 1">s</t> más</li>
+                </ul>
+                <button type="button" class="o_dcasa_bodega_abrir" t-on-click.stop="() => this.abrir(e.id)">
+                    Abrir <i class="fa fa-arrow-right" aria-hidden="true"/>
+                </button>
+            </article>
+        </div>
+        <div t-elif="!state.cargando" class="o_dcasa_bodega_vacio">
+            <t t-if="state.lista.length">
+                <p>No hay entregas pendientes con esa búsqueda o filtro.</p>
+                <button type="button" class="o_dcasa_bodega_boton" t-on-click="verTodas">Ver todas</button>
+            </t>
+            <p t-else="">Todo al día: no hay entregas pendientes.</p>
+        </div>
+    </t>
+
+    <!-- ============================================================ Una entrega -->
+    <t t-name="dcasa_barras.BodegaEntrega">
+        <t t-set="e" t-value="state.entrega"/>
+        <header class="o_dcasa_bodega_cabecera o_dcasa_bodega_cabecera_entrega">
+            <button type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_volver" t-on-click="volver">
+                <i class="fa fa-arrow-left" aria-hidden="true"/> Volver
+            </button>
+            <div class="o_dcasa_bodega_titulos">
+                <h1 class="o_dcasa_bodega_titulo_entrega" t-esc="e.nombre"/>
+                <span t-attf-class="o_dcasa_bodega_estado o_dcasa_bodega_estado_{{ e.estado }}" t-esc="e.estado_texto"/>
+            </div>
+        </header>
+
+        <div class="o_dcasa_bodega_entrega">
+            <section class="o_dcasa_bodega_cliente_caja" aria-label="Cliente">
+                <h2 class="o_dcasa_bodega_cliente" t-esc="e.cliente or 'Sin cliente'"/>
+                <p t-if="e.telefono" class="o_dcasa_bodega_dato">
+                    <i class="fa fa-phone" aria-hidden="true"/> <a t-attf-href="tel:{{ e.telefono }}" t-esc="e.telefono"/>
+                </p>
+                <p t-if="e.direccion" class="o_dcasa_bodega_dato">
+                    <i class="fa fa-map-marker" aria-hidden="true"/> <span t-esc="e.direccion"/>
+                </p>
+                <p class="o_dcasa_bodega_dato o_dcasa_bodega_dato_fila">
+                    <span t-if="e.pedido">Pedido <strong t-esc="e.pedido"/></span>
+                    <span t-if="e.fecha" t-att-class="{'o_dcasa_bodega_atrasada': e.atrasada}">
+                        <t t-esc="e.fecha_tipo === 'prometida' ? 'Prometida ' : 'Programada '"/><strong t-esc="e.fecha"/>
+                        <t t-if="e.atrasada" t-esc="' (atrasada)'"/>
+                    </span>
+                </p>
+                <div class="o_dcasa_bodega_marcas">
+                    <span t-attf-class="o_dcasa_bodega_como o_dcasa_bodega_como_{{ e.como }}">
+                        <i t-attf-class="fa {{ iconosComo[e.como] }}" aria-hidden="true"/> <t t-esc="e.como_texto"/>
+                    </span>
+                    <span t-if="e.pendiente_de" class="o_dcasa_bodega_resto">Es lo que faltó de <t t-esc="e.pendiente_de"/></span>
+                </div>
+                <p t-if="e.pago === 'falta_pagar' or e.pago === 'sin_factura'" class="o_dcasa_bodega_alerta" role="alert">
+                    <i class="fa fa-exclamation-circle" aria-hidden="true"/>
+                    <span t-esc="(e.pago === 'falta_pagar' ? 'Falta pagar este pedido.' : 'Este pedido todavía no tiene factura.') + ' Antes de entregar, confírmalo con Caja.'"/>
+                </p>
+                <p t-if="e.nota" class="o_dcasa_bodega_nota_entrega"><strong>Nota:</strong> <span t-esc="e.nota"/></p>
+                <p t-if="e.estado === 'hecha'" class="o_dcasa_bodega_msg o_dcasa_bodega_msg_ok">
+                    Ya se entregó<t t-if="e.hecha_el"> el <t t-esc="e.hecha_el"/></t>.
+                </p>
+                <button t-if="e.imprimir and esSoloLectura" type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_imprimir_caja"
+                        t-on-click="() => this.imprimir(e.imprimir)">
+                    <i class="fa fa-print" aria-hidden="true"/> Imprimir nota de entrega
+                </button>
+            </section>
+
+            <section class="o_dcasa_bodega_productos" aria-label="Productos">
+                <form t-if="!esSoloLectura" class="o_dcasa_bodega_entrada o_dcasa_bodega_entrada_lector" t-on-submit.prevent="() => {}">
+                    <label for="o_dcasa_bodega_lector" class="o_dcasa_bodega_etiqueta">Escanea cada producto para marcarlo</label>
+                    <div class="o_dcasa_bodega_fila">
+                        <input id="o_dcasa_bodega_lector" type="search" class="o_dcasa_bodega_texto" t-ref="lector"
+                               t-model="state.lectorTexto" t-on-keydown="alTeclearEnEntrega" t-on-blur="alPerderFoco"
+                               t-on-pointerdown="alTocarCampo" t-att-inputmode="modoDeEntrada"
+                               enterkeyhint="done" autocomplete="off" autocapitalize="off" autocorrect="off"
+                               spellcheck="false" placeholder="Código del producto"/>
+                        <button t-if="camaraDisponible" type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_camara"
+                                title="Escanear con la cámara" aria-label="Escanear con la cámara"
+                                t-att-disabled="state.cargando" t-on-click="escanearConCamara">
+                            <i class="fa fa-camera" aria-hidden="true"/><span class="o_dcasa_bodega_camara_texto">Cámara</span>
+                        </button>
+                    </div>
+                </form>
+
+                <t t-call="dcasa_barras.BodegaAviso"/>
+
+                <div t-if="!esSoloLectura" class="o_dcasa_bodega_progreso">
+                    <div class="o_dcasa_bodega_progreso_texto">
+                        <span>Marcaste <strong t-esc="progreso.marcadas"/> de <strong t-esc="progreso.pedidas"/> piezas</span>
+                        <button type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_todo" t-on-click="marcarTodo">
+                            <i class="fa fa-check-square-o" aria-hidden="true"/> Marcar todo
+                        </button>
+                    </div>
+                    <div class="o_dcasa_bodega_barra" role="progressbar" t-att-aria-valuenow="progreso.porcentaje"
+                         aria-valuemin="0" aria-valuemax="100">
+                        <span t-attf-style="width: {{ progreso.porcentaje }}%"/>
+                    </div>
+                </div>
+
+                <ul class="o_dcasa_bodega_lineas">
+                    <li t-foreach="e.lineas" t-as="l" t-key="l.id" t-att-data-linea="l.id"
+                        class="o_dcasa_bodega_linea" t-att-class="{'o_dcasa_bodega_linea_lista': !esSoloLectura and completa(l)}">
+                        <img class="o_dcasa_bodega_foto" t-att-src="l.foto" alt="" loading="lazy"/>
+                        <div class="o_dcasa_bodega_linea_datos">
+                            <p class="o_dcasa_bodega_linea_nombre" t-esc="l.nombre"/>
+                            <p class="o_dcasa_bodega_linea_ref">
+                                <span t-if="l.codigo" t-esc="l.codigo"/>
+                                <span class="o_dcasa_bodega_pedida">Pedido: <strong t-esc="l.pedida_texto"/><t t-if="l.unidad"> <t t-esc="l.unidad"/></t></span>
+                            </p>
+                            <p t-if="!esSoloLectura and l.apartada &lt; l.pedida" class="o_dcasa_bodega_linea_aviso">
+                                <t t-if="l.apartada > 0">El sistema solo tiene <t t-esc="l.apartada_texto"/> en bodega.</t>
+                                <t t-else="">El sistema dice que no hay en bodega.</t>
+                                Si lo tienes, márcalo igual.
+                            </p>
+                            <p t-if="!esSoloLectura and l.seguimiento" class="o_dcasa_bodega_linea_aviso">Lleva número de serie o de lote.</p>
+                        </div>
+                        <div t-if="esSoloLectura" class="o_dcasa_bodega_salio">
+                            Salieron <strong t-esc="cifra(l.salio)"/>
+                        </div>
+                        <div t-elif="l.pedida === 1" class="o_dcasa_bodega_marcar">
+                            <button type="button" class="o_dcasa_bodega_check" t-att-class="{'o_dcasa_bodega_check_si': completa(l)}"
+                                    t-att-aria-pressed="completa(l) ? 'true' : 'false'" t-on-click="() => this.alternar(l)">
+                                <i t-attf-class="fa {{ completa(l) ? 'fa-check-square' : 'fa-square-o' }}" aria-hidden="true"/>
+                                <span t-esc="completa(l) ? 'Marcado' : 'Marcar'"/>
+                            </button>
+                        </div>
+                        <div t-else="" class="o_dcasa_bodega_marcar">
+                            <div class="o_dcasa_bodega_contador">
+                                <button type="button" class="o_dcasa_bodega_menos" aria-label="Uno menos"
+                                        t-att-disabled="!marcada(l)" t-on-click="() => this.sumar(l, -1)">−</button>
+                                <span class="o_dcasa_bodega_cifra"><strong t-esc="cifra(marcada(l))"/> de <t t-esc="l.pedida_texto"/></span>
+                                <button type="button" class="o_dcasa_bodega_mas_uno" aria-label="Uno más"
+                                        t-att-disabled="completa(l)" t-on-click="() => this.sumar(l, 1)">+</button>
+                            </div>
+                            <button type="button" class="o_dcasa_bodega_check o_dcasa_bodega_check_todas"
+                                    t-att-class="{'o_dcasa_bodega_check_si': completa(l)}" t-on-click="() => this.alternar(l)">
+                                <t t-if="completa(l)"><i class="fa fa-check" aria-hidden="true"/> Todas</t>
+                                <t t-else="">Todas</t>
+                            </button>
+                        </div>
+                    </li>
+                </ul>
+            </section>
+        </div>
+
+        <!-- Abajo, fija: imprimir y validar (el amarillo solo sobre azul). -->
+        <footer t-if="!esSoloLectura" class="o_dcasa_bodega_barra_abajo">
+            <button t-if="e.imprimir" type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_imprimir"
+                    t-on-click="() => this.imprimir(e.imprimir)">
+                <i class="fa fa-print" aria-hidden="true"/><span class="o_dcasa_bodega_imprimir_texto"> Imprimir nota</span>
+            </button>
+            <button type="button" class="o_dcasa_bodega_validar" t-att-disabled="state.validando or state.cargando"
+                    t-on-click="validar">
+                <i t-attf-class="fa {{ state.validando ? 'fa-spinner fa-spin' : 'fa-check' }}" aria-hidden="true"/>
+                Validar entrega
+            </button>
+        </footer>
+    </t>
+
+    <!-- ============================================================ ¿Entregar solo lo marcado? -->
+    <t t-name="dcasa_barras.BodegaConfirmar">
+        <div class="o_dcasa_bodega_fondo" role="dialog" aria-modal="true" aria-labelledby="o_dcasa_bodega_confirmar_titulo">
+            <div class="o_dcasa_bodega_confirmar">
+                <h2 id="o_dcasa_bodega_confirmar_titulo">¿Entregar solo lo marcado?</h2>
+                <p>Falta marcar:</p>
+                <ul class="o_dcasa_bodega_faltan">
+                    <li t-foreach="state.confirmar.faltan" t-as="f" t-key="f_index">
+                        <strong t-esc="f.nombre"/>: marcaste <t t-esc="f.marcada"/> de <t t-esc="f.pedida"/>
+                    </li>
+                </ul>
+                <p t-if="state.confirmar.deja_pendiente">Lo que falta queda <strong>pendiente</strong> en una entrega nueva, para despacharlo después.</p>
+                <p t-else="">Lo que falta <strong>se cancela</strong>: así está configurada esta entrega.</p>
+                <div class="o_dcasa_bodega_confirmar_botones">
+                    <button type="button" class="o_dcasa_bodega_boton o_dcasa_bodega_boton_primario" t-ref="confirmarBoton"
+                            t-att-disabled="state.validando" t-on-click="entregarSoloLoMarcado">
+                        Sí, entregar solo lo marcado
+                    </button>
+                    <button type="button" class="o_dcasa_bodega_boton" t-att-disabled="state.validando" t-on-click="cancelarParcial">
+                        Volver
+                    </button>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

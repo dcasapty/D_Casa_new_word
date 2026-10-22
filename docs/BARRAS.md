@@ -16,6 +16,7 @@ y decidir cómo se imprimen.
 | **Inventario › Configuración › Historial de etiquetas** | Quién asignó, pasó o retiró cada número y cuándo. No se edita ni se borra. | Gerencia |
 | **Inventario › Configuración › Códigos de barras** | Llena el código de barras de los productos que no tienen, a partir de su referencia interna (alternativa a las etiquetas numeradas; ver más abajo). | Gerencia |
 | **Escáner › QR de un documento** | Escaneas el QR de uso interno que lleva un documento impreso (pedido de compra, factura, cotización, nota de entrega) y se abre ese documento en el sistema. Ver «QR de los documentos» más abajo. | Quien tenga permiso para ver ese documento |
+| **Inventario › Bodega** (y el acceso «Bodega» del Inicio) | Las entregas pendientes «Para despachar (envío)» y «Para retirar en tienda», pensado para tablet. Se abre una entrega tocándola o escaneando el QR de su nota, se marca lo que sale (también escaneando cada producto) y se valida; si falta algo, lo demás queda pendiente. Ver «Panel de Bodega» más abajo. | Quien usa Inventario (bodega, la Vendedora, Gerencia) |
 
 ## Los lectores
 
@@ -233,6 +234,81 @@ búsqueda con permisos, `dcasa_invoice/models/documento.py` y `documento_abrir.p
 guarda assets públicos). Este QR **no** es el de la factura electrónica de la DGI (`dcasa_fe_pa`, que no se toca) ni el
 `/codigo/DC-K7M4PX` del producto para el cliente (ver [CATALOGO.md](CATALOGO.md)): son otras cosas.
 
+## Panel de Bodega (pedido de la dueña, 2026-10-22)
+
+> «Un solo panel que muestre las entregas pendientes por despachar o retirar; que en bodega puedan abrir muy fácilmente
+> las órdenes de entrega, muy bien optimizado para una tablet; que abran la orden y fácilmente puedan validar la
+> entrega, que funcione con el QR de la nota de entrega.»
+
+**Dónde:** *Inventario › Bodega* (dirección `/odoo/bodega`; `/odoo/bodega/<id>` abre esa entrega) y el acceso
+**Bodega** del Inicio (justo antes de Escáner, con cuántas entregas esperan). Lo ve quien usa Inventario: bodega, la
+Vendedora (todas despachan) y Gerencia. Pensado primero para **tablet** (vertical y horizontal); sirve en celular y
+computadora.
+
+**La lista.** Las salidas a clientes que no están hechas ni canceladas (las mismas «Entregas pendientes» del Inicio,
+sin las devoluciones a proveedores), de la más antigua a la más nueva. Cada tarjeta: número de la entrega, cliente,
+pedido, fecha (*Prometida* si el pedido tiene «Fecha de entrega»; si no, *Programada*; en rojo si ya pasó), envío o
+retiro, estado en palabras sencillas (*Lista para salir*, *Falta una parte*, *Esperando producto*), los productos con su
+cantidad (los tres primeros y «y N más») y el botón grande **Abrir**. Nunca precios.
+
+* **Envío o retiro.** Arriba: «Todas», «Para despachar (envío)», «Para retirar en tienda» y, si hay alguna, «Sin definir».
+  Lo dice el **método de entrega** del pedido: el que tiene marcado **«Es retiro en la tienda»** (*Inventario ›
+  Configuración › Métodos de envío*; el «Retiro en tienda (La Chorrera)» de la tienda web viene marcado) es retiro y
+  cualquier otro es envío. Sin método, una línea de **flete** en el pedido la hace «envío». Si no hay ninguna de las dos
+  cosas, **no se adivina**: sale «Sin definir» (la vendedora lo arregla poniendo el método de entrega en el pedido).
+* **Estado.** «Listas para salir» (todo apartado en bodega) o «Esperando producto» (falta todo o una parte).
+* **Pago.** Si el pedido todavía no está pagado completo, la tarjeta dice **Falta pagar** (o **Sin factura**) y la
+  entrega abierta pide confirmarlo con Caja: el mueble se entrega pagado (decisión del 2026-10-17). Solo sí o no, sin
+  montos. **El panel no lo impide** (puede haber un crédito autorizado por Gerencia).
+* **Buscar** por cliente, número de entrega, pedido o producto (sin tildes ni mayúsculas). Enter abre la entrega si
+  queda una sola. Escanear el **código de un producto** deja solo las entregas que lo llevan.
+* Se **actualiza sola** cada minuto (y al volver a la pantalla); el botón **Actualizar** lo hace ya.
+
+**El QR de la nota de entrega.** Con el lector (escribe como teclado) o con el botón **Cámara** (el lector de Odoo, con
+el arreglo del iPhone de `camara.js`): el QR de la nota abre **esa entrega** en el panel. También sirven el QR de la
+**factura** o de la **cotización/pedido** (abren su entrega pendiente; si tiene varias, deja solo esas en la lista) y el
+número de la entrega o del pedido escrito a mano. Los permisos son los del Escáner (`dcasa.documento`): quien no puede
+ver facturas recibe «No tienes permiso…» y nada del documento. Una entrega ya hecha avisa «ya se entregó el …» y dónde
+quedó lo que faltó. El QR leído con la **cámara normal del teléfono** sigue abriendo el formulario de Odoo, como antes.
+
+**Abrir una entrega.** Cliente, teléfono (se toca para llamar), dirección, pedido, fecha, envío o retiro, la nota de la
+entrega y la lista de productos con **foto**, código y cantidad pedida. Se marca lo que sale:
+
+* con un toque (**Marcar** → **Sale**) si es una pieza; con **−** / **+** y **Todas** si son varias;
+* **escaneando el producto** (código de barras, referencia, código público o empaque, igual que el Escáner): suma una
+  pieza; si el producto **no es de esa entrega**, avisa con un pitido grave («no es de esta entrega»);
+* **Marcar todo**, para quien ya revisó la mercancía a la vista.
+
+Un producto que según el sistema no está en bodega lo dice («El sistema dice que no hay en bodega. Si lo tienes,
+márcalo igual»): sale igual (como en Odoo) y la entrega queda con una nota para que Gerencia cuente ese producto.
+
+**Validar entrega** (abajo, en la barra azul, siempre a la vista):
+
+* Todo marcado → se valida. Aviso verde en la lista: «Listo: WH/OUT/00005 quedó entregada completa», con **Imprimir nota
+  de entrega**.
+* Falta algo → pregunta en sencillo **«¿Entregar solo lo marcado?»** con lo que falta y dos botones: **Sí, entregar solo
+  lo marcado** (lo demás queda en una **entrega pendiente** nueva de Odoo, que sale en la lista como «Resto de …») o
+  **Volver**.
+* Nada marcado → «Marca lo que sale antes de validar».
+* Lo que Odoo pediría con asistentes (crear la entrega pendiente, el aviso de los SMS) lo contesta el panel; si un
+  producto lleva **número de serie o de lote** que el sistema no apartó, o la entrega pide otro paso, dice en sencillo que
+  la valide Gerencia desde *Inventario › Entregas*. D'CASA no usa números de serie hoy.
+* Queda **quién la validó**: Odoo valida con los permisos de la persona (sin `sudo`) y la entrega lleva la nota
+  «Despachada desde el panel de Bodega por …», con lo que faltó y dónde quedó.
+* La **nota de entrega** se imprime desde la entrega abierta o desde el aviso de éxito (la misma de Inventario).
+
+**Tablet sin lector.** El cuadro donde escribe el lector tiene el foco siempre, pero en una pantalla táctil **no saca
+el teclado** hasta que lo tocas para escribir (`inputmode="none"`).
+
+**Brian:** `entregas_por_despachar` (ver [BRIAN.md](BRIAN.md)). **Guía:** «Despachar una entrega en bodega».
+
+**Detalles técnicos.** `dcasa_barras/models/bodega.py` (`dcasa.bodega`: `pendientes`, `abrir`, `leer`, `validar`;
+`delivery.carrier.dcasa_es_retiro`), `models/tablero.py` (el acceso del Inicio), `static/src/js/bodega.js`,
+`xml/bodega.xml`, `scss/bodega.scss`. Validar marca cada renglón (`quantity` y `picked`) y llama a `button_validate`
+con `skip_backorder` (la pregunta ya la contestó la persona) y `skip_sms`; si Odoo devuelve otro asistente, no se hace
+nada. Pruebas: `tests/test_bodega.py` (servidor) y `tests/test_bodega_ui.py` (navegador a tamaño tablet, tablet
+acostada, celular y computadora).
+
 ## Seguridad
 
 Todo lo que lee o escribe el Escáner lo comprueba el servidor (no solo el menú): consultar pide ser usuario de Inventario;
@@ -240,5 +316,6 @@ contar y asignar piden ser administrador de Inventario (Gerencia). El lector **n
 Asignar etiquetas pide además administrar Productos (el código se escribe en el producto). Los productos se escriben
 con los permisos de la persona; el único `sudo()` es el que anota el historial de etiquetas, después de comprobar el
 permiso. Abrir un documento desde su QR comprueba, también en el servidor, que quien escanea pueda leerlo (y los
-métodos que lo hacen son privados: no se llaman por RPC). Los permisos de Odoo siguen mandando. La lista de métodos
+métodos que lo hacen son privados: no se llaman por RPC). El panel de Bodega exige ser usuario de Inventario en cada
+método y valida con los permisos de la persona. Los permisos de Odoo siguen mandando. La lista de métodos
 públicos está en `addons/dcasa_base/tests/test_superficie_rpc.py`.

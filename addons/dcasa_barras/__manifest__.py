@@ -18,19 +18,23 @@ Odoo Community:
   retirado y avisa si alguien lo escanea. Cada cambio queda en el historial. Solo Gerencia.
 * El código QR de uso interno de un documento (factura, cotización, pedido de compra, entrega; ver dcasa_invoice): al
   escanearlo, el Escáner abre ese documento si tienes permiso para verlo. Todo lo demás se escanea como siempre.
+* Inventario › Bodega (y el acceso «Bodega» del Inicio): las entregas pendientes «Para despachar (envío)» y «Para
+  retirar en tienda», pensado para tablet. Se abre una entrega tocándola o escaneando el QR de su nota de entrega, se
+  marca lo que sale (también escaneando cada producto) y se valida; si falta algo, lo demás queda pendiente.
 """,
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Inventory/Inventory',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
     'license': 'LGPL-3',
-    'depends': ['dcasa_catalogo', 'dcasa_interfaz', 'dcasa_invoice', 'stock'],
+    'depends': ['dcasa_catalogo', 'dcasa_interfaz', 'dcasa_invoice', 'stock', 'stock_delivery'],
     'data': [
         'security/ir.model.access.csv',
         'security/barras_security.xml',
         'views/asignacion_views.xml',
         'views/etiqueta_views.xml',
         'views/menus.xml',
+        'views/bodega_views.xml',
     ],
     'assets': {
         'web.assets_backend': [
@@ -39,5 +43,6 @@ Odoo Community:
             'dcasa_barras/static/src/xml/*.xml',
         ],
     },
+    'post_init_hook': '_dcasa_post_init',
     'installable': True,
 }

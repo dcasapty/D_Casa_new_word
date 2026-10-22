@@ -38,6 +38,7 @@ TITULOS = {
     'guia_cierre_mes': 'Repasando la guía de cierre de mes',
     'saldo_puntos': 'Consultando el saldo de puntos',
     'pendientes_de_hoy': 'Armando los pendientes de hoy',
+    'entregas_por_despachar': 'Revisando las entregas por despachar',
     'productos_incompletos': 'Buscando productos incompletos',
     'consumo_de_brian': 'Calculando mi consumo de IA',
 }

@@ -1415,6 +1415,54 @@
    ]
   },
   {
+   "id": "despachar-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Despachar una entrega en bodega",
+   "logras": "Ves en un solo panel las entregas que faltan por despachar o por retirar en la tienda, abres la del cliente (tocándola o escaneando el QR de su nota de entrega), marcas lo que sale y la validas. Si falta algo, lo demás queda pendiente para después.",
+   "destino": {
+    "menu": "dcasa_barras.menu_dcasa_bodega"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Bodega (también está en el Inicio). Arriba eliges «Para despachar (envío)» o «Para retirar en tienda».",
+     "destino": {
+      "menu": "dcasa_barras.menu_dcasa_bodega"
+     }
+    },
+    {
+     "texto": "Escanea el QR de la nota de entrega (con el lector o con el botón «Cámara»), o busca por cliente, número o pedido y toca «Abrir».",
+     "destino": null
+    },
+    {
+     "texto": "Marca cada producto que sale: tócalo o escanea su código. Si la entrega dice «Falta pagar» o «Sin factura», confírmalo con Caja antes de entregar.",
+     "destino": null
+    },
+    {
+     "texto": "Toca «Validar entrega». Si falta algo, te pregunta si entregas solo lo marcado: lo demás queda pendiente en una entrega nueva.",
+     "destino": null
+    },
+    {
+     "texto": "Si hace falta, imprime la nota de entrega desde ahí mismo.",
+     "destino": null
+    }
+   ],
+   "nota": "Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido.",
+   "palabras": [
+    "bodega",
+    "despachar",
+    "despacho",
+    "entregar al cliente",
+    "retiro",
+    "retirar en tienda",
+    "nota de entrega",
+    "qr de la nota",
+    "validar entrega",
+    "tablet",
+    "envio"
+   ]
+  },
+  {
    "id": "inventario-fisico",
    "categoria": "productos",
    "grupo": "Inventario",

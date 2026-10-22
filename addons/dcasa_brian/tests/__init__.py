@@ -20,3 +20,4 @@ from . import test_solo_lo_suyo
 from . import test_reglas_gerencia
 from . import test_reponer_brian
 from . import test_estadisticas_brian
+from . import test_bodega_brian

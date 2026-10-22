@@ -6,6 +6,17 @@
         <field name="tag">dcasa_barras_escaner</field>
     </record>
 
+    <!-- El panel de Bodega: las entregas pendientes para despachar o retirar (acción de cliente OWL, pensada para
+         tablet). /odoo/bodega abre la lista y /odoo/bodega/<id> abre esa entrega. -->
+    <record id="accion_bodega" model="ir.actions.client">
+        <field name="name">Bodega</field>
+        <field name="tag">dcasa_barras_bodega</field>
+        <field name="path">bodega</field>
+    </record>
+
+    <menuitem id="menu_dcasa_bodega" name="Bodega" parent="stock.menu_stock_root" sequence="1"
+              action="accion_bodega" groups="stock.group_stock_user"/>
+
     <menuitem id="menu_dcasa_escaner" name="Escáner" parent="stock.menu_stock_root" sequence="5"
               action="accion_escaner" groups="stock.group_stock_user"/>
 

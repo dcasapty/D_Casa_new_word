@@ -322,6 +322,21 @@ LISTA_BLANCA = {
     ('dcasa_barras', 'dcasa.barras.asignacion', 'action_deshacer'):
         'Botón: exige stock.group_stock_manager y escritura sobre el registro; quita solo lo que sigue igual a lo '
         'asignado.',
+    ('dcasa_barras', 'dcasa.bodega', 'pendientes'):
+        'API del panel de Bodega: exige stock.group_stock_user en el servidor ANTES de leer; las entregas se buscan '
+        'con los permisos de la persona; el único sudo lee del pedido su número, método de entrega, si lleva flete y '
+        'si está pagado (sí o no, sin montos).',
+    ('dcasa_barras', 'dcasa.bodega', 'abrir'):
+        'API del panel de Bodega: exige stock.group_stock_user y lectura de la entrega (check_access) en el servidor; '
+        'solo salidas; el único sudo es el del pedido (número, método de entrega, flete, pagado sí o no).',
+    ('dcasa_barras', 'dcasa.bodega', 'leer'):
+        'API del panel de Bodega: exige stock.group_stock_user ANTES de leer; el QR de un documento se abre con los '
+        'permisos de quien escanea (dcasa.documento, el mismo control del Escáner); las entregas y productos se buscan '
+        'con los permisos de la persona (sin sudo; el pedido de una factura solo da los ids de sus entregas).',
+    ('dcasa_barras', 'dcasa.bodega', 'validar'):
+        'API del panel de Bodega: exige stock.group_stock_user y escritura de la entrega (check_access) en el '
+        'servidor; revisa cada renglón y cantidad (nunca más de lo pedido) y valida con button_validate de Odoo con '
+        'los permisos de la persona (sin sudo): Odoo registra quién validó.',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
