@@ -20,8 +20,8 @@ PARAM_BASE_POR_DIA = {
     'type': 'string', 'enum': list(BASES_POR_DIA),
     'description': 'Qué contar. «facturado» (por defecto, como abre el Inicio): las facturas publicadas, por su fecha; '
                    'las notas de crédito restan. «confirmado»: lo vendido, los pedidos confirmados, el día que se '
-                   'confirmaron. «con_abonos»: facturas con al menos un abono. «completadas»: pagadas al 100 %, el día '
-                   'del último pago.',
+                   'confirmaron. «con_abonos»: facturas con al menos un abono. «completadas»: pagadas por completo, el '
+                   'día que se terminó de pagar (el del pago que dejó la factura en cero).',
 }
 
 
