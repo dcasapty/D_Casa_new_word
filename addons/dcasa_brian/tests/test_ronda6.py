@@ -230,11 +230,11 @@ class TestHerramientasRonda6(TransactionCase):
         impuesto = cls.env['brian.herramientas']._b_itbms_venta()
         Template = cls.env['product.template']
         base = {'type': 'consu', 'is_storable': True, 'taxes_id': [Command.set(impuesto.ids)], 'sale_ok': True}
-        cls.cama = Template.create({**base, 'name': 'Ronda6 Cama Roble', 'default_code': 'R6-CAMA',
+        cls.cama = Template.create({**base, 'name': 'RONDA6 CAMA ROBLE', 'default_code': 'R6-CAMA',
                                     'list_price': 300.0, 'image_1920': _png(), 'dcasa_medidas': '160 × 200 cm'})
-        cls.mesa = Template.create({**base, 'name': 'Ronda6 Mesa Pino', 'default_code': 'R6-MESA',
+        cls.mesa = Template.create({**base, 'name': 'RONDA6 MESA PINO', 'default_code': 'R6-MESA',
                                     'list_price': 80.0})
-        cls.gratis = Template.create({**base, 'name': 'Ronda6 Sin Precio', 'default_code': 'R6-CERO',
+        cls.gratis = Template.create({**base, 'name': 'RONDA6 SIN PRECIO', 'default_code': 'R6-CERO',
                                       'list_price': 0.0, 'image_1920': _png()})
         cls.cliente = cls.env['res.partner'].create({'name': 'Ronda6 Cliente', 'phone': '6555-0606'})
         cls.proveedor = cls.env['res.partner'].create({'name': 'Ronda6 Proveedor Muebles', 'supplier_rank': 1})
@@ -288,7 +288,7 @@ class TestHerramientasRonda6(TransactionCase):
         datos = self.ok(self.ejecutar(self.vendedor, 'crear_cotizacion', {
             'cliente': '6555-0606', 'lineas': 'R6-CAMA x 2; R6-MESA x 1'}))
         self.assertEqual([(ln['producto'], ln['cantidad']) for ln in datos['lineas']],
-                         [('[R6-CAMA] Ronda6 Cama Roble', 2), ('[R6-MESA] Ronda6 Mesa Pino', 1)])
+                         [('[R6-CAMA] RONDA6 CAMA ROBLE', 2), ('[R6-MESA] RONDA6 MESA PINO', 1)])
         self.assertEqual(datos['abrir']['modelo'], 'sale.order')
         # Un modelo pequeño manda la cantidad como texto: se entiende.
         datos = self.ok(self.ejecutar(self.vendedor, 'agregar_linea_cotizacion', {
@@ -358,10 +358,10 @@ class TestHerramientasRonda6(TransactionCase):
         argumentos = {'problema': 'sin_foto', 'solo_publicados': True}
         datos = self.ok(self.ejecutar(self.vendedor, 'productos_incompletos', argumentos))
         nombres = [p['producto'] for p in datos['productos']]
-        self.assertEqual(nombres, ['[R6-MESA] Ronda6 Mesa Pino'])
+        self.assertEqual(nombres, ['[R6-MESA] RONDA6 MESA PINO'])
         precio = self.ok(self.ejecutar(self.vendedor, 'productos_incompletos',
                                        {'problema': 'sin_precio', 'solo_publicados': 'true'}))
-        self.assertIn('[R6-CERO] Ronda6 Sin Precio', [p['producto'] for p in precio['productos']])
+        self.assertIn('[R6-CERO] RONDA6 SIN PRECIO', [p['producto'] for p in precio['productos']])
         todos = self.ok(self.ejecutar(self.vendedor, 'productos_incompletos'))
         self.assertTrue(todos['problemas'])
         self.assertFalse(self.ejecutar(self.vendedor, 'productos_incompletos', {'problema': 'raro'})['ok'])
@@ -375,7 +375,7 @@ class TestHerramientasRonda6(TransactionCase):
         propuesta = self.ejecutar(self.gerente, 'publicar_productos_en_bloque', argumentos)
         self.assertTrue(propuesta.get('requiere_confirmacion'))
         self.assertIn('Publicar en la web 1 producto', propuesta['resumen'])
-        self.assertIn('Ronda6 Cama Roble', propuesta['resumen'])
+        self.assertIn('RONDA6 CAMA ROBLE', propuesta['resumen'])
         self.assertIn('Se saltan 1 (sin foto)', propuesta['resumen'])
         self.assertIn('Se saltan 1 (sin precio)', propuesta['resumen'])
         self.assertFalse(self.cama.is_published, 'Nada cambia antes del clic')
@@ -384,7 +384,7 @@ class TestHerramientasRonda6(TransactionCase):
         self.assertTrue(self.cama.is_published)
         self.assertFalse(self.mesa.is_published)
         self.assertFalse(self.gratis.is_published)
-        self.assertEqual(hecho['datos']['omitidos']['sin foto'], ['[R6-MESA] Ronda6 Mesa Pino'])
+        self.assertEqual(hecho['datos']['omitidos']['sin foto'], ['[R6-MESA] RONDA6 MESA PINO'])
         retirar = self.ejecutar(self.gerente, 'publicar_productos_en_bloque',
                                 {'productos': 'R6-CAMA', 'publicar': 'false'})
         self.assertTrue(self.confirmar(self.gerente, retirar)['ok'])
@@ -413,15 +413,15 @@ class TestHerramientasRonda6(TransactionCase):
         propuesta = self.ejecutar(self.gerente, 'ajustar_existencias_en_bloque', argumentos)
         self.assertTrue(propuesta.get('requiere_confirmacion'))
         self.assertIn('Dejar en 0 las existencias de 2 productos', propuesta['resumen'])
-        self.assertIn('Ronda6 Cama Roble', propuesta['resumen'])
+        self.assertIn('RONDA6 CAMA ROBLE', propuesta['resumen'])
         self.assertIn('Ya están así: 1', propuesta['resumen'])
         self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (5, 3), 'Nada cambia antes del clic')
         hecho = self.confirmar(self.gerente, propuesta)
         self.assertTrue(hecho['ok'], hecho)
         self.assertEqual((self.cama.qty_available, self.mesa.qty_available), (0, 0))
         self.assertIn('2 productos', hecho['datos']['mensaje'])
-        self.assertEqual(sorted(hecho['datos']['cambiados']), ['[R6-CAMA] Ronda6 Cama Roble',
-                                                              '[R6-MESA] Ronda6 Mesa Pino'])
+        self.assertEqual(sorted(hecho['datos']['cambiados']), ['[R6-CAMA] RONDA6 CAMA ROBLE',
+                                                              '[R6-MESA] RONDA6 MESA PINO'])
 
     def test_existencias_en_bloque_con_una_cantidad_distinta_de_cero(self):
         self._con_existencias(self.cama, 5)

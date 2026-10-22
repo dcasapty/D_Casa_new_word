@@ -401,7 +401,7 @@ escondidas:
   va a pasar. No deja unir si hay algo a medias con la que se archiva (entrega o recepción sin terminar, cotización o
   compra abierta), si las dos tienen tamaños o colores (se une una ficha de un solo producto a una medida de otra), con
   lote o serie, unidades distintas o el producto del descuento. Al unir: las **existencias** pasan con un ajuste de
-  inventario por cada lado («Unión de productos: A → B»); los **precios de proveedor**, las **piezas de combo**, las
+  inventario por cada lado, como Gerencia y con su motivo («Unificación de productos repetidos: A → B»); los **precios de proveedor**, las **piezas de combo**, las
   **reglas de tarifa** y los **premios de Socios** pasan a la que queda; las **fotos** se suman (sin repetir); el
   **código de barras** y la **referencia** pasan si la que queda no los tiene. Las **ventas, facturas y movimientos
   viejos no se reescriben**: siguen en la ficha archivada (la que queda la lista en la pestaña «Fichas unidas»). Las dos

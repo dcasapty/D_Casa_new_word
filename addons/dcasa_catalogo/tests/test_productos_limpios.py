@@ -151,7 +151,7 @@ class TestProductosRepetidos(TransactionCase):
         self.assertFalse(self.sale.barcode)
         self.assertEqual(self.queda.image_1920, FOTO_A)
         self.assertIn(FOTO_B, self.queda.product_tmpl_id.product_template_image_ids.mapped('image_1920'))
-        movimientos = self.env['stock.move'].search([('reference', 'like', 'Unión de productos%')])
+        movimientos = self.env['stock.move'].search([('reference', 'like', 'Unificación de productos repetidos%')])
         self.assertEqual(sorted(movimientos.mapped('product_id').ids), sorted((self.queda | self.sale).ids))
         self.assertIn('Se le unió', self.queda.product_tmpl_id.message_ids[0].body)
 

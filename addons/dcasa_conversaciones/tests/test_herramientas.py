@@ -36,22 +36,22 @@ class HerramientasCase(JuanCase):
         base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'is_published': True,
                 'taxes_id': [Command.set(impuesto.ids)]}
         cls.cama = Template.create({
-            **base, 'name': 'Zzcama Roble Queen', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
+            **base, 'name': 'ZZCAMA ROBLE QUEEN', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
             'standard_price': 123.45, 'dcasa_medidas': 'Ancho × Largo: 160 × 200 cm',
             'dcasa_combo': 'Combo con colchón First Class $469.99',
             'public_categ_ids': [Command.set(cls.categoria.ids)],
             'description_sale': 'Cama de roble con cabecera.'})
-        cls.sofa = Template.create({**base, 'name': 'Zzsofa Gris', 'default_code': 'ZZ-SOFA', 'list_price': 800.0,
+        cls.sofa = Template.create({**base, 'name': 'ZZSOFA GRIS', 'default_code': 'ZZ-SOFA', 'list_price': 800.0,
                                     'public_categ_ids': [Command.set(cls.categoria.ids)]})
-        cls.mesa = Template.create({**base, 'name': 'Zzmesa Pino', 'default_code': 'ZZ-MESA', 'list_price': 90.0,
+        cls.mesa = Template.create({**base, 'name': 'ZZMESA PINO', 'default_code': 'ZZ-MESA', 'list_price': 90.0,
                                     'public_categ_ids': [Command.set(cls.otra_categoria.ids)]})
-        cls.secreto = Template.create({**base, 'name': 'Zzsecreto Borrador', 'default_code': 'ZZ-SECRETO',
+        cls.secreto = Template.create({**base, 'name': 'ZZSECRETO BORRADOR', 'default_code': 'ZZ-SECRETO',
                                        'list_price': 10.0, 'is_published': False,
                                        'public_categ_ids': [Command.set(cls.categoria.ids)]})
         tamano = cls.env['product.attribute'].create({'name': 'Zztamaño', 'create_variant': 'always', 'value_ids': [
             Command.create({'name': 'Zzqueen'}), Command.create({'name': 'Zzking'})]})
         cls.colchon = Template.create({
-            **base, 'name': 'Zzcolchón First Class', 'list_price': 400.0, 'default_code': 'ZZ-COL',
+            **base, 'name': 'ZZCOLCHÓN FIRST CLASS', 'list_price': 400.0, 'default_code': 'ZZ-COL',
             'public_categ_ids': [Command.set(cls.categoria.ids)],
             'attribute_line_ids': [Command.create({'attribute_id': tamano.id,
                                                    'value_ids': [Command.set(tamano.value_ids.ids)]})]})
@@ -94,9 +94,9 @@ class TestBuscarProductos(HerramientasCase):
     def test_solo_productos_publicados(self):
         datos = self.salida('buscar_productos', {'consulta': 'zz'})
         nombres = self.nombres(datos)
-        self.assertIn('Zzcama Roble Queen', nombres)
-        self.assertIn('Zzsofa Gris', nombres)
-        self.assertNotIn('Zzsecreto Borrador', nombres, 'Un producto sin publicar no existe para el cliente')
+        self.assertIn('ZZCAMA ROBLE QUEEN', nombres)
+        self.assertIn('ZZSOFA GRIS', nombres)
+        self.assertNotIn('ZZSECRETO BORRADOR', nombres, 'Un producto sin publicar no existe para el cliente')
         self.assertEqual(datos['encontrados'], 4)
         # Ni por nombre ni por código se llega al producto sin publicar.
         self.assertEqual(self.salida('buscar_productos', {'consulta': 'ZZ-SECRETO'})['encontrados'], 0)
@@ -118,9 +118,9 @@ class TestBuscarProductos(HerramientasCase):
     def test_existencias_solo_como_etiqueta_nunca_el_numero(self):
         productos = self.salida('buscar_productos', {'consulta': 'zz'})['productos']
         etiquetas = {p['nombre']: p['disponibilidad'] for p in productos}
-        self.assertEqual(etiquetas['Zzcama Roble Queen'], 'disponible')    # 7777 unidades
-        self.assertEqual(etiquetas['Zzsofa Gris'], 'pocas')                 # 3 unidades
-        self.assertEqual(etiquetas['Zzmesa Pino'], 'agotado')               # 0
+        self.assertEqual(etiquetas['ZZCAMA ROBLE QUEEN'], 'disponible')    # 7777 unidades
+        self.assertEqual(etiquetas['ZZSOFA GRIS'], 'pocas')                 # 3 unidades
+        self.assertEqual(etiquetas['ZZMESA PINO'], 'agotado')               # 0
         texto = json.dumps(self.salida('buscar_productos', {'consulta': 'zz'}))
         self.assertNotIn('7777', texto, 'El número de existencias no sale jamás')
         for clave in ('existencias', 'qty', 'stock', 'cantidad', 'free_qty', 'virtual'):
@@ -142,17 +142,17 @@ class TestBuscarProductos(HerramientasCase):
 
     def test_busca_por_tamano_o_color_de_la_variante(self):
         nombres = self.nombres(self.salida('buscar_productos', {'consulta': 'colchon zzqueen'}))
-        self.assertEqual(nombres, ['Zzcolchón First Class'])
+        self.assertEqual(nombres, ['ZZCOLCHÓN FIRST CLASS'])
 
     def test_el_codigo_exacto_va_primero(self):
         productos = self.salida('buscar_productos', {'consulta': 'ZZ-SOFA'})['productos']
-        self.assertEqual(productos[0]['nombre'], 'Zzsofa Gris')
+        self.assertEqual(productos[0]['nombre'], 'ZZSOFA GRIS')
 
     def test_filtra_por_categoria(self):
         nombres = self.nombres(self.salida('buscar_productos', {'consulta': 'zz', 'categoria': 'Zzcocina'}))
-        self.assertEqual(nombres, ['Zzmesa Pino'])
+        self.assertEqual(nombres, ['ZZMESA PINO'])
         todas = self.nombres(self.salida('buscar_productos', {'consulta': 'zz', 'categoria': 'zzdormitorios'}))
-        self.assertNotIn('Zzmesa Pino', todas)
+        self.assertNotIn('ZZMESA PINO', todas)
 
     def test_categoria_inexistente_dice_cuales_hay(self):
         error = self.error('buscar_productos', {'consulta': 'zz', 'categoria': 'Zzjardin'})
@@ -191,14 +191,14 @@ class TestCodigoPublicoEnJuan(HerramientasCase):
         codigo = self.cama.dcasa_codigo_publico
         for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), f'  {codigo.lower()} '):
             (cama,) = self.salida('buscar_productos', {'consulta': escrito})['productos']
-            self.assertEqual((cama['nombre'], cama['codigo']), ('Zzcama Roble Queen', codigo), escrito)
+            self.assertEqual((cama['nombre'], cama['codigo']), ('ZZCAMA ROBLE QUEEN', codigo), escrito)
 
     def test_ver_producto_por_el_codigo_publico_y_todavia_por_la_referencia_del_proveedor(self):
         """El cliente puede traer la referencia vieja (una foto, una conversación anterior): se le atiende igual."""
         codigo = self.cama.dcasa_codigo_publico
         for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), 'ZZ-CAMA'):
             ficha = self.salida('ver_producto', {'codigo': escrito})
-            self.assertEqual((ficha['nombre'], ficha['codigo']), ('Zzcama Roble Queen', codigo), escrito)
+            self.assertEqual((ficha['nombre'], ficha['codigo']), ('ZZCAMA ROBLE QUEEN', codigo), escrito)
 
     def test_lo_que_ve_el_cliente_no_trae_la_referencia_del_proveedor(self):
         for consulta in ('zz', 'colchón'):
@@ -233,7 +233,7 @@ class TestVerProductoYCategorias(HerramientasCase):
 
     def test_ficha_por_codigo(self):
         ficha = self.salida('ver_producto', {'codigo': 'zz-cama'})
-        self.assertEqual(ficha['nombre'], 'Zzcama Roble Queen')
+        self.assertEqual(ficha['nombre'], 'ZZCAMA ROBLE QUEEN')
         self.assertEqual(ficha['descripcion'], 'Cama de roble con cabecera.')
         self.assertEqual(ficha['precio_texto'], '$349.99 + ITBMS')
         self.assertEqual(ficha['disponibilidad'], 'disponible')

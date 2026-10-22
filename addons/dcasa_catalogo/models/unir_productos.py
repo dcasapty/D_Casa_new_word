@@ -7,7 +7,8 @@ abierta) no deja seguir y dice cuál es.
 Al unir (como quien lo pide, que debe ser Gerencia):
 
 * **Existencias:** lo que hay de la ficha que se archiva pasa a la que queda, en la misma ubicación, con un ajuste de
-  inventario por cada lado («Unión de productos: A → B»): queda en el historial de movimientos de las dos.
+  inventario por cada lado, con su motivo («Unificación de productos repetidos: A → B»): queda en el historial de
+  movimientos de las dos. Lo hace Gerencia (Inventario administrador): sin ese permiso, la pantalla no deja seguir.
 * **Precios de proveedor**, **piezas de combo**, **reglas de tarifa** y **premios de Socios** que usaban la ficha que se
   archiva pasan a la que queda.
 * **Fotos:** si la que queda no tiene foto, toma la de la otra; si ya tiene, la de la otra y su galería se suman a la
@@ -122,6 +123,9 @@ class DcasaProductoUnir(models.TransientModel):
             bloqueos.append(self.env._('Termina o cancela estas compras abiertas: %s.',
                                        ', '.join(compras.mapped('name'))))
         quants = self._dcasa_existencias(sale)
+        if quants and not (self.env.su or self.env.user.has_group('stock.group_stock_manager')):
+            bloqueos.append(self.env._('«%s» tiene existencias: pasarlas a la otra ficha es un ajuste de inventario y '
+                                       'lo hace Gerencia (Inventario administrador).', sale.display_name))
         if any(q.lot_id or q.package_id or q.owner_id for q in quants):
             bloqueos.append(self.env._('Parte de las existencias de «%s» está en paquetes, lotes o de otro dueño: '
                                        'muévelas a mano.', sale.display_name))
@@ -230,8 +234,10 @@ class DcasaProductoUnir(models.TransientModel):
 
     def _dcasa_pasar_existencias(self, sale, queda):
         """Un ajuste de inventario por cada lado, en la misma ubicación (lo hace Gerencia: dcasa_base lo exige)."""
-        motivo = self.env._('Unión de productos: %(a)s → %(b)s', a=sale.display_name, b=queda.display_name)
-        Quant = self.env['stock.quant'].with_context(inventory_mode=True, inventory_name=motivo)
+        # Con motivo (``inventory_name`` y ``dcasa_motivo``): un ajuste sin motivo no se aplica (dcasa_existencias).
+        motivo = self.env._('Unificación de productos repetidos: %(a)s → %(b)s', a=sale.display_name,
+                            b=queda.display_name)
+        Quant = self.env['stock.quant'].with_context(inventory_mode=True, inventory_name=motivo, dcasa_motivo=motivo)
         for quant in self._dcasa_existencias(sale):
             cantidad, ubicacion = quant.quantity, quant.location_id
             origen = quant.with_env(Quant.env)

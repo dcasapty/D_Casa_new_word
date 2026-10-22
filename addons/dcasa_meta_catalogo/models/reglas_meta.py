@@ -132,8 +132,15 @@ def texto_plano(texto, largo=LARGO_DESCRIPCION):
 
 
 def titulo(texto, largo=LARGO_TITULO):
-    """Título para Meta: una sola línea de a lo sumo ``largo`` caracteres, cortado en una palabra."""
-    return _cortar(' '.join(str(texto or '').split()), largo)
+    """Título para Meta: una sola línea de a lo sumo ``largo`` caracteres, cortado en una palabra.
+
+    Meta pide no escribir los títulos en mayúsculas, y en Odoo los nombres de productos se guardan en MAYÚSCULAS (F5):
+    un título casi todo en mayúsculas («CAMA TAPIZADA (King)») va en tipo oración («Cama tapizada (king)»)."""
+    texto = ' '.join(str(texto or '').split())
+    letras = [c for c in texto if c.isalpha()]
+    if letras and sum(c.isupper() for c in letras) > 0.7 * len(letras):
+        texto = _tipo_oracion(texto)
+    return _cortar(texto, largo)
 
 
 def formato_precio(monto, moneda, decimales=2):

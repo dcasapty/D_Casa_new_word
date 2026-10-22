@@ -88,16 +88,16 @@ class TestPortadaDinamica(HttpCase):
         self.colchones = self.env.ref('website_dcasa.public_category_colchones')
         Product = self.env['product.template']
         self.sofa = Product.create({
-            'name': 'Sofá de prueba', 'list_price': 123.45, 'is_published': True,
+            'name': 'SOFÁ DE PRUEBA', 'list_price': 123.45, 'is_published': True,
             'taxes_id': [(5, 0, 0)],  # sin impuesto: la cifra mostrada es la del precio
             'website_sequence': -100, 'public_categ_ids': [(6, 0, self.salas.ids)],
         })
         self.colchon = Product.create({
-            'name': 'Colchón de prueba', 'list_price': 99.0, 'is_published': True,
+            'name': 'COLCHÓN DE PRUEBA', 'list_price': 99.0, 'is_published': True,
             'website_sequence': -99, 'public_categ_ids': [(6, 0, self.colchones.ids)],
         })
         self.oculto = Product.create({
-            'name': 'Mueble sin publicar', 'list_price': 10.0, 'is_published': False,
+            'name': 'MUEBLE SIN PUBLICAR', 'list_price': 10.0, 'is_published': False,
             'website_sequence': -101,
         })
 
@@ -111,10 +111,10 @@ class TestPortadaDinamica(HttpCase):
 
     def test_portada_muestra_productos_con_precio_y_agregar(self):
         html = self.url_open('/').text
-        self.assertIn('Sofá de prueba', html)
+        self.assertIn('SOFÁ DE PRUEBA', html)
         self.assertRegex(html, r'123[.,]45')
         self.assertIn('action="/dcasa/carrito/agregar"', html)
-        self.assertNotIn('Mueble sin publicar', html)
+        self.assertNotIn('MUEBLE SIN PUBLICAR', html)
         self.assertIn('Lo más buscado', html)
         self.assertIn('Para dormir mejor', html)
 
@@ -148,7 +148,7 @@ class TestPortadaDinamica(HttpCase):
         self.assertIn(respuesta.status_code, (302, 303))
         self.assertTrue(respuesta.headers['Location'].endswith('/shop/cart'))
         carrito = self.url_open('/shop/cart').text
-        self.assertIn('Sofá de prueba', carrito)
+        self.assertIn('SOFÁ DE PRUEBA', carrito)
 
     def test_agregar_producto_no_publicado_no_entra(self):
         self.authenticate(None, None)
@@ -158,12 +158,12 @@ class TestPortadaDinamica(HttpCase):
             'csrf_token': token, 'product_template_id': self.oculto.id,
         }, allow_redirects=False)
         self.assertTrue(respuesta.headers['Location'].endswith('/shop'))
-        self.assertNotIn('Mueble sin publicar', self.url_open('/shop/cart').text)
+        self.assertNotIn('MUEBLE SIN PUBLICAR', self.url_open('/shop/cart').text)
 
     def test_ficha_de_producto_con_whatsapp_y_sellos(self):
         html = self.url_open(self.sofa.website_url).text
         self.assertIn('o_dcasa_sellos', html)
-        self.assertIn('me%20interesa%3A%20Sof%C3%A1%20de%20prueba', html)
+        self.assertIn('me%20interesa%3A%20SOF%C3%81%20DE%20PRUEBA', html)
 
     def test_ficha_sin_promesas_inventadas(self):
         html = self.url_open(self.sofa.website_url).text
@@ -209,11 +209,11 @@ class TestPortadaDinamica(HttpCase):
     def test_precio_cero_bloqueado_no_se_agrega(self):
         self.website.prevent_zero_price_sale = True
         gratis = self.env['product.template'].create({
-            'name': 'Mueble a consultar', 'list_price': 0.0, 'is_published': True, 'website_sequence': -102,
+            'name': 'MUEBLE A CONSULTAR', 'list_price': 0.0, 'is_published': True, 'website_sequence': -102,
         })
         respuesta = self._agregar(gratis.id)
         self.assertIn(gratis.website_url, respuesta.headers['Location'])
-        self.assertNotIn('Mueble a consultar', self.url_open('/shop/cart').text)
+        self.assertNotIn('MUEBLE A CONSULTAR', self.url_open('/shop/cart').text)
 
     def test_whatsapp_redirige_al_numero_configurado(self):
         self.website.dcasa_whatsapp_number = '+507 6026-1919'
@@ -376,7 +376,7 @@ class TestCarritoReglas(HttpCase):
         website = self.env.ref('website.default_website')
         website.ecommerce_access = 'logged_in'
         producto = self.env['product.template'].create({
-            'name': 'Mesa de prueba', 'list_price': 50.0, 'is_published': True,
+            'name': 'MESA DE PRUEBA', 'list_price': 50.0, 'is_published': True,
         })
         self.authenticate(None, None)
         # Sin acceso a la tienda la portada no ofrece «Agregar»: el token sale de otro formulario.
