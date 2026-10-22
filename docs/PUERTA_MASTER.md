@@ -94,3 +94,10 @@ Los clientes entran por **Mi cuenta** (`/mi-cuenta`: celular y PIN, o su correo)
 cuenta»; desde el 2026-10-18 también el botón del checkout («¿Ya tienes cuenta? **Entra a tu cuenta**»), los avisos de
 puntos del carrito y «¿Ya tienes cuenta?» de crear cuenta llevan a Mi cuenta, y de ahí vuelven a la tienda. Ninguna página
 pública enlaza al panel. El equipo entra solo por `/master`.
+
+## Pantalla de entrada con la marca D'CASA (2026-10-22)
+
+La dueña personalizó la pantalla de entrada de Cloudflare Access en Zero Trust › Reusable components › Custom pages ›
+Access login page: nombre «D'CASA», logo (enlace público al logo del sitio), texto de arriba «Equipo D'CASA», mensaje
+de abajo y fondo azul #1340B1. Cloudflare no deja cambiar más que eso (la letra, el acomodo y el texto «Cloudflare
+Access» los pone Cloudflare). Se aplica a todas las aplicaciones de Access.

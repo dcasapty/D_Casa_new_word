@@ -98,6 +98,13 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-22
+
+- La dueña personalizó la pantalla de entrada de Cloudflare Access con la marca (nombre, logo, textos, fondo azul);
+  ver [PUERTA_MASTER.md](PUERTA_MASTER.md). Confirmó que la cámara ya se ve en su iPhone. Tanda grande en ocho ramas
+  (ver PRIORIDADES, «Estado al 2026-10-22»); los agentes se cortaron por el límite de uso a las ~17:00 UTC y se
+  reanudaron a las 18:05.
+
 ### 2026-10-19
 
 - **En producción** (17:42 Panamá, Desplegar 23 confirmado 600 s, `app_version` `a57796a5…`, imagen `sha256:91aaf19e…`; CI #209 verde y staging sano;
