@@ -289,6 +289,22 @@ class TestServidor(TransactionCase):
             with self.subTest(consulta):
                 self.assertIn(esperada, self.buscar(consulta)[:3], self.buscar(consulta))
 
+    def test_por_dia_estadisticas_y_movimientos_son_de_gerencia(self):
+        """Las pantallas del 2026-10-22: Gerencia las encuentra con sus palabras; la vendedora no las ve."""
+        propias = {'ventas-por-dia', 'facturado-por-dia', 'estadisticas', 'movimientos-inventario'}
+        self.assertTrue(propias <= self.ids_de(self.gerencia))
+        self.assertFalse(propias & self.ids_de(self.vendedora))
+        casos = {
+            'ventas por día': 'ventas-por-dia',
+            'cuánto se facturó cada día': 'facturado-por-dia',
+            'gráficas de ventas': 'estadisticas',
+            'historial de movimientos de un producto': 'movimientos-inventario',
+            'kardex': 'movimientos-inventario',
+        }
+        for consulta, esperada in casos.items():
+            with self.subTest(consulta):
+                self.assertIn(esperada, self.buscar(consulta)[:3], self.buscar(consulta))
+
     def test_buscar_abono_lleva_a_registrar_un_abono(self):
         for consulta in ('abono', 'registrar un abono', 'el cliente pagó una parte'):
             with self.subTest(consulta):

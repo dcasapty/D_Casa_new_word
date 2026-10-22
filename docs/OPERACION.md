@@ -946,6 +946,69 @@ En la lista: **Agrupar por › Proveedor**, y para Excel se marcan las filas y *
 lo ven quienes tienen permiso de exportar: los administradores; a otra persona se lo da un administrador en su
 usuario). Brian responde lo mismo con `que_reponer`. Código: `addons/dcasa_interfaz/models/reponer.py`.
 
+## Por día, Estadísticas y Movimientos (pedido del jefe y de la dueña, 2026-10-22)
+
+Lo pedido: «tenemos estadísticas pero muy poco intuitivas y limitadas», «ver organizado fácilmente lo vendido o
+facturado por día de los días del mes, poder ver fácilmente lo que se hizo x día» y «en inventario hay un historial de
+movimientos pero también es muy poco intuitivo». Las tres pantallas son de **Gerencia y administradores** (el servidor
+lo exige en cada llamada; la Vendedora no ve los menús ni recibe las cifras aunque las pida por la conexión de datos).
+
+### Por día (Ventas › Hoy › Ventas por día · Facturación › Clientes › Facturado por día)
+
+Una sola pantalla: abre en **Vendido** desde Ventas y en **Facturado** desde Facturación, desde Estadísticas › Por día y
+desde el botón **Ver por día** del bloque de Ventas del Inicio (con la base y la vendedora que estén elegidas).
+
+* **El mes como calendario** (lunes a domingo) en la computadora; en el celular, **una lista de días** del más reciente
+  al primero. Cada día: lo vendido o facturado **sin ITBMS**, cuántas ventas o facturas (y notas de crédito) y una
+  barrita del tamaño de lo de ese día. Los días que no han llegado van en gris.
+* **Tocar un día** muestra (a la derecha, o debajo del día en el celular) su total sin ITBMS, el ITBMS y el total con
+  ITBMS, y cada documento: cliente, número, vendedora, pedido de origen u hora de confirmación, monto y estado
+  («Pagada», «Con abono», «Por cobrar», «Nota de crédito», «Por facturar»…). Tocar uno lo abre; «Ver en lista» abre
+  todos en la lista de Odoo.
+* Arriba: el **mes** (este y los 24 anteriores, con flechas), **qué contar** y la **vendedora**:
+  * **Vendido**: los **pedidos confirmados**, el día **de Panamá** en que se confirmaron (un pedido confirmado a las
+    11:30 p. m. cuenta ese día aunque en UTC ya sea el siguiente). Una cotización o un pedido cancelado no cuentan.
+  * **Facturado**, **Con abonos** y **Completadas**: exactamente las del Inicio (facturas publicadas; las notas de
+    crédito restan el día de su fecha; una factura anulada o en borrador no cuenta). El total del mes es el mismo
+    número que la tarjeta de Ventas del Inicio para esas fechas y **los días suman el mes al centavo**.
+* Tres tarjetas: el **total del mes** (sin ITBMS, con el ITBMS y el total con ITBMS aparte; abre la lista de lo que se
+  contó), **contra el mes anterior** (si el mes está en curso, los mismos días del mes pasado con el último hasta la
+  misma hora de Panamá: la misma cuenta que «Comparar › del 1 a hoy» del Inicio; si el mes ya terminó, el mes anterior
+  completo; sin base, «—») y el **mejor día** con el ticket promedio.
+
+### Estadísticas › Resumen
+
+La app Estadísticas abre en **Resumen**: botones de periodo (esta semana, este mes, mes pasado, últimos 3 meses, este
+año o fechas elegidas, hasta un año) y las mismas cuatro bases. Cuatro números con su frase (ventas sin ITBMS,
+facturas o pedidos, ticket promedio y unidades) y gráficas planas en azul de la marca: **ventas por día** (o por mes
+si el periodo pasa de 62 días; tocar una barra abre Por día en ese día o ese mes), **por tipo de producto** (la
+categoría de primer nivel, como «Unidades vendidas por tipo» del Inicio; solo mercancía, sin flete ni descuentos
+generales, por eso puede no sumar el total), **por vendedora** (suma el total) y **lo más vendido** (los 10 con más
+unidades). Lo que el Inicio ya muestra bien no se repite: hay enlaces a **Por día**, **Comparar periodos** (Inicio),
+**Mejor margen** y **Lo que no se mueve**, que siguen en el mismo menú (las tablas de antes siguen ahí para quien las
+usa).
+
+### Inventario › Movimientos
+
+Se busca un producto por **nombre, código o código de barras** (el código o el código de barras exacto sale primero) y
+se ve su **línea de tiempo en palabras**, de lo más nuevo a lo más viejo: «Entró por la compra P00012 de PROVEEDOR»,
+«Salió por la venta S00123 a CLIENTE», «Ajuste de inventario (+2)» (con el nombre del conteo, p. ej. «Conteo con
+lector (Ana)»), «Devolución del cliente … (de S00123)», «Devolución al proveedor …», «Se dio de baja (merma) …»,
+«Traslado de Bodega a Tienda». A la derecha, lo que entró en **verde (+)**, lo que salió en **rojo (−)** y un traslado
+sin signo (no cambia lo que hay en total); debajo, **lo que quedó** después de ese movimiento; quién lo registró (la
+última persona que tocó la línea del movimiento: normalmente quien lo validó) y cuándo (hora de Panamá). Tocar la frase
+abre la venta, la compra o la operación. Sin producto, los **últimos movimientos de todos** (tocar el nombre del
+producto abre su historia). Filtros: fechas y tipo (compras, ventas, devoluciones, ajustes, traslados, otros).
+
+**Lo que quedó** se calcula desde lo que hay hoy hacia atrás, y **solo se muestra si la historia cuadra**: la suma de
+todos los movimientos del producto da exactamente lo que hay hoy en los almacenes (las mismas ubicaciones de
+«Disponible» de Odoo). Si hubo existencias cargadas sin movimiento, la pantalla lo dice y no muestra esa columna:
+nunca se inventa una existencia.
+
+Brian responde lo mismo con `ventas_por_dia` y `movimientos_de_producto` ([BRIAN.md](BRIAN.md)). Código:
+`addons/dcasa_interfaz/models/por_dia.py`, `models/movimientos.py` y `static/src/js/por_dia.js`, `estadisticas.js`,
+`movimientos.js`; pruebas en `tests/test_por_dia.py`, `test_movimientos.py` y `test_pantallas_navegador.py`.
+
 ## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
 
 Odoo pone al lado de cada formulario (cotización, factura, ficha…) el panel de mensajes y notas («Creando un nuevo registro…»),

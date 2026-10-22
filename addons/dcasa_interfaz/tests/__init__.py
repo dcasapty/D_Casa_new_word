@@ -14,3 +14,6 @@ from . import test_facturado
 from . import test_ticket_y_tipos
 from . import test_inicio_reglas_gerencia
 from . import test_reponer
+from . import test_por_dia
+from . import test_movimientos
+from . import test_pantallas_navegador
