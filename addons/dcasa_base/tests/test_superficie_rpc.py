@@ -156,6 +156,26 @@ LISTA_BLANCA = {
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     ('dcasa_catalogo', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo agrega que un combo sin sus piezas no se confirma; corre como el usuario, sin sudo().',
+    # F5: nombres en MAYÚSCULAS y productos repetidos (dcasa_catalogo/models/nombres_productos.py y siguientes).
+    ('dcasa_catalogo', 'product.template', 'create'):
+        OVERRIDE + ' Solo pone el nombre en MAYÚSCULAS (F5); sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'write'):
+        OVERRIDE + ' Solo pone el nombre en MAYÚSCULAS (F5); sin sudo().',
+    ('dcasa_catalogo', 'dcasa.producto.mayusculas', 'default_get'):
+        OVERRIDE + ' Arma la vista previa; exige Gerencia (product.group_product_manager) o administrador.',
+    ('dcasa_catalogo', 'dcasa.producto.mayusculas', 'action_aplicar'):
+        ASISTENTE + ' (product.group_product_manager). Exige Gerencia o administrador y escribe con los permisos de '
+                    'la persona, sin sudo().',
+    ('dcasa_catalogo', 'dcasa.producto.repetido', 'action_ver'):
+        'Vista SQL de solo lectura (ACL de Gerencia); exige Gerencia o administrador y solo devuelve una acción.',
+    ('dcasa_catalogo', 'dcasa.producto.repetido', 'action_unir'):
+        'Exige Gerencia o administrador; solo abre el asistente de unir (no une nada).',
+    ('dcasa_catalogo', 'dcasa.producto.unir', 'action_cambiar'):
+        ASISTENTE + ' (product.group_product_manager). Solo intercambia los dos productos del asistente.',
+    ('dcasa_catalogo', 'dcasa.producto.unir', 'action_unir'):
+        ASISTENTE + ' (product.group_product_manager). Exige Gerencia o administrador y que no haya nada a medias '
+                    'ANTES de mover existencias (ajustes de inventario de Gerencia) y archivar; el sudo solo busca '
+                    'lo que hay que pasar (precios de proveedor, combos, reglas de tarifa, premios).',
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
     ('dcasa_abonos', 'account.move', 'action_dcasa_abono_whatsapp'):

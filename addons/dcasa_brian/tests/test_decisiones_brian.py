@@ -94,6 +94,26 @@ class TestAutorizacionesBrian(TransactionCase):
         datos = self.ok(self.ejecutar(self.gerente, 'abonos_por_vencer'))
         self.assertEqual(datos['dias_de_aviso'], 5)
 
+    def test_catalogo_limpio_por_brian(self):
+        nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
+        for herramienta in ('productos_repetidos', 'pasar_nombres_a_mayusculas', 'unir_productos'):
+            self.assertNotIn(herramienta, nombres)
+        Producto = self.env['product.product']
+        queda = Producto.create({'name': 'Butaca brian', 'default_code': 'BRN-BUT-1', 'is_storable': True})
+        sale = Producto.create({'name': 'Butaca brian vieja', 'default_code': 'brnbut1', 'is_storable': True})
+        self.env.cr.execute("UPDATE product_template SET name = jsonb_build_object('en_US', 'Butaca minúscula') "
+                            'WHERE id = %s', [sale.product_tmpl_id.id])
+        sale.product_tmpl_id.invalidate_recordset(['name'])
+        datos = self.ok(self.ejecutar(self.gerente, 'productos_repetidos', {'limite': 20}))
+        self.assertTrue(any('BRNBUT1' == g['comparten'] for g in datos['grupos']), datos)
+        datos = self.ok(self.ejecutar(self.gerente, 'nombres_por_pasar_a_mayusculas', {'limite': 20}))
+        self.assertGreaterEqual(datos['cuantos'], 1)
+        respuesta = self.ejecutar(self.gerente, 'unir_productos', {'queda': 'BRN-BUT-1', 'archiva': 'brnbut1'})
+        self.assertTrue(respuesta.get('requiere_confirmacion'), respuesta)
+        self.env['brian.herramientas'].with_user(self.gerente).confirmar(respuesta['accion_id'])
+        self.assertFalse(sale.product_tmpl_id.active)
+        self.assertEqual(sale.product_tmpl_id.dcasa_unido_a_id, queda.product_tmpl_id)
+
     def test_saldos_de_centavos_solo_gerencia_o_contabilidad(self):
         nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
         self.assertNotIn('saldos_de_centavos', nombres)

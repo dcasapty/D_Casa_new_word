@@ -1,5 +1,5 @@
-"""Brian y las decisiones D1 y D3 de la gerencia: descuento mayor al tope con la clave de Gerencia, los saldos de
-centavos y los abonos por vencer.
+"""Brian y las decisiones D1, D3 y F5 de la gerencia: descuento mayor al tope con la clave de Gerencia, los saldos
+de centavos, los abonos por vencer y el catálogo limpio (nombres en MAYÚSCULAS y productos repetidos).
 
 * La clave de un descuento le llega a cada persona de Gerencia por **Telegram**, por el mismo bot de Brian, solo a los
   chats vinculados a su usuario (``brian.telegram.enlace``) y respetando la lista de chats permitidos. Sin el bot o
@@ -14,6 +14,7 @@ from .registro import BrianError, herramienta
 
 INTERNO = ('base.group_user',)
 GERENTE_VENTAS = ('sales_team.group_sale_manager',)
+CATALOGO = (('product.group_product_manager', 'base.group_system'),)
 VEN_ABONOS = (('dcasa_base.group_caja', 'account.group_account_user', 'sales_team.group_sale_manager'),)
 CIERRAN_CENTAVOS = (('dcasa_base.group_gerencia', 'account.group_account_user', 'account.group_account_manager',
                      'base.group_system'),)
@@ -211,3 +212,73 @@ class BrianHerramientasAutorizaciones(models.AbstractModel):
         return {'dias_de_aviso': Factura._dcasa_aviso_dias(), 'abonos': filas,
                 'nota': 'El enlace de WhatsApp abre el mensaje listo: lo manda una persona desde su teléfono.'
                 if filas else 'Ningún abono vence en los próximos días.'}
+
+    # ------------------------------------------------------------------
+    # Catálogo limpio (F5)
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='productos_repetidos',
+        descripcion='Productos de fichas distintas que parecen el mismo: mismo código, mismo código de barras o mismo '
+                    'nombre. Solo lista; para unirlos usa unir_productos.',
+        parametros={'limite': c.PARAM_LIMITE},
+        nivel='lectura', categoria='catalogo', grupos=CATALOGO,
+        ejemplos=['¿hay productos repetidos?'],
+    )
+    def _h_productos_repetidos(self, limite=10):
+        grupos = self.env['dcasa.producto.repetido'].search([], limit=c.limite(limite))
+        motivos = dict(self.env['dcasa.producto.repetido']._fields['tipo'].selection)
+        return {'grupos': [{'por_que': motivos.get(g.tipo, g.tipo), 'comparten': g.valor, 'productos': g.nombres}
+                           for g in grupos],
+                'cuantos': self.env['dcasa.producto.repetido'].search_count([])}
+
+    @herramienta(
+        nombre='nombres_por_pasar_a_mayusculas',
+        descripcion='Cuántos nombres de productos no están en MAYÚSCULAS y cómo quedarían (vista previa, no cambia '
+                    'nada).',
+        parametros={'limite': c.PARAM_LIMITE},
+        nivel='lectura', categoria='catalogo', grupos=CATALOGO,
+        ejemplos=['¿cuántos productos no están en mayúsculas?'],
+    )
+    def _h_nombres_por_pasar_a_mayusculas(self, limite=10):
+        pendientes = self.env['product.template']._dcasa_nombres_por_cambiar()
+        ejemplos = [{'hoy': antes, 'quedara': despues} for _p, antes, despues in pendientes[:c.limite(limite)]]
+        return {'cuantos': len(pendientes), 'ejemplos': ejemplos}
+
+    @herramienta(
+        nombre='pasar_nombres_a_mayusculas',
+        descripcion='Pasa a MAYÚSCULAS los nombres de todos los productos que no lo están (solo las letras).',
+        nivel='sensible', categoria='catalogo', grupos=CATALOGO,
+        ejemplos=['pon en mayúsculas los nombres de los productos'],
+    )
+    def _h_pasar_nombres_a_mayusculas(self):
+        Asistente = self.env['dcasa.producto.mayusculas']
+        asistente = Asistente.create(Asistente.default_get(['linea_ids']))
+        cuantos = len(asistente.linea_ids)
+        if cuantos:
+            asistente.action_aplicar()
+        return {'mensaje': f'Listo: {cuantos} nombres quedaron en MAYÚSCULAS.' if cuantos
+                else 'Todos los nombres ya estaban en MAYÚSCULAS.'}
+
+    @herramienta(
+        nombre='unir_productos',
+        descripcion='Une dos productos repetidos: lo de la ficha que se archiva (existencias, precios de proveedor, '
+                    'fotos, códigos) pasa a la que queda. Las ventas viejas no cambian.',
+        parametros={'queda': {'type': 'string', 'description': 'Código o nombre del producto que queda.'},
+                    'archiva': {'type': 'string', 'description': 'Código o nombre del producto que se archiva.'}},
+        requeridos=['queda', 'archiva'],
+        nivel='sensible', categoria='catalogo', grupos=CATALOGO,
+        ejemplos=['une ROMA600 a ROMA-600 (queda ROMA-600)'],
+    )
+    def _h_unir_productos(self, queda, archiva):
+        producto_queda = self._b_producto(queda)
+        producto_sale = self._b_producto(archiva)
+        Unir = self.env['dcasa.producto.unir']
+        asistente = Unir.create({'candidato_ids': [(6, 0, (producto_queda | producto_sale).ids)],
+                                 'queda_id': producto_queda.id, 'sale_id': producto_sale.id})
+        if asistente.bloqueos:
+            raise BrianError('Todavía no se pueden unir: ' + asistente.bloqueos.replace('\n', ' '))
+        hecho = asistente._dcasa_que_pasa()
+        asistente.action_unir()
+        return {'mensaje': f'Listo: «{producto_sale.display_name}» se unió a «{producto_queda.display_name}».',
+                'que_paso': hecho}
