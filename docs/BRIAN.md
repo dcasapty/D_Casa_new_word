@@ -368,6 +368,21 @@ también el del Inicio de Gerencia («Facturado»). Ejemplos: «¿cómo vamos co
 
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
+**Combos cama + colchón que se arman en la venta (2026-10-22, `herramientas_combos.py`).** Las mismas reglas del panel
+«Armar combo» de la cotización ([OPERACION.md](OPERACION.md), «Combos cama + colchón»): el colchón va a su **precio en
+combo** (el que puso Gerencia, por medida) solo si en la misma venta va una cama de su medida; sin precio en combo, a
+precio normal. Brian corre como quien le habla (tope de descuento y «solo lo suyo» incluidos).
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `colchones_para_cama(cama, todos?)` | Los colchones de la medida de la cama, con existencia (`todos`: también los agotados): precio normal, precio en combo, ahorro y disponibles. Una cama sin medida lo dice | lectura | Ventas |
+| `armar_combo(cama, colchon, venta? / cliente?, cantidad?)` | Agrega la cama y el colchón de su misma medida a una cotización (o a una nueva para `cliente`); devuelve el resumen con `el_cliente_ahorra_sin_itbms` | construcción | Ventas |
+| `cambiar_combo(venta, cama_nueva? / colchon_nuevo?, cama_actual?)` | Cambia la cama o el colchón del combo (con varios combos, `cama_actual` dice cuál); el precio se vuelve a calcular | construcción | Ventas |
+| `poner_precio_en_combo(colchon, precio)` | El precio en combo de un colchón en una medida (sin ITBMS, menor que el normal; 0 lo quita) | construcción | Gerencia |
+
+`crear_cotizacion` con una cama y un colchón de la misma medida ya da el precio en combo, y el resumen de cualquier
+cotización (`ver_venta`, `crear_cotizacion`…) marca las líneas que van en combo (`combo`: «Combo · ahorras $40.00»).
+
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.

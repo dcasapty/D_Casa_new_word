@@ -36,7 +36,8 @@ puesto** y, cuando ya hay costumbre, **lo que ella o él más usa**.
 6. «**Lo que más se necesita**» (las 10 tareas de `empezar`) solo sale cuando tu puesto no tiene lista.
 
 Hay tareas con **pasos**: **Preparar la declaración de renta**, **Pasarle los números a mi contador**, imprimir un
-cheque, el combo de cama y colchón, imprimir documentos. Y tareas **para cambiar el estado de algo**: confirmar una
+cheque, el combo fijo de cama y colchón, **armar un combo cama + colchón en una cotización**, **poner el precio en combo
+de un colchón**, imprimir documentos. Y tareas **para cambiar el estado de algo**: confirmar una
 factura en borrador, corregir o anular una factura publicada (solo Gerencia desde el 2026-10-17), reabrir un mes
 cerrado. Las de cobrar (registrar un cobro, un abono, cobrar con Tafi o Crediviva) salen solo a quien cobra (Caja,
 Gerencia, contabilidad); las de notas de crédito y anular, solo a Gerencia: llevan `grupos`.

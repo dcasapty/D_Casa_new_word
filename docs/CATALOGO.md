@@ -216,11 +216,16 @@ Informe para la dueña: `scripts/inventario_anterior_informe.py` escribe
 
 ## Combos de cama y colchón
 
+> **Desde el 2026-10-22 lo práctico es armar el combo en la cotización** («Armar combo cama + colchón»), con el
+> **precio en combo** de cada colchón por medida que pone Gerencia (*Ventas › Productos › Precios en combo*): ver
+> [OPERACION.md](OPERACION.md), «Combos cama + colchón que se arman en la venta». Lo que sigue (el producto tipo
+> «Combo» fijo) sigue funcionando para los combos que ya existen.
+
 Un combo junta la cama y el colchón en **un solo producto con un solo precio**. Es el tipo **Combo** que ya trae Odoo
 (no se instala nada). Los combos de la web siguen con su línea «Combo con colchón … + ITBMS» de arriba: esto es para
 **vender** el combo en una cotización, una entrega y una factura.
 
-**Crear o cambiar uno a mano** (también está en la Guía: «Crear o cambiar un combo de cama y colchón»):
+**Crear o cambiar uno a mano** (también está en la Guía: «Crear o cambiar un combo fijo de cama y colchón (producto «COMBO»)»):
 
 1. **Ventas › Productos › Productos › Nuevo.** Para cambiar uno que ya existe, búscalo por su nombre (empiezan con
    «COMBO»).

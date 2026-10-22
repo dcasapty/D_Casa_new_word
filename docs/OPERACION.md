@@ -946,6 +946,75 @@ En la lista: **Agrupar por › Proveedor**, y para Excel se marcan las filas y *
 lo ven quienes tienen permiso de exportar: los administradores; a otra persona se lo da un administrador en su
 usuario). Brian responde lo mismo con `que_reponer`. Código: `addons/dcasa_interfaz/models/reponer.py`.
 
+## Combos cama + colchón que se arman en la venta (pedido de la dueña, 2026-10-22)
+
+Antes, cada combo era un producto «COMBO …» con una cama y un colchón fijos: otro producto por cada cama con cada
+colchón. Ahora la vendedora **arma el combo en la cotización** y cada pieza sigue siendo su producto (la bodega descuenta
+la cama y el colchón, y los reportes por producto no cambian). Los combos «COMBO …» que ya existían **siguen
+funcionando** igual (la dueña decide si los archiva).
+
+**El precio (decisión de la dueña, por escrito, 2026-10-22).** Cada colchón, en cada medida (Twin, Full, Queen, King),
+tiene un **«Precio en combo»** que pone Gerencia. Si el colchón va **en la misma venta junto con una cama de su misma
+medida**, se cobra a ese precio; si no tiene precio en combo, va a su precio normal (el sistema no inventa ninguno). La
+cama va a su precio normal.
+
+**Poner el precio en combo** (Gerencia y administradores): *Ventas › Productos › Precios en combo*. Salen los colchones
+agrupados por medida; en la columna **Precio en combo** se escribe el precio **sin ITBMS**, menor que el normal (vacío =
+precio normal), y se guarda en la misma fila. La columna **Revisar** avisa si falta la medida, si no tiene precio en
+combo o si ya no es menor que el normal (porque bajó el precio normal). El filtro **Camas** muestra las camas para
+revisar su medida. También desde la ficha del producto (botón **Medidas y precio en combo**) y con Brian
+(`poner_precio_en_combo`). Un cambio vale para lo que se cotice desde ese momento: las cotizaciones que ya estaban no
+cambian solas. El texto del Excel de cada cama («Combo con colchón $349.99», campo «Combo (texto del Excel)») queda
+**solo de referencia** (Gerencia lo ve en el panel): no se usa para calcular.
+
+**Armar el combo** (quien cotiza): en la cotización, junto a «Agregar un producto», el botón **Armar combo cama +
+colchón** (en el celular, **Armar combo**). Abre un panel encima de la cotización:
+
+1. **Escoge la cama**: buscador por nombre, código o medida («cama king»), botones Twin / Full / Queen / King, y cada
+   cama con su foto, medida, precio («+ ITBMS») y cuántas hay disponibles (las que tienen existencia primero).
+2. **Escoge el colchón**: salen solo los colchones **de la medida de esa cama y con existencia** (un enlace muestra
+   también los agotados), con su precio normal tachado, el **precio en combo** y **«Ahorra $X»**; los que no tienen
+   precio en combo lo dicen. «¿Cuántos combos?» pone más de uno.
+3. Un toque y se agregan **la cama y el colchón** a la cotización. El panel muestra cada combo con **su total** y lo
+   que **ahorra el cliente**, y los botones **Cambiar cama**, **Cambiar colchón** y **Quitar combo** (el precio se
+   vuelve a calcular solo). **Listo** cierra el panel; en las líneas, la columna **Combo** dice «Combo · ahorras $X».
+
+También vale **sin el panel**: si en la misma cotización van una cama y un colchón de la misma medida (agregados como
+productos sueltos, por Brian o por Juan), el colchón toma su precio en combo.
+
+**Reglas que cumple el servidor** (`addons/dcasa_catalogo/models/combo_armable.py`, reglas puras en
+`reglas.emparejar_combos`):
+
+- **Qué es cama o colchón y su medida.** Se sugiere por el nombre («Colchón …», «Cama …», «Camarote …», «Box spring
+  …», «Base de cama …»; no: colchonetas, protectores, sofá cama, combos «COMBO …») y la medida sale del «Tamaño» de la
+  variante o, si no lo tiene, del nombre («Cama king de metal» → King; en colchones, «4/6» → Full, «3/4» → Twin, «Q» →
+  Queen). Gerencia lo corrige en la ficha («Para armar combos») y en la lista; nadie más (tampoco el precio en combo).
+  Una cama sin medida no ofrece colchones: el panel lo dice.
+- **Un colchón por cama.** Cada colchón va con una cama libre de su medida; dos colchones king con una sola cama king:
+  uno va en combo y el otro a precio normal (primero el que tiene precio en combo). Un **camarote** lleva 2 o 3: en su
+  ficha, **Colchones que lleva** (1 de fábrica).
+- **Quitar o cambiar la cama** (o subir los colchones de más) devuelve el colchón a su precio normal, también si la
+  vendedora le había puesto un precio a mano. Lo ya facturado y las ventas bloqueadas no se tocan.
+- **El tope de descuento de la vendedora.** El precio en combo lo autorizó Gerencia: no cuenta como rebaja suya. Sobre
+  él puede rebajar hasta su tope, como sobre cualquier precio. Escribir a mano el precio en combo en un colchón **sin**
+  su cama choca con el tope como cualquier rebaja.
+- **Solo en cotizaciones** (borrador o enviada): el panel no cambia una venta confirmada.
+- **La tienda en línea no arma combos** (su carrito queda como estaba: pendiente de que la dueña lo decida).
+- **Factura directa** (la que hacen quienes cobran, sin cotización): no arma combos; el combo se arma en la cotización
+  y la factura que sale de ella lo lleva.
+- **En el papel** (cotización, pedido y factura) cada pieza lleva la marca **«Combo cama + colchón»** (el colchón, con
+  «· ahorras $X») y bajo el subtotal sale **«Ahorro por combo cama + colchón (ya incluido en los precios)»**. La página
+  que ve el cliente con el enlace de la cotización también lo dice. Las notas de crédito no lo dicen.
+
+**Brian**: `colchones_para_cama`, `armar_combo`, `cambiar_combo` y `poner_precio_en_combo` (Gerencia) —
+[BRIAN.md](BRIAN.md). **Juan**: si el cliente pide la cama y el colchón de la misma medida, su cotización ya trae el
+precio en combo y la línea lo dice («ahorras $X»); Juan no calcula nada. **Guía**: «Armar un combo cama + colchón en una
+cotización» y «Poner el precio en combo de un colchón».
+
+Pruebas: `addons/dcasa_catalogo/tests/test_combos_armables.py` (servidor, factura y PDF) y `test_combos_navegador.py`
+(panel en celular y computadora); Brian en `dcasa_brian/tests/test_combos.py` y Juan en
+`dcasa_conversaciones/tests/test_cotizacion_automatica.py`.
+
 ## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
 
 Odoo pone al lado de cada formulario (cotización, factura, ficha…) el panel de mensajes y notas («Creando un nuevo registro…»),
