@@ -74,18 +74,21 @@
     </record>
 
     <!-- Camas y colchones para combos: la lista donde Gerencia pone el precio en combo de cada colchón por medida
-         (se edita en la misma fila) y revisa las medidas. -->
+         (se edita en la misma fila) y revisa las medidas. En el celular, tarjetas (sin scroll de lado) y, al tocar
+         una, una ficha corta para cambiar el precio. -->
     <record id="product_product_combos_list" model="ir.ui.view">
         <field name="name">product.product.list.dcasa.combos</field>
         <field name="model">product.product</field>
         <field name="priority">90</field>
         <field name="arch" type="xml">
             <list string="Camas y colchones para combos" editable="bottom" create="0" delete="0"
-                  class="o_dcasa_lista_combos" decoration-warning="dcasa_combo_aviso">
+                  default_order="dcasa_medida, default_code"
+                  class="o_dcasa_lista_combos">
                 <field name="image_128" widget="image" options="{'size': [40, 40]}" string="Foto" readonly="1"
                        optional="show"/>
                 <field name="display_name" string="Producto" readonly="1"/>
-                <field name="dcasa_tipo_combo" string="Es"/>
+                <field name="default_code" string="Código" readonly="1" optional="show"/>
+                <field name="dcasa_tipo_combo" string="Es" optional="show"/>
                 <field name="dcasa_medida"/>
                 <field name="is_storable" column_invisible="1"/>
                 <field name="free_qty" string="Disponibles" readonly="1" invisible="not is_storable"
@@ -93,12 +96,88 @@
                 <field name="currency_id" column_invisible="1"/>
                 <field name="lst_price" string="Precio normal" readonly="1" widget="monetary"/>
                 <field name="dcasa_precio_combo" string="Precio en combo" widget="monetary"
-                       readonly="dcasa_tipo_combo != 'colchon'" class="fw-bold"/>
+                       readonly="dcasa_tipo_combo != 'colchon'" class="fw-bold"
+                       decoration-muted="not dcasa_precio_combo"/>
                 <field name="dcasa_combo_ahorro" string="Ahorro" widget="monetary" readonly="1"
                        invisible="not dcasa_combo_ahorro"/>
-                <field name="dcasa_combo_aviso" string="Revisar" readonly="1"/>
+                <field name="dcasa_combo_estado" column_invisible="1"/>
+                <field name="dcasa_combo_aviso" string="Revisar" readonly="1"
+                       decoration-muted="dcasa_combo_estado == 'sin_precio'"
+                       decoration-warning="dcasa_combo_estado == 'sin_medida'"
+                       decoration-danger="dcasa_combo_estado == 'no_menor'"/>
                 <field name="dcasa_combo" string="Texto del Excel" readonly="1" optional="hide"/>
             </list>
+        </field>
+    </record>
+    <record id="product_product_combos_kanban" model="ir.ui.view">
+        <field name="name">product.product.kanban.dcasa.combos</field>
+        <field name="model">product.product</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <kanban create="0" class="o_dcasa_kanban_combos" default_order="dcasa_medida, default_code">
+                <field name="currency_id"/>
+                <field name="is_storable"/>
+                <field name="dcasa_precio_combo"/>
+                <field name="dcasa_combo_estado"/>
+                <templates>
+                    <t t-name="card" class="flex-row">
+                        <aside class="me-2">
+                            <field name="image_128" widget="image" options="{'size': [64, 64]}"/>
+                        </aside>
+                        <main>
+                            <field name="display_name" class="fw-bold"/>
+                            <div>
+                                <field name="dcasa_tipo_combo" class="me-2"/>
+                                <field name="dcasa_medida" class="badge text-bg-light"/>
+                                <span t-if="record.is_storable.raw_value" class="ms-2 text-muted">
+                                    <field name="free_qty" digits="[16, 0]"/> disponibles
+                                </span>
+                            </div>
+                            <div>Normal: <field name="lst_price" widget="monetary"/></div>
+                            <div t-if="record.dcasa_precio_combo.raw_value" class="fw-bold text-primary">
+                                En combo: <field name="dcasa_precio_combo" widget="monetary"/>
+                                · ahorra <field name="dcasa_combo_ahorro" widget="monetary"/>
+                            </div>
+                            <field name="dcasa_combo_aviso"
+                                   t-attf-class="small #{record.dcasa_combo_estado.raw_value === 'sin_precio' ? 'text-muted' : 'text-danger fw-bold'}"/>
+                        </main>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+    <record id="product_product_combos_form" model="ir.ui.view">
+        <field name="name">product.product.form.dcasa.combos</field>
+        <field name="model">product.product</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <form string="Precio en combo" create="0" delete="0" duplicate="0">
+                <sheet>
+                    <field name="image_128" widget="image" class="oe_avatar" readonly="1"/>
+                    <div class="oe_title">
+                        <h2><field name="display_name" readonly="1"/></h2>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="is_storable" invisible="1"/>
+                            <field name="dcasa_tipo_combo"/>
+                            <field name="dcasa_medida"/>
+                            <field name="dcasa_colchones_por_cama" invisible="dcasa_tipo_combo != 'cama'"/>
+                            <field name="free_qty" string="Disponibles" readonly="1" invisible="not is_storable"
+                                   digits="[16, 0]"/>
+                        </group>
+                        <group>
+                            <field name="lst_price" string="Precio normal" readonly="1" widget="monetary"/>
+                            <field name="dcasa_precio_combo" widget="monetary" class="fw-bold"
+                                   invisible="dcasa_tipo_combo != 'colchon'"/>
+                            <field name="dcasa_combo_ahorro" widget="monetary" invisible="not dcasa_combo_ahorro"/>
+                            <field name="dcasa_combo_aviso" invisible="not dcasa_combo_aviso"/>
+                            <field name="dcasa_combo" string="Texto del Excel" invisible="not dcasa_combo"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
         </field>
     </record>
     <record id="product_product_combos_search" model="ir.ui.view">
@@ -128,11 +207,17 @@
         <field name="name">Precios en combo (camas y colchones)</field>
         <field name="res_model">product.product</field>
         <field name="path">precios-en-combo</field>
-        <field name="view_mode">list</field>
-        <field name="view_id" ref="product_product_combos_list"/>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="mobile_view_mode">kanban</field>
+        <field name="view_ids" eval="[Command.clear(),
+            Command.create({'view_mode': 'list', 'view_id': ref('product_product_combos_list')}),
+            Command.create({'view_mode': 'kanban', 'view_id': ref('product_product_combos_kanban')}),
+            Command.create({'view_mode': 'form', 'view_id': ref('product_product_combos_form')})]"/>
         <field name="search_view_id" ref="product_product_combos_search"/>
         <field name="domain">[('dcasa_tipo_combo', '!=', False), ('sale_ok', '=', True)]</field>
-        <field name="context">{'search_default_colchones': 1, 'search_default_por_medida': 1}</field>
+        <!-- Sin agrupar de entrada: en el celular, agrupar pone las medidas en columnas de lado. Se ordena por
+             medida y el botón «Medida» agrupa en la computadora. -->
+        <field name="context">{'search_default_colchones': 1, 'display_default_code': False}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">No hay camas ni colchones marcados para combos</p>
             <p>En la ficha de cada producto, «Para armar combos» dice si es cama o colchón.</p>

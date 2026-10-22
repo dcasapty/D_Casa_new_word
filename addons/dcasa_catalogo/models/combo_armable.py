@@ -119,7 +119,7 @@ class ProductTemplate(models.Model):
         self.ensure_one()
         accion = self.env['ir.actions.act_window']._for_xml_id('dcasa_catalogo.accion_precios_combo')
         accion['domain'] = [('product_tmpl_id', '=', self.id)]
-        accion['context'] = {'search_default_por_medida': 0}
+        accion['context'] = {'display_default_code': False}
         accion['display_name'] = self.env._('Medidas y precio en combo: %s', self.name)
         return accion
 
@@ -133,13 +133,17 @@ class ProductProduct(models.Model):
              '«Cama king de metal» es King). Con ella el combo junta cada cama con los colchones de su medida. '
              'Vacía: la pone Gerencia.')
     dcasa_precio_combo = fields.Float(
-        string='Precio en combo', digits='Product Price', copy=False,
+        string='Precio en combo', digits='Product Price', copy=False, aggregator=None,
         help='Precio de este colchón (sin ITBMS) cuando va en la misma venta con una cama de su misma medida. Lo pone '
              'Gerencia; tiene que ser menor que el precio normal. Vacío: el colchón va a su precio normal.')
     dcasa_combo_ahorro = fields.Float(
         string='Ahorro', compute='_compute_dcasa_combo_ahorro', digits='Product Price',
         help='Precio normal menos precio en combo (sin ITBMS).')
     dcasa_combo_aviso = fields.Char(string='Revisar', compute='_compute_dcasa_combo_ahorro')
+    dcasa_combo_estado = fields.Selection(
+        [('listo', 'Listo'), ('sin_precio', 'Sin precio en combo'), ('sin_medida', 'Falta la medida'),
+         ('no_menor', 'El precio en combo ya no es menor')],
+        string='Estado del combo', compute='_compute_dcasa_combo_ahorro')
 
     @api.depends('product_template_attribute_value_ids', 'product_tmpl_id.name', 'product_tmpl_id.dcasa_tipo_combo')
     def _compute_dcasa_medida(self):
@@ -160,18 +164,20 @@ class ProductProduct(models.Model):
     @api.depends('dcasa_precio_combo', 'lst_price', 'dcasa_medida', 'dcasa_tipo_combo')
     def _compute_dcasa_combo_ahorro(self):
         for variante in self:
-            ahorro, aviso = 0.0, False
+            ahorro, aviso, estado = 0.0, False, 'listo' if variante.dcasa_tipo_combo else False
             if variante.dcasa_tipo_combo and not variante.dcasa_medida:
-                aviso = self.env._('Falta la medida')
+                aviso, estado = self.env._('Falta la medida'), 'sin_medida'
             elif variante.dcasa_tipo_combo == 'colchon':
                 if not variante.dcasa_precio_combo:
-                    aviso = self.env._('Sin precio en combo: va a precio normal')
+                    aviso, estado = self.env._('Sin precio en combo: va a precio normal'), 'sin_precio'
                 elif float_compare(variante.dcasa_precio_combo, variante.lst_price, precision_digits=2) >= 0:
                     aviso = self.env._('El precio en combo ya no es menor que el normal: revísalo')
+                    estado = 'no_menor'
                 else:
                     ahorro = variante.lst_price - variante.dcasa_precio_combo
             variante.dcasa_combo_ahorro = ahorro
             variante.dcasa_combo_aviso = aviso
+            variante.dcasa_combo_estado = estado
 
     @api.constrains('dcasa_precio_combo')
     def _check_dcasa_precio_combo(self):
