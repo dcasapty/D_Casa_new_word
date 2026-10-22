@@ -287,7 +287,8 @@
                 <p class="o_dcasa_reponer_llegada_quien"><strong t-out="props.proveedor.nombre"/></p>
                 <p class="o_dcasa_reponer_nota">
                     Cuánto tarda desde que le haces el pedido hasta que llega a la tienda. Se guarda en sus precios de
-                    proveedor y vale para todos sus productos. Un mes = 30 días.
+                    proveedor y vale para todos sus productos; las compras nuevas también lo usan para su fecha de
+                    llegada esperada. Un mes = 30 días.
                 </p>
                 <label for="o_dcasa_reponer_cantidad" class="o_dcasa_reponer_etiqueta">Tarda</label>
                 <div class="o_dcasa_reponer_llegada_campos">

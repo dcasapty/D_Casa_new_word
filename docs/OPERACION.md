@@ -960,7 +960,9 @@ costado), en tres pasos:
   ficha del producto (pestaña Compra) sí cuenta. Sin el dato, la fila dice «Falta» y **no** calcula cuánto pedir.
 - **Poner o cambiar el tiempo de llegada:** botón «Poner tiempo de llegada» (o «Cambiar») del proveedor elegido, de
   su grupo o «Poner» en la fila. Se escribe en **meses o días**; se guarda en **todos sus precios de proveedor** y queda
-  anotado en la ficha del proveedor (quién y cuánto). De 1 día a 24 meses.
+  anotado en la ficha del proveedor (quién y cuánto). De 1 día a 24 meses. Es el mismo campo con que Odoo calcula la
+  **fecha de llegada esperada** de las compras nuevas a ese proveedor (y las reglas de reabastecimiento, si se usan):
+  ponerlo bien también corrige esa fecha.
 - **Producto sin precio de proveedor:** sale como «Sin proveedor», con su ritmo, pero sin cuánto pedir. Se arregla en la
   ficha del producto, pestaña **Compra** (agregar el proveedor con su precio); un proveedor sin ningún precio no puede
   tener tiempo de llegada (la pantalla lo dice).
