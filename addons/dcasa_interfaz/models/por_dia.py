@@ -192,6 +192,8 @@ class DcasaTableroPorDia(models.AbstractModel):
         primero = self._mes_por_dia(mes, hoy)
         ultimo = _fin_de_mes(primero)
         hasta = min(ultimo, hoy)
+        # El mes de hoy está en curso hasta su último día inclusive (el 31 todavía no terminó).
+        en_curso = (primero.year, primero.month) == (hoy.year, hoy.month)
         medida = self._medir_por_dia(primero, hasta, base, vendedor)
         sumas = self._sumas_por_dia(medida)
         redondear = self.env.company.currency_id.round
@@ -215,7 +217,7 @@ class DcasaTableroPorDia(models.AbstractModel):
             'mes': primero.strftime('%Y-%m'), 'nombre': _nombre_del_mes(primero),
             'base': base, 'vendedor': vendedor, 'hoy': str(hoy),
             'primer_dia_semana': primero.weekday(),
-            'en_curso': hasta < ultimo,
+            'en_curso': en_curso,
             'dias': dias,
             'total': {
                 'sin_itbms': medida['sin_itbms'], 'itbms': medida['itbms'], 'total': medida['total'],
@@ -226,16 +228,16 @@ class DcasaTableroPorDia(models.AbstractModel):
             },
             'mejor': {'fecha': mejor['fecha'], 'nombre': mejor['nombre'], 'sin_itbms': mejor['sin_itbms']}
             if mejor and mejor['sin_itbms'] > 0 else None,
-            'anterior': self._mes_anterior(primero, hasta, ultimo, base, vendedor, ahora, medida),
+            'anterior': self._mes_anterior(primero, en_curso, base, vendedor, ahora, medida),
             'accion': self._accion_de_lo_contado(titulo, medida),
         }
 
     @api.model
-    def _mes_anterior(self, primero, hasta, ultimo, base, vendedor, ahora, medida):
+    def _mes_anterior(self, primero, en_curso, base, vendedor, ahora, medida):
         """Contra qué se compara el mes: los mismos días del mes pasado (el último hasta la misma hora) si el mes está
         en curso, o el mes anterior completo. ``cambio``: % sobre las ventas sin ITBMS; sin base positiva, ``None``."""
         hoy = ahora.date()
-        if hasta < ultimo:
+        if en_curso:
             b0, b1 = self._rangos_de_comparar('mes_a_la_fecha', hoy)['b']
             corte = _zona().localize(datetime.combine(b1, ahora.time().replace(tzinfo=None))).astimezone(
                 pytz.utc).replace(tzinfo=None)

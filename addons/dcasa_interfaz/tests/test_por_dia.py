@@ -170,6 +170,13 @@ class TestPorDia(PorDiaCommon):
         self.assertEqual((junio['anterior']['etiqueta'], junio['anterior']['sin_itbms']), ('Mayo completo', 1000.0))
         self.assertEqual((junio['anterior']['cambio'], junio['anterior']['sentido']), (100.0, 'sube'))
         self.assertFalse(junio['anterior']['hora'])
+        # El último día del mes, el mes sigue en curso: se compara como «Comparar › del 1 a hoy».
+        fin = en_panama(date(2025, 6, 30), time(11, 0))
+        junio = self.ger._por_dia('2025-06', 'facturado', ana, fin)
+        self.assertTrue(junio['en_curso'])
+        self.assertEqual((junio['anterior']['etiqueta'], junio['anterior']['hora']), ('1–30 may', '11:00 a. m.'))
+        self.assertEqual(junio['anterior']['sin_itbms'],
+                         self.filas(self.comparar('mes_a_la_fecha', fin, vendedor=ana))['ventas']['b'])
 
     def test_estadisticas_cuadran_con_el_mes(self):
         """Las gráficas dicen lo mismo que el mes: las barras y las vendedoras suman el total; los tipos y lo más
