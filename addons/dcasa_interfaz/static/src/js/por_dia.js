@@ -13,7 +13,7 @@ const TITULOS = {
     confirmado: "Lo vendido por día",
     facturado: "Lo facturado por día",
     con_abonos: "Facturas con abonos por día",
-    completadas: "Facturas completadas por día",
+    completadas: "Pagadas por completo, por día",
 };
 
 /** Lo que comparten «Por día» y «Estadísticas»: el dinero, los números y abrir listas o documentos. */

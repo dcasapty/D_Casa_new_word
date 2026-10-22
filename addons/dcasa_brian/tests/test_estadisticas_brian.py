@@ -76,6 +76,21 @@ class TestEstadisticasBrian(TransactionCase):
         self.assertTrue(confirmado['ok'], confirmado)
         self.assertEqual(confirmado['datos']['pedidos'], 0, 'una factura suelta no es un pedido confirmado')
 
+    def test_completadas_dice_el_dia_que_se_termino_de_pagar(self):
+        """La factura de hoy pagada hoy: en «completadas» cuenta hoy y la respuesta lo dice con esas palabras."""
+        banco = self.env['account.journal'].create({'name': 'Banco Brian por día', 'type': 'bank', 'code': 'BBPD'})
+        self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=self.factura.ids).create({
+                'payment_date': self.hoy, 'amount': self.factura.amount_total, 'journal_id': banco.id,
+            })._create_payments()
+        respuesta = self.ejecutar(self.gerencia, 'ventas_por_dia', {'dia': 'hoy', 'base': 'completadas',
+                                                                   'vendedora': self.vendedora.name})
+        self.assertTrue(respuesta['ok'], respuesta)
+        datos = respuesta['datos']
+        self.assertEqual(datos['cuenta'], 'Completadas: pagadas por completo, el día que se terminó de pagar')
+        self.assertEqual(([d['numero'] for d in datos['documentos']], datos['ventas_sin_itbms']),
+                         ([self.factura.name], '$400.00'))
+
     def test_movimientos_de_un_producto(self):
         respuesta = self.ejecutar(self.gerencia, 'movimientos_de_producto', {'producto': 'BR-DIA-1'})
         self.assertTrue(respuesta['ok'], respuesta)

@@ -178,6 +178,57 @@ class TestPorDia(PorDiaCommon):
         self.assertEqual(junio['anterior']['sin_itbms'],
                          self.filas(self.comparar('mes_a_la_fecha', fin, vendedor=ana))['ventas']['b'])
 
+    def test_completadas_el_dia_que_se_termino_de_pagar(self):
+        """Decisión de la dueña (2026-10-22): lo completado cuenta el día del pago que dejó la factura en cero. Venta
+        del 3 de junio pagada en dos partes: $400 el 5 y $600 el 12 a las 11:30 p. m. de Panamá (en UTC ya es el 13).
+        Cuenta el 12, no el 3 ni el 5, y el mes es el mismo de la tarjeta del Inicio en «Completadas»."""
+        ana = self.vendedora.id
+        _orden, factura = self.vender(date(2025, 6, 3), vendedor=self.vendedora)
+        self.pagar(factura, 400.0, date(2025, 6, 5), time(10, 0))
+        ultimo = self.pagar(factura, 600.0, date(2025, 6, 12), time(23, 30))
+        self.assertEqual(ultimo.create_date.date(), date(2025, 6, 13), 'en UTC el pago quedó registrado el 13')
+        ahora = en_panama(date(2025, 7, 10), time(11, 0))
+        mes = self.ger._por_dia('2025-06', 'completadas', ana, ahora)
+        dias = {d['numero']: d for d in mes['dias']}
+        self.assertEqual((dias[12]['cuantas'], dias[12]['sin_itbms']), (1, 1000.0))
+        self.assertEqual(sum(d['cuantas'] for d in mes['dias'] if d['numero'] != 12), 0, 'ni el 3 ni el 5 ni el 13')
+        tarjeta = self.ger.ventas_del_periodo('rango', '2025-06-01', '2025-06-30', base='completadas', vendedor=ana)
+        self.assertEqual(mes['total']['sin_itbms'], tarjeta['actual']['sin_itbms'], 'cuadra con el Inicio')
+        facturado = {d['numero']: d for d in self.ger._por_dia('2025-06', 'facturado', ana, ahora)['dias']}
+        self.assertEqual(facturado[3]['sin_itbms'], 1000.0, 'en «Facturado» sigue el día de la factura')
+        dia = self.ger._del_dia(date(2025, 6, 12), 'completadas', ana, date(2025, 7, 10))
+        self.assertEqual([f['id'] for f in dia['filas']], factura.ids)
+        self.assertTrue(dia['filas'][0]['detalle'].startswith('Factura del 3 jun'), dia['filas'][0]['detalle'])
+        self.assertEqual(dia['filas'][0]['estado'], 'Pagada')
+        base = next(b for b in self.ger._bases_por_dia() if b['clave'] == 'completadas')
+        self.assertEqual(base['detalle'], 'Pagadas por completo, el día que se terminó de pagar')
+        self.assertEqual(next(b for b in self.ger._bases_de_ventas() if b['clave'] == 'completadas')['detalle'],
+                         'Pagadas al 100 %, el día del último pago', 'el Inicio no cambia')
+
+    def test_completadas_un_pago_revertido_deja_de_contar(self):
+        """Pagada entera el 4 y ese pago se anula: ya no está completada (vuelve a deber). Se paga otra vez el 20:
+        cuenta el 20. Una nota de crédito de una factura completada resta el día de la nota."""
+        ana = self.vendedora.id
+        ahora = en_panama(date(2025, 7, 10), time(11, 0))
+        _orden, factura = self.vender(date(2025, 6, 3), vendedor=self.vendedora)
+        pago = self.pagar(factura, 1000.0, date(2025, 6, 4))
+        self.assertIn(factura.payment_state, ('paid', 'in_payment'))
+        pago.action_draft()
+        pago.action_cancel()
+        self.assertEqual(factura.payment_state, 'not_paid')
+        mes = self.ger._por_dia('2025-06', 'completadas', ana, ahora)
+        self.assertEqual(mes['total']['cuantas'], 0, 'un pago anulado no completa la venta')
+        self.pagar(factura, 1000.0, date(2025, 6, 20))
+        _otra, devuelta = self.vender(date(2025, 6, 3), vendedor=self.vendedora)
+        self.pagar(devuelta, 1000.0, date(2025, 6, 6))
+        self.nota(devuelta, date(2025, 6, 8), precio=100.0)
+        dias = {d['numero']: d for d in self.ger._por_dia('2025-06', 'completadas', ana, ahora)['dias']}
+        self.assertEqual((dias[4]['cuantas'], dias[20]['cuantas'], dias[20]['sin_itbms']), (0, 1, 1000.0),
+                         'cuenta el día del pago nuevo')
+        self.assertEqual((dias[6]['sin_itbms'], dias[8]['sin_itbms'], dias[8]['notas']), (1000.0, -100.0, 1))
+        self.assertEqual(self.ger._por_dia('2025-06', 'completadas', ana, ahora)['total']['sin_itbms'],
+                         self.medir(date(2025, 6, 1), date(2025, 6, 30), 'completadas', ana)['sin_itbms'])
+
     def test_estadisticas_cuadran_con_el_mes(self):
         """Las gráficas dicen lo mismo que el mes: las barras y las vendedoras suman el total; los tipos y lo más
         vendido salen de las mismas facturas (solo mercancía)."""

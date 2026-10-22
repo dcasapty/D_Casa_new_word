@@ -8,6 +8,10 @@ Cuenta con las mismas bases del Inicio de Gerencia (``ventas_bases.py``) y una m
 * ``confirmado`` («Vendido»): los **pedidos confirmados**, el día de Panamá en que se confirmaron (``date_order``: Odoo
   le pone la hora de la confirmación). Un pedido cancelado deja de contar; una cotización no cuenta. Sin ITBMS
   (``amount_untaxed``), con el ITBMS y el total aparte.
+* ``completadas`` cuenta cada factura **el día del pago que la dejó en cero** (nunca antes de la factura; decisión de la
+  dueña del 2026-10-22: «cuando se completó el pago completo»), que es lo que ya hace el Inicio. Un pago revertido o
+  anulado deja de contar (la factura vuelve a deber); si se vuelve a pagar, cuenta el día del pago nuevo. Una nota de
+  crédito de una factura completada resta el día más tardío entre el de la nota y el de la factura completa.
 * ``facturado``, ``con_abonos`` y ``completadas``: exactamente las del interruptor del Inicio (las facturas de cliente
   publicadas; las notas de crédito restan; una factura anulada no cuenta). El total del mes es el mismo ``_medir`` del
   Inicio para esas fechas, y cada día es la suma de esas mismas filas: los días suman el mes al centavo.
@@ -26,8 +30,18 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, models
 from odoo.exceptions import UserError
 
-from .comparar import MESES, MESES_CORTOS, MESES_PARA_ELEGIR, ZONA_PANAMA, _fin_de_mes, _hora, _rango_texto, _variacion
-from .tablero import BASE_CON_ABONOS, BASE_FACTURADO, BASES_DE_GERENCIA, SIN_VENDEDORA, _accion
+from .comparar import (
+    MESES,
+    MESES_CORTOS,
+    MESES_PARA_ELEGIR,
+    ZONA_PANAMA,
+    _corta,
+    _fin_de_mes,
+    _hora,
+    _rango_texto,
+    _variacion,
+)
+from .tablero import BASE_COMPLETADAS, BASE_CON_ABONOS, BASE_FACTURADO, BASES_DE_GERENCIA, SIN_VENDEDORA, _accion
 
 BASE_CONFIRMADO = 'confirmado'
 # El orden de los botones de «Por día» y de «Estadísticas».
@@ -83,7 +97,13 @@ class DcasaTableroPorDia(models.AbstractModel):
         """«Vendido» (pedidos confirmados) y las tres del Inicio de Gerencia, con su línea corta."""
         vendido = {'clave': BASE_CONFIRMADO, 'nombre': self.env._('Vendido'),
                    'detalle': self.env._('Pedidos confirmados, el día que se confirmaron')}
-        return [vendido] + self._bases_de_ventas()
+        bases = [vendido] + self._bases_de_ventas()
+        # «Completadas» ya cuenta cada factura el día del pago que la dejó en cero (``_dia_completada``, la misma
+        # cuenta del Inicio); aquí se dice con las palabras de la dueña (2026-10-22).
+        for base in bases:
+            if base['clave'] == BASE_COMPLETADAS:
+                base['detalle'] = self.env._('Pagadas por completo, el día que se terminó de pagar')
+        return bases
 
     @api.model
     def _base_por_dia(self, base, defecto=BASE_FACTURADO):
@@ -308,6 +328,11 @@ class DcasaTableroPorDia(models.AbstractModel):
                 else:
                     estado = ESTADO_DE_FACTURA.get(documento.payment_state, '')
                     detalle = documento.invoice_origin or ''
+                    if base == BASE_COMPLETADAS and documento.date != dia:
+                        # Cuenta el día que se terminó de pagar: se dice de qué día es la factura.
+                        factura_del = self.env._('Factura del %(dia)s',
+                                                 dia=_corta(documento.date, documento.date.year != hoy.year))
+                        detalle = f'{factura_del} · {detalle}' if detalle else factura_del
                 filas.append({
                     'id': documento.id, 'modelo': 'account.move', 'numero': documento.name,
                     'cliente': documento.partner_id.display_name or '',

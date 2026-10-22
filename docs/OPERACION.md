@@ -971,6 +971,11 @@ desde el botón **Ver por día** del bloque de Ventas del Inicio (con la base y 
   * **Facturado**, **Con abonos** y **Completadas**: exactamente las del Inicio (facturas publicadas; las notas de
     crédito restan el día de su fecha; una factura anulada o en borrador no cuenta). El total del mes es el mismo
     número que la tarjeta de Ventas del Inicio para esas fechas y **los días suman el mes al centavo**.
+  * **Completadas** («Pagadas por completo, el día que se terminó de pagar», decisión de la dueña del 2026-10-22): cada
+    factura cuenta el día del pago que la dejó en cero (nunca antes de la factura), la misma cuenta del Inicio; en el
+    detalle del día dice «Factura del 3 oct» si la factura es de otro día. Pagada en partes: cuenta el día de la última.
+    Un pago anulado o revertido deja de contar (la factura vuelve a deber) y, si se paga otra vez, cuenta ese día. Una
+    nota de crédito de una factura completada resta el día más tardío entre el de la nota y el de la factura completa.
 * Tres tarjetas: el **total del mes** (sin ITBMS, con el ITBMS y el total con ITBMS aparte; abre la lista de lo que se
   contó), **contra el mes anterior** (si el mes está en curso, los mismos días del mes pasado con el último hasta la
   misma hora de Panamá: la misma cuenta que «Comparar › del 1 a hoy» del Inicio; si el mes ya terminó, el mes anterior
