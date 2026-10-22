@@ -236,7 +236,8 @@ class BrianHerramientasOperacion(models.AbstractModel):
         productos = [{
             'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or 'sin proveedor',
             'vendido': c.cantidad(f['vendido']), 'se_vende_al_mes': c.cantidad(f['ritmo']),
-            'hay_hoy': c.cantidad(f['existencia']), 'viene_en_camino': c.cantidad(f['pedido']),
+            'disponible_hoy': c.cantidad(f['existencia']), 'en_bodega': c.cantidad(f['en_bodega']),
+            'vendido_por_entregar': c.cantidad(f['por_entregar']), 'viene_en_camino': c.cantidad(f['pedido']),
             'alcanza_para': f['alcanza'], 'tarda_en_llegar': f['llegada'],
             'pedir': f['pedir'] if f['pedir'] is not None else SIN_PEDIR[bool(f['proveedor_id'])],
             'pedir_ya': f['pedir_ya'], 'aviso': f['aviso'],
@@ -246,10 +247,12 @@ class BrianHerramientasOperacion(models.AbstractModel):
             'ventana': f'ventas del {desde:%d/%m/%Y} al {hasta:%d/%m/%Y} ({meses} meses)',
             'reserva_meses': c.cantidad(reserva),
             'proveedor': socio.display_name if socio else 'todos',
-            'criterio': 'se vende al mes = vendido ÷ meses; alcanza para = (hay + en camino) ÷ se vende al mes; '
-                        'pedir = se vende al mes × (meses que tarda + reserva) − hay − en camino, hacia arriba, solo '
-                        'si da más de 0; pedir ya = lo que hay y viene no alcanza para lo que tarda en llegar. Un mes '
-                        '= 30 días. Sin el tiempo de llegada del proveedor no se calcula cuánto pedir.',
+            'criterio': 'se vende al mes = vendido ÷ meses; disponible hoy = en bodega − lo vendido que espera '
+                        'entrega (puede ser negativo); alcanza para = (disponible + en camino) ÷ se vende al mes; '
+                        'pedir = se vende al mes × (meses que tarda + reserva) − disponible − en camino, hacia '
+                        'arriba, solo si da más de 0; pedir ya = lo disponible y lo que viene no alcanza para lo que '
+                        'tarda en llegar. Un mes = 30 días. Sin el tiempo de llegada del proveedor no se calcula '
+                        'cuánto pedir.',
             'productos_vendidos': len(productos),
             'pedir_ya': cuenta['ya'], 'para_pedir': cuenta['pedir'], 'sin_tiempo_de_llegada': cuenta['falta'],
             'unidades_a_pedir': sum(f['pedir'] or 0 for f in filas),

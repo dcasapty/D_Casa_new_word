@@ -7,13 +7,19 @@ publicadas** de los últimos N meses (1 a 12; de fábrica 5); las notas de créd
 flete, anticipos ni líneas sin producto. Lo que no se vendió en la ventana no sale (la pantalla lo dice).
 
 * **Se vende al mes** = vendido ÷ N.
-* **Hay hoy**: ubicaciones internas. **Viene en camino**: compras confirmadas que todavía no se reciben.
-* **Alcanza para** = (hay + en camino) ÷ se vende al mes, en meses (un mes = 30 días).
+* **Disponible hoy (sin lo ya vendido)** = lo que hay en las ubicaciones internas (``en_bodega``) − lo que espera
+  entrega a clientes (``por_entregar``: movimientos de existencias de una ubicación interna a una de cliente, ni hechos,
+  ni cancelados, ni en borrador; en una entrega en varios pasos solo cuenta el último, el que sale al cliente, y lo ya
+  entregado ya salió de la bodega: nada se cuenta dos veces). Decisión de la dueña (2026-10-22): lo vendido que sigue
+  en bodega «no está disponible a no ser que se revierta la entrega»; si se devuelve, vuelve a la bodega y cuenta
+  solo. Puede dar negativo (se vendió más de lo que hay): se muestra así y suma a lo que hay que pedir.
+  En el código, ``existencia`` es este disponible. **Viene en camino**: compras confirmadas que todavía no se reciben.
+* **Alcanza para** = (disponible + en camino) ÷ se vende al mes, en meses (un mes = 30 días); 0 si da negativo.
 * **Tarda en llegar**: los días de entrega (``delay``) del precio de proveedor principal (el primero del producto, el
   orden de Odoo). Odoo pone **1 día** de fábrica a todo precio de proveedor y la carga del sistema anterior pone 0 si
   no venía: por eso 0 o 1 día cuentan como **falta**, salvo que alguien lo haya puesto a propósito desde esta pantalla
   o desde Brian (``dcasa_llegada_puesta``). Sin el dato, la fila lo dice y **no** calcula cuánto pedir.
-* **Pedir** = se vende al mes × (meses que tarda + meses de reserva) − hay − en camino, hacia arriba, solo si da
+* **Pedir** = se vende al mes × (meses que tarda + meses de reserva) − disponible − en camino, hacia arriba, solo si da
   más de 0. **Pedir ya**: lo que hay y lo que viene no alcanza para lo que tarda en llegar un pedido nuevo.
 
 Ninguna otra cifra: nada se rellena a ojo. Solo Gerencia y los administradores: cada método exige el grupo en el
@@ -202,7 +208,8 @@ class DcasaReponer(models.AbstractModel):
     @api.model
     def _calcular(self, meses=MESES_POR_DEFECTO, reserva=0, proveedor=None, hasta=None):
         """Las filas de «Reponer», de más urgente a menos: ``[{'producto_id', 'producto', 'referencia',
-        'proveedor_id', 'proveedor', 'vendido', 'ritmo', 'existencia', 'pedido', 'alcanza_meses', 'alcanza',
+        'proveedor_id', 'proveedor', 'vendido', 'ritmo', 'en_bodega', 'por_entregar', 'existencia' (= disponible hoy:
+        en bodega − por entregar), 'pedido', 'alcanza_meses', 'alcanza',
         'llegada_dias', 'llegada', 'pedir', 'pedir_ya', 'estado', 'aviso'}]``. ``llegada_dias`` y ``pedir`` son
         ``None`` cuando falta el tiempo de llegada (o el proveedor).
 
@@ -224,6 +231,12 @@ class DcasaReponer(models.AbstractModel):
         existencia = {producto.id: cantidad for producto, cantidad in self.env['stock.quant'].sudo()._read_group(
             [('product_id', 'in', productos.ids), ('location_id.usage', '=', 'internal'),
              ('company_id', 'in', empresas)], ['product_id'], ['quantity:sum'])}
+        # Lo vendido que sigue en bodega esperando entrega: lo que falta salir hacia un cliente (en la unidad del
+        # producto). Solo el movimiento que sale al cliente: en una entrega en varios pasos no se cuenta dos veces.
+        por_entregar = {producto.id: cantidad for producto, cantidad in self.env['stock.move'].sudo()._read_group(
+            [('product_id', 'in', productos.ids), ('state', 'not in', ('draft', 'done', 'cancel')),
+             ('location_id.usage', '=', 'internal'), ('location_dest_id.usage', '=', 'customer'),
+             ('company_id', 'in', empresas)], ['product_id'], ['product_qty:sum'])}
         pedido = dict.fromkeys(productos.ids, 0.0)
         for linea in self.env['purchase.order.line'].sudo().search_fetch(
                 [('product_id', 'in', productos.ids), ('order_id.state', '=', 'purchase'),
@@ -238,7 +251,9 @@ class DcasaReponer(models.AbstractModel):
         for producto in productos.with_context(display_default_code=False):
             vendido = round(vendidos[producto.id], 2)
             ritmo = vendido / meses
-            hay = round(existencia.get(producto.id, 0.0), 2)
+            en_bodega = round(existencia.get(producto.id, 0.0), 2)
+            comprometido = round(por_entregar.get(producto.id, 0.0), 2)
+            hay = round(en_bodega - comprometido, 2)
             en_camino = round(pedido[producto.id], 2)
             alcanza = max(hay + en_camino, 0.0) / ritmo
             precio = principal.get(producto.id)
@@ -256,7 +271,8 @@ class DcasaReponer(models.AbstractModel):
                 'producto_id': producto.id, 'producto': producto.display_name,
                 'referencia': producto.default_code or '',
                 'proveedor_id': socio.id if socio else False, 'proveedor': socio.display_name if socio else '',
-                'vendido': vendido, 'ritmo': round(ritmo, 2), 'existencia': hay, 'pedido': en_camino,
+                'vendido': vendido, 'ritmo': round(ritmo, 2), 'en_bodega': en_bodega, 'por_entregar': comprometido,
+                'existencia': hay, 'pedido': en_camino,
                 'alcanza_meses': round(alcanza, 2), 'alcanza': tiempo_que_alcanza(alcanza),
                 'llegada_dias': dias,
                 'llegada': tiempo_de_llegada(dias) if dias is not None else (
@@ -516,7 +532,8 @@ class DcasaReponer(models.AbstractModel):
             (self.env._('Ventas del %(desde)s al %(hasta)s (%(meses)s meses, facturas menos notas de crédito) · '
                         'Reserva: %(reserva)s meses · Un mes = 30 días.', desde=desde.strftime('%d/%m/%Y'),
                         hasta=hasta.strftime('%d/%m/%Y'), meses=meses, reserva=cifra(reserva)), formatos['nota']),
-            (self.env._('Pedir = se vende al mes × (meses que tarda + reserva) − hay hoy − viene en camino. '
+            (self.env._('Disponible hoy = en bodega − lo vendido que espera entrega. Pedir = se vende al mes × '
+                        '(meses que tarda + reserva) − disponible hoy − viene en camino. '
                         '«Pedir ya»: lo que hay y lo que viene no alcanza para lo que tarda en llegar.'),
              formatos['nota']),
         ]
@@ -528,7 +545,7 @@ class DcasaReponer(models.AbstractModel):
 
     def _columnas_comunes(self, meses):
         return [(self.env._('Vendido en %(meses)s meses', meses=meses), 12), (self.env._('Se vende al mes'), 11),
-                (self.env._('Hay hoy'), 10), (self.env._('Viene en camino'), 11)]
+                (self.env._('Disponible hoy (sin lo ya vendido)'), 13), (self.env._('Viene en camino'), 11)]
 
     @staticmethod
     def _cabecera(hoja, fila, columnas, formato):
@@ -541,8 +558,10 @@ class DcasaReponer(models.AbstractModel):
         """La hoja «Reponer»: una fila por producto, como en la pantalla (números como números, para sumar)."""
         for numero, (texto, formato) in enumerate(encabezado):
             hoja.write(numero, 0, texto, formato)
+        comunes = self._columnas_comunes(meses)
         columnas = ([(self.env._('Aviso'), 14), (self.env._('Producto'), 40), (self.env._('Referencia'), 14),
-                     (self.env._('Proveedor'), 28)] + self._columnas_comunes(meses)
+                     (self.env._('Proveedor'), 28)] + comunes[:2]
+                    + [(self.env._('En bodega'), 10), (self.env._('Vendido por entregar'), 11)] + comunes[2:]
                     + [(self.env._('Alcanza para (meses)'), 12), (self.env._('Tarda en llegar (días)'), 12),
                        (self.env._('Pedir'), 10)])
         cabecera = len(encabezado) + 1
@@ -552,14 +571,15 @@ class DcasaReponer(models.AbstractModel):
             hoja.write(numero, 1, fila['producto'])
             hoja.write(numero, 2, fila['referencia'])
             hoja.write(numero, 3, fila['proveedor'] or self.env._('Sin proveedor'))
-            for columna, clave in enumerate(('vendido', 'ritmo', 'existencia', 'pedido', 'alcanza_meses'), start=4):
+            claves = ('vendido', 'ritmo', 'en_bodega', 'por_entregar', 'existencia', 'pedido', 'alcanza_meses')
+            for columna, clave in enumerate(claves, start=4):
                 hoja.write_number(numero, columna, fila[clave], formatos['decimal'])
             if fila['llegada_dias'] is None:
-                hoja.write(numero, 9, fila['llegada'])
-                hoja.write(numero, 10, '—')
+                hoja.write(numero, 11, fila['llegada'])
+                hoja.write(numero, 12, '—')
             else:
-                hoja.write_number(numero, 9, fila['llegada_dias'], formatos['entero'])
-                hoja.write_number(numero, 10, fila['pedir'], formatos['entero'])
+                hoja.write_number(numero, 11, fila['llegada_dias'], formatos['entero'])
+                hoja.write_number(numero, 12, fila['pedir'], formatos['entero'])
         if filas:
             hoja.autofilter(cabecera, 0, cabecera + len(filas), len(columnas) - 1)
         else:
