@@ -1,4 +1,5 @@
-"""Brian y las decisiones D1 de la gerencia: descuento mayor al tope con la clave de Gerencia, y los saldos de centavos.
+"""Brian y las decisiones D1 y D3 de la gerencia: descuento mayor al tope con la clave de Gerencia, los saldos de
+centavos y los abonos por vencer.
 
 * La clave de un descuento le llega a cada persona de Gerencia por **Telegram**, por el mismo bot de Brian, solo a los
   chats vinculados a su usuario (``brian.telegram.enlace``) y respetando la lista de chats permitidos. Sin el bot o
@@ -13,6 +14,7 @@ from .registro import BrianError, herramienta
 
 INTERNO = ('base.group_user',)
 GERENTE_VENTAS = ('sales_team.group_sale_manager',)
+VEN_ABONOS = (('dcasa_base.group_caja', 'account.group_account_user', 'sales_team.group_sale_manager'),)
 CIERRAN_CENTAVOS = (('dcasa_base.group_gerencia', 'account.group_account_user', 'account.group_account_manager',
                      'base.group_system'),)
 PARAM_COTIZACION = {'type': 'string', 'description': 'Número de la cotización («S00123») o el cliente.'}
@@ -180,3 +182,32 @@ class BrianHerramientasAutorizaciones(models.AbstractModel):
         cuantos = len(asistente.linea_ids)
         asistente.action_cerrar()
         return {'mensaje': f'Cerré {cuantos} saldos de centavos con su ajuste por redondeo.'}
+
+    # ------------------------------------------------------------------
+    # Abonos por vencer (D3)
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='abonos_por_vencer',
+        descripcion='Abonos que vencen en los próximos días (o ya vencieron): cliente, factura, lo que falta, la '
+                    'fecha, si ya salió el recordatorio por correo y el enlace para escribirle por WhatsApp.',
+        parametros={'limite': c.PARAM_LIMITE},
+        nivel='lectura', categoria='contabilidad', grupos=VEN_ABONOS,
+        ejemplos=['¿qué abonos vencen esta semana?', 'abonos vencidos'],
+    )
+    def _h_abonos_por_vencer(self, limite=10):
+        Factura = self.env['account.move']
+        facturas = Factura.search([('move_type', '=', 'out_invoice'), ('dcasa_abono_pronto', '=', True)],
+                                  order='dcasa_abono_vence, id', limit=c.limite(limite))
+        filas = []
+        for factura in facturas:
+            fila = {'cliente': factura.partner_id.display_name, 'factura': factura.name,
+                    'le_falta': c.moneda(factura.amount_residual), 'vence': c.fecha(factura.dcasa_abono_vence),
+                    'dias': factura.dcasa_abono_dias,
+                    'whatsapp': factura.action_dcasa_abono_whatsapp()['url']}
+            if 'dcasa_recordatorio' in factura._fields:
+                fila['recordatorio_por_correo'] = factura.dcasa_recordatorio or 'todavía no'
+            filas.append(fila)
+        return {'dias_de_aviso': Factura._dcasa_aviso_dias(), 'abonos': filas,
+                'nota': 'El enlace de WhatsApp abre el mensaje listo: lo manda una persona desde su teléfono.'
+                if filas else 'Ningún abono vence en los próximos días.'}

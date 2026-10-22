@@ -30,6 +30,7 @@ P_A_CLIENTES = 'dcasa_correo.enviar_a_clientes'
 P_AL_PAGAR = 'dcasa_correo.al_pagar'
 P_BIENVENIDA = 'dcasa_correo.bienvenida'
 P_BIENVENIDA_DESDE = 'dcasa_correo.bienvenida_desde'
+P_RECORDATORIO = 'dcasa_correo.recordatorio_abono'
 
 # Decisión de la dueña (17/10/2026): sale como «D'CASA Panamá <ventas@dcasapty.com>» y se responde a info@.
 REMITENTE = 'ventas@dcasapty.com'
@@ -102,6 +103,8 @@ class DcasaCorreo(models.AbstractModel):
             # Al instalar se dejan en True (post_init_hook); apagadas, Odoo borra el parámetro.
             'al_pagar': str2bool(ICP.get_param(P_AL_PAGAR) or 'False', False),
             'bienvenida': str2bool(ICP.get_param(P_BIENVENIDA) or 'False', False),
+            # D3: el recordatorio del abono unos días antes de que venza (se enciende al instalar, como los otros).
+            'recordatorio': str2bool(ICP.get_param(P_RECORDATORIO) or 'False', False),
             'entorno': self._entorno(),
         }
 

@@ -1,5 +1,6 @@
-"""La factura y el correo: la plantilla D'CASA, los datos que lee y el envío que pide Brian."""
-from odoo import fields, models
+"""La factura y el correo: la plantilla D'CASA, los datos que lee, el envío que pide Brian y el recordatorio del
+abono (D3)."""
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .correo import centavos
@@ -7,6 +8,33 @@ from .correo import centavos
 
 class AccountMove(models.Model):
     _inherit = 'account.move'
+
+    dcasa_recordatorio = fields.Char(
+        'Recordatorio por correo', compute='_compute_dcasa_recordatorio',
+        help='Si ya salió el correo que le recuerda al cliente que su abono vence pronto (uno por vencimiento).')
+
+    def _compute_dcasa_recordatorio(self):
+        Envio = self.env['dcasa.correo.envio'].sudo()
+        envios = Envio.search([('tipo', '=', 'recordatorio'), ('move_id', 'in', self.ids)], order='id desc')
+        estados = dict(Envio._fields['estado'].selection)
+        for factura in self:
+            vence = factura.dcasa_abono_vence.isoformat() if factura.dcasa_abono_vence else ''
+            envio = envios.filtered(lambda e, f=factura, v=vence: e.move_id == f and e.huella.endswith(f':{v}'))[:1]
+            if not envio:
+                factura.dcasa_recordatorio = ''
+            elif envio.estado == 'enviado':
+                factura.dcasa_recordatorio = self.env._('Enviado el %s', envio.create_date.strftime('%d/%m/%Y'))
+            elif envio.estado == 'omitido':
+                factura.dcasa_recordatorio = envio.motivo or estados.get(envio.estado)
+            else:
+                factura.dcasa_recordatorio = estados.get(envio.estado, envio.estado)
+
+    @api.model
+    def _dcasa_cron_abonos(self):
+        """Después de recalcular los vencimientos, encola el recordatorio de los que vencen pronto (D3)."""
+        resultado = super()._dcasa_cron_abonos()
+        self.env['dcasa.correo.envio'].sudo()._encolar_recordatorios()
+        return resultado
 
     def _get_mail_template(self):
         """Con la clave de Resend, la factura de cliente sale con la plantilla D'CASA (también desde «Enviar»)."""

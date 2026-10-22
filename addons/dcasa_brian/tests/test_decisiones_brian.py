@@ -88,6 +88,12 @@ class TestAutorizacionesBrian(TransactionCase):
         self.env['brian.herramientas'].with_user(self.gerente).confirmar(respuesta['accion_id'])
         self.assertAlmostEqual(self.orden.amount_total, 850.0, places=2)
 
+    def test_abonos_por_vencer_para_caja_y_gerencia(self):
+        nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
+        self.assertNotIn('abonos_por_vencer', nombres)
+        datos = self.ok(self.ejecutar(self.gerente, 'abonos_por_vencer'))
+        self.assertEqual(datos['dias_de_aviso'], 5)
+
     def test_saldos_de_centavos_solo_gerencia_o_contabilidad(self):
         nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
         self.assertNotIn('saldos_de_centavos', nombres)

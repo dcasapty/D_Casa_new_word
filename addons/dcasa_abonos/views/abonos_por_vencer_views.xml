@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- D3: abonos por vencer (models/abono_vencimiento.py). -->
+    <record id="view_move_list_abonos_por_vencer" model="ir.ui.view">
+        <field name="name">account.move.list.dcasa.abonos.por.vencer</field>
+        <field name="model">account.move</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Abonos por vencer" create="0" delete="0" default_order="dcasa_abono_vence asc"
+                  decoration-danger="dcasa_abono_dias &lt; 0" decoration-warning="dcasa_abono_dias &gt;= 0 and dcasa_abono_pronto">
+                <field name="dcasa_abono_vence"/>
+                <field name="dcasa_abono_dias"/>
+                <field name="dcasa_abono_pronto" column_invisible="1"/>
+                <field name="partner_id" string="Cliente"/>
+                <field name="name" string="Factura"/>
+                <field name="invoice_user_id" optional="hide"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount_total_signed" string="Total" sum="Total"/>
+                <field name="amount_residual_signed" string="Le falta" sum="Le falta"/>
+                <button name="action_dcasa_abono_whatsapp" type="object" string="WhatsApp" icon="fa-whatsapp"
+                        class="btn-link" help="Abre WhatsApp con el recordatorio listo: lo mandas tú."/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_move_search_abonos_por_vencer" model="ir.ui.view">
+        <field name="name">account.move.search.dcasa.abonos.por.vencer</field>
+        <field name="model">account.move</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <search string="Abonos">
+                <field name="partner_id" string="Cliente"/>
+                <field name="name" string="Factura"/>
+                <filter name="pronto" string="Vencen pronto o ya vencieron" domain="[('dcasa_abono_pronto', '=', True)]"/>
+                <filter name="vencidos" string="Ya vencieron"
+                        domain="[('dcasa_abono_vence', '&lt;', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="todos" string="Todos los abonos abiertos" domain="[('dcasa_abono_vence', '!=', False)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_abonos_por_vencer" model="ir.actions.act_window">
+        <field name="name">Abonos por vencer</field>
+        <field name="res_model">account.move</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('move_type', '=', 'out_invoice'), ('dcasa_abono_vence', '!=', False)]</field>
+        <field name="context">{'search_default_pronto': 1, 'default_move_type': 'out_invoice', 'create': False}</field>
+        <field name="search_view_id" ref="view_move_search_abonos_por_vencer"/>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_move_list_abonos_por_vencer')})]"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Ningún abono vence en los próximos días.</p>
+            <p>Aquí salen las facturas pagadas en abonos que vencen pronto o que ya vencieron, con lo que le falta a
+                cada cliente. Con el botón WhatsApp le escribes desde tu teléfono con el recordatorio listo.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_abonos_por_vencer" name="Abonos por vencer" parent="account.menu_finance_receivables"
+              action="action_dcasa_abonos_por_vencer" sequence="15"
+              groups="dcasa_base.group_caja,account.group_account_user,sales_team.group_sale_manager"/>
+
+    <record id="ir_cron_dcasa_abonos" model="ir.cron">
+        <field name="name">Abonos: recalcular vencimientos y recordar los que vencen pronto</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="state">code</field>
+        <field name="code">model._dcasa_cron_abonos()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
