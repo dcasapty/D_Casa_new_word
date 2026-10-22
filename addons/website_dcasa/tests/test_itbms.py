@@ -14,11 +14,11 @@ class TestPrecioMasItbms(HttpCase):
         Product = self.env['product.template']
         # Sin impuesto explícito: nace con el ITBMS de venta por defecto (el que se suma).
         self.mesa = Product.create({
-            'name': 'Mesa ITBMS prueba', 'list_price': 39.99, 'is_published': True,
+            'name': 'MESA ITBMS PRUEBA', 'list_price': 39.99, 'is_published': True,
             'website_sequence': -300,
         })
         self.sin_impuesto = Product.create({
-            'name': 'Servicio sin impuesto prueba', 'list_price': 15.0, 'is_published': True,
+            'name': 'SERVICIO SIN IMPUESTO PRUEBA', 'list_price': 15.0, 'is_published': True,
             'taxes_id': [(5, 0, 0)], 'website_sequence': -299,
         })
 
@@ -48,11 +48,11 @@ class TestPrecioMasItbms(HttpCase):
         self.assertEqual(productos[0]['offers']['priceCurrency'], 'USD')
 
     def test_listado_y_portada_dicen_mas_itbms(self):
-        tienda = self.url_open('/shop?search=Mesa ITBMS prueba').text
-        self.assertIn('Mesa ITBMS prueba', tienda)
+        tienda = self.url_open('/shop?search=MESA ITBMS PRUEBA').text
+        self.assertIn('MESA ITBMS PRUEBA', tienda)
         self.assertIn('+ ITBMS', tienda)
         portada = self.url_open('/').text
-        tarjeta = re.search(r'Mesa ITBMS prueba.*?o_dcasa_pcard_actions', portada, re.S).group(0)
+        tarjeta = re.search(r'MESA ITBMS PRUEBA.*?o_dcasa_pcard_actions', portada, re.S).group(0)
         self.assertIn('39.99', tarjeta)
         self.assertIn('+ ITBMS', tarjeta)
 
@@ -64,6 +64,6 @@ class TestPrecioMasItbms(HttpCase):
             'csrf_token': token, 'product_template_id': self.mesa.id,
         }, allow_redirects=False)
         carrito = self.url_open('/shop/cart').text
-        self.assertIn('Mesa ITBMS prueba', carrito)
+        self.assertIn('MESA ITBMS PRUEBA', carrito)
         for cifra in ('39.99', '2.80', '42.79'):
             self.assertIn(cifra, carrito, 'Subtotal, ITBMS y total')

@@ -32,7 +32,7 @@ class VentasMixin:
         cls.otra = crear_usuario(cls.env, 'otra_vendedora_rol', 'dcasa_base.group_vendedora')
         cls.gerencia = crear_usuario(cls.env, 'gerencia_rol', 'dcasa_base.group_gerencia')
         cls.cliente = cls.env['res.partner'].create({'name': 'Cliente inicio por rol'})
-        cls.producto = cls.env['product.product'].create({'name': 'Silla inicio por rol', 'list_price': 50})
+        cls.producto = cls.env['product.product'].create({'name': 'SILLA INICIO POR ROL', 'list_price': 50})
         cls.hoy = fields.Date.context_today(cls.env['dcasa.tablero'].with_user(cls.vendedora))
 
     def pedido(self, vendedor=None, cantidad=1, confirmar=True, producto=None):
@@ -191,7 +191,7 @@ class TestVendidoEsFacturado(VentasCommon):
         self.assertNotIn('ventas tuyas', todas)
 
     def test_la_tarjeta_la_lista_las_barras_y_lo_mas_vendido_dicen_lo_mismo(self):
-        producto = self.env['product.product'].create({'name': 'Zzmuy vendido inicio', 'list_price': 10})
+        producto = self.env['product.product'].create({'name': 'ZZMUY VENDIDO INICIO', 'list_price': 10})
         pendiente = self.pedido(cantidad=40, producto=producto)            # por facturar: no cuenta en nada
         borrador = self.pedido(cantidad=30, producto=producto, confirmar=False)
         con_borrador = self.pedido(cantidad=20, producto=producto)
@@ -215,7 +215,7 @@ class TestVendidoEsFacturado(VentasCommon):
         self.assertAlmostEqual(datos['semana'][-1]['monto'], cifras['ventas_hoy']['valor'], places=2)
         # lo más vendido: solo las 2 unidades facturadas, no las 40/30/20 que no son venta
         mas_vendido = {p['nombre']: p['cantidad'] for p in datos['top']}
-        self.assertEqual(mas_vendido.get('Zzmuy vendido inicio'), 2)
+        self.assertEqual(mas_vendido.get('ZZMUY VENDIDO INICIO'), 2)
 
     def test_las_ventas_de_ayer_no_entran_en_hoy_pero_si_en_la_barra_de_ayer(self):
         orden = self.pedido()

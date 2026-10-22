@@ -13,3 +13,5 @@ from . import test_humo
 from . import test_reglas_gerencia
 from . import test_aviso_vendedora
 from . import test_subir_facturas_navegador
+from . import test_costos_cerrados
+from . import test_descuento_autorizacion

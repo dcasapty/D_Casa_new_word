@@ -95,3 +95,5 @@ class TestReglasMeta(BaseCase):
         self.assertFalse(titulo.endswith(' '))
         self.assertTrue(titulo.endswith('muy'))
         self.assertEqual(R.titulo('  Mesa \n de  noche '), 'Mesa de noche')
+        self.assertEqual(R.titulo('CAMA TAPIZADA QUEEN – BLANCO'), 'Cama tapizada queen – blanco')
+        self.assertEqual(R.titulo('Cama SOFÁ (King)'), 'Cama SOFÁ (King)', 'con minúsculas se deja como está')

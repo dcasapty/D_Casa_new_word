@@ -60,6 +60,12 @@ def xmlid_inventario(llave):
     return 'inventario_anterior_' + re.sub(r'[^a-z0-9]+', '_', llave.lower()).strip('_')
 
 
+def escapar_like(texto):
+    """El texto para un ``=ilike`` exacto (sin que «%» o «_» del nombre hagan de comodín)."""
+    texto = ' '.join((texto or '').split())   # los nombres se guardan con un solo espacio
+    return texto.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+
+
 def _buscar(env, fila):
     """La variante que ya es este producto: por xmlid de una carga anterior, por código o, sin
     código, por nombre exacto. Vacío si no está."""
@@ -70,8 +76,9 @@ def _buscar(env, fila):
     if fila['codigo']:
         variante = Variante.search([('default_code', '=', fila['codigo'])], limit=1)
         return variante or _variante_por_tamano(Variante, fila)
+    # Sin importar mayúsculas: desde F5 los nombres se guardan en MAYÚSCULAS.
     plantilla = env['product.template'].with_context(active_test=False).search(
-        [('name', '=', fila['nombre'])], limit=1)
+        [('name', '=ilike', escapar_like(fila['nombre']))], limit=1)
     return plantilla.product_variant_ids[:1]
 
 

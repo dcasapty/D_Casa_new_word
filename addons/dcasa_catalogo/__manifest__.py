@@ -53,6 +53,8 @@ las ventas y la tienda web.
         'views/product_templates.xml',
         'views/combos_views.xml',
         'views/report_combos.xml',
+        'security/ir.model.access.csv',
+        'views/productos_limpios_views.xml',
     ],
     'assets': {
         'web.assets_frontend': [

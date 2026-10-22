@@ -9,6 +9,7 @@ Cuando esté encendido, a cada cliente le llega:
 | Correo | Cuándo | Qué lleva |
 |---|---|---|
 | **Su factura o su abono** | En cuanto alguien registra un pago de su factura (el botón «Pagar», Brian o la conciliación del banco) | El PDF nuevo, el mismo papel y el mismo nombre que «Imprimir». **Si todavía debe algo es el correo del abono**: el asunto dice «Recibimos tu abono», el correo dice el total, lo que ya pagó, **lo que le falta** y hasta cuándo tiene, y va el papel de ABONO («Abono INV_…pdf», con SALDO POR PAGAR). **Si quedó pagada es el de la factura pagada** (nunca dice «abono») y, si la compra sumó puntos, cuántos (del libro de Socios). Un botón «Ver en Mi cuenta» |
+| **El recordatorio del abono** (D3, desde el 2026-10-22) | **5 días antes** de que venza un abono (la cifra de la gerencia; `dcasa_abonos.aviso_dias`). Lo arma el cron de cada mañana. **Uno solo por abono y vencimiento**: no se repite si el cron corre otra vez, y si el cliente no tenía correo vuelve a intentarse cuando se lo escriban (si sigue dentro del plazo) | «Tu abono vence el dd/mm/aaaa · Factura INV/…»: el total, lo que ya pagó, **lo que le falta** y hasta cuándo (de `_dcasa_estado_abono`, la misma fuente del papel de ABONO). Sin PDF. El botón «Ver en Mi cuenta». Si se paga antes de armarlo, no sale |
 | **La bienvenida** | Una sola vez por persona, **solo a clientes nuevos**, cuando ya puede entrar a Mi cuenta (si su primera compra va en abono, con el pago que la termina: su código de socio llega con la factura pagada) | Corta: «¡Te damos la bienvenida, Ana!», «Gracias por tu compra. En Mi cuenta ves tus compras, tus pagos y tus puntos», una línea de cómo entra la primera vez (con PIN: celular y PIN; con cuenta de la tienda en línea: su correo; si no: «¿Primera vez? Hazte socio» con su celular, el código de socio de su factura y un PIN que elige; si su celular no sirve: que escriba por WhatsApp) y el botón «Entrar a Mi cuenta». **Sin reglas de puntos, sin abonos y sin cifras** |
 | **La factura cuando la mandas tú** | Abres la factura › «Enviar» › dejas marcada la casilla de correo | La factura con la marca D'CASA |
 | **La cotización** | Abres la venta › «Enviar», o en Conversaciones › Cotización › **«Enviar por correo»** | La cotización en PDF |
@@ -122,8 +123,8 @@ En Odoo › Ventas › Configuración › **Correo a clientes**:
 3. Revisa el tope de tu plan de Resend (paso 2).
 4. Marca **«Enviar correos a clientes»** y guarda. Desde ese momento, cada pago manda su factura.
 
-Las otras dos casillas vienen marcadas: **«Mandar la factura al registrar un pago»** y **«Bienvenida a clientes
-nuevos»**. Desmárcalas si no quieres alguno de los dos.
+Las otras tres casillas vienen marcadas: **«Mandar la factura al registrar un pago»**, **«Recordar el abono antes de que
+venza»** y **«Bienvenida a clientes nuevos»**. Desmárcalas si no quieres alguna.
 
 **Ojo, con el correo encendido también salen los correos de acceso de Odoo**: al crear un usuario que tenga correo le
 llega de verdad la invitación para elegir su clave, y «Cambiar contraseña» o «Olvidé mi contraseña» mandan su correo
@@ -133,6 +134,24 @@ Para apagarlo todo de un golpe: desmarca **«Enviar correos a clientes»**. Lo q
 anotado «Se apagaron los correos antes de enviarlo»). Si desmarcas solo **«Mandar la factura al registrar un pago»** o
 **«Bienvenida a clientes nuevos»**, lo de eso que estaba por salir tampoco sale; lo que alguien pide a mano («Enviar»,
 Brian) sí.
+
+## 6b. El recordatorio del abono y WhatsApp (D3)
+
+La gerencia pidió el recordatorio por correo **y, si se puede, por WhatsApp**. Lo que quedó:
+
+- **Por correo:** listo y apagado como todo lo demás (arriba). Respeta el interruptor general, la clave de Resend y
+  su propia casilla.
+- **La lista Facturación › Clientes › Abonos por vencer** (Caja, Gerencia y contabilidad): los abonos que vencen en
+  los próximos 5 días y los ya vencidos, del más urgente al menos, con lo que le falta a cada cliente, si ya salió el
+  recordatorio por correo y un botón **WhatsApp** que abre WhatsApp (en el teléfono o en WhatsApp Web) **con el mensaje
+  listo para ese cliente**: lo manda la persona, desde el teléfono de la tienda. Brian: `abonos_por_vencer`.
+- **WhatsApp automático: apagado a propósito.** Hoy WhatsApp va por el puente con código QR (camino no oficial,
+  `docs/JUAN_PUENTE.md`): escribirle **primero** a un cliente, sin que haya escrito, es justo lo que más riesgo de
+  bloqueo del número da (sección 6 y 8 de esa guía). La forma segura es la API oficial de Meta (el plan B ya preparado),
+  que para escribir primero exige **plantillas aprobadas por Meta** (y cobra unos centavos por mensaje) y la
+  verificación del negocio, que sigue pendiente. Cuando Meta esté aprobado, el recordatorio por WhatsApp se agrega con
+  una plantilla («Hola {nombre}, tu abono de la factura {número} vence el {fecha}: te faltan {saldo}») sobre esta misma
+  lista y la misma regla de uno por vencimiento.
 
 ## 7. Si algo falla
 

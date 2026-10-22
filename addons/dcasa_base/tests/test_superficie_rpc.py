@@ -35,6 +35,10 @@ PANEL_GERENCIA = ('API de la pantalla de Juan solo para Gerencia: exige sales_te
 PANEL_VENTAS = ('API de la pantalla de conversaciones: exige sales_team.group_sale_salesman en el servidor '
                 '(_exigir_vendedora) ANTES de leer o escribir con sudo; valida cada argumento.')
 
+COSTO_CERRADO = (OVERRIDE + ' Costo cerrado (models/costos_cerrados.py): solo NIEGA o quita los campos de costo, '
+                            'precio del proveedor y margen a quien no es Gerencia, contabilidad, compras o inventario; '
+                            'sin sudo().')
+
 NOMINA_BOTON = ('Botón de nómina: check_access("write") (grupo «Administra la nómina») ANTES de cualquier sudo(); el '
                 'sudo solo cambia el estado, que nunca se escribe por RPC (write lo exige).')
 NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia (solo con sudo desde sus botones); '
@@ -133,6 +137,24 @@ LISTA_BLANCA = {
     ('dcasa_base', 'product.template', 'action_dcasa_regenerar_codigo_publico'):
         'Botón: exige base.group_system (administrador) y escritura sobre el producto ANTES de cambiar el código; '
         'deja nota en el historial del producto; sin sudo().',
+    **{('dcasa_base', modelo, metodo): COSTO_CERRADO
+       for modelo in ('dcasa.costo.cerrado', 'product.template', 'product.product', 'product.supplierinfo',
+                      'account.invoice.report')
+       for metodo in ('read', 'search_read', 'fields_get')},
+    # D1: descuento mayor al tope con la clave de Gerencia (models/descuento_autorizacion.py).
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_aprobar'):
+        'Botón «Aprobar y aplicar»: exige sales_team.group_sale_manager o administrador en el servidor '
+        '(_dcasa_exigir_gerencia) ANTES de aplicar el descuento con sudo.',
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_rechazar'):
+        'Botón «Rechazar»: exige sales_team.group_sale_manager o administrador en el servidor ANTES del sudo.',
+    ('dcasa_base', 'dcasa.descuento.autorizacion', 'action_ver_cotizacion'): ACCION_VENTANA,
+    ('dcasa_base', 'dcasa.descuento.pedir', 'action_pedir'):
+        ASISTENTE + ' _dcasa_pedir exige que quien pide tenga tope y check_access("write") de la cotización ANTES de '
+                    'crear la solicitud con sudo.',
+    ('dcasa_base', 'dcasa.descuento.pedir', 'action_aplicar'):
+        ASISTENTE + ' _dcasa_usar_clave exige que sea quien pidió, check_access("write") de la cotización, que siga '
+                    'vigente y la huella de la clave de Gerencia ANTES de aplicar con sudo; los intentos se cuentan.',
+    ('dcasa_base', 'sale.order', 'action_dcasa_pedir_descuento'): ACCION_VENTANA,
     ('website_dcasa', 'sale.order', 'action_dcasa_apartar'): SIN_SUDO,
     ('website_dcasa', 'ir.qweb.field.image', 'record_to_html'):
         OVERRIDE + ' Solo agrega srcset/sizes/width/height/loading a la <img>; sin sudo().',
@@ -164,16 +186,42 @@ LISTA_BLANCA = {
     ('dcasa_catalogo', 'sale.order.line', 'unlink'):
         OVERRIDE + ' Antes de quitar una cama, su colchón vuelve a su precio normal; sin sudo().',
     ('dcasa_catalogo', 'product.template', 'create'):
-        OVERRIDE + ' Agrega que los colchones por cama solo los pone Gerencia; sin sudo().',
+        OVERRIDE + ' Agrega que los colchones por cama solo los pone Gerencia y pone el nombre en MAYÚSCULAS (F5); '
+                   'sin sudo().',
     ('dcasa_catalogo', 'product.template', 'write'):
-        OVERRIDE + ' Agrega que cama/colchón y colchones por cama solo los cambia Gerencia; sin sudo().',
+        OVERRIDE + ' Agrega que cama/colchón y colchones por cama solo los cambia Gerencia y pone el nombre en '
+                   'MAYÚSCULAS (F5); sin sudo().',
     ('dcasa_catalogo', 'product.product', 'create'):
         OVERRIDE + ' Agrega que el precio en combo solo lo pone Gerencia; sin sudo().',
     ('dcasa_catalogo', 'product.product', 'write'):
         OVERRIDE + ' Agrega que el precio en combo y la medida solo los cambia Gerencia; sin sudo().',
     ('dcasa_catalogo', 'product.template', 'action_dcasa_precios_combo'): ACCION_VENTANA,
+    # F5: nombres en MAYÚSCULAS y productos repetidos (dcasa_catalogo/models/nombres_productos.py y siguientes).
+    ('dcasa_catalogo', 'dcasa.producto.mayusculas', 'default_get'):
+        OVERRIDE + ' Arma la vista previa; exige Gerencia (product.group_product_manager) o administrador.',
+    ('dcasa_catalogo', 'dcasa.producto.mayusculas', 'action_aplicar'):
+        ASISTENTE + ' (product.group_product_manager). Exige Gerencia o administrador y escribe con los permisos de '
+                    'la persona, sin sudo().',
+    ('dcasa_catalogo', 'dcasa.producto.repetido', 'action_ver'):
+        'Vista SQL de solo lectura (ACL de Gerencia); exige Gerencia o administrador y solo devuelve una acción.',
+    ('dcasa_catalogo', 'dcasa.producto.repetido', 'action_unir'):
+        'Exige Gerencia o administrador; solo abre el asistente de unir (no une nada).',
+    ('dcasa_catalogo', 'dcasa.producto.unir', 'action_cambiar'):
+        ASISTENTE + ' (product.group_product_manager). Solo intercambia los dos productos del asistente.',
+    ('dcasa_catalogo', 'dcasa.producto.unir', 'action_unir'):
+        ASISTENTE + ' (product.group_product_manager). Exige Gerencia o administrador y que no haya nada a medias '
+                    'ANTES de mover existencias (ajustes de inventario de Gerencia) y archivar; el sudo solo busca '
+                    'lo que hay que pasar (precios de proveedor, combos, reglas de tarifa, premios).',
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
+    ('dcasa_abonos', 'account.move', 'action_dcasa_abono_whatsapp'):
+        'Botón «WhatsApp» de Abonos por vencer: check_access("read") de la factura y solo devuelve un enlace wa.me con '
+        'el texto; no escribe nada ni usa sudo().',
+    ('dcasa_contabilidad', 'dcasa.saldos.centavos', 'action_cerrar'):
+        ASISTENTE + ' (account.group_account_user). Además exige Gerencia o contabilidad en el servidor; sin sudo(): '
+                    'crea y cruza el asiento de redondeo con los permisos de la persona.',
+    ('dcasa_contabilidad', 'dcasa.saldos.centavos', 'default_get'):
+        OVERRIDE + ' Arma la vista previa de saldos de centavos; exige Gerencia o contabilidad; sin sudo().',
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_aprobar'): SIN_SUDO,
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_cerrar'): SIN_SUDO,
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_borrador'): SIN_SUDO,

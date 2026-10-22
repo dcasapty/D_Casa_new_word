@@ -21,9 +21,9 @@ class BarrasCommon(TransactionCase):
         # Administra Productos (puede escribir el código de barras) pero no Inventario: tampoco asigna etiquetas.
         cls.solo_productos = new_test_user(
             cls.env, login='barras_productos', groups='stock.group_stock_user,product.group_product_manager')
-        cls.cama = cls.producto('Zzcama de prueba', 'ZZT-CAMA-1', precio=349.99, costo=77.77, unidades=12)
+        cls.cama = cls.producto('ZZCAMA DE PRUEBA', 'ZZT-CAMA-1', precio=349.99, costo=77.77, unidades=12)
         cls.zapatera = cls.producto(
-            'Zzzapatera de prueba', 'ZZT-ZAP-1', barcode='7501234567890', precio=89.5, unidades=0)
+            'ZZZAPATERA DE PRUEBA', 'ZZT-ZAP-1', barcode='7501234567890', precio=89.5, unidades=0)
 
     @classmethod
     def producto(cls, nombre, referencia=False, barcode=False, precio=10.0, costo=1.0, unidades=0, **extra):

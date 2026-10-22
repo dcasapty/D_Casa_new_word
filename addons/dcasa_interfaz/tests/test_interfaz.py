@@ -250,8 +250,8 @@ class TestOrdenarProductosEnElNavegador(HttpCase):
         cls.ubicacion = cls.env['stock.warehouse'].search([], limit=1).lot_stock_id
         base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'categ_id': categoria.id}
         # nombre, precio, stock
-        for nombre, precio, stock in (('Zzorden A', 300.0, 50), ('Zzorden B', 900.0, 20), ('Zzorden C', 100.0, 5),
-                                      ('Zzorden D', 500.0, 0)):
+        for nombre, precio, stock in (('ZZORDEN A', 300.0, 50), ('ZZORDEN B', 900.0, 20), ('ZZORDEN C', 100.0, 5),
+                                      ('ZZORDEN D', 500.0, 0)):
             producto = cls.env['product.template'].create({**base, 'name': nombre, 'list_price': precio})
             if stock:
                 cls.env['stock.quant']._update_available_quantity(producto.product_variant_id, cls.ubicacion, stock)
@@ -289,7 +289,7 @@ class TestOrdenarProductosEnElNavegador(HttpCase):
             // La primera sugerencia es «Buscar Nombre o código: Zzorden».
             (await esperar(() => document.querySelector('.o_searchview_autocomplete .dropdown-item'),
                            'las sugerencias del buscador')).click();
-            await esperar(() => nombres().length === 4 && nombres().every((n) => n.startsWith('Zzorden')),
+            await esperar(() => nombres().length === 4 && nombres().every((n) => n.startsWith('ZZORDEN')),
                           'las 4 de la prueba');
             __CUERPO__
             console.log('test successful');
@@ -304,32 +304,32 @@ class TestOrdenarProductosEnElNavegador(HttpCase):
                 fila.querySelector('td[name="name"]').textContent.trim(),
                 (fila.querySelector('td[name="dcasa_stock"]') || {}).textContent]));
             const stock = cifras();
-            igual([stock['Zzorden A'], stock['Zzorden B'], stock['Zzorden C']].map((x) => (x || '').trim()),
+            igual([stock['ZZORDEN A'], stock['ZZORDEN B'], stock['ZZORDEN C']].map((x) => (x || '').trim()),
                   ['50', '20', '5'], 'las cifras de la columna Stock');
 
             await pulsar('stock_desc');
-            igual(nombres(), ['Zzorden A', 'Zzorden B', 'Zzorden C', 'Zzorden D'], 'mayor stock primero');
+            igual(nombres(), ['ZZORDEN A', 'ZZORDEN B', 'ZZORDEN C', 'ZZORDEN D'], 'mayor stock primero');
             if (!orden('stock_desc').classList.contains('o_activo')) {
                 throw new Error('Mayor stock debe verse activo');
             }
 
             await pulsar('stock_asc');
-            igual(nombres(), ['Zzorden D', 'Zzorden C', 'Zzorden B', 'Zzorden A'], 'menor stock primero');
+            igual(nombres(), ['ZZORDEN D', 'ZZORDEN C', 'ZZORDEN B', 'ZZORDEN A'], 'menor stock primero');
             if (orden('stock_desc').classList.contains('o_activo')) { throw new Error('solo un orden a la vez'); }
 
             // El filtro «Disponibles» se suma al orden (no lo quita): el agotado sale y el menor stock queda primero.
             (await esperar(() => [...document.querySelectorAll('.o_dcasa_chip')]
                 .find((b) => b.textContent.trim() === 'Disponibles'), 'el filtro Disponibles')).click();
             await esperar(() => nombres().length === 3, 'sin el agotado');
-            igual(nombres(), ['Zzorden C', 'Zzorden B', 'Zzorden A'], 'menor stock con unidades');
+            igual(nombres(), ['ZZORDEN C', 'ZZORDEN B', 'ZZORDEN A'], 'menor stock con unidades');
             if (!orden('stock_asc').classList.contains('o_activo')) {
                 throw new Error('el orden se mantiene al filtrar');
             }
 
             await pulsar('precio_desc');
-            igual(nombres(), ['Zzorden B', 'Zzorden A', 'Zzorden C'], 'mayor precio primero');
+            igual(nombres(), ['ZZORDEN B', 'ZZORDEN A', 'ZZORDEN C'], 'mayor precio primero');
             await pulsar('precio_asc');
-            igual(nombres(), ['Zzorden C', 'Zzorden A', 'Zzorden B'], 'menor precio primero');
+            igual(nombres(), ['ZZORDEN C', 'ZZORDEN A', 'ZZORDEN B'], 'menor precio primero');
 
             // Otro clic en el mismo botón lo quita: vuelve al orden de siempre.
             await pulsar('precio_asc');

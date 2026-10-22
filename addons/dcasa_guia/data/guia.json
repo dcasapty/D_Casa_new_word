@@ -163,6 +163,68 @@
    ]
   },
   {
+   "id": "descuento-con-clave",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Dar un descuento mayor a tu tope, con la clave de Gerencia",
+   "logras": "Desde la cotización le pides el descuento a Gerencia; le llega una clave por Telegram, tú la escribes y el descuento se aplica solo. La clave vale una sola vez, solo para esa cotización y ese monto, y vence a los pocos minutos.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la cotización (todavía sin confirmar).",
+     "destino": {
+      "menu": "sale.menu_sale_quotations"
+     }
+    },
+    {
+     "texto": "Debajo de los productos toca «Pedir descuento a Gerencia».",
+     "destino": null
+    },
+    {
+     "texto": "Escribe cuánto (un % sobre el total o un importe fijo) y por qué, y toca «Pedir la clave a Gerencia». Ves cuánto quedaría el total.",
+     "destino": null
+    },
+    {
+     "texto": "Cuando Gerencia te dé la clave de 6 números, escríbela y toca «Aplicar el descuento».",
+     "destino": null
+    }
+   ],
+   "nota": "Si Telegram no está conectado, la pantalla te lo dice: pídele a Gerencia que lo apruebe en persona desde su usuario. Hasta tu tope lo pones tú, con el botón «Descuento».",
+   "palabras": [
+    "descuento",
+    "clave",
+    "autorizar descuento",
+    "rebaja",
+    "tope de descuento",
+    "descuento mayor",
+    "codigo de gerencia"
+   ]
+  },
+  {
+   "id": "descuentos-por-autorizar",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Aprobar o rechazar los descuentos que piden las vendedoras",
+   "logras": "Ves quién pidió más descuento que su tope, en qué cotización, cuánto y por qué; lo apruebas (se aplica solo) o lo rechazas. También queda el historial de quién autorizó cada uno.",
+   "destino": {
+    "menu": "dcasa_base.menu_dcasa_descuentos_por_autorizar"
+   },
+   "nota": "La clave que te llega por Telegram es solo tuya: si estás de acuerdo, dásela a quien la pidió. Los minutos que vale se cambian en Ajustes de Ventas.",
+   "palabras": [
+    "autorizar descuento",
+    "aprobar descuento",
+    "clave de descuento",
+    "descuentos pedidos",
+    "telegram"
+   ],
+   "grupos": [
+    "sales_team.group_sale_manager",
+    "base.group_system"
+   ]
+  },
+  {
    "id": "ventas-hoy",
    "categoria": "vender",
    "grupo": "Hoy",
@@ -310,6 +372,28 @@
     "account.group_account_user",
     "account.group_account_manager",
     "base.group_system"
+   ]
+  },
+  {
+   "id": "abonos-por-vencer",
+   "categoria": "vender",
+   "grupo": "Cobrar",
+   "titulo": "Ver los abonos que vencen pronto y recordárselos al cliente",
+   "logras": "Ves las facturas en abono que vencen en los próximos días o que ya vencieron, con lo que le falta a cada cliente, y le escribes por WhatsApp desde tu teléfono con el recordatorio listo.",
+   "destino": {
+    "menu": "dcasa_abonos.menu_dcasa_abonos_por_vencer"
+   },
+   "nota": "Con el correo encendido, al cliente también le llega un correo unos días antes de que venza (uno solo por abono). El WhatsApp lo mandas tú: el sistema no le escribe solo por WhatsApp.",
+   "palabras": [
+    "abonos por vencer",
+    "vence el abono",
+    "recordar abono",
+    "cobranza",
+    "abono vencido",
+    "le falta pagar"
+   ],
+   "tambien": [
+    "clientes"
    ]
   },
   {
@@ -1458,6 +1542,40 @@
    ]
   },
   {
+   "id": "productos-repetidos",
+   "categoria": "productos",
+   "grupo": "Productos",
+   "titulo": "Unir productos que están repetidos",
+   "logras": "Ves los productos que parecen el mismo (mismo código, código de barras o nombre), eliges cuál ficha queda y lo de la otra pasa a ella: existencias, precios de proveedor, fotos y códigos. La otra se archiva con su historia.",
+   "destino": {
+    "menu": "dcasa_catalogo.menu_dcasa_productos_repetidos"
+   },
+   "nota": "Antes de unir, la pantalla te dice exactamente qué va a pasar. Si hay algo a medias (una cotización, una compra o una entrega sin terminar), primero hay que terminarlo.",
+   "palabras": [
+    "producto repetido",
+    "productos duplicados",
+    "unir productos",
+    "mismo codigo",
+    "fusionar productos"
+   ]
+  },
+  {
+   "id": "nombres-mayusculas",
+   "categoria": "productos",
+   "grupo": "Productos",
+   "titulo": "Poner en MAYÚSCULAS los nombres de los productos",
+   "logras": "Ves cómo quedarán los nombres que todavía no están en mayúsculas y los cambias todos con un botón. Los productos nuevos ya se guardan en mayúsculas solos.",
+   "destino": {
+    "menu": "dcasa_catalogo.menu_dcasa_producto_mayusculas"
+   },
+   "palabras": [
+    "mayusculas",
+    "nombres de productos",
+    "ordenar nombres",
+    "nombre en mayuscula"
+   ]
+  },
+  {
    "id": "marketing",
    "categoria": "productos",
    "grupo": "Catálogo",
@@ -2598,18 +2716,19 @@
    "categoria": "administrar",
    "grupo": "Correo a clientes",
    "titulo": "Encender o apagar los correos a clientes",
-   "logras": "Ves si el correo está listo, mandas un correo de prueba a tu propio correo y enciendes o apagas lo que les llega a los clientes: la factura al registrar un pago y la bienvenida a los clientes nuevos.",
+   "logras": "Ves si el correo está listo, mandas un correo de prueba a tu propio correo y enciendes o apagas lo que les llega a los clientes: la factura al registrar un pago, el recordatorio de un abono antes de que venza y la bienvenida a los clientes nuevos.",
    "nota": "Viene apagado. La clave de Resend no se pega aquí: el paso a paso está en la guía del correo (docs/CORREO.md).",
    "destino": {
     "menu": "dcasa_correo.menu_dcasa_correo_ajustes"
    },
    "palabras": [
+    "bienvenida",
     "correo",
-    "email",
-    "resend",
     "correo de prueba",
+    "email",
     "factura por correo",
-    "bienvenida"
+    "recordatorio de abono",
+    "resend"
    ]
   },
   {
@@ -2617,7 +2736,7 @@
    "categoria": "administrar",
    "grupo": "Correo a clientes",
    "titulo": "Ver qué correos les llegaron a los clientes",
-   "logras": "La lista de facturas, abonos, bienvenidas y cotizaciones que salieron por correo, y las que no salieron con el motivo (por ejemplo, que al cliente le falta el correo).",
+   "logras": "La lista de facturas, abonos, recordatorios de abono, bienvenidas y cotizaciones que salieron por correo, y las que no salieron con el motivo (por ejemplo, que al cliente le falta el correo).",
    "destino": {
     "menu": "dcasa_correo.menu_dcasa_correo_envios"
    },
@@ -2643,6 +2762,30 @@
     "factura por correo",
     "mandar factura",
     "email factura"
+   ]
+  },
+  {
+   "id": "saldos-centavos",
+   "categoria": "facturar",
+   "grupo": "Facturas de clientes",
+   "titulo": "Cerrar las facturas que quedaron debiendo un centavo",
+   "logras": "Ves las facturas y cobros que quedaron abiertos por 1 a 5 centavos de redondeo y los cierras todos con su ajuste contable. Cada factura queda con una nota.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_saldos_centavos"
+   },
+   "nota": "Más de 5 centavos no es redondeo y no sale aquí: eso se revisa con el cliente.",
+   "palabras": [
+    "centavo",
+    "un centavo",
+    "redondeo",
+    "saldo pequeño",
+    "diferencia de centavos"
+   ],
+   "grupos": [
+    "dcasa_base.group_gerencia",
+    "account.group_account_user",
+    "account.group_account_manager",
+    "base.group_system"
    ]
   },
   {

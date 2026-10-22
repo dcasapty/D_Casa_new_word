@@ -63,6 +63,7 @@
                 <filter name="tipo_factura" string="Facturas y abonos" domain="[('tipo', 'in', ('factura', 'abono'))]"/>
                 <filter name="tipo_bienvenida" string="Bienvenidas" domain="[('tipo', '=', 'bienvenida')]"/>
                 <filter name="tipo_cotizacion" string="Cotizaciones" domain="[('tipo', '=', 'cotizacion')]"/>
+                <filter name="tipo_recordatorio" string="Recordatorios de abono" domain="[('tipo', '=', 'recordatorio')]"/>
                 <group>
                     <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
                     <filter name="por_tipo" string="Tipo" context="{'group_by': 'tipo'}"/>

@@ -156,7 +156,7 @@ class TestCotizarLigaYAvanza(CrmCase):
         self.assertEqual(orden.opportunity_id, lead)
         self.assertEqual(self.conv.oportunidad_id, lead)
         self.assertEqual(lead.type, 'opportunity')
-        self.assertIn('Zzsofa Gris', lead.name)
+        self.assertIn('ZZSOFA GRIS', lead.name)
         self.assertEqual(lead.stage_id, self.etapa(ETAPA_COTIZADA), 'enviada → «Propuesta»')
         self.assertTrue(any('automático' in nota and orden.name in nota for nota in self.nombres_de_notas(lead)))
 

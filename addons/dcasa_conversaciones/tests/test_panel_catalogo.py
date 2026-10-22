@@ -58,18 +58,18 @@ class CatalogoCase(PanelCase):
         base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'is_published': True,
                 'taxes_id': [Command.set(impuesto.ids)], 'public_categ_ids': [Command.set(cls.categoria.ids)]}
         cls.cama = Template.create({
-            **base, 'name': 'Zzcama Roble Queen', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
+            **base, 'name': 'ZZCAMA ROBLE QUEEN', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
             'standard_price': 123.45, 'dcasa_medidas': 'Ancho × Largo: 160 × 200 cm', 'image_1920': foto(),
             'product_template_image_ids': [
                 Command.create({'name': 'Lado', 'image_1920': foto((200, 30, 30))}),
                 Command.create({'name': 'Detalle', 'image_1920': foto((30, 200, 30))})]})
-        cls.sofa = Template.create({**base, 'name': 'Zzsofa Gris', 'default_code': 'ZZ-SOFA', 'list_price': 800.0})
-        cls.secreto = Template.create({**base, 'name': 'Zzsecreto Borrador', 'default_code': 'ZZ-SECRETO',
+        cls.sofa = Template.create({**base, 'name': 'ZZSOFA GRIS', 'default_code': 'ZZ-SOFA', 'list_price': 800.0})
+        cls.secreto = Template.create({**base, 'name': 'ZZSECRETO BORRADOR', 'default_code': 'ZZ-SECRETO',
                                        'list_price': 10.0, 'is_published': False, 'image_1920': foto()})
         tamano = cls.env['product.attribute'].create({'name': 'Zztamaño', 'create_variant': 'always', 'value_ids': [
             Command.create({'name': 'Zzqueen'}), Command.create({'name': 'Zzking'})]})
         cls.colchon = Template.create({
-            **base, 'name': 'Zzcolchón First Class', 'list_price': 400.0, 'default_code': 'ZZ-COL',
+            **base, 'name': 'ZZCOLCHÓN FIRST CLASS', 'list_price': 400.0, 'default_code': 'ZZ-COL',
             'attribute_line_ids': [Command.create({'attribute_id': tamano.id,
                                                    'value_ids': [Command.set(tamano.value_ids.ids)]})]})
         almacen = cls.env['stock.warehouse'].search([], limit=1)
@@ -92,10 +92,10 @@ class TestBuscarCatalogo(CatalogoCase):
         return [p['nombre'] for p in resultado['productos']]
 
     def test_busca_por_nombre_y_por_codigo_solo_entre_los_publicados(self):
-        self.assertEqual(self.nombres(self.panel.buscar_catalogo('zzcama queen')), ['Zzcama Roble Queen'])
-        self.assertEqual(self.nombres(self.panel.buscar_catalogo('ZZ-SOFA')), ['Zzsofa Gris'])
+        self.assertEqual(self.nombres(self.panel.buscar_catalogo('zzcama queen')), ['ZZCAMA ROBLE QUEEN'])
+        self.assertEqual(self.nombres(self.panel.buscar_catalogo('ZZ-SOFA')), ['ZZSOFA GRIS'])
         todo = self.panel.buscar_catalogo('zz')
-        self.assertNotIn('Zzsecreto Borrador', self.nombres(todo), 'Un producto sin publicar no existe')
+        self.assertNotIn('ZZSECRETO BORRADOR', self.nombres(todo), 'Un producto sin publicar no existe')
         self.assertEqual(todo['encontrados'], 3)
         self.assertEqual(self.panel.buscar_catalogo('ZZ-SECRETO')['encontrados'], 0)
 
@@ -133,7 +133,7 @@ class TestBuscarCatalogo(CatalogoCase):
         (colchon,) = self.panel.buscar_catalogo('ZZ-COL')['productos']
         self.assertIsNone(colchon['variante_id'])
         self.assertEqual(sorted(v['nombre'] for v in colchon['variantes']),
-                         ['Zzcolchón First Class (Zzking)', 'Zzcolchón First Class (Zzqueen)'])
+                         ['ZZCOLCHÓN FIRST CLASS (Zzking)', 'ZZCOLCHÓN FIRST CLASS (Zzqueen)'])
         (cama,) = self.panel.buscar_catalogo('ZZ-CAMA')['productos']
         self.assertEqual((cama['variante_id'], cama['variantes']), (self.cama.product_variant_id.id, []))
 
@@ -158,7 +158,7 @@ class TestFotosYEnvio(CatalogoCase):
 
     def test_las_fotos_de_un_producto(self):
         resultado = self.panel.fotos_catalogo(self.cama.id)
-        self.assertEqual(resultado['producto']['nombre'], 'Zzcama Roble Queen')
+        self.assertEqual(resultado['producto']['nombre'], 'ZZCAMA ROBLE QUEEN')
         refs = [f['ref'] for f in resultado['fotos']]
         self.assertEqual(refs[0], 'principal')
         self.assertEqual(len(refs), 3)
@@ -179,7 +179,7 @@ class TestFotosYEnvio(CatalogoCase):
         (envio,) = self.envios()
         cuerpo = envio.kwargs['json']
         lineas = cuerpo['texto'].split('\n')
-        self.assertEqual(lineas[0], 'Zzcama Roble Queen')
+        self.assertEqual(lineas[0], 'ZZCAMA ROBLE QUEEN')
         self.assertEqual(lineas[1], '$349.99 + ITBMS')
         self.assertEqual(lineas[2], 'Medidas: Ancho × Largo: 160 × 200 cm')
         self.assertTrue(lineas[3].endswith(self.cama.website_url))
@@ -217,7 +217,7 @@ class TestFotosYEnvio(CatalogoCase):
 
     def test_preparar_deja_las_fotos_en_la_caja_sin_enviar_nada(self):
         preparado = self.panel.preparar_foto_catalogo(self.conv.id, self.cama.id)
-        self.assertTrue(preparado['texto'].startswith('Zzcama Roble Queen\n$349.99 + ITBMS'))
+        self.assertTrue(preparado['texto'].startswith('ZZCAMA ROBLE QUEEN\n$349.99 + ITBMS'))
         (adjunto,) = preparado['adjuntos']
         self.assertEqual(adjunto['tipo'], 'imagen')
         self.assertFalse(self.envios())
@@ -272,7 +272,7 @@ class TestCotizacion(CatalogoCase):
         self.assertEqual([c['id'] for c in resultado['cotizaciones']], [nueva.id, vieja.id])
         primera = resultado['cotizaciones'][0]
         self.assertEqual((primera['estado'], primera['estado_nombre']), ('draft', 'Borrador'))
-        self.assertEqual(primera['lineas'][0]['producto'], 'Zzcama Roble Queen')
+        self.assertEqual(primera['lineas'][0]['producto'], 'ZZCAMA ROBLE QUEEN')
         self.assertEqual(primera['lineas'][0]['cantidad'], 1)
         self.assertAlmostEqual(primera['subtotal'], 349.99)
         self.assertAlmostEqual(primera['total'], 349.99 * 1.07, places=2)
@@ -289,7 +289,7 @@ class TestCotizacion(CatalogoCase):
         orden = self.env['sale.order'].browse(resultado['cotizacion']['id'])
         self.assertEqual((orden.state, orden.partner_id, orden.user_id), ('draft', self.partner, self.vendedora))
         self.assertEqual(sorted((linea.product_id.name, linea.product_uom_qty) for linea in orden.order_line),
-                         [('Zzcama Roble Queen', 2.0), ('Zzsofa Gris', 1.0)])
+                         [('ZZCAMA ROBLE QUEEN', 2.0), ('ZZSOFA GRIS', 1.0)])
         self.assertAlmostEqual(orden.amount_untaxed, 2 * 349.99 + 800.0)
         self.assertEqual(resultado['cotizacion']['estado'], 'draft')
         self.assertIn('Sin confirmar', orden.message_ids[0].body)

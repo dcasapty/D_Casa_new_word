@@ -388,3 +388,32 @@ Pendiente: la lectura por QR de la nota (la dueña la quiere más adelante) y, s
 Los productos del catálogo no traen código de barras (los muebles de proveedor casi nunca lo tienen). Se asignan con las
 etiquetas numeradas de un rollo, desde Inventario › Escáner › Asignar; el Escáner también encuentra un producto por su
 referencia interna. Todo está en [BARRAS.md](BARRAS.md).
+
+## Nombres en MAYÚSCULAS y productos repetidos (F5, 2026-10-22)
+
+Decisión de la gerencia (F5): **nombres de productos en MAYÚSCULAS** y **unificar los repetidos**. Nada se cambia a
+escondidas:
+
+* **Lo nuevo** (`dcasa_catalogo/models/nombres_productos.py`): el nombre de un producto se guarda en mayúsculas al
+  crearlo o cambiarlo, venga de donde venga (la ficha, la importación del Excel con Brian, el catálogo, la creación
+  rápida en una línea). Solo cambian las letras (con sus tildes: «Sofá» → «SOFÁ») y se juntan los espacios repetidos.
+* **Lo que ya estaba:** **Ventas › Productos › Nombres en MAYÚSCULAS** (Gerencia) muestra «así quedarán estos N
+  nombres» (antes → después) y un botón los cambia, en cada idioma guardado y solo si siguen como se vieron.
+* **Repetidos** (`productos_repetidos.py`): **Ventas › Productos › Productos repetidos** lista los productos de fichas
+  distintas con el **mismo código** (sin importar mayúsculas, guiones ni espacios), el **mismo código de barras** (o el
+  código de barras de uno es la referencia del otro) o el **mismo nombre** (sin mayúsculas, tildes ni signos).
+* **Unir** (`unir_productos.py`): desde la fila, «Unir…»: eliges cuál queda y cuál se archiva y la pantalla dice antes qué
+  va a pasar. No deja unir si hay algo a medias con la que se archiva (entrega o recepción sin terminar, cotización o
+  compra abierta), si las dos tienen tamaños o colores (se une una ficha de un solo producto a una medida de otra), con
+  lote o serie, unidades distintas o el producto del descuento. Al unir: las **existencias** pasan con un ajuste de
+  inventario por cada lado, como Gerencia y con su motivo («Unificación de productos repetidos: A → B»); los **precios de proveedor**, las **piezas de combo**, las
+  **reglas de tarifa** y los **premios de Socios** pasan a la que queda; las **fotos** se suman (sin repetir); el
+  **código de barras** y la **referencia** pasan si la que queda no los tiene. Las **ventas, facturas y movimientos
+  viejos no se reescriben**: siguen en la ficha archivada (la que queda la lista en la pestaña «Fichas unidas»). Las dos
+  quedan con una nota de quién unió qué.
+* **Lo que no cambia:** buscar no distingue mayúsculas (el sitio, Juan, Brian y el Escáner encuentran igual). Los
+  importadores (inventario anterior, precios del sistema anterior) buscan el nombre sin importar mayúsculas. El sitio
+  muestra el nombre como está guardado; si la marca pidiera otro formato en la tienda, se cambia ahí sin tocar los
+  datos. Meta ya pasa a tipo oración los títulos en mayúsculas (`reglas_meta._tipo_oracion`).
+* **Brian:** `productos_repetidos`, `nombres_por_pasar_a_mayusculas`, `pasar_nombres_a_mayusculas` (pide permiso) y
+  `unir_productos` (pide permiso). Pruebas: `dcasa_catalogo/tests/test_productos_limpios.py`.

@@ -6,10 +6,10 @@ def _dcasa_correo_post_init(env):
     guarda desde cuándo un cliente cuenta como nuevo para la bienvenida (los de antes no la reciben nunca)."""
     from odoo import fields
 
-    from .models.correo import P_AL_PAGAR, P_BIENVENIDA, P_BIENVENIDA_DESDE
+    from .models.correo import P_AL_PAGAR, P_BIENVENIDA, P_BIENVENIDA_DESDE, P_RECORDATORIO
 
     ICP = env['ir.config_parameter'].sudo()
-    for clave in (P_AL_PAGAR, P_BIENVENIDA):
+    for clave in (P_AL_PAGAR, P_BIENVENIDA, P_RECORDATORIO):
         if not ICP.get_param(clave):   # sin guardar (Odoo devuelve False)
             ICP.set_param(clave, 'True')
     if not ICP.get_param(P_BIENVENIDA_DESDE):

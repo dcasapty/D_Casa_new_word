@@ -22,7 +22,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
         super().setUp()
         self.website = self.env.ref('website.default_website')
         self.producto = self.env['product.template'].create({
-            'name': 'Cama de prueba del código', 'list_price': 120.0, 'is_published': True, 'sale_ok': True,
+            'name': 'CAMA DE PRUEBA DEL CÓDIGO', 'list_price': 120.0, 'is_published': True, 'sale_ok': True,
             'default_code': REFERENCIA, 'image_1920': foto(600, 600), 'website_sequence': -100000,
             'public_categ_ids': [(6, 0, self.env.ref('website_dcasa.public_category_recamaras').ids)],
         })
@@ -50,7 +50,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
     def test_el_mensaje_de_whatsapp_lleva_el_codigo_publico(self):
         enlace = self.website._dcasa_whatsapp_producto(self.producto)
         texto = unquote(enlace.split('text=', 1)[1])
-        self.assertEqual(texto, f"Hola D'CASA, me interesa: Cama de prueba del código (código {self.codigo})")
+        self.assertEqual(texto, f"Hola D'CASA, me interesa: CAMA DE PRUEBA DEL CÓDIGO (código {self.codigo})")
         self.assertNotIn(REFERENCIA, enlace)
         # También la variante (la ficha puede pasar una u otra).
         self.assertIn(self.codigo, unquote(self.website._dcasa_whatsapp_producto(self.producto.product_variant_id)))
@@ -71,7 +71,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
             html = self.url_open(ruta).text
             self._sin_referencia(html, f'las fotos de {ruta}')
         html = self.url_open('/shop').text
-        self.assertRegex(html, r'/web/image/product\.(?:template|product)/\d+/image_\d+/Cama%20de%20prueba')
+        self.assertRegex(html, r'/web/image/product\.(?:template|product)/\d+/image_\d+/CAMA%20DE%20PRUEBA')
 
     def test_carrito_y_pedido_sin_la_referencia(self):
         self.authenticate(None, None)
@@ -82,7 +82,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
         self.assertTrue(respuesta.headers['Location'].endswith('/shop/cart'))
         for ruta in ('/shop/cart', '/shop/address'):
             pagina = self.url_open(ruta).text
-            self.assertIn('Cama de prueba del código', pagina, ruta)
+            self.assertIn('CAMA DE PRUEBA DEL CÓDIGO', pagina, ruta)
             self._sin_referencia(pagina, ruta)
 
     def test_el_mapa_del_sitio_no_lleva_la_referencia(self):
@@ -94,7 +94,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
     def test_buscar_el_codigo_en_la_tienda(self):
         html = self.url_open('/shop', params={'search': self.codigo}).text
         self.assertIn(self.producto.website_url, html)
-        otro = self.env['product.template'].create({'name': 'Mesa que no es', 'list_price': 10.0, 'is_published': True})
+        otro = self.env['product.template'].create({'name': 'MESA QUE NO ES', 'list_price': 10.0, 'is_published': True})
         self.assertNotIn(otro.website_url, html)
 
     def test_el_qr_abre_la_ficha(self):
@@ -110,7 +110,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
         """Sin publicar, regenerado, inventado o raro: la misma respuesta, sin decir cuál es."""
         regenerado = self.codigo
         self.producto.with_user(self.env.ref('base.user_admin')).action_dcasa_regenerar_codigo_publico()
-        sin_publicar = self.env['product.template'].create({'name': 'Mesa sin publicar', 'list_price': 10.0})
+        sin_publicar = self.env['product.template'].create({'name': 'MESA SIN PUBLICAR', 'list_price': 10.0})
         for escrito in (regenerado, sin_publicar.dcasa_codigo_publico, 'DC-BCDFGH', 'DC-ABC', 'x', '<script>', '%25'):
             respuesta = self.url_open(f'/codigo/{escrito}', allow_redirects=False)
             self.assertEqual(respuesta.status_code, 302, escrito)

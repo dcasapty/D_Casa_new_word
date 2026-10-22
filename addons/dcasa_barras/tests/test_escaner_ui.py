@@ -28,7 +28,7 @@ CODIGO = """
     escribir(campo, "ZZT-CAMA-1");
     campo.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     const nombre = await esperar(() => document.querySelector(".o_dcasa_ficha_nombre"), "la tarjeta del producto");
-    if (!nombre.textContent.includes("Zzcama de prueba")) { falla("producto equivocado " + nombre.textContent); }
+    if (!nombre.textContent.includes("ZZCAMA DE PRUEBA")) { falla("producto equivocado " + nombre.textContent); }
     const precio = document.querySelector(".o_dcasa_ficha_precio").textContent;
     if (!precio.includes("$349.99 + ITBMS")) { falla("precio " + precio); }
     if (document.querySelector(".o_dcasa_total_cifra").textContent.trim() !== "12") { falla("existencias"); }
@@ -106,10 +106,10 @@ CODIGO_PARECIDO = """
     enter();
     escribir(campo, "ZZT-ZAP-1");
     enter();
-    await esperar(() => (document.querySelector(".o_dcasa_ficha_nombre") || {}).textContent?.includes("Zzzapatera"),
+    await esperar(() => (document.querySelector(".o_dcasa_ficha_nombre") || {}).textContent?.includes("ZZZAPATERA"),
                   "la tarjeta del último escaneo");
     await espera(800);
-    if (!document.querySelector(".o_dcasa_ficha_nombre").textContent.includes("Zzzapatera")) {
+    if (!document.querySelector(".o_dcasa_ficha_nombre").textContent.includes("ZZZAPATERA")) {
         falla("la respuesta del primer escaneo pisó la del último");
     }
 
@@ -218,7 +218,7 @@ CODIGO_ASIGNAR = """
     await codigoEnPantalla("DC9500", "volver a la primera etiqueta");
 
     // Producto elegido: el foco queda en el cuadro del lector (un escaneo no confirma nada).
-    const confirmar = await elegir("Zzmesa A", "zzmesa a");
+    const confirmar = await elegir("ZZMESA A", "zzmesa a");
     if (!confirmar.textContent.includes("DC9500")) {
         falla("la confirmación debe decir la etiqueta: " + confirmar.textContent);
     }
@@ -235,7 +235,7 @@ CODIGO_ASIGNAR = """
     escribir(campo, "DC9500");
     enter(campo);
     await codigoEnPantalla("DC9500", "la etiqueta otra vez");
-    await elegir("Zzmesa A", "zzmesa a");
+    await elegir("ZZMESA A", "zzmesa a");
     await espera(150);
     enter(campo);
     const ok = await esperar(() => document.querySelector(".o_dcasa_msg_ok"), "el aviso de etiqueta asignada");
@@ -249,15 +249,15 @@ CODIGO_ASIGNAR = """
     enter(campo);
     const dueno = await esperar(
         () => document.querySelector(".o_dcasa_ficha_dueno"), "el producto dueño de la etiqueta");
-    if (!dueno.textContent.includes("Zzmesa A")) { falla("dueño " + dueno.textContent); }
+    if (!dueno.textContent.includes("ZZMESA A")) { falla("dueño " + dueno.textContent); }
     if (!document.querySelector(".o_dcasa_etiqueta_cabecera").textContent.includes("Ya asignada")) { falla("estado"); }
     boton("Pasarla a otro producto").click();
-    const confirmar2 = await elegir("Zzmesa B", "zzmesa b");
-    if (!confirmar2.textContent.includes("Zzmesa A") || !confirmar2.textContent.includes("sin etiqueta")) {
+    const confirmar2 = await elegir("ZZMESA B", "zzmesa b");
+    if (!confirmar2.textContent.includes("ZZMESA A") || !confirmar2.textContent.includes("sin etiqueta")) {
         falla("debe avisar que el anterior se queda sin etiqueta: " + confirmar2.textContent);
     }
 
-    // Mientras la persona mira la confirmación, otra persona pasa la etiqueta a «Zzmesa C»: el clic no se la quita.
+    // Mientras la persona mira la confirmación, otra persona pasa la etiqueta a «ZZMESA C»: el clic no se la quita.
     const antes = await llamar("dcasa.barras", "etiqueta", ["DC9500"]);
     const c = (await llamar("dcasa.barras", "buscar_por_nombre", ["zzmesa c"]))[0];
     await llamar("dcasa.barras", "asignar_etiqueta",
@@ -265,10 +265,10 @@ CODIGO_ASIGNAR = """
     boton("Asignar etiqueta").click();
     const aviso = await esperar(() => document.querySelector(".o_dcasa_asignar_confirmar .o_dcasa_parecido"),
                                 "la pregunta de que la etiqueta cambió");
-    if (!aviso.textContent.includes("Zzmesa C")) { falla("debe decir quién la tiene ahora: " + aviso.textContent); }
+    if (!aviso.textContent.includes("ZZMESA C")) { falla("debe decir quién la tiene ahora: " + aviso.textContent); }
     if (document.querySelector(".o_dcasa_msg_ok")) { falla("no debió asignar sin que la persona viera el cambio"); }
     boton("Sí, asignarla").click();
-    await esperar(() => (document.querySelector(".o_dcasa_msg_ok") || {}).textContent?.includes("Zzmesa C"),
+    await esperar(() => (document.querySelector(".o_dcasa_msg_ok") || {}).textContent?.includes("ZZMESA C"),
                   "el aviso de etiqueta pasada");
 
     // Quitar la etiqueta: pide confirmar en un cuadro y deja el número retirado.
@@ -496,9 +496,9 @@ class TestEscanerEnElNavegador(HttpCase, BarrasCommon):
                         login='admin', timeout=120)
 
     def test_asignar_etiqueta_pasarla_quitarla_y_el_aviso_de_retirada(self):
-        a = self.producto('Zzmesa A de etiqueta', 'ZZT-ETQ-A', precio=50)
-        b = self.producto('Zzmesa B de etiqueta', 'ZZT-ETQ-B', precio=60)
-        c = self.producto('Zzmesa C de etiqueta', 'ZZT-ETQ-C', precio=70)
+        a = self.producto('ZZMESA A de etiqueta', 'ZZT-ETQ-A', precio=50)
+        b = self.producto('ZZMESA B de etiqueta', 'ZZT-ETQ-B', precio=60)
+        c = self.producto('ZZMESA C de etiqueta', 'ZZT-ETQ-C', precio=70)
         self.browser_js('/odoo/action-dcasa_barras.accion_escaner', CODIGO_ASIGNAR, ready='odoo.isReady',
                         login='admin', timeout=240)
         for producto in (a, b, c):

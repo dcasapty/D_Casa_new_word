@@ -25,6 +25,10 @@
                                  help="En cuanto se registra un pago, al cliente le llega su factura en PDF. Si queda saldo, el correo dice cuánto pagó, cuánto le falta y hasta cuándo.">
                             <field name="dcasa_correo_al_pagar"/>
                         </setting>
+                        <setting id="dcasa_correo_recordatorio"
+                                 help="Unos días antes de que venza un abono (5 de fábrica), al cliente le llega un correo con lo que le falta y la fecha. Una sola vez por abono y vencimiento. La lista para revisarlos está en Facturación › Clientes › Abonos por vencer.">
+                            <field name="dcasa_correo_recordatorio"/>
+                        </setting>
                         <setting id="dcasa_correo_bienvenida"
                                  help="Una sola vez, con su primer pago: cómo entrar a Mi cuenta, ver lo que le falta de un abono y sus puntos. Solo a clientes nuevos; a los de antes no se les manda nunca.">
                             <field name="dcasa_correo_bienvenida"/>

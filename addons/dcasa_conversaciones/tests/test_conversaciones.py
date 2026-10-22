@@ -75,6 +75,26 @@ class TestFichaDelCliente(JuanCase):
         self.registrar(canal='telegram', id_externo='889', celular='6555-0808')
         self.assertEqual(otra.partner_id, dueno)
 
+    def test_la_ficha_provisional_vacia_se_archiva_al_encontrar_la_de_siempre(self):
+        """Buscar antes de crear (etapa 3): la ficha que Juan creó para Telegram no se queda repetida."""
+        dueno = self.Partner.create({'name': 'Dueña del 6555-0909', 'phone': '6555-0909'})
+        conv = self.conversacion(canal='telegram', id_externo='890', nombre='Ana Telegram')
+        provisional = conv.partner_id
+        self.assertEqual(provisional.dcasa_creado_por, 'juan')
+        self.registrar(canal='telegram', id_externo='890', celular='6555-0909')
+        self.assertEqual(conv.partner_id, dueno)
+        self.assertFalse(provisional.active, 'la provisional vacía se archiva (no se borra)')
+        self.assertIn('Ficha provisional archivada', provisional.message_ids[0].body)
+
+    def test_la_provisional_con_algo_propio_no_se_toca(self):
+        dueno = self.Partner.create({'name': 'Dueño del 6555-1010', 'phone': '6555-1010'})
+        conv = self.conversacion(canal='telegram', id_externo='891', nombre='Beto Telegram')
+        provisional = conv.partner_id
+        provisional.write({'email': 'beto.telegram@example.com'})
+        self.registrar(canal='telegram', id_externo='891', celular='6555-1010')
+        self.assertEqual(conv.partner_id, dueno)
+        self.assertTrue(provisional.active)
+
     def test_el_nombre_real_reemplaza_al_provisional(self):
         conv = self.conversacion(canal='telegram', id_externo='999', nombre=None)
         self.assertEqual(conv.partner_id.name, 'Telegram 999')
