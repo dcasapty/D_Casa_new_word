@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-inherit="dcasa_barras.Escaner" t-inherit-mode="extension">
+        <xpath expr="//section[hasclass('o_dcasa_ficha')]//img[hasclass('o_dcasa_ficha_foto')]" position="replace">
+            <button type="button" class="o_dcasa_ficha_foto_boton" aria-label="Ver las fotos en grande"
+                    title="Ver las fotos en grande" t-on-click="verFotosDeLaFicha">
+                <img class="o_dcasa_ficha_foto" t-att-src="state.ficha.imagen" alt=""/>
+                <span class="o_dcasa_foto_lupa" aria-hidden="true"><i class="fa fa-search-plus"/></span>
+            </button>
+        </xpath>
+    </t>
+</templates>

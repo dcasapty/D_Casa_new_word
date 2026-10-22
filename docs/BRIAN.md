@@ -385,6 +385,19 @@ Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propós
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
 
+## Marketing y fotos (2026-10-22, módulo `dcasa_marketing`)
+
+Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada lo calcula el modelo de IA.
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `movimiento_de_productos(periodo?, que?, categoria?, limite?)` | `periodo` = `semana` (7 días corridos, por defecto), `15_dias` o `mes` (30 días); `que` = `mas_movimiento` (lo vendido o entregado; una venta facturada y entregada cuenta una vez), `quietos` (con stock y sin ventas ni entregas; primero los que nunca se vendieron, con la última venta y los días sin vender), `mas_vendidos` (unidades facturadas, las notas de crédito restan, la base del Inicio) o `todo`; `categoria` = el tipo (p. ej. «Salas»). Responde cómo se cuenta (`como_se_cuenta`) | lectura | Gerencia y administradores |
+| `fotos_que_faltan(estado?, texto?, categoria?, limite?)` | Productos a la venta sin foto (`sin_foto`), con una sola (`una_foto`) o los dos (`faltan`, por defecto); con cuántas tiene cada uno, los conteos y dónde subirlas (Marketing › Fotos o tocando la foto del producto) | lectura | Interno |
+
+Ejemplos: «¿qué productos están más quietos esta semana?» → `movimiento_de_productos(que=quietos)`; «¿qué se movió más
+este mes en Salas?» → `movimiento_de_productos(periodo=mes, que=mas_movimiento, categoria=Salas)`; «¿a qué colchones les
+faltan fotos?» → `fotos_que_faltan(categoria=Colchones)`. Brian no sube ni cambia fotos (eso se hace en la pantalla).
+
 ## Roles y «Cada vendedora ve solo sus documentos» (2026-10-17)
 
 * **Roles** de `listar_usuarios`, `cambiar_rol_usuario` y `crear_usuario` (`herramientas_usuarios.py`, `ROLES`):

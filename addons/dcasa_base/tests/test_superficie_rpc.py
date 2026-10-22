@@ -42,6 +42,13 @@ NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia
 NOMINA_REEMBOLSO = ('Botón del reembolso: el colaborador solo el suyo; aprobar y rechazar exigen el grupo '
                     '«Administra la nómina» en el servidor; el estado solo cambia con sudo, ya comprobado.')
 
+FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access("write"), AccessError si no) '
+                'ANTES del sudo con que se escriben sus fotos extra (product.image de ese producto; la clave se busca '
+                'solo entre las suyas); valida cada foto (formato, peso, megapíxeles) y cada argumento.')
+MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador) o administrador ANTES de leer '
+                     '(_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya comprobado el grupo; '
+                     'valida periodo, categoría y filtro; no escribe.')
+
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
     # --- dcasa_base -------------------------------------------------------------------------
@@ -337,6 +344,22 @@ LISTA_BLANCA = {
         'API del panel de Bodega: exige stock.group_stock_user y escritura de la entrega (check_access) en el '
         'servidor; revisa cada renglón y cantidad (nunca más de lo pedido) y valida con button_validate de Odoo con '
         'los permisos de la persona (sin sudo): Odoo registra quién validó.',
+    # --- dcasa_marketing (fotos del producto y Marketing, 2026-10-22) ---------------------------
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos'):
+        'Lectura: exige usuario interno y check_access("read") del producto ANTES del sudo, que solo lee sus fotos '
+        'extra (sin videos) y la versión (checksum) de sus adjuntos; no escribe.',
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_subir'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_reemplazar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_ordenar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_principal'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_quitar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_girar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_recortar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'dcasa.marketing', 'datos'): MARKETING_LECTURA,
+    ('dcasa_marketing', 'dcasa.marketing', 'buscar_fotos'): MARKETING_LECTURA,
+    ('dcasa_marketing', 'dcasa.marketing', 'accion_productos'):
+        'Exige Gerencia (ventas administrador) o administrador en el servidor (_exigir, AccessError); valida los ids y '
+        'solo devuelve la acción de ventana de Productos con ese filtro; no lee ni escribe datos, sin sudo().',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',

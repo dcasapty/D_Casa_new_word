@@ -288,8 +288,11 @@ corren con el mismo usuario dentro del contenedor. La clave de cifrado de los re
 
 ## Cómo subir fotos (y Excel de pedidos)
 
-1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y poner la foto ahí. Se guarda
-   sola en R2 (`adjuntos/`) y sale en la web al momento. Es el camino normal del día a día.
+1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y **tocar su foto**: se abre en grande y ahí se
+   reemplaza (archivo o cámara del celular), se recorta, se gira o se pone otra como principal. Para subir **varias a
+   la vez** y ordenarlas: «Todas» en esa misma ventana, el botón «Fotos del producto» de la pestaña Ventas o
+   *Marketing › Fotos* (buscar el producto por nombre, código o código de barras). Se guardan solas en R2
+   (`adjuntos/`) y salen en la web al momento. Es el camino normal del día a día (`docs/MARKETING.md`).
 2. **Un pedido nuevo del proveedor**: mandarle a Brian (Telegram) el Excel del proveedor con el
    **código** de cada producto; él arma la vista previa, gerencia confirma y los productos nacen sin
    publicar, para publicarlos con Brian uno a uno (`docs/CATALOGO.md` › «Inventario nuevo…»).

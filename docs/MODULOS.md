@@ -43,6 +43,7 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_barras` | Escáner de códigos de barras y etiquetas; panel de Bodega (despachar entregas) | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
+| `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada | [CORREO.md](CORREO.md) |
 | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación, PAC simulado) | base, invoice | (1 en `dcasa_brian`) | **Sí**, y además no se instala | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
@@ -90,6 +91,10 @@ flowchart TD
   conv --> correo[dcasa_correo]
   web --> correo
   interfaz --> guia[dcasa_guia]
+  catalogo --> marketing[dcasa_marketing]
+  interfaz --> marketing
+  barras --> marketing
+  brian --> marketing
   contactos --> migracion[dcasa_migracion]
   catalogo --> migracion
   invoice --> fe[dcasa_fe_pa]
@@ -328,6 +333,21 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Modelos:** `dcasa.guia`, `dcasa.guia.uso` (cada quien ve solo su uso).
 - **Pantallas y menús:** app **Guía**.
 - **Herramientas de Brian (en `dcasa_brian`):** `buscar_en_guia`.
+- **Apagado de fábrica:** no.
+
+## `dcasa_marketing` — Marketing y fotos de productos
+
+- **Para qué:** tocar la foto de un producto (ficha, lista y tarjetas de Productos, Escáner) la abre en grande con
+  zoom, pasar entre fotos, reemplazar (archivo o cámara), recortar (Cropper.js que trae Odoo), girar, poner como
+  principal, quitar y descargar; la galería sube varias a la vez y ordena arrastrando (botón «Fotos del producto» en la
+  pestaña Ventas). La app **Marketing**: stock por categoría (más y menos), más vendidos (facturas, la base del
+  Inicio), mayor movimiento y más quietos en Semana / 15 días / Mes, y «Fotos» (buscar y subir, con lo que falta
+  marcado). Acceso «Marketing» en el Inicio de Gerencia y administradores.
+- **Depende de (Odoo):** `website_sale` (las «Imágenes extra»), `html_editor` (el recortador).
+- **Modelos:** `dcasa.marketing` (abstracto); métodos `dcasa_fotos*` en `product.template`.
+- **Pantallas y menús:** app **Marketing** (Gerencia y administradores); el visor y la galería en Productos y el
+  Escáner (cambiar fotos: quien puede editar el producto).
+- **Herramientas de Brian (2):** `movimiento_de_productos`, `fotos_que_faltan`.
 - **Apagado de fábrica:** no.
 
 ## `dcasa_conversaciones` — Conversaciones (la bandeja de Juan)
