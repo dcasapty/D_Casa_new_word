@@ -30,10 +30,15 @@ las ventas y la tienda web.
 * Código público (DC-K7M4PX) a la vista en la ficha del producto, columna opcional en la lista y buscable en
   Productos y en las cotizaciones (el campo y el sorteo viven en dcasa_base). Esta versión se lo da a los
   productos que ya existían. Ver docs/CATALOGO.md.
+* Combos cama + colchón que se arman en la venta (2026-10-22): botón «Armar combo» en la cotización (escoges la
+  cama y salen los colchones de su medida con existencia); cada colchón tiene su «Precio en combo» por medida, que
+  pone Gerencia en Ventas › Productos › Precios en combo, y se cobra solo si en la misma venta va una cama de su
+  medida. Reglas en el servidor (models/combo_armable.py); en el papel, «Combo cama + colchón» y el ahorro.
+  Ver docs/OPERACION.md.
 * Idempotente: volver a correr la carga solo crea lo que falta; no pisa lo que la
   dueña cambió en Odoo (precios, fotos, textos).
 """,
-    'version': '19.0.1.10.0',
+    'version': '19.0.1.11.0',
     'category': 'Sales',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -45,10 +50,17 @@ las ventas y la tienda web.
         'views/backend_views.xml',
         'views/codigo_publico_views.xml',
         'views/product_templates.xml',
+        'views/combos_views.xml',
+        'views/report_combos.xml',
     ],
     'assets': {
         'web.assets_frontend': [
             'dcasa_catalogo/static/src/scss/catalogo.scss',
+        ],
+        'web.assets_backend': [
+            'dcasa_catalogo/static/src/combo/armar_combo.js',
+            'dcasa_catalogo/static/src/combo/armar_combo.xml',
+            'dcasa_catalogo/static/src/combo/armar_combo.scss',
         ],
     },
     'post_init_hook': '_dcasa_catalogo_post_init',

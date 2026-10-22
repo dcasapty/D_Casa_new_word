@@ -293,3 +293,105 @@ def planificar_inventario(filas, existentes, fotos):
         else:
             plan['sin_foto'].append(fila)
     return plan
+
+
+# --- Combos que se arman en la venta: cama + colchón con «precio en combo» -------------------
+#
+# Decisión de la dueña (2026-10-22): cada colchón, en cada medida, puede tener un «precio en combo» que pone Gerencia.
+# Si en la misma venta va una cama de su misma medida, el colchón se cobra a ese precio; si no tiene precio en combo,
+# va a su precio normal (no se inventa ninguno). La cama va a su precio normal.
+
+TIPOS_COMBO = ('cama', 'colchon')
+
+
+def tipo_combo_del_nombre(nombre):
+    """¿Es una cama o un colchón para armar combos? Se sugiere por el nombre; Gerencia lo corrige en el producto.
+
+    «Colchón Flex semiortopédico» → 'colchon'; «Cama tapizada Queen», «Camarote full», «Box spring de metal»,
+    «Base de cama metálica» → 'cama'. No son: un combo ya armado («COMBO CAMA … + COLCHÓN …»), una colchoneta, un
+    protector o forro de colchón, un sofá cama, una mesa de noche o un cabecero solo → ``None``.
+    """
+    limpio = normalizar(nombre)
+    if not limpio or limpio.startswith('combo'):
+        return None
+    if re.search(r'\bcolchon(es)?\b', limpio):
+        if re.search(r'\b(protector|forro|funda|cubre ?colchon|sabana|almohada)', limpio):
+            return None
+        return 'colchon'
+    if re.search(r'\bsofa\b', limpio):
+        return None
+    if re.search(r'\b(cama|camas|camarote|camarotes|litera|literas|box springs?|box tapizado|base de cama)\b', limpio):
+        return 'cama'
+    return None
+
+
+def medida_del_nombre(nombre, tipo=None):
+    """La medida (Twin, Full, Queen, King) que dice un nombre; ``None`` si no dice ninguna o dice dos distintas.
+
+    En un colchón, además, «4/6» es Full, «3/4» es Twin y una «Q» o una «K» sueltas son Queen y King (así vienen en el
+    inventario del sistema anterior: «COLCHON DULCESUENOS SEMI RESORTE Q»).
+    """
+    limpio = normalizar(nombre)
+    vistas = []
+    for m in re.finditer(r'\b(twin|full|queen|king)\b', limpio):
+        medida = m.group(1).capitalize()
+        if medida not in vistas:
+            vistas.append(medida)
+    if not vistas and tipo == 'colchon':
+        texto = str(nombre or '').lower()
+        for patron, medida in ((r'\b4/6\b', 'Full'), (r'\b3/4\b', 'Twin'), (r'\bq\b', 'Queen'), (r'\bk\b', 'King')):
+            if re.search(patron, texto) and medida not in vistas:
+                vistas.append(medida)
+    return vistas[0] if len(vistas) == 1 else None
+
+
+def medida_de_valor(valor):
+    """El valor del atributo «Tamaño» de una variante → la medida, si es una de las de D'CASA («queen» → 'Queen')."""
+    texto = normalizar(valor)
+    return next((t for t in TAMANOS if t.lower() == texto), None)
+
+
+_TOLERANCIA = 1e-6
+
+
+def emparejar_combos(camas, colchones):
+    """Qué colchón va en combo con qué cama de la misma venta.
+
+    ``camas``: lista de dicts ``{'clave', 'medida', 'capacidad'}`` en el orden de la venta (capacidad = cuántas camas
+    × cuántos colchones lleva cada una: 1, o 2 y 3 en un camarote).
+    ``colchones``: lista de dicts ``{'clave', 'medida', 'cantidad', 'con_precio', 'preferida'}`` en el orden de la
+    venta (``preferida``: la clave de la cama con la que ya estaba, o ``None``).
+
+    Devuelve ``{clave del colchón: (clave de la cama, con_precio)}``. Reglas:
+
+    * Un colchón entra en combo solo si TODA su cantidad cabe en lo que queda libre de las camas de su misma medida
+      (dos colchones king con una sola cama king: uno va en combo y el otro a precio normal).
+    * Primero los colchones CON precio en combo: un colchón sin precio nunca le quita el combo a uno que sí lo tiene.
+    * Dentro de cada grupo, primero el que ya estaba con esa cama (no se reparten de nuevo al cambiar algo) y después
+      en el orden de la venta. La cama que se muestra es la preferida si aún tiene lugar; si no, la primera con lugar.
+    """
+    libre = {cama['clave']: float(cama['capacidad'] or 0) for cama in camas}
+    por_medida = {}
+    for cama in camas:
+        if cama['medida']:
+            por_medida.setdefault(cama['medida'], []).append(cama['clave'])
+    resultado = {}
+    for con_precio in (True, False):
+        grupo = [c for c in colchones if bool(c['con_precio']) == con_precio and c['medida'] and c['cantidad'] > 0]
+        grupo.sort(key=lambda c: 0 if c.get('preferida') in por_medida.get(c['medida'], ()) else 1)
+        for colchon in grupo:
+            claves = por_medida.get(colchon['medida'], [])
+            if sum(libre[clave] for clave in claves) + _TOLERANCIA < colchon['cantidad']:
+                continue
+            preferida = colchon.get('preferida')
+            orden = ([preferida] if preferida in claves else []) + [c for c in claves if c != preferida]
+            principal = next(clave for clave in orden if libre[clave] > _TOLERANCIA)
+            falta = colchon['cantidad']
+            for clave in [principal] + [c for c in orden if c != principal]:
+                toma = min(libre[clave], falta)
+                libre[clave] -= toma
+                falta -= toma
+                if falta <= _TOLERANCIA:
+                    break
+            resultado[colchon['clave']] = (principal, con_precio)
+    return resultado

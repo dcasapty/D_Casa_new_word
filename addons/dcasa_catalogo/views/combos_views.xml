@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ==========================================================================================
+         Combos cama + colchón que se arman en la venta (pedido de la dueña, 2026-10-22).
+         ========================================================================================== -->
+
+    <!-- Cotización: «Armar combo» junto a «Agregar un producto» y «Catálogo» (computadora y celular), y en cada línea
+         que va en combo, la marca «Combo» con lo que ahorra el cliente. -->
+    <record id="view_order_form_combos" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.combos</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_line']/list/control/button[@name='action_add_from_catalog']"
+                   position="before">
+                <button string="Armar combo cama + colchón" name="action_dcasa_armar_combo" type="object"
+                        icon="fa-bed" class="px-4 btn-link fw-bold o_dcasa_btn_armar_combo"
+                        context="{'order_id': parent.id}"
+                        invisible="parent.state not in ('draft', 'sent')"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/kanban/control/button[@name='action_add_from_catalog']"
+                   position="before">
+                <button string="Armar combo" name="action_dcasa_armar_combo" type="object" icon="fa-bed"
+                        class="btn-primary o_dcasa_btn_armar_combo" context="{'order_id': parent.id}"
+                        invisible="parent.state not in ('draft', 'sent')"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/list/field[@name='price_unit']" position="before">
+                <field name="dcasa_combo_texto" string="Combo" optional="show" readonly="1"
+                       class="o_dcasa_combo_texto fw-bold text-primary"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/kanban/field[@name='currency_id']" position="after">
+                <field name="dcasa_combo_texto"/>
+            </xpath>
+            <xpath expr="//field[@name='order_line']/kanban//main/div[hasclass('row')]" position="after">
+                <div t-if="record.dcasa_combo_texto.raw_value" class="o_dcasa_combo_texto fw-bold text-primary">
+                    <i class="fa fa-bed me-1" aria-hidden="true" title="Combo"/><field name="dcasa_combo_texto"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Ficha del producto: si es cama o colchón para armar combos, cuántos colchones lleva una cama (camarotes) y un
+         botón a sus medidas y precios en combo. -->
+    <record id="product_template_form_combos" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.combos</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="dcasa_catalogo.product_template_form_dcasa"/>
+        <field name="arch" type="xml">
+            <field name="dcasa_combo" position="after">
+                <field name="dcasa_tipo_combo" invisible="type == 'combo'"/>
+                <field name="dcasa_colchones_por_cama" invisible="dcasa_tipo_combo != 'cama'"/>
+            </field>
+            <field name="dcasa_combo" position="attributes">
+                <attribute name="string">Combo (texto del Excel)</attribute>
+                <attribute name="help">Texto del Excel de precios, p. ej. «Combo con colchón $349.99». Solo de referencia: el precio del combo que arma la vendedora sale del «Precio en combo» de cada colchón.</attribute>
+            </field>
+        </field>
+    </record>
+    <record id="product_template_form_combos_boton" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.combos.boton</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <div name="button_box" position="inside">
+                <button name="action_dcasa_precios_combo" type="object" class="oe_stat_button" icon="fa-bed"
+                        invisible="not dcasa_tipo_combo" groups="sales_team.group_sale_manager">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Medidas y</span>
+                        <span class="o_stat_text">precio en combo</span>
+                    </div>
+                </button>
+            </div>
+        </field>
+    </record>
+
+    <!-- Camas y colchones para combos: la lista donde Gerencia pone el precio en combo de cada colchón por medida
+         (se edita en la misma fila) y revisa las medidas. -->
+    <record id="product_product_combos_list" model="ir.ui.view">
+        <field name="name">product.product.list.dcasa.combos</field>
+        <field name="model">product.product</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Camas y colchones para combos" editable="bottom" create="0" delete="0"
+                  class="o_dcasa_lista_combos" decoration-warning="dcasa_combo_aviso">
+                <field name="image_128" widget="image" options="{'size': [40, 40]}" string="Foto" readonly="1"
+                       optional="show"/>
+                <field name="display_name" string="Producto" readonly="1"/>
+                <field name="dcasa_tipo_combo" string="Es"/>
+                <field name="dcasa_medida"/>
+                <field name="is_storable" column_invisible="1"/>
+                <field name="free_qty" string="Disponibles" readonly="1" invisible="not is_storable"
+                       digits="[16, 0]" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="lst_price" string="Precio normal" readonly="1" widget="monetary"/>
+                <field name="dcasa_precio_combo" string="Precio en combo" widget="monetary"
+                       readonly="dcasa_tipo_combo != 'colchon'" class="fw-bold"/>
+                <field name="dcasa_combo_ahorro" string="Ahorro" widget="monetary" readonly="1"
+                       invisible="not dcasa_combo_ahorro"/>
+                <field name="dcasa_combo_aviso" string="Revisar" readonly="1"/>
+                <field name="dcasa_combo" string="Texto del Excel" readonly="1" optional="hide"/>
+            </list>
+        </field>
+    </record>
+    <record id="product_product_combos_search" model="ir.ui.view">
+        <field name="name">product.product.search.dcasa.combos</field>
+        <field name="model">product.product</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <search string="Camas y colchones">
+                <field name="name" string="Nombre o código"
+                       filter_domain="['|', ('display_name', 'ilike', self), ('default_code', 'ilike', self)]"/>
+                <filter string="Colchones" name="colchones" domain="[('dcasa_tipo_combo', '=', 'colchon')]"/>
+                <filter string="Camas" name="camas" domain="[('dcasa_tipo_combo', '=', 'cama')]"/>
+                <separator/>
+                <filter string="Sin precio en combo" name="sin_precio"
+                        domain="[('dcasa_tipo_combo', '=', 'colchon'), '|', ('dcasa_precio_combo', '=', False), ('dcasa_precio_combo', '=', 0)]"/>
+                <filter string="Con precio en combo" name="con_precio" domain="[('dcasa_precio_combo', '&gt;', 0)]"/>
+                <filter string="Falta la medida" name="sin_medida" domain="[('dcasa_medida', '=', False)]"/>
+                <separator/>
+                <filter string="Con existencia" name="con_existencia" domain="[('free_qty', '&gt;', 0)]"/>
+                <group>
+                    <filter string="Medida" name="por_medida" context="{'group_by': 'dcasa_medida'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="accion_precios_combo" model="ir.actions.act_window">
+        <field name="name">Precios en combo (camas y colchones)</field>
+        <field name="res_model">product.product</field>
+        <field name="path">precios-en-combo</field>
+        <field name="view_mode">list</field>
+        <field name="view_id" ref="product_product_combos_list"/>
+        <field name="search_view_id" ref="product_product_combos_search"/>
+        <field name="domain">[('dcasa_tipo_combo', '!=', False), ('sale_ok', '=', True)]</field>
+        <field name="context">{'search_default_colchones': 1, 'search_default_por_medida': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay camas ni colchones marcados para combos</p>
+            <p>En la ficha de cada producto, «Para armar combos» dice si es cama o colchón.</p>
+        </field>
+    </record>
+    <menuitem id="menu_precios_combo" name="Precios en combo" parent="sale.product_menu_catalog"
+              action="accion_precios_combo" sequence="15" groups="sales_team.group_sale_manager"/>
+</odoo>
