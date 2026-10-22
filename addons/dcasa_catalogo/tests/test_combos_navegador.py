@@ -103,6 +103,10 @@ ARMAR_Y_DEJAR = """
     };
     (await esperar(() => [...document.querySelectorAll(".o_dcasa_btn_armar_combo")]
         .find((b) => b.offsetParent !== null), "el botón")).click();
+    // Con el catálogo real cargado hay cientos de camas: se busca la de la prueba, como lo haría la vendedora.
+    const buscador = await esperar(() => document.querySelector(".o_dcasa_combo_buscar"), "el buscador de camas");
+    buscador.value = "ZZNAV KING";
+    buscador.dispatchEvent(new Event("input", { bubbles: true }));
     (await esperar(() => [...document.querySelectorAll(".o_dcasa_combo_tarjeta_cama")]
         .find((t) => t.textContent.includes("CAMA ZZNAV KING")), "la cama")).click();
     (await esperar(() => [...document.querySelectorAll(".o_dcasa_combo_tarjeta_colchon")]
