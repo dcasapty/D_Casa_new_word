@@ -142,6 +142,36 @@ LISTA_BLANCA = {
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     ('dcasa_catalogo', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo agrega que un combo sin sus piezas no se confirma; corre como el usuario, sin sudo().',
+    # Combos cama + colchón que se arman en la venta (2026-10-22): el panel «Armar combo» corre como el usuario, sin
+    # sudo: check_access('read'/'write') de la cotización ANTES de leer o escribir (la vendedora, solo lo suyo), y las
+    # líneas se crean con el ORM (tope de descuento incluido). Solo lee productos a la venta.
+    ('dcasa_catalogo', 'sale.order', 'action_dcasa_armar_combo'):
+        'Botón: check_access("write") y que sea una cotización; solo devuelve la acción del panel. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order.line', 'action_dcasa_armar_combo'):
+        'Botón de la lista de líneas: abre el panel de la cotización del contexto, con las mismas comprobaciones. '
+        + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_panel'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_camas'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_colchones'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_agregar'):
+        'API del panel: check_access("write"), solo cotizaciones; líneas por el ORM con el tope. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_cambiar'):
+        'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_quitar'):
+        'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order.line', 'write'):
+        OVERRIDE + ' Solo vuelve a emparejar camas y colchones (y su precio) de la misma venta; sin sudo().',
+    ('dcasa_catalogo', 'sale.order.line', 'unlink'):
+        OVERRIDE + ' Antes de quitar una cama, su colchón vuelve a su precio normal; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'create'):
+        OVERRIDE + ' Agrega que los colchones por cama solo los pone Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'write'):
+        OVERRIDE + ' Agrega que cama/colchón y colchones por cama solo los cambia Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.product', 'create'):
+        OVERRIDE + ' Agrega que el precio en combo solo lo pone Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.product', 'write'):
+        OVERRIDE + ' Agrega que el precio en combo y la medida solo los cambia Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'action_dcasa_precios_combo'): ACCION_VENTANA,
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_aprobar'): SIN_SUDO,

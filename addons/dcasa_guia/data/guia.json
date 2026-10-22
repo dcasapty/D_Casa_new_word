@@ -102,6 +102,51 @@
    ]
   },
   {
+   "id": "combo-armar",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Armar un combo cama + colchón en una cotización",
+   "logras": "Escoges la cama y te salen los colchones de su misma medida que hay en existencia, con su precio normal, su precio en combo y lo que ahorra el cliente. Con un toque se agregan los dos a la cotización; después puedes cambiar la cama o el colchón, o quitar el combo.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la cotización (o haz una nueva con «Nuevo») y escoge el cliente.",
+     "destino": {
+      "menu": "sale.menu_sale_quotations"
+     }
+    },
+    {
+     "texto": "En «Líneas de la orden», toca «Armar combo cama + colchón», junto a «Agregar un producto». En el celular es el botón «Armar combo».",
+     "destino": null
+    },
+    {
+     "texto": "Busca la cama por nombre, código o medida y tócala.",
+     "destino": null
+    },
+    {
+     "texto": "Toca el colchón que quiere el cliente: se agregan la cama y el colchón, y el colchón va a su precio en combo. Con «¿Cuántos combos?» pones más de uno.",
+     "destino": null
+    },
+    {
+     "texto": "Para cambiar la cama o el colchón, o quitar el combo, vuelve a tocar «Armar combo». Al terminar, toca «Listo».",
+     "destino": null
+    }
+   ],
+   "nota": "El precio en combo lo pone Gerencia en cada colchón; si un colchón no lo tiene, va a su precio normal. Si quitas la cama o la cambias por otra de otra medida, el colchón vuelve solo a su precio normal. También cuenta si agregas la cama y el colchón de la misma medida como productos sueltos.",
+   "palabras": [
+    "combo",
+    "cama y colchon",
+    "cama con colchon",
+    "armar combo",
+    "juego de cama",
+    "colchon de la misma medida",
+    "precio combo",
+    "cambiar colchon"
+   ]
+  },
+  {
    "id": "cotizaciones",
    "categoria": "vender",
    "grupo": "Vender",
@@ -1315,10 +1360,49 @@
    ]
   },
   {
+   "id": "precio-combo-colchon",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Poner el precio en combo de un colchón",
+   "logras": "Para cada colchón, en cada medida, pones el precio al que se vende cuando va con una cama de su misma medida. Así la vendedora arma el combo en la cotización y el precio sale solo.",
+   "destino": {
+    "menu": "dcasa_catalogo.menu_precios_combo"
+   },
+   "pasos": [
+    {
+     "texto": "Abre «Precios en combo»: salen los colchones agrupados por medida (Twin, Full, Queen, King).",
+     "destino": {
+      "menu": "dcasa_catalogo.menu_precios_combo"
+     }
+    },
+    {
+     "texto": "En la columna «Precio en combo» escribe el precio sin ITBMS, menor que el precio normal, y guarda. Si lo dejas vacío, ese colchón va a su precio normal.",
+     "destino": null
+    },
+    {
+     "texto": "Mira la columna «Revisar»: avisa si falta la medida o si el precio en combo ya no es menor que el normal.",
+     "destino": null
+    },
+    {
+     "texto": "Con el filtro «Camas», revisa que cada cama tenga su medida: a una cama sin medida no le salen colchones.",
+     "destino": null
+    }
+   ],
+   "nota": "Solo Gerencia lo cambia. Vale para lo que se cotice desde ese momento: las cotizaciones que ya estaban no cambian solas. El texto del Excel de cada cama («Combo con colchón …») queda solo de referencia; no se usa para calcular.",
+   "palabras": [
+    "precio en combo",
+    "precio combo colchon",
+    "combo",
+    "colchon",
+    "medida de la cama",
+    "precio especial colchon"
+   ]
+  },
+  {
    "id": "combo-cama-colchon",
    "categoria": "productos",
    "grupo": "Catálogo",
-   "titulo": "Crear o cambiar un combo de cama y colchón",
+   "titulo": "Crear o cambiar un combo fijo de cama y colchón (producto «COMBO»)",
    "logras": "Un combo junta la cama y el colchón con un solo precio. Al venderlo, la cotización y la factura muestran cada pieza y la entrega descuenta la cama y el colchón del inventario.",
    "destino": {
     "menu": "sale.menu_product_template_action"
@@ -1347,7 +1431,7 @@
      "destino": null
     }
    ],
-   "nota": "El precio del combo se reparte solo entre la cama y el colchón, así que al venderlo no se cambia a mano: se rebaja con el descuento. Si Cowork te entregó el archivo de combos, se carga en Ajustes › Cargar datos del sistema anterior, sin crear las piezas.",
+   "nota": "El precio del combo se reparte solo entre la cama y el colchón, así que al venderlo no se cambia a mano: se rebaja con el descuento. Si Cowork te entregó el archivo de combos, se carga en Ajustes › Cargar datos del sistema anterior, sin crear las piezas. Lo más práctico ahora es armar el combo en la cotización («Armar combo cama + colchón») con el precio en combo de cada colchón; los combos fijos que ya existen siguen funcionando.",
    "palabras": [
     "combo",
     "cama y colchon",

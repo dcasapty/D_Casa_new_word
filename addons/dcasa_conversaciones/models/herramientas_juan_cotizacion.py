@@ -192,7 +192,7 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         for linea in orden.order_line.filtered(lambda linea: not linea.display_type):
             plantilla = linea.product_id.product_tmpl_id
             mas_itbms = self._j_mas_itbms(plantilla)
-            lineas.append({
+            fila = {
                 'codigo': plantilla.dcasa_codigo_publico or '',   # el del cliente, no la referencia del proveedor
                 'producto': linea.product_id.with_context(display_default_code=False).display_name or linea.name,
                 'cantidad': int(linea.product_uom_qty) if float(linea.product_uom_qty).is_integer()
@@ -200,7 +200,13 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
                 'precio_unitario_texto': P.precio_texto(linea.price_unit, mas_itbms),
                 'subtotal_texto': _dinero(linea.price_subtotal),
                 'disponibilidad': self._j_existencias(plantilla, linea.product_id),
-            })
+            }
+            if linea.dcasa_combo_con_precio and linea.dcasa_combo_ahorro > 0:
+                # Combo cama + colchón (dcasa_catalogo): el colchón va con una cama de su medida y Odoo ya le puso el
+                # precio en combo que fijó Gerencia. Juan solo lo dice; no calcula nada.
+                fila['combo'] = (f'Precio en combo por ir con la cama de su medida: ahorras '
+                                 f'{_dinero(linea.dcasa_combo_ahorro)}')
+            lineas.append(fila)
         return {
             'numero': orden.name, 'lineas': lineas,
             'subtotal': round(orden.amount_untaxed, 2), 'subtotal_texto': _dinero(orden.amount_untaxed),

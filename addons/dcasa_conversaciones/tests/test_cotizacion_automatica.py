@@ -292,3 +292,31 @@ class TestCotizarPdfDeVerdad(HttpCase, HerramientasCase):
         self.assertEqual(respuesta.status_code, 200)
         self.assertTrue(respuesta.content.startswith(b'%PDF'), 'Es un PDF de verdad, no el HTML del modo de pruebas')
         self.assertEqual(respuesta.headers['Content-Type'], 'application/pdf')
+
+
+@tagged('post_install', '-at_install')
+class TestCotizarComboCamaColchon(CotizarCase):
+    """Combos cama + colchón que se arman en la venta (2026-10-22): si el cliente pide la cama y el colchón de su
+    medida, la cotización de Juan ya trae el precio en combo que puso Gerencia (Odoo lo calcula; Juan solo lo dice)."""
+
+    def test_cama_y_colchon_de_la_misma_medida_van_a_precio_en_combo(self):
+        impuesto = self.env['brian.herramientas']._b_itbms_venta()
+        base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'is_published': True,
+                'taxes_id': [(6, 0, impuesto.ids)], 'public_categ_ids': [(6, 0, self.categoria.ids)]}
+        Template = self.env['product.template']
+        cama = Template.create({**base, 'name': 'Zzjuan cama King', 'default_code': 'ZZ-JCAMA', 'list_price': 400.0})
+        colchon = Template.create({**base, 'name': 'Zzjuan colchón King', 'default_code': 'ZZ-JCOL',
+                                   'list_price': 300.0})
+        colchon.product_variant_id.dcasa_precio_combo = 260.0
+        almacen = self.env['stock.warehouse'].search([], limit=1)
+        for plantilla in (cama, colchon):
+            self.stock._update_available_quantity(plantilla.product_variant_id, almacen.lot_stock_id, 5)
+        datos = self.cotizar({'codigo': 'ZZ-JCAMA'}, {'codigo': 'ZZ-JCOL'})
+        (orden,) = self.ordenes()
+        self.assertEqual(orden.order_line.filtered(lambda ln: ln.product_id.product_tmpl_id == colchon).price_unit,
+                         260.0)
+        linea_cama, linea_colchon = datos['cotizacion']['lineas']
+        self.assertEqual(linea_colchon['precio_unitario_texto'], '$260.00 + ITBMS')
+        self.assertIn('ahorras $40.00', linea_colchon['combo'])
+        self.assertNotIn('combo', linea_cama)
+        self.assertAlmostEqual(datos['cotizacion']['subtotal'], 660.0)

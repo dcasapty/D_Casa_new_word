@@ -50,6 +50,8 @@ Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de 
 | **Pasar a borrador o anular** una factura de cliente publicada | **No** | **No** | **No** | Sí | Sí |
 | **Notas de crédito** de clientes; **devolverle dinero** a un cliente; cobrar de más dejándole **saldo a favor**; dar una factura por pagada con una diferencia | **No** | **No** | **No** | Sí | Sí |
 | Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
+| Armar un combo cama + colchón en una cotización («Armar combo»; el colchón va a su precio en combo, que no cuenta como rebaja suya), 2026-10-22 | Sí (lo suyo) | Sí | (según su rol de Ventas) | Sí | Sí |
+| Poner el **precio en combo** de un colchón, la **medida** de una cama o colchón y si un producto es cama o colchón (*Ventas › Productos › Precios en combo*) | **No** | **No** | **No** | Sí | Sí |
 | Ajustar las existencias a mano (Inventario físico, Escáner › Contar); el motivo es obligatorio y queda en la bitácora | **No** | **No** | **No** | Sí | Sí |
 | Ventas o facturado **por día**, **Estadísticas › Resumen** e **Inventario › Movimientos** (2026-10-22) | **No** | **No** | **No** | Sí | Sí |
 | Ver el menú «Inventario físico», «Desechos» y «Deshacer el ajuste»; mover mercancía hacia o desde «Ajuste de inventario» (también por RPC), 2026-10-22 | **No** | **No** | **No** | Sí | Sí |
@@ -484,9 +486,10 @@ Odoo deja llamar por `/web/dataset/call_kw` (y `/json/2`) a **todo método públ
 despachar. Un método público que usa `sudo()` sin exigir grupo sería una puerta abierta. Por eso:
 
 - `addons/dcasa_base/tests/test_superficie_rpc.py` recorre todos los modelos y **falla** si un método público definido en
-  `addons/` no está en `LISTA_BLANCA` con su motivo (380 entradas al 2026-10-22; las que más: `dcasa_conversaciones`
+  `addons/` no está en `LISTA_BLANCA` con su motivo (441 entradas al 2026-10-22; las que más: `dcasa_conversaciones`
   80, `dcasa_socios` 54, `dcasa_base` 34, `dcasa_nomina` 28, `dcasa_contabilidad` 26, `dcasa_brian` 25; las 11 de
-  `dcasa_marketing` exigen editar el producto o ser Gerencia antes de cualquier `sudo`). También falla si una entrada ya
+  `dcasa_marketing` exigen editar el producto o ser Gerencia antes de cualquier `sudo`; el panel «Armar combo»
+  de `dcasa_catalogo` suma 17, todas sin sudo y con `check_access` de la cotización). También falla si una entrada ya
   no es pública, si falta un motivo, o si un botón de vista apunta a un método `@api.model`.
 - Los modelos abstractos `brian.herramientas`, `brian.proveedores`, `brian.politica`, `dcasa.mantenimiento`,
   `dcasa.fe.pac`, `dcasa.fe.pac.simulado` y `dcasa.correo` no exponen **nada**.

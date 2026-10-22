@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Una cama o un colchón: foto, nombre, medida y existencias. -->
+    <t t-name="dcasa_catalogo.ArmarComboFoto">
+        <div class="o_dcasa_combo_foto">
+            <img t-if="producto.imagen" t-att-src="producto.imagen" t-att-alt="producto.nombre" loading="lazy"/>
+            <i t-else="" class="fa fa-bed" aria-hidden="true"/>
+        </div>
+    </t>
+
+    <t t-name="dcasa_catalogo.ArmarCombo">
+        <div class="o_dcasa_armar_combo o_action">
+            <div t-if="state.cargando" class="o_dcasa_combo_cargando">Cargando…</div>
+            <t t-else="">
+                <div class="o_dcasa_combo_cabecera">
+                    <div>
+                        <span class="o_dcasa_combo_eyebrow">Cotización <t t-out="state.panel.orden.nombre"/></span>
+                        <span t-if="state.panel.orden.cliente" class="o_dcasa_combo_cliente"> · <t t-out="state.panel.orden.cliente"/></span>
+                    </div>
+                    <div t-if="state.panel.ahorro_total" class="o_dcasa_combo_ahorro o_dcasa_combo_ahorro_total">
+                        El cliente ahorra <t t-out="dinero(state.panel.ahorro_total)"/>
+                    </div>
+                </div>
+                <div t-if="state.aviso" class="alert alert-success o_dcasa_combo_aviso" role="status">
+                    <i class="fa fa-check me-2" aria-hidden="true"/><t t-out="state.aviso"/>
+                </div>
+
+                <!-- ================= Inicio: los combos de la cotización ================= -->
+                <t t-if="state.paso === 'inicio'">
+                    <h2 class="o_dcasa_combo_titulo">Combos de esta cotización</h2>
+                    <p t-if="!tieneAlgo" class="o_dcasa_combo_vacio">Todavía no hay combos. Arma uno: escoge la cama y
+                        te mostramos los colchones de su medida.</p>
+                    <div t-foreach="state.panel.combos" t-as="combo" t-key="combo.cama.linea_id" class="o_dcasa_combo_card">
+                        <div class="o_dcasa_combo_pieza">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="combo.cama"/></t>
+                            <div class="o_dcasa_combo_info">
+                                <div class="o_dcasa_combo_nombre" t-out="combo.cama.nombre"/>
+                                <div class="o_dcasa_combo_detalle">
+                                    <span class="o_dcasa_combo_medida" t-out="combo.cama.medida"/>
+                                    <t t-out="cantidadTexto(combo.cama.cantidad)"/> × <t t-out="dinero(combo.cama.precio_linea)"/>
+                                </div>
+                            </div>
+                            <button t-if="editable" class="btn btn-secondary o_dcasa_combo_cambiar_cama"
+                                    t-att-disabled="state.trabajando" t-on-click="() => this.cambiarCama(combo)">
+                                Cambiar cama
+                            </button>
+                        </div>
+                        <div t-foreach="combo.colchones" t-as="colchon" t-key="colchon.linea_id" class="o_dcasa_combo_pieza">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="colchon"/></t>
+                            <div class="o_dcasa_combo_info">
+                                <div class="o_dcasa_combo_nombre" t-out="colchon.nombre"/>
+                                <div class="o_dcasa_combo_detalle">
+                                    <span class="o_dcasa_combo_medida" t-out="colchon.medida"/>
+                                    <t t-out="cantidadTexto(colchon.cantidad)"/> ×
+                                    <t t-if="colchon.con_precio">
+                                        <s class="o_dcasa_combo_antes" t-out="dinero(colchon.precio)"/>
+                                        <strong t-out="dinero(colchon.precio_linea)"/> en combo
+                                    </t>
+                                    <t t-else="">
+                                        <t t-out="dinero(colchon.precio_linea)"/>
+                                        <span class="o_dcasa_combo_nota">(sin precio en combo: va a precio normal)</span>
+                                    </t>
+                                </div>
+                            </div>
+                            <button t-if="editable" class="btn btn-secondary o_dcasa_combo_cambiar_colchon"
+                                    t-att-disabled="state.trabajando" t-on-click="() => this.cambiarColchon(combo)">
+                                Cambiar colchón
+                            </button>
+                        </div>
+                        <div class="o_dcasa_combo_pie">
+                            <div class="o_dcasa_combo_total">
+                                Total del combo <strong t-out="dinero(combo.total)"/> <small>+ ITBMS</small>
+                            </div>
+                            <span t-if="combo.ahorro" class="o_dcasa_combo_ahorro">Ahorra <t t-out="dinero(combo.ahorro)"/></span>
+                            <button t-if="editable" class="btn btn-link text-danger o_dcasa_combo_quitar"
+                                    t-att-disabled="state.trabajando" t-on-click="() => this.quitar(combo)">
+                                <i class="fa fa-trash-o me-1" aria-hidden="true"/>Quitar combo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div t-foreach="state.panel.camas_solas" t-as="linea" t-key="linea.linea_id"
+                         class="o_dcasa_combo_card o_dcasa_combo_suelta">
+                        <div class="o_dcasa_combo_pieza">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="linea"/></t>
+                            <div class="o_dcasa_combo_info">
+                                <div class="o_dcasa_combo_nombre" t-out="linea.nombre"/>
+                                <div class="o_dcasa_combo_detalle">
+                                    <span t-if="linea.medida" class="o_dcasa_combo_medida" t-out="linea.medida"/>
+                                    <t t-if="linea.medida">Cama sin colchón</t>
+                                    <t t-else="">Falta la medida de esta cama: pídele a Gerencia que la ponga.</t>
+                                </div>
+                            </div>
+                            <button t-if="editable and linea.medida" class="btn btn-primary o_dcasa_combo_agregar_colchon"
+                                    t-att-disabled="state.trabajando" t-on-click="() => this.colchonPara(linea)">
+                                Agregar colchón
+                            </button>
+                        </div>
+                    </div>
+
+                    <div t-foreach="state.panel.colchones_sueltos" t-as="linea" t-key="linea.linea_id"
+                         class="o_dcasa_combo_card o_dcasa_combo_suelta">
+                        <div class="o_dcasa_combo_pieza">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="linea"/></t>
+                            <div class="o_dcasa_combo_info">
+                                <div class="o_dcasa_combo_nombre" t-out="linea.nombre"/>
+                                <div class="o_dcasa_combo_detalle o_dcasa_combo_motivo" t-out="linea.motivo"/>
+                            </div>
+                            <button t-if="editable" class="btn btn-link text-danger o_dcasa_combo_quitar_colchon"
+                                    t-att-disabled="state.trabajando" t-on-click="() => this.quitarColchon(linea)">
+                                Quitar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="o_dcasa_combo_acciones">
+                        <button t-if="editable" class="btn btn-primary btn-lg o_dcasa_combo_nuevo"
+                                t-att-disabled="state.trabajando" t-on-click="() => this.irACamas({ tipo: 'nuevo' })">
+                            <i class="fa fa-plus me-2" aria-hidden="true"/>Armar un combo nuevo
+                        </button>
+                        <button class="btn btn-secondary btn-lg o_dcasa_combo_listo" t-on-click="cerrar">Listo</button>
+                    </div>
+                </t>
+
+                <!-- ================= Paso 1: la cama ================= -->
+                <t t-if="state.paso === 'cama'">
+                    <button t-if="tieneAlgo" class="btn btn-link o_dcasa_combo_volver" t-on-click="volverAlInicio">
+                        <i class="fa fa-chevron-left me-1" aria-hidden="true"/>Volver a los combos
+                    </button>
+                    <h2 class="o_dcasa_combo_titulo" t-out="tituloCamas"/>
+                    <input t-ref="buscador" type="search" class="form-control form-control-lg o_dcasa_combo_buscar"
+                           placeholder="Busca la cama: nombre, código o medida" t-att-value="state.texto"
+                           t-on-input="onTexto" aria-label="Buscar la cama"/>
+                    <div class="o_dcasa_combo_medidas" role="group" aria-label="Medida">
+                        <button t-attf-class="btn o_dcasa_combo_chip #{!state.medida ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirMedida('')">Todas</button>
+                        <button t-foreach="state.panel.medidas" t-as="m" t-key="m"
+                                t-attf-class="btn o_dcasa_combo_chip #{state.medida === m ? 'o_activa' : ''}"
+                                t-on-click="() => this.elegirMedida(m)" t-out="m"/>
+                    </div>
+                    <p t-if="!state.camas.length" class="o_dcasa_combo_vacio">No encontramos camas con eso. Prueba con
+                        otra palabra o con el código.</p>
+                    <div class="o_dcasa_combo_rejilla">
+                        <button t-foreach="state.camas" t-as="cama" t-key="cama.id" type="button"
+                                class="o_dcasa_combo_tarjeta o_dcasa_combo_tarjeta_cama"
+                                t-att-disabled="state.trabajando" t-on-click="() => this.elegirCama(cama)">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="cama"/></t>
+                            <span class="o_dcasa_combo_nombre" t-out="cama.nombre"/>
+                            <span class="o_dcasa_combo_detalle">
+                                <span t-if="cama.medida" class="o_dcasa_combo_medida" t-out="cama.medida"/>
+                                <span t-else="" class="o_dcasa_combo_falta">Falta la medida</span>
+                                <span class="o_dcasa_combo_precio"><t t-out="dinero(cama.precio)"/> <small>+ ITBMS</small></span>
+                            </span>
+                            <span t-if="cama.disponibles !== null"
+                                  t-attf-class="o_dcasa_combo_existencia #{cama.disponibles &gt; 0 ? '' : 'o_agotado'}"
+                                  t-out="unidades(cama.disponibles)"/>
+                            <span t-if="cama.referencia_excel" class="o_dcasa_combo_referencia">
+                                Excel: <t t-out="cama.referencia_excel"/>
+                            </span>
+                        </button>
+                    </div>
+                    <p t-if="state.hayMas" class="o_dcasa_combo_nota">Hay más camas: escribe parte del nombre o el
+                        código para encontrarla.</p>
+                </t>
+
+                <!-- ================= Paso 2: el colchón de su medida ================= -->
+                <t t-if="state.paso === 'colchon'">
+                    <button class="btn btn-link o_dcasa_combo_volver" t-on-click="volverDesdeColchones">
+                        <i class="fa fa-chevron-left me-1" aria-hidden="true"/>
+                        <t t-if="eligeCama">Cambiar la cama</t>
+                        <t t-else="">Volver a los combos</t>
+                    </button>
+                    <div class="o_dcasa_combo_cama_elegida">
+                        <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="state.cama"/></t>
+                        <div class="o_dcasa_combo_info">
+                            <span class="o_dcasa_combo_eyebrow">Cama</span>
+                            <div class="o_dcasa_combo_nombre" t-out="state.cama.nombre"/>
+                            <div class="o_dcasa_combo_detalle">
+                                <span t-if="state.cama.medida" class="o_dcasa_combo_medida" t-out="state.cama.medida"/>
+                                <t t-out="dinero(state.cama.precio)"/> <small>+ ITBMS</small>
+                            </div>
+                        </div>
+                        <div t-if="state.modo.tipo === 'nuevo'" class="o_dcasa_combo_cantidad">
+                            <span>¿Cuántos combos?</span>
+                            <div class="o_dcasa_combo_stepper">
+                                <button class="btn btn-secondary" aria-label="Uno menos" t-on-click="() => this.cambiarCantidad(-1)">−</button>
+                                <span class="o_dcasa_combo_cantidad_valor" t-out="state.cantidad"/>
+                                <button class="btn btn-secondary" aria-label="Uno más" t-on-click="() => this.cambiarCantidad(1)">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <h2 class="o_dcasa_combo_titulo" t-out="tituloColchones"/>
+                    <p t-if="state.faltaMedida" class="alert alert-warning">Falta la medida de esta cama: pídele a
+                        Gerencia que la ponga en «Ventas › Productos › Precios en combo».</p>
+                    <p t-elif="!state.colchones.length" class="o_dcasa_combo_vacio">
+                        No hay colchones <t t-out="state.cama.medida"/><t t-if="!state.todos"> con existencia</t>.
+                    </p>
+                    <div class="o_dcasa_combo_rejilla">
+                        <button t-foreach="state.colchones" t-as="colchon" t-key="colchon.id" type="button"
+                                t-attf-class="o_dcasa_combo_tarjeta o_dcasa_combo_tarjeta_colchon #{esActual(colchon) ? 'o_actual' : ''}"
+                                t-att-disabled="state.trabajando or esActual(colchon)"
+                                t-on-click="() => this.elegirColchon(colchon)">
+                            <t t-call="dcasa_catalogo.ArmarComboFoto"><t t-set="producto" t-value="colchon"/></t>
+                            <span class="o_dcasa_combo_nombre" t-out="colchon.nombre"/>
+                            <span t-if="colchon.caracteristicas" class="o_dcasa_combo_caracteristicas" t-out="colchon.caracteristicas"/>
+                            <t t-if="colchon.precio_combo">
+                                <span class="o_dcasa_combo_precios">
+                                    <s class="o_dcasa_combo_antes" t-out="dinero(colchon.precio)"/>
+                                    <strong class="o_dcasa_combo_precio_combo"><t t-out="dinero(colchon.precio_combo)"/> <small>+ ITBMS</small></strong>
+                                </span>
+                                <span class="o_dcasa_combo_ahorro">Ahorra <t t-out="dinero(colchon.ahorro)"/></span>
+                            </t>
+                            <span t-else="" class="o_dcasa_combo_precios">
+                                <strong t-out="dinero(colchon.precio)"/> <small>+ ITBMS</small>
+                                <span class="o_dcasa_combo_nota">Sin precio en combo: va a precio normal</span>
+                            </span>
+                            <span t-if="colchon.disponibles !== null"
+                                  t-attf-class="o_dcasa_combo_existencia #{colchon.disponibles &gt; 0 ? '' : 'o_agotado'}"
+                                  t-out="unidades(colchon.disponibles)"/>
+                            <span t-if="esActual(colchon)" class="o_dcasa_combo_nota">Es el que tiene ahora</span>
+                        </button>
+                    </div>
+                    <button t-if="state.agotados or state.todos" class="btn btn-link o_dcasa_combo_ver_todos" t-on-click="verTodos">
+                        <t t-if="state.todos">Ver solo los que tienen existencia</t>
+                        <t t-else="">Ver también los agotados (<t t-out="state.agotados"/>)</t>
+                    </button>
+                </t>
+            </t>
+        </div>
+    </t>
+</templates>
