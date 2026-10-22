@@ -66,7 +66,7 @@
                         <span class="o_dcasa_pd_nota">ITBMS <t t-out="dinero(d.total.itbms)"/> · Total con ITBMS <t t-out="dinero(d.total.total)"/></span>
                     </button>
                     <div class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_anterior">
-                        <span class="o_dcasa_pd_etiqueta">Contra <t t-out="d.anterior.etiqueta"/></span>
+                        <span class="o_dcasa_pd_etiqueta">Contra el mes pasado · <t t-out="d.anterior.etiqueta"/></span>
                         <strong t-attf-class="o_dcasa_pd_valor o_dcasa_pd_cambio {{cambioClase}}" t-out="cambioTexto"/>
                         <span class="o_dcasa_pd_nota">Ese periodo: <t t-out="dinero(d.anterior.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(d.anterior.cuantas, d.base)"/></span>
                         <span t-if="d.anterior.hora" class="o_dcasa_pd_nota">Su último día cuenta hasta las <t t-out="d.anterior.hora"/>, como hoy.</span>

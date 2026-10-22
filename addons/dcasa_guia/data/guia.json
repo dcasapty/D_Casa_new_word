@@ -136,6 +136,43 @@
    ]
   },
   {
+   "id": "ventas-por-dia",
+   "categoria": "vender",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Hoy",
+   "titulo": "Ver cuánto se vendió cada día del mes",
+   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
+   },
+   "pasos": [
+    {
+     "texto": "Arriba eliges el mes y qué contar: «Vendido» (los pedidos confirmados, el día que se confirmaron), «Facturado» (todas las facturas, igual que Contabilidad; las notas de crédito restan), «Con abonos» o «Completadas», las mismas del Inicio. Al lado puedes elegir una vendedora.",
+     "destino": {
+      "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
+     }
+    },
+    {
+     "texto": "Toca un día del calendario: a la derecha (en el celular, debajo del día) sale cada venta de ese día. «Ver en lista» las abre todas en una lista.",
+     "destino": null
+    }
+   ],
+   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte. «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
+   "brian": "¿Cuánto se vendió el martes?",
+   "palabras": [
+    "por dia",
+    "dia por dia",
+    "ventas por dia",
+    "calendario",
+    "cuanto se vendio el",
+    "que se hizo ese dia",
+    "ventas del mes",
+    "vendido"
+   ]
+  },
+  {
    "id": "cobros-hoy",
    "categoria": "vender",
    "grupo": "Hoy",
@@ -353,6 +390,30 @@
     "buscar factura"
    ],
    "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas. La vendedora no hace facturas sueltas: hace una cotización (Ventas › Nueva cotización) y la factura sale del pedido, así Caja la encuentra para cobrar."
+  },
+  {
+   "id": "facturado-por-dia",
+   "categoria": "facturar",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver cuánto se facturó cada día del mes",
+   "logras": "El mes como un calendario con lo facturado cada día (las notas de crédito restan, igual que en Contabilidad) y cuántas facturas fueron. Tocas un día y ves cada factura de ese día con su cliente, su vendedora y si está pagada; tocas una y se abre. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_facturado_por_dia"
+   },
+   "nota": "Es la misma pantalla de Ventas por día, abierta en «Facturado». También la abres desde el Inicio con «Ver por día».",
+   "brian": "¿Cuánto se facturó ayer?",
+   "palabras": [
+    "facturado por dia",
+    "facturas por dia",
+    "dia por dia",
+    "calendario",
+    "cuanto se facturo",
+    "facturacion del mes",
+    "notas de credito"
+   ]
   },
   {
    "id": "factura-borrador",
@@ -1298,6 +1359,28 @@
     "cuantos hay",
     "disponible",
     "bodega"
+   ]
+  },
+  {
+   "id": "movimientos-inventario",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver todo lo que entró y salió de un producto",
+   "logras": "Buscas un producto por su nombre, su código o su código de barras y ves su historia en palabras: «Entró por la compra… de…», «Salió por la venta… a…», ajustes, devoluciones y traslados, con lo que entró en verde y lo que salió en rojo, lo que quedó después, quién lo hizo y cuándo. Tocas uno y se abre su venta o su compra. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_movimientos"
+   },
+   "nota": "Sin buscar nada, ves los últimos movimientos de todos los productos. Puedes filtrar por fechas y por tipo (compras, ventas, devoluciones, ajustes, traslados).",
+   "brian": "¿Qué movimientos tuvo este producto?",
+   "palabras": [
+    "movimientos",
+    "historial",
+    "kardex",
+    "entradas y salidas",
+    "que paso con",
+    "trazabilidad",
+    "devoluciones",
+    "traslados"
    ]
   },
   {
@@ -2695,6 +2778,29 @@
     "top",
     "productos que se venden",
     "ranking"
+   ]
+  },
+  {
+   "id": "estadisticas",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Ver las estadísticas de ventas en gráficas",
+   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_estadisticas_resumen"
+   },
+   "nota": "Todo va sin ITBMS y con las mismas cuentas del Inicio. Para comparar dos periodos usa Comparar en el Inicio; para la ganancia por producto, Mejor margen.",
+   "brian": "¿Cuánto se vendió por día este mes?",
+   "palabras": [
+    "estadisticas",
+    "graficas",
+    "graficos",
+    "por categoria",
+    "por tipo",
+    "por vendedora",
+    "mas vendido",
+    "como van las ventas",
+    "reporte de ventas"
    ]
   },
   {

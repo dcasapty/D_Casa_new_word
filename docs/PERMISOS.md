@@ -42,6 +42,7 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | **Notas de crédito** de clientes; **devolverle dinero** a un cliente; cobrar de más dejándole **saldo a favor**; dar una factura por pagada con una diferencia | **No** | **No** | **No** | Sí | Sí |
 | Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
 | Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | **No** | Sí | Sí |
+| Ventas o facturado **por día**, **Estadísticas › Resumen** e **Inventario › Movimientos** (2026-10-22) | **No** | **No** | **No** | Sí | Sí |
 | Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | **No** | Sí | Sí |
 | Factura electrónica (DGI) | Sí | Sí | Sí | Sí | Sí |
 | Facturas y notas **de proveedores** | **No** | **No** | Sí | Sí | Sí |
@@ -132,8 +133,17 @@ notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con 
 Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
 del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo
 mal rompe entregas o recepciones. Queda como la siguiente tarea de seguridad (con pruebas de esos flujos); está en
-[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (lo más vendido, mejor margen, lo que no se mueve) es de
-Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve los pedidos.
+[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (resumen, por día, lo más vendido, mejor margen, lo que no
+se mueve) es de Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve
+los pedidos.
+
+**Por día, Estadísticas y Movimientos** (2026-10-22): *Ventas › Hoy › Ventas por día*, *Facturación › Clientes ›
+Facturado por día* y *Estadísticas › Resumen* son de **Gerencia y administradores** (`sales_team.group_sale_manager` o
+`base.group_system`, los mismos de Comparar); *Inventario › Movimientos*, de quien administra Inventario (Gerencia lo
+incluye) y los administradores (`stock.group_stock_manager` o `base.group_system`). Los menús llevan esos grupos y el
+servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `estadisticas`,
+`opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
+datos, y Brian tampoco se las da (`ventas_por_dia`, `movimientos_de_producto`).
 
 **Tope de descuento (10 % para la Vendedora)** — cerrado en esta revisión: se mide siempre al crear la línea (aunque el precio
 llegue por el contexto de la llamada), al cambiar de producto o de unidad de medida, y al tocar las banderas de anticipo o

@@ -98,7 +98,7 @@
                             <div class="o_dcasa_mv_numeros">
                                 <strong t-attf-class="o_dcasa_mv_cantidad o_{{fila.sentido}}" t-out="fila.cantidad_texto"
                                         t-att-aria-label="fila.sentido === 'entra' ? 'Entraron ' + fila.cantidad_texto : fila.sentido === 'sale' ? 'Salieron ' + fila.cantidad_texto : 'Se movieron ' + fila.cantidad_texto"/>
-                                <small t-if="fila.queda !== null and fila.queda !== undefined" class="o_dcasa_mv_queda">Quedan <t t-out="cantidad(fila.queda)"/></small>
+                                <small t-if="fila.queda !== null and fila.queda !== undefined" class="o_dcasa_mv_queda"><t t-out="fila.queda === 1 ? 'Queda' : 'Quedan'"/> <t t-out="cantidad(fila.queda)"/></small>
                             </div>
                         </li>
                     </ol>
