@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="prestamo_list" model="ir.ui.view">
+        <field name="name">dcasa.nomina.prestamo.list</field>
+        <field name="model">dcasa.nomina.prestamo</field>
+        <field name="arch" type="xml">
+            <list string="Adelantos y préstamos" decoration-muted="estado in ('pagado', 'cancelado')"
+                  decoration-warning="estado == 'borrador'">
+                <field name="fecha"/>
+                <field name="empleado_id"/>
+                <field name="tipo"/>
+                <field name="monto" sum="Total"/>
+                <field name="cuotas" string="Quincenas"/>
+                <field name="cuota" optional="show"/>
+                <field name="descontado" sum="Total" optional="show"/>
+                <field name="saldo" sum="Total"/>
+                <field name="estado" widget="badge" decoration-success="estado == 'pagado'"
+                       decoration-info="estado == 'entregado'" decoration-warning="estado in ('borrador', 'aprobado')"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="prestamo_form" model="ir.ui.view">
+        <field name="name">dcasa.nomina.prestamo.form</field>
+        <field name="model">dcasa.nomina.prestamo</field>
+        <field name="arch" type="xml">
+            <form string="Adelanto o préstamo">
+                <header>
+                    <button name="action_aprobar" type="object" string="Autorizar" class="btn-primary"
+                            invisible="estado != 'borrador'" groups="dcasa_base.group_gerencia,base.group_system"/>
+                    <button name="action_entregar" type="object" string="Entregar el dinero" class="btn-primary"
+                            invisible="estado != 'aprobado'"
+                            confirm="Se registra el pago al colaborador desde el banco o la caja elegidos. ¿Entregar?"/>
+                    <button name="action_borrador" type="object" string="Volver a «por autorizar»"
+                            invisible="estado not in ('aprobado', 'cancelado')"/>
+                    <button name="action_cancelar" type="object" string="Cancelar"
+                            invisible="estado not in ('borrador', 'aprobado')"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,aprobado,entregado,pagado"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <div class="alert alert-warning" role="alert" invisible="estado != 'borrador'">
+                        <strong>Por autorizar.</strong> Un adelanto o un préstamo lo autoriza Gerencia antes de entregar
+                        el dinero.
+                    </div>
+                    <div class="alert alert-info" role="alert" invisible="estado != 'entregado'">
+                        Se descuenta solo en cada planilla quincenal: <field name="cuota" class="oe_inline" readonly="1"/>
+                        por quincena hasta llegar a cero. Nunca se descuenta más de lo que debe.
+                    </div>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="empleado_id" readonly="estado != 'borrador'" options="{'no_create': True}"/>
+                            <field name="tipo" readonly="estado != 'borrador'"/>
+                            <field name="monto" readonly="estado != 'borrador'"/>
+                            <field name="fecha" readonly="estado != 'borrador'"/>
+                            <field name="motivo" placeholder="Ej.: emergencia médica, útiles escolares…"/>
+                        </group>
+                        <group>
+                            <field name="cuotas" readonly="estado != 'borrador'"/>
+                            <field name="cuota"/>
+                            <field name="primera_quincena" readonly="estado != 'borrador'"/>
+                            <field name="diario_id" readonly="estado not in ('borrador', 'aprobado')"
+                                   required="estado == 'aprobado'"/>
+                            <field name="payment_id" invisible="not payment_id"/>
+                            <field name="aprobado_por" invisible="not aprobado_por"/>
+                            <field name="aprobado_el" invisible="not aprobado_el"/>
+                        </group>
+                    </group>
+                    <group string="Cómo va" invisible="estado in ('borrador', 'aprobado', 'cancelado')">
+                        <group>
+                            <field name="descontado"/>
+                            <field name="en_planilla" invisible="not en_planilla"/>
+                            <field name="saldo" class="fw-bold"/>
+                        </group>
+                        <group>
+                            <field name="cuotas_descontadas"/>
+                        </group>
+                    </group>
+                    <field name="descuento_ids" invisible="not descuento_ids">
+                        <list create="0" delete="0">
+                            <field name="planilla_id"/>
+                            <field name="monto" sum="Total"/>
+                            <field name="currency_id" column_invisible="1"/>
+                        </list>
+                    </field>
+                    <field name="notas" placeholder="Notas"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="prestamo_search" model="ir.ui.view">
+        <field name="name">dcasa.nomina.prestamo.search</field>
+        <field name="model">dcasa.nomina.prestamo</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="empleado_id"/>
+                <filter name="por_autorizar" string="Por autorizar" domain="[('estado', '=', 'borrador')]"/>
+                <filter name="por_entregar" string="Autorizados, por entregar" domain="[('estado', '=', 'aprobado')]"/>
+                <filter name="con_saldo" string="Con saldo pendiente" domain="[('estado', '=', 'entregado')]"/>
+                <filter name="pagados" string="Pagados" domain="[('estado', '=', 'pagado')]"/>
+                <group>
+                    <filter name="por_colaborador" string="Colaborador" context="{'group_by': 'empleado_id'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="accion_prestamos" model="ir.actions.act_window">
+        <field name="name">Adelantos y préstamos</field>
+        <field name="res_model">dcasa.nomina.prestamo</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Registra un adelanto o un préstamo</p>
+            <p>Escribe a quién, cuánto y en cuántas quincenas se descuenta. Gerencia lo autoriza, se entrega el dinero
+                y cada planilla quincenal descuenta la cuota sola, sin pasar nunca de lo que debe.</p>
+        </field>
+    </record>
+</odoo>

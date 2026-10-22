@@ -1,0 +1,51 @@
+// Comprobante de pago (G4): el papel D'CASA (layout de dcasa_invoice) con el neto bien visible.
+// Plano: sin degradados ni sombras; el amarillo no se usa aquí (nunca toca el blanco).
+$dcasa-azul: #1340B1;
+$dcasa-navy: #0B2A6F;
+$dcasa-gris: #6B6B6B;
+$dcasa-linea: #D9DEEA;
+
+.o_dcasa_comprobante {
+    .o_dcasa_comprobante_borrador {
+        border: 2px solid $dcasa-azul;
+        color: $dcasa-azul;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        padding: 6px 10px;
+        margin-bottom: 12px;
+        text-align: center;
+    }
+    .o_dcasa_comprobante_sumas td {
+        font-weight: 700;
+        color: $dcasa-navy;
+        border-top: 2px solid $dcasa-azul;
+    }
+    .o_dcasa_comprobante_neto {
+        width: 55%;
+        margin-left: 45%;
+        margin-top: 10px;
+        td {
+            background-color: $dcasa-azul;
+            color: #FFFFFF;
+            font-size: 1.15rem;
+            font-weight: 700;
+            padding: 8px 12px;
+            text-transform: uppercase;
+        }
+    }
+    .o_dcasa_comprobante_nota {
+        color: $dcasa-gris;
+        font-size: .78rem;
+    }
+    .o_dcasa_comprobante_firmas {
+        margin-top: 64px;
+        color: $dcasa-gris;
+        font-size: .8rem;
+        .o_dcasa_comprobante_linea {
+            border-top: 1px solid $dcasa-navy;
+            width: 85%;
+            margin-bottom: 4px;
+        }
+    }
+}

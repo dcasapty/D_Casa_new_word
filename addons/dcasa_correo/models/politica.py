@@ -6,7 +6,8 @@ Cada correo que Odoo manda lleva una **clase** (cabecera ``X-Dcasa-Clase``, la p
 Clase      Cuándo
 ========== ==========================================================================================
 factura,   Los arma D'CASA (cabecera ``X-Dcasa-Correo``): la factura o el abono al pagar, la bienvenida,
-abono, …   la cotización, la factura del botón «Enviar», el correo de prueba.
+abono, …   la cotización, la factura del botón «Enviar», el correo de prueba y el comprobante de pago de la
+           planilla a cada colaborador (``nomina``, módulo dcasa_nomina).
 acceso     ``res.users``: cambiar la contraseña o la invitación a la tienda (lo necesita «Mi cuenta»).
 documento  Un mensaje que una persona del equipo escribe en una factura o en una venta.
 odoo       Todo lo demás: confirmaciones automáticas de Odoo, pago recibido, carrito abandonado…
@@ -25,8 +26,10 @@ CABECERA_CLASE = 'X-Dcasa-Clase'     # la pone mail.mail justo antes de enviar; 
 CLASE_ODOO = 'odoo'
 CLASE_PRUEBA = 'prueba'
 # Valores de X-Dcasa-Correo que se respetan (otro valor cuenta como «odoo»).
-CLASES_DCASA = ('factura', 'abono', 'bienvenida', 'cotizacion', 'documento', CLASE_PRUEBA)
-CLASES_A_CLIENTES = ('factura', 'abono', 'bienvenida', 'cotizacion', 'documento', 'acceso')
+CLASES_DCASA = ('factura', 'abono', 'bienvenida', 'cotizacion', 'documento', 'nomina', CLASE_PRUEBA)
+# «nomina»: el comprobante de pago que Nómina manda a cada colaborador; sale con el mismo interruptor (apagado de
+# fábrica, nunca en staging) que los correos a clientes.
+CLASES_A_CLIENTES = ('factura', 'abono', 'bienvenida', 'cotizacion', 'documento', 'acceso', 'nomina')
 MODELOS_DOCUMENTO = ('account.move', 'sale.order')
 
 MOTIVO_APAGADO = 'Correos a clientes apagados.'

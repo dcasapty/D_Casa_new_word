@@ -16,6 +16,8 @@
               sequence="50" groups="group_nomina"/>
     <menuitem id="menu_reembolsos" name="Reembolsos" parent="menu_nomina_raiz" action="accion_reembolsos"
               sequence="60" groups="group_nomina"/>
+    <menuitem id="menu_prestamos" name="Adelantos y préstamos" parent="menu_nomina_raiz" action="accion_prestamos"
+              sequence="62" groups="group_nomina"/>
     <menuitem id="menu_meta_bonos" name="Bono por meta" parent="menu_nomina_raiz" action="accion_meta_bonos"
               sequence="70" groups="group_nomina"/>
     <!-- «Mis gastos por reembolsar» es de cada colaborador (lo que pagó de su bolsillo para la empresa y se le

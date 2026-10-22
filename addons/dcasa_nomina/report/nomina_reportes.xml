@@ -15,44 +15,96 @@
     <template id="comprobante_pago">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
+                <t t-set="layout_document_title">Comprobante de pago</t>
+                <t t-set="moneda" t-value="o.currency_id"/>
+                <t t-set="empleado" t-value="o.empleado_id.sudo()"/>
+                <t t-set="borrador" t-value="o.planilla_id.estado not in ('confirmada', 'pagada')"/>
+                <t t-set="address">
+                    <div class="row o_dcasa_rejilla" name="dcasa_rejilla">
+                        <div class="col-4 o_dcasa_celda">
+                            <div class="o_dcasa_bloque_titulo">Colaborador</div>
+                            <div class="o_dcasa_cliente">
+                                <div class="o_dcasa_cliente_nombre" t-out="empleado.name"/>
+                                <div t-if="empleado.job_title" t-out="empleado.job_title"/>
+                                <div t-if="empleado.identification_id">Cédula: <t t-out="empleado.identification_id"/></div>
+                                <div t-if="empleado.ssnid">Seguro social: <t t-out="empleado.ssnid"/></div>
+                            </div>
+                        </div>
+                        <div class="col-4 o_dcasa_celda">
+                            <div class="o_dcasa_bloque_titulo">Periodo</div>
+                            <div t-out="o.planilla_id.name"/>
+                            <div t-if="o.tipo == 'quincenal'">Días pagados: <t t-out="o.dias_pagados"/> de <t t-out="o.dias_periodo"/></div>
+                        </div>
+                        <div class="col-4 o_dcasa_celda o_dcasa_datos">
+                            <table class="o_dcasa_tabla_datos">
+                                <tr><th>Pago</th><td><span t-field="o.planilla_id.fecha_pago"/></td></tr>
+                                <tr t-if="empleado.dcasa_forma_pago"><th>Forma</th><td><span t-field="empleado.dcasa_forma_pago"/></td></tr>
+                                <tr t-if="o.tipo == 'quincenal'"><th>Salario mensual</th>
+                                    <td t-out="o.salario_mensual" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
+                            </table>
+                        </div>
+                    </div>
+                </t>
                 <t t-call="web.external_layout">
-                    <div class="page">
-                        <h2>Comprobante de pago</h2>
-                        <p class="text-muted"><span t-field="o.planilla_id.name"/></p>
-                        <table class="table table-sm">
-                            <tr><th>Colaborador</th><td><span t-field="o.empleado_id.name"/></td>
-                                <th>Cédula</th><td><span t-out="o.empleado_id.sudo().identification_id"/></td></tr>
-                            <tr><th>Periodo</th><td><span t-field="o.planilla_id.fecha_desde"/> al <span t-field="o.planilla_id.fecha_hasta"/></td>
-                                <th>Fecha de pago</th><td><span t-field="o.planilla_id.fecha_pago"/></td></tr>
-                            <tr t-if="o.tipo == 'quincenal'"><th>Salario mensual</th>
-                                <td><span t-field="o.salario_mensual"/></td>
-                                <th>Días pagados</th><td><span t-field="o.dias_pagados"/> de <span t-field="o.dias_periodo"/></td></tr>
-                        </table>
-                        <table class="table table-sm">
-                            <thead><tr><th>Concepto</th><th class="text-end">Ingresos</th><th class="text-end">Descuentos</th></tr></thead>
+                    <div class="page o_dcasa_comprobante">
+                        <div t-if="borrador" class="o_dcasa_comprobante_borrador">
+                            BORRADOR: esta planilla todavía no está confirmada; las cifras pueden cambiar.
+                        </div>
+                        <table class="table table-sm o_main_table">
+                            <thead>
+                                <tr><th>Concepto</th><th class="text-end">Ingresos</th><th class="text-end">Descuentos</th></tr>
+                            </thead>
                             <tbody>
                                 <tr>
                                     <td t-if="o.tipo == 'quincenal'">Salario del periodo</td>
                                     <td t-else="">Décimo tercer mes (partida)</td>
-                                    <td class="text-end"><span t-field="o.salario"/></td><td/></tr>
-                                <tr t-if="o.otros_ingresos"><td>Otros ingresos</td>
-                                    <td class="text-end"><span t-field="o.otros_ingresos"/></td><td/></tr>
+                                    <td class="text-end" t-out="o.salario" t-options="{'widget': 'monetary', 'display_currency': moneda}"/>
+                                    <td/>
+                                </tr>
+                                <tr t-if="o.otros_ingresos"><td>Otros ingresos (horas extras, bonos)</td>
+                                    <td class="text-end" t-out="o.otros_ingresos" t-options="{'widget': 'monetary', 'display_currency': moneda}"/><td/></tr>
                                 <tr t-if="o.comision_meta and o.tipo != 'decimo'"><td>Bono por meta de ventas</td>
-                                    <td class="text-end"><span t-field="o.comision_meta"/></td><td/></tr>
+                                    <td class="text-end" t-out="o.comision_meta" t-options="{'widget': 'monetary', 'display_currency': moneda}"/><td/></tr>
+                                <tr t-foreach="o.reembolso_ids" t-as="r"><td>Reembolso: <t t-out="r.concepto"/></td>
+                                    <td class="text-end" t-out="r.monto" t-options="{'widget': 'monetary', 'display_currency': moneda}"/><td/></tr>
                                 <tr t-if="o.css_trabajador"><td>Seguro social</td><td/>
-                                    <td class="text-end"><span t-field="o.css_trabajador"/></td></tr>
+                                    <td class="text-end" t-out="o.css_trabajador" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
                                 <tr t-if="o.se_trabajador"><td>Seguro educativo</td><td/>
-                                    <td class="text-end"><span t-field="o.se_trabajador"/></td></tr>
+                                    <td class="text-end" t-out="o.se_trabajador" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
                                 <tr t-if="o.isr"><td>Impuesto sobre la renta</td><td/>
-                                    <td class="text-end"><span t-field="o.isr"/></td></tr>
-                                <tr t-if="o.otros_descuentos"><td>Otros descuentos</td><td/>
-                                    <td class="text-end"><span t-field="o.otros_descuentos"/></td></tr>
-                                <tr t-foreach="o.reembolso_ids" t-as="r"><td>Reembolso: <span t-field="r.concepto"/></td>
-                                    <td class="text-end"><span t-field="r.monto"/></td><td/></tr>
+                                    <td class="text-end" t-out="o.isr" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
+                                <tr t-foreach="o.prestamo_descuento_ids" t-as="d">
+                                    <td>
+                                        <t t-out="dict(d.prestamo_id._fields['tipo']._description_selection(d.env)).get(d.prestamo_id.tipo)"/>
+                                        del <span t-field="d.prestamo_id.fecha"/>: cuota <t t-out="d._numero_de_cuota()"/> de <t t-out="d.prestamo_id.cuotas"/>
+                                        <div class="o_dcasa_comprobante_nota">Te queda por pagar después de este pago:
+                                            <t t-out="d._saldo_despues()" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></div>
+                                    </td>
+                                    <td/>
+                                    <td class="text-end" t-out="d.monto" t-options="{'widget': 'monetary', 'display_currency': moneda}"/>
+                                </tr>
+                                <tr t-if="o.otros_descuentos"><td>Otros descuentos<t t-if="o.notas">: <t t-out="o.notas"/></t></td><td/>
+                                    <td class="text-end" t-out="o.otros_descuentos" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
                             </tbody>
-                            <tfoot><tr><th>Neto a pagar</th><th colspan="2" class="text-end"><span t-field="o.neto"/></th></tr></tfoot>
+                            <tfoot>
+                                <tr class="o_dcasa_comprobante_sumas">
+                                    <td>Totales</td>
+                                    <td class="text-end" t-out="o.devengado + o.reembolsos" t-options="{'widget': 'monetary', 'display_currency': moneda}"/>
+                                    <td class="text-end" t-out="o.css_trabajador + o.se_trabajador + o.isr + o.otros_descuentos + o.prestamos" t-options="{'widget': 'monetary', 'display_currency': moneda}"/>
+                                </tr>
+                            </tfoot>
                         </table>
-                        <p class="mt-5">Recibí conforme: ______________________________</p>
+                        <table class="o_dcasa_comprobante_neto">
+                            <tr><td>Recibes</td><td class="text-end" t-out="o.neto" t-options="{'widget': 'monetary', 'display_currency': moneda}"/></tr>
+                        </table>
+                        <p class="o_dcasa_comprobante_nota mt-3">
+                            Los descuentos de seguro social, seguro educativo e impuesto sobre la renta los paga D'CASA a
+                            nombre tuyo. ¿Dudas con tu pago? Pregúntale a la administración.
+                        </p>
+                        <div class="row o_dcasa_comprobante_firmas">
+                            <div class="col-6"><div class="o_dcasa_comprobante_linea"/>Recibí conforme</div>
+                            <div class="col-6"><div class="o_dcasa_comprobante_linea"/>Por D'CASA</div>
+                        </div>
                     </div>
                 </t>
             </t>

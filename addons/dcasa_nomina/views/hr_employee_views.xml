@@ -18,6 +18,13 @@
                         <field name="dcasa_vac_saldo"/>
                         <field name="dcasa_vac_valor"/>
                         <field name="dcasa_prima_acumulada"/>
+                        <label for="dcasa_prestamos_saldo"/>
+                        <div class="o_row">
+                            <field name="dcasa_prestamos_saldo"/>
+                            <button name="%(dcasa_nomina.accion_prestamos)d" type="action" class="btn-link"
+                                    string="Ver adelantos" icon="fa-list"
+                                    context="{'search_default_empleado_id': id, 'default_empleado_id': id}"/>
+                        </div>
                     </group>
                 </group>
             </xpath>

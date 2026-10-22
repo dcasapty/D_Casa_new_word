@@ -108,6 +108,45 @@ abrir la app de Nómina ni necesita permiso de facturar. Tiene un ícono distint
 parezca que la vendedora tiene la Nómina habilitada. Para registrar gastos hace falta que el usuario esté ligado a su
 ficha de colaborador.
 
+## Adelantos y préstamos (G7, 2026-10-22)
+
+**Nómina › Adelantos y préstamos.** Quien administra la nómina registra a quién, cuánto, la fecha y **en cuántas
+quincenas** se descuenta (el sistema divide el monto: «Descuento por quincena»; la última quincena toma los centavos que
+queden). Queda **«Por autorizar»**: lo **autoriza Gerencia** (botón «Autorizar», el servidor lo exige). Después se
+**entrega el dinero** desde un banco o la caja: queda el pago al colaborador contra la cuenta **«Adelantos y préstamos al
+personal»** (Nómina › Configuración › Cuentas y diario; el plan de Panamá trae la 134 «Anticipo al Personal», que se
+propone en una configuración nueva y **confirma el contador**; sin ella no se entrega ni se confirma una planilla que
+descuente uno).
+
+Cada **planilla quincenal** descuenta sola la cuota que toca (columna «Adelantos y préstamos» y una línea en el
+comprobante con «cuota 2 de 4» y lo que le queda por pagar). Reglas:
+
+* **Nunca se descuenta más de lo que debe**: la cuota es la menor entre la pactada y lo que queda (contando lo reservado
+  en otra planilla sin confirmar) y una restricción del servidor lo vigila también si se escribe a mano.
+* El **saldo** no se escribe: es el monto menos lo descontado en planillas **confirmadas o pagadas**. Con saldo cero queda
+  «Pagado». Se ve en la lista, en el adelanto y en la ficha del colaborador (pestaña de nómina, «Debe por adelantos y
+  préstamos», con el botón «Ver adelantos»).
+* Al confirmar la planilla, cada cuota va **a nombre del colaborador** contra la cuenta de adelantos (así la contadora
+  sigue lo que debe cada uno). Cancelar una planilla devuelve su cuota (sin asiento se suelta; con asiento se reversa y
+  ya no cuenta).
+* El décimo tercer mes **no** descuenta adelantos. Un adelanto autorizado ya no cambia de monto ni de cuotas (se cancela
+  y se registra otro); uno entregado no se cancela ni se borra.
+* Lo que falta: adelantos que se dieron **antes** del sistema (sin pago registrado) se cargan hoy como «otros descuentos»
+  a mano; condonar un saldo lo decide el contador (asiento a mano).
+
+## Comprobante de pago (G4, 2026-10-22)
+
+En la planilla, cada colaborador tiene **«Comprobante»** (PDF con la marca D'CASA: datos de la persona y del periodo,
+ingresos y descuentos uno por uno, los adelantos con su saldo, **«Recibes»** en una franja azul y las firmas) y
+**«Enviar»** (por correo). Arriba, **«Enviar comprobantes por correo»** los manda a todos. El de una planilla sin
+confirmar sale con la marca **BORRADOR** y no se envía.
+
+El correo va al **correo personal** del colaborador (o, si no tiene, al de trabajo) y **respeta el interruptor de los
+correos de D'CASA** (`dcasa_correo`): sin clave de Resend, apagado, en staging o en un servidor que no dice que es
+producción, **no sale nada** y la pantalla dice por qué (se imprimen y se entregan en mano). Sale con la cabecera
+`X-Dcasa-Correo: nomina`; la política de `dcasa_correo` lo deja salir solo con el interruptor encendido. Quien no
+tiene correo en su ficha queda nombrado en el aviso. La planilla anota a quién se le mandó y la línea guarda cuándo.
+
 ## Bono por meta de ventas
 
 Decisión del jefe (2026-10-16). Vive en `models/meta_ventas.py`; las cifras, en **Nómina › Configuración › Meta de
@@ -164,7 +203,9 @@ ve planillas, sueldos ni tasas. El estado de una planilla, de una tasa o de un r
 
 ## Pruebas
 
-`scripts/test.sh dcasa_nomina`: la aritmética (redondeo, ISR, prorrateo, décimo, vacaciones, prima), el cálculo de la
+`scripts/test.sh dcasa_nomina`: adelantos y préstamos (`test_prestamos.py`: autorizar, entregar, cuotas, nunca más de
+lo que debe, cancelar, décimo), el comprobante y su correo (`test_comprobante.py`), las pantallas en el navegador
+(`test_pantallas_nomina.py`, computadora y celular); la aritmética (redondeo, ISR, prorrateo, décimo, vacaciones, prima), el cálculo de la
 quincena con cifras de prueba, el asiento que cuadra (con y sin provisión), tasas sin validar que impiden confirmar,
 periodos que no se pagan dos veces, pago y reverso, reembolsos de punta a punta, liquidación y los permisos (la
 vendedora no ve nada, nadie aprueba lo suyo, los estados no se escriben por RPC).
