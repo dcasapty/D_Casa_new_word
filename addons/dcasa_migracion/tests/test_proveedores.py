@@ -36,8 +36,9 @@ class TestCargaDeProveedores(TransactionCase):
         uno = self._ficha(70001)
         self.assertEqual((uno.supplier_rank, uno.customer_rank), (1, 0))
         self.assertTrue(uno.is_company)
-        self.assertEqual((uno.vat, uno.l10n_pa_dv, uno.phone, uno.street), (
-            '0000000-0-000001', '99', '200-0001', 'Zona de Prueba, Galera 1'))
+        self.assertEqual((uno.vat, uno.l10n_pa_dv, uno.phone, uno.dcasa_telefono_fijo, uno.street), (
+            '0000000-0-000001', '99', False, '+507 200-0001', 'Zona de Prueba, Galera 1'),
+            'su fijo de 7 números va a «Teléfono fijo» (2026-10-22)')
         self.assertEqual(uno.category_id.mapped('name'), ['Sistema anterior'])
         self.assertIn('Proveedor n.º 70001 del sistema anterior', uno.comment)
 

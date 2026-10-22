@@ -169,8 +169,8 @@ class TestProveedoresYPrecios(BaseCase):
         self.assertEqual((len(filas), errores), (5, []))
         uno, china, persona, sin_datos, eeuu = filas
         self.assertTrue(uno['es_empresa'])
-        self.assertEqual((uno['vat'], uno['dv'], uno['telefono'], uno['pais']),
-                         ('0000000-0-000001', '99', '200-0001', 'Panamá'))
+        self.assertEqual((uno['vat'], uno['dv'], uno['telefono'], uno['fijo'], uno['pais']),
+                         ('0000000-0-000001', '99', '', '+507 200-0001', 'Panamá'))
         self.assertEqual((china['vat'], china['telefono'], china['pais']),
                          ('PRUEBA-0002', '+86 000 0000 0002', 'China'))
         self.assertFalse(persona['es_empresa'])
