@@ -50,8 +50,26 @@ cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
 - D1: **ajustar** los saldos de un centavo. Idea de la gerencia: que un cajero tenga un tope de descuento y, si lo
   pasa, llegue un mensaje al teléfono de la gerencia con una **clave para autorizar**; al crecer, un gerente de tienda
   con reportes diarios, semanales, mensuales y anuales a la junta.
+  **Hecho (rama `datos-clientes`, 2026-10-22):** (1) **Descuento con clave:** la Vendedora y Caja siguen con su tope
+  (Ajustes de Ventas); para más, en la cotización «Pedir descuento a Gerencia» (un % sobre el total o un importe fijo,
+  con el motivo). A cada persona de Gerencia le llega por Telegram (el bot de Brian, solo a chats vinculados) **su propia
+  clave** de 6 números con la cotización, el total antes y después y el motivo; quien pidió la escribe y el descuento
+  se aplica solo. Vale **una vez**, solo para **esa cotización y ese total**, vence a los minutos de Ajustes de Ventas
+  (10 de fábrica) y cinco claves equivocadas la bloquean. Sin Telegram, la pantalla dice que Gerencia lo apruebe en
+  persona: **Ventas › Descuentos por autorizar** (aprobar y aplicar, o rechazar). Queda registrado quién pidió, a quién
+  le llegó, quién autorizó (por su clave), cuánto y cuándo, también en el historial de la cotización. Después del
+  descuento autorizado, la vendedora no puede empeorarlo. (2) **Saldos de centavos:** Contabilidad › Clientes › Saldos
+  de centavos: facturas, notas y cobros de clientes con **1 a 5 centavos** de redondeo (rango fijo: el ITBMS por línea y
+  el vuelto en monedas; más ya no es redondeo), vista previa y cierre con un asiento de ajuste contra las cuentas de
+  diferencias de la empresa. Lo hacen Gerencia y contabilidad. Brian: `pedir_descuento_a_gerencia`,
+  `aplicar_descuento_con_clave`, `descuentos_por_autorizar`, `decidir_descuento`, `saldos_de_centavos`,
+  `cerrar_saldos_de_centavos`.
 - D2: los saldos a favor se revisan juntos.
 - D3: abonos a 30 días; **correo 5 días antes del vencimiento** y, si se puede, **WhatsApp**.
+  **Hecho (rama `datos-clientes`, 2026-10-22):** el correo de recordatorio 5 días antes, uno por abono y vencimiento,
+  apagado mientras no haya clave de Resend (`docs/CORREO.md`, 6b); la lista **Facturación › Clientes › Abonos por
+  vencer** con un botón que abre WhatsApp con el mensaje listo (lo manda una persona). El WhatsApp automático queda
+  apagado: por el puente QR es lo que más riesgo de bloqueo da, y por la API oficial hace falta Meta (plantillas).
 - D4: no hay facturas dadas por perdidas identificadas.
 
 ## Compras y proveedores (E)
@@ -67,7 +85,10 @@ cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
 - F2: **costo promedio** (a confirmar la práctica contable).
 - F3: el costo incluye **flete, aduana, descargue y todo gasto asociado**.
 - F4: el inventario va en el balance **sin ITBMS**, con opción de verlo con ITBMS. Hubo un conteo aleatorio reciente.
-- F5: **nombres de productos en MAYÚSCULAS** y unificar los repetidos.
+- F5: **nombres de productos en MAYÚSCULAS** y unificar los repetidos. **Hecho (rama `datos-clientes`, 2026-10-22):**
+  lo nuevo se guarda en mayúsculas; lo de antes, con vista previa en Ventas › Productos › Nombres en MAYÚSCULAS; los
+  repetidos (mismo código, código de barras o nombre) en Ventas › Productos › Productos repetidos, con el asistente para
+  unirlos sin perder historia (`docs/CATALOGO.md`).
 - F6: mermas, daños, muestras y regalos: una partida con código, costo, en el estado de resultados mensual y anual,
   para reclamar a proveedores; **aviso si pasa del 0.5 % de lo comprado**.
 - F7: no hay consignación (podría haber).

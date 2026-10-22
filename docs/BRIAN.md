@@ -408,6 +408,24 @@ gerencia») le valen igual; además:
   que anular, pasar a borrador, notas de crédito y devolver dinero son solo de Gerencia. Brian no tiene herramientas
   para anular, pasar a borrador ni hacer notas de crédito (sigue siendo de una persona).
 
+## Decisiones de la gerencia D1, D3 y F5 y clientes limpios (2026-10-22)
+
+`models/herramientas_decisiones.py`:
+
+| Herramienta | Nivel | Quién | Qué hace |
+|---|---|---|---|
+| `pedir_descuento_a_gerencia` | construcción | todos | Pide un descuento mayor al tope para una cotización; a cada persona de Gerencia le llega su clave por Telegram (chats vinculados, lista de permitidos) |
+| `aplicar_descuento_con_clave` | construcción | quien pidió | Aplica el descuento con la clave (una vez, esa cotización y ese total, con vencimiento e intentos contados) |
+| `descuentos_por_autorizar` | lectura | Gerencia | Lo que espera autorización |
+| `decidir_descuento` | sensible | Gerencia | Aprueba (y aplica) o rechaza |
+| `saldos_de_centavos` / `cerrar_saldos_de_centavos` | lectura / sensible | Gerencia y contabilidad | Facturas y cobros con 1 a 5 centavos de redondeo; cerrarlos con su ajuste |
+| `abonos_por_vencer` | lectura | Caja, Gerencia, contabilidad | Los que vencen en 5 días o ya vencieron, con el enlace de WhatsApp listo (lo manda la persona) y si salió el correo |
+| `productos_repetidos`, `nombres_por_pasar_a_mayusculas` | lectura | Gerencia | El catálogo por limpiar (F5) |
+| `pasar_nombres_a_mayusculas`, `unir_productos` | sensible | Gerencia | Lo mismo que las pantallas de Ventas › Productos |
+
+`crear_cliente` busca antes de crear (celular, correo, RUC y nombre parecido); con un nombre parecido no crea y
+pregunta; si la persona confirma que es otra, `crear_cliente_distinto`.
+
 ## Para cada función nueva
 
 Toda función nueva de la plataforma debe poder usarla Brian (ver la plantilla de PR):
