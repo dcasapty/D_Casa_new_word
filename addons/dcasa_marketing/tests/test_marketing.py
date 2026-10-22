@@ -61,7 +61,8 @@ class TestMarketing(MarketingCommon):
         # El menú y el acceso del Inicio tienen el mismo permiso.
         menu = self.env.ref('dcasa_marketing.menu_marketing')
         self.assertEqual(set(menu.group_ids.ids),
-                         {self.env.ref('sales_team.group_sale_manager').id, self.env.ref('base.group_system').id})
+                         {self.env.ref('sales_team.group_sale_manager').id, self.env.ref('base.group_system').id,
+                          self.env.ref('dcasa_marketing.group_marketing').id})
         self.assertEqual(menu.action, self.env.ref('dcasa_marketing.accion_marketing'))
 
     def test_periodos_semana_15_dias_y_mes(self):
@@ -283,3 +284,86 @@ class TestBrianMarketing(MarketingCommon):
         self.assertEqual(r['datos']['sin_foto'], 1)
         self.assertEqual(r['datos']['con_una_sola_foto'], 1)
         self.assertIn('Marketing', r['datos']['donde_subirlas'])
+
+
+@tagged('post_install', '-at_install')
+class TestRolMarketing(MarketingCommon):
+    """El rol «Marketing» (decisión de la dueña, 2026-10-22): ve Marketing completo como Gerencia, su acceso en el
+    Inicio, cambia las fotos y usa las herramientas de Brian de marketing; nada de dinero, contabilidad ni pantallas
+    de Gerencia."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.marketing_rol = crear_usuario(cls.env, 'zzmk_marketing', ['dcasa_marketing.group_marketing'])
+        cls.cama = cls.producto('ZZMK Cama del rol', 'ZZMK-ROL-CAMA', stock=7, con_foto=True)
+        cls.repisa = cls.producto('ZZMK Repisa del rol', 'ZZMK-ROL-REPISA', stock=3)
+
+    def test_el_rol_esta_en_dcasa_y_no_trae_dinero_ni_gerencia(self):
+        grupo = self.env.ref('dcasa_marketing.group_marketing')
+        self.assertEqual(grupo.privilege_id.category_id, self.env.ref('dcasa_base.module_category_dcasa'))
+        prohibidos = self.env['res.groups']
+        for xmlid in ('sales_team.group_sale_salesman', 'sales_team.group_sale_manager',
+                      'account.group_account_invoice', 'account.group_account_readonly', 'stock.group_stock_user',
+                      'dcasa_base.group_gerencia',
+                      'dcasa_base.group_vendedora', 'product.group_product_manager', 'base.group_system'):
+            prohibidos |= self.env.ref(xmlid)
+        self.assertFalse(grupo.all_implied_ids & prohibidos)
+        usuario = self.marketing_rol
+        for modelo in ('account.move', 'account.payment', 'sale.order', 'purchase.order'):
+            self.assertFalse(self.env[modelo].with_user(usuario).has_access('read'), modelo)
+        with self.assertRaises(AccessError):
+            self.env['dcasa.tablero'].with_user(usuario).grafica_de_ventas()
+        with self.assertRaises(AccessError):
+            self.env['dcasa.tablero'].with_user(usuario).comparar_ventas('ayer')
+        with self.assertRaises(AccessError):
+            self.cama.with_user(usuario).write({'name': 'ZZMK otro nombre'})
+
+    def test_ve_marketing_completo_igual_que_gerencia(self):
+        self.facturar(self.cama, 2, dias_atras=1)
+        for periodo in ('semana', 'mes'):
+            de_gerencia = self.marketing(self.gerencia).datos(periodo=periodo, categoria=self.categoria.id)
+            del_rol = self.marketing(self.marketing_rol).datos(periodo=periodo, categoria=self.categoria.id)
+            for seccion in ('mas_vendidos', 'mas_movimiento', 'quietos'):
+                self.assertEqual([f['id'] for f in del_rol[seccion]], [f['id'] for f in de_gerencia[seccion]], seccion)
+            self.assertEqual(del_rol['stock'], de_gerencia['stock'])
+            self.assertEqual(del_rol['fotos'], de_gerencia['fotos'])
+        self.assertEqual([f['id'] for f in del_rol['mas_vendidos']], [self.cama.id])
+        fotos = self.marketing(self.marketing_rol).buscar_fotos(filtro='sin_foto', categoria=self.categoria.id)
+        self.assertEqual([f['id'] for f in fotos['productos']], [self.repisa.id])
+        self.assertTrue(self.marketing(self.marketing_rol).accion_productos(ids=[self.cama.id]))
+        menus = self.env['ir.ui.menu'].with_user(self.marketing_rol)._visible_menu_ids()
+        self.assertIn(self.env.ref('dcasa_marketing.menu_marketing').id, menus)
+        self.assertNotIn(self.env.ref('dcasa_interfaz.menu_estadisticas').id, menus, 'Estadísticas es de Gerencia')
+
+    def test_tiene_el_acceso_del_inicio_aunque_tambien_sea_vendedora(self):
+        def claves(usuario):
+            return [a['clave'] for a in self.env['dcasa.tablero'].with_user(usuario).obtener_datos()['atajos']]
+        self.assertIn('marketing', claves(self.marketing_rol))
+        self.assertNotIn('resumen_contable', claves(self.marketing_rol))
+        vendedora_y_marketing = crear_usuario(self.env, 'zzmk_vend_mk',
+                                              ['dcasa_base.group_vendedora', 'dcasa_marketing.group_marketing'])
+        self.assertIn('marketing', claves(vendedora_y_marketing))
+        self.assertNotIn('marketing', claves(self.vendedora))
+
+    def test_cambia_las_fotos_de_cualquier_producto_solo_las_fotos(self):
+        Cama = self.cama.with_user(self.marketing_rol)
+        self.assertTrue(Cama.dcasa_fotos()['puede_editar'])
+        resultado = Cama.dcasa_fotos_subir([{'nombre': 'a', 'datos': foto(color=(200, 30, 30))},
+                                            {'nombre': 'b', 'datos': foto(color=(30, 160, 60))}])
+        self.assertEqual(len(resultado['fotos']), 3)
+        resultado = Cama.dcasa_fotos_principal(resultado['fotos'][2]['clave'])
+        resultado = Cama.dcasa_fotos_quitar('principal')
+        self.assertEqual(len(resultado['fotos']), 2)
+        Cama.dcasa_fotos_girar('principal', 'derecha')
+        self.repisa.with_user(self.marketing_rol).dcasa_fotos_subir([{'nombre': 'c', 'datos': foto()}])
+        self.assertTrue(self.repisa.image_1920)
+        self.assertEqual(self.cama.write_uid, self.marketing_rol, 'el cambio queda a su nombre')
+
+    def test_las_herramientas_de_brian_de_marketing(self):
+        Brian = self.env['brian.herramientas'].with_user(self.marketing_rol)
+        nombres = {h['name'] for h in Brian.catalogo()}
+        self.assertLessEqual({'movimiento_de_productos', 'fotos_que_faltan'}, nombres)
+        r = Brian.ejecutar('movimiento_de_productos', {'que': 'quietos', 'categoria': 'ZZMK Categoría de prueba'})
+        self.assertTrue(r['ok'], r)
+        self.assertEqual({f['codigo'] for f in r['datos']['quietos']}, {'ZZMK-ROL-CAMA', 'ZZMK-ROL-REPISA'})

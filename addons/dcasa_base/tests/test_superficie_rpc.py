@@ -42,12 +42,13 @@ NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia
 NOMINA_REEMBOLSO = ('Botón del reembolso: el colaborador solo el suyo; aprobar y rechazar exigen el grupo '
                     '«Administra la nómina» en el servidor; el estado solo cambia con sudo, ya comprobado.')
 
-FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access("write"), AccessError si no) '
-                'ANTES del sudo con que se escriben sus fotos extra (product.image de ese producto; la clave se busca '
-                'solo entre las suyas); valida cada foto (formato, peso, megapíxeles) y cada argumento.')
-MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador) o administrador ANTES de leer '
-                     '(_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya comprobado el grupo; '
-                     'valida periodo, categoría y filtro; no escribe.')
+FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access("write")) o el rol Marketing con '
+                'lectura del producto (AccessError si no) ANTES del sudo con que se escriben sus fotos (product.image '
+                'de ese producto; la clave se busca solo entre las suyas); valida cada foto (formato, peso, '
+                'megapíxeles) y cada argumento.')
+MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador), administrador o el rol Marketing '
+                     'ANTES de leer (_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya '
+                     'comprobado el grupo; valida periodo, categoría y filtro; no escribe.')
 
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
@@ -343,8 +344,9 @@ LISTA_BLANCA = {
     ('dcasa_marketing', 'dcasa.marketing', 'datos'): MARKETING_LECTURA,
     ('dcasa_marketing', 'dcasa.marketing', 'buscar_fotos'): MARKETING_LECTURA,
     ('dcasa_marketing', 'dcasa.marketing', 'accion_productos'):
-        'Exige Gerencia (ventas administrador) o administrador en el servidor (_exigir, AccessError); valida los ids y '
-        'solo devuelve la acción de ventana de Productos con ese filtro; no lee ni escribe datos, sin sudo().',
+        'Exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
+        'AccessError); valida los ids y solo devuelve la acción de ventana de Productos con ese filtro; no lee ni '
+        'escribe datos, sin sudo().',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',

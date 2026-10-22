@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!--
+        Rol «Marketing» (decisión de la dueña, 2026-10-22: «marketing ve todo al igual que Gerencia y administración»).
+        Su propio selector en la sección D'CASA de la ficha del usuario (como Nómina), así se suma a cualquier rol de la
+        tienda (p. ej. una Vendedora que además hace marketing). Da:
+        * la app Marketing completa (todas las secciones) y su acceso en el Inicio (dcasa.marketing.GRUPOS);
+        * cambiar las fotos de cualquier producto (fotos.py: _dcasa_puede_editar_fotos), solo las fotos;
+        * las herramientas de Brian de marketing (movimiento_de_productos, fotos_que_faltan).
+        NO da dinero, contabilidad, costos, ventas de otros ni ninguna otra pantalla de Gerencia: no implica ningún
+        grupo de Ventas, Contabilidad ni Inventario. Las cifras de Marketing son unidades, no dinero.
+    -->
+    <record id="res_groups_privilege_marketing" model="res.groups.privilege">
+        <field name="name">Marketing</field>
+        <field name="description">La app Marketing (stock, más vendidos, movimiento, quietos, fotos que faltan) y cambiar las fotos de los productos. Sin dinero ni contabilidad.</field>
+        <field name="placeholder">Sin acceso</field>
+        <field name="sequence">3</field>
+        <field name="category_id" ref="dcasa_base.module_category_dcasa"/>
+    </record>
+
+    <record id="group_marketing" model="res.groups">
+        <field name="name">Marketing</field>
+        <field name="sequence">10</field>
+        <field name="privilege_id" ref="res_groups_privilege_marketing"/>
+        <field name="comment">Ve Marketing completo (como Gerencia), cambia las fotos de los productos y usa las herramientas de marketing de Brian. Sin dinero, costos ni contabilidad.</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+</odoo>

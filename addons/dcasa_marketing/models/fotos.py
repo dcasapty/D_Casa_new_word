@@ -8,7 +8,9 @@ ver, editar, recortar o reemplazar con mucha facilidad» y «agregar las fotos e
   ``product.image`` de website_sale, en su ``sequence``). Para la pantalla son UNA fila ordenada: la primera es la
   principal. Los videos de la tienda (``video_url``) no son fotos: no salen aquí ni se tocan (quedan al final).
 * **Quién las cambia.** Quien puede editar el producto (``check_access('write')`` en ``product.template``: hoy
-  Gerencia, administradores y la Vendedora, que «edita el producto: nombre, descripción, fotos…», dcasa_base). Las
+  Gerencia, administradores y la Vendedora, que «edita el producto: nombre, descripción, fotos…», dcasa_base; la dueña
+  confirmó el 2026-10-22 que las vendedoras sí cambian fotos) y el rol **Marketing**, que cambia solo las fotos de
+  cualquier producto que ve (la foto principal se le escribe con ``sudo`` tras la comprobación). Las
   fotos extra se escriben con ``sudo`` DESPUÉS de esa comprobación: Odoo deja editar ``product.image`` solo a Gerencia
   de ventas y a los editores del sitio (que aquí nadie tiene). Quien no puede editar el producto solo ve y descarga, y
   el servidor se lo niega aunque llame a mano (``AccessError``). La regla vive en ``_dcasa_exigir_editar_fotos``.
@@ -107,11 +109,27 @@ class ProductTemplate(models.Model):
     # Permisos y lectura
     # ------------------------------------------------------------------
 
+    def _dcasa_es_de_marketing(self):
+        """El rol «Marketing» cambia las fotos de cualquier producto que ve, aunque no edite el producto (decisión de la
+        dueña, 2026-10-22). Solo las fotos: el resto del producto sigue con su permiso de siempre."""
+        usuario = self.env.user
+        return usuario._is_internal() and usuario.has_group('dcasa_marketing.group_marketing') \
+            and self.has_access('read')
+
+    def _dcasa_puede_editar_fotos(self):
+        return self.has_access('write') or self._dcasa_es_de_marketing()
+
     def _dcasa_exigir_editar_fotos(self):
-        """Quien cambia las fotos de un producto es quien puede editar ese producto (ver el docstring del módulo)."""
+        """Quien cambia las fotos de un producto es quien puede editar ese producto o tiene el rol Marketing (ver el
+        docstring del módulo)."""
         self.ensure_one()
-        if not self.has_access('write'):
+        if not self._dcasa_puede_editar_fotos():
             raise AccessError(self.env._('No puedes cambiar las fotos de este producto: solo verlas.'))
+
+    def _dcasa_escribible(self):
+        """El producto para escribir su foto principal: como la persona si puede editarlo; con ``sudo`` si es el rol
+        Marketing (ya comprobado en ``_dcasa_exigir_editar_fotos``)."""
+        return self if self.has_access('write') else self.sudo()
 
     def _dcasa_al_dia(self):
         """Lo guardado de verdad: las fotos se leen sin su contenido (``bin_size``) y esa lectura no se entera de lo
@@ -177,7 +195,7 @@ class ProductTemplate(models.Model):
                 'codigo': self.default_code or '',
                 'publicado': bool(self.is_published),
             },
-            'puede_editar': self.has_access('write'),
+            'puede_editar': self._dcasa_puede_editar_fotos(),
             'fotos': fotos,
         }
 
@@ -197,7 +215,7 @@ class ProductTemplate(models.Model):
     def _dcasa_destino(self, clave):
         """El registro que guarda la foto ``clave``: el producto (la principal) o su foto extra (``sudo``)."""
         if clave == PRINCIPAL:
-            return self
+            return self._dcasa_escribible()
         if isinstance(clave, str) and clave.startswith(PREFIJO_EXTRA) and clave[len(PREFIJO_EXTRA):].isdigit():
             imagen = self._dcasa_extras().filtered(lambda i: i.id == int(clave[len(PREFIJO_EXTRA):]))
             if imagen:
@@ -217,7 +235,7 @@ class ProductTemplate(models.Model):
             raise UserError(self.env._('Sube hasta %(maximo)s fotos por vez.', maximo=MAX_FOTOS_POR_LLAMADA))
         leidas = [leer_foto(self.env, foto.get('datos') if isinstance(foto, dict) else None)[0] for foto in fotos]
         if not self._dcasa_tiene_principal():
-            self.image_1920 = leidas.pop(0)
+            self._dcasa_escribible().image_1920 = leidas.pop(0)
         if leidas:
             todas = self.sudo().product_template_image_ids
             ultima = max(todas.mapped('sequence') or [0])
@@ -268,7 +286,7 @@ class ProductTemplate(models.Model):
             # lugar en la fila). Si no había principal, el registro de la elegida sobra.
             elegida = extras[primera]
             vieja = self.with_context(bin_size=False).image_1920
-            self.image_1920 = elegida.image_1920
+            self._dcasa_escribible().image_1920 = elegida.image_1920
             if PRINCIPAL in claves:
                 elegida.image_1920 = vieja
                 claves[claves.index(PRINCIPAL)] = primera
@@ -297,10 +315,10 @@ class ProductTemplate(models.Model):
         if clave == PRINCIPAL:
             siguiente = self._dcasa_extras()[:1].with_context(bin_size=False)
             if siguiente:
-                self.image_1920 = siguiente.image_1920
+                self._dcasa_escribible().image_1920 = siguiente.image_1920
                 siguiente.unlink()
             else:
-                self.image_1920 = False
+                self._dcasa_escribible().image_1920 = False
         else:
             destino.unlink()
         return self._dcasa_fotos_datos()

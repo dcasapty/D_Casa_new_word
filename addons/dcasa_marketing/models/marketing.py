@@ -25,7 +25,8 @@ Qué cuenta cada sección (nada se estima ni se inventa: todo sale de la base):
 * **Fotos**: los que no tienen foto y los que tienen una sola (la principal sin ninguna extra). No hay una cifra de
   «pocas» inventada: se dice cuántas tiene cada uno.
 
-Solo Gerencia y administradores (como «Estadísticas»): las ventas de toda la tienda son suyas. El servidor lo exige.
+Gerencia, administradores y el rol «Marketing» (``GRUPOS``): las cifras de toda la tienda, en unidades (sin dinero). El
+servidor lo exige.
 """
 from collections import defaultdict
 from datetime import date, timedelta
@@ -42,7 +43,9 @@ PERIODO_POR_DEFECTO = 'semana'
 FILAS = 8
 FILAS_DE_FOTOS = 30
 FILTROS_DE_FOTOS = ('faltan', 'sin_foto', 'una_foto', 'todos')
-GRUPOS = ('sales_team.group_sale_manager', 'base.group_system')
+# Gerencia (ventas administrador), administradores y el rol «Marketing» (decisión de la dueña, 2026-10-22: «marketing ve
+# todo al igual que Gerencia y administración»; security/marketing_security.xml).
+GRUPOS = ('sales_team.group_sale_manager', 'base.group_system', 'dcasa_marketing.group_marketing')
 # Los productos que no tienen categoría (Odoo 19 no la exige) también se pueden elegir.
 SIN_CATEGORIA = 'sin'
 
@@ -62,7 +65,7 @@ class DcasaMarketing(models.AbstractModel):
     @api.model
     def _exigir(self):
         if not self._es_de_marketing():
-            raise AccessError(self.env._('Marketing es de Gerencia y de los administradores.'))
+            raise AccessError(self.env._('Marketing es de Gerencia, de los administradores y del rol Marketing.'))
 
     @api.model
     def _rango(self, periodo):
