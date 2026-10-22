@@ -55,7 +55,7 @@
                         <group>
                             <field name="periodo" widget="radio" readonly="estado == 'preparando'"/>
                             <field name="anio" invisible="periodo != 'anio'" readonly="estado == 'preparando'"
-                                   options="{'format': false}"/>
+                                   options="{'enable_formatting': false}"/>
                             <field name="desde" invisible="periodo != 'rango'" required="periodo == 'rango'"
                                    readonly="estado == 'preparando'"/>
                             <field name="hasta" invisible="periodo != 'rango'" required="periodo == 'rango'"

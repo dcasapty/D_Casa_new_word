@@ -32,7 +32,8 @@
                         </div>
                         <div class="col-4 o_dcasa_celda">
                             <div class="o_dcasa_bloque_titulo">Periodo</div>
-                            <div t-out="o.planilla_id.name"/>
+                            <div t-if="o.tipo == 'quincenal'">Del <span t-field="o.planilla_id.fecha_desde"/> al <span t-field="o.planilla_id.fecha_hasta"/></div>
+                            <div t-else="" t-out="o.planilla_id.name"/>
                             <div t-if="o.tipo == 'quincenal'">Días pagados: <t t-out="o.dias_pagados"/> de <t t-out="o.dias_periodo"/></div>
                         </div>
                         <div class="col-4 o_dcasa_celda o_dcasa_datos">

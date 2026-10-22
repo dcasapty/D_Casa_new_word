@@ -77,7 +77,10 @@ class DcasaNominaConfig(models.Model):
         Cuenta = self.env['account.account'].sudo().with_company(company)
         valores = {}
         for campo, (codigo, _nombre) in CUENTAS.items():
-            cuenta = Cuenta.search([('code', '=', codigo)], limit=1)
+            # El plan de Panamá guarda los códigos con 7 dígitos («134» → «1340000»): exacto o, si no, el primero
+            # que empieza así.
+            cuenta = Cuenta.search([('code', '=', codigo)], limit=1) or \
+                Cuenta.search([('code', '=like', f'{codigo}%')], order='code', limit=1)
             if cuenta:
                 valores[campo] = cuenta.id
         diario = self.env['account.journal'].sudo().search(

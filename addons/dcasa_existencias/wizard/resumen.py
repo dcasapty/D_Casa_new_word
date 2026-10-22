@@ -33,7 +33,7 @@ class DcasaMermaResumen(models.TransientModel):
     compras = fields.Monetary('Lo comprado en el mes', compute='_compute_cifras',
                               help='Lo que entró a la bodega desde proveedores (recepciones validadas), a su costo y '
                                    'sin ITBMS, menos lo devuelto.')
-    porcentaje = fields.Float('Porcentaje de lo comprado', compute='_compute_cifras', digits=(5, 2))
+    porcentaje = fields.Float('Porcentaje de lo comprado (%)', compute='_compute_cifras', digits=(5, 2))
     tope = fields.Float('Tope de la gerencia (%)', compute='_compute_cifras', digits=(5, 2))
     pasa = fields.Boolean(compute='_compute_cifras')
     cantidad = fields.Integer('Registros', compute='_compute_cifras')
@@ -43,6 +43,12 @@ class DcasaMermaResumen(models.TransientModel):
     total_anio = fields.Monetary('En el año', compute='_compute_cifras')
     tabla_anio = fields.Html(compute='_compute_cifras', sanitize=False)
     tabla_proveedores = fields.Html(compute='_compute_cifras', sanitize=False)
+
+    @api.depends('mes')
+    def _compute_display_name(self):
+        for resumen in self:
+            mes = resumen.mes or fields.Date.context_today(self)
+            resumen.display_name = self.env._('Mermas de %s', f'{MESES[mes.month - 1]} {mes.year}')
 
     @api.depends('mes', 'company_id')
     def _compute_cifras(self):
@@ -76,7 +82,7 @@ class DcasaMermaResumen(models.TransientModel):
             datos = Scrap._dcasa_resumen_mes(self.company_id, mes.replace(month=numero))
             total += datos['total']
             pct = f'{datos["pct"]:g} %' if datos['pct'] is not None else ('—' if not datos['total'] else 'sin compras')
-            clase = ' class="o_dcasa_merma_pasa"' if datos['pasa'] else ''
+            clase = ' class="o_dcasa_merma_pasa" style="color:#B42318;font-weight:600"' if datos['pasa'] else ''
             filas.append(Markup('<tr%s><td>%s</td><td class="text-end">%s</td><td class="text-end">%s</td>'
                                 '<td class="text-end">%s</td></tr>') % (
                 Markup(clase), MESES[numero - 1], _dinero(datos['total']), _dinero(datos['compras']), pct))

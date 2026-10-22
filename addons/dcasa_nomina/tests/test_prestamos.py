@@ -213,3 +213,12 @@ class TestPrestamos(NominaCommon):
         self.assertEqual((form.record.estado, form.record.name), ('borrador', 'Préstamo · Beto Prueba Nómina'))
         vistas = self.entorno['dcasa.nomina.prestamo'].get_views([(False, 'list'), (False, 'form'), (False, 'search')])
         self.assertIn('saldo', vistas['views']['list']['arch'])
+
+    def test_la_propuesta_encuentra_la_cuenta_del_plan_de_panama_con_sus_7_digitos(self):
+        """El plan instalado guarda «134» como «1340000»: la propuesta la encuentra (antes buscaba el código exacto y
+        no proponía ninguna cuenta)."""
+        anticipo = self.env['account.account'].search([('code', '=like', '134%')], order='code', limit=1)
+        if not anticipo:
+            self.skipTest('El plan de cuentas de Panamá no está cargado en esta base')
+        propuesta = self.env['dcasa.nomina.config']._propuesta(self.company)
+        self.assertEqual(propuesta['cuenta_prestamos_id'], anticipo.id)

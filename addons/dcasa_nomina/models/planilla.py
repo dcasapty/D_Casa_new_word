@@ -110,7 +110,7 @@ class DcasaNominaPlanilla(models.Model):
             planilla.colaboradores = len(lineas)
             planilla.total_devengado = sum(lineas.mapped('devengado'))
             planilla.total_descuentos = sum(
-                ln.css_trabajador + ln.se_trabajador + ln.isr + ln.otros_descuentos + ln.prestamos for ln in lineas)
+                ln.css_trabajador + ln.se_trabajador + ln.isr + ln.otros_descuentos for ln in lineas)
             planilla.total_reembolsos = sum(lineas.mapped('reembolsos'))
             planilla.total_prestamos = sum(lineas.mapped('prestamos'))
             planilla.total_neto = sum(lineas.mapped('neto'))
