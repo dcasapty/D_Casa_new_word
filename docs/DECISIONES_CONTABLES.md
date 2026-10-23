@@ -88,7 +88,8 @@ cada una, abajo («Hecho»); qué ve cada rol, en [PERMISOS.md](PERMISOS.md).
 - F5: **nombres de productos en MAYÚSCULAS** y unificar los repetidos. **Hecho (rama `datos-clientes`, 2026-10-22):**
   lo nuevo se guarda en mayúsculas; lo de antes, con vista previa en Ventas › Productos › Nombres en MAYÚSCULAS; los
   repetidos (mismo código, código de barras o nombre) en Ventas › Productos › Productos repetidos, con el asistente para
-  unirlos sin perder historia (`docs/CATALOGO.md`).
+  unirlos sin perder historia (`docs/CATALOGO.md`). Lo que ve el cliente (tienda, portal, Juan, correos, PDF, Meta)
+  va en formato título («Cama Queen Tapizada»; decisión de la dueña del 2026-10-22, `dcasa_base/nombres.py`).
 - F6: mermas, daños, muestras y regalos: una partida con código, costo, en el estado de resultados mensual y anual,
   para reclamar a proveedores; **aviso si pasa del 0.5 % de lo comprado**.
 - F7: no hay consignación (podría haber).

@@ -16,3 +16,4 @@ from . import cobros
 from . import aviso_vendedora
 from . import costos_cerrados
 from . import descuento_autorizacion
+from . import nombres_cliente

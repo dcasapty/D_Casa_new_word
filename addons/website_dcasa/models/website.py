@@ -182,7 +182,7 @@ class Website(models.Model):
     def _dcasa_whatsapp_producto(self, product):
         """Mensaje de WhatsApp con el nombre del mueble y su código público ya escritos (nunca la referencia del
         proveedor: la vendedora busca ese código en Productos y encuentra el mueble)."""
-        texto = f"Hola D'CASA, me interesa: {product.with_context(display_default_code=False).display_name}"
+        texto = f"Hola D'CASA, me interesa: {product._dcasa_nombre_cliente()}"
         codigo = product.dcasa_codigo_publico
         return self._dcasa_whatsapp_url(f'{texto} (código {codigo})' if codigo else texto)
 

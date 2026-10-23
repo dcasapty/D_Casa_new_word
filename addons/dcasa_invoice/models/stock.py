@@ -6,6 +6,8 @@ encendido ``o`` se arma con el contexto ``dcasa_codigo_publico``: el nombre sale
 se limpia de la referencia del proveedor, así esta nunca aparece en el papel.
 """
 from odoo import fields, models
+from odoo.addons.dcasa_base.models.nombres_cliente import CLAVE_CLIENTE
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.tools.image import image_data_uri
 
 from . import entrega_facil, lineas
@@ -16,11 +18,12 @@ class StockPicking(models.Model):
     _inherit = 'stock.picking'
 
     def _dcasa_para_imprimir(self):
-        """La entrega tal como se imprime: con el código público en vez de la referencia, si la empresa lo pide."""
+        """La entrega tal como se imprime: los productos en formato título, como los lee el cliente (F5), y con el
+        código público en vez de la referencia si la empresa lo pide."""
         self.ensure_one()
         if self.company_id.dcasa_mostrar_codigo_publico:
-            return self.with_context(**{CLAVE_CONTEXTO: True, 'display_default_code': False})
-        return self
+            return self.with_context(**{CLAVE_CONTEXTO: True, 'display_default_code': False, CLAVE_CLIENTE: True})
+        return self.with_context(**{CLAVE_CLIENTE: True})
 
     # --- La nota de entrega fácil de leer (interruptor de la empresa; ver ``entrega_facil.py``) -------------------
 
@@ -68,11 +71,14 @@ class StockPicking(models.Model):
         lineas_listas = []
         for clave, linea in por_producto.items():
             producto = linea['producto']
-            nombre = producto.with_context(display_default_code=False, **{CLAVE_CONTEXTO: False}).display_name
+            crudo = {'display_default_code': False, CLAVE_CONTEXTO: False, CLAVE_CLIENTE: False}
+            nombre = producto.with_context(**crudo).display_name
             codigo = lineas.codigo_a_imprimir(empresa, producto, producto.default_code)
-            descripcion = linea['movimiento']._get_report_description_picking()
+            descripcion = linea['movimiento'].with_context(**{CLAVE_CLIENTE: False})._get_report_description_picking()
             if descripcion and descripcion.strip() in (nombre, producto.name):
                 descripcion = ''
+            # Lo que lee el cliente, en formato título (F5): por dentro el nombre sigue en MAYÚSCULAS.
+            nombre, descripcion = nombre_para_cliente(nombre), nombre_para_cliente(descripcion)
             iconos, hay_mas = entrega_facil.iconos_de_cantidad(linea['cantidad'])
             lineas_listas.append({
                 'producto': producto,
@@ -125,7 +131,15 @@ class StockMove(models.Model):
     _inherit = 'stock.move'
 
     def _get_report_description_picking(self):
-        """La descripción de la entrega sin repetir el nombre; con el código público activo, sin la referencia."""
+        """La descripción de la entrega sin repetir el nombre; con el código público activo, sin la referencia. En la
+        nota de entrega que se lleva el cliente, en formato título (F5)."""
+        # Se compara con el nombre GUARDADO (Odoo quita del principio el nombre repetido): sin la clave del cliente.
+        descripcion = self.with_context(**{CLAVE_CLIENTE: False})._dcasa_descripcion_entrega()
+        if self.env.context.get(CLAVE_CLIENTE):
+            return nombre_para_cliente(descripcion)
+        return descripcion
+
+    def _dcasa_descripcion_entrega(self):
         if not self.env.context.get(CLAVE_CONTEXTO):
             return super()._get_report_description_picking()
         self.ensure_one()

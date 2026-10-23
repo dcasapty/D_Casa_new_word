@@ -412,8 +412,19 @@ escondidas:
   viejos no se reescriben**: siguen en la ficha archivada (la que queda la lista en la pestaña «Fichas unidas»). Las dos
   quedan con una nota de quién unió qué.
 * **Lo que no cambia:** buscar no distingue mayúsculas (el sitio, Juan, Brian y el Escáner encuentran igual). Los
-  importadores (inventario anterior, precios del sistema anterior) buscan el nombre sin importar mayúsculas. El sitio
-  muestra el nombre como está guardado; si la marca pidiera otro formato en la tienda, se cambia ahí sin tocar los
-  datos. Meta ya pasa a tipo oración los títulos en mayúsculas (`reglas_meta._tipo_oracion`).
+  importadores (inventario anterior, precios del sistema anterior) buscan el nombre sin importar mayúsculas.
+* **Lo que ve el cliente va en formato título** (decisión de la dueña, 2026-10-22: «Lo que ve el cliente: "Cama Queen
+  Tapizada", y solo por dentro queden en MAYÚSCULAS»). La regla vive en un solo lugar, `dcasa_base/nombres.py`
+  (`nombre_para_cliente`): cada palabra con su primera letra en mayúscula, con tildes y Ñ («Baúl», «Muñeca»); los
+  tamaños igual («King», «Queen», «Twin», «Full»); preposiciones, artículos y conjunciones en minúscula salvo al empezar
+  («Cama de Metal con Baúl»); se dejan como están los códigos y lo que lleva números («DR-1024», «4/6», «3/4»,
+  «[DC-K7M4PX]»), la marca «D'CASA», las siglas («MDF», «PVC», «TV», «LED») y lo que alguien ya escribió con minúsculas;
+  las medidas quedan «160 x 200 cm». Dónde se aplica: la tienda (tarjetas, ficha, título de la pestaña y al compartir,
+  buscador, carrito y pago, Black Weekend y el inicio, datos para Google), el portal del pedido y Mi cuenta, lo que dice
+  Juan (fichas, opciones y la cotización) y el pie de foto que la vendedora le manda, la confirmación del pedido y el
+  correo del carrito abandonado (`dcasa_correo/nombres_correo.py`), la cotización, la factura y la nota de entrega en
+  PDF (`dcasa_invoice`) y los títulos del catálogo de Meta (`reglas_meta.titulo`, la misma regla). Las pantallas
+  internas, Brian, el pedido de compra al proveedor y la factura electrónica siguen con el nombre guardado. Pruebas:
+  `dcasa_base/tests/test_nombres_cliente.py` y una por cada lugar (`website_dcasa`, `dcasa_invoice`, `dcasa_correo`).
 * **Brian:** `productos_repetidos`, `nombres_por_pasar_a_mayusculas`, `pasar_nombres_a_mayusculas` (pide permiso) y
   `unir_productos` (pide permiso). Pruebas: `dcasa_catalogo/tests/test_productos_limpios.py`.

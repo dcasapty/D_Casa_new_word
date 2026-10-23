@@ -95,5 +95,7 @@ class TestReglasMeta(BaseCase):
         self.assertFalse(titulo.endswith(' '))
         self.assertTrue(titulo.endswith('muy'))
         self.assertEqual(R.titulo('  Mesa \n de  noche '), 'Mesa de noche')
-        self.assertEqual(R.titulo('CAMA TAPIZADA QUEEN – BLANCO'), 'Cama tapizada queen – blanco')
+        self.assertEqual(R.titulo('CAMA TAPIZADA QUEEN – BLANCO'), 'Cama Tapizada Queen – Blanco')
+        self.assertEqual(R.titulo("COLCHÓN D'CASA KING [DR-1024]"), "Colchón D'CASA King [DR-1024]")
+        self.assertEqual(R.titulo("D'CASA", para_cliente=False), "D'CASA")
         self.assertEqual(R.titulo('Cama SOFÁ (King)'), 'Cama SOFÁ (King)', 'con minúsculas se deja como está')

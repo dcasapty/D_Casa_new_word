@@ -10,3 +10,4 @@ from . import test_ajustes
 from . import test_brian_correo
 from . import test_revision
 from . import test_recordatorio
+from . import test_nombres_cliente

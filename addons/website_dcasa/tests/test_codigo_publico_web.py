@@ -50,7 +50,8 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
     def test_el_mensaje_de_whatsapp_lleva_el_codigo_publico(self):
         enlace = self.website._dcasa_whatsapp_producto(self.producto)
         texto = unquote(enlace.split('text=', 1)[1])
-        self.assertEqual(texto, f"Hola D'CASA, me interesa: CAMA DE PRUEBA DEL CÓDIGO (código {self.codigo})")
+        # El nombre va en formato título, como lo lee el cliente (F5); por dentro sigue en MAYÚSCULAS.
+        self.assertEqual(texto, f"Hola D'CASA, me interesa: Cama de Prueba del Código (código {self.codigo})")
         self.assertNotIn(REFERENCIA, enlace)
         # También la variante (la ficha puede pasar una u otra).
         self.assertIn(self.codigo, unquote(self.website._dcasa_whatsapp_producto(self.producto.product_variant_id)))
@@ -71,7 +72,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
             html = self.url_open(ruta).text
             self._sin_referencia(html, f'las fotos de {ruta}')
         html = self.url_open('/shop').text
-        self.assertRegex(html, r'/web/image/product\.(?:template|product)/\d+/image_\d+/CAMA%20DE%20PRUEBA')
+        self.assertRegex(html, r'/web/image/product\.(?:template|product)/\d+/image_\d+/Cama%20de%20Prueba')
 
     def test_carrito_y_pedido_sin_la_referencia(self):
         self.authenticate(None, None)
@@ -82,7 +83,7 @@ class TestCodigoPublicoEnLaWeb(HttpCase):
         self.assertTrue(respuesta.headers['Location'].endswith('/shop/cart'))
         for ruta in ('/shop/cart', '/shop/address'):
             pagina = self.url_open(ruta).text
-            self.assertIn('CAMA DE PRUEBA DEL CÓDIGO', pagina, ruta)
+            self.assertIn('Cama de Prueba del Código', pagina, ruta)
             self._sin_referencia(pagina, ruta)
 
     def test_el_mapa_del_sitio_no_lleva_la_referencia(self):

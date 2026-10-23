@@ -14,3 +14,6 @@ def _dcasa_correo_post_init(env):
             ICP.set_param(clave, 'True')
     if not ICP.get_param(P_BIENVENIDA_DESDE):
         ICP.set_param(P_BIENVENIDA_DESDE, fields.Datetime.to_string(fields.Datetime.now()))
+    # F5: la confirmación del pedido y el carrito abandonado nombran los productos en formato título.
+    from .nombres_correo import nombres_en_correos
+    nombres_en_correos(env)

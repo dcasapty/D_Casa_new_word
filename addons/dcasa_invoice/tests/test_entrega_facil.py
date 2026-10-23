@@ -111,8 +111,9 @@ class TestNotaDeEntregaFacil(DocumentosDePrueba):
         lineas = filas(contenido)
         self.assertEqual(len(lineas), 2, 'dos productos con existencias; el flete es un servicio y no sale de bodega')
         colchon, cama = lineas
-        self.assertIn('COLCHON IMPERIAL TWIN 3/4 BUEN SUEÑO', texto(colchon, 'o_df_nombre'))
-        self.assertIn('CAMA QUEEN GREY CON ESTANTES', texto(cama, 'o_df_nombre'))
+        # El cliente lee los nombres en formato título (F5); por dentro siguen en MAYÚSCULAS.
+        self.assertIn('Colchon Imperial Twin 3/4 Buen Sueño', texto(colchon, 'o_df_nombre'))
+        self.assertIn('Cama Queen Grey con Estantes', texto(cama, 'o_df_nombre'))
         self.assertEqual(texto(colchon, 'o_df_codigo_valor'), 'IM-2001')
         self.assertEqual(texto(colchon, 'o_df_numero'), '2')
         self.assertEqual(texto(cama, 'o_df_numero'), '1')
@@ -267,7 +268,7 @@ class TestNotaDeEntregaFacil(DocumentosDePrueba):
         self.assertFalse(cama.xpath(".//*[contains(@class, 'o_df_falta')]"))
         pendientes = arbol(contenido).xpath("//div[contains(@class, 'o_df_pendientes')]")
         self.assertEqual(len(pendientes), 1, 'lo que falta se anuncia aparte')
-        self.assertIn('COLCHON IMPERIAL', pendientes[0].text_content())
+        self.assertIn('Colchon Imperial', pendientes[0].text_content())
         self.assertFalse(pendientes[0].xpath(".//div[contains(@class, 'o_df_casilla')]"), 'lo pendiente no se marca')
 
 

@@ -111,7 +111,7 @@ class TestPortadaDinamica(HttpCase):
 
     def test_portada_muestra_productos_con_precio_y_agregar(self):
         html = self.url_open('/').text
-        self.assertIn('SOFÁ DE PRUEBA', html)
+        self.assertIn('Sofá de Prueba', html)
         self.assertRegex(html, r'123[.,]45')
         self.assertIn('action="/dcasa/carrito/agregar"', html)
         self.assertNotIn('MUEBLE SIN PUBLICAR', html)
@@ -148,7 +148,7 @@ class TestPortadaDinamica(HttpCase):
         self.assertIn(respuesta.status_code, (302, 303))
         self.assertTrue(respuesta.headers['Location'].endswith('/shop/cart'))
         carrito = self.url_open('/shop/cart').text
-        self.assertIn('SOFÁ DE PRUEBA', carrito)
+        self.assertIn('Sofá de Prueba', carrito)
 
     def test_agregar_producto_no_publicado_no_entra(self):
         self.authenticate(None, None)
@@ -163,7 +163,7 @@ class TestPortadaDinamica(HttpCase):
     def test_ficha_de_producto_con_whatsapp_y_sellos(self):
         html = self.url_open(self.sofa.website_url).text
         self.assertIn('o_dcasa_sellos', html)
-        self.assertIn('me%20interesa%3A%20SOF%C3%81%20DE%20PRUEBA', html)
+        self.assertIn('me%20interesa%3A%20Sof%C3%A1%20de%20Prueba', html)   # formato título (F5)
 
     def test_ficha_sin_promesas_inventadas(self):
         html = self.url_open(self.sofa.website_url).text

@@ -7,18 +7,13 @@
   pantalla muestra «así quedarán estos N nombres» (antes → después) y un botón los cambia. Cada nombre se cambia en
   todos los idiomas que tenga guardados, y solo si sigue igual a como se vio en la vista previa.
 * El sitio, Juan, Brian y los buscadores no distinguen mayúsculas al buscar, así que nada deja de encontrarse.
+* **Lo que ve el cliente** va en formato título («Cama Queen Tapizada»): ``dcasa_base/nombres.py``.
 """
 from odoo import Command, api, fields, models
+from odoo.addons.dcasa_base.nombres import nombre_en_mayusculas  # noqa: F401 (la regla vive en dcasa_base)
 from odoo.exceptions import AccessError
 
 GRUPOS_CATALOGO = ('product.group_product_manager', 'base.group_system')
-
-
-def nombre_en_mayusculas(texto):
-    """«Sofá  seccional milán» → «SOFÁ SECCIONAL MILÁN». Lo que no es texto vuelve igual."""
-    if not isinstance(texto, str):
-        return texto
-    return ' '.join(texto.split()).upper()
 
 
 def _mayusculas(valor):

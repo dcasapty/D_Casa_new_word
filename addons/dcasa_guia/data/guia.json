@@ -1564,7 +1564,7 @@
    "categoria": "productos",
    "grupo": "Productos",
    "titulo": "Poner en MAYÚSCULAS los nombres de los productos",
-   "logras": "Ves cómo quedarán los nombres que todavía no están en mayúsculas y los cambias todos con un botón. Los productos nuevos ya se guardan en mayúsculas solos.",
+   "logras": "Ves cómo quedarán los nombres que todavía no están en mayúsculas y los cambias todos con un botón. Los productos nuevos ya se guardan en mayúsculas solos. El cliente los sigue leyendo con mayúscula solo al inicio de cada palabra (Cama Queen Tapizada) en la tienda, Juan, los correos y los papeles.",
    "destino": {
     "menu": "dcasa_catalogo.menu_dcasa_producto_mayusculas"
    },

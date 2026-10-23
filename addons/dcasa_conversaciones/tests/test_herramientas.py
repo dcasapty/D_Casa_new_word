@@ -87,6 +87,7 @@ class HerramientasCase(JuanCase):
 
 @tagged('post_install', '-at_install')
 class TestBuscarProductos(HerramientasCase):
+    # Juan le habla al cliente: los nombres le llegan en formato título (F5); por dentro siguen en MAYÚSCULAS.
 
     def nombres(self, datos):
         return [p['nombre'] for p in datos['productos']]
@@ -94,9 +95,9 @@ class TestBuscarProductos(HerramientasCase):
     def test_solo_productos_publicados(self):
         datos = self.salida('buscar_productos', {'consulta': 'zz'})
         nombres = self.nombres(datos)
-        self.assertIn('ZZCAMA ROBLE QUEEN', nombres)
-        self.assertIn('ZZSOFA GRIS', nombres)
-        self.assertNotIn('ZZSECRETO BORRADOR', nombres, 'Un producto sin publicar no existe para el cliente')
+        self.assertIn('Zzcama Roble Queen', nombres)
+        self.assertIn('Zzsofa Gris', nombres)
+        self.assertNotIn('Zzsecreto Borrador', nombres, 'Un producto sin publicar no existe para el cliente')
         self.assertEqual(datos['encontrados'], 4)
         # Ni por nombre ni por código se llega al producto sin publicar.
         self.assertEqual(self.salida('buscar_productos', {'consulta': 'ZZ-SECRETO'})['encontrados'], 0)
@@ -118,9 +119,9 @@ class TestBuscarProductos(HerramientasCase):
     def test_existencias_solo_como_etiqueta_nunca_el_numero(self):
         productos = self.salida('buscar_productos', {'consulta': 'zz'})['productos']
         etiquetas = {p['nombre']: p['disponibilidad'] for p in productos}
-        self.assertEqual(etiquetas['ZZCAMA ROBLE QUEEN'], 'disponible')    # 7777 unidades
-        self.assertEqual(etiquetas['ZZSOFA GRIS'], 'pocas')                 # 3 unidades
-        self.assertEqual(etiquetas['ZZMESA PINO'], 'agotado')               # 0
+        self.assertEqual(etiquetas['Zzcama Roble Queen'], 'disponible')    # 7777 unidades
+        self.assertEqual(etiquetas['Zzsofa Gris'], 'pocas')                 # 3 unidades
+        self.assertEqual(etiquetas['Zzmesa Pino'], 'agotado')               # 0
         texto = json.dumps(self.salida('buscar_productos', {'consulta': 'zz'}))
         self.assertNotIn('7777', texto, 'El número de existencias no sale jamás')
         for clave in ('existencias', 'qty', 'stock', 'cantidad', 'free_qty', 'virtual'):
@@ -142,17 +143,17 @@ class TestBuscarProductos(HerramientasCase):
 
     def test_busca_por_tamano_o_color_de_la_variante(self):
         nombres = self.nombres(self.salida('buscar_productos', {'consulta': 'colchon zzqueen'}))
-        self.assertEqual(nombres, ['ZZCOLCHÓN FIRST CLASS'])
+        self.assertEqual(nombres, ['Zzcolchón First Class'])
 
     def test_el_codigo_exacto_va_primero(self):
         productos = self.salida('buscar_productos', {'consulta': 'ZZ-SOFA'})['productos']
-        self.assertEqual(productos[0]['nombre'], 'ZZSOFA GRIS')
+        self.assertEqual(productos[0]['nombre'], 'Zzsofa Gris')
 
     def test_filtra_por_categoria(self):
         nombres = self.nombres(self.salida('buscar_productos', {'consulta': 'zz', 'categoria': 'Zzcocina'}))
-        self.assertEqual(nombres, ['ZZMESA PINO'])
+        self.assertEqual(nombres, ['Zzmesa Pino'])
         todas = self.nombres(self.salida('buscar_productos', {'consulta': 'zz', 'categoria': 'zzdormitorios'}))
-        self.assertNotIn('ZZMESA PINO', todas)
+        self.assertNotIn('Zzmesa Pino', todas)
 
     def test_categoria_inexistente_dice_cuales_hay(self):
         error = self.error('buscar_productos', {'consulta': 'zz', 'categoria': 'Zzjardin'})
@@ -191,14 +192,14 @@ class TestCodigoPublicoEnJuan(HerramientasCase):
         codigo = self.cama.dcasa_codigo_publico
         for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), f'  {codigo.lower()} '):
             (cama,) = self.salida('buscar_productos', {'consulta': escrito})['productos']
-            self.assertEqual((cama['nombre'], cama['codigo']), ('ZZCAMA ROBLE QUEEN', codigo), escrito)
+            self.assertEqual((cama['nombre'], cama['codigo']), ('Zzcama Roble Queen', codigo), escrito)
 
     def test_ver_producto_por_el_codigo_publico_y_todavia_por_la_referencia_del_proveedor(self):
         """El cliente puede traer la referencia vieja (una foto, una conversación anterior): se le atiende igual."""
         codigo = self.cama.dcasa_codigo_publico
         for escrito in (codigo, codigo.lower(), codigo.replace('-', ''), 'ZZ-CAMA'):
             ficha = self.salida('ver_producto', {'codigo': escrito})
-            self.assertEqual((ficha['nombre'], ficha['codigo']), ('ZZCAMA ROBLE QUEEN', codigo), escrito)
+            self.assertEqual((ficha['nombre'], ficha['codigo']), ('Zzcama Roble Queen', codigo), escrito)
 
     def test_lo_que_ve_el_cliente_no_trae_la_referencia_del_proveedor(self):
         for consulta in ('zz', 'colchón'):
@@ -233,7 +234,7 @@ class TestVerProductoYCategorias(HerramientasCase):
 
     def test_ficha_por_codigo(self):
         ficha = self.salida('ver_producto', {'codigo': 'zz-cama'})
-        self.assertEqual(ficha['nombre'], 'ZZCAMA ROBLE QUEEN')
+        self.assertEqual(ficha['nombre'], 'Zzcama Roble Queen')
         self.assertEqual(ficha['descripcion'], 'Cama de roble con cabecera.')
         self.assertEqual(ficha['precio_texto'], '$349.99 + ITBMS')
         self.assertEqual(ficha['disponibilidad'], 'disponible')
@@ -617,7 +618,7 @@ class TestUsuarioTecnicoYAuditoria(HerramientasCase):
         self.assertEqual(accion.create_uid, self.juan)
         self.assertEqual(accion.dcasa_conversacion_id, self.conv)
         self.assertIn('zz', accion.argumentos)
-        self.assertIn('ZZCAMA', accion.resultado)
+        self.assertIn('Zzcama', accion.resultado)
 
     def test_los_errores_tambien_quedan_en_la_auditoria(self):
         self.error('ver_producto', {'codigo': 'NO-EXISTE'})

@@ -21,6 +21,7 @@ from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_brian.models.registro import BrianError, herramienta
 
 from . import adjuntos as A
@@ -48,9 +49,10 @@ def _no_creada(motivo, mensaje, **extra):
 
 def _no_cotizable_combo(plantilla):
     """Un combo (cama + colchón) lo arma una vendedora: sus piezas se escogen en Ventas, no aquí."""
+    nombre = plantilla._dcasa_nombre_cliente()
     return _no_creada(
         'es_combo',
-        f'«{plantilla.name}» es un combo y los combos los arma una vendedora. Dile al cliente su precio de la ficha y '
+        f'«{nombre}» es un combo y los combos los arma una vendedora. Dile al cliente su precio de la ficha y '
         f'llama a pasar_a_vendedora para que se lo prepare. {A_VENDEDORA}')
 
 
@@ -112,11 +114,12 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
         if len(variantes) == 1:
             return variantes, None
         todas = plantilla.sudo().product_variant_ids[:MAX_VARIANTES]
+        nombre = plantilla._dcasa_nombre_cliente()
         return None, _no_creada(
             'elegir_opcion',
-            f'«{plantilla.name}» tiene varias opciones. Pregúntale al cliente cuál quiere y vuelve a llamar a cotizar '
+            f'«{nombre}» tiene varias opciones. Pregúntale al cliente cuál quiere y vuelve a llamar a cotizar '
             'con el campo «opcion» (por ejemplo el tamaño o el color).',
-            opciones=[v.with_context(display_default_code=False).display_name for v in todas])
+            opciones=[v._dcasa_nombre_cliente() for v in todas])
 
     @api.model
     def _j_lineas_para_cotizar(self, lineas):
@@ -194,7 +197,8 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
             mas_itbms = self._j_mas_itbms(plantilla)
             fila = {
                 'codigo': plantilla.dcasa_codigo_publico or '',   # el del cliente, no la referencia del proveedor
-                'producto': linea.product_id.with_context(display_default_code=False).display_name or linea.name,
+                'producto': nombre_para_cliente(
+                    linea.product_id.with_context(display_default_code=False).display_name or linea.name),
                 'cantidad': int(linea.product_uom_qty) if float(linea.product_uom_qty).is_integer()
                 else linea.product_uom_qty,
                 'precio_unitario_texto': P.precio_texto(linea.price_unit, mas_itbms),

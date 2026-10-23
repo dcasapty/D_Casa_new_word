@@ -9,6 +9,7 @@ Las direcciones viejas (``/shop/xht022-t-w-cama-…-5``) siguen funcionando: Odo
 """
 from odoo import api, models
 from odoo.addons.dcasa_base.models.codigo_publico import normalizar_codigo_publico
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.fields import Domain
 
 PRODUCTOS = ('product.template', 'product.product')
@@ -34,6 +35,8 @@ class ProductProduct(models.Model):
         datos.pop('sku', None)
         if self.dcasa_codigo_publico:
             datos['sku'] = self.dcasa_codigo_publico
+        if isinstance(datos.get('name'), str):
+            datos['name'] = nombre_para_cliente(datos['name'])   # el nombre que Google enseña: formato título (F5)
         return datos
 
 
@@ -55,3 +58,19 @@ class ProductTemplate(models.Model):
 
         detalle['search_extra'] = por_codigo_publico
         return detalle
+
+    def _default_website_meta(self):
+        """El título al compartir la ficha (WhatsApp, Facebook): «Cama Queen Tapizada», no en MAYÚSCULAS (F5)."""
+        res = super()._default_website_meta()
+        nombre = self._dcasa_nombre_cliente()
+        res['default_opengraph']['og:title'] = res['default_twitter']['twitter:title'] = nombre
+        return res
+
+    @api.model
+    def _search_render_results(self, fetch_fields, mapping, icon, limit):
+        """El buscador del sitio muestra los nombres en formato título (F5)."""
+        resultados = super()._search_render_results(fetch_fields, mapping, icon, limit)
+        for datos in resultados:
+            if isinstance(datos.get('name'), str):
+                datos['name'] = nombre_para_cliente(datos['name'])
+        return resultados

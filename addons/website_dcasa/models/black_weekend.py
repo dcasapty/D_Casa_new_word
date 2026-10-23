@@ -189,7 +189,7 @@ class Website(models.Model):
                 'combo': leer_combo(producto.dcasa_combo) if 'dcasa_combo' in producto._fields else None,
                 'codigo': codigo,
                 'whatsapp': self._dcasa_bw_whatsapp(producto, codigo),
-                'alt': producto.name,
+                'alt': producto._dcasa_nombre_cliente(),
             })
         return items
 
@@ -206,7 +206,7 @@ class Website(models.Model):
         )
 
     def _dcasa_bw_whatsapp(self, producto, codigo):
-        nombre = producto.name
+        nombre = producto._dcasa_nombre_cliente()
         texto = f"Hola D'CASA, me interesa del Black Weekend: {nombre}"
         return self._dcasa_whatsapp_url(f'{texto} (código {codigo})' if codigo else texto)
 
@@ -228,7 +228,7 @@ class Website(models.Model):
         base = self._dcasa_url_publica()
         lista = []
         for posicion, item in enumerate(items, start=1):
-            elemento = {'@type': 'ListItem', 'position': posicion, 'name': item['producto'].name}
+            elemento = {'@type': 'ListItem', 'position': posicion, 'name': item['producto']._dcasa_nombre_cliente()}
             if base:
                 elemento['url'] = base + item['producto'].website_url
             lista.append(elemento)

@@ -49,10 +49,10 @@ class TestPrecioMasItbms(HttpCase):
 
     def test_listado_y_portada_dicen_mas_itbms(self):
         tienda = self.url_open('/shop?search=MESA ITBMS PRUEBA').text
-        self.assertIn('MESA ITBMS PRUEBA', tienda)
+        self.assertIn('Mesa ITBMS Prueba', tienda)
         self.assertIn('+ ITBMS', tienda)
         portada = self.url_open('/').text
-        tarjeta = re.search(r'MESA ITBMS PRUEBA.*?o_dcasa_pcard_actions', portada, re.S).group(0)
+        tarjeta = re.search(r'Mesa ITBMS Prueba.*?o_dcasa_pcard_actions', portada, re.S).group(0)
         self.assertIn('39.99', tarjeta)
         self.assertIn('+ ITBMS', tarjeta)
 
@@ -64,6 +64,6 @@ class TestPrecioMasItbms(HttpCase):
             'csrf_token': token, 'product_template_id': self.mesa.id,
         }, allow_redirects=False)
         carrito = self.url_open('/shop/cart').text
-        self.assertIn('MESA ITBMS PRUEBA', carrito)
+        self.assertIn('Mesa ITBMS Prueba', carrito)
         for cifra in ('39.99', '2.80', '42.79'):
             self.assertIn(cifra, carrito, 'Subtotal, ITBMS y total')

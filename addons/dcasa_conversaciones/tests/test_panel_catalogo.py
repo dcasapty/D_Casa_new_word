@@ -179,7 +179,7 @@ class TestFotosYEnvio(CatalogoCase):
         (envio,) = self.envios()
         cuerpo = envio.kwargs['json']
         lineas = cuerpo['texto'].split('\n')
-        self.assertEqual(lineas[0], 'ZZCAMA ROBLE QUEEN')
+        self.assertEqual(lineas[0], 'Zzcama Roble Queen', 'el cliente lee el nombre en formato título (F5)')
         self.assertEqual(lineas[1], '$349.99 + ITBMS')
         self.assertEqual(lineas[2], 'Medidas: Ancho × Largo: 160 × 200 cm')
         self.assertTrue(lineas[3].endswith(self.cama.website_url))
