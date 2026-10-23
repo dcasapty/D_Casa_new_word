@@ -426,5 +426,9 @@ escondidas:
   PDF (`dcasa_invoice`) y los títulos del catálogo de Meta (`reglas_meta.titulo`, la misma regla). Las pantallas
   internas, Brian, el pedido de compra al proveedor y la factura electrónica siguen con el nombre guardado. Pruebas:
   `dcasa_base/tests/test_nombres_cliente.py` y una por cada lugar (`website_dcasa`, `dcasa_invoice`, `dcasa_correo`).
+  La cotización, la factura y la nota de entrega aprobadas (`dcasa_invoice/tests/aprobado/`) cambian solo en los
+  nombres; el antes y el después están en `docs/auditoria/f5-formato-titulo/`. Ojo: el título grande de la ficha
+  usa la letra de titulares de la marca (Anton, en caja alta por estilo), así que ahí se sigue viendo en mayúsculas;
+  la miga de pan, las tarjetas, el carrito y lo demás ya se leen en formato título.
 * **Brian:** `productos_repetidos`, `nombres_por_pasar_a_mayusculas`, `pasar_nombres_a_mayusculas` (pide permiso) y
   `unir_productos` (pide permiso). Pruebas: `dcasa_catalogo/tests/test_productos_limpios.py`.
