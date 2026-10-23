@@ -136,6 +136,12 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **Combos en producción** con estos arreglos: CI #223 (`ab94128`) y staging sanos, PR #63 unido a `main` (`61cb612`,
   árbol = `ab94128`) y **Desplegar 28 sano y confirmado a las 19:51 UTC** (14:51 Panamá). Falta que la dueña haga una
   cotización con cama + uno de los 4 colchones y mire el renglón del descuento.
+- Formas de cobro (pedido de un jefe: «las tarjetas cobran tasas diferentes»): la dueña, con Claude en Chrome, creó en
+  producción los diarios de banco **Visa (VISA), Mastercard (MC), American Express (AMEX), Clave (CLAVE) y KrediYa
+  (KRYA)**; Odoo les abrió las cuentas 111.011 a 111.015. El jefe no podía porque crear diarios es de Administrador de
+  Contabilidad (Gerencia no lo trae). «Tarjeta» sigue activa: se archiva cuando la contadora confirme que no queda nada
+  por cuadrar (archivada no sale en Conciliación). La «Forma de pago DGI» no existe en producción porque
+  `dcasa_fe_pa` todavía no está instalado (espera al PAC): se pone en cada diario al instalarlo.
 
 ### 2026-10-23 (madrugada)
 

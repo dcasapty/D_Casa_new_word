@@ -284,7 +284,8 @@ l10n_pa_fe_adaptador = fields.Selection(selection_add=[('hka', 'The Factory HKA'
 3. Escribir el adaptador real (sección anterior) con sus tests contra respuestas grabadas.
 4. Cargar los datos fiscales: ubicación DGI de la empresa (código, corregimiento, distrito,
    provincia), sucursal y punto de facturación; tipo de receptor y ubicación de los clientes
-   empresa; forma de pago DGI en cada diario de cobro (Efectivo, Yappy, Tarjeta…).
+   empresa; forma de pago DGI en cada diario de cobro (Efectivo, Yappy, Tarjeta, y desde el 23 oct Visa, Mastercard
+   y American Express → tarjeta de crédito, Clave → tarjeta de débito; KrediYa, Crediviva y Tafi → la contadora).
 5. Agregar `dcasa_fe_pa` a `ODOO_MODULES` en `docker/entrypoint.sh` (queda apagado al
    instalarse), probar en staging con el ambiente de pruebas (iAmb=2) y luego producción.
 6. Revisar con el PAC/contador si la factura impresa de D'CASA sirve como CAFE o si hay que
