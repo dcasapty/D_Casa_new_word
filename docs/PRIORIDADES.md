@@ -7,6 +7,15 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-22, noche:** en producción la tanda del 22 oct (Desplegar 24, PR #60): bodega, Reponer con
+llegada, estadísticas por día, Marketing, combos cama + colchón y detalles. Orden de lo que sigue: (1) unir
+`datos-clientes` (F5 nombres en formato título para el cliente y MAYÚSCULAS por dentro, decisión de la dueña; 1b(a);
+D1 clave por Telegram y centavos; D3 recordatorio de abono), corrida completa, CI, staging y producción; (2) lo que
+falta de la dueña para usar lo nuevo: asignar el rol Marketing, el tiempo de llegada de cada proveedor (en el precio de
+proveedor), encender las alertas de bodega con sus umbrales, el «precio en combo» de cada colchón (o su «sí,
+cárgalos» para los tres del Excel) y las preguntas de combos (tienda en línea, camarotes, combos viejos); (3) el trabajo
+contable cuando lleguen las 14 respuestas del jefe; (4) el traslado del dominio, al final.
+
 **Estado al 2026-10-22 (jueves):** la dueña pidió una tanda grande y lo pendiente del jueves. Ocho agentes en paralelo,
 cada uno en su worktree (`/home/user/wt-<rama>`, sin `fuentes/`), con las reglas comunes en el scratchpad
 (`reglas_agentes.md`): `panel-bodega` (panel de bodega para tablet con QR de la nota), `reponer-llegada` (buscador de

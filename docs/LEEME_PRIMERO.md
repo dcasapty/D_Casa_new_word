@@ -98,6 +98,23 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-22 (noche)
+
+- **En producción** (21:48 Panamá, Desplegar 24 confirmado 600 s, `app_version` `abfe96f2…`, imagen `sha256:66db8e72…`;
+  CI #213 verde y staging sano; PR #60, `3174f9a` en `main`): la tanda del 22 oct con el visto bueno de la dueña a
+  todas las capturas. Panel de Bodega para tablet (solo pedidos pagados o con abono; el QR de la nota abre la entrega),
+  Compras › Reponer con ritmo de venta, tiempo de llegada y cuánto pedir, ventas y facturación por día, movimientos en
+  palabras, fotos en grande y app Marketing (rol «Marketing»), combos cama + colchón con «precio en combo» por medida,
+  teléfono fijo (y los fijos viejos movidos de «Celular»), copiar con un toque, ícono = logo, «Se facturó tu venta»,
+  «Subir» oculto a la vendedora, mermas, bitácora y alertas de bodega (apagadas), adelantos, comprobante de planilla y
+  ZIP de comprobantes.
+- Dos intentos fallaron antes: CI #211 (pruebas: el ajuste de inventario sin motivo del importador y un ERROR esperado
+  en el registro) y CI #212 (la imagen no instalaba: el botón de combos llegaba a la ficha de la variante). Ver
+  CONTEXTO_AGENTICO, «Fallas de CI».
+- Queda en su rama: `datos-clientes` (F5 nombres en formato título para el cliente y MAYÚSCULAS por dentro, 1b(a),
+  D1 clave por Telegram y centavos, D3 recordatorio de abono). Los precios de combo del Excel **no** se cargan sin el
+  «sí, cárgalos» de la dueña.
+
 ### 2026-10-22
 
 - La dueña personalizó la pantalla de entrada de Cloudflare Access con la marca (nombre, logo, textos, fondo azul);

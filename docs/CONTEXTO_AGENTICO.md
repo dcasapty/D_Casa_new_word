@@ -240,6 +240,23 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Tests de Odoo
 
+- **CI #211** (`52fa1ec`, 2026-10-22) · Tanda del 22 oct unida (ocho ramas). El registro no se pudo bajar (la API da
+  la dirección del blob y el proxy de esta máquina la bloquea con 403; `get_job_logs` del MCP de GitHub con
+  `tail_lines` sí funciona). Una corrida completa en local halló las causas: (a) `dcasa_existencias` exige motivo en
+  todo ajuste de inventario y el importador (`dcasa_catalogo/inventario_anterior.py`) y las existencias de prueba no lo
+  daban → `74d7099` (`inventory_name` en el contexto); (b) la prueba de «Telegram caído» de las alertas deja a propósito
+  un `ERROR` en el registro y `scripts/test.sh` falla con cualquier `ERROR` → `5c1a96f` (`assertLogs`). **Regla:** un
+  módulo que agrega una exigencia (motivo, grupo, candado) rompe a los demás que escriben ese modelo; buscarlos con
+  `grep` antes de unir, y toda prueba que provoca un `ERROR` lo atrapa con `assertLogs`.
+- **CI #212** (`5c1a96f`) · Las pruebas de Odoo pasaron, pero «Imagen Docker» falló al instalar: `ParseError …
+  copiar_views.xml … action_dcasa_precios_combo no es una acción válida en product.product`. Causa: la rama de combos
+  agregó el botón a `product.product_template_form_view`, y la ficha de la variante (`product_normal_form_view`,
+  `mode=primary`) hereda de ella; el método solo existe en `product.template`. Se notó recién cuando otra rama
+  (copiar) heredó la ficha de la variante y Odoo la validó entera. Arreglo `abfe96f`: el botón hereda de
+  `product.product_template_only_form_view`, con prueba de que la variante carga sin él. **Regla:** un botón
+  `type="object"` en la ficha del producto va en `product_template_only_form_view` salvo que el método exista también
+  en `product.product`.
+
 - **CI #139** (`b1cf3c4d`, 2026-10-14) · Síntoma: `FAIL: TestSuperficieRpc.test_metodos_publicos_en_lista_blanca`
   (1 de 2440). Causa: métodos públicos nuevos de Vendedores sin anotar. Arreglo: `b83f515d` →
   `addons/dcasa_base/tests/test_superficie_rpc.py` (lista blanca con motivo; cada acción exige grupo en el servidor).
