@@ -69,11 +69,14 @@ def _combo_en_papel(linea, ahorro_unitario, campo_importe):
     promoción. Por dentro el descuento sigue en la línea del colchón (la factura electrónica de la DGI no acepta líneas
     en negativo), así que aquí solo se reparte lo que ya vale la línea: importe normal − descuento = importe de la
     línea, al centavo. ``ahorro_unitario`` y ``price_unit`` van en la misma base; ``campo_importe`` es el de la columna
-    «Importe» (sin o con ITBMS). ``False`` si no hay descuento que mostrar."""
+    «Importe» (sin o con ITBMS). ``False`` si no hay descuento que mostrar.
+
+    Con un descuento % en la misma línea no se reparte: el papel sale como antes (el precio en combo con su %), porque
+    repartido el % de la columna y el renglón del combo ya no cuadran a simple vista."""
     precio = linea.price_unit
     importe = linea[campo_importe]
     moneda = linea.currency_id
-    if not ahorro_unitario or ahorro_unitario <= 0 or not precio or precio <= 0 or not moneda:
+    if not ahorro_unitario or ahorro_unitario <= 0 or not precio or precio <= 0 or not moneda or linea.discount:
         return False
     descuento = moneda.round(importe * ahorro_unitario / precio)
     if moneda.compare_amounts(descuento, 0) <= 0:
@@ -751,9 +754,19 @@ class SaleOrderLine(models.Model):
         """El colchón de un combo en el papel: ``{'precio', 'importe', 'descuento'}`` o ``False`` (ver
         ``_combo_en_papel``)."""
         self.ensure_one()
-        if self.display_type or not self.dcasa_combo_cama_id or not self.dcasa_combo_con_precio:
+        if not self._dcasa_combo_al_precio_del_sistema():
             return False
         return _combo_en_papel(self, self.dcasa_combo_ahorro_unitario, campo_importe)
+
+    def _dcasa_combo_al_precio_del_sistema(self):
+        """¿Es un colchón en combo que sigue al precio que le puso el sistema? Si la vendedora lo cambió a mano, el
+        ahorro guardado ya no dice cuánto se rebajó: el papel no se inventa un «precio normal» y la línea sale tal
+        cual."""
+        self.ensure_one()
+        if self.display_type or not self.dcasa_combo_cama_id or not self.dcasa_combo_con_precio:
+            return False
+        moneda = self.currency_id or self.order_id.currency_id
+        return bool(moneda) and not moneda.compare_amounts(self.technical_price_unit, self.price_unit)
 
     def _dcasa_etiqueta(self):
         return super()._dcasa_etiqueta() or self._dcasa_texto_combo()
@@ -789,15 +802,27 @@ class AccountMoveLine(models.Model):
 
     def _dcasa_etiqueta(self):
         etiqueta = super()._dcasa_etiqueta()
-        if etiqueta or not self.dcasa_combo_rol or self.move_id.move_type != 'out_invoice':
+        if etiqueta or not self._dcasa_combo_de_su_venta():
             return etiqueta
         return self.env._('Combo cama + colchón')
 
+    def _dcasa_combo_de_su_venta(self):
+        """¿Sigue siendo la pieza del combo que vino de la venta? En un borrador de factura alguien puede cambiarle el
+        producto a la línea: entonces ya no es del combo (y la marca no lo dice). Una nota de crédito sale tal cual."""
+        self.ensure_one()
+        venta = self.sudo().sale_line_ids   # quien solo ve facturas también imprime el combo
+        return bool(self.dcasa_combo_rol) and self.display_type == 'product' \
+            and self.move_id.move_type == 'out_invoice' and len(venta) == 1 and venta.product_id == self.product_id
+
     def _dcasa_combo_en_papel(self, campo_importe='price_subtotal'):
         """El colchón de un combo en la factura: ``{'precio', 'importe', 'descuento'}`` o ``False`` (ver
-        ``_combo_en_papel``). Una nota de crédito sale tal cual."""
+        ``_combo_en_papel``). Solo si el precio es el mismo con que se armó en la venta (al precio del sistema): un
+        precio cambiado a mano, en la venta o en la factura, sale tal cual."""
         self.ensure_one()
-        if self.display_type != 'product' or self.dcasa_combo_rol != 'colchon' \
-                or self.move_id.move_type != 'out_invoice':
+        if self.dcasa_combo_rol != 'colchon' or not self._dcasa_combo_de_su_venta():
+            return False
+        venta = self.sudo().sale_line_ids
+        moneda = self.currency_id
+        if not venta._dcasa_combo_al_precio_del_sistema() or moneda.compare_amounts(self.price_unit, venta.price_unit):
             return False
         return _combo_en_papel(self, self.dcasa_combo_ahorro_unitario, campo_importe)

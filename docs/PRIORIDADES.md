@@ -7,13 +7,16 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-10-23, tarde:** en la rama (CI #219 a staging) el arreglo de la lentitud (Bodega/Inicio sin mirar
-pagos factura por factura), el reintento del borde ante «Network connection lost.», la nota de entrega sin el producto
-repetido y el scroll de Marketing. Orden: (1) subirlo a producción con el «sí» de la dueña, fuera del horario de venta,
-y pedirle que diga si el sistema se siente más rápido; (2) seguimiento de velocidad sin urgencia: `/web/image` lee el
+**Estado al 2026-10-23, tarde:** en producción (Desplegar 27, PR #62) el arreglo de la lentitud (Bodega/Inicio sin
+mirar pagos factura por factura), el reintento del borde ante «Network connection lost.», la nota de entrega sin el
+producto repetido y el scroll de Marketing. En la rama, camino a producción: los combos con el descuento en su propio
+renglón y los 4 descuentos aprobados, más lo que hallaron las dos revisiones. Orden: (1) subir los combos en cuanto
+pasen CI y staging y pedirle a la dueña que mire una cotización con uno de los 4 colchones; (2) que la dueña diga si el
+sistema se siente más rápido; (3) seguimiento de velocidad sin urgencia: `/web/image` lee el
 archivo de R2 antes de contestar «no cambió» (304), el ZIP de comprobantes ocupa la CPU seguido mientras se prepara
-(pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto en el Inicio; (3) lo de la
-lista de abajo.
+(pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto en el Inicio; (4) lo de la
+lista de abajo. Pendiente menor de la revisión: `abrir` de Bodega no exige pago a una entrega en borrador (muestra
+teléfono y dirección); hoy no hay entregas de venta en borrador.
 
 **Estado al 2026-10-23:** en producción también los datos limpios (Desplegar 26, PR #61): nombres en formato
 título para el cliente, clave de descuento por Telegram (D1) y abonos por vencer (D3). Orden de lo que sigue: (1) lo

@@ -205,11 +205,15 @@ class BrianHerramientasJuanCotizacion(models.AbstractModel):
                 'subtotal_texto': _dinero(linea.price_subtotal),
                 'disponibilidad': self._j_existencias(plantilla, linea.product_id),
             }
-            if linea.dcasa_combo_con_precio and linea.dcasa_combo_ahorro > 0:
-                # Combo cama + colchón (dcasa_catalogo): el colchón va con una cama de su medida y Odoo ya le puso el
-                # precio en combo que fijó Gerencia. Juan solo lo dice; no calcula nada.
-                fila['combo'] = (f'Precio en combo por ir con la cama de su medida: ahorras '
-                                 f'{_dinero(linea.dcasa_combo_ahorro)}')
+            papel = linea._dcasa_combo_en_papel()
+            if papel:
+                # Combo cama + colchón (dcasa_catalogo): Juan dice lo mismo que el PDF que manda (decisión de la dueña,
+                # 2026-10-23): el colchón a su precio normal y el descuento del combo aparte. No calcula nada.
+                fila['precio_unitario_texto'] = P.precio_texto(papel['precio'], mas_itbms)
+                fila['subtotal_texto'] = _dinero(papel['importe'])
+                fila['combo'] = f'Descuento combo cama + colchón: −{_dinero(papel["descuento"])}'
+            elif linea.dcasa_combo_con_precio and linea.dcasa_combo_ahorro > 0:
+                fila['combo'] = 'Combo cama + colchón'
             lineas.append(fila)
         return {
             'numero': orden.name, 'lineas': lineas,

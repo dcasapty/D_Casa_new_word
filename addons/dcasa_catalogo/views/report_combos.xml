@@ -60,12 +60,21 @@
             <t t-set="dcasa_combo_papel" t-value="line.display_type == 'product' and not hide_prices
                 and line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')"/>
             <tr t-if="dcasa_combo_papel" class="o_dcasa_descuento_combo">
-                <td t-att-colspan="4 + (1 if display_discount else 0) + (1 if display_taxes else 0)"
-                    t-att-class="padding_class">Descuento combo cama + colchón</td>
-                <td class="text-end o_price_total">
+                <!-- En la página del cliente (HTML) el precio, el % y el ITBMS se esconden en el celular: un solo
+                     renglón a la derecha, que cuadra con cualquier ancho. -->
+                <td t-if="report_type == 'html'" colspan="99" t-attf-class="text-end {{padding_class}}">
+                    Descuento combo cama + colchón
                     <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
                         t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></span>
                 </td>
+                <t t-else="">
+                    <td t-att-colspan="4 + (1 if display_discount else 0) + (1 if display_taxes else 0)"
+                        t-att-class="padding_class">Descuento combo cama + colchón</td>
+                    <td class="text-end o_price_total">
+                        <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
+                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></span>
+                    </td>
+                </t>
             </tr>
         </xpath>
     </template>
@@ -95,10 +104,11 @@
         <xpath expr="//tr[@name='tr_product']" position="after">
             <t t-set="dcasa_combo_papel"
                t-value="not line.display_type and not collapse_prices and line._dcasa_combo_en_papel(price_field)"/>
+            <!-- El precio, el % y el ITBMS se esconden en el celular: un solo renglón a la derecha, que cuadra con
+                 cualquier ancho. -->
             <tr t-if="dcasa_combo_papel" class="o_dcasa_descuento_combo">
-                <td t-att-colspan="3 + (1 if display_discount else 0) + (1 if display_taxes else 0)"
-                    t-att-class="padding_class">Descuento combo cama + colchón</td>
-                <td class="text-end">
+                <td colspan="99" t-attf-class="text-end {{padding_class}}">
+                    Descuento combo cama + colchón
                     <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
                         t-options="{'widget': 'monetary', 'display_currency': sale_order.currency_id}"/></span>
                 </td>

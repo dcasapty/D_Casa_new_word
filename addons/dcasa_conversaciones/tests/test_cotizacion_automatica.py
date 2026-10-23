@@ -297,7 +297,8 @@ class TestCotizarPdfDeVerdad(HttpCase, HerramientasCase):
 @tagged('post_install', '-at_install')
 class TestCotizarComboCamaColchon(CotizarCase):
     """Combos cama + colchón que se arman en la venta (2026-10-22): si el cliente pide la cama y el colchón de su
-    medida, la cotización de Juan ya trae el precio en combo que puso Gerencia (Odoo lo calcula; Juan solo lo dice)."""
+    medida, la cotización de Juan ya trae el precio en combo que puso Gerencia (Odoo lo calcula; Juan solo lo dice,
+    igual que el papel)."""
 
     def test_cama_y_colchon_de_la_misma_medida_van_a_precio_en_combo(self):
         impuesto = self.env['brian.herramientas']._b_itbms_venta()
@@ -315,8 +316,10 @@ class TestCotizarComboCamaColchon(CotizarCase):
         (orden,) = self.ordenes()
         self.assertEqual(orden.order_line.filtered(lambda ln: ln.product_id.product_tmpl_id == colchon).price_unit,
                          260.0)
+        # Juan dice lo mismo que el PDF que manda (2026-10-23): el colchón a su precio normal y el descuento aparte.
         linea_cama, linea_colchon = datos['cotizacion']['lineas']
-        self.assertEqual(linea_colchon['precio_unitario_texto'], '$260.00 + ITBMS')
-        self.assertIn('ahorras $40.00', linea_colchon['combo'])
+        self.assertEqual(linea_colchon['precio_unitario_texto'], '$300.00 + ITBMS')
+        self.assertEqual(linea_colchon['subtotal_texto'], '$300.00')
+        self.assertEqual(linea_colchon['combo'], 'Descuento combo cama + colchón: −$40.00')
         self.assertNotIn('combo', linea_cama)
         self.assertAlmostEqual(datos['cotizacion']['subtotal'], 660.0)

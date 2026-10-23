@@ -480,19 +480,50 @@ class TestFacturaYPapel(CombosCommon):
         self.assertEqual(orden.amount_untaxed, 400.0 + COMBO_KING, 'Las cuentas no cambian: solo cómo se ve')
 
     def test_el_papel_reparte_lo_que_vale_la_linea_al_centavo(self):
-        """Con o sin ITBMS en la columna y con un descuento % encima: importe normal − descuento = lo de la línea."""
+        """Con o sin ITBMS en la columna: importe normal − descuento = lo de la línea."""
         orden = self.orden(usuario=self.gerencia, productos=[self.cama_king, self.colchon_king, self.mesa])
         colchon = self.linea(orden, self.colchon_king)
-        for rebaja in (0.0, 5.0):
-            colchon.discount = rebaja
-            for campo in ('price_subtotal', 'price_total'):
-                papel = colchon._dcasa_combo_en_papel(campo)
-                self.assertEqual(papel['precio'], NORMAL_KING)
-                self.assertAlmostEqual(papel['importe'] - papel['descuento'], colchon[campo], places=2)
-            if not rebaja:
-                self.assertEqual(colchon._dcasa_combo_en_papel()['descuento'], NORMAL_KING - COMBO_KING)
+        for campo in ('price_subtotal', 'price_total'):
+            papel = colchon._dcasa_combo_en_papel(campo)
+            self.assertEqual(papel['precio'], NORMAL_KING)
+            self.assertAlmostEqual(papel['importe'] - papel['descuento'], colchon[campo], places=2)
+        self.assertEqual(colchon._dcasa_combo_en_papel()['descuento'], NORMAL_KING - COMBO_KING)
         for otra in (self.cama_king, self.mesa):
             self.assertFalse(self.linea(orden, otra)._dcasa_combo_en_papel(), otra.name)
+
+    def test_el_papel_no_inventa_un_precio_normal(self):
+        """Revisión (2026-10-23): si el colchón ya no está al precio que le puso el sistema (la vendedora lo cambió a
+        mano, aunque sea al precio normal) o lleva un descuento % encima, sale tal cual: el papel no se inventa un
+        «precio normal» ni un descuento que el cliente no recibe, y lo que se ve cuadra."""
+        orden = self.orden(usuario=self.gerencia, productos=[self.cama_king, self.colchon_king])
+        colchon = self.linea(orden, self.colchon_king)
+        self.assertTrue(colchon._dcasa_combo_en_papel())
+        colchon.discount = 10.0
+        self.assertFalse(colchon._dcasa_combo_en_papel(), 'con un % encima sale como antes')
+        colchon.discount = 0.0
+        for a_mano in (COMBO_KING - 10, NORMAL_KING):
+            colchon.price_unit = a_mano
+            self.assertFalse(colchon._dcasa_combo_en_papel(), a_mano)
+        html = self.env['ir.actions.report']._render_qweb_html('sale.report_saleorder', orden.ids)[0].decode()
+        texto = texto_de(html)
+        self.assertNotIn('Descuento combo cama + colchón', texto)
+        self.assertNotIn(f'{NORMAL_KING + NORMAL_KING - COMBO_KING:.2f}', ' '.join(texto))
+        self.assertEqual(texto.count('Combo cama + colchón'), 2, 'sigue siendo un combo')
+
+    def test_la_factura_no_inventa_un_precio_normal(self):
+        """En el borrador de la factura: si cambian el precio o el producto de la línea del colchón, sale tal cual (y
+        si ya no es el colchón, sin la marca del combo)."""
+        factura = self._combo_confirmado()._create_invoices()
+        colchon = factura.invoice_line_ids.filtered(lambda ln: ln.product_id == self.colchon_king)
+        self.assertTrue(colchon._dcasa_combo_en_papel())
+        colchon.price_unit = COMBO_KING - 10
+        self.assertFalse(colchon._dcasa_combo_en_papel(), 'precio cambiado en la factura')
+        colchon.price_unit = COMBO_KING
+        self.assertTrue(colchon._dcasa_combo_en_papel())
+        colchon.product_id = self.mesa
+        colchon.price_unit = COMBO_KING
+        self.assertFalse(colchon._dcasa_combo_en_papel(), 'ya no es el colchón del combo')
+        self.assertNotEqual(colchon._dcasa_etiqueta(), 'Combo cama + colchón')
 
     def test_la_factura_lleva_el_combo_el_ahorro_y_el_inventario_por_pieza(self):
         orden = self._combo_confirmado()
