@@ -113,8 +113,14 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - Nota de entrega `736c3fa` (la descripción guardada en MAYÚSCULAS no se reconocía como el nombre en formato título);
   scroll de Marketing `fcbc1b5`.
 - CI #219 (`34fea73`) con todo, a staging. **Producción:** pendiente del «sí» de la dueña, fuera del horario de venta.
-- Combos: los 73 productos COMBO viejos **se quedan** mientras la dueña prueba el creador de combos (su decisión); los
-  precios del Excel siguen sin cargar (falta «sí, cárgalos» y el precio del Twin Imperial).
+- Combos: los 73 productos COMBO viejos **se quedan** mientras la dueña prueba el creador de combos (su decisión).
+  Decisión de la dueña sobre cómo se ven: la cama y el colchón a su precio normal y, en su propio renglón, «Descuento
+  combo cama + colchón −$X» (por dentro sigue en la línea del colchón: la factura electrónica de la DGI no acepta líneas
+  negativas). Aprobó los descuentos (Imperial Full $9.99, Imperial Twin $6.99, Dulces Sueños Queen $25.99, First Class
+  King $33.99, sacados de sus 73 combos viejos) y dio el visto bueno a las capturas; los carga la migración
+  19.0.1.12.0 de `dcasa_catalogo` solo si el precio normal sigue igual.
+- La dueña pidió subir «ya» (sin esperar el cierre): PR #62 unido a `main` (`e0bae00`, árbol = `7bd87be`) y Desplegar
+  a producción lanzado con la imagen del CI #220; los combos van detrás, en otra subida, cuando pasen su CI.
 
 ### 2026-10-23 (madrugada)
 
