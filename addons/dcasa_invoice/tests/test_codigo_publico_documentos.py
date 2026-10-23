@@ -8,6 +8,7 @@ from lxml import html as lxml_html
 
 from odoo import Command
 from odoo.addons.dcasa_base.models.codigo_publico import CLAVE_PASE, PASE
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.tests import tagged
 
 from ..models import lineas
@@ -56,7 +57,7 @@ class TestCodigoPublicoEnDocumentos(DocumentosDePrueba):
         contenido = self.html(INFORME_FACTURA, factura, normalizado=False)
         self.assertSinReferencias(contenido, 'factura')
         self.assertEqual(celdas_de_codigo(contenido), self.codigos(self.colchon, self.cama, self.flete))
-        self.assertIn('COLCHON IMPERIAL TWIN 3/4 BUEN SUEÑO', contenido, 'la descripción sigue')
+        self.assertIn('Colchon Imperial Twin 3/4 Buen Sueño', contenido, 'la descripción sigue (formato título, F5)')
 
     def test_factura_hecha_antes_de_encender_tambien_sale_sin_referencia(self):
         """El nombre guardado trae «[IM-2001] …» (se hizo con el interruptor apagado): al imprimir se limpia."""
@@ -148,8 +149,9 @@ class TestCodigoPublicoEnDocumentos(DocumentosDePrueba):
         contenido = self.html(INFORME_ENTREGA, entrega, normalizado=False)
         self.assertSinReferencias(contenido, donde)
         for producto in (self.colchon, self.cama):
-            self.assertEqual(contenido.count(f'[{producto.dcasa_codigo_publico}] {producto.name}'), 1,
-                             f'{donde}: «[{producto.dcasa_codigo_publico}] {producto.name}» debe salir una vez')
+            # El nombre, como lo lee el cliente: en formato título (F5).
+            nombre = f'[{producto.dcasa_codigo_publico}] {nombre_para_cliente(producto.name)}'
+            self.assertEqual(contenido.count(nombre), 1, f'{donde}: «{nombre}» debe salir una vez')
         return contenido
 
     def test_nota_de_entrega_encendido_muestra_el_codigo_publico(self):
@@ -174,7 +176,7 @@ class TestCodigoPublicoEnDocumentos(DocumentosDePrueba):
         self.assertTrue(entrega.backorder_ids, 'quedó una entrega pendiente')
         contenido = self.html(INFORME_ENTREGA, entrega, normalizado=False)
         self.assertSinReferencias(contenido, 'entrega hecha con pendientes')
-        self.assertIn(f'[{self.colchon.dcasa_codigo_publico}] {self.colchon.name}', contenido)
+        self.assertIn(f'[{self.colchon.dcasa_codigo_publico}] {nombre_para_cliente(self.colchon.name)}', contenido)
         self.assertIn('Remaining quantities not yet delivered', contenido)
 
     def test_la_descripcion_propia_de_la_entrega_se_conserva_sin_la_referencia(self):

@@ -20,6 +20,7 @@ from unittest.mock import patch
 from lxml import html as lxml_html
 
 from odoo import Command, fields
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_base.tests.test_roles import crear_usuario
 from odoo.addons.dcasa_invoice.tests.documentos import DocumentosDePrueba
 from odoo.addons.dcasa_invoice.tests.test_paquete import (
@@ -295,9 +296,11 @@ class TestHojaDeCondiciones(DocumentosDePrueba):
         texto_cliente = _texto(cliente)
         for referencia in ('IM-2001', '1062010735N'):
             self.assertNotIn(referencia, texto_cliente, 'el cliente no ve la referencia del proveedor')
-        self.assertIn('COLCHON IMPERIAL TWIN 3/4 BUEN SUEÑO', texto_cliente)
-        self.assertIn('CAMA QUEEN GREY CON ESTANTES', texto_cliente)
-        self.assertNotIn(self.flete.name, texto_cliente, 'el flete no es un mueble abonado')
+        # La copia del cliente, en formato título (F5); la de la empresa, con el nombre guardado.
+        self.assertIn('Colchon Imperial Twin 3/4 Buen Sueño', texto_cliente)
+        self.assertIn('Cama Queen Grey con Estantes', texto_cliente)
+        for flete in (self.flete.name, nombre_para_cliente(self.flete.name)):
+            self.assertNotIn(flete, texto_cliente, 'el flete no es un mueble abonado')
 
         empresa = copias['empresa']
         self.assertEqual([_texto(td) for td in empresa.xpath('.//td[@name="dcasa_td_codigo"]')], [colchon, cama])

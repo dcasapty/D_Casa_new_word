@@ -8,3 +8,4 @@ from . import test_codigo_publico
 from . import test_combos_armables
 from . import test_combos_navegador
 from . import test_copiar_navegador
+from . import test_productos_limpios

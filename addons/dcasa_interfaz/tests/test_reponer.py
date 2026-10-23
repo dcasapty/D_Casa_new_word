@@ -37,12 +37,13 @@ class ReponerDatos:
                 'name': nombre, 'default_code': codigo, 'is_storable': True, 'list_price': 100.0,
                 'taxes_id': [Command.clear()],
                 'seller_ids': [Command.create(precio) for precio in precios]})
-        cls.sofa = producto('Sofá reponer', 'REP-SOFA',
+        # Los nombres se guardan en MAYÚSCULAS (F5) y así los muestra esta pantalla interna.
+        cls.sofa = producto('SOFÁ REPONER', 'REP-SOFA',
                             {'partner_id': cls.prov_a.id, 'price': 200.0, 'delay': 90},
                             {'partner_id': cls.prov_b.id, 'price': 190.0, 'sequence': 99})   # B no es el principal
-        cls.mesa = producto('Mesa reponer', 'REP-MESA', {'partner_id': cls.prov_b.id, 'price': 70.0})  # 1 día: falta
-        cls.silla = producto('Silla reponer', 'REP-SILLA')                                              # sin proveedor
-        cls.lampara = producto('Lámpara reponer', 'REP-LAMP',
+        cls.mesa = producto('MESA REPONER', 'REP-MESA', {'partner_id': cls.prov_b.id, 'price': 70.0})  # 1 día: falta
+        cls.silla = producto('SILLA REPONER', 'REP-SILLA')                                              # sin proveedor
+        cls.lampara = producto('LÁMPARA REPONER', 'REP-LAMP',
                                {'partner_id': cls.prov_a.id, 'price': 20.0, 'delay': 90})
         cls.bodega = cls.env['stock.warehouse'].search(
             [('company_id', '=', cls.env.company.id)], limit=1).lot_stock_id
@@ -104,7 +105,7 @@ class TestReponer(ReponerDatos, FacturadoCommon):
              'llegada_dias': 90, 'llegada': '3 meses', 'pedir': 0, 'pedir_ya': False, 'estado': 'alcanza'},
             'alcanza 8 ÷ 2 = 4 meses; tarda 3: pedir = 2 × 3 − 3 − 5 = −2 → 0')
         self.assertEqual((sofa['alcanza'], sofa['proveedor'], sofa['referencia'], sofa['producto']),
-                         ('4 meses', self.prov_a.name, 'REP-SOFA', 'Sofá reponer'))
+                         ('4 meses', self.prov_a.name, 'REP-SOFA', 'SOFÁ REPONER'))
         # Con 2 meses de reserva: 2 × (3 + 2) − 3 − 5 = 2; alcanza (4) cubre la llegada (3): «Pedir», no «Pedir ya».
         sofa = self.fila(self.calcular(reserva=2), self.sofa)
         self.assertEqual((sofa['pedir'], sofa['pedir_ya'], sofa['estado'], sofa['aviso']), (2, False, 'pedir', 'Pedir'))
@@ -292,7 +293,7 @@ class TestReponer(ReponerDatos, FacturadoCommon):
                          (2, '+507 6111-2233', '155000111-2-2020', ''))
         self.assertRegex(ficha['ultima_compra'], r'^\d{2}/\d{2}/\d{4}$')
         self.assertEqual(ficha['llegada'], {'dias': 90, 'texto': '3 meses', 'falta': 0, 'precios': 2})
-        self.assertEqual(fichas('REP-LAMP')[self.prov_a.id]['coincide'], 'Vende «Lámpara reponer»')
+        self.assertEqual(fichas('REP-LAMP')[self.prov_a.id]['coincide'], 'Vende «LÁMPARA REPONER»')
         self.assertEqual(fichas('6111 2233')[self.prov_a.id]['coincide'], 'Teléfono +507 6111-2233')
         self.assertEqual(fichas('155000111')[self.prov_a.id]['coincide'], 'RUC 155000111-2-2020')
         b = fichas('')[self.prov_b.id]
@@ -353,9 +354,9 @@ class TestReponer(ReponerDatos, FacturadoCommon):
         filas = [[celda.value for celda in fila] for fila in hoja.iter_rows(min_row=6)]
         self.assertEqual([fila[1] for fila in filas],
                          [fila['producto'] for fila in Reponer._calcular(5, 1, self.prov_a)], 'el mismo orden')
-        self.assertEqual(filas[0], ['Pedir ya', 'Sofá reponer', 'REP-SOFA', self.prov_a.name, 10, 2, 0, 0, 0, 0, 0,
+        self.assertEqual(filas[0], ['Pedir ya', 'SOFÁ REPONER', 'REP-SOFA', self.prov_a.name, 10, 2, 0, 0, 0, 0, 0,
                                     90, 8], '2 × (3 + 1) − 0 − 0 = 8')
-        self.assertEqual(filas[1], ['Alcanza', 'Lámpara reponer', 'REP-LAMP', self.prov_a.name, 5, 1, 10, 0, 10, 0, 10,
+        self.assertEqual(filas[1], ['Alcanza', 'LÁMPARA REPONER', 'REP-LAMP', self.prov_a.name, 5, 1, 10, 0, 10, 0, 10,
                                     90, 0], '1 × (3 + 1) − 10 < 0')
         resumen = libro['Por proveedor']
         self.assertEqual([celda.value for celda in resumen[2]], [self.prov_a.name, '3 meses', 2, 1, 15, 3, 10, 0, 8])
@@ -387,7 +388,7 @@ class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
                          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         self.assertIn('attachment', respuesta.headers['Content-Disposition'])
         productos = [celda.value for celda in openpyxl.load_workbook(io.BytesIO(respuesta.content))['Reponer']['B']]
-        self.assertIn('Sofá reponer', productos)
+        self.assertIn('SOFÁ REPONER', productos)
         self.authenticate('vendedora_rol', 'vendedora_rol')
         with mute_logger('odoo.http'):
             self.assertEqual(self.url_open('/dcasa/reponer/excel?meses=5').status_code, 403)
@@ -443,7 +444,7 @@ class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
             escribir(buscar, 'lámpara repo');
             const opcion = await esperar(() => [...document.querySelectorAll('.o_dcasa_reponer_opcion')]
                 .find((b) => b.textContent.includes('PROVEEDOR DE PRUEBA Ásia')), 'el proveedor del producto');
-            for (const frase of ['2 productos', 'Tarda 3 meses', 'Vende «Lámpara reponer»']) {
+            for (const frase of ['2 productos', 'Tarda 3 meses', 'Vende «LÁMPARA REPONER»']) {
                 if (!opcion.textContent.includes(frase)) { throw new Error('la opción debe decir: ' + frase); }
             }
             if (opcion.getBoundingClientRect().height < 44) { throw new Error('la opción es chica para el dedo'); }
@@ -481,7 +482,7 @@ class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
             // Todos los proveedores, por proveedor: la mesa de Bambú no tiene tiempo de llegada.
             document.querySelector('.o_dcasa_reponer_cambiar').click();
             (await esperar(() => document.querySelector('.o_dcasa_reponer_todos'), 'el buscador otra vez')).click();
-            await esperar(() => textos('.o_dcasa_reponer_nombre').includes('Mesa reponer'), 'todos');
+            await esperar(() => textos('.o_dcasa_reponer_nombre').includes('MESA REPONER'), 'todos');
             document.querySelector('.o_vista_proveedor').click();
             const cabezas = await esperar(() => {
                 const t = textos('.o_dcasa_reponer_grupo_cabeza strong')
@@ -496,7 +497,7 @@ class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
             const grupoA = grupoDe('PROVEEDOR DE PRUEBA Ásia');
             igual(pedirDe(grupoA.querySelector('.o_dcasa_reponer_total')), '6', 'el total de pedir del grupo');
             const grupoB = grupoDe('PROVEEDOR DE PRUEBA Bambú');
-            const mesa = filaDe(grupoB, 'Mesa reponer');
+            const mesa = filaDe(grupoB, 'MESA REPONER');
             igual(pedirDe(mesa), '—', 'sin tiempo de llegada no hay cuánto pedir');
             igual(pedirDe(grupoB.querySelector('.o_dcasa_reponer_total')), '—', 'ni total de cuánto pedir');
             if (!mesa.textContent.includes('Falta el tiempo de llegada')) { throw new Error('la fila dice que falta'); }
@@ -513,7 +514,7 @@ class TestReponerEnElNavegador(ReponerDatos, VentasMixin, HttpCase):
             document.querySelector('.modal .o_dcasa_reponer_guardar').click();
             await esperar(() => !document.querySelector('.modal .o_dcasa_reponer_llegada_form'), 'se cierra');
             await esperar(() => {
-                const fila = filaDe(grupoDe('PROVEEDOR DE PRUEBA Bambú'), 'Mesa reponer');
+                const fila = filaDe(grupoDe('PROVEEDOR DE PRUEBA Bambú'), 'MESA REPONER');
                 return fila && pedirDe(fila) === '2';
             }, 'la mesa ya calcula: 1 × 2 − 0 = 2');
             sinScrollDeCostado('después de poner el tiempo');

@@ -13,7 +13,7 @@ class TestCargaDeCatalogo(TransactionCase):
         company = self.env.ref('base.main_company')
         self.ubicacion = self.env['stock.warehouse'].search([('company_id', '=', company.id)], limit=1).lot_stock_id
         self.existente = self.env['product.template'].create({
-            'name': 'Producto que ya existía', 'default_code': 'PRUEBA-001', 'type': 'consu', 'is_storable': True,
+            'name': 'PRODUCTO QUE YA EXISTÍA', 'default_code': 'PRUEBA-001', 'type': 'consu', 'is_storable': True,
             'list_price': 100.0, 'standard_price': 50.0})
         self._poner_stock(self.existente.product_variant_id, 5)
 
@@ -34,7 +34,7 @@ class TestCargaDeCatalogo(TransactionCase):
         self.assertEqual(self._stock(variante), 12)
         self.assertEqual((self.existente.list_price, variante.standard_price), (100.0, 50.0),
                          'Por defecto no se pisan el precio ni el costo de lo que ya existe')
-        self.assertEqual(self.existente.name, 'Producto que ya existía')
+        self.assertEqual(self.existente.name, 'PRODUCTO QUE YA EXISTÍA')
         self.assertIn('PRUEBA-001', resumen['actualizados'])
         self.assertEqual(avisos['archivados'], 1)
 
@@ -55,7 +55,7 @@ class TestCargaDeCatalogo(TransactionCase):
     def test_sin_codigo_la_llave_es_el_nombre_y_no_se_le_toca_la_existencia(self):
         resumen, avisos = K.cargar_catalogo(self.env, ejemplos.PRODUCTOS, ejemplos.INVENTARIO)
         self.assertIn('Producto de Prueba 3', resumen['creados'])
-        plantilla = self.env['product.template'].search([('name', '=', 'Producto de Prueba 3')])
+        plantilla = self.env['product.template'].search([('name', '=ilike', 'Producto de Prueba 3')])
         self.assertEqual(plantilla.list_price, 89.0)
         self.assertEqual(self._stock(plantilla.product_variant_id), 0)
         self.assertEqual(avisos['sin_codigo'], ['Producto de Prueba 3'])
@@ -67,7 +67,7 @@ class TestCargaDeCatalogo(TransactionCase):
         self.assertEqual(avisos['huerfanos'], [('PRUEBA-004', -2.0)])
 
     def test_existencia_negativa_entra_en_cero_y_se_lista(self):
-        productos = 'codigo,nombre,activo\nPRUEBA-001,Producto que ya existía,si\n'
+        productos = 'codigo,nombre,activo\nPRUEBA-001,PRODUCTO QUE YA EXISTÍA,si\n'
         resumen, _avisos = K.cargar_catalogo(self.env, productos, 'codigo_producto,cantidad\nPRUEBA-001,-4\n')
         self.assertEqual(resumen['negativos'], ['PRUEBA-001'])
         self.assertEqual(self._stock(self.existente.product_variant_id), 0)

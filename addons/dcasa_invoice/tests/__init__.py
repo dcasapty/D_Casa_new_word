@@ -14,3 +14,4 @@ from . import test_entrega_facil
 from . import test_estado_abono
 from . import test_abono_papel
 from . import test_primer_abono
+from . import test_nombres_cliente

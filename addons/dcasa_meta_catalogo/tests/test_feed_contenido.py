@@ -60,13 +60,14 @@ class TestFeedContenido(MetaComun, TransactionCase):
                 fila = filas[str(variante.id)]
                 self.assertEqual(fila['id'], str(variante.id), 'el id es el de la variante (contrato 2.1)')
                 self.assertEqual(fila['item_group_id'], f'g{self.cama.id}')
-        self.assertIn('King', filas[str(self.king.id)]['title'])
-        self.assertIn('Queen', filas[str(self.queen.id)]['title'])
+        self.assertIn('king', filas[str(self.king.id)]['title'].lower())
+        self.assertIn('queen', filas[str(self.queen.id)]['title'].lower())
 
     def test_campos_de_cada_fila(self):
         fila = self._por_id()[str(self.mesa.product_variant_id.id)]
         variante = self.mesa.product_variant_id
-        self.assertEqual(fila['title'], 'Mesa de noche prueba Meta')
+        # El nombre se guarda en MAYÚSCULAS (F5); a Meta le llega en formato título, como lo ve el cliente en la tienda.
+        self.assertEqual(fila['title'], 'Mesa de Noche Prueba Meta')
         self.assertEqual(fila['description'], 'Mesa de noche con dos gavetas.')
         self.assertEqual(fila['condition'], 'new')
         self.assertEqual(fila['brand'], self.env.company.name, 'la marca viene con el nombre de la empresa')
@@ -96,7 +97,7 @@ class TestFeedContenido(MetaComun, TransactionCase):
                          'Mesa de noche. Ver más')
         self.mesa.description_ecommerce = False
         self.assertEqual(self._por_id()[str(self.mesa.product_variant_id.id)]['description'],
-                         'Mesa de noche prueba Meta', 'sin descripción, el título')
+                         'Mesa de Noche Prueba Meta', 'sin descripción, el título')
 
     def test_fotos_extra_hasta_diez_separadas_por_coma(self):
         self.env['product.image'].create([

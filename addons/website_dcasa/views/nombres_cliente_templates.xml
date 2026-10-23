@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- F5 (decisión de la dueña, 2026-10-22): el cliente lee los nombres en formato título («Cama Queen Tapizada»);
+         por dentro siguen en MAYÚSCULAS. Los t-field del nombre los convierte ir.qweb._get_field
+         (models/nombres_cliente.py); aquí, los nombres que Odoo pinta con t-out o en un atributo. -->
+    <template id="tarjeta_nombre_cliente" inherit_id="website_sale.products_item" name="D'CASA: nombre en formato título en la tarjeta">
+        <xpath expr="//form[@t-att-aria-label='product.name']" position="attributes">
+            <attribute name="t-att-aria-label">product._dcasa_nombre_cliente()</attribute>
+        </xpath>
+        <xpath expr="//a[@t-att-title='product.name']" position="attributes">
+            <attribute name="t-att-title">product._dcasa_nombre_cliente()</attribute>
+        </xpath>
+    </template>
+
+    <template id="ficha_titulo_cliente" inherit_id="website_sale.product" name="D'CASA: título de la pestaña en formato título">
+        <xpath expr="//t[@t-set='additional_title']" position="attributes">
+            <attribute name="t-value">product._dcasa_nombre_cliente()</attribute>
+        </xpath>
+    </template>
+
+    <template id="carrito_sugeridos_cliente" inherit_id="website_sale.suggested_products_list" name="D'CASA: sugeridos del carrito en formato título">
+        <xpath expr="//h6[@t-out='product.with_context(display_default_code=False).display_name']" position="attributes">
+            <attribute name="t-out">product._dcasa_nombre_cliente()</attribute>
+        </xpath>
+    </template>
+</odoo>

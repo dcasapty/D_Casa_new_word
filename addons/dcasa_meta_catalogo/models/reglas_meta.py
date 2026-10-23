@@ -10,6 +10,8 @@ from decimal import ROUND_HALF_UP, Decimal
 
 from lxml import etree, html
 
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
+
 LARGO_ETIQUETA = 100      # Meta: custom_label_0..4 hasta 100 caracteres
 LARGO_TITULO = 150        # diseño: title hasta 150 caracteres (Meta acepta 200 y recomienda menos)
 LARGO_DESCRIPCION = 5000  # diseño: description hasta 5,000 caracteres
@@ -131,9 +133,17 @@ def texto_plano(texto, largo=LARGO_DESCRIPCION):
     return _cortar(texto, largo)
 
 
-def titulo(texto, largo=LARGO_TITULO):
-    """Título para Meta: una sola línea de a lo sumo ``largo`` caracteres, cortado en una palabra."""
-    return _cortar(' '.join(str(texto or '').split()), largo)
+def titulo(texto, largo=LARGO_TITULO, para_cliente=True):
+    """Título para Meta: una sola línea de a lo sumo ``largo`` caracteres, cortado en una palabra.
+
+    Meta pide no escribir los títulos en mayúsculas, y en Odoo los nombres de productos se guardan en MAYÚSCULAS (F5):
+    el título va en formato título, el mismo que ve el cliente en la tienda («CAMA TAPIZADA (King)» → «Cama Tapizada
+    (King)»; la regla está en ``dcasa_base/nombres.py``). La marca (``para_cliente=False``) se deja como la escribió
+    la tienda («D'CASA»)."""
+    texto = ' '.join(str(texto or '').split())
+    if para_cliente:
+        texto = nombre_para_cliente(texto)
+    return _cortar(texto, largo)
 
 
 def formato_precio(monto, moneda, decimales=2):

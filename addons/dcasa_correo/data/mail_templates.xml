@@ -76,6 +76,45 @@
             </field>
         </record>
 
+        <!-- ================= Recordatorio del abono (D3) =================
+             Unos días antes de que venza (dcasa_abonos.aviso_dias, 5 de fábrica). Las cifras y la fecha son las de
+             _dcasa_estado_abono; el botón «Ver en Mi cuenta» lo pone el layout. -->
+        <record id="plantilla_recordatorio_abono" model="mail.template">
+            <field name="name">D'CASA: recordatorio de abono</field>
+            <field name="model_id" ref="account.model_account_move"/>
+            <field name="email_from">{{ object.company_id.email_formatted }}</field>
+            <field name="use_default_to" eval="True"/>
+            <field name="subject">Tu abono vence el {{ object._dcasa_correo_valores()['vence'] }} · Factura {{ object.name }}</field>
+            <field name="description">Recordatorio unos días antes de que venza un abono: lo que falta y la fecha.</field>
+            <field name="email_layout_xmlid">dcasa_correo.layout_correo</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div>
+    <t t-set="v" t-value="object._dcasa_correo_valores()"/>
+    <p style="margin:0 0 16px 0;">Hola<t t-if="v['nombre']"> <t t-out="v['nombre']"/></t>: te recordamos que el abono de tu factura <strong t-out="v['numero']"/> vence pronto.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;margin:0 0 16px 0;">
+        <tr>
+            <td style="padding:8px 0;border-bottom:1px solid #E3E6EE;color:#4A5163;">Total de tu compra</td>
+            <td align="right" style="padding:8px 0;border-bottom:1px solid #E3E6EE;" t-out="v['total']"/>
+        </tr>
+        <tr>
+            <td style="padding:8px 0;border-bottom:1px solid #E3E6EE;color:#4A5163;">Ya pagaste</td>
+            <td align="right" style="padding:8px 0;border-bottom:1px solid #E3E6EE;" t-out="v['pagado']"/>
+        </tr>
+        <tr>
+            <td style="padding:12px 0 8px 0;font-weight:bold;">Te falta</td>
+            <td align="right" style="padding:12px 0 8px 0;font-size:24px;font-weight:bold;color:#1340B1;" t-out="v['saldo']"/>
+        </tr>
+        <tr t-if="v['vence']">
+            <td style="padding:4px 0;color:#4A5163;">Tienes hasta el</td>
+            <td align="right" style="padding:4px 0;font-weight:bold;" t-out="v['vence']"/>
+        </tr>
+    </table>
+    <p style="margin:0;color:#4A5163;">Puedes pasar por la tienda o escribirnos por WhatsApp para completarlo. Si ya pagaste, no hagas caso a este correo.</p>
+</div>
+            </field>
+        </record>
+
         <!-- ================= Bienvenida (una sola vez por cliente nuevo) =================
              Corta y amigable: sin reglas de puntos, sin abonos y sin cifras. Cómo entra la primera vez sale de
              _acceso_primera_vez (lo que hacen de verdad /mi-cuenta y /socios/registro). -->

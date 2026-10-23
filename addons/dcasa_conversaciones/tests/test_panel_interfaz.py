@@ -147,7 +147,7 @@ class PanelUiCase(HttpCase):
         impuesto = self.env['brian.herramientas']._b_itbms_venta()
         categoria = self.env['product.public.category'].create({'name': 'Zzdormitorio'})
         cama = self.env['product.template'].create({
-            'name': 'Zzcama Roble Queen', 'default_code': 'ZZ-CAMA', 'list_price': 349.99, 'standard_price': 123.45,
+            'name': 'ZZCAMA ROBLE QUEEN', 'default_code': 'ZZ-CAMA', 'list_price': 349.99, 'standard_price': 123.45,
             'type': 'consu', 'is_storable': True, 'sale_ok': True, 'is_published': True,
             'taxes_id': [Command.set(impuesto.ids)], 'public_categ_ids': [Command.set(categoria.ids)],
             'dcasa_medidas': 'Ancho × Largo: 160 × 200 cm', 'image_1920': foto(),
@@ -487,7 +487,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     def test_adjuntar_un_archivo_del_cliente_a_su_pedido(self):
         self.datos_de_ejemplo()
         producto = self.env['product.product'].create({
-            'name': 'Zzcama para comprobante', 'type': 'consu', 'list_price': 100.0, 'taxes_id': [Command.clear()]})
+            'name': 'ZZCAMA PARA COMPROBANTE', 'type': 'consu', 'list_price': 100.0, 'taxes_id': [Command.clear()]})
         pedido = self.env['sale.order'].create({
             'partner_id': self.karen.partner_id.id, 'user_id': self.vendedora.id,
             'order_line': [Command.create({'product_id': producto.id, 'product_uom_qty': 1})]})
@@ -649,7 +649,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     const buscar = dialogo.querySelector("input[type=search]");
     if (document.activeElement !== buscar) { throw new Error("el foco entra al buscador"); }
     await escribir(buscar, "zzcama");
-    const producto = await esperar(() => aqui(".o_dcj_producto", "Zzcama Roble Queen"), "el producto encontrado");
+    const producto = await esperar(() => aqui(".o_dcj_producto", "ZZCAMA ROBLE QUEEN"), "el producto encontrado");
     const texto = producto.textContent;
     if (!texto.includes("$349.99 + ITBMS")) { throw new Error("precio + ITBMS: " + texto); }
     if (!texto.includes("DISPONIBLE")) { throw new Error("disponibilidad como etiqueta: " + texto); }
@@ -670,6 +670,7 @@ class TestPanelEnElNavegador(PanelUiCase):
         (envio,) = self.al_worker('/odoo/enviar')
         (adjunto,) = envio['adjuntos']
         self.assertEqual((adjunto['tipo'], adjunto['mime']), ('imagen', 'image/jpeg'))
+        # El pie lo lee el cliente: formato título (F5); la lista del panel, interna, va en MAYÚSCULAS.
         self.assertTrue(envio['texto'].startswith('Zzcama Roble Queen\n$349.99 + ITBMS\nMedidas:'))
         self.assertTrue(envio['texto'].endswith(self.cama.website_url))
 
@@ -681,7 +682,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await abrirConversacion("Karen");
     aqui(".o_dcj_herramienta", "Foto del catálogo").click();
     await escribir(await esperar(() => document.querySelector(".o_dcj_hoja input[type=search]"), "el buscador"), "ZZ-CAMA");
-    await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     aqui(".o_dcj_producto button", "Galería (3)").click();
     await esperar(() => document.querySelectorAll(".o_dcj_galeria_foto").length === 3, "las tres fotos de la galería");
     const fotos = [...document.querySelectorAll(".o_dcj_galeria_foto")];
@@ -706,7 +707,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await abrirConversacion("Karen");
     aqui(".o_dcj_herramienta", "Foto del catálogo").click();
     await escribir(await esperar(() => document.querySelector(".o_dcj_hoja input[type=search]"), "el buscador"), "zzcama");
-    await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     aqui(".o_dcj_producto .o_dcj_enlace", "Revisar antes").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "el buscador cerrado");
     const caja = document.querySelector("#o_dcj_texto");
@@ -746,10 +747,10 @@ class TestPanelEnElNavegador(PanelUiCase):
     aqui(".o_dcj_herramienta", "Cotización").click();
     await esperar(() => aqui(".o_dcj_hoja", "no tiene una cotización abierta"), "no hay cotización abierta");
     await escribir(document.querySelector(".o_dcj_hoja input[type=search]"), "zzcama");
-    const producto = await esperar(() => aqui(".o_dcj_producto", "Zzcama"), "el producto");
+    const producto = await esperar(() => aqui(".o_dcj_producto", "ZZCAMA"), "el producto");
     producto.querySelector("button").click();
     producto.querySelector("button").click();
-    await esperar(() => aqui(".o_dcj_linea", "Zzcama") && aqui(".o_dcj_linea output").textContent === "2", "la línea con cantidad 2");
+    await esperar(() => aqui(".o_dcj_linea", "ZZCAMA") && aqui(".o_dcj_linea output").textContent === "2", "la línea con cantidad 2");
     aqui(".o_dcj_hoja_pie button", "Crear el borrador").click();
     await esperar(() => aqui(".o_dcj_hoja", "Enviar el PDF"), "el borrador creado, listo para enviar");
     if (!aqui(".o_dcj_hoja", "Borrador")) { throw new Error("la cotización dice Borrador"); }
@@ -1045,7 +1046,7 @@ class TestPanelEnElCelular(PanelUiCase):
     if (r.width < window.innerWidth - 1 || r.bottom < window.innerHeight - 1) { throw new Error("la hoja debe ocupar todo el ancho y pegarse abajo"); }
     if (document.documentElement.scrollWidth > window.innerWidth + 1) { throw new Error("desborde horizontal con la hoja abierta"); }
     await escribir(hoja.querySelector("input[type=search]"), "zzcama");
-    await esperar(() => aqui(".o_dcj_producto", "Zzcama Roble Queen"), "el producto");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA ROBLE QUEEN"), "el producto");
     for (const b of hoja.querySelectorAll("button")) {
         const c = b.getBoundingClientRect();
         if (c.width > 0 && (c.height < 43.5 || c.width < 43.5) && !b.classList.contains("o_dcj_enlace")) {

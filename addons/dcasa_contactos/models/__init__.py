@@ -5,3 +5,4 @@ from . import excepciones
 from . import duplicado
 from . import sale_order
 from . import account_move
+from . import parecidas

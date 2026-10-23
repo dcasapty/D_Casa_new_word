@@ -53,7 +53,7 @@ class TestBlackWeekendCatalogo(TransactionCase):
         """La dueña (2026-10-02): la «Base Queen» de 153.png es Queen aunque el Excel dijera King."""
         variante = self._producto('HK-BF-022-N-K-1-W')
         producto = variante.product_tmpl_id
-        self.assertEqual(producto.name, 'Cama tapizada Queen – blanco')
+        self.assertEqual(producto.name, 'CAMA TAPIZADA QUEEN – BLANCO')
         self.assertEqual(variante.product_template_attribute_value_ids.name, 'Queen')
         self.assertTrue(variante.active)
 
@@ -69,7 +69,7 @@ class TestBlackWeekendCatalogo(TransactionCase):
 
         self.assertEqual(corregir_nombres(self.env), 1)
         self.assertEqual(corregir_nombres(self.env), 0, 'Idempotente')
-        self.assertEqual(producto.name, 'Cama tapizada Queen – blanco')
+        self.assertEqual(producto.name, 'CAMA TAPIZADA QUEEN – BLANCO')
         activa = producto.product_variant_ids
         self.assertEqual(len(activa), 1)
         self.assertEqual(activa.product_template_attribute_value_ids.name, 'Queen')
@@ -80,7 +80,7 @@ class TestBlackWeekendCatalogo(TransactionCase):
         producto = self._producto('HK-BF-022-N-K-1-W').product_tmpl_id
         producto.name = 'Base Queen blanca'
         corregir_nombres(self.env)
-        self.assertEqual(producto.name, 'Base Queen blanca')
+        self.assertEqual(producto.name, 'BASE QUEEN BLANCA')
 
     def test_888k_con_la_foto_real_y_no_la_miniatura_del_excel(self):
         producto = self._producto('888K').product_tmpl_id

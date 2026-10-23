@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- F5: nombres en MAYÚSCULAS y productos repetidos (models/nombres_productos.py, productos_repetidos.py,
+         unir_productos.py). Solo Gerencia (crea productos) y administradores. -->
+
+    <!-- Nombres en MAYÚSCULAS: vista previa y botón -->
+    <record id="dcasa_producto_mayusculas_view_form" model="ir.ui.view">
+        <field name="name">dcasa.producto.mayusculas.form</field>
+        <field name="model">dcasa.producto.mayusculas</field>
+        <field name="arch" type="xml">
+            <form string="Nombres en MAYÚSCULAS">
+                <p>
+                    Los productos nuevos ya se guardan en mayúsculas. Aquí ves los que ya estaban y cómo
+                    quedarán: solo cambian las letras (con sus tildes) y los espacios repetidos.
+                </p>
+                <div class="alert alert-success" role="status" invisible="cantidad">
+                    Todos los nombres ya están en MAYÚSCULAS.
+                </div>
+                <div class="alert alert-info" role="status" invisible="not cantidad">
+                    Así quedarán estos <field name="cantidad" class="oe_inline" readonly="1"/> nombres.
+                </div>
+                <field name="linea_ids" readonly="1" invisible="not cantidad">
+                    <list>
+                        <field name="antes"/>
+                        <field name="despues"/>
+                        <field name="product_tmpl_id" column_invisible="1"/>
+                    </list>
+                </field>
+                <footer>
+                    <button name="action_aplicar" type="object" class="btn-primary" icon="fa-check"
+                            string="Pasar estos nombres a MAYÚSCULAS" invisible="not cantidad"/>
+                    <button string="Cerrar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_dcasa_producto_mayusculas" model="ir.actions.act_window">
+        <field name="name">Nombres en MAYÚSCULAS</field>
+        <field name="res_model">dcasa.producto.mayusculas</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <!-- Productos que parecen repetidos -->
+    <record id="dcasa_producto_repetido_view_list" model="ir.ui.view">
+        <field name="name">dcasa.producto.repetido.list</field>
+        <field name="model">dcasa.producto.repetido</field>
+        <field name="arch" type="xml">
+            <list string="Productos que parecen repetidos" create="0" edit="0" delete="0">
+                <field name="tipo" width="170px"/>
+                <field name="valor"/>
+                <field name="cantidad"/>
+                <field name="nombres"/>
+                <button name="action_ver" type="object" string="Ver" icon="fa-search" class="btn-link"/>
+                <button name="action_unir" type="object" string="Unir…" icon="fa-compress" class="btn-primary"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_producto_repetido_view_search" model="ir.ui.view">
+        <field name="name">dcasa.producto.repetido.search</field>
+        <field name="model">dcasa.producto.repetido</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="nombres"/>
+                <field name="valor"/>
+                <filter name="codigo" string="Mismo código" domain="[('tipo', '=', 'codigo')]"/>
+                <filter name="barras" string="Mismo código de barras" domain="[('tipo', '=', 'barras')]"/>
+                <filter name="nombre" string="Mismo nombre" domain="[('tipo', '=', 'nombre')]"/>
+                <group>
+                    <filter name="por_tipo" string="Por qué" context="{'group_by': 'tipo'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_productos_repetidos" model="ir.actions.act_window">
+        <field name="name">Productos repetidos</field>
+        <field name="res_model">dcasa.producto.repetido</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No hay productos que parezcan repetidos.</p>
+            <p>Aquí salen los productos de fichas distintas con el mismo código, el mismo código de barras o el mismo
+                nombre. Con «Unir…» eliges qué ficha queda: lo demás pasa a ella y la otra se archiva, sin perder su
+                historia.</p>
+        </field>
+    </record>
+
+    <!-- Unir -->
+    <record id="dcasa_producto_unir_view_form" model="ir.ui.view">
+        <field name="name">dcasa.producto.unir.form</field>
+        <field name="model">dcasa.producto.unir</field>
+        <field name="arch" type="xml">
+            <form string="Unir productos repetidos">
+                <field name="candidato_ids" invisible="1"/>
+                <group>
+                    <field name="queda_id" options="{'no_create': True, 'no_open': True}"/>
+                    <field name="sale_id" options="{'no_create': True, 'no_open': True}"/>
+                </group>
+                <button name="action_cambiar" type="object" string="Al revés" icon="fa-exchange"
+                        class="btn-secondary mb-3"/>
+                <div class="alert alert-warning" role="alert" invisible="not bloqueos">
+                    <p class="mb-1"><strong>Todavía no se pueden unir. Antes hay que:</strong></p>
+                    <field name="bloqueos" readonly="1"/>
+                </div>
+                <div invisible="bloqueos">
+                    <p class="mb-1"><strong>Qué va a pasar:</strong></p>
+                    <field name="resumen" readonly="1"/>
+                </div>
+                <footer>
+                    <button name="action_unir" type="object" class="btn-primary" icon="fa-compress"
+                            string="Unir" invisible="bloqueos"
+                            confirm="La ficha que se archiva deja de venderse y lo suyo pasa a la que queda. ¿Sigues?"/>
+                    <button string="Cerrar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- En la ficha: a cuál se unió y cuáles se le unieron -->
+    <record id="product_template_form_dcasa_unidas" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.unidas</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Fichas unidas" name="dcasa_unidas"
+                      invisible="not dcasa_unidas_ids and not dcasa_unido_a_id"
+                      groups="product.group_product_manager,base.group_system">
+                    <group invisible="not dcasa_unido_a_id">
+                        <field name="dcasa_unido_a_id" readonly="1"/>
+                    </group>
+                    <field name="dcasa_unidas_ids" readonly="1" invisible="not dcasa_unidas_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="default_code"/>
+                            <field name="write_date" string="Unida el"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_productos_repetidos" name="Productos repetidos" parent="sale.product_menu_catalog"
+              action="action_dcasa_productos_repetidos" sequence="40"
+              groups="product.group_product_manager,base.group_system"/>
+    <menuitem id="menu_dcasa_producto_mayusculas" name="Nombres en MAYÚSCULAS" parent="sale.product_menu_catalog"
+              action="action_dcasa_producto_mayusculas" sequence="41"
+              groups="product.group_product_manager,base.group_system"/>
+</odoo>

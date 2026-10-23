@@ -95,6 +95,25 @@ class ResPartner(models.Model):
         return self.sudo().with_context(
             mail_create_nolog=True, mail_create_nosubscribe=True, tracking_disable=True).create(valores)
 
+    def _dcasa_conv_provisional_vacia(self):
+        """¿Es una ficha que Juan creó y que no tiene nada propio?
+
+        Ver ``dcasa.conversacion._dcasa_soltar_provisional``."""
+        self.ensure_one()
+        ficha = self.sudo().with_context(active_test=False)
+        if (ficha.dcasa_creado_por != 'juan' or ficha.phone or ficha.email or ficha.vat or ficha.dcasa_celular
+                or ficha.dcasa_socio_codigo or ficha.child_ids or ficha.user_ids):
+            return False
+        if 'dcasa_vendedor_codigo' in ficha._fields and ficha.dcasa_vendedor_codigo:
+            return False
+        modelos = (('dcasa.conversacion', 'partner_id'), ('crm.lead', 'partner_id'), ('sale.order', 'partner_id'),
+                   ('account.move', 'partner_id'), ('dcasa.movimiento', 'partner_id'))
+        for modelo, campo in modelos:
+            if modelo in self.env and self.env[modelo].sudo().with_context(active_test=False).search_count(
+                    [(campo, '=', ficha.id)], limit=1):
+                return False
+        return True
+
     @api.model
     def _dcasa_conv_celular_de_ficha(self, ficha):
         """El celular de la ficha como ``(tipo, valor)`` para compararlo con el de la conversación."""

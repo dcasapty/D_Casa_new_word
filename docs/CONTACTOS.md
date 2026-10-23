@@ -45,6 +45,27 @@ contacto de empleado y sus direcciones de entrega o de factura, todos con el mis
   antes del candado), sale un aviso con el nombre de la otra para cotizar en la correcta y fusionarlas después.
 * Lo ya guardado no cambia: una cotización vieja con una dirección como cliente se sigue abriendo igual.
 
+## Buscar antes de crear (etapa 3, 2026-10-22)
+
+* **Al crear una ficha** (Contactos › Nuevo, «Crear y editar» desde la cotización, «Nuevo cliente» del Inicio):
+  mientras se escribe el nombre, un aviso amarillo muestra las fichas con un **nombre parecido** («Ojo: ya hay fichas
+  con un nombre parecido: «Ana Gómez» (6123-4567)… Si es la misma persona, usa esa ficha»). **No bloquea**: dos
+  personas pueden llamarse igual. «Parecido» = las mismas palabras sin mayúsculas, tildes ni signos, en cualquier orden,
+  o un nombre que contiene al otro (con al menos dos palabras). Solo fichas de clientes y proveedores: los usuarios y
+  empleados del sistema no cuentan. Código: `models/parecidas.py`; pruebas: `test_parecidas.py`.
+* **Brian** (`crear_cliente`, por el chat o por Telegram) busca antes por celular, correo, RUC y nombre parecido. Un
+  dato repetido no crea nada y dice de quién es; un nombre parecido no crea nada y pregunta. Si la persona confirma que
+  es otra, Brian usa `crear_cliente_distinto` (el celular, el correo y el RUC siguen sin poder repetirse).
+* **Conversaciones:** quien escribe por Telegram, Messenger o Instagram sin celular recibe una ficha provisional
+  («Telegram 123…» o su nombre del canal). Cuando da su celular y ese celular ya es de una ficha, la conversación pasa a
+  esa ficha (como antes) y ahora, además, la provisional le pasa su oportunidad de esa conversación y, si quedó **vacía**
+  (sin celular, correo, RUC, ventas, facturas, oportunidades, otras conversaciones ni usuario), **se archiva** con una
+  nota (no se borra nada). Lo mismo si una persona cambia a mano el cliente de la conversación. Si la provisional tiene
+  algo propio, se queda como está.
+* **La fusión** sigue como en la etapa 3 del 16 de octubre (abajo): la usa Gerencia, copia los datos de Socios, y por
+  defecto queda la ficha que ya está en un programa (socio o vendedor) y, si ninguna lo está, la **más vieja** (como
+  pide la etapa 3); el destino se cambia en el asistente.
+
 ## Celular y correo bien escritos y obligatorios (2026-10-16 y 2026-10-17)
 
 Pedido de la dueña: «el vendedor siempre, obligatoriamente, debe capturar el número de teléfono y correo electrónico,

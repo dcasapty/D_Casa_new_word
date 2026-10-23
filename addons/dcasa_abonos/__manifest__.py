@@ -20,6 +20,9 @@ de D'CASA (dcasa_invoice):
   «Imprimir documentos» (casilla «Condiciones de abono (2 copias)», marcada en el primer abono), justo después de la
   factura del cliente.
 * Solo imprime: no cambia la factura, sus pagos, sus impuestos ni sus asientos, y no calcula ni cobra penalidades.
+* **Abonos por vencer** (D3, Facturación › Clientes): los abonos que vencen en los próximos días (5 de fábrica) o que
+  ya vencieron, con lo que falta y un botón para escribirle al cliente por WhatsApp desde el teléfono. El vencimiento
+  se guarda en la factura (``dcasa_abono_vence``) y se recalcula con cada pago y cada noche.
 """,
     'version': '19.0.1.0.0',
     'category': 'Accounting/Accounting',
@@ -32,6 +35,7 @@ de D'CASA (dcasa_invoice):
         'views/res_company_views.xml',
         'views/paquete_views.xml',
         'data/condiciones_data.xml',
+        'views/abonos_por_vencer_views.xml',
     ],
     'assets': {
         'web.report_assets_common': [

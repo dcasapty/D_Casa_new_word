@@ -207,7 +207,7 @@ LISTA_JS = """
     await pausa(300);
     buscar.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
     const fila = await esperar(() => [...document.querySelectorAll(".o_data_row")]
-        .find((f) => f.textContent.includes("ZZMK Sofá del navegador")), "la fila del producto");
+        .find((f) => f.textContent.includes("ZZMK SOFÁ DEL NAVEGADOR")), "la fila del producto");
     fila.querySelector(".o_dcasa_foto_boton").click();
     await esperar(() => document.querySelector(".o_dcasa_fotos_grande"), "el visor desde la lista");
     if (document.querySelector(".o_form_view")) { falla("tocar la foto no abre el producto"); }
@@ -247,16 +247,16 @@ MARKETING_JS = """
     chip.click();
     await esperar(() => document.querySelector(".o_dcasa_mk_stock h2").textContent.includes("ZZMK Categoría de prueba")
                   && !document.querySelector(".o_dcasa_mk_actualizando"), "el stock de la categoría");
-    await esperar(() => document.querySelector(".o_dcasa_mk_vendidos").textContent.includes("ZZMK Sofá del navegador"),
+    await esperar(() => document.querySelector(".o_dcasa_mk_vendidos").textContent.includes("ZZMK SOFÁ DEL NAVEGADOR"),
                   "lo más vendido de la categoría");
-    if (!document.querySelector(".o_dcasa_mk_quietos").textContent.includes("ZZMK Silla sin foto")) {
+    if (!document.querySelector(".o_dcasa_mk_quietos").textContent.includes("ZZMK SILLA SIN FOTO")) {
         falla("la silla con stock y sin ventas es de los quietos");
     }
     // Ir a «Fotos» con el índice y buscar por código: Enter abre su galería.
     boton("Fotos", document.querySelector(".o_dcasa_mk_indice")).click();
     const buscar = document.querySelector(".o_dcasa_mk_buscar_texto");
     await esperar(() => [...document.querySelectorAll(".o_dcasa_mk_lista_fotos .o_dcasa_mk_fila")]
-        .some((f) => f.textContent.includes("ZZMK Silla sin foto") && f.textContent.includes("Sin foto")),
+        .some((f) => f.textContent.includes("ZZMK SILLA SIN FOTO") && f.textContent.includes("Sin foto")),
         "la silla marcada «Sin foto»");
     buscar.value = "ZZMK-NAV-SILLA";
     buscar.dispatchEvent(new Event("input", { bubbles: true }));
@@ -267,7 +267,7 @@ MARKETING_JS = """
     await mensajeOk("quedó subida");
     document.querySelector(".o_dcasa_fotos_cerrar").click();
     await esperar(() => [...document.querySelectorAll(".o_dcasa_mk_lista_fotos .o_dcasa_mk_fila")]
-        .some((f) => f.textContent.includes("ZZMK Silla sin foto") && f.textContent.includes("1 foto")),
+        .some((f) => f.textContent.includes("ZZMK SILLA SIN FOTO") && f.textContent.includes("1 foto")),
         "la silla ya con 1 foto");
     sinScrollDeCostado("Marketing al final");
     console.log("test successful");
@@ -283,6 +283,7 @@ class TestFotosEnElNavegador(MarketingCommon, HttpCase):
     def setUp(self):
         super().setUp()
         self.gerencia.write({'password': 'zzmk_gerencia'})
+        # El nombre se guarda en MAYÚSCULAS (F5): la pantalla (interna) lo muestra así.
         self.sofa = self.producto('ZZMK Sofá del navegador', 'ZZMK-NAV-SOFA', stock=6, con_foto=True, extras=2)
         self.silla = self.producto('ZZMK Silla sin foto', 'ZZMK-NAV-SILLA', stock=4)
         self.env['product.product'].flush_model()

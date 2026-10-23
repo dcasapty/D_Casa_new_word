@@ -256,11 +256,45 @@ class DcasaConversacion(models.Model):
         if vals.get('nota_para_el_bot'):
             # El asistente la lee en cada respuesta: nunca más larga que lo que permite la pantalla.
             vals = dict(vals, nota_para_el_bot=str(vals['nota_para_el_bot'])[:MAX_NOTA_PARA_EL_BOT])
+        anteriores = {conv: conv.partner_id for conv in self} if vals.get('partner_id') else {}
         resultado = super().write(vals)
+        for conv, anterior in anteriores.items():
+            if anterior and anterior != conv.partner_id:
+                conv._dcasa_soltar_provisional(anterior)
         if 'oportunidad_id' in vals:
             # La intención de compra habilita el seguimiento: al ligar o soltar la oportunidad se recalcula.
             self._programar_seguimiento()
         return resultado
+
+    def _dcasa_soltar_provisional(self, provisional):
+        """La conversación pasó a la ficha de siempre (llegó el celular, o una persona eligió la ficha correcta): la
+        ficha provisional que Juan creó para este canal ya no hace falta (etapa 3: una persona, una ficha).
+
+        Su oportunidad de esta conversación pasa a la ficha nueva. Y si la provisional quedó VACÍA (sin celular,
+        correo ni RUC, sin ventas, facturas, oportunidades, otras conversaciones, contactos ni usuario), se archiva con
+        una nota: no se borra nada y se puede recuperar. Si tiene algo propio, se queda como está (la verá Gerencia en
+        Posibles duplicados si comparte un dato). Nunca hace fallar el mensaje que llegó."""
+        self.ensure_one()
+        provisional = provisional.sudo().with_context(active_test=False)
+        destino = self.partner_id.sudo()
+        if not provisional.exists() or provisional == destino or provisional.dcasa_creado_por != 'juan':
+            return False
+        try:
+            with self.env.cr.savepoint():
+                Lead = self.env['crm.lead'].sudo().with_context(active_test=False)
+                Lead.search([('partner_id', '=', provisional.id), ('dcasa_conversacion_ids', 'in', self.ids)]).write(
+                    {'partner_id': destino.id})
+                if provisional._dcasa_conv_provisional_vacia():
+                    provisional.write({'active': False})
+                    provisional.message_post(body=self.env._(
+                        'Ficha provisional archivada: la conversación de %(canal)s pasó a la ficha «%(ficha)s».',
+                        canal=dict(CANALES).get(self.canal, self.canal), ficha=destino.display_name),
+                        subtype_xmlid='mail.mt_note')
+                    return True
+        except Exception:  # noqa: BLE001 - limpiar nunca tumba el mensaje que llegó
+            _logger.warning('No se pudo soltar la ficha provisional %s de la conversación %s', provisional.id,
+                            self.id, exc_info=True)
+        return False
 
     def unlink(self):
         """Borrar una conversación (derecho de borrado, Ley 81) borra sus mensajes y adjuntos por el ORM."""
@@ -321,6 +355,7 @@ class DcasaConversacion(models.Model):
             otra = Partner._dcasa_conv_buscar(celular)
             if otra and otra != partner:
                 self.write({'partner_id': otra.id})
+                self._dcasa_soltar_provisional(partner)
             elif not otra:
                 partner.write({'phone': celulares.para_mostrar(tipo, valor)})
 

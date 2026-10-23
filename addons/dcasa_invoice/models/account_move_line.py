@@ -1,4 +1,5 @@
 from odoo import models
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 
 from . import lineas
 
@@ -23,7 +24,8 @@ class AccountMoveLine(models.Model):
     def _dcasa_descripcion(self):
         """La descripción sin el código delante ni detrás (el código tiene su columna)."""
         self.ensure_one()
-        return lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[1]
+        # Va en la factura y la cotización que se lleva el cliente: en formato título (F5).
+        return nombre_para_cliente(lineas.codigo_y_descripcion(self.name, self.product_id.default_code)[1])
 
     def _dcasa_es_servicio(self):
         self.ensure_one()

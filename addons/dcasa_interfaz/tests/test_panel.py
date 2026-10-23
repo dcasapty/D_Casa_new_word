@@ -122,15 +122,19 @@ class TestPanel(TransactionCase):
             self.assertIn(xmlid, de_gerencia, xmlid)
 
     def test_columnas_que_no_se_usan_quedan_opcionales(self):
-        def opcional(modelo, campo):
-            arch = self.env[modelo].with_user(self.vendedora).get_views([(False, 'list')])['views']['list']['arch']
+        def opcional(modelo, campo, usuario=None):
+            arch = self.env[modelo].with_user(usuario or self.vendedora).get_views(
+                [(False, 'list')])['views']['list']['arch']
             nodo = etree.fromstring(arch).xpath(f"//list/field[@name='{campo}']")
             self.assertTrue(nodo, f'{modelo}.{campo}')
             return nodo[0].get('optional')
         self.assertEqual(opcional('sale.order', 'activity_ids'), 'hide')
         self.assertEqual(opcional('res.partner', 'activity_ids'), 'hide')
         self.assertEqual(opcional('res.partner', 'avatar_128'), 'hide')
-        self.assertEqual(opcional('product.template', 'standard_price'), 'hide')
+        # El costo ya no le sale a la vendedora (costo cerrado, 1b(a)); a Gerencia, como columna opcional.
+        arch = self.env['product.template'].with_user(self.vendedora).get_views([(False, 'list')])['views']['list']
+        self.assertFalse(etree.fromstring(arch['arch']).xpath("//list/field[@name='standard_price']"))
+        self.assertEqual(opcional('product.template', 'standard_price', self.gerencia), 'hide')
         # Las existencias se ven en «Stock» (dcasa_stock: el mismo número que «A la mano», pero ordenable);
         # el «A la mano» de Odoo queda en las columnas opcionales para no repetirlo.
         self.assertEqual(opcional('product.template', 'dcasa_stock'), 'show')

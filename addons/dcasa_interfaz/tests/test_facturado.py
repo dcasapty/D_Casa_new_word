@@ -36,13 +36,13 @@ class FacturadoCommon(CompararCommon):
             if linea.repartition_type == 'tax':
                 linea.account_id = cuenta_itbms
         cls.cama = cls.env['product.product'].create({
-            'name': 'Cama facturado', 'default_code': 'CAMA-FACT-01', 'list_price': 500.0, 'standard_price': 300.0,
+            'name': 'CAMA FACTURADO', 'default_code': 'CAMA-FACT-01', 'list_price': 500.0, 'standard_price': 300.0,
             'taxes_id': [Command.set(cls.itbms.ids)]})
         cls.sin_costo = cls.env['product.product'].create({
-            'name': 'Silla facturado sin costo', 'list_price': 80.0, 'standard_price': 0.0,
+            'name': 'SILLA FACTURADO SIN COSTO', 'list_price': 80.0, 'standard_price': 0.0,
             'taxes_id': [Command.clear()]})
         cls.flete = cls.env['product.product'].create({
-            'name': 'Flete facturado', 'type': 'service', 'list_price': 25.0, 'taxes_id': [Command.clear()]})
+            'name': 'FLETE FACTURADO', 'type': 'service', 'list_price': 25.0, 'taxes_id': [Command.clear()]})
 
     def suelta(self, dia, producto=None, precio=None, vendedor=None, cantidad=1, hora=time(9, 0), lineas=None):
         """Una factura hecha directo (sin pedido), con su «Vendedor» (``vendedor``; ``False`` = sin vendedor)."""
@@ -384,15 +384,15 @@ class TestSemanaYLoMasVendido(FacturadoCommon):
                     dia = hoy - timedelta(days=atras)
                     self.assertEqual(barra['monto'], self.medir(dia, dia, base, ana)['sin_itbms'], dia)
                 unidades = {fila['nombre']: fila['cantidad'] for fila in top}
-                esperado = {'facturado': {'Cama facturado': 4, 'Mueble comparar': 1},
-                            'con_abonos': {'Cama facturado': 1, 'Mueble comparar': 1},
-                            'completadas': {'Cama facturado': 1}}[base]
+                esperado = {'facturado': {'CAMA FACTURADO': 4, 'MUEBLE COMPARAR': 1},
+                            'con_abonos': {'CAMA FACTURADO': 1, 'MUEBLE COMPARAR': 1},
+                            'completadas': {'CAMA FACTURADO': 1}}[base]
                 self.assertEqual(unidades, esperado)
         # Una nota de crédito resta las unidades devueltas.
         self.nota(directa, hoy, precio=500.0)
         filas = self.tablero._filas(hoy - timedelta(days=30), hoy, 'facturado', ana)
         top = {fila['nombre']: fila['cantidad'] for fila in self.tablero._semana_y_top(hoy, filas)[1]}
-        self.assertEqual(top['Cama facturado'], 3)
+        self.assertEqual(top['CAMA FACTURADO'], 3)
 
     def test_la_grafica_del_inicio_valida_y_es_de_quien_controla_la_tienda(self):
         Tablero = self.tablero.with_user(self.gerencia)
@@ -458,7 +458,7 @@ class TestAyudaEnElNavegador(VentasMixin, HttpCase):
         super().setUp()
         banco = self.env['account.journal'].create({'name': 'Banco ayuda', 'type': 'bank', 'code': 'BAYU'})
         producto = self.env['product.product'].create({
-            'name': 'Mueble ayuda', 'list_price': 300.0, 'standard_price': 180.0, 'taxes_id': [Command.clear()]})
+            'name': 'MUEBLE AYUDA', 'list_price': 300.0, 'standard_price': 180.0, 'taxes_id': [Command.clear()]})
         for vendedor, pago in ((self.vendedora, 1.0), (self.vendedora, 1.0), (self.otra, 0.0)):
             factura = self.facturar(self.pedido(vendedor=vendedor, producto=producto), fecha=self.hoy)
             if pago:

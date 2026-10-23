@@ -232,9 +232,9 @@ class BrianHerramientasClientes(models.AbstractModel):
 
     @herramienta(
         nombre='crear_cliente',
-        descripcion='Crea un cliente con su celular y su correo (obligatorios y bien escritos). Sin celular: su '
-                    'teléfono fijo de 7 números en «celular». El celular es la llave: si ya es de otra ficha, no se '
-                    'duplica y te digo de quién es.',
+        descripcion='Crea un cliente con su celular (o su fijo de 7 números) y su correo, bien escritos. Antes busca: '
+                    'si su celular, correo o RUC ya es de otra ficha, o hay una con un nombre parecido, no crea nada '
+                    'y te dice cuál es.',
         parametros={
             'nombre': {'type': 'string', 'description': 'Nombre completo o razón social, p. ej. «Ana Gómez».'},
             'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567». Si no tiene '
@@ -250,6 +250,31 @@ class BrianHerramientasClientes(models.AbstractModel):
                   'crea a Pedro Pérez, no tiene celular, su fijo es 234-5678, pedro@gmail.com'],
     )
     def _h_crear_cliente(self, nombre, celular=None, correo=None, ruc=None, es_empresa=False):
+        return self._b_crear_cliente(nombre, celular, correo, ruc, es_empresa, revisar_parecidas=True)
+
+    @herramienta(
+        nombre='crear_cliente_distinto',
+        descripcion='Igual que crear_cliente, pero úsala SOLO si crear_cliente encontró fichas con un nombre '
+                    'parecido y la persona te confirmó que es otra persona. El celular, correo y RUC siguen sin '
+                    'poder repetirse.',
+        parametros={
+            'nombre': {'type': 'string', 'description': 'Nombre completo o razón social.'},
+            'celular': {'type': 'string', 'description': 'Celular de Panamá, p. ej. «6123-4567», o su fijo.'},
+            'correo': {'type': 'string', 'description': 'Correo, o «no tiene» si de verdad no tiene.'},
+            'ruc': {'type': 'string', 'description': 'RUC o cédula. Opcional.'},
+            'es_empresa': {'type': 'boolean', 'description': 'true si es una empresa. Por defecto false.'},
+        },
+        requeridos=['nombre', 'celular', 'correo'],
+        nivel='construccion', categoria='clientes', grupos=INTERNO,
+        ejemplos=['sí, es otra Ana Gómez: créala'],
+    )
+    def _h_crear_cliente_distinto(self, nombre, celular=None, correo=None, ruc=None, es_empresa=False):
+        return self._b_crear_cliente(nombre, celular, correo, ruc, es_empresa, revisar_parecidas=False)
+
+    @api.model
+    def _b_crear_cliente(self, nombre, celular, correo, ruc, es_empresa, revisar_parecidas):
+        """Buscar antes de crear (etapa 3): celular, correo y RUC de otra ficha bloquean; un nombre parecido
+        pregunta."""
         nombre = (nombre or '').strip()
         if not nombre:
             raise BrianError('El cliente necesita un nombre.')
@@ -265,10 +290,22 @@ class BrianHerramientasClientes(models.AbstractModel):
         if otro:
             raise BrianError(f'El {R.celular_fmt(normal)} ya es de {otro.display_name}: un celular, un cliente. '
                              'Usa esa ficha (ver_cliente) o actualízala en vez de crear otra.')
-        partner = self.env['res.partner'].create({
+        Partner = self.env['res.partner']
+        ruc = (ruc or '').strip() or False
+        por_dato = Partner._dcasa_buscar_ficha(correo=correo or None, ruc=ruc or None)
+        if por_dato:
+            raise BrianError(f'Ese correo o RUC ya es de {por_dato.sudo().display_name}: es la misma persona. Usa esa '
+                             'ficha (ver_cliente) o actualízala en vez de crear otra.')
+        if revisar_parecidas:
+            parecidas = Partner._dcasa_fichas_parecidas(nombre)
+            if parecidas:
+                lista = ', '.join(Partner._dcasa_describir_ficha(f) for f in parecidas)
+                raise BrianError(f'No lo creé: ya hay fichas con un nombre parecido: {lista}. Pregúntale a la persona '
+                                 'si es alguna de ellas (entonces usa esa ficha). Si confirma que es otra persona, usa '
+                                 'crear_cliente_distinto.')
+        partner = Partner.create({
             'name': nombre, 'phone': telefono, 'dcasa_telefono_fijo': fijo, 'email': correo,
-            'dcasa_sin_correo': sin_correo,
-            'vat': (ruc or '').strip() or False, 'is_company': bool(es_empresa), 'customer_rank': 1,
+            'dcasa_sin_correo': sin_correo, 'vat': ruc, 'is_company': bool(es_empresa), 'customer_rank': 1,
         })
         return {'mensaje': f'Cliente «{partner.name}» creado.', **self._b_ficha_contacto(partner)}
 

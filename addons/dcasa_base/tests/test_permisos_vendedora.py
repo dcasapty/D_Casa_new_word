@@ -135,7 +135,8 @@ class TestPermisosVendedora(TransactionCase):
         producto = self.env['product.template'].create({'name': 'Cama prueba permisos', 'list_price': 100.0})
         como_vendedora = producto.with_user(self.vendedora)
         como_vendedora.write({'name': 'Cama prueba permisos (editada)', 'description_sale': 'Con colchón'})
-        self.assertEqual(producto.name, 'Cama prueba permisos (editada)')
+        # Con dcasa_catalogo instalado el nombre se guarda en MAYÚSCULAS (F5).
+        self.assertEqual(producto.name.upper(), 'CAMA PRUEBA PERMISOS (EDITADA)')
         for vals in ({'list_price': 1.0}, {'standard_price': 1.0}):
             with self.assertRaises(AccessError):
                 como_vendedora.write(vals)

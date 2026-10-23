@@ -24,17 +24,17 @@ class TestStockEnProductos(TransactionCase):
         cls.camas = cls.env['product.category'].create({'name': 'Zzcamas de prueba'})
         cls.sofas = cls.env['product.category'].create({'name': 'Zzsofas de prueba'})
         base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'categ_id': cls.camas.id}
-        cls.mucho = Plantilla.create({**base, 'name': 'Zzcama barata mucho stock', 'list_price': 100.0})
-        cls.medio = Plantilla.create({**base, 'name': 'Zzcama media', 'list_price': 500.0})
-        cls.poco = Plantilla.create({**base, 'name': 'Zzcama cara poco stock', 'list_price': 900.0})
-        cls.agotada = Plantilla.create({**base, 'name': 'Zzcama agotada', 'list_price': 300.0})
-        cls.sin_control = Plantilla.create({**base, 'name': 'Zzcama sin control', 'list_price': 250.0,
+        cls.mucho = Plantilla.create({**base, 'name': 'ZZCAMA BARATA MUCHO STOCK', 'list_price': 100.0})
+        cls.medio = Plantilla.create({**base, 'name': 'ZZCAMA MEDIA', 'list_price': 500.0})
+        cls.poco = Plantilla.create({**base, 'name': 'ZZCAMA CARA POCO STOCK', 'list_price': 900.0})
+        cls.agotada = Plantilla.create({**base, 'name': 'ZZCAMA AGOTADA', 'list_price': 300.0})
+        cls.sin_control = Plantilla.create({**base, 'name': 'ZZCAMA SIN CONTROL', 'list_price': 250.0,
                                             'is_storable': False})
-        cls.sofa = Plantilla.create({**base, 'name': 'Zzsofá', 'list_price': 700.0, 'categ_id': cls.sofas.id})
+        cls.sofa = Plantilla.create({**base, 'name': 'ZZSOFÁ', 'list_price': 700.0, 'categ_id': cls.sofas.id})
         tamano = cls.env['product.attribute'].create({'name': 'Zztamaño', 'create_variant': 'always', 'value_ids': [
             Command.create({'name': 'Zzqueen'}), Command.create({'name': 'Zzking'})]})
         cls.con_variantes = Plantilla.create({
-            **base, 'name': 'Zzcolchón con tamaños', 'list_price': 400.0,
+            **base, 'name': 'ZZCOLCHÓN CON TAMAÑOS', 'list_price': 400.0,
             'attribute_line_ids': [Command.create({'attribute_id': tamano.id,
                                                    'value_ids': [Command.set(tamano.value_ids.ids)]})]})
         cls.v_queen = cls.con_variantes.product_variant_ids.filtered(lambda v: 'Zzqueen' in v.display_name)
@@ -169,7 +169,7 @@ class TestStockEnProductos(TransactionCase):
             [('id', 'in', self.todas.ids), ('is_storable', '=', True)], ['name', 'dcasa_stock'],
             order='dcasa_stock desc')
         self.assertEqual(lectura[0]['dcasa_stock'], 40)
-        self.assertEqual(lectura[0]['name'], 'Zzcama barata mucho stock')
+        self.assertEqual(lectura[0]['name'], 'ZZCAMA BARATA MUCHO STOCK')
 
     def test_la_lista_de_productos_trae_la_columna_stock_y_esconde_la_de_odoo(self):
         accion = self.env.ref('sale.product_template_action')

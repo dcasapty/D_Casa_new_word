@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_dcasa_producto_mayusculas,dcasa producto mayusculas,model_dcasa_producto_mayusculas,product.group_product_manager,1,1,1,1
+access_dcasa_producto_mayusculas_linea,dcasa producto mayusculas linea,model_dcasa_producto_mayusculas_linea,product.group_product_manager,1,1,1,1
+access_dcasa_producto_repetido,dcasa producto repetido,model_dcasa_producto_repetido,product.group_product_manager,1,0,0,0
+access_dcasa_producto_unir,dcasa producto unir,model_dcasa_producto_unir,product.group_product_manager,1,1,1,1
