@@ -142,6 +142,9 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   Contabilidad (Gerencia no lo trae). «Tarjeta» sigue activa: se archiva cuando la contadora confirme que no queda nada
   por cuadrar (archivada no sale en Conciliación). La «Forma de pago DGI» no existe en producción porque
   `dcasa_fe_pa` todavía no está instalado (espera al PAC): se pone en cada diario al instalarlo.
+  Después, por pedido del jefe, la dueña archivó «Tarjeta» y «Punto de venta BN» (no se eliminan: archivar guarda la
+  historia) y dejó «Banco Nacional» (BNK1: cheques a proveedores y estado de cuenta) sin pagos entrantes, para que no
+  salga al cobrar. Las comisiones de cada método van en Bancos › Reglas de conciliación (con la contadora).
 
 ### 2026-10-23 (madrugada)
 
