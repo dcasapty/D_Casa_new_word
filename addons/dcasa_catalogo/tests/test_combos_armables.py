@@ -8,10 +8,12 @@ tope de descuento de la vendedora, la factura, el PDF y que los combos de siempr
 import os
 import re
 from html import unescape
+from unittest.mock import patch
 
 from odoo import Command
 from odoo.addons.dcasa_catalogo import reglas
 from odoo.addons.dcasa_catalogo.catalogo import atributo_tamano
+from odoo.addons.dcasa_catalogo.models import combo_armable
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tests import TransactionCase, new_test_user, tagged
 from odoo.tools.misc import file_path
@@ -459,15 +461,38 @@ class TestFacturaYPapel(CombosCommon):
         orden.action_confirm()
         return orden
 
-    def test_la_cotizacion_en_pdf_dice_combo_y_ahorro(self):
+    def assertDescuentoEnSuRenglon(self, texto, descuento, donde):
+        """Decisión de la dueña (2026-10-23): la cama y el colchón a su precio normal, «Combo cama + colchón» en los
+        dos, y el descuento del combo en su propio renglón (no rebajado en ninguna pieza)."""
+        self.assertEqual(texto.count('Combo cama + colchón'), 2, f'{donde}: las dos piezas')
+        self.assertEqual(texto.count('Descuento combo cama + colchón'), 1, donde)
+        i = texto.index('Descuento combo cama + colchón')
+        self.assertEqual(' '.join(texto[i + 1:i + 3]), f'−$ {descuento}', f'{donde}: {texto[i:i + 4]}')
+        normales = [pieza for pieza in texto if pieza.endswith(f'{NORMAL_KING:.2f}')]
+        self.assertGreaterEqual(len(normales), 2, f'{donde}: el colchón a su precio normal, y su importe normal')
+        self.assertNotIn(f'{COMBO_KING:.2f}', ' '.join(texto), f'{donde}: nunca el precio rebajado del colchón')
+        self.assertFalse([pieza for pieza in texto if 'ahorras' in pieza], donde)
+
+    def test_la_cotizacion_en_pdf_dice_combo_y_el_descuento_en_su_renglon(self):
         orden = self.orden(productos=[self.cama_king, self.colchon_king])
         html = self.env['ir.actions.report']._render_qweb_html('sale.report_saleorder', orden.ids)[0].decode()
-        texto = texto_de(html)
-        self.assertEqual(texto.count('Combo cama + colchón'), 1, 'La cama')
-        self.assertIn('Combo cama + colchón · ahorras $40.00', texto, 'El colchón, con lo que ahorra')
-        self.assertIn('Ahorro por combo cama + colchón', texto)
-        self.assertIn('$ 40.00', texto)
-        self.assertIn('$ 260.00', texto)
+        self.assertDescuentoEnSuRenglon(texto_de(html), '40.00', 'cotización')
+        self.assertEqual(orden.amount_untaxed, 400.0 + COMBO_KING, 'Las cuentas no cambian: solo cómo se ve')
+
+    def test_el_papel_reparte_lo_que_vale_la_linea_al_centavo(self):
+        """Con o sin ITBMS en la columna y con un descuento % encima: importe normal − descuento = lo de la línea."""
+        orden = self.orden(usuario=self.gerencia, productos=[self.cama_king, self.colchon_king, self.mesa])
+        colchon = self.linea(orden, self.colchon_king)
+        for rebaja in (0.0, 5.0):
+            colchon.discount = rebaja
+            for campo in ('price_subtotal', 'price_total'):
+                papel = colchon._dcasa_combo_en_papel(campo)
+                self.assertEqual(papel['precio'], NORMAL_KING)
+                self.assertAlmostEqual(papel['importe'] - papel['descuento'], colchon[campo], places=2)
+            if not rebaja:
+                self.assertEqual(colchon._dcasa_combo_en_papel()['descuento'], NORMAL_KING - COMBO_KING)
+        for otra in (self.cama_king, self.mesa):
+            self.assertFalse(self.linea(orden, otra)._dcasa_combo_en_papel(), otra.name)
 
     def test_la_factura_lleva_el_combo_el_ahorro_y_el_inventario_por_pieza(self):
         orden = self._combo_confirmado()
@@ -483,13 +508,12 @@ class TestFacturaYPapel(CombosCommon):
         self.assertEqual(factura._dcasa_ahorro_combos(), 40.0)
         self.assertEqual(factura.amount_untaxed, 400.0 + COMBO_KING + 80.0)
         html = self.env['ir.actions.report']._render_qweb_html('account.report_invoice', factura.ids)[0].decode()
-        texto = texto_de(html)
-        self.assertIn('Combo cama + colchón · ahorras $40.00', texto)
-        self.assertIn('Ahorro por combo cama + colchón', texto)
-        # Una nota de crédito no dice «ahorras».
+        self.assertDescuentoEnSuRenglon(texto_de(html), '40.00', 'factura')
+        # Una nota de crédito sale tal cual.
         nota = factura._reverse_moves()
         self.assertFalse(nota.invoice_line_ids.filtered('dcasa_combo_rol'))
         self.assertEqual(nota._dcasa_ahorro_combos(), 0.0)
+        self.assertFalse(any(linea._dcasa_combo_en_papel() for linea in nota.invoice_line_ids))
 
     def test_los_reportes_por_producto_ven_cada_pieza(self):
         self._combo_confirmado()
@@ -501,10 +525,47 @@ class TestFacturaYPapel(CombosCommon):
 
     def test_el_texto_para_el_cliente(self):
         orden = self.orden(productos=[self.cama_king, self.colchon_king, self.mesa])
-        self.assertEqual(self.linea(orden, self.colchon_king)._dcasa_texto_combo(),
-                         'Combo cama + colchón · ahorras $40.00')
+        self.assertEqual(self.linea(orden, self.colchon_king)._dcasa_texto_combo(), 'Combo cama + colchón',
+                         'Lo que se descuenta va en su propio renglón')
         self.assertEqual(self.linea(orden, self.cama_king)._dcasa_texto_combo(), 'Combo cama + colchón')
         self.assertEqual(self.linea(orden, self.mesa)._dcasa_texto_combo(), '')
+
+
+@tagged('post_install', '-at_install')
+class TestPreciosAprobados(CombosCommon):
+    """Los descuentos de combo que aprobó la dueña (2026-10-23) se cargan una vez (migración 19.0.1.12.0) y solo donde
+    todo cuadra: si el precio normal cambió o Gerencia ya puso uno, no se adivina ni se pisa."""
+
+    def test_solo_donde_todo_cuadra_y_una_sola_vez(self):
+        Plantilla = self.env['product.template']
+        base = {'type': 'consu', 'taxes_id': [Command.set(self.itbms.ids)]}
+
+        def colchon(codigo, precio):
+            return Plantilla.create({**base, 'name': f'COLCHON ZZ APROBADO {codigo} FULL', 'default_code': codigo,
+                                     'list_price': precio}).product_variant_id
+
+        cuadra, otro_precio, ya_tenia = colchon('ZZ-AP-1', 96.99), colchon('ZZ-AP-2', 85.0), colchon('ZZ-AP-3', 184.99)
+        ya_tenia.dcasa_precio_combo = 150.0
+        aprobados = {'ZZ-AP-1': (96.99, 87.0), 'ZZ-AP-2': (81.99, 75.0), 'ZZ-AP-3': (184.99, 159.0),
+                     'ZZ-AP-NO': (10.0, 5.0)}
+        Variante = self.env['product.product']
+        with patch.dict(combo_armable.PRECIOS_COMBO_APROBADOS, aprobados, clear=True):
+            self.assertEqual(Variante._dcasa_cargar_precios_combo_aprobados(), {
+                'ZZ-AP-1': 'cargado', 'ZZ-AP-2': 'otro_precio', 'ZZ-AP-3': 'ya_tenia', 'ZZ-AP-NO': 'no_encontrado'})
+            self.assertEqual(Variante._dcasa_cargar_precios_combo_aprobados()['ZZ-AP-1'], 'ya_tenia', 'Una vez')
+        self.assertEqual((cuadra.dcasa_precio_combo, cuadra.dcasa_combo_ahorro), (87.0, 9.99))
+        self.assertFalse(otro_precio.dcasa_precio_combo)
+        self.assertEqual(ya_tenia.dcasa_precio_combo, 150.0, 'Lo que puso Gerencia no se pisa')
+
+    def test_con_el_catalogo_real_quedan_los_cuatro_descuentos(self):
+        Variante = self.env['product.product'].with_context(active_test=False)
+        codigos = list(combo_armable.PRECIOS_COMBO_APROBADOS)
+        if Variante.search_count([('default_code', 'in', codigos)]) != len(codigos):
+            self.skipTest('Sin el catálogo del sistema anterior en esta base.')
+        resultado = Variante._dcasa_cargar_precios_combo_aprobados()
+        self.assertTrue(set(resultado.values()) <= {'cargado', 'ya_tenia'}, resultado)
+        ahorros = {codigo: Variante.search([('default_code', '=', codigo)]).dcasa_combo_ahorro for codigo in codigos}
+        self.assertEqual(ahorros, {'IM-2002': 9.99, 'IM-2001': 6.99, 'DSRSOQ': 25.99, 'CSOK-10': 33.99})
 
 
 @tagged('post_install', '-at_install')

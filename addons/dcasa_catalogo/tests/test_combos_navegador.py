@@ -1,5 +1,8 @@
 """«Armar combo cama + colchón» en un navegador de verdad, a tamaño celular y computadora: armar, cambiar el colchón y
 quitar el combo, sin scroll de lado. Y la página que ve el cliente (el enlace de la cotización) dice «Combo»."""
+import re
+from html import unescape
+
 from odoo import Command
 from odoo.addons.dcasa_catalogo.catalogo import atributo_tamano
 from odoo.tests import HttpCase, new_test_user, tagged
@@ -168,10 +171,16 @@ class TestArmarComboEnElNavegador(HttpCase):
         colchon = orden.order_line.filtered(lambda ln: ln.product_id == self.con_precio)
         self.assertEqual((colchon.price_unit, colchon.dcasa_combo_cama_id.product_id), (260.0, self.cama))
 
-    def test_la_pagina_del_cliente_dice_combo_y_el_ahorro(self):
+    def test_la_pagina_del_cliente_dice_combo_y_el_descuento_en_su_renglon(self):
+        """Como el papel (decisión de la dueña, 2026-10-23): el colchón a su precio normal y debajo «Descuento combo
+        cama + colchón −$40.00»."""
         orden = self.env['sale.order'].create({
             'partner_id': self.cliente.id,
             'order_line': [Command.create({'product_id': p.id}) for p in (self.cama, self.con_precio)]})
         respuesta = self.url_open(orden.get_portal_url())
         self.assertEqual(respuesta.status_code, 200)
-        self.assertIn('Combo cama + colchón · ahorras $40.00', respuesta.text)
+        texto = ' '.join(unescape(re.sub(r'<[^>]+>', ' ', respuesta.text)).replace('\xa0', ' ').split())
+        self.assertEqual(texto.count('Combo cama + colchón'), 2, 'Las dos piezas')
+        self.assertIn('Descuento combo cama + colchón −$ 40.00', texto)
+        self.assertIn('$ 300.00', texto, 'El colchón a su precio normal')
+        self.assertNotIn('ahorras', texto)

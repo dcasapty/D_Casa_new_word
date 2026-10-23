@@ -44,6 +44,16 @@ QUITANDO = 'dcasa_combo_quitando'   # ids de las líneas que se están quitando:
 # Lo que cambia el emparejamiento y dcasa_base no mide en el tope (el orden de las líneas y la cama preferida).
 # (y lo que guarda el propio emparejamiento: si alguien lo escribe a mano, se vuelve a calcular).
 CAMPOS_DE_EMPAREJAR = {'sequence', 'dcasa_combo_cama_id', 'dcasa_combo_con_precio', 'dcasa_combo_ahorro_unitario'}
+# Lo que aprobó la dueña (2026-10-23, «si estamos en la misma pagina y si que sea 6.99»): el descuento de cada colchón
+# cuando va con una cama de su medida, sacado de los 73 combos del sistema anterior (cama sola + colchón solo − combo).
+# Referencia: (precio normal con que se aprobó, precio en combo). Los carga una sola vez la migración 19.0.1.12.0 y solo
+# si el colchón sigue a ese precio normal: si cambió, no se adivina (lo pone Gerencia).
+PRECIOS_COMBO_APROBADOS = {
+    'IM-2002': (96.99, 87.00),     # Colchón Imperial Full: descuento $9.99
+    'IM-2001': (81.99, 75.00),     # Colchón Imperial Twin: $6.99
+    'DSRSOQ': (184.99, 159.00),    # Colchón Dulces Sueños Queen: $25.99
+    'CSOK-10': (243.99, 210.00),   # Colchón First Class King: $33.99
+}
 MAX_CANTIDAD = 20
 MAX_RESULTADOS = 40
 MAX_BUSCAR = 300
@@ -51,6 +61,24 @@ MAX_BUSCAR = 300
 
 def _moneda(moneda, monto):
     return f'{moneda.symbol}{monto:,.2f}' if moneda.position != 'after' else f'{monto:,.2f} {moneda.symbol}'
+
+
+def _combo_en_papel(linea, ahorro_unitario, campo_importe):
+    """Cómo sale en el papel el colchón de un combo (decisión de la dueña, 2026-10-23): a su precio normal y, debajo,
+    en su propio renglón, «Descuento combo cama + colchón −$X». No se rebaja ni la cama ni el colchón: el combo es una
+    promoción. Por dentro el descuento sigue en la línea del colchón (la factura electrónica de la DGI no acepta líneas
+    en negativo), así que aquí solo se reparte lo que ya vale la línea: importe normal − descuento = importe de la
+    línea, al centavo. ``ahorro_unitario`` y ``price_unit`` van en la misma base; ``campo_importe`` es el de la columna
+    «Importe» (sin o con ITBMS). ``False`` si no hay descuento que mostrar."""
+    precio = linea.price_unit
+    importe = linea[campo_importe]
+    moneda = linea.currency_id
+    if not ahorro_unitario or ahorro_unitario <= 0 or not precio or precio <= 0 or not moneda:
+        return False
+    descuento = moneda.round(importe * ahorro_unitario / precio)
+    if moneda.compare_amounts(descuento, 0) <= 0:
+        return False
+    return {'precio': precio + ahorro_unitario, 'importe': importe + descuento, 'descuento': descuento}
 
 
 def _aviso_gerencia(env):
@@ -221,6 +249,30 @@ class ProductProduct(models.Model):
                 nueva = vals['dcasa_medida'] or False
                 if nueva not in ((variante.dcasa_medida or False), variante._dcasa_medida_sugerida() or False):
                     raise _aviso_gerencia(self.env)
+
+    @api.model
+    def _dcasa_cargar_precios_combo_aprobados(self):
+        """Pone los precios en combo de ``PRECIOS_COMBO_APROBADOS`` (una vez, desde la migración). ``{código:
+        resultado}``: ``cargado``, ``ya_tenia`` (Gerencia ya puso uno: no se pisa), ``no_encontrado``, ``repetido``,
+        ``no_es_colchon``, ``sin_medida`` o ``otro_precio`` (el precio normal cambió desde la aprobación)."""
+        resultado = {}
+        Variante = self.sudo().with_context(active_test=False)
+        for codigo, (normal, combo) in PRECIOS_COMBO_APROBADOS.items():
+            variantes = Variante.search([('default_code', '=', codigo)])
+            if len(variantes) != 1:
+                resultado[codigo] = 'repetido' if variantes else 'no_encontrado'
+            elif variantes.dcasa_precio_combo:
+                resultado[codigo] = 'ya_tenia'
+            elif variantes.dcasa_tipo_combo != 'colchon':
+                resultado[codigo] = 'no_es_colchon'
+            elif not variantes.dcasa_medida:
+                resultado[codigo] = 'sin_medida'
+            elif float_compare(variantes.lst_price, normal, precision_digits=2):
+                resultado[codigo] = 'otro_precio'
+            else:
+                variantes.dcasa_precio_combo = combo
+                resultado[codigo] = 'cargado'
+        return resultado
 
     def _dcasa_combo_precio_normal(self, orden=None):
         """Precio normal de la variante para una venta (su tarifa), en la moneda de la venta y sin ITBMS."""
@@ -688,16 +740,20 @@ class SaleOrderLine(models.Model):
         return valores
 
     def _dcasa_texto_combo(self):
-        """«Combo cama + colchón» (y en el colchón, «· ahorras $41.00»): para el papel y la página del cliente."""
+        """«Combo cama + colchón» en las dos piezas, para el papel y la página del cliente (lo que se descuenta va en
+        su propio renglón: ``_dcasa_combo_en_papel``)."""
         self.ensure_one()
         if not (self.dcasa_combo_cama_id or self.dcasa_combo_colchon_ids):
             return ''
-        texto = self.env._('Combo cama + colchón')
-        if self.dcasa_combo_ahorro > 0:
-            moneda = self.currency_id or self.order_id.currency_id
-            texto = self.env._('%(combo)s · ahorras %(ahorro)s', combo=texto,
-                               ahorro=_moneda(moneda, self.dcasa_combo_ahorro))
-        return texto
+        return self.env._('Combo cama + colchón')
+
+    def _dcasa_combo_en_papel(self, campo_importe='price_subtotal'):
+        """El colchón de un combo en el papel: ``{'precio', 'importe', 'descuento'}`` o ``False`` (ver
+        ``_combo_en_papel``)."""
+        self.ensure_one()
+        if self.display_type or not self.dcasa_combo_cama_id or not self.dcasa_combo_con_precio:
+            return False
+        return _combo_en_papel(self, self.dcasa_combo_ahorro_unitario, campo_importe)
 
     def _dcasa_etiqueta(self):
         return super()._dcasa_etiqueta() or self._dcasa_texto_combo()
@@ -735,9 +791,13 @@ class AccountMoveLine(models.Model):
         etiqueta = super()._dcasa_etiqueta()
         if etiqueta or not self.dcasa_combo_rol or self.move_id.move_type != 'out_invoice':
             return etiqueta
-        texto = self.env._('Combo cama + colchón')
-        ahorro = self.dcasa_combo_ahorro_unitario * self.quantity
-        if self.dcasa_combo_rol == 'colchon' and ahorro > 0:
-            texto = self.env._('%(combo)s · ahorras %(ahorro)s', combo=texto,
-                               ahorro=_moneda(self.currency_id or self.move_id.currency_id, ahorro))
-        return texto
+        return self.env._('Combo cama + colchón')
+
+    def _dcasa_combo_en_papel(self, campo_importe='price_subtotal'):
+        """El colchón de un combo en la factura: ``{'precio', 'importe', 'descuento'}`` o ``False`` (ver
+        ``_combo_en_papel``). Una nota de crédito sale tal cual."""
+        self.ensure_one()
+        if self.display_type != 'product' or self.dcasa_combo_rol != 'colchon' \
+                or self.move_id.move_type != 'out_invoice':
+            return False
+        return _combo_en_papel(self, self.dcasa_combo_ahorro_unitario, campo_importe)
