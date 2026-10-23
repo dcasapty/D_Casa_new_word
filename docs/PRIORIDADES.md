@@ -9,10 +9,9 @@ Cada etapa sale a staging para que la dueña la vea; a producción solo con su �
 
 **Estado al 2026-10-23, tarde:** en producción (Desplegar 27, PR #62) el arreglo de la lentitud (Bodega/Inicio sin
 mirar pagos factura por factura), el reintento del borde ante «Network connection lost.», la nota de entrega sin el
-producto repetido y el scroll de Marketing. En la rama, camino a producción: los combos con el descuento en su propio
-renglón y los 4 descuentos aprobados, más lo que hallaron las dos revisiones. Orden: (1) subir los combos en cuanto
-pasen CI y staging y pedirle a la dueña que mire una cotización con uno de los 4 colchones; (2) que la dueña diga si el
-sistema se siente más rápido; (3) seguimiento de velocidad sin urgencia: `/web/image` lee el
+producto repetido y el scroll de Marketing; y (Desplegar 28, PR #63) los combos con el descuento en su propio renglón
+y los 4 descuentos aprobados, más lo que hallaron las dos revisiones. Orden: (1) que la dueña mire una cotización con
+uno de los 4 colchones; (2) que diga si el sistema se siente más rápido; (3) seguimiento de velocidad sin urgencia: `/web/image` lee el
 archivo de R2 antes de contestar «no cambió» (304), el ZIP de comprobantes ocupa la CPU seguido mientras se prepara
 (pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto en el Inicio; (4) lo de la
 lista de abajo. Pendiente menor de la revisión: `abrir` de Bodega no exige pago a una entrega en borrador (muestra

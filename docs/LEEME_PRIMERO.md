@@ -133,7 +133,9 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
     sin %; si no, la línea sale tal cual. En la página del cliente el renglón va a la derecha (cuadra en el celular) y
     Juan dice lo mismo que el PDF. Queda anotado (no cambia): una venta confirmada sin facturar con cama y colchón de
     los 4 aprobados baja al precio en combo la próxima vez que alguien le edite una línea.
-- Los combos (con estos arreglos) van a producción cuando pasen su CI y staging, por el «hazlo ya» de la dueña.
+- **Combos en producción** con estos arreglos: CI #223 (`ab94128`) y staging sanos, PR #63 unido a `main` (`61cb612`,
+  árbol = `ab94128`) y **Desplegar 28 sano y confirmado a las 19:51 UTC** (14:51 Panamá). Falta que la dueña haga una
+  cotización con cama + uno de los 4 colchones y mire el renglón del descuento.
 
 ### 2026-10-23 (madrugada)
 
