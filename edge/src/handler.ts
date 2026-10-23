@@ -9,6 +9,9 @@ import {
   notModifiedResponse,
   route,
   rutaEstatica,
+  esCorteDeConexion,
+  esRepetible,
+  rutaParaRegistro,
   withCacheStatus,
   withSecurityHeaders,
 } from "./routing";
@@ -51,6 +54,8 @@ export { REINTENTO_SEGUNDOS, respuestaArrancando } from "./arranque";
 export interface EdgeDeps {
   /** Envía la petición al contenedor de Odoo. */
   forward: (request: Request) => Promise<Response>;
+  /** Pausa entre reintentos de `reenviar` (las pruebas la acortan). */
+  esperar?: (ms: number) => Promise<void>;
   /** Caché del borde (caches.default en producción). */
   cache?: Pick<Cache, "match" | "put">;
   /** Para tareas en segundo plano (ctx.waitUntil). */
@@ -302,16 +307,47 @@ async function estadoTiendaParaSalud(url: URL, deps: EdgeDeps): Promise<EstadoTi
   }
 }
 
+/** Cuántas veces más se intenta una lectura si el enlace con el contenedor se corta (ver `esRepetible`). */
+export const REINTENTOS_REENVIO = 2;
+/** Pausa antes de cada reintento (se multiplica por el número de intento: 0,4 s y 0,8 s). */
+const PAUSA_REINTENTO_MS = 400;
+
+const esperarMs = (ms: number) => new Promise<void>((listo) => setTimeout(listo, ms));
+
 /**
  * Si el Durable Object del contenedor no responde (se reinicia con cada despliegue,
  * o falla al arrancar), el visitante ve el 503 amable con reintento, no un 500.
+ *
+ * El enlace Worker → Durable Object a veces se corta con «Network connection lost.» sin que Odoo se haya caído
+ * (producción, 23 oct: fotos y lecturas que fallaban tras 11-15 s mientras las demás salían bien). El panel de Odoo lo
+ * mostraba como «Se perdió la conexión». Las lecturas se repiten aquí (hasta `REINTENTOS_REENVIO` veces); lo que guarda
+ * nunca se repite.
  */
 async function reenviar(original: Request, upstream: Request, deps: EdgeDeps): Promise<Response> {
-  try {
-    return await deps.forward(upstream);
-  } catch (error) {
-    console.error(JSON.stringify({ evento: "reenvio_fallido", error: String(error) }));
-    return respuestaArrancando(original);
+  const ruta = new URL(upstream.url).pathname;
+  const repetible = esRepetible(upstream.method, ruta);
+  let pedido = upstream;
+  for (let intento = 1; ; intento++) {
+    // La copia guarda el cuerpo para el próximo intento (el que se envía lo consume).
+    const copia = repetible && intento <= REINTENTOS_REENVIO ? pedido.clone() : null;
+    try {
+      return await deps.forward(pedido);
+    } catch (error) {
+      const reintenta = copia !== null && esCorteDeConexion(error);
+      console.error(
+        JSON.stringify({
+          evento: "reenvio_fallido",
+          error: String(error),
+          metodo: upstream.method,
+          ruta: rutaParaRegistro(ruta),
+          intento,
+          reintenta,
+        }),
+      );
+      if (!copia || !reintenta) return respuestaArrancando(original);
+      pedido = copia;
+      await (deps.esperar ?? esperarMs)(PAUSA_REINTENTO_MS * intento);
+    }
   }
 }
 
