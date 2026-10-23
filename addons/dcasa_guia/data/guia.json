@@ -102,6 +102,51 @@
    ]
   },
   {
+   "id": "combo-armar",
+   "categoria": "vender",
+   "grupo": "Vender",
+   "titulo": "Armar un combo cama + colchón en una cotización",
+   "logras": "Escoges la cama y te salen los colchones de su misma medida que hay en existencia, con su precio normal, su precio en combo y lo que ahorra el cliente. Con un toque se agregan los dos a la cotización; después puedes cambiar la cama o el colchón, o quitar el combo.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la cotización (o haz una nueva con «Nuevo») y escoge el cliente.",
+     "destino": {
+      "menu": "sale.menu_sale_quotations"
+     }
+    },
+    {
+     "texto": "En «Líneas de la orden», toca «Armar combo cama + colchón», junto a «Agregar un producto». En el celular es el botón «Armar combo».",
+     "destino": null
+    },
+    {
+     "texto": "Busca la cama por nombre, código o medida y tócala.",
+     "destino": null
+    },
+    {
+     "texto": "Toca el colchón que quiere el cliente: se agregan la cama y el colchón, y el colchón va a su precio en combo. Con «¿Cuántos combos?» pones más de uno.",
+     "destino": null
+    },
+    {
+     "texto": "Para cambiar la cama o el colchón, o quitar el combo, vuelve a tocar «Armar combo». Al terminar, toca «Listo».",
+     "destino": null
+    }
+   ],
+   "nota": "El precio en combo lo pone Gerencia en cada colchón; si un colchón no lo tiene, va a su precio normal. Si quitas la cama o la cambias por otra de otra medida, el colchón vuelve solo a su precio normal. También cuenta si agregas la cama y el colchón de la misma medida como productos sueltos.",
+   "palabras": [
+    "combo",
+    "cama y colchon",
+    "cama con colchon",
+    "armar combo",
+    "juego de cama",
+    "colchon de la misma medida",
+    "precio combo",
+    "cambiar colchon"
+   ]
+  },
+  {
    "id": "cotizaciones",
    "categoria": "vender",
    "grupo": "Vender",
@@ -133,6 +178,43 @@
     "mis ventas",
     "vendido",
     "ventas del dia"
+   ]
+  },
+  {
+   "id": "ventas-por-dia",
+   "categoria": "vender",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Hoy",
+   "titulo": "Ver cuánto se vendió cada día del mes",
+   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
+   },
+   "pasos": [
+    {
+     "texto": "Arriba eliges el mes y qué contar: «Vendido» (los pedidos confirmados, el día que se confirmaron), «Facturado» (todas las facturas, igual que Contabilidad; las notas de crédito restan), «Con abonos» o «Completadas», las mismas del Inicio. Al lado puedes elegir una vendedora.",
+     "destino": {
+      "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
+     }
+    },
+    {
+     "texto": "Toca un día del calendario: a la derecha (en el celular, debajo del día) sale cada venta de ese día. «Ver en lista» las abre todas en una lista.",
+     "destino": null
+    }
+   ],
+   "nota": "Las ventas van sin ITBMS; el total con ITBMS sale aparte. «Contra» compara con los mismos días del mes pasado (el último hasta la misma hora de hoy) o, si el mes ya terminó, con el mes anterior completo, igual que Comparar del Inicio.",
+   "brian": "¿Cuánto se vendió el martes?",
+   "palabras": [
+    "por dia",
+    "dia por dia",
+    "ventas por dia",
+    "calendario",
+    "cuanto se vendio el",
+    "que se hizo ese dia",
+    "ventas del mes",
+    "vendido"
    ]
   },
   {
@@ -353,6 +435,30 @@
     "buscar factura"
    ],
    "nota": "Con «Cada vendedora ve solo sus documentos» encendido (así viene), la vendedora ve las suyas y las que no tienen vendedora; Caja y Gerencia ven todas. La vendedora no hace facturas sueltas: hace una cotización (Ventas › Nueva cotización) y la factura sale del pedido, así Caja la encuentra para cobrar."
+  },
+  {
+   "id": "facturado-por-dia",
+   "categoria": "facturar",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Facturas de clientes",
+   "titulo": "Ver cuánto se facturó cada día del mes",
+   "logras": "El mes como un calendario con lo facturado cada día (las notas de crédito restan, igual que en Contabilidad) y cuántas facturas fueron. Tocas un día y ves cada factura de ese día con su cliente, su vendedora y si está pagada; tocas una y se abre. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_facturado_por_dia"
+   },
+   "nota": "Es la misma pantalla de Ventas por día, abierta en «Facturado». También la abres desde el Inicio con «Ver por día».",
+   "brian": "¿Cuánto se facturó ayer?",
+   "palabras": [
+    "facturado por dia",
+    "facturas por dia",
+    "dia por dia",
+    "calendario",
+    "cuanto se facturo",
+    "facturacion del mes",
+    "notas de credito"
+   ]
   },
   {
    "id": "factura-borrador",
@@ -997,6 +1103,28 @@
    ]
   },
   {
+   "id": "zip-comprobantes",
+   "categoria": "impuestos",
+   "grupo": "Una vez al año",
+   "titulo": "Guardar todos los comprobantes del año en un ZIP",
+   "logras": "Bajas en un ZIP, por carpetas y con un índice, las facturas, notas de crédito, recibos, compras y gastos del año, para guardarlos los 5 años que pide la DGI.",
+   "destino": {
+    "menu": "dcasa_contabilidad.menu_comprobantes_zip"
+   },
+   "palabras": [
+    "zip",
+    "comprobantes",
+    "respaldo",
+    "dgi",
+    "cinco años",
+    "guardar facturas",
+    "archivo"
+   ],
+   "tambien": [
+    "reportes"
+   ]
+  },
+  {
    "id": "colaborador-nuevo",
    "categoria": "personal",
    "grupo": "Personas",
@@ -1091,6 +1219,42 @@
     "reintegro",
     "comprobante",
     "aprobar gasto"
+   ]
+  },
+  {
+   "id": "adelanto-empleado",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Darle un adelanto o un préstamo a un colaborador",
+   "logras": "Registras cuánto se le da y en cuántas quincenas lo paga; Gerencia lo autoriza y cada planilla le descuenta la cuota sola, sin pasar nunca de lo que debe.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_prestamos"
+   },
+   "palabras": [
+    "adelanto",
+    "prestamo",
+    "anticipo",
+    "vale",
+    "descuento de planilla",
+    "cuanto debe"
+   ]
+  },
+  {
+   "id": "comprobante-pago",
+   "categoria": "personal",
+   "grupo": "Pagar",
+   "titulo": "Imprimir o mandar por correo el comprobante de pago de cada colaborador",
+   "logras": "Cada colaborador recibe su comprobante de pago en PDF con lo que ganó, lo que se le descontó y lo que recibe.",
+   "nota": "Por correo solo sale con los correos de D'CASA encendidos; si no, imprímelo y entrégalo en mano.",
+   "destino": {
+    "menu": "dcasa_nomina.menu_planillas"
+   },
+   "palabras": [
+    "comprobante",
+    "talonario",
+    "colilla",
+    "volante de pago",
+    "recibo de pago"
    ]
   },
   {
@@ -1196,10 +1360,49 @@
    ]
   },
   {
+   "id": "precio-combo-colchon",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Poner el precio en combo de un colchón",
+   "logras": "Para cada colchón, en cada medida, pones el precio al que se vende cuando va con una cama de su misma medida. Así la vendedora arma el combo en la cotización y el precio sale solo.",
+   "destino": {
+    "menu": "dcasa_catalogo.menu_precios_combo"
+   },
+   "pasos": [
+    {
+     "texto": "Abre «Precios en combo»: salen los colchones agrupados por medida (Twin, Full, Queen, King).",
+     "destino": {
+      "menu": "dcasa_catalogo.menu_precios_combo"
+     }
+    },
+    {
+     "texto": "En la columna «Precio en combo» escribe el precio sin ITBMS, menor que el precio normal, y guarda. Si lo dejas vacío, ese colchón va a su precio normal.",
+     "destino": null
+    },
+    {
+     "texto": "Mira la columna «Revisar»: avisa si falta la medida o si el precio en combo ya no es menor que el normal.",
+     "destino": null
+    },
+    {
+     "texto": "Con el filtro «Camas», revisa que cada cama tenga su medida: a una cama sin medida no le salen colchones.",
+     "destino": null
+    }
+   ],
+   "nota": "Solo Gerencia lo cambia. Vale para lo que se cotice desde ese momento: las cotizaciones que ya estaban no cambian solas. El texto del Excel de cada cama («Combo con colchón …») queda solo de referencia; no se usa para calcular.",
+   "palabras": [
+    "precio en combo",
+    "precio combo colchon",
+    "combo",
+    "colchon",
+    "medida de la cama",
+    "precio especial colchon"
+   ]
+  },
+  {
    "id": "combo-cama-colchon",
    "categoria": "productos",
    "grupo": "Catálogo",
-   "titulo": "Crear o cambiar un combo de cama y colchón",
+   "titulo": "Crear o cambiar un combo fijo de cama y colchón (producto «COMBO»)",
    "logras": "Un combo junta la cama y el colchón con un solo precio. Al venderlo, la cotización y la factura muestran cada pieza y la entrega descuenta la cama y el colchón del inventario.",
    "destino": {
     "menu": "sale.menu_product_template_action"
@@ -1228,7 +1431,7 @@
      "destino": null
     }
    ],
-   "nota": "El precio del combo se reparte solo entre la cama y el colchón, así que al venderlo no se cambia a mano: se rebaja con el descuento. Si Cowork te entregó el archivo de combos, se carga en Ajustes › Cargar datos del sistema anterior, sin crear las piezas.",
+   "nota": "El precio del combo se reparte solo entre la cama y el colchón, así que al venderlo no se cambia a mano: se rebaja con el descuento. Si Cowork te entregó el archivo de combos, se carga en Ajustes › Cargar datos del sistema anterior, sin crear las piezas. Lo más práctico ahora es armar el combo en la cotización («Armar combo cama + colchón») con el precio en combo de cada colchón; los combos fijos que ya existen siguen funcionando.",
    "palabras": [
     "combo",
     "cama y colchon",
@@ -1253,6 +1456,73 @@
     "inventario",
     "precios"
    ]
+  },
+  {
+   "id": "marketing",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver qué se vende, qué está quieto y qué fotos faltan (Marketing)",
+   "logras": "En una sola pantalla: los productos con más y menos stock por categoría, los más vendidos, los que más se movieron y los más quietos en la semana, 15 días o el mes, y los que no tienen foto. Sirve para decidir qué empujar en una campaña.",
+   "palabras": [
+    "marketing",
+    "campaña",
+    "mas vendidos",
+    "quietos",
+    "no se vende",
+    "movimiento",
+    "rotacion",
+    "productos sin foto",
+    "publicidad",
+    "que empujar"
+   ],
+   "destino": {
+    "menu": "dcasa_marketing.menu_marketing"
+   },
+   "nota": "También la tienes como acceso directo «Marketing» en el Inicio. Es de Gerencia y de quien tiene el rol Marketing."
+  },
+  {
+   "id": "fotos-producto",
+   "categoria": "productos",
+   "grupo": "Catálogo",
+   "titulo": "Ver, subir, ordenar o recortar las fotos de un producto",
+   "logras": "Tocas la foto del producto y se abre en grande: la cambias, la recortas, la giras o eliges cuál es la principal. En «Todas» subes varias a la vez y las ordenas arrastrando.",
+   "palabras": [
+    "foto",
+    "fotos",
+    "imagen",
+    "imagenes",
+    "subir fotos",
+    "recortar",
+    "galeria",
+    "foto principal",
+    "cambiar foto",
+    "ordenar fotos",
+    "camara"
+   ],
+   "destino": {
+    "menu": "sale.menu_product_template_action"
+   },
+   "pasos": [
+    {
+     "texto": "Abre la lista de productos y busca el producto por su nombre o su código.",
+     "destino": {
+      "menu": "sale.menu_product_template_action"
+     }
+    },
+    {
+     "texto": "Toca su foto (en la lista o dentro del producto): se abre en grande. Pasas a las demás con las flechas o deslizando el dedo, y la acercas pellizcando.",
+     "destino": null
+    },
+    {
+     "texto": "Para cambiarla usa «Reemplazar» (o «Tomar otra» con la cámara del celular), «Recortar», «Girar» o «Hacer principal».",
+     "destino": null
+    },
+    {
+     "texto": "Para subir varias toca «Todas» y luego «Elegir fotos» (puedes marcar varias) o arrástralas desde la computadora. Ordénalas arrastrando o con las flechas: la primera es la principal.",
+     "destino": null
+    }
+   ],
+   "nota": "En Marketing › Fotos encuentras rápido los productos sin foto o con una sola, y les subes las fotos ahí mismo."
   },
   {
    "id": "precios-en-bloque",
@@ -1301,6 +1571,28 @@
    ]
   },
   {
+   "id": "movimientos-inventario",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver todo lo que entró y salió de un producto",
+   "logras": "Buscas un producto por su nombre, su código o su código de barras y ves su historia en palabras: «Entró por la compra… de…», «Salió por la venta… a…», ajustes, devoluciones y traslados, con lo que entró en verde y lo que salió en rojo, lo que quedó después, quién lo hizo y cuándo. Tocas uno y se abre su venta o su compra. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_movimientos"
+   },
+   "nota": "Sin buscar nada, ves los últimos movimientos de todos los productos. Puedes filtrar por fechas y por tipo (compras, ventas, devoluciones, ajustes, traslados).",
+   "brian": "¿Qué movimientos tuvo este producto?",
+   "palabras": [
+    "movimientos",
+    "historial",
+    "kardex",
+    "entradas y salidas",
+    "que paso con",
+    "trazabilidad",
+    "devoluciones",
+    "traslados"
+   ]
+  },
+  {
    "id": "recibir-mercancia",
    "categoria": "productos",
    "grupo": "Inventario",
@@ -1332,11 +1624,59 @@
    ]
   },
   {
+   "id": "despachar-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Despachar una entrega en bodega",
+   "logras": "Ves en un solo panel las entregas que faltan por despachar o por retirar en la tienda, abres la del cliente (tocándola o escaneando el QR de su nota de entrega), marcas lo que sale y la validas. Si falta algo, lo demás queda pendiente para después.",
+   "destino": {
+    "menu": "dcasa_barras.menu_dcasa_bodega"
+   },
+   "pasos": [
+    {
+     "texto": "Abre Bodega (también está en el Inicio). Arriba eliges «Para despachar (envío)» o «Para retirar en tienda».",
+     "destino": {
+      "menu": "dcasa_barras.menu_dcasa_bodega"
+     }
+    },
+    {
+     "texto": "Escanea el QR de la nota de entrega (con el lector o con el botón «Cámara»), o busca por cliente, número o pedido y toca «Abrir».",
+     "destino": null
+    },
+    {
+     "texto": "Marca cada producto que sale: tócalo o escanea su código.",
+     "destino": null
+    },
+    {
+     "texto": "Toca «Validar entrega». Si falta algo, te pregunta si entregas solo lo marcado: lo demás queda pendiente en una entrega nueva.",
+     "destino": null
+    },
+    {
+     "texto": "Si hace falta, imprime la nota de entrega desde ahí mismo.",
+     "destino": null
+    }
+   ],
+   "nota": "Solo salen los pedidos que ya tienen pago o abono: si escaneas el QR de uno sin pago, el panel te dice que no se entrega. Lo usa quien trabaja con Inventario (bodega, vendedoras y Gerencia), en tablet, celular o computadora. Si una entrega dice «Sin definir», el pedido no dice si se envía o se retira: la vendedora lo indica con el método de entrega del pedido.",
+   "palabras": [
+    "bodega",
+    "despachar",
+    "despacho",
+    "entregar al cliente",
+    "retiro",
+    "retirar en tienda",
+    "nota de entrega",
+    "qr de la nota",
+    "validar entrega",
+    "tablet",
+    "envio"
+   ]
+  },
+  {
    "id": "inventario-fisico",
    "categoria": "productos",
    "grupo": "Inventario",
    "titulo": "Contar el inventario y corregir diferencias",
-   "logras": "Cuentas lo que hay en la bodega, el sistema te muestra la diferencia y corrige las existencias.",
+   "logras": "Cuentas lo que hay en la bodega, el sistema te muestra la diferencia y corrige las existencias; te pide el motivo y queda en la bitácora de bodega.",
    "destino": {
     "menu": "stock.menu_action_inventory_tree"
    },
@@ -1345,6 +1685,125 @@
     "ajuste de inventario",
     "inventario ciclico",
     "faltantes"
+   ],
+   "nota": "Lo hace Gerencia."
+  },
+  {
+   "id": "mermas",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Dar de baja una merma, un daño, una muestra o un regalo",
+   "logras": "Lo que sale de la bodega sin venderse baja de las existencias con su código y su costo, y queda listo para reclamarle al proveedor si fue un daño.",
+   "nota": "Lo da de baja Gerencia. Las cuentas contables de las mermas las elige la contadora en Ajustes de bodega y mermas.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_mermas"
+   },
+   "palabras": [
+    "merma",
+    "dañado",
+    "roto",
+    "muestra",
+    "regalo",
+    "desecho",
+    "dar de baja",
+    "perdida"
+   ],
+   "tambien": [
+    "compras"
+   ],
+   "brian": "Se rompió un producto al bajarlo del camión, ¿cómo lo doy de baja?"
+  },
+  {
+   "id": "mermas-mes",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver las mermas del mes y si pasan del tope de la gerencia",
+   "logras": "Ves cuánto suman las mermas, daños, muestras y regalos del mes y del año, contra lo comprado, y si pasan del tope que puso la gerencia.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_resumen_mermas"
+   },
+   "palabras": [
+    "mermas del mes",
+    "tope",
+    "medio por ciento",
+    "perdidas",
+    "cuanto se daño"
+   ],
+   "tambien": [
+    "reportes"
+   ]
+  },
+  {
+   "id": "reclamo-proveedor",
+   "categoria": "compras",
+   "grupo": "Proveedores",
+   "titulo": "Reclamarle a un proveedor la mercancía que llegó dañada",
+   "logras": "Sacas en PDF, con la marca, la lista de lo dañado o perdido de un proveedor para mandársela, y después lo marcas como reclamado.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_resumen_mermas"
+   },
+   "pasos": [
+    {
+     "texto": "Abre las mermas del mes y pulsa «Reclamo a un proveedor (PDF)».",
+     "destino": {
+      "menu": "dcasa_existencias.menu_resumen_mermas"
+     }
+    },
+    {
+     "texto": "Elige el proveedor y las fechas, imprime el PDF y mándaselo.",
+     "destino": null
+    },
+    {
+     "texto": "Cuando se lo mandes, pulsa «Marcar como reclamadas».",
+     "destino": null
+    }
+   ],
+   "palabras": [
+    "reclamo",
+    "proveedor",
+    "dañado",
+    "nota de credito proveedor",
+    "reposicion"
+   ]
+  },
+  {
+   "id": "bitacora-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Ver quién cambió las existencias y por qué",
+   "logras": "La bitácora de bodega muestra cada ajuste de existencias: cuánto había, cuánto quedó, el motivo y quién lo hizo.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_bitacora"
+   },
+   "palabras": [
+    "bitacora",
+    "quien movio",
+    "ajustes",
+    "historial de ajustes",
+    "faltante",
+    "sobrante"
+   ]
+  },
+  {
+   "id": "ajustes-bodega",
+   "categoria": "productos",
+   "grupo": "Inventario",
+   "titulo": "Elegir las cuentas de las mermas y encender las alertas de bodega",
+   "logras": "Pones las cuentas contables de las mermas y, si quieres, enciendes las alertas diarias por Telegram (productos por agotarse, ajustes grandes, mes sin cerrar) con tus propios umbrales.",
+   "nota": "Las alertas vienen apagadas y sin umbrales: llegan solo las que enciendas.",
+   "destino": {
+    "menu": "dcasa_existencias.menu_config"
+   },
+   "palabras": [
+    "alertas",
+    "telegram",
+    "stock bajo",
+    "umbral",
+    "cuenta de mermas",
+    "avisos de bodega"
+   ],
+   "tambien": [
+    "administrar"
    ]
   },
   {
@@ -1417,20 +1876,50 @@
    "id": "reponer-proveedor",
    "categoria": "compras",
    "grupo": "Pedir",
-   "titulo": "Ver qué reponerle a un proveedor",
-   "logras": "Eliges las fechas (y, si quieres, un proveedor) y ves cada producto que se vendió, cuánto hay hoy en la tienda, cuánto ya pediste y no ha llegado, y cuánto faltaría pedir: lo vendido menos lo que hay menos lo que viene en camino.",
+   "titulo": "Ver cuánto pedirle a un proveedor y qué pedir ya",
+   "logras": "Buscas el proveedor escribiendo parte de su nombre, su teléfono, su RUC o un producto que te vende, y eliges cuántos meses de ventas mirar (de fábrica, 5) y los meses de reserva. Por cada producto ves cuánto se vende al mes, para cuánto alcanza lo disponible (sin lo ya vendido que espera entrega) y lo que viene en camino, cuánto tarda en llegar y cuánto pedir; lo urgente sale primero como «Pedir ya». Lo puedes ver por proveedor y bajar en Excel.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_reponer"
    },
    "palabras": [
     "reponer",
     "reposicion",
+    "cuanto pedir",
+    "que pedir",
+    "pedir ya",
+    "ritmo de venta",
+    "cuando se me acaba",
+    "en cuanto tiempo me quedo sin",
+    "consumo de los ultimos meses",
+    "pedido a china",
     "articulos vendidos",
     "lo que se vendio",
     "que le pido al proveedor",
-    "listado de ventas por producto"
+    "listado de ventas por producto",
+    "excel de reponer"
    ],
-   "brian": "¿Qué le repongo a mi proveedor?"
+   "nota": "Sin el tiempo de llegada del proveedor no calcula cuánto pedir: la fila dice «Falta» y le tocas «Poner». Solo salen los productos que se vendieron en esos meses.",
+   "brian": "¿Qué le tengo que pedir ya a mi proveedor?"
+  },
+  {
+   "id": "tiempo-llegada-proveedor",
+   "categoria": "compras",
+   "grupo": "Pedir",
+   "titulo": "Poner cuánto tarda en llegar lo de un proveedor",
+   "logras": "En Compras › Reponer eliges el proveedor y tocas «Poner tiempo de llegada» (o «Cambiar»): escribes los meses o los días que tarda desde que le haces el pedido hasta que llega a la tienda. Se guarda para todos sus productos y con eso se calcula cuánto pedir y cuándo pedir ya.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_reponer"
+   },
+   "palabras": [
+    "tiempo de llegada",
+    "cuanto tarda en llegar",
+    "dias de entrega",
+    "plazo de entrega",
+    "demora del proveedor",
+    "tiempo de entrega",
+    "cuanto se demora el pedido"
+   ],
+   "brian": "Ponle el tiempo de llegada a mi proveedor"
   },
   {
    "id": "proveedores",
@@ -1481,7 +1970,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Agregar un cliente",
-   "logras": "Lo registras con su celular y su correo: sin ellos no se puede confirmar la venta. Si de verdad no tiene correo, marca «Cliente no tiene correo electrónico» (el celular siempre va). El celular es su llave en Socios.",
+   "logras": "Lo registras con su celular y su correo: sin ellos no se puede confirmar la venta. Si no tiene celular, escribe su teléfono fijo (7 números) en «Teléfono fijo», debajo del celular. Si de verdad no tiene correo, marca «Cliente no tiene correo electrónico». El celular es su llave en Socios.",
    "destino": {
     "nuevo": "res.partner"
    },
@@ -1489,7 +1978,9 @@
     "crear cliente",
     "alta de cliente",
     "contacto nuevo",
-    "celular y correo"
+    "celular y correo",
+    "telefono fijo",
+    "no tiene celular"
    ]
   },
   {
@@ -1497,7 +1988,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Buscar a un cliente",
-   "logras": "Encuentras su ficha por nombre, celular o cédula, con sus ventas y sus puntos.",
+   "logras": "Encuentras su ficha por nombre, celular, teléfono fijo o cédula, con sus ventas y sus puntos.",
    "destino": {
     "menu": "contacts.res_partner_menu_contacts"
    },
@@ -1528,7 +2019,7 @@
    "grupo": "Clientes",
    "titulo": "Vender a un cliente que no tiene correo electrónico",
    "logras": "En la cotización, junto al cliente, marcas «Cliente no tiene correo electrónico» y ya puedes confirmar la venta sin su correo.",
-   "nota": "Úsala solo si de verdad no tiene: primero pídele su correo, ahí le llegan su factura y sus puntos. El celular sigue siendo obligatorio. La misma casilla está en su ficha, debajo del correo, y queda anotado quién la marcó. Si después le escribes un correo, la casilla se desmarca sola.",
+   "nota": "Úsala solo si de verdad no tiene: primero pídele su correo, ahí le llegan su factura y sus puntos. El celular (o, si no tiene, un teléfono fijo) sigue siendo obligatorio. La misma casilla está en su ficha, debajo del correo, y queda anotado quién la marcó. Si después le escribes un correo, la casilla se desmarca sola.",
    "destino": {
     "menu": "sale.menu_sale_quotations"
    },
@@ -1545,7 +2036,7 @@
    "categoria": "clientes",
    "grupo": "Clientes",
    "titulo": "Completar los clientes a los que les falta el correo o el celular",
-   "logras": "Ves los clientes sin correo o sin celular y los completas antes de su próxima venta: sin ellos no se confirma la venta ni le llega su factura.",
+   "logras": "Ves los clientes sin correo o sin celular (ni teléfono fijo) y los completas antes de su próxima venta: sin ellos no se confirma la venta ni le llega su factura.",
    "nota": "No salen los que tienen marcada «Cliente no tiene correo electrónico» y ya tienen su celular.",
    "destino": {
     "menu": "dcasa_contactos.menu_clientes_sin_contacto"
@@ -2695,6 +3186,29 @@
     "top",
     "productos que se venden",
     "ranking"
+   ]
+  },
+  {
+   "id": "estadisticas",
+   "categoria": "reportes",
+   "grupo": "Ventas",
+   "titulo": "Ver las estadísticas de ventas en gráficas",
+   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_estadisticas_resumen"
+   },
+   "nota": "Todo va sin ITBMS y con las mismas cuentas del Inicio. Para comparar dos periodos usa Comparar en el Inicio; para la ganancia por producto, Mejor margen.",
+   "brian": "¿Cuánto se vendió por día este mes?",
+   "palabras": [
+    "estadisticas",
+    "graficas",
+    "graficos",
+    "por categoria",
+    "por tipo",
+    "por vendedora",
+    "mas vendido",
+    "como van las ventas",
+    "reporte de ventas"
    ]
   },
   {

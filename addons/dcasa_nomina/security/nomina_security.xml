@@ -68,6 +68,17 @@
         <field name="domain_force">[('company_id', 'in', company_ids)]</field>
     </record>
 
+    <record id="regla_prestamo_empresa" model="ir.rule">
+        <field name="name">Nómina, adelantos y préstamos: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_prestamo"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="regla_prestamo_descuento_empresa" model="ir.rule">
+        <field name="name">Nómina, cuotas de adelantos: empresas permitidas</field>
+        <field name="model_id" ref="model_dcasa_nomina_prestamo_descuento"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+
     <!-- Reembolsos: cada colaborador ve los suyos; la nómina ve todos -->
     <record id="regla_reembolso_propios" model="ir.rule">
         <field name="name">Reembolsos: cada quien los suyos</field>

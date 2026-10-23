@@ -52,7 +52,8 @@ class TestPermisosVendedora(TransactionCase):
             'sale.menu_product_template_action', 'dcasa_base.menu_dcasa_ventas_facturas',
             'account.menu_action_move_out_invoice_type', 'account.menu_action_move_out_refund_type',
             'account.menu_action_account_payments_receivable', 'stock.menu_product_variant_config_stock',
-            'dcasa_barras.menu_dcasa_escaner', 'dcasa_brian.menu_brian_conversaciones',
+            'dcasa_barras.menu_dcasa_escaner', 'dcasa_barras.menu_dcasa_bodega',
+            'dcasa_brian.menu_brian_conversaciones',
         )
         for xmlid in necesarios:
             if self._existe(xmlid):

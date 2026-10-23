@@ -33,6 +33,9 @@
                             confirm="Se publica el asiento contable de la planilla. ¿Confirmar?"/>
                     <button name="action_pagar" type="object" string="Pagar" class="btn-primary"
                             invisible="estado != 'confirmada'"/>
+                    <button name="action_enviar_comprobantes" type="object" string="Enviar comprobantes por correo"
+                            invisible="estado not in ('confirmada', 'pagada')"
+                            confirm="A cada colaborador le llega su comprobante en PDF a su correo. ¿Enviar?"/>
                     <button name="action_borrador" type="object" string="Volver a borrador"
                             invisible="estado != 'calculada'"/>
                     <button name="action_cancelar" type="object" string="Cancelar planilla"
@@ -88,16 +91,22 @@
                             <field name="se_trabajador" readonly="1"/>
                             <field name="isr" readonly="1"/>
                             <field name="otros_descuentos" readonly="parent.estado not in ('borrador', 'calculada')"/>
+                            <field name="prestamos" readonly="1" optional="show" column_invisible="parent.tipo == 'decimo'"/>
                             <field name="reembolsos" readonly="1" optional="show"/>
                             <field name="neto" readonly="1" sum="Neto"/>
                             <field name="costo_patronal" readonly="1" optional="hide"/>
                             <field name="notas"/>
+                            <field name="comprobante_enviado_el" optional="hide"/>
                             <button name="%(accion_comprobante_pago)d" type="action" string="Comprobante" icon="fa-print"/>
+                            <button name="action_enviar_comprobante" type="object" string="Enviar" icon="fa-envelope"
+                                    invisible="estado not in ('confirmada', 'pagada')"
+                                    confirm="Le llega su comprobante en PDF a su correo. ¿Enviar?"/>
                         </list>
                     </field>
                     <group class="oe_subtotal_footer">
                         <field name="total_devengado"/>
                         <field name="total_descuentos"/>
+                        <field name="total_prestamos" invisible="not total_prestamos"/>
                         <field name="total_reembolsos"/>
                         <field name="total_neto" class="oe_subtotal_footer_separator"/>
                         <field name="total_patronal" string="Aportes del patrono (aparte)"/>

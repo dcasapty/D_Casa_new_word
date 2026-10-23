@@ -6,3 +6,4 @@ from . import cheque
 from . import formato_extracto
 from . import cierre
 from . import cuenta
+from . import comprobantes_zip

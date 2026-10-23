@@ -2,8 +2,9 @@
 catálogo incompleto, editar varios productos a la vez (publicar, existencias, precio, categoría) y consumo de
 Brian.
 
-Todo corre como el usuario (sin sudo). Las cifras las calcula Odoo y se devuelven ya
-formateadas; ninguna se estima con el modelo de IA. La sugerencia de compra es aritmética
+Todo corre como el usuario (sin sudo), salvo Reponer (``que_reponer``, ``poner_tiempo_llegada``): ``dcasa.reponer``
+exige Gerencia o administrador en el servidor antes de leer o escribir con sudo. Las cifras las calcula Odoo y se
+devuelven ya formateadas; ninguna se estima con el modelo de IA. La sugerencia de compra es aritmética
 visible (ventas del periodo ÷ días × días de cobertura − proyectado), sin «inteligencia» oculta.
 """
 import math
@@ -22,7 +23,7 @@ GERENTE_VENTAS = ('sales_team.group_sale_manager',)
 GERENTE_INVENTARIO = ('stock.group_stock_manager',)
 ADMIN = ('base.group_system',)
 GERENCIA_O_ADMIN = ('dcasa_base.group_gerencia', 'base.group_system')
-DIAS_REPONER = 30
+SIN_PEDIR = {True: 'no se calcula: falta el tiempo de llegada', False: 'no se calcula: no tiene proveedor'}
 MAX_BLOQUE = 200
 MAX_BLOQUE_EXISTENCIAS = 1000
 CAMPOS_EN_BLOQUE = ('precio', 'categoria', 'vendible')
@@ -36,6 +37,10 @@ PROBLEMAS = {
 ESTADOS_COMPRA = {'draft': 'solicitud (borrador)', 'sent': 'solicitud enviada', 'to approve': 'por aprobar',
                   'purchase': 'pedido confirmado', 'cancel': 'cancelado'}
 RECEPCION = {'pending': 'por recibir', 'partial': 'recibido en parte', 'full': 'recibido'}
+BODEGA_COMO = ('todas', 'envio', 'retiro', 'sin_definir')
+BODEGA_ESTADO = ('todas', 'listas', 'esperando')
+BODEGA_LIMITE = 10
+BODEGA_MAXIMO = 30
 
 
 class BrianHerramientasOperacion(models.AbstractModel):
@@ -212,40 +217,81 @@ class BrianHerramientasOperacion(models.AbstractModel):
 
     @herramienta(
         nombre='que_reponer',
-        descripcion='Qué reponerle a un proveedor (como Compras › Reponer): por producto, lo vendido en el periodo '
-                    '(facturas menos notas de crédito), lo que hay hoy, lo pedido sin llegar y lo que faltaría '
-                    '(vendido − existencia − pedido).',
+        descripcion='Cuánto pedirle al proveedor (Compras › Reponer): por producto, vendido en N meses, se vende al '
+                    'mes, hay, en camino, alcanza para, tarda en llegar, pedir y pedir_ya. Sin tiempo de llegada no '
+                    'calcula pedir: ofrece poner_tiempo_llegada.',
         parametros={
-            'proveedor': {'type': 'string', 'description': 'Proveedor principal. Opcional: sin él, todos.'},
-            'periodo': c.PARAM_PERIODO, 'desde': c.PARAM_DESDE, 'hasta': c.PARAM_HASTA,
+            'proveedor': {'type': 'string', 'description': 'Proveedor principal (nombre, teléfono o RUC). Opcional: '
+                                                           'sin él, todos.'},
+            'meses': {'type': 'integer', 'description': 'Cuántos meses de ventas mirar (1 a 12). Por defecto 5.'},
+            'reserva': {'type': 'number', 'description': 'Meses extra de reserva (0 a 12). Por defecto 0.'},
             'limite': c.PARAM_LIMITE,
         },
         nivel='lectura', categoria='catalogo', grupos=(GERENCIA_O_ADMIN,),
-        ejemplos=['¿qué le repongo a Muebles XYZ? → proveedor=«Muebles XYZ»',
-                  'lo vendido el mes pasado para reponer → periodo=mes_pasado'],
+        ejemplos=['¿qué le pido a Muebles XYZ? → proveedor=«Muebles XYZ»',
+                  '¿qué tengo que pedir ya, mirando 6 meses y con 1 mes de reserva? → meses=6, reserva=1'],
     )
-    def _h_que_reponer(self, proveedor=None, periodo=None, desde=None, hasta=None, limite=20):
-        if periodo or desde or hasta:
-            inicio, fin, etiqueta = self._b_rango(periodo, desde, hasta)
-        else:
-            fin = self._b_hoy()
-            inicio, etiqueta = fin - timedelta(days=DIAS_REPONER - 1), f'los últimos {DIAS_REPONER} días'
+    def _h_que_reponer(self, proveedor=None, meses=None, reserva=None, limite=20):
+        Reponer = self.env['dcasa.reponer']
         socio = self._b_contacto(proveedor, 'proveedor') if proveedor else None
-        filas = self.env['dcasa.reponer']._calcular(inicio, fin, socio)
-        productos = [{'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or '—',
-                      'vendido': c.cantidad(f['vendido']), 'en_existencia': c.cantidad(f['existencia']),
-                      'pedido_sin_llegar': c.cantidad(f['pedido']), 'faltaria': c.cantidad(f['faltaria'])}
-                     for f in filas]
+        filas = Reponer._calcular(meses, reserva, socio)
+        meses, reserva = Reponer._validar(meses, reserva)
+        desde, hasta = Reponer._ventana(meses)
+        productos = [{
+            'producto': f['producto'], 'codigo': f['referencia'], 'proveedor': f['proveedor'] or 'sin proveedor',
+            'vendido': c.cantidad(f['vendido']), 'se_vende_al_mes': c.cantidad(f['ritmo']),
+            'disponible_hoy': c.cantidad(f['existencia']), 'en_bodega': c.cantidad(f['en_bodega']),
+            'vendido_por_entregar': c.cantidad(f['por_entregar']), 'viene_en_camino': c.cantidad(f['pedido']),
+            'alcanza_para': f['alcanza'], 'tarda_en_llegar': f['llegada'],
+            'pedir': f['pedir'] if f['pedir'] is not None else SIN_PEDIR[bool(f['proveedor_id'])],
+            'pedir_ya': f['pedir_ya'], 'aviso': f['aviso'],
+        } for f in filas]
+        cuenta = {estado: sum(1 for f in filas if f['estado'] == estado) for estado in ('ya', 'pedir', 'falta')}
         return {
-            'periodo': etiqueta,
+            'ventana': f'ventas del {desde:%d/%m/%Y} al {hasta:%d/%m/%Y} ({meses} meses)',
+            'reserva_meses': c.cantidad(reserva),
             'proveedor': socio.display_name if socio else 'todos',
-            'criterio': 'vendido = facturas publicadas menos notas de crédito (sin servicios, flete ni anticipos); '
-                        'faltaría = vendido − en existencia − pedido sin llegar, solo si da más de 0',
+            'criterio': 'se vende al mes = vendido ÷ meses; disponible hoy = en bodega − lo vendido que espera '
+                        'entrega (puede ser negativo); alcanza para = (disponible + en camino) ÷ se vende al mes; '
+                        'pedir = se vende al mes × (meses que tarda + reserva) − disponible − en camino, hacia '
+                        'arriba, solo si da más de 0; pedir ya = lo disponible y lo que viene no alcanza para lo que '
+                        'tarda en llegar. Un mes = 30 días. Sin el tiempo de llegada del proveedor no se calcula '
+                        'cuánto pedir.',
             'productos_vendidos': len(productos),
+            'pedir_ya': cuenta['ya'], 'para_pedir': cuenta['pedir'], 'sin_tiempo_de_llegada': cuenta['falta'],
+            'unidades_a_pedir': sum(f['pedir'] or 0 for f in filas),
             'productos': productos[:c.limite(limite, 20)],
-            'nota': 'La lista completa, agrupable por proveedor y para exportar, está en Compras › Reponer.'
-                    if productos else 'En ese periodo no hay productos vendidos'
-                                      + (f' de {socio.display_name}.' if socio else '.'),
+            'nota': ('La lista completa, por proveedor y en Excel, está en Compras › Reponer.' if productos else
+                     'En esos meses no hay productos vendidos' + (f' de {socio.display_name}.' if socio else '.')),
+        }
+
+    @herramienta(
+        nombre='poner_tiempo_llegada',
+        descripcion='Pone o cambia cuánto tarda en llegar un proveedor (del pedido a la tienda), en días o meses (1 '
+                    'mes = 30 días). Se guarda en sus precios de proveedor; Reponer lo usa para calcular cuánto pedir. '
+                    'Nunca lo inventes: pregúntalo.',
+        parametros={
+            'proveedor': {'type': 'string', 'description': 'Nombre, teléfono o RUC del proveedor.'},
+            'dias': {'type': 'integer', 'description': 'Cuántos días tarda (1 a 730). Usa esto o «meses».'},
+            'meses': {'type': 'number', 'description': 'Cuántos meses tarda (p. ej. 3 o 3.5). Usa esto o «dias».'},
+        },
+        requeridos=['proveedor'],
+        nivel='construccion', categoria='catalogo', grupos=(GERENCIA_O_ADMIN,),
+        ejemplos=['lo de Muebles XYZ tarda 4 meses en llegar → proveedor=«Muebles XYZ», meses=4'],
+    )
+    def _h_poner_tiempo_llegada(self, proveedor, dias=None, meses=None):
+        if (dias in (None, '')) == (meses in (None, '')):
+            raise BrianError('Dime cuánto tarda en llegar, en días o en meses (uno de los dos).')
+        Reponer = self.env['dcasa.reponer']
+        socio = self._b_contacto(proveedor, 'proveedor')
+        total = Reponer._a_dias(meses, 'meses') if dias in (None, '') else Reponer._a_dias(dias, 'dias')
+        cambiados = Reponer._poner_llegada(socio, total)
+        return {
+            'proveedor': socio.display_name,
+            'tarda_en_llegar': Reponer._fichas(socio.ids)[socio.id]['llegada']['texto'],
+            'dias': total,
+            'precios_actualizados': cambiados,
+            'nota': 'Listo: Compras › Reponer ya calcula cuánto pedirle con este tiempo.',
         }
 
     # ------------------------------------------------------------------
@@ -313,6 +359,85 @@ class BrianHerramientasOperacion(models.AbstractModel):
         if por_confirmar:
             pendientes['acciones_de_brian_por_confirmar'] = por_confirmar
         return pendientes
+
+    # ------------------------------------------------------------------
+    # Entregas por despachar (las del panel de Bodega, dcasa_barras)
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='entregas_por_despachar',
+        descripcion='Entregas a clientes que faltan por despachar o retirar (las del panel de Bodega): cuántas son '
+                    'de envío, de retiro en tienda o sin definir, cuántas están listas o esperan producto, y las más '
+                    'antiguas con cliente, pedido, fecha y productos. Sin precios.',
+        parametros={
+            'como': {'type': 'string', 'enum': list(BODEGA_COMO),
+                     'description': 'todas (de fábrica), envio (para despachar), retiro (para retirar en la tienda) '
+                                    'o sin_definir.'},
+            'estado': {'type': 'string', 'enum': list(BODEGA_ESTADO),
+                       'description': 'todas (de fábrica), listas (listas para salir) o esperando (esperando '
+                                      'producto).'},
+            'limite': {'type': 'integer', 'description': f'Cuántas listar, de la más antigua (de fábrica '
+                                                         f'{BODEGA_LIMITE}, máximo {BODEGA_MAXIMO}).'},
+        },
+        nivel='lectura', categoria='catalogo', grupos=INVENTARIO,
+        ejemplos=['¿qué entregas faltan por despachar?', '¿qué hay para retirar en la tienda?',
+                  '¿cuántas entregas están listas para salir?', 'entregas pendientes de bodega'],
+    )
+    def _h_entregas_por_despachar(self, como='todas', estado='todas', limite=BODEGA_LIMITE):
+        bodega = self.env.get('dcasa.bodega')
+        if bodega is None:
+            raise BrianError('El panel de Bodega no está instalado en este sistema.')
+        if como not in BODEGA_COMO:
+            raise BrianError(f'«como» debe ser uno de: {", ".join(BODEGA_COMO)}.')
+        if estado not in BODEGA_ESTADO:
+            raise BrianError(f'«estado» debe ser uno de: {", ".join(BODEGA_ESTADO)}.')
+        try:
+            limite = max(1, min(int(limite or BODEGA_LIMITE), BODEGA_MAXIMO))
+        except (TypeError, ValueError):
+            limite = BODEGA_LIMITE
+        datos = bodega.pendientes()
+        todas = datos['entregas']
+        elegidas = [t for t in todas if como == 'todas' or t['como'] == como]
+        if estado == 'listas':
+            elegidas = [t for t in elegidas if t['estado'] == 'lista']
+        elif estado == 'esperando':
+            elegidas = [t for t in elegidas if t['estado'] != 'lista']
+
+        def fila(tarjeta):
+            productos = '; '.join(f"{p['cantidad']} × {p['nombre']}" for p in tarjeta['productos'])
+            if tarjeta['mas']:
+                productos += f" (y {tarjeta['mas']} más)"
+            resultado = {
+                'entrega': tarjeta['nombre'], 'cliente': tarjeta['cliente'], 'pedido': tarjeta['pedido'],
+                'fecha': f"{'Prometida' if tarjeta['fecha_tipo'] == 'prometida' else 'Programada'} "
+                         f"{tarjeta['fecha']}".strip(),
+                'atrasada': tarjeta['atrasada'], 'como': tarjeta['como_texto'], 'estado': tarjeta['estado_texto'],
+                'productos': productos,
+            }
+            if tarjeta['pago'] == 'abono':
+                resultado['pago'] = 'Con abono: le falta una parte por pagar'
+            if tarjeta['pendiente_de']:
+                resultado['es_el_resto_de'] = tarjeta['pendiente_de']
+            return resultado
+
+        respuesta = {
+            'total_pendientes': datos['cuantas'],
+            'por_tipo': {
+                'para_despachar_envio': sum(1 for t in todas if t['como'] == 'envio'),
+                'para_retirar_en_tienda': sum(1 for t in todas if t['como'] == 'retiro'),
+                'sin_definir': sum(1 for t in todas if t['como'] == 'sin_definir'),
+            },
+            'listas_para_salir': sum(1 for t in todas if t['estado'] == 'lista'),
+            'esperando_producto': sum(1 for t in todas if t['estado'] != 'lista'),
+            'filtro': {'como': como, 'estado': estado, 'cuantas': len(elegidas)},
+            'entregas': [fila(t) for t in elegidas[:limite]],
+            'abrir': {'url': '/odoo/bodega', 'titulo': 'Abrir el panel de Bodega'},
+            'regla': 'Solo salen las de pedidos con pago o abono: sin pago ni abono no se entrega.',
+        }
+        if datos['recortada']:
+            respuesta['nota'] = (f"Hay {datos['cuantas']} pendientes; las cifras cuentan las "
+                                 f"{len(todas)} más antiguas.")
+        return respuesta
 
     # ------------------------------------------------------------------
     # Catálogo incompleto y publicación en bloque
@@ -490,28 +615,36 @@ class BrianHerramientasOperacion(models.AbstractModel):
         parametros={
             'cantidad': {'type': 'number', 'description': 'Cantidad que debe quedar en cada uno, p. ej. 0.'},
             'productos': {'type': 'string', 'description': 'Códigos o nombres separados por «;», p. ej. '
-                                                           '«SOF-001; SOF-002». Opcional si das categoría o todos.'},
+                                                           '«SOF-001; SOF-002», o «todos» (todos los que hoy tienen '
+                                                           'existencias; solo con cantidad 0).'},
             'categoria': {'type': 'string', 'description': 'Toda una categoría, p. ej. «Salas». Opcional.'},
-            'todos': {'type': 'boolean', 'description': 'true = todos los productos que hoy tienen existencias en el '
-                                                        'almacén (solo con cantidad 0).'},
             'almacen': {'type': 'string', 'description': 'Nombre del almacén. Opcional si solo hay uno.'},
+            'motivo': {'type': 'string', 'description': 'Por qué se ajusta (queda en la bitácora de bodega), p. ej. '
+                                                        '«arranque del inventario». Pregúntalo.'},
         },
-        requeridos=['cantidad'],
+        requeridos=['cantidad', 'motivo'],
         nivel='sensible', categoria='catalogo', grupos=GERENTE_INVENTARIO,
-        ejemplos=['pon todos los productos en cero stock → todos=true, cantidad=0',
+        ejemplos=['pon todos los productos en cero stock → productos=todos, cantidad=0',
                   'deja en cero la categoría Salas → categoria=Salas, cantidad=0',
                   'deja en 3 el SOF-001 y el SOF-002 → productos=«SOF-001; SOF-002», cantidad=3'],
     )
-    def _h_ajustar_existencias_en_bloque(self, cantidad, productos=None, categoria=None, todos=False, almacen=None):
+    def _h_ajustar_existencias_en_bloque(self, cantidad, productos=None, categoria=None, todos=False, almacen=None,
+                                         motivo=None):
+        # «todos» va dentro de «productos» (el contrato pide 5 parámetros o menos); ``todos`` queda por compatibilidad.
+        if str(productos or '').strip().lower() == 'todos':
+            productos, todos = None, True
         if not (productos or categoria or todos):
             raise BrianError('Dime cuáles: «productos» (códigos separados por «;»), una «categoria» o «todos».')
+        motivo = (motivo or '').strip()
+        if not motivo:
+            raise BrianError('Dime el motivo del ajuste (p. ej. «arranque del inventario»): queda en la bitácora.')
         bodega, cambian, iguales, sin_inventario = self._b_variantes_para_ajustar(
             cantidad, productos, categoria, todos, almacen)
         ubicacion = bodega.lot_stock_id
         if cambian:
             quants = self.env['stock.quant'].with_context(inventory_mode=True).create([
                 {'product_id': v.id, 'location_id': ubicacion.id, 'inventory_quantity': cantidad} for v in cambian])
-            quants.action_apply_inventory()
+            quants.with_context(inventory_name=motivo, dcasa_origen='brian').action_apply_inventory()
         return {
             'mensaje': f'Dejé {c.cantidad(cantidad)} en {c.plural(len(cambian), "producto")} ({bodega.name})'
                        + (f'; {len(iguales)} ya estaban así.' if iguales else '.'),
@@ -654,9 +787,11 @@ class BrianPoliticaOperacion(models.AbstractModel):
         Herramientas = self.env['brian.herramientas']
         try:
             cantidad = float(argumentos.get('cantidad'))
+            productos, todos = argumentos.get('productos'), bool(argumentos.get('todos'))
+            if str(productos or '').strip().lower() == 'todos':
+                productos, todos = None, True
             bodega, cambian, iguales, sin_inventario = Herramientas._b_variantes_para_ajustar(
-                cantidad, argumentos.get('productos'), argumentos.get('categoria'),
-                bool(argumentos.get('todos')), argumentos.get('almacen'))
+                cantidad, productos, argumentos.get('categoria'), todos, argumentos.get('almacen'))
         except (BrianError, TypeError, ValueError):
             return ''
         lineas = [f'Dejar en {c.cantidad(cantidad)} las existencias de {c.plural(len(cambian), "producto")} '
@@ -668,6 +803,8 @@ class BrianPoliticaOperacion(models.AbstractModel):
             lineas.append(f'Ya están así: {len(iguales)}.')
         if sin_inventario:
             lineas.append(f'Se saltan {len(sin_inventario)} (no llevan inventario).')
+        if (argumentos.get('motivo') or '').strip():
+            lineas.append(f'Motivo (queda en la bitácora de bodega): {argumentos["motivo"].strip()}')
         return '\n'.join(lineas)
 
     @api.model

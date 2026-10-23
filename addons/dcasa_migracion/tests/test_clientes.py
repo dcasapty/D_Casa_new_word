@@ -38,7 +38,8 @@ class TestCargaDeClientes(TransactionCase):
 
         dos = self._ficha(90005)
         self.assertEqual(dos.phone, '60000005', 'Solo el número principal va al campo que identifica a la persona')
-        self.assertIn('Otros teléfonos en el sistema anterior: 2000005', dos.comment)
+        self.assertEqual(dos.dcasa_telefono_fijo, '+507 200-0005', 'el fijo, a su campo (2026-10-22)')
+        self.assertFalse(persona.dcasa_telefono_fijo)
 
     def test_el_id_externo_no_es_del_modulo_asi_quitarlo_no_borra_clientes(self):
         """Desinstalar un módulo borra lo que tiene id externo suyo: los clientes llevan el de «__import__»."""

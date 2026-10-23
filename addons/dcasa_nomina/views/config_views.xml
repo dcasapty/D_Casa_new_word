@@ -32,6 +32,14 @@
                             <field name="provisionar_decimo"/>
                             <field name="cuenta_decimo_id"/>
                         </group>
+                        <group string="Adelantos y préstamos">
+                            <field name="cuenta_prestamos_id"/>
+                            <div colspan="2" class="text-muted" invisible="cuenta_prestamos_id">
+                                Falta esta cuenta: sin ella no se entrega un adelanto ni se confirma una planilla que
+                                descuente uno. El plan de cuentas de Panamá trae la 134 «Anticipo al Personal»; el
+                                contador decide si es esa.
+                            </div>
+                        </group>
                     </group>
                 </sheet>
             </form>

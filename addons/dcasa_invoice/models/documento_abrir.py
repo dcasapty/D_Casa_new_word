@@ -101,6 +101,11 @@ class DcasaDocumento(models.AbstractModel):
             return f'/odoo/action-{accion.id}/{registro.id}'
         return f'/odoo/{registro._name}/{registro.id}'
 
+    def _dcasa_accion_documento(self, registro):
+        """La acción con que el Escáner abre el documento: su formulario. Otro módulo la cambia (dcasa_barras abre la
+        nota de entrega en el panel de Bodega para quien usa Inventario)."""
+        return registro.get_formview_action()
+
     def _dcasa_resolver_texto(self, texto):
         """Lo que el Escáner hace con lo que leyó: ``None`` si no es la dirección de un documento (el Escáner sigue
         como siempre); si lo es, ``{'estado', 'tipo', 'referencia'}`` más ``mensaje`` o, si se puede abrir, ``accion``
@@ -115,7 +120,7 @@ class DcasaDocumento(models.AbstractModel):
         estado, registro = self._dcasa_buscar_documento(tipo, referencia, tolerante=tolerante)
         resultado = {'estado': estado, 'tipo': tipo, 'tipo_nombre': nombre_del_tipo(tipo), 'referencia': referencia}
         if estado == OK:
-            resultado.update(nombre=registro.display_name, accion=registro.get_formview_action())
+            resultado.update(nombre=registro.display_name, accion=self._dcasa_accion_documento(registro))
         else:
             resultado['mensaje'] = self._dcasa_mensaje_documento(estado, tipo)
         return resultado

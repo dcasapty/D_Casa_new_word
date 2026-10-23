@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Combos cama + colchón en el papel (cotización, pedido y factura) y en la página que ve el cliente: cada pieza
+         con la marca «Combo cama + colchón» (el colchón con lo que ahorra) y, bajo el subtotal, el ahorro total. -->
+    <template id="report_saleorder_document_combos" inherit_id="sale.report_saleorder_document">
+        <xpath expr="//table[hasclass('o_main_table')]" position="before">
+            <t t-set="dcasa_ahorro_combo" t-value="doc._dcasa_ahorro_combos()"/>
+        </xpath>
+    </template>
+
+    <template id="report_invoice_document_combos" inherit_id="account.report_invoice_document">
+        <xpath expr="//table[@name='invoice_line_table']" position="before">
+            <t t-set="dcasa_ahorro_combo" t-value="o._dcasa_ahorro_combos()"/>
+        </xpath>
+    </template>
+
+    <template id="document_tax_totals_combos" inherit_id="account.document_tax_totals_template">
+        <xpath expr="//tr[hasclass('o_subtotal')]" position="after">
+            <tr t-if="dcasa_ahorro_combo" class="o_dcasa_ahorro_combo">
+                <td>Ahorro por combo cama + colchón <small>(ya incluido en los precios)</small></td>
+                <td class="text-end">
+                    <span class="text-nowrap" t-out="dcasa_ahorro_combo"
+                          t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+                </td>
+            </tr>
+        </xpath>
+    </template>
+
+    <template id="sale_order_portal_content_combos" inherit_id="sale.sale_order_portal_content">
+        <xpath expr="//tr[@name='tr_product']/td[@name='td_product_name']" position="inside">
+            <t t-set="dcasa_texto_combo" t-value="line._dcasa_texto_combo()"/>
+            <div t-if="dcasa_texto_combo" class="small fw-bold text-primary o_dcasa_combo_portal" t-out="dcasa_texto_combo"/>
+        </xpath>
+    </template>
+</odoo>

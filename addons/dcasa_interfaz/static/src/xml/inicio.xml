@@ -210,6 +210,11 @@
                                     t-att-aria-selected="state.periodo === per.clave ? 'true' : 'false'"
                                     t-on-click="() => this.cambiarPeriodo(per.clave)" t-out="per.nombre"/>
                         </div>
+                        <!-- «Por día» (2026-10-22): el mes día por día con la misma base y vendedora (solo Gerencia). -->
+                        <button t-if="d.comparar" type="button" class="btn btn-outline-primary o_dcasa_ver_por_dia"
+                                t-on-click="abrirPorDia">
+                            <i class="fa fa-calendar me-2" aria-hidden="true"/>Ver por día
+                        </button>
                     </div>
                     <div t-if="state.ayuda === 'ventas' and d.ventas.cuadre" id="o_dcasa_ayuda_ventas"
                          class="o_dcasa_ayuda_texto o_dcasa_ayuda_texto_ventas" role="note" tabindex="-1"

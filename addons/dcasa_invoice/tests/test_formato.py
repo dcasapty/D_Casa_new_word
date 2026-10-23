@@ -15,6 +15,9 @@ class TestFormato(TransactionCase):
 
     def test_telefono_de_panama(self):
         self.assertEqual(formato.telefono_fmt('61234567'), '6123-4567')
+        self.assertEqual(formato.telefono_fmt('+507 6123-4567'), '6123-4567')
+        self.assertEqual(formato.telefono_fmt('+507 234-5678'), '234-5678', 'el teléfono fijo (2026-10-22)')
+        self.assertEqual(formato.telefono_fmt('+13055551234'), '+13055551234')
 
     def test_url_local_no_se_imprime(self):
         self.assertTrue(formato.url_es_local('http://localhost:8069'))

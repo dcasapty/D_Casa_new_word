@@ -200,7 +200,7 @@ class TestHerramientas(TransactionCase):
         self.assertTrue(silla.is_published)
         almacenes = self.env['stock.warehouse'].search([('company_id', '=', self.env.company.id)])
         self.ok(self.confirmar(self.gerente, self.ejecutar(self.gerente, 'ajustar_existencias', {
-            'producto': 'BRN-SIL', 'cantidad': 4, 'almacen': almacenes[:1].name})))
+            'producto': 'BRN-SIL', 'cantidad': 4, 'almacen': almacenes[:1].name, 'motivo': 'conteo de prueba'})))
         self.assertEqual(silla.qty_available, 4)
 
     # ------------------------------------------------------------------
@@ -246,6 +246,30 @@ class TestHerramientas(TransactionCase):
         respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
             'cliente': 'Brianzeta Limpia', 'campo': 'correo', 'valor': 'limpia@hotmail.con'})
         self.assertIn('¿Quisiste decir limpia@hotmail.com?', respuesta['error'])
+
+    def test_cliente_con_telefono_fijo(self):
+        """Un cliente sin celular, con teléfono fijo de 7 números (la dueña, 2026-10-22): Brian lo crea igual que la
+        ficha, y un fijo escrito como «celular» va a su campo."""
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+            'nombre': 'Brianzeta Fijo', 'celular': '234 5678', 'correo': 'fijo@example.com'}))
+        self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5678'))
+        ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Fijo')])
+        self.assertEqual((ficha.phone, ficha.dcasa_telefono_fijo), (False, '+507 234-5678'))
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+            'nombre': 'Brianzeta Fijo Dos', 'celular': '2345679', 'correo': 'fijo2@example.com'}))
+        self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5679'))
+        respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Números', 'celular': '',
+                                                                   'correo': 'sinnumeros@example.com'})
+        self.assertFalse(respuesta['ok'])
+        respuesta = self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Fijo', 'campo': 'telefono_fijo', 'valor': '6123-4567'})
+        self.assertIn('es un celular', respuesta['error'])
+        datos = self.ok(self.ejecutar(self.vendedor, 'actualizar_cliente', {
+            'cliente': 'Brianzeta Cliente Uno', 'campo': 'telefono_fijo', 'valor': '734-5678'}))
+        self.assertEqual(datos['telefono_fijo'], '+507 734-5678')
+        self.assertIn('el teléfono fijo', datos['mensaje'])
+        encontrados = self.ok(self.ejecutar(self.vendedor, 'buscar_clientes', {'texto': '234-5678'}))
+        self.assertIn('Brianzeta Fijo', [c['nombre'] for c in encontrados['contactos']])
 
     def test_cliente_que_no_tiene_correo(self):
         """«no tiene» en el correo marca «Cliente no tiene correo electrónico» (decisión de la dueña, 2026-10-17)."""

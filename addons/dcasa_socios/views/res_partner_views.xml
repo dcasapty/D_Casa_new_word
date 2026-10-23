@@ -26,8 +26,8 @@
                     </div>
                     <group invisible="not dcasa_socio_codigo">
                         <group string="Ficha">
-                            <field name="dcasa_socio_codigo"/>
-                            <field name="dcasa_celular" placeholder="p. ej. 6123-4567"/>
+                            <field name="dcasa_socio_codigo" class="o_dcasa_copiar"/>
+                            <field name="dcasa_celular" placeholder="p. ej. 6123-4567" class="o_dcasa_copiar"/>
                             <field name="dcasa_cumple" placeholder="MM-DD"/>
                             <field name="dcasa_socio_estado"/>
                             <field name="dcasa_reclamada"/>
@@ -76,9 +76,9 @@
         <field name="priority">100</field>
         <field name="arch" type="xml">
             <list string="Socios">
-                <field name="dcasa_socio_codigo"/>
-                <field name="complete_name" string="Nombre"/>
-                <field name="dcasa_celular"/>
+                <field name="dcasa_socio_codigo" class="o_dcasa_copiar" widget="char"/>
+                <field name="complete_name" string="Nombre" class="o_dcasa_copiar" widget="char"/>
+                <field name="dcasa_celular" class="o_dcasa_copiar" widget="char"/>
                 <field name="dcasa_saldo"/>
                 <field name="dcasa_reclamada"/>
                 <field name="dcasa_referido_por_id" optional="show"/>

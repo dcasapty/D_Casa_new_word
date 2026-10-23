@@ -9,13 +9,19 @@ deciden los módulos (``dcasa_contactos``: la ficha, la venta y la factura; Soci
   con la sugerencia) y ``'relleno'`` («sincorreo@…», «no@…»: no es un correo de verdad).
 * ``correo_limpio(texto)``: el correo sin el nombre visible, recortado y en minúsculas; ``None`` si tiene un problema.
 * ``problema_del_telefono(texto)`` → código: ``None`` (bien), ``'vacio'``, ``'letras'``, ``'varios'``, ``'corto'``,
-  ``'largo'``, ``'invalido'`` (8 números que no son de un teléfono de Panamá) o ``'sin_mas'`` (de otro país sin «+»).
+  ``'largo'``, ``'invalido'`` (8 números que no son de un teléfono de Panamá), ``'fijo'`` (7 números de un teléfono
+  fijo de Panamá: va en «Teléfono fijo») o ``'sin_mas'`` (de otro país sin «+»).
 * ``telefono_para_guardar(texto)``: «+507 6026-1919» o «+13055551234» (el mismo formato de la llave de contactos: la
   llave no cambia al guardarlo así).
-* ``mensaje_del_correo`` y ``mensaje_del_telefono``: el texto para la persona del equipo (con ``env._``).
+* ``problema_del_fijo(texto)`` y ``fijo_para_guardar(texto)``: lo mismo para el teléfono fijo (2026-10-22: «hubo un
+  cliente que no tenía WhatsApp sino teléfono fijo de 7 números»). En Panamá son 7 números (no empiezan por 0, 1 ni 6),
+  y se guardan como «+507 234-5678»; de otro país, con su «+». Código ``'celular'``: 8 números de un celular (va en
+  «Celular»).
+* ``mensaje_del_correo``, ``mensaje_del_telefono`` y ``mensaje_del_fijo``: el texto para la persona del equipo (con
+  ``env._``).
 
-Un teléfono fijo de 7 números no pasa (decisión pendiente de la dueña): solo un celular de Panamá o un número de otro
-país con su «+».
+El campo del celular sigue siendo solo para un celular de Panamá o un número de otro país con su «+» (es el que recibe
+WhatsApp y la llave de Socios); el fijo tiene su propio campo.
 """
 import re
 
@@ -24,6 +30,9 @@ from odoo.tools.mail import single_email_re
 from . import reglas as R
 
 PANAMA = '507'
+# Un teléfono fijo de Panamá: 7 números que no empiezan por 0 ni 1 (servicios) ni por 6 (un celular de antes, al que le
+# falta un número).
+FIJO_DE_PANAMA = re.compile(r'[2-57-9]\d{6}')
 
 # Proveedores de correo conocidos: nombre → los finales que sí existen. El primero es el que se sugiere.
 PROVEEDORES = {
@@ -152,7 +161,10 @@ def correo_limpio(texto):
 # ---------------------------------------------------------------------------
 
 def _panama(nacional):
-    """Los 8 números nacionales de Panamá: ``('pa', '60261919')`` o el problema."""
+    """Los 8 números nacionales de Panamá: ``('pa', '60261919')`` o el problema. Siete números de un fijo («234-5678»)
+    son ``'fijo'``: van en su propio campo."""
+    if len(nacional) == 7 and FIJO_DE_PANAMA.fullmatch(nacional):
+        return 'fijo', None
     if len(nacional) < 8:
         return 'corto', None
     if len(nacional) > 8:
@@ -178,7 +190,7 @@ def _sin_codigo_de_pais(digitos):
     if digitos.startswith(PANAMA) and len(digitos) in (10, 11, 12):
         return _panama(digitos[len(PANAMA):])
     if len(digitos) < 8:
-        return 'corto', None
+        return _panama(digitos)
     if len(digitos) > 15:
         return 'largo', None
     if len(digitos) == 9 and R.celular_valido(digitos[:8]):
@@ -186,15 +198,23 @@ def _sin_codigo_de_pais(digitos):
     return 'sin_mas', None
 
 
+def _problema_de_forma(texto):
+    """Lo que está mal en cualquier número antes de mirar sus cifras: ``'vacio'``, ``'varios'``, ``'letras'`` o
+    ``None``."""
+    if not texto:
+        return 'vacio'
+    if re.search(r'[/,;]', texto) or texto.count('+') > 1 or re.search(r'\d\s+(?:y|o)\s+\+?\d', texto, re.I):
+        return 'varios'
+    if re.search(r'[^0-9+\-().\s]', texto) or ('+' in texto and not texto.startswith('+')):
+        return 'letras'
+    return None
+
+
 def _partes_del_telefono(texto):
     """``('pa', '60261919')``, ``('intl', '13055551234')`` o ``(código del problema, None)``."""
     texto = (texto or '').strip()
-    if not texto:
-        return 'vacio', None
-    if re.search(r'[/,;]', texto) or texto.count('+') > 1 or re.search(r'\d\s+(?:y|o)\s+\+?\d', texto, re.I):
-        return 'varios', None
-    if re.search(r'[^0-9+\-().\s]', texto) or ('+' in texto and not texto.startswith('+')):
-        return 'letras', None
+    if problema := _problema_de_forma(texto):
+        return problema, None
     digitos = R.solo_digitos(texto)
     if texto.startswith('+'):
         return _con_codigo_de_pais(digitos)
@@ -216,6 +236,58 @@ def telefono_para_guardar(texto):
         return None
     if tipo == 'pa':
         return f'+{PANAMA} {R.celular_fmt(valor)}'
+    return f'+{valor}'
+
+
+# ---------------------------------------------------------------------------
+# Teléfono fijo (2026-10-22)
+# ---------------------------------------------------------------------------
+
+def _fijo_de_panama(nacional):
+    """Los 7 números de un fijo de Panamá: ``('pa', '2345678')`` o el problema. Ocho números de un celular son
+    ``'celular'``: van en «Celular»."""
+    if len(nacional) == 7:
+        return ('pa', nacional) if FIJO_DE_PANAMA.fullmatch(nacional) else ('invalido', None)
+    if len(nacional) == 8 and R.celular_valido(nacional):
+        return 'celular', None
+    return ('corto', None) if len(nacional) < 7 else ('largo', None)
+
+
+def _partes_del_fijo(texto):
+    """``('pa', '2345678')``, ``('intl', '13055551234')`` o ``(código del problema, None)``."""
+    texto = (texto or '').strip()
+    if problema := _problema_de_forma(texto):
+        return problema, None
+    digitos = R.solo_digitos(texto)
+    if texto.startswith('+') or digitos.startswith('00'):
+        digitos = digitos if texto.startswith('+') else digitos[2:]
+        if digitos.startswith(PANAMA):
+            return _fijo_de_panama(digitos[len(PANAMA):])
+        if len(digitos) < 9:
+            return 'corto', None
+        return ('largo', None) if len(digitos) > 15 else ('intl', digitos)
+    if len(digitos) in (7, 8):
+        return _fijo_de_panama(digitos)
+    if digitos.startswith(PANAMA) and len(digitos) in (10, 11):
+        return _fijo_de_panama(digitos[len(PANAMA):])
+    if len(digitos) < 7:
+        return 'corto', None
+    return 'sin_mas', None
+
+
+def problema_del_fijo(texto):
+    """El código del problema del teléfono fijo escrito, o ``None`` si está bien."""
+    tipo, valor = _partes_del_fijo(texto)
+    return None if valor else tipo
+
+
+def fijo_para_guardar(texto):
+    """«+507 234-5678» (Panamá) o «+13055551234» (otro país); ``None`` si el número no está bien escrito."""
+    tipo, valor = _partes_del_fijo(texto)
+    if not valor:
+        return None
+    if tipo == 'pa':
+        return f'+{PANAMA} {valor[:3]}-{valor[3:]}'
     return f'+{valor}'
 
 
@@ -255,7 +327,25 @@ def mensaje_del_telefono(env, valor, codigo, vuelve_a=None):
         if vuelve_a:
             return _y_vuelve_a(env, env._('En el celular %s hay más de un número: deja uno solo.', valor), vuelve_a)
         return env._('Escribe un solo número en este campo.')
+    if codigo == 'fijo':
+        texto = env._('%s tiene 7 números: es un teléfono fijo. Escríbelo en «Teléfono fijo»; el celular en Panamá '
+                      'tiene 8 números, como 6123-4567.', valor)
+        return _y_vuelve_a(env, texto, vuelve_a)
     texto = env._('El celular %s no está completo: en Panamá son 8 números, como 6123-4567. Si es de otro país, '
+                  'escríbelo con + y el código del país (p. ej. +1 305 555 1234).', valor)
+    return _y_vuelve_a(env, texto, vuelve_a)
+
+
+def mensaje_del_fijo(env, valor, codigo, vuelve_a=None):
+    """Qué está mal en el teléfono fijo, en palabras sencillas."""
+    valor = (valor or '').strip()
+    if codigo == 'varios':
+        return _y_vuelve_a(env, env._('En el teléfono fijo %s hay más de un número: deja uno solo.', valor), vuelve_a)
+    if codigo == 'celular':
+        texto = env._('%s tiene 8 números: es un celular. Escríbelo en «Celular»; el teléfono fijo en Panamá tiene 7 '
+                      'números, como 234-5678.', valor)
+        return _y_vuelve_a(env, texto, vuelve_a)
+    texto = env._('El teléfono fijo %s no está bien: en Panamá son 7 números, como 234-5678. Si es de otro país, '
                   'escríbelo con + y el código del país (p. ej. +1 305 555 1234).', valor)
     return _y_vuelve_a(env, texto, vuelve_a)
 

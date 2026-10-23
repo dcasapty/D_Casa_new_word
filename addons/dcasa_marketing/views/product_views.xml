@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tocar la foto del producto la abre en grande (ver, pasar entre fotos, zoom) y, a quien puede editar el
+         producto, le da reemplazar, recortar, girar, poner como principal, quitar y descargar. Antes se agrandaba un
+         poco al pasar el mouse y seguía siendo muy pequeña (pedido de la dueña, 2026-10-22). -->
+    <record id="product_template_form_fotos" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.fotos</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="image_1920" position="attributes">
+                <attribute name="widget">dcasa_foto_producto</attribute>
+            </field>
+        </field>
+    </record>
+
+    <!-- Pestaña Ventas: la galería (subir varias, ordenar arrastrando, elegir la principal) encima de las
+         «Imágenes extra» de la tienda. Los videos se siguen agregando con «Agregar» de Odoo. -->
+    <record id="product_template_form_galeria" model="ir.ui.view">
+        <field name="name">product.template.form.dcasa.galeria</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="website_sale.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <field name="product_template_image_ids" position="before">
+                <widget name="dcasa_galeria_fotos" colspan="2"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Tarjetas y lista de Productos: la foto también se abre en grande (sin abrir el producto). -->
+    <record id="product_template_kanban_fotos" model="ir.ui.view">
+        <field name="name">product.template.kanban.dcasa.fotos</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_kanban_view"/>
+        <field name="arch" type="xml">
+            <field name="image_128" position="attributes">
+                <attribute name="widget">dcasa_foto_producto</attribute>
+            </field>
+        </field>
+    </record>
+
+    <record id="product_template_list_fotos" model="ir.ui.view">
+        <field name="name">product.template.list.dcasa.fotos</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="dcasa_catalogo.product_template_list_dcasa"/>
+        <field name="arch" type="xml">
+            <field name="image_128" position="attributes">
+                <attribute name="widget">dcasa_foto_producto</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>

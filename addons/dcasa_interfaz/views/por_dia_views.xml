@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Por día», «Estadísticas» y «Movimientos» (pedido del jefe y de la dueña, 2026-10-22). Pantallas propias
+         (static/src/js/por_dia.js, estadisticas.js, movimientos.js). Una acción de cliente no lleva grupos: los ponen
+         los menús y el servidor los exige en cada llamada (models/por_dia.py y models/movimientos.py). -->
+
+    <!-- Por día: la misma pantalla abre en «Vendido» (pedidos confirmados) desde Ventas y en «Facturado» desde
+         Facturación, Estadísticas y el Inicio. Solo Gerencia y administradores. -->
+    <record id="accion_ventas_por_dia" model="ir.actions.client">
+        <field name="name">Ventas por día</field>
+        <field name="tag">dcasa_por_dia</field>
+        <field name="context">{'dcasa_base': 'confirmado'}</field>
+    </record>
+    <record id="accion_facturado_por_dia" model="ir.actions.client">
+        <field name="name">Facturado por día</field>
+        <field name="tag">dcasa_por_dia</field>
+        <field name="context">{'dcasa_base': 'facturado'}</field>
+    </record>
+
+    <!-- Estadísticas: gráficas simples (por día, por tipo, por vendedora y lo más vendido). -->
+    <record id="accion_estadisticas" model="ir.actions.client">
+        <field name="name">Estadísticas</field>
+        <field name="tag">dcasa_estadisticas</field>
+    </record>
+
+    <!-- Movimientos de inventario en palabras: Gerencia (administra Inventario) y administradores. -->
+    <record id="accion_movimientos" model="ir.actions.client">
+        <field name="name">Movimientos</field>
+        <field name="tag">dcasa_movimientos</field>
+    </record>
+
+    <menuitem id="menu_dcasa_ventas_por_dia" name="Ventas por día" parent="dcasa_base.menu_dcasa_hoy"
+              action="accion_ventas_por_dia" sequence="15"
+              groups="sales_team.group_sale_manager,base.group_system"/>
+    <menuitem id="menu_dcasa_facturado_por_dia" name="Facturado por día" parent="account.menu_finance_receivables"
+              action="accion_facturado_por_dia" sequence="3"
+              groups="sales_team.group_sale_manager,base.group_system"/>
+    <menuitem id="menu_estadisticas_resumen" name="Resumen" parent="menu_estadisticas"
+              action="accion_estadisticas" sequence="0"/>
+    <menuitem id="menu_estadisticas_por_dia" name="Por día" parent="menu_estadisticas"
+              action="accion_facturado_por_dia" sequence="1"/>
+    <menuitem id="menu_dcasa_movimientos" name="Movimientos" parent="stock.menu_stock_root"
+              action="accion_movimientos" sequence="6"
+              groups="stock.group_stock_manager,base.group_system"/>
+</odoo>

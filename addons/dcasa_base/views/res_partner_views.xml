@@ -7,9 +7,53 @@
         <field name="arch" type="xml">
             <field name="vat" position="attributes">
                 <attribute name="placeholder">p. ej. 8-123-4567 (cédula) o 1234567-1-123456 (empresa)</attribute>
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
             </field>
             <field name="vat" position="after">
                 <field name="l10n_pa_dv" placeholder="p. ej. 7" readonly="parent_id"/>
+            </field>
+            <!-- Copiar con un toque (static/src/js/copiar.js, 2026-10-22): nombre, correo, celular, RUC y referencia. -->
+            <xpath expr="(//h1//field[@name='name'])[1]" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+            </xpath>
+            <xpath expr="(//h1//field[@name='name'])[2]" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+            </xpath>
+            <xpath expr="//div[hasclass('mb8')]//field[@name='email']" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+            </xpath>
+            <xpath expr="//div[hasclass('mb8')]//field[@name='phone']" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+            </xpath>
+            <field name="ref" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Lista de contactos: copiar el nombre, el correo, el celular y el RUC sin abrir la ficha. Con widget="char" la
+         celda se ve igual, pero la pinta el componente del campo, que es el que lleva el ícono (sin widget, la lista
+         escribe el texto directo). -->
+    <record id="view_partner_list_copiar" model="ir.ui.view">
+        <field name="name">res.partner.list.dcasa.copiar</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <field name="display_name" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+                <attribute name="widget">char</attribute>
+            </field>
+            <field name="vat" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+                <attribute name="widget">char</attribute>
+            </field>
+            <field name="email" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+                <attribute name="widget">char</attribute>
+            </field>
+            <field name="phone" position="attributes">
+                <attribute name="class" add="o_dcasa_copiar" separator=" "/>
+                <attribute name="widget">char</attribute>
             </field>
         </field>
     </record>

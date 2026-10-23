@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <!-- Una fila de producto: la foto (se abre en grande), el nombre (abre el producto) y su cifra. -->
+    <t t-name="dcasa_marketing.Fila">
+        <li class="o_dcasa_mk_fila">
+            <button type="button" class="o_dcasa_mk_foto" t-att-aria-label="(fila.con_foto ? 'Ver las fotos de ' : 'Subir fotos a ') + fila.nombre"
+                    t-on-click="() => this.verFotos(fila)">
+                <img t-if="fila.con_foto" t-att-src="fila.imagen" alt="" loading="lazy"/>
+                <span t-else="" class="o_dcasa_mk_sin_foto" aria-hidden="true"><i class="fa fa-camera"/></span>
+            </button>
+            <button type="button" class="o_dcasa_mk_nombre" t-on-click="() => this.abrirProducto(fila)">
+                <strong t-esc="fila.nombre"/>
+                <small><t t-if="fila.codigo"><t t-esc="fila.codigo"/> · </t><t t-esc="fila.categoria"/></small>
+                <small t-if="detalle" class="o_dcasa_mk_detalle" t-esc="detalle"/>
+            </button>
+            <span class="o_dcasa_mk_cifra">
+                <strong t-esc="cifra"/>
+                <small t-esc="unidad"/>
+            </span>
+        </li>
+    </t>
+
+    <t t-name="dcasa_marketing.Marketing">
+        <div class="o_action o_dcasa_mk" t-ref="raiz">
+            <div class="o_dcasa_mk_contenido">
+                <header class="o_dcasa_mk_cabeza">
+                    <div>
+                        <h1>Marketing</h1>
+                        <p>Qué empujar en tu próxima campaña: lo que se vende, lo quieto, el stock y las fotos que faltan.</p>
+                    </div>
+                    <button type="button" class="o_dcasa_mk_boton" t-on-click="abrirCampanas">
+                        <i class="fa fa-list" aria-hidden="true"/> Lista para campañas
+                    </button>
+                </header>
+
+                <div class="o_dcasa_mk_filtros">
+                    <div class="o_dcasa_mk_periodos" role="group" aria-label="Periodo">
+                        <t t-foreach="datos ? datos.periodos : [{clave: 'semana', nombre: 'Semana'}, {clave: '15_dias', nombre: '15 días'}, {clave: 'mes', nombre: 'Mes'}]"
+                           t-as="p" t-key="p.clave">
+                            <button type="button" class="o_dcasa_mk_periodo" t-att-aria-pressed="state.periodo === p.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirPeriodo(p.clave)" t-esc="p.nombre"/>
+                        </t>
+                    </div>
+                    <p t-if="datos" class="o_dcasa_mk_rango" t-esc="datos.periodo.etiqueta"/>
+                    <div t-if="datos" class="o_dcasa_mk_categorias" role="group" aria-label="Categoría">
+                        <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.categoria ? 'false' : 'true'"
+                                t-on-click="() => this.elegirCategoria(null)">Todas</button>
+                        <button t-foreach="datos.categorias" t-as="c" t-key="c.id" type="button" class="o_dcasa_mk_chip"
+                                t-att-aria-pressed="state.categoria === c.id ? 'true' : 'false'" t-on-click="() => this.elegirCategoria(c.id)">
+                            <t t-esc="c.nombre"/> <small t-esc="c.productos"/>
+                        </button>
+                    </div>
+                </div>
+
+                <nav t-if="datos" class="o_dcasa_mk_indice" aria-label="Ir a una sección">
+                    <button t-foreach="secciones" t-as="s" t-key="s.clave" type="button" class="o_dcasa_mk_ir"
+                            t-on-click="() => this.irA(s.clave)">
+                        <i t-attf-class="fa {{ s.icono }}" aria-hidden="true"/> <t t-esc="s.nombre"/>
+                    </button>
+                </nav>
+
+                <p t-if="state.error" class="o_dcasa_mk_error" role="alert" t-esc="state.error"/>
+                <div t-if="state.cargando and !datos" class="o_dcasa_mk_cargando">
+                    <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Cargando…
+                </div>
+
+                <div t-if="datos" class="o_dcasa_mk_rejilla" t-att-aria-busy="state.cargando ? 'true' : 'false'"
+                     t-att-class="{ o_dcasa_mk_actualizando: state.cargando }">
+
+                    <!-- Stock por categoría -->
+                    <section class="o_dcasa_mk_seccion o_dcasa_mk_stock" data-seccion="stock" aria-labelledby="o_dcasa_mk_t_stock">
+                        <h2 id="o_dcasa_mk_t_stock">Stock<t t-if="categoriaElegida"> de <t t-esc="categoriaElegida.nombre"/></t></h2>
+                        <p class="o_dcasa_mk_ayuda">
+                            <t t-esc="datos.stock.con_stock"/> con existencias · <t t-esc="datos.stock.agotados"/> agotados.
+                            «Menos stock» no cuenta los agotados.
+                        </p>
+                        <div class="o_dcasa_mk_dos">
+                            <div>
+                                <h3>Más stock</h3>
+                                <ul class="o_dcasa_mk_lista">
+                                    <t t-foreach="datos.stock.mas" t-as="fila" t-key="fila.id">
+                                        <t t-call="dcasa_marketing.Fila">
+                                            <t t-set="cifra" t-value="numero(fila.stock)"/>
+                                            <t t-set="unidad" t-value="'en stock'"/>
+                                            <t t-set="detalle" t-value="false"/>
+                                        </t>
+                                    </t>
+                                </ul>
+                                <p t-if="!datos.stock.mas.length" class="o_dcasa_mk_vacio">No hay productos con stock aquí.</p>
+                            </div>
+                            <div>
+                                <h3>Menos stock</h3>
+                                <ul class="o_dcasa_mk_lista">
+                                    <t t-foreach="datos.stock.menos" t-as="fila" t-key="fila.id">
+                                        <t t-call="dcasa_marketing.Fila">
+                                            <t t-set="cifra" t-value="numero(fila.stock)"/>
+                                            <t t-set="unidad" t-value="'en stock'"/>
+                                            <t t-set="detalle" t-value="false"/>
+                                        </t>
+                                    </t>
+                                </ul>
+                                <p t-if="!datos.stock.menos.length" class="o_dcasa_mk_vacio">
+                                    <t t-if="datos.stock.mas.length">Son pocos: ya salen todos en «Más stock».</t>
+                                    <t t-else="">No hay productos con stock aquí.</t>
+                                </p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Más vendidos -->
+                    <section class="o_dcasa_mk_seccion o_dcasa_mk_vendidos" data-seccion="vendidos" aria-labelledby="o_dcasa_mk_t_vendidos">
+                        <h2 id="o_dcasa_mk_t_vendidos">Más vendidos</h2>
+                        <p class="o_dcasa_mk_ayuda">Unidades facturadas en el periodo (las devoluciones restan), igual que el Inicio.</p>
+                        <ul class="o_dcasa_mk_lista">
+                            <t t-foreach="datos.mas_vendidos" t-as="fila" t-key="fila.id">
+                                <t t-call="dcasa_marketing.Fila">
+                                    <t t-set="cifra" t-value="numero(fila.unidades)"/>
+                                    <t t-set="unidad" t-value="fila.unidades === 1 ? 'vendida' : 'vendidas'"/>
+                                    <t t-set="detalle" t-value="fila.stock !== null ? 'Quedan ' + numero(fila.stock) : false"/>
+                                </t>
+                            </t>
+                        </ul>
+                        <p t-if="!datos.mas_vendidos.length" class="o_dcasa_mk_vacio">No hay ventas facturadas en este periodo.</p>
+                    </section>
+
+                    <!-- Mayor movimiento -->
+                    <section class="o_dcasa_mk_seccion o_dcasa_mk_movimiento" data-seccion="movimiento" aria-labelledby="o_dcasa_mk_t_mov">
+                        <h2 id="o_dcasa_mk_t_mov">Mayor movimiento</h2>
+                        <p class="o_dcasa_mk_ayuda">Lo que más se vendió o salió de la bodega. Una venta que se factura y se entrega cuenta una vez.</p>
+                        <ul class="o_dcasa_mk_lista">
+                            <t t-foreach="datos.mas_movimiento" t-as="fila" t-key="fila.id">
+                                <t t-call="dcasa_marketing.Fila">
+                                    <t t-set="cifra" t-value="numero(fila.movimiento)"/>
+                                    <t t-set="unidad" t-value="'se movieron'"/>
+                                    <t t-set="detalle" t-value="numero(fila.vendidas) + ' vendidas · ' + numero(fila.entregadas) + ' entregadas'"/>
+                                </t>
+                            </t>
+                        </ul>
+                        <p t-if="!datos.mas_movimiento.length" class="o_dcasa_mk_vacio">Nada se vendió ni salió de la bodega en este periodo.</p>
+                    </section>
+
+                    <!-- Más quietos -->
+                    <section class="o_dcasa_mk_seccion o_dcasa_mk_quietos" data-seccion="quietos" aria-labelledby="o_dcasa_mk_t_quietos">
+                        <h2 id="o_dcasa_mk_t_quietos">Más quietos</h2>
+                        <p class="o_dcasa_mk_ayuda">
+                            Con stock y sin ventas ni salidas en el periodo: <strong t-esc="datos.quietos_total"/>.
+                            Primero los que nunca se vendieron y los que llevan más tiempo sin venderse.
+                        </p>
+                        <ul class="o_dcasa_mk_lista">
+                            <t t-foreach="datos.quietos" t-as="fila" t-key="fila.id">
+                                <t t-call="dcasa_marketing.Fila">
+                                    <t t-set="cifra" t-value="numero(fila.stock)"/>
+                                    <t t-set="unidad" t-value="'en stock'"/>
+                                    <t t-set="detalle" t-value="detalleQuieto(fila)"/>
+                                </t>
+                            </t>
+                        </ul>
+                        <p t-if="!datos.quietos.length" class="o_dcasa_mk_vacio">Todo lo que tiene stock se movió en este periodo.</p>
+                        <button t-if="datos.quietos_total > datos.quietos.length" type="button" class="o_dcasa_mk_enlace"
+                                t-on-click="() => this.abrirLista(datos.quietos_ids, 'Más quietos · ' + datos.periodo.etiqueta)">
+                            Ver los <t t-esc="datos.quietos_total"/> en Productos
+                        </button>
+                    </section>
+
+                    <!-- Fotos -->
+                    <section class="o_dcasa_mk_seccion o_dcasa_mk_fotos" data-seccion="fotos" aria-labelledby="o_dcasa_mk_t_fotos">
+                        <h2 id="o_dcasa_mk_t_fotos">Fotos</h2>
+                        <p class="o_dcasa_mk_ayuda">Busca el producto por nombre, código o código de barras (sirve el lector) y súbele sus fotos aquí mismo: varias a la vez, y las ordenas arrastrando.</p>
+                        <label class="o_dcasa_mk_buscar">
+                            <i class="fa fa-search" aria-hidden="true"/>
+                            <span class="visually-hidden">Buscar producto</span>
+                            <input t-ref="buscador" type="search" class="o_dcasa_mk_buscar_texto" autocomplete="off"
+                                   placeholder="Nombre o código" t-att-value="state.fotos.texto"
+                                   t-on-input="alEscribir" t-on-keydown="alTeclear"/>
+                        </label>
+                        <div t-if="state.fotos.resultado" class="o_dcasa_mk_chips" role="group" aria-label="Qué productos ver">
+                            <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.fotos.filtro === 'faltan' ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirFiltro('faltan')">
+                                Les faltan fotos <small t-esc="state.fotos.resultado.conteo.sin_foto + state.fotos.resultado.conteo.una_foto"/>
+                            </button>
+                            <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.fotos.filtro === 'sin_foto' ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirFiltro('sin_foto')">
+                                Sin foto <small t-esc="state.fotos.resultado.conteo.sin_foto"/>
+                            </button>
+                            <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.fotos.filtro === 'una_foto' ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirFiltro('una_foto')">
+                                Una sola <small t-esc="state.fotos.resultado.conteo.una_foto"/>
+                            </button>
+                            <button type="button" class="o_dcasa_mk_chip" t-att-aria-pressed="state.fotos.filtro === 'todos' ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirFiltro('todos')">
+                                Todos <small t-esc="state.fotos.resultado.conteo.productos"/>
+                            </button>
+                        </div>
+                        <p t-if="state.fotos.error" class="o_dcasa_mk_error" role="alert" t-esc="state.fotos.error"/>
+                        <ul t-if="state.fotos.resultado" class="o_dcasa_mk_lista o_dcasa_mk_lista_fotos" t-att-aria-busy="state.fotos.cargando ? 'true' : 'false'">
+                            <li t-foreach="state.fotos.resultado.productos" t-as="fila" t-key="fila.id" class="o_dcasa_mk_fila">
+                                <button type="button" class="o_dcasa_mk_foto" t-att-aria-label="(fila.con_foto ? 'Ver las fotos de ' : 'Subir fotos a ') + fila.nombre"
+                                        t-on-click="() => this.verFotos(fila)">
+                                    <img t-if="fila.con_foto" t-att-src="fila.imagen" alt="" loading="lazy"/>
+                                    <span t-else="" class="o_dcasa_mk_sin_foto" aria-hidden="true"><i class="fa fa-camera"/></span>
+                                </button>
+                                <button type="button" class="o_dcasa_mk_nombre" t-on-click="() => this.abrirProducto(fila)">
+                                    <strong t-esc="fila.nombre"/>
+                                    <small><t t-if="fila.codigo"><t t-esc="fila.codigo"/> · </t><t t-esc="fila.categoria"/></small>
+                                </button>
+                                <span t-attf-class="o_dcasa_mk_cuantas o_dcasa_mk_cuantas_{{ fila.fotos === 0 ? 'cero' : (fila.fotos === 1 ? 'una' : 'varias') }}"
+                                      t-esc="etiquetaFotos(fila)"/>
+                                <button type="button" class="o_dcasa_mk_subir" t-on-click="() => this.verFotos(fila, 'galeria')">
+                                    <i class="fa fa-cloud-upload" aria-hidden="true"/> <t t-esc="fila.fotos ? 'Fotos' : 'Subir fotos'"/>
+                                </button>
+                            </li>
+                        </ul>
+                        <p t-if="state.fotos.resultado and !state.fotos.resultado.productos.length" class="o_dcasa_mk_vacio">
+                            <t t-if="state.fotos.texto">No encontré productos con «<t t-esc="state.fotos.texto"/>».</t>
+                            <t t-elif="state.fotos.filtro === 'todos'">No hay productos en esta categoría.</t>
+                            <t t-else="">Ninguno en esta lista: ya tienen sus fotos.</t>
+                        </p>
+                        <p t-if="state.fotos.resultado and state.fotos.resultado.total > state.fotos.resultado.mostrando" class="o_dcasa_mk_ayuda">
+                            Mostrando <t t-esc="state.fotos.resultado.mostrando"/> de <t t-esc="state.fotos.resultado.total"/>. Escribe el nombre o el código para encontrar otro.
+                        </p>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -33,15 +33,35 @@ Más abajo: [roles y grupos](#roles-y-grupos-mapa-completo) · [interruptores](#
 | En una conversación, cambiar a mano el cliente, quién atiende, las etiquetas, la pausa y su respuesta. El estado, la nota para el asistente y los seguimientos solo cambian con los botones (Atender, Devolver, Cerrar); a mano, solo el administrador del sistema | Sí | Sí | Sí | Sí | Sí |
 | Crear y editar clientes | Sí | Sí | Sí | Sí | Sí |
 | Ver productos (editar nombre y descripción) | Sí | Sí | Sí | Sí | Sí |
+| Ver las fotos de un producto en grande (tocar la foto: ficha, lista, tarjetas, Escáner) y descargarlas | Sí | Sí | Sí | Sí | Sí |
+| **Cambiar las fotos** de un producto: subir varias, reemplazar, recortar, girar, ordenar, elegir la principal, quitar (2026-10-22; las «Imágenes extra» de la tienda incluidas) | Sí (decisión de la dueña, 2026-10-22) | Sí | (si edita productos) | Sí | Sí |
+| La app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) y su acceso en el Inicio | No | No | No | Sí | Sí |
+
+**Rol «Marketing»** (2026-10-22, selector propio «Marketing» en la sección D'CASA de la ficha del usuario; se suma a
+cualquier otro rol): ve la app Marketing **completa, igual que Gerencia y administradores** (todas las secciones y su
+acceso en el Inicio), **cambia las fotos** de cualquier producto (solo las fotos: no el nombre, el precio ni lo demás) y
+usa las herramientas de Brian de marketing. **No** ve dinero, costos, facturas, cobros, pedidos de venta, contabilidad,
+Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de Ventas, Contabilidad ni Inventario).
 | Crear facturas **de clientes**, buscarlas, imprimirlas y enviarlas | Sí | Sí | Sí | Sí | Sí |
-| Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos) | Sí | Sí | Sí | Sí |
+| Hacer una factura de cliente **suelta** (sin cotización ni pedido; Facturación › Facturas › Nuevo o Subir, RPC o Brian), 2026-10-19 | **No**: cotiza y factura desde el pedido (también anticipos). Tampoco le salen «Nuevo» ni «Subir» (2026-10-22) | Sí | Sí | Sí | Sí |
 | **Registrar el cobro** de una factura de cliente (o un abono), un cobro suelto, o aplicarle un cobro que ya estaba («el cobro solo en Caja», 2026-10-17) | **No** (con el interruptor encendido o apagado) | Sí | Sí | Sí | Sí |
 | Cobrar con **Tafi** o **Crediviva** (financieras: formas de pago en «Pagar») | No | Sí | Sí | Sí | Sí |
 | Registrar un **primer abono menor a la mitad** del total | No | **No** | **No** | Sí | Sí |
 | **Pasar a borrador o anular** una factura de cliente publicada | **No** | **No** | **No** | Sí | Sí |
 | **Notas de crédito** de clientes; **devolverle dinero** a un cliente; cobrar de más dejándole **saldo a favor**; dar una factura por pagada con una diferencia | **No** | **No** | **No** | Sí | Sí |
 | Rebajar un precio: por línea, global o de importe fijo (se suman) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope de Ajustes de Ventas (10 % de fábrica) | Hasta el tope | **Sin tope** | **Sin tope** |
-| Ajustar las existencias a mano (Inventario físico, Escáner › Contar) | **No** | **No** | **No** | Sí | Sí |
+| Armar un combo cama + colchón en una cotización («Armar combo»; el colchón va a su precio en combo, que no cuenta como rebaja suya), 2026-10-22 | Sí (lo suyo) | Sí | (según su rol de Ventas) | Sí | Sí |
+| Poner el **precio en combo** de un colchón, la **medida** de una cama o colchón y si un producto es cama o colchón (*Ventas › Productos › Precios en combo*) | **No** | **No** | **No** | Sí | Sí |
+| Ajustar las existencias a mano (Inventario físico, Escáner › Contar); el motivo es obligatorio y queda en la bitácora | **No** | **No** | **No** | Sí | Sí |
+| Ventas o facturado **por día**, **Estadísticas › Resumen** e **Inventario › Movimientos** (2026-10-22) | **No** | **No** | **No** | Sí | Sí |
+| Ver el menú «Inventario físico», «Desechos» y «Deshacer el ajuste»; mover mercancía hacia o desde «Ajuste de inventario» (también por RPC), 2026-10-22 | **No** | **No** | **No** | Sí | Sí |
+| Dejar en borrador una merma, un daño, una muestra o un regalo (no mueve nada) | **No** (no ve los menús) | **No** | **No** | Sí | Sí |
+| **Dar de baja** una merma, daño, muestra o regalo; Mermas del mes; reclamo al proveedor | **No** | **No** | **No** | Sí | Sí |
+| **Bitácora de bodega** (solo lectura; nadie la edita) | **No** | **No** | **No** | Sí | Sí |
+| Ajustes de bodega y mermas (cuentas de mermas, tope, alertas por Telegram) | **No** | **No** | **No** | Sí | Sí |
+| Registrar adelantos y préstamos a colaboradores; enviar comprobantes de pago | **No** | **No** | (según su grupo de nómina) | Sí | Sí |
+| **Autorizar** un adelanto o un préstamo | **No** | **No** | **No** | Sí | Sí |
+| Comprobantes en ZIP (respaldo DGI) | **No** | **No** | Sí | Sí | Sí |
 | Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | **No** | Sí | Sí |
 | Factura electrónica (DGI) | Sí | Sí | Sí | Sí | Sí |
 | Facturas y notas **de proveedores** | **No** | **No** | Sí | Sí | Sí |
@@ -68,6 +88,12 @@ cambia): ella lo ve, le cuenta para su meta y sale en «Ver mis ventas». El bot
 es **Nueva cotización**; «Registrar cobro» y «Caja de hoy» salen en el Inicio de Caja y en el completo. En la factura,
 a la vendedora no le sale «Pagar»: le sale «El cobro de esta factura lo registra Caja». Una factura hecha suelta no
 tiene pedido detrás: no cuenta en «Vendido hoy» ni tiene nota de entrega.
+
+**El aviso a la vendedora** (decisión de la dueña, 2026-10-22; `dcasa_base/models/aviso_vendedora.py`): cuando Caja o
+Gerencia publican la factura de su pedido, a su bandeja de Odoo (el chat) le llega «Se facturó tu venta S00139
+(INV/2026/01117)», y cuando la venta queda cobrada (todas sus facturas pagadas y nada más por facturar; un abono no),
+«Tu venta S00139 ya está cobrada». Ya no le llega el «Te asignaron Asiento contable Borrador de factura» de Odoo. Una
+sola vez por factura y por venta, y nunca por lo que ella misma hizo.
 
 ## Cada vendedora ve solo lo suyo (y cómo volver atrás)
 
@@ -128,12 +154,27 @@ llevan el grupo). Brian tampoco le da a quien no es Gerencia la ganancia ni el c
 pedidos facturados por completo). Las facturas del Inicio de Gerencia se suman con `sudo` siempre filtrado a facturas y
 notas de crédito de cliente; la lista que abre cada cifra la ve cada quien con sus permisos.
 
+**Compras › Reponer** (2026-10-19 y 22): verla, bajar su **Excel** y poner o cambiar el **tiempo de llegada** de un
+proveedor es solo de **Gerencia y administradores**. El servidor lo exige en cada llamada (`dcasa.reponer`, también el
+Excel en `/dcasa/reponer/excel` y las herramientas `que_reponer` y `poner_tiempo_llegada` de Brian); la Vendedora no ve
+el menú y, si lo pide por la conexión de datos, se le niega. El Excel lo arma el servidor: el «Exportar» general de Odoo
+sigue siendo solo de administradores.
+
 **Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
 Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
 del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo
 mal rompe entregas o recepciones. Queda como la siguiente tarea de seguridad (con pruebas de esos flujos); está en
-[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (lo más vendido, mejor margen, lo que no se mueve) es de
-Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve los pedidos.
+[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (resumen, por día, lo más vendido, mejor margen, lo que no
+se mueve) es de Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve
+los pedidos.
+
+**Por día, Estadísticas y Movimientos** (2026-10-22): *Ventas › Hoy › Ventas por día*, *Facturación › Clientes ›
+Facturado por día* y *Estadísticas › Resumen* son de **Gerencia y administradores** (`sales_team.group_sale_manager` o
+`base.group_system`, los mismos de Comparar); *Inventario › Movimientos*, de quien administra Inventario (Gerencia lo
+incluye) y los administradores (`stock.group_stock_manager` o `base.group_system`). Los menús llevan esos grupos y el
+servidor los exige otra vez en cada llamada (`dcasa.tablero.por_dia`, `ventas_del_dia`, `estadisticas`,
+`opciones_por_dia`; `dcasa.movimientos.*`) antes de leer: la Vendedora no los ve ni recibe las cifras por la conexión de
+datos, y Brian tampoco se las da (`ventas_por_dia`, `movimientos_de_producto`).
 
 **Tope de descuento (10 % para la Vendedora)** — cerrado en esta revisión: se mide siempre al crear la línea (aunque el precio
 llegue por el contexto de la llamada), al cambiar de producto o de unidad de medida, y al tocar las banderas de anticipo o
@@ -143,6 +184,19 @@ o quitando líneas: se le bloquea solo lo que **empeora** el descuento, no lo qu
 
 **Existencias:** la cantidad (y lo reservado) de una existencia no la escribe a mano nadie que no sea Gerencia o el sistema,
 con o sin el modo inventario. Recibir y entregar siguen igual (Odoo los corre por dentro con permisos del sistema).
+
+**Fotos del producto y Marketing** (2026-10-22, `dcasa_marketing`, [MARKETING.md](MARKETING.md)): las fotos las
+cambia **quien puede editar ese producto** (`check_access('write')` en `product.template`, comprobado en el servidor en
+cada método `dcasa_fotos_*`): hoy Gerencia, administradores y la Vendedora (que ya editaba la foto principal; Odoo le
+negaba las «Imágenes extra» porque `product.image` solo lo escriben Ventas administrador y los editores del sitio, y
+aquí se escriben con `sudo` después de esa comprobación). **Decisión de la dueña (2026-10-22): las vendedoras sí
+cambian fotos.** Además, el rol **Marketing** (`dcasa_marketing.group_marketing`) cambia las fotos de cualquier
+producto que ve aunque no edite el producto (`_dcasa_puede_editar_fotos`; la foto principal se le escribe con `sudo`
+tras la comprobación y el cambio queda a su nombre). Quien solo ve productos (p. ej. bodega sin Ventas) las ve y las
+descarga; el servidor le niega los cambios aunque los pida a mano (`AccessError`). **Marketing** es de Ventas
+administrador (Gerencia), administradores y el rol Marketing (`GRUPOS` en `dcasa_marketing/models/marketing.py`: el
+servidor lo exige en `dcasa.marketing._exigir`, y el menú, el acceso del Inicio y la herramienta
+`movimiento_de_productos` de Brian usan los mismos grupos). Sus cifras son unidades, no dinero.
 
 **Fusión de contactos:** solo Gerencia, de a una persona; las fusiones masivas automáticas son del administrador del
 sistema. Los puntos y el código de socio pasan completos a la ficha que queda y ésta deja una nota con lo que se le unió.
@@ -377,7 +431,7 @@ Los roles se arman con grupos estándar de Odoo; casi no hay permisos nuevos.
 | **Contabilidad** | `account.group_account_user` / `account.group_account_manager` / `account.group_account_readonly` | Grupos de Odoo | Todo lo contable (reglas «todo» en `dcasa_reglas_contables.xml`); el lector solo lee. Ven el menú Empleados. |
 | **Administra la nómina** | `dcasa_nomina.group_nomina` | Gerente de RR. HH. + contador | Planillas, sueldos, liquidaciones, reembolsos, bono por meta. Gerencia lo incluye. |
 | **Administradores** | `base.group_system` | Ajustes técnicos y usuarios | Lo anterior más: Registro de acciones, Consumo y Ajustes de Brian; Accesos al panel; Cargar datos del sistema anterior; Correo a clientes. Su doble factor es obligatorio con `DCASA_2FA_OBLIGATORIO=1`. |
-| **Bodega** | *no hay grupo propio*: `stock.group_stock_user` (usuario) o `stock.group_stock_manager` (gerente) de Odoo | — | Usuario: entregas, recepciones y **Escáner** (buscar). Gerente: además *Códigos de barras* e *Historial de etiquetas*. Contar existencias y cambiar precios en el Escáner: solo Gerencia. |
+| **Bodega** | *no hay grupo propio*: `stock.group_stock_user` (usuario) o `stock.group_stock_manager` (gerente) de Odoo | — | Usuario: entregas, recepciones, el panel **Bodega** (despachar y validar entregas; también lo tienen la Vendedora y Gerencia) y **Escáner** (buscar). Gerente: además *Códigos de barras* e *Historial de etiquetas*. Contar existencias y cambiar precios en el Escáner: solo Gerencia. |
 | **Juan** (usuario técnico) | `dcasa_conversaciones.group_juan` | Ningún otro grupo | Solo ve las herramientas de Juan; sin permisos internos, sin clave de API ni contraseña. |
 | **Portal** (cliente con cuenta de la tienda) | `base.group_portal` | — | Su `/my` (lleva a `/mi-cuenta`), sus pedidos y facturas en PDF, cambiar contraseña y direcciones. |
 | **Público** (visitante, socio con PIN) | `base.group_public` | — | Sitio, tienda, carrito, `/socios` y `/mi-cuenta` con celular + PIN (una marca en la sesión, no un usuario de Odoo). |
@@ -438,8 +492,10 @@ Odoo deja llamar por `/web/dataset/call_kw` (y `/json/2`) a **todo método públ
 despachar. Un método público que usa `sudo()` sin exigir grupo sería una puerta abierta. Por eso:
 
 - `addons/dcasa_base/tests/test_superficie_rpc.py` recorre todos los modelos y **falla** si un método público definido en
-  `addons/` no está en `LISTA_BLANCA` con su motivo (331 entradas en este commit; las que más: `dcasa_conversaciones`
-  80, `dcasa_socios` 54, `dcasa_nomina` 28, `dcasa_contabilidad` 26, `dcasa_brian` 25). También falla si una entrada ya
+  `addons/` no está en `LISTA_BLANCA` con su motivo (441 entradas al 2026-10-22; las que más: `dcasa_conversaciones`
+  80, `dcasa_socios` 54, `dcasa_base` 34, `dcasa_nomina` 28, `dcasa_contabilidad` 26, `dcasa_brian` 25; las 11 de
+  `dcasa_marketing` exigen editar el producto o ser Gerencia antes de cualquier `sudo`; el panel «Armar combo»
+  de `dcasa_catalogo` suma 17, todas sin sudo y con `check_access` de la cotización). También falla si una entrada ya
   no es pública, si falta un motivo, o si un botón de vista apunta a un método `@api.model`.
 - Los modelos abstractos `brian.herramientas`, `brian.proveedores`, `brian.politica`, `dcasa.mantenimiento`,
   `dcasa.fe.pac`, `dcasa.fe.pac.simulado` y `dcasa.correo` no exponen **nada**.

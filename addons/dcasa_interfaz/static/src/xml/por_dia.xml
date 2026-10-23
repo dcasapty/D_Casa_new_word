@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Por día»: en la computadora, el mes como calendario y el día elegido al lado; en el celular, una lista de días
+         y el día elegido se abre debajo de su fila. Las ventas van SIN ITBMS (el total con ITBMS, aparte). -->
+    <t t-name="dcasa_interfaz.PorDia">
+        <div class="o_action o_dcasa_inicio o_dcasa_por_dia">
+            <header class="o_dcasa_pantalla_cabeza">
+                <div>
+                    <h1 class="o_dcasa_pd_titulo" t-out="titulo"/>
+                    <p class="o_dcasa_pantalla_frase">
+                        <t t-out="detalleBase"/>. Las cifras son sin ITBMS; el total con ITBMS va aparte.
+                    </p>
+                </div>
+            </header>
+
+            <div class="o_dcasa_inicio_cuerpo">
+                <section class="o_dcasa_ventas o_dcasa_pd_controles" aria-label="Qué mes y qué contar">
+                    <div class="o_dcasa_pd_mes">
+                        <button type="button" class="btn o_dcasa_pd_mes_boton o_dcasa_pd_mes_anterior"
+                                t-att-disabled="!hayMesAnterior" aria-label="Mes anterior" t-on-click="() => this.moverMes(1)">
+                            <i class="fa fa-chevron-left" aria-hidden="true"/>
+                        </button>
+                        <label class="o_dcasa_pd_mes_elegir">
+                            <span class="visually-hidden">Mes</span>
+                            <select class="form-select o_dcasa_pd_mes_select" t-on-change="cambiarMes">
+                                <option t-foreach="state.opciones.meses" t-as="m" t-key="m.valor" t-att-value="m.valor"
+                                        t-att-selected="m.valor === state.mes" t-out="m.nombre"/>
+                            </select>
+                        </label>
+                        <button type="button" class="btn o_dcasa_pd_mes_boton o_dcasa_pd_mes_siguiente"
+                                t-att-disabled="!hayMesSiguiente" aria-label="Mes siguiente" t-on-click="() => this.moverMes(-1)">
+                            <i class="fa fa-chevron-right" aria-hidden="true"/>
+                        </button>
+                    </div>
+                    <div class="o_dcasa_base_fila">
+                        <div class="o_dcasa_interruptor o_dcasa_pd_bases" role="radiogroup" aria-label="Qué contar">
+                            <button t-foreach="state.opciones.bases" t-as="b" t-key="b.clave" type="button" role="radio"
+                                    t-attf-class="o_dcasa_interruptor_opcion o_dcasa_pd_base_{{b.clave}}"
+                                    t-att-class="{'o_activo': state.base === b.clave}"
+                                    t-att-aria-checked="state.base === b.clave ? 'true' : 'false'"
+                                    t-on-click="() => this.cambiarBase(b.clave)" t-out="b.nombre"/>
+                        </div>
+                        <label class="o_dcasa_vendedora">
+                            <span class="visually-hidden">Vendedora</span>
+                            <select class="form-select o_dcasa_pd_vendedora" t-on-change="cambiarVendedor">
+                                <option value="" t-att-selected="state.vendedor === ''">Todo el equipo</option>
+                                <option t-foreach="state.opciones.vendedoras" t-as="v" t-key="v.id" t-att-value="v.id"
+                                        t-att-selected="vendedoraElegida(v)" t-out="v.nombre"/>
+                            </select>
+                        </label>
+                    </div>
+                    <p t-if="state.error" class="o_dcasa_error o_dcasa_pd_error" role="alert" t-out="state.error"/>
+                </section>
+
+                <t t-set="d" t-value="state.datos"/>
+                <section t-if="d" t-attf-class="o_dcasa_pd_resumen {{state.cargando ? 'o_cargando' : ''}}"
+                         aria-label="Resumen del mes">
+                    <button type="button" class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_total"
+                            t-on-click="() => this.abrirLista(d.accion)">
+                        <span class="o_dcasa_pd_etiqueta">
+                            <t t-if="d.en_curso">En lo que va de <t t-out="d.nombre.split(' ')[0].toLowerCase()"/></t>
+                            <t t-else="">Total de <t t-out="d.nombre"/></t>
+                        </span>
+                        <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.sin_itbms)"/>
+                        <span class="o_dcasa_pd_nota">sin ITBMS · <t t-out="cuantasTexto(d.total.cuantas, d.base)"/><t t-if="d.total.notas"> · <t t-out="notasTexto(d.total.notas)"/></t></span>
+                        <span class="o_dcasa_pd_nota">ITBMS <t t-out="dinero(d.total.itbms)"/> · Total con ITBMS <t t-out="dinero(d.total.total)"/></span>
+                    </button>
+                    <div class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_anterior">
+                        <span class="o_dcasa_pd_etiqueta">Contra el mes pasado · <t t-out="d.anterior.etiqueta"/></span>
+                        <strong t-attf-class="o_dcasa_pd_valor o_dcasa_pd_cambio {{cambioClase}}" t-out="cambioTexto"/>
+                        <span class="o_dcasa_pd_nota">Ese periodo: <t t-out="dinero(d.anterior.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(d.anterior.cuantas, d.base)"/></span>
+                        <span t-if="d.anterior.hora" class="o_dcasa_pd_nota">Su último día cuenta hasta las <t t-out="d.anterior.hora"/>, como hoy.</span>
+                    </div>
+                    <div class="o_dcasa_panel o_dcasa_pd_tarjeta o_dcasa_pd_mejor">
+                        <span class="o_dcasa_pd_etiqueta">Mejor día</span>
+                        <t t-if="d.mejor">
+                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.mejor.sin_itbms)"/>
+                            <span class="o_dcasa_pd_nota" t-out="d.mejor.nombre"/>
+                        </t>
+                        <strong t-else="" class="o_dcasa_pd_valor">—</strong>
+                        <span class="o_dcasa_pd_nota">Ticket promedio <t t-out="d.total.ticket === null ? '—' : dinero(d.total.ticket)"/></span>
+                    </div>
+                </section>
+
+                <div t-if="d" t-attf-class="o_dcasa_pd_cuerpo {{state.cargando ? 'o_cargando' : ''}}">
+                    <!-- Computadora: el calendario (lunes a domingo). -->
+                    <section class="o_dcasa_panel o_dcasa_pd_calendario" aria-label="Calendario del mes">
+                        <div class="o_dcasa_pd_semana" aria-hidden="true">
+                            <span t-foreach="semana" t-as="nombre" t-key="nombre" t-out="nombre"/>
+                        </div>
+                        <div class="o_dcasa_pd_grilla">
+                            <span t-foreach="huecos" t-as="h" t-key="'h' + h" class="o_dcasa_pd_hueco"/>
+                            <button t-foreach="d.dias" t-as="dia" t-key="dia.fecha" type="button"
+                                    t-attf-class="o_dcasa_pd_celda {{dia.futuro ? 'o_futuro' : ''}} {{dia.hoy ? 'o_hoy' : ''}} {{tieneVentas(dia) ? 'o_con_ventas' : 'o_sin_ventas'}} {{state.dia === dia.fecha ? 'o_activo' : ''}}"
+                                    t-att-data-fecha="dia.fecha" t-att-disabled="dia.futuro"
+                                    t-att-aria-pressed="state.dia === dia.fecha ? 'true' : 'false'"
+                                    t-att-aria-label="dia.nombre + ': ' + dinero(dia.sin_itbms) + ' sin ITBMS, ' + cuantasTexto(dia.cuantas, d.base)"
+                                    t-on-click="() => this.elegirDia(dia)">
+                                <span class="o_dcasa_pd_numero"><t t-out="dia.numero"/><small t-if="dia.hoy"> Hoy</small></span>
+                                <t t-if="!dia.futuro">
+                                    <span class="o_dcasa_pd_monto" t-out="tieneVentas(dia) ? dinero(dia.sin_itbms) : '—'"/>
+                                    <span t-if="tieneVentas(dia)" class="o_dcasa_pd_cuantas" t-out="cuentaDelDia(dia, d.base)"/>
+                                    <span class="o_dcasa_pd_barra" aria-hidden="true"><span t-attf-style="width: {{ ancho(dia) }}%"/></span>
+                                </t>
+                            </button>
+                        </div>
+                    </section>
+                    <section class="o_dcasa_panel o_dcasa_pd_lado" aria-label="El día elegido">
+                        <t t-if="state.detalle" t-call="dcasa_interfaz.PorDiaDetalle"/>
+                        <p t-else="" class="o_dcasa_vacio o_dcasa_pd_elige">Toca un día del calendario para ver lo que se hizo ese día.</p>
+                    </section>
+
+                    <!-- Celular: una lista de días, del más reciente al primero; el elegido se abre debajo. -->
+                    <ol class="list-unstyled o_dcasa_pd_lista" aria-label="Días del mes">
+                        <li t-foreach="diasEnLista" t-as="dia" t-key="dia.fecha"
+                            t-attf-class="o_dcasa_pd_item {{state.dia === dia.fecha ? 'o_activo' : ''}}">
+                            <button type="button"
+                                    t-attf-class="o_dcasa_pd_fila {{tieneVentas(dia) ? 'o_con_ventas' : 'o_sin_ventas'}} {{dia.hoy ? 'o_hoy' : ''}}"
+                                    t-att-data-fecha="dia.fecha" t-att-aria-expanded="state.dia === dia.fecha ? 'true' : 'false'"
+                                    t-on-click="() => this.elegirDia(dia)">
+                                <span class="o_dcasa_pd_fila_dia">
+                                    <strong t-out="dia.corto"/>
+                                    <small t-if="dia.hoy">Hoy</small>
+                                </span>
+                                <span class="o_dcasa_pd_fila_datos">
+                                    <strong t-out="tieneVentas(dia) ? dinero(dia.sin_itbms) : '—'"/>
+                                    <small t-if="tieneVentas(dia)" t-out="cuentaDelDia(dia, d.base)"/>
+                                    <span class="o_dcasa_pd_barra" aria-hidden="true"><span t-attf-style="width: {{ ancho(dia) }}%"/></span>
+                                </span>
+                                <i t-attf-class="fa {{state.dia === dia.fecha ? 'fa-chevron-up' : 'fa-chevron-down'}} o_dcasa_pd_flecha" aria-hidden="true"/>
+                            </button>
+                            <div t-if="state.dia === dia.fecha and state.detalle" class="o_dcasa_pd_dentro">
+                                <t t-call="dcasa_interfaz.PorDiaDetalle"/>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <!-- Lo que se hizo un día: el total y cada pedido o factura (se abre al tocarlo). -->
+    <t t-name="dcasa_interfaz.PorDiaDetalle">
+        <t t-set="x" t-value="state.detalle"/>
+        <div t-attf-class="o_dcasa_pd_detalle {{state.cargandoDia ? 'o_cargando' : ''}}">
+            <div class="o_dcasa_pd_detalle_cabeza">
+                <h2 class="o_dcasa_pd_detalle_titulo" t-out="x.nombre"/>
+                <button t-if="x.filas.length" type="button" class="btn btn-link p-0 o_dcasa_pd_ver_lista"
+                        t-on-click="() => this.abrirLista(x.accion)">Ver en lista</button>
+            </div>
+            <p class="o_dcasa_pd_detalle_total">
+                <strong t-out="dinero(x.total.sin_itbms)"/> sin ITBMS · <t t-out="cuantasTexto(x.total.cuantas, x.base)"/><t t-if="x.total.notas"> · <t t-out="notasTexto(x.total.notas)"/></t>
+                <br/><small>ITBMS <t t-out="dinero(x.total.itbms)"/> · Total con ITBMS <t t-out="dinero(x.total.total)"/></small>
+                <t t-if="x.total.falta_por_cobrar !== null and x.total.falta_por_cobrar !== undefined">
+                    <br/><small>Falta por cobrar de esas facturas (con ITBMS) <t t-out="dinero(x.total.falta_por_cobrar)"/></small>
+                </t>
+            </p>
+            <ul t-if="x.filas.length" class="list-unstyled mb-0 o_dcasa_pd_documentos">
+                <li t-foreach="x.filas" t-as="fila" t-key="fila.modelo + fila.id">
+                    <button type="button" t-attf-class="o_dcasa_lista_fila o_dcasa_pd_documento {{fila.es_nota ? 'o_nota' : ''}}"
+                            t-on-click="() => this.abrirFila(fila)">
+                        <span class="o_dcasa_lista_texto">
+                            <strong t-out="fila.cliente or fila.numero"/>
+                            <small><t t-out="fila.numero"/> · <t t-out="fila.vendedora"/><t t-if="fila.detalle"> · <t t-out="fila.detalle"/></t></small>
+                        </span>
+                        <span class="o_dcasa_lista_dato">
+                            <strong t-out="dinero(fila.sin_itbms)"/>
+                            <small>con ITBMS <t t-out="dinero(fila.total)"/></small>
+                            <span t-if="fila.estado" t-attf-class="o_dcasa_pd_estado {{fila.es_nota ? 'o_nota' : ''}}" t-out="fila.estado"/>
+                        </span>
+                    </button>
+                </li>
+            </ul>
+            <p t-else="" class="o_dcasa_vacio">Ese día no hubo <t t-out="x.base === 'confirmado' ? 'pedidos confirmados' : 'facturas'"/>.</p>
+        </div>
+    </t>
+</templates>

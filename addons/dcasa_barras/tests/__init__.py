@@ -7,3 +7,5 @@ from . import test_codigo_publico
 from . import test_documento_qr
 from . import test_atajo_inicio
 from . import test_precio
+from . import test_bodega
+from . import test_bodega_ui

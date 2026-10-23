@@ -7,6 +7,20 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-22 (jueves):** la dueña pidió una tanda grande y lo pendiente del jueves. Ocho agentes en paralelo,
+cada uno en su worktree (`/home/user/wt-<rama>`, sin `fuentes/`), con las reglas comunes en el scratchpad
+(`reglas_agentes.md`): `panel-bodega` (panel de bodega para tablet con QR de la nota), `reponer-llegada` (buscador de
+proveedores, ritmo de venta, tiempo de llegada, cuánto pedir, Excel), `estadisticas-dia` (ventas y facturación por día,
+estadísticas claras, movimientos de inventario en palabras), `fotos-marketing` (visor y galería de fotos, botón
+Marketing), `detalles-contactos` (teléfono fijo de 7 dígitos, íconos de copiar, ícono de la pantalla de inicio = logo,
+aviso «Se facturó tu venta…», «Subir» oculto a la vendedora), `combos-armables` (**decisión de la dueña: precio en
+combo por colchón y medida**, lo pone Gerencia; sin él, precio normal), `datos-clientes` (F5 mayúsculas y repetidos,
+1b(a) costo cerrado, lo que falte de la etapa 3, D1 clave de autorización por Telegram y centavos, D3 recordatorio de
+abono) y `planilla-mermas` (F6 mermas con aviso del 0.5 %, bitácora y alertas de bodega, hueco de inventario físico,
+G4 comprobante de planilla, G7 adelantos, I6 ZIP de comprobantes). Sigue: integrar, capturas a la dueña, su visto
+bueno, CI, staging y producción. La pantalla de entrada de Cloudflare se personaliza en el panel (nombre, logo,
+textos, color de fondo; no rediseño completo): lo hace la dueña. El trabajo contable espera las 14 respuestas del jefe.
+
 **Estado al 2026-10-19:** en producción el lote 4 (Desplegar 22): las vendedoras ya no hacen facturas sueltas
 (cotizan; la factura sale del pedido y Caja la encuentra), la cámara del lector de códigos se ve en el celular, y
 Compras › Reponer para el jefe. Falta que la dueña pruebe la cámara en su iPhone con Chrome y lo confirme. Orden de lo

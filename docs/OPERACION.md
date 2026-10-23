@@ -288,8 +288,11 @@ corren con el mismo usuario dentro del contenedor. La clave de cifrado de los re
 
 ## Cómo subir fotos (y Excel de pedidos)
 
-1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y poner la foto ahí. Se guarda
-   sola en R2 (`adjuntos/`) y sale en la web al momento. Es el camino normal del día a día.
+1. **Una foto, un producto**: en Odoo, abrir la ficha del producto y **tocar su foto**: se abre en grande y ahí se
+   reemplaza (archivo o cámara del celular), se recorta, se gira o se pone otra como principal. Para subir **varias a
+   la vez** y ordenarlas: «Todas» en esa misma ventana, el botón «Fotos del producto» de la pestaña Ventas o
+   *Marketing › Fotos* (buscar el producto por nombre, código o código de barras). Se guardan solas en R2
+   (`adjuntos/`) y salen en la web al momento. Es el camino normal del día a día (`docs/MARKETING.md`).
 2. **Un pedido nuevo del proveedor**: mandarle a Brian (Telegram) el Excel del proveedor con el
    **código** de cada producto; él arma la vista previa, gerencia confirma y los productos nacen sin
    publicar, para publicarlos con Brian uno a uno (`docs/CATALOGO.md` › «Inventario nuevo…»).
@@ -928,23 +931,188 @@ Código y pruebas: `addons/dcasa_abonos/` (`tests/test_condiciones.py`, con el P
 El texto de las listas vacías propias (p. ej. «Todavía no hay ventas facturadas hoy») sale si el párrafo lleva la clase
 `o_dcasa_ayuda`; sin ella, el panel muestra el aviso general «Aquí todavía no hay nada».
 
-## Reponer: qué pedirle al proveedor (pedido del jefe, 2026-10-19)
+## Reponer: cuánto pedirle al proveedor (pedido del jefe 2026-10-19; ritmo y llegada, la dueña 2026-10-22)
 
-**Compras › Reponer** (solo Gerencia y administradores; la Vendedora no la ve). Se eligen **Desde / Hasta** (de
-fábrica, los últimos 30 días, hoy incluido) y, si se quiere, un **Proveedor**; el botón **Ver** abre una fila por
-producto, de más vendido a menos:
+**Compras › Reponer** (solo Gerencia y administradores; la Vendedora no la ve y el servidor se lo niega). Todo viene de
+China y tarda meses: la pantalla dice, por producto, en cuánto tiempo se acaba y cuánto pedir para cubrir la llegada.
+Es una pantalla propia (acción cliente `dcasa_reponer`), cómoda en el celular (cada fila es una tarjeta, sin scroll de
+costado), en tres pasos:
+
+1. **Elige el proveedor**: un buscador donde se escribe parte del nombre, el teléfono, el RUC o el nombre o código de
+   un producto que vende (también su código en el proveedor). Cada resultado dice cuántos productos le compras, la
+   última compra confirmada y cuánto tarda en llegar; se toca para elegirlo. «Todos los proveedores» siempre está.
+2. **Elige cuánto mirar**: los meses de ventas (1 a 12; de fábrica **5**, el ejemplo de la dueña) y la **reserva**
+   (meses extra por si acaso; de fábrica 0).
+3. **Qué pedir**: la lista, **Por urgencia** (de fábrica) o **Por proveedor** (cada uno con su tiempo de llegada,
+   su botón para ponerlo o cambiarlo y su total).
 
 | Columna | De dónde sale |
 |---|---|
-| Vendido | Unidades de las **facturas publicadas** del periodo menos las notas de crédito, las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
-| En existencia hoy | Lo que hay en las ubicaciones internas. |
-| Pedido sin llegar | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
-| Faltaría | Vendido − En existencia hoy − Pedido sin llegar, solo si da más de 0. Ninguna otra cifra. |
-| Proveedor principal | El primero de los precios de proveedor del producto; el filtro «Proveedor» usa este. |
+| Vendido en N meses | Unidades de las **facturas publicadas** de los últimos N meses (hasta hoy) menos las notas de crédito: las mismas de «Lo más vendido» del Inicio (base «Facturado»). Sin servicios, flete, anticipos ni líneas sin producto. |
+| Se vende al mes | Vendido ÷ N. |
+| Disponible hoy | Lo que hay en las ubicaciones internas **menos lo ya vendido que espera entrega** (movimientos hacia un cliente ni hechos, ni cancelados, ni en borrador; en una entrega en varios pasos solo el que sale al cliente, así nada cuenta dos veces). Decisión de la dueña, 2026-10-22: «no está disponible a no ser que se revierta la entrega»; si se devuelve, vuelve a la bodega y cuenta solo. Si se vendió más de lo que hay sale en negativo (y suma a lo que hay que pedir). Debajo, en chico, «en bodega X · vendido por entregar Y». |
+| Viene en camino | Compras **confirmadas** que todavía no se reciben (un borrador no cuenta). |
+| Alcanza para | (Disponible hoy + Viene en camino) ÷ Se vende al mes, en meses o días (un mes = 30 días); «Ya no hay» si da 0 o menos. |
+| Tarda en llegar | Los días de entrega del **precio de proveedor principal** (el primero de los precios del producto; campo `delay` de Odoo). |
+| Pedir | Se vende al mes × (meses que tarda + meses de reserva) − Disponible hoy − Viene en camino, hacia arriba, solo si da más de 0. |
+| Aviso | **Pedir ya** si lo que hay y lo que viene no alcanza para lo que tarda en llegar; **Pedir**; **Falta el tiempo de llegada**; **Sin proveedor**; **Alcanza**. La lista va en ese orden y, dentro, lo que se acaba antes primero. |
 
-En la lista: **Agrupar por › Proveedor**, y para Excel se marcan las filas y **Acciones › Exportar** (el exportar de Odoo
-lo ven quienes tienen permiso de exportar: los administradores; a otra persona se lo da un administrador en su
-usuario). Brian responde lo mismo con `que_reponer`. Código: `addons/dcasa_interfaz/models/reponer.py`.
+- **Nunca se inventa el tiempo de llegada.** Odoo pone **1 día** solo en cada precio de proveedor (y la carga del
+  sistema anterior, 0 si no venía el plazo): 0 o 1 día cuentan como **falta**, salvo que alguien lo haya puesto a
+  propósito desde Reponer o Brian (marca `dcasa_llegada_puesta` del precio). Un plazo de más de 1 día puesto en la
+  ficha del producto (pestaña Compra) sí cuenta. Sin el dato, la fila dice «Falta» y **no** calcula cuánto pedir.
+- **Poner o cambiar el tiempo de llegada:** botón «Poner tiempo de llegada» (o «Cambiar») del proveedor elegido, de
+  su grupo o «Poner» en la fila. Se escribe en **meses o días**; se guarda en **todos sus precios de proveedor** y queda
+  anotado en la ficha del proveedor (quién y cuánto). De 1 día a 24 meses. Es el mismo campo con que Odoo calcula la
+  **fecha de llegada esperada** de las compras nuevas a ese proveedor (y las reglas de reabastecimiento, si se usan):
+  ponerlo bien también corrige esa fecha.
+- **Producto sin precio de proveedor:** sale como «Sin proveedor», con su ritmo, pero sin cuánto pedir. Se arregla en la
+  ficha del producto, pestaña **Compra** (agregar el proveedor con su precio); un proveedor sin ningún precio no puede
+  tener tiempo de llegada (la pantalla lo dice).
+- **Lo que no se vendió** en la ventana no sale (con un proveedor elegido, la pantalla dice cuántos productos suyos no
+  se vendieron). Si un producto estuvo agotado, vendió menos y su ritmo sale más bajo: conviene mirarlo a ojo.
+- **Descargar Excel** (Gerencia y administradores): el servidor arma el archivo (`/dcasa/reponer/excel`) con la hoja
+  «Reponer» (lo mismo que la pantalla) y «Por proveedor» (totales). No hace falta abrirle a nadie el «Exportar» general
+  de Odoo.
+- Brian: `que_reponer(proveedor?, meses?, reserva?)` y `poner_tiempo_llegada(proveedor, dias? / meses?)`.
+  Código: `addons/dcasa_interfaz/models/reponer.py`, `controllers/reponer.py`, `static/src/js/reponer.js`.
+
+## Por día, Estadísticas y Movimientos (pedido del jefe y de la dueña, 2026-10-22)
+
+Lo pedido: «tenemos estadísticas pero muy poco intuitivas y limitadas», «ver organizado fácilmente lo vendido o
+facturado por día de los días del mes, poder ver fácilmente lo que se hizo x día» y «en inventario hay un historial de
+movimientos pero también es muy poco intuitivo». Las tres pantallas son de **Gerencia y administradores** (el servidor
+lo exige en cada llamada; la Vendedora no ve los menús ni recibe las cifras aunque las pida por la conexión de datos).
+
+### Por día (Ventas › Hoy › Ventas por día · Facturación › Clientes › Facturado por día)
+
+Una sola pantalla: abre en **Vendido** desde Ventas y en **Facturado** desde Facturación, desde Estadísticas › Por día y
+desde el botón **Ver por día** del bloque de Ventas del Inicio (con la base y la vendedora que estén elegidas).
+
+* **El mes como calendario** (lunes a domingo) en la computadora; en el celular, **una lista de días** del más reciente
+  al primero. Cada día: lo vendido o facturado **sin ITBMS**, cuántas ventas o facturas (y notas de crédito) y una
+  barrita del tamaño de lo de ese día. Los días que no han llegado van en gris.
+* **Tocar un día** muestra (a la derecha, o debajo del día en el celular) su total sin ITBMS, el ITBMS y el total con
+  ITBMS, y cada documento: cliente, número, vendedora, pedido de origen u hora de confirmación, monto y estado
+  («Pagada», «Con abono», «Por cobrar», «Nota de crédito», «Por facturar»…). Tocar uno lo abre; «Ver en lista» abre
+  todos en la lista de Odoo.
+* Arriba: el **mes** (este y los 24 anteriores, con flechas), **qué contar** y la **vendedora**:
+  * **Vendido**: los **pedidos confirmados**, el día **de Panamá** en que se confirmaron (un pedido confirmado a las
+    11:30 p. m. cuenta ese día aunque en UTC ya sea el siguiente). Una cotización o un pedido cancelado no cuentan.
+  * **Facturado**, **Con abonos** y **Completadas**: exactamente las del Inicio (facturas publicadas; las notas de
+    crédito restan el día de su fecha; una factura anulada o en borrador no cuenta). El total del mes es el mismo
+    número que la tarjeta de Ventas del Inicio para esas fechas y **los días suman el mes al centavo**.
+  * **Completadas** («Pagadas por completo, el día que se terminó de pagar», decisión de la dueña del 2026-10-22): cada
+    factura cuenta el día del pago que la dejó en cero (nunca antes de la factura), la misma cuenta del Inicio; en el
+    detalle del día dice «Factura del 3 oct» si la factura es de otro día. Pagada en partes: cuenta el día de la última.
+    Un pago anulado o revertido deja de contar (la factura vuelve a deber) y, si se paga otra vez, cuenta ese día. Una
+    nota de crédito de una factura completada resta el día más tardío entre el de la nota y el de la factura completa.
+* Tres tarjetas: el **total del mes** (sin ITBMS, con el ITBMS y el total con ITBMS aparte; abre la lista de lo que se
+  contó), **contra el mes anterior** (si el mes está en curso, los mismos días del mes pasado con el último hasta la
+  misma hora de Panamá: la misma cuenta que «Comparar › del 1 a hoy» del Inicio; si el mes ya terminó, el mes anterior
+  completo; sin base, «—») y el **mejor día** con el ticket promedio.
+
+### Estadísticas › Resumen
+
+La app Estadísticas abre en **Resumen**: botones de periodo (esta semana, este mes, mes pasado, últimos 3 meses, este
+año o fechas elegidas, hasta un año) y las mismas cuatro bases. Cuatro números con su frase (ventas sin ITBMS,
+facturas o pedidos, ticket promedio y unidades) y gráficas planas en azul de la marca: **ventas por día** (o por mes
+si el periodo pasa de 62 días; tocar una barra abre Por día en ese día o ese mes), **por tipo de producto** (la
+categoría de primer nivel, como «Unidades vendidas por tipo» del Inicio; solo mercancía, sin flete ni descuentos
+generales, por eso puede no sumar el total), **por vendedora** (suma el total) y **lo más vendido** (los 10 con más
+unidades). Lo que el Inicio ya muestra bien no se repite: hay enlaces a **Por día**, **Comparar periodos** (Inicio),
+**Mejor margen** y **Lo que no se mueve**, que siguen en el mismo menú (las tablas de antes siguen ahí para quien las
+usa).
+
+### Inventario › Movimientos
+
+Se busca un producto por **nombre, código o código de barras** (el código o el código de barras exacto sale primero) y
+se ve su **línea de tiempo en palabras**, de lo más nuevo a lo más viejo: «Entró por la compra P00012 de PROVEEDOR»,
+«Salió por la venta S00123 a CLIENTE», «Ajuste de inventario (+2)» (con el nombre del conteo, p. ej. «Conteo con
+lector (Ana)»), «Devolución del cliente … (de S00123)», «Devolución al proveedor …», «Se dio de baja (merma) …»,
+«Traslado de Bodega a Tienda». A la derecha, lo que entró en **verde (+)**, lo que salió en **rojo (−)** y un traslado
+sin signo (no cambia lo que hay en total); debajo, **lo que quedó** después de ese movimiento; quién lo registró (la
+última persona que tocó la línea del movimiento: normalmente quien lo validó) y cuándo (hora de Panamá). Tocar la frase
+abre la venta, la compra o la operación. Sin producto, los **últimos movimientos de todos** (tocar el nombre del
+producto abre su historia). Filtros: fechas y tipo (compras, ventas, devoluciones, ajustes, traslados, otros).
+
+**Lo que quedó** se calcula desde lo que hay hoy hacia atrás, y **solo se muestra si la historia cuadra**: la suma de
+todos los movimientos del producto da exactamente lo que hay hoy en los almacenes (las mismas ubicaciones de
+«Disponible» de Odoo). Si hubo existencias cargadas sin movimiento, la pantalla lo dice y no muestra esa columna:
+nunca se inventa una existencia.
+
+Brian responde lo mismo con `ventas_por_dia` y `movimientos_de_producto` ([BRIAN.md](BRIAN.md)). Código:
+`addons/dcasa_interfaz/models/por_dia.py`, `models/movimientos.py` y `static/src/js/por_dia.js`, `estadisticas.js`,
+`movimientos.js`; pruebas en `tests/test_por_dia.py`, `test_movimientos.py` y `test_pantallas_navegador.py`.
+
+## Combos cama + colchón que se arman en la venta (pedido de la dueña, 2026-10-22)
+
+Antes, cada combo era un producto «COMBO …» con una cama y un colchón fijos: otro producto por cada cama con cada
+colchón. Ahora la vendedora **arma el combo en la cotización** y cada pieza sigue siendo su producto (la bodega descuenta
+la cama y el colchón, y los reportes por producto no cambian). Los combos «COMBO …» que ya existían **siguen
+funcionando** igual (la dueña decide si los archiva).
+
+**El precio (decisión de la dueña, por escrito, 2026-10-22).** Cada colchón, en cada medida (Twin, Full, Queen, King),
+tiene un **«Precio en combo»** que pone Gerencia. Si el colchón va **en la misma venta junto con una cama de su misma
+medida**, se cobra a ese precio; si no tiene precio en combo, va a su precio normal (el sistema no inventa ninguno). La
+cama va a su precio normal.
+
+**Poner el precio en combo** (Gerencia y administradores): *Ventas › Productos › Precios en combo*. Salen los colchones
+agrupados por medida; en la columna **Precio en combo** se escribe el precio **sin ITBMS**, menor que el normal (vacío =
+precio normal), y se guarda en la misma fila. La columna **Revisar** avisa si falta la medida, si no tiene precio en
+combo o si ya no es menor que el normal (porque bajó el precio normal). El filtro **Camas** muestra las camas para
+revisar su medida. También desde la ficha del producto (botón **Medidas y precio en combo**) y con Brian
+(`poner_precio_en_combo`). Un cambio vale para lo que se cotice desde ese momento: las cotizaciones que ya estaban no
+cambian solas. El texto del Excel de cada cama («Combo con colchón $349.99», campo «Combo (texto del Excel)») queda
+**solo de referencia** (Gerencia lo ve en el panel): no se usa para calcular.
+
+**Armar el combo** (quien cotiza): en la cotización, junto a «Agregar un producto», el botón **Armar combo cama +
+colchón** (en el celular, **Armar combo**). Abre un panel encima de la cotización:
+
+1. **Escoge la cama**: buscador por nombre, código o medida («cama king»), botones Twin / Full / Queen / King, y cada
+   cama con su foto, medida, precio («+ ITBMS») y cuántas hay disponibles (las que tienen existencia primero).
+2. **Escoge el colchón**: salen solo los colchones **de la medida de esa cama y con existencia** (un enlace muestra
+   también los agotados), con su precio normal tachado, el **precio en combo** y **«Ahorra $X»**; los que no tienen
+   precio en combo lo dicen. «¿Cuántos combos?» pone más de uno.
+3. Un toque y se agregan **la cama y el colchón** a la cotización. El panel muestra cada combo con **su total** y lo
+   que **ahorra el cliente**, y los botones **Cambiar cama**, **Cambiar colchón** y **Quitar combo** (el precio se
+   vuelve a calcular solo). **Listo** cierra el panel; en las líneas, la columna **Combo** dice «Combo · ahorras $X».
+
+También vale **sin el panel**: si en la misma cotización van una cama y un colchón de la misma medida (agregados como
+productos sueltos, por Brian o por Juan), el colchón toma su precio en combo.
+
+**Reglas que cumple el servidor** (`addons/dcasa_catalogo/models/combo_armable.py`, reglas puras en
+`reglas.emparejar_combos`):
+
+- **Qué es cama o colchón y su medida.** Se sugiere por el nombre («Colchón …», «Cama …», «Camarote …», «Box spring
+  …», «Base de cama …»; no: colchonetas, protectores, sofá cama, combos «COMBO …») y la medida sale del «Tamaño» de la
+  variante o, si no lo tiene, del nombre («Cama king de metal» → King; en colchones, «4/6» → Full, «3/4» → Twin, «Q» →
+  Queen). Gerencia lo corrige en la ficha («Para armar combos») y en la lista; nadie más (tampoco el precio en combo).
+  Una cama sin medida no ofrece colchones: el panel lo dice.
+- **Un colchón por cama.** Cada colchón va con una cama libre de su medida; dos colchones king con una sola cama king:
+  uno va en combo y el otro a precio normal (primero el que tiene precio en combo). Un **camarote** lleva 2 o 3: en su
+  ficha, **Colchones que lleva** (1 de fábrica).
+- **Quitar o cambiar la cama** (o subir los colchones de más) devuelve el colchón a su precio normal, también si la
+  vendedora le había puesto un precio a mano. Lo ya facturado y las ventas bloqueadas no se tocan.
+- **El tope de descuento de la vendedora.** El precio en combo lo autorizó Gerencia: no cuenta como rebaja suya. Sobre
+  él puede rebajar hasta su tope, como sobre cualquier precio. Escribir a mano el precio en combo en un colchón **sin**
+  su cama choca con el tope como cualquier rebaja.
+- **Solo en cotizaciones** (borrador o enviada): el panel no cambia una venta confirmada.
+- **La tienda en línea no arma combos** (su carrito queda como estaba: pendiente de que la dueña lo decida).
+- **Factura directa** (la que hacen quienes cobran, sin cotización): no arma combos; el combo se arma en la cotización
+  y la factura que sale de ella lo lleva.
+- **En el papel** (cotización, pedido y factura) cada pieza lleva la marca **«Combo cama + colchón»** (el colchón, con
+  «· ahorras $X») y bajo el subtotal sale **«Ahorro por combo cama + colchón (ya incluido en los precios)»**. La página
+  que ve el cliente con el enlace de la cotización también lo dice. Las notas de crédito no lo dicen.
+
+**Brian**: `colchones_para_cama`, `armar_combo`, `cambiar_combo` y `poner_precio_en_combo` (Gerencia) —
+[BRIAN.md](BRIAN.md). **Juan**: si el cliente pide la cama y el colchón de la misma medida, su cotización ya trae el
+precio en combo y la línea lo dice («ahorras $X»); Juan no calcula nada. **Guía**: «Armar un combo cama + colchón en una
+cotización» y «Poner el precio en combo de un colchón».
+
+Pruebas: `addons/dcasa_catalogo/tests/test_combos_armables.py` (servidor, factura y PDF) y `test_combos_navegador.py`
+(panel en celular y computadora); Brian en `dcasa_brian/tests/test_combos.py` y Juan en
+`dcasa_conversaciones/tests/test_cotizacion_automatica.py`.
 
 ## La «Actividad» de los formularios arranca escondida (pedido de la dueña, 2026-10-15)
 

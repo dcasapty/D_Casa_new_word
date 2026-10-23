@@ -1,6 +1,6 @@
 """Brian con productos tipo «Combo» (cama + colchón): cotiza con sus piezas y no vende un combo vacío."""
 from odoo import Command
-from odoo.tests import tagged
+from odoo.tests import new_test_user, tagged
 from odoo.tests.common import TransactionCase
 
 
@@ -67,3 +67,94 @@ class TestBrianConCombos(TransactionCase):
         self.assertFalse(confirmada['ok'])
         self.assertIn('no tiene todas sus piezas', confirmada['error'])
         self.assertEqual(orden.state, 'draft')
+
+
+@tagged('post_install', '-at_install')
+class TestBrianCombosArmables(TransactionCase):
+    """Brian arma el combo cama + colchón con el mismo mecanismo que el panel (2026-10-22)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.env['ir.config_parameter'].sudo().set_param('dcasa.descuento_max_vendedora', '10')
+        impuesto = cls.env['brian.herramientas']._b_itbms_venta()
+        ubicacion = cls.env['stock.warehouse'].search([('company_id', '=', cls.env.company.id)], limit=1).lot_stock_id
+        base = {'type': 'consu', 'is_storable': True, 'taxes_id': [Command.set(impuesto.ids)]}
+
+        def producto(codigo, nombre, precio, existencias=3, combo=0.0):
+            variante = cls.env['product.product'].create({**base, 'name': nombre, 'default_code': codigo,
+                                                          'list_price': precio})
+            if combo:
+                variante.dcasa_precio_combo = combo
+            cls.env['stock.quant'].with_context(inventory_mode=True).create({
+                'product_id': variante.id, 'location_id': ubicacion.id,
+                'inventory_quantity': existencias})._apply_inventory()
+            return variante
+        cls.cama = producto('BRZ-CAMA-K', 'BRIANZETA CAMA KING', 400.0)
+        cls.colchon = producto('BRZ-COL-K', 'BRIANZETA COLCHON KING', 300.0, combo=260.0)
+        cls.sin_precio = producto('BRZ-COL-K2', 'BRIANZETA COLCHON SIN PRECIO KING', 280.0)
+        cls.queen = producto('BRZ-COL-Q', 'BRIANZETA COLCHON QUEEN', 250.0, combo=215.0)
+        cls.vendedora = new_test_user(cls.env, login='brian_combo_vendedora', groups='dcasa_base.group_vendedora')
+        cls.gerencia = new_test_user(cls.env, login='brian_combo_gerencia', groups='dcasa_base.group_gerencia')
+        cls.cliente = cls.env['res.partner'].create({'name': 'BRIANZETA CLIENTE DE PRUEBA', 'phone': '6123-4598'})
+
+    def ejecutar(self, usuario, nombre, argumentos):
+        return self.env['brian.herramientas'].with_user(usuario).ejecutar(nombre, argumentos)
+
+    def orden_de(self, respuesta):
+        return self.env['sale.order'].search([('name', '=', respuesta['datos']['numero'])])
+
+    def test_colchones_para_cama_solo_de_su_medida_con_precio_en_combo(self):
+        respuesta = self.ejecutar(self.vendedora, 'colchones_para_cama', {'cama': 'BRZ-CAMA-K'})
+        self.assertTrue(respuesta['ok'], respuesta)
+        datos = respuesta['datos']
+        self.assertEqual(datos['medida'], 'King')
+        por_codigo = {f['codigo']: f for f in datos['colchones']}
+        self.assertNotIn('BRZ-COL-Q', por_codigo, 'Solo los de la medida de la cama')
+        self.assertEqual((por_codigo['BRZ-COL-K']['precio_en_combo'], por_codigo['BRZ-COL-K']['ahorro']),
+                         ('$260.00', '$40.00'))
+        self.assertIn('sin precio en combo', por_codigo['BRZ-COL-K2']['precio_en_combo'])
+
+    def test_armar_combo_en_una_cotizacion_nueva(self):
+        respuesta = self.ejecutar(self.vendedora, 'armar_combo', {
+            'cliente': 'BRIANZETA CLIENTE DE PRUEBA', 'cama': 'BRZ-CAMA-K', 'colchon': 'BRZ-COL-K'})
+        self.assertTrue(respuesta['ok'], respuesta)
+        orden = self.orden_de(respuesta)
+        colchon = orden.order_line.filtered(lambda ln: ln.product_id == self.colchon)
+        self.assertEqual(colchon.price_unit, 260.0)
+        self.assertEqual(respuesta['datos']['el_cliente_ahorra_sin_itbms'], '$40.00')
+        self.assertIn('Combo · ahorras $40.00', [linea.get('combo') for linea in respuesta['datos']['lineas']])
+
+    def test_armar_combo_de_otra_medida_avisa(self):
+        respuesta = self.ejecutar(self.vendedora, 'armar_combo', {
+            'cliente': 'BRIANZETA CLIENTE DE PRUEBA', 'cama': 'BRZ-CAMA-K', 'colchon': 'BRZ-COL-Q'})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('misma medida', respuesta['error'])
+
+    def test_cotizar_cama_y_colchon_sueltos_tambien_da_el_precio_en_combo(self):
+        respuesta = self.ejecutar(self.vendedora, 'crear_cotizacion', {
+            'cliente': 'BRIANZETA CLIENTE DE PRUEBA', 'lineas': 'BRZ-COL-K x 1; BRZ-CAMA-K x 1'})
+        self.assertTrue(respuesta['ok'], respuesta)
+        orden = self.orden_de(respuesta)
+        self.assertEqual(orden.order_line.filtered(lambda ln: ln.product_id == self.colchon).price_unit, 260.0)
+
+    def test_cambiar_el_colchon_del_combo(self):
+        orden = self.orden_de(self.ejecutar(self.vendedora, 'armar_combo', {
+            'cliente': 'BRIANZETA CLIENTE DE PRUEBA', 'cama': 'BRZ-CAMA-K', 'colchon': 'BRZ-COL-K'}))
+        respuesta = self.ejecutar(self.vendedora, 'cambiar_combo', {'venta': orden.name, 'colchon_nuevo': 'BRZ-COL-K2'})
+        self.assertTrue(respuesta['ok'], respuesta)
+        self.assertEqual(orden.order_line.product_id, self.cama | self.sin_precio)
+        self.assertEqual(orden.order_line.filtered(lambda ln: ln.product_id == self.sin_precio).price_unit, 280.0)
+        self.assertNotIn('el_cliente_ahorra_sin_itbms', respuesta['datos'])
+
+    def test_el_precio_en_combo_lo_pone_gerencia(self):
+        respuesta = self.ejecutar(self.vendedora, 'poner_precio_en_combo', {'colchon': 'BRZ-COL-K', 'precio': 200})
+        self.assertFalse(respuesta['ok'])
+        self.assertEqual(self.colchon.dcasa_precio_combo, 260.0)
+        respuesta = self.ejecutar(self.gerencia, 'poner_precio_en_combo', {'colchon': 'BRZ-COL-K', 'precio': 300})
+        self.assertFalse(respuesta['ok'])
+        self.assertIn('menor que su precio normal', respuesta['error'])
+        respuesta = self.ejecutar(self.gerencia, 'poner_precio_en_combo', {'colchon': 'BRZ-COL-K', 'precio': 249.99})
+        self.assertTrue(respuesta['ok'], respuesta)
+        self.assertEqual(self.colchon.dcasa_precio_combo, 249.99)
+        self.assertEqual(respuesta['datos']['ahorro'], '$50.01')

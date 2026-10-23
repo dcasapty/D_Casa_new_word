@@ -6,3 +6,5 @@ from . import res_users
 from . import sitio
 from . import product
 from . import reponer
+from . import por_dia
+from . import movimientos

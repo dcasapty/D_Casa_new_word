@@ -13,3 +13,4 @@ from . import stock_quant
 from . import utilidad
 from . import humo
 from . import cobros
+from . import aviso_vendedora

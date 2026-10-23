@@ -15,10 +15,15 @@ La nómina de D'CASA, hecha para Panamá sobre los empleados de Odoo (módulo ``
   contador.
 * Reembolsos en nómina: el colaborador registra el gasto con la foto del recibo, la administración lo aprueba y
   la siguiente planilla se lo suma.
+* Adelantos y préstamos (G7): se registran con su monto, fecha y en cuántas quincenas se descuentan; Gerencia los
+  autoriza, se entregan desde el banco o la caja y cada planilla quincenal descuenta la cuota sola, sin pasar nunca
+  de lo que la persona debe; el saldo pendiente se ve en la ficha del colaborador.
+* Comprobante de pago (G4) en PDF con la marca D'CASA, para imprimir o enviar por correo a cada colaborador
+  (respeta el interruptor de correos de D'CASA: apagado, no sale nada).
 * Bono por meta de ventas: quien está en el departamento de Ventas gana el porcentaje de lo que cobró en el mes si
   llega a la meta; entra solo en la primera planilla del mes siguiente y cada vendedora ve su avance en el Inicio.
 """,
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.0',
     'category': 'Human Resources/Payroll',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -34,12 +39,18 @@ La nómina de D'CASA, hecha para Panamá sobre los empleados de Odoo (módulo ``
         'views/config_views.xml',
         'views/planilla_views.xml',
         'views/reembolso_views.xml',
+        'views/prestamo_views.xml',
         'views/vacacion_views.xml',
         'views/liquidacion_views.xml',
         'views/hr_employee_views.xml',
         'views/meta_ventas_views.xml',
         'views/menus.xml',
     ],
+    'assets': {
+        'web.report_assets_common': [
+            'dcasa_nomina/static/src/scss/comprobante.scss',
+        ],
+    },
     'installable': True,
     'application': True,
 }

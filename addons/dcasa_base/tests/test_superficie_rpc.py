@@ -42,6 +42,14 @@ NOMINA_BLOQUEO = ('Bloquea: lo validado o ya usado por una planilla no se cambia
 NOMINA_REEMBOLSO = ('Botón del reembolso: el colaborador solo el suyo; aprobar y rechazar exigen el grupo '
                     '«Administra la nómina» en el servidor; el estado solo cambia con sudo, ya comprobado.')
 
+FOTOS_EDITAR = ('Fotos del producto: exige poder editar ESE producto (has_access("write")) o el rol Marketing con '
+                'lectura del producto (AccessError si no) ANTES del sudo con que se escriben sus fotos (product.image '
+                'de ese producto; la clave se busca solo entre las suyas); valida cada foto (formato, peso, '
+                'megapíxeles) y cada argumento.')
+MARKETING_LECTURA = ('Lectura de Marketing: exige Gerencia (ventas administrador), administrador o el rol Marketing '
+                     'ANTES de leer (_exigir, AccessError); facturas, entregas y adjuntos los suma con sudo ya '
+                     'comprobado el grupo; valida periodo, categoría y filtro; no escribe.')
+
 # (módulo, modelo, método): motivo por el que puede llamarse por RPC.
 LISTA_BLANCA = {
     # --- dcasa_base -------------------------------------------------------------------------
@@ -134,6 +142,36 @@ LISTA_BLANCA = {
     ('dcasa_catalogo', 'sale.order', 'action_dcasa_whatsapp'): SIN_SUDO,
     ('dcasa_catalogo', 'sale.order', 'action_confirm'):
         OVERRIDE + ' Solo agrega que un combo sin sus piezas no se confirma; corre como el usuario, sin sudo().',
+    # Combos cama + colchón que se arman en la venta (2026-10-22): el panel «Armar combo» corre como el usuario, sin
+    # sudo: check_access('read'/'write') de la cotización ANTES de leer o escribir (la vendedora, solo lo suyo), y las
+    # líneas se crean con el ORM (tope de descuento incluido). Solo lee productos a la venta.
+    ('dcasa_catalogo', 'sale.order', 'action_dcasa_armar_combo'):
+        'Botón: check_access("write") y que sea una cotización; solo devuelve la acción del panel. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order.line', 'action_dcasa_armar_combo'):
+        'Botón de la lista de líneas: abre el panel de la cotización del contexto, con las mismas comprobaciones. '
+        + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_panel'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_camas'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_colchones'): 'API del panel: check_access("read"). ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_agregar'):
+        'API del panel: check_access("write"), solo cotizaciones; líneas por el ORM con el tope. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_cambiar'):
+        'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order', 'dcasa_combo_quitar'):
+        'API del panel: check_access("write"), solo cotizaciones y líneas de esa cotización. ' + SIN_SUDO,
+    ('dcasa_catalogo', 'sale.order.line', 'write'):
+        OVERRIDE + ' Solo vuelve a emparejar camas y colchones (y su precio) de la misma venta; sin sudo().',
+    ('dcasa_catalogo', 'sale.order.line', 'unlink'):
+        OVERRIDE + ' Antes de quitar una cama, su colchón vuelve a su precio normal; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'create'):
+        OVERRIDE + ' Agrega que los colchones por cama solo los pone Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'write'):
+        OVERRIDE + ' Agrega que cama/colchón y colchones por cama solo los cambia Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.product', 'create'):
+        OVERRIDE + ' Agrega que el precio en combo solo lo pone Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.product', 'write'):
+        OVERRIDE + ' Agrega que el precio en combo y la medida solo los cambia Gerencia; sin sudo().',
+    ('dcasa_catalogo', 'product.template', 'action_dcasa_precios_combo'): ACCION_VENTANA,
     # --- dcasa_contabilidad --------------------------------------------------------------
     ('dcasa_contabilidad', 'dcasa.importar.extracto', 'action_importar'): ASISTENTE + ' (account.group_account_user)',
     ('dcasa_contabilidad', 'dcasa.presupuesto', 'action_aprobar'): SIN_SUDO,
@@ -322,6 +360,38 @@ LISTA_BLANCA = {
     ('dcasa_barras', 'dcasa.barras.asignacion', 'action_deshacer'):
         'Botón: exige stock.group_stock_manager y escritura sobre el registro; quita solo lo que sigue igual a lo '
         'asignado.',
+    ('dcasa_barras', 'dcasa.bodega', 'pendientes'):
+        'API del panel de Bodega: exige stock.group_stock_user en el servidor ANTES de leer; las entregas se buscan '
+        'con los permisos de la persona; el único sudo lee del pedido su número, método de entrega, si lleva flete y '
+        'si está pagado (sí o no, sin montos).',
+    ('dcasa_barras', 'dcasa.bodega', 'abrir'):
+        'API del panel de Bodega: exige stock.group_stock_user y lectura de la entrega (check_access) en el servidor; '
+        'solo salidas; el único sudo es el del pedido (número, método de entrega, flete, pagado sí o no).',
+    ('dcasa_barras', 'dcasa.bodega', 'leer'):
+        'API del panel de Bodega: exige stock.group_stock_user ANTES de leer; el QR de un documento se abre con los '
+        'permisos de quien escanea (dcasa.documento, el mismo control del Escáner); las entregas y productos se buscan '
+        'con los permisos de la persona (sin sudo; el pedido de una factura solo da los ids de sus entregas).',
+    ('dcasa_barras', 'dcasa.bodega', 'validar'):
+        'API del panel de Bodega: exige stock.group_stock_user y escritura de la entrega (check_access) en el '
+        'servidor; revisa cada renglón y cantidad (nunca más de lo pedido) y valida con button_validate de Odoo con '
+        'los permisos de la persona (sin sudo): Odoo registra quién validó.',
+    # --- dcasa_marketing (fotos del producto y Marketing, 2026-10-22) ---------------------------
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos'):
+        'Lectura: exige usuario interno y check_access("read") del producto ANTES del sudo, que solo lee sus fotos '
+        'extra (sin videos) y la versión (checksum) de sus adjuntos; no escribe.',
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_subir'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_reemplazar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_ordenar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_principal'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_quitar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_girar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'product.template', 'dcasa_fotos_recortar'): FOTOS_EDITAR,
+    ('dcasa_marketing', 'dcasa.marketing', 'datos'): MARKETING_LECTURA,
+    ('dcasa_marketing', 'dcasa.marketing', 'buscar_fotos'): MARKETING_LECTURA,
+    ('dcasa_marketing', 'dcasa.marketing', 'accion_productos'):
+        'Exige Gerencia (ventas administrador), administrador o el rol Marketing en el servidor (_exigir, '
+        'AccessError); valida los ids y solo devuelve la acción de ventana de Productos con ese filtro; no lee ni '
+        'escribe datos, sin sudo().',
     # --- dcasa_fe_pa (factura electrónica DGI) ------------------------------------------------
     ('dcasa_fe_pa', 'dcasa.fe.documento', 'action_procesar'):
         'Botón: exige account.group_account_invoice antes del sudo (envía al PAC).',
@@ -354,14 +424,47 @@ LISTA_BLANCA = {
         'Lectura de las barras de la semana y lo más vendido del panel completo: AccessError a quien vende sin '
         'controlar la tienda (o no ve pedidos) ANTES de leer; valida la base y la vendedora como ventas_del_periodo. '
         'Suma facturas con sudo filtrado a out_invoice/out_refund; devuelve solo totales por día y productos.',
-    ('dcasa_interfaz', 'dcasa.reponer', 'action_ver'):
-        ASISTENTE + ' (Gerencia y administradores). Además exige esos grupos en el servidor (_exigir_gerencia) '
-                    'ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.',
+    # Compras › Reponer (2026-10-22): cada uno exige Gerencia o administrador en el servidor (_exigir_gerencia,
+    # AccessError) ANTES de leer con sudo, siempre filtrado a las empresas de quien mira.
+    ('dcasa_interfaz', 'dcasa.reponer', 'obtener'):
+        'Lectura de la pantalla Reponer: exige Gerencia o administrador ANTES de leer; valida meses (1 a 12), reserva '
+        '(0 a 12) y el proveedor; devuelve solo cifras por producto y por proveedor.',
+    ('dcasa_interfaz', 'dcasa.reponer', 'buscar_proveedores'):
+        'Buscador de proveedores de Reponer: exige Gerencia o administrador ANTES de leer; el texto se corta a 80 '
+        'caracteres y solo se compara (ilike/Python); devuelve a lo sumo 40 fichas (nombre, teléfono, RUC, productos, '
+        'última compra, tiempo de llegada).',
+    ('dcasa_interfaz', 'dcasa.reponer', 'poner_llegada'):
+        'Guarda el tiempo de llegada de un proveedor: exige Gerencia o administrador ANTES del sudo; valida de 1 día '
+        'a 24 meses; solo escribe delay y dcasa_llegada_puesta en los precios de ese proveedor de las empresas de '
+        'quien mira, y lo anota en su ficha.',
     ('dcasa_interfaz', 'dcasa.tablero', 'comparar_ventas'):
         'Lectura del bloque «Comparar»: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
         'ANTES de leer; valida comparación, base, vendedora, mes (uno de los últimos 24), fechas no futuras, '
         '«desde» ≤ «hasta» y hasta un año por rango. Las facturas y conciliaciones las lee con sudo ya comprobado '
         'el grupo; no escribe nada.',
+    # «Por día», «Estadísticas» y «Movimientos» (2026-10-22): solo lectura, el grupo exigido ANTES de leer.
+    ('dcasa_interfaz', 'dcasa.tablero', 'por_dia'):
+        'Lectura del mes día por día: exige Gerencia o administrador en el servidor (_exigir_gerencia, AccessError) '
+        'ANTES de leer; valida la base (una de las cuatro), el mes (este o uno de los últimos 24) y la vendedora. Las '
+        'facturas las suma con sudo filtrado a out_invoice/out_refund (las mismas de _medir); los pedidos, sin sudo.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'ventas_del_dia'):
+        'Lectura de lo que se hizo un día: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida la '
+        'base, la vendedora y el día (no futuro, de los últimos 24 meses). No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'estadisticas'):
+        'Lectura de las gráficas: exige Gerencia o administrador (_exigir_gerencia) ANTES de leer; valida el periodo '
+        '(uno de los botones o un rango de hasta un año, no futuro) y la base. Devuelve solo totales.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'opciones_por_dia'):
+        'Lectura de las opciones de «Por día» y «Estadísticas» (bases, meses, vendedoras): exige Gerencia o '
+        'administrador (_exigir_gerencia) ANTES de leer; no escribe nada.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'movimientos'):
+        'Lectura de la línea de tiempo de inventario: exige Gerencia (administra Inventario) o administrador '
+        '(_exigir_permiso, AccessError) ANTES de leer con sudo, siempre filtrado a las empresas de quien mira; valida '
+        'producto, fechas, tipo y página. No escribe nada.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'buscar_productos'):
+        'Lectura: exige Gerencia o administrador (_exigir_permiso) ANTES de buscar con sudo productos de mercancía de '
+        'las empresas de quien mira; devuelve nombre, código, código de barras y existencia.',
+    ('dcasa_interfaz', 'dcasa.movimientos', 'opciones'):
+        'Lectura de los tipos de movimiento para los filtros: exige Gerencia o administrador (_exigir_permiso).',
     ('dcasa_interfaz', 'product.product', 'dcasa_accion_sin_movimiento'):
         'Lectura: exige Gerencia o administrador en el servidor (AccessError si no) y solo devuelve una acción de '
         'ventana con un filtro; no escribe ni usa sudo().',
@@ -712,11 +815,86 @@ LISTA_BLANCA = {
                    'mail.mail es solo de administradores (ACL).',
     ('dcasa_correo', 'res.config.settings', 'action_dcasa_correo_prueba'):
         'Exige base.group_system en el servidor; manda la prueba solo al correo de quien la pide.',
+    # --- dcasa_nomina: adelantos y préstamos (G7) y comprobante de pago por correo (G4), 2026-10-22 ----------------
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'create'):
+        'Exige «Administra la nómina» en el servidor y solo deja escribir los datos del borrador (el estado, la '
+        'autorización y el pago, nunca); sin sudo().',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'write'):
+        'Exige «Administra la nómina»; el estado, la autorización y el pago solo cambian con los botones (sudo ya '
+        'comprobado); un adelanto autorizado no cambia de monto ni de cuotas.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_aprobar'):
+        'Autorizar exige Gerencia o administrador en el servidor (G7) ANTES del sudo que cambia el estado.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_entregar'):
+        NOMINA_BOTON + ' El pago se crea como el usuario (sin sudo), contra la cuenta de adelantos configurada.',
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_cancelar'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.prestamo', 'action_borrador'): NOMINA_BOTON,
+    ('dcasa_nomina', 'dcasa.nomina.linea', 'action_enviar_comprobante'):
+        'Exige «Administra la nómina» y check_access(write) en el servidor ANTES del sudo que arma el PDF y el correo; '
+        'solo de planillas confirmadas y con el interruptor de correos de D\'CASA encendido.',
+    ('dcasa_nomina', 'dcasa.nomina.planilla', 'action_enviar_comprobantes'):
+        'Exige «Administra la nómina» y check_access(write) en el servidor ANTES del sudo que arma los PDF y los '
+        'correos; solo de planillas confirmadas y con el interruptor de correos de D\'CASA encendido.',
+    # --- dcasa_contabilidad: ZIP de comprobantes (I6) ------------------------------------------------------------
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'create'):
+        'Exige contabilidad, Gerencia o administrador en el servidor; solo el periodo (la lista de documentos y los '
+        'archivos los pone el sistema); sin sudo().',
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'write'):
+        'Exige contabilidad, Gerencia o administrador y solo deja cambiar el periodo: la lista de documentos que el '
+        'cron mete al ZIP (con sudo) nunca se escribe por RPC.',
+    ('dcasa_contabilidad', 'dcasa.comprobantes.paquete', 'action_preparar'):
+        'Exige contabilidad, Gerencia o administrador; la lista de documentos se busca COMO el usuario (sin sudo): '
+        'solo entra lo que esa persona puede ver.',
+    # --- dcasa_existencias: mermas (F6), bitácora de bodega y alertas (etapa 4), 2026-10-22 ------------------------
+    ('dcasa_existencias', 'dcasa.existencias.config', 'write'):
+        'Exige Gerencia o administrador en el servidor (además del ACL); sin sudo().',
+    ('dcasa_existencias', 'dcasa.existencias.config', 'action_abrir'):
+        'Exige Gerencia o administrador en el servidor; solo crea (vacío) y abre el ajuste de la empresa activa.',
+    ('dcasa_existencias', 'dcasa.existencias.config', 'action_contabilizar_pendientes'):
+        'Exige Gerencia o administrador en el servidor ANTES del sudo que busca y contabiliza las mermas pendientes.',
+    ('dcasa_existencias', 'dcasa.bitacora.bodega', 'create'):
+        'Solo el sistema (sudo) escribe la bitácora: cualquier otro create falla.',
+    ('dcasa_existencias', 'dcasa.bitacora.bodega', 'write'):
+        'Siempre falla: la bitácora no se edita.',
+    ('dcasa_existencias', 'stock.quant', 'action_apply_inventory'):
+        OVERRIDE + ' Sin motivo exige Gerencia y devuelve la ventana del motivo; con motivo, Odoo; sin sudo().',
+    ('dcasa_existencias', 'stock.quant', 'create'):
+        OVERRIDE + ' Agrega: «A la mano» directo sin motivo no se escribe (hay que contar y aplicar); sin sudo().',
+    ('dcasa_existencias', 'stock.quant', 'write'):
+        OVERRIDE + ' Agrega: «A la mano» directo sin motivo no se escribe (hay que contar y aplicar); sin sudo().',
+    ('dcasa_existencias', 'stock.inventory.adjustment.name', 'action_apply'):
+        ASISTENTE + ' Además exige el motivo escrito; el ajuste pasa por el candado de Gerencia de stock.quant.',
+    ('dcasa_existencias', 'stock.move.line', 'action_revert_inventory'):
+        OVERRIDE + ' Deshacer un ajuste exige el gerente de Inventario (Gerencia); queda en la bitácora.',
+    ('dcasa_existencias', 'stock.move.line', 'create'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move.line', 'write'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move', 'create'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.move', 'write'):
+        OVERRIDE + ' Mover hacia o desde «Ajuste de inventario» o «Desecho» exige Gerencia; sin sudo().',
+    ('dcasa_existencias', 'stock.scrap', 'action_validate'):
+        OVERRIDE + ' Dar de baja una merma exige el gerente de Inventario (Gerencia), el código y el costo; el asiento '
+                   'y la bitácora se escriben con sudo después de comprobarlo.',
+    ('dcasa_existencias', 'stock.scrap', 'do_scrap'):
+        OVERRIDE + ' La misma regla que «Dar de baja» (Gerencia, código y costo) antes de super().',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_ver_mermas'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo devuelve la acción de la lista.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_reclamo'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo abre el asistente del reclamo.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_contabilizar'):
+        ASISTENTE + ' Llama a action_contabilizar_pendientes, que exige Gerencia o administrador.',
+    ('dcasa_existencias', 'dcasa.merma.resumen', 'action_abrir'):
+        'Exige el gerente de Inventario; crea el resumen del mes (sin datos que guardar) y lo abre.',
+    ('dcasa_existencias', 'dcasa.merma.reclamo', 'action_imprimir'):
+        ASISTENTE + ' Exige el gerente de Inventario; solo devuelve el PDF del reclamo.',
+    ('dcasa_existencias', 'dcasa.merma.reclamo', 'action_marcar_reclamadas'):
+        ASISTENTE + ' Exige el gerente de Inventario en el servidor ANTES del sudo que marca las mermas.',
 }
 
 # Modelos abstractos sin ACL: por RPC no se puede llamar NINGÚN método suyo (S-09).
 SIN_SUPERFICIE = ('brian.herramientas', 'brian.proveedores', 'brian.politica', 'dcasa.mantenimiento',
-                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado', 'dcasa.correo')
+                  'dcasa.fe.pac', 'dcasa.fe.pac.simulado', 'dcasa.correo', 'dcasa.existencias.alertas')
 
 
 def es_publico(modelo, nombre):

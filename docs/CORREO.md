@@ -22,6 +22,9 @@ empresa). Sin amarillo, sin degradados ni sombras. Salen desde **D'CASA Panamá 
 contesta, la respuesta llega a **info@dcasapty.com**. (En el correo, el botón principal lleva a Mi cuenta por pedido de
 la dueña; WhatsApp sigue siendo el CTA único del sitio.)
 
+Además, **el comprobante de pago de la planilla** (Nómina, desde el 2026-10-22) sale por el mismo camino y con el
+mismo interruptor: con los correos apagados, en staging o sin clave, no le llega a nadie (ver [NOMINA.md](NOMINA.md)).
+
 Lo que **no** hace:
 
 - **No manda nada mientras no lo enciendas.** Viene apagado, y sin la clave de Resend no sale ningún correo.

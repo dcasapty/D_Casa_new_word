@@ -52,3 +52,12 @@ class TestPolitica(BaseCase):
         for clase in P.CLASES_A_CLIENTES:
             with self.subTest(clase=clase):
                 self.assertEqual(P.puede_salir(clase, True, 'produccion', cliente, equipo), (True, ''))
+
+    def test_el_comprobante_de_pago_de_la_planilla_sigue_el_mismo_interruptor(self):
+        """G4: el comprobante que Nómina manda a cada colaborador es de D'CASA (no un correo automático de Odoo) y sale
+        solo con el interruptor encendido y en producción, como la factura."""
+        self.assertEqual(P.clase_de_correo('dcasa.nomina.linea', 'email_outgoing', False, 'nomina'), 'nomina')
+        colaborador = ['colaborador.prueba@example.com']
+        self.assertEqual(P.puede_salir('nomina', True, 'produccion', colaborador, []), (True, ''))
+        self.assertEqual(P.puede_salir('nomina', False, 'produccion', colaborador, []), (False, P.MOTIVO_APAGADO))
+        self.assertEqual(P.puede_salir('nomina', True, 'staging', colaborador, []), (False, P.MOTIVO_STAGING))

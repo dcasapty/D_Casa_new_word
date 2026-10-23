@@ -72,7 +72,8 @@ class TestPuertas(ContactoCommon):
         orden = self.cotizar(self.sin_nada)
         with self.assertRaises(UserError) as error:
             orden.action_confirm()
-        self.assertIn('le falta el celular y el correo. Escríbelos en su ficha', error.exception.args[0])
+        self.assertIn('le falta el celular (o un teléfono fijo) y el correo. Escríbelos en su ficha',
+                      error.exception.args[0])
 
     def test_con_los_dos_datos_se_confirma(self):
         orden = self.cotizar(self.completo)
@@ -191,10 +192,10 @@ class TestCasillaSinCorreo(ContactoCommon):
     def test_solo_exime_del_correo_el_celular_sigue(self):
         self.sin_nada.with_user(self.vendedora).dcasa_sin_correo = True
         orden = self.cotizar(self.sin_nada)
-        self.assertEqual(orden.dcasa_falta_contacto, 'el celular')
+        self.assertEqual(orden.dcasa_falta_contacto, 'el celular (o un teléfono fijo)')
         with self.assertRaises(UserError) as error:
             orden.action_confirm()
-        self.assertIn('le falta el celular.', error.exception.args[0])
+        self.assertIn('le falta el celular (o un teléfono fijo).', error.exception.args[0])
         self.assertNotIn('correo', error.exception.args[0].split('\n')[0].split('le falta')[1])
 
     def test_se_marca_desde_la_cotizacion_y_se_guarda_en_la_ficha(self):
@@ -318,7 +319,7 @@ class TestFichaBienEscrita(ContactoCommon):
         Partner = self.env['res.partner'].with_user(self.vendedora).with_context(**CLIENTE)
         with self.assertRaises(ValidationError) as error:
             Partner.create({'name': 'Sin Datos Nuevo', 'phone': False, 'email': False})
-        self.assertIn('Escribe el celular y el correo del cliente', error.exception.args[0])
+        self.assertIn('Escribe el celular (o un teléfono fijo) y el correo del cliente', error.exception.args[0])
         with self.assertRaises(ValidationError) as error:
             Partner.create({'name': 'Sin Correo Nuevo', 'phone': '6000-0005', 'email': False})
         self.assertIn('Escribe el correo del cliente', error.exception.args[0])
@@ -382,3 +383,107 @@ class TestFichaBienEscrita(ContactoCommon):
         self.assertIn('8 números', errores['phone'])
         self.assertIn('un solo número', Partner._dcasa_errores_de_contacto('6026-1919 / 2345678', '')['phone'])
         self.assertIn('de verdad', Partner._dcasa_errores_de_contacto('', 'sincorreo@gmail.com')['email'])
+
+
+@tagged('post_install', '-at_install')
+class TestTelefonoFijo(ContactoCommon):
+    """«Hubo un cliente que no tenía WhatsApp sino teléfono fijo de 7 números» (la dueña, 2026-10-22): el fijo va en su
+    propio campo y sirve en lugar del celular para crear al cliente, confirmar su venta y publicar su factura. No es una
+    llave: no choca con otras fichas ni toca Socios (su llave sigue siendo el celular)."""
+
+    def test_se_crea_un_cliente_solo_con_telefono_fijo(self):
+        Partner = self.env['res.partner'].with_user(self.vendedora).with_context(**CLIENTE)
+        cliente = Partner.create({'name': 'Cliente Solo Fijo', 'dcasa_telefono_fijo': '234 5678',
+                                  'email': 'solofijo@example.com'})
+        self.assertEqual((cliente.phone, cliente.dcasa_telefono_fijo, cliente.dcasa_fijo_digitos),
+                         (False, '+507 234-5678', '2345678'))
+        self.assertFalse(cliente.dcasa_telefono_llave, 'el fijo no es una llave')
+        self.assertFalse(cliente.dcasa_celular, 'ni el celular de Socios')
+        # Y con los dos: cada uno en su campo.
+        ambos = Partner.create({'name': 'Cliente Con Ambos', 'phone': '6000-0031', 'dcasa_telefono_fijo': '7345678',
+                                'email': 'ambos@example.com'})
+        self.assertEqual((ambos.phone, ambos.dcasa_telefono_fijo), ('+507 6000-0031', '+507 734-5678'))
+
+    def test_en_el_formulario_de_cliente_nuevo_basta_el_fijo(self):
+        formulario = Form(self.env['res.partner'].with_user(self.vendedora).with_context(**CLIENTE))
+        formulario.name = 'Cliente Formulario Fijo'
+        formulario.email = 'formfijo@example.com'
+        with self.assertRaises(AssertionError):
+            formulario.save()   # sin celular ni fijo, no
+        formulario.dcasa_telefono_fijo = '234-5679'
+        cliente = formulario.save()
+        self.assertEqual(cliente.dcasa_telefono_fijo, '+507 234-5679')
+
+    def test_cada_numero_en_su_campo_con_mensaje_claro(self):
+        Partner = self.env['res.partner'].with_user(self.vendedora).with_context(**CLIENTE)
+        with self.assertRaises(ValidationError) as error:
+            Partner.create({'name': 'Fijo En Celular', 'phone': '234-5678', 'email': 'a1@example.com'})
+        self.assertEqual(error.exception.args[0], '234-5678 tiene 7 números: es un teléfono fijo. Escríbelo en '
+                                                  '«Teléfono fijo»; el celular en Panamá tiene 8 números, como '
+                                                  '6123-4567.')
+        with self.assertRaises(ValidationError) as error:
+            Partner.create({'name': 'Celular En Fijo', 'dcasa_telefono_fijo': '6123-4567', 'email': 'a2@example.com'})
+        self.assertEqual(error.exception.args[0], '6123-4567 tiene 8 números: es un celular. Escríbelo en «Celular»; '
+                                                  'el teléfono fijo en Panamá tiene 7 números, como 234-5678.')
+        with self.assertRaises(ValidationError) as error:
+            self.completo.with_user(self.vendedora).dcasa_telefono_fijo = '234-56'
+        self.assertIn('en Panamá son 7 números, como 234-5678', error.exception.args[0])
+        # Antes de guardar, el mismo aviso.
+        ficha = self.env['res.partner'].with_user(self.vendedora).new({'name': 'Aviso Fijo',
+                                                                        'dcasa_telefono_fijo': '6123-4567'})
+        self.assertIn('es un celular', ficha._onchange_dcasa_duplicado()['warning']['message'])
+        ficha = self.env['res.partner'].with_user(self.vendedora).new({'name': 'Aviso Fijo', 'phone': '2345678'})
+        self.assertIn('es un teléfono fijo', ficha._onchange_dcasa_duplicado()['warning']['message'])
+
+    def test_la_venta_y_la_factura_pasan_con_el_fijo(self):
+        cliente = self.env['res.partner'].create({'name': 'Cliente Fijo Venta', 'customer_rank': 1,
+                                                  'email': 'fijoventa@example.com'})
+        orden = self.cotizar(cliente)
+        self.assertEqual(orden.dcasa_falta_contacto, 'el celular (o un teléfono fijo)')
+        with self.assertRaises(UserError) as error:
+            orden.action_confirm()
+        self.assertIn('le falta el celular (o un teléfono fijo).', error.exception.args[0])
+        cliente.with_user(self.vendedora).dcasa_telefono_fijo = '234-5680'
+        self.assertFalse(orden.dcasa_falta_contacto)
+        orden.action_confirm()
+        self.assertEqual(orden.state, 'sale')
+        factura = self.factura(cliente, self.vendedora)
+        factura.with_user(self.vendedora).action_post()
+        self.assertEqual(factura.state, 'posted')
+
+    def test_el_fijo_de_la_ficha_cuenta_para_la_direccion_de_factura(self):
+        empresa = self.env['res.partner'].create({'name': 'Empresa Fijo', 'is_company': True, 'customer_rank': 1,
+                                                  'dcasa_telefono_fijo': '+507 300-0001'})
+        contacto = self.env['res.partner'].create({'name': 'Contacto Empresa Fijo', 'parent_id': empresa.id,
+                                                   'email': 'contacto.fijo@example.com'})
+        datos = self.env['res.partner']._dcasa_contacto_del_documento(contacto)
+        self.assertEqual((datos['celular'], datos['fijo']), (None, '+507 300-0001'))
+        self.assertEqual(self.env['res.partner']._dcasa_faltantes(contacto), [])
+
+    def test_el_fijo_no_es_unico(self):
+        """Una casa o una empresa con varios contactos comparten el mismo fijo: no choca."""
+        Partner = self.env['res.partner'].with_user(self.vendedora).with_context(**CLIENTE)
+        uno = Partner.create({'name': 'Mamá Fijo', 'dcasa_telefono_fijo': '234-5690', 'email': 'mama@example.com'})
+        dos = Partner.create({'name': 'Hijo Fijo', 'dcasa_telefono_fijo': '+507 234 5690', 'email': 'hijo@example.com'})
+        self.assertEqual(uno.dcasa_telefono_fijo, dos.dcasa_telefono_fijo)
+        self.assertFalse(dos._dcasa_fichas_con_el_mismo_dato(), 'ni siquiera sale el aviso de «misma persona»')
+
+    def test_se_encuentra_al_cliente_por_su_fijo(self):
+        cliente = self.env['res.partner'].create({'name': 'Cliente Buscado Fijo', 'customer_rank': 1,
+                                                  'dcasa_telefono_fijo': '+507 234-5691'})
+        Partner = self.env['res.partner'].with_user(self.vendedora)
+        for texto in ('234-5691', '2345691', '234 5691', '+507 234-5691', '5691'):
+            with self.subTest(texto=texto):
+                self.assertIn(cliente, Partner.search([('display_name', 'ilike', texto)]))
+                self.assertIn(cliente.id, [i for i, _n in Partner.name_search(texto)])
+        # El filtro «Número de teléfono» del buscador de contactos también lo mira.
+        self.assertIn(cliente, Partner.search([('phone_mobile_search', 'ilike', '234-5691')]))
+        self.assertIn(cliente, Partner.search([('phone_mobile_search', 'ilike', '+507 234 5691')]))
+
+    def test_fusionar_conserva_el_fijo(self):
+        destino = self.env['res.partner'].create({'name': 'Destino Fijo', 'phone': '6000-0032'})
+        origen = self.env['res.partner'].create({'name': 'Origen Fijo', 'dcasa_telefono_fijo': '+507 234-5692'})
+        self.env['base.partner.merge.automatic.wizard']._merge((destino + origen).ids, dst_partner=destino)
+        self.assertFalse(origen.exists())
+        self.assertEqual((destino.phone, destino.dcasa_telefono_fijo), ('6000-0032', '+507 234-5692'))
+

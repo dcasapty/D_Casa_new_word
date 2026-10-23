@@ -47,7 +47,9 @@ MCP ────────┘         │                        │  tool cal
 
 `crear_cliente` pide el celular y el correo, los dos bien escritos (los mismos «¿Quisiste decir…?» de la ficha); si
 el cliente de verdad no tiene correo, se escribe «no tiene» y queda marcada «Cliente no tiene correo electrónico».
-`actualizar_cliente` revisa igual el celular y el correo (y acepta el correo «no tiene»).
+Si no tiene celular, su **teléfono fijo** (7 números) va en «celular» y se guarda como teléfono fijo (2026-10-22);
+`actualizar_cliente` también cambia `telefono_fijo`. `actualizar_cliente` revisa igual el celular, el teléfono fijo y el correo
+(y acepta el correo «no tiene»).
 | sensible | confirmar una venta, publicar una factura, registrar un pago, cambiar el rol de un usuario, archivar | Brian propone → el humano pulsa **Permitir** (o **Rechazar**) en una tarjeta con el detalle exacto |
 | prohibido | ver abajo | No existe herramienta para eso |
 
@@ -334,8 +336,10 @@ comprobar permisos. Cada vendedora ve las suyas; Gerencia, todas. No agregan mé
 | `sugerir_reabastecimiento` — vendido en N días, hay, en camino, comprometido, cuánto pedir para cubrir N días, proveedor y costo | lectura | Inventario |
 | `crear_pedido_compra(proveedor, lineas)` — solicitud de compra en borrador | construcción | Compras |
 | `buscar_compras` — borradores, confirmadas, por recibir | lectura | Compras |
-| `que_reponer(proveedor?, periodo? / desde?, hasta?)` — lo mismo que Compras › Reponer: por producto, vendido (facturas menos notas de crédito), en existencia, pedido sin llegar y faltaría (vendido − existencia − pedido); de fábrica, los últimos 30 días | lectura | Gerencia y administradores |
+| `que_reponer(proveedor?, meses?, reserva?)` — lo mismo que Compras › Reponer: por producto, vendido en los últimos N meses (de fábrica 5; facturas menos notas de crédito), se vende al mes, disponible hoy (en bodega − lo vendido por entregar), viene en camino, alcanza para, tarda en llegar, pedir y `pedir_ya`, de más urgente a menos. Sin el tiempo de llegada del proveedor no calcula cuánto pedir (lo dice) | lectura | Gerencia y administradores |
+| `poner_tiempo_llegada(proveedor, dias? / meses?)` — guarda cuánto tarda en llegar un proveedor (1 día a 24 meses; un mes = 30 días) en todos sus precios de proveedor; queda anotado en su ficha. Nunca lo inventa: lo pregunta | construcción | Gerencia y administradores |
 | `pendientes_de_hoy` — entregas, cotizaciones dormidas, compras por recibir, vencidas, publicados agotados, acciones por confirmar | lectura | Interno |
+| `entregas_por_despachar(como?, estado?, limite?)` — las del panel de Bodega: cuántas para envío, para retirar en la tienda y sin definir; listas para salir y esperando producto; las más antiguas con cliente, pedido, fecha, productos y «con abono: falta una parte» (sin montos ni precios); solo pedidos con pago o abono; botón para abrir el panel (módulo `dcasa_barras`) | lectura | Inventario |
 | `productos_incompletos` — sin foto, precio, categoría, medidas o código | lectura | Interno |
 | `publicar_productos_en_bloque` — una tarjeta con cuáles; al publicar se saltan los sin foto o sin precio | sensible | Gerencia de ventas |
 | `ajustar_existencias_en_bloque(cantidad, productos? / categoria? / todos?, almacen?)` — deja la misma cantidad en varios productos a la vez (lo normal: en cero). La tarjeta dice cuántos y cuáles; `todos` solo sirve con cantidad 0 y toma los que hoy tienen existencias en el almacén; hasta 1,000 por vez | sensible | Gerencia de inventario |
@@ -360,6 +364,17 @@ como su Inicio, **sobre las facturas publicadas** (como Contabilidad) y con las 
 | `resumen_ventas(periodo?, desde?, hasta?, base?, vendedora?)` | Lo de siempre y, para Gerencia, `base` = `facturado` (por defecto: todas las facturas publicadas, por su fecha, igual que Contabilidad; las notas de crédito restan; agrega `de_un_pedido`, «N de M salieron de un pedido de una vendedora»), `con_abonos` (con al menos un abono, por su valor total; agrega `falta_por_cobrar_con_itbms`) o `completadas` (pagadas al 100 %, el día del último pago), y `vendedora` (un nombre o «sin vendedora»; una factura es de la vendedora de su pedido o, sin pedido, de su «Vendedor»). La respuesta dice qué cuenta (`cuenta`) y cuántas notas de crédito restaron (`notas_de_credito`). Trae el ticket promedio (`ticket_promedio_sin_itbms`, «—» sin ventas) y, para Gerencia, `unidades_por_tipo` y `unidades_total`, los mismos del Inicio (categoría de primer nivel; «Otros» pasados 8 tipos; las notas de crédito restan). Quien vende sin controlar ve solo lo suyo, sus pedidos facturados por completo; si pide otra vendedora, se le niega | lectura | Ventas |
 | `comparar_ventas(comparacion, a?, b?, base?, vendedora?)` | Las cifras del bloque **Comparar**: `ayer`, `dia_mes_pasado`, `semana_pasada`, `mes_a_la_fecha`, `mes` (contra el mes completo que diga `b`: «septiembre», «09/2026» o «2026-09»; responde «Llevas 58 % de septiembre») o `rango` (`a` = «01/10/2026-07/10/2026»; `b` = dónde empieza B, del mismo largo, o B entero si es de otro largo, y entonces el % va por día). Filas: ventas, ganancia, margen (en puntos), número de ventas, ticket promedio, falta por cobrar (con abonos) y cobrado, con su cambio («▲ 27.6 %», «▼ 5.4 pts», «—» sin base). Si A termina hoy, dice hasta qué hora se cortó. `vendedora=por vendedora` agrega una fila por vendedora (5 parámetros: el contrato de los modelos pequeños) | lectura | Gerencia |
 
+**Por día y movimientos de inventario (2026-10-22).** Las mismas cuentas de *Por día* y de *Inventario › Movimientos*
+([OPERACION.md](OPERACION.md), «Por día, Estadísticas y Movimientos»):
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `ventas_por_dia(dia?, mes?, base?, vendedora?)` | Con `dia` («hoy», «ayer», «el martes» = el último martes, hoy incluido; «el martes pasado» = antes de hoy; o «20/10/2026»): el total de ese día sin ITBMS (ITBMS y total aparte) y cada factura o pedido con cliente, vendedora, monto y estado. Sin `dia`: cada día del mes con ventas (`mes` = «este mes», «mes pasado», «septiembre», «09/2026»), el total, el ticket promedio, el mejor día y la comparación con el mes anterior (la misma de la pantalla). `base`: `facturado` (por defecto), `confirmado` (lo vendido: pedidos confirmados, el día que se confirmaron), `con_abonos` o `completadas` (pagadas por completo, el día que se terminó de pagar) | lectura | Gerencia |
+| `movimientos_de_producto(producto?, desde?, hasta?, tipo?, limite?)` | La historia de un producto (nombre, código o código de barras) en palabras: «Entró por la compra… de…», «Salió por la venta… a…», ajustes, devoluciones y traslados, con la cantidad (+/−), lo que quedó (solo si la historia cuadra; si no, lo avisa), quién y cuándo, y lo que hay hoy. Sin producto, los últimos movimientos de todos. `tipo`: compra, venta, devolucion, ajuste, traslado u otro | lectura | Gerencia de inventario y administradores |
+
+Ejemplos: «¿cuánto se facturó el martes?» → `ventas_por_dia(dia=el martes)`; «ventas por día de este mes» →
+`ventas_por_dia()`; «¿qué movimientos tuvo el SOF-001?» → `movimientos_de_producto(producto=SOF-001)`.
+
 `reporte_del_dia` le da a Gerencia las ventas de hoy como su Inicio (`ventas_de_hoy`, en «Facturado», con
 `de_un_pedido`) en lugar de «Vendido hoy», que sigue siendo la cifra de la vendedora; lo más vendido de los 30 días es
 también el del Inicio de Gerencia («Facturado»). Ejemplos: «¿cómo vamos contra septiembre?» →
@@ -368,9 +383,37 @@ también el del Inicio de Gerencia («Facturado»). Ejemplos: «¿cómo vamos co
 
 Brian **solo lee** el CRM: cerrar o ganar oportunidades no está hecho a propósito (docs/CRM_AUTOMATICO.md, «Lo que NO se hace»).
 
+**Combos cama + colchón que se arman en la venta (2026-10-22, `herramientas_combos.py`).** Las mismas reglas del panel
+«Armar combo» de la cotización ([OPERACION.md](OPERACION.md), «Combos cama + colchón»): el colchón va a su **precio en
+combo** (el que puso Gerencia, por medida) solo si en la misma venta va una cama de su medida; sin precio en combo, a
+precio normal. Brian corre como quien le habla (tope de descuento y «solo lo suyo» incluidos).
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `colchones_para_cama(cama, todos?)` | Los colchones de la medida de la cama, con existencia (`todos`: también los agotados): precio normal, precio en combo, ahorro y disponibles. Una cama sin medida lo dice | lectura | Ventas |
+| `armar_combo(cama, colchon, venta? / cliente?, cantidad?)` | Agrega la cama y el colchón de su misma medida a una cotización (o a una nueva para `cliente`); devuelve el resumen con `el_cliente_ahorra_sin_itbms` | construcción | Ventas |
+| `cambiar_combo(venta, cama_nueva? / colchon_nuevo?, cama_actual?)` | Cambia la cama o el colchón del combo (con varios combos, `cama_actual` dice cuál); el precio se vuelve a calcular | construcción | Ventas |
+| `poner_precio_en_combo(colchon, precio)` | El precio en combo de un colchón en una medida (sin ITBMS, menor que el normal; 0 lo quita) | construcción | Gerencia |
+
+`crear_cotizacion` con una cama y un colchón de la misma medida ya da el precio en combo, y el resumen de cualquier
+cotización (`ver_venta`, `crear_cotizacion`…) marca las líneas que van en combo (`combo`: «Combo · ahorras $40.00»).
+
 `crear_cotizacion` y `agregar_linea_cotizacion` aceptan `lineas` («SOF-001 x 2; MES-003 x 1 @ 99»;
 máx. 30). Los modelos pequeños pueden mandar números y sí/no como texto: el registro los convierte
 (`registro.coercer`), y un parámetro mal puesto responde con la lista de los válidos.
+
+## Marketing y fotos (2026-10-22, módulo `dcasa_marketing`)
+
+Las mismas cifras de la app **Marketing** ([MARKETING.md](MARKETING.md)); nada lo calcula el modelo de IA.
+
+| Herramienta | Qué hace | Nivel | Quién |
+|---|---|---|---|
+| `movimiento_de_productos(periodo?, que?, categoria?, limite?)` | `periodo` = `semana` (7 días corridos, por defecto), `15_dias` o `mes` (30 días); `que` = `mas_movimiento` (lo vendido o entregado; una venta facturada y entregada cuenta una vez), `quietos` (con stock y sin ventas ni entregas; primero los que nunca se vendieron, con la última venta y los días sin vender), `mas_vendidos` (unidades facturadas, las notas de crédito restan, la base del Inicio) o `todo`; `categoria` = el tipo (p. ej. «Salas»). Responde cómo se cuenta (`como_se_cuenta`) | lectura | Gerencia, administradores y el rol Marketing |
+| `fotos_que_faltan(estado?, texto?, categoria?, limite?)` | Productos a la venta sin foto (`sin_foto`), con una sola (`una_foto`) o los dos (`faltan`, por defecto); con cuántas tiene cada uno, los conteos y dónde subirlas (Marketing › Fotos o tocando la foto del producto) | lectura | Interno |
+
+Ejemplos: «¿qué productos están más quietos esta semana?» → `movimiento_de_productos(que=quietos)`; «¿qué se movió más
+este mes en Salas?» → `movimiento_de_productos(periodo=mes, que=mas_movimiento, categoria=Salas)`; «¿a qué colchones les
+faltan fotos?» → `fotos_que_faltan(categoria=Colchones)`. Brian no sube ni cambia fotos (eso se hace en la pantalla).
 
 ## Roles y «Cada vendedora ve solo sus documentos» (2026-10-17)
 
@@ -407,6 +450,24 @@ gerencia») le valen igual; además:
 * **El prompt**: a quien no cobra, Brian sabe que «los cobros los registra Caja (o Gerencia)»; a quien no es Gerencia,
   que anular, pasar a borrador, notas de crédito y devolver dinero son solo de Gerencia. Brian no tiene herramientas
   para anular, pasar a borrador ni hacer notas de crédito (sigue siendo de una persona).
+
+## Bodega, nómina y el ZIP de comprobantes (2026-10-22)
+
+Archivo `models/herramientas_bodega_nomina.py` (usan modelos de `dcasa_existencias`, `dcasa_nomina` y
+`dcasa_contabilidad`; si uno no está instalado, la herramienta lo dice). Pruebas: `tests/test_bodega_nomina_brian.py`.
+
+| Herramienta | Nivel | Quién | Qué hace |
+|---|---|---|---|
+| `resumen_de_mermas` | lectura | gerente de Inventario (Gerencia) | Mermas del mes por código, contra lo comprado y el tope del 0.5 % |
+| `registrar_merma` | sensible | gerente de Inventario | Da de baja una merma, daño, muestra o regalo (pide «qué pasó») |
+| `bitacora_de_bodega` | lectura | gerente de Inventario | Últimos ajustes: antes → después, motivo y quién |
+| `adelantos_y_prestamos` | lectura | Administra la nómina | Adelantos con su saldo y cuota por quincena |
+| `registrar_adelanto` | construcción | Administra la nómina | Lo deja «por autorizar» (lo autoriza Gerencia en la pantalla) |
+| `enviar_comprobantes_de_pago` | sensible | Administra la nómina | Manda los comprobantes de una planilla confirmada (respeta el interruptor de correos) |
+| `preparar_zip_de_comprobantes` | construcción | contabilidad | Prepara el ZIP de un año o un rango; avisa cuando está listo |
+
+Además, **`ajustar_existencias` y `ajustar_existencias_en_bloque` piden ahora el `motivo`** (obligatorio): queda en la
+bitácora de bodega con origen «Brian». La tarjeta de confirmación del bloque lo muestra.
 
 ## Para cada función nueva
 

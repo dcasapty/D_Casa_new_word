@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="resumen_form" model="ir.ui.view">
+        <field name="name">dcasa.merma.resumen.form</field>
+        <field name="model">dcasa.merma.resumen</field>
+        <field name="arch" type="xml">
+            <form string="Mermas del mes" create="0" delete="0">
+                <header>
+                    <button name="action_ver_mermas" type="object" string="Ver las mermas del mes" class="btn-primary"/>
+                    <button name="action_reclamo" type="object" string="Reclamo a un proveedor (PDF)"/>
+                    <button name="action_contabilizar" type="object" string="Contabilizar las pendientes"
+                            invisible="not pendientes" groups="dcasa_base.group_gerencia,base.group_system"/>
+                </header>
+                <sheet>
+                    <field name="currency_id" invisible="1"/>
+                    <field name="pasa" invisible="1"/>
+                    <field name="sin_compras" invisible="1"/>
+                    <div class="oe_title">
+                        <h1>Mermas de <field name="titulo" class="oe_inline" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <field name="mes" string="Ver otro mes"/>
+                    </group>
+                    <div class="alert alert-danger" role="alert" invisible="not pasa">
+                        <strong>Pasan del tope.</strong> Las mermas, daños, muestras y regalos del mes pasan del
+                        <field name="tope" class="oe_inline" readonly="1"/> % de lo comprado (decisión de la gerencia).
+                    </div>
+                    <div class="alert alert-success" role="alert" invisible="pasa or not total">
+                        Dentro del tope que puso la gerencia.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not faltan_cuentas">
+                        <strong>Falta elegir:</strong> <field name="faltan_cuentas" class="oe_inline" readonly="1"/>.
+                        Sin eso las mermas no aparecen en el estado de resultados (la contadora las elige en
+                        Inventario › Configuración › Ajustes de bodega y mermas). No se inventan cuentas.
+                    </div>
+                    <group>
+                        <group string="Este mes">
+                            <field name="total"/>
+                            <field name="compras"/>
+                            <field name="porcentaje" invisible="sin_compras"/>
+                            <div colspan="2" class="text-muted" invisible="not sin_compras">
+                                Este mes no entró mercancía comprada: no hay contra qué comparar.
+                            </div>
+                            <field name="cantidad"/>
+                            <field name="pendientes" invisible="not pendientes"/>
+                        </group>
+                        <group string="Por código">
+                            <field name="merma"/>
+                            <field name="dano"/>
+                            <field name="muestra"/>
+                            <field name="regalo"/>
+                        </group>
+                    </group>
+                    <group string="El año, mes a mes">
+                        <field name="tabla_anio" nolabel="1" colspan="2" readonly="1"/>
+                        <field name="total_anio"/>
+                    </group>
+                    <group string="Para reclamarle al proveedor (mermas y daños del año)">
+                        <field name="tabla_proveedores" nolabel="1" colspan="2" readonly="1"/>
+                    </group>
+                    <p class="text-muted">
+                        Lo comprado = lo que entró a la bodega desde los proveedores (recepciones validadas), a su
+                        costo y sin ITBMS, menos lo devuelto. Las mermas van a costo y sin ITBMS. En el estado de
+                        resultados salen como su propia línea (la cuenta de las mermas), mes a mes y en el año.
+                    </p>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="accion_resumen" model="ir.actions.server">
+        <field name="name">Mermas del mes</field>
+        <field name="model_id" ref="model_dcasa_merma_resumen"/>
+        <field name="state">code</field>
+        <field name="code">action = model.action_abrir()</field>
+    </record>
+</odoo>

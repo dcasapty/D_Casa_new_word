@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Mermas, daños, muestras y regalos (F6): el desecho de Odoo con su código, su costo y el proveedor. -->
+    <record id="merma_list" model="ir.ui.view">
+        <field name="name">stock.scrap.list.dcasa.mermas</field>
+        <field name="model">stock.scrap</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <list string="Mermas, daños, muestras y regalos" decoration-muted="state == 'draft'"
+                  decoration-danger="dcasa_contabilidad in ('falta_cuenta', 'error')">
+                <field name="date_done" string="Fecha"/>
+                <field name="name" optional="hide"/>
+                <field name="product_id"/>
+                <field name="scrap_qty" string="Cantidad"/>
+                <field name="dcasa_motivo" widget="badge"/>
+                <field name="dcasa_costo" sum="Total"/>
+                <field name="dcasa_proveedor_id" optional="show"/>
+                <field name="dcasa_reclamo" optional="show" widget="badge" decoration-warning="dcasa_reclamo == 'por_reclamar'"
+                       decoration-success="dcasa_reclamo == 'reclamado'"/>
+                <field name="dcasa_contabilidad" optional="show" widget="badge" decoration-success="dcasa_contabilidad == 'hecho'"
+                       decoration-danger="dcasa_contabilidad in ('falta_cuenta', 'error')"/>
+                <field name="state" optional="hide"/>
+                <field name="dcasa_currency_id" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="merma_form" model="ir.ui.view">
+        <field name="name">stock.scrap.form.dcasa.mermas</field>
+        <field name="model">stock.scrap</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <form string="Merma, daño, muestra o regalo">
+                <header>
+                    <button name="action_validate" invisible="state != 'draft'" string="Dar de baja" type="object"
+                            class="oe_highlight" context="{'not_unlink_on_discard': True}"
+                            groups="stock.group_stock_manager"
+                            confirm="Baja la existencia del producto y queda su costo como merma. ¿Seguir?"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,done"/>
+                </header>
+                <sheet>
+                    <field name="dcasa_currency_id" invisible="1"/>
+                    <field name="company_id" invisible="1"/>
+                    <field name="tracking" invisible="1"/>
+                    <field name="move_ids" invisible="1"/>
+                    <div class="alert alert-info" role="alert" invisible="state != 'draft'">
+                        Elige el producto, cuántos y el código. Al pulsar «Dar de baja» (solo Gerencia) baja la
+                        existencia y queda su costo para el estado de resultados.
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="dcasa_contabilidad != 'falta_cuenta'">
+                        <strong>Falta la cuenta contable de las mermas.</strong> La merma quedó registrada con su costo,
+                        pero todavía no se ve en el estado de resultados: la contadora elige la cuenta en
+                        Inventario › Configuración › Ajustes de bodega y mermas. Después, «Contabilizar las pendientes».
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="dcasa_contabilidad != 'error'">
+                        No se pudo hacer el asiento (mira el historial abajo: suele ser un mes ya cerrado).
+                    </div>
+                    <div class="oe_title" invisible="state == 'draft'"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="product_id" readonly="state == 'done'" options="{'no_create': True}"/>
+                            <label for="scrap_qty" string="Cantidad"/>
+                            <div class="o_row">
+                                <field name="scrap_qty" readonly="state == 'done' or tracking == 'serial'"/>
+                                <field name="product_uom_id" readonly="state == 'done'" groups="uom.group_uom"
+                                       widget="many2one_uom" force_save="1"/>
+                            </div>
+                            <field name="lot_id" context="{'default_product_id': product_id}"
+                                   invisible="not product_id or tracking == 'none'" readonly="state == 'done'"
+                                   required="tracking != 'none'" groups="stock.group_production_lot"/>
+                            <field name="dcasa_motivo" widget="radio" options="{'horizontal': true}"
+                                   readonly="state == 'done'" required="1"/>
+                        </group>
+                        <group>
+                            <field name="dcasa_proveedor_id" options="{'no_create': True}"/>
+                            <field name="dcasa_reclamo" invisible="dcasa_motivo not in ('merma', 'dano')"/>
+                            <field name="location_id" options="{'no_create': True, 'no_open': True}"
+                                   groups="stock.group_stock_multi_locations" readonly="state == 'done'" force_save="1"/>
+                            <field name="dcasa_costo" invisible="state != 'done'"/>
+                            <field name="date_done" invisible="state == 'draft'" string="Fecha"/>
+                            <field name="dcasa_contabilidad" invisible="not dcasa_contabilidad"/>
+                            <field name="dcasa_asiento_id" invisible="not dcasa_asiento_id"
+                                   groups="account.group_account_readonly"/>
+                        </group>
+                    </group>
+                    <field name="dcasa_nota" placeholder="¿Qué pasó? Ej.: llegó con la pata quebrada; se le regaló a…"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="merma_search" model="ir.ui.view">
+        <field name="name">stock.scrap.search.dcasa.mermas</field>
+        <field name="model">stock.scrap</field>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="product_id"/>
+                <field name="dcasa_proveedor_id"/>
+                <filter name="este_mes" string="Este mes"
+                        domain="[('date_done', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+                <filter name="este_anio" string="Este año"
+                        domain="[('date_done', '&gt;=', (context_today() + relativedelta(month=1, day=1)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter name="merma" string="Merma" domain="[('dcasa_motivo', '=', 'merma')]"/>
+                <filter name="dano" string="Daño" domain="[('dcasa_motivo', '=', 'dano')]"/>
+                <filter name="muestra" string="Muestra" domain="[('dcasa_motivo', '=', 'muestra')]"/>
+                <filter name="regalo" string="Regalo" domain="[('dcasa_motivo', '=', 'regalo')]"/>
+                <separator/>
+                <filter name="por_reclamar" string="Por reclamar al proveedor" domain="[('dcasa_reclamo', '=', 'por_reclamar')]"/>
+                <filter name="sin_asiento" string="Sin asiento contable"
+                        domain="[('state', '=', 'done'), ('dcasa_contabilidad', 'in', ('falta_cuenta', 'error'))]"/>
+                <filter name="borradores" string="Por dar de baja" domain="[('state', '=', 'draft')]"/>
+                <group>
+                    <filter name="por_mes" string="Mes" context="{'group_by': 'date_done:month'}"/>
+                    <filter name="por_motivo" string="Código" context="{'group_by': 'dcasa_motivo'}"/>
+                    <filter name="por_proveedor" string="Proveedor" context="{'group_by': 'dcasa_proveedor_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="merma_pivot" model="ir.ui.view">
+        <field name="name">stock.scrap.pivot.dcasa.mermas</field>
+        <field name="model">stock.scrap</field>
+        <field name="arch" type="xml">
+            <pivot string="Mermas por mes y código" sample="1">
+                <field name="date_done" interval="month" type="row"/>
+                <field name="dcasa_motivo" type="col"/>
+                <field name="dcasa_costo" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="accion_mermas" model="ir.actions.act_window">
+        <field name="name">Mermas, daños, muestras y regalos</field>
+        <field name="res_model">stock.scrap</field>
+        <field name="view_mode">list,form,pivot</field>
+        <field name="view_ids" eval="[(5, 0, 0),
+            (0, 0, {'view_mode': 'list', 'view_id': ref('merma_list')}),
+            (0, 0, {'view_mode': 'form', 'view_id': ref('merma_form')}),
+            (0, 0, {'view_mode': 'pivot', 'view_id': ref('merma_pivot')})]"/>
+        <field name="search_view_id" ref="merma_search"/>
+        <field name="domain">[('dcasa_motivo', '!=', False)]</field>
+        <field name="context">{'search_default_este_mes': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Registra una merma, un daño, una muestra o un regalo</p>
+            <p>Lo que sale de la bodega sin venderse: queda con su costo, su código y, si es del proveedor, para
+                reclamarle. Gerencia lo da de baja.</p>
+        </field>
+    </record>
+
+    <!-- El desecho de Odoo (botón «Desechar» de una entrega o recepción y su menú) también pide el código. -->
+    <record id="stock_scrap_form_dcasa" model="ir.ui.view">
+        <field name="name">stock.scrap.form.dcasa.motivo</field>
+        <field name="model">stock.scrap</field>
+        <field name="inherit_id" ref="stock.stock_scrap_form_view"/>
+        <field name="arch" type="xml">
+            <field name="scrap_reason_tag_ids" position="before">
+                <field name="dcasa_motivo" widget="radio" options="{'horizontal': true}" readonly="state == 'done'"/>
+                <field name="dcasa_proveedor_id" options="{'no_create': True}"/>
+            </field>
+            <xpath expr="//sheet" position="inside">
+                <field name="dcasa_nota" placeholder="¿Qué pasó?"/>
+            </xpath>
+        </field>
+    </record>
+    <record id="stock_scrap_form2_dcasa" model="ir.ui.view">
+        <field name="name">stock.scrap.form2.dcasa.motivo</field>
+        <field name="model">stock.scrap</field>
+        <field name="inherit_id" ref="stock.stock_scrap_form_view2"/>
+        <field name="arch" type="xml">
+            <field name="scrap_reason_tag_ids" position="before">
+                <field name="dcasa_motivo" widget="radio" options="{'horizontal': true}"/>
+                <field name="dcasa_proveedor_id" options="{'no_create': True}"/>
+                <field name="dcasa_nota" placeholder="¿Qué pasó?"/>
+            </field>
+        </field>
+    </record>
+</odoo>

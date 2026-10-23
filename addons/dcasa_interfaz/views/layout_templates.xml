@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!--
-        Favicon del panel: el de la página web (el escudo azul de D'CASA), no el círculo de Odoo. Cuando una página trae su
-        propio ícono (las del sitio web ponen el suyo en x_icon) se respeta; el panel y el acceso usan este.
+        Favicon del panel: el logo de D'CASA (dcasa_base/static/img/icono, scripts/iconos_de_la_marca.py), no el círculo
+        de Odoo. Cuando una página trae su propio ícono (las del sitio web ponen el suyo en x_icon) se respeta; el panel
+        usa este.
     -->
     <template id="layout_favicon_dcasa" inherit_id="web.layout" name="D'CASA: favicon del panel">
         <xpath expr="//link[@rel='shortcut icon']" position="attributes">
-            <attribute name="t-att-href">x_icon or '/dcasa_interfaz/static/src/img/favicon.png'</attribute>
+            <attribute name="t-att-href">x_icon or '/dcasa_base/static/img/icono/logo-192.png'</attribute>
             <attribute name="type">image/png</attribute>
         </xpath>
     </template>
 
-    <!-- Al agregar el panel a la pantalla de inicio del celular y el color de la barra del navegador: de la marca. -->
+    <!-- Al agregar el panel a la pantalla de inicio del celular (2026-10-22: «estrictamente el logo»). En el iPhone, el
+         logo sobre blanco y sin transparencia (lo transparente lo pinta de negro); en Android, el manifiesto
+         (controllers/webmanifest.py). Y el color de la barra del navegador: el azul de la marca. -->
     <template id="webclient_icono_dcasa" inherit_id="web.webclient_bootstrap" name="D'CASA: ícono y color del panel">
         <xpath expr="//link[@rel='apple-touch-icon']" position="attributes">
-            <attribute name="href">/dcasa_interfaz/static/src/img/favicon.png</attribute>
+            <attribute name="href">/dcasa_base/static/img/icono/apple-touch-icon.png</attribute>
         </xpath>
         <xpath expr="//meta[@name='theme-color']" position="attributes">
             <attribute name="content">#1340B1</attribute>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- «Marketing» (pedido de la dueña, 2026-10-22): una pantalla con lo que se vende, lo quieto, el stock por
+         categoría y las fotos que faltan. App propia con su ícono, como Estadísticas, y acceso en el Inicio de quien
+         controla la tienda (dcasa_interfaz/models/tablero.py). El servidor exige el mismo permiso
+         (dcasa.marketing._exigir). -->
+    <record id="accion_marketing" model="ir.actions.client">
+        <field name="name">Marketing</field>
+        <field name="tag">dcasa_marketing</field>
+    </record>
+
+    <menuitem id="menu_marketing" name="Marketing" sequence="26" action="accion_marketing"
+              groups="sales_team.group_sale_manager,base.group_system,dcasa_marketing.group_marketing"
+              web_icon="dcasa_marketing,static/src/img/marketing.svg"/>
+</odoo>

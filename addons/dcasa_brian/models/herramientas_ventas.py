@@ -98,6 +98,8 @@ class BrianHerramientasVentas(models.AbstractModel):
                 'cantidad': c.cantidad(linea.product_uom_qty),
                 'precio': c.moneda(linea.price_unit),
                 'subtotal': c.moneda(linea.price_total),
+                # Combo cama + colchón armado en la venta: «Combo · ahorras $40.00» (dcasa_catalogo).
+                **({'combo': linea.dcasa_combo_texto} if linea.dcasa_combo_texto else {}),
             } for linea in orden.order_line.filtered(lambda ln: not ln.display_type)],
             'total': c.moneda(orden.amount_total),
             'itbms': c.moneda(orden.amount_tax),

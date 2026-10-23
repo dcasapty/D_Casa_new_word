@@ -36,13 +36,15 @@ pero sin efecto hasta que alguien lo enciende.
 | `dcasa_interfaz` | Inicio por rol, Estadísticas, íconos, sin avisos de Enterprise | base, catalogo | — | No | [auditoria/ronda6/panel.md](auditoria/ronda6/panel.md) |
 | `dcasa_contabilidad` | Reportes contables, bancos, conciliación, cierre de mes, presupuestos, cheques | base, invoice, interfaz | — | No | [CONTABILIDAD.md](CONTABILIDAD.md) |
 | `dcasa_consolidacion` | Estados financieros de varias empresas en uno | contabilidad | — | No | [CONSOLIDACION.md](CONSOLIDACION.md) |
-| `dcasa_nomina` | Planilla de Panamá, décimo, vacaciones, liquidación, reembolsos, bono por meta | base, contabilidad | — | No | [NOMINA.md](NOMINA.md) |
+| `dcasa_nomina` | Planilla de Panamá, décimo, vacaciones, liquidación, reembolsos, adelantos y préstamos, comprobante de pago, bono por meta | base, contabilidad | (3 en `dcasa_brian`) | El correo del comprobante sigue el interruptor de `dcasa_correo` | [NOMINA.md](NOMINA.md) |
 | `dcasa_contactos` | Una persona, una ficha (celular, correo y RUC no se repiten) | base, socios | — | No | [CONTACTOS.md](CONTACTOS.md) |
 | `dcasa_equipo` | Ícono y visibilidad del menú Empleados | base | — | No | [EQUIPO.md](EQUIPO.md) |
 | `dcasa_migracion` | Carga única desde el sistema anterior | base, contactos, catalogo | — | No (solo administradores) | [MIGRACION.md](MIGRACION.md) |
-| `dcasa_barras` | Escáner de códigos de barras y etiquetas | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
+| `dcasa_barras` | Escáner de códigos de barras y etiquetas; panel de Bodega (despachar entregas) | catalogo, interfaz, invoice | — | No | [BARRAS.md](BARRAS.md) |
+| `dcasa_existencias` | Mermas, daños, muestras y regalos (F6); bitácora de bodega; alertas diarias por Telegram; el hueco del Inventario físico | base, brian, contabilidad, interfaz | (3 en `dcasa_brian`) | Alertas **sí** (y sin umbrales); cuentas de mermas vacías | [EXISTENCIAS.md](EXISTENCIAS.md) |
 | `dcasa_brian` | Brian, el asistente del panel (chat, Telegram, MCP) | interfaz, contabilidad, catalogo, socios, contactos | 70 | Sin `BRIAN_API_KEY` no contesta (el despliegue la exige) | [BRIAN.md](BRIAN.md) |
 | `dcasa_guia` | «¿Qué necesitas hacer hoy?»: atajos en palabras sencillas | interfaz | — | No | [GUIA.md](GUIA.md) |
+| `dcasa_marketing` | Fotos del producto en grande (ver, subir varias, ordenar, recortar) y la app **Marketing** (stock por categoría, más vendidos, movimiento, quietos, fotos que faltan) | catalogo, interfaz, barras, brian | 2 | No | [MARKETING.md](MARKETING.md) |
 | `dcasa_conversaciones` | Bandeja de conversaciones con clientes, CRM automático y la API de Juan | brian, catalogo, interfaz, socios, contactos | 2 (+13 de Juan) | Sin los tokens de Juan, la API responde 503 | [JUAN_ODOO.md](JUAN_ODOO.md) · [CRM_AUTOMATICO.md](CRM_AUTOMATICO.md) |
 | `dcasa_correo` | Correo a clientes por Resend (factura, abono, bienvenida) | base, invoice, socios, website_dcasa, conversaciones | 2 | **Sí**: sin `RESEND_API_KEY` y sin encenderlo en Ajustes no sale nada | [CORREO.md](CORREO.md) |
 | `dcasa_fe_pa` | Factura electrónica de la DGI (preparación, PAC simulado) | base, invoice | (1 en `dcasa_brian`) | **Sí**, y además no se instala | [FACTURA_ELECTRONICA.md](FACTURA_ELECTRONICA.md) |
@@ -81,6 +83,8 @@ flowchart TD
   catalogo --> barras[dcasa_barras]
   interfaz --> barras
   invoice --> barras
+  brian --> existencias[dcasa_existencias]
+  conta --> existencias
   interfaz --> brian[dcasa_brian]
   conta --> brian
   catalogo --> brian
@@ -90,6 +94,10 @@ flowchart TD
   conv --> correo[dcasa_correo]
   web --> correo
   interfaz --> guia[dcasa_guia]
+  catalogo --> marketing[dcasa_marketing]
+  interfaz --> marketing
+  barras --> marketing
+  brian --> marketing
   contactos --> migracion[dcasa_migracion]
   catalogo --> migracion
   invoice --> fe[dcasa_fe_pa]
@@ -289,13 +297,29 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Pantallas y menús:** *Ajustes › Cargar datos del sistema anterior* (solo administradores).
 - **Apagado de fábrica:** no, pero solo lo ve el administrador.
 
+## `dcasa_existencias` — Control de existencias
+
+- **Para qué:** mermas, daños, muestras y regalos con su código, su costo, su cuenta (la elige la contadora) y el aviso
+  del 0.5 % de lo comprado; reclamo al proveedor en PDF; bitácora de bodega (antes → después, motivo y quién); alertas
+  diarias por Telegram a Gerencia; menús, «Deshacer el ajuste», el desecho y los movimientos hacia «Ajuste de
+  inventario» solo para Gerencia.
+- **Depende de (Odoo):** `stock_account`, `purchase_stock`.
+- **Modelos:** `dcasa.existencias.config`, `dcasa.bitacora.bodega`, `dcasa.merma.resumen` y `dcasa.merma.reclamo`
+  (asistentes), `dcasa.existencias.alertas` (cron); campos `dcasa_*` en `stock.scrap`.
+- **Pantallas y menús:** Inventario › Ajustes › Mermas, daños, muestras y regalos; Inventario › Reportes › Mermas del mes
+  y Bitácora de bodega; Inventario › Configuración › Ajustes de bodega y mermas.
+- **Apagado de fábrica:** las alertas (y sin umbrales); las cuentas de las mermas vienen vacías.
+
 ## `dcasa_barras` — Lector de códigos de barras
 
 - **Para qué:** *Inventario › Escáner*: busca por código, referencia o empaque, muestra foto, precio «+ ITBMS» y
   existencias, con la cámara del celular. Gerencia cuenta el inventario, cambia el precio con rastro y asigna etiquetas
   numeradas de un rollo. *Inventario › Configuración › Códigos de barras* llena los códigos desde la referencia.
-- **Depende de (Odoo):** `stock`.
-- **Modelos:** `dcasa.barras`, `dcasa.barras.asignacion` (+ línea), `dcasa.barras.etiqueta` (historial).
+  *Inventario › Bodega* (y el acceso del Inicio): las entregas pendientes para despachar o retirar, para tablet; se
+  abren con el QR de la nota, se marca lo que sale y se validan.
+- **Depende de (Odoo):** `stock`, `stock_delivery`.
+- **Modelos:** `dcasa.barras`, `dcasa.barras.asignacion` (+ línea), `dcasa.barras.etiqueta` (historial),
+  `dcasa.bodega` (abstracto: el panel de Bodega); campo `delivery.carrier.dcasa_es_retiro`.
 - **Apagado de fábrica:** no.
 
 ## `dcasa_brian` — Brian, el asistente del panel
@@ -311,8 +335,9 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Pantallas y menús:** app **Brian** (Conversaciones, Telegram, Importaciones de productos para Gerencia; Registro de
   acciones, Consumo de IA y Ajustes para administradores).
 - **Rutas web:** `/brian/mcp` y `/brian/telegram/<secreto>` (el borde no las guarda en caché).
-- **Herramientas (70):** catálogo 8, clientes 7, contabilidad 16, factura electrónica 1, generales 4, guía 1,
-  importación 3, operación (compras, inventario, consumo) 9, usuarios 4, vendedores 6, ventas 11. Niveles: lectura,
+- **Herramientas (73):** catálogo 8, clientes 7, contabilidad 16, factura electrónica 1, generales 4, guía 1,
+  importación 3, operación (compras, inventario, entregas por despachar, consumo) 11, usuarios 5, vendedores 6,
+  ventas 11. Niveles: lectura,
   construcción, sensible. Lista viva: `grep -rn "@herramienta" addons/dcasa_brian/models`.
 - **Crons:** borrar conversaciones viejas y adjuntos huérfanos (mensual).
 - **Apagado de fábrica:** el tope de gasto de IA viene en 0 (sin tope) hasta que la dueña ponga la cifra.
@@ -324,6 +349,21 @@ además como módulo de todo el servidor (`server_wide_modules = base,web,dcasa_
 - **Modelos:** `dcasa.guia`, `dcasa.guia.uso` (cada quien ve solo su uso).
 - **Pantallas y menús:** app **Guía**.
 - **Herramientas de Brian (en `dcasa_brian`):** `buscar_en_guia`.
+- **Apagado de fábrica:** no.
+
+## `dcasa_marketing` — Marketing y fotos de productos
+
+- **Para qué:** tocar la foto de un producto (ficha, lista y tarjetas de Productos, Escáner) la abre en grande con
+  zoom, pasar entre fotos, reemplazar (archivo o cámara), recortar (Cropper.js que trae Odoo), girar, poner como
+  principal, quitar y descargar; la galería sube varias a la vez y ordena arrastrando (botón «Fotos del producto» en la
+  pestaña Ventas). La app **Marketing**: stock por categoría (más y menos), más vendidos (facturas, la base del
+  Inicio), mayor movimiento y más quietos en Semana / 15 días / Mes, y «Fotos» (buscar y subir, con lo que falta
+  marcado). Acceso «Marketing» en el Inicio de Gerencia y administradores.
+- **Depende de (Odoo):** `website_sale` (las «Imágenes extra»), `html_editor` (el recortador).
+- **Modelos:** `dcasa.marketing` (abstracto); métodos `dcasa_fotos*` en `product.template`.
+- **Pantallas y menús:** app **Marketing** (Gerencia y administradores); el visor y la galería en Productos y el
+  Escáner (cambiar fotos: quien puede editar el producto).
+- **Herramientas de Brian (2):** `movimiento_de_productos`, `fotos_que_faltan`.
 - **Apagado de fábrica:** no.
 
 ## `dcasa_conversaciones` — Conversaciones (la bandeja de Juan)

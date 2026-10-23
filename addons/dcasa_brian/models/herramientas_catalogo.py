@@ -283,14 +283,19 @@ class BrianHerramientasCatalogo(models.AbstractModel):
                                                           'p. ej. «colchón ortopédico (Queen)».'},
             'cantidad': {'type': 'number', 'description': 'Cantidad contada que debe quedar, p. ej. 4.'},
             'almacen': {'type': 'string', 'description': 'Nombre del almacén. Opcional si solo hay uno.'},
+            'motivo': {'type': 'string', 'description': 'Por qué se ajusta (queda en la bitácora de bodega), p. ej. '
+                                                        '«conteo de fin de mes» o «llegó uno dañado». Pregúntalo.'},
         },
-        requeridos=['producto', 'cantidad'],
+        requeridos=['producto', 'cantidad', 'motivo'],
         nivel='sensible', categoria='catalogo', grupos=GERENTE_INVENTARIO,
-        ejemplos=['conté 4 SOF-001 en la tienda → cantidad=4'],
+        ejemplos=['conté 4 SOF-001 en la tienda → cantidad=4, motivo=«conteo físico»'],
     )
-    def _h_ajustar_existencias(self, producto, cantidad, almacen=None):
+    def _h_ajustar_existencias(self, producto, cantidad, almacen=None, motivo=None):
         if cantidad is None or cantidad < 0:
             raise BrianError('La cantidad contada no puede ser negativa.')
+        motivo = (motivo or '').strip()
+        if not motivo:
+            raise BrianError('Dime el motivo del ajuste (p. ej. «conteo de fin de mes»): queda en la bitácora.')
         variante = self._b_producto(producto)
         if not variante.is_storable:
             raise BrianError(f'«{variante.display_name}» no lleva inventario.')
@@ -306,7 +311,8 @@ class BrianHerramientasCatalogo(models.AbstractModel):
         antes = variante.with_context(location=ubicacion.id).qty_available
         quant = self.env['stock.quant'].with_context(inventory_mode=True).create({
             'product_id': variante.id, 'location_id': ubicacion.id, 'inventory_quantity': cantidad})
-        quant.action_apply_inventory()
+        # El motivo va a la bitácora de bodega (dcasa_existencias); sin él, Odoo pediría la ventana del motivo.
+        quant.with_context(inventory_name=motivo, dcasa_origen='brian').action_apply_inventory()
         despues = variante.with_context(location=ubicacion.id).qty_available
         return {'mensaje': f'Existencias de «{variante.display_name}» en {bodega.name}: '
                            f'{c.cantidad(antes)} → {c.cantidad(despues)}.'}

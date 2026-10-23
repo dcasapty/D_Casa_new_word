@@ -98,8 +98,21 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-22
+
+- La dueña personalizó la pantalla de entrada de Cloudflare Access con la marca (nombre, logo, textos, fondo azul);
+  ver [PUERTA_MASTER.md](PUERTA_MASTER.md). Confirmó que la cámara ya se ve en su iPhone. Tanda grande en ocho ramas
+  (ver PRIORIDADES, «Estado al 2026-10-22»); los agentes se cortaron por el límite de uso a las ~17:00 UTC y se
+  reanudaron a las 18:05.
+
 ### 2026-10-19
 
+- **En producción** (17:42 Panamá, Desplegar 23 confirmado 600 s, `app_version` `a57796a5…`, imagen `sha256:91aaf19e…`; CI #209 verde y staging sano;
+  PR #59 `8cd21bf`): **la cámara del lector se pinta en un lienzo encima del video**. Con Desplegar 22 la dueña siguió
+  sin ver la imagen en su iPhone (Chrome): pasó de blanco a negro, pero leía los códigos. El video recibe los cuadros y
+  WebKit no lo pinta; `dcasa_barras/static/src/js/camara.js` copia cada cuadro a un lienzo del mismo tamaño. **La dueña
+  confirmó el 22 oct que en su iPhone ya se ve la imagen.** Pidió además, para el jueves, **reponer con el tiempo de llegada** (todo viene de
+  China, pide con 3 a 4 meses; le hablaron de Profit): ver PRIORIDADES (6).
 - **En producción** (14:06 Panamá, Desplegar 22 confirmado 600 s, `app_version` `d3b36132…`, imagen `sha256:5c561ff6…`; CI #207 verde y staging sano;
   PR #58 `59c1795`): **las vendedoras cotizan, no facturan sueltas** (una factura de cliente sin pedido la rechaza el
   servidor si quien la crea no cobra, con el mensaje que la manda a Ventas › Nueva cotización; «Nuevo» escondido en

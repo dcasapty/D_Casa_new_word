@@ -355,7 +355,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   el 100 % de una grilla que mide lo que mide el video (WebKit lo resuelve a cero de alto) y, fuera de `isIOS()`, el
   recuadro usa un `::after` blanco con `mix-blend-mode`, que WebKit no mezcla con la cámara. Arreglo en
   `dcasa_barras/static/src/scss/camara.scss`: video a su tamaño natural, fondo negro y recuadro con borde y sombra, sin
-  mezclas. Para probarlo, Playwright con WebKit o el agente de usuario de un iPhone (2026-10-19).
+  mezclas. Para probarlo, Playwright con WebKit o el agente de usuario de un iPhone (2026-10-19). **No bastó**: en el
+  iPhone pasó de blanco a negro, leyendo códigos igual. WebKit no pinta ese video aunque le llegan los cuadros (el
+  lector los saca con `drawImage`); `camara.js` los copia a un lienzo encima del video (Desplegar 23). Lección: si el
+  lector lee pero no se ve, el problema es de pintado, no de la cámara; y en esta máquina no hay WebKit (solo
+  Chromium), así que la prueba final es el iPhone de la dueña (lo confirmó el 2026-10-22: ya se ve).
 - **Una factura de cliente creada sin pedido no aparece como cotización abierta** y Caja no la encuentra para cobrar:
   `account.move.create` rechaza una `out_invoice` sin `sale_line_ids` si quien la crea no cobra
   (`_dcasa_puede_cobrar`), y «Nuevo» se esconde en Facturas con `get_view` (2026-10-19). Las pruebas o datos que crean

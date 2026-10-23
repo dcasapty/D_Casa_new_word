@@ -29,6 +29,10 @@ class HrEmployee(models.Model):
     dcasa_vac_valor = fields.Float('Valor del saldo ($)', compute='_compute_dcasa_saldos', groups=GRUPO)
     dcasa_prima_acumulada = fields.Float('Prima de antigüedad acumulada ($)', compute='_compute_dcasa_saldos',
                                          groups=GRUPO)
+    dcasa_prestamo_ids = fields.One2many('dcasa.nomina.prestamo', 'empleado_id', 'Adelantos y préstamos', groups=GRUPO)
+    dcasa_prestamos_saldo = fields.Float(
+        'Debe por adelantos y préstamos ($)', compute='_compute_dcasa_prestamos_saldo', groups=GRUPO,
+        help='Lo que todavía se le va a descontar en las planillas (adelantos y préstamos entregados).')
 
     # ------------------------------------------------------------------
     # Datos de la ficha para la planilla
@@ -111,3 +115,9 @@ class HrEmployee(models.Model):
             empleado.dcasa_vac_saldo = saldo
             empleado.dcasa_vac_valor = calculo.valor_de_los_dias(empleado._dcasa_salario_promedio(hoy), saldo)
             empleado.dcasa_prima_acumulada = empleado._dcasa_prima(hoy)
+
+    @api.depends('dcasa_prestamo_ids.saldo', 'dcasa_prestamo_ids.estado')
+    def _compute_dcasa_prestamos_saldo(self):
+        for empleado in self:
+            vivos = empleado.dcasa_prestamo_ids.filtered(lambda p: p.estado == 'entregado')
+            empleado.dcasa_prestamos_saldo = calculo.r2(sum(vivos.mapped('saldo')))
