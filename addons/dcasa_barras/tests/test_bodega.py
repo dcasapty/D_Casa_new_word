@@ -112,6 +112,38 @@ class TestBodegaLista(BodegaCommon):
         self.assertEqual(factura.amount_residual, 0)
         self.assertNotIn(entrega.id, self.tarjetas())
 
+    def test_una_diferencia_de_cambio_no_es_un_pago(self):
+        """Una venta en otra moneda: la factura y su nota de crédito con tasas distintas dejan un asiento de diferencia
+        de cambio conciliado con la factura. Odoo no lo cuenta como pago (``is_exchange``) y aquí tampoco."""
+        euro = self.env.ref('base.EUR')
+        euro.active = True
+        empresa = self.env.company
+        self.env['res.currency.rate'].create([
+            {'currency_id': euro.id, 'name': '2026-09-01', 'rate': 0.5, 'company_id': empresa.id},
+            {'currency_id': euro.id, 'name': '2026-10-01', 'rate': 1.0, 'company_id': empresa.id},
+        ])
+        lista = self.env['product.pricelist'].create({'name': 'Lista en euros', 'currency_id': euro.id})
+        pedido = self.env['sale.order'].create({
+            'partner_id': self.cliente_sin.id,
+            'pricelist_id': lista.id,
+            'order_line': [Command.create({'product_id': self.mesa.id, 'product_uom_qty': 1, 'price_unit': 100.0,
+                                           'tax_ids': []})],
+        })
+        pedido.action_confirm()
+        entrega = pedido.picking_ids.filtered(lambda e: e.picking_type_code == 'outgoing')
+        factura = pedido._create_invoices()
+        factura.write({'invoice_date': '2026-09-15', 'date': '2026-09-15'})
+        factura.action_post()
+        nota = factura._reverse_moves([{'invoice_date': '2026-10-15', 'date': '2026-10-15'}])
+        nota.action_post()
+        por_cobrar = (factura + nota).line_ids.filtered(
+            lambda linea: linea.account_id.account_type == 'asset_receivable')
+        por_cobrar.filtered(lambda linea: not linea.reconciled).reconcile()
+        self.assertTrue(por_cobrar.matched_debit_ids.exchange_move_id + por_cobrar.matched_credit_ids.exchange_move_id,
+                        'la prueba necesita la diferencia de cambio')
+        self.assertEqual(self.Bodega._pago(pedido), 'sin_pago')
+        self.assertNotIn(entrega.id, self.tarjetas())
+
     def test_las_consultas_no_crecen_con_las_entregas(self):
         """Producción, 23 oct: el Inicio de cada persona y el panel (cada minuto) miraban los pagos factura por factura
         y los nombres producto por producto: 1.800 consultas y ~3 s con 230 entregas en el servidor chico, y todo lo

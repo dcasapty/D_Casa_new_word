@@ -222,8 +222,8 @@ class DcasaBodega(models.AbstractModel):
 
     def _facturas_con_cobro(self, facturas):
         """Los ids de las facturas con al menos un cobro conciliado: lo mismo que mira el globito de pagos de Odoo
-        (``_get_all_reconciled_invoice_partials``: lo conciliado con sus líneas por cobrar), y una nota de crédito no
-        es cobro."""
+        (``_get_all_reconciled_invoice_partials``: lo conciliado con sus líneas por cobrar). Ni una nota de crédito ni
+        un asiento de diferencia de cambio (el ``exchange_move_id`` de una conciliación) son cobro."""
         lineas = facturas.sudo().line_ids.filtered(
             lambda linea: linea.account_id.account_type in ('asset_receivable', 'liability_payable'))
         if not lineas:
@@ -231,11 +231,13 @@ class DcasaBodega(models.AbstractModel):
         propias = set(lineas.ids)
         parciales = self.env['account.partial.reconcile'].sudo().search(
             ['|', ('debit_move_id', 'in', lineas.ids), ('credit_move_id', 'in', lineas.ids)])
+        cambio = parciales.exchange_move_id
         con_cobro = set()
         for parcial in parciales:
             for propia, otra in ((parcial.debit_move_id, parcial.credit_move_id),
                                  (parcial.credit_move_id, parcial.debit_move_id)):
-                if propia.id in propias and otra.move_id.move_type not in ('in_refund', 'out_refund'):
+                if propia.id in propias and otra.move_id not in cambio \
+                        and otra.move_id.move_type not in ('in_refund', 'out_refund'):
                     con_cobro.add(propia.move_id.id)
         return con_cobro
 

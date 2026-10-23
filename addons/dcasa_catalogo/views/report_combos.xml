@@ -1,35 +1,118 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <!-- Combos cama + colchón en el papel (cotización, pedido y factura) y en la página que ve el cliente: cada pieza
-         con la marca «Combo cama + colchón» (el colchón con lo que ahorra) y, bajo el subtotal, el ahorro total. -->
+    <!-- Combos cama + colchón en el papel (cotización, pedido y factura) y en la página que ve el cliente. Decisión de
+         la dueña (2026-10-23): no se rebaja ni la cama ni el colchón; el combo es una promoción. Las dos piezas salen
+         a su precio normal con la marca «Combo cama + colchón» y, debajo del colchón, en su propio renglón,
+         «Descuento combo cama + colchón −$X». Por dentro el descuento sigue en la línea del colchón (la factura
+         electrónica de la DGI no acepta líneas en negativo): aquí solo se reparte lo que ya vale la línea
+         (``_dcasa_combo_en_papel``). Las líneas que no son de un combo salen exactamente igual que antes. -->
+
+    <!-- Cotización y pedido -->
     <template id="report_saleorder_document_combos" inherit_id="sale.report_saleorder_document">
-        <xpath expr="//table[hasclass('o_main_table')]" position="before">
-            <t t-set="dcasa_ahorro_combo" t-value="doc._dcasa_ahorro_combos()"/>
+        <xpath expr="//td[@name='td_product_priceunit']/span[@t-field='line.price_unit']" position="after">
+            <span t-elif="not collapse_prices" class="o_dcasa_precio_normal_combo"
+                  t-out="line._dcasa_combo_en_papel(price_field)['precio']"
+                  t-options='{"widget": "float", "decimal_precision": "Product Price"}'/>
         </xpath>
-    </template>
-
-    <template id="report_invoice_document_combos" inherit_id="account.report_invoice_document">
-        <xpath expr="//table[@name='invoice_line_table']" position="before">
-            <t t-set="dcasa_ahorro_combo" t-value="o._dcasa_ahorro_combos()"/>
+        <xpath expr="//td[@name='td_product_priceunit']/span[@t-field='line.price_unit']" position="attributes">
+            <attribute name="t-elif">not collapse_prices and not line._dcasa_combo_en_papel(price_field)</attribute>
         </xpath>
-    </template>
-
-    <template id="document_tax_totals_combos" inherit_id="account.document_tax_totals_template">
-        <xpath expr="//tr[hasclass('o_subtotal')]" position="after">
-            <tr t-if="dcasa_ahorro_combo" class="o_dcasa_ahorro_combo">
-                <td>Ahorro por combo cama + colchón <small>(ya incluido en los precios)</small></td>
-                <td class="text-end">
-                    <span class="text-nowrap" t-out="dcasa_ahorro_combo"
-                          t-options="{'widget': 'monetary', 'display_currency': currency}"/>
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="after">
+            <span t-elif="not line.is_downpayment and not collapse_prices" class="text-nowrap"
+                  t-out="line._dcasa_combo_en_papel(price_field)['importe']"
+                  t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="attributes">
+            <attribute name="t-if">not line.is_downpayment and not collapse_prices and not line._dcasa_combo_en_papel(price_field)</attribute>
+        </xpath>
+        <xpath expr="//tr[@name='tr_product']" position="after">
+            <t t-set="dcasa_combo_papel"
+               t-value="not line.display_type and not collapse_prices and line._dcasa_combo_en_papel(price_field)"/>
+            <tr t-if="dcasa_combo_papel" name="tr_dcasa_descuento_combo" class="o_dcasa_descuento_combo">
+                <td t-att-colspan="colspan_count" t-att-class="padding_class">Descuento combo cama + colchón</td>
+                <td class="text-end o_price_total">
+                    <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
+                        t-options="{'widget': 'monetary', 'display_currency': doc.currency_id}"/></span>
                 </td>
             </tr>
         </xpath>
     </template>
 
+    <!-- Factura (dcasa_invoice ya cambió las celdas de precio e importe: se parte de las suyas) -->
+    <template id="report_invoice_document_combos" inherit_id="account.report_invoice_document">
+        <xpath expr="//td[@name='td_price_unit']/span" position="after">
+            <span t-elif="not hide_prices" class="text-nowrap o_dcasa_precio_normal_combo"
+                  t-out="line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')['precio']"
+                  t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_price_unit']/span[1]" position="attributes">
+            <attribute name="t-if">not hide_prices and not line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_subtotal']/span" position="after">
+            <span t-elif="not hide_prices" class="text-nowrap"
+                  t-out="line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')['importe']"
+                  t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_subtotal']/span[1]" position="attributes">
+            <attribute name="t-if">not hide_prices and not line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')</attribute>
+        </xpath>
+        <xpath expr="//tbody[hasclass('invoice_tbody')]//tr[t[@name='account_invoice_line_accountable']]" position="after">
+            <t t-set="dcasa_combo_papel" t-value="line.display_type == 'product' and not hide_prices
+                and line._dcasa_combo_en_papel('price_total' if dcasa_con_itbms else 'price_subtotal')"/>
+            <tr t-if="dcasa_combo_papel" class="o_dcasa_descuento_combo">
+                <!-- En la página del cliente (HTML) el precio, el % y el ITBMS se esconden en el celular: un solo
+                     renglón a la derecha, que cuadra con cualquier ancho. -->
+                <td t-if="report_type == 'html'" colspan="99" t-attf-class="text-end {{padding_class}}">
+                    Descuento combo cama + colchón
+                    <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
+                        t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></span>
+                </td>
+                <t t-else="">
+                    <td t-att-colspan="4 + (1 if display_discount else 0) + (1 if display_taxes else 0)"
+                        t-att-class="padding_class">Descuento combo cama + colchón</td>
+                    <td class="text-end o_price_total">
+                        <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
+                            t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></span>
+                    </td>
+                </t>
+            </tr>
+        </xpath>
+    </template>
+
+    <!-- La cotización en línea que abre el cliente -->
     <template id="sale_order_portal_content_combos" inherit_id="sale.sale_order_portal_content">
         <xpath expr="//tr[@name='tr_product']/td[@name='td_product_name']" position="inside">
             <t t-set="dcasa_texto_combo" t-value="line._dcasa_texto_combo()"/>
             <div t-if="dcasa_texto_combo" class="small fw-bold text-primary o_dcasa_combo_portal" t-out="dcasa_texto_combo"/>
+        </xpath>
+        <xpath expr="//td[@name='td_product_priceunit']//div[@t-field='line.price_unit']" position="after">
+            <div t-if="line._dcasa_combo_en_papel(price_field)" class="text-end o_dcasa_precio_normal_combo"
+                 t-out="line._dcasa_combo_en_papel(price_field)['precio']"
+                 t-options="{'widget': 'monetary', 'display_currency': line.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_product_priceunit']//div[@t-field='line.price_unit']" position="attributes">
+            <attribute name="t-if">line.discount &gt;= 0 and not line._dcasa_combo_en_papel(price_field)</attribute>
+        </xpath>
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="after">
+            <span t-elif="not line.is_downpayment and not collapse_prices"
+                  t-out="line._dcasa_combo_en_papel(price_field)['importe']"
+                  t-options="{'widget': 'monetary', 'display_currency': sale_order.currency_id}"/>
+        </xpath>
+        <xpath expr="//td[@name='td_product_subtotal']/t[1]" position="attributes">
+            <attribute name="t-if">not line.is_downpayment and not collapse_prices and not line._dcasa_combo_en_papel(price_field)</attribute>
+        </xpath>
+        <xpath expr="//tr[@name='tr_product']" position="after">
+            <t t-set="dcasa_combo_papel"
+               t-value="not line.display_type and not collapse_prices and line._dcasa_combo_en_papel(price_field)"/>
+            <!-- El precio, el % y el ITBMS se esconden en el celular: un solo renglón a la derecha, que cuadra con
+                 cualquier ancho. -->
+            <tr t-if="dcasa_combo_papel" class="o_dcasa_descuento_combo">
+                <td colspan="99" t-attf-class="text-end {{padding_class}}">
+                    Descuento combo cama + colchón
+                    <span class="text-nowrap">−<t t-out="dcasa_combo_papel['descuento']"
+                        t-options="{'widget': 'monetary', 'display_currency': sale_order.currency_id}"/></span>
+                </td>
+            </tr>
         </xpath>
     </template>
 </odoo>

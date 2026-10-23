@@ -9,6 +9,7 @@ import {
   notModifiedResponse,
   route,
   rutaEstatica,
+  cuerpoDiceLoMismo,
   esCorteDeConexion,
   esRepetible,
   rutaParaRegistro,
@@ -56,6 +57,8 @@ export interface EdgeDeps {
   forward: (request: Request) => Promise<Response>;
   /** Pausa entre reintentos de `reenviar` (las pruebas la acortan). */
   esperar?: (ms: number) => Promise<void>;
+  /** Reloj en milisegundos para medir cuánto tardó un corte (las pruebas lo fijan). */
+  ahora?: () => number;
   /** Caché del borde (caches.default en producción). */
   cache?: Pick<Cache, "match" | "put">;
   /** Para tareas en segundo plano (ctx.waitUntil). */
@@ -311,8 +314,31 @@ async function estadoTiendaParaSalud(url: URL, deps: EdgeDeps): Promise<EstadoTi
 export const REINTENTOS_REENVIO = 2;
 /** Pausa antes de cada reintento (se multiplica por el número de intento: 0,4 s y 0,8 s). */
 const PAUSA_REINTENTO_MS = 400;
+/**
+ * Solo se repite un corte rápido. Si el enlace se cae después de esto, Odoo seguramente ya estaba trabajando en la
+ * petición (con `workers = 0` la termina aunque nadie la espere): repetirla le suma otra igual a un servidor ocupado.
+ */
+export const CORTE_RAPIDO_MS = 5_000;
 
 const esperarMs = (ms: number) => new Promise<void>((listo) => setTimeout(listo, ms));
+
+/**
+ * Cómo se arma cada intento. Un GET/HEAD no tiene cuerpo: se copia. Un POST de lectura (un JSON chico) se lee una vez
+ * y cada intento sale de esos bytes; si el cuerpo no pide lo mismo que la ruta, no se repite. `otro: null` = un solo
+ * intento.
+ */
+async function prepararIntentos(
+  upstream: Request,
+  ruta: string,
+): Promise<{ primero: Request; otro: (() => Request) | null }> {
+  if (!esRepetible(upstream.method, ruta)) return { primero: upstream, otro: null };
+  if (upstream.method !== "POST") return { primero: upstream, otro: () => upstream.clone() };
+  const cuerpo = await upstream.arrayBuffer();
+  const { method, headers, redirect } = upstream;
+  const desdeCuerpo = () => new Request(upstream.url, { method, headers, body: cuerpo, redirect });
+  const repite = cuerpoDiceLoMismo(ruta, new TextDecoder().decode(cuerpo));
+  return { primero: desdeCuerpo(), otro: repite ? desdeCuerpo : null };
+}
 
 /**
  * Si el Durable Object del contenedor no responde (se reinicia con cada despliegue,
@@ -320,20 +346,22 @@ const esperarMs = (ms: number) => new Promise<void>((listo) => setTimeout(listo,
  *
  * El enlace Worker → Durable Object a veces se corta con «Network connection lost.» sin que Odoo se haya caído
  * (producción, 23 oct: fotos y lecturas que fallaban tras 11-15 s mientras las demás salían bien). El panel de Odoo lo
- * mostraba como «Se perdió la conexión». Las lecturas se repiten aquí (hasta `REINTENTOS_REENVIO` veces); lo que guarda
- * nunca se repite.
+ * mostraba como «Se perdió la conexión». Las lecturas cortadas al rato de salir se repiten aquí (hasta
+ * `REINTENTOS_REENVIO` veces, solo si el corte llegó antes de `CORTE_RAPIDO_MS`); lo que guarda nunca se repite.
  */
 async function reenviar(original: Request, upstream: Request, deps: EdgeDeps): Promise<Response> {
   const ruta = new URL(upstream.url).pathname;
-  const repetible = esRepetible(upstream.method, ruta);
-  let pedido = upstream;
+  const ahora = deps.ahora ?? Date.now;
+  const { primero, otro } = await prepararIntentos(upstream, ruta);
+  let pedido = primero;
   for (let intento = 1; ; intento++) {
-    // La copia guarda el cuerpo para el próximo intento (el que se envía lo consume).
-    const copia = repetible && intento <= REINTENTOS_REENVIO ? pedido.clone() : null;
+    const salida = ahora();
     try {
       return await deps.forward(pedido);
     } catch (error) {
-      const reintenta = copia !== null && esCorteDeConexion(error);
+      const ms = ahora() - salida;
+      const reintenta =
+        otro !== null && intento <= REINTENTOS_REENVIO && ms < CORTE_RAPIDO_MS && esCorteDeConexion(error);
       console.error(
         JSON.stringify({
           evento: "reenvio_fallido",
@@ -341,11 +369,12 @@ async function reenviar(original: Request, upstream: Request, deps: EdgeDeps): P
           metodo: upstream.method,
           ruta: rutaParaRegistro(ruta),
           intento,
+          ms,
           reintenta,
         }),
       );
-      if (!copia || !reintenta) return respuestaArrancando(original);
-      pedido = copia;
+      if (!otro || !reintenta) return respuestaArrancando(original);
+      pedido = otro();
       await (deps.esperar ?? esperarMs)(PAUSA_REINTENTO_MS * intento);
     }
   }

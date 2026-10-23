@@ -165,7 +165,11 @@ uno antes:
   nada. Cloudflare recomienda reintentar ese error.
 - **Arreglo:** `_pagos_de_pedidos` saca los cobros de todas las facturas en una búsqueda (Inicio 139 consultas, panel
   34; igual resultado en los 270 pedidos) y el borde repite las lecturas (GET/HEAD y lecturas de Odoo conocidas, nunca
-  lo que guarda) hasta 2 veces (`2986df5`, `34fea73`).
+  lo que guarda) hasta 2 veces (`2986df5`, `34fea73`). En producción con Desplegar 27 (18:12 UTC).
+- **Después, por la revisión independiente:** solo se repite un corte que llega antes de 5 s (`CORTE_RAPIDO_MS`): uno
+  más tardío quiere decir que Odoo ya estaba trabajando en esa petición (con `workers = 0` la termina aunque nadie
+  espere) y repetirla le suma carga a un servidor ocupado. El registro `reenvio_fallido` anota `ms`: si los cortes de
+  producción siguen llegando tarde, el reintento no los cubre y hay que buscar la causa (no subir el límite a ciegas).
 - **Cómo se halló:** una revisión del diff `8cd21bf..04d7a2a` en paralelo con una base local con todos los módulos y
   datos de tamaño real, cronometrando cada pantalla lenta del registro (tiempo, CPU y `cr.sql_log_count`) y
   `cProfile` sobre la peor. La pista de la dueña («algo de lo último que implementamos») era correcta.
@@ -417,6 +421,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   exige celular y correo), y cronometrar con `time.perf_counter`, `time.process_time` y `env.cr.sql_log_count`.
   Comparar con el código viejo poniendo el archivo de `git show <commit>:<ruta>` y restaurándolo. Una base con datos
   extra hace fallar pruebas de navegador que dependen de la base limpia (p. ej. el Escáner): confirmar en CI.
+- **El gancho de parada** exige que la rama no tenga cambios sin commit ni commits sin subir. Si hay trabajo que aún
+  no debe ir en la rama (sin aprobar, o la rama está en CI para una subida), se guarda en una rama local
+  (`git checkout -b algo-local`) y en un parche (`git format-patch -1 -o <scratchpad>/parches/`), y la rama designada
+  queda limpia. Cuando toca, se trae con `cherry-pick`.
+- **PDF con estilos en local:** `_render_qweb_pdf` sin servidor sale sin CSS. Levantar Odoo con `--http-port` y poner
+  `report.url=http://127.0.0.1:<puerto>` (parámetro del sistema) antes de imprimir.
+- **Staging puede tardar ~27 min en quedar sano** después de un despliegue (restaurar desde R2 + actualizar módulos):
+  la espera del flujo aguanta 20 min de arranque + 10 de vigilancia; no cancelar antes.
 - El registro completo de un job de Actions no se baja desde aquí (la dirección del blob da 403 en el proxy): usar
   `get_job_logs` del MCP de GitHub con `tail_lines` (unas 330 líneas alcanzan para ver las pruebas antes del log del
   PostgreSQL de servicio).
@@ -425,7 +437,15 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 - `invoice_payments_widget` / `_dcasa_pagos()` es caro (una consulta y varias lecturas por factura): nunca en un bucle
   sobre muchas facturas; para «¿tiene cobro?» buscar `account.partial.reconcile` de todas las líneas por cobrar a la vez
-  (`dcasa_barras/models/bodega.py`, `_facturas_con_cobro`) (2026-10-23).
+  (`dcasa_barras/models/bodega.py`, `_facturas_con_cobro`) (2026-10-23). Ojo: ni la nota de crédito ni el asiento
+  de diferencia de cambio (`exchange_move_id` de una conciliación) son cobro; el globito los marca `is_refund` e
+  `is_exchange`.
+- **`/web/dataset/call_kw/<modelo>/<método>` obedece al cuerpo** (`params.model` / `params.method`), no a la URL: lo que
+  decida por la ruta (el borde, una lista blanca) tiene que comprobar que el cuerpo pide lo mismo.
+- **Un precio puesto a mano en una línea de venta** se nota porque `technical_price_unit` (lo que calculó el sistema)
+  ya no es igual a `price_unit`. Lo que se muestre a partir de un valor guardado al armar la línea (un ahorro, un
+  «precio normal») solo vale mientras la línea siga al precio del sistema; si no, se muestra la línea tal cual
+  (combos, 2026-10-23).
 - `producto.with_context(...).display_name` dentro de un bucle calcula cada nombre por separado (con `website_sale` y
   variantes, varias consultas cada uno): sacar el recordset con el contexto una vez y leerlos todos juntos.
 - Contar consultas en una prueba: `env.flush_all()` antes (si no, cuenta lo pendiente de guardar) y una vuelta de

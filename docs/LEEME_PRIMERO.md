@@ -113,8 +113,27 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - Nota de entrega `736c3fa` (la descripción guardada en MAYÚSCULAS no se reconocía como el nombre en formato título);
   scroll de Marketing `fcbc1b5`.
 - CI #219 (`34fea73`) con todo, a staging. **Producción:** pendiente del «sí» de la dueña, fuera del horario de venta.
-- Combos: los 73 productos COMBO viejos **se quedan** mientras la dueña prueba el creador de combos (su decisión); los
-  precios del Excel siguen sin cargar (falta «sí, cárgalos» y el precio del Twin Imperial).
+- Combos: los 73 productos COMBO viejos **se quedan** mientras la dueña prueba el creador de combos (su decisión).
+  Decisión de la dueña sobre cómo se ven: la cama y el colchón a su precio normal y, en su propio renglón, «Descuento
+  combo cama + colchón −$X» (por dentro sigue en la línea del colchón: la factura electrónica de la DGI no acepta líneas
+  negativas). Aprobó los descuentos (Imperial Full $9.99, Imperial Twin $6.99, Dulces Sueños Queen $25.99, First Class
+  King $33.99, sacados de sus 73 combos viejos) y dio el visto bueno a las capturas; los carga la migración
+  19.0.1.12.0 de `dcasa_catalogo` solo si el precio normal sigue igual.
+- La dueña pidió subir «ya» (sin esperar el cierre): PR #62 unido a `main` (`e0bae00`, árbol = `7bd87be`) y
+  **Desplegar 27 sano y confirmado a las 18:12 UTC** (13:12 Panamá) con la imagen del CI #220. Falta que ella diga si
+  el Inicio y la Bodega se sienten más rápidos.
+- Dos revisiones independientes (corrieron mientras subía):
+  - Velocidad y borde: un asiento de diferencia de cambio contaba como cobro (solo en ventas en otra moneda) y el
+    reintento podía repetir una lectura que Odoo seguía trabajando (los cortes del 23 oct llegaron a los 11-15 s).
+    Arreglado: el cambio no es cobro; solo se repiten los cortes de menos de 5 s; el cuerpo del POST tiene que pedir lo
+    mismo que la ruta; los GET que cambian algo (OAuth, invitaciones) no se repiten.
+  - Combos: el papel inventaba un «precio normal» si la vendedora cambiaba a mano el precio del colchón (o en la
+    factura le cambiaban el producto), y con un descuento % encima el renglón del combo y el «Descuento (ya restado)»
+    no cuadraban. Arreglado: el renglón del descuento solo sale si el colchón sigue al precio que le puso el sistema y
+    sin %; si no, la línea sale tal cual. En la página del cliente el renglón va a la derecha (cuadra en el celular) y
+    Juan dice lo mismo que el PDF. Queda anotado (no cambia): una venta confirmada sin facturar con cama y colchón de
+    los 4 aprobados baja al precio en combo la próxima vez que alguien le edite una línea.
+- Los combos (con estos arreglos) van a producción cuando pasen su CI y staging, por el «hazlo ya» de la dueña.
 
 ### 2026-10-23 (madrugada)
 
