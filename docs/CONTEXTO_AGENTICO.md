@@ -28,6 +28,10 @@ Armado el 2026-10-16 a partir de `docs/`, los commits y los registros de GitHub 
    cuenta (total de facturas − total del Inicio = $236.88, una sola factura sin pedido) mostró que sí los contaba, y hubo
    que corregirlo. Una explicación «razonable» sin la resta es una suposición.
 8. **Si después del «sí» de la dueña cambia el código (por ejemplo, por una revisión), decírselo antes de unir a `main`.** El 2026-10-16 el «sí» fue antes de que la revisión independiente encontrara 5 fallas de dinero del bono; se desplegó lo corregido y se le explicó qué cambió antes de cerrar («Sí, termina»).
+9. **Lo que corre en el Inicio o en un sondeo (`setInterval`) se mide en consultas con datos de tamaño real antes de
+   subir, y lleva una prueba de que no crece con los registros.** El 2026-10-23 un acceso nuevo del Inicio y el panel de
+   Bodega (cada minuto) hacían 1.500-1.800 consultas por carga y volvieron lento todo el sistema (incidente 6). En un
+   servidor de ½ vCPU con un solo proceso de Odoo, una pantalla pesada frena a todas las demás.
 
 ---
 
@@ -145,6 +149,26 @@ uno antes:
 - **Qué falta:** que alguien con acceso a Cloudflare mire el historial de *rollouts* de `dcasa-odoocontainer`; y, tras
   cada despliegue, comprobar la etiqueta de la imagen activa además de `/__edge/health`. El arreglo #97 ayuda (la salud
   dice qué versión responde y la imagen vieja no baja una base nueva), pero no impide la reversión.
+
+### 6. 2026-10-23 · Sistema lento y «Se perdió la conexión» tras la tanda del 22 oct
+
+- **Síntoma:** la dueña: «el sistema está bastante lento», y el aviso «Se perdió la conexión. Tratando de
+  reconectar…» seguido. En sus registros del Worker (15:36-15:40 UTC): fotos que contestan 304 tardando 1-21 s, el
+  Inicio 2,5-26 s, y tres `reenvio_fallido` «Error: Network connection lost.» tras 11-15 s.
+- **Causa de la lentitud (medida):** `dcasa_barras` (`3174f9a`) agregó al Inicio el acceso «Bodega» con cuántas
+  entregas esperan; para saber cuáles tienen pago armaba `invoice_payments_widget` factura por factura, y el panel de
+  Bodega hacía lo mismo cada minuto. En local (catálogo real + 270 ventas): 1.511 consultas el Inicio, 1.800 el panel.
+  Con un solo proceso de Odoo y ½ vCPU, eso frena todas las demás peticiones (hasta un 304 de una foto).
+- **El corte de conexión:** entre el Worker y el Durable Object (los eventos con «stateless» no tienen su evento de
+  `OdooContainer`); las peticiones a la par salían bien, así que **no** fue Odoo reiniciándose: medido en local, la
+  memoria virtual con 60 peticiones a la vez llega a ~600 MiB (límite suave 1,5 GiB) y `MALLOC_ARENA_MAX` no cambia
+  nada. Cloudflare recomienda reintentar ese error.
+- **Arreglo:** `_pagos_de_pedidos` saca los cobros de todas las facturas en una búsqueda (Inicio 139 consultas, panel
+  34; igual resultado en los 270 pedidos) y el borde repite las lecturas (GET/HEAD y lecturas de Odoo conocidas, nunca
+  lo que guarda) hasta 2 veces (`2986df5`, `34fea73`).
+- **Cómo se halló:** una revisión del diff `8cd21bf..04d7a2a` en paralelo con una base local con todos los módulos y
+  datos de tamaño real, cronometrando cada pantalla lenta del registro (tiempo, CPU y `cr.sql_log_count`) y
+  `cProfile` sobre la peor. La pista de la dueña («algo de lo último que implementamos») era correcta.
 
 ### Incidentes anteriores (staging o antes de producción), en una línea cada uno
 
@@ -276,6 +300,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Integración Juan (Odoo real + Worker real)
 
+- **CI #215** (`9541408`, 2026-10-23) · 7 de 40 fallaron: la primera («bienvenida y pregunta por camas queen») con
+  «(sin guion)», y las demás en cadena (`sinGuion` se acumula entre pruebas y sin la primera no hay `convId`: «conversacion_id
+  tiene que ser un número entero»). Causa: desde F5 los nombres se guardan en MAYÚSCULAS y `juan_buscar_productos`
+  desempata por nombre; con el catálogo real cargado, «cama queen» trajo otras cinco camas antes que la de la prueba.
+  Arreglo `75324c5`: el guion busca «cama roble queen». **Regla:** cuando la primera prueba de la historia falla, las
+  otras son ruido; arreglar esa y volver a correr.
+- En esta máquina, `scripts/integracion_juan.sh` se corre **sin** `$S/bin` en el `PATH`: esa carpeta del scratchpad tiene
+  un `curl` y un `npx` falsos de otra prueba y la integración «pasa» sin correr nada (el 23 oct dio «✔ OK» en falso).
+  Con el `curl` y el `npx` de verdad (y `PYTHONPATH` con PyPDF2 2.12.1) corre completa: 40/40.
+
 - **CI #151** · 7 de 40 pruebas de `juan/test/integracion/flujo.test.ts` fallaron (`«conversacion_id» tiene que ser un
   número entero`, «petición 3 sin paso en el guion», actividades vacías). Arreglo: `2c6e978e` →
   `juan/test/integracion/historia.ts` («la foto de Juan se pide con el código público»). Relación exacta entre
@@ -310,6 +344,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - `1db6348` (2026-10-01): imagen que no arrancaba en Cloudflare por `/dev/stderr` (ver incidentes anteriores).
 
 ### Despliegue
+
+- **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
+  producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
+  (`respaldar` sale si Odoo no está listo) y en producción un 503 es fallo. Esperé al cron que despierta a Odoo
+  (`7 * * * *`) y **Desplegar 26** (07:12 UTC) hizo el respaldo y salió sano y confirmado. Por qué Odoo estaba apagado
+  de madrugada si es 24/7 (después de Desplegar 24, sano a las 02:48): **sin confirmar**; mirar los registros del
+  contenedor en Cloudflare de esa hora. **Regla:** ante ese 503, esperar el minuto 7 de la hora siguiente y relanzar;
+  no desplegar sin respaldo salvo que la dueña lo pida para arreglar una caída.
 
 - **CI #140** (staging, `b83f515d`, 2026-10-14) y **Desplegar run 2** (staging, mismo commit, digest `efbdeae2…`) ·
   Odoo 500 en `/dcasa/salud` 20 min. Causa probable: base sin actualizar (sin confirmar). Siguiente: `a1e89e41`
@@ -365,8 +407,29 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Varios agentes a la vez** comparten 4 CPU y el límite de uso de la sesión: si el límite corta a los agentes, su
   trabajo queda SIN commit en sus worktrees; se retoma con un agente nuevo que continúe ese worktree (no se borra).
 - **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
+- **`main` se une por *squash*:** al traer `main` a una rama que ya tiene ese mismo árbol (p. ej. la integración que
+  se acaba de subir), `git merge` normal choca en decenas de archivos falsos; `git merge -s ours origin/main` lo deja
+  en la historia sin tocar nada (comprobar antes que el árbol de `main` es igual al de un commit de la rama) (2026-10-23).
+- **Monitor y las esperas largas:** un Monitor que vence a los 30 min mata su comando (se perdió así una corrida de
+  pruebas). Las corridas largas van con `nohup` o `run_in_background` y se espera su archivo de resultado.
+- **Medir velocidad en local:** base con todos los módulos (`-i` con la lista del `Makefile`, ~10 min: carga el
+  catálogo real) + ventas, facturas y cobros creados con `odoo-bin shell` (superusuario: con un usuario normal la venta
+  exige celular y correo), y cronometrar con `time.perf_counter`, `time.process_time` y `env.cr.sql_log_count`.
+  Comparar con el código viejo poniendo el archivo de `git show <commit>:<ruta>` y restaurándolo. Una base con datos
+  extra hace fallar pruebas de navegador que dependen de la base limpia (p. ej. el Escáner): confirmar en CI.
+- El registro completo de un job de Actions no se baja desde aquí (la dirección del blob da 403 en el proxy): usar
+  `get_job_logs` del MCP de GitHub con `tail_lines` (unas 330 líneas alcanzan para ver las pruebas antes del log del
+  PostgreSQL de servicio).
 
 ### Odoo 19
+
+- `invoice_payments_widget` / `_dcasa_pagos()` es caro (una consulta y varias lecturas por factura): nunca en un bucle
+  sobre muchas facturas; para «¿tiene cobro?» buscar `account.partial.reconcile` de todas las líneas por cobrar a la vez
+  (`dcasa_barras/models/bodega.py`, `_facturas_con_cobro`) (2026-10-23).
+- `producto.with_context(...).display_name` dentro de un bucle calcula cada nombre por separado (con `website_sale` y
+  variantes, varias consultas cada uno): sacar el recordset con el contexto una vez y leerlos todos juntos.
+- Contar consultas en una prueba: `env.flush_all()` antes (si no, cuenta lo pendiente de guardar) y una vuelta de
+  calentamiento después de crear productos (crear productos limpia cachés de Odoo).
 
 - **La cámara del lector de códigos de Odoo puede salir en blanco en iOS** (Chrome en iPhone es WebKit): el video pide
   el 100 % de una grilla que mide lo que mide el video (WebKit lo resuelve a cero de alto) y, fuera de `isIOS()`, el
@@ -524,6 +587,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Cloudflare
 
+- «Network connection lost.» en `reenvio_fallido` = se cortó el enlace Worker → Durable Object (el evento «stateless»
+  no tiene par en `OdooContainer`); no implica que Odoo se cayó. Las lecturas se repiten en `reenviar` (2026-10-23).
 - Cloudflare puede arrancar la imagen nueva con las variables del arranque anterior (`APP_VERSION` atrasada).
 - `wrangler deploy` activa el Worker antes que la imagen: si la imagen falla, el Worker nuevo ya quedó.
 - La app de contenedores apareció 5 veces con la imagen anterior (incidente 5): comprobar la etiqueta activa.

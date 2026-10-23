@@ -180,8 +180,7 @@ class DcasaBodega(models.AbstractModel):
             return 'parcial'
         return 'esperando'
 
-    @staticmethod
-    def _pago(pedido):
+    def _pago(self, pedido):
         """``pagada``, ``abono`` (pagó una parte), ``sin_pago`` o ``False`` (la entrega no viene de un pedido).
 
         Cuenta un pago de verdad: un cobro conciliado con una factura publicada del pedido (las notas de crédito no
@@ -190,18 +189,55 @@ class DcasaBodega(models.AbstractModel):
         """
         if not pedido:
             return False
-        facturas = pedido.invoice_ids.filtered(lambda f: f.move_type == 'out_invoice' and f.state == 'posted')
-        cobrado = any(not pago.get('is_refund') for factura in facturas for pago in factura._dcasa_pagos())
-        transacciones = pedido.transaction_ids.filtered(lambda t: t.state in ('authorized', 'done'))
-        if not cobrado and not transacciones:
-            return 'sin_pago'
-        moneda = pedido.currency_id
-        if facturas and pedido.invoice_status != 'to invoice' \
-                and moneda.is_zero(sum(facturas.mapped('amount_residual'))):
-            return 'pagada'
-        if not facturas and moneda.compare_amounts(sum(transacciones.mapped('amount')), pedido.amount_total) >= 0:
-            return 'pagada'
-        return 'abono'
+        return self._pagos_de_pedidos(pedido)[pedido.id]
+
+    def _pagos_de_pedidos(self, pedidos):
+        """``{id del pedido: pagada | abono | sin_pago}`` para muchos pedidos de una vez, con las reglas de ``_pago``.
+
+        Antes se armaba el globito de pagos de Odoo factura por factura (una consulta y muchos registros por cada
+        una): con las entregas pendientes de la tienda, el Inicio de cada persona y el panel de Bodega (cada minuto)
+        ocupaban segundos el servidor chico y todo lo demás esperaba (producción, 23 oct). Ahora los cobros de todas
+        las facturas salen de una sola búsqueda."""
+        pedidos = pedidos.sudo()
+        facturas_de = {pedido.id: pedido.invoice_ids.filtered(
+            lambda f: f.move_type == 'out_invoice' and f.state == 'posted') for pedido in pedidos}
+        con_cobro = self._facturas_con_cobro(pedidos.invoice_ids.filtered(
+            lambda f: f.move_type == 'out_invoice' and f.state == 'posted'))
+        pagos = {}
+        for pedido in pedidos:
+            facturas = facturas_de[pedido.id]
+            cobrado = any(factura.id in con_cobro for factura in facturas)
+            transacciones = pedido.transaction_ids.filtered(lambda t: t.state in ('authorized', 'done'))
+            moneda = pedido.currency_id
+            if not cobrado and not transacciones:
+                pagos[pedido.id] = 'sin_pago'
+            elif facturas and pedido.invoice_status != 'to invoice' \
+                    and moneda.is_zero(sum(facturas.mapped('amount_residual'))):
+                pagos[pedido.id] = 'pagada'
+            elif not facturas and moneda.compare_amounts(sum(transacciones.mapped('amount')), pedido.amount_total) >= 0:
+                pagos[pedido.id] = 'pagada'
+            else:
+                pagos[pedido.id] = 'abono'
+        return pagos
+
+    def _facturas_con_cobro(self, facturas):
+        """Los ids de las facturas con al menos un cobro conciliado: lo mismo que mira el globito de pagos de Odoo
+        (``_get_all_reconciled_invoice_partials``: lo conciliado con sus líneas por cobrar), y una nota de crédito no
+        es cobro."""
+        lineas = facturas.sudo().line_ids.filtered(
+            lambda linea: linea.account_id.account_type in ('asset_receivable', 'liability_payable'))
+        if not lineas:
+            return set()
+        propias = set(lineas.ids)
+        parciales = self.env['account.partial.reconcile'].sudo().search(
+            ['|', ('debit_move_id', 'in', lineas.ids), ('credit_move_id', 'in', lineas.ids)])
+        con_cobro = set()
+        for parcial in parciales:
+            for propia, otra in ((parcial.debit_move_id, parcial.credit_move_id),
+                                 (parcial.credit_move_id, parcial.debit_move_id)):
+                if propia.id in propias and otra.move_id.move_type not in ('in_refund', 'out_refund'):
+                    con_cobro.add(propia.move_id.id)
+        return con_cobro
 
     def _sin_pago_mensaje(self, entrega, pedido):
         if pedido:
@@ -224,7 +260,8 @@ class DcasaBodega(models.AbstractModel):
         nueva (con los permisos de la persona)."""
         entregas = self.env['stock.picking'].search(
             dominio_pendientes(), order='scheduled_date asc, id asc', limit=LIMITE_BUSQUEDA)
-        return entregas.filtered(self._con_pago)
+        pagos = self._pagos_de_pedidos(entregas.sudo().sale_id)
+        return entregas.filtered(lambda entrega: pagos.get(entrega.sudo().sale_id.id) in CON_PAGO)
 
     def _texto_fecha(self, fecha):
         return fecha.strftime('%d/%m/%Y') if fecha else ''
@@ -254,7 +291,11 @@ class DcasaBodega(models.AbstractModel):
     def _tarjetas(self, entregas):
         hoy = self._hoy()
         pedidos = entregas.sudo().sale_id
+        pagos = self._pagos_de_pedidos(pedidos)
         flete = self._productos_flete(pedidos.order_line.product_id)
+        # Los nombres de todos los productos de una vez: uno por uno, Odoo los calculaba por separado (~1 s el panel).
+        productos = entregas.move_ids.product_id.with_context(display_default_code=False)
+        nombres = {producto.id: producto.display_name or '' for producto in productos}
         tarjetas = []
         for entrega in entregas:
             pedido = entrega.sudo().sale_id
@@ -262,12 +303,13 @@ class DcasaBodega(models.AbstractModel):
             fecha, tipo_fecha = self._fecha(entrega, pedido)
             como = self._como(entrega, pedido, flete)
             estado = self._estado(movimientos)
-            pago = self._pago(pedido)
+            pago = pagos.get(pedido.id, False)
             por_producto = {}
             for movimiento in movimientos:
                 clave = (movimiento.product_id.id, movimiento.product_uom.id)
                 linea = por_producto.setdefault(clave, {
-                    'nombre': self._nombre_producto(movimiento.product_id), 'cantidad': 0.0})
+                    'nombre': nombres.get(movimiento.product_id.id) or self._nombre_producto(movimiento.product_id),
+                    'cantidad': 0.0})
                 linea['cantidad'] += movimiento.product_uom_qty
             resumen = [{'nombre': linea['nombre'], 'cantidad': texto_cantidad(linea['cantidad'])}
                        for linea in por_producto.values()]

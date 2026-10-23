@@ -319,3 +319,71 @@ export function conNoindex(response: Response): Response {
   marcada.headers.set("X-Robots-Tag", "noindex, nofollow");
   return marcada;
 }
+
+/**
+ * Lecturas de Odoo (`/web/dataset/call_kw/<modelo>/<método>`) que el borde puede repetir si el enlace con el contenedor
+ * se corta: repetirlas no cambia nada. Lo que guarda, confirma, cobra o envía NUNCA se repite (podría hacerse dos veces).
+ */
+const LECTURAS_ODOO = new Set([
+  "web_read",
+  "web_search_read",
+  "read",
+  "search_read",
+  "search_count",
+  "search",
+  "name_search",
+  "web_name_search",
+  "get_views",
+  "fields_get",
+  "read_group",
+  "web_read_group",
+  "formatted_read_group",
+  "read_progress_bar",
+  "onchange",
+]);
+
+/** Lecturas propias de D'CASA (modelo/método), revisadas una por una: no escriben nada que no se pueda repetir. */
+const LECTURAS_DCASA = new Set([
+  "dcasa.tablero/obtener_datos",
+  "dcasa.facturas.panel/obtener_datos",
+  "dcasa.conversacion/iniciar_panel",
+  "dcasa.conversacion/lista",
+  "dcasa.conversacion/presencia",
+]);
+
+/** Rutas POST de Odoo que solo leen. */
+const RUTAS_DE_LECTURA = new Set(["/web/action/load"]);
+
+/**
+ * ¿Se puede repetir esta petición si el enlace con el contenedor se cae a mitad («Network connection lost.»)?
+ * GET/HEAD siempre (páginas, fotos, estilos); POST solo si es una lectura conocida.
+ */
+export function esRepetible(method: string, pathname: string): boolean {
+  if (method === "GET" || method === "HEAD") return true;
+  if (method !== "POST") return false;
+  if (RUTAS_DE_LECTURA.has(pathname)) return true;
+  const llamada = /^\/web\/dataset\/call_kw\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (!llamada) return false;
+  const [, modelo, metodo] = llamada;
+  return LECTURAS_ODOO.has(metodo) || LECTURAS_DCASA.has(`${modelo}/${metodo}`);
+}
+
+/**
+ * ¿El error es un corte del enlace con el Durable Object o el contenedor, que conviene reintentar? Cloudflare marca así
+ * los suyos (`retryable`) y recomienda repetir ante «Network connection lost.»; si dice que está sobrecargado
+ * (`overloaded`), repetir solo lo empeora.
+ */
+export function esCorteDeConexion(error: unknown): boolean {
+  if (typeof error === "object" && error !== null) {
+    const marcas = error as { retryable?: unknown; overloaded?: unknown };
+    if (marcas.overloaded === true) return false;
+    if (marcas.retryable === true) return true;
+  }
+  return /Network connection lost|Durable Object reset/i.test(String(error));
+}
+
+/** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio (sin tokens). */
+export function rutaParaRegistro(pathname: string): string {
+  if (pathname.startsWith("/web/dataset/call_kw/")) return pathname;
+  return pathname.split("/").slice(0, 4).join("/");
+}

@@ -135,9 +135,21 @@ class StockMove(models.Model):
         nota de entrega que se lleva el cliente, en formato título (F5)."""
         # Se compara con el nombre GUARDADO (Odoo quita del principio el nombre repetido): sin la clave del cliente.
         descripcion = self.with_context(**{CLAVE_CLIENTE: False})._dcasa_descripcion_entrega()
+        # Y además sin importar mayúsculas ni espacios: la guardada puede traer el nombre de antes.
+        descripcion = lineas.quitar_nombre_repetido(descripcion, self._dcasa_nombres_del_producto())
         if self.env.context.get(CLAVE_CLIENTE):
             return nombre_para_cliente(descripcion)
         return descripcion
+
+    def _dcasa_nombres_del_producto(self):
+        """Las formas en que el nombre del producto puede venir repetido al principio de la descripción."""
+        producto = self.product_id.with_context(**{CLAVE_CLIENTE: False})
+        if not producto:
+            return []
+        nombre = producto.name or ''
+        nombres = [producto.display_name, producto.with_context(display_default_code=False).display_name, nombre]
+        codigos = (producto.default_code, producto.dcasa_codigo_publico)
+        return nombres + [f'[{codigo}] {nombre}' for codigo in codigos if codigo]
 
     def _dcasa_descripcion_entrega(self):
         if not self.env.context.get(CLAVE_CONTEXTO):
@@ -158,7 +170,11 @@ class StockMoveLine(models.Model):
     _inherit = 'stock.move.line'
 
     def _get_aggregated_properties(self, move_line=False, move=False):
+        """La nota de entrega despachada agrupa por línea y calcula aquí la descripción. Odoo la compara con el
+        nombre del contexto (en la nota, ya en formato título) y la guardada sigue en MAYÚSCULAS: el producto salía dos
+        veces. Siempre por ``_get_report_description_picking``: compara con el nombre guardado, sin mayúsculas."""
         propiedades = super()._get_aggregated_properties(move_line=move_line, move=move)
-        if self.env.context.get(CLAVE_CONTEXTO):
-            propiedades['description'] = (move or move_line.move_id)._get_report_description_picking()
+        movimiento = move or (move_line and move_line.move_id)
+        if movimiento:
+            propiedades['description'] = movimiento._get_report_description_picking()
         return propiedades

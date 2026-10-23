@@ -1,8 +1,18 @@
 // Marketing: plano, azul de la marca y blancos fríos. El amarillo no se usa (nunca toca el blanco).
 
+// Odoo pone a todo `.o_action` en columna con `overflow: hidden` y sin barra (webclient_layout.scss), y esa regla pesa
+// más que `.o_dcasa_mk`: la página no bajaba con scroll (la dueña, 23 oct). Aquí se devuelve el scroll y los bloques
+// conservan su alto, como en la Guía y el Inicio.
+.o_web_client > .o_action_manager > .o_dcasa_mk.o_action {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    &::-webkit-scrollbar { display: block; width: 8px; }
+    &::-webkit-scrollbar-thumb { background: var(--dc-linea, #E2E7F0); border-radius: 4px; }
+    > * { flex-shrink: 0; }
+}
+
 .o_dcasa_mk {
     height: 100%;
-    overflow: auto;
     background: var(--dc-niebla, #F4F6FA);
     font-family: "Inter", sans-serif;
     color: var(--dc-tinta, #0E1A33);

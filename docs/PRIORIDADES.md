@@ -7,6 +7,22 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-23, tarde:** en la rama (CI #219 a staging) el arreglo de la lentitud (Bodega/Inicio sin mirar
+pagos factura por factura), el reintento del borde ante «Network connection lost.», la nota de entrega sin el producto
+repetido y el scroll de Marketing. Orden: (1) subirlo a producción con el «sí» de la dueña, fuera del horario de venta,
+y pedirle que diga si el sistema se siente más rápido; (2) seguimiento de velocidad sin urgencia: `/web/image` lee el
+archivo de R2 antes de contestar «no cambió» (304), el ZIP de comprobantes ocupa la CPU seguido mientras se prepara
+(pedirlo fuera de horario) y el costo de lo vendido hoy se busca producto por producto en el Inicio; (3) lo de la
+lista de abajo.
+
+**Estado al 2026-10-23:** en producción también los datos limpios (Desplegar 26, PR #61): nombres en formato
+título para el cliente, clave de descuento por Telegram (D1) y abonos por vencer (D3). Orden de lo que sigue: (1) lo
+que falta de la dueña para usar lo nuevo (abajo, punto 2 del 22 oct); (2) averiguar por qué Odoo de producción estaba
+apagado a las 06:38 UTC del 23 oct si debe estar encendido 24/7 (sin confirmar: registros de Cloudflare del contenedor
+de esa hora); (3) encender la portada guardada en el borde en producción (`tienda` sale «falta»: `TIENDA_FEED_TOKEN` y
+`TIENDA_ESTATICA`, docs/OPERACION.md); (4) el trabajo contable cuando lleguen las 14 respuestas del jefe; (5) el
+traslado del dominio, al final.
+
 **Estado al 2026-10-22, noche:** en producción la tanda del 22 oct (Desplegar 24, PR #60): bodega, Reponer con
 llegada, estadísticas por día, Marketing, combos cama + colchón y detalles. Orden de lo que sigue: (1) unir
 `datos-clientes` (F5 nombres en formato título para el cliente y MAYÚSCULAS por dentro, decisión de la dueña; 1b(a);

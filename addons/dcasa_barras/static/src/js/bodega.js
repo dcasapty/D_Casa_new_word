@@ -191,9 +191,18 @@ export class DcasaBodega extends Component {
         }
     }
 
-    refrescar() {
+    async refrescar() {
+        // Un refresco a la vez: si el servidor tarda más que el intervalo, no se encima otro pedido.
+        if (this.refrescando) {
+            return;
+        }
         if (this.state.vista === "lista" && !this.state.cargando && document.visibilityState !== "hidden") {
-            this.cargarLista({ silencioso: true });
+            this.refrescando = true;
+            try {
+                await this.cargarLista({ silencioso: true });
+            } finally {
+                this.refrescando = false;
+            }
         }
     }
 

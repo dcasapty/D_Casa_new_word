@@ -57,6 +57,25 @@ def quitar_referencia_delante(texto, referencia):
     return texto
 
 
+
+def quitar_nombre_repetido(descripcion, nombres):
+    """La descripción de la entrega sin el nombre del producto delante, sin importar mayúsculas ni espacios.
+
+    «[823QBR] Cama Queen  color Brown 823QBR» con el nombre «[823QBR] CAMA QUEEN COLOR BROWN 823QBR» → «»; si debajo
+    alguien escribió «Armar en casa», queda eso. Odoo solo la omite si empieza EXACTAMENTE igual que el nombre, y la
+    guardada puede traer el de antes (otras mayúsculas o espacios) o compararse con el nombre ya en formato título:
+    la nota de entrega despachada imprimía el producto dos veces (caja, 2026-10-23)."""
+    renglones = (descripcion or '').split('\n')
+    palabras = renglones[0].split()
+    comparables = [palabra.casefold() for palabra in palabras]
+    for nombre in sorted({(nombre or '').strip() for nombre in nombres} - {''}, key=lambda n: len(n.split()),
+                         reverse=True):
+        del_nombre = [palabra.casefold() for palabra in nombre.split()]
+        if comparables[:len(del_nombre)] == del_nombre:
+            renglones[0] = ' '.join(palabras[len(del_nombre):])
+            break
+    return '\n'.join(renglones).strip()
+
 def codigo_a_imprimir(empresa, producto, codigo_del_proveedor):
     """Lo que va en la columna «Código»: el del proveedor de siempre o, si la empresa enciende «Mostrar el código
     público…», el código público del producto (DC-K7M4PX). Sin código público (flete, servicios, líneas sin producto)
