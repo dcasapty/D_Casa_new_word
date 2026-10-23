@@ -47,3 +47,49 @@ class TestNombresParaElClienteEnLosPapeles(DocumentosDePrueba):
                                          f'nota de entrega (fácil={facil}, código público={codigo_publico})')
                 self.assertIn(CAMA_GUARDADA, ' '.join(entrega.move_ids.product_id.mapped('display_name')),
                               'en la pantalla de la entrega sigue en MAYÚSCULAS')
+
+    def test_la_nota_de_entrega_no_repite_el_producto(self):
+        """Caso de caja (2026-10-23, WH/OUT/00155): la nota despachada imprimía cada producto dos veces, el nombre y
+        debajo la «descripción de la entrega». Odoo solo la omite si empieza EXACTAMENTE igual que el nombre, y la nota
+        compara con el nombre ya en formato título; la guardada puede traer además el de antes (otras mayúsculas o
+        espacios). Se compara sin importar mayúsculas ni espacios."""
+        viejos = {self.cama: f'[{self.cama.default_code}] Cama Queen  grey con estantes',
+                  self.colchon: f'[{self.colchon.default_code}] Colchon Imperial Twin 3/4 buen sueño '}
+        for codigo_publico in (False, True):
+            self.interruptores(codigo_publico=codigo_publico)
+            for facil in (False, True):
+                self.company.dcasa_entrega_facil = facil
+                for guardada in (False, True):
+                    for despachada in (False, True):
+                        entrega = self.entrega()
+                        if guardada:
+                            for movimiento in entrega.move_ids:
+                                if movimiento.product_id in viejos:
+                                    movimiento.description_picking = viejos[movimiento.product_id]
+                        if despachada:
+                            for movimiento in entrega.move_ids:
+                                movimiento.quantity = movimiento.product_uom_qty
+                            entrega.move_ids.picked = True
+                            entrega.button_validate()
+                            self.assertEqual(entrega.state, 'done')
+                        texto = self._texto('stock.report_deliveryslip', entrega).casefold()
+                        for cliente in (CAMA_CLIENTE, COLCHON_CLIENTE):
+                            self.assertEqual(
+                                texto.count(cliente.casefold()), 1,
+                                f'{cliente} (fácil={facil}, código público={codigo_publico}, nombre viejo guardado='
+                                f'{guardada}, despachada={despachada}): {texto}')
+
+    def test_una_descripcion_de_verdad_se_sigue_imprimiendo(self):
+        """Lo que alguien escribió en la entrega además del nombre («Color: gris») no se pierde."""
+        for despachada in (False, True):
+            entrega = self.entrega()
+            movimiento = entrega.move_ids.filtered(lambda m: m.product_id == self.cama)
+            movimiento.description_picking = f'[{self.cama.default_code}] {CAMA_GUARDADA}\nArmar en casa del cliente'
+            if despachada:
+                for linea in entrega.move_ids:
+                    linea.quantity = linea.product_uom_qty
+                entrega.move_ids.picked = True
+                entrega.button_validate()
+            texto = self._texto('stock.report_deliveryslip', entrega).casefold()
+            self.assertEqual(texto.count(CAMA_CLIENTE.casefold()), 1, texto)
+            self.assertIn('armar en casa del cliente', texto)
