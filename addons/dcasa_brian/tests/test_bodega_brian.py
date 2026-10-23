@@ -49,7 +49,7 @@ class TestBrianEntregasPorDespachar(TransactionCase):
         self.assertEqual((fila['cliente'], fila['pedido'], fila['estado'], fila['como']),
                          ('CLIENTE DE PRUEBA BRIAN BODEGA', self.pedido.name, 'Lista para salir',
                           'Sin definir: envío o retiro'))
-        self.assertEqual(fila['productos'], '2 × Zzcama Brian bodega')
+        self.assertEqual(fila['productos'], '2 × ZZCAMA BRIAN BODEGA', 'Brian es interno: el nombre guardado (F5)')
         self.assertEqual(fila['pago'], 'Con abono: le falta una parte por pagar')
         self.assertNotIn(self.entrega_sin_pago.name, [f['entrega'] for f in datos['entregas']], 'sin pago no sale')
         self.assertIn('pago o abono', datos['regla'])

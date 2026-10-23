@@ -24,7 +24,9 @@ def _producto(env, fila):
         variante = env['product.product'].with_context(active_test=False).search(
             [('default_code', '=', fila['codigo'])], limit=1)
         return (variante.product_tmpl_id, variante) if variante else (None, None)
-    plantillas = env['product.template'].with_context(active_test=False).search([('name', '=', fila['nombre'])])
+    # Sin importar mayúsculas: desde F5 los nombres de productos se guardan en MAYÚSCULAS.
+    nombre = ' '.join((fila['nombre'] or '').split()).replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+    plantillas = env['product.template'].with_context(active_test=False).search([('name', '=ilike', nombre)])
     if len(plantillas) == 1:
         return plantillas, plantillas.product_variant_ids[:1]
     return None, None

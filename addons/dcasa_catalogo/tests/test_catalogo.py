@@ -1,4 +1,5 @@
 from odoo.addons.dcasa_catalogo.catalogo import cargar_catalogo, leer_catalogo, xmlid_de
+from odoo.addons.dcasa_catalogo.models.nombres_productos import nombre_en_mayusculas
 from odoo.tests import TransactionCase, tagged
 
 
@@ -17,7 +18,7 @@ class TestCatalogo(TransactionCase):
     def test_todos_los_codigos_cargados(self):
         for item in self.catalogo:
             producto = self.producto(item['codigo'])
-            self.assertEqual(producto.name, item['nombre_web'])
+            self.assertEqual(producto.name, nombre_en_mayusculas(item['nombre_web']))
             self.assertTrue(producto.is_storable, 'Va al inventario')
             self.assertTrue(producto.allow_out_of_stock_order, 'Existencias sin confirmar: se vende igual')
 
@@ -152,7 +153,7 @@ class TestCatalogo(TransactionCase):
         producto = self.producto(item['codigo'])
         producto.name = 'Nombre de la dueña'
         actualizar_catalogo(self.env)
-        self.assertEqual(producto.name, 'Nombre de la dueña')
+        self.assertEqual(producto.name, 'NOMBRE DE LA DUEÑA')
 
     def test_idempotente_y_respeta_cambios(self):
         item = self.catalogo[0]
@@ -169,7 +170,7 @@ class TestCatalogo(TransactionCase):
             [('product_id.product_tmpl_id', '=', self.producto(i['codigo']).id)]))
         self.producto(item['codigo']).unlink()
         self.assertEqual(cargar_catalogo(self.env), 1)
-        self.assertEqual(self.producto(item['codigo']).name, item['nombre_web'])
+        self.assertEqual(self.producto(item['codigo']).name, nombre_en_mayusculas(item['nombre_web']))
 
 
 @tagged('post_install', '-at_install')

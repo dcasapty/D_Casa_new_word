@@ -68,7 +68,7 @@ class TestImportacion(TransactionCase):
             'group_ids': [Command.set([ref('base.group_user').id, ref('dcasa_base.group_gerencia').id])]})
         impuesto = cls.env['brian.herramientas']._b_itbms_venta()
         cls.queen = cls.env['product.template'].create({
-            'name': 'Cama Queen vieja', 'default_code': 'imp-888q ', 'list_price': 150.0, 'type': 'consu',
+            'name': 'CAMA QUEEN VIEJA', 'default_code': 'imp-888q ', 'list_price': 150.0, 'type': 'consu',
             'is_storable': True, 'taxes_id': [Command.set(impuesto.ids)]})
         cls.foto_k = _png((19, 64, 177))
         cls.foto_q = _png((19, 64, 177, 128), modo='RGBA')
@@ -200,7 +200,7 @@ class TestImportacion(TransactionCase):
         self.assertEqual(Image.open(io.BytesIO(base64.b64decode(king.image_1920))).format, 'JPEG')
         # El existente: precio nuevo, foto (PNG con transparencia) y medidas porque no tenía; el nombre no se toca.
         self.assertEqual(self.queen.list_price, 219.99)
-        self.assertEqual(self.queen.name, 'Cama Queen vieja')
+        self.assertEqual(self.queen.name, 'CAMA QUEEN VIEJA')
         self.assertEqual(Image.open(io.BytesIO(base64.b64decode(self.queen.image_1920))).format, 'PNG')
         self.assertEqual(self.queen.dcasa_medidas, 'L × A × Alto: 228 × 182 × 120 cm')
         self.assertFalse(self.producto('IMP-DUP'))

@@ -13,6 +13,13 @@
                         <span>%</span>
                     </div>
                 </setting>
+                <setting id="dcasa_descuento_clave_minutos" string="Clave de Gerencia para un descuento mayor"
+                         help="Si una vendedora o Caja pide más descuento que su tope, a Gerencia le llega una clave por Telegram. Vale una sola vez y vence a estos minutos.">
+                    <div class="d-flex align-items-center gap-2">
+                        <field name="dcasa_descuento_clave_minutos" class="o_light_label" style="width: 6rem;"/>
+                        <span>minutos</span>
+                    </div>
+                </setting>
             </xpath>
         </field>
     </record>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- D3: en «Abonos por vencer», si ya salió el recordatorio por correo. -->
+    <record id="view_move_list_abonos_por_vencer_correo" model="ir.ui.view">
+        <field name="name">account.move.list.dcasa.abonos.por.vencer.correo</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="dcasa_abonos.view_move_list_abonos_por_vencer"/>
+        <field name="arch" type="xml">
+            <field name="amount_residual_signed" position="after">
+                <field name="dcasa_recordatorio" optional="show"/>
+            </field>
+        </field>
+    </record>
+</odoo>

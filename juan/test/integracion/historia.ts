@@ -26,7 +26,9 @@ export function seccionHistoria(e: Escena) {
     it("bienvenida y pregunta por camas queen: el bot busca en el catálogo REAL de Odoo y contesta con el precio «+ ITBMS»", async () => {
       const w = e.w;
       w.ia.guionar([
-        { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cama queen" } }] },
+        // Con el catálogo real cargado hay muchas camas queen con el mismo puntaje y se ordenan por nombre (desde F5,
+        // todos en MAYÚSCULAS): la de la prueba se busca por su nombre para que salga entre las primeras.
+        { llamadas: [{ nombre: "buscar_productos", args: { consulta: "cama roble queen" } }] },
         (c) => {
           const p = producto(c, "Cama Roble Queen Integración");
           return { texto: `Sí, tenemos la ${p.nombre}, a ${p.precio_texto}. ¿Quieres que te cuente más de esa cama?` };

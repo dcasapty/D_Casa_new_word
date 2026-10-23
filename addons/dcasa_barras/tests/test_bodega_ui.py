@@ -50,7 +50,7 @@ TABLET = """
     }
     const envio = tarjeta(D.envio);
     for (const texto of ["CLIENTE DE PRUEBA ENVIO", D.pedido_envio, "Envío a domicilio", "Lista para salir",
-                         "Zzcama de prueba"]) {
+                         "ZZCAMA DE PRUEBA"]) {
         if (!envio.textContent.includes(texto)) { falla("a la tarjeta le falta " + texto); }
     }
     if (!tarjeta(D.retiro).textContent.includes("Retira en la tienda")) { falla("el retiro no dice que se retira"); }
@@ -90,16 +90,16 @@ TABLET = """
     // Escanear un producto lo marca; uno que no es de la entrega avisa.
     escribir(lector, "ZZT-CAMA-1");
     enter(lector);
-    await esperar(() => linea("Zzcama").querySelector(".o_dcasa_bodega_cifra")?.textContent.includes("1 de 2"),
+    await esperar(() => linea("ZZCAMA").querySelector(".o_dcasa_bodega_cifra")?.textContent.includes("1 de 2"),
                   "la cama marcada con el lector");
     escribir(lector, "ZZT-ZAP-1");
     enter(lector);
     await esperar(() => document.querySelector(".o_dcasa_bodega_msg_error")?.textContent
         .includes("no es de esta entrega"), "el aviso de producto equivocado");
-    linea("Zzcama").querySelector(".o_dcasa_bodega_mas_uno").click();
-    await esperar(() => linea("Zzcama").classList.contains("o_dcasa_bodega_linea_lista"), "la cama completa");
-    boton("Marcar", linea("Zzmesa")).click();
-    await esperar(() => linea("Zzmesa").classList.contains("o_dcasa_bodega_linea_lista"), "la mesa marcada");
+    linea("ZZCAMA").querySelector(".o_dcasa_bodega_mas_uno").click();
+    await esperar(() => linea("ZZCAMA").classList.contains("o_dcasa_bodega_linea_lista"), "la cama completa");
+    boton("Marcar", linea("ZZMESA")).click();
+    await esperar(() => linea("ZZMESA").classList.contains("o_dcasa_bodega_linea_lista"), "la mesa marcada");
     boton("Validar entrega").click();
     const exito = await esperar(() => document.querySelector(".o_dcasa_bodega_exito"), "el aviso de éxito");
     if (!exito.textContent.includes(D.envio) || !exito.textContent.includes("entregada completa")) {
@@ -112,7 +112,7 @@ TABLET = """
     tarjeta(D.flete).querySelector(".o_dcasa_bodega_abrir").click();
     await esperar(() => document.querySelector(".o_dcasa_bodega_titulo_entrega")?.textContent === D.flete,
                   "la entrega del flete");
-    linea("Zzcama").querySelector(".o_dcasa_bodega_mas_uno").click();
+    linea("ZZCAMA").querySelector(".o_dcasa_bodega_mas_uno").click();
     boton("Validar entrega").click();
     const pregunta = await esperar(() => document.querySelector(".o_dcasa_bodega_confirmar"), "la pregunta");
     for (const texto of ["¿Entregar solo lo marcado?", "marcaste 1 de 2", "pendiente"]) {

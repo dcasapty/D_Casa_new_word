@@ -82,6 +82,9 @@ class DcasaConversacionCatalogo(models.Model):
         fotos = (1 if ficha['foto'] else 0) + len(plantilla.sudo().product_template_image_ids)
         ficha.update({
             'id': plantilla.id,
+            # La pantalla de la vendedora es interna: el nombre como está guardado (MAYÚSCULAS, F5). El pie de foto
+            # que le llega al cliente va en formato título (preparar_foto_catalogo).
+            'nombre': plantilla.name,
             'miniatura': (website._dcasa_img_url(plantilla, 256) if website and ficha['foto'] else None),
             'fotos_total': fotos,
             'variante_id': plantilla.sudo().product_variant_id.id if plantilla.sudo().product_variant_count == 1
@@ -170,7 +173,8 @@ class DcasaConversacionCatalogo(models.Model):
             raise UserError(self.env._('El texto del pie tiene que ser texto.'))
         ficha = self._ficha_de_catalogo(plantilla, self._vista_publica()._j_base_url())
         if texto is None:
-            texto = pie_de_foto(ficha['nombre'], ficha['precio_texto'], ficha['medidas'], ficha['url'])
+            nombre = plantilla._dcasa_nombre_cliente()   # lo lee el cliente: formato título (F5)
+            texto = pie_de_foto(nombre, ficha['precio_texto'], ficha['medidas'], ficha['url'])
         adjuntos = self.env['ir.attachment']
         for numero, ref in enumerate(dict.fromkeys(fotos), start=1):
             adjuntos |= self.env['ir.attachment'].create({

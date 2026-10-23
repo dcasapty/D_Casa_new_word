@@ -18,6 +18,7 @@ from urllib.parse import quote
 import pytz
 
 from odoo import models
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_invoice.models import lineas as L
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.addons.dcasa_socios.models.dcasa_canje import ESTADOS_CANJE
@@ -205,9 +206,10 @@ class DcasaMiCuenta(models.AbstractModel):
 
     @staticmethod
     def _mc_nombre(producto, texto=''):
+        """El nombre en formato título, como lo lee el cliente (F5: por dentro va en MAYÚSCULAS)."""
         if producto:
-            return producto.with_context(display_default_code=False).display_name
-        return (texto or '').split('\n')[0].strip()
+            return nombre_para_cliente(producto.with_context(display_default_code=False).display_name)
+        return nombre_para_cliente((texto or '').split('\n')[0].strip())
 
     def _mc_items_pedido(self, pedido):
         """Las líneas que ve el cliente: sin secciones, notas ni anticipos; las piezas de un combo van dentro."""

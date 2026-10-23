@@ -9,3 +9,4 @@ from . import imagen
 from . import black_weekend
 from . import sale_order
 from . import pedido_web
+from . import nombres_cliente

@@ -62,6 +62,12 @@ Estadísticas ni ninguna otra pantalla de Gerencia (no implica ningún grupo de 
 | Registrar adelantos y préstamos a colaboradores; enviar comprobantes de pago | **No** | **No** | (según su grupo de nómina) | Sí | Sí |
 | **Autorizar** un adelanto o un préstamo | **No** | **No** | **No** | Sí | Sí |
 | Comprobantes en ZIP (respaldo DGI) | **No** | **No** | Sí | Sí | Sí |
+| Pasar del tope con la **clave de Gerencia** («Pedir descuento a Gerencia» en la cotización; D1, 2026-10-22) | Sí, la suya | Sí, la suya | Sí, la suya | No le hace falta | No le hace falta |
+| Aprobar o rechazar esos descuentos (Ventas › Descuentos por autorizar; le llega la clave por Telegram) | **No** | **No** | **No** | Sí | Sí |
+| Ver el **costo** de un producto, el **precio del proveedor** y el **margen** del análisis de facturas (1b(a), 2026-10-22) | **No** | **No** | Sí | Sí | Sí |
+| **Abonos por vencer** (Facturación › Clientes) y escribirle al cliente por WhatsApp | **No** | Sí | Sí | Sí | Sí |
+| Cerrar **saldos de centavos** de redondeo (Contabilidad › Clientes) | **No** | **No** | Sí | Sí | Sí |
+| **Productos repetidos** y **Nombres en MAYÚSCULAS** (Ventas › Productos; F5) | **No** | **No** | **No** | Sí | Sí |
 | Fusionar clientes repetidos (Socios › Configuración › Posibles duplicados) | **No** | **No** | **No** | Sí | Sí |
 | Factura electrónica (DGI) | Sí | Sí | Sí | Sí | Sí |
 | Facturas y notas **de proveedores** | **No** | **No** | Sí | Sí | Sí |
@@ -160,13 +166,22 @@ Excel en `/dcasa/reponer/excel` y las herramientas `que_reponer` y `poner_tiempo
 el menú y, si lo pide por la conexión de datos, se le niega. El Excel lo arma el servidor: el «Exportar» general de Odoo
 sigue siendo solo de administradores.
 
-**Lo que todavía NO está cerrado (dicho con franqueza, revisión del 2026-10-16):** el campo «Costo» **del producto** es de
-Odoo y lo ve cualquier empleado interno en la ficha del producto, y también algunos reportes de factura (margen) y el precio
-del proveedor. No se tocó a ciegas porque Inventario, Compras y Contabilidad lo leen dentro de sus procesos y restringirlo
-mal rompe entregas o recepciones. Queda como la siguiente tarea de seguridad (con pruebas de esos flujos); está en
-[PRIORIDADES.md](PRIORIDADES.md). El menú Estadísticas completo (resumen, por día, lo más vendido, mejor margen, lo que no
-se mueve) es de Gerencia y administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve
-los pedidos.
+**El costo del producto, el precio del proveedor y el margen, cerrados (etapa 1b(a), 2026-10-22,
+`dcasa_base/models/costos_cerrados.py`):** el campo «Costo» de la ficha del producto (y el costo unitario y el valor
+total de Inventario), los **precios de proveedor** (lo que cobra el proveedor) y el **margen** y el valor de inventario del
+análisis de facturas (`account.invoice.report`) los ven solo **Gerencia, administradores, contabilidad (lector,
+contador, gerente contable), compras, inventario (administrador)**, quien administra Ventas y quien crea productos. La
+Vendedora, Caja y **bodega** (Inventario usuario) no: no salen en ninguna pantalla (Odoo quita esos campos de todas las
+vistas de esos modelos, también las de otros módulos) y el servidor se los niega por la conexión de datos (leer,
+buscar u ordenar por el costo, agrupar o sumar el margen, la lista de campos para filtros y exportar). Lo que **no**
+cambia: Inventario, Compras y Contabilidad siguen leyendo el costo **por dentro** para valorar entregas, recepciones y el
+costo de ventas, así que la Vendedora y bodega siguen vendiendo, facturando, entregando y recibiendo igual (pruebas en
+`dcasa_base/tests/test_costos_cerrados.py`). Por eso no se le puso `groups` al campo de Odoo: haría fallar esos procesos.
+**Queda abierto (para otra tarea):** el valor de los movimientos de inventario (`stock.move`: valor y precio unitario) y
+los apuntes del costo de ventas dentro de una factura que la vendedora sí ve se pueden pedir por la conexión de datos.
+
+El menú Estadísticas completo (resumen, por día, lo más vendido, mejor margen, lo que no se mueve) es de Gerencia y
+administradores; «Lo más vendido» solo muestra ventas y unidades, no costos, y quien vende ya ve los pedidos.
 
 **Por día, Estadísticas y Movimientos** (2026-10-22): *Ventas › Hoy › Ventas por día*, *Facturación › Clientes ›
 Facturado por día* y *Estadísticas › Resumen* son de **Gerencia y administradores** (`sales_team.group_sale_manager` o
@@ -200,6 +215,15 @@ servidor lo exige en `dcasa.marketing._exigir`, y el menú, el acceso del Inicio
 
 **Fusión de contactos:** solo Gerencia, de a una persona; las fusiones masivas automáticas son del administrador del
 sistema. Los puntos y el código de socio pasan completos a la ficha que queda y ésta deja una nota con lo que se le unió.
+
+**Descuento con la clave de Gerencia (D1, 2026-10-22, `dcasa_base/models/descuento_autorizacion.py`):** la Vendedora y
+Caja piden desde la cotización un descuento mayor a su tope; cada persona de Gerencia (Ventas administrador) recibe por
+Telegram **su propia clave**. La clave se guarda solo como huella (nadie la lee, ni el administrador), vale una vez,
+solo para quien la pidió, esa cotización y ese total, vence a los minutos de Ajustes de Ventas y se bloquea con cinco
+claves equivocadas (los intentos se cuentan aunque la pantalla no dé error). El descuento lo aplica el servidor con
+`sudo` **después** de comprobar todo eso y que quien la usa puede editar la cotización; es el único camino que pasa del
+tope sin Gerencia. Cada quien ve sus solicitudes; Gerencia, todas. Después, el tope del pedido entero impide empeorar lo
+autorizado.
 
 «Contador» es quien tiene Contabilidad en su ficha de usuario. Gerencia ya incluye Contabilidad y Nómina.
 El lector contable (solo lectura) ve todo lo contable pero no cambia nada, igual que antes.

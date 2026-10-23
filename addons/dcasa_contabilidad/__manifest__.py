@@ -38,6 +38,7 @@ El sistema contable de D'CASA, construido sobre la contabilidad de Odoo Communit
         'report/reportes_pdf.xml',
         'report/cheque.xml',
         'wizard/importar_extracto_views.xml',
+        'wizard/saldos_centavos_views.xml',
         'views/formato_extracto_views.xml',
         'views/cierre_views.xml',
         'views/cuenta_views.xml',

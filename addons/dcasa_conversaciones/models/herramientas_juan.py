@@ -127,7 +127,7 @@ class BrianHerramientasJuan(models.AbstractModel):
     def _j_ficha_corta(self, plantilla, base):
         mas_itbms = self._j_mas_itbms(plantilla)
         return {
-            'nombre': plantilla.name,
+            'nombre': plantilla._dcasa_nombre_cliente(),   # formato título, como lo lee el cliente (F5)
             # El código público (DC-K7M4PX) es el único que ve el cliente: la referencia del proveedor no sale.
             'codigo': plantilla.dcasa_codigo_publico or '',
             'precio': round(plantilla.list_price, 2),
@@ -249,7 +249,7 @@ class BrianHerramientasJuan(models.AbstractModel):
         if plantilla.product_variant_count > 1:
             # Sin código por variante: el código público es del producto y la medida o el color se elige con «opcion».
             ficha['variantes'] = [{
-                'nombre': v.with_context(display_default_code=False).display_name,
+                'nombre': v._dcasa_nombre_cliente(),
                 'precio': round(v.lst_price, 2),
                 'precio_texto': P.precio_texto(v.lst_price, mas_itbms),
                 'disponibilidad': self._j_existencias(plantilla, v),

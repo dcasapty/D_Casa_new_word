@@ -53,7 +53,8 @@ class IrQwebFieldImage(models.AbstractModel):
         if record._name in ('product.template', 'product.product'):
             # El nombre del archivo y el texto alternativo de la foto salen del nombre del producto, que Odoo
             # antecede con «[referencia del proveedor]»: el cliente no tiene que verla.
-            record = record.with_context(display_default_code=False)
+            # El texto alternativo va además en formato título, como lo ve el cliente (F5).
+            record = record.with_context(display_default_code=False, dcasa_para_cliente=True)
         atributos = self._dcasa_atributos_img(record, field_name, options)
         if atributos:
             # El widget arma sus atributos y llama a ir.qweb._post_processing_att: los nuestros

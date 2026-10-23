@@ -50,6 +50,7 @@ Todo el contenido de las páginas es editable con el constructor de Odoo
         'data/website_menu_data.xml',
         'data/tienda_data.xml',
         'views/tienda_templates.xml',
+        'views/nombres_cliente_templates.xml',
         'data/seo_data.xml',
         'data/black_weekend_data.xml',
         'data/ir_cron_data.xml',

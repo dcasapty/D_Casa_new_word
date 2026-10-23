@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- D1: descuento con autorización de Gerencia por clave (models/descuento_autorizacion.py). -->
+
+    <record id="view_order_form_dcasa_pedir_descuento" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.pedir.descuento</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='so_button_below_order_lines']" position="inside">
+                <field name="dcasa_pide_descuento" invisible="1"/>
+                <button string="Pedir descuento a Gerencia" name="action_dcasa_pedir_descuento" type="object"
+                        class="btn btn-secondary" icon="fa-key"
+                        invisible="not dcasa_pide_descuento or state not in ('draft', 'sent')"
+                        help="Para un descuento mayor a tu tope: Gerencia recibe una clave por Telegram y tú la escribes aquí."/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- La pantalla de quien pide -->
+    <record id="dcasa_descuento_pedir_view_form" model="ir.ui.view">
+        <field name="name">dcasa.descuento.pedir.form</field>
+        <field name="model">dcasa.descuento.pedir</field>
+        <field name="arch" type="xml">
+            <form string="Descuento con autorización de Gerencia" class="o_dcasa_descuento_pedir">
+                <field name="paso" invisible="1"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="autorizacion_id" invisible="1"/>
+                <div invisible="paso != 'pedir'">
+                    <p class="text-muted">
+                        Tú puedes rebajar hasta <field name="tope" class="oe_inline" readonly="1"/> %.
+                        Para más, Gerencia te da una clave: le llega por Telegram con lo que pides.
+                    </p>
+                    <group>
+                        <field name="order_id" readonly="1"/>
+                        <field name="total" readonly="1"/>
+                        <field name="tipo" widget="radio"/>
+                        <field name="porcentaje" invisible="tipo != 'porcentaje'" required="tipo == 'porcentaje'"/>
+                        <field name="monto" invisible="tipo != 'monto'" required="tipo == 'monto'"/>
+                        <field name="motivo" required="paso == 'pedir'" placeholder="Ej.: lleva la sala y el comedor"/>
+                        <field name="rebaja" readonly="1"/>
+                        <field name="total_despues" readonly="1"/>
+                    </group>
+                </div>
+                <div invisible="paso != 'clave'">
+                    <div class="alert alert-info" role="status" invisible="not enviada_a">
+                        Le mandamos una clave por Telegram a: <field name="enviada_a" class="oe_inline" readonly="1"/>.
+                        Cuando te la den, escríbela aquí. Vale una vez, solo para esta cotización y este monto.
+                    </div>
+                    <div class="alert alert-warning" role="status" invisible="enviada_a">
+                        Telegram no está conectado para Gerencia, así que no salió ninguna clave.
+                        Pídele a Gerencia que lo apruebe en persona: lo ve en Ventas › Descuentos por autorizar
+                        y lo aprueba desde su usuario.
+                    </div>
+                    <div class="alert alert-danger" role="alert" invisible="not aviso">
+                        <field name="aviso" readonly="1"/>
+                    </div>
+                    <group invisible="not enviada_a">
+                        <field name="vence" readonly="1" string="La clave vence"/>
+                        <field name="clave" placeholder="6 números"/>
+                    </group>
+                </div>
+                <footer>
+                    <button string="Pedir la clave a Gerencia" name="action_pedir" type="object" class="btn-primary"
+                            invisible="paso != 'pedir'"/>
+                    <button string="Aplicar el descuento" name="action_aplicar" type="object" class="btn-primary"
+                            invisible="paso != 'clave' or not enviada_a"/>
+                    <button string="Cerrar" special="cancel" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- La lista de Gerencia -->
+    <record id="dcasa_descuento_autorizacion_view_list" model="ir.ui.view">
+        <field name="name">dcasa.descuento.autorizacion.list</field>
+        <field name="model">dcasa.descuento.autorizacion</field>
+        <field name="arch" type="xml">
+            <list string="Descuentos por autorizar" create="0" edit="0" delete="0"
+                  decoration-muted="estado in ('cancelada', 'vencida', 'bloqueada')"
+                  decoration-success="estado == 'usada'" decoration-danger="estado == 'rechazada'">
+                <field name="create_date" string="Pedido el"/>
+                <field name="order_id"/>
+                <field name="partner_id"/>
+                <field name="solicitante_id"/>
+                <field name="tipo"/>
+                <field name="porcentaje" optional="show"/>
+                <field name="monto" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="total_antes"/>
+                <field name="total_despues"/>
+                <field name="motivo"/>
+                <field name="estado"/>
+                <field name="aprobador_id" optional="show"/>
+                <button name="action_aprobar" type="object" string="Aprobar y aplicar" icon="fa-check"
+                        class="btn-primary" invisible="estado not in ('pendiente', 'vencida')"
+                        groups="sales_team.group_sale_manager"/>
+                <button name="action_rechazar" type="object" string="Rechazar" icon="fa-times"
+                        invisible="estado not in ('pendiente', 'vencida')" groups="sales_team.group_sale_manager"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="dcasa_descuento_autorizacion_view_form" model="ir.ui.view">
+        <field name="name">dcasa.descuento.autorizacion.form</field>
+        <field name="model">dcasa.descuento.autorizacion</field>
+        <field name="arch" type="xml">
+            <form string="Descuento por autorizar" create="0" edit="0" delete="0">
+                <header>
+                    <button name="action_aprobar" type="object" string="Aprobar y aplicar" class="btn-primary"
+                            invisible="estado not in ('pendiente', 'vencida')" groups="sales_team.group_sale_manager"/>
+                    <button name="action_rechazar" type="object" string="Rechazar"
+                            invisible="estado not in ('pendiente', 'vencida')" groups="sales_team.group_sale_manager"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="pendiente,usada"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_ver_cotizacion" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                                string="Ver la cotización"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="order_id"/>
+                            <field name="partner_id"/>
+                            <field name="solicitante_id"/>
+                            <field name="motivo"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="tipo"/>
+                            <field name="porcentaje" invisible="tipo != 'porcentaje'"/>
+                            <field name="monto" invisible="tipo != 'monto'"/>
+                            <field name="total_antes"/>
+                            <field name="rebaja_estimada"/>
+                            <field name="total_despues"/>
+                        </group>
+                        <group>
+                            <field name="enviada_a"/>
+                            <field name="vence"/>
+                            <field name="intentos"/>
+                        </group>
+                        <group>
+                            <field name="aprobador_id"/>
+                            <field name="canal"/>
+                            <field name="aplicada_en"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="dcasa_descuento_autorizacion_view_search" model="ir.ui.view">
+        <field name="name">dcasa.descuento.autorizacion.search</field>
+        <field name="model">dcasa.descuento.autorizacion</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="order_id"/>
+                <field name="solicitante_id"/>
+                <filter name="pendientes" string="Esperando" domain="[('estado', 'in', ('pendiente', 'vencida'))]"/>
+                <filter name="aplicados" string="Aplicados" domain="[('estado', '=', 'usada')]"/>
+                <group>
+                    <filter name="por_solicitante" string="Quién pidió" context="{'group_by': 'solicitante_id'}"/>
+                    <filter name="por_estado" string="Estado" context="{'group_by': 'estado'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_dcasa_descuentos_por_autorizar" model="ir.actions.act_window">
+        <field name="name">Descuentos por autorizar</field>
+        <field name="res_model">dcasa.descuento.autorizacion</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_pendientes': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nadie ha pedido un descuento mayor a su tope.</p>
+            <p>Cuando una vendedora o Caja pide más descuento del que puede poner, aparece aquí. A Gerencia le llega la
+                clave por Telegram; también puede aprobarlo o rechazarlo desde aquí.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_dcasa_descuentos_por_autorizar" name="Descuentos por autorizar"
+              parent="sale.sale_order_menu" action="action_dcasa_descuentos_por_autorizar"
+              groups="sales_team.group_sale_manager" sequence="40"/>
+
+    <record id="regla_descuento_autorizacion_propia" model="ir.rule">
+        <field name="name">Descuento por autorizar: quien lo pidió ve el suyo</field>
+        <field name="model_id" ref="model_dcasa_descuento_autorizacion"/>
+        <field name="domain_force">[('solicitante_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_salesman'))]"/>
+    </record>
+    <record id="regla_descuento_autorizacion_gerencia" model="ir.rule">
+        <field name="name">Descuento por autorizar: Gerencia ve todos</field>
+        <field name="model_id" ref="model_dcasa_descuento_autorizacion"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('sales_team.group_sale_manager'))]"/>
+    </record>
+</odoo>

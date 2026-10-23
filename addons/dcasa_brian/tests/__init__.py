@@ -22,3 +22,4 @@ from . import test_reponer_brian
 from . import test_estadisticas_brian
 from . import test_bodega_brian
 from . import test_bodega_nomina_brian
+from . import test_decisiones_brian

@@ -13,3 +13,5 @@ access_cierre_mes_paso_lectura,cierre mes paso lectura,model_dcasa_cierre_mes_pa
 access_cierre_mes_paso_contador,cierre mes paso contador,model_dcasa_cierre_mes_paso,account.group_account_user,1,1,1,1
 access_comprobantes_paquete_contador,comprobantes zip contador,model_dcasa_comprobantes_paquete,account.group_account_user,1,1,1,1
 access_comprobantes_paquete_linea_contador,comprobantes zip indice contador,model_dcasa_comprobantes_paquete_linea,account.group_account_user,1,0,0,0
+access_saldos_centavos_contador,saldos centavos contador,model_dcasa_saldos_centavos,account.group_account_user,1,1,1,1
+access_saldos_centavos_linea_contador,saldos centavos linea contador,model_dcasa_saldos_centavos_linea,account.group_account_user,1,1,1,1

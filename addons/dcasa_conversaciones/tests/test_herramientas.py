@@ -36,22 +36,22 @@ class HerramientasCase(JuanCase):
         base = {'type': 'consu', 'is_storable': True, 'sale_ok': True, 'is_published': True,
                 'taxes_id': [Command.set(impuesto.ids)]}
         cls.cama = Template.create({
-            **base, 'name': 'Zzcama Roble Queen', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
+            **base, 'name': 'ZZCAMA ROBLE QUEEN', 'default_code': 'ZZ-CAMA', 'list_price': 349.99,
             'standard_price': 123.45, 'dcasa_medidas': 'Ancho × Largo: 160 × 200 cm',
             'dcasa_combo': 'Combo con colchón First Class $469.99',
             'public_categ_ids': [Command.set(cls.categoria.ids)],
             'description_sale': 'Cama de roble con cabecera.'})
-        cls.sofa = Template.create({**base, 'name': 'Zzsofa Gris', 'default_code': 'ZZ-SOFA', 'list_price': 800.0,
+        cls.sofa = Template.create({**base, 'name': 'ZZSOFA GRIS', 'default_code': 'ZZ-SOFA', 'list_price': 800.0,
                                     'public_categ_ids': [Command.set(cls.categoria.ids)]})
-        cls.mesa = Template.create({**base, 'name': 'Zzmesa Pino', 'default_code': 'ZZ-MESA', 'list_price': 90.0,
+        cls.mesa = Template.create({**base, 'name': 'ZZMESA PINO', 'default_code': 'ZZ-MESA', 'list_price': 90.0,
                                     'public_categ_ids': [Command.set(cls.otra_categoria.ids)]})
-        cls.secreto = Template.create({**base, 'name': 'Zzsecreto Borrador', 'default_code': 'ZZ-SECRETO',
+        cls.secreto = Template.create({**base, 'name': 'ZZSECRETO BORRADOR', 'default_code': 'ZZ-SECRETO',
                                        'list_price': 10.0, 'is_published': False,
                                        'public_categ_ids': [Command.set(cls.categoria.ids)]})
         tamano = cls.env['product.attribute'].create({'name': 'Zztamaño', 'create_variant': 'always', 'value_ids': [
             Command.create({'name': 'Zzqueen'}), Command.create({'name': 'Zzking'})]})
         cls.colchon = Template.create({
-            **base, 'name': 'Zzcolchón First Class', 'list_price': 400.0, 'default_code': 'ZZ-COL',
+            **base, 'name': 'ZZCOLCHÓN FIRST CLASS', 'list_price': 400.0, 'default_code': 'ZZ-COL',
             'public_categ_ids': [Command.set(cls.categoria.ids)],
             'attribute_line_ids': [Command.create({'attribute_id': tamano.id,
                                                    'value_ids': [Command.set(tamano.value_ids.ids)]})]})
@@ -87,6 +87,7 @@ class HerramientasCase(JuanCase):
 
 @tagged('post_install', '-at_install')
 class TestBuscarProductos(HerramientasCase):
+    # Juan le habla al cliente: los nombres le llegan en formato título (F5); por dentro siguen en MAYÚSCULAS.
 
     def nombres(self, datos):
         return [p['nombre'] for p in datos['productos']]

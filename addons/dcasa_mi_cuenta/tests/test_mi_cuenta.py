@@ -91,7 +91,9 @@ class TestMiCuentaHttp(MiCuentaComun, HttpCase):
         self.assertIn('Por pagar', html)
         self.assertIn('Canceladas', html)
         self.assertIn(f'Apartado hasta el {dia_mes(self.apartado.dcasa_apartado_vence)}', html)
-        self.assertIn('SOFÁ MILÁN DE PRUEBA', html)
+        # El cliente lee el nombre en formato título (F5); por dentro sigue en MAYÚSCULAS.
+        self.assertIn('Sofá Milán de Prueba', html)
+        self.assertNotIn('SOFÁ MILÁN DE PRUEBA', html)
         self.assertIn('y 1 cosa más', html, 'el mueble principal y el resto')
 
     def test_el_apartado_de_la_web_dice_que_es_por_pagina_web(self):

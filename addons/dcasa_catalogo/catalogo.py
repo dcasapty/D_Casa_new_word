@@ -254,7 +254,8 @@ def actualizar_catalogo(env):
         if not producto:
             continue
         cambios = {}
-        if producto.name == item['nombre'] and item.get('nombre_web'):
+        # Desde F5 los nombres se guardan en MAYÚSCULAS: «sigue como lo dejó la carga» se mira sin mayúsculas.
+        if mismo_nombre(producto.name, item['nombre']) and item.get('nombre_web'):
             cambios['name'] = item['nombre_web']
         if item.get('medidas') and not producto.dcasa_medidas:
             cambios['dcasa_medidas'] = item['medidas']
@@ -333,6 +334,11 @@ CORRECCIONES_DE_NOMBRE = [
 ]
 
 
+def mismo_nombre(uno, otro):
+    """¿El mismo nombre sin importar mayúsculas ni espacios repetidos? (Los nombres se guardan en MAYÚSCULAS.)"""
+    return ' '.join((uno or '').split()).upper() == ' '.join((otro or '').split()).upper()
+
+
 def corregir_nombres(env):
     """Aplica ``CORRECCIONES_DE_NOMBRE`` a los productos ya cargados (idempotente).
 
@@ -347,7 +353,7 @@ def corregir_nombres(env):
         producto = env.ref(f'{MODULO}.{xmlid_de(codigo)}', raise_if_not_found=False)
         if not producto:
             continue
-        if producto.name == nombre_viejo:
+        if mismo_nombre(producto.name, nombre_viejo):
             producto.name = nombre_nuevo
             corregidos += 1
         linea = producto.attribute_line_ids.filtered(

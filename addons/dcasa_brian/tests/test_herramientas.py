@@ -159,8 +159,9 @@ class TestHerramientas(TransactionCase):
     def test_resolucion_ambigua_da_opciones(self):
         respuesta = self.ejecutar(self.vendedor, 'ver_producto', {'producto': 'Brianzeta Mesa'})
         self.assertFalse(respuesta['ok'])
-        self.assertIn('Brianzeta Mesa Roble', respuesta['error'])
-        self.assertIn('Brianzeta Mesa Pino', respuesta['error'])
+        # Los nombres de productos se guardan en MAYÚSCULAS (F5).
+        self.assertIn('BRIANZETA MESA ROBLE', respuesta['error'])
+        self.assertIn('BRIANZETA MESA PINO', respuesta['error'])
         respuesta = self.ejecutar(self.vendedor, 'ver_producto', {'producto': 'zzz-no-existe-zzz'})
         self.assertIn('No encontré', respuesta['error'])
 
@@ -177,7 +178,7 @@ class TestHerramientas(TransactionCase):
         self.assertEqual(datos['precio_con_itbms'], '$114.49')
         datos = self.ok(self.ejecutar(self.vendedor, 'buscar_productos', {
             'texto': 'Brianzeta', 'precio_max': 60, 'disponibilidad': 'agotados'}))
-        self.assertEqual({p['producto'] for p in datos['productos']}, {'Brianzeta Mesa Roble', 'Brianzeta Mesa Pino'})
+        self.assertEqual({p['producto'] for p in datos['productos']}, {'BRIANZETA MESA ROBLE', 'BRIANZETA MESA PINO'})
 
     def test_catalogo_constructor_y_sensibles(self):
         self.assertFalse(self.ejecutar(self.vendedor, 'crear_producto', {'nombre': 'X', 'precio': 1})['ok'])
@@ -255,7 +256,9 @@ class TestHerramientas(TransactionCase):
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5678'))
         ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Fijo')])
         self.assertEqual((ficha.phone, ficha.dcasa_telefono_fijo), (False, '+507 234-5678'))
-        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+        # «Brianzeta Fijo Dos» se parece a «Brianzeta Fijo» (Etapa 3): ya confirmado que es otra persona, se usa
+        # crear_cliente_distinto, que trata el fijo igual.
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente_distinto', {
             'nombre': 'Brianzeta Fijo Dos', 'celular': '2345679', 'correo': 'fijo2@example.com'}))
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5679'))
         respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Números', 'celular': '',

@@ -26,7 +26,7 @@
                 <t t-call="website_dcasa.etiqueta_black_weekend"><t t-set="producto_bw" t-value="producto"/></t>
             </a>
             <div class="o_dcasa_pcard_body">
-                <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto.name"/></h3>
+                <h3 class="o_dcasa_pcard_name"><a t-att-href="producto.website_url" t-out="producto._dcasa_nombre_cliente()"/></h3>
                 <p t-if="item['precio'] or not website.prevent_zero_price_sale" class="o_dcasa_pcard_price">
                     <span t-out="item['precio']" t-options="{'widget': 'monetary', 'display_currency': item['moneda']}"/>
                     <t t-call="website_dcasa.mas_itbms"><t t-set="producto_itbms" t-value="producto"/></t>
@@ -36,11 +36,11 @@
                         <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
                         <input type="hidden" name="product_template_id" t-att-value="producto.id"/>
                         <button type="submit" class="btn btn-primary o_dcasa_pcard_add"
-                                t-attf-aria-label="Agregar {{ producto.name }} al carrito">Agregar</button>
+                                t-attf-aria-label="Agregar {{ producto._dcasa_nombre_cliente() }} al carrito">Agregar</button>
                     </form>
                     <a t-else="" t-att-href="producto.website_url" class="btn btn-primary o_dcasa_pcard_add">Elegir</a>
                     <a t-att-href="website._dcasa_whatsapp_producto(producto)" target="_blank" rel="noopener"
-                       class="btn o_dcasa_pcard_wa" t-attf-aria-label="Preguntar por {{ producto.name }} por WhatsApp (se abre en una pestaña nueva)">
+                       class="btn o_dcasa_pcard_wa" t-attf-aria-label="Preguntar por {{ producto._dcasa_nombre_cliente() }} por WhatsApp (se abre en una pestaña nueva)">
                         <i class="fa fa-whatsapp" aria-hidden="true"/>
                     </a>
                 </div>

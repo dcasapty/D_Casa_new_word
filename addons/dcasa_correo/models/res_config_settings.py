@@ -8,6 +8,7 @@ from .correo import (
     P_AL_PAGAR,
     P_BIENVENIDA,
     P_NOMBRE,
+    P_RECORDATORIO,
     P_REMITENTE,
     P_RESPONDER_A,
     REMITENTE,
@@ -38,6 +39,10 @@ class ResConfigSettings(models.TransientModel):
         help='Una sola vez, cuando ya puede entrar a Mi cuenta (con su primera compra pagada): cómo entrar a ver sus '
              'compras, sus pagos y sus puntos. Solo a clientes creados desde que se instaló el correo; a los de antes '
              'no se les manda.')
+    dcasa_correo_recordatorio = fields.Boolean(
+        'Recordar el abono antes de que venza', config_parameter=P_RECORDATORIO,
+        help='Unos días antes de que venza un abono (5 de fábrica), al cliente le llega un correo con lo que le '
+             'falta y la fecha. Una sola vez por abono y vencimiento.')
     dcasa_correo_estado = fields.Char('Estado del correo', compute='_compute_dcasa_correo_estado')
     dcasa_correo_bienvenida_desde = fields.Char('Clientes nuevos desde', compute='_compute_dcasa_correo_estado')
 

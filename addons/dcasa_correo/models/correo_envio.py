@@ -9,6 +9,7 @@ Sin duplicados: ``(tipo, huella)`` es único. La huella de un pago es ``factura:
 ``bienvenida:ficha``.
 """
 import logging
+from datetime import timedelta
 
 import psycopg2
 
@@ -20,7 +21,7 @@ from .correo import centavos
 _logger = logging.getLogger(__name__)
 
 TIPOS = [('factura', 'Factura'), ('abono', 'Abono'), ('bienvenida', 'Bienvenida'),
-         ('cotizacion', 'Cotización')]
+         ('cotizacion', 'Cotización'), ('recordatorio', 'Recordatorio de abono')]
 ESTADOS = [('pendiente', 'Por enviar'), ('enviado', 'Enviado'), ('omitido', 'No se envió'), ('fallido', 'Falló')]
 INFORME_COTIZACION = 'sale.action_report_saleorder'
 # Por qué se omitió (técnico). Una bienvenida omitida por estas causas se vuelve a armar con el siguiente pago.
@@ -232,6 +233,11 @@ class DcasaCorreoEnvio(models.Model):
                 return self._omitir('apagado', self.env._(
                     'Se apagó «Mandar la factura al registrar un pago» antes de enviarlo.'))
             return self._procesar_factura()
+        if self.tipo == 'recordatorio':
+            if not config['recordatorio']:
+                return self._omitir('apagado', self.env._(
+                    'Se apagó «Recordar el abono antes de que venza» antes de enviarlo.'))
+            return self._procesar_recordatorio()
         if self.tipo == 'bienvenida':
             if not config['bienvenida']:
                 return self._omitir('apagado', self.env._(
@@ -273,6 +279,58 @@ class DcasaCorreoEnvio(models.Model):
         if tipo != 'pdf' or not contenido:
             raise UserError(self.env._('No se pudo armar el PDF de la factura %s.', move.name))
         return contenido, move._get_invoice_report_filename(report=informe)
+
+    # ------------------------------------------------------------------
+    # Recordatorio del abono (D3)
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _encolar_recordatorios(self):
+        """Cada mañana (cron de ``dcasa_abonos``): un recordatorio por cada abono que vence en los próximos días
+        (``dcasa_abonos.aviso_dias``, 5 de fábrica) y que todavía no lo recibió para ESE vencimiento. La huella es
+        ``factura:vencimiento``: si el cron corre dos veces, o el abono sigue ahí mañana, no se repite. Uno que no salió
+        por falta de correo vuelve a la cola si el cliente ya tiene correo y sigue dentro del plazo."""
+        correo = self.env['dcasa.correo']
+        if not correo._activo_para_clientes() or not correo._config()['recordatorio']:
+            return self.browse()
+        Move = self.env['account.move'].sudo()
+        hoy = fields.Date.context_today(self)
+        hasta = hoy + timedelta(days=Move._dcasa_aviso_dias())
+        facturas = Move.search([('move_type', '=', 'out_invoice'), ('state', '=', 'posted'),
+                                ('payment_state', '=', 'partial'), ('dcasa_abono_vence', '>=', hoy),
+                                ('dcasa_abono_vence', '<=', hasta)], order='dcasa_abono_vence, id')
+        nuevos = self.browse()
+        for move in facturas:
+            if not self._factura_cuenta(move):
+                continue
+            nuevos |= self._crear_si_no_existe({
+                'tipo': 'recordatorio', 'huella': f'{move.id}:{move.dcasa_abono_vence.isoformat()}',
+                'saldo_centavos': centavos(move.amount_residual), 'move_id': move.id,
+                'partner_id': move.commercial_partner_id.id,
+            }, rearmar=CAUSAS_QUE_SE_REARMAN)
+        if nuevos:
+            self.env.ref('dcasa_correo.ir_cron_dcasa_correo_cola').sudo()._trigger()
+        return nuevos
+
+    def _procesar_recordatorio(self):
+        correo = self.env['dcasa.correo']
+        move = self.move_id.sudo()
+        vence = move.dcasa_abono_vence.isoformat() if move and move.dcasa_abono_vence else ''
+        if (not move or move.state != 'posted' or move.payment_state != 'partial'
+                or not (self.huella or '').endswith(f':{vence}') or not vence):
+            return self._omitir('cambio', self.env._(
+                'El abono cambió antes de enviar el recordatorio (se pagó, se canceló o cambió el vencimiento).'))
+        destino = correo._destino(move)
+        if not destino:
+            cliente = move.partner_id.display_name or move.commercial_partner_id.display_name
+            return self._omitir('sin_correo', self.env._(
+                'No se envió el recordatorio: falta el correo de %s o está mal escrito.', cliente))
+        mensaje = correo._postear(move, self.env.ref('dcasa_correo.plantilla_recordatorio_abono'), destino,
+                                  tipo='recordatorio', titular=self.env._('TU ABONO VENCE PRONTO'))
+        self.write({'estado': 'enviado', 'message_id': mensaje.id, 'correo': destino.email_normalized,
+                    'saldo_centavos': centavos(move.amount_residual), 'causa': False, 'motivo': False})
+        correo._disparar_cola()
+        return True
 
     def _procesar_bienvenida(self):
         correo = self.env['dcasa.correo']
