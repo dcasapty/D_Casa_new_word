@@ -434,7 +434,7 @@ def aplicar_stock_prueba(env):
         lambda p: p.id not in con_movimientos and p.with_company(company).qty_available == 0)
     if not sin_stock:
         return 0
-    Quant = env['stock.quant'].with_context(inventory_mode=True)
+    Quant = env['stock.quant'].with_context(inventory_mode=True, inventory_name='Existencias de prueba (staging)')
     quants = Quant.browse()
     for producto in sin_stock:
         quants |= Quant.create({

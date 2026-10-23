@@ -145,7 +145,10 @@ def _ajustar_stock(env, variante, ubicacion, existencias):
     actual = variante.with_context(location=ubicacion.id).qty_available
     if not float_compare(actual, existencias, precision_digits=2):
         return False
-    env['stock.quant'].with_context(inventory_mode=True).create({
+    # El motivo queda en la bitácora de bodega (dcasa_existencias exige uno en todo ajuste).
+    env['stock.quant'].with_context(
+        inventory_mode=True, inventory_name='Carga del inventario del sistema anterior',
+    ).create({
         'product_id': variante.id,
         'location_id': ubicacion.id,
         'inventory_quantity': existencias,
