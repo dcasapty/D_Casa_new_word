@@ -208,6 +208,13 @@ class TestProductosParaCombos(CombosCommon):
         menu = self.env.ref('dcasa_catalogo.menu_precios_combo')
         self.assertIn(self.env.ref('sales_team.group_sale_manager'), menu.group_ids)
 
+    def test_el_boton_va_en_la_ficha_del_producto_y_no_en_la_variante(self):
+        # La ficha de la variante hereda de la del producto: si el botón llegara ahí, Odoo no la cargaría.
+        plantilla = self.env['product.template'].with_user(self.gerencia).get_views([(False, 'form')])
+        variante = self.env['product.product'].with_user(self.gerencia).get_views([(False, 'form')])
+        self.assertIn('action_dcasa_precios_combo', plantilla['views']['form']['arch'])
+        self.assertNotIn('action_dcasa_precios_combo', variante['views']['form']['arch'])
+
 
 @tagged('post_install', '-at_install')
 class TestPrecioEnCombo(CombosCommon):
