@@ -238,6 +238,15 @@ MARKETING_JS = """
         if (!titulos.some((x) => x.startsWith(t))) { falla("falta la sección " + t + ": " + titulos); }
     }
     sinScrollDeCostado("Marketing");
+    // Baja con scroll: Odoo le pone `overflow: hidden` a todo `.o_action` (la dueña, 23 oct: «no se puede hacer
+    // scroll»).
+    const pagina = document.querySelector(".o_dcasa_mk");
+    if (!["auto", "scroll"].includes(getComputedStyle(pagina).overflowY)) { falla("la página no tiene scroll"); }
+    if (pagina.scrollHeight <= pagina.clientHeight + 1) { falla("todo cabe sin bajar: la prueba no mide el scroll"); }
+    pagina.scrollTop = 300;
+    await pausa(50);
+    if (pagina.scrollTop === 0) { falla("la página no baja con scroll"); }
+    pagina.scrollTop = 0;
     // Periodo.
     boton("15 días", document).click();
     await esperar(() => document.querySelector(".o_dcasa_mk_rango").textContent.includes("Últimos 15 días"), "15 días");
