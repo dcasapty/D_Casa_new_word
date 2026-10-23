@@ -112,6 +112,31 @@ class TestBodegaLista(BodegaCommon):
         self.assertEqual(factura.amount_residual, 0)
         self.assertNotIn(entrega.id, self.tarjetas())
 
+    def test_las_consultas_no_crecen_con_las_entregas(self):
+        """Producción, 23 oct: el Inicio de cada persona y el panel (cada minuto) miraban los pagos factura por factura
+        y los nombres producto por producto: 1.800 consultas y ~3 s con 230 entregas en el servidor chico, y todo lo
+        demás esperaba. Ahora cuántas consultas hacen no depende de cuántas entregas haya."""
+        Bodega = self.Bodega.with_user(self.bodeguero)
+
+        def consultas():
+            self.env.flush_all()   # lo pendiente de guardar no cuenta
+            self.env.invalidate_all()
+            antes = self.env.cr.sql_log_count
+            Bodega.pendientes()
+            Bodega._despachables()   # el número del acceso «Bodega» del Inicio
+            return self.env.cr.sql_log_count - antes
+
+        consultas()   # cachés de permisos y vistas
+        pocas = consultas()
+        tarjetas_antes = len(self.tarjetas())
+        otros = [self.producto(f'Zzbanco {n} de prueba', f'ZZT-BANCO-{n}', unidades=3) for n in range(8)]
+        for n, producto in enumerate(otros):
+            self.venta(self.cliente_sin, [(producto, 1)], pago=0.5 if n % 2 else 1.0)
+        consultas()   # crear productos limpia cachés de Odoo: se llenan una vez
+        muchas = consultas()
+        self.assertEqual(len(self.tarjetas()), tarjetas_antes + 8, 'con pago o abono: salen las 8')
+        self.assertLessEqual(muchas - pocas, 2, f'{pocas} → {muchas} consultas con 8 entregas más')
+
     def test_sin_pago_no_se_abre_ni_se_valida_y_el_qr_lo_dice(self):
         pedido, entrega = self.venta(self.cliente_sin, [(self.mesa, 1)], pago=0)
         Bodega = self.Bodega.with_user(self.bodeguero)
