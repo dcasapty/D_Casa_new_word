@@ -321,6 +321,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Despliegue
 
+- **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
+  producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
+  (`respaldar` sale si Odoo no está listo) y en producción un 503 es fallo. Esperé al cron que despierta a Odoo
+  (`7 * * * *`) y **Desplegar 26** (07:12 UTC) hizo el respaldo y salió sano y confirmado. Por qué Odoo estaba apagado
+  de madrugada si es 24/7 (después de Desplegar 24, sano a las 02:48): **sin confirmar**; mirar los registros del
+  contenedor en Cloudflare de esa hora. **Regla:** ante ese 503, esperar el minuto 7 de la hora siguiente y relanzar;
+  no desplegar sin respaldo salvo que la dueña lo pida para arreglar una caída.
+
 - **CI #140** (staging, `b83f515d`, 2026-10-14) y **Desplegar run 2** (staging, mismo commit, digest `efbdeae2…`) ·
   Odoo 500 en `/dcasa/salud` 20 min. Causa probable: base sin actualizar (sin confirmar). Siguiente: `a1e89e41`
   (diagnóstico solo en staging: `addons/dcasa_sesiones/diagnostico.py`); CI #142 terminó en verde (sin confirmar que

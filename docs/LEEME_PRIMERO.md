@@ -98,6 +98,22 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-23 (madrugada)
+
+- **En producción** (02:26 Panamá, Desplegar 26 confirmado 600 s, `app_version` `75324c58…`, imagen `sha256:aca22241…`;
+  CI #216 verde y staging sano; PR #61, `04d7a2a` en `main`): datos limpios con la decisión de la dueña sobre los
+  nombres (el cliente lee «Cama de Metal con Baúl Queen»; por dentro siguen en MAYÚSCULAS) y su visto bueno a las
+  capturas («Si dale»): tienda, portal, Juan, correos, PDF, abono y Meta en formato título; productos repetidos y unir
+  productos; costo cerrado (1b(a)); D1 clave de descuento por Telegram; D3 abonos por vencer. El título grande de la
+  ficha sigue en caja alta (marca, Anton), como recomendé y ella aceptó.
+- CI #215 falló en la integración de Juan (la cama de prueba quedó fuera de los 5 primeros al ordenar en MAYÚSCULAS);
+  arreglado en la prueba (`75324c5`).
+- **Desplegar 25 no tocó producción:** el respaldo previo recibió «Odoo apagado» (503) a las 06:38 UTC, aunque
+  producción debe estar encendida 24/7. Tras el despertar de las 07:07 UTC, Desplegar 26 hizo el respaldo y salió sano.
+  Por qué estaba apagado: sin confirmar (ver CONTEXTO_AGENTICO, «Despliegue»).
+- El campo `tienda` del chequeo sigue en «falta» en producción (igual que antes; la portada guardada en el borde no
+  está encendida ahí).
+
 ### 2026-10-22 (noche)
 
 - **En producción** (21:48 Panamá, Desplegar 24 confirmado 600 s, `app_version` `abfe96f2…`, imagen `sha256:66db8e72…`;
