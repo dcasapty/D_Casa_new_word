@@ -8,6 +8,7 @@ from odoo.tests import tagged
 from .comun import BodegaComun
 
 ENVIAR = 'odoo.addons.dcasa_brian.models.telegram.BrianTelegramEnlace._enviar'
+LOGGER = 'odoo.addons.dcasa_existencias.models.alertas'
 
 
 @tagged('post_install', '-at_install')
@@ -97,6 +98,8 @@ class TestAlertas(BodegaComun):
     def test_un_telegram_que_falla_no_rompe_nada(self):
         self.config.write({'alertas_activas': True, 'alerta_mermas': True})
         self._merma()
-        with patch(ENVIAR, side_effect=RuntimeError('Telegram caído')):
+        # El error queda en el registro (se comprueba aquí; si no, el ERROR del registro hace fallar la corrida).
+        with patch(ENVIAR, side_effect=RuntimeError('Telegram caído')), self.assertLogs(LOGGER, 'ERROR') as logs:
             self.Alertas._cron_alertas_diarias()
+        self.assertIn('no se pudo mandar la alerta por Telegram', logs.output[0])
         self.assertTrue(self.config.alertas_ultima)
