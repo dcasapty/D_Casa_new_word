@@ -98,6 +98,24 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-23 (tarde)
+
+- La dueña reportó cuatro cosas: la app Marketing no bajaba con scroll; la nota de entrega despachada repetía cada
+  producto (caja, WH/OUT/00155); el aviso «Se perdió la conexión. Tratando de reconectar…» salía mucho; y el sistema
+  estaba lento desde los dos últimos despliegues (su sospecha era correcta).
+- **Lentitud (causa hallada y medida):** desde la tanda del 22 oct el acceso «Bodega» del Inicio (cada persona, cada
+  carga) y el panel de Bodega (cada minuto en cada tablet o pestaña) miraban el pago de cada entrega factura por
+  factura. En local, con el catálogo real y 270 ventas: Inicio 1.511 consultas (2,2 s), panel 1.800 (2,5-3 s). Ahora
+  Inicio 139 (0,3 s) y panel 34 (0,3 s), iguales en el resultado (verificado en los 270 pedidos) — `34fea73`.
+- **«Se perdió la conexión»:** en sus registros el corte es entre el Worker y el Durable Object («Network connection
+  lost.» tras 11-15 s) mientras las demás peticiones salían bien; Odoo no se reinició (medido: la memoria virtual no se
+  acerca al límite). El borde ahora repite las lecturas (nunca lo que guarda) — `2986df5`. La lentitud lo agravaba.
+- Nota de entrega `736c3fa` (la descripción guardada en MAYÚSCULAS no se reconocía como el nombre en formato título);
+  scroll de Marketing `fcbc1b5`.
+- CI #219 (`34fea73`) con todo, a staging. **Producción:** pendiente del «sí» de la dueña, fuera del horario de venta.
+- Combos: los 73 productos COMBO viejos **se quedan** mientras la dueña prueba el creador de combos (su decisión); los
+  precios del Excel siguen sin cargar (falta «sí, cárgalos» y el precio del Twin Imperial).
+
 ### 2026-10-23 (madrugada)
 
 - **En producción** (02:26 Panamá, Desplegar 26 confirmado 600 s, `app_version` `75324c58…`, imagen `sha256:aca22241…`;
