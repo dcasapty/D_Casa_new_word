@@ -63,8 +63,9 @@ class TestBodegaLista(BodegaCommon):
         self.assertEqual(tarjeta['pedido'], self.pedido_envio.name)
         self.assertRegex(tarjeta['fecha'], r'^\d\d/\d\d/\d{4}$')
         self.assertEqual(tarjeta['fecha_tipo'], 'programada', 'sin «Fecha de entrega» en el pedido')
+        # Bodega es una pantalla interna: el nombre como se guarda, en MAYÚSCULAS (F5).
         self.assertEqual({(p['nombre'], p['cantidad']) for p in tarjeta['productos']},
-                         {('Zzcama de prueba', '2'), ('Zzmesa de prueba', '1')}, 'sin la referencia delante')
+                         {('ZZCAMA DE PRUEBA', '2'), ('ZZMESA DE PRUEBA', '1')}, 'sin la referencia delante')
         self.assertEqual(tarjeta['mas'], 0)
         self.assertEqual(set(tarjeta['producto_ids']), {self.cama.id, self.mesa.id})
         for buscado in ('CLIENTE DE PRUEBA ENVIO', self.pedido_envio.name, self.entrega_envio.name):
@@ -283,7 +284,7 @@ class TestBodegaAbrirYLeer(BodegaCommon):
     def test_el_codigo_de_un_producto_lo_dice(self):
         r = self.leer('ZZT-CAMA-1')
         self.assertEqual((r['resultado'], r['producto_ids'], r['nombre']),
-                         ('producto', [self.cama.id], 'Zzcama de prueba'))
+                         ('producto', [self.cama.id], 'ZZCAMA DE PRUEBA'))
         r = self.leer('ZZT-MESA-9-BAR')
         self.assertEqual(r['producto_ids'], [self.mesa.id])
         self.assertEqual(self.leer('algo que no es nada')['resultado'], 'nada')
@@ -316,7 +317,7 @@ class TestBodegaValidar(BodegaCommon):
     def test_si_falta_algo_primero_pregunta_y_no_toca_nada(self):
         r = self.validar(self.entrega_envio, {self.cama: 1, self.mesa: 1})
         self.assertEqual(r['resultado'], 'confirmar_parcial')
-        self.assertEqual(r['faltan'], [{'nombre': 'Zzcama de prueba', 'marcada': '1', 'pedida': '2'}])
+        self.assertEqual(r['faltan'], [{'nombre': 'ZZCAMA DE PRUEBA', 'marcada': '1', 'pedida': '2'}])
         self.assertTrue(r['deja_pendiente'])
         self.assertEqual(self.entrega_envio.state, 'assigned')
         self.assertFalse(any(self.entrega_envio.move_ids.mapped('picked')))
@@ -369,7 +370,7 @@ class TestBodegaValidar(BodegaCommon):
         self.assertEqual(self.entrega_sin.state, 'done')
         nota = self.entrega_sin.message_ids.filtered(lambda m: 'panel de Bodega' in (m.body or ''))
         self.assertIn('sin estar apartado', nota.body)
-        self.assertIn('Zzzapatera de prueba', nota.body)
+        self.assertIn('ZZZAPATERA DE PRUEBA', nota.body)
 
     def test_un_producto_con_numero_de_serie_no_sale_sin_su_numero(self):
         serie = self.producto('Zzcolchon con serie', 'ZZT-SERIE-1', tracking='serial')
