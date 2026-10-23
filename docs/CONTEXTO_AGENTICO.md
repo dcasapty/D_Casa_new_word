@@ -276,6 +276,16 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Integración Juan (Odoo real + Worker real)
 
+- **CI #215** (`9541408`, 2026-10-23) · 7 de 40 fallaron: la primera («bienvenida y pregunta por camas queen») con
+  «(sin guion)», y las demás en cadena (`sinGuion` se acumula entre pruebas y sin la primera no hay `convId`: «conversacion_id
+  tiene que ser un número entero»). Causa: desde F5 los nombres se guardan en MAYÚSCULAS y `juan_buscar_productos`
+  desempata por nombre; con el catálogo real cargado, «cama queen» trajo otras cinco camas antes que la de la prueba.
+  Arreglo `75324c5`: el guion busca «cama roble queen». **Regla:** cuando la primera prueba de la historia falla, las
+  otras son ruido; arreglar esa y volver a correr.
+- En esta máquina, `scripts/integracion_juan.sh` se corre **sin** `$S/bin` en el `PATH`: esa carpeta del scratchpad tiene
+  un `curl` y un `npx` falsos de otra prueba y la integración «pasa» sin correr nada (el 23 oct dio «✔ OK» en falso).
+  Con el `curl` y el `npx` de verdad (y `PYTHONPATH` con PyPDF2 2.12.1) corre completa: 40/40.
+
 - **CI #151** · 7 de 40 pruebas de `juan/test/integracion/flujo.test.ts` fallaron (`«conversacion_id» tiene que ser un
   número entero`, «petición 3 sin paso en el guion», actividades vacías). Arreglo: `2c6e978e` →
   `juan/test/integracion/historia.ts` («la foto de Juan se pide con el código público»). Relación exacta entre
@@ -365,6 +375,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Varios agentes a la vez** comparten 4 CPU y el límite de uso de la sesión: si el límite corta a los agentes, su
   trabajo queda SIN commit en sus worktrees; se retoma con un agente nuevo que continúe ese worktree (no se borra).
 - **Un 429 de R2** en el respaldo previo frena «Desplegar» sin tocar producción: volver a lanzarlo.
+- **`main` se une por *squash*:** al traer `main` a una rama que ya tiene ese mismo árbol (p. ej. la integración que
+  se acaba de subir), `git merge` normal choca en decenas de archivos falsos; `git merge -s ours origin/main` lo deja
+  en la historia sin tocar nada (comprobar antes que el árbol de `main` es igual al de un commit de la rama) (2026-10-23).
+- **Monitor y las esperas largas:** un Monitor que vence a los 30 min mata su comando (se perdió así una corrida de
+  pruebas). Las corridas largas van con `nohup` o `run_in_background` y se espera su archivo de resultado.
+- El registro completo de un job de Actions no se baja desde aquí (la dirección del blob da 403 en el proxy): usar
+  `get_job_logs` del MCP de GitHub con `tail_lines` (unas 330 líneas alcanzan para ver las pruebas antes del log del
+  PostgreSQL de servicio).
 
 ### Odoo 19
 
