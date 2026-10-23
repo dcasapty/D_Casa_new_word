@@ -1,4 +1,5 @@
 from odoo import models
+from odoo.addons.dcasa_base.nombres import nombre_para_cliente
 from odoo.addons.dcasa_invoice.models import lineas
 
 from . import condiciones
@@ -43,7 +44,8 @@ class AccountMove(models.Model):
 
         Fuera el flete y los servicios (si la factura no tiene nada más, van ellos) y las líneas en negativo (rebajas,
         premios): no son artículos abonados. ``codigo_publico`` es el DC-… que ve el cliente; ``referencia``, la del
-        proveedor (solo para la copia de la empresa); ``descripcion_cliente`` no la repite.
+        proveedor (solo para la copia de la empresa); ``descripcion_cliente`` no la repite y va en formato título, como
+        lee el cliente los nombres (F5); la copia de la empresa queda con el nombre guardado (MAYÚSCULAS).
         """
         self.ensure_one()
         productos = self.invoice_line_ids.filtered(
@@ -56,7 +58,7 @@ class AccountMove(models.Model):
                 'codigo_publico': linea.product_id.dcasa_codigo_publico or '',
                 'referencia': referencia,
                 'descripcion': descripcion,
-                'descripcion_cliente': condiciones.sin_referencia(descripcion, referencia),
+                'descripcion_cliente': nombre_para_cliente(condiciones.sin_referencia(descripcion, referencia)),
                 'cantidad': linea.quantity,
             })
         return resultado

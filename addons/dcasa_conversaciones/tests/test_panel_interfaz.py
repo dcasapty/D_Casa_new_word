@@ -659,7 +659,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (!producto.querySelector("img").getAttribute("src").startsWith("/dcasa/img/")) { throw new Error("miniatura WebP al ancho justo"); }
     aqui(".o_dcj_producto button", "Enviar foto").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "el buscador cerrado");
-    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "ZZCAMA ROBLE QUEEN"), "la foto en el hilo");
+    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "Zzcama Roble Queen"), "la foto en el hilo");
     await esperar(() => burbuja.querySelector(".o_dcj_foto_boton img"), "la imagen dentro de la burbuja");
     if (!burbuja.textContent.includes("$349.99 + ITBMS") || !burbuja.textContent.includes("Medidas: Ancho × Largo: 160 × 200 cm")) {
         throw new Error("el pie armado: " + burbuja.textContent);
@@ -670,7 +670,8 @@ class TestPanelEnElNavegador(PanelUiCase):
         (envio,) = self.al_worker('/odoo/enviar')
         (adjunto,) = envio['adjuntos']
         self.assertEqual((adjunto['tipo'], adjunto['mime']), ('imagen', 'image/jpeg'))
-        self.assertTrue(envio['texto'].startswith('ZZCAMA ROBLE QUEEN\n$349.99 + ITBMS\nMedidas:'))
+        # El pie lo lee el cliente: formato título (F5); la lista del panel, interna, va en MAYÚSCULAS.
+        self.assertTrue(envio['texto'].startswith('Zzcama Roble Queen\n$349.99 + ITBMS\nMedidas:'))
         self.assertTrue(envio['texto'].endswith(self.cama.website_url))
 
     def test_foto_del_catalogo_galeria_varias_fotos(self):
@@ -690,7 +691,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     await esperar(() => aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos"), "el botón de enviar tres fotos");
     aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "la galería cerrada");
-    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "ZZCAMA"), "las fotos en el hilo");
+    const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "Zzcama"), "las fotos en el hilo");
     await esperar(() => burbuja.querySelectorAll(".o_dcj_foto_boton img").length === 3, "las tres imágenes");
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
@@ -710,7 +711,7 @@ class TestPanelEnElNavegador(PanelUiCase):
     aqui(".o_dcj_producto .o_dcj_enlace", "Revisar antes").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "el buscador cerrado");
     const caja = document.querySelector("#o_dcj_texto");
-    await esperar(() => caja.value.startsWith("ZZCAMA ROBLE QUEEN"), "el pie en la caja");
+    await esperar(() => caja.value.startsWith("Zzcama Roble Queen"), "el pie en la caja");
     await esperar(() => document.querySelector(".o_dcj_previa_listo"), "la foto en la caja");
     if (aqui(".o_dcj_burbuja_vendedora")) { throw new Error("todavía no se envió nada"); }
     await escribir(caja, caja.value + "\\nTe la dejo apartada");

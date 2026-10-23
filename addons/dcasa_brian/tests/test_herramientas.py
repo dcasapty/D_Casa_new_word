@@ -256,7 +256,9 @@ class TestHerramientas(TransactionCase):
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5678'))
         ficha = self.env['res.partner'].search([('name', '=', 'Brianzeta Fijo')])
         self.assertEqual((ficha.phone, ficha.dcasa_telefono_fijo), (False, '+507 234-5678'))
-        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente', {
+        # «Brianzeta Fijo Dos» se parece a «Brianzeta Fijo» (Etapa 3): ya confirmado que es otra persona, se usa
+        # crear_cliente_distinto, que trata el fijo igual.
+        datos = self.ok(self.ejecutar(self.vendedor, 'crear_cliente_distinto', {
             'nombre': 'Brianzeta Fijo Dos', 'celular': '2345679', 'correo': 'fijo2@example.com'}))
         self.assertEqual((datos['celular'], datos['telefono_fijo']), ('', '+507 234-5679'))
         respuesta = self.ejecutar(self.vendedor, 'crear_cliente', {'nombre': 'Brianzeta Sin Números', 'celular': '',

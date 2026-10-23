@@ -217,7 +217,8 @@ class TestFotosYEnvio(CatalogoCase):
 
     def test_preparar_deja_las_fotos_en_la_caja_sin_enviar_nada(self):
         preparado = self.panel.preparar_foto_catalogo(self.conv.id, self.cama.id)
-        self.assertTrue(preparado['texto'].startswith('ZZCAMA ROBLE QUEEN\n$349.99 + ITBMS'))
+        # El pie lo lee el cliente: formato título (F5).
+        self.assertTrue(preparado['texto'].startswith('Zzcama Roble Queen\n$349.99 + ITBMS'))
         (adjunto,) = preparado['adjuntos']
         self.assertEqual(adjunto['tipo'], 'imagen')
         self.assertFalse(self.envios())

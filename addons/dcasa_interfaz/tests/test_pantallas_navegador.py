@@ -38,7 +38,7 @@ class PantallasMixin(VentasMixin):
         super().setUpClass()
         cls.hoy = cls.env['dcasa.tablero']._ahora_en_panama().date()
         cls.mesa = cls.env['product.product'].create({
-            'name': 'Mesa navegador por día', 'default_code': 'NAV-DIA-1', 'barcode': '7700000000099',
+            'name': 'MESA NAVEGADOR POR DÍA', 'default_code': 'NAV-DIA-1', 'barcode': '7700000000099',
             'is_storable': True, 'list_price': 250.0, 'standard_price': 120.0, 'taxes_id': [Command.clear()]})
         cls.factura = cls.env['account.move'].create({
             'move_type': 'out_invoice', 'partner_id': cls.cliente.id, 'invoice_date': cls.hoy,
@@ -115,7 +115,7 @@ class TestPorDiaEnElNavegador(PantallasMixin, HttpCase):
             igual(textos('.o_dcasa_es_numeros .o_dcasa_pd_etiqueta').slice(1),
                   ['Facturas', 'Ticket promedio', 'Unidades'], 'los números del periodo');
             if (textos('.o_dcasa_es_frase').length < 7) { throw new Error('cada número y gráfica con su frase'); }
-            if (!textos('.o_dcasa_es_productos .o_dcasa_es_nombre').some((t) => t.includes('Mesa navegador por día'))) {
+            if (!textos('.o_dcasa_es_productos .o_dcasa_es_nombre').some((t) => t.includes('MESA NAVEGADOR POR DÍA'))) {
                 throw new Error('la mesa está entre lo más vendido');
             }
             if (!textos('.o_dcasa_es_vendedoras .o_dcasa_es_nombre').includes(__VENDEDORA__)) {
@@ -164,7 +164,7 @@ class TestMovimientosEnElNavegador(PantallasMixin, HttpCase):
             buscar.value = '7700000000099';
             buscar.dispatchEvent(new Event('input', { bubbles: true }));
             await esperar(() => document.querySelector('.o_dcasa_mv_resultado'), 'el producto encontrado');
-            igual(textos('.o_dcasa_mv_resultado strong')[0], '[NAV-DIA-1] Mesa navegador por día',
+            igual(textos('.o_dcasa_mv_resultado strong')[0], '[NAV-DIA-1] MESA NAVEGADOR POR DÍA',
                   'por código de barras');
             document.querySelector('.o_dcasa_mv_resultado').click();
             await esperar(() => document.querySelector('.o_dcasa_mv_producto'), 'el producto elegido');
