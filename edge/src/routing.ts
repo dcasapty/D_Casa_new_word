@@ -354,18 +354,38 @@ const LECTURAS_DCASA = new Set([
 /** Rutas POST de Odoo que solo leen. */
 const RUTAS_DE_LECTURA = new Set(["/web/action/load"]);
 
+/** GET de Odoo que cambian algo: un código de un solo uso (correo de Google o Microsoft, entrar con OAuth) o la respuesta
+ * a una invitación del calendario (escribe en el historial). */
+const GET_QUE_CAMBIAN = /^\/(?:google_gmail\/confirm|microsoft_outlook\/confirm|auth_oauth\/|calendar\/meeting\/)/;
+
 /**
  * ¿Se puede repetir esta petición si el enlace con el contenedor se cae a mitad («Network connection lost.»)?
- * GET/HEAD siempre (páginas, fotos, estilos); POST solo si es una lectura conocida.
+ * GET/HEAD casi siempre (páginas, fotos, estilos; no los de `GET_QUE_CAMBIAN`); POST solo si es una lectura conocida
+ * (y además el cuerpo tiene que decir lo mismo que la ruta: `cuerpoDiceLoMismo`).
  */
 export function esRepetible(method: string, pathname: string): boolean {
-  if (method === "GET" || method === "HEAD") return true;
+  if (method === "GET" || method === "HEAD") return !GET_QUE_CAMBIAN.test(pathname);
   if (method !== "POST") return false;
   if (RUTAS_DE_LECTURA.has(pathname)) return true;
   const llamada = /^\/web\/dataset\/call_kw\/([^/]+)\/([^/]+)$/.exec(pathname);
   if (!llamada) return false;
   const [, modelo, metodo] = llamada;
   return LECTURAS_ODOO.has(metodo) || LECTURAS_DCASA.has(`${modelo}/${metodo}`);
+}
+
+/**
+ * Odoo despacha `/web/dataset/call_kw/…` por el modelo y el método del cuerpo, no por la URL (su cliente siempre arma
+ * las dos iguales). Antes de repetir un POST se comprueba que el cuerpo pida lo mismo que la ruta revisada.
+ */
+export function cuerpoDiceLoMismo(pathname: string, cuerpo: string): boolean {
+  const llamada = /^\/web\/dataset\/call_kw\/([^/]+)\/([^/]+)$/.exec(pathname);
+  if (!llamada) return RUTAS_DE_LECTURA.has(pathname);
+  try {
+    const params = (JSON.parse(cuerpo) as { params?: { model?: unknown; method?: unknown } } | null)?.params;
+    return params?.model === llamada[1] && params?.method === llamada[2];
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -382,8 +402,15 @@ export function esCorteDeConexion(error: unknown): boolean {
   return /Network connection lost|Durable Object reset/i.test(String(error));
 }
 
-/** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio (sin tokens). */
+/** Un tramo de ruta con pinta de token (`/rate/<token>/5`, `/calendar/join_videocall/<token>`): largo y con números. */
+const TRAMO_TOKEN = /^(?=[^/]*\d)[A-Za-z0-9_-]{16,}$/;
+
+/** La ruta para el registro: entera si es una llamada a Odoo (modelo/método), si no solo el principio, sin tokens. */
 export function rutaParaRegistro(pathname: string): string {
   if (pathname.startsWith("/web/dataset/call_kw/")) return pathname;
-  return pathname.split("/").slice(0, 4).join("/");
+  return pathname
+    .split("/")
+    .slice(0, 4)
+    .map((tramo) => (TRAMO_TOKEN.test(tramo) ? ":token" : tramo))
+    .join("/");
 }
