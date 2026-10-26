@@ -22,6 +22,23 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 - El sitemap y `robots.txt` los arma Odoo con el anfitrión de quien los pide: en el dominio salen con el dominio solos.
 - El borde ya manda `www.dcasapty.com` → `dcasapty.com` (301) cuando `CANONICAL_HOST` es `dcasapty.com`.
 
+## Estado al 2026-10-26 (revisado con Claude en Chrome, sin cambiar nada)
+
+- `dcasapty.com` está **registrado en el GoDaddy de D'CASA**; solo el DNS está en el Cloudflare del programador anterior
+  (`gene.ns.cloudflare.com`, `jasper.ns.cloudflare.com`). Sin DNSSEC (Registros DS vacíos). En el Cloudflare de D'CASA el
+  dominio **todavía no está agregado** (ahí solo están los Workers `dcasa`, `dcasa-staging`, `dcasa-juan`,
+  `dcasa-juan-staging`).
+- **Correo: Zoho Mail.** Los 7 registros que tienen que estar en el Cloudflare de D'CASA **antes** de cambiar los
+  servidores de nombres: MX `@` → `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50); TXT `@` SPF
+  `v=spf1 include:zohomail.com ~all`; TXT `@` `zoho-verification=…`; TXT `_dmarc` (`p=quarantine`); TXT
+  `zmail._domainkey` (DKIM de Zoho, la clave completa sale de Zoho › Admin › Dominios › DKIM). El DKIM es el que la
+  importación automática suele no encontrar: sin él, con DMARC en «quarantine», el correo cae en spam.
+- **Página vieja:** A `@` → `167.233.150.39` (servidor externo, sin el proxy de Cloudflare) y CNAME `www` → `dcasapty.com`.
+  Se importan tal cual y **en «DNS only» (nube gris)**, como están hoy: así el cambio de servidores de nombres no corta ni
+  la página vieja ni el correo y el paso 1 se puede hacer cualquier día.
+- El día del traslado esos dos registros se **borran justo antes del despliegue del paso 9**: el dominio propio del Worker
+  (`custom_domain`) no se crea si el nombre ya tiene un registro A o CNAME de otro lado.
+
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
 | # | Quién | Qué | Cómo se comprueba | Cómo se vuelve atrás |
