@@ -483,7 +483,19 @@ describe("wrangler.jsonc (producción y staging)", () => {
     expect(c.max_instances).toBe(1);
     expect(staging.durable_objects.bindings[0].name).toBe("ODOO");
     expect(staging.migrations).toEqual(config.migrations);
-    expect(staging).not.toHaveProperty("routes");
+    // `routes` se hereda: staging lo pisa con [] para no llevarse el dominio de producción.
+    expect(staging.routes).toEqual([]);
+  });
+
+  it("dominio propio: dcasapty.com y www en producción, y workers.dev sigue vivo", () => {
+    expect(config.routes).toEqual([
+      { pattern: "dcasapty.com", custom_domain: true },
+      { pattern: "www.dcasapty.com", custom_domain: true },
+    ]);
+    // Con `routes` y sin `workers_dev`, wrangler apaga workers.dev (webhook de Brian, /master de siempre, Juan).
+    expect(config.workers_dev).toBe(true);
+    expect(config.env.staging.workers_dev ?? config.workers_dev).toBe(true);
+    expect(JSON.stringify(config.env.staging)).not.toContain('"dcasapty.com"');
   });
 
   it("caché de páginas: KV por entorno; apagada en producción y encendida en staging", () => {

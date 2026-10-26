@@ -15,6 +15,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   nombre. Primero el resultado, después el detalle.
 - Lo que pide un **jefe** (el dueño de la empresa) llega a través de ella: se trata como pedido de la dueña, y se le
   responde a ella con lo que pueda reenviarle.
+- **Corrección (2026-10-26):** el responsable del negocio es **hombre**; en este repositorio «la dueña» es solo el nombre
+  de siempre para quien trabaja con Claude. En todo lo que se imprime o se firma (actas, cartas, papeles para los jefes)
+  nunca «dueña» ni «dueño»: un cargo neutral y profesional («Gerencia general», «CEO», o «Aprobado por» con una línea de
+  Cargo para que cada uno escriba el suyo). Al hablarle, en neutro si no lo dijo.
 - **Nunca se pide un secreto por el chat** (claves, tokens, contraseñas). Se le dice *dónde* ponerlo (secreto de
   Cloudflare o de GitHub) y se confirma que quedó cargado sin ver su valor.
 - **Los datos de personas** (nombres, correos, celulares, cédulas, facturas de clientes) viven solo en Odoo: ni en el
@@ -133,7 +137,18 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
     sin %; si no, la línea sale tal cual. En la página del cliente el renglón va a la derecha (cuadra en el celular) y
     Juan dice lo mismo que el PDF. Queda anotado (no cambia): una venta confirmada sin facturar con cama y colchón de
     los 4 aprobados baja al precio en combo la próxima vez que alguien le edite una línea.
-- Los combos (con estos arreglos) van a producción cuando pasen su CI y staging, por el «hazlo ya» de la dueña.
+- **Combos en producción** con estos arreglos: CI #223 (`ab94128`) y staging sanos, PR #63 unido a `main` (`61cb612`,
+  árbol = `ab94128`) y **Desplegar 28 sano y confirmado a las 19:51 UTC** (14:51 Panamá). Falta que la dueña haga una
+  cotización con cama + uno de los 4 colchones y mire el renglón del descuento.
+- Formas de cobro (pedido de un jefe: «las tarjetas cobran tasas diferentes»): la dueña, con Claude en Chrome, creó en
+  producción los diarios de banco **Visa (VISA), Mastercard (MC), American Express (AMEX), Clave (CLAVE) y KrediYa
+  (KRYA)**; Odoo les abrió las cuentas 111.011 a 111.015. El jefe no podía porque crear diarios es de Administrador de
+  Contabilidad (Gerencia no lo trae). «Tarjeta» sigue activa: se archiva cuando la contadora confirme que no queda nada
+  por cuadrar (archivada no sale en Conciliación). La «Forma de pago DGI» no existe en producción porque
+  `dcasa_fe_pa` todavía no está instalado (espera al PAC): se pone en cada diario al instalarlo.
+  Después, por pedido del jefe, la dueña archivó «Tarjeta» y «Punto de venta BN» (no se eliminan: archivar guarda la
+  historia) y dejó «Banco Nacional» (BNK1: cheques a proveedores y estado de cuenta) sin pagos entrantes, para que no
+  salga al cobrar. Las comisiones de cada método van en Bancos › Reglas de conciliación (con la contadora).
 
 ### 2026-10-23 (madrugada)
 
