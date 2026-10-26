@@ -349,6 +349,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Despliegue
 
+- **Desplegar 29** (producción, misma imagen `ab94128`, 2026-10-26 22:58 UTC, traslado a `dcasapty.com`) · El respaldo
+  previo pidió `https://dcasapty.com/__edge/respaldo` y dio `curl: (6) Could not resolve host`: `URL_SITIO` ya era el
+  dominio y sus registros A y CNAME ya estaban borrados, pero el dominio propio del Worker solo se crea en el paso
+  «wrangler deploy», que va después. No se desplegó nada. Con el «sí» de la dueña, **Desplegar 30** con
+  `respaldo_previo = false` (misma imagen: la base no cambia). **Regla:** el día que cambia `URL_SITIO` a un dominio
+  nuevo, el respaldo previo no puede pasar; o se despliega sin él (con el «sí») o antes se respalda con la dirección
+  vieja.
+
 - **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
   producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
   (`respaldar` sale si Odoo no está listo) y en producción un 503 es fallo. Esperé al cron que despierta a Odoo
@@ -617,6 +625,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - La portada sale de la copia del borde y no despierta a Odoo: la espera debe tocar `/web/login`.
 - En Containers, stderr es un socket: no reabrir `/dev/stderr` por ruta.
 - `CANONICAL_HOST` tiene que ser donde el sitio responde de verdad.
+- **Dominio propio del Worker (`routes` con `custom_domain: true`, 2026-10-26):** `routes` se **hereda** en los
+  entornos con nombre (staging necesita `"routes": []` o se lleva el dominio); con `routes` y sin `workers_dev`, wrangler
+  apaga workers.dev (poner `"workers_dev": true`); no se crea si el nombre ya tiene un A o CNAME (se borran justo antes);
+  el token necesita *Zone › Workers Routes › Edit* (el de GitHub, `dcasa-github-deploy`, está en *My Profile › API
+  Tokens*). Cloudflare crea solo el registro DNS y el certificado.
 - Las variables del panel se aplican al reiniciar; desplegar con `--keep-vars` para no borrarlas.
 - `DCASA_PIN_PEPPER` y `PGBACKREST_CIPHER_PASS` nunca se rotan; si la consulta de secretos falla, abortar.
 - Puerta del equipo en «1» dejó `/master` en «Not Found»: subir por pasos «0» → «avisar» → «1».
