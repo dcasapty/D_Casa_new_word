@@ -43,6 +43,9 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
   A `app` → `167.233.150.39` (el sistema anterior en `app.dcasapty.com`: el día del traslado se decide si se quita, como
   dice el acta firmada) y CNAME `_domainconnect` (de GoDaddy, inofensivo). Servidores de nombres nuevos:
   `emerson.ns.cloudflare.com` y `vita.ns.cloudflare.com`; para deshacer, volver a `gene` y `jasper`.
+- **26 oct, servidores cambiados en GoDaddy** (con la verificación de identidad de GoDaddy). Google ya responde `emerson`
+  y `vita`; MX sigue en Zoho y A en `167.233.150.39`: ni el correo ni la página vieja se cortaron. Cloudflare en «Pending»
+  hasta que confirme (pasa a «Active» solo). Siguen los pasos 2 a 4 y, el día, borrar A `@` y CNAME `www` (y decidir `app`).
 
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
