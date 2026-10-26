@@ -15,6 +15,10 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   nombre. Primero el resultado, después el detalle.
 - Lo que pide un **jefe** (el dueño de la empresa) llega a través de ella: se trata como pedido de la dueña, y se le
   responde a ella con lo que pueda reenviarle.
+- **Corrección (2026-10-26):** el responsable del negocio es **hombre**; en este repositorio «la dueña» es solo el nombre
+  de siempre para quien trabaja con Claude. En todo lo que se imprime o se firma (actas, cartas, papeles para los jefes)
+  nunca «dueña» ni «dueño»: un cargo neutral y profesional («Gerencia general», «CEO», o «Aprobado por» con una línea de
+  Cargo para que cada uno escriba el suyo). Al hablarle, en neutro si no lo dijo.
 - **Nunca se pide un secreto por el chat** (claves, tokens, contraseñas). Se le dice *dónde* ponerlo (secreto de
   Cloudflare o de GitHub) y se confirma que quedó cargado sin ver su valor.
 - **Los datos de personas** (nombres, correos, celulares, cédulas, facturas de clientes) viven solo en Odoo: ni en el
