@@ -356,6 +356,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `respaldo_previo = false` (misma imagen: la base no cambia). **Regla:** el día que cambia `URL_SITIO` a un dominio
   nuevo, el respaldo previo no puede pasar; o se despliega sin él (con el «sí») o antes se respalda con la dirección
   vieja.
+- **Desplegar 30** (23:04 UTC) · `wrangler deploy` salió bien pero **sin el dominio**: «Deployed dcasa triggers» solo
+  listó workers.dev y los cron. Causa: **Desplegar hace checkout de `app_version`**, no de `main` («HEAD is now at
+  ab94128» en el registro), y `edge/wrangler.jsonc` de `ab94128` no tenía `routes` (entraron en `de1fb04`). «Misma
+  imagen, otro commit» no sirve para cambios de `wrangler.jsonc`. Arreglo inmediato: la dueña agregó los dos dominios a
+  mano (Workers › dcasa › Domains › Add Domain, que es lo mismo que haría wrangler); arreglo de fondo: CI #230 sobre
+  `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
+  (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
+  de ese commit.
 
 - **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
   producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
