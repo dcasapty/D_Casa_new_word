@@ -46,6 +46,12 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 - **26 oct, servidores cambiados en GoDaddy** (con la verificación de identidad de GoDaddy). Google ya responde `emerson`
   y `vita`; MX sigue en Zoho y A en `167.233.150.39`: ni el correo ni la página vieja se cortaron. Cloudflare en «Pending»
   hasta que confirme (pasa a «Active» solo). Siguen los pasos 2 a 4 y, el día, borrar A `@` y CNAME `www` (y decidir `app`).
+- **26 oct, «Active».** Hechos el paso 1 y el 3: «Master (producción)» tiene `dcasa.dcasapty.workers.dev/master*` y
+  `dcasapty.com/master*` (con asterisco, como la que ya estaba). Y del paso 7, el permiso: el token de GitHub es
+  **`dcasa-github-deploy`** (está en *My Profile › API Tokens*, no en *Account API Tokens*: esos dos, `dcasa-produccion`
+  y `dcasa-staging`, son solo de R2) y ya tiene *Zone › Workers Routes › Edit* en `dcasapty.com`, sin regenerarlo.
+  En la pantalla del dominio **no** tocar «Proxy DNS records» ni «Connect Worker» antes del día. Falta: el acta firmada,
+  la fecha, y el PR que descomenta `routes` (paso 7) con su CI, preparado antes y unido ese día.
 
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
