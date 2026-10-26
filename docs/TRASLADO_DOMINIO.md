@@ -38,6 +38,11 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
   la página vieja ni el correo y el paso 1 se puede hacer cualquier día.
 - El día del traslado esos dos registros se **borran justo antes del despliegue del paso 9**: el dominio propio del Worker
   (`custom_domain`) no se crea si el nombre ya tiene un registro A o CNAME de otro lado.
+- **26 oct, paso 1 en marcha:** `dcasapty.com` agregado al Cloudflare de D'CASA (plan Free, «Pending»), con los 9 registros
+  de arriba (las dos nubes de la página vieja pasadas a gris) y dos extra que trajo la importación, también en gris:
+  A `app` → `167.233.150.39` (el sistema anterior en `app.dcasapty.com`: el día del traslado se decide si se quita, como
+  dice el acta firmada) y CNAME `_domainconnect` (de GoDaddy, inofensivo). Servidores de nombres nuevos:
+  `emerson.ns.cloudflare.com` y `vita.ns.cloudflare.com`; para deshacer, volver a `gene` y `jasper`.
 
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
