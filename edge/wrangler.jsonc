@@ -105,11 +105,15 @@
   //   { "name": "LIMITE_CARRITO", "namespace_id": "1103", "simple": { "limit": 120, "period": 60 } }
   // ],
 
-  // Dominio: se activa cuando el DNS de dcasapty.com esté en Cloudflare.
-  // "routes": [
-  //   { "pattern": "dcasapty.com", "custom_domain": true },
-  //   { "pattern": "www.dcasapty.com", "custom_domain": true }
-  // ],
+  // Dominio propio (docs/TRASLADO_DOMINIO.md, 2026-10-26): dcasapty.com y www van a este Worker. Cloudflare crea solo
+  // sus registros DNS y certificados (custom_domain); el borde manda www → dcasapty.com.
+  "routes": [
+    { "pattern": "dcasapty.com", "custom_domain": true },
+    { "pattern": "www.dcasapty.com", "custom_domain": true }
+  ],
+  // workers.dev SIGUE respondiendo: con `routes` y sin esto, wrangler lo apaga en el siguiente despliegue, y ahí
+  // viven el webhook de Telegram de Brian, la entrada /master de siempre y lo que Juan y el puente ya conocen.
+  "workers_dev": true,
 
   "env": {
     // Entorno de prueba para los simulacros de caída y restauración (Fase 1, punto 3).
@@ -169,8 +173,10 @@
         // /web/login (el login público, para clientes y socios) ya no entra. Rescate: "0" y desplegar.
         "DCASA_PUERTA_OBLIGATORIA": "1",
         "DCASA_PUERTA_EXIGIR_CORREO": "0"
-      }
-      // "routes": [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
+      },
+      // `routes` se HEREDA de arriba: sin esta línea, staging se llevaría dcasapty.com. Cuando tenga su dominio:
+      // [{ "pattern": "staging.dcasapty.com", "custom_domain": true }]
+      "routes": []
     }
   }
 }
