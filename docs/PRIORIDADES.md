@@ -12,7 +12,7 @@ Cada etapa sale a staging para que la dueña la vea; a producción solo con su �
 dueña en el panel de Cloudflare del Worker `dcasa` (no en GitHub), Email Routing de Cloudflare reenvía `info@` y
 cualquier otra dirección @dcasapty.com al Gmail de la empresa (Zoho ya no recibe) y ese Gmail responde como
 `info@dcasapty.com` por el SMTP de Resend. Correo a clientes **encendido** el 27 oct (prueba y respuesta
-bien). Orden: (1) probar `www.dcasapty.com` → `dcasapty.com`; (2) webhook de Brian **registrado** el 27 oct
+bien). Orden: (1) `www` → dominio, **probado**; (2) webhook de Brian **registrado** el 27 oct
 (falta que conteste un mensaje); (3) decidir `app.dcasapty.com` (A a la IP del sistema anterior, en gris);
 (4) Google Search Console, Meta y lo impreso (pasos 13-15 de TRASLADO_DOMINIO); (5) lo pendiente del 23 oct (abajo).
 
