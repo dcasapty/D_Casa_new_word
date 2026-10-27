@@ -56,7 +56,8 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 - **26-27 oct, hecho.** Pasos 1, 3, 7, 8 y 9: `dcasapty.com` y `www` abren el sistema nuevo (Desplegar 31, sano y
   confirmado 00:42 UTC del 27; la dueña entró al panel por `dcasapty.com`; `www.dcasapty.com` redirige al dominio,
   probado por la dueña el 27 oct). Correo: Resend verificado (paso 2) y Email Routing de
-  Cloudflare en lugar de Zoho (CORREO.md). Paso 10 hecho (webhook en `https://dcasapty.com/brian/telegram/…`, 27 oct). Faltan: 11 (prueba completa con la dueña), la
+  Cloudflare en lugar de Zoho (CORREO.md). Paso 10 hecho (webhook en `https://dcasapty.com/brian/telegram/…`, 27 oct). `app.dcasapty.com` (sistema anterior) **se queda vivo** por ahora, decisión de la dueña del 27 oct: no
+  tocar su registro A hasta que diga. Faltan: 11 (prueba completa con la dueña), la
   decisión de `app` y los pasos 12-15.
 
 ## Antes del día (se puede hacer ya, no cambia nada visible)
