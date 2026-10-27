@@ -105,7 +105,9 @@ correo dueño de la cuenta. Para probar:
 **Hecho el 2026-10-26:** `dcasapty.com` está **Verified** en Resend (DKIM `resend._domainkey` y los CNAME `send` y
 `rsend`, en gris; no se agregó otro `_dmarc`: ya había uno). La clave de producción quedó como secreto
 `RESEND_API_KEY` en el panel de Cloudflare del Worker `dcasa` (no en GitHub; si un día se pone en GitHub, esa manda);
-staging no tiene clave.
+staging no tiene clave. **Encendido el 2026-10-27** (la dueña): remitente `ventas@dcasapty.com`, respuestas a
+`info@dcasapty.com`, las tres casillas marcadas; el correo de prueba llegó a la bandeja principal y la respuesta
+llegó al Gmail por Email Routing.
 
 ### Recibir en info@dcasapty.com
 

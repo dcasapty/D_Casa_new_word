@@ -11,8 +11,8 @@ Cada etapa sale a staging para que la dueña la vea; a producción solo con su �
 00:42 UTC; workers.dev sigue respondiendo). Correo: dominio verificado en Resend, `RESEND_API_KEY` pegada por la
 dueña en el panel de Cloudflare del Worker `dcasa` (no en GitHub), Email Routing de Cloudflare reenvía `info@` y
 cualquier otra dirección @dcasapty.com al Gmail de la empresa (Zoho ya no recibe) y ese Gmail responde como
-`info@dcasapty.com` por el SMTP de Resend. Orden: (1) encender en Odoo › Correo a clientes (remitente
-`ventas@dcasapty.com`, respuestas a `info@dcasapty.com`, correo de prueba, interruptor); (2) Brian › Telegram ›
+`info@dcasapty.com` por el SMTP de Resend. Correo a clientes **encendido** el 27 oct (prueba y respuesta
+bien). Orden: (1) probar `www.dcasapty.com` → `dcasapty.com`; (2) Brian › Telegram ›
 «Registrar webhook» (paso 10 del traslado); (3) decidir `app.dcasapty.com` (A a la IP del sistema anterior, en gris);
 (4) Google Search Console, Meta y lo impreso (pasos 13-15 de TRASLADO_DOMINIO); (5) lo pendiente del 23 oct (abajo).
 
