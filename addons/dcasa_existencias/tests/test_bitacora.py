@@ -197,7 +197,7 @@ class TestBitacora(BodegaComun):
         movimiento.quantity = 2
         movimiento.picked = True
         movimiento._action_done()
-        with self.assertRaises((AccessError, UserError)):
+        with self.assertRaises(UserError):  # AccessError también es UserError
             silla.product_tmpl_id.with_user(self.vendedora).write({'is_storable': True})
         self.assertFalse(self.env['dcasa.bitacora.bodega'].search([('producto_id', '=', silla.id)]))
 
