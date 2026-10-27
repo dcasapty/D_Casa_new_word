@@ -118,7 +118,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - **Correo:** Resend con `dcasapty.com` verificado (DKIM `resend._domainkey`, CNAME `send` y `rsend`; sin `_dmarc`
   nuevo). La clave quedó como secreto en el panel del Worker `dcasa` (decisión de la dueña; no en GitHub). Nadie
   usaba el buzón de Zoho: Email Routing de Cloudflare reenvía `info@` y el catch-all al Gmail de la empresa (MX y SPF
-  de Zoho borrados) y ese Gmail manda «como» `info@dcasapty.com` por `smtp.resend.com`. Falta encender en Odoo.
+  de Zoho borrados) y ese Gmail manda «como» `info@dcasapty.com` por `smtp.resend.com`. **Encendido en Odoo el 27 oct**: la prueba llegó a la bandeja principal y la respuesta volvió al Gmail.
 - Formas de cobro y acta: ver la entrada del 23 oct; el acta se hizo fuera del repositorio (no se guarda en GitHub).
 
 ### 2026-10-23 (tarde)
