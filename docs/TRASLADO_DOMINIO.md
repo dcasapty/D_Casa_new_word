@@ -53,6 +53,13 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
   En la pantalla del dominio **no** tocar «Proxy DNS records» ni «Connect Worker» antes del día. Falta: el acta firmada,
   la fecha, y el PR que descomenta `routes` (paso 7) con su CI, preparado antes y unido ese día.
 
+- **26-27 oct, hecho.** Pasos 1, 3, 7, 8 y 9: `dcasapty.com` y `www` abren el sistema nuevo (Desplegar 31, sano y
+  confirmado 00:42 UTC del 27; la dueña entró al panel por `dcasapty.com`; `www.dcasapty.com` redirige al dominio,
+  probado por la dueña el 27 oct). Correo: Resend verificado (paso 2) y Email Routing de
+  Cloudflare en lugar de Zoho (CORREO.md). Paso 10 hecho (webhook en `https://dcasapty.com/brian/telegram/…`, 27 oct; Brian contesta). `app.dcasapty.com` (sistema anterior) **se queda vivo** por ahora, decisión de la dueña del 27 oct: no
+  tocar su registro A hasta que diga. Faltan: 11 (prueba completa con la dueña) y
+  los pasos 12-15.
+
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
 | # | Quién | Qué | Cómo se comprueba | Cómo se vuelve atrás |
@@ -70,7 +77,7 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
 |---|---|---|---|---|
 | 7 | C | `edge/wrangler.jsonc`: descomentar `routes` (`dcasapty.com` y `www.dcasapty.com`, `custom_domain: true`) **y** poner `"workers_dev": true` (con `routes` y sin eso, wrangler apaga workers.dev) **y** `"routes": []` en `env.staging` (`routes` se hereda: si no, staging se lleva el dominio). El token de despliegue necesita *Zone › Workers Routes › Edit* (D lo agrega al token si falta) | Cloudflare › Workers › `dcasa` › Domains & Routes lista los dos | Volver a comentarlas y desplegar (el sitio sigue en workers.dev) |
 | 8 | D | GitHub › Settings › Environments › **production** › Variables › `URL_SITIO` = `https://dcasapty.com` (sin barra final). `CANONICAL_HOST` de GitHub, vacío | En el siguiente despliegue: «▶ CANONICAL_HOST vacío: se usa el de URL_SITIO (dcasapty.com)» | Volver `URL_SITIO` a `https://dcasa.dcasapty.workers.dev` y desplegar |
-| 9 | C | Desplegar (Actions › Desplegar, misma imagen que ya está en producción: `app_version` y `imagen_digest` del último despliegue sano). El contenedor arranca con `web.base.url = https://dcasapty.com` | `https://dcasapty.com/__edge/health` sano; en Odoo › Parámetros del sistema, `web.base.url` = `https://dcasapty.com`; `www.` redirige | Paso 8 al revés y desplegar de nuevo |
+| 9 | C | Desplegar (Actions › Desplegar) con el `app_version` **del commit que trae `routes`** y el `imagen_digest` de su imagen (CI a staging de ese commit). **No** la imagen anterior: Desplegar hace checkout de `app_version` y toma su `wrangler.jsonc`; con el commit viejo sale sin dominio (Desplegar 30). Con **`respaldo_previo` desmarcado**, con el «sí» de la dueña: el respaldo previo llama a `URL_SITIO` (ya `dcasapty.com`), que no resuelve hasta que este mismo despliegue crea el dominio (así se frenó Desplegar 29). Con la misma imagen la base no cambia; quedan el respaldo diario y el WAL. El contenedor arranca con `web.base.url = https://dcasapty.com` | `https://dcasapty.com/__edge/health` sano; en Odoo › Parámetros del sistema, `web.base.url` = `https://dcasapty.com`; `www.` redirige | Paso 8 al revés y desplegar de nuevo |
 | 10 | C | Brian: Brian › Telegram › **Registrar webhook** (Telegram pasa a `https://dcasapty.com/brian/telegram/…`) | Un mensaje a Brian por Telegram contesta | Volver a registrar con la dirección vieja |
 | 11 | D+C | Probar: portada, una ficha, carrito y checkout, `/mi-cuenta`, `/socios`, `/master` (PIN → clave → código), un PDF de factura (dominio impreso y QR), un correo de prueba (Odoo › Ventas › Configuración › Correo a clientes: enlaces y logo con `dcasapty.com`) | Todo abre con `dcasapty.com` | Pasos 8–9 al revés |
 

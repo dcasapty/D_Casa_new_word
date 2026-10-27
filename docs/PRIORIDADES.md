@@ -7,6 +7,15 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-27:** **`dcasapty.com` ya es el sistema nuevo** (Desplegar 31, `741930d`, sano y confirmado
+00:42 UTC; workers.dev sigue respondiendo). Correo: dominio verificado en Resend, `RESEND_API_KEY` pegada por la
+dueña en el panel de Cloudflare del Worker `dcasa` (no en GitHub), Email Routing de Cloudflare reenvía `info@` y
+cualquier otra dirección @dcasapty.com al Gmail de la empresa (Zoho ya no recibe) y ese Gmail responde como
+`info@dcasapty.com` por el SMTP de Resend. Correo a clientes **encendido** el 27 oct (prueba y respuesta
+bien). Orden: (1) `www` → dominio, **probado**; (2) webhook de Brian registrado y **contesta** por
+Telegram (27 oct); (3) `app.dcasapty.com` (sistema anterior) se queda vivo hasta que la dueña diga;
+(4) Google Search Console, Meta y lo impreso (pasos 13-15 de TRASLADO_DOMINIO); (5) lo pendiente del 23 oct (abajo).
+
 **Estado al 2026-10-23, tarde:** en producción (Desplegar 27, PR #62) el arreglo de la lentitud (Bodega/Inicio sin
 mirar pagos factura por factura), el reintento del borde ante «Network connection lost.», la nota de entrega sin el
 producto repetido y el scroll de Marketing; y (Desplegar 28, PR #63) los combos con el descuento en su propio renglón

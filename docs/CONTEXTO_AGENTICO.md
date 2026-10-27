@@ -349,6 +349,26 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Despliegue
 
+- **Desplegar 29** (producción, misma imagen `ab94128`, 2026-10-26 22:58 UTC, traslado a `dcasapty.com`) · El respaldo
+  previo pidió `https://dcasapty.com/__edge/respaldo` y dio `curl: (6) Could not resolve host`: `URL_SITIO` ya era el
+  dominio y sus registros A y CNAME ya estaban borrados, pero el dominio propio del Worker solo se crea en el paso
+  «wrangler deploy», que va después. No se desplegó nada. Con el «sí» de la dueña, **Desplegar 30** con
+  `respaldo_previo = false` (misma imagen: la base no cambia). **Regla:** el día que cambia `URL_SITIO` a un dominio
+  nuevo, el respaldo previo no puede pasar; o se despliega sin él (con el «sí») o antes se respalda con la dirección
+  vieja.
+- **Desplegar 30** (23:04 UTC) · `wrangler deploy` salió bien pero **sin el dominio**: «Deployed dcasa triggers» solo
+  listó workers.dev y los cron. Causa: **Desplegar hace checkout de `app_version`**, no de `main` («HEAD is now at
+  ab94128» en el registro), y `edge/wrangler.jsonc` de `ab94128` no tenía `routes` (entraron en `de1fb04`). «Misma
+  imagen, otro commit» no sirve para cambios de `wrangler.jsonc`. Arreglo inmediato: la dueña agregó los dos dominios a
+  mano (Workers › dcasa › Domains › Add Domain, que es lo mismo que haría wrangler); arreglo de fondo: CI #230 sobre
+  `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
+  (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
+  de ese commit.
+- **Desplegar 31** (00:26 UTC del 27, `741930d`, imagen `sha256:efb5f5ac…` de CI #230 sobre `main`, respaldo previo
+  hecho) · sano y confirmado 00:42 (versión `741930d52e2c`, base al día, humo ok, 600 s de vigilancia). «Deployed dcasa
+  triggers» ya lista `dcasapty.com (custom domain)` y `www.dcasapty.com (custom domain)`: los que la dueña agregó a
+  mano quedaron adoptados sin conflicto.
+
 - **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
   producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
   (`respaldar` sale si Odoo no está listo) y en producción un 503 es fallo. Esperé al cron que despierta a Odoo
@@ -617,6 +637,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - La portada sale de la copia del borde y no despierta a Odoo: la espera debe tocar `/web/login`.
 - En Containers, stderr es un socket: no reabrir `/dev/stderr` por ruta.
 - `CANONICAL_HOST` tiene que ser donde el sitio responde de verdad.
+- **Dominio propio del Worker (`routes` con `custom_domain: true`, 2026-10-26):** `routes` se **hereda** en los
+  entornos con nombre (staging necesita `"routes": []` o se lleva el dominio); con `routes` y sin `workers_dev`, wrangler
+  apaga workers.dev (poner `"workers_dev": true`); no se crea si el nombre ya tiene un A o CNAME (se borran justo antes);
+  el token necesita *Zone › Workers Routes › Edit* (el de GitHub, `dcasa-github-deploy`, está en *My Profile › API
+  Tokens*). Cloudflare crea solo el registro DNS y el certificado.
 - Las variables del panel se aplican al reiniciar; desplegar con `--keep-vars` para no borrarlas.
 - `DCASA_PIN_PEPPER` y `PGBACKREST_CIPHER_PASS` nunca se rotan; si la consulta de secretos falla, abortar.
 - Puerta del equipo en «1» dejó `/master` en «Not Found»: subir por pasos «0» → «avisar» → «1».

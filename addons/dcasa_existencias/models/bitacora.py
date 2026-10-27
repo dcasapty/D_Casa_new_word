@@ -218,6 +218,18 @@ class StockMoveLine(models.Model):
         return resultado
 
 
+class ProductTemplate(models.Model):
+    _inherit = 'product.template'
+
+    def _reset_inventory(self):
+        """Marcar «Rastrear inventario» en un producto que ya tuvo movimientos (lo creado en una compra sin la casilla):
+        Odoo arma las existencias de su historial y las deja en cero con un ajuste, para que la valuación cuadre. Es un
+        ajuste del sistema, no de una persona: lleva su motivo y queda en la bitácora. Sin esto, la regla del motivo
+        obligatorio no dejaba marcar la casilla (2026-10-27). Sigue siendo de Gerencia, como todo ajuste."""
+        motivo = self.env._('Se activó «Rastrear inventario»')
+        return super(ProductTemplate, self.with_context(dcasa_motivo=motivo, dcasa_origen='sistema'))._reset_inventory()
+
+
 class StockMove(models.Model):
     _inherit = 'stock.move'
 
