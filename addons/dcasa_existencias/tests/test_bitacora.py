@@ -153,3 +153,54 @@ class TestBitacora(BodegaComun):
         for xmlid in ('stock.action_scrap', 'stock.action_revert_inventory_adjustment'):
             with self.subTest(accion=xmlid):
                 self.assertEqual(self.env.ref(xmlid).group_ids, self.env.ref('stock.group_stock_manager'))
+
+    def test_marcar_rastrear_inventario_en_un_producto_ya_comprado(self):
+        """Caso del 27 oct: un producto nuevo creado sin «Rastrear inventario» entró por una compra; al marcar la
+        casilla, Odoo deja sus existencias en cero con un ajuste del sistema. Antes la regla del motivo lo bloqueaba."""
+        cama = self.env['product.product'].create({
+            'name': 'CAMA NUEVA SIN RASTREAR', 'type': 'consu', 'is_storable': False, 'standard_price': 120.0})
+        proveedores = self.env.ref('stock.stock_location_suppliers')
+        recepcion = self.env['stock.picking'].create({
+            'picking_type_id': self.almacen.in_type_id.id, 'partner_id': self.proveedor.id,
+            'location_id': proveedores.id, 'location_dest_id': self.ubicacion.id,
+            'move_ids': [Command.create({
+                'product_id': cama.id, 'product_uom_qty': 4, 'location_id': proveedores.id,
+                'location_dest_id': self.ubicacion.id})]})
+        recepcion.action_confirm()
+        recepcion.move_ids.quantity = 4
+        recepcion.button_validate()
+        self.assertEqual(recepcion.state, 'done')
+
+        cama.product_tmpl_id.with_user(self.gerencia).write({'is_storable': True})
+
+        self.assertTrue(cama.is_storable)
+        self.assertEqual(cama.qty_available, 0, 'queda en cero: lo que llegó se cuenta después')
+        fila = self.env['dcasa.bitacora.bodega'].search([('producto_id', '=', cama.id)])
+        self.assertEqual(len(fila), 1)
+        self.assertEqual((fila.antes, fila.despues, fila.origen, fila.usuario_id),
+                         (4.0, 0.0, 'sistema', self.gerencia))
+        self.assertIn('Rastrear inventario', fila.motivo)
+
+        # Y ya se puede contar (lo que pidió Gerencia: ajustar en conteo un producto en 0).
+        self._conteo_de(cama, 4, inventory_name='Conteo con lector (Gerencia)').action_apply_inventory()
+        self.assertEqual(cama.qty_available, 4)
+
+    def test_la_vendedora_no_marca_rastrear_inventario_con_historial(self):
+        """Marcar la casilla con historial es un ajuste: sigue siendo de Gerencia."""
+        silla = self.env['product.product'].create({
+            'name': 'SILLA SIN RASTREAR', 'type': 'consu', 'is_storable': False})
+        proveedores = self.env.ref('stock.stock_location_suppliers')
+        movimiento = self.env['stock.move'].create({
+            'product_id': silla.id, 'product_uom_qty': 2, 'location_id': proveedores.id,
+            'location_dest_id': self.ubicacion.id})
+        movimiento._action_confirm()
+        movimiento.quantity = 2
+        movimiento.picked = True
+        movimiento._action_done()
+        with self.assertRaises((AccessError, UserError)):
+            silla.product_tmpl_id.with_user(self.vendedora).write({'is_storable': True})
+        self.assertFalse(self.env['dcasa.bitacora.bodega'].search([('producto_id', '=', silla.id)]))
+
+    def _conteo_de(self, producto, cantidad, **contexto):
+        return self.env['stock.quant'].with_user(self.gerencia).with_context(inventory_mode=True, **contexto).create({
+            'product_id': producto.id, 'location_id': self.ubicacion.id, 'inventory_quantity': cantidad})
