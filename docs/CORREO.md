@@ -102,7 +102,18 @@ correo dueño de la cuenta. Para probar:
    igual, tal cual.
 4. En Resend toca **Verify** y espera a que el dominio diga **Verified** (puede tardar un rato).
 
+**Hecho el 2026-10-26:** `dcasapty.com` está **Verified** en Resend (DKIM `resend._domainkey` y los CNAME `send` y
+`rsend`, en gris; no se agregó otro `_dmarc`: ya había uno). La clave de producción quedó como secreto
+`RESEND_API_KEY` en el panel de Cloudflare del Worker `dcasa` (no en GitHub; si un día se pone en GitHub, esa manda);
+staging no tiene clave.
+
 ### Recibir en info@dcasapty.com
+
+**Hecho el 2026-10-26:** nadie usaba el buzón de Zoho, así que se borraron sus MX y su SPF y Cloudflare Email Routing
+reenvía `info@dcasapty.com` y cualquier otra dirección del dominio (catch-all) al Gmail de la empresa. Ese Gmail
+responde «como» `info@dcasapty.com` (Gmail › Cuentas › Enviar como, servidor `smtp.resend.com`, puerto 465, SSL,
+usuario `resend`, una clave de Resend propia llamada «Gmail»). Para volver a Zoho: borrar los MX/SPF de Cloudflare y
+poner otra vez `mx.zoho.com` (10), `mx2.zoho.com` (20), `mx3.zoho.com` (50) y `v=spf1 include:zohomail.com ~all`.
 
 Las respuestas de los clientes van a `info@dcasapty.com`. Si hoy ese correo no recibe en ningún lado, Cloudflare puede
 reenviarlo gratis a tu Gmail:

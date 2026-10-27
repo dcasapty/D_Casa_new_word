@@ -53,6 +53,12 @@ Lista completa y en orden de lo que cambia cuando producción pase de `https://d
   En la pantalla del dominio **no** tocar «Proxy DNS records» ni «Connect Worker» antes del día. Falta: el acta firmada,
   la fecha, y el PR que descomenta `routes` (paso 7) con su CI, preparado antes y unido ese día.
 
+- **26-27 oct, hecho.** Pasos 1, 3, 7, 8 y 9: `dcasapty.com` y `www` abren el sistema nuevo (Desplegar 31, sano y
+  confirmado 00:42 UTC del 27; la dueña entró al panel por `dcasapty.com`; el redireccionamiento de `www`, sin
+  probar todavía). Correo: Resend verificado (paso 2) y Email Routing de
+  Cloudflare en lugar de Zoho (CORREO.md). Faltan: 10 (webhook de Brian), 11 (prueba completa con la dueña), la
+  decisión de `app` y los pasos 12-15.
+
 ## Antes del día (se puede hacer ya, no cambia nada visible)
 
 | # | Quién | Qué | Cómo se comprueba | Cómo se vuelve atrás |

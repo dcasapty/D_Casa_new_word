@@ -102,6 +102,25 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-26 (noche) y 2026-10-27
+
+- **Traslado del dominio, hecho.** Con el consentimiento firmado de la gerencia (acta de una página, dos firmas
+  «Aprobado por», cargo neutral) y el pedido «lo más pronto posible»: DNS de `dcasapty.com` pasado al Cloudflare de
+  D'CASA (`emerson`/`vita`, Active), destino `dcasapty.com/master*` en Access, permiso *Workers Routes* en el token,
+  `URL_SITIO` = `https://dcasapty.com` (la dueña), A `@` y CNAME `www` viejos borrados y PR #64 (`routes` con
+  `custom_domain`, `workers_dev: true`, `routes: []` en staging) en `main` (`741930d`).
+- **Tres despliegues:** Desplegar 29 se frenó en el respaldo previo (el dominio aún no resolvía); Desplegar 30 (sin
+  respaldo, con el «sí») salió **sin dominio** porque Desplegar hace checkout de `app_version` y usé `ab94128`, que no
+  traía `routes` (la dueña agregó los dos dominios a mano en Workers › dcasa › Domains y el sitio abrió ~23:30 UTC);
+  **Desplegar 31** (CI #230 sobre `main`, imagen `sha256:efb5f5ac…`, respaldo previo) **sano y confirmado 00:42 UTC**,
+  con «dcasapty.com (custom domain)» y «www.dcasapty.com (custom domain)» en el registro. Lecciones en
+  CONTEXTO_AGENTICO › Despliegue.
+- **Correo:** Resend con `dcasapty.com` verificado (DKIM `resend._domainkey`, CNAME `send` y `rsend`; sin `_dmarc`
+  nuevo). La clave quedó como secreto en el panel del Worker `dcasa` (decisión de la dueña; no en GitHub). Nadie
+  usaba el buzón de Zoho: Email Routing de Cloudflare reenvía `info@` y el catch-all al Gmail de la empresa (MX y SPF
+  de Zoho borrados) y ese Gmail manda «como» `info@dcasapty.com` por `smtp.resend.com`. Falta encender en Odoo.
+- Formas de cobro y acta: ver la entrada del 23 oct; el acta se hizo fuera del repositorio (no se guarda en GitHub).
+
 ### 2026-10-23 (tarde)
 
 - La dueña reportó cuatro cosas: la app Marketing no bajaba con scroll; la nota de entrega despachada repetía cada

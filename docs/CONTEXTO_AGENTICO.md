@@ -364,6 +364,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 31** (00:26 UTC del 27, `741930d`, imagen `sha256:efb5f5ac…` de CI #230 sobre `main`, respaldo previo
+  hecho) · sano y confirmado 00:42 (versión `741930d52e2c`, base al día, humo ok, 600 s de vigilancia). «Deployed dcasa
+  triggers» ya lista `dcasapty.com (custom domain)` y `www.dcasapty.com (custom domain)`: los que la dueña agregó a
+  mano quedaron adoptados sin conflicto.
 
 - **Desplegar 25** (producción, `75324c5`, 2026-10-23 06:38 UTC) · El respaldo previo recibió HTTP 503 («Odoo de
   producción está apagado») y no se desplegó: producción quedó como estaba. El respaldo no enciende el contenedor
