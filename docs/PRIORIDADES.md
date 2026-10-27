@@ -7,6 +7,11 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-10-27, noche:** en producción (Desplegar 32, PR #65) el arreglo para marcar «Rastrear inventario»
+en productos que ya tuvieron movimientos. Sigue: que la gerencia marque la casilla en los productos nuevos del
+contenedor (guardar primero) y los cuente al llegar; los dos detalles de la revisión (prueba más precisa y motivo en el
+historial del movimiento).
+
 **Estado al 2026-10-27:** **`dcasapty.com` ya es el sistema nuevo** (Desplegar 31, `741930d`, sano y confirmado
 00:42 UTC; workers.dev sigue respondiendo). Correo: dominio verificado en Resend, `RESEND_API_KEY` pegada por la
 dueña en el panel de Cloudflare del Worker `dcasa` (no en GitHub), Email Routing de Cloudflare reenvía `info@` y

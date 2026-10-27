@@ -102,6 +102,18 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-10-27 (tarde): «Rastrear inventario» bloqueado
+
+- Un jefe reportó (urgente, llega un contenedor): productos nuevos creados en una compra sin «Rastrear inventario» no
+  sumaron al validar la recepción y no se podían contar. Al marcar la casilla salía «Escribe el motivo del ajuste…»:
+  `_reset_inventory` de Odoo hace un ajuste a cero y nuestra regla del motivo obligatorio lo bloqueaba. Arreglo en
+  `dcasa_existencias` (motivo del sistema, queda en la bitácora, sigue siendo de Gerencia), revisión adversarial sin
+  bloqueantes, CI #231 y #232 verdes, PR #65 (`86ab654`, árbol = `53c7b18`) y **Desplegar 32 sano y confirmado a las
+  23:46 UTC** (6:46 pm Panamá, la hora que pidió la dueña). Uso: marcar la casilla y **guardar** (sin escribir «A la
+  mano» en la misma vez), el producto queda en 0 y se cuenta con Escáner › Contar cuando llega la mercancía.
+- Para después (de la revisión): prueba de la Vendedora con `assertRaisesRegex(UserError, 'Solo Gerencia')` y pasar
+  también `inventory_name` para que el movimiento muestre el motivo en el historial.
+
 ### 2026-10-26 (noche) y 2026-10-27
 
 - **Traslado del dominio, hecho.** Con el consentimiento firmado de la gerencia (acta de una página, dos firmas

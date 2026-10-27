@@ -364,6 +364,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 32** (23:31 UTC del 27, `53c7b18`, imagen `sha256:da338f12…` de CI #231, respaldo previo) · sano y
+  confirmado 23:46: arreglo de «Rastrear inventario» (PR #65).
 - **Desplegar 31** (00:26 UTC del 27, `741930d`, imagen `sha256:efb5f5ac…` de CI #230 sobre `main`, respaldo previo
   hecho) · sano y confirmado 00:42 (versión `741930d52e2c`, base al día, humo ok, 600 s de vigilancia). «Deployed dcasa
   triggers» ya lista `dcasapty.com (custom domain)` y `www.dcasapty.com (custom domain)`: los que la dueña agregó a
@@ -455,6 +457,10 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- Marcar «Rastrear inventario» (`is_storable`) en un producto que ya tuvo movimientos corre `_reset_inventory`: crea
+  quants del historial y los aplica a cero **en el entorno del usuario**. Cualquier regla nuestra sobre
+  `stock.quant._apply_inventory` (motivo, Gerencia) le aplica: por eso `dcasa_existencias` le pasa su motivo
+  (2026-10-27, PR #65). Escribir «A la mano» en el mismo guardado es otro ajuste, humano, y sigue pidiendo motivo.
 - `invoice_payments_widget` / `_dcasa_pagos()` es caro (una consulta y varias lecturas por factura): nunca en un bucle
   sobre muchas facturas; para «¿tiene cobro?» buscar `account.partial.reconcile` de todas las líneas por cobrar a la vez
   (`dcasa_barras/models/bodega.py`, `_facturas_con_cobro`) (2026-10-23). Ojo: ni la nota de crédito ni el asiento
