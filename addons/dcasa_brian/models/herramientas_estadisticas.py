@@ -91,8 +91,7 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
         nombre='ventas_por_dia',
         descripcion='Lo vendido o facturado por día (pantalla Por día): con «dia», el total de ese día y cada factura '
                     'o pedido; sin «dia», cada día del mes, el total, el mejor día y la comparación con el mes '
-                    'anterior. Sin ITBMS. Trae también lo cobrado ese día o ese mes por forma de pago (efectivo, '
-                    'Yappy, tarjeta…), con ITBMS.',
+                    'anterior. Sin ITBMS. Y lo cobrado por forma de pago (con ITBMS).',
         parametros={
             'dia': {'type': 'string', 'description': 'Un día: «hoy», «ayer», «el martes», «el martes pasado» o '
                                                      '«20/10/2026». Vacío: el mes entero.'},
@@ -198,10 +197,9 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
 
     @herramienta(
         nombre='valor_del_inventario',
-        descripcion='Cuánto vale la mercancía que hay hoy (Inventario › Valor del inventario): al costo (la valuación '
-                    'del inventario), a precio de venta sin ITBMS y la ganancia esperada, con las unidades; por tipo '
-                    'de mueble, los productos con más dinero y lo que falta cargar (sin costo, sin precio, en '
-                    'negativo).',
+        descripcion='La mercancía de hoy (Inventario › Valor del inventario): al costo, a precio de venta sin ITBMS y '
+                    'la ganancia esperada; por tipo, los productos con más dinero y lo que falta cargar (sin costo, '
+                    'sin precio, en negativo).',
         nivel='lectura', categoria='catalogo', grupos=GERENCIA_O_ADMIN,
         ejemplos=['¿cuánto vale el inventario? → (sin parámetros)',
                   '¿cuánto dinero tengo en mercancía? → (sin parámetros)'],
