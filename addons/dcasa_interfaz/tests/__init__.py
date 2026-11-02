@@ -17,3 +17,5 @@ from . import test_reponer
 from . import test_por_dia
 from . import test_movimientos
 from . import test_pantallas_navegador
+from . import test_valor_inventario
+from . import test_cobros_por_forma

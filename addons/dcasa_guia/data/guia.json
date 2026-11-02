@@ -250,7 +250,7 @@
    ],
    "grupo": "Hoy",
    "titulo": "Ver cuánto se vendió cada día del mes",
-   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado. Solo Gerencia.",
+   "logras": "El mes como un calendario (en el celular, una lista de días) con lo vendido cada día y cuántas ventas fueron. Tocas un día y ves cada pedido o factura de ese día, con su cliente, su vendedora y su estado; tocas uno y se abre. Arriba, el total del mes y cómo va contra el mes pasado, y lo cobrado en el mes por forma de pago (efectivo, Yappy, tarjeta…); al tocar un día, también lo cobrado ese día por forma de pago. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_ventas_por_dia"
    },
@@ -276,7 +276,10 @@
     "cuanto se vendio el",
     "que se hizo ese dia",
     "ventas del mes",
-    "vendido"
+    "vendido",
+    "metodo de pago",
+    "forma de pago",
+    "cobrado por dia"
    ]
   },
   {
@@ -295,7 +298,8 @@
     "tarjeta",
     "cobros del dia",
     "cuadrar"
-   ]
+   ],
+   "nota": "Para los días anteriores y el total de un mes por forma de pago: Ventas por día (toca un día) o Estadísticas."
   },
   {
    "id": "cobrar-cliente",
@@ -1805,6 +1809,31 @@
     "faltantes"
    ],
    "nota": "Lo hace Gerencia."
+  },
+  {
+   "id": "valor-inventario",
+   "categoria": "productos",
+   "tambien": [
+    "reportes"
+   ],
+   "grupo": "Inventario",
+   "titulo": "Ver cuánto vale el inventario (al costo y a precio de venta)",
+   "logras": "Cuánto vale la mercancía que hay hoy: al costo (con el costo de cada producto), a precio de venta sin ITBMS y la ganancia esperada, con las unidades. Debajo, por tipo de mueble, los productos con más dinero y lo que falta cargar (productos sin costo, sin precio o en negativo); tocas cualquiera y ves sus productos. Solo Gerencia.",
+   "destino": {
+    "menu": "dcasa_interfaz.menu_dcasa_valor_inventario"
+   },
+   "nota": "El costo es el de la ficha de cada producto, la misma valuación del inventario de Odoo; lo que está en negativo no se cuenta. La ganancia esperada supone que todo se vende a precio de lista, sin descuentos ni combos. También lo abres desde el Inicio y desde Estadísticas.",
+   "brian": "¿Cuánto vale el inventario?",
+   "palabras": [
+    "valor del inventario",
+    "valor de la mercancia",
+    "cuanto vale el inventario",
+    "costo del inventario",
+    "inventario al costo",
+    "mercancia en bodega",
+    "valoracion",
+    "costo de la mercancia"
+   ]
   },
   {
    "id": "mermas",
@@ -3336,11 +3365,11 @@
    "categoria": "reportes",
    "grupo": "Ventas",
    "titulo": "Ver las estadísticas de ventas en gráficas",
-   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
+   "logras": "Gráficas simples de un periodo (esta semana, este mes, el mes pasado, los últimos 3 meses, este año o las fechas que elijas): lo vendido cada día, por tipo de mueble, por vendedora, lo cobrado por forma de pago y los productos que más se venden, cada número con una frase que dice qué es. Tocas una barra y ves ese día. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_estadisticas_resumen"
    },
-   "nota": "Todo va sin ITBMS y con las mismas cuentas del Inicio. Para comparar dos periodos usa Comparar en el Inicio; para la ganancia por producto, Mejor margen.",
+   "nota": "Las ventas van sin ITBMS (lo cobrado, con ITBMS) y con las mismas cuentas del Inicio. Para comparar dos periodos usa Comparar en el Inicio; para la ganancia por producto, Mejor margen.",
    "brian": "¿Cuánto se vendió por día este mes?",
    "palabras": [
     "estadisticas",

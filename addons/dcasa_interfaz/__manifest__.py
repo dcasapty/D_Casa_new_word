@@ -19,6 +19,8 @@ La interfaz de trabajo de D'CASA, hecha a medida:
   columnas que no se usan, menús de contabilidad, sitio web y variantes solo para
   quien los usa, y la lista de entregas sin el cálculo de transportistas que la
   hacía lenta.
+* Inventario › Valor del inventario (Gerencia y administradores): la mercancía
+  de hoy al costo y a precio de venta sin ITBMS, por tipo y lo que falta cargar.
 * Compras › Reponer (Gerencia y administradores): ritmo de venta de los últimos
   meses, para cuánto alcanza lo que hay, el tiempo de llegada del proveedor,
   cuánto pedir y «Pedir ya»; buscador de proveedores y Excel hecho en el servidor.
@@ -44,6 +46,7 @@ La interfaz de trabajo de D'CASA, hecha a medida:
         'views/sitio_views.xml',
         'views/estadisticas_views.xml',
         'views/por_dia_views.xml',
+        'views/inventario_valor_views.xml',
         'views/sale_order_views.xml',
         'views/reponer_views.xml',
         'views/login_templates.xml',

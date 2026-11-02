@@ -364,6 +364,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 32** (23:31 UTC del 27, `53c7b18`, imagen `sha256:da338f12…` de CI #231, respaldo previo) · sano y
+  confirmado 23:46: arreglo de «Rastrear inventario» (PR #65).
 - **Desplegar 31** (00:26 UTC del 27, `741930d`, imagen `sha256:efb5f5ac…` de CI #230 sobre `main`, respaldo previo
   hecho) · sano y confirmado 00:42 (versión `741930d52e2c`, base al día, humo ok, 600 s de vigilancia). «Deployed dcasa
   triggers» ya lista `dcasapty.com (custom domain)` y `www.dcasapty.com (custom domain)`: los que la dueña agregó a
@@ -453,8 +455,26 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `get_job_logs` del MCP de GitHub con `tail_lines` (unas 330 líneas alcanzan para ver las pruebas antes del log del
   PostgreSQL de servicio).
 
+- **Contenedor nuevo, sin Odoo ni dependencias (2026-11-02):** `vendor/odoo` puede venir sin bajar (`git submodule
+  status` empieza con `-`): `git submodule update --init --depth 1 vendor/odoo` (unos minutos). Las dependencias van en
+  un venv del scratchpad con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
+  `grep -v -i "^psycopg2\|^python-ldap" vendor/odoo/requirements.txt > req.txt`. El rol `odoo` de PostgreSQL hay que
+  crearlo (`CREATE ROLE odoo LOGIN SUPERUSER PASSWORD 'odoo'`) y Chromium está en `/opt/pw-browsers/chromium` (enlace
+  `chromium` en el `bin` del venv para las pruebas de navegador). Correr con `PATH=<venv>/bin:$PATH PYTHON=<venv>/bin/python`.
+- **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
+  contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
+
 ### Odoo 19
 
+- **Valuación del inventario en Odoo 19:** ya no existe `stock.valuation.layer`. El valor oficial es
+  `product.product.total_value` (y `avg_cost`), calculado según el método de costo (estándar o promedio: unidades ×
+  `standard_price`; FIFO: lo que queda de cada entrada) y medido en
+  `products._with_valuation_context()` (ubicaciones propias que se valoran, sin mercancía de terceros). Lo usa
+  *Valor del inventario* (`dcasa_interfaz/models/inventario_valor.py`) (2026-11-02).
+- Marcar «Rastrear inventario» (`is_storable`) en un producto que ya tuvo movimientos corre `_reset_inventory`: crea
+  quants del historial y los aplica a cero **en el entorno del usuario**. Cualquier regla nuestra sobre
+  `stock.quant._apply_inventory` (motivo, Gerencia) le aplica: por eso `dcasa_existencias` le pasa su motivo
+  (2026-10-27, PR #65). Escribir «A la mano» en el mismo guardado es otro ajuste, humano, y sigue pidiendo motivo.
 - `invoice_payments_widget` / `_dcasa_pagos()` es caro (una consulta y varias lecturas por factura): nunca en un bucle
   sobre muchas facturas; para «¿tiene cobro?» buscar `account.partial.reconcile` de todas las líneas por cobrar a la vez
   (`dcasa_barras/models/bodega.py`, `_facturas_con_cobro`) (2026-10-23). Ojo: ni la nota de crédito ni el asiento

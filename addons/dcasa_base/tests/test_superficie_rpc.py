@@ -504,6 +504,10 @@ LISTA_BLANCA = {
     ('dcasa_interfaz', 'dcasa.tablero', 'opciones_por_dia'):
         'Lectura de las opciones de «Por día» y «Estadísticas» (bases, meses, vendedoras): exige Gerencia o '
         'administrador (_exigir_gerencia) ANTES de leer; no escribe nada.',
+    ('dcasa_interfaz', 'dcasa.tablero', 'valor_del_inventario'):
+        'Lectura del valor del inventario (al costo y a precio de venta sin ITBMS): exige Gerencia o administrador '
+        '(_ve_utilidad, AccessError) ANTES de leer; recién después lee con sudo la valuación de Odoo, las existencias '
+        'y los precios. Sin argumentos; no escribe nada.',
     ('dcasa_interfaz', 'dcasa.movimientos', 'movimientos'):
         'Lectura de la línea de tiempo de inventario: exige Gerencia (administra Inventario) o administrador '
         '(_exigir_permiso, AccessError) ANTES de leer con sudo, siempre filtrado a las empresas de quien mira; valida '

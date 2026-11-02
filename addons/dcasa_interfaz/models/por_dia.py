@@ -16,6 +16,11 @@ Cuenta con las mismas bases del Inicio de Gerencia (``ventas_bases.py``) y una m
   publicadas; las notas de crédito restan; una factura anulada no cuenta). El total del mes es el mismo ``_medir`` del
   Inicio para esas fechas, y cada día es la suma de esas mismas filas: los días suman el mes al centavo.
 
+Junto a las ventas va **lo cobrado por forma de pago** (``cobros``, pedido de la dueña del 2026-11-02: «cuando se
+selecciona un día, ese día no sale con qué métodos de pago se facturó»): el dinero que entró, con ITBMS, por el diario
+del cobro (Efectivo, Yappy, Tarjeta…), del mes, del día o del periodo. Es la misma cuenta de la «Caja de hoy» del Inicio
+para esas fechas y no depende de la base ni de la vendedora.
+
 «Mes anterior» es la misma cuenta que «Comparar › del 1 a hoy» del Inicio cuando el mes está en curso (los mismos días
 del mes pasado, el último hasta la misma hora de Panamá) y el mes anterior completo cuando el mes ya terminó.
 
@@ -187,6 +192,27 @@ class DcasaTableroPorDia(models.AbstractModel):
         return por_dia
 
     @api.model
+    def _cobros_por_forma(self, d0, d1, nombre):
+        """Lo cobrado entre ``d0`` y ``d1`` por forma de pago (el diario del cobro), con ITBMS: el dinero que entró, con
+        la misma definición de la «Caja de hoy» del Inicio (``_dominio_de_cobros``): un abono cuenta el día que se
+        cobró. Es de toda la tienda (un cobro no se separa por vendedora). Sin permiso para ver cobros, ``None``."""
+        if not self._puede('account.payment'):
+            return None
+        dominio = self._dominio_de_cobros(d0, d1)
+        grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum', '__count'])
+        redondear = self.env.company.currency_id.round
+        filas = sorted(({
+            'clave': diario.id, 'forma': diario.display_name, 'monto': redondear(monto or 0.0), 'cuantos': cuantos,
+            'accion': _accion(f'{nombre} · {diario.display_name}', 'account.payment',
+                              dominio + [('journal_id', '=', diario.id)]),
+        } for diario, monto, cuantos in grupos if diario), key=lambda fila: (-fila['monto'], fila['forma'].lower()))
+        return {
+            'filas': filas, 'total': redondear(sum(fila['monto'] for fila in filas)),
+            'cuantos': sum(fila['cuantos'] for fila in filas),
+            'accion': _accion(nombre, 'account.payment', dominio),
+        }
+
+    @api.model
     def _accion_de_lo_contado(self, nombre, medida):
         """La lista que explica una cifra: los pedidos o las facturas (con las notas de crédito) que se contaron."""
         if 'pedidos' in medida:
@@ -250,6 +276,7 @@ class DcasaTableroPorDia(models.AbstractModel):
             if mejor and mejor['sin_itbms'] > 0 else None,
             'anterior': self._mes_anterior(primero, en_curso, base, vendedor, ahora, medida),
             'accion': self._accion_de_lo_contado(titulo, medida),
+            'cobros': self._cobros_por_forma(primero, hasta, f'Cobrado · {_nombre_del_mes(primero)}'),
         }
 
     @api.model
@@ -352,6 +379,7 @@ class DcasaTableroPorDia(models.AbstractModel):
                       'cuantas': medida['cuantas'], 'notas': medida['notas'],
                       'falta_por_cobrar': medida.get('falta_por_cobrar') if base == BASE_CON_ABONOS else None},
             'accion': self._accion_de_lo_contado(titulo, medida),
+            'cobros': self._cobros_por_forma(dia, dia, f'Cobrado · {_nombre_del_dia(dia, dia.year != hoy.year)}'),
         }
 
     # ------------------------------------------------------------------
@@ -408,6 +436,7 @@ class DcasaTableroPorDia(models.AbstractModel):
             'vendedoras': self._por_vendedora_ordenado(medida, redondear),
             'productos': self._mas_vendidos(por_producto, redondear),
             'accion': self._accion_de_lo_contado(f'{nombre_base} · {etiqueta}', medida),
+            'cobros': self._cobros_por_forma(d0, d1, f'Cobrado · {etiqueta}'),
         }
 
     @api.model

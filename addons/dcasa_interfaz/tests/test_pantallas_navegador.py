@@ -192,3 +192,66 @@ class TestMovimientosEnElNavegador(PantallasMixin, HttpCase):
                 self.browser_size = tamano
                 self.browser_js('/odoo/action-dcasa_interfaz.accion_movimientos', codigo, login='gerencia_rol',
                                 timeout=120)
+
+
+@tagged('post_install', '-at_install')
+class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
+    """Lo cobrado por forma de pago en «Por día» y «Valor del inventario» (2026-11-02), en computadora y celular."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.yappy = cls.env['account.journal'].create({'name': 'Yappy navegador', 'type': 'bank', 'code': 'YNAV'})
+        cls.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=cls.factura.ids).create({
+                'payment_date': cls.hoy, 'amount': 500.0, 'journal_id': cls.yappy.id})._create_payments()
+        almacen = cls.env['stock.warehouse'].search([('company_id', '=', cls.env.company.id)], limit=1)
+        # 5000 mesas: que encabecen «Dónde está el dinero» aunque la base ya traiga el catálogo con sus existencias.
+        cls.env['stock.quant']._update_available_quantity(cls.mesa, almacen.lot_stock_id, 5000.0)
+
+    def test_por_dia_dice_con_que_se_cobro_el_dia_y_el_mes(self):
+        codigo = '(async () => {' + COMUN_JS + r"""
+            const ficha = (donde) => [...document.querySelectorAll(donde + ' .o_dcasa_cf_ficha')]
+                .find((f) => f.offsetParent !== null && f.textContent.includes('Yappy navegador'));
+            await esperar(() => ficha('.o_dcasa_pd_cobros_dia'), 'lo cobrado el día de hoy');
+            if (!ficha('.o_dcasa_pd_cobros_dia').textContent.includes('$500.00')) {
+                throw new Error('el día: ' + ficha('.o_dcasa_pd_cobros_dia').textContent);
+            }
+            const mes = ficha('.o_dcasa_pd_cobros');
+            if (!mes || !mes.textContent.includes('$500.00') || !mes.textContent.includes('1 cobro')) {
+                throw new Error('el mes: ' + (mes ? mes.textContent : 'sin la ficha'));
+            }
+            if (!visible('.o_dcasa_pd_cobros .o_dcasa_cf_total')) { throw new Error('el total cobrado del mes'); }
+            sinScrollDeCostado('cobrado por forma de pago');
+            mes.click();
+            await esperar(() => document.querySelector('.o_list_view .o_data_row'), 'los cobros de Yappy');
+        """ + "console.log('test successful'); })();"
+        for tamano in TAMANOS:
+            with self.subTest(tamano=tamano):
+                self.browser_size = tamano
+                self.browser_js('/odoo/action-dcasa_interfaz.accion_facturado_por_dia', codigo, login='gerencia_rol',
+                                timeout=120)
+
+    def test_valor_del_inventario(self):
+        codigo = '(async () => {' + COMUN_JS + r"""
+            await esperar(() => document.querySelector('.o_dcasa_vi_costo .o_dcasa_pd_valor'), 'el valor al costo');
+            igual(textos('.o_dcasa_es_numeros .o_dcasa_pd_etiqueta'),
+                  ['Al costo', 'A precio de venta', 'Ganancia esperada', 'Unidades'], 'los cuatro números');
+            if (!textos('.o_dcasa_vi_productos .o_dcasa_es_nombre').some((t) => t.includes('MESA NAVEGADOR POR DÍA'))) {
+                throw new Error('la mesa está donde está el dinero');
+            }
+            const mesa = [...document.querySelectorAll('.o_dcasa_vi_producto')]
+                .find((f) => f.textContent.includes('MESA NAVEGADOR POR DÍA'));
+            if (!mesa.textContent.includes('$600,000.00') || !mesa.textContent.includes('$1,250,000.00')) {
+                throw new Error('5000 × 120 al costo y 5000 × 250 a precio de venta: ' + mesa.textContent);
+            }
+            if (!document.querySelector('.o_dcasa_vi_tipo')) { throw new Error('por tipo de producto'); }
+            sinScrollDeCostado('valor del inventario');
+            document.querySelector('.o_dcasa_vi_costo').click();
+            await esperar(() => document.querySelector('.o_list_view .o_data_row'), 'los productos con existencias');
+        """ + "console.log('test successful'); })();"
+        for tamano in TAMANOS:
+            with self.subTest(tamano=tamano):
+                self.browser_size = tamano
+                self.browser_js('/odoo/action-dcasa_interfaz.accion_valor_inventario', codigo, login='gerencia_rol',
+                                timeout=120)

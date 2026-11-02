@@ -455,7 +455,7 @@
                         Cobrado hoy <strong t-out="dinero(d.total_cobrado)"/>
                     </p>
                     <ul t-if="d.cobros.length" class="list-unstyled mb-0">
-                        <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.forma">
+                        <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.clave">
                             <span t-out="cobro.forma"/>
                             <strong t-out="dinero(cobro.monto)"/>
                         </li>
@@ -491,7 +491,7 @@
                             Cobrado hoy <strong t-out="dinero(d.total_cobrado)"/>
                         </p>
                         <ul t-if="d.cobros.length" class="list-unstyled mb-0">
-                            <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.forma">
+                            <li t-foreach="d.cobros" t-as="cobro" t-key="cobro.clave">
                                 <span t-out="cobro.forma"/>
                                 <strong t-out="dinero(cobro.monto)"/>
                             </li>

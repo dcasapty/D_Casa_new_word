@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- «Valor del inventario» (solo Gerencia y administradores): la mercancía de hoy al costo y a precio de venta sin
+         ITBMS, cada número con su frase; por tipo, dónde está el dinero y lo que falta cargar para que la cifra sea
+         completa. Mismo sistema plano de Estadísticas. -->
+    <t t-name="dcasa_interfaz.ValorInventario">
+        <div class="o_action o_dcasa_inicio o_dcasa_estadisticas o_dcasa_valor_inventario">
+            <header class="o_dcasa_pantalla_cabeza o_dcasa_vi_cabeza">
+                <div>
+                    <h1>Valor del inventario</h1>
+                    <p class="o_dcasa_pantalla_frase">
+                        Cuánto vale la mercancía que hay hoy, al costo y a precio de venta. Todo es sin ITBMS.
+                        <t t-if="state.datos">Calculado a las <t t-out="state.datos.hora"/></t>
+                    </p>
+                </div>
+                <button type="button" class="btn btn-secondary o_dcasa_vi_actualizar" t-att-disabled="state.cargando"
+                        t-on-click="() => this.cargar()">
+                    <i class="fa fa-refresh" aria-hidden="true"/> Actualizar
+                </button>
+            </header>
+            <div class="o_dcasa_inicio_cuerpo">
+                <p t-if="state.error" class="o_dcasa_error" role="alert" t-out="state.error"/>
+                <t t-set="d" t-value="state.datos"/>
+                <div t-if="d" t-attf-class="o_dcasa_es_cuerpo {{state.cargando ? 'o_cargando' : ''}}">
+                    <section class="o_dcasa_es_numeros" aria-label="El inventario de hoy">
+                        <button type="button" class="o_dcasa_panel o_dcasa_es_numero o_dcasa_vi_costo"
+                                t-on-click="() => this.abrirLista(d.total.accion)">
+                            <span class="o_dcasa_pd_etiqueta">Al costo</span>
+                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.costo)"/>
+                            <span class="o_dcasa_es_frase">Las unidades de hoy por el costo de cada producto: el valor del
+                                inventario. Toca para ver los productos.</span>
+                        </button>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_vi_venta">
+                            <span class="o_dcasa_pd_etiqueta">A precio de venta</span>
+                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.venta)"/>
+                            <span class="o_dcasa_es_frase">Lo que suma si todo se vendiera a su precio de lista, sin
+                                ITBMS.</span>
+                        </div>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_vi_ganancia">
+                            <span class="o_dcasa_pd_etiqueta">Ganancia esperada</span>
+                            <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.ganancia)"/>
+                            <span class="o_dcasa_es_frase">
+                                Precio de venta menos costo<t t-if="d.total.margen !== null">: el
+                                <t t-out="numero(d.total.margen, 1)"/> % del precio</t>. Sin descuentos ni combos.
+                            </span>
+                        </div>
+                        <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_vi_unidades">
+                            <span class="o_dcasa_pd_etiqueta">Unidades</span>
+                            <strong class="o_dcasa_pd_valor" t-out="unidades(d.total.unidades)"/>
+                            <span class="o_dcasa_es_frase">En <t t-out="productosTexto(d.total.productos)"/> con
+                                existencias.</span>
+                        </div>
+                    </section>
+
+                    <!-- Lo que falta cargar para que la cifra sea completa (solo si hay algo). -->
+                    <section t-if="hayAvisos" class="o_dcasa_panel o_dcasa_vi_avisos" aria-label="Lo que falta cargar">
+                        <h2>Para que la cifra sea completa</h2>
+                        <ul class="list-unstyled mb-0">
+                            <li t-if="d.avisos.sin_costo.cuantos">
+                                <button type="button" class="o_dcasa_lista_fila o_dcasa_vi_aviso o_dcasa_vi_sin_costo"
+                                        t-on-click="() => this.abrirLista(d.avisos.sin_costo.accion)">
+                                    <span class="o_dcasa_lista_texto">
+                                        <strong><t t-out="productosTexto(d.avisos.sin_costo.cuantos)"/> sin costo</strong>
+                                        <small><t t-out="d.avisos.sin_costo.cuantos === 1 ? 'Tiene' : 'Tienen'"/> <t t-out="unidadesTexto(d.avisos.sin_costo.unidades)"/> y
+                                            suman <t t-out="dinero(0)"/> al costo (a precio de venta suman
+                                            <t t-out="dinero(d.avisos.sin_costo.monto)"/>). Cárgales el costo.</small>
+                                    </span>
+                                    <i class="fa fa-chevron-right" aria-hidden="true"/>
+                                </button>
+                            </li>
+                            <li t-if="d.avisos.sin_precio.cuantos">
+                                <button type="button" class="o_dcasa_lista_fila o_dcasa_vi_aviso o_dcasa_vi_sin_precio"
+                                        t-on-click="() => this.abrirLista(d.avisos.sin_precio.accion)">
+                                    <span class="o_dcasa_lista_texto">
+                                        <strong><t t-out="productosTexto(d.avisos.sin_precio.cuantos)"/> sin precio de venta</strong>
+                                        <small><t t-out="d.avisos.sin_precio.cuantos === 1 ? 'Tiene' : 'Tienen'"/> <t t-out="unidadesTexto(d.avisos.sin_precio.unidades)"/> y
+                                            suman <t t-out="dinero(0)"/> a precio de venta (al costo suman
+                                            <t t-out="dinero(d.avisos.sin_precio.monto)"/>). Ponles precio.</small>
+                                    </span>
+                                    <i class="fa fa-chevron-right" aria-hidden="true"/>
+                                </button>
+                            </li>
+                            <li t-if="d.avisos.negativos.cuantos">
+                                <button type="button" class="o_dcasa_lista_fila o_dcasa_vi_aviso o_dcasa_vi_negativos"
+                                        t-on-click="() => this.abrirLista(d.avisos.negativos.accion)">
+                                    <span class="o_dcasa_lista_texto">
+                                        <strong><t t-out="productosTexto(d.avisos.negativos.cuantos)"/> en negativo</strong>
+                                        <small><t t-out="d.avisos.negativos.unidades === 1 ? 'Falta' : 'Faltan'"/> <t t-out="unidadesTexto(d.avisos.negativos.unidades)"/>: lo que está en negativo no se suma. Cuenta con el Escáner para que cuadre.</small>
+                                    </span>
+                                    <i class="fa fa-chevron-right" aria-hidden="true"/>
+                                </button>
+                            </li>
+                        </ul>
+                    </section>
+
+                    <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_vi_tipos">
+                        <h2>Por tipo de producto <small class="o_dcasa_sin_itbms">al costo</small></h2>
+                        <p class="o_dcasa_es_frase">Cuánto dinero hay en cada tipo de mueble: al costo y, debajo, a
+                            precio de venta. Toca un tipo para ver sus productos.</p>
+                        <t t-set="maxTipo" t-value="maximo(d.tipos, 'costo')"/>
+                        <ol t-if="d.tipos.length" class="list-unstyled mb-0 o_dcasa_es_filas">
+                            <li t-foreach="d.tipos" t-as="t" t-key="t.clave">
+                                <button type="button" class="o_dcasa_es_hfila o_dcasa_vi_tipo"
+                                        t-on-click="() => this.abrirLista(t.accion)">
+                                    <span class="o_dcasa_es_nombre" t-out="t.nombre"/>
+                                    <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(t.costo, maxTipo) }}%"/></span>
+                                    <span class="o_dcasa_es_valor">
+                                        <strong t-out="dinero(t.costo)"/>
+                                        <small>venta <t t-out="dinero(t.venta)"/></small>
+                                        <small><t t-out="unidades(t.unidades)"/> u.</small>
+                                    </span>
+                                </button>
+                            </li>
+                        </ol>
+                        <p t-else="" class="o_dcasa_vacio">No hay mercancía con existencias.</p>
+                    </section>
+
+                    <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_vi_productos">
+                        <h2>Dónde está el dinero <small class="o_dcasa_sin_itbms">al costo</small></h2>
+                        <p class="o_dcasa_es_frase">Los <t t-out="d.productos.length || 10"/> productos con más dinero
+                            en existencia, al costo. Toca uno para abrirlo.</p>
+                        <t t-set="maxProd" t-value="maximo(d.productos, 'costo')"/>
+                        <ol t-if="d.productos.length" class="list-unstyled mb-0 o_dcasa_es_filas">
+                            <li t-foreach="d.productos" t-as="p" t-key="p.id">
+                                <button type="button" class="o_dcasa_es_hfila o_dcasa_vi_producto"
+                                        t-on-click="() => this.abrirDocumento('product.product', p.id)">
+                                    <span class="o_dcasa_es_nombre"><img t-att-src="p.imagen" alt="" loading="lazy"/><t t-out="p.nombre"/></span>
+                                    <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(p.costo, maxProd) }}%"/></span>
+                                    <span class="o_dcasa_es_valor">
+                                        <strong t-out="dinero(p.costo)"/>
+                                        <small>venta <t t-out="dinero(p.venta)"/></small>
+                                        <small><t t-out="unidades(p.unidades)"/> u.</small>
+                                    </span>
+                                </button>
+                            </li>
+                        </ol>
+                        <p t-else="" class="o_dcasa_vacio">No hay mercancía con existencias.</p>
+                    </section>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>
