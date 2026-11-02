@@ -8,6 +8,8 @@
 * Por tipo suman el total; cada cifra abre la lista de sus productos.
 * La vendedora, Caja y contabilidad no lo ven: ni la conexión de datos, ni el menú, ni el atajo del Inicio.
 """
+from unittest.mock import patch
+
 from odoo import Command
 from odoo.exceptions import AccessError
 from odoo.tests import tagged
@@ -62,7 +64,9 @@ class TestValorInventario(VentasCommon):
         """El tipo de la prueba: sofá 2 × 300 / 750, mesa 4 × 50 / 107 con ITBMS incluido (100 sin ITBMS), silla sin
         costo 5 × 80, lámpara sin precio 1 × 20 y el baúl archivado 1 × 40 / 90. La cama en negativo, el espejo sin
         existencias y la repisa de un tercero no cuentan."""
-        datos = self.valor()
+        # Todos los tipos a la vista: con el catálogo real cargado, el de la prueba quedaría dentro de «Otros».
+        with patch('odoo.addons.dcasa_interfaz.models.inventario_valor.TIPOS_A_LA_VISTA', 1000):
+            datos = self.valor()
         tipo = next(fila for fila in datos['tipos'] if fila['nombre'] == 'TIPO VALOR INVENTARIO')
         self.assertEqual(tipo['costo'], 600.0 + 200.0 + 0.0 + 20.0 + 40.0)
         self.assertEqual(tipo['venta'], 1500.0 + 400.0 + 400.0 + 0.0 + 90.0)

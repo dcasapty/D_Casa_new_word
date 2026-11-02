@@ -206,7 +206,8 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
             active_model='account.move', active_ids=cls.factura.ids).create({
                 'payment_date': cls.hoy, 'amount': 500.0, 'journal_id': cls.yappy.id})._create_payments()
         almacen = cls.env['stock.warehouse'].search([('company_id', '=', cls.env.company.id)], limit=1)
-        cls.env['stock.quant']._update_available_quantity(cls.mesa, almacen.lot_stock_id, 5.0)
+        # 5000 mesas: que encabecen «Dónde está el dinero» aunque la base ya traiga el catálogo con sus existencias.
+        cls.env['stock.quant']._update_available_quantity(cls.mesa, almacen.lot_stock_id, 5000.0)
 
     def test_por_dia_dice_con_que_se_cobro_el_dia_y_el_mes(self):
         codigo = '(async () => {' + COMUN_JS + r"""
@@ -241,8 +242,8 @@ class TestCobrosYValorEnElNavegador(PantallasMixin, HttpCase):
             }
             const mesa = [...document.querySelectorAll('.o_dcasa_vi_producto')]
                 .find((f) => f.textContent.includes('MESA NAVEGADOR POR DÍA'));
-            if (!mesa.textContent.includes('$600.00') || !mesa.textContent.includes('$1,250.00')) {
-                throw new Error('5 × 120 al costo y 5 × 250 a precio de venta: ' + mesa.textContent);
+            if (!mesa.textContent.includes('$600,000.00') || !mesa.textContent.includes('$1,250,000.00')) {
+                throw new Error('5000 × 120 al costo y 5000 × 250 a precio de venta: ' + mesa.textContent);
             }
             if (!document.querySelector('.o_dcasa_vi_tipo')) { throw new Error('por tipo de producto'); }
             sinScrollDeCostado('valor del inventario');
