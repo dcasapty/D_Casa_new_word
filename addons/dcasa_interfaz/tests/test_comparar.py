@@ -191,13 +191,14 @@ class CompararCommon(VentasCommon):
         self.registrar(factura, dia, hora)
         return orden, factura
 
-    def pagar(self, factura, monto, dia, hora=time(9, 0), registrado=None, usuario=None):
-        """Un pago con fecha ``dia``, anotado ``registrado`` (día, hora) o, si no se dice, ese día a esa hora."""
+    def pagar(self, factura, monto, dia, hora=time(9, 0), registrado=None, usuario=None, diario=None):
+        """Un pago con fecha ``dia``, anotado ``registrado`` (día, hora) o, si no se dice, ese día a esa hora, en
+        ``diario`` (la forma de pago; si no se dice, el banco de la prueba)."""
         Registro = self.env['account.payment.register']
         if usuario:
             Registro = Registro.with_user(usuario)
         pagos = Registro.with_context(active_model='account.move', active_ids=factura.ids).create({
-            'payment_date': dia, 'amount': monto, 'journal_id': self.banco.id})._create_payments()
+            'payment_date': dia, 'amount': monto, 'journal_id': (diario or self.banco).id})._create_payments()
         cuando = registrado or (dia, hora)
         lineas = pagos.move_id.line_ids
         self.registrar(pagos, *cuando)

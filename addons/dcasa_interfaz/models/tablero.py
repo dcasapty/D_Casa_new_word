@@ -123,7 +123,7 @@ class DcasaTablero(models.AbstractModel):
 
     def _atajos(self, permisos):
         """Los accesos grandes del Inicio, en este orden: Productos, Facturas, Conversaciones, Escáner, Marketing,
-        Oportunidades y Resumen contable.
+        Valor del inventario, Oportunidades y Resumen contable.
 
         Solo los que quien mira puede abrir. Conversaciones, Oportunidades y el Resumen contable viven en otros
         módulos: si no están instalados (o la persona no tiene permiso) simplemente no salen. ``vista`` es la vista
@@ -170,6 +170,13 @@ class DcasaTablero(models.AbstractModel):
                 'icono': 'fa-bullhorn', 'accion': 'dcasa_marketing.accion_marketing', 'vista': None})
         if not permisos['completo']:
             return atajos
+        # Valor del inventario (pedido de la dueña, 2026-11-02): «solo para gerencia o administración», como la
+        # ganancia.
+        if self._ve_utilidad() and self.env.ref('dcasa_interfaz.accion_valor_inventario', raise_if_not_found=False):
+            atajos.append({
+                'clave': 'valor_inventario', 'titulo': 'Valor del inventario',
+                'detalle': 'Al costo y a precio de venta', 'icono': 'fa-cubes',
+                'accion': 'dcasa_interfaz.accion_valor_inventario', 'vista': None})
         oportunidades = self.env.get('crm.lead')
         if oportunidades is not None and 'dcasa_temperatura' in oportunidades._fields \
                 and oportunidades.has_access('read') \

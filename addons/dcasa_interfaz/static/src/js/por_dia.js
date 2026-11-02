@@ -50,13 +50,18 @@ export const FormatoMixin = (Base) =>
             return notas === 1 ? "1 nota de crédito" : `${notas} notas de crédito`;
         }
 
-        /** Abre la lista que explica una cifra (los pedidos o las facturas que se contaron). */
+        cobrosTexto(cuantos) {
+            return cuantos === 1 ? "1 cobro" : `${cuantos} cobros`;
+        }
+
+        /** Abre la lista que explica una cifra (los pedidos, las facturas, los cobros o los productos que se contaron). */
         abrirLista(a) {
             this.action.doAction({
                 type: "ir.actions.act_window",
                 name: a.name,
                 res_model: a.res_model,
                 domain: a.domain,
+                context: a.contexto || {},
                 views: [
                     [a.vista_lista || false, "list"],
                     [false, "form"],

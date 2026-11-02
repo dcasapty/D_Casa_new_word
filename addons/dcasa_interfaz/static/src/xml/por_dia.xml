@@ -82,6 +82,18 @@
                     </div>
                 </section>
 
+                <!-- Lo cobrado en el mes por forma de pago (con ITBMS), la misma cuenta de la Caja de hoy. -->
+                <section t-if="d and d.cobros" t-attf-class="o_dcasa_panel o_dcasa_pd_cobros {{state.cargando ? 'o_cargando' : ''}}"
+                         aria-label="Cobrado por forma de pago">
+                    <h2>Cobrado por forma de pago · <t t-out="d.nombre"/> <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+                    <t t-call="dcasa_interfaz.CobrosPorForma">
+                        <t t-set="cobros" t-value="d.cobros"/>
+                        <t t-set="vacio" t-value="'Todavía no hay cobros este mes.'"/>
+                    </t>
+                    <p t-if="state.vendedor" class="o_dcasa_es_frase o_dcasa_cf_toda">Es de toda la tienda: un cobro no se
+                        separa por vendedora.</p>
+                </section>
+
                 <div t-if="d" t-attf-class="o_dcasa_pd_cuerpo {{state.cargando ? 'o_cargando' : ''}}">
                     <!-- Computadora: el calendario (lunes a domingo). -->
                     <section class="o_dcasa_panel o_dcasa_pd_calendario" aria-label="Calendario del mes">
@@ -172,6 +184,34 @@
                 </li>
             </ul>
             <p t-else="" class="o_dcasa_vacio">Ese día no hubo <t t-out="x.base === 'confirmado' ? 'pedidos confirmados' : 'facturas'"/>.</p>
+            <div t-if="x.cobros" class="o_dcasa_pd_cobros_dia">
+                <h3>Cobrado ese día por forma de pago <small class="o_dcasa_sin_itbms">con ITBMS</small></h3>
+                <t t-call="dcasa_interfaz.CobrosPorForma">
+                    <t t-set="cobros" t-value="x.cobros"/>
+                    <t t-set="vacio" t-value="'Ese día no hubo cobros.'"/>
+                </t>
+            </div>
         </div>
+    </t>
+
+    <!-- Lo cobrado por forma de pago (Por día y Estadísticas): una ficha por forma (Efectivo, Yappy, Tarjeta…) con su
+         monto y cuántos cobros; tocarla abre esos cobros. Con ITBMS: es el dinero que entró. -->
+    <t t-name="dcasa_interfaz.CobrosPorForma">
+        <p class="o_dcasa_es_frase o_dcasa_cf_frase">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
+            hoy. Un abono cuenta el día que se cobró.</p>
+        <div t-if="cobros.filas.length" class="o_dcasa_cf_fichas">
+            <button t-foreach="cobros.filas" t-as="c" t-key="c.forma" type="button" class="o_dcasa_cf_ficha"
+                    t-on-click="() => this.abrirLista(c.accion)">
+                <span class="o_dcasa_cf_forma" t-out="c.forma"/>
+                <strong class="o_dcasa_cf_monto" t-out="dinero(c.monto)"/>
+                <small t-out="cobrosTexto(c.cuantos)"/>
+            </button>
+            <button type="button" class="o_dcasa_cf_ficha o_dcasa_cf_total" t-on-click="() => this.abrirLista(cobros.accion)">
+                <span class="o_dcasa_cf_forma">Total cobrado</span>
+                <strong class="o_dcasa_cf_monto" t-out="dinero(cobros.total)"/>
+                <small t-out="cobrosTexto(cobros.cuantos)"/>
+            </button>
+        </div>
+        <p t-else="" class="o_dcasa_vacio" t-out="vacio"/>
     </t>
 </templates>

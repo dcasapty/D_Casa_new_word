@@ -455,8 +455,22 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `get_job_logs` del MCP de GitHub con `tail_lines` (unas 330 líneas alcanzan para ver las pruebas antes del log del
   PostgreSQL de servicio).
 
+- **Contenedor nuevo, sin Odoo ni dependencias (2026-11-02):** `vendor/odoo` puede venir sin bajar (`git submodule
+  status` empieza con `-`): `git submodule update --init --depth 1 vendor/odoo` (unos minutos). Las dependencias van en
+  un venv del scratchpad con `psycopg2-binary` y sin `python-ldap` (no compilan sin las librerías del sistema):
+  `grep -v -i "^psycopg2\|^python-ldap" vendor/odoo/requirements.txt > req.txt`. El rol `odoo` de PostgreSQL hay que
+  crearlo (`CREATE ROLE odoo LOGIN SUPERUSER PASSWORD 'odoo'`) y Chromium está en `/opt/pw-browsers/chromium` (enlace
+  `chromium` en el `bin` del venv para las pruebas de navegador). Correr con `PATH=<venv>/bin:$PATH PYTHON=<venv>/bin/python`.
+- **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
+  contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
+
 ### Odoo 19
 
+- **Valuación del inventario en Odoo 19:** ya no existe `stock.valuation.layer`. El valor oficial es
+  `product.product.total_value` (y `avg_cost`), calculado según el método de costo (estándar o promedio: unidades ×
+  `standard_price`; FIFO: lo que queda de cada entrada) y medido en
+  `products._with_valuation_context()` (ubicaciones propias que se valoran, sin mercancía de terceros). Lo usa
+  *Valor del inventario* (`dcasa_interfaz/models/inventario_valor.py`) (2026-11-02).
 - Marcar «Rastrear inventario» (`is_storable`) en un producto que ya tuvo movimientos corre `_reset_inventory`: crea
   quants del historial y los aplica a cero **en el entorno del usuario**. Cualquier regla nuestra sobre
   `stock.quant._apply_inventory` (motivo, Gerencia) le aplica: por eso `dcasa_existencias` le pasa su motivo

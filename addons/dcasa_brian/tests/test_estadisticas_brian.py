@@ -1,4 +1,5 @@
-"""Brian «ventas_por_dia» y «movimientos_de_producto»: lo mismo que Por día y Movimientos (2026-10-22)."""
+"""Brian «ventas_por_dia», «valor_del_inventario» y «movimientos_de_producto»: lo mismo que Por día (con lo cobrado por
+forma de pago), Valor del inventario y Movimientos (2026-10-22 y 2026-11-02)."""
 from datetime import date
 
 from odoo import Command
@@ -91,6 +92,38 @@ class TestEstadisticasBrian(TransactionCase):
         self.assertEqual(([d['numero'] for d in datos['documentos']], datos['ventas_sin_itbms']),
                          ([self.factura.name], '$400.00'))
 
+    def test_lo_cobrado_por_forma_de_pago(self):
+        """Hoy se cobró la factura en un banco: el día y el mes dicen cuánto entró por esa forma de pago (con ITBMS),
+        lo mismo que la pantalla, aunque se pregunte por una vendedora (un cobro es de toda la tienda)."""
+        banco = self.env['account.journal'].create({'name': 'Yappy Brian por día', 'type': 'bank', 'code': 'YBPD'})
+        self.env['account.payment.register'].with_context(
+            active_model='account.move', active_ids=self.factura.ids).create({
+                'payment_date': self.hoy, 'amount': self.factura.amount_total, 'journal_id': banco.id,
+            })._create_payments()
+        pantalla = self.env['dcasa.tablero'].with_user(self.gerencia).ventas_del_dia(str(self.hoy))['cobros']
+        for argumentos in ({'dia': 'hoy'}, {'dia': 'hoy', 'vendedora': self.vendedora.name}, {}):
+            with self.subTest(**argumentos):
+                respuesta = self.ejecutar(self.gerencia, 'ventas_por_dia', argumentos)
+                self.assertTrue(respuesta['ok'], respuesta)
+                datos = respuesta['datos']
+                yappy = next(f for f in datos['cobrado_por_forma_de_pago'] if f['forma'] == banco.display_name)
+                self.assertEqual((yappy['monto'], yappy['cobros']), ('$400.00', 1))
+                self.assertIn('toda la tienda', datos['nota_cobrado'])
+        self.assertEqual(self.ejecutar(self.gerencia, 'ventas_por_dia', {'dia': 'hoy'})['datos']['cobrado_con_itbms'],
+                         f'${pantalla["total"]:,.2f}')
+
+    def test_cuanto_vale_el_inventario(self):
+        """La mesa tiene 3 unidades a $400 y no tiene costo: suma a precio de venta y Brian avisa que falta su costo."""
+        respuesta = self.ejecutar(self.gerencia, 'valor_del_inventario', {})
+        self.assertTrue(respuesta['ok'], respuesta)
+        datos = respuesta['datos']
+        pantalla = self.env['dcasa.tablero'].with_user(self.gerencia).valor_del_inventario()['total']
+        self.assertEqual(datos['al_costo'], f'${pantalla["costo"]:,.2f}')
+        self.assertEqual(datos['a_precio_de_venta_sin_itbms'], f'${pantalla["venta"]:,.2f}')
+        self.assertEqual(datos['productos_con_existencias'], pantalla['productos'])
+        self.assertTrue(any('sin costo' in f or 'no tienen costo' in f for f in datos['para_que_sea_completo']))
+        self.assertIn('precio de lista', datos['nota'])
+
     def test_movimientos_de_un_producto(self):
         respuesta = self.ejecutar(self.gerencia, 'movimientos_de_producto', {'producto': 'BR-DIA-1'})
         self.assertTrue(respuesta['ok'], respuesta)
@@ -107,6 +140,8 @@ class TestEstadisticasBrian(TransactionCase):
         nombres = {h['name'] for h in self.env['brian.herramientas'].with_user(self.vendedora).catalogo()}
         self.assertNotIn('ventas_por_dia', nombres)
         self.assertNotIn('movimientos_de_producto', nombres)
+        self.assertNotIn('valor_del_inventario', nombres)
+        self.assertFalse(self.ejecutar(self.vendedora, 'valor_del_inventario', {})['ok'])
         self.assertFalse(self.ejecutar(self.vendedora, 'ventas_por_dia', {})['ok'])
         self.assertFalse(self.ejecutar(self.vendedora, 'movimientos_de_producto', {'producto': 'BR-DIA-1'})['ok'])
         todas = self.env['brian.herramientas']._todas()

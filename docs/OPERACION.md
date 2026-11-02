@@ -1045,6 +1045,27 @@ Brian responde lo mismo con `ventas_por_dia` y `movimientos_de_producto` ([BRIAN
 `addons/dcasa_interfaz/models/por_dia.py`, `models/movimientos.py` y `static/src/js/por_dia.js`, `estadisticas.js`,
 `movimientos.js`; pruebas en `tests/test_por_dia.py`, `test_movimientos.py` y `test_pantallas_navegador.py`.
 
+### Cobrado por forma de pago y Valor del inventario (pedido de la dueña, 2026-11-02)
+
+Lo pedido: «cuando se selecciona un día, ese día no sale con qué métodos de pago se facturó», «tampoco hay un dato
+certero de por mes cuánto se facturó según cada método de pago» y, lo más urgente, «el costo en mercancía o productos
+actualmente; esto es solo para gerencia o administración».
+
+* **Cobrado por forma de pago** (en *Por día*, debajo del resumen del mes y dentro de cada día, y en *Estadísticas*):
+  una ficha por forma de pago (Efectivo, Yappy, Tarjeta, Tafi, Crediviva…) con lo que entró **con ITBMS** y cuántos
+  cobros, y el total. Es la misma cuenta de la **Caja de hoy** del Inicio para cualquier día o mes: los cobros a
+  clientes confirmados, por su fecha y su diario; un abono cuenta el día que se cobró. Una factura no tiene «método de
+  pago» hasta que se cobra: por eso se mide lo cobrado, no lo facturado. No cambia con «qué contar» ni con la vendedora
+  (un cobro es de toda la tienda). Tocar una ficha abre esos cobros. Brian lo da en `ventas_por_dia`.
+* **Valor del inventario** (*Inventario › Valor del inventario*, *Estadísticas* y un atajo del Inicio de Gerencia): la
+  mercancía que hay hoy **al costo** (la valuación del inventario de Odoo, `total_value`: unidades × costo en estándar o
+  promedio), **a precio de venta sin ITBMS** (los precios de D'CASA ya lo son; si a un producto le queda el impuesto
+  incluido, se le quita), la **ganancia esperada** con su margen sobre el precio (como si todo se vendiera a precio de
+  lista, sin descuentos ni combos) y las unidades. Debajo: por tipo de mueble, los 10 productos con más dinero y **lo
+  que falta cargar** (con existencias y sin costo o sin precio, que suman 0 en esa cifra, y en negativo, que no se
+  cuentan). La mercancía de terceros (consignación) no cuenta; un producto archivado que todavía tiene existencias sí.
+  Cada cifra abre su lista de productos. Brian: `valor_del_inventario`.
+
 ## Combos cama + colchón que se arman en la venta (pedido de la dueña, 2026-10-22)
 
 Antes, cada combo era un producto «COMBO …» con una cama y un colchón fijos: otro producto por cada cama con cada

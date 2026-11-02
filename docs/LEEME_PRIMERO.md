@@ -102,6 +102,20 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-02: Valor del inventario y cobrado por forma de pago
+
+- Pedido de la dueña (para Gerencia): «el costo en mercancía o productos actualmente» (lo más urgente, «solo para
+  gerencia o administración») y ver **por forma de pago** lo de días y meses pasados (antes solo la Caja de hoy).
+- Hecho en la rama (sin desplegar todavía): pantalla **Inventario › Valor del inventario** (también en Estadísticas y
+  como atajo del Inicio de Gerencia; `dcasa.tablero.valor_del_inventario`): al costo = valuación de Odoo
+  (`total_value`), a precio de venta sin ITBMS, ganancia esperada, por tipo, los 10 con más dinero y lo que falta cargar.
+  Y **lo cobrado por forma de pago** (la cuenta de la Caja de hoy) en Por día (mes y día elegido) y Estadísticas. Brian:
+  `valor_del_inventario` y los cobros dentro de `ventas_por_dia`. Guía, OPERACION, PERMISOS y BRIAN al día.
+- No se pudo «conectar a Cloudflare» para leer las cifras de producción: el conector de Cloudflare de esta sesión no
+  estaba autorizado y, aunque lo estuviera, la base de Odoo vive dentro del contenedor (no se lee por la API de
+  Cloudflare). Las cifras reales las verá la dueña en la pantalla al desplegar.
+- Sigue: capturas → su visto bueno → staging → producción (después de las 5 pm).
+
 ### 2026-10-27 (tarde): «Rastrear inventario» bloqueado
 
 - Un jefe reportó (urgente, llega un contenedor): productos nuevos creados en una compra sin «Rastrear inventario» no

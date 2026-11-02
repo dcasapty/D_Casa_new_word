@@ -1,6 +1,8 @@
-"""Herramientas de «Por día» y «Movimientos» (2026-10-22): «¿cuánto se vendió el martes?», «ventas por día de este
-mes» y «¿qué movimientos tuvo el producto X?». Las mismas cuentas de las pantallas (``dcasa.tablero.por_dia`` y
-``dcasa.movimientos``), con los mismos permisos: el servidor de esas pantallas los exige otra vez."""
+"""Herramientas de «Por día», «Valor del inventario» y «Movimientos» (2026-10-22 y 2026-11-02): «¿cuánto se vendió el
+martes?», «ventas por día de este mes» (con lo cobrado por forma de pago), «¿cuánto vale el inventario?» y «¿qué
+movimientos tuvo el producto X?». Las mismas cuentas de las pantallas (``dcasa.tablero.por_dia``,
+``dcasa.tablero.valor_del_inventario`` y ``dcasa.movimientos``), con los mismos permisos: el servidor de esas pantallas
+los exige otra vez."""
 import re
 from datetime import date, timedelta
 
@@ -13,6 +15,7 @@ from . import herramientas_comun as c
 from .registro import BrianError, herramienta
 
 GERENCIA = ('sales_team.group_sale_manager',)
+GERENCIA_O_ADMIN = (('sales_team.group_sale_manager', 'base.group_system'),)
 INVENTARIO_O_ADMIN = (('stock.group_stock_manager', 'base.group_system'),)
 DIAS_DE_LA_SEMANA = ('lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo')
 DIAS_CORTOS = ('lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom')
@@ -88,7 +91,8 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
         nombre='ventas_por_dia',
         descripcion='Lo vendido o facturado por día (pantalla Por día): con «dia», el total de ese día y cada factura '
                     'o pedido; sin «dia», cada día del mes, el total, el mejor día y la comparación con el mes '
-                    'anterior. Sin ITBMS.',
+                    'anterior. Sin ITBMS. Trae también lo cobrado ese día o ese mes por forma de pago (efectivo, '
+                    'Yappy, tarjeta…), con ITBMS.',
         parametros={
             'dia': {'type': 'string', 'description': 'Un día: «hoy», «ayer», «el martes», «el martes pasado» o '
                                                      '«20/10/2026». Vacío: el mes entero.'},
@@ -102,7 +106,9 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
         ejemplos=['¿cuánto se facturó el martes? → dia=el martes',
                   '¿cuánto se vendió ayer? → dia=ayer, base=confirmado',
                   'ventas por día de este mes → (sin dia)', 'facturado por día de septiembre → mes=septiembre',
-                  '¿qué vendió Ana el 20/10/2026? → dia=20/10/2026, vendedora=Ana'],
+                  '¿qué vendió Ana el 20/10/2026? → dia=20/10/2026, vendedora=Ana',
+                  '¿cuánto entró en Yappy ayer? → dia=ayer',
+                  '¿cuánto se cobró por forma de pago en octubre? → mes=octubre'],
     )
     def _h_ventas_por_dia(self, dia=None, mes=None, base=None, vendedora=None):
         Tablero = self.env['dcasa.tablero']
@@ -136,6 +142,7 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
                                      'por día.')
             if not datos['filas']:
                 respuesta['nota'] = 'Ese día no hubo ' + ('pedidos confirmados.' if pedidos else 'facturas.')
+            self._b_cobros_por_forma(respuesta, datos.get('cobros'))
             return respuesta
         datos = Tablero.por_dia(mes=self._b_mes_dicho(mes, hoy), base=base, vendedor=vendedor)
         total, anterior = datos['total'], datos['anterior']
@@ -163,7 +170,20 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
             respuesta['notas_de_credito'] = total['notas']
         if vendedor:
             respuesta['vendedora'] = Tablero._nombre_de_vendedora(vendedor)
+        self._b_cobros_por_forma(respuesta, datos.get('cobros'))
         return respuesta
+
+    @staticmethod
+    def _b_cobros_por_forma(respuesta, cobros):
+        """Lo cobrado por forma de pago (con ITBMS, de toda la tienda), si quien pregunta puede ver los cobros."""
+        if cobros is None:
+            return
+        respuesta['cobrado_con_itbms'] = c.moneda(cobros['total'])
+        respuesta['cobrado_por_forma_de_pago'] = [
+            {'forma': fila['forma'], 'monto': c.moneda(fila['monto']), 'cobros': fila['cuantos']}
+            for fila in cobros['filas']]
+        respuesta['nota_cobrado'] = ('Lo cobrado es el dinero que entró, por forma de pago (como la Caja de hoy), de '
+                                     'toda la tienda; un abono cuenta el día que se cobró.')
 
     @api.model
     def _b_base_por_dia(self, base):
@@ -171,6 +191,50 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
             if opcion['clave'] == base:
                 return f'{opcion["nombre"]}: {opcion["detalle"][:1].lower()}{opcion["detalle"][1:]}'
         return base
+
+    # ------------------------------------------------------------------
+    # Valor del inventario
+    # ------------------------------------------------------------------
+
+    @herramienta(
+        nombre='valor_del_inventario',
+        descripcion='Cuánto vale la mercancía que hay hoy (Inventario › Valor del inventario): al costo (la valuación '
+                    'del inventario), a precio de venta sin ITBMS y la ganancia esperada, con las unidades; por tipo '
+                    'de mueble, los productos con más dinero y lo que falta cargar (sin costo, sin precio, en '
+                    'negativo).',
+        nivel='lectura', categoria='catalogo', grupos=GERENCIA_O_ADMIN,
+        ejemplos=['¿cuánto vale el inventario? → (sin parámetros)',
+                  '¿cuánto dinero tengo en mercancía? → (sin parámetros)'],
+    )
+    def _h_valor_del_inventario(self):
+        datos = self.env['dcasa.tablero'].valor_del_inventario()
+        total, avisos = datos['total'], datos['avisos']
+        respuesta = {
+            'calculado_a_las': datos['hora'],
+            'al_costo': c.moneda(total['costo']),
+            'a_precio_de_venta_sin_itbms': c.moneda(total['venta']),
+            'ganancia_esperada': c.moneda(total['ganancia']),
+            **({'margen': f'{total["margen"]:,.1f} % del precio'} if total['margen'] is not None else {}),
+            'unidades': c.cantidad(total['unidades']),
+            'productos_con_existencias': total['productos'],
+            'por_tipo': [{'tipo': fila['nombre'], 'al_costo': c.moneda(fila['costo']),
+                          'a_precio_de_venta': c.moneda(fila['venta']), 'unidades': c.cantidad(fila['unidades'])}
+                         for fila in datos['tipos']],
+            'con_mas_dinero': [{'producto': fila['nombre'], 'unidades': c.cantidad(fila['unidades']),
+                                'al_costo': c.moneda(fila['costo'])} for fila in datos['productos'][:5]],
+            'nota': 'La ganancia esperada supone que todo se vende a precio de lista, sin descuentos ni combos.',
+        }
+        faltan = []
+        if avisos['sin_costo']['cuantos']:
+            faltan.append(f'{avisos["sin_costo"]["cuantos"]} productos con existencias no tienen costo (suman 0 al '
+                          'costo).')
+        if avisos['sin_precio']['cuantos']:
+            faltan.append(f'{avisos["sin_precio"]["cuantos"]} productos con existencias no tienen precio de venta.')
+        if avisos['negativos']['cuantos']:
+            faltan.append(f'{avisos["negativos"]["cuantos"]} productos están en negativo y no se cuentan.')
+        if faltan:
+            respuesta['para_que_sea_completo'] = faltan
+        return respuesta
 
     # ------------------------------------------------------------------
     # Movimientos de inventario

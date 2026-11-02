@@ -385,8 +385,8 @@ class TestInicioPorRol(VentasCommon):
     def test_atajos_de_gerencia_en_el_orden_pedido(self):
         atajos = self.env['dcasa.tablero'].with_user(self.gerencia).obtener_datos()['atajos']
         claves = [a['clave'] for a in atajos]
-        esperado = ['productos', 'facturas', 'conversaciones', 'bodega', 'escaner', 'marketing', 'oportunidades',
-                    'resumen_contable']
+        esperado = ['productos', 'facturas', 'conversaciones', 'bodega', 'escaner', 'marketing', 'valor_inventario',
+                    'oportunidades', 'resumen_contable']
         # Conversaciones, Bodega, Escáner, Marketing, Oportunidades y el Resumen contable viven en otros módulos: si
         # falta alguno no sale.
         self.assertEqual(claves, [c for c in esperado if c in claves])

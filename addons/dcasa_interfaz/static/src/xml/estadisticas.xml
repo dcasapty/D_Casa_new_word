@@ -7,7 +7,8 @@
             <header class="o_dcasa_pantalla_cabeza">
                 <div>
                     <h1>Estadísticas</h1>
-                    <p class="o_dcasa_pantalla_frase">Cómo van las ventas, en gráficas simples. Todo es sin ITBMS.</p>
+                    <p class="o_dcasa_pantalla_frase">Cómo van las ventas, en gráficas simples. Las ventas van sin ITBMS;
+                        lo cobrado, con ITBMS.</p>
                 </div>
             </header>
             <div class="o_dcasa_inicio_cuerpo">
@@ -95,6 +96,15 @@
                         </div>
                     </section>
 
+                    <!-- Lo cobrado en el periodo por forma de pago (con ITBMS). -->
+                    <section t-if="d.cobros" class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_cobros">
+                        <h2>Cobrado por forma de pago · <t t-out="d.etiqueta"/> <small class="o_dcasa_sin_itbms">con ITBMS</small></h2>
+                        <t t-call="dcasa_interfaz.CobrosPorForma">
+                            <t t-set="cobros" t-value="d.cobros"/>
+                            <t t-set="vacio" t-value="'No hubo cobros en este periodo.'"/>
+                        </t>
+                    </section>
+
                     <div class="o_dcasa_es_fila">
                         <!-- Por tipo de producto -->
                         <section class="o_dcasa_panel o_dcasa_es_grafica o_dcasa_es_tipos">
@@ -158,6 +168,10 @@
                         <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_comparar" t-on-click="abrirInicio">
                             <span class="o_dcasa_atajo_icono"><i class="fa fa-exchange"/></span>
                             <span class="o_dcasa_atajo_texto"><strong>Comparar periodos</strong><span>En el Inicio: hoy contra ayer, el mes contra otro</span></span>
+                        </button>
+                        <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_inventario" t-on-click="() => this.abrirAccion('dcasa_interfaz.accion_valor_inventario')">
+                            <span class="o_dcasa_atajo_icono"><i class="fa fa-cubes"/></span>
+                            <span class="o_dcasa_atajo_texto"><strong>Valor del inventario</strong><span>La mercancía de hoy al costo y a precio de venta</span></span>
                         </button>
                         <button type="button" class="o_dcasa_atajo o_dcasa_es_enlace_margen" t-on-click="() => this.abrirAccion('dcasa_interfaz.accion_mejor_margen')">
                             <span class="o_dcasa_atajo_icono"><i class="fa fa-line-chart"/></span>

@@ -8,3 +8,4 @@ from . import product
 from . import reponer
 from . import por_dia
 from . import movimientos
+from . import inventario_valor

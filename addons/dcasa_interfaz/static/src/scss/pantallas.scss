@@ -680,3 +680,89 @@ button.o_dcasa_mv_frase {
 .o_dcasa_mv_queda { color: var(--dc-tinta-2); font-size: .8rem; white-space: nowrap; }
 
 .o_dcasa_mv_mas { margin-top: 12px; width: 100%; min-height: 44px; }
+
+// --- Cobrado por forma de pago (Por día y Estadísticas, 2026-11-02) --------------------------------
+// Una ficha por forma de pago; la del total, en azul lleno. En el celular, de a dos.
+.o_dcasa_pd_cobros {
+    margin-bottom: 16px;
+    transition: opacity var(--dc-transicion);
+    &.o_cargando { opacity: .5; }
+    h2 { margin-bottom: 4px; }
+}
+
+.o_dcasa_cf_frase { margin: 0 0 12px; }
+.o_dcasa_cf_toda { margin: 10px 0 0; }
+
+.o_dcasa_cf_fichas {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    @media (max-width: 575.98px) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+}
+
+.o_dcasa_cf_ficha {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 10px 12px;
+    text-align: left;
+    background: var(--dc-blanco);
+    border: 1px solid var(--dc-linea);
+    border-radius: var(--dc-r-sm);
+    color: var(--dc-tinta);
+
+    &:hover { border-color: var(--dc-azul-300); background: var(--dc-azul-50); }
+    &:focus-visible { outline: none; box-shadow: var(--dc-foco); }
+    small { font-size: .75rem; color: var(--dc-tinta-3); }
+
+    &.o_dcasa_cf_total {
+        background: var(--dc-azul-600);
+        border-color: var(--dc-azul-600);
+        color: var(--dc-blanco);
+        .o_dcasa_cf_forma, .o_dcasa_cf_monto, small { color: var(--dc-blanco); }
+        &:hover { background: var(--dc-azul-700); border-color: var(--dc-azul-700); }
+    }
+}
+
+.o_dcasa_cf_forma {
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--dc-tinta-2);
+    overflow-wrap: anywhere;
+}
+
+.o_dcasa_cf_monto {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--dc-azul-800);
+    white-space: nowrap;
+}
+
+.o_dcasa_pd_cobros_dia {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--dc-linea);
+    h3 { font-size: .95rem; font-weight: 700; margin: 0 0 4px; color: var(--dc-tinta); }
+}
+
+// --- Valor del inventario (2026-11-02) --------------------------------------------------------------
+.o_dcasa_vi_cabeza {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.o_dcasa_vi_avisos {
+    margin-bottom: 16px;
+    h2 { margin-bottom: 8px; }
+    li + li { border-top: 1px solid var(--dc-perla); }
+    .o_dcasa_vi_aviso { width: 100%; align-items: center; }
+    .o_dcasa_vi_aviso .fa { color: var(--dc-tinta-3); }
+    // La frase de cada aviso se lee completa (la lista del Inicio la corta en una línea).
+    .o_dcasa_lista_texto strong, .o_dcasa_lista_texto small { white-space: normal; }
+}
+
+.o_dcasa_vi_tipo .o_dcasa_es_valor small + small { margin-top: 1px; }
