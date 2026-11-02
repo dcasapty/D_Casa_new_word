@@ -42,6 +42,10 @@ export class DcasaValorInventario extends FormatoMixin(Component) {
         return `${this.numero(cuantos)} ${cuantos === 1 ? "producto" : "productos"}`;
     }
 
+    unidadesTexto(cuantas) {
+        return `${this.unidades(cuantas)} ${cuantas === 1 ? "unidad" : "unidades"}`;
+    }
+
     maximo(filas, campo) {
         return Math.max(1, ...filas.map((f) => f[campo] || 0));
     }

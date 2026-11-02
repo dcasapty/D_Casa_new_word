@@ -10,7 +10,7 @@
                     <h1>Valor del inventario</h1>
                     <p class="o_dcasa_pantalla_frase">
                         Cuánto vale la mercancía que hay hoy, al costo y a precio de venta. Todo es sin ITBMS.
-                        <t t-if="state.datos">Calculado a las <t t-out="state.datos.hora"/>.</t>
+                        <t t-if="state.datos">Calculado a las <t t-out="state.datos.hora"/></t>
                     </p>
                 </div>
                 <button type="button" class="btn btn-secondary o_dcasa_vi_actualizar" t-att-disabled="state.cargando"
@@ -61,7 +61,7 @@
                                         t-on-click="() => this.abrirLista(d.avisos.sin_costo.accion)">
                                     <span class="o_dcasa_lista_texto">
                                         <strong><t t-out="productosTexto(d.avisos.sin_costo.cuantos)"/> sin costo</strong>
-                                        <small>Tienen <t t-out="unidades(d.avisos.sin_costo.unidades)"/> unidades y
+                                        <small><t t-out="d.avisos.sin_costo.cuantos === 1 ? 'Tiene' : 'Tienen'"/> <t t-out="unidadesTexto(d.avisos.sin_costo.unidades)"/> y
                                             suman <t t-out="dinero(0)"/> al costo (a precio de venta suman
                                             <t t-out="dinero(d.avisos.sin_costo.monto)"/>). Cárgales el costo.</small>
                                     </span>
@@ -73,7 +73,7 @@
                                         t-on-click="() => this.abrirLista(d.avisos.sin_precio.accion)">
                                     <span class="o_dcasa_lista_texto">
                                         <strong><t t-out="productosTexto(d.avisos.sin_precio.cuantos)"/> sin precio de venta</strong>
-                                        <small>Tienen <t t-out="unidades(d.avisos.sin_precio.unidades)"/> unidades y
+                                        <small><t t-out="d.avisos.sin_precio.cuantos === 1 ? 'Tiene' : 'Tienen'"/> <t t-out="unidadesTexto(d.avisos.sin_precio.unidades)"/> y
                                             suman <t t-out="dinero(0)"/> a precio de venta (al costo suman
                                             <t t-out="dinero(d.avisos.sin_precio.monto)"/>). Ponles precio.</small>
                                     </span>
@@ -85,8 +85,7 @@
                                         t-on-click="() => this.abrirLista(d.avisos.negativos.accion)">
                                     <span class="o_dcasa_lista_texto">
                                         <strong><t t-out="productosTexto(d.avisos.negativos.cuantos)"/> en negativo</strong>
-                                        <small>Faltan <t t-out="unidades(d.avisos.negativos.unidades)"/> unidades y no
-                                            se cuentan. Cuéntalos con el Escáner para que cuadren.</small>
+                                        <small><t t-out="d.avisos.negativos.unidades === 1 ? 'Falta' : 'Faltan'"/> <t t-out="unidadesTexto(d.avisos.negativos.unidades)"/>: lo que está en negativo no se suma. Cuenta con el Escáner para que cuadre.</small>
                                     </span>
                                     <i class="fa fa-chevron-right" aria-hidden="true"/>
                                 </button>
@@ -129,7 +128,8 @@
                                     <span class="o_dcasa_es_hbarra" aria-hidden="true"><span t-attf-style="width: {{ medida(p.costo, maxProd) }}%"/></span>
                                     <span class="o_dcasa_es_valor">
                                         <strong t-out="dinero(p.costo)"/>
-                                        <small><t t-out="unidades(p.unidades)"/> u. · venta <t t-out="dinero(p.venta)"/></small>
+                                        <small>venta <t t-out="dinero(p.venta)"/></small>
+                                        <small><t t-out="unidades(p.unidades)"/> u.</small>
                                     </span>
                                 </button>
                             </li>
