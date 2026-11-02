@@ -135,3 +135,23 @@ class TestValorInventario(VentasCommon):
             with self.subTest(usuario.login):
                 self.assertFalse(propios & menus(usuario))
                 self.assertNotIn('valor_inventario', atajos(usuario))
+
+    def test_el_itbms_incluido_se_quita_sobre_el_total(self):
+        """100 unidades a 99.99 con el 7 % incluido: 9,344.86 sin ITBMS (unidad por unidad saldría 9,345.00)."""
+        incluido = self.mesa.taxes_id
+        caja = self.crear_producto('CAJA VALOR INV REDONDEO', 50.0, 99.99, 0, impuestos=incluido)
+        self.assertAlmostEqual(self.env['dcasa.tablero']._venta_sin_itbms(caja, 100.0), 9344.86, places=2)
+        self.assertAlmostEqual(self.env['dcasa.tablero']._venta_sin_itbms(self.sofa, 2.0), 1500.0, places=2)
+
+    def test_cada_tipo_tiene_su_clave_aunque_se_llame_igual(self):
+        """Una categoría de primer nivel «Otros» no se confunde con el grupo «Otros» ni dos tipos con el mismo nombre
+        entre sí: la pantalla los distingue por su clave."""
+        for nombre in ('TIPO REPETIDO VALOR INV', 'TIPO REPETIDO VALOR INV'):
+            categoria = self.env['product.category'].create({'name': nombre})
+            variante = self.crear_producto(f'{nombre} PRODUCTO', 5.0, 9.0, 1)
+            variante.categ_id = categoria
+        with patch('odoo.addons.dcasa_interfaz.models.inventario_valor.TIPOS_A_LA_VISTA', 1000):
+            tipos = self.valor()['tipos']
+        claves = [fila['clave'] for fila in tipos]
+        self.assertEqual(len(claves), len(set(claves)))
+        self.assertEqual(sum(1 for fila in tipos if fila['nombre'] == 'TIPO REPETIDO VALOR INV'), 2)

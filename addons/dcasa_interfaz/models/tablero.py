@@ -565,7 +565,7 @@ class DcasaTablero(models.AbstractModel):
         grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum'])
         for diario, monto in grupos:
             if diario:
-                datos['cobros'].append({'forma': diario.display_name, 'monto': monto})
+                datos['cobros'].append({'clave': diario.id, 'forma': diario.display_name, 'monto': monto})
         datos['total_cobrado'] = sum(c['monto'] for c in datos['cobros'])
         datos['accion_cobros'] = _accion('Cobros de hoy', 'account.payment', dominio)
 

@@ -224,12 +224,13 @@ class BrianHerramientasEstadisticas(models.AbstractModel):
         }
         faltan = []
         if avisos['sin_costo']['cuantos']:
-            faltan.append(f'{avisos["sin_costo"]["cuantos"]} productos con existencias no tienen costo (suman 0 al '
-                          'costo).')
+            faltan.append(f'{c.plural(avisos["sin_costo"]["cuantos"], "producto")} con existencias sin costo (suman '
+                          '0 al costo).')
         if avisos['sin_precio']['cuantos']:
-            faltan.append(f'{avisos["sin_precio"]["cuantos"]} productos con existencias no tienen precio de venta.')
+            faltan.append(f'{c.plural(avisos["sin_precio"]["cuantos"], "producto")} con existencias sin precio de '
+                          'venta.')
         if avisos['negativos']['cuantos']:
-            faltan.append(f'{avisos["negativos"]["cuantos"]} productos están en negativo y no se cuentan.')
+            faltan.append(f'{c.plural(avisos["negativos"]["cuantos"], "producto")} en negativo (no se cuentan).')
         if faltan:
             respuesta['para_que_sea_completo'] = faltan
         return respuesta

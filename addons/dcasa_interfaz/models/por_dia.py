@@ -202,7 +202,7 @@ class DcasaTableroPorDia(models.AbstractModel):
         grupos = self.env['account.payment']._read_group(dominio, ['journal_id'], ['amount:sum', '__count'])
         redondear = self.env.company.currency_id.round
         filas = sorted(({
-            'forma': diario.display_name, 'monto': redondear(monto or 0.0), 'cuantos': cuantos,
+            'clave': diario.id, 'forma': diario.display_name, 'monto': redondear(monto or 0.0), 'cuantos': cuantos,
             'accion': _accion(f'{nombre} · {diario.display_name}', 'account.payment',
                               dominio + [('journal_id', '=', diario.id)]),
         } for diario, monto, cuantos in grupos if diario), key=lambda fila: (-fila['monto'], fila['forma'].lower()))

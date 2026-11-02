@@ -27,7 +27,7 @@
                                 t-on-click="() => this.abrirLista(d.total.accion)">
                             <span class="o_dcasa_pd_etiqueta">Al costo</span>
                             <strong class="o_dcasa_pd_valor" t-out="dinero(d.total.costo)"/>
-                            <span class="o_dcasa_es_frase">Lo que costó comprar la mercancía que hay hoy: el valor del
+                            <span class="o_dcasa_es_frase">Las unidades de hoy por el costo de cada producto: el valor del
                                 inventario. Toca para ver los productos.</span>
                         </button>
                         <div class="o_dcasa_panel o_dcasa_es_numero o_dcasa_vi_venta">
@@ -99,7 +99,7 @@
                             precio de venta. Toca un tipo para ver sus productos.</p>
                         <t t-set="maxTipo" t-value="maximo(d.tipos, 'costo')"/>
                         <ol t-if="d.tipos.length" class="list-unstyled mb-0 o_dcasa_es_filas">
-                            <li t-foreach="d.tipos" t-as="t" t-key="t.nombre">
+                            <li t-foreach="d.tipos" t-as="t" t-key="t.clave">
                                 <button type="button" class="o_dcasa_es_hfila o_dcasa_vi_tipo"
                                         t-on-click="() => this.abrirLista(t.accion)">
                                     <span class="o_dcasa_es_nombre" t-out="t.nombre"/>

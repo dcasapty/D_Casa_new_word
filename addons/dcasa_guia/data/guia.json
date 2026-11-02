@@ -1818,11 +1818,11 @@
    ],
    "grupo": "Inventario",
    "titulo": "Ver cuánto vale el inventario (al costo y a precio de venta)",
-   "logras": "Cuánto vale la mercancía que hay hoy: al costo (lo que costó comprarla), a precio de venta sin ITBMS y la ganancia esperada, con las unidades. Debajo, por tipo de mueble, los productos con más dinero y lo que falta cargar (productos sin costo, sin precio o en negativo); tocas cualquiera y ves sus productos. Solo Gerencia.",
+   "logras": "Cuánto vale la mercancía que hay hoy: al costo (con el costo de cada producto), a precio de venta sin ITBMS y la ganancia esperada, con las unidades. Debajo, por tipo de mueble, los productos con más dinero y lo que falta cargar (productos sin costo, sin precio o en negativo); tocas cualquiera y ves sus productos. Solo Gerencia.",
    "destino": {
     "menu": "dcasa_interfaz.menu_dcasa_valor_inventario"
    },
-   "nota": "El costo es el valor del inventario de Odoo (el mismo de la contabilidad). La ganancia esperada supone que todo se vende a precio de lista, sin descuentos ni combos. También lo abres desde el Inicio y desde Estadísticas.",
+   "nota": "El costo es el de la ficha de cada producto, la misma valuación del inventario de Odoo; lo que está en negativo no se cuenta. La ganancia esperada supone que todo se vende a precio de lista, sin descuentos ni combos. También lo abres desde el Inicio y desde Estadísticas.",
    "brian": "¿Cuánto vale el inventario?",
    "palabras": [
     "valor del inventario",

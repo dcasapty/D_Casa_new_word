@@ -43,15 +43,16 @@ class DcasaTableroInventario(models.AbstractModel):
         return self._valor_del_inventario()
 
     @api.model
-    def _precio_sin_itbms(self, producto):
-        """El precio de venta de una variante sin ITBMS. Los de D'CASA ya lo son; si le queda un impuesto incluido en el
-        precio (de antes del 2026-10-01), se le quita."""
+    def _venta_sin_itbms(self, producto, unidades):
+        """Lo que valen ``unidades`` de una variante a su precio de venta, sin ITBMS. Los precios de D'CASA ya lo son;
+        si le queda un impuesto incluido en el precio (de antes del 2026-10-01), se le quita sobre el total (no unidad
+        por unidad, para no arrastrar el redondeo de cada una)."""
         precio = producto.lst_price
         impuestos = producto.taxes_id._filter_taxes_by_company(self.env.company)
         if precio and any(impuestos.mapped('price_include')):
-            return impuestos.compute_all(precio, currency=self.env.company.currency_id, product=producto)[
-                'total_excluded']
-        return precio
+            return impuestos.compute_all(precio, currency=self.env.company.currency_id, quantity=unidades,
+                                         product=producto)['total_excluded']
+        return precio * unidades
 
     @api.model
     def _clave_de_tipo(self, categoria):
@@ -61,8 +62,8 @@ class DcasaTableroInventario(models.AbstractModel):
 
     @api.model
     def _existencias_valoradas(self):
-        """``[(variante, unidades, costo, precio_sin_itbms)]`` de los productos rastreados con existencias distintas de
-        cero (también los archivados), con la valuación de Odoo."""
+        """``[(variante, unidades, costo)]`` de los productos rastreados con existencias distintas de cero (también los
+        archivados), con la valuación de Odoo."""
         Producto = self.env['product.product'].sudo().with_context(**SIN_ARCHIVO)
         productos = Producto.search([('is_storable', '=', True),
                                      ('company_id', 'in', [False] + self.env.companies.ids)])
@@ -71,7 +72,7 @@ class DcasaTableroInventario(models.AbstractModel):
             unidades = producto.qty_available
             if producto.uom_id.is_zero(unidades):
                 continue
-            filas.append((producto, unidades, producto.total_value, self._precio_sin_itbms(producto)))
+            filas.append((producto, unidades, producto.total_value))
         return filas
 
     @api.model
@@ -80,15 +81,15 @@ class DcasaTableroInventario(models.AbstractModel):
         moneda = self.env.company.currency_id
         con_mercancia, sin_costo, sin_precio, negativos = [], [], [], []
         por_tipo = defaultdict(lambda: {'costo': 0.0, 'venta': 0.0, 'unidades': 0.0, 'ids': []})
-        for producto, unidades, costo, precio in self._existencias_valoradas():
+        for producto, unidades, costo in self._existencias_valoradas():
             if unidades < 0:
                 negativos.append((producto, unidades))
                 continue
-            venta = unidades * precio
+            venta = self._venta_sin_itbms(producto, unidades)
             con_mercancia.append((producto, unidades, costo, venta))
             if costo <= 0:
                 sin_costo.append((producto, unidades, venta))
-            if precio <= 0:
+            if venta <= 0:
                 sin_precio.append((producto, unidades, costo))
             tipo = por_tipo[self._clave_de_tipo(producto.categ_id)]
             tipo['costo'] += costo
@@ -135,18 +136,20 @@ class DcasaTableroInventario(models.AbstractModel):
         nombres = {categoria.id: categoria.name for categoria in
                    self.env['product.category'].sudo().browse([clave for clave in por_tipo if clave])}
         filas = sorted(({
-            'nombre': nombres.get(clave) or self.env._('Sin categoría'), 'costo': datos['costo'],
+            'clave': clave or 'sin', 'nombre': nombres.get(clave) or self.env._('Sin categoría'),
+            'costo': datos['costo'],
             'venta': datos['venta'], 'unidades': datos['unidades'], 'ids': datos['ids'],
         } for clave, datos in por_tipo.items()), key=lambda fila: (-fila['costo'], -fila['venta'],
                                                                    fila['nombre'].lower()))
         if len(filas) > TIPOS_A_LA_VISTA:
             resto = filas[TIPOS_A_LA_VISTA:]
             filas = filas[:TIPOS_A_LA_VISTA] + [{
-                'nombre': self.env._('Otros'), 'costo': sum(f['costo'] for f in resto),
+                'clave': 'otros', 'nombre': self.env._('Otros'), 'costo': sum(f['costo'] for f in resto),
                 'venta': sum(f['venta'] for f in resto), 'unidades': sum(f['unidades'] for f in resto),
                 'ids': [i for f in resto for i in f['ids']]}]
         return [{
-            'nombre': fila['nombre'], 'costo': redondear(fila['costo']), 'venta': redondear(fila['venta']),
+            'clave': fila['clave'], 'nombre': fila['nombre'], 'costo': redondear(fila['costo']),
+            'venta': redondear(fila['venta']),
             'unidades': round(fila['unidades'], 2), 'productos': len(fila['ids']),
             'accion': self._accion_de_productos(fila['nombre'], fila['ids']),
         } for fila in filas]

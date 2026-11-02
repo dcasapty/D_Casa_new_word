@@ -89,3 +89,13 @@ class TestCobrosPorForma(PorDiaCommon):
         self.assertEqual(Pago.search(efectivo['accion']['domain']), self.p2 | self.p3)
         self.assertEqual(Pago.search(mes['accion']['domain']), self.p1 | self.p2 | self.p3)
         self.assertNotIn(self.borrador, Pago.search(mes['accion']['domain']))
+
+    def test_dos_formas_con_el_mismo_nombre_no_se_juntan(self):
+        """Dos diarios con el mismo nombre (p. ej. el «Efectivo» de dos empresas): dos fichas, cada una con su clave."""
+        gemelo = self.env['account.journal'].create({'name': self.efectivo.name, 'type': 'cash', 'code': 'EFC2'})
+        _o, factura = self.vender(date(2025, 6, 6), vendedor=self.vendedora)
+        self.pagar(factura, 1000.0, date(2025, 6, 6), diario=gemelo)
+        mes = self.ger._por_dia('2025-06', 'facturado', None, self.ahora)['cobros']
+        mismas = [fila for fila in mes['filas'] if fila['forma'] == self.efectivo.display_name]
+        self.assertEqual(sorted(fila['monto'] for fila in mismas), [1000.0, 1600.0])
+        self.assertEqual(len({fila['clave'] for fila in mes['filas']}), len(mes['filas']))

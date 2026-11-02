@@ -200,7 +200,7 @@
         <p class="o_dcasa_es_frase o_dcasa_cf_frase">El dinero que entró, por cómo se pagó: la misma cuenta de la Caja de
             hoy. Un abono cuenta el día que se cobró.</p>
         <div t-if="cobros.filas.length" class="o_dcasa_cf_fichas">
-            <button t-foreach="cobros.filas" t-as="c" t-key="c.forma" type="button" class="o_dcasa_cf_ficha"
+            <button t-foreach="cobros.filas" t-as="c" t-key="c.clave" type="button" class="o_dcasa_cf_ficha"
                     t-on-click="() => this.abrirLista(c.accion)">
                 <span class="o_dcasa_cf_forma" t-out="c.forma"/>
                 <strong class="o_dcasa_cf_monto" t-out="dinero(c.monto)"/>
