@@ -92,6 +92,9 @@ class TestCalculos(BaseCase):
         self.assertEqual(C.limites_del_periodo('hoy', ahora), (datetime(2026, 10, 9), datetime(2026, 10, 10)))
         self.assertEqual(C.limites_del_periodo('7_dias', ahora)[0], datetime(2026, 10, 3))
         self.assertEqual(C.limites_del_periodo('30_dias', ahora)[0], datetime(2026, 9, 10))
+        # Para medir en más tiempo (pedido de la dueña, 2026-11-03).
+        self.assertEqual(C.limites_del_periodo('90_dias', ahora)[0], datetime(2026, 7, 12))
+        self.assertEqual(C.limites_del_periodo('12_meses', ahora)[0], datetime(2025, 10, 10))
         with self.assertRaises(ValueError):
             C.limites_del_periodo('ayer', ahora)
 
@@ -219,6 +222,44 @@ class TestResumen(JuanCase):
         conv = self.hablan('50761000001', panama(2026, 10, 9, 9, 0), panama(2026, 10, 9, 9, 1))
         self.factura(conv.partner_id, 100.0, pagar=True, fecha=date(2026, 10, 3))
         self.assertEqual(self.panel.resumen('30_dias')['ventas']['facturas'], 0)
+
+    def test_ventas_atribuidas_partidas_en_tres(self):
+        """Pedido de la dueña (2026-11-03): «si esas conversaciones las empezó Juan y las terminó un vendedor, ¿cómo
+        medimos esto?». Solo el asistente, el asistente y una persona, y (de referencia) solo personas."""
+        ana = self.hablan('50761000001', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1), nombre='Ana')
+        beto = self.hablan('50761000002', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1),
+                           panama(2026, 10, 7, 9, 30), nombre='Beto')
+        carla = self.hablan('50761000003', panama(2026, 10, 7, 9, 0), None, panama(2026, 10, 7, 9, 5),
+                            nombre='Carla')
+        self.factura(ana.partner_id, 100.0)
+        self.factura(beto.partner_id, 200.0)
+        self.factura(carla.partner_id, 70.0)
+        self.factura(self.env['res.partner'].create({'name': 'Zzsin conversación'}), 30.0)
+        r = self.panel.resumen('7_dias')['ventas']
+        self.assertEqual((r['facturas'], r['monto'], r['ventana_dias']), (2, 300.0, 30),
+                         'donde participó el asistente: Ana y Beto')
+        self.assertEqual(r['solo_juan'], {'facturas': 1, 'monto': 100.0})
+        self.assertEqual(r['juan_y_vendedora'], {'facturas': 1, 'monto': 200.0})
+        self.assertEqual(r['solo_vendedora'], {'facturas': 1, 'monto': 70.0})
+        self.assertEqual(r['de_cotizacion_de_juan'], {'facturas': 0, 'monto': 0.0})
+
+    def test_solo_cuenta_lo_que_hablaron_en_los_30_dias_antes_de_la_factura(self):
+        vieja = self.hablan('50761000001', panama(2026, 9, 1, 9, 0), panama(2026, 9, 1, 9, 1), nombre='Ana')
+        reciente = self.hablan('50761000002', panama(2026, 9, 20, 9, 0), panama(2026, 9, 20, 9, 1), nombre='Beto')
+        self.factura(vieja.partner_id, 100.0)          # habló hace 38 días: ya no se le atribuye
+        self.factura(reciente.partner_id, 60.0)        # hace 19 días: sí
+        for periodo in ('30_dias', '90_dias', '12_meses'):
+            with self.subTest(periodo=periodo):
+                r = self.panel.resumen(periodo)['ventas']
+                self.assertEqual((r['facturas'], r['monto']), (1, 60.0))
+
+    def test_la_que_salio_de_una_cotizacion_de_juan_se_dice_aparte(self):
+        conv = self.hablan('50761000001', panama(2026, 10, 7, 9, 0), panama(2026, 10, 7, 9, 1), nombre='Ana')
+        factura = self.factura(conv.partner_id, 100.0)
+        self.env.cr.execute("UPDATE account_move SET dcasa_origen = 'chatbot' WHERE id = %s", [factura.id])
+        r = self.panel.resumen('7_dias')['ventas']
+        self.assertEqual(r['de_cotizacion_de_juan'], {'facturas': 1, 'monto': 100.0})
+        self.assertEqual(self.panel.resumen('12_meses')['periodo_nombre'], 'Últimos 12 meses')
 
     def test_la_vendedora_solo_suma_sus_ventas_atribuidas_y_gerencia_las_de_toda_la_tienda(self):
         """«Cada vendedora ve solo sus documentos»: la suma va por SQL (sin reglas), así que se acota a mano."""

@@ -79,30 +79,40 @@ class DcasaConversacionPanel(models.Model):
         conv.check_access('write' if escritura else 'read')
         return conv
 
+    @api.model
+    def _dominio_esperan_respuesta(self):
+        """«Sin leer» es lo que espera a una persona (decisión de la dueña, 2026-11-03: «lo que atiende el bot debería
+        estar en visto; sin ver solo las que requieren asistencia humana, repartidas o tomadas, que no se han
+        respondido»): una persona la tiene (o la debe tomar) y el cliente escribió último. La vendedora cuenta las
+        suyas y las que no tienen dueña; Gerencia y los administradores, todas. Abrirla no la quita: la quita
+        contestarle."""
+        dominio = [('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente')]
+        if not self.env.user.has_group(GRUPO_GERENCIA):
+            dominio.append(('asignada_a', 'in', [self.env.uid, False]))
+        return dominio
+
     def _sin_leer(self, ids):
-        """``{conversacion_id: n}`` con los mensajes del cliente que esta persona aún no leyó (UNA consulta)."""
+        """``{conversacion_id: n}``: en las que esperan a una persona, los mensajes del cliente desde la última
+        respuesta (del asistente o de una persona). Lo que atiende el asistente no tiene «sin leer»."""
         if not ids:
+            return {}
+        esperan = self.browse(ids).filtered_domain(self._dominio_esperan_respuesta()).ids
+        if not esperan:
             return {}
         self.env.cr.execute("""
             SELECT m.conversacion_id, COUNT(*)
               FROM dcasa_mensaje m
-         LEFT JOIN dcasa_conversacion_lectura l
-                ON l.conversacion_id = m.conversacion_id AND l.usuario_id = %s
              WHERE m.conversacion_id IN %s AND m.tipo = 'mensaje' AND m.autor = 'cliente'
-               AND m.id > COALESCE(l.ultimo_leido_id, 0)
-          GROUP BY m.conversacion_id""", [self.env.uid, tuple(ids)])
+               AND m.id > COALESCE((SELECT MAX(r.id) FROM dcasa_mensaje r
+                                     WHERE r.conversacion_id = m.conversacion_id AND r.tipo = 'mensaje'
+                                       AND r.direccion = 'saliente'), 0)
+          GROUP BY m.conversacion_id""", [tuple(esperan)])
         return dict(self.env.cr.fetchall())
 
     @api.model
     def _ids_con_sin_leer(self):
-        """Las conversaciones que esta persona aún no terminó de leer (sin contar mensajes uno por uno)."""
-        self.env.cr.execute("""
-            SELECT c.id
-              FROM dcasa_conversacion c
-         LEFT JOIN dcasa_conversacion_lectura l
-                ON l.conversacion_id = c.id AND l.usuario_id = %s
-             WHERE c.ultimo_cliente_msg_id > COALESCE(l.ultimo_leido_id, 0)""", [self.env.uid])
-        return [fila[0] for fila in self.env.cr.fetchall()]
+        """Las conversaciones que esperan a esta persona (ver ``_dominio_esperan_respuesta``)."""
+        return self.search(self._dominio_esperan_respuesta()).ids
 
     def _url_foto_perfil(self):
         """La dirección de la foto de perfil guardada (con su fecha, para que el navegador la renueve), o ``None``."""

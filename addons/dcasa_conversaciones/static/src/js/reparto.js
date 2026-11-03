@@ -75,7 +75,13 @@ export class RepartoJuan extends Component {
     }
 
     get nombreDelPeriodo() {
-        return { hoy: "hoy", "7_dias": "en los últimos 7 días", "30_dias": "en los últimos 30 días" }[this.state.periodo];
+        return {
+            hoy: "hoy",
+            "7_dias": "en los últimos 7 días",
+            "30_dias": "en los últimos 30 días",
+            "90_dias": "en los últimos 90 días",
+            "12_meses": "en los últimos 12 meses",
+        }[this.state.periodo];
     }
 
     get titulo() {

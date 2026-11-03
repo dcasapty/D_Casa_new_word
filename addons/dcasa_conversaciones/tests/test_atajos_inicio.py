@@ -37,7 +37,10 @@ class TestAtajoDeConversaciones(TransactionCase):
         self.assertEqual((atajo['detalle'], atajo['cuenta']), ('Todo al día', 0))
         with patch.object(self.env.registry[CONVERSACION], '_ids_con_sin_leer', return_value=[4, 5, 6]):
             atajo = self.atajos(self.vendedora)['conversaciones']
-        self.assertEqual((atajo['detalle'], atajo['cuenta']), ('3 sin leer', 3))
+        self.assertEqual((atajo['detalle'], atajo['cuenta']), ('3 esperan respuesta', 3))
+        with patch.object(self.env.registry[CONVERSACION], '_ids_con_sin_leer', return_value=[4]):
+            atajo = self.atajos(self.vendedora)['conversaciones']
+        self.assertEqual(atajo['detalle'], '1 espera respuesta')
 
     def test_quien_no_es_del_equipo_de_ventas_no_lo_ve(self):
         interno = new_test_user(self.env, login='atajo_interno', groups='base.group_user')

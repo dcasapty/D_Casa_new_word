@@ -149,7 +149,9 @@ class DcasaTablero(models.AbstractModel):
             sin_leer = len(conversaciones._ids_con_sin_leer())
             atajos.append({
                 'clave': 'conversaciones', 'titulo': 'Conversaciones',
-                'detalle': 'Todo al día' if not sin_leer else f'{sin_leer} sin leer',
+                # Lo que espera a una persona (lo que atiende Juan no cuenta): decisión de la dueña, 2026-11-03.
+                'detalle': 'Todo al día' if not sin_leer else (
+                    '1 espera respuesta' if sin_leer == 1 else f'{sin_leer} esperan respuesta'),
                 'icono': 'fa-comments', 'accion': 'dcasa_conversaciones.accion_conversaciones', 'vista': None,
                 'cuenta': sin_leer})
         # El Escáner (dcasa_barras) es para todos los que mueven mercancía: el mismo permiso que su menú de Inventario.

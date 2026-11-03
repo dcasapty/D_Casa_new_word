@@ -731,25 +731,22 @@ export class Almacen {
         }
     }
 
+    /**
+     * Deja anotado hasta dónde leyó esta persona. Ya no cambia el «esperan respuesta» (decisión de la dueña, 2026-11-03):
+     * una conversación que espera a una persona sigue marcada hasta que alguien le conteste al cliente.
+     */
     async marcarLeida() {
         const id = this.seleccionadaId;
         const fila = this.lista.find((c) => c.id === id);
         const pendiente = (fila?.sin_leer || 0) > 0 || (this.conversacion?.sin_leer || 0) > 0;
-        if (!id || !pendiente) {
+        if (!id || !pendiente || this._leidaYa === `${id}:${fila?.ultima_actividad || ""}`) {
             return;
         }
+        this._leidaYa = `${id}:${fila?.ultima_actividad || ""}`;
         try {
             await this.orm.silent.call(MODELO, "marcar_leida", [[id]]);
-            if (fila?.sin_leer) {
-                this.sinLeerTotal = Math.max(0, this.sinLeerTotal - 1);
-            }
-            for (const c of [fila, this.conversacion]) {
-                if (c) {
-                    c.sin_leer = 0;
-                }
-            }
         } catch {
-            /* se marcará la próxima vez */
+            this._leidaYa = null; /* se marcará la próxima vez */
         }
     }
 
