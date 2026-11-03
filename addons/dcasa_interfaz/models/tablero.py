@@ -437,7 +437,8 @@ class DcasaTablero(models.AbstractModel):
         Order = self.env['sale.order']
         abiertas = [('state', 'in', ('draft', 'sent')), ('website_id', '=', False)]
         total = Order.search_read(abiertas, ['amount_untaxed', 'amount_total'])
-        filas = Order.search_read(abiertas, ['name', 'partner_id', 'amount_total', 'user_id', 'date_order'],
+        filas = Order.search_read(abiertas, ['name', 'partner_id', 'amount_total', 'user_id', 'date_order',
+                                             'dcasa_origen'],
                                   order='date_order asc, id asc', limit=FILAS_DE_LISTA)
         return {
             'cantidad': len(total),
@@ -447,6 +448,8 @@ class DcasaTablero(models.AbstractModel):
             'filas': [{
                 'id': o['id'], 'nombre': o['name'], 'cliente': o['partner_id'] and o['partner_id'][1] or '',
                 'total': o['amount_total'], 'vendedora': o['user_id'] and o['user_id'][1] or '',
+                # «Chatbot» si la armó Juan (las de la web no salen en esta lista).
+                'origen': 'Chatbot' if o['dcasa_origen'] == 'chatbot' else '',
                 'dias': max((hoy - fields.Datetime.context_timestamp(self, o['date_order']).date()).days, 0)
                 if o['date_order'] else 0,
             } for o in filas],

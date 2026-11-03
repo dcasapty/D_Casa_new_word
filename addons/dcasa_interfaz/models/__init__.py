@@ -1,4 +1,5 @@
 from . import sale_order
+from . import origen
 from . import tablero
 from . import ventas_bases
 from . import comparar

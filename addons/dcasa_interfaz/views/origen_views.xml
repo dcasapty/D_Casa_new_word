@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- De dónde salió cada cotización y cada factura (pedido de la dueña, 2026-11-03): «Chatbot» (la armó Juan), «Web»
+         (la tienda en línea) o «Vendedora». Columna en las listas, etiqueta en el formulario y filtros. -->
+
+    <record id="sale_order_list_dcasa_origen" model="ir.ui.view">
+        <field name="name">sale.order.list.dcasa.origen</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.sale_order_tree"/>
+        <field name="arch" type="xml">
+            <field name="user_id" position="after">
+                <field name="dcasa_origen" widget="badge" optional="show"
+                       decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"
+                       decoration-muted="dcasa_origen == 'vendedora'"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="sale_order_form_dcasa_origen" model="ir.ui.view">
+        <field name="name">sale.order.form.dcasa.origen</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='sale_header']//field[@name='partner_id']" position="after">
+                <field name="dcasa_origen" widget="badge" readonly="1" invisible="dcasa_origen == 'vendedora'"
+                       decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="sale_order_search_dcasa_origen" model="ir.ui.view">
+        <field name="name">sale.order.search.dcasa.origen</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_sales_order_filter"/>
+        <field name="arch" type="xml">
+            <filter name="my_sale_orders_filter" position="after">
+                <separator/>
+                <filter name="dcasa_origen_chatbot" string="Del chatbot" domain="[('dcasa_origen', '=', 'chatbot')]"/>
+                <filter name="dcasa_origen_web" string="De la web" domain="[('dcasa_origen', '=', 'web')]"/>
+                <filter name="dcasa_origen_vendedora" string="De una vendedora" domain="[('dcasa_origen', '=', 'vendedora')]"/>
+            </filter>
+            <filter name="salesperson" position="after">
+                <filter name="dcasa_por_origen" string="Origen" context="{'group_by': 'dcasa_origen'}"/>
+            </filter>
+        </field>
+    </record>
+
+    <record id="account_move_list_dcasa_origen" model="ir.ui.view">
+        <field name="name">account.move.list.dcasa.origen</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_invoice_tree"/>
+        <field name="arch" type="xml">
+            <field name="invoice_user_id" position="after">
+                <field name="dcasa_origen" widget="badge" optional="show" string="Origen"
+                       column_invisible="context.get('default_move_type') not in ('out_invoice', 'out_refund', 'out_receipt')"
+                       decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"
+                       decoration-muted="dcasa_origen == 'vendedora'"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="account_move_form_dcasa_origen" model="ir.ui.view">
+        <field name="name">account.move.form.dcasa.origen</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='invoice_user_id']" position="after">
+                <field name="dcasa_origen" widget="badge" readonly="1" string="Origen"
+                       invisible="move_type not in ('out_invoice', 'out_refund', 'out_receipt') or dcasa_origen in (False, 'vendedora')"
+                       decoration-info="dcasa_origen == 'chatbot'" decoration-success="dcasa_origen == 'web'"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="account_move_search_dcasa_origen" model="ir.ui.view">
+        <field name="name">account.move.search.dcasa.origen</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_account_invoice_filter"/>
+        <field name="arch" type="xml">
+            <filter name="myinvoices" position="after">
+                <separator/>
+                <filter name="dcasa_origen_chatbot" string="Del chatbot" domain="[('dcasa_origen', '=', 'chatbot')]"/>
+                <filter name="dcasa_origen_web" string="De la web" domain="[('dcasa_origen', '=', 'web')]"/>
+            </filter>
+            <filter name="salesperson" position="after">
+                <filter name="dcasa_por_origen" string="Origen" context="{'group_by': 'dcasa_origen'}"/>
+            </filter>
+        </field>
+    </record>
+</odoo>

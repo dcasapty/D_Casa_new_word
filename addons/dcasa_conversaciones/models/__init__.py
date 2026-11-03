@@ -9,5 +9,7 @@ from . import conversacion_panel, conversacion_panel_extra, conversacion_panel_c
 from . import cliente_worker_panel, panel_juan, panel_reparto, telegram_consola
 # Herramientas de Juan en el registro de Brian.
 from . import brian_juan, herramientas_juan, herramientas_juan_cotizacion, herramientas_crm
+# El origen «Chatbot» de las cotizaciones de Juan (y de sus facturas).
+from . import sale_origen
 # Solo para el entorno de prueba.
 from . import ejemplos
