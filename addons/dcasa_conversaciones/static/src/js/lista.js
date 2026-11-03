@@ -2,7 +2,11 @@
  * La lista de conversaciones (columna izquierda): filtros, búsqueda y carga de 30 en 30 al bajar.
  */
 import { Component, onMounted, onWillUnmount, useRef, useState } from "@odoo/owl";
+import { ANCHO_LISTA_MAX, ANCHO_LISTA_MIN, ANCHO_LISTA_NORMAL } from "./almacen";
 import { colorDeEtiqueta, horaDeLista, iconoDeCanal, iniciales } from "./utilidades";
+
+/** Con las flechas del teclado el borde se mueve de a tanto. */
+const PASO_CON_TECLADO = 20;
 
 const ESTADOS = [
     { id: "", nombre: "Todos los estados" },
@@ -20,8 +24,12 @@ export class ListaConversaciones extends Component {
 
     setup() {
         this.almacen = useState(this.props.almacen);
-        this.local = useState({ filtros: false, busqueda: this.almacen.filtros.busqueda });
+        this.local = useState({ filtros: false, busqueda: this.almacen.filtros.busqueda, arrastrando: false });
         this.refLista = useRef("lista");
+        this.refColumna = useRef("columna");
+        this.anchoMin = ANCHO_LISTA_MIN;
+        this.anchoMax = ANCHO_LISTA_MAX;
+        this.anchoNormal = ANCHO_LISTA_NORMAL;
         this.estados = ESTADOS;
         this.iconoDeCanal = iconoDeCanal;
         this.iniciales = iniciales;
@@ -30,7 +38,61 @@ export class ListaConversaciones extends Component {
         onMounted(() => {
             this.temporizador = null;
         });
-        onWillUnmount(() => clearTimeout(this.temporizador));
+        onWillUnmount(() => {
+            clearTimeout(this.temporizador);
+            this.terminarArrastre?.();
+        });
+    }
+
+    /** El ancho que se ve ahora (el de la columna en pantalla; lo que eligió la persona puede no caber). */
+    get anchoActual() {
+        return this.almacen.anchoLista || ANCHO_LISTA_NORMAL;
+    }
+
+    /** Arrastrar el borde: la lista sigue al puntero y, al soltar, el ancho queda recordado en este navegador. */
+    empezarArrastre(ev) {
+        if (ev.button !== undefined && ev.button !== 0) {
+            return;
+        }
+        const columna = this.refColumna.el;
+        if (!columna) {
+            return;
+        }
+        ev.preventDefault();
+        const izquierda = columna.getBoundingClientRect().left;
+        const tirador = ev.currentTarget;
+        try {
+            tirador.setPointerCapture?.(ev.pointerId);
+        } catch {
+            /* sin captura del puntero: se escucha en el documento igual */
+        }
+        this.local.arrastrando = true;
+        document.body.classList.add("o_dcj_arrastrando_ancho");
+        const mover = (e) => this.almacen.ponerAnchoLista(e.clientX - izquierda);
+        const soltar = () => this.terminarArrastre?.();
+        this.terminarArrastre = () => {
+            document.removeEventListener("pointermove", mover);
+            document.removeEventListener("pointerup", soltar);
+            document.removeEventListener("pointercancel", soltar);
+            document.body.classList.remove("o_dcj_arrastrando_ancho");
+            this.local.arrastrando = false;
+            this.terminarArrastre = null;
+            this.almacen.recordarAnchoLista();
+        };
+        document.addEventListener("pointermove", mover);
+        document.addEventListener("pointerup", soltar);
+        document.addEventListener("pointercancel", soltar);
+    }
+
+    anchoConTeclado(ev) {
+        const pasos = { ArrowLeft: -PASO_CON_TECLADO, ArrowRight: PASO_CON_TECLADO };
+        if (ev.key in pasos) {
+            ev.preventDefault();
+            this.almacen.ponerAnchoLista(this.anchoActual + pasos[ev.key], true);
+        } else if (ev.key === "Home" || ev.key === "End") {
+            ev.preventDefault();
+            this.almacen.ponerAnchoLista(ev.key === "Home" ? ANCHO_LISTA_MIN : ANCHO_LISTA_MAX, true);
+        }
     }
 
     get hayFiltros() {

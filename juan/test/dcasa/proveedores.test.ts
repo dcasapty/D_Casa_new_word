@@ -382,7 +382,7 @@ describe("si el proveedor elegido falla o no tiene clave, contesta el respaldo",
 });
 
 describe("salud de la IA", () => {
-  const baseEnv = { JUAN_ODOO_TOKEN: "x", JUAN_WORKER_TOKEN: "y" } as Env;
+  const baseEnv = { JUAN_ODOO_TOKEN: "x", JUAN_WORKER_TOKEN: "y", URL_PUBLICA: "https://juan.example" } as Env;
   const dep = (cfg: Record<string, unknown>, env: Env) => ({
     env,
     adaptadores: crearAdaptadores(),

@@ -42,6 +42,7 @@ interface WaMensaje {
   audio?: { id?: string; mime_type?: string };
   video?: { id?: string; caption?: string; mime_type?: string };
   document?: { id?: string; caption?: string; filename?: string; mime_type?: string };
+  sticker?: { id?: string; mime_type?: string; animated?: boolean };
 }
 
 interface WaCambio {
@@ -123,6 +124,8 @@ export function crearWhatsappCloud(op: OpcionesWhatsappCloud = {}): AdaptadorCan
         texto = "(el cliente mandó una ubicación)";
         break;
       case "sticker":
+        // El equipo lo ve en el chat de Odoo (pedido de la dueña, 2026-11-03); al modelo le basta saber que fue un sticker.
+        if (m.sticker?.id) adjuntos.push({ ...descargable(env, m.sticker.id, "imagen", m.sticker.mime_type ?? "image/webp", "sticker.webp"), sticker: true });
         texto = "(el cliente mandó un sticker)";
         break;
       default:

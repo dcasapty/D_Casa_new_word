@@ -139,6 +139,41 @@ describe("el archivo SÍ llega a la vendedora, por una URL temporal y firmada", 
   });
 });
 
+describe("stickers (pedido de la dueña, 2026-11-03: el equipo los ve en el chat)", () => {
+  const STICKER = { adjuntos: [{ tipo: "imagen" as const, mime: "image/webp", nombre: "sticker.webp", bytes: BYTES, sticker: true }] };
+
+  it("Odoo lo recibe como imagen; el lector no lo mira y no se anota para una vendedora", async () => {
+    let lecturas = 0;
+    const m = crearMundo({
+      urlPublica: URL_PUBLICA,
+      mirarImagen: async () => {
+        lecturas++;
+        return null;
+      },
+    });
+    const g = m.guion([{ texto: "Jaja, aquí estoy. ¿Qué mueble buscas?" }]);
+    await m.conversar("(el cliente mandó un sticker)", STICKER);
+    const a = m.odoo.mensajes.find((x) => x.autor === "cliente")!.adjuntos![0];
+    expect(a).toMatchObject({ tipo: "imagen", mime: "image/webp", nombre: "sticker.webp" });
+    expect(a.url).toMatch(new RegExp(`^${URL_PUBLICA}/media/`));
+    expect(lecturas).toBe(0);
+    expect(m.odoo.de("anotar_conversacion")).toHaveLength(0);
+    // Al modelo le llega el texto «sticker», sin el aviso de «archivo que revisa una vendedora».
+    const visto = g.prompts()[0];
+    expect(visto).toContain("sticker");
+    expect(visto).not.toContain("NO lo ves y no puedes describirlo");
+  });
+
+  it("una foto de verdad en el mismo mensaje sigue su camino (se anota para la vendedora)", async () => {
+    const m = crearMundo({ urlPublica: URL_PUBLICA });
+    m.guion([{ texto: "Recibí tu archivo. Una vendedora lo revisa." }]);
+    await m.conversar("mi pago", { adjuntos: [...STICKER.adjuntos, { tipo: "imagen" as const, mime: "image/jpeg", nombre: "yappy.jpg", bytes: BYTES }] });
+    const nota = String(m.odoo.de("anotar_conversacion")[0].args.nota);
+    expect(nota).toContain("yappy.jpg");
+    expect(nota).not.toContain("sticker.webp");
+  });
+});
+
 describe("notas de voz", () => {
   it("sin transcripción (apagada por defecto): el bot sabe que no puede escucharla y se lo dice al cliente", async () => {
     const m = crearMundo();

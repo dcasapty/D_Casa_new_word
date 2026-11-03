@@ -1198,6 +1198,19 @@
 
 .o_dcasa_lista_dato { align-items: flex-end; flex: none; }
 
+// De dónde salió una cotización: «Chatbot» si la armó Juan (plano, azul sobre azul claro: la marca sin amarillo).
+.o_dcasa_origen {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: .7rem;
+    font-weight: 700;
+    line-height: 1.5;
+    vertical-align: baseline;
+    &.o_dcasa_origen_chatbot { background: var(--dc-azul-50); color: var(--dc-azul-700, #0F3591); }
+}
+
 .o_dcasa_lista_pie {
     margin: 8px 0 0;
     font-size: .82rem;

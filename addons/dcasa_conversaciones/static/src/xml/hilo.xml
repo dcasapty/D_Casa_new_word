@@ -24,6 +24,21 @@
                 </div>
             </div>
 
+            <div t-if="medios.length" class="o_dcj_medios">
+                <div t-foreach="medios" t-as="a" t-key="a.id" class="o_dcj_medio">
+                    <audio t-if="a.tipo === 'audio'" controls="" preload="none" t-att-src="a.reproducir"
+                           t-att-aria-label="'Escuchar ' + a.nombre"/>
+                    <video t-else="" controls="" preload="metadata" playsinline="" t-att-src="a.reproducir"
+                           t-att-aria-label="'Ver ' + a.nombre"/>
+                    <a class="o_dcj_medio_bajar" t-att-href="a.url" target="_blank" rel="noopener" t-att-download="a.nombre">
+                        <i class="fa fa-download" aria-hidden="true"/>
+                        <t t-out="a.tipo === 'audio' ? 'Bajar la nota de voz' : 'Bajar el video'"/>
+                        <span class="o_dcj_documento_peso" t-out="tamano(a.tamano)"/>
+                    </a>
+                    <span t-if="a.sensible" class="o_dcj_sensible">Sensible</span>
+                </div>
+            </div>
+
             <ul t-if="documentos.length" class="o_dcj_documentos">
                 <li t-foreach="documentos" t-as="a" t-key="a.id" class="o_dcj_documento">
                     <a t-att-href="a.url" target="_blank" rel="noopener" t-att-download="a.nombre">

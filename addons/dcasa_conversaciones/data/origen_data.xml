@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- En cada instalación o actualización: las cotizaciones que Juan armó quedan con el origen «Chatbot» (también las
+         de antes de que existiera el origen), y sus facturas con ellas. -->
+    <function model="sale.order" name="_dcasa_marcar_origen_chatbot"/>
+</odoo>

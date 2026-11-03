@@ -58,8 +58,13 @@ export class Burbuja extends Component {
         return this.props.m.adjuntos.filter((a) => a.tipo === "imagen");
     }
 
+    /** Notas de voz y videos: se escuchan o se ven ahí mismo, con su enlace de descarga debajo. */
+    get medios() {
+        return this.props.m.adjuntos.filter((a) => a.reproducir && (a.tipo === "audio" || a.tipo === "video"));
+    }
+
     get documentos() {
-        return this.props.m.adjuntos.filter((a) => a.tipo !== "imagen");
+        return this.props.m.adjuntos.filter((a) => a.tipo !== "imagen" && !this.medios.includes(a));
     }
 
     get estadoDeEnvio() {

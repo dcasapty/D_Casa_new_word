@@ -38,6 +38,7 @@ Contrato completo: docs/JUAN.md. Guía para la dueña: docs/JUAN_ODOO.md.
         'security/conversaciones_security.xml',
         'security/ir.model.access.csv',
         'data/conversaciones_data.xml',
+        'data/origen_data.xml',
         'data/ir_cron_data.xml',
         'data/ir_cron_panel.xml',
         'data/crm_data.xml',

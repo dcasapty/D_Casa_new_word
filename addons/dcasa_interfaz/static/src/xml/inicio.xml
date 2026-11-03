@@ -106,7 +106,8 @@
                                         t-on-click="() => this.abrirRegistro('sale.order', fila.id)">
                                     <span class="o_dcasa_lista_texto">
                                         <strong t-out="fila.cliente or fila.nombre"/>
-                                        <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t></small>
+                                        <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t>
+                                            <span t-if="fila.origen" class="o_dcasa_origen o_dcasa_origen_chatbot" t-out="fila.origen"/></small>
                                     </span>
                                     <span class="o_dcasa_lista_dato">
                                         <strong t-out="dinero(fila.total)"/> <small>con ITBMS</small>

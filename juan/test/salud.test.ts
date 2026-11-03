@@ -17,6 +17,7 @@ const todo = {
   TELEGRAM_WEBHOOK_SECRET_JUAN: "valor-secreto-5",
   WA_TOKEN: "valor-secreto-6",
   PUENTE: { fetch: async () => Response.json({ conectado: true }) },
+  URL_PUBLICA: "https://dcasa-juan.ejemplo.workers.dev",
 } as unknown as Env;
 
 const deps = (env: Env, config: Record<string, unknown> = {}, extra: Record<string, unknown> = {}) => ({
@@ -48,6 +49,14 @@ describe("secretos que faltan: solo nombres, según lo que Odoo eligió", () => 
 });
 
 describe("informeDeSalud", () => {
+  it("sin URL_PUBLICA (o sin https) es un problema: los archivos del cliente no llegan a Odoo", async () => {
+    for (const valor of [undefined, "", "dcasa-juan.ejemplo.workers.dev", "http://dcasa-juan.ejemplo.workers.dev"]) {
+      const i = await informeDeSalud(deps({ ...todo, URL_PUBLICA: valor } as unknown as Env));
+      expect(i.ok).toBe(false);
+      expect(i.problemas.some((p) => p.includes("URL_PUBLICA") && p.includes("no llegan al chat de Odoo"))).toBe(true);
+    }
+  });
+
   it("todo cargado y el puente conectado: en orden", async () => {
     const i = await informeDeSalud(deps(todo));
     expect(i.ok).toBe(true);

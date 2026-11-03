@@ -300,6 +300,50 @@ class TestDisposicionDeEscritorio(DisposicionCase):
             self.assertTrue(texto['sigue'], 'pasado el máximo, el texto se desplaza dentro de la caja')
             self.sin_errores(browser, 'caja a tope')
 
+    def arrastrar_borde(self, browser, dx):
+        """Arrastra (con el ratón de verdad, por el protocolo) el borde de la lista ``dx`` píxeles."""
+        r = self.js(browser, '(() => { const b = document.querySelector(".o_dcj_tirador").getBoundingClientRect();'
+                             ' return [b.left + b.width / 2, b.top + b.height / 2]; })()')
+        x, y = r
+        for tipo, en_x, botones in (('mousePressed', x, 1), ('mouseMoved', x + dx / 2, 1), ('mouseMoved', x + dx, 1),
+                                    ('mouseReleased', x + dx, 0)):
+            browser._websocket_request('Input.dispatchMouseEvent', params={
+                'type': tipo, 'x': en_x, 'y': y, 'button': 'left', 'buttons': botones, 'clickCount': 1})
+        self.js(browser, '__disp.pausa(300)')
+
+    def test_10_la_lista_se_ensancha_arrastrando_su_borde_y_se_recuerda(self):
+        """Pedido de la dueña (2026-11-03): la columna de las conversaciones se puede ensanchar o angostar."""
+        self.conversacion_larga()
+        with self._chrome(1366, 768, VENDEDORA, reloj_fijo=False) as browser:
+            self.abrir(browser)
+            antes = self.medir(browser)
+            self.arrastrar_borde(browser, 120)
+            ancha = self.medir(browser)
+            self.assertAlmostEqual(ancha['lista']['w'], antes['lista']['w'] + 120, delta=4)
+            self.assertLess(ancha['hilo']['w'], antes['hilo']['w'] - 100, 'el hilo cede lo que gana la lista')
+            self.assertFalse(ancha['paginaDesplaza'] or ancha['desborde'], 'nada se sale de la pantalla')
+            self.abrir(browser, abrir_conversacion=False)            # volver otro día: sigue ancha
+            self.assertAlmostEqual(self.medir(browser)['lista']['w'], ancha['lista']['w'], delta=4)
+            # Por mucho que se arrastre, el hilo no baja de 550 px ni la lista de 240.
+            self.arrastrar_borde(browser, 600)
+            self.assertGreaterEqual(self.medir(browser)['hilo']['w'], 548)
+            self.arrastrar_borde(browser, -900)
+            self.assertAlmostEqual(self.medir(browser)['lista']['w'], 240, delta=4)
+            # Con el teclado: la flecha a la derecha ensancha y doble clic la deja como siempre.
+            self.js(browser, '(() => { const t = document.querySelector(".o_dcj_tirador"); t.focus();'
+                             ' t.dispatchEvent(new KeyboardEvent("keydown", {key: "ArrowRight", bubbles: true}));'
+                             ' return true; })()')
+            self.js(browser, '__disp.pausa(200)')
+            self.assertAlmostEqual(self.medir(browser)['lista']['w'], 260, delta=4)
+            self.js(browser, '(() => { document.querySelector(".o_dcj_tirador").dispatchEvent('
+                             'new MouseEvent("dblclick", {bubbles: true})); return true; })()')
+            self.js(browser, '__disp.pausa(200)')
+            self.assertAlmostEqual(self.medir(browser)['lista']['w'], antes['lista']['w'], delta=4)
+            # Reducida a las fotos no hay borde que arrastrar.
+            self.js(browser, '__disp.alternarLista()')
+            self.assertFalse(self.js(browser, '!!document.querySelector(".o_dcj_tirador")'))
+            self.sin_errores(browser, 'ancho de la lista')
+
 
 @tagged('post_install', '-at_install')
 class TestDisposicionDeCelular(DisposicionCase):

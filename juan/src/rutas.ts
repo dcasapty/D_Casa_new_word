@@ -54,7 +54,7 @@ const error = (mensaje: string, status: number) => json({ ok: false, error: mens
 async function prepararEntrante(e: Entrante): Promise<Entrante> {
   const adjuntos = await Promise.all(
     e.adjuntos.map(async (a) => {
-      const limpio = { tipo: a.tipo, mime: a.mime, nombre: a.nombre, url: a.url, bytes: a.bytes };
+      const limpio = { tipo: a.tipo, mime: a.mime, nombre: a.nombre, url: a.url, bytes: a.bytes, ...(a.sticker ? { sticker: true } : {}) };
       if (!limpio.bytes && a.obtener) {
         let reloj: ReturnType<typeof setTimeout> | undefined;
         try {

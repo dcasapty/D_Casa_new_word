@@ -15,6 +15,10 @@ import {
 import { cuando, fusionarMensajes, hayHueco, mensajeDeError } from "./utilidades";
 
 const MODELO = "dcasa.conversacion";
+/** La lista se puede ensanchar o angostar arrastrando su borde (pedido de la dueña, 2026-11-03), entre estos anchos. */
+export const ANCHO_LISTA_MIN = 240;
+export const ANCHO_LISTA_MAX = 560;
+export const ANCHO_LISTA_NORMAL = 300;
 const POR_PAGINA = 30;
 const MAX_LISTA = 100;
 const TRAMO_DEL_HILO = 50;
@@ -88,6 +92,7 @@ export class Almacen {
         this.columna = "lista";
         this.fichaAbierta = esPantallaAmplia();
         this.listaCompacta = esPantallaEstrecha() && !esCelular();
+        this.anchoLista = null; // null = el ancho normal (300 px); si la persona arrastró el borde, su ancho
         this.tamanoVersion = 0; // sube cuando la ventana cruza un límite de tamaño: así la pantalla se vuelve a acomodar
         this.enVivo = false;
         this.ahora = Date.now();
@@ -168,6 +173,35 @@ export class Almacen {
         if (lista && !esCelular()) {
             this.listaCompacta = lista === "compacta";
         }
+        const ancho = Number(leerPreferencia("ancho_lista", id));
+        if (ancho >= ANCHO_LISTA_MIN && ancho <= ANCHO_LISTA_MAX) {
+            this.anchoLista = Math.round(ancho);
+        }
+    }
+
+    /** El ancho de la lista mientras se arrastra su borde (o con las flechas); ``guardar`` lo recuerda para la próxima. */
+    ponerAnchoLista(px, guardar = false) {
+        const ancho = Math.round(Math.min(ANCHO_LISTA_MAX, Math.max(ANCHO_LISTA_MIN, Number(px) || ANCHO_LISTA_NORMAL)));
+        this.anchoLista = ancho === ANCHO_LISTA_NORMAL ? null : ancho;
+        if (guardar) {
+            this.recordarAnchoLista();
+        }
+    }
+
+    recordarAnchoLista() {
+        guardarPreferencia("ancho_lista", String(this.anchoLista || ANCHO_LISTA_NORMAL), this.usuario.id);
+    }
+
+    /**
+     * El ancho para la hoja de estilos: el que eligió la persona, sin dejar al hilo con menos de 550 px (ni a la lista con
+     * menos de 240) si la ventana no da para tanto. Sin elección, nada: la lista mide sus 300 px de siempre.
+     */
+    get estiloDelAncho() {
+        if (!this.anchoLista) {
+            return "";
+        }
+        const w = this.anchoLista;
+        return `--dcj-col-lista: min(${w}px, max(${ANCHO_LISTA_MIN}px, 100% - 550px)); --dcj-col-lista-ficha: min(${w}px, max(${ANCHO_LISTA_MIN}px, 100% - 870px));`;
     }
 
     /**
