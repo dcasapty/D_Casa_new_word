@@ -60,13 +60,18 @@
             <p>No vendemos tus datos.</p>
 
             <h2 id="inteligencia-artificial">Inteligencia artificial</h2>
-            <p>Nuestro equipo trabaja con Brian, un asistente de inteligencia artificial que ayuda a preparar
+            <p>Cuando nos escribes por WhatsApp o Telegram, te contesta primero <strong>Juan</strong>, nuestro
+                asistente de inteligencia artificial; una persona del equipo puede tomar la conversación en cualquier
+                momento. Para contestarte, tus mensajes se envían a un proveedor de inteligencia artificial, y las
+                notas de voz y las fotos se pasan a texto o se leen con la inteligencia artificial de Cloudflare.</p>
+            <p>Nuestro equipo también trabaja con Brian, un asistente de inteligencia artificial que ayuda a preparar
                 cotizaciones, buscar productos, ordenar el catálogo y leer documentos. Para eso, el contenido
                 que el equipo le pide revisar (por ejemplo, una conversación o una cotización con tu nombre)
                 se envía a un proveedor de inteligencia artificial.</p>
             <ul>
                 <li>Nuestro proveedor principal es <strong>Meta</strong> (modelos Muse Spark), en una modalidad en la
-                    que <strong>Meta puede usar ese contenido para entrenar y mejorar sus modelos</strong>.</li>
+                    que <strong>Meta puede usar ese contenido para entrenar y mejorar sus modelos</strong>: tanto tus
+                    conversaciones con Juan como lo que el equipo le pide revisar a Brian.</li>
                 <li>Como respaldo podemos usar <strong>Anthropic</strong> (modelos Claude).</li>
             </ul>
             <p>Si no quieres que tus datos pasen por inteligencia artificial, escríbenos y lo anotamos: te
@@ -74,7 +79,8 @@
 
             <h2>Con quién los compartimos</h2>
             <ul>
-                <li><strong>Cloudflare</strong>: aloja el sitio, el sistema y sus respaldos.</li>
+                <li><strong>Cloudflare</strong>: aloja el sitio, el sistema y sus respaldos, y pasa a texto las notas de voz
+                    y lee las fotos que nos envías.</li>
                 <li><strong>Meta</strong> y <strong>Anthropic</strong>: inteligencia artificial, como se explica arriba.</li>
                 <li><strong>WhatsApp</strong> (de Meta): cuando nos escribes por ahí.</li>
                 <li><strong>Autoridades</strong>: la Dirección General de Ingresos (facturación) y quien la ley indique.</li>
