@@ -365,7 +365,7 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
 - **Desplegar 37** (05:56 UTC del 3 nov, `594522c`, imagen `sha256:fb452fb7…` de CI #245, respaldo previo) · sano
-  05:59 (versión `594522c77c27`, base al día, humo ok): «Sin leer» = lo que espera a una persona, cotizaciones del
+  05:59 y confirmado 06:10 (versión `594522c77c27`, base al día, humo ok): «Sin leer» = lo que espera a una persona, cotizaciones del
   chatbot y la web que vencen solas, ventas atribuidas en tres (PR #69). CI #243 salió **rojo** en `TestSuperficieRpc`:
   el módulo sobrescribía `create` y `action_draft` de `sale.order` sin entrada en `LISTA_BLANCA`. **Regla:** también un
   *override* de un método público de Odoo (`create`, `write`, `action_*`) en un módulo nuestro va a `LISTA_BLANCA`

@@ -126,7 +126,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
     doble clic; se recuerda) y **Origen** Chatbot / Web / Vendedora en cotizaciones y facturas (columna, filtros,
     agrupar e Inicio). Las fotos no se veían porque a `dcasa-juan` le faltaba la variable de texto `URL_PUBLICA`
     (`https://dcasa-juan.dcasapty.workers.dev`, sin `/` final); la dueña la puso y `/salud` de Juan ahora la marca.
-  - Desplegar 37 (PR #69, `594522c`): **«Sin leer» = lo que espera a una persona** (conversación en manos de una
+  - Desplegar 37 (PR #69, `594522c`, sano y confirmado 06:10 UTC del 3 nov): **«Sin leer» = lo que espera a una persona** (conversación en manos de una
     persona y el último mensaje es del cliente; la vendedora ve las suyas y las sin asignar, Gerencia todas): «N
     esperan» y chip «Esperan respuesta». **Las cotizaciones del chatbot y de la web vencen solas** (Ajustes de Juan,
     «Días que queda abierta una cotización…», 3 por defecto, 0 apaga, máximo 60; cron cada hora; no toca las de
