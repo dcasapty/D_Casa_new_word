@@ -1019,7 +1019,7 @@
 // una mediana (las entregas bajan) y una en el celular. Se adapta a cuántos paneles haya.
 .o_dcasa_listas {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
 

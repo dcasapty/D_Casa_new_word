@@ -2998,7 +2998,7 @@
    "titulo": "Ir del CRM o de un contacto a su chat",
    "logras": "Desde una oportunidad del CRM (el botón «Abrir el chat» o el ícono de globitos en la tarjeta) o desde la ficha de un contacto (el botón «Chat»), se abre la pantalla de Conversaciones con el chat de ese cliente a la vista.",
    "destino": {
-    "menu": "crm.crm_menu_root"
+    "menu": "crm.menu_crm_opportunities"
    },
    "palabras": [
     "chat",
