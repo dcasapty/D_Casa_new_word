@@ -38,6 +38,10 @@ class CrmLead(models.Model):
 
     dcasa_conversacion_ids = fields.One2many(
         'dcasa.conversacion', 'oportunidad_id', string='Conversaciones', copy=False)
+    dcasa_chat_id = fields.Many2one(
+        'dcasa.conversacion', 'Chat', compute='_compute_dcasa_chat_id',
+        help='La conversación más reciente de este cliente: la de la oportunidad o, si no tiene, la de su ficha. El '
+             'botón «Abrir el chat» lleva ahí (pedido de la dueña, 2026-11-03).')
     dcasa_zona_entrega = fields.Char(
         'Zona de entrega', size=R.MAX_TEXTO_DATO, copy=False,
         help='Distrito o corregimiento que dijo el cliente (nunca la dirección exacta). Lo anota Juan solo con lo que '
@@ -328,3 +332,39 @@ class CrmLead(models.Model):
                 continue
             lead._dcasa_seguro('al cotizar', lambda lead=lead: (
                 lead._dcasa_avanzar_a_cotizada(orden), lead._dcasa_recalcular_temperatura()))
+
+    # ------------------------------------------------------------------
+    # «Abrir el chat» (pedido de la dueña, 2026-11-03)
+    # ------------------------------------------------------------------
+
+    @api.depends('dcasa_conversacion_ids', 'partner_id')
+    def _compute_dcasa_chat_id(self):
+        """Una sola búsqueda para todas las tarjetas (el kanban pide muchas). Quien no ve conversaciones no tiene
+        chat."""
+        Conversacion = self.env['dcasa.conversacion']
+        self.dcasa_chat_id = False
+        reales = self.filtered(lambda lead: lead._origin.id)
+        if not reales or not Conversacion.has_access('read'):
+            return
+        ids = reales.mapped('_origin').ids
+        partners = reales.partner_id.ids
+        dominio = [('oportunidad_id', 'in', ids)]
+        if partners:
+            dominio = ['|', *dominio, ('partner_id', 'in', partners)]
+        conversaciones = Conversacion.search(dominio)   # la más reciente primero (``_order``)
+        por_oportunidad, por_cliente = {}, {}
+        for conv in conversaciones:   # la primera que aparece es la más reciente
+            por_oportunidad.setdefault(conv.oportunidad_id.id, conv)
+            por_cliente.setdefault(conv.partner_id.id, conv)
+        for lead in reales:
+            lead.dcasa_chat_id = por_oportunidad.get(lead._origin.id) or (
+                por_cliente.get(lead.partner_id.id) if lead.partner_id else False)
+
+    def action_dcasa_abrir_chat(self):
+        """Abre la pantalla de Conversaciones con el chat de este cliente a la vista."""
+        self.ensure_one()
+        if not self.dcasa_chat_id:
+            raise UserError(self.env._(
+                'Este cliente todavía no tiene conversaciones con el asistente ni con el equipo.'))
+        return self.dcasa_chat_id._accion_abrir_en_panel()
+

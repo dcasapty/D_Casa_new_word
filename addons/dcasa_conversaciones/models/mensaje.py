@@ -177,13 +177,14 @@ class DcasaMensaje(models.Model):
             if not contenido:
                 fallidos += 1
                 continue
+            mime = adjunto.get('mime') or A.tipo_de_medio(contenido, adjunto['tipo'])
             valores = {
-                'name': adjunto['nombre'], 'datas': base64.b64encode(contenido), 'res_model': self._name,
-                'res_id': self.id, 'public': False, 'description': adjunto['tipo'],
+                'name': A.nombre_con_extension(adjunto['nombre'], mime), 'datas': base64.b64encode(contenido),
+                'res_model': self._name, 'res_id': self.id, 'public': False, 'description': adjunto['tipo'],
                 'dcasa_sensible': bool(adjunto.get('sensible') or sensible_de_oficio),
             }
-            if adjunto.get('mime'):
-                valores['mimetype'] = adjunto['mime']
+            if mime:
+                valores['mimetype'] = mime
             creados |= Adjunto.create(valores)
         sensible = any(creados.mapped('dcasa_sensible'))
         self.with_context(**{CLAVE_SISTEMA: True}).sudo().write({
@@ -475,6 +476,10 @@ def adjunto_como_dict(adjunto):
     un video, la dirección para escucharlo o verlo ahí mismo (pedido de la dueña, 2026-11-03)."""
     mime = adjunto.mimetype or ''
     tipo = A.tipo_de_mime(mime)
+    # Una nota de voz o un video que se guardó sin su tipo (antes del arreglo del 2026-11-03) igual se escucha: el
+    # canal dijo qué era («audio», «video») y eso quedó en la descripción.
+    if tipo == 'documento' and mime in ('', 'application/octet-stream') and adjunto.description in ('audio', 'video'):
+        tipo = adjunto.description
     datos = {
         'id': adjunto.id, 'nombre': adjunto.name, 'mime': mime, 'tipo': tipo,
         'sensible': bool(adjunto.dcasa_sensible), 'tamano': adjunto.file_size or 0,

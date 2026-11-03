@@ -863,6 +863,7 @@ LISTA_BLANCA = {
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'lista'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'texto_para'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'res.partner', 'action_dcasa_ver_conversaciones'): ACCION_VENTANA,
+    ('dcasa_conversaciones', 'crm.lead', 'action_dcasa_abrir_chat'): ACCION_VENTANA,
     # --- dcasa_correo (correo a clientes por Resend) ----------------------------------------------------
     ('dcasa_correo', 'dcasa.conversacion', 'correo_de_cotizacion'):
         PANEL_VENTAS + ' Solo lee si «Enviar por correo» se puede usar (sin la clave ni datos de otro cliente).',

@@ -53,7 +53,18 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
   previa y límite de tamaño; se envía por el canal como imagen o documento.
 - **Foto del catálogo**: botón que abre un buscador de productos (nombre o código, con foto,
   precio «+ ITBMS» y disponibilidad); al elegir, manda la foto con un pie armado (nombre, precio
-  + ITBMS, medidas, enlace). Varias fotos del mismo producto (galería) con un clic.
+  + ITBMS, medidas, enlace). Varias fotos del mismo producto (galería) con un clic. **Varias de distintos productos
+  (2026-11-03):** «Elegir» en cada producto (de una búsqueda o de otras; desde la galería, «Agregar a lo elegido»),
+  abajo se ve lo elegido y «Enviar N fotos» las manda juntas, un mensaje por producto con su pie, en el orden en que
+  se eligieron (hasta 10 productos de una vez). La ventana **no se cierra sola**: dice «Enviada» en cada producto y
+  se cierra con «Listo», la X o Esc.
+- **Abrir el chat desde el CRM y desde Contactos (2026-11-03):** la oportunidad tiene «Abrir el chat» (y un ícono en
+  la tarjeta del kanban y en la lista «Oportunidades»), y la ficha del contacto, «Chat». Abren esta pantalla con la
+  conversación más reciente de ese cliente a la vista (acción de cliente con `params.conversacion_id`). El flujo del
+  CRM abre **sin el filtro «Mi flujo»** (se redefine el contexto de `crm.crm_lead_action_pipeline`).
+- **Notas de voz:** WhatsApp las manda como `audio/ogg; codecs=opus`; el tipo se guarda sin parámetros
+  (`adjuntos.mime_seguro`) y con nombre `nota-de-voz.ogg`, así salen con reproductor. Las que llegaron antes del
+  arreglo (2026-11-03) las arregla la migración `19.0.1.3.0`.
 - **Cotización en PDF**: botón que genera la cotización de Odoo del cliente (o crea una borrador
   con líneas del catálogo) y la envía como documento.
 - **Respuestas rápidas**: atajos con `/` (p. ej. `/horario`, `/ubicacion`, `/socios`) que la dueña
@@ -98,6 +109,20 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
   (sin dueña, tarea al responsable, aviso a todas). *Borde:* una persona con el rol de vendedora que además tenga el de Gerencia (o sea administradora)
   **deja de recibir**; la pantalla la muestra en «No reciben» y, si no debía ser gerente, se le quita ese rol. Una conversación que Gerencia tomó y devolvió
   al asistente se reparte a una vendedora la próxima vez que Juan la pase.
+* **Solo reciben las que están activas (decisión de la dueña, 2026-11-03: los turnos rotan y quien no vino no se marca).**
+  Con el reparto encendido, `dcasa.reparto._disponibles` deja fuera a la vendedora que no usó Odoo (presencia de Odoo,
+  `mail.presence.last_presence`: teclado o ratón en cualquier pantalla, no una pestaña olvidada) **ni le escribió a un cliente** (también desde
+  Telegram) en los últimos **«Recibe solo quien usó el sistema hace poco»** minutos (`reparto_activa_minutos`, 30; 0 = no mirarlo; máximo 480).
+  La pantalla «Reparto» la muestra como **«Sin actividad»** con cuándo usó el sistema por última vez. Si nadie está activa, todo sigue como
+  «nadie disponible» (sin dueña, aviso a todas) y la acción de abajo se la da a la primera que se active.
+* **Si a quien le tocó no contesta, pasa a otra.** La acción planificada **«Juan: pasar a otra vendedora el cliente que nadie contesta»**
+  (`dcasa.reparto._cron_reasignar`, cada 5 minutos, **solo dentro del horario** de Ajustes de Juan) toma las conversaciones con una persona donde
+  el último mensaje es del cliente y lleva más de **«Pasar a otra si no contesta»** minutos (`reparto_reasignar_minutos`, 15; 0 = nunca; de 5 a
+  240): si la última línea del libro es del reparto (`parejo`, `turno`, `misma` o `reasignada`) para quien la tiene y es de hace más de esos
+  minutos, se la da a otra vendedora **activa** que no la haya tenido en las últimas 12 horas (con el mismo orden del reparto parejo), anota
+  `reasignada` en el libro, lo dice en el hilo («Ana no le contestó al cliente en 15 minutos: pasó a Beto»), le avisa a la nueva por Telegram
+  («Te tocó a ti») y le cuenta a Gerencia de ventas. Una conversación sin dueña se le da a la primera activa («Nadie la tenía»). **No toca** lo
+  que una persona tomó (`_tomar` deja una línea `manual` en el libro) o asignó a mano. Si no queda nadie nueva, se queda con quien la tiene.
 * **«No disponible» se reinicia cada mañana.** La acción planificada **«Juan: volver a poner «Disponible» a las vendedoras cada mañana»**
   (`dcasa.reparto._cron_reiniciar_disponibilidad`, cada hora) mira si ya pasó el **corte de hoy: dos horas antes de abrir la tienda**, hora de
   Panamá (6:00 a. m. con el horario de 8:00 de Ajustes de Juan; si cambian la apertura, el corte se mueve; nunca antes de medianoche). Pasado el corte, deja

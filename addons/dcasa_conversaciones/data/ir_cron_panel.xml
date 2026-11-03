@@ -51,6 +51,18 @@
         <field name="active" eval="True"/>
     </record>
 
+    <!-- Cada 5 minutos, solo en horario: el cliente al que la vendedora que le tocó no contestó (Ajustes de Juan, 15 minutos)
+         pasa a otra vendedora activa y se avisa a Gerencia; el que quedó sin dueña se le da a la primera activa. -->
+    <record id="ir_cron_reasignar_sin_respuesta" model="ir.cron">
+        <field name="name">Juan: pasar a otra vendedora el cliente que nadie contesta</field>
+        <field name="model_id" ref="model_dcasa_reparto"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_reasignar()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="active" eval="True"/>
+    </record>
+
     <!-- Cada hora: las entradas de conocimiento nuevas o editadas reciben su huella de significado (solo si Gerencia encendió
          la búsqueda por significado; si no, no hace nada). -->
     <record id="ir_cron_calcular_vectores" model="ir.cron">

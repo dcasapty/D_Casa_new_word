@@ -40,14 +40,16 @@ class TestOrigenChatbot(CotizarCase):
         orden.invalidate_recordset(['dcasa_origen'])
         self.assertEqual(orden.dcasa_origen, 'chatbot')
 
-    def test_el_inicio_dice_chatbot_en_la_cotizacion_abierta(self):
+    def test_el_inicio_pone_la_cotizacion_del_chatbot_en_su_panel_y_dice_chatbot(self):
         self.cotizar({'codigo': 'ZZ-CAMA'})
         (orden,) = self.ordenes()
         orden.date_order = '2020-01-01 12:00:00'   # la más antigua: sale primero en la lista del Inicio
         hoy = self.env['dcasa.tablero']._ahora_en_panama().date()
-        filas = self.env['dcasa.tablero']._lista_de_cotizaciones(hoy)['filas']
+        filas = self.env['dcasa.tablero']._lista_de_cotizaciones(hoy, en_linea=True)['filas']
         fila = next(f for f in filas if f['id'] == orden.id)
         self.assertEqual(fila['origen'], 'Chatbot')
+        tienda = self.env['dcasa.tablero']._lista_de_cotizaciones(hoy)['filas']
+        self.assertNotIn(orden.id, [f['id'] for f in tienda], 'Va en su propio panel, no con las de la tienda')
 
 
 @tagged('post_install', '-at_install')

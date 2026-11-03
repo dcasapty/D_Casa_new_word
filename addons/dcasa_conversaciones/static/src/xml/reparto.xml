@@ -55,6 +55,7 @@
                                             <td data-label="Estado">
                                                 <span t-attf-class="o_dcj_p_chip o_dcj_p_chip_#{estados[p.estado].clase}"><i t-attf-class="fa #{estados[p.estado].icono}" aria-hidden="true"/> <t t-out="estados[p.estado].texto"/></span>
                                                 <small t-if="p.estado === 'fuera'" class="o_dcj_p_detalle o_dcj_reparto_hasta"><t t-if="p.fuera_hasta">hasta el <t t-out="fecha(p.fuera_hasta)"/></t><t t-else="">sin fecha de regreso</t></small>
+                                                <small t-if="p.estado === 'inactiva'" class="o_dcj_p_detalle o_dcj_reparto_actividad"><t t-if="p.activa_en">usó el sistema <t t-out="cuando(p.activa_en)"/></t><t t-else="">no ha entrado al sistema</t></small>
                                             </td>
                                             <td data-label="Recibidas">
                                                 <span class="o_dcj_reparto_recibidas" t-out="numero(p.recibidas)"/>
@@ -80,7 +81,7 @@
                                 </table>
                             </div>
                             <p t-if="d.no_reciben.length" class="o_dcj_p_nota o_dcj_reparto_no_reciben">No reciben conversaciones de Juan (intervienen en cualquiera cuando quieran): <strong t-out="d.no_reciben.join(', ')"/>. Solo reciben las vendedoras; si alguien de ventas aparece aquí y debería recibir, es porque también tiene el rol de Gerencia o de administradora.</p>
-                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda; «No recibe» no se reinicia solo. «Dejar de asignarle» sirve para vacaciones o ausencias: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
+                            <p class="o_dcj_p_nota">«Recibidas» son las que Juan le pasó a cada quien <t t-out="nombreDelPeriodo"/>. «Esperan respuesta» son los clientes que le esperan ahora. «No disponible» (almuerzo, fin del día) se reinicia solo cada mañana, antes de abrir la tienda; «No recibe» no se reinicia solo.<t t-if="d.minutos_activa"> «Sin actividad»: no usó el sistema ni le escribió a un cliente en los últimos <t t-out="d.minutos_activa"/> minutos (por ejemplo, no vino), así que no recibe hasta que vuelva.</t><t t-if="d.minutos_reasignar"> Si a quien le tocó no le contesta al cliente en <t t-out="d.minutos_reasignar"/> minutos, el cliente pasa solo a otra.</t> «Dejar de asignarle» sirve para vacaciones o ausencias: no le quita ningún permiso ni las conversaciones que ya tiene (esas las puedes pasar a otra persona desde la conversación).</p>
                             <p class="o_dcj_p_nota">
                                 <button type="button" class="o_dcj_enlace" t-on-click="abrirAjustes">Ajustes de Juan</button> · Reparto:
                                 <t t-out="d.modo_nombre"/>.
@@ -95,6 +96,10 @@
                         <div t-if="d.yo.estado === 'fuera'" class="o_dcj_p_aviso" role="status">
                             <i class="fa fa-plane" aria-hidden="true"/>
                             <p>Gerencia te sacó del reparto <t t-if="d.yo.fuera_hasta">hasta el <t t-out="fecha(d.yo.fuera_hasta)"/></t><t t-else="">por ahora</t>: Juan no te asigna conversaciones nuevas. Sigues pudiendo atender las que quieras.</p>
+                        </div>
+                        <div t-elif="d.yo.estado === 'inactiva' and d.modo !== 'manual'" class="o_dcj_p_aviso" role="status">
+                            <i class="fa fa-clock-o" aria-hidden="true"/>
+                            <p>Llevas más de <t t-out="d.minutos_activa"/> minutos sin usar el sistema: Juan no te asigna conversaciones nuevas hasta que vuelvas a usarlo o le escribas a un cliente.</p>
                         </div>
                         <div t-elif="d.yo.estado === 'no_disponible' and d.modo !== 'manual'" class="o_dcj_p_aviso" role="status">
                             <i class="fa fa-pause-circle-o" aria-hidden="true"/>

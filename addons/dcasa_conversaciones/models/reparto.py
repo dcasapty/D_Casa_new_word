@@ -5,14 +5,20 @@ Cuando el asistente pasa una conversación a una persona (``dcasa.conversacion._
 
 1. **Quién puede recibir** (las «disponibles»): solo las **vendedoras**, es decir, personas internas con el grupo de
    ventas que NO son Gerencia de ventas ni administradoras (ellas intervienen en cualquier conversación, pero el
-   reparto no se las pasa). De ellas, las que Gerencia no sacó del reparto (vacaciones, ausencias) y que no se
-   marcaron «No disponible» (almuerzo, fin del día). «No disponible» se reinicia solo cada mañana.
+   reparto no se las pasa). De ellas, las que Gerencia no sacó del reparto (vacaciones, ausencias), que no se
+   marcaron «No disponible» (almuerzo, fin del día) y que están **activas**: usaron Odoo o le escribieron a un
+   cliente en los últimos ``reparto_activa_minutos`` (30 de fábrica). Así quien no vino no recibe aunque nadie la haya
+   marcado (los turnos rotan; pedido de la dueña, 2026-11-03). «No disponible» se reinicia solo cada mañana.
 2. **Su vendedora de siempre**: si el cliente habló con una de ellas en los últimos N días
    (``reparto_dias_misma_vendedora``, 14 de fábrica), vuelve con ella. 0 = sin memoria.
 3. **Quien lleva menos hoy**: la que menos conversaciones recibió hoy (día de Panamá); con empate, a quien menos
    clientes le esperan ahora; con empate, a quien lleva más tiempo sin recibir una (``res.users.dcasa_turno``).
 4. **Nadie disponible**: la conversación no se asigna; la tarea queda con el responsable por defecto y se avisa a todo
    el equipo, como siempre.
+5. **Nadie le contesta** (``_cron_reasignar``, cada 5 minutos, solo en horario): si la vendedora a la que el reparto se
+   la dio no le contesta al cliente en ``reparto_reasignar_minutos`` (15 de fábrica), pasa a otra activa que no la
+   haya tenido en las últimas horas, queda escrito en el hilo y se avisa a Gerencia. Una sin dueña se le da a la
+   primera activa. Lo que una persona tomó o asignó a mano no se toca.
 
 Cada decisión queda en ``dcasa.reparto`` (un libro que no se edita): de ahí salen las cuentas de la pantalla «Reparto».
 Aquí no hay ningún método público: la pantalla entra por ``dcasa.juan.panel`` (``panel_reparto.py``).
@@ -34,11 +40,16 @@ REGLAS = [
     ('parejo', 'Reparto parejo'),
     ('turno', 'Por turnos'),
     ('misma', 'Siguió con su vendedora'),
+    ('reasignada', 'Pasó a otra: nadie le contestó'),
     ('manual', 'Asignada a mano'),
 ]
 # Las que cuentan como «Juan se la pasó»: son las que se reparten. La asignación a mano (alguien eligió a quién) queda
 # en el libro porque dice quién atendió al cliente, pero no cuenta como una conversación recibida.
-REGLAS_DE_JUAN = ('parejo', 'turno', 'misma')
+REGLAS_DE_JUAN = ('parejo', 'turno', 'misma', 'reasignada')
+# Cuántas conversaciones revisa el cron de «pasar a otra» en cada vuelta (corre cada 5 minutos).
+LOTE_DE_REASIGNAR = 30
+# Quien ya tuvo la conversación en estas horas no la vuelve a recibir por «pasar a otra» (no contestó).
+HORAS_SIN_REPETIR = 12
 MAX_FILAS_PROPIAS = 100
 GRUPO_VENDEDORA = 'sales_team.group_sale_salesman'
 # Estas personas intervienen en cualquier conversación, pero el reparto no se las pasa.
@@ -105,8 +116,34 @@ class DcasaReparto(models.Model):
 
     @api.model
     def _disponibles(self, hoy=None):
-        """Las vendedoras que pueden recibir Y no se marcaron «No disponible»: entre ellas se reparte."""
-        return self._equipo(hoy).filtered('dcasa_disponible')
+        """Las vendedoras que pueden recibir, no se marcaron «No disponible» y están activas: entre ellas se reparte."""
+        disponibles = self._equipo(hoy).filtered('dcasa_disponible')
+        minutos = self.env['dcasa.juan.ajustes'].obtener().reparto_activa_minutos
+        if minutos <= 0 or not disponibles:
+            return disponibles
+        activas = self._ultima_actividad(disponibles)
+        limite = fields.Datetime.now() - timedelta(minutes=minutos)
+        return disponibles.filtered(lambda u: activas.get(u.id) and activas[u.id] >= limite)
+
+    @api.model
+    def _ultima_actividad(self, usuarios):
+        """``{usuario_id: momento}``: lo último que cada una hizo de verdad. Cuenta usar Odoo (la presencia de Odoo:
+        teclado o ratón en cualquier pantalla, no una pestaña olvidada abierta) y escribirle a un cliente (también desde
+        Telegram, que no pasa por Odoo). Quien nunca hizo nada no aparece."""
+        if not usuarios:
+            return {}
+        ultima = {}
+        for presencia in self.env['mail.presence'].sudo().search_read(
+                [('user_id', 'in', usuarios.ids)], ['user_id', 'last_presence']):
+            if presencia['last_presence']:
+                ultima[presencia['user_id'][0]] = presencia['last_presence']
+        desde = fields.Datetime.now() - timedelta(days=1)
+        for usuario, momento in self.env['dcasa.mensaje'].sudo()._read_group(
+                [('usuario_id', 'in', usuarios.ids), ('tipo', '=', 'mensaje'), ('autor', '=', 'vendedora'),
+                 ('ts', '>=', desde)], ['usuario_id'], ['ts:max']):
+            if momento and (usuario.id not in ultima or momento > ultima[usuario.id]):
+                ultima[usuario.id] = momento
+        return ultima
 
     # ------------------------------------------------------------------
     # Cuentas (las que decide el reparto y las que muestra la pantalla)
@@ -215,6 +252,87 @@ class DcasaReparto(models.Model):
         # La más reciente; si dos empatan al segundo, la de id más bajo (siempre la misma).
         uid = min(pruebas, key=lambda i: (-pruebas[i].timestamp(), i))
         return candidatas.browse(uid), pruebas[uid]
+
+    # ------------------------------------------------------------------
+    # Nadie le contesta: pasa a otra
+    # ------------------------------------------------------------------
+
+    @api.model
+    def _cron_reasignar(self):
+        """Cada 5 minutos y solo dentro del horario laboral: el cliente al que la vendedora que le tocó no contestó
+        en ``reparto_reasignar_minutos`` pasa a otra activa, y el que quedó sin dueña (no había nadie activa) se le da a
+        la primera que se active. Una conversación que falla no frena a las demás. Devuelve cuántas cambió."""
+        ajustes = self.env['dcasa.juan.ajustes'].obtener()
+        minutos = ajustes.reparto_reasignar_minutos
+        ahora = fields.Datetime.now()
+        if ajustes.reparto_modo == 'manual' or minutos <= 0 or not H.dentro_de_horario(ahora, ajustes.horario()):
+            return 0
+        limite = ahora - timedelta(minutes=minutos)
+        Conversacion = self.env['dcasa.conversacion'].sudo()
+        esperando = Conversacion.search([
+            ('estado', '=', 'humano'), ('ultimo_mensaje_autor', '=', 'cliente'),
+            ('ultimo_mensaje_cliente', '<=', limite),
+            ('ultimo_mensaje_cliente', '>=', ahora - timedelta(hours=HORAS_SIN_REPETIR)),
+        ], order='ultimo_mensaje_cliente', limit=LOTE_DE_REASIGNAR)
+        cambiadas = 0
+        for conv in esperando:
+            try:
+                with self.env.cr.savepoint():
+                    cambiadas += bool(self._reasignar_si_nadie_contesta(conv, limite))
+            except Exception:   # noqa: BLE001 — una conversación rara no deja a los demás clientes sin vendedora
+                _logger.exception('Juan: no pude pasar a otra vendedora la conversación %s.', conv.id)
+        return cambiadas
+
+    @api.model
+    def _reasignar_si_nadie_contesta(self, conv, limite):
+        """Pasa ``conv`` a otra vendedora activa si la que la tiene se la dio el reparto hace más de ``limite`` y no le
+        contestó (o si nadie la tiene). Devuelve a quién se la dio, o vacío si la deja como está."""
+        vacio = self.env['res.users']
+        antes = conv.asignada_a
+        ultima = self.sudo().search([('conversacion_id', '=', conv.id)], order='id desc', limit=1)
+        if antes:
+            # Solo lo que repartió el sistema: si una persona la tomó o la asignó a mano, es de ella.
+            if not ultima or ultima.usuario_id != antes or ultima.regla not in REGLAS_DE_JUAN:
+                return vacio
+            if ultima.momento > limite:
+                return vacio   # se la dieron hace poco: todavía tiene tiempo
+        hoy = self._hoy()
+        ya_la_tuvieron = self.sudo().search([
+            ('conversacion_id', '=', conv.id),
+            ('momento', '>=', fields.Datetime.now() - timedelta(hours=HORAS_SIN_REPETIR))]).usuario_id
+        candidatas = self._disponibles(hoy) - antes - ya_la_tuvieron
+        if not candidatas:
+            return vacio
+        cuentas = self._cuentas(candidatas, hoy, hoy, excepto=conv)
+        elegida = self._ordenar(candidatas, cuentas)[0]
+        minutos = self.env['dcasa.juan.ajustes'].obtener().reparto_reasignar_minutos
+        if antes:
+            razon = self.env._('%(antes)s no le contestó al cliente en %(min)s minutos: pasó a %(nueva)s.',
+                               antes=antes.name, min=minutos, nueva=elegida.name)
+        else:
+            razon = self.env._('Nadie la tenía: pasó a %s, que está activa.', elegida.name)
+        conv.asignada_a = elegida
+        self._anotar(conv, elegida, 'reasignada', razon, hoy)
+        elegida.dcasa_turno = max(self._equipo(hoy).mapped('dcasa_turno') or [0]) + 1
+        conv._aviso(razon)
+        cliente = conv.partner_id.display_name or conv.id_externo
+        canal = dict(self.env['dcasa.conversacion']._fields['canal'].selection).get(conv.canal, conv.canal)
+        texto = self.env._('Te tocó a ti: %(cliente)s espera respuesta por %(canal)s. %(razon)s',
+                           cliente=cliente, canal=canal, razon=razon)
+        if not conv._avisar_por_telegram(texto, usuarios=elegida, acciones=True):
+            conv._avisar_por_telegram(texto, acciones=True)
+        gerencia = self._gerencia_que_recibe_avisos()
+        if gerencia and antes:
+            conv._avisar_por_telegram(self.env._('Para Gerencia: %s', razon), usuarios=gerencia)
+        conv._notificar_panel('estado')
+        return elegida
+
+    @api.model
+    def _gerencia_que_recibe_avisos(self):
+        """Gerencia de ventas (no las administradoras del sistema): a quién se le cuenta que un cliente pasó a otra
+        vendedora porque nadie le contestó."""
+        return self.env['res.users'].sudo().search([
+            ('all_group_ids', 'in', self.env.ref('sales_team.group_sale_manager').ids), ('share', '=', False)])
 
     # ------------------------------------------------------------------
     # «No disponible» se reinicia cada mañana

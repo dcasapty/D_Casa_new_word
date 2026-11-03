@@ -11,6 +11,7 @@ from psycopg2.errors import SerializationFailure
 from odoo import fields
 from odoo.addons.dcasa_conversaciones.controllers import juan as controlador
 from odoo.addons.dcasa_conversaciones.models import horario as H
+from odoo.addons.dcasa_conversaciones.models.mensaje import adjunto_como_dict
 from odoo.tests import HttpCase, tagged
 from odoo.tools import mute_logger
 
@@ -180,6 +181,21 @@ class TestMensaje(ApiCase):
         cuerpo = self.post('mensaje', self.mensaje(texto=None, adjuntos=[adjunto])).json()
         self.assertTrue(cuerpo['ok'])
         self.assertEqual([(a['nombre'], a['sensible']) for a in cuerpo['adjuntos']], [('yappy.jpg', True)])
+
+    def test_la_nota_de_voz_de_whatsapp_se_guarda_como_audio_y_se_escucha(self):
+        """WhatsApp manda la nota de voz sin nombre y como «audio/ogg; codecs=opus». Antes el «; codecs…» hacía perder
+        el tipo: quedaba «adjunto», sin reproductor (reporte de la dueña, 2026-11-03)."""
+        ogg = b'OggS\x00\x02' + b'\x00' * 40
+        for mime in ('audio/ogg; codecs=opus', None):
+            with self.subTest(mime=mime):
+                adjunto = {'tipo': 'audio', 'base64': base64.b64encode(ogg).decode()}
+                if mime:
+                    adjunto['mime'] = mime
+                self.assertTrue(self.post('mensaje', self.mensaje(texto=None, adjuntos=[adjunto])).json()['ok'])
+                guardado = self.conversacion().mensaje_ids.sorted('id')[-1].adjunto_ids
+                self.assertEqual((guardado.name, guardado.mimetype), ('nota-de-voz.ogg', 'audio/ogg'))
+                vista = adjunto_como_dict(guardado)
+                self.assertEqual((vista['tipo'], vista['reproducir']), ('audio', f'/web/content/{guardado.id}'))
 
     def test_un_adjunto_sin_url_no_hace_perder_el_mensaje(self):
         """Un Worker sin su dirección pública manda ``url: null``: el mensaje se guarda y la burbuja avisa."""

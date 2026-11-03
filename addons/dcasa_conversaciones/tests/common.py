@@ -55,6 +55,9 @@ class JuanCase(TransactionCase):
         cls.Mensaje = cls.env['dcasa.mensaje']
         cls.Partner = cls.env['res.partner']
         cls.ajustes = cls.env['dcasa.juan.ajustes'].obtener()
+        # Las vendedoras de prueba nunca abren Odoo: sin esto, la regla «recibe solo quien está activa» las dejaría sin
+        # nada. Las pruebas de esa regla la encienden (``test_reparto_activas.py``).
+        cls.ajustes.reparto_activa_minutos = 0
         cls.juan = cls.env.ref('dcasa_conversaciones.user_juan')
         cls.vendedora = new_test_user(
             cls.env, login='juan_vendedora', name='Vendedora Prueba',

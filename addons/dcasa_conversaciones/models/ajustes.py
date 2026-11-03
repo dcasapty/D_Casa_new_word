@@ -239,6 +239,19 @@ class JuanAjustes(models.Model):
         help='Con el reparto «parejo»: si el cliente habló con una vendedora (o se la asignaron) en los últimos días '
              'que pongas aquí y ella está disponible, la conversación vuelve con ella en vez de repartirse de nuevo. '
              '0 = sin memoria: siempre se reparte parejo. Máximo 365.')
+    reparto_activa_minutos = fields.Integer(
+        'Recibe solo quien usó el sistema hace poco (minutos)', default=30, tracking=True,
+        help='Con el reparto encendido, Juan solo le pasa clientes a la vendedora que usó Odoo (o le escribió a un '
+             'cliente, también desde Telegram) en estos últimos minutos. Si no vino, no entró al sistema y no recibe, '
+             'aunque nadie la haya marcado «No disponible» (pedido de la dueña, 2026-11-03: los turnos rotan). Si '
+             'nadie está activa, la conversación queda sin dueña, se avisa a todo el equipo como siempre y se le da a '
+             'la primera que se active. 0 = no mirarlo (recibe toda la que esté «Disponible»). Máximo 480.')
+    reparto_reasignar_minutos = fields.Integer(
+        'Pasar a otra si no contesta (minutos)', default=15, tracking=True,
+        help='Con el reparto encendido y dentro del horario laboral: si la vendedora a la que Juan le pasó un cliente '
+             'no le contesta en estos minutos, el cliente pasa solo a otra vendedora activa, queda escrito en la '
+             'conversación y se avisa a Gerencia. No toca las conversaciones que una persona tomó o asignó a mano. '
+             '0 = nunca. De 5 a 240.')
     aviso_espera_minutos = fields.Integer(
         'Avisar si un cliente espera (minutos)', default=10, tracking=True,
         help='Si una persona tiene la conversación y el cliente lleva tantos minutos sin respuesta, se avisa por '
@@ -383,12 +396,19 @@ class JuanAjustes(models.Model):
                 raise ValidationError(self.env._(
                     'Cada lección admite hasta %s caracteres. Acórtala.', MAX_LARGO_LECCION))
 
-    @api.constrains('reparto_dias_misma_vendedora')
+    @api.constrains('reparto_dias_misma_vendedora', 'reparto_activa_minutos', 'reparto_reasignar_minutos')
     def _check_reparto(self):
         for registro in self:
             if not 0 <= registro.reparto_dias_misma_vendedora <= 365:
                 raise ValidationError(self.env._(
                     'Los días que un cliente sigue con su vendedora van de 0 (sin memoria) a 365.'))
+            if not 0 <= registro.reparto_activa_minutos <= 480:
+                raise ValidationError(self.env._(
+                    'Los minutos para contar a una vendedora como activa van de 0 (no mirarlo) a 480.'))
+            minutos = registro.reparto_reasignar_minutos
+            if minutos and not 5 <= minutos <= 240:
+                raise ValidationError(self.env._(
+                    'Los minutos para pasar el cliente a otra vendedora van de 5 a 240 (0 = nunca).'))
 
     @api.constrains('presupuesto_ia_mensual_usd', 'pausa_por_defecto_minutos', 'aviso_espera_minutos')
     def _check_numeros(self):

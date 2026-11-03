@@ -341,6 +341,48 @@ class TestHilo(PanelCase):
         self.assertEqual((adjuntos['video.mp4']['tipo'], adjuntos['video.mp4']['reproducir']),
                          ('video', f'/web/content/{video.id}'))
 
+    def test_una_nota_de_voz_guardada_sin_tipo_igual_se_escucha(self):
+        """Las que llegaron antes del arreglo del 2026-11-03 quedaron como «application/octet-stream»: el canal dijo
+        «audio» (queda en la descripción) y con eso salen con reproductor. Un documento sin tipo sigue para bajar."""
+        mensaje = self.conv.mensaje_ids[:1]
+        Adjunto = self.env['ir.attachment']
+        vieja = Adjunto.create({'name': 'adjunto', 'raw': b'\x00\x01binario', 'mimetype': 'application/octet-stream',
+                                'description': 'audio', 'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        otro = Adjunto.create({'name': 'otro', 'raw': b'\x00\x02binario', 'mimetype': 'application/octet-stream',
+                               'description': 'documento', 'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        mensaje.with_context(dcasa_mensaje_sistema=True).sudo().adjunto_ids = [Command.set([vieja.id, otro.id])]
+        adjuntos = {a['nombre']: a for a in self.panel.hilo(self.conv.id, limite=100)['mensajes'][0]['adjuntos']}
+        self.assertEqual((adjuntos['adjunto']['tipo'], adjuntos['adjunto']['reproducir']),
+                         ('audio', f'/web/content/{vieja.id}'))
+        self.assertEqual((adjuntos['otro']['tipo'], adjuntos['otro']['reproducir']), ('documento', None))
+
+    def test_la_migracion_arregla_las_notas_de_voz_viejas_y_nada_mas(self):
+        import importlib.util
+
+        from odoo.tools.misc import file_path
+        spec = importlib.util.spec_from_file_location(
+            'mig_notas_de_voz', file_path('dcasa_conversaciones/migrations/19.0.1.3.0/post-migrate.py'))
+        migracion = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migracion)
+        mensaje = self.conv.mensaje_ids[:1]
+        Adjunto = self.env['ir.attachment']
+        comunes = {'raw': b'\x00binario', 'mimetype': 'application/octet-stream', 'res_model': 'dcasa.mensaje',
+                   'res_id': mensaje.id}
+        sin_nombre = Adjunto.create({**comunes, 'name': 'adjunto', 'description': 'audio'})
+        con_nombre = Adjunto.create({**comunes, 'name': 'voz', 'description': 'audio'})
+        documento = Adjunto.create({**comunes, 'name': 'adjunto', 'description': 'documento'})
+        mp3 = Adjunto.create({**comunes, 'name': 'cancion.mp3', 'mimetype': 'audio/mpeg', 'description': 'audio'})
+        de_otro_lado = Adjunto.create({**comunes, 'name': 'adjunto', 'description': 'audio',
+                                       'res_model': 'res.partner', 'res_id': self.env.user.partner_id.id})
+        migracion.migrate(self.env.cr, '19.0.1.2.0')
+        Adjunto.invalidate_model(['name', 'mimetype'])
+        self.assertEqual((sin_nombre.name, sin_nombre.mimetype), ('nota-de-voz.ogg', 'audio/ogg'))
+        self.assertEqual((con_nombre.name, con_nombre.mimetype), ('voz.ogg', 'audio/ogg'))
+        for intacto, nombre, tipo in ((documento, 'adjunto', 'application/octet-stream'),
+                                      (mp3, 'cancion.mp3', 'audio/mpeg'),
+                                      (de_otro_lado, 'adjunto', 'application/octet-stream')):
+            self.assertEqual((intacto.name, intacto.mimetype), (nombre, tipo))
+
     def test_argumentos_invalidos(self):
         for kw in ({'limite': 0}, {'limite': 101}, {'limite': True}, {'antes_de_id': 0}, {'antes_de_id': 'x'},
                    {'antes_de_id': True}):

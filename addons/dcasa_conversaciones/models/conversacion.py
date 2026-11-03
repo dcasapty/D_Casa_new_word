@@ -736,6 +736,13 @@ class DcasaConversacion(models.Model):
                 valores['asignada_a'] = usuario.id
             conv.write(valores)
 
+    def _accion_abrir_en_panel(self):
+        """La pantalla de Conversaciones con esta conversación a la vista (desde el CRM o la ficha del contacto)."""
+        self.ensure_one()
+        accion = self.env['ir.actions.actions']._for_xml_id('dcasa_conversaciones.accion_conversaciones')
+        accion['params'] = {'conversacion_id': self.id}
+        return accion
+
     def action_atender(self):
         """«Atender»: el asistente calla, la conversación pasa a la vendedora y el Worker se entera."""
         self._exigir_vendedora()
@@ -765,6 +772,9 @@ class DcasaConversacion(models.Model):
         horario = self.env['dcasa.juan.ajustes'].obtener().horario()
         self._poner_en_humano(usuario=usuario, minutos=minutos)
         for conv in self.sudo():
+            # Queda en el libro del reparto: quien la tomó la está atendiendo y «pasar a otra si no contesta» no la
+            # toca.
+            conv._registrar_asignacion_a_mano(usuario)
             if conv.pausada_hasta:
                 texto = self.env._('%(quien)s tomó la conversación. El asistente calla hasta %(hasta)s.',
                                    quien=usuario.name, hasta=H.texto_fecha_hora(conv.pausada_hasta, horario))

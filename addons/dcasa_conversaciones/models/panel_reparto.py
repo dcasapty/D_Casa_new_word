@@ -60,17 +60,23 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         # Los números de las demás solo se calculan (y viajan) para Gerencia.
         visibles = equipo if es_gerencia else yo
         cuentas = Reparto._cuentas(visibles | yo, desde, hoy)
+        # Quién está activa ahora (usó Odoo o le escribió a un cliente hace poco): sin eso, no recibe.
+        minutos_activa = ajustes.reparto_activa_minutos
+        actividad = Reparto._ultima_actividad(visibles | yo) if minutos_activa > 0 else None
         datos = {
             'periodo': periodo, 'periodo_nombre': C.NOMBRES_PERIODO[periodo], 'hoy': hoy.isoformat(),
             'es_gerencia': es_gerencia,
             'modo': ajustes.reparto_modo, 'modo_nombre': NOMBRES_DEL_MODO.get(ajustes.reparto_modo, ''),
             'dias_misma_vendedora': ajustes.reparto_dias_misma_vendedora,
-            'yo': self._fila_de(yo, cuentas[yo.id], hoy, horario, recibe=yo in equipo),
+            'minutos_activa': minutos_activa, 'minutos_reasignar': ajustes.reparto_reasignar_minutos,
+            'yo': self._fila_de(yo, cuentas[yo.id], hoy, horario, recibe=yo in equipo, actividad=actividad,
+                                minutos_activa=minutos_activa),
             'mis_conversaciones': self._mis_conversaciones(yo, desde, hoy),
             'equipo': [], 'no_reciben': [], 'sin_dueno': None, 'diferencia': None,
         }
         if es_gerencia:
-            filas = [self._fila_de(u, cuentas[u.id], hoy, horario) for u in
+            filas = [self._fila_de(u, cuentas[u.id], hoy, horario, actividad=actividad, minutos_activa=minutos_activa)
+                     for u in
                      equipo.sorted(lambda u: (u.name or '').lower())]
             filas.sort(key=lambda f: f['estado'] == 'fuera')   # quienes no reciben, al final (el orden se conserva)
             for fila in filas:
@@ -83,17 +89,29 @@ class DcasaJuanPanelReparto(models.AbstractModel):
         return datos
 
     @api.model
-    def _fila_de(self, usuario, cuenta, hoy, horario, recibe=True):
-        """Una fila de la pantalla. ``estado``: ``disponible``, ``no_disponible``, ``fuera`` (Gerencia la sacó del
-        reparto) o ``interviene`` (Gerencia o administradora: no recibe)."""
+    def _fila_de(self, usuario, cuenta, hoy, horario, recibe=True, actividad=None, minutos_activa=0):
+        """Una fila de la pantalla. ``estado``: ``disponible``, ``no_disponible``, ``inactiva`` (disponible, pero no
+        usó Odoo ni le escribió a un cliente en los últimos ``minutos_activa``: no recibe), ``fuera`` (Gerencia la sacó
+        del reparto) o ``interviene`` (Gerencia o administradora: no recibe). ``actividad``: lo de
+        ``dcasa.reparto._ultima_actividad`` (``None`` = la regla de estar activa está apagada)."""
         fuera = not usuario._dcasa_en_el_reparto(hoy)
+        ultima_actividad = (actividad or {}).get(usuario.id)
         if not recibe:
             estado = 'interviene'
+        elif fuera:
+            estado = 'fuera'
+        elif not usuario.dcasa_disponible:
+            estado = 'no_disponible'
+        elif actividad is not None and minutos_activa > 0 and (
+                not ultima_actividad
+                or ultima_actividad < fields.Datetime.now() - timedelta(minutes=minutos_activa)):
+            estado = 'inactiva'
         else:
-            estado = 'fuera' if fuera else ('disponible' if usuario.dcasa_disponible else 'no_disponible')
+            estado = 'disponible'
         fuera = fuera and recibe
         return {
             'usuario_id': usuario.id, 'nombre': usuario.name or '', 'estado': estado,
+            'activa_en': H.a_iso(ultima_actividad) if ultima_actividad else None,
             'fuera_hasta': usuario.dcasa_fuera_hasta.isoformat() if fuera and usuario.dcasa_fuera_hasta else None,
             'recibidas': cuenta['recibidas'], 'abiertas': cuenta['abiertas'],
             'ultima': H.a_iso(cuenta['ultima']),
