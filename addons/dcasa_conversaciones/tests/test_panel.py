@@ -452,6 +452,14 @@ class TestMensajesProgramados(PanelCase):
         mensaje.with_context(dcasa_mensaje_sistema=True).sudo().programado_para = fields.Datetime.now() - timedelta(
             minutes=1)
 
+    def test_un_mensaje_programado_todavia_no_le_contesta(self):
+        """«Esperan respuesta»: lo programado aún no salió; la fila y la cuenta de arriba lo dicen igual."""
+        self.conv._poner_en_humano(usuario=self.vendedora)
+        self.programar()
+        lista = self.panel.lista()
+        fila = next(c for c in lista['conversaciones'] if c['id'] == self.conv.id)
+        self.assertEqual((fila['sin_leer'], lista['sin_leer_total']), (1, 1))
+
     def test_queda_programado_y_no_toca_la_conversacion(self):
         r = self.programar()
         self.assertEqual((r['enviado'], r['programado']), (False, True))

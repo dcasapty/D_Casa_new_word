@@ -258,7 +258,9 @@ class DcasaJuanPanel(models.AbstractModel):
         * **solo_vendedora**: solo personas, sin el asistente (de referencia: no se le atribuye).
 
         ``facturas`` y ``monto`` son las dos primeras juntas (donde participó el asistente). ``de_cotizacion_de_juan``:
-        cuántas de esas salieron de una cotización que armó él (origen «Chatbot»), la prueba más fuerte.
+        cuántas de esas salieron de una cotización que armó él (origen «Chatbot»), la prueba más fuerte: esas cuentan
+        como del asistente aunque la conversación sea de antes de la ventana o el cliente de la factura sea otro
+        contacto (revisión adversarial, 2026-11-03). «Y una persona» no mira quién habló primero.
 
         Es atribución por conversación, no causalidad. El monto va sin ITBMS. Quien ve solo lo suyo («Cada vendedora ve
         solo sus documentos», ``res.users._dcasa_solo_lo_suyo``) cuenta solo sus facturas y las que no tienen vendedora,
@@ -277,20 +279,17 @@ class DcasaJuanPanel(models.AbstractModel):
                    AND m.invoice_date >= %(d)s AND m.invoice_date < %(h)s AND m.company_id = %(compania)s
                    AND (NOT %(solo_lo_suyo)s OR m.invoice_user_id = %(uid)s OR m.invoice_user_id IS NULL)
             ), x AS (
+                -- Una pasada por factura: los mensajes del asistente y de las personas con ese cliente (cualquier
+                -- contacto de la misma empresa) en la ventana. Juntas, no un EXISTS por factura.
                 SELECT f.monto, f.de_juan,
-                       EXISTS (SELECT 1 FROM dcasa_conversacion c
-                                 JOIN res_partner p ON p.id = c.partner_id
-                                 JOIN dcasa_mensaje b ON b.conversacion_id = c.id
-                                WHERE COALESCE(p.commercial_partner_id, p.id) = f.cliente
-                                  AND b.tipo = 'mensaje' AND b.autor = 'bot'
-                                  AND b.ts >= f.desde AND b.ts < f.hasta) AS juan,
-                       EXISTS (SELECT 1 FROM dcasa_conversacion c
-                                 JOIN res_partner p ON p.id = c.partner_id
-                                 JOIN dcasa_mensaje b ON b.conversacion_id = c.id
-                                WHERE COALESCE(p.commercial_partner_id, p.id) = f.cliente
-                                  AND b.tipo = 'mensaje' AND b.autor = 'vendedora'
-                                  AND b.ts >= f.desde AND b.ts < f.hasta) AS persona
-                  FROM f)
+                       COALESCE(BOOL_OR(b.autor = 'bot'), FALSE) OR f.de_juan AS juan,
+                       COALESCE(BOOL_OR(b.autor = 'vendedora'), FALSE) AS persona
+                  FROM f
+             LEFT JOIN res_partner p ON p.commercial_partner_id = f.cliente
+             LEFT JOIN dcasa_conversacion c ON c.partner_id = p.id
+             LEFT JOIN dcasa_mensaje b ON b.conversacion_id = c.id AND b.tipo = 'mensaje'
+                                      AND b.autor IN ('bot', 'vendedora') AND b.ts >= f.desde AND b.ts < f.hasta
+              GROUP BY f.id, f.monto, f.de_juan)
             SELECT juan, persona, de_juan, COUNT(*), COALESCE(SUM(monto), 0)
               FROM x WHERE juan OR persona
           GROUP BY juan, persona, de_juan""",

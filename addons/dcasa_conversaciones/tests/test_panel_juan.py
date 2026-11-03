@@ -259,6 +259,13 @@ class TestResumen(JuanCase):
         self.env.cr.execute("UPDATE account_move SET dcasa_origen = 'chatbot' WHERE id = %s", [factura.id])
         r = self.panel.resumen('7_dias')['ventas']
         self.assertEqual(r['de_cotizacion_de_juan'], {'facturas': 1, 'monto': 100.0})
+        # La de una cotización de Juan cuenta aunque la conversación sea de hace más de 30 días.
+        vieja = self.hablan('50761000009', panama(2026, 8, 1, 9, 0), panama(2026, 8, 1, 9, 1), nombre='Beto')
+        otra = self.factura(vieja.partner_id, 40.0)
+        self.env.cr.execute("UPDATE account_move SET dcasa_origen = 'chatbot' WHERE id = %s", [otra.id])
+        r = self.panel.resumen('7_dias')['ventas']
+        self.assertEqual(r['de_cotizacion_de_juan'], {'facturas': 2, 'monto': 140.0})
+        self.assertEqual(r['solo_juan'], {'facturas': 2, 'monto': 140.0})
         self.assertEqual(self.panel.resumen('12_meses')['periodo_nombre'], 'Últimos 12 meses')
 
     def test_la_vendedora_solo_suma_sus_ventas_atribuidas_y_gerencia_las_de_toda_la_tienda(self):

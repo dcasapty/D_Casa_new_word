@@ -81,7 +81,7 @@
                             <ul class="o_dcj_p_partes list-unstyled mb-0">
                                 <li class="o_dcj_p_parte_solo_juan"><span>Solo el asistente</span>
                                     <strong t-out="dolares(d.ventas.solo_juan.monto)"/> <small t-out="'(' + numero(d.ventas.solo_juan.facturas) + ')'"/></li>
-                                <li class="o_dcj_p_parte_juan_y_vendedora"><span>El asistente empezó y una persona siguió</span>
+                                <li class="o_dcj_p_parte_juan_y_vendedora"><span>El asistente y una persona</span>
                                     <strong t-out="dolares(d.ventas.juan_y_vendedora.monto)"/> <small t-out="'(' + numero(d.ventas.juan_y_vendedora.facturas) + ')'"/></li>
                                 <li class="o_dcj_p_parte_solo_vendedora o_dcj_p_parte_aparte"><span>Solo personas, sin el asistente</span>
                                     <strong t-out="dolares(d.ventas.solo_vendedora.monto)"/> <small t-out="'(' + numero(d.ventas.solo_vendedora.facturas) + ')'"/></li>

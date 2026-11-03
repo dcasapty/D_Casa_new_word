@@ -105,7 +105,8 @@ class DcasaConversacionPanel(models.Model):
              WHERE m.conversacion_id IN %s AND m.tipo = 'mensaje' AND m.autor = 'cliente'
                AND m.id > COALESCE((SELECT MAX(r.id) FROM dcasa_mensaje r
                                      WHERE r.conversacion_id = m.conversacion_id AND r.tipo = 'mensaje'
-                                       AND r.direccion = 'saliente'), 0)
+                                       AND r.direccion = 'saliente'
+                                       AND COALESCE(r.estado_envio, '') <> 'programado'), 0)
           GROUP BY m.conversacion_id""", [tuple(esperan)])
         return dict(self.env.cr.fetchall())
 

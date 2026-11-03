@@ -232,14 +232,11 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (document.activeElement !== visor.querySelector("button[aria-label^='Cerrar']")) { throw new Error("el foco entra al visor"); }
     escape();
     await esperar(() => !document.querySelector(".o_dcj_visor"), "el visor cerrado con Esc");
-    // Al abrirla se marcó como leída: el contador se va.
-    await esperar(() => !aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_no_leidos"), "el contador de no leídos en cero");
+    // A Karen la atiende el asistente: no espera a una persona, así que nunca sale «sin leer».
+    if (aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_no_leidos")) { throw new Error("Karen no espera a una persona"); }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """)
-        lectura = self.env['dcasa.conversacion.lectura'].sudo().search([
-            ('conversacion_id', '=', self.karen.id), ('usuario_id', '=', self.vendedora.id)])
-        self.assertTrue(lectura, 'Abrir el hilo lo marca como leído para quien lo abrió')
 
     def test_atender_y_devolver_con_nota(self):
         self.datos_de_ejemplo()

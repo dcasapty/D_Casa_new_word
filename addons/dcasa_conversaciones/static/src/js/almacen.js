@@ -577,6 +577,10 @@ export class Almacen {
         }
         const i = this.lista.findIndex((c) => c.id === resumen.id);
         if (i >= 0) {
+            // Le contestaron: deja de esperar y la cuenta de arriba baja sin esperar a recargar la lista.
+            if ((this.lista[i].sin_leer || 0) > 0 && !resumen.sin_leer) {
+                this.sinLeerTotal = Math.max(0, this.sinLeerTotal - 1);
+            }
             this.lista[i] = resumen;
         }
         if (resumen.id === this.seleccionadaId) {

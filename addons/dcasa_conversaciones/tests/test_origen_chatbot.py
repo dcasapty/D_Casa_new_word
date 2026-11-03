@@ -1,12 +1,12 @@
 """El origen «Chatbot» (pedido de la dueña, 2026-11-03: «las facturas creadas por Juan deberían decir, en el Inicio o en
 todo lado, que son por el chatbot»): la cotización que arma Juan, su factura y la fila del Inicio."""
 from datetime import timedelta
-from unittest.mock import patch
 
-from odoo import fields
+from odoo import Command
 from odoo.exceptions import ValidationError
 from odoo.tests import tagged
 
+from ..models.sale_origen import hoy_en_panama
 from .test_cotizacion_automatica import CotizarCase
 
 
@@ -53,64 +53,117 @@ class TestOrigenChatbot(CotizarCase):
 @tagged('post_install', '-at_install')
 class TestCotizacionesQueVencen(CotizarCase):
     """Decisión de la dueña (2026-11-03): las cotizaciones del chatbot y de la web que nadie confirmó se cancelan
-    solas a los 3 días (Gerencia lo cambia en Ajustes de Juan). No se borran y las de las vendedoras no se tocan."""
+    solas a los 3 días (Gerencia lo cambia en Ajustes de Juan). No se borran y las de las vendedoras no se tocan.
+    Manda su «válida hasta» (lo que dice el PDF); la revisión adversarial pidió también: reabrir le da sus días otra
+    vez, un carrito tocado hace poco no se cancela, un apartado de la web tampoco."""
 
-    def envejecer(self, orden, dias):
-        self.env.cr.execute("UPDATE sale_order SET create_date = now() at time zone 'UTC' - %s * interval '1 day' "
-                            "WHERE id = %s", [dias, orden.id])
-        orden.invalidate_recordset(['create_date'])
+    def vencer(self, orden, dias=1, tocada_hace_horas=24):
+        """Su «válida hasta» pasó hace ``dias`` días y nadie la tocó en ``tocada_hace_horas`` horas."""
+        self.env.flush_all()
+        self.env.cr.execute(
+            "UPDATE sale_order SET validity_date = %s, write_date = now() at time zone 'UTC' - %s * interval '1 hour' "
+            "WHERE id = %s", [hoy_en_panama() - timedelta(days=dias), tocada_hace_horas, orden.id])
+        orden.invalidate_recordset(['validity_date', 'write_date'])
 
     @staticmethod
     def notas(orden):
         return ' '.join(str(m.body or '') for m in orden.message_ids)
 
-    def de_juan(self):
-        self.cotizar({'codigo': 'ZZ-CAMA'})
+    def de_juan(self, codigo='ZZ-CAMA'):
+        self.cotizar({'codigo': codigo})
         return self.ordenes()[-1:]
+
+    def cron(self):
+        return self.env['sale.order']._cron_dcasa_cancelar_vencidas()
+
+    def web(self):
+        return self.env['sale.order'].create({
+            'partner_id': self.conv.partner_id.id, 'website_id': self.env['website'].search([], limit=1).id,
+            'order_line': [(0, 0, {'product_id': self.cama.product_variant_id.id, 'product_uom_qty': 1})]})
 
     def test_viene_en_3_dias_y_la_cotizacion_dice_valida_hasta(self):
         self.assertEqual(self.ajustes.cotizacion_dias_abierta, 3)
-        orden = self.de_juan()
-        self.assertEqual(orden.validity_date, fields.Date.context_today(orden) + timedelta(days=3))
+        self.assertEqual(self.de_juan().validity_date, hoy_en_panama() + timedelta(days=3))
+        self.assertEqual(self.web().validity_date, hoy_en_panama() + timedelta(days=3))
 
-    def test_pasados_los_dias_se_cancela_sola_con_su_nota_y_no_se_borra(self):
+    def test_pasada_su_fecha_se_cancela_sola_con_su_nota_y_no_se_borra(self):
         vieja = self.de_juan()
-        self.envejecer(vieja, 4)
-        self.cotizar({'codigo': 'ZZ-SOFA'})
-        nueva = self.ordenes()[-1:]
-        self.envejecer(nueva, 2)
-        self.assertEqual(self.env['sale.order']._cron_dcasa_cancelar_vencidas(), 1)
+        self.vencer(vieja)
+        nueva = self.de_juan('ZZ-SOFA')
+        self.assertEqual(self.cron(), 1)
         self.assertEqual(vieja.state, 'cancel')
-        self.assertIn(nueva.state, ('draft', 'sent'), 'la de hace 2 días sigue abierta')
+        self.assertIn(nueva.state, ('draft', 'sent'), 'la nueva sigue en su plazo')
         self.assertTrue(vieja.exists(), 'se cancela, nunca se borra')
         self.assertIn('Se canceló sola', self.notas(vieja))
         self.assertIn('del chatbot', self.notas(vieja))
 
+    def test_si_una_vendedora_mueve_la_fecha_manda_la_fecha(self):
+        orden = self.de_juan()
+        self.vencer(orden)
+        orden.validity_date = hoy_en_panama() + timedelta(days=5)
+        self.vencer(orden, dias=-5)       # la fecha nueva, sin tocar en 24 h
+        self.cron()
+        self.assertIn(orden.state, ('draft', 'sent'))
+
+    def test_reabrirla_le_da_sus_dias_otra_vez(self):
+        orden = self.de_juan()
+        self.vencer(orden)
+        self.cron()
+        self.assertEqual(orden.state, 'cancel')
+        orden.action_draft()
+        self.assertEqual(orden.validity_date, hoy_en_panama() + timedelta(days=3))
+        self.cron()
+        self.assertEqual(orden.state, 'draft', 'no la vuelve a cancelar en la siguiente corrida')
+
+    def test_la_que_alguien_toco_hace_poco_no_se_cancela(self):
+        """Un carrito de la web que el cliente está llenando ahora mismo."""
+        carrito = self.web()
+        self.vencer(carrito, tocada_hace_horas=2)
+        self.cron()
+        self.assertEqual(carrito.state, 'draft')
+
     def test_la_de_una_vendedora_no_se_toca(self):
-        orden = self.env['sale.order'].create({'partner_id': self.conv.partner_id.id, 'order_line': [
-            (0, 0, {'product_id': self.cama.product_variant_id.id, 'product_uom_qty': 1})]})
-        self.envejecer(orden, 10)
-        self.env['sale.order']._cron_dcasa_cancelar_vencidas()
+        orden = self.env['sale.order'].with_user(self.vendedora).create({
+            'partner_id': self.conv.partner_id.id,
+            'order_line': [(0, 0, {'product_id': self.cama.product_variant_id.id, 'product_uom_qty': 1})]})
+        self.assertEqual(orden.dcasa_origen, 'vendedora')
+        self.vencer(orden, dias=10)
+        self.cron()
         self.assertEqual(orden.state, 'draft')
 
     def test_una_de_la_web_vencida_se_cancela_salvo_con_un_pago_en_curso(self):
-        web = self.env['sale.order'].create({
-            'partner_id': self.conv.partner_id.id, 'website_id': self.env['website'].search([], limit=1).id,
-            'order_line': [(0, 0, {'product_id': self.cama.product_variant_id.id, 'product_uom_qty': 1})]})
-        self.envejecer(web, 5)
-        clase = type(self.env['sale.order'])
-        with patch.object(clase, '_dcasa_pago_en_curso', return_value=True):
-            self.env['sale.order']._cron_dcasa_cancelar_vencidas()
+        web = self.web()
+        proveedor = self.env['payment.provider'].search([('payment_method_ids', '!=', False)], limit=1)
+        if not proveedor:
+            self.skipTest('No hay un proveedor de pago para crear la transacción.')
+        tx = self.env['payment.transaction'].create({
+            'provider_id': proveedor.id, 'payment_method_id': proveedor.payment_method_ids[:1].id,
+            'amount': web.amount_total, 'currency_id': web.currency_id.id, 'partner_id': web.partner_id.id,
+            'reference': 'TEST-VENCE-WEB-1', 'sale_order_ids': [Command.set(web.ids)]})
+        tx._set_pending()
+        self.vencer(web, dias=2)
+        self.cron()
         self.assertEqual(web.state, 'draft', 'con una transferencia por confirmar no se cancela')
-        self.env['sale.order']._cron_dcasa_cancelar_vencidas()
+        tx._set_canceled()
+        self.vencer(web, dias=2)
+        self.cron()
         self.assertEqual(web.state, 'cancel')
         self.assertIn('de la web', self.notas(web))
 
+    def test_un_apartado_de_la_web_sigue_su_propio_vencimiento(self):
+        web = self.web()
+        if 'dcasa_apartado_vence' not in web._fields:
+            self.skipTest('Sin website_dcasa no hay apartados.')
+        web.dcasa_apartado_vence = hoy_en_panama() + timedelta(days=7)
+        self.vencer(web, dias=2)
+        self.cron()
+        self.assertEqual(web.state, 'draft')
+
     def test_con_0_dias_nunca_se_cancelan_y_mas_de_60_no_se_acepta(self):
         orden = self.de_juan()
-        self.envejecer(orden, 30)
+        self.vencer(orden, dias=30)
         self.ajustes.cotizacion_dias_abierta = 0
-        self.assertEqual(self.env['sale.order']._cron_dcasa_cancelar_vencidas(), 0)
+        self.assertEqual(self.cron(), 0)
         self.assertIn(orden.state, ('draft', 'sent'))
         with self.assertRaises(ValidationError):
             self.ajustes.cotizacion_dias_abierta = 61
