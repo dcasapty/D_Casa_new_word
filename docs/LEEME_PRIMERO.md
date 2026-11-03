@@ -106,7 +106,8 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 
 - Pedido de la dueña (para Gerencia): «el costo en mercancía o productos actualmente» (lo más urgente, «solo para
   gerencia o administración») y ver **por forma de pago** lo de días y meses pasados (antes solo la Caja de hoy).
-- Hecho en la rama (sin desplegar todavía): pantalla **Inventario › Valor del inventario** (también en Estadísticas y
+- **En producción** (Desplegar 33, PR #66, `441635e`, sano y confirmado 18:09 UTC, 1:09 pm Panamá; la dueña pidió
+  «ya mismo» tras ver las capturas): pantalla **Inventario › Valor del inventario** (también en Estadísticas y
   como atajo del Inicio de Gerencia; `dcasa.tablero.valor_del_inventario`): al costo = valuación de Odoo
   (`total_value`), a precio de venta sin ITBMS, ganancia esperada, por tipo, los 10 con más dinero y lo que falta cargar.
   Y **lo cobrado por forma de pago** (la cuenta de la Caja de hoy) en Por día (mes y día elegido) y Estadísticas. Brian:
@@ -114,7 +115,11 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 - No se pudo «conectar a Cloudflare» para leer las cifras de producción: el conector de Cloudflare de esta sesión no
   estaba autorizado y, aunque lo estuviera, la base de Odoo vive dentro del contenedor (no se lee por la API de
   Cloudflare). Las cifras reales las verá la dueña en la pantalla al desplegar.
-- Sigue: capturas → su visto bueno → staging → producción (después de las 5 pm).
+- Revisión adversarial independiente antes de publicar: faltaba el método en la lista blanca de la conexión de datos
+  (habría puesto el CI en rojo), claves repetidas por nombre en las fichas (ahora por id, también en la Caja de hoy),
+  redondeo del ITBMS incluido y textos; todo corregido con pruebas. Abierto (menor): «Cobrado» suma `amount` y todo
+  cobro entrante, igual que la Caja de hoy de siempre; no hay prueba con costo FIFO.
+- Sigue: que la dueña mire la cifra real; cargar el costo de los productos «sin costo» y contar los «en negativo».
 
 ### 2026-10-27 (tarde): «Rastrear inventario» bloqueado
 

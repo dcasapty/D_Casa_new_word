@@ -7,10 +7,10 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
-**Estado al 2026-11-02:** en la rama, con pruebas, **Valor del inventario** (al costo y a precio de venta sin ITBMS,
-solo Gerencia y administradores) y **lo cobrado por forma de pago** en Por día y Estadísticas. Orden: (1) que la dueña
-vea las capturas y dé su visto bueno; (2) staging; (3) producción después de las 5 pm; (4) con la cifra real a la
-vista, cargar el costo de los productos que salgan «sin costo» y contar los que salgan en negativo.
+**Estado al 2026-11-02:** **en producción** (Desplegar 33, PR #66) **Valor del inventario** (al costo y a precio de
+venta sin ITBMS, solo Gerencia y administradores) y **lo cobrado por forma de pago** en Por día y Estadísticas. Orden:
+(1) que la dueña mire la cifra real; (2) cargar el costo de los productos que salgan «sin costo» y contar los que salgan
+en negativo; (3) lo pendiente de abajo (Meta/Juan, contadora, dominio).
 
 **Estado al 2026-10-27, noche:** en producción (Desplegar 32, PR #65) el arreglo para marcar «Rastrear inventario»
 en productos que ya tuvieron movimientos. Sigue: que la gerencia marque la casilla en los productos nuevos del

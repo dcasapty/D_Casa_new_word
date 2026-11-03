@@ -364,6 +364,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 33** (17:55 UTC del 2 nov, `441635e`, imagen `sha256:c3efff19…` de CI #237, respaldo previo) · sano
+  17:59 y confirmado 18:09 (versión `441635e5b372`, base al día, humo ok): Valor del inventario y lo cobrado por forma
+  de pago (PR #66). En horario de tienda porque la dueña lo pidió «ya mismo»: ~2 min de 503 mientras arrancaba la
+  imagen nueva. El CI #236 se canceló a propósito: la revisión adversarial encontró que faltaba el método en la lista
+  blanca de `test_superficie_rpc.py` (habría salido rojo). **Regla:** todo método público nuevo de un modelo `dcasa`
+  va a `LISTA_BLANCA` con su motivo en el mismo commit.
 - **Desplegar 32** (23:31 UTC del 27, `53c7b18`, imagen `sha256:da338f12…` de CI #231, respaldo previo) · sano y
   confirmado 23:46: arreglo de «Rastrear inventario» (PR #65).
 - **Desplegar 31** (00:26 UTC del 27, `741930d`, imagen `sha256:efb5f5ac…` de CI #230 sobre `main`, respaldo previo

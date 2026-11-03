@@ -261,9 +261,12 @@ class BrianHerramientasJuan(models.AbstractModel):
 
     @herramienta(
         nombre=PREFIJO + 'listar_categorias',
-        descripcion='Las categorías de la tienda con cuántos productos publicados tiene cada una.',
+        descripcion='Las categorías de la tienda con cuántos productos publicados tiene cada una y su enlace, y el '
+                    'enlace del catálogo completo en la página de D\'CASA (catalogo_completo).',
         nivel='lectura', categoria='catalogo', grupos=GRUPOS,
-        ejemplos=['«¿qué venden?» → listar_categorias'],
+        ejemplos=['«¿qué venden?» → listar_categorias',
+                  '«¿me pasas el catálogo?» o «quiero ver todo lo que tienen» → listar_categorias y das el enlace '
+                  'de catalogo_completo'],
     )
     def _juan_listar_categorias(self):
         dominio = self._j_dominio_publicado()
@@ -276,7 +279,14 @@ class BrianHerramientasJuan(models.AbstractModel):
                 categorias.append({
                     'nombre': categoria.name, 'ruta': categoria.display_name or categoria.name, 'productos': cuantos,
                     'url': f"{base}/shop/category/{self.env['ir.http']._slug(categoria)}"})
-        return {'categorias': categorias}
+        # Pedido de la dueña (2026-11-03): si alguien pide el catálogo completo, que lo vea en la página.
+        return {
+            'catalogo_completo': f'{base}/shop',
+            'categorias': categorias,
+            'nota': 'Si el cliente pide el catálogo completo o ver todo lo que hay, dale el enlace de '
+                    'catalogo_completo: ahí ve todos los productos publicados con sus fotos. Si busca algo '
+                    'concreto, dale también el enlace de esa categoría o búscalo con buscar_productos.',
+        }
 
     # ------------------------------------------------------------------
     # Socios D'CASA

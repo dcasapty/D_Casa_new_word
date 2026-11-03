@@ -266,6 +266,17 @@ class TestVerProductoYCategorias(HerramientasCase):
         self.assertEqual(categorias['Zzcocina']['productos'], 1)
         self.assertIn('/shop/category/', categorias['Zzdormitorio']['url'])
 
+    def test_listar_categorias_trae_el_enlace_del_catalogo_completo(self):
+        """Pedido de la dueña (2026-11-03): quien pide «el catálogo completo» lo ve en la página (``/shop``), con la
+        misma dirección pública que las categorías; el enlace sale de Odoo, no del prompt de Juan."""
+        salida = self.salida('listar_categorias')
+        base = salida['categorias'][0]['url'].split('/shop/category/')[0]
+        self.assertEqual(salida['catalogo_completo'], f'{base}/shop')
+        self.assertIn('catalogo_completo', salida['nota'])
+        definicion = next(h for h in self.env['brian.herramientas'].with_user(self.juan).catalogo()
+                          if h['name'] == 'juan_listar_categorias')
+        self.assertIn('catálogo completo', json.dumps(definicion, ensure_ascii=False))
+
 
 @tagged('post_install', '-at_install')
 class TestSocios(HerramientasCase):
