@@ -127,7 +127,7 @@ describe("los mensajes del cliente", () => {
             { from: "507", id: "1", type: "document", document: { id: "D", filename: "comprobante.pdf", caption: "mi pago" } },
             { from: "507", id: "2", type: "video", video: { id: "V" } },
             { from: "507", id: "3", type: "location" },
-            { from: "507", id: "4", type: "sticker" },
+            { from: "507", id: "4", type: "sticker", sticker: { id: "S", mime_type: "image/webp", animated: false } },
             { from: "507", id: "5", type: "reaction" },
           ],
         }),
@@ -138,6 +138,15 @@ describe("los mensajes del cliente", () => {
     expect(r.entrantes[0].adjuntos[0]).toMatchObject({ tipo: "documento", nombre: "comprobante.pdf" });
     expect(r.entrantes[1].adjuntos[0].tipo).toBe("video");
     expect(r.entrantes[2].texto).toMatch(/ubicaci/);
+    // El sticker: el texto para el modelo y la imagen para que el equipo la vea en Odoo (marcada para que el lector no la mire).
+    expect(r.entrantes[3].texto).toMatch(/sticker/);
+    expect(r.entrantes[3].adjuntos[0]).toMatchObject({ tipo: "imagen", mime: "image/webp", nombre: "sticker.webp", sticker: true });
+  });
+
+  it("un sticker sin id (no se puede bajar) queda solo como texto", async () => {
+    const r = await adaptador.recibir(await firmado(cambio({ messages: [{ from: "507", id: "9", type: "sticker" }] })), env);
+    expect(r.entrantes[0].texto).toMatch(/sticker/);
+    expect(r.entrantes[0].adjuntos).toEqual([]);
   });
 
   it("los recibos de entrega y lectura (`statuses`) se ignoran", async () => {

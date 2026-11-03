@@ -21,6 +21,9 @@ export interface AdjuntoEntrante {
   bytes?: Uint8Array;
   /** Para los canales que obligan a pedir el archivo con credenciales (Telegram, Cloud API): se llama una vez. */
   obtener?: () => Promise<{ bytes: Uint8Array; mime?: string } | null>;
+  /** Un sticker (llega como imagen): se guarda para que el equipo lo vea en Odoo, pero el lector de imágenes no lo mira y no se
+   *  anota para una vendedora (no es un comprobante ni un producto). */
+  sticker?: boolean;
 }
 
 export interface Entrante {

@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="dcasa_conversaciones.Lista">
-        <section class="o_dcj_col o_dcj_lista" t-att-class="{ o_compacta: almacen.listaReducida }" aria-label="Lista de conversaciones">
+        <section class="o_dcj_col o_dcj_lista" t-att-class="{ o_compacta: almacen.listaReducida }" aria-label="Lista de conversaciones" t-ref="columna">
+            <!-- El borde derecho se arrastra para ensanchar o angostar la lista (también con las flechas del teclado;
+                 doble clic la deja como estaba). Solo en computadora y con la lista ancha. -->
+            <div t-if="!almacen.listaReducida" class="o_dcj_tirador" role="separator" tabindex="0" aria-orientation="vertical"
+                 aria-controls="o_dcj_lista_cuerpo" aria-label="Ancho de la lista de conversaciones"
+                 title="Arrastra para ensanchar o angostar la lista. Doble clic: el ancho de siempre."
+                 t-att-aria-valuenow="anchoActual" t-att-aria-valuemin="anchoMin" t-att-aria-valuemax="anchoMax"
+                 t-att-class="{ o_arrastrando: local.arrastrando }"
+                 t-on-pointerdown="empezarArrastre" t-on-keydown="anchoConTeclado"
+                 t-on-dblclick="() => almacen.ponerAnchoLista(anchoNormal, true)"/>
             <header class="o_dcj_lista_cabecera">
                 <div class="o_dcj_titulo">
                     <h1>Conversaciones</h1>

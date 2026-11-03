@@ -84,7 +84,7 @@ interface EnvioRecordado {
 const PREFIJO_ID_ENVIO = "ide:";
 
 /** Un adjunto como se guarda en la copia de trabajo: el de Odoo más lo que se leyó de la imagen (esto NO viaja a Odoo). */
-type AdjuntoLocal = AdjuntoOdoo & { lectura?: LecturaImagen };
+type AdjuntoLocal = AdjuntoOdoo & { lectura?: LecturaImagen; sticker?: true };
 const RETENCION_MENSAJES_MS = 30 * 24 * 3600_000;
 /** Un mensaje por registrar en Odoo es el historial permanente: se conserva un mes entero (como los de la copia de trabajo). */
 const RETENCION_COLA_MENSAJES_MS = 30 * 24 * 3600_000;
@@ -299,7 +299,7 @@ export class MotorConversacion {
 
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
 
-    const { lista, transcripciones, lecturas } = await this.prepararAdjuntos(e, ahora);
+    const { lista, transcripciones, lecturas, stickers } = await this.prepararAdjuntos(e, ahora);
     // Mientras se preparaban los adjuntos pudo entrar el mismo mensaje por otra puerta (un reintento del proveedor en paralelo).
     if (e.id_mensaje && this.mensajes.existe(e.id_mensaje)) return { ok: true, accion: "duplicado" };
     const textoOriginal = (e.texto ?? "").trim();
@@ -315,7 +315,7 @@ export class MotorConversacion {
     const pide = !!textoOriginal && pideUnaPersona(textoOriginal);
     const vencido = ahora - e.ts > MENSAJE_VENCIDO_MS;
 
-    const adjuntosLocales: AdjuntoLocal[] = lista.map((a, i) => (lecturas[i] ? { ...a, lectura: lecturas[i]! } : a));
+    const adjuntosLocales: AdjuntoLocal[] = lista.map((a, i) => ({ ...a, ...(lecturas[i] ? { lectura: lecturas[i]! } : {}), ...(stickers[i] ? { sticker: true as const } : {}) }));
     const idFila = this.mensajes.insertar({ id_mensaje: e.id_mensaje, rol: "cliente", texto: texto || "(archivo)", adjuntos: adjuntosLocales, ts: e.ts, pendiente: false });
     this.kv.poner("ultimo_cliente_ts", Math.max(this.kv.numero("ultimo_cliente_ts") ?? 0, e.ts));
 
@@ -333,7 +333,8 @@ export class MotorConversacion {
     const silenciada = this.silencioLocal(ahora);
     // Todo archivo queda anotado para una vendedora (puede ser un comprobante o un documento de identidad).
     // Una captura de producto que el lector entendió con claridad no necesita a una vendedora: el bot la atiende con el catálogo.
-    const aNotar = lista.filter((a, i) => !(a.tipo === "audio" && transcripciones.length > 0) && !esProductoSeguro(lecturas[i]));
+    // Un sticker tampoco: el equipo lo ve en el chat, pero no hay nada que revisar.
+    const aNotar = lista.filter((a, i) => !(a.tipo === "audio" && transcripciones.length > 0) && !esProductoSeguro(lecturas[i]) && !stickers[i]);
     if (aNotar.length > 0 && !silenciada && !this.silencioDeOdoo(ahora)) {
       this.cola.agregar("herramienta", { nombre: "anotar_conversacion", argumentos: { nota: this.notaDeArchivos(aNotar) } }, ahora);
     }
@@ -432,17 +433,18 @@ export class MotorConversacion {
     };
   }
 
-  private async prepararAdjuntos(e: Entrante, ahora: number): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[] }> {
+  private async prepararAdjuntos(e: Entrante, ahora: number): Promise<{ lista: AdjuntoOdoo[]; transcripciones: string[]; lecturas: (LecturaImagen | null)[]; stickers: boolean[] }> {
     const lista: AdjuntoOdoo[] = [];
     const transcripciones: string[] = [];
     const lecturas: (LecturaImagen | null)[] = [];
+    const stickers: boolean[] = [];
     let imagenesLeidas = 0;
     for (const a of e.adjuntos ?? []) {
       let lectura: LecturaImagen | null = null;
       let url = a.url ?? null;
       if (a.bytes && a.bytes.byteLength > 0) {
         const mime = a.mime ?? "application/octet-stream";
-        if (a.tipo === "imagen" && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
+        if (a.tipo === "imagen" && !a.sticker && this.deps.mirarImagen && imagenesLeidas < IMAGENES_POR_MENSAJE && this.cabeOtraLecturaHoy(ahora)) {
           imagenesLeidas++;
           try {
             lectura = await this.deps.mirarImagen(a.bytes, mime);
@@ -472,8 +474,9 @@ export class MotorConversacion {
       const marca = lectura ? marcaDeLectura(lectura) : {};
       lista.push({ tipo: a.tipo, url, nombre: a.nombre, mime: a.mime, ...marca });
       lecturas.push(lectura);
+      stickers.push(!!a.sticker);
     }
-    return { lista, transcripciones, lecturas };
+    return { lista, transcripciones, lecturas, stickers };
   }
 
   /** Cuenta una lectura de imagen en el día de esta persona; false si ya llegó al tope (entonces la imagen sigue el camino de siempre). */
@@ -746,6 +749,8 @@ export class MotorConversacion {
     }
     const notas: string[] = [];
     for (const a of lista) {
+      // El texto del mensaje ya dice «(el cliente mandó un sticker)».
+      if (a.sticker) continue;
       if (a.tipo === "imagen" && esProductoSeguro(a.lectura)) {
         notas.push(notaDeProductoLeido(a.lectura));
       } else if (a.tipo === "audio") {

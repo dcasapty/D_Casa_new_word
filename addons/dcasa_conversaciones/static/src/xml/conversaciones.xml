@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates xml:space="preserve">
     <t t-name="dcasa_conversaciones.Conversaciones">
-        <div class="o_dcj o_action" t-attf-class="o_dcj_ver_#{almacen.columna} #{almacen.fichaAbierta ? 'o_dcj_ficha_abierta' : ''} #{almacen.listaReducida ? 'o_dcj_lista_compacta' : ''}">
+        <div class="o_dcj o_action" t-attf-class="o_dcj_ver_#{almacen.columna} #{almacen.fichaAbierta ? 'o_dcj_ficha_abierta' : ''} #{almacen.listaReducida ? 'o_dcj_lista_compacta' : ''}"
+             t-att-style="almacen.estiloDelAncho">
             <div t-if="almacen.cargandoInicio" class="o_dcj_pantalla_centro" role="status">
                 <i class="fa fa-circle-o-notch fa-spin" aria-hidden="true"/> Abriendo las conversaciones…
             </div>

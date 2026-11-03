@@ -130,6 +130,11 @@ export async function informeDeSalud(d: DepsSalud): Promise<InformeDeSalud> {
   const avisos: string[] = [];
 
   for (const s of SECRETOS_GENERALES) if (!d.env[s.nombre]) problemas.push(`falta ${s.nombre} (${s.paraQue})`);
+  // Sin su propia dirección, el Worker guarda las fotos y notas de voz del cliente pero Odoo no las puede traer: en el chat
+  // sale «No se pudo traer 1 archivo» (lo vio la dueña el 2026-11-03).
+  if (!/^https:\/\/[^/\s]+/.test(d.env.URL_PUBLICA ?? "")) {
+    problemas.push("falta la variable URL_PUBLICA (la dirección https de este Worker): las fotos, notas de voz y archivos de los clientes no llegan al chat de Odoo");
+  }
 
   // ── La IA ──
   const conClave = (["anthropic", "meta", "openai"] as const).filter((p) => clavePresente(d.env, p));

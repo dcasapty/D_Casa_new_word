@@ -255,10 +255,26 @@ $dcj-amarillo: #FED00F;
     min-height: 0;
     position: relative;
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
+    // --dcj-col-lista: el ancho que la persona eligió arrastrando el borde (almacen.estiloDelAncho); sin elegir, 300 px.
+    grid-template-columns: var(--dcj-col-lista, 300px) minmax(0, 1fr);
     gap: 1px;
     background: var(--dc-linea, #E2E7F0);
 }
+// El borde de la lista que se arrastra: una franja de 8 px sobre la línea entre la lista y el hilo.
+.o_dcj .o_dcj_tirador {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -5px;
+    z-index: 6;
+    width: 9px;
+    cursor: col-resize;
+    touch-action: none;
+    &::after { content: ""; position: absolute; top: 0; bottom: 0; left: 4px; width: 1px; background: transparent; }
+    &:hover::after, &.o_arrastrando::after, &:focus-visible::after { width: 3px; left: 3px; background: var(--dc-azul-600, #1340B1); }
+    &:focus-visible { outline: none; }
+}
+body.o_dcj_arrastrando_ancho { cursor: col-resize; user-select: none; }
 .o_dcj.o_dcj_lista_compacta .o_dcj_cuerpo { grid-template-columns: 72px minmax(0, 1fr); }
 .o_dcj .o_dcj_col {
     min-width: 0;
@@ -548,6 +564,17 @@ $dcj-amarillo: #FED00F;
     }
     .o_dcj_documento_nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .o_dcj_documento_peso { color: var(--dc-tinta-3, #6B7690); font-weight: 500; font-size: .76rem; }
+}
+.o_dcj .o_dcj_medios {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+    .o_dcj_medio { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+    audio { width: 260px; max-width: 100%; height: 36px; }
+    video { display: block; max-width: 260px; max-height: 240px; border: 1px solid var(--dc-linea, #E2E7F0); border-radius: var(--dc-r-sm, 8px); background: var(--dc-perla, #ECF0F6); }
+    .o_dcj_medio_bajar { display: inline-flex; align-items: center; gap: 6px; font-size: .76rem; font-weight: 600; color: inherit; }
+    .o_dcj_documento_peso { color: var(--dc-tinta-3, #6B7690); font-weight: 500; }
 }
 .o_dcj .o_dcj_burbuja_vendedora .o_dcj_documentos a { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .5); .o_dcj_documento_peso { color: var(--dc-azul-200, #C3D2F6); } }
 
@@ -1195,7 +1222,7 @@ $dcj-amarillo: #FED00F;
         display: none;
     }
     .o_dcj.o_dcj_ficha_abierta .o_dcj_ficha { display: flex; }
-    .o_dcj.o_dcj_ficha_abierta .o_dcj_cuerpo { grid-template-columns: 300px minmax(0, 1fr) 320px; }
+    .o_dcj.o_dcj_ficha_abierta .o_dcj_cuerpo { grid-template-columns: var(--dcj-col-lista-ficha, 300px) minmax(0, 1fr) 320px; }
     .o_dcj.o_dcj_ficha_abierta.o_dcj_lista_compacta .o_dcj_cuerpo { grid-template-columns: 72px minmax(0, 1fr) 320px; }
 }
 
@@ -1307,6 +1334,7 @@ $dcj-amarillo: #FED00F;
         font-size: .95rem;
         .o_dcj_cuerpo { display: block; background: var(--dc-blanco, #FFFFFF); }
         .o_dcj_col { position: absolute; inset: 0; width: 100%; display: none; }
+        .o_dcj_tirador { display: none; }
         &.o_dcj_ver_lista .o_dcj_lista,
         &.o_dcj_ver_hilo .o_dcj_hilo,
         &.o_dcj_ver_ficha .o_dcj_ficha { display: flex; }

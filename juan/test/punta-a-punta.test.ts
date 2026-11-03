@@ -390,7 +390,7 @@ describe("el cron de salud avisa UNA vez por problema", () => {
 
   it("avisa por Telegram a la dueña, no repite a la hora siguiente, y avisa cuando se arregla", async () => {
     const { JUAN_WORKER_TOKEN: _w, ...sinTokenDelWorker } = SECRETOS;
-    const e = escenario({ ...sinTokenDelWorker, ...conPuente(true) }, { ALERTA_TELEGRAM_CHAT_ID: "999" });
+    const e = escenario({ ...sinTokenDelWorker, ...conPuente(true) }, { ALERTA_TELEGRAM_CHAT_ID: "999", URL_PUBLICA: "https://juan.example" });
     const avisos = () => salidas.filter((s) => s.api === "telegram" && s.cuerpo?.chat_id === "999").map((s) => s.cuerpo.text as string);
 
     await e.cron();
@@ -410,7 +410,7 @@ describe("el cron de salud avisa UNA vez por problema", () => {
   });
 
   it("si el puente de WhatsApp se desconecta (hay que volver a escanear el QR) avisa", async () => {
-    const e = escenario({ ...SECRETOS, ...conPuente(false) }, { ALERTA_TELEGRAM_CHAT_ID: "999" });
+    const e = escenario({ ...SECRETOS, ...conPuente(false) }, { ALERTA_TELEGRAM_CHAT_ID: "999", URL_PUBLICA: "https://juan.example" });
     await e.cron();
     const avisos = salidas.filter((s) => s.cuerpo?.chat_id === "999").map((s) => s.cuerpo.text as string);
     expect(avisos).toHaveLength(1);
@@ -418,7 +418,7 @@ describe("el cron de salud avisa UNA vez por problema", () => {
   });
 
   it("todo en orden: no avisa nada", async () => {
-    const e = escenario({ ...SECRETOS, ...conPuente(true) }, { ALERTA_TELEGRAM_CHAT_ID: "999" });
+    const e = escenario({ ...SECRETOS, ...conPuente(true) }, { ALERTA_TELEGRAM_CHAT_ID: "999", URL_PUBLICA: "https://juan.example" });
     await e.cron();
     expect(salidas.filter((s) => s.cuerpo?.chat_id === "999")).toEqual([]);
   });

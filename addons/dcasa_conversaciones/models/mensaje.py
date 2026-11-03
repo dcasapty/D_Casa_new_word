@@ -471,13 +471,17 @@ def _adjunto_html(adjunto):
 
 
 def adjunto_como_dict(adjunto):
-    """Un adjunto para la pantalla: enlace de descarga y, si es imagen, miniatura al ancho justo."""
+    """Un adjunto para la pantalla: enlace de descarga; si es imagen, miniatura al ancho justo; si es una nota de voz o
+    un video, la dirección para escucharlo o verlo ahí mismo (pedido de la dueña, 2026-11-03)."""
     mime = adjunto.mimetype or ''
+    tipo = A.tipo_de_mime(mime)
     datos = {
-        'id': adjunto.id, 'nombre': adjunto.name, 'mime': mime, 'tipo': A.tipo_de_mime(mime),
+        'id': adjunto.id, 'nombre': adjunto.name, 'mime': mime, 'tipo': tipo,
         'sensible': bool(adjunto.dcasa_sensible), 'tamano': adjunto.file_size or 0,
-        'url': f'/web/content/{adjunto.id}?download=true', 'miniatura': None,
+        'url': f'/web/content/{adjunto.id}?download=true', 'miniatura': None, 'reproducir': None,
     }
     if mime.startswith('image/'):
         datos['miniatura'] = f'/web/image/{adjunto.id}?width=360&height=360'
+    elif tipo in ('audio', 'video'):
+        datos['reproducir'] = f'/web/content/{adjunto.id}'
     return datos

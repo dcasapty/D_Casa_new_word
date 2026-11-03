@@ -304,6 +304,25 @@ class TestHilo(PanelCase):
         self.assertEqual((adjuntos['cotizacion.pdf']['tipo'], adjuntos['cotizacion.pdf']['sensible']),
                          ('documento', False))
         self.assertIsNone(adjuntos['cotizacion.pdf']['miniatura'], 'Un documento no tiene miniatura')
+        self.assertIsNone(adjuntos['cotizacion.pdf']['reproducir'], 'Un documento no se reproduce')
+        self.assertIsNone(adjuntos['foto.jpg']['reproducir'])
+
+    def test_una_nota_de_voz_y_un_video_se_escuchan_y_se_ven_en_el_chat(self):
+        """Pedido de la dueña (2026-11-03): la nota de voz se escucha ahí mismo (sin «download», que la bajaría) y
+        sigue teniendo su enlace para bajarla; lo mismo un video."""
+        mensaje = self.conv.mensaje_ids[:1]
+        Adjunto = self.env['ir.attachment']
+        nota = Adjunto.create({'name': 'nota.ogg', 'raw': b'OggS\x00\x02', 'mimetype': 'audio/ogg',
+                               'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        video = Adjunto.create({'name': 'video.mp4', 'raw': b'\x00\x00\x00\x18ftypmp42', 'mimetype': 'video/mp4',
+                                'res_model': 'dcasa.mensaje', 'res_id': mensaje.id})
+        mensaje.with_context(dcasa_mensaje_sistema=True).sudo().adjunto_ids = [Command.set([nota.id, video.id])]
+        adjuntos = {a['nombre']: a for a in self.panel.hilo(self.conv.id, limite=100)['mensajes'][0]['adjuntos']}
+        self.assertEqual((adjuntos['nota.ogg']['tipo'], adjuntos['nota.ogg']['reproducir']),
+                         ('audio', f'/web/content/{nota.id}'))
+        self.assertEqual(adjuntos['nota.ogg']['url'], f'/web/content/{nota.id}?download=true')
+        self.assertEqual((adjuntos['video.mp4']['tipo'], adjuntos['video.mp4']['reproducir']),
+                         ('video', f'/web/content/{video.id}'))
 
     def test_argumentos_invalidos(self):
         for kw in ({'limite': 0}, {'limite': 101}, {'limite': True}, {'antes_de_id': 0}, {'antes_de_id': 'x'},
