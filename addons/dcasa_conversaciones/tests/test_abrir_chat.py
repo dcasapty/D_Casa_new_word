@@ -21,6 +21,7 @@ class TestAbrirElChat(JuanCase):
     def test_el_flujo_del_crm_abre_sin_el_filtro_mi_flujo(self):
         accion = self.env['crm.team'].with_user(self.vendedora).action_your_pipeline()
         self.assertNotIn('search_default_assigned_to_me', accion['context'])
+        self.assertNotIn('search_default_assigned_to_me', self.env.ref('crm.crm_lead_action_pipeline').context)
         self.assertEqual(accion['context'].get('default_type'), 'opportunity')
         buscador = self.env['crm.lead'].get_view(self.env.ref('crm.view_crm_case_opportunities_filter').id,
                                                   'search')['arch']

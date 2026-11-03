@@ -112,17 +112,21 @@ Tres columnas en escritorio, una a la vez en celular (las vendedoras la usarán 
 * **Solo reciben las que están activas (decisión de la dueña, 2026-11-03: los turnos rotan y quien no vino no se marca).**
   Con el reparto encendido, `dcasa.reparto._disponibles` deja fuera a la vendedora que no usó Odoo (presencia de Odoo,
   `mail.presence.last_presence`: teclado o ratón en cualquier pantalla, no una pestaña olvidada) **ni le escribió a un cliente** (también desde
-  Telegram) en los últimos **«Recibe solo quien usó el sistema hace poco»** minutos (`reparto_activa_minutos`, 30; 0 = no mirarlo; máximo 480).
+  Telegram; un mensaje programado no cuenta) en los últimos **«Recibe solo quien usó el sistema hace poco»** minutos (`reparto_activa_minutos`, 30; 0 = no mirarlo; máximo 480).
   La pantalla «Reparto» la muestra como **«Sin actividad»** con cuándo usó el sistema por última vez. Si nadie está activa, todo sigue como
   «nadie disponible» (sin dueña, aviso a todas) y la acción de abajo se la da a la primera que se active.
 * **Si a quien le tocó no contesta, pasa a otra.** La acción planificada **«Juan: pasar a otra vendedora el cliente que nadie contesta»**
-  (`dcasa.reparto._cron_reasignar`, cada 5 minutos, **solo dentro del horario** de Ajustes de Juan) toma las conversaciones con una persona donde
-  el último mensaje es del cliente y lleva más de **«Pasar a otra si no contesta»** minutos (`reparto_reasignar_minutos`, 15; 0 = nunca; de 5 a
-  240): si la última línea del libro es del reparto (`parejo`, `turno`, `misma` o `reasignada`) para quien la tiene y es de hace más de esos
-  minutos, se la da a otra vendedora **activa** que no la haya tenido en las últimas 12 horas (con el mismo orden del reparto parejo), anota
-  `reasignada` en el libro, lo dice en el hilo («Ana no le contestó al cliente en 15 minutos: pasó a Beto»), le avisa a la nueva por Telegram
-  («Te tocó a ti») y le cuenta a Gerencia de ventas. Una conversación sin dueña se le da a la primera activa («Nadie la tenía»). **No toca** lo
-  que una persona tomó (`_tomar` deja una línea `manual` en el libro) o asignó a mano. Si no queda nadie nueva, se queda con quien la tiene.
+  (`dcasa.reparto._cron_reasignar`, cada 5 minutos, **solo dentro del horario** de Ajustes de Juan) mira las conversaciones con una persona que
+  tienen **`reparto_desde`**: el momento en que el reparto se la dio a alguien (o la dejó sin dueña porque no había nadie activa). Ese campo se
+  **borra** en cuanto alguien del equipo le escribe al cliente (desde Odoo, Telegram o el teléfono), la toma, la asigna o la deja sin asignar a
+  mano, vuelve al asistente (devuelta o por pausa vencida) o se cierra: desde ahí es de una persona y no se toca. No mira quién escribió último
+  (después de pasarla, Juan le dice al cliente «ya avisé a una vendedora» y el cliente sigue esperando). Si pasaron más de **«Pasar a otra si
+  no contesta»** minutos (`reparto_reasignar_minutos`, 15; 0 = nunca; de 5 a 240) **contados desde la apertura de hoy** (lo de antes de abrir
+  no cuenta), se la da a otra vendedora **activa** que no la haya tenido en las últimas 12 horas (mismo orden del reparto parejo), escribe
+  siempre una línea `reasignada` en el libro, lo dice en el hilo («Ana no le contestó al cliente en 15 minutos: pasó a Beto»), le avisa a la
+  nueva por Telegram («Te tocó a ti») y le cuenta a Gerencia de ventas. Una conversación sin dueña se le da a la primera activa («Nadie la
+  tenía»). Si no queda nadie nueva, se queda con quien la tiene. Cada cambio se confirma solo. Revisión adversarial del 2026-11-03: antes se
+  guiaba por la última línea del libro y le quitaba el cliente a quien ya había contestado si el cliente respondía «ok, gracias».
 * **«No disponible» se reinicia cada mañana.** La acción planificada **«Juan: volver a poner «Disponible» a las vendedoras cada mañana»**
   (`dcasa.reparto._cron_reiniciar_disponibilidad`, cada hora) mira si ya pasó el **corte de hoy: dos horas antes de abrir la tienda**, hora de
   Panamá (6:00 a. m. con el horario de 8:00 de Ajustes de Juan; si cambian la apertura, el corte se mueve; nunca antes de medianoche). Pasado el corte, deja

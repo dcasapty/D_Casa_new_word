@@ -8,7 +8,7 @@
                         <t t-if="local.galeria">Fotos de <t t-out="local.galeria.producto.nombre"/></t>
                         <t t-else="">Foto del catálogo</t>
                     </h2>
-                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-att-disabled="local.ocupado === 'tanda'" t-on-click="cerrar">
                         <i class="fa fa-times" aria-hidden="true"/>
                     </button>
                 </header>

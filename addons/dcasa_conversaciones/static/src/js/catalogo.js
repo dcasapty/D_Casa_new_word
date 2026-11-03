@@ -78,6 +78,10 @@ export class BuscadorCatalogo extends Component {
     }
 
     cerrar() {
+        // Mientras sale una tanda, la ventana no se cierra (ni con la X, ni con Esc, ni tocando afuera).
+        if (this.local.ocupado === "tanda") {
+            return;
+        }
         this.almacen.cerrarPanel();
     }
 
@@ -256,13 +260,14 @@ export class BuscadorCatalogo extends Component {
             return;
         }
         this.local.ocupado = "tanda";
+        const conversacionId = this.almacen.seleccionadaId;   // a este cliente, pase lo que pase en la pantalla
         let fotos = 0;
         let productos = 0;
         let alguno = true;
         try {
             for (const elegido of [...this.local.tanda]) {
                 this.local.productoOcupado = elegido.producto.id;
-                const r = await this.almacen.enviarFotoDelCatalogo(elegido.producto.id, elegido.fotos);
+                const r = await this.almacen.enviarFotoDelCatalogo(elegido.producto.id, elegido.fotos, null, conversacionId);
                 if (!r) {
                     break;
                 }

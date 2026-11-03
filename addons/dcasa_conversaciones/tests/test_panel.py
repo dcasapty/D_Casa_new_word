@@ -374,13 +374,17 @@ class TestHilo(PanelCase):
         mp3 = Adjunto.create({**comunes, 'name': 'cancion.mp3', 'mimetype': 'audio/mpeg', 'description': 'audio'})
         de_otro_lado = Adjunto.create({**comunes, 'name': 'adjunto', 'description': 'audio',
                                        'res_model': 'res.partner', 'res_id': self.env.user.partner_id.id})
+        messenger = self.conversacion('Audio por Messenger', canal='messenger', id_externo='psid-migracion')
+        de_messenger = Adjunto.create({**comunes, 'name': 'adjunto', 'description': 'audio',
+                                       'res_id': messenger.mensaje_ids[:1].id})
         migracion.migrate(self.env.cr, '19.0.1.2.0')
         Adjunto.invalidate_model(['name', 'mimetype'])
         self.assertEqual((sin_nombre.name, sin_nombre.mimetype), ('nota-de-voz.ogg', 'audio/ogg'))
         self.assertEqual((con_nombre.name, con_nombre.mimetype), ('voz.ogg', 'audio/ogg'))
         for intacto, nombre, tipo in ((documento, 'adjunto', 'application/octet-stream'),
                                       (mp3, 'cancion.mp3', 'audio/mpeg'),
-                                      (de_otro_lado, 'adjunto', 'application/octet-stream')):
+                                      (de_otro_lado, 'adjunto', 'application/octet-stream'),
+                                      (de_messenger, 'adjunto', 'application/octet-stream')):
             self.assertEqual((intacto.name, intacto.mimetype), (nombre, tipo))
 
     def test_argumentos_invalidos(self):

@@ -121,6 +121,30 @@ class TestSoloRecibenLasActivas(RepartoCase):
         self.assertEqual((libro.usuario_id, libro.regla), (self.beto, 'reasignada'))
         self.assertEqual(self.recibidas(self.beto), 1, 'Cuenta como una que recibió hoy')
 
+    def test_el_aviso_de_juan_al_cliente_no_cuenta_como_respuesta(self):
+        """Después de pasarla, Juan le dice al cliente «ya avisé a una vendedora»: el cliente sigue esperando."""
+        self.activa(self.vendedora, 2)
+        conv = self.pasar()
+        self.registrar('Listo, ya avisé a una vendedora para que te atienda por aquí.', id_externo=conv.id_externo,
+                       autor='bot', ts=self.ahora() + timedelta(seconds=5))
+        self.assertEqual(conv.ultimo_mensaje_autor, 'bot')
+        with freeze_time(self.AHORA + timedelta(minutes=16)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 1)
+        self.assertEqual(conv.asignada_a, self.beto)
+
+    def test_si_vence_la_pausa_y_vuelve_al_asistente_no_se_mueve(self):
+        self.activa(self.vendedora, 2)
+        conv = self.pasar()
+        conv.sudo().pausada_hasta = self.ahora() + timedelta(minutes=5)
+        with freeze_time(self.AHORA + timedelta(minutes=10)):
+            conv._normalizar_pausa()
+            self.assertEqual(conv.estado, 'bot')
+            self.assertFalse(conv.reparto_desde)
+        with freeze_time(self.AHORA + timedelta(minutes=20)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 0)
+
     def test_no_vuelve_a_quien_ya_la_tuvo_y_sigue_pasando_si_nadie_contesta(self):
         for usuario in self.equipo:
             self.activa(usuario, 1)
@@ -144,7 +168,9 @@ class TestSoloRecibenLasActivas(RepartoCase):
             self.assertEqual(self.Reparto._cron_reasignar(), 0, 'Ya no queda nadie nueva: se queda con la última')
         self.assertEqual(conv.asignada_a, tercera)
 
-    def test_si_le_contesto_no_pasa_a_nadie(self):
+    def test_si_le_contesto_no_pasa_a_nadie_aunque_el_cliente_vuelva_a_escribir(self):
+        """Revisión adversarial: la vendedora contestó y el cliente respondió «ok, gracias»; eso no es «no le
+        contestó» (antes se la quitaban y le decían a Gerencia que no contestó)."""
         self.activa(self.vendedora, 2)
         self.activa(self.beto, 2)
         conv = self.pasar()
@@ -152,9 +178,61 @@ class TestSoloRecibenLasActivas(RepartoCase):
         self.registrar('Hola, te atiendo yo', id_externo=conv.id_externo, autor='vendedora',
                        ts=self.ahora() + timedelta(minutes=3))
         self.assertEqual(conv.ultimo_mensaje_autor, 'vendedora')
-        with freeze_time(self.AHORA + timedelta(minutes=20)):
+        self.registrar('Ok, gracias', id_externo=conv.id_externo, ts=self.ahora() + timedelta(minutes=5))
+        self.assertEqual(conv.ultimo_mensaje_autor, 'cliente')
+        with freeze_time(self.AHORA + timedelta(minutes=40)):
+            for usuario in self.equipo:
+                self.activa(usuario, 1)
             self.assertEqual(self.Reparto._cron_reasignar(), 0)
         self.assertEqual(conv.asignada_a, duena)
+
+    def test_un_mensaje_programado_no_la_hace_activa(self):
+        """Programar un mensaje para mañana no es estar trabajando ahora."""
+        otro = self.cliente()
+        self.Mensaje.sudo().create({
+            'conversacion_id': otro.id, 'tipo': 'mensaje', 'autor': 'vendedora', 'direccion': 'saliente',
+            'texto': 'Buenos días', 'usuario_id': self.carla.id, 'ts': self.ahora() + timedelta(hours=20),
+            'estado_envio': 'programado', 'programado_para': self.ahora() + timedelta(hours=20),
+            'id_mensaje': 'odoo-programado-carla'})
+        self.assertNotIn(self.carla.id, self.Reparto._ultima_actividad(self.carla))
+        self.assertFalse(self.pasar().asignada_a)
+
+    def test_lo_de_antes_de_abrir_no_cuenta_como_minutos_sin_contestar(self):
+        with freeze_time(panama(2026, 10, 9, 7, 50)):
+            self.activa(self.vendedora, 1)
+            conv = self.pasar()
+        self.assertEqual(conv.asignada_a, self.vendedora)
+        with freeze_time(panama(2026, 10, 9, 8, 10)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 0, 'Desde las 8:00 solo van 10 minutos')
+        with freeze_time(panama(2026, 10, 9, 8, 16)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 1)
+        self.assertEqual(conv.asignada_a, self.beto)
+
+    def test_si_vuelve_a_pasarsela_el_mismo_dia_cuenta_de_nuevo(self):
+        """La tomó, la devolvió al asistente y Juan se la vuelve a pasar: si esta vez no contesta, pasa a otra."""
+        self.activa(self.vendedora, 2)
+        conv = self.pasar()
+        conv._tomar(self.vendedora)
+        conv._devolver(self.vendedora)
+        with freeze_time(self.AHORA + timedelta(minutes=30)):
+            self.activa(self.vendedora, 1)
+            conv._pasar_a_vendedora('Volvió a pedir una persona')
+            self.assertEqual(conv.asignada_a, self.vendedora)
+        with freeze_time(self.AHORA + timedelta(minutes=46)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 1)
+        self.assertEqual(conv.asignada_a, self.beto)
+
+    def test_si_gerencia_la_deja_sin_asignar_el_reparto_no_la_toma(self):
+        conv = self.pasar()
+        self.assertFalse(conv.asignada_a)
+        self.Conversacion.with_user(self.gerente).asignar(conv.id, None)
+        with freeze_time(self.AHORA + timedelta(minutes=20)):
+            self.activa(self.beto, 1)
+            self.assertEqual(self.Reparto._cron_reasignar(), 0)
+        self.assertFalse(conv.asignada_a)
 
     def test_lo_que_una_persona_tomo_o_asigno_a_mano_no_se_toca(self):
         for usuario in self.equipo:

@@ -368,3 +368,16 @@ class CrmLead(models.Model):
                 'Este cliente todavía no tiene conversaciones con el asistente ni con el equipo.'))
         return self.dcasa_chat_id._accion_abrir_en_panel()
 
+
+class CrmTeam(models.Model):
+    _inherit = 'crm.team'
+
+    @api.model
+    def action_your_pipeline(self):
+        """El flujo del CRM abre sin el filtro «Mi flujo» (pedido de la dueña, 2026-11-03). Además de la acción
+        redefinida en ``crm_lead_views.xml``, aquí: así sigue igual aunque alguien actualice solo el módulo ``crm``."""
+        accion = super().action_your_pipeline()
+        contexto = dict(accion.get('context') or {})
+        contexto.pop('search_default_assigned_to_me', None)
+        accion['context'] = contexto
+        return accion

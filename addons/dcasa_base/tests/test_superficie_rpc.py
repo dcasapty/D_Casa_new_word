@@ -862,8 +862,14 @@ LISTA_BLANCA = {
         OVERRIDE + ' Solo limpia el atajo; sin sudo (ACL: solo Gerencia escribe).',
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'lista'): PANEL_VENTAS,
     ('dcasa_conversaciones', 'dcasa.respuesta.rapida', 'texto_para'): PANEL_VENTAS,
-    ('dcasa_conversaciones', 'res.partner', 'action_dcasa_ver_conversaciones'): ACCION_VENTANA,
-    ('dcasa_conversaciones', 'crm.lead', 'action_dcasa_abrir_chat'): ACCION_VENTANA,
+    ('dcasa_conversaciones', 'res.partner', 'action_dcasa_ver_conversaciones'):
+        'Devuelve la acción que abre el chat del contacto; busca su conversación con los permisos de quien llama y '
+        'no escribe nada.',
+    ('dcasa_conversaciones', 'crm.lead', 'action_dcasa_abrir_chat'):
+        'Devuelve la acción que abre el chat de la oportunidad; la conversación se busca con los permisos de quien '
+        'llama y no escribe nada.',
+    ('dcasa_conversaciones', 'crm.team', 'action_your_pipeline'):
+        OVERRIDE + ' Solo quita el filtro «Mi flujo» del contexto de la acción.',
     # --- dcasa_correo (correo a clientes por Resend) ----------------------------------------------------
     ('dcasa_correo', 'dcasa.conversacion', 'correo_de_cotizacion'):
         PANEL_VENTAS + ' Solo lee si «Enviar por correo» se puede usar (sin la clave ni datos de otro cliente).',
