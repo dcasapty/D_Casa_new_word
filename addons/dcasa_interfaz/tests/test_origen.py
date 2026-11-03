@@ -24,6 +24,13 @@ class TestOrigen(VentasCommon):
         self.assertIn(orden, self.env['sale.order'].search([('dcasa_origen', '=', 'web')]))
         self.assertIn(factura, self.env['account.move'].search([('dcasa_origen', '=', 'web')]))
 
+    def test_duplicar_un_pedido_de_la_web_es_de_una_vendedora(self):
+        orden = self.pedido(confirmar=False)
+        orden.website_id = self.env['website'].search([], limit=1)
+        copia = orden.copy()
+        self.assertFalse(copia.website_id)
+        self.assertEqual(copia.dcasa_origen, 'vendedora')
+
     def test_la_factura_de_un_pedido_de_vendedora_y_la_hecha_a_mano(self):
         factura = self.facturar(self.pedido())
         self.assertEqual(factura.dcasa_origen, 'vendedora')

@@ -25,6 +25,7 @@
                             <field name="nombre_publico"/>
                             <field name="bot_activo_global"/>
                             <field name="cotizacion_automatica"/>
+                            <field name="cotizacion_dias_abierta"/>
                         </group>
                         <group string="Dónde contesta">
                             <field name="canal_whatsapp_qr"/>

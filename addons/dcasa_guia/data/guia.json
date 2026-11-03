@@ -2404,6 +2404,25 @@
    ]
   },
   {
+   "id": "juan-cotizaciones-vencen",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Elegir cuántos días queda abierta una cotización de Juan o de la web",
+   "logras": "Cambias en Ajustes de Juan los días que una cotización del chatbot o de la página web puede quedar sin confirmar antes de cancelarse sola.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "nota": "Viene en 3 días. No se borra: queda cancelada con una nota y se reabre con «Establecer como cotización». Las cotizaciones de las vendedoras no se tocan. 0 = nunca se cancelan.",
+   "palabras": [
+    "cotizacion vencida",
+    "cancelar sola",
+    "cotizaciones abiertas",
+    "validez",
+    "chatbot",
+    "web"
+   ]
+  },
+  {
    "id": "juan-conocimiento",
    "categoria": "tienda",
    "grupo": "Conversaciones",

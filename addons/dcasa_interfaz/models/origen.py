@@ -21,6 +21,8 @@ class SaleOrderOrigen(models.Model):
     dcasa_origen = fields.Selection(
         ORIGENES, string='Origen', compute='_compute_dcasa_origen', store=True, index=True, copy=False,
         help='De dónde salió: del chatbot (la armó Juan), de la página web o de una vendedora.')
+    # «Duplicar» un pedido de la web lo hace una vendedora: la copia no es de la web (revisión adversarial, 2026-11-03).
+    website_id = fields.Many2one(copy=False)
 
     @api.depends('website_id', 'create_uid')
     def _compute_dcasa_origen(self):

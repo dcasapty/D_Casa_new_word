@@ -740,6 +740,15 @@ LISTA_BLANCA = {
     # --- dcasa_conversaciones (Juan, el asistente de clientes) ---------------------------------
     # Todo lo que escribe con sudo() (registrar mensajes, estado, seguimiento, tokens) es privado (_ o @api.private)
     # y solo lo llama la API /dcasa/juan/v1 (con token) o el propio módulo. Lo público de abajo:
+    # Cotizaciones del chatbot y de la web que vencen (sale_origen.py, 2026-11-03): después de que Odoo creó o reabrió
+    # la cotización con los permisos de la persona, solo escribe su «válida hasta» (hoy + los días de Ajustes de Juan)
+    # en las de origen chatbot o web abiertas; el sudo() es solo para ese campo (el carrito web lo crea el usuario
+    # público).
+    ('dcasa_conversaciones', 'sale.order', 'create'):
+        OVERRIDE + ' Solo pone el «válida hasta» de las cotizaciones del chatbot y de la web recién creadas.',
+    ('dcasa_conversaciones', 'sale.order', 'action_draft'):
+        OVERRIDE + ' Reabrir («Establecer como cotización») corre como el usuario; luego solo renueva el «válida '
+                   'hasta» de las del chatbot y de la web.',
     ('dcasa_conversaciones', 'dcasa.conversacion', 'write'):
         OVERRIDE + ' Bloquea cambiar canal e id externo (salvo superusuario); sin sudo.',
     ('dcasa_conversaciones', 'dcasa.conversacion', 'unlink'):

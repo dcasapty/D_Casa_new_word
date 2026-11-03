@@ -98,7 +98,7 @@ class TestLista(PanelCase):
         self.assertEqual(fila['ultimo_mensaje'], {'texto': 'Quiero una cama', 'autor': 'cliente'})
         self.assertEqual(fila['etiquetas'], [{'id': etiqueta.id, 'nombre': 'Zzfila', 'color': 3}])
         self.assertEqual(fila['asignada_a'], {'id': self.gerente.id, 'nombre': 'Gerente Prueba'})
-        self.assertEqual(fila['sin_leer'], 1)
+        self.assertEqual(fila['sin_leer'], 0, 'la atiende el asistente: no espera a una persona')
         self.assertRegex(fila['ultima_actividad'], r'^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$')
         self.assertEqual(fila['foto'], f"/web/image/res.partner/{conv.partner_id.id}/avatar_128")
         self.assertIsNone(fila['pausada_hasta'])
@@ -172,6 +172,9 @@ class TestLista(PanelCase):
 
 @tagged('post_install', '-at_install')
 class TestNoLeidos(PanelCase):
+    """«Sin leer» es lo que espera a una persona (decisión de la dueña, 2026-11-03): lo que atiende el asistente queda
+    visto; una conversación con una persona donde el cliente escribió último sigue marcada hasta que alguien le
+    contesta (abrirla no la quita). La vendedora cuenta las suyas y las sin dueña; Gerencia, todas."""
 
     def setUp(self):
         super().setUp()
@@ -184,26 +187,52 @@ class TestNoLeidos(PanelCase):
         fila = next(c for c in lista['conversaciones'] if c['id'] == (conv or self.conv).id)
         return fila['sin_leer'], lista['sin_leer_total']
 
-    def test_cada_mensaje_del_cliente_es_uno_sin_leer(self):
+    def a_una_persona(self, conv=None, usuario=None):
+        (conv or self.conv)._poner_en_humano(usuario=usuario)
+
+    def test_lo_que_atiende_el_asistente_queda_visto(self):
+        self.registrar('Otra cosa', id_externo=self.conv.id_externo)
+        self.assertEqual(self.sin_leer(), (0, 0))
+        self.assertEqual(self.sin_leer(self.otra), (0, 0))
+
+    def test_con_una_persona_cada_mensaje_del_cliente_sin_respuesta_cuenta(self):
+        self.a_una_persona(usuario=self.vendedora)
         self.registrar('Otra cosa', id_externo=self.conv.id_externo)
         self.assertEqual(self.sin_leer(), (2, 1))
 
-    def test_lo_que_dicen_el_asistente_las_vendedoras_y_el_sistema_no_cuenta(self):
+    def test_cuenta_desde_la_ultima_respuesta_y_las_notas_y_avisos_no_cuentan(self):
         self.registrar('Te ayudo', id_externo=self.conv.id_externo, autor='bot')
-        self.registrar('Soy Ana', id_externo=self.conv.id_externo, autor='vendedora')
+        self.a_una_persona(usuario=self.vendedora)
+        self.registrar('Quiero hablar con alguien', id_externo=self.conv.id_externo)
         self.Mensaje._crear_interno(self.conv, 'nota', 'Nota', self.vendedora)
         self.Mensaje._crear_interno(self.conv, 'aviso', 'Aviso')
         self.assertEqual(self.sin_leer()[0], 1)
 
-    def test_marcar_leida_limpia_el_conteo_solo_para_quien_la_marca(self):
+    def test_abrirla_no_la_quita_contestarle_si(self):
+        self.a_una_persona(usuario=self.vendedora)
         self.assertEqual(self.panel.marcar_leida(self.conv.id), {'marcadas': [self.conv.id]})
+        self.assertEqual(self.sin_leer(), (1, 1), 'sigue esperando: nadie le contestó')
+        self.panel.enviar_respuesta(self.conv.id, 'Hola, claro que sí')
         self.assertEqual(self.sin_leer(), (0, 0))
-        self.assertEqual(self.sin_leer(self.otra), (1, 1), 'Cada persona lleva su propia lectura')
+        self.registrar('¿Y el precio?', id_externo=self.conv.id_externo)
+        self.assertEqual(self.sin_leer(), (1, 1), 'el cliente volvió a escribir')
 
-    def test_un_mensaje_nuevo_vuelve_a_marcarla_sin_leer(self):
-        self.panel.marcar_leida([self.conv.id])
-        self.registrar('¿Sigues ahí?', id_externo=self.conv.id_externo)
-        self.assertEqual(self.sin_leer(), (1, 1))
+    def test_la_vendedora_cuenta_las_suyas_y_las_sin_duena_gerencia_todas(self):
+        self.a_una_persona(usuario=self.gerente)          # de otra persona
+        sin_duena = self.cliente(2)
+        self.a_una_persona(conv=sin_duena)
+        mia = self.cliente(3)
+        self.a_una_persona(conv=mia, usuario=self.vendedora)
+        self.assertEqual(set(self.Conversacion.with_user(self.vendedora)._ids_con_sin_leer()), {sin_duena.id, mia.id})
+        self.assertEqual(self.sin_leer(conv=self.conv)[0], 0, 'la de otra persona no le sale marcada')
+        self.assertEqual(set(self.otra._ids_con_sin_leer()), {self.conv.id, sin_duena.id, mia.id})
+
+    def test_el_filtro_esperan_respuesta(self):
+        otra = self.cliente(2)
+        self.a_una_persona(conv=otra)
+        self.assertEqual(self.ids(self.panel.lista({'sin_leer': True})), [otra.id])
+        self.panel.enviar_respuesta(otra.id, 'Ya te atiendo')
+        self.assertEqual(self.panel.lista({'sin_leer': True})['total'], 0)
 
     def test_marcar_dos_veces_no_duplica_ni_retrocede(self):
         self.panel.marcar_leida(self.conv.id)
@@ -212,18 +241,6 @@ class TestNoLeidos(PanelCase):
         self.assertEqual(len(marcas), 1)
         ultimo = marcas.ultimo_leido_id
         self.assertEqual(ultimo, max(self.conv.mensaje_ids.ids))
-
-    def test_el_filtro_sin_leer(self):
-        otra = self.cliente(2)
-        self.panel.marcar_leida(self.conv.id)
-        self.assertEqual(self.ids(self.panel.lista({'sin_leer': True})), [otra.id])
-        self.assertEqual(self.ids(self.otra.lista({'sin_leer': True})), [otra.id, self.conv.id])
-        self.panel.marcar_leida([otra.id])
-        self.assertEqual(self.panel.lista({'sin_leer': True})['total'], 0)
-
-    def test_contestar_desde_el_panel_la_marca_como_leida(self):
-        self.panel.enviar_respuesta(self.conv.id, 'Hola, claro que sí')
-        self.assertEqual(self.sin_leer(), (0, 0))
 
     def test_marcar_varias_y_entradas_invalidas(self):
         otra = self.cliente(2)
@@ -270,7 +287,7 @@ class TestHilo(PanelCase):
     def test_trae_la_cabecera_de_la_conversacion(self):
         tramo = self.panel.hilo(self.conv.id)
         self.assertEqual(tramo['conversacion']['id'], self.conv.id)
-        self.assertEqual(tramo['conversacion']['sin_leer'], 7)
+        self.assertEqual(tramo['conversacion']['sin_leer'], 0, 'la atiende el asistente')
 
     def test_cada_mensaje_trae_lo_que_la_pantalla_pinta(self):
         self.panel.tomar(self.conv.id)
@@ -434,6 +451,14 @@ class TestMensajesProgramados(PanelCase):
         """Hace que su hora ya haya llegado."""
         mensaje.with_context(dcasa_mensaje_sistema=True).sudo().programado_para = fields.Datetime.now() - timedelta(
             minutes=1)
+
+    def test_un_mensaje_programado_todavia_no_le_contesta(self):
+        """«Esperan respuesta»: lo programado aún no salió; la fila y la cuenta de arriba lo dicen igual."""
+        self.conv._poner_en_humano(usuario=self.vendedora)
+        self.programar()
+        lista = self.panel.lista()
+        fila = next(c for c in lista['conversaciones'] if c['id'] == self.conv.id)
+        self.assertEqual((fila['sin_leer'], lista['sin_leer_total']), (1, 1))
 
     def test_queda_programado_y_no_toca_la_conversacion(self):
         r = self.programar()

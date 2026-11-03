@@ -10,9 +10,14 @@ from urllib.parse import urlsplit
 
 # Dominios desde los que el puente de WhatsApp descarga las fotos y documentos (MEDIOS_HOSTS_PERMITIDOS del puente).
 DOMINIOS_DEL_PUENTE = ('dcasapty.com', 'dcasapty.workers.dev')
-PERIODOS = ('hoy', '7_dias', '30_dias')
-NOMBRES_PERIODO = {'hoy': 'Hoy', '7_dias': 'Últimos 7 días', '30_dias': 'Últimos 30 días'}
-DIAS_DEL_PERIODO = {'hoy': 1, '7_dias': 7, '30_dias': 30}
+# 90 días y 12 meses: para medir en más tiempo (pedido de la dueña, 2026-11-03).
+PERIODOS = ('hoy', '7_dias', '30_dias', '90_dias', '12_meses')
+NOMBRES_PERIODO = {'hoy': 'Hoy', '7_dias': 'Últimos 7 días', '30_dias': 'Últimos 30 días',
+                   '90_dias': 'Últimos 90 días', '12_meses': 'Últimos 12 meses'}
+DIAS_DEL_PERIODO = {'hoy': 1, '7_dias': 7, '30_dias': 30, '90_dias': 90, '12_meses': 365}
+# Una venta se le atribuye al asistente si habló con el cliente en los 30 días antes de la factura (decisión de la
+# dueña, 2026-11-03).
+VENTANA_DE_ATRIBUCION_DIAS = 30
 
 
 def url_descargable_por_el_puente(url):

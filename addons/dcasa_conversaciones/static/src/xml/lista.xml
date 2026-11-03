@@ -14,7 +14,8 @@
             <header class="o_dcj_lista_cabecera">
                 <div class="o_dcj_titulo">
                     <h1>Conversaciones</h1>
-                    <span t-if="almacen.sinLeerTotal" class="o_dcj_contador"><t t-out="almacen.sinLeerTotal"/><span class="o_dcj_contador_texto"> sin leer</span></span>
+                    <span t-if="almacen.sinLeerTotal" class="o_dcj_contador"
+                          title="Esperan respuesta: conversaciones con una persona donde el cliente escribió y nadie le ha contestado. Lo que atiende el asistente no cuenta."><t t-out="almacen.sinLeerTotal"/><span class="o_dcj_contador_texto" t-out="almacen.sinLeerTotal === 1 ? ' espera' : ' esperan'"/></span>
                     <span class="o_dcj_envivo" t-att-class="{ o_activo: almacen.enVivo }"
                           t-att-title="almacen.enVivo ? 'En vivo: los mensajes nuevos aparecen solos' : 'Sin conexión en vivo: la pantalla se revisa sola cada 30 segundos'">
                         <i class="fa fa-circle" aria-hidden="true"/>
@@ -58,7 +59,8 @@
                             t-on-click="() => almacen.cambiarFiltro('asignada_a_mi', !almacen.filtros.asignada_a_mi)">Mías</button>
                     <button type="button" class="o_dcj_chip" t-att-class="{ o_activa: almacen.filtros.sin_leer }"
                             t-att-aria-pressed="almacen.filtros.sin_leer ? 'true' : 'false'"
-                            t-on-click="() => almacen.cambiarFiltro('sin_leer', !almacen.filtros.sin_leer)">Sin leer</button>
+                            title="Solo las que esperan que una persona le conteste al cliente"
+                            t-on-click="() => almacen.cambiarFiltro('sin_leer', !almacen.filtros.sin_leer)">Esperan respuesta</button>
                     <button type="button" class="o_dcj_chip" t-att-class="{ o_activa: almacen.filtros.con_oportunidad }"
                             t-att-aria-pressed="almacen.filtros.con_oportunidad ? 'true' : 'false'"
                             t-on-click="() => almacen.cambiarFiltro('con_oportunidad', !almacen.filtros.con_oportunidad)">Con oportunidad</button>
@@ -129,7 +131,7 @@
                         <button type="button" class="o_dcj_fila"
                                 t-att-class="{ o_activa: c.id === almacen.seleccionadaId, o_sin_leer: c.sin_leer }"
                                 t-att-aria-current="c.id === almacen.seleccionadaId ? 'true' : 'false'"
-                                t-att-aria-label="almacen.listaReducida ? c.nombre + (c.sin_leer ? ', ' + c.sin_leer + (c.sin_leer === 1 ? ' mensaje sin leer' : ' mensajes sin leer') : '') : null"
+                                t-att-aria-label="almacen.listaReducida ? c.nombre + (c.sin_leer ? ', ' + c.sin_leer + (c.sin_leer === 1 ? ' mensaje sin responder' : ' mensajes sin responder') : '') : null"
                                 t-att-title="almacen.listaReducida ? c.nombre : null"
                                 t-on-click="() => almacen.abrir(c.id)">
                             <span class="o_dcj_avatar" aria-hidden="true">
@@ -149,7 +151,7 @@
                                     </span>
                                     <span t-if="c.sin_leer" class="o_dcj_no_leidos">
                                         <t t-out="c.sin_leer > 99 ? '99+' : c.sin_leer"/>
-                                        <span class="o_dcj_solo_lector" t-out="c.sin_leer === 1 ? ' mensaje sin leer' : ' mensajes sin leer'"/>
+                                        <span class="o_dcj_solo_lector" t-out="c.sin_leer === 1 ? ' mensaje sin responder' : ' mensajes sin responder'"/>
                                     </span>
                                 </span>
                                 <span class="o_dcj_fila_abajo">

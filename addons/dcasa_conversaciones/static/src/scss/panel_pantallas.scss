@@ -84,6 +84,19 @@ $dcj-marino: #0B1F52;
 .o_dcj_p_cargando { display: flex; align-items: center; gap: 8px; padding: 24px 0; color: var(--dc-tinta-3, #6B7690); }
 .o_dcj_p_nota { color: var(--dc-tinta-3, #6B7690); font-size: .8rem; }
 .o_dcj_p_detalle { color: var(--dc-tinta-3, #6B7690); font-size: .84rem; }
+// «Ventas atribuidas» partida en tres: una línea por parte, el monto a la derecha.
+.o_dcj_p_partes {
+    margin-top: 8px;
+    border-top: 1px solid var(--dc-linea, #E2E7F0);
+    padding-top: 6px;
+    font-size: .84rem;
+    li { display: flex; align-items: baseline; gap: 6px; padding: 2px 0; }
+    span { flex: 1 1 auto; color: var(--dc-tinta-2, #44506A); }
+    strong { color: var(--dc-tinta, #1B2233); font-weight: 700; }
+    small { color: var(--dc-tinta-3, #6B7690); }
+    .o_dcj_p_parte_aparte { margin-top: 2px; border-top: 1px dashed var(--dc-linea, #E2E7F0); padding-top: 4px; span { color: var(--dc-tinta-3, #6B7690); } }
+}
+.o_dcj_p_de_cotizacion { margin-top: 4px; }
 
 .o_dcj_p_aviso {
     display: flex;

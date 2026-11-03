@@ -77,7 +77,18 @@
                         <article class="o_dcj_p_dato">
                             <h2>Ventas atribuidas</h2>
                             <p class="o_dcj_p_valor" t-out="dolares(d.ventas.monto)"/>
-                            <p class="o_dcj_p_detalle"><t t-out="numero(d.ventas.facturas)"/> <t t-out="d.ventas.facturas === 1 ? 'factura pagada' : 'facturas pagadas'"/> de clientes que hablaron con el asistente. Sin ITBMS. Es atribución, no prueba de que él vendió.</p>
+                            <p class="o_dcj_p_detalle"><t t-out="numero(d.ventas.facturas)"/> <t t-out="d.ventas.facturas === 1 ? 'factura pagada' : 'facturas pagadas'"/> de clientes que hablaron con el asistente en los <t t-out="d.ventas.ventana_dias"/> días antes de la factura. Sin ITBMS. Es atribución, no prueba de que él vendió.</p>
+                            <ul class="o_dcj_p_partes list-unstyled mb-0">
+                                <li class="o_dcj_p_parte_solo_juan"><span>Solo el asistente</span>
+                                    <strong t-out="dolares(d.ventas.solo_juan.monto)"/> <small t-out="'(' + numero(d.ventas.solo_juan.facturas) + ')'"/></li>
+                                <li class="o_dcj_p_parte_juan_y_vendedora"><span>El asistente y una persona</span>
+                                    <strong t-out="dolares(d.ventas.juan_y_vendedora.monto)"/> <small t-out="'(' + numero(d.ventas.juan_y_vendedora.facturas) + ')'"/></li>
+                                <li class="o_dcj_p_parte_solo_vendedora o_dcj_p_parte_aparte"><span>Solo personas, sin el asistente</span>
+                                    <strong t-out="dolares(d.ventas.solo_vendedora.monto)"/> <small t-out="'(' + numero(d.ventas.solo_vendedora.facturas) + ')'"/></li>
+                            </ul>
+                            <p t-if="d.ventas.de_cotizacion_de_juan.facturas" class="o_dcj_p_detalle o_dcj_p_de_cotizacion">
+                                <t t-out="numero(d.ventas.de_cotizacion_de_juan.facturas)"/> <t t-out="d.ventas.de_cotizacion_de_juan.facturas === 1 ? 'salió' : 'salieron'"/> de una cotización que armó el asistente.
+                            </p>
                         </article>
                         <article class="o_dcj_p_dato">
                             <h2>Primera respuesta</h2>

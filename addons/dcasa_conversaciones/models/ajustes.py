@@ -192,6 +192,12 @@ class JuanAjustes(models.Model):
              'Juan le dice al cliente que una vendedora se la prepara y le pasa la conversación; ellas la mandan a '
              'mano con el botón «Cotización» de la pantalla de Conversaciones, que funciona igual con esto '
              'encendido o apagado.')
+    cotizacion_dias_abierta = fields.Integer(
+        'Días que queda abierta una cotización del chatbot o de la web', default=3, tracking=True,
+        help='Las cotizaciones que arma Juan y las de la página web que nadie confirmó se cancelan solas pasados '
+             'estos días (decisión de la dueña, 2026-11-03: por defecto 3). No se borran: quedan canceladas, con una '
+             'nota, y se pueden reabrir con «Establecer como cotización». La cotización dice «válida hasta» esa '
+             'fecha. Las de las vendedoras no se tocan, ni una que tenga un pago en curso. 0 = nunca; máximo 60.')
     crm_automatico = fields.Boolean(
         'El CRM se ajusta solo', default=True, tracking=True,
         help='Las oportunidades que nacen de una conversación se mueven solas con hechos que Odoo ya sabe: pasan a '
@@ -328,6 +334,14 @@ class JuanAjustes(models.Model):
             if not 0 <= registro.seguimiento_maximo <= 2:
                 raise ValidationError(self.env._(
                     'El seguimiento admite como máximo 2 mensajes (decisión de la dueña): pon 0, 1 o 2.'))
+
+    @api.constrains('cotizacion_dias_abierta')
+    def _check_cotizacion_dias_abierta(self):
+        for registro in self:
+            if not 0 <= registro.cotizacion_dias_abierta <= 60:
+                raise ValidationError(self.env._(
+                    'Los días que queda abierta una cotización del chatbot o de la web son de 0 (nunca se cancelan) '
+                    'a 60.'))
 
     @api.constrains('crm_dias_para_perdida')
     def _check_crm_dias_para_perdida(self):

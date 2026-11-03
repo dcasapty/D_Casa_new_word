@@ -189,10 +189,9 @@ class TestPanelEnElNavegador(PanelUiCase):
     for (const n of ["Karen Pérez", "Luis Mora", "Marta Ríos"]) {
         if (!nombres.includes(n)) { throw new Error("falta " + n + " en la lista: " + nombres.join("|")); }
     }
+    // «Sin leer» es lo que espera a una persona: a Karen la atiende el asistente (queda vista); Marta espera a Ana.
     const karen = aqui(".o_dcj_fila", "Karen");
-    if (!karen.querySelector(".o_dcj_no_leidos") || !/3/.test(karen.querySelector(".o_dcj_no_leidos").textContent)) {
-        throw new Error("Karen debe tener 3 mensajes sin leer");
-    }
+    if (karen.querySelector(".o_dcj_no_leidos")) { throw new Error("a Karen la atiende el asistente: no queda sin leer"); }
     if (!karen.querySelector(".o_dcj_punto_verde")) { throw new Error("el asistente atiende a Karen: punto verde"); }
     if (!aqui(".o_dcj_fila", "Luis").textContent.includes("Cerrada")) { throw new Error("Luis está cerrada"); }
     const marta = aqui(".o_dcj_fila", "Marta");
@@ -200,6 +199,12 @@ class TestPanelEnElNavegador(PanelUiCase):
         throw new Error("Marta: la atiende Ana y tiene su etiqueta: " + marta.textContent);
     }
     if (!marta.textContent.includes("Necesita atención")) { throw new Error("Marta espera respuesta: necesita atención"); }
+    if (!marta.querySelector(".o_dcj_no_leidos") || !/1/.test(marta.querySelector(".o_dcj_no_leidos").textContent)) {
+        throw new Error("Marta espera respuesta: 1 mensaje sin responder");
+    }
+    if (document.querySelector(".o_dcj_contador").textContent.trim() !== "1 espera") {
+        throw new Error("arriba: 1 espera: " + document.querySelector(".o_dcj_contador").textContent);
+    }
     if (marta.querySelector(".o_dcj_punto_verde")) { throw new Error("a Marta no la atiende el asistente"); }
     if (!karen.querySelector(".o_dcj_canal .fa-whatsapp")) { throw new Error("ícono del canal"); }
     console.log("test successful");
@@ -227,14 +232,11 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (document.activeElement !== visor.querySelector("button[aria-label^='Cerrar']")) { throw new Error("el foco entra al visor"); }
     escape();
     await esperar(() => !document.querySelector(".o_dcj_visor"), "el visor cerrado con Esc");
-    // Al abrirla se marcó como leída: el contador se va.
-    await esperar(() => !aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_no_leidos"), "el contador de no leídos en cero");
+    // A Karen la atiende el asistente: no espera a una persona, así que nunca sale «sin leer».
+    if (aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_no_leidos")) { throw new Error("Karen no espera a una persona"); }
     console.log("test successful");
 })().catch((e) => console.error(e.message || e));
 """)
-        lectura = self.env['dcasa.conversacion.lectura'].sudo().search([
-            ('conversacion_id', '=', self.karen.id), ('usuario_id', '=', self.vendedora.id)])
-        self.assertTrue(lectura, 'Abrir el hilo lo marca como leído para quien lo abrió')
 
     def test_atender_y_devolver_con_nota(self):
         self.datos_de_ejemplo()
@@ -574,13 +576,13 @@ class TestPanelEnElNavegador(PanelUiCase):
     await esperar(() => filas().join() === "Marta Ríos", "la búsqueda por texto del mensaje");
     await escribir(buscar, "");
     await esperar(() => filas().length === 3, "la lista completa");
-    // Las tres tienen mensajes del cliente sin leer; al abrir la de Karen ya no.
-    (aqui(".o_dcj_fila", "Karen")).click();
-    await esperar(() => document.querySelector(".o_dcj_hilo_cuerpo .o_dcj_burbuja"), "el hilo de Karen");
-    await esperar(() => !aqui(".o_dcj_fila", "Karen").querySelector(".o_dcj_no_leidos"), "Karen leída");
-    aqui(".o_dcj_chip", "Sin leer").click();
-    await esperar(() => filas().join() === "Luis Mora,Marta Ríos" || filas().join() === "Marta Ríos,Luis Mora", "solo las sin leer");
-    aqui(".o_dcj_chip", "Sin leer").click();
+    // Solo Marta espera a una persona; abrirla no la quita (la quita contestarle).
+    (aqui(".o_dcj_fila", "Marta")).click();
+    await esperar(() => document.querySelector(".o_dcj_hilo_cuerpo .o_dcj_burbuja"), "el hilo de Marta");
+    aqui(".o_dcj_chip", "Esperan respuesta").click();
+    await esperar(() => filas().join() === "Marta Ríos", "solo las que esperan respuesta");
+    if (!aqui(".o_dcj_fila", "Marta").querySelector(".o_dcj_no_leidos")) { throw new Error("abrirla no la quita"); }
+    aqui(".o_dcj_chip", "Esperan respuesta").click();
     aqui(".o_dcj_chip", "Mías").click();
     await esperar(() => filas().join() === "Marta Ríos", "solo las mías");
     aqui(".o_dcj_chip", "Mías").click();

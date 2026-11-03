@@ -11,6 +11,8 @@ export const PERIODOS = [
     { id: "hoy", nombre: "Hoy" },
     { id: "7_dias", nombre: "7 días" },
     { id: "30_dias", nombre: "30 días" },
+    { id: "90_dias", nombre: "90 días" },
+    { id: "12_meses", nombre: "12 meses" },
 ];
 
 /** La barra de arriba de Resumen, Costos y Conexiones: título y a dónde ir. */
@@ -107,7 +109,13 @@ export class ResumenJuan extends Component {
     }
 
     get nombreDelPeriodo() {
-        return { hoy: "de hoy", "7_dias": "de los últimos 7 días", "30_dias": "de los últimos 30 días" }[this.state.periodo];
+        return {
+            hoy: "de hoy",
+            "7_dias": "de los últimos 7 días",
+            "30_dias": "de los últimos 30 días",
+            "90_dias": "de los últimos 90 días",
+            "12_meses": "de los últimos 12 meses",
+        }[this.state.periodo];
     }
 
     get porcentajeSinHumano() {

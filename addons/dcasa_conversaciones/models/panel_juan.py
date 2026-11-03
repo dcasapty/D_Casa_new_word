@@ -249,33 +249,68 @@ class DcasaJuanPanel(models.AbstractModel):
 
     @api.model
     def _ventas_atribuidas(self, desde, hasta):
-        """Facturas PAGADAS de clientes que hablaron con el asistente (el asistente ya había contestado ese día).
+        """Facturas PAGADAS del periodo de clientes con quienes el asistente habló en los 30 días antes de la factura
+        (``VENTANA_DE_ATRIBUCION_DIAS``), partidas en tres (pedido de la dueña, 2026-11-03: «si esas conversaciones las
+        empezó Juan y las terminó una vendedora, ¿cómo medimos esto?»):
 
-        Es atribución por conversación, no causalidad: una compra que el cliente habría hecho igual también cuenta.
-        El monto va sin ITBMS (el precio de D'CASA es sin ITBMS).
+        * **solo_juan**: en esos días contestó el asistente y ninguna persona le escribió al cliente;
+        * **juan_y_vendedora**: contestó el asistente y también una persona (la tomó y siguió);
+        * **solo_vendedora**: solo personas, sin el asistente (de referencia: no se le atribuye).
 
-        Quien ve solo lo suyo («Cada vendedora ve solo sus documentos», ``res.users._dcasa_solo_lo_suyo``) cuenta solo
-        sus facturas y las que no tienen vendedora, como en el resto del sistema: la suma de la tienda es de Caja y
-        Gerencia (revisión adversarial, 2026-10-17; la consulta va por SQL y no pasa por las reglas de registro).
+        ``facturas`` y ``monto`` son las dos primeras juntas (donde participó el asistente). ``de_cotizacion_de_juan``:
+        cuántas de esas salieron de una cotización que armó él (origen «Chatbot»), la prueba más fuerte: esas cuentan
+        como del asistente aunque la conversación sea de antes de la ventana o el cliente de la factura sea otro
+        contacto (revisión adversarial, 2026-11-03). «Y una persona» no mira quién habló primero.
+
+        Es atribución por conversación, no causalidad. El monto va sin ITBMS. Quien ve solo lo suyo («Cada vendedora ve
+        solo sus documentos», ``res.users._dcasa_solo_lo_suyo``) cuenta solo sus facturas y las que no tienen vendedora,
+        como en el resto del sistema (la consulta va por SQL y no pasa por las reglas de registro). Los días son de
+        Panamá (UTC−5, sin horario de verano).
         """
         solo_lo_suyo = self.env.user._dcasa_solo_lo_suyo()
         self.env.cr.execute("""
-            SELECT COUNT(*), COALESCE(SUM(m.amount_untaxed_signed), 0)
-              FROM account_move m
-             WHERE m.move_type = 'out_invoice' AND m.state = 'posted' AND m.payment_state IN ('paid', 'in_payment')
-               AND m.invoice_date >= %(d)s AND m.invoice_date < %(h)s AND m.company_id = %(compania)s
-               AND (NOT %(solo_lo_suyo)s OR m.invoice_user_id = %(uid)s OR m.invoice_user_id IS NULL)
-               AND EXISTS (
-                   SELECT 1 FROM dcasa_conversacion c
-                     JOIN res_partner p ON p.id = c.partner_id
-                    WHERE COALESCE(p.commercial_partner_id, p.id) = m.commercial_partner_id
-                      AND EXISTS (SELECT 1 FROM dcasa_mensaje b
-                                   WHERE b.conversacion_id = c.id AND b.tipo = 'mensaje' AND b.autor = 'bot'
-                                     AND b.ts < (m.invoice_date + 1)::timestamp + interval '5 hours'))""",
+            WITH f AS (
+                SELECT m.id, m.amount_untaxed_signed AS monto, m.commercial_partner_id AS cliente,
+                       COALESCE(m.dcasa_origen = 'chatbot', FALSE) AS de_juan,
+                       (m.invoice_date - %(ventana)s)::timestamp + interval '5 hours' AS desde,
+                       (m.invoice_date + 1)::timestamp + interval '5 hours' AS hasta
+                  FROM account_move m
+                 WHERE m.move_type = 'out_invoice' AND m.state = 'posted' AND m.payment_state IN ('paid', 'in_payment')
+                   AND m.invoice_date >= %(d)s AND m.invoice_date < %(h)s AND m.company_id = %(compania)s
+                   AND (NOT %(solo_lo_suyo)s OR m.invoice_user_id = %(uid)s OR m.invoice_user_id IS NULL)
+            ), x AS (
+                -- Una pasada por factura: los mensajes del asistente y de las personas con ese cliente (cualquier
+                -- contacto de la misma empresa) en la ventana. Juntas, no un EXISTS por factura.
+                SELECT f.monto, f.de_juan,
+                       COALESCE(BOOL_OR(b.autor = 'bot'), FALSE) OR f.de_juan AS juan,
+                       COALESCE(BOOL_OR(b.autor = 'vendedora'), FALSE) AS persona
+                  FROM f
+             LEFT JOIN res_partner p ON p.commercial_partner_id = f.cliente
+             LEFT JOIN dcasa_conversacion c ON c.partner_id = p.id
+             LEFT JOIN dcasa_mensaje b ON b.conversacion_id = c.id AND b.tipo = 'mensaje'
+                                      AND b.autor IN ('bot', 'vendedora') AND b.ts >= f.desde AND b.ts < f.hasta
+              GROUP BY f.id, f.monto, f.de_juan)
+            SELECT juan, persona, de_juan, COUNT(*), COALESCE(SUM(monto), 0)
+              FROM x WHERE juan OR persona
+          GROUP BY juan, persona, de_juan""",
                             {'d': desde, 'h': hasta, 'compania': self.env.company.id, 'solo_lo_suyo': solo_lo_suyo,
-                             'uid': self.env.uid})
-        facturas, monto = self.env.cr.fetchone()
-        return {'facturas': facturas, 'monto': round(float(monto), 2), 'moneda': self.env.company.currency_id.symbol}
+                             'uid': self.env.uid, 'ventana': C.VENTANA_DE_ATRIBUCION_DIAS})
+        partes = {clave: {'facturas': 0, 'monto': 0.0}
+                  for clave in ('solo_juan', 'juan_y_vendedora', 'solo_vendedora', 'de_cotizacion_de_juan')}
+        for juan, persona, de_juan, facturas, monto in self.env.cr.fetchall():
+            clave = ('juan_y_vendedora' if persona else 'solo_juan') if juan else 'solo_vendedora'
+            for destino in (clave, 'de_cotizacion_de_juan') if (juan and de_juan) else (clave,):
+                partes[destino]['facturas'] += facturas
+                partes[destino]['monto'] += float(monto)
+        for parte in partes.values():
+            parte['monto'] = round(parte['monto'], 2)
+        return {
+            'facturas': partes['solo_juan']['facturas'] + partes['juan_y_vendedora']['facturas'],
+            'monto': round(partes['solo_juan']['monto'] + partes['juan_y_vendedora']['monto'], 2),
+            'moneda': self.env.company.currency_id.symbol,
+            'ventana_dias': C.VENTANA_DE_ATRIBUCION_DIAS,
+            **partes,
+        }
 
     @api.model
     def _primera_respuesta(self, inicio, fin):
