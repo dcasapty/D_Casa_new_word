@@ -346,7 +346,7 @@ class CrmLead(models.Model):
         reales = self.filtered(lambda lead: lead._origin.id)
         if not reales or not Conversacion.has_access('read'):
             return
-        ids = reales.mapped('_origin').ids
+        ids = reales._origin.ids
         partners = reales.partner_id.ids
         dominio = [('oportunidad_id', 'in', ids)]
         if partners:
