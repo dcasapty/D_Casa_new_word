@@ -364,6 +364,20 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 37** (05:56 UTC del 3 nov, `594522c`, imagen `sha256:fb452fb7…` de CI #245, respaldo previo) · sano
+  05:59 (versión `594522c77c27`, base al día, humo ok): «Sin leer» = lo que espera a una persona, cotizaciones del
+  chatbot y la web que vencen solas, ventas atribuidas en tres (PR #69). CI #243 salió **rojo** en `TestSuperficieRpc`:
+  el módulo sobrescribía `create` y `action_draft` de `sale.order` sin entrada en `LISTA_BLANCA`. **Regla:** también un
+  *override* de un método público de Odoo (`create`, `write`, `action_*`) en un módulo nuestro va a `LISTA_BLANCA`
+  con el motivo «OVERRIDE …».
+- **Desplegar 36** (04:15 UTC del 3 nov, `b9ded11`, imagen `sha256:25018016…` de CI #240) · sano y confirmado 04:29:
+  notas de voz, stickers, columna ajustable y Origen (PR #68). **Desplegar Juan 4** (04:15, `14be013`) en paralelo,
+  porque cambió `juan/`; Desplegar Juan solo se lanza cuando cambia `juan/`.
+- **Desplegar 35** (03:26 UTC del 3 nov, `d285ee7`, imagen `sha256:710e9d2c…`) · sano y confirmado 03:40: privacidad
+  con Juan y enlace del catálogo (PR #67). El staging de esa imagen salió de **Desplegar 34** (staging directo, 03:10):
+  el despliegue a staging del CI #239 se frenó en el respaldo previo con HTTP 000 a los ~63 s porque staging estaba
+  dormido. **Regla:** si el respaldo previo de staging da HTTP 000 (no 429 ni 503), la imagen ya está construida y
+  probada: lanzar «Desplegar» a staging con su `imagen_digest` en vez de repetir todo el CI.
 - **Desplegar 33** (17:55 UTC del 2 nov, `441635e`, imagen `sha256:c3efff19…` de CI #237, respaldo previo) · sano
   17:59 y confirmado 18:09 (versión `441635e5b372`, base al día, humo ok): Valor del inventario y lo cobrado por forma
   de pago (PR #66). En horario de tienda porque la dueña lo pidió «ya mismo»: ~2 min de 503 mientras arrancaba la
@@ -467,6 +481,13 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `grep -v -i "^psycopg2\|^python-ldap" vendor/odoo/requirements.txt > req.txt`. El rol `odoo` de PostgreSQL hay que
   crearlo (`CREATE ROLE odoo LOGIN SUPERUSER PASSWORD 'odoo'`) y Chromium está en `/opt/pw-browsers/chromium` (enlace
   `chromium` en el `bin` del venv para las pruebas de navegador). Correr con `PATH=<venv>/bin:$PATH PYTHON=<venv>/bin/python`.
+- **Referencias del contrato visual (`dcasa_conversaciones/tests/referencia/panel-*.webp`): nunca se regeneran en
+  esta máquina** (2026-11-03). Chromium y las fuentes de aquí pintan distinto (la de «conexiones» a 390 px sale 13.7 %
+  distinta sin cambiar código); el CI compara con 6 % de tolerancia y en local con 1.5 %. Se regeneraron una vez y hubo
+  que devolver las de siempre; con las viejas el CI pasó.
+- **Juan y las fotos del chat:** el Worker `dcasa-juan` necesita la variable de texto `URL_PUBLICA` (su propia
+  dirección `https://dcasa-juan.dcasapty.workers.dev`, sin `/` final) para que Odoo pueda bajar las fotos, notas de voz y
+  stickers; sin ella salía «No se pudo traer 1 archivo». `/salud` de Juan la marca como problema desde el PR #68.
 - **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
   contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
 

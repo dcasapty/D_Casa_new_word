@@ -7,6 +7,15 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-11-03:** **Juan atiende el WhatsApp de la tienda** (API oficial de Meta, desde el 2 nov 3:26 pm, con
+el modelo contributor y llave permanente) y está **en producción** (Desplegar 35, 36 y 37; Desplegar Juan 4): Juan
+nombrado en la privacidad, enlace del catálogo completo, fotos / notas de voz / stickers en el chat, columna ajustable,
+Origen Chatbot / Web / Vendedora, «Sin leer» = lo que espera a una persona, cotizaciones del chatbot y la web que vencen
+solas (3 días, configurable) y ventas atribuidas en tres con periodos de 90 días y 12 meses. Orden: (1) la dueña prende
+el **Reparto «Parejo»** y cada vendedora conecta su Telegram; (2) `ANTHROPIC_API_KEY` de respaldo en `dcasa-juan` y una
+alerta de gasto en Meta; (3) plantillas de WhatsApp para escribir después de 24 horas; (4) Messenger e Instagram (hubo una
+investigación de opciones el 28 oct; sin decidir); (5) lo de abajo (costos del inventario, contadora, dominio).
+
 **Estado al 2026-11-02:** **en producción** (Desplegar 33, PR #66) **Valor del inventario** (al costo y a precio de
 venta sin ITBMS, solo Gerencia y administradores) y **lo cobrado por forma de pago** en Por día y Estadísticas. Orden:
 (1) que la dueña mire la cifra real; (2) cargar el costo de los productos que salgan «sin costo» y contar los que salgan
