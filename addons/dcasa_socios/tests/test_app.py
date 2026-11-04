@@ -183,6 +183,12 @@ class TestAuditoriaSocios(TransactionCase):
 
     def test_aviso_de_celular_repetido_antes_de_guardar(self):
         nueva = self.env['res.partner'].new({'name': 'Otra', 'phone': '61234567'})
+        if 'dcasa_coincidencias' in nueva._fields:
+            # Con Contactos (2026-11-04): al crear, el celular repetido sale en «Ya existe esta persona», con su ficha
+            # y el botón para usarla, en vez de la ventana de aviso.
+            self.assertIsNone(nueva._onchange_dcasa_phone_duplicado())
+            self.assertIn('Ana Auditoría', [c['nombre'] for c in nueva.dcasa_coincidencias])
+            return
         aviso = nueva._onchange_dcasa_phone_duplicado()
         self.assertIn('Ana Auditoría', aviso['warning']['message'])
         self.assertIn('6123-4567', aviso['warning']['message'])

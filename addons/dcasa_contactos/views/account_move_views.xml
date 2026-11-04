@@ -8,26 +8,32 @@
         <field name="inherit_id" ref="account.view_move_form"/>
         <field name="arch" type="xml">
             <xpath expr="//group[@id='header_left_group']/div[hasclass('o_col')]" position="after">
+                <field name="dcasa_cliente_corregible" invisible="1"/>
+                <field name="dcasa_cliente_es_contacto" invisible="1"/>
                 <div colspan="2" class="text-muted small o_dcasa_datos_cliente_nota"
-                     invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or state != 'draft'">
+                     invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or state != 'draft' or not dcasa_cliente_corregible">
                     Sus datos: si algo está mal, corrígelo aquí y se guarda en su ficha.
                 </div>
                 <field name="dcasa_cliente_nombre" class="o_dcasa_dato_cliente" string="Nombre"
                        invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt')"
-                       required="partner_id and move_type in ('out_invoice', 'out_refund', 'out_receipt')"
-                       readonly="state != 'draft'" placeholder="Nombre y apellido"/>
+                       required="partner_id and dcasa_cliente_corregible and state == 'draft' and move_type in ('out_invoice', 'out_refund', 'out_receipt')"
+                       readonly="state != 'draft' or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or not dcasa_cliente_corregible" placeholder="Nombre y apellido"/>
                 <field name="dcasa_cliente_celular" class="o_dcasa_dato_cliente" string="Celular" widget="phone"
                        invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt')"
-                       readonly="state != 'draft'" placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
-                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone" options="{'enable_sms': false}"
-                       invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or (dcasa_cliente_celular and not dcasa_cliente_fijo)"
-                       readonly="state != 'draft'" placeholder="Teléfono fijo, p. ej. 234-5678"/>
+                       readonly="state != 'draft' or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or not dcasa_cliente_corregible"
+                       placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
+                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone"
+                       options="{'enable_sms': false}" invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt')"
+                       readonly="state != 'draft' or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or not dcasa_cliente_corregible"
+                       placeholder="Teléfono fijo, p. ej. 234-5678 (si tiene)"/>
                 <field name="dcasa_cliente_correo" class="o_dcasa_dato_cliente" string="Correo" widget="email"
                        invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt')"
-                       readonly="state != 'draft'" placeholder="Correo, p. ej. nombre@gmail.com"/>
+                       readonly="state != 'draft' or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or not dcasa_cliente_corregible"
+                       placeholder="Correo, p. ej. nombre@gmail.com"/>
                 <field name="dcasa_cliente_cedula" class="o_dcasa_dato_cliente" string="Cédula o RUC"
                        invisible="not partner_id or move_type not in ('out_invoice', 'out_refund', 'out_receipt')"
-                       readonly="state != 'draft'" placeholder="Cédula o RUC, p. ej. 8-123-456"/>
+                       readonly="state != 'draft' or move_type not in ('out_invoice', 'out_refund', 'out_receipt') or not dcasa_cliente_corregible or dcasa_cliente_es_contacto"
+                       placeholder="Cédula o RUC, p. ej. 8-123-456"/>
             </xpath>
         </field>
     </record>

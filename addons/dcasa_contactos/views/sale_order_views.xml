@@ -26,24 +26,32 @@
             </xpath>
             <xpath expr="//group[@name='partner_details']/field[@name='partner_id']" position="after">
                 <field name="dcasa_cliente_tiene_correo" invisible="1"/>
-                <!-- Los datos del cliente, corregibles aquí mismo (2026-11-04): se guardan en su ficha al guardar. -->
+                <!-- Los datos del cliente, corregibles aquí mismo (2026-11-04): al guardar, lo que cambió se guarda en su
+                     ficha. No los de alguien del equipo; la cédula de un contacto de una empresa solo se ve. -->
+                <field name="dcasa_cliente_corregible" invisible="1"/>
+                <field name="dcasa_cliente_es_contacto" invisible="1"/>
                 <div colspan="2" class="text-muted small o_dcasa_datos_cliente_nota" invisible="not partner_id">
                     Sus datos: si algo está mal, corrígelo aquí y se guarda en su ficha.
                 </div>
-                <field name="dcasa_cliente_nombre" class="o_dcasa_dato_cliente" string="Nombre" invisible="not partner_id" required="partner_id"
-                       readonly="state == 'cancel'" placeholder="Nombre y apellido"/>
-                <field name="dcasa_cliente_celular" class="o_dcasa_dato_cliente" string="Celular" widget="phone" invisible="not partner_id"
-                       readonly="state == 'cancel'" placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
-                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone" options="{'enable_sms': false}"
-                       invisible="not partner_id or (dcasa_cliente_celular and not dcasa_cliente_fijo)"
-                       readonly="state == 'cancel'" placeholder="Teléfono fijo, p. ej. 234-5678"/>
-                <field name="dcasa_cliente_correo" class="o_dcasa_dato_cliente" string="Correo" widget="email" invisible="not partner_id"
-                       readonly="state == 'cancel'" placeholder="Correo, p. ej. nombre@gmail.com"/>
+                <field name="dcasa_cliente_nombre" class="o_dcasa_dato_cliente" string="Nombre" invisible="not partner_id"
+                       required="partner_id and dcasa_cliente_corregible"
+                       readonly="state == 'cancel' or not dcasa_cliente_corregible" placeholder="Nombre y apellido"/>
+                <field name="dcasa_cliente_celular" class="o_dcasa_dato_cliente" string="Celular" widget="phone"
+                       invisible="not partner_id" readonly="state == 'cancel' or not dcasa_cliente_corregible"
+                       placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
+                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone"
+                       options="{'enable_sms': false}" invisible="not partner_id"
+                       readonly="state == 'cancel' or not dcasa_cliente_corregible"
+                       placeholder="Teléfono fijo, p. ej. 234-5678 (si tiene)"/>
+                <field name="dcasa_cliente_correo" class="o_dcasa_dato_cliente" string="Correo" widget="email"
+                       invisible="not partner_id" readonly="state == 'cancel' or not dcasa_cliente_corregible"
+                       placeholder="Correo, p. ej. nombre@gmail.com"/>
                 <field name="dcasa_cliente_sin_correo"
                        invisible="not partner_id or (dcasa_cliente_tiene_correo and not dcasa_cliente_sin_correo)"
                        readonly="state not in ('draft', 'sent')"/>
                 <field name="dcasa_cliente_cedula" class="o_dcasa_dato_cliente" string="Cédula o RUC" invisible="not partner_id"
-                       readonly="state == 'cancel'" placeholder="Cédula o RUC, p. ej. 8-123-456"/>
+                       readonly="state == 'cancel' or not dcasa_cliente_corregible or dcasa_cliente_es_contacto"
+                       placeholder="Cédula o RUC, p. ej. 8-123-456"/>
             </xpath>
         </field>
     </record>

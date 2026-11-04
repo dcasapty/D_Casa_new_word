@@ -69,6 +69,10 @@ export class DcasaCoincidencias extends Component {
             if (!(campo in ficha.data)) {
                 continue;
             }
+            // Una empresa no toma el nombre ni la cédula de la persona que se estaba escribiendo.
+            if ((coincidencia.empresa || ficha.data.is_company) && (campo === "name" || campo === "vat")) {
+                continue;
+            }
             if (campo === "phone" && mismoTelefono(valor, ficha.data.phone)) {
                 continue;
             }

@@ -35,7 +35,8 @@ class TestCoincidencias(TransactionCase):
     def test_que_parece_un_telefono(self):
         for texto in ('6000-1101', '60001101', '+507 6000 1101', '(507) 6000-1101', '6000'):
             self.assertTrue(parece_telefono(texto), texto)
-        for texto in ('Bendiciones', 'Calle 50', '600', 'ana@gmail.com', None):
+        for texto in ('Bendiciones', 'Calle 50', '600', 'ana@gmail.com', None, '8-888-8888', '8-123-456',
+                      '155779346-2-2026', 'PE-12-345'):
             self.assertFalse(parece_telefono(texto), texto)
 
     def test_el_selector_encuentra_por_celular_escrito_de_cualquier_forma(self):
@@ -66,6 +67,10 @@ class TestCoincidencias(TransactionCase):
         self.assertEqual((valores.get('name'), valores.get('email')), (False, 'nueva@example.com'))
         valores = Partner.with_context(default_name='Ana Nueva').default_get(['name', 'phone', 'email'])
         self.assertEqual(valores.get('name'), 'Ana Nueva')
+        # Una cédula buscada va a «Cédula o RUC», no al celular (revisión adversarial).
+        valores = Partner.with_context(default_name='8-123-456').default_get(['name', 'phone', 'email', 'vat'])
+        self.assertEqual((valores.get('name'), valores.get('phone') or False, valores.get('vat')),
+                         (False, False, '8-123-456'))
 
     # ------------------------------------------------------------------
     # «Ya existe esta persona»
@@ -126,6 +131,7 @@ class TestCoincidencias(TransactionCase):
         ficha = self.del_chat
         self.assertEqual((ficha.name, ficha.email, ficha.vat),
                          ('María Corregida', 'maria.corregida@example.com', '8-700-1104'))
+        self.assertEqual(ficha.phone, '+507 6000-1101', 'lo que no se tocó no se borra')
         self.assertEqual(ficha.write_uid, self.vendedora, 'se guarda como quien corrige (sin sudo)')
         self.assertEqual(orden.partner_id, ficha)
         self.assertEqual(self.env['res.partner'].search_count([('name', '=', 'María Corregida')]), 1)
@@ -139,6 +145,7 @@ class TestCoincidencias(TransactionCase):
         self.assertIn('cambia el Cliente', avisos.output[0])
         with self.assertRaises(ValidationError):
             f.save()
+        self.assertEqual(self.del_chat.name, 'Bendiciones 🙏', 'el nombre no se toca al cambiar solo el celular')
 
     def test_en_la_cotizacion_un_correo_mal_escrito_avisa(self):
         orden = self.env['sale.order'].with_user(self.vendedora).create({'partner_id': self.del_chat.id})
@@ -152,6 +159,66 @@ class TestCoincidencias(TransactionCase):
         caja = crear_usuario(self.env, 'coinc_caja', 'dcasa_base.group_caja')
         factura = self.env['account.move'].create({'move_type': 'out_invoice', 'partner_id': self.del_chat.id})
         with Form(factura.with_user(caja)) as f:
-            f.dcasa_cliente_nombre = 'María Factura'
             f.dcasa_cliente_correo = 'maria.factura@example.com'
-        self.assertEqual((self.del_chat.name, self.del_chat.email), ('María Factura', 'maria.factura@example.com'))
+        self.assertEqual((self.del_chat.name, self.del_chat.email, self.del_chat.phone),
+                         ('Bendiciones 🙏', 'maria.factura@example.com', '+507 6000-1101'))
+
+    # ------------------------------------------------------------------
+    # Revisión adversarial (2026-11-04)
+    # ------------------------------------------------------------------
+
+    def test_una_cotizacion_nueva_no_reescribe_la_ficha(self):
+        """Los datos del cliente solo se escriben si se cambiaron: una ficha con datos viejos mal escritos se sigue
+        cotizando, y la ficha no se toca."""
+        vieja = self.env['res.partner'].sudo().create({
+            'name': 'Cliente Datos Viejos', 'phone': '234-5678', 'email': 'luis@hotmial.com', 'customer_rank': 1})
+        with Form(self.env['sale.order'].with_user(self.vendedora)) as f:
+            f.partner_id = vieja
+        self.assertEqual((vieja.phone, vieja.email), ('234-5678', 'luis@hotmial.com'))
+        # Cambiar el cliente de una cotización a uno con datos viejos malos tampoco falla.
+        orden = self.env['sale.order'].with_user(self.vendedora).create({'partner_id': self.del_chat.id})
+        with Form(orden) as f:
+            f.partner_id = vieja
+        self.assertEqual(orden.partner_id, vieja)
+        self.assertEqual((vieja.phone, vieja.email), ('234-5678', 'luis@hotmial.com'))
+
+    def test_la_factura_de_alguien_del_equipo_y_la_de_proveedor_no_tocan_la_ficha(self):
+        caja = crear_usuario(self.env, 'coinc_caja2', 'dcasa_base.group_caja')
+        with Form(self.env['account.move'].with_user(caja).with_context(default_move_type='out_invoice')) as f:
+            f.partner_id = self.vendedora.partner_id
+            self.assertFalse(f.dcasa_cliente_corregible, 'los datos del equipo se corrigen en su usuario')
+        proveedor = self.env['res.partner'].sudo().create({'name': 'Proveedor Celular Viejo', 'phone': '123',
+                                                            'supplier_rank': 1})
+        with Form(self.env['account.move'].with_context(default_move_type='in_invoice')) as f:
+            f.partner_id = proveedor
+        self.assertEqual(proveedor.phone, '123')
+
+    def test_la_cedula_de_un_contacto_no_cambia_el_ruc_de_su_empresa(self):
+        empresa = self.env['res.partner'].sudo().create({'name': 'Empresa RUC Prueba SA', 'is_company': True,
+                                                          'vat': '155700001-2-2026', 'customer_rank': 1})
+        contacto = self.env['res.partner'].sudo().create({'name': 'Juan Contacto Empresa', 'parent_id': empresa.id})
+        factura = self.env['account.move'].create({'move_type': 'out_invoice', 'partner_id': contacto.id})
+        self.assertTrue(factura.dcasa_cliente_es_contacto)
+        factura.write({'dcasa_cliente_cedula': '8-700-1105'})
+        self.assertEqual(empresa.vat, '155700001-2-2026')
+
+    def test_reactivar_una_ficha_archivada_revisa_sus_llaves(self):
+        Legado = self.env['res.partner'].sudo().with_context(dcasa_sin_duplicados=True)
+        archivada = Legado.create({'name': 'Archivada Repetida', 'phone': '+507 6000-1106', 'active': False})
+        activa = Legado.create({'name': 'Activa Repetida', 'phone': '+507 6000-1106'})
+        nueva = self.env['res.partner'].with_user(self.vendedora).new({'name': 'X', 'phone': '6000-1106'})
+        self.assertEqual([c['id'] for c in nueva.dcasa_coincidencias], [activa.id],
+                         'con una activa con el mismo dato, la archivada no se ofrece')
+        Partner = self.env['res.partner'].with_user(self.vendedora)  # sin el contexto del legado
+        with self.assertRaises(ValidationError):
+            Partner.browse(archivada.id).write({'active': True})
+        solo_archivada = Legado.create({'name': 'Solo Archivada', 'phone': '+507 6000-1107', 'active': False})
+        Partner.browse(solo_archivada.id).write({'active': True})
+        self.assertTrue(solo_archivada.active, 'sin otra con su dato, se reactiva')
+
+    def test_una_empresa_sale_marcada(self):
+        empresa = self.env['res.partner'].sudo().create({'name': 'Muebles Prueba Corp', 'is_company': True,
+                                                          'phone': '+507 6000-1108'})
+        nueva = self.env['res.partner'].with_user(self.vendedora).new({'name': 'Persona', 'phone': '6000-1108'})
+        c = nueva.dcasa_coincidencias[0]
+        self.assertEqual((c['id'], c['empresa']), (empresa.id, True))

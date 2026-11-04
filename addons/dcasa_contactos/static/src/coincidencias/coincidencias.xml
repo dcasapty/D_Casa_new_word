@@ -13,6 +13,7 @@
                     <div class="o_dcasa_coincidencia_datos">
                         <div>
                             <span class="fw-bold" t-esc="c.nombre"/>
+                            <span t-if="c.empresa" class="badge text-bg-info ms-1">empresa</span>
                             <span t-if="c.archivada" class="badge text-bg-secondary ms-1">archivada</span>
                         </div>
                         <div class="small">

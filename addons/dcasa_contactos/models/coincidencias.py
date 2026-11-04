@@ -18,7 +18,10 @@ sus datos, sin perder lo que se está facturando.»
 * Solo para el equipo (usuarios internos): quien viene del sitio o del chat no ve fichas ajenas. Las fichas son las
   de siempre (``_dcasa_dominio_fichas``): ni usuarios, ni empleados, ni direcciones, ni la empresa propia.
 """
+import re
+
 from odoo import api, fields, models
+from odoo.addons.dcasa_socios.models import bien_escrito as B
 from odoo.addons.dcasa_socios.models import reglas as R
 from odoo.fields import Domain
 
@@ -27,14 +30,19 @@ from . import claves
 MAXIMO_COINCIDENCIAS = 5
 
 
+# Una cédula o un RUC de Panamá: dos guiones («8-123-456», «PE-12-345», «155779346-2-2026»). Un celular lleva uno.
+CEDULA_O_RUC = re.compile(r'^[0-9A-Za-z]{1,10}-\d{1,9}-\d{1,6}$')
+
+
 def parece_telefono(texto):
-    """¿Lo que se escribió en un buscador parece un teléfono? Al menos 4 números y casi nada más (+, guiones,
-    paréntesis, espacios)."""
+    """¿Lo que se escribió en un buscador parece un teléfono? Al menos 4 números, casi nada más (+, un guion,
+    paréntesis, espacios) y no tiene forma de cédula o RUC."""
     if not isinstance(texto, str):
         return False
     digitos = R.solo_digitos(texto)
     compacto = texto.replace(' ', '')
-    return len(digitos) >= 4 and len(compacto) - len(digitos) <= 3
+    return (len(digitos) >= 4 and len(compacto) - len(digitos) <= 3 and compacto.count('-') <= 1
+            and not CEDULA_O_RUC.match(compacto))
 
 
 class ResPartner(models.Model):
@@ -76,16 +84,20 @@ class ResPartner(models.Model):
 
     @api.model
     def default_get(self, fields_list):
-        """«Crear y editar» después de buscar un celular o un correo que no estaba: lo buscado va a su campo (celular o
-        correo), no al nombre. Solo para el equipo."""
+        """«Crear y editar» después de buscar un celular, una cédula o un correo que no estaba: lo buscado va a su campo
+        (celular, cédula o RUC, correo), no al nombre. Solo para el equipo."""
         valores = super().default_get(fields_list)
         nombre = valores.get('name')
         if not isinstance(nombre, str) or not self.env.user._is_internal():
             return valores
-        if 'phone' in fields_list and not valores.get('phone') and parece_telefono(nombre):
-            valores.update(phone=nombre.strip(), name=False)
-        elif 'email' in fields_list and not valores.get('email') and '@' in nombre and claves.llave_correo(nombre):
-            valores.update(email=nombre.strip(), name=False)
+        escrito = nombre.strip()
+        if 'phone' in fields_list and not valores.get('phone') and parece_telefono(escrito) \
+                and not B.problema_del_telefono(escrito):
+            valores.update(phone=escrito, name=False)
+        elif 'vat' in fields_list and not valores.get('vat') and CEDULA_O_RUC.match(escrito.replace(' ', '')):
+            valores.update(vat=escrito, name=False)
+        elif 'email' in fields_list and not valores.get('email') and '@' in escrito and claves.llave_correo(escrito):
+            valores.update(email=escrito, name=False)
         return valores
 
     # ------------------------------------------------------------------
@@ -140,8 +152,11 @@ class ResPartner(models.Model):
             for ficha in self._dcasa_fichas_parecidas(self.name, limite=MAXIMO_COINCIDENCIAS):
                 encontradas.setdefault(ficha.id, (ficha, ['nombre']))
         salida = [self._dcasa_describir_coincidencia(ficha, por) for ficha, por in encontradas.values()]
-        # Las del mismo dato primero; a igual, la más vieja (la que tiene la historia).
-        salida.sort(key=lambda c: (not c['fuerte'], c['id']))
+        # Si una ficha ACTIVA tiene el mismo dato, las archivadas no se ofrecen (reactivarlas repetiría el dato).
+        if any(c['fuerte'] and not c['archivada'] for c in salida):
+            salida = [c for c in salida if not c['archivada']]
+        # Las del mismo dato primero, las activas antes; a igual, la más vieja (la que tiene la historia).
+        salida.sort(key=lambda c: (not c['fuerte'], c['archivada'], c['id']))
         return salida[:MAXIMO_COINCIDENCIAS]
 
     def _dcasa_describir_coincidencia(self, ficha, por):
@@ -162,6 +177,7 @@ class ResPartner(models.Model):
             'datos': datos,
             'origen': self._dcasa_origen_de_la_ficha(ficha),
             'archivada': not ficha.active,
+            'empresa': bool(ficha.is_company),
         }
 
     def _dcasa_etiqueta_coincidencia(self, por):
