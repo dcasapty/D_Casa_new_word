@@ -364,7 +364,8 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
-- **Desplegar 39** (00:55 UTC del 4 nov, `50b52c6`, imagen `sha256:a167a596…` de CI #247, respaldo previo) · Inicio con
+- **Desplegar 39** (00:55 UTC del 4 nov, `50b52c6`, imagen `sha256:a167a596…` de CI #247, respaldo previo) · sano y
+  confirmado 01:08 (versión `50b52c6c6247`, base al día, humo ok): Inicio con
   tres paneles, CRM al chat, vendedoras activas, notas de voz, fotos de varios productos (PR #70). El staging del CI #247
   se frenó otra vez en el respaldo previo (61 s, staging dormido); **Desplegar 38** (staging directo con el mismo digest)
   salió sano. Ya van dos veces: si se repite, que el respaldo previo de staging despierte el sitio y espere antes de

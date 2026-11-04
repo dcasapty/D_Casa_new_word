@@ -119,7 +119,7 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
   contestó si el cliente decía «ok, gracias», y le decía a Gerencia que no contestó) y 8 medias o bajas; todo corregido
   con el campo `dcasa.conversacion.reparto_desde` y pruebas. Además, el «ya avisé a una vendedora» de Juan queda como
   último mensaje: el cron no mira quién escribió último.
-- **En producción:** Desplegar 39 (PR #70, `50b52c6`, imagen `sha256:a167a596…` de CI #247; staging en Desplegar 38
+- **En producción:** Desplegar 39, sano y confirmado 01:08 UTC del 4 nov (8:08 pm Panamá) (PR #70, `50b52c6`, imagen `sha256:a167a596…` de CI #247; staging en Desplegar 38
   porque el del CI se frenó en el respaldo previo con staging dormido). Juan no cambió (sin Desplegar Juan).
 - Sigue: que la dueña lo vea de verdad (Inicio, CRM, una nota de voz nueva, «Elegir» fotos, Reparto); prender el Reparto
   «Parejo» si todavía no (la regla de actividad y «pasar a otra» solo corren con el reparto encendido); Telegram de cada
