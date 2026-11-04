@@ -1,6 +1,6 @@
 """Una ficha por persona: mismo nombre sí; mismo celular, correo o RUC/cédula no."""
 from odoo.exceptions import ValidationError
-from odoo.tests import TransactionCase, new_test_user, tagged
+from odoo.tests import Form, TransactionCase, new_test_user, tagged
 
 SIN = {'dcasa_sin_duplicados': True}
 
@@ -170,7 +170,13 @@ class TestFichaUnica(TransactionCase):
         self.assertFalse(self.Partner._dcasa_buscar_ficha(celular='+1 305 555 1234'))
 
     def test_el_aviso_antes_de_guardar_dice_de_quien_es(self):
+        # Al crear (2026-11-04): ya no es una ventana de error; la ficha sale en «Ya existe esta persona», con su botón.
         nueva = self.Partner.new({'name': 'Visitante', 'email': 'ana.gomez@correo.com'})
-        aviso = nueva._onchange_dcasa_duplicado()
-        self.assertIn('Ana Gómez Contactos', aviso['warning']['message'])
+        self.assertIsNone(nueva._onchange_dcasa_duplicado())
+        self.assertEqual([c['id'] for c in nueva.dcasa_coincidencias], [self.ana.id])
         self.assertIsNone(self.Partner.new({'name': 'Otra', 'email': 'libre@correo.com'})._onchange_dcasa_duplicado())
+        # Al editar una ficha que ya existe: el aviso de siempre, con el nombre de la otra.
+        otra = self.Partner.create({'name': 'Otra Ficha Aviso', 'email': 'otra.aviso@correo.com'})
+        with self.assertLogs('odoo.tests.form.onchange', level='WARNING') as avisos:
+            Form(otra).email = 'ana.gomez@correo.com'
+        self.assertIn('Ana Gómez Contactos', avisos.output[0])

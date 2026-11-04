@@ -18,7 +18,7 @@ from . import claves
 
 SIN_DUPLICADOS = 'dcasa_sin_duplicados'
 SIN_EXIGIR_CONTACTO = 'dcasa_sin_exigir_contacto'
-CAMPOS_QUE_IDENTIFICAN = frozenset({'phone', 'email', 'vat', 'dcasa_celular', 'parent_id'})
+CAMPOS_QUE_IDENTIFICAN = frozenset({'phone', 'email', 'vat', 'dcasa_celular', 'parent_id', 'active'})
 DATOS = {'celular': 'celular', 'correo': 'correo', 'ruc': 'RUC o cédula'}
 
 
@@ -146,7 +146,10 @@ class ResPartner(models.Model):
         vals = self._dcasa_revisar_contacto_al_editar(vals)
         if self.env.context.get(SIN_DUPLICADOS) or not CAMPOS_QUE_IDENTIFICAN.intersection(vals):
             return super().write(vals)
-        antes = {partner.id: partner._dcasa_claves() for partner in self}
+        # Una ficha archivada que vuelve a activarse se revisa entera, como si fuera nueva: si mientras estuvo
+        # archivada otra quedó con su celular, correo o cédula, no se reactiva (revisión adversarial, 2026-11-04).
+        reactivadas = set(self.filtered(lambda p: not p.active).ids) if vals.get('active') else set()
+        antes = {partner.id: ({} if partner.id in reactivadas else partner._dcasa_claves()) for partner in self}
         resultado = super().write(vals)
         self._dcasa_revisar_duplicados(antes)
         return resultado

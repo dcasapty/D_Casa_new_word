@@ -12,10 +12,11 @@
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
-                <div class="alert alert-warning mb-0 o_dcasa_parecidas" role="alert" invisible="not dcasa_parecidas_aviso">
-                    <i class="fa fa-users me-2" aria-hidden="true" title="Fichas parecidas"/>
-                    <field name="dcasa_parecidas_aviso" readonly="1" class="d-inline"/>
-                </div>
+                <!-- «Ya existe esta persona» (2026-11-04): al crear, las fichas con el mismo celular, correo o cédula (o
+                     un nombre parecido) con el botón «Es esta persona». Reemplaza al aviso de solo texto de los nombres
+                     parecidos (que sigue calculándose para Brian). -->
+                <field name="dcasa_coincidencias" widget="dcasa_coincidencias" nolabel="1" readonly="1"
+                       invisible="not dcasa_coincidencias" class="d-block"/>
                 <div class="alert alert-warning mb-0 o_dcasa_falta_contacto" role="alert"
                      invisible="not id or parent_id or customer_rank &lt;= 0 or ((phone or dcasa_telefono_fijo) and (email or dcasa_sin_correo))">
                     <i class="fa fa-address-card-o me-2" aria-hidden="true"/>

@@ -1,0 +1,45 @@
+// «Ya existe esta persona»: una fila por ficha, el botón a la derecha (abajo y a lo ancho en el celular).
+.o_field_dcasa_coincidencias {
+    width: 100%;
+    max-width: 100%;
+}
+.o_dcasa_coincidencias {
+    max-width: 100%;
+    .o_dcasa_coincidencias_lista {
+        display: grid;
+        gap: 8px;
+    }
+    .o_dcasa_coincidencia {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px 12px;
+        padding: 8px 10px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.55);
+    }
+    .o_dcasa_coincidencia_datos {
+        min-width: 0;
+        flex: 1 1 240px;
+        overflow-wrap: anywhere;
+    }
+    .o_dcasa_dato {
+        display: inline-block;
+        max-width: 100%;
+    }
+    .o_dcasa_es_esta_persona {
+        flex: 0 0 auto;
+    }
+    @media (max-width: 575.98px) {
+        .o_dcasa_es_esta_persona {
+            flex: 1 1 100%;
+        }
+    }
+}
+
+// Los datos del cliente en la cotización y la factura: con su línea siempre a la vista, para que se note que se
+// escriben ahí (Odoo solo la muestra al pasar el mouse).
+.o_form_view .o_dcasa_dato_cliente .o_input {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+}

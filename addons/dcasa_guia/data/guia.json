@@ -2146,6 +2146,27 @@
    ]
   },
   {
+   "id": "cliente-corregir-datos",
+   "categoria": "clientes",
+   "grupo": "Clientes",
+   "titulo": "Corregir los datos de un cliente mientras le vendes",
+   "logras": "En la cotización (o en la factura borrador), debajo de «Cliente», corriges su nombre, celular, correo o cédula y se guardan en su ficha al guardar. Para encontrarlo, escribe su celular en «Cliente»: sale con su celular al lado aunque su nombre sea el de su WhatsApp.",
+   "nota": "Si al crear un cliente su celular, su correo o su cédula ya existen, sale «Ya existe esta persona» con su ficha: toca «Es esta persona», revisa y guarda. No crees otro cliente con otro número.",
+   "destino": {
+    "menu": "sale.menu_sale_quotations"
+   },
+   "palabras": [
+    "corregir cliente",
+    "editar datos del cliente",
+    "cambiar nombre del cliente",
+    "correo mal escrito",
+    "celular repetido",
+    "ya existe esta persona",
+    "cliente de whatsapp",
+    "es esta persona"
+   ]
+  },
+  {
    "id": "duplicados",
    "categoria": "clientes",
    "grupo": "Clientes",

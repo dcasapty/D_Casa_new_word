@@ -366,6 +366,9 @@ LISTA_BLANCA = {
         OVERRIDE + ' Exige base.group_system en el servidor antes de tocar los padres de los contactos; sin sudo().',
     ('dcasa_contactos', 'res.users', 'create'): OVERRIDE + ' Solo crea el usuario sin el candado de su contacto.',
     ('dcasa_contactos', 'res.company', 'create'): OVERRIDE + ' Solo crea la empresa sin el candado de su contacto.',
+    ('dcasa_contactos', 'res.partner', 'default_get'):
+        OVERRIDE + ' Sin sudo; solo para el equipo: pasa el nombre por defecto que parece un celular, una cédula o un '
+                   'correo a su campo (lo buscado antes de «Crear y editar»).',
     # --- dcasa_barras -------------------------------------------------------------------------
     ('dcasa_barras', 'dcasa.barras', 'buscar'):
         'API del Escáner: exige stock.group_stock_user en el servidor ANTES de leer; no devuelve costos; sin sudo.',

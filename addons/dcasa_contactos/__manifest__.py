@@ -16,8 +16,11 @@ Una persona, una ficha:
   marca «Cliente no tiene correo electrónico» en su ficha o en la cotización (el celular sigue obligatorio).
 * Teléfono fijo (7 números en Panamá) en su propio campo, debajo del celular: sirve en lugar del celular para quien no
   tiene. No se compara entre fichas (una casa o una empresa lo comparten).
+* Encontrar y corregir fácil (2026-11-04): el selector de «Cliente» encuentra por celular y lo muestra junto al nombre;
+  los datos del cliente se corrigen dentro de la cotización y la factura; al crear un cliente que ya existe, sale su
+  ficha con el botón «Es esta persona», que la abre con lo escrito encima.
 """,
-    'version': '19.0.1.1.0',
+    'version': '19.0.1.2.0',
     'category': 'Sales/CRM',
     'author': "D'CASA Panamá",
     'website': 'https://dcasapty.com',
@@ -28,6 +31,14 @@ Una persona, una ficha:
         'views/duplicado_views.xml',
         'views/sale_order_views.xml',
         'views/res_partner_views.xml',
+        'views/account_move_views.xml',
     ],
+    'assets': {
+        'web.assets_backend': [
+            'dcasa_contactos/static/src/coincidencias/*.js',
+            'dcasa_contactos/static/src/coincidencias/*.xml',
+            'dcasa_contactos/static/src/coincidencias/*.scss',
+        ],
+    },
     'installable': True,
 }

@@ -364,6 +364,12 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 39** (00:55 UTC del 4 nov, `50b52c6`, imagen `sha256:a167a596…` de CI #247, respaldo previo) · sano y
+  confirmado 01:08 (versión `50b52c6c6247`, base al día, humo ok): Inicio con
+  tres paneles, CRM al chat, vendedoras activas, notas de voz, fotos de varios productos (PR #70). El staging del CI #247
+  se frenó otra vez en el respaldo previo (61 s, staging dormido); **Desplegar 38** (staging directo con el mismo digest)
+  salió sano. Ya van dos veces: si se repite, que el respaldo previo de staging despierte el sitio y espere antes de
+  pedir el volcado.
 - **Desplegar 37** (05:56 UTC del 3 nov, `594522c`, imagen `sha256:fb452fb7…` de CI #245, respaldo previo) · sano
   05:59 y confirmado 06:10 (versión `594522c77c27`, base al día, humo ok): «Sin leer» = lo que espera a una persona, cotizaciones del
   chatbot y la web que vencen solas, ventas atribuidas en tres (PR #69). CI #243 salió **rojo** en `TestSuperficieRpc`:
@@ -488,10 +494,34 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Juan y las fotos del chat:** el Worker `dcasa-juan` necesita la variable de texto `URL_PUBLICA` (su propia
   dirección `https://dcasa-juan.dcasapty.workers.dev`, sin `/` final) para que Odoo pueda bajar las fotos, notas de voz y
   stickers; sin ella salía «No se pudo traer 1 archivo». `/salud` de Juan la marca como problema desde el PR #68.
+- **SCSS de Odoo (libsass) no acepta `min()`/`max()` de CSS con unidades mezcladas** (`min(100%, 300px)` → «Incompatible
+  units: 'px' and '%'»): el bundle del backend entero sale con un error y TODAS las pantallas quedan sin estilo (falla
+  `test_bundle_backend_con_la_marca` y, detrás, las pruebas con navegador). Escribirlo como cadena (`#{"min(100%, 300px)"}`,
+  como ya hace `panel.scss`) o evitarlo (2026-11-03).
+- **El servidor de capturas guarda los estilos compilados:** después de cambiar un `.scss`, reiniciar `servidor.sh` antes
+  de repetir las capturas (si no, salen con el estilo viejo).
+- **Un *override* nuevo de un método público de Odoo** (`crm.team.action_your_pipeline`) también va a `LISTA_BLANCA`
+  (`test_superficie_rpc.py`), como `create`/`action_draft` en la tanda anterior.
 - **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
   contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
 
 ### Odoo 19
+
+- **Datos de otra ficha editables en un documento (2026-11-04, `dcasa_contactos/models/datos_del_cliente.py`):**
+  (1) un `related` con `readonly=False` reescribe la ficha **en cada guardado que lo incluye**, y el formulario manda
+  todos los campos no-readonly al crear el documento o al cambiar el many2one, aunque estén invisibles: con datos
+  viejos mal escritos ya no se guardaba ni una cotización nueva. (2) Con `compute` + `inverse`, **un solo método para
+  varios campos borra datos**: mientras Odoo corre el inverso, todos los campos de ese mismo cálculo quedan protegidos
+  y se leen vacíos (el inverso los «ve» cambiados a `False` y los escribe). Cada campo con su propio cálculo e inverso
+  (fábrica `metodos_del_dato`), y los booleanos que el inverso necesita, en otro cálculo. (3) `vat` de un contacto con
+  `parent_id` sube a la empresa (campo comercial). Lo encontró la revisión adversarial; las pruebas que crean con
+  `Form` y datos viejos malos lo cubren.
+- **Un `@api.onchange` sobrescrito sin el decorador deja de ser onchange** (Odoo los junta con `getmembers` buscando el
+  atributo `_onchange`): al sobrescribir uno, repetir `@api.onchange(...)` con los mismos campos.
+- **Cambiar de registro dentro de un `FormViewDialog`** (p. ej. «Crear y editar» → «Es esta persona»): desde un widget,
+  `record.model.load({resId, resIds})` y luego `model.root.update(cambios)`. Al guardar, el diálogo llama
+  `onRecordSaved(record)` con el registro cargado y el many2one queda con ese id (`relational_utils.js`,
+  `update([{...record.data, id: record.resId}])`); «Descartar» lo deja vacío.
 
 - **Valuación del inventario en Odoo 19:** ya no existe `stock.valuation.layer`. El valor oficial es
   `product.product.total_value` (y `avg_cost`), calculado según el método de costo (estándar o promedio: unidades ×
