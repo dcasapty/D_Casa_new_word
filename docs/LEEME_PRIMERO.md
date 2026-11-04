@@ -102,6 +102,48 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-02 (tarde) y 2026-11-03 (madrugada): Juan en el WhatsApp de la tienda, medios en el chat, origen y cotizaciones que vencen
+
+- **Juan atiende el WhatsApp de la tienda (+507 6026-1919) por la API oficial de Meta** desde las 20:26 UTC del 2 nov
+  (3:26 pm Panamá). Lo hizo la dueña desde su cuenta, guiada paso a paso: app «D'CASA Juan», webhook
+  `https://dcasa-juan.dcasapty.workers.dev/webhooks/whatsapp-cloud`, token de verificación y clave secreta de la app
+  como secretos del Worker `dcasa-juan`, `WHATSAPP_PHONE_NUMBER_ID` del número de la tienda, «Suscribirse a webhooks»
+  solo en la tarjeta del 6026-1919 (no en la del número de prueba +1 555) y **llave permanente** de un usuario del
+  sistema `juan-bot` (Administrador; app y cuenta de WhatsApp con control total; caducidad «Nunca»; permisos
+  `whatsapp_business_messaging` y `whatsapp_business_management`) en `WHATSAPP_CLOUD_TOKEN`. La llave del Explorador de
+  la API Graph vence en 1-2 horas: nunca se deja puesta.
+- **Modelo «contributor» de Meta para Juan** (`muse-spark-1.3-contributor`, se escribe en Ajustes de Juan › modelos):
+  el mismo modelo, Meta puede entrenar con las conversaciones, 92-98 % más barato; límite de 150 consultas por minuto
+  **para todo el equipo de Meta** (incluye otros proyectos de la cuenta). Precio real $0.10 entrada / $0.002 caché /
+  $0.20 salida por millón de tokens; la dueña puso **el doble a propósito** (0.20 / 0.004 / 0.40) como margen, así que
+  «Costos de IA» muestra el doble de lo real (~$2 por 1000 respuestas en vez de ~$1). Lo gastado antes con
+  `muse-spark-1.3` queda estimado (no se recalcula). Meta no separa el gasto por clave.
+- **En producción:**
+  - Desplegar 35 (PR #67, `d285ee7`): la política de privacidad nombra a Juan y al modelo contributor (Ley 81) y Juan
+    da `https://dcasapty.com/shop` cuando piden el catálogo completo.
+  - Desplegar 36 (PR #68, `b9ded11`) y Desplegar Juan 4 (`14be013`): notas de voz y videos con reproductor en el chat,
+    stickers como imagen (Juan no los mira ni los anota), columna de conversaciones ajustable (arrastrar, teclado,
+    doble clic; se recuerda) y **Origen** Chatbot / Web / Vendedora en cotizaciones y facturas (columna, filtros,
+    agrupar e Inicio). Las fotos no se veían porque a `dcasa-juan` le faltaba la variable de texto `URL_PUBLICA`
+    (`https://dcasa-juan.dcasapty.workers.dev`, sin `/` final); la dueña la puso y `/salud` de Juan ahora la marca.
+  - Desplegar 37 (PR #69, `594522c`, sano y confirmado 06:10 UTC del 3 nov): **«Sin leer» = lo que espera a una persona** (conversación en manos de una
+    persona y el último mensaje es del cliente; la vendedora ve las suyas y las sin asignar, Gerencia todas): «N
+    esperan» y chip «Esperan respuesta». **Las cotizaciones del chatbot y de la web vencen solas** (Ajustes de Juan,
+    «Días que queda abierta una cotización…», 3 por defecto, 0 apaga, máximo 60; cron cada hora; no toca las de
+    vendedora ni las que tienen pago en curso, factura, apartado, bloqueo o un cambio de hace menos de 12 h; al
+    reabrirla con «Establecer como cotización» toma días nuevos). **Ventas atribuidas en tres** (solo el asistente /
+    el asistente y una persona / solo personas) con ventana de 30 días antes de la factura y periodos de 90 días y
+    12 meses.
+- Revisión adversarial de la tanda del PR #69 (toca dinero y permisos): una cotización reabierta se volvía a cancelar a
+  la hora (bloqueante), fechas en hora de Panamá, apartados, carritos vivos de la tienda, pedidos web copiados que
+  heredaban el sitio, filas saltadas que trababan la corrida, mensajes programados que contaban como respuesta, SQL lento
+  y cotizaciones de Juan fuera de la ventana. Todo corregido con pruebas antes de staging. CI #243 salió rojo por la
+  lista blanca (`create` y `action_draft` de `sale.order`); CI #245 verde.
+- Sigue (de la dueña): prender el **Reparto «Parejo»** (Gerencia) para que Juan asigne clientes; que cada vendedora
+  conecte su Telegram; `ANTHROPIC_API_KEY` en `dcasa-juan` como respaldo si Meta pasa el límite (hoy el cliente
+  recibiría «una vendedora te atiende»); una alerta de gasto en Meta; plantillas para escribir después de 24 horas.
+  Después de Desplegar 37: mirar «N esperan», el reparto en tres del Resumen y el ajuste de días.
+
 ### 2026-11-02: Valor del inventario y cobrado por forma de pago
 
 - Pedido de la dueña (para Gerencia): «el costo en mercancía o productos actualmente» (lo más urgente, «solo para

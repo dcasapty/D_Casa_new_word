@@ -84,6 +84,7 @@ class PanelUiCase(HttpCase):
         cls.gerente = new_test_user(cls.env, login=GERENTE, name='Gema Gerente',
                                     groups='base.group_user,sales_team.group_sale_manager')
         cls.ajustes = cls.env['dcasa.juan.ajustes'].obtener()
+        cls.ajustes.reparto_activa_minutos = 0   # ver ``JuanCase``: las vendedoras de prueba no usan Odoo de verdad
         cls.etiqueta = cls.env['dcasa.conversacion.etiqueta'].create({'name': 'Zzpidió precio', 'color': 5})
         cls.ahora = fields.Datetime.now()
 
@@ -660,6 +661,9 @@ class TestPanelEnElNavegador(PanelUiCase):
     if (/7777|7,777|123\\.45/.test(dialogo.textContent)) { throw new Error("jamás la cantidad ni el costo"); }
     if (!producto.querySelector("img").getAttribute("src").startsWith("/dcasa/img/")) { throw new Error("miniatura WebP al ancho justo"); }
     aqui(".o_dcj_producto button", "Enviar foto").click();
+    // La ventana no se cierra sola (2026-11-03): dice «Enviada» y se cierra con «Listo».
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA ROBLE QUEEN").querySelector(".o_dcj_enviada"), "«Enviada» en el producto");
+    aqui(".o_dcj_hoja_pie button", "Listo").click();
     await esperar(() => !document.querySelector(".o_dcj_hoja"), "el buscador cerrado");
     const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "Zzcama Roble Queen"), "la foto en el hilo");
     await esperar(() => burbuja.querySelector(".o_dcj_foto_boton img"), "la imagen dentro de la burbuja");
@@ -692,7 +696,8 @@ class TestPanelEnElNavegador(PanelUiCase):
     fotos[1].click(); fotos[2].click();
     await esperar(() => aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos"), "el botón de enviar tres fotos");
     aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos").click();
-    await esperar(() => !document.querySelector(".o_dcj_hoja"), "la galería cerrada");
+    await esperar(() => !document.querySelector(".o_dcj_galeria") && aqui(".o_dcj_producto", "ZZCAMA").querySelector(".o_dcj_enviada"),
+                  "de vuelta en los resultados, con «Enviada»");
     const burbuja = await esperar(() => aqui(".o_dcj_burbuja_vendedora", "Zzcama"), "las fotos en el hilo");
     await esperar(() => burbuja.querySelectorAll(".o_dcj_foto_boton img").length === 3, "las tres imágenes");
     console.log("test successful");
@@ -700,6 +705,46 @@ class TestPanelEnElNavegador(PanelUiCase):
 """)
         (envio,) = self.al_worker('/odoo/enviar')
         self.assertEqual(len(envio['adjuntos']), 3)
+
+    def test_foto_del_catalogo_varios_productos_de_una_vez_y_la_ventana_sigue_abierta(self):
+        """Pedido de la dueña (2026-11-03): fotos de varios productos (de una búsqueda y de otra) y se mandan juntas, un
+        mensaje por producto con su pie; la ventana se cierra cuando la vendedora termina."""
+        self.datos_de_ejemplo()
+        cama = self.producto_de_ejemplo()
+        cama.copy({'name': 'ZZCAMA PINO TWIN', 'default_code': 'ZZ-PINO', 'is_published': True})
+        cama.copy({'name': 'ZZSOFA GRIS', 'default_code': 'ZZ-SOFA', 'is_published': True})
+        self.navegador("""
+(async () => {
+    await abrirConversacion("Karen");
+    aqui(".o_dcj_herramienta", "Foto del catálogo").click();
+    const buscar = await esperar(() => document.querySelector(".o_dcj_hoja input[type=search]"), "el buscador");
+    await escribir(buscar, "zzcama");
+    await esperar(() => aqui(".o_dcj_producto", "ZZCAMA ROBLE QUEEN") && aqui(".o_dcj_producto", "ZZCAMA PINO TWIN"), "las dos camas");
+    aqui(".o_dcj_producto", "ZZCAMA ROBLE QUEEN").querySelector(".o_dcj_elegir").click();
+    aqui(".o_dcj_producto", "ZZCAMA PINO TWIN").querySelector(".o_dcj_elegir").click();
+    await esperar(() => aqui(".o_dcj_hoja_pie button", "Enviar 2 fotos"), "dos elegidas");
+    const elegir = aqui(".o_dcj_producto", "ZZCAMA PINO TWIN").querySelector(".o_dcj_elegir");
+    if (elegir.getAttribute("aria-pressed") !== "true") { throw new Error("«Elegida» se anuncia (aria-pressed)"); }
+    // Otra búsqueda: lo elegido se queda.
+    await escribir(document.querySelector(".o_dcj_hoja input[type=search]"), "zzsofa");
+    await esperar(() => aqui(".o_dcj_producto", "ZZSOFA GRIS"), "el sofá");
+    aqui(".o_dcj_producto", "ZZSOFA GRIS").querySelector(".o_dcj_elegir").click();
+    await esperar(() => aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos"), "tres de tres productos");
+    if (document.querySelectorAll(".o_dcj_tanda_item").length !== 3) { throw new Error("la lista de lo elegido"); }
+    aqui(".o_dcj_hoja_pie button", "Enviar 3 fotos").click();
+    await esperar(() => !document.querySelector(".o_dcj_tanda_item") && aqui(".o_dcj_producto", "ZZSOFA GRIS").querySelector(".o_dcj_enviada"),
+                  "enviadas, con la ventana abierta");
+    if (!document.querySelector(".o_dcj_hoja")) { throw new Error("la ventana no se cierra sola"); }
+    aqui(".o_dcj_hoja_pie button", "Listo").click();
+    await esperar(() => !document.querySelector(".o_dcj_hoja"), "cerrada con «Listo»");
+    await esperar(() => document.querySelectorAll(".o_dcj_burbuja_vendedora .o_dcj_foto_boton img").length === 3, "las tres fotos en el hilo");
+    console.log("test successful");
+})().catch((e) => console.error(e.message || e));
+""")
+        envios = self.al_worker('/odoo/enviar')
+        self.assertEqual(len(envios), 3, 'Un mensaje por producto')
+        self.assertEqual([e['texto'].split('\n')[0] for e in envios],
+                         ['Zzcama Roble Queen', 'Zzcama Pino Twin', 'Zzsofa Gris'], 'En el orden en que se eligieron')
 
     def test_foto_del_catalogo_revisar_antes_la_deja_en_la_caja(self):
         self.datos_de_ejemplo()

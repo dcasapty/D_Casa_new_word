@@ -41,6 +41,13 @@ _MIME = re.compile(r'^[a-z0-9][a-z0-9!#$&^_.+-]{0,60}/[a-z0-9][a-z0-9!#$&^_.+-]{
 _NOMBRE_MALO = re.compile(r'[\x00-\x1f\\/:*?"<>|]+')
 
 TIPO_POR_MIME = (('image/', 'imagen'), ('audio/', 'audio'), ('video/', 'video'))
+# Cómo se llama un adjunto que llegó sin nombre (las notas de voz nunca lo traen) y la extensión que se le suma.
+NOMBRE_POR_TIPO = {'audio': 'nota-de-voz', 'video': 'video'}
+EXTENSION_POR_MIME = {
+    'audio/ogg': 'ogg', 'audio/opus': 'opus', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac',
+    'audio/amr': 'amr', 'audio/webm': 'webm', 'audio/wav': 'wav', 'video/mp4': 'mp4', 'video/3gpp': '3gp',
+    'video/webm': 'webm', 'video/ogg': 'ogv', 'video/quicktime': 'mov',
+}
 
 
 class AdjuntoInvalido(ValueError):
@@ -61,8 +68,41 @@ def nombre_seguro(nombre, por_defecto='adjunto'):
 
 
 def mime_seguro(mime):
-    mime = str(mime or '').strip().lower()
+    """El tipo sin sus parámetros: WhatsApp manda las notas de voz como «audio/ogg; codecs=opus», y con el «; codecs…»
+    el tipo se perdía y la nota quedaba como un archivo para bajar, sin reproductor (2026-11-03)."""
+    mime = str(mime or '').split(';', 1)[0].strip().lower()
     return mime if _MIME.match(mime) else ''
+
+
+def tipo_de_medio(datos, tipo):
+    """El MIME de una nota de voz o un video por sus primeros bytes, para cuando el canal no lo dijo: Odoo, sin
+    libmagic, no reconoce estos formatos y los guardaría como «application/octet-stream». ``''`` si no se sabe."""
+    if tipo not in ('audio', 'video') or not datos:
+        return ''
+    cabeza = bytes(datos[:16])
+    if cabeza[:4] == b'OggS':
+        return f'{tipo}/ogg'
+    if cabeza[4:8] == b'ftyp':
+        return f'{tipo}/mp4'
+    if cabeza[:4] == b'\x1a\x45\xdf\xa3':
+        return f'{tipo}/webm'
+    if tipo == 'audio':
+        if cabeza[:3] == b'ID3' or cabeza[:2] in (b'\xff\xfb', b'\xff\xf3', b'\xff\xf2', b'\xff\xfa'):
+            return 'audio/mpeg'
+        if cabeza[:4] == b'RIFF' and cabeza[8:12] == b'WAVE':
+            return 'audio/wav'
+        if cabeza[:5] == b'#!AMR':
+            return 'audio/amr'
+    return ''
+
+
+def nombre_con_extension(nombre, mime):
+    """``nota-de-voz`` + ``audio/ogg`` → ``nota-de-voz.ogg``: con la extensión, el archivo que se baja se abre con el
+    programa correcto. Un nombre que ya trae extensión o un tipo desconocido quedan como están."""
+    extension = EXTENSION_POR_MIME.get(mime or '')
+    if not extension or '.' in (nombre or '').rsplit('/', 1)[-1]:
+        return nombre
+    return f'{nombre}.{extension}'
 
 
 def validar(adjunto):
@@ -91,7 +131,7 @@ def validar(adjunto):
     clase = str(adjunto.get('clase') or '').strip().lower()
     return {
         'tipo': tipo,
-        'nombre': nombre_seguro(adjunto.get('nombre')),
+        'nombre': nombre_seguro(adjunto.get('nombre'), por_defecto=NOMBRE_POR_TIPO.get(tipo, 'adjunto')),
         'mime': mime,
         'url': url or None,
         'base64': contenido or None,

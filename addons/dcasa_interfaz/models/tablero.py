@@ -43,6 +43,8 @@ MAXIMO_DIAS_DE_RANGO = 366
 PARAM_STOCK_BAJO = 'dcasa.stock_bajo_umbral'
 STOCK_BAJO_DEFECTO = 5
 FILAS_DE_LISTA = 5
+# La etiqueta de origen en las listas del Inicio (las de la tienda no llevan: son todas de una vendedora).
+ORIGEN_EN_LA_LISTA = {'chatbot': 'Chatbot', 'web': 'Web'}
 # «Lo más vendido»: los últimos 30 días corridos (más hoy).
 DIAS_DE_LO_MAS_VENDIDO = 30
 # Las bases de las ventas (``ventas_bases.py``). ``vendido`` es la de la vendedora (pedidos facturados por completo). El
@@ -221,6 +223,7 @@ class DcasaTablero(models.AbstractModel):
             'top': [],
             'ventas': None,
             'cotizaciones': None,
+            'cotizaciones_en_linea': None,
             'entregas': None,
             'atencion': [],
             'meta': None,
@@ -243,7 +246,10 @@ class DcasaTablero(models.AbstractModel):
                 datos['bases'] = self._bases_de_ventas()
                 datos['base'] = BASE_POR_DEFECTO
                 datos['ventas'] = self.ventas_del_periodo('hoy', base=BASE_POR_DEFECTO)
+                # Dos listas para no revolverlas (pedido de la dueña, 2026-11-03): las de la tienda y las del chatbot
+                # y la página web.
                 datos['cotizaciones'] = self._lista_de_cotizaciones(hoy)
+                datos['cotizaciones_en_linea'] = self._lista_de_cotizaciones(hoy, en_linea=True)
                 # El bloque «Comparar» y el selector de vendedora: solo Gerencia y administradores.
                 if datos['ve_utilidad']:
                     datos['comparar'] = self._opciones_de_comparar()
@@ -434,10 +440,24 @@ class DcasaTablero(models.AbstractModel):
     # Cotizaciones abiertas y entregas pendientes: las dos listas lado a lado
     # ------------------------------------------------------------------
 
-    def _lista_de_cotizaciones(self, hoy):
-        """Las cotizaciones abiertas de la tienda (no las de la web), con las más antiguas primero para cerrarlas."""
+    def _lista_de_cotizaciones(self, hoy, en_linea=False):
+        """Las cotizaciones abiertas, con las más antiguas primero para cerrarlas.
+
+        * ``en_linea=False``: las de la tienda (las arma una vendedora).
+        * ``en_linea=True``: las del chatbot (Juan) y las de la página web, en su propio panel. Un carrito vacío o de un
+          visitante que no se identificó (el cliente «público» del sitio) no es una cotización: no sale.
+        """
         Order = self.env['sale.order']
-        abiertas = [('state', 'in', ('draft', 'sent')), ('website_id', '=', False)]
+        abiertas = [('state', 'in', ('draft', 'sent'))]
+        if en_linea:
+            abiertas += [('dcasa_origen', 'in', ('chatbot', 'web')), ('order_line', '!=', False)]
+            publicos = self.env['website'].sudo().search([]).user_id.partner_id.ids
+            if publicos:
+                abiertas.append(('partner_id', 'not in', publicos))
+            titulo = self.env._('Cotizaciones del chatbot y la web')
+        else:
+            abiertas.append(('dcasa_origen', '=', 'vendedora'))
+            titulo = self.env._('Cotizaciones abiertas en tienda')
         total = Order.search_read(abiertas, ['amount_untaxed', 'amount_total'])
         filas = Order.search_read(abiertas, ['name', 'partner_id', 'amount_total', 'user_id', 'date_order',
                                              'dcasa_origen'],
@@ -446,12 +466,12 @@ class DcasaTablero(models.AbstractModel):
             'cantidad': len(total),
             'sin_itbms': sum(o['amount_untaxed'] for o in total),
             'total': sum(o['amount_total'] for o in total),
-            'accion': _accion('Cotizaciones abiertas', 'sale.order', abiertas),
+            'accion': _accion(titulo, 'sale.order', abiertas),
             'filas': [{
                 'id': o['id'], 'nombre': o['name'], 'cliente': o['partner_id'] and o['partner_id'][1] or '',
                 'total': o['amount_total'], 'vendedora': o['user_id'] and o['user_id'][1] or '',
-                # «Chatbot» si la armó Juan (las de la web no salen en esta lista).
-                'origen': 'Chatbot' if o['dcasa_origen'] == 'chatbot' else '',
+                # De dónde salió: «Chatbot» (la armó Juan) o «Web»; en la lista de la tienda, nada.
+                'origen': ORIGEN_EN_LA_LISTA.get(o['dcasa_origen'], ''),
                 'dias': max((hoy - fields.Datetime.context_timestamp(self, o['date_order']).date()).days, 0)
                 if o['date_order'] else 0,
             } for o in filas],

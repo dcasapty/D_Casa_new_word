@@ -227,6 +227,34 @@ class TestVentasPorPeriodo(VentasCommon):
         self.assertLessEqual(len(datos['cotizaciones']['filas']), 5)
         self.assertLessEqual(len(datos['entregas']['filas']), 5)
 
+    def test_las_cotizaciones_de_la_tienda_y_las_de_la_web_van_en_paneles_aparte(self):
+        """Pedido de la dueña (2026-11-03): «para no revolver todas las cotizaciones en un solo panel». Un carrito vacío
+        o de un visitante sin identificar no es una cotización."""
+        sitio = self.env['website'].search([], limit=1) or self.env['website'].create({'name': 'D\'CASA prueba'})
+        tienda = self.pedido(confirmar=False, producto=self.cama)
+        Order = self.env['sale.order'].sudo()
+        web = Order.create({'partner_id': self.cliente.id, 'website_id': sitio.id,
+                            'order_line': [Command.create({'product_id': self.cama.id, 'product_uom_qty': 1})]})
+        vacio = Order.create({'partner_id': self.cliente.id, 'website_id': sitio.id})
+        publico = Order.create({'partner_id': sitio.user_id.partner_id.id, 'website_id': sitio.id,
+                                'order_line': [Command.create({'product_id': self.cama.id, 'product_uom_qty': 1})]})
+        datos = self.tablero.with_user(self.gerencia).obtener_datos()
+        de_tienda = self.env['sale.order'].search(datos['cotizaciones']['accion']['domain'])
+        en_linea = self.env['sale.order'].search(datos['cotizaciones_en_linea']['accion']['domain'])
+        self.assertIn(tienda, de_tienda)
+        self.assertNotIn(web, de_tienda)
+        self.assertIn(web, en_linea)
+        self.assertNotIn(tienda, en_linea)
+        self.assertFalse((vacio | publico) & (de_tienda | en_linea), 'Ni el carrito vacío ni el del visitante')
+        self.assertEqual(datos['cotizaciones_en_linea']['accion']['name'], 'Cotizaciones del chatbot y la web')
+        self.assertEqual(datos['cotizaciones']['accion']['name'], 'Cotizaciones abiertas en tienda')
+        fila = next((f for f in datos['cotizaciones_en_linea']['filas'] if f['id'] == web.id), None)
+        if fila:   # con muchas cotizaciones viejas en la base puede no estar entre las 5 primeras
+            self.assertEqual(fila['origen'], 'Web')
+        self.assertTrue(all(not f['origen'] for f in datos['cotizaciones']['filas']), 'Las de la tienda sin etiqueta')
+        self.assertIsNone(self.tablero.with_user(self.vendedora).obtener_datos().get('cotizaciones_en_linea'),
+                          'La vendedora ve «Mis cotizaciones», no los paneles de la tienda')
+
     def test_la_lista_pone_primero_la_cotizacion_mas_antigua(self):
         vieja = self.pedido(confirmar=False, producto=self.cama)
         vieja.date_order = vieja.date_order - timedelta(days=9)

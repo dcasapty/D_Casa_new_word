@@ -12,6 +12,14 @@
                 <button name="action_dcasa_devolver_control" type="object" class="btn-secondary"
                         string="Que Juan la maneje de nuevo" invisible="not dcasa_auto_off"/>
             </xpath>
+            <!-- Del cliente potencial a su chat, en un clic (pedido de la dueña, 2026-11-03). -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <field name="dcasa_chat_id" invisible="1"/>
+                <button name="action_dcasa_abrir_chat" type="object" class="oe_stat_button" icon="fa-comments"
+                        invisible="not dcasa_chat_id" groups="sales_team.group_sale_salesman">
+                    <div class="o_stat_info"><span class="o_stat_text">Abrir el chat</span></div>
+                </button>
+            </xpath>
             <xpath expr="//sheet" position="before">
                 <field name="dcasa_auto_off" invisible="1"/>
                 <div class="alert alert-info" role="status" invisible="not dcasa_auto_off">
@@ -61,8 +69,37 @@
                 <field name="dcasa_para_cuando" optional="show"/>
                 <field name="dcasa_zona_entrega" optional="show"/>
                 <field name="stage_id" optional="show"/>
+                <field name="dcasa_chat_id" column_invisible="1"/>
+                <button name="action_dcasa_abrir_chat" type="object" icon="fa-comments" title="Abrir el chat"
+                        string="Chat" invisible="not dcasa_chat_id"/>
             </field>
         </field>
+    </record>
+
+    <!-- En el tablero del CRM (kanban), un ícono en la tarjeta lleva al chat del cliente. -->
+    <record id="crm_lead_kanban_dcasa_chat" model="ir.ui.view">
+        <field name="name">crm.lead.kanban.dcasa.chat</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_case_kanban_view_leads"/>
+        <field name="arch" type="xml">
+            <xpath expr="//footer//field[@name='activity_ids']" position="after">
+                <field name="dcasa_chat_id" invisible="1"/>
+                <button name="action_dcasa_abrir_chat" type="object" class="btn btn-link p-0 ms-2 o_dcasa_abrir_chat"
+                        title="Abrir el chat" aria-label="Abrir el chat" invisible="not dcasa_chat_id"
+                        groups="sales_team.group_sale_salesman">
+                    <i class="fa fa-comments" aria-hidden="true"/>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- El flujo del CRM abre SIN el filtro «Mi flujo»: se ven todas las oportunidades (pedido de la dueña,
+         2026-11-03). El filtro sigue en el buscador para quien lo quiera. -->
+    <record id="crm.crm_lead_action_pipeline" model="ir.actions.act_window">
+        <field name="context">{
+                'default_type': 'opportunity',
+                'show_user_team_stages': 1,
+        }</field>
     </record>
 
     <record id="crm_lead_search_dcasa" model="ir.ui.view">

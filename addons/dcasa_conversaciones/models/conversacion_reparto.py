@@ -4,7 +4,7 @@ La regla de verdad vive en ``reparto.py``; aquí está lo que hace cada conversa
 ``_pasar_a_vendedora`` y es lo único que cambia quién atiende: nunca falla una conversación por culpa del reparto
 (si no hay nadie, queda como siempre: el responsable por defecto y el aviso a todo el equipo).
 """
-from odoo import models
+from odoo import fields, models
 
 from .reparto import Decision
 
@@ -12,7 +12,22 @@ from .reparto import Decision
 class DcasaConversacionReparto(models.Model):
     _inherit = 'dcasa.conversacion'
 
+    reparto_desde = fields.Datetime(
+        'La tiene el reparto desde', readonly=True, copy=False, index='btree_not_null',
+        help='Cuándo el reparto automático se la dio a quien la tiene (o la dejó sin dueña porque no había nadie '
+             'activa). Se borra en cuanto alguien del equipo le escribe al cliente, la toma, la asigna o la deja sin '
+             'asignar a mano, o vuelve al asistente: desde ahí es de una persona y «pasar a otra si no contesta» no la '
+             'toca (revisión adversarial, 2026-11-03).')
+
     def _repartir(self):
+        """Decide a quién le toca (ver ``_decidir_reparto``) y, con el reparto encendido, anota desde cuándo la tiene el
+        reparto: con eso ``dcasa.reparto._cron_reasignar`` sabe si nadie le contestó."""
+        decision = self._decidir_reparto()
+        if self.env['dcasa.juan.ajustes'].obtener().reparto_modo != 'manual':
+            self.sudo().reparto_desde = fields.Datetime.now()
+        return decision
+
+    def _decidir_reparto(self):
         """Según «Reparto de conversaciones» en Ajustes de Juan, le asigna esta conversación a una persona.
 
         * ``manual``: a nadie (la toma quien quiera).

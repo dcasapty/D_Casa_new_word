@@ -509,4 +509,4 @@ class TestVistas(BandejaCase):
         partner = self.conv.partner_id.with_user(self.vendedora)
         self.assertEqual(partner.dcasa_conversaciones_count, 1)
         accion = partner.action_dcasa_ver_conversaciones()
-        self.assertEqual(self.env['dcasa.conversacion'].search(accion['domain']), self.conv)
+        self.assertEqual(accion['params'], {'conversacion_id': self.conv.id}, 'Lleva directo a su chat')

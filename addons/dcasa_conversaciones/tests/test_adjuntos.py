@@ -65,6 +65,35 @@ class TestValidarAdjuntos(BaseCase):
         self.assertEqual(adjunto['mime'], '')
         self.assertEqual(A.validar({'tipo': 'documento', 'url': 'https://x.test/a'})['nombre'], 'adjunto')
 
+    def test_el_tipo_pierde_sus_parametros_y_la_nota_de_voz_tiene_nombre(self):
+        self.assertEqual(A.mime_seguro('audio/ogg; codecs=opus'), 'audio/ogg')
+        self.assertEqual(A.mime_seguro(' Video/MP4 '), 'video/mp4')
+        self.assertEqual(A.mime_seguro('; codecs=opus'), '')
+        nota = A.validar({'tipo': 'audio', 'url': 'https://x.test/a', 'mime': 'audio/ogg; codecs=opus'})
+        self.assertEqual((nota['nombre'], nota['mime']), ('nota-de-voz', 'audio/ogg'))
+        self.assertEqual(A.validar({'tipo': 'video', 'url': 'https://x.test/a'})['nombre'], 'video')
+        self.assertEqual(A.validar({'tipo': 'imagen', 'url': 'https://x.test/a'})['nombre'], 'adjunto')
+
+    def test_el_tipo_de_una_nota_de_voz_o_un_video_por_sus_primeros_bytes(self):
+        casos = (
+            (b'OggS\x00\x02', 'audio', 'audio/ogg'), (b'\x00\x00\x00\x18ftypM4A ', 'audio', 'audio/mp4'),
+            (b'\x00\x00\x00\x18ftypmp42', 'video', 'video/mp4'), (b'\x1a\x45\xdf\xa3\x01', 'video', 'video/webm'),
+            (b'ID3\x04\x00', 'audio', 'audio/mpeg'), (b'\xff\xfb\x90', 'audio', 'audio/mpeg'),
+            (b'RIFF\x00\x00\x00\x00WAVEfmt ', 'audio', 'audio/wav'), (b'#!AMR\n', 'audio', 'audio/amr'),
+            (b'\xff\xd8\xff\xe0', 'audio', ''), (b'OggS', 'documento', ''), (b'', 'audio', ''),
+            (b'ID3\x04', 'video', ''),
+        )
+        for datos, tipo, esperado in casos:
+            with self.subTest(datos=datos, tipo=tipo):
+                self.assertEqual(A.tipo_de_medio(datos, tipo), esperado)
+
+    def test_el_nombre_lleva_la_extension_de_su_tipo(self):
+        self.assertEqual(A.nombre_con_extension('nota-de-voz', 'audio/ogg'), 'nota-de-voz.ogg')
+        self.assertEqual(A.nombre_con_extension('video', 'video/mp4'), 'video.mp4')
+        self.assertEqual(A.nombre_con_extension('audio.m4a', 'audio/ogg'), 'audio.m4a', 'Ya trae extensión')
+        self.assertEqual(A.nombre_con_extension('adjunto', 'application/x-raro'), 'adjunto')
+        self.assertEqual(A.nombre_con_extension('adjunto', ''), 'adjunto')
+
     def test_sensible_viene_del_worker(self):
         self.assertTrue(A.validar({'tipo': 'imagen', 'url': 'https://x.test/a', 'sensible': True})['sensible'])
 

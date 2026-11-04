@@ -7,6 +7,7 @@ Cliente y socio son la misma ficha y el celular es su llave (docs/SOCIOS.md). Aq
 * el acceso a sus conversaciones.
 """
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from . import celulares
 from .ajustes import CANALES, CANALES_CON_CELULAR
@@ -31,14 +32,13 @@ class ResPartner(models.Model):
             partner.dcasa_conversaciones_count = datos.get(partner, 0)
 
     def action_dcasa_ver_conversaciones(self):
+        """Desde Contactos, directo al chat (pedido de la dueña, 2026-11-03): abre la pantalla de Conversaciones con la
+        conversación más reciente de este cliente a la vista (sus otras, de otros canales, salen buscándolo ahí)."""
         self.ensure_one()
-        return {
-            'type': 'ir.actions.act_window',
-            'name': self.env._('Conversaciones de %s', self.display_name),
-            'res_model': 'dcasa.conversacion',
-            'view_mode': 'kanban,list,form',
-            'domain': [('partner_id', '=', self.id)],
-        }
+        conversacion = self.env['dcasa.conversacion'].search([('partner_id', '=', self.id)], limit=1)
+        if not conversacion:
+            raise UserError(self.env._('%s todavía no tiene conversaciones.', self.display_name))
+        return conversacion._accion_abrir_en_panel()
 
     # ------------------------------------------------------------------
     # La ficha de quien escribe por un canal

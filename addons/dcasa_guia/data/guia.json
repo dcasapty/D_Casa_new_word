@@ -2938,6 +2938,45 @@
    ]
   },
   {
+   "id": "juan-reparto-activas",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que Juan solo le pase clientes a las vendedoras que vinieron",
+   "logras": "Juan solo le pasa clientes a la vendedora que usó el sistema (o le escribió a un cliente) en los últimos minutos que pongas. Si no vino, no entró y no recibe, aunque nadie la haya marcado «No disponible». En la pantalla Reparto sale como «Sin actividad».",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "nota": "En Ajustes de Juan, «Recibe solo quien usó el sistema hace poco (minutos)». Viene en 30. 0 = no mirarlo. Solo sirve con el reparto encendido.",
+   "palabras": [
+    "no vino",
+    "turno",
+    "activa",
+    "conectada",
+    "sin actividad",
+    "ausente",
+    "reparto"
+   ]
+  },
+  {
+   "id": "juan-reparto-pasar-a-otra",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Que un cliente pase a otra vendedora si nadie le contesta",
+   "logras": "Si la vendedora a la que le tocó un cliente no le contesta en los minutos que pongas, el cliente pasa solo a otra vendedora activa, queda escrito en la conversación y se le avisa a Gerencia por Telegram. Solo pasa dentro del horario de la tienda.",
+   "destino": {
+    "menu": "dcasa_conversaciones.menu_dcasa_juan_ajustes"
+   },
+   "nota": "En Ajustes de Juan, «Pasar a otra si no contesta (minutos)». Viene en 15. 0 = nunca. No toca las conversaciones que una persona tomó o asignó a mano.",
+   "palabras": [
+    "no contesta",
+    "pasar a otra",
+    "reasignar",
+    "cliente esperando",
+    "reparto",
+    "15 minutos"
+   ]
+  },
+  {
    "id": "juan-disponible",
    "categoria": "tienda",
    "grupo": "Conversaciones",
@@ -2950,6 +2989,25 @@
     "disponible",
     "almuerzo",
     "pausa"
+   ]
+  },
+  {
+   "id": "juan-abrir-chat",
+   "categoria": "tienda",
+   "grupo": "Conversaciones",
+   "titulo": "Ir del CRM o de un contacto a su chat",
+   "logras": "Desde una oportunidad del CRM (el botón «Abrir el chat» o el ícono de globitos en la tarjeta) o desde la ficha de un contacto (el botón «Chat»), se abre la pantalla de Conversaciones con el chat de ese cliente a la vista.",
+   "destino": {
+    "menu": "crm.menu_crm_opportunities"
+   },
+   "palabras": [
+    "chat",
+    "conversacion",
+    "cliente potencial",
+    "oportunidad",
+    "contacto",
+    "abrir el chat",
+    "whatsapp"
    ]
   },
   {

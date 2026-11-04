@@ -206,7 +206,7 @@ class DcasaConversacion(models.Model):
         ahora = fields.Datetime.now()
         for conv in self.sudo().filtered(lambda c: c.estado == 'humano' and c.pausada_hasta
                                          and c.pausada_hasta <= ahora):
-            conv.write({'estado': 'bot', 'pausada_hasta': False})
+            conv.write({'estado': 'bot', 'pausada_hasta': False, 'reparto_desde': False})
             conv._programar_seguimiento(desde=ahora)
 
     def _bot_activo(self, ajustes=None):
@@ -436,6 +436,7 @@ class DcasaConversacion(models.Model):
                 self._marcar_no_contactar(self.env._('El cliente pidió que no lo contactemos.'))
         elif mensaje.autor == 'vendedora':
             valores['seguimiento_proximo'] = False
+            valores['reparto_desde'] = False   # alguien del equipo le contestó (p. ej. desde el teléfono)
             valores.update(self._valores_de_pausa(ajustes, ahora, cambia_a_humano=self.estado != 'humano'))
         self.write(valores)
         if mensaje.autor == 'bot':
@@ -733,8 +734,16 @@ class DcasaConversacion(models.Model):
             valores = {'estado': 'humano', 'pausada_hasta': ahora + timedelta(minutes=minutos) if minutos else False,
                        'seguimiento_proximo': False, 'nota_para_el_bot': False}
             if usuario:
-                valores['asignada_a'] = usuario.id
+                # Una persona la toma: es suya (el reparto ya no la mueve).
+                valores.update({'asignada_a': usuario.id, 'reparto_desde': False})
             conv.write(valores)
+
+    def _accion_abrir_en_panel(self):
+        """La pantalla de Conversaciones con esta conversación a la vista (desde el CRM o la ficha del contacto)."""
+        self.ensure_one()
+        accion = self.env['ir.actions.actions']._for_xml_id('dcasa_conversaciones.accion_conversaciones')
+        accion['params'] = {'conversacion_id': self.id}
+        return accion
 
     def action_atender(self):
         """«Atender»: el asistente calla, la conversación pasa a la vendedora y el Worker se entera."""
@@ -765,6 +774,9 @@ class DcasaConversacion(models.Model):
         horario = self.env['dcasa.juan.ajustes'].obtener().horario()
         self._poner_en_humano(usuario=usuario, minutos=minutos)
         for conv in self.sudo():
+            # Queda en el libro del reparto: quien la tomó la está atendiendo y «pasar a otra si no contesta» no la
+            # toca.
+            conv._registrar_asignacion_a_mano(usuario)
             if conv.pausada_hasta:
                 texto = self.env._('%(quien)s tomó la conversación. El asistente calla hasta %(hasta)s.',
                                    quien=usuario.name, hasta=H.texto_fecha_hora(conv.pausada_hasta, horario))
@@ -780,7 +792,7 @@ class DcasaConversacion(models.Model):
         nota = ' '.join(str(nota or '').split())[:MAX_NOTA_PARA_EL_BOT] or False
         ahora = fields.Datetime.now()
         for conv in self.sudo():
-            conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota})
+            conv.write({'estado': 'bot', 'pausada_hasta': False, 'nota_para_el_bot': nota, 'reparto_desde': False})
             conv._programar_seguimiento(desde=ahora)
             texto = self.env._('%s devolvió la conversación al asistente.', usuario.name)
             if nota:
@@ -792,7 +804,7 @@ class DcasaConversacion(models.Model):
     def _cerrar(self, usuario):
         for conv in self.sudo():
             conv.write({'estado': 'cerrada', 'pausada_hasta': False, 'seguimiento_proximo': False,
-                        'nota_para_el_bot': False})
+                        'nota_para_el_bot': False, 'reparto_desde': False})
             conv._aviso(self.env._('%s cerró la conversación.', usuario.name))
             conv._notificar_panel('estado')
 
@@ -900,7 +912,7 @@ class DcasaConversacion(models.Model):
         conv.write({
             'ultima_actividad': ahora, 'ultimo_mensaje_texto': (texto or self.env._('(adjunto)'))[:140],
             'ultimo_mensaje_autor': 'vendedora', 'seguimiento_proximo': False, 'asignada_a': usuario.id,
-            'nota_para_el_bot': False,
+            'nota_para_el_bot': False, 'reparto_desde': False,
             **conv._valores_de_pausa(ajustes, ahora, cambia_a_humano=la_tomo)})
         mensaje._publicar_en_chatter()
         if la_tomo:

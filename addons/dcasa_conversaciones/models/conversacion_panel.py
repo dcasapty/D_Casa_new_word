@@ -440,12 +440,12 @@ class DcasaConversacionPanel(models.Model):
             usuario = self.env['res.users'].sudo().browse(usuario_id).exists()
             if not usuario or usuario.share or not usuario.has_group(GRUPO_VENDEDORA):
                 raise UserError(self.env._('Solo se puede asignar a alguien del equipo de ventas.'))
-            conv.sudo().write({'asignada_a': usuario.id})
+            conv.sudo().write({'asignada_a': usuario.id, 'reparto_desde': False})
             conv._registrar_asignacion_a_mano(usuario)
             conv._aviso(self.env._('%(quien)s asignó la conversación a %(a)s.', quien=self.env.user.name,
                                    a=usuario.name))
         else:
-            conv.sudo().write({'asignada_a': False})
+            conv.sudo().write({'asignada_a': False, 'reparto_desde': False})
             conv._aviso(self.env._('%s dejó la conversación sin asignar.', self.env.user.name))
         conv._notificar_panel('asignacion')
         return conv._resumen_panel()

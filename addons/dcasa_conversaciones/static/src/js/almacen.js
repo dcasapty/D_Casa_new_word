@@ -1080,8 +1080,11 @@ export class Almacen {
         return this.orm.call(MODELO, "fotos_catalogo", [productoId]);
     }
 
-    async enviarFotoDelCatalogo(productoId, fotos, texto = null) {
-        const r = await this.orm.call(MODELO, "enviar_foto_catalogo", [this.seleccionadaId, productoId, fotos, texto]);
+    /** ``conversacionId``: a qué cliente (por defecto, el que está a la vista). Una tanda de fotos lo fija al empezar
+     * para que, si alguien cambia de conversación a mitad, lo que falta no le llegue a otro cliente. */
+    async enviarFotoDelCatalogo(productoId, fotos, texto = null, conversacionId = null) {
+        const destino = conversacionId || this.seleccionadaId;
+        const r = await this.orm.call(MODELO, "enviar_foto_catalogo", [destino, productoId, fotos, texto]);
         this.actualizarFila(r.conversacion);
         await this.refrescarAbierta();
         if (!r.enviado) {

@@ -88,40 +88,24 @@
                 </section>
 
                 <!-- Cotizaciones abiertas y entregas pendientes, lado a lado y justo debajo de los accesos azules: lo
-                     que más se usa para cerrar en caja (pedido de la dueña, 2026-10-16). Cabecera azul con el número
-                     en amarillo: el amarillo solo toca el azul. -->
+                     que más se usa para cerrar en caja (pedido de la dueña, 2026-10-16). Las de la tienda y las del
+                     chatbot y la web van en paneles aparte para no revolverlas (2026-11-03). Cabecera azul con el
+                     número en amarillo: el amarillo solo toca el azul. -->
                 <div t-if="d.permisos.completo and (d.cotizaciones or d.entregas)" class="o_dcasa_listas">
-                    <section t-if="d.cotizaciones" class="o_dcasa_panel o_dcasa_lista o_dcasa_lista_cotizaciones">
-                        <div class="o_dcasa_lista_cabeza">
-                            <h2><i class="fa fa-file-text-o" aria-hidden="true"/>Cotizaciones abiertas</h2>
-                            <button type="button" class="o_dcasa_lista_cuenta o_dcasa_cifra_cotizaciones"
-                                    t-on-click="() => this.abrirLista(d.cotizaciones.accion)">
-                                <span class="o_dcasa_lista_numero" t-out="d.cotizaciones.cantidad"/>
-                                <span><t t-out="dinero(d.cotizaciones.sin_itbms)"/> sin ITBMS</span>
-                            </button>
-                        </div>
-                        <ul t-if="d.cotizaciones.filas.length" class="list-unstyled mb-0">
-                            <li t-foreach="d.cotizaciones.filas" t-as="fila" t-key="fila.id">
-                                <button type="button" class="o_dcasa_lista_fila"
-                                        t-on-click="() => this.abrirRegistro('sale.order', fila.id)">
-                                    <span class="o_dcasa_lista_texto">
-                                        <strong t-out="fila.cliente or fila.nombre"/>
-                                        <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t>
-                                            <span t-if="fila.origen" class="o_dcasa_origen o_dcasa_origen_chatbot" t-out="fila.origen"/></small>
-                                    </span>
-                                    <span class="o_dcasa_lista_dato">
-                                        <strong t-out="dinero(fila.total)"/> <small>con ITBMS</small>
-                                        <small t-out="espera(fila.dias)"/>
-                                    </span>
-                                </button>
-                            </li>
-                        </ul>
-                        <p t-else="" class="o_dcasa_vacio">No hay cotizaciones abiertas.</p>
-                        <p t-if="d.cotizaciones.cantidad > d.cotizaciones.filas.length" class="o_dcasa_lista_pie">
-                            Las más antiguas primero. <button type="button" class="btn btn-link p-0"
-                                t-on-click="() => this.abrirLista(d.cotizaciones.accion)">Ver las <t t-out="d.cotizaciones.cantidad"/></button>
-                        </p>
-                    </section>
+                    <t t-if="d.cotizaciones" t-call="dcasa_interfaz.InicioCotizaciones">
+                        <t t-set="lista" t-value="d.cotizaciones"/>
+                        <t t-set="clave" t-value="'cotizaciones'"/>
+                        <t t-set="titulo" t-value="'Cotizaciones abiertas en tienda'"/>
+                        <t t-set="icono" t-value="'fa-file-text-o'"/>
+                        <t t-set="vacio" t-value="'No hay cotizaciones abiertas en tienda.'"/>
+                    </t>
+                    <t t-if="d.cotizaciones_en_linea" t-call="dcasa_interfaz.InicioCotizaciones">
+                        <t t-set="lista" t-value="d.cotizaciones_en_linea"/>
+                        <t t-set="clave" t-value="'cotizaciones_en_linea'"/>
+                        <t t-set="titulo" t-value="'Cotizaciones del chatbot y la web'"/>
+                        <t t-set="icono" t-value="'fa-comments-o'"/>
+                        <t t-set="vacio" t-value="'No hay cotizaciones abiertas del chatbot ni de la web.'"/>
+                    </t>
                     <section t-if="d.entregas" class="o_dcasa_panel o_dcasa_lista o_dcasa_lista_entregas">
                         <div class="o_dcasa_lista_cabeza">
                             <h2><i class="fa fa-truck" aria-hidden="true"/>Entregas pendientes</h2>
@@ -528,5 +512,41 @@
                 </section>
             </div>
         </div>
+    </t>
+
+    <!-- Un panel de cotizaciones abiertas del Inicio (el de la tienda o el del chatbot y la web). -->
+    <t t-name="dcasa_interfaz.InicioCotizaciones">
+        <section t-attf-class="o_dcasa_panel o_dcasa_lista o_dcasa_lista_{{clave}}">
+            <div class="o_dcasa_lista_cabeza">
+                <h2><i t-attf-class="fa {{icono}}" aria-hidden="true"/><t t-out="titulo"/></h2>
+                <button type="button" t-attf-class="o_dcasa_lista_cuenta o_dcasa_cifra_{{clave}}"
+                        t-att-aria-label="titulo + ': ver las ' + lista.cantidad"
+                        t-on-click="() => this.abrirLista(lista.accion)">
+                    <span class="o_dcasa_lista_numero" t-out="lista.cantidad"/>
+                    <span><t t-out="dinero(lista.sin_itbms)"/> sin ITBMS</span>
+                </button>
+            </div>
+            <ul t-if="lista.filas.length" class="list-unstyled mb-0">
+                <li t-foreach="lista.filas" t-as="fila" t-key="fila.id">
+                    <button type="button" class="o_dcasa_lista_fila"
+                            t-on-click="() => this.abrirRegistro('sale.order', fila.id)">
+                        <span class="o_dcasa_lista_texto">
+                            <strong t-out="fila.cliente or fila.nombre"/>
+                            <small><t t-out="fila.nombre"/><t t-if="fila.vendedora"> · <t t-out="fila.vendedora"/></t>
+                                <span t-if="fila.origen" t-attf-class="o_dcasa_origen o_dcasa_origen_{{fila.origen.toLowerCase()}}" t-out="fila.origen"/></small>
+                        </span>
+                        <span class="o_dcasa_lista_dato">
+                            <strong t-out="dinero(fila.total)"/> <small>con ITBMS</small>
+                            <small t-out="espera(fila.dias)"/>
+                        </span>
+                    </button>
+                </li>
+            </ul>
+            <p t-else="" class="o_dcasa_vacio" t-out="vacio"/>
+            <p t-if="lista.cantidad > lista.filas.length" class="o_dcasa_lista_pie">
+                Las más antiguas primero. <button type="button" class="btn btn-link p-0"
+                    t-on-click="() => this.abrirLista(lista.accion)">Ver las <t t-out="lista.cantidad"/></button>
+            </p>
+        </section>
     </t>
 </templates>

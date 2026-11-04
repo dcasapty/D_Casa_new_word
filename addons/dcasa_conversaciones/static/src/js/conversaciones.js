@@ -70,7 +70,8 @@ export class DcasaConversaciones extends Component {
         onMounted(async () => {
             // Se lee ANTES de esperar al servidor: el efecto de abajo borra la marca en cuanto la pantalla se monta, y
             // «Abrir» de la pantalla Reparto (y volver a cargar la página) dependen de que todavía esté.
-            const recordada = leerAbierta();
+            // «Abrir el chat» del CRM o de la ficha del contacto manda cuál abrir; si no, la que estaba a la vista.
+            const recordada = Number(this.props.action?.params?.conversacion_id) || leerAbierta();
             document.addEventListener("visibilitychange", this.alVolverAVer);
             this.dejarDeEscucharElTamano = escucharCambioDeTamano(() => this.almacen.alCambiarElTamano());
             this.pulso = setInterval(() => {

@@ -8,7 +8,7 @@
                         <t t-if="local.galeria">Fotos de <t t-out="local.galeria.producto.nombre"/></t>
                         <t t-else="">Foto del catálogo</t>
                     </h2>
-                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-on-click="cerrar">
+                    <button type="button" class="o_dcj_icono_boton" aria-label="Cerrar (Esc)" title="Cerrar (Esc)" t-att-disabled="local.ocupado === 'tanda'" t-on-click="cerrar">
                         <i class="fa fa-times" aria-hidden="true"/>
                     </button>
                 </header>
@@ -16,7 +16,7 @@
                 <!-- Galería de un producto -->
                 <t t-if="local.galeria">
                     <div class="o_dcj_hoja_cuerpo">
-                        <p class="o_dcj_ayuda">Elige las fotos que quieres mandar (hasta <t t-out="almacen.limites.adjuntos"/>). Salen en un solo mensaje con el pie del producto.</p>
+                        <p class="o_dcj_ayuda">Elige las fotos que quieres mandar (hasta <t t-out="almacen.limites.adjuntos"/>). Salen en un solo mensaje con el pie del producto. Con «Agregar a lo elegido» las juntas con las de otros productos.</p>
                         <ul class="o_dcj_galeria">
                             <li t-foreach="local.galeria.fotos" t-as="f" t-key="f.ref">
                                 <button type="button" class="o_dcj_galeria_foto" t-att-class="{ o_activa: local.galeria.elegidas.includes(f.ref) }"
@@ -34,6 +34,8 @@
                         <span class="o_dcj_espaciador"/>
                         <button type="button" class="btn btn-secondary o_dcj_boton" t-att-disabled="!local.galeria.elegidas.length or local.ocupado"
                                 t-on-click="() => this.revisarAntes(local.galeria.producto, local.galeria.elegidas)">Ponerlas en la caja</button>
+                        <button type="button" class="btn btn-secondary o_dcj_boton o_dcj_agregar_elegidas" t-att-disabled="!local.galeria.elegidas.length or local.ocupado"
+                                t-on-click="agregarElegidas">Agregar a lo elegido</button>
                         <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="!local.galeria.elegidas.length or local.ocupado" t-on-click="enviarElegidas">
                             <t t-if="local.ocupado === 'enviar'">Enviando…</t>
                             <t t-else="">Enviar <t t-out="local.galeria.elegidas.length"/> <t t-out="local.galeria.elegidas.length === 1 ? 'foto' : 'fotos'"/></t>
@@ -65,12 +67,19 @@
                                 </div>
                                 <div class="o_dcj_producto_datos">
                                     <strong t-out="p.nombre"/>
+                                    <span t-if="local.enviados.includes(p.id)" class="o_dcj_enviada" role="status"><i class="fa fa-check" aria-hidden="true"/> Enviada</span>
                                     <span class="o_dcj_secundario" t-if="p.codigo" t-out="p.codigo"/>
                                     <span class="o_dcj_precio" t-out="p.precio_texto"/>
                                     <span t-if="p.medidas" class="o_dcj_secundario" t-out="p.medidas"/>
                                     <span t-attf-class="o_dcj_existencia o_dcj_existencia_#{p.disponibilidad}" t-out="etiquetaDeExistencias(p.disponibilidad)"/>
                                 </div>
                                 <div class="o_dcj_producto_acciones">
+                                    <button t-if="p.miniatura" type="button" class="btn btn-secondary o_dcj_boton o_dcj_elegir"
+                                            t-att-class="{ o_activa: enLaTanda(p) }" t-att-aria-pressed="enLaTanda(p) ? 'true' : 'false'"
+                                            t-att-disabled="local.ocupado" t-on-click="() => this.alternarProducto(p)">
+                                        <t t-if="enLaTanda(p)"><i class="fa fa-check-square" aria-hidden="true"/> Elegida<t t-if="enLaTanda(p).fotos.length > 1"> (<t t-out="enLaTanda(p).fotos.length"/>)</t></t>
+                                        <t t-else=""><i class="fa fa-square-o" aria-hidden="true"/> Elegir</t>
+                                    </button>
                                     <button type="button" class="btn btn-primary o_dcj_boton" t-att-disabled="!p.miniatura or local.ocupado"
                                             t-att-title="p.miniatura ? '' : 'Este producto no tiene foto'" t-on-click="() => this.enviarFoto(p)">
                                         <t t-if="local.ocupado === 'enviar' and local.productoOcupado === p.id">Enviando…</t>
@@ -87,6 +96,28 @@
                             Hay <t t-out="local.encontrados"/> productos; se muestran los <t t-out="local.productos.length"/> que mejor coinciden. Afina la búsqueda.
                         </p>
                     </div>
+                    <!-- Lo elegido para mandar junto (de esta búsqueda o de otras) y el cierre: la ventana no se cierra sola. -->
+                    <footer class="o_dcj_hoja_pie o_dcj_tanda">
+                        <t t-if="local.tanda.length">
+                            <ul class="o_dcj_tanda_lista" aria-label="Fotos elegidas">
+                                <li t-foreach="local.tanda" t-as="t" t-key="t.producto.id" class="o_dcj_tanda_item">
+                                    <span t-out="t.producto.nombre"/><t t-if="t.fotos.length > 1"> · <t t-out="t.fotos.length"/> fotos</t>
+                                    <button type="button" class="o_dcj_icono_boton o_dcj_tanda_quitar" t-att-disabled="local.ocupado"
+                                            t-att-aria-label="'Quitar ' + t.producto.nombre" t-att-title="'Quitar ' + t.producto.nombre"
+                                            t-on-click="() => this.alternarProducto(t.producto)"><i class="fa fa-times" aria-hidden="true"/></button>
+                                </li>
+                            </ul>
+                            <button type="button" class="o_dcj_enlace o_dcj_vaciar_tanda" t-att-disabled="local.ocupado" t-on-click="vaciarTanda">Quitar todo</button>
+                        </t>
+                        <span t-else="" class="o_dcj_secundario">Toca «Elegir» en uno o varios productos y mándalas juntas.</span>
+                        <span class="o_dcj_espaciador"/>
+                        <button type="button" class="btn btn-secondary o_dcj_boton o_dcj_listo" t-att-disabled="local.ocupado === 'tanda'" t-on-click="cerrar">Listo</button>
+                        <button t-if="local.tanda.length" type="button" class="btn btn-primary o_dcj_boton o_dcj_enviar_tanda"
+                                t-att-disabled="local.ocupado" t-on-click="enviarTanda">
+                            <t t-if="local.ocupado === 'tanda'">Enviando…</t>
+                            <t t-else="">Enviar <t t-out="fotosDeLaTanda"/> <t t-out="fotosDeLaTanda === 1 ? 'foto' : 'fotos'"/></t>
+                        </button>
+                    </footer>
                 </t>
             </div>
         </div>

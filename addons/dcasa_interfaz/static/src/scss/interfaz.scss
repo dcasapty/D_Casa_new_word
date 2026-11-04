@@ -1015,12 +1015,15 @@
     .o_dcasa_comparar_lado { flex: 1 1 100%; }
 }
 
+// Tres paneles (cotizaciones de la tienda, del chatbot y la web, y entregas): tres columnas en pantalla ancha, dos en
+// una mediana (las entregas bajan) y una en el celular. Se adapta a cuántos paneles haya.
 .o_dcasa_listas {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 16px;
     margin-bottom: 16px;
 
+    @media (min-width: 1200px) { grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); }
     @media (max-width: 991.98px) { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -1209,6 +1212,7 @@
     line-height: 1.5;
     vertical-align: baseline;
     &.o_dcasa_origen_chatbot { background: var(--dc-azul-50); color: var(--dc-azul-700, #0F3591); }
+    &.o_dcasa_origen_web { background: var(--dc-niebla); color: var(--dc-azul-900); }
 }
 
 .o_dcasa_lista_pie {

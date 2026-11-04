@@ -1166,6 +1166,15 @@ Panamá con el horario de 8:00), deja «Disponible» a quien se marcó «No disp
 contenedor estuvo dormido (staging) corre al despertar y no borra pausas marcadas después del corte.
 
 
+## Vendedoras que no vinieron y clientes que nadie contesta (acción planificada, 2026-11-03)
+
+Con el reparto encendido, Juan solo le pasa clientes a la vendedora **activa**: usó Odoo o le escribió a un cliente en los últimos 30 minutos
+(Ajustes de Juan, «Recibe solo quien usó el sistema hace poco»). Cada 5 minutos, dentro del horario, **«Juan: pasar a otra vendedora el cliente
+que nadie contesta»** (`dcasa.reparto._cron_reasignar`) pasa a otra vendedora activa el cliente al que no le contestaron en 15 minutos (Ajustes de
+Juan, «Pasar a otra si no contesta») y avisa a Gerencia por Telegram. Detalle en `docs/JUAN_PANEL.md`. Si una vendedora dice que no le llegan
+clientes: en «Reparto» sale «Sin actividad» hasta que use el sistema.
+
+
 ## Apartados: cuánto duran y qué pasa si el cliente no llega (decisión de la dueña, 2026-10-09 y 2026-10-10)
 
 Un «apartado» es un **pedido** de Odoo (no una factura: la factura nace al cobrar o entregar). Hay dos formas:
