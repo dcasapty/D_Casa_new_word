@@ -15,7 +15,8 @@
                      invisible="not dcasa_falta_contacto or state not in ('draft', 'sent')">
                     <i class="fa fa-address-card-o me-2" aria-hidden="true"/>
                     Al cliente le falta <field name="dcasa_falta_contacto" readonly="1" class="fw-bold"/> (o está mal
-                    escrito): escríbelo en su ficha antes de confirmar. Ahí le llegan su factura y cómo ver sus puntos.
+                    escrito): escríbelo aquí abajo, en sus datos, antes de confirmar. Ahí le llegan su factura y cómo
+                    ver sus puntos.
                     <span invisible="dcasa_cliente_tiene_correo">Si de verdad no tiene correo, marca «Cliente no tiene
                     correo electrónico» aquí abajo.</span>
                 </div>
@@ -25,9 +26,24 @@
             </xpath>
             <xpath expr="//group[@name='partner_details']/field[@name='partner_id']" position="after">
                 <field name="dcasa_cliente_tiene_correo" invisible="1"/>
+                <!-- Los datos del cliente, corregibles aquí mismo (2026-11-04): se guardan en su ficha al guardar. -->
+                <div colspan="2" class="text-muted small o_dcasa_datos_cliente_nota" invisible="not partner_id">
+                    Sus datos: si algo está mal, corrígelo aquí y se guarda en su ficha.
+                </div>
+                <field name="dcasa_cliente_nombre" class="o_dcasa_dato_cliente" string="Nombre" invisible="not partner_id" required="partner_id"
+                       readonly="state == 'cancel'" placeholder="Nombre y apellido"/>
+                <field name="dcasa_cliente_celular" class="o_dcasa_dato_cliente" string="Celular" widget="phone" invisible="not partner_id"
+                       readonly="state == 'cancel'" placeholder="Celular, p. ej. 6123-4567 (de otro país, con +)"/>
+                <field name="dcasa_cliente_fijo" class="o_dcasa_dato_cliente" string="Teléfono fijo" widget="phone" options="{'enable_sms': false}"
+                       invisible="not partner_id or (dcasa_cliente_celular and not dcasa_cliente_fijo)"
+                       readonly="state == 'cancel'" placeholder="Teléfono fijo, p. ej. 234-5678"/>
+                <field name="dcasa_cliente_correo" class="o_dcasa_dato_cliente" string="Correo" widget="email" invisible="not partner_id"
+                       readonly="state == 'cancel'" placeholder="Correo, p. ej. nombre@gmail.com"/>
                 <field name="dcasa_cliente_sin_correo"
                        invisible="not partner_id or (dcasa_cliente_tiene_correo and not dcasa_cliente_sin_correo)"
                        readonly="state not in ('draft', 'sent')"/>
+                <field name="dcasa_cliente_cedula" class="o_dcasa_dato_cliente" string="Cédula o RUC" invisible="not partner_id"
+                       readonly="state == 'cancel'" placeholder="Cédula o RUC, p. ej. 8-123-456"/>
             </xpath>
         </field>
     </record>

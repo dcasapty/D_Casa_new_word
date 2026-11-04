@@ -66,6 +66,36 @@ contacto de empleado y sus direcciones de entrega o de factura, todos con el mis
   defecto queda la ficha que ya está en un programa (socio o vendedor) y, si ninguna lo está, la **más vieja** (como
   pide la etapa 3); el destino se cambia en el asistente.
 
+## Encontrar y corregir fácil, sin salir de la venta (2026-11-04)
+
+Pedido de la dueña: «los clientes escriben por WhatsApp y el sistema los guarda con lo que tengan en su perfil (un
+emoji, una frase, una empresa). Cuando llegan a la tienda, la vendedora pone el nombre y el celular, el celular ya
+estaba y le sale un error; por evitarlo crea otro cliente con otro número. Tiene que ser fácil verificar que es la misma
+persona y actualizar sus datos (nombre, correo mal escrito, cédula, número) sin perder lo que se factura.»
+
+* **El selector de «Cliente» encuentra por celular** (ya lo hacía Socios con los números; ahora también escrito con
+  +507, 00507 o de otro país) y, en la lista que se despliega, **muestra el celular junto al nombre** en gris: se
+  reconoce a la persona aunque su nombre sea el de su perfil. Si se buscó un celular o un correo que no estaba, «Crear y
+  editar» lo pone en el celular o el correo, no en el nombre.
+* **Los datos del cliente dentro de la cotización y la factura:** debajo de «Cliente» salen su nombre, celular, teléfono
+  fijo (si no tiene celular o ya tiene fijo), correo y cédula o RUC, y se corrigen ahí mismo. Al guardar el documento se
+  guardan en su ficha, como quien edita (queda su nombre en el historial) y con las reglas de siempre: bien escrito y sin
+  repetir el celular, el correo ni la cédula de otra ficha. Mientras se escribe sale el aviso («¿Quisiste decir…?» o «Ese
+  celular ya es de «X»: si es la misma persona, cambia el Cliente a «X»»). En la cotización se corrigen mientras no esté
+  cancelada; en la factura, mientras sea borrador (la publicada ya salió con sus datos: se corrige en su ficha).
+* **«Ya existe esta persona» al crear un cliente** (Contactos › Nuevo, «Crear y editar» de la cotización o la factura,
+  «Nuevo cliente» del Inicio): apenas el celular, el correo o la cédula escritos son de otra ficha, sale esa ficha con sus
+  datos y de dónde vino («Llegó por el chat el 03/11/2026»); si no, las de nombre parecido (esto reemplaza al aviso de
+  solo texto de la etapa del 22 de octubre). El botón **«Es esta persona»** abre esa ficha en la misma ventana con lo
+  escrito encima (nombre, correo, cédula, dirección); se revisa y se guarda. Desde la cotización, queda elegida como
+  cliente: la cotización no se toca. Ya no salen las ventanas de error «Ese celular ya está registrado» / «Ya existe esa
+  persona» mientras se crea (al editar una ficha que ya existe, sí). Si de todas formas se toca Guardar, el candado de
+  siempre no deja crear la repetida.
+* No hay atajo en el servidor: «Es esta persona» es la edición normal de esa ficha (mismos permisos y reglas). Solo para
+  el equipo: quien viene del sitio o del chat no ve fichas ajenas. Código: `models/coincidencias.py` (buscar, la lista,
+  «Ya existe esta persona»), `models/datos_del_cliente.py` (cotización y factura) y `static/src/coincidencias/` (el
+  botón); pruebas: `test_coincidencias.py` y `test_coincidencias_navegador.py`.
+
 ## Celular y correo bien escritos y obligatorios (2026-10-16 y 2026-10-17)
 
 Pedido de la dueña: «el vendedor siempre, obligatoriamente, debe capturar el número de teléfono y correo electrónico,

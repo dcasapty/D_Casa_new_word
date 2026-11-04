@@ -28,12 +28,17 @@ class TestFichasParecidas(TransactionCase):
     def test_aviso_al_crear_y_no_bloquea(self):
         with Form(self.env['res.partner'].with_user(self.vendedora)) as ficha:
             ficha.name = 'anabel gomez'
-            self.assertIn('Anabel Gómez Parecida', ficha.dcasa_parecidas_aviso)
-            self.assertIn('6000-0081', ficha.dcasa_parecidas_aviso)
+            # El aviso de la ficha es «Ya existe esta persona» (2026-11-04): incluye las de nombre parecido.
+            parecida = next(c for c in ficha.dcasa_coincidencias if c['id'] == self.ana.id)
+            self.assertFalse(parecida['fuerte'])
+            self.assertIn(['Celular', '6000-0081'], parecida['datos'])
             ficha.phone = '6000-0082'
             ficha.email = 'otra.anabel@example.com'
         self.assertTrue(ficha.record.id, 'se puede crear igual: dos personas pueden llamarse igual')
-        self.assertFalse(ficha.record.dcasa_parecidas_aviso, 'una ficha ya creada no repite el aviso')
+        self.assertFalse(ficha.record.dcasa_coincidencias, 'una ficha ya creada no repite el aviso')
+        # El texto (para Brian) sigue calculándose.
+        nueva = self.env['res.partner'].with_user(self.vendedora).new({'name': 'anabel gomez'})
+        self.assertIn('Anabel Gómez Parecida', nueva.dcasa_parecidas_aviso)
 
     def test_los_empleados_no_cuentan(self):
         self.assertFalse(self.env['res.partner']._dcasa_fichas_parecidas('Rigoberta Empleada Parecida'))

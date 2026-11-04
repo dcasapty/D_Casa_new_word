@@ -5,8 +5,8 @@ personas pueden llamarse igual). Pero una misma persona escrita dos veces con ot
 Aquí se avisa, sin bloquear:
 
 * **Al crear una ficha** (Contactos, «Crear y editar» de la cotización, Nuevo cliente del Inicio): mientras se escribe
-  el nombre, un aviso amarillo muestra las fichas con un nombre parecido («Ojo: ya hay…») para usar esa en vez de
-  crear otra.
+  el nombre, salen las fichas con un nombre parecido para usar esa en vez de crear otra. Desde el 2026-11-04 se ven en
+  «Ya existe esta persona» (``coincidencias.py``), con el botón «Es esta persona»; este texto lo sigue usando Brian.
 * **Brian** (``crear_cliente``, por el chat o por Telegram) busca primero por celular, correo, RUC y nombre parecido;
   si encuentra una parecida, no crea nada y pregunta (para crearla igual, ``confirmar_nuevo``).
 
