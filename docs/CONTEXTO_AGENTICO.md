@@ -507,6 +507,22 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 
 ### Odoo 19
 
+- **Datos de otra ficha editables en un documento (2026-11-04, `dcasa_contactos/models/datos_del_cliente.py`):**
+  (1) un `related` con `readonly=False` reescribe la ficha **en cada guardado que lo incluye**, y el formulario manda
+  todos los campos no-readonly al crear el documento o al cambiar el many2one, aunque estén invisibles: con datos
+  viejos mal escritos ya no se guardaba ni una cotización nueva. (2) Con `compute` + `inverse`, **un solo método para
+  varios campos borra datos**: mientras Odoo corre el inverso, todos los campos de ese mismo cálculo quedan protegidos
+  y se leen vacíos (el inverso los «ve» cambiados a `False` y los escribe). Cada campo con su propio cálculo e inverso
+  (fábrica `metodos_del_dato`), y los booleanos que el inverso necesita, en otro cálculo. (3) `vat` de un contacto con
+  `parent_id` sube a la empresa (campo comercial). Lo encontró la revisión adversarial; las pruebas que crean con
+  `Form` y datos viejos malos lo cubren.
+- **Un `@api.onchange` sobrescrito sin el decorador deja de ser onchange** (Odoo los junta con `getmembers` buscando el
+  atributo `_onchange`): al sobrescribir uno, repetir `@api.onchange(...)` con los mismos campos.
+- **Cambiar de registro dentro de un `FormViewDialog`** (p. ej. «Crear y editar» → «Es esta persona»): desde un widget,
+  `record.model.load({resId, resIds})` y luego `model.root.update(cambios)`. Al guardar, el diálogo llama
+  `onRecordSaved(record)` con el registro cargado y el many2one queda con ese id (`relational_utils.js`,
+  `update([{...record.data, id: record.resId}])`); «Descartar» lo deja vacío.
+
 - **Valuación del inventario en Odoo 19:** ya no existe `stock.valuation.layer`. El valor oficial es
   `product.product.total_value` (y `avg_cost`), calculado según el método de costo (estándar o promedio: unidades ×
   `standard_price`; FIFO: lo que queda de cada entrada) y medido en

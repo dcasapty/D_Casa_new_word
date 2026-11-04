@@ -102,6 +102,27 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-04: tarifas de envío (propuesta, en pausa) y clientes repetidos (buscar por celular, «Es esta persona»)
+
+- **Tarifas de envío (en pausa hasta que Gerencia apruebe):** fórmula con los tres precios de la dueña ($15 cerca, $20 a
+  15 km, $90 a Colón = $6.13 + $0.925/km, mínimo $15, redondeo a $5 por decidir). La extensión de Chrome midió 482
+  corregimientos hasta 300 km en Google; barrios, urbanizaciones, PH y lugares conocidos de La Chorrera, Arraiján,
+  Panamá y San Miguelito salieron de OpenStreetMap y GeoNames (11 299 lugares) con km del calculador de rutas de OSM
+  ajustados a Google. Se le entregó a la dueña **un HTML propio** (`envios-dcasa.html`: buscador por sinónimos, frases y
+  lugares conocidos; viático, honorarios y peaje que Gerencia llena; ajuste proporcional; agregar lugares; copia con
+  ajustes y lista para Excel). **No está en el repositorio** (el repo es público y no dio su «sí»); la matriz y los
+  scripts vivían en el scratchpad de esta sesión. Sigue: que Gerencia apruebe; después, la sección de envíos del sitio
+  y que Juan calcule.
+- **Clientes repetidos (pedido de la dueña):** las vendedoras creaban otro cliente con otro número porque el celular ya
+  existía (lo guardó el chat con la frase de su perfil) y solo salía «Ese celular ya está registrado». Ahora: el
+  selector de «Cliente» encuentra el celular de cualquier forma y lo muestra junto al nombre; los datos del cliente se
+  corrigen dentro de la cotización y la factura borrador (solo lo que cambió va a su ficha); al crear, «Ya existe esta
+  persona» con su ficha y el botón **«Es esta persona»**. Revisión adversarial: 1 alta (cada cotización nueva
+  reescribía la ficha) y 5 medias o bajas, todas corregidas con pruebas; en el arreglo apareció otra (un solo inverso
+  borraba los datos no tocados) que atraparon las pruebas nuevas. Ver `docs/CONTACTOS.md`.
+- Estado: en la rama (`c65e383` y los docs), CI #249 corriendo; **falta el visto bueno de la dueña** para staging y
+  producción.
+
 ### 2026-11-03 (tarde y noche): tres paneles en el Inicio, CRM al chat, vendedoras activas, notas de voz y fotos
 
 - Pedidos de la dueña (con capturas de producción): (1) el Inicio con tres paneles para no revolver: cotizaciones en

@@ -7,6 +7,12 @@ jefe» (<https://claude.ai/code/artifact/8ffcbb80-6521-4e46-a2a7-8ddc59cb20b2>).
 
 Cada etapa sale a staging para que la dueña la vea; a producción solo con su «sí» explícito (por cada etapa).
 
+**Estado al 2026-11-04:** **clientes repetidos** listo en la rama (buscar por celular, corregir sus datos dentro de la
+cotización y la factura, «Ya existe esta persona» con «Es esta persona»), con revisión adversarial y pruebas; espera el
+visto bueno de la dueña para staging y producción. **Tarifas de envío** en pausa: la dueña tiene el HTML con la
+propuesta; cuando Gerencia apruebe (y decida el redondeo, el viático, los honorarios y el peaje), se pasa a la sección de
+envíos del sitio y a Juan. Orden: (1) visto bueno y despliegue de clientes; (2) lo de abajo.
+
 **Estado al 2026-11-03, noche:** **en producción** (Desplegar 39, PR #70) el Inicio con tres paneles (tienda / chatbot y
 web / entregas), el CRM sin «Mi flujo» y con «Abrir el chat» (también «Chat» en Contactos), las notas de voz que se
 escuchan (y las viejas arregladas), fotos de varios productos de una vez, y el reparto que solo le pasa clientes a

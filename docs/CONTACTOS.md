@@ -75,14 +75,17 @@ persona y actualizar sus datos (nombre, correo mal escrito, cédula, número) si
 
 * **El selector de «Cliente» encuentra por celular** (ya lo hacía Socios con los números; ahora también escrito con
   +507, 00507 o de otro país) y, en la lista que se despliega, **muestra el celular junto al nombre** en gris: se
-  reconoce a la persona aunque su nombre sea el de su perfil. Si se buscó un celular o un correo que no estaba, «Crear y
-  editar» lo pone en el celular o el correo, no en el nombre.
+  reconoce a la persona aunque su nombre sea el de su perfil. Si se buscó un celular, una cédula o un correo que no
+  estaba, «Crear y editar» lo pone en su campo, no en el nombre.
 * **Los datos del cliente dentro de la cotización y la factura:** debajo de «Cliente» salen su nombre, celular, teléfono
-  fijo (si no tiene celular o ya tiene fijo), correo y cédula o RUC, y se corrigen ahí mismo. Al guardar el documento se
-  guardan en su ficha, como quien edita (queda su nombre en el historial) y con las reglas de siempre: bien escrito y sin
-  repetir el celular, el correo ni la cédula de otra ficha. Mientras se escribe sale el aviso («¿Quisiste decir…?» o «Ese
-  celular ya es de «X»: si es la misma persona, cambia el Cliente a «X»»). En la cotización se corrigen mientras no esté
-  cancelada; en la factura, mientras sea borrador (la publicada ya salió con sus datos: se corrige en su ficha).
+  fijo, correo y cédula o RUC, y se corrigen ahí mismo. Al guardar el documento, **solo lo que cambió** se guarda en su
+  ficha, como quien edita (Odoo anota en el historial de la ficha quién cambió el nombre, el correo, el celular o el RUC
+  y qué decía antes) y con las reglas de siempre: bien escrito y sin repetir el celular, el correo ni la cédula de otra
+  ficha. Mientras se escribe sale el aviso («¿Quisiste decir…?» o «Ese celular ya es de «X»: si es la misma persona,
+  cambia el Cliente a «X»»). Dónde: la cotización mientras no esté cancelada; la factura, nota o recibo **de cliente**
+  mientras sea borrador (la publicada ya salió con sus datos: se corrige en su ficha); nunca facturas de proveedor. Se
+  ven pero no se escriben: los datos de alguien del equipo (se corrigen en su usuario) y la cédula de un contacto de
+  una empresa (Odoo la subiría al RUC de la empresa, que es el que usa la factura electrónica).
 * **«Ya existe esta persona» al crear un cliente** (Contactos › Nuevo, «Crear y editar» de la cotización o la factura,
   «Nuevo cliente» del Inicio): apenas el celular, el correo o la cédula escritos son de otra ficha, sale esa ficha con sus
   datos y de dónde vino («Llegó por el chat el 03/11/2026»); si no, las de nombre parecido (esto reemplaza al aviso de
@@ -91,6 +94,9 @@ persona y actualizar sus datos (nombre, correo mal escrito, cédula, número) si
   cliente: la cotización no se toca. Ya no salen las ventanas de error «Ese celular ya está registrado» / «Ya existe esa
   persona» mientras se crea (al editar una ficha que ya existe, sí). Si de todas formas se toca Guardar, el candado de
   siempre no deja crear la repetida.
+* Si la que coincide es una **empresa**, sale marcada y «Es esta persona» no le cambia el nombre ni el RUC. Si una ficha
+  **activa** tiene el mismo dato, las archivadas no se ofrecen; reactivar una archivada revisa todas sus llaves (no se
+  reactiva si mientras estuvo archivada otra quedó con su celular, correo o cédula).
 * No hay atajo en el servidor: «Es esta persona» es la edición normal de esa ficha (mismos permisos y reglas). Solo para
   el equipo: quien viene del sitio o del chat no ve fichas ajenas. Código: `models/coincidencias.py` (buscar, la lista,
   «Ya existe esta persona»), `models/datos_del_cliente.py` (cotización y factura) y `static/src/coincidencias/` (el
