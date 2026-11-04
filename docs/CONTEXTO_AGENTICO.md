@@ -364,6 +364,11 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
   `main` (`741930d`, árbol = `de1fb04`) a staging y Desplegar con ese `app_version`. **Regla:** un cambio del borde
   (rutas, `vars`, `workers_dev`) se despliega con un `app_version` que lo contenga, o sea con una imagen construida
   de ese commit.
+- **Desplegar 39** (00:55 UTC del 4 nov, `50b52c6`, imagen `sha256:a167a596…` de CI #247, respaldo previo) · Inicio con
+  tres paneles, CRM al chat, vendedoras activas, notas de voz, fotos de varios productos (PR #70). El staging del CI #247
+  se frenó otra vez en el respaldo previo (61 s, staging dormido); **Desplegar 38** (staging directo con el mismo digest)
+  salió sano. Ya van dos veces: si se repite, que el respaldo previo de staging despierte el sitio y espere antes de
+  pedir el volcado.
 - **Desplegar 37** (05:56 UTC del 3 nov, `594522c`, imagen `sha256:fb452fb7…` de CI #245, respaldo previo) · sano
   05:59 y confirmado 06:10 (versión `594522c77c27`, base al día, humo ok): «Sin leer» = lo que espera a una persona, cotizaciones del
   chatbot y la web que vencen solas, ventas atribuidas en tres (PR #69). CI #243 salió **rojo** en `TestSuperficieRpc`:
@@ -488,6 +493,14 @@ provocan a propósito: ruido). El resultado real está en la línea `✖ Fallaro
 - **Juan y las fotos del chat:** el Worker `dcasa-juan` necesita la variable de texto `URL_PUBLICA` (su propia
   dirección `https://dcasa-juan.dcasapty.workers.dev`, sin `/` final) para que Odoo pueda bajar las fotos, notas de voz y
   stickers; sin ella salía «No se pudo traer 1 archivo». `/salud` de Juan la marca como problema desde el PR #68.
+- **SCSS de Odoo (libsass) no acepta `min()`/`max()` de CSS con unidades mezcladas** (`min(100%, 300px)` → «Incompatible
+  units: 'px' and '%'»): el bundle del backend entero sale con un error y TODAS las pantallas quedan sin estilo (falla
+  `test_bundle_backend_con_la_marca` y, detrás, las pruebas con navegador). Escribirlo como cadena (`#{"min(100%, 300px)"}`,
+  como ya hace `panel.scss`) o evitarlo (2026-11-03).
+- **El servidor de capturas guarda los estilos compilados:** después de cambiar un `.scss`, reiniciar `servidor.sh` antes
+  de repetir las capturas (si no, salen con el estilo viejo).
+- **Un *override* nuevo de un método público de Odoo** (`crm.team.action_your_pipeline`) también va a `LISTA_BLANCA`
+  (`test_superficie_rpc.py`), como `create`/`action_draft` en la tanda anterior.
 - **«Conéctate a Cloudflare y mira las cifras»:** las cifras de Odoo (ventas, inventario) viven en el PostgreSQL del
   contenedor; ningún conector de Cloudflare las lee. Se responden con una pantalla o con Brian, no desde aquí.
 

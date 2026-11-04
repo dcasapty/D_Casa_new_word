@@ -102,6 +102,29 @@ a la dueña lo que ya se contestó. `CLAUDE.md` apunta aquí.
 > Más reciente arriba. Cada entrada: fecha, qué quedó en producción (con el commit), qué quedó solo en staging, qué
 > sigue. Se guardan unas diez; las viejas se resumen en una línea.
 
+### 2026-11-03 (tarde y noche): tres paneles en el Inicio, CRM al chat, vendedoras activas, notas de voz y fotos
+
+- Pedidos de la dueña (con capturas de producción): (1) el Inicio con tres paneles para no revolver: cotizaciones en
+  tienda, del chatbot y la web, y entregas; (2) el CRM abría con «Mi flujo»; (3) los turnos rotan y una vendedora que
+  no vino seguía «disponible» y Juan le pasaba clientes (al retomar, se los pasaba a otra igual de ausente); (4) las
+  notas de voz salían como «adjunto 45 KB» sin reproductor; (5) mandar fotos de varios productos sin que se cierre la
+  ventana; (6) del CRM y de Contactos al chat; (7) cómo se limpian los chats.
+- Decisiones (preguntadas con opciones): vendedoras = **«conectada + pasa a otra»** (30 min de actividad, 15 min sin
+  contestar, ambos en Ajustes de Juan); chats viejos = **dejarlo como está** (una conversación por cliente y canal, la
+  lista carga de 30 en 30, nada se borra solo).
+- Causa de las notas de voz: WhatsApp manda `audio/ogg; codecs=opus`; `mime_seguro` rechazaba el `;` y Odoo, sin
+  libmagic, no reconoce OGG → `application/octet-stream` «adjunto». Arreglo, respaldo al leer y migración `19.0.1.3.0`
+  (solo WhatsApp y Telegram).
+- Revisión adversarial (tocaba a quién se le asignan los clientes): 1 alta (el cron le quitaba el cliente a quien ya
+  contestó si el cliente decía «ok, gracias», y le decía a Gerencia que no contestó) y 8 medias o bajas; todo corregido
+  con el campo `dcasa.conversacion.reparto_desde` y pruebas. Además, el «ya avisé a una vendedora» de Juan queda como
+  último mensaje: el cron no mira quién escribió último.
+- **En producción:** Desplegar 39 (PR #70, `50b52c6`, imagen `sha256:a167a596…` de CI #247; staging en Desplegar 38
+  porque el del CI se frenó en el respaldo previo con staging dormido). Juan no cambió (sin Desplegar Juan).
+- Sigue: que la dueña lo vea de verdad (Inicio, CRM, una nota de voz nueva, «Elegir» fotos, Reparto); prender el Reparto
+  «Parejo» si todavía no (la regla de actividad y «pasar a otra» solo corren con el reparto encendido); Telegram de cada
+  vendedora para que les lleguen los «Te tocó a ti».
+
 ### 2026-11-02 (tarde) y 2026-11-03 (madrugada): Juan en el WhatsApp de la tienda, medios en el chat, origen y cotizaciones que vencen
 
 - **Juan atiende el WhatsApp de la tienda (+507 6026-1919) por la API oficial de Meta** desde las 20:26 UTC del 2 nov
